@@ -1,0 +1,7 @@
+Import('*')
+
+SimObject('Accelerator.py')
+
+Source('daxpy.cc')
+
+DebugFlag('Accel')
