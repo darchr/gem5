@@ -1143,7 +1143,6 @@ BaseKvmCPU::doMMIOAccess(Addr paddr, void *data, int size, bool write)
         const Cycles ipr_delay(write ?
                              TheISA::handleIprWrite(tc, pkt) :
                              TheISA::handleIprRead(tc, pkt));
-        threadContextDirty = true;
         delete pkt->req;
         delete pkt;
         return clockPeriod() * ipr_delay;
