@@ -186,10 +186,12 @@ static void
 dumpKvm(const char *reg_name, const struct kvm_segment &seg)
 {
     inform("\t%s: @0x%llx+%x [sel: 0x%x, type: 0x%x]\n"
-           "\t\tpres.: %u, dpl: %u, db: %u, s: %u, l: %u, g: %u, avl: %u, unus.: %u\n",
+           "\t\tpres.: %u, dpl: %u, db: %u, s: %u, l: %u, g: %u, avl: %u, "
+           "unus.: %u\n",
            reg_name,
            seg.base, seg.limit, seg.selector, seg.type,
-           seg.present, seg.dpl, seg.db, seg.s, seg.l, seg.g, seg.avl, seg.unusable);
+           seg.present, seg.dpl, seg.db, seg.s, seg.l, seg.g, seg.avl,
+           seg.unusable);
 }
 
 static void

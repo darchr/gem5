@@ -160,6 +160,19 @@ class PerfKvmCounterConfig
         return *this;
     }
 
+    /**
+     * Exclude the hyper visor (i.e., only include events from the
+     * guest system).
+     *
+     * @warn This is attribute only seems to be ignored on Intel.
+     *
+     * @param val true to exclude host events
+     */
+    PerfKvmCounterConfig &exclude_kernel(bool val) {
+        attr.exclude_kernel = val;
+        return *this;
+    }
+
     /** Underlying perf_event_attr structure describing the counter */
     struct perf_event_attr attr;
 };

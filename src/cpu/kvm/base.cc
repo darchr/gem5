@@ -1290,6 +1290,7 @@ BaseKvmCPU::setupCounters()
     // exclude_host since different architectures use slightly
     // different APIs in the kernel.
     cfgCycles.exclude_hv(true)
+        .exclude_kernel(true)
         .exclude_host(true);
 
     if (perfControlledByTimer) {
@@ -1368,6 +1369,7 @@ BaseKvmCPU::setupInstCounter(uint64_t period)
     // exclude_host since different architectures use slightly
     // different APIs in the kernel.
     cfgInstructions.exclude_hv(true)
+        .exclude_kernel(true)
         .exclude_host(true);
 
     if (period) {

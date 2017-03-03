@@ -233,7 +233,7 @@ Kvm::getSupportedMSRs(struct kvm_msr_list &msrs) const
         if (errno == E2BIG)
             return false;
         else
-            panic("KVM: Failed to get supported CPUID (errno: %i)\n", errno);
+            panic("KVM: Failed to get supported MSRs (errno: %i)\n", errno);
     } else
         return true;
 }
