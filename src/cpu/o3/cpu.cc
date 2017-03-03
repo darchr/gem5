@@ -457,11 +457,21 @@ FullO3CPU<Impl>::regStats()
         .desc("Number of Instructions Simulated")
         .flags(Stats::total);
 
+    committedUserInsts
+        .init(numThreads)
+        .name(name() + ".committedUserInsts")
+        .desc("Number of User-mode Instructions Simulated")
+        .flags(Stats::total);
+
     committedOps
         .init(numThreads)
         .name(name() + ".committedOps")
         .desc("Number of Ops (including micro ops) Simulated")
         .flags(Stats::total);
+
+    numUserCycles
+        .name(name() + ".numUserCycles")
+        .desc("Number of active cycles in user mode");
 
     cpi
         .name(name() + ".cpi")
@@ -545,6 +555,10 @@ FullO3CPU<Impl>::tick()
 
     ++numCycles;
     ppCycles->notify(1);
+
+    if (TheISA::inUserMode(thread[0]->getTC())) {
+        numUserCycles++;
+    }
 
 //    activity = false;
 
@@ -1439,6 +1453,10 @@ FullO3CPU<Impl>::instDone(ThreadID tid, DynInstPtr &inst)
         thread[tid]->numInsts++;
         committedInsts[tid]++;
         system->totalNumInsts++;
+
+        if (TheISA::inUserMode(thread[tid]->getTC())) {
+            committedUserInsts[tid]++;
+        }
 
         // Check for instruction-count-based events.
         comInstEventQueue[tid]->serviceEvents(thread[tid]->numInst);

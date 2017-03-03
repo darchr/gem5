@@ -705,6 +705,10 @@ class FullO3CPU : public BaseO3CPU
     Stats::Scalar quiesceCycles;
     /** Stat for the number of committed instructions per thread. */
     Stats::Vector committedInsts;
+    /** Stat for the number of committed user-mode instructions per thread.*/
+    Stats::Vector committedUserInsts;
+    /** Stat for the number of cycles in user mode. */
+    Stats::Scalar numUserCycles;
     /** Stat for the number of committed ops (including micro ops) per thread. */
     Stats::Vector committedOps;
     /** Stat for the CPI per thread. */
