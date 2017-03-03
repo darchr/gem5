@@ -117,6 +117,32 @@ TLB::insert(Addr vpn, TlbEntry &entry)
     return newEntry;
 }
 
+void
+TLB::takeOverFrom(BaseTLB *otlb)
+{
+    TLB *old = dynamic_cast<TLB*>(otlb);
+    fatal_if(!old, "Invalid TLB type to takeOverFrom.\n");
+    fatal_if(size != old->size, "Cannot takeOverFrom different size TLB.\n");
+
+    flushAll();
+    trie.clear();
+
+    for (int i = 0; i < size; i++) {
+        if (old->tlb[i].trieHandle) {
+            TlbEntry *entry = freeList.front();
+            freeList.pop_front();
+
+            // Copy over all of the entries information
+            *entry = old->tlb[i];
+
+            entry->trieHandle = trie.insert(entry->vaddr,
+                TlbEntryTrie::MaxBits - entry->logBytes, entry);
+        }
+    }
+
+    lruSeq = old->lruSeq;
+}
+
 TlbEntry *
 TLB::lookup(Addr va, bool update_lru)
 {
