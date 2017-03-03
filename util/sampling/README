@@ -1,0 +1,19 @@
+------------------------------------------------------------
+     TARDIS: Statistical Sampling Utilities for gem5
+------------------------------------------------------------
+
+Requirements
+- python packages :
+    termcolor
+    scipy
+    numpy
+    pandas
+
+Description:
+
+    TBD
+
+Good to have:
+   Be able to cache parsed stats in the run directory.
+   (have done this previously, just need to do this
+   cleanly such that any updates makes the cache invalid)
