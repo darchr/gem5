@@ -53,11 +53,13 @@
 #include "base/trace.hh"
 #include "debug/AddrRanges.hh"
 #include "debug/CoherentXBar.hh"
+#include "debug/DRAMCache.hh"
 #include "sim/system.hh"
 
 CoherentXBar::CoherentXBar(const CoherentXBarParams *p)
     : BaseXBar(p), system(p->system), snoopFilter(p->snoop_filter),
       snoopResponseLatency(p->snoop_response_latency),
+      filterCleanWBs(p->filter_clean_writebacks),
       pointOfCoherency(p->point_of_coherency)
 {
     // create the ports based on the size of the master and slave
@@ -237,6 +239,7 @@ CoherentXBar::recvTimingReq(PacketPtr pkt, PortID slave_port_id)
     if (sink_packet) {
         DPRINTF(CoherentXBar, "%s: Not forwarding %s\n", __func__,
                 pkt->print());
+        sinks++;
     } else {
         // determine if we are forwarding the packet, or responding to
         // it
@@ -303,8 +306,8 @@ CoherentXBar::recvTimingReq(PacketPtr pkt, PortID slave_port_id)
                 assert(routeTo.find(pkt->req) == routeTo.end());
                 routeTo[pkt->req] = slave_port_id;
 
-                panic_if(routeTo.size() > 512,
-                         "Routing table exceeds 512 packets\n");
+                panic_if(routeTo.size() > 2048,
+                         "Routing table exceeds 2048 packets\n");
             }
 
             // update the layer state and schedule an idle event
@@ -387,6 +390,16 @@ CoherentXBar::recvTimingResp(PacketPtr pkt, PortID master_port_id)
     if (snoopFilter && !system->bypassCaches()) {
         // let the snoop filter inspect the response and update its state
         snoopFilter->updateResponse(pkt, *slavePorts[slave_port_id]);
+    }
+
+    // If we want to filter clean writebacks from the larger cache,
+    // the track the addresses we should filter.
+    if (filterCleanWBs) {
+        if (pkt->isResponseFromCache()) {
+            DPRINTF(DRAMCache, "Adding %#llx to filter\n",
+                    pkt->getAddr());
+            toFilter.insert(pkt->getAddr());
+        }
     }
 
     // send the packet through the destination slave port and pay for
@@ -682,10 +695,21 @@ CoherentXBar::recvAtomic(PacketPtr pkt, PortID slave_port_id)
     if (sink_packet) {
         DPRINTF(CoherentXBar, "%s: Not forwarding %s\n", __func__,
                 pkt->print());
+        sinks++;
     } else {
         if (!pointOfCoherency || pkt->isRead() || pkt->isWrite()) {
             // forward the request to the appropriate destination
             response_latency = masterPorts[master_port_id]->sendAtomic(pkt);
+
+            // If we want to filter clean writebacks from the larger cache,
+            // the track the addresses we should filter.
+            if (filterCleanWBs) {
+                if (pkt->isResponseFromCache()) {
+                    DPRINTF(DRAMCache, "Adding %#llx to filter\n",
+                            pkt->getAddr());
+                            toFilter.insert(pkt->getAddr());
+                }
+            }
         } else {
             // if it does not need a response we sink the packet above
             assert(pkt->needsResponse());
@@ -920,7 +944,7 @@ CoherentXBar::forwardFunctional(PacketPtr pkt, PortID exclude_slave_port_id)
 }
 
 bool
-CoherentXBar::sinkPacket(const PacketPtr pkt) const
+CoherentXBar::sinkPacket(const PacketPtr pkt)
 {
     // we can sink the packet if:
     // 1) the crossbar is the point of coherency, and a cache is
@@ -935,12 +959,37 @@ CoherentXBar::sinkPacket(const PacketPtr pkt) const
     //    that has promised to respond (setting the cache responding
     //    flag) is providing writable and thus had a Modified block,
     //    and no further action is needed
-    return (pointOfCoherency && pkt->cacheResponding()) ||
+    bool orig_return = (pointOfCoherency && pkt->cacheResponding()) ||
         (pointOfCoherency && !(pkt->isRead() || pkt->isWrite()) &&
          !pkt->needsResponse()) ||
         (pkt->isCleanEviction() && pkt->isBlockCached()) ||
         (pkt->cacheResponding() &&
          (!pkt->needsWritable() || pkt->responderHadWritable()));
+
+    // Let's also check to see if we should filter any writebacks because
+    // they are already cached in the larger cache backing this Xbar
+    bool filter_wb = false;
+    if (filterCleanWBs && !(pkt->isCleanEviction() && pkt->isBlockCached())) {
+        auto it = toFilter.find(pkt->getAddr());
+        if (it != toFilter.end()) {
+            // If we find a match in the set, go ahead and erase it along with
+            // filtering it since we'll never see this again.
+            // Really, the information in toFilter would be in the (SRAM)
+            // caches on chip.
+            toFilter.erase(it);
+            filter_wb = true;
+            sinkWB++;
+            if (!orig_return) {
+                uniqueSinks++;
+            }
+        }
+        // Even if we found it, if this is a dirty writeback (or something
+        // else), then we cannot filter it out.
+        if (pkt->cmd != MemCmd::WritebackClean) {
+            filter_wb = false;
+        }
+    }
+    return filter_wb || orig_return;
 }
 
 void
@@ -969,6 +1018,21 @@ CoherentXBar::regStats()
         .init(0, snoopPorts.size(), 1)
         .name(name() + ".snoop_fanout")
         .desc("Request fanout histogram")
+    ;
+
+    sinkWB
+        .name(name() + ".sinkWB")
+        .desc("")
+    ;
+
+    sinks
+        .name(name() + ".sinks")
+        .desc("")
+    ;
+
+    uniqueSinks
+        .name(name() + ".uniqueSinks")
+        .desc("")
     ;
 }
 

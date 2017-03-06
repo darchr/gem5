@@ -53,6 +53,8 @@
 
 #include <unordered_set>
 
+#include <set>
+
 #include "mem/snoop_filter.hh"
 #include "mem/xbar.hh"
 #include "params/CoherentXBar.hh"
@@ -275,8 +277,18 @@ class CoherentXBar : public BaseXBar
     /** Cycles of snoop response latency.*/
     const Cycles snoopResponseLatency;
 
+    /** Is this crossbar responsible for filtering clean writebacks from
+     *  higher levels of caches?
+     */
+    const bool filterCleanWBs;
+
     /** Is this crossbar the point of coherency? **/
     const bool pointOfCoherency;
+
+    /**
+     * A set of addresses that we should filter clean writebacks on.
+     */
+    std::set<Addr> toFilter;
 
     /**
      * Upstream caches need this packet until true is returned, so
@@ -393,11 +405,15 @@ class CoherentXBar : public BaseXBar
      * Determine if the crossbar should sink the packet, as opposed to
      * forwarding it, or responding.
      */
-    bool sinkPacket(const PacketPtr pkt) const;
+    bool sinkPacket(const PacketPtr pkt);
 
     Stats::Scalar snoops;
     Stats::Scalar snoopTraffic;
     Stats::Distribution snoopFanout;
+
+    Stats::Scalar sinks;
+    Stats::Scalar sinkWB;
+    Stats::Scalar uniqueSinks;
 
   public:
 

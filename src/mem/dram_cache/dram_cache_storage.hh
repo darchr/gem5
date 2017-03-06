@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 ARM Limited
+ * Copyright (c) 2012-2015 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -41,32 +41,33 @@
  *          Ani Udipi
  *          Neha Agarwal
  *          Omar Naji
- *          Matthias Jung
- *          Wendy Elsasser
+ *          Jason Lowe-Power
  */
 
 /**
  * @file
- * DRAMCtrl declaration
+ * DRAMCacheStorage declaration
  */
 
-#ifndef __MEM_DRAM_CTRL_HH__
-#define __MEM_DRAM_CTRL_HH__
+#ifndef __MEM_DRAM_CACHE_DRAM_CACHE_STORAGE_HH__
+#define __MEM_DRAM_CACHE_DRAM_CACHE_STORAGE_HH__
 
 #include <deque>
 #include <string>
 #include <unordered_set>
 
-#include "base/callback.hh"
 #include "base/statistics.hh"
 #include "enums/AddrMap.hh"
 #include "enums/MemSched.hh"
 #include "enums/PageManage.hh"
-#include "mem/abstract_mem.hh"
-#include "mem/qport.hh"
-#include "params/DRAMCtrl.hh"
-#include "sim/eventq.hh"
 #include "mem/drampower.hh"
+#include "mem/mem_object.hh"
+#include "mem/qport.hh"
+#include "params/DRAMCacheStorage.hh"
+#include "sim/eventq.hh"
+#include "sim/system.hh"
+
+class DRAMCacheCtrl;
 
 /**
  * The DRAM controller is a single-channel memory controller capturing
@@ -88,50 +89,26 @@
  * controllers for future system architecture exploration",
  * Proc. ISPASS, 2014. If you use this model as part of your research
  * please cite the paper.
- *
- * The low-power functionality implements a staggered powerdown
- * similar to that described in "Optimized Active and Power-Down Mode
- * Refresh Control in 3D-DRAMs" by Jung et al, VLSI-SoC, 2014.
  */
-class DRAMCtrl : public AbstractMemory
+class DRAMCacheStorage : public MemObject
 {
 
   private:
 
-    // For now, make use of a queued slave port to avoid dealing with
-    // flow control for the responses being sent back
-    class MemoryPort : public QueuedSlavePort
-    {
+    // The controller this storage is connected to.
+    DRAMCacheCtrl *controller;
 
-        RespPacketQueue queue;
-        DRAMCtrl& memory;
+    // System object
+    System* system;
 
-      public:
+    // Address range of this memory
+    AddrRange range;
 
-        MemoryPort(const std::string& name, DRAMCtrl& _memory);
+    // Pointer to host memory used to implement this memory
+    uint8_t* pmemAddr;
 
-      protected:
-
-        Tick recvAtomic(PacketPtr pkt);
-
-        void recvFunctional(PacketPtr pkt);
-
-        bool recvTimingReq(PacketPtr);
-
-        virtual AddrRangeList getAddrRanges() const;
-
-    };
-
-    /**
-     * Our incoming port, for a multi-ported controller add a crossbar
-     * in front of it
-     */
-    MemoryPort port;
-
-    /**
-     * Remeber if the memory system is in timing mode
-     */
-    bool isTimingMode;
+    // Size of the cache blocks
+    unsigned blockSize;
 
     /**
      * Remember if we have to retry a request when available.
@@ -145,28 +122,12 @@ class DRAMCtrl : public AbstractMemory
      */
     enum BusState {
         READ = 0,
+        READ_TO_WRITE,
         WRITE,
+        WRITE_TO_READ
     };
 
     BusState busState;
-
-    /* bus state for next request event triggered */
-    BusState busStateNext;
-
-    /**
-     * Simple structure to hold the values needed to keep track of
-     * commands for DRAMPower
-     */
-    struct Command {
-       Data::MemCommand::cmds type;
-       uint8_t bank;
-       Tick timeStamp;
-
-       constexpr Command(Data::MemCommand::cmds _type, uint8_t _bank,
-                         Tick time_stamp)
-            : type(_type), bank(_bank), timeStamp(time_stamp)
-        { }
-    };
 
     /**
      * A basic class to track the bank state, i.e. what row is
@@ -204,82 +165,6 @@ class DRAMCtrl : public AbstractMemory
 
 
     /**
-     * The power state captures the different operational states of
-     * the DRAM and interacts with the bus read/write state machine,
-     * and the refresh state machine.
-     *
-     * PWR_IDLE      : The idle state in which all banks are closed
-     *                 From here can transition to:  PWR_REF, PWR_ACT,
-     *                 PWR_PRE_PDN
-     *
-     * PWR_REF       : Auto-refresh state.  Will transition when refresh is
-     *                 complete based on power state prior to PWR_REF
-     *                 From here can transition to:  PWR_IDLE, PWR_PRE_PDN,
-     *                 PWR_SREF
-     *
-     * PWR_SREF      : Self-refresh state.  Entered after refresh if
-     *                 previous state was PWR_PRE_PDN
-     *                 From here can transition to:  PWR_IDLE
-     *
-     * PWR_PRE_PDN   : Precharge power down state
-     *                 From here can transition to:  PWR_REF, PWR_IDLE
-     *
-     * PWR_ACT       : Activate state in which one or more banks are open
-     *                 From here can transition to:  PWR_IDLE, PWR_ACT_PDN
-     *
-     * PWR_ACT_PDN   : Activate power down state
-     *                 From here can transition to:  PWR_ACT
-     */
-     enum PowerState {
-         PWR_IDLE = 0,
-         PWR_REF,
-         PWR_SREF,
-         PWR_PRE_PDN,
-         PWR_ACT,
-         PWR_ACT_PDN
-     };
-
-    /**
-     * The refresh state is used to control the progress of the
-     * refresh scheduling. When normal operation is in progress the
-     * refresh state is idle. Once tREFI has elasped, a refresh event
-     * is triggered to start the following STM transitions which are
-     * used to issue a refresh and return back to normal operation
-     *
-     * REF_IDLE      : IDLE state used during normal operation
-     *                 From here can transition to:  REF_DRAIN
-     *
-     * REF_SREF_EXIT : Exiting a self-refresh; refresh event scheduled
-     *                 after self-refresh exit completes
-     *                 From here can transition to:  REF_DRAIN
-     *
-     * REF_DRAIN     : Drain state in which on going accesses complete.
-     *                 From here can transition to:  REF_PD_EXIT
-     *
-     * REF_PD_EXIT   : Evaluate pwrState and issue wakeup if needed
-     *                 Next state dependent on whether banks are open
-     *                 From here can transition to:  REF_PRE, REF_START
-     *
-     * REF_PRE       : Close (precharge) all open banks
-     *                 From here can transition to:  REF_START
-     *
-     * REF_START     : Issue refresh command and update DRAMPower stats
-     *                 From here can transition to:  REF_RUN
-     *
-     * REF_RUN       : Refresh running, waiting for tRFC to expire
-     *                 From here can transition to:  REF_IDLE, REF_SREF_EXIT
-     */
-     enum RefreshState {
-         REF_IDLE = 0,
-         REF_DRAIN,
-         REF_PD_EXIT,
-         REF_SREF_EXIT,
-         REF_PRE,
-         REF_START,
-         REF_RUN
-     };
-
-    /**
      * Rank class includes a vector of banks. Refresh and Power state
      * machines are defined per rank. Events required to change the
      * state of the refresh and power state machine are scheduled per
@@ -292,25 +177,69 @@ class DRAMCtrl : public AbstractMemory
       private:
 
         /**
-         * A reference to the parent DRAMCtrl instance
+         * The power state captures the different operational states of
+         * the DRAM and interacts with the bus read/write state machine,
+         * and the refresh state machine. In the idle state all banks are
+         * precharged. From there we either go to an auto refresh (as
+         * determined by the refresh state machine), or to a precharge
+         * power down mode. From idle the memory can also go to the active
+         * state (with one or more banks active), and in turn from there
+         * to active power down. At the moment we do not capture the deep
+         * power down and self-refresh state.
          */
-        DRAMCtrl& memory;
+        enum PowerState {
+            PWR_IDLE = 0,
+            PWR_REF,
+            PWR_PRE_PDN,
+            PWR_ACT,
+            PWR_ACT_PDN
+        };
+
+        /**
+         * The refresh state is used to control the progress of the
+         * refresh scheduling. When normal operation is in progress the
+         * refresh state is idle. From there, it progresses to the refresh
+         * drain state once tREFI has passed. The refresh drain state
+         * captures the DRAM row active state, as it will stay there until
+         * all ongoing accesses complete. Thereafter all banks are
+         * precharged, and lastly, the DRAM is refreshed.
+         */
+        enum RefreshState {
+            REF_IDLE = 0,
+            REF_DRAIN,
+            REF_PRE,
+            REF_RUN
+        };
+
+        /**
+         * A reference to the parent DRAMCacheStorage instance
+         */
+        DRAMCacheStorage& memory;
 
         /**
          * Since we are taking decisions out of order, we need to keep
-         * track of what power transition is happening at what time
+         * track of what power transition is happening at what time, such
+         * that we can go back in time and change history. For example, if
+         * we precharge all banks and schedule going to the idle state, we
+         * might at a later point decide to activate a bank before the
+         * transition to idle would have taken place.
          */
         PowerState pwrStateTrans;
 
         /**
-         * Previous low-power state, which will be re-entered after refresh.
+         * Current power state.
          */
-        PowerState pwrStatePostRefresh;
+        PowerState pwrState;
 
         /**
          * Track when we transitioned to the current power state
          */
         Tick pwrStateTick;
+
+        /**
+         * current refresh state
+         */
+        RefreshState refreshState;
 
         /**
          * Keep track of when a refresh is due.
@@ -336,29 +265,8 @@ class DRAMCtrl : public AbstractMemory
          */
         Stats::Scalar preBackEnergy;
 
-        /*
-         * Active Power-Down Energy
-         */
-        Stats::Scalar actPowerDownEnergy;
-
-        /*
-         * Precharge Power-Down Energy
-         */
-        Stats::Scalar prePowerDownEnergy;
-
-        /*
-         * self Refresh Energy
-         */
-        Stats::Scalar selfRefreshEnergy;
-
         Stats::Scalar totalEnergy;
         Stats::Scalar averagePower;
-
-        /**
-         * Stat to track total DRAM idle time
-         *
-         */
-        Stats::Scalar totalIdleTime;
 
         /**
          * Track time spent in each power state.
@@ -382,59 +290,15 @@ class DRAMCtrl : public AbstractMemory
       public:
 
         /**
-         * Current power state.
-         */
-        PowerState pwrState;
-
-       /**
-         * current refresh state
-         */
-        RefreshState refreshState;
-
-        /**
-         * rank is in or transitioning to power-down or self-refresh
-         */
-        bool inLowPowerState;
-
-        /**
          * Current Rank index
          */
         uint8_t rank;
 
-       /**
-         * Track number of packets in read queue going to this rank
-         */
-        uint32_t readEntries;
-
-       /**
-         * Track number of packets in write queue going to this rank
-         */
-        uint32_t writeEntries;
-
-        /**
-         * Number of ACT, RD, and WR events currently scheduled
-         * Incremented when a refresh event is started as well
-         * Used to determine when a low-power state can be entered
-         */
-        uint8_t outstandingEvents;
-
-        /**
-         * delay power-down and self-refresh exit until this requirement is met
-         */
-        Tick wakeUpAllowedAt;
-
         /**
          * One DRAMPower instance per rank
          */
-        DRAMPower power;
-
-        /**
-         * List of comamnds issued, to be sent to DRAMPpower at refresh
-         * and stats dump.  Keep commands here since commands to different
-         * banks are added out of order.  Will only pass commands up to
-         * curTick() to DRAMPower after sorting.
-         */
-        std::vector<Command> cmdList;
+        // TODO
+        // DRAMPower power;
 
         /**
          * Vector of Banks. Each rank is made of several devices which in
@@ -451,7 +315,7 @@ class DRAMCtrl : public AbstractMemory
         /** List to keep track of activate ticks */
         std::deque<Tick> actTicks;
 
-        Rank(DRAMCtrl& _memory, const DRAMCtrlParams* _p);
+        Rank(DRAMCacheStorage& _memory, const DRAMCacheStorageParams* _p);
 
         const std::string name() const
         {
@@ -473,46 +337,10 @@ class DRAMCtrl : public AbstractMemory
 
         /**
          * Check if the current rank is available for scheduling.
-         * Rank will be unavailable if refresh is ongoing.
-         * This includes refresh events explicitly scheduled from the the
-         * controller or memory initiated events which will occur during
-         * self-refresh mode.
          *
          * @param Return true if the rank is idle from a refresh point of view
          */
         bool isAvailable() const { return refreshState == REF_IDLE; }
-
-        /**
-         * Check if the current rank has all banks closed and is not
-         * in a low power state
-         *
-         * @param Return true if the rank is idle from a bank
-         *        and power point of view
-         */
-        bool inPwrIdleState() const { return pwrState == PWR_IDLE; }
-
-        /**
-         * Trigger a self-refresh exit if there are entries enqueued
-         * Exit if there are any read entries regardless of the bus state.
-         * If we are currently issuing write commands, exit if we have any
-         * write commands enqueued as well.
-         * Could expand this in the future to analyze state of entire queue
-         * if needed.
-         *
-         * @return boolean indicating self-refresh exit should be scheduled
-         */
-        bool forceSelfRefreshExit() const {
-            return (readEntries != 0) ||
-                   ((memory.busStateNext == WRITE) && (writeEntries != 0));
-        }
-
-        /**
-         * Check if the current rank is idle and should enter a low-pwer state
-         *
-         * @param Return true if the there are no read commands in Q
-         *                    and there are no outstanding events
-         */
-        bool lowPowerEntryReady() const;
 
         /**
          * Let the rank check if it was waiting for requests to drain
@@ -520,44 +348,10 @@ class DRAMCtrl : public AbstractMemory
          */
         void checkDrainDone();
 
-        /**
-         * Push command out of cmdList queue that are scheduled at
-         * or before curTick() to DRAMPower library
-         * All commands before curTick are guaranteed to be complete
-         * and can safely be flushed.
-         */
-        void flushCmdList();
-
         /*
          * Function to register Stats
          */
         void regStats();
-
-        /**
-         * Computes stats just prior to dump event
-         */
-        void computeStats();
-
-        /**
-         * Schedule a transition to power-down (sleep)
-         *
-         * @param pwr_state Power state to transition to
-         * @param tick Absolute tick when transition should take place
-         */
-        void powerDownSleep(PowerState pwr_state, Tick tick);
-
-       /**
-         * schedule and event to wake-up from power-down or self-refresh
-         * and update bank timing parameters
-         *
-         * @param exit_delay Relative tick defining the delay required between
-         *                   low-power exit and the next command
-         */
-        void scheduleWakeUpEvent(Tick exit_delay);
-
-        void processWriteDoneEvent();
-        EventWrapper<Rank, &Rank::processWriteDoneEvent>
-        writeDoneEvent;
 
         void processActivateEvent();
         EventWrapper<Rank, &Rank::processActivateEvent>
@@ -575,22 +369,6 @@ class DRAMCtrl : public AbstractMemory
         EventWrapper<Rank, &Rank::processPowerEvent>
         powerEvent;
 
-        void processWakeUpEvent();
-        EventWrapper<Rank, &Rank::processWakeUpEvent>
-        wakeUpEvent;
-
-    };
-
-    // define the process to compute stats on simulation exit
-    // defined per rank as the per rank stats are based on state
-    // transition and periodically updated, requiring re-sync at
-    // exit.
-    class RankDumpCallback : public Callback
-    {
-        Rank *ranks;
-      public:
-        RankDumpCallback(Rank *r) : ranks(r) {}
-        virtual void process() { ranks->computeStats(); };
     };
 
     /**
@@ -630,6 +408,7 @@ class DRAMCtrl : public AbstractMemory
 
         /** This comes from the outside world */
         const PacketPtr pkt;
+        const Addr local_addr;
 
         const bool isRead;
 
@@ -667,11 +446,13 @@ class DRAMCtrl : public AbstractMemory
         Bank& bankRef;
         Rank& rankRef;
 
-        DRAMPacket(PacketPtr _pkt, bool is_read, uint8_t _rank, uint8_t _bank,
+        DRAMPacket(PacketPtr _pkt, Addr _local_addr, bool is_read,
+                   uint8_t _rank, uint8_t _bank,
                    uint32_t _row, uint16_t bank_id, Addr _addr,
                    unsigned int _size, Bank& bank_ref, Rank& rank_ref)
             : entryTime(curTick()), readyTime(curTick()),
-              pkt(_pkt), isRead(is_read), rank(_rank), bank(_bank), row(_row),
+              pkt(_pkt), local_addr(_local_addr), isRead(is_read),
+              rank(_rank), bank(_bank), row(_row),
               bankId(bank_id), addr(_addr), size(_size), burstHelper(NULL),
               bankRef(bank_ref), rankRef(rank_ref)
         { }
@@ -685,10 +466,12 @@ class DRAMCtrl : public AbstractMemory
      * in these methods
      */
     void processNextReqEvent();
-    EventWrapper<DRAMCtrl,&DRAMCtrl::processNextReqEvent> nextReqEvent;
+    EventWrapper<DRAMCacheStorage,&DRAMCacheStorage::processNextReqEvent>
+        nextReqEvent;
 
     void processRespondEvent();
-    EventWrapper<DRAMCtrl, &DRAMCtrl::processRespondEvent> respondEvent;
+    EventWrapper<DRAMCacheStorage, &DRAMCacheStorage::processRespondEvent>
+        respondEvent;
 
     /**
      * Check if the read queue has room for more entries
@@ -715,12 +498,14 @@ class DRAMCtrl : public AbstractMemory
      * read request in the system, schedule an event to start
      * servicing it.
      *
+     * @param local_addr The address within this memory to read
      * @param pkt The request packet from the outside world
      * @param pktCount The number of DRAM bursts the pkt
      * translate to. If pkt size is larger then one full burst,
      * then pktCount is greater than one.
      */
-    void addToReadQueue(PacketPtr pkt, unsigned int pktCount);
+    void addToReadQueue(Addr local_addr, PacketPtr pkt,
+                        unsigned int pktCount);
 
     /**
      * Decode the incoming pkt, create a dram_pkt and push to the
@@ -728,12 +513,14 @@ class DRAMCtrl : public AbstractMemory
      * the threshold specified by the user, ie the queue is beginning
      * to get full, stop reads, and start draining writes.
      *
+     * @param local_addr The address within this memory to write
      * @param pkt The request packet from the outside world
      * @param pktCount The number of DRAM bursts the pkt
      * translate to. If pkt size is larger then one full burst,
      * then pktCount is greater than one.
      */
-    void addToWriteQueue(PacketPtr pkt, unsigned int pktCount);
+    void addToWriteQueue(Addr local_addr, PacketPtr pkt,
+                        unsigned int pktCount);
 
     /**
      * Actually do the DRAM access - figure out the latency it
@@ -753,10 +540,12 @@ class DRAMCtrl : public AbstractMemory
      * create the response packet, and send it back to the outside
      * world requestor.
      *
+     * @param local_addr The actual address in this storage array
      * @param pkt The packet from the outside world
      * @param static_latency Static latency to add before sending the packet
      */
-    void accessAndRespond(PacketPtr pkt, Tick static_latency);
+    void accessAndRespond(Addr local_addr, PacketPtr pkt,
+                          Tick static_latency);
 
     /**
      * Address decoder to figure out physical mapping onto ranks,
@@ -765,13 +554,14 @@ class DRAMCtrl : public AbstractMemory
      * dramPktAddr is used for the offset within the packet.
      *
      * @param pkt The packet from the outside world
+     * @param local_addr The actual address in this storage array
      * @param dramPktAddr The starting address of the DRAM packet
      * @param size The size of the DRAM packet in bytes
      * @param isRead Is the request for a read or a write to DRAM
      * @return A DRAMPacket pointer with the decoded information
      */
-    DRAMPacket* decodeAddr(PacketPtr pkt, Addr dramPktAddr, unsigned int size,
-                           bool isRead);
+    DRAMPacket* decodeAddr(PacketPtr pkt, Addr local_addr, Addr dramPktAddr,
+                           unsigned int size, bool isRead);
 
     /**
      * The memory schduler/arbiter - picks which request needs to
@@ -850,7 +640,9 @@ class DRAMCtrl : public AbstractMemory
      *
      * @return An address aligned to a DRAM burst
      */
-    Addr burstAlign(Addr addr) const { return (addr & ~(Addr(burstSize - 1))); }
+    Addr burstAlign(Addr addr) const {
+        return (addr & ~(Addr(burstSize - 1)));
+    }
 
     /**
      * The controller's main read and write queues
@@ -932,8 +724,6 @@ class DRAMCtrl : public AbstractMemory
     const Tick tRRD;
     const Tick tRRD_L;
     const Tick tXAW;
-    const Tick tXP;
-    const Tick tXS;
     const uint32_t activationLimit;
 
     /**
@@ -994,6 +784,8 @@ class DRAMCtrl : public AbstractMemory
     Stats::Scalar neitherReadNorWrite;
     Stats::Vector perBankRdBursts;
     Stats::Vector perBankWrBursts;
+    Stats::Vector perBankOccupancy;
+    Stats::Formula perBankUtilization;
     Stats::Scalar numRdRetry;
     Stats::Scalar numWrRetry;
     Stats::Scalar totGap;
@@ -1039,11 +831,42 @@ class DRAMCtrl : public AbstractMemory
     // DRAM Power Calculation
     Stats::Formula pageHitRate;
 
+    /** Number of total bytes read from this memory */
+    Stats::Vector bytesReadEach;
+    /** Number of instruction bytes read from this memory */
+    Stats::Vector bytesInstReadEach;
+    /** Number of bytes written to this memory */
+    Stats::Vector bytesWrittenEach;
+    /** Number of read requests */
+    Stats::Vector numReadsEach;
+    /** Number of write requests */
+    Stats::Vector numWritesEach;
+    /** Number of other requests */
+    Stats::Vector numOtherEach;
+
+    Stats::Scalar hits;
+    Stats::Scalar misses;
+
+    Stats::Scalar coldMisses;
+    Stats::Scalar coldReplaces;
+
+    Stats::Scalar emptyReads;
+    Stats::Scalar emptyWrites;
+
     // Holds the value of the rank of burst issued
     uint8_t activeRank;
 
     // timestamp offset
     uint64_t timeStampOffset;
+
+    struct Tag {
+        bool valid;
+        bool dirty;
+        Addr addr;
+        Tag() : valid(false), dirty(false), addr(MaxAddr) { }
+    };
+
+    std::vector<Tag> tagStorage;
 
     /**
      * Upstream caches need this packet until true is returned, so
@@ -1063,69 +886,178 @@ class DRAMCtrl : public AbstractMemory
     void updatePowerStats(Rank& rank_ref);
 
     /**
-     * Function for sorting Command structures based on timeStamp
+     * Function for sorting commands in the command list of DRAMPower.
      *
-     * @param a Memory Command
-     * @param next Memory Command
-     * @return true if timeStamp of Command 1 < timeStamp of Command 2
+     * @param a Memory Command in command list of DRAMPower library
+     * @param next Memory Command in command list of DRAMPower
+     * @return true if timestamp of Command 1 < timestamp of Command 2
      */
-    static bool sortTime(const Command& cmd, const Command& cmd_next) {
-        return cmd.timeStamp < cmd_next.timeStamp;
+    static bool sortTime(const Data::MemCommand& m1,
+                         const Data::MemCommand& m2) {
+        return m1.getTimeInt64() < m2.getTimeInt64();
+    };
+
+    /**
+     * Perform an untimed memory access and update all the state
+     * (e.g. locked addresses) and statistics accordingly. The packet
+     * is turned into a response if required.
+     *
+     * @param local_addr The actual address in this storage array
+     * @param pkt Packet performing the access
+     */
+    void access(PacketPtr pkt, Addr local_addr);
+
+    /**
+     * Checks the functional tags for the dirty bit
+     *
+     * @param local_addr The actual address in this storage array
+     *
+     * @return true if the tag is marked as dirty, false on miss
+     */
+    bool checkDirty(Addr local_addr);
+
+    /**
+     * Writes the functional tags.
+     *
+     * @param pkt the original pkt. Set the tag's value with this addr.
+     * @param local_addr The actual address in this storage array
+     */
+    void writeTag(PacketPtr pkt, Addr local_addr);
+
+    class DelayedResponse : public Event
+    {
+      private:
+        Addr localAddr;
+        PacketPtr pkt;
+        Tick staticLatency;
+        DRAMCacheStorage* ctrl;
+      public:
+        DelayedResponse(Addr local_addr, PacketPtr pkt, Tick static_latency,
+                        DRAMCacheStorage* ctrl)
+            : localAddr(local_addr), pkt(pkt), staticLatency(static_latency),
+              ctrl(ctrl)
+            { }
+        void process();
     };
 
   public:
 
     void regStats() override;
 
-    DRAMCtrl(const DRAMCtrlParams* p);
+    DRAMCacheStorage(const DRAMCacheStorageParams* p);
+    ~DRAMCacheStorage();
 
     DrainState drain() override;
-
-    virtual BaseSlavePort& getSlavePort(const std::string& if_name,
-                                        PortID idx = InvalidPortID) override;
 
     virtual void init() override;
     virtual void startup() override;
     virtual void drainResume() override;
 
     /**
-     * Return true once refresh is complete for all ranks and there are no
-     * additional commands enqueued.  (only evaluated when draining)
-     * This will ensure that all banks are closed, power state is IDLE, and
-     * power stats have been updated
+     * Set up the controller pointer
      *
-     * @return true if all ranks have refreshed, with no commands enqueued
-     *
+     * @param controller The controller this storage is attached to
+     * @param id the ID of this controller wrt the cache controller
      */
-    bool allRanksDrained() const;
+    void registerController(DRAMCacheCtrl* controller);
 
-    enum WriteQueueState {
-        UnderLowThreshold,
-        OverLowThreshold,
-        OverHighThreshold
-    };
+    /**
+     * Access the cache in atomic mode. This could be a hit or a miss.
+     * However, the line should be clean if it's a write so we don't lose
+     * data.
+     *
+     * @param pkt the original pkt. Should be updated with data on read hit.
+     *            Should write the data on a write.
+     * @param local_addr Address within this controller for where the data
+     *                   may be.
+     * @param latency Reference so we can update it with how long this took.
+     *
+     * @return whether it was a hit or a miss. True on hit.
+     */
+    bool accessAtomic(PacketPtr pkt, Addr local_addr, Tick& latency);
 
-    WriteQueueState getWriteQueueState() {
-        if (writeQueue.size() > writeHighThreshold) {
-            return OverHighThreshold;
-        } else if (writeQueue.size() > writeLowThreshold) {
-            return OverLowThreshold;
-        } else {
-            return UnderLowThreshold;
+    /**
+     * Access the cache in functional mode. This could be a hit or a miss.
+     * Only update the line or get data if it is a hit.
+     *
+     * @param pkt the original pkt. Should be updated with data on read hit.
+     *            Should write the data on a write hit.
+     * @param local_addr Address within this controller for where the data
+     *                   may be.
+     */
+    void functionalAccess(PacketPtr pkt, Addr local_addr);
+
+    /**
+     * Begin a timing access for this packet. Once it's done, call the
+     * controller's "recvStorageResponse" function.
+     * If this is a read, we should update its data, but not generate a
+     * response. If it is a write, we should update the cache (and assert
+     * that it's not dirty, just in case).
+     *
+     * @param pkt the original pkt. Should be updated with data on read hit.
+     *            Should write the data on a write hit.
+     * @param local_addr Address within this controller for where the data
+     *                   may be.
+     */
+    void recvTimingReq(PacketPtr pkt, Addr local_addr);
+
+
+    /**
+     * These are to create non-functional (timing-only) reads and writes
+     * to model reading and updating the G state.
+     */
+    void queueEmptyRead(PacketPtr pkt, Addr local_addr);
+    void queueEmptyWrite(PacketPtr pkt, Addr local_addr);
+
+    /**
+     * Direct access to update the tag. Used only for proactive cleans
+     */
+    void markBlockClean(PacketPtr pkt, Addr local_addr);
+
+    /**
+     * Checks the functional tags.
+     *
+     * @param pkt the original pkt. Compare the tag's value with this addr.
+     * @param local_addr The actual address in this storage array
+     * @param stats if true, increment the stats
+     *
+     * @return true on hit, false on miss
+     */
+    bool checkHit(PacketPtr pkt, Addr local_addr, bool stats = true);
+
+    /**
+     * Try to respond to the cache controller again, the port may be free now
+     */
+    void retryResponse() {
+        if (!respondEvent.scheduled() && !respQueue.empty()) {
+            schedule(respondEvent, nextCycle());
         }
     }
 
-    int getReadQueueLength() {
-        return readQueue.size();
-    }
+    /**
+     * Checks if there is room to insert a new request. This does all of the
+     * resource checking. This way recvTimingReq is guarenteed to succeeed
+     *
+     * @param pkt the original pkt. Should be updated with data on read hit.
+     *            Should write the data on a write hit.
+     * @param local_addr Address within this controller for where the data
+     *                   may be.
+     *
+     * @return true if the queue is full, false otherwise
+     */
+     bool checkQueueFull(PacketPtr pkt, Addr local_addr);
 
-
-  protected:
-
-    Tick recvAtomic(PacketPtr pkt);
-    void recvFunctional(PacketPtr pkt);
-    bool recvTimingReq(PacketPtr pkt);
+     /**
+      * Get the address currently valid at this location. This is used
+      * to cheat a bit on replacements, but it's OK timing-wise.
+      *
+      * @param local_addr Address within this controller to get tag
+      *
+      * @return real address of the current block that is valid here
+      *         if it's currently invalid this should be garbage
+      */
+    Addr getCurrentTagAddr(Addr local_addr);
 
 };
 
-#endif //__MEM_DRAM_CTRL_HH__
+#endif //__MEM_DRAM_CACHE_DRAM_CACHE_STORAGE_HH__

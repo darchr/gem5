@@ -126,6 +126,7 @@ class MemCmd
         FlushReq,      //request for a cache flush
         InvalidateReq,   // request for address to be invalidated
         InvalidateResp,
+        ReplaceReq,
         NUM_MEM_CMDS
     };
 
@@ -289,7 +290,15 @@ class Packet : public Printable
 
         // Signal block present to squash prefetch and cache evict packets
         // through express snoop flag
-        BLOCK_CACHED          = 0x00010000
+        BLOCK_CACHED          = 0x00010000,
+
+        // This response came from a cache. Used to determine if the line
+        // needs to be written back later if it is clean do make sure the
+        // larger cache is filled correctly
+        RESPONSE_FROM_CACHE   = 0x00020000,
+
+        // This response contains dirty data from a cache above this one
+        DIRTY_DATA_FROM_CACHE = 0x00040000,
     };
 
     Flags flags;
@@ -623,6 +632,16 @@ class Packet : public Printable
     void setBlockCached()          { flags.set(BLOCK_CACHED); }
     bool isBlockCached() const     { return flags.isSet(BLOCK_CACHED); }
     void clearBlockCached()        { flags.clear(BLOCK_CACHED); }
+
+    void setResponseFromCache()
+        { flags.set(RESPONSE_FROM_CACHE); }
+    bool isResponseFromCache() const
+        { return flags.isSet(RESPONSE_FROM_CACHE); }
+
+    void setDirtyDataFromCache()
+        { flags.set(DIRTY_DATA_FROM_CACHE); }
+    bool hasDirtyDataFromCache() const
+        { return flags.isSet(DIRTY_DATA_FROM_CACHE); }
 
     // Network error conditions... encapsulate them as methods since
     // their encoding keeps changing (from result field to command

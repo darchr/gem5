@@ -100,6 +100,10 @@ class CoherentXBar(BaseXBar):
     # An optional snoop filter
     snoop_filter = Param.SnoopFilter(NULL, "Selected snoop filter")
 
+    # A hack to prevent clean writebacks when they are not needed when using
+    # a mostly-exclusive DRAM cache / large LLC.
+    filter_clean_writebacks = Param.Bool(False, "Filter clean witebacks?")
+
     # Determine how this crossbar handles packets where caches have
     # already committed to responding, by establishing if the crossbar
     # is the point of coherency or not.

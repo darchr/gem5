@@ -198,7 +198,11 @@ MemCmd::commandInfo[] =
       InvalidateResp, "InvalidateReq" },
     /* Invalidation Response */
     { SET2(IsInvalidate, IsResponse),
-      InvalidCmd, "InvalidateResp" }
+      InvalidCmd, "InvalidateResp" },
+    /* ReplaceRequest - Replace from DRAM cache to storage
+       Switching to a WritebackDirty on response is clever, but I'm not
+       sure it will actually work */
+    { SET3(IsRead, IsRequest, NeedsResponse), WritebackDirty, "ReplaceReq" },
 };
 
 bool
