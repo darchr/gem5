@@ -367,4 +367,52 @@ storeFloat80(void *_mem, double value)
     memcpy(_mem, fp80.bits, 10);
 }
 
+void
+installSegDesc(ThreadContext *tc, SegmentRegIndex seg,
+               SegDescriptor desc, bool longmode)
+{
+    uint64_t base = desc.baseLow + (desc.baseHigh << 24);
+    bool honorBase = !longmode || seg == SEGMENT_REG_FS ||
+                                  seg == SEGMENT_REG_GS ||
+                                  seg == SEGMENT_REG_TSL ||
+                                  seg == SYS_SEGMENT_REG_TR;
+    uint64_t limit = desc.limitLow | (desc.limitHigh << 16);
+    if (desc.g)
+        limit = limit * PageBytes + PageBytes - 1;
+
+    SegAttr attr = 0;
+
+    attr.dpl = desc.dpl;
+    attr.unusable = 0;
+    attr.defaultSize = desc.d;
+    attr.longMode = desc.l;
+    attr.avl = desc.avl;
+    attr.granularity = desc.g;
+    attr.present = desc.p;
+    attr.system = desc.s;
+    attr.type = desc.type;
+    if (desc.s) {
+        if (desc.type.codeOrData) {
+            // Code segment
+            attr.expandDown = 0;
+            attr.readable = desc.type.r;
+            attr.writable = 0;
+        } else {
+            // Data segment
+            attr.expandDown = desc.type.e;
+            attr.readable = 1;
+            attr.writable = desc.type.w;
+        }
+    } else {
+        attr.readable = 1;
+        attr.writable = 1;
+        attr.expandDown = 0;
+    }
+
+    tc->setMiscReg(MISCREG_SEG_BASE(seg), base);
+    tc->setMiscReg(MISCREG_SEG_EFF_BASE(seg), honorBase ? base : 0);
+    tc->setMiscReg(MISCREG_SEG_LIMIT(seg), limit);
+    tc->setMiscReg(MISCREG_SEG_ATTR(seg), (MiscReg)attr);
+}
+
 } // namespace X86_ISA

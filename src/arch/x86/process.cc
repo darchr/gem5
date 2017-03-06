@@ -52,6 +52,7 @@
 #include "arch/x86/regs/segment.hh"
 #include "arch/x86/system.hh"
 #include "arch/x86/types.hh"
+#include "arch/x86/utility.hh"
 #include "base/loader/elf_object.hh"
 #include "base/loader/object_file.hh"
 #include "base/misc.hh"
@@ -292,44 +293,27 @@ X86_64Process::initState()
         sret.si = dsLowPL.si;
         sret.rpl = 3;
 
+        uint64_t tss_base_addr = TSSVirtAddr;
+        uint64_t tss_limit = 0xFFFFFFFF;
+
         /* In long mode the TSS has been extended to 16 Bytes */
-        TSSlow TSSDescLow = 0;
-        TSSDescLow.type = 0xB;
-        TSSDescLow.dpl = 0; // Privelege level 0
-        TSSDescLow.p = 1; // Present
-        TSSDescLow.g = 1; // Page granularity
-        TSSDescLow.limitHigh = 0xF;
-        TSSDescLow.limitLow = 0xFFFF;
-        TSSDescLow.baseLow = bits(TSSVirtAddr, 23, 0);
-        TSSDescLow.baseHigh = bits(TSSVirtAddr, 31, 24);
-
-        TSShigh TSSDescHigh = 0;
-        TSSDescHigh.base = bits(TSSVirtAddr, 63, 32);
-
-        struct TSSDesc {
-            uint64_t low;
-            uint64_t high;
-        } tssDescVal = {TSSDescLow, TSSDescHigh};
+        Tss64Desc tssDesc;
+        tssSegDesc64(tssDesc, tss_base_addr, tss_limit);
+        tssDesc.low.dpl = 3;
 
         physProxy.writeBlob(GDTPhysAddr + numGDTEntries * 8,
-                            (uint8_t *)(&tssDescVal), sizeof(tssDescVal));
+                            (uint8_t *)(&tssDesc), sizeof(tssDesc));
 
         numGDTEntries++;
 
         SegSelector tssSel = 0;
         tssSel.si = numGDTEntries - 1;
 
-        uint64_t tss_base_addr = (TSSDescHigh.base << 32) |
-                                 (TSSDescLow.baseHigh << 24) |
-                                  TSSDescLow.baseLow;
-        uint64_t tss_limit = TSSDescLow.limitLow | (TSSDescLow.limitHigh << 16);
-
         SegAttr tss_attr = 0;
-
-        tss_attr.type = TSSDescLow.type;
-        tss_attr.dpl = TSSDescLow.dpl;
-        tss_attr.present = TSSDescLow.p;
-        tss_attr.granularity = TSSDescLow.g;
+        tss_attr.type = tssDesc.low.type;
+        tss_attr.dpl = tssDesc.low.dpl;
+        tss_attr.present = tssDesc.low.p;
+        tss_attr.granularity = tssDesc.low.g;
         tss_attr.unusable = 0;
 
         for (int i = 0; i < contextIds.size(); i++) {
