@@ -9,41 +9,23 @@ from caches import *
 from cpu import HighPerformanceCPU
 from dram_cache import DRAMCache
 
-SimpleOpts.add_option("--no_host_parallel", default=False,
-                action="store_true",
-                help="Do NOT run gem5 on multiple host threads (kvm only)")
-
 class MySystem(LinuxX86System):
 
-    SimpleOpts.add_option("--mem_type", default="ddr3",
-                 help="Type of memory to simulate. " +
-                      "[ddr3, ddr4, hbm, ideal, inf]")
-
-    SimpleOpts.add_option("--cpus", default=8, type="int",
-                          help="Number of CPUs in the system")
-
+    _cpus = 8
     _infrastructure = '/p/multifacet/infrastructure/'
-    SimpleOpts.add_option("--second_disk",
-      default=_infrastructure + 'gem5_system_files/disks/linux-bigswap2.img',
-      help="The second disk image to mount (/dev/hdb)")
 
-    def __init__(self, opts, no_kvm=False):
+    def __init__(self, secondDisk, reqMem, no_kvm=False):
         super(MySystem, self).__init__()
-        self._opts = opts
         self._no_kvm = no_kvm
 
-        self._host_parallel = not self._opts.no_host_parallel
+        self._host_parallel = True
 
         # Set up the clock domain and the voltage domain
         self.clk_domain = SrcClockDomain()
         self.clk_domain.clock = '3GHz'
         self.clk_domain.voltage_domain = VoltageDomain()
 
-        mem_size = '8GB'
-        self.mem_ranges = [AddrRange('100MB'), # For kernel
-                           AddrRange(0xC0000000, size=0x100000), # For I/0
-                           AddrRange(Addr('4GB'), size = mem_size) # All data
-                           ]
+        self.setupMemoryRanges(reqMem)
 
         # Create the main memory bus
         # This connects to main memory
@@ -54,14 +36,14 @@ class MySystem(LinuxX86System):
         # Set up the system port for functional access from the simulator
         self.system_port = self.membus.slave
 
-        x86.init_fs(self, self.membus, self._opts.cpus)
+        x86.init_fs(self, self.membus, self._cpus)
 
         # Replace these paths with the path to your disk images.
         # The first disk is the root disk. The second could be used for swap
         # or anything else.
-        imagepath = '/p/multifacet/users/powerjg/supernuma/'
+        imagepath = '/p/multifacet/users/powerjg/dramcache/'
         imagepath += 'disk-images/ubuntu-12.04.img'
-        self.setDiskImages(imagepath, opts.second_disk)
+        self.setDiskImages(imagepath, secondDisk)
 
         # Change this path to point to the kernel you want to use
         self.kernel = self._infrastructure + \
@@ -81,38 +63,8 @@ class MySystem(LinuxX86System):
         # Set up the interrupt controllers for the system (x86 specific)
         self.setupInterrupts()
 
-        bus = self.membus
-        if DRAMCache.getValidSize(self._opts):
-            self.l4bus = L2XBar(width = 64,
-                            snoop_filter = SnoopFilter(max_capacity='32MB'))
-            self.dramcache = DRAMCache(self._opts)
-            self.dramcache.connectCPUSideBus(self.membus)
-            self.dramcache.connectMemSideBus(self.l4bus)
-            # Just the ranges that memory responds to
-            self.dramcache.setAddrRanges([self.mem_ranges[0],
-                                          self.mem_ranges[-1]])
-            bus = self.l4bus
-
-            for bank in self.l3cache.banks:
-                bank.writeback_clean = True
-
-        # I'm interested in the performance of different memory technologies,
-        # so select the technoology by a command line flag.
-        if self._opts.mem_type == "ddr3":
-            self.createMemoryControllersDDR3(bus)
-        elif self._opts.mem_type == "ddr4":
-            self.createMemoryControllersDDR4(bus)
-        elif self._opts.mem_type == "hbm":
-            self.createMemoryControllersHBM(bus)
-        elif self._opts.mem_type == "ideal":
-            self.createMemoryControllersIdeal(bus)
-        elif self._opts.mem_type == "inf":
-            self.createMemoryControllersInf(bus)
-        else:
-            fatal("Invalid memory type: %s." % opts.mem_type)
-
-        if DRAMCache.getValidSize(self._opts):
-            self.dramcache.setBackingCtrl(self.mem_cntrls[0])
+        # create the memory system
+        self.createMemorySystem()
 
         if self._host_parallel:
             # To get the KVM CPUs to run on different host CPUs
@@ -121,6 +73,16 @@ class MySystem(LinuxX86System):
                 for obj in cpu.descendants():
                     obj.eventq_index = 0
                 cpu.eventq_index = i + 1
+
+    def setupMemoryRanges(self, reqMem):
+        mem_size = str(reqMem)
+        self.mem_ranges = [AddrRange('100MB'), # For kernel
+                           AddrRange(0xC0000000, size=0x100000), # For I/0
+                           AddrRange(Addr('4GB'), size = mem_size) # All data
+                           ]
+
+    def createMemorySystem(self):
+        raise NotImplementedError('createMemorySystem is pure virtual')
 
     def getHostParallel(self):
         return self._host_parallel
@@ -131,21 +93,21 @@ class MySystem(LinuxX86System):
     def createCPU(self):
         if self._no_kvm:
             self.cpu = [AtomicSimpleCPU(cpu_id = i, switched_out = False)
-                              for i in range(self._opts.cpus)]
+                              for i in range(self._cpus)]
         else:
             # Note KVM needs a VM and atomic_noncaching
             self.cpu = [X86KvmCPU(cpu_id = i)
-                        for i in range(self._opts.cpus)]
-            self.vm = KvmVM()
+                        for i in range(self._cpus)]
+            self.kvm_vm = KvmVM()
             self.mem_mode = 'atomic_noncaching'
 
             self.atomicCpu = [AtomicSimpleCPU(cpu_id = i,
                                               switched_out = True)
-                              for i in range(self._opts.cpus)]
+                              for i in range(self._cpus)]
 
         self.timingCpu = [HighPerformanceCPU(cpu_id = i,
                                              switched_out = True)
-                   for i in range(self._opts.cpus)]
+                   for i in range(self._cpus)]
 
     def switchCpus(self, old, new):
         assert(new[0].switchedOut())
@@ -166,8 +128,8 @@ class MySystem(LinuxX86System):
             cpu.l2bus = L2XBar()
 
             # Create an L1 instruction and data cache
-            cpu.icache = L1ICache(self._opts)
-            cpu.dcache = L1DCache(self._opts)
+            cpu.icache = L1ICache()
+            cpu.dcache = L1DCache()
             cpu.mmucache = MMUCache()
 
             # Connect the instruction and data caches to the CPU
@@ -181,13 +143,13 @@ class MySystem(LinuxX86System):
             cpu.mmucache.connectBus(cpu.l2bus)
 
             # Create an L2 cache and connect it to the l2bus
-            cpu.l2cache = L2Cache(self._opts)
+            cpu.l2cache = L2Cache()
             cpu.l2cache.connectCPUSideBus(cpu.l2bus)
 
             # Connect the L2 cache to the L3 bus
             cpu.l2cache.connectMemSideBus(self.l3bus)
 
-        self.l3cache = BankedL3Cache(self._opts)
+        self.l3cache = BankedL3Cache()
         self.l3cache.connectCPUSideBus(self.l3bus)
 
         # Connect the L3 cache to the membus
@@ -206,13 +168,13 @@ class MySystem(LinuxX86System):
             cpu.interrupts[0].int_slave = self.membus.master
 
     def createMemoryControllersDDR4(self, bus):
-        self._createMemoryControllers(2, DDR4_2400_x64, bu)
+        self._createMemoryControllers(2, DDR4_2400_8x8, bu)
 
     def createMemoryControllersDDR3(self, bus):
-        self._createMemoryControllers(2, DDR3_1600_x64, bus)
+        self._createMemoryControllers(2, DDR3_1600_8x8, bus)
 
     def createMemoryControllersHBM(self, bus):
-        self._createMemoryControllers(16, HBM_1000_4H_x64, bus)
+        self._createMemoryControllers(16, HBM_1000_4H_1x64, bus)
 
     def createSimpleMemories(self, bandwidth, latency):
         kernel_controller = SimpleMemory(range = self.mem_ranges[0],

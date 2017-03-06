@@ -103,7 +103,9 @@ sys.path.append('configs/common/') # For the next line...
 import SimpleOpts
 
 # Sampling library
-from sampling import sampleROI, checkSystem
+from sampling import sampleROI
+
+from create_system import createSystem
 
 # ----------------------------------------------------------------
 #    This is an example system object. You could replace this with
@@ -123,54 +125,27 @@ from sampling import sampleROI, checkSystem
 #  The example system can easily be built on to suit a different
 #  system configuration, you can also use configure it with
 #  command line arguments  (run with --help to see available options)
-from system import MySystem
+from mysys import getSystem
 # ----------------------------------------------------------------
 
-SimpleOpts.add_option("--script", default='',
-                      help="Script to execute in the simulated system")
-SimpleOpts.set_usage("usage: %prog [options] roi_instructions "\
-                      "samples=1 runs=1")
-
-
+SimpleOpts.set_usage("usage: %prog [options] suite.app "\
+                      "samples runs configuration")
 
 if __name__ == "__m5_main__":
     (opts, args) = SimpleOpts.parse_args()
 
-    # create the system we are going to simulate
-    system = MySystem(opts)
-
-    # Check if the system is compatible with sampling library
-    checkSystem(system)
-
-    if not (len(args) == 1 or len(args) == 2 or len(args) == 3):
+    if not len(args) == 4:
         SimpleOpts.print_help()
         fatal("Simulate script requires one or two or three arguments")
 
-    roiInstructions = int(args[0])
+    system, rois, roiInstructions = createSystem(args)
 
-    if len(args) == 2 or len(args) == 3:
-        samples = int(args[1])
-    else:
-        samples = 1
+    samples = int(args[1])
 
-    if len(args) == 3:
-        runs = int(args[2])
-    else:
-        runs = 1
+    runs = int(args[2])
 
     print "Arguments given:  roi_instructions = %d ," % roiInstructions, \
           "samples = %d , runs = %d" % (samples, runs)
-
-    # For workitems to work correctly
-    # This will cause the simulator to exit simulation when the first work
-    # item is reached and when the first work item is finished.
-    system.work_begin_exit_count = 1
-    system.work_end_exit_count = 1
-
-    # Read in the script file passed in via an option.
-    # This file gets read and executed by the simulated system after boot.
-    # Note: The disk image needs to be configured to do this.
-    system.readfile = opts.script
 
     # set up the root SimObject and start the simulation
     root = Root(full_system = True, system = system)
@@ -191,6 +166,7 @@ if __name__ == "__m5_main__":
 
     # Keep running until we are done.
     print "Running the simulation"
+    foundROI = 0
     exit_event = m5.simulate()
     while exit_event.getCause() != "m5_exit instruction encountered":
         if exit_event.getCause() == "user interrupt received":
@@ -198,16 +174,18 @@ if __name__ == "__m5_main__":
             break
         print "Exited because", exit_event.getCause()
 
-        if exit_event.getCause() == "work started count reach":
+        if exit_event.getCause() == "workbegin":
+            foundROI += 1
+            if foundROI == rois:
+                # sampleROI - The main sampling function!
+                #  sampleROI randomly picks points in the ROI
+                #  that are run in detailed mode for measurements.
+                #  Each sample point is simulated multiple times
+                #  to adequately cover non-determinism in the system
+                sampleROI(system, opts, roiInstructions, samples, runs)
+                break
 
-            # sampleROI - The main sampling function!
-            #  sampleROI randomly picks points in the ROI
-            #  that are run in detailed mode for measurements.
-            #  Each sample point is simulated multiple times
-            #  to adequately cover non-determinism in the system
-            sampleROI(system, opts, roiInstructions, samples, runs)
-
-        elif exit_event.getCause() == "work items exit count reached":
+        elif exit_event.getCause() == "workend":
             end_tick = m5.curTick()
 
         print "Continuing"

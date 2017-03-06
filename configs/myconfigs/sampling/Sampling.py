@@ -77,9 +77,11 @@ SimpleOpts.add_option("--warmup_time", default="10ms",
                       help="Simulated functional warmup time")
 SimpleOpts.add_option("--detailed_warmup_time", default="10us",
                       help="Simulated detailed warmup time")
-SimpleOpts.add_option("--detailed_time", default="1ms",
+SimpleOpts.add_option("--detailed_time", default="2ms",
                       help="Simulated time for detailed measurements,"\
                          " (size of measurment window)")
+SimpleOpts.add_option("--max_pids", default = 5,
+                      help = "The maximum number of spawned processes")
 
 from sim_tools import *
 
@@ -288,7 +290,7 @@ def Sample(system, opts, runs, warmup=True, startwith=0):
 
         # Max of 4 gem5 instances (-1 for this process). If we have this
         # number of gem5 processes running, we should wait until one finishes
-        while len(pids) >= 4 - 1:
+        while len(pids) >= int(opts.max_pids) - 1:
             time.sleep(1)
 
         # Fork gem5 and get a new PID. Save the stats in a folder based on
@@ -318,6 +320,12 @@ def Sample(system, opts, runs, warmup=True, startwith=0):
             # Reset the stats so we only record things in detailed simulation
             m5.stats.reset()
             runSim(opts.detailed_time)
+
+            try:
+                system.dramcache.miss_map.dumpPatterns(m5.options.outdir +
+                                                       '/patterns.txt')
+            except Exception:
+                pass
 
             # Just exit in the child. No need to do anything else.
             sys.exit(0)

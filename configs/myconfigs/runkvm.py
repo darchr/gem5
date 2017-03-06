@@ -52,34 +52,20 @@ from m5.objects import *
 sys.path.append('configs/common/') # For the next line...
 import SimpleOpts
 
-from system import MySystem
 from sampling import generateSamples, dumpSamples
 
-SimpleOpts.add_option("--script", default='',
-                      help="Script to execute in the simulated system")
-SimpleOpts.set_usage("usage: %prog [options] [samples=50]")
+from create_system import createSystem
+
+SimpleOpts.set_usage("usage: %prog [options] suite.app")
 
 if __name__ == "__m5_main__":
     (opts, args) = SimpleOpts.parse_args()
 
-    if len(args) == 1:
-        samples = int(args[0])
-    else:
-        samples = 50
+    if not len(args) == 1:
+        SimpleOpts.print_help()
+        fatal("Simulate script requires one argument")
 
-    # create the system we are going to simulate
-    system = MySystem(opts)
-
-    # For workitems to work correctly
-    # This will cause the simulator to exit simulation when the first work
-    # item is reached and when the first work item is finished.
-    system.work_begin_exit_count = 1
-    system.work_end_exit_count = 1
-
-    # Read in the script file passed in via an option.
-    # This file gets read and executed by the simulated system after boot.
-    # Note: The disk image needs to be configured to do this.
-    system.readfile = opts.script
+    system, rois, roiInstructions = createSystem(args)
 
     # set up the root SimObject and start the simulation
     root = Root(full_system = True, system = system)
@@ -90,18 +76,20 @@ if __name__ == "__m5_main__":
         # Note: The simulator is quite picky about this number!
         root.sim_quantum = int(1e9) # 1 ms
 
+    # Disable the gdb ports. Required for high core counts and forking.
+    m5.disableAllListeners()
+
     # instantiate all of the objects we've created above
     m5.instantiate()
 
     globalStart = time.time()
-
 
     print "Running the simulation"
     exit_event = m5.simulate()
 
     # While there is still something to do in the guest keep executing.
     # This is needed since we exit for the ROI begin/end
-    foundROI = False
+    foundROI = 0
     while exit_event.getCause() != "m5_exit instruction encountered":
         # If the user pressed ctrl-c on the host, then we really should exit
         if exit_event.getCause() == "user interrupt received":
@@ -110,11 +98,12 @@ if __name__ == "__m5_main__":
 
         print "Exited because", exit_event.getCause()
 
-        if exit_event.getCause() == "work started count reach":
-            start_tick = m5.curTick()
-            start_insts = system.totalInsts()
-            foundROI = True
-        elif exit_event.getCause() == "work items exit count reached":
+        if exit_event.getCause() == "workbegin":
+            foundROI += 1
+            if foundROI == rois:
+                start_tick = m5.curTick()
+                start_insts = system.totalInsts()
+        elif exit_event.getCause() == "workend":
             end_tick = m5.curTick()
             end_insts = system.totalInsts()
 
@@ -132,12 +121,3 @@ if __name__ == "__m5_main__":
         roiinstructions = end_insts - start_insts
         print "Simulated time in ROI: %.2fs" % ((end_tick-start_tick)/1e12)
         print "Instructions executed in ROI: %d" % ((roiinstructions))
-
-
-        # Randomly pick sample points from the ROI
-        print "Generating ROI sample points"
-        generateSamples(system, opts, roiinstructions, samples, start_insts)
-
-        # Dump these sample points so that we can simulate
-        # each one of them in its own gem5 process.
-        dumpSamples()

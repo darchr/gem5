@@ -54,7 +54,8 @@ class L1Cache(PrefetchCache):
     """Simple L1 Cache with default values"""
 
     assoc = 8
-    hit_latency = 1
+    tag_latency = 1
+    data_latency = 1
     response_latency = 1
     mshrs = 96
     tgts_per_mshr = 20
@@ -102,7 +103,8 @@ class MMUCache(Cache):
     # Default parameters
     size = '8kB'
     assoc = 4
-    hit_latency = 1
+    tag_latency = 1
+    data_latency = 1
     response_latency = 1
     mshrs = 20
     tgts_per_mshr = 12
@@ -130,7 +132,8 @@ class L2Cache(PrefetchCache):
     # Default parameters
     size = '256kB'
     assoc = 16
-    hit_latency = 10
+    tag_latency = 10
+    data_latency = 10
     response_latency = 1
     mshrs = 96
     tgts_per_mshr = 12
@@ -153,7 +156,8 @@ class L3CacheBank(Cache):
 
     # Default parameters
     assoc = 32
-    hit_latency = 40
+    tag_latency = 40
+    data_latency = 40
     response_latency = 10
     mshrs = 64
     tgts_per_mshr = 12

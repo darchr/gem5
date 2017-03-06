@@ -147,7 +147,7 @@ def simulateROI(system, instructions, samples, measurements):
                 seedRandom(rseed)
                 print "Running detailed simulation for sample", i, j,
                 print "seed", rseed
-                warmupAndRun(system, "10ms", "10us", "100us")
+                warmupAndRun(system, "10ms", "10us", "500us")
                 print "Done with detailed simulation for sample", i, j
                 sys.exit(0)
             else:

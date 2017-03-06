@@ -110,7 +110,7 @@ import SimpleOpts
 # This is an example system object. You could replace this with
 # the system you want to simulate.
 # See a more detailed explanation in sample_2d.py
-from system import MySystem
+from mysys import MySystem
 
 # Sampling library
 from sampling import forwardToSample, Sample, makeSampleDir, \
@@ -128,11 +128,11 @@ SimpleOpts.set_usage("usage: %prog [options] sample_index")
 # initruns is the minimum number of simulations we run at a sample
 #  use a suitable value that can discriminate between
 #  low and high variance points
-initruns = 10
+initruns = 5
 # maxruns bounds the number of simulations
 maxruns = 50
 # threshold on std error mean
-threshold = 0.01
+threshold = 0.05
 
 def simulateROI(system, opts, sampleidx):
     """ Fast forward to and simulate a single sample point
@@ -178,7 +178,7 @@ def simulateROI(system, opts, sampleidx):
     print "Running additional simulations: "
 
     runs_start = initruns
-    runs = initruns + 10
+    runs = initruns + initruns
 
 
     # Keep running simulations till we have a smaller SEM
@@ -198,7 +198,7 @@ def simulateROI(system, opts, sampleidx):
         print "Total SEM of stat = ", sem
 
         runs_start = runs
-        runs = runs + 10
+        runs = runs + initruns
 
 
 
