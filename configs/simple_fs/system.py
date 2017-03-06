@@ -58,15 +58,17 @@ class MySystem(LinuxX86System):
         # Replace these paths with the path to your disk images.
         # The first disk is the root disk. The second could be used for swap
         # or anything else.
-        self.setDiskImages('gem5_system_files/disks/ubuntu-12.04.img',
-                            opts.second_disk)
+        imagepath = '/p/multifacet/users/powerjg/supernuma/'
+        imagepath += 'disk-images/ubuntu-12.04.img'
+        self.setDiskImages(imagepath, opts.second_disk)
 
         # Change this path to point to the kernel you want to use
-        self.kernel = 'gem5_system_files/binaries/x86_64-vmlinux-3.0.68.smp'
+        self.kernel = self._infrastructure + \
+                      'gem5_system_files/binaries/x86_64-vmlinux-3.0.68.smp'
 
         # Options specified on the kernel command line
         boot_options = ['earlyprintk=ttyS0', 'console=ttyS0', 'lpj=7999923',
-                        'root=/dev/hda1']
+                        'root=/dev/hda']
         self.boot_osflags = ' '.join(boot_options)
 
         # Create the CPUs for our system.
