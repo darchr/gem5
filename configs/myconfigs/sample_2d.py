@@ -219,5 +219,3 @@ if __name__ == "__m5_main__":
     print "Ran a total of", m5.curTick()/1e12, "simulated seconds"
     print "Total wallclock time: %.2fs, %.2f min" % \
                 (time.time()-globalStart, (time.time()-globalStart)/60)
-
-

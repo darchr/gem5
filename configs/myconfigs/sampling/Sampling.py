@@ -297,7 +297,8 @@ def Sample(system, opts, runs, warmup=True, startwith=0):
         pid = m5.fork('%(parent)s/'+str(insts)+'/'+str(r))
 
         if pid == 0: # in child
-            from m5.internal.core import seedRandom
+            import _m5
+            from _m5.core import seedRandom
             # Make sure each instance of gem5 starts with a different
             # random seed. Can't just use time, since this may occur
             # multiple times in the same second.
@@ -368,4 +369,3 @@ def sampleROI(system, opts, instructions, samples, runs):
 
         # Switch back to the KVM CPU for next fast-forward
         # system.switchCpus(system.atomicCpu, system.cpu)
-
