@@ -510,10 +510,6 @@ BaseCPU::switchOut()
     _switchedOut = true;
     if (profileEvent && profileEvent->scheduled())
         deschedule(profileEvent);
-
-    // Flush all TLBs in the CPU to avoid having stale translations if
-    // it gets switched in later.
-    flushTLBs();
 }
 
 void
@@ -569,7 +565,11 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
             old_dtb_port->unbind();
             new_dtb_port->bind(slavePort);
         }
+        // Flush all TLBs in the CPU to avoid having stale translations if
+        // it was switched out previously.
+        newTC->getITBPtr()->flushAll();
         newTC->getITBPtr()->takeOverFrom(oldTC->getITBPtr());
+        newTC->getDTBPtr()->flushAll();
         newTC->getDTBPtr()->takeOverFrom(oldTC->getDTBPtr());
 
         // Checker whether or not we have to transfer CheckerCPU

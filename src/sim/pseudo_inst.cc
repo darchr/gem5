@@ -432,6 +432,7 @@ resetstats(ThreadContext *tc, Tick delay, Tick period)
 
 
     Tick when = curTick() + delay * SimClock::Int::ns;
+    period = 0;
     Tick repeat = period * SimClock::Int::ns;
 
     Stats::schedStatEvent(false, true, when, repeat);

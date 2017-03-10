@@ -137,6 +137,7 @@ def build_test_system(np):
         test_sys.have_virtualization = True
 
     test_sys.init_param = options.init_param
+    test_sys.eventq_index = np
 
     # For now, assign all the CPUs to the same clock domain
     test_sys.cpu = [TestCPUClass(clk_domain=test_sys.cpu_clk_domain, cpu_id=i)
@@ -230,6 +231,12 @@ def build_test_system(np):
         CacheConfig.config_cache(options, test_sys)
 
         MemConfig.config_mem(options, test_sys)
+
+    test_sys.eventq_index = 0
+    for idx, cpu in enumerate(test_sys.cpu):
+        for obj in cpu.descendants():
+            obj.eventq_index = test_sys.eventq_index
+        cpu.eventq_index = idx + 1
 
     return test_sys
 
@@ -366,5 +373,6 @@ if options.timesync:
 if options.frame_capture:
     VncServer.frame_capture = True
 
+root.sim_quantum = 1000000000
 Simulation.setWorkCountOptions(test_sys, options)
 Simulation.run(options, root, test_sys, FutureClass)
