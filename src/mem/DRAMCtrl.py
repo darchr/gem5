@@ -1183,3 +1183,34 @@ class HBM_1000_4H_1x64(HBM_1000_4H_1x128):
 
     # self refresh exit time
     tXS = '65ns'
+
+    # Numbers from http://dl.acm.org/citation.cfm?id=2989098
+    IDD0 = '85mA'
+    IDD2N = '8mA'
+    IDD3N = '12mA'
+    IDD3N2 = '3mA'
+    IDD4W = '73mA'
+    IDD4R = '66mA'
+    IDD5 = '50mA'
+    IDD02 = '3mA'
+    IDD3P1 = '5mA'
+    IDD2P1 = '3mA'
+    IDD6 = '1mA'
+    VDD = '1.2V'
+    VDD2 = '2.5V'
+
+    # Different number from
+    # (http://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=7004159)
+    # IDD0 = '45mA'
+    # IDD2N = '5mA'
+    # IDD3N = '6mA'
+    # IDD3N2 = '3mA'
+    # IDD4W = '103mA'
+    # IDD4R = '110mA'
+    # IDD5 = '162mA'
+    # IDD02 = '3mA'
+    # IDD3P1 = '4mA'
+    # IDD2P1 = '2mA'
+    # IDD6 = '3mA'
+    # VDD = '1.2V'
+    # VDD2 = '2.5V'

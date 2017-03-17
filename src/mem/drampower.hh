@@ -46,6 +46,7 @@
 #define __MEM_DRAM_POWER_HH__
 
 #include "libdrampower/LibDRAMPower.h"
+#include "params/DRAMCacheStorage.hh"
 #include "params/DRAMCtrl.hh"
 
 /**
@@ -62,33 +63,45 @@ class DRAMPower
      * DRAMCtrlParams to the memSpec of DRAMPower
      */
     static Data::MemArchitectureSpec getArchParams(const DRAMCtrlParams* p);
+    static Data::MemArchitectureSpec
+                getArchParams(const DRAMCacheStorageParams* p);
 
     /**
      * Transforms the timing parameters defined in DRAMCtrlParams to
      * the memSpec of DRAMPower
      */
     static Data::MemTimingSpec getTimingParams(const DRAMCtrlParams* p);
+    static Data::MemTimingSpec
+                getTimingParams(const DRAMCacheStorageParams* p);
 
     /**
      * Transforms the power and current parameters defined in
      * DRAMCtrlParam to the memSpec of DRAMPower
      */
     static Data::MemPowerSpec getPowerParams(const DRAMCtrlParams* p);
+    static Data::MemPowerSpec
+                getPowerParams(const DRAMCacheStorageParams* p);
 
     /**
      * Determine data rate, either one or two.
      */
     static uint8_t getDataRate(const DRAMCtrlParams* p);
+    static uint8_t
+                getDataRate(const DRAMCacheStorageParams* p);
 
     /**
      * Determine if DRAM has two voltage domains (or one)
      */
     static bool hasTwoVDD(const DRAMCtrlParams* p);
+    static bool
+                hasTwoVDD(const DRAMCacheStorageParams* p);
 
     /**
      * Return an instance of MemSpec based on the DRAMCtrlParams
      */
     static Data::MemorySpecification getMemSpec(const DRAMCtrlParams* p);
+    static Data::MemorySpecification
+                getMemSpec(const DRAMCacheStorageParams* p);
 
  public:
 
@@ -97,7 +110,8 @@ class DRAMPower
 
     DRAMPower(const DRAMCtrlParams* p, bool include_io);
 
+    DRAMPower(const DRAMCacheStorageParams* p, bool include_io);
+
 };
 
 #endif //__MEM_DRAM_POWER_HH__
-
