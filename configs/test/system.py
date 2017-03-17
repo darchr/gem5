@@ -203,13 +203,13 @@ class MySystem(System):
             cpu.interrupts[0].int_slave = self.membus.master
 
     def createMemoryControllersDDR4(self, bus):
-        self._createMemoryControllers(2, DDR4_2400_x64, bu)
+        self._createMemoryControllers(2, DDR4_2400_8x8, bu)
 
     def createMemoryControllersDDR3(self, bus):
-        self._createMemoryControllers(2, DDR3_1600_x64, bus)
+        self._createMemoryControllers(2, DDR3_1600_8x8, bus)
 
     def createMemoryControllersHBM(self, bus):
-        self._createMemoryControllers(16, HBM_1000_4H_x64, bus)
+        self._createMemoryControllers(16, HBM_1000_4H_1x64, bus)
 
     def createSimpleMemories(self, bandwidth, latency):
         memory_controller = SimpleMemory(range = self.mem_ranges,

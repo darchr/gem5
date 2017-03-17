@@ -19,7 +19,7 @@ class InfiniteCache(system.MySystem):
         super(InfiniteCache, self).__init__(opts)
 
     def createMemorySystem(self):
-        self._createMemoryControllers(16, HBM_1000_4H_x64, self.membus)
+       self.createMemoryControllersHBM(self.membus)
 
 
 class BaselineDRAMCache(system.MySystem):
