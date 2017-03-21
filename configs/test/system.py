@@ -206,7 +206,9 @@ class MySystem(System):
         self._createMemoryControllers(2, DDR4_2400_8x8, bu)
 
     def createMemoryControllersDDR3(self, bus):
-        self._createMemoryControllers(2, DDR3_1600_8x8, bus)
+        class DDR3_1600_64GB(DDR3_1600_8x8):
+            ranks_per_channel = 8
+        self._createMemoryControllers(2, DDR3_1600_64GB, bus)
 
     def createMemoryControllersHBM(self, bus):
         self._createMemoryControllers(16, HBM_1000_4H_1x64, bus)
