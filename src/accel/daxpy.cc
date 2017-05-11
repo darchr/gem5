@@ -295,6 +295,8 @@ Daxpy::sendData(RequestPtr req, uint8_t *data, bool read)
 void
 Daxpy::setAddressCallback(Addr addr, LoopIteration* iter)
 {
+    auto it = addressCallbacks.find(pkt->req->getVaddr());
+    assert(it == addressCallbacks.end());
     addressCallbacks[addr] = iter;
 }
 
@@ -308,6 +310,7 @@ Daxpy::recvLoop(PacketPtr pkt)
 
     LoopIteration *iter = it->second;
     iter->recvResponse(pkt);
+    addressCallbacks.erase(it);
 }
 
 bool
