@@ -40,6 +40,8 @@
 
 #include "arch/x86/utility.hh"
 
+#include <fstream>
+
 #include "arch/x86/interrupts.hh"
 #include "arch/x86/registers.hh"
 #include "arch/x86/x86_traits.hh"
@@ -413,6 +415,43 @@ installSegDesc(ThreadContext *tc, SegmentRegIndex seg,
     tc->setMiscReg(MISCREG_SEG_EFF_BASE(seg), honorBase ? base : 0);
     tc->setMiscReg(MISCREG_SEG_LIMIT(seg), limit);
     tc->setMiscReg(MISCREG_SEG_ATTR(seg), (MiscReg)attr);
+}
+
+
+int
+isIntelCPU()
+{
+    static int checked=0;
+    static int isIntel=0;
+
+    if (checked){
+        return(isIntel);
+    } else{
+        checked = 1;
+        std::string vendor("vendor_id");
+        std::string check("GenuineIntel");
+        std::ifstream inFile("/proc/cpuinfo");
+        for (std::string line; getline( inFile, line); ) {
+            std::stringstream stream(line);
+            std::string oneWord;
+            int count=0;
+            while (stream >> oneWord){ count++; }
+            if (count == 3){
+                std::stringstream stream(line);
+                std::string type_string, value_string;
+                stream >> type_string;
+                stream >> oneWord;
+                stream >> value_string;
+                if (!type_string.compare(vendor)) {
+                    inFile.close();
+                    isIntel = !value_string.compare(check);
+                    inform("running on %s\n", value_string);
+                    return isIntel;
+                }
+            }
+        }
+    }
+    return isIntel;
 }
 
 } // namespace X86_ISA
