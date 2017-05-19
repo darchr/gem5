@@ -275,6 +275,8 @@ namespace X86ISA
 
     void installSegDesc(ThreadContext *tc, SegmentRegIndex seg,
                         SegDescriptor desc, bool longmode);
+
+    int isIntelCPU();
 }
 
 #endif // __ARCH_X86_UTILITY_HH__
