@@ -249,6 +249,47 @@ def getBottleneck(dumps = 0):
         results = re.findall(pattern, stats)
         return [result.split(' ')[0] for result in results]
 
+def getAA(dumps = 0):
+    import os
+    outdir = m5.options.outdir
+    with open(os.path.join(outdir, 'stats.txt')) as statsfile:
+        reads = 0
+        writes = 0
+        readForWrite = 0
+        fills = 0
+        writeG = 0
+        hits = 0
+        stats = statsfile.read()
+        statnames = ['system.dramcache.banks%02d.storage_ctrl.emptyWrites',
+                     'system.dramcache.banks%02d.readPackets',
+                     'system.dramcache.banks%02d.dirtyWBPackets',
+                     'system.dramcache.banks%02d.realReadMiss',
+                     'system.dramcache.banks%02d.realReadHit',
+                     'system.dramcache.banks%02d.storageReadForRepl']
+        data = [0]*len(statnames)
+        startchar = 0
+        for i in range(dumps+1):
+            startchar = stats.find('Begin Simulation Statistics',
+                                    startchar + 1)
+        mc = 0
+        while startchar >= 0:
+            for i,statname in enumerate(statnames):
+                startchar = stats.find(statname % mc, startchar)
+                start = startchar+len(statname)
+                bwstr = stats[start:stats.find('#', startchar)]
+                data[i] += int(bwstr)
+            startchar = stats.find(statnames[0] % mc, startchar)
+            mc += 1
+        reads = data[1]
+        writes = data[2]
+        readForWrite = data[5] - reads
+        fills = data[3]
+        writeG = fills
+        hits = data[4]
+    accesses = (reads + writes + readForWrite + fills + writeG)
+    bytes = accesses*72
+    return (accesses / float(reads + writes), bytes / float(hits*64))
+
 def deleteStats():
     import os
     outdir = m5.options.outdir
@@ -269,59 +310,69 @@ if __name__ == "__m5_main__":
 
     m5.instantiate()
 
-    # warmup_time = '10ms'
-    # print "Warming up for", warmup_time
-    # exit_event = m5.simulate(fromSeconds(toLatency(warmup_time)))
-    #
-    # if exit_event.getCause().startswith("user"):
-    #     print "exit for", exit_event.getCause()
-    #     exit(1)
-    #
-    # m5.stats.reset()
-
-    # sim_time = '20ms'
-    # print "simulating for", sim_time
-    # exit_event = m5.simulate(fromSeconds(toLatency(sim_time)))
-    #
-    # m5.stats.dump()
-    # print "Bandwidth at MC:", getBandwidth()/float(2**30), "GB/s"
-    # genbw = getGenBW() / toLatency(sim_time) * 64.0 / 2**30
-    # print "Bandwidth at generators:", genbw, "GB/s"
-    # print "Bottlenecks:", ", ".join(getBottleneck())
-    # print "Hit rate:", getHitRate()
-    # print "L3 miss bandwidth:", getL3MissSize()/ toLatency(sim_time)
-    # print "Membus bandwidth:", getMembusBW() / 2**30 / toLatency(sim_time)
-    #
-    # print "mc_bw, gen_bw, hit_rate, l3_bw, membus_bw"
-    # print getBandwidth()/float(2**30),
-    # print genbw,
-    # print getHitRate(),
-    # print getL3MissSize()/ toLatency(sim_time),
-    # print getMembusBW() / 2**30 / toLatency(sim_time)
-
-    warmup_time = "50ms"
-    sim_time = "10ms"
-
-    print "simulating for", warmup_time
+    warmup_time = '10ms'
+    if args[0] == 'infcache': warmup_time = '1ms'
+    print "Warming up for", warmup_time
     exit_event = m5.simulate(fromSeconds(toLatency(warmup_time)))
+
+    if exit_event.getCause().startswith("user"):
+        print "exit for", exit_event.getCause()
+        exit(1)
+
     m5.stats.reset()
 
+    sim_time = '20ms'
+    if args[0] == 'infcache': sim_time = '5ms'
     print "simulating for", sim_time
     exit_event = m5.simulate(fromSeconds(toLatency(sim_time)))
 
-    i = 0
     m5.stats.dump()
-    print "Bandwidth at MC:", getBandwidth(i)/float(2**30), "GB/s"
-    genbw = getGenBW(i, opts) / toLatency(sim_time) * 64.0 / 2**30
+    print "Bandwidth at MC:", getBandwidth()/float(2**30), "GB/s"
+    genbw = getGenBW(opts=opts) / toLatency(sim_time) * 64.0 / 2**30
     print "Bandwidth at generators:", genbw, "GB/s"
-    print "Bottlenecks:", ", ".join(getBottleneck(i))
-    print "Read Hit rate:", getHitRate(i)
-    print "Replace rate:", getReplaceRate(i)
-    print "Real replace rate:", getRealReplaceRate(i)
-    print "L3 miss bandwidth:", getL3MissSize(i)/ toLatency(sim_time)
-    print "Cold miss rate:", getColdMissRate(i)
-    print "Membus bandwidth:",
-    print getMembusBW(i) / 2**30 / toLatency(sim_time)
+    print "Bottlenecks:", ", ".join(getBottleneck())
+    print "Hit rate:", getHitRate()
+    print "L3 miss bandwidth:", getL3MissSize()/ toLatency(sim_time)
+    print "Membus bandwidth:", getMembusBW() / 2**30 / toLatency(sim_time)
+    if args[0] == 'dramcache-0':
+        aa = getAA()
+        print "access amplification", aa[0]
+        print "bandwidth bloat", aa[1]
+
+    print "mc_bw, gen_bw, hit_rate, l3_bw, membus_bw, aa, bb"
+    print getBandwidth()/float(2**30),
+    print genbw,
+    print getHitRate(),
+    print getL3MissSize()/ toLatency(sim_time),
+    print getMembusBW() / 2**30 / toLatency(sim_time),
+    if args[0] == 'dramcache-0':
+        aa = getAA()
+        print aa[0],
+        print aa[1]
+
+    # warmup_time = "50ms"
+    # sim_time = "10ms"
+    #
+    # print "simulating for", warmup_time
+    # exit_event = m5.simulate(fromSeconds(toLatency(warmup_time)))
+    # m5.stats.reset()
+    #
+    # print "simulating for", sim_time
+    # exit_event = m5.simulate(fromSeconds(toLatency(sim_time)))
+    #
+    # i = 0
+    # m5.stats.dump()
+    # print "Bandwidth at MC:", getBandwidth(i)/float(2**30), "GB/s"
+    # genbw = getGenBW(i, opts) / toLatency(sim_time) * 64.0 / 2**30
+    # print "Bandwidth at generators:", genbw, "GB/s"
+    # print "Bottlenecks:", ", ".join(getBottleneck(i))
+    # print "Read Hit rate:", getHitRate(i)
+    # print "Replace rate:", getReplaceRate(i)
+    # print "Real replace rate:", getRealReplaceRate(i)
+    # print "L3 miss bandwidth:", getL3MissSize(i)/ toLatency(sim_time)
+    # print "Cold miss rate:", getColdMissRate(i)
+    # print "Membus bandwidth:",
+    # print getMembusBW(i) / 2**30 / toLatency(sim_time)
 
     # if "dramcache" in args[0]:
     #     iters = 100
@@ -348,6 +399,11 @@ if __name__ == "__m5_main__":
     #     print "Cold miss rate:", getColdMissRate(i)
     #     print "Membus bandwidth:",
     #     print getMembusBW(i) / 2**30 / toLatency(sim_time)
+    #     if args[0] == 'dramcache-0':
+    #         aa = getAA(i)
+    #         print "Access amplification:", aa[0]
+    #         print "Bandwidth bloat:", aa[1]
+    #     print
     #
     #     if "dramcache" in args[0] and getColdMissRate(i) < 0.02:
     #         break
