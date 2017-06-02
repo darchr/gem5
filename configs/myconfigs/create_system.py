@@ -14,6 +14,10 @@ def createSystem(args):
         of expected ROI begins.
         Format: suite.app samples runs configuration
     """
+
+    if args[0] == 'interactive':
+        return createSystemInteractive()
+
     workload_info = args[0].split('.')
 
     if len(args) == 4:
@@ -25,6 +29,23 @@ def createSystem(args):
         return createSystemOne(args, config)
     else:
         return createSystemMulti(args, config)
+
+def createSystemInteractive():
+    """ Returns a system appropriate for interactive development of the
+        simulation environment
+    """
+
+    secondDisk = '/p/multifacet/users/powerjg/dramcache/disk-images/npb.img'
+    reqMem = '8GB'
+
+    # create the system we are going to simulate
+    system = getSystem('baseline', secondDisk, reqMem)
+
+    # Check if the system is compatible with sampling library
+    checkSystem(system)
+
+    return system, 0, 0
+
 
 def createSystemOne(args, config):
     """ Takes in arguments from the command line formatted as follows and
@@ -44,7 +65,8 @@ def createSystemOne(args, config):
     #elif suite == 'tpch':
         #secondDisk = '/mnt/gluster/jgpower/disk-images/tpch.img'
     else:
-        fatal("No disk for suite %s." % (suite))
+        secondDisk = '/p/multifacet/users/powerjg/dramcache/' \
+                     'disk-images/npb.img'
 
     appInfo = utils.getWorkload(suite, app)
 
@@ -94,7 +116,8 @@ def createSystemMulti(args, config):
         secondDisk = '/p/multifacet/users/powerjg/dramcache/' \
                      'disk-images/npb.img'
     else:
-        fatal("No disk for suite %s." % (suite))
+        secondDisk = '/p/multifacet/users/powerjg/dramcache/' \
+                     'disk-images/npb.img'
 
     reqMem = 0
     roiInstructions = 0

@@ -77,7 +77,8 @@ if __name__ == "__m5_main__":
         root.sim_quantum = int(1e9) # 1 ms
 
     # Disable the gdb ports. Required for high core counts and forking.
-    m5.disableAllListeners()
+    if args[0] != 'interactive':
+        m5.disableAllListeners()
 
     # instantiate all of the objects we've created above
     m5.instantiate()
