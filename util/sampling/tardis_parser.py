@@ -78,10 +78,16 @@ def readStatFile(basedir, config, suite, app, sample, run):
     @param sample: directory name of a sample point in the ROI
     @param run: outdir of one particular run of given sample point
     """
+    import gzip
+
     filename = os.path.join(basedir,suite,app, config, \
                             sample, run, 'stats.txt')
-    with open(filename) as f:
-        text = f.read()
+    if os.path.exists(filename+'.gz'):
+        with gzip.open(filename+'.gz') as f:
+            text = f.read()
+    else:
+        with open(filename) as f:
+            text = f.read()
     return text
 
 
@@ -300,9 +306,12 @@ def applyToAllSamples(func,bpath,config,suite,app):
 
             # Get path to stat.txt file for this config/sample/run
             statpath = os.path.join(runpath,run,'stats.txt')
+            if os.path.isfile(statpath + '.gz'):
+                statpath += '.gz'
 
             # Check for empty stat.txt file
             if not os.path.isfile(statpath) or os.path.getsize(statpath)==0:
+                print "Skipping (no statfile) : %s" % statpath
                 continue
             if os.path.getsize(statpath) == 0:
                 print "Skipping (empty statfile) : %s" % statpath
@@ -311,7 +320,8 @@ def applyToAllSamples(func,bpath,config,suite,app):
 
             # Apply the getStats function to populate the stat value
             func(config,suite,app,sample,run)
-        print "\n Skipped a total of %d directories" % skipcnt
+        if skipcnt:
+            print "Skipped a total of %d directories" % skipcnt
 
 
 def load_stats(stat_dict,basepath,suite, app, config, rows,pickle_en=True):
