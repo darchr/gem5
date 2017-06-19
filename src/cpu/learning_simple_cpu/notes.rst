@@ -100,8 +100,36 @@ Actually, not a vector. We're only supporting one thread anyway.
 
 I need to pass it some stuff. I think it should look something like the following:
 
-::
-    thread(this, 0, params->system, params->itb, params->dtb, params->isa[0])
+.. code-block:: c++
+    thread = new SimpleThread(this, 0, params->system, params->workload[0],
+                              params->itb, params->dtb, params->isa[0]);
 
 Note: So far, this will only support SE mode.
 FS mode has a different signature for the thread context (for some reason), so you have to instantiate the thread context dynamically if you want to support both modes.
+
+I think we also need to add some stuff to init and startup.
+
+.. code-block:: c++
+
+    void
+    LearningSimpleCPU::init()
+    {
+        DPRINTF(LearningSimpleCPU, "LearningSimpleCPU init\n");
+
+        BaseCPU::init();
+
+        thread->getTC()->initMemProxies(thread->getTC());
+    }
+
+    void
+    LearningSimpleCPU::startup()
+    {
+        DPRINTF(LearningSimpleCPU, "LearningSimpleCPU startup\n");
+
+        BaseCPU::startup();
+
+        thread->startup();
+    }
+
+I would like to go back and make the "thread" be not a pointer.
+I'll do that tomorrow.
