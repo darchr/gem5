@@ -36,15 +36,3 @@ class LearningSimpleCPU(BaseCPU):
     @classmethod
     def memory_mode(cls):
         return 'timing'
-
-    @classmethod
-    def require_caches(cls):
-        return False
-
-    @classmethod
-    def support_take_over(cls):
-        return False
-
-    def addCheckerCpu(self):
-        print "Checker not yet supported by MinorCPU"
-        exit(1)

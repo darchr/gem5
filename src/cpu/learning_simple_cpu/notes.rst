@@ -64,3 +64,44 @@ Execution context?
 ------------------
 
 This seems to be the next thing we need. But it isn't really documented anywhere.
+
+To set up the process, we have to call the following function:
+
+.. code-block:: c++
+
+    // After getting registered with system object, tell process which
+    // system-wide context id it is assigned.
+    void
+    assignThreadContext(ContextID context_id)
+    {
+        contextIds.push_back(context_id);
+    }
+
+
+To do this, we call the following function defined in BaseCPU:
+
+.. code-block:: c++
+
+    void registerThreadContexts();
+
+
+This function assumes you have put something in `std::vector<ThreadContext *> threadContexts;`.
+So, I guess we need to do that before we call the function.
+Let's also see where other models call this function.
+They don't. This is called in `BaseCPU::init()`.
+
+So, before init(), we need to put a thread context in the `threadContexts` vector.
+This is for *`ThreadContexts`*, not `Threads`, whatever they are...
+I'm going to try to get away with just using SimpleThread.
+
+I'm going to add a vector of SimpleThreads to my CPU in case I need them.
+I don't know if I will or not.
+Actually, not a vector. We're only supporting one thread anyway.
+
+I need to pass it some stuff. I think it should look something like the following:
+
+::
+    thread(this, 0, params->system, params->itb, params->dtb, params->isa[0])
+
+Note: So far, this will only support SE mode.
+FS mode has a different signature for the thread context (for some reason), so you have to instantiate the thread context dynamically if you want to support both modes.

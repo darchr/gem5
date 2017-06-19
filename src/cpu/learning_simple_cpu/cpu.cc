@@ -37,6 +37,33 @@ LearningSimpleCPU::LearningSimpleCPU(LearningSimpleCPUParams *params) :
     port(name()+".port", this),
     memOutstanding(false)
 {
+    fatal_if(FullSystem, "The LearningSimpleCPU doesn't support full system.");
+
+    thread = new SimpleThread(this, 0, params->system, params->workload[0],
+                              params->itb, params->dtb, params->isa[0]);
+
+    // Register this thread with the BaseCPU.
+    threadContexts.push_back(thread->getTC());
+}
+
+void
+LearningSimpleCPU::init()
+{
+    DPRINTF(LearningSimpleCPU, "LearningSimpleCPU init\n");
+
+    BaseCPU::init();
+
+    thread->getTC()->initMemProxies(thread->getTC());
+}
+
+void
+LearningSimpleCPU::startup()
+{
+    DPRINTF(LearningSimpleCPU, "LearningSimpleCPU startup\n");
+
+    BaseCPU::startup();
+
+    thread->startup();
 }
 
 void
