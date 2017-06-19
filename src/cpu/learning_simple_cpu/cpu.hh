@@ -28,9 +28,11 @@
  * Authors: Jason Lowe-Power
  */
 
+#include <vector>
 
 #include "config/the_isa.hh"
 #include "cpu/base.hh"
+#include "cpu/simple_thread.hh"
 #include "params/LearningSimpleCPU.hh"
 
 class LearningSimpleCPU : public BaseCPU
@@ -84,6 +86,9 @@ class LearningSimpleCPU : public BaseCPU
     /// supporting a single memory request at a time.
     bool memOutstanding;
 
+    /// Contains the context of the thread an other information, I guess
+    SimpleThread *thread;
+
     /**
      * Called when we receive a response from memory. We previous sent a
      * request.
@@ -99,6 +104,18 @@ class LearningSimpleCPU : public BaseCPU
      * Constructor. Nothing special.
      */
     LearningSimpleCPU(LearningSimpleCPUParams *params);
+
+    /**
+     * Initialize some things (called after constructor and before startup)
+     * NOTE: Be sure to call BaseCPU::init() in this function!
+     */
+    void init() override;
+
+    /**
+     * Startup some things (called after init, when the first simulate())
+     * NOTE: Be sure to call BaseCPU::startup() in this function!
+     */
+    void startup() override;
 
     /**
      * @return a reference to the data port (a CPU port)
