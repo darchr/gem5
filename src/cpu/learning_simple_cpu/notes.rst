@@ -101,8 +101,7 @@ Actually, not a vector. We're only supporting one thread anyway.
 I need to pass it some stuff. I think it should look something like the following:
 
 .. code-block:: c++
-    thread = new SimpleThread(this, 0, params->system, params->workload[0],
-                              params->itb, params->dtb, params->isa[0]);
+    thread(this, 0, params->system, params->workload[0], params->itb, params->dtb, params->isa[0]);
 
 Note: So far, this will only support SE mode.
 FS mode has a different signature for the thread context (for some reason), so you have to instantiate the thread context dynamically if you want to support both modes.
@@ -118,7 +117,7 @@ I think we also need to add some stuff to init and startup.
 
         BaseCPU::init();
 
-        thread->getTC()->initMemProxies(thread->getTC());
+        thread.getTC()->initMemProxies(thread.getTC());
     }
 
     void
@@ -128,8 +127,36 @@ I think we also need to add some stuff to init and startup.
 
         BaseCPU::startup();
 
-        thread->startup();
+        thread.startup();
     }
 
-I would like to go back and make the "thread" be not a pointer.
-I'll do that tomorrow.
+So, with all this, nothing happens.
+We just run until the simulation limit is reached.
+
+I added the wakeup implemenation to call the thread context activate function.
+Actually, this function isn't called with the simple script, only the starup function is called.
+
+.. code-block:: c++
+
+    void
+    LearningSimpleCPU::wakeup(ThreadID tid)
+    {
+        assert(tid == 0); // This CPU doesn't support more than one thread!
+
+        if (thread.getTC()->status() == ThreadContext::Suspended) {
+            DPRINTF(LearningSimpleCPU,"[tid:%d] Suspended Processor awoke\n", tid);
+            thread.getTC()->activate();
+        }
+    }
+
+When the thread context is activated, it in turn calls cpu->activateContext().
+I don't quite understand this circular dependence, but I'll go with it for now.
+I'm not sure when activateContext() is executed since wakeup() isn't called.
+
+I'm not sure what the difference between the `ThreadContext` and the `SimpleThread` is.
+According to a comment "Returns the pointer to this SimpleThread's ThreadContext. Used when a ThreadContext must be passed to objects outside of the CPU."
+Not that helpful...
+
+Well, I added an `activateContext` function.
+But it seems like it causes an infinite loop.
+Am I missing something?

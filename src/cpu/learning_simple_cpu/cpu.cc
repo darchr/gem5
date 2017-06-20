@@ -35,15 +35,14 @@
 LearningSimpleCPU::LearningSimpleCPU(LearningSimpleCPUParams *params) :
     BaseCPU(params),
     port(name()+".port", this),
-    memOutstanding(false)
+    memOutstanding(false),
+    thread(this, 0, params->system, params->workload[0], params->itb,
+           params->dtb, params->isa[0])
 {
     fatal_if(FullSystem, "The LearningSimpleCPU doesn't support full system.");
 
-    thread = new SimpleThread(this, 0, params->system, params->workload[0],
-                              params->itb, params->dtb, params->isa[0]);
-
     // Register this thread with the BaseCPU.
-    threadContexts.push_back(thread->getTC());
+    threadContexts.push_back(thread.getTC());
 }
 
 void
@@ -53,7 +52,7 @@ LearningSimpleCPU::init()
 
     BaseCPU::init();
 
-    thread->getTC()->initMemProxies(thread->getTC());
+    thread.getTC()->initMemProxies(thread.getTC());
 }
 
 void
@@ -63,7 +62,7 @@ LearningSimpleCPU::startup()
 
     BaseCPU::startup();
 
-    thread->startup();
+    thread.startup();
 }
 
 void
@@ -71,12 +70,20 @@ LearningSimpleCPU::wakeup(ThreadID tid)
 {
     assert(tid == 0); // This CPU doesn't support more than one thread!
 
-    // Not sure what to do here.
+    // Activate the thread contexts
+    if (thread.status() == ThreadContext::Suspended) {
+        DPRINTF(LearningSimpleCPU,"[tid:%d] Suspended Processor awoke\n", tid);
+        thread.activate();
+    }
+}
 
-    //  if (threadInfo[tid]->thread->status() == ThreadContext::Suspended) {
-    //      DPRINTF(SimpleCPU,"[tid:%d] Suspended Processor awoke\n", tid);
-    //      threadInfo[tid]->thread->activate();
-    //  }
+void
+LearningSimpleCPU::activateContext(ThreadID tid)
+{
+    DPRINTF(LearningSimpleCPU, "ActivateContext thread: %d\n", tid);
+    BaseCPU::activateContext(tid);
+
+    thread.activate();
 }
 
 void
