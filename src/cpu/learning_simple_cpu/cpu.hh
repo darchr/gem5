@@ -87,7 +87,7 @@ class LearningSimpleCPU : public BaseCPU
     bool memOutstanding;
 
     /// Contains the context of the thread an other information, I guess
-    SimpleThread *thread;
+    SimpleThread thread;
 
     /**
      * Called when we receive a response from memory. We previous sent a
@@ -116,6 +116,14 @@ class LearningSimpleCPU : public BaseCPU
      * NOTE: Be sure to call BaseCPU::startup() in this function!
      */
     void startup() override;
+
+    /**
+     * Start a particular thread context. This kicks off the first events.
+     * This should call the superclass's implementation as well.
+     *
+     * @param the thread ID to activate
+     */
+    void activateContext(ThreadID tid) override;
 
     /**
      * @return a reference to the data port (a CPU port)
