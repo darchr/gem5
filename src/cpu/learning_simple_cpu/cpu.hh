@@ -80,6 +80,34 @@ class LearningSimpleCPU : public BaseCPU
         */
         void recvReqRetry() override;
     };
+
+    class TranslationState : public BaseTLB::Translation
+    {
+        LearningSimpleCPU &cpu;
+      public:
+        TranslationState(LearningSimpleCPU& cpu) : cpu(cpu) { }
+
+        /**
+        * Signal that the translation has been delayed due to a hw page table
+        * walk.
+        */
+        void markDelayed() override { };
+
+        /*
+        * The memory for this object may be dynamically allocated, and it may
+        * be responsible for cleaning itself up which will happen in this
+        * function. Once it's called, the object is no longer valid.
+        */
+        void finish(const Fault &fault, RequestPtr req,
+                    ThreadContext *tc, BaseTLB::Mode mode) override
+        {
+            cpu.fetchSend(req, fault);
+            delete this;
+        }
+    };
+
+    /// Currently we only have one port that is shared between instruciton and
+    /// data fetch.
     CPUPort port;
 
     /// True when there is a memory request outstanding. Right now we are only
@@ -97,6 +125,17 @@ class LearningSimpleCPU : public BaseCPU
      * @return false if we can't handle the packet this cycle.
      */
     bool handleResponse(PacketPtr pkt);
+
+    /**
+     * The fetchTranslate "stage" of our "single cycle" processor
+     * This sends a request for the next PC address to the TLB
+     */
+    void fetchTranslate();
+
+    /**
+     * Sends the request for the next PC to memory.
+     */
+    void fetchSend(RequestPtr req, const Fault &fault);
 
 
   public:

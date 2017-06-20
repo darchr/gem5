@@ -130,24 +130,13 @@ I think we also need to add some stuff to init and startup.
         thread.startup();
     }
 
+
 So, with all this, nothing happens.
 We just run until the simulation limit is reached.
 
 I added the wakeup implemenation to call the thread context activate function.
 Actually, this function isn't called with the simple script, only the starup function is called.
 
-.. code-block:: c++
-
-    void
-    LearningSimpleCPU::wakeup(ThreadID tid)
-    {
-        assert(tid == 0); // This CPU doesn't support more than one thread!
-
-        if (thread.getTC()->status() == ThreadContext::Suspended) {
-            DPRINTF(LearningSimpleCPU,"[tid:%d] Suspended Processor awoke\n", tid);
-            thread.getTC()->activate();
-        }
-    }
 
 When the thread context is activated, it in turn calls cpu->activateContext().
 I don't quite understand this circular dependence, but I'll go with it for now.
@@ -160,3 +149,15 @@ Not that helpful...
 Well, I added an `activateContext` function.
 But it seems like it causes an infinite loop.
 Am I missing something?
+I guess there isn't an infinite loop, but I don't understand how.
+
+The order of initialization is the following:
+
+::
+    0: system.cpu: LearningSimpleCPU init
+    0: system.cpu: ActivateContext thread: 0
+    Beginning simulation!
+    0: system.cpu: LearningSimpleCPU startup
+
+It looks like the `activateContext` function is where we should kick off the import events to start fetching, etc.
+Let's see how that goes.
