@@ -106,6 +106,9 @@ I need to pass it some stuff. I think it should look something like the followin
 Note: So far, this will only support SE mode.
 FS mode has a different signature for the thread context (for some reason), so you have to instantiate the thread context dynamically if you want to support both modes.
 
+Initialization
+----------------
+
 I think we also need to add some stuff to init and startup.
 
 .. code-block:: c++
@@ -137,6 +140,8 @@ We just run until the simulation limit is reached.
 I added the wakeup implemenation to call the thread context activate function.
 Actually, this function isn't called with the simple script, only the starup function is called.
 
+Activating the context
+----------------------
 
 When the thread context is activated, it in turn calls cpu->activateContext().
 I don't quite understand this circular dependence, but I'll go with it for now.
@@ -161,3 +166,54 @@ The order of initialization is the following:
 
 It looks like the `activateContext` function is where we should kick off the import events to start fetching, etc.
 Let's see how that goes.
+
+Fetching instructions
+---------------------
+
+As part of the activation, we need to kick of instruction fetch.
+I guess I'm going to use an event to kick that off and keep doing that event whenever an instruction commits.
+
+Fetching needs to be split into two parts.
+First, we must access the TLB with a translation state.
+Then, when the TLB finishes (and calls our callback), we need to actually send the memory request.
+
+The size of the fetch is `sizeof(MachInst)`.
+This is an ISA-specif size.
+And, it may not actually be the whole instruction that we need, since we haven't decoded the instruction yet.
+This makes things very complicated.
+For now, we're going to assume all instructions are the same size (and use RISC-V so this is true).
+We'll talk more about instrcution size when we get to decoding.
+
+Decoding instructions
+---------------------
+
+Once we have the instruction from memory, we need to decode it.
+We decode it by using the `thread`'s decoder (this is ISA-specific).
+
+To decode an instruction, we first call `decoder.moreBytes` and pass it the current bytes that we have fetched from memory.
+Once we have given the decoder this information, we can try to decode the instruction.
+
+When decoding, we may not have enough information (e.g., the instruction is bigger than `MachInst`).
+If this is the case, the decoder's decode function will return null, and we'll have to go back and fetch some more data.
+Then, once that data is fetched, we can call `moreBytes` again to give the decoder more data to work with and maybe then it can decode the instruction.
+
+Executing instructions
+----------------------
+
+Non-memory instructions
+========================
+
+Let's start with the simpler case of instructions that don't access memory.
+
+The `StaticInst` type has a `execute` function.
+I think we can just call this.
+(I'm still not totally clear where this class is implemented. I think it's in the ISA, but I don't know for sure.)
+
+However, to do this, we need to implement an execution context.
+
+Execution context
+==================
+
+This class mostly just wraps the thread context and calls different functions on the thread context to update and read registers.
+It also allows the instruction to call back into the CPU for things it needs (like accessing memory).
+I don't fully understand why this exists.

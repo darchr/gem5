@@ -28,6 +28,9 @@
  * Authors: Jason Lowe-Power
  */
 
+#ifndef __CPU_LEARNING_SIMPLE_CPU_HH__
+#define __CPU_LEARNING_SIMPLE_CPU_HH__
+
 #include <vector>
 
 #include "config/the_isa.hh"
@@ -84,8 +87,31 @@ class LearningSimpleCPU : public BaseCPU
     class TranslationState : public BaseTLB::Translation
     {
         LearningSimpleCPU &cpu;
+        /// True if this is a fetch request.
+        bool fetch;
+        /// Holds the instruction for loads/stores
+        StaticInstPtr inst;
+        /// Holds the data for stores
+        /// NOTE: This class isn't going to free this data, we're going to
+        ///       pass that off to the packet later.
+        uint8_t *data;
+        /// Used for swaps and other atomics?
+        uint64_t *res;
       public:
-        TranslationState(LearningSimpleCPU& cpu) : cpu(cpu) { }
+        TranslationState(LearningSimpleCPU& cpu)
+            : cpu(cpu), fetch(true), inst(nullptr), data(nullptr), res(nullptr)
+        { }
+
+        TranslationState(LearningSimpleCPU& cpu, StaticInstPtr inst,
+                         unsigned int size, uint8_t *_data, uint64_t *res)
+            : cpu(cpu), fetch(false), inst(inst), data(nullptr), res(res)
+        {
+            // Need to allocate new data for some reason, but only for writes
+            if (_data) {
+                data = new uint8_t[size];
+                memcpy(data, _data, size);
+            }
+        }
 
         /**
         * Signal that the translation has been delayed due to a hw page table
@@ -101,7 +127,9 @@ class LearningSimpleCPU : public BaseCPU
         void finish(const Fault &fault, RequestPtr req,
                     ThreadContext *tc, BaseTLB::Mode mode) override
         {
-            cpu.fetchSend(req, fault);
+            if (fetch) cpu.fetchSend(req, fault);
+            else cpu.memorySend(inst, req, fault, data, res,
+                                mode == BaseTLB::Read);
             delete this;
         }
     };
@@ -110,9 +138,16 @@ class LearningSimpleCPU : public BaseCPU
     /// data fetch.
     CPUPort port;
 
-    /// True when there is a memory request outstanding. Right now we are only
-    /// supporting a single memory request at a time.
-    bool memOutstanding;
+    /// True when there is an instruction memory request outstanding. Right now
+    /// we are only supporting a single memory request at a time.
+    bool instOutstanding;
+
+    /// True when there is an data memory request outstanding. Right now
+    /// we are only supporting a single memory request at a time.
+    bool dataOutstanding;
+
+    /// Holds the instruction while the memory request is outstanding for loads
+    StaticInstPtr outstandingInst;
 
     /// Contains the context of the thread an other information, I guess
     SimpleThread thread;
@@ -137,6 +172,22 @@ class LearningSimpleCPU : public BaseCPU
      */
     void fetchSend(RequestPtr req, const Fault &fault);
 
+    /**
+     * Execute the instruction fetched and found in pkt
+     */
+    void executeInstruction(PacketPtr pkt);
+
+    /**
+     * Called after the memory translate is complete to send the request to the
+     * memory system.
+     */
+    void memorySend(StaticInstPtr inst, RequestPtr req, const Fault &fault,
+                    uint8_t *data, uint64_t *res, bool read);
+
+    /**
+     * Called after the memory request in memory send finishes (for loads)
+     */
+    void memoryResponse(PacketPtr pkt);
 
   public:
     /**
@@ -193,5 +244,14 @@ class LearningSimpleCPU : public BaseCPU
      */
     void wakeup(ThreadID tid) override;
 
+    /**
+     * Starts a memory access by first translating the request
+     * This is called from the exec context.
+     */
+    void memoryTranslate(StaticInstPtr inst, uint8_t *data, Addr addr,
+                        unsigned int size, Request::Flags flags, uint64_t *res,
+                        bool read);
 
 };
+
+#endif
