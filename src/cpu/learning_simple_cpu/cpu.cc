@@ -137,6 +137,46 @@ LearningSimpleCPU::handleResponse(PacketPtr pkt)
     return true;
 }
 
+void
+LearningSimpleCPU::fetchTranslate()
+{
+
+    // TheISA::PCState pcState = thread.pcState();
+    // pcState.microPC() confuses me.
+
+    DPRINTF(LearningSimpleCPU, "Fetching addr %#x\n", thread.instAddr());
+
+    // Seems weird that this size is static. Maybe that's right
+    RequestPtr req =
+        new Request(0 /* asid */,
+            thread.instAddr(), sizeof(TheISA::MachInst), Request::INST_FETCH,
+            instMasterId(), thread.instAddr(), thread.contextId());
+
+    TranslationState *translation = new TranslationState(*this);
+
+    thread.itb->translateTiming(req, thread.getTC(), translation,
+                                BaseTLB::Execute);
+}
+
+void
+LearningSimpleCPU::fetchSend(RequestPtr req, const Fault &fault)
+{
+    if (fault == NoFault) {
+        DPRINTF(LearningSimpleCPU, "Sending fetch for addr %#x(pa: %#x)\n",
+                req->getVaddr(), req->getPaddr());
+        PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
+        pkt->allocate();
+        port.sendPacket(pkt);
+    } else {
+        DPRINTF(LearningSimpleCPU, "Translation of addr %#x faulted\n",
+                                   req->getVaddr());
+        delete req;
+        panic("Currently LearningSimpleCPU doesn't support fetch faults\n");
+        // fetch fault: advance directly to next instruction (fault handler)
+        // advanceInst(fault);
+    }
+}
+
 LearningSimpleCPU*
 LearningSimpleCPUParams::create()
 {
