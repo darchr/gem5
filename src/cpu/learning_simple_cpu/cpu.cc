@@ -32,6 +32,7 @@
 
 #include "arch/locked_mem.hh"
 #include "arch/mmapped_ipr.hh"
+#include "arch/utility.hh"
 #include "cpu/learning_simple_cpu/exec_context.hh"
 #include "debug/LearningSimpleCPU.hh"
 
@@ -152,18 +153,20 @@ LearningSimpleCPU::handleResponse(PacketPtr pkt)
 }
 
 void
-LearningSimpleCPU::fetchTranslate()
+LearningSimpleCPU::fetchTranslate(Addr offset)
 {
 
     // TheISA::PCState pcState = thread.pcState();
     // pcState.microPC() confuses me.
 
-    DPRINTF(LearningSimpleCPU, "Fetching addr %#x\n", thread.instAddr());
+    DPRINTF(LearningSimpleCPU, "Fetching addr %#x (+%#x)\n",
+                               thread.instAddr(), offset);
 
     RequestPtr req =
         new Request(0 /* asid */,
-            thread.instAddr(), sizeof(TheISA::MachInst), Request::INST_FETCH,
-            instMasterId(), thread.instAddr(), thread.contextId());
+            thread.instAddr() + offset, sizeof(TheISA::MachInst),
+            Request::INST_FETCH, instMasterId(), thread.instAddr(),
+            thread.contextId());
 
     TranslationState *translation = new TranslationState(*this);
 
@@ -199,12 +202,23 @@ LearningSimpleCPU::decodeInstruction(PacketPtr pkt)
 {
     DPRINTF(LearningSimpleCPU, "Decoding the instruction\n");
     // First, we need to decode
-    thread.decoder.moreBytes(thread.pcState(), thread.instAddr(),
+    thread.decoder.moreBytes(thread.pcState(), pkt->req->getVaddr(),
                       *pkt->getConstPtr<TheISA::MachInst>());
     TheISA::PCState next_pc = thread.pcState();
     StaticInstPtr inst = thread.decoder.decode(next_pc);
 
-    panic_if(!inst, "Need to fetch more data, I guess. This is strange.");
+    if (!inst) {
+        DPRINTF(LearningSimpleCPU, "Need to fetch more data\n");
+        schedule(new EventFunctionWrapper(
+                        [this]{ fetchTranslate(sizeof(TheISA::MachInst)); },
+                        name()+".extra_fetch", true),
+                 curTick());
+        // We'll be back here soon when fetchTranslate and fetchSend finish
+        return;
+    }
+
+    // Update the PC state.
+    thread.pcState(next_pc);
 
     executeInstruction(inst);
 }
@@ -397,9 +411,9 @@ LearningSimpleCPU::finishExecute(StaticInstPtr inst, const Fault &fault)
         thread.decoder.reset();
     } else {
         // update the thread's PC to the nextPC
-        TheISA::PCState pcState = thread.pcState();
-        TheISA::advancePC(pcState, inst);
-        thread.pcState(pcState);
+        TheISA::PCState pc_state = thread.pcState();
+        TheISA::advancePC(pc_state, inst);
+        thread.pcState(pc_state);
     }
 
     if (inst->isMicroop() && currentMacroOp) {
