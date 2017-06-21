@@ -37,6 +37,7 @@
 #include "cpu/base.hh"
 #include "cpu/simple_thread.hh"
 #include "params/LearningSimpleCPU.hh"
+#include "sim/insttracer.hh"
 
 class LearningSimpleCPU : public BaseCPU
 {
@@ -152,6 +153,9 @@ class LearningSimpleCPU : public BaseCPU
     /// Contains the context of the thread an other information, I guess
     SimpleThread thread;
 
+    /// For tracing with Exec debug flags
+    Trace::InstRecord *traceData;
+
     /**
      * Called when we receive a response from memory. We previous sent a
      * request.
@@ -188,6 +192,13 @@ class LearningSimpleCPU : public BaseCPU
      * Called after the memory request in memory send finishes (for loads)
      */
     void memoryResponse(PacketPtr pkt);
+
+    /**
+     * Cleanup any extra things used for execute (e.g., tracing) and move to
+     * the next instruction
+     */
+    void finishExecute(StaticInstPtr inst, const Fault &fault);
+
 
   public:
     /**

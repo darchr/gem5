@@ -28,10 +28,11 @@
  * Authors: Jason Lowe-Power
  */
 
- #include "cpu/learning_simple_cpu/cpu.hh"
+#include "cpu/learning_simple_cpu/cpu.hh"
 
- #include "cpu/learning_simple_cpu/exec_context.hh"
-
+#include "arch/locked_mem.hh"
+#include "arch/mmapped_ipr.hh"
+#include "cpu/learning_simple_cpu/exec_context.hh"
 #include "debug/LearningSimpleCPU.hh"
 
 LearningSimpleCPU::LearningSimpleCPU(LearningSimpleCPUParams *params) :
@@ -39,7 +40,8 @@ LearningSimpleCPU::LearningSimpleCPU(LearningSimpleCPUParams *params) :
     port(name()+".port", this),
     instOutstanding(false), dataOutstanding(false), outstandingInst(nullptr),
     thread(this, 0, params->system, params->workload[0], params->itb,
-           params->dtb, params->isa[0])
+           params->dtb, params->isa[0]),
+    traceData(nullptr)
 {
     fatal_if(FullSystem, "The LearningSimpleCPU doesn't support full system.");
 
@@ -203,28 +205,28 @@ LearningSimpleCPU::executeInstruction(PacketPtr pkt)
 
     panic_if(!inst, "Need to fetch more data, I guess. This is strange.");
 
+    // Initialize the trace
+#if TRACING_ON
+    traceData = getTracer()->getInstRecord(curTick(), thread.getTC(), inst,
+                                           thread.pcState());
+#endif
+
+    // maintain $r0 semantics
+    thread.setIntReg(TheISA::ZeroReg, 0);
+
     // Create an execution context for this instruction's execution.
     LearningSimpleContext exec_context(*this, thread, inst);
 
     if (inst->isMemRef()) {
         DPRINTF(LearningSimpleCPU, "Found a memory instruciton!\n");
         // Make the memory reference...
-        Fault fault = inst->initiateAcc(&exec_context, nullptr);
+        Fault fault = inst->initiateAcc(&exec_context, traceData);
+        panic_if(fault != NoFault, "Don't know how to deal with mem faults!");
     } else {
         DPRINTF(LearningSimpleCPU, "Found a non-memory instruciton!\n");
         // Execute the instruction...
-        Fault fault = inst->execute(&exec_context, nullptr);
-
-        // update the thread's PC to the nextPC
-        TheISA::PCState pcState = thread.pcState();
-        TheISA::advancePC(pcState, inst);
-        thread.pcState(pcState);
-
-        // Schedule an instruction fetch for the next cycle.
-        schedule(new EventFunctionWrapper([this]{ fetchTranslate(); },
-                                          name()+".initial_fetch",
-                                          true),
-                 nextCycle());
+        Fault fault = inst->execute(&exec_context, traceData);
+        finishExecute(inst, fault);
     }
 }
 
@@ -236,6 +238,10 @@ LearningSimpleCPU::memoryTranslate(StaticInstPtr inst, uint8_t *data,
 {
     DPRINTF(LearningSimpleCPU, "%s addr %#x (size: %d)\n",
             read ? "Read" : "Write", addr, size);
+
+    if (traceData) {
+        traceData->setMem(addr, size, flags);
+    }
 
     // Check to see if access crosses cache line boundary.
     if (((addr + size - 1) / cacheLineSize()) > (addr / cacheLineSize())) {
@@ -264,7 +270,7 @@ LearningSimpleCPU::memorySend(StaticInstPtr inst, RequestPtr req,
         DPRINTF(LearningSimpleCPU, "Translation of addr %#x faulted\n",
                                    req->getVaddr());
         delete req;
-        panic("Currently LearningSimpleCPU doesn't support fetch faults\n");
+        panic("Currently LearningSimpleCPU doesn't support memory faults");
         return;
     }
 
@@ -274,15 +280,31 @@ LearningSimpleCPU::memorySend(StaticInstPtr inst, RequestPtr req,
     }
 
     PacketPtr pkt;
+    bool do_access = true; // For supressing access on LLSCs
     if (read) {
         DPRINTF(LearningSimpleCPU, "Sending read for addr %#x(pa: %#x)\n",
                 req->getVaddr(), req->getPaddr());
         pkt = Packet::createRead(req);
         pkt->allocate();
+
+        // For LLSC, we have to register this read with the ISA to mark the
+        // address as locked.
+        if (req->isLLSC()) {
+            TheISA::handleLockedRead(&thread, req);
+        }
     } else {
         DPRINTF(LearningSimpleCPU, "Sending write for addr %#x(pa: %#x)\n",
                 req->getVaddr(), req->getPaddr());
-        panic_if(req->isLLSC() || req->isCondSwap(), "Can't do atomics");
+
+        if (req->isLLSC()) {
+            do_access = TheISA::handleLockedWrite(&thread, req,
+                                        ~((Addr)cacheLineSize() - 1));
+            DPRINTF(LearningSimpleCPU, "Doing LLSC. %s access\n",
+                        do_access ? "Should" : "Should NOT");
+        } else if (req->isCondSwap()) {
+            assert(res);
+            req->setExtraData(*res);
+        }
 
         pkt = Packet::createWrite(req);
         // Assume we have data if it's a write.
@@ -290,10 +312,29 @@ LearningSimpleCPU::memorySend(StaticInstPtr inst, RequestPtr req,
         pkt->dataDynamic<uint8_t>(data);
     }
 
-    dataOutstanding = true;
-    outstandingInst = inst;
-    port.sendPacket(pkt);
+    // For IPRs, we need to do something different.
+    if (req->isMmappedIpr()) {
+        Cycles delay;
+        // Let the ISA handle the request.
+        if (read) delay = TheISA::handleIprRead(thread.getTC(), pkt);
+        else      delay = TheISA::handleIprWrite(thread.getTC(), pkt);
 
+        // Delay the repsone kind of like we're doing a normal request.
+        schedule(new EventFunctionWrapper([this,pkt]{ memoryResponse(pkt); },
+                                          name()+".ipr_delay",
+                                          true),
+                 clockEdge(delay));
+        // No need to do anything else, now.
+        return;
+    }
+
+    outstandingInst = inst;
+    if (do_access) {
+        dataOutstanding = true;
+        port.sendPacket(pkt);
+    } else {
+        memoryResponse(pkt);
+    }
 }
 
 void
@@ -307,17 +348,41 @@ LearningSimpleCPU::memoryResponse(PacketPtr pkt)
 
     LearningSimpleContext exec_context(*this, thread, inst);
 
-    Fault fault = inst->completeAcc(pkt, &exec_context, nullptr);
+    Fault fault = inst->completeAcc(pkt, &exec_context, traceData);
 
     panic_if(fault != NoFault, "Don't know how to handle this fault!");
 
     delete pkt->req;
     delete pkt;
 
-    // Finally, we can move on to the next instruction.
-    TheISA::PCState pcState = thread.pcState();
-    TheISA::advancePC(pcState, inst);
-    thread.pcState(pcState);
+    finishExecute(inst, fault);
+}
+
+void
+LearningSimpleCPU::finishExecute(StaticInstPtr inst, const Fault &fault)
+{
+    DPRINTF(LearningSimpleCPU, "Finishing execute and moving to next inst\n");
+    assert(!instOutstanding && !dataOutstanding);
+    assert(!outstandingInst);
+
+    // Dump trace.
+    if (traceData) {
+        traceData->dump();
+        delete traceData;
+        traceData = nullptr;
+    }
+
+    assert(!inst->isMicroop());
+
+    if (fault != NoFault) {
+        fault->invoke(thread.getTC(), inst);
+        thread.decoder.reset();
+    } else {
+        // update the thread's PC to the nextPC
+        TheISA::PCState pcState = thread.pcState();
+        TheISA::advancePC(pcState, inst);
+        thread.pcState(pcState);
+    }
 
     // Schedule an instruction fetch for the next cycle.
     schedule(new EventFunctionWrapper([this]{ fetchTranslate(); },
