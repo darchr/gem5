@@ -41,6 +41,7 @@ LearningSimpleCPU::LearningSimpleCPU(LearningSimpleCPUParams *params) :
     instOutstanding(false), dataOutstanding(false), outstandingInst(nullptr),
     thread(this, 0, params->system, params->workload[0], params->itb,
            params->dtb, params->isa[0]),
+    currentMacroOp(nullptr),
     traceData(nullptr)
 {
     fatal_if(FullSystem, "The LearningSimpleCPU doesn't support full system.");
@@ -142,7 +143,7 @@ LearningSimpleCPU::handleResponse(PacketPtr pkt)
         memoryResponse(pkt);
     } else if (instOutstanding) {
         instOutstanding = false;
-        executeInstruction(pkt);
+        decodeInstruction(pkt);
     } else {
         panic("This is impossible");
     }
@@ -194,7 +195,7 @@ LearningSimpleCPU::fetchSend(RequestPtr req, const Fault &fault)
 }
 
 void
-LearningSimpleCPU::executeInstruction(PacketPtr pkt)
+LearningSimpleCPU::decodeInstruction(PacketPtr pkt)
 {
     DPRINTF(LearningSimpleCPU, "Decoding the instruction\n");
     // First, we need to decode
@@ -204,6 +205,24 @@ LearningSimpleCPU::executeInstruction(PacketPtr pkt)
     StaticInstPtr inst = thread.decoder.decode(next_pc);
 
     panic_if(!inst, "Need to fetch more data, I guess. This is strange.");
+
+    executeInstruction(inst);
+}
+
+void
+LearningSimpleCPU::executeInstruction(StaticInstPtr inst)
+{
+    DPRINTF(LearningSimpleCPU, "Executing the instruction\n");
+
+    if (inst->isMacroop()) {
+        assert(!currentMacroOp);
+        StaticInstPtr macroop = inst;
+        DPRINTF(LearningSimpleCPU, "Decomposing a macro-op\n");
+        inst = inst->fetchMicroop(thread.pcState().microPC());
+        if (!inst->isLastMicroop()) {
+            currentMacroOp = macroop;
+        }
+    }
 
     // Initialize the trace
 #if TRACING_ON
@@ -372,9 +391,8 @@ LearningSimpleCPU::finishExecute(StaticInstPtr inst, const Fault &fault)
         traceData = nullptr;
     }
 
-    assert(!inst->isMicroop());
-
     if (fault != NoFault) {
+        DPRINTF(LearningSimpleCPU, "Instruction faulted! Invoking...\n");
         fault->invoke(thread.getTC(), inst);
         thread.decoder.reset();
     } else {
@@ -384,11 +402,22 @@ LearningSimpleCPU::finishExecute(StaticInstPtr inst, const Fault &fault)
         thread.pcState(pcState);
     }
 
-    // Schedule an instruction fetch for the next cycle.
-    schedule(new EventFunctionWrapper([this]{ fetchTranslate(); },
-                                      name()+".initial_fetch",
-                                      true),
-             nextCycle());
+    if (inst->isMicroop() && currentMacroOp) {
+        DPRINTF(LearningSimpleCPU, "Still more of the macro op to execute\n");
+        inst = currentMacroOp;
+        currentMacroOp = nullptr;
+        schedule(new EventFunctionWrapper(
+                    [this,inst]{ executeInstruction(inst); },
+                    name()+".next_uop", true),
+                 nextCycle());
+    } else {
+        DPRINTF(LearningSimpleCPU, "Fetching a new instruction\n");
+        // Schedule an instruction fetch for the next cycle.
+        schedule(new EventFunctionWrapper([this]{ fetchTranslate(); },
+                                          name()+".initial_fetch",
+                                          true),
+                 nextCycle());
+    }
 }
 
 LearningSimpleCPU*
