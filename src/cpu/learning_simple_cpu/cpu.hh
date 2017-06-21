@@ -172,8 +172,12 @@ class LearningSimpleCPU : public BaseCPU
     /**
      * The fetchTranslate "stage" of our "single cycle" processor
      * This sends a request for the next PC address to the TLB
+     *
+     * @param the offset from the instruction address to fetch. This is needed
+     *        when the instruction is bigger than we expect.
+     *        This defaults to 0 in the common case (initial fetch).
      */
-    void fetchTranslate();
+    void fetchTranslate(Addr offset = 0);
 
     /**
      * Sends the request for the next PC to memory.
