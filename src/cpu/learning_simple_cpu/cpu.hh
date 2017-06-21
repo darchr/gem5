@@ -153,6 +153,10 @@ class LearningSimpleCPU : public BaseCPU
     /// Contains the context of the thread an other information, I guess
     SimpleThread thread;
 
+    /// When executing a macroop, I think it's *required* to keep this pointer
+    /// around. I don't think there's any way around it.
+    StaticInstPtr currentMacroOp;
+
     /// For tracing with Exec debug flags
     Trace::InstRecord *traceData;
 
@@ -177,9 +181,14 @@ class LearningSimpleCPU : public BaseCPU
     void fetchSend(RequestPtr req, const Fault &fault);
 
     /**
-     * Execute the instruction fetched and found in pkt
+     * Decode the instruction fetched and found in pkt
      */
-    void executeInstruction(PacketPtr pkt);
+    void decodeInstruction(PacketPtr pkt);
+
+    /**
+     * Execute the instruction
+     */
+    void executeInstruction(StaticInstPtr inst);
 
     /**
      * Called after the memory translate is complete to send the request to the
