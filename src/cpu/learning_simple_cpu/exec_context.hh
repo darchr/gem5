@@ -207,7 +207,7 @@ class LearningSimpleContext : public ExecContext {
      * should never be called).
      */
     Fault readMem(Addr addr, uint8_t *data, unsigned int size,
-                  Request::Flags flags)
+                  Request::Flags flags) override
     { panic("LearningSimpleCPU doesn't support atomic accesses."); }
 
     /**
@@ -218,6 +218,7 @@ class LearningSimpleContext : public ExecContext {
      * should never be called).
      */
     Fault initiateMemRead(Addr addr, unsigned int size, Request::Flags flags)
+        override
     {
         cpu.memoryTranslate(inst, nullptr, addr, size, flags, nullptr, true);
         return NoFault;
