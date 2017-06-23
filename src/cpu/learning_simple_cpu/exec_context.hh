@@ -57,12 +57,12 @@ class LearningSimpleContext : public ExecContext {
   private:
     LearningSimpleCPU &cpu;
     SimpleThread &thread;
-    StaticInstPtr &inst;
+    StaticInstPtr inst;
 
   public:
 
     LearningSimpleContext(LearningSimpleCPU &cpu, SimpleThread &thread,
-                          StaticInstPtr &inst) :
+                          StaticInstPtr inst) :
         cpu(cpu), thread(thread), inst(inst)
     { }
     /**
@@ -220,7 +220,9 @@ class LearningSimpleContext : public ExecContext {
     Fault initiateMemRead(Addr addr, unsigned int size, Request::Flags flags)
         override
     {
-        cpu.memoryTranslate(inst, nullptr, addr, size, flags, nullptr, true);
+        MemoryRequest *request = new MemoryRequest(cpu, thread, inst,
+                                                   addr, size, flags);
+        request->translate();
         return NoFault;
     }
 
@@ -231,7 +233,10 @@ class LearningSimpleContext : public ExecContext {
     Fault writeMem(uint8_t *data, unsigned int size, Addr addr,
                    Request::Flags flags, uint64_t *res) override
     {
-        cpu.memoryTranslate(inst, data, addr, size, flags, res, false);
+        MemoryRequest *request = new MemoryRequest(cpu, thread, inst,
+                                                   addr, size, flags,
+                                                   data, res);
+        request->translate();
         return NoFault;
     }
 
