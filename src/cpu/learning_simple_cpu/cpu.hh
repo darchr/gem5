@@ -35,13 +35,14 @@
 
 #include "config/the_isa.hh"
 #include "cpu/base.hh"
+#include "cpu/learning_simple_cpu/memory_request.hh"
 #include "cpu/simple_thread.hh"
 #include "params/LearningSimpleCPU.hh"
 #include "sim/insttracer.hh"
 
 class LearningSimpleCPU : public BaseCPU
 {
-  private:
+  public:
     /**
     * Port that sends requests and receives responses.
     * Currently only allows a single outstanding request at a time.
@@ -52,6 +53,9 @@ class LearningSimpleCPU : public BaseCPU
         /// The object that owns this object (SimpleMemobj)
         LearningSimpleCPU *owner;
 
+        /// The request that is outstanding.
+        MemoryRequest *outstandingRequest;
+
         /// If we tried to send a packet and it was blocked, store it here
         PacketPtr blockedPacket;
 
@@ -60,7 +64,8 @@ class LearningSimpleCPU : public BaseCPU
         * Constructor. Just calls the superclass constructor.
         */
         CPUPort(const std::string& name, LearningSimpleCPU *owner) :
-          MasterPort(name, owner), owner(owner), blockedPacket(nullptr)
+          MasterPort(name, owner), owner(owner), outstandingRequest(nullptr),
+          blockedPacket(nullptr)
         { }
 
         /**
@@ -69,7 +74,7 @@ class LearningSimpleCPU : public BaseCPU
         *
         * @param packet to send.
         */
-        void sendPacket(PacketPtr pkt);
+        void sendPacket(MemoryRequest *request, PacketPtr pkt);
 
       protected:
         /**
@@ -85,70 +90,11 @@ class LearningSimpleCPU : public BaseCPU
         void recvReqRetry() override;
     };
 
-    class TranslationState : public BaseTLB::Translation
-    {
-        LearningSimpleCPU &cpu;
-        /// True if this is a fetch request.
-        bool fetch;
-        /// Holds the instruction for loads/stores
-        StaticInstPtr inst;
-        /// Holds the data for stores
-        /// NOTE: This class isn't going to free this data, we're going to
-        ///       pass that off to the packet later.
-        uint8_t *data;
-        /// Used for swaps and other atomics?
-        uint64_t *res;
-      public:
-        TranslationState(LearningSimpleCPU& cpu)
-            : cpu(cpu), fetch(true), inst(nullptr), data(nullptr), res(nullptr)
-        { }
-
-        TranslationState(LearningSimpleCPU& cpu, StaticInstPtr inst,
-                         unsigned int size, uint8_t *_data, uint64_t *res)
-            : cpu(cpu), fetch(false), inst(inst), data(nullptr), res(res)
-        {
-            // Need to allocate new data for some reason, but only for writes
-            if (_data) {
-                data = new uint8_t[size];
-                memcpy(data, _data, size);
-            }
-        }
-
-        /**
-        * Signal that the translation has been delayed due to a hw page table
-        * walk.
-        */
-        void markDelayed() override { };
-
-        /*
-        * The memory for this object may be dynamically allocated, and it may
-        * be responsible for cleaning itself up which will happen in this
-        * function. Once it's called, the object is no longer valid.
-        */
-        void finish(const Fault &fault, RequestPtr req,
-                    ThreadContext *tc, BaseTLB::Mode mode) override
-        {
-            if (fetch) cpu.fetchSend(req, fault);
-            else cpu.memorySend(inst, req, fault, data, res,
-                                mode == BaseTLB::Read);
-            delete this;
-        }
-    };
+  private:
 
     /// Currently we only have one port that is shared between instruciton and
     /// data fetch.
     CPUPort port;
-
-    /// True when there is an instruction memory request outstanding. Right now
-    /// we are only supporting a single memory request at a time.
-    bool instOutstanding;
-
-    /// True when there is an data memory request outstanding. Right now
-    /// we are only supporting a single memory request at a time.
-    bool dataOutstanding;
-
-    /// Holds the instruction while the memory request is outstanding for loads
-    StaticInstPtr outstandingInst;
 
     /// Contains the context of the thread an other information, I guess
     SimpleThread thread;
@@ -177,34 +123,12 @@ class LearningSimpleCPU : public BaseCPU
      *        when the instruction is bigger than we expect.
      *        This defaults to 0 in the common case (initial fetch).
      */
-    void fetchTranslate(Addr offset = 0);
-
-    /**
-     * Sends the request for the next PC to memory.
-     */
-    void fetchSend(RequestPtr req, const Fault &fault);
-
-    /**
-     * Decode the instruction fetched and found in pkt
-     */
-    void decodeInstruction(PacketPtr pkt);
+    void fetch(Addr offset = 0);
 
     /**
      * Execute the instruction
      */
     void executeInstruction(StaticInstPtr inst);
-
-    /**
-     * Called after the memory translate is complete to send the request to the
-     * memory system.
-     */
-    void memorySend(StaticInstPtr inst, RequestPtr req, const Fault &fault,
-                    uint8_t *data, uint64_t *res, bool read);
-
-    /**
-     * Called after the memory request in memory send finishes (for loads)
-     */
-    void memoryResponse(PacketPtr pkt);
 
     /**
      * Cleanup any extra things used for execute (e.g., tracing) and move to
@@ -269,12 +193,27 @@ class LearningSimpleCPU : public BaseCPU
     void wakeup(ThreadID tid) override;
 
     /**
-     * Starts a memory access by first translating the request
-     * This is called from the exec context.
+     * Called from the memory request when it has finished translating.
+     * This function should kick off the actual memory request.
      */
-    void memoryTranslate(StaticInstPtr inst, uint8_t *data, Addr addr,
-                        unsigned int size, Request::Flags flags, uint64_t *res,
-                        bool read);
+    void finishFetchTranslate(MemoryRequest *request);
+
+    /**
+     * Called from the memory request when it has finished translating.
+     * This function should kick off the actual memory request.
+     */
+    void finishDataTranslate(MemoryRequest *request);
+
+    /**
+     * Decode the instruction fetched and found in pkt. Called from the memory
+     * request.
+     */
+    void decodeInstruction(PacketPtr pkt);
+
+    /**
+     * Called after the memory request in memory send finishes (for loads)
+     */
+    void dataResponse(PacketPtr pkt, StaticInstPtr inst);
 
 };
 

@@ -30,6 +30,8 @@
 Import('*')
 
 SimObject('LearningSimpleCPU.py')
+
 Source('cpu.cc')
+Source('memory_request.cc')
 
 DebugFlag('LearningSimpleCPU')

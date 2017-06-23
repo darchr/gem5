@@ -39,7 +39,6 @@
 LearningSimpleCPU::LearningSimpleCPU(LearningSimpleCPUParams *params) :
     BaseCPU(params),
     port(name()+".port", this),
-    instOutstanding(false), dataOutstanding(false), outstandingInst(nullptr),
     thread(this, 0, params->system, params->workload[0], params->itb,
            params->dtb, params->isa[0]),
     currentMacroOp(nullptr),
@@ -90,17 +89,21 @@ LearningSimpleCPU::activateContext(ThreadID tid)
     BaseCPU::activateContext(tid);
 
     thread.activate();
-    schedule(new EventFunctionWrapper([this]{ fetchTranslate(); },
+    schedule(new EventFunctionWrapper([this]{ fetch(); },
                                       name()+".initial_fetch",
                                       true),
              curTick());
 }
 
 void
-LearningSimpleCPU::CPUPort::sendPacket(PacketPtr pkt)
+LearningSimpleCPU::CPUPort::sendPacket(MemoryRequest *request, PacketPtr pkt)
 {
     // Note: This flow control is very simple since the memobj is blocking.
     panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
+
+    // On a retry, the request may be the same as the outstandingRequest
+    assert(outstandingRequest == nullptr);
+    outstandingRequest = request;
 
     DPRINTF(LearningSimpleCPU, "Sending packet %s\n", pkt->print());
 
@@ -113,8 +116,14 @@ LearningSimpleCPU::CPUPort::sendPacket(PacketPtr pkt)
 bool
 LearningSimpleCPU::CPUPort::recvTimingResp(PacketPtr pkt)
 {
-    // Just forward to the memobj.
-    return owner->handleResponse(pkt);
+    DPRINTF(LearningSimpleCPU, "Got response for addr %#x\n",
+             pkt->getAddr());
+    assert(outstandingRequest);
+
+    MemoryRequest *request = outstandingRequest;
+    outstandingRequest = nullptr;
+
+    return request->recvResponse(pkt);
 }
 
 void
@@ -122,6 +131,7 @@ LearningSimpleCPU::CPUPort::recvReqRetry()
 {
     // We should have a blocked packet if this function is called.
     assert(blockedPacket != nullptr);
+    assert(outstandingRequest);
 
     DPRINTF(LearningSimpleCPU, "Got retry request.\n");
 
@@ -129,71 +139,37 @@ LearningSimpleCPU::CPUPort::recvReqRetry()
     PacketPtr pkt = blockedPacket;
     blockedPacket = nullptr;
 
+    MemoryRequest *request = outstandingRequest;
+    outstandingRequest = nullptr;
+
     // Try to resend it. It's possible that it fails again.
-    sendPacket(pkt);
-}
-
-bool
-LearningSimpleCPU::handleResponse(PacketPtr pkt)
-{
-    assert(dataOutstanding || instOutstanding);
-    DPRINTF(LearningSimpleCPU, "Got response for addr %#x\n", pkt->getAddr());
-
-    if (dataOutstanding) {
-        dataOutstanding = false;
-        memoryResponse(pkt);
-    } else if (instOutstanding) {
-        instOutstanding = false;
-        decodeInstruction(pkt);
-    } else {
-        panic("This is impossible");
-    }
-
-    return true;
+    sendPacket(request, pkt);
 }
 
 void
-LearningSimpleCPU::fetchTranslate(Addr offset)
+LearningSimpleCPU::fetch(Addr offset)
 {
+    // Make sure it's aligned to the closest PCMask value
+    // NOTE: offset is a multiple of sizeof(TheISA::MachInst)
+    Addr inst_addr = (thread.instAddr() & BaseCPU::PCMask);
 
-    // TheISA::PCState pcState = thread.pcState();
-    // pcState.microPC() confuses me.
-
-    DPRINTF(LearningSimpleCPU, "Fetching addr %#x (+%#x)\n",
-                               thread.instAddr(), offset);
-
-    RequestPtr req =
-        new Request(0 /* asid */,
-            thread.instAddr() + offset, sizeof(TheISA::MachInst),
-            Request::INST_FETCH, instMasterId(), thread.instAddr(),
-            thread.contextId());
-
-    TranslationState *translation = new TranslationState(*this);
-
-    thread.itb->translateTiming(req, thread.getTC(), translation,
-                                BaseTLB::Execute);
+    MemoryRequest *request = new MemoryRequest(*this, thread,
+                                                inst_addr + offset);
+    request->translate();
 }
 
 void
-LearningSimpleCPU::fetchSend(RequestPtr req, const Fault &fault)
+LearningSimpleCPU::finishFetchTranslate(MemoryRequest *request)
 {
-    panic_if(dataOutstanding || instOutstanding,
-             "Should be no outstanding on fetch!");
-
-    if (fault == NoFault) {
-        DPRINTF(LearningSimpleCPU, "Sending fetch for addr %#x(pa: %#x)\n",
-                req->getVaddr(), req->getPaddr());
-        PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
-        pkt->allocate();
-        port.sendPacket(pkt);
-        instOutstanding = true;
-    } else {
+    if (request->getFault() != NoFault) {
         DPRINTF(LearningSimpleCPU, "Translation of addr %#x faulted\n",
-                                   req->getVaddr());
-        delete req;
+                                   request->getReq()->getVaddr());
+        delete request;
         panic("Currently LearningSimpleCPU doesn't support fetch faults\n");
         // fetch fault: advance directly to next instruction (fault handler)
         // advanceInst(fault);
+    } else {
+        request->send();
     }
 }
 
@@ -210,7 +186,17 @@ LearningSimpleCPU::decodeInstruction(PacketPtr pkt)
     if (!inst) {
         DPRINTF(LearningSimpleCPU, "Need to fetch more data\n");
         schedule(new EventFunctionWrapper(
-                        [this]{ fetchTranslate(sizeof(TheISA::MachInst)); },
+                        [this, pkt]
+                        {
+                            // This is a very complicated calculation. It's
+                            // possible that you need to make > 2 accesses to
+                            // get the whole instruction. We need to compute
+                            // the offset based on the previous access, not the
+                            // original access.
+                            Addr base = (thread.instAddr() & BaseCPU::PCMask);
+                            Addr cur_offset = pkt->req->getVaddr() - base;
+                            fetch(cur_offset + sizeof(TheISA::MachInst));
+                        },
                         name()+".extra_fetch", true),
                  curTick());
         // We'll be back here soon when fetchTranslate and fetchSend finish
@@ -228,9 +214,11 @@ LearningSimpleCPU::executeInstruction(StaticInstPtr inst)
 {
     DPRINTF(LearningSimpleCPU, "Executing the instruction\n");
 
+    // This is for the stupid trace below. It is really picky.
+    StaticInstPtr macroop = NULL;
     if (inst->isMacroop()) {
         assert(!currentMacroOp);
-        StaticInstPtr macroop = inst;
+        macroop = inst;
         DPRINTF(LearningSimpleCPU, "Decomposing a macro-op\n");
         inst = inst->fetchMicroop(thread.pcState().microPC());
         if (!inst->isLastMicroop()) {
@@ -241,7 +229,7 @@ LearningSimpleCPU::executeInstruction(StaticInstPtr inst)
     // Initialize the trace
 #if TRACING_ON
     traceData = getTracer()->getInstRecord(curTick(), thread.getTC(), inst,
-                                           thread.pcState());
+                                           thread.pcState(), macroop);
 #endif
 
     // maintain $r0 semantics
@@ -264,129 +252,53 @@ LearningSimpleCPU::executeInstruction(StaticInstPtr inst)
 }
 
 void
-LearningSimpleCPU::memoryTranslate(StaticInstPtr inst, uint8_t *data,
-                                   Addr addr, unsigned int size,
-                                   Request::Flags flags, uint64_t *res,
-                                   bool read)
+LearningSimpleCPU::finishDataTranslate(MemoryRequest *request)
 {
-    DPRINTF(LearningSimpleCPU, "%s addr %#x (size: %d)\n",
-            read ? "Read" : "Write", addr, size);
-
     if (traceData) {
-        traceData->setMem(addr, size, flags);
+        request->trace(traceData);
     }
 
-    // Check to see if access crosses cache line boundary.
-    if (((addr + size - 1) / cacheLineSize()) > (addr / cacheLineSize())) {
-        panic("CPU can't deal with accesses across a cache line boundary.");
-    }
-
-    RequestPtr req = new Request(0 /* asid */, addr, size, flags,
-                        dataMasterId(), thread.instAddr(), thread.contextId());
-
-    TranslationState *translation =
-        new TranslationState(*this, inst, size, data, res);
-
-    thread.dtb->translateTiming(req, thread.getTC(), translation,
-                                read ? BaseTLB::Read : BaseTLB::Write);
-}
-
-void
-LearningSimpleCPU::memorySend(StaticInstPtr inst, RequestPtr req,
-                              const Fault &fault, uint8_t *data, uint64_t *res,
-                              bool read)
-{
-    panic_if(dataOutstanding || instOutstanding,
-             "Should be no outstanding on memory access!");
-
-    if (fault != NoFault) {
+    if (request->getFault() != NoFault) {
         DPRINTF(LearningSimpleCPU, "Translation of addr %#x faulted\n",
-                                   req->getVaddr());
-        delete req;
+                                   request->getReq()->getVaddr());
+        delete request;
         panic("Currently LearningSimpleCPU doesn't support memory faults");
         return;
-    }
-
-    if (req->getFlags().isSet(Request::NO_ACCESS))
-    {
+    } else if (request->getReq()->getFlags().isSet(Request::NO_ACCESS)) {
         panic("Don't know how to deal with Request::NO_ACCESS");
-    }
-
-    PacketPtr pkt;
-    bool do_access = true; // For supressing access on LLSCs
-    if (read) {
-        DPRINTF(LearningSimpleCPU, "Sending read for addr %#x(pa: %#x)\n",
-                req->getVaddr(), req->getPaddr());
-        pkt = Packet::createRead(req);
-        pkt->allocate();
-
-        // For LLSC, we have to register this read with the ISA to mark the
-        // address as locked.
-        if (req->isLLSC()) {
-            TheISA::handleLockedRead(&thread, req);
-        }
-    } else {
-        DPRINTF(LearningSimpleCPU, "Sending write for addr %#x(pa: %#x)\n",
-                req->getVaddr(), req->getPaddr());
-
-        if (req->isLLSC()) {
-            do_access = TheISA::handleLockedWrite(&thread, req,
-                                        ~((Addr)cacheLineSize() - 1));
-            DPRINTF(LearningSimpleCPU, "Doing LLSC. %s access\n",
-                        do_access ? "Should" : "Should NOT");
-        } else if (req->isCondSwap()) {
-            assert(res);
-            req->setExtraData(*res);
-        }
-
-        pkt = Packet::createWrite(req);
-        // Assume we have data if it's a write.
-        assert(data);
-        pkt->dataDynamic<uint8_t>(data);
-    }
-
-    // For IPRs, we need to do something different.
-    if (req->isMmappedIpr()) {
+    } else if (request->getReq()->isMmappedIpr()) {
         Cycles delay;
         // Let the ISA handle the request.
-        if (read) delay = TheISA::handleIprRead(thread.getTC(), pkt);
-        else      delay = TheISA::handleIprWrite(thread.getTC(), pkt);
+        PacketPtr pkt = request->getPkt();
+        if (request->getIsRead()) {
+            delay = TheISA::handleIprRead(thread.getTC(), pkt);
+        } else {
+            delay = TheISA::handleIprWrite(thread.getTC(), pkt);
+        }
 
         // Delay the repsone kind of like we're doing a normal request.
-        schedule(new EventFunctionWrapper([this,pkt]{ memoryResponse(pkt); },
+        schedule(new EventFunctionWrapper([this, request, pkt]
+                                            { request->recvResponse(pkt); },
                                           name()+".ipr_delay",
                                           true),
                  clockEdge(delay));
         // No need to do anything else, now.
         return;
-    }
-
-    outstandingInst = inst;
-    if (do_access) {
-        dataOutstanding = true;
-        port.sendPacket(pkt);
     } else {
-        memoryResponse(pkt);
+        request->send();
     }
 }
 
 void
-LearningSimpleCPU::memoryResponse(PacketPtr pkt)
+LearningSimpleCPU::dataResponse(PacketPtr pkt, StaticInstPtr inst)
 {
     assert(!pkt->isError());
-    assert(outstandingInst);
-
-    StaticInstPtr inst = outstandingInst;
-    outstandingInst = nullptr;
 
     LearningSimpleContext exec_context(*this, thread, inst);
 
     Fault fault = inst->completeAcc(pkt, &exec_context, traceData);
 
     panic_if(fault != NoFault, "Don't know how to handle this fault!");
-
-    delete pkt->req;
-    delete pkt;
 
     finishExecute(inst, fault);
 }
@@ -395,8 +307,6 @@ void
 LearningSimpleCPU::finishExecute(StaticInstPtr inst, const Fault &fault)
 {
     DPRINTF(LearningSimpleCPU, "Finishing execute and moving to next inst\n");
-    assert(!instOutstanding && !dataOutstanding);
-    assert(!outstandingInst);
 
     // Dump trace.
     if (traceData) {
@@ -427,7 +337,7 @@ LearningSimpleCPU::finishExecute(StaticInstPtr inst, const Fault &fault)
     } else {
         DPRINTF(LearningSimpleCPU, "Fetching a new instruction\n");
         // Schedule an instruction fetch for the next cycle.
-        schedule(new EventFunctionWrapper([this]{ fetchTranslate(); },
+        schedule(new EventFunctionWrapper([this]{ fetch(); },
                                           name()+".initial_fetch",
                                           true),
                  nextCycle());
