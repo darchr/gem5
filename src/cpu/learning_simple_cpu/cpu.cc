@@ -98,10 +98,10 @@ LearningSimpleCPU::activateContext(ThreadID tid)
 void
 LearningSimpleCPU::CPUPort::sendPacket(MemoryRequest *request, PacketPtr pkt)
 {
-    // Note: This flow control is very simple since the memobj is blocking.
+    // Note: This flow control is very simple since the CPU is blocking.
     panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
 
-    // On a retry, the request may be the same as the outstandingRequest
+    // On a retry, the request is first removed, then replaced here.
     assert(outstandingRequest == nullptr);
     outstandingRequest = request;
 
@@ -169,6 +169,9 @@ LearningSimpleCPU::finishFetchTranslate(MemoryRequest *request)
         // fetch fault: advance directly to next instruction (fault handler)
         // advanceInst(fault);
     } else {
+        if (port.isBlocked()) {
+            panic("Don't know what to do if the port is blocked!");
+        }
         request->send();
     }
 }
@@ -177,12 +180,16 @@ void
 LearningSimpleCPU::decodeInstruction(PacketPtr pkt)
 {
     DPRINTF(LearningSimpleCPU, "Decoding the instruction\n");
-    // First, we need to decode
+    // First, we need to decode. Copy the data from the pkt to the decoder.
     thread.decoder.moreBytes(thread.pcState(), pkt->req->getVaddr(),
                       *pkt->getConstPtr<TheISA::MachInst>());
     TheISA::PCState next_pc = thread.pcState();
+
+    // Try to get the actual instruction. It's possible that this is null
+    // if the decoder doesn't have enough data.
     StaticInstPtr inst = thread.decoder.decode(next_pc);
 
+    // If the decoder doesn't have enough data, fetch some more data for it.
     if (!inst) {
         DPRINTF(LearningSimpleCPU, "Need to fetch more data\n");
         schedule(new EventFunctionWrapper(
@@ -214,7 +221,7 @@ LearningSimpleCPU::executeInstruction(StaticInstPtr inst)
 {
     DPRINTF(LearningSimpleCPU, "Executing the instruction\n");
 
-    // This is for the stupid trace below. It is really picky.
+    // The complication here is for the stupid trace below. It is really picky.
     StaticInstPtr macroop = NULL;
     if (inst->isMacroop()) {
         assert(!currentMacroOp);
@@ -222,6 +229,8 @@ LearningSimpleCPU::executeInstruction(StaticInstPtr inst)
         DPRINTF(LearningSimpleCPU, "Decomposing a macro-op\n");
         inst = inst->fetchMicroop(thread.pcState().microPC());
         if (!inst->isLastMicroop()) {
+            // If this inst is not the last microop of the macro op, then save
+            // the macro op instruction so we can use it later.
             currentMacroOp = macroop;
         }
     }
@@ -282,9 +291,11 @@ LearningSimpleCPU::finishDataTranslate(MemoryRequest *request)
                                           name()+".ipr_delay",
                                           true),
                  clockEdge(delay));
-        // No need to do anything else, now.
-        return;
     } else {
+        // Usually, we can just send the request to the memory.
+        if (port.isBlocked()) {
+            panic("Don't know what to do if the port is blocked!");
+        }
         request->send();
     }
 }
@@ -294,6 +305,7 @@ LearningSimpleCPU::dataResponse(PacketPtr pkt, StaticInstPtr inst)
 {
     assert(!pkt->isError());
 
+    // Make a new execution context to complete this instruction
     LearningSimpleContext exec_context(*this, thread, inst);
 
     Fault fault = inst->completeAcc(pkt, &exec_context, traceData);
@@ -328,6 +340,8 @@ LearningSimpleCPU::finishExecute(StaticInstPtr inst, const Fault &fault)
 
     if (inst->isMicroop() && currentMacroOp) {
         DPRINTF(LearningSimpleCPU, "Still more of the macro op to execute\n");
+        // Make the current instruction the macroop, not the micro op to
+        // continue executing the macro op. This doesn't cause a fetch.
         inst = currentMacroOp;
         currentMacroOp = nullptr;
         schedule(new EventFunctionWrapper(
