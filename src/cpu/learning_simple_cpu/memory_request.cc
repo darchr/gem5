@@ -48,6 +48,8 @@ MemoryRequest::MemoryRequest(LearningSimpleCPU &cpu, SimpleThread &thread,
     req = new Request(0 /* asid */, addr, size, flags, cpu.dataMasterId(),
                           thread.instAddr(), thread.contextId());
 
+    // If this request spans across a cache line boundary, split it into two
+    // requests.
     Addr split_addr = roundDown(addr + size - 1, cpu.cacheLineSize());
     assert(split_addr <= addr || split_addr - addr < cpu.cacheLineSize());
 
@@ -58,7 +60,8 @@ MemoryRequest::MemoryRequest(LearningSimpleCPU &cpu, SimpleThread &thread,
     }
 
     if (!isRead) {
-        // Copy the data into this object.
+        // Copy the data into this object. NOTE: The packet will delete this
+        // for us whenever we delete the packet we're going to create
         data = new uint8_t[size];
         memcpy(data, _data, size);
     }
@@ -69,7 +72,9 @@ MemoryRequest::MemoryRequest(LearningSimpleCPU &cpu, SimpleThread &thread,
     : cpu(cpu), thread(thread), inst(StaticInst::nullStaticInstPtr),
       data(nullptr), res(nullptr),
       isFetch(true), isRead(false), isSplit(false),
-      req(nullptr), pkt(nullptr), fault(NoFault)
+      req(nullptr), pkt(nullptr), fault(NoFault),
+      sreqLow(nullptr), sreqHigh(nullptr), spktLow(nullptr), spktHigh(nullptr),
+      waitingFor(0)
 {
     req =
         new Request(0 /* asid */, inst_addr, sizeof(TheISA::MachInst),
@@ -94,43 +99,39 @@ MemoryRequest::~MemoryRequest()
 void
 MemoryRequest::translate()
 {
-    if (isFetch) translateFetch();
-    else translateData();
-}
+    if (isFetch) {
+        DPRINTFS(LearningSimpleCPU, (&cpu), "Fetching addr %#x (+%#x)\n",
+                                   thread.instAddr(),
+                                   req->getVaddr() - thread.instAddr());
 
-void
-MemoryRequest::translateFetch()
-{
-    DPRINTFS(LearningSimpleCPU, (&cpu), "Fetching addr %#x (+%#x)\n",
-                               thread.instAddr(),
-                               req->getVaddr() - thread.instAddr());
-
-    thread.itb->translateTiming(req, thread.getTC(), this,
-                                BaseTLB::Execute);
-}
-
-void
-MemoryRequest::translateData()
-{
-    DPRINTFS(LearningSimpleCPU, (&cpu), "%s addr %#x (size: %d)\n",
-             isRead ? "Read" : "Write", req->getVaddr(), req->getSize());
-
-    if (isSplit) {
-        waitingFor = 2;
-        thread.dtb->translateTiming(sreqLow, thread.getTC(), this,
-                                    isRead ? BaseTLB::Read : BaseTLB::Write);
-        thread.dtb->translateTiming(sreqHigh, thread.getTC(), this,
-                                    isRead ? BaseTLB::Read : BaseTLB::Write);
+        thread.itb->translateTiming(req, thread.getTC(), this,
+                                    BaseTLB::Execute);
     } else {
-        thread.dtb->translateTiming(req, thread.getTC(), this,
-                                    isRead ? BaseTLB::Read : BaseTLB::Write);
+        DPRINTFS(LearningSimpleCPU, (&cpu), "%s addr %#x (size: %d)\n",
+                 isRead ? "Read" : "Write", req->getVaddr(), req->getSize());
+
+        if (isSplit) {
+            waitingFor = 2;
+            thread.dtb->translateTiming(sreqLow, thread.getTC(), this,
+                                isRead ? BaseTLB::Read : BaseTLB::Write);
+            thread.dtb->translateTiming(sreqHigh, thread.getTC(), this,
+                                isRead ? BaseTLB::Read : BaseTLB::Write);
+        } else {
+            thread.dtb->translateTiming(req, thread.getTC(), this,
+                                isRead ? BaseTLB::Read : BaseTLB::Write);
+        }
     }
 }
 
 void
 MemoryRequest::send()
 {
+    // At this point, we should have a valid request, but should not have
+    // valid packets.
+    assert(req && pkt == nullptr);
+
     if (isFetch) sendFetch();
+    else if (isSplit) sendDataSplit();
     else sendData();
 }
 
@@ -144,8 +145,7 @@ MemoryRequest::sendFetch()
     pkt = new Packet(req, MemCmd::ReadReq);
     pkt->allocate();
 
-    LearningSimpleCPU::CPUPort *port =
-        dynamic_cast<LearningSimpleCPU::CPUPort*>(&cpu.getInstPort());
+    auto *port = dynamic_cast<LearningSimpleCPU::CPUPort*>(&cpu.getInstPort());
     assert(port);
     port->sendPacket(this, pkt);
 }
@@ -153,12 +153,6 @@ MemoryRequest::sendFetch()
 void
 MemoryRequest::sendData()
 {
-    assert(!isFetch);
-    if (isSplit) {
-        sendDataSplit();
-        return;
-    }
-
     bool do_access = true; // For supressing access on LLSCs
     if (isRead) {
         DPRINTFS(LearningSimpleCPU, (&cpu), "Sending read for %#x(pa: %#x)\n",
@@ -188,11 +182,12 @@ MemoryRequest::sendData()
         pkt = Packet::createWrite(req);
         // Assume we have data if it's a write.
         assert(data);
+        // Set the data so the packet will delete it later
         pkt->dataDynamic<uint8_t>(data);
     }
 
     if (do_access) {
-        LearningSimpleCPU::CPUPort *port =
+        auto *port =
             dynamic_cast<LearningSimpleCPU::CPUPort*>(&cpu.getDataPort());
         assert(port);
         port->sendPacket(this, pkt);
@@ -201,7 +196,7 @@ MemoryRequest::sendData()
     }
 }
 
-void
+bool
 MemoryRequest::sendDataSplit()
 {
     assert(!req->isLLSC() && !sreqLow->isLLSC() && !sreqHigh->isLLSC());
@@ -216,20 +211,18 @@ MemoryRequest::sendDataSplit()
         spktHigh = Packet::createWrite(sreqHigh);
     }
 
+    // The main packet. We're going to go ahead and mark this as a response
     pkt = new Packet(req, spktLow->cmd.responseCommand());
 
-    // The real "data" is in "pkt" and the smaller packets just share the
-    // pointer
+    // The real data is in pkt and the smaller packets just share the pointer
     if (isRead) {
         pkt->allocate();
-        uint8_t *d = pkt->getPtr<uint8_t>();
-        spktLow->dataStatic<uint8_t>(d);
-        spktHigh->dataStatic<uint8_t>(d + sreqLow->getSize());
+        data = pkt->getPtr<uint8_t>();
     } else {
         pkt->dataDynamic<uint8_t>(data);
-        spktLow->dataStatic<uint8_t>(data);
-        spktHigh->dataStatic<uint8_t>(data + sreqLow->getSize());
     }
+    spktLow->dataStatic<uint8_t>(data);
+    spktHigh->dataStatic<uint8_t>(data + sreqLow->getSize());
 
     waitingFor = 2;
 
@@ -276,7 +269,7 @@ MemoryRequest::recvResponse(PacketPtr _pkt)
         if (waitingFor > 0) {
             DPRINTFS(LearningSimpleCPU, (&cpu), "Wating on another req\n");
             assert(waitingFor == 1);
-            LearningSimpleCPU::CPUPort *port =
+            auto *port =
                 dynamic_cast<LearningSimpleCPU::CPUPort*>(&cpu.getDataPort());
             assert(port);
             port->sendPacket(this, spktHigh);

@@ -46,6 +46,7 @@ class LearningSimpleCPU : public BaseCPU
     /**
     * Port that sends requests and receives responses.
     * Currently only allows a single outstanding request at a time.
+    * In theory, this could be the LSQ if you wanted to allow multiple requests
     */
     class CPUPort : public MasterPort
     {
@@ -72,13 +73,28 @@ class LearningSimpleCPU : public BaseCPU
         * Send a packet across this port. This is called by the owner and
         * all of the flow control is hanled in this function.
         *
+        * @param the main request associated with this packet. It's possible
+        *        that the request has multiple packets (e.g., split req)
         * @param packet to send.
         */
         void sendPacket(MemoryRequest *request, PacketPtr pkt);
 
+        /**
+         * Always check this before trying to send a request across this port.
+         * For now, we only allow a single outstanding request, so if there is
+         * one we should block the port
+         *
+         * @return true if the port is blocked
+         */
+        bool isBlocked() { return outstandingRequest == nullptr; }
+
       protected:
         /**
-        * Receive a timing response from the slave port.
+        * Receive a timing response from the slave port. This will call the
+        * recvResponse function of the corresponding MemoryRequest object.
+        *
+        * @param the packet recvResponse
+        * @return false if the CPU can't process this response now
         */
         bool recvTimingResp(PacketPtr pkt) override;
 
@@ -96,7 +112,8 @@ class LearningSimpleCPU : public BaseCPU
     /// data fetch.
     CPUPort port;
 
-    /// Contains the context of the thread an other information, I guess
+    /// Contains the context of the thread and other information. This is the
+    /// "hardware context" of the processor.
     SimpleThread thread;
 
     /// When executing a macroop, I think it's *required* to keep this pointer
@@ -107,16 +124,7 @@ class LearningSimpleCPU : public BaseCPU
     Trace::InstRecord *traceData;
 
     /**
-     * Called when we receive a response from memory. We previous sent a
-     * request.
-     *
-     * @param the packet that we're receiving from memory.
-     * @return false if we can't handle the packet this cycle.
-     */
-    bool handleResponse(PacketPtr pkt);
-
-    /**
-     * The fetchTranslate "stage" of our "single cycle" processor
+     * The fetch "stage" of our "single cycle" processor.
      * This sends a request for the next PC address to the TLB
      *
      * @param the offset from the instruction address to fetch. This is needed
@@ -194,24 +202,36 @@ class LearningSimpleCPU : public BaseCPU
 
     /**
      * Called from the memory request when it has finished translating.
-     * This function should kick off the actual memory request.
+     * This function should kick off the actual memory request for the inst.
+     * This needs to be in the CPU so the CPU can deal with the faults.
+     *
+     * @param the request object associated with this fetch
      */
     void finishFetchTranslate(MemoryRequest *request);
 
     /**
      * Called from the memory request when it has finished translating.
      * This function should kick off the actual memory request.
+     * This needs to be in the CPU so it can deal with faults and special
+     * memory accesses (e.g., mmaped IPR)
+     *
+     * @param the request object associated with this memory access
      */
     void finishDataTranslate(MemoryRequest *request);
 
     /**
      * Decode the instruction fetched and found in pkt. Called from the memory
      * request.
+     *
+     * @param the (whole) packet that contains the fetched data.
      */
     void decodeInstruction(PacketPtr pkt);
 
     /**
      * Called after the memory request in memory send finishes (for loads)
+     *
+     * @param the whole packet that contains the read data, or the write
+     * @param the (micro) instruction that initiated this request
      */
     void dataResponse(PacketPtr pkt, StaticInstPtr inst);
 
