@@ -196,7 +196,7 @@ MemoryRequest::sendData()
     }
 }
 
-bool
+void
 MemoryRequest::sendDataSplit()
 {
     assert(!req->isLLSC() && !sreqLow->isLLSC() && !sreqHigh->isLLSC());

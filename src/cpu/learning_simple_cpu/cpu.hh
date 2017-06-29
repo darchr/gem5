@@ -51,9 +51,6 @@ class LearningSimpleCPU : public BaseCPU
     class CPUPort : public MasterPort
     {
       private:
-        /// The object that owns this object (SimpleMemobj)
-        LearningSimpleCPU *owner;
-
         /// The request that is outstanding.
         MemoryRequest *outstandingRequest;
 
@@ -65,7 +62,7 @@ class LearningSimpleCPU : public BaseCPU
         * Constructor. Just calls the superclass constructor.
         */
         CPUPort(const std::string& name, LearningSimpleCPU *owner) :
-          MasterPort(name, owner), owner(owner), outstandingRequest(nullptr),
+          MasterPort(name, owner), outstandingRequest(nullptr),
           blockedPacket(nullptr)
         { }
 
