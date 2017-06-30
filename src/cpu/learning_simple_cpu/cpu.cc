@@ -286,7 +286,7 @@ LearningSimpleCPU::finishDataTranslate(MemoryRequest *request)
         }
 
         // Delay the repsone kind of like we're doing a normal request.
-        schedule(new EventFunctionWrapper([this, request, pkt]
+        schedule(new EventFunctionWrapper([request, pkt]
                                             { request->recvResponse(pkt); },
                                           name()+".ipr_delay",
                                           true),
