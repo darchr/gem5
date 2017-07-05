@@ -217,3 +217,8 @@ Execution context
 This class mostly just wraps the thread context and calls different functions on the thread context to update and read registers.
 It also allows the instruction to call back into the CPU for things it needs (like accessing memory).
 I don't fully understand why this exists.
+
+To do
+======
+* Make sure to fetch from Microcode ROM if it is needed. (See other CPU models.)
+* Write up more details on things than what I have here. Write the chapter of the Learning gem5 book.
