@@ -43,7 +43,9 @@ DRAMCacheCtrl::DRAMCacheCtrl(Params* p) :
     demandID(system->getMasterId(name() + ".demand")),
     otherID(system->getMasterId(name() + ".other")),
     dirtyList(p->dirty_list), storageCtrl(p->storage_ctrl),
-    writebackPolicy(p->writeback_policy), maxOutstanding(p->max_outstanding),
+    writebackPolicy(p->writeback_policy),
+    sendBackprobes(p->sendBackprobes),
+    maxOutstanding(p->max_outstanding),
     memSideBlocked(false), memSideBlockedPkt(nullptr),
     memSideBlockedPkt2(nullptr), retrySecondBlockedPacketEvent(this),
     drainWritebacksWaitingForMemEvent(this),
@@ -317,24 +319,28 @@ DRAMCacheCtrl::recvAtomic(PacketPtr pkt)
                     DPRINTF(DRAMCache, "Cold miss\n");
                     delete req;
                     delete replace_pkt;
-                } else if (replace_pkt->hasDirtyDataFromCache()) {
-                    DPRINTF(DRAMCache, "Found dirty data. Need to WB %s",
-                                       replace_pkt->print());
-                   // This is now clean!
-                   if (dirtyList) {
-                       dirtyList->removeDirty(replace_pkt->getAddr());
-                   }
-                   storageCtrl->markBlockClean(replace_pkt, storage_addr);
+                } else {
+                    // Need to send backprobe to the cache for this address!
 
-                   replace_pkt->makeResponse();
-                   // Write back the data
-                   latency += memSidePort.sendAtomic(replace_pkt);
-               } else {
-                   // Miss to a clean line. No need to writeback.
-                   assert(!dirtyList->checkDirty(pkt->getAddr()));
-                   DPRINTF(DRAMCache, "Miss to clean line\n");
-                   delete req;
-                   delete replace_pkt;
+                    if (replace_pkt->hasDirtyDataFromCache()) {
+                        DPRINTF(DRAMCache, "Found dirty data. Need to WB %s",
+                                           replace_pkt->print());
+                       // This is now clean!
+                       if (dirtyList) {
+                           dirtyList->removeDirty(replace_pkt->getAddr());
+                       }
+                       storageCtrl->markBlockClean(replace_pkt, storage_addr);
+
+                       replace_pkt->makeResponse();
+                       // Write back the data
+                       latency += memSidePort.sendAtomic(replace_pkt);
+                   } else {
+                       // Miss to a clean line. No need to writeback.
+                       assert(!dirtyList->checkDirty(pkt->getAddr()));
+                       DPRINTF(DRAMCache, "Miss to clean line\n");
+                       delete req;
+                       delete replace_pkt;
+                   }
                }
             } else {
                 // Either it was a hit, or it was a cold miss, so there is
@@ -626,7 +632,7 @@ DRAMCacheCtrl::handleWrite(PacketPtr pkt)
 
     // On writes, we need to do a writeback if it's dirty, otherwise
     // just write it into the cache.
-    if (writebackPolicy != Enums::writethrough &&
+    if ( (writebackPolicy != Enums::writethrough || !sendBackprobes) &&
             (!dirtyList || !dirtyList->checkSafe(block_addr)) ) {
         // If it is unsafe to write: Either we can't tell since there's no
         // dirty list or the dirty list says it may be dirty.
@@ -1044,38 +1050,41 @@ DRAMCacheCtrl::recvStorageResponse(PacketPtr pkt, bool hit)
                 DPRINTF(DRAMCache, "Cold replace miss, no need to write\n");
                 delete pkt->req;
                 delete pkt;
-            } else if (pkt->hasDirtyDataFromCache()) {
-                if (dirtyList) {
-                    // Note: If tracking perfectly, then can just use
-                    // checkDirty. If it's dirty in the cache, then we should
-                    // know this in the dirty list too.
-                    assert(dirtyList->checkDirty(pkt->getAddr()) ||
-                           !dirtyList->checkSafe(pkt->getAddr()));
-                }
-                realReplaceMiss++;
-                // Remove this from the dirty list; we are currently cleaning
-                if (dirtyList) {
-                    dirtyList->removeDirty(pkt->getAddr());
-                }
-                // Note: could remove this from the miss map now
-                //       this currently doesn't make sense because the missmap
-                //       should be immediately updated in handleWriteback
-
-                DPRINTF(DRAMCache, "Writing back to DRAM; it was a miss\n");
-                // makeResponse will turn this into a writeback request.
-                pkt->makeResponse();
-                // Note: this pkt's address is the address of the data that
-                //       it is holding. I.e., the address of the victim
-                sendMemSideReq(pkt);
             } else {
-                // We tried to replace a line that was clean, just statitic it
-                if (dirtyList) {
-                    assert(!dirtyList->checkDirty(pkt->getAddr()));
+                // Here, we need to send a backprobe to the cache!
+                if (pkt->hasDirtyDataFromCache()) {
+                    if (dirtyList) {
+                        // Note: If tracking perfectly, then can just use
+                        // checkDirty. If it's dirty in the cache, then we
+                        //  should know this in the dirty list too.
+                        assert(dirtyList->checkDirty(pkt->getAddr()) ||
+                               !dirtyList->checkSafe(pkt->getAddr()));
+                    }
+                    realReplaceMiss++;
+                    // Remove this from the dirty list; we are cleaning
+                    if (dirtyList) {
+                        dirtyList->removeDirty(pkt->getAddr());
+                    }
+                    // Note: could remove this from the miss map now
+                    //    this currently doesn't make sense because the missmap
+                    //    should be immediately updated in handleWriteback
+
+                    DPRINTF(DRAMCache, "Writing back to DRAM; was a miss\n");
+                    // makeResponse will turn this into a writeback request.
+                    pkt->makeResponse();
+                    // Note: this pkt's address is the address of the data that
+                    //       it is holding. I.e., the address of the victim
+                    sendMemSideReq(pkt);
+                } else {
+                    // We tried to replace a line that was clean, just statitic
+                    if (dirtyList) {
+                        assert(!dirtyList->checkDirty(pkt->getAddr()));
+                    }
+                    realReplaceCleanHit++;
+                    DPRINTF(DRAMCache, "Tried to replace clean line, skip\n");
+                    delete pkt->req;
+                    delete pkt;
                 }
-                realReplaceCleanHit++;
-                DPRINTF(DRAMCache, "Tried to replace a clean line, no need\n");
-                delete pkt->req;
-                delete pkt;
             }
         } else {
             panic_if(orig_pkt->cmd == MemCmd::WritebackClean,

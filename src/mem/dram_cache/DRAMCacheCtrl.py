@@ -69,6 +69,8 @@ class DRAMCacheCtrl(MemObject):
     writeback_policy = Param.WritebackPolicy('writethrough', "Policy for"
         " writebacks. Note: writebacks or adaptive adds a dirty list check")
 
+    sendBackprobes = Param.Bool(False, "Send backprobes to cache on evictions")
+
     bank_number = Param.Int("Number of this bank (for addr offset)")
 
     dram_ctrl = Param.DRAMCtrl("The DRAM controller this sends misses to")

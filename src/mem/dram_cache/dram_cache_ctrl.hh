@@ -461,6 +461,11 @@ class DRAMCacheCtrl : public MemObject
     // read misses.
     Enums::WritebackPolicy writebackPolicy;
 
+    // If this is true, then we need to send backprobes ot the on-chip caches
+    // every time we evict a line. This is used in BEAR to keep the DCP
+    // up-to-date and in KNL to keep the modified-inclusive property
+    bool sendBackprobes;
+
     // Maxiumum number of oustanding requests to track (this just for storage
     // requests, and mostly used for replacements)
     int maxOutstanding;
