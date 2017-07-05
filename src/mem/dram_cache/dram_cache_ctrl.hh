@@ -212,6 +212,38 @@ class DRAMCacheCtrl : public MemObject
 
     void recvRespRetry();
 
+    /// This is for cheating to keep inclusion between the on-chip cache and
+    /// the DRAM cache. This will send invalidates to the on-chip cache and
+    /// tracks some other things.
+    class InvalidationPort : public MasterPort
+    {
+        DRAMCacheCtrl& cache;
+        PacketPtr blockedPkt;
+
+      public:
+        InvalidationPort(const std::string& name, DRAMCacheCtrl &cache) :
+            MasterPort(name, &cache), cache(cache), blockedPkt(nullptr)
+        { }
+
+        void sendPacket(PacketPtr pkt) {
+            assert(!blockedPkt);
+            if (!sendTimingReq(pkt)) blockedPkt = pkt;
+        }
+
+      protected:
+
+        bool recvTimingResp(PacketPtr pkt) override
+            { return cache.recvInvResp(pkt); }
+
+        void recvReqRetry() override {
+            PacketPtr pkt = blockedPkt;
+            blockedPkt = nullptr;
+            sendPacket(pkt);
+        }
+    };
+
+    bool recvInvResp(PacketPtr pkt);
+
     /**
      * This event is created when we recieve a timing request.
      */
@@ -440,6 +472,7 @@ class DRAMCacheCtrl : public MemObject
 
     MemSideMasterPort memSidePort;
     CacheSlavePort slavePort;
+    InvalidationPort invPort;
 
     const AddrRangeList addrRanges;
 

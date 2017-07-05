@@ -109,6 +109,8 @@ class DRAMCache(SubSystem):
     def connectCPUSideBus(self, bus):
         for bank in self.banks:
             bank.cpu_side = bus.master
+        for bank in self.banks:
+            bank.invalidation_port = bus.slave
 
     def connectMemSideBus(self, bus):
         for bank in self.banks:

@@ -39,6 +39,7 @@ DRAMCacheCtrl::DRAMCacheCtrl(Params* p) :
     MemObject(p), system(p->system),
     memSidePort(name() + "-memSide", *this),
     slavePort(name() + "-slavePort", *this),
+    invPort(name() + "-invPort", *this),
     addrRanges(p->addr_ranges.begin(), p->addr_ranges.end()),
     demandID(system->getMasterId(name() + ".demand")),
     otherID(system->getMasterId(name() + ".other")),
@@ -79,6 +80,8 @@ DRAMCacheCtrl::getMasterPort(const std::string& if_name, PortID idx)
 {
     if (if_name == "mem_side") {
         return memSidePort;
+    } else if (if_name == "invalidation_port"){
+        return invPort;
     } else {
         return MemObject::getMasterPort(if_name, idx);
     }
@@ -104,6 +107,17 @@ DRAMCacheCtrl::recvTimingResp(PacketPtr pkt)
     checkCanonicalData(pkt);
 
     slavePort.schedTimingResp(pkt, nextCycle());
+
+    return true;
+}
+
+bool
+DRAMCacheCtrl::recvInvResp(PacketPtr pkt)
+{
+    DPRINTF(DRAMCache, "Got inv response for %s", pkt->print());
+    // Just ignore it now that it's done.
+    delete pkt->req;
+    delete pkt;
 
     return true;
 }
@@ -643,6 +657,11 @@ DRAMCacheCtrl::handleWrite(PacketPtr pkt)
     } else {
         dirtyListWriteMiss++;
         DPRINTF(DRAMCache, "Line is not dirty.\n");
+
+        if (sendBackprobes) {
+            // In this case, this should *always* be a hit in the cache.
+        }
+
         if (handleWriteback(pkt)) {
             DPRINTF(DRAMCache, "Decr since no need to replace\n");
             DPRINTF(DRAMCache, "Decr (%d)\n", outstandingRequestQueueSize);

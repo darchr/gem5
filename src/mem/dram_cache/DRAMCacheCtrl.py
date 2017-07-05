@@ -43,6 +43,8 @@ class DRAMCacheCtrl(MemObject):
     cpu_side = SlavePort("Upstream port closer to the CPU and/or device")
     mem_side = MasterPort("Downstream port closer to memory")
 
+    invalidation_port = MasterPort("Port to invalidate the other caches")
+
     addr_ranges = VectorParam.AddrRange([AllMemory],
      "Address range for the CPU-side port (to allow striping)")
 
