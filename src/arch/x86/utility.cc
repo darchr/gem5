@@ -213,9 +213,6 @@ void startupCPU(ThreadContext *tc, int cpuId)
 void
 copyMiscRegs(ThreadContext *src, ThreadContext *dest)
 {
-    // This function assumes no side effects other than TLB invalidation
-    // need to be considered while copying state. That will likely not be
-    // true in the future.
     for (int i = 0; i < NUM_MISCREGS; ++i) {
         if (!isValidMiscReg(i))
              continue;
@@ -226,9 +223,6 @@ copyMiscRegs(ThreadContext *src, ThreadContext *dest)
     // The TSC has to be updated with side-effects if the CPUs in a
     // CPU switch have different frequencies.
     dest->setMiscReg(MISCREG_TSC, src->readMiscReg(MISCREG_TSC));
-
-    dest->getITBPtr()->flushAll();
-    dest->getDTBPtr()->flushAll();
 }
 
 void
