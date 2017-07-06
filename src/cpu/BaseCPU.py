@@ -47,6 +47,7 @@ from m5.SimObject import *
 from m5.defines import buildEnv
 from m5.params import *
 from m5.proxy import *
+from m5.util import panic, fatal, warn
 
 from XBar import L2XBar
 from InstTracer import InstTracer
@@ -55,6 +56,7 @@ from MemObject import MemObject
 from ClockDomain import *
 
 default_tracer = ExeTracer()
+invalid_cpu_id = -1
 
 if buildEnv['TARGET_ISA'] == 'alpha':
     from AlphaTLB import AlphaDTB, AlphaITB
@@ -97,6 +99,18 @@ class BaseCPU(MemObject):
     abstract = True
     cxx_header = "cpu/base.hh"
 
+    def __init__(self, more_detailed_cpu=None, **kwargs):
+        """Constructor for BaseCPU.
+
+        more_detailed_cpu is another CPU SimObject that will 'takeOverFrom'
+        this CPU. If this CPU will be replaced by another CPU, you must either
+        specify more_detailed_cpu here or call setFutureCPU manually before
+        m5.initialize()
+        """
+        super(BaseCPU, self).__init__(**kwargs)
+        if more_detailed_cpu:
+            self.setFutureCPU(more_detailed_cpu)
+
     cxx_exports = [
         PyBindMethod("switchOut"),
         PyBindMethod("takeOverFrom"),
@@ -127,12 +141,75 @@ class BaseCPU(MemObject):
         """Does the CPU model support CPU takeOverFrom?"""
         return False
 
+    def setFutureCPU(self, more_detailed_cpu):
+        """Indicate that the more_detailed_cpu will take over from this CPU at
+        some point in the future. This function *must* be called before the
+        this CPU can be taken over. Sets the more_detailed_cpu to switched out
+        and replaces this CPUs TLBs, branch predictors, and cpu_id with the
+        more_detailed_cpu's. See takeOverFrom for an example.
+        """
+        if self.itb == more_detailed_cpu.itb:
+            # If this happens mulitple times there may be problems with the
+            # SimObject hierarchy
+            fatal("Calling setFutureCPU on %s a second time." % (self))
+
+        more_detailed_cpu.switched_out = True
+
+        if more_detailed_cpu.cpu_id.value == invalid_cpu_id:
+            fatal("more_detailed_cpu.cpu_id must be set to use as a future"
+                  " CPU!")
+        else:
+            self.cpu_id = more_detailed_cpu.cpu_id
+
+        # Copy the TLBs from the more detailed to the less detailed CPU
+        # Note: if there are already references to itb/dtb (including port
+        # connections, those need to be deleted first)
+        deleteRefs(self.itb)
+        deleteRefs(self.dtb)
+        self.itb = more_detailed_cpu.itb
+        self.dtb = more_detailed_cpu.dtb
+
+        # Copy the branch predictor
+        deleteRefs(self.branchPred)
+        self.branchPred = more_detailed_cpu.branchPred
+
+        # Copy the socket_id
+        self.socket_id = more_detailed_cpu.socket_id
+
+        if buildEnv['TARGET_ISA'] == 'arm':
+            # Copy the stage 2 MMU
+            deleteRefs(self.dstage2_mmu)
+            deleteRefs(self.istage2_mmu)
+            self.istage2_mmu = more_detailed_cpu.istage2_mmu
+            self.dstage2_mmu = more_detailed_cpu.dstage2_mmu
+
     def takeOverFrom(self, old_cpu):
+        """This CPU is taking over from the old_cpu.
+
+        An example for clarity:
+        > a = AtomicCPU(); t = TimingCPU(); o = O3CPU();
+        First, you must call set future CPU. Note: the order here is important.
+        We need to ensure that the most detailed CPUs structures are connected
+        to the least detailed transitively.
+        > t.setFutureCPU(o); a.setFutureCPU(t);
+        Now, we can call takeOverFrom. Usually you will take over from a less
+        detailed CPU, but it works in the other direction as well. Importantly,
+        after calling setFutureCPU above the atomic and timing CPUs will use
+        the same TLB and branch predictor as the O3 CPU effectively warming up
+        the O3 CPU's structure.
+        > t.takeOverFrom(a) # The timing CPU will now begin running
+        > o.takeOverFrom(t) # The O3 CPU will now begin running
+        And going from more detailed to less detailed should work as well.
+        > a.takeOverFrom(o) # The atomic CPU will begin running again
+        """
+        if old_cpu.itb != self.itb:
+            warn("Switching to %s. New CPU may not have warmed-up structures. "
+                 "You should call setFutureCPU before takeOverFrom." % (self))
         self._ccObject.takeOverFrom(old_cpu._ccObject)
 
 
     system = Param.System(Parent.any, "system object")
-    cpu_id = Param.Int(-1, "CPU identifier")
+    cpu_id = Param.Int(invalid_cpu_id, "CPU identifier")
     socket_id = Param.Unsigned(0, "Physical Socket identifier")
     numThreads = Param.Unsigned(1, "number of HW thread contexts")
 
@@ -227,6 +304,8 @@ class BaseCPU(MemObject):
     icache_port = MasterPort("Instruction Port")
     dcache_port = MasterPort("Data Port")
     _cached_ports = ['icache_port', 'dcache_port']
+
+    branchPred = Param.BranchPredictor(NULL, "Branch Predictor")
 
     if buildEnv['TARGET_ISA'] in ['x86', 'arm']:
         _cached_ports += ["itb.walker.port", "dtb.walker.port"]

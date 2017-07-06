@@ -453,8 +453,8 @@ def run(options, root, testsys, cpu_class):
             testsys.cpu[i].max_insts_any_thread = options.maxinsts
 
     if cpu_class:
-        switch_cpus = [cpu_class(switched_out=True, cpu_id=(i))
-                       for i in xrange(np)]
+        switch_cpus = [cpu_class(cpu_id=i) for i in xrange(np)]
+        _setReplacementCPUs(testsys.cpu, switch_cpus)
 
         for i in xrange(np):
             if options.fast_forward:
@@ -489,8 +489,8 @@ def run(options, root, testsys, cpu_class):
             print "%s: CPU switching not supported" % str(switch_class)
             sys.exit(1)
 
-        repeat_switch_cpus = [switch_class(switched_out=True, \
-                                               cpu_id=(i)) for i in xrange(np)]
+        repeat_switch_cpus = [switch_class(cpu_id=i) for i in xrange(np)]
+        _setReplacementCPUs(testsys.cpu, repeat_switch_cpus)
 
         for i in xrange(np):
             repeat_switch_cpus[i].system = testsys
@@ -513,10 +513,8 @@ def run(options, root, testsys, cpu_class):
                                       for i in xrange(np)]
 
     if options.standard_switch:
-        switch_cpus = [TimingSimpleCPU(switched_out=True, cpu_id=(i))
-                       for i in xrange(np)]
-        switch_cpus_1 = [DerivO3CPU(switched_out=True, cpu_id=(i))
-                        for i in xrange(np)]
+        switch_cpus = [TimingSimpleCPU(cpu_id=i) for i in xrange(np)]
+        switch_cpus_1 = [DerivO3CPU(cpu_id=i) for i in xrange(np)]
 
         for i in xrange(np):
             switch_cpus[i].system =  testsys
@@ -557,6 +555,13 @@ def run(options, root, testsys, cpu_class):
 
         testsys.switch_cpus = switch_cpus
         testsys.switch_cpus_1 = switch_cpus_1
+
+        # The order of replacement here is important:
+        # The timing cpu should get the O3 TLBs first, then the atomic cpu can
+        # copy the O3 from the timing cpu.
+        _setReplacementCPUs(switch_cpus, switch_cpus_1)
+        _setReplacementCPUs(testsys.cpu, switch_cpus)
+
         switch_cpu_list = [(testsys.cpu[i], switch_cpus[i]) for i in xrange(np)]
         switch_cpu_list1 = [(switch_cpus[i], switch_cpus_1[i]) for i in xrange(np)]
 
@@ -706,3 +711,8 @@ def run(options, root, testsys, cpu_class):
 
     if not m5.options.interactive:
         sys.exit(exit_event.getCode())
+
+def _setReplacementCPUs(less_detailed_cpus, more_detailed_cpus):
+    for (less_detailed_cpu, more_detailed_cpu) in \
+            zip(less_detailed_cpus, more_detailed_cpus):
+        less_detailed_cpu.setFutureCPU(more_detailed_cpu)

@@ -316,9 +316,14 @@ class BaseFSSwitcheroo(BaseFSSystem):
         self.cpu_classes = tuple(cpu_classes)
 
     def create_cpus(self, cpu_clk_domain):
-        cpus = [ cclass(clk_domain = cpu_clk_domain,
-                        cpu_id=0,
-                        switched_out=True)
+        cpus = [ cclass(clk_domain = cpu_clk_domain, cpu_id=0)
                  for cclass in self.cpu_classes ]
-        cpus[0].switched_out = False
+
+        # Go backwards through the list indicating earlier cpus will be taken
+        # over by later cpus.
+        # We need to call setFutureCPU here so that the future CPUs are
+        # switched out before init_cpu is called
+        for cpu_idx in xrange(-1, -len(cpus), -1):
+            cpus[cpu_idx - 1].setFutureCPU(cpus[cpu_idx])
+
         return cpus

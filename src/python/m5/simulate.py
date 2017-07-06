@@ -238,6 +238,9 @@ def _changeMemoryMode(system, mode):
 def switchCpus(system, cpuList, verbose=True):
     """Switch CPUs in a system.
 
+    In order to switchCpus each old_cpu must have set the new_cpu as a
+    future cpu using the setFutureCPU method of old_cpu.
+
     Note: This method may switch the memory mode of the system if that
     is required by the CPUs. It may also flush all caches in the
     system.

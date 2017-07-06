@@ -344,7 +344,6 @@ for i in xrange(options.num_cpus):
                            voltage_domain = VoltageDomain(
                                voltage = options.cpu_voltage)))
     if fast_forward:
-        cpu.switched_out = True
         future_cpu_list.append(cpu)
     else:
         cpu_list.append(cpu)
@@ -405,8 +404,10 @@ if fast_forward:
 ########################## Create the overall system ########################
 # List of CPUs that must be switched when moving between KVM and simulation
 if fast_forward:
-    switch_cpu_list = \
-        [(cpu_list[i], future_cpu_list[i]) for i in xrange(options.num_cpus)]
+    switch_cpu_list = zip(cpu_list, future_cpu_list)
+    for (start_cpu, future_cpu) in switch_cpu_list:
+        start_cpu.setFutureCPU(future_cpu)
+
 
 # Full list of processing cores in the system. Note that
 # dispatcher is also added to cpu_list although it is
