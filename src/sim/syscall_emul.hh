@@ -1349,6 +1349,8 @@ cloneFunc(SyscallDesc *desc, int callnum, Process *p, ThreadContext *tc)
         ctc->setMiscRegNoEffect(TheISA::MISCREG_FS_BASE, tlsPtr);
         ctc->setMiscRegNoEffect(TheISA::MISCREG_FS_EFF_BASE, tlsPtr);
     }
+    ctc->getITBPtr()->flushAll();
+    ctc->getDTBPtr()->flushAll();
 #endif
 
     if (newStack)
