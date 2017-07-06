@@ -512,10 +512,6 @@ BaseCPU::switchOut()
     _switchedOut = true;
     if (profileEvent && profileEvent->scheduled())
         deschedule(profileEvent);
-
-    // Flush all TLBs in the CPU to avoid having stale translations if
-    // it gets switched in later.
-    flushTLBs();
 }
 
 void
@@ -548,69 +544,6 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
            if (DTRACE(Context))
             ThreadContext::compare(oldTC, newTC);
         */
-
-        BaseMasterPort *old_itb_port = oldTC->getITBPtr()->getMasterPort();
-        BaseMasterPort *old_dtb_port = oldTC->getDTBPtr()->getMasterPort();
-        BaseMasterPort *new_itb_port = newTC->getITBPtr()->getMasterPort();
-        BaseMasterPort *new_dtb_port = newTC->getDTBPtr()->getMasterPort();
-
-        // Move over any table walker ports if they exist
-        if (new_itb_port) {
-            assert(!new_itb_port->isConnected());
-            assert(old_itb_port);
-            assert(old_itb_port->isConnected());
-            BaseSlavePort &slavePort = old_itb_port->getSlavePort();
-            old_itb_port->unbind();
-            new_itb_port->bind(slavePort);
-        }
-        if (new_dtb_port) {
-            assert(!new_dtb_port->isConnected());
-            assert(old_dtb_port);
-            assert(old_dtb_port->isConnected());
-            BaseSlavePort &slavePort = old_dtb_port->getSlavePort();
-            old_dtb_port->unbind();
-            new_dtb_port->bind(slavePort);
-        }
-        newTC->getITBPtr()->takeOverFrom(oldTC->getITBPtr());
-        newTC->getDTBPtr()->takeOverFrom(oldTC->getDTBPtr());
-
-        // Checker whether or not we have to transfer CheckerCPU
-        // objects over in the switch
-        CheckerCPU *oldChecker = oldTC->getCheckerCpuPtr();
-        CheckerCPU *newChecker = newTC->getCheckerCpuPtr();
-        if (oldChecker && newChecker) {
-            BaseMasterPort *old_checker_itb_port =
-                oldChecker->getITBPtr()->getMasterPort();
-            BaseMasterPort *old_checker_dtb_port =
-                oldChecker->getDTBPtr()->getMasterPort();
-            BaseMasterPort *new_checker_itb_port =
-                newChecker->getITBPtr()->getMasterPort();
-            BaseMasterPort *new_checker_dtb_port =
-                newChecker->getDTBPtr()->getMasterPort();
-
-            newChecker->getITBPtr()->takeOverFrom(oldChecker->getITBPtr());
-            newChecker->getDTBPtr()->takeOverFrom(oldChecker->getDTBPtr());
-
-            // Move over any table walker ports if they exist for checker
-            if (new_checker_itb_port) {
-                assert(!new_checker_itb_port->isConnected());
-                assert(old_checker_itb_port);
-                assert(old_checker_itb_port->isConnected());
-                BaseSlavePort &slavePort =
-                    old_checker_itb_port->getSlavePort();
-                old_checker_itb_port->unbind();
-                new_checker_itb_port->bind(slavePort);
-            }
-            if (new_checker_dtb_port) {
-                assert(!new_checker_dtb_port->isConnected());
-                assert(old_checker_dtb_port);
-                assert(old_checker_dtb_port->isConnected());
-                BaseSlavePort &slavePort =
-                    old_checker_dtb_port->getSlavePort();
-                old_checker_dtb_port->unbind();
-                new_checker_dtb_port->bind(slavePort);
-            }
-        }
     }
 
     interrupts = oldCPU->interrupts;
