@@ -80,6 +80,8 @@ class MySystem(LinuxX86System):
         imagepath = '../gem5_system_files/ubuntu.img'
         if opts.second_disk:
             self.setDiskImages(imagepath, opts.second_disk)
+        else:
+            self.setDiskImages(imagepath, imagepath)
 
         # Change this path to point to the kernel you want to use
         self.kernel = '../gem5_system_files/vmlinux'
