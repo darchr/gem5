@@ -45,7 +45,7 @@ DRAMCacheCtrl::DRAMCacheCtrl(Params* p) :
     otherID(system->getMasterId(name() + ".other")),
     dirtyList(p->dirty_list), storageCtrl(p->storage_ctrl),
     writebackPolicy(p->writeback_policy),
-    sendBackprobes(p->sendBackprobes),
+    sendBackprobes(p->send_backprobes),
     maxOutstanding(p->max_outstanding),
     memSideBlocked(false), memSideBlockedPkt(nullptr),
     memSideBlockedPkt2(nullptr), retrySecondBlockedPacketEvent(this),
@@ -102,7 +102,7 @@ DRAMCacheCtrl::recvTimingResp(PacketPtr pkt)
 {
     // Just forward this along. Really this shouldn't come through this
     // controller.
-    DPRINTF(DRAMCache, "Forwarding response to %s", pkt->print());
+    DPRINTF(DRAMCache, "Forwarding response to %s\n", pkt->print());
 
     checkCanonicalData(pkt);
 
@@ -114,7 +114,18 @@ DRAMCacheCtrl::recvTimingResp(PacketPtr pkt)
 bool
 DRAMCacheCtrl::recvInvResp(PacketPtr pkt)
 {
-    DPRINTF(DRAMCache, "Got inv response for %s", pkt->print());
+    DPRINTF(DRAMCache, "Got inv response for %s\n", pkt->print());
+
+    outstandingInvalidates.erase(pkt->getAddr());
+
+    auto it = racyProbes.find(pkt->getAddr());
+    if (it != racyProbes.end()) {
+        DPRINTF(DRAMCache, "Resending a racy req: %s\n", it->second->print());
+        bool res = recvTimingReq(it->second);
+        panic_if(!res, "Ugh, I have to deal with this flow control!\n");
+        racyProbes.erase(it);
+    }
+
     // Just ignore it now that it's done.
     delete pkt->req;
     delete pkt;
@@ -142,7 +153,7 @@ DRAMCacheCtrl::recvReqRetry()
         memSideBlockedPkt = nullptr;
     }
 
-    DPRINTF(DRAMCache, "Retrying (%p) %s", pkt, pkt->print());
+    DPRINTF(DRAMCache, "Retrying (%p) %s\n", pkt, pkt->print());
 
     if (sendMemSideReq(pkt)) {
         DPRINTF(DRAMCache, "Packet (%p) retry successfully sent."
@@ -166,6 +177,9 @@ DRAMCacheCtrl::recvReqRetry()
                 storageNeedsUnblock = false;
                 storageCtrl->retryResponse();
             }
+            if (sendBackprobes) {
+                slavePort.trySendRetry();
+            }
         }
     } else {
         DPRINTF(DRAMCache, "Packet (%p) retry unsuccessfully sent.\n", pkt);
@@ -187,7 +201,7 @@ DRAMCacheCtrl::drainWritebacksWaitingForMem()
     writebacksWaitingForMem.pop();
     DPRINTF(DRAMCache, "Packet %p popping from waiting.\n", pkt);
 
-    DPRINTF(DRAMCache, "Reprocess failed (%p) %s", pkt, pkt->print());
+    DPRINTF(DRAMCache, "Reprocess failed (%p) %s\n", pkt, pkt->print());
     if (sendMemSideReq(pkt)) {
         // This writeback was successful, so remove it from the queue.
         // NOTE: This queue should only be used for incoming requests, not
@@ -231,7 +245,7 @@ DRAMCacheCtrl::retryStorageReq()
 void
 DRAMCacheCtrl::recvFunctional(PacketPtr pkt)
 {
-    DPRINTF(DRAMCache, "Functional access %s", pkt->print());
+    DPRINTF(DRAMCache, "Functional access %s\n", pkt->print());
 
     Addr block_addr = blockAlign(pkt->getAddr());
     Addr storage_addr = getStorageAddr(block_addr);
@@ -254,7 +268,7 @@ DRAMCacheCtrl::recvFunctional(PacketPtr pkt)
 Tick
 DRAMCacheCtrl::recvAtomic(PacketPtr pkt)
 {
-    DPRINTF(DRAMCache, "Atomic access %s", pkt->print());
+    DPRINTF(DRAMCache, "Atomic access %s\n", pkt->print());
     if (pkt->isWrite()) {
         updateCanonicalData(pkt);
     }
@@ -335,9 +349,12 @@ DRAMCacheCtrl::recvAtomic(PacketPtr pkt)
                     delete replace_pkt;
                 } else {
                     // Need to send backprobe to the cache for this address!
+                    if (sendBackprobes) {
+                        sendAtomicBackprobe(replace_pkt->getAddr());
+                    }
 
                     if (replace_pkt->hasDirtyDataFromCache()) {
-                        DPRINTF(DRAMCache, "Found dirty data. Need to WB %s",
+                        DPRINTF(DRAMCache, "Found dirty data. Need to WB %s\n",
                                            replace_pkt->print());
                        // This is now clean!
                        if (dirtyList) {
@@ -381,7 +398,7 @@ DRAMCacheCtrl::recvAtomic(PacketPtr pkt)
             assert(dirtyList->canInsert(block_addr));
         }
 
-        DPRINTF(DRAMCache, "Writing data to storage %s", pkt->print());
+        DPRINTF(DRAMCache, "Writing data to storage %s\n", pkt->print());
 
         // Now the block is clean in the cache so we can overwrite it
         storageCtrl->accessAtomic(pkt, storage_addr, latency);
@@ -409,7 +426,7 @@ DRAMCacheCtrl::recvAtomic(PacketPtr pkt)
                 }
                 replace_pkt->makeResponse();
 
-                DPRINTF(DRAMCache, "Writing back %s", replace_pkt->print());
+                DPRINTF(DRAMCache, "Writing back %s\n", replace_pkt->print());
 
                 // Write back the data
                 latency += memSidePort.sendAtomic(replace_pkt);
@@ -516,14 +533,50 @@ DRAMCacheCtrl::atomicClean(Addr start_addr, int regionSize)
 bool
 DRAMCacheCtrl::recvTimingReq(PacketPtr pkt)
 {
+    DPRINTF(DRAMCache, "%d outstanding. Got request %s\n",
+        outstandingRequestQueueSize, pkt->print());
+
+    auto it = outstandingInvalidates.find(pkt->getAddr());
+    if (it != outstandingInvalidates.end()) {
+        DPRINTF(DRAMCache, "Got request that matches invalidate %#x\n",
+                          pkt->getAddr());
+        // This packet matches something in the probe buffer. There are two
+        // possibilities. 1) this is the same packet, in which case we should
+        // reply that the probe was successful (nothing to invalidate). 2) this
+        // is a different packet which means we're racing. For Racy probes,
+        // let's put them on the side and reply when we finally get the
+        // response to our probe. Hopefully this doesn't cause deadlock!
+        if (it->second != pkt) {
+            DPRINTF(DRAMCache, "got a racy probe!\n");
+            if (pkt->isWriteback()) {
+                // If this is a writeback, just forward it to memory. This
+                // *should* be ordered correctly...
+                // if blocked, we can't process the request.
+                if (memSideBlocked) {
+                    DPRINTF(DRAMCache, "Can't accept the writeback\n");
+                    slavePort.setWaitingForRetry();
+                    return false;
+                }
+                numRacyProbeWriteback++;
+                memSidePort.sendTimingReq(pkt);
+            }
+            numRacyProbes++;
+            panic_if(racyProbes.find(pkt->getAddr()) != racyProbes.end(),
+                     "Wow! Multiple requests for the same racy address???\n");
+            racyProbes.insert({pkt->getAddr(), pkt});
+            return true;
+        }
+        uselessProbes++;
+        pkt->makeResponse();
+        slavePort.schedTimingResp(pkt, nextCycle());
+        return true;
+    }
+
     panic_if(pkt->cacheResponding(), "Should not see packets where cache "
              "is responding");
 
     panic_if(!(pkt->isRead() || pkt->isWrite()),
              "Should only see read and writes at memory-side cache\n");
-
-    DPRINTF(DRAMCache, "%d outstanding. Got request %s",
-            outstandingRequestQueueSize, pkt->print());
 
     assert(pkt->getSize() == 64);
     assert(pkt->getAddr() == blockAlign(pkt->getAddr()));
@@ -571,7 +624,7 @@ DRAMCacheCtrl::recvTimingReq(PacketPtr pkt)
             panic("Unexpected write type");
         }
     } else {
-        DPRINTF(DRAMCache, "Got bad packet %s", pkt->print());
+        DPRINTF(DRAMCache, "Got bad packet %s\n", pkt->print());
         panic("Unexpected packet type");
     }
 
@@ -590,7 +643,7 @@ DRAMCacheCtrl::checkBlockForReplacement(PacketPtr pkt)
     if (it != blockedForReplacement.end()) {
         // There is an outstanding replacement occuring for this line
         // We need to stall this request until it's done.
-        DPRINTF(DRAMCache, "Putting (%p) on blocked queue at %#x, %s",
+        DPRINTF(DRAMCache, "Putting (%p) on blocked queue at %#x, %s\n",
                 pkt, getLineNumber(pkt->getAddr()), pkt->print());
         blockedPackets[getLineNumber(pkt->getAddr())].push(pkt);
         replacementBlockedCount++;
@@ -608,7 +661,7 @@ DRAMCacheCtrl::checkBlockForReplacement(PacketPtr pkt)
 void
 DRAMCacheCtrl::handleRead(PacketPtr pkt)
 {
-    DPRINTF(DRAMCache, "Handling a read request %s", pkt->print());
+    DPRINTF(DRAMCache, "Handling a read request %s\n", pkt->print());
     missMapReadHit++;
     storageRead++;
 
@@ -626,7 +679,7 @@ DRAMCacheCtrl::handleRead(PacketPtr pkt)
 void
 DRAMCacheCtrl::handleWrite(PacketPtr pkt)
 {
-    DPRINTF(DRAMCache, "Handling a writes request %s", pkt->print());
+    DPRINTF(DRAMCache, "Handling a writes request %s\n", pkt->print());
 
     // There's a chance that an in-flight write is now blocking this req.
     // Do NOT need to check when we are draining blocked packets.
@@ -651,7 +704,7 @@ DRAMCacheCtrl::handleWrite(PacketPtr pkt)
         // If it is unsafe to write: Either we can't tell since there's no
         // dirty list or the dirty list says it may be dirty.
         dirtyListWriteHit++;
-        DPRINTF(DRAMCache, "Need to replace for packet %s", pkt->print());
+        DPRINTF(DRAMCache, "Need to replace for packet %s\n", pkt->print());
         // Need to start a replacement
         sendReplace(pkt);
     } else {
@@ -660,6 +713,9 @@ DRAMCacheCtrl::handleWrite(PacketPtr pkt)
 
         if (sendBackprobes) {
             // In this case, this should *always* be a hit in the cache.
+            assert(storageCtrl->checkHit(pkt,
+                                         getStorageAddr(pkt->getAddr()),
+                                         false));
         }
 
         if (handleWriteback(pkt)) {
@@ -788,7 +844,7 @@ DRAMCacheCtrl::handleWriteback(PacketPtr pkt, bool mark_dirty)
             if (dirtyList && mark_dirty && !dirtyList->checkDirty(block_addr)){
                 dirtyList->markDirty(block_addr);
             }
-            DPRINTF(DRAMCache, "NOT writing through to memory %s",
+            DPRINTF(DRAMCache, "NOT writing through to memory %s\n",
                     pkt->print());
         }
     }
@@ -848,7 +904,7 @@ bool
 DRAMCacheCtrl::sendMemSideReq(PacketPtr pkt)
 {
     if (memSideBlocked) {
-        DPRINTF(DRAMCache, "Blocking (%p) into pkt2! %s", pkt, pkt->print());
+        DPRINTF(DRAMCache, "Blocking (%p) into pkt2! %s\n", pkt, pkt->print());
         // This means that we are in a strange corner case. What's happened is
         // that we got a replace miss (need to write it back), and also decided
         // that we want to write through. We couldn't have predicted this.
@@ -899,7 +955,7 @@ DRAMCacheCtrl::trySendStorageReq(PacketPtr pkt)
         DPRINTF(DRAMCache, "Decr (%d)\n", outstandingRequestQueueSize);
         decrementOutstandingQueue();
     } else {
-        DPRINTF(DRAMCache, "Sending to storage failed. Queuing (%p) %s",
+        DPRINTF(DRAMCache, "Sending to storage failed. Queuing (%p) %s\n",
                 pkt, pkt->print());
         waitingForStorage.push(pkt);
     }
@@ -937,7 +993,7 @@ DRAMCacheCtrl::trySendStorageBlockedHead()
     Addr block_addr = blockAlign(pkt->getAddr());
     Addr storage_addr = getStorageAddr(block_addr);
 
-    DPRINTF(DRAMCache, "Trying to resend (%p) %s", pkt, pkt->print());
+    DPRINTF(DRAMCache, "Trying to resend (%p) %s\n", pkt, pkt->print());
     if (sendStorageReq(pkt, storage_addr)) {
         DPRINTF(DRAMCache, "Packet %p successfully sent."
             " Popping from waiting.\n", pkt);
@@ -965,7 +1021,7 @@ DRAMCacheCtrl::canRecvStorageResp(PacketPtr pkt, bool hit, bool dirty)
     if (storageNeedsUnblock) {
         return false;
     }
-    DPRINTF(DRAMCache, "Checking if can respond for %s to %s",
+    DPRINTF(DRAMCache, "Checking if can respond for %s to %s\n",
             hit ? "hit" : "miss", pkt->print());
 
     if (memSideBlocked || !writebacksWaitingForMem.empty()) {
@@ -1012,7 +1068,7 @@ DRAMCacheCtrl::canRecvStorageResp(PacketPtr pkt, bool hit, bool dirty)
 void
 DRAMCacheCtrl::recvStorageResponse(PacketPtr pkt, bool hit)
 {
-    DPRINTF(DRAMCache, "Response from storage (%s) for pkt (%p) %s",
+    DPRINTF(DRAMCache, "Response from storage (%s) for pkt (%p) %s\n",
             hit ? "hit" : "miss", pkt, pkt->print());
     // Only reads should respond
     assert(pkt->isRead());
@@ -1056,7 +1112,7 @@ DRAMCacheCtrl::recvStorageResponse(PacketPtr pkt, bool hit)
             return;
         }
         assert(orig_pkt);
-        DPRINTF(DRAMCache, "Response to repl. for orig pkt %s",
+        DPRINTF(DRAMCache, "Response to repl. for orig pkt %s\n",
                 orig_pkt->print());
         assert(outstandingRequestQueueSize >= 1);
         // The storage controller will set responderHadWritable only if the tag
@@ -1071,6 +1127,10 @@ DRAMCacheCtrl::recvStorageResponse(PacketPtr pkt, bool hit)
                 delete pkt;
             } else {
                 // Here, we need to send a backprobe to the cache!
+                if (sendBackprobes) {
+                    sendBackprobe(pkt->getAddr());
+                }
+
                 if (pkt->hasDirtyDataFromCache()) {
                     if (dirtyList) {
                         // Note: If tracking perfectly, then can just use
@@ -1227,6 +1287,36 @@ DRAMCacheCtrl::unblockReplace(Addr block_addr) {
     // and then erased this entry when the drain was done
     assert(blockedForReplacement.count(getLineNumber(block_addr)) == 1);
     blockedForReplacement.erase(getLineNumber(block_addr));
+}
+
+void
+DRAMCacheCtrl::sendBackprobe(Addr addr)
+{
+    DPRINTF(DRAMCache, "Sending a backprobe for %#x\n", addr);
+    panic_if(outstandingInvalidates.find(addr)
+                != outstandingInvalidates.end(), "Matches outstanding inv.\n");
+
+    probes++;
+
+    RequestPtr inv_req = new Request(addr, blockSize, 0, otherID);
+    PacketPtr inv_pkt = new Packet(inv_req, MemCmd::ReadReq);
+    outstandingInvalidates.insert({addr, inv_pkt});
+    invPort.schedTimingReq(inv_pkt, nextCycle());
+}
+
+void
+DRAMCacheCtrl::sendAtomicBackprobe(Addr addr)
+{
+    DPRINTF(DRAMCache, "Sending a backprobe for %#x\n", addr);
+    panic_if(outstandingInvalidates.find(addr)
+                != outstandingInvalidates.end(), "Matches outstanding inv.\n");
+
+    probes++;
+
+    RequestPtr inv_req = new Request(addr, blockSize, 0, otherID);
+    PacketPtr inv_pkt = new Packet(inv_req, MemCmd::ReadReq);
+    outstandingInvalidates.insert({addr, inv_pkt});
+    invPort.sendAtomic(inv_pkt);
 }
 
 void
@@ -1450,6 +1540,23 @@ DRAMCacheCtrl::regStats()
     cleanSinks
         .name(name() + ".cleanSinks")
         .desc("Times we ignored a clean WB because it was a hit")
+        ;
+
+    probes
+        .name(name() + ".probes")
+        .desc("Number of probes sent")
+        ;
+    uselessProbes
+        .name(name() + ".uselessProbes")
+        .desc("Number of probes sent that were not found in the cache")
+        ;
+    numRacyProbes
+        .name(name() + ".numRacyProbes")
+        .desc("Number of requests that conflict with current probe")
+        ;
+    numRacyProbeWriteback
+        .name(name() + ".numRacyProbeWriteback")
+        .desc("Number of WB requests that conflict with current probe")
         ;
 }
 

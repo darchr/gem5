@@ -71,7 +71,7 @@ class DRAMCacheCtrl(MemObject):
     writeback_policy = Param.WritebackPolicy('writethrough', "Policy for"
         " writebacks. Note: writebacks or adaptive adds a dirty list check")
 
-    sendBackprobes = Param.Bool(False, "Send backprobes to cache on evictions")
+    send_backprobes = Param.Bool(False, "Send backprobes to chip on evictions")
 
     bank_number = Param.Int("Number of this bank (for addr offset)")
 

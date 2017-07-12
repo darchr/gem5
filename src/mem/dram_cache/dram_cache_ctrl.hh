@@ -215,31 +215,23 @@ class DRAMCacheCtrl : public MemObject
     /// This is for cheating to keep inclusion between the on-chip cache and
     /// the DRAM cache. This will send invalidates to the on-chip cache and
     /// tracks some other things.
-    class InvalidationPort : public MasterPort
+    class InvalidationPort : public QueuedMasterPort
     {
         DRAMCacheCtrl& cache;
-        PacketPtr blockedPkt;
+        ReqPacketQueue queue;
+        SnoopRespPacketQueue snoopRespQueue;
 
       public:
         InvalidationPort(const std::string& name, DRAMCacheCtrl &cache) :
-            MasterPort(name, &cache), cache(cache), blockedPkt(nullptr)
+            QueuedMasterPort(name, &cache, queue, snoopRespQueue),
+            cache(cache), queue(cache, *this), snoopRespQueue(cache, *this)
         { }
-
-        void sendPacket(PacketPtr pkt) {
-            assert(!blockedPkt);
-            if (!sendTimingReq(pkt)) blockedPkt = pkt;
-        }
 
       protected:
 
         bool recvTimingResp(PacketPtr pkt) override
             { return cache.recvInvResp(pkt); }
 
-        void recvReqRetry() override {
-            PacketPtr pkt = blockedPkt;
-            blockedPkt = nullptr;
-            sendPacket(pkt);
-        }
     };
 
     bool recvInvResp(PacketPtr pkt);
@@ -468,6 +460,12 @@ class DRAMCacheCtrl : public MemObject
         }
     }
 
+    /**
+     * Send backprobe to the on-chip caches.
+     */
+    void sendBackprobe(Addr addr);
+    void sendAtomicBackprobe(Addr addr);
+
     System *system;
 
     MemSideMasterPort memSidePort;
@@ -574,6 +572,13 @@ class DRAMCacheCtrl : public MemObject
     // expecting
     int bankNumber;
 
+    // For tracking outstanding invalidates so we don't try to respond with
+    // data if it is an on-chip cache miss.
+    std::map<Addr, PacketPtr> outstandingInvalidates;
+    // This tracks requests that we receive when a conflicting probe is
+    // currently outstanding. replay these packets when the probe is complete.
+    std::map<Addr, PacketPtr> racyProbes;
+
     Stats::Scalar memSideBlockedCount;
     Stats::Scalar storageBlockedCount;
     Stats::Scalar replacementBlockedCount;
@@ -624,6 +629,11 @@ class DRAMCacheCtrl : public MemObject
     Stats::Scalar proactiveCleans;
 
     Stats::Scalar cleanSinks;
+
+    Stats::Scalar probes;
+    Stats::Scalar uselessProbes;
+    Stats::Scalar numRacyProbes;
+    Stats::Scalar numRacyProbeWriteback;
 
     // These are for debugging purposes only. This writes all of the data
     // we've seen into a map and checks it on every read.

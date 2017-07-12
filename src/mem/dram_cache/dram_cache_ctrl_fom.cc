@@ -43,7 +43,7 @@ DRAMCacheCtrlFOM::recvTimingResp(PacketPtr pkt)
 {
     // Just forward this along. Really this shouldn't come through this
     // controller.
-    DPRINTF(DRAMCache, "Forwarding response to %s", pkt->print());
+    DPRINTF(DRAMCache, "Forwarding response to %s\n", pkt->print());
     assert(outstandingRequestQueueSize >= 1);
 
     checkCanonicalData(pkt);
@@ -66,14 +66,51 @@ DRAMCacheCtrlFOM::recvTimingResp(PacketPtr pkt)
 bool
 DRAMCacheCtrlFOM::recvTimingReq(PacketPtr pkt)
 {
+    DPRINTF(DRAMCache, "%d outstanding. Got request %s\n",
+        outstandingRequestQueueSize, pkt->print());
+
+    auto it = outstandingInvalidates.find(pkt->getAddr());
+    if (it != outstandingInvalidates.end()) {
+        DPRINTF(DRAMCache, "Got request that matches invalidate %#x\n",
+                          pkt->getAddr());
+        // This packet matches something in the probe buffer. There are two
+        // possibilities. 1) this is the same packet, in which case we should
+        // reply that the probe was successful (nothing to invalidate). 2) this
+        // is a different packet which means we're racing. For Racy probes,
+        // let's put them on the side and reply when we finally get the
+        // response to our probe. Hopefully this doesn't cause deadlock!
+        if (it->second != pkt) {
+            DPRINTF(DRAMCache, "got a racy probe!\n");
+            if (pkt->isWriteback()) {
+                // If this is a writeback, just forward it to memory. This
+                // *should* be ordered correctly...
+                // if blocked, we can't process the request.
+                if (memSideBlocked) {
+                    DPRINTF(DRAMCache, "Can't accept the writeback\n");
+                    slavePort.setWaitingForRetry();
+                    return false;
+                }
+                memSidePort.sendTimingReq(pkt);
+                numRacyProbeWriteback++;
+                return true;
+            }
+            numRacyProbes++;
+            panic_if(racyProbes.find(pkt->getAddr()) != racyProbes.end(),
+                     "Wow! Multiple requests for the same racy address???\n");
+            racyProbes.insert({pkt->getAddr(), pkt});
+            return true;
+        }
+        uselessProbes++;
+        pkt->makeResponse();
+        slavePort.schedTimingResp(pkt, nextCycle());
+        return true;
+    }
+
     panic_if(pkt->cacheResponding(), "Should not see packets where cache "
              "is responding");
 
     panic_if(!(pkt->isRead() || pkt->isWrite()),
              "Should only see read and writes at memory-side cache\n");
-
-    DPRINTF(DRAMCache, "%d outstanding. Got request %s",
-            outstandingRequestQueueSize, pkt->print());
 
     assert(pkt->getSize() == 64);
     assert(pkt->getAddr() == blockAlign(pkt->getAddr()));
@@ -110,7 +147,7 @@ DRAMCacheCtrlFOM::recvTimingReq(PacketPtr pkt)
             panic("Unexpected write type");
         }
     } else {
-        DPRINTF(DRAMCache, "Got bad packet %s", pkt->print());
+        DPRINTF(DRAMCache, "Got bad packet %s\n", pkt->print());
         panic("Unexpected packet type");
     }
 
@@ -125,7 +162,7 @@ DRAMCacheCtrlFOM::recvTimingReq(PacketPtr pkt)
 void
 DRAMCacheCtrlFOM::handleRead(PacketPtr pkt)
 {
-    DPRINTF(DRAMCache, "Handling a read request %s", pkt->print());
+    DPRINTF(DRAMCache, "Handling a read request %s\n", pkt->print());
     missMapReadHit++;
     storageRead++;
 
@@ -156,7 +193,7 @@ DRAMCacheCtrlFOM::canRecvStorageResp(PacketPtr pkt, bool hit, bool dirty)
         assert(state != nullptr);
         PacketPtr orig_pkt = state->pkt;
 
-        DPRINTF(DRAMCache, "Checking if can respond for %s to orig %s",
+        DPRINTF(DRAMCache, "Checking if can respond for %s to orig %s\n",
                 hit ? "hit" : "miss", orig_pkt->print());
 
         if (orig_pkt->isWriteback()) {
@@ -195,7 +232,7 @@ DRAMCacheCtrlFOM::canRecvStorageResp(PacketPtr pkt, bool hit, bool dirty)
 void
 DRAMCacheCtrlFOM::recvStorageResponse(PacketPtr pkt, bool hit)
 {
-    DPRINTF(DRAMCache, "Response from storage (%s) for pkt (%p) %s",
+    DPRINTF(DRAMCache, "Response from storage (%s) for pkt (%p) %s\n",
             hit ? "hit" : "miss", pkt, pkt->print());
     // Only reads should respond
     assert(pkt->isRead());
@@ -209,7 +246,7 @@ DRAMCacheCtrlFOM::recvStorageResponse(PacketPtr pkt, bool hit)
     assert(state != nullptr);
     PacketPtr orig_pkt = state->pkt;
     delete state;
-    DPRINTF(DRAMCache, "Response to repl. for orig pkt %s",
+    DPRINTF(DRAMCache, "Response to repl. for orig pkt %s\n",
             orig_pkt->print());
 
     if (orig_pkt->isRead()) {
@@ -276,30 +313,44 @@ DRAMCacheCtrlFOM::recvStorageResponse(PacketPtr pkt, bool hit)
             delete pkt->req;
             delete pkt;
         } else {
-            realReadMiss++;
-            // Need to writeback the data if it was dirty!
-            if (pkt->hasDirtyDataFromCache()) {
-                realReplaceMiss++;
-                // Remove this from the dirty list; we are currently cleaning
-                if (dirtyList) {
-                    dirtyList->removeDirty(pkt->getAddr());
-                }
-                // Note: could remove this from the miss map now
-                //       this currently doesn't make sense because the missmap
-                //       should be immediately updated in handleWriteback
-
-                DPRINTF(DRAMCache, "Writing back to DRAM; was a (rd) miss\n");
-                // makeResponse will turn this into a writeback request.
-                pkt->makeResponse();
-                // Note: this pkt's address is the address of the data that
-                //       it is holding. I.e., the address of the victim
-                sendMemSideReq(pkt);
-                // Don't need to delete since we're still using this packet
-            } else {
-                // It was cean, so no need to do a writeback, just delete.
-                DPRINTF(DRAMCache, "Tried to replace a clean line, no need\n");
+            if (pkt->getAddr() == MaxAddr) {
+                // This is a cold miss, so there's no need to "write it back"
+                realReplaceColdMiss++;
+                DPRINTF(DRAMCache, "Cold replace miss, no need to write\n");
                 delete pkt->req;
                 delete pkt;
+            } else {
+                realReadMiss++;
+
+                // Here, we need to send a backprobe to the cache!
+                if (sendBackprobes) {
+                    sendBackprobe(pkt->getAddr());
+                }
+
+                // Need to writeback the data if it was dirty!
+                if (pkt->hasDirtyDataFromCache()) {
+                    realReplaceMiss++;
+                    // Remove this from the dirty list; we currently cleaning
+                    if (dirtyList) {
+                        dirtyList->removeDirty(pkt->getAddr());
+                    }
+                    // Note: could remove this from the miss map now
+                    //    this currently doesn't make sense because the missmap
+                    //    should be immediately updated in handleWriteback
+
+                    DPRINTF(DRAMCache, "Writing back to DRAM; was miss\n");
+                    // makeResponse will turn this into a writeback request.
+                    pkt->makeResponse();
+                    // Note: this pkt's address is the address of the data that
+                    //       it is holding. I.e., the address of the victim
+                    sendMemSideReq(pkt);
+                    // Don't need to delete since we're still using this packet
+                } else {
+                    // It was cean, so no need to do a writeback, just delete.
+                    DPRINTF(DRAMCache, "Tried to replace a clean line\n");
+                    delete pkt->req;
+                    delete pkt;
+                }
             }
 
             // TODO: G
