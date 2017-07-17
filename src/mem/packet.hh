@@ -103,6 +103,7 @@ class MemCmd
         ReadExResp,
         ReadCleanReq,
         ReadSharedReq,
+        ReadOwnerReq,
         LoadLockedReq,
         StoreCondReq,
         StoreCondFailReq,       // Failed StoreCondReq in MSHR (never sent)
@@ -253,7 +254,7 @@ class Packet : public Printable
 
     enum : FlagsType {
         // Flags to transfer across when copying a packet
-        COPY_FLAGS             = 0x0000000F,
+        COPY_FLAGS             = 0x0004000F,
 
         // Does this packet have sharers (which means it should not be
         // considered writable) or not. See setHasSharers below.

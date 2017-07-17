@@ -151,6 +151,11 @@ MemCmd::commandInfo[] =
      * modified. */
     { SET4(IsRead, IsRequest, NeedsResponse, FromCache),
             ReadResp, "ReadSharedReq" },
+    /* ReadOwnerReq - Read the cache and ensure that once this request is
+     * complete that no other caches have a dirty copy (e.g., requestor is now
+     * the *owner*) */
+    { SET4(IsRead, IsRequest, NeedsResponse, FromCache),
+           ReadResp, "ReadOwnerReq" },
     /* LoadLockedReq: note that we use plain ReadResp as response, so that
      *                we can also use ReadRespWithInvalidate when needed */
     { SET4(IsRead, IsLlsc, IsRequest, NeedsResponse),

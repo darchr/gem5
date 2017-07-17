@@ -2023,6 +2023,18 @@ Cache::handleSnoop(PacketPtr pkt, CacheBlk *blk, bool is_timing,
             // invalidations (see Packet::setResponderHadWritable)
             pkt->setResponderHadWritable();
 
+            if (pkt->cmd == MemCmd::ReadOwnerReq) {
+                if (blk->isDirty()) {
+                    DPRINTF(Cache, "%s responding to %s with dirty data\n",
+                                    __func__, pkt->print());
+                    pkt->setDirtyDataFromCache();
+                    blk->status &= ~BlkDirty;
+                } else {
+                    DPRINTF(Cache, "%s responding to %s without data\n",
+                                    __func__, pkt->print());
+                }
+            }
+
             // in the case of an uncacheable request there is no point
             // in setting the responderHadWritable flag, but since the
             // recipient does not care there is no harm in doing so
@@ -2170,6 +2182,23 @@ Cache::recvTimingSnoopReq(PacketPtr pkt)
 
             if (have_writable) {
                 pkt->setResponderHadWritable();
+            }
+
+            if (pkt->cmd == MemCmd::ReadOwnerReq) {
+                if (wb_pkt->cmd == MemCmd::WritebackDirty) {
+                    DPRINTF(Cache, "%s responding to %s with dirty data\n",
+                                    __func__, pkt->print());
+                    pkt->setDirtyDataFromCache();
+                    // Note: There is no way to convert a dirty WB to clean
+                    // Plus, this doesn't make sense (what if we shouldn't do
+                    // a clean WB?). So, we just invalidate the WB since memory
+                    // is going to get the most up-to-date data anyway.
+                    invalidate = true;
+                    DPRINTF(Cache, "Invalidating the WB request!\n");
+                } else {
+                    DPRINTF(Cache, "%s responding to %s without data\n",
+                                    __func__, pkt->print());
+                }
             }
 
             doTimingSupplyResponse(pkt, wb_pkt->getConstPtr<uint8_t>(),
