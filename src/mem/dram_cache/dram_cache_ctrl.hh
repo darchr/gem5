@@ -198,14 +198,29 @@ class DRAMCacheCtrl : public MemObject
         }
 
         void setWaitingForRetry()
-            { assert(!waitingForRetry); waitingForRetry = true; }
+            // Note: for invalidates it's possible this is already stalled
+            { waitingForRetry = true; }
+
+        /// Used for when you get an invalidate but the mem port is blocked
+        void unsetWaitingForRetry()
+            { assert(waitingForRetry); waitingForRetry = false; }
     };
 
     void recvFunctional(PacketPtr pkt);
 
     Tick recvAtomic(PacketPtr pkt);
 
-    virtual bool recvTimingReq(PacketPtr pkt);
+    /**
+     * Receive a packet from the cache side (slavePort) and take the needed
+     * actions. Note: This function is also used to drain racy accesses for
+     * invalidation addresses if using backprobes,
+     *
+     * @param pkt that we're receiveing
+     * @param from_cache true if we're processing a request as normal from the
+     *        cache. False if we're processing a request for the queued up racy
+     *        probes and we should not request a retry from the cache port
+     */
+    virtual bool recvTimingReq(PacketPtr pkt, bool from_cache = true);
 
     AddrRangeList getAddrRanges() const
         { return addrRanges; }
@@ -220,11 +235,13 @@ class DRAMCacheCtrl : public MemObject
         DRAMCacheCtrl& cache;
         ReqPacketQueue queue;
         SnoopRespPacketQueue snoopRespQueue;
+        bool waitingForRetry;
 
       public:
         InvalidationPort(const std::string& name, DRAMCacheCtrl &cache) :
             QueuedMasterPort(name, &cache, queue, snoopRespQueue),
-            cache(cache), queue(cache, *this), snoopRespQueue(cache, *this)
+            cache(cache), queue(cache, *this), snoopRespQueue(cache, *this),
+            waitingForRetry(false)
         { }
 
       protected:
@@ -232,9 +249,27 @@ class DRAMCacheCtrl : public MemObject
         bool recvTimingResp(PacketPtr pkt) override
             { return cache.recvInvResp(pkt); }
 
+      public:
+        void trySendRetry() {
+            if (waitingForRetry) {
+                waitingForRetry = false;
+                sendRetryResp();
+            }
+        }
+
+        void setWaitingForRetry()
+        { assert(!waitingForRetry); waitingForRetry = true; }
+
+        bool isSnooping() const override { return true; }
+
+        void recvTimingSnoopReq(PacketPtr pkt) override
+        { cache.recvInvSnoop(pkt); }
+
     };
 
     bool recvInvResp(PacketPtr pkt);
+
+    void recvInvSnoop(PacketPtr pkt);
 
     /**
      * This event is created when we recieve a timing request.
@@ -285,10 +320,10 @@ class DRAMCacheCtrl : public MemObject
         DRAMCacheCtrl *ctrl;
         unsigned lineNumber;
         // This will force a copy of the contents
-        std::queue<PacketPtr> packetQueue;
+        std::deque<PacketPtr> packetQueue;
       public:
         DrainBlockedPacketsEvent(DRAMCacheCtrl *ctrl, unsigned line_no,
-                                 std::queue<PacketPtr> queue) :
+                                 std::deque<PacketPtr> queue) :
             ctrl(ctrl), lineNumber(line_no), packetQueue(queue)
             { assert(!queue.empty()); }
 
@@ -462,8 +497,11 @@ class DRAMCacheCtrl : public MemObject
 
     /**
      * Send backprobe to the on-chip caches.
+     *
+     * @return if true, then no need to send a dirty writeback. There was a
+     *         writeback dirty in the stalled queue and we're sending that.
      */
-    void sendBackprobe(Addr addr);
+    bool sendBackprobe(Addr addr);
     void sendAtomicBackprobe(Addr addr);
 
     System *system;
@@ -555,7 +593,7 @@ class DRAMCacheCtrl : public MemObject
 
     // Put packets here (tagged on the line num) if they are conflicting with
     // a currently outstanding replacement
-    std::map<unsigned, std::queue<PacketPtr> > blockedPackets;
+    std::map<unsigned, std::deque<PacketPtr> > blockedPackets;
 
     // If true, we need send a retry request to the dirty list once we've
     // finished a replacement
@@ -572,12 +610,25 @@ class DRAMCacheCtrl : public MemObject
     // expecting
     int bankNumber;
 
+    // A queue for internal requests that need to be processed before any
+    // external requests. I hope this is OK to do and won't cause deadlocks
+    std::queue<PacketPtr> internalQueuedPackets;
+
     // For tracking outstanding invalidates so we don't try to respond with
     // data if it is an on-chip cache miss.
     std::map<Addr, PacketPtr> outstandingInvalidates;
     // This tracks requests that we receive when a conflicting probe is
     // currently outstanding. replay these packets when the probe is complete.
     std::map<Addr, PacketPtr> racyProbes;
+
+    // This tracks the things in the cache that are no longer in the DRAM cache
+    // It's like a fake directory. Note: I think this may become inconsistent
+    // if there are no clean writebacks.
+    std::unordered_set<Addr> fakeDirectory;
+
+    // This holds the packets that requested data as we are getting the data
+    // from memory. This happens on invalidates since it's what KNL does.
+    std::map<Addr, PacketPtr> outstandingRefillForUpgrades;
 
     Stats::Scalar memSideBlockedCount;
     Stats::Scalar storageBlockedCount;
@@ -634,6 +685,7 @@ class DRAMCacheCtrl : public MemObject
     Stats::Scalar uselessProbes;
     Stats::Scalar numRacyProbes;
     Stats::Scalar numRacyProbeWriteback;
+    Stats::Scalar refillOnUpgrade;
 
     // These are for debugging purposes only. This writes all of the data
     // we've seen into a map and checks it on every read.

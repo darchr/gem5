@@ -56,7 +56,31 @@ DRAMCacheCtrlFOM::recvTimingResp(PacketPtr pkt)
     fill_pkt->setData(pkt->getConstPtr<uint8_t>());
     trySendStorageReq(fill_pkt);
 
-    slavePort.schedTimingResp(pkt, nextCycle());
+    // When running in KNL mode, it's possible this response is for an Upgrade
+    auto it = outstandingRefillForUpgrades.find(pkt->getAddr());
+    if (it != outstandingRefillForUpgrades.end()) {
+        // This is an upgrade! Copy the data to the original packet and send
+        // that one instead of this one.
+        PacketPtr orig_pkt = it->second;
+        DPRINTF(DRAMCache, "Got response upgrade! %s\n", orig_pkt->print());
+        if (orig_pkt->isRead()) {
+            // Only need to copy if the request was a read.
+            orig_pkt->setData(pkt->getConstPtr<uint8_t>());
+        }
+        // Copy the responding packet to old_pkt because we need to delete it.
+        PacketPtr old_pkt = pkt;
+        // This is the packet we need to respond to.
+        pkt = orig_pkt;
+        pkt->makeTimingResponse();
+        DPRINTF(DRAMCache, "Sending snoop response of %s\n", pkt->print());
+        // Cleanup our mess
+        delete old_pkt->req;
+        delete old_pkt;
+        outstandingRefillForUpgrades.erase(it);
+        invPort.schedTimingSnoopResp(pkt, nextCycle());
+    } else {
+        slavePort.schedTimingResp(pkt, nextCycle());
+    }
 
     unblockReplace(blockAlign(pkt->getAddr()));
 
@@ -64,13 +88,26 @@ DRAMCacheCtrlFOM::recvTimingResp(PacketPtr pkt)
 }
 
 bool
-DRAMCacheCtrlFOM::recvTimingReq(PacketPtr pkt)
+DRAMCacheCtrlFOM::recvTimingReq(PacketPtr pkt, bool from_cache)
 {
     DPRINTF(DRAMCache, "%d outstanding. Got request %s\n",
-        outstandingRequestQueueSize, pkt->print());
+            outstandingRequestQueueSize, pkt->print());
+
+    // If we have any internal packets that previously failed to send, try to
+    // send those first before servicing external requests. I hope this doesn't
+    // cause any deadlocks.
+    bool servicing_queued_packet = false;
+    PacketPtr original_request_packet = pkt;
+    if (!internalQueuedPackets.empty()) {
+        pkt = internalQueuedPackets.front();
+        DPRINTF(DRAMCache, "Servicing internal %#x (%s) first. %d left\n",
+                pkt, pkt->print(), internalQueuedPackets.size());
+        servicing_queued_packet = true;
+    }
 
     auto it = outstandingInvalidates.find(pkt->getAddr());
     if (it != outstandingInvalidates.end()) {
+        panic_if(servicing_queued_packet, "Shouldn't do this?\n");
         DPRINTF(DRAMCache, "Got request that matches invalidate %#x\n",
                           pkt->getAddr());
         // This packet matches something in the probe buffer. There are two
@@ -87,20 +124,32 @@ DRAMCacheCtrlFOM::recvTimingReq(PacketPtr pkt)
                 // if blocked, we can't process the request.
                 if (memSideBlocked) {
                     DPRINTF(DRAMCache, "Can't accept the writeback\n");
-                    slavePort.setWaitingForRetry();
+                    // If this function is called from recvInv (e.g., there was
+                    // a racy request w.r.t the probe) then we shouldn't set
+                    // this. Only call retry on the slavePort if the request
+                    // was actually from the cache.
+                    if (from_cache) slavePort.setWaitingForRetry();
                     return false;
                 }
-                memSidePort.sendTimingReq(pkt);
                 numRacyProbeWriteback++;
+                DPRINTF(DRAMCache, "Forwarding WB to mem.\n");
+                updateCanonicalData(pkt);
+                sendMemSideReq(pkt);
+                return true;
+            } else {
+                DPRINTF(DRAMCache, "Queuing this pkt for after inv (%p) %s\n",
+                        pkt, pkt->print());
+                numRacyProbes++;
+                panic_if(racyProbes.find(pkt->getAddr()) != racyProbes.end(),
+                         "Multiple requests for the same racy address???\n");
+                racyProbes.insert({pkt->getAddr(), pkt});
                 return true;
             }
-            numRacyProbes++;
-            panic_if(racyProbes.find(pkt->getAddr()) != racyProbes.end(),
-                     "Wow! Multiple requests for the same racy address???\n");
-            racyProbes.insert({pkt->getAddr(), pkt});
-            return true;
         }
         uselessProbes++;
+        // go ahead and erase this pkt since we know it's safe. We'll wait
+        // to deal with the racy things until we get this response.
+        outstandingInvalidates.erase(pkt->getAddr());
         pkt->makeResponse();
         slavePort.schedTimingResp(pkt, nextCycle());
         return true;
@@ -119,7 +168,7 @@ DRAMCacheCtrlFOM::recvTimingReq(PacketPtr pkt)
         DPRINTF(DRAMCache, "Outstanding request buffer full!\n");
         outstandingQueueBlockedCount++;
         assert(outstandingRequestQueueSize < maxOutstanding+2);
-        slavePort.setWaitingForRetry();
+        if (from_cache) slavePort.setWaitingForRetry();
         return false;
     }
 
@@ -151,11 +200,20 @@ DRAMCacheCtrlFOM::recvTimingReq(PacketPtr pkt)
         panic("Unexpected packet type");
     }
 
+    panic_if(pkt->cmd == MemCmd::ReplaceReq, "HOW???");
+
     // Both reads and writes must wait to check the dirty list since this needs
     // to process requests in order.
     Cycles lat = (dirtyList == nullptr) ? Cycles(1) : dirtyListLatency;
     schedule(new HandleRequestEvent(this, pkt), clockEdge(lat));
 
+    if (servicing_queued_packet) {
+        // We serviced the top packet. There may be more, though...
+        internalQueuedPackets.pop();
+        // We didn't service the incoming packet, so let's try it now.
+        DPRINTF(DRAMCache, "Calling %s again for original pkt\n", __func__);
+        return recvTimingReq(original_request_packet);
+    }
     return true;
 }
 
@@ -166,12 +224,21 @@ DRAMCacheCtrlFOM::handleRead(PacketPtr pkt)
     missMapReadHit++;
     storageRead++;
 
+    panic_if(pkt->cmd == MemCmd::ReplaceReq, "SERIOUSLY, HOW???");
+
     // There's a chance that an in-flight write is now blocking this req.
     // Do NOT need to check when we are draining blocked packets.
     if (checkBlockForReplacement(pkt)) {
         // TODO: G Had to check this for the G state.
         storageCtrl->queueEmptyRead(pkt, getStorageAddr(pkt->getAddr()));
         return;
+    }
+
+    // This is a new miss, so remove it from the fake directory.
+    auto it = fakeDirectory.find(pkt->getAddr());
+    if (it != fakeDirectory.end()) {
+        DPRINTF(DRAMCache, "removing from fake directory\n");
+        fakeDirectory.erase(it);
     }
 
     sendReplace(pkt);
@@ -323,8 +390,9 @@ DRAMCacheCtrlFOM::recvStorageResponse(PacketPtr pkt, bool hit)
                 realReadMiss++;
 
                 // Here, we need to send a backprobe to the cache!
+                bool skip_wb = false;
                 if (sendBackprobes) {
-                    sendBackprobe(pkt->getAddr());
+                    skip_wb = sendBackprobe(pkt->getAddr());
                 }
 
                 // Need to writeback the data if it was dirty!
@@ -343,7 +411,9 @@ DRAMCacheCtrlFOM::recvStorageResponse(PacketPtr pkt, bool hit)
                     pkt->makeResponse();
                     // Note: this pkt's address is the address of the data that
                     //       it is holding. I.e., the address of the victim
-                    sendMemSideReq(pkt);
+                    if (!skip_wb) {
+                        sendMemSideReq(pkt);
+                    }
                     // Don't need to delete since we're still using this packet
                 } else {
                     // It was cean, so no need to do a writeback, just delete.

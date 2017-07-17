@@ -48,7 +48,7 @@ class DRAMCacheCtrlFOM : public DRAMCacheCtrl
     void recvStorageResponse(PacketPtr pkt, bool hit) override;
 
   private:
-    bool recvTimingReq(PacketPtr pkt) override;
+    bool recvTimingReq(PacketPtr pkt, bool from_cache=true) override;
     bool recvTimingResp(PacketPtr pkt) override;
     void handleRead(PacketPtr pkt) override;
     bool canRecvStorageResp(PacketPtr pkt, bool hit, bool dirty);
