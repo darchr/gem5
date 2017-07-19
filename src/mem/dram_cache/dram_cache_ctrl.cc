@@ -167,7 +167,13 @@ DRAMCacheCtrl::recvInvResp(PacketPtr pkt)
         fakeDirectory.insert(pkt->getAddr());
     }
 
-    outstandingInvalidates.erase(pkt->getAddr());
+    auto unblock_it = invalidatesToUnblock.find(getLineNumber(pkt->getAddr()));
+    if (unblock_it != invalidatesToUnblock.end()) {
+        unblockReplace(unblock_it->second);
+        invalidatesToUnblock.erase(unblock_it);
+    }
+
+    outstandingInvalidates.erase(getLineNumber(pkt->getAddr()));
 
     auto it = racyProbes.find(pkt->getAddr());
     if (it != racyProbes.end()) {
@@ -666,7 +672,7 @@ DRAMCacheCtrl::recvTimingReq(PacketPtr pkt, bool from_cache)
         servicing_queued_packet = true;
     }
 
-    auto it = outstandingInvalidates.find(pkt->getAddr());
+    auto it = outstandingInvalidates.find(getLineNumber(pkt->getAddr()));
     if (it != outstandingInvalidates.end()) {
         panic_if(servicing_queued_packet, "Shouldn't do this?\n");
         DPRINTF(DRAMCache, "Got request that matches invalidate %#x\n",
@@ -710,7 +716,7 @@ DRAMCacheCtrl::recvTimingReq(PacketPtr pkt, bool from_cache)
         uselessProbes++;
         // go ahead and erase this pkt since we know it's safe. We'll wait
         // to deal with the racy things until we get this response.
-        outstandingInvalidates.erase(pkt->getAddr());
+        outstandingInvalidates.erase(getLineNumber(pkt->getAddr()));
         pkt->makeResponse();
         slavePort.schedTimingResp(pkt, nextCycle());
         return true;
@@ -1467,7 +1473,7 @@ bool
 DRAMCacheCtrl::sendBackprobe(Addr addr)
 {
     DPRINTF(DRAMCache, "Sending a backprobe for %#x\n", addr);
-    panic_if(outstandingInvalidates.find(addr)
+    panic_if(outstandingInvalidates.find(getLineNumber(addr))
                 != outstandingInvalidates.end(), "Matches outstanding inv.\n");
 
     probes++;
@@ -1529,7 +1535,7 @@ DRAMCacheCtrl::sendBackprobe(Addr addr)
     RequestPtr inv_req = new Request(addr, blockSize, 0, otherID);
     PacketPtr inv_pkt = new Packet(inv_req, MemCmd::ReadOwnerReq);
     inv_pkt->allocate();
-    outstandingInvalidates.insert({addr, inv_pkt});
+    outstandingInvalidates.insert({getLineNumber(addr), inv_pkt});
     invPort.schedTimingReq(inv_pkt, nextCycle());
 
     return skip_wb;
@@ -1539,14 +1545,14 @@ void
 DRAMCacheCtrl::sendAtomicBackprobe(Addr addr)
 {
     DPRINTF(DRAMCache, "Sending a backprobe for %#x\n", addr);
-    panic_if(outstandingInvalidates.find(addr)
+    panic_if(outstandingInvalidates.find(getLineNumber(addr))
                 != outstandingInvalidates.end(), "Matches outstanding inv.\n");
 
     probes++;
 
     RequestPtr inv_req = new Request(addr, blockSize, 0, otherID);
     PacketPtr inv_pkt = new Packet(inv_req, MemCmd::ReadReq);
-    outstandingInvalidates.insert({addr, inv_pkt});
+    outstandingInvalidates.insert({getLineNumber(addr), inv_pkt});
     invPort.sendAtomic(inv_pkt);
 }
 

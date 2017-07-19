@@ -616,10 +616,13 @@ class DRAMCacheCtrl : public MemObject
 
     // For tracking outstanding invalidates so we don't try to respond with
     // data if it is an on-chip cache miss.
+    // IMPORTANT: This structure is tracking *internal line addresses*
     std::map<Addr, PacketPtr> outstandingInvalidates;
     // This tracks requests that we receive when a conflicting probe is
     // currently outstanding. replay these packets when the probe is complete.
     std::map<Addr, PacketPtr> racyProbes;
+    // Tracks things that we need unblock when the invalidate finishes.
+    std::map<Addr, Addr> invalidatesToUnblock;
 
     // This tracks the things in the cache that are no longer in the DRAM cache
     // It's like a fake directory. Note: I think this may become inconsistent

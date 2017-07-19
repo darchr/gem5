@@ -82,7 +82,17 @@ DRAMCacheCtrlFOM::recvTimingResp(PacketPtr pkt)
         slavePort.schedTimingResp(pkt, nextCycle());
     }
 
-    unblockReplace(blockAlign(pkt->getAddr()));
+    auto inv_it = outstandingInvalidates.find(getLineNumber(pkt->getAddr()));
+    if (inv_it != outstandingInvalidates.end()) {
+        // There is still an invalidate out for this line. So stall the unblock
+        DPRINTF(DRAMCache, "Stalling the unblock for %s until %s (%#x)\n",
+                pkt->print(), getLineNumber(pkt->getAddr()),
+                inv_it->second->print());
+         invalidatesToUnblock.insert({getLineNumber(pkt->getAddr()),
+                                      pkt->getAddr()});
+    } else {
+        unblockReplace(blockAlign(pkt->getAddr()));
+    }
 
     return true;
 }
@@ -105,7 +115,7 @@ DRAMCacheCtrlFOM::recvTimingReq(PacketPtr pkt, bool from_cache)
         servicing_queued_packet = true;
     }
 
-    auto it = outstandingInvalidates.find(pkt->getAddr());
+    auto it = outstandingInvalidates.find(getLineNumber(pkt->getAddr()));
     if (it != outstandingInvalidates.end()) {
         panic_if(servicing_queued_packet, "Shouldn't do this?\n");
         DPRINTF(DRAMCache, "Got request that matches invalidate %#x\n",
@@ -149,7 +159,7 @@ DRAMCacheCtrlFOM::recvTimingReq(PacketPtr pkt, bool from_cache)
         uselessProbes++;
         // go ahead and erase this pkt since we know it's safe. We'll wait
         // to deal with the racy things until we get this response.
-        outstandingInvalidates.erase(pkt->getAddr());
+        outstandingInvalidates.erase(getLineNumber(pkt->getAddr()));
         pkt->makeResponse();
         slavePort.schedTimingResp(pkt, nextCycle());
         return true;
