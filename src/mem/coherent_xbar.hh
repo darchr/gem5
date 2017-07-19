@@ -282,6 +282,11 @@ class CoherentXBar : public BaseXBar
      */
     const bool filterCleanWBs;
 
+    /** Is this crossbar responsible for tracking the dram cache presence of
+     * blocks in higher levels of caches?
+     */
+    const bool trackDCP;
+
     /** Is this crossbar the point of coherency? **/
     const bool pointOfCoherency;
 
@@ -289,6 +294,11 @@ class CoherentXBar : public BaseXBar
      * A set of addresses that we should filter clean writebacks on.
      */
     std::set<Addr> toFilter;
+
+    /**
+     * A set of addresses that should be marked as "not present" in DRAM cache
+     */
+    std::set<Addr> notInDRAMCache;
 
     /**
      * Upstream caches need this packet until true is returned, so
@@ -405,7 +415,7 @@ class CoherentXBar : public BaseXBar
      * Determine if the crossbar should sink the packet, as opposed to
      * forwarding it, or responding.
      */
-    bool sinkPacket(const PacketPtr pkt);
+    bool sinkPacket(PacketPtr pkt);
 
     Stats::Scalar snoops;
     Stats::Scalar snoopTraffic;

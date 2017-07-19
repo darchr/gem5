@@ -300,6 +300,9 @@ class Packet : public Printable
 
         // This response contains dirty data from a cache above this one
         DIRTY_DATA_FROM_CACHE = 0x00040000,
+
+        // This packet may not be in the DRAM cache, so check.
+        NOT_IN_DRAM_CACHE = 0x00080000,
     };
 
     Flags flags;
@@ -643,6 +646,11 @@ class Packet : public Printable
         { flags.set(DIRTY_DATA_FROM_CACHE); }
     bool hasDirtyDataFromCache() const
         { return flags.isSet(DIRTY_DATA_FROM_CACHE); }
+
+    void setNotInDRAMCache()
+        { flags.set(NOT_IN_DRAM_CACHE); }
+    bool isNotInDRAMCache() const
+        { return flags.isSet(NOT_IN_DRAM_CACHE); }
 
     // Network error conditions... encapsulate them as methods since
     // their encoding keeps changing (from result field to command

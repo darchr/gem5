@@ -865,7 +865,7 @@ DRAMCacheCtrl::handleWrite(PacketPtr pkt)
     // If we are using writethrough, or sending backprobes, or it's safe,
     // then there's no need to send a replace.
     if (writebackPolicy == Enums::writethrough ||
-            sendBackprobes ||
+            (sendBackprobes && !pkt->isNotInDRAMCache()) ||
             (dirtyList && dirtyList->checkSafe(block_addr))
             ) {
         dirtyListWriteMiss++;
@@ -1491,8 +1491,14 @@ DRAMCacheCtrl::sendBackprobe(Addr addr)
                 if ((*pkt_it)->isWriteback()) {
                     DPRINTF(DRAMCache, "Forwarding WB to mem\n");
                     // Send the writeback straight to memory. I hope this works
-                    bool res M5_VAR_USED = sendMemSideReq((*pkt_it));
-                    if (!res) DPRINTF(DRAMCache, "This failed :(\n");
+                    if (memSideBlocked) {
+                        DPRINTF(DRAMCache, "Queuing %p request for blocked"
+                                           " memory\n",  (*pkt_it));
+                        writebacksWaitingForMem.push((*pkt_it));
+                    } else {
+                        bool res M5_VAR_USED = sendMemSideReq((*pkt_it));
+                        if (!res) DPRINTF(DRAMCache, "This failed :(\n");
+                    }
 
                     // If we found a WB here, then there is no need to WB
                     // what's in the cache.
@@ -1558,6 +1564,8 @@ DRAMCacheCtrl::DrainBlockedPacketsEvent::process()
     if (pkt->isRead()) {
         ctrl->handleRead(pkt);
     } else {
+        // Assume that a miss was blocking this packet and it must "replace"
+        pkt->setNotInDRAMCache();
         ctrl->handleWrite(pkt);
     }
     packetQueue.pop_front();

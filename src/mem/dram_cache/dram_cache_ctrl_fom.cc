@@ -442,28 +442,38 @@ DRAMCacheCtrlFOM::recvStorageResponse(PacketPtr pkt, bool hit)
                 DPRINTF(DRAMCache, "Cold replace miss, no need to write\n");
                 delete pkt->req;
                 delete pkt;
-            } else if (pkt->hasDirtyDataFromCache()) {
-                realReplaceMiss++;
-                // Remove this from the dirty list; we are currently cleaning
-                if (dirtyList) {
-                    dirtyList->removeDirty(pkt->getAddr());
-                }
-                // Note: could remove this from the miss map now
-                //       this currently doesn't make sense because the missmap
-                //       should be immediately updated in handleWriteback
-
-                DPRINTF(DRAMCache, "Writing back to DRAM; it was a miss\n");
-                // makeResponse will turn this into a writeback request.
-                pkt->makeResponse();
-                // Note: this pkt's address is the address of the data that
-                //       it is holding. I.e., the address of the victim
-                sendMemSideReq(pkt);
             } else {
-                // We tried to replace a line that was clean, just statitic it
-                realReplaceCleanHit++;
-                DPRINTF(DRAMCache, "Tried to replace a clean line, no need\n");
-                delete pkt->req;
-                delete pkt;
+                // Here, we need to send a backprobe to the cache!
+                bool skip_wb = false;
+                if (sendBackprobes) {
+                    skip_wb = sendBackprobe(pkt->getAddr());
+                }
+
+                if (pkt->hasDirtyDataFromCache()) {
+                    realReplaceMiss++;
+                    // Remove this from the dirty list; we are cleaning
+                    if (dirtyList) {
+                        dirtyList->removeDirty(pkt->getAddr());
+                    }
+                    // Note: could remove this from the miss map now
+                    //       this currently doesn't make sense because it
+                    //       should be immediately updated in handleWriteback
+
+                    DPRINTF(DRAMCache, "Writing back to DRAM; was a miss\n");
+                    // makeResponse will turn this into a writeback request.
+                    pkt->makeResponse();
+                    // Note: this pkt's address is the address of the data that
+                    //       it is holding. I.e., the address of the victim
+                    if (!skip_wb) {
+                        sendMemSideReq(pkt);
+                    }
+                } else {
+                    // We tried to replace a line that was clean, just statitic
+                    realReplaceCleanHit++;
+                    DPRINTF(DRAMCache, "Tried to replace a clean line here\n");
+                    delete pkt->req;
+                    delete pkt;
+                }
             }
         } else {
             // It was actually already there, so no need to do anything.

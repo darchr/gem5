@@ -104,6 +104,11 @@ class CoherentXBar(BaseXBar):
     # a mostly-exclusive DRAM cache / large LLC.
     filter_clean_writebacks = Param.Bool(False, "Filter clean witebacks?")
 
+    # Similar to filter_clean_writebacks above. This tracks what blocks are
+    # in the DRAM cache and marks them as special if there is a WB to a block
+    # that is *not* in the DRAM cache. This emulates the DCP bit from BEAR
+    track_dcp = Param.Bool(False, "Track blocks not in DRAM cache")
+
     # Determine how this crossbar handles packets where caches have
     # already committed to responding, by establishing if the crossbar
     # is the point of coherency or not.

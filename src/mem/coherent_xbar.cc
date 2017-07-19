@@ -59,7 +59,7 @@
 CoherentXBar::CoherentXBar(const CoherentXBarParams *p)
     : BaseXBar(p), system(p->system), snoopFilter(p->snoop_filter),
       snoopResponseLatency(p->snoop_response_latency),
-      filterCleanWBs(p->filter_clean_writebacks),
+      filterCleanWBs(p->filter_clean_writebacks), trackDCP(p->track_dcp),
       pointOfCoherency(p->point_of_coherency)
 {
     // create the ports based on the size of the master and slave
@@ -183,6 +183,18 @@ CoherentXBar::recvTimingReq(PacketPtr pkt, PortID slave_port_id)
 
     // determine how long to be crossbar layer is busy
     Tick packetFinishTime = clockEdge(Cycles(1)) + pkt->payloadDelay;
+
+    if (trackDCP && pkt->cmd == MemCmd::ReadOwnerReq) {
+        // Add this to the tracking list.
+        DPRINTF(DRAMCache, "Marking %s not in DRAM cache\n", pkt->print());
+        notInDRAMCache.insert(pkt->getAddr());
+        pkt->makeResponse();
+        Tick response_time = clockEdge() + pkt->headerDelay;
+        pkt->headerDelay = 0;
+        slavePorts[slave_port_id]->schedTimingResp(pkt, response_time);
+        reqLayers[master_port_id]->succeededTiming(packetFinishTime);
+        return true;
+    }
 
     if (!system->bypassCaches()) {
         assert(pkt->snoopDelay == 0);
@@ -989,6 +1001,19 @@ CoherentXBar::sinkPacket(const PacketPtr pkt)
             filter_wb = false;
         }
     }
+
+    if (trackDCP && pkt->isEviction()) {
+        auto it = notInDRAMCache.find(pkt->getAddr());
+        if (it != notInDRAMCache.end()) {
+            // If we find a match, mark it as not in DRAM cache.
+            DPRINTF(DRAMCache, "Setting not in DC on %s\n", pkt->print());
+            pkt->setNotInDRAMCache();
+            if (!pkt->isBlockCached()) {
+                notInDRAMCache.erase(it);
+            }
+        }
+    }
+
     return filter_wb || orig_return;
 }
 
