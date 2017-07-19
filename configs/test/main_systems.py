@@ -114,7 +114,7 @@ class AdaptiveWBDRAMCache(system.MySystem):
         self.dramcache = DRAMCache(writeback_policy='adaptive',
                                    no_dirty_list=False,
                                    region_size = self._region_size,
-                                   dirty_list_entries=0.25)
+                                   dirty_list_entries=0.125)
         self.dramcache.connectCPUSideBus(self.membus)
         self.dramcache.connectMemSideBus(self.l4bus)
         # Just the ranges that memory responds to
@@ -187,7 +187,6 @@ class AdaptiveWBInfDLDRAMCache(system.MySystem):
 
 
 class FOMDRAMCache(system.MySystem):
-    """ This has perfect SRAM tags, adaptive WB, fill on writeback """
 
     def __init__(self, opts):
         super(FOMDRAMCache, self).__init__(opts)
@@ -209,6 +208,53 @@ class FOMDRAMCache(system.MySystem):
 
         self.dramcache.setBackingCtrl(self.mem_cntrls[0])
 
+class KNLDRAMCache(system.MySystem):
+
+    def __init__(self, opts):
+        super(KNLDRAMCache, self).__init__(opts)
+
+    def createMemorySystem(self):
+
+        self.l4bus = L2XBar(width = 64,
+                        snoop_filter = SnoopFilter(max_capacity='32MB'))
+        self.dramcache = DRAMCache(fom = True,
+                                   writeback_policy = 'writeback',
+                                   no_dirty_list = True,
+                                   send_backprobes = True)
+
+        self.dramcache.connectCPUSideBus(self.membus)
+        self.dramcache.connectMemSideBus(self.l4bus)
+        # Just the ranges that memory responds to
+        self.dramcache.setAddrRanges(self.mem_ranges)
+
+        self.createMemoryControllersDDR3(self.l4bus)
+
+        self.dramcache.setBackingCtrl(self.mem_cntrls[0])
+
+class BEARDRAMCache(system.MySystem):
+
+    def __init__(self, opts):
+        super(BEARDRAMCache, self).__init__(opts)
+
+    def createMemorySystem(self):
+
+        self.l4bus = L2XBar(width = 64,
+                        snoop_filter = SnoopFilter(max_capacity='32MB'))
+        self.dramcache = DRAMCache(fom = True,
+                                   writeback_policy = 'writeback',
+                                   no_dirty_list = True,
+                                   send_backprobes = True)
+
+        self.dramcache.connectCPUSideBus(self.membus)
+        self.dramcache.connectMemSideBus(self.l4bus)
+        # Just the ranges that memory responds to
+        self.dramcache.setAddrRanges(self.mem_ranges)
+
+        self.membus.track_dcp = True
+
+        self.createMemoryControllersDDR3(self.l4bus)
+
+        self.dramcache.setBackingCtrl(self.mem_cntrls[0])
 
 
 class WBWithInfTagsCache(system.MySystem):
@@ -240,6 +286,8 @@ class WBWithInfTagsCache(system.MySystem):
 
 def getSystem(config, opts):
     configs = {'baseline': Baseline,
+               'knl-like': KNLDRAMCache,
+               'bear-like': BEARDRAMCache,
                'dramcache-0': FOMDRAMCache,
                'dramcache-1': BaselineDRAMCache,
                'dramcache-2': BaselinePlusCWBFilter,

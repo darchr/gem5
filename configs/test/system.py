@@ -80,7 +80,7 @@ class MySystem(System):
         else:
             perc_read = 0
         config_text = """
-        STATE 0 100000000 RANDOM %d %d %d 64 333 333 0
+        STATE 0 100000000 RANDOM %d %d %d 8 333 333 0
         INIT 0
         TRANSITION 0 0 1
         """ % (perc_read, mem_start, mem_end)
@@ -105,8 +105,8 @@ class MySystem(System):
 
         # Time in state: 333*10,000 = 3,330,000
         config_text = """
-        STATE 0 3330000 RANDOM %d %d %d 64 333 333 0
-        STATE 1 3330000 RANDOM %d %d %d 64 333 333 0
+        STATE 0 3330000 RANDOM %d %d %d 8 333 333 0
+        STATE 1 3330000 RANDOM %d %d %d 8 333 333 0
         INIT 0
         TRANSITION 0 1 %f
         TRANSITION 0 0 %f

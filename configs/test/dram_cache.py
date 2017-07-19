@@ -39,6 +39,7 @@ class DRAMCache(SubSystem):
                        infinite_dirty_list = False,
                        dirty_list_entries = 1,
                        fom = False,
+                       send_backprobes = False,
                        region_size = '16kB'):
         super(DRAMCache, self).__init__()
 
@@ -82,6 +83,7 @@ class DRAMCache(SubSystem):
                                banks = self._numBanks,
                                dirty_list = get_dirty_list(),
                                writeback_policy = writeback_policy,
+                               send_backprobes = send_backprobes,
                                check_data = True,
                                bank_number = i)
                       for i in range(self._numBanks)]

@@ -310,7 +310,7 @@ if __name__ == "__m5_main__":
 
     m5.instantiate()
 
-    warmup_time = '10ms'
+    warmup_time = '20ms'
     if args[0] == 'infcache': warmup_time = '1ms'
     print "Warming up for", warmup_time
     exit_event = m5.simulate(fromSeconds(toLatency(warmup_time)))
@@ -334,21 +334,20 @@ if __name__ == "__m5_main__":
     print "Hit rate:", getHitRate()
     print "L3 miss bandwidth:", getL3MissSize()/ toLatency(sim_time)
     print "Membus bandwidth:", getMembusBW() / 2**30 / toLatency(sim_time)
-    if args[0] == 'dramcache-0':
-        aa = getAA()
-        print "access amplification", aa[0]
-        print "bandwidth bloat", aa[1]
+    aa = getAA()
+    print "access amplification", aa[0]
+    print "bandwidth bloat", aa[1]
 
-    print "mc_bw, gen_bw, hit_rate, l3_bw, membus_bw, aa, bb"
-    print getBandwidth()/float(2**30),
-    print genbw,
-    print getHitRate(),
-    print getL3MissSize()/ toLatency(sim_time),
-    print getMembusBW() / 2**30 / toLatency(sim_time),
-    if args[0] == 'dramcache-0':
-        aa = getAA()
-        print aa[0],
-        print aa[1]
+    # print "mc_bw, gen_bw, hit_rate, l3_bw, membus_bw, aa, bb"
+    # print getBandwidth()/float(2**30),
+    # print genbw,
+    # print getHitRate(),
+    # print getL3MissSize()/ toLatency(sim_time),
+    # print getMembusBW() / 2**30 / toLatency(sim_time),
+    # if args[0] == 'dramcache-0':
+    #     aa = getAA()
+    #     print aa[0],
+    #     print aa[1]
 
     # warmup_time = "50ms"
     # sim_time = "10ms"
@@ -374,7 +373,7 @@ if __name__ == "__m5_main__":
     # print "Membus bandwidth:",
     # print getMembusBW(i) / 2**30 / toLatency(sim_time)
 
-    # if "dramcache" in args[0]:
+    # if "dramcache" in args[0] or "-like" in args[0]:
     #     iters = 100
     # else:
     #     iters = 5
@@ -399,7 +398,7 @@ if __name__ == "__m5_main__":
     #     print "Cold miss rate:", getColdMissRate(i)
     #     print "Membus bandwidth:",
     #     print getMembusBW(i) / 2**30 / toLatency(sim_time)
-    #     if args[0] == 'dramcache-0':
+    #     if args[0] == 'dramcache-0' or '-like' in args[0]:
     #         aa = getAA(i)
     #         print "Access amplification:", aa[0]
     #         print "Bandwidth bloat:", aa[1]
