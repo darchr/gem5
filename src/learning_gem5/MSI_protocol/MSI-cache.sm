@@ -155,7 +155,7 @@ machine(MachineType:L1Cache, "MSI cache")
     structure(TBE, desc="Entry for transient requests") {
         State TBEState,         desc="State of block";
         DataBlock DataBlk,      desc="Data for the block. Needed for MI_A";
-        int Acks,               desc="Number of acks left to recieve.";
+        int Acks, default=0,    desc="Number of acks left to recieve.";
     }
 
     // Table of TBE entries. This is defined externally in
@@ -307,6 +307,9 @@ machine(MachineType:L1Cache, "MSI cache")
                 // Grab the entry and tbe if they exist.
                 Entry cache_entry := getCacheEntry(in_msg.addr);
                 TBE tbe := TBEs[in_msg.addr];
+                // The TBE better exist since this is a response and we need to
+                // be able to check the remaining acks.
+                assert(is_valid(tbe));
 
                 // If it's from the directory...
                 if (machineIDToMachineType(in_msg.Sender) ==
@@ -314,10 +317,17 @@ machine(MachineType:L1Cache, "MSI cache")
                     if (in_msg.Type != CoherenceResponseType:Data) {
                         error("Directory should only reply with data");
                     }
-                    if (in_msg.Acks == 0) {
+                    // Take the in_msg acks and add (sub) the Acks we've seen.
+                    // The InvAck will decrement the acks we're waiting for in
+                    // tbe.Acks to below 0 if we haven't gotten the dir resp
+                    // yet. So, if this is 0 we don't need to wait any longer.
+                    assert(in_msg.Acks + tbe.Acks >= 0);
+                    if (in_msg.Acks + tbe.Acks == 0) {
                         trigger(Event:DataDirNoAcks, in_msg.addr, cache_entry,
                                 tbe);
                     } else {
+                        // If it's not 0, then we need to wait for more acks
+                        // and we'll trigger LastInvAck later.
                         trigger(Event:DataDirAcks, in_msg.addr, cache_entry,
                                 tbe);
                     }
@@ -327,12 +337,14 @@ machine(MachineType:L1Cache, "MSI cache")
                         trigger(Event:DataOwner, in_msg.addr, cache_entry,
                                 tbe);
                     } else if (in_msg.Type == CoherenceResponseType:InvAck) {
-                        assert(is_valid(tbe));
-                        if (tbe.Acks > 1) {
-                            trigger(Event:InvAck, in_msg.addr, cache_entry,
+                        DPRINTF(RubySlicc, "Got inv ack. %d left\n", tbe.Acks);
+                        if (tbe.Acks == 1) {
+                            // If there is exactly one ack remaining then we
+                            // know it is the last ack.
+                            trigger(Event:LastInvAck, in_msg.addr, cache_entry,
                                     tbe);
                         } else {
-                            trigger(Event:LastInvAck, in_msg.addr, cache_entry,
+                            trigger(Event:InvAck, in_msg.addr, cache_entry,
                                     tbe);
                         }
                     } else {
@@ -534,16 +546,16 @@ machine(MachineType:L1Cache, "MSI cache")
 
     action(decrAcks, "da", desc="Decrement the number of acks") {
         assert(is_valid(tbe));
-        // There should always be more than 1 here. If there is only one ack
-        // remaining we should have triggered LastInvAck
-        assert(tbe.Acks > 1);
         tbe.Acks := tbe.Acks - 1;
+        // This annotates the protocol trace
+        APPEND_TRANSITION_COMMENT("Acks: ");
+        APPEND_TRANSITION_COMMENT(tbe.Acks);
     }
 
     action(storeAcks, "sa", desc="Store the needed acks to the TBE") {
         assert(is_valid(tbe));
         peek(response_in, ResponseMsg) {
-            tbe.Acks := in_msg.Acks;
+            tbe.Acks := in_msg.Acks + tbe.Acks;
         }
         assert(tbe.Acks > 0);
     }
@@ -582,7 +594,7 @@ machine(MachineType:L1Cache, "MSI cache")
         assert(is_valid(cache_entry));
         peek(response_in, ResponseMsg) {
             cacheMemory.setMRU(cache_entry);
-            sequencer.readCallback(address, cache_entry.DataBlk, true,
+            sequencer.writeCallback(address, cache_entry.DataBlk, true,
                                    // Note: this could be the last ack.
                                    machineIDToMachineType(in_msg.Sender));
         }
@@ -757,6 +769,11 @@ machine(MachineType:L1Cache, "MSI cache")
         stall;
     }
 
+    transition(SM_AD, Inv, IM_AD) {
+        sendInvAcktoReq;
+        popForwardQueue;
+    }
+
     transition(SM_AD, DataDirAcks, SM_A) {
         writeDataToCache;
         storeAcks;
@@ -801,7 +818,7 @@ machine(MachineType:L1Cache, "MSI cache")
 
     transition({MI_A, SI_A, II_A}, PutAck, I) {
         deallocateCacheBlock;
-        popResponseQueue;
+        popForwardQueue;
     }
 
     transition(SI_A, Inv, II_A) {
