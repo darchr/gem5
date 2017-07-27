@@ -209,7 +209,7 @@ Check::initiateAction()
         DPRINTF(RubyTest, "status before action update: %s\n",
                 (TesterStatus_to_string(m_status)).c_str());
         m_status = TesterStatus_Action_Pending;
-        DPRINTF(RubyTest, "Check %s, State=Action_Pending\n", m_address);
+        DPRINTF(RubyTest, "Check %#x, State=Action_Pending\n", m_address);
     } else {
         // If the packet did not issue, must delete
         // Note: No need to delete the data, the packet destructor
@@ -263,7 +263,7 @@ Check::initiateCheck()
         DPRINTF(RubyTest, "status before check update: %s\n",
                 TesterStatus_to_string(m_status).c_str());
         m_status = TesterStatus_Check_Pending;
-        DPRINTF(RubyTest, "Check %s, State=Check_Pending\n", m_address);
+        DPRINTF(RubyTest, "Check %#x, State=Check_Pending\n", m_address);
     } else {
         // If the packet did not issue, must delete
         // Note: No need to delete the data, the packet destructor
@@ -301,10 +301,10 @@ Check::performCallback(NodeID proc, SubBlock* data, Cycles curTime)
         m_store_count++;
         if (m_store_count == CHECK_SIZE) {
             m_status = TesterStatus_Ready;
-            DPRINTF(RubyTest, "Check %s, State=Ready\n", m_address);
+            DPRINTF(RubyTest, "Check %#x, State=Ready\n", m_address);
         } else {
             m_status = TesterStatus_Idle;
-            DPRINTF(RubyTest, "Check %s, State=Idle store_count: %d\n",
+            DPRINTF(RubyTest, "Check %#x, State=Idle store_count: %d\n",
                     m_address, m_store_count);
         }
         DPRINTF(RubyTest, "Action callback return data now %d\n",
@@ -314,7 +314,7 @@ Check::performCallback(NodeID proc, SubBlock* data, Cycles curTime)
         // Perform load/check
         for (int byte_number=0; byte_number<CHECK_SIZE; byte_number++) {
             if (uint8_t(m_value + byte_number) != data->getByte(byte_number)) {
-                panic("Action/check failure: proc: %d address: %s data: %s "
+                panic("Action/check failure: proc: %d address: %#x data: %s "
                       "byte_number: %d m_value+byte_number: %d byte: %d %s"
                       "Time: %d\n",
                       proc, address, data, byte_number,
