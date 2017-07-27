@@ -53,17 +53,17 @@ machine(MachineType:L1Cache, "MSI cache")
       // network. The from/to and request/reqponse can be confusing!
 
       // Requests *to* the directory
-      MessageBuffer * requestFromCache, network="To", virtual_network="1",
+      MessageBuffer * requestFromCache, network="To", virtual_network="0",
             vnet_type="request";
       // Responses *to* the directory or other caches
-      MessageBuffer * responseFromCache, network="To", virtual_network="3",
+      MessageBuffer * responseFromCache, network="To", virtual_network="2",
             vnet_type="response";
 
       // Requests *from* the directory for fwds, invs, and put acks.
-      MessageBuffer * forwardToCache, network="From", virtual_network="2",
+      MessageBuffer * forwardToCache, network="From", virtual_network="1",
             vnet_type="forward";
       // Responses *from* directory and other caches for this cache's reqs.
-      MessageBuffer * responseToCache, network="From", virtual_network="3",
+      MessageBuffer * responseToCache, network="From", virtual_network="2",
             vnet_type="response";
 
       // This is all of the incoming requests from the core via the sequencer
@@ -84,13 +84,13 @@ machine(MachineType:L1Cache, "MSI cache")
         IM_A,   AccessPermission:Busy,
                     desc="Invalid, moving to M, waiting for acks";
 
-        S,      AccessPermission:Read,
+        S,      AccessPermission:Read_Only,
                     desc="Shared. Read-only, other caches may have the block";
 
         // States moving out of S
-        SM_AD,  AccessPermission:Read,
+        SM_AD,  AccessPermission:Read_Only,
                     desc="Shared, moving to M, waiting for acks and 'data'";
-        SM_A,   AccessPermission:Read,
+        SM_A,   AccessPermission:Read_Only,
                     desc="Shared, moving to M, waiting for acks";
 
         M,      AccessPermission:Read_Write,
@@ -102,8 +102,8 @@ machine(MachineType:L1Cache, "MSI cache")
         SI_A,   AccessPermission:Busy,
                     desc="Was shared, moving to I, waiting for put ack";
         II_A,   AccessPermission:Invalid,
-                    desc="Sent valid data before receiving put ack. "
-                         "Waiting for put ack.";
+                    desc="Sent valid data before receiving put ack. ";
+                         //"Waiting for put ack.";
     }
 
     // Events that can be triggered on incoming messages. These are the events
@@ -117,13 +117,13 @@ machine(MachineType:L1Cache, "MSI cache")
         Replacement,    desc="Triggered when block is chosen as victim";
 
         // Forwarded reqeust from other cache via dir on the forward network
-        FwdGetS,        desc="Directory sent us a request to satisfy GetS. "
-                             "We must have the block in M to respond to this.";
-        FwdGetM,        desc="Directory sent us a request to satisfy GetM. "
-                             "We must have the block in M to respond to this.";
+        FwdGetS,        desc="Directory sent us a request to satisfy GetS. ";
+                             //"We must have the block in M to respond to this.";
+        FwdGetM,        desc="Directory sent us a request to satisfy GetM. ";
+                             //"We must have the block in M to respond to this.";
         Inv,            desc="Invalidate from the directory.";
-        PutAck,         desc="Response from directory after we issue a put. "
-                             "This must be on the fwd network for deadlock.";
+        PutAck,         desc="Response from directory after we issue a put. ";
+                             //"This must be on the fwd network for deadlock.";
 
         // Responses from directory
         DataDirNoAcks,  desc="Data from directory (acks = 0)";
@@ -208,7 +208,7 @@ machine(MachineType:L1Cache, "MSI cache")
 
     // Required function for getting the current state of the block.
     // This is called from the transition to know which transition to execute
-    State (TBE tbe, Entry cache_entry, Addr addr) {
+    State getState(TBE tbe, Entry cache_entry, Addr addr) {
         // The TBE state will override the state in cache memory, if valid
         if (is_valid(tbe)) { return tbe.TBEState; }
         // Next, if the cache entry is valid, it holds the state
@@ -305,8 +305,8 @@ machine(MachineType:L1Cache, "MSI cache")
         if (response_in.isReady(clockEdge())) {
             peek(response_in, ResponseMsg) {
                 // Grab the entry and tbe if they exist.
-                Entry cache_entry := getCacheEntry(in_msg.Addr);
-                TBE tbe := TBEs[in_msg.Addr];
+                Entry cache_entry := getCacheEntry(in_msg.addr);
+                TBE tbe := TBEs[in_msg.addr];
 
                 // If it's from the directory...
                 if (machineIDToMachineType(in_msg.Sender) ==
@@ -315,24 +315,24 @@ machine(MachineType:L1Cache, "MSI cache")
                         error("Directory should only reply with data");
                     }
                     if (in_msg.Acks == 0) {
-                        trigger(Event:DataDirNoAcks, in_msg.Addr, cache_entry,
+                        trigger(Event:DataDirNoAcks, in_msg.addr, cache_entry,
                                 tbe);
                     } else {
-                        trigger(Event:DataDirAcks, in_msg.Addr, cache_entry,
+                        trigger(Event:DataDirAcks, in_msg.addr, cache_entry,
                                 tbe);
                     }
                 } else {
                     // This is from another cache.
                     if (in_msg.Type == CoherenceResponseType:Data) {
-                        trigger(Event:DataOwner, in_msg.Addr, cache_entry,
+                        trigger(Event:DataOwner, in_msg.addr, cache_entry,
                                 tbe);
                     } else if (in_msg.Type == CoherenceResponseType:InvAck) {
                         assert(is_valid(tbe));
                         if (tbe.Acks > 1) {
-                            trigger(Event:InvAck, in_msg.Addr, cache_entry,
+                            trigger(Event:InvAck, in_msg.addr, cache_entry,
                                     tbe);
                         } else {
-                            trigger(Event:LastInvAck, in_msg.Addr, cache_entry,
+                            trigger(Event:LastInvAck, in_msg.addr, cache_entry,
                                     tbe);
                         }
                     } else {
@@ -352,22 +352,22 @@ machine(MachineType:L1Cache, "MSI cache")
             // the message (of type RequestMsg in this case) at the head.
             // "forward_in" is the port we want to peek into
             // "RequestMsg" is the type of message we expect.
-            peek(foward_in, RequestMsg) {
+            peek(forward_in, RequestMsg) {
                 // Grab the entry and tbe if they exist.
-                Entry cache_entry := getCacheEntry(in_msg.Addr);
-                TBE tbe := TBEs[in_msg.Addr];
+                Entry cache_entry := getCacheEntry(in_msg.addr);
+                TBE tbe := TBEs[in_msg.addr];
 
                 if (in_msg.Type == CoherenceRequestType:GetS) {
                     // This is a special function that will trigger a
                     // transition (as defined below). It *must* have these
                     // parameters.
-                    trigger(Event:FwdGetS, in_msg.Addr, cache_entry, tbe);
+                    trigger(Event:FwdGetS, in_msg.addr, cache_entry, tbe);
                 } else if (in_msg.Type == CoherenceRequestType:GetM) {
-                    trigger(Event:FwdGetM, in_msg.Addr, cache_entry, tbe);
+                    trigger(Event:FwdGetM, in_msg.addr, cache_entry, tbe);
                 } else if (in_msg.Type == CoherenceRequestType:Inv) {
-                    trigger(Event:Inv, in_msg.Addr, cache_entry, tbe);
+                    trigger(Event:Inv, in_msg.addr, cache_entry, tbe);
                 } else if (in_msg.Type == CoherenceRequestType:PutAck) {
-                    trigger(Event:PutAck, in_msg.Addr, cache_entry, tbe);
+                    trigger(Event:PutAck, in_msg.addr, cache_entry, tbe);
                 } else {
                     error("Unexpected forward message!");
                 }
@@ -377,7 +377,7 @@ machine(MachineType:L1Cache, "MSI cache")
 
     // The "mandatory queue" is the port/queue from the CPU or other processor.
     // This is *always* a RubyRequest
-    in_port(mandatory_in, RubyRequest) {
+    in_port(mandatory_in, RubyRequest, mandatoryQueue) {
         if (mandatory_in.isReady(clockEdge())) {
             // Block all requests if there is already an outstanding request
             // that has the same line address. This is unblocked when we
@@ -401,7 +401,7 @@ machine(MachineType:L1Cache, "MSI cache")
                             in_msg.Type == RubyRequestType:IFETCH) {
                         trigger(Event:Load, in_msg.LineAddress, cache_entry,
                                 tbe);
-                    } else if (in_msg.Type == RubyRequestType:STORE {
+                    } else if (in_msg.Type == RubyRequestType:ST) {
                         trigger(Event:Store, in_msg.LineAddress, cache_entry,
                                 tbe);
                     } else {
@@ -440,15 +440,15 @@ machine(MachineType:L1Cache, "MSI cache")
         // "1" is the latency (in cycles) the port waits before sending the
         // message.
         enqueue(request_out, RequestMsg, 1) {
-            out_msg.Addr := address;
+            out_msg.addr := address;
             // This type is defined in MSI-msg.sm for this protocol.
             out_msg.Type := CoherenceRequestType:GetS;
             // The destination may change depending on the address striping
             // across different directories, so query the network.
-            out_msg.Dest.add(mapAddressToMachine(address,
-                             MachineType:Directory));
+            out_msg.Destination.add(mapAddressToMachine(address,
+                                    MachineType:Directory));
             // See mem/protocol/RubySlicc_Exports.sm for possible sizes.
-            out_msg.Size := MessageSizeType:Control;
+            out_msg.MessageSize := MessageSizeType:Control;
             // Set that the reqeustor is this machine so we get the response.
             out_msg.Requestor := machineID;
         }
@@ -456,11 +456,11 @@ machine(MachineType:L1Cache, "MSI cache")
 
     action(sendGetM, "gM", desc="Send GetM to the directory") {
         enqueue(request_out, RequestMsg, 1) {
-            out_msg.Addr := address;
+            out_msg.addr := address;
             out_msg.Type := CoherenceRequestType:GetM;
-            out_msg.Dest.add(mapAddressToMachine(address,
-                             MachineType:Directory));
-            out_msg.Size := MessageSizeType:Control;
+            out_msg.Destination.add(mapAddressToMachine(address,
+                                    MachineType:Directory));
+            out_msg.MessageSize := MessageSizeType:Control;
             out_msg.Requestor := machineID;
         }
     }
@@ -468,23 +468,23 @@ machine(MachineType:L1Cache, "MSI cache")
     // NOTE: Clean evict. Required to keep the directory state up-to-date
     action(sendPutS, "pS", desc="Send PutS to the directory") {
         enqueue(request_out, RequestMsg, 1) {
-            out_msg.Addr := address;
+            out_msg.addr := address;
             out_msg.Type := CoherenceRequestType:PutS;
-            out_msg.Dest.add(mapAddressToMachine(address,
-                             MachineType:Directory));
-            out_msg.Size := MessageSizeType:Control;
+            out_msg.Destination.add(mapAddressToMachine(address,
+                                    MachineType:Directory));
+            out_msg.MessageSize := MessageSizeType:Control;
             out_msg.Requestor := machineID;
         }
     }
 
     action(sendPutM, "pM", desc="Send putM+data to the directory") {
         enqueue(request_out, RequestMsg, 1) {
-            out_msg.Addr := address;
+            out_msg.addr := address;
             out_msg.Type := CoherenceRequestType:PutM;
-            out_msg.Dest.add(mapAddressToMachine(address,
-                             MachineType:Directory));
+            out_msg.Destination.add(mapAddressToMachine(address,
+                                    MachineType:Directory));
             out_msg.DataBlk := cache_entry.DataBlk;
-            out_msg.Size := MessageSizeType:Data;
+            out_msg.MessageSize := MessageSizeType:Data;
             out_msg.Requestor := machineID;
         }
     }
@@ -494,14 +494,14 @@ machine(MachineType:L1Cache, "MSI cache")
         // If we are in both the peek and the enqueue block then we have access
         // to both in_msg and out_msg.
         assert(is_valid(cache_entry));
-        peek(foward_in, RequestMsg) {
+        peek(forward_in, RequestMsg) {
             // This is sent on the response network!
             enqueue(response_out, ResponseMsg, 1) {
-                out_msg.Addr := address;
+                out_msg.addr := address;
                 out_msg.Type := CoherenceResponseType:Data;
-                out_msg.Dest.add(in_msg.Requestor);
+                out_msg.Destination.add(in_msg.Requestor);
                 out_msg.DataBlk := cache_entry.DataBlk;
-                out_msg.Size := MessageSizeType:Data;
+                out_msg.MessageSize := MessageSizeType:Data;
                 out_msg.Sender := machineID;
             }
         }
@@ -509,24 +509,24 @@ machine(MachineType:L1Cache, "MSI cache")
 
     action(sendCacheDataToDir, "cdD", desc="Send the cache data to the dir") {
         enqueue(response_out, ResponseMsg, 1) {
-            out_msg.Addr := address;
+            out_msg.addr := address;
             out_msg.Type := CoherenceResponseType:Data;
-            out_msg.Dest.add(mapAddressToMachine(address,
-                             MachineType:Directory));
+            out_msg.Destination.add(mapAddressToMachine(address,
+                                    MachineType:Directory));
             out_msg.DataBlk := cache_entry.DataBlk;
-            out_msg.Size := MessageSizeType:Data;
+            out_msg.MessageSize := MessageSizeType:Data;
             out_msg.Sender := machineID;
         }
     }
 
     action(sendInvAcktoReq, "iaR", desc="Send inv-ack to requestor") {
-        peek(foward_in, RequestMsg) {
+        peek(forward_in, RequestMsg) {
             enqueue(response_out, ResponseMsg, 1) {
-                out_msg.Addr := address;
+                out_msg.addr := address;
                 out_msg.Type := CoherenceResponseType:InvAck;
-                out_msg.Dest.add(in_msg.Requestor);
+                out_msg.Destination.add(in_msg.Requestor);
                 out_msg.DataBlk := cache_entry.DataBlk;
-                out_msg.Size := MessageSizeType:Control;
+                out_msg.MessageSize := MessageSizeType:Control;
                 out_msg.Sender := machineID;
             }
         }
@@ -543,7 +543,7 @@ machine(MachineType:L1Cache, "MSI cache")
     action(storeAcks, "sa", desc="Store the needed acks to the TBE") {
         assert(is_valid(tbe));
         peek(response_in, ResponseMsg) {
-            tbe.Acks = in_msg.Acks;
+            tbe.Acks := in_msg.Acks;
         }
         assert(tbe.Acks > 0);
     }
@@ -575,7 +575,7 @@ machine(MachineType:L1Cache, "MSI cache")
         assert(is_valid(cache_entry));
         cacheMemory.setMRU(cache_entry);
         // The same as the read callback above.
-        sequencer.storeCallback(address, cache_entry.DataBlk, false);
+        sequencer.writeCallback(address, cache_entry.DataBlk, false);
     }
 
     action(externalStoreHit, "xSh", desc="External store hit (was a miss)") {
@@ -604,7 +604,7 @@ machine(MachineType:L1Cache, "MSI cache")
     }
 
     action(deallocateCacheBlock, "d", desc="Deallocate a cache block") {
-        assert(is_valid(cache_block));
+        assert(is_valid(cache_entry));
         cacheMemory.deallocate(address);
         // clear the cache_entry variable (now it's invalid)
         unset_cache_entry();
@@ -639,7 +639,7 @@ machine(MachineType:L1Cache, "MSI cache")
 
     // Queue management actions
 
-    action(popMandatoryQueue, "pM", desc="Pop the mandatory queue") {
+    action(popMandatoryQueue, "pQ", desc="Pop the mandatory queue") {
         mandatory_in.dequeue(clockEdge());
     }
 

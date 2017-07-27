@@ -53,20 +53,21 @@ machine(MachineType:Directory, "Directory protocol")
       // every 64-byte block in memory). However, the entries are lazily
       // created in getDirEntry()
       DirectoryMemory * directory;
+      Cycles toMemLatency := 1;
 
     // Forwarding requests from the directory *to* the caches.
-    MessageBuffer *forwardFromDir, network="To", virtual_network="2",
+    MessageBuffer *forwardFromDir, network="To", virtual_network="1",
           vnet_type="forward";
     // Response from the directory *to* the cache.
-    MessageBuffer *responseFromDir, network="To", virtual_network="3",
+    MessageBuffer *responseFromDir, network="To", virtual_network="2",
           vnet_type="response";
 
     // Requests *from* the cache to the directory
-    MessageBuffer *requestToDir, network="From", virtual_network="1",
+    MessageBuffer *requestToDir, network="From", virtual_network="0",
           vnet_type="request";
 
     // Responses *from* the cache to the directory
-    MessageBuffer *responseToDir, network="From", virtual_network="3",
+    MessageBuffer *responseToDir, network="From", virtual_network="2",
           vnet_type="response";
 
     // Special buffer for memory responses. Kind of like the mandatory queue
@@ -82,7 +83,7 @@ machine(MachineType:Directory, "Directory protocol")
         // NOTE: Thise are "cache-centric" states like in Sorin et al.
         // However, The access permissions are memory-centric.
         I, AccessPermission:Read_Write,  desc="Invalid in the caches.";
-        S, AccessPermission:Read,        desc="At least one cache has the blk";
+        S, AccessPermission:Read_Only,   desc="At least one cache has the blk";
         M, AccessPermission:Invalid,     desc="A cache has the block in M";
 
         // Transient states
@@ -119,7 +120,7 @@ machine(MachineType:Directory, "Directory protocol")
     // NOTE: We use a netdest for the sharers and the owner so we can simply
     // copy the structure into the message we send as a response.
     structure(Entry, desc="...", interface="AbstractEntry") {
-        State State,            desc="Directory state";
+        State DirState,         desc="Directory state";
         NetDest Sharers,        desc="Sharers for this block";
         NetDest Owner,          desc="Owner of this block";
     }
@@ -147,7 +148,7 @@ machine(MachineType:Directory, "Directory protocol")
 
     State getState(Addr addr) {
         if (directory.isPresent(addr)) {
-            return getDirectoryEntry(addr).State;
+            return getDirectoryEntry(addr).DirState;
         } else {
             return State:I;
         }
@@ -159,7 +160,7 @@ machine(MachineType:Directory, "Directory protocol")
                 assert(getDirectoryEntry(addr).Owner.count() == 1);
                 assert(getDirectoryEntry(addr).Sharers.count() == 0);
             }
-            getDirectoryEntry(addr).State := state;
+            getDirectoryEntry(addr).DirState := state;
             if (state == State:I)  {
                 assert(getDirectoryEntry(addr).Owner.count() == 0);
                 assert(getDirectoryEntry(addr).Sharers.count() == 0);
@@ -172,7 +173,7 @@ machine(MachineType:Directory, "Directory protocol")
     AccessPermission getAccessPermission(Addr addr) {
         if (directory.isPresent(addr)) {
             Entry e := getDirectoryEntry(addr);
-            return Directory_State_to_permission(e.State);
+            return Directory_State_to_permission(e.DirState);
         } else  {
             return AccessPermission:NotPresent;
         }
@@ -188,8 +189,13 @@ machine(MachineType:Directory, "Directory protocol")
         functionalMemoryRead(pkt);
     }
 
+    // This returns the number of writes. So, if we write then return 1
     int functionalWrite(Addr addr, Packet *pkt) {
-        return functionalMemoryWrite(pkt);
+        if (functionalMemoryWrite(pkt)) {
+            return 1;
+        } else {
+            return 0;
+        }
     }
 
 
@@ -202,29 +208,29 @@ machine(MachineType:Directory, "Directory protocol")
     in_port(request_in, RequestMsg, requestToDir) {
         if (request_in.isReady(clockEdge())) {
             peek(request_in, RequestMsg) {
+                Entry e := getDirectoryEntry(in_msg.addr);
                 if (in_msg.Type == CoherenceRequestType:GetS) {
                     // NOTE: Since we don't have a TBE in this machine, there
                     // is no need to pass a TBE into trigger. Also, for the
                     // directory there is no cache entry.
-                    trigger(Event:GetS, in_msg.Addr);
+                    trigger(Event:GetS, in_msg.addr);
                 } else if (in_msg.Type == CoherenceRequestType:GetM) {
-                    trigger(Event:GetM, in_msg.Addr);
+                    trigger(Event:GetM, in_msg.addr);
                 } else if (in_msg.Type == CoherenceRequestType:PutS) {
-                    Entry e := getDirectoryEntry(addr);
                     assert(is_valid(e));
                     // If there is only a single sharer (i.e., the requestor)
                     if (e.Sharers.count() == 1) {
                         assert(e.Sharers.isElement(in_msg.Requestor));
-                        trigger(PutSLast, in_msg.Addr);
+                        trigger(Event:PutSLast, in_msg.addr);
                     } else {
-                        trigger(PutSNotLast, in_msg.Addr);
+                        trigger(Event:PutSNotLast, in_msg.addr);
                     }
                 } else if (in_msg.Type == CoherenceRequestType:PutM) {
                     assert(is_valid(e));
                     if (e.Owner.isElement(in_msg.Requestor)) {
-                        trigger(PutMOwner, in_msg.Addr);
+                        trigger(Event:PutMOwner, in_msg.addr);
                     } else {
-                        trigger(PutMNotOwner, in_msg.Addr);
+                        trigger(Event:PutMNonOwner, in_msg.addr);
                     }
                 } else {
                     error("Unexpected message type.");
@@ -236,8 +242,8 @@ machine(MachineType:Directory, "Directory protocol")
     in_port(response_in, ResponseMsg, responseToDir) {
         if (response_in.isReady(clockEdge())) {
             peek(response_in, ResponseMsg) {
-                if (in_msg.Type == CoherenceRequestType:Data) {
-                    trigger(Event:Data, in_msg.Addr);
+                if (in_msg.Type == CoherenceResponseType:Data) {
+                    trigger(Event:Data, in_msg.addr);
                 } else {
                     error("Unexpected message type.");
                 }
@@ -249,9 +255,9 @@ machine(MachineType:Directory, "Directory protocol")
         if (memQueue_in.isReady(clockEdge())) {
             peek(memQueue_in, MemoryMsg) {
                 if (in_msg.Type == MemoryRequestType:MEMORY_READ) {
-                    trigger(Event:MemData, in_msg.addr, tbe);
+                    trigger(Event:MemData, in_msg.addr);
                 } else if (in_msg.Type == MemoryRequestType:MEMORY_WB) {
-                    trigger(Event:MemAck, in_msg.addr, tbe);
+                    trigger(Event:MemAck, in_msg.addr);
                 } else {
                     error("Invalid message");
                 }
@@ -272,13 +278,14 @@ machine(MachineType:Directory, "Directory protocol")
             // packet out of the "Ruby" black box to the memory side. At some
             // point the response will be on the memory queue.
             // Like enqeue, this takes a latency for the request.
-            queueMemoryRead(in_msg.Requestor, address, 1);
+            queueMemoryRead(in_msg.Requestor, address, toMemLatency);
         }
     }
 
     action(sendDataToMem, "w", desc="Write data to memory") {
         peek(request_in, RequestMsg) {
-            queueMemoryWrite(in_msg.Request, address, 1, in_msg.DataBlk);
+            queueMemoryWrite(in_msg.Requestor, address, toMemLatency,
+                             in_msg.DataBlk);
         }
     }
 
@@ -309,21 +316,59 @@ machine(MachineType:Directory, "Directory protocol")
     }
 
     action(clearSharers, "cS", desc="Clear the sharer list") {
-        getDirectoryEntry(address).Sharers.clear()
+        getDirectoryEntry(address).Sharers.clear();
     }
 
     action(clearOwner, "cO", desc="Clear the owner") {
-        getDirectoryEntry(address).Owner.clear()
+        getDirectoryEntry(address).Owner.clear();
+    }
+
+    // Invalidates and forwards
+
+    action(sendInvToSharers, "i", desc="Send invalidate to all sharers") {
+        enqueue(forward_out, RequestMsg, 1) {
+            out_msg.addr := address;
+            out_msg.Type := CoherenceRequestType:Inv;
+            out_msg.Requestor := machineID;
+            out_msg.Destination := getDirectoryEntry(address).Sharers;
+            out_msg.MessageSize := MessageSizeType:Control;
+        }
+    }
+
+    action(sendFwdGetS, "fS", desc="Send forward getS to owner") {
+        assert(getDirectoryEntry(address).Owner.count() == 1);
+        peek(request_in, RequestMsg) {
+            enqueue(forward_out, RequestMsg, 1) {
+                out_msg.addr := address;
+                out_msg.Type := CoherenceRequestType:GetS;
+                out_msg.Requestor := in_msg.Requestor;
+                out_msg.Destination := getDirectoryEntry(address).Owner;
+                out_msg.MessageSize := MessageSizeType:Control;
+            }
+        }
+    }
+
+    action(sendFwdGetM, "fM", desc="Send forward getM to owner") {
+        assert(getDirectoryEntry(address).Owner.count() == 1);
+        peek(request_in, RequestMsg) {
+            enqueue(forward_out, RequestMsg, 1) {
+                out_msg.addr := address;
+                out_msg.Type := CoherenceRequestType:GetM;
+                out_msg.Requestor := in_msg.Requestor;
+                out_msg.Destination := getDirectoryEntry(address).Owner;
+                out_msg.MessageSize := MessageSizeType:Control;
+            }
+        }
     }
 
     // Responses to requests
 
     // This also needs to send along the number of sharers!!!!
-    action(sendDataToReq, "d", desc="Send data from memory to requestor. "
-                                    "May need to send sharer number, too") {
+    action(sendDataToReq, "d", desc="Send data from memory to requestor. ") {
+                                    //"May need to send sharer number, too") {
         peek(memQueue_in, MemoryMsg) {
             enqueue(response_out, ResponseMsg, 1) {
-              out_msg.Addr := address;
+              out_msg.addr := address;
               out_msg.Type := CoherenceResponseType:Data;
               out_msg.Sender := machineID;
               out_msg.Destination.add(in_msg.OriginalRequestorMachId);
@@ -337,9 +382,9 @@ machine(MachineType:Directory, "Directory protocol")
     action(sendPutAck, "a", desc="Send the put ack") {
         peek(request_in, RequestMsg) {
             enqueue(forward_out, RequestMsg, 1) {
-                out_msg.Addr := address;
+                out_msg.addr := address;
                 out_msg.Type := CoherenceRequestType:PutAck;
-                out_msg.Sender := machineID;
+                out_msg.Requestor := machineID;
                 out_msg.Destination.add(in_msg.Requestor);
                 out_msg.MessageSize := MessageSizeType:Control;
             }
@@ -360,17 +405,22 @@ machine(MachineType:Directory, "Directory protocol")
         memQueue_in.dequeue(clockEdge());
     }
 
+    // Stalling actions
+    action(stall, "z", desc="Stall the incoming request") {
+        // Do nothing.
+    }
+
 
     /*************************************************************************/
     // transitions
 
-    transitions({I, S}, GetS, S_M) {
+    transition({I, S}, GetS, S_M) {
         sendMemRead;
         addReqToSharers;
         popRequestQueue;
     }
 
-    transition(I, {PutSNotLast, PutSLast, PutMNotOwner}) {
+    transition(I, {PutSNotLast, PutSLast, PutMNonOwner}) {
         sendPutAck;
         popRequestQueue;
     }
@@ -399,7 +449,7 @@ machine(MachineType:Directory, "Directory protocol")
         popRequestQueue;
     }
 
-    transition({S, S_D, SS_M}, {PutSNotLast, PutMNotOwner}) {
+    transition({S, S_D, SS_M}, {PutSNotLast, PutMNonOwner}) {
         removeReqFromSharers;
         sendPutAck;
         popRequestQueue;
@@ -425,7 +475,7 @@ machine(MachineType:Directory, "Directory protocol")
         popRequestQueue;
     }
 
-    transition({M, M_M, MI_M}, {PutSNotLast, PutSLast, PutMNotOwner}) {
+    transition({M, M_M, MI_M}, {PutSNotLast, PutSLast, PutMNonOwner}) {
         sendPutAck;
         popRequestQueue;
     }
@@ -460,7 +510,9 @@ machine(MachineType:Directory, "Directory protocol")
         popMemQueue;
     }
 
-    transition({MI_M, SS_M}, {GetS, GetM}) {
+    // If we get another request for a block that's waiting on memory,
+    // stall that request.
+    transition({MI_M, SS_M, S_M, M_M}, {GetS, GetM}) {
         stall;
     }
 
