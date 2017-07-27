@@ -27,8 +27,7 @@
 #
 # Authors: Jason Lowe-Power
 
-""" This file creates a system with Ruby caches and executes 'hello', a simple
-Hello World application.
+""" This file creates a system with Ruby caches and runs the ruby random tester
 See Part 6 in the Learning gem5 book: learning.gem5.org/book/part6
 
 IMPORTANT: If you modify this file, it's likely that the Learning gem5 book
@@ -41,7 +40,7 @@ import m5
 # import all of the SimObjects
 from m5.objects import *
 
-from ruby_caches import MyCacheSystem
+from ruby_caches import TestCacheSystem
 
 # create the system we are going to simulate
 system = System()
@@ -55,39 +54,25 @@ system.clk_domain.voltage_domain = VoltageDomain()
 system.mem_mode = 'timing'               # Use timing accesses
 system.mem_ranges = [AddrRange('512MB')] # Create an address range
 
-# Create a pair of simple CPUs
-system.cpu = [TimingSimpleCPU(), TimingSimpleCPU()]
+# Create the tester
+system.tester = RubyTester(checks_to_complete = 100,
+                           wakeup_frequency = 10,
+                           num_cpus = 1)
 
 # Create a DDR3 memory controller and connect it to the membus
 system.mem_ctrl = DDR3_1600_8x8()
 system.mem_ctrl.range = system.mem_ranges[0]
 
-# create the interrupt controller for the CPU and connect to the membus
-for cpu in system.cpu:
-    cpu.createInterruptController()
-
 # # Create the Ruby System
-system.caches = MyCacheSystem()
-system.caches.setup(system, system.cpu, [system.mem_ctrl])
-
-# get ISA for the binary to run.
-isa = str(m5.defines.buildEnv['TARGET_ISA']).lower()
-
-# Run 'hello' and use the compiled ISA to find the binary
-binary = 'tests/test-progs/threads/bin/' + isa + '/linux/threads'
-
-# Create a process for a simple "Hello World" application
-process = Process()
-# Set the command
-# cmd is a list which begins with the executable (like argv)
-process.cmd = [binary]
-# Set the cpu to use the process as its workload and create thread contexts
-for cpu in system.cpu:
-    cpu.workload = process
-    cpu.createThreads()
+system.caches = TestCacheSystem()
+system.caches.setup(system, system.tester, [system.mem_ctrl])
 
 # set up the root SimObject and start the simulation
 root = Root(full_system = False, system = system)
+
+# Not much point in this being higher than the L1 latency
+m5.ticks.setGlobalFrequency('1ns')
+
 # instantiate all of the objects we've created above
 m5.instantiate()
 
