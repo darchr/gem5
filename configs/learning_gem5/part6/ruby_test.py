@@ -57,7 +57,7 @@ system.mem_ranges = [AddrRange('512MB')] # Create an address range
 # Create the tester
 system.tester = RubyTester(checks_to_complete = 100,
                            wakeup_frequency = 10,
-                           num_cpus = 1)
+                           num_cpus = 2)
 
 # Create a DDR3 memory controller and connect it to the membus
 system.mem_ctrl = DDR3_1600_8x8()
