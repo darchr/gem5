@@ -1762,6 +1762,7 @@ class PortRef(object):
         self.name = name
         self.role = role
         self.peer = None   # not associated with another port yet
+        self.peerVector = None # Save the vector ref in case it's needed
         self.ccConnected = False # C++ port connection done?
         self.index = -1  # always -1 for non-vector ports
 
@@ -1795,6 +1796,7 @@ class PortRef(object):
     def connect(self, other):
         if isinstance(other, VectorPortRef):
             # reference to plain VectorPort is implicit append
+            self.peerVector = other
             other = other._get_next()
         if self.peer and not proxy.isproxy(self.peer):
             fatal("Port %s is already connected to %s, cannot connect %s\n",
@@ -1839,6 +1841,23 @@ class PortRef(object):
                       % (new_peer, peers_new_peer, self)
         else:
             fatal("Port %s not connected, cannot splice in new peers\n", self)
+
+    def disconnect(self):
+        """The opposite of connect. Called from removePorts in SimObject.
+           This will only work if the ports have not been connected via C++ and
+           nothing happens if this port is not connected.
+        """
+        if self.ccConnected:
+            fatal("Cannot disconnect %s. Already connected in C++!" % (self))
+        if self.peer and not proxy.isproxy(self.peer):
+            if isinstance(self.peer, VectorPortElementRef):
+                assert(self.peerVector != None)
+                # Remove the peer port from the vector its in
+                del self.peerVector[self.peer.index]
+            # Clear ourselves from the peer vector
+            self.peer.peer = None
+            # Clear our peer
+            self.peer = None
 
     def clone(self, simobj, memo):
         if memo.has_key(self):
@@ -1923,6 +1942,13 @@ class VectorPortRef(object):
         # Return the number of connected peers, corresponding the the
         # length of the elements.
         return len(self.elements)
+
+    def __delitem__(self, idx):
+        """Delete a port from this port vector."""
+        del self.elements[idx]
+        # Fix up the indicies
+        for i,el in enumerate(self.elements):
+            el.index = i
 
     # for config.ini, print peer's name (not ours)
     def ini_str(self):

@@ -1230,6 +1230,20 @@ class SimObject(object):
         if not isNullPointer(child):
             self._children[name] = child
 
+    def removePorts(self):
+        """Iterate through children and make sure there are no ports that are
+           going to be connected to this object later. This is used as a step
+           in deleting a SimObject that may have been partially setup.
+        """
+        for obj in self.descendants():
+            if obj != self:
+                obj.removePorts()
+
+        for port_name in sorted(self._ports.keys()):
+            port = self._port_refs.get(port_name, None)
+            if port != None:
+                port.disconnect()
+
     # Take SimObject-valued parameters that haven't been explicitly
     # assigned as children and make them children of the object that
     # they were assigned to as a parameter value.  This guarantees
@@ -1542,6 +1556,17 @@ def coerceSimObjectOrVector(value):
         raise TypeError, "SimObject or SimObjectVector expected"
     return value
 
+def deleteRefs(obj):
+    """Delete references to obj.
+       This function deletes obj from its parent's children and makes sure
+       to remove any dangling port connections.
+    """
+    if obj == NULL:
+        return
+    if obj._parent:
+        obj._parent.clear_child(obj.get_name())
+    obj.removePorts()
+
 baseClasses = allClasses.copy()
 baseInstances = instanceDict.copy()
 
@@ -1560,4 +1585,5 @@ __all__ = [
     'cxxMethod',
     'PyBindMethod',
     'PyBindProperty',
+    'deleteRefs',
 ]
