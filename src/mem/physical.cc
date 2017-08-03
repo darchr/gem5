@@ -81,10 +81,10 @@ PhysicalMemory::PhysicalMemory(const string& _name,
         warn("Not reserving swap space. May cause SIGSEGV on actual usage\n");
 
     // add the memories from the system to the address map as
-    // appropriate
+    // appropriate. Skip the mirroring memories. We'll deal with those later.
     for (const auto& m : _memories) {
         // only add the memory if it is part of the global address map
-        if (m->isInAddrMap()) {
+        if (m->isInAddrMap() && !m->isMirroring()) {
             memories.push_back(m);
 
             // calculate the total size once and for all
@@ -95,7 +95,7 @@ PhysicalMemory::PhysicalMemory(const string& _name,
             fatal_if(addrMap.insert(m->getAddrRange(), m) == addrMap.end(),
                      "Memory address range for %s is overlapping\n",
                      m->name());
-        } else {
+        } else if (!m->isMirroring()) {
             // this type of memory is used e.g. as reference memory by
             // Ruby, and they also needs a backing store, but should
             // not be part of the global address map
@@ -179,6 +179,30 @@ PhysicalMemory::PhysicalMemory(const string& _name,
         createBackingStore(merged_range, curr_memories,
                            f->isConfReported(), f->isInAddrMap(),
                            f->isKvmMap());
+    }
+
+    // Now that all of the backing stores are created, figure out which ones
+    // correspond to each mirroring memory.
+    for (const auto& m : _memories) {
+        if (m->isMirroring()) {
+            fatal_if(!m->isInAddrMap(), "Cannot mirror memories !inAddrMap\n");
+            // Find the corresponding backing store entry.
+            // NOTE: it may be a good idea to make backingStore an AddrRangeMap
+            bool M5_VAR_USED found = false;
+            for (const auto& store : backingStore) {
+                // If this range is contained in this store, connect it.
+                if (store.range.start() == m->getAddrRange().start() &&
+                    store.range.end()   == m->getAddrRange().end()) {
+                    DPRINTF(AddrRanges, "Mirroring %s to backing store\n",
+                            m->name());
+                    m->setBackingStore(store.pmem);
+                    memories.push_back(m);
+                    found = true;
+                    break;
+                }
+            }
+            panic_if(!found, "Couldn't find a matching range!");
+        }
     }
 }
 
