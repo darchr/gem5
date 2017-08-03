@@ -67,3 +67,9 @@ class AbstractMemory(MemObject):
     # configuration information about the physical memory layout to
     # the kernel, e.g. using ATAG or ACPI
     conf_table_reported = Param.Bool(True, "Report to configuration table")
+
+    # Mirror memory is a memory that already has a backing store in some other
+    # abstract memory. At some point in the simulation, this memory may take
+    # over for the original memory. When creating this memory link the backing
+    # store to the same host memory.
+    mirror_memory = Param.Bool(False, "Use another memory's backing store")
