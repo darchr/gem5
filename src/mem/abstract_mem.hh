@@ -119,6 +119,10 @@ class AbstractMemory : public MemObject
     // Should KVM map this memory for the guest
     const bool kvmMap;
 
+    // Is this memory mirroring an other memory. This memory will take over
+    // some other memory.
+    const bool mirroring;
+
     std::list<LockedAddr> lockedAddrList;
 
     // helper function for checkLockedAddrs(): we really want to
@@ -292,6 +296,15 @@ class AbstractMemory : public MemObject
      * @return if this memory should be mapped into the KVM guest address space
      */
     bool isKvmMap() const { return kvmMap; }
+
+    /**
+     * When multiple memory objects map the same physical memory addresses, one
+     * must be mirroring. This will automatically make sure the mirroring
+     * memory uses the same host memory for the backing store
+     *
+     * @return if this memory is mirroring another memory object
+     */
+    bool isMirroring() const { return mirroring; }
 
     /**
      * Perform an untimed memory access and update all the state
