@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2015 Jason Power
+# Copyright (c) 2017 Jason Power
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -113,72 +113,6 @@ class MyCacheSystem(RubySystem):
                 cpu.itb.walker.port = self.sequencers[i].slave
                 cpu.dtb.walker.port = self.sequencers[i].slave
 
-class TestCacheSystem(RubySystem):
-
-    def __init__(self):
-        if buildEnv['PROTOCOL'] != 'MSI':
-            fatal("This system assumes MSI from learning gem5!")
-
-        super(TestCacheSystem, self).__init__()
-
-    def setup(self, system, tester, mem_ctrls):
-        """Set up the Ruby cache subsystem. Note: This can't be done in the
-           constructor because many of these items require a pointer to the
-           ruby system (self). This causes infinite recursion in initialize()
-           if we do this in the __init__.
-           Setting up for running the RubyRandomTester is a little different
-           than when we're using CPUs.
-        """
-        num_testers = tester.num_cpus
-
-        # Ruby's global network.
-        self.network = MyNetwork(self)
-
-        # MSI uses 3 virtual networks
-        self.number_of_virtual_networks = 3
-        self.network.number_of_virtual_networks = 3
-
-        self.controllers = \
-            [L1Cache(system, self, self) for i in range(num_testers)] + \
-            [DirController(self, system.mem_ranges, mem_ctrls)]
-
-        self.sequencers = [RubySequencer(version = i,
-                              # I/D cache is combined and grab from ctrl
-                              icache = self.controllers[i].cacheMemory,
-                              dcache = self.controllers[i].cacheMemory,
-                              clk_domain = self.clk_domain,
-                              ) for i in range(num_testers)]
-
-        for i,c in enumerate(self.controllers[0:len(self.sequencers)]):
-            c.sequencer = self.sequencers[i]
-
-        self.num_of_sequencers = len(self.sequencers)
-
-        # Create the network and connect the controllers.
-        # NOTE: This is quite different if using Garnet!
-        self.network.connectControllers(self.controllers)
-        self.network.setup_buffers()
-
-        # Set up a proxy port for the system_port. Used for load binaries and
-        # other functional-only things.
-        self.sys_port_proxy = RubyPortProxy()
-        system.system_port = self.sys_port_proxy.slave
-
-        # Connect up the sequencers to the random tester
-        for seq in self.sequencers:
-            if seq.support_data_reqs and seq.support_inst_reqs:
-                tester.cpuInstDataPort = seq.slave
-            elif seq.support_data_reqs:
-                tester.cpuDataPort = seq.slave
-            elif seq.support_inst_reqs:
-                tester.cpuInstDataPort = seq.slave
-
-            # Do not automatically retry stalled Ruby requests
-            seq.no_retry_on_stall = True
-
-            # Tell each sequencer this is the ruby tester so that it
-            # copies the subblock back to the checker
-            seq.using_ruby_tester = True
 
 class L1Cache(L1Cache_Controller):
 
