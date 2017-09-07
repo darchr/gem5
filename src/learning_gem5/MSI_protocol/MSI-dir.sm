@@ -62,18 +62,18 @@ machine(MachineType:Directory, "Directory protocol")
       Cycles toMemLatency := 1;
 
     // Forwarding requests from the directory *to* the caches.
-    MessageBuffer *forwardFromDir, network="To", virtual_network="1",
+    MessageBuffer *forwardToCache, network="To", virtual_network="1",
           vnet_type="forward";
     // Response from the directory *to* the cache.
-    MessageBuffer *responseFromDir, network="To", virtual_network="2",
+    MessageBuffer *responseToCache, network="To", virtual_network="2",
           vnet_type="response";
 
     // Requests *from* the cache to the directory
-    MessageBuffer *requestToDir, network="From", virtual_network="0",
+    MessageBuffer *requestFromCache, network="From", virtual_network="0",
           vnet_type="request";
 
     // Responses *from* the cache to the directory
-    MessageBuffer *responseToDir, network="From", virtual_network="2",
+    MessageBuffer *responseFromCache, network="From", virtual_network="2",
           vnet_type="response";
 
     // Special buffer for memory responses. Kind of like the mandatory queue
@@ -209,8 +209,8 @@ machine(MachineType:Directory, "Directory protocol")
     /*************************************************************************/
     // Network ports
 
-    out_port(forward_out, RequestMsg, forwardFromDir);
-    out_port(response_out, ResponseMsg, responseFromDir);
+    out_port(forward_out, RequestMsg, forwardToCache);
+    out_port(response_out, ResponseMsg, responseToCache);
 
     in_port(memQueue_in, MemoryMsg, responseFromMemory) {
         if (memQueue_in.isReady(clockEdge())) {
@@ -226,7 +226,7 @@ machine(MachineType:Directory, "Directory protocol")
         }
     }
 
-    in_port(response_in, ResponseMsg, responseToDir) {
+    in_port(response_in, ResponseMsg, responseFromCache) {
         if (response_in.isReady(clockEdge())) {
             peek(response_in, ResponseMsg) {
                 if (in_msg.Type == CoherenceResponseType:Data) {
@@ -238,7 +238,7 @@ machine(MachineType:Directory, "Directory protocol")
         }
     }
 
-    in_port(request_in, RequestMsg, requestToDir) {
+    in_port(request_in, RequestMsg, requestFromCache) {
         if (request_in.isReady(clockEdge())) {
             peek(request_in, RequestMsg) {
                 Entry e := getDirectoryEntry(in_msg.addr);

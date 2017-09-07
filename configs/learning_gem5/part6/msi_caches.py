@@ -170,14 +170,14 @@ class L1Cache(L1Cache_Controller):
         # Ruby network. In this case, "slave/master" don't mean the same thing
         # as normal gem5 ports. If a MessageBuffer is a "to" buffer (i.e., out)
         # then you use the "master", otherwise, the slave.
-        self.requestFromCache = MessageBuffer(ordered = True)
-        self.requestFromCache.master = ruby_system.network.slave
-        self.responseFromCache = MessageBuffer(ordered = True)
-        self.responseFromCache.master = ruby_system.network.slave
-        self.forwardToCache = MessageBuffer(ordered = True)
-        self.forwardToCache.slave = ruby_system.network.master
-        self.responseToCache = MessageBuffer(ordered = True)
-        self.responseToCache.slave = ruby_system.network.master
+        self.requestToDir = MessageBuffer(ordered = True)
+        self.requestToDir.master = ruby_system.network.slave
+        self.responseToDirOrSibling = MessageBuffer(ordered = True)
+        self.responseToDirOrSibling.master = ruby_system.network.slave
+        self.forwardFromDir = MessageBuffer(ordered = True)
+        self.forwardFromDir.slave = ruby_system.network.master
+        self.responseFromDirOrSibling = MessageBuffer(ordered = True)
+        self.responseFromDirOrSibling.slave = ruby_system.network.master
 
 class DirController(Directory_Controller):
 
@@ -202,15 +202,15 @@ class DirController(Directory_Controller):
         self.connectQueues(ruby_system)
 
     def connectQueues(self, ruby_system):
-        self.requestToDir = MessageBuffer(ordered = True)
-        self.requestToDir.slave = ruby_system.network.master
-        self.responseToDir = MessageBuffer(ordered = True)
-        self.responseToDir.slave = ruby_system.network.master
+        self.requestFromCache = MessageBuffer(ordered = True)
+        self.requestFromCache.slave = ruby_system.network.master
+        self.responseFromCache = MessageBuffer(ordered = True)
+        self.responseFromCache.slave = ruby_system.network.master
 
-        self.responseFromDir = MessageBuffer(ordered = True)
-        self.responseFromDir.master = ruby_system.network.slave
-        self.forwardFromDir = MessageBuffer(ordered = True)
-        self.forwardFromDir.master = ruby_system.network.slave
+        self.responseToCache = MessageBuffer(ordered = True)
+        self.responseToCache.master = ruby_system.network.slave
+        self.forwardToCache = MessageBuffer(ordered = True)
+        self.forwardToCache.master = ruby_system.network.slave
 
         # This is another special message buffer. It is used to send replies
         # from memory back to the controller. Any messages received on the
