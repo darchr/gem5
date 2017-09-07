@@ -96,12 +96,12 @@ machine(MachineType:Directory, "Directory protocol")
         S_D, AccessPermission:Busy,      desc="Moving to S, but need data";
 
         // Waiting for data from memory
-        S_M, AccessPermission:Read_Write, desc="In S waiting for mem";
-        M_M, AccessPermission:Read_Write, desc="Moving to M waiting for mem";
+        S_m, AccessPermission:Read_Write, desc="In S waiting for mem";
+        M_m, AccessPermission:Read_Write, desc="Moving to M waiting for mem";
 
         // Waiting for write-ack from memory
-        MI_M, AccessPermission:Busy,       desc="Moving to I waiting for ack";
-        SS_M, AccessPermission:Busy,       desc="Moving to I waiting for ack";
+        MI_m, AccessPermission:Busy,       desc="Moving to I waiting for ack";
+        SS_m, AccessPermission:Busy,       desc="Moving to I waiting for ack";
     }
 
     enumeration(Event, desc="Directory events") {
@@ -441,7 +441,7 @@ machine(MachineType:Directory, "Directory protocol")
     /*************************************************************************/
     // transitions
 
-    transition({I, S}, GetS, S_M) {
+    transition({I, S}, GetS, S_m) {
         sendMemRead;
         addReqToSharers;
         popRequestQueue;
@@ -452,24 +452,24 @@ machine(MachineType:Directory, "Directory protocol")
         popRequestQueue;
     }
 
-    transition(S_M, MemData, S) {
+    transition(S_m, MemData, S) {
         sendDataToReq;
         popMemQueue;
     }
 
-    transition(I, GetM, M_M) {
+    transition(I, GetM, M_m) {
         sendMemRead;
         setOwner;
         popRequestQueue;
     }
 
-    transition(M_M, MemData, M) {
+    transition(M_m, MemData, M) {
         sendDataToReq;
         clearSharers; // NOTE: This isn't *required* in some cases.
         popMemQueue;
     }
 
-    transition(S, GetM, M_M) {
+    transition(S, GetM, M_m) {
         sendMemRead;
         removeReqFromSharers;
         sendInvToSharers;
@@ -477,7 +477,7 @@ machine(MachineType:Directory, "Directory protocol")
         popRequestQueue;
     }
 
-    transition({S, S_D, SS_M, S_M}, {PutSNotLast, PutMNonOwner}) {
+    transition({S, S_D, SS_m, S_m}, {PutSNotLast, PutMNonOwner}) {
         removeReqFromSharers;
         sendPutAck;
         popRequestQueue;
@@ -504,19 +504,19 @@ machine(MachineType:Directory, "Directory protocol")
         popRequestQueue;
     }
 
-    transition({M, M_M, MI_M}, {PutSNotLast, PutSLast, PutMNonOwner}) {
+    transition({M, M_m, MI_m}, {PutSNotLast, PutSLast, PutMNonOwner}) {
         sendPutAck;
         popRequestQueue;
     }
 
-    transition(M, PutMOwner, MI_M) {
+    transition(M, PutMOwner, MI_m) {
         sendDataToMem;
         clearOwner;
         sendPutAck;
         popRequestQueue;
     }
 
-    transition(MI_M, MemAck, I) {
+    transition(MI_m, MemAck, I) {
         popMemQueue;
     }
 
@@ -530,18 +530,18 @@ machine(MachineType:Directory, "Directory protocol")
         popRequestQueue;
     }
 
-    transition(S_D, Data, SS_M) {
+    transition(S_D, Data, SS_m) {
         sendRespDataToMem;
         popResponseQueue;
     }
 
-    transition(SS_M, MemAck, S) {
+    transition(SS_m, MemAck, S) {
         popMemQueue;
     }
 
     // If we get another request for a block that's waiting on memory,
     // stall that request.
-    transition({MI_M, SS_M, S_M, M_M}, {GetS, GetM}) {
+    transition({MI_m, SS_m, S_m, M_m}, {GetS, GetM}) {
         stall;
     }
 

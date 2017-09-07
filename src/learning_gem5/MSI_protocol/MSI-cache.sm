@@ -444,13 +444,12 @@ machine(MachineType:L1Cache, "MSI cache")
     // cache_entry: The cache entry passed in the trigger call
     // tbe: The TBE passed in the trigger call
     action(sendGetS, 'gS', desc="Send GetS to the directory") {
-        // Enqueue is a lot like peek. Instead of populating in_msg, though,
-        // enqueue has an out_msg reference. Whatever you set on out_msg is
-        // sent through the out port specified.
-        // "request_out" is the port we're sending the message out of
-        // "RequestMsg" is the type of message we're sending
-        // "1" is the latency (in cycles) the port waits before sending the
-        // message.
+        // The syntax for enqueue is a lot like peek. Instead of populating
+        // in_msg, enqueue has an out_msg reference. Whatever you set on out_msg
+        // is sent through the out port specified.  "request_out" is the port
+        // we're sending the message out of "RequestMsg" is the type of message
+        // we're sending "1" is the latency (in cycles) the port waits before
+        // sending the message.
         enqueue(request_out, RequestMsg, 1) {
             out_msg.addr := address;
             // This type is defined in MSI-msg.sm for this protocol.
@@ -686,9 +685,15 @@ machine(MachineType:L1Cache, "MSI cache")
     // Within the transition statement is a set of action to take during the
     // transition. These actions are executed atomically (i.e., all or nothing)
     transition(I, Load, IS_D) {
+        // Make sure there is room in the cache to put the block whenever the
+        // miss returns. Otherwise we could deadlock.
         allocateCacheBlock;
+        // We may need to track acks for this block and only the TBE holds an
+        // ack count. Thus, we need to allocate both a TBE and cache block.
         allocateTBE;
+        // Actually send the request to the directory
         sendGetS;
+        // Since we have handled this request on the mandatory queue, we can pop
         popMandatoryQueue;
     }
 

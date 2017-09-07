@@ -41,7 +41,7 @@ import m5
 # import all of the SimObjects
 from m5.objects import *
 
-from ruby_caches import MyCacheSystem
+from msi_caches import MyCacheSystem
 
 # create the system we are going to simulate
 system = System()
@@ -73,7 +73,7 @@ system.caches.setup(system, system.cpu, [system.mem_ctrl])
 # get ISA for the binary to run.
 isa = str(m5.defines.buildEnv['TARGET_ISA']).lower()
 
-# Run 'hello' and use the compiled ISA to find the binary
+# Run application and use the compiled ISA to find the binary
 binary = 'tests/test-progs/threads/bin/' + isa + '/linux/threads'
 
 # Create a process for a simple "Hello World" application

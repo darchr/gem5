@@ -60,7 +60,9 @@ class MyCacheSystem(RubySystem):
         # Ruby's global network.
         self.network = MyNetwork(self)
 
-        # MSI uses 3 virtual networks
+        # MSI uses 3 virtual networks. One for requests (lowest priority), one
+        # for responses (highest priority), and one for "forwards" or
+        # cache-to-cache requests. See *.sm files for details.
         self.number_of_virtual_networks = 3
         self.network.number_of_virtual_networks = 3
 
@@ -159,7 +161,15 @@ class L1Cache(L1Cache_Controller):
     def connectQueues(self, ruby_system):
         """Connect all of the queues for this controller.
         """
+        # mandatoryQueue is a special variable. It is used by the sequencer to
+        # send RubyRequests from the CPU (or other processor). It isn't
+        # explicitly connected to anything.
         self.mandatoryQueue = MessageBuffer()
+
+        # All message buffers must be created and connected to the general
+        # Ruby network. In this case, "slave/master" don't mean the same thing
+        # as normal gem5 ports. If a MessageBuffer is a "to" buffer (i.e., out)
+        # then you use the "master", otherwise, the slave.
         self.requestFromCache = MessageBuffer(ordered = True)
         self.requestFromCache.master = ruby_system.network.slave
         self.responseFromCache = MessageBuffer(ordered = True)
@@ -202,6 +212,10 @@ class DirController(Directory_Controller):
         self.forwardFromDir = MessageBuffer(ordered = True)
         self.forwardFromDir.master = ruby_system.network.slave
 
+        # This is another special message buffer. It is used to send replies
+        # from memory back to the controller. Any messages received on the
+        # memory port (see self.memory above) will be directed to this
+        # message buffer.
         self.responseFromMemory = MessageBuffer()
 
 class MyNetwork(SimpleNetwork):
