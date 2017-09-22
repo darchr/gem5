@@ -1,0 +1,6 @@
+You can download the binaries from the following addresses:
+
+http://gem5.org/dist/current/test-progs/hello/bin/arm/linux/hello32-static
+http://gem5.org/dist/current/test-progs/hello/bin/arm/linux/hello64-static
+
+You can build the binaries using the makefile in tests/test-progs/hello/src
