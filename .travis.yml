@@ -245,7 +245,7 @@ matrix:
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update           ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install scons-2.5.1 ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install scons@2.5.1 ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install swig     ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install google-perftools ;fi
   - eval "${MATRIX_EVAL}"
