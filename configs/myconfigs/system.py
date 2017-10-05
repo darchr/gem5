@@ -16,7 +16,8 @@ class MemSubSystem(SubSystem):
 
         self.connectMemSide()
 
-        self.connectCPUSide(cpus)
+        if not self._switched_out:
+            self.connectCPUSide(cpus)
 
     @abstractmethod
     def connectCPUSide(self, cpus):

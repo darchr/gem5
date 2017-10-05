@@ -40,6 +40,10 @@ system.nocaches.setWorkload(process)
 system.twolevel.setWorkload(process)
 system.twolevelfast.setWorkload(process)
 
+# Think about whether this makes sense!
+system.nocaches.setFutureConfig(system.twolevelfast)
+system.twolevel.setFutureConfig(system.twolevelfast)
+
 m5.disableAllListeners()
 
 # set up the root SimObject and start the simulation
