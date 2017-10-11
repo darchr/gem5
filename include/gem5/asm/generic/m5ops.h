@@ -102,6 +102,7 @@
 #define M5OP_AN_L               0xF
 #define M5OP_AN_IDENTIFY        0x10
 #define M5OP_AN_GETID           0x11
+#define M5OP_AN_TASKEND         0x12
 
 
 #define M5OP_FOREACH                                            \

@@ -43,7 +43,7 @@ all: m5
 	$(CC)  $(CFLAGS) -o $@ -c $<
 
 m5: $(OBJS)
-	$(CC) -o $@ $(OBJS)
+	$(CC) -o $@ $(OBJS) -static
 
 clean:
 	rm -f *.o m5

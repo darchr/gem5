@@ -84,6 +84,9 @@ void m5a_l(char *lsm, const void *id, char *sm);
 void m5a_identify(uint64_t id);
 uint64_t m5a_getid(void);
 
+uint64_t m5_annotate_task_begin();
+void m5_annotate_task_end(uint64_t task_id);
+
 #ifdef __cplusplus
 }
 #endif

@@ -331,6 +331,46 @@ do_pin(int argc, char *argv[])
 }
 #endif
 
+void
+do_workbegin(int argc, char *argv[])
+{
+    if (argc != 3) {
+        usage();
+    }
+
+    m5_work_begin(atoi(argv[1]), atoi(argv[2]));
+}
+
+void
+do_workend(int argc, char *argv[])
+{
+    if (argc != 4) {
+        usage();
+    }
+
+    m5_work_end(atoi(argv[1]), atoi(argv[2]));
+}
+
+void
+do_taskbegin(int argc, char *argv[])
+{
+    if (argc != 0) {
+        usage();
+    }
+
+    printf("%lu\n", m5_annotate_task_begin());
+}
+
+void
+do_taskend(int argc, char *argv[])
+{
+    if (argc != 1) {
+        usage();
+    }
+
+    m5_annotate_task_end(atoi(argv[0]));
+}
+
 struct MainFunc
 {
     char *name;
@@ -354,8 +394,12 @@ struct MainFunc mainfuncs[] = {
                                              " than 16 chars" },
     { "sw99param",      do_sw99param,        "" },
 #ifdef linux
-    { "pin",            do_pin,              "<cpu> <program> [args ...]" }
+    { "pin",            do_pin,              "<cpu> <program> [args ...]" },
 #endif
+    { "workbegin",      do_workbegin,        "<workid> <threadid>"},
+    { "workend",        do_workend,          "<workid> <threadid>"},
+    { "taskbegin",      do_taskbegin,        "" },
+    { "taskend",        do_taskend,          "<taskid>" },
 };
 int numfuncs = sizeof(mainfuncs) / sizeof(mainfuncs[0]);
 
