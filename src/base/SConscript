@@ -56,9 +56,12 @@ if env['TARGET_ISA'] != 'null':
 Source('socket.cc')
 Source('statistics.cc')
 Source('str.cc')
+Source('tasks.cc')
 Source('time.cc')
 Source('trace.cc')
 Source('types.cc')
+
+SimObject('Tasks.py')
 
 Source('loader/aout_object.cc')
 Source('loader/dtb_object.cc')
@@ -83,6 +86,7 @@ DebugFlag('GDBSend', "Messages sent to the remote application")
 DebugFlag('GDBWrite', "Writes to the remote address space")
 DebugFlag('SQL', "SQL queries sent to the server")
 DebugFlag('StatEvents', "Statistics event tracking")
+DebugFlag('Tasks')
 
 CompoundFlag('GDBAll',
     [ 'GDBMisc', 'GDBAcc', 'GDBRead', 'GDBWrite', 'GDBSend', 'GDBRecv',
@@ -90,4 +94,3 @@ CompoundFlag('GDBAll',
     desc="All Remote debugging flags")
 CompoundFlag('AnnotateAll', ['Annotate', 'AnnotateQ', 'AnnotateVerbose'],
     desc="All Annotation flags")
-

@@ -262,6 +262,13 @@ class System : public MemObject
         return kvmVM;
     }
 
+    /**
+     * Get a pointer to the task tracker, if present.
+     */
+    TaskTracker* getTaskTracker() {
+        return taskTracker;
+    }
+
     /** Verify gem5 configuration will support KVM emulation */
     bool validKvmEnvironment() const;
 
@@ -306,6 +313,8 @@ class System : public MemObject
   protected:
 
     KvmVM *const kvmVM;
+
+    TaskTracker *const taskTracker;
 
     PhysicalMemory physmem;
 

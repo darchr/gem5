@@ -59,6 +59,7 @@
 #include "arch/vtophys.hh"
 #include "base/debug.hh"
 #include "base/output.hh"
+#include "base/tasks.hh"
 #include "config/the_isa.hh"
 #include "cpu/base.hh"
 #include "cpu/quiesce_event.hh"
@@ -198,6 +199,14 @@ pseudoInst(ThreadContext *tc, uint8_t func, uint8_t subfunc)
         break;
 
       case M5OP_ANNOTATE:
+        if (subfunc == M5OP_AN_TASKEND) {
+            taskend(tc, args[0]);
+        } else {
+            assert(subfunc == 0);
+            return taskbegin(tc);
+        }
+        break;
+
       case M5OP_RESERVED2:
       case M5OP_RESERVED3:
       case M5OP_RESERVED4:
@@ -714,6 +723,24 @@ workend(ThreadContext *tc, uint64_t workid, uint64_t threadid)
             exitSimLoop("work items exit count reached");
         }
     }
+}
+
+uint64_t
+taskbegin(ThreadContext *tc)
+{
+    DPRINTF(PseudoInst, "Got a task begin!\n");
+    System *sys = tc->getSystemPtr();
+    TaskTracker *ts = sys->getTaskTracker();
+    return ts->beginTask();
+}
+
+void
+taskend(ThreadContext *tc, uint64_t id)
+{
+    DPRINTF(PseudoInst, "Got task end! Id is %lu\n", id);
+    System *sys = tc->getSystemPtr();
+    TaskTracker *ts = sys->getTaskTracker();
+    return ts->endTask(id);
 }
 
 } // namespace PseudoInst

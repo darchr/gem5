@@ -101,6 +101,7 @@ System::System(Params *p)
 #else
       kvmVM(nullptr),
 #endif
+      taskTracker(p->tasks),
       physmem(name() + ".physmem", p->memories, p->mmap_using_noreserve),
       memoryMode(p->mem_mode),
       _cacheLineSize(p->cache_line_size),

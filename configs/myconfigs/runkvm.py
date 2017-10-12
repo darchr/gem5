@@ -79,6 +79,10 @@ if __name__ == "__m5_main__":
         # Note: The simulator is quite picky about this number!
         root.sim_quantum = int(1e9) # 1 ms
 
+    system.tasks = TaskTracker()
+
+    system.exit_on_work_items = True
+
     # instantiate all of the objects we've created above
     m5.instantiate()
 
