@@ -71,7 +71,8 @@ if __name__ == "__m5_main__":
     system.readfile = opts.script
 
     # set up the root SimObject and start the simulation
-    root = Root(full_system = True, system = system)
+    root = Root(full_system = True, system = system,
+                time_sync_enable = True, time_sync_period = '1000us')
 
     if system.getHostParallel():
         # Required for running kvm on multiple host cores.
@@ -83,7 +84,6 @@ if __name__ == "__m5_main__":
     m5.instantiate()
 
     globalStart = time.time()
-
 
     print "Running the simulation"
     exit_event = m5.simulate()

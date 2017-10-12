@@ -45,10 +45,14 @@ class MySystem(LinuxX86System):
     SimpleOpts.add_option("--second_disk", default='',
                           help="The second disk image to mount (/dev/hdb)")
 
+    SimpleOpts.add_option("--enable_tuntap", action='store_true',
+                           default=False, help="")
+
     def __init__(self, opts, no_kvm=False):
         super(MySystem, self).__init__()
         self._opts = opts
         self._no_kvm = no_kvm
+        self._tuntap = opts.enable_tuntap
 
         self._host_parallel = not self._opts.no_host_parallel
 
@@ -59,7 +63,7 @@ class MySystem(LinuxX86System):
 
         mem_size = '8GB'
         self.mem_ranges = [AddrRange('100MB'), # For kernel
-                           AddrRange(0xC0000000, size=0x100000), # For I/0
+                           #AddrRange(0xC0000000, size=0x100000), # For I/0
                            AddrRange(Addr('4GB'), size = mem_size) # All data
                            ]
 
@@ -122,7 +126,7 @@ class MySystem(LinuxX86System):
                               for i in range(self._opts.cpus)]
         else:
             # Note KVM needs a VM and atomic_noncaching
-            self.cpu = [X86KvmCPU(cpu_id = i)
+            self.cpu = [X86KvmCPU(cpu_id = i, hostFreq = "3.6GHz")
                         for i in range(self._opts.cpus)]
             self.kvm_vm = KvmVM()
             self.mem_mode = 'atomic_noncaching'
@@ -233,6 +237,14 @@ class MySystem(LinuxX86System):
 
         return ranges
 
+    def createEthernet(self):
+        self.pc.ethernet = IGbE_e1000(pci_bus=0, pci_dev=0, pci_func=0,
+                                      InterruptLine=1, InterruptPin=1)
+        self.pc.ethernet.pio = self.iobus.master
+        self.pc.ethernet.dma = self.iobus.slave
+        self.tap = EtherTap()
+        self.tap.tap = self.pc.ethernet.interface
+
     def initFS(self, membus, cpus):
         self.pc = Pc()
 
@@ -275,6 +287,9 @@ class MySystem(LinuxX86System):
 
         # connect the io bus
         self.pc.attachIO(self.iobus)
+
+        if self._tuntap:
+            self.createEthernet()
 
         # Add a tiny cache to the IO bus.
         # This cache is required for the classic memory model for coherence
@@ -329,6 +344,19 @@ class MySystem(LinuxX86System):
                 dest_io_apic_id = io_apic.id,
                 dest_io_apic_intin = 16)
         base_entries.append(pci_dev4_inta)
+
+        if self._tuntap:
+            # Interrupt assignment for IGbE_e1000 (bus=0,dev=2,fun=0
+            pci_dev2_inta = X86IntelMPIOIntAssignment(
+                    interrupt_type = 'INT',
+                    polarity = 'ConformPolarity',
+                    trigger = 'ConformTrigger',
+                    source_bus_id = 0,
+                    source_bus_irq = 0 + (2 << 2),
+                    dest_io_apic_id = io_apic.id,
+                    dest_io_apic_intin = 10)
+            base_entries.append(pci_dev2_inta)
+
         def assignISAInt(irq, apicPin):
             assign_8259_to_apic = X86IntelMPIOIntAssignment(
                     interrupt_type = 'ExtInt',
