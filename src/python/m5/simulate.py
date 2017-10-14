@@ -113,13 +113,16 @@ def instantiate(ckpt_dir=None):
 
     # Create the C++ sim objects and connect ports
     for obj in root.descendants(): obj.createCCObject()
-    for obj in root.descendants(): obj.connectPorts()
+    for obj in root.descendants():
+        if obj.unplugged(): continue # Skip unplugged components
+        obj.connectPorts()
 
     for obj in root.descendants():
         obj.initPorts()
 
     # Do a second pass to finish initializing the sim objects
-    for obj in root.descendants(): obj.init()
+    for obj in root.descendants():
+        obj.init()
 
     # Do a third pass to initialize statistics
     for obj in root.descendants(): obj.regStats()

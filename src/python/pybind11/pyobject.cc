@@ -143,10 +143,34 @@ connectPorts(SimObject *o1, const std::string &name1, int i1,
     return 1;
 }
 
+/**
+ * Just like connect above, except *disconnect* the ports. Called from Python.
+ * The indices i1 & i2 will be -1 for regular ports, >= 0 for vector ports.
+ * SimObject1 is the master, and SimObject2 is the slave
+ */
+static int
+disconnectPort(SimObject *o1, const std::string &name1, int i1)
+{
+    MemObject *mo1;
+    mo1 = dynamic_cast<MemObject*>(o1);
+
+    if (!mo1) {
+        panic ("Error casting SimObjects %s MemObject", o1->name());
+    }
+
+    // generic master/slave port connection
+    BaseMasterPort& masterPort = mo1->getMasterPort(name1, i1);
+
+    masterPort.unbind();
+
+    return 1;
+}
+
 void
 pybind_init_pyobject(py::module &m_native)
 {
     py::module m = m_native.def_submodule("pyobject");
 
     m.def("connectPorts", &connectPorts);
+    m.def("disconnectPort", &disconnectPort);
 }
