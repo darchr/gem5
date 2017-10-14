@@ -75,6 +75,12 @@ class MemObject : public ClockedObject
     virtual void connected() { }
 
     /**
+     * Called when all of this mem object's ports are disconnected. This is
+     * called after the MemObject unplugged.
+     */
+    virtual void disconnected() { }
+
+    /**
      * Get a master port with a given name and index. This is used at
      * binding time and returns a reference to a protocol-agnostic
      * base master port.

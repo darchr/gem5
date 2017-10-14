@@ -1755,18 +1755,30 @@ class PortRef(object):
         raise AttributeError, "'%s' object has no attribute '%s'" % \
               (self.__class__.__name__, attr)
 
-    # Full connection is symmetric (both ways).  Called via
-    # SimObject.__setattr__ as a result of a port assignment, e.g.,
-    # "obj1.portA = obj2.portB", or via VectorPortElementRef.__setitem__,
-    # e.g., "obj1.portA[3] = obj2.portB".
-    def connect(self, other):
+    def connect(self, other, unidirectional = False):
+        """ Full connection is symmetric (both ways).  Called via
+            SimObject.__setattr__ as a result of a port assignment, e.g.,
+            "obj1.portA = obj2.portB", or via VectorPortElementRef.__setitem__,
+            e.g., "obj1.portA[3] = obj2.portB".
+
+            @param unidirectional: If true, then only connect self to other.
+                This is used for unplugged objects so they know what they need
+                to connect to in the future, but the objects they are linked
+                with can only support a single connection to the plugged in
+                object.
+        """
         if isinstance(other, VectorPortRef):
             # reference to plain VectorPort is implicit append
             other = other._get_next()
         if self.peer and not proxy.isproxy(self.peer):
-            fatal("Port %s is already connected to %s, cannot connect %s\n",
+            fatal("Port %s is already connected to %s, can't connect %s\n",
                   self, self.peer, other);
         self.peer = other
+
+        # Don't connect the other side if unidirectional. This is used for
+        # unplugged objects
+        if unidirectional: return
+
         if proxy.isproxy(other):
             other.set_param_desc(PortParamDesc())
         elif isinstance(other, PortRef):
@@ -1851,7 +1863,9 @@ class PortRef(object):
             master = self
             slave = self.peer
 
-        if not master or not slave: # nothing to connect to
+        # Don't connect if one of the sides doesn't exist or if it is unplugged
+        if not master or not slave \
+                or master.simobj.unplugged or slave.simobj.unplugged:
             return
 
         try:
@@ -1866,6 +1880,63 @@ class PortRef(object):
             raise
         master.ccConnected = True
         slave.ccConnected = True
+
+    def ccDisconnect(self):
+        """ Disconnect this object from its peer.
+            If it's already connected in C++, then disconnect it there, too.
+            This can be used during simulation to switch a mem object out.
+        """
+        from _m5.pyobject import disconnectPort
+        if not self.ccConnected:
+            panic("Cannot disconnect a port that is not connected!")
+
+        if self.role == 'SLAVE':
+            # Only master ports can disconnect
+            disconnectPort(self.peer.simobj.getCCObject(), self.peer.name,
+                           self.peer.index)
+        else:
+            disconnectPort(self.simobj.getCCObject(), self.name, self.index)
+
+        self.peer.ccConnected = False
+        self.ccConnected = False
+
+    def hotplugConnect(self):
+        """ Connect the ports in C++. This is used when hot plugging to ensure
+            that both the master and slave are connected correctly
+        """
+        from _m5.pyobject import connectPorts
+
+        if self.ccConnected:
+            panic("Cannot hotplug %s. Already connected" % (self))
+
+        # check that we connect a master to a slave
+        if self.role == self.peer.role:
+            raise TypeError, \
+                "cannot connect '%s' and '%s' due to identical role '%s'" \
+                % (self.
+                peer, self, self.role)
+
+        if self.role == 'SLAVE':
+            master = self.peer
+            slave = self
+        else:
+            master = self
+            slave = self.peer
+
+        try:
+            # self is always the master and peer the slave
+            connectPorts(master.simobj.getCCObject(), master.name,
+                         master.index,
+                         slave.simobj.getCCObject(), slave.name, slave.index)
+        except:
+            print "Error connecting port %s.%s to %s.%s" % \
+                  (master.simobj.path(), master.name,
+                   slave.simobj.path(), slave.name)
+            raise
+
+        master.ccConnected = True
+        slave.ccConnected = True
+
 
 # A reference to an individual element of a VectorPort... much like a
 # PortRef, but has an index.
@@ -1894,6 +1965,11 @@ class VectorPortRef(object):
         # Return the number of connected peers, corresponding the the
         # length of the elements.
         return len(self.elements)
+
+    def __iter__(self):
+        for el in self.elements:
+            yield el
+        raise StopIteration
 
     # for config.ini, print peer's name (not ours)
     def ini_str(self):
@@ -1948,6 +2024,12 @@ class VectorPortRef(object):
 
     def ccConnect(self):
         [el.ccConnect() for el in self.elements]
+
+    def ccDisconnect(self):
+        [el.ccDisconnect() for el in self.elements]
+
+    def hotplugConnect(self):
+        [el.hotplugConnect() for el in self.elements]
 
 # Port description object.  Like a ParamDesc object, this represents a
 # logical port in the SimObject class, not a particular port on a

@@ -930,6 +930,7 @@ class SimObject(object):
     cxx_header = "sim/sim_object.hh"
     cxx_bases = [ "Drainable", "Serializable" ]
     eventq_index = Param.UInt32(Parent.eventq_index, "Event Queue Index")
+    unplugged = Param.Bool(False, "Whether this object is unplugged.")
 
     cxx_exports = [
         PyBindMethod("init"),
@@ -1501,15 +1502,104 @@ class SimObject(object):
         # Actually implemented in MemObject
         pass
 
+    def disconnected(self):
+        """ Called when all of the ports have been disconnected.
+        """
+        # Actually implemented in MemObject
+        pass
+
     # Create C++ port connections corresponding to the connections in
     # _port_refs
     def connectPorts(self):
+        # Don't do anything if this is unplugged
+        if self.unplugged:
+            return
         # Sort the ports based on their attribute name to ensure the
         # order is the same on all hosts
         for (attr, portRef) in sorted(self._port_refs.iteritems()):
             portRef.ccConnect()
-        # Once all of the ports are connected, notify the object.
-        self.connected()
+        # Note: We will notify the object it is connected once all of the
+        # objects have been fully connected. It's important to split this into
+        # two phases only the first time we connect all of the objects.
+
+    def willHotSwap(self, other):
+        panic("%s has not implemented willHotSwap. This method must be "
+              "overridden in the child class.\n\tBe sure to call _setupHotSwap"
+              " in the child class." % (self))
+
+    def _setupHotSwap(self, other):
+        """ This function must be called *before* instantiate() to set up all
+            parameters, etc. if this object will be hot swapped.
+
+            Before calling willHotSwap, the other object must be completely
+            initialized (i.e., all params must be set). Otherwise, the hotplug
+            object may not get the correct references to objects.
+            For port references, we assume that there is a one-to-one mapping
+            of these references between the two objects.
+
+            @param other is the object that this one will take over for.
+        """
+        other.unplugged = True
+        # We will unplug other at some point and plug in other
+        self._future_component = other
+        other._past_component = self
+
+        if other._port_refs:
+            panic("Cannot hotplug an object that has port connections already")
+
+        for (attr, port_ref) in self._port_refs.iteritems():
+            from m5.params import VectorPortRef
+            # Need to deal with vector ports by iterating through and making
+            if type(port_ref) is VectorPortRef:
+                my_vec_ref = other._get_port_ref(attr)
+                for i,el in enumerate(port_ref):
+                    if not el.peer:
+                        panic("Cannot set up hot swap if self isn't connected")
+                    my_vec_ref[i].connect(el.peer, unidirectional = True)
+            else:
+                if not port_ref.peer:
+                    panic("Cannot set up hot swap if self isn't connected")
+                my_ref = other._get_port_ref(attr)
+                my_ref.connect(port_ref.peer, unidirectional = True)
+
+    def _disconnectPorts(self):
+        """ Disconnect the ports that are connected in C++. This is used when
+            unplugging an object."""
+        from m5.params import VectorPortRef
+
+        other_simobjs = set()
+        for port_ref in self._port_refs.values():
+            if type(port_ref) is VectorPortRef:
+                for el in port_ref:
+                    other_simobjs.add(el.peerObj)
+            else:
+                other_simobjs.add(port_ref.peerObj)
+            port_ref.ccDisconnect()
+
+        self.disconnected()
+        for simobj in other_simobjs:
+            simobj.disconnected()
+
+    def unplug(self):
+        """ "Unplug" this object. This will disconnect all of the ports """
+        if self.unplugged:
+            panic("Should not unplug something that is already unplugged")
+
+        self._disconnectPorts()
+        self.unplugged = True
+
+    def plugIn(self, old):
+        """ "Plug in" this object. Make sure all of the ports are connected
+            @param the component that was unplugged for this one.
+        """
+        if not self.unplugged:
+            panic("Cannot plug in an object that is already plugged in")
+        if not old.unplugged:
+            panic("Cannot plug in an object over one that is plugged in")
+
+        self.unplugged = False
+        for portRef in self._port_refs.values():
+            portRef.hotplugConnect()
 
 # Function to provide to C++ so it can look up instances based on paths
 def resolveSimObject(name):

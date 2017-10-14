@@ -38,7 +38,11 @@ class MemObject(ClockedObject):
 
     cxx_exports = [
         PyBindMethod("connected"),
+        PyBindMethod("disconnected"),
     ]
 
     def connected(self):
         self._ccObject.connected()
+
+    def disconnected(self):
+        self._ccObject.disconnected()
