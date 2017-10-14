@@ -52,3 +52,9 @@ class Bridge(MemObject):
     delay = Param.Latency('0ns', "The latency of this bridge")
     ranges = VectorParam.AddrRange([AllMemory],
                                    "Address ranges to pass through the bridge")
+
+    def willHotSwap(self, other):
+        """Set up the ranges to be the same as the other"""
+        super(Bridge, self).willHotSwap(other)
+
+        self.ranges = other.ranges
