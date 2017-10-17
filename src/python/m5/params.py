@@ -1797,11 +1797,8 @@ class PortRef(object):
             # reference to plain VectorPort is implicit append
             other = other._get_next()
         if self.peer and not proxy.isproxy(self.peer):
-            if other.simobj.unplugged():
-                other.connect(self, True) # Remove this???
-            else:
-                fatal("Port %s is already connected to %s, can't connect %s\n",
-                      self, self.peer, other);
+            fatal("Port %s is already connected to %s, can't connect %s\n",
+                  self, self.peer, other);
         self.peer = other
 
         # Don't connect the other side if unidirectional. This is used for
@@ -2044,6 +2041,12 @@ class VectorPortRef(object):
 
     def ccConnect(self):
         [el.ccConnect() for el in self.elements]
+
+    def ccDisconnect(self):
+        [el.ccDisconnect() for el in self.elements]
+
+    def hotplugConnect(self):
+        [el.hotplugConnect() for el in self.elements]
 
 # Port description object.  Like a ParamDesc object, this represents a
 # logical port in the SimObject class, not a particular port on a

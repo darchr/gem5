@@ -930,6 +930,7 @@ class SimObject(object):
     cxx_header = "sim/sim_object.hh"
     cxx_bases = [ "Drainable", "Serializable" ]
     eventq_index = Param.UInt32(Parent.eventq_index, "Event Queue Index")
+    unplugged = Param.Bool(False, "Whether this object is unplugged.")
 
     cxx_exports = [
         PyBindMethod("init"),
@@ -1039,7 +1040,6 @@ class SimObject(object):
         self._ccObject = None  # pointer to C++ object
         self._ccParams = None
         self._instantiated = False # really "cloned"
-        self._unplugged = False # For tracking hot swapping
 
         # Clone children specified at class level.  No need for a
         # multidict here since we will be cloning everything.
@@ -1514,7 +1514,7 @@ class SimObject(object):
 
             @param other is the object that this one will take over for.
         """
-        other._unplugged = True
+        other.unplugged = True
         # We will unplug other at some point and plug in other
         self._future_component = other
         other._past_component = self
@@ -1523,47 +1523,44 @@ class SimObject(object):
             panic("Cannot hotplug an object that has port connections already")
 
         for (attr, port_ref) in self._port_refs.iteritems():
-            print attr, port_ref
             from m5.params import VectorPortRef
+            # Need to deal with vector ports by iterating through and making
             if type(port_ref) is VectorPortRef:
                 my_vec_ref = other._get_port_ref(attr)
                 for i,el in enumerate(port_ref):
-                    print i, el
                     if not el.peer:
                         panic("Cannot set up hot swap if self isn't connected")
-                    my_vec_ref[i].connect(el, unidirectional = True)
+                    my_vec_ref[i].connect(el.peer, unidirectional = True)
             else:
                 if not port_ref.peer:
                     panic("Cannot set up hot swap if self isn't connected")
                 my_ref = other._get_port_ref(attr)
                 my_ref.connect(port_ref.peer, unidirectional = True)
 
-    def unplugged(self):
-        return self._unplugged
-
     def _disconnectPorts(self):
         """ Disconnect the ports that are connected in C++. This is used when
             unplugging an object."""
-        for portRef in self._port_refs.values():
-            portRef.ccDisconnect()
+        for port_ref in self._port_refs.values():
+            port_ref.ccDisconnect()
 
     def unplug(self):
         """ "Unplug" this object. This will disconnect all of the ports """
-        if self.unplugged():
+        if self.unplugged:
             panic("Should not unplug something that is already unplugged")
 
         self._disconnectPorts()
-        self._unplugged = True
+        self.unplugged = True
 
     def plugIn(self):
         """ "Plug in" this object. Make sure all of the ports are connected"""
-        if not self.unplugged():
+        if not self.unplugged:
             panic("Cannot plug in an object that is already plugged in")
 
-        self._unplugged = False
+        self.unplugged = False
         for portRef in self._port_refs.values():
             portRef.hotplugConnect()
-        self.initPorts()
+        self.initPorts() # I think this is going to have to be in a loop like
+        # it is in simulate.py for the initial initialization
 
 # Function to provide to C++ so it can look up instances based on paths
 def resolveSimObject(name):
