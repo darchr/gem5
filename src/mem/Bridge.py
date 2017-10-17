@@ -55,6 +55,6 @@ class Bridge(MemObject):
 
     def willHotSwap(self, other):
         """Set up the ranges to be the same as the other"""
-        super(Bridge, self)._setupHotSwap(other)
+        self._setupHotSwap(other)
 
         other.ranges = self.ranges
