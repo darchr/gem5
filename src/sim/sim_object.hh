@@ -117,6 +117,13 @@ class SimObject : public EventManager, public Serializable, public Drainable
     virtual const std::string name() const { return params()->name; }
 
     /**
+     * initPorts() is called after all C++ objects have been created and after
+     * *this* SimObject's ports have been connected. Additionally, this
+     * function is called when ports are connected during a hot swap.
+     */
+    virtual void initPorts();
+
+    /**
      * init() is called after all C++ SimObjects have been created and
      * all ports are connected.  Initializations that are independent
      * of unserialization but rely on a fully instantiated and

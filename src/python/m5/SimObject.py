@@ -933,6 +933,7 @@ class SimObject(object):
 
     cxx_exports = [
         PyBindMethod("init"),
+        PyBindMethod("initPorts"),
         PyBindMethod("initState"),
         PyBindMethod("memInvalidate"),
         PyBindMethod("memWriteback"),

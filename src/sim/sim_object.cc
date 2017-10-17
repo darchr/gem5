@@ -71,6 +71,11 @@ SimObject::~SimObject()
 }
 
 void
+SimObject::initPorts()
+{
+}
+
+void
 SimObject::init()
 {
 }

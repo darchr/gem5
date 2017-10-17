@@ -115,6 +115,9 @@ def instantiate(ckpt_dir=None):
     for obj in root.descendants(): obj.createCCObject()
     for obj in root.descendants(): obj.connectPorts()
 
+    for obj in root.descendants():
+        obj.initPorts()
+
     # Do a second pass to finish initializing the sim objects
     for obj in root.descendants(): obj.init()
 
