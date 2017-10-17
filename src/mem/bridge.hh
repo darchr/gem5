@@ -321,7 +321,7 @@ class Bridge : public MemObject
     virtual BaseSlavePort& getSlavePort(const std::string& if_name,
                                         PortID idx = InvalidPortID);
 
-    virtual void init();
+    void initPorts() override;
 
     typedef BridgeParams Params;
 

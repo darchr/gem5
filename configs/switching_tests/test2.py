@@ -18,9 +18,6 @@ system.membus = SystemXBar()
 system.cpu.icache_port = system.membus.slave
 system.cpu.dcache_port = system.membus.slave
 
-system.bridge1 = Bridge(slave = system.membus.master,
-                        ranges = system.mem_ranges)
-
 # create the interrupt controller for the CPU and connect to the membus
 system.cpu.createInterruptController()
 system.cpu.interrupts[0].pio = system.membus.master
@@ -30,10 +27,10 @@ system.cpu.interrupts[0].int_slave = system.membus.master
 # Create a DDR3 memory controller and connect it to the membus
 system.mem_ctrl = DDR3_1600_8x8()
 system.mem_ctrl.range = system.mem_ranges[0]
-system.mem_ctrl.port = system.bridge1.master
+system.mem_ctrl.port = system.membus.master
 
-system.bridge2 = Bridge()
-system.bridge1.willHotSwap(system.bridge2)
+system.membus2 = SystemXBar()
+system.membus.willHotSwap(system.membus2)
 
 # Connect the system up to the membus
 system.system_port = system.membus.slave
@@ -53,10 +50,10 @@ root = Root(full_system = False, system = system)
 m5.instantiate()
 print "successfully initialized"
 
-system.bridge1.unplug()
+system.membus.unplug()
 print "successfully disconnected the ports"
 
-system.bridge2.plugIn()
+system.membus2.plugin()
 print "successfully reconnected the ports"
 
 m5.simulate()

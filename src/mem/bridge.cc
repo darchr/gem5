@@ -106,12 +106,14 @@ Bridge::getSlavePort(const std::string &if_name, PortID idx)
 }
 
 void
-Bridge::init()
+Bridge::initPorts()
 {
+    // make sure both sides are connected and have the same block size
+    if (!slavePort.isConnected() || !masterPort.isConnected())
+        fatal("Both ports of a bridge must be connected.\n");
+
     // notify the master side  of our address ranges
-    if (slavePort.isConnected()) {
-        slavePort.sendRangeChange();
-    }
+    slavePort.sendRangeChange();
 }
 
 bool
