@@ -435,7 +435,8 @@ class CoherentXBar : public BaseXBar
 
   public:
 
-    virtual void init();
+    void connected() override;
+    void disconnected() override;
 
     CoherentXBar(const CoherentXBarParams *p);
 

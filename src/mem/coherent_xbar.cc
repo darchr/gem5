@@ -116,10 +116,18 @@ CoherentXBar::~CoherentXBar()
 }
 
 void
-CoherentXBar::init()
+CoherentXBar::disconnected()
 {
-    BaseXBar::init();
+    BaseXBar::disconnected();
 
+    if (snoopFilter)
+        snoopFilter->clearSlavePorts();
+}
+
+void
+CoherentXBar::connected()
+{
+    BaseXBar::connected();
     // iterate over our slave ports and determine which of our
     // neighbouring master ports are snooping and add them as snoopers
     for (const auto& p: slavePorts) {

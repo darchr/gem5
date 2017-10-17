@@ -102,6 +102,7 @@ class SnoopFilter : public SimObject {
      * @param slave_ports Slave ports that the bus is attached to.
      */
     void setSlavePorts(const SnoopList& slave_ports) {
+        panic_if(!localSlavePortIds.empty(), "Cannot reinit snoop filter");
         localSlavePortIds.resize(slave_ports.size(), InvalidPortID);
 
         PortID id = 0;
@@ -117,6 +118,15 @@ class SnoopFilter : public SimObject {
         fatal_if(id > 8 * sizeof(SnoopMask),
                  "Snoop filter only supports %d snooping ports, got %d\n",
                  8 * sizeof(SnoopMask), id);
+    }
+
+    /**
+     * Clear the slave ports of an already initialized snoop filter.
+     * This is used when the XBar is disconnected from the sytem and may
+     * be connected to a new set of slave ports.
+     */
+    void clearSlavePorts() {
+        localSlavePortIds.clear();
     }
 
     /**
