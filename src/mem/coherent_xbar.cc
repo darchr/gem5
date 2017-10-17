@@ -114,10 +114,9 @@ CoherentXBar::~CoherentXBar()
 }
 
 void
-CoherentXBar::init()
+CoherentXBar::initPorts()
 {
-    BaseXBar::init();
-
+    BaseXBar::initPorts();
     // iterate over our slave ports and determine which of our
     // neighbouring master ports are snooping and add them as snoopers
     for (const auto& p: slavePorts) {

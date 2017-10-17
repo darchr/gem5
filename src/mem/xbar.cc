@@ -577,6 +577,12 @@ BaseXBar::regStats()
     // came from the master and was forwarded to the slave (requests
     // and snoop responses) and what came from the slave and was
     // forwarded to the master (responses and snoop requests)
+
+    if (params()->unplugged) {
+        // If unplugged we won't know the names
+        return;
+    }
+
     for (int i = 0; i < slavePorts.size(); i++) {
         pktCount.subname(i, slavePorts[i]->getMasterPort().name());
         pktSize.subname(i, slavePorts[i]->getMasterPort().name());

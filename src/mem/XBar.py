@@ -108,6 +108,10 @@ class CoherentXBar(BaseXBar):
 
     system = Param.System(Parent.any, "System that the crossbar belongs to.")
 
+    def willHotSwap(self, other):
+        """Define this abstract function so this object supports hot swap"""
+        self._setupHotSwap(other)
+
 class SnoopFilter(SimObject):
     type = 'SnoopFilter'
     cxx_header = "mem/snoop_filter.hh"

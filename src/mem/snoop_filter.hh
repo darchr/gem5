@@ -102,6 +102,7 @@ class SnoopFilter : public SimObject {
      * @param slave_ports Slave ports that the bus is attached to.
      */
     void setSlavePorts(const SnoopList& slave_ports) {
+        panic_if(!localSlavePortIds.empty(), "Cannot reinit snoop filter");
         localSlavePortIds.resize(slave_ports.size(), InvalidPortID);
 
         PortID id = 0;

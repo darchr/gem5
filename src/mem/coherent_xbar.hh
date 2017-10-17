@@ -401,7 +401,7 @@ class CoherentXBar : public BaseXBar
 
   public:
 
-    virtual void init();
+    void initPorts() override;
 
     CoherentXBar(const CoherentXBarParams *p);
 
