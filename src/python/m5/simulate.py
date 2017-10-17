@@ -118,6 +118,7 @@ def instantiate(ckpt_dir=None):
         obj.connectPorts()
 
     for obj in root.descendants():
+        if obj.unplugged(): continue # Skip unplugged components
         obj.initPorts()
 
     # Do a second pass to finish initializing the sim objects

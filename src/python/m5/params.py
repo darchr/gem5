@@ -1904,7 +1904,7 @@ class PortRef(object):
         self.ccConnected = True
         peer.ccConnected = True
 
-    def disconnect(self):
+    def ccDisconnect(self):
         """ Disconnect this object from its peer.
             If it's already connected in C++, then disconnect it there, too.
             This can be used during simulation to switch a mem object out.
@@ -1985,6 +1985,11 @@ class VectorPortRef(object):
         # Return the number of connected peers, corresponding the the
         # length of the elements.
         return len(self.elements)
+
+    def __iter__(self):
+        for el in self.elements:
+            yield el
+        raise StopIteration
 
     # for config.ini, print peer's name (not ours)
     def ini_str(self):

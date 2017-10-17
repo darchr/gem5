@@ -1497,39 +1497,55 @@ class SimObject(object):
         for (attr, portRef) in sorted(self._port_refs.iteritems()):
             portRef.ccConnect()
 
-    def willHotplug(self, other):
-        """ This function must be called *before* instantiate to set up all
-            parameters, etc. when this object will be hot swapped into the same
-            place as other.
+    def willHotSwap(self, other):
+        panic("%s has not implemented willHotSwap. This method must be "
+              "overridden in the child class.\n\tBe sure to call _setupHotSwap"
+              " in the child class." % (self))
+
+    def _setupHotSwap(self, other):
+        """ This function must be called *before* instantiate() to set up all
+            parameters, etc. if this object will be hot swapped.
+
             Before calling willHotSwap, the other object must be completely
-            initialized.
+            initialized (i.e., all params must be set). Otherwise, the hotplug
+            object may not get the correct references to objects.
             For port references, we assume that there is a one-to-one mapping
             of these references between the two objects.
 
             @param other is the object that this one will take over for.
         """
-        self._unplugged = True
-        # We will unplug other at some point and plug in self
-        other._future_component = self
-        self._past_component = other
+        other._unplugged = True
+        # We will unplug other at some point and plug in other
+        self._future_component = other
+        other._past_component = self
 
-        if self._port_refs:
-            panic("Cannot hotplug an object that has port connections")
+        if other._port_refs:
+            panic("Cannot hotplug an object that has port connections already")
 
-        for (attr, port_ref) in other._port_refs.iteritems():
-            if not port_ref.peer:
-                panic("Cannot set up hot swapping if other isn't connected")
-            # Does this work for vector refs, too?
-            my_ref = self._get_port_ref(attr)
-            my_ref.connect(port_ref.peer, unidirectional = True)
+        for (attr, port_ref) in self._port_refs.iteritems():
+            print attr, port_ref
+            from m5.params import VectorPortRef
+            if type(port_ref) is VectorPortRef:
+                my_vec_ref = other._get_port_ref(attr)
+                for i,el in enumerate(port_ref):
+                    print i, el
+                    if not el.peer:
+                        panic("Cannot set up hot swap if self isn't connected")
+                    my_vec_ref[i].connect(el, unidirectional = True)
+            else:
+                if not port_ref.peer:
+                    panic("Cannot set up hot swap if self isn't connected")
+                my_ref = other._get_port_ref(attr)
+                my_ref.connect(port_ref.peer, unidirectional = True)
 
     def unplugged(self):
         return self._unplugged
 
     def _disconnectPorts(self):
-        """Disconnect the ports that are connected in C++"""
+        """ Disconnect the ports that are connected in C++. This is used when
+            unplugging an object."""
         for portRef in self._port_refs.values():
-            portRef.disconnect()
+            portRef.ccDisconnect()
 
     def unplug(self):
         """ "Unplug" this object. This will disconnect all of the ports """
@@ -1539,7 +1555,7 @@ class SimObject(object):
         self._disconnectPorts()
         self._unplugged = True
 
-    def plugin(self):
+    def plugIn(self):
         """ "Plug in" this object. Make sure all of the ports are connected"""
         if not self.unplugged():
             panic("Cannot plug in an object that is already plugged in")
@@ -1547,6 +1563,7 @@ class SimObject(object):
         self._unplugged = False
         for portRef in self._port_refs.values():
             portRef.hotplugConnect()
+        self.initPorts()
 
 # Function to provide to C++ so it can look up instances based on paths
 def resolveSimObject(name):
