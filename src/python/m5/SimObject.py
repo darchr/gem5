@@ -1495,6 +1495,12 @@ class SimObject(object):
     def getValue(self):
         return self.getCCObject()
 
+    def connected(self):
+        """ Called when all of the ports have been connected.
+        """
+        # Actually implemented in MemObject
+        pass
+
     # Create C++ port connections corresponding to the connections in
     # _port_refs
     def connectPorts(self):
@@ -1502,6 +1508,8 @@ class SimObject(object):
         # order is the same on all hosts
         for (attr, portRef) in sorted(self._port_refs.iteritems()):
             portRef.ccConnect()
+        # Once all of the ports are connected, notify the object.
+        self.connected()
 
 # Function to provide to C++ so it can look up instances based on paths
 def resolveSimObject(name):

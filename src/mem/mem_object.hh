@@ -67,6 +67,14 @@ class MemObject : public ClockedObject
     MemObject(const Params *params);
 
     /**
+     * Called when all of this mem object's ports are connected. This is called
+     * after the MemObject is initialized and after it is plugged into the
+     * system. This function is useful to set up address ranges (e.g., a slave
+     * may want to call sendRangeChange in this function).
+     */
+    virtual void connected() { }
+
+    /**
      * Get a master port with a given name and index. This is used at
      * binding time and returns a reference to a protocol-agnostic
      * base master port.
