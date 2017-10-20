@@ -1835,33 +1835,37 @@ class PortRef(object):
     def ccConnect(self):
         from _m5.pyobject import connectPorts
 
-        if self.role == 'SLAVE':
-            # do nothing and let the master take care of it
-            return
-
         if self.ccConnected: # already done this
-            return
-        peer = self.peer
-        if not self.peer: # nothing to connect to
             return
 
         # check that we connect a master to a slave
-        if self.role == peer.role:
+        if self.role == self.peer.role:
             raise TypeError, \
                 "cannot connect '%s' and '%s' due to identical role '%s'" \
-                % (peer, self, self.role)
+                % (self.peer, self, self.role)
+
+        if self.role == 'SLAVE':
+            master = self.peer
+            slave = self
+        else:
+            master = self
+            slave = self.peer
+
+        if not master or not slave: # nothing to connect to
+            return
 
         try:
             # self is always the master and peer the slave
-            connectPorts(self.simobj.getCCObject(), self.name, self.index,
-                         peer.simobj.getCCObject(), peer.name, peer.index)
+            connectPorts(master.simobj.getCCObject(), master.name,
+                         master.index,
+                         slave.simobj.getCCObject(), slave.name, slave.index)
         except:
             print "Error connecting port %s.%s to %s.%s" % \
-                  (self.simobj.path(), self.name,
-                   peer.simobj.path(), peer.name)
+                  (master.simobj.path(), master.name,
+                   slave.simobj.path(), slave.name)
             raise
-        self.ccConnected = True
-        peer.ccConnected = True
+        master.ccConnected = True
+        slave.ccConnected = True
 
 # A reference to an individual element of a VectorPort... much like a
 # PortRef, but has an index.
