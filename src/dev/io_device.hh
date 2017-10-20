@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (c) 2012 ARM Limited
  * All rights reserved.
  *
@@ -123,7 +123,7 @@ class PioDevice : public MemObject
         return dynamic_cast<const Params *>(_params);
     }
 
-    virtual void init();
+    virtual void connected() override;
 
     virtual BaseSlavePort &getSlavePort(const std::string &if_name,
                                         PortID idx = InvalidPortID) override;

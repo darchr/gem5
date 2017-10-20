@@ -64,7 +64,7 @@ X86ISA::IntDevice::IntMasterPort::sendMessage(ApicList apics,
 }
 
 void
-X86ISA::IntDevice::init()
+X86ISA::IntDevice::connected()
 {
     if (!intMasterPort.isConnected()) {
         panic("Int port not connected to anything!");

@@ -76,15 +76,15 @@ DRAMSim2::DRAMSim2(const Params* p) :
 }
 
 void
+DRAMSim2::connected()
+{
+    port.sendRangeChange();
+}
+
+void
 DRAMSim2::init()
 {
     AbstractMemory::init();
-
-    if (!port.isConnected()) {
-        fatal("DRAMSim2 %s is unconnected!\n", name());
-    } else {
-        port.sendRangeChange();
-    }
 
     if (system()->cacheLineSize() != wrapper.burstSize())
         fatal("DRAMSim2 burst size %d does not match cache line size %d\n",

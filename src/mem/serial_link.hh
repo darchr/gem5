@@ -320,7 +320,7 @@ class SerialLink : public MemObject
     virtual BaseSlavePort& getSlavePort(const std::string& if_name,
                                         PortID idx = InvalidPortID) override;
 
-    virtual void init();
+    virtual void connected() override;
 
     typedef SerialLinkParams Params;
 

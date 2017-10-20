@@ -92,7 +92,7 @@ class I82094AA : public BasicPioDevice, public IntDevice
 
     I82094AA(Params *p);
 
-    void init() override;
+    void connected() override;
 
     Tick read(PacketPtr pkt) override;
     Tick write(PacketPtr pkt) override;

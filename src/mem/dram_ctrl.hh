@@ -1111,6 +1111,7 @@ class DRAMCtrl : public AbstractMemory
                                         PortID idx = InvalidPortID) override;
 
     virtual void init() override;
+    virtual void connected() override;
     virtual void startup() override;
     virtual void drainResume() override;
 

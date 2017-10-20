@@ -114,7 +114,7 @@ SerialLink::getSlavePort(const std::string &if_name, PortID idx)
 }
 
 void
-SerialLink::init()
+SerialLink::connected()
 {
     // make sure both sides are connected and have the same block size
     if (!slavePort.isConnected() || !masterPort.isConnected())

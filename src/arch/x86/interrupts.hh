@@ -194,7 +194,7 @@ class Interrupts : public BasicPioDevice, IntDevice
     /*
      * Initialize this object by registering it with the IO APIC.
      */
-    void init() override;
+    void connected() override;
 
     /*
      * Functions to interact with the interrupt port from IntDevice.

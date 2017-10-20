@@ -52,13 +52,17 @@ DMASequencer::DMASequencer(const Params *p)
 }
 
 void
+DMASequencer::connected()
+{
+    for (const auto &s_port : slave_ports)
+        s_port->sendRangeChange();
+}
+
+void
 DMASequencer::init()
 {
     RubyPort::init();
     m_data_block_mask = mask(RubySystem::getBlockSizeBits());
-
-    for (const auto &s_port : slave_ports)
-        s_port->sendRangeChange();
 }
 
 RequestStatus

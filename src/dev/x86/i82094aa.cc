@@ -60,14 +60,14 @@ X86ISA::I82094AA::I82094AA(Params *p)
 }
 
 void
-X86ISA::I82094AA::init()
+X86ISA::I82094AA::connected()
 {
     // The io apic must register its address ranges on both its pio port
-    // via the piodevice init() function and its int port that it inherited
+    // via the piodevice connected function and its int port that it inherited
     // from IntDevice.  Note IntDevice is not a SimObject itself.
 
-    BasicPioDevice::init();
-    IntDevice::init();
+    BasicPioDevice::connected();
+    IntDevice::connected();
 }
 
 BaseMasterPort &

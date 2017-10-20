@@ -106,7 +106,7 @@ Bridge::getSlavePort(const std::string &if_name, PortID idx)
 }
 
 void
-Bridge::init()
+Bridge::connected()
 {
     // make sure both sides are connected and have the same block size
     if (!slavePort.isConnected() || !masterPort.isConnected())

@@ -287,7 +287,7 @@ X86ISA::Interrupts::setCPU(BaseCPU * newCPU)
 
 
 void
-X86ISA::Interrupts::init()
+X86ISA::Interrupts::connected()
 {
     //
     // The local apic must register its address ranges on both its pio
@@ -295,8 +295,8 @@ X86ISA::Interrupts::init()
     // int port that it inherited from IntDevice.  Note IntDevice is
     // not a SimObject itself.
     //
-    BasicPioDevice::init();
-    IntDevice::init();
+    BasicPioDevice::connected();
+    IntDevice::connected();
 
     // the slave port has a range so inform the connected master
     intSlavePort.sendRangeChange();

@@ -123,8 +123,6 @@ DmaDevice::DmaDevice(const Params *p)
 void
 DmaDevice::init()
 {
-    if (!dmaPort.isConnected())
-        panic("DMA port of %s not connected to anything!", name());
     PioDevice::init();
 }
 

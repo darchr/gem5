@@ -80,10 +80,8 @@ PioDevice::~PioDevice()
 }
 
 void
-PioDevice::init()
+PioDevice::connected()
 {
-    if (!pioPort.isConnected())
-        panic("Pio port of %s not connected to anything!", name());
     pioPort.sendRangeChange();
 }
 

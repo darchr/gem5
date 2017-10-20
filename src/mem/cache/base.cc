@@ -136,7 +136,7 @@ BaseCache::CacheSlavePort::processSendRetry()
 }
 
 void
-BaseCache::init()
+BaseCache::connected()
 {
     if (!cpuSidePort->isConnected() || !memSidePort->isConnected())
         fatal("Cache ports on %s are not connected\n", name());

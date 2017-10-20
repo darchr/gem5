@@ -47,7 +47,7 @@ AddrMapper::AddrMapper(const AddrMapperParams* p)
 }
 
 void
-AddrMapper::init()
+AddrMapper::connected()
 {
     if (!slavePort.isConnected() || !masterPort.isConnected())
         fatal("Address mapper is not connected on both sides.\n");
@@ -252,5 +252,3 @@ RangeAddrMapper::getAddrRanges() const
     AddrRangeList ranges(originalRanges.begin(), originalRanges.end());
     return ranges;
 }
-
-

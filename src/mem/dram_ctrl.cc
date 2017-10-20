@@ -176,15 +176,15 @@ DRAMCtrl::DRAMCtrl(const DRAMCtrlParams* p) :
 }
 
 void
+DRAMCtrl::connected()
+{
+    port.sendRangeChange();
+}
+
+void
 DRAMCtrl::init()
 {
     AbstractMemory::init();
-
-   if (!port.isConnected()) {
-        fatal("DRAMCtrl %s is unconnected!\n", name());
-    } else {
-        port.sendRangeChange();
-    }
 
     // a bit of sanity checks on the interleaving, save it for here to
     // ensure that the system pointer is initialised

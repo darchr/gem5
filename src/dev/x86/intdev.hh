@@ -120,7 +120,7 @@ class IntDevice
     virtual ~IntDevice()
     {}
 
-    virtual void init();
+    virtual void connected();
 
     virtual void
     signalInterrupt(int line)

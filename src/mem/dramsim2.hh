@@ -195,6 +195,7 @@ class DRAMSim2 : public AbstractMemory
                                         PortID idx = InvalidPortID) override;
 
     void init() override;
+    void connected() override;
     void startup() override;
 
   protected:

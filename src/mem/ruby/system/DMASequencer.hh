@@ -59,6 +59,7 @@ class DMASequencer : public RubyPort
     typedef DMASequencerParams Params;
     DMASequencer(const Params *);
     void init() override;
+    void connected() override;
 
     /* external interface */
     RequestStatus makeRequest(PacketPtr pkt) override;

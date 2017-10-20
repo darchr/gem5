@@ -67,7 +67,7 @@ MemCheckerMonitorParams::create()
 }
 
 void
-MemCheckerMonitor::init()
+MemCheckerMonitor::connected()
 {
     // make sure both sides of the monitor are connected
     if (!slavePort.isConnected() || !masterPort.isConnected())

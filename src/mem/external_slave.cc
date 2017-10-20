@@ -222,7 +222,7 @@ ExternalSlave::getSlavePort(const std::string &if_name,
 }
 
 void
-ExternalSlave::init()
+ExternalSlave::connected()
 {
     if (!externalPort) {
         fatal("ExternalSlave %s: externalPort not set!\n", name());

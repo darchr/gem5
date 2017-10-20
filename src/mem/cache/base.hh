@@ -466,7 +466,7 @@ class BaseCache : public MemObject
     BaseCache(const BaseCacheParams *p, unsigned blk_size);
     ~BaseCache() {}
 
-    virtual void init() override;
+    virtual void connected() override;
 
     virtual BaseMasterPort &getMasterPort(const std::string &if_name,
                                           PortID idx = InvalidPortID) override;
