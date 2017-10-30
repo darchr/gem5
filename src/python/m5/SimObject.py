@@ -1539,6 +1539,8 @@ class SimObject(object):
 
             @param other is the object that this one will take over for.
         """
+        from m5.params import VectorPortRef
+
         other.unplugged = True
         # We will unplug other at some point and plug in other
         self._future_component = other
@@ -1548,7 +1550,6 @@ class SimObject(object):
             panic("Cannot hotplug an object that has port connections already")
 
         for (attr, port_ref) in self._port_refs.iteritems():
-            from m5.params import VectorPortRef
             # Need to deal with vector ports by iterating through and making
             if type(port_ref) is VectorPortRef:
                 my_vec_ref = other._get_port_ref(attr)
@@ -1592,14 +1593,26 @@ class SimObject(object):
         """ "Plug in" this object. Make sure all of the ports are connected
             @param the component that was unplugged for this one.
         """
+        from m5.params import VectorPortRef
+
         if not self.unplugged:
             panic("Cannot plug in an object that is already plugged in")
         if not old.unplugged:
             panic("Cannot plug in an object over one that is plugged in")
 
         self.unplugged = False
-        for portRef in self._port_refs.values():
-            portRef.hotplugConnect()
+        other_simobjs = set()
+        for port_ref in self._port_refs.values():
+            if type(port_ref) is VectorPortRef:
+                for el in port_ref:
+                    other_simobjs.add(el.peerObj)
+            else:
+                other_simobjs.add(port_ref.peerObj)
+            port_ref.hotplugConnect()
+
+        self.connected()
+        for simobj in other_simobjs:
+            simobj.connected()
 
 # Function to provide to C++ so it can look up instances based on paths
 def resolveSimObject(name):
