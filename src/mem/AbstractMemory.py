@@ -73,3 +73,11 @@ class AbstractMemory(MemObject):
     # over for the original memory. When creating this memory link the backing
     # store to the same host memory.
     mirror_memory = Param.Bool(False, "Use another memory's backing store")
+
+    def willHotSwap(self, other):
+        """ Set up memory mirroring. Self will be unplugged and other will be
+            plugged in. Thus, other must be set to mirroring this memory.
+        """
+        self._setupHotSwap(other)
+
+        other.mirror_memory = True
