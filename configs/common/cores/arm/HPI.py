@@ -1161,6 +1161,7 @@ class HPI_FloatSimdFU(MinorFU):
         HPI_DefaultVfp()]
 
     opLat = 6
+    issueLat = 6
 
 class HPI_IntFU(MinorFU):
     opClasses = minorMakeOpClassSet(['IntAlu'])
