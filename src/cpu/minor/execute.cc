@@ -1380,6 +1380,7 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
                 DPRINTF(MinorExecute, "Reached mem ref commit limit\n");
         }
     }
+    cpu.stats.numCommitted.sample(num_insts_committed);
 }
 
 bool
@@ -1468,6 +1469,7 @@ Execute::evaluate()
             DPRINTF(MinorExecute, "Attempting to issue [tid:%d]\n",
                     issue_tid);
             num_issued = issue(issue_tid);
+            cpu.stats.numIssued.sample(num_issued);
         }
 
     }

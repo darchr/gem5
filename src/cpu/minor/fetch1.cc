@@ -682,6 +682,7 @@ Fetch1::evaluate()
                 response->id);
 
             processResponse(response, line_out);
+            cpu.stats.numFetch1ed.sample(1);
         }
 
         popAndDiscard(transfers);
@@ -691,6 +692,9 @@ Fetch1::evaluate()
      *  to encourage that output on to the next stage */
     if (!line_out.isBubble())
         cpu.activityRecorder->activity();
+    else {
+        cpu.stats.numFetch1ed.sample(0);
+    }
 
     /* Fetch1 has no inputBuffer so the only activity we can have is to
      *  generate a line output (tested just above) or to initiate a memory

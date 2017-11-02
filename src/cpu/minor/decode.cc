@@ -260,6 +260,7 @@ Decode::evaluate()
                 }
             }
         }
+        cpu.stats.numDecoded.sample(output_index);
 
         /* The rest of the output (if any) should already have been packed
          *  with bubble instructions by insts_out's initialisation
@@ -276,6 +277,8 @@ Decode::evaluate()
         cpu.activityRecorder->activity();
         insts_out.threadId = tid;
         nextStageReserve[tid].reserve();
+    } else {
+        cpu.stats.numDecoded.sample(0);
     }
 
     /* If we still have input to process and somewhere to put it,

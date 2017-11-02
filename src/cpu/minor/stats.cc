@@ -89,6 +89,22 @@ MinorStats::regStats(const std::string &name, BaseCPU &baseCpu)
         .desc("Class of committed instruction")
         .flags(Stats::total | Stats::pdf | Stats::dist);
     committedInstType.ysubnames(Enums::OpClassStrings);
+
+    numCommitted
+        .name(name + ".numCommitted")
+        .init(8);
+    numIssued
+        .name(name + ".numIssued")
+        .init(8);
+    numDecoded
+        .name(name + ".numDecoded")
+        .init(8);
+    numFetch2ed
+        .name(name + ".numFetch2ed")
+        .init(8);
+    numFetch1ed
+        .name(name + ".numFetch1ed")
+        .init(8);
 }
 
 };

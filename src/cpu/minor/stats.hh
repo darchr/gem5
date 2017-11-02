@@ -79,6 +79,12 @@ class MinorStats
     /** Number of instructions by type (OpClass) */
     Stats::Vector2d committedInstType;
 
+    Stats::Histogram numCommitted;
+    Stats::Histogram numIssued;
+    Stats::Histogram numDecoded;
+    Stats::Histogram numFetch2ed;
+    Stats::Histogram numFetch1ed;
+
   public:
     MinorStats();
 

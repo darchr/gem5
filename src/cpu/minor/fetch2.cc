@@ -517,6 +517,7 @@ Fetch2::evaluate()
                 line_in = getInput(tid);
             }
         }
+        cpu.stats.numFetch2ed.sample(output_index);
 
         /* The rest of the output (if any) should already have been packed
          *  with bubble instructions by insts_out's initialisation */
@@ -534,6 +535,8 @@ Fetch2::evaluate()
         cpu.activityRecorder->activity();
         insts_out.threadId = tid;
         nextStageReserve[tid].reserve();
+    } else {
+        cpu.stats.numFetch2ed.sample(0);
     }
 
     /* If we still have input to process and somewhere to put it,
