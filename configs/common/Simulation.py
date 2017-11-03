@@ -81,7 +81,7 @@ def setCPUClass(options):
     elif options.fast_forward:
         CPUClass = TmpClass
         TmpClass = AtomicSimpleCPU
-        test_mem_mode = 'atomic'
+        test_mem_mode = params.atomic
 
     return (TmpClass, test_mem_mode, CPUClass)
 
@@ -453,18 +453,20 @@ def run(options, root, testsys, cpu_class):
             testsys.cpu[i].max_insts_any_thread = options.maxinsts
 
     if cpu_class:
-        switch_cpus = [cpu_class(switched_out=True, cpu_id=(i))
-                       for i in xrange(np)]
+        switch_cpus = [cpu_class() for i in xrange(np)]
 
         for i in xrange(np):
             if options.fast_forward:
                 testsys.cpu[i].max_insts_any_thread = int(options.fast_forward)
-            switch_cpus[i].system = testsys
-            switch_cpus[i].workload = testsys.cpu[i].workload
+
+            # Set up the hotplug interface
+            testsys.cpu[i].willHotSwap(switch_cpus[i])
+
+            # keep the old behavior
             switch_cpus[i].clk_domain = testsys.cpu[i].clk_domain
             switch_cpus[i].progress_interval = \
                 testsys.cpu[i].progress_interval
-            switch_cpus[i].isa = testsys.cpu[i].isa
+
             # simulation period
             if options.maxinsts:
                 switch_cpus[i].max_insts_any_thread = options.maxinsts
@@ -490,14 +492,14 @@ def run(options, root, testsys, cpu_class):
             print "%s: CPU switching not supported" % str(switch_class)
             sys.exit(1)
 
-        repeat_switch_cpus = [switch_class(switched_out=True, \
-                                               cpu_id=(i)) for i in xrange(np)]
+        repeat_switch_cpus = [switch_class() for i in xrange(np)]
 
         for i in xrange(np):
-            repeat_switch_cpus[i].system = testsys
-            repeat_switch_cpus[i].workload = testsys.cpu[i].workload
+            # Set up the hotplug interface
+            testsys.cpu[i].willHotSwap(repeat_switch_cpus[i])
+
+            # Keep the old behavior
             repeat_switch_cpus[i].clk_domain = testsys.cpu[i].clk_domain
-            repeat_switch_cpus[i].isa = testsys.cpu[i].isa
 
             if options.maxinsts:
                 repeat_switch_cpus[i].max_insts_any_thread = options.maxinsts
@@ -515,20 +517,18 @@ def run(options, root, testsys, cpu_class):
                                       for i in xrange(np)]
 
     if options.standard_switch:
-        switch_cpus = [TimingSimpleCPU(switched_out=True, cpu_id=(i))
-                       for i in xrange(np)]
-        switch_cpus_1 = [DerivO3CPU(switched_out=True, cpu_id=(i))
-                        for i in xrange(np)]
+        switch_cpus = [TimingSimpleCPU() for i in xrange(np)]
+        switch_cpus_1 = [DerivO3CPU() for i in xrange(np)]
 
         for i in xrange(np):
-            switch_cpus[i].system =  testsys
-            switch_cpus_1[i].system =  testsys
-            switch_cpus[i].workload = testsys.cpu[i].workload
-            switch_cpus_1[i].workload = testsys.cpu[i].workload
+
+            # Set up the hotplug interface
+            testsys.cpu[i].willHotSwap(switch_cpus[i])
+            switch_cpus[i].willHotSwap(switch_cpus_1[i])
+
+            # Keep the old behavior
             switch_cpus[i].clk_domain = testsys.cpu[i].clk_domain
             switch_cpus_1[i].clk_domain = testsys.cpu[i].clk_domain
-            switch_cpus[i].isa = testsys.cpu[i].isa
-            switch_cpus_1[i].isa = testsys.cpu[i].isa
 
             # if restoring, make atomic cpu simulate only a few instructions
             if options.checkpoint_restore != None:

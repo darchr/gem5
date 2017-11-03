@@ -103,23 +103,6 @@ TraceCPU::updateNumOps(uint64_t rob_num)
 }
 
 void
-TraceCPU::takeOverFrom(BaseCPU *oldCPU)
-{
-    // Unbind the ports of the old CPU and bind the ports of the TraceCPU.
-    assert(!getInstPort().isConnected());
-    assert(oldCPU->getInstPort().isConnected());
-    BaseSlavePort &inst_peer_port = oldCPU->getInstPort().getSlavePort();
-    oldCPU->getInstPort().unbind();
-    getInstPort().bind(inst_peer_port);
-
-    assert(!getDataPort().isConnected());
-    assert(oldCPU->getDataPort().isConnected());
-    BaseSlavePort &data_peer_port = oldCPU->getDataPort().getSlavePort();
-    oldCPU->getDataPort().unbind();
-    getDataPort().bind(data_peer_port);
-}
-
-void
 TraceCPU::init()
 {
     DPRINTF(TraceCPUInst, "Instruction fetch request trace file is \"%s\"."

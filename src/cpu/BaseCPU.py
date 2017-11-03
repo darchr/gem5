@@ -98,9 +98,9 @@ class BaseCPU(MemObject):
     cxx_header = "cpu/base.hh"
 
     cxx_exports = [
-        PyBindMethod("switchOut"),
+        PyBindMethod("cppUnplug", "unplug"),
         PyBindMethod("takeOverFrom"),
-        PyBindMethod("switchedOut"),
+        PyBindMethod("isUnplugged"),
         PyBindMethod("flushTLBs"),
         PyBindMethod("totalInsts"),
         PyBindMethod("scheduleInstStop"),
@@ -131,6 +131,62 @@ class BaseCPU(MemObject):
     def takeOverFrom(self, old_cpu):
         self._ccObject.takeOverFrom(old_cpu._ccObject)
 
+    def willHotSwap(self, other):
+        """This CPU will be unplugged and other will be plugged in. It is
+           expected that other will not be fully initialized. Make sure the
+           other CPU has the right pointers and values. The other CPU (usually
+           the more detailed CPU) will take on all of the children stuctures of
+           self. E.g., the other's TLB will be deleted and self's TLB will be
+           the only TLB model used.
+        """
+        if not self.support_take_over():
+            panic("This CPU does not support hot swapping")
+
+        # ID must be the same
+        other.cpu_id = self.cpu_id
+        other.socket_id = self.socket_id
+
+        # ISA must be the same
+        other.isa = self.isa
+
+        # Threads must be the same
+        other.numThreads = self.numThreads
+
+        # Workload is the same in SE mode
+        other.workload = self.workload
+
+        # If we want to use this CPU to warm up, then the TLBs must be the same
+        other.dtb = self.dtb
+        other.itb = self.itb
+
+        # We can use the same interrupt model for both CPUs since we currently
+        # don't have different interrupt models for detailed/warmup CPUs.
+        other.interrupts = self.interrupts
+
+        if buildEnv['TARGET_ISA'] == 'arm':
+            # ARM has a multi-level MMU. We should use the same model for both
+            # CPUs if we want the detailed (other) CPU to have a warm MMU
+            other.istage2_mmu = self.istage2_mmu
+            other.dstage2_mmu = self.dstage2_mmu
+
+        # Make sure that the ports are set up for hot swapping
+        self._setupHotSwap(other)
+
+    def unplug(self):
+        """Override the default implementation and call into the C++ code"""
+        super(MemObject, self).unplug()
+        self.cppUnplug()
+
+    def plugIn(self, old):
+        """Override the default implementation"""
+
+        # Connect the ports
+        super(MemObject, self).plugIn(old)
+
+        if self.system.getMemoryMode() != self.memory_mode():
+            self.system.setMemoryMode(self.memory_mode())
+
+        self.takeOverFrom(old)
 
     system = Param.System(Parent.any, "system object")
     cpu_id = Param.Int(-1, "CPU identifier")
@@ -224,10 +280,6 @@ class BaseCPU(MemObject):
         "terminate when any thread reaches this load count")
     progress_interval = Param.Frequency('0Hz',
         "frequency to print out the progress message")
-
-    switched_out = Param.Bool(False,
-        "Leave the CPU switched out after startup (used when switching " \
-        "between CPU models)")
 
     tracer = Param.InstTracer(default_tracer, "Instruction tracer")
 

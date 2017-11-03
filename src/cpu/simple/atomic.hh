@@ -185,7 +185,7 @@ class AtomicSimpleCPU : public BaseSimpleCPU
     DrainState drain() override;
     void drainResume() override;
 
-    void switchOut() override;
+    void unplug() override;
     void takeOverFrom(BaseCPU *oldCPU) override;
 
     void verifyMemoryMode() const override;

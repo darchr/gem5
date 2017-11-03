@@ -187,7 +187,7 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       system(params->system),
       lastRunningCycle(curCycle())
 {
-    if (!params->switched_out) {
+    if (!_unplugged) {
         _status = Running;
     } else {
         _status = SwitchedOut;
@@ -407,7 +407,7 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
     }
 
     // FullO3CPU always requires an interrupt controller.
-    if (!params->switched_out && interrupts.empty()) {
+    if (!_unplugged && interrupts.empty()) {
         fatal("FullO3CPU %s has no interrupt controller.\n"
               "Ensure createInterruptController() is called.\n", name());
     }
@@ -564,7 +564,7 @@ void
 FullO3CPU<Impl>::tick()
 {
     DPRINTF(O3CPU, "\n\nFullO3CPU: Ticking main, FullO3CPU.\n");
-    assert(!switchedOut());
+    assert(!isUnplugged());
     assert(drainState() != DrainState::Drained);
 
     ++numCycles;
@@ -632,7 +632,7 @@ FullO3CPU<Impl>::init()
         thread[tid]->initMemProxies(thread[tid]->getTC());
     }
 
-    if (FullSystem && !params()->switched_out) {
+    if (FullSystem && !_unplugged) {
         for (ThreadID tid = 0; tid < numThreads; tid++) {
             ThreadContext *src_tc = threadContexts[tid];
             TheISA::initCPU(src_tc, src_tc->contextId());
@@ -669,7 +669,7 @@ FullO3CPU<Impl>::activateThread(ThreadID tid)
         std::find(activeThreads.begin(), activeThreads.end(), tid);
 
     DPRINTF(O3CPU, "[tid:%i]: Calling activate thread.\n", tid);
-    assert(!switchedOut());
+    assert(!isUnplugged());
 
     if (isActive == activeThreads.end()) {
         DPRINTF(O3CPU, "[tid:%i]: Adding to active threads list\n",
@@ -688,7 +688,7 @@ FullO3CPU<Impl>::deactivateThread(ThreadID tid)
         std::find(activeThreads.begin(), activeThreads.end(), tid);
 
     DPRINTF(O3CPU, "[tid:%i]: Calling deactivate thread.\n", tid);
-    assert(!switchedOut());
+    assert(!isUnplugged());
 
     if (thread_it != activeThreads.end()) {
         DPRINTF(O3CPU,"[tid:%i]: Removing from active threads list\n",
@@ -730,7 +730,7 @@ template <class Impl>
 void
 FullO3CPU<Impl>::activateContext(ThreadID tid)
 {
-    assert(!switchedOut());
+    assert(!isUnplugged());
 
     // Needs to set each stage to running as well.
     activateThread(tid);
@@ -770,7 +770,7 @@ void
 FullO3CPU<Impl>::suspendContext(ThreadID tid)
 {
     DPRINTF(O3CPU,"[tid: %i]: Suspending Thread Context.\n", tid);
-    assert(!switchedOut());
+    assert(!isUnplugged());
 
     deactivateThread(tid);
 
@@ -792,7 +792,7 @@ FullO3CPU<Impl>::haltContext(ThreadID tid)
 {
     //For now, this is the same as deallocate
     DPRINTF(O3CPU,"[tid:%i]: Halt Context called. Deallocating", tid);
-    assert(!switchedOut());
+    assert(!isUnplugged());
 
     deactivateThread(tid);
     removeThread(tid);
@@ -1037,7 +1037,7 @@ FullO3CPU<Impl>::drain()
     deschedulePowerGatingEvent();
 
     // If the CPU isn't doing anything, then return immediately.
-    if (switchedOut())
+    if (isUnplugged())
         return DrainState::Drained;
 
     DPRINTF(Drain, "Draining...\n");
@@ -1170,7 +1170,7 @@ template <class Impl>
 void
 FullO3CPU<Impl>::drainResume()
 {
-    if (switchedOut())
+    if (isUnplugged())
         return;
 
     DPRINTF(Drain, "Resuming...\n");
@@ -1198,17 +1198,17 @@ FullO3CPU<Impl>::drainResume()
 
 template <class Impl>
 void
-FullO3CPU<Impl>::switchOut()
+FullO3CPU<Impl>::unplug()
 {
     DPRINTF(O3CPU, "Switching out\n");
-    BaseCPU::switchOut();
+    BaseCPU::unplug();
 
     activityRec.reset();
 
     _status = SwitchedOut;
 
     if (checker)
-        checker->switchOut();
+        checker->unplug();
 }
 
 template <class Impl>

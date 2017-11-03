@@ -95,8 +95,7 @@ MinorCPU::init()
 {
     BaseCPU::init();
 
-    if (!params()->switched_out &&
-        system->getMemoryMode() != Enums::timing)
+    if (!_unplugged && system->getMemoryMode() != Enums::timing)
     {
         fatal("The Minor CPU requires the memory system to be in "
             "'timing' mode.\n");
@@ -110,7 +109,7 @@ MinorCPU::init()
     }
 
     /* Initialise CPUs (== threads in the ISA) */
-    if (FullSystem && !params()->switched_out) {
+    if (FullSystem && !_unplugged) {
         for (ThreadID thread_id = 0; thread_id < threads.size(); thread_id++)
         {
             ThreadContext *tc = getContext(thread_id);
@@ -198,7 +197,7 @@ MinorCPU::drain()
     // Deschedule any power gating event (if any)
     deschedulePowerGatingEvent();
 
-    if (switchedOut()) {
+    if (isUnplugged()) {
         DPRINTF(Drain, "Minor CPU switched out, draining not needed.\n");
         return DrainState::Drained;
     }
@@ -231,7 +230,7 @@ MinorCPU::drainResume()
      * and might lead to a stats corruption */
     pipeline->resetLastStopped();
 
-    if (switchedOut()) {
+    if (isUnplugged()) {
         DPRINTF(Drain, "drainResume while switched out.  Ignoring\n");
         return;
     }
@@ -260,12 +259,12 @@ MinorCPU::memWriteback()
 }
 
 void
-MinorCPU::switchOut()
+MinorCPU::unplug()
 {
-    DPRINTF(MinorCPU, "MinorCPU switchOut\n");
+    DPRINTF(MinorCPU, "MinorCPU unplug\n");
 
-    assert(!switchedOut());
-    BaseCPU::switchOut();
+    assert(!isUnplugged());
+    BaseCPU::unplug();
 
     /* Check that the CPU is drained? */
     activityRecorder->reset();

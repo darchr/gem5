@@ -445,7 +445,7 @@ Checker<Impl>::verify(DynInstPtr &completed_inst)
 
 template <class Impl>
 void
-Checker<Impl>::switchOut()
+Checker<Impl>::unplug()
 {
     instList.clear();
 }

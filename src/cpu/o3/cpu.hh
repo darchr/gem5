@@ -351,7 +351,7 @@ class FullO3CPU : public BaseO3CPU
     void commitDrained(ThreadID tid);
 
     /** Switches out this CPU. */
-    void switchOut() override;
+    void unplug() override;
 
     /** Takes over from another CPU. */
     void takeOverFrom(BaseCPU *oldCPU) override;

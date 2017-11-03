@@ -381,7 +381,7 @@ DefaultFetch<Impl>::processCacheCompletion(PacketPtr pkt)
     ThreadID tid = cpu->contextToThread(pkt->req->contextId());
 
     DPRINTF(Fetch, "[tid:%u] Waking up from cache miss.\n", tid);
-    assert(!cpu->switchedOut());
+    assert(!cpu->isUnplugged());
 
     // Only change the status if it's still waiting on the icache access
     // to return.
@@ -594,7 +594,7 @@ DefaultFetch<Impl>::fetchCacheLine(Addr vaddr, ThreadID tid, Addr pc)
 {
     Fault fault = NoFault;
 
-    assert(!cpu->switchedOut());
+    assert(!cpu->isUnplugged());
 
     // @todo: not sure if these should block translation.
     //AlphaDep
@@ -645,7 +645,7 @@ DefaultFetch<Impl>::finishTranslation(const Fault &fault, RequestPtr mem_req)
     ThreadID tid = cpu->contextToThread(mem_req->contextId());
     Addr fetchBufferBlockPC = mem_req->getVaddr();
 
-    assert(!cpu->switchedOut());
+    assert(!cpu->isUnplugged());
 
     // Wake up CPU if it was idle
     cpu->wakeCPU();
@@ -1154,7 +1154,7 @@ DefaultFetch<Impl>::fetch(bool &status_change)
     //////////////////////////////////////////
     ThreadID tid = getFetchingThread(fetchPolicy);
 
-    assert(!cpu->switchedOut());
+    assert(!cpu->isUnplugged());
 
     if (tid == InvalidThreadID) {
         // Breaks looping condition in tick()

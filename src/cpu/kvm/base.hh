@@ -92,7 +92,7 @@ class BaseKvmCPU : public BaseCPU
     void drainResume() override;
     void notifyFork() override;
 
-    void switchOut() override;
+    void unplug() override;
     void takeOverFrom(BaseCPU *cpu) override;
 
     void verifyMemoryMode() const override;

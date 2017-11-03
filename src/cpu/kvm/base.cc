@@ -116,7 +116,7 @@ BaseKvmCPU::init()
     tc->initMemProxies(tc);
 
     // initialize CPU, including PC
-    if (FullSystem && !switchedOut())
+    if (FullSystem && !isUnplugged())
         TheISA::initCPU(tc, tc->contextId());
 }
 
@@ -354,7 +354,7 @@ BaseKvmCPU::unserializeThread(CheckpointIn &cp, ThreadID tid)
 DrainState
 BaseKvmCPU::drain()
 {
-    if (switchedOut())
+    if (isUnplugged())
         return DrainState::Drained;
 
     DPRINTF(Drain, "BaseKvmCPU::drain\n");
@@ -429,7 +429,7 @@ BaseKvmCPU::drainResume()
 
     // We might have been switched out. In that case, we don't need to
     // do anything.
-    if (switchedOut())
+    if (isUnplugged())
         return;
 
     DPRINTF(Kvm, "drainResume\n");
@@ -469,13 +469,13 @@ BaseKvmCPU::notifyFork()
 }
 
 void
-BaseKvmCPU::switchOut()
+BaseKvmCPU::unplug()
 {
-    DPRINTF(Kvm, "switchOut\n");
+    DPRINTF(Kvm, "unplug\n");
 
-    BaseCPU::switchOut();
+    BaseCPU::unplug();
 
-    // We should have drained prior to executing a switchOut, which
+    // We should have drained prior to executing a unplug, which
     // means that the tick event shouldn't be scheduled and the CPU is
     // idle.
     assert(!tickEvent.scheduled());
@@ -489,7 +489,7 @@ BaseKvmCPU::takeOverFrom(BaseCPU *cpu)
 
     BaseCPU::takeOverFrom(cpu);
 
-    // We should have drained prior to executing a switchOut, which
+    // We should have drained prior to executing a unplug, which
     // means that the tick event shouldn't be scheduled and the CPU is
     // idle.
     assert(!tickEvent.scheduled());

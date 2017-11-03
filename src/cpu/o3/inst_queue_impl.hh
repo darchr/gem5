@@ -760,7 +760,7 @@ void
 InstructionQueue<Impl>::processFUCompletion(DynInstPtr &inst, int fu_idx)
 {
     DPRINTF(IQ, "Processing FU completion [sn:%lli]\n", inst->seqNum);
-    assert(!cpu->switchedOut());
+    assert(!cpu->isUnplugged());
     // The CPU could have been sleeping until this op completed (*extremely*
     // long latency op).  Wake it if it was.  This may be overkill.
    --wbOutstanding;

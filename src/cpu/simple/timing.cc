@@ -96,7 +96,7 @@ TimingSimpleCPU::drain()
     // Deschedule any power gating event (if any)
     deschedulePowerGatingEvent();
 
-    if (switchedOut())
+    if (isUnplugged())
         return DrainState::Drained;
 
     if (_status == Idle ||
@@ -121,7 +121,7 @@ void
 TimingSimpleCPU::drainResume()
 {
     assert(!fetchEvent.scheduled());
-    if (switchedOut())
+    if (isUnplugged())
         return;
 
     DPRINTF(SimpleCPU, "Resume\n");
@@ -171,12 +171,12 @@ TimingSimpleCPU::tryCompleteDrain()
 }
 
 void
-TimingSimpleCPU::switchOut()
+TimingSimpleCPU::unplug()
 {
     SimpleExecContext& t_info = *threadInfo[curThread];
     M5_VAR_USED SimpleThread* thread = t_info.thread;
 
-    BaseSimpleCPU::switchOut();
+    BaseSimpleCPU::unplug();
 
     assert(!fetchEvent.scheduled());
     assert(_status == BaseSimpleCPU::Running || _status == Idle);

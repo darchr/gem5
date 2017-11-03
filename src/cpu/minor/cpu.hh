@@ -158,7 +158,7 @@ class MinorCPU : public BaseCPU
     void memWriteback() override;
 
     /** Switching interface from BaseCPU */
-    void switchOut() override;
+    void unplug() override;
     void takeOverFrom(BaseCPU *old_cpu) override;
 
     /** Thread activation interface from BaseCPU. */

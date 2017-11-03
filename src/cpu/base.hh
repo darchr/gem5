@@ -145,7 +145,7 @@ class BaseCPU : public MemObject
     uint32_t _pid;
 
     /** Is the CPU switched out or active? */
-    bool _switchedOut;
+    bool _unplugged;
 
     /** Cache the cache line size that we get from the system */
     const unsigned int _cacheLineSize;
@@ -320,7 +320,7 @@ class BaseCPU : public MemObject
      * flushed. After the method returns, the simulator calls
      * takeOverFrom() on the new CPU with this CPU as its parameter.
      */
-    virtual void switchOut();
+    virtual void unplug();
 
     /**
      * Load the state of a CPU from the previous CPU object, invoked
@@ -351,7 +351,7 @@ class BaseCPU : public MemObject
      *
      * @return True if the CPU is switched out, false otherwise.
      */
-    bool switchedOut() const { return _switchedOut; }
+    bool isUnplugged() const { return _unplugged; }
 
     /**
      * Verify that the system is in a memory mode supported by the

@@ -582,7 +582,7 @@ class Checker : public CheckerCPU
         : CheckerCPU(p), updateThisCycle(false), unverifiedInst(NULL)
     { }
 
-    void switchOut();
+    void unplug();
     void takeOverFrom(BaseCPU *oldCPU);
 
     void advancePC(const Fault &fault);

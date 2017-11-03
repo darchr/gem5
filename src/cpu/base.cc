@@ -100,7 +100,7 @@ CPUProgressEvent::process()
     if (_repeatEvent)
       cpu->schedule(this, curTick() + _interval);
 
-    if (cpu->switchedOut()) {
+    if (cpu->isUnplugged()) {
       return;
     }
 
@@ -130,7 +130,7 @@ BaseCPU::BaseCPU(Params *p, bool is_checker)
       _instMasterId(p->system->getMasterId(name() + ".inst")),
       _dataMasterId(p->system->getMasterId(name() + ".data")),
       _taskId(ContextSwitchTaskId::Unknown), _pid(invldPid),
-      _switchedOut(p->switched_out), _cacheLineSize(p->system->cacheLineSize()),
+      _unplugged(p->unplugged), _cacheLineSize(p->system->cacheLineSize()),
       interrupts(p->interrupts), profileEvent(NULL),
       numThreads(p->numThreads), system(p->system),
       previousCycle(0), previousState(CPU_STATE_SLEEP),
@@ -241,7 +241,7 @@ BaseCPU::BaseCPU(Params *p, bool is_checker)
 
     // The interrupts should always be present unless this CPU is
     // switched in later or in case it is a checker CPU
-    if (!params()->switched_out && !is_checker) {
+    if (!_unplugged && !is_checker) {
         fatal_if(interrupts.size() != numThreads,
                  "CPU %s has %i interrupt controllers, but is expecting one "
                  "per thread (%i)\n",
@@ -346,7 +346,7 @@ BaseCPU::mwaitAtomic(ThreadID tid, ThreadContext *tc, TheISA::TLB *dtb)
 void
 BaseCPU::init()
 {
-    if (!params()->switched_out) {
+    if (!_unplugged) {
         registerThreadContexts();
 
         verifyMemoryMode();
@@ -357,7 +357,7 @@ void
 BaseCPU::startup()
 {
     if (FullSystem) {
-        if (!params()->switched_out && profileEvent)
+        if (!_unplugged && profileEvent)
             schedule(profileEvent, curTick());
     }
 
@@ -365,7 +365,7 @@ BaseCPU::startup()
         new CPUProgressEvent(this, params()->progress_interval);
     }
 
-    if (_switchedOut)
+    if (_unplugged)
         ClockedObject::pwrState(Enums::PwrState::OFF);
 
     // Assumption CPU start to operate instantaneously without any latency
@@ -568,16 +568,12 @@ BaseCPU::enterPwrGating(void)
 }
 
 void
-BaseCPU::switchOut()
+BaseCPU::unplug()
 {
-    assert(!_switchedOut);
-    _switchedOut = true;
+    assert(!_unplugged);
+    _unplugged = true;
     if (profileEvent && profileEvent->scheduled())
         deschedule(profileEvent);
-
-    // Flush all TLBs in the CPU to avoid having stale translations if
-    // it gets switched in later.
-    flushTLBs();
 
     // Go to the power gating state
     ClockedObject::pwrState(Enums::PwrState::OFF);
@@ -588,17 +584,17 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
 {
     assert(threadContexts.size() == oldCPU->threadContexts.size());
     assert(_cpuId == oldCPU->cpuId());
-    assert(_switchedOut);
+    assert(_unplugged);
     assert(oldCPU != this);
     _pid = oldCPU->getPid();
     _taskId = oldCPU->taskId();
-    // Take over the power state of the switchedOut CPU
+    // Take over the power state of the isUnplugged CPU
     ClockedObject::pwrState(oldCPU->pwrState());
 
     previousState = oldCPU->previousState;
     previousCycle = oldCPU->previousCycle;
 
-    _switchedOut = false;
+    _unplugged = false;
 
     ThreadID size = threadContexts.size();
     for (ThreadID i = 0; i < size; ++i) {
@@ -620,75 +616,14 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
             ThreadContext::compare(oldTC, newTC);
         */
 
-        BaseMasterPort *old_itb_port = oldTC->getITBPtr()->getMasterPort();
-        BaseMasterPort *old_dtb_port = oldTC->getDTBPtr()->getMasterPort();
-        BaseMasterPort *new_itb_port = newTC->getITBPtr()->getMasterPort();
-        BaseMasterPort *new_dtb_port = newTC->getDTBPtr()->getMasterPort();
-
-        // Move over any table walker ports if they exist
-        if (new_itb_port) {
-            assert(!new_itb_port->isConnected());
-            assert(old_itb_port);
-            assert(old_itb_port->isConnected());
-            BaseSlavePort &slavePort = old_itb_port->getSlavePort();
-            old_itb_port->unbind();
-            new_itb_port->bind(slavePort);
-        }
-        if (new_dtb_port) {
-            assert(!new_dtb_port->isConnected());
-            assert(old_dtb_port);
-            assert(old_dtb_port->isConnected());
-            BaseSlavePort &slavePort = old_dtb_port->getSlavePort();
-            old_dtb_port->unbind();
-            new_dtb_port->bind(slavePort);
-        }
         newTC->getITBPtr()->takeOverFrom(oldTC->getITBPtr());
         newTC->getDTBPtr()->takeOverFrom(oldTC->getDTBPtr());
-
-        // Checker whether or not we have to transfer CheckerCPU
-        // objects over in the switch
-        CheckerCPU *oldChecker = oldTC->getCheckerCpuPtr();
-        CheckerCPU *newChecker = newTC->getCheckerCpuPtr();
-        if (oldChecker && newChecker) {
-            BaseMasterPort *old_checker_itb_port =
-                oldChecker->getITBPtr()->getMasterPort();
-            BaseMasterPort *old_checker_dtb_port =
-                oldChecker->getDTBPtr()->getMasterPort();
-            BaseMasterPort *new_checker_itb_port =
-                newChecker->getITBPtr()->getMasterPort();
-            BaseMasterPort *new_checker_dtb_port =
-                newChecker->getDTBPtr()->getMasterPort();
-
-            newChecker->getITBPtr()->takeOverFrom(oldChecker->getITBPtr());
-            newChecker->getDTBPtr()->takeOverFrom(oldChecker->getDTBPtr());
-
-            // Move over any table walker ports if they exist for checker
-            if (new_checker_itb_port) {
-                assert(!new_checker_itb_port->isConnected());
-                assert(old_checker_itb_port);
-                assert(old_checker_itb_port->isConnected());
-                BaseSlavePort &slavePort =
-                    old_checker_itb_port->getSlavePort();
-                old_checker_itb_port->unbind();
-                new_checker_itb_port->bind(slavePort);
-            }
-            if (new_checker_dtb_port) {
-                assert(!new_checker_dtb_port->isConnected());
-                assert(old_checker_dtb_port);
-                assert(old_checker_dtb_port->isConnected());
-                BaseSlavePort &slavePort =
-                    old_checker_dtb_port->getSlavePort();
-                old_checker_dtb_port->unbind();
-                new_checker_dtb_port->bind(slavePort);
-            }
-        }
     }
 
-    interrupts = oldCPU->interrupts;
+    assert(interrupts == oldCPU->interrupts);
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         interrupts[tid]->setCPU(this);
     }
-    oldCPU->interrupts.clear();
 
     if (FullSystem) {
         for (ThreadID i = 0; i < size; ++i)
@@ -697,22 +632,6 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
         if (profileEvent)
             schedule(profileEvent, curTick());
     }
-
-    // All CPUs have an instruction and a data port, and the new CPU's
-    // ports are dangling while the old CPU has its ports connected
-    // already. Unbind the old CPU and then bind the ports of the one
-    // we are switching to.
-    assert(!getInstPort().isConnected());
-    assert(oldCPU->getInstPort().isConnected());
-    BaseSlavePort &inst_peer_port = oldCPU->getInstPort().getSlavePort();
-    oldCPU->getInstPort().unbind();
-    getInstPort().bind(inst_peer_port);
-
-    assert(!getDataPort().isConnected());
-    assert(oldCPU->getDataPort().isConnected());
-    BaseSlavePort &data_peer_port = oldCPU->getDataPort().getSlavePort();
-    oldCPU->getDataPort().unbind();
-    getDataPort().bind(data_peer_port);
 }
 
 void
@@ -747,7 +666,7 @@ BaseCPU::serialize(CheckpointOut &cp) const
 {
     SERIALIZE_SCALAR(instCnt);
 
-    if (!_switchedOut) {
+    if (!_unplugged) {
         /* Unlike _pid, _taskId is not serialized, as they are dynamically
          * assigned unique ids that are only meaningful for the duration of
          * a specific run. We will need to serialize the entire taskMap in
@@ -768,7 +687,7 @@ BaseCPU::unserialize(CheckpointIn &cp)
 {
     UNSERIALIZE_SCALAR(instCnt);
 
-    if (!_switchedOut) {
+    if (!_unplugged) {
         UNSERIALIZE_SCALAR(_pid);
 
         // Unserialize the threads, this is done by the CPU implementation.

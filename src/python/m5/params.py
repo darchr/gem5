@@ -1354,10 +1354,16 @@ class Enum(ParamValue):
     enum_name = None
 
     def __init__(self, value):
-        if value not in self.map:
+        # If we are initialized with an instance of the C++ enumeration...
+        if type(value) is not str:
+            # Do a reverse lookup in the map (note: keys() and values() are
+            # guarenteed to have the same, consistent, order)
+            self.value = self.map.keys()[self.map.values().index(int(value))]
+        elif value not in self.map:
             raise TypeError, "Enum param got bad value '%s' (not in %s)" \
                   % (value, self.vals)
-        self.value = value
+        else:
+            self.value = value
 
     def __call__(self, value):
         self.__init__(value)

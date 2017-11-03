@@ -103,7 +103,7 @@ AtomicSimpleCPU::drain()
     // Deschedule any power gating event (if any)
     deschedulePowerGatingEvent();
 
-    if (switchedOut())
+    if (isUnplugged())
         return DrainState::Drained;
 
     if (!isDrained()) {
@@ -141,7 +141,7 @@ void
 AtomicSimpleCPU::drainResume()
 {
     assert(!tickEvent.scheduled());
-    if (switchedOut())
+    if (isUnplugged())
         return;
 
     DPRINTF(SimpleCPU, "Resume\n");
@@ -188,9 +188,9 @@ AtomicSimpleCPU::tryCompleteDrain()
 
 
 void
-AtomicSimpleCPU::switchOut()
+AtomicSimpleCPU::unplug()
 {
-    BaseSimpleCPU::switchOut();
+    BaseSimpleCPU::unplug();
 
     assert(!tickEvent.scheduled());
     assert(_status == BaseSimpleCPU::Running || _status == Idle);

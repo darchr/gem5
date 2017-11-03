@@ -72,7 +72,7 @@ template<class Impl>
 void
 LSQUnit<Impl>::WritebackEvent::process()
 {
-    assert(!lsqPtr->cpu->switchedOut());
+    assert(!lsqPtr->cpu->isUnplugged());
 
     lsqPtr->writeback(inst, pkt);
 
@@ -113,7 +113,7 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
         return;
     }
 
-    assert(!cpu->switchedOut());
+    assert(!cpu->isUnplugged());
     if (!inst->isSquashed()) {
         if (!state->noWB) {
             // Only loads and store conditionals perform the writeback

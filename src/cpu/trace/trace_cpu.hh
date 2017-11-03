@@ -188,10 +188,10 @@ class TraceCPU : public BaseCPU
     /*
      * When resuming from checkpoint in FS mode, the TraceCPU takes over from
      * the old cpu. This function overrides the takeOverFrom() function in the
-     * BaseCPU. It unbinds the ports of the old CPU and binds the ports of the
-     * TraceCPU.
+     * BaseCPU. No need to perform any actions here since the ports are handled
+     * by the hotplug interface.
      */
-    void takeOverFrom(BaseCPU *oldCPU);
+    void takeOverFrom(BaseCPU *oldCPU) { }
 
     /**
      * When instruction cache port receives a retry, schedule event

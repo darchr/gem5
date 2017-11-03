@@ -265,17 +265,17 @@ def switchCpus(system, cpuList, verbose=True):
         if new_cpu in old_cpu_set:
             raise RuntimeError, \
                 "New CPU (%s) is in the list of old CPUs." % (old_cpu,)
-        if not new_cpu.switchedOut():
+        if not new_cpu.isUnplugged():
             raise RuntimeError, \
                 "New CPU (%s) is already active." % (new_cpu,)
         if not new_cpu.support_take_over():
             raise RuntimeError, \
                 "New CPU (%s) does not support CPU handover." % (old_cpu,)
-        if new_cpu.memory_mode() != memory_mode_name:
+        if new_cpu.memory_mode() != memory_mode:
             raise RuntimeError, \
                 "%s and %s require different memory modes." % (new_cpu,
                                                                new_cpus[0])
-        if old_cpu.switchedOut():
+        if old_cpu.isUnplugged():
             raise RuntimeError, \
                 "Old CPU (%s) is inactive." % (new_cpu,)
         if not old_cpu.support_take_over():
@@ -286,7 +286,7 @@ def switchCpus(system, cpuList, verbose=True):
 
     # Now all of the CPUs are ready to be switched out
     for old_cpu, new_cpu in cpuList:
-        old_cpu.switchOut()
+        old_cpu.unplug()
 
     # Change the memory mode if required. We check if this is needed
     # to avoid printing a warning if no switch was performed.
@@ -301,7 +301,7 @@ def switchCpus(system, cpuList, verbose=True):
         _changeMemoryMode(system, memory_mode)
 
     for old_cpu, new_cpu in cpuList:
-        new_cpu.takeOverFrom(old_cpu)
+        new_cpu.plugIn(old_cpu)
 
 def notifyFork(root):
     for obj in root.descendants():
