@@ -1147,6 +1147,14 @@ class SimObject(object):
                       (e, self.__class__.__name__, attr, value)
                 e.args = (msg, )
                 raise
+
+            # If we are overwriting a SimObject, we need to remove ourselves
+            # as its parent. This happens when you override default values
+            # of parameters that are other SimObjects
+            if self._values.has_key(attr) and \
+                    isSimObjectOrVector(self._values[attr]):
+                self.clear_child(attr)
+
             self._values[attr] = value
             # implicitly parent unparented objects assigned as params
             if isSimObjectOrVector(value) and not value.has_parent():
