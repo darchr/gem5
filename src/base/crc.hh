@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2015 ARM Limited
+ * Copyright (c) 2017 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -34,81 +34,48 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors: William Wang
- *          Ali Saidi
- *          Chris Emmons
- *          Andreas Sandberg
+ * Authors: Giacomo Travaglini
  */
 
-#include "base/bitmap.hh"
+#ifndef __BASE_CRC_HH__
+#define __BASE_CRC_HH__
 
-#include <cassert>
+#include "base/bitfield.hh"
 
-#include "base/misc.hh"
-
-// bitmap class ctor
-Bitmap::Bitmap(const FrameBuffer *_fb)
-    : fb(*_fb)
+/**
+ * Evaluate the CRC32 of the first size bytes of a data buffer,
+ * using a specific polynomium and an initial value.
+ * The crc is accomplished by reversing the input, the initial value
+ * and the output (remainder).
+ *
+ * @param data: Input data buffer pointer
+ * @param crc:  Initial value of the checksum
+ * @param size: Number of bytes
+ *
+ * @return 32-bit remainder of the checksum
+ */
+template <uint32_t Poly>
+uint32_t
+crc32(const uint8_t* data, uint32_t crc, std::size_t size)
 {
-}
+    uint32_t byte = 0;
 
-Bitmap::~Bitmap()
-{
-}
+    crc = reverseBits(crc);
+    for (auto i = 0; i < size; i++) {
+        byte = data[i];
 
-const Bitmap::CompleteV1Header
-Bitmap::getCompleteHeader() const
-{
-    const uint32_t pixel_array_size(sizeof(PixelType) * fb.area());
-    const uint32_t file_size(sizeof(CompleteV1Header) + pixel_array_size);
-
-    const CompleteV1Header header = {
-        // File header
-        {
-            {'B','M'}, /* Magic */
-            file_size,
-            0, 0, /* Reserved */
-            sizeof(CompleteV1Header) /* Offset to pixel array */
-        },
-        // Info/DIB header
-        {
-            sizeof(InfoHeaderV1),
-            fb.width(),
-            fb.height(),
-            1, /* Color planes */
-            32, /* Bits per pixel */
-            0, /* No compression */
-            pixel_array_size, /* Image size in bytes */
-            2835, /* x pixels per meter (assume 72 DPI) */
-            2835, /* y pixels per meter (assume 72 DPI) */
-            0, /* Colors in color table */
-            0 /* Important color count (0 == all are important) */
+        // 32-bit reverse
+        byte = reverseBits(byte);
+        for (auto j = 0; j <= 7; j++) {
+            if ((int)(crc ^ byte) < 0) {
+                crc = (crc << 1) ^ Poly;
+            } else {
+                crc = crc << 1;
+            }
+            byte = byte << 1;
         }
-    };
-
-    return header;
-}
-
-void
-Bitmap::write(std::ostream &bmp) const
-{
-    const CompleteV1Header header(getCompleteHeader());
-
-    // 1.  write the header
-    bmp.write(reinterpret_cast<const char *>(&header), sizeof(header));
-
-    // 2.  write the bitmap data
-    // BMP start store data left to right starting with the bottom row
-    // so we need to do some creative flipping
-    std::vector<PixelType> line_buffer(fb.width());
-    for (int y = 0; y < fb.height(); ++y) {
-        for (unsigned x = 0; x < fb.width(); ++x)
-            line_buffer[x] = fb.pixel(x, fb.height() - y - 1);
-
-        bmp.write(reinterpret_cast<const char *>(line_buffer.data()),
-                  line_buffer.size() * sizeof(line_buffer[0]));
     }
-
-    bmp.flush();
+    return reverseBits(crc);
 }
 
+#endif // __BASE_CRC_HH__

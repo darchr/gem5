@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2015 ARM Limited
+ * Copyright (c) 2014, 2017 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -34,93 +34,62 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors: William Wang
- *          Ali Saidi
- *          Chris Emmons
- *          Andreas Sandberg
- */
-#ifndef __BASE_BITMAP_HH__
-#define __BASE_BITMAP_HH__
-
-#include <ostream>
-
-#include "base/compiler.hh"
-#include "base/framebuffer.hh"
-
-/**
- * @file Declaration of a class that writes a frame buffer to a bitmap
+ * Authors: Andreas Sandberg
  */
 
+#include "dev/serial/serial.hh"
 
-// write frame buffer into a bitmap picture
-class  Bitmap
+#include "base/misc.hh"
+#include "params/SerialDevice.hh"
+#include "params/SerialNullDevice.hh"
+
+SerialDevice::SerialDevice(const SerialDeviceParams *p)
+    : SimObject(p), interfaceCallback(nullptr)
 {
-  public:
-    /**
-     * Create a bitmap that takes data in a given mode & size and
-     * outputs to an ostream.
-     */
-    Bitmap(const FrameBuffer *fb);
+}
 
-    ~Bitmap();
+SerialDevice::~SerialDevice()
+{
+}
 
-    /**
-     * Write the frame buffer data into the provided ostream
-     *
-     * @param bmp stream to write to
-     */
-    void write(std::ostream &bmp) const;
+void
+SerialDevice::regInterfaceCallback(Callback *c)
+{
+    // This can happen if the user has connected multiple UARTs to the
+    // same terminal. In that case, each of them tries to register
+    // callbacks.
+    if (interfaceCallback)
+        fatal("A UART has already been associated with this device.\n");
+    interfaceCallback = c;
+}
+
+void
+SerialDevice::notifyInterface()
+{
+    assert(dataAvailable());
+    // Registering a callback is optional.
+    if (interfaceCallback)
+        interfaceCallback->process();
+}
 
 
-  private:
-    struct FileHeader {
-        unsigned char magic_number[2];
-        uint32_t size;
-        uint16_t reserved1;
-        uint16_t reserved2;
-        uint32_t offset;
-    } M5_ATTR_PACKED;
 
-    struct InfoHeaderV1 { /* Aka DIB header */
-        uint32_t Size;
-        uint32_t Width;
-        uint32_t Height;
-        uint16_t Planes;
-        uint16_t BitCount;
-        uint32_t Compression;
-        uint32_t SizeImage;
-        uint32_t XPelsPerMeter;
-        uint32_t YPelsPerMeter;
-        uint32_t ClrUsed;
-        uint32_t ClrImportant;
-    } M5_ATTR_PACKED;
 
-    struct CompleteV1Header {
-        FileHeader file;
-        InfoHeaderV1 info;
-    } M5_ATTR_PACKED;
+SerialNullDevice::SerialNullDevice(const SerialNullDeviceParams *p)
+    : SerialDevice(p)
+{
+}
 
-    struct BmpPixel32 {
-        BmpPixel32 &operator=(const Pixel &rhs) {
-            red = rhs.red;
-            green = rhs.green;
-            blue = rhs.blue;
-            padding = 0;
+uint8_t
+SerialNullDevice::readData()
+{
+    panic("SerialNullDevice does not have pending data.\n");
+}
 
-            return *this;
-        }
-        uint8_t blue;
-        uint8_t green;
-        uint8_t red;
-        uint8_t padding;
-    } M5_ATTR_PACKED;
 
-    typedef BmpPixel32 PixelType;
 
-    const CompleteV1Header getCompleteHeader() const;
-
-    const FrameBuffer &fb;
-};
-
-#endif // __BASE_BITMAP_HH__
-
+SerialNullDevice *
+SerialNullDeviceParams::create()
+{
+    return new SerialNullDevice(this);
+}
