@@ -115,35 +115,35 @@ matrix:
 
     # works on Precise and Trusty
     - os: linux
-     addons:
-       apt:
-         sources:
-           - ubuntu-toolchain-r-test
-         packages:
-           - g++-6
-           - swig
-           - libprotobuf-dev
-           - python-protobuf
-           - protobuf-compiler
-           - libgoogle-perftools-dev
-     env:
-       - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
-       - VARIANT=opt
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7
+            - swig
+            - libprotobuf-dev
+            - python-protobuf
+            - protobuf-compiler
+            - libgoogle-perftools-dev
+      env:
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+        - VARIANT=opt
     - os: linux
-     addons:
-       apt:
-         sources:
-           - ubuntu-toolchain-r-test
-         packages:
-           - g++-7
-           - swig
-           - libprotobuf-dev
-           - python-protobuf
-           - protobuf-compiler
-           - libgoogle-perftools-dev
-     env:
-       - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
-       - VARIANT=fast
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7
+            - swig
+            - libprotobuf-dev
+            - python-protobuf
+            - protobuf-compiler
+            - libgoogle-perftools-dev
+      env:
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+        - VARIANT=fast
 
     # works on Trusty
     - os: linux
