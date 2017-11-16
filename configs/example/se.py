@@ -196,6 +196,7 @@ system.cpu_voltage_domain = VoltageDomain()
 system.cpu_clk_domain = SrcClockDomain(clock = options.cpu_clock,
                                        voltage_domain =
                                        system.cpu_voltage_domain)
+options.cpu_type = "O3_ARM_v7a_3"
 
 # If elastic tracing is enabled, then configure the cpu and attach the elastic
 # trace probe

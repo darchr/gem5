@@ -121,9 +121,12 @@ class CpuCluster(SubSystem):
         self.voltage_domain = VoltageDomain(voltage=cpu_voltage)
         self.clk_domain = SrcClockDomain(clock=cpu_clock,
                                          voltage_domain=self.voltage_domain)
+        # self.cpu_domain = SrcClockDomain(clock="100GHz",
+        #                                 voltage_domain=self.voltage_domain)
 
         self.cpus = [ self._cpu_type(cpu_id=system.numCpus() + idx,
-                                     clk_domain=self.clk_domain)
+                            clk_domain=SrcClockDomain(clock="100GHz",
+                                  voltage_domain=self.voltage_domain))
                       for idx in range(num_cpus) ]
 
         for cpu in self.cpus:
@@ -145,6 +148,10 @@ class CpuCluster(SubSystem):
             iwc = None if self._wcache_type is None else self._wcache_type()
             dwc = None if self._wcache_type is None else self._wcache_type()
             cpu.addPrivateSplitL1Caches(l1i, l1d, iwc, dwc)
+            l1i.clk_domain = self.clk_domain
+            l1d.clk_domain = self.clk_domain
+            iwc.clk_domain = self.clk_domain
+            dwc.clk_domain = self.clk_domain
 
     def addL2(self, clk_domain):
         if self._l2_type is None:
