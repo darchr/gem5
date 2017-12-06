@@ -1,6 +1,6 @@
 /*
  * Copyright 2014 Google, Inc.
- * Copyright (c) 2010-2013,2015 ARM Limited
+ * Copyright (c) 2010-2013,2015,2017 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -94,6 +94,9 @@ TimingSimpleCPU::~TimingSimpleCPU()
 DrainState
 TimingSimpleCPU::drain()
 {
+    // Deschedule any power gating event (if any)
+    deschedulePowerGatingEvent();
+
     if (switchedOut())
         return DrainState::Drained;
 
@@ -146,6 +149,9 @@ TimingSimpleCPU::drainResume()
         }
     }
 
+    // Reschedule any power gating event (if any)
+    schedulePowerGatingEvent();
+
     system->totalNumInsts = 0;
 }
 
@@ -179,6 +185,7 @@ TimingSimpleCPU::switchOut()
     assert(thread->microPC() == 0);
 
     updateCycleCounts();
+    updateCycleCounters(BaseCPU::CPU_STATE_ON);
 }
 
 
@@ -357,6 +364,7 @@ TimingSimpleCPU::translationFault(const Fault &fault)
     // fault may be NoFault in cases where a fault is suppressed,
     // for instance prefetches.
     updateCycleCounts();
+    updateCycleCounters(BaseCPU::CPU_STATE_ON);
 
     if (traceData) {
         // Since there was a fault, we shouldn't trace this instruction.
@@ -502,7 +510,7 @@ TimingSimpleCPU::writeMem(uint8_t *data, unsigned size,
     BaseTLB::Mode mode = BaseTLB::Write;
 
     if (data == NULL) {
-        assert(flags & Request::CACHE_BLOCK_ZERO);
+        assert(flags & Request::STORE_NO_DATA);
         // This must be a cache block cleaning request
         memset(newData, 0, size);
     } else {
@@ -625,6 +633,7 @@ TimingSimpleCPU::fetch()
         completeIfetch(NULL);
 
         updateCycleCounts();
+        updateCycleCounters(BaseCPU::CPU_STATE_ON);
     }
 }
 
@@ -658,6 +667,7 @@ TimingSimpleCPU::sendFetch(const Fault &fault, RequestPtr req,
     }
 
     updateCycleCounts();
+    updateCycleCounters(BaseCPU::CPU_STATE_ON);
 }
 
 
@@ -715,6 +725,7 @@ TimingSimpleCPU::completeIfetch(PacketPtr pkt)
     _status = BaseSimpleCPU::Running;
 
     updateCycleCounts();
+    updateCycleCounters(BaseCPU::CPU_STATE_ON);
 
     if (pkt)
         pkt->req->setAccessLatency();
@@ -815,6 +826,7 @@ TimingSimpleCPU::completeDataAccess(PacketPtr pkt)
     pkt->req->setAccessLatency();
 
     updateCycleCounts();
+    updateCycleCounters(BaseCPU::CPU_STATE_ON);
 
     if (pkt->senderState) {
         SplitFragmentSenderState * send_state =
@@ -869,7 +881,6 @@ TimingSimpleCPU::updateCycleCounts()
     const Cycles delta(curCycle() - previousCycle);
 
     numCycles += delta;
-    ppCycles->notify(delta);
 
     previousCycle = curCycle();
 }

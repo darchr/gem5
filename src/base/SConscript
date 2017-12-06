@@ -51,9 +51,10 @@ Source('hostinfo.cc')
 Source('inet.cc')
 Source('inifile.cc')
 Source('intmath.cc')
+Source('logging.cc')
 Source('match.cc')
-Source('misc.cc')
 Source('output.cc')
+Source('pixel.cc')
 Source('pollevent.cc')
 Source('random.cc')
 if env['TARGET_ISA'] != 'null':
@@ -75,6 +76,8 @@ Source('loader/raw_object.cc')
 Source('loader/symtab.cc')
 
 Source('stats/text.cc')
+
+GTest('bituniontest', 'bituniontest.cc')
 
 DebugFlag('Annotate', "State machine annotation debugging")
 DebugFlag('AnnotateQ', "State machine annotation queue debugging")

@@ -34,7 +34,7 @@
 #include <string>
 
 #include "base/cprintf.hh"
-#include "base/misc.hh"
+#include "base/logging.hh"
 
 using namespace std;
 
@@ -45,7 +45,7 @@ main()
     cprintf("%s\n", foo);
 
     string _bar = "asdfkhasdlkfjhasdlkfhjalksdjfhalksdjhfalksdjfhalksdjhf";
-    int length = 11;
+    const int length = 11;
     char bar[length + 1];
     bar[length] = 0;
 
