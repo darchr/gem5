@@ -316,9 +316,9 @@ class SerialLink : public MemObject
   public:
 
     virtual BaseMasterPort& getMasterPort(const std::string& if_name,
-                                          PortID idx = InvalidPortID);
+                                          PortID idx = InvalidPortID) override;
     virtual BaseSlavePort& getSlavePort(const std::string& if_name,
-                                        PortID idx = InvalidPortID);
+                                        PortID idx = InvalidPortID) override;
 
     virtual void init();
 

@@ -441,7 +441,7 @@ class CoherentXBar : public BaseXBar
 
     virtual ~CoherentXBar();
 
-    virtual void regStats();
+    virtual void regStats() override;
 };
 
 #endif //__MEM_COHERENT_XBAR_HH__

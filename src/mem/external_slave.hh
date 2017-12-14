@@ -128,7 +128,7 @@ class ExternalSlave : public MemObject
 
     /** SlavePort interface.  Responds only to port "port" */
     BaseSlavePort &getSlavePort(const std::string &if_name,
-        PortID idx = InvalidPortID);
+        PortID idx = InvalidPortID) override;
 
     /** Register a handler which can provide ports with port_type ==
      *  handler_name */

@@ -456,15 +456,15 @@ class BaseXBar : public MemObject
 
     virtual ~BaseXBar();
 
-    virtual void init();
+    virtual void init() override;
 
     /** A function used to return the port associated with this object. */
     BaseMasterPort& getMasterPort(const std::string& if_name,
-                                  PortID idx = InvalidPortID);
+                                  PortID idx = InvalidPortID) override;
     BaseSlavePort& getSlavePort(const std::string& if_name,
-                                PortID idx = InvalidPortID);
+                                PortID idx = InvalidPortID) override;
 
-    virtual void regStats();
+    virtual void regStats() override;
 
 };
 
