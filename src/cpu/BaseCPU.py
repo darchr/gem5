@@ -111,7 +111,8 @@ class BaseCPU(MemObject):
     @classmethod
     def memory_mode(cls):
         """Which memory mode does this CPU require?"""
-        return 'invalid'
+        from m5 import objects
+        return objects.params.invalid
 
     @classmethod
     def require_caches(cls):

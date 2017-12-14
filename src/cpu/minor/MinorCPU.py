@@ -178,7 +178,8 @@ class MinorCPU(BaseCPU):
 
     @classmethod
     def memory_mode(cls):
-        return 'timing'
+        from m5 import objects
+        return objects.params.timing
 
     @classmethod
     def require_caches(cls):

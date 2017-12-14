@@ -35,7 +35,8 @@ class TimingSimpleCPU(BaseSimpleCPU):
 
     @classmethod
     def memory_mode(cls):
-        return 'timing'
+        from m5 import objects
+        return objects.params.timing
 
     @classmethod
     def support_take_over(cls):

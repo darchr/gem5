@@ -61,12 +61,6 @@ from util import attrdict
 # define a MaxTick parameter, unsigned 64 bit
 MaxTick = 2**64 - 1
 
-_memory_modes = {
-    "atomic" : objects.params.atomic,
-    "timing" : objects.params.timing,
-    "atomic_noncaching" : objects.params.atomic_noncaching,
-    }
-
 _drain_manager = _m5.drain.DrainManager.instance()
 
 # The final hook to generate .ini files.  Called from the user script
@@ -259,7 +253,7 @@ def switchCpus(system, cpuList, verbose=True):
     old_cpus = [old_cpu for old_cpu, new_cpu in cpuList]
     new_cpus = [new_cpu for old_cpu, new_cpu in cpuList]
     old_cpu_set = set(old_cpus)
-    memory_mode_name = new_cpus[0].memory_mode()
+    memory_mode = new_cpus[0].memory_mode()
     for old_cpu, new_cpu in cpuList:
         if not isinstance(old_cpu, objects.BaseCPU):
             raise TypeError, "%s is not of type BaseCPU" % old_cpu
@@ -284,11 +278,6 @@ def switchCpus(system, cpuList, verbose=True):
         if not old_cpu.support_take_over():
             raise RuntimeError, \
                 "Old CPU (%s) does not support CPU handover." % (old_cpu,)
-
-    try:
-        memory_mode = _memory_modes[memory_mode_name]
-    except KeyError:
-        raise RuntimeError, "Invalid memory mode (%s)" % memory_mode_name
 
     drain()
 

@@ -52,7 +52,8 @@ class AtomicSimpleCPU(BaseSimpleCPU):
 
     @classmethod
     def memory_mode(cls):
-        return 'atomic'
+        from m5 import objects
+        return objects.params.atomic
 
     @classmethod
     def support_take_over(cls):

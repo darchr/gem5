@@ -54,7 +54,8 @@ class BaseKvmCPU(BaseCPU):
 
     @classmethod
     def memory_mode(cls):
-        return 'atomic_noncaching'
+        from m5 import objects
+        return objects.params.atomic_noncaching
 
     @classmethod
     def require_caches(cls):
