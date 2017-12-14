@@ -87,8 +87,6 @@ class TLB : public BaseTLB
     MipsISA::PTE *getEntry(unsigned) const;
     virtual ~TLB();
 
-    void takeOverFrom(BaseTLB *otlb) override {}
-
     int smallPages;
     int getsize() const { return size; }
 

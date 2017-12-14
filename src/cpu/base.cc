@@ -616,8 +616,8 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
             ThreadContext::compare(oldTC, newTC);
         */
 
-        newTC->getITBPtr()->takeOverFrom(oldTC->getITBPtr());
-        newTC->getDTBPtr()->takeOverFrom(oldTC->getDTBPtr());
+        assert(newTC->getITBPtr() == oldTC->getITBPtr());
+        assert(newTC->getDTBPtr() == oldTC->getDTBPtr());
     }
 
     assert(interrupts == oldCPU->interrupts);

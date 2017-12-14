@@ -71,6 +71,7 @@ void
 O3ThreadContext<Impl>::takeOverFrom(ThreadContext *old_context)
 {
     ::takeOverFrom(*this, *old_context);
+
     TheISA::Decoder *newDecoder = getDecoderPtr();
     TheISA::Decoder *oldDecoder = old_context->getDecoderPtr();
     newDecoder->takeOverFrom(oldDecoder);
@@ -339,4 +340,3 @@ O3ThreadContext<Impl>::setMiscReg(int misc_reg, const MiscReg &val)
 
     conditionalSquash();
 }
-

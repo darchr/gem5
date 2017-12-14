@@ -133,8 +133,6 @@ class TLB : public BaseTLB
     TLB(const Params *p);
     virtual ~TLB();
 
-    void takeOverFrom(BaseTLB *otlb) override {}
-
     int probeEntry(Addr vpn,uint8_t) const;
     PowerISA::PTE *getEntry(unsigned) const;
 

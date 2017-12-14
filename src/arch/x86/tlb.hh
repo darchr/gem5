@@ -69,8 +69,6 @@ namespace X86ISA
         typedef X86TLBParams Params;
         TLB(const Params *p);
 
-        void takeOverFrom(BaseTLB *otlb) override {}
-
         TlbEntry *lookup(Addr va, bool update_lru = true);
 
         void setConfigAddress(uint32_t addr);

@@ -204,8 +204,6 @@ class TLB : public BaseTLB
 
     virtual ~TLB();
 
-    void takeOverFrom(BaseTLB *otlb) override;
-
     /// setup all the back pointers
     void init() override;
 

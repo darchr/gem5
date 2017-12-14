@@ -153,8 +153,6 @@ class TLB : public BaseTLB
     typedef SparcTLBParams Params;
     TLB(const Params *p);
 
-    void takeOverFrom(BaseTLB *otlb) override {}
-
     void
     demapPage(Addr vaddr, uint64_t asn) override
     {

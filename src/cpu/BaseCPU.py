@@ -156,6 +156,8 @@ class BaseCPU(MemObject):
         other.workload = self.workload
 
         # If we want to use this CPU to warm up, then the TLBs must be the same
+        # Since we don't have different TLB models for detailed/warmup CPUs
+        # this doesn't make any difference to runtime
         other.dtb = self.dtb
         other.itb = self.itb
 
