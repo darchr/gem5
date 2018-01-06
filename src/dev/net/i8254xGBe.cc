@@ -2448,8 +2448,9 @@ IGbE::tick()
     while (txFifoTick)
         txWire();
 
-    if (rxTick || txTick || txFifoTick)
+    if ((rxTick || txTick || txFifoTick) && !tickEvent.scheduled()) {
         schedule(tickEvent, curTick() + clockPeriod());
+    }
 
     inTick = false;
 }
