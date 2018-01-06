@@ -549,8 +549,14 @@ class IGbEInt : public EtherInt
         : EtherInt(name), dev(d)
     { }
 
-    virtual bool recvPacket(EthPacketPtr pkt) { return dev->ethRxPkt(pkt); }
-    virtual void sendDone() { dev->ethTxDone(); }
+    virtual bool recvPacket(EthPacketPtr pkt) {
+        EventQueue::ScopedMigration migrate(dev->eventQueue());
+        return dev->ethRxPkt(pkt);
+    }
+    virtual void sendDone() {
+        EventQueue::ScopedMigration migrate(dev->eventQueue());
+        dev->ethTxDone();
+    }
 };
 
 #endif //__DEV_NET_I8254XGBE_HH__
