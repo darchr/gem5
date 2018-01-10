@@ -120,20 +120,24 @@ class MySystem(LinuxX86System):
         if self._no_kvm:
             self.cpu = [AtomicSimpleCPU(cpu_id = i, switched_out = False)
                               for i in range(self._opts.cpus)]
+            map(lambda c: c.createThreads(), self.cpu)
         else:
             # Note KVM needs a VM and atomic_noncaching
             self.cpu = [X86KvmCPU(cpu_id = i)
                         for i in range(self._opts.cpus)]
+            map(lambda c: c.createThreads(), self.cpu)
             self.kvm_vm = KvmVM()
             self.mem_mode = 'atomic_noncaching'
 
             self.atomicCpu = [AtomicSimpleCPU(cpu_id = i,
                                               switched_out = True)
                               for i in range(self._opts.cpus)]
+            map(lambda c: c.createThreads(), self.atomicCpu)
 
         self.timingCpu = [DerivO3CPU(cpu_id = i,
                                      switched_out = True)
                    for i in range(self._opts.cpus)]
+        map(lambda c: c.createThreads(), self.timingCpu)
 
     def switchCpus(self, old, new):
         assert(new[0].switchedOut())
