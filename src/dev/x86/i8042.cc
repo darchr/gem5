@@ -242,10 +242,10 @@ X86ISA::I8042::write(PacketPtr pkt)
             panic("i8042 \"Read output port\" command not implemented.\n");
           case WriteOutputPort:
             lastCommand = WriteOutputPort;
-            break;
+            M5_FALLTHROUGH;
           case WriteKeyboardOutputBuff:
             lastCommand = WriteKeyboardOutputBuff;
-            break;
+            M5_FALLTHROUGH;
           case WriteMouseOutputBuff:
             DPRINTF(I8042, "Got command to write to mouse output buffer.\n");
             lastCommand = WriteMouseOutputBuff;
