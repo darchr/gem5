@@ -278,4 +278,27 @@ def macroop MOVSD_P_XMM {
 def macroop MOVSD_XMM_XMM {
     movfp xmml, xmmlm, dataSize=8
 };
+
+# Non-temporal load. For now, ignore the hint.
+# Implemented like movapd
+def macroop MOVNT_XMM_XMM {
+    panic("Not a real instruction")
+};
+
+def macroop MOVNT_XMM_M {
+    stfp xmml, seg, sib, "DISPLACEMENT", dataSize=8
+    stfp xmmh, seg, sib, "DISPLACEMENT + 8", dataSize=8
+};
+
+def macroop MOVNT_XMM_P {
+    panic("Not a real instruction")
+};
+
+def macroop MOVNT_M_XMM {
+    panic("Not a real instruction")
+};
+
+def macroop MOVNT_P_XMM {
+    panic("Not a real instruction")
+};
 '''

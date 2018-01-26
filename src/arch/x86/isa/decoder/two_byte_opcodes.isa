@@ -984,7 +984,7 @@
                     0x4: PMULHUW(Vo,Wo);
                     0x5: PMULHW(Vo,Wo);
                     0x6: CVTTPD2DQ(Vo,Wo);
-                    0x7: WarnUnimpl::movntdq_Mo_Vo();
+                    0x7: MOVNT(Vo,Wo);
                 }
                 // repne (0xF2)
                 0x8: decode OPCODE_OP_BOTTOM3 {
