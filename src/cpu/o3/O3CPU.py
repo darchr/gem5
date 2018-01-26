@@ -62,6 +62,10 @@ class DerivO3CPU(BaseCPU):
     def support_take_over(cls):
         return True
 
+    allNonSpeculative = Param.Bool(False, "Force no speculation")
+
+    loadNonSpeculative = Param.Bool(False, "Force no speculation on loads")
+
     activity = Param.Unsigned(0, "Initial count")
 
     cacheStorePorts = Param.Unsigned(200, "Cache Ports. "

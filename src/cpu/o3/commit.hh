@@ -476,6 +476,12 @@ class DefaultCommit
         a possible livelock senario.  */
     bool avoidQuiesceLiveLock;
 
+    bool allNonSpeculative;
+
+    bool loadNonSpeculative;
+
+    bool isNonSpeculative(DynInstPtr inst);
+
     /** Updates commit stats based on this instruction. */
     void updateComInstStats(DynInstPtr &inst);
 

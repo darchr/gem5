@@ -80,6 +80,15 @@ DefaultCommit<Impl>::processTrapEvent(ThreadID tid)
 }
 
 template <class Impl>
+bool
+DefaultCommit<Impl>::isNonSpeculative(DynInstPtr inst)
+{
+    return (inst->isNonSpeculative() ||
+            allNonSpeculative ||
+            (loadNonSpeculative && inst->isLoad()));
+}
+
+template <class Impl>
 DefaultCommit<Impl>::DefaultCommit(O3CPU *_cpu, DerivO3CPUParams *params)
     : cpu(_cpu),
       iewToCommitDelay(params->iewToCommitDelay),
@@ -93,7 +102,9 @@ DefaultCommit<Impl>::DefaultCommit(O3CPU *_cpu, DerivO3CPUParams *params)
       drainImminent(false),
       trapLatency(params->trapLatency),
       canHandleInterrupts(true),
-      avoidQuiesceLiveLock(false)
+      avoidQuiesceLiveLock(false),
+      allNonSpeculative(params->allNonSpeculative),
+      loadNonSpeculative(params->loadNonSpeculative)
 {
     if (commitWidth > Impl::MaxWidth)
         fatal("commitWidth (%d) is larger than compiled limit (%d),\n"
@@ -1151,7 +1162,8 @@ DefaultCommit<Impl>::commitHead(DynInstPtr &head_inst, unsigned inst_num)
 
         // Make sure we are only trying to commit un-executed instructions we
         // think are possible.
-        assert(head_inst->isNonSpeculative() || head_inst->isStoreConditional()
+        assert(isNonSpeculative(head_inst)
+               || head_inst->isStoreConditional()
                || head_inst->isMemBarrier() || head_inst->isWriteBarrier() ||
                (head_inst->isLoad() && head_inst->strictlyOrdered()));
 

@@ -445,6 +445,12 @@ class InstructionQueue
      */
     Cycles commitToIEWDelay;
 
+    bool allNonSpeculative;
+
+    bool loadNonSpeculative;
+
+    bool isNonSpeculative(DynInstPtr inst);
+
     /** The sequence number of the squashed instruction. */
     InstSeqNum squashedSeqNum[Impl::MaxThreads];
 

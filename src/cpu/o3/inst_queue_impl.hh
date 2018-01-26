@@ -84,6 +84,15 @@ InstructionQueue<Impl>::FUCompletion::description() const
 }
 
 template <class Impl>
+bool
+InstructionQueue<Impl>::isNonSpeculative(DynInstPtr inst)
+{
+    return (inst->isNonSpeculative() ||
+            allNonSpeculative ||
+            (loadNonSpeculative && inst->isLoad()));
+}
+
+template <class Impl>
 InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
                                          DerivO3CPUParams *params)
     : cpu(cpu_ptr),
@@ -91,7 +100,9 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
       fuPool(params->fuPool),
       numEntries(params->numIQEntries),
       totalWidth(params->issueWidth),
-      commitToIEWDelay(params->commitToIEWDelay)
+      commitToIEWDelay(params->commitToIEWDelay),
+      allNonSpeculative(params->allNonSpeculative),
+      loadNonSpeculative(params->loadNonSpeculative)
 {
     assert(fuPool);
 
@@ -1267,7 +1278,7 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
 
             // Remove the instruction from the dependency list.
             if (is_acq_rel ||
-                (!squashed_inst->isNonSpeculative() &&
+                (!isNonSpeculative(squashed_inst) &&
                  !squashed_inst->isStoreConditional() &&
                  !squashed_inst->isMemBarrier() &&
                  !squashed_inst->isWriteBarrier())) {

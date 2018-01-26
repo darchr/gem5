@@ -64,6 +64,15 @@
 
 using namespace std;
 
+template <class Impl>
+bool
+DefaultIEW<Impl>::isNonSpeculative(DynInstPtr inst)
+{
+    return (inst->isNonSpeculative() ||
+            allNonSpeculative ||
+            (loadNonSpeculative && inst->isLoad()));
+}
+
 template<class Impl>
 DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
     : issueToExecQueue(params->backComSize, params->forwardComSize),
@@ -77,7 +86,9 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       dispatchWidth(params->dispatchWidth),
       issueWidth(params->issueWidth),
       wbWidth(params->wbWidth),
-      numThreads(params->numThreads)
+      numThreads(params->numThreads),
+      allNonSpeculative(params->allNonSpeculative),
+      loadNonSpeculative(params->loadNonSpeculative)
 {
     if (dispatchWidth > Impl::MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -1100,7 +1111,8 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             add_to_iq = true;
         }
 
-        if (inst->isNonSpeculative()) {
+        if (inst->isNonSpeculative() ||
+            (isNonSpeculative(inst) && add_to_iq)) {
             DPRINTF(IEW, "[tid:%i]: Issue: Nonspeculative instruction "
                     "encountered, skipping.\n", tid);
 
