@@ -207,8 +207,8 @@ class BankedL3Cache(SubSystem):
        Note: We cannot use the default prefetchers with a banked cache.
     """
 
-    SimpleOpts.add_option('--l3_size', default = '4MB',
-                          help="L3 cache size. Default: 4MB")
+    SimpleOpts.add_option('--l3_size', default = '1MB',
+                          help="L3 cache size. Default: 1MB")
     SimpleOpts.add_option('--l3_banks', default = 4, type = 'int',
                           help="L3 cache banks. Default: 4")
 

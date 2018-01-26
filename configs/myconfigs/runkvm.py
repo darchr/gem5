@@ -50,9 +50,6 @@ import SimpleOpts
 
 from system import MySystem
 
-SimpleOpts.add_option("--script", default='',
-                      help="Script to execute in the simulated system")
-
 if __name__ == "__m5_main__":
     (opts, args) = SimpleOpts.parse_args()
 
@@ -65,14 +62,18 @@ if __name__ == "__m5_main__":
     system.work_begin_exit_count = 1
     system.work_end_exit_count = 1
 
-    # Read in the script file passed in via an option.
-    # This file gets read and executed by the simulated system after boot.
-    # Note: The disk image needs to be configured to do this.
-    system.readfile = opts.script
+    if len(args) == 1:
+        workload = args[0]
+        from spec import make_script
+        make_script(workload)
+
+        # Read in the script file passed in via an option.
+        # This file gets read and executed by the simulated system after boot.
+        # Note: The disk image needs to be configured to do this.
+        system.readfile = 'script'
 
     # set up the root SimObject and start the simulation
-    root = Root(full_system = True, system = system,
-                time_sync_enable = True, time_sync_period = '1000us')
+    root = Root(full_system = True, system = system,)
 
     if system.getHostParallel():
         # Required for running kvm on multiple host cores.
@@ -120,3 +121,7 @@ if __name__ == "__m5_main__":
     if foundROI:
         print "Simulated time in ROI: %.2fs" % ((end_tick-start_tick)/1e12)
         print "Instructions executed in ROI: %d" % ((end_insts-start_insts))
+
+    if len(args) == 1:
+        from spec import rm_script
+        rm_script()

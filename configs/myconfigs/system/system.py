@@ -35,11 +35,11 @@ from caches import *
 
 class MySystem(LinuxX86System):
 
-    SimpleOpts.add_option("--no_host_parallel", default=False,
+    SimpleOpts.add_option("--host_parallel", default=False,
                 action="store_true",
-                help="Do NOT run gem5 on multiple host threads (kvm only)")
+                help="Do run gem5 on multiple host threads (kvm only)")
 
-    SimpleOpts.add_option("--cpus", default=2, type="int",
+    SimpleOpts.add_option("--cpus", default=1, type="int",
                           help="Number of CPUs in the system")
 
     SimpleOpts.add_option("--second_disk", default='',
@@ -54,7 +54,7 @@ class MySystem(LinuxX86System):
         self._no_kvm = no_kvm
         self._tuntap = opts.enable_tuntap
 
-        self._host_parallel = not self._opts.no_host_parallel
+        self._host_parallel = self._opts.host_parallel
 
         # Set up the clock domain and the voltage domain
         self.clk_domain = SrcClockDomain()
@@ -138,10 +138,29 @@ class MySystem(LinuxX86System):
                               for i in range(self._opts.cpus)]
             map(lambda c: c.createThreads(), self.atomicCpu)
 
-        self.timingCpu = [DerivO3CPU(cpu_id = i,
+        self.timingCpuBase = [DerivO3CPU(cpu_id = i,
                                      switched_out = True)
                    for i in range(self._opts.cpus)]
-        map(lambda c: c.createThreads(), self.timingCpu)
+        map(lambda c: c.createThreads(), self.timingCpuBase)
+
+        self.timingCpuNoSpec = [DerivO3CPU(cpu_id = i,
+                                     switched_out = True)
+                   for i in range(self._opts.cpus)]
+        map(lambda c: c.createThreads(), self.timingCpuNoSpec)
+        for cpu in self.timingCpuNoSpec:
+            cpu.allNonSpeculative = True
+
+        self.timingCpuNoLoad = [DerivO3CPU(cpu_id = i,
+                                     switched_out = True)
+                   for i in range(self._opts.cpus)]
+        map(lambda c: c.createThreads(), self.timingCpuNoLoad)
+        for cpu in self.timingCpuNoLoad:
+            cpu.loadNonSpeculative = True
+
+        self.timingCpuInOrder = [MinorCPU(cpu_id = i,
+                                     switched_out = True)
+                   for i in range(self._opts.cpus)]
+        map(lambda c: c.createThreads(), self.timingCpuInOrder)
 
     def switchCpus(self, old, new):
         assert(new[0].switchedOut())
