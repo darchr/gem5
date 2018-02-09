@@ -65,4 +65,13 @@ def macroop RDTSC
     srli t1, t1, 32, dataSize=8
     mov rdx, rdx, t1, dataSize=4
 };
+
+def macroop RDTSCP
+{
+    rdtsc t1
+    mov rax, rax, t1, dataSize=4
+    srli t1, t1, 32, dataSize=8
+    mov rdx, rdx, t1, dataSize=4
+    xor rcx, rcx, rcx
+};
 '''

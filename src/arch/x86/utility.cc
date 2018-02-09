@@ -138,7 +138,7 @@ void initCPU(ThreadContext *tc, int cpuId)
     }
 
     tc->setMiscReg(MISCREG_TSC, 0);
-    tc->setMiscReg(MISCREG_TSC_AUX, 0);
+    tc->setMiscReg(MISCREG_TSC_AUX, cpuId);
 
     for (int i = 0; i < 4; i++) {
         tc->setMiscReg(MISCREG_PERF_EVT_SEL(i), 0);
