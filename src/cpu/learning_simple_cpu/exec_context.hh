@@ -73,11 +73,19 @@ class LearningSimpleContext : public ExecContext {
 
     /** Reads an integer register. */
     IntReg readIntRegOperand(const StaticInst *si, int idx) override
-    { return thread.readIntReg(si->srcRegIdx(idx)); }
+    {
+        const RegId& reg = si->srcRegIdx(idx);
+        assert(reg.isIntReg());
+        return thread.readIntReg(reg.index());
+    }
 
     /** Sets an integer register to a value. */
     void setIntRegOperand(const StaticInst *si, int idx, IntReg val) override
-    { thread.setIntReg(si->destRegIdx(idx), val); }
+    {
+        const RegId& reg = si->destRegIdx(idx);
+        assert(reg.isIntReg());
+        thread.setIntReg(reg.index(), val);
+    }
 
     /** @} */
 
@@ -90,8 +98,9 @@ class LearningSimpleContext : public ExecContext {
     /** Reads a floating point register of single register width. */
     FloatReg readFloatRegOperand(const StaticInst *si, int idx) override
     {
-        int reg_idx = si->srcRegIdx(idx) - TheISA::FP_Reg_Base;
-        return thread.readFloatReg(reg_idx);
+        const RegId& reg = si->srcRegIdx(idx);
+        assert(reg.isFloatReg());
+        return thread.readFloatReg(reg.index());
     }
 
     /** Reads a floating point register in its binary format, instead
@@ -99,16 +108,18 @@ class LearningSimpleContext : public ExecContext {
     FloatRegBits readFloatRegOperandBits(const StaticInst *si, int idx)
         override
     {
-        int reg_idx = si->srcRegIdx(idx) - TheISA::FP_Reg_Base;
-        return thread.readFloatRegBits(reg_idx);
+        const RegId& reg = si->srcRegIdx(idx);
+        assert(reg.isFloatReg());
+        return thread.readFloatRegBits(reg.index());
     }
 
     /** Sets a floating point register of single width to a value. */
     void setFloatRegOperand(const StaticInst *si, int idx, FloatReg val)
         override
     {
-        int reg_idx = si->destRegIdx(idx) - TheISA::FP_Reg_Base;
-        thread.setFloatReg(reg_idx, val);
+        const RegId& reg = si->destRegIdx(idx);
+        assert(reg.isFloatReg());
+        thread.setFloatReg(reg.index(), val);
     }
 
     /** Sets the bits of a floating point register of single width
@@ -116,10 +127,117 @@ class LearningSimpleContext : public ExecContext {
     void setFloatRegOperandBits(const StaticInst *si, int idx,
                                 FloatRegBits val) override
     {
-        int reg_idx = si->destRegIdx(idx) - TheISA::FP_Reg_Base;
-        thread.setFloatRegBits(reg_idx, val);
+        const RegId& reg = si->destRegIdx(idx);
+        assert(reg.isFloatReg());
+        thread.setFloatRegBits(reg.index(), val);
     }
 
+    /** @} */
+
+    /** Vector Register Interfaces. */
+    /** @{ */
+    /** Reads source vector register operand. */
+    const VecRegContainer&
+    readVecRegOperand(const StaticInst *si, int idx) const override
+    {
+        const RegId& reg = si->srcRegIdx(idx);
+        assert(reg.isVecReg());
+        return thread.readVecReg(reg);
+    }
+
+    /** Gets destination vector register operand for modification. */
+    VecRegContainer&
+    getWritableVecRegOperand(const StaticInst *si, int idx) override
+    {
+        const RegId& reg = si->destRegIdx(idx);
+        assert(reg.isVecReg());
+        return thread.getWritableVecReg(reg);
+    }
+
+    /** Sets a destination vector register operand to a value. */
+    void
+    setVecRegOperand(const StaticInst *si, int idx,
+                     const VecRegContainer& val) override
+    {
+        const RegId& reg = si->destRegIdx(idx);
+        assert(reg.isVecReg());
+        thread.setVecReg(reg, val);
+    }
+    /** @} */
+
+    /** Vector Register Lane Interfaces. */
+    /** @{ */
+    template <typename VecElem>
+    VecLaneT<VecElem, true>
+    readVecLaneOperand(const StaticInst *si, int idx) const
+    {
+        const RegId& reg = si->srcRegIdx(idx);
+        assert(reg.isVecReg());
+        return thread.readVecLane<VecElem>(reg);
+    }
+    /** Reads source vector 8bit operand. */
+    ConstVecLane8
+    readVec8BitLaneOperand(const StaticInst *si, int idx) const override
+    { return readVecLaneOperand<uint8_t>(si, idx); }
+
+    /** Reads source vector 16bit operand. */
+    ConstVecLane16
+    readVec16BitLaneOperand(const StaticInst *si, int idx) const override
+    { return readVecLaneOperand<uint16_t>(si, idx); }
+
+    /** Reads source vector 32bit operand. */
+    ConstVecLane32
+    readVec32BitLaneOperand(const StaticInst *si, int idx) const override
+    { return readVecLaneOperand<uint32_t>(si, idx); }
+
+    /** Reads source vector 64bit operand. */
+    ConstVecLane64
+    readVec64BitLaneOperand(const StaticInst *si, int idx) const override
+    { return readVecLaneOperand<uint64_t>(si, idx); }
+
+    /** Write a lane of the destination vector operand. */
+    /** @{ */
+    template <typename LD>
+    void
+    setVecLaneOperandT(const StaticInst *si, int idx, const LD& val)
+    {
+        const RegId& reg = si->destRegIdx(idx);
+        assert(reg.isVecReg());
+        return thread.setVecLane(reg, val);
+    }
+    void setVecLaneOperand(const StaticInst *si, int idx,
+            const LaneData<LaneSize::Byte>& val) override
+    { setVecLaneOperandT(si, idx, val); }
+    void setVecLaneOperand(const StaticInst *si, int idx,
+            const LaneData<LaneSize::TwoByte>& val) override
+    { setVecLaneOperandT(si, idx, val); }
+    void setVecLaneOperand(const StaticInst *si, int idx,
+            const LaneData<LaneSize::FourByte>& val) override
+    { setVecLaneOperandT(si, idx, val); }
+    void setVecLaneOperand(const StaticInst *si, int idx,
+            const LaneData<LaneSize::EightByte>& val) override
+    { setVecLaneOperandT(si, idx, val); }
+    /** @} */
+
+    /** Vector Elem Interfaces. */
+    /** @{ */
+    /** Reads an element of a vector register. */
+    virtual VecElem readVecElemOperand(const StaticInst *si,
+                                        int idx) const override
+    {
+        const RegId& reg = si->destRegIdx(idx);
+        assert(reg.isVecElem());
+        return thread.readVecElem(reg);
+    }
+
+    /** Sets a vector register to a value. */
+    virtual void setVecElemOperand(const StaticInst *si, int idx,
+                                   const VecElem val) override
+    {
+        const RegId& reg = si->destRegIdx(idx);
+        assert(reg.isVecElem());
+        thread.setVecElem(reg, val);
+    }
     /** @} */
 
     /**
@@ -128,13 +246,15 @@ class LearningSimpleContext : public ExecContext {
      */
     CCReg readCCRegOperand(const StaticInst *si, int idx) override
     {
-        int reg_idx = si->srcRegIdx(idx) - TheISA::CC_Reg_Base;
-        return thread.readCCReg(reg_idx);
+        const RegId& reg = si->srcRegIdx(idx);
+        assert(reg.isCCReg());
+        return thread.readCCReg(reg.index());
     }
     void setCCRegOperand(const StaticInst *si, int idx, CCReg val) override
     {
-        int reg_idx = si->destRegIdx(idx) - TheISA::CC_Reg_Base;
-        thread.setCCReg(reg_idx, val);
+        const RegId& reg = si->destRegIdx(idx);
+        assert(reg.isCCReg());
+        thread.setCCReg(reg.index(), val);
     }
     /** @} */
 
@@ -144,14 +264,16 @@ class LearningSimpleContext : public ExecContext {
      */
     MiscReg readMiscRegOperand(const StaticInst *si, int idx) override
     {
-        int reg_idx = si->srcRegIdx(idx) - TheISA::Misc_Reg_Base;
-        return thread.readMiscReg(reg_idx);
+        const RegId& reg = si->srcRegIdx(idx);
+        assert(reg.isMiscReg());
+        return thread.readMiscReg(reg.index());
     }
     void setMiscRegOperand(const StaticInst *si, int idx, const MiscReg &val)
         override
     {
-        int reg_idx = si->destRegIdx(idx) - TheISA::Misc_Reg_Base;
-        return thread.setMiscReg(reg_idx, val);
+        const RegId& reg = si->destRegIdx(idx);
+        assert(reg.isMiscReg());
+        thread.setMiscReg(reg.index(), val);
     }
 
     /**
@@ -184,21 +306,6 @@ class LearningSimpleContext : public ExecContext {
      * @{
      * @name Memory Interface
      */
-    /**
-     * Record the effective address of the instruction.
-     *
-     * @note Only valid for memory ops.
-     */
-    void setEA(Addr EA) override
-    { panic("LearningSimpleCPU::setEA() not implemented\n"); }
-    /**
-     * Get the effective address of the instruction.
-     *
-     * @note Only valid for memory ops.
-     */
-    Addr getEA() const override
-    { panic("LearningSimpleCPU::setEA() not implemented\n"); }
-
     /**
      * Perform an atomic memory read operation.  Must be overridden
      * for exec contexts that support atomic memory mode.  Not pure
