@@ -37,10 +37,10 @@ I'm getting the following error.
     build/X86/sim/probe/lib.o.partial: In function `pybind11::detail::type_caster_base<LearningSimpleCPU>::cast(LearningSimpleCPU const*, pybind11::return_value_policy, pybind11::handle)':
     /local.chinook/gem5/gem5/ext/pybind11/include/pybind11/cast.h:408: undefined reference to `typeinfo for LearningSimpleCPU'
     /local.chinook/gem5/gem5/ext/pybind11/include/pybind11/cast.h:408: undefined reference to `typeinfo for LearningSimpleCPU'
-    build/X86/cpu/learning_simple_cpu/lib.o.partial: In function `LearningSimpleCPU::LearningSimpleCPU(LearningSimpleCPUParams*)':
-    /local.chinook/gem5/gem5/build/X86/cpu/learning_simple_cpu/cpu.cc:37: undefined reference to `vtable for LearningSimpleCPU'
-    /local.chinook/gem5/gem5/build/X86/cpu/learning_simple_cpu/cpu.cc:37: undefined reference to `vtable for LearningSimpleCPU'
-    /local.chinook/gem5/gem5/build/X86/cpu/learning_simple_cpu/cpu.cc:37: undefined reference to `vtable for LearningSimpleCPU'
+    build/X86/learning_gem5/part4/lib.o.partial: In function `LearningSimpleCPU::LearningSimpleCPU(LearningSimpleCPUParams*)':
+    /local.chinook/gem5/gem5/build/X86/learning_gem5/part4/cpu.cc:37: undefined reference to `vtable for LearningSimpleCPU'
+    /local.chinook/gem5/gem5/build/X86/learning_gem5/part4/cpu.cc:37: undefined reference to `vtable for LearningSimpleCPU'
+    /local.chinook/gem5/gem5/build/X86/learning_gem5/part4/cpu.cc:37: undefined reference to `vtable for LearningSimpleCPU'
     collect2: error: ld returned 1 exit status
     scons: *** [build/X86/gem5.opt] Error 1
     scons: building terminated because of errors.

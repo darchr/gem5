@@ -31,7 +31,7 @@ from BaseCPU import BaseCPU
 
 class LearningSimpleCPU(BaseCPU):
     type = 'LearningSimpleCPU'
-    cxx_header = 'cpu/learning_simple_cpu/cpu.hh'
+    cxx_header = 'learning_gem5/part4/cpu.hh'
 
     @classmethod
     def memory_mode(cls):
