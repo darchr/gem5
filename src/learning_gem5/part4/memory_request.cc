@@ -28,13 +28,13 @@
  * Authors: Jason Lowe-Power
  */
 
-#include "cpu/learning_simple_cpu/memory_request.hh"
+#include "learning_gem5/part4/memory_request.hh"
 
 #include "arch/locked_mem.hh"
 #include "arch/mmapped_ipr.hh"
 #include "arch/utility.hh"
-#include "cpu/learning_simple_cpu/cpu.hh"
 #include "debug/LearningSimpleCPU.hh"
+#include "learning_gem5/part4/cpu.hh"
 
 MemoryRequest::MemoryRequest(LearningSimpleCPU &cpu, SimpleThread &thread,
                          StaticInstPtr inst, Addr addr, unsigned int size,

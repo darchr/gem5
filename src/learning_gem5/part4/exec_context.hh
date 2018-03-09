@@ -28,12 +28,12 @@
  * Authors: Jason Lowe-Power
  */
 
- #ifndef __CPU_LEARNING_SIMPLE_CPU_EXEC_CONTEXT_HH__
- #define __CPU_LEARNING_SIMPLE_CPU_EXEC_CONTEXT_HH__
+ #ifndef __LEARNING_GEM5_PART4_CPU_EXEC_CONTEXT_HH__
+ #define __LEARNING_GEM5_PART4_CPU_EXEC_CONTEXT_HH__
 
  #include "cpu/exec_context.hh"
  #include "cpu/base.hh"
- #include "cpu/learning_simple_cpu/cpu.hh"
+ #include "learning_gem5/part4/cpu.hh"
  #include "cpu/simple_thread.hh"
  #include "mem/request.hh"
 

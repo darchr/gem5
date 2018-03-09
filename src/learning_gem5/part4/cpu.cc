@@ -28,13 +28,13 @@
  * Authors: Jason Lowe-Power
  */
 
-#include "cpu/learning_simple_cpu/cpu.hh"
+#include "learning_gem5/part4/cpu.hh"
 
 #include "arch/locked_mem.hh"
 #include "arch/mmapped_ipr.hh"
 #include "arch/utility.hh"
-#include "cpu/learning_simple_cpu/exec_context.hh"
 #include "debug/LearningSimpleCPU.hh"
+#include "learning_gem5/part4/exec_context.hh"
 
 LearningSimpleCPU::LearningSimpleCPU(LearningSimpleCPUParams *params) :
     BaseCPU(params),

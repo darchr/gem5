@@ -28,15 +28,15 @@
  * Authors: Jason Lowe-Power
  */
 
-#ifndef __CPU_LEARNING_SIMPLE_CPU_HH__
-#define __CPU_LEARNING_SIMPLE_CPU_HH__
+#ifndef __LEARNING_GEM5_PART4_CPU_HH__
+#define __LEARNING_GEM5_PART4_CPU_HH__
 
 #include <vector>
 
 #include "config/the_isa.hh"
 #include "cpu/base.hh"
-#include "cpu/learning_simple_cpu/memory_request.hh"
 #include "cpu/simple_thread.hh"
+#include "learning_gem5/part4/memory_request.hh"
 #include "params/LearningSimpleCPU.hh"
 #include "sim/insttracer.hh"
 

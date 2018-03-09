@@ -28,8 +28,8 @@
  * Authors: Jason Lowe-Power
  */
 
-#ifndef __CPU_LEARNING_SIMPLE_MEMORY_REQUEST_HH__
-#define __CPU_LEARNING_SIMPLE_MEMORY_REQUEST_HH__
+#ifndef __LEARNING_GEM5_PART4_MEMORY_REQUEST_HH__
+#define __LEARNING_GEM5_PART4_MEMORY_REQUEST_HH__
 
 #include "config/the_isa.hh"
 #include "cpu/simple_thread.hh"
