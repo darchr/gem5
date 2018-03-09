@@ -83,7 +83,7 @@ class LearningSimpleCPU : public BaseCPU
          *
          * @return true if the port is blocked
          */
-        bool isBlocked() { return outstandingRequest == nullptr; }
+        bool isBlocked() { return outstandingRequest != nullptr; }
 
       protected:
         /**
