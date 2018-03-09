@@ -41,7 +41,7 @@
  * Table 8.2 contains the transitions and actions found in this file and
  * section 8.2.4 explains the protocol in detail.
  *
- * See Learning gem5 Part 6: Ruby for more details.
+ * See Learning gem5 Part 3: Ruby for more details.
  *
  * Authors: Jason Lowe-Power
  */

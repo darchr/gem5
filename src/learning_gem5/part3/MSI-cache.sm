@@ -37,7 +37,7 @@
  * Table 8.1 contains the transitions and actions found in this file and
  * section 8.2.4 explains the protocol in detail.
  *
- * See Learning gem5 Part 6: Ruby for more details.
+ * See Learning gem5 Part 3: Ruby for more details.
  *
  * Authors: Jason Lowe-Power
  */
@@ -658,12 +658,6 @@ machine(MachineType:L1Cache, "MSI cache")
         unset_tbe();
     }
 
-    action(copyDataFromCacheToTBE, "Dct", desc="Copy data from cache to TBE") {
-        assert(is_valid(cache_entry));
-        assert(is_valid(tbe));
-        tbe.DataBlk := cache_entry.DataBlk;
-    }
-
     // Queue management actions
 
     action(popMandatoryQueue, "pQ", desc="Pop the mandatory queue") {
@@ -782,6 +776,7 @@ machine(MachineType:L1Cache, "MSI cache")
 
     transition(S, Inv, I) {
         sendInvAcktoReq;
+        forwardEviction;
         deallocateCacheBlock;
         popForwardQueue;
     }
@@ -803,6 +798,7 @@ machine(MachineType:L1Cache, "MSI cache")
 
     transition(M, Store) {
         storeHit;
+        forwardEviction;
         popMandatoryQueue;
     }
 
