@@ -67,11 +67,10 @@ let {{
         return ('FloatReg', 'df', idx, 'IsFloating', id)
     def ccReg(idx, id):
         return ('CCReg', 'uqw', idx, 'IsCC', id)
-    def controlReg(idx, id, ctype = 'uqw'):
+    def controlReg(idx, id, ctype = 'uqw', read_serial=False):
         return ('ControlReg', ctype, idx,
-                (None, None, ['IsSerializeAfter',
-                              'IsSerializing',
-                              'IsNonSpeculative']),
+                (None, ['IsSerializeBefore'] if read_serial else None,
+                  ['IsSerializeAfter', 'IsSerializing', 'IsNonSpeculative']),
                 id)
     def squashCheckReg(idx, id, check, ctype = 'uqw'):
         return ('ControlReg', ctype, idx,
@@ -204,7 +203,7 @@ def operands {{
         'CSAttr':        squashCReg('MISCREG_CS_ATTR', 209),
         'MiscRegDest':   controlReg('dest', 210),
         'MiscRegSrc1':   controlReg('src1', 211),
-        'TscOp':         controlReg('MISCREG_TSC', 212),
+        'TscOp':         controlReg('MISCREG_TSC', 212, read_serial=True),
         'M5Reg':         squashCReg('MISCREG_M5_REG', 213),
         'Mem':           ('Mem', 'uqw', None, \
                           ('IsMemRef', 'IsLoad', 'IsStore'), 300)
