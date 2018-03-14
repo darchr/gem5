@@ -89,7 +89,7 @@ system.mem_mode = 'timing'               # Use timing accesses
 system.mem_ranges = [AddrRange('512MB')] # Create an address range
 
 # Create a simple CPU
-system.cpu = TimingSimpleCPU()
+system.cpu = DerivO3CPU(branchPred=LTAGE())
 
 # Create an L1 instruction and data cache
 system.cpu.icache = L1ICache(opts)
