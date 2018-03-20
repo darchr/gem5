@@ -155,6 +155,8 @@ LearningSimpleCPU::fetch(Addr offset)
 
     MemoryRequest *request = new MemoryRequest(*this, thread,
                                                 inst_addr + offset);
+
+    // Once this is finished translating, it will call finishFetchTranslate
     request->translate();
 }
 
@@ -169,9 +171,9 @@ LearningSimpleCPU::finishFetchTranslate(MemoryRequest *request)
         // fetch fault: advance directly to next instruction (fault handler)
         // advanceInst(fault);
     } else {
-        if (port.isBlocked()) {
-            panic("Don't know what to do if the port is blocked!");
-        }
+        panic_if(port.isBlocked(),
+                 "Don't know what to do if the port is blocked!");
+        // When this is done, it will call decodeInstruction
         request->send();
     }
 }
@@ -182,11 +184,14 @@ LearningSimpleCPU::decodeInstruction(PacketPtr pkt)
     DPRINTF(LearningSimpleCPU, "Decoding the instruction\n");
     // First, we need to decode. Copy the data from the pkt to the decoder.
     thread.decoder.moreBytes(thread.pcState(), pkt->req->getVaddr(),
-                      *pkt->getConstPtr<TheISA::MachInst>());
+                             *pkt->getConstPtr<TheISA::MachInst>());
+    // The decode() function below updates this variable when the instruction
+    // is decoded.
     TheISA::PCState next_pc = thread.pcState();
 
     // Try to get the actual instruction. It's possible that this is null
     // if the decoder doesn't have enough data.
+    // NOTE: This function might update next_pc. This is passed in by reference
     StaticInstPtr inst = thread.decoder.decode(next_pc);
 
     // If the decoder doesn't have enough data, fetch some more data for it.
