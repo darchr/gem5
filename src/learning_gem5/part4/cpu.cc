@@ -75,6 +75,8 @@ LearningSimpleCPU::wakeup(ThreadID tid)
 {
     assert(tid == 0); // This CPU doesn't support more than one thread!
 
+    DPRINTF(LearningSimpleCPU, "LearningSimpleCPU wakeup\n");
+
     // Activate the thread contexts
     if (thread.status() == ThreadContext::Suspended) {
         DPRINTF(LearningSimpleCPU,"[tid:%d] Suspended Processor awoke\n", tid);
