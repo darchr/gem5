@@ -65,7 +65,7 @@ Execution context?
 
 This seems to be the next thing we need. But it isn't really documented anywhere.
 
-To set up the process, we have to call the following function:
+To set up the process, we have to call the following function that is in Process.
 
 .. code-block:: c++
 
