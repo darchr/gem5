@@ -58,6 +58,7 @@ class MemoryRequest : public BaseTLB::Translation
 
     /// Data for writes.
     uint8_t *data;
+    /// For conditional swap operations (result from memory).
     uint64_t *res;
 
     /// The type of request. If not isFetch or isRead then this is a write.
@@ -99,6 +100,15 @@ class MemoryRequest : public BaseTLB::Translation
     /**
      * Constructor used for reads and writes. For reads, no data or res.
      * This object is usually constructed in the execution context, not the CPU
+     *
+     * @param cpu that generates this request. Used for callbacks.
+     * @param thread that generates this request. Used for tlbs and callbacks
+     * @param inst that generates this request. Sent back to CPU at end
+     * @param addr address of the request
+     * @param size of the request (could cause a split access)
+     * @param any special flags for the request (e.g., uncacheable)
+     * @param data to store if this is a write
+     * @param where to put the old data if this is a conditional swap
      */
     MemoryRequest(LearningSimpleCPU &cpu, SimpleThread &thread,
                   StaticInstPtr inst, Addr addr, unsigned int size,
