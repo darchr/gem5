@@ -94,6 +94,9 @@ class BaseTags : public ClockedObject
     /** the number of blocks in the cache */
     const unsigned numBlocks;
 
+    /** The data blocks, 1 per cache block. */
+    std::unique_ptr<uint8_t[]> dataBlks;
+
     // Statistics
     /**
      * TODO: It would be good if these stats were acquired after warmup.
@@ -262,7 +265,13 @@ class BaseTags : public ClockedObject
 
     virtual Addr extractTag(Addr addr) const = 0;
 
-    virtual void insertBlock(PacketPtr pkt, CacheBlk *blk) = 0;
+    /**
+     * Insert the new block into the cache and update stats.
+     *
+     * @param pkt Packet holding the address to update
+     * @param blk The block to update.
+     */
+    virtual void insertBlock(PacketPtr pkt, CacheBlk *blk);
 
     /**
      * Regenerate the block address.

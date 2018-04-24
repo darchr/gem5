@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2016 ARM Limited
+ * Copyright (c) 2010-2018 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -400,7 +400,7 @@ ISA::readMiscReg(int misc_reg, ThreadContext *tc)
             if (haveSecurity) {
                 scr = readMiscRegNoEffect(MISCREG_SCR);
                 cpsr = readMiscRegNoEffect(MISCREG_CPSR);
-                if (scr.ns && (cpsr.mode != MODE_MON)) {
+                if (scr.ns && (cpsr.mode != MODE_MON) && ELIs32(tc, EL3)) {
                     NSACR nsacr = readMiscRegNoEffect(MISCREG_NSACR);
                     // NB: Skipping the full loop, here
                     if (!nsacr.cp10) cpacrMask.cp10 = 0;
@@ -521,12 +521,6 @@ ISA::readMiscReg(int misc_reg, ThreadContext *tc)
         {
             const uint32_t ones = (uint32_t)(-1);
             FPSCR fpscrMask  = 0;
-            fpscrMask.ioe = ones;
-            fpscrMask.dze = ones;
-            fpscrMask.ofe = ones;
-            fpscrMask.ufe = ones;
-            fpscrMask.ixe = ones;
-            fpscrMask.ide = ones;
             fpscrMask.len    = ones;
             fpscrMask.stride = ones;
             fpscrMask.rMode  = ones;
@@ -745,7 +739,7 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
                 if (haveSecurity) {
                     scr = readMiscRegNoEffect(MISCREG_SCR);
                     CPSR cpsr = readMiscRegNoEffect(MISCREG_CPSR);
-                    if (scr.ns && (cpsr.mode != MODE_MON)) {
+                    if (scr.ns && (cpsr.mode != MODE_MON) && ELIs32(tc, EL3)) {
                         NSACR nsacr = readMiscRegNoEffect(MISCREG_NSACR);
                         // NB: Skipping the full loop, here
                         if (!nsacr.cp10) cpacrMask.cp10 = 0;
@@ -756,17 +750,6 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
                 MiscReg old_val = readMiscRegNoEffect(MISCREG_CPACR);
                 newVal &= cpacrMask;
                 newVal |= old_val & ~cpacrMask;
-                DPRINTF(MiscRegs, "Writing misc reg %s: %#x\n",
-                        miscRegName[misc_reg], newVal);
-            }
-            break;
-          case MISCREG_CPACR_EL1:
-            {
-                const uint32_t ones = (uint32_t)(-1);
-                CPACR cpacrMask = 0;
-                cpacrMask.tta = ones;
-                cpacrMask.fpen = ones;
-                newVal &= cpacrMask;
                 DPRINTF(MiscRegs, "Writing misc reg %s: %#x\n",
                         miscRegName[misc_reg], newVal);
             }
@@ -865,12 +848,6 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
             {
                 const uint32_t ones = (uint32_t)(-1);
                 FPSCR fpscrMask  = 0;
-                fpscrMask.ioe = ones;
-                fpscrMask.dze = ones;
-                fpscrMask.ofe = ones;
-                fpscrMask.ufe = ones;
-                fpscrMask.ixe = ones;
-                fpscrMask.ide = ones;
                 fpscrMask.len    = ones;
                 fpscrMask.stride = ones;
                 fpscrMask.rMode  = ones;
@@ -952,8 +929,14 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
             {
                 DPRINTF(MiscRegs, "Writing SCTLR: %#x\n", newVal);
                 scr = readMiscRegNoEffect(MISCREG_SCR);
-                MiscRegIndex sctlr_idx = (haveSecurity && !scr.ns)
-                                         ? MISCREG_SCTLR_S : MISCREG_SCTLR_NS;
+
+                MiscRegIndex sctlr_idx;
+                if (haveSecurity && !highestELIs64 && !scr.ns) {
+                    sctlr_idx = MISCREG_SCTLR_S;
+                } else {
+                    sctlr_idx =  MISCREG_SCTLR_NS;
+                }
+
                 SCTLR sctlr = miscRegs[sctlr_idx];
                 SCTLR new_sctlr = newVal;
                 new_sctlr.nmfi =  ((bool)sctlr.nmfi) && !haveVirtualization;
@@ -1689,8 +1672,11 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
                 } else {
                     newVal = (newVal & ttbcrMask) | (ttbcr & (~ttbcrMask));
                 }
+                // Invalidate TLB MiscReg
+                getITBPtr(tc)->invalidateMiscReg();
+                getDTBPtr(tc)->invalidateMiscReg();
+                break;
             }
-            M5_FALLTHROUGH;
           case MISCREG_TTBR0:
           case MISCREG_TTBR1:
             {
@@ -1703,15 +1689,12 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
                         newVal = (newVal & (~ttbrMask));
                     }
                 }
-            }
-            M5_FALLTHROUGH;
-          case MISCREG_SCTLR_EL1:
-            {
+                // Invalidate TLB MiscReg
                 getITBPtr(tc)->invalidateMiscReg();
                 getDTBPtr(tc)->invalidateMiscReg();
-                setMiscRegNoEffect(misc_reg, newVal);
+                break;
             }
-            M5_FALLTHROUGH;
+          case MISCREG_SCTLR_EL1:
           case MISCREG_CONTEXTIDR:
           case MISCREG_PRRR:
           case MISCREG_NMRR:
@@ -1730,6 +1713,7 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
           case MISCREG_TTBR0_EL1:
           case MISCREG_TTBR1_EL1:
           case MISCREG_TTBR0_EL2:
+          case MISCREG_TTBR1_EL2:
           case MISCREG_TTBR0_EL3:
             getITBPtr(tc)->invalidateMiscReg();
             getDTBPtr(tc)->invalidateMiscReg();

@@ -40,10 +40,24 @@ class FIFORP(BaseReplacementPolicy):
     cxx_class = 'FIFORP'
     cxx_header = "mem/cache/replacement_policies/fifo_rp.hh"
 
+class LFURP(BaseReplacementPolicy):
+    type = 'LFURP'
+    cxx_class = 'LFURP'
+    cxx_header = "mem/cache/replacement_policies/lfu_rp.hh"
+
 class LRURP(BaseReplacementPolicy):
     type = 'LRURP'
     cxx_class = 'LRURP'
     cxx_header = "mem/cache/replacement_policies/lru_rp.hh"
+
+class BIPRP(LRURP):
+    type = 'BIPRP'
+    cxx_class = 'BIPRP'
+    cxx_header = "mem/cache/replacement_policies/bip_rp.hh"
+    btp = Param.Percent(3, "Percentage of blocks to be inserted as MRU")
+
+class LIPRP(BIPRP):
+    btp = 0
 
 class MRURP(BaseReplacementPolicy):
     type = 'MRURP'
@@ -54,3 +68,20 @@ class RandomRP(BaseReplacementPolicy):
     type = 'RandomRP'
     cxx_class = 'RandomRP'
     cxx_header = "mem/cache/replacement_policies/random_rp.hh"
+
+class BRRIPRP(BaseReplacementPolicy):
+    type = 'BRRIPRP'
+    cxx_class = 'BRRIPRP'
+    cxx_header = "mem/cache/replacement_policies/brrip_rp.hh"
+    max_RRPV = Param.Unsigned(3, "Maximum RRPV possible")
+    hit_priority = Param.Bool(False,
+        "Prioritize evicting blocks that havent had a hit recently")
+    btp = Param.Percent(3,
+        "Percentage of blocks to be inserted with long RRPV")
+
+class RRIPRP(BRRIPRP):
+    btp = 0
+
+class NRURP(BRRIPRP):
+    btp = 0
+    max_RRPV = 1
