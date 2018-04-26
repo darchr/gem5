@@ -58,6 +58,7 @@
 #include "cpu/inst_seq.hh"
 #include "cpu/timebuf.hh"
 #include "debug/LSQUnit.hh"
+#include "mem/cache/cache.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
 
@@ -508,6 +509,10 @@ class LSQUnit {
     /** Number of times the LSQ is blocked due to the cache. */
     Stats::Scalar lsqCacheBlocked;
 
+    bool useSlb;
+
+    Cache *dataCache;
+
   public:
     /** Executes the load at the given index. */
     Fault read(Request *req, Request *sreqLow, Request *sreqHigh,
@@ -816,8 +821,10 @@ LSQUnit<Impl>::read(Request *req, Request *sreqLow, Request *sreqHigh,
     // @todo We should account for cache port contention
     // and arbitrate between loads and stores.
     bool successful_load = true;
+    if (useSlb) dataCache->initiateLoad(fst_data_pkt->req->getPaddr());
     if (!dcachePort->sendTimingReq(fst_data_pkt)) {
         successful_load = false;
+        if (useSlb) dataCache->squashLoad(fst_data_pkt->req->getPaddr());
     } else if (TheISA::HasUnalignedMemAcc && sreqLow) {
         completedFirst = true;
 
@@ -828,7 +835,9 @@ LSQUnit<Impl>::read(Request *req, Request *sreqLow, Request *sreqHigh,
         // handled there.
         // @todo We should also account for cache port contention
         // here.
+        if (useSlb) dataCache->initiateLoad(snd_data_pkt->req->getPaddr());
         if (!dcachePort->sendTimingReq(snd_data_pkt)) {
+            if (useSlb) dataCache->squashLoad(snd_data_pkt->req->getPaddr());
             // The main packet will be deleted in completeDataAccess.
             state->complete();
             // Signify to 1st half that the 2nd half was blocked via state

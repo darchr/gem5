@@ -54,6 +54,8 @@
 
 struct DerivO3CPUParams;
 
+class Cache;
+
 template <class>
 struct O3ThreadState;
 
@@ -479,6 +481,10 @@ class DefaultCommit
     bool allNonSpeculative;
 
     bool loadNonSpeculative;
+
+    bool useSlb;
+
+    Cache *dataCache;
 
     bool isNonSpeculative(DynInstPtr inst);
 

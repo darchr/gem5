@@ -83,6 +83,8 @@ class BaseCache(MemObject):
 
     system = Param.System(Parent.any, "System we belong to")
 
+    use_slb = Param.Bool(False, "Using the SLB?")
+
 # Enum for cache clusivity, currently mostly inclusive or mostly
 # exclusive.
 class Clusivity(Enum): vals = ['mostly_incl', 'mostly_excl']

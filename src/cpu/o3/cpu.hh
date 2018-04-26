@@ -75,6 +75,7 @@ class ThreadContext;
 template <class>
 class O3ThreadContext;
 
+class Cache;
 class Checkpoint;
 class MemObject;
 class Process;
@@ -742,6 +743,9 @@ class FullO3CPU : public BaseO3CPU
 
     /** Available thread ids in the cpu*/
     std::vector<ThreadID> tids;
+
+    bool useSlb;
+    Cache *dataCache;
 
     /** CPU read function, forwards read to LSQ. */
     Fault read(RequestPtr &req, RequestPtr &sreqLow, RequestPtr &sreqHigh,

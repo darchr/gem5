@@ -182,6 +182,9 @@ LSQUnit<Impl>::init(O3CPU *cpu_ptr, IEW *iew_ptr, DerivO3CPUParams *params,
     cacheStorePorts = params->cacheStorePorts;
     needsTSO = params->needsTSO;
 
+    useSlb = params->use_slb;
+    dataCache = params->data_cache;
+
     resetState();
 }
 

@@ -62,6 +62,7 @@
 #include "debug/O3CPU.hh"
 #include "debug/Quiesce.hh"
 #include "enums/MemoryMode.hh"
+#include "mem/cache/cache.hh"
 #include "sim/core.hh"
 #include "sim/full_system.hh"
 #include "sim/process.hh"
@@ -185,7 +186,9 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
 
       globalSeqNum(1),
       system(params->system),
-      lastRunningCycle(curCycle())
+      lastRunningCycle(curCycle()),
+      useSlb(params->use_slb),
+      dataCache(params->data_cache)
 {
     if (!params->switched_out) {
         _status = Running;
@@ -1231,6 +1234,8 @@ FullO3CPU<Impl>::takeOverFrom(BaseCPU *oldCPU)
 
     lastRunningCycle = curCycle();
     _status = Idle;
+
+    if (useSlb) dataCache->setUseSlb();
 }
 
 template <class Impl>

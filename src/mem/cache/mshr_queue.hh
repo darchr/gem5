@@ -95,7 +95,8 @@ class MSHRQueue : public Queue<MSHR>
      * @pre There are free entries.
      */
     MSHR *allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
-                   Tick when_ready, Counter order, bool alloc_on_fill);
+                   Tick when_ready, Counter order, bool alloc_on_fill,
+                   bool skip_ready_list=false);
 
     /**
      * Moves the MSHR to the front of the pending list if it is not
@@ -145,6 +146,8 @@ class MSHRQueue : public Queue<MSHR>
         // keep regressions unchanged
         return (allocated < numEntries - (numReserve + 1 + demandReserve));
     }
+
+    void moveOntoReadyList(MSHR *mshr);
 };
 
 #endif //__MEM_CACHE_MSHR_QUEUE_HH__

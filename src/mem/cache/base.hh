@@ -122,6 +122,9 @@ class BaseCache : public MemObject
         {
             DPRINTF(CachePort, "Scheduling send event at %llu\n", time);
             reqQueue.schedSendEvent(time);
+
+            // This crazy stuff is hidden in the cache.cc under the impl. of
+            // CacheReqPacketQueue
         }
 
       protected:
@@ -323,6 +326,8 @@ class BaseCache : public MemObject
      * Normally this is all possible memory addresses. */
     const AddrRangeList addrRanges;
 
+    bool useSlb;
+
   public:
     /** System we are currently operating in. */
     System *system;
@@ -485,18 +490,24 @@ class BaseCache : public MemObject
 
     const AddrRangeList &getAddrRanges() const { return addrRanges; }
 
-    MSHR *allocateMissBuffer(PacketPtr pkt, Tick time, bool sched_send = true)
+    MSHR *allocateMissBuffer(PacketPtr pkt, Tick time, bool sched_send = true,
+                             bool skip_ready_list = false)
     {
+        // Now we are here once we determine we had a miss.
+        // This is where we are adding something to the queue.
+        // I think we want to put this on a different queue until we get a
+        // notification from the CPU that this has been committed.
         MSHR *mshr = mshrQueue.allocate(pkt->getBlockAddr(blkSize), blkSize,
-                                        pkt, time, order++,
-                                        allocOnFill(pkt->cmd));
+                                    pkt, time, order++,
+                                    allocOnFill(pkt->cmd), skip_ready_list);
 
         if (mshrQueue.isFull()) {
             setBlocked((BlockedCause)MSHRQueue_MSHRs);
         }
 
+        // I'm worried about this one.
         if (sched_send) {
-            // schedule the send
+            // schedule the send. This calls into CacheMasterPort
             schedMemSideSendEvent(time);
         }
 

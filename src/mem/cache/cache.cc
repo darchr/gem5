@@ -60,6 +60,7 @@
 #include "debug/CachePort.hh"
 #include "debug/CacheTags.hh"
 #include "debug/CacheVerbose.hh"
+#include "debug/SLB.hh"
 #include "mem/cache/blk.hh"
 #include "mem/cache/mshr.hh"
 #include "mem/cache/prefetch/base.hh"
@@ -648,6 +649,13 @@ Cache::recvTimingReq(PacketPtr pkt)
 {
     DPRINTF(CacheTags, "%s tags:\n%s\n", __func__, tags->print());
 
+    // if (useSlb && pkt->isRead()) {
+    //     panic_if(speculativeLoadAddrs.find(pkt->getBlockAddr(blkSize)) ==
+    //            speculativeLoadAddrs.end(),
+    //            "Can't find %x (%x)\n", pkt->req->getPaddr(),
+    //             pkt->getBlockAddr(blkSize));
+    // }
+
     assert(pkt->isRequest());
 
     // Just forward the packet if caches are disabled.
@@ -742,6 +750,8 @@ Cache::recvTimingReq(PacketPtr pkt)
         // Note that lat is passed by reference here. The function
         // access() calls accessBlock() which can modify lat value.
         satisfied = access(pkt, blk, lat, writebacks);
+        // The above returns false on a miss. I belive this does nothing with
+        // blk, lat, and writebacks
 
         // copy writebacks to write buffer here to ensure they logically
         // proceed anything happening below
@@ -806,6 +816,7 @@ Cache::recvTimingReq(PacketPtr pkt)
         }
     } else {
         // miss
+        // now we are here.
 
         Addr blk_addr = pkt->getBlockAddr(blkSize);
 
@@ -957,7 +968,13 @@ Cache::recvTimingReq(PacketPtr pkt)
                 // Here we are using forward_time, modelling the latency of
                 // a miss (outbound) just as forwardLatency, neglecting the
                 // lookupLatency component.
-                allocateMissBuffer(pkt, forward_time);
+                // Now we come here.
+                // we also schedule a send. (see base.hh, next)
+                if (useSlb && pkt->isRead()) {
+                    DPRINTF(SLB, "Delaying pkt %s\n", pkt->print());
+                }
+                allocateMissBuffer(pkt, forward_time, true,
+                                   useSlb && pkt->isRead());
             }
 
             if (prefetcher) {
@@ -2841,6 +2858,7 @@ Cache::CacheReqPacketQueue::sendDeferredPacket()
         if (checkConflictingSnoop(entry->blkAddr)) {
             return;
         }
+        // All this does is call cache::sendMSHRQueuePacket(entry)
         waitingOnRetry = entry->sendPacket(cache);
     }
 
@@ -2860,4 +2878,85 @@ MemSidePort::MemSidePort(const std::string &_name, Cache *_cache,
       _reqQueue(*_cache, *this, _snoopRespQueue, _label),
       _snoopRespQueue(*_cache, *this, _label), cache(_cache)
 {
+}
+
+void
+Cache::commitLoad(Addr addr)
+{
+    if (addr == 0) return;
+    Addr blkAddr = addr & ~((Addr)((blkSize-1)));
+
+    DPRINTF(SLB, "Commit load for %x (%x)\n", addr, blkAddr);
+    // If the load was forwarded from a store, then it may not have called
+    // initiateLoad. Also IPRs
+    // if (speculativeLoadAddrs.find(blkAddr) != speculativeLoadAddrs.end()) {
+    //
+    //     DPRINTF(SLB, "Load found (%d outstanding).\n",
+    //             speculativeLoadAddrs[blkAddr]);
+
+        MSHR *mshr = mshrQueue.findMatch(blkAddr, false);
+        // store forwards or IPRs, etc. Also, it's possible the MSHR is on the
+        // allocated list and not the pending list if it is currently in
+        // service
+        if (!mshr || mshr->inService) return;
+
+        if (!mshrQueue.findPending(blkAddr, false)) {
+            DPRINTF(SLB, "Moving mshr onto ready list (%x)\n", blkAddr);
+            DPRINTF(SLB, "%s\n", mshr->print());
+            mshrQueue.moveOntoReadyList(mshr);
+            schedMemSideSendEvent(nextQueueReadyTime());
+        }
+
+    //     speculativeLoadAddrs[blkAddr]--;
+    //     if (speculativeLoadAddrs[blkAddr] == 0) {
+    //         speculativeLoadAddrs.erase(blkAddr);
+    //     }
+    // }
+}
+
+void
+Cache::squashLoad(Addr addr)
+{
+    if (addr == 0) return;
+    Addr blkAddr = addr & ~((Addr)((blkSize-1)));
+
+    DPRINTF(SLB, "Squash load for %x, (%x)\n", addr, blkAddr);
+    // if (speculativeLoadAddrs.find(blkAddr) != speculativeLoadAddrs.end()) {
+    //
+    //     DPRINTF(SLB, "Load found (%d outstanding).\n",
+    //             speculativeLoadAddrs[blkAddr]);
+
+        MSHR *mshr = mshrQueue.findMatch(blkAddr, false);
+        // store forwards or IPRs, etc. Also, it's possible the MSHR is on the
+        // allocated list and not the pending list if it is currently in
+        // service
+        if (!mshr || mshr->inService) return;
+
+        if (!mshrQueue.findPending(blkAddr, false)) {
+            DPRINTF(SLB, "Moving mshr onto ready list (%x)\n", blkAddr);
+            DPRINTF(SLB, "%s\n", mshr->print());
+            mshrQueue.moveOntoReadyList(mshr);
+            schedMemSideSendEvent(nextQueueReadyTime());
+        }
+
+    //     speculativeLoadAddrs[blkAddr]--;
+    //     if (speculativeLoadAddrs[blkAddr] == 0) {
+    //         speculativeLoadAddrs.erase(blkAddr);
+    //     }
+    // }
+}
+
+void
+Cache::initiateLoad(Addr addr)
+{
+    // Addr blkAddr = addr & ~((Addr)((blkSize-1)));
+    // assert(blkAddr != 0);
+    //
+    // DPRINTF(SLB, "Initiate load for %x, (%x)\n", addr, blkAddr);
+
+    // if (speculativeLoadAddrs.find(blkAddr) == speculativeLoadAddrs.end()) {
+    //     speculativeLoadAddrs[blkAddr] = 1;
+    // } else {
+    //     speculativeLoadAddrs[blkAddr]++;
+    // }
 }

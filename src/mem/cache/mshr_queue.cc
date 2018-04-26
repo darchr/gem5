@@ -57,7 +57,8 @@ MSHRQueue::MSHRQueue(const std::string &_label,
 
 MSHR *
 MSHRQueue::allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
-                    Tick when_ready, Counter order, bool alloc_on_fill)
+                    Tick when_ready, Counter order, bool alloc_on_fill,
+                    bool skip_ready_list)
 {
     assert(!freeList.empty());
     MSHR *mshr = freeList.front();
@@ -66,10 +67,35 @@ MSHRQueue::allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
 
     mshr->allocate(blk_addr, blk_size, pkt, when_ready, order, alloc_on_fill);
     mshr->allocIter = allocatedList.insert(allocatedList.end(), mshr);
-    mshr->readyIter = addToReadyList(mshr);
+
+    // I think I want to wait to do this until we get the go ahead from the CPU
+    // mshr->readyIter = addToReadyList(mshr);
+    // Don't do this if we are about to handle a speculative load.
+    // NOTE: I need to add something to the CPU to tell the cache that a
+    // speculative load is coming.
+    // only want to skip doing this if we've had an initiateLoad and not
+    // yet seen a commit or a squash.
+    // Note: if we see a squash, then we need to respond (somehow) and never
+    // do this MSHR access (forceDeallocateTarget?)
+    if (!skip_ready_list) {
+        moveOntoReadyList(mshr);
+    }
+
+    // What we'll need is a way to find the mshr for a particular address.
+    // Then, we'll move it to the ready list and schedule a send on the CPU
+    // (schedMemSideSendEvent).
+    // We can do the first with mshrQueue.findMatch in the cache object.
+
 
     allocated += 1;
     return mshr;
+}
+
+void
+MSHRQueue::moveOntoReadyList(MSHR *mshr)
+{
+    assert(mshr);
+    mshr->readyIter = addToReadyList(mshr);
 }
 
 void

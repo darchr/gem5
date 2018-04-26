@@ -541,6 +541,8 @@ class Cache : public BaseCache
      */
     Tick nextQueueReadyTime() const;
 
+    std::map<Addr,int> speculativeLoadAddrs;
+
   public:
     /** Instantiates a basic cache object. */
     Cache(const CacheParams *p);
@@ -575,6 +577,11 @@ class Cache : public BaseCache
      */
     void serialize(CheckpointOut &cp) const override;
     void unserialize(CheckpointIn &cp) override;
+
+    void commitLoad(Addr add);
+    void squashLoad(Addr addr);
+    void initiateLoad(Addr addr);
+    void setUseSlb() { useSlb = true; }
 };
 
 /**

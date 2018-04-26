@@ -64,6 +64,7 @@
 #include "debug/Drain.hh"
 #include "debug/ExecFaulting.hh"
 #include "debug/O3PipeView.hh"
+#include "mem/cache/cache.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/faults.hh"
 #include "sim/full_system.hh"
@@ -104,8 +105,12 @@ DefaultCommit<Impl>::DefaultCommit(O3CPU *_cpu, DerivO3CPUParams *params)
       canHandleInterrupts(true),
       avoidQuiesceLiveLock(false),
       allNonSpeculative(params->allNonSpeculative),
-      loadNonSpeculative(params->loadNonSpeculative)
+      loadNonSpeculative(params->loadNonSpeculative),
+      useSlb(params->use_slb),
+      dataCache(params->data_cache)
 {
+    fatal_if(useSlb && !dataCache, "Must have cache if using SLB");
+
     if (commitWidth > Impl::MaxWidth)
         fatal("commitWidth (%d) is larger than compiled limit (%d),\n"
              "\tincrease MaxWidth in src/cpu/o3/impl.hh\n",
@@ -709,12 +714,23 @@ DefaultCommit<Impl>::tick()
 
             DynInstPtr inst = rob->readHeadInst(tid);
 
+            if (useSlb && inst->isLoad()) {
+                // signal commit here
+                dataCache->commitLoad(inst->physEffAddrLow);
+                dataCache->commitLoad(inst->physEffAddrHigh);
+            }
+
             DPRINTF(Commit,"[tid:%i]: Instruction [sn:%lli] PC %s is head of"
                     " ROB and ready to commit\n",
                     tid, inst->seqNum, inst->pcState());
 
         } else if (!rob->isEmpty(tid)) {
             DynInstPtr inst = rob->readHeadInst(tid);
+            if (useSlb && inst->isLoad()) {
+                // signal commit here
+                dataCache->commitLoad(inst->physEffAddrLow);
+                dataCache->commitLoad(inst->physEffAddrHigh);
+            }
 
             ppCommitStall->notify(inst);
 
@@ -1019,6 +1035,12 @@ DefaultCommit<Impl>::commitInsts()
                     "ROB.\n");
 
             rob->retireHead(commit_thread);
+
+            if (useSlb && head_inst->isLoad()) {
+                // Here we should signal squash
+                dataCache->squashLoad(head_inst->physEffAddrLow);
+                dataCache->squashLoad(head_inst->physEffAddrHigh);
+            }
 
             ++commitSquashedInsts;
             // Notify potential listeners that this instruction is squashed
