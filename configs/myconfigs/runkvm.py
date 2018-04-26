@@ -65,12 +65,12 @@ if __name__ == "__m5_main__":
     if len(args) == 1:
         workload = args[0]
         from spec import make_script
-        make_script(workload)
+        filename = make_script(workload)
 
         # Read in the script file passed in via an option.
         # This file gets read and executed by the simulated system after boot.
         # Note: The disk image needs to be configured to do this.
-        system.readfile = 'script'
+        system.readfile = filename
 
     # set up the root SimObject and start the simulation
     root = Root(full_system = True, system = system,)
@@ -92,24 +92,25 @@ if __name__ == "__m5_main__":
     # While there is still something to do in the guest keep executing.
     # This is needed since we exit for the ROI begin/end
     foundROI = False
-    while exit_event.getCause() != "m5_exit instruction encountered":
-        # If the user pressed ctrl-c on the host, then we really should exit
-        if exit_event.getCause() == "user interrupt received":
-            print "User interrupt. Exiting"
-            break
-
+    if exit_event.getCause() != "m5_exit instruction encountered":
         print "Exited because", exit_event.getCause()
+        print "giving up"
+        exit(1)
 
-        if exit_event.getCause() == "work started count reach":
-            start_tick = m5.curTick()
-            start_insts = system.totalInsts()
-            foundROI = True
-        elif exit_event.getCause() == "work items exit count reached":
-            end_tick = m5.curTick()
-            end_insts = system.totalInsts()
+    start_tick = m5.curTick()
+    start_insts = system.totalInsts()
+    foundROI = True
 
-        print "Continuing"
-        exit_event = m5.simulate()
+    print "Continuing"
+    exit_event = m5.simulate()
+
+    if exit_event.getCause() != "m5_exit instruction encountered":
+        print "Exited because", exit_event.getCause()
+        print "Workload didn't finish"
+        exit(1)
+
+    end_tick = m5.curTick()
+    end_insts = system.totalInsts()
 
     print
     print "Performance statistics"
