@@ -178,12 +178,12 @@ def runTestNoSpecLoad(system):
         global pids
         pids.append(pid)
 
-def runTestNoSpecLoad(system):
-    pid = m5.fork('%(parent)s/in_order')
+def runTestSLB(system):
+    pid = m5.fork('%(parent)s/slb')
     if pid == 0: # in child
-        system.switchCpus(system.atomicCpu, system.timingCpuInOrder)
+        system.switchCpus(system.atomicCpu, system.timingCpuSLB)
 
-        system.timingCpuInOrder[0].scheduleInstStop(0, detailed_warmup_insts,
+        system.timingCpuSLB[0].scheduleInstStop(0, detailed_warmup_insts,
                                                  "Max Insts")
         print "Detailed warmup simulation"
         exit_event = m5.simulate()
@@ -193,9 +193,9 @@ def runTestNoSpecLoad(system):
             finish(8)
 
         m5.stats.reset()
-        system.timingCpuInOrder[0].scheduleInstStop(0, simulation_insts,
+        system.timingCpuSLB[0].scheduleInstStop(0, simulation_insts,
                                                  "Max Insts")
-        print "Running real simulation for no spec loads"
+        print "Running real simulation for SLB"
         exit_event = m5.simulate()
         if exit_event.getCause() != "Max Insts":
             print "Exited because", exit_event.getCause()
@@ -281,7 +281,7 @@ if __name__ == "__m5_main__":
     runTestBase(system)
     runTestNoSpec(system)
     runTestNoSpecLoad(system)
-    runTestInOrder(system)
+    runTestSLB(system)
 
     from time import sleep
     print "Waiting for children"

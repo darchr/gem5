@@ -87,22 +87,24 @@ system.mem_mode = 'timing'               # Use timing accesses
 system.mem_ranges = [AddrRange('512MB')] # Create an address range
 
 # Create a simple CPU
-system.cpu = TimingSimpleCPU()
+system.cpu = DerivO3CPU()
+system.cpu.use_slb = True
 
 # Create an L1 instruction and data cache
 system.cpu.icache = L1ICache(opts)
-system.cpu.dcache = L1DCache(opts)
+system.cpu.data_cache = L1DCache(opts)
+system.cpu.data_cache.use_slb = True
 
 # Connect the instruction and data caches to the CPU
 system.cpu.icache.connectCPU(system.cpu)
-system.cpu.dcache.connectCPU(system.cpu)
+system.cpu.data_cache.connectCPU(system.cpu)
 
 # Create a memory bus, a coherent crossbar, in this case
 system.l2bus = L2XBar()
 
 # Hook the CPU ports up to the l2bus
 system.cpu.icache.connectBus(system.l2bus)
-system.cpu.dcache.connectBus(system.l2bus)
+system.cpu.data_cache.connectBus(system.l2bus)
 
 # Create an L2 cache and connect it to the l2bus
 system.l2cache = L2Cache(opts)

@@ -101,6 +101,9 @@ class MySystem(LinuxX86System):
         # Create the cache heirarchy for the system.
         self.createCacheHierarchy()
 
+        for kvmcpu,cpu in zip(self.cpu, self.timingCpuSLB):
+            cpu.data_cache = kvmcpu.dcache
+
         # Set up the interrupt controllers for the system (x86 specific)
         self.setupInterrupts()
 
@@ -157,10 +160,12 @@ class MySystem(LinuxX86System):
         for cpu in self.timingCpuNoLoad:
             cpu.loadNonSpeculative = True
 
-        self.timingCpuInOrder = [MinorCPU(cpu_id = i,
+        self.timingCpuSLB = [DerivO3CPU(cpu_id = i,
                                      switched_out = True)
                    for i in range(self._opts.cpus)]
-        map(lambda c: c.createThreads(), self.timingCpuInOrder)
+        map(lambda c: c.createThreads(), self.timingCpuSLB)
+        for cpu in self.timingCpuSLB:
+            cpu.use_slb = True
 
     def switchCpus(self, old, new):
         assert(new[0].switchedOut())
