@@ -45,6 +45,7 @@ runspec --config=myconfig.cfg --action=run --size=|size| --nobuild \
 
 /sbin/gem5 writefile simstdout simstdout
 /sbin/gem5 writefile simstderr simstderr
+/sbin/gem5 exit
 """
 
 filename = 'script'

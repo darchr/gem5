@@ -81,14 +81,14 @@ class MySystem(LinuxX86System):
         # Replace these paths with the path to your disk images.
         # The first disk is the root disk. The second could be used for swap
         # or anything else.
-        imagepath = '../gem5_system_files/ubuntu.img'
+        imagepath = '../gem5_system_files/disk_images/ubuntu-nospec-tests.img'
         if opts.second_disk:
             self.setDiskImages(imagepath, opts.second_disk)
         else:
             self.setDiskImages(imagepath, imagepath)
 
         # Change this path to point to the kernel you want to use
-        self.kernel = '../gem5_system_files/vmlinux'
+        self.kernel = '../gem5_system_files/vmlinux-nospec-tests'
 
         # Options specified on the kernel command line
         boot_options = ['earlyprintk=ttyS0', 'console=ttyS0', 'lpj=7999923',

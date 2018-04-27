@@ -55,7 +55,7 @@ from system import MySystem
 jump_time = '30s'
 warmup_insts = int(200e6) #6-8 minutes
 detailed_warmup_insts = int(10e6) #~1 minute.
-simulation_insts = int(100e6)
+simulation_insts = int(500e6)
 
 def finish(retval=7):
     print
