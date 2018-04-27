@@ -64,7 +64,10 @@ class L1Cache(PrefetchCache):
     data_latency = 1
     response_latency = 1
     mshrs = 16
-    tgts_per_mshr = 20
+    tgts_per_mshr = 256 # I think this is broken between dependencies
+    # With the SLB, if a younger instruction is in the MSHR and it hasn't been
+    # allowed to proceed, yet then the older instruction at the head of the ROB
+    # could be blocked. This much be large.
     writeback_clean = True
 
     def __init__(self, options=None):

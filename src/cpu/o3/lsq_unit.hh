@@ -58,6 +58,7 @@
 #include "cpu/inst_seq.hh"
 #include "cpu/timebuf.hh"
 #include "debug/LSQUnit.hh"
+#include "debug/SLB.hh"
 #include "mem/cache/cache.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
@@ -821,12 +822,12 @@ LSQUnit<Impl>::read(Request *req, Request *sreqLow, Request *sreqHigh,
     // @todo We should account for cache port contention
     // and arbitrate between loads and stores.
     bool successful_load = true;
-    if (useSlb) dataCache->initiateLoad(fst_data_pkt->req->getPaddr());
     if (!dcachePort->sendTimingReq(fst_data_pkt)) {
+        DPRINTF(SLB, "Blocked sending inst [sn:%lli]\n", load_inst->seqNum);
         successful_load = false;
-        if (useSlb) dataCache->squashLoad(fst_data_pkt->req->getPaddr());
     } else if (TheISA::HasUnalignedMemAcc && sreqLow) {
         completedFirst = true;
+        if (useSlb) dataCache->initiateLoad(load_inst->seqNum, fst_data_pkt);
 
         // The first packet was sent without problems, so send this one
         // too. If there is a problem with this packet then the whole
@@ -835,15 +836,20 @@ LSQUnit<Impl>::read(Request *req, Request *sreqLow, Request *sreqHigh,
         // handled there.
         // @todo We should also account for cache port contention
         // here.
-        if (useSlb) dataCache->initiateLoad(snd_data_pkt->req->getPaddr());
         if (!dcachePort->sendTimingReq(snd_data_pkt)) {
-            if (useSlb) dataCache->squashLoad(snd_data_pkt->req->getPaddr());
+            DPRINTF(SLB, "Blocked sending for inst [sn:%lli]",
+                    load_inst->seqNum);
             // The main packet will be deleted in completeDataAccess.
             state->complete();
             // Signify to 1st half that the 2nd half was blocked via state
             state->cacheBlocked = true;
             successful_load = false;
+        } else {
+            if (useSlb) dataCache->initiateLoad(load_inst->seqNum,
+                                                snd_data_pkt);
         }
+    } else {
+        if (useSlb) dataCache->initiateLoad(load_inst->seqNum, fst_data_pkt);
     }
 
     // If the cache was blocked, or has become blocked due to the access,

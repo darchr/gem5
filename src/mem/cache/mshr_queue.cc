@@ -144,3 +144,32 @@ MSHRQueue::forceDeallocateTarget(MSHR *mshr)
     // Notify if MSHR queue no longer full
     return was_full && !isFull();
 }
+
+bool
+MSHRQueue::removeTarget(MSHR *mshr, PacketPtr pkt)
+{
+    bool was_full = isFull();
+
+    assert(mshr->deferredTargets.empty());
+
+    auto target = mshr->targets.begin();
+    for (;
+         target != mshr->targets.end();
+         target++) {
+        if (target->pkt == pkt) {
+            break;
+        }
+    }
+    assert(target != mshr->targets.end());
+
+    mshr->targets.erase(target);
+    if (mshr->targets.empty()) {
+        allocatedList.erase(mshr->allocIter);
+        freeList.push_front(mshr);
+        allocated--;
+        mshr->deallocate();
+    }
+
+    // Notify if MSHR queue no longer full
+    return was_full && !isFull();
+}

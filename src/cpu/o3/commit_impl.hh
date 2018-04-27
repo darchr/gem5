@@ -716,8 +716,7 @@ DefaultCommit<Impl>::tick()
 
             if (useSlb && inst->isLoad()) {
                 // signal commit here
-                dataCache->commitLoad(inst->physEffAddrLow);
-                dataCache->commitLoad(inst->physEffAddrHigh);
+                dataCache->commitLoad(inst->seqNum);
             }
 
             DPRINTF(Commit,"[tid:%i]: Instruction [sn:%lli] PC %s is head of"
@@ -728,8 +727,7 @@ DefaultCommit<Impl>::tick()
             DynInstPtr inst = rob->readHeadInst(tid);
             if (useSlb && inst->isLoad()) {
                 // signal commit here
-                dataCache->commitLoad(inst->physEffAddrLow);
-                dataCache->commitLoad(inst->physEffAddrHigh);
+                dataCache->commitLoad(inst->seqNum);
             }
 
             ppCommitStall->notify(inst);
@@ -1038,8 +1036,7 @@ DefaultCommit<Impl>::commitInsts()
 
             if (useSlb && head_inst->isLoad()) {
                 // Here we should signal squash
-                dataCache->squashLoad(head_inst->physEffAddrLow);
-                dataCache->squashLoad(head_inst->physEffAddrHigh);
+                dataCache->squashLoad(head_inst->seqNum);
             }
 
             ++commitSquashedInsts;

@@ -148,6 +148,7 @@ class MSHRQueue : public Queue<MSHR>
     }
 
     void moveOntoReadyList(MSHR *mshr);
+    bool removeTarget(MSHR *mshr, PacketPtr pkt);
 };
 
 #endif //__MEM_CACHE_MSHR_QUEUE_HH__

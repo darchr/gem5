@@ -905,6 +905,8 @@ Cache::recvTimingReq(PacketPtr pkt)
                     mshr->allocateTarget(pkt, forward_time, order++,
                                          allocOnFill(pkt->cmd));
                     if (mshr->getNumTargets() == numTarget) {
+                        DPRINTF(SLB, "NO TARGET MSHR???\n");
+                        DPRINTF(SLB, "\n%s", mshr->print());
                         noTargetMSHR = mshr;
                         setBlocked(Blocked_NoTargets);
                         // need to be careful with this... if this mshr isn't
@@ -2881,82 +2883,106 @@ MemSidePort::MemSidePort(const std::string &_name, Cache *_cache,
 }
 
 void
-Cache::commitLoad(Addr addr)
+Cache::commitLoad(InstSeqNum seq_num)
 {
-    if (addr == 0) return;
-    Addr blkAddr = addr & ~((Addr)((blkSize-1)));
+    DPRINTF(SLB, "Commit load for [sn:%llu]\n", seq_num);
 
-    DPRINTF(SLB, "Commit load for %x (%x)\n", addr, blkAddr);
-    // If the load was forwarded from a store, then it may not have called
-    // initiateLoad. Also IPRs
-    // if (speculativeLoadAddrs.find(blkAddr) != speculativeLoadAddrs.end()) {
-    //
-    //     DPRINTF(SLB, "Load found (%d outstanding).\n",
-    //             speculativeLoadAddrs[blkAddr]);
+    // Really, we should check for the address of this load and send the MSHR
+    // if the address matches. it doesn't matter if the instruction matches
+    // exactly. In fact, it could be possible this instruction isn't in the
+    // mshr yet if it was blocked getting into the cache (e.g., if the MSHR
+    // runs out of targets).
 
-        MSHR *mshr = mshrQueue.findMatch(blkAddr, false);
-        // store forwards or IPRs, etc. Also, it's possible the MSHR is on the
-        // allocated list and not the pending list if it is currently in
-        // service
-        if (!mshr || mshr->inService) return;
+    auto it = speculativeLoadAddrs.find(seq_num);
+    while (it != speculativeLoadAddrs.end()) {
+        Addr block_addr = it->second.blkAddr;
+        PacketPtr pkt = it->second.pkt;
 
-        if (!mshrQueue.findPending(blkAddr, false)) {
-            DPRINTF(SLB, "Moving mshr onto ready list (%x)\n", blkAddr);
+        DPRINTF(SLB, "Found %x\n", block_addr);
+
+        MSHR *mshr = mshrQueue.findMatch(block_addr, false);
+
+        if (mshr &&
+            !mshr->inService &&
+            !mshrQueue.findPending(block_addr, false))
+        {
+            assert(pkt->getBlockAddr(blkSize) == block_addr);
+            DPRINTF(SLB, "Moving mshr onto ready list (%s)\n", pkt->print());
             DPRINTF(SLB, "%s\n", mshr->print());
             mshrQueue.moveOntoReadyList(mshr);
             schedMemSideSendEvent(nextQueueReadyTime());
+        } else {
+            DPRINTF(SLB, "MSHR in service.\n");
         }
+        speculativeLoadAddrs.erase(it);
 
-    //     speculativeLoadAddrs[blkAddr]--;
-    //     if (speculativeLoadAddrs[blkAddr] == 0) {
-    //         speculativeLoadAddrs.erase(blkAddr);
-    //     }
-    // }
+        it = speculativeLoadAddrs.find(seq_num);
+    }
 }
 
 void
-Cache::squashLoad(Addr addr)
+Cache::squashLoad(InstSeqNum seq_num)
 {
-    if (addr == 0) return;
-    Addr blkAddr = addr & ~((Addr)((blkSize-1)));
+    DPRINTF(SLB, "Squash load for [sn:%llu]\n", seq_num);
+    auto it = speculativeLoadAddrs.find(seq_num);
+    if (it == speculativeLoadAddrs.end()) return;
 
-    DPRINTF(SLB, "Squash load for %x, (%x)\n", addr, blkAddr);
-    // if (speculativeLoadAddrs.find(blkAddr) != speculativeLoadAddrs.end()) {
-    //
-    //     DPRINTF(SLB, "Load found (%d outstanding).\n",
-    //             speculativeLoadAddrs[blkAddr]);
+    do {
+        Addr block_addr = it->second.blkAddr;
+        PacketPtr pkt = it->second.pkt;
 
-        MSHR *mshr = mshrQueue.findMatch(blkAddr, false);
-        // store forwards or IPRs, etc. Also, it's possible the MSHR is on the
-        // allocated list and not the pending list if it is currently in
-        // service
-        if (!mshr || mshr->inService) return;
+        DPRINTF(SLB, "Found %x\n", block_addr);
 
-        if (!mshrQueue.findPending(blkAddr, false)) {
-            DPRINTF(SLB, "Moving mshr onto ready list (%x)\n", blkAddr);
-            DPRINTF(SLB, "%s\n", mshr->print());
-            mshrQueue.moveOntoReadyList(mshr);
-            schedMemSideSendEvent(nextQueueReadyTime());
+        MSHR *mshr = mshrQueue.findMatch(block_addr, false);
+
+        if (mshr &&
+            !mshr->inService &&
+            !mshrQueue.findPending(block_addr, false))
+        {
+            assert(pkt->getBlockAddr(blkSize) == block_addr);
+            DPRINTF(SLB, "MSHR\n%s", mshr->print());
+
+            if (mshr->needsWritable()) {
+                DPRINTF(SLB, "Moving onto ready list (%s)\n", pkt->print());
+                mshrQueue.moveOntoReadyList(mshr);
+                schedMemSideSendEvent(nextQueueReadyTime());
+            } else {
+                DPRINTF(SLB, "Removing target (%s)\n", pkt->print());
+                DPRINTF(SLB, "Cache blocked: %x\n", blocked);
+
+                assert(pkt->isRequest());
+                bool was_full = mshrQueue.removeTarget(mshr, pkt);
+                if (was_full) {
+                    DPRINTF(SLB, "Was full!\n");
+                    clearBlocked(Blocked_NoMSHRs);
+                }
+                DPRINTF(SLB, "MSHR now\n%s", mshr->print());
+
+                if (mshr == noTargetMSHR) {
+                    // we always clear at least one target
+                    DPRINTF(SLB, "No target MSHR??\n");
+                    clearBlocked(Blocked_NoTargets);
+                    noTargetMSHR = nullptr;
+                }
+
+                // send response
+                pkt->makeResponse();
+                cpuSidePort->schedTimingResp(pkt, nextCycle(), true);
+            }
+        } else {
+            DPRINTF(SLB, "MSHR in service or it was a hit\n");
         }
+        speculativeLoadAddrs.erase(it);
 
-    //     speculativeLoadAddrs[blkAddr]--;
-    //     if (speculativeLoadAddrs[blkAddr] == 0) {
-    //         speculativeLoadAddrs.erase(blkAddr);
-    //     }
-    // }
+        it = speculativeLoadAddrs.find(seq_num);
+    } while (it != speculativeLoadAddrs.end());
 }
 
 void
-Cache::initiateLoad(Addr addr)
+Cache::initiateLoad(InstSeqNum seq_num, PacketPtr pkt)
 {
-    // Addr blkAddr = addr & ~((Addr)((blkSize-1)));
-    // assert(blkAddr != 0);
-    //
-    // DPRINTF(SLB, "Initiate load for %x, (%x)\n", addr, blkAddr);
+    DPRINTF(SLB, "Initiate load for [sn:%llu], (%s)\n", seq_num, pkt->print());
+    if (pkt->isResponse()) return; // no need to add things that are a hitnn
 
-    // if (speculativeLoadAddrs.find(blkAddr) == speculativeLoadAddrs.end()) {
-    //     speculativeLoadAddrs[blkAddr] = 1;
-    // } else {
-    //     speculativeLoadAddrs[blkAddr]++;
-    // }
+    speculativeLoadAddrs.insert({seq_num, {pkt->getBlockAddr(blkSize), pkt} });
 }

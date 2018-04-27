@@ -52,9 +52,11 @@
 #ifndef __MEM_CACHE_CACHE_HH__
 #define __MEM_CACHE_CACHE_HH__
 
+#include <map>
 #include <unordered_set>
 
 #include "base/logging.hh" // fatal, panic, and warn
+#include "cpu/inst_seq.hh"
 #include "enums/Clusivity.hh"
 #include "mem/cache/base.hh"
 #include "mem/cache/blk.hh"
@@ -541,7 +543,11 @@ class Cache : public BaseCache
      */
     Tick nextQueueReadyTime() const;
 
-    std::map<Addr,int> speculativeLoadAddrs;
+    struct LoadInfo {
+        Addr blkAddr;
+        PacketPtr pkt;
+    };
+    std::multimap<InstSeqNum, LoadInfo> speculativeLoadAddrs;
 
   public:
     /** Instantiates a basic cache object. */
@@ -578,9 +584,9 @@ class Cache : public BaseCache
     void serialize(CheckpointOut &cp) const override;
     void unserialize(CheckpointIn &cp) override;
 
-    void commitLoad(Addr add);
-    void squashLoad(Addr addr);
-    void initiateLoad(Addr addr);
+    void commitLoad(InstSeqNum seq_num);
+    void squashLoad(InstSeqNum seq_num);
+    void initiateLoad(InstSeqNum seq_num, PacketPtr pkt);
     void setUseSlb() { useSlb = true; }
 };
 
