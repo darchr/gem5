@@ -50,10 +50,11 @@ import SimpleOpts
 
 from system import MySystem
 
-SimpleOpts.add_option("--script", default='',
-                      help="Script to execute in the simulated system")
+SimpleOpts.set_usage("usage: %prog [options] specbmk samples=1")
 
-SimpleOpts.set_usage("usage: %prog [options] roi_instructions samples=1")
+warmup_insts = int(200e6) #6-8 minutes
+detailed_warmup_insts = int(10e6) #~1 minute.
+simulation_insts = int(100e6)
 
 class UnexpectedExit(Exception):
     pass
@@ -164,11 +165,8 @@ def simulateROI(system, instructions, samples):
     executed_insts = system.totalInsts()
 
     # We probably want to updated the max instructions by subtracting the
-    # insts that we are going to execute in the last detailed sim.
-    sample_secs = toLatency("10ms") + toLatency("10us") + toLatency("100us")
-    # assume 1 IPC per CPU
-    instructions -= int(sample_secs * system.clk_domain.clock[0].frequency *
-                        len(system.cpu) * 1)
+    # insts that we are going to execute in the last detailed sim.warm
+    instructions -= warmup_insts + detailed_warmup_insts + simulation_insts
 
     # Get the instruction numbers that we want to exit at for our sample
     # points. It needs to be sorted, too.
@@ -205,33 +203,148 @@ def simulateROI(system, instructions, samples):
             print "WARNING: Went past the goal instructions by too much!"
             print "Goal: %d, Actual: %d" % (insts, system.totalInsts())
 
-        # Max of 4 gem5 instances (-1 for this process). If we have this
-        # number of gem5 processes running, we should wait until one finishes
-        while len(pids) >= 4 - 1:
-            time.sleep(1)
-
-        # Fork gem5 and get a new PID. Save the stats in a folder based on
-        # the instruction number.
+        # Fork for the warmup for this sampling point
         pid = m5.fork('%(parent)s/'+str(insts))
         if pid == 0: # in child
-            from m5.internal.core import seedRandom
-            # Make sure each instance of gem5 starts with a different
-            # random seed. Can't just use time, since this may occur
-            # multiple times in the same second.
-            rseed = int(time.time()) * os.getpid()
-            seedRandom(rseed)
-            print "Running detailed simulation for sample", i
-            warmupAndRun(system, "10ms", "10us", "100us")
-            print "Done with detailed simulation for sample", i
-            # Just exit in the child. No need to do anything else.
+            # Do the warmup.
+            system.switchCpus(system.cpu, system.atomicCpu)
+            system.atomicCpu[0].scheduleInstStop(0, warmup_insts, "Max Insts")
+            print "Warming up"
+            exit_event = m5.simulate()
+
+            if exit_event.getCause() != "Max Insts":
+                print "Exited because", exit_event.getCause()
+                raise UnexpectedExit()
+
+            m5.stats.dump()
+
+            # Fork gem5 and get a new PID. Save the stats in a folder based on
+            # the instruction number.
+            runTestBase(pids, system)
+            runTestNoSpec(pids, system)
+            runTestNoSpecLoad(pids, system)
+            #runTestSLB(pids, system, insts)
+
+            print "Waiting for children at location", i
+            while pids:
+                time.sleep(1)
+            print "All children finished for location", i
             sys.exit(0)
-        else: # in parent
-            # Append the child's PID and fast forward to the next point
+        else:
             pids.append(pid)
 
-    print "Waiting for children...", pids
-    while pids:
-        time.sleep(1)
+        print "Waiting for children..."
+        while pids:
+            time.sleep(1)
+        print "All children finished."
+
+def runTestBase(pids, system):
+    pid = m5.fork('%(parent)s/baseline')
+    if pid == 0: # in child
+        system.switchCpus(system.atomicCpu, system.timingCpuBase)
+
+        system.timingCpuBase[0].scheduleInstStop(0, detailed_warmup_insts,
+                                                 "Max Insts")
+        print "Detailed warmup simulation"
+        exit_event = m5.simulate()
+        if exit_event.getCause() != "Max Insts":
+            print "Exited because", exit_event.getCause()
+            print "giving up"
+            finish(8)
+
+        m5.stats.reset()
+        system.timingCpuBase[0].scheduleInstStop(0, simulation_insts,
+                                                 "Max Insts")
+        print "Running real simulation for baseline"
+        exit_event = m5.simulate()
+        if exit_event.getCause() != "Max Insts":
+            print "Exited because", exit_event.getCause()
+            print "giving up"
+            finish(8)
+        sys.exit(0)
+    else:
+        pids.append(pid)
+
+def runTestNoSpec(pids, system):
+    pid = m5.fork('%(parent)s/no_speculation/')
+    if pid == 0: # in child
+        system.switchCpus(system.atomicCpu, system.timingCpuNoSpec)
+
+        system.timingCpuNoSpec[0].scheduleInstStop(0, detailed_warmup_insts,
+                                                 "Max Insts")
+        print "Detailed warmup simulation"
+        exit_event = m5.simulate()
+        if exit_event.getCause() != "Max Insts":
+            print "Exited because", exit_event.getCause()
+            print "giving up"
+            finish(8)
+
+        m5.stats.reset()
+        system.timingCpuNoSpec[0].scheduleInstStop(0, simulation_insts,
+                                                 "Max Insts")
+        print "Running real simulation for no spec"
+        exit_event = m5.simulate()
+        if exit_event.getCause() != "Max Insts":
+            print "Exited because", exit_event.getCause()
+            print "giving up"
+            finish(8)
+        sys.exit(0)
+    else:
+        pids.append(pid)
+
+def runTestNoSpecLoad(pids, system):
+    pid = m5.fork('%(parent)s/no_load_speculation/')
+    if pid == 0: # in child
+        system.switchCpus(system.atomicCpu, system.timingCpuNoLoad)
+
+        system.timingCpuNoLoad[0].scheduleInstStop(0, detailed_warmup_insts,
+                                                 "Max Insts")
+        print "Detailed warmup simulation"
+        exit_event = m5.simulate()
+        if exit_event.getCause() != "Max Insts":
+            print "Exited because", exit_event.getCause()
+            print "giving up"
+            finish(8)
+
+        m5.stats.reset()
+        system.timingCpuNoLoad[0].scheduleInstStop(0, simulation_insts,
+                                                 "Max Insts")
+        print "Running real simulation for no spec loads"
+        exit_event = m5.simulate()
+        if exit_event.getCause() != "Max Insts":
+            print "Exited because", exit_event.getCause()
+            print "giving up"
+            finish(8)
+        sys.exit(0)
+    else:
+        pids.append(pid)
+
+def runTestSLB(pids, system):
+    pid = m5.fork('%(parent)s/slb/')
+    if pid == 0: # in child
+        system.switchCpus(system.atomicCpu, system.timingCpuSLB)
+
+        system.timingCpuSLB[0].scheduleInstStop(0, detailed_warmup_insts,
+                                                 "Max Insts")
+        print "Detailed warmup simulation"
+        exit_event = m5.simulate()
+        if exit_event.getCause() != "Max Insts":
+            print "Exited because", exit_event.getCause()
+            print "giving up"
+            finish(8)
+
+        m5.stats.reset()
+        system.timingCpuSLB[0].scheduleInstStop(0, simulation_insts,
+                                                 "Max Insts")
+        print "Running real simulation for SLB"
+        exit_event = m5.simulate()
+        if exit_event.getCause() != "Max Insts":
+            print "Exited because", exit_event.getCause()
+            print "giving up"
+            finish(8)
+        sys.exit(0)
+    else:
+        pids.append(pid)
 
 if __name__ == "__m5_main__":
     (opts, args) = SimpleOpts.parse_args()
@@ -243,7 +356,13 @@ if __name__ == "__m5_main__":
         SimpleOpts.print_help()
         fatal("Simulate script requires one or two arguments")
 
-    roiInstructions = int(args[0])
+    workload = args[0]
+    from spec import make_script
+    filename = make_script(workload)
+    system.readfile = filename
+
+    from spec import instructions as spec_insts
+    roiInstructions = spec_insts[workload]
 
     if len(args) == 2:
         samples = int(args[1])
@@ -255,11 +374,6 @@ if __name__ == "__m5_main__":
     # item is reached and when the first work item is finished.
     system.work_begin_exit_count = 1
     system.work_end_exit_count = 1
-
-    # Read in the script file passed in via an option.
-    # This file gets read and executed by the simulated system after boot.
-    # Note: The disk image needs to be configured to do this.
-    system.readfile = opts.script
 
     # set up the root SimObject and start the simulation
     root = Root(full_system = True, system = system)
@@ -281,19 +395,15 @@ if __name__ == "__m5_main__":
     # Keep running until we are done.
     print "Running the simulation"
     exit_event = m5.simulate()
-    while exit_event.getCause() != "m5_exit instruction encountered":
-        if exit_event.getCause() == "user interrupt received":
-            print "User interrupt. Exiting"
-            break
+
+    if exit_event.getCause() != "m5_exit instruction encountered":
         print "Exited because", exit_event.getCause()
+        print "giving up"
+        finish()
 
-        if exit_event.getCause() == "work started count reach":
-            simulateROI(system, roiInstructions, samples)
-        elif exit_event.getCause() == "work items exit count reached":
-            end_tick = m5.curTick()
+    print "Simulating the ROI"
 
-        print "Continuing"
-        exit_event = m5.simulate()
+    simulateROI(system, roiInstructions, samples)
 
     print
     print "Performance statistics"
@@ -301,5 +411,3 @@ if __name__ == "__m5_main__":
     print "Ran a total of", m5.curTick()/1e12, "simulated seconds"
     print "Total wallclock time: %.2fs, %.2f min" % \
                 (time.time()-globalStart, (time.time()-globalStart)/60)
-
-
