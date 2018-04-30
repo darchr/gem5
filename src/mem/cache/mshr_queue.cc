@@ -87,7 +87,6 @@ MSHRQueue::allocate(Addr blk_addr, unsigned blk_size, PacketPtr pkt,
     // We can do the first with mshrQueue.findMatch in the cache object.
 
 
-    allocated += 1;
     return mshr;
 }
 
@@ -95,6 +94,7 @@ void
 MSHRQueue::moveOntoReadyList(MSHR *mshr)
 {
     assert(mshr);
+    allocated += 1;
     mshr->readyIter = addToReadyList(mshr);
 }
 

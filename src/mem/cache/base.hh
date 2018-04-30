@@ -572,6 +572,10 @@ class BaseCache : public MemObject
     void clearBlocked(BlockedCause cause)
     {
         uint8_t flag = 1 << cause;
+        if ((blocked & flag) == 0) {
+            DPRINTF(Cache,"Not unblocking: %d, mask=%d\n", cause, blocked);
+            return;
+        }
         blocked &= ~flag;
         DPRINTF(Cache,"Unblocking for cause %d, mask=%d\n", cause, blocked);
         if (blocked == 0) {
