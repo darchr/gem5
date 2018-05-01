@@ -704,6 +704,9 @@ DefaultCommit<Impl>::tick()
 
     threads = activeThreads->begin();
 
+    static InstSeqNum last_seq_num = 0;
+    static int same_num = 0;
+
     while (threads != end) {
         ThreadID tid = *threads++;
 
@@ -717,6 +720,14 @@ DefaultCommit<Impl>::tick()
             if (useSlb && inst->isLoad()) {
                 // signal commit here
                 dataCache->commitLoad(inst->seqNum);
+                if (last_seq_num == inst->seqNum) {
+                    same_num++;
+                    assert(same_num < 100000);
+                }
+                else {
+                    last_seq_num = inst->seqNum;
+                    same_num = 0;
+                }
             }
 
             DPRINTF(Commit,"[tid:%i]: Instruction [sn:%lli] PC %s is head of"
@@ -728,6 +739,14 @@ DefaultCommit<Impl>::tick()
             if (useSlb && inst->isLoad()) {
                 // signal commit here
                 dataCache->commitLoad(inst->seqNum);
+                if (last_seq_num == inst->seqNum) {
+                    same_num++;
+                    assert(same_num < 100000);
+                }
+                else {
+                    last_seq_num = inst->seqNum;
+                    same_num = 0;
+                }
             }
 
             ppCommitStall->notify(inst);

@@ -649,12 +649,11 @@ Cache::recvTimingReq(PacketPtr pkt)
 {
     DPRINTF(CacheTags, "%s tags:\n%s\n", __func__, tags->print());
 
-    // if (useSlb && pkt->isRead()) {
-    //     panic_if(speculativeLoadAddrs.find(pkt->getBlockAddr(blkSize)) ==
-    //            speculativeLoadAddrs.end(),
-    //            "Can't find %x (%x)\n", pkt->req->getPaddr(),
-    //             pkt->getBlockAddr(blkSize));
-    // }
+    if (useSlb && pkt->isRead()) {
+        assert(pkt->req->hasInstSeqNum());
+        DPRINTF(SLB, "Cache request for inst [sn:%d]\n",
+                pkt->req->getReqInstSeqNum());
+    }
 
     assert(pkt->isRequest());
 
@@ -1533,6 +1532,18 @@ Cache::recvTimingResp(PacketPtr pkt)
                     tgt_pkt->setData(pkt->getConstPtr<uint8_t>());
                 }
             }
+            DPRINTF(Cache, "Satisfying request %s\n", tgt_pkt->print());
+            if (useSlb && tgt_pkt->req->hasInstSeqNum()) {
+                DPRINTF(Cache, "Satisfying instruction [sn:%d]\n",
+                        tgt_pkt->req->getReqInstSeqNum());
+                auto it =
+                   speculativeLoadAddrs.find(tgt_pkt->req->getReqInstSeqNum());
+                if (it != speculativeLoadAddrs.end()) {
+                    DPRINTF(SLB, "Erasing [sn:%d] since satisfied.\n",
+                            tgt_pkt->req->getReqInstSeqNum());
+                    speculativeLoadAddrs.erase(it);
+                }
+            }
             tgt_pkt->makeTimingResponse();
             // if this packet is an error copy that to the new packet
             if (is_error)
@@ -1598,6 +1609,7 @@ Cache::recvTimingResp(PacketPtr pkt)
     }
 
     if (mshr->promoteDeferredTargets()) {
+        DPRINTF(Cache, "promoting deferred targets\n%s", mshr->print());
         // avoid later read getting stale data while write miss is
         // outstanding.. see comment in timingAccess()
         if (blk) {
@@ -1606,6 +1618,7 @@ Cache::recvTimingResp(PacketPtr pkt)
         mshrQueue.markPending(mshr);
         schedMemSideSendEvent(clockEdge() + pkt->payloadDelay);
     } else {
+        DPRINTF(Cache, "Deallocating MSHR\n%s", mshr->print());
         mshrQueue.deallocate(mshr);
         if (wasFull && !mshrQueue.isFull()) {
             clearBlocked(Blocked_NoMSHRs);
@@ -2906,9 +2919,9 @@ Cache::commitLoad(InstSeqNum seq_num)
             !mshr->inService &&
             !mshrQueue.findPending(block_addr, false))
         {
-            assert(pkt->getBlockAddr(blkSize) == block_addr);
-            DPRINTF(SLB, "Moving mshr onto ready list (%s)\n", pkt->print());
             DPRINTF(SLB, "%s\n", mshr->print());
+            DPRINTF(SLB, "Moving mshr onto ready list (%s)\n", pkt->print());
+            assert(pkt->getBlockAddr(blkSize) == block_addr);
             mshrQueue.moveOntoReadyList(mshr);
             schedMemSideSendEvent(nextQueueReadyTime());
         } else {

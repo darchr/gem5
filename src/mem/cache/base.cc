@@ -71,7 +71,7 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
     : MemObject(p),
       cpuSidePort(nullptr), memSidePort(nullptr),
       mshrQueue("MSHRs", p->mshrs, 128, p->demand_mshr_reserve), // see below
-      writeBuffer("write buffer", p->write_buffers, p->mshrs), // see below
+      writeBuffer("write buffer", p->write_buffers, p->mshrs+128), // see below
       blkSize(blk_size),
       lookupLatency(p->tag_latency),
       dataLatency(p->data_latency),
