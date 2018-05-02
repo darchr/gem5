@@ -1544,11 +1544,21 @@ Cache::recvTimingResp(PacketPtr pkt)
                         DPRINTF(SLB, "Erasing [sn:%d] since satisfied.\n",
                                 tgt_pkt->req->getReqInstSeqNum());
                         speculativeLoadAddrs.erase(it);
-                    } else if ((++it)->second.pkt == tgt_pkt) {
-                        assert(it->first == tgt_pkt->req->hasInstSeqNum());
-                        DPRINTF(SLB, "Erasing [sn:%d] since satisfied.\n",
-                                tgt_pkt->req->getReqInstSeqNum());
-                        speculativeLoadAddrs.erase(it);
+                    } else {
+                        assert(speculativeLoadAddrs.count(
+                                tgt_pkt->req->getReqInstSeqNum()) == 2);
+                        auto range = speculativeLoadAddrs.equal_range(
+                                        tgt_pkt->req->getReqInstSeqNum());
+                        bool found = false;
+                        for (auto i = range.first; i != range.second; i++) {
+                            if (i->second.pkt == tgt_pkt) {
+                                DPRINTF(SLB, "Erasing22 [sn:%d] satisfied.\n",
+                                        tgt_pkt->req->getReqInstSeqNum());
+                                speculativeLoadAddrs.erase(i);
+                                found = true;
+                            }
+                        }
+                        assert(found);
                     }
                 }
             }
