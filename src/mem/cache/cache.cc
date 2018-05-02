@@ -1532,16 +1532,24 @@ Cache::recvTimingResp(PacketPtr pkt)
                     tgt_pkt->setData(pkt->getConstPtr<uint8_t>());
                 }
             }
-            DPRINTF(Cache, "Satisfying request %s\n", tgt_pkt->print());
+            DPRINTF(Cache, "Satisfying request %s at %llu\n", tgt_pkt->print(),
+                    completion_time);
             if (useSlb && tgt_pkt->req->hasInstSeqNum()) {
                 DPRINTF(Cache, "Satisfying instruction [sn:%d]\n",
                         tgt_pkt->req->getReqInstSeqNum());
                 auto it =
                    speculativeLoadAddrs.find(tgt_pkt->req->getReqInstSeqNum());
                 if (it != speculativeLoadAddrs.end()) {
-                    DPRINTF(SLB, "Erasing [sn:%d] since satisfied.\n",
-                            tgt_pkt->req->getReqInstSeqNum());
-                    speculativeLoadAddrs.erase(it);
+                    if (it->second.pkt == tgt_pkt) {
+                        DPRINTF(SLB, "Erasing [sn:%d] since satisfied.\n",
+                                tgt_pkt->req->getReqInstSeqNum());
+                        speculativeLoadAddrs.erase(it);
+                    } else if ((++it)->second.pkt == tgt_pkt) {
+                        assert(it->first == tgt_pkt->req->hasInstSeqNum());
+                        DPRINTF(SLB, "Erasing [sn:%d] since satisfied.\n",
+                                tgt_pkt->req->getReqInstSeqNum());
+                        speculativeLoadAddrs.erase(it);
+                    }
                 }
             }
             tgt_pkt->makeTimingResponse();
