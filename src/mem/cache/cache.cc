@@ -1545,6 +1545,7 @@ Cache::recvTimingResp(PacketPtr pkt)
                                 tgt_pkt->req->getReqInstSeqNum());
                         speculativeLoadAddrs.erase(it);
                     } else {
+                        assert(it->second.pkt);
                         assert(speculativeLoadAddrs.count(
                                 tgt_pkt->req->getReqInstSeqNum()) == 2);
                         auto range = speculativeLoadAddrs.equal_range(
@@ -1556,6 +1557,7 @@ Cache::recvTimingResp(PacketPtr pkt)
                                         tgt_pkt->req->getReqInstSeqNum());
                                 speculativeLoadAddrs.erase(i);
                                 found = true;
+                                break;
                             }
                         }
                         assert(found);
@@ -2882,10 +2884,13 @@ Cache::CacheReqPacketQueue::sendDeferredPacket()
     QueueEntry* entry = cache.getNextQueueEntry();
 
     if (!entry) {
+        DPRINTF(Cache, "No deferred entry!!\n");
         // can happen if e.g. we attempt a writeback and fail, but
         // before the retry, the writeback is eliminated because
         // we snoop another cache's ReadEx.
     } else {
+        DPRINTF(Cache, "Getting deferred entry for %#x\n",
+                entry->blkAddr);
         // let our snoop responses go first if there are responses to
         // the same addresses
         if (checkConflictingSnoop(entry->blkAddr)) {
@@ -2938,8 +2943,13 @@ Cache::commitLoad(InstSeqNum seq_num)
             !mshrQueue.findPending(block_addr, false))
         {
             DPRINTF(SLB, "%s\n", mshr->print());
-            DPRINTF(SLB, "Moving mshr onto ready list (%s)\n", pkt->print());
-            assert(pkt->getBlockAddr(blkSize) == block_addr);
+            if (pkt) {
+                DPRINTF(SLB, "Moving mshr onto ready list (%s)\n",
+                        pkt->print());
+                assert(pkt->getBlockAddr(blkSize) == block_addr);
+            } else {
+                DPRINTF(SLB, "Moving a prefetch on to the read list");
+            }
             mshrQueue.moveOntoReadyList(mshr);
             schedMemSideSendEvent(nextQueueReadyTime());
         } else {
@@ -2970,18 +2980,26 @@ Cache::squashLoad(InstSeqNum seq_num)
             !mshr->inService &&
             !mshrQueue.findPending(block_addr, false))
         {
-            assert(pkt->getBlockAddr(blkSize) == block_addr);
+            if (pkt) {
+                assert(pkt->getBlockAddr(blkSize) == block_addr);
+            }
             DPRINTF(SLB, "MSHR\n%s", mshr->print());
 
             if (mshr->needsWritable()) {
-                DPRINTF(SLB, "Moving onto ready list (%s)\n", pkt->print());
+                if (pkt) {
+                    DPRINTF(SLB, "Moving to ready list (%s)\n", pkt->print());
+                }
                 mshrQueue.moveOntoReadyList(mshr);
                 schedMemSideSendEvent(nextQueueReadyTime());
             } else {
-                DPRINTF(SLB, "Removing target (%s)\n", pkt->print());
+                if (pkt) {
+                    DPRINTF(SLB, "Removing target (%s)\n", pkt->print());
+                } else {
+                    DPRINTF(SLB, "Squashing prefetch\n");
+                }
                 DPRINTF(SLB, "Cache blocked: %x\n", blocked);
 
-                assert(pkt->isRequest());
+                if (pkt) assert(pkt->isRequest());
                 bool was_full = mshrQueue.removeTarget(mshr, pkt);
                 if (was_full) {
                     DPRINTF(SLB, "Was full!\n");
@@ -2997,8 +3015,10 @@ Cache::squashLoad(InstSeqNum seq_num)
                 }
 
                 // send response
-                pkt->makeResponse();
-                cpuSidePort->schedTimingResp(pkt, nextCycle(), true);
+                if (pkt) {
+                    pkt->makeResponse();
+                    cpuSidePort->schedTimingResp(pkt, nextCycle(), true);
+                }
             }
         } else {
             DPRINTF(SLB, "MSHR in service or it was a hit\n");
@@ -3013,7 +3033,14 @@ void
 Cache::initiateLoad(InstSeqNum seq_num, PacketPtr pkt)
 {
     DPRINTF(SLB, "Initiate load for [sn:%llu], (%s)\n", seq_num, pkt->print());
-    if (pkt->isResponse()) return; // no need to add things that are a hitnn
+    // no need to add things that are a hitnn
+    // Note: SW prefetches are immediately ack'd and appear as "responses"
+    // However, since they appear as loads on the request path, we are delaying
+    // them, so we need to add them to the delayed packets.
+    if (pkt->isResponse() && !pkt->cmd.isSWPrefetch()) return;
 
-    speculativeLoadAddrs.insert({seq_num, {pkt->getBlockAddr(blkSize), pkt} });
+    speculativeLoadAddrs.insert({seq_num,
+                                 {pkt->getBlockAddr(blkSize),
+                                  pkt->cmd.isSWPrefetch() ? nullptr : pkt}
+                                });
 }

@@ -156,7 +156,9 @@ MSHRQueue::removeTarget(MSHR *mshr, PacketPtr pkt)
     for (;
          target != mshr->targets.end();
          target++) {
-        if (target->pkt == pkt) {
+        if (pkt && target->pkt == pkt) {
+            break;
+        } else if (!pkt && target->pkt->cmd.isSWPrefetch()) {
             break;
         }
     }

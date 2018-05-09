@@ -107,6 +107,7 @@ class L1DCache(L1Cache):
 
     # Set the default size
     size = '32kB'
+    will_use_slb = True
 
     SimpleOpts.add_option('--l1d_size',
                           help="L1 data cache size. Default: %s" % size)

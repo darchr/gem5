@@ -84,6 +84,7 @@ class BaseCache(MemObject):
     system = Param.System(Parent.any, "System we belong to")
 
     use_slb = Param.Bool(False, "Using the SLB?")
+    will_use_slb = Param.Bool(False, "Will switch to using the SLB?")
 
 # Enum for cache clusivity, currently mostly inclusive or mostly
 # exclusive.

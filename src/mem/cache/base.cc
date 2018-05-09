@@ -70,8 +70,12 @@ BaseCache::CacheSlavePort::CacheSlavePort(const std::string &_name,
 BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
     : MemObject(p),
       cpuSidePort(nullptr), memSidePort(nullptr),
-      mshrQueue("MSHRs", p->mshrs, 128, p->demand_mshr_reserve), // see below
-      writeBuffer("write buffer", p->write_buffers, p->mshrs+128), // see below
+      mshrQueue("MSHRs", p->mshrs,
+                p->will_use_slb || p->use_slb ? 128 : 0,
+                p->demand_mshr_reserve), // see below
+      writeBuffer("write buffer", p->write_buffers,
+                  p->will_use_slb || p->use_slb ? p->mshrs+128 : p->mshrs),
+                  // see below
       blkSize(blk_size),
       lookupLatency(p->tag_latency),
       dataLatency(p->data_latency),
