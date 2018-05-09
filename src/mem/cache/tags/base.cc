@@ -104,17 +104,14 @@ BaseTags::insertBlock(PacketPtr pkt, CacheBlk *blk)
     // to insert the new one
     tagsInUse++;
 
-    // Set tag for new block.  Caller is responsible for setting status.
-    blk->tag = extractTag(addr);
-
     // Deal with what we are bringing in
     MasterID master_id = pkt->req->masterId();
     assert(master_id < cache->system->maxMasters());
     occupancies[master_id]++;
-    blk->srcMasterId = master_id;
 
-    // Set task id
-    blk->task_id = pkt->req->taskId();
+    // Insert block with tag, src master id and task id
+    blk->insert(extractTag(addr), pkt->isSecure(), master_id,
+                pkt->req->taskId());
 
     // We only need to write into one tag and one data block.
     tagAccesses += 1;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 ARM Limited
+ * Copyright (c) 2018 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -10,9 +10,6 @@
  * terms below provided that you ensure that this notice is replicated
  * unmodified and in its entirety in all distributions of the software,
  * modified or unmodified, in source code or in binary form.
- *
- * Copyright (c) 2007 The Regents of The University of Michigan
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -36,50 +33,40 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Authors: Giacomo Travaglini
  */
 
-#include "mem/cache/blk.hh"
+/**
+ * @file
+ * MasterInfo declaration.
+ */
 
-#include "base/cprintf.hh"
+#ifndef __MEM_MEM_MASTER_HH__
+#define __MEM_MEM_MASTER_HH__
 
-void
-CacheBlk::insert(const Addr tag, const State is_secure,
-                 const int src_master_ID, const uint32_t task_ID)
+#include "mem/request.hh"
+#include "sim/sim_object.hh"
+
+/**
+ * The MasterInfo class contains data about a specific master.
+ */
+struct MasterInfo
 {
-    // Touch block
-    isTouched = true;
+    MasterInfo(const SimObject* _obj,
+               std::string master_name,
+               MasterID master_id)
+      : obj(_obj), masterName(master_name), masterId(master_id)
+    {}
 
-    // Set block tag
-    this->tag = tag;
+    /** SimObject related to the Master */
+    const SimObject* obj;
 
-    // Set source requestor ID
-    srcMasterId = src_master_ID;
+    /** Master Name */
+    std::string masterName;
 
-    // Set task ID
-    task_id = task_ID;
+    /** Master ID */
+    MasterID masterId;
+};
 
-    // Set insertion tick as current tick
-    tickInserted = curTick();
-
-    // Insertion counts as a reference to the block
-    refCount = 1;
-
-    // Set secure state
-    if (is_secure) {
-        status = BlkSecure;
-    } else {
-        status = 0;
-    }
-}
-
-void
-CacheBlkPrintWrapper::print(std::ostream &os, int verbosity,
-                            const std::string &prefix) const
-{
-    ccprintf(os, "%sblk %c%c%c%c\n", prefix,
-             blk->isValid()    ? 'V' : '-',
-             blk->isWritable() ? 'E' : '-',
-             blk->isDirty()    ? 'M' : '-',
-             blk->isSecure()   ? 'S' : '-');
-}
-
+#endif // __MEM_MEM_MASTER_HH__

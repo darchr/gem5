@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 ARM Limited
+ * Copyright (c) 2018 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -10,9 +10,6 @@
  * terms below provided that you ensure that this notice is replicated
  * unmodified and in its entirety in all distributions of the software,
  * modified or unmodified, in source code or in binary form.
- *
- * Copyright (c) 2007 The Regents of The University of Michigan
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -36,50 +33,58 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Authors: Andreas Sandberg
  */
 
-#include "mem/cache/blk.hh"
+#include "dev/serial/simple.hh"
 
-#include "base/cprintf.hh"
+#include "mem/packet.hh"
+#include "mem/packet_access.hh"
+#include "params/SimpleUart.hh"
+#include "sim/sim_exit.hh"
 
-void
-CacheBlk::insert(const Addr tag, const State is_secure,
-                 const int src_master_ID, const uint32_t task_ID)
+SimpleUart::SimpleUart(const SimpleUartParams *p)
+    : Uart(p, p->pio_size),
+      byteOrder(p->big_endian ? BigEndianByteOrder : LittleEndianByteOrder),
+      endOnEOT(p->end_on_eot)
 {
-    // Touch block
-    isTouched = true;
-
-    // Set block tag
-    this->tag = tag;
-
-    // Set source requestor ID
-    srcMasterId = src_master_ID;
-
-    // Set task ID
-    task_id = task_ID;
-
-    // Set insertion tick as current tick
-    tickInserted = curTick();
-
-    // Insertion counts as a reference to the block
-    refCount = 1;
-
-    // Set secure state
-    if (is_secure) {
-        status = BlkSecure;
-    } else {
-        status = 0;
-    }
 }
 
-void
-CacheBlkPrintWrapper::print(std::ostream &os, int verbosity,
-                            const std::string &prefix) const
+Tick
+SimpleUart::read(PacketPtr pkt)
 {
-    ccprintf(os, "%sblk %c%c%c%c\n", prefix,
-             blk->isValid()    ? 'V' : '-',
-             blk->isWritable() ? 'E' : '-',
-             blk->isDirty()    ? 'M' : '-',
-             blk->isSecure()   ? 'S' : '-');
+    assert(pkt->getAddr() >= pioAddr && pkt->getAddr() < pioAddr + pioSize);
+
+    uint64_t data = 0;
+
+    if (device->dataAvailable())
+        data = device->readData();
+
+    pkt->setUintX(data, byteOrder);
+
+    pkt->makeAtomicResponse();
+    return pioDelay;
 }
 
+Tick
+SimpleUart::write(PacketPtr pkt)
+{
+
+    assert(pkt->getAddr() >= pioAddr && pkt->getAddr() < pioAddr + pioSize);
+
+    uint8_t data = (uint8_t)pkt->getUintX(byteOrder);
+    if (data == 0x04 && endOnEOT)
+        exitSimLoop("UART received EOT", 0);
+
+    device->writeData(data);
+
+    pkt->makeAtomicResponse();
+    return pioDelay;
+}
+
+SimpleUart *
+SimpleUartParams::create()
+{
+    return new SimpleUart(this);
+}
