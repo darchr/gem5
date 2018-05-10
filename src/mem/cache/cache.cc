@@ -913,6 +913,20 @@ Cache::recvTimingReq(PacketPtr pkt)
                         // move it ahead of mshrs that are ready
                         // mshrQueue.moveToFront(mshr);
                     }
+                    // if it's a write and the mshr is currently waiting, we
+                    // should go ahead and send the MSHR.
+                    if (pkt->isWrite()) {
+                        Addr block_addr = pkt->getBlockAddr(blkSize);
+                        if (!mshr->inService &&
+                            !mshrQueue.findPending(block_addr, false))
+                        {
+                            DPRINTF(SLB, "MSHR\n%s", mshr->print());
+                            mshrQueue.moveOntoReadyList(mshr);
+                            schedMemSideSendEvent(nextQueueReadyTime());
+                        } else {
+                            DPRINTF(SLB, "MSHR in service.\n");
+                        }
+                    }
                 }
                 // We should call the prefetcher reguardless if the request is
                 // satisfied or not, reguardless if the request is in the MSHR
