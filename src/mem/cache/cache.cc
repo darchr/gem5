@@ -906,6 +906,7 @@ Cache::recvTimingReq(PacketPtr pkt)
                     if (mshr->getNumTargets() == numTarget) {
                         DPRINTF(SLB, "NO TARGET MSHR???\n");
                         DPRINTF(SLB, "\n%s", mshr->print());
+                        if (useSlb) panic("Can't deal with no target");
                         noTargetMSHR = mshr;
                         setBlocked(Blocked_NoTargets);
                         // need to be careful with this... if this mshr isn't
@@ -2999,13 +3000,7 @@ Cache::squashLoad(InstSeqNum seq_num)
             }
             DPRINTF(SLB, "MSHR\n%s", mshr->print());
 
-            if (mshr->needsWritable()) {
-                if (pkt) {
-                    DPRINTF(SLB, "Moving to ready list (%s)\n", pkt->print());
-                }
-                mshrQueue.moveOntoReadyList(mshr);
-                schedMemSideSendEvent(nextQueueReadyTime());
-            } else {
+            assert(!mshr->needsWritable());
                 if (pkt) {
                     DPRINTF(SLB, "Removing target (%s)\n", pkt->print());
                 } else {
@@ -3033,7 +3028,6 @@ Cache::squashLoad(InstSeqNum seq_num)
                     pkt->makeResponse();
                     cpuSidePort->schedTimingResp(pkt, nextCycle(), true);
                 }
-            }
         } else {
             DPRINTF(SLB, "MSHR in service or it was a hit\n");
         }
