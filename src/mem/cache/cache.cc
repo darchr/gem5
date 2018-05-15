@@ -3001,33 +3001,33 @@ Cache::squashLoad(InstSeqNum seq_num)
             DPRINTF(SLB, "MSHR\n%s", mshr->print());
 
             assert(!mshr->needsWritable());
-                if (pkt) {
-                    DPRINTF(SLB, "Removing target (%s)\n", pkt->print());
-                } else {
-                    DPRINTF(SLB, "Squashing prefetch\n");
-                }
-                DPRINTF(SLB, "Cache blocked: %x\n", blocked);
+            if (pkt) {
+                DPRINTF(SLB, "Removing target (%s)\n", pkt->print());
+            } else {
+                DPRINTF(SLB, "Squashing prefetch\n");
+            }
+            DPRINTF(SLB, "Cache blocked: %x\n", blocked);
 
-                if (pkt) assert(pkt->isRequest());
-                bool was_full = mshrQueue.removeTarget(mshr, pkt);
-                if (was_full) {
-                    DPRINTF(SLB, "Was full!\n");
-                    clearBlocked(Blocked_NoMSHRs);
-                }
-                DPRINTF(SLB, "MSHR now\n%s", mshr->print());
+            if (pkt) assert(pkt->isRequest());
+            bool was_full = mshrQueue.removeTarget(mshr, pkt);
+            if (was_full) {
+                DPRINTF(SLB, "Was full!\n");
+                clearBlocked(Blocked_NoMSHRs);
+            }
+            DPRINTF(SLB, "MSHR now\n%s", mshr->print());
 
-                if (mshr == noTargetMSHR) {
-                    // we always clear at least one target
-                    DPRINTF(SLB, "No target MSHR??\n");
-                    clearBlocked(Blocked_NoTargets);
-                    noTargetMSHR = nullptr;
-                }
+            if (mshr == noTargetMSHR) {
+                // we always clear at least one target
+                DPRINTF(SLB, "No target MSHR??\n");
+                clearBlocked(Blocked_NoTargets);
+                noTargetMSHR = nullptr;
+            }
 
-                // send response
-                if (pkt) {
-                    pkt->makeResponse();
-                    cpuSidePort->schedTimingResp(pkt, nextCycle(), true);
-                }
+            // send response
+            if (pkt) {
+                pkt->makeResponse();
+                cpuSidePort->schedTimingResp(pkt, nextCycle(), true);
+            }
         } else {
             DPRINTF(SLB, "MSHR in service or it was a hit\n");
         }
