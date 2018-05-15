@@ -53,8 +53,8 @@ from system import MySystem
 SimpleOpts.set_usage("usage: %prog [options] specbmk samples=1")
 
 warmup_insts = int(200e6) #6-8 minutes
-detailed_warmup_insts = int(10e6) #~1 minute.
-simulation_insts = int(100e6)
+detailed_warmup_insts = int(1e6) #~1 minute.
+simulation_insts = int(50e6)
 
 class UnexpectedExit(Exception):
     pass
@@ -223,7 +223,7 @@ def simulateROI(system, instructions, samples):
             runTestBase(pids, system)
             runTestNoSpec(pids, system)
             runTestNoSpecLoad(pids, system)
-            #runTestSLB(pids, system, insts)
+            runTestSLB(pids, system)
 
             print "Waiting for children at location", i
             while pids:
@@ -323,6 +323,7 @@ def runTestSLB(pids, system):
     pid = m5.fork('%(parent)s/slb/')
     if pid == 0: # in child
         system.switchCpus(system.atomicCpu, system.timingCpuSLB)
+        m5.trace.enable()
 
         system.timingCpuSLB[0].scheduleInstStop(0, detailed_warmup_insts,
                                                  "Max Insts")
@@ -389,6 +390,8 @@ if __name__ == "__m5_main__":
 
     # instantiate all of the objects we've created above
     m5.instantiate()
+
+    m5.trace.disable()
 
     globalStart = time.time()
 
