@@ -1109,8 +1109,9 @@ Tick
 BaseKvmCPU::handleKvmExitFailEntry()
 {
     dump();
-    panic("KVM: Failed to enter virtualized mode (hw reason: 0x%llx)\n",
-          _kvmRun->fail_entry.hardware_entry_failure_reason);
+    unsigned int reason = _kvmRun->fail_entry.hardware_entry_failure_reason;
+    panic("KVM: Failed to enter virtualized mode (hw reason: %s)\n",
+          vm.getHWFailReason(reason));
 }
 
 Tick

@@ -40,6 +40,7 @@
 
 #include "cpu/kvm/vm.hh"
 
+#include <asm/vmx.h>
 #include <fcntl.h>
 #include <linux/kvm.h>
 #include <sys/ioctl.h>
@@ -49,6 +50,7 @@
 
 #include <cerrno>
 #include <memory>
+#include <string>
 
 #include "cpu/kvm/base.hh"
 #include "debug/Kvm.hh"
@@ -62,6 +64,10 @@
 #endif
 
 Kvm *Kvm::instance = NULL;
+
+//List of hardware errors
+//
+std::map<int, std::string> errStr = {VMX_EXIT_REASONS};
 
 Kvm::Kvm()
     : kvmFD(-1), apiVersion(-1), vcpuMMapSize(0)
@@ -314,6 +320,12 @@ KvmVM::~KvmVM()
 
     if (kvm)
         delete kvm;
+}
+
+std::string
+KvmVM::getHWFailReason(unsigned int  error)
+{
+    return errStr[error & ~(VMX_EXIT_REASONS_FAILED_VMENTRY)];
 }
 
 void
