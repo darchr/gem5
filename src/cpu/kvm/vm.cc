@@ -38,8 +38,6 @@
  * Authors: Andreas Sandberg
  */
 
-#include "cpu/kvm/vm.hh"
-
 #include <fcntl.h>
 #include <linux/kvm.h>
 #include <sys/ioctl.h>
@@ -49,8 +47,10 @@
 
 #include <cerrno>
 #include <memory>
+#include <string>
 
 #include "cpu/kvm/base.hh"
+#include "cpu/kvm/vm.hh"
 #include "debug/Kvm.hh"
 #include "params/KvmVM.hh"
 #include "sim/system.hh"
@@ -63,6 +63,63 @@
 
 Kvm *Kvm::instance = NULL;
 
+//List of hardware errors
+std::string errorList[] = {"EXCEPTION_NMI",
+"EXTERNAL_INTERRUPT",
+"TRIPLE_FAULT",
+"PENDING_INTERRUPT",
+"NMI_WINDOW",
+"TASK_SWITCH",
+"CPUID",
+"HLT",
+"INVD",
+"INVLPG",
+"RDPMC",
+"RDTSC",
+"VMCALL",
+"VMCLEAR",
+"VMLAUNCH",
+"VMPTRLD",
+"VMPTRST",
+"VMREAD",
+"VMRESUME",
+"VMWRITE",
+"VMOFF",
+"VMON",
+"CR_ACCESS",
+"DR_ACCESS",
+"IO_INSTRUCTION",
+"MSR_READ",
+"MSR_WRITE",
+"INVALID_STATE",
+"MSR_LOAD_FAIL",
+"MWAIT_INSTRUCTION",
+"MONITOR_TRAP_FLAG",
+"MONITOR_INSTRUCTION",
+"PAUSE_INSTRUCTION",
+"MCE_DURING_VMENTRY",
+"TPR_BELOW_THRESHOLD",
+"APIC_ACCESS",
+"EOI_INDUCED",
+"GDTR_IDTR",
+"LDTR_TR",
+"EPT_VIOLATION",
+"EPT_MISCONFIG",
+"INVEPT",
+"RDTSCP",
+"PREEMPTION_TIMER",
+"INVVPID",
+"WBINVD",
+"XSETBV",
+"APIC_WRITE",
+"RDRAND",
+"INVPCID",
+"VMFUNC",
+"ENCLS",
+"RDSEED",
+"PML_FULL",
+"XSAVES",
+"XRSTORS"};
 Kvm::Kvm()
     : kvmFD(-1), apiVersion(-1), vcpuMMapSize(0)
 {
@@ -314,6 +371,17 @@ KvmVM::~KvmVM()
 
     if (kvm)
         delete kvm;
+}
+
+std::string
+KvmVM::getHWFailReason(unsigned int  error)
+{
+    char str[256];
+    sprintf(str, "%08x", error);
+    std::string hex_reason(str);
+    int hardware_reason_index =
+    std::stoi(hex_reason.std::string::substr(hex_reason.length() - 2, 2));
+    return errorList[hardware_reason_index];
 }
 
 void
