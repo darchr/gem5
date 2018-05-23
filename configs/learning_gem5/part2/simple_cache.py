@@ -88,7 +88,7 @@ system.system_port = system.membus.slave
 process = Process()
 # Set the command
 # cmd is a list which begins with the executable (like argv)
-process.cmd = ['tests/test-progs/hello/bin/x86/linux/hello']
+process.cmd = ['tests/test-progs/hello/bin/x86/linux/hello64-static']
 # Set the cpu to use the process as its workload and create thread contexts
 system.cpu.workload = process
 system.cpu.createThreads()

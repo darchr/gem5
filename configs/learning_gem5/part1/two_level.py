@@ -66,7 +66,7 @@ SimpleOpts.set_usage("usage: %prog [options] <binary to execute>")
 isa = str(m5.defines.buildEnv['TARGET_ISA']).lower()
 
 # Default to running 'hello', use the compiled ISA to find the binary
-binary = 'tests/test-progs/hello/bin/' + isa + '/linux/hello'
+binary = 'tests/test-progs/hello/bin/' + isa + '/linux/hello64-static'
 
 # Check if there was a binary passed in via the command line and error if
 # there are too many arguments
