@@ -689,7 +689,6 @@ namespace ArmISA
         MISCREG_RAZ,
         MISCREG_CP14_UNIMPL,
         MISCREG_CP15_UNIMPL,
-        MISCREG_A64_UNIMPL,
         MISCREG_UNKNOWN,
 
         // Implementation defined register: this represent
@@ -1386,7 +1385,6 @@ namespace ArmISA
         "raz",
         "cp14_unimpl",
         "cp15_unimpl",
-        "a64_unimpl",
         "unknown",
         "impl_defined"
     };
@@ -1478,6 +1476,7 @@ namespace ArmISA
     EndBitUnion(HSTR)
 
     BitUnion64(HCR)
+        Bitfield<34>     e2h;   // AArch64
         Bitfield<33>     id;    // AArch64
         Bitfield<32>     cd;    // AArch64
         Bitfield<31>     rw;    // AArch64

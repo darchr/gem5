@@ -48,7 +48,6 @@
 
 #include "mem/cache/tags/base.hh"
 
-#include "cpu/smt.hh" //maxThreadsPerCPU
 #include "mem/cache/base.hh"
 #include "sim/sim_exit.hh"
 
@@ -76,33 +75,13 @@ BaseTags::setCache(BaseCache *_cache)
 void
 BaseTags::insertBlock(PacketPtr pkt, CacheBlk *blk)
 {
+    assert(!blk->isValid());
+
     // Get address
     Addr addr = pkt->getAddr();
 
-    // Update warmup data
-    if (!blk->isTouched) {
-        if (!warmedUp && tagsInUse.value() >= warmupBound) {
-            warmedUp = true;
-            warmupCycle = curTick();
-        }
-    }
-
-    // If we're replacing a block that was previously valid update
-    // stats for it. This can't be done in findBlock() because a
-    // found block might not actually be replaced there if the
-    // coherence protocol says it can't be.
-    if (blk->isValid()) {
-        replacements[0]++;
-        totalRefs += blk->refCount;
-        ++sampledRefs;
-
-        invalidate(blk);
-        blk->invalidate();
-    }
-
     // Previous block, if existed, has been removed, and now we have
     // to insert the new one
-    tagsInUse++;
 
     // Deal with what we are bringing in
     MasterID master_id = pkt->req->masterId();
@@ -112,6 +91,12 @@ BaseTags::insertBlock(PacketPtr pkt, CacheBlk *blk)
     // Insert block with tag, src master id and task id
     blk->insert(extractTag(addr), pkt->isSecure(), master_id,
                 pkt->req->taskId());
+
+    tagsInUse++;
+    if (!warmedUp && tagsInUse.value() >= warmupBound) {
+        warmedUp = true;
+        warmupCycle = curTick();
+    }
 
     // We only need to write into one tag and one data block.
     tagAccesses += 1;
@@ -124,13 +109,6 @@ BaseTags::regStats()
     ClockedObject::regStats();
 
     using namespace Stats;
-
-    replacements
-        .init(maxThreadsPerCPU)
-        .name(name() + ".replacements")
-        .desc("number of replacements")
-        .flags(total)
-        ;
 
     tagsInUse
         .name(name() + ".tagsinuse")

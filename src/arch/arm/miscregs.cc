@@ -2082,9 +2082,12 @@ decodeAArch64SysReg(unsigned op0, unsigned op1,
                     }
                     break;
                 }
-                break;
+                M5_FALLTHROUGH;
+              default:
+                // S3_<op1>_11_<Cm>_<op2>
+                return MISCREG_IMPDEF_UNIMPL;
             }
-            break;
+            M5_UNREACHABLE;
           case 12:
             switch (op1) {
               case 0:
@@ -2370,7 +2373,8 @@ decodeAArch64SysReg(unsigned op0, unsigned op1,
                 }
                 break;
             }
-            break;
+            // S3_<op1>_15_<Cm>_<op2>
+            return MISCREG_IMPDEF_UNIMPL;
         }
         break;
     }
@@ -3535,7 +3539,7 @@ ISA::initializeMiscRegMetadata()
       .hyp().mon()
       .mapsTo(MISCREG_HTTBR);
     InitReg(MISCREG_TTBR1_EL2)
-      .unimplemented();
+      .hyp().mon();
     InitReg(MISCREG_TCR_EL2)
       .hyp().mon()
       .mapsTo(MISCREG_HTCR);
@@ -4003,10 +4007,10 @@ ISA::initializeMiscRegMetadata()
     InitReg(MISCREG_CP15_UNIMPL)
       .unimplemented()
       .warnNotFail();
-    InitReg(MISCREG_A64_UNIMPL)
-      .unimplemented()
-      .warnNotFail();
     InitReg(MISCREG_UNKNOWN);
+    InitReg(MISCREG_IMPDEF_UNIMPL)
+      .unimplemented()
+      .warnNotFail(impdefAsNop);
 
     // Register mappings for some unimplemented registers:
     // ESR_EL1 -> DFSR
