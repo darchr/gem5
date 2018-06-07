@@ -30,11 +30,14 @@
 
 #include "cpu/kvm/x86_cpu.hh"
 
+#include <asm/vmx.h>
 #include <linux/kvm.h>
 
 #include <algorithm>
 #include <cerrno>
+#include <map>
 #include <memory>
+#include <string>
 
 #include "arch/registers.hh"
 #include "arch/x86/cpuid.hh"
@@ -519,6 +522,10 @@ checkSeg(const char *name, const int idx, const struct kvm_segment &seg,
 
     // TODO: Check CS DB
 }
+
+//List of hardware errors
+//
+std::map<int, std::string> exitReasonStrings = {VMX_EXIT_REASONS};
 
 X86KvmCPU::X86KvmCPU(X86KvmCPUParams *params)
     : BaseKvmCPU(params),
@@ -1369,6 +1376,16 @@ X86KvmCPU::handleKvmExitIO()
     }
 
     return delay;
+}
+
+Tick
+X86KvmCPU::handleKvmExitFailEntry()
+{
+    dump();
+    unsigned int reason =
+            getKvmRunState()->fail_entry.hardware_entry_failure_reason;
+    panic("KVM: Failed to enter virtualized mode (hw reason: %s)\n",
+          exitReasonStrings[reason & ~(VMX_EXIT_REASONS_FAILED_VMENTRY)]);
 }
 
 Tick
