@@ -145,6 +145,8 @@ class X86KvmCPU : public BaseKvmCPU
      */
     Tick handleKvmExitIO() override;
 
+    Tick handleKvmExitFailEntry() override;
+
     Tick handleKvmExitIRQWindowOpen() override;
 
     /**
