@@ -41,6 +41,7 @@
 #ifndef __CPU_KVM_KVMVM_HH__
 #define __CPU_KVM_KVMVM_HH__
 
+#include <string>
 #include <vector>
 
 #include "base/addr_range.hh"
@@ -297,6 +298,12 @@ class KvmVM : public SimObject
     virtual ~KvmVM();
 
     void notifyFork();
+
+    /*
+     * Return a string corresponding to the error associated to
+     * hardware failure.
+     */
+    std::string getHWFailReason(unsigned int  error);
 
     /**
      * Setup a shared three-page memory region used by the internals
