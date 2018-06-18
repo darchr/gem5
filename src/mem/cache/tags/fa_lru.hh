@@ -49,11 +49,16 @@
 #ifndef __MEM_CACHE_TAGS_FA_LRU_HH__
 #define __MEM_CACHE_TAGS_FA_LRU_HH__
 
-#include <list>
+#include <cstdint>
+#include <functional>
+#include <string>
 #include <unordered_map>
 
+#include "base/bitfield.hh"
 #include "base/intmath.hh"
-#include "mem/cache/base.hh"
+#include "base/logging.hh"
+#include "base/statistics.hh"
+#include "base/types.hh"
 #include "mem/cache/blk.hh"
 #include "mem/cache/tags/base.hh"
 #include "mem/packet.hh"
@@ -62,6 +67,8 @@
 // Uncomment to enable sanity checks for the FALRU cache and the
 // TrackedCaches class
 //#define FALRU_DEBUG
+
+class ReplaceableEntry;
 
 // A bitmask of the caches we are keeping track of. Currently the
 // lowest bit is the smallest cache we are tracking, as it is
@@ -181,12 +188,25 @@ class FALRU : public BaseTags
     CacheBlk* findBlock(Addr addr, bool is_secure) const override;
 
     /**
-     * Find replacement victim based on address.
+     * Find a block given set and way.
+     *
+     * @param set The set of the block.
+     * @param way The way of the block.
+     * @return The block.
+     */
+    ReplaceableEntry* findBlockBySetAndWay(int set, int way) const override;
+
+    /**
+     * Find replacement victim based on address. The list of evicted blocks
+     * only contains the victim.
      *
      * @param addr Address to find a victim for.
+     * @param is_secure True if the target memory space is secure.
+     * @param evict_blks Cache blocks to be evicted.
      * @return Cache block to be replaced.
      */
-    CacheBlk* findVictim(Addr addr) override;
+    CacheBlk* findVictim(Addr addr, const bool is_secure,
+                         std::vector<CacheBlk*>& evict_blks) const override;
 
     /**
      * Insert the new block into the cache and update replacement data.
@@ -194,15 +214,7 @@ class FALRU : public BaseTags
      * @param pkt Packet holding the address to update
      * @param blk The block to update.
      */
-    void insertBlock(PacketPtr pkt, CacheBlk *blk) override;
-
-    /**
-     * Find the cache block given set and way
-     * @param set The set of the block.
-     * @param way The way of the block.
-     * @return The cache block.
-     */
-    CacheBlk* findBlockBySetAndWay(int set, int way) const override;
+    void insertBlock(const PacketPtr pkt, CacheBlk *blk) override;
 
     /**
      * Generate the tag from the addres. For fully associative this is just the
@@ -216,16 +228,6 @@ class FALRU : public BaseTags
     }
 
     /**
-     * Return the set of an address. Only one set in a fully associative cache.
-     * @param addr The address to get the set from.
-     * @return 0.
-     */
-    int extractSet(Addr addr) const override
-    {
-        return 0;
-    }
-
-    /**
      * Regenerate the block address from the tag.
      *
      * @param block The block.
@@ -236,28 +238,19 @@ class FALRU : public BaseTags
         return blk->tag;
     }
 
-    /**
-     * @todo Implement as in lru. Currently not used
-     */
-    virtual std::string print() const override { return ""; }
-
-    /**
-     * Visit each block in the tag store and apply a visitor to the
-     * block.
-     *
-     * The visitor should be a function (or object that behaves like a
-     * function) that takes a cache block reference as its parameter
-     * and returns a bool. A visitor can request the traversal to be
-     * stopped by returning false, returning true causes it to be
-     * called for the next block in the tag store.
-     *
-     * \param visitor Visitor to call on each block.
-     */
-    void forEachBlk(CacheBlkVisitor &visitor) override {
+    void forEachBlk(std::function<void(CacheBlk &)> visitor) override {
         for (int i = 0; i < numBlocks; i++) {
-            if (!visitor(blks[i]))
-                return;
+            visitor(blks[i]);
         }
+    }
+
+    bool anyBlk(std::function<bool(CacheBlk &)> visitor) override {
+        for (int i = 0; i < numBlocks; i++) {
+            if (visitor(blks[i])) {
+                return true;
+            }
+        }
+        return false;
     }
 
   private:

@@ -53,6 +53,7 @@
 
 #include "base/intmath.hh"
 #include "base/logging.hh"
+#include "mem/cache/base.hh"
 
 FALRU::FALRU(const Params *p)
     : BaseTags(p),
@@ -121,6 +122,9 @@ FALRU::invalidate(CacheBlk *blk)
 {
     BaseTags::invalidate(blk);
 
+    // Decrease the number of tags in use
+    tagsInUse--;
+
     // Move the block to the tail to make it the next victim
     moveToTail((FALRUBlk*)blk);
 
@@ -168,7 +172,6 @@ FALRU::accessBlock(Addr addr, bool is_secure, Cycles &lat,
     return blk;
 }
 
-
 CacheBlk*
 FALRU::findBlock(Addr addr, bool is_secure) const
 {
@@ -184,7 +187,7 @@ FALRU::findBlock(Addr addr, bool is_secure) const
     return blk;
 }
 
-CacheBlk*
+ReplaceableEntry*
 FALRU::findBlockBySetAndWay(int set, int way) const
 {
     assert(set == 0);
@@ -192,13 +195,20 @@ FALRU::findBlockBySetAndWay(int set, int way) const
 }
 
 CacheBlk*
-FALRU::findVictim(Addr addr)
+FALRU::findVictim(Addr addr, const bool is_secure,
+                  std::vector<CacheBlk*>& evict_blks) const
 {
-    return tail;
+    // The victim is always stored on the tail for the FALRU
+    FALRUBlk* victim = tail;
+
+    // There is only one eviction for this replacement
+    evict_blks.push_back(victim);
+
+    return victim;
 }
 
 void
-FALRU::insertBlock(PacketPtr pkt, CacheBlk *blk)
+FALRU::insertBlock(const PacketPtr pkt, CacheBlk *blk)
 {
     FALRUBlk* falruBlk = static_cast<FALRUBlk*>(blk);
 
@@ -207,6 +217,9 @@ FALRU::insertBlock(PacketPtr pkt, CacheBlk *blk)
 
     // Do common block insertion functionality
     BaseTags::insertBlock(pkt, blk);
+
+    // Increment tag counter
+    tagsInUse++;
 
     // New block is the MRU
     moveToHead(falruBlk);

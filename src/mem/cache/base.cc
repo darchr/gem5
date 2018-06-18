@@ -113,7 +113,7 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
     // forward snoops is overridden in init() once we can query
     // whether the connected master is actually snooping or not
 
-    tempBlock = new CacheBlk();
+    tempBlock = new TempCacheBlk();
     tempBlock->data = new uint8_t[blkSize];
 
     tags->setCache(this);
@@ -162,6 +162,16 @@ BaseCache::CacheSlavePort::processSendRetry()
     // reset the flag and call retry
     mustSendRetry = false;
     sendRetryReq();
+}
+
+Addr
+BaseCache::regenerateBlkAddr(CacheBlk* blk)
+{
+    if (blk != tempBlock) {
+        return tags->regenerateBlkAddr(blk);
+    } else {
+        return tempBlock->getAddr();
+    }
 }
 
 void
@@ -800,7 +810,6 @@ BaseCache::getNextQueueEntry()
                 return allocateMissBuffer(pkt, curTick(), false);
             } else {
                 // free the request and packet
-                delete pkt->req;
                 delete pkt;
             }
         }
@@ -827,7 +836,22 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
     // Check RMW operations first since both isRead() and
     // isWrite() will be true for them
     if (pkt->cmd == MemCmd::SwapReq) {
-        cmpAndSwap(blk, pkt);
+        if (pkt->isAtomicOp()) {
+            // extract data from cache and save it into the data field in
+            // the packet as a return value from this atomic op
+
+            int offset = tags->extractBlkOffset(pkt->getAddr());
+            uint8_t *blk_data = blk->data + offset;
+            std::memcpy(pkt->getPtr<uint8_t>(), blk_data, pkt->getSize());
+
+            // execute AMO operation
+            (*(pkt->getAtomicOp()))(blk_data);
+
+            // set block status to dirty
+            blk->status |= BlkDirty;
+        } else {
+            cmpAndSwap(blk, pkt);
+        }
     } else if (pkt->isWrite()) {
         // we have the block in a writable state and can go ahead,
         // note that the line may be also be considered writable in
@@ -961,13 +985,12 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
 
         if (!blk) {
             // need to do a replacement
-            blk = allocateBlock(pkt->getAddr(), pkt->isSecure(), writebacks);
+            blk = allocateBlock(pkt, writebacks);
             if (!blk) {
                 // no replaceable block available: give up, fwd to next level.
                 incMissCount(pkt);
                 return false;
             }
-            tags->insertBlock(pkt, blk);
 
             blk->status |= (BlkValid | BlkReadable);
         }
@@ -1019,15 +1042,13 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                 return false;
             } else {
                 // a writeback that misses needs to allocate a new block
-                blk = allocateBlock(pkt->getAddr(), pkt->isSecure(),
-                                    writebacks);
+                blk = allocateBlock(pkt, writebacks);
                 if (!blk) {
                     // no replaceable block available: give up, fwd to
                     // next level.
                     incMissCount(pkt);
                     return false;
                 }
-                tags->insertBlock(pkt, blk);
 
                 blk->status |= (BlkValid | BlkReadable);
             }
@@ -1115,7 +1136,7 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
 
         // need to do a replacement if allocating, otherwise we stick
         // with the temporary storage
-        blk = allocate ? allocateBlock(addr, is_secure, writebacks) : nullptr;
+        blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;
 
         if (!blk) {
             // No replaceable block or a mostly exclusive
@@ -1123,27 +1144,23 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             // current request and then get rid of it
             assert(!tempBlock->isValid());
             blk = tempBlock;
-            tempBlock->set = tags->extractSet(addr);
-            tempBlock->tag = tags->extractTag(addr);
+            tempBlock->insert(addr, is_secure);
             DPRINTF(Cache, "using temp block for %#llx (%s)\n", addr,
                     is_secure ? "s" : "ns");
-        } else {
-            tags->insertBlock(pkt, blk);
         }
 
         // we should never be overwriting a valid block
         assert(!blk->isValid());
     } else {
         // existing block... probably an upgrade
-        assert(blk->tag == tags->extractTag(addr));
+        assert(regenerateBlkAddr(blk) == addr);
+        assert(blk->isSecure() == is_secure);
         // either we're getting new data or the block should already be valid
         assert(pkt->hasData() || blk->isValid());
         // don't clear block status... if block is already dirty we
         // don't want to lose that
     }
 
-    if (is_secure)
-        blk->status |= BlkSecure;
     blk->status |= BlkValid | BlkReadable;
 
     // sanity check for whole-line writes, which should always be
@@ -1198,41 +1215,68 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
 }
 
 CacheBlk*
-BaseCache::allocateBlock(Addr addr, bool is_secure, PacketList &writebacks)
+BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 {
+    // Get address
+    const Addr addr = pkt->getAddr();
+
+    // Get secure bit
+    const bool is_secure = pkt->isSecure();
+
     // Find replacement victim
-    CacheBlk *blk = tags->findVictim(addr);
+    std::vector<CacheBlk*> evict_blks;
+    CacheBlk *victim = tags->findVictim(addr, is_secure, evict_blks);
 
     // It is valid to return nullptr if there is no victim
-    if (!blk)
+    if (!victim)
         return nullptr;
 
-    if (blk->isValid()) {
-        Addr repl_addr = tags->regenerateBlkAddr(blk);
-        MSHR *repl_mshr = mshrQueue.findMatch(repl_addr, blk->isSecure());
-        if (repl_mshr) {
-            // must be an outstanding upgrade or clean request
-            // on a block we're about to replace...
-            assert((!blk->isWritable() && repl_mshr->needsWritable()) ||
-                   repl_mshr->isCleaning());
-            // too hard to replace block with transient state
-            // allocation failed, block not inserted
-            return nullptr;
-        } else {
-            DPRINTF(Cache, "replacement: replacing %#llx (%s) with %#llx "
-                    "(%s): %s\n", repl_addr, blk->isSecure() ? "s" : "ns",
-                    addr, is_secure ? "s" : "ns",
-                    blk->isDirty() ? "writeback" : "clean");
+    // Check for transient state allocations. If any of the entries listed
+    // for eviction has a transient state, the allocation fails
+    for (const auto& blk : evict_blks) {
+        if (blk->isValid()) {
+            Addr repl_addr = regenerateBlkAddr(blk);
+            MSHR *repl_mshr = mshrQueue.findMatch(repl_addr, blk->isSecure());
+            if (repl_mshr) {
+                // must be an outstanding upgrade or clean request
+                // on a block we're about to replace...
+                assert((!blk->isWritable() && repl_mshr->needsWritable()) ||
+                       repl_mshr->isCleaning());
 
-            if (blk->wasPrefetched()) {
-                unusedPrefetches++;
+                // too hard to replace block with transient state
+                // allocation failed, block not inserted
+                return nullptr;
             }
-            evictBlock(blk, writebacks);
-            replacements++;
         }
     }
 
-    return blk;
+    // The victim will be replaced by a new entry, so increase the replacement
+    // counter if a valid block is being replaced
+    if (victim->isValid()) {
+        DPRINTF(Cache, "replacement: replacing %#llx (%s) with %#llx "
+                "(%s): %s\n", regenerateBlkAddr(victim),
+                victim->isSecure() ? "s" : "ns",
+                addr, is_secure ? "s" : "ns",
+                victim->isDirty() ? "writeback" : "clean");
+
+        replacements++;
+    }
+
+    // Evict valid blocks associated to this victim block
+    for (const auto& blk : evict_blks) {
+        if (blk->isValid()) {
+            if (blk->wasPrefetched()) {
+                unusedPrefetches++;
+            }
+
+            evictBlock(blk, writebacks);
+        }
+    }
+
+    // Insert new block at victimized entry
+    tags->insertBlock(pkt, victim);
+
+    return victim;
 }
 
 void
@@ -1252,8 +1296,9 @@ BaseCache::writebackBlk(CacheBlk *blk)
 
     writebacks[Request::wbMasterId]++;
 
-    Request *req = new Request(tags->regenerateBlkAddr(blk), blkSize, 0,
-                               Request::wbMasterId);
+    RequestPtr req = std::make_shared<Request>(
+        regenerateBlkAddr(blk), blkSize, 0, Request::wbMasterId);
+
     if (blk->isSecure())
         req->setFlags(Request::SECURE);
 
@@ -1287,8 +1332,9 @@ BaseCache::writebackBlk(CacheBlk *blk)
 PacketPtr
 BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
 {
-    Request *req = new Request(tags->regenerateBlkAddr(blk), blkSize, 0,
-                               Request::wbMasterId);
+    RequestPtr req = std::make_shared<Request>(
+        regenerateBlkAddr(blk), blkSize, 0, Request::wbMasterId);
+
     if (blk->isSecure()) {
         req->setFlags(Request::SECURE);
     }
@@ -1326,51 +1372,45 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
 void
 BaseCache::memWriteback()
 {
-    CacheBlkVisitorWrapper visitor(*this, &BaseCache::writebackVisitor);
-    tags->forEachBlk(visitor);
+    tags->forEachBlk([this](CacheBlk &blk) { writebackVisitor(blk); });
 }
 
 void
 BaseCache::memInvalidate()
 {
-    CacheBlkVisitorWrapper visitor(*this, &BaseCache::invalidateVisitor);
-    tags->forEachBlk(visitor);
+    tags->forEachBlk([this](CacheBlk &blk) { invalidateVisitor(blk); });
 }
 
 bool
 BaseCache::isDirty() const
 {
-    CacheBlkIsDirtyVisitor visitor;
-    tags->forEachBlk(visitor);
-
-    return visitor.isDirty();
+    return tags->anyBlk([](CacheBlk &blk) { return blk.isDirty(); });
 }
 
-bool
+void
 BaseCache::writebackVisitor(CacheBlk &blk)
 {
     if (blk.isDirty()) {
         assert(blk.isValid());
 
-        Request request(tags->regenerateBlkAddr(&blk),
-                        blkSize, 0, Request::funcMasterId);
-        request.taskId(blk.task_id);
+        RequestPtr request = std::make_shared<Request>(
+            regenerateBlkAddr(&blk), blkSize, 0, Request::funcMasterId);
+
+        request->taskId(blk.task_id);
         if (blk.isSecure()) {
-            request.setFlags(Request::SECURE);
+            request->setFlags(Request::SECURE);
         }
 
-        Packet packet(&request, MemCmd::WriteReq);
+        Packet packet(request, MemCmd::WriteReq);
         packet.dataStatic(blk.data);
 
         memSidePort.sendFunctional(&packet);
 
         blk.status &= ~BlkDirty;
     }
-
-    return true;
 }
 
-bool
+void
 BaseCache::invalidateVisitor(CacheBlk &blk)
 {
     if (blk.isDirty())
@@ -1381,8 +1421,6 @@ BaseCache::invalidateVisitor(CacheBlk &blk)
         assert(!blk.isDirty());
         invalidateBlock(&blk);
     }
-
-    return true;
 }
 
 Tick

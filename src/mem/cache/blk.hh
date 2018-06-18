@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 ARM Limited
+ * Copyright (c) 2012-2018 ARM Limited
  * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
@@ -48,9 +48,14 @@
 #ifndef __MEM_CACHE_BLK_HH__
 #define __MEM_CACHE_BLK_HH__
 
+#include <cassert>
+#include <cstdint>
+#include <iosfwd>
 #include <list>
+#include <string>
 
 #include "base/printable.hh"
+#include "base/types.hh"
 #include "mem/cache/replacement_policies/base.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
@@ -131,7 +136,7 @@ class CacheBlk : public ReplaceableEntry
 
         // check for matching execution context, and an address that
         // is within the lock
-        bool matches(const RequestPtr req) const
+        bool matches(const RequestPtr &req) const
         {
             Addr req_low = req->getPaddr();
             Addr req_high = req_low + req->getSize() -1;
@@ -140,7 +145,7 @@ class CacheBlk : public ReplaceableEntry
         }
 
         // check if a request is intersecting and thus invalidating the lock
-        bool intersects(const RequestPtr req) const
+        bool intersects(const RequestPtr &req) const
         {
             Addr req_low = req->getPaddr();
             Addr req_high = req_low + req->getSize() - 1;
@@ -148,7 +153,7 @@ class CacheBlk : public ReplaceableEntry
             return (req_low <= highAddr) && (req_high >= lowAddr);
         }
 
-        Lock(const RequestPtr req)
+        Lock(const RequestPtr &req)
             : contextId(req->contextId()),
               lowAddr(req->getPaddr()),
               highAddr(lowAddr + req->getSize() - 1)
@@ -161,8 +166,7 @@ class CacheBlk : public ReplaceableEntry
     std::list<Lock> lockList;
 
   public:
-
-    CacheBlk()
+    CacheBlk() : data(nullptr)
     {
         invalidate();
     }
@@ -256,8 +260,8 @@ class CacheBlk : public ReplaceableEntry
      * @param src_master_ID The source requestor ID.
      * @param task_ID The new task ID.
      */
-    void insert(const Addr tag, const State is_secure, const int src_master_ID,
-                const uint32_t task_ID);
+    virtual void insert(const Addr tag, const bool is_secure,
+                        const int src_master_ID, const uint32_t task_ID);
 
     /**
      * Track the fact that a local locked was issued to the
@@ -281,7 +285,7 @@ class CacheBlk : public ReplaceableEntry
      * Clear the any load lock that intersect the request, and is from
      * a different context.
      */
-    void clearLoadLocks(RequestPtr req)
+    void clearLoadLocks(const RequestPtr &req)
     {
         auto l = lockList.begin();
         while (l != lockList.end()) {
@@ -353,7 +357,7 @@ class CacheBlk : public ReplaceableEntry
         if (!pkt->isLLSC() && lockList.empty())
             return true;
 
-        RequestPtr req = pkt->req;
+        const RequestPtr &req = pkt->req;
 
         if (pkt->isLLSC()) {
             // it's a store conditional... have to check for matching
@@ -389,6 +393,66 @@ class CacheBlk : public ReplaceableEntry
 };
 
 /**
+ * Special instance of CacheBlk for use with tempBlk that deals with its
+ * block address regeneration.
+ * @sa Cache
+ */
+class TempCacheBlk final : public CacheBlk
+{
+  private:
+    /**
+     * Copy of the block's address, used to regenerate tempBlock's address.
+     */
+    Addr _addr;
+
+  public:
+    TempCacheBlk() : CacheBlk() {}
+    TempCacheBlk(const TempCacheBlk&) = delete;
+    TempCacheBlk& operator=(const TempCacheBlk&) = delete;
+    ~TempCacheBlk() {};
+
+    /**
+     * Invalidate the block and clear all state.
+     */
+    void invalidate() override {
+        CacheBlk::invalidate();
+
+        _addr = MaxAddr;
+    }
+
+    /**
+     * Set member variables when a block insertion occurs. A TempCacheBlk does
+     * not have all the information required to regenerate the block's address,
+     * so it is provided the address itself for easy regeneration.
+     *
+     * @param addr Block address.
+     * @param is_secure Whether the block is in secure space or not.
+     */
+    void insert(const Addr addr, const bool is_secure)
+    {
+        // Set block address
+        _addr = addr;
+
+        // Set secure state
+        if (is_secure) {
+            status = BlkSecure;
+        } else {
+            status = 0;
+        }
+    }
+
+    /**
+     * Get block's address.
+     *
+     * @return addr Address value.
+     */
+    Addr getAddr() const
+    {
+        return _addr;
+    }
+};
+
+/**
  * Simple class to provide virtual print() method on cache blocks
  * without allocating a vtable pointer for every single cache block.
  * Just wrap the CacheBlk object in an instance of this before passing
@@ -402,22 +466,6 @@ class CacheBlkPrintWrapper : public Printable
     virtual ~CacheBlkPrintWrapper() {}
     void print(std::ostream &o, int verbosity = 0,
                const std::string &prefix = "") const;
-};
-
-/**
- * Base class for cache block visitor, operating on the cache block
- * base class (later subclassed for the various tag classes). This
- * visitor class is used as part of the forEachBlk interface in the
- * tag classes.
- */
-class CacheBlkVisitor
-{
-  public:
-
-    CacheBlkVisitor() {}
-    virtual ~CacheBlkVisitor() {}
-
-    virtual bool operator()(CacheBlk &blk) = 0;
 };
 
 #endif //__MEM_CACHE_BLK_HH__

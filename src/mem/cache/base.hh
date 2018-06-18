@@ -334,7 +334,7 @@ class BaseCache : public MemObject
      * is an outstanding request that accesses the victim block) or
      * when we want to avoid allocation (e.g., exclusive caches)
      */
-    CacheBlk *tempBlock;
+    TempCacheBlk *tempBlock;
 
     /**
      * Upstream caches need this packet until true is returned, so
@@ -388,6 +388,16 @@ class BaseCache : public MemObject
             cmd.isPrefetch() ||
             cmd.isLLSC();
     }
+
+    /**
+     * Regenerate block address using tags.
+     * Block address regeneration depends on whether we're using a temporary
+     * block or not.
+     *
+     * @param blk The block to regenerate address.
+     * @return The block's address.
+     */
+    Addr regenerateBlkAddr(CacheBlk* blk);
 
     /**
      * Does all the processing necessary to perform the provided request.
@@ -649,14 +659,14 @@ class BaseCache : public MemObject
      *
      * Find a victim block and if necessary prepare writebacks for any
      * existing data. May return nullptr if there are no replaceable
-     * blocks.
+     * blocks. If a replaceable block is found, it inserts the new block in
+     * its place. The new block, however, is not set as valid yet.
      *
-     * @param addr Physical address of the new block
-     * @param is_secure Set if the block should be secure
+     * @param pkt Packet holding the address to update
      * @param writebacks A list of writeback packets for the evicted blocks
      * @return the allocated block
      */
-    CacheBlk *allocateBlock(Addr addr, bool is_secure, PacketList &writebacks);
+    CacheBlk *allocateBlock(const PacketPtr pkt, PacketList &writebacks);
     /**
      * Evict a cache block.
      *
@@ -1108,19 +1118,15 @@ class BaseCache : public MemObject
     /**
      * Cache block visitor that writes back dirty cache blocks using
      * functional writes.
-     *
-     * @return Always returns true.
      */
-    bool writebackVisitor(CacheBlk &blk);
+    void writebackVisitor(CacheBlk &blk);
 
     /**
      * Cache block visitor that invalidates all blocks in the cache.
      *
      * @warn Dirty cache lines will not be written back to memory.
-     *
-     * @return Always returns true.
      */
-    bool invalidateVisitor(CacheBlk &blk);
+    void invalidateVisitor(CacheBlk &blk);
 
     /**
      * Take an MSHR, turn it into a suitable downstream packet, and
@@ -1150,64 +1156,6 @@ class BaseCache : public MemObject
     void serialize(CheckpointOut &cp) const override;
     void unserialize(CheckpointIn &cp) override;
 
-};
-
-/**
- * Wrap a method and present it as a cache block visitor.
- *
- * For example the forEachBlk method in the tag arrays expects a
- * callable object/function as their parameter. This class wraps a
- * method in an object and presents  callable object that adheres to
- * the cache block visitor protocol.
- */
-class CacheBlkVisitorWrapper : public CacheBlkVisitor
-{
-  public:
-    typedef bool (BaseCache::*VisitorPtr)(CacheBlk &blk);
-
-    CacheBlkVisitorWrapper(BaseCache &_cache, VisitorPtr _visitor)
-        : cache(_cache), visitor(_visitor) {}
-
-    bool operator()(CacheBlk &blk) override {
-        return (cache.*visitor)(blk);
-    }
-
-  private:
-    BaseCache &cache;
-    VisitorPtr visitor;
-};
-
-/**
- * Cache block visitor that determines if there are dirty blocks in a
- * cache.
- *
- * Use with the forEachBlk method in the tag array to determine if the
- * array contains dirty blocks.
- */
-class CacheBlkIsDirtyVisitor : public CacheBlkVisitor
-{
-  public:
-    CacheBlkIsDirtyVisitor()
-        : _isDirty(false) {}
-
-    bool operator()(CacheBlk &blk) override {
-        if (blk.isDirty()) {
-            _isDirty = true;
-            return false;
-        } else {
-            return true;
-        }
-    }
-
-    /**
-     * Does the array contain a dirty line?
-     *
-     * @return true if yes, false otherwise.
-     */
-    bool isDirty() const { return _isDirty; };
-
-  private:
-    bool _isDirty;
 };
 
 #endif //__MEM_CACHE_BASE_HH__

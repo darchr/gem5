@@ -49,15 +49,15 @@
 
 #include "mem/cache/mshr.hh"
 
-#include <algorithm>
 #include <cassert>
 #include <string>
-#include <vector>
 
 #include "base/logging.hh"
+#include "base/trace.hh"
 #include "base/types.hh"
 #include "debug/Cache.hh"
-#include "mem/cache/cache.hh"
+#include "mem/cache/base.hh"
+#include "mem/request.hh"
 #include "sim/core.hh"
 
 MSHR::MSHR() : downstreamPending(false),
@@ -310,11 +310,6 @@ MSHR::allocateTarget(PacketPtr pkt, Tick whenReady, Counter _order,
     // outstanding miss
     assert(pkt->cmd != MemCmd::HardPFReq);
 
-    // uncacheable accesses always allocate a new MSHR, and cacheable
-    // accesses ignore any uncacheable MSHRs, thus we should never
-    // have targets addded if originally allocated uncacheable
-    assert(!_isUncacheable);
-
     // if there's a request already in service for this MSHR, we will
     // have to defer the new target until after the response if any of
     // the following are true:
@@ -429,7 +424,8 @@ MSHR::handleSnoop(PacketPtr pkt, Counter _order)
         // the packet and the request as part of handling the deferred
         // snoop.
         PacketPtr cp_pkt = will_respond ? new Packet(pkt, true, true) :
-            new Packet(new Request(*pkt->req), pkt->cmd, blkSize, pkt->id);
+            new Packet(std::make_shared<Request>(*pkt->req), pkt->cmd,
+                       blkSize, pkt->id);
 
         if (will_respond) {
             // we are the ordering point, and will consequently

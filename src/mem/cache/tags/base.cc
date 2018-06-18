@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013,2016 ARM Limited
+ * Copyright (c) 2013,2016,2018 ARM Limited
  * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
@@ -48,8 +48,15 @@
 
 #include "mem/cache/tags/base.hh"
 
+#include <cassert>
+
+#include "base/types.hh"
 #include "mem/cache/base.hh"
+#include "mem/packet.hh"
+#include "mem/request.hh"
+#include "sim/core.hh"
 #include "sim/sim_exit.hh"
+#include "sim/system.hh"
 
 BaseTags::BaseTags(const Params *p)
     : ClockedObject(p), blkSize(p->block_size), blkMask(blkSize - 1),
@@ -73,7 +80,7 @@ BaseTags::setCache(BaseCache *_cache)
 }
 
 void
-BaseTags::insertBlock(PacketPtr pkt, CacheBlk *blk)
+BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
 {
     assert(!blk->isValid());
 
@@ -92,7 +99,6 @@ BaseTags::insertBlock(PacketPtr pkt, CacheBlk *blk)
     blk->insert(extractTag(addr), pkt->isSecure(), master_id,
                 pkt->req->taskId());
 
-    tagsInUse++;
     if (!warmedUp && tagsInUse.value() >= warmupBound) {
         warmedUp = true;
         warmupCycle = curTick();
@@ -101,6 +107,77 @@ BaseTags::insertBlock(PacketPtr pkt, CacheBlk *blk)
     // We only need to write into one tag and one data block.
     tagAccesses += 1;
     dataAccesses += 1;
+}
+
+void
+BaseTags::cleanupRefsVisitor(CacheBlk &blk)
+{
+    if (blk.isValid()) {
+        totalRefs += blk.refCount;
+        ++sampledRefs;
+    }
+}
+
+void
+BaseTags::cleanupRefs()
+{
+    forEachBlk([this](CacheBlk &blk) { cleanupRefsVisitor(blk); });
+}
+
+void
+BaseTags::computeStatsVisitor(CacheBlk &blk)
+{
+    if (blk.isValid()) {
+        assert(blk.task_id < ContextSwitchTaskId::NumTaskId);
+        occupanciesTaskId[blk.task_id]++;
+        assert(blk.tickInserted <= curTick());
+        Tick age = curTick() - blk.tickInserted;
+
+        int age_index;
+        if (age / SimClock::Int::us < 10) { // <10us
+            age_index = 0;
+        } else if (age / SimClock::Int::us < 100) { // <100us
+            age_index = 1;
+        } else if (age / SimClock::Int::ms < 1) { // <1ms
+            age_index = 2;
+        } else if (age / SimClock::Int::ms < 10) { // <10ms
+            age_index = 3;
+        } else
+            age_index = 4; // >10ms
+
+        ageTaskId[blk.task_id][age_index]++;
+    }
+}
+
+void
+BaseTags::computeStats()
+{
+    for (unsigned i = 0; i < ContextSwitchTaskId::NumTaskId; ++i) {
+        occupanciesTaskId[i] = 0;
+        for (unsigned j = 0; j < 5; ++j) {
+            ageTaskId[i][j] = 0;
+        }
+    }
+
+    forEachBlk([this](CacheBlk &blk) { computeStatsVisitor(blk); });
+}
+
+std::string
+BaseTags::print()
+{
+    std::string str;
+
+    auto print_blk = [&str](CacheBlk &blk) {
+        if (blk.isValid())
+            str += csprintf("\tset: %d way: %d %s\n", blk.set, blk.way,
+                            blk.print());
+    };
+    forEachBlk(print_blk);
+
+    if (str.empty())
+        str = "no valid tags\n";
+
+    return str;
 }
 
 void
