@@ -147,7 +147,7 @@ class MemoryRequest : public BaseTLB::Translation
      * Called by the TLB (or whatever is translating this request) to let us
      * know the translation is done. Needed to implement Translation.
      */
-    void finish(const Fault &fault, RequestPtr req,
+    void finish(const Fault &fault, const RequestPtr &req,
                 ThreadContext *tc, BaseTLB::Mode mode) override;
 
     /**

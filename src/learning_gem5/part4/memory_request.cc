@@ -45,8 +45,8 @@ MemoryRequest::MemoryRequest(LearningSimpleCPU &cpu, SimpleThread &thread,
       sreqLow(nullptr), sreqHigh(nullptr), spktLow(nullptr), spktHigh(nullptr),
       waitingFor(0)
 {
-    req = new Request(0 /* asid */, addr, size, flags, cpu.dataMasterId(),
-                          thread.instAddr(), thread.contextId());
+    req = std::make_shared<Request>(0 /* asid */, addr, size, flags,
+            cpu.dataMasterId(), thread.instAddr(), thread.contextId());
 
     // If this request spans across a cache line boundary, split it into two
     // requests.
@@ -76,10 +76,9 @@ MemoryRequest::MemoryRequest(LearningSimpleCPU &cpu, SimpleThread &thread,
       sreqLow(nullptr), sreqHigh(nullptr), spktLow(nullptr), spktHigh(nullptr),
       waitingFor(0)
 {
-    req =
-        new Request(0 /* asid */, inst_addr, sizeof(TheISA::MachInst),
-            Request::INST_FETCH, cpu.instMasterId(), thread.instAddr(),
-            thread.contextId());
+    req = std::make_shared<Request>(0 /* asid */, inst_addr,
+            sizeof(TheISA::MachInst), Request::INST_FETCH, cpu.instMasterId(),
+            thread.instAddr(), thread.contextId());
 
     // Double check to see if access crosses cache line boundary.
     // This should be impossible.
@@ -91,7 +90,6 @@ MemoryRequest::MemoryRequest(LearningSimpleCPU &cpu, SimpleThread &thread,
 
 MemoryRequest::~MemoryRequest()
 {
-    delete req;
     // If this faults before the translation finishes then there will be no pkt
     if (pkt) delete pkt;
 }
@@ -234,7 +232,7 @@ MemoryRequest::sendDataSplit()
 }
 
 void
-MemoryRequest::finish(const Fault &_fault, RequestPtr req,
+MemoryRequest::finish(const Fault &_fault, const RequestPtr &req,
                       ThreadContext *tc, BaseTLB::Mode mode)
 {
     // To handle split packets.
@@ -279,8 +277,6 @@ MemoryRequest::recvResponse(PacketPtr _pkt)
         // the smaller packets are using the big packet's data.
         delete spktLow;
         delete spktHigh;
-        delete sreqLow;
-        delete sreqHigh;
     } else {
         assert(_pkt == pkt);
     }
