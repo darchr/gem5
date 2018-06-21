@@ -1,249 +1,234 @@
 language: c++
-
 script:
-  - scons build/X86/gem5.$VARIANT --ignore-style -j3
-
-dist: "trusty"
-
+- scons build/X86/gem5.$VARIANT --ignore-style -j3
+dist: trusty
 matrix:
   include:
-    - os: osx
-      osx_image: xcode8.3
-      env:
-        - VARIANT=opt
-
-    - os: osx
-      osx_image: xcode8.3
-      env:
-        - VARIANT=fast
-
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-4.9
-            - swig
-            - libprotobuf-dev
-            - python-protobuf
-            - protobuf-compiler
-            - libgoogle-perftools-dev
-      env:
-         - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9"
-         - VARIANT=fast
-
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-4.9
-            - swig
-            - libprotobuf-dev
-            - python-protobuf
-            - protobuf-compiler
-            - libgoogle-perftools-dev
-      env:
-         - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9"
-         - VARIANT=opt
-
-    # works on Precise and Trusty
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-5
-            - swig
-            - libprotobuf-dev
-            - python-protobuf
-            - protobuf-compiler
-            - libgoogle-perftools-dev
-      env:
-         - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
-         - VARIANT=opt
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-5
-            - swig
-            - libprotobuf-dev
-            - python-protobuf
-            - protobuf-compiler
-            - libgoogle-perftools-dev
-      env:
-         - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
-         - VARIANT=fast
-
-    # works on Precise and Trusty
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-            - swig
-            - libprotobuf-dev
-            - python-protobuf
-            - protobuf-compiler
-            - libgoogle-perftools-dev
-      env:
-        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
-        - VARIANT=opt
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-            - swig
-            - libprotobuf-dev
-            - python-protobuf
-            - protobuf-compiler
-            - libgoogle-perftools-dev
-      env:
-        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
-        - VARIANT=fast
-
-    # works on Precise and Trusty
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-7
-            - swig
-            - libprotobuf-dev
-            - python-protobuf
-            - protobuf-compiler
-            - libgoogle-perftools-dev
-      env:
-        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
-        - VARIANT=opt
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-7
-            - swig
-            - libprotobuf-dev
-            - python-protobuf
-            - protobuf-compiler
-            - libgoogle-perftools-dev
-      env:
-        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
-        - VARIANT=fast
-
-    # works on Trusty
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - llvm-toolchain-trusty-3.9
-          packages:
-            - clang-3.9
-            - swig
-            - libprotobuf-dev
-            - python-protobuf
-            - protobuf-compiler
-            - libgoogle-perftools-dev
-      env:
-        - MATRIX_EVAL="CC=clang-3.9 && CXX=clang++-3.9"
-        - VARIANT=opt
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - llvm-toolchain-trusty-3.9
-          packages:
-            - clang-3.9
-            - swig
-            - libprotobuf-dev
-            - python-protobuf
-            - protobuf-compiler
-            - libgoogle-perftools-dev
-      env:
-        - MATRIX_EVAL="CC=clang-3.9 && CXX=clang++-3.9"
-        - VARIANT=fast
-
-    # works on Trusty
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - llvm-toolchain-trusty-4.0
-          packages:
-            - clang-4.0
-            - swig
-            - libprotobuf-dev
-            - python-protobuf
-            - protobuf-compiler
-            - libgoogle-perftools-dev
-      env:
-        - MATRIX_EVAL="CC=clang-4.0 && CXX=clang++-4.0"
-        - VARIANT=opt
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - llvm-toolchain-trusty-4.0
-          packages:
-            - clang-4.0
-            - swig
-            - libprotobuf-dev
-            - python-protobuf
-            - protobuf-compiler
-            - libgoogle-perftools-dev
-      env:
-        - MATRIX_EVAL="CC=clang-4.0 && CXX=clang++-4.0"
-        - VARIANT=fast
-
-    # works on Trusty
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - llvm-toolchain-trusty-5.0
-          packages:
-            - clang-5.0
-            - swig
-            - libprotobuf-dev
-            - python-protobuf
-            - protobuf-compiler
-            - libgoogle-perftools-dev
-      env:
-        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
-        - VARIANT=opt
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - llvm-toolchain-trusty-5.0
-          packages:
-            - clang-5.0
-            - swig
-            - libprotobuf-dev
-            - python-protobuf
-            - protobuf-compiler
-            - libgoogle-perftools-dev
-      env:
-        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
-        - VARIANT=fast
-
+  - os: osx
+    osx_image: xcode8.3
+    env:
+    - VARIANT=opt
+  - os: osx
+    osx_image: xcode8.3
+    env:
+    - VARIANT=fast
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - g++-4.9
+        - swig
+        - libprotobuf-dev
+        - python-protobuf
+        - protobuf-compiler
+        - libgoogle-perftools-dev
+    env:
+    - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9"
+    - VARIANT=fast
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - g++-4.9
+        - swig
+        - libprotobuf-dev
+        - python-protobuf
+        - protobuf-compiler
+        - libgoogle-perftools-dev
+    env:
+    - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9"
+    - VARIANT=opt
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - g++-5
+        - swig
+        - libprotobuf-dev
+        - python-protobuf
+        - protobuf-compiler
+        - libgoogle-perftools-dev
+    env:
+    - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
+    - VARIANT=opt
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - g++-5
+        - swig
+        - libprotobuf-dev
+        - python-protobuf
+        - protobuf-compiler
+        - libgoogle-perftools-dev
+    env:
+    - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
+    - VARIANT=fast
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - g++-6
+        - swig
+        - libprotobuf-dev
+        - python-protobuf
+        - protobuf-compiler
+        - libgoogle-perftools-dev
+    env:
+    - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
+    - VARIANT=opt
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - g++-6
+        - swig
+        - libprotobuf-dev
+        - python-protobuf
+        - protobuf-compiler
+        - libgoogle-perftools-dev
+    env:
+    - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
+    - VARIANT=fast
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - g++-7
+        - swig
+        - libprotobuf-dev
+        - python-protobuf
+        - protobuf-compiler
+        - libgoogle-perftools-dev
+    env:
+    - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+    - VARIANT=opt
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - g++-7
+        - swig
+        - libprotobuf-dev
+        - python-protobuf
+        - protobuf-compiler
+        - libgoogle-perftools-dev
+    env:
+    - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+    - VARIANT=fast
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - llvm-toolchain-trusty-3.9
+        packages:
+        - clang-3.9
+        - swig
+        - libprotobuf-dev
+        - python-protobuf
+        - protobuf-compiler
+        - libgoogle-perftools-dev
+    env:
+    - MATRIX_EVAL="CC=clang-3.9 && CXX=clang++-3.9"
+    - VARIANT=opt
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - llvm-toolchain-trusty-3.9
+        packages:
+        - clang-3.9
+        - swig
+        - libprotobuf-dev
+        - python-protobuf
+        - protobuf-compiler
+        - libgoogle-perftools-dev
+    env:
+    - MATRIX_EVAL="CC=clang-3.9 && CXX=clang++-3.9"
+    - VARIANT=fast
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - llvm-toolchain-trusty-4.0
+        packages:
+        - clang-4.0
+        - swig
+        - libprotobuf-dev
+        - python-protobuf
+        - protobuf-compiler
+        - libgoogle-perftools-dev
+    env:
+    - MATRIX_EVAL="CC=clang-4.0 && CXX=clang++-4.0"
+    - VARIANT=opt
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - llvm-toolchain-trusty-4.0
+        packages:
+        - clang-4.0
+        - swig
+        - libprotobuf-dev
+        - python-protobuf
+        - protobuf-compiler
+        - libgoogle-perftools-dev
+    env:
+    - MATRIX_EVAL="CC=clang-4.0 && CXX=clang++-4.0"
+    - VARIANT=fast
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - llvm-toolchain-trusty-5.0
+        packages:
+        - clang-5.0
+        - swig
+        - libprotobuf-dev
+        - python-protobuf
+        - protobuf-compiler
+        - libgoogle-perftools-dev
+    env:
+    - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
+    - VARIANT=opt
+  - os: linux
+    addons:
+      apt:
+        sources:
+        - llvm-toolchain-trusty-5.0
+        packages:
+        - clang-5.0
+        - swig
+        - libprotobuf-dev
+        - python-protobuf
+        - protobuf-compiler
+        - libgoogle-perftools-dev
+    env:
+    - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
+    - VARIANT=fast
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update           ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/684260adf7116bd9402bf82916fe26e2c664b2f0/Formula/scons.rb; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install swig     ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install google-perftools ;fi
-  - eval "${MATRIX_EVAL}"
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update           ; fi
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/684260adf7116bd9402bf82916fe26e2c664b2f0/Formula/scons.rb;
+  fi
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install swig     ; fi
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install google-perftools ;fi
+- eval "${MATRIX_EVAL}"
+notifications:
+  slack:
+    secure: Fij12QSv6+bEjIX6oFomJWaJ0ma5XMoLoeuXVUIU+FHFpCKr0/ZKFGXMmecb/7uR5sMm1FDIkoIwOfLJGd2L91TzOX7/eHRU5Kr9LeDr/o0zIEqadYRSZbyoH+M6aOg/WN5FJsCDWp5A0bGSYgJLNVFk8g+J9zp6geDtrkhYRzJ0YTPyOb67azl7Kr8Je8smFG3eZ9N1MzT53UhMFe/ZniDnlxN9FK5TAWpT6hHO3U+KU1Qrg3FTZykG108HO7T2nb1RzJDHxFTz9cpLJGk6ShxqpSqW40ePBvyBD45Vusk/G6GEfsn8OOWOe9O74/2YbJkiEKBC+19KSGvjqluVx4GWcWNKqPaKkJXUvqYYttt9poogrUPB615JCF+TQlsR3v69XtjKKKwsjenMq52+NqRiroRCsVeZwMpaGqOQn8Z+gLvGvBbEUmxEOPRpacXIqA3UR0CY2c0ORvZD1msrZlD9D7JqNYWJuFhApgCTaH6Sz3aY2tA5ecBRoylzwn4s8eMnwEOxzlW/vqY0762nXQBBIUo3JtzYz+Iu2dEeXNKt3Z6bK7GRk2eRdMbpkdKmAc9hbJYW2IjoZEBeROjVlr6soX68SYxsIji6PhWv1wvUTzT8wilYT+a+SlDZTFLYpaZLgEzFub4HZLTFUgPnQ2ZBVpkQPc52Fn9AS8/fnKI=
