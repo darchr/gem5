@@ -218,6 +218,47 @@ This class mostly just wraps the thread context and calls different functions on
 It also allows the instruction to call back into the CPU for things it needs (like accessing memory).
 I don't fully understand why this exists.
 
+Interfaces
+----------
+
+There are three external interfaces to the CPU state (I think it's just 3): The exectution context, thread context, and thread state.
+
+Execution context (ExecContext)
+===============================
+
+This is the interface between the ISA and the CPU model.
+This abstract class exposes all of the methods that the ISA needs to interact with the CPU model.
+
+You must pass an ExecContext when you call ```initiateAcc`` or ``execute`` on a ``StaticInst``.
+
+Thread context
+==============
+
+This is the interface between the simulator and the CPU model.
+It provides a way to get the values in registers, etc.
+
+I believe this should return the current architectural state of the thread executing in the CPU.
+
+
+Thread state
+============
+
+This is not an interface, but a convience "wrapper" around the state held in the CPU.
+This seems to copy a lot of stuff from the thread context.
+
+Current design of the LearningSimpleCPU
+---------------------------------------
+
+Separate out control from state from...
+
+LearningSimpleCPU
+~~~~~~~~~~~~~~~~~
+
+This is the "CPU" SimObject.
+It contains all of the parts of the CPU and the CPU logic (e.g., stages).
+
+
+
 To do
 ======
 * Make sure to fetch from Microcode ROM if it is needed. (See other CPU models.)
