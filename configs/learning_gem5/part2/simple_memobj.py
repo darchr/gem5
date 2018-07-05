@@ -29,11 +29,10 @@
 
 """ This file creates a barebones system and executes 'hello', a simple Hello
 World application. Adds a simple memobj between the CPU and the membus.
-
-This config file assumes that the x86 ISA was built.
 """
 
 from __future__ import print_function
+import os
 
 # import the m5 (gem5) library created when gem5 is built
 import m5
@@ -70,9 +69,10 @@ system.memobj.mem_side = system.membus.slave
 
 # create the interrupt controller for the CPU and connect to the membus
 system.cpu.createInterruptController()
-system.cpu.interrupts[0].pio = system.membus.master
-system.cpu.interrupts[0].int_master = system.membus.slave
-system.cpu.interrupts[0].int_slave = system.membus.master
+if m5.defines.buildEnv['TARGET_ISA'] == "x86":
+    system.cpu.interrupts[0].pio = system.membus.master
+    system.cpu.interrupts[0].int_master = system.membus.slave
+    system.cpu.interrupts[0].int_slave = system.membus.master
 
 # Create a DDR3 memory controller and connect it to the membus
 system.mem_ctrl = DDR3_1600_8x8()
@@ -84,9 +84,25 @@ system.system_port = system.membus.slave
 
 # Create a process for a simple "Hello World" application
 process = Process()
+
+isa = str(m5.defines.buildEnv['TARGET_ISA']).lower()
+# Run 'hello' and use the compiled ISA to find the binary
+# This assumes you have run the tests to download the binary
+# See tests/test-progs/hello/bin/<isa>/linux/README
+base_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                        '../../../')
+binary = os.path.join(base_dir, 'tests/test-progs/hello/bin/', isa,
+                      'linux/hello')
+
+if not os.path.isfile(binary):
+    pretty_path = os.path.dirname(os.path.realpath(binary))
+    print("ERROR! The hello binary doesn't exist. See README in {}"
+          .format(pretty_path))
+    exit(1)
+
 # Set the command
 # cmd is a list which begins with the executable (like argv)
-process.cmd = ['tests/test-progs/hello/bin/x86/linux/hello']
+process.cmd = [binary]
 # Set the cpu to use the process as its workload and create thread contexts
 system.cpu.workload = process
 system.cpu.createThreads()

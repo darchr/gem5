@@ -41,6 +41,7 @@ IMPORTANT: If you modify this file, it's likely that the Learning gem5 book
 """
 
 from __future__ import print_function
+import os
 
 # import the m5 (gem5) library created when gem5 is built
 import m5
@@ -66,7 +67,12 @@ SimpleOpts.set_usage("usage: %prog [options] <binary to execute>")
 isa = str(m5.defines.buildEnv['TARGET_ISA']).lower()
 
 # Default to running 'hello', use the compiled ISA to find the binary
-binary = 'tests/test-progs/hello/bin/' + isa + '/linux/hello'
+# This assumes you have run the tests to download the binary
+# See tests/test-progs/hello/bin/<isa>/linux/README
+base_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                        '../../../')
+binary = os.path.join(base_dir, 'tests/test-progs/hello/bin/', isa,
+                      'linux/hello')
 
 # Check if there was a binary passed in via the command line and error if
 # there are too many arguments
@@ -75,6 +81,12 @@ if len(args) == 1:
 elif len(args) > 1:
     SimpleOpts.print_help()
     m5.fatal("Expected a binary to execute as positional argument")
+
+if not os.path.isfile(binary):
+    pretty_path = os.path.dirname(os.path.realpath(binary))
+    print("ERROR! The hello binary doesn't exist. See README in {}"
+          .format(pretty_path))
+    exit(1)
 
 # create the system we are going to simulate
 system = System()
