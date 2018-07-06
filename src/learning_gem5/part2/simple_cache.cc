@@ -351,7 +351,15 @@ SimpleCache::accessFunctional(PacketPtr pkt)
 {
     Addr block_addr = pkt->getBlockAddr(blockSize);
     auto it = cacheStore.find(block_addr);
+
+    if (pkt->isLLSC() && pkt->isWrite()) {
+        // for store-conditional request, must set extra data. Since this cache
+        // does not support multiple cores, assume LLSC always succeed.
+        pkt->req->setExtraData(1);
+    }
+
     if (it != cacheStore.end()) {
+        // Get/write the data from/to the cache store if a hit
         if (pkt->isWrite()) {
             // Write the data into the block in the cache
             pkt->writeDataToBlock(it->second, blockSize);
