@@ -16,9 +16,9 @@ ext_path = os.path.join(base_dir, os.pardir, 'ext')
 sys.path.insert(0, base_dir)
 sys.path.insert(0, ext_path)
 
-import testlib.main as mainlib
-import testlib.config as config
-import testlib.helper as helper
+import whimsy.main as mainlib
+import whimsy.config as config
+import whimsy.helper as helper
 
 print("Running the new gem5 testing script.")
 print("For more information see TESTING.md.")

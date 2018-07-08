@@ -31,7 +31,7 @@ Test file for the util m5 exit assembly instruction.
 '''
 import re
 import os
-from testlib import *
+from whimsy import *
 
 m5_exit_regex = re.compile(
 r'Exiting @ tick \d* because m5_exit instruction encountered'

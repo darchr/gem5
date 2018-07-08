@@ -31,10 +31,10 @@ Built in test cases that verify particular details about a gem5 run.
 '''
 import re
 
-from testlib import test
-from testlib.config import constants
-from testlib.util import diff_out_file
-from testlib.helper import joinpath
+from whimsy import test
+from whimsy.config import constants
+from whimsy.util import diff_out_file
+from whimsy.helper import joinpath
 
 class Verifier(test.TestFunction):
     def __init__(self, name=None, **kwargs):

@@ -29,7 +29,7 @@
 '''
 Test file for the util m5 exit assembly instruction.
 '''
-from testlib import *
+from whimsy import *
 
 test_progs = {
     'x86': ('hello64-static', 'hello64-dynamic', 'hello32-static'),

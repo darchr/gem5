@@ -30,7 +30,7 @@
 Test file for the scripts from Learning gem5 Part 1
 '''
 
-from testlib import *
+from whimsy import *
 
 ref_path = joinpath(getcwd(), 'ref', 'simout-hello')
 

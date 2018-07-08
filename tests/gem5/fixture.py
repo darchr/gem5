@@ -29,11 +29,11 @@
 import os
 import tempfile
 
-import testlib.util as util
-from testlib.fixture import Fixture
-from testlib.config import config, constants
-from testlib.helper import log_call, cacheresult, joinpath, absdirpath
-from testlib.logger import log
+import whimsy.util as util
+from whimsy.fixture import Fixture
+from whimsy.config import config, constants
+from whimsy.helper import log_call, cacheresult, joinpath, absdirpath
+from whimsy.logger import log
 
 
 class VariableFixture(Fixture):

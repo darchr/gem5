@@ -29,11 +29,11 @@
 import os
 import copy
 
-from testlib.test import TestFunction
-from testlib.suite import TestList, TestSuite
-from testlib.helper import log_call, CalledProcessError
-from testlib.config import constants, config
-from testlib.loader import no_collect
+from whimsy.test import TestFunction
+from whimsy.suite import TestList, TestSuite
+from whimsy.helper import log_call, CalledProcessError
+from whimsy.config import constants, config
+from whimsy.loader import no_collect
 from fixture import TempdirFixture, Gem5Fixture, VariableFixture
 import verifier
 
