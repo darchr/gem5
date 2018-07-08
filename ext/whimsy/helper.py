@@ -1,31 +1,3 @@
-# Copyright (c) 2017 Mark D. Hill and David A. Wood
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met: redistributions of source code must retain the above copyright
-# notice, this list of conditions and the following disclaimer;
-# redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution;
-# neither the name of the copyright holders nor the names of its
-# contributors may be used to endorse or promote products derived from
-# this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# Authors: Sean Wilson
-
 '''
 Helper classes for writing tests with this test library.
 
@@ -54,30 +26,13 @@ import errno
 import subprocess
 import tempfile
 import os
-from threading import Thread
-from collections import MutableSet
-
-# We will export CalledProcessError
-from subprocess import CalledProcessError
-
-# For now expose this here, we might need to make an implementation if not
-# everyone has python 2.7
-from collections import OrderedDict
-
-import logger
-__all__ = [
-        'log_call',
-        'CalledProcessError',
-        'mkdir_p',
-        'cacheresult',
-        'OrderedSet',
-        'absdirpath',
-        'joinpath',
-        'OrderedDict'
-        ]
+import threading
+import Queue
+from collections import MutableSet, OrderedDict
+import traceback
 
 
-def log_call(command, *popenargs, **kwargs):
+def log_call(logger, command, *popenargs, **kwargs):
     '''
     Calls the given process and automatically logs the command and output.
 
@@ -95,7 +50,8 @@ def log_call(command, *popenargs, **kwargs):
     else:
         cmdstr = ' '.join(command)
 
-    logger.log.trace('Logging call to command: %s' % cmdstr)
+    logger_callback = logger.trace
+    logger.trace('Logging call to command: %s' % cmdstr)
 
     stdout_redirect = kwargs.get('stdout', tuple())
     stderr_redirect = kwargs.get('stderr', tuple())
@@ -109,19 +65,18 @@ def log_call(command, *popenargs, **kwargs):
     kwargs['stderr'] = subprocess.PIPE
     p = subprocess.Popen(command, *popenargs, **kwargs)
 
-    def log_output(log_level, pipe, redirects=tuple()):
+    def log_output(log_callback, pipe, redirects=tuple()):
         # Read iteractively, don't allow input to fill the pipe.
         for line in iter(pipe.readline, ''):
             for r in redirects:
                 r.write(line)
-            line = line.rstrip()
-            logger.log.log(log_level, line)
+            log_callback(line.rstrip())
 
-    stdout_thread = Thread(target=log_output,
-                           args=(logger.TRACE, p.stdout, stdout_redirect))
+    stdout_thread = threading.Thread(target=log_output,
+                           args=(logger_callback, p.stdout, stdout_redirect))
     stdout_thread.setDaemon(True)
-    stderr_thread = Thread(target=log_output,
-                           args=(logger.TRACE, p.stderr, stderr_redirect))
+    stderr_thread = threading.Thread(target=log_output,
+                           args=(logger_callback, p.stderr, stderr_redirect))
     stderr_thread.setDaemon(True)
 
     stdout_thread.start()
@@ -132,8 +87,7 @@ def log_call(command, *popenargs, **kwargs):
     stderr_thread.join()
     # Return the return exit code of the process.
     if retval != 0:
-        raise CalledProcessError(retval, cmdstr)
-
+        raise subprocess.CalledProcessError(retval, cmdstr)
 
 # lru_cache stuff (Introduced in python 3.2+)
 # Renamed and modified to cacheresult
@@ -293,6 +247,92 @@ def mkdir_p(path):
             pass
         else:
             raise
+            
 
-if __name__ == '__main__':
-    log_call(' '.join(['echo', 'hello', ';sleep 3', '; echo yo']), shell=True)
+class FrozenSetException(Exception):
+    '''Signals one tried to set a value in a 'frozen' object.'''
+    pass
+
+class AttrDict(object):
+    '''Object which exposes its own internal dictionary through attributes.'''
+    def __init__(self, dict_={}):
+        self.update(dict_)
+
+    def __getattr__(self, attr):
+        dict_ = self.__dict__
+        if attr in dict_:
+            return dict_[attr]
+        raise AttributeError('Could not find %s attribute' % attr)
+
+    def __setattr__(self, attr, val):
+        self.__dict__[attr] = val
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def __getitem__(self, item):
+        return self.__dict__[item]
+
+    def update(self, items):
+        self.__dict__.update(items)
+
+class FrozenAttrDict(AttrDict):
+    '''An AttrDict whose attributes cannot be modified directly.'''
+    __initialized = False
+    def __init__(self, dict_={}):
+        super(FrozenAttrDict, self).__init__(dict_)
+        self.__initialized = True
+
+    def __setattr__(self, attr, val):
+        if self.__initialized:
+            raise FrozenSetException('Cannot modify an attribute in a FozenAttrDict')
+        else:
+            super(FrozenAttrDict, self).__setattr__(attr, val)
+
+    def update(self, items):
+        if self.__initialized:
+            raise FrozenSetException('Cannot modify an attribute in a FozenAttrDict')
+        else:
+            super(FrozenAttrDict, self).update(items)
+
+class InstanceCollector(object):
+    def __init__(self):
+        self.collectors = []
+    
+    def create(self):
+        collection = []
+        self.collectors.append(collection)
+        return collection
+
+    def remove(self, collector):
+        self.collectors.remove(collector)
+        
+    def collect(self, instance):
+        for col in self.collectors:
+            col.append(instance)
+
+def append_dictlist(dict_, key, value):
+    list_ = dict_.get(key, [])
+    list_.append(value)
+    dict_[key] = list_
+
+
+
+class ExceptionThread(threading.Thread):
+    def __init__(self, *args, **kwargs):
+        threading.Thread.__init__(self, *args, **kwargs)
+        self._eq = Queue.Queue()
+    
+    def run(self, *args, **kwargs):
+        try:
+            threading.Thread.run(self, *args, **kwargs)
+            self._eq.put(None)
+        except:
+            tb = traceback.format_exc()
+            self._eq.put(tb)
+        
+    def join(self, *args, **kwargs):
+        threading.Thread.join(*args, **kwargs)
+        exception = self._eq.get()
+        if exception:
+            raise Exception(exception)

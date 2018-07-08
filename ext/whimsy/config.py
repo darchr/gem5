@@ -72,8 +72,20 @@ import os
 from ConfigParser import ConfigParser
 from pickle import HIGHEST_PROTOCOL as highest_pickle_protocol
 
-from helper import absdirpath
-from util import AttrDict, FrozenAttrDict
+from helper import absdirpath, AttrDict, FrozenAttrDict
+
+
+# TODO/FIXME Reconcile module/test collection config items with the global config.
+import suite
+import argparse
+
+_defaultsuite = suite.TestSuite
+defaultsuite = _defaultsuite
+
+def reset_for_module():
+    global defaultsuite
+    defaultsuite = _defaultsuite
+
 
 class UninitialzedAttributeException(Exception):
     '''
@@ -338,6 +350,29 @@ def define_post_processors(config):
         else:
             return length
 
+    class _TagRegex(object):
+        def __init__(self, include, regex):
+            self.include = include
+            self.regex = re.compile(regex)
+
+    def compile_tag_regex(positional_tags):
+        if not positional_tags:
+            return positional_tags
+        else:
+            new_positional_tags_list = []
+            positional_tags = positional_tags[0]
+
+            for flag, regex in positional_tags:
+                if flag == 'exclude_tags':
+                    tag_regex = _TagRegex(False, regex)
+                elif flag  == 'include_tags':
+                    tag_regex = _TagRegex(True, regex)
+                else:
+                    raise ValueError('Unsupported flag.')
+                new_positional_tags_list.append(tag_regex)
+
+            return (new_positional_tags_list,)
+
     config._add_post_processor('build_dir', set_default_build_dir)
     config._add_post_processor('verbose', fix_verbosity_hack)
     config._add_post_processor('isa', default_isa)
@@ -345,8 +380,8 @@ def define_post_processors(config):
     config._add_post_processor('length', default_length)
     config._add_post_processor('threads', threads_as_int)
     config._add_post_processor('test_threads', test_threads_as_int)
-    config._add_post_processor('credentials_file', parse_server_credentials)
-
+    config._add_post_processor(StorePositionalTagsAction.position_kword, 
+                               compile_tag_regex)
 class Argument(object):
     '''
     Class represents a cli argument/flag for a argparse parser.
@@ -403,6 +438,22 @@ class _StickyInt:
 
 common_args = NotImplemented
 
+class StorePositionAction(argparse.Action):
+    '''Base class for classes wishing to create namespaces where 
+    arguments are stored in the order provided via the command line.
+    '''
+    position_kword = 'positional'
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not self.position_kword in namespace:
+            setattr(namespace, self.position_kword, [])
+        previous = getattr(namespace, self.position_kword)
+        previous.append((self.dest, values))
+        setattr(namespace, self.position_kword, previous)
+        
+class StorePositionalTagsAction(StorePositionAction):
+    position_kword = 'tag_filters'
+
 def define_common_args(config):
     '''
     Common args are arguments which are likely to be simular between different
@@ -422,6 +473,14 @@ def define_common_args(config):
             '--fail-fast',
             action='store_true',
             help='Stop running on the first instance of failure'),
+        Argument(
+            '--exclude-tags',
+            action=StorePositionalTagsAction,
+            help='A tag comparison used to select tests.'),
+        Argument(
+            '--include-tags',
+            action=StorePositionalTagsAction,
+            help='A tag comparison used to select tests.'),
         Argument(
             '--isa',
             action='append',
@@ -498,11 +557,6 @@ def define_common_args(config):
             default=False,
             help='Only list tests that failed.'
         ),
-        Argument('--credentials_file',
-                action='store',
-                default=None,
-                help='File to parse for server information.'
-        ),
     ]
 
     # NOTE: There is a limitation which arises due to this format. If you have
@@ -566,7 +620,6 @@ class RunParser(ArgParser):
         common_args.isa.add_to(parser)
         common_args.variant.add_to(parser)
         common_args.length.add_to(parser)
-        common_args.credentials_file.add_to(parser)
 
 
 class ListParser(ArgParser):
@@ -696,8 +749,8 @@ def initialize_config():
     baseparser = CommandParser()
     runparser = RunParser(baseparser.subparser)
     listparser = ListParser(baseparser.subparser)
-    rerunparser = RerunParser(baseparser.subparser)
-    clientparser = ClientParser(baseparser.subparser)
+    #TODO
+    #rerunparser = RerunParser(baseparser.subparser)
 
     # Initialize the config by parsing args and running callbacks.
     config._init(baseparser)
