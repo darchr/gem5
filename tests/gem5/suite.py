@@ -28,12 +28,12 @@
 
 import os
 import copy
+import subprocess
 
 from whimsy.test import TestFunction
-from whimsy.suite import TestList, TestSuite
-from whimsy.helper import log_call, CalledProcessError
+from whimsy.suite import TestSuite
+from whimsy.helper import log_call
 from whimsy.config import constants, config
-from whimsy.loader import no_collect
 from fixture import TempdirFixture, Gem5Fixture, VariableFixture
 import verifier
 
@@ -71,20 +71,13 @@ def gem5_verify_config(name,
     :param valid_variants: An iterable with the variant levels that
         this test can be ran for. (E.g. opt, debug)
     '''
-    for verifier in verifiers:
-        no_collect(verifier)
-
-    given_fixtures = []
-    given_fixtures.extend(fixtures)
-    fixtures = given_fixtures
-    original_verifiers = verifiers
-
+    fixtures = list(fixtures)
     testsuites = []
     for opt in valid_variants:
         for isa in valid_isas:
 
             # Create a tempdir fixture to be shared throughout the test.
-            tempdir = TempdirFixture(build_once=True, lazy_init=True)
+            tempdir = TempdirFixture()
             gem5_returncode = VariableFixture(
                     name=constants.gem5_returncode_fixture_name)
 
@@ -97,61 +90,44 @@ def gem5_verify_config(name,
             # Create the running of gem5 subtest.
             # NOTE: We specifically create this test before our verifiers so
             # this is listed first.
-            gem5_subtest = TestFunction(
+            tests = []
+            gem5_execution = TestFunction(
                     _create_test_run_gem5(config, config_args, gem5_args),
                     name=_name)
+            tests.append(gem5_execution)
 
             # Create copies of the verifier subtests for this isa and
             # variant.
-            verifier_tests = []
-            for verifier in original_verifiers:
-                verifier = copy.copy(verifier)
-                verifier._name = '{name}-{vname}'.format(
-                        name=_name,
-                        vname=verifier.name)
-
-                verifier_tests.append(verifier)
-
-            # Place the verifier subtests into a collection.
-            verifier_collection = TestList(verifier_tests, fail_fast=False)
+            for verifier in verifiers:
+                tests.append(verifier.instantiate_test())
 
             # Add the isa and variant to tags list.
-            tags = {
-                constants.isa_tag_type: set([isa]),
-                constants.variant_tag_type: set([opt]),
-                constants.length_tag_type: set([length]),
-            }
+            tags = [isa, opt, length]
 
             # Create the gem5 target for the specific architecture and
             # variant.
-            fixtures = copy.copy(given_fixtures)
-            fixtures.append(Gem5Fixture(isa, opt, tags=tags))
+            fixtures = copy.copy(fixtures)
+            fixtures.append(Gem5Fixture(isa, opt))
             fixtures.append(tempdir)
             fixtures.append(gem5_returncode)
-
-            # Place our gem5 run and verifiers into a failfast test
-            # collection. We failfast because if a gem5 run fails, there's no
-            # reason to verify results.
-            gem5_test_collection =  TestList(
-                    (gem5_subtest, verifier_collection),
-                    fail_fast=True)
 
             # Finally construct the self contained TestSuite out of our
             # tests.
             testsuites.append(TestSuite(
-                _name,
+                name=_name,
                 fixtures=fixtures,
                 tags=tags,
-                tests=gem5_test_collection))
+                tests=tests))
     return testsuites
 
 def _create_test_run_gem5(config, config_args, gem5_args):
-    def test_run_gem5(fixtures):
+    def test_run_gem5(params):
         '''
         Simple \'test\' which runs gem5 and saves the result into a tempdir.
 
         NOTE: Requires fixtures: tempdir, gem5
         '''
+        fixtures = params.fixtures
 
         if gem5_args is None:
             _gem5_args = tuple()
@@ -169,7 +145,6 @@ def _create_test_run_gem5(config, config_args, gem5_args):
         # I.E. Only the returncode verifier will use the gem5_returncode
         # fixture, but we always require it even if that verifier isn't being
         # ran.
-
         returncode = fixtures[constants.gem5_returncode_fixture_name]
         tempdir = fixtures[constants.tempdir_fixture_name].path
         gem5 = fixtures[constants.gem5_binary_fixture_name].path
@@ -183,6 +158,6 @@ def _create_test_run_gem5(config, config_args, gem5_args):
         command.append(config)
         # Config_args should set up the program args.
         command.extend(config_args)
-        log_call(command)
+        returncode.value = log_call(params.log, command)
 
     return test_run_gem5

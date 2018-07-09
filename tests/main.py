@@ -16,7 +16,7 @@ ext_path = os.path.join(base_dir, os.pardir, 'ext')
 sys.path.insert(0, base_dir)
 sys.path.insert(0, ext_path)
 
-import whimsy.main as mainlib
+import whimsy.main as whimsy
 import whimsy.config as config
 import whimsy.helper as helper
 
@@ -26,4 +26,4 @@ print("To see details as the testing scripts are running, use the option "
       "-v, -vv, or -vvv")
 
 config.basedir = helper.absdirpath(__file__)
-mainlib.main()
+whimsy()

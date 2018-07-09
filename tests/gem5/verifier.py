@@ -33,13 +33,18 @@ import re
 
 from whimsy import test
 from whimsy.config import constants
-from whimsy.util import diff_out_file
-from whimsy.helper import joinpath
+from whimsy.helper import joinpath, diff_out_file
 
-class Verifier(test.TestFunction):
-    def __init__(self, name=None, **kwargs):
-        name = name if name is not None else self.__class__.__name__
-        super(Verifier, self).__init__(self.test, name, **kwargs)
+class Verifier(object):
+    def __init__(self, name, fixtures=tuple()):
+        self.name = '{name}-{vname}'.format(
+            name=name,
+            vname=self.__class__.__name__)
+        self.fixtures = fixtures
+
+    def instantiate_test(self):
+        return test.TestFunction(self.test, 
+                name=self.name, fixtures=self.fixtures)
 
     def failed(self, fixtures):
         '''
@@ -72,16 +77,17 @@ class MatchGoldStandard(Verifier):
 
         self.ignore_regex = _iterable_regex(ignore_regex)
 
-    def test(self, fixtures):
+    def test(self, params):
         # We need a tempdir fixture from our parent verifier suite.
-
+        fixtures = params.fixtures
         # Get the file from the tempdir of the test.
         tempdir = fixtures[constants.tempdir_fixture_name].path
         self.test_filename = joinpath(tempdir, self.test_filename)
 
         diff = diff_out_file(self.standard_filename,
-                                   self.test_filename,
-                                   self.ignore_regex)
+                            self.test_filename,
+                            ignore_regexes=self.ignore_regex,
+                            logger=params.log)
         if diff is not None:
             self.failed(fixtures)
             test.fail('Stdout did not match:\n%s\nSee %s for full results'
@@ -167,7 +173,8 @@ class MatchRegex(Verifier):
         self.match_stderr = match_stderr
         self.match_stdout = match_stdout
 
-    def test(self, fixtures):
+    def test(self, params):
+        fixtures = params.fixtures
         # Get the file from the tempdir of the test.
         tempdir = fixtures[constants.tempdir_fixture_name].path
 
