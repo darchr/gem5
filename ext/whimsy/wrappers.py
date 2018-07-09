@@ -145,17 +145,22 @@ class LoadedLibrary(LoadedTestable):
         return iter(self.obj)
 
     def all_fixtures(self):
-        return itertools.chain(
-            self.global_fixtures,
-            *(self.suite_fixtures(suite) for suite in self.obj)
+        return itertools.chain(itertools.chain(
+                self.global_fixtures,
+                *(suite.fixtures for suite in self.obj)),
+            *(self.test_fixtures(suite) for suite in self.obj)
         )
 
-    def suite_fixtures(self, suite):
+    def test_fixtures(self, suite):
         return itertools.chain(*(test.fixtures for test in suite))
     
     @property
     def fixtures(self):
         return self.global_fixtures
+        
+    @property
+    def uid(self):
+        return self.name
 
     @property
     def suites(self):

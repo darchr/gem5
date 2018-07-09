@@ -1,5 +1,6 @@
 import traceback
 
+import helper
 import fixture
 import state
 import test as test_mod
@@ -38,6 +39,18 @@ class TestParameters(object):
         self.test = test
         self.suite = suite
         self.log = log.TestLogWrapper(log.test_log, test, suite)
+    
+    @helper.cacheresult
+    def _fixtures(self):
+        fixtures = {fixture.name:fixture for fixture in self.suite.fixtures}
+        for fixture in self.test.fixtures:
+            fixtures[fixture.name] = fixture
+        return fixtures 
+
+    @property
+    def fixtures(self):
+        return self._fixtures()
+
 
 class RunnerPattern:
     def __init__(self, loaded_testable):

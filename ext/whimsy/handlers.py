@@ -373,9 +373,9 @@ class MultiprocessingHandlerWrapper(log.Handler):
         # if this shutdown doesn't go cleanly on both ends.
         # This sleep adds some time for the sender threads on this process to 
         # finish pickling the object and complete shutdown after the queue is closed.
-        time.sleep(.1)
+        time.sleep(.2)
         self.queue.close()
-        time.sleep(.1)
+        time.sleep(.2)
 
 def _wrap(callback, *args, **kwargs):
     try:

@@ -69,6 +69,7 @@ import abc
 import argparse
 import copy
 import os
+import re
 from ConfigParser import ConfigParser
 from pickle import HIGHEST_PROTOCOL as highest_pickle_protocol
 
@@ -620,6 +621,8 @@ class RunParser(ArgParser):
         common_args.isa.add_to(parser)
         common_args.variant.add_to(parser)
         common_args.length.add_to(parser)
+        common_args.include_tags.add_to(parser)
+        common_args.exclude_tags.add_to(parser)
 
 
 class ListParser(ArgParser):
@@ -662,6 +665,8 @@ class ListParser(ArgParser):
         common_args.isa.add_to(parser)
         common_args.variant.add_to(parser)
         common_args.length.add_to(parser)
+        common_args.include_tags.add_to(parser)
+        common_args.exclude_tags.add_to(parser)
 
 
 class RerunParser(ArgParser):
@@ -683,44 +688,6 @@ class RerunParser(ArgParser):
         common_args.isa.add_to(parser)
         common_args.variant.add_to(parser)
         common_args.length.add_to(parser)
-
-class ClientParser(ArgParser):
-    '''
-    Parser for the \'client\' command.
-    '''
-    def __init__(self, subparser):
-        parser = subparser.add_parser(
-            'client',
-            help='''Act as a client/helper for a test server instance.'''
-        )
-
-        super(ClientParser, self).__init__(parser)
-
-        common_args.credentials_file.add_to(parser)
-
-        arg = common_args.test_threads.copy()
-        arg.kwargs['help'] = ('The number of helper instances to spawn on'
-                              ' this client.')
-        arg.add_to(parser)
-
-class ClientParser(ArgParser):
-    '''
-    Parser for the \'client\' command.
-    '''
-    def __init__(self, subparser):
-        parser = subparser.add_parser(
-            'client',
-            help='''Act as a client/helper for a test server instance.'''
-        )
-
-        super(ClientParser, self).__init__(parser)
-
-        common_args.credentials_file.add_to(parser)
-
-        arg = common_args.test_threads.copy()
-        arg.kwargs['help'] = ('The number of helper instances to spawn on'
-                              ' this client.')
-        arg.add_to(parser)
 
 config = _Config()
 define_constants(config.constants)

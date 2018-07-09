@@ -25,10 +25,10 @@ class TestCase(object):
         pass
 
 class TestFunction(TestCase):
-    def __init__(self, test, name=None, *args, **kwargs):
+    def __init__(self, function, name=None, *args, **kwargs):
         if name is None:
             name = test.__name__
-        self.test_function = test
+        self.test_function = function
         TestCase.__init__(self, name=name, *args, **kwargs)
 
     def test(self, *args, **kwargs):
@@ -45,7 +45,6 @@ def testfunction(function=None, name=None, fixtures=None):
     '''
     A decorator used to wrap a function as a TestFunction.
     '''
-
     def testfunctiondecorator(function):
         '''Decorator used to mark a function as a test case.'''
         TestFunction(function, name=name, fixtures=fixtures)
