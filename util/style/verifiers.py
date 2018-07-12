@@ -44,6 +44,8 @@
 #          Steve Reinhardt
 #          Andreas Sandberg
 
+from __future__ import print_function
+
 from abc import ABCMeta, abstractmethod
 from difflib import SequenceMatcher
 import inspect
@@ -150,7 +152,7 @@ class Verifier(object):
         try:
             f = file(filename, mode)
         except OSError, msg:
-            print 'could not open file %s: %s' % (filename, msg)
+            print('could not open file %s: %s' % (filename, msg))
             return None
 
         return f
@@ -459,6 +461,76 @@ class BoolCompare(LineVerifier):
                 self.ui.write("Warning: cannot automatically fix "
                               "comparisons with false/False.\n")
         return line
+
+class TextVerifier(Verifier):
+    """Verifies that some text is present in a file
+
+       Used for tests like license and python3 print functions.
+       Subclasses should define a "text" class variable which contains a list
+       of text to search for.
+    """
+
+    def check(self, filename, regions=all_regions, fobj=None, silent=False):
+        close = False
+        if fobj is None:
+            fobj = self.open(filename, 'r')
+            close = True
+
+        lang = lang_type(filename)
+        assert lang in self.languages
+
+        errors = 0
+        for line in self.text:
+            found = fobj.read().find(line.strip())
+            errors += 1 if found == -1 else 0
+
+        if close:
+            fobj.close()
+
+        if errors:
+            self.ui.write("Missing {} in {}\n"
+                          .format(self.test_name, filename))
+
+        return errors
+
+class LicenseVerifier(TextVerifier):
+    languages = set(('C', 'C++', 'swig', 'python', 'asm', 'isa', 'scons',
+                      'make', 'dts'))
+    test_name = 'license'
+    opt_name = 'license'
+
+    text = [
+    "Redistribution and use in source and binary forms, with or without"
+    ]
+
+    def fix(self, filename, regions=all_regions):
+        self.ui.write("Warning: cannot automatically add license.\n")
+
+class PythonPrintVerifier(TextVerifier):
+    languages = set(('python',))
+    test_name = 'python print function'
+    opt_name = 'python'
+
+    text = ["from __future__ import print_function"]
+
+    def fix(self, filename, regions=all_regions):
+        self.ui.write("Warning: cannot automatically fix missing import.\n")
+
+    def check(self, filename, regions=all_regions, fobj=None, silent=False):
+        close = False
+        if fobj is None:
+            fobj = self.open(filename, 'r')
+            close = True
+
+        # Only need to run this if "print" appears in the file
+        # This is conservative since it also searches comments
+        if fobj.read().find('print') != -1:
+            fobj.seek(0)
+            return super(PythonPrintVerifier, self).check(filename, regions,
+                                                          fobj, silent)
+
+        if close:
+            fobj.close()
 
 def is_verifier(cls):
     """Determine if a class is a Verifier that can be instantiated"""
