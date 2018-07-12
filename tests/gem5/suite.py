@@ -99,7 +99,7 @@ def gem5_verify_config(name,
             # Create copies of the verifier subtests for this isa and
             # variant.
             for verifier in verifiers:
-                tests.append(verifier.instantiate_test())
+                tests.append(verifier.instantiate_test(_name))
 
             # Add the isa and variant to tags list.
             tags = [isa, opt, length]

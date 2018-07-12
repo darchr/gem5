@@ -36,10 +36,7 @@ from whimsy.config import constants
 from whimsy.helper import joinpath, diff_out_file
 
 class Verifier(object):
-    def __init__(self, name, fixtures=tuple()):
-        self.name = '{name}-{vname}'.format(
-            name=name,
-            vname=self.__class__.__name__)
+    def __init__(self, fixtures=tuple()):
         self.fixtures = fixtures
     
     def _test(self, *args, **kwargs):
@@ -47,9 +44,10 @@ class Verifier(object):
         # traces easier to understand.
         self.test(*args, **kwargs)
 
-    def instantiate_test(self):
+    def instantiate_test(self, name_pfx):
+        name = '-'.join([name_pfx, self.__class__.__name__])
         return test.TestFunction(self._test, 
-                name=self.name, fixtures=self.fixtures)
+                name=name, fixtures=self.fixtures)
 
     def failed(self, fixtures):
         '''
@@ -66,7 +64,7 @@ class MatchGoldStandard(Verifier):
     Compares a standard output to the test output and passes if they match,
     fails if they do not.
     '''
-    def __init__(self, standard_filename, name=None, ignore_regex=None,
+    def __init__(self, standard_filename, ignore_regex=None,
                  test_filename='simout'):
         '''
         :param standard_filename: The path of the standard file to compare
@@ -76,7 +74,7 @@ class MatchGoldStandard(Verifier):
         either which will be ignored in 'standard' and test output files when
         diffing.
         '''
-        super(MatchGoldStandard, self).__init__(name)
+        super(MatchGoldStandard, self).__init__()
         self.standard_filename = standard_filename
         self.test_filename = test_filename
 
@@ -172,8 +170,8 @@ class MatchConfigJSON(DerivedGoldStandard):
             )
 
 class MatchRegex(Verifier):
-    def __init__(self, regex, name=None, match_stderr=True, match_stdout=True):
-        super(MatchRegex, self).__init__(name)
+    def __init__(self, regex, match_stderr=True, match_stdout=True):
+        super(MatchRegex, self).__init__()
         self.regex = _iterable_regex(regex)
         self.match_stderr = match_stderr
         self.match_stdout = match_stdout
