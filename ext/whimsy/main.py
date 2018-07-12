@@ -61,6 +61,16 @@ class RunLogHandler():
     def finish_testing(self):
         self.result_handler.close()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+        return False
+
+    def close(self):
+        self.mp_handler.close()
+
 
 def filter_with_config_tags(loaded_library):
     tags = getattr(config.config, config.StorePositionalTagsAction.position_kword)
@@ -213,8 +223,17 @@ def run_schedule(test_schedule, log_handler):
     log_handler.schedule_finalized(test_schedule)
 
     # Iterate through all fixtures notifying them of the test schedule.
-    for fixture in test_schedule.all_fixtures():
-        fixture.schedule_finalized(test_schedule)
+    for suite in test_schedule:
+        copied_fixtures = []
+        for fixture in suite.fixtures:
+            copied_fixtures.append(fixture.schedule_finalized(test_schedule))
+        suite.fixtures = copied_fixtures
+
+        for test in suite:
+            copied_fixtures = []
+            for fixture in test.fixtures:
+                copied_fixtures.append(fixture.schedule_finalized(test_schedule))
+            test.fixtures = copied_fixtures
 
     log.test_log.message(terminal.separator())
     log.test_log.message('Running Tests from {} suites'
@@ -235,32 +254,31 @@ def run_schedule(test_schedule, log_handler):
 
 def do_run():
     # Initialize early parts of the log.
-    log_handler = RunLogHandler()
-    test_schedule = load_tests().schedule
-    # Filter tests based on tags
-    filter_with_config_tags(test_schedule)
-    # Execute the tests
-    run_schedule(test_schedule, log_handler)
+    with RunLogHandler() as log_handler:
+        test_schedule = load_tests().schedule
+        # Filter tests based on tags
+        filter_with_config_tags(test_schedule)
+        # Execute the tests
+        run_schedule(test_schedule, log_handler)
 
 
 def do_rerun():
     # Init early parts of log
-    log_handler = RunLogHandler()
+    with RunLogHandler() as log_handler:
 
-    # Load previous results
-    results = result.InternalSavedResults.load(
-            os.path.join(config.config.result_path,
-            config.constants.pickle_filename))
-    
-    rerun_suites = [suite.uid for suite in results if suite.unsucessful]
+        # Load previous results
+        results = result.InternalSavedResults.load(
+                os.path.join(config.config.result_path,
+                config.constants.pickle_filename))
+        
+        rerun_suites = [suite.uid for suite in results if suite.unsucessful]
 
-    # Use loader to load suites
-    loader = loader_mod.Loader()
-    test_schedule = loader.load_schedule_for_suites(rerun_suites)
+        # Use loader to load suites
+        loader = loader_mod.Loader()
+        test_schedule = loader.load_schedule_for_suites(rerun_suites)
 
-    # Execute the tests
-    run_schedule(test_schedule, log_handler)
-
+        # Execute the tests
+        run_schedule(test_schedule, log_handler)
 
 def main():
     '''

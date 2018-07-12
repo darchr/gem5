@@ -65,13 +65,16 @@ class SConsFixture(Fixture):
     '''
     def init(self, directory=None, target_class=None):
         self.directory = directory if directory else config.base_dir
-        self.target_class = target_class if target_class else SConsTarget 
+        self.target_class = target_class if target_class else SConsTarget
         self.threads = config.threads
         self.targets = set()
-                
+
     def setup(self, testitem):
+        if config.skip_build:
+            return
+
         command = [
-            'scons', '-C', self.directory, 
+            'scons', '-C', self.directory,
             '-j', str(self.threads),
             '--ignore-style'
         ]
@@ -110,12 +113,13 @@ class SConsTarget(Fixture):
             if self.default_scons_invocation is None:
                 SConsTarget.default_scons_invocation = SConsFixture()
                 globalfixture(SConsTarget.default_scons_invocation)
-                
+
             invocation = self.default_scons_invocation
         self.invocation = invocation
 
     def schedule_finalized(self, schedule):
         self.invocation.targets.add(self.target)
+        return Fixture.schedule_finalized(self, schedule)
 
 class Gem5Fixture(SConsTarget):
     def init(self, isa, variant):

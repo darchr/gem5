@@ -36,7 +36,9 @@ import helper
 import state
 import log
 import sandbox
+
 from state import Status, Result
+from fixture import SkipException
 
 def compute_aggregate_result(iterable):
     '''        
@@ -165,17 +167,6 @@ class LibraryParallelRunner(RunnerPattern):
         pool.map(lambda suite : suite.runner(suite).run(), self.testable)
         self.testable.result = compute_aggregate_result(
                 iter(self.testable))
-
-
-class SkipException(Exception):
-    def __init__(self, fixture, testitem):
-        self.fixture = fixture
-        self.testitem = testitem
-
-        self.msg = 'Fixture "%s" raised SkipException for "%s".' % (
-               fixture.name, testitem.name
-        ) 
-        super(SkipException, self).__init__(self.msg)
 
 
 class BrokenFixtureException(Exception):

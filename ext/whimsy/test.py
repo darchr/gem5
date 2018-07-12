@@ -46,7 +46,7 @@ class TestCase(object):
         all `*args` and `**kwargs`. This means derived classes can define init without 
         boilerplate super().__init__(*args, **kwargs).
     '''
-    fixtures = tuple()
+    fixtures = []
     # TODO, remove explicit dependency. Use the loader to set the default runner
     runner = runner_mod.TestRunner
     collector = helper.InstanceCollector()
@@ -58,7 +58,7 @@ class TestCase(object):
 
     def __init__(self, *args, **kwargs):
         self.fixtures = kwargs.pop('fixtures', getattr(self, 'fixtures', []))
-        self.name = kwargs.pop('name', self.__class__.__name__)
+        self.name = kwargs.get('name', self.__class__.__name__)
         self.init(*args, **kwargs)
 
     def init(self, *args, **kwargs):
@@ -70,7 +70,8 @@ class TestFunction(TestCase):
     '''
     def init(self, function, name=None):
         if name is None:
-            self.name = function.__name__
+            name = function.__name__
+        self.name = name
         self.test_function = function
 
     def test(self, *args, **kwargs):

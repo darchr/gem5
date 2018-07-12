@@ -396,8 +396,7 @@ class MultiprocessingHandlerWrapper(log.Handler):
     def handle(self, record):
         self.queue.put(record)
     
-    def close(self):
-        self._shutdown.set()
+    def _close(self):
         if hasattr(self, 'thread'):
             self.thread.join()
         _wrap(self._drain)
@@ -410,6 +409,12 @@ class MultiprocessingHandlerWrapper(log.Handler):
         time.sleep(.2)
         self.queue.close()
         time.sleep(.2)
+
+    def close(self):
+        if not self._shutdown.is_set():
+            self._shutdown.set()
+            self._close()
+
 
 def _wrap(callback, *args, **kwargs):
     try:

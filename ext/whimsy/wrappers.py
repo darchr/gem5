@@ -107,6 +107,10 @@ class LoadedTestable(object):
     def fixtures(self):
         return self.obj.fixtures
 
+    @fixtures.setter
+    def fixtures(self, fixtures):
+        self.obj.fixtures = fixtures
+
     @property
     def runner(self):
         return self.obj.runner
@@ -192,6 +196,11 @@ class LoadedLibrary(LoadedTestable):
         :returns: an iterator over contained :class:`TestSuite` objects.
         '''
         return iter(self.obj)
+    
+    def all_fixture_tuples(self):
+        return itertools.chain(
+                self.global_fixtures,
+                *(suite.fixtures for suite in self.obj))
 
     def all_fixtures(self):
         '''

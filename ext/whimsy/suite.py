@@ -49,6 +49,7 @@ class TestSuite(object):
     '''
     runner = runner_mod.SuiteRunner
     collector = helper.InstanceCollector()
+    fixtures = []
 
     def __new__(klass, *args, **kwargs):
         obj = super(TestSuite, klass).__new__(klass, *args, **kwargs)
