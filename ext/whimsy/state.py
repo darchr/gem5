@@ -46,7 +46,7 @@ class Result:
     def __init__(self, value, reason=None):
         self.value = value
         self.reason = reason
-    
+
     def __str__(self):
         return self.name(self.value)
 

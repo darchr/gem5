@@ -262,7 +262,7 @@ def mkdir_p(path):
             pass
         else:
             raise
-            
+
 
 class FrozenSetException(Exception):
     '''Signals one tried to set a value in a 'frozen' object.'''
@@ -302,13 +302,15 @@ class FrozenAttrDict(AttrDict):
 
     def __setattr__(self, attr, val):
         if self.__initialized:
-            raise FrozenSetException('Cannot modify an attribute in a FozenAttrDict')
+            raise FrozenSetException(
+                        'Cannot modify an attribute in a FozenAttrDict')
         else:
             super(FrozenAttrDict, self).__setattr__(attr, val)
 
     def update(self, items):
         if self.__initialized:
-            raise FrozenSetException('Cannot modify an attribute in a FozenAttrDict')
+            raise FrozenSetException(
+                        'Cannot modify an attribute in a FozenAttrDict')
         else:
             super(FrozenAttrDict, self).update(items)
 
@@ -325,7 +327,7 @@ class InstanceCollector(object):
     '''
     def __init__(self):
         self.collectors = []
-    
+
     def create(self):
         collection = []
         self.collectors.append(collection)
@@ -333,7 +335,7 @@ class InstanceCollector(object):
 
     def remove(self, collector):
         self.collectors.remove(collector)
-        
+
     def collect(self, instance):
         for col in self.collectors:
             col.append(instance)
@@ -351,13 +353,13 @@ def append_dictlist(dict_, key, value):
 
 class ExceptionThread(threading.Thread):
     '''
-    Wrapper around a python :class:`Thread` which will raise an 
+    Wrapper around a python :class:`Thread` which will raise an
     exception on join if the child threw an unhandled exception.
     '''
     def __init__(self, *args, **kwargs):
         threading.Thread.__init__(self, *args, **kwargs)
         self._eq = Queue.Queue()
-    
+
     def run(self, *args, **kwargs):
         try:
             threading.Thread.run(self, *args, **kwargs)
@@ -365,7 +367,7 @@ class ExceptionThread(threading.Thread):
         except:
             tb = traceback.format_exc()
             self._eq.put(tb)
-        
+
     def join(self, *args, **kwargs):
         threading.Thread.join(*args, **kwargs)
         exception = self._eq.get()
@@ -453,7 +455,7 @@ class Timer():
         return self._stop - self._start
 
     def active_time(self):
-        return self.timestamp() - self._start 
+        return self.timestamp() - self._start
 
     @staticmethod
     def timestamp():

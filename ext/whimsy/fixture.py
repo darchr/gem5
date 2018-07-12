@@ -43,7 +43,7 @@ class SkipException(Exception):
 
         self.msg = 'Fixture "%s" raised SkipException for "%s".' % (
                fixture.name, testitem.name
-        ) 
+        )
         super(SkipException, self).__init__(self.msg)
 
 
@@ -73,7 +73,7 @@ class Fixture(object):
         if name is None:
             name = self.__class__.__name__
         self.name = name
-            
+
     def skip(self, testitem):
         raise SkipException(self.name, testitem.metadata)
 
@@ -90,20 +90,20 @@ class Fixture(object):
 
     def init(self, *args, **kwargs):
         pass
-    
+
     def setup(self, testitem):
         pass
-    
+
     def teardown(self, testitem):
         pass
-    
+
     def copy(self):
         return copy.deepcopy(self)
 
 
 def globalfixture(fixture):
     '''
-    Store the given fixture as a global fixture. Its setup() method 
+    Store the given fixture as a global fixture. Its setup() method
     will be called before the first test is executed.
     '''
     global_fixtures.append(fixture)

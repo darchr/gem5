@@ -40,7 +40,7 @@ class UID(object):
     def __init__(self, path, *args):
         self.path = path
         self.attributes = args
-    
+
     def _path_to_str(self):
         return os.path.relpath(self.path,
                 os.path.commonprefix((config.constants.testing_base,
@@ -49,7 +49,7 @@ class UID(object):
     @classmethod
     def uid_to_path(cls, uid):
         split_path = str(uid).split(cls.sep)[cls.path_idx]
-        return os.path.join(config.constants.testing_base, split_path) 
+        return os.path.join(config.constants.testing_base, split_path)
 
     @classmethod
     def uid_to_class(cls, uid):
@@ -58,7 +58,7 @@ class UID(object):
     @classmethod
     def from_suite(self, suite, filepath):
         return SuiteUID(filepath, suite.name)
-    
+
     @classmethod
     def from_test(self, test, filepath):
         return TestUID(filepath, test.name, test.parent_suite.name)

@@ -36,13 +36,13 @@ import log
 class QueryRunner(object):
     def __init__(self, test_schedule):
         self.schedule = test_schedule
-    
+
     def tags(self):
         tags = set()
         for suite in self.schedule:
             tags = tags | set(suite.tags)
         return tags
-    
+
     def suites(self):
         return [suite for suite in self.schedule]
 
@@ -65,8 +65,6 @@ class QueryRunner(object):
             log.test_log.message(suite.uid)
 
     def list_tags(self):
-        #TODO In Gem5 override this with tag types (isa,variant,length)
-
         log.test_log.message(terminal.separator())
         log.test_log.message('Listing all Test Tags.', bold=True)
         log.test_log.message(terminal.separator())

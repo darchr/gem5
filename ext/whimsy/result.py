@@ -210,7 +210,8 @@ class JUnitTestSuites(XMLElement):
 
         self.attributes = []
         for result, tests in results.items():
-            self.attributes.append(self.result_attribute(result, str(len(tests))))
+            self.attributes.append(self.result_attribute(result,
+                    str(len(tests))))
 
         self.elements = []
         for suite in internal_results:
@@ -235,7 +236,8 @@ class JUnitTestSuite(JUnitTestSuites):
             XMLAttribute('name', suite_result.name)
         ]
         for result, tests in results.items():
-            self.attributes.append(self.result_attribute(result, str(len(tests))))
+            self.attributes.append(self.result_attribute(result,
+                    str(len(tests))))
 
         self.elements = []
         for test in suite_result:
@@ -249,7 +251,8 @@ class JUnitTestCase(XMLElement):
     def __init__(self, test_result):
         self.attributes = [
             XMLAttribute('name', test_result.name),
-            XMLAttribute('classname', str(test_result.uid)), # TODO JUnit expects class of test.. add as test metadata.
+             # TODO JUnit expects class of test.. add as test metadata.
+            XMLAttribute('classname', str(test_result.uid)),
             XMLAttribute('status', str(test_result.result)),
         ]
 
@@ -276,7 +279,8 @@ class LargeFileElement(XMLElement):
             # TODO Better error logic, this is sometimes O.K.
             # if there was no stdout/stderr captured for the test
             #
-            # TODO If that was the case, the file should still be made and it should just be empty instead of not existing.
+            # TODO If that was the case, the file should still be made and it
+            # should just be empty instead of not existing.
             pass
 
 
@@ -285,7 +289,8 @@ class JUnitSavedResults:
     @staticmethod
     def save(results, path):
         '''
-        Compile the internal results into JUnit format writting it to the given file.
+        Compile the internal results into JUnit format writting it to the
+        given file.
         '''
         results = JUnitTestSuites(results)
         with open(path, 'w') as f:

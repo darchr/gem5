@@ -37,9 +37,9 @@ Loading typically follows the following stages.
 1. Recurse down a given directory looking for tests which match a given regex.
 
     The default regex used will match any python file (ending in .py) that has
-    a name starting or ending in test(s). If there are any additional components
-    of the name they must be connected with '-' or '_'. Lastly, file names that
-    begin with '.' will be ignored.
+    a name starting or ending in test(s). If there are any additional
+    components of the name they must be connected with '-' or '_'. Lastly,
+    file names that begin with '.' will be ignored.
 
     The following names would match:
 
@@ -82,7 +82,7 @@ import uid
 
 class DuplicateTestItemException(Exception):
     '''
-    Exception indicates multiple test items with the same UID 
+    Exception indicates multiple test items with the same UID
     were discovered.
     '''
     pass
@@ -90,7 +90,8 @@ class DuplicateTestItemException(Exception):
 
 # Match filenames that either begin or end with 'test' or tests and use
 # - or _ to separate additional name components.
-default_filepath_regex = re.compile(r'(((.+[_])?tests?)|(tests?([-_].+)?))\.py$')
+default_filepath_regex = re.compile(
+            r'(((.+[_])?tests?)|(tests?([-_].+)?))\.py$')
 
 def default_filepath_filter(filepath):
     '''The default filter applied to filepaths to marks as test sources.'''
@@ -120,9 +121,9 @@ class Loader(object):
     Class for discovering tests.
 
     Discovered :class:`TestCase` and :class:`TestSuite` objects are wrapped by
-    :class:`LoadedTest` and :class:`LoadedSuite` objects respectively. These objects
-    provided additional methods and metadata about the loaded objects and are the 
-    internal representation used by whimsy.
+    :class:`LoadedTest` and :class:`LoadedSuite` objects respectively.
+    These objects provided additional methods and metadata about the loaded
+    objects and are the internal representation used by whimsy.
 
     To simply discover and load all tests using the default filter create an
     instance and `load_root`.
@@ -134,8 +135,8 @@ class Loader(object):
     .. note:: If tests are not contained in a TestSuite, they will
         automatically be placed into one for the module.
 
-    .. warn:: This class is extremely thread-unsafe. 
-       It modifies the sys path and global config. 
+    .. warn:: This class is extremely thread-unsafe.
+       It modifies the sys path and global config.
        Use with care.
     '''
     def __init__(self):
@@ -145,7 +146,7 @@ class Loader(object):
 
         # filepath -> Successful | Failed to load
         self._files = {}
-    
+
     @property
     def schedule(self):
         return wrappers.LoadedLibrary(self.suites, fixture_mod.global_fixtures)
@@ -154,9 +155,9 @@ class Loader(object):
         files = {uid.UID.uid_to_path(id_) for id_ in uids}
         for file_ in files:
             self.load_file(file_)
-        
+
         return wrappers.LoadedLibrary(
-                [self.suite_uids[id_] for id_ in uids], 
+                [self.suite_uids[id_] for id_ in uids],
                 fixture_mod.global_fixtures)
 
     def _verify_no_duplicate_suites(self, new_suites):
@@ -164,7 +165,8 @@ class Loader(object):
         for suite in new_suites:
             if suite.uid in new_suite_uids:
                 raise DuplicateTestItemException(
-                        "More than one suite with UID '%s' was defined" % suite.uid)
+                        "More than one suite with UID '%s' was defined" %\
+                                suite.uid)
             new_suite_uids[suite.uid] = suite
 
     def _verify_no_duplicate_tests_in_suites(self, new_suites):
@@ -173,7 +175,8 @@ class Loader(object):
             for test in suite:
                 if test.uid in test_uids:
                      raise DuplicateTestItemException(
-                            "More than one test with UID '%s' was defined in suite '%s'" 
+                            "More than one test with UID '%s' was defined"
+                            " in suite '%s'"
                             % (test.uid, suite.uid))
                 test_uids.add(test.uid)
 
@@ -227,7 +230,7 @@ class Loader(object):
         new_suites = suite_mod.TestSuite.collector.create()
         new_fixtures = fixture_mod.Fixture.collector.create()
 
-        def cleanup():        
+        def cleanup():
             config.config.file_under_load = None
             sys.path[:] = old_path
             os.chdir(cwd)
@@ -235,8 +238,6 @@ class Loader(object):
             suite_mod.TestSuite.collector.remove(new_suites)
             fixture_mod.Fixture.collector.remove(new_fixtures)
 
-            # config.reset_for_module()
-        
         try:
             execfile(path, newdict, newdict)
         except Exception as e:
@@ -252,18 +253,23 @@ class Loader(object):
         orphan_tests = set(new_tests)
         for suite in new_suites:
             for test in suite:
-                # Remove the test if it wasn't already removed. 
+                # Remove the test if it wasn't already removed.
                 # (Suites may contain copies of tests.)
                 if test in orphan_tests:
                     orphan_tests.remove(test)
         if orphan_tests:
             orphan_tests = sorted(orphan_tests, key=new_tests.index)
-            # FIXME Use the config based default to group all uncollected tests.
-            # NOTE: This is automatically collected (we still have the collector active.)
-            suite_mod.TestSuite(tests=orphan_tests, name=path_as_suitename(path))
+            # FIXME Use the config based default to group all uncollected
+            # tests.
+            # NOTE: This is automatically collected (we still have the
+            # collector active.)
+            suite_mod.TestSuite(tests=orphan_tests,
+                    name=path_as_suitename(path))
 
         try:
-            loaded_suites = [wrappers.LoadedSuite(suite, path) for suite in new_suites]
+            loaded_suites = [wrappers.LoadedSuite(suite, path)
+                    for suite in new_suites]
+
             self._verify_no_duplicate_suites(loaded_suites)
             self._verify_no_duplicate_tests_in_suites(loaded_suites)
         except Exception as e:
@@ -274,8 +280,10 @@ class Loader(object):
         else:
             log.test_log.info('Discovered %d tests and %d suites in %s'
                     '' % (len(new_tests), len(loaded_suites), path))
+
             self.suites.extend(loaded_suites)
-            self.suite_uids.update({suite.uid: suite for suite in loaded_suites})
+            self.suite_uids.update({suite.uid: suite
+                    for suite in loaded_suites})
         cleanup()
 
     def _discover_files(self, root):

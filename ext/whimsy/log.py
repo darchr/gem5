@@ -29,7 +29,7 @@
 # Authors: Sean Wilson
 
 '''
-This module supplies the global `test_log` object which all testing 
+This module supplies the global `test_log` object which all testing
 results and messages are reported through.
 '''
 import wrappers
@@ -43,13 +43,12 @@ class LogLevel():
     Debug = 4
     Trace = 5
 
-# Record Type - 
 
 class RecordTypeCounterMetaclass(type):
     '''
     Record type metaclass.
 
-    Adds a static integer value in addition to typeinfo so identifiers 
+    Adds a static integer value in addition to typeinfo so identifiers
     are common across processes, networks and module reloads.
     '''
     counter = 0
@@ -72,7 +71,8 @@ class Record(object):
 
     def __getitem__(self, item):
         if item not in self.data:
-            raise KeyError('%s not in record %s' % (item, self.__class__.__name__))
+            raise KeyError('%s not in record %s' %\
+                    (item, self.__class__.__name__))
         return self.data[item]
 
     def __str__(self):
@@ -140,7 +140,7 @@ class Log(object):
         if self._opened:
             raise Exception('Unable to add a handler once the log is open.')
         self.handlers.append(handler)
-    
+
     def close_handler(self, handler):
         handler.close()
         self.handlers.remove(handler)
@@ -148,21 +148,21 @@ class Log(object):
 
 class Handler(object):
     '''
-    Empty implementation of the interface available to handlers which 
+    Empty implementation of the interface available to handlers which
     is expected by the :class:`Log`.
     '''
     def __init__(self):
         pass
-    
+
     def handle(self, record):
         pass
-    
+
     def close(self):
         pass
 
     def prehandle(self):
         pass
-    
+
     def posthandle(self):
         pass
 
@@ -180,16 +180,18 @@ class LogWrapper(object):
     }
     def __init__(self, log):
         self.log_obj = log
-    
+
     def log(self, *args, **kwargs):
         self.log_obj.log(*args, **kwargs)
 
     # Library Logging Methods
     # TODO Replace these methods in a test/create a wrapper?
-    # That way they still can log like this it's just hidden that they capture the current test.
+    # That way they still can log like this it's just hidden that they
+    # capture the current test.
     def message(self, message, level=LogLevel.Info, bold=False):
-        self.log_obj.log(LibraryMessage(message=message, level=level, bold=bold))
-    
+        self.log_obj.log(LibraryMessage(message=message, level=level,
+                bold=bold))
+
     def error(self, message):
         self.message(message, LogLevel.Error)
 
@@ -207,16 +209,18 @@ class LogWrapper(object):
 
     # Ongoing Test Logging Methods
     def status_update(self, obj, status):
-        self.log_obj.log(self._status_typemap[obj.__class__.__name__](obj, status))
+        self.log_obj.log(
+                self._status_typemap[obj.__class__.__name__](obj, status))
 
     def result_update(self, obj, result):
-        self.log_obj.log(self._result_typemap[obj.__class__.__name__](obj, result))
+        self.log_obj.log(
+                self._result_typemap[obj.__class__.__name__](obj, result))
 
     def test_message(self, test, message, level):
-        self.log_obj.log(TestMessage(message=message, level=level, 
+        self.log_obj.log(TestMessage(message=message, level=level,
                 test_uid=test.uid, suite_uid=test.parent_suite.uid))
 
-    # NOTE If performance starts to drag on logging stdout/err 
+    # NOTE If performance starts to drag on logging stdout/err
     # replace metadata with just test and suite uid tags.
     def test_stdout(self, test, suite, buf):
         self.log_obj.log(TestStdout(buffer=buf, metadata=test.metadata))

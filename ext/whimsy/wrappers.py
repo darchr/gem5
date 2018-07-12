@@ -29,7 +29,7 @@
 # Authors: Sean Wilson
 
 '''
-Module contains wrappers for test items that have been 
+Module contains wrappers for test items that have been
 loaded by the whimsy :class:`whimsy.loader.Loader`.
 '''
 import itertools
@@ -69,7 +69,7 @@ class LoadedTestable(object):
     '''
     Base class for loaded test items.
 
-    :property:`result` and :property:`status` setters 
+    :property:`result` and :property:`status` setters
     notify whimsy via the :func:`log_result` and :func:`log_status`
     of the updated status.
     '''
@@ -102,7 +102,7 @@ class LoadedTestable(object):
     @property
     def name(self):
         return self.metadata.name
-        
+
     @property
     def fixtures(self):
         return self.obj.fixtures
@@ -134,19 +134,19 @@ class LoadedTest(LoadedTestable):
 
     def test(self, *args, **kwargs):
         self.obj.test(*args, **kwargs)
-    
+
     def _generate_metadata(self):
         return TestCaseMetadata( **{
             'name':self.obj.name,
             'path': self._path,
-            'uid': uid.TestUID(self._path, 
-                               self.obj.name, 
+            'uid': uid.TestUID(self._path,
+                               self.obj.name,
                                self.parent_suite.name),
             'status': Status.Unscheduled,
             'result': Result(Result.NotRun),
             'suite_uid': self.parent_suite.metadata.uid
         })
-    
+
 
 class LoadedSuite(LoadedTestable):
     def __init__(self, suite_obj, path):
@@ -155,8 +155,9 @@ class LoadedSuite(LoadedTestable):
         self.tests = self._wrap_children(suite_obj)
 
     def _wrap_children(self, suite_obj):
-        return [LoadedTest(test, self, self.metadata.path) for test in suite_obj]
-    
+        return [LoadedTest(test, self, self.metadata.path)
+                for test in suite_obj]
+
     def _generate_metadata(self):
         return TestSuiteMetadata( **{
             'name': self.obj.name,
@@ -166,10 +167,10 @@ class LoadedSuite(LoadedTestable):
             'status': Status.Unscheduled,
             'result': Result(Result.NotRun)
         })
-    
+
     def __iter__(self):
         return iter(self.tests)
-    
+
     @property
     def tags(self):
         return self.metadata.tags
@@ -177,7 +178,7 @@ class LoadedSuite(LoadedTestable):
 
 class LoadedLibrary(LoadedTestable):
     '''
-    Wraps a collection of all loaded test suites and 
+    Wraps a collection of all loaded test suites and
     provides utility functions for accessing fixtures.
     '''
     def __init__(self, suites, global_fixtures):
@@ -190,13 +191,13 @@ class LoadedLibrary(LoadedTestable):
             'status': Status.Unscheduled,
             'result': Result(Result.NotRun)
         })
-    
+
     def __iter__(self):
         '''
         :returns: an iterator over contained :class:`TestSuite` objects.
         '''
         return iter(self.obj)
-    
+
     def all_fixture_tuples(self):
         return itertools.chain(
                 self.global_fixtures,
@@ -204,7 +205,7 @@ class LoadedLibrary(LoadedTestable):
 
     def all_fixtures(self):
         '''
-        :returns: an interator overall all global, suite, 
+        :returns: an interator overall all global, suite,
           and test fixtures
         '''
         return itertools.chain(itertools.chain(
@@ -215,15 +216,15 @@ class LoadedLibrary(LoadedTestable):
 
     def test_fixtures(self, suite):
         '''
-        :returns: an interator over all fixtures of each 
+        :returns: an interator over all fixtures of each
           test contained in the given suite
         '''
         return itertools.chain(*(test.fixtures for test in suite))
-    
+
     @property
     def fixtures(self):
         return self.global_fixtures
-        
+
     @property
     def uid(self):
         return self.name
@@ -231,7 +232,7 @@ class LoadedLibrary(LoadedTestable):
     @property
     def suites(self):
         return self.obj
-    
+
     @suites.setter
     def suites(self, suites):
         self.obj = suites

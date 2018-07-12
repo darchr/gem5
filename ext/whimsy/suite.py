@@ -39,13 +39,13 @@ class TestSuite(object):
     have a unique name.
 
     ..note::
-        The :func:`__new__` method enables collection of test cases, it must be called
-        in order for test cases to be collected.
-    
+        The :func:`__new__` method enables collection of test cases, it must
+        be called in order for test cases to be collected.
+
     ..note::
-        To reduce test definition boilerplate, the :func:`init` method is forwarded
-        all `*args` and `**kwargs`. This means derived classes can define init without 
-        boilerplate super().__init__(*args, **kwargs).
+        To reduce test definition boilerplate, the :func:`init` method is
+        forwarded all `*args` and `**kwargs`. This means derived classes can
+        define init without boilerplate super().__init__(*args, **kwargs).
     '''
     runner = runner_mod.SuiteRunner
     collector = helper.InstanceCollector()
@@ -58,7 +58,7 @@ class TestSuite(object):
         TestSuite.collector.collect(obj)
         return obj
 
-    def __init__(self, name=None, fixtures=tuple(), tests=tuple(), 
+    def __init__(self, name=None, fixtures=tuple(), tests=tuple(),
                  tags=tuple(), **kwargs):
         self.fixtures = self.fixtures + list(fixtures)
         self.tags = self.tags | set(tags)

@@ -48,16 +48,17 @@ class RunLogHandler():
             verbosity=config.config.verbose+log.LogLevel.Info
         )
         summary_handler = handlers.SummaryHandler()
-        self.mp_handler = handlers.MultiprocessingHandlerWrapper(summary_handler, term_handler)
+        self.mp_handler = handlers.MultiprocessingHandlerWrapper(
+                summary_handler, term_handler)
         self.mp_handler.async_process()
         log.test_log.log_obj.add_handler(self.mp_handler)
-    
+
     def schedule_finalized(self, test_schedule):
         # Create the result handler object.
         self.result_handler = handlers.ResultHandler(
                 test_schedule, config.config.result_path)
         self.mp_handler.add_handler(self.result_handler)
-    
+
     def finish_testing(self):
         self.result_handler.close()
 
@@ -73,7 +74,8 @@ class RunLogHandler():
 
 
 def filter_with_config_tags(loaded_library):
-    tags = getattr(config.config, config.StorePositionalTagsAction.position_kword)
+    tags = getattr(config.config,
+            config.StorePositionalTagsAction.position_kword)
     final_tags = []
     regex_fmt = '^%s$'
     cfg = config.config
@@ -109,7 +111,7 @@ def filter_with_config_tags(loaded_library):
 
     filters = list(itertools.chain(tags, final_tags))
     string = 'Filtering suites with tags as follows:'
-    filter_string = '\n\t'.join((str(f) for f in filters)) 
+    filter_string = '\n\t'.join((str(f) for f in filters))
     log.test_log.trace(string + filter_string)
 
     return filter_with_tags(loaded_library, filters)
@@ -121,10 +123,14 @@ def filter_with_tags(loaded_library, filters):
     --include-tags <regex>
     --exclude-tags <regex>
 
-    The logic maintains a `set` of test suites. 
+    The logic maintains a `set` of test suites.
 
-    If the regex provided with the `--include-tags` flag matches a tag of a suite, that suite will added to the set.
-    If the regex provided with the `--exclude-tags` flag matches a tag of a suite, that suite will removed to the set.
+    If the regex provided with the `--include-tags` flag matches a tag of a
+    suite, that suite will added to the set.
+
+    If the regex provided with the `--exclude-tags` flag matches a tag of a
+    suite, that suite will removed to the set.
+
     Suites can be added and removed multiple times.
 
     First Flag Special Case Logic:
@@ -134,9 +140,12 @@ def filter_with_tags(loaded_library, filters):
 
     Let's trace out the set as we go through the flags to clarify::
 
-        # Say our collection of suites looks like this: set(suite_ARM64, suite_X86, suite_Other).
-        # Additionally, we've passed the flags in the following order: --include-tags "ARM64"  --exclude-tags ".*" --include-tags "X86"
-        
+        # Say our collection of suites looks like this: set(suite_ARM64,
+        # suite_X86, suite_Other).
+        #
+        # Additionally, we've passed the flags in the following order:
+        #  --include-tags "ARM64"  --exclude-tags ".*" --include-tags "X86"
+
         # Process --include-tags "ARM64"
         set(suite_ARM64)    # Suite begins empty, but adds the ARM64 suite
         # Process --exclude-tags ".*"
@@ -159,15 +168,17 @@ def filter_with_tags(loaded_library, filters):
         return suites - excludes
     def include(includes):
         return suites | includes
-        
+
     for tag_regex in filters:
         matched_tags = (tag for tag in tags if tag_regex.regex.search(tag))
         for tag in matched_tags:
             matched_suites = set(query_runner.suites_with_tag(tag))
-            suites = include(matched_suites) if tag_regex.include else exclude(matched_suites)
+            suites = include(matched_suites) if tag_regex.include \
+                    else exclude(matched_suites)
 
     # Set the library's suites to only those which where accepted by our filter
-    loaded_library.suites = [suite for suite in loaded_library.suites if suite in suites]
+    loaded_library.suites = [suite for suite in loaded_library.suites
+            if suite in suites]
 
 # TODO Add results command for listing previous results.
 
@@ -232,7 +243,8 @@ def run_schedule(test_schedule, log_handler):
         for test in suite:
             copied_fixtures = []
             for fixture in test.fixtures:
-                copied_fixtures.append(fixture.schedule_finalized(test_schedule))
+                copied_fixtures.append(fixture.schedule_finalized(
+                        test_schedule))
             test.fixtures = copied_fixtures
 
     log.test_log.message(terminal.separator())
@@ -270,7 +282,7 @@ def do_rerun():
         results = result.InternalSavedResults.load(
                 os.path.join(config.config.result_path,
                 config.constants.pickle_filename))
-        
+
         rerun_suites = [suite.uid for suite in results if suite.unsucessful]
 
         # Use loader to load suites

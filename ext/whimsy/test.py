@@ -38,11 +38,13 @@ class TestCase(object):
     Base class for all tests.
 
     ..note::
-        The :func:`__new__` method enables collection of test cases, it must be called
-        in order for test cases to be collected.
+        The :func:`__new__` method enables collection of test cases, it must
+        be called in order for test cases to be collected.
     '''
     fixtures = []
-    # TODO, remove explicit dependency. Use the loader to set the default runner
+
+    # TODO, remove explicit dependency. Use the loader to set the
+    # default runner
     runner = runner_mod.TestRunner
     collector = helper.InstanceCollector()
 
@@ -89,16 +91,3 @@ def testfunction(function=None, name=None, fixtures=tuple()):
         return testfunctiondecorator(function)
     else:
         return testfunctiondecorator
-
-# TODO
-# class TestApplication(TestCase):
-#     def init(self, filename):
-#         # TODO Save current file being loaded path in order to properly resolve the filename path.
-#         self.filename = filename
-    
-#     def test(self, test_parameters):
-#         #TODO
-#         pass
-
-# def test_application(name, filename):
-#     return TestApplication(filename, name=name)

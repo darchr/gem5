@@ -41,7 +41,7 @@ from state import Status, Result
 from fixture import SkipException
 
 def compute_aggregate_result(iterable):
-    '''        
+    '''
     Status of the test suite by default is:
     * Passed if all contained tests passed
     * Errored if any contained tests errored
@@ -71,13 +71,13 @@ class TestParameters(object):
         self.test = test
         self.suite = suite
         self.log = log.TestLogWrapper(log.test_log, test, suite)
-    
+
     @helper.cacheresult
     def _fixtures(self):
         fixtures = {fixture.name:fixture for fixture in self.suite.fixtures}
         for fixture in self.test.fixtures:
             fixtures[fixture.name] = fixture
-        return fixtures 
+        return fixtures
 
     @property
     def fixtures(self):
@@ -87,7 +87,7 @@ class TestParameters(object):
 class RunnerPattern:
     def __init__(self, loaded_testable):
         self.testable = loaded_testable
-        self.builder = FixtureBuilder(self.testable.fixtures) # TODO 
+        self.builder = FixtureBuilder(self.testable.fixtures)
 
     def handle_error(self, trace):
         self.testable.result = Result(Result.Errored, trace)
@@ -96,7 +96,7 @@ class RunnerPattern:
     def handle_skip(self, trace):
         self.testable.result = Result(Result.Skipped, trace)
         self.avoid_children(trace)
-    
+
     def avoid_children(self, reason):
         for testable in self.testable:
             testable.result = Result(self.testable.result.value, reason)
@@ -135,10 +135,11 @@ class TestRunner(RunnerPattern):
     def sandbox_test(self):
         try:
             sandbox.Sandbox(TestParameters(
-                    self.testable, 
+                    self.testable,
                     self.testable.parent_suite))
         except sandbox.SubprocessException:
-            self.testable.result = Result(Result.Failed, traceback.format_exc())
+            self.testable.result = Result(Result.Failed,
+                    traceback.format_exc())
         else:
             self.testable.result = Result(Result.Passed)
 
@@ -176,9 +177,10 @@ class BrokenFixtureException(Exception):
         self.trace = trace
 
         self.msg = ('%s\n'
-                   'Exception raised building "%s" raised SkipException for "%s".' % 
+                   'Exception raised building "%s" raised SkipException'
+                   ' for "%s".' %
                    (trace, fixture.name, testitem.name)
-        ) 
+        )
         super(BrokenFixtureException, self).__init__(self.msg)
 
 class FixtureBuilder(object):
@@ -188,7 +190,7 @@ class FixtureBuilder(object):
 
     def setup(self, testitem):
         for fixture in self.fixtures:
-            # Mark as built before, so if the build fails 
+            # Mark as built before, so if the build fails
             # we still try to tear it down.
             self.built_fixtures.append(fixture)
             try:
@@ -197,10 +199,13 @@ class FixtureBuilder(object):
                 raise
             except Exception as e:
                 exc = traceback.format_exc()
-                msg = 'Exception raised while setting up fixture for %s' % testitem.uid
+                msg = 'Exception raised while setting up fixture for %s' %\
+                        testitem.uid
                 log.test_log.warn('%s\n%s' % (exc, msg))
-                raise BrokenFixtureException(fixture, testitem, traceback.format_exc())
-        
+
+                raise BrokenFixtureException(fixture, testitem,
+                        traceback.format_exc())
+
     def teardown(self, testitem):
         for fixture in self.built_fixtures:
             try:
@@ -208,5 +213,6 @@ class FixtureBuilder(object):
             except Exception:
                 # Log exception but keep cleaning up.
                 exc = traceback.format_exc()
-                msg = 'Exception raised while tearing down fixture for %s' % testitem.uid
+                msg = 'Exception raised while tearing down fixture for %s' %\
+                        testitem.uid
                 log.test_log.warn('%s\n%s' % (exc, msg))

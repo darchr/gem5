@@ -56,17 +56,18 @@ from config import config, constants
 class _TestStreamManager(object):
     def __init__(self):
         self._writers = {}
-    
+
     def open_writer(self, test_result):
         if test_result in self._writers:
             raise ValueError('Cannot have multiple writters on a single test.')
-        self._writers[test_result] = _TestStreams(test_result.stdout, test_result.stderr)
-    
+        self._writers[test_result] = _TestStreams(test_result.stdout,
+                test_result.stderr)
+
     def get_writer(self, test_result):
         if test_result not in self._writers:
             self.open_writer(test_result)
         return self._writers[test_result]
-    
+
     def close_writer(self, test_result):
         if test_result in self._writers:
             writer = self._writers.pop(test_result)
@@ -90,17 +91,23 @@ class _TestStreams(object):
 
 class ResultHandler(log.Handler):
     '''
-    Log handler which listens for test results and output saving data as it is reported.
-    When the handler is closed it writes out test results in the python pickle format.
+    Log handler which listens for test results and output saving data as
+    it is reported.
+
+    When the handler is closed it writes out test results in the python pickle
+    format.
     '''
     def __init__(self, schedule, directory):
         '''
-        :param schedule: The entire schedule as a :class:`LoadedLibrary` object.
+        :param schedule: The entire schedule as a :class:`LoadedLibrary`
+            object.
 
-        :param directory: Directory to save test stdout/stderr and aggregate results to.
+        :param directory: Directory to save test stdout/stderr and aggregate
+            results to.
         '''
         self.directory = directory
-        self.internal_results = result.InternalLibraryResults(schedule, directory)
+        self.internal_results = result.InternalLibraryResults(schedule,
+                directory)
         self.test_stream_manager = _TestStreamManager()
         self._closed = False
 
@@ -128,7 +135,7 @@ class ResultHandler(log.Handler):
         suite_result.result = record['result']
 
     def handle_test_result(self, record):
-        test_result = self._get_test_result(record)       
+        test_result = self._get_test_result(record)
         test_result.result = record['result']
 
     def handle_stderr(self, record):
@@ -143,16 +150,16 @@ class ResultHandler(log.Handler):
 
     def _get_test_result(self, test_record):
         return self.internal_results.get_test_result(
-                    test_record['metadata'].uid, 
+                    test_record['metadata'].uid,
                     test_record['metadata'].suite_uid)
 
     def _save(self):
         #FIXME Hardcoded path name
         result.InternalSavedResults.save(
-            self.internal_results, 
+            self.internal_results,
             os.path.join(self.directory, constants.pickle_filename))
         result.JUnitSavedResults.save(
-            self.internal_results, 
+            self.internal_results,
             os.path.join(self.directory, constants.xml_filename))
 
     def close(self):
@@ -162,10 +169,11 @@ class ResultHandler(log.Handler):
         self._save()
 
 
-#TODO Change from a handler to an internal post processor so it can be used to reprint results
+#TODO Change from a handler to an internal post processor so it can be used
+# to reprint results
 class SummaryHandler(log.Handler):
     '''
-    A log handler which listens to the log for test results 
+    A log handler which listens to the log for test results
     and reports the aggregate results when closed.
     '''
     color = terminal.get_termcap()
@@ -186,14 +194,15 @@ class SummaryHandler(log.Handler):
         }
         self._timer = helper.Timer()
         self.results = []
-    
+
     def handle_library_status(self, record):
         if record['status'] == state.Status.Building:
             self._timer.restart()
 
     def handle_testresult(self, record):
         result = record['result'].value
-        if result in (state.Result.Skipped, state.Result.Failed, state.Result.Passed, state.Result.Errored):
+        if result in (state.Result.Skipped, state.Result.Failed,
+                state.Result.Passed, state.Result.Errored):
             self.results.append(result)
 
     def handle(self, record):
@@ -217,7 +226,7 @@ class SummaryHandler(log.Handler):
             count  = outcome_count[outcome]
             if count:
                 strings.append(outcome_fmt.format(count=count,
-                                                  outcome=state.Result.enums[outcome]))
+                        outcome=state.Result.enums[outcome]))
                 most_severe_outcome = outcome
         string = ','.join(strings)
         if most_severe_outcome is None:
@@ -242,7 +251,7 @@ class TerminalHandler(log.Handler):
     def __init__(self, verbosity=log.LogLevel.Info):
         self.stream = verbosity >= log.LogLevel.Trace
         self.verbosity = verbosity
-        self.mapping = {            
+        self.mapping = {
             log.TestResult.type_id: self.handle_testresult,
             log.SuiteStatus.type_id: self.handle_suitestatus,
             log.TestStatus.type_id: self.handle_teststatus,
@@ -265,47 +274,50 @@ class TerminalHandler(log.Handler):
             log.test_log.info('Reason:')
             log.test_log.info(reason)
             log.test_log.info(terminal.separator('-'))
-    
+
     def handle_teststatus(self, record):
         if record['status'] == state.Status.Running:
-            log.test_log.debug('Starting Test Case: %s' % record['metadata'].name)
+            log.test_log.debug('Starting Test Case: %s' %\
+                    record['metadata'].name)
 
     def handle_testresult(self, record):
         self._display_outcome(
-            'Test: %s'  % record['metadata'].name, 
+            'Test: %s'  % record['metadata'].name,
             record['result'].value)
 
     def handle_suitestatus(self, record):
         if record['status'] == state.Status.Running:
-              log.test_log.debug('Starting Test Suite: %s ' % record['metadata'].name)
-    
+              log.test_log.debug('Starting Test Suite: %s ' %\
+                    record['metadata'].name)
+
     def handle_stderr(self, record):
-        if self.stream: 
+        if self.stream:
             print(record.data['buffer'], file=sys.stderr, end='')
-        
+
     def handle_stdout(self, record):
-        if self.stream: 
+        if self.stream:
             print(record.data['buffer'], file=sys.stdout, end='')
-    
+
     def handle_testmessage(self, record):
-        if self.stream: 
+        if self.stream:
             print(self._colorize(record['message'], record['level']))
 
     def handle_librarymessage(self, record):
-        print(self._colorize(record['message'], record['level'], record['bold']))
+        print(self._colorize(record['message'], record['level'],
+                record['bold']))
 
     def _colorize(self, message, level, bold=False):
         return '%s%s%s%s' % (
                 self.color.Bold if bold else '',
                 self.verbosity_mapping.get(level, ''),
-                message, 
+                message,
                 self.default)
 
     def handle(self, record):
         if record.data.get('level', self.verbosity) > self.verbosity:
             return
         self.mapping.get(record.type_id, lambda _:None)(record)
-    
+
     def set_verbosity(self, verbosity):
         self.verbosity = verbosity
 
@@ -313,20 +325,21 @@ class TerminalHandler(log.Handler):
 class PrintHandler(log.Handler):
     def __init__(self):
         pass
-    
+
     def handle(self, record):
         print(str(record).rstrip())
-    
+
     def close(self):
         pass
+
 
 class MultiprocessingHandlerWrapper(log.Handler):
     '''
     A handler class which forwards log records to subhandlers, enabling
     logging across multiprocessing python processes.
 
-    The 'parent' side of the handler should execute either 
-    :func:`async_process` or :func:`process` to forward 
+    The 'parent' side of the handler should execute either
+    :func:`async_process` or :func:`process` to forward
     log records to subhandlers.
     '''
     def __init__(self, *subhandlers):
@@ -339,12 +352,12 @@ class MultiprocessingHandlerWrapper(log.Handler):
         # subhandlers should be accessed with the _handler_lock
         self._handler_lock = threading.Lock()
         self._subhandlers = subhandlers
-    
+
     def add_handler(self, handler):
         self._handler_lock.acquire()
         self._subhandlers = (handler, ) + self._subhandlers
         self._handler_lock.release()
-    
+
     def _with_handlers(self, callback):
         exception = None
         self._handler_lock.acquire()
@@ -357,7 +370,7 @@ class MultiprocessingHandlerWrapper(log.Handler):
                 exception = e
                 break
         self._handler_lock.release()
-        
+
         if exception is not None:
             raise exception
 
@@ -377,7 +390,7 @@ class MultiprocessingHandlerWrapper(log.Handler):
                 return
             except Queue.Empty:
                 continue
-    
+
     def _drain(self):
         while True:
             try:
@@ -389,13 +402,13 @@ class MultiprocessingHandlerWrapper(log.Handler):
                 return
             except Queue.Empty:
                 return
-    
+
     def _handle(self, record):
         self._with_handlers(lambda handler: handler.handle(record))
 
     def handle(self, record):
         self.queue.put(record)
-    
+
     def _close(self):
         if hasattr(self, 'thread'):
             self.thread.join()
@@ -404,8 +417,9 @@ class MultiprocessingHandlerWrapper(log.Handler):
 
         # NOTE Python2 has an known bug which causes IOErrors to be raised
         # if this shutdown doesn't go cleanly on both ends.
-        # This sleep adds some time for the sender threads on this process to 
-        # finish pickling the object and complete shutdown after the queue is closed.
+        # This sleep adds some time for the sender threads on this process to
+        # finish pickling the object and complete shutdown after the queue is
+        # closed.
         time.sleep(.2)
         self.queue.close()
         time.sleep(.2)

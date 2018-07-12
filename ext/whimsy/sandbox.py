@@ -61,7 +61,7 @@ class IoManager(object):
         self.suite = suite
         self.log = log.test_log
         self._init_pipes()
-    
+
     def _init_pipes(self):
         self.stdout_rp, self.stdout_wp = os.pipe()
         self.stderr_rp, self.stderr_wp = os.pipe()
@@ -73,7 +73,7 @@ class IoManager(object):
     def setup(self):
         self.replace_pipes()
         self.fixup_pdb()
-    
+
     def fixup_pdb(self):
         ForkedPdb.io_manager = self
         pdb.Pdb = ForkedPdb
@@ -86,7 +86,7 @@ class IoManager(object):
         sys.stderr = os.fdopen(self.stderr_wp, 'w', 0)
         os.dup2(self.stdout_wp, sys.stdout.fileno())
         sys.stdout = os.fdopen(self.stdout_wp, 'w', 0)
-    
+
     def restore_pipes(self):
         self.stderr_wp = os.dup(sys.stderr.fileno())
         self.stdout_wp = os.dup(sys.stdout.fileno())
@@ -106,29 +106,29 @@ class IoManager(object):
                 for line in iter(pipe.readline, ''):
                     log_callback(line)
 
-        # Don't keep a backpointer to self in the thread.            
+        # Don't keep a backpointer to self in the thread.
         log = self.log
         test = self.test
         suite = self.suite
 
         self.stdout_thread = threading.Thread(
                 target=_log_output,
-                args=(self.stdout_rp, 
+                args=(self.stdout_rp,
                       lambda buf: log.test_stdout(test, suite, buf))
         )
         self.stderr_thread = threading.Thread(
                 target=_log_output,
-                args=(self.stderr_rp, 
+                args=(self.stderr_rp,
                       lambda buf: log.test_stderr(test, suite, buf))
         )
 
-        # Daemon + Join to not lock up main thread if something breaks 
+        # Daemon + Join to not lock up main thread if something breaks
         # but provide consistent execution if nothing goes wrong.
         self.stdout_thread.daemon = True
         self.stderr_thread.daemon = True
         self.stdout_thread.start()
         self.stderr_thread.start()
-    
+
     def join_loggers(self):
         self.stdout_thread.join()
         self.stderr_thread.join()
@@ -167,7 +167,7 @@ class ExceptionProcess(multiprocessing.Process):
     def status(self):
         if self._pconn.poll():
             self._exception = self._pconn.recv()
-        
+
         return self.Status(self.exitcode, self._exception)
 
 
@@ -178,7 +178,8 @@ class Sandbox(object):
         self.io_manager = IoManager(self.params.test, self.params.suite)
 
         self.p = ExceptionProcess(target=self.entrypoint)
-        self.p.daemon = True # Daemon + Join to not lock up main thread if something breaks
+        # Daemon + Join to not lock up main thread if something breaks
+        self.p.daemon = True
         self.io_manager.start_loggers()
         self.p.start()
         self.io_manager.close_parent_pipes()
