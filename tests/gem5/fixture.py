@@ -43,9 +43,9 @@ class VariableFixture(Fixture):
 
 
 class TempdirFixture(Fixture):
-    def init(self):
+    def __init__(self):
         self.path = None
-        self.name = constants.tempdir_fixture_name
+        super(TempdirFixture, self).__init__(name=constants.tempdir_fixture_name)
 
     def setup(self, testitem):
         self.path = tempfile.mkdtemp(prefix='gem5out')
@@ -53,6 +53,7 @@ class TempdirFixture(Fixture):
     def teardown(self, testitem):
         if self.path is not None:
             shutil.rmtree(self.path)
+
 
 class SConsFixture(Fixture):
     '''
@@ -63,11 +64,12 @@ class SConsFixture(Fixture):
     :param directory: The directory which scons will -C (cd) into before
         executing. If None is provided, will choose the config base_dir.
     '''
-    def init(self, directory=None, target_class=None):
+    def __init__(self, directory=None, target_class=None):
         self.directory = directory if directory else config.base_dir
         self.target_class = target_class if target_class else SConsTarget
         self.threads = config.threads
         self.targets = set()
+        super(SConsFixture, self).__init__()
 
     def setup(self, testitem):
         if config.skip_build:
@@ -90,7 +92,7 @@ class SConsTarget(Fixture):
     # The singleton scons fixture we'll use for all targets.
     default_scons_invocation = None
 
-    def init(self, target, build_dir=None, invocation=None):
+    def __init__(self, target, build_dir=None, invocation=None):
         '''
         Represents a target to be built by an 'invocation' of scons.
 
@@ -107,7 +109,7 @@ class SConsTarget(Fixture):
         if build_dir is None:
             build_dir = config.build_dir
         self.target = os.path.join(build_dir, target)
-        self.name = target
+        super(SConsTarget, self).__init__(name=target)
 
         if invocation is None:
             if self.default_scons_invocation is None:
@@ -122,9 +124,9 @@ class SConsTarget(Fixture):
         return Fixture.schedule_finalized(self, schedule)
 
 class Gem5Fixture(SConsTarget):
-    def init(self, isa, variant):
+    def __init__(self, isa, variant):
         target = joinpath(isa.upper(), 'gem5.%s' % variant)
-        SConsTarget.init(self, target)
+        super(Gem5Fixture, self).__init__(target)
 
         self.name = constants.gem5_binary_fixture_name
         self.path = self.target

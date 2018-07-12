@@ -69,9 +69,10 @@ class Fixture(object):
         Fixture.collector.collect(obj)
         return obj
 
-    def __init__(self, *args, **kwargs):
-        self.name = kwargs.pop('name', self.__class__.__name__)
-        self.init(*args, **kwargs)
+    def __init__(self, name=None, **kwargs):
+        if name is None:
+            name = self.__class__.__name__
+        self.name = name
             
     def skip(self, testitem):
         raise SkipException(self.name, testitem.metadata)

@@ -40,11 +40,6 @@ class TestCase(object):
     ..note::
         The :func:`__new__` method enables collection of test cases, it must be called
         in order for test cases to be collected.
-    
-    ..note::
-        To reduce test definition boilerplate, the :func:`init` method is forwarded
-        all `*args` and `**kwargs`. This means derived classes can define init without 
-        boilerplate super().__init__(*args, **kwargs).
     '''
     fixtures = []
     # TODO, remove explicit dependency. Use the loader to set the default runner
@@ -56,23 +51,21 @@ class TestCase(object):
         TestCase.collector.collect(obj)
         return obj
 
-    def __init__(self, *args, **kwargs):
-        self.fixtures = kwargs.pop('fixtures', getattr(self, 'fixtures', []))
-        self.name = kwargs.get('name', self.__class__.__name__)
-        self.init(*args, **kwargs)
-
-    def init(self, *args, **kwargs):
-        pass
+    def __init__(self, name=None, fixtures=tuple(), **kwargs):
+        self.fixtures = self.fixtures + list(fixtures)
+        if name is None:
+            name = self.__class__.__name__
+        self.name = name
 
 class TestFunction(TestCase):
     '''
     TestCase implementation which uses a callable object as a test.
     '''
-    def init(self, function, name=None):
+    def __init__(self, function, name=None, **kwargs):
+        self.test_function = function
         if name is None:
             name = function.__name__
-        self.name = name
-        self.test_function = function
+        TestCase.__init__(self, name=name, **kwargs)
 
     def test(self, *args, **kwargs):
         self.test_function(*args, **kwargs)

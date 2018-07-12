@@ -41,9 +41,14 @@ class Verifier(object):
             name=name,
             vname=self.__class__.__name__)
         self.fixtures = fixtures
+    
+    def _test(self, *args, **kwargs):
+        # Use a callback wrapper to make stack 
+        # traces easier to understand.
+        self.test(*args, **kwargs)
 
     def instantiate_test(self):
-        return test.TestFunction(self.test, 
+        return test.TestFunction(self._test, 
                 name=self.name, fixtures=self.fixtures)
 
     def failed(self, fixtures):
