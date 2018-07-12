@@ -31,7 +31,7 @@ Test file for simply building gem5
 '''
 import re
 import os
-from testlib import *
+from whimsy import *
 
 common_isas = [constants.x86_tag, constants.arm_tag, constants.riscv_tag]
 
@@ -52,9 +52,9 @@ for isa in constants.supported_isas:
         }
 
         name = 'build-{isa}-{var}'.format(isa=isa, var=variant)
-        fixture = Gem5Fixture(isa, variant, tags=tags)
+        fixture = Gem5Fixture(isa, variant)
 
         function = TestFunction(lambda fixtures: True, name,
                                 fixtures=[fixture])
 
-        TestSuite(name, [function], tags=tags, fail_fast=True)
+        TestSuite(name=name, tests=[function], tags=tags)

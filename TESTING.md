@@ -79,6 +79,7 @@ TestSuite:build-RISCV-opt
 TestSuite:build-ARM-opt
 ```
 
+.. TODO Support for this needs to be brought back in.
 
 Next, you can run a single *suite* from the command line by passing the option
 `--uid`. For instance,
@@ -161,42 +162,13 @@ adding a new test and you don't have access to the gem5 server, contact a
 maintainer (see MAINTAINERS).*
 
 
-# Running Tests in Parallel/on a LAN.
+# Running Tests in Parallel
 
-Whimsy has support for distributed testing baked in. This system supports
-running multiple tests on the same computer or running on both a server
-and multiple clients.
+Whimsy has support for parallel testing baked in. This system supports
+running multiple suites at the same time on the same computer. To run 
+suites in parallel, supply the `-t <number-tests>` flag to the run command.
 
-In order to run the test suite in a multithreaded manner. The server and client
-should both have the same filesystem structure. (It would be simpler to share
-a nfs mount, but copies will work just fine.) In both the client and server
-a `credentials.ini` file must exist in the current working directory. The file
-should contain the information to start the server and for the client to
-connect to it.
+For example to run up to three test suites at the same time::
+    
+    ./main.py run --skip-build -t 3
 
-The `credentials.ini` should be formatted as follows:
-
-```ini
-[Credentials]
-hostname=127.0.0.1
-port=11111
-passkey=password
-```
-
-When you wish to run tests in parallel, supply the '-t' flag with the number of
-concurrent tests. For example, if 8 concurrent tests are desired, one would run:
-
-```shell
-./main.py run -t 8
-```
-
-To connect a helper client to the running test server, use the client
-subcommand.
-
-```shell
-./main.py client -t 8
-```
-
-This distributed support is provisional and may possibly need to be modified to
-fit users solutions. Modders will find the currently implemented support in the
-:mod:`whimsy.runner.parallel` and :mod:`whimsy.runner.runner` modules.

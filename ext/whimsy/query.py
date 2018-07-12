@@ -11,6 +11,8 @@
 # neither the name of the copyright holders nor the names of its
 # contributors may be used to endorse or promote products derived from
 # this software without specific prior written permission.
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -26,25 +28,46 @@
 #
 # Authors: Sean Wilson
 
-import os
-from config import constants
+import terminal
+import log
 
-def uid(testitem, class_name=None):
-    '''
-    The generic function used to produce uid of test objects.
-    '''
-    # Trim the file path to be the path relative to the parent of this
-    # directory.
-    filepath = testitem.path
-    filepath = os.path.relpath(filepath,
-                               os.path.commonprefix((constants.testing_base,
-                                                    filepath)))
-    fmt = '{class_}:{name}'
-    if class_name is None:
-        class_name = testitem.__class__.__name__
-    return fmt.format(name=testitem.name, class_=class_name)
+# TODO Refactor print logic out of this so the objects
+# created are separate from print logic.
+class QueryRunner(object):
+    def __init__(self, test_schedule):
+        self.schedule = test_schedule
 
-# TODO: Should merge UID functions into a full blown class.
-def path_from_uid(uid):
-    split_path = uid.split(':')[0]
-    return os.path.join(constants.testing_base, split_path)
+    def tags(self):
+        tags = set()
+        for suite in self.schedule:
+            tags = tags | set(suite.tags)
+        return tags
+
+    def suites(self):
+        return [suite for suite in self.schedule]
+
+    def suites_with_tag(self, tag):
+        return filter(lambda suite: tag in suite.tags, self.suites())
+
+    def list_tests(self):
+        log.test_log.message(terminal.separator())
+        log.test_log.message('Listing all Test Cases.', bold=True)
+        log.test_log.message(terminal.separator())
+        for suite in self.schedule:
+            for test in suite:
+                log.test_log.message(test.uid)
+
+    def list_suites(self):
+        log.test_log.message(terminal.separator())
+        log.test_log.message('Listing all Test Suites.', bold=True)
+        log.test_log.message(terminal.separator())
+        for suite in self.suites():
+            log.test_log.message(suite.uid)
+
+    def list_tags(self):
+        log.test_log.message(terminal.separator())
+        log.test_log.message('Listing all Test Tags.', bold=True)
+        log.test_log.message(terminal.separator())
+
+        for tag in self.tags():
+            log.test_log.message(tag)

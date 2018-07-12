@@ -30,7 +30,7 @@
 Test file for the scripts from Learning gem5 Part 1
 '''
 
-from testlib import *
+from whimsy import *
 
 valid_isas = (constants.x86_tag, constants.arm_tag)
 configs = ('simple', 'two_level')

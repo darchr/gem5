@@ -31,15 +31,23 @@ Built in test cases that verify particular details about a gem5 run.
 '''
 import re
 
-from testlib import test
-from testlib.config import constants
-from testlib.util import diff_out_file
-from testlib.helper import joinpath
+from whimsy import test
+from whimsy.config import constants
+from whimsy.helper import joinpath, diff_out_file
 
-class Verifier(test.TestFunction):
-    def __init__(self, name=None, **kwargs):
-        name = name if name is not None else self.__class__.__name__
-        super(Verifier, self).__init__(self.test, name, **kwargs)
+class Verifier(object):
+    def __init__(self, fixtures=tuple()):
+        self.fixtures = fixtures
+    
+    def _test(self, *args, **kwargs):
+        # Use a callback wrapper to make stack 
+        # traces easier to understand.
+        self.test(*args, **kwargs)
+
+    def instantiate_test(self, name_pfx):
+        name = '-'.join([name_pfx, self.__class__.__name__])
+        return test.TestFunction(self._test, 
+                name=name, fixtures=self.fixtures)
 
     def failed(self, fixtures):
         '''
@@ -56,7 +64,7 @@ class MatchGoldStandard(Verifier):
     Compares a standard output to the test output and passes if they match,
     fails if they do not.
     '''
-    def __init__(self, standard_filename, name=None, ignore_regex=None,
+    def __init__(self, standard_filename, ignore_regex=None,
                  test_filename='simout'):
         '''
         :param standard_filename: The path of the standard file to compare
@@ -66,22 +74,23 @@ class MatchGoldStandard(Verifier):
         either which will be ignored in 'standard' and test output files when
         diffing.
         '''
-        super(MatchGoldStandard, self).__init__(name)
+        super(MatchGoldStandard, self).__init__()
         self.standard_filename = standard_filename
         self.test_filename = test_filename
 
         self.ignore_regex = _iterable_regex(ignore_regex)
 
-    def test(self, fixtures):
+    def test(self, params):
         # We need a tempdir fixture from our parent verifier suite.
-
+        fixtures = params.fixtures
         # Get the file from the tempdir of the test.
         tempdir = fixtures[constants.tempdir_fixture_name].path
         self.test_filename = joinpath(tempdir, self.test_filename)
 
         diff = diff_out_file(self.standard_filename,
-                                   self.test_filename,
-                                   self.ignore_regex)
+                            self.test_filename,
+                            ignore_regexes=self.ignore_regex,
+                            logger=params.log)
         if diff is not None:
             self.failed(fixtures)
             test.fail('Stdout did not match:\n%s\nSee %s for full results'
@@ -161,13 +170,14 @@ class MatchConfigJSON(DerivedGoldStandard):
             )
 
 class MatchRegex(Verifier):
-    def __init__(self, regex, name=None, match_stderr=True, match_stdout=True):
-        super(MatchRegex, self).__init__(name)
+    def __init__(self, regex, match_stderr=True, match_stdout=True):
+        super(MatchRegex, self).__init__()
         self.regex = _iterable_regex(regex)
         self.match_stderr = match_stderr
         self.match_stdout = match_stdout
 
-    def test(self, fixtures):
+    def test(self, params):
+        fixtures = params.fixtures
         # Get the file from the tempdir of the test.
         tempdir = fixtures[constants.tempdir_fixture_name].path
 

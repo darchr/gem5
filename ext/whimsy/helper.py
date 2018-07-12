@@ -11,6 +11,8 @@
 # neither the name of the copyright holders nor the names of its
 # contributors may be used to endorse or promote products derived from
 # this software without specific prior written permission.
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -28,56 +30,24 @@
 
 '''
 Helper classes for writing tests with this test library.
-
-* :func:`log_call`
-    A wrappper around Popen which behaves like
-    `subprocess.check_call()` but will pipe output to the
-    log at a low verbosity level.
-
-* :func:`cacheresult`
-    A function decorator which will cache results for a function given the
-    same arguments. (A poor man's python3 `lru_cache`.)
-
-* :class:`OrderedSet`
-    A set which maintains object insertion order.
-
-* :func:`absdirpath`
-    :code:`dirname(abspath())`
-
-* :func:`joinpath`
-    :code:`os.path.join()`
-
-* :func:`mkdir_p`
-    Same thing as mkdir -p
 '''
+from collections import MutableSet, OrderedDict
+
+import difflib
 import errno
+import os
+import Queue
+import re
+import shutil
+import stat
 import subprocess
 import tempfile
-import os
-from threading import Thread
-from collections import MutableSet
+import threading
+import time
+import traceback
 
-# We will export CalledProcessError
-from subprocess import CalledProcessError
-
-# For now expose this here, we might need to make an implementation if not
-# everyone has python 2.7
-from collections import OrderedDict
-
-import logger
-__all__ = [
-        'log_call',
-        'CalledProcessError',
-        'mkdir_p',
-        'cacheresult',
-        'OrderedSet',
-        'absdirpath',
-        'joinpath',
-        'OrderedDict'
-        ]
-
-
-def log_call(command, *popenargs, **kwargs):
+#TODO Tear out duplicate logic from the sandbox IOManager
+def log_call(logger, command, *popenargs, **kwargs):
     '''
     Calls the given process and automatically logs the command and output.
 
@@ -95,7 +65,8 @@ def log_call(command, *popenargs, **kwargs):
     else:
         cmdstr = ' '.join(command)
 
-    logger.log.trace('Logging call to command: %s' % cmdstr)
+    logger_callback = logger.trace
+    logger.trace('Logging call to command: %s' % cmdstr)
 
     stdout_redirect = kwargs.get('stdout', tuple())
     stderr_redirect = kwargs.get('stderr', tuple())
@@ -109,19 +80,18 @@ def log_call(command, *popenargs, **kwargs):
     kwargs['stderr'] = subprocess.PIPE
     p = subprocess.Popen(command, *popenargs, **kwargs)
 
-    def log_output(log_level, pipe, redirects=tuple()):
+    def log_output(log_callback, pipe, redirects=tuple()):
         # Read iteractively, don't allow input to fill the pipe.
         for line in iter(pipe.readline, ''):
             for r in redirects:
                 r.write(line)
-            line = line.rstrip()
-            logger.log.log(log_level, line)
+            log_callback(line.rstrip())
 
-    stdout_thread = Thread(target=log_output,
-                           args=(logger.TRACE, p.stdout, stdout_redirect))
+    stdout_thread = threading.Thread(target=log_output,
+                           args=(logger_callback, p.stdout, stdout_redirect))
     stdout_thread.setDaemon(True)
-    stderr_thread = Thread(target=log_output,
-                           args=(logger.TRACE, p.stderr, stderr_redirect))
+    stderr_thread = threading.Thread(target=log_output,
+                           args=(logger_callback, p.stderr, stderr_redirect))
     stderr_thread.setDaemon(True)
 
     stdout_thread.start()
@@ -132,8 +102,7 @@ def log_call(command, *popenargs, **kwargs):
     stderr_thread.join()
     # Return the return exit code of the process.
     if retval != 0:
-        raise CalledProcessError(retval, cmdstr)
-
+        raise subprocess.CalledProcessError(retval, cmdstr)
 
 # lru_cache stuff (Introduced in python 3.2+)
 # Renamed and modified to cacheresult
@@ -294,5 +263,200 @@ def mkdir_p(path):
         else:
             raise
 
-if __name__ == '__main__':
-    log_call(' '.join(['echo', 'hello', ';sleep 3', '; echo yo']), shell=True)
+
+class FrozenSetException(Exception):
+    '''Signals one tried to set a value in a 'frozen' object.'''
+    pass
+
+
+class AttrDict(object):
+    '''Object which exposes its own internal dictionary through attributes.'''
+    def __init__(self, dict_={}):
+        self.update(dict_)
+
+    def __getattr__(self, attr):
+        dict_ = self.__dict__
+        if attr in dict_:
+            return dict_[attr]
+        raise AttributeError('Could not find %s attribute' % attr)
+
+    def __setattr__(self, attr, val):
+        self.__dict__[attr] = val
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def __getitem__(self, item):
+        return self.__dict__[item]
+
+    def update(self, items):
+        self.__dict__.update(items)
+
+
+class FrozenAttrDict(AttrDict):
+    '''An AttrDict whose attributes cannot be modified directly.'''
+    __initialized = False
+    def __init__(self, dict_={}):
+        super(FrozenAttrDict, self).__init__(dict_)
+        self.__initialized = True
+
+    def __setattr__(self, attr, val):
+        if self.__initialized:
+            raise FrozenSetException(
+                        'Cannot modify an attribute in a FozenAttrDict')
+        else:
+            super(FrozenAttrDict, self).__setattr__(attr, val)
+
+    def update(self, items):
+        if self.__initialized:
+            raise FrozenSetException(
+                        'Cannot modify an attribute in a FozenAttrDict')
+        else:
+            super(FrozenAttrDict, self).update(items)
+
+
+class InstanceCollector(object):
+    '''
+    A class used to simplify collecting of Classes.
+
+    >> instance_list = collector.create()
+    >> # Create a bunch of classes which call collector.collect(self)
+    >> # instance_list contains all instances created since
+    >> # collector.create was called
+    >> collector.remove(instance_list)
+    '''
+    def __init__(self):
+        self.collectors = []
+
+    def create(self):
+        collection = []
+        self.collectors.append(collection)
+        return collection
+
+    def remove(self, collector):
+        self.collectors.remove(collector)
+
+    def collect(self, instance):
+        for col in self.collectors:
+            col.append(instance)
+
+
+def append_dictlist(dict_, key, value):
+    '''
+    Append the `value` to a list associated with `key` in `dict_`.
+    If `key` doesn't exist, create a new list in the `dict_` with value in it.
+    '''
+    list_ = dict_.get(key, [])
+    list_.append(value)
+    dict_[key] = list_
+
+
+class ExceptionThread(threading.Thread):
+    '''
+    Wrapper around a python :class:`Thread` which will raise an
+    exception on join if the child threw an unhandled exception.
+    '''
+    def __init__(self, *args, **kwargs):
+        threading.Thread.__init__(self, *args, **kwargs)
+        self._eq = Queue.Queue()
+
+    def run(self, *args, **kwargs):
+        try:
+            threading.Thread.run(self, *args, **kwargs)
+            self._eq.put(None)
+        except:
+            tb = traceback.format_exc()
+            self._eq.put(tb)
+
+    def join(self, *args, **kwargs):
+        threading.Thread.join(*args, **kwargs)
+        exception = self._eq.get()
+        if exception:
+            raise Exception(exception)
+
+
+def _filter_file(fname, filters):
+    with open(fname, "r") as file_:
+        for line in file_:
+            for regex in filters:
+                if re.match(regex, line):
+                    break
+            else:
+                yield line
+
+
+def _copy_file_keep_perms(source, target):
+    '''Copy a file keeping the original permisions of the target.'''
+    st = os.stat(target)
+    shutil.copy2(source, target)
+    os.chown(target, st[stat.ST_UID], st[stat.ST_GID])
+
+
+def _filter_file_inplace(fname, filters):
+    '''
+    Filter the given file writing filtered lines out to a temporary file, then
+    copy that tempfile back into the original file.
+    '''
+    reenter = False
+    (_, tfname) = tempfile.mkstemp(text=True)
+    with open(tfname, 'w') as tempfile_:
+        for line in _filter_file(fname, filters):
+            tempfile_.write(line)
+
+    # Now filtered output is into tempfile_
+    _copy_file_keep_perms(tfname, fname)
+
+
+def diff_out_file(ref_file, out_file, logger, ignore_regexes=tuple()):
+    '''Diff two files returning the diff as a string.'''
+
+    if not os.path.exists(ref_file):
+        raise OSError("%s doesn't exist in reference directory"\
+                                     % ref_file)
+    if not os.path.exists(out_file):
+        raise OSError("%s doesn't exist in output directory" % out_file)
+
+    _filter_file_inplace(out_file, ignore_regexes)
+    _filter_file_inplace(ref_file, ignore_regexes)
+
+    #try :
+    (_, tfname) = tempfile.mkstemp(text=True)
+    with open(tfname, 'r+') as tempfile_:
+        try:
+            log_call(logger, ['diff', out_file, ref_file], stdout=tempfile_)
+        except OSError:
+            # Likely signals that diff does not exist on this system. fallback
+            # to difflib
+            with open(out_file, 'r') as outf, open(ref_file, 'r') as reff:
+                diff = difflib.unified_diff(iter(reff.readline, ''),
+                                            iter(outf.readline, ''),
+                                            fromfile=ref_file,
+                                            tofile=out_file)
+                return ''.join(diff)
+        except subprocess.CalledProcessError:
+            tempfile_.seek(0)
+            return ''.join(tempfile_.readlines())
+        else:
+            return None
+
+class Timer():
+    def __init__(self):
+        self.restart()
+
+    def restart(self):
+        self._start = self.timestamp()
+        self._stop = None
+
+    def stop(self):
+        self._stop = self.timestamp()
+        return self._stop - self._start
+
+    def runtime(self):
+        return self._stop - self._start
+
+    def active_time(self):
+        return self.timestamp() - self._start
+
+    @staticmethod
+    def timestamp():
+        return time.time()

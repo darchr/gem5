@@ -11,6 +11,8 @@
 # neither the name of the copyright holders nor the names of its
 # contributors may be used to endorse or promote products derived from
 # this software without specific prior written permission.
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -26,5 +28,40 @@
 #
 # Authors: Sean Wilson
 
-from runner import *
-from parallel import WorkClient
+class Result:
+    enums = '''
+        NotRun
+        Skipped
+        Passed
+        Failed
+        Errored
+    '''.split()
+    for idx, enum in enumerate(enums):
+        locals()[enum] = idx
+
+    @classmethod
+    def name(cls, enum):
+        return cls.enums[enum]
+
+    def __init__(self, value, reason=None):
+        self.value = value
+        self.reason = reason
+
+    def __str__(self):
+        return self.name(self.value)
+
+class Status:
+    enums = '''
+        Unscheduled
+        Building
+        Running
+        TearingDown
+        Complete
+        Avoided
+    '''.split()
+    for idx, enum in enumerate(enums):
+        locals()[enum] = idx
+
+    @classmethod
+    def name(cls, enum):
+        return cls.enums[enum]

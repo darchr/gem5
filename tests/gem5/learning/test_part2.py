@@ -30,7 +30,7 @@
 Test file for the scripts from Learning gem5 Part 2
 '''
 
-from testlib import *
+from whimsy import *
 
 gem5_verify_config(
         name='learning_gem5_part2_simple',

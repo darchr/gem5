@@ -69,11 +69,12 @@ import abc
 import argparse
 import copy
 import os
+import re
+
 from ConfigParser import ConfigParser
 from pickle import HIGHEST_PROTOCOL as highest_pickle_protocol
 
-from helper import absdirpath
-from util import AttrDict, FrozenAttrDict
+from helper import absdirpath, AttrDict, FrozenAttrDict
 
 class UninitialzedAttributeException(Exception):
     '''
@@ -87,6 +88,15 @@ class UninitializedConfigException(Exception):
     attribute.
     '''
     pass
+
+class TagRegex(object):
+    def __init__(self, include, regex):
+        self.include = include
+        self.regex = re.compile(regex)
+
+    def __str__(self):
+        type_ = 'Include' if self.include else 'Remove'
+        return '%10s: %s' % (type_, self.regex.pattern)
 
 class _Config(object):
     _initialized = False
@@ -120,8 +130,8 @@ class _Config(object):
         :func:`post_processor`.
 
         :param post_processor: A callback functions called in a chain to
-            perform additional setup for a config argument. Should return a tuple
-            containing the new value for the config attr.
+            perform additional setup for a config argument. Should return a
+            tuple containing the new value for the config attr.
         '''
         if attr not in self._post_processors:
             self._post_processors[attr] = []
@@ -190,8 +200,8 @@ def define_defaults(defaults):
     '''
     Defaults are provided by the config if the attribute is not found in the
     config or commandline. For instance, if we are using the list command
-    fixtures might not be able to count on the build_dir being provided since we
-    aren't going to build anything.
+    fixtures might not be able to count on the build_dir being provided since
+    we aren't going to build anything.
     '''
     defaults.base_dir = os.path.abspath(os.path.join(absdirpath(__file__),
                                                       os.pardir,
@@ -263,13 +273,13 @@ def define_constants(constants):
     constants.gem5_simulation_config_json = 'config.json'
     constants.gem5_returncode_fixture_name = 'gem5-returncode'
     constants.gem5_binary_fixture_name = 'gem5'
+    constants.xml_filename = 'results.xml'
+    constants.pickle_filename = 'results.pickle'
     constants.pickle_protocol = highest_pickle_protocol
 
     # The root directory which all test names will be based off of.
     constants.testing_base = absdirpath(os.path.join(absdirpath(__file__),
                                                      os.pardir))
-    constants.credential_header = 'Credentials'
-    constants.default_credentials_file = os.path.join(os.getcwd(), 'credentials.ini')
 
 def define_post_processors(config):
     '''
@@ -305,19 +315,6 @@ def define_post_processors(config):
         if test_threads is not None:
             return (int(test_threads[0]),)
 
-    def parse_server_credentials(credentials_file):
-        if credentials_file is not None:
-            if credentials_file[0] is None:
-                credentials_file = (constants.default_credentials_file,)
-
-            parser = ConfigParser()
-            parser.read(credentials_file[0])
-            hostname = parser.get(constants.credential_header, 'hostname')
-            port = parser.get(constants.credential_header, 'port')
-            passkey = parser.get(constants.credential_header, 'passkey')
-            config._set('credentials', (hostname, int(port), passkey))
-            return credentials_file
-
     def default_isa(isa):
         if not isa[0]:
             return [constants.supported_tags[constants.isa_tag_type]]
@@ -338,6 +335,24 @@ def define_post_processors(config):
         else:
             return length
 
+    def compile_tag_regex(positional_tags):
+        if not positional_tags:
+            return positional_tags
+        else:
+            new_positional_tags_list = []
+            positional_tags = positional_tags[0]
+
+            for flag, regex in positional_tags:
+                if flag == 'exclude_tags':
+                    tag_regex = TagRegex(False, regex)
+                elif flag  == 'include_tags':
+                    tag_regex = TagRegex(True, regex)
+                else:
+                    raise ValueError('Unsupported flag.')
+                new_positional_tags_list.append(tag_regex)
+
+            return (new_positional_tags_list,)
+
     config._add_post_processor('build_dir', set_default_build_dir)
     config._add_post_processor('verbose', fix_verbosity_hack)
     config._add_post_processor('isa', default_isa)
@@ -345,8 +360,8 @@ def define_post_processors(config):
     config._add_post_processor('length', default_length)
     config._add_post_processor('threads', threads_as_int)
     config._add_post_processor('test_threads', test_threads_as_int)
-    config._add_post_processor('credentials_file', parse_server_credentials)
-
+    config._add_post_processor(StorePositionalTagsAction.position_kword,
+                               compile_tag_regex)
 class Argument(object):
     '''
     Class represents a cli argument/flag for a argparse parser.
@@ -403,6 +418,22 @@ class _StickyInt:
 
 common_args = NotImplemented
 
+class StorePositionAction(argparse.Action):
+    '''Base class for classes wishing to create namespaces where
+    arguments are stored in the order provided via the command line.
+    '''
+    position_kword = 'positional'
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not self.position_kword in namespace:
+            setattr(namespace, self.position_kword, [])
+        previous = getattr(namespace, self.position_kword)
+        previous.append((self.dest, values))
+        setattr(namespace, self.position_kword, previous)
+
+class StorePositionalTagsAction(StorePositionAction):
+    position_kword = 'tag_filters'
+
 def define_common_args(config):
     '''
     Common args are arguments which are likely to be simular between different
@@ -419,9 +450,13 @@ def define_common_args(config):
             default=os.getcwd(),
             help='Directory to start searching for tests in'),
         Argument(
-            '--fail-fast',
-            action='store_true',
-            help='Stop running on the first instance of failure'),
+            '--exclude-tags',
+            action=StorePositionalTagsAction,
+            help='A tag comparison used to select tests.'),
+        Argument(
+            '--include-tags',
+            action=StorePositionalTagsAction,
+            help='A tag comparison used to select tests.'),
         Argument(
             '--isa',
             action='append',
@@ -470,12 +505,6 @@ def define_common_args(config):
             default=_StickyInt(),
             help='Increase verbosity'),
         Argument(
-            '-q',
-            action='store_true',
-            dest='quiet',
-            default=False,
-            help='Supress output (for piping, etc.)'),
-        Argument(
             '--config-path',
             action='store',
             default=os.getcwd(),
@@ -492,26 +521,15 @@ def define_common_args(config):
             action='store',
             help='The path to store results in.'
         ),
-        Argument(
-            '--list-only-failed',
-            action='store_true',
-            default=False,
-            help='Only list tests that failed.'
-        ),
-        Argument('--credentials_file',
-                action='store',
-                default=None,
-                help='File to parse for server information.'
-        ),
     ]
 
     # NOTE: There is a limitation which arises due to this format. If you have
-    # multiple arguments with the same name only the final one in the list will be
-    # saved.
+    # multiple arguments with the same name only the final one in the list
+    # will be saved.
     #
     # e.g. if you have a -v argument which increments verbosity level and
-    # a separate --verbose flag which 'store's verbosity level. the final one in
-    # the list will be saved.
+    # a separate --verbose flag which 'store's verbosity level. the final
+    # one in the list will be saved.
     common_args = AttrDict({arg.name:arg for arg in common_args})
 
 
@@ -528,7 +546,6 @@ class ArgParser(object):
 
         # Argument will be added to all parsers and subparsers.
         common_args.verbose.add_to(parser)
-        common_args.quiet.add_to(parser)
 
 
 class CommandParser(ArgParser):
@@ -559,14 +576,13 @@ class RunParser(ArgParser):
         common_args.directory.add_to(parser)
         common_args.build_dir.add_to(parser)
         common_args.base_dir.add_to(parser)
-        common_args.fail_fast.add_to(parser)
         common_args.threads.add_to(parser)
         common_args.test_threads.add_to(parser)
-        common_args.list_only_failed.add_to(parser)
         common_args.isa.add_to(parser)
         common_args.variant.add_to(parser)
         common_args.length.add_to(parser)
-        common_args.credentials_file.add_to(parser)
+        common_args.include_tags.add_to(parser)
+        common_args.exclude_tags.add_to(parser)
 
 
 class ListParser(ArgParser):
@@ -609,6 +625,8 @@ class ListParser(ArgParser):
         common_args.isa.add_to(parser)
         common_args.variant.add_to(parser)
         common_args.length.add_to(parser)
+        common_args.include_tags.add_to(parser)
+        common_args.exclude_tags.add_to(parser)
 
 
 class RerunParser(ArgParser):
@@ -623,51 +641,11 @@ class RerunParser(ArgParser):
         common_args.directory.add_to(parser)
         common_args.build_dir.add_to(parser)
         common_args.base_dir.add_to(parser)
-        common_args.fail_fast.add_to(parser)
         common_args.threads.add_to(parser)
         common_args.test_threads.add_to(parser)
-        common_args.list_only_failed.add_to(parser)
         common_args.isa.add_to(parser)
         common_args.variant.add_to(parser)
         common_args.length.add_to(parser)
-
-class ClientParser(ArgParser):
-    '''
-    Parser for the \'client\' command.
-    '''
-    def __init__(self, subparser):
-        parser = subparser.add_parser(
-            'client',
-            help='''Act as a client/helper for a test server instance.'''
-        )
-
-        super(ClientParser, self).__init__(parser)
-
-        common_args.credentials_file.add_to(parser)
-
-        arg = common_args.test_threads.copy()
-        arg.kwargs['help'] = ('The number of helper instances to spawn on'
-                              ' this client.')
-        arg.add_to(parser)
-
-class ClientParser(ArgParser):
-    '''
-    Parser for the \'client\' command.
-    '''
-    def __init__(self, subparser):
-        parser = subparser.add_parser(
-            'client',
-            help='''Act as a client/helper for a test server instance.'''
-        )
-
-        super(ClientParser, self).__init__(parser)
-
-        common_args.credentials_file.add_to(parser)
-
-        arg = common_args.test_threads.copy()
-        arg.kwargs['help'] = ('The number of helper instances to spawn on'
-                              ' this client.')
-        arg.add_to(parser)
 
 config = _Config()
 define_constants(config.constants)
@@ -678,7 +656,7 @@ config.constants = FrozenAttrDict(config.constants.__dict__)
 constants = config.constants
 
 '''
-This config object is the singleton config object available throughtout the
+This config object is the singleton config object available throughout the
 framework.
 '''
 def initialize_config():
@@ -697,7 +675,6 @@ def initialize_config():
     runparser = RunParser(baseparser.subparser)
     listparser = ListParser(baseparser.subparser)
     rerunparser = RerunParser(baseparser.subparser)
-    clientparser = ClientParser(baseparser.subparser)
 
     # Initialize the config by parsing args and running callbacks.
     config._init(baseparser)
