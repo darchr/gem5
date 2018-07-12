@@ -76,17 +76,6 @@ from pickle import HIGHEST_PROTOCOL as highest_pickle_protocol
 
 from helper import absdirpath, AttrDict, FrozenAttrDict
 
-# TODO/FIXME Reconcile module/test collection config items with the global config.
-# import suite
-
-# _defaultsuite = suite.TestSuite
-# defaultsuite = _defaultsuite
-
-# def reset_for_module():
-#     global defaultsuite
-#     defaultsuite = _defaultsuite
-
-
 class UninitialzedAttributeException(Exception):
     '''
     Signals that an attribute in the config file was not initialized.
@@ -328,19 +317,6 @@ def define_post_processors(config):
         if test_threads is not None:
             return (int(test_threads[0]),)
 
-    def parse_server_credentials(credentials_file):
-        if credentials_file is not None:
-            if credentials_file[0] is None:
-                credentials_file = (constants.default_credentials_file,)
-
-            parser = ConfigParser()
-            parser.read(credentials_file[0])
-            hostname = parser.get(constants.credential_header, 'hostname')
-            port = parser.get(constants.credential_header, 'port')
-            passkey = parser.get(constants.credential_header, 'passkey')
-            config._set('credentials', (hostname, int(port), passkey))
-            return credentials_file
-
     def default_isa(isa):
         if not isa[0]:
             return [constants.supported_tags[constants.isa_tag_type]]
@@ -476,10 +452,6 @@ def define_common_args(config):
             default=os.getcwd(),
             help='Directory to start searching for tests in'),
         Argument(
-            '--fail-fast',
-            action='store_true',
-            help='Stop running on the first instance of failure'),
-        Argument(
             '--exclude-tags',
             action=StorePositionalTagsAction,
             help='A tag comparison used to select tests.'),
@@ -535,12 +507,6 @@ def define_common_args(config):
             default=_StickyInt(),
             help='Increase verbosity'),
         Argument(
-            '-q',
-            action='store_true',
-            dest='quiet',
-            default=False,
-            help='Supress output (for piping, etc.)'),
-        Argument(
             '--config-path',
             action='store',
             default=os.getcwd(),
@@ -556,12 +522,6 @@ def define_common_args(config):
             '--result-path',
             action='store',
             help='The path to store results in.'
-        ),
-        Argument(
-            '--list-only-failed',
-            action='store_true',
-            default=False,
-            help='Only list tests that failed.'
         ),
     ]
 
@@ -588,7 +548,6 @@ class ArgParser(object):
 
         # Argument will be added to all parsers and subparsers.
         common_args.verbose.add_to(parser)
-        common_args.quiet.add_to(parser)
 
 
 class CommandParser(ArgParser):
@@ -619,10 +578,8 @@ class RunParser(ArgParser):
         common_args.directory.add_to(parser)
         common_args.build_dir.add_to(parser)
         common_args.base_dir.add_to(parser)
-        common_args.fail_fast.add_to(parser)
         common_args.threads.add_to(parser)
         common_args.test_threads.add_to(parser)
-        common_args.list_only_failed.add_to(parser)
         common_args.isa.add_to(parser)
         common_args.variant.add_to(parser)
         common_args.length.add_to(parser)
@@ -686,10 +643,8 @@ class RerunParser(ArgParser):
         common_args.directory.add_to(parser)
         common_args.build_dir.add_to(parser)
         common_args.base_dir.add_to(parser)
-        common_args.fail_fast.add_to(parser)
         common_args.threads.add_to(parser)
         common_args.test_threads.add_to(parser)
-        common_args.list_only_failed.add_to(parser)
         common_args.isa.add_to(parser)
         common_args.variant.add_to(parser)
         common_args.length.add_to(parser)
