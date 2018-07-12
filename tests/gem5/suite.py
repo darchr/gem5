@@ -106,16 +106,16 @@ def gem5_verify_config(name,
 
             # Create the gem5 target for the specific architecture and
             # variant.
-            fixtures = copy.copy(fixtures)
-            fixtures.append(Gem5Fixture(isa, opt))
-            fixtures.append(tempdir)
-            fixtures.append(gem5_returncode)
+            _fixtures = copy.copy(fixtures)
+            _fixtures.append(Gem5Fixture(isa, opt))
+            _fixtures.append(tempdir)
+            _fixtures.append(gem5_returncode)
 
             # Finally construct the self contained TestSuite out of our
             # tests.
             testsuites.append(TestSuite(
                 name=_name,
-                fixtures=fixtures,
+                fixtures=_fixtures,
                 tags=tags,
                 tests=tests))
     return testsuites
