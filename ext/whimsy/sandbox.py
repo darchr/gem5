@@ -24,6 +24,7 @@ class ForkedPdb(pdb._Pdb):
             self.io_manager.replace_pipes()
 
 
+#TODO Refactor duplicate stdout, stderr logic
 class IoManager(object):
     def __init__(self, test, suite):
         self.test = test

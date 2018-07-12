@@ -1,12 +1,22 @@
 
-import config
 import helper
 import runner as runner_mod
-import state
-import test as test_mod
-import uid
 
 class TestSuite(object):
+    '''
+    An object grouping a collection of tests. It provides tags which enable
+    filtering during list and run selection. All tests held in the suite must
+    have a unique name.
+
+    ..note::
+        The :func:`__new__` method enables collection of test cases, it must be called
+        in order for test cases to be collected.
+    
+    ..note::
+        To reduce test definition boilerplate, the :func:`init` method is forwarded
+        all `*args` and `**kwargs`. This means derived classes can define init without 
+        boilerplate super().__init__(*args, **kwargs).
+    '''
     runner = runner_mod.SuiteRunner
     collector = helper.InstanceCollector()
 

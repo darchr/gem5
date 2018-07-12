@@ -29,6 +29,10 @@ class _CommonMetadataMixin:
     def result(self, result):
         self._metadata.result = result
 
+    @property
+    def unsucessful(self):
+        return self._metadata.result.value != state.Result.Passed
+
 
 class InternalTestResult(object, _CommonMetadataMixin):
     def __init__(self, obj, suite, directory):
@@ -115,8 +119,8 @@ class InternalSavedResults:
             base = config.result_path
         return os.path.join(
                 base,
-                suite_uid.replace(os.path.sep, '-'), 
-                test_uid.replace(os.path.sep, '-'))
+                str(suite_uid).replace(os.path.sep, '-'), 
+                str(test_uid).replace(os.path.sep, '-'))
 
     @staticmethod
     def save(results, path, protocol=pickle.HIGHEST_PROTOCOL):
@@ -125,7 +129,7 @@ class InternalSavedResults:
 
     @staticmethod
     def load(path):
-        with open(path, 'w') as f:
+        with open(path, 'r') as f:
             return pickle.load(f)
 
 
@@ -215,7 +219,7 @@ class JUnitTestCase(XMLElement):
     def __init__(self, test_result):
         self.attributes = [
             XMLAttribute('name', test_result.name),
-            XMLAttribute('classname', test_result.uid), # TODO JUnit expects class of test.. add as test metadata.
+            XMLAttribute('classname', str(test_result.uid)), # TODO JUnit expects class of test.. add as test metadata.
             XMLAttribute('status', str(test_result.result)),
         ]
 

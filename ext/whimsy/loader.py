@@ -1,17 +1,62 @@
+'''
+Contains the :class:`Loader` which is responsible for discovering and loading
+tests.
+
+Loading typically follows the following stages.
+
+1. Recurse down a given directory looking for tests which match a given regex.
+
+    The default regex used will match any python file (ending in .py) that has
+    a name starting or ending in test(s). If there are any additional components
+    of the name they must be connected with '-' or '_'. Lastly, file names that
+    begin with '.' will be ignored.
+
+    The following names would match:
+
+    - `tests.py`
+    - `test.py`
+    - `test-this.py`
+    - `tests-that.py`
+    - `these-test.py`
+
+    These would not match:
+
+    - `.test.py`    - 'hidden' files are ignored.
+    - `test`        - Must end in '.py'
+    - `test-.py`    - Needs a character after the hypen.
+    - `testthis.py` - Needs a hypen or underscore to separate 'test' and 'this'
+
+
+2. With all files discovered execute each file gathering its test items we
+   care about collecting. (`TestCase`, `TestSuite` and `Fixture` objects.)
+
+As a final note, :class:`TestCase` instances which are not put into
+a :class:`TestSuite` by the test writer will be placed into
+a :class:`TestSuite` named after the module.
+
+.. seealso:: :func:`load_file`
+'''
+
 import os
 import re
 import sys
 import traceback
-
-import six
 
 import config
 import log
 import suite as suite_mod
 import test as test_mod
 import fixture as fixture_mod
-
 import wrappers
+import uid
+
+class DuplicateTestItemException(Exception):
+    '''
+    Exception indicates multiple test items with the same UID 
+    were discovered.
+    '''
+    pass
+
 
 # Match filenames that either begin or end with 'test' or tests and use
 # - or _ to separate additional name components.
@@ -41,16 +86,22 @@ def _assert_files_in_same_dir(files):
                 assert os.path.dirname(f) == directory
 
 class Loader(object):
-    '''Class for discovering tests.
+    '''
+    Class for discovering tests.
+
+    Discovered :class:`TestCase` and :class:`TestSuite` objects are wrapped by
+    :class:`LoadedTest` and :class:`LoadedSuite` objects respectively. These objects
+    provided additional methods and metadata about the loaded objects and are the 
+    internal representation used by whimsy.
 
     To simply discover and load all tests using the default filter create an
     instance and `load_root`.
 
     >>> import os
-    >>> tl = TestLoader()
+    >>> tl = Loader()
     >>> tl.load_root(os.getcwd())
 
-    .. note:: If tests are not manually placed in a TestSuite, they will
+    .. note:: If tests are not contained in a TestSuite, they will
         automatically be placed into one for the module.
 
     .. warn:: This class is extremely thread-unsafe. 
@@ -59,12 +110,24 @@ class Loader(object):
     '''
     def __init__(self):
         self.suites = []
-        self.suite_uids = set()
+        self.suite_uids = {}
         self.filepath_filter = default_filepath_filter
+
+        # filepath -> Successful | Failed to load
+        self._files = {}
     
     @property
     def schedule(self):
         return wrappers.LoadedLibrary(self.suites, fixture_mod.global_fixtures)
+
+    def load_schedule_for_suites(self, uids):
+        files = {uid.UID.uid_to_path(id_) for id_ in uids}
+        for file_ in files:
+            self.load_file(file_)
+        
+        return wrappers.LoadedLibrary(
+                [self.suite_uids[id_] for id_ in uids], 
+                fixture_mod.global_fixtures)
 
     def _verify_no_duplicate_suites(self, new_suites):
         new_suite_uids = self.suite_uids.copy()
@@ -72,7 +135,7 @@ class Loader(object):
             if suite.uid in new_suite_uids:
                 raise DuplicateTestItemException(
                         "More than one suite with UID '%s' was defined" % suite.uid)
-            new_suite_uids.add(suite.uid)
+            new_suite_uids[suite.uid] = suite
 
     def _verify_no_duplicate_tests_in_suites(self, new_suites):
         for suite in new_suites:
@@ -107,6 +170,14 @@ class Loader(object):
     def load_file(self, path):
         path = os.path.abspath(path)
 
+        if path in self._files:
+            if not self._files[path]:
+                raise Exception('Attempted to load a file which already'
+                        ' failed to load')
+            else:
+                log.test_log.debug('Tried to reload: %s' % path)
+                return
+
         # Create a custom dictionary for the loaded module.
         newdict = {
             '__builtins__':__builtins__,
@@ -134,7 +205,7 @@ class Loader(object):
             suite_mod.TestSuite.collector.remove(new_suites)
             fixture_mod.Fixture.collector.remove(new_fixtures)
 
-            config.reset_for_module()
+            # config.reset_for_module()
         
         try:
             execfile(path, newdict, newdict)
@@ -157,9 +228,9 @@ class Loader(object):
                     orphan_tests.remove(test)
         if orphan_tests:
             orphan_tests = sorted(orphan_tests, key=new_tests.index)
-            # Use the config based default to group all uncollected tests.
+            # FIXME Use the config based default to group all uncollected tests.
             # NOTE: This is automatically collected (we still have the collector active.)
-            config.defaultsuite(tests=orphan_tests, name=path_as_suitename(path))
+            suite_mod.TestSuite(tests=orphan_tests, name=path_as_suitename(path))
 
         try:
             loaded_suites = [wrappers.LoadedSuite(suite, path) for suite in new_suites]
@@ -174,6 +245,7 @@ class Loader(object):
             log.test_log.info('Discovered %d tests and %d suites in %s'
                     '' % (len(new_tests), len(loaded_suites), path))
             self.suites.extend(loaded_suites)
+            self.suite_uids.update({suite.uid: suite for suite in loaded_suites})
         cleanup()
 
     def _discover_files(self, root):
@@ -192,7 +264,3 @@ class Loader(object):
                 filepaths = filter(self.filepath_filter, filepaths)
                 if filepaths:
                     yield filepaths
-
-
-class DuplicateTestItemException(Exception):
-    pass

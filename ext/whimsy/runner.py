@@ -1,9 +1,9 @@
+import multiprocessing.dummy
+import threading
 import traceback
 
 import helper
-import fixture
 import state
-import test as test_mod
 import log
 import sandbox
 from state import Status, Result
@@ -110,7 +110,7 @@ class TestRunner(RunnerPattern):
         else:
             self.testable.result = Result(Result.Passed)
 
-import threading
+
 class SuiteRunner(RunnerPattern):
     def test(self):
         for test in self.testable:
@@ -123,19 +123,16 @@ class LibraryRunner(SuiteRunner):
     pass
 
 
-class LibraryParallelRunner(RunnerPattern):   
+class LibraryParallelRunner(RunnerPattern):
+    def set_threads(self, threads):
+        self.threads = threads
+
     def _entrypoint(self, suite):
         suite.runner(suite).run()
 
     def test(self):
-        threads = []
-        for suite in self.testable:
-            thread = threading.Thread(target=self._entrypoint, args=(suite,))
-            thread.daemon = True
-            thread.start()
-            threads.append(thread)
-        for thread in threads:
-            thread.join()
+        pool = multiprocessing.dummy.Pool(self.threads)
+        pool.map(lambda suite : suite.runner(suite).run(), self.testable)
         self.testable.result = compute_aggregate_result(
                 iter(self.testable))
 

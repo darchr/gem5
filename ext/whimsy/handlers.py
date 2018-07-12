@@ -1,44 +1,26 @@
+'''
+Handlers for the whimsy Log.
+
+
+'''
 from __future__ import print_function
 
 import multiprocessing
 import os
-import pickle
 import Queue
 import sys
 import threading
 import time
 import traceback
 
-from config import config
 import helper
 import log
-import terminal
-import test
 import result
 import state
-import uid
+import test
+import terminal
 
-class Timer():
-    def __init__(self):
-        self.restart()
-
-    def restart(self):
-        self._start = self.timestamp()
-        self._stop = None
-
-    def stop(self):
-        self._stop = self.timestamp()
-        return self._stop - self._start
-
-    def runtime(self):
-        return self._stop - self._start
-
-    def active_time(self):
-        return self.timestamp() - self._start 
-
-    @staticmethod
-    def timestamp():
-        return time.time()
+from config import config, constants
 
 
 class _TestStreamManager(object):
@@ -77,10 +59,20 @@ class _TestStreams(object):
         self.stderr.close()
 
 class ResultHandler(log.Handler):
+    '''
+    Log handler which listens for test results and output saving data as it is reported.
+    When the handler is closed it writes out test results in the python pickle format.
+    '''
     def __init__(self, schedule, directory):
+        '''
+        :param schedule: The entire schedule as a :class:`LoadedLibrary` object.
+
+        :param directory: Directory to save test stdout/stderr and aggregate results to.
+        '''
         self.directory = directory
         self.internal_results = result.InternalLibraryResults(schedule, directory)
         self.test_stream_manager = _TestStreamManager()
+        self._closed = False
 
         self.mapping = {
             log.LibraryStatus.type_id: self.handle_library_status,
@@ -93,7 +85,8 @@ class ResultHandler(log.Handler):
         }
 
     def handle(self, record):
-        self.mapping.get(record.type_id, lambda _:None)(record)
+        if not self._closed:
+            self.mapping.get(record.type_id, lambda _:None)(record)
 
     def handle_library_status(self, record):
         if record['status'] in (state.Status.Complete, state.Status.Avoided):
@@ -127,17 +120,24 @@ class ResultHandler(log.Handler):
         #FIXME Hardcoded path name
         result.InternalSavedResults.save(
             self.internal_results, 
-            os.path.join(self.directory, 'results.pickle'))
+            os.path.join(self.directory, constants.pickle_filename))
         result.JUnitSavedResults.save(
             self.internal_results, 
-            os.path.join(self.directory, 'results.xml'))
+            os.path.join(self.directory, constants.xml_filename))
 
     def close(self):
+        if self._closed:
+            return
+        self._closed = True
         self._save()
 
 
 #TODO Change from a handler to an internal post processor so it can be used to reprint results
 class SummaryHandler(log.Handler):
+    '''
+    A log handler which listens to the log for test results 
+    and reports the aggregate results when closed.
+    '''
     color = terminal.get_termcap()
     reset = color.Normal
     colormap = {
@@ -154,7 +154,7 @@ class SummaryHandler(log.Handler):
             log.TestResult.type_id: self.handle_testresult,
             log.LibraryStatus.type_id: self.handle_library_status,
         }
-        self._timer = Timer()
+        self._timer = helper.Timer()
         self.results = []
     
     def handle_library_status(self, record):
@@ -292,8 +292,12 @@ class PrintHandler(log.Handler):
 
 class MultiprocessingHandlerWrapper(log.Handler):
     '''
-    A class which wraps other handlers and to enable 
-    logging across multiprocessing processes
+    A handler class which forwards log records to subhandlers, enabling
+    logging across multiprocessing python processes.
+
+    The 'parent' side of the handler should execute either 
+    :func:`async_process` or :func:`process` to forward 
+    log records to subhandlers.
     '''
     def __init__(self, *subhandlers):
         # Create thread to spin handing recipt of messages

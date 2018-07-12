@@ -1,41 +1,22 @@
 '''
 Helper classes for writing tests with this test library.
-
-* :func:`log_call`
-    A wrappper around Popen which behaves like
-    `subprocess.check_call()` but will pipe output to the
-    log at a low verbosity level.
-
-* :func:`cacheresult`
-    A function decorator which will cache results for a function given the
-    same arguments. (A poor man's python3 `lru_cache`.)
-
-* :class:`OrderedSet`
-    A set which maintains object insertion order.
-
-* :func:`absdirpath`
-    :code:`dirname(abspath())`
-
-* :func:`joinpath`
-    :code:`os.path.join()`
-
-* :func:`mkdir_p`
-    Same thing as mkdir -p
 '''
+from collections import MutableSet, OrderedDict
+
+import difflib
 import errno
-import subprocess
-import tempfile
 import os
-import threading
 import Queue
 import re
 import shutil
 import stat
-from collections import MutableSet, OrderedDict
+import subprocess
+import tempfile
+import threading
+import time
 import traceback
-import difflib
 
-
+#TODO Tear out duplicate logic from the sandbox IOManager
 def log_call(logger, command, *popenargs, **kwargs):
     '''
     Calls the given process and automatically logs the command and output.
@@ -257,6 +238,7 @@ class FrozenSetException(Exception):
     '''Signals one tried to set a value in a 'frozen' object.'''
     pass
 
+
 class AttrDict(object):
     '''Object which exposes its own internal dictionary through attributes.'''
     def __init__(self, dict_={}):
@@ -280,6 +262,7 @@ class AttrDict(object):
     def update(self, items):
         self.__dict__.update(items)
 
+
 class FrozenAttrDict(AttrDict):
     '''An AttrDict whose attributes cannot be modified directly.'''
     __initialized = False
@@ -299,7 +282,17 @@ class FrozenAttrDict(AttrDict):
         else:
             super(FrozenAttrDict, self).update(items)
 
+
 class InstanceCollector(object):
+    '''
+    A class used to simplify collecting of Classes.
+
+    >> instance_list = collector.create()
+    >> # Create a bunch of classes which call collector.collect(self)
+    >> # instance_list contains all instances created since
+    >> # collector.create was called
+    >> collector.remove(instance_list)
+    '''
     def __init__(self):
         self.collectors = []
     
@@ -315,14 +308,22 @@ class InstanceCollector(object):
         for col in self.collectors:
             col.append(instance)
 
+
 def append_dictlist(dict_, key, value):
+    '''
+    Append the `value` to a list associated with `key` in `dict_`.
+    If `key` doesn't exist, create a new list in the `dict_` with value in it.
+    '''
     list_ = dict_.get(key, [])
     list_.append(value)
     dict_[key] = list_
 
 
-
 class ExceptionThread(threading.Thread):
+    '''
+    Wrapper around a python :class:`Thread` which will raise an 
+    exception on join if the child threw an unhandled exception.
+    '''
     def __init__(self, *args, **kwargs):
         threading.Thread.__init__(self, *args, **kwargs)
         self._eq = Queue.Queue()
@@ -375,6 +376,8 @@ def _filter_file_inplace(fname, filters):
 
 
 def diff_out_file(ref_file, out_file, logger, ignore_regexes=tuple()):
+    '''Diff two files returning the diff as a string.'''
+
     if not os.path.exists(ref_file):
         raise OSError("%s doesn't exist in reference directory"\
                                      % ref_file)
@@ -403,3 +406,25 @@ def diff_out_file(ref_file, out_file, logger, ignore_regexes=tuple()):
             return ''.join(tempfile_.readlines())
         else:
             return None
+
+class Timer():
+    def __init__(self):
+        self.restart()
+
+    def restart(self):
+        self._start = self.timestamp()
+        self._stop = None
+
+    def stop(self):
+        self._stop = self.timestamp()
+        return self._stop - self._start
+
+    def runtime(self):
+        return self._stop - self._start
+
+    def active_time(self):
+        return self.timestamp() - self._start 
+
+    @staticmethod
+    def timestamp():
+        return time.time()

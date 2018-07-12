@@ -1,56 +1,9 @@
-from __future__ import print_function
-import os 
-import sys
-import time
-import terminal
-import Queue
-import threading
-import multiprocessing
-
-import helper
+'''
+This module supplies the global `test_log` object which all testing 
+results and messages are reported through.
+'''
 import wrappers
 
-# next bit filched from 1.5.2's inspect.py
-def currentframe():
-    """Return the frame object for the caller's stack frame."""
-    try:
-        raise Exception
-    except:
-        return sys.exc_info()[2].tb_frame.f_back
-
-if hasattr(sys, '_getframe'): currentframe = lambda: sys._getframe(3)
-# done filching
-#
-# _srcfile is used when walking the stack to check when we've got the first
-# caller stack frame.
-#
-_srcfile = os.path.normcase(currentframe.__code__.co_filename)
-
-def find_caller():
-    '''        
-    Find the stack frame of the caller so that we can note the source
-    file name, line number and function name.
-    
-    .. note:  
-        From the cpython 2.7 source
-        Copyright (C) 2001-2014 Vinay Sajip. All Rights Reserved.
-    '''
-    f = currentframe()
-    #On some versions of IronPython, currentframe() returns None if
-    #IronPython isn't run with -X:Frames.
-    if f is not None:
-        f = f.f_back
-    rv = "(unknown file)", 0, "(unknown function)"
-    while hasattr(f, "f_code"):
-        co = f.f_code
-        filename = os.path.normcase(co.co_filename)
-        if filename == _srcfile:
-            f = f.f_back
-            continue
-        
-        rv = (co.co_filename, f.f_lineno, co.co_name)
-        break
-    return rv
 
 class LogLevel():
     Fatal = 0
@@ -61,14 +14,27 @@ class LogLevel():
     Trace = 5
 
 # Record Type - 
-# Uses static rather than typeinfo so idenifiers can be used across processes/networks.
+
 class RecordTypeCounterMetaclass(type):
+    '''
+    Record type metaclass.
+
+    Adds a static integer value in addition to typeinfo so identifiers 
+    are common across processes, networks and module reloads.
+    '''
     counter = 0
     def __init__(cls, name, bases, dct):
         cls.type_id = RecordTypeCounterMetaclass.counter
         RecordTypeCounterMetaclass.counter += 1
 
+
 class Record(object):
+    '''
+    A generic object that is passed to the :class:`Log` and its handlers.
+
+    ..note: Although not statically enforced, all items in the record should be
+        be pickleable. This enables logging accross multiple processes.
+    '''
     __metaclass__ = RecordTypeCounterMetaclass
 
     def __init__(self, **data):
@@ -81,6 +47,7 @@ class Record(object):
 
     def __str__(self):
         return str(self.data)
+
 
 class StatusRecord(Record):
     def __init__(self, obj, status):
@@ -130,6 +97,9 @@ class Log(object):
     def log(self, record):
         if not self._opened:
             self.finish_init()
+        if self._closed:
+            raise Exception('The log has been closed'
+                ' and is no longer available.')
 
         map(lambda handler:handler.prehandle(), self.handlers)
         for handler in self.handlers:
@@ -137,13 +107,20 @@ class Log(object):
             handler.posthandle()
 
     def add_handler(self, handler):
+        if self._opened:
+            raise Exception('Unable to add a handler once the log is open.')
         self.handlers.append(handler)
     
     def close_handler(self, handler):
         handler.close()
         self.handlers.remove(handler)
 
+
 class Handler(object):
+    '''
+    Empty implementation of the interface available to handlers which 
+    is expected by the :class:`Log`.
+    '''
     def __init__(self):
         pass
     
@@ -158,6 +135,7 @@ class Handler(object):
     
     def posthandle(self):
         pass
+
 
 class LogWrapper(object):
     _result_typemap = {

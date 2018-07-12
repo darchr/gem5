@@ -1,15 +1,79 @@
-import runner
+import os
+import itertools
+
 import config
-import loader as loader_mod
 import fixture as fixture_mod
-import log
 import handlers
-import terminal
+import loader as loader_mod
+import log
 import query
+import result
+import runner
+import terminal
+
+
+class RunLogHandler():
+    def __init__(self):
+        term_handler = handlers.TerminalHandler(
+            verbosity=config.config.verbose+log.LogLevel.Info
+        )
+        summary_handler = handlers.SummaryHandler()
+        self.mp_handler = handlers.MultiprocessingHandlerWrapper(summary_handler, term_handler)
+        self.mp_handler.async_process()
+        log.test_log.log_obj.add_handler(self.mp_handler)
+    
+    def schedule_finalized(self, test_schedule):
+        # Create the result handler object.
+        self.result_handler = handlers.ResultHandler(
+                test_schedule, config.config.result_path)
+        self.mp_handler.add_handler(self.result_handler)
+    
+    def finish_testing(self):
+        self.result_handler.close()
+
 
 def filter_with_config_tags(loaded_library):
     tags = getattr(config.config, config.StorePositionalTagsAction.position_kword)
-    return filter_with_tags(loaded_library, tags)
+    final_tags = []
+    regex_fmt = '^%s$'
+    cfg = config.config
+
+    def _append_inc_tag_filter(name):
+        if hasattr(cfg, name):
+            tag_opts = getattr(cfg, name)
+            for tag in tag_opts:
+                final_tags.append(config.TagRegex(True, regex_fmt % tag))
+
+    def _append_rem_tag_filter(name):
+        if hasattr(cfg, name):
+            tag_opts = getattr(cfg, name)
+            for tag in cfg.constants.supported_tags[name]:
+                if tag not in tag_opts:
+                    final_tags.append(config.TagRegex(False, regex_fmt % tag))
+
+    # Append additional tags for the isa, length, and variant options.
+    # They apply last (they take priority)
+    special_tags = (
+        cfg.constants.isa_tag_type,
+        cfg.constants.length_tag_type,
+        cfg.constants.variant_tag_type
+    )
+
+    for tagname in special_tags:
+        _append_inc_tag_filter(tagname)
+    for tagname in special_tags:
+        _append_rem_tag_filter(tagname)
+
+    if tags is None:
+        tags = tuple()
+
+    filters = list(itertools.chain(tags, final_tags))
+    string = 'Filtering suites with tags as follows:'
+    filter_string = '\n\t'.join((str(f) for f in filters)) 
+    log.test_log.trace(string + filter_string)
+
+    return filter_with_tags(loaded_library, filters)
+
 
 def filter_with_tags(loaded_library, filters):
     '''
@@ -55,17 +119,17 @@ def filter_with_tags(loaded_library, filters):
         return suites - excludes
     def include(includes):
         return suites | includes
-
+        
     for tag_regex in filters:
         matched_tags = (tag for tag in tags if tag_regex.regex.search(tag))
         for tag in matched_tags:
             matched_suites = set(query_runner.suites_with_tag(tag))
             suites = include(matched_suites) if tag_regex.include else exclude(matched_suites)
 
-    loaded_library.suites = list(suites)
+    # Set the library's suites to only those which where accepted by our filter
+    loaded_library.suites = [suite for suite in loaded_library.suites if suite in suites]
 
 # TODO Add results command for listing previous results.
-# TODO Add rerun command to re-run failed tests.
 
 def load_tests():
     '''
@@ -77,7 +141,7 @@ def load_tests():
     testloader.load_root(config.config.directory)
     return testloader
 
-def do_list():    
+def do_list():
     term_handler = handlers.TerminalHandler(
         verbosity=config.config.verbose+log.LogLevel.Info
     )
@@ -99,8 +163,7 @@ def do_list():
         qrunner.list_tests()
         qrunner.list_tags()
 
-
-def do_run():
+def run_schedule(test_schedule, log_handler):
     '''
     Test Phases
     -----------
@@ -117,24 +180,7 @@ def do_run():
     * Global Fixture Teardown
     '''
 
-    # Initialize early parts of the log.
-    term_handler = handlers.TerminalHandler(
-        verbosity=config.config.verbose+log.LogLevel.Info
-    )
-    summary_handler = handlers.SummaryHandler()
-    mp_handler = handlers.MultiprocessingHandlerWrapper(summary_handler, term_handler)
-    mp_handler.async_process()
-    log.test_log.log_obj.add_handler(mp_handler)
-
-    test_schedule = load_tests().schedule
-
-    # Filter tests based on tags
-    filter_with_config_tags(test_schedule)
-
-    result_path =config.config.result_path
-    # Create the result handler object.
-    result_handler = handlers.ResultHandler(test_schedule, result_path)
-    mp_handler.add_handler(result_handler)
+    log_handler.schedule_finalized(test_schedule)
 
     # Iterate through all fixtures notifying them of the test schedule.
     for fixture in test_schedule.all_fixtures():
@@ -143,14 +189,53 @@ def do_run():
     log.test_log.message(terminal.separator())
     log.test_log.message('Running Tests from {} suites'
             .format(len(test_schedule.suites)), bold=True)
-    log.test_log.message("Results will be stored in {}".format(result_path))
+    log.test_log.message("Results will be stored in {}".format(
+                config.config.result_path))
     log.test_log.message(terminal.separator())
 
     # Build global fixtures and exectute scheduled test suites.
-    library_runner = runner.LibraryRunner(test_schedule)
+    if config.config.test_threads > 1:
+        library_runner = runner.LibraryParallelRunner(test_schedule)
+        library_runner.set_threads(config.config.test_threads)
+    else:
+        library_runner = runner.LibraryRunner(test_schedule)
     library_runner.run()
 
+    log_handler.finish_testing()
+
+def do_run():
+    # Initialize early parts of the log.
+    log_handler = RunLogHandler()
+    test_schedule = load_tests().schedule
+    # Filter tests based on tags
+    filter_with_config_tags(test_schedule)
+    # Execute the tests
+    run_schedule(test_schedule, log_handler)
+
+
+def do_rerun():
+    # Init early parts of log
+    log_handler = RunLogHandler()
+
+    # Load previous results
+    results = result.InternalSavedResults.load(
+            os.path.join(config.config.result_path,
+            config.constants.pickle_filename))
+    
+    rerun_suites = [suite.uid for suite in results if suite.unsucessful]
+
+    # Use loader to load suites
+    loader = loader_mod.Loader()
+    test_schedule = loader.load_schedule_for_suites(rerun_suites)
+
+    # Execute the tests
+    run_schedule(test_schedule, log_handler)
+
+
 def main():
+    '''
+    Main entrypoint for the whimsy test library.
+    '''
     config.initialize_config()
 
     # 'do' the given command.

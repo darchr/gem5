@@ -70,22 +70,21 @@ import argparse
 import copy
 import os
 import re
+
 from ConfigParser import ConfigParser
 from pickle import HIGHEST_PROTOCOL as highest_pickle_protocol
 
 from helper import absdirpath, AttrDict, FrozenAttrDict
 
-
 # TODO/FIXME Reconcile module/test collection config items with the global config.
-import suite
-import argparse
+# import suite
 
-_defaultsuite = suite.TestSuite
-defaultsuite = _defaultsuite
+# _defaultsuite = suite.TestSuite
+# defaultsuite = _defaultsuite
 
-def reset_for_module():
-    global defaultsuite
-    defaultsuite = _defaultsuite
+# def reset_for_module():
+#     global defaultsuite
+#     defaultsuite = _defaultsuite
 
 
 class UninitialzedAttributeException(Exception):
@@ -100,6 +99,15 @@ class UninitializedConfigException(Exception):
     attribute.
     '''
     pass
+
+class TagRegex(object):
+    def __init__(self, include, regex):
+        self.include = include
+        self.regex = re.compile(regex)
+    
+    def __str__(self):
+        type_ = 'Include' if self.include else 'Remove'
+        return '%10s: %s' % (type_, self.regex.pattern)
 
 class _Config(object):
     _initialized = False
@@ -276,6 +284,8 @@ def define_constants(constants):
     constants.gem5_simulation_config_json = 'config.json'
     constants.gem5_returncode_fixture_name = 'gem5-returncode'
     constants.gem5_binary_fixture_name = 'gem5'
+    constants.xml_filename = 'results.xml'
+    constants.pickle_filename = 'results.pickle'
     constants.pickle_protocol = highest_pickle_protocol
 
     # The root directory which all test names will be based off of.
@@ -351,11 +361,6 @@ def define_post_processors(config):
         else:
             return length
 
-    class _TagRegex(object):
-        def __init__(self, include, regex):
-            self.include = include
-            self.regex = re.compile(regex)
-
     def compile_tag_regex(positional_tags):
         if not positional_tags:
             return positional_tags
@@ -365,9 +370,9 @@ def define_post_processors(config):
 
             for flag, regex in positional_tags:
                 if flag == 'exclude_tags':
-                    tag_regex = _TagRegex(False, regex)
+                    tag_regex = TagRegex(False, regex)
                 elif flag  == 'include_tags':
-                    tag_regex = _TagRegex(True, regex)
+                    tag_regex = TagRegex(True, regex)
                 else:
                     raise ValueError('Unsupported flag.')
                 new_positional_tags_list.append(tag_regex)
@@ -716,8 +721,7 @@ def initialize_config():
     baseparser = CommandParser()
     runparser = RunParser(baseparser.subparser)
     listparser = ListParser(baseparser.subparser)
-    #TODO
-    #rerunparser = RerunParser(baseparser.subparser)
+    rerunparser = RerunParser(baseparser.subparser)
 
     # Initialize the config by parsing args and running callbacks.
     config._init(baseparser)

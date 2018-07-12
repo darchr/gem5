@@ -1,8 +1,8 @@
 
 from .state import *
+from .runner import *
 from .test import *
 from .suite import *
-from .runner import *
 from .loader import *
 from .fixture import *
 from .config import *

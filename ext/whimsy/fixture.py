@@ -1,14 +1,25 @@
 import traceback
 
-import log
 import helper
+import log
 
 global_fixtures = []
 
-class TestScheduleUnknown(Exception):
-    pass
-
 class Fixture(object):
+    '''
+    Base Class for a test Fixture.
+
+    Fixtures are items which possibly require setup and/or tearing down after
+    a TestCase, TestSuite, or the Library has completed.
+
+    Fixtures are the prefered method of carrying incremental results or
+    variables between TestCases in TestSuites. (Rather than using globals.)
+    Using fixtures rather than globals ensures that state will be maintained
+    when executing tests in parallel.
+
+    .. note:: In order for Fixtures to be enumerated by the test system this
+        class' :code:`__new__` method must be called.
+    '''
     collector = helper.InstanceCollector()
 
     def __new__(klass, *args, **kwargs):
@@ -37,7 +48,9 @@ class Fixture(object):
 
 
 def globalfixture(fixture):
-    '''Store the given fixture as a global fixture. Its setup() method 
+    '''
+    Store the given fixture as a global fixture. Its setup() method 
     will be called before the first test is executed.
     '''
     global_fixtures.append(fixture)
+    return fixture
