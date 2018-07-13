@@ -36,18 +36,23 @@ class UID(object):
     type_idx, path_idx = range(2)
 
     def __init__(self, path, *args):
-        self.path = path
+        self.path = self._shorten_path(path)
         self.attributes = args
 
-    def _path_to_str(self):
-        return os.path.relpath(self.path,
+    @staticmethod
+    def _shorten_path(path):
+        return os.path.relpath(path,
                 os.path.commonprefix((config.constants.testing_base,
-                                      self.path)))
+                                      path)))
+
+    @staticmethod
+    def _full_path(short_path):
+        return os.path.join(config.constants.testing_base, short_path)
 
     @classmethod
     def uid_to_path(cls, uid):
         split_path = str(uid).split(cls.sep)[cls.path_idx]
-        return os.path.join(config.constants.testing_base, split_path)
+        return cls._full_path(split_path)
 
     @classmethod
     def uid_to_class(cls, uid):
@@ -65,7 +70,7 @@ class UID(object):
     def from_uid(cls, uid):
         args = uid.split(cls.sep)
         del args[cls.type_idx]
-        return cls._uid_to_class(uid)(*args)
+        return cls.uid_to_class(uid)(*args)
 
     def __str__(self):
         common_opts = {

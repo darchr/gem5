@@ -38,6 +38,7 @@ import query
 import result
 import runner
 import terminal
+import uid
 
 
 class RunLogHandler():
@@ -265,7 +266,17 @@ def run_schedule(test_schedule, log_handler):
 def do_run():
     # Initialize early parts of the log.
     with RunLogHandler() as log_handler:
-        test_schedule = load_tests().schedule
+        if config.config.uid:
+            uid_ = uid.UID.from_uid(config.config.uid)
+            if isinstance(uid_, uid.TestUID):
+                log.test_log.error('Unable to run a standalone test.\n'
+                        'Gem5 expects test suites to be the smallest unit '
+                        ' of test.\n\n'
+                        'Pass a SuiteUID instead.')
+                return
+            test_schedule = loader_mod.Loader().load_schedule_for_suites(uid_)
+        else:
+            test_schedule = load_tests().schedule
         # Filter tests based on tags
         filter_with_config_tags(test_schedule)
         # Execute the tests
@@ -281,11 +292,11 @@ def do_rerun():
                 os.path.join(config.config.result_path,
                 config.constants.pickle_filename))
 
-        rerun_suites = [suite.uid for suite in results if suite.unsucessful]
+        rerun_suites = (suite.uid for suite in results if suite.unsucessful)
 
         # Use loader to load suites
         loader = loader_mod.Loader()
-        test_schedule = loader.load_schedule_for_suites(rerun_suites)
+        test_schedule = loader.load_schedule_for_suites(*rerun_suites)
 
         # Execute the tests
         run_schedule(test_schedule, log_handler)

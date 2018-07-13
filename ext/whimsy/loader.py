@@ -149,7 +149,7 @@ class Loader(object):
     def schedule(self):
         return wrappers.LoadedLibrary(self.suites, fixture_mod.global_fixtures)
 
-    def load_schedule_for_suites(self, uids):
+    def load_schedule_for_suites(self, *uids):
         files = {uid.UID.uid_to_path(id_) for id_ in uids}
         for file_ in files:
             self.load_file(file_)

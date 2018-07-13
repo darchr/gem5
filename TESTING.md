@@ -79,14 +79,12 @@ TestSuite:build-RISCV-opt
 TestSuite:build-ARM-opt
 ```
 
-.. TODO Support for this needs to be brought back in.
-
 Next, you can run a single *suite* from the command line by passing the option
 `--uid`. For instance,
 
 ```shell
 ./main.py run --skip-build \
-    --uid tests/gem5/example-TestSuite-testhello64-static-X86-opt
+    --uid SuiteUID:tests/gem5/m5_util/test_exit.py:m5_exit_test-X86-opt
 ```
 
 With this method, you can only run a *single* suite at a time. If you want to
