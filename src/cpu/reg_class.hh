@@ -82,6 +82,7 @@ class RegId {
     RegIndex regIdx;
     ElemIndex elemIdx;
     static constexpr size_t Scale = TheISA::NumVecElemPerVecReg;
+    friend struct std::hash<RegId>;
   public:
     RegId() {};
     RegId(RegClass reg_class, RegIndex reg_idx)
@@ -131,7 +132,12 @@ class RegId {
      * constant zero value throughout the execution).
      */
 
-    inline bool isZeroReg() const;
+    inline bool isZeroReg() const
+    {
+        return ((regClass == IntRegClass && regIdx == TheISA::ZeroReg) ||
+               (THE_ISA == ALPHA_ISA && regClass == FloatRegClass &&
+                regIdx == TheISA::ZeroReg));
+    }
 
     /** @return true if it is an integer physical register. */
     bool isIntReg() const { return regClass == IntRegClass; }
@@ -167,7 +173,21 @@ class RegId {
     /** Index flattening.
      * Required to be able to use a vector for the register mapping.
      */
-    inline RegIndex flatIndex() const;
+    inline RegIndex flatIndex() const
+    {
+        switch (regClass) {
+          case IntRegClass:
+          case FloatRegClass:
+          case VecRegClass:
+          case CCRegClass:
+          case MiscRegClass:
+            return regIdx;
+          case VecElemClass:
+            return Scale*regIdx + elemIdx;
+        }
+        panic("Trying to flatten a register without class!");
+        return -1;
+    }
     /** @} */
 
     /** Elem accessor */
@@ -182,4 +202,23 @@ class RegId {
         return os << rid.className() << "{" << rid.index() << "}";
     }
 };
+
+namespace std
+{
+template<>
+struct hash<RegId>
+{
+    size_t operator()(const RegId& reg_id) const
+    {
+        const size_t flat_index = static_cast<size_t>(reg_id.flatIndex());
+        const size_t class_num = static_cast<size_t>(reg_id.regClass);
+        const size_t shifted_class_num = class_num
+                                       << (sizeof(size_t) - sizeof(RegIndex));
+        const size_t unscrambled_hash = flat_index ^ shifted_class_num;
+
+        return unscrambled_hash ^ class_num;
+    }
+};
+}
+
 #endif // __CPU__REG_CLASS_HH__
