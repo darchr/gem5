@@ -898,7 +898,7 @@ def cxxMethod(*args, **kwargs):
 
         @wraps(func)
         def py_call(self, *args, **kwargs):
-            return self.func(*args, **kwargs)
+            return func(self, *args, **kwargs)
 
         f = py_call if override else cxx_call
         f.__pybind = PyBindMethod(name, cxx_name=cxx_name, args=args)
@@ -1520,11 +1520,10 @@ class SimObject(object):
         yield  # make this function a (null) generator
 
     def recurseDeviceTree(self, state):
-        for child in [getattr(self, c) for c in self._children]:
+        for child in self._children.itervalues():
             for item in child: # For looping over SimObjectVectors
-                if isinstance(item, SimObject):
-                    for dt in item.generateDeviceTree(state):
-                        yield dt
+                for dt in item.generateDeviceTree(state):
+                    yield dt
 
 # Function to provide to C++ so it can look up instances based on paths
 def resolveSimObject(name):
