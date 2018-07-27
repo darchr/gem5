@@ -71,10 +71,12 @@ class RunLogHandler():
     def close(self):
         self.mp_handler.close()
 
+def get_config_tags():
+    return getattr(config.config,
+            config.StorePositionalTagsAction.position_kword)
 
 def filter_with_config_tags(loaded_library):
-    tags = getattr(config.config,
-            config.StorePositionalTagsAction.position_kword)
+    tags = get_config_tags()
     final_tags = []
     regex_fmt = '^%s$'
     cfg = config.config
@@ -275,10 +277,15 @@ def do_run():
                         'Pass a SuiteUID instead.')
                 return
             test_schedule = loader_mod.Loader().load_schedule_for_suites(uid_)
+            if get_config_tags():
+                log.test_log.warn(
+                    "The '--uid' flag was supplied,"
+                    " '--include-tags' and '--exclude-tags' will be ignored."
+                )
         else:
             test_schedule = load_tests().schedule
-        # Filter tests based on tags
-        filter_with_config_tags(test_schedule)
+            # Filter tests based on tags
+            filter_with_config_tags(test_schedule)
         # Execute the tests
         run_schedule(test_schedule, log_handler)
 
