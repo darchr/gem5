@@ -93,6 +93,23 @@ run more than one uid, you must call `./main.py` multiple times.
 Currently, you must specify `--skip-build` if you want to run a single suite or
 run in batch mode. Otherwise, you will build gem5 for all architectures.
 
+## Rerunning failed tests
+
+While developing software a common practice is to run tests, make a change, and
+assert that the tests still pass. If tests fail you'll likely want to
+rerun and fix those specific tests without running redundant ones. The testing
+infrastructure allows you to rerun tests which failed in the last execution by
+using the `rerun` command.
+
+```shell
+./main.py run
+#
+#  Some tests fail...
+#
+
+# Rerun only the failed test suites (not the ones which passed).
+./main.py rerun
+```
 
 # If something goes wrong
 
@@ -166,7 +183,7 @@ Whimsy has support for parallel testing baked in. This system supports
 running multiple suites at the same time on the same computer. To run 
 suites in parallel, supply the `-t <number-tests>` flag to the run command.
 
-For example to run up to three test suites at the same time::
-    
+For example, to run up to three test suites at the same time::
+
     ./main.py run --skip-build -t 3
 
