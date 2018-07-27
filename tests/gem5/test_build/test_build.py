@@ -45,16 +45,11 @@ for isa in constants.supported_isas:
         else:
             length = constants.long_tag
 
-        tags = {
-            constants.isa_tag_type: set([isa]),
-            constants.variant_tag_type: set([variant]),
-            constants.length_tag_type: set([length]),
-        }
+        tags = [isa, length, variant]
 
         name = 'build-{isa}-{var}'.format(isa=isa, var=variant)
         fixture = Gem5Fixture(isa, variant)
 
         function = TestFunction(lambda fixtures: True, name,
                                 fixtures=[fixture])
-
         TestSuite(name=name, tests=[function], tags=tags)
