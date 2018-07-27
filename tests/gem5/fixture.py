@@ -45,7 +45,8 @@ class VariableFixture(Fixture):
 class TempdirFixture(Fixture):
     def __init__(self):
         self.path = None
-        super(TempdirFixture, self).__init__(name=constants.tempdir_fixture_name)
+        super(TempdirFixture, self).__init__(
+                name=constants.tempdir_fixture_name)
 
     def setup(self, testitem):
         self.path = tempfile.mkdtemp(prefix='gem5out')
@@ -81,8 +82,22 @@ class SConsFixture(Fixture):
             '--ignore-style'
         ]
 
-        log.test_log.message("Building the following targets. This may take a while.")
-        log.test_log.message('%s\n' % (', '.join(self.targets)))
+        if not self.targets:
+            log.test_log.warn(
+                'No SCons targets specified, this will'
+                ' build the default all target.\n'
+                'This is likely unintended, and you'
+                ' may wish to kill whimsy and reconfigure.')
+        else:
+            log.test_log.message(
+                    'Building the following targets.'
+                    ' This may take a while.')
+            log.test_log.message('%s' % (', '.join(self.targets)))
+            log.test_log.message(
+                    "You may want to run with only a single ISA"
+                    "(--isa=), use --skip-build, or use 'retest'.")
+
+
 
         command.extend(self.targets)
         log_call(log.test_log, command)
