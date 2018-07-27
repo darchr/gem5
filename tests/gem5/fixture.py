@@ -218,7 +218,9 @@ class DownloadedProgram(Fixture):
         urllib.urlretrieve(self.url, self.path)
 
     def _getremotetime(self):
-        import urllib2, datetime, time
+        import  urllib2, datetime, time
+        import _strptime # Needed for python threading bug
+
         u = urllib2.urlopen(self.url)
         return time.mktime(datetime.datetime.strptime( \
                     u.info().getheaders("Last-Modified")[0],
