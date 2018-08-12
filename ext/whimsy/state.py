@@ -1,4 +1,4 @@
-# Copyright (c) 2005-2006 The Regents of The University of Michigan
+# Copyright (c) 2017 Mark D. Hill and David A. Wood
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -11,8 +11,6 @@
 # neither the name of the copyright holders nor the names of its
 # contributors may be used to endorse or promote products derived from
 # this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
 # A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
@@ -24,43 +22,42 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Authors: Nathan Binkert
-#          Ali Saidi
+# Authors: Sean Wilson
 
-CC=gcc
-AS=as
-LD=ld
+class Result:
+    enums = '''
+        NotRun
+        Skipped
+        Passed
+        Failed
+        Errored
+    '''.split()
+    for idx, enum in enumerate(enums):
+        locals()[enum] = idx
 
-CFLAGS?=-O2 -DM5OP_ADDR=0xFFFF0000 -I$(PWD)/../../include
-OBJS=m5.o m5op_x86.o m5_mmap.o
-LUA_HEADER_INCLUDE=$(shell pkg-config --cflags-only-I lua51)
-LUA_OBJS=lua_gem5Op.opic m5op_x86.opic m5_mmap.opic
+    @classmethod
+    def name(cls, enum):
+        return cls.enums[enum]
 
-all: m5
+    def __init__(self, value, reason=None):
+        self.value = value
+        self.reason = reason
 
-%.o: %.S
-	$(CC) $(CFLAGS) -o $@ -c $<
+    def __str__(self):
+        return self.name(self.value)
 
-%.o: %.c
-	$(CC) $(CFLAGS) -o $@ -c $<
+class Status:
+    enums = '''
+        Unscheduled
+        Building
+        Running
+        TearingDown
+        Complete
+        Avoided
+    '''.split()
+    for idx, enum in enumerate(enums):
+        locals()[enum] = idx
 
-%.opic : %.S
-	$(CC) $(CFLAGS) -fPIC -o $@ -c $<
-
-%.opic : %.c
-	$(CC) $(CFLAGS) -fPIC -o $@ -c $<
-
-m5: $(OBJS)
-	$(CC) -o $@ $(OBJS)
-
-m5op_x86.opic: m5op_x86.S
-	$(CC) $(CFLAGS) -DM5OP_PIC -fPIC -o $@ -c $<
-
-lua_gem5Op.opic: lua_gem5Op.c
-	$(CC) $(CFLAGS) $(LUA_HEADER_INCLUDE) -fPIC -o $@ -c $<
-
-gem5OpLua.so: $(LUA_OBJS)
-	$(CC) $(CFLAGS) -fPIC $^ -o $@ -shared
-
-clean:
-	rm -f *.o *.opic m5 gem5OpLua.so
+    @classmethod
+    def name(cls, enum):
+        return cls.enums[enum]

@@ -1,4 +1,4 @@
-# Copyright (c) 2005-2006 The Regents of The University of Michigan
+# Copyright (c) 2017 Mark D. Hill and David A. Wood
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,43 +24,46 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Authors: Nathan Binkert
-#          Ali Saidi
+# Authors: Sean Wilson
 
-CC=gcc
-AS=as
-LD=ld
 
-CFLAGS?=-O2 -DM5OP_ADDR=0xFFFF0000 -I$(PWD)/../../include
-OBJS=m5.o m5op_x86.o m5_mmap.o
-LUA_HEADER_INCLUDE=$(shell pkg-config --cflags-only-I lua51)
-LUA_OBJS=lua_gem5Op.opic m5op_x86.opic m5_mmap.opic
+import helper
+import runner as runner_mod
 
-all: m5
+class TestSuite(object):
+    '''
+    An object grouping a collection of tests. It provides tags which enable
+    filtering during list and run selection. All tests held in the suite must
+    have a unique name.
 
-%.o: %.S
-	$(CC) $(CFLAGS) -o $@ -c $<
+    ..note::
+        The :func:`__new__` method enables collection of test cases, it must
+        be called in order for test cases to be collected.
 
-%.o: %.c
-	$(CC) $(CFLAGS) -o $@ -c $<
+    ..note::
+        To reduce test definition boilerplate, the :func:`init` method is
+        forwarded all `*args` and `**kwargs`. This means derived classes can
+        define init without boilerplate super().__init__(*args, **kwargs).
+    '''
+    runner = runner_mod.SuiteRunner
+    collector = helper.InstanceCollector()
+    fixtures = []
+    tests = []
+    tags = set()
 
-%.opic : %.S
-	$(CC) $(CFLAGS) -fPIC -o $@ -c $<
+    def __new__(klass, *args, **kwargs):
+        obj = super(TestSuite, klass).__new__(klass, *args, **kwargs)
+        TestSuite.collector.collect(obj)
+        return obj
 
-%.opic : %.c
-	$(CC) $(CFLAGS) -fPIC -o $@ -c $<
+    def __init__(self, name=None, fixtures=tuple(), tests=tuple(),
+                 tags=tuple(), **kwargs):
+        self.fixtures = self.fixtures + list(fixtures)
+        self.tags = self.tags | set(tags)
+        self.tests = self.tests + list(tests)
+        if name is None:
+            name = self.__class__.__name__
+        self.name = name
 
-m5: $(OBJS)
-	$(CC) -o $@ $(OBJS)
-
-m5op_x86.opic: m5op_x86.S
-	$(CC) $(CFLAGS) -DM5OP_PIC -fPIC -o $@ -c $<
-
-lua_gem5Op.opic: lua_gem5Op.c
-	$(CC) $(CFLAGS) $(LUA_HEADER_INCLUDE) -fPIC -o $@ -c $<
-
-gem5OpLua.so: $(LUA_OBJS)
-	$(CC) $(CFLAGS) -fPIC $^ -o $@ -shared
-
-clean:
-	rm -f *.o *.opic m5 gem5OpLua.so
+    def __iter__(self):
+        return iter(self.tests)

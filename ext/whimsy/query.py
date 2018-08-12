@@ -1,4 +1,4 @@
-# Copyright (c) 2005-2006 The Regents of The University of Michigan
+# Copyright (c) 2017 Mark D. Hill and David A. Wood
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,43 +24,48 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Authors: Nathan Binkert
-#          Ali Saidi
+# Authors: Sean Wilson
 
-CC=gcc
-AS=as
-LD=ld
+import terminal
+import log
 
-CFLAGS?=-O2 -DM5OP_ADDR=0xFFFF0000 -I$(PWD)/../../include
-OBJS=m5.o m5op_x86.o m5_mmap.o
-LUA_HEADER_INCLUDE=$(shell pkg-config --cflags-only-I lua51)
-LUA_OBJS=lua_gem5Op.opic m5op_x86.opic m5_mmap.opic
+# TODO Refactor print logic out of this so the objects
+# created are separate from print logic.
+class QueryRunner(object):
+    def __init__(self, test_schedule):
+        self.schedule = test_schedule
 
-all: m5
+    def tags(self):
+        tags = set()
+        for suite in self.schedule:
+            tags = tags | set(suite.tags)
+        return tags
 
-%.o: %.S
-	$(CC) $(CFLAGS) -o $@ -c $<
+    def suites(self):
+        return [suite for suite in self.schedule]
 
-%.o: %.c
-	$(CC) $(CFLAGS) -o $@ -c $<
+    def suites_with_tag(self, tag):
+        return filter(lambda suite: tag in suite.tags, self.suites())
 
-%.opic : %.S
-	$(CC) $(CFLAGS) -fPIC -o $@ -c $<
+    def list_tests(self):
+        log.test_log.message(terminal.separator())
+        log.test_log.message('Listing all Test Cases.', bold=True)
+        log.test_log.message(terminal.separator())
+        for suite in self.schedule:
+            for test in suite:
+                log.test_log.message(test.uid)
 
-%.opic : %.c
-	$(CC) $(CFLAGS) -fPIC -o $@ -c $<
+    def list_suites(self):
+        log.test_log.message(terminal.separator())
+        log.test_log.message('Listing all Test Suites.', bold=True)
+        log.test_log.message(terminal.separator())
+        for suite in self.suites():
+            log.test_log.message(suite.uid)
 
-m5: $(OBJS)
-	$(CC) -o $@ $(OBJS)
+    def list_tags(self):
+        log.test_log.message(terminal.separator())
+        log.test_log.message('Listing all Test Tags.', bold=True)
+        log.test_log.message(terminal.separator())
 
-m5op_x86.opic: m5op_x86.S
-	$(CC) $(CFLAGS) -DM5OP_PIC -fPIC -o $@ -c $<
-
-lua_gem5Op.opic: lua_gem5Op.c
-	$(CC) $(CFLAGS) $(LUA_HEADER_INCLUDE) -fPIC -o $@ -c $<
-
-gem5OpLua.so: $(LUA_OBJS)
-	$(CC) $(CFLAGS) -fPIC $^ -o $@ -shared
-
-clean:
-	rm -f *.o *.opic m5 gem5OpLua.so
+        for tag in self.tags():
+            log.test_log.message(tag)
