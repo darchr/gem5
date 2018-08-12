@@ -28,7 +28,7 @@
 
 '''
 Module contains wrappers for test items that have been
-loaded by the whimsy :class:`whimsy.loader.Loader`.
+loaded by the testlib :class:`testlib.loader.Loader`.
 '''
 import itertools
 
@@ -68,7 +68,7 @@ class LoadedTestable(object):
     Base class for loaded test items.
 
     :property:`result` and :property:`status` setters
-    notify whimsy via the :func:`log_result` and :func:`log_status`
+    notify testlib via the :func:`log_result` and :func:`log_status`
     of the updated status.
     '''
     def __init__(self, obj):

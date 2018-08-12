@@ -319,7 +319,7 @@ def do_rerun():
 
 def main():
     '''
-    Main entrypoint for the whimsy test library.
+    Main entrypoint for the testlib test library.
     '''
     config.initialize_config()
 

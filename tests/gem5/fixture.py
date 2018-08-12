@@ -30,10 +30,10 @@ import os
 import tempfile
 import shutil
 
-from whimsy.fixture import Fixture, globalfixture
-from whimsy.config import config, constants
-from whimsy.helper import log_call, cacheresult, joinpath, absdirpath
-import whimsy.log as log
+from testlib.fixture import Fixture, globalfixture
+from testlib.config import config, constants
+from testlib.helper import log_call, cacheresult, joinpath, absdirpath
+import testlib.log as log
 
 
 class VariableFixture(Fixture):
@@ -87,7 +87,7 @@ class SConsFixture(Fixture):
                 'No SCons targets specified, this will'
                 ' build the default all target.\n'
                 'This is likely unintended, and you'
-                ' may wish to kill whimsy and reconfigure.')
+                ' may wish to kill testlib and reconfigure.')
         else:
             log.test_log.message(
                     'Building the following targets.'

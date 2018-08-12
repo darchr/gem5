@@ -27,7 +27,7 @@
 # Authors: Sean Wilson
 
 '''
-Handlers for the whimsy Log.
+Handlers for the testlib Log.
 
 
 '''

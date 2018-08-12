@@ -30,10 +30,10 @@ import os
 import copy
 import subprocess
 
-from whimsy.test import TestFunction
-from whimsy.suite import TestSuite
-from whimsy.helper import log_call
-from whimsy.config import constants, config
+from testlib.test import TestFunction
+from testlib.suite import TestSuite
+from testlib.helper import log_call
+from testlib.config import constants, config
 from fixture import TempdirFixture, Gem5Fixture, VariableFixture
 import verifier
 
@@ -53,7 +53,7 @@ def gem5_verify_config(name,
     config_args. After that it will run any provided verifiers to verify
     details about the gem5 run.
 
-    .. seealso::  For the verifiers see :mod:`whimsy.gem5.verifier`
+    .. seealso::  For the verifiers see :mod:`testlib.gem5.verifier`
 
     :param name: Name of the test.
     :param config: The config to give gem5.

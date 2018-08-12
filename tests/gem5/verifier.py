@@ -31,9 +31,9 @@ Built in test cases that verify particular details about a gem5 run.
 '''
 import re
 
-from whimsy import test
-from whimsy.config import constants
-from whimsy.helper import joinpath, diff_out_file
+from testlib import test
+from testlib.config import constants
+from testlib.helper import joinpath, diff_out_file
 
 class Verifier(object):
     def __init__(self, fixtures=tuple()):

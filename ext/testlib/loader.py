@@ -121,7 +121,7 @@ class Loader(object):
     Discovered :class:`TestCase` and :class:`TestSuite` objects are wrapped by
     :class:`LoadedTest` and :class:`LoadedSuite` objects respectively.
     These objects provided additional methods and metadata about the loaded
-    objects and are the internal representation used by whimsy.
+    objects and are the internal representation used by testlib.
 
     To simply discover and load all tests using the default filter create an
     instance and `load_root`.
