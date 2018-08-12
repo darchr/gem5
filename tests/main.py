@@ -20,10 +20,5 @@ import whimsy.main as whimsy
 import whimsy.config as config
 import whimsy.helper as helper
 
-print("Running the new gem5 testing script.")
-print("For more information see TESTING.md.")
-print("To see details as the testing scripts are running, use the option "
-      "-v, -vv, or -vvv")
-
 config.basedir = helper.absdirpath(__file__)
 whimsy()

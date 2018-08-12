@@ -53,14 +53,14 @@ class QueryRunner(object):
         log.test_log.message(terminal.separator())
         for suite in self.schedule:
             for test in suite:
-                log.test_log.message(test.uid)
+                log.test_log.message(test.uid, machine_readable=True)
 
     def list_suites(self):
         log.test_log.message(terminal.separator())
         log.test_log.message('Listing all Test Suites.', bold=True)
         log.test_log.message(terminal.separator())
         for suite in self.suites():
-            log.test_log.message(suite.uid)
+            log.test_log.message(suite.uid, machine_readable=True)
 
     def list_tags(self):
         log.test_log.message(terminal.separator())
@@ -68,4 +68,4 @@ class QueryRunner(object):
         log.test_log.message(terminal.separator())
 
         for tag in self.tags():
-            log.test_log.message(tag)
+            log.test_log.message(tag, machine_readable=True)

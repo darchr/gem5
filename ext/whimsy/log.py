@@ -186,9 +186,9 @@ class LogWrapper(object):
     # TODO Replace these methods in a test/create a wrapper?
     # That way they still can log like this it's just hidden that they
     # capture the current test.
-    def message(self, message, level=LogLevel.Info, bold=False):
+    def message(self, message, level=LogLevel.Info, bold=False, **metadata):
         self.log_obj.log(LibraryMessage(message=message, level=level,
-                bold=bold))
+                bold=bold, **metadata))
 
     def error(self, message):
         self.message(message, LogLevel.Error)

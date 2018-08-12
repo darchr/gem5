@@ -620,6 +620,13 @@ class ListParser(ArgParser):
             default=False,
             help='List all tags.'
         ).add_to(parser)
+        Argument(
+            '-q',
+            dest='quiet',
+            action='store_true',
+            default=False,
+            help='Quiet output (machine readable).'
+        ).add_to(parser)
 
         common_args.directory.add_to(parser)
         common_args.isa.add_to(parser)

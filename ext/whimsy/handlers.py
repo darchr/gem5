@@ -246,9 +246,10 @@ class TerminalHandler(log.Handler):
     }
     default = color.Normal
 
-    def __init__(self, verbosity=log.LogLevel.Info):
+    def __init__(self, verbosity=log.LogLevel.Info, machine_only=False):
         self.stream = verbosity >= log.LogLevel.Trace
         self.verbosity = verbosity
+        self.machine_only = machine_only
         self.mapping = {
             log.TestResult.type_id: self.handle_testresult,
             log.SuiteStatus.type_id: self.handle_suitestatus,
@@ -301,8 +302,9 @@ class TerminalHandler(log.Handler):
             print(self._colorize(record['message'], record['level']))
 
     def handle_librarymessage(self, record):
-        print(self._colorize(record['message'], record['level'],
-                record['bold']))
+        if not self.machine_only or record.data.get('machine_readable', False):
+            print(self._colorize(record['message'], record['level'],
+                    record['bold']))
 
     def _colorize(self, message, level, bold=False):
         return '%s%s%s%s' % (

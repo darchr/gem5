@@ -40,6 +40,12 @@ import runner
 import terminal
 import uid
 
+def entry_message():
+    log.test_log.message("Running the new gem5 testing script.")
+    log.test_log.message("For more information see TESTING.md.")
+    log.test_log.message("To see details as the testing scripts are"
+                         " running, use the option"
+                         " -v, -vv, or -vvv")
 
 class RunLogHandler():
     def __init__(self):
@@ -51,6 +57,7 @@ class RunLogHandler():
                 summary_handler, term_handler)
         self.mp_handler.async_process()
         log.test_log.log_obj.add_handler(self.mp_handler)
+        entry_message()
 
     def schedule_finalized(self, test_schedule):
         # Create the result handler object.
@@ -111,8 +118,8 @@ def filter_with_config_tags(loaded_library):
         tags = tuple()
 
     filters = list(itertools.chain(tags, final_tags))
-    string = 'Filtering suites with tags as follows:'
-    filter_string = '\n\t'.join((str(f) for f in filters))
+    string = 'Filtering suites with tags as follows:\n'
+    filter_string = '\t\n'.join((str(f) for f in filters))
     log.test_log.trace(string + filter_string)
 
     return filter_with_tags(loaded_library, filters)
@@ -195,9 +202,12 @@ def load_tests():
 
 def do_list():
     term_handler = handlers.TerminalHandler(
-        verbosity=config.config.verbose+log.LogLevel.Info
+        verbosity=config.config.verbose+log.LogLevel.Info,
+        machine_only=config.config.quiet
     )
     log.test_log.log_obj.add_handler(term_handler)
+
+    entry_message()
 
     test_schedule = load_tests().schedule
     filter_with_config_tags(test_schedule)
@@ -293,7 +303,6 @@ def do_run():
 def do_rerun():
     # Init early parts of log
     with RunLogHandler() as log_handler:
-
         # Load previous results
         results = result.InternalSavedResults.load(
                 os.path.join(config.config.result_path,
