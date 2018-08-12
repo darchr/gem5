@@ -76,18 +76,16 @@ a machine-readable format by passing the `-q` flag. This will list all of the
 *suites* that match the given tag(s).
 
 ```shell
-./main.py list --variant opt -q
-TestSuite:testhello64-static-X86-op
-TestSuite:testhello64-dynamic-X86-opt
-TestSuite:testhello32-static-X86-opt
-TestSuite:testhello64-static-ARM-opt
-TestSuite:testhello32-static-ARM-opt
-TestSuite:m5_exit_test-X86-opt
-TestSuite:build-X86-opt
-TestSuite:build-SPARC-opt
-TestSuite:build-ALPHA-opt
-TestSuite:build-RISCV-opt
-TestSuite:build-ARM-opt
+./main.py list -q --suites
+SuiteUID:tests/gem5/hello_se/test_hello_se.py:testhello64-static-X86-opt
+SuiteUID:tests/gem5/hello_se/test_hello_se.py:testhello64-dynamic-X86-opt
+SuiteUID:tests/gem5/hello_se/test_hello_se.py:testhello32-static-X86-opt
+SuiteUID:tests/gem5/hello_se/test_hello_se.py:testhello64-static-ARM-opt
+SuiteUID:tests/gem5/hello_se/test_hello_se.py:testhello32-static-ARM-opt
+SuiteUID:tests/gem5/m5_util/test_exit.py:m5_exit_test-X86-opt
+SuiteUID:tests/gem5/test_build/test_build.py:build-X86-opt
+SuiteUID:tests/gem5/test_build/test_build.py:build-RISCV-opt
+SuiteUID:tests/gem5/test_build/test_build.py:build-ARM-opt
 ```
 
 Next, you can run a single *suite* from the command line by passing the option
