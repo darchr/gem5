@@ -31,7 +31,7 @@ Test file for simply building gem5
 '''
 import re
 import os
-from whimsy import *
+from testlib import *
 
 common_isas = [constants.x86_tag, constants.arm_tag, constants.riscv_tag]
 
