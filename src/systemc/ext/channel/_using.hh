@@ -34,8 +34,10 @@
 
 using sc_core::sc_buffer;
 
-using sc_core::sc_in_clk;
 using sc_core::sc_clock;
+using sc_core::sc_in_clk;
+using sc_core::sc_inout_clk;
+using sc_core::sc_out_clk;
 
 using sc_core::sc_event_queue;
 
@@ -87,6 +89,7 @@ using sc_core::SC_ONE_WRITER;
 using sc_core::SC_MANY_WRITERS;
 using sc_core::sc_signal_write_if;
 using sc_core::sc_signal_inout_if;
+using sc_core::sc_signal_out_if;
 
 using sc_core::sc_signal_resolved;
 

@@ -29,10 +29,14 @@
 
 #include <cstring>
 
+#include "base/fiber.hh"
 #include "base/logging.hh"
+#include "base/types.hh"
 #include "python/pybind11/pybind.hh"
+#include "sim/eventq.hh"
 #include "sim/init.hh"
 #include "systemc/ext/core/sc_main.hh"
+#include "systemc/ext/utils/sc_report_handler.hh"
 
 // A default version of this function in case one isn't otherwise defined.
 // This ensures everything will link properly whether or not the user defined
@@ -55,6 +59,17 @@ bool scMainCalled = false;
 
 int _argc = 0;
 char **_argv = NULL;
+
+class ScMainFiber : public Fiber
+{
+    void
+    main()
+    {
+        ::sc_main(_argc, _argv);
+    }
+};
+
+ScMainFiber scMainFiber;
 
 // This wrapper adapts the python version of sc_main to the c++ version.
 void
@@ -93,8 +108,7 @@ sc_main(pybind11::args args)
     // again later.
     scMainCalled = true;
 
-    //TODO Start a new fiber to call sc_main from.
-    ::sc_main(_argc, _argv);
+    scMainFiber.run();
 }
 
 // Make our sc_main wrapper available in the internal _m5 python module under
@@ -106,6 +120,14 @@ systemc_pybind(pybind11::module &m_internal)
     m.def("sc_main", &sc_main);
 }
 EmbeddedPyBind embed_("systemc", &systemc_pybind);
+
+sc_stop_mode _stop_mode = SC_STOP_FINISH_DELTA;
+sc_status _status = SC_ELABORATION;
+
+Tick _max_tick = MaxTick;
+sc_starvation_policy _starvation = SC_EXIT_ON_STARVATION;
+
+uint64_t _deltaCycles = 0;
 
 } // anonymous namespace
 
@@ -119,6 +141,109 @@ const char *const *
 sc_argv()
 {
     return _argv;
+}
+
+void
+sc_start()
+{
+    _max_tick = MaxTick;
+    _starvation = SC_EXIT_ON_STARVATION;
+
+    // Switch back gem5.
+    Fiber::primaryFiber()->run();
+}
+
+void
+sc_pause()
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+}
+
+void
+sc_start(const sc_time &time, sc_starvation_policy p)
+{
+    Tick now = curEventQueue() ? curEventQueue()->getCurTick() : 0;
+    _max_tick = now + time.value();
+    _starvation = p;
+
+    // Switch back to gem5.
+    Fiber::primaryFiber()->run();
+}
+
+void
+sc_set_stop_mode(sc_stop_mode mode)
+{
+    if (sc_is_running()) {
+        SC_REPORT_ERROR("attempt to set sc_stop mode "
+                        "after start will be ignored", "");
+        return;
+    }
+    _stop_mode = mode;
+}
+
+sc_stop_mode
+sc_get_stop_mode()
+{
+    return _stop_mode;
+}
+
+void
+sc_stop()
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+}
+
+const sc_time &
+sc_time_stamp()
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return *(sc_time *)nullptr;
+}
+
+sc_dt::uint64
+sc_delta_count()
+{
+    return _deltaCycles;
+}
+
+bool
+sc_is_running()
+{
+    return _status & (SC_RUNNING | SC_PAUSED);
+}
+
+bool
+sc_pending_activity_at_current_time()
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return false;
+}
+
+bool
+sc_pending_activity_at_future_time()
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return false;
+}
+
+bool
+sc_pending_activity()
+{
+    return sc_pending_activity_at_current_time() ||
+           sc_pending_activity_at_future_time();
+}
+
+sc_time
+sc_time_to_pending_activity()
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return sc_time();
+}
+
+sc_status
+sc_get_status()
+{
+    return _status;
 }
 
 } // namespace sc_core
