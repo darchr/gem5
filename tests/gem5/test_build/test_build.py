@@ -1,4 +1,4 @@
-# Copyright (c) 2005-2006 The Regents of The University of Michigan
+# Copyright (c) 2018 The Regents of the University of California.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,43 +24,31 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Authors: Nathan Binkert
-#          Ali Saidi
+# Authors: Sean Wilson
 
-CC=gcc
-AS=as
-LD=ld
+'''
+Test file for simply building gem5
+'''
+import re
+import os
+from testlib import *
 
-CFLAGS?=-O2 -DM5OP_ADDR=0xFFFF0000 -I$(PWD)/../../include
-OBJS=m5.o m5op_x86.o m5_mmap.o
-LUA_HEADER_INCLUDE=$(shell pkg-config --cflags-only-I lua51)
-LUA_OBJS=lua_gem5Op.opic m5op_x86.opic m5_mmap.opic
+common_isas = [constants.x86_tag, constants.arm_tag, constants.riscv_tag]
 
-all: m5
+for isa in constants.supported_isas:
+    if isa is constants.null_tag: continue
 
-%.o: %.S
-	$(CC) $(CFLAGS) -o $@ -c $<
+    for variant in constants.supported_variants:
+        if isa in common_isas:
+            length = constants.quick_tag
+        else:
+            length = constants.long_tag
 
-%.o: %.c
-	$(CC) $(CFLAGS) -o $@ -c $<
+        tags = [isa, length, variant]
 
-%.opic : %.S
-	$(CC) $(CFLAGS) -fPIC -o $@ -c $<
+        name = 'build-{isa}-{var}'.format(isa=isa, var=variant)
+        fixture = Gem5Fixture(isa, variant)
 
-%.opic : %.c
-	$(CC) $(CFLAGS) -fPIC -o $@ -c $<
-
-m5: $(OBJS)
-	$(CC) -o $@ $(OBJS)
-
-m5op_x86.opic: m5op_x86.S
-	$(CC) $(CFLAGS) -DM5OP_PIC -fPIC -o $@ -c $<
-
-lua_gem5Op.opic: lua_gem5Op.c
-	$(CC) $(CFLAGS) $(LUA_HEADER_INCLUDE) -fPIC -o $@ -c $<
-
-gem5OpLua.so: $(LUA_OBJS)
-	$(CC) $(CFLAGS) -fPIC $^ -o $@ -shared
-
-clean:
-	rm -f *.o *.opic m5 gem5OpLua.so
+        function = TestFunction(lambda fixtures: True, name,
+                                fixtures=[fixture])
+        TestSuite(name=name, tests=[function], tags=tags)
