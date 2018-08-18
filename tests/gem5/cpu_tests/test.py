@@ -37,22 +37,25 @@ valid_isas = (constants.x86_tag,)
 
 workloads = ('Bubblesort', 'IntMM', 'FloatMM')
 
+cpus = ('TimingSimpleCPU', 'SimpleDataflowCPU')
+
 bm_dir = joinpath(getcwd(), 'benchmarks')
 
 for workload in workloads:
-    ref_path = joinpath(getcwd(), 'ref', workload)
-    verifiers = (
-             verifier.MatchStdout(ref_path),
-    )
+    for cpu in cpus:
+        ref_path = joinpath(getcwd(), 'ref', workload)
+        verifiers = (
+                 verifier.MatchStdout(ref_path),
+        )
 
-    workload_path = joinpath(bm_dir, workload)
-    workload_binary = MakeTarget(workload_path)
+        workload_path = joinpath(bm_dir, workload)
+        workload_binary = MakeTarget(workload_path)
 
-    gem5_verify_config(
-            name='cpu_test_{}'.format(workload),
-            verifiers=verifiers,
-            config=joinpath(getcwd(), 'run.py'),
-            config_args=[workload_path],
-            valid_isas=valid_isas,
-            fixtures = [workload_binary]
-    )
+        gem5_verify_config(
+                name='cpu_test_{}_{}'.format(cpu, workload),
+                verifiers=verifiers,
+                config=joinpath(getcwd(), 'run.py'),
+                config_args=['--cpu', cpu, workload_path],
+                valid_isas=valid_isas,
+                fixtures = [workload_binary]
+        )

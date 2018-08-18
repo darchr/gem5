@@ -37,6 +37,7 @@ class MySimpleMemory(SimpleMemory):
     latency = '1ns'
 
 valid_cpu = {'TimingSimpleCPU': TimingSimpleCPU,
+             'SimpleDataflowCPU': SimpleDataflowCPU
             }
 valid_mem = {'SimpleMemory': MySimpleMemory,
              'DDR3_1600_8x8': DDR3_1600_8x8
