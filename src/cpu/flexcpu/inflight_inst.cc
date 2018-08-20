@@ -304,8 +304,7 @@ void
 InflightInst::setVecRegOperand(const StaticInst* si, int dst_idx,
                                const TheISA::VecRegContainer& val)
 {
-    const RegId& reg_id = si->destRegIdx(dst_idx);
-    assert(reg_id.isVecReg());
+    assert(si->destRegIdx(dst_idx).isVecReg());
 
     // NOTE This assignment results in two calls to copy the VecRegContainer
     // object, one to construct the temporary GenericReg, the other to
@@ -427,8 +426,7 @@ InflightInst::readCCRegOperand(const StaticInst* si, int op_idx)
 void
 InflightInst::setCCRegOperand(const StaticInst* si, int dst_idx, CCReg val)
 {
-    const RegId& reg_id = si->destRegIdx(dst_idx);
-    assert(reg_id.isCCReg());
+    assert(si->destRegIdx(dst_idx).isCCReg());
 
     results[dst_idx].set(val, CCRegClass);
     resultValid[dst_idx] = true;
@@ -463,8 +461,7 @@ void
 InflightInst::setMiscRegOperand(const StaticInst* si, int dst_idx,
                                 const MiscReg& val)
 {
-    const RegId& reg_id = si->destRegIdx(dst_idx);
-    assert(reg_id.isMiscReg());
+    assert(si->destRegIdx(dst_idx).isMiscReg());
 
     results[dst_idx].set(val, MiscRegClass);
     resultValid[dst_idx] = true;
