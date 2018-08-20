@@ -77,8 +77,10 @@ class SimpleMemory : public AbstractMemory
 
         const Tick tick;
         const PacketPtr pkt;
+        const int portNum;
 
-        DeferredPacket(PacketPtr _pkt, Tick _tick) : tick(_tick), pkt(_pkt)
+        DeferredPacket(PacketPtr _pkt, Tick _tick, int port_num) :
+            tick(_tick), pkt(_pkt), portNum(port_num)
         { }
     };
 
@@ -88,10 +90,19 @@ class SimpleMemory : public AbstractMemory
       private:
 
         SimpleMemory& memory;
+        bool busy;
+        int idx;
 
       public:
 
-        MemoryPort(const std::string& _name, SimpleMemory& _memory);
+        MemoryPort(const std::string& _name, SimpleMemory& _memory, int idx);
+
+        void trySendRetry() {
+            if (busy) {
+                sendRetryReq();
+                busy = false;
+            }
+        }
 
       protected:
 
@@ -107,7 +118,7 @@ class SimpleMemory : public AbstractMemory
 
     };
 
-    MemoryPort port;
+    std::vector<MemoryPort> ports;
 
     /**
      * Latency from that a request is accepted until the response is
@@ -197,7 +208,7 @@ class SimpleMemory : public AbstractMemory
 
     void recvFunctional(PacketPtr pkt);
 
-    bool recvTimingReq(PacketPtr pkt);
+    bool recvTimingReq(PacketPtr pkt, int port_id);
 
     void recvRespRetry();
 
