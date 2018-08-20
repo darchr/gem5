@@ -77,8 +77,10 @@ class SimpleMemory : public AbstractMemory
 
         const Tick tick;
         const PacketPtr pkt;
+        const int portNum;
 
-        DeferredPacket(PacketPtr _pkt, Tick _tick) : tick(_tick), pkt(_pkt)
+        DeferredPacket(PacketPtr _pkt, Tick _tick, int port_num) :
+            tick(_tick), pkt(_pkt), portNum(port_num)
         { }
     };
 
@@ -86,9 +88,19 @@ class SimpleMemory : public AbstractMemory
     {
       private:
         SimpleMemory& memory;
+        bool busy;
+        int idx;
 
       public:
-        MemoryPort(const std::string& _name, SimpleMemory& _memory);
+
+        MemoryPort(const std::string& _name, SimpleMemory& _memory, int idx);
+
+        void trySendRetry() {
+            if (busy) {
+                busy = false;
+                sendRetryReq();
+            }
+        }
 
       protected:
         Tick recvAtomic(PacketPtr pkt) override;
@@ -100,7 +112,7 @@ class SimpleMemory : public AbstractMemory
         AddrRangeList getAddrRanges() const override;
     };
 
-    MemoryPort port;
+    std::vector<MemoryPort> ports;
 
     /**
      * Latency from that a request is accepted until the response is
@@ -132,12 +144,6 @@ class SimpleMemory : public AbstractMemory
      * for an enum with only two states.
      */
     bool isBusy;
-
-    /**
-     * Remember if we have to retry an outstanding request that
-     * arrived while we were busy.
-     */
-    bool retryReq;
 
     /**
      * Remember if we failed to send a response and are awaiting a
@@ -188,7 +194,9 @@ class SimpleMemory : public AbstractMemory
     Tick recvAtomic(PacketPtr pkt);
     Tick recvAtomicBackdoor(PacketPtr pkt, MemBackdoorPtr &_backdoor);
     void recvFunctional(PacketPtr pkt);
-    bool recvTimingReq(PacketPtr pkt);
+
+    bool recvTimingReq(PacketPtr pkt, int port_id);
+
     void recvRespRetry();
 };
 
