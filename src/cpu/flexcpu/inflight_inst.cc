@@ -64,11 +64,16 @@ void
 InflightInst::addDependency(shared_ptr<InflightInst> parent)
 {
     ++remainingDependencies;
-    parent->addCompletionCallback([this]() {
-        --remainingDependencies;
 
-        if (!remainingDependencies) {
-            notifyReady();
+    weak_ptr<InflightInst> weak_this = shared_from_this();
+    parent->addCompletionCallback([weak_this]() {
+        shared_ptr<InflightInst> inst_ptr = weak_this.lock();
+        if (!inst_ptr) return;
+
+        --inst_ptr->remainingDependencies;
+
+        if (!inst_ptr->remainingDependencies) {
+            inst_ptr->notifyReady();
         }
     });
 }
