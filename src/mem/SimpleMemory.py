@@ -45,7 +45,7 @@ from AbstractMemory import *
 class SimpleMemory(AbstractMemory):
     type = 'SimpleMemory'
     cxx_header = "mem/simple_mem.hh"
-    port = SlavePort("Slave ports")
+    port = VectorSlavePort("Slave ports")
     latency = Param.Latency('30ns', "Request to response latency")
     latency_var = Param.Latency('0ns', "Request to response latency variance")
     # The memory bandwidth limit default is set to 12.8GB/s which is
