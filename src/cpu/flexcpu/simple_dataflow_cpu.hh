@@ -153,7 +153,12 @@ class SimpleDataflowCPU : public BaseCPU
 
     struct SplitAccCtrlBlk
     {
+        // Packet used to communicate to the instruction (completeAcc)
+        // The data always is allocated in this packet. The other packets have
+        // static pointers to the data here.
         PacketPtr main = nullptr;
+
+        // Used for sending/receiving data from memory system
         PacketPtr low = nullptr;
         bool lowReceived = false;
         PacketPtr high = nullptr;
