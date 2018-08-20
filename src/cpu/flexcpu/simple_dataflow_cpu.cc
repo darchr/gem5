@@ -193,6 +193,8 @@ SimpleDataflowCPU::completeMemAccess(const MemAccessReq& req)
             return; // We need to wait for the other to complete as well
 
         pkt = req.split->main;
+        assert(pkt);
+        pkt->makeResponse();
     } else {
         pkt = req.packet;
     }
@@ -449,7 +451,7 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
     split_acc->low = Packet::createRead(low);
     split_acc->high = Packet::createRead(high);
 
-    split_acc->main = new Packet(main, split_acc->low->cmd.responseCommand());
+    split_acc->main = Packet::createRead(main);
     split_acc->main->allocate();
     split_acc->low->dataStatic(split_acc->main->getPtr<uint8_t>());
     split_acc->high->dataStatic(split_acc->main->getPtr<uint8_t>()
@@ -481,16 +483,18 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
 
     SplitAccCtrlBlk* split_acc = new SplitAccCtrlBlk;
 
+    // This pointer may be used in completeAcc. It probably doesn't need data.
+    // But, we give it data, just to be safe.
+    split_acc->main = Packet::createWrite(main);
+    split_acc->main->allocate();
+
     split_acc->low = Packet::createWrite(low);
     split_acc->high = Packet::createWrite(high);
 
-    split_acc->main = new Packet(main, split_acc->low->cmd.responseCommand());
-
     if (data) {
-        const unsigned req_size = main->getSize();
-
-        split_acc->main->allocate();
-        memcpy(split_acc->main->getPtr<uint8_t>(), data, req_size);
+        split_acc->main->setData(data);
+        split_acc->low->dataStatic(data);
+        split_acc->high->dataStatic(data + low->getSize());
     } else { // Assume that no pointer given means we're filling with zero
         assert(main->getFlags() & Request::STORE_NO_DATA);
         // Maybe this line is important? Not all CPUs make this check, so I'm
@@ -498,10 +502,6 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
         // memset(mailbox, 0, req_size);
         panic("Should be unreachable...");
     }
-
-    split_acc->low->dataStatic(split_acc->main->getPtr<uint8_t>());
-    split_acc->high->dataStatic(split_acc->main->getPtr<uint8_t>()
-                                + low->getSize());
 
     memReqs.push_back({split_acc->low, inst, context, tc, callback_func,
                        split_acc});
