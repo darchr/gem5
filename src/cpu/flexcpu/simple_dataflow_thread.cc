@@ -100,9 +100,9 @@ SDCPUThread::activate()
 void
 SDCPUThread::advanceInst()
 {
-    DPRINTF(SDCPUThreadEvent, "advanceInst()\n");
-
     const InstSeqNum seq_num = lastCommittedInstNum + inflightInsts.size() + 1;
+
+    DPRINTF(SDCPUThreadEvent, "advanceInst(seq %d)\n", seq_num);
 
     TheISA::PCState next_pc = getNextPC();
 
@@ -186,10 +186,10 @@ SDCPUThread::commitInstruction(std::shared_ptr<InflightInst> inst_ptr)
 {
     assert(inst_ptr->isComplete());
 
-    StaticInstPtr static_inst = inst_ptr->staticInst();
-
     DPRINTF(SDCPUInstEvent,
-             "Committing instruction (seq %d)\n", inst_ptr->seqNum());
+            "Committing instruction (seq %d)\n", inst_ptr->seqNum());
+
+    StaticInstPtr static_inst = inst_ptr->staticInst();
 
     const int8_t num_dsts = static_inst->numDestRegs();
     for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
@@ -267,8 +267,6 @@ SDCPUThread::getNextPC()
         return _committedState->pcState();
     } else {
         const shared_ptr<InflightInst>& inst_ptr = inflightInsts.back();
-        DPRINTF(SDCPUThreadEvent, "Getting PC value from inst (seq %d)\n",
-                                  inst_ptr->seqNum());
 
         assert(!inst_ptr->staticInst()->isControl() || inst_ptr->isComplete());
 
@@ -289,7 +287,7 @@ SDCPUThread::getThreadContext()
 void
 SDCPUThread::handleFault(std::shared_ptr<InflightInst> inst_ptr)
 {
-    DPRINTF(SDCPUThreadEvent, "Handling fault (seq %d): %s",
+    DPRINTF(SDCPUThreadEvent, "Handling fault (seq %d): %s\n",
                               inst_ptr->seqNum(), inst_ptr->fault()->name());
 
     inflightInsts.clear();
@@ -504,6 +502,9 @@ SDCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
 
         return;
     }
+
+    // if (!inst->readPredicate()) // TODO ensure this is enforced.
+    //     inst->forwardOldRegs();
 
     DPRINTF(SDCPUThreadEvent, "onExecutionCompleted(seq %d)\n",
                               inst_ptr->seqNum());
