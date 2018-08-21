@@ -263,8 +263,10 @@ TheISA::PCState
 SDCPUThread::getNextPC()
 {
     if (inflightInsts.empty()) {
-        DPRINTF(SDCPUThreadEvent, "Getting PC value from committed state\n");
-        return _committedState->pcState();
+        const TheISA::PCState ret = _committedState->pcState();
+        DPRINTF(SDCPUThreadEvent, "Getting PC %#x from committed state\n",
+                                  ret.instAddr());
+        return ret;
     } else {
         const shared_ptr<InflightInst>& inst_ptr = inflightInsts.back();
         DPRINTF(SDCPUThreadEvent, "Getting PC value from inst (seq %d)\n",
@@ -273,9 +275,12 @@ SDCPUThread::getNextPC()
         assert(!inst_ptr->staticInst()->isControl() || inst_ptr->isComplete());
 
         TheISA::PCState ret = inst_ptr->pcState();
-        if (!inst_ptr->staticInst()->isMacroop()) {
-            inst_ptr->staticInst()->advancePC(ret);
-        }
+        inst_ptr->staticInst()->advancePC(ret);
+
+        DPRINTF(SDCPUThreadEvent, "Getting PC %#x from inst (seq %d)\n",
+                                  ret.instAddr(),
+                                  inst_ptr->seqNum());
+
         return ret;
     }
 }
@@ -327,6 +332,8 @@ SDCPUThread::issueInstruction(weak_ptr<InflightInst> inst)
     }
 
     if (inst_ptr->staticInst()->isLastMicroop()) {
+        DPRINTF(SDCPUThreadEvent, "Releasing MacroOp after decoding final "
+                                  "microop\n");
         curMacroOp = StaticInst::nullStaticInstPtr;
     }
 
@@ -558,17 +565,21 @@ SDCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
                 decode_result->disassemble(pc.instAddr()).c_str());
 
         if (decode_result->isMacroop()) {
+            DPRINTF(SDCPUThreadEvent, "Detected MacroOp, capturing...\n");
             curMacroOp = decode_result;
 
-            inst_ptr->staticInst(decode_result);
-            inst_ptr->squash();
+            decode_result = curMacroOp->fetchMicroop(pc.microPC());
 
-            advanceInst();
-        } else {
-            inst_ptr->staticInst(decode_result);
-
-            issueInstruction(inst);
+            DPRINTF(SDCPUInstEvent,
+                    "Replaced with microop (seq %d) - %#x : %s\n",
+                    inst_ptr->seqNum(),
+                    pc.microPC(),
+                    decode_result->disassemble(pc.microPC()).c_str());
         }
+
+        inst_ptr->staticInst(decode_result);
+
+        issueInstruction(inst);
 
     } else { // If we still need to fetch more MachInsts.
         fetchOffset += sizeof(TheISA::MachInst);
@@ -625,9 +636,8 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
     //     const shared_ptr<InflightInst> last_inst =
     //                                             *(++inflightInsts.rbegin());
 
-    //     if (!(last_inst->isComplete() || last_inst->isSquashed())
-    //      && !last_inst->staticInst()->isMacroop())
-    //         inst->addDependency(last_inst);
+    //     if (!(last_inst->isComplete() || last_inst->isSquashed()))
+    //         inst_ptr->addDependency(last_inst);
     // }
 
     const StaticInstPtr static_inst = inst_ptr->staticInst();
