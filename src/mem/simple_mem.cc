@@ -50,12 +50,15 @@
 
 SimpleMemory::SimpleMemory(const SimpleMemoryParams* p) :
     AbstractMemory(p),
-    port(name() + ".port", *this), latency(p->latency),
+    latency(p->latency),
     latency_var(p->latency_var), bandwidth(p->bandwidth), isBusy(false),
     retryReq(false), retryResp(false),
     releaseEvent([this]{ release(); }, name()),
     dequeueEvent([this]{ dequeue(); }, name())
 {
+    for (int i = 0; i < p->port_port_connection_count; ++i) {
+        ports.emplace_back(name() + csprintf(".port[%d]", i), *this, i);
+    }
 }
 
 void
@@ -65,8 +68,10 @@ SimpleMemory::init()
 
     // allow unconnected memories as this is used in several ruby
     // systems at the moment
-    if (port.isConnected()) {
-        port.sendRangeChange();
+    for (const auto& port : ports) {
+        if (port.isConnected()) {
+            port.sendRangeChange();
+        }
     }
 }
 
@@ -99,7 +104,7 @@ SimpleMemory::recvFunctional(PacketPtr pkt)
 }
 
 bool
-SimpleMemory::recvTimingReq(PacketPtr pkt)
+SimpleMemory::recvTimingReq(PacketPtr pkt, int port_id)
 {
     panic_if(pkt->cacheResponding(), "Should not see packets where cache "
              "is responding");
@@ -169,7 +174,7 @@ SimpleMemory::recvTimingReq(PacketPtr pkt)
 
         // emplace inserts the element before the position pointed to by
         // the iterator, so advance it one step
-        packetQueue.emplace(++i, pkt, when_to_send);
+        packetQueue.emplace(++i, pkt, when_to_send, port_id);
 
         if (!retryResp && !dequeueEvent.scheduled())
             schedule(dequeueEvent, packetQueue.back().tick);
@@ -185,9 +190,8 @@ SimpleMemory::release()
 {
     assert(isBusy);
     isBusy = false;
-    if (retryReq) {
-        retryReq = false;
-        port.sendRetryReq();
+    for (auto& port : ports) {
+        port.trySendRetry();
     }
 }
 
@@ -197,7 +201,7 @@ SimpleMemory::dequeue()
     assert(!packetQueue.empty());
     DeferredPacket deferred_pkt = packetQueue.front();
 
-    retryResp = !port.sendTimingResp(deferred_pkt.pkt);
+    retryResp = !ports[deferred_pkt.portNum].sendTimingResp(deferred_pkt.pkt);
 
     if (!retryResp) {
         packetQueue.pop_front();
@@ -237,7 +241,8 @@ SimpleMemory::getSlavePort(const std::string &if_name, PortID idx)
     if (if_name != "port") {
         return MemObject::getSlavePort(if_name, idx);
     } else {
-        return port;
+        assert(idx < ports.size());
+        return ports[idx];
     }
 }
 
@@ -253,8 +258,8 @@ SimpleMemory::drain()
 }
 
 SimpleMemory::MemoryPort::MemoryPort(const std::string& _name,
-                                     SimpleMemory& _memory)
-    : SlavePort(_name, &_memory), memory(_memory)
+                                     SimpleMemory& _memory, int port_id)
+    : SlavePort(_name, &_memory), memory(_memory), busy(false), idx(port_id)
 { }
 
 AddrRangeList
@@ -280,7 +285,7 @@ SimpleMemory::MemoryPort::recvFunctional(PacketPtr pkt)
 bool
 SimpleMemory::MemoryPort::recvTimingReq(PacketPtr pkt)
 {
-    return memory.recvTimingReq(pkt);
+    return memory.recvTimingReq(pkt, idx);
 }
 
 void

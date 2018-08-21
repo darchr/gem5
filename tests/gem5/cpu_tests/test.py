@@ -1,17 +1,5 @@
-# Copyright (c) 2012-2013 ARM Limited
-# All rights reserved.
-#
-# The license below extends only to copyright in the software and shall
-# not be construed as granting a license to any other intellectual
-# property including but not limited to intellectual property relating
-# to a hardware implementation of the functionality of the software
-# licensed hereunder.  You may use the software subject to the license
-# terms below provided that you ensure that this notice is replicated
-# unmodified and in its entirety in all distributions of the software,
-# modified or unmodified, in source code or in binary form.
-#
-# Copyright (c) 2005-2008 The Regents of The University of Michigan
-# All rights reserved.
+# Copyright (c) 2018 The Regents of the University of California
+# All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -36,19 +24,38 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Authors: Nathan Binkert
-#          Andreas Hansson
+# Authors: Jason Lowe-Power
 
-from m5.params import *
-from AbstractMemory import *
+'''
+Test file containing simple workloads to run on CPU models.
+Each test takes ~30 seconds to run.
+'''
 
-class SimpleMemory(AbstractMemory):
-    type = 'SimpleMemory'
-    cxx_header = "mem/simple_mem.hh"
-    port = VectorSlavePort("Slave ports")
-    latency = Param.Latency('30ns', "Request to response latency")
-    latency_var = Param.Latency('0ns', "Request to response latency variance")
-    # The memory bandwidth limit default is set to 12.8GB/s which is
-    # representative of a x64 DDR3-1600 channel.
-    bandwidth = Param.MemoryBandwidth('12.8GB/s',
-                                      "Combined read and write bandwidth")
+from testlib import *
+
+valid_isas = (constants.x86_tag,)
+
+workloads = ('Bubblesort', 'IntMM', 'FloatMM')
+
+cpus = ('TimingSimpleCPU', 'SimpleDataflowCPU')
+
+bm_dir = joinpath(getcwd(), 'benchmarks')
+
+for workload in workloads:
+    for cpu in cpus:
+        ref_path = joinpath(getcwd(), 'ref', workload)
+        verifiers = (
+                 verifier.MatchStdout(ref_path),
+        )
+
+        workload_path = joinpath(bm_dir, workload)
+        workload_binary = MakeTarget(workload_path)
+
+        gem5_verify_config(
+                name='cpu_test_{}_{}'.format(cpu, workload),
+                verifiers=verifiers,
+                config=joinpath(getcwd(), 'run.py'),
+                config_args=['--cpu', cpu, workload_path],
+                valid_isas=valid_isas,
+                fixtures = [workload_binary]
+        )
