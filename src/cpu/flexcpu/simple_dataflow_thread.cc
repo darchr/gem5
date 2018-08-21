@@ -630,7 +630,26 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
     //         inst->addDependency(last_inst);
     // }
 
+    /*
+    * Note: An assumption is being made that inst_ptr is at the end of the
+    *       inflightInsts buffer.
+    */
+
     const StaticInstPtr static_inst = inst_ptr->staticInst();
+
+    // BEGIN ISA explicit serialization
+
+    const bool we_ser_before = static_inst->isSerializeBefore();
+    for (auto& prior : inflightInsts) {
+        if (prior == inst_ptr || prior->isComplete() || prior->isSquashed()) {
+            continue;
+        }
+
+        const bool they_ser_after = prior->staticInst()->isSerializeAfter();
+        if (we_ser_before || they_ser_after) inst_ptr->addDependency(prior);
+    }
+
+    // END ISA explicit serialization
 
     // BEGIN Sequential Consistency
 
