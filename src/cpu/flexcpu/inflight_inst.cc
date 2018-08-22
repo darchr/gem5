@@ -57,7 +57,31 @@ InflightInst::InflightInst(ThreadContext* backing_context,
 }
 
 void
-InflightInst::addCompletionCallback(std::function<void()> callback)
+InflightInst::addCommitCallback(function<void()> callback)
+{
+    commitCallbacks.push_back(callback);
+}
+
+void
+InflightInst::addCommitDependency(shared_ptr<InflightInst> parent)
+{
+    ++remainingDependencies;
+
+    weak_ptr<InflightInst> weak_this = shared_from_this();
+    parent->addCommitCallback([weak_this]() {
+        shared_ptr<InflightInst> inst_ptr = weak_this.lock();
+        if (!inst_ptr) return;
+
+        --inst_ptr->remainingDependencies;
+
+        if (!inst_ptr->remainingDependencies) {
+            inst_ptr->notifyReady();
+        }
+    });
+}
+
+void
+InflightInst::addCompletionCallback(function<void()> callback)
 {
     completionCallbacks.push_back(callback);
 }
@@ -127,6 +151,16 @@ InflightInst::commitToTC()
     for (size_t i = 0; i < miscResultIdxs.size(); i++)
         backingISA->setMiscReg(
             miscResultIdxs[i], miscResultVals[i], backingContext);
+}
+
+void
+InflightInst::notifyCommitted()
+{
+    status(Committed);
+
+    for (function<void()>& callback_func : commitCallbacks) {
+        callback_func();
+    }
 }
 
 void

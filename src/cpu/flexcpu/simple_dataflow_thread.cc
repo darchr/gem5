@@ -44,10 +44,12 @@ using namespace std;
 // Fullsystem mode constructor
 SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                     System* system_, BaseTLB* itb_, BaseTLB* dtb_,
-                    TheISA::ISA* isa_, bool use_kernel_stats_):
+                    TheISA::ISA* isa_, bool use_kernel_stats_,
+                    bool strict_ser):
+    memIface(*this),
     _cpuPtr(cpu_),
     _name(cpu_->name() + ".thread" + to_string(tid_)),
-    memIface(*this),
+    strictSerialize(strict_ser),
     _committedState(new SimpleThread(cpu_, tid_, system_, itb_, dtb_, isa_,
                                      use_kernel_stats_)),
     isa(isa_)
@@ -58,10 +60,11 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
 // Non-fullsystem constructor
 SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                     System* system_, Process* process_, BaseTLB* itb_,
-                    BaseTLB* dtb_, TheISA::ISA* isa_):
+                    BaseTLB* dtb_, TheISA::ISA* isa_, bool strict_ser):
+    memIface(*this),
     _cpuPtr(cpu_),
     _name(cpu_->name() + ".thread" + to_string(tid_)),
-    memIface(*this),
+    strictSerialize(strict_ser),
     _committedState(new SimpleThread(cpu_, tid_, system_, process_, itb_, dtb_,
                                      isa_)),
     isa(isa_)
@@ -175,6 +178,7 @@ SDCPUThread::commitAllAvailableInstructions()
 
         if (!inst_ptr->isSquashed()){
             commitInstruction(inst_ptr);
+            inst_ptr->notifyCommitted();
         }
 
         inflightInsts.pop_front();
@@ -609,22 +613,57 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
     // }
 
     /*
-    * Note: An assumption is being made that inst_ptr is at the end of the
-    *       inflightInsts buffer.
-    */
+     * Note: An assumption is being made that inst_ptr is at the end of the
+     *       inflightInsts buffer.
+     */
 
     const StaticInstPtr static_inst = inst_ptr->staticInst();
 
     // BEGIN ISA explicit serialization
 
-    const bool we_ser_before = static_inst->isSerializeBefore();
-    for (auto& prior : inflightInsts) {
-        if (prior == inst_ptr || prior->isComplete() || prior->isSquashed()) {
-            continue;
+    if (strictSerialize) {
+        if (inflightInsts.size() > 1 && static_inst->isSerializing()) {
+            const shared_ptr<InflightInst> last_inst =
+                *(++inflightInsts.rbegin());
+
+            // TODO don't add the dependency when last is squashed, but find
+            //      newest instruction that isn't squashed
+            if (!(last_inst->isCommitted() || last_inst->isSquashed()))
+                inst_ptr->addCommitDependency(last_inst);
+
+            return;
         }
 
-        const bool they_ser_after = prior->staticInst()->isSerializeAfter();
-        if (we_ser_before || they_ser_after) inst_ptr->addDependency(prior);
+        for (auto& prior : inflightInsts) {
+            if (prior == inst_ptr || prior->isCommitted()
+             || prior->isSquashed()) {
+                continue;
+            }
+
+            if (prior->staticInst()->isSerializing())
+                inst_ptr->addCommitDependency(prior);
+        }
+    } else {
+        if (inflightInsts.size() > 1 && static_inst->isSerializeBefore()) {
+            const shared_ptr<InflightInst> last_inst =
+                *(++inflightInsts.rbegin());
+
+            if (!(last_inst->isCommitted() || last_inst->isSquashed()))
+                inst_ptr->addCommitDependency(last_inst);
+
+            return;
+        }
+
+        for (auto& prior : inflightInsts) {
+            if (prior == inst_ptr || prior->isCommitted()
+             || prior->isSquashed()) {
+                continue;
+            }
+
+            if (prior->staticInst()->isSerializeAfter()) {
+                inst_ptr->addCommitDependency(prior);
+            }
+        }
     }
 
     // END ISA explicit serialization

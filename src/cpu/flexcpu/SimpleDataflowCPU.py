@@ -28,10 +28,14 @@
 
 
 from BaseCPU import BaseCPU
+from m5.params import *
 
 class SimpleDataflowCPU(BaseCPU):
     type = 'SimpleDataflowCPU'
     cxx_header = 'cpu/flexcpu/simple_dataflow_cpu.hh'
+
+    strict_serialization = Param.Bool(True, "Controls behavior of serializing "
+                                            "flags on instructions")
 
     @classmethod
     def memory_mode(cls):

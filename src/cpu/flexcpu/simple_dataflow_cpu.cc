@@ -51,7 +51,8 @@ SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
         // Move constructor + vector should allow us to avoid memory leaks like
         // the SimpleCPU implementations have.
         threads.push_back(m5::make_unique<SDCPUThread>(this, i, params->system,
-            params->workload[i], params->itb, params->dtb, params->isa[i]));
+            params->workload[i], params->itb, params->dtb, params->isa[i],
+            params->strict_serialization));
 
         threadContexts.push_back(threads[i]->getThreadContext());
     }

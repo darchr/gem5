@@ -62,10 +62,8 @@ class InflightInst : public ExecContext,
         // valuable?
         Executing, // Request for execution sent, but waiting for results
         Complete, // Results have been received, but not yet committed.
+        Committed,
         Squashed // Results should never be committed.
-        // Is a separate state for committed instructions that are still held
-        // valuable? May need to consider this to handle squashing memory
-        // requests...
     };
 
     struct DataSource
@@ -118,6 +116,8 @@ class InflightInst : public ExecContext,
      */
     PCState _pcState;
 
+    std::vector<std::function<void()>> commitCallbacks;
+
     // Who depends on me?
     std::vector<std::function<void()>> completionCallbacks;
 
@@ -156,6 +156,8 @@ class InflightInst : public ExecContext,
                  const TheISA::PCState& pc_,
                  StaticInstPtr inst_ref = StaticInst::nullStaticInstPtr);
 
+    void addCommitCallback(std::function<void()> callback);
+    void addCommitDependency(std::shared_ptr<InflightInst> parent);
     void addCompletionCallback(std::function<void()> callback);
     void addDependency(std::shared_ptr<InflightInst> parent);
 
@@ -194,6 +196,9 @@ class InflightInst : public ExecContext,
     { return instRef; }
     const StaticInstPtr& staticInst(const StaticInstPtr& inst_ref);
 
+    inline bool isCommitted() const
+    { return status() == Committed; }
+
     inline bool isComplete() const
     { return status() == Complete; }
 
@@ -205,6 +210,15 @@ class InflightInst : public ExecContext,
 
     inline bool isSquashed() const
     { return status() == Squashed; }
+
+    /**
+     * Notify all registered commit callback listeners that this in-flight
+     * instruction has been committed.
+     *
+     * NOTE: The responsibility for calling this function falls with whoever
+     *       is managing commit of this instruction.
+     */
+    void notifyCommitted();
 
     /**
      * Notify all registered completion callback listeners that this in-flight

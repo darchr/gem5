@@ -186,6 +186,14 @@ class SimpleDataflowCPU : public BaseCPU
     // END Internal constants
 
 
+    // BEGIN Internal parameters
+
+    // TODO temporary mark all executions as taking one cycle's length at least
+    Tick executionTime = clockPeriod();
+
+    // END Internal parameters
+
+
     // BEGIN Internal state variables
 
     DataPort _dataPort;
@@ -210,9 +218,6 @@ class SimpleDataflowCPU : public BaseCPU
     //       based on what has been learned since the writing of this though.
     std::unordered_map<PacketPtr, FetchCallback> outstandingFetches;
     std::unordered_map<PacketPtr, MemAccessReq> outstandingMemReqs;
-
-    // TODO temporary mark all executions as taking one cycle's length at least
-    Tick executionTime = clockPeriod();
 
     // END Internal state variables
 
