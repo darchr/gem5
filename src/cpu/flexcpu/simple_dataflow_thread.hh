@@ -82,7 +82,17 @@ class SDCPUThread : public ThreadContext
 
     // END SDCPUThread Internal definitions
 
+
     // BEGIN SDCPUThread Internal variables
+
+    /**
+     * We implement the memory interface of the InflightInst so that we can
+     * capture calls to request memory access via our CPU.
+     */
+    MemIface memIface;
+
+
+    // BEGIN Internal parameters
 
     /**
      * We hold a pointer to the CPU which owns this logical thread.
@@ -95,10 +105,15 @@ class SDCPUThread : public ThreadContext
     std::string _name;
 
     /**
-     * We implement the memory interface of the InflightInst so that we can
-     * capture calls to request memory access via our CPU.
+     * Controls behavior of StaticInsts marked with the various serializing
+     * flags
      */
-    MemIface memIface;
+    bool strictSerialize;
+
+    // END Internal parameters
+
+
+    // BEGIN Solid architectural state
 
     /**
      * The SimpleThread class already contains all internal state necessary to
@@ -125,6 +140,9 @@ class SDCPUThread : public ThreadContext
      * already been satisfied.
      */
     InstSeqNum lastCommittedInstNum = 0;
+
+    // END Solid architectural state
+
 
     // BEGIN Speculative state
 
@@ -386,12 +404,12 @@ class SDCPUThread : public ThreadContext
     // Fullsystem mode constructor
     SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_, System* system_,
                      BaseTLB* itb_, BaseTLB* dtb_, TheISA::ISA* isa_,
-                     bool use_kernel_stats_ = true);
+                     bool use_kernel_stats_, bool strict_ser);
 
     // Non-fullsystem constructor
     SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_, System* system_,
                      Process* process_, BaseTLB* itb_, BaseTLB* dtb_,
-                     TheISA::ISA* isa_);
+                     TheISA::ISA* isa_, bool strict_ser);
 
     // May need to define move constructor, due to how SimpleThread is defined,
     // if we want to hold instances of these in a vector instead of pointers
