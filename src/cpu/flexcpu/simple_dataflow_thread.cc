@@ -117,8 +117,8 @@ SDCPUThread::advanceInst()
                 static_inst->disassemble(next_pc.microPC()).c_str());
 
         shared_ptr<InflightInst> dynamic_inst_ptr =
-            make_shared<InflightInst>(getThreadContext(), &memIface, seq_num,
-                                      next_pc, static_inst);
+            make_shared<InflightInst>(getThreadContext(), isa, &memIface,
+                                      seq_num, next_pc, static_inst);
 
         inflightInsts.push_back(dynamic_inst_ptr);
 
@@ -138,8 +138,8 @@ SDCPUThread::advanceInst()
                 static_inst->disassemble(next_pc.microPC()).c_str());
 
         shared_ptr<InflightInst> dynamic_inst_ptr =
-            make_shared<InflightInst>(getThreadContext(), &memIface, seq_num,
-                                      next_pc, static_inst);
+            make_shared<InflightInst>(getThreadContext(), isa, &memIface,
+                                      seq_num, next_pc, static_inst);
 
         inflightInsts.push_back(dynamic_inst_ptr);
 
@@ -149,7 +149,7 @@ SDCPUThread::advanceInst()
     }
 
     shared_ptr<InflightInst> dynamic_inst_ptr =
-        make_shared<InflightInst>(getThreadContext(), &memIface, seq_num,
+        make_shared<InflightInst>(getThreadContext(), isa, &memIface, seq_num,
                                   next_pc);
 
     inflightInsts.push_back(dynamic_inst_ptr);
@@ -189,40 +189,7 @@ SDCPUThread::commitInstruction(std::shared_ptr<InflightInst> inst_ptr)
     DPRINTF(SDCPUInstEvent,
             "Committing instruction (seq %d)\n", inst_ptr->seqNum());
 
-    StaticInstPtr static_inst = inst_ptr->staticInst();
-
-    const int8_t num_dsts = static_inst->numDestRegs();
-    for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
-        const RegId& dst_reg = static_inst->destRegIdx(dst_idx);
-        const GenericReg& result = inst_ptr->getResult(dst_idx);
-
-        switch (dst_reg.classValue()) {
-          case IntRegClass:
-            _committedState->setIntReg(dst_reg.index(), result.asIntReg());
-            break;
-          case FloatRegClass:
-            _committedState->setFloatReg(dst_reg.index(), result.asFloatReg());
-            break;
-          case VecRegClass:
-            _committedState->setVecReg(dst_reg, result.asVecReg());
-            break;
-          case VecElemClass:
-            _committedState->setVecElem(dst_reg, result.asVecElem());
-            break;
-          case CCRegClass:
-            _committedState->setCCReg(dst_reg.index(), result.asCCReg());
-            break;
-          case MiscRegClass:
-            _committedState->setMiscReg(dst_reg.index(), result.asMiscReg());
-            break;
-          default:
-            break;
-        }
-    }
-
-    TheISA::PCState pc = inst_ptr->pcState();
-    static_inst->advancePC(pc);
-    _committedState->pcState(pc);
+    inst_ptr->commitToTC();
 
     lastCommittedInstNum = inst_ptr->seqNum();
 }

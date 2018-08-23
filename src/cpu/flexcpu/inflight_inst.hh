@@ -34,6 +34,7 @@
 #include <memory>
 #include <vector>
 
+#include "arch/isa.hh"
 #include "base/addr_range.hh"
 #include "cpu/exec_context.hh"
 #include "cpu/flexcpu/generic_reg.hh"
@@ -98,6 +99,7 @@ class InflightInst : public ExecContext,
 
   protected:
     ThreadContext* backingContext;
+    TheISA::ISA* backingISA;
     MemIface* backingMemoryInterface;
 
     // Where am I in completing this instruction?
@@ -128,6 +130,13 @@ class InflightInst : public ExecContext,
     std::vector<GenericReg> results;
     std::vector<bool> resultValid;
 
+    /**
+     * For use in storing results of writes to miscRegs that don't go through
+     * the operands of the StaticInst.
+     */
+    std::vector<MiscReg> miscResultVals;
+    std::vector<int> miscResultIdxs;
+
     Fault _fault = NoFault;
 
     // For use in tracking dependencies through memory
@@ -142,8 +151,9 @@ class InflightInst : public ExecContext,
     // TODO deal with memory operations, a la LSQ?
 
   public:
-    InflightInst(ThreadContext* backing_context, MemIface* backing_mem_iface,
-                 InstSeqNum seq_num, const TheISA::PCState& pc_,
+    InflightInst(ThreadContext* backing_context, TheISA::ISA* backing_isa,
+                 MemIface* backing_mem_iface, InstSeqNum seq_num,
+                 const TheISA::PCState& pc_,
                  StaticInstPtr inst_ref = StaticInst::nullStaticInstPtr);
 
     void addCompletionCallback(std::function<void()> callback);
@@ -152,6 +162,12 @@ class InflightInst : public ExecContext,
     void addReadyCallback(std::function<void()> callback);
     // May be useful to add ability to remove a callback. Will be difficult if
     // we use raw function objects, could be resolved by holding pointers?
+
+    /**
+     * Takes all state-changing effects that this InflightInst has, and applies
+     * them to the backing ThreadContext of this InflightInst.
+     */
+    void commitToTC();
 
     inline const Fault& fault() const
     { return _fault; }
