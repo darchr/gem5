@@ -152,12 +152,6 @@ class SimpleMemory : public AbstractMemory
     bool isBusy;
 
     /**
-     * Remember if we have to retry an outstanding request that
-     * arrived while we were busy.
-     */
-    bool retryReq;
-
-    /**
      * Remember if we failed to send a response and are awaiting a
      * retry. This is only used as a check.
      */
