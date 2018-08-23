@@ -41,11 +41,13 @@ using CCReg = TheISA::CCReg;
 using VecElem = TheISA::VecElem;
 
 InflightInst::InflightInst(ThreadContext* backing_context,
+                           TheISA::ISA* backing_isa,
                            MemIface* backing_mem_iface,
                            InstSeqNum seq_num,
                            const PCState& pc_,
                            StaticInstPtr inst_ref):
     backingContext(backing_context),
+    backingISA(backing_isa),
     backingMemoryInterface(backing_mem_iface),
     _status(Waiting),
     _seqNum(seq_num),
@@ -82,6 +84,49 @@ void
 InflightInst::addReadyCallback(std::function<void()> callback)
 {
     readyCallbacks.push_back(callback);
+}
+
+void
+InflightInst::commitToTC()
+{
+    assert(isComplete());
+
+    const int8_t num_dsts = instRef->numDestRegs();
+    for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
+        const RegId& dst_reg = instRef->destRegIdx(dst_idx);
+        const GenericReg& result = getResult(dst_idx);
+
+        switch (dst_reg.classValue()) {
+          case IntRegClass:
+            backingContext->setIntReg(dst_reg.index(), result.asIntReg());
+            break;
+          case FloatRegClass:
+            backingContext->setFloatReg(dst_reg.index(), result.asFloatReg());
+            break;
+          case VecRegClass:
+            backingContext->setVecReg(dst_reg, result.asVecReg());
+            break;
+          case VecElemClass:
+            backingContext->setVecElem(dst_reg, result.asVecElem());
+            break;
+          case CCRegClass:
+            backingContext->setCCReg(dst_reg.index(), result.asCCReg());
+            break;
+          case MiscRegClass:
+            backingContext->setMiscReg(dst_reg.index(), result.asMiscReg());
+            break;
+          default:
+            break;
+        }
+    }
+
+    TheISA::PCState pc = pcState();
+    instRef->advancePC(pc);
+    backingContext->pcState(pc);
+
+    for (size_t i = 0; i < miscResultIdxs.size(); i++)
+        backingISA->setMiscReg(
+            miscResultIdxs[i], miscResultVals[i], backingContext);
 }
 
 void
@@ -276,7 +321,10 @@ InflightInst::readVecRegOperand(const StaticInst* si, int op_idx) const
 TheISA::VecRegContainer&
 InflightInst::getWritableVecRegOperand(const StaticInst* si, int op_idx)
 {
-    // TODO this one may produce bad results, need to rethink this.
+    // TODO this one may produce bad results, need to rethink this, since if
+    //      we write to a srcreg, then the dependencies might not be matched
+    //      correctly, nor will the changed state necessarily be applied to the
+    //      committed state during commit time.
 
     const RegId& reg_id = si->srcRegIdx(op_idx);
     assert(reg_id.isVecReg());
@@ -470,16 +518,21 @@ InflightInst::setMiscRegOperand(const StaticInst* si, int dst_idx,
 MiscReg
 InflightInst::readMiscReg(int misc_reg)
 {
-    panic("readMiscReg() not implemented!");
-    return 0;
-    // TODO
+    return backingISA->readMiscReg(misc_reg, backingContext);
 }
 
 void
 InflightInst::setMiscReg(int misc_reg, const MiscReg& val)
 {
-    panic("setMiscReg() not implemented!");
-    // TODO
+    // O3 hides multiple writes to the same misc reg during execution, but due
+    // to potential side effects of each access, I don't think we should be
+    // hiding them. Instead, we will replay each write sequentially during
+    // commit time.
+
+    miscResultIdxs.push_back(misc_reg);
+    miscResultVals.push_back(val);
+    // Values should be applied to the ISA/TC at commit time, when we know the
+    // instruction will not be squashed.
 }
 
 PCState
