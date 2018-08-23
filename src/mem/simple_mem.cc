@@ -52,7 +52,7 @@ SimpleMemory::SimpleMemory(const SimpleMemoryParams* p) :
     AbstractMemory(p),
     latency(p->latency),
     latency_var(p->latency_var), bandwidth(p->bandwidth), isBusy(false),
-    retryReq(false), retryResp(false),
+    retryResp(false),
     releaseEvent([this]{ release(); }, name()),
     dequeueEvent([this]{ dequeue(); }, name())
 {
@@ -113,16 +113,9 @@ SimpleMemory::recvTimingReq(PacketPtr pkt, int port_id)
              "Should only see read and writes at memory controller, "
              "saw %s to %#llx\n", pkt->cmdString(), pkt->getAddr());
 
-    // we should not get a new request after committing to retry the
-    // current one, but unfortunately the CPU violates this rule, so
-    // simply ignore it for now
-    if (retryReq)
-        return false;
-
     // if we are busy with a read or write, remember that we have to
     // retry
     if (isBusy) {
-        retryReq = true;
         return false;
     }
 
@@ -285,7 +278,12 @@ SimpleMemory::MemoryPort::recvFunctional(PacketPtr pkt)
 bool
 SimpleMemory::MemoryPort::recvTimingReq(PacketPtr pkt)
 {
-    return memory.recvTimingReq(pkt, idx);
+    if (!memory.recvTimingReq(pkt, idx)) {
+        busy = true;
+        return false;
+    } else {
+        return true;
+    }
 }
 
 void
