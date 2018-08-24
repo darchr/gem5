@@ -399,6 +399,15 @@ class SDCPUThread : public ThreadContext
 
     // END Internal functions
 
+    // BEGIN statistics
+
+    Counter numInsts = 0;
+    Counter numOps = 0;
+    Stats::Scalar numInstsStat;
+    Stats::Scalar numOpsStat;
+
+    // END Statistics
+
   public:
 
     // Fullsystem mode constructor
@@ -492,8 +501,14 @@ class SDCPUThread : public ThreadContext
     void takeOverFrom(ThreadContext *oldContext) override
     { _committedState->takeOverFrom(oldContext); }
 
-    void regStats(const std::string &name) override
-    { _committedState->regStats(name); }
+    /**
+     * Register thread-specific stats.
+     * The BaseCPU calls this function in its regStats with the thread-
+     * specific name
+     *
+     * @param name from the CPU for this thread
+     */
+    void regStats(const std::string &name) override;
 
     EndQuiesceEvent *getQuiesceEvent() override
     { return _committedState->getQuiesceEvent(); }

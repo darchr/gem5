@@ -193,7 +193,27 @@ SDCPUThread::commitInstruction(std::shared_ptr<InflightInst> inst_ptr)
     DPRINTF(SDCPUInstEvent,
             "Committing instruction (seq %d)\n", inst_ptr->seqNum());
 
+    System *system = getSystemPtr();
+
+    // Check for any PC events (e.g., breakpoints)
+    Addr pc = instAddr();
+    Addr M5_VAR_USED oldpc = pc;
+    system->pcEventQueue.service(this);
+    assert(oldpc == pc); // We currently don't handle the case where we
+                         // shouldn't commit this instruction
+
     inst_ptr->commitToTC();
+
+    if (!inst_ptr->staticInst()->isMicroop() ||
+           inst_ptr->staticInst()->isLastMicroop()) {
+        numInstsStat++;
+        numInsts++;
+        system->totalNumInsts++;
+        system->instEventQueue.serviceEvents(system->totalNumInsts);
+        getCpuPtr()->comInstEventQueue[threadId()]->serviceEvents(numInsts);
+    }
+    numOpsStat++;
+    numOps++;
 
     lastCommittedInstNum = inst_ptr->seqNum();
 }
@@ -929,4 +949,20 @@ SDCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
     }
 
     return NoFault;
+}
+
+void
+SDCPUThread::regStats(const std::string &name)
+{
+    _committedState->regStats(name);
+
+    numInstsStat
+        .name(name + ".numInsts")
+        .desc("Total number of instructions committed")
+        ;
+
+    numOpsStat
+        .name(name + ".numOps")
+        .desc("Total number of micro-ops committed")
+        ;
 }
