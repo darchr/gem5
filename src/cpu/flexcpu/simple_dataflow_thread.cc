@@ -366,6 +366,12 @@ SDCPUThread::onBeginFetch(weak_ptr<InflightInst> inst)
     ++outstandingFetches;
 
     // TODO check for interrupts
+    // NOTE: You cannot take an interrupt in the middle of a macro-op.
+    //      (How would you recover the architectural state since you are in a
+    //       non-architectural state during a macro-op?)
+    //      Thus, we must check instruction->isDelayedCommit() and make sure
+    //      that interrupts only happen after an instruction *without* the
+    //      isDelayedCommit flag is committed.
     // TODO something something PCEventQueue?
 
     TheISA::PCState pc_value = inst_ptr->pcState();
