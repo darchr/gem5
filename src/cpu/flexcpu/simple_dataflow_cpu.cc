@@ -170,7 +170,7 @@ SimpleDataflowCPU::completeExecution(const ExecutionReq& req)
     const shared_ptr<ExecContext> ctxt = req.execContext.lock();
 
     Fault fault = ctxt ?
-                  req.staticInst->execute(ctxt.get(), nullptr) :
+                  req.staticInst->execute(ctxt.get(), req.traceData) :
                   NoFault;
 
     req.callback(fault);
@@ -203,7 +203,7 @@ SimpleDataflowCPU::completeMemAccess(const MemAccessReq& req)
     const shared_ptr<ExecContext> ctxt = req.execContext.lock();
 
     Fault fault = ctxt ?
-        req.staticInst->completeAcc(pkt, ctxt.get(), nullptr) : NoFault;
+        req.staticInst->completeAcc(pkt, ctxt.get(), req.traceData) : NoFault;
 
     if (req.split) {
         // The packets we actually sent to memory are deleted by recvTimingResp
@@ -273,13 +273,14 @@ SimpleDataflowCPU::requestDataAddrTranslation(const RequestPtr& req,
 bool
 SimpleDataflowCPU::requestExecution(StaticInstPtr inst,
                                     weak_ptr<ExecContext> context,
+                                    Trace::InstRecord* trace_data,
                                     ExecCallback callback_func)
 {
     DPRINTF(SDCPUCoreEvent, "requestExecution()\n");
 
     // Right now we're not limiting execution units, so we just execute all
     // instructions as soon as possible
-    beginExecution({inst, context, callback_func});
+    beginExecution({inst, context, trace_data, callback_func});
 
     return true;
 }
@@ -347,6 +348,7 @@ bool
 SimpleDataflowCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
                                   StaticInstPtr inst,
                                   weak_ptr<ExecContext> context,
+                                  Trace::InstRecord* trace_data,
                                   MemCallback callback_func)
 {
     DPRINTF(SDCPUCoreEvent, "requestMemRead()\n");
@@ -371,7 +373,9 @@ SimpleDataflowCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
         return false;
     }
 
-    memReqs.push_back({pkt, inst, context, tc, callback_func, nullptr});
+    memReqs.push_back(
+        {pkt, inst, context, trace_data, tc, callback_func, nullptr}
+    );
     attemptAllMemReqs();
     return true;
 }
@@ -380,6 +384,7 @@ bool
 SimpleDataflowCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
                                    StaticInstPtr inst,
                                    weak_ptr<ExecContext> context,
+                                   Trace::InstRecord* trace_data,
                                    uint8_t* data, MemCallback callback_func)
 {
     DPRINTF(SDCPUCoreEvent, "requestMemWrite()\n");
@@ -415,7 +420,9 @@ SimpleDataflowCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
         return false;
     }
 
-    memReqs.push_back({pkt, inst, context, tc, callback_func, nullptr});
+    memReqs.push_back(
+        {pkt, inst, context, trace_data, tc, callback_func, nullptr}
+    );
     attemptAllMemReqs();
     return true;
 }
@@ -426,6 +433,7 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
                                        const RequestPtr& high,
                                        ThreadContext* tc, StaticInstPtr inst,
                                        weak_ptr<ExecContext> context,
+                                       Trace::InstRecord* trace_data,
                                        MemCallback callback_func)
 {
     // Request can be handled immediately
@@ -445,10 +453,10 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
     split_acc->high->dataStatic(split_acc->main->getPtr<uint8_t>()
                                 + low->getSize());
 
-    memReqs.push_back({split_acc->low, inst, context, tc, callback_func,
-                       split_acc});
-    memReqs.push_back({split_acc->high, inst, context, tc, callback_func,
-                       split_acc});
+    memReqs.push_back({split_acc->low, inst, context, trace_data, tc,
+                       callback_func, split_acc});
+    memReqs.push_back({split_acc->high, inst, context, trace_data, tc,
+                       callback_func, split_acc});
     attemptAllMemReqs();
 
     return true;
@@ -460,6 +468,7 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
                                         const RequestPtr& high,
                                         ThreadContext* tc, StaticInstPtr inst,
                                         weak_ptr<ExecContext> context,
+                                        Trace::InstRecord* trace_data,
                                         uint8_t* data,
                                         MemCallback callback_func)
 {
@@ -491,10 +500,10 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
         panic("Should be unreachable...");
     }
 
-    memReqs.push_back({split_acc->low, inst, context, tc, callback_func,
-                       split_acc});
-    memReqs.push_back({split_acc->high, inst, context, tc, callback_func,
-                       split_acc});
+    memReqs.push_back({split_acc->low, inst, context, trace_data, tc,
+                       callback_func, split_acc});
+    memReqs.push_back({split_acc->high, inst, context, trace_data, tc,
+                       callback_func, split_acc});
     attemptAllMemReqs();
 
 
