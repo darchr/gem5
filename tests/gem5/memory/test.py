@@ -31,6 +31,8 @@ Test file for simple memory test
 '''
 from testlib import *
 
+ref_path = joinpath(getcwd(), 'ref')
+
 gem5_verify_config(
     name='simple_mem_default',
     verifiers=(), # No need for verfiers this will return non-zero on fail
@@ -60,3 +62,10 @@ for p in simple_mem_params:
         valid_isas=(constants.null_tag,),
     )
 
+gem5_verify_config(
+    name='memtest',
+    verifiers=(verifier.MatchStderr(joinpath(ref_path, 'memtest.stderr')),),
+    config=joinpath(getcwd(), 'memtest-run.py'),
+    config_args = [],
+    valid_isas=(constants.null_tag,),
+)
