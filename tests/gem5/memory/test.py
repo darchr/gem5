@@ -1,4 +1,4 @@
-# Copyright (c) 2018 The Regents of the University of California.
+# Copyright (c) 2016 The Regents of the University of California.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,8 @@ Test file for simple memory test
 '''
 from testlib import *
 
+ref_path = joinpath(getcwd(), 'ref')
+
 gem5_verify_config(
     name='simple_mem_default',
     verifiers=(), # No need for verfiers this will return non-zero on fail
@@ -58,5 +60,12 @@ for p in simple_mem_params:
         config=joinpath(getcwd(), 'simple-run.py'),
         config_args = args,
         valid_isas=(constants.null_tag,),
-    )
+        ) # This tests for validity as well as performance
 
+gem5_verify_config(
+    name='memtest',
+    verifiers=(verifier.MatchStderr(joinpath(ref_path, 'memtest.stderr')),),
+    config=joinpath(getcwd(), 'memtest-run.py'),
+    config_args = [],
+    valid_isas=(constants.null_tag,),
+)
