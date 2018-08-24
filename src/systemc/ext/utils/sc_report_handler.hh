@@ -68,6 +68,10 @@ class sc_report_handler
     static void report(sc_severity, const char *msg_type, const char *msg,
                        int verbosity, const char *file, int line);
 
+    // Deprecated
+    static void report(sc_severity, int id, const char *msg, const char *file,
+                       int line);
+
     static sc_actions set_actions(sc_severity, sc_actions=SC_UNSPECIFIED);
     static sc_actions set_actions(const char *msg_type,
                                   sc_actions=SC_UNSPECIFIED);
@@ -90,6 +94,9 @@ class sc_report_handler
     static sc_actions suppress();
     static sc_actions force(sc_actions);
     static sc_actions force();
+
+    static sc_actions set_catch_actions(sc_actions);
+    static sc_actions get_catch_actions();
 
     static void set_handler(sc_report_handler_proc);
     static void default_handler(const sc_report &, const sc_actions &);

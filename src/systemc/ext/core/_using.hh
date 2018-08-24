@@ -87,6 +87,7 @@ using sc_core::SC_BIND_PROXY_NIL;
 using sc_core::sc_module;
 using sc_core::next_trigger;
 using sc_core::wait;
+using sc_core::halt;
 using sc_core::sc_gen_unique_name;
 using sc_core::sc_behavior;
 using sc_core::sc_channel;
@@ -139,5 +140,7 @@ using sc_core::SC_ZERO_TIME;
 using sc_core::sc_set_time_resolution;
 using sc_core::sc_get_time_resolution;
 using sc_core::sc_max_time;
+using sc_core::sc_get_default_time_unit;
+using sc_core::sc_set_default_time_unit;
 
 #endif  //__SYSTEMC_EXT_CORE__USING_HH__

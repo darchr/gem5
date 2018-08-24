@@ -277,6 +277,25 @@ sc_event::cancel()
     warn("%s not implemented.\n", __PRETTY_FUNCTION__);
 }
 
+bool
+sc_event::triggered() const
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return false;
+}
+
+void
+sc_event::notify_delayed()
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+}
+
+void
+sc_event::notify_delayed(const sc_time &)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+}
+
 sc_event_and_expr
 sc_event::operator & (const sc_event &) const
 {

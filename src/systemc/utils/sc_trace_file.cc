@@ -221,6 +221,30 @@ sc_trace(sc_trace_file *, const sc_dt::sc_fxnum_fast *, const std::string &)
 }
 
 void
+sc_trace(sc_trace_file *, const sc_event &, const std::string &)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+}
+
+void
+sc_trace(sc_trace_file *, const sc_event *, const std::string &)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+}
+
+void
+sc_trace(sc_trace_file *, const sc_time &, const std::string &)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+}
+
+void
+sc_trace(sc_trace_file *, const sc_time *, const std::string &)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+}
+
+void
 sc_trace(sc_trace_file *, const unsigned char &,
          const std::string &, int width)
 {
@@ -379,6 +403,12 @@ sc_trace(sc_trace_file *, const sc_signal_in_if<long> &,
 void
 sc_trace(sc_trace_file *, const unsigned int &,
          const std::string &, const char **enum_literals)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+}
+
+void
+sc_trace_delta_cycles(sc_trace_file *, bool on)
 {
     warn("%s not implemented.\n", __PRETTY_FUNCTION__);
 }
