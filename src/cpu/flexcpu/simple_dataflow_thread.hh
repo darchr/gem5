@@ -401,8 +401,12 @@ class SDCPUThread : public ThreadContext
 
     // BEGIN statistics
 
+    /// Total number of instructions committed
     Counter numInsts = 0;
+    /// Total number of micro-ops committed. This is inclusive of instructions
     Counter numOps = 0;
+
+    /// Statistics for tracking the above
     Stats::Scalar numInstsStat;
     Stats::Scalar numOpsStat;
 
@@ -432,6 +436,16 @@ class SDCPUThread : public ThreadContext
     { return _name; }
 
     void startup();
+
+    /**
+     * @return the number of instructions this thread has committed
+     */
+    Counter getNumInsts() { return numInsts; }
+
+    /**
+     * @return the number macro-ops and instructions this thread has committed
+     */
+    Counter getNumOps() { return numOps; }
 
     // BEGIN ThreadContext functions
 

@@ -536,13 +536,21 @@ SimpleDataflowCPU::takeOverFrom(BaseCPU* cpu)
 Counter
 SimpleDataflowCPU::totalInsts() const
 {
-    return 0; // TODO actually get a count of total instructions
+    Counter insts = 0;
+    for (auto &thread : threads) {
+        insts += thread->getNumInsts();
+    }
+    return insts;
 }
 
 Counter
 SimpleDataflowCPU::totalOps() const
 {
-    return 0; // TODO actually get a count of total operations
+    Counter ops = 0;
+    for (auto &thread : threads) {
+        ops += thread->getNumOps();
+    }
+    return ops;
 }
 
 void
