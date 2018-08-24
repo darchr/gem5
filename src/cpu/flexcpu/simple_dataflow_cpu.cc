@@ -248,7 +248,7 @@ SimpleDataflowCPU::init()
 
 bool
 SimpleDataflowCPU::requestDataAddrTranslation(const RequestPtr& req,
-    ThreadContext* tc,
+    ThreadContext* tc, bool write,
     TranslationCallback callback_func)
 {
     DPRINTF(SDCPUCoreEvent, "requestDataAddrTranslation()\n");
@@ -264,21 +264,8 @@ SimpleDataflowCPU::requestDataAddrTranslation(const RequestPtr& req,
     BaseTLB::Translation* handler = new CallbackTransHandler(callback_func,
                                                              true);
 
-    // Call the translateTiming() function in a separate event, in order to
-    // guarantee that this request function will return before the callback
-    // function is called. The reason this is necessary to make that guarantee
-    // is that the TLB may immediatelly call finish on the handler object if
-    // the TLB has the translation available. In that case, we still want
-    // finish to be called after this function returns, so we delay it by zero
-    // ticks, just to put it at the end of the event queue.
-
-    // We may not actually need to make that guarantee though, so I'm
-    // commenting it out for now.
-    // EventFunctionWrapper* translate_event = new EventFunctionWrapper(
-    //     [itb, req, tc, handler]() {
-    dtb->translateTiming(req, tc, handler, BaseTLB::Execute);
-    //     }, name() + ".translate_event", true);
-    // schedule(translate_event, curTick());
+    dtb->translateTiming(req, tc, handler,
+                         write ? BaseTLB::Write : BaseTLB::Read);
 
     return true;
 }

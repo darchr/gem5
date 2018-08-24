@@ -793,14 +793,14 @@ SDCPUThread::MemIface::initiateMemRead(shared_ptr<InflightInst> inst_ptr,
                                              nullptr, split_acc, true);
         };
 
-        if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req1, tc,
+        if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req1, tc, false,
                                                              callback1)) {
             panic("The CPU rejected my dtb request and I haven't been"
                   " programmed to know how to continue!!!");
             // TODO request later
         }
 
-        if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req2, tc,
+        if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req2, tc, false,
                                                              callback2)) {
             panic("The CPU rejected my dtb request and I haven't been"
                   " programmed to know how to continue!!!");
@@ -816,7 +816,8 @@ SDCPUThread::MemIface::initiateMemRead(shared_ptr<InflightInst> inst_ptr,
                                          nullptr);
     };
 
-    if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req, tc, callback)) {
+    if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req, tc, false,
+                                                         callback)) {
         panic("The CPU rejected my dtb request and I haven't been programmed"
               " to know how to continue!!!");
         // TODO request later
@@ -887,14 +888,14 @@ SDCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
         };
 
 
-        if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req1, tc,
+        if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req1, tc, true,
                                                              callback1)) {
             panic("The CPU rejected my dtb request and I haven't been"
                   " programmed to know how to continue!!!");
             // TODO request later
         }
 
-        if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req2, tc,
+        if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req2, tc, true,
                                                              callback2)) {
             panic("The CPU rejected my dtb request and I haven't been"
                   " programmed to know how to continue!!!");
@@ -920,7 +921,8 @@ SDCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
         delete [] copy;
     };
 
-    if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req, tc, callback)) {
+    if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req, tc, true,
+                                                         callback)) {
         panic("The CPU rejected my dtb request and I haven't been programmed"
               " to know how to continue!!!");
         // TODO make another request later

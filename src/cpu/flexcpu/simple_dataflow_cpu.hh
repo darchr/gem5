@@ -285,6 +285,7 @@ class SimpleDataflowCPU : public BaseCPU
      *  address we want translated
      * @param tc A pointer to the ThreadContext for the request, since the dtb
      *  is specific to a thread
+     * @param write Whether this is a translation for a write (if not, a read)
      * @param callback_func The function reference for purposes of handling the
      *  result of the translation
      *
@@ -293,6 +294,7 @@ class SimpleDataflowCPU : public BaseCPU
      *  to be called in the future.
      */
     bool requestDataAddrTranslation(const RequestPtr& req, ThreadContext* tc,
+                                    bool write,
                                     TranslationCallback callback_func);
 
     // TODO maybe we just need a generic requestInstSquash function to squash
