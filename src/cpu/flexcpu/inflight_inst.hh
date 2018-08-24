@@ -39,6 +39,7 @@
 #include "cpu/exec_context.hh"
 #include "cpu/flexcpu/generic_reg.hh"
 #include "cpu/reg_class.hh"
+#include "sim/insttracer.hh"
 
 class InflightInst : public ExecContext,
                      public std::enable_shared_from_this<InflightInst>
@@ -116,6 +117,8 @@ class InflightInst : public ExecContext,
      */
     PCState _pcState;
 
+    Trace::InstRecord* _traceData;
+
     std::vector<std::function<void()>> commitCallbacks;
 
     // Who depends on me?
@@ -156,6 +159,11 @@ class InflightInst : public ExecContext,
                  const TheISA::PCState& pc_,
                  StaticInstPtr inst_ref = StaticInst::nullStaticInstPtr);
 
+    // Unimplemented copy due to presence of raw pointers.
+    InflightInst(const InflightInst& other) = delete;
+
+    virtual ~InflightInst();
+
     void addCommitCallback(std::function<void()> callback);
     void addCommitDependency(std::shared_ptr<InflightInst> parent);
     void addCompletionCallback(std::function<void()> callback);
@@ -191,10 +199,6 @@ class InflightInst : public ExecContext,
         panic_if(!resultValid[result_idx], "Tried to access invalid result!");
         return results[result_idx];
     }
-
-    inline const StaticInstPtr& staticInst() const
-    { return instRef; }
-    const StaticInstPtr& staticInst(const StaticInstPtr& inst_ref);
 
     inline bool isCommitted() const
     { return status() == Committed; }
@@ -270,6 +274,10 @@ class InflightInst : public ExecContext,
     inline void squash()
     { status(Squashed); }
 
+    inline const StaticInstPtr& staticInst() const
+    { return instRef; }
+    const StaticInstPtr& staticInst(const StaticInstPtr& inst_ref);
+
     /**
      * Ask the InflightInst what its current status is
      */
@@ -281,6 +289,11 @@ class InflightInst : public ExecContext,
      */
     inline Status status(Status status)
     { return _status = status; }
+
+    inline Trace::InstRecord* traceData() const
+    { return _traceData; }
+    inline Trace::InstRecord* traceData(Trace::InstRecord* const trace_data)
+    { return _traceData = trace_data; }
 
 
     // BEGIN ExecContext interface functions

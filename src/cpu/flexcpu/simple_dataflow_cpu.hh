@@ -148,6 +148,7 @@ class SimpleDataflowCPU : public BaseCPU
     {
         StaticInstPtr staticInst;
         std::weak_ptr<ExecContext> execContext;
+        Trace::InstRecord* traceData;
         ExecCallback callback;
     };
 
@@ -170,6 +171,7 @@ class SimpleDataflowCPU : public BaseCPU
         PacketPtr packet;
         StaticInstPtr staticInst;
         std::weak_ptr<ExecContext> execContext;
+        Trace::InstRecord* traceData;
         ThreadContext* tc;
         MemCallback callback;
 
@@ -325,6 +327,7 @@ class SimpleDataflowCPU : public BaseCPU
      */
     bool requestExecution(StaticInstPtr inst,
                           std::weak_ptr<ExecContext> context,
+                          Trace::InstRecord* trace_data,
                           ExecCallback callback_func);
 
     /**
@@ -385,6 +388,7 @@ class SimpleDataflowCPU : public BaseCPU
      */
     bool requestMemRead(const RequestPtr& req, ThreadContext* tc,
                         StaticInstPtr inst, std::weak_ptr<ExecContext> context,
+                        Trace::InstRecord* trace_data,
                         MemCallback callback_func);
 
     /**
@@ -411,7 +415,8 @@ class SimpleDataflowCPU : public BaseCPU
      */
     bool requestMemWrite(const RequestPtr& req, ThreadContext* tc,
                          StaticInstPtr inst,
-                         std::weak_ptr<ExecContext> context, uint8_t* data,
+                         std::weak_ptr<ExecContext> context,
+                         Trace::InstRecord* trace_data, uint8_t* data,
                          MemCallback callback_func);
 
     /**
@@ -442,6 +447,7 @@ class SimpleDataflowCPU : public BaseCPU
                              const RequestPtr& high, ThreadContext* tc,
                              StaticInstPtr inst,
                              std::weak_ptr<ExecContext> context,
+                             Trace::InstRecord* trace_data,
                              MemCallback callback_func);
 
     /**
@@ -475,6 +481,7 @@ class SimpleDataflowCPU : public BaseCPU
                               const RequestPtr& high, ThreadContext* tc,
                               StaticInstPtr inst,
                               std::weak_ptr<ExecContext> context,
+                              Trace::InstRecord* trace_data,
                               uint8_t* data, MemCallback callback_func);
 
     /**

@@ -216,6 +216,13 @@ SDCPUThread::commitInstruction(std::shared_ptr<InflightInst> inst_ptr)
     numOps++;
 
     lastCommittedInstNum = inst_ptr->seqNum();
+
+    Trace::InstRecord* const trace_data = inst_ptr->traceData();
+    if (trace_data) {
+        trace_data->setFetchSeq(lastCommittedInstNum);
+        trace_data->setCPSeq(lastCommittedInstNum);
+        trace_data->dump();
+    }
 }
 
 void
@@ -235,7 +242,7 @@ SDCPUThread::executeInstruction(weak_ptr<InflightInst> inst)
                             inst_ptr->seqNum());
 
     if (static_inst->isMemRef()) {
-        static_inst->initiateAcc(inst_ptr.get(), nullptr);
+        static_inst->initiateAcc(inst_ptr.get(), inst_ptr->traceData());
         // This will result in a corresponding call to either
         // MemIFace::initiateMemRead() or MemIFace::writeMem(), depending on
         // whether the access is a write or read.
@@ -246,6 +253,7 @@ SDCPUThread::executeInstruction(weak_ptr<InflightInst> inst)
 
         _cpuPtr->requestExecution(static_inst,
                                   static_pointer_cast<ExecContext>(inst_ptr),
+                                  inst_ptr->traceData(),
                                   callback);
     }
 }
@@ -308,6 +316,15 @@ SDCPUThread::issueInstruction(weak_ptr<InflightInst> inst)
 
     DPRINTF(SDCPUInstEvent, "Issuing instruction (seq %d)\n",
                             inst_ptr->seqNum());
+
+#if TRACING_ON
+    // Calls new, must delete eventually.
+    inst_ptr->traceData(
+        _cpuPtr->getTracer()->getInstRecord(curTick(), this,
+                inst_ptr->staticInst(), inst_ptr->pcState(), curMacroOp));
+#else
+    inst_ptr->traceData(nullptr);
+#endif
 
     populateDependencies(inst_ptr);
     populateUses(inst_ptr);
@@ -453,7 +470,8 @@ SDCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
             if (write) {
                 if (!_cpuPtr->requestSplitMemWrite(sreq->main, sreq->low,
                         sreq->high, getThreadContext(), inst_ptr->staticInst(),
-                        static_pointer_cast<ExecContext>(inst_ptr), data,
+                        static_pointer_cast<ExecContext>(inst_ptr),
+                        inst_ptr->traceData(), data,
                         callback)) {
                     panic("The CPU rejected my mem access request and I "
                           "haven't been programmed to know how to "
@@ -463,6 +481,7 @@ SDCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
                 if (!_cpuPtr->requestSplitMemRead(sreq->main, sreq->low,
                         sreq->high, getThreadContext(), inst_ptr->staticInst(),
                         static_pointer_cast<ExecContext>(inst_ptr),
+                        inst_ptr->traceData(),
                         callback)) {
                     panic("The CPU rejected my mem access request and I "
                           "haven't been programmed to know how to "
@@ -477,7 +496,8 @@ SDCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
     if (write) {
         if (!_cpuPtr->requestMemWrite(req, getThreadContext(),
                 inst_ptr->staticInst(),
-                static_pointer_cast<ExecContext>(inst_ptr), data, callback)) {
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(), data, callback)) {
             panic("The CPU rejected my mem access request and I haven't been "
                   "programmed to know how to continue!!!");
         }
@@ -485,7 +505,7 @@ SDCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
         if (!_cpuPtr->requestMemRead(req, getThreadContext(),
                 inst_ptr->staticInst(),
                 static_pointer_cast<ExecContext>(inst_ptr),
-                callback)) {
+                inst_ptr->traceData(), callback)) {
             panic("The CPU rejected my mem access request and I haven't been "
                   "programmed to know how to continue!!!");
         }

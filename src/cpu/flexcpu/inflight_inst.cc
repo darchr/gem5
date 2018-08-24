@@ -56,6 +56,11 @@ InflightInst::InflightInst(ThreadContext* backing_context,
     staticInst(inst_ref);
 }
 
+InflightInst::~InflightInst()
+{
+    if (_traceData) delete _traceData;
+}
+
 void
 InflightInst::addCommitCallback(function<void()> callback)
 {
@@ -601,6 +606,7 @@ InflightInst::initiateMemRead(Addr addr, unsigned int size,
                               Request::Flags flags)
 {
     if (backingMemoryInterface) {
+        if (_traceData) _traceData->setMem(addr, size, flags);
         return backingMemoryInterface->initiateMemRead(shared_from_this(),
                                                        addr, size, flags);
     } else {
@@ -614,6 +620,7 @@ InflightInst::writeMem(uint8_t* data, unsigned int size, Addr addr,
                        Request::Flags flags, uint64_t* res)
 {
     if (backingMemoryInterface) {
+        if (_traceData) _traceData->setMem(addr, size, flags);
         return backingMemoryInterface->writeMem(shared_from_this(), data, size,
                                                 addr, flags, res);
     } else {
@@ -677,6 +684,7 @@ void
 InflightInst::setPredicate(bool val)
 {
     panic("setPredicate() not implemented!");
+    if (_traceData) _traceData->setPredicate(val);
     // TODO
 }
 
