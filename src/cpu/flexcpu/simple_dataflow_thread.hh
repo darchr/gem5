@@ -437,6 +437,8 @@ class SDCPUThread : public ThreadContext
 
     void startup();
 
+    // BEGIN Statistics
+
     /**
      * @return the number of instructions this thread has committed
      */
@@ -446,6 +448,9 @@ class SDCPUThread : public ThreadContext
      * @return the number macro-ops and instructions this thread has committed
      */
     Counter getNumOps() { return numOps; }
+
+    // END Statistics
+
 
     // BEGIN ThreadContext functions
 
