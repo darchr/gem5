@@ -58,6 +58,9 @@ namespace sc_core
 template <class T>
 class sc_signal_in_if;
 
+class sc_event;
+class sc_time;
+
 class sc_trace_file
 {
   public:
@@ -108,6 +111,14 @@ void sc_trace(sc_trace_file *, const sc_dt::sc_fxnum_fast *,
               const std::string &);
 
 
+// Nonstandard
+// sc_trace overloads for sc_event and sc_time.
+void sc_trace(sc_trace_file *, const sc_event &, const std::string &);
+void sc_trace(sc_trace_file *, const sc_event *, const std::string &);
+void sc_trace(sc_trace_file *, const sc_time &, const std::string &);
+void sc_trace(sc_trace_file *, const sc_time *, const std::string &);
+
+
 // Nonstandard - unsigned versions necessary to avoid ambiguous overload
 // resolution.
 void sc_trace(sc_trace_file *, const unsigned char &,
@@ -155,6 +166,9 @@ void sc_trace(sc_trace_file *, const sc_dt::uint64 *,
 // Nonstandard function for enums
 void sc_trace(sc_trace_file *, const unsigned int &,
               const std::string &, const char **enum_literals);
+
+// Deprecated
+void sc_trace_delta_cycles(sc_trace_file *, bool on=true);
 
 template <class T>
 void
