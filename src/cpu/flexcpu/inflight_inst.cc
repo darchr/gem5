@@ -151,6 +151,8 @@ InflightInst::commitToTC()
     for (size_t i = 0; i < miscResultIdxs.size(); i++)
         backingISA->setMiscReg(
             miscResultIdxs[i], miscResultVals[i], backingContext);
+
+    backingContext->getCpuPtr()->probeInstCommit(instRef);
 }
 
 void
