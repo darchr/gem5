@@ -29,13 +29,20 @@
 
 from BaseCPU import BaseCPU
 from m5.params import *
+from m5.proxy import *
 
 class SimpleDataflowCPU(BaseCPU):
     type = 'SimpleDataflowCPU'
     cxx_header = 'cpu/flexcpu/simple_dataflow_cpu.hh'
 
+    fetch_buffer_size = Param.Unsigned(Parent.cache_line_size,
+                                       "Size of fetch buffer in bytes. "
+                                       "Also determines size of fetch "
+                                       "requests. Should not be larger than a "
+                                       "cache line.")
+
     strict_serialization = Param.Bool(True, "Controls behavior of serializing "
-                                            "flags on instructions")
+                                            "flags on instructions.")
 
     @classmethod
     def memory_mode(cls):

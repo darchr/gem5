@@ -147,14 +147,25 @@ class SDCPUThread : public ThreadContext
     // BEGIN Speculative state
 
     /**
+     * An internal buffer for each thread, to hold the data from memory, so one
+     * request can produce many instructions.
+     */
+    std::vector<uint8_t> fetchBuf;
+    /**
+     * Where the fetchBuf lies. Assumes 0(NULL) means invalid.
+     */
+    Addr fetchBufBase = 0;
+    /**
+     * Mask variable to align addresses to fetch buffer size.
+     */
+    const Addr fetchBufMask;
+    // NOTE: Need to be able to flag above variables busy, if more than one
+    //       fetch is allowed to be active and using this cache at once.
+
+    /**
      * For use when we need to fetch multiple MachInsts for one decode.
      */
     Addr fetchOffset = 0;
-
-    /**
-     * Number of fetch actions we have begun and not finished at this time
-     */
-    size_t outstandingFetches = 0;
 
     /**
      * We hold onto any macroop StaticInstPtrs we detect, to serve as providers
@@ -194,11 +205,29 @@ class SDCPUThread : public ThreadContext
 
     /**
      * Entry point to begin work on a new instruction. Will also begin any
-     * related events, such as onBeginFetch to kick off any upcoming tasks
+     * related events, such as attemptFetch to kick off any upcoming tasks
      * necessary to complete that instruction. May issue an instruction
      * immediately if no new information is needed to set up a new instruction.
      */
     void advanceInst();
+
+    /**
+     * Entry point to fetch functionality. May be called more than once for a
+     * particular instruction, due to instructions spanning across fetch
+     * boundaries.
+     *
+     * @param inst A reference to the in-flight instruction object for which to
+     *  request fetch data.
+     */
+    void attemptFetch(std::weak_ptr<InflightInst> inst);
+
+    /**
+     * Takes the response data from the CPU and stores it into the fetch buffer
+     *
+     * @param data Pointer to data from the CPU. Assumed to be as large as the
+     *  fetch buffer.
+     */
+    void bufferInstructionData(Addr vaddr, uint8_t* data);
 
     /**
      * Utility function for iterating through the in-flight instruction table
@@ -278,16 +307,6 @@ class SDCPUThread : public ThreadContext
     void markFault(std::shared_ptr<InflightInst> inst, Fault fault);
 
     /**
-     * Entry point to fetch functionality. May be called more than once for a
-     * particular instruction, due to instructions spanning across fetch
-     * boundaries.
-     *
-     * @param inst A reference to the in-flight instruction object for which to
-     *  request fetch data.
-     */
-    void onBeginFetch(std::weak_ptr<InflightInst> inst);
-
-    /**
      * This function serves as the event handler for when the CPU has completed
      * the translation we requested for an instruction that does memory access.
      *
@@ -341,23 +360,24 @@ class SDCPUThread : public ThreadContext
     void onExecutionCompleted(std::weak_ptr<InflightInst> inst, Fault fault);
 
     /**
-     * This function serves as the event handler for when the CPU has provided
-     * us with the data we requested to be fetched.
+     * This function serves as the event handler for when the data we requested
+     * to be fetched is available.
      *
-     * This function should be called after onPCTranslated().
+     * This function should be called after attemptFetch().
      *
      * @param inst A reference to the in-flight instruction object for which to
      *  handle new instruction data.
-     * @param fetch_data The chunk of data that was fetched from memory.
+     * @param fetch_data The chunk of data that was fetched.
      */
     void onInstDataFetched(std::weak_ptr<InflightInst> inst,
-                              const TheISA::MachInst fetch_data);
+                           const MachInst fetch_data);
 
     /**
      * This function serves as the event handler for when the CPU has completed
      * the translation we requested for fetching purposes.
      *
-     * This function should be called after onBeginFetch().
+     * This function should be called after attemptFetch(), if we need to
+     * access memory.
      *
      * @param inst A reference to the in-flight instruction object for which to
      *  handle the given translation.
@@ -417,12 +437,14 @@ class SDCPUThread : public ThreadContext
     // Fullsystem mode constructor
     SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_, System* system_,
                      BaseTLB* itb_, BaseTLB* dtb_, TheISA::ISA* isa_,
-                     bool use_kernel_stats_, bool strict_ser);
+                     bool use_kernel_stats_, unsigned fetch_buf_size,
+                     bool strict_ser);
 
     // Non-fullsystem constructor
     SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_, System* system_,
                      Process* process_, BaseTLB* itb_, BaseTLB* dtb_,
-                     TheISA::ISA* isa_, bool strict_ser);
+                     TheISA::ISA* isa_, unsigned fetch_buf_size,
+                     bool strict_ser);
 
     // May need to define move constructor, due to how SimpleThread is defined,
     // if we want to hold instances of these in a vector instead of pointers

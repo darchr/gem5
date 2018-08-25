@@ -52,6 +52,7 @@ SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
         // the SimpleCPU implementations have.
         threads.push_back(m5::make_unique<SDCPUThread>(this, i, params->system,
             params->workload[i], params->itb, params->dtb, params->isa[i],
+            params->fetch_buffer_size,
             params->strict_serialization));
 
         threadContexts.push_back(threads[i]->getThreadContext());
@@ -609,13 +610,12 @@ SimpleDataflowCPU::InstPort::recvTimingResp(PacketPtr pkt)
         "Received an instruction port response we don't remember sending!");
 
     const FetchCallback& callback = cpu->outstandingFetches[pkt];
-    MachInst data = *(pkt->getPtr<MachInst>());
 
     // Right now, this function is assuming that the request function will set
     // up the callback in a way that cleans up after itself. Since this
     // function never calls new, we don't explicitly manage pointer lifespan
     // here.
-    callback(data);
+    callback(pkt->getPtr<uint8_t>());
 
     cpu->outstandingFetches.erase(pkt);
     delete pkt;
