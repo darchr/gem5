@@ -45,31 +45,42 @@ using namespace std;
 SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                     System* system_, BaseTLB* itb_, BaseTLB* dtb_,
                     TheISA::ISA* isa_, bool use_kernel_stats_,
-                    bool strict_ser):
+                    unsigned fetch_buf_size, bool strict_ser):
     memIface(*this),
     _cpuPtr(cpu_),
     _name(cpu_->name() + ".thread" + to_string(tid_)),
     strictSerialize(strict_ser),
     _committedState(new SimpleThread(cpu_, tid_, system_, itb_, dtb_, isa_,
                                      use_kernel_stats_)),
-    isa(isa_)
+    isa(isa_),
+    fetchBuf(vector<uint8_t>(fetch_buf_size)),
+    fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1))
 {
-    //
+    panic_if(fetch_buf_size % sizeof(TheISA::MachInst) != 0,
+             "Fetch buffer size should be multiple of instruction size!");
+    panic_if(fetch_buf_size > _cpuPtr->cacheLineSize(),
+             "Can't send fetch requests larger than cache lines!");
 }
 
 // Non-fullsystem constructor
 SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                     System* system_, Process* process_, BaseTLB* itb_,
-                    BaseTLB* dtb_, TheISA::ISA* isa_, bool strict_ser):
+                    BaseTLB* dtb_, TheISA::ISA* isa_, unsigned fetch_buf_size,
+                    bool strict_ser):
     memIface(*this),
     _cpuPtr(cpu_),
     _name(cpu_->name() + ".thread" + to_string(tid_)),
     strictSerialize(strict_ser),
     _committedState(new SimpleThread(cpu_, tid_, system_, process_, itb_, dtb_,
                                      isa_)),
-    isa(isa_)
+    isa(isa_),
+    fetchBuf(vector<uint8_t>(fetch_buf_size)),
+    fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1))
 {
-    //
+    panic_if(fetch_buf_size % sizeof(TheISA::MachInst) != 0,
+             "Fetch buffer size should be multiple of instruction size!");
+    panic_if(fetch_buf_size > _cpuPtr->cacheLineSize(),
+             "Can't send fetch requests larger than cache lines!");
 }
 
 SDCPUThread::~SDCPUThread()
@@ -158,7 +169,96 @@ SDCPUThread::advanceInst()
     inflightInsts.push_back(dynamic_inst_ptr);
 
     fetchOffset = 0;
-    onBeginFetch(weak_ptr<InflightInst>(dynamic_inst_ptr));
+    attemptFetch(weak_ptr<InflightInst>(dynamic_inst_ptr));
+}
+
+void
+SDCPUThread::attemptFetch(weak_ptr<InflightInst> inst)
+{
+    const shared_ptr<InflightInst> inst_ptr = inst.lock();
+    if (!inst_ptr || inst_ptr->isSquashed()) {
+        // No need to do anything for an instruction that has been squashed.
+        return;
+    }
+
+    DPRINTF(SDCPUThreadEvent, "attemptFetch()\n");
+
+    // TODO check for interrupts
+    // NOTE: You cannot take an interrupt in the middle of a macro-op.
+    //      (How would you recover the architectural state since you are in a
+    //       non-architectural state during a macro-op?)
+    //      Thus, we must check instruction->isDelayedCommit() and make sure
+    //      that interrupts only happen after an instruction *without* the
+    //      isDelayedCommit flag is committed.
+    // TODO something something PCEventQueue?
+
+    TheISA::PCState pc_value = inst_ptr->pcState();
+
+    // Retrieve the value of the speculative PC as a raw Addr value, aligned
+    // to MachInst size, but offset by the amount of data we've fetched thus
+    // far, since multiple fetches may be needed to feed one decode.
+    const Addr pc_addr = pc_value.instAddr();
+    const Addr req_vaddr = (pc_addr & BaseCPU::PCMask) + fetchOffset;
+
+    // If HIT in fetch buffer, we can skip sending a new request, and decode
+    // from the buffer immediately.
+    if (fetchBufBase
+     && req_vaddr >= fetchBufBase
+     && req_vaddr + sizeof(TheISA::MachInst)
+        <= fetchBufBase + fetchBuf.size()) {
+        DPRINTF(SDCPUThreadEvent, "Grabbing fetch data for vaddr(%#x) from "
+                                  "buffer.\n", req_vaddr);
+
+        const TheISA::MachInst inst_data =
+            *reinterpret_cast<TheISA::MachInst*>(fetchBuf.data()
+                                               + (req_vaddr - fetchBufBase));
+
+        onInstDataFetched(inst, inst_data);
+        return;
+    } // Else we need to send a request to update the buffer.
+
+    DPRINTF(SDCPUThreadEvent, "Preparing inst translation request at %#x\n",
+                              req_vaddr);
+
+    const RequestPtr fetch_req = std::make_shared<Request>();
+
+    // Set Ids for tracing requests through the system
+    fetch_req->taskId(_cpuPtr->taskId());
+    fetch_req->setContext(_committedState->contextId()); // May need to store
+                                                         // speculative variant
+                                                         // if we allow out-of-
+                                                         // order execution
+                                                         // between context
+                                                         // changes?
+
+    const Addr new_buf_base = req_vaddr & fetchBufMask;
+    const unsigned req_size = fetchBuf.size();
+
+    fetch_req->setVirt(0, new_buf_base, req_size,
+                       Request::INST_FETCH, _cpuPtr->instMasterId(), pc_addr);
+
+    auto callback = [this, inst](Fault f, const RequestPtr& r) {
+        onPCTranslated(inst, f, r);
+    };
+
+    if (!_cpuPtr->requestInstAddrTranslation(fetch_req, getThreadContext(),
+                                             callback)) {
+        panic("The CPU rejected my fetch translate request and I haven't been "
+              "programmed to know how to continue!!!");
+        // TODO reschedule a fetch for the future?
+    }
+}
+
+void
+SDCPUThread::bufferInstructionData(Addr vaddr, uint8_t* data)
+{
+    DPRINTF(SDCPUThreadEvent, "Updating fetch buffer with data from %#x\n",
+                              vaddr);
+
+    fetchBufBase = vaddr;
+    if (!vaddr) return;
+
+    memcpy(fetchBuf.data(), data, fetchBuf.size());
 }
 
 void
@@ -370,66 +470,6 @@ SDCPUThread::markFault(shared_ptr<InflightInst> inst_ptr, Fault fault)
 }
 
 void
-SDCPUThread::onBeginFetch(weak_ptr<InflightInst> inst)
-{
-    const shared_ptr<InflightInst> inst_ptr = inst.lock();
-    if (!inst_ptr || inst_ptr->isSquashed()) {
-        // No need to do anything for an instruction that has been squashed.
-        return;
-    }
-
-    DPRINTF(SDCPUThreadEvent, "onBeginFetch()\n");
-
-    ++outstandingFetches;
-
-    // TODO check for interrupts
-    // NOTE: You cannot take an interrupt in the middle of a macro-op.
-    //      (How would you recover the architectural state since you are in a
-    //       non-architectural state during a macro-op?)
-    //      Thus, we must check instruction->isDelayedCommit() and make sure
-    //      that interrupts only happen after an instruction *without* the
-    //      isDelayedCommit flag is committed.
-    // TODO something something PCEventQueue?
-
-    TheISA::PCState pc_value = inst_ptr->pcState();
-
-    // Retrieve the value of the speculative PC as a raw Addr value, aligned
-    // to MachInst size, but offset by the amount of data we've fetched thus
-    // far, since multiple fetches may be needed to feed one decode.
-    const Addr pc_addr = pc_value.instAddr();
-    const Addr req_vaddr = (pc_addr & BaseCPU::PCMask) + fetchOffset;
-
-    DPRINTF(SDCPUThreadEvent, "Preparing inst translation request at %#x\n",
-                              req_vaddr);
-
-    const RequestPtr fetch_req = std::make_shared<Request>();
-
-    // Set Ids for tracing requests through the system
-    fetch_req->taskId(_cpuPtr->taskId());
-    fetch_req->setContext(_committedState->contextId()); // May need to store
-                                                         // speculative variant
-                                                         // if we allow out-of-
-                                                         // order execution
-                                                         // between context
-                                                         // changes?
-
-    fetch_req->setVirt(0, req_vaddr, sizeof(TheISA::MachInst),
-                       Request::INST_FETCH, _cpuPtr->instMasterId(), pc_addr);
-
-    auto callback = [this, inst](Fault f, const RequestPtr& r) {
-        onPCTranslated(inst, f, r);
-    };
-
-    if (!_cpuPtr->requestInstAddrTranslation(fetch_req, getThreadContext(),
-                                             callback)) {
-        panic("The CPU rejected my fetch translate request and I haven't been "
-              "programmed to know how to continue!!!");
-        // TODO reschedule a fetch for the future?
-    }
-}
-
-
-void
 SDCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
                                   const RequestPtr& req, bool write,
                                   uint8_t* data,
@@ -552,15 +592,15 @@ SDCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
 
 void
 SDCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
-                                  const TheISA::MachInst fetch_data)
+                               const TheISA::MachInst fetch_data)
 {
-    --outstandingFetches;
-
     const shared_ptr<InflightInst> inst_ptr = inst.lock();
     if (!inst_ptr || inst_ptr->isSquashed()) {
         // No need to do anything for an instruction that has been squashed.
         return;
     }
+
+    // TODO store in fetch buffer, do things with it.
 
     DPRINTF(SDCPUThreadEvent, "onInstDataFetched(%#x)\n",
                               TheISA::gtoh(fetch_data));
@@ -601,7 +641,7 @@ SDCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
 
     } else { // If we still need to fetch more MachInsts.
         fetchOffset += sizeof(TheISA::MachInst);
-        onBeginFetch(inst);
+        attemptFetch(inst);
     }
 }
 
@@ -627,11 +667,14 @@ SDCPUThread::onPCTranslated(weak_ptr<InflightInst> inst, Fault fault,
         return;
     }
 
-    DPRINTF(SDCPUThreadEvent, "Received PC translation (va: %#x, pa: %#x)\n",
-            req->getVaddr(), req->getPaddr());
+    const Addr vaddr = req->getVaddr();
 
-    auto callback = [this, inst](TheISA::MachInst data) {
-        onInstDataFetched(inst, data);
+    DPRINTF(SDCPUThreadEvent, "Received PC translation (va: %#x, pa: %#x)\n",
+            vaddr, req->getPaddr());
+
+    auto callback = [this, inst, vaddr](uint8_t* data) {
+        bufferInstructionData(vaddr, data);
+        attemptFetch(inst);
     };
 
     // No changes to the request before asking the CPU to handle it if there is

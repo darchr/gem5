@@ -51,12 +51,19 @@ class SimpleDataflowCPU : public BaseCPU
 {
   public:
     using ExecCallback = std::function<void(Fault)>;
-    using FetchCallback = std::function<void(TheISA::MachInst)>;
+    using FetchCallback = std::function<void(uint8_t*)>;
     using MemCallback = std::function<void(Fault)>;
     // May need to also return an ID of some sort through the MemCallback,
     // since we may need a way for threads to request the squashing of a
     // request that hasn't actually gone to memory yet.
     using TranslationCallback = std::function<void(Fault,const RequestPtr&)>;
+
+    // BEGIN Public constants
+
+    const Addr cacheBlockMask;
+
+    // END Public constants
+
   protected:
     // BEGIN Internal class definitions
 
@@ -182,8 +189,6 @@ class SimpleDataflowCPU : public BaseCPU
 
 
     // BEGIN Internal constants
-
-    const Addr cacheBlockMask;
 
     // END Internal constants
 
