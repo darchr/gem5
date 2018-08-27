@@ -38,6 +38,7 @@
 
 #include "cpu/base.hh"
 #include "cpu/flexcpu/simple_dataflow_thread.hh"
+#include "cpu/pred/bpred_unit.hh"
 #include "mem/packet.hh"
 #include "params/SimpleDataflowCPU.hh"
 
@@ -312,6 +313,14 @@ class SimpleDataflowCPU : public BaseCPU
     DataPort _dataPort;
     InstPort _instPort;
 
+    /**
+     * Branch predictor object pointer. One should be selected by the python
+     * configuration and assigned via parameter. Currently each CPU will only
+     * hold one, which will be shared across all threads requesting access to
+     * it.
+     */
+    BPredUnit* _branchPred;
+
     // Using unique_ptr for now since holding objects directly results
     // in calls to the object's copy constructor, which SimpleThread does not
     // like.
@@ -366,6 +375,15 @@ class SimpleDataflowCPU : public BaseCPU
     void haltContext(ThreadID tid) override;
 
     /**
+     * Non-event-driven way to access the branch predictor. Should only be used
+     * to notify the branch predictor of instructions being squashed or
+     * committed.
+     *
+     * @return BPredUnit* The branch predictor owned by the CPU.
+     */
+    BPredUnit* getBranchPredictor();
+
+    /**
      * Interface calls to retrieve a reference to the port used for data or
      * instructions respectively.
      */
@@ -373,10 +391,30 @@ class SimpleDataflowCPU : public BaseCPU
     MasterPort& getInstPort() override;
 
     /**
+     * Checks if the CPU was configured with a branch predictor.
+     *
+     * @return true Has a non-NULL branch predictor
+     * @return false Has no non-NULL branch predictor
+     */
+    bool hasBranchPredictor() const;
+
+    /**
      * Called after constructor but before running. (Make sure to call
      * BaseCPU::init() in this function to let it do its job)
      */
     void init() override;
+
+    /**
+     * Event-driven way to request access to the branch predictor unit held by
+     * the CPU. Callback should be expected to be on the same tick, unless
+     * access to the branch predictor is constrained via prediction time or
+     * number of ports.
+     *
+     * @param callback_func the callback through which the predictor will be
+     *  provided.
+     */
+    void requestBranchPredictor(
+        std::function<void(BPredUnit* pred)> callback_func);
 
     /**
      * Event-driven means for classes to request a translation of a particular

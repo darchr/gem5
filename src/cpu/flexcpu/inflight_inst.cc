@@ -110,9 +110,15 @@ InflightInst::addDependency(shared_ptr<InflightInst> parent)
 }
 
 void
-InflightInst::addReadyCallback(std::function<void()> callback)
+InflightInst::addReadyCallback(function<void()> callback)
 {
     readyCallbacks.push_back(callback);
+}
+
+void
+InflightInst::addSquashCallback(function<void()> callback)
+{
+    squashCallbacks.push_back(callback);
 }
 
 void
@@ -184,6 +190,18 @@ void
 InflightInst::notifyReady()
 {
     for (function<void()>& callback_func : readyCallbacks) {
+        callback_func();
+    }
+}
+
+void
+InflightInst::notifySquashed()
+{
+    if (isSquashed()) return;
+
+    _squashed = true;
+
+    for (function<void()>& callback_func : squashCallbacks) {
         callback_func();
     }
 }

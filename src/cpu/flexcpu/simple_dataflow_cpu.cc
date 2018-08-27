@@ -53,15 +53,21 @@ SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
     memoryUnit(this, params->clocked_memory_request, Cycles(0),
                name() + ".memoryUnit"),
     _dataPort(name() + "._dataPort", this),
-    _instPort(name() + "._instPort", this)
+    _instPort(name() + "._instPort", this),
+    _branchPred(params->branchPred)
 {
     fatal_if(FullSystem, "FullSystem not implemented for SimpleDataflowCPU");
+
+    warn_if(!params->branch_pred_max_depth,
+        "Infinite branch predictor depth may play poorly with unconstrained "
+        "fetching and decoding.");
 
     for (ThreadID i = 0; i < numThreads; i++) {
         // Move constructor + vector should allow us to avoid memory leaks like
         // the SimpleCPU implementations have.
         threads.push_back(m5::make_unique<SDCPUThread>(this, i, params->system,
             params->workload[i], params->itb, params->dtb, params->isa[i],
+            params->branch_pred_max_depth,
             params->fetch_buffer_size,
             params->strict_serialization));
 
@@ -125,6 +131,12 @@ SimpleDataflowCPU::completeMemAccess(PacketPtr orig_pkt, StaticInstPtr inst,
     callback(fault);
 }
 
+BPredUnit*
+SimpleDataflowCPU::getBranchPredictor()
+{
+    return _branchPred;
+}
+
 MasterPort&
 SimpleDataflowCPU::getDataPort()
 {
@@ -135,6 +147,13 @@ MasterPort&
 SimpleDataflowCPU::getInstPort()
 {
     return _instPort;
+}
+
+bool
+SimpleDataflowCPU::hasBranchPredictor() const
+{
+    // Explicit conversion from pointer to bool.
+    return static_cast<bool>(_branchPred);
 }
 
 void
@@ -157,6 +176,15 @@ SimpleDataflowCPU::init()
         // the ISA
     }
     // TODO add post-construction initialization code
+}
+
+void
+SimpleDataflowCPU::requestBranchPredictor(
+    std::function<void(BPredUnit* pred)> callback_func)
+{
+    schedule(new EventFunctionWrapper([this, callback_func]
+                                      { callback_func(_branchPred); },
+             name() + ".bpredret", true), curTick());
 }
 
 void

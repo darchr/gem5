@@ -63,8 +63,7 @@ class InflightInst : public ExecContext,
         // valuable?
         Executing, // Request for execution sent, but waiting for results
         Complete, // Results have been received, but not yet committed.
-        Committed,
-        Squashed // Results should never be committed.
+        Committed
     };
 
     struct DataSource
@@ -103,6 +102,7 @@ class InflightInst : public ExecContext,
 
     // Where am I in completing this instruction?
     Status _status;
+    bool _squashed = false;
 
     // What is this instruction I'm executing?
     InstSeqNum _seqNum;
@@ -117,7 +117,7 @@ class InflightInst : public ExecContext,
      */
     PCState _pcState;
 
-    Trace::InstRecord* _traceData;
+    Trace::InstRecord* _traceData = nullptr;
 
     std::vector<std::function<void()>> commitCallbacks;
 
@@ -128,6 +128,8 @@ class InflightInst : public ExecContext,
     size_t remainingDependencies = 0;
 
     std::vector<std::function<void()>> readyCallbacks;
+
+    std::vector<std::function<void()>> squashCallbacks;
 
     std::vector<DataSource> sources;
     std::vector<GenericReg> results;
@@ -170,6 +172,7 @@ class InflightInst : public ExecContext,
     void addDependency(std::shared_ptr<InflightInst> parent);
 
     void addReadyCallback(std::function<void()> callback);
+    void addSquashCallback(std::function<void()> callback);
     // May be useful to add ability to remove a callback. Will be difficult if
     // we use raw function objects, could be resolved by holding pointers?
 
@@ -213,7 +216,7 @@ class InflightInst : public ExecContext,
     { return remainingDependencies == 0; }
 
     inline bool isSquashed() const
-    { return status() == Squashed; }
+    { return _squashed; }
 
     /**
      * Notify all registered commit callback listeners that this in-flight
@@ -245,6 +248,15 @@ class InflightInst : public ExecContext,
     void notifyReady();
 
     /**
+     * Notify all registered squash callback listeners that this in-flight
+     * instruction has been squashed.
+     *
+     * NOTE: The responsibility for calling this function falls with whoever
+     *       is managing squashing of this instruction.
+     */
+    void notifySquashed();
+
+    /**
      * Set this InflightInst to grab data for its execution from a particular
      * producer. Used to attach data dependencies in a way that can feed data
      * from a ROB or equivalent structure. Note that this function will not
@@ -270,9 +282,6 @@ class InflightInst : public ExecContext,
      */
     inline InstSeqNum seqNum(InstSeqNum seqNum)
     { return _seqNum = seqNum; }
-
-    inline void squash()
-    { status(Squashed); }
 
     inline const StaticInstPtr& staticInst() const
     { return instRef; }

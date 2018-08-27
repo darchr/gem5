@@ -28,12 +28,22 @@
 
 
 from BaseCPU import BaseCPU
+from BranchPredictor import *
 from m5.params import *
 from m5.proxy import *
 
 class SimpleDataflowCPU(BaseCPU):
     type = 'SimpleDataflowCPU'
     cxx_header = 'cpu/flexcpu/simple_dataflow_cpu.hh'
+
+    # formatted camelCase to use same parameter name as other CPU models.
+    branchPred = Param.BranchPredictor(TournamentBP(
+        numThreads = Parent.numThreads), "Branch predictor")
+    branch_pred_max_depth = Param.Unsigned(20,
+                                           "How many branches deep the "
+                                           "predictor is allowed to explore "
+                                           "at any given point in time. Set "
+                                           "to 0 for infinite.")
 
     clocked_cpu = Param.Bool(False, "Ties stages of the cpu to clock edges")
 
@@ -51,6 +61,14 @@ class SimpleDataflowCPU(BaseCPU):
                                         "sending packets to memory to clock "
                                         "edges")
 
+    clocked_execution = Param.Bool(Self.clocked_cpu, "Ties requests for "
+                                   "instruction execution to clock edges.")
+    execution_latency = Param.Cycles(1, "Number of cycles for each "
+                                         "instruction to execute")
+    execution_bandwidth = Param.Cycles(0, "Number of executions each cycle. "
+                                          "Assumes a fully-pipelined unit and "
+                                          "0 implies infinite bandwidth.")
+
     fetch_buffer_size = Param.Unsigned(Parent.cache_line_size,
                                        "Size of fetch buffer in bytes. "
                                        "Also determines size of fetch "
@@ -59,14 +77,6 @@ class SimpleDataflowCPU(BaseCPU):
 
     strict_serialization = Param.Bool(True, "Controls behavior of serializing "
                                             "flags on instructions.")
-
-    clocked_execution = Param.Bool(Self.clocked_cpu, "Ties requests for "
-                                   "instruction execution to clock edges.")
-    execution_latency = Param.Cycles(1, "Number of cycles for each "
-                                         "instruction to execute")
-    execution_bandwidth = Param.Cycles(0, "Number of executions each cycle. "
-                                          "Assumes a fully-pipelined unit and "
-                                          "0 implies infinite bandwidth.")
 
     @classmethod
     def memory_mode(cls):

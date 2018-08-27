@@ -38,9 +38,14 @@ if 'SimpleDataflowCPU' in env['CPU_MODELS']:
     Source('inflight_inst.cc')
 
     DebugFlag('InflightInst')
-    DebugFlag('SDCPUThreadEvent')
-    DebugFlag('SDCPUInstEvent')
+
     DebugFlag('SDCPUCoreEvent')
+    DebugFlag('SDCPUInstEvent')
+    DebugFlag('SDCPUThreadEvent')
+
+    DebugFlag('SDCPUBranchPred')
     DebugFlag('SDCPUDeps')
-    CompoundFlag('SDCPUAll', ['SDCPUThreadEvent', 'SDCPUInstEvent',
-                              'SDCPUCoreEvent'])
+
+    CompoundFlag('SDCPUAll', ['SDCPUCoreEvent', 'SDCPUInstEvent',
+                              'SDCPUThreadEvent', 'SDCPUBranchPred',
+                              'SDCPUDeps'])

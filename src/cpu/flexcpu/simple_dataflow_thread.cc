@@ -30,10 +30,12 @@
 
 #include "cpu/flexcpu/simple_dataflow_thread.hh"
 
+#include <algorithm>
 #include <string>
 
 #include "base/intmath.hh"
 #include "base/trace.hh"
+#include "debug/SDCPUBranchPred.hh"
 #include "debug/SDCPUDeps.hh"
 #include "debug/SDCPUInstEvent.hh"
 #include "debug/SDCPUThreadEvent.hh"
@@ -46,6 +48,7 @@ using namespace std;
 SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                     System* system_, BaseTLB* itb_, BaseTLB* dtb_,
                     TheISA::ISA* isa_, bool use_kernel_stats_,
+                    unsigned branch_pred_max_depth,
                     unsigned fetch_buf_size, bool strict_ser):
     memIface(*this),
     _cpuPtr(cpu_),
@@ -55,7 +58,9 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                                      use_kernel_stats_)),
     isa(isa_),
     fetchBuf(vector<uint8_t>(fetch_buf_size)),
-    fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1))
+    fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1)),
+    remainingBranchPredDepth(branch_pred_max_depth ?
+                             branch_pred_max_depth : -1)
 {
     panic_if(fetch_buf_size % sizeof(TheISA::MachInst) != 0,
              "Fetch buffer size should be multiple of instruction size!");
@@ -66,8 +71,9 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
 // Non-fullsystem constructor
 SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                     System* system_, Process* process_, BaseTLB* itb_,
-                    BaseTLB* dtb_, TheISA::ISA* isa_, unsigned fetch_buf_size,
-                    bool strict_ser):
+                    BaseTLB* dtb_, TheISA::ISA* isa_,
+                    unsigned branch_pred_max_depth,
+                    unsigned fetch_buf_size, bool strict_ser):
     memIface(*this),
     _cpuPtr(cpu_),
     _name(cpu_->name() + ".thread" + to_string(tid_)),
@@ -76,7 +82,9 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                                      isa_)),
     isa(isa_),
     fetchBuf(vector<uint8_t>(fetch_buf_size)),
-    fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1))
+    fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1)),
+    remainingBranchPredDepth(branch_pred_max_depth ?
+                             branch_pred_max_depth : -1)
 {
     panic_if(fetch_buf_size % sizeof(TheISA::MachInst) != 0,
              "Fetch buffer size should be multiple of instruction size!");
@@ -100,7 +108,7 @@ SDCPUThread::activate()
     _committedState->activate();
 
     auto callback = [this]{
-        advanceInst();
+        advanceInst(getNextPC());
     };
 
     // Schedule the first call to the entry point of thread runtime. We ensure
@@ -113,7 +121,7 @@ SDCPUThread::activate()
 }
 
 void
-SDCPUThread::advanceInst()
+SDCPUThread::advanceInst(TheISA::PCState next_pc)
 {
     if (status() != ThreadContext::Active) {
         // If this thread isn't currently active, don't do anything
@@ -122,9 +130,12 @@ SDCPUThread::advanceInst()
 
     const InstSeqNum seq_num = lastCommittedInstNum + inflightInsts.size() + 1;
 
-    DPRINTF(SDCPUThreadEvent, "advanceInst(seq %d)\n", seq_num);
-
-    TheISA::PCState next_pc = getNextPC();
+    DPRINTF(SDCPUThreadEvent, "advanceInst(seq %d, pc %#x, upc %#x)\n",
+                              seq_num,
+                              next_pc.pc(),
+                              next_pc.upc());
+    DPRINTF(SDCPUThreadEvent, "Buffer size increased to %d\n",
+                              inflightInsts.size());
 
     if (isRomMicroPC(next_pc.microPC())) {
         const StaticInstPtr static_inst =
@@ -306,6 +317,10 @@ SDCPUThread::commitInstruction(std::shared_ptr<InflightInst> inst_ptr)
 
     inst_ptr->commitToTC();
 
+    if (_cpuPtr->hasBranchPredictor() && inst_ptr->staticInst()->isControl()) {
+        _cpuPtr->getBranchPredictor()->update(inst_ptr->seqNum(), threadId());
+    }
+
     if (!inst_ptr->staticInst()->isMicroop() ||
            inst_ptr->staticInst()->isLastMicroop()) {
         numInstsStat++;
@@ -366,6 +381,35 @@ SDCPUThread::executeInstruction(weak_ptr<InflightInst> inst)
     // whether the access is a write or read.
 }
 
+void
+SDCPUThread::freeBranchPredDepth()
+{
+    DPRINTF(SDCPUBranchPred, "Released a branch prediction depth limit\n");
+
+    // If another branch was denied a prediction earlier due to depth limits,
+    // we give them this newly released resource immediately.
+    while (!unpredictedBranches.empty()) {
+        shared_ptr<InflightInst> inst_ptr = unpredictedBranches.front().lock();
+
+        // If the branch who asked before no longer needs a prediction, we
+        // remove it from the queue and keep checking.
+        if (!inst_ptr || inst_ptr->isCommitted() || inst_ptr->isSquashed()
+         || inst_ptr->isComplete()) {
+            unpredictedBranches.pop_front();
+            continue;
+        }
+
+        predictCtrlInst(inst_ptr);
+        unpredictedBranches.pop_front();
+
+        return;
+    }
+
+    // If no branches need prediction, we just add to the pool of unused
+    // resources.
+    ++remainingBranchPredDepth;
+}
+
 TheISA::PCState
 SDCPUThread::getNextPC()
 {
@@ -408,9 +452,19 @@ SDCPUThread::handleFault(std::shared_ptr<InflightInst> inst_ptr)
     //      involving those objects are handled.
 
     inst_ptr->fault()->invoke(this, inst_ptr->staticInst());
-    decoder.reset();
 
-    advanceInst();
+    advanceInst(getNextPC());
+}
+
+bool
+SDCPUThread::hasNextPC()
+{
+    // TODO check if we're still running
+
+    if (inflightInsts.empty()) return true;
+
+    const shared_ptr<InflightInst> inst_ptr = inflightInsts.back();
+    return !inst_ptr->staticInst()->isControl() || inst_ptr->isComplete();
 }
 
 void
@@ -441,7 +495,7 @@ SDCPUThread::issueInstruction(weak_ptr<InflightInst> inst)
         executeInstruction(inst);
     } else { // Else, add an event callback to execute when ready
         inst_ptr->addReadyCallback([this, inst](){
-                executeInstruction(inst);
+            executeInstruction(inst);
         });
     }
 
@@ -455,7 +509,24 @@ SDCPUThread::issueInstruction(weak_ptr<InflightInst> inst)
         // If we are still running and know where to fetch, we should
         // immediately send the necessary requests to the CPU to fetch the next
         // instruction
-        advanceInst();
+        advanceInst(getNextPC());
+    } else if (_cpuPtr->hasBranchPredictor()) {
+        if (!remainingBranchPredDepth) {
+            DPRINTF(SDCPUBranchPred, "This control would exceed the branch "
+                                      "prediction depth limit, not requesting "
+                                      "a prediction immediately.\n");
+
+            unpredictedBranches.push_back(inst);
+
+            return;
+        }
+
+        --remainingBranchPredDepth;
+
+        predictCtrlInst(inst_ptr);
+    } else {
+        DPRINTF(SDCPUThreadEvent, "Delaying fetch until control instruction's "
+                                  "execution.\n");
     }
 }
 
@@ -467,14 +538,55 @@ SDCPUThread::markFault(shared_ptr<InflightInst> inst_ptr, Fault fault)
 
     inst_ptr->fault(fault);
 
-    while (inflightInsts.back() != inst_ptr) {
-        inflightInsts.back()->squash();
-        inflightInsts.pop_back();
-    }
+    squashUpTo(inst_ptr);
 
-    inst_ptr->squash();
+    inst_ptr->notifySquashed();
 
     commitAllAvailableInstructions();
+}
+
+void
+SDCPUThread::onBranchPredictorAccessed(std::weak_ptr<InflightInst> inst,
+                                       BPredUnit* pred)
+{
+    const shared_ptr<InflightInst> inst_ptr = inst.lock();
+    if (!inst_ptr
+     || inst_ptr->isCommitted()
+     || inst_ptr->isSquashed()
+     || inst_ptr->isComplete()) {
+        freeBranchPredDepth();
+        // No need to do anything for an instruction that has been
+        // squashed, or a branch that has already been resolved.
+        return;
+    }
+
+    // We check before requesting one from the CPU, so this function should
+    // only be called with a non-NULL branch predictor.
+    panic_if(!pred, "I wasn't programmed to understand nullptr branch "
+                    "predictors!");
+
+    inst_ptr->addSquashCallback([this, inst] {
+        const shared_ptr<InflightInst> inst_ptr = inst.lock();
+        if (!inst_ptr || inst_ptr->isCommitted() || inst_ptr->isComplete())
+            return;
+
+        freeBranchPredDepth();
+    });
+
+    TheISA::PCState pc = inst_ptr->pcState();
+
+    const bool taken = pred->predict(inst_ptr->staticInst(),
+                                     inst_ptr->seqNum(), pc, threadId());
+
+    // BPredUnit::predict takes pc by reference, and updates it in-place.
+
+    DPRINTF(SDCPUBranchPred, "(seq %d) predicted %s (predicted pc: %#x).\n",
+                              inst_ptr->seqNum(),
+                              taken ? "taken" : "not taken",
+                              pc.instAddr());
+    // Count stats using the predict return value?
+
+    advanceInst(pc);
 }
 
 void
@@ -589,10 +701,70 @@ SDCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
     // result of this instruction completed
     inst_ptr->notifyComplete();
 
-    if (inst_ptr->staticInst()->isControl() && hasNextPC()) {
-        // If we are a control instruction, then we were unable to begin a
-        // fetch during decode, so we should start one now.
-        advanceInst();
+    if (inst_ptr->staticInst()->isControl()) {
+        // We must have our next PC now, since this branch has just resolved
+
+        if (_cpuPtr->hasBranchPredictor()) {
+            // If a branch predictor has been set, then we need to check if
+            // a prediction was made, squash instructions if incorrectly
+            // predicted, and notify the predictor accordingly.
+
+            auto it = find(inflightInsts.begin(), inflightInsts.end(),
+                           inst_ptr);
+
+            if (it == inflightInsts.end()) {
+                // Should be unreachable...
+                panic("Did a completion callback on an instruction not in "
+                      "our buffer.");
+            }
+
+            shared_ptr<InflightInst> following_inst =
+                (++it != inflightInsts.end()) ? *it : nullptr;
+
+            if (following_inst) {
+                // This condition is true if a branch prediction was made prior
+                // to this point in simulation.
+
+                freeBranchPredDepth();
+
+                const TheISA::PCState calculatedPC = inst_ptr->pcState();
+                TheISA::PCState correctPC = calculatedPC;
+                inst_ptr->staticInst()->advancePC(correctPC);
+                const TheISA::PCState predictedPC = following_inst->pcState();
+
+                if (correctPC.pc() == predictedPC.pc()
+                 && correctPC.upc() == predictedPC.upc()) {
+                    // It was a correct prediction
+                    DPRINTF(SDCPUBranchPred,
+                            "Branch predicted correctly (seq %d)\n",
+                            inst_ptr->seqNum());
+                    // Calculate stat correct predictions?
+                    // Otherwise do nothing because we guessed correctly.
+                    // Just remember to update the branch predictor at commit.
+                } else { // It was an incorrect prediction
+                    DPRINTF(SDCPUBranchPred,
+                            "Branch predicted incorrectly (seq %d)\n",
+                            inst_ptr->seqNum());
+
+                    // Squash all mispredicted instructions
+                    squashUpTo(inst_ptr, true);
+
+                    // Notify branch predictor of incorrect prediction
+
+                    _cpuPtr->getBranchPredictor()->squash(inst_ptr->seqNum(),
+                        correctPC, calculatedPC.branching(), threadId());
+
+                    advanceInst(correctPC);
+                }
+            } else { // predictor hasn't fired yet, so we can preemptively
+                     // place the next inst on the buffer with the known pc.
+                advanceInst(getNextPC());
+            }
+        } else { // No branch predictor
+            // If we are a control instruction, then we were unable to begin a
+            // fetch during decode, so we should start one now.
+            advanceInst(getNextPC());
+        }
     }
 
     commitAllAvailableInstructions();
@@ -716,6 +888,8 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 
     const StaticInstPtr static_inst = inst_ptr->staticInst();
 
+    // BEGIN Explicit rules
+
     // BEGIN ISA explicit serialization
 
     if (strictSerialize) {
@@ -736,13 +910,19 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
             return;
         }
 
-        if (auto serializing_inst = lastSerializingInstruction.lock()) {
+        auto serializing_inst = lastSerializingInstruction.lock();
+        if (serializing_inst && !(serializing_inst->isSquashed()
+                               || serializing_inst->isCommitted())) {
             DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
                     inst_ptr->seqNum(), serializing_inst->seqNum());
             inst_ptr->addCommitDependency(serializing_inst);
         }
 
     } else {
+        if (static_inst->isSerializeAfter()) {
+            lastSerializingInstruction = inst_ptr;
+        }
+
         if (inflightInsts.size() > 1 && static_inst->isSerializeBefore()) {
             const shared_ptr<InflightInst> last_inst =
                 *(++inflightInsts.rbegin());
@@ -753,12 +933,12 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
                 inst_ptr->addCommitDependency(last_inst);
             }
 
-            lastSerializingInstruction = inst_ptr;
-
             return;
         }
 
-        if (auto serializing_inst = lastSerializingInstruction.lock()) {
+        auto serializing_inst = lastSerializingInstruction.lock();
+        if (serializing_inst && !(serializing_inst->isSquashed()
+                               || serializing_inst->isCommitted())) {
             DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
                     inst_ptr->seqNum(), serializing_inst->seqNum());
             inst_ptr->addCommitDependency(serializing_inst);
@@ -766,6 +946,22 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
     }
 
     // END ISA explicit serialization
+
+    if (static_inst->isNonSpeculative()) {
+        const shared_ptr<InflightInst> last_inst = *(++inflightInsts.rbegin());
+
+
+        if (!(last_inst->isCommitted() || last_inst->isSquashed()))
+            inst_ptr->addCommitDependency(last_inst);
+
+        return;
+        // This is a very conservative implementation of the rule, but has been
+        // implemented this way since clear explanation of the flag is not
+        // available. If we only mean branch speculation, then a commit-time
+        // dependency on the last control instruction should be sufficient.
+    }
+
+    // END Explicit rules
 
     // BEGIN Sequential Consistency
 
@@ -835,28 +1031,57 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 }
 
 void
-SDCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr) {
+SDCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
+{
     const StaticInstPtr static_inst = inst_ptr->staticInst();
     const int8_t num_dsts = static_inst->numDestRegs();
     for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
         const RegId& dst_reg = static_inst->destRegIdx(dst_idx);
 
-        InflightInst::DataSource source = {inst_ptr, dst_idx};
-        lastUses[dst_reg] = source;
+        lastUses[dst_reg] = {inst_ptr, dst_idx};
         DPRINTF(SDCPUDeps, "%d is producer of reg[%d]\n", inst_ptr->seqNum(),
                 dst_reg.index());
     }
 }
 
-bool
-SDCPUThread::hasNextPC()
+void
+SDCPUThread::predictCtrlInst(shared_ptr<InflightInst> inst_ptr)
 {
-    // TODO check if we're still running
+    DPRINTF(SDCPUBranchPred, "Requesting branch predictor for control\n");
 
-    if (inflightInsts.empty()) return true;
+    const InstSeqNum seqnum = inst_ptr->seqNum();
+    inst_ptr->addSquashCallback([this, seqnum] {
+        _cpuPtr->getBranchPredictor()->squash(seqnum, threadId());
+    });
 
-    const shared_ptr<InflightInst> inst_ptr = inflightInsts.back();
-    return !inst_ptr->staticInst()->isControl() || inst_ptr->isComplete();
+    const weak_ptr<InflightInst> weak_inst = inst_ptr;
+    auto callback = [this, weak_inst] (BPredUnit* pred) {
+        onBranchPredictorAccessed(weak_inst, pred);
+    };
+
+    _cpuPtr->requestBranchPredictor(callback);
+}
+
+void
+SDCPUThread::squashUpTo(shared_ptr<InflightInst> inst_ptr, bool rebuild_map)
+{
+    size_t count = 0;
+    while (inflightInsts.back() != inst_ptr) {
+        inflightInsts.back()->notifySquashed();
+        inflightInsts.pop_back();
+        ++count;
+    }
+
+    DPRINTF(SDCPUThreadEvent, "%d instructions squashed.\n", count);
+
+    if (rebuild_map) {
+        for (shared_ptr<InflightInst>& it : inflightInsts) {
+            populateUses(it);
+        }
+    }
+
+    decoder.reset();
+    curMacroOp = StaticInst::nullStaticInstPtr;
 }
 
 void

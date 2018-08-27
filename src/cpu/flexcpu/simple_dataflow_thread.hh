@@ -41,6 +41,7 @@
 #include "cpu/flexcpu/inflight_inst.hh"
 #include "cpu/flexcpu/simple_dataflow_cpu.hh"
 #include "cpu/inst_seq.hh"
+#include "cpu/pred/bpred_unit.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/simple_thread.hh"
 #include "mem/request.hh"
@@ -201,6 +202,17 @@ class SDCPUThread : public ThreadContext
      */
     std::unordered_map<RegId, InflightInst::DataSource> lastUses;
 
+    /**
+     * The number of incomplete but predicted branches allowed on the buffer at
+     * any one time.
+     */
+    unsigned remainingBranchPredDepth;
+    /**
+     * A queue for control instructions exceeding the above limit to wait for
+     * either execution or prediction.
+     */
+    std::list<std::weak_ptr<InflightInst>> unpredictedBranches;
+
 
     // END Speculative state
     // END SDCPU Internal variables
@@ -213,8 +225,11 @@ class SDCPUThread : public ThreadContext
      * related events, such as attemptFetch to kick off any upcoming tasks
      * necessary to complete that instruction. May issue an instruction
      * immediately if no new information is needed to set up a new instruction.
+     *
+     * @param nextPC The PC the system should be at for fetching and executing
+     *  the upcoming instruction.
      */
-    void advanceInst();
+    void advanceInst(TheISA::PCState next_pc);
 
     /**
      * Entry point to fetch functionality. May be called more than once for a
@@ -265,6 +280,12 @@ class SDCPUThread : public ThreadContext
     void executeInstruction(std::weak_ptr<InflightInst> inst);
 
     /**
+     * Utility function for releasing a held slot toward the limit for the
+     * number of predicted control instructions on the buffer.
+     */
+    void freeBranchPredDepth();
+
+    /**
      * Retrieves the PC value from either the last instruction on the in-flight
      * queue, or from the committed state if the queue is empty. Should not be
      * used while the latest upcoming PC value is not yet knowable.
@@ -279,6 +300,15 @@ class SDCPUThread : public ThreadContext
      * instruction, instead of committing the value to the _committedState.
      */
     void handleFault(std::shared_ptr<InflightInst> inst_ptr);
+
+    /**
+     * This function checks if the thread should be active at this moment, and
+     * whether or not we have a reasonable PC value ready to be able to
+     * initiate another fetch at this time.
+     *
+     * @return Whether we can start a new fetch at this point in time.
+     */
+    bool hasNextPC();
 
     /**
      * This function has the job of populating an instruction's fields with
@@ -310,6 +340,20 @@ class SDCPUThread : public ThreadContext
      * @param fault The fault that should be associated with the instruction.
      */
     void markFault(std::shared_ptr<InflightInst> inst, Fault fault);
+
+    /**
+     * This function serves as the event handler for when the CPU has granted
+     * us access to the branch predictor it manages. (It is assumed that the
+     * amount of time taken to perform the prediction has also been taken into
+     * account by the time this listener is called).
+     *
+     * @param inst A reference to the in-flight instruction object for which to
+     *  handle branch prediction.
+     * @param pred A pointer the branch prediction unit that is providing this
+     *  prediction.
+     */
+    void onBranchPredictorAccessed(std::weak_ptr<InflightInst> inst,
+                                   BPredUnit* pred);
 
     /**
      * This function serves as the event handler for when the CPU has completed
@@ -400,27 +444,47 @@ class SDCPUThread : public ThreadContext
      * currently active InflightInsts. The dependencies should be added to this
      * instruction via its addDependency() interface function.
      *
-     * @param inst The instruction for which we want to detect dependencies.
+     * @param inst_ptr The instruction for which we want to detect
+     * dependencies.
      */
-    void populateDependencies(std::shared_ptr<InflightInst> inst);
+    void populateDependencies(std::shared_ptr<InflightInst> inst_ptr);
 
     /**
      * This function iterates through the registers that this instruction
      * writes and associates the registers with the corresponding instructions
      * in order to streamline dependency tracking. Like a scoreboard.
      *
-     * @param inst The instruction for which we want to track uses.
+     * @param inst_ptr The instruction for which we want to track uses.
      */
-    void populateUses(std::shared_ptr<InflightInst> inst);
+    void populateUses(std::shared_ptr<InflightInst> inst_ptr);
 
     /**
-     * This function checks if the thread should be active at this moment, and
-     * whether or not we have a reasonable PC value ready to be able to
-     * initiate another fetch at this time.
+     * This function makes a request for the branch predictor for the given
+     * control instruction.
      *
-     * @return Whether we can start a new fetch at this point in time.
+     * @param inst_ptr The control instruction which needs a prediction.
      */
-    bool hasNextPC();
+    void predictCtrlInst(std::shared_ptr<InflightInst> inst_ptr);
+
+    /**
+     * This function iterates through the inflightInsts buffer and squashes
+     * every instruction older than inst_ptr. This will both notify the
+     * instructions that they have been squashed and remove them from the
+     * buffer.
+     *
+     * If inst_ptr is not in the buffer, then this will clear the entire
+     * buffer.
+     *
+     * This function may also has the side effect of rebuilding the lastUses
+     * map, since squashing instructions may invalidate entries in the map.
+     *
+     * @param inst_ptr The instruction before the oldest instruction that
+     *  should be squashed and removed.
+     * @param rebuild_map Whether the squash event should result in the
+     *  rebuilding of the register usage map.
+     */
+    void squashUpTo(std::shared_ptr<InflightInst> inst_ptr,
+                    bool rebuild_map = false);
 
     // END Internal functions
 
@@ -442,14 +506,14 @@ class SDCPUThread : public ThreadContext
     // Fullsystem mode constructor
     SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_, System* system_,
                      BaseTLB* itb_, BaseTLB* dtb_, TheISA::ISA* isa_,
-                     bool use_kernel_stats_, unsigned fetch_buf_size,
-                     bool strict_ser);
+                     bool use_kernel_stats_, unsigned branch_pred_max_depth,
+                     unsigned fetch_buf_size, bool strict_ser);
 
     // Non-fullsystem constructor
     SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_, System* system_,
                      Process* process_, BaseTLB* itb_, BaseTLB* dtb_,
-                     TheISA::ISA* isa_, unsigned fetch_buf_size,
-                     bool strict_ser);
+                     TheISA::ISA* isa_, unsigned branch_pred_max_depth,
+                     unsigned fetch_buf_size, bool strict_ser);
 
     // May need to define move constructor, due to how SimpleThread is defined,
     // if we want to hold instances of these in a vector instead of pointers
