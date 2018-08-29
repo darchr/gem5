@@ -179,6 +179,12 @@ X86System::initState()
 
     // 32 bit data segment
     SegDescriptor dsDesc = initDesc;
+    dsDesc.type.e = 0;
+    dsDesc.type.w = 1;
+    dsDesc.d = 1;
+    dsDesc.baseHigh = 0;
+    dsDesc.baseLow = 0;
+
     uint64_t dsDescVal = dsDesc;
     physProxy.writeBlob(GDTBase + numGDTEntries * 8,
                         (uint8_t *)(&dsDescVal), 8);
@@ -195,10 +201,16 @@ X86System::initState()
     tc->setMiscReg(MISCREG_SS, (RegVal)ds);
 
     tc->setMiscReg(MISCREG_TSL, 0);
+    SegAttr ldtAttr = 0;
+    ldtAttr.unusable = 1;
+    tc->setMiscReg(MISCREG_TSL_ATTR, ldtAttr);
     tc->setMiscReg(MISCREG_TSG_BASE, GDTBase);
     tc->setMiscReg(MISCREG_TSG_LIMIT, 8 * numGDTEntries - 1);
 
     SegDescriptor tssDesc = initDesc;
+    tssDesc.type = 0xB;
+    tssDesc.s = 0;
+
     uint64_t tssDescVal = tssDesc;
     physProxy.writeBlob(GDTBase + numGDTEntries * 8,
                         (uint8_t *)(&tssDescVal), 8);
