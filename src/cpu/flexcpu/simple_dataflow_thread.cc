@@ -241,12 +241,8 @@ SDCPUThread::attemptFetch(weak_ptr<InflightInst> inst)
         onPCTranslated(inst, f, r);
     };
 
-    if (!_cpuPtr->requestInstAddrTranslation(fetch_req, getThreadContext(),
-                                             callback)) {
-        panic("The CPU rejected my fetch translate request and I haven't been "
-              "programmed to know how to continue!!!");
-        // TODO reschedule a fetch for the future?
-    }
+    _cpuPtr->requestInstAddrTranslation(fetch_req, getThreadContext(),
+                                        callback);
 }
 
 void
@@ -341,21 +337,27 @@ SDCPUThread::executeInstruction(weak_ptr<InflightInst> inst)
     DPRINTF(SDCPUInstEvent, "Beginning executing instruction (seq %d)\n",
                             inst_ptr->seqNum());
 
+    function<void(Fault fault)> callback;
+
     if (static_inst->isMemRef()) {
-        static_inst->initiateAcc(inst_ptr.get(), inst_ptr->traceData());
-        // This will result in a corresponding call to either
-        // MemIFace::initiateMemRead() or MemIFace::writeMem(), depending on
-        // whether the access is a write or read.
+        callback = [this, inst] (Fault fault) {
+                shared_ptr<InflightInst> inst_ptr = inst.lock();
+                if (!inst_ptr || inst_ptr->isSquashed()) return;
+
+                if (fault != NoFault) markFault(inst_ptr, fault);
+            };
     } else {
-        auto callback = [this, inst](Fault fault) {
+        callback = [this, inst](Fault fault) {
                 onExecutionCompleted(inst, fault);
             };
-
-        _cpuPtr->requestExecution(static_inst,
-                                  static_pointer_cast<ExecContext>(inst_ptr),
-                                  inst_ptr->traceData(),
-                                  callback);
     }
+
+    _cpuPtr->requestExecution(static_inst,
+                              static_pointer_cast<ExecContext>(inst_ptr),
+                              inst_ptr->traceData(), callback);
+    // For memrefs, this will result in a corresponding call to either
+    // MemIFace::initiateMemRead() or MemIFace::writeMem(), depending on
+    // whether the access is a write or read.
 }
 
 TheISA::PCState
@@ -679,7 +681,7 @@ SDCPUThread::onPCTranslated(weak_ptr<InflightInst> inst, Fault fault,
 
     // No changes to the request before asking the CPU to handle it if there is
     // not a fault. Let the CPU generate the packet.
-    if (!_cpuPtr->requestInstruction(req, callback)) {
+    if (!_cpuPtr->requestInstructionData(req, callback)) {
         panic("The CPU rejected my fetch request and I haven't been programmed"
               " to know how to continue!!!");
     }
@@ -882,19 +884,11 @@ SDCPUThread::MemIface::initiateMemRead(shared_ptr<InflightInst> inst_ptr,
                                              nullptr, split_acc, true);
         };
 
-        if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req1, tc, false,
-                                                             callback1)) {
-            panic("The CPU rejected my dtb request and I haven't been"
-                  " programmed to know how to continue!!!");
-            // TODO request later
-        }
+        sdCPUThread._cpuPtr->requestDataAddrTranslation(req1, tc, false,
+                                                        callback1);
 
-        if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req2, tc, false,
-                                                             callback2)) {
-            panic("The CPU rejected my dtb request and I haven't been"
-                  " programmed to know how to continue!!!");
-            // TODO request later
-        }
+        sdCPUThread._cpuPtr->requestDataAddrTranslation(req2, tc, false,
+                                                        callback2);
 
         return NoFault;
     }
@@ -905,12 +899,7 @@ SDCPUThread::MemIface::initiateMemRead(shared_ptr<InflightInst> inst_ptr,
                                          nullptr);
     };
 
-    if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req, tc, false,
-                                                         callback)) {
-        panic("The CPU rejected my dtb request and I haven't been programmed"
-              " to know how to continue!!!");
-        // TODO request later
-    }
+    sdCPUThread._cpuPtr->requestDataAddrTranslation(req, tc, false, callback);
 
     return NoFault;
 }
@@ -977,19 +966,11 @@ SDCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
         };
 
 
-        if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req1, tc, true,
-                                                             callback1)) {
-            panic("The CPU rejected my dtb request and I haven't been"
-                  " programmed to know how to continue!!!");
-            // TODO request later
-        }
+        sdCPUThread._cpuPtr->requestDataAddrTranslation(req1, tc, true,
+                                                        callback1);
 
-        if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req2, tc, true,
-                                                             callback2)) {
-            panic("The CPU rejected my dtb request and I haven't been"
-                  " programmed to know how to continue!!!");
-            // TODO request later
-        }
+        sdCPUThread._cpuPtr->requestDataAddrTranslation(req2, tc, true,
+                                                        callback2);
 
         return NoFault;
     }
@@ -1010,12 +991,7 @@ SDCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
         delete [] copy;
     };
 
-    if (!sdCPUThread._cpuPtr->requestDataAddrTranslation(req, tc, true,
-                                                         callback)) {
-        panic("The CPU rejected my dtb request and I haven't been programmed"
-              " to know how to continue!!!");
-        // TODO make another request later
-    }
+    sdCPUThread._cpuPtr->requestDataAddrTranslation(req, tc, true, callback);
 
     return NoFault;
 }
