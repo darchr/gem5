@@ -142,6 +142,8 @@ class SimpleDataflowCPU : public BaseCPU
     struct TranslationReq
     {
         RequestPtr request;
+        ThreadContext* tc;
+        bool write;
         TranslationCallback callback;
     };
 
@@ -190,10 +192,28 @@ class SimpleDataflowCPU : public BaseCPU
 
     // BEGIN Internal constants
 
+    EventFunctionWrapper attemptAllDataXlationsEvent = EventFunctionWrapper(
+        [this]{ attemptAllDataXlations(); }, name()+"attemptAllDataXlations");
+    EventFunctionWrapper attemptAllExecutionsEvent = EventFunctionWrapper(
+        [this]{ attemptAllExecutions(); }, name()+"attemptAllExecutions");
+    EventFunctionWrapper attemptAllFetchReqsEvent = EventFunctionWrapper(
+        [this]{ attemptAllFetchReqs(); }, name()+".attemptAllFetchReqsEvent",
+        false, Event::CPU_Tick_Pri);
+    EventFunctionWrapper attemptAllInstXlationsEvent = EventFunctionWrapper(
+        [this]{ attemptAllInstXlations(); }, name()+"attemptAllInstXlations");
+    EventFunctionWrapper attemptAllMemReqsEvent = EventFunctionWrapper(
+        [this]{ attemptAllMemReqs(); }, name()+".attemptAllMemReqsEvent");
+
     // END Internal constants
 
 
     // BEGIN Internal parameters
+
+    bool clockedDtbTranslation;
+    bool clockedExecution;
+    bool clockedInstFetch;
+    bool clockedItbTranslation;
+    bool clockedMemoryRequest;
 
     // TODO temporary mark all executions as taking one cycle's length at least
     Tick executionTime = clockPeriod();
@@ -231,8 +251,18 @@ class SimpleDataflowCPU : public BaseCPU
 
     // BEGIN Internal functions
 
+    /**
+     * These functions perform all of the requests from their respective lists
+     * above. They may be limited by the number of requests they can perform
+     * per cycle. If they are limited, they will reschedule another event to
+     * try more requests next cycle.
+     * These functions are called from their respective events (e.g.,
+     * attemptAllMemReqsEvent) as defined above.
+     * */
+    void attemptAllDataXlations();
+    void attemptAllExecutions();
     void attemptAllFetchReqs();
-
+    void attemptAllInstXlations();
     void attemptAllMemReqs();
 
     void beginExecution(const ExecutionReq& req);
@@ -300,15 +330,9 @@ class SimpleDataflowCPU : public BaseCPU
      *  function returns false, the requester should not expect callback_func
      *  to be called in the future.
      */
-    bool requestDataAddrTranslation(const RequestPtr& req, ThreadContext* tc,
+    void requestDataAddrTranslation(const RequestPtr& req, ThreadContext* tc,
                                     bool write,
                                     TranslationCallback callback_func);
-
-    // TODO maybe we just need a generic requestInstSquash function to squash
-    //      anything we don't want to execute anymore. Might be useful to free
-    //      up execution units, even if we already can just choose not to
-    //      commit an instruction.
-    bool requestMemSquash(); // TODO
 
     /**
      * Event-driven means for other classes to request a timing-based execution
@@ -330,7 +354,7 @@ class SimpleDataflowCPU : public BaseCPU
      *  function returns false, the requester should not expect callback_func
      *  to be called in the future.
      */
-    bool requestExecution(StaticInstPtr inst,
+    void requestExecution(StaticInstPtr inst,
                           std::weak_ptr<ExecContext> context,
                           Trace::InstRecord* trace_data,
                           ExecCallback callback_func);
@@ -353,7 +377,7 @@ class SimpleDataflowCPU : public BaseCPU
      *  function returns false, the requester should not expect callback_func
      *  to be called in the future.
      */
-    bool requestInstAddrTranslation(const RequestPtr& req, ThreadContext* tc,
+    void requestInstAddrTranslation(const RequestPtr& req, ThreadContext* tc,
                                     TranslationCallback callback_func);
 
     /**
@@ -369,8 +393,8 @@ class SimpleDataflowCPU : public BaseCPU
      *  function returns false, the requester should not expect callback_func
      *  to be called in the future.
      */
-    bool requestInstruction(const RequestPtr& req,
-                            FetchCallback callback_func);
+    bool requestInstructionData(const RequestPtr& req,
+                                FetchCallback callback_func);
 
     /**
      * Event-driven means for classes to request a read access to memory. Upon

@@ -42,6 +42,11 @@ using namespace TheISA;
 SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
     BaseCPU(params),
     cacheBlockMask(~(cacheLineSize() - 1)),
+    clockedDtbTranslation(params->clocked_dtb_translation),
+    clockedExecution(params->clocked_execution),
+    clockedInstFetch(params->clocked_inst_fetch),
+    clockedItbTranslation(params->clocked_itb_translation),
+    clockedMemoryRequest(params->clocked_memory_request),
     _dataPort(name() + "._dataPort", this),
     _instPort(name() + "._instPort", this)
 {
@@ -74,9 +79,61 @@ SimpleDataflowCPU::activateContext(ThreadID tid)
 }
 
 void
+SimpleDataflowCPU::attemptAllDataXlations()
+{
+    DPRINTF(SDCPUCoreEvent, "attemptAllDataXlations()\n");
+    assert(!dataTranslationReqs.empty());
+
+    while (!dataTranslationReqs.empty()) {
+        auto xlation_req = dataTranslationReqs.front();
+        RequestPtr req = xlation_req.request;
+        ThreadContext* tc = xlation_req.tc;
+        bool write = xlation_req.write;
+        TranslationCallback callback = xlation_req.callback;
+
+        DPRINTF(SDCPUCoreEvent, "handleDataAddrTranslation()\n");
+
+        // Retrieve dtb from the ThreadContext
+        BaseTLB* dtb = tc->getDTBPtr();
+
+        // The event callback for when the translation completed comes through
+        // a BaseTLB::Translation object, so we pass that callback straight to
+        // the requestor's callback function by subclassing it.
+        BaseTLB::Translation* handler = new CallbackTransHandler(callback,
+                                                                 true);
+
+        dtb->translateTiming(req, tc, handler,
+                             write ? BaseTLB::Write : BaseTLB::Read);
+
+        dataTranslationReqs.pop_front();
+    }
+}
+
+void
+SimpleDataflowCPU::attemptAllExecutions()
+{
+    DPRINTF(SDCPUCoreEvent, "attemptAllExecutions()\n");
+    assert(!executionReqs.empty());
+
+    while (!executionReqs.empty()) {
+        auto req = executionReqs.front();
+
+        Event* event = new EventFunctionWrapper([this, req]() {
+            completeExecution(req);
+        }, name() + ".executeEvent", true);
+
+        schedule(event, executionTime);
+
+        executionReqs.pop_front();
+    }
+
+}
+
+void
 SimpleDataflowCPU::attemptAllFetchReqs()
 {
     DPRINTF(SDCPUCoreEvent, "attemptAllFetchReqs()\n");
+    assert(!fetchReqs.empty());
 
     if (_instPort.receivedPushback)
         return; // Don't send any requests while we're waiting for recvReqRetry
@@ -104,9 +161,39 @@ SimpleDataflowCPU::attemptAllFetchReqs()
 }
 
 void
+SimpleDataflowCPU::attemptAllInstXlations()
+{
+    DPRINTF(SDCPUCoreEvent, "attemptAllInstXlations()\n");
+    assert(!instTranslationReqs.empty());
+
+    while (!instTranslationReqs.empty()) {
+        auto xlation_req = instTranslationReqs.front();
+        RequestPtr req = xlation_req.request;
+        ThreadContext* tc = xlation_req.tc;
+        TranslationCallback callback = xlation_req.callback;
+
+        DPRINTF(SDCPUCoreEvent, "handleInstAddrTranslation()\n");
+
+        // Retrieve dtb from the ThreadContext
+        BaseTLB* itb = tc->getITBPtr();
+
+        // The event callback for when the translation completed comes through
+        // a BaseTLB::Translation object, so we pass that callback straight to
+        // the requestor's callback function by subclassing it.
+        BaseTLB::Translation* handler = new CallbackTransHandler(callback,
+                                                                 true);
+
+        itb->translateTiming(req, tc, handler, BaseTLB::Execute);
+
+        instTranslationReqs.pop_front();
+    }
+}
+
+void
 SimpleDataflowCPU::attemptAllMemReqs()
 {
     DPRINTF(SDCPUCoreEvent, "attemptAllMemReqs()\n");
+    assert(!memReqs.empty());
 
     if (_dataPort.receivedPushback)
         return;
@@ -154,24 +241,14 @@ SimpleDataflowCPU::attemptAllMemReqs()
 }
 
 void
-SimpleDataflowCPU::beginExecution(const ExecutionReq& req)
-{
-    DPRINTF(SDCPUCoreEvent, "beginExecution()\n");
-
-    Event* event = new EventFunctionWrapper([this, req]() {
-            completeExecution(req);
-        }, name() + ".executeEvent", true);
-
-    schedule(event, curTick() + executionTime);
-}
-
-void
 SimpleDataflowCPU::completeExecution(const ExecutionReq& req)
 {
     const shared_ptr<ExecContext> ctxt = req.execContext.lock();
 
     Fault fault = ctxt ?
-                  req.staticInst->execute(ctxt.get(), req.traceData) :
+                  (req.staticInst->isMemRef() ?
+                   req.staticInst->initiateAcc(ctxt.get(), req.traceData) :
+                   req.staticInst->execute(ctxt.get(), req.traceData)) :
                   NoFault;
 
     req.callback(fault);
@@ -216,12 +293,14 @@ SimpleDataflowCPU::completeMemAccess(const MemAccessReq& req)
 }
 
 MasterPort&
-SimpleDataflowCPU::getDataPort() {
+SimpleDataflowCPU::getDataPort()
+{
     return _dataPort;
 }
 
 MasterPort&
-SimpleDataflowCPU::getInstPort() {
+SimpleDataflowCPU::getInstPort()
+{
     return _instPort;
 }
 
@@ -247,31 +326,24 @@ SimpleDataflowCPU::init()
     // TODO add post-construction initialization code
 }
 
-bool
+void
 SimpleDataflowCPU::requestDataAddrTranslation(const RequestPtr& req,
     ThreadContext* tc, bool write,
     TranslationCallback callback_func)
 {
     DPRINTF(SDCPUCoreEvent, "requestDataAddrTranslation()\n");
-    // enqueue if we're out of slots for simultaneous translations
-    // instTranslationReqs.push_back({req, callback_func});
+    // delay if we're out of slots for simultaneous dtb translations
 
-    // Retrieve itb from the ThreadContext, since TLBs are specific to threads
-    BaseTLB* dtb = tc->getDTBPtr();
+    dataTranslationReqs.push_back({req, tc, write, callback_func});
 
-    // The event callback for when the translation completed comes through
-    // a BaseTLB::Translation object, so we pass that callback straight to the
-    // requestor's callback function by subclassing it.
-    BaseTLB::Translation* handler = new CallbackTransHandler(callback_func,
-                                                             true);
-
-    dtb->translateTiming(req, tc, handler,
-                         write ? BaseTLB::Write : BaseTLB::Read);
-
-    return true;
+    if (!attemptAllDataXlationsEvent.scheduled()) {
+        // This will call attemptAllDataXlations()
+        schedule(&attemptAllDataXlationsEvent,
+                 clockedDtbTranslation ? clockEdge() : curTick());
+    }
 }
 
-bool
+void
 SimpleDataflowCPU::requestExecution(StaticInstPtr inst,
                                     weak_ptr<ExecContext> context,
                                     Trace::InstRecord* trace_data,
@@ -279,56 +351,37 @@ SimpleDataflowCPU::requestExecution(StaticInstPtr inst,
 {
     DPRINTF(SDCPUCoreEvent, "requestExecution()\n");
 
-    // Right now we're not limiting execution units, so we just execute all
-    // instructions as soon as possible
-    beginExecution({inst, context, trace_data, callback_func});
+    executionReqs.push_back({inst, context, trace_data, callback_func});
 
-    return true;
+    if (!attemptAllExecutionsEvent.scheduled()) {
+        // This will call attemptAllExecutions()
+        schedule(&attemptAllExecutionsEvent,
+                 clockedExecution ? clockEdge() : curTick());
+    }
 }
 
-bool
+void
 SimpleDataflowCPU::requestInstAddrTranslation(const RequestPtr& req,
     ThreadContext* tc,
     TranslationCallback callback_func)
 {
     DPRINTF(SDCPUCoreEvent, "requestInstAddrTranslation()\n");
+    // delay if we're out of slots for simultaneous itb translations
 
-    // TODO enqueue if we're out of slots for simultaneous translations
-    //      instTranslationReqs.push_back({req, callback_func});
+    instTranslationReqs.push_back({req, tc, false, callback_func});
 
-    // Retrieve itb from the ThreadContext, since TLBs are specific to threads
-    BaseTLB* itb = tc->getITBPtr();
-
-    // The event callback for when the translation completed comes through
-    // a BaseTLB::Translation object, so we pass that callback straight to the
-    // requestor's callback function by subclassing it.
-    BaseTLB::Translation* handler = new CallbackTransHandler(callback_func,
-                                                             true);
-
-    // Call the translateTiming() function in a separate event, in order to
-    // guarantee that this request function will return before the callback
-    // function is called. The reason this is necessary to make that guarantee
-    // is that the TLB may immediatelly call finish on the handler object if
-    // the TLB has the translation available. In that case, we still want
-    // finish to be called after this function returns, so we delay it by zero
-    // ticks, just to put it at the end of the event queue.
-
-    // We may not actually need to make that guarantee though, so I'm
-    // commenting it out for now.
-    // EventFunctionWrapper* translate_event = new EventFunctionWrapper(
-    //     [itb, req, tc, handler]() {
-    itb->translateTiming(req, tc, handler, BaseTLB::Execute);
-    //     }, name() + ".translate_event", true);
-    // schedule(translate_event, curTick());
-
-    return true;
+    if (!attemptAllInstXlationsEvent.scheduled()) {
+        // This will call attemptAllInstXlation()
+        schedule(&attemptAllInstXlationsEvent,
+                 clockedItbTranslation ? clockEdge() : curTick());
+    }
 }
 
 bool
-SimpleDataflowCPU::requestInstruction(const RequestPtr& req,
+SimpleDataflowCPU::requestInstructionData(const RequestPtr& req,
     FetchCallback callback_func)
 {
-    DPRINTF(SDCPUCoreEvent, "requestInstruction()\n");
+    DPRINTF(SDCPUCoreEvent, "requestInstructionData()\n");
 
     // Allocate some memory for objects we're about to send through the Port
     // system
@@ -340,7 +393,12 @@ SimpleDataflowCPU::requestInstruction(const RequestPtr& req,
     // Schedule our stuff for sending to the Port
     fetchReqs.push_back({pkt, callback_func});
 
-    attemptAllFetchReqs();
+    if (!attemptAllFetchReqsEvent.scheduled()) {
+        // This will call attemptAllFetchReqs()
+        schedule(&attemptAllFetchReqsEvent,
+                 clockedInstFetch ? clockEdge() : curTick());
+
+    }
 
     return true;
 }
@@ -377,7 +435,13 @@ SimpleDataflowCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
     memReqs.push_back(
         {pkt, inst, context, trace_data, tc, callback_func, nullptr}
     );
-    attemptAllMemReqs();
+
+     if (!attemptAllMemReqsEvent.scheduled()) {
+        // This will call attemptAllMemReqs()
+        schedule(&attemptAllMemReqsEvent,
+                 clockedMemoryRequest ? clockEdge() : curTick());
+    }
+
     return true;
 }
 
@@ -424,7 +488,13 @@ SimpleDataflowCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
     memReqs.push_back(
         {pkt, inst, context, trace_data, tc, callback_func, nullptr}
     );
-    attemptAllMemReqs();
+
+    if (!attemptAllMemReqsEvent.scheduled()) {
+        // This will call attemptAllMemReqs()
+        schedule(&attemptAllMemReqsEvent,
+                 clockedMemoryRequest ? clockEdge() : curTick());
+    }
+
     return true;
 }
 
@@ -458,7 +528,12 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
                        callback_func, split_acc});
     memReqs.push_back({split_acc->high, inst, context, trace_data, tc,
                        callback_func, split_acc});
-    attemptAllMemReqs();
+
+    if (!attemptAllMemReqsEvent.scheduled()) {
+        // This will call attemptAllMemReqs()
+        schedule(&attemptAllMemReqsEvent,
+                 clockedMemoryRequest ? clockEdge() : curTick());
+    }
 
     return true;
 }
@@ -505,7 +580,12 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
                        callback_func, split_acc});
     memReqs.push_back({split_acc->high, inst, context, trace_data, tc,
                        callback_func, split_acc});
-    attemptAllMemReqs();
+
+    if (!attemptAllMemReqsEvent.scheduled()) {
+        // This will call attemptAllMemReqs()
+        schedule(&attemptAllMemReqsEvent,
+                 clockedMemoryRequest ? clockEdge() : curTick());
+    }
 
 
     return true;
@@ -597,7 +677,12 @@ void
 SimpleDataflowCPU::DataPort::recvReqRetry()
 {
     receivedPushback = false;
-    cpu->attemptAllMemReqs();
+
+    if (!cpu->attemptAllMemReqsEvent.scheduled()) {
+        // This will call attemptAllMemReqs()
+        cpu->schedule(&cpu->attemptAllMemReqsEvent,
+                    cpu->clockedMemoryRequest ? cpu->clockEdge() : curTick());
+    }
 }
 
 bool
@@ -627,7 +712,12 @@ void
 SimpleDataflowCPU::InstPort::recvReqRetry()
 {
     receivedPushback = false;
-    cpu->attemptAllFetchReqs();
+
+    if (!cpu->attemptAllFetchReqsEvent.scheduled()) {
+        // This will call attemptAllFetchReqs()
+        cpu->schedule(&cpu->attemptAllFetchReqsEvent,
+            cpu->clockedInstFetch ? cpu->clockEdge() : curTick());
+    }
 }
 
 SimpleDataflowCPU*
