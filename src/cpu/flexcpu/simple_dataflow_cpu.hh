@@ -142,6 +142,8 @@ class SimpleDataflowCPU : public BaseCPU
     struct TranslationReq
     {
         RequestPtr request;
+        ThreadContext* tc;
+        bool write;
         TranslationCallback callback;
     };
 
@@ -190,10 +192,18 @@ class SimpleDataflowCPU : public BaseCPU
 
     // BEGIN Internal constants
 
+    const EventFunctionWrapper clockEdgeBeginEvent;
+
     // END Internal constants
 
 
     // BEGIN Internal parameters
+
+    bool clockedDtbTranslation;
+    bool clockedExecution;
+    bool clockedInstFetch;
+    bool clockedItbTranslation;
+    bool clockedMemoryRequest;
 
     // TODO temporary mark all executions as taking one cycle's length at least
     Tick executionTime = clockPeriod();
@@ -216,8 +226,10 @@ class SimpleDataflowCPU : public BaseCPU
     std::list<TranslationReq> dataTranslationReqs;
     std::list<TranslationReq> instTranslationReqs;
     std::list<FetchReq> fetchReqs;
+    bool fetchAttemptScheduled = false;
     std::list<ExecutionReq> executionReqs;
     std::list<MemAccessReq> memReqs;
+    bool memAttemptsScheduled = false;
 
     // Note: I was informed that the pointer you get back is the same pointer
     //       you send through the port, so it's safe to do this mapping. It may
@@ -240,6 +252,18 @@ class SimpleDataflowCPU : public BaseCPU
     void completeExecution(const ExecutionReq& req);
 
     void completeMemAccess(const MemAccessReq& req);
+
+    /**
+     * Should be called every clock edge.
+     */
+    void handleClockEdgeBegin();
+
+    void handleDataAddrTranslation(const RequestPtr& req, ThreadContext* tc,
+                                   bool write,
+                                   const TranslationCallback& callback_func);
+
+    void handleInstAddrTranslation(const RequestPtr& req, ThreadContext* tc,
+                                   const TranslationCallback& callback_func);
 
     // TODO some form of speculative state flush function?
 
@@ -267,6 +291,16 @@ class SimpleDataflowCPU : public BaseCPU
      * @param tid The ID of the thread that was activated
      */
     void activateContext(ThreadID tid) override;
+
+    /**
+     * Schedules a call to the provided function at the nearest clock edge +
+     * some number of cycles to delay.
+     *
+     * @param func The function to call.
+     * @param delay How many clock cycles after the nearest clock edge to wait.
+     */
+    void callAtClockEdge(std::function<void()> func,
+                         Cycles delay = Cycles(0));
 
     /**
      * Interface calls to retrieve a reference to the port used for data or
@@ -300,15 +334,9 @@ class SimpleDataflowCPU : public BaseCPU
      *  function returns false, the requester should not expect callback_func
      *  to be called in the future.
      */
-    bool requestDataAddrTranslation(const RequestPtr& req, ThreadContext* tc,
+    void requestDataAddrTranslation(const RequestPtr& req, ThreadContext* tc,
                                     bool write,
                                     TranslationCallback callback_func);
-
-    // TODO maybe we just need a generic requestInstSquash function to squash
-    //      anything we don't want to execute anymore. Might be useful to free
-    //      up execution units, even if we already can just choose not to
-    //      commit an instruction.
-    bool requestMemSquash(); // TODO
 
     /**
      * Event-driven means for other classes to request a timing-based execution
@@ -330,7 +358,7 @@ class SimpleDataflowCPU : public BaseCPU
      *  function returns false, the requester should not expect callback_func
      *  to be called in the future.
      */
-    bool requestExecution(StaticInstPtr inst,
+    void requestExecution(StaticInstPtr inst,
                           std::weak_ptr<ExecContext> context,
                           Trace::InstRecord* trace_data,
                           ExecCallback callback_func);
@@ -353,7 +381,7 @@ class SimpleDataflowCPU : public BaseCPU
      *  function returns false, the requester should not expect callback_func
      *  to be called in the future.
      */
-    bool requestInstAddrTranslation(const RequestPtr& req, ThreadContext* tc,
+    void requestInstAddrTranslation(const RequestPtr& req, ThreadContext* tc,
                                     TranslationCallback callback_func);
 
     /**
@@ -369,8 +397,8 @@ class SimpleDataflowCPU : public BaseCPU
      *  function returns false, the requester should not expect callback_func
      *  to be called in the future.
      */
-    bool requestInstruction(const RequestPtr& req,
-                            FetchCallback callback_func);
+    bool requestInstructionData(const RequestPtr& req,
+                                FetchCallback callback_func);
 
     /**
      * Event-driven means for classes to request a read access to memory. Upon

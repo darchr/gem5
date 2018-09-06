@@ -35,6 +35,24 @@ class SimpleDataflowCPU(BaseCPU):
     type = 'SimpleDataflowCPU'
     cxx_header = 'cpu/flexcpu/simple_dataflow_cpu.hh'
 
+    clocked_cpu = Param.Bool(False, "Ties stages of the cpu to clock edges")
+
+    # Tying requests to clock edges basically delays any events that would
+    # otherwise happen immediately to the earliest tick on a clock edge (May be
+    # the same tick if already on a clock edge).
+    clocked_dtb_translation = Param.Bool(Self.clocked_cpu, "Ties requests for "
+                                         "data addresses to clock edges.")
+    clocked_execution = Param.Bool(Self.clocked_cpu, "Ties requests for "
+                                   "instruction execution to clock edges.")
+    clocked_inst_fetch = Param.Bool(Self.clocked_cpu, "Ties requests for "
+                                    "instruction data to clock edges.")
+    clocked_itb_translation = Param.Bool(Self.clocked_cpu, "Ties requests for "
+                                         "instruction addresses to "
+                                         "clock edges.")
+    clocked_memory_request = Param.Bool(Self.clocked_cpu, "Ties requests for "
+                                        "sending packets to memory to clock "
+                                        "edges")
+
     fetch_buffer_size = Param.Unsigned(Parent.cache_line_size,
                                        "Size of fetch buffer in bytes. "
                                        "Also determines size of fetch "
