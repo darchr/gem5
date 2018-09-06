@@ -51,6 +51,9 @@ using sc_core::sc_export;
 
 using sc_core::sc_interface;
 
+using sc_core::sc_thread_handle;
+using sc_core::sc_join;
+
 using sc_core::sc_argc;
 using sc_core::sc_argv;
 using sc_core::sc_starvation_policy;
@@ -80,6 +83,10 @@ using sc_core::SC_RUNNING;
 using sc_core::SC_PAUSED;
 using sc_core::SC_STOPPED;
 using sc_core::SC_END_OF_SIMULATION;
+using sc_core::SC_END_OF_INITIALIZATION;
+using sc_core::SC_END_OF_UPDATE;
+using sc_core::SC_BEFORE_TIMESTEP;
+using sc_core::SC_STATUS_ANY;
 using sc_core::sc_status;
 
 using sc_core::sc_bind_proxy;
@@ -89,6 +96,7 @@ using sc_core::next_trigger;
 using sc_core::wait;
 using sc_core::halt;
 using sc_core::sc_gen_unique_name;
+using sc_core::sc_hierarchical_name_exists;
 using sc_core::sc_behavior;
 using sc_core::sc_channel;
 using sc_core::sc_start_of_simulation_invoked;
@@ -119,11 +127,19 @@ using sc_core::sc_descendent_inclusion_info;
 using sc_core::SC_NO_DESCENDANTS;
 using sc_core::SC_INCLUDE_DESCENDANTS;
 using sc_core::sc_unwind_exception;
+using sc_core::sc_process_b;
+using sc_core::sc_get_curr_process_handle;
+using sc_core::sc_get_current_process_b;
+using sc_core::sc_curr_proc_info;
+using sc_core::sc_curr_proc_handle;
 using sc_core::sc_process_handle;
 using sc_core::sc_get_current_process_handle;
 using sc_core::sc_is_unwinding;
 
 using sc_core::sc_sensitive;
+
+using sc_core::sc_simcontext;
+using sc_core::sc_get_curr_simcontext;
 
 using sc_core::sc_spawn_options;
 using sc_core::sc_spawn;
@@ -136,6 +152,7 @@ using sc_core::SC_US;
 using sc_core::SC_MS;
 using sc_core::SC_SEC;
 using sc_core::sc_time;
+using sc_core::sc_time_tuple;
 using sc_core::SC_ZERO_TIME;
 using sc_core::sc_set_time_resolution;
 using sc_core::sc_get_time_resolution;

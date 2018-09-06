@@ -30,8 +30,18 @@
 #ifndef __SYSTEMC_EXT_CORE_SC_PORT_HH__
 #define __SYSTEMC_EXT_CORE_SC_PORT_HH__
 
+#include <vector>
+
 #include "sc_module.hh" // for sc_gen_unique_name
 #include "sc_object.hh"
+
+namespace sc_gem5
+{
+
+class BindInfo;
+class PendingSensitivityPort;
+
+};
 
 namespace sc_core
 {
@@ -48,10 +58,27 @@ enum sc_port_policy
 class sc_port_base : public sc_object
 {
   public:
-    sc_port_base(const char *name, int n, sc_port_policy p) : sc_object(name)
-    {}
+    sc_port_base(const char *name, int n, sc_port_policy p);
 
     void warn_unimpl(const char *func) const;
+
+    int maxSize() const;
+    int size() const;
+
+  protected:
+    // Implementation defined, but depended on by the tests.
+    void bind(sc_interface &);
+    void bind(sc_port_base &);
+
+    // Implementation defined, but depended on by the tests.
+    virtual int vbind(sc_interface &) = 0;
+    virtual int vbind(sc_port_base &) = 0;
+
+  private:
+    friend class ::sc_gem5::PendingSensitivityPort;
+
+    std::vector<::sc_gem5::BindInfo *> _gem5BindInfo;
+    int _maxSize;
 };
 
 template <class IF>
@@ -144,6 +171,20 @@ class sc_port_b : public sc_port_base
             sc_port_base(name, n, p)
     {}
     virtual ~sc_port_b() {}
+
+    // Implementation defined, but depended on by the tests.
+    int
+    vbind(sc_interface &)
+    {
+        this->warn_unimpl(__PRETTY_FUNCTION__);
+        return 0;
+    }
+    int
+    vbind(sc_port_base &)
+    {
+        this->warn_unimpl(__PRETTY_FUNCTION__);
+        return 0;
+    }
 
   private:
     // Disabled

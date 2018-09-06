@@ -34,6 +34,7 @@
 #include "sc_event.hh"
 #include "sc_export.hh"
 #include "sc_interface.hh"
+#include "sc_join.hh"
 #include "sc_main.hh"
 #include "sc_module.hh"
 #include "sc_module_name.hh"
@@ -42,6 +43,7 @@
 #include "sc_prim.hh"
 #include "sc_process_handle.hh"
 #include "sc_sensitive.hh"
+#include "sc_simcontext.hh"
 #include "sc_spawn.hh"
 #include "sc_time.hh"
 

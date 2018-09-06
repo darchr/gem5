@@ -28,36 +28,51 @@
  */
 
 #include "base/logging.hh"
+#include "systemc/core/process.hh"
+#include "systemc/ext/core/sc_interface.hh"
 #include "systemc/ext/core/sc_sensitive.hh"
 
 namespace sc_core
 {
 
+sc_sensitive::sc_sensitive() : currentProcess(nullptr) {}
+
 sc_sensitive &
-sc_sensitive::operator << (const sc_event &)
+sc_sensitive::operator << (const sc_event &e)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    currentProcess->addStatic(
+            new sc_gem5::PendingSensitivityEvent(currentProcess, &e));
     return *this;
 }
 
 sc_sensitive &
-sc_sensitive::operator << (const sc_interface &)
+sc_sensitive::operator << (const sc_interface &i)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    currentProcess->addStatic(
+            new sc_gem5::PendingSensitivityInterface(currentProcess, &i));
     return *this;
 }
 
 sc_sensitive &
-sc_sensitive::operator << (const sc_port_base &)
+sc_sensitive::operator << (const sc_port_base &b)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    currentProcess->addStatic(
+            new sc_gem5::PendingSensitivityPort(currentProcess, &b));
     return *this;
 }
 
 sc_sensitive &
-sc_sensitive::operator << (sc_event_finder &)
+sc_sensitive::operator << (sc_event_finder &f)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    currentProcess->addStatic(
+            new sc_gem5::PendingSensitivityFinder(currentProcess, &f));
+    return *this;
+}
+
+sc_sensitive &
+sc_sensitive::operator << (::sc_gem5::Process *p)
+{
+    currentProcess = p;
     return *this;
 }
 

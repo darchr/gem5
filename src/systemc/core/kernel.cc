@@ -28,12 +28,35 @@
  */
 
 #include "systemc/core/kernel.hh"
+#include "systemc/core/scheduler.hh"
 
 namespace SystemC
 {
 
-Kernel::Kernel(Params *params) : SimObject(params)
+Kernel::Kernel(Params *params) :
+    SimObject(params), t0Event(this, false, EventBase::Default_Pri - 1) {}
+
+void
+Kernel::startup()
 {
+    schedule(t0Event, curTick());
+    // Install ourselves as the scheduler's event manager.
+    ::sc_gem5::scheduler.setEventQueue(eventQueue());
+    // Run update once before the event queue starts.
+    ::sc_gem5::scheduler.update();
+}
+
+void
+Kernel::t0Handler()
+{
+    // Now that the event queue has started, mark all the processes that
+    // need to be initialized as ready to run.
+    //
+    // This event has greater priority than delta notifications and so will
+    // happen before them, honoring the ordering for the initialization phase
+    // in the spec. The delta phase will happen at normal priority, and then
+    // the event which runs the processes which is at a lower priority.
+    ::sc_gem5::scheduler.prepareForInit();
 }
 
 } // namespace SystemC

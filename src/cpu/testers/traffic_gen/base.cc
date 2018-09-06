@@ -52,6 +52,7 @@
 #include "cpu/testers/traffic_gen/idle_gen.hh"
 #include "cpu/testers/traffic_gen/linear_gen.hh"
 #include "cpu/testers/traffic_gen/random_gen.hh"
+#include "cpu/testers/traffic_gen/stream_gen.hh"
 #include "debug/Checkpoint.hh"
 #include "debug/TrafficGen.hh"
 #include "params/BaseTrafficGen.hh"
@@ -78,8 +79,12 @@ BaseTrafficGen::BaseTrafficGen(const BaseTrafficGenParams* p)
       retryPkt(NULL),
       retryPktTick(0),
       updateEvent([this]{ update(); }, name()),
-      numSuppressed(0),
-      masterID(system->getMasterId(this))
+      masterID(system->getMasterId(this)),
+      streamGenerator(StreamGen::create(p))
+{
+}
+
+BaseTrafficGen::~BaseTrafficGen()
 {
 }
 
@@ -173,6 +178,19 @@ BaseTrafficGen::update()
         // get the next packet and try to send it
         PacketPtr pkt = activeGenerator->getNextPacket();
 
+        // If generating stream/substream IDs are enabled,
+        // try to pick and assign them to the new packet
+        if (streamGenerator) {
+            auto sid = streamGenerator->pickStreamID();
+            auto ssid = streamGenerator->pickSubStreamID();
+
+            pkt->req->setStreamId(sid);
+
+            if (streamGenerator->ssidValid()) {
+                pkt->req->setSubStreamId(ssid);
+            }
+        }
+
         // suppress packets that are not destined for a memory, such as
         // device accesses that could be part of a trace
         if (pkt && system->isMemAddr(pkt->getAddr())) {
@@ -186,9 +204,9 @@ BaseTrafficGen::update()
                     pkt->cmdString(), pkt->getAddr());
 
             ++numSuppressed;
-            if (numSuppressed % 10000)
+            if (!(static_cast<int>(numSuppressed.value()) % 10000))
                 warn("%s suppressed %d packets with non-memory addresses\n",
-                     name(), numSuppressed);
+                     name(), numSuppressed.value());
 
             delete pkt;
             pkt = nullptr;
@@ -313,6 +331,10 @@ BaseTrafficGen::regStats()
     numPackets
         .name(name() + ".numPackets")
         .desc("Number of packets generated");
+
+    numSuppressed
+        .name(name() + ".numSuppressed")
+        .desc("Number of suppressed packets to non-memory space");
 
     numRetries
         .name(name() + ".numRetries")

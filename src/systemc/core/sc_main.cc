@@ -33,21 +33,15 @@
 #include "base/logging.hh"
 #include "base/types.hh"
 #include "python/pybind11/pybind.hh"
+#include "sim/core.hh"
 #include "sim/eventq.hh"
 #include "sim/init.hh"
+#include "systemc/core/scheduler.hh"
 #include "systemc/ext/core/sc_main.hh"
 #include "systemc/ext/utils/sc_report_handler.hh"
 
-// A default version of this function in case one isn't otherwise defined.
-// This ensures everything will link properly whether or not the user defined
-// a custom sc_main function. If they didn't but still try to call it, throw
-// an error and die.
-[[gnu::weak]] int
-sc_main(int argc, char *argv[])
-{
-    // If python attempts to call sc_main but no sc_main was defined...
-    fatal("sc_main called but not defined.\n");
-}
+// A weak symbol to detect if sc_main has been defined, and if so where it is.
+[[gnu::weak]] int sc_main(int argc, char *argv[]);
 
 namespace sc_core
 {
@@ -65,7 +59,12 @@ class ScMainFiber : public Fiber
     void
     main()
     {
-        ::sc_main(_argc, _argv);
+        if (::sc_main) {
+            ::sc_main(_argc, _argv);
+        } else {
+            // If python tries to call sc_main but no sc_main was defined...
+            fatal("sc_main called but not defined.\n");
+        }
     }
 };
 
@@ -124,11 +123,6 @@ EmbeddedPyBind embed_("systemc", &systemc_pybind);
 sc_stop_mode _stop_mode = SC_STOP_FINISH_DELTA;
 sc_status _status = SC_ELABORATION;
 
-Tick _max_tick = MaxTick;
-sc_starvation_policy _starvation = SC_EXIT_ON_STARVATION;
-
-uint64_t _deltaCycles = 0;
-
 } // anonymous namespace
 
 int
@@ -146,28 +140,29 @@ sc_argv()
 void
 sc_start()
 {
-    _max_tick = MaxTick;
-    _starvation = SC_EXIT_ON_STARVATION;
-
-    // Switch back gem5.
-    Fiber::primaryFiber()->run();
+    Tick now = ::sc_gem5::scheduler.getCurTick();
+    sc_start(sc_time::from_value(MaxTick - now), SC_EXIT_ON_STARVATION);
 }
 
 void
 sc_pause()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    if (_status == SC_RUNNING)
+        ::sc_gem5::scheduler.schedulePause();
 }
 
 void
 sc_start(const sc_time &time, sc_starvation_policy p)
 {
-    Tick now = curEventQueue() ? curEventQueue()->getCurTick() : 0;
-    _max_tick = now + time.value();
-    _starvation = p;
+    _status = SC_RUNNING;
 
-    // Switch back to gem5.
-    Fiber::primaryFiber()->run();
+    Tick now = ::sc_gem5::scheduler.getCurTick();
+    ::sc_gem5::scheduler.start(now + time.value(), p == SC_RUN_TO_TIME);
+
+    if (::sc_gem5::scheduler.paused())
+        _status = SC_PAUSED;
+    else if (::sc_gem5::scheduler.stopped())
+        _status = SC_STOPPED;
 }
 
 void
@@ -190,20 +185,31 @@ sc_get_stop_mode()
 void
 sc_stop()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    if (_status == SC_STOPPED)
+        return;
+
+    if (sc_is_running()) {
+        bool finish_delta = (_stop_mode == SC_STOP_FINISH_DELTA);
+        ::sc_gem5::scheduler.scheduleStop(finish_delta);
+    } else {
+        //XXX Should stop if in one of the various elaboration callbacks.
+    }
 }
 
 const sc_time &
 sc_time_stamp()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return *(sc_time *)nullptr;
+    static sc_time tstamp;
+    Tick tick = ::sc_gem5::scheduler.getCurTick();
+    //XXX We're assuming the systemc time resolution is in ps.
+    tstamp = sc_time::from_value(tick / SimClock::Int::ps);
+    return tstamp;
 }
 
 sc_dt::uint64
 sc_delta_count()
 {
-    return _deltaCycles;
+    return sc_gem5::scheduler.numCycles();
 }
 
 bool
@@ -215,15 +221,13 @@ sc_is_running()
 bool
 sc_pending_activity_at_current_time()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return false;
+    return ::sc_gem5::scheduler.pendingCurr();
 }
 
 bool
 sc_pending_activity_at_future_time()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return false;
+    return ::sc_gem5::scheduler.pendingFuture();
 }
 
 bool
@@ -236,8 +240,7 @@ sc_pending_activity()
 sc_time
 sc_time_to_pending_activity()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return sc_time();
+    return sc_time::from_value(::sc_gem5::scheduler.timeToPending());
 }
 
 sc_status

@@ -28,15 +28,35 @@
  */
 
 #include "base/logging.hh"
+#include "systemc/core/bindinfo.hh"
 #include "systemc/ext/core/sc_port.hh"
 
 namespace sc_core
 {
 
+sc_port_base::sc_port_base(const char *name, int n, sc_port_policy p) :
+    sc_object(name)
+{}
+
 void
 sc_port_base::warn_unimpl(const char *func) const
 {
     warn("%s not implemented.\n", func);
+}
+
+int sc_port_base::maxSize() const { return _maxSize; }
+int sc_port_base::size() const { return _gem5BindInfo.size(); }
+
+void
+sc_port_base::bind(sc_interface &)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+}
+
+void
+sc_port_base::bind(sc_port_base &)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
 }
 
 } // namespace sc_core

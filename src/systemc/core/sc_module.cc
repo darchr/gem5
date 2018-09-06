@@ -31,34 +31,48 @@
 #include <vector>
 
 #include "base/logging.hh"
+#include "systemc/core/module.hh"
+#include "systemc/core/process_types.hh"
 #include "systemc/ext/core/sc_module.hh"
+#include "systemc/ext/core/sc_module_name.hh"
+
+namespace sc_gem5
+{
+
+Process *
+newMethodProcess(const char *name, ProcessFuncWrapper *func)
+{
+    return new Method(name, func);
+}
+
+Process *
+newThreadProcess(const char *name, ProcessFuncWrapper *func)
+{
+    return new Thread(name, func);
+}
+
+Process *
+newCThreadProcess(const char *name, ProcessFuncWrapper *func)
+{
+    return new CThread(name, func);
+}
+
+} // namespace sc_gem5
 
 namespace sc_core
 {
 
-sc_bind_proxy::sc_bind_proxy(const sc_interface &interface)
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-}
+sc_bind_proxy::sc_bind_proxy(const sc_interface &_interface) :
+    _interface(&_interface), _port(nullptr)
+{}
 
-sc_bind_proxy::sc_bind_proxy(const sc_port_base &port)
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-}
+sc_bind_proxy::sc_bind_proxy(const sc_port_base &_port) :
+    _interface(nullptr), _port(&_port)
+{}
 
 const sc_bind_proxy SC_BIND_PROXY_NUL(*(const sc_port_base *)nullptr);
 
-sc_module::~sc_module()
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-}
-
-const char *
-sc_module::kind() const
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return "";
-}
+sc_module::~sc_module() {}
 
 const sc_bind_proxy SC_BIND_PROXY_NIL(*(const sc_port_base *)nullptr);
 
@@ -134,26 +148,25 @@ sc_module::operator () (const sc_bind_proxy &p001,
 const std::vector<sc_object *> &
 sc_module::get_child_objects() const
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return *(const std::vector<sc_object *> *)nullptr;
+    return _gem5_module->obj()->get_child_objects();
 }
 
 const std::vector<sc_event *> &
 sc_module::get_child_events() const
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return *(const std::vector<sc_event *> *)nullptr;
+    return _gem5_module->obj()->get_child_events();
 }
 
-sc_module::sc_module(const sc_module_name &)
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-}
+sc_module::sc_module() :
+    sc_object(sc_gem5::newModule()->name()),
+    _gem5_module(sc_gem5::currentModule())
+{}
 
-sc_module::sc_module()
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-}
+sc_module::sc_module(const sc_module_name &) : sc_module() {}
+sc_module::sc_module(const char *_name) : sc_module(sc_module_name(_name)) {}
+sc_module::sc_module(const std::string &_name) :
+    sc_module(sc_module_name(_name.c_str()))
+{}
 
 void
 sc_module::reset_signal_is(const sc_in<bool> &, bool)
@@ -208,348 +221,388 @@ sc_module::async_reset_signal_is(const sc_signal_in_if<bool> &, bool)
 void
 sc_module::dont_initialize()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_gem5::Process::newest()->dontInitialize();
 }
 
 void
-sc_module::set_stack_size(size_t)
+sc_module::set_stack_size(size_t size)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_gem5::Process::newest()->setStackSize(size);
 }
 
 
+void sc_module::next_trigger() { ::sc_core::next_trigger(); }
+
 void
-sc_module::next_trigger()
+sc_module::next_trigger(const sc_event &e)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::next_trigger(e);
 }
 
 void
-sc_module::next_trigger(const sc_event &)
+sc_module::next_trigger(const sc_event_or_list &eol)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::next_trigger(eol);
 }
 
 void
-sc_module::next_trigger(const sc_event_or_list &)
+sc_module::next_trigger(const sc_event_and_list &eal)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::next_trigger(eal);
 }
 
 void
-sc_module::next_trigger(const sc_event_and_list &)
+sc_module::next_trigger(const sc_time &t)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::next_trigger(t);
 }
 
 void
-sc_module::next_trigger(const sc_time &)
+sc_module::next_trigger(double d, sc_time_unit u)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::next_trigger(d, u);
 }
 
 void
-sc_module::next_trigger(double, sc_time_unit)
+sc_module::next_trigger(const sc_time &t, const sc_event &e)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::next_trigger(t, e);
 }
 
 void
-sc_module::next_trigger(const sc_time &, const sc_event &)
+sc_module::next_trigger(double d, sc_time_unit u, const sc_event &e)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::next_trigger(d, u, e);
 }
 
 void
-sc_module::next_trigger(double, sc_time_unit, const sc_event &)
+sc_module::next_trigger(const sc_time &t, const sc_event_or_list &eol)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::next_trigger(t, eol);
 }
 
 void
-sc_module::next_trigger(const sc_time &, const sc_event_or_list &)
+sc_module::next_trigger(double d, sc_time_unit u, const sc_event_or_list &eol)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::next_trigger(d, u, eol);
 }
 
 void
-sc_module::next_trigger(double, sc_time_unit, const sc_event_or_list &)
+sc_module::next_trigger(const sc_time &t, const sc_event_and_list &eal)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::next_trigger(t, eal);
 }
 
 void
-sc_module::next_trigger(const sc_time &, const sc_event_and_list &)
+sc_module::next_trigger(double d, sc_time_unit u, const sc_event_and_list &eal)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::next_trigger(d, u, eal);
 }
 
-void
-sc_module::next_trigger(double, sc_time_unit, const sc_event_and_list &)
+
+bool
+sc_module::timed_out()
 {
     warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return false;
 }
 
 
 void
 sc_module::wait()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::wait();
 }
 
 void
-sc_module::wait(int)
+sc_module::wait(int i)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::wait(i);
 }
 
 void
-sc_module::wait(const sc_event &)
+sc_module::wait(const sc_event &e)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::wait(e);
 }
 
 void
-sc_module::wait(const sc_event_or_list &)
+sc_module::wait(const sc_event_or_list &eol)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::wait(eol);
 }
 
 void
-sc_module::wait(const sc_event_and_list &)
+sc_module::wait(const sc_event_and_list &eal)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::wait(eal);
 }
 
 void
-sc_module::wait(const sc_time &)
+sc_module::wait(const sc_time &t)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::wait(t);
 }
 
 void
-sc_module::wait(double, sc_time_unit)
+sc_module::wait(double d, sc_time_unit u)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::wait(d, u);
 }
 
 void
-sc_module::wait(const sc_time &, const sc_event &)
+sc_module::wait(const sc_time &t, const sc_event &e)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::wait(t, e);
 }
 
 void
-sc_module::wait(double, sc_time_unit, const sc_event &)
+sc_module::wait(double d, sc_time_unit u, const sc_event &e)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::wait(d, u, e);
 }
 
 void
-sc_module::wait(const sc_time &, const sc_event_or_list &)
+sc_module::wait(const sc_time &t, const sc_event_or_list &eol)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::wait(t, eol);
 }
 
 void
-sc_module::wait(double, sc_time_unit, const sc_event_or_list &)
+sc_module::wait(double d, sc_time_unit u, const sc_event_or_list &eol)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::wait(d, u, eol);
 }
 
 void
-sc_module::wait(const sc_time &, const sc_event_and_list &)
+sc_module::wait(const sc_time &t, const sc_event_and_list &eal)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::wait(t, eal);
 }
 
 void
-sc_module::wait(double, sc_time_unit, const sc_event_and_list &)
+sc_module::wait(double d, sc_time_unit u, const sc_event_and_list &eal)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::wait(d, u, eal);
 }
 
 
 void
 sc_module::halt()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::halt();
 }
 
 void
-sc_module::at_posedge(const sc_signal_in_if<bool> &)
+sc_module::at_posedge(const sc_signal_in_if<bool> &s)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::at_posedge(s);
 }
 
 void
-sc_module::at_posedge(const sc_signal_in_if<sc_dt::sc_logic> &)
+sc_module::at_posedge(const sc_signal_in_if<sc_dt::sc_logic> &s)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::at_posedge(s);
 }
 
 void
-sc_module::at_negedge(const sc_signal_in_if<bool> &)
+sc_module::at_negedge(const sc_signal_in_if<bool> &s)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::at_negedge(s);
 }
 
 void
-sc_module::at_negedge(const sc_signal_in_if<sc_dt::sc_logic> &)
+sc_module::at_negedge(const sc_signal_in_if<sc_dt::sc_logic> &s)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_core::at_negedge(s);
 }
 
 
 void
 next_trigger()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(nullptr);
 }
 
 void
-next_trigger(const sc_event &)
+next_trigger(const sc_event &e)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(new ::sc_gem5::SensitivityEvent(p, &e));
 }
 
 void
-next_trigger(const sc_event_or_list &)
+next_trigger(const sc_event_or_list &eol)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(new ::sc_gem5::SensitivityEventOrList(p, &eol));
 }
 
 void
-next_trigger(const sc_event_and_list &)
+next_trigger(const sc_event_and_list &eal)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(new ::sc_gem5::SensitivityEventAndList(p, &eal));
 }
 
 void
-next_trigger(const sc_time &)
+next_trigger(const sc_time &t)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(new ::sc_gem5::SensitivityTimeout(p, t));
 }
 
 void
-next_trigger(double, sc_time_unit)
+next_trigger(double d, sc_time_unit u)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    next_trigger(sc_time(d, u));
 }
 
 void
-next_trigger(const sc_time &, const sc_event &)
+next_trigger(const sc_time &t, const sc_event &e)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(new ::sc_gem5::SensitivityTimeoutAndEvent(p, t, &e));
 }
 
 void
-next_trigger(double, sc_time_unit, const sc_event &)
+next_trigger(double d, sc_time_unit u, const sc_event &e)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    next_trigger(sc_time(d, u), e);
 }
 
 void
-next_trigger(const sc_time &, const sc_event_or_list &)
+next_trigger(const sc_time &t, const sc_event_or_list &eol)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(
+            new ::sc_gem5::SensitivityTimeoutAndEventOrList(p, t, &eol));
 }
 
 void
-next_trigger(double, sc_time_unit, const sc_event_or_list &)
+next_trigger(double d, sc_time_unit u, const sc_event_or_list &eol)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    next_trigger(sc_time(d, u), eol);
 }
 
 void
-next_trigger(const sc_time &, const sc_event_and_list &)
+next_trigger(const sc_time &t, const sc_event_and_list &eal)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(
+            new ::sc_gem5::SensitivityTimeoutAndEventAndList(p, t, &eal));
 }
 
 void
-next_trigger(double, sc_time_unit, const sc_event_and_list &)
+next_trigger(double d, sc_time_unit u, const sc_event_and_list &eal)
+{
+    next_trigger(sc_time(d, u), eal);
+}
+
+bool
+timed_out()
 {
     warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return false;
 }
 
 
 void
 wait()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(nullptr);
+    sc_gem5::scheduler.yield();
 }
 
 void
-wait(int)
+wait(int n)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    for (int i = 0; i < n; i++)
+        wait();
 }
 
 void
-wait(const sc_event &)
+wait(const sc_event &e)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(new ::sc_gem5::SensitivityEvent(p, &e));
+    sc_gem5::scheduler.yield();
 }
 
 void
-wait(const sc_event_or_list &)
+wait(const sc_event_or_list &eol)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(new ::sc_gem5::SensitivityEventOrList(p, &eol));
+    sc_gem5::scheduler.yield();
 }
 
 void
-wait(const sc_event_and_list &)
+wait(const sc_event_and_list &eal)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(new ::sc_gem5::SensitivityEventAndList(p, &eal));
+    sc_gem5::scheduler.yield();
 }
 
 void
-wait(const sc_time &)
+wait(const sc_time &t)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(new ::sc_gem5::SensitivityTimeout(p, t));
+    sc_gem5::scheduler.yield();
 }
 
 void
-wait(double, sc_time_unit)
+wait(double d, sc_time_unit u)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    wait(sc_time(d, u));
 }
 
 void
-wait(const sc_time &, const sc_event &)
+wait(const sc_time &t, const sc_event &e)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(new ::sc_gem5::SensitivityTimeoutAndEvent(p, t, &e));
+    sc_gem5::scheduler.yield();
 }
 
 void
-wait(double, sc_time_unit, const sc_event &)
+wait(double d, sc_time_unit u, const sc_event &e)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    wait(sc_time(d, u), e);
 }
 
 void
-wait(const sc_time &, const sc_event_or_list &)
+wait(const sc_time &t, const sc_event_or_list &eol)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(
+            new ::sc_gem5::SensitivityTimeoutAndEventOrList(p, t, &eol));
+    sc_gem5::scheduler.yield();
 }
 
 void
-wait(double, sc_time_unit, const sc_event_or_list &)
+wait(double d, sc_time_unit u, const sc_event_or_list &eol)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    wait(sc_time(d, u), eol);
 }
 
 void
-wait(const sc_time &, const sc_event_and_list &)
+wait(const sc_time &t, const sc_event_and_list &eal)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::Process *p = sc_gem5::scheduler.current();
+    p->setDynamic(
+            new ::sc_gem5::SensitivityTimeoutAndEventAndList(p, t, &eal));
+    sc_gem5::scheduler.yield();
 }
 
 void
-wait(double, sc_time_unit, const sc_event_and_list &)
+wait(double d, sc_time_unit u, const sc_event_and_list &eal)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    wait(sc_time(d, u), eal);
 }
 
 void
@@ -587,6 +640,13 @@ sc_gen_unique_name(const char *)
 {
     warn("%s not implemented.\n", __PRETTY_FUNCTION__);
     return "";
+}
+
+bool
+sc_hierarchical_name_exists(const char *name)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return false;
 }
 
 bool

@@ -48,6 +48,16 @@ sc_time::sc_time(const sc_time &)
     warn("%s not implemented.\n", __PRETTY_FUNCTION__);
 }
 
+sc_time::sc_time(double, bool)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+}
+
+sc_time::sc_time(sc_dt::uint64, bool)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+}
+
 sc_time &
 sc_time::operator = (const sc_time &)
 {
@@ -158,6 +168,27 @@ sc_time::print(std::ostream &) const
     warn("%s not implemented.\n", __PRETTY_FUNCTION__);
 }
 
+sc_time
+sc_time::from_value(sc_dt::uint64)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return sc_time();
+}
+
+sc_time
+sc_time::from_seconds(double)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return sc_time();
+}
+
+sc_time
+sc_time::from_string(const char *str)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return sc_time();
+}
+
 const sc_time
 operator + (const sc_time &, const sc_time &)
 {
@@ -240,6 +271,46 @@ sc_get_default_time_unit()
 {
     warn("%s not implemented.\n", __PRETTY_FUNCTION__);
     return *(sc_time *)nullptr;
+}
+
+sc_time_tuple::sc_time_tuple(const sc_time &)
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+}
+
+bool
+sc_time_tuple::has_value() const
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return false;
+}
+
+sc_dt::uint64
+sc_time_tuple::value() const
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return 0;
+}
+
+const char *
+sc_time_tuple::unit_symbol() const
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return "";
+}
+
+double
+sc_time_tuple::to_double() const
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return 0.0;
+}
+
+std::string
+sc_time_tuple::to_string() const
+{
+    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    return "";
 }
 
 } // namespace sc_core
