@@ -297,6 +297,9 @@ class SimpleDataflowCPU : public BaseCPU
      */
     void activateContext(ThreadID tid) override;
 
+    void suspendContext(ThreadID tid) override;
+    void haltContext(ThreadID tid) override;
+
     /**
      * Interface calls to retrieve a reference to the port used for data or
      * instructions respectively.
