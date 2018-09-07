@@ -215,8 +215,7 @@ class SimpleDataflowCPU : public BaseCPU
     bool clockedItbTranslation;
     bool clockedMemoryRequest;
 
-    // TODO temporary mark all executions as taking one cycle's length at least
-    Tick executionTime = clockPeriod();
+    Cycles executionLatency;
 
     // END Internal parameters
 

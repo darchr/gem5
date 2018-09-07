@@ -39,8 +39,11 @@ class MySimpleMemory(SimpleMemory):
     latency = '1ns'
     bandwidth = '0B/s'
 
+class MyDFCPU(SimpleDataflowCPU):
+    execution_latency = 1
+
 valid_cpu = {'SingleCycle': TimingSimpleCPU,
-             'DfCPU': SimpleDataflowCPU,
+             'DfCPU': MyDFCPU,
              'O3': DerivO3CPU,
              'Minor': MinorCPU
             }
