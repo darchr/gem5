@@ -47,6 +47,7 @@ SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
     clockedInstFetch(params->clocked_inst_fetch),
     clockedItbTranslation(params->clocked_itb_translation),
     clockedMemoryRequest(params->clocked_memory_request),
+    executionLatency(params->execution_latency),
     _dataPort(name() + "._dataPort", this),
     _instPort(name() + "._instPort", this)
 {
@@ -122,7 +123,8 @@ SimpleDataflowCPU::attemptAllExecutions()
             completeExecution(req);
         }, name() + ".executeEvent", true);
 
-        schedule(event, executionTime);
+        schedule(event, clockedExecution ? clockEdge(executionLatency) :
+                 curTick() + cyclesToTicks(executionLatency));
 
         executionReqs.pop_front();
     }

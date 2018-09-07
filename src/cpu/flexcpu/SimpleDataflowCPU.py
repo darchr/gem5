@@ -62,6 +62,9 @@ class SimpleDataflowCPU(BaseCPU):
     strict_serialization = Param.Bool(True, "Controls behavior of serializing "
                                             "flags on instructions.")
 
+    execution_latency = Param.Cycles(1, "Number of cycles for each "
+                                         "instruction to execute")
+
     @classmethod
     def memory_mode(cls):
         return 'timing'
