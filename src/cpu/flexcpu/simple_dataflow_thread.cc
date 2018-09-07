@@ -785,6 +785,19 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 
     // END Sequential Consistency
 
+    // BEGIN Only store if instruction is at head of inflightInsts
+
+    if (inflightInsts.size() > 1 && static_inst->isStore()) {
+        const shared_ptr<InflightInst> last_inst = *(++inflightInsts.rbegin());
+
+        if (!(last_inst->isCommitted() || last_inst->isSquashed()))
+            inst_ptr->addCommitDependency(last_inst);
+
+        return;
+    }
+
+    // END Only store if instruction is at head of inflightInsts
+
     // BEGIN Data dependencies through registers
 
     const int8_t num_srcs = static_inst->numSrcRegs();
