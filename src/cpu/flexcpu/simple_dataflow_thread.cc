@@ -114,6 +114,11 @@ SDCPUThread::activate()
 void
 SDCPUThread::advanceInst()
 {
+    if (status() != ThreadContext::Active) {
+        // If this thread isn't currently active, don't do anything
+        return;
+    }
+
     const InstSeqNum seq_num = lastCommittedInstNum + inflightInsts.size() + 1;
 
     DPRINTF(SDCPUThreadEvent, "advanceInst(seq %d)\n", seq_num);

@@ -605,6 +605,20 @@ SimpleDataflowCPU::startup()
 }
 
 void
+SimpleDataflowCPU::suspendContext(ThreadID tid)
+{
+    // Need to de-schedule any instructions in the pipeline?
+    BaseCPU::suspendContext(tid);
+}
+
+void
+SimpleDataflowCPU::haltContext(ThreadID tid)
+{
+    // Need to de-schedule any instructions in the pipeline?
+    BaseCPU::haltContext(tid);
+}
+
+void
 SimpleDataflowCPU::switchOut()
 {
     // TODO flush speculative state.
