@@ -731,21 +731,17 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
                 inst_ptr->addCommitDependency(last_inst);
             }
 
+            lastSerializingInstruction = inst_ptr;
+
             return;
         }
 
-        for (auto& prior : inflightInsts) {
-            if (prior == inst_ptr || prior->isCommitted()
-             || prior->isSquashed()) {
-                continue;
-            }
-
-            if (prior->staticInst()->isSerializing()) {
-                DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
-                        inst_ptr->seqNum(), prior->seqNum());
-                inst_ptr->addCommitDependency(prior);
-            }
+        if (auto serializing_inst = lastSerializingInstruction.lock()) {
+            DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
+                    inst_ptr->seqNum(), serializing_inst->seqNum());
+            inst_ptr->addCommitDependency(serializing_inst);
         }
+
     } else {
         if (inflightInsts.size() > 1 && static_inst->isSerializeBefore()) {
             const shared_ptr<InflightInst> last_inst =
@@ -757,20 +753,15 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
                 inst_ptr->addCommitDependency(last_inst);
             }
 
+            lastSerializingInstruction = inst_ptr;
+
             return;
         }
 
-        for (auto& prior : inflightInsts) {
-            if (prior == inst_ptr || prior->isCommitted()
-             || prior->isSquashed()) {
-                continue;
-            }
-
-            if (prior->staticInst()->isSerializeAfter()) {
-                DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
-                        inst_ptr->seqNum(), prior->seqNum());
-                inst_ptr->addCommitDependency(prior);
-            }
+        if (auto serializing_inst = lastSerializingInstruction.lock()) {
+            DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
+                    inst_ptr->seqNum(), serializing_inst->seqNum());
+            inst_ptr->addCommitDependency(serializing_inst);
         }
     }
 

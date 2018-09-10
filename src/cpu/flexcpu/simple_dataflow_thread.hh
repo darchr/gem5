@@ -175,6 +175,11 @@ class SDCPUThread : public ThreadContext
     StaticInstPtr curMacroOp = StaticInst::nullStaticInstPtr;
 
     /**
+     * The last instruction that should serialize all following instructions
+     */
+    std::weak_ptr<InflightInst> lastSerializingInstruction;
+
+    /**
      * We hold a decoder outside of _committedState even though SimpleThread
      * has a decoder object inside, because we are decoding instructions that
      * have not been committed yet, and we want to keep committed and
