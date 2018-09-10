@@ -34,6 +34,7 @@
 
 #include "base/intmath.hh"
 #include "base/trace.hh"
+#include "debug/SDCPUDeps.hh"
 #include "debug/SDCPUInstEvent.hh"
 #include "debug/SDCPUThreadEvent.hh"
 #include "mem/request.hh"
@@ -724,8 +725,11 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 
             // TODO don't add the dependency when last is squashed, but find
             //      newest instruction that isn't squashed
-            if (!(last_inst->isCommitted() || last_inst->isSquashed()))
+            if (!(last_inst->isCommitted() || last_inst->isSquashed())) {
+                DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
+                        inst_ptr->seqNum(), last_inst->seqNum());
                 inst_ptr->addCommitDependency(last_inst);
+            }
 
             return;
         }
@@ -736,16 +740,22 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
                 continue;
             }
 
-            if (prior->staticInst()->isSerializing())
+            if (prior->staticInst()->isSerializing()) {
+                DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
+                        inst_ptr->seqNum(), prior->seqNum());
                 inst_ptr->addCommitDependency(prior);
+            }
         }
     } else {
         if (inflightInsts.size() > 1 && static_inst->isSerializeBefore()) {
             const shared_ptr<InflightInst> last_inst =
                 *(++inflightInsts.rbegin());
 
-            if (!(last_inst->isCommitted() || last_inst->isSquashed()))
+            if (!(last_inst->isCommitted() || last_inst->isSquashed())) {
+                DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
+                        inst_ptr->seqNum(), last_inst->seqNum());
                 inst_ptr->addCommitDependency(last_inst);
+            }
 
             return;
         }
@@ -757,6 +767,8 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
             }
 
             if (prior->staticInst()->isSerializeAfter()) {
+                DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
+                        inst_ptr->seqNum(), prior->seqNum());
                 inst_ptr->addCommitDependency(prior);
             }
         }
@@ -784,6 +796,8 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
             const StaticInstPtr other_si = (*itr)->staticInst();
 
             if (other_si->isMemRef() || other_si->isMemBarrier()) {
+                DPRINTF(SDCPUDeps, "Dep %d -> %d [mem barrier]\n",
+                        inst_ptr->seqNum(), (*itr)->seqNum());
                 inst_ptr->addDependency(*itr);
                 break;
             }
@@ -817,6 +831,9 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 
         // Attach the dependency if the instruction is still around
         if (producer && !(producer->isComplete() || producer->isSquashed())) {
+            DPRINTF(SDCPUDeps, "Dep %d -> %d [data (reg[%d])]\n",
+                    inst_ptr->seqNum(), producer->seqNum(),
+                    src_reg.index());
             inst_ptr->addDependency(producer);
         }
 
@@ -835,6 +852,8 @@ SDCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr) {
 
         InflightInst::DataSource source = {inst_ptr, dst_idx};
         lastUses[dst_reg] = source;
+        DPRINTF(SDCPUDeps, "%d is producer of reg[%d]\n", inst_ptr->seqNum(),
+                dst_reg.index());
     }
 }
 
