@@ -647,7 +647,13 @@ InflightInst::readStCondFailures() const
 void
 InflightInst::syscall(int64_t callnum, Fault* fault)
 {
+    TheISA::PCState pc = backingContext->pcState();
     backingContext->syscall(callnum, fault);
+    TheISA::PCState newpc = backingContext->pcState();
+    assert(pc == newpc);
+    if (pc != newpc) {
+        pcState(newpc);
+    }
 }
 
 ThreadContext*
