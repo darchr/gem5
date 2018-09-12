@@ -72,7 +72,7 @@ class SimpleDataflowCPU : public BaseCPU
       protected:
         SimpleDataflowCPU* cpu;
       public:
-        bool receivedPushback = false;
+        PacketPtr blockedPkt = nullptr;
 
         DataPort(const std::string& name_, SimpleDataflowCPU* cpu_):
             MasterPort(name_, cpu_),
@@ -85,6 +85,10 @@ class SimpleDataflowCPU : public BaseCPU
         bool recvTimingResp(PacketPtr pkt);
 
         void recvReqRetry();
+
+        void sendPacket(PacketPtr pkt);
+
+        bool blocked() { return blockedPkt != nullptr; }
     };
 
     class InstPort : public MasterPort
@@ -92,7 +96,7 @@ class SimpleDataflowCPU : public BaseCPU
       protected:
         SimpleDataflowCPU* cpu;
       public:
-        bool receivedPushback = false;
+        PacketPtr blockedPkt = nullptr;
 
         InstPort(const std::string& name_, SimpleDataflowCPU* cpu_):
             MasterPort(name_, cpu_),
@@ -105,6 +109,10 @@ class SimpleDataflowCPU : public BaseCPU
         bool recvTimingResp(PacketPtr pkt);
 
         void recvReqRetry();
+
+        void sendPacket(PacketPtr pkt);
+
+        bool blocked() { return blockedPkt != nullptr; }
     };
 
     class CallbackTransHandler : public BaseTLB::Translation
@@ -139,28 +147,6 @@ class SimpleDataflowCPU : public BaseCPU
 
     // BEGIN Internal container structs
 
-    struct TranslationReq
-    {
-        RequestPtr request;
-        ThreadContext* tc;
-        bool write;
-        TranslationCallback callback;
-    };
-
-    struct FetchReq
-    {
-        PacketPtr packet;
-        FetchCallback callback;
-    };
-
-    struct ExecutionReq
-    {
-        StaticInstPtr staticInst;
-        std::weak_ptr<ExecContext> execContext;
-        Trace::InstRecord* traceData;
-        ExecCallback callback;
-    };
-
     struct SplitAccCtrlBlk
     {
         // Packet used to communicate to the instruction (completeAcc)
@@ -192,33 +178,132 @@ class SimpleDataflowCPU : public BaseCPU
 
     // BEGIN Internal constants
 
-    EventFunctionWrapper attemptAllDataXlationsEvent = EventFunctionWrapper(
-        [this]{ attemptAllDataXlations(); }, name()+"attemptAllDataXlations");
-    EventFunctionWrapper attemptAllExecutionsEvent = EventFunctionWrapper(
-        [this]{ attemptAllExecutions(); }, name()+"attemptAllExecutions");
-    EventFunctionWrapper attemptAllFetchReqsEvent = EventFunctionWrapper(
-        [this]{ attemptAllFetchReqs(); }, name()+".attemptAllFetchReqsEvent",
-        false, Event::CPU_Tick_Pri);
-    EventFunctionWrapper attemptAllInstXlationsEvent = EventFunctionWrapper(
-        [this]{ attemptAllInstXlations(); }, name()+"attemptAllInstXlations");
-    EventFunctionWrapper attemptAllMemReqsEvent = EventFunctionWrapper(
-        [this]{ attemptAllMemReqs(); }, name()+".attemptAllMemReqsEvent");
-
     // END Internal constants
 
 
     // BEGIN Internal parameters
 
-    bool clockedDtbTranslation;
-    bool clockedExecution;
-    bool clockedInstFetch;
-    bool clockedItbTranslation;
-    bool clockedMemoryRequest;
-
     Cycles executionLatency;
 
     // END Internal parameters
 
+    /**
+     * Models a functional unit. Each unit has a latency, in cycles, and a
+     * bandwidth in accesses per cycle. A latency of 0 implies the action is
+     * immediately taken. Otherwise, the action of the functional unit is not
+     * functionally "executed" until after latency cycles. If the functional
+     * unit is not "clocked", then the latency is absolute. If it is clocked
+     * then the "execution" always occurs on the next clock edge after the
+     * latency.
+     *
+     * NOTE: We might want to make this a SimObject so it can be configured
+     *       from python more easily.
+     */
+    class Resource
+    {
+      protected:
+        SimpleDataflowCPU* cpu;
+
+      private:
+        const bool clocked;
+        const Cycles latency;
+        const int bandwidth;
+        const std::string _name;
+
+        int usedBandwidth = 0;
+
+        // All of the functions that we need to call the next time we can.
+        // Right now, this is an infinite queue. We should at least check to
+        // make sure it doesn't get too large.
+        std::list<std::function<void()>> requests;
+
+        // This is executed to try to schedule the requests for execution.
+        // We should always check to make sure this *isn't* scheduled before
+        // scheduling it.
+        EventFunctionWrapper attemptAllEvent;
+
+        /**
+         * For each request in the request queue (requests) execute it until
+         * we run out of available resources
+         * */
+        void attemptAllRequests();
+
+      protected:
+        /**
+         * Checks to see if we can issue a request to this resource.
+         * By default, this only checks the bandwidth for this cycle. However,
+         * other implementations might check other things (e.g., if the port is
+         * available)
+         *
+         * @return true if the request can be "executed" on this resource
+         */
+        virtual bool resourceAvailable();
+
+      public:
+        /**
+         * @param the cpu that this functional unit is part of. Needed for
+         *        the clock.
+         * @param if clocked is true, then all events will be scheduled for
+         *        clock edges. Otherwise, they will be scheduled for latency
+         *        in the future.
+         * @param the number of cycles to wait before "executing" the request
+         * @param the number of requests that can be handled per cycle
+         * @param the name of this unit (for debugging and stats)
+         * @param whether the event should run last (with lower priority) in
+         *        the event queue. Needed for fetches.
+         */
+        Resource(SimpleDataflowCPU *cpu,
+                 bool clocked, Cycles latency, int bandwidth,
+                 std::string _name, bool run_last = false);
+
+        /**
+         * Add a function to execute to the queue of requests for this resource
+         * to "execute".
+         *
+         * @param run_function is the function to run when the resource is
+         *        available and *after* latency cycles.
+         */
+        void addRequest(const std::function<void()>& run_function);
+
+        /**
+         * Get the name of this resources. Used for debugging and stats
+         */
+        const std::string& name() { return _name; }
+
+        /**
+         * Make sure the event to fire attemptAllRequests is scheduled.
+         * The event will alwyas be scheduled for the current tick or the next
+         * clock edge.
+         * Note: this may be able to be moved into addRequest except for the
+         *       case of memory retries.
+         */
+        void schedule();
+    };
+
+    class InstFetchResource : public Resource
+    {
+      public:
+        InstFetchResource(SimpleDataflowCPU *cpu, bool clocked, int bandwidth,
+                          std::string _name);
+      private:
+        bool resourceAvailable() override;
+    };
+
+    class MemoryResource : public Resource
+    {
+      public:
+        MemoryResource(SimpleDataflowCPU *cpu, bool clocked, int bandwidth,
+                       std::string _name);
+      private:
+        bool resourceAvailable() override;
+    };
+
+    /// Resources for each unit.
+    Resource dataAddrTranslationUnit;
+    Resource executionUnit;
+    InstFetchResource instFetchUnit;
+    Resource instAddrTranslationUnit;
+    MemoryResource memoryUnit;
 
     // BEGIN Internal state variables
 
@@ -230,45 +315,23 @@ class SimpleDataflowCPU : public BaseCPU
     // like.
     std::vector<std::unique_ptr<SDCPUThread>> threads;
 
-    // For use in enqueuing requests if we want to limit number of requests
-    // servicable at once in the future. TODO for now.
-    std::list<TranslationReq> dataTranslationReqs;
-    std::list<TranslationReq> instTranslationReqs;
-    std::list<FetchReq> fetchReqs;
-    std::list<ExecutionReq> executionReqs;
-    std::list<MemAccessReq> memReqs;
-
     // Note: I was informed that the pointer you get back is the same pointer
     //       you send through the port, so it's safe to do this mapping. It may
     //       be safer to do this mapping through the SenderState struct instead
     //       based on what has been learned since the writing of this though.
     std::unordered_map<PacketPtr, FetchCallback> outstandingFetches;
-    std::unordered_map<PacketPtr, MemAccessReq> outstandingMemReqs;
+    std::unordered_map<PacketPtr, std::function<void()>> outstandingMemReqs;
 
     // END Internal state variables
 
 
     // BEGIN Internal functions
 
-    /**
-     * These functions perform all of the requests from their respective lists
-     * above. They may be limited by the number of requests they can perform
-     * per cycle. If they are limited, they will reschedule another event to
-     * try more requests next cycle.
-     * These functions are called from their respective events (e.g.,
-     * attemptAllMemReqsEvent) as defined above.
-     * */
-    void attemptAllDataXlations();
-    void attemptAllExecutions();
-    void attemptAllFetchReqs();
-    void attemptAllInstXlations();
-    void attemptAllMemReqs();
-
-    void beginExecution(const ExecutionReq& req);
-
-    void completeExecution(const ExecutionReq& req);
-
-    void completeMemAccess(const MemAccessReq& req);
+    void completeMemAccess(PacketPtr orig_pkt, StaticInstPtr inst,
+                           std::weak_ptr<ExecContext> context,
+                           Trace::InstRecord* trace_data,
+                           MemCallback callback,
+                           SplitAccCtrlBlk* split = nullptr);
 
     // TODO some form of speculative state flush function?
 

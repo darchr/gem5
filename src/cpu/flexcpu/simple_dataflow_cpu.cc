@@ -42,12 +42,16 @@ using namespace TheISA;
 SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
     BaseCPU(params),
     cacheBlockMask(~(cacheLineSize() - 1)),
-    clockedDtbTranslation(params->clocked_dtb_translation),
-    clockedExecution(params->clocked_execution),
-    clockedInstFetch(params->clocked_inst_fetch),
-    clockedItbTranslation(params->clocked_itb_translation),
-    clockedMemoryRequest(params->clocked_memory_request),
     executionLatency(params->execution_latency),
+    dataAddrTranslationUnit(this, params->clocked_dtb_translation, Cycles(0),
+                            0, name() + ".dtbUnit"),
+    executionUnit(this, params->clocked_execution, params->execution_latency,
+                  0, name() + ".executionUnit"),
+    instFetchUnit(this, params->clocked_inst_fetch, 0, name() + ".iFetchUnit"),
+    instAddrTranslationUnit(this, params->clocked_itb_translation, Cycles(0),
+                            0, name() + ".itbUnit"),
+    memoryUnit(this, params->clocked_memory_request, Cycles(0),
+               name() + ".memoryUnit"),
     _dataPort(name() + "._dataPort", this),
     _instPort(name() + "._instPort", this)
 {
@@ -80,218 +84,45 @@ SimpleDataflowCPU::activateContext(ThreadID tid)
 }
 
 void
-SimpleDataflowCPU::attemptAllDataXlations()
-{
-    DPRINTF(SDCPUCoreEvent, "attemptAllDataXlations()\n");
-    assert(!dataTranslationReqs.empty());
-
-    while (!dataTranslationReqs.empty()) {
-        auto xlation_req = dataTranslationReqs.front();
-        RequestPtr req = xlation_req.request;
-        ThreadContext* tc = xlation_req.tc;
-        bool write = xlation_req.write;
-        TranslationCallback callback = xlation_req.callback;
-
-        DPRINTF(SDCPUCoreEvent, "handleDataAddrTranslation()\n");
-
-        // Retrieve dtb from the ThreadContext
-        BaseTLB* dtb = tc->getDTBPtr();
-
-        // The event callback for when the translation completed comes through
-        // a BaseTLB::Translation object, so we pass that callback straight to
-        // the requestor's callback function by subclassing it.
-        BaseTLB::Translation* handler = new CallbackTransHandler(callback,
-                                                                 true);
-
-        dtb->translateTiming(req, tc, handler,
-                             write ? BaseTLB::Write : BaseTLB::Read);
-
-        dataTranslationReqs.pop_front();
-    }
-}
-
-void
-SimpleDataflowCPU::attemptAllExecutions()
-{
-    DPRINTF(SDCPUCoreEvent, "attemptAllExecutions()\n");
-    assert(!executionReqs.empty());
-
-    while (!executionReqs.empty()) {
-        auto req = executionReqs.front();
-
-        Event* event = new EventFunctionWrapper([this, req]() {
-            completeExecution(req);
-        }, name() + ".executeEvent", true);
-
-        schedule(event, clockedExecution ? clockEdge(executionLatency) :
-                 curTick() + cyclesToTicks(executionLatency));
-
-        executionReqs.pop_front();
-    }
-
-}
-
-void
-SimpleDataflowCPU::attemptAllFetchReqs()
-{
-    DPRINTF(SDCPUCoreEvent, "attemptAllFetchReqs()\n");
-    assert(!fetchReqs.empty());
-
-    if (_instPort.receivedPushback)
-        return; // Don't send any requests while we're waiting for recvReqRetry
-
-    // Only limitation right now is the memory system
-    while (!fetchReqs.empty()) {
-        const FetchReq& request = fetchReqs.front();
-
-        if (!_instPort.sendTimingReq(request.packet)) {
-            DPRINTF(SDCPUCoreEvent, "_instPort reported busy\n");
-
-            _instPort.receivedPushback = true;
-            return; // Stop trying to send requests until we're called again
-                    // in recvReqRetry().
-        }
-
-        DPRINTF(SDCPUCoreEvent, "Sent a fetch request(pa: %#x)\n",
-                                request.packet->req->getPaddr());
-
-        // We mark the control flow so that we know what to call when memory
-        // responds
-        outstandingFetches.emplace(request.packet, request.callback);
-        fetchReqs.pop_front();
-    }
-}
-
-void
-SimpleDataflowCPU::attemptAllInstXlations()
-{
-    DPRINTF(SDCPUCoreEvent, "attemptAllInstXlations()\n");
-    assert(!instTranslationReqs.empty());
-
-    while (!instTranslationReqs.empty()) {
-        auto xlation_req = instTranslationReqs.front();
-        RequestPtr req = xlation_req.request;
-        ThreadContext* tc = xlation_req.tc;
-        TranslationCallback callback = xlation_req.callback;
-
-        DPRINTF(SDCPUCoreEvent, "handleInstAddrTranslation()\n");
-
-        // Retrieve dtb from the ThreadContext
-        BaseTLB* itb = tc->getITBPtr();
-
-        // The event callback for when the translation completed comes through
-        // a BaseTLB::Translation object, so we pass that callback straight to
-        // the requestor's callback function by subclassing it.
-        BaseTLB::Translation* handler = new CallbackTransHandler(callback,
-                                                                 true);
-
-        itb->translateTiming(req, tc, handler, BaseTLB::Execute);
-
-        instTranslationReqs.pop_front();
-    }
-}
-
-void
-SimpleDataflowCPU::attemptAllMemReqs()
-{
-    DPRINTF(SDCPUCoreEvent, "attemptAllMemReqs()\n");
-    assert(!memReqs.empty());
-
-    if (_dataPort.receivedPushback)
-        return;
-
-    while (!memReqs.empty()) {
-        const MemAccessReq& request = memReqs.front();
-        const PacketPtr& packet = request.packet;
-        const RequestPtr& req = packet->req;
-
-        if (req->isLLSC() && packet->isWrite()) {
-            if (!TheISA::handleLockedWrite(request.tc, req, cacheBlockMask)) {
-                panic("Haven't quite decided how to do this yet");
-                // TODO kill the request
-            }
-        }
-
-        // Alpha specific?
-        if (req->isMmappedIpr()) {
-            // TODO think about limiting access to mmapped IPR
-            panic("SDCPU not programmed to understand mmapped IPR!");
-            // Cycles delay = TheISA::handleIprRead(tc, pkt);
-            // TODO create an event delay cycles later that calls completeAcc()
-            //      on the StaticInst.
-            return;
-        }
-
-        if (!_dataPort.sendTimingReq(request.packet)) {
-            DPRINTF(SDCPUCoreEvent, "_dataPort reported busy\n");
-
-            _dataPort.receivedPushback = true;
-            return; // Stop trying to send requests until we're called again
-                    // in recvReqRetry().
-        }
-
-        if (req->isLLSC() && packet->isRead()) {
-            TheISA::handleLockedRead(request.tc, req);
-        }
-
-        DPRINTF(SDCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
-                                req->getPaddr());
-
-        outstandingMemReqs.emplace(packet, request);
-        memReqs.pop_front();
-    }
-}
-
-void
-SimpleDataflowCPU::completeExecution(const ExecutionReq& req)
-{
-    const shared_ptr<ExecContext> ctxt = req.execContext.lock();
-
-    Fault fault = ctxt ?
-                  (req.staticInst->isMemRef() ?
-                   req.staticInst->initiateAcc(ctxt.get(), req.traceData) :
-                   req.staticInst->execute(ctxt.get(), req.traceData)) :
-                  NoFault;
-
-    req.callback(fault);
-}
-
-void
-SimpleDataflowCPU::completeMemAccess(const MemAccessReq& req)
+SimpleDataflowCPU::completeMemAccess(PacketPtr orig_pkt, StaticInstPtr inst,
+                                     std::weak_ptr<ExecContext> context,
+                                     Trace::InstRecord* trace_data,
+                                     MemCallback callback,
+                                     SplitAccCtrlBlk* split)
 {
     PacketPtr pkt;
 
-    if (req.split) {
-        if (req.packet == req.split->low) {
-            req.split->lowReceived = true;
-        } else if (req.packet == req.split->high) {
-            req.split->highReceived = true;
+    if (split) {
+        if (orig_pkt == split->low) {
+            split->lowReceived = true;
+        } else if (orig_pkt == split->high) {
+            split->highReceived = true;
         } else {
             panic("Malformed split MemAccessReq received!");
         }
 
-        if (!(req.split->lowReceived && req.split->highReceived))
+        if (!(split->lowReceived && split->highReceived))
             return; // We need to wait for the other to complete as well
 
-        pkt = req.split->main;
+        pkt = split->main;
         assert(pkt);
         pkt->makeResponse();
     } else {
-        pkt = req.packet;
+        pkt = orig_pkt;
     }
 
-    const shared_ptr<ExecContext> ctxt = req.execContext.lock();
+    const shared_ptr<ExecContext> ctxt = context.lock();
 
     Fault fault = ctxt ?
-        req.staticInst->completeAcc(pkt, ctxt.get(), req.traceData) : NoFault;
+        inst->completeAcc(pkt, ctxt.get(), trace_data) : NoFault;
 
-    if (req.split) {
+    if (split) {
         // The packets we actually sent to memory are deleted by recvTimingResp
-        delete req.split->main;
-        delete req.split;
+        delete split->main;
+        delete split;
     }
 
-    req.callback(fault);
+    callback(fault);
 }
 
 MasterPort&
@@ -336,13 +167,18 @@ SimpleDataflowCPU::requestDataAddrTranslation(const RequestPtr& req,
     DPRINTF(SDCPUCoreEvent, "requestDataAddrTranslation()\n");
     // delay if we're out of slots for simultaneous dtb translations
 
-    dataTranslationReqs.push_back({req, tc, write, callback_func});
+    dataAddrTranslationUnit.addRequest([req, tc, write, callback_func]{
+        // The event callback for when the translation completed comes through
+        // a BaseTLB::Translation object, so we pass that callback straight to
+        // the requestor's callback function by subclassing it.
+        BaseTLB::Translation* handler = new CallbackTransHandler(callback_func,
+                                                                 true);
 
-    if (!attemptAllDataXlationsEvent.scheduled()) {
-        // This will call attemptAllDataXlations()
-        schedule(&attemptAllDataXlationsEvent,
-                 clockedDtbTranslation ? clockEdge() : curTick());
-    }
+        tc->getDTBPtr()->translateTiming(req, tc, handler,
+                                    write ? BaseTLB::Write : BaseTLB::Read);
+    });
+
+    dataAddrTranslationUnit.schedule();
 }
 
 void
@@ -353,13 +189,20 @@ SimpleDataflowCPU::requestExecution(StaticInstPtr inst,
 {
     DPRINTF(SDCPUCoreEvent, "requestExecution()\n");
 
-    executionReqs.push_back({inst, context, trace_data, callback_func});
+    // Do this when we *actually* execute the instruction
+    executionUnit.addRequest([inst, context, trace_data, callback_func](){
+        const shared_ptr<ExecContext> ctxt = context.lock();
 
-    if (!attemptAllExecutionsEvent.scheduled()) {
-        // This will call attemptAllExecutions()
-        schedule(&attemptAllExecutionsEvent,
-                 clockedExecution ? clockEdge() : curTick());
-    }
+        Fault fault = ctxt ?
+                    (inst->isMemRef() ?
+                    inst->initiateAcc(ctxt.get(), trace_data) :
+                    inst->execute(ctxt.get(), trace_data)) :
+                    NoFault;
+
+        callback_func(fault);
+    });
+
+    executionUnit.schedule();
 }
 
 void
@@ -368,15 +211,18 @@ SimpleDataflowCPU::requestInstAddrTranslation(const RequestPtr& req,
     TranslationCallback callback_func)
 {
     DPRINTF(SDCPUCoreEvent, "requestInstAddrTranslation()\n");
-    // delay if we're out of slots for simultaneous itb translations
 
-    instTranslationReqs.push_back({req, tc, false, callback_func});
+    instAddrTranslationUnit.addRequest([req, tc, callback_func]{
+        // The event callback for when the translation completed comes through
+        // a BaseTLB::Translation object, so we pass that callback straight to
+        // the requestor's callback function by subclassing it.
+        BaseTLB::Translation* handler = new CallbackTransHandler(callback_func,
+                                                                 true);
 
-    if (!attemptAllInstXlationsEvent.scheduled()) {
-        // This will call attemptAllInstXlation()
-        schedule(&attemptAllInstXlationsEvent,
-                 clockedItbTranslation ? clockEdge() : curTick());
-    }
+        tc->getITBPtr()->translateTiming(req, tc, handler, BaseTLB::Execute);
+    });
+
+    instAddrTranslationUnit.schedule();
 }
 
 bool
@@ -392,15 +238,19 @@ SimpleDataflowCPU::requestInstructionData(const RequestPtr& req,
 
     // Note: pkt is deleted in InstPort::recvTimingResp();
 
-    // Schedule our stuff for sending to the Port
-    fetchReqs.push_back({pkt, callback_func});
+    instFetchUnit.addRequest([this, req, callback_func, pkt]{
+        //  Don't send any requests while we're waiting for recvReqRetry
+        _instPort.sendPacket(pkt);
 
-    if (!attemptAllFetchReqsEvent.scheduled()) {
-        // This will call attemptAllFetchReqs()
-        schedule(&attemptAllFetchReqsEvent,
-                 clockedInstFetch ? clockEdge() : curTick());
+        DPRINTF(SDCPUCoreEvent, "Sent a fetch request(pa: %#x)\n",
+                                pkt->req->getPaddr());
 
-    }
+        // We mark the control flow so that we know what to call when memory
+        // responds
+        outstandingFetches.emplace(pkt, callback_func);
+    });
+
+    instFetchUnit.schedule();
 
     return true;
 }
@@ -434,15 +284,26 @@ SimpleDataflowCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
         return false;
     }
 
-    memReqs.push_back(
-        {pkt, inst, context, trace_data, tc, callback_func, nullptr}
-    );
+    memoryUnit.addRequest([this, req, tc, inst, context, trace_data,
+                           callback_func, pkt]
+    {
+        _dataPort.sendPacket(pkt);
 
-     if (!attemptAllMemReqsEvent.scheduled()) {
-        // This will call attemptAllMemReqs()
-        schedule(&attemptAllMemReqsEvent,
-                 clockedMemoryRequest ? clockEdge() : curTick());
-    }
+        if (req->isLLSC()) {
+            TheISA::handleLockedRead(tc, req);
+        }
+        DPRINTF(SDCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
+                                req->getPaddr());
+
+        // When the result comes back from memory, call completeMemAccess
+        outstandingMemReqs.emplace(pkt, [this, pkt, inst, context, trace_data,
+                                         callback_func]
+        {
+            completeMemAccess(pkt, inst, context, trace_data, callback_func);
+        });
+    });
+
+    memoryUnit.schedule();
 
     return true;
 }
@@ -487,15 +348,30 @@ SimpleDataflowCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
         return false;
     }
 
-    memReqs.push_back(
-        {pkt, inst, context, trace_data, tc, callback_func, nullptr}
-    );
+    memoryUnit.addRequest([this, req, tc, inst, context, trace_data,
+                           callback_func, pkt]
+    {
+        if (req->isLLSC()) {
+            if (!TheISA::handleLockedWrite(tc, req, cacheBlockMask)) {
+                panic("Haven't quite decided how to do this yet");
+                // TODO kill the request
+            }
+        }
 
-    if (!attemptAllMemReqsEvent.scheduled()) {
-        // This will call attemptAllMemReqs()
-        schedule(&attemptAllMemReqsEvent,
-                 clockedMemoryRequest ? clockEdge() : curTick());
-    }
+        _dataPort.sendPacket(pkt);
+
+        DPRINTF(SDCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
+                                req->getPaddr());
+
+        // When the result comes back from memory, call completeMemAccess
+        outstandingMemReqs.emplace(pkt, [this, pkt, inst, context, trace_data,
+                                         callback_func]
+        {
+            completeMemAccess(pkt, inst, context, trace_data, callback_func);
+        });
+    });
+
+    memoryUnit.schedule();
 
     return true;
 }
@@ -526,16 +402,49 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
     split_acc->high->dataStatic(split_acc->main->getPtr<uint8_t>()
                                 + low->getSize());
 
-    memReqs.push_back({split_acc->low, inst, context, trace_data, tc,
-                       callback_func, split_acc});
-    memReqs.push_back({split_acc->high, inst, context, trace_data, tc,
-                       callback_func, split_acc});
+    memoryUnit.addRequest([this, low, tc, inst, context, trace_data,
+                           callback_func, split_acc]
+    {
+        _dataPort.sendPacket(split_acc->low);
 
-    if (!attemptAllMemReqsEvent.scheduled()) {
-        // This will call attemptAllMemReqs()
-        schedule(&attemptAllMemReqsEvent,
-                 clockedMemoryRequest ? clockEdge() : curTick());
-    }
+        if (low->isLLSC()) {
+            TheISA::handleLockedRead(tc, low);
+        }
+        DPRINTF(SDCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
+                                low->getPaddr());
+
+        // When the result comes back from memory, call completeMemAccess
+        outstandingMemReqs.emplace(split_acc->low, [this, inst, context,
+                                                   trace_data, callback_func,
+                                                   split_acc]
+        {
+            completeMemAccess(split_acc->low, inst, context, trace_data,
+                              callback_func, split_acc);
+        });
+    });
+
+    memoryUnit.addRequest([this, high, tc, inst, context, trace_data,
+                           callback_func, split_acc]
+    {
+        _dataPort.sendPacket(split_acc->high);
+
+        if (high->isLLSC()) {
+            TheISA::handleLockedRead(tc, high);
+        }
+        DPRINTF(SDCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
+                                high->getPaddr());
+
+        // When the result comes back from memory, call completeMemAccess
+        outstandingMemReqs.emplace(split_acc->high, [this, inst, context,
+                                                     trace_data, callback_func,
+                                                     split_acc]
+        {
+            completeMemAccess(split_acc->high, inst, context, trace_data,
+                              callback_func, split_acc);
+        });
+    });
+
+    memoryUnit.schedule();
 
     return true;
 }
@@ -578,17 +487,57 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
         panic("Should be unreachable...");
     }
 
-    memReqs.push_back({split_acc->low, inst, context, trace_data, tc,
-                       callback_func, split_acc});
-    memReqs.push_back({split_acc->high, inst, context, trace_data, tc,
-                       callback_func, split_acc});
+    memoryUnit.addRequest([this, low, tc, inst, context, trace_data,
+                           callback_func, split_acc]
+    {
+        if (low->isLLSC()) {
+            if (!TheISA::handleLockedWrite(tc, low, cacheBlockMask)) {
+                panic("Haven't quite decided how to do this yet");
+                // TODO kill the request
+            }
+        }
 
-    if (!attemptAllMemReqsEvent.scheduled()) {
-        // This will call attemptAllMemReqs()
-        schedule(&attemptAllMemReqsEvent,
-                 clockedMemoryRequest ? clockEdge() : curTick());
-    }
+        _dataPort.sendPacket(split_acc->low);
 
+        DPRINTF(SDCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
+                                low->getPaddr());
+
+        // When the result comes back from memory, call completeMemAccess
+        outstandingMemReqs.emplace(split_acc->low, [this, inst, context,
+                                                    trace_data, callback_func,
+                                                    split_acc]
+        {
+            completeMemAccess(split_acc->low, inst, context, trace_data,
+                              callback_func, split_acc);
+        });
+    });
+
+    memoryUnit.addRequest([this, high, tc, inst, context, trace_data,
+                           callback_func, split_acc]
+    {
+        if (high->isLLSC()) {
+            if (!TheISA::handleLockedWrite(tc, high, cacheBlockMask)) {
+                panic("Haven't quite decided how to do this yet");
+                // TODO kill the request
+            }
+        }
+
+        _dataPort.sendPacket(split_acc->high);
+
+        DPRINTF(SDCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
+                                high->getPaddr());
+
+        // When the result comes back from memory, call completeMemAccess
+        outstandingMemReqs.emplace(split_acc->high, [this, inst, context,
+                                                     trace_data, callback_func,
+                                                     split_acc]
+        {
+            completeMemAccess(split_acc->high, inst, context, trace_data,
+                              callback_func, split_acc);
+        });
+    });
+
+    memoryUnit.schedule();
 
     return true;
 }
@@ -679,9 +628,9 @@ SimpleDataflowCPU::DataPort::recvTimingResp(PacketPtr pkt)
     panic_if(!cpu->outstandingMemReqs.count(pkt),
         "Received a data port response we don't remember sending!");
 
-    const MemAccessReq& acc = cpu->outstandingMemReqs[pkt];
+    auto callback = cpu->outstandingMemReqs[pkt];
 
-    cpu->completeMemAccess(acc);
+    callback();
 
     cpu->outstandingMemReqs.erase(pkt);
     delete pkt;
@@ -692,12 +641,29 @@ SimpleDataflowCPU::DataPort::recvTimingResp(PacketPtr pkt)
 void
 SimpleDataflowCPU::DataPort::recvReqRetry()
 {
-    receivedPushback = false;
+    assert(blockedPkt);
+    DPRINTF(SDCPUCoreEvent, "data retrying %s\n", blockedPkt->print());
 
-    if (!cpu->attemptAllMemReqsEvent.scheduled()) {
-        // This will call attemptAllMemReqs()
-        cpu->schedule(&cpu->attemptAllMemReqsEvent,
-                    cpu->clockedMemoryRequest ? cpu->clockEdge() : curTick());
+    PacketPtr pkt = blockedPkt;
+    blockedPkt = nullptr;
+    sendPacket(pkt);
+
+    if (!blockedPkt) {
+        DPRINTF(SDCPUCoreEvent, "Sent successfully!\n");
+        // If we're now unblocked, try to schedule other things from memoryunit
+        cpu->memoryUnit.schedule();
+    }
+}
+
+void
+SimpleDataflowCPU::DataPort::sendPacket(PacketPtr pkt)
+{
+    DPRINTF(SDCPUCoreEvent, "Data sending %s\n", pkt->print());
+    assert(!blockedPkt);
+    if (!sendTimingReq(pkt)) {
+        DPRINTF(SDCPUCoreEvent, "Data failed to send %s\n",
+                 pkt->print());
+        blockedPkt = pkt;
     }
 }
 
@@ -727,12 +693,139 @@ SimpleDataflowCPU::InstPort::recvTimingResp(PacketPtr pkt)
 void
 SimpleDataflowCPU::InstPort::recvReqRetry()
 {
-    receivedPushback = false;
+    assert(blockedPkt);
+    DPRINTF(SDCPUCoreEvent, "inst retrying %s\n", blockedPkt->print());
 
-    if (!cpu->attemptAllFetchReqsEvent.scheduled()) {
-        // This will call attemptAllFetchReqs()
-        cpu->schedule(&cpu->attemptAllFetchReqsEvent,
-            cpu->clockedInstFetch ? cpu->clockEdge() : curTick());
+    PacketPtr pkt = blockedPkt;
+    blockedPkt = nullptr;
+    sendPacket(pkt);
+
+    if (!blockedPkt) {
+        DPRINTF(SDCPUCoreEvent,  "Sent successfully!\n");
+        // If we're now unblocked, try to schedule other things from memoryunit
+        cpu->instFetchUnit.schedule();
+    }
+}
+
+void
+SimpleDataflowCPU::InstPort::sendPacket(PacketPtr pkt)
+{
+    DPRINTF(SDCPUCoreEvent, "Inst sending %s\n", pkt->print());
+    assert(!blockedPkt);
+    if (!sendTimingReq(pkt)) {
+        DPRINTF(SDCPUCoreEvent, "Inst failed to send %s\n",
+                pkt->print());
+        blockedPkt = pkt;
+    }
+}
+
+SimpleDataflowCPU::Resource::Resource(SimpleDataflowCPU *cpu, bool clocked,
+    Cycles latency, int bandwidth, std::string _name, bool run_last) :
+    cpu(cpu), clocked(clocked), latency(latency), bandwidth(bandwidth),
+    _name(_name),
+    attemptAllEvent(EventFunctionWrapper([this]{ attemptAllRequests(); },
+                    name() + ".attemptAll", false,
+                    run_last ? Event::CPU_Tick_Pri : Event::Default_Pri))
+{
+
+}
+
+void
+SimpleDataflowCPU::Resource::addRequest(
+    const std::function<void()>& run_function)
+{
+    DPRINTF(SDCPUCoreEvent, "Adding request. %d on queue\n", requests.size());
+    requests.push_back(run_function);
+}
+
+void
+SimpleDataflowCPU::Resource::attemptAllRequests()
+{
+    DPRINTF(SDCPUCoreEvent, "Attempting all requests. %d on queue\n",
+            requests.size());
+
+    if (requests.empty()) {
+        return; // This happens with 0 latency events if a request enqueues
+                // another request.
+    }
+
+    while (!requests.empty() && resourceAvailable()) {
+        DPRINTF(SDCPUCoreEvent, "Running request. %d left\n", requests.size());
+        auto req = requests.front();
+        if (latency > 0) {
+            DPRINTF(SDCPUCoreEvent, "Delaying request for %d ticks\n",
+                    cpu->cyclesToTicks(latency));
+            Event *e = new EventFunctionWrapper([req]{
+                req(); // Simply call the function given in request[Unit]
+            }, name() + ".delayedCall", true);
+            cpu->schedule(e, curTick() + cpu->cyclesToTicks(latency));
+        } else {
+            DPRINTF(SDCPUCoreEvent, "Executing request directly\n");
+            // NOTE: We may want to use the subclasses more here and put the
+            // interesting code here (e.g., for checking resources available)
+            // NOTE: Memory *must* be 0 latency right now in case one of the
+            // requests in the queue causes the port to be blocked. The above
+            // logic only works for units that the CPU has full control of
+            // (e.g., execution and translation).
+            req();
+        }
+
+        requests.pop_front();
+    }
+}
+
+bool
+SimpleDataflowCPU::Resource::resourceAvailable()
+{
+    // Bandwidth of 0 implies infinite
+    if (!bandwidth || usedBandwidth < bandwidth) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void
+SimpleDataflowCPU::Resource::schedule()
+{
+    // Note: on retries from memory we could try to schedule this even though
+    //       the list of requests is empty. Revist this after implementing an
+    //       LSQ.
+    DPRINTF(SDCPUCoreEvent, "Trying to schedule resource\n");
+    if (!requests.empty() && !attemptAllEvent.scheduled()) {
+        DPRINTF(SDCPUCoreEvent, "Scheduling attempt all\n");
+        cpu->schedule(&attemptAllEvent,
+                      clocked ? cpu->clockEdge() : curTick());
+    }
+}
+
+bool
+SimpleDataflowCPU::InstFetchResource::resourceAvailable()
+{
+    if (cpu->_instPort.blocked()) {
+        return false;
+    } else {
+        return Resource::resourceAvailable();
+    }
+}
+
+SimpleDataflowCPU::MemoryResource::MemoryResource(SimpleDataflowCPU *cpu,
+    bool clocked,int bandwidth, std::string _name) :
+    Resource(cpu, clocked, Cycles(0), bandwidth, _name)
+{ }
+
+SimpleDataflowCPU::InstFetchResource::InstFetchResource(SimpleDataflowCPU *cpu,
+    bool clocked, int bandwidth, std::string _name) :
+    Resource(cpu, clocked, Cycles(0), bandwidth, _name, true)
+{ }
+
+bool
+SimpleDataflowCPU::MemoryResource::resourceAvailable()
+{
+    if (cpu->_dataPort.blocked()) {
+        return false;
+    } else {
+        return Resource::resourceAvailable();
     }
 }
 
