@@ -99,8 +99,8 @@ class SimpleMemory : public AbstractMemory
 
         void trySendRetry() {
             if (busy) {
-                sendRetryReq();
                 busy = false;
+                sendRetryReq();
             }
         }
 
