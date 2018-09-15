@@ -46,7 +46,7 @@ SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
     dataAddrTranslationUnit(this, params->clocked_dtb_translation, Cycles(0),
                             0, name() + ".dtbUnit"),
     executionUnit(this, params->clocked_execution, params->execution_latency,
-                  0, name() + ".executionUnit"),
+                  params->execution_bandwidth, name() + ".executionUnit"),
     instFetchUnit(this, params->clocked_inst_fetch, 0, name() + ".iFetchUnit"),
     instAddrTranslationUnit(this, params->clocked_itb_translation, Cycles(0),
                             0, name() + ".itbUnit"),
@@ -727,7 +727,8 @@ SimpleDataflowCPU::Resource::Resource(SimpleDataflowCPU *cpu, bool clocked,
                     name() + ".attemptAll", false,
                     run_last ? Event::CPU_Tick_Pri : Event::Default_Pri))
 {
-
+    fatal_if(latency == 0 && bandwidth > 0 && !clocked,
+             "Cannot have 0 latency and finite bandwidth unless clocked.");
 }
 
 void
@@ -741,6 +742,14 @@ SimpleDataflowCPU::Resource::addRequest(
 void
 SimpleDataflowCPU::Resource::attemptAllRequests()
 {
+    if (bandwidth && curTick() != lastActiveTick) {
+        // Reset the bandwidth since we're on a new cycle.
+        DPRINTF(SDCPUCoreEvent, "reseting the bandwidth. Used %d last cycle",
+                usedBandwidth);
+        usedBandwidth = 0;
+        lastActiveTick = curTick();
+    }
+
     DPRINTF(SDCPUCoreEvent, "Attempting all requests. %d on queue\n",
             requests.size());
 
@@ -750,7 +759,9 @@ SimpleDataflowCPU::Resource::attemptAllRequests()
     }
 
     while (!requests.empty() && resourceAvailable()) {
-        DPRINTF(SDCPUCoreEvent, "Running request. %d left\n", requests.size());
+        usedBandwidth++;
+        DPRINTF(SDCPUCoreEvent, "Running request. %d left in queue. "
+                "%d this cycle\n", requests.size(), usedBandwidth);
         auto req = requests.front();
         if (latency > 0) {
             DPRINTF(SDCPUCoreEvent, "Delaying request for %d ticks\n",
@@ -771,6 +782,23 @@ SimpleDataflowCPU::Resource::attemptAllRequests()
         }
 
         requests.pop_front();
+    }
+
+    if (!requests.empty()) {
+        // There's more thing to execute so reschedule the event for next time
+        DPRINTF(SDCPUCoreEvent, "Rescheduling resource\n");
+        Tick next_time;
+        if (latency == 0) {
+            next_time = cpu->nextCycle();
+        } else {
+            next_time = clocked ? cpu->clockEdge(latency) :
+                                  curTick() + cpu->cyclesToTicks(latency);
+        }
+        assert(next_time != curTick());
+        // Note: it could be scheduled if one of the requests above schedules
+        // This "always" reschedules since it may or may not be on the queue
+        // right now.
+        cpu->reschedule(&attemptAllEvent, next_time, true);
     }
 }
 

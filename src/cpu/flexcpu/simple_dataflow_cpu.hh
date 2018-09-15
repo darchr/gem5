@@ -212,6 +212,8 @@ class SimpleDataflowCPU : public BaseCPU
 
         int usedBandwidth = 0;
 
+        Tick lastActiveTick = MaxTick;
+
         // All of the functions that we need to call the next time we can.
         // Right now, this is an infinite queue. We should at least check to
         // make sure it doesn't get too large.

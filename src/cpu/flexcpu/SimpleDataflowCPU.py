@@ -42,8 +42,6 @@ class SimpleDataflowCPU(BaseCPU):
     # the same tick if already on a clock edge).
     clocked_dtb_translation = Param.Bool(Self.clocked_cpu, "Ties requests for "
                                          "data addresses to clock edges.")
-    clocked_execution = Param.Bool(Self.clocked_cpu, "Ties requests for "
-                                   "instruction execution to clock edges.")
     clocked_inst_fetch = Param.Bool(Self.clocked_cpu, "Ties requests for "
                                     "instruction data to clock edges.")
     clocked_itb_translation = Param.Bool(Self.clocked_cpu, "Ties requests for "
@@ -62,8 +60,13 @@ class SimpleDataflowCPU(BaseCPU):
     strict_serialization = Param.Bool(True, "Controls behavior of serializing "
                                             "flags on instructions.")
 
+    clocked_execution = Param.Bool(Self.clocked_cpu, "Ties requests for "
+                                   "instruction execution to clock edges.")
     execution_latency = Param.Cycles(1, "Number of cycles for each "
                                          "instruction to execute")
+    execution_bandwidth = Param.Cycles(0, "Number of executions each cycle. "
+                                          "Assumes a fully-pipelined unit and "
+                                          "0 implies infinite bandwidth.")
 
     @classmethod
     def memory_mode(cls):
