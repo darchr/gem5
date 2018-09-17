@@ -119,12 +119,15 @@ class SimpleDataflowCPU : public BaseCPU
     class CallbackTransHandler : public BaseTLB::Translation
     {
       protected:
+        SimpleDataflowCPU *cpu;
         TranslationCallback callback;
+        Tick sendTime;
         bool selfDestruct;
       public:
-        CallbackTransHandler(TranslationCallback callback,
-                         bool self_destruct = false):
-            callback(callback),
+        CallbackTransHandler(SimpleDataflowCPU *cpu,
+                             TranslationCallback callback,
+                             Tick send_time, bool self_destruct = false):
+            cpu(cpu), callback(callback), sendTime(send_time),
             selfDestruct(self_destruct)
         { }
 
@@ -231,6 +234,10 @@ class SimpleDataflowCPU : public BaseCPU
          * */
         void attemptAllRequests();
 
+        /// Stats
+        Stats::Scalar activeCycles;
+        Stats::Histogram bandwidthPerCycle;
+
       protected:
         /**
          * Checks to see if we can issue a request to this resource.
@@ -281,6 +288,12 @@ class SimpleDataflowCPU : public BaseCPU
          *       case of memory retries.
          */
         void schedule();
+
+        /**
+         * Register the stats. Must be called by the CPU since this isn't a
+         * SimObject.
+         */
+        void regStats();
     };
 
     class InstFetchResource : public Resource
@@ -333,6 +346,22 @@ class SimpleDataflowCPU : public BaseCPU
     std::unordered_map<PacketPtr, FetchCallback> outstandingFetches;
     std::unordered_map<PacketPtr, std::function<void()>> outstandingMemReqs;
 
+    // Tick that the CPU was last active for tracking active cycles
+    Tick lastActiveTick = MaxTick;
+
+    // BEGIN Statistics
+
+    Stats::Histogram memLatency;
+
+    // For resources
+    Stats::Histogram waitingForDataXlation;
+    Stats::Histogram waitingForExecution;
+    Stats::Histogram waitingForInstXlation;
+    Stats::Histogram waitingForInstData;
+    Stats::Histogram waitingForMem;
+
+    // END Statistics
+
     // END Internal state variables
 
 
@@ -342,7 +371,14 @@ class SimpleDataflowCPU : public BaseCPU
                            std::weak_ptr<ExecContext> context,
                            Trace::InstRecord* trace_data,
                            MemCallback callback,
+                           Tick send_time,
                            SplitAccCtrlBlk* split = nullptr);
+
+    /**
+     * For the resources to notify CPU that they are active and avoid over
+     * counting the CPU's active cycles
+     */
+    void markActiveCycle();
 
     // TODO some form of speculative state flush function?
 
@@ -649,6 +685,8 @@ class SimpleDataflowCPU : public BaseCPU
      * Called to resume execution of a particular thread on this CPU.
      */
     void wakeup(ThreadID tid) override;
+
+    void regStats() override;
 
     // END Member functions
 };
