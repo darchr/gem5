@@ -332,6 +332,8 @@ SDCPUThread::commitInstruction(std::shared_ptr<InflightInst> inst_ptr)
     numOpsStat++;
     numOps++;
 
+    instTypes[inst_ptr->staticInst()->opClass()]++;
+
     lastCommittedInstNum = inst_ptr->seqNum();
 
     Trace::InstRecord* const trace_data = inst_ptr->traceData();
@@ -1072,6 +1074,8 @@ SDCPUThread::squashUpTo(shared_ptr<InflightInst> inst_ptr, bool rebuild_map)
         ++count;
     }
 
+    numSquashed.sample(count);
+
     DPRINTF(SDCPUThreadEvent, "%d instructions squashed.\n", count);
 
     if (rebuild_map) {
@@ -1263,4 +1267,19 @@ SDCPUThread::regStats(const std::string &name)
         .name(name + ".numOps")
         .desc("Total number of micro-ops committed")
         ;
+
+    numSquashed
+        .name(name + ".numSquashed")
+        .init(16)
+        .desc("Instructions squashed on each squash request")
+    ;
+
+    instTypes
+        .name(name + ".instTypes")
+        .init(Enums::Num_OpClass)
+        .desc("Number of each type of instruction committed")
+        ;
+    for (int i=0; i < Enums::Num_OpClass; ++i) {
+        instTypes.subname(i, Enums::OpClassStrings[i]);
+    }
 }

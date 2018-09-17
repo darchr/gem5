@@ -94,9 +94,12 @@ SimpleDataflowCPU::completeMemAccess(PacketPtr orig_pkt, StaticInstPtr inst,
                                      std::weak_ptr<ExecContext> context,
                                      Trace::InstRecord* trace_data,
                                      MemCallback callback,
+                                     Tick send_time,
                                      SplitAccCtrlBlk* split)
 {
     PacketPtr pkt;
+
+    memLatency.sample(curTick() - send_time);
 
     if (split) {
         if (orig_pkt == split->low) {
@@ -179,6 +182,15 @@ SimpleDataflowCPU::init()
 }
 
 void
+SimpleDataflowCPU::markActiveCycle()
+{
+    if (curTick() != lastActiveTick) {
+        numCycles++;
+        lastActiveTick = curTick();
+    }
+}
+
+void
 SimpleDataflowCPU::requestBranchPredictor(
     std::function<void(BPredUnit* pred)> callback_func)
 {
@@ -195,12 +207,19 @@ SimpleDataflowCPU::requestDataAddrTranslation(const RequestPtr& req,
     DPRINTF(SDCPUCoreEvent, "requestDataAddrTranslation()\n");
     // delay if we're out of slots for simultaneous dtb translations
 
-    dataAddrTranslationUnit.addRequest([req, tc, write, callback_func]{
+    Tick queue_time = curTick();
+
+    dataAddrTranslationUnit.addRequest([this, req, tc, write, callback_func,
+                                        queue_time]
+    {
+        Tick now = curTick();
+
+        waitingForDataXlation.sample(now - queue_time);
         // The event callback for when the translation completed comes through
         // a BaseTLB::Translation object, so we pass that callback straight to
         // the requestor's callback function by subclassing it.
-        BaseTLB::Translation* handler = new CallbackTransHandler(callback_func,
-                                                                 true);
+        BaseTLB::Translation* handler = new CallbackTransHandler(
+                                            this, callback_func, now, true);
 
         tc->getDTBPtr()->translateTiming(req, tc, handler,
                                     write ? BaseTLB::Write : BaseTLB::Read);
@@ -217,8 +236,14 @@ SimpleDataflowCPU::requestExecution(StaticInstPtr inst,
 {
     DPRINTF(SDCPUCoreEvent, "requestExecution()\n");
 
+    Tick queue_time = curTick();
+
     // Do this when we *actually* execute the instruction
-    executionUnit.addRequest([inst, context, trace_data, callback_func](){
+    executionUnit.addRequest([this, inst, context, trace_data, callback_func,
+                              queue_time]
+    {
+        waitingForExecution.sample(curTick() - queue_time);
+
         const shared_ptr<ExecContext> ctxt = context.lock();
 
         Fault fault = ctxt ?
@@ -240,12 +265,19 @@ SimpleDataflowCPU::requestInstAddrTranslation(const RequestPtr& req,
 {
     DPRINTF(SDCPUCoreEvent, "requestInstAddrTranslation()\n");
 
-    instAddrTranslationUnit.addRequest([req, tc, callback_func]{
+    Tick queue_time = curTick();
+
+    instAddrTranslationUnit.addRequest([this, req, tc, callback_func,
+                                        queue_time]
+    {
+        Tick now = curTick();
+
+        waitingForInstXlation.sample(now - queue_time);
         // The event callback for when the translation completed comes through
         // a BaseTLB::Translation object, so we pass that callback straight to
         // the requestor's callback function by subclassing it.
-        BaseTLB::Translation* handler = new CallbackTransHandler(callback_func,
-                                                                 true);
+        BaseTLB::Translation* handler = new CallbackTransHandler(
+                                            this, callback_func, now, true);
 
         tc->getITBPtr()->translateTiming(req, tc, handler, BaseTLB::Execute);
     });
@@ -266,7 +298,12 @@ SimpleDataflowCPU::requestInstructionData(const RequestPtr& req,
 
     // Note: pkt is deleted in InstPort::recvTimingResp();
 
-    instFetchUnit.addRequest([this, req, callback_func, pkt]{
+    Tick queue_time = curTick();
+
+    instFetchUnit.addRequest([this, req, callback_func, pkt, queue_time] {
+
+        waitingForInstData.sample(curTick() - queue_time);
+
         //  Don't send any requests while we're waiting for recvReqRetry
         _instPort.sendPacket(pkt);
 
@@ -312,9 +349,14 @@ SimpleDataflowCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
         return false;
     }
 
+    Tick queue_time = curTick();
+
     memoryUnit.addRequest([this, req, tc, inst, context, trace_data,
-                           callback_func, pkt]
+                           callback_func, pkt, queue_time]
     {
+        Tick now = curTick();
+        waitingForMem.sample(now - queue_time);
+
         _dataPort.sendPacket(pkt);
 
         if (req->isLLSC()) {
@@ -325,9 +367,10 @@ SimpleDataflowCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
 
         // When the result comes back from memory, call completeMemAccess
         outstandingMemReqs.emplace(pkt, [this, pkt, inst, context, trace_data,
-                                         callback_func]
+                                         callback_func, now]
         {
-            completeMemAccess(pkt, inst, context, trace_data, callback_func);
+            completeMemAccess(pkt, inst, context, trace_data, callback_func,
+                              now);
         });
     });
 
@@ -376,9 +419,14 @@ SimpleDataflowCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
         return false;
     }
 
+    Tick queue_time = curTick();
+
     memoryUnit.addRequest([this, req, tc, inst, context, trace_data,
-                           callback_func, pkt]
+                           callback_func, pkt, queue_time]
     {
+        Tick now = curTick();
+        waitingForMem.sample(now - queue_time);
+
         if (req->isLLSC()) {
             if (!TheISA::handleLockedWrite(tc, req, cacheBlockMask)) {
                 panic("Haven't quite decided how to do this yet");
@@ -393,9 +441,10 @@ SimpleDataflowCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
 
         // When the result comes back from memory, call completeMemAccess
         outstandingMemReqs.emplace(pkt, [this, pkt, inst, context, trace_data,
-                                         callback_func]
+                                         callback_func, now]
         {
-            completeMemAccess(pkt, inst, context, trace_data, callback_func);
+            completeMemAccess(pkt, inst, context, trace_data, callback_func,
+                              now);
         });
     });
 
@@ -430,9 +479,14 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
     split_acc->high->dataStatic(split_acc->main->getPtr<uint8_t>()
                                 + low->getSize());
 
+    Tick queue_time = curTick();
+
     memoryUnit.addRequest([this, low, tc, inst, context, trace_data,
-                           callback_func, split_acc]
+                           callback_func, split_acc, queue_time]
     {
+        Tick now = curTick();
+        waitingForMem.sample(now - queue_time);
+
         _dataPort.sendPacket(split_acc->low);
 
         if (low->isLLSC()) {
@@ -444,16 +498,19 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
         // When the result comes back from memory, call completeMemAccess
         outstandingMemReqs.emplace(split_acc->low, [this, inst, context,
                                                    trace_data, callback_func,
-                                                   split_acc]
+                                                   split_acc, now]
         {
             completeMemAccess(split_acc->low, inst, context, trace_data,
-                              callback_func, split_acc);
+                              callback_func, now, split_acc);
         });
     });
 
     memoryUnit.addRequest([this, high, tc, inst, context, trace_data,
-                           callback_func, split_acc]
+                           callback_func, split_acc, queue_time]
     {
+        Tick now = curTick();
+        waitingForMem.sample(now - queue_time);
+
         _dataPort.sendPacket(split_acc->high);
 
         if (high->isLLSC()) {
@@ -465,10 +522,10 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
         // When the result comes back from memory, call completeMemAccess
         outstandingMemReqs.emplace(split_acc->high, [this, inst, context,
                                                      trace_data, callback_func,
-                                                     split_acc]
+                                                     split_acc, now]
         {
             completeMemAccess(split_acc->high, inst, context, trace_data,
-                              callback_func, split_acc);
+                              callback_func, now, split_acc);
         });
     });
 
@@ -515,9 +572,14 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
         panic("Should be unreachable...");
     }
 
+    Tick queue_time = curTick();
+
     memoryUnit.addRequest([this, low, tc, inst, context, trace_data,
-                           callback_func, split_acc]
+                           callback_func, split_acc, queue_time]
     {
+        Tick now = curTick();
+        waitingForMem.sample(now - queue_time);
+
         if (low->isLLSC()) {
             if (!TheISA::handleLockedWrite(tc, low, cacheBlockMask)) {
                 panic("Haven't quite decided how to do this yet");
@@ -533,16 +595,19 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
         // When the result comes back from memory, call completeMemAccess
         outstandingMemReqs.emplace(split_acc->low, [this, inst, context,
                                                     trace_data, callback_func,
-                                                    split_acc]
+                                                    split_acc, now]
         {
             completeMemAccess(split_acc->low, inst, context, trace_data,
-                              callback_func, split_acc);
+                              callback_func, now, split_acc);
         });
     });
 
     memoryUnit.addRequest([this, high, tc, inst, context, trace_data,
-                           callback_func, split_acc]
+                           callback_func, split_acc, queue_time]
     {
+        Tick now = curTick();
+        waitingForMem.sample(now - queue_time);
+
         if (high->isLLSC()) {
             if (!TheISA::handleLockedWrite(tc, high, cacheBlockMask)) {
                 panic("Haven't quite decided how to do this yet");
@@ -558,10 +623,10 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
         // When the result comes back from memory, call completeMemAccess
         outstandingMemReqs.emplace(split_acc->high, [this, inst, context,
                                                      trace_data, callback_func,
-                                                     split_acc]
+                                                     split_acc, now]
         {
             completeMemAccess(split_acc->high, inst, context, trace_data,
-                              callback_func, split_acc);
+                              callback_func, now, split_acc);
         });
     });
 
@@ -770,16 +835,24 @@ SimpleDataflowCPU::Resource::addRequest(
 void
 SimpleDataflowCPU::Resource::attemptAllRequests()
 {
-    if (bandwidth && curTick() != lastActiveTick) {
+    DPRINTF(SDCPUCoreEvent, "Attempting all requests. %d on queue\n",
+            requests.size());
+
+    if (curTick() != lastActiveTick) {
+        assert(!bandwidth || usedBandwidth <= bandwidth);
+
+        // Stats
+        activeCycles++;
+        bandwidthPerCycle.sample(usedBandwidth);
+
         // Reset the bandwidth since we're on a new cycle.
-        DPRINTF(SDCPUCoreEvent, "reseting the bandwidth. Used %d last cycle",
+        DPRINTF(SDCPUCoreEvent, "reseting the bandwidth. Used %d last cycle\n",
                 usedBandwidth);
         usedBandwidth = 0;
         lastActiveTick = curTick();
-    }
 
-    DPRINTF(SDCPUCoreEvent, "Attempting all requests. %d on queue\n",
-            requests.size());
+        cpu->markActiveCycle();
+    }
 
     if (requests.empty()) {
         return; // This happens with 0 latency events if a request enqueues
@@ -883,6 +956,65 @@ SimpleDataflowCPU::MemoryResource::resourceAvailable()
     } else {
         return Resource::resourceAvailable();
     }
+}
+
+void
+SimpleDataflowCPU::regStats()
+{
+    dataAddrTranslationUnit.regStats();
+    executionUnit.regStats();
+    instFetchUnit.regStats();
+    instAddrTranslationUnit.regStats();
+    memoryUnit.regStats();
+
+    memLatency
+        .name(name() + ".memLatency")
+        .init(16)
+        .desc("Latency for memory requests from send to receive")
+        ;
+    waitingForDataXlation
+        .name(name() + ".waitingForDataXlation")
+        .init(16)
+        .desc("Time waiting for resource to be free")
+        ;
+    waitingForExecution
+        .name(name() + ".waitingForExecution")
+        .init(16)
+        .desc("Time waiting for resource to be free")
+        ;
+    waitingForInstXlation
+        .name(name() + ".waitingForInstXlation")
+        .init(16)
+        .desc("Time waiting for resource to be free")
+        ;
+    waitingForInstData
+        .name(name() + ".waitingForInstData")
+        .init(16)
+        .desc("Time waiting for resource to be free")
+        ;
+    waitingForMem
+        .name(name() + ".waitingForMem")
+        .init(16)
+        .desc("Time waiting for resource to be free")
+        ;
+
+    BaseCPU::regStats();
+}
+
+void
+SimpleDataflowCPU::Resource::regStats()
+{
+    activeCycles
+        .name(name() + ".activeCycles")
+        .desc("Number of cycles this resource was active")
+        ;
+
+    bandwidthPerCycle
+        .name(name() + ".bandwidthPerCycle")
+        .desc("For each active cycles, the number of times the resource was"
+              "used")
+        .init(8)
+    ;
 }
 
 SimpleDataflowCPU*
