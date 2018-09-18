@@ -128,6 +128,8 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
         return;
     }
 
+    fetchedThisCycle++;
+
     const InstSeqNum seq_num = lastCommittedInstNum + inflightInsts.size() + 1;
 
     DPRINTF(SDCPUThreadEvent, "advanceInst(seq %d, pc %#x, upc %#x)\n",
@@ -1065,6 +1067,20 @@ SDCPUThread::predictCtrlInst(shared_ptr<InflightInst> inst_ptr)
 }
 
 void
+SDCPUThread::recordCycleStats()
+{
+    activeInstructions.sample(inflightInsts.size());
+    if (squashedThisCycle > 0) {
+        squashedPerCycle.sample(squashedThisCycle);
+        squashedThisCycle = 0;
+    }
+    if (fetchedThisCycle > 0) {
+        fetchedInstsPerCycle.sample(fetchedThisCycle);
+        fetchedThisCycle = 0;
+    }
+}
+
+void
 SDCPUThread::squashUpTo(shared_ptr<InflightInst> inst_ptr, bool rebuild_map)
 {
     size_t count = 0;
@@ -1075,6 +1091,7 @@ SDCPUThread::squashUpTo(shared_ptr<InflightInst> inst_ptr, bool rebuild_map)
     }
 
     numSquashed.sample(count);
+    squashedThisCycle += count;
 
     DPRINTF(SDCPUThreadEvent, "%d instructions squashed.\n", count);
 
@@ -1272,6 +1289,23 @@ SDCPUThread::regStats(const std::string &name)
         .name(name + ".numSquashed")
         .init(16)
         .desc("Instructions squashed on each squash request")
+    ;
+
+    fetchedInstsPerCycle
+        .name(name + ".fetchedInstsPerCycle")
+        .init(16)
+        .desc("Number of instructions \"fetched\" for each cycle")
+    ;
+    squashedPerCycle
+        .name(name + ".squashedPerCycle")
+        .init(16)
+        .desc("Number of instructions squashed each cycle")
+    ;
+
+    activeInstructions
+        .name(name + ".activeInstructions")
+        .init(32)
+        .desc("Number of instructions active each cycle")
     ;
 
     instTypes
