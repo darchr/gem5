@@ -110,6 +110,72 @@ InflightInst::addDependency(shared_ptr<InflightInst> parent)
 }
 
 void
+InflightInst::addEffAddrCalculatedCallback(function<void()> callback)
+{
+    effAddrCalculatedCallbacks.push_back(callback);
+}
+
+void
+InflightInst::addMemReadyCallback(function<void()> callback)
+{
+    memReadyCallbacks.push_back(callback);
+}
+
+void
+InflightInst::addMemCommitDependency(shared_ptr<InflightInst> parent)
+{
+    ++remainingMemDependencies;
+
+    weak_ptr<InflightInst> weak_this = shared_from_this();
+    parent->addCommitCallback([weak_this]() {
+        shared_ptr<InflightInst> inst_ptr = weak_this.lock();
+        if (!inst_ptr) return;
+
+        --inst_ptr->remainingMemDependencies;
+
+        if (!inst_ptr->remainingMemDependencies) {
+            inst_ptr->notifyMemReady();
+        }
+    });
+}
+
+void
+InflightInst::addMemDependency(shared_ptr<InflightInst> parent)
+{
+    ++remainingMemDependencies;
+
+    weak_ptr<InflightInst> weak_this = shared_from_this();
+    parent->addCompletionCallback([weak_this]() {
+        shared_ptr<InflightInst> inst_ptr = weak_this.lock();
+        if (!inst_ptr) return;
+
+        --inst_ptr->remainingMemDependencies;
+
+        if (!inst_ptr->remainingMemDependencies) {
+            inst_ptr->notifyMemReady();
+        }
+    });
+}
+
+void
+InflightInst::addMemEffAddrDependency(shared_ptr<InflightInst> parent)
+{
+    ++remainingMemDependencies;
+
+    weak_ptr<InflightInst> weak_this = shared_from_this();
+    parent->addEffAddrCalculatedCallback([weak_this]() {
+        shared_ptr<InflightInst> inst_ptr = weak_this.lock();
+        if (!inst_ptr) return;
+
+        --inst_ptr->remainingMemDependencies;
+
+        if (!inst_ptr->remainingMemDependencies) {
+            inst_ptr->notifyMemReady();
+        }
+    });
+}
+
+void
 InflightInst::addReadyCallback(function<void()> callback)
 {
     readyCallbacks.push_back(callback);
@@ -182,6 +248,14 @@ InflightInst::notifyComplete()
     status(Complete);
 
     for (function<void()>& callback_func : completionCallbacks) {
+        callback_func();
+    }
+}
+
+void
+InflightInst::notifyMemReady()
+{
+    for (function<void()>& callback_func : memReadyCallbacks) {
         callback_func();
     }
 }

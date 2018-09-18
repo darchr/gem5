@@ -61,7 +61,8 @@ class InflightInst : public ExecContext,
         Waiting, // Has not been executed yet. Likely has dependencies still.
         // Is a dedicated Ready (dependencies satisfied) but not executed state
         // valuable?
-        Executing, // Request for execution sent, but waiting for results
+        Executing, // Request for execution sent, but waiting for results.
+        Memorying, // Request for memory sent, but waiting for results.
         Complete, // Results have been received, but not yet committed.
         Committed
     };
@@ -124,10 +125,16 @@ class InflightInst : public ExecContext,
     // Who depends on me?
     std::vector<std::function<void()>> completionCallbacks;
 
-    // How many dependencies have to be resolved before I can run?
+    std::vector<std::function<void()>> effAddrCalculatedCallbacks;
+
+    // How many dependencies have to be resolved before I can execute?
     size_t remainingDependencies = 0;
 
+    // How many dependencies have to be resolved before I can go to memory?
+    size_t remainingMemDependencies = 0;
+
     std::vector<std::function<void()>> readyCallbacks;
+    std::vector<std::function<void()>> memReadyCallbacks;
 
     std::vector<std::function<void()>> squashCallbacks;
 
@@ -169,8 +176,14 @@ class InflightInst : public ExecContext,
     void addCommitCallback(std::function<void()> callback);
     void addCommitDependency(std::shared_ptr<InflightInst> parent);
     void addCompletionCallback(std::function<void()> callback);
+
     void addDependency(std::shared_ptr<InflightInst> parent);
 
+    void addEffAddrCalculatedCallback(std::function<void()> callback);
+    void addMemReadyCallback(std::function<void()> callback);
+    void addMemCommitDependency(std::shared_ptr<InflightInst> parent);
+    void addMemDependency(std::shared_ptr<InflightInst> parent);
+    void addMemEffAddrDependency(std::shared_ptr<InflightInst> parent);
     void addReadyCallback(std::function<void()> callback);
     void addSquashCallback(std::function<void()> callback);
     // May be useful to add ability to remove a callback. Will be difficult if
@@ -212,6 +225,9 @@ class InflightInst : public ExecContext,
     inline bool isFaulted() const
     { return fault() != NoFault; }
 
+    inline bool isMemReady()
+    { return remainingMemDependencies == 0; }
+
     inline bool isReady() const
     { return remainingDependencies == 0; }
 
@@ -237,13 +253,20 @@ class InflightInst : public ExecContext,
     void notifyComplete();
 
     /**
-     * Notify all registered ready callback listeners that this in-flight
-     * instruction is ready (has no more outstanding dependencies).
+     * Notify all registered memory ready callback listeners that this
+     * in-flight instruction is ready to send to memory.
      *
      * NOTE: The responsibility for calling this function falls with this
-     *       class, so I'm actually pretty sure it doesn't need to be public.
-     *       Only leaving here for now for consistency with notifyComplete, and
-     *       in-case of new responsibilities for managing readiness.
+     *       class' internal dependency system.
+     */
+    void notifyMemReady();
+
+    /**
+     * Notify all registered ready callback listeners that this in-flight
+     * instruction is ready to execute (has no more outstanding dependencies).
+     *
+     * NOTE: The responsibility for calling this function falls with this
+     *       class' internal dependency system.
      */
     void notifyReady();
 
