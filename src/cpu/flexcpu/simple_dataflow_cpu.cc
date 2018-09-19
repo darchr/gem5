@@ -562,8 +562,9 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
 
     if (data) {
         split_acc->main->setData(data);
-        split_acc->low->dataStatic(data);
-        split_acc->high->dataStatic(data + low->getSize());
+        uint8_t* main_ptr = split_acc->main->getPtr<uint8_t>();
+        split_acc->low->dataStatic(main_ptr);
+        split_acc->high->dataStatic(main_ptr + low->getSize());
     } else { // Assume that no pointer given means we're filling with zero
         assert(main->getFlags() & Request::STORE_NO_DATA);
         // Maybe this line is important? Not all CPUs make this check, so I'm
