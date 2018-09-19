@@ -31,6 +31,7 @@
 #include "cpu/flexcpu/simple_dataflow_thread.hh"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
 #include "base/intmath.hh"
@@ -377,6 +378,7 @@ SDCPUThread::executeInstruction(weak_ptr<InflightInst> inst)
             };
     }
 
+    inst_ptr->status(InflightInst::Executing);
     _cpuPtr->requestExecution(static_inst,
                               static_pointer_cast<ExecContext>(inst_ptr),
                               inst_ptr->traceData(), callback);
@@ -596,7 +598,7 @@ SDCPUThread::onBranchPredictorAccessed(std::weak_ptr<InflightInst> inst,
 void
 SDCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
                                   const RequestPtr& req, bool write,
-                                  uint8_t* data,
+                                  shared_ptr<uint8_t> data,
                                   shared_ptr<SplitRequest> sreq, bool high)
 {
     const shared_ptr<InflightInst> inst_ptr = inst.lock();
@@ -605,7 +607,9 @@ SDCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
         return;
     }
 
-    DPRINTF(SDCPUThreadEvent, "onDataAddrTranslated()\n");
+    DPRINTF(SDCPUThreadEvent, "onDataAddrTranslated(seq %d%s)\n",
+                              inst_ptr->seqNum(),
+                              sreq ? (high ? ", high" : ", low") : "");
 
     if (fault != NoFault) {
         markFault(inst_ptr, fault);
@@ -617,62 +621,37 @@ SDCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
     // TODO add dependencies according to the now known effective address, and
     //      unset this instruction ready if appropriate.
 
-    auto callback = [this, inst](Fault fault) {
-            onExecutionCompleted(inst, fault);
-        };
-
     // IF we have a split request
     if (sreq) {
         if (high) {
             sreq->high = req;
+            inst_ptr->effPAddrRangeHigh(AddrRange(req->getPaddr(),
+                req->getPaddr() + req->getSize() - 1));
         } else {
             sreq->low = req;
+            inst_ptr->effPAddrRange(AddrRange(req->getPaddr(),
+                req->getPaddr() + req->getSize() - 1));
         }
 
-        // IF both requests have been translated successfully
-        if (sreq->high && sreq->low) {
-            if (write) {
-                if (!_cpuPtr->requestSplitMemWrite(sreq->main, sreq->low,
-                        sreq->high, getThreadContext(), inst_ptr->staticInst(),
-                        static_pointer_cast<ExecContext>(inst_ptr),
-                        inst_ptr->traceData(), data,
-                        callback)) {
-                    panic("The CPU rejected my mem access request and I "
-                          "haven't been programmed to know how to "
-                          "continue!!!");
-                }
-            } else { // read
-                if (!_cpuPtr->requestSplitMemRead(sreq->main, sreq->low,
-                        sreq->high, getThreadContext(), inst_ptr->staticInst(),
-                        static_pointer_cast<ExecContext>(inst_ptr),
-                        inst_ptr->traceData(),
-                        callback)) {
-                    panic("The CPU rejected my mem access request and I "
-                          "haven't been programmed to know how to "
-                          "continue!!!");
-                }
-            }
-        }
-
-        return; // finished handling split request
+        // IF not both requests have been translated successfully
+        if (!sreq->high || !sreq->low)
+            return; // We need to await the other translation before sending
+                    // the request to memory.
     }
 
-    if (write) {
-        if (!_cpuPtr->requestMemWrite(req, getThreadContext(),
-                inst_ptr->staticInst(),
-                static_pointer_cast<ExecContext>(inst_ptr),
-                inst_ptr->traceData(), data, callback)) {
-            panic("The CPU rejected my mem access request and I haven't been "
-                  "programmed to know how to continue!!!");
-        }
-    } else { // read
-        if (!_cpuPtr->requestMemRead(req, getThreadContext(),
-                inst_ptr->staticInst(),
-                static_pointer_cast<ExecContext>(inst_ptr),
-                inst_ptr->traceData(), callback)) {
-            panic("The CPU rejected my mem access request and I haven't been "
-                  "programmed to know how to continue!!!");
-        }
+    inst_ptr->effPAddrRange(AddrRange(req->getPaddr(),
+        req->getPaddr() + req->getSize() - 1));
+
+    inst_ptr->notifyEffAddrCalculated();
+
+    if (inst_ptr->isMemReady()) {
+        sendToMemory(inst_ptr, req, write, data, sreq);
+    } else { // has remaining dependencies
+        inst_ptr->addMemReadyCallback(
+            [this, inst, req, write, data, sreq] {
+                sendToMemory(inst, req, write, data, sreq);
+            }
+        );
     }
 }
 
@@ -897,6 +876,13 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
     // BEGIN ISA explicit serialization
 
     if (strictSerialize) {
+        auto serializing_inst = lastSerializingInstruction.lock();
+        if (serializing_inst) {
+            DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
+                    inst_ptr->seqNum(), serializing_inst->seqNum());
+            inst_ptr->addCommitDependency(serializing_inst);
+        }
+
         if (inflightInsts.size() > 1 && static_inst->isSerializing()) {
             const shared_ptr<InflightInst> last_inst =
                 *(++inflightInsts.rbegin());
@@ -910,55 +896,80 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
             }
 
             lastSerializingInstruction = inst_ptr;
-
-            return;
         }
-
-        auto serializing_inst = lastSerializingInstruction.lock();
-        if (serializing_inst && !(serializing_inst->isSquashed()
-                               || serializing_inst->isCommitted())) {
-            DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
-                    inst_ptr->seqNum(), serializing_inst->seqNum());
-            inst_ptr->addCommitDependency(serializing_inst);
-        }
-
     } else {
-        if (static_inst->isSerializeAfter()) {
-            lastSerializingInstruction = inst_ptr;
-        }
-
         if (inflightInsts.size() > 1 && static_inst->isSerializeBefore()) {
             const shared_ptr<InflightInst> last_inst =
                 *(++inflightInsts.rbegin());
 
-            if (!(last_inst->isCommitted() || last_inst->isSquashed())) {
-                DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
-                        inst_ptr->seqNum(), last_inst->seqNum());
-                inst_ptr->addCommitDependency(last_inst);
-            }
-
-            return;
+            DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
+                    inst_ptr->seqNum(), last_inst->seqNum());
+            inst_ptr->addCommitDependency(last_inst);
         }
 
         auto serializing_inst = lastSerializingInstruction.lock();
-        if (serializing_inst && !(serializing_inst->isSquashed()
-                               || serializing_inst->isCommitted())) {
+        if (serializing_inst) {
             DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
                     inst_ptr->seqNum(), serializing_inst->seqNum());
             inst_ptr->addCommitDependency(serializing_inst);
+        }
+
+        if (static_inst->isSerializeAfter()) {
+            lastSerializingInstruction = inst_ptr;
         }
     }
 
     // END ISA explicit serialization
 
+    // BEGIN ISA explicit memory barriers
+
+    // By creating a dependency between any memory requests and the most recent
+    // prior memory request, all memory instructions are enforced to execute in
+    // program-order.
+    if (static_inst->isMemRef()) {
+        shared_ptr<InflightInst> last_barrier = lastMemBarrier.lock();
+        if (last_barrier) {
+            DPRINTF(SDCPUDeps, "Dep %d -> %d [mem ref -> barrier]\n",
+                    inst_ptr->seqNum(), last_barrier->seqNum());
+            inst_ptr->addMemDependency(last_barrier);
+        }
+    }
+
+    if (static_inst->isMemBarrier()) {
+        lastMemBarrier = inst_ptr;
+        for (auto itr = inflightInsts.rbegin();
+             itr != inflightInsts.rend();
+             ++itr) {
+            if (*itr == inst_ptr) continue;
+            if ((*itr)->isComplete() || ((*itr)->isSquashed())) continue;
+
+            const StaticInstPtr other_si = (*itr)->staticInst();
+
+            if (other_si->isMemBarrier() || other_si->isMemRef()) {
+                DPRINTF(SDCPUDeps, "Dep %d -> %d [mem barrier -> ref/barrier]"
+                                   "\n",
+                        inst_ptr->seqNum(), (*itr)->seqNum());
+                if (static_inst->isMemRef()) {
+                    inst_ptr->addMemDependency(*itr);
+                } else {
+                    inst_ptr->addDependency(*itr);
+                }
+            }
+        }
+    }
+
+    // Should we handle static_inst->isWriteBarrier() separately?
+    // I'm convinced that it wouldn't change the order of any writes occuring,
+    // since stores are already only sent to memory at commit-time, which is a
+    // stricter restriction already than that which the write barrier would
+    // add.
+
+    // END ISA explicit memory barriers
+
     if (static_inst->isNonSpeculative()) {
         const shared_ptr<InflightInst> last_inst = *(++inflightInsts.rbegin());
 
-
-        if (!(last_inst->isCommitted() || last_inst->isSquashed()))
-            inst_ptr->addCommitDependency(last_inst);
-
-        return;
+        inst_ptr->addCommitDependency(last_inst);
         // This is a very conservative implementation of the rule, but has been
         // implemented this way since clear explanation of the flag is not
         // available. If we only mean branch speculation, then a commit-time
@@ -969,43 +980,134 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 
     // BEGIN Sequential Consistency
 
-    // TODO IMPORTANT this still doesn't make it safe to speculate on memory
-    //      instructions, since if we produce a fault and need to squash, we
-    //      still need a way to inform the cpu to undo stores being sent to
-    //      memory.
-
     // By creating a dependency between any memory requests and the most recent
     // prior memory request, all memory instructions are enforced to execute in
     // program-order.
-    if (static_inst->isMemRef() || static_inst->isMemBarrier()) {
-        for (auto itr = inflightInsts.rbegin();
-             itr != inflightInsts.rend();
-             ++itr) {
-            if (*itr == inst_ptr) continue;
-            if ((*itr)->isComplete() || ((*itr)->isSquashed())) continue;
+    // if (static_inst->isMemRef() || static_inst->isMemBarrier()) {
+    //     for (auto itr = inflightInsts.rbegin();
+    //          itr != inflightInsts.rend();
+    //          ++itr) {
+    //         if (*itr == inst_ptr) continue;
+    //         if ((*itr)->isComplete() || ((*itr)->isSquashed())) continue;
 
-            const StaticInstPtr other_si = (*itr)->staticInst();
+    //         const StaticInstPtr other_si = (*itr)->staticInst();
 
-            if (other_si->isMemRef() || other_si->isMemBarrier()) {
-                DPRINTF(SDCPUDeps, "Dep %d -> %d [mem barrier]\n",
-                        inst_ptr->seqNum(), (*itr)->seqNum());
-                inst_ptr->addDependency(*itr);
-                break;
+    //         if (other_si->isMemRef() || other_si->isMemBarrier()) {
+    //             DPRINTF(SDCPUDeps, "Dep %d -> %d [mem barrier]\n",
+    //                     inst_ptr->seqNum(), (*itr)->seqNum());
+    //             inst_ptr->addMemDependency(*itr);
+    //             break;
+    //         }
+    //     }
+    // }
+
+    // END Sequential Consistency
+
+    // BEGIN Conservative Memory dependence ordering
+
+    if (static_inst->isLoad()) {
+        weak_ptr<InflightInst> weak_inst = inst_ptr;
+
+        // Checking all instructions older than the inst_ptr. (This loop starts
+        // from oldest)
+        for (shared_ptr<InflightInst>& other : inflightInsts) {
+            if (other == inst_ptr) break;
+            if (!other->staticInst()->isStore()) continue;
+
+            if (other->isEffAddred()) {
+                // Case 1: other has already calculated an effective address
+                weak_ptr<InflightInst> weak_other = other;
+                inst_ptr->addEffAddrCalculatedCallback(
+                    [this, weak_inst, weak_other] {
+                        shared_ptr<InflightInst> other = weak_other.lock();
+                        if (!other || other->isSquashed()
+                         || other->isComplete()) return;
+
+                        shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
+                        // Don't need to check validity because this function
+                        // can only be referenced through a valid inst_ptr
+
+                        if (inst_ptr->effAddrOverlap(*other)) {
+                            DPRINTF(SDCPUDeps, "Dep %d -> %d [mem]\n",
+                                    inst_ptr->seqNum(), other->seqNum());
+                            inst_ptr->addMemDependency(other);
+                        }
+                    }
+                );
+            } else {
+                // Case 2: other has not yet calculated an effective address
+                //        Case 2a: we will calculate before other
+                //        Case 2b: they will calculate before us
+                //                 (similar to case 1)
+
+                weak_ptr<InflightInst> weak_other = other;
+                inst_ptr->addEffAddrCalculatedCallback(
+                    [this, weak_inst, weak_other] {
+                        shared_ptr<InflightInst> other = weak_other.lock();
+                        if (!other || other->isSquashed()
+                         || other->isComplete()) return;
+
+                        // If the other instruction is still calculating the
+                        // effective address, let it create the dependency when
+                        // it finishes instead, since we don't know if the
+                        // dependency is necessary yet.
+                        if (!other->isEffAddred()) return;
+
+                        shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
+                        // Don't need to check validity because this function
+                        // can only be referenced through a valid inst_ptr
+
+                        if (inst_ptr->effAddrOverlap(*other)) {
+                            DPRINTF(SDCPUDeps, "Dep %d -> %d [mem]\n",
+                                    inst_ptr->seqNum(), other->seqNum());
+                            inst_ptr->addMemDependency(other);
+                        }
+                    }
+                );
+                other->addEffAddrCalculatedCallback(
+                    [this, weak_inst, weak_other] {
+                        shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
+                        if (!inst_ptr || inst_ptr->isSquashed()) return;
+
+                        // If the later instruction is still calculating the
+                        // effective address, let it create the dependency when
+                        // it finishes instead, since we don't know if the
+                        // dependency is necessary yet.
+                        if (!inst_ptr->isEffAddred()) return;
+
+                        shared_ptr<InflightInst> other = weak_other.lock();
+                        // Don't need to check validity because this function
+                        // can only be referenced through a valid other
+
+                        if (inst_ptr->effAddrOverlap(*other)) {
+                            DPRINTF(SDCPUDeps, "Dep %d -> %d [mem]\n",
+                                    inst_ptr->seqNum(), other->seqNum());
+                            inst_ptr->addMemDependency(other);
+                        }
+                    }
+                );
+
+                // NOTE: It is important that this dependency is added after
+                //       the callback above is added to other, since the
+                //       callback needs to resolve first, to make sure that we
+                //       don't accidentally notifyMemReady() before we've added
+                //       all appropriate memory dependencies.
+                DPRINTF(SDCPUDeps, "Dep %d -> %d [mem predicted overlap]\n",
+                        inst_ptr->seqNum(), other->seqNum());
+                inst_ptr->addMemEffAddrDependency(other);
             }
         }
     }
 
-    // END Sequential Consistency
+    // END Conservative Memory dependence ordering
 
     // BEGIN Only store if instruction is at head of inflightInsts
 
     if (inflightInsts.size() > 1 && static_inst->isStore()) {
         const shared_ptr<InflightInst> last_inst = *(++inflightInsts.rbegin());
-
-        if (!(last_inst->isCommitted() || last_inst->isSquashed()))
-            inst_ptr->addCommitDependency(last_inst);
-
-        return;
+        DPRINTF(SDCPUDeps, "Dep %d -> %d [st @ commit]\n",
+                inst_ptr->seqNum(), last_inst->seqNum());
+        inst_ptr->addMemCommitDependency(last_inst);
     }
 
     // END Only store if instruction is at head of inflightInsts
@@ -1021,9 +1123,10 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
         const shared_ptr<InflightInst> producer = last_use.producer.lock();
 
         // Attach the dependency if the instruction is still around
-        if (producer && !(producer->isComplete() || producer->isSquashed())) {
-            DPRINTF(SDCPUDeps, "Dep %d -> %d [data (reg[%d])]\n",
+        if (producer) {
+            DPRINTF(SDCPUDeps, "Dep %d -> %d [data (%s[%d])]\n",
                     inst_ptr->seqNum(), producer->seqNum(),
+                    src_reg.className(),
                     src_reg.index());
             inst_ptr->addDependency(producer);
         }
@@ -1043,7 +1146,8 @@ SDCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
         const RegId& dst_reg = flattenRegId(static_inst->destRegIdx(dst_idx));
 
         lastUses[dst_reg] = {inst_ptr, dst_idx};
-        DPRINTF(SDCPUDeps, "%d is producer of reg[%d]\n", inst_ptr->seqNum(),
+        DPRINTF(SDCPUDeps, "%d is producer of %s[%d]\n", inst_ptr->seqNum(),
+                dst_reg.className(),
                 dst_reg.index());
     }
 }
@@ -1081,11 +1185,77 @@ SDCPUThread::recordCycleStats()
 }
 
 void
-SDCPUThread::squashUpTo(shared_ptr<InflightInst> inst_ptr, bool rebuild_map)
+SDCPUThread::sendToMemory(weak_ptr<InflightInst> inst,
+                          const RequestPtr& req, bool write,
+                          shared_ptr<uint8_t> data,
+                          shared_ptr<SplitRequest> sreq)
 {
+    const shared_ptr<InflightInst> inst_ptr = inst.lock();
+    if (!inst_ptr || inst_ptr->isSquashed()) {
+        // No need to do anything for an instruction that has been squashed.
+        return;
+    }
+
+    sendToMemory(inst_ptr, req, write, data, sreq);
+}
+
+void
+SDCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
+                          const RequestPtr& req, bool write,
+                          shared_ptr<uint8_t> data,
+                          shared_ptr<SplitRequest> sreq)
+{
+    weak_ptr<InflightInst> weak_inst(inst_ptr);
+    auto callback =
+        [this, weak_inst] (Fault fault) {
+            onExecutionCompleted(weak_inst, fault);
+        };
+
+    if (sreq) {
+        assert(sreq->high && sreq->low);
+        if (write) {
+            _cpuPtr->requestSplitMemWrite(sreq->main, sreq->low,
+                sreq->high, getThreadContext(),
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(), data.get(),
+                callback);
+        } else { // read
+            _cpuPtr->requestSplitMemRead(sreq->main, sreq->low,
+                sreq->high, getThreadContext(),
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(),
+                callback);
+        }
+    } else {
+        if (write) {
+            _cpuPtr->requestMemWrite(req, getThreadContext(),
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(), data.get(), callback);
+        } else { // read
+            _cpuPtr->requestMemRead(req, getThreadContext(),
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(), callback);
+        }
+    }
+}
+
+void
+SDCPUThread::squashUpTo(shared_ptr<InflightInst> inst_ptr, bool rebuild_lasts)
+{
+    bool last_ser_correct = true;
+    bool last_mem_bar_correct = true;
+
+    shared_ptr<InflightInst> ser_inst = lastSerializingInstruction.lock();
+    shared_ptr<InflightInst> bar_inst = lastMemBarrier.lock();
     size_t count = 0;
     while (inflightInsts.back() != inst_ptr) {
         inflightInsts.back()->notifySquashed();
+        if (inflightInsts.back() == ser_inst) last_ser_correct = false;
+        if (inflightInsts.back() == bar_inst) last_mem_bar_correct = false;
         inflightInsts.pop_back();
         ++count;
     }
@@ -1095,9 +1265,33 @@ SDCPUThread::squashUpTo(shared_ptr<InflightInst> inst_ptr, bool rebuild_map)
 
     DPRINTF(SDCPUThreadEvent, "%d instructions squashed.\n", count);
 
-    if (rebuild_map) {
+    if (rebuild_lasts) {
         for (shared_ptr<InflightInst>& it : inflightInsts) {
             populateUses(it);
+        }
+
+        for (auto itr = inflightInsts.rbegin();
+             itr != inflightInsts.rend()
+                && !(last_ser_correct && last_mem_bar_correct);
+             ++itr) {
+            StaticInstPtr static_inst = (*itr)->staticInst();
+
+            if (strictSerialize) {
+                if (!last_ser_correct && static_inst->isSerializing()) {
+                    lastSerializingInstruction = *itr;
+                    last_ser_correct = true;
+                }
+            } else {
+                if (!last_ser_correct && static_inst->isSerializeAfter()) {
+                    lastSerializingInstruction = *itr;
+                    last_ser_correct = true;
+                }
+            }
+
+            if (!last_mem_bar_correct && static_inst->isMemBarrier()) {
+                lastMemBarrier = *itr;
+                last_mem_bar_correct = true;
+            }
         }
     }
 
@@ -1138,6 +1332,8 @@ SDCPUThread::MemIface::initiateMemRead(shared_ptr<InflightInst> inst_ptr,
     if (split_addr > addr) { // The request spans two cache lines
         assert(!(req->isLLSC() || req->isMmappedIpr())); // don't deal with
                                                          // weird cases for now
+
+        inst_ptr->isSplitMemReq(true);
 
         RequestPtr req1, req2;
 
@@ -1207,12 +1403,14 @@ SDCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
     // way to do this is to create the packet early, but that would require
     // deleting that packet anyway in more cases, if the translation fails.
     // Note: size + 1 for an extra slot for ref-counting.
-    uint8_t* copy = new uint8_t[size + 1];
-    memcpy(copy, data, size);
+    shared_ptr<uint8_t> copy(new uint8_t[size], default_delete<uint8_t[]>());
+    memcpy(copy.get(), data, size);
 
     if (split_addr > addr) { // The request spans two cache lines
         assert(!(req->isLLSC() || req->isMmappedIpr())); // don't deal with
                                                          // weird cases for now
+
+        inst_ptr->isSplitMemReq(true);
 
         RequestPtr req1, req2;
 
@@ -1221,22 +1419,16 @@ SDCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
         shared_ptr<SplitRequest> split_acc = make_shared<SplitRequest>();
         split_acc->main = req;
 
-        copy[size] = 2;
-
         auto callback1 = [this, inst, split_acc, copy, size](Fault fault,
             const RequestPtr& req) {
             sdCPUThread.onDataAddrTranslated(inst, fault, req, true,
                                              copy, split_acc, false);
-            --copy[size];
-            if (!copy[size]) delete [] copy;
         };
 
         auto callback2 = [this, inst, split_acc, copy, size](Fault fault,
                                                  const RequestPtr& req) {
             sdCPUThread.onDataAddrTranslated(inst, fault, req, true,
                                              copy, split_acc, true);
-            --copy[size];
-            if (!copy[size]) delete [] copy;
         };
 
 
@@ -1262,7 +1454,6 @@ SDCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
     auto callback = [this, inst, copy](Fault fault,
                                             const RequestPtr& req) {
         sdCPUThread.onDataAddrTranslated(inst, fault, req, true, copy);
-        delete [] copy;
     };
 
     sdCPUThread._cpuPtr->requestDataAddrTranslation(req, tc, true, callback);

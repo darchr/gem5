@@ -70,6 +70,8 @@ InflightInst::addCommitCallback(function<void()> callback)
 void
 InflightInst::addCommitDependency(shared_ptr<InflightInst> parent)
 {
+    if (parent->isSquashed() || parent->isCommitted()) return;
+
     ++remainingDependencies;
 
     weak_ptr<InflightInst> weak_this = shared_from_this();
@@ -94,6 +96,7 @@ InflightInst::addCompletionCallback(function<void()> callback)
 void
 InflightInst::addDependency(shared_ptr<InflightInst> parent)
 {
+    if (parent->isSquashed() || parent->isComplete()) return;
     ++remainingDependencies;
 
     weak_ptr<InflightInst> weak_this = shared_from_this();
@@ -124,6 +127,8 @@ InflightInst::addMemReadyCallback(function<void()> callback)
 void
 InflightInst::addMemCommitDependency(shared_ptr<InflightInst> parent)
 {
+    if (parent->isSquashed() || parent->isCommitted()) return;
+
     ++remainingMemDependencies;
 
     weak_ptr<InflightInst> weak_this = shared_from_this();
@@ -142,6 +147,8 @@ InflightInst::addMemCommitDependency(shared_ptr<InflightInst> parent)
 void
 InflightInst::addMemDependency(shared_ptr<InflightInst> parent)
 {
+    if (parent->isSquashed() || parent->isComplete()) return;
+
     ++remainingMemDependencies;
 
     weak_ptr<InflightInst> weak_this = shared_from_this();
@@ -160,6 +167,8 @@ InflightInst::addMemDependency(shared_ptr<InflightInst> parent)
 void
 InflightInst::addMemEffAddrDependency(shared_ptr<InflightInst> parent)
 {
+    if (parent->isSquashed() || parent->isEffAddred()) return;
+
     ++remainingMemDependencies;
 
     weak_ptr<InflightInst> weak_this = shared_from_this();
@@ -232,6 +241,22 @@ InflightInst::commitToTC()
     backingContext->getCpuPtr()->probeInstCommit(instRef);
 }
 
+bool
+InflightInst::effAddrOverlap(const InflightInst& other) const
+{
+    assert(accessedPAddrsValid && other.accessedPAddrsValid
+        && (!_isSplitMemReq || accessedSplitPAddrsValid)
+        && (!other._isSplitMemReq || other.accessedSplitPAddrsValid));
+
+    return accessedPAddrs.intersects(other.accessedPAddrs)
+        || (_isSplitMemReq
+         && accessedSplitPAddrs.intersects(other.accessedPAddrs))
+        || (other._isSplitMemReq
+         && accessedPAddrs.intersects(other.accessedSplitPAddrs))
+        || (_isSplitMemReq && other._isSplitMemReq
+         && accessedSplitPAddrs.intersects(other.accessedSplitPAddrs));
+}
+
 void
 InflightInst::notifyCommitted()
 {
@@ -248,6 +273,16 @@ InflightInst::notifyComplete()
     status(Complete);
 
     for (function<void()>& callback_func : completionCallbacks) {
+        callback_func();
+    }
+}
+
+void
+InflightInst::notifyEffAddrCalculated()
+{
+    status(EffAddred);
+
+    for (function<void()>& callback_func : effAddrCalculatedCallbacks) {
         callback_func();
     }
 }

@@ -176,9 +176,15 @@ class SDCPUThread : public ThreadContext
     StaticInstPtr curMacroOp = StaticInst::nullStaticInstPtr;
 
     /**
-     * The last instruction that should serialize all following instructions
+     * The last instruction that should serialize all following instructions.
      */
     std::weak_ptr<InflightInst> lastSerializingInstruction;
+
+    /**
+     * The last instruction that should serialize all following memory
+     * accesses.
+     */
+    std::weak_ptr<InflightInst> lastMemBarrier;
 
     /**
      * We hold a decoder outside of _committedState even though SimpleThread
@@ -382,7 +388,7 @@ class SDCPUThread : public ThreadContext
      */
     void onDataAddrTranslated(std::weak_ptr<InflightInst> inst, Fault fault,
                               const RequestPtr& req, bool write,
-                              uint8_t* data,
+                              std::shared_ptr<uint8_t> data,
                               std::shared_ptr<SplitRequest> sreq = nullptr,
                               bool high = false);
 
@@ -444,6 +450,9 @@ class SDCPUThread : public ThreadContext
      * currently active InflightInsts. The dependencies should be added to this
      * instruction via its addDependency() interface function.
      *
+     * An assumption is currently being made that this instruction is the tail
+     * of the inflightInsts buffer.
+     *
      * @param inst_ptr The instruction for which we want to detect
      * dependencies.
      */
@@ -467,6 +476,51 @@ class SDCPUThread : public ThreadContext
     void predictCtrlInst(std::shared_ptr<InflightInst> inst_ptr);
 
     /**
+     * Utility function for making a request for the CPU to do the memory
+     * access for this instruction. Should be called once no dependencies
+     * remain for the memory stage of the instruction. Will possibly be a
+     * speculative load, in which case squash logic will be necessary.
+     *
+     * std::weak_ptr<InflightInst> variant does a check before performing task.
+     *
+     * @param inst A reference to the instruction for which to request memory.
+     * @param req The request object which non-split requests will use.
+     * @param write Whether the request is a write. If not write, then read.
+     * @param data The data to write, if a write is requested.
+     * @param sreq A split request structure containing the divided and
+     *  translated requests.
+     */
+    void sendToMemory(std::weak_ptr<InflightInst> inst,
+                      const RequestPtr& req, bool write,
+                      std::shared_ptr<uint8_t> data,
+                      std::shared_ptr<SplitRequest> sreq = nullptr);
+
+    /**
+     * Utility function for making a request for the CPU to do the memory
+     * access for this instruction. Should be called once no dependencies
+     * remain for the memory stage of the instruction. Will possibly be a
+     * speculative load, in which case squash logic will be necessary.
+     *
+     * This is the first function to use overloading to avoid the overhead of
+     * relocking the inst_ptr for every call. Hopefully, more functions that
+     * may be called in the same call-stack written this way will improve
+     * performance slightly. May want to use const reference types instead of
+     * raw parameters, if the compiler doesn't use copy-elision to avoid
+     * copying parameters in this case.
+     *
+     * @param inst A reference to the instruction for which to request memory.
+     * @param req The request object which non-split requests will use.
+     * @param write Whether the request is a write. If not write, then read.
+     * @param data The data to write, if a write is requested.
+     * @param sreq A split request structure containing the divided and
+     *  translated requests.
+     */
+    void sendToMemory(std::shared_ptr<InflightInst> inst_ptr,
+                      const RequestPtr& req, bool write,
+                      std::shared_ptr<uint8_t> data,
+                      std::shared_ptr<SplitRequest> sreq = nullptr);
+
+    /**
      * This function iterates through the inflightInsts buffer and squashes
      * every instruction older than inst_ptr. This will both notify the
      * instructions that they have been squashed and remove them from the
@@ -480,11 +534,11 @@ class SDCPUThread : public ThreadContext
      *
      * @param inst_ptr The instruction before the oldest instruction that
      *  should be squashed and removed.
-     * @param rebuild_map Whether the squash event should result in the
-     *  rebuilding of the register usage map.
+     * @param rebuild_lasts Whether the squash event should result in the
+     *  rebuilding of the register usage map and barrier trackers.
      */
     void squashUpTo(std::shared_ptr<InflightInst> inst_ptr,
-                    bool rebuild_map = false);
+                    bool rebuild_lasts = false);
 
     // END Internal functions
 

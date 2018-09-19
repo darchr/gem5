@@ -55,6 +55,7 @@ class InflightInst : public ExecContext,
     using VecRegContainer = TheISA::VecRegContainer;
     using VecElem = TheISA::VecElem;
 
+    // Mutually exclusive states through which InflightInsts will transition.
     enum Status
     {
         Invalid = 0,
@@ -62,9 +63,12 @@ class InflightInst : public ExecContext,
         // Is a dedicated Ready (dependencies satisfied) but not executed state
         // valuable?
         Executing, // Request for execution sent, but waiting for results.
+        EffAddred, // Effective address calculated, but not yet sent to memory.
         Memorying, // Request for memory sent, but waiting for results.
         Complete, // Results have been received, but not yet committed.
-        Committed
+        Committed // Values have been committed, but this object might be alive
+                  // for a little longer due to the shared_ptr being in the
+                  // call-stack.
     };
 
     struct DataSource
@@ -120,9 +124,8 @@ class InflightInst : public ExecContext,
 
     Trace::InstRecord* _traceData = nullptr;
 
+    // Callbacks made during a state transition.
     std::vector<std::function<void()>> commitCallbacks;
-
-    // Who depends on me?
     std::vector<std::function<void()>> completionCallbacks;
 
     std::vector<std::function<void()>> effAddrCalculatedCallbacks;
@@ -152,10 +155,11 @@ class InflightInst : public ExecContext,
     Fault _fault = NoFault;
 
     // For use in tracking dependencies through memory
-    bool translationComplete = false;
+    bool accessedPAddrsValid = false;
     AddrRange accessedPAddrs;
 
-    bool splitTranslationComplete = false;
+    bool _isSplitMemReq = false;
+    bool accessedSplitPAddrsValid = false;
     AddrRange accessedSplitPAddrs; // Second variable to store range for second
                                    // request as part of split accesses
 
@@ -173,10 +177,34 @@ class InflightInst : public ExecContext,
 
     virtual ~InflightInst();
 
+    /**
+     * Tells this InflightInst to call a particular function when it has been
+     * made aware of a commit.
+     *
+     * NOTE: The order in which callbacks are added will determine the order in
+     *       which the callbacks are called upon notify. This is a hard promise
+     *       made by InflightInst, in order to provide some control on ordering
+     *       for any functionality where ordering is important.
+     *
+     * @param callback The function to call.
+     */
     void addCommitCallback(std::function<void()> callback);
     void addCommitDependency(std::shared_ptr<InflightInst> parent);
     void addCompletionCallback(std::function<void()> callback);
 
+    /**
+     * If parent has not yet completed and is not squashed, then this will
+     * increment an internal counter, which will be decremented when parent
+     * completes. When all dependencies have been satisfied (counter reaches
+     * 0), notifyReady() will be called.
+     *
+     * NOTE: This function uses the callback system to implement dependencies,
+     *       so if callback order is important, pay attention to the order in
+     *       which you add callbacks AND dependencies.
+     *
+     * @param parent The other instruction whose completion this instruction is
+     *  dependent on.
+     */
     void addDependency(std::shared_ptr<InflightInst> parent);
 
     void addEffAddrCalculatedCallback(std::function<void()> callback);
@@ -194,6 +222,21 @@ class InflightInst : public ExecContext,
      * them to the backing ThreadContext of this InflightInst.
      */
     void commitToTC();
+
+    bool effAddrOverlap(const InflightInst& other) const;
+
+    inline void effPAddrRange(AddrRange range)
+    {
+        assert(range.valid());
+        accessedPAddrsValid = true;
+        accessedPAddrs = range;
+    }
+    inline void effPAddrRangeHigh(AddrRange range)
+    {
+        assert(_isSplitMemReq && range.valid());
+        accessedSplitPAddrsValid = true;
+        accessedSplitPAddrs = range;
+    }
 
     inline const Fault& fault() const
     { return _fault; }
@@ -216,11 +259,18 @@ class InflightInst : public ExecContext,
         return results[result_idx];
     }
 
+    // Note: due to the sequential nature of the status items, a later status
+    //       naturally implies earlier statuses have been met. (e.g. A complete
+    //       memory instruction must have already had its effective address
+    //       calculated)
     inline bool isCommitted() const
-    { return status() == Committed; }
+    { return status() >= Committed; }
 
     inline bool isComplete() const
-    { return status() == Complete; }
+    { return status() >= Complete; }
+
+    inline bool isEffAddred() const
+    { return status() >= EffAddred; }
 
     inline bool isFaulted() const
     { return fault() != NoFault; }
@@ -230,6 +280,11 @@ class InflightInst : public ExecContext,
 
     inline bool isReady() const
     { return remainingDependencies == 0; }
+
+    inline bool isSplitMemReq() const
+    { return _isSplitMemReq; }
+    inline bool isSplitMemReq(bool split)
+    { return _isSplitMemReq = split; }
 
     inline bool isSquashed() const
     { return _squashed; }
@@ -251,6 +306,15 @@ class InflightInst : public ExecContext,
      *       is managing execution of this instruction.
      */
     void notifyComplete();
+
+    /**
+     * Notify all registered effective address callback listeners that this
+     * in-flight instruction has had its effective address(es) calculated.
+     *
+     * NOTE: The responsibility for calling this function falls with whoever
+     *       is calculating the effective address of this MEMORY instruction.
+     */
+    void notifyEffAddrCalculated();
 
     /**
      * Notify all registered memory ready callback listeners that this
@@ -320,7 +384,10 @@ class InflightInst : public ExecContext,
      * Set the status of the InflightInst
      */
     inline Status status(Status status)
-    { return _status = status; }
+    {
+        assert(status > _status); // Only allow forward state transitions
+        return _status = status;
+    }
 
     inline Trace::InstRecord* traceData() const
     { return _traceData; }
