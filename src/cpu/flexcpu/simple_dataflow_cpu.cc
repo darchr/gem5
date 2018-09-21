@@ -50,6 +50,8 @@ SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
     instFetchUnit(this, params->clocked_inst_fetch, 0, name() + ".iFetchUnit"),
     instAddrTranslationUnit(this, params->clocked_itb_translation, Cycles(0),
                             0, name() + ".itbUnit"),
+    issueUnit(this, params->clocked_issue, params->issue_latency,
+              params->issue_bandwidth, name() + ".issueUnit"),
     memoryUnit(this, params->clocked_memory_request, Cycles(0),
                name() + ".memoryUnit"),
     _dataPort(name() + "._dataPort", this),
@@ -286,6 +288,16 @@ SimpleDataflowCPU::requestInstAddrTranslation(const RequestPtr& req,
     });
 
     instAddrTranslationUnit.schedule();
+}
+
+void
+SimpleDataflowCPU::requestIssue(function<void()> callback_func)
+{
+    DPRINTF(SDCPUCoreEvent, "requestIssue()\n");
+
+    issueUnit.addRequest(callback_func);
+
+    issueUnit.schedule();
 }
 
 bool
@@ -969,6 +981,7 @@ SimpleDataflowCPU::regStats()
     executionUnit.regStats();
     instFetchUnit.regStats();
     instAddrTranslationUnit.regStats();
+    issueUnit.regStats();
     memoryUnit.regStats();
 
     memLatency

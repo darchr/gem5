@@ -65,15 +65,23 @@ class SimpleDataflowCPU(BaseCPU):
                                    "instruction execution to clock edges.")
     execution_latency = Param.Cycles(1, "Number of cycles for each "
                                          "instruction to execute")
-    execution_bandwidth = Param.Cycles(0, "Number of executions each cycle. "
-                                          "Assumes a fully-pipelined unit and "
-                                          "0 implies infinite bandwidth.")
+    execution_bandwidth = Param.Int(0, "Number of executions each cycle. "
+                                       "Assumes a fully-pipelined unit and 0 "
+                                       "implies infinite bandwidth.")
 
     fetch_buffer_size = Param.Unsigned(Parent.cache_line_size,
                                        "Size of fetch buffer in bytes. "
                                        "Also determines size of fetch "
                                        "requests. Should not be larger than a "
                                        "cache line.")
+
+    clocked_issue = Param.Bool(Self.clocked_cpu, "Ties requests for issuing "
+                                                 "instructions to the clock")
+    issue_latency = Param.Cycles(0, "Number of cycles each instruction takes "
+                                    "to issue.")
+    issue_bandwidth = Param.Int(0, "Number of instructions/micro-ops that can "
+                                   "be issued each cycle.")
+
 
     strict_serialization = Param.Bool(True, "Controls behavior of serializing "
                                             "flags on instructions.")
