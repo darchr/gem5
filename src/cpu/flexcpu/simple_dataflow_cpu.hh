@@ -319,6 +319,7 @@ class SimpleDataflowCPU : public BaseCPU
     Resource executionUnit;
     InstFetchResource instFetchUnit;
     Resource instAddrTranslationUnit;
+    Resource issueUnit;
     MemoryResource memoryUnit;
 
     // BEGIN Internal state variables
@@ -499,6 +500,17 @@ class SimpleDataflowCPU : public BaseCPU
                           std::weak_ptr<ExecContext> context,
                           Trace::InstRecord* trace_data,
                           ExecCallback callback_func);
+
+    /**
+     * Event-driven means for other classes to request timing-based "issue"
+     * The "issue" stage of this processor prepares decoded instructions (or
+     * micro-ops) for execution. This is where rename and dependency checking
+     * occurs.
+     * Also, the next instruction is not fetched until after this stage.
+     *
+     * @param callback_func to call when issuing the instruction
+     */
+    void requestIssue(std::function<void()> callback_func);
 
     /**
      * Event-driven means for other classes to request a translation of a
