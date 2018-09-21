@@ -221,7 +221,7 @@ class SimpleDataflowCPU : public BaseCPU
         // All of the functions that we need to call the next time we can.
         // Right now, this is an infinite queue. We should at least check to
         // make sure it doesn't get too large.
-        std::list<std::function<void()>> requests;
+        std::list<std::function<bool ()>> requests;
 
         // This is executed to try to schedule the requests for execution.
         // We should always check to make sure this *isn't* scheduled before
@@ -272,8 +272,10 @@ class SimpleDataflowCPU : public BaseCPU
          *
          * @param run_function is the function to run when the resource is
          *        available and *after* latency cycles.
+         *        The return value of the function is true if the function
+         *        actually "executes" and false if the instruction was squashed
          */
-        void addRequest(const std::function<void()>& run_function);
+        void addRequest(const std::function<bool()>& run_function);
 
         /**
          * Get the name of this resources. Used for debugging and stats
@@ -474,6 +476,7 @@ class SimpleDataflowCPU : public BaseCPU
      */
     void requestDataAddrTranslation(const RequestPtr& req, ThreadContext* tc,
                                     bool write,
+                                    std::weak_ptr<ExecContext> context,
                                     TranslationCallback callback_func);
 
     /**
@@ -508,9 +511,11 @@ class SimpleDataflowCPU : public BaseCPU
      * occurs.
      * Also, the next instruction is not fetched until after this stage.
      *
+     * @param context for the instruction to know if it has been squashed
      * @param callback_func to call when issuing the instruction
      */
-    void requestIssue(std::function<void()> callback_func);
+    void requestIssue(std::function<void()> callback_func,
+                      std::function<bool()> is_squashed);
 
     /**
      * Event-driven means for other classes to request a translation of a
@@ -525,13 +530,16 @@ class SimpleDataflowCPU : public BaseCPU
      *  is specific to a thread
      * @param callback_func The function reference for purposes of handling the
      *  result of the translation
+     * @param is_squashed is a function that returns true if this fetch has
+     *  been squashed by the thread
      *
      * @return Whether or not this request has been acknowledged. If this
      *  function returns false, the requester should not expect callback_func
      *  to be called in the future.
      */
     void requestInstAddrTranslation(const RequestPtr& req, ThreadContext* tc,
-                                    TranslationCallback callback_func);
+                                    TranslationCallback callback_func,
+                                    std::function<bool()> is_squashed);
 
     /**
      * Event-driven means for other classes to request a single MachInst via
@@ -541,13 +549,16 @@ class SimpleDataflowCPU : public BaseCPU
      *  physical memory address to send through the Port
      * @param callback_func The function reference for purposes of handling the
      *  result of the memory request
+     * @param is_squashed is a function that returns true if this fetch has
+     *  been squashed by the thread
      *
      * @return Whether or not this request has been acknowledged. If this
      *  function returns false, the requester should not expect callback_func
      *  to be called in the future.
      */
-    bool requestInstructionData(const RequestPtr& req,
-                                FetchCallback callback_func);
+    void requestInstructionData(const RequestPtr& req,
+                                FetchCallback callback_func,
+                                std::function<bool()> is_squashed);
 
     /**
      * Event-driven means for classes to request a read access to memory. Upon
