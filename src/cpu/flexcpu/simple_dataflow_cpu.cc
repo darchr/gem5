@@ -206,7 +206,7 @@ SimpleDataflowCPU::requestBranchPredictor(
 
 void
 SimpleDataflowCPU::requestDataAddrTranslation(const RequestPtr& req,
-    ThreadContext* tc, bool write,
+    ThreadContext* tc, bool write, std::weak_ptr<ExecContext> context,
     TranslationCallback callback_func)
 {
     DPRINTF(SDCPUCoreEvent, "requestDataAddrTranslation()\n");
@@ -214,9 +214,11 @@ SimpleDataflowCPU::requestDataAddrTranslation(const RequestPtr& req,
 
     Tick queue_time = curTick();
 
-    dataAddrTranslationUnit.addRequest([this, req, tc, write, callback_func,
-                                        queue_time]
+    dataAddrTranslationUnit.addRequest([this, req, tc, write, context,
+                                        callback_func, queue_time]
     {
+        if (context.expired()) return false; // Don't request for squashed inst
+
         Tick now = curTick();
 
         waitingForDataXlation.sample(now - queue_time);
@@ -228,6 +230,8 @@ SimpleDataflowCPU::requestDataAddrTranslation(const RequestPtr& req,
 
         tc->getDTBPtr()->translateTiming(req, tc, handler,
                                     write ? BaseTLB::Write : BaseTLB::Read);
+
+        return true;
     });
 
     dataAddrTranslationUnit.schedule();
@@ -247,17 +251,25 @@ SimpleDataflowCPU::requestExecution(StaticInstPtr inst,
     executionUnit.addRequest([this, inst, context, trace_data, callback_func,
                               queue_time]
     {
+        if (context.expired()) return false; // Don't execute squashed inst
+
         waitingForExecution.sample(curTick() - queue_time);
 
-        const shared_ptr<ExecContext> ctxt = context.lock();
+        Event *e = new EventFunctionWrapper([context, inst, trace_data,
+                                             callback_func]{
+            const shared_ptr<ExecContext> ctxt = context.lock();
+            Fault fault = ctxt ?
+                        (inst->isMemRef() ?
+                        inst->initiateAcc(ctxt.get(), trace_data) :
+                        inst->execute(ctxt.get(), trace_data)) :
+                        NoFault;
 
-        Fault fault = ctxt ?
-                    (inst->isMemRef() ?
-                    inst->initiateAcc(ctxt.get(), trace_data) :
-                    inst->execute(ctxt.get(), trace_data)) :
-                    NoFault;
+            callback_func(fault);
+        }, name() + ".delayedCall", true);
 
-        callback_func(fault);
+        schedule(e, curTick() + cyclesToTicks(Cycles(1)));
+
+        return true;
     });
 
     executionUnit.schedule();
@@ -266,15 +278,17 @@ SimpleDataflowCPU::requestExecution(StaticInstPtr inst,
 void
 SimpleDataflowCPU::requestInstAddrTranslation(const RequestPtr& req,
     ThreadContext* tc,
-    TranslationCallback callback_func)
+    TranslationCallback callback_func,
+    std::function<bool()> is_squashed)
 {
     DPRINTF(SDCPUCoreEvent, "requestInstAddrTranslation()\n");
 
     Tick queue_time = curTick();
 
     instAddrTranslationUnit.addRequest([this, req, tc, callback_func,
-                                        queue_time]
+                                        queue_time, is_squashed]
     {
+        if (is_squashed()) return false;
         Tick now = curTick();
 
         waitingForInstXlation.sample(now - queue_time);
@@ -285,24 +299,16 @@ SimpleDataflowCPU::requestInstAddrTranslation(const RequestPtr& req,
                                             this, callback_func, now, true);
 
         tc->getITBPtr()->translateTiming(req, tc, handler, BaseTLB::Execute);
+
+        return true;
     });
 
     instAddrTranslationUnit.schedule();
 }
 
 void
-SimpleDataflowCPU::requestIssue(function<void()> callback_func)
-{
-    DPRINTF(SDCPUCoreEvent, "requestIssue()\n");
-
-    issueUnit.addRequest(callback_func);
-
-    issueUnit.schedule();
-}
-
-bool
 SimpleDataflowCPU::requestInstructionData(const RequestPtr& req,
-    FetchCallback callback_func)
+    FetchCallback callback_func, std::function<bool()> is_squashed)
 {
     DPRINTF(SDCPUCoreEvent, "requestInstructionData()\n");
 
@@ -315,7 +321,10 @@ SimpleDataflowCPU::requestInstructionData(const RequestPtr& req,
 
     Tick queue_time = curTick();
 
-    instFetchUnit.addRequest([this, req, callback_func, pkt, queue_time] {
+    instFetchUnit.addRequest([this, req, callback_func, pkt, queue_time,
+                              is_squashed]
+    {
+        if (is_squashed()) return false;
 
         waitingForInstData.sample(curTick() - queue_time);
 
@@ -328,12 +337,28 @@ SimpleDataflowCPU::requestInstructionData(const RequestPtr& req,
         // We mark the control flow so that we know what to call when memory
         // responds
         outstandingFetches.emplace(pkt, callback_func);
+
+        return true;
     });
 
     instFetchUnit.schedule();
-
-    return true;
 }
+
+void
+SimpleDataflowCPU::requestIssue(function<void()> callback_func,
+                                std::function<bool()> is_squashed)
+{
+    DPRINTF(SDCPUCoreEvent, "requestIssue()\n");
+
+    issueUnit.addRequest([callback_func, is_squashed] {
+        if (is_squashed()) return false;
+        callback_func();
+        return true;
+    });
+
+    issueUnit.schedule();
+}
+
 
 bool
 SimpleDataflowCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
@@ -369,6 +394,8 @@ SimpleDataflowCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
     memoryUnit.addRequest([this, req, tc, inst, context, trace_data,
                            callback_func, pkt, queue_time]
     {
+        if (context.expired()) return false; // No need to send req if squashed
+
         Tick now = curTick();
         waitingForMem.sample(now - queue_time);
 
@@ -387,6 +414,8 @@ SimpleDataflowCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
             completeMemAccess(pkt, inst, context, trace_data, callback_func,
                               now);
         });
+
+        return true;
     });
 
     memoryUnit.schedule();
@@ -439,6 +468,8 @@ SimpleDataflowCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
     memoryUnit.addRequest([this, req, tc, inst, context, trace_data,
                            callback_func, pkt, queue_time]
     {
+        if (context.expired()) return false; // No need to send req if squashed
+
         Tick now = curTick();
         waitingForMem.sample(now - queue_time);
 
@@ -461,6 +492,8 @@ SimpleDataflowCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
             completeMemAccess(pkt, inst, context, trace_data, callback_func,
                               now);
         });
+
+        return true;
     });
 
     memoryUnit.schedule();
@@ -499,6 +532,8 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
     memoryUnit.addRequest([this, low, tc, inst, context, trace_data,
                            callback_func, split_acc, queue_time]
     {
+        if (context.expired()) return false; // No need to send req if squashed
+
         Tick now = curTick();
         waitingForMem.sample(now - queue_time);
 
@@ -518,11 +553,14 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
             completeMemAccess(split_acc->low, inst, context, trace_data,
                               callback_func, now, split_acc);
         });
+
+        return false;
     });
 
     memoryUnit.addRequest([this, high, tc, inst, context, trace_data,
                            callback_func, split_acc, queue_time]
     {
+        if (context.expired()) return false; // No need to send req if squashed
         Tick now = curTick();
         waitingForMem.sample(now - queue_time);
 
@@ -542,6 +580,7 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
             completeMemAccess(split_acc->high, inst, context, trace_data,
                               callback_func, now, split_acc);
         });
+        return true;
     });
 
     memoryUnit.schedule();
@@ -593,6 +632,8 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
     memoryUnit.addRequest([this, low, tc, inst, context, trace_data,
                            callback_func, split_acc, queue_time]
     {
+        if (context.expired()) return false; // No need to send req if squashed
+
         Tick now = curTick();
         waitingForMem.sample(now - queue_time);
 
@@ -616,11 +657,15 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
             completeMemAccess(split_acc->low, inst, context, trace_data,
                               callback_func, now, split_acc);
         });
+
+        return true;
     });
 
     memoryUnit.addRequest([this, high, tc, inst, context, trace_data,
                            callback_func, split_acc, queue_time]
     {
+        if (context.expired()) return false; // No need to send req if squashed
+
         Tick now = curTick();
         waitingForMem.sample(now - queue_time);
 
@@ -644,6 +689,8 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
             completeMemAccess(split_acc->high, inst, context, trace_data,
                               callback_func, now, split_acc);
         });
+
+        return true;
     });
 
     memoryUnit.schedule();
@@ -842,7 +889,7 @@ SimpleDataflowCPU::Resource::Resource(SimpleDataflowCPU *cpu, bool clocked,
 
 void
 SimpleDataflowCPU::Resource::addRequest(
-    const std::function<void()>& run_function)
+    const std::function<bool ()>& run_function)
 {
     DPRINTF(SDCPUCoreEvent, "Adding request. %d on queue\n", requests.size());
     requests.push_back(run_function);
@@ -876,27 +923,11 @@ SimpleDataflowCPU::Resource::attemptAllRequests()
     }
 
     while (!requests.empty() && resourceAvailable()) {
-        usedBandwidth++;
         DPRINTF(SDCPUCoreEvent, "Running request. %d left in queue. "
                 "%d this cycle\n", requests.size(), usedBandwidth);
         auto req = requests.front();
-        if (latency > 0) {
-            DPRINTF(SDCPUCoreEvent, "Delaying request for %d ticks\n",
-                    cpu->cyclesToTicks(latency));
-            Event *e = new EventFunctionWrapper([req]{
-                req(); // Simply call the function given in request[Unit]
-            }, name() + ".delayedCall", true);
-            cpu->schedule(e, curTick() + cpu->cyclesToTicks(latency));
-        } else {
-            DPRINTF(SDCPUCoreEvent, "Executing request directly\n");
-            // NOTE: We may want to use the subclasses more here and put the
-            // interesting code here (e.g., for checking resources available)
-            // NOTE: Memory *must* be 0 latency right now in case one of the
-            // requests in the queue causes the port to be blocked. The above
-            // logic only works for units that the CPU has full control of
-            // (e.g., execution and translation).
-            req();
-        }
+        DPRINTF(SDCPUCoreEvent, "Executing request directly\n");
+        if (req()) usedBandwidth++;
 
         requests.pop_front();
     }
