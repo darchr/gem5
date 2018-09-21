@@ -1014,7 +1014,7 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 
     const int8_t num_srcs = static_inst->numSrcRegs();
     for (int8_t src_idx = 0; src_idx < num_srcs; ++src_idx) {
-        const RegId& src_reg = static_inst->srcRegIdx(src_idx);
+        const RegId& src_reg = flattenRegId(static_inst->srcRegIdx(src_idx));
         if (src_reg.isZeroReg()) continue;
 
         const InflightInst::DataSource& last_use = lastUses[src_reg];
@@ -1040,7 +1040,7 @@ SDCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
     const StaticInstPtr static_inst = inst_ptr->staticInst();
     const int8_t num_dsts = static_inst->numDestRegs();
     for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
-        const RegId& dst_reg = static_inst->destRegIdx(dst_idx);
+        const RegId& dst_reg = flattenRegId(static_inst->destRegIdx(dst_idx));
 
         lastUses[dst_reg] = {inst_ptr, dst_idx};
         DPRINTF(SDCPUDeps, "%d is producer of reg[%d]\n", inst_ptr->seqNum(),
