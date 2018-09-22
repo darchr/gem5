@@ -169,6 +169,15 @@ class SDCPUThread : public ThreadContext
     Addr fetchOffset = 0;
 
     /**
+     * The PC that we sent a fetch for. It's possible that when the request
+     * returns from memory the fetch PC is different. In this case, there was
+     * a branch misprediction and we shouldn't use the data fetched from that
+     * request since it is an incorrect PC. This can also happen during fault
+     * handling.
+     */
+    TheISA::PCState fetchPC;
+
+    /**
      * We hold onto any macroop StaticInstPtrs we detect, to serve as providers
      * of microops instead of fetching from memory for the duration of the
      * macroop.
@@ -221,10 +230,11 @@ class SDCPUThread : public ThreadContext
     // BEGIN Internal functions
 
     /**
-     * Entry point to begin work on a new instruction. Will also begin any
-     * related events, such as attemptFetch to kick off any upcoming tasks
-     * necessary to complete that instruction. May issue an instruction
-     * immediately if no new information is needed to set up a new instruction.
+     * Entry point to begin work on a new instruction. This takes the
+     * instruction data in the fetch buffer or the current macro-op and gets
+     * the static instruction. THen, it creates a new dynamic instruction and
+     * "issues" it to the execution unit in the CPU. This function also
+     * tries to advance to the next instruction.
      *
      * @param nextPC The PC the system should be at for fetching and executing
      *  the upcoming instruction.
@@ -239,7 +249,7 @@ class SDCPUThread : public ThreadContext
      * @param inst A reference to the in-flight instruction object for which to
      *  request fetch data.
      */
-    void attemptFetch(std::weak_ptr<InflightInst> inst);
+    void attemptFetch(TheISA::PCState next_pc);
 
     /**
      * Takes the response data from the CPU and stores it into the fetch buffer
@@ -309,25 +319,6 @@ class SDCPUThread : public ThreadContext
      * @return Whether we can start a new fetch at this point in time.
      */
     bool hasNextPC();
-
-    /**
-     * This function has the job of populating an instruction's fields with
-     * dependencies, state, and behavior. It will ensure that all the state
-     * internal to the InflightInst is ready, such that when no dependencies
-     * exist, the instruction can be executed.
-     *
-     * After this stage, after the instruction has effectively been "scheduled"
-     * internally. If all of the instruction's dependencies are available at
-     * issue time, then the instruction's execution should immediately be
-     * requested from the CPU.
-     *
-     * (Note: Assumes in-order issue. This implies that the weak_ptr should
-     *        match the pointer at the tail of the inflightInsts table.)
-     *
-     * @param inst A reference to the in-flight instruction object for which to
-     *  request issue.
-     */
-    void issueInstruction(std::weak_ptr<InflightInst> inst);
 
     /**
      * Utility function for taking note of a fault, and preemptively squashing
@@ -409,19 +400,6 @@ class SDCPUThread : public ThreadContext
     void onExecutionCompleted(std::weak_ptr<InflightInst> inst, Fault fault);
 
     /**
-     * This function serves as the event handler for when the data we requested
-     * to be fetched is available.
-     *
-     * This function should be called after attemptFetch().
-     *
-     * @param inst A reference to the in-flight instruction object for which to
-     *  handle new instruction data.
-     * @param fetch_data The chunk of data that was fetched.
-     */
-    void onInstDataFetched(std::weak_ptr<InflightInst> inst,
-                           const MachInst fetch_data);
-
-    /**
      * This function serves as the event handler for when the CPU has completed
      * the translation we requested for fetching purposes.
      *
@@ -435,8 +413,7 @@ class SDCPUThread : public ThreadContext
      * @param req A reference to a request object which should hold the
      *  translated physical address.
      */
-    void onPCTranslated(std::weak_ptr<InflightInst> inst, Fault fault,
-                        const RequestPtr& req);
+    void onPCTranslated(TheISA::PCState, Fault fault, const RequestPtr& req);
 
     /**
      * This function detects any dependencies that a new instruction has, if it
