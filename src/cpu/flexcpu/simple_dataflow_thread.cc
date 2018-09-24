@@ -567,14 +567,6 @@ SDCPUThread::onBranchPredictorAccessed(std::weak_ptr<InflightInst> inst,
     panic_if(!pred, "I wasn't programmed to understand nullptr branch "
                     "predictors!");
 
-    inst_ptr->addSquashCallback([this, inst] {
-        const shared_ptr<InflightInst> inst_ptr = inst.lock();
-        if (!inst_ptr || inst_ptr->isCommitted() || inst_ptr->isComplete())
-            return;
-
-        freeBranchPredDepth();
-    });
-
     TheISA::PCState pc = inst_ptr->pcState();
 
     const bool M5_VAR_USED taken = pred->predict(inst_ptr->staticInst(),
@@ -587,6 +579,32 @@ SDCPUThread::onBranchPredictorAccessed(std::weak_ptr<InflightInst> inst,
                               taken ? "taken" : "not taken",
                               pc.instAddr());
     // Count stats using the predict return value?
+
+    StaticInstPtr static_inst = inst_ptr->staticInst();
+    if (static_inst->isDirectCtrl() && static_inst->isUncondCtrl()) {
+        // If we *know* we've mispredicted, no need to keep fetching
+        // new instructions. This optimization improves the simulator's
+        // performance, but may underestimate the instruction fetch bandwidth
+        if (!taken || static_inst->branchTarget(inst_ptr->pcState()) != pc) {
+            DPRINTF(SDCPUBranchPred, "Unconditional branch mispredicted\n");
+            freeBranchPredDepth();
+            return;
+        }
+    } else if ((static_inst->isCall() || static_inst->isReturn()) && !taken) {
+        // Calls are always taken.
+        DPRINTF(SDCPUBranchPred, "Call/return taken misprediction\n");
+        freeBranchPredDepth();
+        return;
+    }
+
+    inst_ptr->addSquashCallback([this, inst] {
+        const shared_ptr<InflightInst> inst_ptr = inst.lock();
+        if (!inst_ptr || inst_ptr->isCommitted() || inst_ptr->isComplete())
+            return;
+
+        freeBranchPredDepth();
+    });
+
 
     advanceInst(pc);
 }
