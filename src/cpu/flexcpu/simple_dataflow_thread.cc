@@ -233,10 +233,10 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
     populateDependencies(dynamic_inst_ptr);
     populateUses(dynamic_inst_ptr);
 
+    weak_ptr<InflightInst> inst = dynamic_inst_ptr;
     if (dynamic_inst_ptr->isReady()) { // If no dependencies, execute now
-        executeInstruction(dynamic_inst_ptr);
+        executeInstruction(inst);
     } else { // Else, add an event callback to execute when ready
-        weak_ptr<InflightInst> inst = dynamic_inst_ptr;
         dynamic_inst_ptr->addReadyCallback([this, inst](){
             executeInstruction(inst);
         });
@@ -359,7 +359,7 @@ SDCPUThread::commitAllAvailableInstructions()
 }
 
 void
-SDCPUThread::commitInstruction(std::shared_ptr<InflightInst> inst_ptr)
+SDCPUThread::commitInstruction(std::shared_ptr<InflightInst>& inst_ptr)
 {
     assert(inst_ptr->isComplete());
 
@@ -503,7 +503,7 @@ SDCPUThread::getThreadContext()
 }
 
 void
-SDCPUThread::handleFault(std::shared_ptr<InflightInst> inst_ptr)
+SDCPUThread::handleFault(std::shared_ptr<InflightInst>& inst_ptr)
 {
     DPRINTF(SDCPUThreadEvent, "Handling fault (seq %d): %s\n",
                               inst_ptr->seqNum(), inst_ptr->fault()->name());
@@ -533,7 +533,7 @@ SDCPUThread::hasNextPC()
 }
 
 void
-SDCPUThread::markFault(shared_ptr<InflightInst> inst_ptr, Fault fault)
+SDCPUThread::markFault(const shared_ptr<InflightInst>& inst_ptr, Fault fault)
 {
     DPRINTF(SDCPUThreadEvent, "Fault detected (seq %d): %s\n",
                               inst_ptr->seqNum(), fault->name());
@@ -577,7 +577,7 @@ SDCPUThread::onBranchPredictorAccessed(std::weak_ptr<InflightInst> inst,
 
     TheISA::PCState pc = inst_ptr->pcState();
 
-    const bool taken = pred->predict(inst_ptr->staticInst(),
+    const bool M5_VAR_USED taken = pred->predict(inst_ptr->staticInst(),
                                      inst_ptr->seqNum(), pc, threadId());
 
     // BPredUnit::predict takes pc by reference, and updates it in-place.
@@ -820,7 +820,7 @@ SDCPUThread::onPCTranslated(TheISA::PCState next_pc, Fault fault,
 }
 
 void
-SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
+SDCPUThread::populateDependencies(shared_ptr<InflightInst>& inst_ptr)
 {
     // NOTE: instead of implementing dependency detection all in this one
     //       function, maybe it's better to define a dependency provider
@@ -985,7 +985,7 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 }
 
 void
-SDCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
+SDCPUThread::populateUses(shared_ptr<InflightInst>& inst_ptr)
 {
     const StaticInstPtr static_inst = inst_ptr->staticInst();
     const int8_t num_dsts = static_inst->numDestRegs();
@@ -999,7 +999,7 @@ SDCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
 }
 
 void
-SDCPUThread::predictCtrlInst(shared_ptr<InflightInst> inst_ptr)
+SDCPUThread::predictCtrlInst(shared_ptr<InflightInst>& inst_ptr)
 {
     DPRINTF(SDCPUBranchPred, "Requesting branch predictor for control\n");
 
@@ -1033,7 +1033,8 @@ SDCPUThread::recordCycleStats()
 }
 
 void
-SDCPUThread::squashUpTo(shared_ptr<InflightInst> inst_ptr, bool rebuild_map)
+SDCPUThread::squashUpTo(const shared_ptr<InflightInst>& inst_ptr,
+                        bool rebuild_map)
 {
     size_t count = 0;
     while (inflightInsts.back() != inst_ptr) {
