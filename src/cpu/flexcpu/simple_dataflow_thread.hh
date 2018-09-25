@@ -176,6 +176,7 @@ class SDCPUThread : public ThreadContext
      * handling.
      */
     TheISA::PCState fetchPC;
+    bool *squashFetchFlag = nullptr;
 
     /**
      * We hold onto any macroop StaticInstPtrs we detect, to serve as providers
@@ -413,7 +414,8 @@ class SDCPUThread : public ThreadContext
      * @param req A reference to a request object which should hold the
      *  translated physical address.
      */
-    void onPCTranslated(TheISA::PCState, Fault fault, const RequestPtr& req);
+    void onPCTranslated(TheISA::PCState, Fault fault, const RequestPtr& req,
+                        bool *squash);
 
     /**
      * This function detects any dependencies that a new instruction has, if it

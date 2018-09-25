@@ -311,15 +311,30 @@ SDCPUThread::attemptFetch(TheISA::PCState next_pc)
     fetch_req->setVirt(0, new_buf_base, req_size, Request::INST_FETCH,
                        _cpuPtr->instMasterId(), inst_addr);
 
-    auto callback = [this, next_pc](Fault f, const RequestPtr& r) {
-        if (fetchPC == next_pc) {
-            onPCTranslated(next_pc, f, r);
+    assert(squashFetchFlag == nullptr);
+    squashFetchFlag = new bool(false);
+    bool *squash = squashFetchFlag;
+
+    auto callback = [this, next_pc, squash](Fault f, const RequestPtr& r) {
+        if (!(*squash)) {
+            assert(fetchPC == next_pc);
+            onPCTranslated(next_pc, f, r, squash);
+        } else {
+            delete squash;
         }
         // Else, there was a branch misprediction, no need to do anything
     };
 
     _cpuPtr->requestInstAddrTranslation(fetch_req, getThreadContext(),
-        callback, [this, next_pc]{ return fetchPC != next_pc; });
+        callback, [this, next_pc, squash]{
+            if (!(*squash)) {
+                assert(fetchPC == next_pc);
+                return false;
+            } else {
+                delete squash;
+                return true;
+            }
+        });
 }
 
 void
@@ -328,7 +343,6 @@ SDCPUThread::bufferInstructionData(Addr vaddr, uint8_t* data)
     DPRINTF(SDCPUThreadEvent, "Updating fetch buffer with data from %#x\n",
                               vaddr);
 
-    assert(vaddr);
     fetchBufBase = vaddr;
 
     memcpy(fetchBuf.data(), data, fetchBuf.size());
@@ -517,6 +531,7 @@ SDCPUThread::handleFault(std::shared_ptr<InflightInst>& inst_ptr)
 
     // Clear the fetch PC so any outstanding fetches will be ignored
     fetchPC = TheISA::PCState();
+    if (squashFetchFlag) *squashFetchFlag = true;
 
     advanceInst(getNextPC());
 }
@@ -605,6 +620,7 @@ SDCPUThread::onBranchPredictorAccessed(std::weak_ptr<InflightInst> inst,
         freeBranchPredDepth();
     });
 
+    inst_ptr->setBranchPredicted(pc);
 
     advanceInst(pc);
 }
@@ -724,68 +740,47 @@ SDCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
     if (inst_ptr->staticInst()->isControl()) {
         // We must have our next PC now, since this branch has just resolved
 
-        if (_cpuPtr->hasBranchPredictor()) {
-            // If a branch predictor has been set, then we need to check if
-            // a prediction was made, squash instructions if incorrectly
-            // predicted, and notify the predictor accordingly.
+        if (inst_ptr->isPredicted()) {
+            freeBranchPredDepth();
 
-            auto it = find(inflightInsts.begin(), inflightInsts.end(),
-                           inst_ptr);
+            const TheISA::PCState calculatedPC = inst_ptr->pcState();
+            TheISA::PCState correctPC = calculatedPC;
+            inst_ptr->staticInst()->advancePC(correctPC);
+            const TheISA::PCState predictedPC = inst_ptr->getPredictedPC();
+            DPRINTF(SDCPUBranchPred, "Predicted PC: %s, Correct PC: %s\n",
+                    predictedPC, correctPC);
 
-            if (it == inflightInsts.end()) {
-                // Should be unreachable...
-                panic("Did a completion callback on an instruction not in "
-                      "our buffer.");
-            }
+            if (correctPC.pc() == predictedPC.pc()
+                && correctPC.upc() == predictedPC.upc()) {
+                // It was a correct prediction
+                DPRINTF(SDCPUBranchPred,
+                        "Branch predicted correctly (seq %d)\n",
+                        inst_ptr->seqNum());
+                // Calculate stat correct predictions?
+                // Otherwise do nothing because we guessed correctly.
+                // Just remember to update the branch predictor at commit.
+            } else { // It was an incorrect prediction
+                DPRINTF(SDCPUBranchPred,
+                        "Branch predicted incorrectly (seq %d) "
+                        "Actual PC: %s\n",
+                        inst_ptr->seqNum(), correctPC);
 
-            shared_ptr<InflightInst> following_inst =
-                (++it != inflightInsts.end()) ? *it : nullptr;
+                // Squash all mispredicted instructions
+                squashUpTo(inst_ptr, true);
 
-            if (following_inst) {
-                // This condition is true if a branch prediction was made prior
-                // to this point in simulation.
+                // Notify branch predictor of incorrect prediction
+                const InstSeqNum num = inst_ptr->seqNum();
+                bool branching = calculatedPC.branching();
+                ThreadID tid = threadId();
+                SimpleDataflowCPU *cpu = _cpuPtr;
+                inst_ptr->addCommitCallback([cpu, num, correctPC,
+                                            branching, tid]
+                {
+                    cpu->getBranchPredictor()->squash(num, correctPC,
+                                                        branching, tid);
+                });
 
-                freeBranchPredDepth();
-
-                const TheISA::PCState calculatedPC = inst_ptr->pcState();
-                TheISA::PCState correctPC = calculatedPC;
-                inst_ptr->staticInst()->advancePC(correctPC);
-                const TheISA::PCState predictedPC = following_inst->pcState();
-
-                if (correctPC.pc() == predictedPC.pc()
-                 && correctPC.upc() == predictedPC.upc()) {
-                    // It was a correct prediction
-                    DPRINTF(SDCPUBranchPred,
-                            "Branch predicted correctly (seq %d)\n",
-                            inst_ptr->seqNum());
-                    // Calculate stat correct predictions?
-                    // Otherwise do nothing because we guessed correctly.
-                    // Just remember to update the branch predictor at commit.
-                } else { // It was an incorrect prediction
-                    DPRINTF(SDCPUBranchPred,
-                            "Branch predicted incorrectly (seq %d)\n",
-                            inst_ptr->seqNum());
-
-                    // Squash all mispredicted instructions
-                    squashUpTo(inst_ptr, true);
-
-                    // Notify branch predictor of incorrect prediction
-                    const InstSeqNum num = inst_ptr->seqNum();
-                    bool branching = calculatedPC.branching();
-                    ThreadID tid = threadId();
-                    SimpleDataflowCPU *cpu = _cpuPtr;
-                    inst_ptr->addCommitCallback([cpu, num, correctPC,
-                                                branching, tid]
-                    {
-                        cpu->getBranchPredictor()->squash(num, correctPC,
-                                                          branching, tid);
-                    });
-
-                    advanceInst(correctPC);
-                }
-            } else { // predictor hasn't fired yet, so we can preemptively
-                     // place the next inst on the buffer with the known pc.
-                advanceInst(getNextPC());
+                advanceInst(correctPC);
             }
         } else { // No branch predictor
             // If we are a control instruction, then we were unable to begin a
@@ -799,10 +794,11 @@ SDCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
 
 void
 SDCPUThread::onPCTranslated(TheISA::PCState next_pc, Fault fault,
-                            const RequestPtr& req)
+                            const RequestPtr& req, bool *squash)
 {
     DPRINTF(SDCPUThreadEvent, "onPCTranslated(addr: %#x)\n",
                               req->getVaddr());
+    assert(!(*squash));
 
     if (fault != NoFault) {
         DPRINTF(SDCPUThreadEvent, "Got a fault\n");
@@ -823,10 +819,16 @@ SDCPUThread::onPCTranslated(TheISA::PCState next_pc, Fault fault,
     DPRINTF(SDCPUThreadEvent, "Received PC translation (va: %#x, pa: %#x)\n",
             vaddr, req->getPaddr());
 
-    auto callback = [this, next_pc, vaddr](uint8_t* data) {
-        if (fetchPC == next_pc) {
+    auto callback = [this, next_pc, vaddr, squash](uint8_t* data) {
+        if (!(*squash)) {
+            assert(fetchPC == next_pc);
             bufferInstructionData(vaddr, data);
+            assert(squashFetchFlag == squash);
+            squashFetchFlag = nullptr;
             advanceInst(next_pc);
+            delete squash;
+        } else {
+            delete squash;
         }
         // Else, there was a branch misprediction, no need to do anything
     };
@@ -834,7 +836,15 @@ SDCPUThread::onPCTranslated(TheISA::PCState next_pc, Fault fault,
     // No changes to the request before asking the CPU to handle it if there is
     // not a fault. Let the CPU generate the packet.
     _cpuPtr->requestInstructionData(req, callback,
-        [this, next_pc]{ return fetchPC != next_pc; });
+        [this, next_pc, squash]{
+            if (!(*squash)) {
+                assert(fetchPC == next_pc);
+                return false;
+            } else {
+                delete squash;
+                return true;
+            }
+        });
 }
 
 void
@@ -1076,6 +1086,8 @@ SDCPUThread::squashUpTo(const shared_ptr<InflightInst>& inst_ptr,
     decoder.reset();
     fetchOffset = 0;
     fetchPC = TheISA::PCState();
+    if (squashFetchFlag) *squashFetchFlag = true;
+    squashFetchFlag = nullptr;
     curMacroOp = StaticInst::nullStaticInstPtr;
 }
 
