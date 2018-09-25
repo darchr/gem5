@@ -177,6 +177,7 @@ class SDCPUThread : public ThreadContext
      */
     TheISA::PCState fetchPC;
     bool *squashFetchFlag = nullptr;
+    bool *squashIssueFlag = nullptr;
 
     /**
      * We hold onto any macroop StaticInstPtrs we detect, to serve as providers
@@ -241,6 +242,8 @@ class SDCPUThread : public ThreadContext
      *  the upcoming instruction.
      */
     void advanceInst(TheISA::PCState next_pc);
+
+    void issueInst(TheISA::PCState next_pc);
 
     /**
      * Entry point to fetch functionality. May be called more than once for a

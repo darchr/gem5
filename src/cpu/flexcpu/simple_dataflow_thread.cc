@@ -123,6 +123,35 @@ SDCPUThread::activate()
 void
 SDCPUThread::advanceInst(TheISA::PCState next_pc)
 {
+    DPRINTF(SDCPUThreadEvent, "Request issue for %s. outstanding %p\n",
+            next_pc, squashIssueFlag);
+
+    squashIssueFlag = new bool(false);
+
+    bool *squash_flag = squashIssueFlag;
+    _cpuPtr->requestIssue(
+        [this, next_pc, squash_flag] {
+            assert(!(*squash_flag));
+            if (squashIssueFlag == squash_flag) squashIssueFlag = nullptr;
+            delete squash_flag;
+            issueInst(next_pc);
+        },
+        [this, squash_flag] {
+            if (*squash_flag) {
+                assert(squashIssueFlag != squash_flag);
+                delete squash_flag;
+                return true;
+            } else {
+                assert(squashIssueFlag == squash_flag);
+                return false;
+            }
+        }
+    );
+}
+
+void
+SDCPUThread::issueInst(TheISA::PCState next_pc)
+{
     if (status() != ThreadContext::Active) {
         // If this thread isn't currently active, don't do anything
         return;
@@ -1087,6 +1116,7 @@ SDCPUThread::squashUpTo(const shared_ptr<InflightInst>& inst_ptr,
     fetchOffset = 0;
     fetchPC = TheISA::PCState();
     if (squashFetchFlag) *squashFetchFlag = true;
+    if (squashIssueFlag) *squashIssueFlag = true;
     squashFetchFlag = nullptr;
     curMacroOp = StaticInst::nullStaticInstPtr;
 }
