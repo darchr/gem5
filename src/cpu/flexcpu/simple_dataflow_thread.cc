@@ -988,10 +988,13 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 
     // END ISA explicit memory barriers
 
-    if (static_inst->isNonSpeculative()) {
+    if (inflightInsts.size() > 1 && static_inst->isNonSpeculative()) {
         const shared_ptr<InflightInst> last_inst = *(++inflightInsts.rbegin());
 
-        inst_ptr->addCommitDependency(last_inst);
+        if (!(last_inst->isCommitted() || last_inst->isSquashed())) {
+            inst_ptr->addCommitDependency(last_inst);
+        }
+
         // This is a very conservative implementation of the rule, but has been
         // implemented this way since clear explanation of the flag is not
         // available. If we only mean branch speculation, then a commit-time
