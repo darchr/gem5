@@ -111,5 +111,6 @@ class StaticInstFlags(Enum):
         'IsMicroBranch',    # This microop branches within the microcode for
                             # a macroop
         'IsDspOp',
-        'IsSquashAfter'     # Squash all uncommitted state after executed
+        'IsSquashAfter',    # Squash all uncommitted state after executed
+        'IsFaulting',       # Guaranteed to fault. Known at decode time
         ]

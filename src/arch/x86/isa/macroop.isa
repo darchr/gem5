@@ -231,6 +231,9 @@ let {{
                 else:
                     flags.append("IsDelayedCommit")
 
+                if numMicroops == 1 and type(op) is Fault:
+                    flags.append("IsFaulting")
+
                 allocMicroops += \
                     "microops[%d] = %s;\n" % \
                     (micropc, op.getAllocator(flags))
@@ -246,6 +249,7 @@ let {{
             regSize = '''(%s || (env.base == INTREG_RSP && %s) ?
                          env.stackSize :
                          env.dataSize)''' % (useStackSize, memoryInst)
+            # can check if num_microops == 1 here!
             iop = InstObjParams(self.getMnemonic(), self.name, "Macroop",
                                 {"code" : "", "num_microops" : numMicroops,
                                  "alloc_microops" : allocMicroops,
