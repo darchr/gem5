@@ -117,6 +117,11 @@ class InflightInst : public ExecContext,
      */
     PCState _pcState;
 
+    // If this is a control instruction, this says whether or not the next
+    // pc was predicted based on this instruction and what the prediction was
+    bool _predicted = false;
+    TheISA::PCState _predictedPC;
+
     Trace::InstRecord* _traceData = nullptr;
 
     std::vector<std::function<void()>> commitCallbacks;
@@ -187,6 +192,9 @@ class InflightInst : public ExecContext,
     inline const Fault& fault(const Fault& f)
     { return _fault = f; }
 
+    inline TheISA::PCState getPredictedPC() const
+    { return _predictedPC; }
+
     /**
      * Accessor function to retrieve a result produced by this instruction.
      * Non-const variant returns a reference, so that external classes can make
@@ -211,6 +219,9 @@ class InflightInst : public ExecContext,
 
     inline bool isFaulted() const
     { return fault() != NoFault; }
+
+    inline bool isPredicted() const
+    { return _predicted; }
 
     inline bool isReady() const
     { return remainingDependencies == 0; }
@@ -270,6 +281,14 @@ class InflightInst : public ExecContext,
      *  that I want
      */
     void setDataSource(int8_t src_idx, DataSource source);
+
+    /**
+     * Mark this instruction as having predicted a branch
+     */
+    void setBranchPredicted(TheISA::PCState new_pc) {
+        _predicted = true;
+        _predictedPC = new_pc;
+    }
 
     /**
      * Ask the InflightInst what its current sequence number is
