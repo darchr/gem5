@@ -958,12 +958,12 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst>& inst_ptr)
 
     // END ISA explicit serialization
 
-    if (static_inst->isNonSpeculative()) {
+    if (inflightInsts.size() > 1 && static_inst->isNonSpeculative()) {
         const shared_ptr<InflightInst> last_inst = *(++inflightInsts.rbegin());
 
-
-        if (!(last_inst->isCommitted() || last_inst->isSquashed()))
+        if (!(last_inst->isCommitted() || last_inst->isSquashed())) {
             inst_ptr->addCommitDependency(last_inst);
+        }
 
         return;
         // This is a very conservative implementation of the rule, but has been
