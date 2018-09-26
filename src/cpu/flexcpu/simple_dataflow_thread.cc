@@ -283,6 +283,9 @@ SDCPUThread::bufferInstructionData(Addr vaddr, uint8_t* data)
 void
 SDCPUThread::commitAllAvailableInstructions()
 {
+    DPRINTF(SDCPUThreadEvent, "Committing complete instructions from head of "
+                              "buffer(%d).\n", inflightInsts.size());
+
     shared_ptr<InflightInst> inst_ptr;
 
     while (!inflightInsts.empty()
@@ -301,6 +304,19 @@ SDCPUThread::commitAllAvailableInstructions()
         }
 
         inflightInsts.pop_front();
+    }
+
+    if (inflightInsts.empty()) {
+        DPRINTF(SDCPUThreadEvent, "Buffer has completely emptied.\n");
+    } else {
+        DPRINTF(SDCPUThreadEvent,
+            "%d commits stopped by (seq %d): %s\n",
+            inflightInsts.size(),
+            inst_ptr->seqNum(),
+            inst_ptr->staticInst() ?
+                inst_ptr->staticInst()->disassemble(
+                    inst_ptr->pcState().instAddr()).c_str() :
+                    "Not yet decoded.");
     }
 }
 
