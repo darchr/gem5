@@ -44,8 +44,9 @@ if 'SimpleDataflowCPU' in env['CPU_MODELS']:
     DebugFlag('SDCPUThreadEvent')
 
     DebugFlag('SDCPUBranchPred')
+    DebugFlag('SDCPUBufferDump')
     DebugFlag('SDCPUDeps')
 
     CompoundFlag('SDCPUAll', ['SDCPUCoreEvent', 'SDCPUInstEvent',
                               'SDCPUThreadEvent', 'SDCPUBranchPred',
-                              'SDCPUDeps'])
+                              'SDCPUBufferDump', 'SDCPUDeps'])

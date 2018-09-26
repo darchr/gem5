@@ -37,6 +37,7 @@
 #include "base/intmath.hh"
 #include "base/trace.hh"
 #include "debug/SDCPUBranchPred.hh"
+#include "debug/SDCPUBufferDump.hh"
 #include "debug/SDCPUDeps.hh"
 #include "debug/SDCPUInstEvent.hh"
 #include "debug/SDCPUThreadEvent.hh"
@@ -363,6 +364,46 @@ SDCPUThread::commitInstruction(std::shared_ptr<InflightInst> inst_ptr)
         trace_data->setFetchSeq(lastCommittedInstNum);
         trace_data->setCPSeq(lastCommittedInstNum);
         trace_data->dump();
+    }
+}
+
+void
+SDCPUThread::dumpBuffer()
+{
+    DPRINTF(SDCPUBufferDump, "%d instructions on the buffer:\n",
+                             inflightInsts.size());
+
+    for (shared_ptr<InflightInst>& inst_ptr : inflightInsts) {
+        const StaticInstPtr static_inst = inst_ptr->staticInst();
+
+        const char* status;
+        switch (inst_ptr->status()) {
+          case InflightInst::Waiting:
+            status = "Waiting"; break;
+          case InflightInst::Executing:
+            status = "Executing"; break;
+          case InflightInst::EffAddred:
+            status = "EffAddred"; break;
+          case InflightInst::Memorying:
+            status = "Memorying"; break;
+          case InflightInst::Complete:
+            status = "Complete"; break;
+          case InflightInst::Committed:
+            status = "Committed"; break;
+          default:
+            status = "Unknown";
+        }
+
+        DPRINTF(SDCPUBufferDump, "(seq %d) Squashed: %s, Status: %s, Ready: "
+                                 "%s, MemReady: %s\n    %s\n",
+            inst_ptr->seqNum(),
+            inst_ptr->isSquashed() ? "yes" : "no",
+            status,
+            inst_ptr->isReady() ? "yes" : "no",
+            inst_ptr->isMemReady() ? "yes" : "no",
+            static_inst ?
+                static_inst->disassemble(inst_ptr->pcState().pc()).c_str() :
+                "Not yet decoded");
     }
 }
 
@@ -1246,6 +1287,8 @@ SDCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
                           shared_ptr<uint8_t> data,
                           shared_ptr<SplitRequest> sreq)
 {
+    inst_ptr->status(InflightInst::Memorying);
+
     weak_ptr<InflightInst> weak_inst(inst_ptr);
     auto callback =
         [this, weak_inst] (Fault fault) {

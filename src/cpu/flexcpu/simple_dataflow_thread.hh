@@ -275,6 +275,12 @@ class SDCPUThread : public ThreadContext
     void commitInstruction(std::shared_ptr<InflightInst> inst);
 
     /**
+     * Debugging function for outputting the state of the inflightInsts buffer
+     * via DPRINTF.
+     */
+    void dumpBuffer();
+
+    /**
      * Utility function for making a request for the CPU to execute an
      * instruction. This function should be called for all instructions once
      * and only once, at the earliest time after issue that all dependencies
