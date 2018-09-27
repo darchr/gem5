@@ -570,6 +570,12 @@ class SDCPUThread : public ThreadContext
     Stats::Histogram squashedPerCycle;
     Stats::Histogram activeInstructions;
 
+    Stats::Scalar serializingInst;
+    Stats::Scalar waitingForSerializing;
+    Stats::Scalar waitingForMemBarrier;
+    Stats::Scalar memBarrier;
+    Stats::Scalar nonSpeculativeInst;
+
     // END Statistics
 
   public:
