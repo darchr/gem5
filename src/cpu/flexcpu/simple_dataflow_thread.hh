@@ -354,7 +354,7 @@ class SDCPUThread : public ThreadContext
      * @param inst A reference to the in-flight instruction object for which to
      *  request issue.
      */
-    void issueInstruction(std::weak_ptr<InflightInst> inst);
+    void issueInstruction(std::shared_ptr<InflightInst> inst);
 
     /**
      * Utility function for taking note of a fault, and preemptively squashing
@@ -447,6 +447,18 @@ class SDCPUThread : public ThreadContext
      */
     void onInstDataFetched(std::weak_ptr<InflightInst> inst,
                            const MachInst fetch_data);
+
+    /**
+     * This function serves as the event handler for when the CPU informs us
+     * that a particular request for issue has been serviced (on this tick).
+     * Since the CPU is unaware of the functional aspect of issuing an
+     * instruction within our logical system, we have to complete the tasks of
+     * an issue within this function.
+     *
+     * @param inst A reference to the in-flight instruction for which we had
+     *  requested issue.
+     */
+    void onIssueAccessed(std::weak_ptr<InflightInst> inst);
 
     /**
      * This function serves as the event handler for when the CPU has completed

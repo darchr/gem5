@@ -549,66 +549,21 @@ SDCPUThread::hasNextPC()
 }
 
 void
-SDCPUThread::issueInstruction(weak_ptr<InflightInst> inst)
+SDCPUThread::issueInstruction(shared_ptr<InflightInst> inst_ptr)
 {
-    const shared_ptr<InflightInst> inst_ptr = inst.lock();
-    if (!inst_ptr || inst_ptr->isSquashed()) {
-        // No need to do anything for an instruction that has been squashed.
-        return;
-    }
-
-    DPRINTF(SDCPUInstEvent, "Issuing instruction (seq %d)\n",
+    DPRINTF(SDCPUInstEvent, "Beginning issuing instruction (seq %d)\n",
                             inst_ptr->seqNum());
 
-#if TRACING_ON
-    // Calls new, must delete eventually.
-    inst_ptr->traceData(
-        _cpuPtr->getTracer()->getInstRecord(curTick(), this,
-                inst_ptr->staticInst(), inst_ptr->pcState(), curMacroOp));
-#else
-    inst_ptr->traceData(nullptr);
-#endif
+    weak_ptr<InflightInst> weak_inst = inst_ptr;
+    auto callback = [this, weak_inst] {
+        onIssueAccessed(weak_inst);
+    };
+    auto squasher = [weak_inst] {
+        shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
+        return !inst_ptr || inst_ptr->isSquashed();
+    };
 
-    populateDependencies(inst_ptr);
-    populateUses(inst_ptr);
-
-    if (inst_ptr->isReady()) { // If no dependencies, execute now
-        executeInstruction(inst);
-    } else { // Else, add an event callback to execute when ready
-        inst_ptr->addReadyCallback([this, inst](){
-            executeInstruction(inst);
-        });
-    }
-
-    if (inst_ptr->staticInst()->isLastMicroop()) {
-        DPRINTF(SDCPUThreadEvent, "Releasing MacroOp after decoding final "
-                                  "microop\n");
-        curMacroOp = StaticInst::nullStaticInstPtr;
-    }
-
-    if (hasNextPC()) {
-        // If we are still running and know where to fetch, we should
-        // immediately send the necessary requests to the CPU to fetch the next
-        // instruction
-        advanceInst(getNextPC());
-    } else if (_cpuPtr->hasBranchPredictor()) {
-        if (!remainingBranchPredDepth) {
-            DPRINTF(SDCPUBranchPred, "This control would exceed the branch "
-                                      "prediction depth limit, not requesting "
-                                      "a prediction immediately.\n");
-
-            unpredictedBranches.push_back(inst);
-
-            return;
-        }
-
-        --remainingBranchPredDepth;
-
-        predictCtrlInst(inst_ptr);
-    } else {
-        DPRINTF(SDCPUThreadEvent, "Delaying fetch until control instruction's "
-                                  "execution.\n");
-    }
+    _cpuPtr->requestIssue(callback, squasher);
 }
 
 void
@@ -895,11 +850,71 @@ SDCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
 
         inst_ptr->staticInst(decode_result);
 
-        issueInstruction(inst);
+        issueInstruction(inst_ptr);
 
     } else { // If we still need to fetch more MachInsts.
         fetchOffset += sizeof(TheISA::MachInst);
         attemptFetch(inst);
+    }
+}
+
+void
+SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
+{
+    const shared_ptr<InflightInst> inst_ptr = inst.lock();
+    if (!inst_ptr || inst_ptr->isSquashed()) {
+        // No need to do anything for an instruction that has been squashed.
+        return;
+    }
+
+#if TRACING_ON
+    // Calls new, must delete eventually.
+    inst_ptr->traceData(
+        _cpuPtr->getTracer()->getInstRecord(curTick(), this,
+                inst_ptr->staticInst(), inst_ptr->pcState(), curMacroOp));
+#else
+    inst_ptr->traceData(nullptr);
+#endif
+
+    populateDependencies(inst_ptr);
+    populateUses(inst_ptr);
+
+    if (inst_ptr->isReady()) { // If no dependencies, execute now
+        executeInstruction(inst);
+    } else { // Else, add an event callback to execute when ready
+        inst_ptr->addReadyCallback([this, inst](){
+            executeInstruction(inst);
+        });
+    }
+
+    if (inst_ptr->staticInst()->isLastMicroop()) {
+        DPRINTF(SDCPUThreadEvent, "Releasing MacroOp after decoding final "
+                                  "microop\n");
+        curMacroOp = StaticInst::nullStaticInstPtr;
+    }
+
+    if (hasNextPC()) {
+        // If we are still running and know where to fetch, we should
+        // immediately send the necessary requests to the CPU to fetch the next
+        // instruction
+        advanceInst(getNextPC());
+    } else if (_cpuPtr->hasBranchPredictor()) {
+        if (!remainingBranchPredDepth) {
+            DPRINTF(SDCPUBranchPred, "This control would exceed the branch "
+                                      "prediction depth limit, not requesting "
+                                      "a prediction immediately.\n");
+
+            unpredictedBranches.push_back(inst);
+
+            return;
+        }
+
+        --remainingBranchPredDepth;
+
+        predictCtrlInst(inst_ptr);
+    } else {
+        DPRINTF(SDCPUThreadEvent, "Delaying fetch until control instruction's "
+                                  "execution.\n");
     }
 }
 
