@@ -208,6 +208,21 @@ class SDCPUThread : public ThreadContext
      */
     std::unordered_map<RegId, InflightInst::DataSource> lastUses;
 
+    const unsigned inflightInstsMaxSize;
+
+    /**
+     * Whether a recent attempted advanceInst failed due to the inflightInsts
+     * buffer being full, and therefore should be retried the next time a space
+     * is freed. Only needs one retry slot, since calls to advanceInst() are
+     * done purely in-order, so there is only one following PC to try at any
+     * point in time.
+     */
+    bool advanceInstNeedsRetry;
+    /**
+     * The PCState with which to retry the advanceInst.
+     */
+    TheISA::PCState advanceInstRetryPC;
+
     /**
      * The number of incomplete but predicted branches allowed on the buffer at
      * any one time.
@@ -584,13 +599,15 @@ class SDCPUThread : public ThreadContext
     SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_, System* system_,
                      BaseTLB* itb_, BaseTLB* dtb_, TheISA::ISA* isa_,
                      bool use_kernel_stats_, unsigned branch_pred_max_depth,
-                     unsigned fetch_buf_size, bool strict_ser);
+                     unsigned fetch_buf_size, unsigned inflight_insts_size,
+                     bool strict_ser);
 
     // Non-fullsystem constructor
     SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_, System* system_,
                      Process* process_, BaseTLB* itb_, BaseTLB* dtb_,
                      TheISA::ISA* isa_, unsigned branch_pred_max_depth,
-                     unsigned fetch_buf_size, bool strict_ser);
+                     unsigned fetch_buf_size, unsigned inflight_insts_size,
+                     bool strict_ser);
 
     // May need to define move constructor, due to how SimpleThread is defined,
     // if we want to hold instances of these in a vector instead of pointers

@@ -71,6 +71,7 @@ SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
             params->workload[i], params->itb, params->dtb, params->isa[i],
             params->branch_pred_max_depth,
             params->fetch_buffer_size,
+            params->instruction_buffer_size,
             params->strict_serialization));
 
         threadContexts.push_back(threads[i]->getThreadContext());

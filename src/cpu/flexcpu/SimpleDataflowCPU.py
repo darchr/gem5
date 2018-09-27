@@ -75,6 +75,16 @@ class SimpleDataflowCPU(BaseCPU):
                                        "requests. Should not be larger than a "
                                        "cache line.")
 
+    instruction_buffer_size = Param.Unsigned(0, "Size of the dynamic "
+                                             "instruction buffer. This buffer "
+                                             "is used for maintaining the "
+                                             "commit order of instructions. "
+                                             "Limiting this limits the number "
+                                             "of instructions that can be "
+                                             "handled at once before commit "
+                                             "(out of order). 0 implies an "
+                                             "infinitely large buffer.")
+
     clocked_issue = Param.Bool(Self.clocked_cpu, "Ties requests for issuing "
                                                  "instructions to the clock")
     issue_latency = Param.Cycles(0, "Number of cycles each instruction takes "
