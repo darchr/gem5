@@ -39,6 +39,7 @@
 #include "cpu/exec_context.hh"
 #include "cpu/flexcpu/generic_reg.hh"
 #include "cpu/reg_class.hh"
+#include "sim/core.hh"
 #include "sim/insttracer.hh"
 
 class InflightInst : public ExecContext,
@@ -56,19 +57,53 @@ class InflightInst : public ExecContext,
     using VecElem = TheISA::VecElem;
 
     // Mutually exclusive states through which InflightInsts will transition.
+    // The ordering allows the use of >= comparison operators for early states,
+    // since later states imply that earlier states are either fulfilled or
+    // were unnecessary.
     enum Status
     {
         Invalid = 0,
-        Waiting, // Has not been executed yet. Likely has dependencies still.
-        // Is a dedicated Ready (dependencies satisfied) but not executed state
-        // valuable?
+        Empty, // Dynamic instruction slot has been created but not yet filled.
+        Decoded, // A StaticInst has been provided.
+        // Perhaps an independent rename stage may be useful. Most
+        // functionality conventionally called rename is packaged with issue
+        // right now.
+        Issued, // Dependencies and results have been identified and recorded.
         Executing, // Request for execution sent, but waiting for results.
         EffAddred, // Effective address calculated, but not yet sent to memory.
         Memorying, // Request for memory sent, but waiting for results.
         Complete, // Results have been received, but not yet committed.
-        Committed // Values have been committed, but this object might be alive
-                  // for a little longer due to the shared_ptr being in the
-                  // call-stack.
+        Committed, // Values have been committed, but this object might be
+                   // alive for a little longer due to the shared_ptr being in
+                   // the call-stack.
+        NumInstStatus
+    };
+
+    struct TimingRecord
+    {
+        // When was this InflightInst object created?
+        Tick creationTick;
+        // When was this InflightInst object provided with a StaticInst?
+        Tick decodeTick;
+        // NOTE: may want to consider a rename stage.
+        // When was this InflightInst object placed into consideration for
+        // execution?
+        Tick issueTick;
+        // When did this InflightInst object get execution requested for it?
+        Tick beginExecuteTick;
+        // (For memory only) When did this InflightInst object have its
+        // physical effective address(es) calculated?
+        Tick effAddredTick;
+        // (For memory only) When did this InflightInst object get memory
+        // requested for it?
+        Tick beginMemoryTick;
+        // When were all steps for computing the state changes that this
+        // InflightInst object will apply to committed state completed?
+        Tick completionTick;
+        // When was this InflightInst finally applied to committed state?
+        Tick commitTick;
+        // If squashed, when was this InflightInst squashed?
+        Tick squashTick;
     };
 
     struct DataSource
@@ -123,6 +158,8 @@ class InflightInst : public ExecContext,
     PCState _pcState;
 
     Trace::InstRecord* _traceData = nullptr;
+
+    TimingRecord _timingRecord;
 
     // Callbacks made during a state transition.
     std::vector<std::function<void()>> commitCallbacks;
@@ -259,6 +296,9 @@ class InflightInst : public ExecContext,
         return results[result_idx];
     }
 
+    inline const TimingRecord& getTimingRecord() const
+    { return _timingRecord; }
+
     // Note: due to the sequential nature of the status items, a later status
     //       naturally implies earlier statuses have been met. (e.g. A complete
     //       memory instruction must have already had its effective address
@@ -315,6 +355,27 @@ class InflightInst : public ExecContext,
      *       is calculating the effective address of this MEMORY instruction.
      */
     void notifyEffAddrCalculated();
+
+    /**
+     * Notify this InflightInst that it has been decoded.
+     */
+    void notifyDecoded();
+
+    /**
+     * Notify this InflightInst that it has been sent for execution.
+     */
+    void notifyExecuting();
+
+    /**
+     * Notify this InflightInst that it has been issued.
+     */
+    void notifyIssued();
+
+    /**
+     * Notify this InflightInst that it has been sent to memory, and is in the
+     * process of awaiting a response.
+     */
+    void notifyMemorying();
 
     /**
      * Notify all registered memory ready callback listeners that this

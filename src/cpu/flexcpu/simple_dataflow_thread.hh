@@ -603,6 +603,26 @@ class SDCPUThread : public ThreadContext
     Stats::Scalar memBarrier;
     Stats::Scalar nonSpeculativeInst;
 
+    Stats::Vector squashedStage;
+
+    /// Statistics for instruction state latency distributions
+
+    // Distribution of times from entry/exit to/from buffer.
+    Stats::Histogram instLifespans;
+    Stats::Histogram squashedInstLifespans;
+    Stats::Histogram committedInstLifespans;
+
+    Stats::Histogram creationToDecodedLatency;
+    Stats::Histogram decodedToIssuedLatency;
+    Stats::Histogram issuedToExecutingLatency;
+    Stats::Histogram issuedToCommitLatency;
+    Stats::Histogram executingToCompleteLatency;
+    Stats::Histogram executingToEffAddredLatency; // for memRef only
+    Stats::Histogram effAddredToMemoryingLatency; // for memRef only
+    Stats::Histogram memoryingToCompleteLatency; // for memRef only
+    Stats::Histogram completeToCommitLatency;
+
+
     // END Statistics
 
   public:
@@ -650,6 +670,12 @@ class SDCPUThread : public ThreadContext
      * Called from the CPU after every active cycle to record stats
      */
     void recordCycleStats();
+
+    /**
+     * Called whenever an instruction is deleted (removed from the inflight
+     * insts queue)
+     */
+    void recordInstStats(const std::shared_ptr<InflightInst>& inst);
 
     // END Statistics
 

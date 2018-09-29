@@ -49,10 +49,11 @@ InflightInst::InflightInst(ThreadContext* backing_context,
     backingContext(backing_context),
     backingISA(backing_isa),
     backingMemoryInterface(backing_mem_iface),
-    _status(Waiting),
+    _status(Empty),
     _seqNum(seq_num),
     _pcState(pc_)
 {
+    _timingRecord.creationTick = curTick();
     staticInst(inst_ref);
 }
 
@@ -260,6 +261,7 @@ InflightInst::effAddrOverlap(const InflightInst& other) const
 void
 InflightInst::notifyCommitted()
 {
+    _timingRecord.commitTick = curTick();
     status(Committed);
 
     for (function<void()>& callback_func : commitCallbacks) {
@@ -270,6 +272,7 @@ InflightInst::notifyCommitted()
 void
 InflightInst::notifyComplete()
 {
+    _timingRecord.completionTick = curTick();
     status(Complete);
 
     for (function<void()>& callback_func : completionCallbacks) {
@@ -278,13 +281,42 @@ InflightInst::notifyComplete()
 }
 
 void
+InflightInst::notifyDecoded()
+{
+    _timingRecord.decodeTick = curTick();
+    status(Decoded);
+}
+
+void
 InflightInst::notifyEffAddrCalculated()
 {
+    _timingRecord.effAddredTick = curTick();
     status(EffAddred);
 
     for (function<void()>& callback_func : effAddrCalculatedCallbacks) {
         callback_func();
     }
+}
+
+void
+InflightInst::notifyExecuting()
+{
+    _timingRecord.beginExecuteTick = curTick();
+    status(Executing);
+}
+
+void
+InflightInst::notifyIssued()
+{
+    _timingRecord.issueTick = curTick();
+    status(Issued);
+}
+
+void
+InflightInst::notifyMemorying()
+{
+    _timingRecord.beginMemoryTick = curTick();
+    status(Memorying);
 }
 
 void
@@ -308,6 +340,7 @@ InflightInst::notifySquashed()
 {
     if (isSquashed()) return;
 
+    _timingRecord.squashTick = curTick();
     _squashed = true;
 
     for (function<void()>& callback_func : squashCallbacks) {

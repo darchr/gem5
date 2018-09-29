@@ -160,13 +160,14 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
                 next_pc.microPC(),
                 static_inst->disassemble(next_pc.microPC()).c_str());
 
-        shared_ptr<InflightInst> dynamic_inst_ptr =
+        shared_ptr<InflightInst> inst_ptr =
             make_shared<InflightInst>(getThreadContext(), isa, &memIface,
                                       seq_num, next_pc, static_inst);
+        inst_ptr->notifyDecoded();
 
-        inflightInsts.push_back(dynamic_inst_ptr);
+        inflightInsts.push_back(inst_ptr);
 
-        issueInstruction(dynamic_inst_ptr);
+        issueInstruction(inst_ptr);
 
         return;
     }
@@ -181,25 +182,26 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
                 next_pc.microPC(),
                 static_inst->disassemble(next_pc.microPC()).c_str());
 
-        shared_ptr<InflightInst> dynamic_inst_ptr =
+        shared_ptr<InflightInst> inst_ptr =
             make_shared<InflightInst>(getThreadContext(), isa, &memIface,
                                       seq_num, next_pc, static_inst);
+        inst_ptr->notifyDecoded();
 
-        inflightInsts.push_back(dynamic_inst_ptr);
+        inflightInsts.push_back(inst_ptr);
 
-        issueInstruction(dynamic_inst_ptr);
+        issueInstruction(inst_ptr);
 
         return;
     }
 
-    shared_ptr<InflightInst> dynamic_inst_ptr =
+    shared_ptr<InflightInst> inst_ptr =
         make_shared<InflightInst>(getThreadContext(), isa, &memIface, seq_num,
                                   next_pc);
 
-    inflightInsts.push_back(dynamic_inst_ptr);
+    inflightInsts.push_back(inst_ptr);
 
     fetchOffset = 0;
-    attemptFetch(weak_ptr<InflightInst>(dynamic_inst_ptr));
+    attemptFetch(weak_ptr<InflightInst>(inst_ptr));
 }
 
 void
@@ -314,6 +316,8 @@ SDCPUThread::commitAllAvailableInstructions()
             inst_ptr->notifyCommitted();
         }
 
+        recordInstStats(inflightInsts.front());
+
         inflightInsts.pop_front();
         buffer_shrunk = true;
     }
@@ -393,8 +397,12 @@ SDCPUThread::dumpBuffer()
 
         const char* status;
         switch (inst_ptr->status()) {
-          case InflightInst::Waiting:
-            status = "Waiting"; break;
+          case InflightInst::Empty:
+            status = "Empty"; break;
+          case InflightInst::Decoded:
+            status = "Decoded"; break;
+          case InflightInst::Issued:
+            status = "Issued"; break;
           case InflightInst::Executing:
             status = "Executing"; break;
           case InflightInst::EffAddred:
@@ -453,7 +461,7 @@ SDCPUThread::executeInstruction(weak_ptr<InflightInst> inst)
             };
     }
 
-    inst_ptr->status(InflightInst::Executing);
+    inst_ptr->notifyExecuting();
     _cpuPtr->requestExecution(static_inst,
                               static_pointer_cast<ExecContext>(inst_ptr),
                               inst_ptr->traceData(), callback);
@@ -849,6 +857,7 @@ SDCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
         }
 
         inst_ptr->staticInst(decode_result);
+        inst_ptr->notifyDecoded();
 
         issueInstruction(inst_ptr);
 
@@ -878,6 +887,8 @@ SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
 
     populateDependencies(inst_ptr);
     populateUses(inst_ptr);
+
+    inst_ptr->notifyIssued();
 
     if (inst_ptr->isReady()) { // If no dependencies, execute now
         executeInstruction(inst);
@@ -1309,6 +1320,43 @@ SDCPUThread::recordCycleStats()
 }
 
 void
+SDCPUThread::recordInstStats(const shared_ptr<InflightInst>& inst)
+{
+    const InflightInst::TimingRecord& rec = inst->getTimingRecord();
+
+    assert(inst->status() > InflightInst::Status::Invalid);
+
+    if (inst->isSquashed()) {
+        instLifespans.sample(rec.squashTick - rec.creationTick);
+        squashedInstLifespans.sample(rec.squashTick - rec.creationTick);
+        squashedStage[inst->status()]++;
+        return;
+    }
+
+    assert(inst->status() == InflightInst::Status::Committed);
+
+    instLifespans.sample(rec.commitTick - rec.creationTick);
+    committedInstLifespans.sample(rec.commitTick - rec.creationTick);
+    issuedToCommitLatency.sample(rec.commitTick - rec.issueTick);
+    completeToCommitLatency.sample(rec.commitTick - rec.completionTick);
+
+    creationToDecodedLatency.sample(rec.decodeTick - rec.creationTick);
+    decodedToIssuedLatency.sample(rec.issueTick - rec.decodeTick);
+    issuedToExecutingLatency.sample(rec.beginExecuteTick - rec.issueTick);
+    executingToCompleteLatency.sample(rec.completionTick -
+                                      rec.beginExecuteTick);
+
+    if (inst->staticInst()->isMemRef()) {
+        executingToEffAddredLatency.sample(rec.effAddredTick -
+                                           rec.beginExecuteTick);
+        effAddredToMemoryingLatency.sample(rec.beginMemoryTick -
+                                           rec.effAddredTick);
+        memoryingToCompleteLatency.sample(rec.completionTick -
+                                          rec.beginMemoryTick);
+    }
+}
+
+void
 SDCPUThread::sendToMemory(weak_ptr<InflightInst> inst,
                           const RequestPtr& req, bool write,
                           shared_ptr<uint8_t> data,
@@ -1329,7 +1377,7 @@ SDCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
                           shared_ptr<uint8_t> data,
                           shared_ptr<SplitRequest> sreq)
 {
-    inst_ptr->status(InflightInst::Memorying);
+    inst_ptr->notifyMemorying();
 
     weak_ptr<InflightInst> weak_inst(inst_ptr);
     auto callback =
@@ -1382,6 +1430,7 @@ SDCPUThread::squashUpTo(shared_ptr<InflightInst> inst_ptr, bool rebuild_lasts)
         inflightInsts.back()->notifySquashed();
         if (inflightInsts.back() == ser_inst) last_ser_correct = false;
         if (inflightInsts.back() == bar_inst) last_mem_bar_correct = false;
+        recordInstStats(inflightInsts.back());
         inflightInsts.pop_back();
         ++count;
     }
@@ -1656,4 +1705,80 @@ SDCPUThread::regStats(const std::string &name)
     for (int i=0; i < Enums::Num_OpClass; ++i) {
         instTypes.subname(i, Enums::OpClassStrings[i]);
     }
+
+    squashedStage
+        .name(name + ".squashedStage")
+        .init(InflightInst::Status::NumInstStatus)
+        .desc("The stage that the instruction was squashed in")
+        ;
+    squashedStage.subname(InflightInst::Status::Empty, "Empty");
+    squashedStage.subname(InflightInst::Status::Decoded, "Decoded");
+    squashedStage.subname(InflightInst::Status::Issued, "Issued");
+    squashedStage.subname(InflightInst::Status::Executing, "Executing");
+    squashedStage.subname(InflightInst::Status::EffAddred, "EffAddred");
+    squashedStage.subname(InflightInst::Status::Memorying, "Memorying");
+    squashedStage.subname(InflightInst::Status::Complete, "Complete");
+    squashedStage.subname(InflightInst::Status::Committed, "Committed");
+
+    instLifespans
+        .name(name + ".instLifespans")
+        .init(16)
+        .desc("")
+        ;
+    squashedInstLifespans
+        .name(name + ".squashedInstLifespans")
+        .init(16)
+        .desc("")
+        ;
+    committedInstLifespans
+        .name(name + ".committedInstLifespans")
+        .init(16)
+        .desc("")
+        ;
+
+    creationToDecodedLatency
+        .name(name + ".creationToDecodedLatency")
+        .init(8)
+        .desc("")
+        ;
+    decodedToIssuedLatency
+        .name(name + ".decodedToIssuedLatency")
+        .init(8)
+        .desc("")
+        ;
+    issuedToExecutingLatency
+        .name(name + ".issuedToExecutingLatency")
+        .init(8)
+        .desc("")
+        ;
+    issuedToCommitLatency
+        .name(name + ".issuedToCommitLatency")
+        .init(8)
+        .desc("")
+        ;
+    executingToCompleteLatency
+        .name(name + ".executingToCompleteLatency")
+        .init(8)
+        .desc("")
+        ;
+    executingToEffAddredLatency
+        .name(name + ".executingToEffAddredLatency")
+        .init(8)
+        .desc("")
+        ;
+    effAddredToMemoryingLatency
+        .name(name + ".effAddredToMemoryingLatency")
+        .init(8)
+        .desc("")
+        ;
+    memoryingToCompleteLatency
+        .name(name + ".memoryingToCompleteLatency")
+        .init(8)
+        .desc("")
+        ;
+    completeToCommitLatency
+        .name(name + ".completeToCommitLatency")
+        .init(8)
+        .desc("")
+        ;
 }
