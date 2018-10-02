@@ -325,7 +325,10 @@ SimpleDataflowCPU::requestInstructionData(const RequestPtr& req,
     instFetchUnit.addRequest([this, req, callback_func, pkt, queue_time,
                               is_squashed]
     {
-        if (is_squashed()) return false;
+        if (is_squashed()) {
+            delete pkt;
+            return false;
+        }
 
         waitingForInstData.sample(curTick() - queue_time);
 
