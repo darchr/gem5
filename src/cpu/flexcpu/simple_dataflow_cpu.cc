@@ -398,7 +398,11 @@ SimpleDataflowCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
     memoryUnit.addRequest([this, req, tc, inst, context, trace_data,
                            callback_func, pkt, queue_time]
     {
-        if (context.expired()) return false; // No need to send req if squashed
+        if (context.expired()) {
+            // No need to send req if squashed
+            delete pkt;
+            return false;
+        }
 
         Tick now = curTick();
         waitingForMem.sample(now - queue_time);
@@ -472,7 +476,11 @@ SimpleDataflowCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
     memoryUnit.addRequest([this, req, tc, inst, context, trace_data,
                            callback_func, pkt, queue_time]
     {
-        if (context.expired()) return false; // No need to send req if squashed
+        if (context.expired()) {
+            // No need to send req if squashed
+            delete pkt;
+            return false;
+        }
 
         Tick now = curTick();
         waitingForMem.sample(now - queue_time);
@@ -536,7 +544,16 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
     memoryUnit.addRequest([this, low, tc, inst, context, trace_data,
                            callback_func, split_acc, queue_time]
     {
-        if (context.expired()) return false; // No need to send req if squashed
+        if (context.expired()) {
+            // No need to send req if squashed
+            delete split_acc->low;
+            split_acc->low = nullptr;
+            if (!split_acc->high) {
+                delete split_acc->main;
+                delete split_acc;
+            }
+            return false;
+        }
 
         Tick now = curTick();
         waitingForMem.sample(now - queue_time);
@@ -564,7 +581,17 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
     memoryUnit.addRequest([this, high, tc, inst, context, trace_data,
                            callback_func, split_acc, queue_time]
     {
-        if (context.expired()) return false; // No need to send req if squashed
+        if (context.expired()) {
+            // No need to send req if squashed
+            delete split_acc->high;
+            split_acc->high = nullptr;
+            if (!split_acc->low) {
+                delete split_acc->main;
+                delete split_acc;
+            }
+            return false;
+        }
+
         Tick now = curTick();
         waitingForMem.sample(now - queue_time);
 
@@ -636,7 +663,16 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
     memoryUnit.addRequest([this, low, tc, inst, context, trace_data,
                            callback_func, split_acc, queue_time]
     {
-        if (context.expired()) return false; // No need to send req if squashed
+        if (context.expired()) {
+            // No need to send req if squashed
+            delete split_acc->low;
+            split_acc->low = nullptr;
+            if (!split_acc->high) {
+                delete split_acc->main;
+                delete split_acc;
+            }
+            return false;
+        }
 
         Tick now = curTick();
         waitingForMem.sample(now - queue_time);
@@ -668,7 +704,16 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
     memoryUnit.addRequest([this, high, tc, inst, context, trace_data,
                            callback_func, split_acc, queue_time]
     {
-        if (context.expired()) return false; // No need to send req if squashed
+        if (context.expired()) {
+            // No need to send req if squashed
+            delete split_acc->high;
+            split_acc->high = nullptr;
+            if (!split_acc->low) {
+                delete split_acc->main;
+                delete split_acc;
+            }
+            return false;
+        }
 
         Tick now = curTick();
         waitingForMem.sample(now - queue_time);
