@@ -316,6 +316,9 @@ class InflightInst : public ExecContext,
     inline bool isFaulted() const
     { return fault() != NoFault; }
 
+    inline bool isMemorying() const
+    { return status() >= Memorying; }
+
     inline bool isMemReady()
     { return remainingMemDependencies == 0; }
 
@@ -459,7 +462,6 @@ class InflightInst : public ExecContext,
      */
     inline Status status(Status status)
     {
-        assert(status > _status); // Only allow forward state transitions
         return _status = status;
     }
 

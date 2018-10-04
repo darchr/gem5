@@ -292,6 +292,14 @@ SDCPUThread::bufferInstructionData(Addr vaddr, uint8_t* data)
     memcpy(fetchBuf.data(), data, fetchBuf.size());
 }
 
+bool
+SDCPUThread::canCommit(shared_ptr<InflightInst> inst_ptr)
+{
+    return !inst_ptr->isCommitted() &&
+           (inst_ptr->isComplete()
+            || (inst_ptr->isMemorying() && inst_ptr->staticInst()->isStore()));
+}
+
 void
 SDCPUThread::commitAllAvailableInstructions()
 {
@@ -302,7 +310,7 @@ SDCPUThread::commitAllAvailableInstructions()
 
     bool buffer_shrunk = false;
     while (!inflightInsts.empty()
-        && ((inst_ptr = inflightInsts.front())->isComplete()
+        && (canCommit(inst_ptr = inflightInsts.front())
             || inst_ptr->isSquashed())) {
 
         if (inst_ptr->fault() != NoFault) {
@@ -343,8 +351,6 @@ SDCPUThread::commitAllAvailableInstructions()
 void
 SDCPUThread::commitInstruction(std::shared_ptr<InflightInst> inst_ptr)
 {
-    assert(inst_ptr->isComplete());
-
     DPRINTF(SDCPUInstEvent,
             "Committing instruction (seq %d)\n", inst_ptr->seqNum());
 
@@ -1150,7 +1156,7 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 
     // BEGIN Conservative Memory dependence ordering
 
-    if (static_inst->isLoad()) {
+    if (static_inst->isMemRef()) {
         weak_ptr<InflightInst> weak_inst = inst_ptr;
 
         // Checking all instructions older than the inst_ptr. (This loop starts
@@ -1390,35 +1396,61 @@ SDCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
     inst_ptr->notifyMemorying();
 
     weak_ptr<InflightInst> weak_inst(inst_ptr);
-    auto callback =
-        [this, weak_inst] (Fault fault) {
-            onExecutionCompleted(weak_inst, fault);
-        };
 
-    if (sreq) {
-        assert(sreq->high && sreq->low);
-        if (write) {
+    if (write) {
+        PacketPtr resp = Packet::createWrite(sreq ? sreq->main : req);
+        if (resp->hasData()) {
+            resp->dataStatic(data.get());
+        }
+        resp->makeResponse();
+
+        Fault f = inst_ptr->staticInst()->completeAcc(resp, inst_ptr.get(),
+                                                      inst_ptr->traceData());
+        // NOTE: SDCPU may do other things for special instruction types, which
+        //       may no longer work correctly with this change.
+
+        delete resp;
+
+        if (f != NoFault) {
+            markFault(inst_ptr, f);
+            return;
+        }
+
+        auto callback =
+            [this, inst_ptr] (Fault fault) {
+                onExecutionCompleted(inst_ptr, fault);
+            };
+
+        if (sreq) { // split
+            assert(sreq->high && sreq->low);
             _cpuPtr->requestSplitMemWrite(sreq->main, sreq->low,
                 sreq->high, getThreadContext(),
                 inst_ptr->staticInst(),
                 static_pointer_cast<ExecContext>(inst_ptr),
                 inst_ptr->traceData(), data.get(),
                 callback);
-        } else { // read
+        } else { // not split
+            _cpuPtr->requestMemWrite(req, getThreadContext(),
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(), data.get(), callback);
+        }
+
+        commitAllAvailableInstructions();
+    } else { // read
+        auto callback =
+            [this, weak_inst] (Fault fault) {
+                onExecutionCompleted(weak_inst, fault);
+            };
+        if (sreq) { // split
+            assert(sreq->high && sreq->low);
             _cpuPtr->requestSplitMemRead(sreq->main, sreq->low,
                 sreq->high, getThreadContext(),
                 inst_ptr->staticInst(),
                 static_pointer_cast<ExecContext>(inst_ptr),
                 inst_ptr->traceData(),
                 callback);
-        }
-    } else {
-        if (write) {
-            _cpuPtr->requestMemWrite(req, getThreadContext(),
-                inst_ptr->staticInst(),
-                static_pointer_cast<ExecContext>(inst_ptr),
-                inst_ptr->traceData(), data.get(), callback);
-        } else { // read
+        } else { // not split
             _cpuPtr->requestMemRead(req, getThreadContext(),
                 inst_ptr->staticInst(),
                 static_pointer_cast<ExecContext>(inst_ptr),

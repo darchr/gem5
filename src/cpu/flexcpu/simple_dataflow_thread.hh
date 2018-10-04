@@ -276,6 +276,16 @@ class SDCPUThread : public ThreadContext
     void bufferInstructionData(Addr vaddr, uint8_t* data);
 
     /**
+     * A check function which uses the state of the inst_ptr to answer the
+     * question: "Would this instruction be ready for commit if it were at the
+     * head of the queue?"
+     *
+     * @param inst_ptr The instruction to ask the question for.
+     * @return Whether the instruction could be committed.
+     */
+    bool canCommit(std::shared_ptr<InflightInst> inst_ptr);
+
+    /**
      * Utility function for iterating through the in-flight instruction table
      * and committing all instructions at once (removing them from the table).
      * Will also begin fault handling if a faulting instruction is found,

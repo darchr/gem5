@@ -200,8 +200,6 @@ InflightInst::addSquashCallback(function<void()> callback)
 void
 InflightInst::commitToTC()
 {
-    assert(isComplete());
-
     const int8_t num_dsts = instRef->numDestRegs();
     for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
         const RegId& dst_reg = instRef->destRegIdx(dst_idx);

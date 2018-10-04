@@ -125,7 +125,7 @@ SimpleDataflowCPU::completeMemAccess(PacketPtr orig_pkt, StaticInstPtr inst,
 
     const shared_ptr<ExecContext> ctxt = context.lock();
 
-    Fault fault = ctxt ?
+    Fault fault = ctxt && !inst->isStore() ?
         inst->completeAcc(pkt, ctxt.get(), trace_data) : NoFault;
 
     if (split) {
