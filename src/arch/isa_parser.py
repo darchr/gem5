@@ -2310,7 +2310,7 @@ StaticInstPtr
         # just wrap the decoding code from the block as a case in the
         # outer switch statement.
         codeObj.wrap_decode_block('\n%s\n' % ''.join(case_list),
-                                  'M5_UNREACHABLE;\n')
+                                  'return new Unknown(machInst); break;\n')
         codeObj.has_decode_default = (case_list == ['default:'])
         t[0] = codeObj
 
