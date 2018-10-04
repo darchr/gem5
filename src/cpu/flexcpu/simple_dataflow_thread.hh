@@ -142,6 +142,11 @@ class SDCPUThread : public ThreadContext
      */
     InstSeqNum lastCommittedInstNum = 0;
 
+    /**
+     * The next instruction sequence number for tracking all fetched insts.
+     */
+    InstSeqNum nextIssueNum = 0;
+
     // END Solid architectural state
 
 
@@ -604,6 +609,9 @@ class SDCPUThread : public ThreadContext
     Stats::Scalar nonSpeculativeInst;
 
     Stats::Vector squashedStage;
+
+    Stats::Histogram wrongInstsFetched;
+    Stats::Histogram branchMispredictLatency;
 
     /// Statistics for instruction state latency distributions
 

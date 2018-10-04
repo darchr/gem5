@@ -360,7 +360,8 @@ SDCPUThread::commitInstruction(std::shared_ptr<InflightInst> inst_ptr)
     inst_ptr->commitToTC();
 
     if (_cpuPtr->hasBranchPredictor() && inst_ptr->staticInst()->isControl()) {
-        _cpuPtr->getBranchPredictor()->update(inst_ptr->seqNum(), threadId());
+        _cpuPtr->getBranchPredictor()->update(inst_ptr->issueSeqNum(),
+                                              threadId());
     }
 
     if (!inst_ptr->staticInst()->isMicroop() ||
@@ -380,8 +381,8 @@ SDCPUThread::commitInstruction(std::shared_ptr<InflightInst> inst_ptr)
 
     Trace::InstRecord* const trace_data = inst_ptr->traceData();
     if (trace_data) {
-        trace_data->setFetchSeq(lastCommittedInstNum);
-        trace_data->setCPSeq(lastCommittedInstNum);
+        trace_data->setFetchSeq(inst_ptr->issueSeqNum());
+        trace_data->setCPSeq(inst_ptr->seqNum());
         trace_data->dump();
     }
 }
@@ -614,7 +615,7 @@ SDCPUThread::onBranchPredictorAccessed(std::weak_ptr<InflightInst> inst,
     TheISA::PCState pc = inst_ptr->pcState();
 
     const bool taken = pred->predict(inst_ptr->staticInst(),
-                                     inst_ptr->seqNum(), pc, threadId());
+                                     inst_ptr->issueSeqNum(), pc, threadId());
 
     // BPredUnit::predict takes pc by reference, and updates it in-place.
 
@@ -787,13 +788,21 @@ SDCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
                             "Branch predicted incorrectly (seq %d)\n",
                             inst_ptr->seqNum());
 
+                    wrongInstsFetched.sample(
+                        nextIssueNum - inst_ptr->issueSeqNum());
+
                     // Squash all mispredicted instructions
                     squashUpTo(inst_ptr, true);
 
                     // Notify branch predictor of incorrect prediction
 
-                    _cpuPtr->getBranchPredictor()->squash(inst_ptr->seqNum(),
-                        correctPC, calculatedPC.branching(), threadId());
+                    _cpuPtr->getBranchPredictor()->squash(
+                        inst_ptr->issueSeqNum(), correctPC,
+                        calculatedPC.branching(), threadId());
+
+                    // Track time from the first wrong fetch to now.
+                    branchMispredictLatency.sample(
+                        curTick() - inst_ptr->getTimingRecord().issueTick);
 
                     advanceInst(correctPC);
                 }
@@ -885,6 +894,7 @@ SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
     inst_ptr->traceData(nullptr);
 #endif
 
+    inst_ptr->issueSeqNum(nextIssueNum++);
     populateDependencies(inst_ptr);
     populateUses(inst_ptr);
 
@@ -1292,7 +1302,7 @@ SDCPUThread::predictCtrlInst(shared_ptr<InflightInst> inst_ptr)
 {
     DPRINTF(SDCPUBranchPred, "Requesting branch predictor for control\n");
 
-    const InstSeqNum seqnum = inst_ptr->seqNum();
+    const InstSeqNum seqnum = inst_ptr->issueSeqNum();
     inst_ptr->addSquashCallback([this, seqnum] {
         _cpuPtr->getBranchPredictor()->squash(seqnum, threadId());
     });
@@ -1719,6 +1729,17 @@ SDCPUThread::regStats(const std::string &name)
     squashedStage.subname(InflightInst::Status::Memorying, "Memorying");
     squashedStage.subname(InflightInst::Status::Complete, "Complete");
     squashedStage.subname(InflightInst::Status::Committed, "Committed");
+
+    wrongInstsFetched
+        .name(name + ".wrongInstsFetched")
+        .init(16)
+        .desc("The number of instructions fetched before branch resolved.")
+        ;
+    branchMispredictLatency
+        .name(name + ".branchMispredictLatency")
+        .init(16)
+        .desc("Ticks from branch issue to branch resolved wrong.")
+        ;
 
     instLifespans
         .name(name + ".instLifespans")

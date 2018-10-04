@@ -146,6 +146,7 @@ class InflightInst : public ExecContext,
 
     // What is this instruction I'm executing?
     InstSeqNum _seqNum;
+    InstSeqNum _issueSeqNum;
     StaticInstPtr instRef;
 
     /**
@@ -420,16 +421,28 @@ class InflightInst : public ExecContext,
     void setDataSource(int8_t src_idx, DataSource source);
 
     /**
-     * Ask the InflightInst what its current sequence number is
+     * Ask the InflightInst what its current (committed) sequence number is
      */
     inline InstSeqNum seqNum() const
     { return _seqNum; }
+
+    /**
+     * Ask the InflightInst what its current (issued) sequence number is
+     */
+    inline InstSeqNum issueSeqNum() const
+    { return _issueSeqNum; }
 
     /**
      * Set the sequence number of the InflightInst
      */
     inline InstSeqNum seqNum(InstSeqNum seqNum)
     { return _seqNum = seqNum; }
+
+    /**
+     * Set the sequence number of the InflightInst
+     */
+    inline InstSeqNum issueSeqNum(InstSeqNum seqNum)
+    { return _issueSeqNum = seqNum; }
 
     inline const StaticInstPtr& staticInst() const
     { return instRef; }
