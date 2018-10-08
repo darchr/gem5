@@ -48,6 +48,9 @@ class O3DefaultCPU(DerivO3CPU):
 
 class SingleCycleFlexCPU(SimpleDataflowCPU):
     branchPred = BranchPredictor()
+    clocked_cpu = True
+    branch_pred_max_depth = 0
+    instruction_buffer_size = 2048
 
 # Add more CPUs under test before this
 valid_cpus = [SimpleCPU, O3DefaultCPU, SingleCycleFlexCPU]
