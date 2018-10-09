@@ -188,6 +188,7 @@ class SimpleDataflowCPU : public BaseCPU
     // BEGIN Internal parameters
 
     Cycles executionLatency;
+    bool zeroTimeMicroopExecution;
 
     // END Internal parameters
 

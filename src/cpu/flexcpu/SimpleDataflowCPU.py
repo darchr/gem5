@@ -96,6 +96,10 @@ class SimpleDataflowCPU(BaseCPU):
     strict_serialization = Param.Bool(True, "Controls behavior of serializing "
                                             "flags on instructions.")
 
+    zero_time_microop_execution = Param.Bool(False, "Makes all microops "
+                                             "except the last for a macroop "
+                                             "take zero time.")
+
     @classmethod
     def memory_mode(cls):
         return 'timing'

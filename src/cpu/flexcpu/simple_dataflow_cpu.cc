@@ -43,6 +43,7 @@ SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
     BaseCPU(params),
     cacheBlockMask(~(cacheLineSize() - 1)),
     executionLatency(params->execution_latency),
+    zeroTimeMicroopExecution(params->zero_time_microop_execution),
     dataAddrTranslationUnit(this, params->clocked_dtb_translation, Cycles(0),
                             0, name() + ".dtbUnit"),
     executionUnit(this, params->clocked_execution, params->execution_latency,
@@ -268,7 +269,12 @@ SimpleDataflowCPU::requestExecution(StaticInstPtr inst,
             callback_func(fault);
         }, name() + ".delayedCall", true);
 
-        schedule(e, curTick() + cyclesToTicks(executionLatency));
+        const Tick execution_time = zeroTimeMicroopExecution
+                                 && inst->isMicroop()
+                                 && !inst->isLastMicroop() ?
+                                     0 :
+                                     cyclesToTicks(executionLatency);
+        schedule(e, curTick() + execution_time);
 
         return true;
     });
