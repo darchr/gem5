@@ -156,33 +156,6 @@ class FlexCPU : public BaseCPU
         }
     };
 
-    // END Internal class definitions
-
-    // BEGIN Internal container structs
-
-    struct SplitAccCtrlBlk
-    {
-        // Packet used to communicate to the instruction (completeAcc)
-        // The data always is allocated in this packet. The other packets have
-        // static pointers to the data here.
-        PacketPtr main = nullptr;
-
-        // Used for sending/receiving data from memory system
-        PacketPtr low = nullptr;
-        bool lowReceived = false;
-        PacketPtr high = nullptr;
-        bool highReceived = false;
-    };
-
-    // END Internal container structs
-
-
-    // BEGIN Internal parameters
-
-    Cycles executionLatency;
-
-    // END Internal parameters
-
     /**
      * Models a functional unit. Each unit has a latency, in cycles, and a
      * bandwidth in accesses per cycle. A latency of 0 implies the action is
@@ -301,6 +274,36 @@ class FlexCPU : public BaseCPU
         bool resourceAvailable() override;
     };
 
+    // END Internal class definitions
+
+    // BEGIN Internal container structs
+
+    struct SplitAccCtrlBlk
+    {
+        // Packet used to communicate to the instruction (completeAcc)
+        // The data always is allocated in this packet. The other packets have
+        // static pointers to the data here.
+        PacketPtr main = nullptr;
+
+        // Used for sending/receiving data from memory system
+        PacketPtr low = nullptr;
+        bool lowReceived = false;
+        PacketPtr high = nullptr;
+        bool highReceived = false;
+    };
+
+    // END Internal container structs
+
+
+    // BEGIN Internal parameters
+
+    Cycles executionLatency;
+    bool zeroTimeMicroopExecution;
+
+    // END Internal parameters
+
+    // BEGIN Internal state variables
+
     /// Resources for each unit.
     Resource dataAddrTranslationUnit;
     Resource executionUnit;
@@ -308,8 +311,6 @@ class FlexCPU : public BaseCPU
     Resource instAddrTranslationUnit;
     Resource issueUnit;
     MemoryResource memoryUnit;
-
-    // BEGIN Internal state variables
 
     DataPort _dataPort;
     InstPort _instPort;
