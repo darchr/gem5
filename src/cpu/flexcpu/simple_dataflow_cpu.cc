@@ -72,6 +72,8 @@ SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
             params->workload[i], params->itb, params->dtb, params->isa[i],
             params->branch_pred_max_depth,
             params->fetch_buffer_size,
+            params->in_order_begin_execute,
+            params->in_order_execute,
             params->instruction_buffer_size,
             params->strict_serialization));
 

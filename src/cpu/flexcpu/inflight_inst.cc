@@ -63,6 +63,32 @@ InflightInst::~InflightInst()
 }
 
 void
+InflightInst::addBeginExecCallback(function<void()> callback)
+{
+    beginExecCallbacks.push_back(callback);
+}
+
+void
+InflightInst::addBeginExecDependency(shared_ptr<InflightInst> parent)
+{
+    if (parent->isSquashed() || parent->isExecuting()) return;
+
+    ++remainingDependencies;
+
+    weak_ptr<InflightInst> weak_this = shared_from_this();
+    parent->addBeginExecCallback([weak_this]() {
+        shared_ptr<InflightInst> inst_ptr = weak_this.lock();
+        if (!inst_ptr) return;
+
+        --inst_ptr->remainingDependencies;
+
+        if (!inst_ptr->remainingDependencies) {
+            inst_ptr->notifyReady();
+        }
+    });
+}
+
+void
 InflightInst::addCommitCallback(function<void()> callback)
 {
     commitCallbacks.push_back(callback);
@@ -301,6 +327,10 @@ InflightInst::notifyExecuting()
 {
     _timingRecord.beginExecuteTick = curTick();
     status(Executing);
+
+    for (function<void()>& callback_func : beginExecCallbacks) {
+        callback_func();
+    }
 }
 
 void

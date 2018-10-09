@@ -105,6 +105,11 @@ class SDCPUThread : public ThreadContext
      */
     std::string _name;
 
+    const bool inOrderBeginExecute;
+    const bool inOrderExecute;
+
+    const unsigned inflightInstsMaxSize;
+
     /**
      * Controls behavior of StaticInsts marked with the various serializing
      * flags
@@ -212,8 +217,6 @@ class SDCPUThread : public ThreadContext
      * write accesses to each unique register.
      */
     std::unordered_map<RegId, InflightInst::DataSource> lastUses;
-
-    const unsigned inflightInstsMaxSize;
 
     /**
      * Whether a recent attempted advanceInst failed due to the inflightInsts
@@ -649,14 +652,16 @@ class SDCPUThread : public ThreadContext
     SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_, System* system_,
                      BaseTLB* itb_, BaseTLB* dtb_, TheISA::ISA* isa_,
                      bool use_kernel_stats_, unsigned branch_pred_max_depth,
-                     unsigned fetch_buf_size, unsigned inflight_insts_size,
+                     unsigned fetch_buf_size, bool in_order_begin_exec,
+                     bool in_order_exec, unsigned inflight_insts_size,
                      bool strict_ser);
 
     // Non-fullsystem constructor
     SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_, System* system_,
                      Process* process_, BaseTLB* itb_, BaseTLB* dtb_,
                      TheISA::ISA* isa_, unsigned branch_pred_max_depth,
-                     unsigned fetch_buf_size, unsigned inflight_insts_size,
+                     unsigned fetch_buf_size, bool in_order_begin_exec,
+                     bool in_order_exec, unsigned inflight_insts_size,
                      bool strict_ser);
 
     // May need to define move constructor, due to how SimpleThread is defined,

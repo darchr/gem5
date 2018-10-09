@@ -51,17 +51,20 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                     System* system_, BaseTLB* itb_, BaseTLB* dtb_,
                     TheISA::ISA* isa_, bool use_kernel_stats_,
                     unsigned branch_pred_max_depth, unsigned fetch_buf_size,
+                    bool in_order_begin_exec, bool in_order_exec,
                     unsigned inflight_insts_size, bool strict_ser):
     memIface(*this),
     _cpuPtr(cpu_),
     _name(cpu_->name() + ".thread" + to_string(tid_)),
+    inOrderBeginExecute(in_order_begin_exec),
+    inOrderExecute(in_order_exec),
+    inflightInstsMaxSize(inflight_insts_size),
     strictSerialize(strict_ser),
     _committedState(new SimpleThread(cpu_, tid_, system_, itb_, dtb_, isa_,
                                      use_kernel_stats_)),
     isa(isa_),
     fetchBuf(vector<uint8_t>(fetch_buf_size)),
     fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1)),
-    inflightInstsMaxSize(inflight_insts_size),
     remainingBranchPredDepth(branch_pred_max_depth ?
                              branch_pred_max_depth : -1)
 {
@@ -76,17 +79,20 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                     System* system_, Process* process_, BaseTLB* itb_,
                     BaseTLB* dtb_, TheISA::ISA* isa_,
                     unsigned branch_pred_max_depth, unsigned fetch_buf_size,
+                    bool in_order_begin_exec, bool in_order_exec,
                     unsigned inflight_insts_size, bool strict_ser):
     memIface(*this),
     _cpuPtr(cpu_),
     _name(cpu_->name() + ".thread" + to_string(tid_)),
+    inOrderBeginExecute(in_order_begin_exec),
+    inOrderExecute(in_order_exec),
+    inflightInstsMaxSize(inflight_insts_size),
     strictSerialize(strict_ser),
     _committedState(new SimpleThread(cpu_, tid_, system_, process_, itb_, dtb_,
                                      isa_)),
     isa(isa_),
     fetchBuf(vector<uint8_t>(fetch_buf_size)),
     fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1)),
-    inflightInstsMaxSize(inflight_insts_size),
     remainingBranchPredDepth(branch_pred_max_depth ?
                              branch_pred_max_depth : -1)
 {
@@ -468,10 +474,10 @@ SDCPUThread::executeInstruction(weak_ptr<InflightInst> inst)
             };
     }
 
-    inst_ptr->notifyExecuting();
     _cpuPtr->requestExecution(static_inst,
                               static_pointer_cast<ExecContext>(inst_ptr),
                               inst_ptr->traceData(), callback);
+    inst_ptr->notifyExecuting();
     // For memrefs, this will result in a corresponding call to either
     // MemIFace::initiateMemRead() or MemIFace::writeMem(), depending on
     // whether the access is a write or read.
@@ -994,13 +1000,21 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
     //       interface, to make these rules swappable?
 
     // Temporary virtual dependency rule to simulate in-order CPU mode.
-    // if (inflightInsts.size() > 1) {
-    //     const shared_ptr<InflightInst> last_inst =
-    //                                             *(++inflightInsts.rbegin());
+    if (inOrderExecute && inflightInsts.size() > 1) {
+        const shared_ptr<InflightInst>& last_inst =
+                                                *(++inflightInsts.rbegin());
 
-    //     if (!(last_inst->isComplete() || last_inst->isSquashed()))
-    //         inst_ptr->addDependency(last_inst);
-    // }
+        if (!(last_inst->isComplete() || last_inst->isSquashed()))
+            inst_ptr->addDependency(last_inst);
+    }
+
+    if (inOrderBeginExecute && inflightInsts.size() > 1) {
+        const shared_ptr<InflightInst>& last_inst =
+                                                *(++inflightInsts.rbegin());
+
+        if (!(last_inst->isExecuting() || last_inst->isSquashed()))
+            inst_ptr->addBeginExecDependency(last_inst);
+    }
 
     /*
      * Note: An assumption is being made that inst_ptr is at the end of the

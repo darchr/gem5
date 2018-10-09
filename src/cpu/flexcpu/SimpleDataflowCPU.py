@@ -75,6 +75,14 @@ class SimpleDataflowCPU(BaseCPU):
                                        "requests. Should not be larger than a "
                                        "cache line.")
 
+    in_order_begin_execute = Param.Bool(False, "Serialize dependent "
+                                               "instruction execution. Allows "
+                                               "parallel execution of "
+                                               "sequential and independent "
+                                               "instructions")
+    in_order_execute = Param.Bool(False, "Serialize all instruction "
+                                         "execution.")
+
     instruction_buffer_size = Param.Unsigned(0, "Size of the dynamic "
                                              "instruction buffer. This buffer "
                                              "is used for maintaining the "
