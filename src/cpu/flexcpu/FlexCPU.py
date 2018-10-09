@@ -84,6 +84,10 @@ class FlexCPU(BaseCPU):
                                             "in both directions when the "
                                             "flags are present.")
 
+    zero_time_microop_execution = Param.Bool(False, "Makes all microops "
+                                             "except the last for a macroop "
+                                             "take zero time.")
+
     @classmethod
     def memory_mode(cls):
         return 'timing'
