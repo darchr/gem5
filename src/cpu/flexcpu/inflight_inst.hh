@@ -177,6 +177,7 @@ class InflightInst : public ExecContext,
     TimingRecord _timingRecord;
 
     // Callbacks made during a state transition.
+    std::vector<std::function<void()>> beginExecCallbacks;
     std::vector<std::function<void()>> commitCallbacks;
     std::vector<std::function<void()>> completionCallbacks;
 
@@ -226,6 +227,8 @@ class InflightInst : public ExecContext,
 
     virtual ~InflightInst();
 
+    void addBeginExecCallback(std::function<void()> callback);
+    void addBeginExecDependency(InflightInst& parent);
     /**
      * Tells this InflightInst to call a particular function when it has been
      * made aware of a commit.
@@ -340,6 +343,9 @@ class InflightInst : public ExecContext,
 
     inline bool isEffAddred() const
     { return status() >= EffAddred; }
+
+    inline bool isExecuting() const
+    { return status() >= Executing; }
 
     inline bool isFaulted() const
     { return fault() != NoFault; }
