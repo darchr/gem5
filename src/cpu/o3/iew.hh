@@ -409,6 +409,12 @@ class DefaultIEW
     /** Number of active threads. */
     ThreadID numThreads;
 
+    bool allNonSpeculative;
+
+    bool loadNonSpeculative;
+
+    bool isNonSpeculative(DynInstPtr inst);
+
     /** Pointer to list of active threads. */
     std::list<ThreadID> *activeThreads;
 
