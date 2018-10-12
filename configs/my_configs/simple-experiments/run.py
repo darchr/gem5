@@ -45,6 +45,7 @@ class SimpleCPU(TimingSimpleCPU):
 
 class O3DefaultCPU(DerivO3CPU):
     branchPred = BranchPredictor()
+    allNonSpeculative = True
 
 class SingleCycleFlexCPU(SimpleDataflowCPU):
     branchPred = BranchPredictor()
