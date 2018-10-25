@@ -179,7 +179,7 @@ class MySystem(LinuxX86System):
             # Connect the L2 cache to the L3 bus
             cpu.l2cache.connectMemSideBus(self.l3bus)
 
-        self.l3cache = BankedL3Cache(self._opts)
+        self.l3cache = L3Cache(self._opts)
         self.l3cache.connectCPUSideBus(self.l3bus)
 
         # Connect the L3 cache to the membus

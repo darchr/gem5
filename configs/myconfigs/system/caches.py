@@ -173,11 +173,14 @@ class L2Cache(PrefetchCache):
     def connectMemSideBus(self, bus):
         self.mem_side = bus.slave
 
-class L3CacheBank(Cache):
+class L3Cache(Cache):
     """Simple L3 Cache bank with default values
        This assumes that the L3 is made up of multiple banks. This cannot
        be used as a standalone L3 cache.
     """
+
+    SimpleOpts.add_option('--l3_size', default = '4MB',
+                          help="L3 cache size. Default: 4MB")
 
     # Default parameters
     assoc = 32
@@ -188,68 +191,12 @@ class L3CacheBank(Cache):
     tgts_per_mshr = 12
     clusivity = 'mostly_excl'
 
-    def __init__(self, size):
-        super(L3CacheBank, self).__init__()
-        self.size = size
+    def __init__(self, opts):
+        super(L3Cache, self).__init__()
+        self.size = (opts.l3_size)
 
     def connectCPUSideBus(self, bus):
         self.cpu_side = bus.master
 
     def connectMemSideBus(self, bus):
         self.mem_side = bus.slave
-
-
-class BankedL3Cache(SubSystem):
-    """An L3 cache that is made up of multiple L3CacheBanks
-       This class creates mulitple banks that add up to a total L3 cache
-       size. The current interleaving works on a cache line granularity
-       with no upper-order xor bits.
-       Note: We cannot use the default prefetchers with a banked cache.
-    """
-
-    SimpleOpts.add_option('--l3_size', default = '4MB',
-                          help="L3 cache size. Default: 4MB")
-    SimpleOpts.add_option('--l3_banks', default = 4, type = 'int',
-                          help="L3 cache banks. Default: 4")
-
-    def __init__(self, opts):
-        super(BankedL3Cache, self).__init__()
-
-        total_size = toMemorySize(opts.l3_size)
-
-        if total_size % opts.l3_banks:
-            m5.fatal("The L3 size must be divisible by number of banks")
-
-        bank_size = MemorySize(opts.l3_size) / opts.l3_banks
-        self.banks = [L3CacheBank(size = bank_size)
-                      for i in range(opts.l3_banks)]
-        ranges = self._getInterleaveRanges(AllMemory, opts.l3_banks, 7, 0)
-        for i, bank in enumerate(self.banks):
-            bank.addr_ranges = ranges[i]
-
-    def connectCPUSideBus(self, bus):
-        for bank in self.banks:
-             bank.connectCPUSideBus(bus)
-
-    def connectMemSideBus(self, bus):
-        for bank in self.banks:
-             bank.connectMemSideBus(bus)
-
-    def _getInterleaveRanges(self, rng, num, intlv_low_bit, xor_low_bit):
-        from math import log
-        bits = int(log(num, 2))
-        if 2**bits != num:
-            m5.fatal("Non-power of two number of memory ranges")
-
-        intlv_bits = bits
-        ranges = [
-            AddrRange(start=rng.start,
-                      end=rng.end,
-                      intlvHighBit = intlv_low_bit + intlv_bits - 1,
-                      xorHighBit = xor_low_bit + intlv_bits - 1,
-                      intlvBits = intlv_bits,
-                      intlvMatch = i)
-                for i in range(num)
-            ]
-
-        return ranges
