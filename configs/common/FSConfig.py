@@ -211,14 +211,12 @@ def makeArmSystem(mem_mode, machine_type, num_cpus=1, mdesc=None,
     assert machine_type
 
     default_dtbs = {
-        "RealViewEB": None,
         "RealViewPBX": None,
         "VExpress_EMM": "vexpress.aarch32.ll_20131205.0-gem5.%dcpu.dtb" % num_cpus,
         "VExpress_EMM64": "vexpress.aarch64.20140821.dtb",
     }
 
     default_kernels = {
-        "RealViewEB": "vmlinux.arm.smp.fb.2.6.38.8",
         "RealViewPBX": "vmlinux.arm.smp.fb.2.6.38.8",
         "VExpress_EMM": "vmlinux.aarch32.ll_20131205.0-gem5",
         "VExpress_EMM64": "vmlinux.aarch64.20140821",
@@ -304,7 +302,7 @@ def makeArmSystem(mem_mode, machine_type, num_cpus=1, mdesc=None,
 
     if bare_metal:
         # EOT character on UART will end the simulation
-        self.realview.uart.end_on_eot = True
+        self.realview.uart[0].end_on_eot = True
     else:
         if machine_type in default_kernels:
             self.kernel = binary(default_kernels[machine_type])

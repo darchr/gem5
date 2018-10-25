@@ -30,18 +30,25 @@
 #ifndef __SYSTEMC_CORE_SCHEDULER_HH__
 #define __SYSTEMC_CORE_SCHEDULER_HH__
 
+#include <functional>
+#include <map>
+#include <set>
 #include <vector>
 
 #include "base/logging.hh"
+#include "sim/core.hh"
 #include "sim/eventq.hh"
 #include "systemc/core/channel.hh"
 #include "systemc/core/list.hh"
 #include "systemc/core/process.hh"
+#include "systemc/core/sched_event.hh"
 
 class Fiber;
 
 namespace sc_gem5
 {
+
+class TraceFile;
 
 typedef NodeList<Process> ProcessList;
 typedef NodeList<Channel> ChannelList;
@@ -81,7 +88,7 @@ typedef NodeList<Channel> ChannelList;
  * 2. The update phase where requested channel updates hapen.
  * 3. The delta notification phase where delta notifications happen.
  *
- * The readyEvent runs the first two steps of the delta cycle. It first goes
+ * The readyEvent runs all three steps of the delta cycle. It first goes
  * through the list of runnable processes and executes them until the set is
  * empty, and then immediately runs the update phase. Since these are all part
  * of the same event, there's no chance for other events to intervene and
@@ -91,23 +98,21 @@ typedef NodeList<Channel> ChannelList;
  * a process runnable. That means that once the update phase finishes, the set
  * of runnable processes will be empty. There may, however, have been some
  * delta notifications/timeouts which will have been scheduled during either
- * the evaluate or update phase above. Because those are scheduled at the
- * normal priority, they will now happen together until there aren't any
- * delta events left.
+ * the evaluate or update phase above. Those will have been accumulated in the
+ * scheduler, and are now all executed.
  *
  * If any processes became runnable during the delta notification phase, the
- * readyEvent will have been scheduled and will have been waiting patiently
- * behind the delta notification events. That will now run, effectively
- * starting the next delta cycle.
+ * readyEvent will have been scheduled and will be waiting and ready to run
+ * again, effectively starting the next delta cycle.
  *
  * TIMED NOTIFICATION PHASE
  *
  * If no processes became runnable, the event queue will continue to process
- * events until it comes across a timed notification, aka a notification
- * scheduled to happen in the future. Like delta notification events, those
- * will all happen together since the readyEvent priority is lower,
- * potentially marking new processes as ready. Once these events finish, the
- * readyEvent may run, starting the next delta cycle.
+ * events until it comes across an event which represents all the timed
+ * notifications which are supposed to happen at a particular time. The object
+ * which tracks them will execute all those notifications, and then destroy
+ * itself. If the readyEvent is now ready to run, the next delta cycle will
+ * start.
  *
  * PAUSE/STOP
  *
@@ -129,37 +134,60 @@ typedef NodeList<Channel> ChannelList;
  * MAX RUN TIME
  *
  * When sc_start is called, it's possible to pass in a maximum time the
- * simulation should run to, at which point sc_pause is implicitly called.
- * That's implemented by scheduling an event at the max time with a priority
- * which is lower than all the others so that it happens only if time would
- * advance. When that event triggers, it calls the same function as the pause
- * event.
+ * simulation should run to, at which point sc_pause is implicitly called. The
+ * simulation is supposed to run up to the latest timed notification phase
+ * which is less than or equal to the maximum time. In other words it should
+ * run timed notifications at the maximum time, but not the subsequent evaluate
+ * phase. That's implemented by scheduling an event at the max time with a
+ * priority which is lower than all the others except the ready event. Timed
+ * notifications will happen before it fires, but it will override any ready
+ * event and prevent the evaluate phase from starting.
  */
 
 class Scheduler
 {
   public:
+    typedef std::list<ScEvent *> ScEvents;
+
+    class TimeSlot : public ::Event
+    {
+      public:
+        TimeSlot() : ::Event(Default_Pri, AutoDelete) {}
+
+        ScEvents events;
+        void process();
+    };
+
+    typedef std::map<Tick, TimeSlot *> TimeSlots;
+
     Scheduler();
+    ~Scheduler();
+
+    void clear();
 
     const std::string name() const { return "systemc_scheduler"; }
 
     uint64_t numCycles() { return _numCycles; }
     Process *current() { return _current; }
 
-    // Prepare for initialization.
-    void prepareForInit();
+    void initPhase();
 
     // Register a process with the scheduler.
     void reg(Process *p);
-
-    // Tell the scheduler not to initialize a process.
-    void dontInitialize(Process *p);
 
     // Run the next process, if there is one.
     void yield();
 
     // Put a process on the ready list.
     void ready(Process *p);
+
+    // Mark a process as ready if init is finished, or put it on the list of
+    // processes to be initialized.
+    void resume(Process *p);
+
+    // Remove a process from the ready/init list if it was on one of them, and
+    // return if it was.
+    bool suspend(Process *p);
 
     // Schedule an update for a given channel.
     void requestUpdate(Channel *c);
@@ -168,12 +196,28 @@ class Scheduler
     void
     runNow(Process *p)
     {
+        // This function may put a process on the wrong list, ie a thread
+        // the method list. That's fine since that's just a performance
+        // optimization, and the important thing here is how the processes are
+        // ordered.
+
         // If a process is running, schedule it/us to run again.
         if (_current)
-            readyList.pushFirst(_current);
+            readyListMethods.pushFirst(_current);
         // Schedule p to run first.
-        readyList.pushFirst(p);
+        readyListMethods.pushFirst(p);
         yield();
+    }
+
+    // Run this process at the next opportunity.
+    void
+    runNext(Process *p)
+    {
+        // Like above, it's ok if this isn't a method. Putting it on this list
+        // just gives it priority.
+        readyListMethods.pushFirst(p);
+        if (!inEvaluate())
+            scheduleReadyEvent();
     }
 
     // Set an event queue for scheduling events.
@@ -182,31 +226,72 @@ class Scheduler
     // Get the current time according to gem5.
     Tick getCurTick() { return eq ? eq->getCurTick() : 0; }
 
+    Tick
+    delayed(const ::sc_core::sc_time &delay)
+    {
+        return getCurTick() + delay.value();
+    }
+
     // For scheduling delayed/timed notifications/timeouts.
     void
-    schedule(::Event *event, Tick tick)
+    schedule(ScEvent *event, const ::sc_core::sc_time &delay)
     {
-        pendingTicks[tick]++;
-        eq->schedule(event, tick);
+        Tick tick = delayed(delay);
+        if (tick < getCurTick())
+            tick = getCurTick();
+
+        // Delta notification/timeout.
+        if (delay.value() == 0) {
+            event->schedule(deltas, tick);
+            if (!inEvaluate() && !inUpdate())
+                scheduleReadyEvent();
+            return;
+        }
+
+        // Timed notification/timeout.
+        TimeSlot *&ts = timeSlots[tick];
+        if (!ts) {
+            ts = new TimeSlot;
+            schedule(ts, tick);
+        }
+        event->schedule(ts->events, tick);
     }
 
     // For descheduling delayed/timed notifications/timeouts.
     void
-    deschedule(::Event *event)
+    deschedule(ScEvent *event)
     {
-        auto it = pendingTicks.find(event->when());
-        if (--it->second == 0)
-            pendingTicks.erase(it);
-        eq->deschedule(event);
+        ScEvents *on = event->scheduledOn();
+
+        if (on == &deltas) {
+            event->deschedule();
+            return;
+        }
+
+        // Timed notification/timeout.
+        auto tsit = timeSlots.find(event->when());
+        panic_if(tsit == timeSlots.end(),
+                "Descheduling event at time with no events.");
+        TimeSlot *ts = tsit->second;
+        ScEvents &events = ts->events;
+        assert(on == &events);
+        event->deschedule();
+
+        // If no more events are happening at this time slot, get rid of it.
+        if (events.empty()) {
+            deschedule(ts);
+            timeSlots.erase(tsit);
+        }
     }
 
-    // Tell the scheduler than an event fired for bookkeeping purposes.
     void
-    eventHappened()
+    completeTimeSlot(TimeSlot *ts)
     {
-        auto it = pendingTicks.begin();
-        if (--it->second == 0)
-            pendingTicks.erase(it);
+        assert(ts == timeSlots.begin()->second);
+        timeSlots.erase(timeSlots.begin());
+        if (!runToTime && starved())
+            scheduleStarvationEvent();
+        scheduleTimeAdvancesEvent();
     }
 
     // Pending activity ignores gem5 activity, much like how a systemc
@@ -220,47 +305,73 @@ class Scheduler
     bool
     pendingCurr()
     {
-        if (!readyList.empty() || !updateList.empty())
-            return true;
-        return pendingTicks.size() &&
-            pendingTicks.begin()->first == getCurTick();
+        return !readyListMethods.empty() || !readyListThreads.empty() ||
+            !updateList.empty() || !deltas.empty();
     }
 
     // Return whether there are pending timed notifications or timeouts.
     bool
     pendingFuture()
     {
-        switch (pendingTicks.size()) {
-          case 0: return false;
-          case 1: return pendingTicks.begin()->first > getCurTick();
-          default: return true;
-        }
+        return !timeSlots.empty();
     }
 
     // Return how many ticks there are until the first pending event, if any.
     Tick
     timeToPending()
     {
-        if (!readyList.empty() || !updateList.empty())
+        if (pendingCurr())
             return 0;
-        else if (pendingTicks.size())
-            return pendingTicks.begin()->first - getCurTick();
-        else
-            return MaxTick - getCurTick();
+        if (pendingFuture())
+            return timeSlots.begin()->first - getCurTick();
+        return MaxTick - getCurTick();
     }
 
     // Run scheduled channel updates.
-    void update();
+    void runUpdate();
+
+    // Run delta events.
+    void runDelta();
 
     void setScMainFiber(Fiber *sc_main) { scMain = sc_main; }
 
     void start(Tick max_tick, bool run_to_time);
+    void oneCycle();
 
     void schedulePause();
     void scheduleStop(bool finish_delta);
 
-    bool paused() { return _paused; }
-    bool stopped() { return _stopped; }
+    enum Status
+    {
+        StatusOther = 0,
+        StatusEvaluate,
+        StatusUpdate,
+        StatusDelta,
+        StatusTiming,
+        StatusPaused,
+        StatusStopped
+    };
+
+    bool elaborationDone() { return _elaborationDone; }
+    void elaborationDone(bool b) { _elaborationDone = b; }
+
+    bool paused() { return status() == StatusPaused; }
+    bool stopped() { return status() == StatusStopped; }
+    bool inEvaluate() { return status() == StatusEvaluate; }
+    bool inUpdate() { return status() == StatusUpdate; }
+    bool inDelta() { return status() == StatusDelta; }
+    bool inTiming() { return status() == StatusTiming; }
+
+    uint64_t changeStamp() { return _changeStamp; }
+    void stepChangeStamp() { _changeStamp++; }
+
+    void throwToScMain();
+
+    Status status() { return _status; }
+    void status(Status s) { _status = s; }
+
+    void registerTraceFile(TraceFile *tf) { traceFiles.insert(tf); }
+    void unregisterTraceFile(TraceFile *tf) { traceFiles.erase(tf); }
 
   private:
     typedef const EventBase::Priority Priority;
@@ -268,11 +379,43 @@ class Scheduler
 
     static Priority StopPriority = DefaultPriority - 1;
     static Priority PausePriority = DefaultPriority + 1;
-    static Priority ReadyPriority = DefaultPriority + 2;
-    static Priority MaxTickPriority = DefaultPriority + 3;
+    static Priority MaxTickPriority = DefaultPriority + 2;
+    static Priority ReadyPriority = DefaultPriority + 3;
+    static Priority StarvationPriority = ReadyPriority;
+    static Priority TimeAdvancesPriority = EventBase::Maximum_Pri;
 
     EventQueue *eq;
-    std::map<Tick, int> pendingTicks;
+
+    // For gem5 style events.
+    void
+    schedule(::Event *event, Tick tick)
+    {
+        if (initDone)
+            eq->schedule(event, tick);
+        else
+            eventsToSchedule[event] = tick;
+    }
+
+    void schedule(::Event *event) { schedule(event, getCurTick()); }
+
+    void
+    deschedule(::Event *event)
+    {
+        if (initDone)
+            eq->deschedule(event);
+        else
+            eventsToSchedule.erase(event);
+    }
+
+    ScEvents deltas;
+    TimeSlots timeSlots;
+
+    Process *
+    getNextReady()
+    {
+        Process *p = readyListMethods.getNext();
+        return p ? p : readyListThreads.getNext();
+    }
 
     void runReady();
     EventWrapper<Scheduler, &Scheduler::runReady> readyEvent;
@@ -282,29 +425,97 @@ class Scheduler
     void stop();
     EventWrapper<Scheduler, &Scheduler::pause> pauseEvent;
     EventWrapper<Scheduler, &Scheduler::stop> stopEvent;
-    Fiber *scMain;
 
+    Fiber *scMain;
+    const ::sc_core::sc_report *_throwToScMain;
+
+    bool
+    starved()
+    {
+        return (readyListMethods.empty() && readyListThreads.empty() &&
+                updateList.empty() && deltas.empty() &&
+                (timeSlots.empty() || timeSlots.begin()->first > maxTick) &&
+                initList.empty());
+    }
+    EventWrapper<Scheduler, &Scheduler::pause> starvationEvent;
+    void scheduleStarvationEvent();
+
+    bool _elaborationDone;
     bool _started;
-    bool _paused;
-    bool _stopped;
+    bool _stopNow;
+
+    Status _status;
 
     Tick maxTick;
-    EventWrapper<Scheduler, &Scheduler::pause> maxTickEvent;
+    Tick lastReadyTick;
+    void
+    maxTickFunc()
+    {
+        if (lastReadyTick != getCurTick())
+            _changeStamp++;
+        pause();
+    }
+    EventWrapper<Scheduler, &Scheduler::maxTickFunc> maxTickEvent;
+
+    void timeAdvances() { trace(false); }
+    EventWrapper<Scheduler, &Scheduler::timeAdvances> timeAdvancesEvent;
+    void
+    scheduleTimeAdvancesEvent()
+    {
+        if (!traceFiles.empty() && !timeAdvancesEvent.scheduled())
+            schedule(&timeAdvancesEvent);
+    }
 
     uint64_t _numCycles;
+    uint64_t _changeStamp;
 
     Process *_current;
 
-    bool initReady;
+    bool initDone;
+    bool runToTime;
+    bool runOnce;
 
     ProcessList initList;
-    ProcessList toFinalize;
-    ProcessList readyList;
+
+    ProcessList readyListMethods;
+    ProcessList readyListThreads;
 
     ChannelList updateList;
+
+    std::map<::Event *, Tick> eventsToSchedule;
+
+    std::set<TraceFile *> traceFiles;
+
+    void trace(bool delta);
 };
 
 extern Scheduler scheduler;
+
+// A proxy function to avoid having to expose the scheduler in header files.
+Process *getCurrentProcess();
+
+inline void
+Scheduler::TimeSlot::process()
+{
+    scheduler.stepChangeStamp();
+    scheduler.status(StatusTiming);
+
+    try {
+        while (!events.empty())
+            events.front()->run();
+    } catch (...) {
+        if (events.empty())
+            scheduler.completeTimeSlot(this);
+        else
+            scheduler.schedule(this);
+        scheduler.throwToScMain();
+    }
+
+    scheduler.status(StatusOther);
+    scheduler.completeTimeSlot(this);
+}
+
+const ::sc_core::sc_report reportifyException();
 
 } // namespace sc_gem5
 

@@ -27,23 +27,12 @@
  * Authors: Gabe Black
  */
 
-#include "base/logging.hh"
 #include "systemc/core/event.hh"
 #include "systemc/ext/core/sc_event.hh"
+#include "systemc/ext/core/sc_module.hh"
 
 namespace sc_core
 {
-
-
-/*
- * sc_event_finder
- */
-
-void
-sc_event_finder::warn_unimpl(const char *func) const
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-}
 
 
 /*
@@ -322,7 +311,10 @@ operator | (sc_event_or_expr expr, sc_event_or_list const &eol)
  * sc_event
  */
 
-sc_event::sc_event() : _gem5_event(new ::sc_gem5::Event(this)) {}
+sc_event::sc_event() :
+    _gem5_event(new ::sc_gem5::Event(
+                this, sc_core::sc_gen_unique_name("event")))
+{}
 
 sc_event::sc_event(const char *_name) :
     _gem5_event(new ::sc_gem5::Event(this, _name))
@@ -349,8 +341,16 @@ void sc_event::notify(const sc_time &t) { _gem5_event->notify(t); }
 void sc_event::notify(double d, sc_time_unit u) { _gem5_event->notify(d, u); }
 void sc_event::cancel() { _gem5_event->cancel(); }
 bool sc_event::triggered() const { return _gem5_event->triggered(); }
-void sc_event::notify_delayed() { _gem5_event->notify(SC_ZERO_TIME); }
-void sc_event::notify_delayed(const sc_time &t) { _gem5_event->notify(t); }
+void
+sc_event::notify_delayed()
+{
+    _gem5_event->notifyDelayed(SC_ZERO_TIME);
+}
+void
+sc_event::notify_delayed(const sc_time &t)
+{
+    _gem5_event->notifyDelayed(t);
+}
 
 sc_event_and_expr
 sc_event::operator & (const sc_event &e) const
@@ -388,6 +388,19 @@ sc_event::operator | (const sc_event_or_list &eol) const
     return expr;
 }
 
+sc_event::sc_event(bool) :
+    _gem5_event(new ::sc_gem5::Event(
+                this, sc_core::sc_gen_unique_name(
+                    "$$$internal kernel event$$$"), true))
+{}
+
+sc_event::sc_event(bool, const char *_name) :
+    _gem5_event(new ::sc_gem5::Event(
+                this,
+                (std::string("$$$internal kernel event$$$") + _name).c_str(),
+                true))
+{}
+
 const std::vector<sc_event *> &
 sc_get_top_level_events()
 {
@@ -403,3 +416,11 @@ sc_find_event(const char *name)
 }
 
 } // namespace sc_core
+
+namespace sc_gem5
+{
+
+InternalScEvent::InternalScEvent() : sc_event(true) {}
+InternalScEvent::InternalScEvent(const char *_name) : sc_event(true, _name) {}
+
+} // namespace sc_gem5

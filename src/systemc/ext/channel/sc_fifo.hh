@@ -30,11 +30,15 @@
 #ifndef __SYSTEMC_EXT_CHANNEL_SC_FIFO_HH__
 #define __SYSTEMC_EXT_CHANNEL_SC_FIFO_HH__
 
+#include <list>
+#include <string>
+
 #include "../core/sc_module.hh" // for sc_gen_unique_name
 #include "../core/sc_prim.hh"
+#include "../utils/sc_report_handler.hh"
+#include "messages.hh"
 #include "sc_fifo_in_if.hh"
 #include "sc_fifo_out_if.hh"
-#include "warn_unimpl.hh"
 
 namespace sc_core
 {
@@ -50,96 +54,127 @@ class sc_fifo : public sc_fifo_in_if<T>,
   public:
     explicit sc_fifo(int size=16) :
             sc_fifo_in_if<T>(), sc_fifo_out_if<T>(),
-            sc_prim_channel(sc_gen_unique_name("fifo"))
+            sc_prim_channel(sc_gen_unique_name("fifo")),
+            _size(size), _num_free(size), _num_available(0),
+            _readsHappened(false), _writesHappened(false),
+            _reader(NULL), _writer(NULL)
     {}
     explicit sc_fifo(const char *name, int size=16) :
             sc_fifo_in_if<T>(), sc_fifo_out_if<T>(),
-            sc_prim_channel(name)
+            sc_prim_channel(name), _size(size), _num_free(size),
+            _num_available(0), _readsHappened(false), _writesHappened(false),
+            _reader(NULL), _writer(NULL)
     {}
     virtual ~sc_fifo() {}
 
     virtual void
-    register_port(sc_port_base &, const char *)
+    register_port(sc_port_base &port, const char *iface_type_name)
     {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
+        std::string tn(iface_type_name);
+        if (tn == typeid(sc_fifo_in_if<T>).name() ||
+                tn == typeid(sc_fifo_blocking_in_if<T>).name()) {
+            if (_reader)
+                SC_REPORT_ERROR(SC_ID_MORE_THAN_ONE_FIFO_READER_, "");
+            _reader = &port;
+        } else if (tn == typeid(sc_fifo_out_if<T>).name() ||
+                tn == typeid(sc_fifo_blocking_out_if<T>).name()) {
+            if (_writer)
+                SC_REPORT_ERROR(SC_ID_MORE_THAN_ONE_FIFO_WRITER_, "");
+            _writer = &port;
+        } else {
+            SC_REPORT_ERROR(SC_ID_BIND_IF_TO_PORT_,
+                    "sc_fifo<T> port not recognized");
+        }
     }
 
     virtual void
-    read(T &)
+    read(T &t)
     {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
+        while (num_available() == 0)
+            sc_core::wait(_dataWriteEvent);
+        _readsHappened = true;
+        t = _entries.front();
+        _entries.pop_front();
+        _num_available--;
+        request_update();
     }
     virtual T
     read()
     {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
-        return *(T *)nullptr;
+        T t;
+        read(t);
+        return t;
     }
     virtual bool
-    nb_read(T &)
+    nb_read(T &t)
     {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
-        return false;
+        if (num_available()) {
+            read(t);
+            return true;
+        } else {
+            return false;
+        }
     }
-    operator T()
-    {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
-        return *(T *)nullptr;
-    }
+    operator T() { return read(); }
 
     virtual void
-    write(const T &)
+    write(const T &t)
     {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
+        while (num_free() == 0)
+            sc_core::wait(_dataReadEvent);
+        _writesHappened = true;
+        _entries.emplace_back(t);
+        _num_free--;
+        request_update();
     }
     virtual bool
-    nb_write(const T&)
+    nb_write(const T &t)
     {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
-        return false;
+        if (num_free()) {
+            write(t);
+            return true;
+        } else {
+            return false;
+        }
     }
     sc_fifo<T> &
-    operator = (const T &)
+    operator = (const T &t)
     {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
+        write(t);
         return *this;
     }
 
     virtual const sc_event &
     data_written_event() const
     {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
-        return *(const sc_event *)nullptr;
+        return _dataWriteEvent;
     }
     virtual const sc_event &
     data_read_event() const
     {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
-        return *(const sc_event *)nullptr;
+        return _dataReadEvent;
     }
 
-    virtual int
-    num_available() const
-    {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
-        return 0;
-    }
-    virtual int
-    num_free() const
-    {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
-        return 0;
-    }
+    virtual int num_available() const { return _num_available; }
+    virtual int num_free() const { return _num_free; }
 
     virtual void
-    print(std::ostream & =std::cout) const
+    print(std::ostream &os=std::cout) const
     {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
+        for (typename ::std::list<T>::iterator pos = _entries.begin();
+                pos != _entries.end(); pos++) {
+            os << *pos << ::std::endl;
+        }
     }
     virtual void
-    dump(std::ostream & =std::cout) const
+    dump(std::ostream &os=std::cout) const
     {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
+        os << "name = " << name() << std::endl;
+        int idx = 0;
+        for (typename ::std::list<T>::iterator pos = _entries.begin();
+                pos != _entries.end(); pos++) {
+            os << "value[" << idx++ << "] = " << *pos << ::std::endl;
+        }
     }
     virtual const char *kind() const { return "sc_fifo"; }
 
@@ -147,7 +182,16 @@ class sc_fifo : public sc_fifo_in_if<T>,
     virtual void
     update()
     {
-        sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
+        _num_available = _entries.size();
+        _num_free = _size - _num_available;
+        if (_writesHappened) {
+            _writesHappened = false;
+            _dataWriteEvent.notify(SC_ZERO_TIME);
+        }
+        if (_readsHappened) {
+            _readsHappened = false;
+            _dataReadEvent.notify(SC_ZERO_TIME);
+        }
     }
 
   private:
@@ -156,13 +200,26 @@ class sc_fifo : public sc_fifo_in_if<T>,
             sc_fifo_in_if<T>(), sc_fifo_in_if<T>(), sc_prim_channel()
     {}
     sc_fifo &operator = (const sc_fifo<T> &) { return *this; }
+
+    sc_gem5::InternalScEvent _dataReadEvent;
+    sc_gem5::InternalScEvent _dataWriteEvent;
+
+    sc_port_base *_reader;
+    sc_port_base *_writer;
+
+    int _size;
+    int _num_free;
+    int _num_available;
+    mutable std::list<T> _entries;
+    bool _readsHappened;
+    bool _writesHappened;
 };
 
 template <class T>
 inline std::ostream &
-operator << (std::ostream &os, const sc_fifo<T> &)
+operator << (std::ostream &os, const sc_fifo<T> &f)
 {
-    sc_channel_warn_unimpl(__PRETTY_FUNCTION__);
+    f.print(os);
     return os;
 }
 

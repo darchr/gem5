@@ -33,6 +33,7 @@
 #include <vector>
 
 #include "sc_object.hh"
+#include "sc_process_handle.hh"
 #include "sc_sensitive.hh"
 #include "sc_time.hh"
 
@@ -46,6 +47,7 @@ class sc_logic;
 namespace sc_gem5
 {
 
+class Kernel;
 class Module;
 class Process;
 struct ProcessFuncWrapper;
@@ -76,14 +78,15 @@ class sc_module_name;
 class sc_bind_proxy
 {
   private:
-    const sc_interface *_interface;
-    const sc_port_base *_port;
-
-    friend class sc_module;
+    sc_interface *_interface;
+    sc_port_base *_port;
 
   public:
-    sc_bind_proxy(const sc_interface &_interface);
-    sc_bind_proxy(const sc_port_base &_port);
+    sc_bind_proxy(sc_interface &_interface);
+    sc_bind_proxy(sc_port_base &_port);
+
+    sc_interface *interface() const { return _interface; }
+    sc_port_base *port() const { return _port; }
 };
 
 extern const sc_bind_proxy SC_BIND_PROXY_NIL;
@@ -91,6 +94,9 @@ extern const sc_bind_proxy SC_BIND_PROXY_NIL;
 class sc_module : public sc_object
 {
   public:
+    friend class ::sc_gem5::Kernel;
+    friend class ::sc_gem5::Module;
+
     virtual ~sc_module();
 
     virtual const char *kind() const { return "sc_module"; }
@@ -160,6 +166,12 @@ class sc_module : public sc_object
                       const sc_bind_proxy &p063 = SC_BIND_PROXY_NIL,
                       const sc_bind_proxy &p064 = SC_BIND_PROXY_NIL);
 
+    // Deprecated
+    sc_module &operator << (sc_interface &);
+    sc_module &operator << (sc_port_base &);
+    sc_module &operator , (sc_interface &);
+    sc_module &operator , (sc_port_base &);
+
     virtual const std::vector<sc_object *> &get_child_objects() const;
     virtual const std::vector<sc_event *> &get_child_events() const;
 
@@ -172,7 +184,7 @@ class sc_module : public sc_object
     sc_module(const std::string &);
 
     /* Deprecated, but used in the regression tests. */
-    void end_module() {}
+    void end_module();
 
     void reset_signal_is(const sc_in<bool> &, bool);
     void reset_signal_is(const sc_inout<bool> &, bool);
@@ -284,7 +296,8 @@ bool timed_out();
                 #name, new ::sc_gem5::ProcessMemberFuncWrapper< \
                     SC_CURRENT_USER_MODULE>(this, \
                         &SC_CURRENT_USER_MODULE::name)); \
-        this->sensitive << p; \
+        if (p) \
+            this->sensitive << p; \
     }
 #define SC_THREAD(name) \
     { \
@@ -293,7 +306,8 @@ bool timed_out();
                 #name, new ::sc_gem5::ProcessMemberFuncWrapper< \
                     SC_CURRENT_USER_MODULE>(this, \
                         &SC_CURRENT_USER_MODULE::name)); \
-        this->sensitive << p; \
+        if (p) \
+            this->sensitive << p; \
     }
 #define SC_CTHREAD(name, clk) \
     { \
@@ -302,8 +316,8 @@ bool timed_out();
                 #name, new ::sc_gem5::ProcessMemberFuncWrapper< \
                     SC_CURRENT_USER_MODULE>(this, \
                         &SC_CURRENT_USER_MODULE::name)); \
-        this->sensitive << p; \
-        this->sensitive << clk; \
+        if (p) \
+            this->sensitive(p, clk); \
     }
 
 // Nonstandard
@@ -334,17 +348,20 @@ sc_module *sc_module_sc_new(sc_module *);
 #define SC_NEW(x) ::sc_core::sc_module_sc_new(new x);
 
 // Nonstandard
-// In the Accellera implementation, this macro calls sc_set_location to record
-// the current file and line, calls wait, and then calls it again to clear the
-// file and line. We'll ignore the sc_set_location calls for now.
-#define SC_WAIT() ::sc_core::wait();
+#define SC_WAIT() \
+    ::sc_core::sc_set_location(__FILE__, __LINE__); \
+    ::sc_core::wait(); \
+    ::sc_core::sc_set_location(NULL, 0)
 
 // Nonstandard
-// Same as above, but passes through an argument.
-#define SC_WAITN(n) ::sc_core::wait(n);
+#define SC_WAITN(n) \
+    ::sc_core::sc_set_location(__FILE__, __LINE__); \
+    ::sc_core::wait(n); \
+    ::sc_core::sc_set_location(NULL, 0)
 
 // Nonstandard
-#define SC_WAIT_UNTIL(expr) do { SC_WAIT(); } while (!(expr))
+#define SC_WAIT_UNTIL(expr) \
+    do { SC_WAIT(); } while (!(expr))
 
 } // namespace sc_core
 

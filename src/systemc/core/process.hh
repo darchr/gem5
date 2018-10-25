@@ -31,227 +31,49 @@
 #define __SYSTEMC_CORE_PROCESS_HH__
 
 #include <functional>
+#include <memory>
 #include <vector>
 
 #include "base/fiber.hh"
-#include "sim/eventq.hh"
-#include "systemc/core/bindinfo.hh"
 #include "systemc/core/list.hh"
+#include "systemc/core/module.hh"
 #include "systemc/core/object.hh"
+#include "systemc/core/sched_event.hh"
+#include "systemc/core/sensitivity.hh"
+#include "systemc/ext/channel/sc_signal_in_if.hh"
 #include "systemc/ext/core/sc_event.hh"
-#include "systemc/ext/core/sc_interface.hh"
 #include "systemc/ext/core/sc_module.hh"
-#include "systemc/ext/core/sc_port.hh"
 #include "systemc/ext/core/sc_process_handle.hh"
+
+namespace sc_core
+{
+
+class sc_join;
+
+} // namespace sc_core
 
 namespace sc_gem5
 {
 
-class Sensitivity
-{
-  protected:
-    Process *process;
+class ScHalt
+{};
 
-  public:
-    Sensitivity(Process *p) : process(p) {}
-    virtual ~Sensitivity() {}
+class Process;
+class Reset;
 
-    virtual void notifyWork(Event *e);
-    void notify(Event *e);
-    void notify() { notify(nullptr); }
-
-    const std::string name();
-};
-
-class SensitivityTimeout : virtual public Sensitivity
-{
-  private:
-    void timeout();
-    EventWrapper<SensitivityTimeout,
-        &SensitivityTimeout::timeout> timeoutEvent;
-    ::sc_core::sc_time time;
-
-  public:
-    SensitivityTimeout(Process *p, ::sc_core::sc_time t);
-    ~SensitivityTimeout();
-};
-
-class SensitivityEvent : virtual public Sensitivity
-{
-  private:
-    const ::sc_core::sc_event *event;
-
-  public:
-    SensitivityEvent(Process *p, const ::sc_core::sc_event *e);
-    ~SensitivityEvent();
-};
-
-//XXX This sensitivity can't be reused. To reset it, it has to be deleted and
-//recreated. That works for dynamic sensitivities, but not for static.
-//Fortunately processes can't be statically sensitive to sc_event_and_lists.
-class SensitivityEventAndList : virtual public Sensitivity
-{
-  private:
-    const ::sc_core::sc_event_and_list *list;
-    int count;
-
-  public:
-    SensitivityEventAndList(
-            Process *p, const ::sc_core::sc_event_and_list *list);
-    ~SensitivityEventAndList();
-
-    void notifyWork(Event *e) override;
-};
-
-class SensitivityEventOrList : virtual public Sensitivity
-{
-  private:
-    const ::sc_core::sc_event_or_list *list;
-
-  public:
-    SensitivityEventOrList(
-            Process *p, const ::sc_core::sc_event_or_list *list);
-    ~SensitivityEventOrList();
-};
-
-// Combined sensitivities. These trigger when any of their parts do.
-
-class SensitivityTimeoutAndEvent :
-    public SensitivityTimeout, public SensitivityEvent
-{
-  public:
-    SensitivityTimeoutAndEvent(
-            Process *p, ::sc_core::sc_time t, const ::sc_core::sc_event *e) :
-        Sensitivity(p), SensitivityTimeout(p, t), SensitivityEvent(p, e)
-    {}
-};
-
-class SensitivityTimeoutAndEventAndList :
-    public SensitivityTimeout, public SensitivityEventAndList
-{
-  public:
-    SensitivityTimeoutAndEventAndList(
-            Process *p, ::sc_core::sc_time t,
-            const ::sc_core::sc_event_and_list *eal) :
-        Sensitivity(p), SensitivityTimeout(p, t),
-        SensitivityEventAndList(p, eal)
-    {}
-};
-
-class SensitivityTimeoutAndEventOrList :
-    public SensitivityTimeout, public SensitivityEventOrList
-{
-  public:
-    SensitivityTimeoutAndEventOrList(
-            Process *p, ::sc_core::sc_time t,
-            const ::sc_core::sc_event_or_list *eol) :
-        Sensitivity(p), SensitivityTimeout(p, t),
-        SensitivityEventOrList(p, eol)
-    {}
-};
-
-typedef std::vector<Sensitivity *> Sensitivities;
-
-
-/*
- * Pending sensitivities. These are records of sensitivities to install later,
- * once all the information to configure them is available.
- */
-
-class PendingSensitivity
-{
-  protected:
-    Process *process;
-
-  public:
-    virtual void finalize(Sensitivities &s) = 0;
-    PendingSensitivity(Process *p) : process(p) {}
-    virtual ~PendingSensitivity() {}
-};
-
-class PendingSensitivityEvent : public PendingSensitivity
-{
-  private:
-    const sc_core::sc_event *event;
-
-  public:
-    PendingSensitivityEvent(Process *p, const sc_core::sc_event *e) :
-        PendingSensitivity(p), event(e) {}
-
-    void
-    finalize(Sensitivities &s) override
-    {
-        s.push_back(new SensitivityEvent(process, event));
-    }
-};
-
-class PendingSensitivityInterface : public PendingSensitivity
-{
-  private:
-    const sc_core::sc_interface *interface;
-
-  public:
-    PendingSensitivityInterface(Process *p, const sc_core::sc_interface *i) :
-        PendingSensitivity(p), interface(i)
-    {}
-
-    void
-    finalize(Sensitivities &s) override
-    {
-        s.push_back(new SensitivityEvent(process,
-                                         &interface->default_event()));
-    }
-};
-
-class PendingSensitivityPort : public PendingSensitivity
-{
-  private:
-    const sc_core::sc_port_base *port;
-
-  public:
-    PendingSensitivityPort(Process *p, const sc_core::sc_port_base *pb) :
-        PendingSensitivity(p), port(pb)
-    {}
-
-    void
-    finalize(Sensitivities &s) override
-    {
-        for (int i = 0; i < port->size(); i++) {
-            const ::sc_core::sc_event *e =
-                &port->_gem5BindInfo[i]->interface->default_event();
-            s.push_back(new SensitivityEvent(process, e));
-        }
-    }
-};
-
-class PendingSensitivityFinder : public PendingSensitivity
-{
-  private:
-    const sc_core::sc_event_finder *finder;
-
-  public:
-    PendingSensitivityFinder(Process *p, const sc_core::sc_event_finder *f) :
-        PendingSensitivity(p), finder(f)
-    {}
-
-    void
-    finalize(Sensitivities &s) override
-    {
-        s.push_back(new SensitivityEvent(process, &finder->find_event()));
-    }
-};
-
-typedef std::vector<PendingSensitivity *> PendingSensitivities;
-
-
-class Process : public ::sc_core::sc_object, public ListNode
+class Process : public ::sc_core::sc_process_b, public ListNode
 {
   public:
     virtual ::sc_core::sc_curr_proc_kind procKind() const = 0;
     bool needsStart() const { return _needsStart; }
+    void needsStart(bool ns) { _needsStart = ns; }
     bool dynamic() const { return _dynamic; }
     bool isUnwinding() const { return _isUnwinding; }
+    void isUnwinding(bool v) { _isUnwinding = v; }
     bool terminated() const { return _terminated; }
+
+    bool scheduled() const { return _scheduled; }
+    void scheduled(bool new_val) { _scheduled = new_val; }
 
     void forEachKid(const std::function<void(Process *)> &work);
 
@@ -265,7 +87,7 @@ class Process : public ::sc_core::sc_object, public ListNode
 
     void kill(bool inc_kids);
     void reset(bool inc_kids);
-    virtual void throw_it(ExceptionWrapperBase &exc, bool inc_kids);
+    void throw_it(ExceptionWrapperBase &exc, bool inc_kids);
 
     void injectException(ExceptionWrapperBase &exc);
     ExceptionWrapperBase *excWrapper;
@@ -273,23 +95,26 @@ class Process : public ::sc_core::sc_object, public ListNode
     void syncResetOn(bool inc_kids);
     void syncResetOff(bool inc_kids);
 
+    void signalReset(bool set, bool sync);
+
     void incref() { refCount++; }
     void decref() { refCount--; }
 
-    const ::sc_core::sc_event &resetEvent() { return _resetEvent; }
-    const ::sc_core::sc_event &terminatedEvent() { return _terminatedEvent; }
-
-    // This should only be called before initialization.
-    void dontInitialize();
+    ::sc_core::sc_event &resetEvent() { return _resetEvent; }
+    ::sc_core::sc_event &terminatedEvent() { return _terminatedEvent; }
 
     void setStackSize(size_t size) { stackSize = size; }
 
-    void finalize();
-
     void run();
 
-    void addStatic(PendingSensitivity *);
-    void setDynamic(Sensitivity *);
+    void addStatic(StaticSensitivity *);
+    void setDynamic(DynamicSensitivity *);
+    void clearDynamic() { setDynamic(nullptr); }
+    void addReset(Reset *);
+
+    ScEvent timeoutEvent;
+    void setTimeout(::sc_core::sc_time t);
+    void cancelTimeout();
 
     void satisfySensitivity(Sensitivity *);
 
@@ -299,28 +124,60 @@ class Process : public ::sc_core::sc_object, public ListNode
 
     static Process *newest() { return _newest; }
 
+    void lastReport(::sc_core::sc_report *report);
+    ::sc_core::sc_report *lastReport() const;
+
+    bool hasStaticSensitivities() { return !staticSensitivities.empty(); }
+    bool internal() { return _internal; }
+    bool timedOut() { return _timedOut; }
+    bool inReset() { return _syncReset || syncResetCount || asyncResetCount; }
+
+    bool dontInitialize() { return _dontInitialize; }
+    void dontInitialize(bool di) { _dontInitialize = di; }
+
+    void joinWait(::sc_core::sc_join *join) { joinWaiters.push_back(join); }
+
+    void waitCount(int count) { _waitCount = count; }
+
+    const char *uniqueName(const char *seed) { return nameGen.gen(seed); }
+
   protected:
-    Process(const char *name, ProcessFuncWrapper *func, bool _dynamic,
-            bool needs_start);
+    void timeout();
+
+    Process(const char *name, ProcessFuncWrapper *func, bool internal=false);
 
     static Process *_newest;
 
     virtual ~Process()
     {
+        popListNode();
         delete func;
-        for (auto s: staticSensitivities)
+        for (auto s: staticSensitivities) {
+            s->clear();
             delete s;
+        }
+        clearDynamic();
     }
 
-    ::sc_core::sc_event _resetEvent;
-    ::sc_core::sc_event _terminatedEvent;
+    InternalScEvent _resetEvent;
+    InternalScEvent _terminatedEvent;
 
     ProcessFuncWrapper *func;
-    sc_core::sc_curr_proc_kind _procKind;
+
+    bool _internal;
+
+    // Needed to support the deprecated "timed_out" function.
+    bool _timedOut;
+
+    bool _dontInitialize;
+
     bool _needsStart;
     bool _dynamic;
     bool _isUnwinding;
     bool _terminated;
+    bool _scheduled;
+
+    void terminate();
 
     bool _suspended;
     bool _suspendedReady;
@@ -328,34 +185,63 @@ class Process : public ::sc_core::sc_object, public ListNode
 
     bool _syncReset;
 
+    int syncResetCount;
+    int asyncResetCount;
+
+    int _waitCount;
+
     int refCount;
 
     size_t stackSize;
 
-    Sensitivities staticSensitivities;
-    PendingSensitivities pendingStaticSensitivities;
+    StaticSensitivities staticSensitivities;
+    DynamicSensitivity *dynamicSensitivity;
+    std::vector<Reset *> resets;
 
-    Sensitivity *dynamicSensitivity;
+    std::unique_ptr<::sc_core::sc_report> _lastReport;
+
+    std::vector<::sc_core::sc_join *> joinWaiters;
+
+    UniqueNameGen nameGen;
 };
 
-inline void
-Sensitivity::notifyWork(Event *e)
+class Reset
 {
-    process->satisfySensitivity(this);
-}
+  public:
+    Reset(Process *p, bool s, bool v) :
+        _process(p), _signal(nullptr), _sync(s), _value(v)
+    {}
 
-inline void
-Sensitivity::notify(Event *e)
-{
-    if (!process->disabled())
-        notifyWork(e);
-}
+    bool
+    install(const sc_core::sc_signal_in_if<bool> *s)
+    {
+        _signal = s;
 
-inline const std::string
-Sensitivity::name()
-{
-    return std::string(process->name()) + ".timeout";
-}
+        if (_signal->_addReset(this)) {
+            _process->addReset(this);
+            if (_signal->read() == _value)
+                update();
+            return true;
+        }
+        return false;
+    }
+    void update() { _process->signalReset(_signal->read() == _value, _sync); }
+
+    Process *process() { return _process; }
+    const sc_core::sc_signal_in_if<bool> *signal() { return _signal; }
+    bool sync() { return _sync; }
+    bool value() { return _value; }
+
+  private:
+    Process *_process;
+    const sc_core::sc_signal_in_if<bool> *_signal;
+    bool _sync;
+    bool _value;
+};
+
+void newReset(const sc_core::sc_port_base *pb, Process *p, bool s, bool v);
+void newReset(const sc_core::sc_signal_in_if<bool> *sig, Process *p,
+        bool s, bool v);
 
 } // namespace sc_gem5
 

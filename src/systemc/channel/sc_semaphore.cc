@@ -27,50 +27,55 @@
  * Authors: Gabe Black
  */
 
-#include "base/logging.hh"
+#include <string>
+
+#include "systemc/ext/channel/messages.hh"
 #include "systemc/ext/channel/sc_semaphore.hh"
 #include "systemc/ext/core/sc_module.hh" // for sc_gen_unique_name
+#include "systemc/ext/utils/sc_report_handler.hh"
 
 namespace sc_core
 {
 
-sc_semaphore::sc_semaphore(int) :
-        sc_interface(), sc_semaphore_if(),
-        sc_object(sc_gen_unique_name("semaphore"))
+sc_semaphore::sc_semaphore(int value) :
+    sc_semaphore(sc_gen_unique_name("semaphore"), value)
 {}
 
-sc_semaphore::sc_semaphore(const char *name, int) :
-        sc_interface(), sc_semaphore_if(), sc_object(name)
-{}
+sc_semaphore::sc_semaphore(const char *_name, int value) :
+        sc_interface(), sc_semaphore_if(), sc_object(_name), _value(value)
+{
+    if (value < 0) {
+        std::string msg = "semaphore '" + std::string(name()) + "'";
+        SC_REPORT_ERROR(SC_ID_INVALID_SEMAPHORE_VALUE_, msg.c_str());
+    }
+}
 
 int
 sc_semaphore::wait()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    while (trywait() == -1)
+        ::sc_core::wait(posted);
     return 0;
 }
 
 int
 sc_semaphore::trywait()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    if (!_value)
+        return -1;
+
+    _value--;
     return 0;
 }
 
 int
 sc_semaphore::post()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    if (_value++ == 0)
+        posted.notify();
     return 0;
 }
 
-int
-sc_semaphore::get_value() const
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return 0;
-}
-
-const char *sc_semaphore::kind() const { return "sc_semaphore"; }
+int sc_semaphore::get_value() const { return _value; }
 
 } // namespace sc_core

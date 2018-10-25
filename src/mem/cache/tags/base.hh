@@ -57,12 +57,12 @@
 #include "base/logging.hh"
 #include "base/statistics.hh"
 #include "base/types.hh"
-#include "mem/cache/blk.hh"
-#include "mem/packet.hh"
+#include "mem/cache/cache_blk.hh"
 #include "params/BaseTags.hh"
 #include "sim/clocked_object.hh"
 
 class BaseCache;
+class IndexingPolicy;
 class ReplaceableEntry;
 
 /**
@@ -87,6 +87,9 @@ class BaseTags : public ClockedObject
     const Cycles accessLatency;
     /** Pointer to the parent cache. */
     BaseCache *cache;
+
+    /** Indexing policy */
+    BaseIndexingPolicy *indexingPolicy;
 
     /**
      * The number of tags that need to be touched to meet the warmup
@@ -155,6 +158,13 @@ class BaseTags : public ClockedObject
      * @}
      */
 
+    /**
+     * Set the parent cache back pointer.
+     *
+     * @param _cache Pointer to parent cache.
+     */
+    void setCache(BaseCache *_cache);
+
   public:
     typedef BaseTagsParams Params;
     BaseTags(const Params *p);
@@ -165,10 +175,11 @@ class BaseTags : public ClockedObject
     virtual ~BaseTags() {}
 
     /**
-     * Set the parent cache back pointer.
+     * Initialize blocks and set the parent cache back pointer.
+     *
      * @param _cache Pointer to parent cache.
      */
-    void setCache(BaseCache *_cache);
+    virtual void init(BaseCache *_cache) = 0;
 
     /**
      * Register local statistics.
@@ -192,9 +203,13 @@ class BaseTags : public ClockedObject
     std::string print();
 
     /**
-     * Find a block using the memory address
+     * Finds the block in the cache without touching it.
+     *
+     * @param addr The address to look for.
+     * @param is_secure True if the target memory space is secure.
+     * @return Pointer to the cache block.
      */
-    virtual CacheBlk * findBlock(Addr addr, bool is_secure) const = 0;
+    virtual CacheBlk *findBlock(Addr addr, bool is_secure) const;
 
     /**
      * Find a block given set and way.
@@ -203,7 +218,7 @@ class BaseTags : public ClockedObject
      * @param way The way of the block.
      * @return The block.
      */
-    virtual ReplaceableEntry* findBlockBySetAndWay(int set, int way) const = 0;
+    virtual ReplaceableEntry* findBlockBySetAndWay(int set, int way) const;
 
     /**
      * Align an address to the block size.
@@ -280,15 +295,26 @@ class BaseTags : public ClockedObject
 
     virtual CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat) = 0;
 
-    virtual Addr extractTag(Addr addr) const = 0;
+    /**
+     * Generate the tag from the given address.
+     *
+     * @param addr The address to get the tag from.
+     * @return The tag of the address.
+     */
+    virtual Addr extractTag(const Addr addr) const;
 
     /**
      * Insert the new block into the cache and update stats.
      *
-     * @param pkt Packet holding the address to update
+     * @param addr Address of the block.
+     * @param is_secure Whether the block is in secure space or not.
+     * @param src_master_ID The source requestor ID.
+     * @param task_ID The new task ID.
      * @param blk The block to update.
      */
-    virtual void insertBlock(const PacketPtr pkt, CacheBlk *blk);
+    virtual void insertBlock(const Addr addr, const bool is_secure,
+                             const int src_master_ID, const uint32_t task_ID,
+                             CacheBlk *blk);
 
     /**
      * Regenerate the block address.

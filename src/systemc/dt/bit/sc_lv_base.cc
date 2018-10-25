@@ -50,7 +50,9 @@
 
 #include <sstream>
 
+#include "systemc/ext/dt/bit/messages.hh"
 #include "systemc/ext/dt/bit/sc_lv_base.hh"
+#include "systemc/ext/utils/messages.hh"
 
 namespace sc_dt
 {
@@ -67,7 +69,7 @@ sc_proxy_out_of_bounds(const char *msg, int64 val)
         ss << msg;
     if (val != 0)
         ss << val;
-    SC_REPORT_ERROR("out of bounds", ss.str().c_str());
+    SC_REPORT_ERROR(sc_core::SC_ID_OUT_OF_BOUNDS_, ss.str().c_str());
 }
 
 // ----------------------------------------------------------------------------
@@ -89,7 +91,7 @@ sc_lv_base::init(int length_, const sc_logic& init_value)
 {
     // check the length
     if (length_ <= 0) {
-        SC_REPORT_ERROR("zero length", 0);
+        SC_REPORT_ERROR(sc_core::SC_ID_ZERO_LENGTH_, 0);
         sc_core::sc_abort(); // can't recover from here
     }
     // allocate memory for the data and control words

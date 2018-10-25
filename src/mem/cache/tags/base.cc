@@ -52,7 +52,8 @@
 
 #include "base/types.hh"
 #include "mem/cache/base.hh"
-#include "mem/packet.hh"
+#include "mem/cache/replacement_policies/replaceable_entry.hh"
+#include "mem/cache/tags/indexing_policies/base.hh"
 #include "mem/request.hh"
 #include "sim/core.hh"
 #include "sim/sim_exit.hh"
@@ -65,7 +66,7 @@ BaseTags::BaseTags(const Params *p)
       accessLatency(p->sequential_access ?
                     p->tag_latency + p->data_latency :
                     std::max(p->tag_latency, p->data_latency)),
-      cache(nullptr),
+      cache(nullptr), indexingPolicy(p->indexing_policy),
       warmupBound((p->warmup_percentage/100.0) * (p->size / p->block_size)),
       warmedUp(false), numBlocks(p->size / p->block_size),
       dataBlks(new uint8_t[p->size]) // Allocate data storage in one big chunk
@@ -79,26 +80,52 @@ BaseTags::setCache(BaseCache *_cache)
     cache = _cache;
 }
 
+ReplaceableEntry*
+BaseTags::findBlockBySetAndWay(int set, int way) const
+{
+    return indexingPolicy->getEntry(set, way);
+}
+
+CacheBlk*
+BaseTags::findBlock(Addr addr, bool is_secure) const
+{
+    // Extract block tag
+    Addr tag = extractTag(addr);
+
+    // Find possible entries that may contain the given address
+    const std::vector<ReplaceableEntry*> entries =
+        indexingPolicy->getPossibleEntries(addr);
+
+    // Search for block
+    for (const auto& location : entries) {
+        CacheBlk* blk = static_cast<CacheBlk*>(location);
+        if ((blk->tag == tag) && blk->isValid() &&
+            (blk->isSecure() == is_secure)) {
+            return blk;
+        }
+    }
+
+    // Did not find block
+    return nullptr;
+}
+
 void
-BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
+BaseTags::insertBlock(const Addr addr, const bool is_secure,
+                      const int src_master_ID, const uint32_t task_ID,
+                      CacheBlk *blk)
 {
     assert(!blk->isValid());
 
-    // Get address
-    Addr addr = pkt->getAddr();
-
     // Previous block, if existed, has been removed, and now we have
     // to insert the new one
-
     // Deal with what we are bringing in
-    MasterID master_id = pkt->req->masterId();
-    assert(master_id < cache->system->maxMasters());
-    occupancies[master_id]++;
+    assert(src_master_ID < cache->system->maxMasters());
+    occupancies[src_master_ID]++;
 
     // Insert block with tag, src master id and task id
-    blk->insert(extractTag(addr), pkt->isSecure(), master_id,
-                pkt->req->taskId());
+    blk->insert(extractTag(addr), is_secure, src_master_ID, task_ID);
 
+    // Check if cache warm up is done
     if (!warmedUp && tagsInUse.value() >= warmupBound) {
         warmedUp = true;
         warmupCycle = curTick();
@@ -107,6 +134,12 @@ BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
     // We only need to write into one tag and one data block.
     tagAccesses += 1;
     dataAccesses += 1;
+}
+
+Addr
+BaseTags::extractTag(const Addr addr) const
+{
+    return indexingPolicy->extractTag(addr);
 }
 
 void
@@ -169,8 +202,7 @@ BaseTags::print()
 
     auto print_blk = [&str](CacheBlk &blk) {
         if (blk.isValid())
-            str += csprintf("\tset: %d way: %d %s\n", blk.set, blk.way,
-                            blk.print());
+            str += csprintf("\tBlock: %s\n", blk.print());
     };
     forEachBlk(print_blk);
 

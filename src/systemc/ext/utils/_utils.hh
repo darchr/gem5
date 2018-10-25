@@ -31,6 +31,7 @@
 #define __SYSTEMC_EXT_UTIL__UTIL_HH__
 
 #include "functions.hh"
+#include "messages.hh"
 #include "sc_exception.hh"
 #include "sc_report.hh"
 #include "sc_report_handler.hh"

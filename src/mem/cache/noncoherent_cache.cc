@@ -60,7 +60,7 @@
 #include "base/trace.hh"
 #include "base/types.hh"
 #include "debug/Cache.hh"
-#include "mem/cache/blk.hh"
+#include "mem/cache/cache_blk.hh"
 #include "mem/cache/mshr.hh"
 #include "params/NoncoherentCache.hh"
 
@@ -148,7 +148,8 @@ NoncoherentCache::recvTimingReq(PacketPtr pkt)
 
 PacketPtr
 NoncoherentCache::createMissPacket(PacketPtr cpu_pkt, CacheBlk *blk,
-                                   bool needs_writable) const
+                                   bool needs_writable,
+                                   bool is_whole_line_write) const
 {
     // We also fill for writebacks from the coherent caches above us,
     // and they do not need responses
@@ -170,10 +171,11 @@ NoncoherentCache::createMissPacket(PacketPtr cpu_pkt, CacheBlk *blk,
 
 
 Cycles
-NoncoherentCache::handleAtomicReqMiss(PacketPtr pkt, CacheBlk *blk,
+NoncoherentCache::handleAtomicReqMiss(PacketPtr pkt, CacheBlk *&blk,
                                       PacketList &writebacks)
 {
-    PacketPtr bus_pkt = createMissPacket(pkt, blk, true);
+    PacketPtr bus_pkt = createMissPacket(pkt, blk, true,
+                                         pkt->isWholeLineWrite(blkSize));
     DPRINTF(Cache, "Sending an atomic %s\n", bus_pkt->print());
 
     Cycles latency = ticksToCycles(memSidePort.sendAtomic(bus_pkt));
@@ -353,15 +355,6 @@ NoncoherentCache::evictBlock(CacheBlk *blk)
     invalidateBlock(blk);
 
     return pkt;
-}
-
-void
-NoncoherentCache::evictBlock(CacheBlk *blk, PacketList &writebacks)
-{
-    PacketPtr pkt = evictBlock(blk);
-    if (pkt) {
-        writebacks.push_back(pkt);
-    }
 }
 
 NoncoherentCache*

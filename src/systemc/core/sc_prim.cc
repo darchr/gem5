@@ -27,20 +27,44 @@
  * Authors: Gabe Black
  */
 
-#include "base/logging.hh"
 #include "systemc/core/channel.hh"
+#include "systemc/core/scheduler.hh"
+#include "systemc/ext/channel/messages.hh"
+#include "systemc/ext/core/sc_main.hh"
 #include "systemc/ext/core/sc_prim.hh"
+
+namespace sc_gem5
+{
+
+uint64_t getChangeStamp() { return scheduler.changeStamp(); }
+
+} // namespace sc_gem5
 
 namespace sc_core
 {
 
-sc_prim_channel::sc_prim_channel() :
-    _gem5_channel(new sc_gem5::Channel(this))
-{}
+sc_prim_channel::sc_prim_channel() : _gem5_channel(nullptr)
+{
+    if (sc_is_running()) {
+        SC_REPORT_ERROR(SC_ID_INSERT_PRIM_CHANNEL_, "simulation running");
+    }
+    if (::sc_gem5::scheduler.elaborationDone()) {
+        SC_REPORT_ERROR(SC_ID_INSERT_PRIM_CHANNEL_, "elaboration done");
+    }
+    _gem5_channel = new sc_gem5::Channel(this);
+}
 
 sc_prim_channel::sc_prim_channel(const char *_name) :
-    sc_object(_name), _gem5_channel(new sc_gem5::Channel(this))
-{}
+    sc_object(_name), _gem5_channel(nullptr)
+{
+    if (sc_is_running()) {
+        SC_REPORT_ERROR(SC_ID_INSERT_PRIM_CHANNEL_, "simulation running");
+    }
+    if (::sc_gem5::scheduler.elaborationDone()) {
+        SC_REPORT_ERROR(SC_ID_INSERT_PRIM_CHANNEL_, "elaboration done");
+    }
+    _gem5_channel = new sc_gem5::Channel(this);
+}
 
 sc_prim_channel::~sc_prim_channel() { delete _gem5_channel; }
 
@@ -133,8 +157,7 @@ sc_prim_channel::next_trigger(
 bool
 sc_prim_channel::timed_out()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return false;
+    return ::sc_core::timed_out();
 }
 
 void

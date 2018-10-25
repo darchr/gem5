@@ -32,6 +32,13 @@
 #include "base/fiber.hh"
 #include "base/logging.hh"
 #include "sim/eventq.hh"
+#include "systemc/core/kernel.hh"
+#include "systemc/ext/core/messages.hh"
+#include "systemc/ext/core/sc_main.hh"
+#include "systemc/ext/utils/sc_report.hh"
+#include "systemc/ext/utils/sc_report_handler.hh"
+#include "systemc/utils/report.hh"
+#include "systemc/utils/tracefile.hh"
 
 namespace sc_gem5
 {
@@ -40,38 +47,107 @@ Scheduler::Scheduler() :
     eq(nullptr), readyEvent(this, false, ReadyPriority),
     pauseEvent(this, false, PausePriority),
     stopEvent(this, false, StopPriority),
-    scMain(nullptr), _started(false), _paused(false), _stopped(false),
-    maxTickEvent(this, false, MaxTickPriority),
-    _numCycles(0), _current(nullptr), initReady(false)
+    scMain(nullptr), _throwToScMain(nullptr),
+    starvationEvent(this, false, StarvationPriority),
+    _elaborationDone(false), _started(false), _stopNow(false),
+    _status(StatusOther), maxTickEvent(this, false, MaxTickPriority),
+    timeAdvancesEvent(this, false, TimeAdvancesPriority), _numCycles(0),
+    _changeStamp(0), _current(nullptr), initDone(false), runOnce(false)
 {}
 
-void
-Scheduler::prepareForInit()
+Scheduler::~Scheduler()
 {
-    for (Process *p = toFinalize.getNext(); p; p = toFinalize.getNext()) {
-        p->finalize();
+    // Clear out everything that belongs to us to make sure nobody tries to
+    // clear themselves out after the scheduler goes away.
+    clear();
+}
+
+void
+Scheduler::clear()
+{
+    // Delta notifications.
+    while (!deltas.empty())
+        deltas.front()->deschedule();
+
+    // Timed notifications.
+    for (auto &tsp: timeSlots) {
+        TimeSlot *&ts = tsp.second;
+        while (!ts->events.empty())
+            ts->events.front()->deschedule();
+        deschedule(ts);
+    }
+    timeSlots.clear();
+
+    // gem5 events.
+    if (readyEvent.scheduled())
+        deschedule(&readyEvent);
+    if (pauseEvent.scheduled())
+        deschedule(&pauseEvent);
+    if (stopEvent.scheduled())
+        deschedule(&stopEvent);
+    if (starvationEvent.scheduled())
+        deschedule(&starvationEvent);
+    if (maxTickEvent.scheduled())
+        deschedule(&maxTickEvent);
+    if (timeAdvancesEvent.scheduled())
+        deschedule(&timeAdvancesEvent);
+
+    Process *p;
+    while ((p = initList.getNext()))
         p->popListNode();
-    }
+    while ((p = readyListMethods.getNext()))
+        p->popListNode();
+    while ((p = readyListThreads.getNext()))
+        p->popListNode();
 
+    Channel *c;
+    while ((c = updateList.getNext()))
+        c->popListNode();
+}
+
+void
+Scheduler::initPhase()
+{
     for (Process *p = initList.getNext(); p; p = initList.getNext()) {
-        p->finalize();
-        p->ready();
+        p->popListNode();
+
+        if (p->dontInitialize()) {
+            if (!p->hasStaticSensitivities() && !p->internal()) {
+                SC_REPORT_WARNING(sc_core::SC_ID_DISABLE_WILL_ORPHAN_PROCESS_,
+                        p->name());
+            }
+        } else {
+            p->ready();
+        }
     }
 
-    if (_started)
-        eq->schedule(&maxTickEvent, maxTick);
+    runUpdate();
+    runDelta();
 
-    initReady = true;
+    for (auto ets: eventsToSchedule)
+        eq->schedule(ets.first, ets.second);
+    eventsToSchedule.clear();
+
+    if (_started) {
+        if (!runToTime && starved())
+            scheduleStarvationEvent();
+        kernel->status(::sc_core::SC_RUNNING);
+    }
+
+    initDone = true;
+
+    status(StatusOther);
+
+    scheduleTimeAdvancesEvent();
 }
 
 void
 Scheduler::reg(Process *p)
 {
-    if (initReady) {
-        // If we're past initialization, finalize static sensitivity.
-        p->finalize();
-        // Mark the process as ready.
-        p->ready();
+    if (initDone) {
+        // If not marked as dontInitialize, mark as ready.
+        if (!p->dontInitialize())
+            p->ready();
     } else {
         // Otherwise, record that this process should be initialized once we
         // get there.
@@ -80,54 +156,101 @@ Scheduler::reg(Process *p)
 }
 
 void
-Scheduler::dontInitialize(Process *p)
-{
-    if (initReady) {
-        // Pop this process off of the ready list.
-        p->popListNode();
-    } else {
-        // Push this process onto the list of processes which still need
-        // their static sensitivity to be finalized. That implicitly pops it
-        // off the list of processes to be initialized/marked ready.
-        toFinalize.pushLast(p);
-    }
-}
-
-void
 Scheduler::yield()
 {
-    _current = readyList.getNext();
+    // Pull a process from the active list.
+    _current = getNextReady();
     if (!_current) {
         // There are no more processes, so return control to evaluate.
         Fiber::primaryFiber()->run();
     } else {
         _current->popListNode();
+        _current->scheduled(false);
         // Switch to whatever Fiber is supposed to run this process. All
         // Fibers which aren't running should be parked at this line.
         _current->fiber()->run();
         // If the current process needs to be manually started, start it.
-        if (_current && _current->needsStart())
-            _current->run();
+        if (_current && _current->needsStart()) {
+            _current->needsStart(false);
+            // If a process hasn't started yet, "resetting" it just starts it
+            // and signals its reset event.
+            if (_current->inReset())
+                _current->resetEvent().notify();
+            try {
+                _current->run();
+            } catch (...) {
+                throwToScMain();
+            }
+        }
+    }
+    if (_current && !_current->needsStart()) {
+        if (_current->excWrapper) {
+            auto ew = _current->excWrapper;
+            _current->excWrapper = nullptr;
+            ew->throw_it();
+        } else if (_current->inReset()) {
+            _current->reset(false);
+        }
     }
 }
 
 void
 Scheduler::ready(Process *p)
 {
-    // Clump methods together to minimize context switching.
-    if (p->procKind() == ::sc_core::SC_METHOD_PROC_)
-        readyList.pushFirst(p);
-    else
-        readyList.pushLast(p);
+    if (_stopNow)
+        return;
 
-    scheduleReadyEvent();
+    p->scheduled(true);
+
+    if (p->procKind() == ::sc_core::SC_METHOD_PROC_)
+        readyListMethods.pushLast(p);
+    else
+        readyListThreads.pushLast(p);
+
+    if (!inEvaluate())
+        scheduleReadyEvent();
+}
+
+void
+Scheduler::resume(Process *p)
+{
+    if (initDone)
+        ready(p);
+    else
+        initList.pushLast(p);
+}
+
+bool
+listContains(ListNode *list, ListNode *target)
+{
+    ListNode *n = list->nextListNode;
+    while (n != list)
+        if (n == target)
+            return true;
+    return false;
+}
+
+bool
+Scheduler::suspend(Process *p)
+{
+    bool was_ready;
+    if (initDone) {
+        // After initialization, check if we're on a ready list.
+        was_ready = (p->nextListNode != nullptr);
+        p->popListNode();
+    } else {
+        // Nothing is ready before init.
+        was_ready = false;
+    }
+    return was_ready;
 }
 
 void
 Scheduler::requestUpdate(Channel *c)
 {
     updateList.pushLast(c);
-    scheduleReadyEvent();
+    if (!inEvaluate())
+        scheduleReadyEvent();
 }
 
 void
@@ -135,53 +258,112 @@ Scheduler::scheduleReadyEvent()
 {
     // Schedule the evaluate and update phases.
     if (!readyEvent.scheduled()) {
-        panic_if(!eq, "Need to schedule ready, but no event manager.\n");
-        eq->schedule(&readyEvent, eq->getCurTick());
+        schedule(&readyEvent);
+        if (starvationEvent.scheduled())
+            deschedule(&starvationEvent);
+    }
+}
+
+void
+Scheduler::scheduleStarvationEvent()
+{
+    if (!starvationEvent.scheduled()) {
+        schedule(&starvationEvent);
+        if (readyEvent.scheduled())
+            deschedule(&readyEvent);
     }
 }
 
 void
 Scheduler::runReady()
 {
-    bool empty = readyList.empty();
+    scheduleTimeAdvancesEvent();
+
+    bool empty = readyListMethods.empty() && readyListThreads.empty();
+    lastReadyTick = getCurTick();
 
     // The evaluation phase.
+    status(StatusEvaluate);
     do {
         yield();
-    } while (!readyList.empty());
+    } while (getNextReady());
+    _current = nullptr;
 
-    if (!empty)
+    if (!empty) {
         _numCycles++;
+        _changeStamp++;
+    }
 
-    // The update phase.
-    update();
+    if (_stopNow) {
+        status(StatusOther);
+        return;
+    }
 
-    // The delta phase will happen naturally through the event queue.
+    runUpdate();
+    if (!traceFiles.empty())
+        trace(true);
+    runDelta();
+
+    if (!runToTime && starved())
+        scheduleStarvationEvent();
+
+    if (runOnce)
+        schedulePause();
+
+    status(StatusOther);
 }
 
 void
-Scheduler::update()
+Scheduler::runUpdate()
 {
-    Channel *channel = updateList.getNext();
-    while (channel) {
-        channel->popListNode();
-        channel->update();
-        channel = updateList.getNext();
+    status(StatusUpdate);
+
+    try {
+        Channel *channel = updateList.getNext();
+        while (channel) {
+            channel->popListNode();
+            channel->update();
+            channel = updateList.getNext();
+        }
+    } catch (...) {
+        throwToScMain();
+    }
+}
+
+void
+Scheduler::runDelta()
+{
+    status(StatusDelta);
+
+    try {
+        while (!deltas.empty())
+            deltas.back()->run();
+    } catch (...) {
+        throwToScMain();
     }
 }
 
 void
 Scheduler::pause()
 {
-    _paused = true;
-    scMain->run();
+    status(StatusPaused);
+    kernel->status(::sc_core::SC_PAUSED);
+    runOnce = false;
+    if (scMain && !scMain->finished())
+        scMain->run();
 }
 
 void
 Scheduler::stop()
 {
-    _stopped = true;
-    scMain->run();
+    status(StatusStopped);
+    kernel->stop();
+
+    clear();
+
+    runOnce = false;
+    if (scMain && !scMain->finished())
+        scMain->run();
 }
 
 void
@@ -192,23 +374,46 @@ Scheduler::start(Tick max_tick, bool run_to_time)
     scMain = Fiber::currentFiber();
 
     _started = true;
-    _paused = false;
-    _stopped = false;
+    status(StatusOther);
+    runToTime = run_to_time;
 
     maxTick = max_tick;
+    lastReadyTick = getCurTick();
 
-    if (initReady)
-        eq->schedule(&maxTickEvent, maxTick);
+    if (initDone) {
+        if (!runToTime && starved())
+            scheduleStarvationEvent();
+        kernel->status(::sc_core::SC_RUNNING);
+    }
+
+    schedule(&maxTickEvent, maxTick);
+    scheduleTimeAdvancesEvent();
 
     // Return to gem5 to let it run events, etc.
     Fiber::primaryFiber()->run();
 
     if (pauseEvent.scheduled())
-        eq->deschedule(&pauseEvent);
+        deschedule(&pauseEvent);
     if (stopEvent.scheduled())
-        eq->deschedule(&stopEvent);
+        deschedule(&stopEvent);
     if (maxTickEvent.scheduled())
-        eq->deschedule(&maxTickEvent);
+        deschedule(&maxTickEvent);
+    if (starvationEvent.scheduled())
+        deschedule(&starvationEvent);
+
+    if (_throwToScMain) {
+        const ::sc_core::sc_report *to_throw = _throwToScMain;
+        _throwToScMain = nullptr;
+        throw *to_throw;
+    }
+}
+
+void
+Scheduler::oneCycle()
+{
+    runOnce = true;
+    scheduleReadyEvent();
+    start(::MaxTick, false);
 }
 
 void
@@ -217,7 +422,16 @@ Scheduler::schedulePause()
     if (pauseEvent.scheduled())
         return;
 
-    eq->schedule(&pauseEvent, eq->getCurTick());
+    schedule(&pauseEvent);
+}
+
+void
+Scheduler::throwToScMain()
+{
+    ::sc_core::sc_report report = reportifyException();
+    _throwToScMain = &report;
+    status(StatusOther);
+    scMain->run();
 }
 
 void
@@ -227,18 +441,67 @@ Scheduler::scheduleStop(bool finish_delta)
         return;
 
     if (!finish_delta) {
-        // If we're not supposed to finish the delta cycle, flush the list
-        // of ready processes and scheduled updates.
-        Process *p;
-        while ((p = readyList.getNext()))
-            p->popListNode();
-        Channel *c;
-        while ((c = updateList.getNext()))
-            c->popListNode();
+        _stopNow = true;
+        // If we're not supposed to finish the delta cycle, flush all
+        // pending activity.
+        clear();
     }
-    eq->schedule(&stopEvent, eq->getCurTick());
+    schedule(&stopEvent);
+}
+
+void
+Scheduler::trace(bool delta)
+{
+    for (auto tf: traceFiles)
+        tf->trace(delta);
 }
 
 Scheduler scheduler;
+Process *getCurrentProcess() { return scheduler.current(); }
+
+namespace {
+
+void
+throwingReportHandler(const ::sc_core::sc_report &r,
+                      const ::sc_core::sc_actions &)
+{
+    throw r;
+}
+
+} // anonymous namespace
+
+const ::sc_core::sc_report
+reportifyException()
+{
+    ::sc_core::sc_report_handler_proc old_handler = reportHandlerProc;
+    ::sc_core::sc_report_handler::set_handler(&throwingReportHandler);
+
+    try {
+        try {
+            // Rethrow the current exception so we can catch it and throw an
+            // sc_report instead if it's not a type we recognize/can handle.
+            throw;
+        } catch (const ::sc_core::sc_report &) {
+            // It's already a sc_report, so nothing to do.
+            throw;
+        } catch (const ::sc_core::sc_unwind_exception &) {
+            panic("Kill/reset exception escaped a Process::run()");
+        } catch (const std::exception &e) {
+            SC_REPORT_ERROR(
+                    sc_core::SC_ID_SIMULATION_UNCAUGHT_EXCEPTION_, e.what());
+        } catch (const char *msg) {
+            SC_REPORT_ERROR(
+                    sc_core::SC_ID_SIMULATION_UNCAUGHT_EXCEPTION_, msg);
+        } catch (...) {
+            SC_REPORT_ERROR(
+                    sc_core::SC_ID_SIMULATION_UNCAUGHT_EXCEPTION_,
+                    "UNKNOWN EXCEPTION");
+        }
+    } catch (const ::sc_core::sc_report &r) {
+        ::sc_core::sc_report_handler::set_handler(old_handler);
+        return r;
+    }
+    panic("No exception thrown in reportifyException.");
+}
 
 } // namespace sc_gem5

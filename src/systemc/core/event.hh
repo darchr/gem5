@@ -30,13 +30,16 @@
 #ifndef __SYSTEMC_CORE_EVENT_HH__
 #define __SYSTEMC_CORE_EVENT_HH__
 
-#include <set>
+#include <list>
 #include <string>
 #include <vector>
 
 #include "sim/eventq.hh"
 #include "systemc/core/list.hh"
 #include "systemc/core/object.hh"
+#include "systemc/core/process.hh"
+#include "systemc/core/sched_event.hh"
+#include "systemc/core/sensitivity.hh"
 #include "systemc/ext/core/sc_prim.hh"
 #include "systemc/ext/core/sc_time.hh"
 
@@ -57,8 +60,9 @@ class Sensitivity;
 class Event
 {
   public:
-    Event(sc_core::sc_event *_sc_event);
-    Event(sc_core::sc_event *_sc_event, const char *_basename);
+    Event(sc_core::sc_event *_sc_event, bool internal=false);
+    Event(sc_core::sc_event *_sc_event, const char *_basename,
+            bool internal=false);
 
     ~Event();
 
@@ -69,6 +73,9 @@ class Event
     bool inHierarchy() const;
     sc_core::sc_object *getParentObject() const;
 
+    void notify(StaticSensitivities &senses);
+    void notify(DynamicSensitivities &senses);
+
     void notify();
     void notify(const sc_core::sc_time &t);
     void
@@ -76,9 +83,11 @@ class Event
     {
         notify(sc_core::sc_time(d, u));
     }
+    void notifyDelayed(const sc_core::sc_time &t);
     void cancel();
 
     bool triggered() const;
+    uint64_t triggeredStamp() const { return _triggeredStamp; }
 
     static Event *
     getFromScEvent(sc_core::sc_event *e)
@@ -92,8 +101,46 @@ class Event
         return e->_gem5_event;
     }
 
-    void addSensitivity(Sensitivity *s) const { sensitivities.insert(s); }
-    void delSensitivity(Sensitivity *s) const { sensitivities.erase(s); }
+    void
+    addSensitivity(StaticSensitivity *s) const
+    {
+        // Insert static sensitivities in reverse order to match Accellera's
+        // implementation.
+        auto &senses = s->ofMethod() ? staticSenseMethod : staticSenseThread;
+        senses.insert(senses.begin(), s);
+    }
+    void
+    delSensitivity(StaticSensitivity *s) const
+    {
+        auto &senses = s->ofMethod() ? staticSenseMethod : staticSenseThread;
+        for (auto &t: senses) {
+            if (t == s) {
+                t = senses.back();
+                senses.pop_back();
+                break;
+            }
+        }
+    }
+    void
+    addSensitivity(DynamicSensitivity *s) const
+    {
+        auto &senses = s->ofMethod() ? dynamicSenseMethod : dynamicSenseThread;
+        senses.push_back(s);
+    }
+    void
+    delSensitivity(DynamicSensitivity *s) const
+    {
+        auto &senses = s->ofMethod() ? dynamicSenseMethod : dynamicSenseThread;
+        for (auto &t: senses) {
+            if (t == s) {
+                t = senses.back();
+                senses.pop_back();
+                break;
+            }
+        }
+    }
+
+    void clearParent();
 
   private:
     sc_core::sc_event *_sc_event;
@@ -103,12 +150,14 @@ class Event
     bool _inHierarchy;
 
     sc_core::sc_object *parent;
-    EventsIt parentIt;
 
-    void delayedNotify();
-    EventWrapper<Event, &Event::delayedNotify> delayedNotifyEvent;
+    ScEvent delayedNotify;
+    mutable uint64_t _triggeredStamp;
 
-    mutable std::set<Sensitivity *> sensitivities;
+    mutable StaticSensitivities staticSenseMethod;
+    mutable StaticSensitivities staticSenseThread;
+    mutable DynamicSensitivities dynamicSenseMethod;
+    mutable DynamicSensitivities dynamicSenseThread;
 };
 
 extern Events topLevelEvents;

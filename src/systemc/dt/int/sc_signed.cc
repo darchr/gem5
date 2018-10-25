@@ -82,6 +82,7 @@
 #include "systemc/ext/dt/bit/sc_lv_base.hh"
 #include "systemc/ext/dt/fx/sc_fix.hh"
 #include "systemc/ext/dt/fx/scfx_other_defs.hh"
+#include "systemc/ext/dt/int/messages.hh"
 #include "systemc/ext/dt/int/sc_int_base.hh"
 #include "systemc/ext/dt/int/sc_signed.hh"
 #include "systemc/ext/dt/int/sc_uint_base.hh"
@@ -110,7 +111,7 @@ sc_signed::invalid_init(const char *type_name, int nb) const
 {
     std::stringstream msg;
     msg << "sc_signed("<< type_name << ") : nb = " << nb << " is not valid";
-    SC_REPORT_ERROR("initialization failed", msg.str().c_str());
+    SC_REPORT_ERROR(sc_core::SC_ID_INIT_FAILED_, msg.str().c_str());
 }
 
 // ----------------------------------------------------------------------------
@@ -123,7 +124,7 @@ sc_signed::invalid_index(int i) const
     std::stringstream msg;
     msg << "sc_bigint bit selection: index = " << i << " violates "
            "0 <= index <= " << (nbits - 1);
-    SC_REPORT_ERROR("out of bounds", msg.str().c_str());
+    SC_REPORT_ERROR(sc_core::SC_ID_OUT_OF_BOUNDS_, msg.str().c_str());
     sc_core::sc_abort(); // can't recover from here
 }
 
@@ -132,10 +133,10 @@ sc_signed::invalid_range(int l, int r) const
 {
     std::stringstream msg;
     msg << "sc_bigint part selection: left = " <<
-           l << ", right = " << r << "\n"
+           l << ", right = " << r << " \n"
            "  violates either (" << (nbits-1) << " >= left >= 0) or "
            "(" << (nbits-1) << " >= right >= 0)";
-    SC_REPORT_ERROR("out of bounds", msg.str().c_str());
+    SC_REPORT_ERROR(sc_core::SC_ID_OUT_OF_BOUNDS_, msg.str().c_str());
     sc_core::sc_abort(); // can't recover from here
 }
 
@@ -440,10 +441,10 @@ const sc_signed &
 sc_signed::operator = (const char *a)
 {
     if (a == 0) {
-        SC_REPORT_ERROR("conversion failed",
+        SC_REPORT_ERROR(sc_core::SC_ID_CONVERSION_FAILED_,
                         "character string is zero");
     } else if (*a == 0) {
-        SC_REPORT_ERROR("conversion failed",
+        SC_REPORT_ERROR(sc_core::SC_ID_CONVERSION_FAILED_,
                         "character string is empty");
     } else try {
         int len = length();
@@ -452,7 +453,7 @@ sc_signed::operator = (const char *a)
     } catch(const sc_core::sc_report &) {
         std::stringstream msg;
         msg << "character string '" << a << "' is not valid";
-        SC_REPORT_ERROR("conversion failed", msg.str().c_str());
+        SC_REPORT_ERROR(sc_core::SC_ID_CONVERSION_FAILED_, msg.str().c_str());
     }
     return *this;
 }

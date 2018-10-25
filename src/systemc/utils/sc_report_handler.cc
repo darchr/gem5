@@ -27,225 +27,389 @@
  * Authors: Gabe Black
  */
 
-#include "base/logging.hh"
+#include <fstream>
+#include <map>
+#include <sstream>
+#include <string>
+
+#include "base/cprintf.hh"
+#include "systemc/core/process.hh"
+#include "systemc/core/scheduler.hh"
+#include "systemc/ext/core/sc_main.hh"
+#include "systemc/ext/utils/messages.hh"
 #include "systemc/ext/utils/sc_report_handler.hh"
+#include "systemc/utils/report.hh"
 
 namespace sc_core
 {
 
+namespace
+{
+
+std::unique_ptr<std::string> logFileName;
+std::unique_ptr<std::ofstream> logFile;
+
+} // anonymous namespace
+
 void
-sc_report_handler::report(sc_severity, const char *msg_type, const char *msg,
+sc_report_handler::report(sc_severity severity, const char *msg_type,
+                          const char *msg, const char *file, int line)
+{
+    report(severity, msg_type, msg, SC_MEDIUM, file, line);
+}
+
+void
+sc_report_handler::report(sc_severity severity, const char *msg_type,
+                          const char *msg, int verbosity, const char *file,
+                          int line)
+{
+    if (!msg_type)
+        msg_type = SC_ID_UNKNOWN_ERROR_;
+
+    if (severity == SC_INFO && verbosity > sc_gem5::reportVerbosityLevel)
+        return;
+
+    sc_gem5::ReportSevInfo &sevInfo = sc_gem5::reportSevInfos[severity];
+    sc_gem5::ReportMsgInfo &msgInfo = sc_gem5::reportMsgInfoMap[msg_type];
+
+    sevInfo.count++;
+    msgInfo.count++;
+    msgInfo.sevCounts[severity]++;
+
+    sc_actions actions = SC_UNSPECIFIED;
+    if (msgInfo.sevActions[severity] != SC_UNSPECIFIED)
+        actions = msgInfo.sevActions[severity];
+    else if (msgInfo.actions != SC_UNSPECIFIED)
+        actions = msgInfo.actions;
+    else if (sevInfo.actions != SC_UNSPECIFIED)
+        actions = sevInfo.actions;
+
+    actions &= ~sc_gem5::reportSuppressedActions;
+    actions |= sc_gem5::reportForcedActions;
+
+    msgInfo.checkLimits(severity, actions);
+    sevInfo.checkLimit(actions);
+
+    ::sc_gem5::Process *current = ::sc_gem5::scheduler.current();
+    sc_report report(severity, msg_type, msg, verbosity, file, line,
+            sc_time::from_value(::sc_gem5::scheduler.getCurTick()),
+            current ? current->name() : nullptr, msgInfo.id);
+
+    if (actions & SC_CACHE_REPORT) {
+        if (current) {
+            current->lastReport(&report);
+        } else {
+            sc_gem5::globalReportCache =
+                std::unique_ptr<sc_report>(new sc_report(report));
+        }
+    }
+
+    sc_gem5::reportHandlerProc(report, actions);
+}
+
+void
+sc_report_handler::report(sc_severity severity, int id, const char *msg,
                           const char *file, int line)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-}
+    std::string &msg_type = sc_gem5::reportIdToMsgMap[id];
 
-void
-sc_report_handler::report(sc_severity, const char *msg_type, const char *msg,
-                          int verbosity, const char *file, int line)
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-}
+    if (sc_gem5::reportWarningsAsErrors && severity == SC_WARNING)
+        severity = SC_ERROR;
 
-void
-sc_report_handler::report(sc_severity, int id, const char *msg,
-                          const char *file, int line)
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    report(severity, msg_type.c_str(), msg, file, line);
 }
 
 sc_actions
-sc_report_handler::set_actions(sc_severity, sc_actions)
+sc_report_handler::set_actions(sc_severity severity, sc_actions actions)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return SC_UNSPECIFIED;
+    sc_gem5::ReportSevInfo &info = sc_gem5::reportSevInfos[severity];
+    sc_actions previous = info.actions;
+    info.actions = actions;
+    return previous;
 }
 
 sc_actions
-sc_report_handler::set_actions(const char *msg_type, sc_actions)
+sc_report_handler::set_actions(const char *msg_type, sc_actions actions)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return SC_UNSPECIFIED;
+    if (!msg_type)
+        msg_type = SC_ID_UNKNOWN_ERROR_;
+
+    sc_gem5::ReportMsgInfo &info = sc_gem5::reportMsgInfoMap[msg_type];
+    sc_actions previous = info.actions;
+    info.actions = actions;
+    return previous;
 }
 
 sc_actions
-sc_report_handler::set_actions(const char *msg_type, sc_severity, sc_actions)
+sc_report_handler::set_actions(
+        const char *msg_type, sc_severity severity, sc_actions actions)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return SC_UNSPECIFIED;
+    if (!msg_type)
+        msg_type = SC_ID_UNKNOWN_ERROR_;
+
+    sc_gem5::ReportMsgInfo &info = sc_gem5::reportMsgInfoMap[msg_type];
+    sc_actions previous = info.sevActions[severity];
+    info.sevActions[severity] = actions;
+    return previous;
 }
 
 int
-sc_report_handler::stop_after(sc_severity, int limit)
+sc_report_handler::stop_after(sc_severity severity, int limit)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return 0;
+    sc_gem5::ReportSevInfo &info = sc_gem5::reportSevInfos[severity];
+    int previous = info.limit;
+    info.limit = limit;
+    return previous;
 }
 
 int
 sc_report_handler::stop_after(const char *msg_type, int limit)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return 0;
+    if (!msg_type)
+        msg_type = SC_ID_UNKNOWN_ERROR_;
+
+    sc_gem5::ReportMsgInfo &info = sc_gem5::reportMsgInfoMap[msg_type];
+    int previous = info.limit;
+    info.limit = limit;
+    return previous;
 }
 
 int
-sc_report_handler::stop_after(const char *msg_type, sc_severity, sc_actions)
+sc_report_handler::stop_after(
+        const char *msg_type, sc_severity severity, int limit)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return 0;
+    if (!msg_type)
+        msg_type = SC_ID_UNKNOWN_ERROR_;
+
+    sc_gem5::ReportMsgInfo &info = sc_gem5::reportMsgInfoMap[msg_type];
+    int previous = info.sevLimits[severity];
+    info.sevLimits[severity] = limit;
+    return previous;
 }
 
 int
-sc_report_handler::get_count(sc_severity)
+sc_report_handler::get_count(sc_severity severity)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return 0;
+    return sc_gem5::reportSevInfos[severity].count;
 }
 
 int
 sc_report_handler::get_count(const char *msg_type)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return 0;
+    if (!msg_type)
+        msg_type = SC_ID_UNKNOWN_ERROR_;
+
+    return sc_gem5::reportMsgInfoMap[msg_type].count;
 }
 
 int
-sc_report_handler::get_count(const char *msg_type, sc_severity)
+sc_report_handler::get_count(const char *msg_type, sc_severity severity)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return 0;
+    if (!msg_type)
+        msg_type = SC_ID_UNKNOWN_ERROR_;
+
+    return sc_gem5::reportMsgInfoMap[msg_type].sevCounts[severity];
 }
 
 int
-sc_report_handler::set_verbosity_level(int)
+sc_report_handler::set_verbosity_level(int vl)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return 0;
+    int previous = sc_gem5::reportVerbosityLevel;
+    sc_gem5::reportVerbosityLevel = vl;
+    return previous;
 }
 
 int
 sc_report_handler::get_verbosity_level()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return 0;
+    return sc_gem5::reportVerbosityLevel;
 }
 
 
 sc_actions
-sc_report_handler::suppress(sc_actions)
+sc_report_handler::suppress(sc_actions actions)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return SC_UNSPECIFIED;
+    sc_actions previous = sc_gem5::reportSuppressedActions;
+    sc_gem5::reportSuppressedActions = actions;
+    return previous;
 }
 
 sc_actions
 sc_report_handler::suppress()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return SC_UNSPECIFIED;
+    return suppress(SC_UNSPECIFIED);
 }
 
 sc_actions
-sc_report_handler::force(sc_actions)
+sc_report_handler::force(sc_actions actions)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return SC_UNSPECIFIED;
+    sc_actions previous = sc_gem5::reportForcedActions;
+    sc_gem5::reportForcedActions = actions;
+    return previous;
 }
 
 sc_actions
 sc_report_handler::force()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return SC_UNSPECIFIED;
+    return force(SC_UNSPECIFIED);
 }
 
 
 sc_actions
-sc_report_handler::set_catch_actions(sc_actions)
+sc_report_handler::set_catch_actions(sc_actions actions)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return SC_UNSPECIFIED;
+    sc_actions previous = sc_gem5::reportCatchActions;
+    sc_gem5::reportCatchActions = actions;
+    return previous;
 }
 
 sc_actions
 sc_report_handler::get_catch_actions()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return SC_UNSPECIFIED;
+    return sc_gem5::reportCatchActions;
 }
 
 
 void
-sc_report_handler::set_handler(sc_report_handler_proc)
+sc_report_handler::set_handler(sc_report_handler_proc proc)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::reportHandlerProc = proc;
 }
 
 void
-sc_report_handler::default_handler(const sc_report &, const sc_actions &)
+sc_report_handler::default_handler(
+        const sc_report &report, const sc_actions &actions)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    if (actions & SC_DISPLAY)
+        cprintf("\n%s\n", sc_report_compose_message(report));
+
+    if ((actions & SC_LOG) && logFile) {
+        ccprintf(*logFile, "%s: %s\n", report.get_time().to_string(),
+                 sc_report_compose_message(report));
+    }
+    if (actions & SC_STOP) {
+        sc_stop_here(report.get_msg_type(), report.get_severity());
+        sc_stop();
+    }
+    if (actions & SC_INTERRUPT)
+        sc_interrupt_here(report.get_msg_type(), report.get_severity());
+    if (actions & SC_ABORT)
+        sc_abort();
+    if (actions & SC_THROW) {
+        ::sc_gem5::Process *current = ::sc_gem5::scheduler.current();
+        if (current)
+            current->isUnwinding(false);
+        throw report;
+    }
 }
 
 sc_actions
 sc_report_handler::get_new_action_id()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return SC_UNSPECIFIED;
+    static sc_actions maxAction = SC_ABORT;
+    maxAction = maxAction << 1;
+    return maxAction;
 }
 
 sc_report *
 sc_report_handler::get_cached_report()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return nullptr;
+    ::sc_gem5::Process *current = ::sc_gem5::scheduler.current();
+    if (current)
+        return current->lastReport();
+    return ::sc_gem5::globalReportCache.get();
 }
 
 void
 sc_report_handler::clear_cached_report()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    ::sc_gem5::Process *current = ::sc_gem5::scheduler.current();
+    if (current) {
+        current->lastReport(nullptr);
+    } else {
+        ::sc_gem5::globalReportCache = nullptr;
+    }
 }
 
 bool
-sc_report_handler::set_log_file_name(const char *)
+sc_report_handler::set_log_file_name(const char *new_name)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return false;
+    if (!new_name) {
+        logFile = nullptr;
+        logFileName = nullptr;
+        return false;
+    } else {
+        if (logFileName)
+            return false;
+        logFileName = std::unique_ptr<std::string>(new std::string(new_name));
+        logFile = std::unique_ptr<std::ofstream>(new std::ofstream(new_name));
+        return true;
+    }
 }
 
 const char *
 sc_report_handler::get_log_file_name()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return nullptr;
+    if (!logFileName)
+        return nullptr;
+    else
+        return logFileName->c_str();
 }
 
 void
 sc_interrupt_here(const char *msg_type, sc_severity)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    // Purposefully empty, for setting breakpoints supposedly.
 }
 
 void
 sc_stop_here(const char *msg_type, sc_severity)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    // Purposefully empty, for setting breakpoints supposedly.
 }
 
 const std::string
-sc_report_compose_message(const sc_report &)
+sc_report_compose_message(const sc_report &report)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return "";
+    std::ostringstream str;
+
+    const char *sevName = sc_gem5::reportSeverityNames[report.get_severity()];
+    int id = report.get_id();
+
+    str << sevName << ": ";
+    if (id >= 0) {
+        ccprintf(str, "(%c%d) ", sevName[0], id);
+    }
+    str << report.get_msg_type();
+
+    const char *msg = report.get_msg();
+    if (msg && msg[0])
+        str << ": " << msg;
+
+    if (report.get_severity() > SC_INFO) {
+        ccprintf(str, "\nIn file: %s:%d", report.get_file_name(),
+                 report.get_line_number());
+
+        ::sc_gem5::Process *current = ::sc_gem5::scheduler.current();
+        const char *name = report.get_process_name();
+        if (current && sc_is_running() && name) {
+            ccprintf(str, "\nIn process: %s @ %s", name,
+                    report.get_time().to_string());
+        }
+    }
+
+    return str.str();
 }
 
 bool
 sc_report_close_default_log()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return false;
+    if (logFile) {
+        logFile = nullptr;
+        logFileName = nullptr;
+        return false;
+    }
+    return true;
 }
 
 } // namespace sc_core

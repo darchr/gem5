@@ -47,8 +47,16 @@
 #ifndef __SYSTEMC_EXT_DT_FX_SC_FXDEFS_HH__
 #define __SYSTEMC_EXT_DT_FX_SC_FXDEFS_HH__
 
+#include "../../utils/messages.hh"
 #include "../../utils/sc_report_handler.hh"
 #include "../int/sc_nbutils.hh"
+#include "messages.hh"
+
+#if ULONG_MAX > 0xffffffffUL
+#   define SC_LONG_64 1
+#else
+#   define SC_LONG_64 0
+#endif
 
 namespace sc_dt
 {
@@ -235,28 +243,27 @@ const int SC_DEFAULT_MAX_WL_ = SC_BUILTIN_MAX_WL_;
 
 #ifdef DEBUG_SYSTEMC
 #   define SC_ASSERT_(cnd, msg) \
-    SC_ERROR_IF_IMPL_(!(cnd), "internal error", msg)
+    SC_ERROR_IF_IMPL_(!(cnd), sc_core::SC_ID_INTERNAL_ERROR_, msg)
 #else
 #   define SC_ASSERT_(cnd, msg) (void(0))
 #endif
 
 #define SC_ERROR_IF_(cnd,id) SC_ERROR_IF_IMPL_(cnd, id, 0)
 
-#define SC_CHECK_WL_(wl) SC_ERROR_IF_((wl) <= 0, \
-        "total wordlength <= 0 is not valid")
+#define SC_CHECK_WL_(wl) SC_ERROR_IF_((wl) <= 0, sc_core::SC_ID_INVALID_WL_)
 
 #define SC_CHECK_N_BITS_(n_bits) \
-    SC_ERROR_IF_((n_bits) < 0, "number of bits < 0 is not valid")
+    SC_ERROR_IF_((n_bits) < 0, sc_core::SC_ID_INVALID_N_BITS_)
 
 #define SC_CHECK_DIV_WL_(div_wl) \
-    SC_ERROR_IF_((div_wl) <= 0, "division wordlength <= 0 is not valid")
+    SC_ERROR_IF_((div_wl) <= 0, sc_core::SC_ID_INVALID_DIV_WL_)
 
 #define SC_CHECK_CTE_WL_(cte_wl) \
-    SC_ERROR_IF_((cte_wl) <= 0, "constant wordlength <= 0 is not valid")
+    SC_ERROR_IF_((cte_wl) <= 0, sc_core::SC_ID_INVALID_CTE_WL_)
 
 #define SC_CHECK_MAX_WL_(max_wl) \
     SC_ERROR_IF_((max_wl) <= 0 && (max_wl) != -1, \
-            "maximum wordlength <= 0 and != -1 is not valid")
+            sc_core::SC_ID_INVALID_MAX_WL_)
 
 
 // ----------------------------------------------------------------------------

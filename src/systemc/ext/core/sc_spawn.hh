@@ -30,7 +30,49 @@
 #ifndef __SYSTEMC_EXT_CORE_SC_SPAWN_HH__
 #define __SYSTEMC_EXT_CORE_SC_SPAWN_HH__
 
+#include <functional>
+#include <vector>
+
+#include "sc_join.hh"
 #include "sc_process_handle.hh"
+
+namespace sc_core
+{
+
+class sc_spawn_options;
+
+} // namespace sc_core
+
+namespace sc_gem5
+{
+
+class Process;
+
+template <typename T>
+struct ProcessObjFuncWrapper : public ProcessFuncWrapper
+{
+    T t;
+
+    ProcessObjFuncWrapper(T t) : t(t) {}
+
+    void call() override { t(); }
+};
+
+template <typename T, typename R>
+struct ProcessObjRetFuncWrapper : public ProcessFuncWrapper
+{
+    T t;
+    R *r;
+
+    ProcessObjRetFuncWrapper(T t, R *r) : t(t), r(r) {}
+
+    void call() override { *r = t(); }
+};
+
+Process *spawnWork(ProcessFuncWrapper *func, const char *name,
+                   const ::sc_core::sc_spawn_options *);
+
+} // namespace sc_gem5
 
 namespace sc_core
 {
@@ -53,6 +95,10 @@ class sc_port_base;
 class sc_spawn_options
 {
   public:
+    friend ::sc_gem5::Process *::sc_gem5::spawnWork(
+            ::sc_gem5::ProcessFuncWrapper *, const char *,
+            const sc_spawn_options *);
+
     sc_spawn_options();
 
     void spawn_method();
@@ -76,20 +122,43 @@ class sc_spawn_options
     void async_reset_signal_is(const sc_signal_in_if<bool> &, bool);
 
   private:
+    bool _spawnMethod;
+    bool _dontInitialize;
+    int _stackSize;
+    std::vector<const sc_event *> _events;
+    std::vector<sc_port_base *> _ports;
+    std::vector<sc_export_base *> _exports;
+    std::vector<sc_interface *> _interfaces;
+    std::vector<sc_event_finder *> _finders;
+
+    template <typename T>
+    struct Reset
+    {
+        Reset(T *t, bool v, bool s) : target(t), value(v), sync(s) {}
+
+        T *target;
+        bool value;
+        bool sync;
+    };
+
+    std::vector<Reset<const sc_in<bool> > > _in_resets;
+    std::vector<Reset<const sc_inout<bool> > > _inout_resets;
+    std::vector<Reset<const sc_out<bool> > > _out_resets;
+    std::vector<Reset<const sc_signal_in_if<bool> > > _if_resets;
+
     // Disabled
     sc_spawn_options(const sc_spawn_options &) {}
     sc_spawn_options &operator = (const sc_spawn_options &) { return *this; }
 };
-
-void sc_spawn_warn_unimpl(const char *func);
 
 template <typename T>
 sc_process_handle
 sc_spawn(T object, const char *name_p=nullptr,
          const sc_spawn_options *opt_p=nullptr)
 {
-    sc_spawn_warn_unimpl(__PRETTY_FUNCTION__);
-    return sc_process_handle();
+    auto func = new ::sc_gem5::ProcessObjFuncWrapper<T>(object);
+    ::sc_gem5::Process *p = spawnWork(func, name_p, opt_p);
+    return sc_process_handle() = p;
 }
 
 template <typename T>
@@ -97,40 +166,65 @@ sc_process_handle
 sc_spawn(typename T::result_type *r_p, T object, const char *name_p=nullptr,
          const sc_spawn_options *opt_p=nullptr)
 {
-    sc_spawn_warn_unimpl(__PRETTY_FUNCTION__);
-    return sc_process_handle();
+    auto func = new ::sc_gem5::ProcessObjRetFuncWrapper<
+        T, typename T::result_type>(object, r_p);
+    ::sc_gem5::Process *p = spawnWork(func, name_p, opt_p);
+    return sc_process_handle() = p;
 }
-
-#define sc_bind boost::bind
-#define sc_ref(r) boost::ref(r)
-#define sc_cref(r) boost::cref(r)
 
 #define SC_FORK \
 { \
     ::sc_core::sc_process_handle forkees[] = {
 
 #define SC_JOIN \
-    }; /* TODO wait for the forkees. */ \
+    }; \
+    ::sc_core::sc_join join; \
+    for (int i = 0; i < sizeof(forkees) / sizeof(forkees[0]); i++) \
+        join.add_process(forkees[i]); \
+    join.wait(); \
 }
 
 // Non-standard
-#define SC_CJOIN SC_JOIN
+#define SC_CJOIN \
+    }; \
+    ::sc_core::sc_join join; \
+    for (int i = 0; i < sizeof(forkees) / sizeof(forkees[0]); i++) \
+        join.add_process(forkees[i]); \
+    join.wait_clocked(); \
+}
+
+// This avoids boost introduces a dependency on c++11. If that's a problem,
+// we could imitate Accellera and pick which one to use on the fly.
+
+template <typename F, typename... Args>
+auto sc_bind(F &&f, Args && ...args) ->
+    decltype(std::bind(std::forward<F>(f), std::forward<Args>(args)...))
+{
+    return std::bind(std::forward<F>(f), std::forward<Args>(args)...);
+}
+
+template <typename T>
+auto sc_ref(T &&v) -> decltype(std::ref(std::forward<T>(v)))
+{
+    return std::ref(std::forward<T>(v));
+}
+
+template <typename T>
+auto sc_cref(T &&v) -> decltype(std::cref(std::forward<T>(v)))
+{
+    return std::cref(std::forward<T>(v));
+}
 
 } // namespace sc_core
+
+using sc_core::sc_bind;
+using sc_core::sc_ref;
+using sc_core::sc_cref;
 
 namespace sc_unnamed
 {
 
-typedef int ImplementationDefined;
-extern ImplementationDefined _1;
-extern ImplementationDefined _2;
-extern ImplementationDefined _3;
-extern ImplementationDefined _4;
-extern ImplementationDefined _5;
-extern ImplementationDefined _6;
-extern ImplementationDefined _7;
-extern ImplementationDefined _8;
-extern ImplementationDefined _9;
+using namespace std::placeholders;
 
 } // namespace sc_unnamed
 

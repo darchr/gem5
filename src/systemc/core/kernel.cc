@@ -28,41 +28,170 @@
  */
 
 #include "systemc/core/kernel.hh"
+
+#include "base/logging.hh"
+#include "systemc/core/channel.hh"
+#include "systemc/core/module.hh"
+#include "systemc/core/port.hh"
 #include "systemc/core/scheduler.hh"
 
-namespace SystemC
+namespace sc_gem5
 {
 
+namespace
+{
+
+bool scMainDone = false;
+bool stopAfterCallbacks = false;
+bool startComplete = false;
+bool endComplete = false;
+
+sc_core::sc_status _status = sc_core::SC_ELABORATION;
+
+} // anonymous namespace
+
+bool Kernel::startOfSimulationComplete() { return startComplete; }
+bool Kernel::endOfSimulationComplete() { return endComplete; }
+
+bool Kernel::scMainFinished() { return scMainDone; }
+void Kernel::scMainFinished(bool finished) { scMainDone = finished; }
+
+sc_core::sc_status Kernel::status() { return _status; }
+void Kernel::status(sc_core::sc_status s) { _status = s; }
+
 Kernel::Kernel(Params *params) :
-    SimObject(params), t0Event(this, false, EventBase::Default_Pri - 1) {}
+    SimObject(params), t0Event(this, false, EventBase::Default_Pri - 1)
+{
+    // Install ourselves as the scheduler's event manager.
+    ::sc_gem5::scheduler.setEventQueue(eventQueue());
+}
+
+void
+Kernel::init()
+{
+    if (scMainDone)
+        return;
+
+    if (stopAfterCallbacks)
+        fatal("Simulation called sc_stop during elaboration.\n");
+
+    status(::sc_core::SC_BEFORE_END_OF_ELABORATION);
+    for (auto p: allPorts)
+        p->sc_port_base()->before_end_of_elaboration();
+    for (auto m: sc_gem5::allModules)
+        m->beforeEndOfElaboration();
+    for (auto c: sc_gem5::allChannels)
+        c->sc_chan()->before_end_of_elaboration();
+
+    ::sc_gem5::scheduler.elaborationDone(true);
+}
+
+void
+Kernel::regStats()
+{
+    if (scMainDone || stopAfterCallbacks)
+        return;
+
+    try {
+        for (auto p: allPorts)
+            p->finalize();
+        for (auto p: allPorts)
+            p->regPort();
+
+        status(::sc_core::SC_END_OF_ELABORATION);
+        for (auto p: allPorts)
+            p->sc_port_base()->end_of_elaboration();
+        for (auto m: sc_gem5::allModules)
+            m->endOfElaboration();
+        for (auto c: sc_gem5::allChannels)
+            c->sc_chan()->end_of_elaboration();
+    } catch (...) {
+        ::sc_gem5::scheduler.throwToScMain();
+    }
+}
 
 void
 Kernel::startup()
 {
+    if (scMainDone)
+        return;
+
     schedule(t0Event, curTick());
-    // Install ourselves as the scheduler's event manager.
-    ::sc_gem5::scheduler.setEventQueue(eventQueue());
-    // Run update once before the event queue starts.
-    ::sc_gem5::scheduler.update();
+
+    if (stopAfterCallbacks)
+        return;
+
+    try {
+        status(::sc_core::SC_START_OF_SIMULATION);
+        for (auto p: allPorts)
+            p->sc_port_base()->start_of_simulation();
+        for (auto m: sc_gem5::allModules)
+            m->startOfSimulation();
+        for (auto c: sc_gem5::allChannels)
+            c->sc_chan()->start_of_simulation();
+    } catch (...) {
+        ::sc_gem5::scheduler.throwToScMain();
+    }
+
+    startComplete = true;
+
+    if (stopAfterCallbacks)
+        stopWork();
+
+    kernel->status(::sc_core::SC_RUNNING);
+}
+
+void
+Kernel::stop()
+{
+    if (status() < ::sc_core::SC_RUNNING)
+        stopAfterCallbacks = true;
+    else
+        stopWork();
+}
+
+void
+Kernel::stopWork()
+{
+    status(::sc_core::SC_END_OF_SIMULATION);
+    try {
+        for (auto p: allPorts)
+            p->sc_port_base()->end_of_simulation();
+        for (auto m: sc_gem5::allModules)
+            m->endOfSimulation();
+        for (auto c: sc_gem5::allChannels)
+            c->sc_chan()->end_of_simulation();
+    } catch (...) {
+        ::sc_gem5::scheduler.throwToScMain();
+    }
+
+    endComplete = true;
+
+    status(::sc_core::SC_STOPPED);
 }
 
 void
 Kernel::t0Handler()
 {
-    // Now that the event queue has started, mark all the processes that
-    // need to be initialized as ready to run.
-    //
-    // This event has greater priority than delta notifications and so will
-    // happen before them, honoring the ordering for the initialization phase
-    // in the spec. The delta phase will happen at normal priority, and then
-    // the event which runs the processes which is at a lower priority.
-    ::sc_gem5::scheduler.prepareForInit();
+    if (stopAfterCallbacks) {
+        scheduler.clear();
+        ::sc_gem5::scheduler.initPhase();
+        scheduler.scheduleStop(false);
+    } else {
+        ::sc_gem5::scheduler.initPhase();
+        status(::sc_core::SC_RUNNING);
+    }
 }
 
-} // namespace SystemC
+Kernel *kernel;
 
-SystemC::Kernel *
+} // namespace sc_gem5
+
+sc_gem5::Kernel *
 SystemC_KernelParams::create()
 {
-    return new SystemC::Kernel(this);
+    panic_if(sc_gem5::kernel,
+            "Only one systemc kernel object may be defined.\n");
+    sc_gem5::kernel = new sc_gem5::Kernel(this);
+    return sc_gem5::kernel;
 }

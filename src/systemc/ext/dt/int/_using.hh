@@ -61,4 +61,9 @@ using sc_dt::sc_uint_base;
 using sc_dt::sc_unsigned;
 using sc_dt::uint64;
 
+using sc_core::SC_ID_INIT_FAILED_;
+using sc_core::SC_ID_ASSIGNMENT_FAILED_;
+using sc_core::SC_ID_OPERATION_FAILED_;
+using sc_core::SC_ID_CONVERSION_FAILED_;
+
 #endif  //__SYSTEMC_EXT_DT_INT__USING_HH__

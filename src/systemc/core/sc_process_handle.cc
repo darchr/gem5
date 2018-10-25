@@ -27,11 +27,12 @@
  * Authors: Gabe Black
  */
 
-#include "base/logging.hh"
 #include "systemc/core/process.hh"
 #include "systemc/core/scheduler.hh"
+#include "systemc/ext/core/messages.hh"
 #include "systemc/ext/core/sc_main.hh"
 #include "systemc/ext/core/sc_process_handle.hh"
+#include "systemc/ext/utils/sc_report_handler.hh"
 
 namespace sc_core
 {
@@ -39,40 +40,37 @@ namespace sc_core
 const char *
 sc_unwind_exception::what() const throw()
 {
-    panic("%s for base class called.\n", __PRETTY_FUNCTION__);
+    return _isReset ? "RESET" : "KILL";
 }
 
 bool
 sc_unwind_exception::is_reset() const
 {
-    panic("%s for base class called.\n", __PRETTY_FUNCTION__);
+    return _isReset;
 }
 
-sc_unwind_exception::sc_unwind_exception() {}
-sc_unwind_exception::sc_unwind_exception(const sc_unwind_exception &) {}
+sc_unwind_exception::sc_unwind_exception() : _isReset(false) {}
+sc_unwind_exception::sc_unwind_exception(const sc_unwind_exception &e) :
+    _isReset(e._isReset)
+{}
 sc_unwind_exception::~sc_unwind_exception() throw() {}
 
 
-const char *
-sc_process_b::name()
+void
+sc_set_location(const char *file, int lineno)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return "";
-}
-
-const char *
-sc_process_b::kind()
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return "";
+    sc_process_b *current = ::sc_gem5::scheduler.current();
+    if (!current)
+        return;
+    current->file = file;
+    current->lineno = lineno;
 }
 
 
 sc_process_b *
 sc_get_curr_process_handle()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return nullptr;
+    return ::sc_gem5::scheduler.current();
 }
 
 
@@ -198,56 +196,72 @@ sc_process_handle::terminated() const
 const sc_event &
 sc_process_handle::terminated_event() const
 {
-    static sc_event non_event;
-    return _gem5_process ? _gem5_process->terminatedEvent() : non_event;
+    if (!_gem5_process) {
+        SC_REPORT_WARNING(SC_ID_EMPTY_PROCESS_HANDLE_, "terminated_event()");
+        static sc_gem5::InternalScEvent non_event;
+        return non_event;
+    }
+    return _gem5_process->terminatedEvent();
 }
 
 
 void
 sc_process_handle::suspend(sc_descendent_inclusion_info include_descendants)
 {
-    if (!_gem5_process)
+    if (!_gem5_process) {
+        SC_REPORT_WARNING(SC_ID_EMPTY_PROCESS_HANDLE_, "suspend()");
         return;
+    }
     _gem5_process->suspend(include_descendants == SC_INCLUDE_DESCENDANTS);
 }
 
 void
 sc_process_handle::resume(sc_descendent_inclusion_info include_descendants)
 {
-    if (!_gem5_process)
+    if (!_gem5_process) {
+        SC_REPORT_WARNING(SC_ID_EMPTY_PROCESS_HANDLE_, "resume()");
         return;
+    }
     _gem5_process->resume(include_descendants == SC_INCLUDE_DESCENDANTS);
 }
 
 void
 sc_process_handle::disable(sc_descendent_inclusion_info include_descendants)
 {
-    if (!_gem5_process)
+    if (!_gem5_process) {
+        SC_REPORT_WARNING(SC_ID_EMPTY_PROCESS_HANDLE_, "disable()");
         return;
+    }
     _gem5_process->disable(include_descendants == SC_INCLUDE_DESCENDANTS);
 }
 
 void
 sc_process_handle::enable(sc_descendent_inclusion_info include_descendants)
 {
-    if (!_gem5_process)
+    if (!_gem5_process) {
+        SC_REPORT_WARNING(SC_ID_EMPTY_PROCESS_HANDLE_, "enable()");
         return;
+    }
     _gem5_process->enable(include_descendants == SC_INCLUDE_DESCENDANTS);
 }
 
 void
 sc_process_handle::kill(sc_descendent_inclusion_info include_descendants)
 {
-    if (!_gem5_process)
+    if (!_gem5_process) {
+        SC_REPORT_WARNING(SC_ID_EMPTY_PROCESS_HANDLE_, "kill()");
         return;
+    }
     _gem5_process->kill(include_descendants == SC_INCLUDE_DESCENDANTS);
 }
 
 void
 sc_process_handle::reset(sc_descendent_inclusion_info include_descendants)
 {
-    if (!_gem5_process)
+    if (!_gem5_process) {
+        SC_REPORT_WARNING(SC_ID_EMPTY_PROCESS_HANDLE_, "reset()");
         return;
+    }
     _gem5_process->reset(include_descendants == SC_INCLUDE_DESCENDANTS);
 }
 
@@ -255,19 +269,21 @@ bool
 sc_process_handle::is_unwinding()
 {
     if (!_gem5_process) {
-        //TODO This should generate a systemc style warning if the handle is
-        //invalid.
+        SC_REPORT_WARNING(SC_ID_EMPTY_PROCESS_HANDLE_, "is_unwinding()");
         return false;
-    } else {
-        return _gem5_process->isUnwinding();
     }
+    return _gem5_process->isUnwinding();
 }
 
 const sc_event &
 sc_process_handle::reset_event() const
 {
-    static sc_event non_event;
-    return _gem5_process ? _gem5_process->resetEvent() : non_event;
+    if (!_gem5_process) {
+        SC_REPORT_WARNING(SC_ID_EMPTY_PROCESS_HANDLE_, "reset()");
+        static sc_gem5::InternalScEvent non_event;
+        return non_event;
+    }
+    return _gem5_process->resetEvent();
 }
 
 
@@ -275,8 +291,10 @@ void
 sc_process_handle::sync_reset_on(
         sc_descendent_inclusion_info include_descendants)
 {
-    if (!_gem5_process)
+    if (!_gem5_process) {
+        SC_REPORT_WARNING(SC_ID_EMPTY_PROCESS_HANDLE_, "sync_reset_on()");
         return;
+    }
     _gem5_process->syncResetOn(include_descendants == SC_INCLUDE_DESCENDANTS);
 }
 
@@ -284,8 +302,10 @@ void
 sc_process_handle::sync_reset_off(
         sc_descendent_inclusion_info include_descendants)
 {
-    if (!_gem5_process)
+    if (!_gem5_process) {
+        SC_REPORT_WARNING(SC_ID_EMPTY_PROCESS_HANDLE_, "sync_reset_off()");
         return;
+    }
     _gem5_process->syncResetOff(include_descendants == SC_INCLUDE_DESCENDANTS);
 }
 

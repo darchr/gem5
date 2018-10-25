@@ -27,144 +27,159 @@
  * Authors: Gabe Black
  */
 
+#include <cstring>
+
 #include "base/logging.hh"
+#include "systemc/ext/utils/messages.hh"
 #include "systemc/ext/utils/sc_report.hh"
+#include "systemc/ext/utils/sc_report_handler.hh"
+#include "systemc/utils/report.hh"
 
 namespace sc_core
 {
 
-sc_report::sc_report(const sc_report &)
+sc_report::sc_report(sc_severity _severity, const char *msg_type,
+        const char *msg, int _verbosity, const char *_fileName,
+        int _lineNumber, sc_time _time, const char *_processName, int _id) :
+    _severity(_severity), _msgType(msg_type), _msg(msg),
+    _verbosity(_verbosity), _fileName(_fileName), _lineNumber(_lineNumber),
+    _time(_time), _processName(_processName), _id(_id)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    if (_msgType)
+        _msgType = strdup(_msgType);
+    if (_msg)
+        _msg = strdup(_msg);
+    _what = sc_report_compose_message(*this);
 }
 
+sc_report::sc_report(const sc_report &r) :
+    sc_report(r._severity, r._msgType, r._msg, r._verbosity, r._fileName,
+            r._lineNumber, r._time, r._processName, r._id)
+{}
+
 sc_report &
-sc_report::operator = (const sc_report &)
+sc_report::operator = (const sc_report &r)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    _severity = r._severity;
+    free((void *)_msgType);
+    _msgType = r._msgType ? strdup(r._msgType) : nullptr;
+    free((void *)_msg);
+    _msg = r._msg ? strdup(r._msg) : nullptr;
+    _verbosity = r._verbosity;
+    _fileName = r._fileName;
+    _lineNumber = r._lineNumber;
+    _time = r._time;
+    _processName = r._processName;
+    _id = r._id;
     return *this;
 }
 
-sc_report::~sc_report() throw() {}
-
-sc_severity
-sc_report::get_severity() const
+sc_report::~sc_report() throw()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return SC_FATAL;
-}
-
-const char *
-sc_report::get_msg_type() const
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return "";
-}
-
-const char *
-sc_report::get_msg() const
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return "";
-}
-
-int
-sc_report::get_verbosity() const
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return SC_NONE;
-}
-
-const char *
-sc_report::get_file_name() const
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return "";
-}
-
-int
-sc_report::get_line_number() const
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return 0;
-}
-
-const sc_time &
-sc_report::get_time() const
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return *(const sc_time *)nullptr;
-}
-
-const char *
-sc_report::get_process_name() const
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return "";
+    free((void *)_msgType);
+    free((void *)_msg);
 }
 
 const char *
 sc_report::what() const throw()
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return "";
+    return _what.c_str();
 }
 
 const char *
 sc_report::get_message(int id)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return "";
+    auto it = sc_gem5::reportIdToMsgMap.find(id);
+    if (it == sc_gem5::reportIdToMsgMap.end())
+        return "unknown id";
+    else
+        return it->second.c_str();
 }
 
 bool
 sc_report::is_suppressed(int id)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return false;
+    auto it = sc_gem5::reportIdToMsgMap.find(id);
+    if (it == sc_gem5::reportIdToMsgMap.end())
+        return false;
+
+    auto &msgInfo = sc_gem5::reportMsgInfoMap[it->second];
+
+    return (msgInfo.actions == SC_DO_NOTHING ||
+            (msgInfo.sevActions[SC_INFO] == SC_DO_NOTHING &&
+             msgInfo.sevActions[SC_WARNING] == SC_DO_NOTHING));
 }
 
 void
-sc_report::make_warnings_errors(bool)
+sc_report::make_warnings_errors(bool val)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    sc_gem5::reportWarningsAsErrors = val;
 }
 
 void
 sc_report::register_id(int id, const char *msg)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    if (id < 0) {
+        SC_REPORT_ERROR(SC_ID_REGISTER_ID_FAILED_, "invalid report id");
+        return;
+    }
+    if (!msg) {
+        SC_REPORT_ERROR(SC_ID_REGISTER_ID_FAILED_, "invalid report message");
+        return;
+    }
+    auto p = sc_gem5::reportIdToMsgMap.insert(
+            std::pair<int, std::string>(id, msg));
+    if (!p.second) {
+        SC_REPORT_ERROR(SC_ID_REGISTER_ID_FAILED_, "report id already exists");
+    } else {
+        sc_gem5::reportMsgInfoMap[msg].id = id;
+    }
 }
 
 void
-sc_report::suppress_id(int id, bool)
+sc_report::suppress_id(int id, bool suppress)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    auto it = sc_gem5::reportIdToMsgMap.find(id);
+    if (it == sc_gem5::reportIdToMsgMap.end())
+        return;
+
+    if (suppress) {
+        sc_gem5::reportMsgInfoMap[it->second].
+            sevActions[SC_INFO] = SC_DO_NOTHING;
+        sc_gem5::reportMsgInfoMap[it->second].
+            sevActions[SC_WARNING] = SC_DO_NOTHING;
+    } else {
+        sc_gem5::reportMsgInfoMap[it->second].
+            sevActions[SC_INFO] = SC_UNSPECIFIED;
+        sc_gem5::reportMsgInfoMap[it->second].
+            sevActions[SC_WARNING] = SC_UNSPECIFIED;
+    }
 }
 
 void
-sc_report::suppress_infos(bool)
+sc_report::suppress_infos(bool suppress)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    if (suppress)
+        sc_gem5::reportSevInfos[SC_INFO].actions = SC_DO_NOTHING;
+    else
+        sc_gem5::reportSevInfos[SC_INFO].actions = SC_DEFAULT_INFO_ACTIONS;
 }
 
 void
-sc_report::suppress_warnings(bool)
+sc_report::suppress_warnings(bool suppress)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-}
-
-int
-sc_report::get_id() const
-{
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
-    return 0;
+    if (suppress) {
+        sc_gem5::reportSevInfos[SC_WARNING].actions = SC_DO_NOTHING;
+    } else {
+        sc_gem5::reportSevInfos[SC_WARNING].actions =
+            SC_DEFAULT_WARNING_ACTIONS;
+    }
 }
 
 void
 sc_abort()
 {
-    panic("%s not implemented.\n", __PRETTY_FUNCTION__);
+    panic("simulation aborted");
 }
 
 } // namespace sc_core

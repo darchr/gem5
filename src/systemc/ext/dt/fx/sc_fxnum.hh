@@ -62,17 +62,16 @@
 #include <iostream>
 
 #include "../bit/sc_lv_base.hh"
+#include "messages.hh"
 #include "sc_fxnum_observer.hh"
 #include "sc_fxval.hh"
 #include "scfx_params.hh"
 
-namespace sc_core
+namespace sc_gem5
 {
 
-class vcd_sc_fxnum_trace;
-class vcd_sc_fxnum_fast_trace;
-class wif_sc_fxnum_trace;
-class wif_sc_fxnum_fast_trace;
+template <typename T, typename B>
+class TraceValFxnumBase;
 
 } // namespace sc_core
 
@@ -490,8 +489,8 @@ class sc_fxnum
     friend class sc_fxnum_fast_bitref;
     friend class sc_fxnum_fast_subref;
 
-    friend class sc_core::vcd_sc_fxnum_trace;
-    friend class sc_core::wif_sc_fxnum_trace;
+    template <typename T, typename B>
+    friend class sc_gem5::TraceValFxnumBase;
 
   protected:
     sc_fxnum_observer *observer() const;
@@ -851,8 +850,8 @@ class sc_fxnum_fast
     friend class sc_fxnum_fast_bitref;
     friend class sc_fxnum_fast_subref;
 
-    friend class sc_core::vcd_sc_fxnum_fast_trace;
-    friend class sc_core::wif_sc_fxnum_fast_trace;
+    template <typename T, typename B>
+    friend class sc_gem5::TraceValFxnumBase;
 
   protected:
     sc_fxnum_fast_observer *observer() const;
@@ -2176,7 +2175,7 @@ sc_fxnum::observer() const
 inline void
 sc_fxnum::cast()
 {
-    SC_ERROR_IF_(!m_rep->is_normal(), "invalid fixed-point value");
+    SC_ERROR_IF_(!m_rep->is_normal(), sc_core::SC_ID_INVALID_FX_VALUE_);
 
     if (m_params.cast_switch() == SC_ON)
         m_rep->cast(m_params, m_q_flag, m_o_flag);
@@ -2820,7 +2819,7 @@ sc_fxnum::operator -- ()
 inline const sc_fxnum_bitref
 sc_fxnum::operator [] (int i) const
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
     return sc_fxnum_bitref(const_cast<sc_fxnum &>(*this),
                            i - m_params.fwl());
 }
@@ -2828,14 +2827,14 @@ sc_fxnum::operator [] (int i) const
 inline sc_fxnum_bitref
 sc_fxnum::operator [] (int i)
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
     return sc_fxnum_bitref(*this, i - m_params.fwl());
 }
 
 inline const sc_fxnum_bitref
 sc_fxnum::bit(int i) const
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
     return sc_fxnum_bitref(const_cast<sc_fxnum &>(*this),
                             i - m_params.fwl());
 }
@@ -2843,7 +2842,7 @@ sc_fxnum::bit(int i) const
 inline sc_fxnum_bitref
 sc_fxnum::bit(int i)
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
     return sc_fxnum_bitref(*this, i - m_params.fwl());
 }
 
@@ -2852,8 +2851,8 @@ sc_fxnum::bit(int i)
 inline const sc_fxnum_subref
 sc_fxnum::operator () (int i, int j) const
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
-    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
+    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
 
     return sc_fxnum_subref(const_cast<sc_fxnum &>(*this),
                            i - m_params.fwl(), j - m_params.fwl());
@@ -2862,8 +2861,8 @@ sc_fxnum::operator () (int i, int j) const
 inline sc_fxnum_subref
 sc_fxnum::operator () (int i, int j)
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
-    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
+    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
 
     return sc_fxnum_subref(*this, i - m_params.fwl(), j - m_params.fwl());
 }
@@ -2871,8 +2870,8 @@ sc_fxnum::operator () (int i, int j)
 inline const sc_fxnum_subref
 sc_fxnum::range(int i, int j) const
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
-    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
+    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
 
     return sc_fxnum_subref(const_cast<sc_fxnum &>(*this),
                            i - m_params.fwl(), j - m_params.fwl());
@@ -2881,8 +2880,8 @@ sc_fxnum::range(int i, int j) const
 inline sc_fxnum_subref
 sc_fxnum::range(int i, int j)
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
-    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
+    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
 
     return sc_fxnum_subref(*this, i - m_params.fwl(), j - m_params.fwl());
 }
@@ -3775,7 +3774,7 @@ sc_fxnum_fast::operator -- ()
 inline const sc_fxnum_fast_bitref
 sc_fxnum_fast::operator [] (int i) const
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
     return sc_fxnum_fast_bitref(const_cast<sc_fxnum_fast &>(*this),
                                 i - m_params.fwl());
 }
@@ -3783,14 +3782,14 @@ sc_fxnum_fast::operator [] (int i) const
 inline sc_fxnum_fast_bitref
 sc_fxnum_fast::operator [] (int i)
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
     return sc_fxnum_fast_bitref(*this, i - m_params.fwl());
 }
 
 inline const sc_fxnum_fast_bitref
 sc_fxnum_fast::bit(int i) const
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
     return sc_fxnum_fast_bitref(const_cast<sc_fxnum_fast &>(*this),
                                 i - m_params.fwl());
 }
@@ -3798,7 +3797,7 @@ sc_fxnum_fast::bit(int i) const
 inline sc_fxnum_fast_bitref
 sc_fxnum_fast::bit(int i)
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
     return sc_fxnum_fast_bitref(*this, i - m_params.fwl());
 }
 
@@ -3806,8 +3805,8 @@ sc_fxnum_fast::bit(int i)
 inline const sc_fxnum_fast_subref
 sc_fxnum_fast::operator () (int i, int j) const
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
-    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
+    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
 
     return sc_fxnum_fast_subref(const_cast<sc_fxnum_fast &>(*this),
                                 i - m_params.fwl(), j - m_params.fwl());
@@ -3816,8 +3815,8 @@ sc_fxnum_fast::operator () (int i, int j) const
 inline sc_fxnum_fast_subref
 sc_fxnum_fast::operator () (int i, int j)
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
-    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
+    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
 
     return sc_fxnum_fast_subref(*this, i - m_params.fwl(), j - m_params.fwl());
 }
@@ -3825,8 +3824,8 @@ sc_fxnum_fast::operator () (int i, int j)
 inline const sc_fxnum_fast_subref
 sc_fxnum_fast::range(int i, int j) const
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
-    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
+    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
 
     return sc_fxnum_fast_subref(const_cast<sc_fxnum_fast &>(*this),
                                 i - m_params.fwl(), j - m_params.fwl());
@@ -3835,8 +3834,8 @@ sc_fxnum_fast::range(int i, int j) const
 inline sc_fxnum_fast_subref
 sc_fxnum_fast::range(int i, int j)
 {
-    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), "index out of range");
-    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), "index out of range");
+    SC_ERROR_IF_(i < 0 || i >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
+    SC_ERROR_IF_(j < 0 || j >= m_params.wl(), sc_core::SC_ID_OUT_OF_RANGE_);
 
     return sc_fxnum_fast_subref(*this, i - m_params.fwl(), j - m_params.fwl());
 }

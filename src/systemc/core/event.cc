@@ -29,40 +29,61 @@
 
 #include "systemc/core/event.hh"
 
+#include <algorithm>
 #include <cstring>
 #include <utility>
 
-#include "base/logging.hh"
 #include "sim/core.hh"
 #include "systemc/core/module.hh"
 #include "systemc/core/scheduler.hh"
+#include "systemc/ext/core/messages.hh"
+#include "systemc/ext/core/sc_main.hh"
+#include "systemc/ext/core/sc_module.hh"
 
 namespace sc_gem5
 {
 
-Event::Event(sc_core::sc_event *_sc_event) : Event(_sc_event, "") {}
+Event::Event(sc_core::sc_event *_sc_event, bool internal) :
+    Event(_sc_event, nullptr, internal)
+{}
 
-Event::Event(sc_core::sc_event *_sc_event, const char *_basename) :
-    _sc_event(_sc_event), _basename(_basename), delayedNotifyEvent(this)
+Event::Event(sc_core::sc_event *_sc_event, const char *_basename_cstr,
+        bool internal) :
+    _sc_event(_sc_event), _basename(_basename_cstr ? _basename_cstr : ""),
+    _inHierarchy(!internal), delayedNotify([this]() { this->notify(); }),
+    _triggeredStamp(~0ULL)
 {
-    Module *p = currentModule();
+    if (_basename == "" && ::sc_core::sc_is_running())
+        _basename = ::sc_core::sc_gen_unique_name("event");
 
-    if (p)
-        parent = p->obj()->sc_obj();
-    else if (scheduler.current())
-        parent = scheduler.current();
+    parent = internal ? nullptr : pickParentObj();
 
-    if (parent) {
-        Object *obj = Object::getFromScObject(parent);
-        parentIt = obj->addChildEvent(_sc_event);
-    } else {
-        parentIt = topLevelEvents.emplace(topLevelEvents.end(), _sc_event);
-    }
-
-    if (parent)
-        _name = std::string(parent->name()) + "." + _basename;
-    else
+    if (internal) {
+        _basename = globalNameGen.gen(_basename);
         _name = _basename;
+    } else {
+        std::string original_name = _basename;
+        _basename = pickUniqueName(parent, _basename);
+
+        if (parent) {
+            Object *obj = Object::getFromScObject(parent);
+            obj->addChildEvent(_sc_event);
+        } else {
+            topLevelEvents.emplace(topLevelEvents.end(), _sc_event);
+        }
+
+        std::string path = parent ? (std::string(parent->name()) + ".") : "";
+
+        if (original_name != "" && _basename != original_name) {
+            std::string message = path + original_name +
+                ". Latter declaration will be renamed to " +
+                path + _basename;
+            SC_REPORT_WARNING(sc_core::SC_ID_INSTANCE_EXISTS_,
+                    message.c_str());
+        }
+
+        _name = path + _basename;
+    }
 
     allEvents.emplace(allEvents.end(), _sc_event);
 
@@ -74,9 +95,12 @@ Event::~Event()
 {
     if (parent) {
         Object *obj = Object::getFromScObject(parent);
-        obj->delChildEvent(parentIt);
-    } else {
-        std::swap(*parentIt, topLevelEvents.back());
+        obj->delChildEvent(_sc_event);
+    } else if (inHierarchy()) {
+        EventsIt it = find(topLevelEvents.begin(), topLevelEvents.end(),
+                           _sc_event);
+        assert(it != topLevelEvents.end());
+        std::swap(*it, topLevelEvents.back());
         topLevelEvents.pop_back();
     }
 
@@ -84,8 +108,8 @@ Event::~Event()
     std::swap(*it, allEvents.back());
     allEvents.pop_back();
 
-    if (delayedNotifyEvent.scheduled())
-        scheduler.deschedule(&delayedNotifyEvent);
+    if (delayedNotify.scheduled())
+        scheduler.deschedule(&delayedNotify);
 }
 
 const std::string &
@@ -103,7 +127,7 @@ Event::basename() const
 bool
 Event::inHierarchy() const
 {
-    return _name.length() != 0;
+    return _inHierarchy;
 }
 
 sc_core::sc_object *
@@ -113,48 +137,84 @@ Event::getParentObject() const
 }
 
 void
-Event::notify()
+Event::notify(StaticSensitivities &senses)
 {
-    auto local_sensitivities = sensitivities;
-    for (auto s: local_sensitivities)
+    for (auto s: senses)
         s->notify(this);
 }
 
 void
-Event::delayedNotify()
+Event::notify(DynamicSensitivities &senses)
 {
-    scheduler.eventHappened();
-    notify();
+    int size = senses.size();
+    int pos = 0;
+    while (pos < size) {
+        if (senses[pos]->notify(this))
+            senses[pos] = senses[--size];
+        else
+            pos++;
+    }
+    senses.resize(size);
+}
+
+void
+Event::notify()
+{
+    if (scheduler.inUpdate())
+        SC_REPORT_ERROR(sc_core::SC_ID_IMMEDIATE_NOTIFICATION_, "");
+
+    // An immediate notification overrides any pending delayed notification.
+    if (delayedNotify.scheduled())
+        scheduler.deschedule(&delayedNotify);
+
+    _triggeredStamp = scheduler.changeStamp();
+    notify(staticSenseMethod);
+    notify(dynamicSenseMethod);
+    notify(staticSenseThread);
+    notify(dynamicSenseThread);
 }
 
 void
 Event::notify(const sc_core::sc_time &t)
 {
-    //XXX We're assuming the systemc time resolution is in ps.
-    Tick new_tick = t.value() * SimClock::Int::ps + scheduler.getCurTick();
-    if (delayedNotifyEvent.scheduled()) {
-        Tick old_tick = delayedNotifyEvent.when();
-
-        if (new_tick >= old_tick)
+    if (delayedNotify.scheduled()) {
+        if (scheduler.delayed(t) >= delayedNotify.when())
             return;
 
-        scheduler.deschedule(&delayedNotifyEvent);
+        scheduler.deschedule(&delayedNotify);
     }
+    scheduler.schedule(&delayedNotify, t);
+}
 
-    scheduler.schedule(&delayedNotifyEvent, new_tick);
+void
+Event::notifyDelayed(const sc_core::sc_time &t)
+{
+    if (delayedNotify.scheduled())
+        SC_REPORT_ERROR(sc_core::SC_ID_NOTIFY_DELAYED_, "");
+    notify(t);
 }
 
 void
 Event::cancel()
 {
-    if (delayedNotifyEvent.scheduled())
-        scheduler.deschedule(&delayedNotifyEvent);
+    if (delayedNotify.scheduled())
+        scheduler.deschedule(&delayedNotify);
 }
 
 bool
 Event::triggered() const
 {
-    return false;
+    return _triggeredStamp == scheduler.changeStamp();
+}
+
+void
+Event::clearParent()
+{
+    if (!parent)
+        return;
+    Object::getFromScObject(parent)->delChildEvent(sc_event());
+    parent = nullptr;
+    topLevelEvents.emplace(topLevelEvents.end(), sc_event());
 }
 
 Events topLevelEvents;

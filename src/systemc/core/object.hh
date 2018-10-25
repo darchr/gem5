@@ -88,7 +88,9 @@ class Object
     sc_core::sc_object *sc_obj() { return _sc_obj; }
 
     EventsIt addChildEvent(sc_core::sc_event *e);
-    void delChildEvent(EventsIt it);
+    void delChildEvent(sc_core::sc_event *e);
+
+    std::string pickUniqueName(std::string name);
 
   private:
     sc_core::sc_object *_sc_obj;
@@ -99,16 +101,21 @@ class Object
     Objects children;
     Events events;
     sc_core::sc_object *parent;
-    ObjectsIt parentIt;
 
     sc_core::sc_attr_cltn cltn;
 };
+
+std::string pickUniqueName(::sc_core::sc_object *parent, std::string name);
 
 extern Objects topLevelObjects;
 extern Objects allObjects;
 
 sc_core::sc_object *findObject(
         const char *name, const Objects &objects=topLevelObjects);
+
+sc_core::sc_object *pickParentObj();
+void pushParentObj(sc_core::sc_object *obj);
+void popParentObj();
 
 } // namespace sc_gem5
 

@@ -33,6 +33,10 @@
 #include <exception>
 #include <vector>
 
+#include "../utils/sc_report_handler.hh"
+#include "messages.hh"
+#include "sc_object.hh"
+
 namespace sc_gem5
 {
 
@@ -78,7 +82,6 @@ namespace sc_core
 {
 
 class sc_event;
-class sc_object;
 
 enum sc_curr_proc_kind
 {
@@ -108,19 +111,25 @@ class sc_unwind_exception : public std::exception
     virtual ~sc_unwind_exception() throw();
 
   protected:
+    bool _isReset;
     sc_unwind_exception();
 };
 
 // Deprecated
 // An incomplete version of sc_process_b to satisfy the tests.
-class sc_process_b
+class sc_process_b : public sc_object
 {
   public:
+    sc_process_b(const char *name) : sc_object(name), file(nullptr), lineno(0)
+    {}
+    sc_process_b() : sc_object(), file(nullptr), lineno(0) {}
+
     const char *file;
     int lineno;
-    const char *name();
-    const char *kind();
 };
+
+// Nonstandard
+void sc_set_location(const char *file, int lineno);
 
 // Deprecated
 sc_process_b *sc_get_curr_process_handle();
@@ -205,6 +214,10 @@ class sc_process_handle
              sc_descendent_inclusion_info include_descendants=
              SC_NO_DESCENDANTS)
     {
+        if (!_gem5_process) {
+            SC_REPORT_WARNING(SC_ID_EMPTY_PROCESS_HANDLE_, "throw_it()");
+            return;
+        }
         ::sc_gem5::ExceptionWrapper<T> exc(user_defined_exception);
         ::sc_gem5::throw_it_wrapper(_gem5_process, exc,
                 include_descendants == SC_INCLUDE_DESCENDANTS);

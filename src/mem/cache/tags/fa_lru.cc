@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018 Inria
  * Copyright (c) 2013,2016-2018 ARM Limited
  * All rights reserved.
  *
@@ -39,6 +40,7 @@
  *
  * Authors: Erik Hallnor
  *          Nikos Nikoleris
+ *          Daniel Carvalho
  */
 
 /**
@@ -54,6 +56,13 @@
 #include "base/intmath.hh"
 #include "base/logging.hh"
 #include "mem/cache/base.hh"
+#include "mem/cache/replacement_policies/replaceable_entry.hh"
+
+std::string
+FALRUBlk::print() const
+{
+    return csprintf("%s inCachesMask: %#x", CacheBlk::print(), inCachesMask);
+}
 
 FALRU::FALRU(const Params *p)
     : BaseTags(p),
@@ -67,19 +76,29 @@ FALRU::FALRU(const Params *p)
         fatal("Cache Size must be power of 2 for now");
 
     blks = new FALRUBlk[numBlocks];
+}
+
+FALRU::~FALRU()
+{
+    delete[] blks;
+}
+
+void
+FALRU::init(BaseCache* cache)
+{
+    // Set parent cache
+    setCache(cache);
 
     head = &(blks[0]);
     head->prev = nullptr;
     head->next = &(blks[1]);
-    head->set = 0;
-    head->way = 0;
+    head->setPosition(0, 0);
     head->data = &dataBlks[0];
 
     for (unsigned i = 1; i < numBlocks - 1; i++) {
         blks[i].prev = &(blks[i-1]);
         blks[i].next = &(blks[i+1]);
-        blks[i].set = 0;
-        blks[i].way = i;
+        blks[i].setPosition(0, i);
 
         // Associate a data chunk to the block
         blks[i].data = &dataBlks[blkSize*i];
@@ -88,16 +107,10 @@ FALRU::FALRU(const Params *p)
     tail = &(blks[numBlocks - 1]);
     tail->prev = &(blks[numBlocks - 2]);
     tail->next = nullptr;
-    tail->set = 0;
-    tail->way = numBlocks - 1;
+    tail->setPosition(0, numBlocks - 1);
     tail->data = &dataBlks[(numBlocks - 1) * blkSize];
 
     cacheTracking.init(head, tail);
-}
-
-FALRU::~FALRU()
-{
-    delete[] blks;
 }
 
 void
@@ -110,6 +123,14 @@ FALRU::regStats()
 void
 FALRU::invalidate(CacheBlk *blk)
 {
+    // Erase block entry reference in the hash table
+    auto num_erased M5_VAR_USED =
+        tagHash.erase(std::make_pair(blk->tag, blk->isSecure()));
+
+    // Sanity check; only one block reference should be erased
+    assert(num_erased == 1);
+
+    // Invalidate block entry. Must be done after the hash is erased
     BaseTags::invalidate(blk);
 
     // Decrease the number of tags in use
@@ -117,9 +138,6 @@ FALRU::invalidate(CacheBlk *blk)
 
     // Move the block to the tail to make it the next victim
     moveToTail((FALRUBlk*)blk);
-
-    // Erase block entry in the hash table
-    tagHash.erase(std::make_pair(blk->tag, blk->isSecure()));
 }
 
 CacheBlk*
@@ -202,7 +220,9 @@ FALRU::findVictim(Addr addr, const bool is_secure,
 }
 
 void
-FALRU::insertBlock(const PacketPtr pkt, CacheBlk *blk)
+FALRU::insertBlock(const Addr addr, const bool is_secure,
+                   const int src_master_ID, const uint32_t task_ID,
+                   CacheBlk *blk)
 {
     FALRUBlk* falruBlk = static_cast<FALRUBlk*>(blk);
 
@@ -210,7 +230,7 @@ FALRU::insertBlock(const PacketPtr pkt, CacheBlk *blk)
     assert(falruBlk->inCachesMask == 0);
 
     // Do common block insertion functionality
-    BaseTags::insertBlock(pkt, blk);
+    BaseTags::insertBlock(addr, is_secure, src_master_ID, task_ID, blk);
 
     // Increment tag counter
     tagsInUse++;
@@ -283,10 +303,10 @@ FALRUParams::create()
 }
 
 void
-FALRU::CacheTracking::check(FALRUBlk *head, FALRUBlk *tail)
+FALRU::CacheTracking::check(const FALRUBlk *head, const FALRUBlk *tail) const
 {
 #ifdef FALRU_DEBUG
-    FALRUBlk* blk = head;
+    const FALRUBlk* blk = head;
     unsigned curr_size = 0;
     unsigned tracked_cache_size = minTrackedSize;
     CachesMask in_caches_mask = inAllCachesMask;

@@ -55,6 +55,9 @@ class sc_time
     sc_time(double, sc_time_unit);
     sc_time(const sc_time &);
 
+    // Nonstandard
+    sc_time(double, const char *);
+
     // Deprecated
     sc_time(double, bool);
     sc_time(sc_dt::uint64, bool);
@@ -84,6 +87,9 @@ class sc_time
     static sc_time from_value(sc_dt::uint64);
     static sc_time from_seconds(double);
     static sc_time from_string(const char *str);
+
+  private:
+    uint64_t val;
 };
 
 const sc_time operator + (const sc_time &, const sc_time &);
@@ -110,7 +116,7 @@ sc_time sc_get_default_time_unit();
 class sc_time_tuple
 {
   public:
-    sc_time_tuple() : _value(), _unit(SC_SEC), _offset(1) {}
+    sc_time_tuple() : _value(), _unit(SC_SEC), _set(false) {}
     sc_time_tuple(const sc_time &);
 
     bool has_value() const;
@@ -128,7 +134,7 @@ class sc_time_tuple
   private:
     sc_dt::uint64 _value;
     sc_time_unit _unit;
-    unsigned _offset;
+    bool _set;
 };
 
 } // namespace sc_core
