@@ -28,6 +28,7 @@
 Import('*')
 
 if env['USE_SYSTEMC']:
+    Source('messages.cc')
     Source('sc_clock.cc')
     Source('sc_event_queue.cc')
     Source('sc_in_resolved.cc')
@@ -35,5 +36,5 @@ if env['USE_SYSTEMC']:
     Source('sc_out_resolved.cc')
     Source('sc_mutex.cc')
     Source('sc_semaphore.cc')
+    Source('sc_signal.cc')
     Source('sc_signal_resolved.cc')
-    Source('warn_unimpl.cc')

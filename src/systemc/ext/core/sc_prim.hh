@@ -33,6 +33,15 @@
 #include "sc_object.hh"
 #include "sc_time.hh"
 
+namespace sc_gem5
+{
+
+class Channel;
+
+uint64_t getChangeStamp();
+
+} // namespace sc_gem5
+
 namespace sc_core
 {
 
@@ -43,12 +52,12 @@ class sc_event_or_list;
 class sc_prim_channel : public sc_object
 {
   public:
-    virtual const char *kind() const;
+    virtual const char *kind() const { return "sc_prim_channel"; }
 
   protected:
     sc_prim_channel();
     explicit sc_prim_channel(const char *);
-    virtual ~sc_prim_channel() {}
+    virtual ~sc_prim_channel();
 
     void request_update();
     void async_request_update();
@@ -67,6 +76,9 @@ class sc_prim_channel : public sc_object
     void next_trigger(const sc_time &, const sc_event_and_list &);
     void next_trigger(double, sc_time_unit, const sc_event_and_list &);
 
+    // Nonstandard.
+    bool timed_out();
+
     void wait();
     void wait(int);
     void wait(const sc_event &);
@@ -81,6 +93,8 @@ class sc_prim_channel : public sc_object
     void wait(const sc_time &, const sc_event_and_list &);
     void wait(double, sc_time_unit, const sc_event_and_list &);
 
+    friend class sc_gem5::Kernel;
+
     virtual void before_end_of_elaboration() {}
     virtual void end_of_elaboration() {}
     virtual void start_of_simulation() {}
@@ -90,6 +104,9 @@ class sc_prim_channel : public sc_object
     // Disabled
     sc_prim_channel(const sc_prim_channel &);
     sc_prim_channel &operator = (const sc_prim_channel &);
+
+    friend class sc_gem5::Channel;
+    sc_gem5::Channel *_gem5_channel;
 };
 
 } // namespace sc_core

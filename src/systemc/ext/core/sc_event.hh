@@ -30,9 +30,25 @@
 #ifndef __SYSTEMC_EXT_CORE_SC_EVENT_HH__
 #define __SYSTEMC_EXT_CORE_SC_EVENT_HH__
 
+#include <cassert>
+#include <set>
+#include <sstream>
 #include <vector>
 
+#include "../channel/messages.hh"
+#include "../utils/sc_report_handler.hh"
+#include "sc_port.hh"
 #include "sc_time.hh"
+
+namespace sc_gem5
+{
+
+class Event;
+class DynamicSensitivityEventAndList;
+class DynamicSensitivityEventOrList;
+class InternalScEvent;
+
+}
 
 namespace sc_core
 {
@@ -40,25 +56,9 @@ namespace sc_core
 class sc_event;
 class sc_event_and_expr;
 class sc_event_or_expr;
+class sc_interface;
 class sc_object;
 class sc_port_base;
-
-class sc_event_finder
-{
-  protected:
-    void warn_unimpl(const char *func) const;
-};
-
-template <class IF>
-class sc_event_finder_t : public sc_event_finder
-{
-  public:
-    sc_event_finder_t(const sc_port_base &,
-                      const sc_event & (IF::*event_method)() const)
-    {
-        warn_unimpl(__PRETTY_FUNCTION__);
-    }
-};
 
 class sc_event_and_list
 {
@@ -67,6 +67,7 @@ class sc_event_and_list
     sc_event_and_list(const sc_event_and_list &);
     sc_event_and_list(const sc_event &);
     sc_event_and_list &operator = (const sc_event_and_list &);
+    ~sc_event_and_list();
 
     int size() const;
     void swap(sc_event_and_list &);
@@ -76,6 +77,19 @@ class sc_event_and_list
 
     sc_event_and_expr operator & (const sc_event &) const;
     sc_event_and_expr operator & (const sc_event_and_list &);
+
+  private:
+    friend class sc_event_and_expr;
+    friend class sc_gem5::DynamicSensitivityEventAndList;
+
+    explicit sc_event_and_list(bool auto_delete);
+
+    void insert(sc_event const &e);
+    void insert(sc_event_and_list const &eal);
+
+    std::set<const sc_event *> events;
+    bool autoDelete;
+    mutable unsigned busy;
 };
 
 class sc_event_or_list
@@ -95,12 +109,38 @@ class sc_event_or_list
 
     sc_event_or_expr operator | (const sc_event &) const;
     sc_event_or_expr operator | (const sc_event_or_list &) const;
+
+  private:
+    friend class sc_event_or_expr;
+    friend class sc_gem5::DynamicSensitivityEventOrList;
+
+    explicit sc_event_or_list(bool auto_delete);
+
+    void insert(sc_event const &e);
+    void insert(sc_event_or_list const &eol);
+
+    std::set<const sc_event *> events;
+    bool autoDelete;
+    mutable unsigned busy;
 };
 
 class sc_event_and_expr
 {
   public:
+    sc_event_and_expr(sc_event_and_expr const &e);
     operator const sc_event_and_list &() const;
+
+    void insert(sc_event const &e) const;
+    void insert(sc_event_and_list const &eal) const;
+
+    ~sc_event_and_expr();
+
+  private:
+    friend class sc_event_and_list;
+    friend class sc_event;
+
+    sc_event_and_expr();
+    mutable sc_event_and_list *list;
 };
 
 sc_event_and_expr operator & (sc_event_and_expr, sc_event const &);
@@ -109,7 +149,20 @@ sc_event_and_expr operator & (sc_event_and_expr, sc_event_and_list const &);
 class sc_event_or_expr
 {
   public:
+    sc_event_or_expr(sc_event_or_expr const &e);
     operator const sc_event_or_list &() const;
+
+    void insert(sc_event const &e) const;
+    void insert(sc_event_or_list const &eol) const;
+
+    ~sc_event_or_expr();
+
+  private:
+    friend class sc_event_or_list;
+    friend class sc_event;
+
+    sc_event_or_expr();
+    mutable sc_event_or_list *list;
 };
 
 sc_event_or_expr operator | (sc_event_or_expr, sc_event const &);
@@ -145,15 +198,82 @@ class sc_event
     sc_event_or_expr operator | (const sc_event &) const;
     sc_event_or_expr operator | (const sc_event_or_list &) const;
 
+  protected:
+    explicit sc_event(bool);
+    explicit sc_event(bool, const char *);
+
   private:
     // Disabled
     sc_event(const sc_event &) {}
     sc_event &operator = (const sc_event &) { return *this; }
+
+    friend class ::sc_gem5::Event;
+    ::sc_gem5::Event *_gem5_event;
+};
+
+class sc_event_finder
+{
+  protected:
+    virtual ~sc_event_finder() {}
+
+  public:
+    // Should be "implementation defined" but used in the tests.
+    virtual const sc_event &find_event(sc_interface *if_p=NULL) const = 0;
+    virtual const sc_port_base *port() const = 0;
+};
+
+template <class IF>
+class sc_event_finder_t : public sc_event_finder
+{
+  public:
+    sc_event_finder_t(const sc_port_base &p,
+                      const sc_event & (IF::*_method)() const) :
+        _method(_method)
+    {
+        _port = dynamic_cast<const sc_port_b<IF> *>(&p);
+        assert(_port);
+    }
+
+    virtual ~sc_event_finder_t() {}
+
+    const sc_port_base *port() const { return _port; }
+
+    const sc_event &
+    find_event(sc_interface *if_p=NULL) const override
+    {
+        static const sc_gem5::InternalScEvent none;
+        const IF *iface = if_p ? dynamic_cast<const IF *>(if_p) :
+            dynamic_cast<const IF *>(_port->get_interface());
+        if (!iface) {
+            std::ostringstream ss;
+            ss << "port is not bound: port '" << _port->name() << "' (" <<
+                _port->kind() << ")";
+            SC_REPORT_ERROR(SC_ID_FIND_EVENT_, ss.str().c_str());
+            return none;
+        }
+        return (const_cast<IF *>(iface)->*_method)();
+    }
+
+  private:
+    const sc_port_b<IF> *_port;
+    const sc_event &(IF::*_method)() const;
 };
 
 const std::vector<sc_event *> &sc_get_top_level_events();
 sc_event *sc_find_event(const char *);
 
 } // namespace sc_core
+
+namespace sc_gem5
+{
+
+class InternalScEvent : public ::sc_core::sc_event
+{
+  public:
+    InternalScEvent();
+    InternalScEvent(const char *);
+};
+
+} // namespace sc_gem5
 
 #endif  //__SYSTEMC_EXT_CORE_SC_INTERFACE_HH__

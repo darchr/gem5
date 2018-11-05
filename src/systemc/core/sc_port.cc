@@ -27,16 +27,88 @@
  * Authors: Gabe Black
  */
 
-#include "base/logging.hh"
+#include <sstream>
+
+#include "base/cprintf.hh"
+#include "systemc/core/module.hh"
+#include "systemc/core/port.hh"
+#include "systemc/core/scheduler.hh"
+#include "systemc/ext/channel/messages.hh"
+#include "systemc/ext/core/sc_main.hh"
 #include "systemc/ext/core/sc_port.hh"
 
 namespace sc_core
 {
 
-void
-sc_port_base::warn_unimpl(const char *func) const
+namespace
 {
-    warn("%s not implemented.\n", func);
+
+void
+reportError(const char *id, const char *add_msg,
+        const char *name, const char *kind)
+{
+    std::string msg;
+    if (add_msg)
+        msg = csprintf("%s: port '%s' (%s)", add_msg, name, kind);
+    else
+        msg = csprintf("port '%s' (%s)", name, kind);
+
+    SC_REPORT_ERROR(id, msg.c_str());
 }
+
+}
+
+sc_port_base::sc_port_base(const char *n, int max_size, sc_port_policy p) :
+    sc_object(n), _gem5Port(nullptr)
+{
+    if (sc_is_running()) {
+        reportError(SC_ID_INSERT_PORT_, "simulation running",
+                name(), kind());
+    }
+    if (::sc_gem5::scheduler.elaborationDone()) {
+        reportError(SC_ID_INSERT_PORT_, "elaboration done",
+                name(), kind());
+    }
+
+    auto m = sc_gem5::pickParentModule();
+    if (!m)
+        reportError(SC_ID_PORT_OUTSIDE_MODULE_, nullptr, name(), kind());
+    else
+        m->ports.push_back(this);
+    _gem5Port = new ::sc_gem5::Port(this, max_size);
+}
+
+sc_port_base::~sc_port_base()
+{
+    delete _gem5Port;
+}
+
+void
+sc_port_base::warn_port_constructor() const
+{
+    static bool warned = false;
+    if (!warned) {
+        SC_REPORT_INFO(SC_ID_IEEE_1666_DEPRECATION_,
+                "interface and/or port binding in port constructors "
+                "is deprecated");
+        warned = true;
+    }
+}
+
+void
+sc_port_base::report_error(const char *id, const char *add_msg) const
+{
+    std::ostringstream ss;
+    if (add_msg)
+        ss << add_msg << ": ";
+    ss << "port '" << name() << "' (" << kind() << ")";
+    SC_REPORT_ERROR(id, ss.str().c_str());
+}
+
+int sc_port_base::maxSize() const { return _gem5Port->maxSize(); }
+int sc_port_base::size() const { return _gem5Port->size(); }
+
+void sc_port_base::bind(sc_interface &i) { _gem5Port->bind(&i); }
+void sc_port_base::bind(sc_port_base &p) { _gem5Port->bind(&p); }
 
 } // namespace sc_core

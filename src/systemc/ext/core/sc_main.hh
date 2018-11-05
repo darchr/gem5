@@ -30,6 +30,8 @@
 #ifndef __SYSTEMC_EXT_CORE_SC_MAIN_HH__
 #define __SYSTEMC_EXT_CORE_SC_MAIN_HH__
 
+#include <iostream>
+
 #include "../dt/int/sc_nbdefs.hh"
 #include "sc_time.hh"
 
@@ -87,10 +89,18 @@ namespace sc_core
         SC_RUNNING = 0x10,
         SC_PAUSED = 0x20,
         SC_STOPPED = 0x40,
-        SC_END_OF_SIMULATION = 0x80
+        SC_END_OF_SIMULATION = 0x80,
+
+        // Nonstandard
+        SC_END_OF_INITIALIZATION = 0x100,
+        SC_END_OF_UPDATE = 0x400,
+        SC_BEFORE_TIMESTEP = 0x800,
+        SC_STATUS_ANY = 0xdff
     };
 
     sc_status sc_get_status();
+
+    std::ostream &operator << (std::ostream &os, sc_status s);
 } // namespace sc_core
 
 #endif  //__SYSTEMC_EXT_CORE_SC_MAIN_HH__

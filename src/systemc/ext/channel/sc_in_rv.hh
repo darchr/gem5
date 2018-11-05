@@ -30,7 +30,11 @@
 #ifndef __SYSTEMC_EXT_CHANNEL_SC_IN_RV_HH__
 #define __SYSTEMC_EXT_CHANNEL_SC_IN_RV_HH__
 
+#include <sstream>
+
+#include "messages.hh"
 #include "sc_in.hh"
+#include "sc_signal_rv.hh"
 
 namespace sc_dt
 {
@@ -51,7 +55,16 @@ class sc_in_rv : public sc_in<sc_dt::sc_lv<W>>
     explicit sc_in_rv(const char *name) : sc_in<sc_dt::sc_lv<W>>(name) {}
     virtual ~sc_in_rv() {};
 
-    virtual void end_of_elaboration() {}
+    virtual void
+    end_of_elaboration()
+    {
+        sc_in<sc_dt::sc_lv<W> >::end_of_elaboration();
+        if (!dynamic_cast<sc_signal_rv<W> *>(this->get_interface())) {
+            std::ostringstream ss;
+            ss << "port '" << this->name() << "' (" << this->kind() << ")";
+            SC_REPORT_ERROR(SC_ID_RESOLVED_PORT_NOT_BOUND_, ss.str().c_str());
+        }
+    }
 
     virtual const char *kind() const { return "sc_in_rv"; }
 

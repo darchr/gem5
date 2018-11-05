@@ -30,31 +30,137 @@
 #ifndef __SYSTEMC_CORE_MODULE_HH__
 #define __SYSTEMC_CORE_MODULE_HH__
 
-namespace SystemC
+#include <cassert>
+#include <list>
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "systemc/core/object.hh"
+#include "systemc/ext/core/sc_module.hh"
+
+namespace sc_core
 {
+
+class sc_port_base;
+class sc_export_base;
+
+} // namespace sc_core
+
+namespace sc_gem5
+{
+
+class UniqueNameGen
+{
+  private:
+    std::map<std::string, int> counts;
+    std::string buf;
+
+  public:
+    const char *
+    gen(std::string seed)
+    {
+        std::ostringstream os;
+        os << seed << "_" << counts[seed]++;
+        buf = os.str();
+        return buf.c_str();
+    }
+};
+
+extern UniqueNameGen globalNameGen;
 
 class Module
 {
   private:
     const char *_name;
+    sc_core::sc_module *_sc_mod;
+    Object *_obj;
+    bool _ended;
+    bool _deprecatedConstructor;
+
+    UniqueNameGen nameGen;
 
   public:
-    Module(const char *name) : _name(name) {}
+    Module(const char *name);
+    ~Module();
 
-    const char *name() { return _name; }
+    static Module *
+    fromScModule(::sc_core::sc_module *mod)
+    {
+        return mod->_gem5_module;
+    }
 
-    void push();
+    void finish(Object *this_obj);
+
+    const char *name() const { return _name; }
+    void endModule() { _ended = true; }
+    void deprecatedConstructor() { _deprecatedConstructor = true; }
+
+    sc_core::sc_module *
+    sc_mod() const
+    {
+        assert(_sc_mod);
+        return _sc_mod;
+    }
+
+    void
+    sc_mod(sc_core::sc_module *sc_mod)
+    {
+        assert(!_sc_mod);
+        _sc_mod = sc_mod;
+    }
+
+    Object *
+    obj()
+    {
+        assert(_obj);
+        return _obj;
+    }
+
     void pop();
+
+    const char *uniqueName(const char *seed) { return nameGen.gen(seed); }
+
+    void bindPorts(std::vector<const ::sc_core::sc_bind_proxy *> &proxies);
+
+    std::vector<::sc_core::sc_port_base *> ports;
+    std::vector<::sc_core::sc_export_base *> exports;
+
+    int bindingIndex;
+
+    void beforeEndOfElaboration();
+    void endOfElaboration();
+    void startOfSimulation();
+    void endOfSimulation();
 };
 
-extern Module *topModule();
+Module *currentModule();
+Module *newModuleChecked();
+Module *newModule();
 
-} // namespace SystemC
-
-namespace sc_gem5
+static inline Module *
+pickParentModule()
 {
+    ::sc_core::sc_object *obj = pickParentObj();
+    auto mod = dynamic_cast<::sc_core::sc_module *>(obj);
+    if (!mod)
+        return nullptr;
+    return Module::fromScModule(mod);
+}
+static inline void
+pushParentModule(Module *m)
+{
+    pushParentObj(m->obj()->sc_obj());
+}
+static inline void
+popParentModule()
+{
+    assert(pickParentModule());
+    popParentObj();
+}
 
-using SystemC::Module;
+extern std::list<Module *> allModules;
 
 } // namespace sc_gem5
 

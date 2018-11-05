@@ -33,10 +33,48 @@
 #include <exception>
 #include <vector>
 
+#include "../utils/sc_report_handler.hh"
+#include "messages.hh"
+#include "sc_object.hh"
+
 namespace sc_gem5
 {
 
 class Process;
+
+struct ProcessFuncWrapper
+{
+    virtual void call() = 0;
+    virtual ~ProcessFuncWrapper() {}
+};
+
+template <typename T>
+struct ProcessMemberFuncWrapper : public ProcessFuncWrapper
+{
+    typedef void (T::*TFunc)();
+    T *t;
+    TFunc func;
+
+    ProcessMemberFuncWrapper(T *t, TFunc func) : t(t), func(func) {}
+
+    void call() override { (t->*func)(); }
+};
+
+struct ExceptionWrapperBase
+{
+    virtual void throw_it() = 0;
+};
+
+template <typename T>
+struct ExceptionWrapper : public ExceptionWrapperBase
+{
+    const T &t;
+    ExceptionWrapper(const T &t) : t(t) {}
+
+    void throw_it() { throw t; }
+};
+
+void throw_it_wrapper(Process *p, ExceptionWrapperBase &exc, bool inc_kids);
 
 } // namespace sc_gem5
 
@@ -44,7 +82,6 @@ namespace sc_core
 {
 
 class sc_event;
-class sc_object;
 
 enum sc_curr_proc_kind
 {
@@ -74,8 +111,42 @@ class sc_unwind_exception : public std::exception
     virtual ~sc_unwind_exception() throw();
 
   protected:
+    bool _isReset;
     sc_unwind_exception();
 };
+
+// Deprecated
+// An incomplete version of sc_process_b to satisfy the tests.
+class sc_process_b : public sc_object
+{
+  public:
+    sc_process_b(const char *name) : sc_object(name), file(nullptr), lineno(0)
+    {}
+    sc_process_b() : sc_object(), file(nullptr), lineno(0) {}
+
+    const char *file;
+    int lineno;
+};
+
+// Nonstandard
+void sc_set_location(const char *file, int lineno);
+
+// Deprecated
+sc_process_b *sc_get_curr_process_handle();
+static inline sc_process_b *
+sc_get_current_process_b()
+{
+    return sc_get_curr_process_handle();
+}
+
+// Deprecated/nonstandard
+struct sc_curr_proc_info
+{
+    sc_process_b *process_handle;
+    sc_curr_proc_kind kind;
+    sc_curr_proc_info() : process_handle(NULL), kind(SC_NO_PROC_) {}
+};
+typedef const sc_curr_proc_info *sc_curr_proc_handle;
 
 class sc_process_handle
 {
@@ -105,7 +176,7 @@ class sc_process_handle
     bool operator == (const sc_process_handle &) const;
     bool operator != (const sc_process_handle &) const;
     bool operator < (const sc_process_handle &) const;
-    bool swap(sc_process_handle &);
+    void swap(sc_process_handle &);
 
     const char *name() const;
     sc_curr_proc_kind proc_kind() const;
@@ -137,13 +208,19 @@ class sc_process_handle
     void sync_reset_off(sc_descendent_inclusion_info include_descendants=
                         SC_NO_DESCENDANTS);
 
-    void warn_unimpl(const char *func);
     template <typename T>
-    void throw_it(const T &user_defined_exception,
-                  sc_descendent_inclusion_info include_descendants=
-                  SC_NO_DESCENDANTS)
+    void
+    throw_it(const T &user_defined_exception,
+             sc_descendent_inclusion_info include_descendants=
+             SC_NO_DESCENDANTS)
     {
-        warn_unimpl(__PRETTY_FUNCTION__);
+        if (!_gem5_process) {
+            SC_REPORT_WARNING(SC_ID_EMPTY_PROCESS_HANDLE_, "throw_it()");
+            return;
+        }
+        ::sc_gem5::ExceptionWrapper<T> exc(user_defined_exception);
+        ::sc_gem5::throw_it_wrapper(_gem5_process, exc,
+                include_descendants == SC_INCLUDE_DESCENDANTS);
     }
 };
 

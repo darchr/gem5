@@ -82,14 +82,16 @@ ISA::ISA(Params *p)
         highestELIs64 = system->highestELIs64();
         haveSecurity = system->haveSecurity();
         haveLPAE = system->haveLPAE();
+        haveCrypto = system->haveCrypto();
         haveVirtualization = system->haveVirtualization();
         haveLargeAsid64 = system->haveLargeAsid64();
-        physAddrRange64 = system->physAddrRange64();
+        physAddrRange = system->physAddrRange();
     } else {
         highestELIs64 = true; // ArmSystem::highestELIs64 does the same
         haveSecurity = haveLPAE = haveVirtualization = false;
+        haveCrypto = false;
         haveLargeAsid64 = false;
-        physAddrRange64 = 32;  // dummy value
+        physAddrRange = 32;  // dummy value
     }
 
     initializeMiscRegMetadata();
@@ -114,22 +116,17 @@ ISA::clear()
     SCTLR sctlr_rst = miscRegs[MISCREG_SCTLR_RST];
     memset(miscRegs, 0, sizeof(miscRegs));
 
-    // Initialize configurable default values
-    miscRegs[MISCREG_MIDR] = p->midr;
-    miscRegs[MISCREG_MIDR_EL1] = p->midr;
-    miscRegs[MISCREG_VPIDR] = p->midr;
+    initID32(p);
 
-    miscRegs[MISCREG_ID_ISAR0] = p->id_isar0;
-    miscRegs[MISCREG_ID_ISAR1] = p->id_isar1;
-    miscRegs[MISCREG_ID_ISAR2] = p->id_isar2;
-    miscRegs[MISCREG_ID_ISAR3] = p->id_isar3;
-    miscRegs[MISCREG_ID_ISAR4] = p->id_isar4;
-    miscRegs[MISCREG_ID_ISAR5] = p->id_isar5;
+    // We always initialize AArch64 ID registers even
+    // if we are in AArch32. This is done since if we
+    // are in SE mode we don't know if our ArmProcess is
+    // AArch32 or AArch64
+    initID64(p);
 
-    miscRegs[MISCREG_ID_MMFR0] = p->id_mmfr0;
-    miscRegs[MISCREG_ID_MMFR1] = p->id_mmfr1;
-    miscRegs[MISCREG_ID_MMFR2] = p->id_mmfr2;
-    miscRegs[MISCREG_ID_MMFR3] = p->id_mmfr3;
+    miscRegs[MISCREG_ID_ISAR5] = insertBits(
+        miscRegs[MISCREG_ID_ISAR5], 19, 4,
+        haveCrypto ? 0x1112 : 0x0);
 
     if (FullSystem && system->highestELIs64()) {
         // Initialize AArch64 state
@@ -290,7 +287,32 @@ ISA::clear64(const ArmISAParams *p)
         // Always non-secure
         miscRegs[MISCREG_SCR_EL3] = 1;
     }
+}
 
+void
+ISA::initID32(const ArmISAParams *p)
+{
+    // Initialize configurable default values
+    miscRegs[MISCREG_MIDR] = p->midr;
+    miscRegs[MISCREG_MIDR_EL1] = p->midr;
+    miscRegs[MISCREG_VPIDR] = p->midr;
+
+    miscRegs[MISCREG_ID_ISAR0] = p->id_isar0;
+    miscRegs[MISCREG_ID_ISAR1] = p->id_isar1;
+    miscRegs[MISCREG_ID_ISAR2] = p->id_isar2;
+    miscRegs[MISCREG_ID_ISAR3] = p->id_isar3;
+    miscRegs[MISCREG_ID_ISAR4] = p->id_isar4;
+    miscRegs[MISCREG_ID_ISAR5] = p->id_isar5;
+
+    miscRegs[MISCREG_ID_MMFR0] = p->id_mmfr0;
+    miscRegs[MISCREG_ID_MMFR1] = p->id_mmfr1;
+    miscRegs[MISCREG_ID_MMFR2] = p->id_mmfr2;
+    miscRegs[MISCREG_ID_MMFR3] = p->id_mmfr3;
+}
+
+void
+ISA::initID64(const ArmISAParams *p)
+{
     // Initialize configurable id registers
     miscRegs[MISCREG_ID_AA64AFR0_EL1] = p->id_aa64afr0_el1;
     miscRegs[MISCREG_ID_AA64AFR1_EL1] = p->id_aa64afr1_el1;
@@ -303,6 +325,7 @@ ISA::clear64(const ArmISAParams *p)
     miscRegs[MISCREG_ID_AA64ISAR1_EL1] = p->id_aa64isar1_el1;
     miscRegs[MISCREG_ID_AA64MMFR0_EL1] = p->id_aa64mmfr0_el1;
     miscRegs[MISCREG_ID_AA64MMFR1_EL1] = p->id_aa64mmfr1_el1;
+    miscRegs[MISCREG_ID_AA64MMFR2_EL1] = p->id_aa64mmfr2_el1;
 
     miscRegs[MISCREG_ID_DFR0_EL1] =
         (p->pmu ? 0x03000000ULL : 0); // Enable PMUv3
@@ -326,8 +349,20 @@ ISA::clear64(const ArmISAParams *p)
     // Physical address size
     miscRegs[MISCREG_ID_AA64MMFR0_EL1] = insertBits(
         miscRegs[MISCREG_ID_AA64MMFR0_EL1], 3, 0,
-        encodePhysAddrRange64(physAddrRange64));
+        encodePhysAddrRange64(physAddrRange));
+    // Crypto
+    miscRegs[MISCREG_ID_AA64ISAR0_EL1] = insertBits(
+        miscRegs[MISCREG_ID_AA64ISAR0_EL1], 19, 4,
+        haveCrypto ? 0x1112 : 0x0);
 }
+
+void
+ISA::startup(ThreadContext *tc)
+{
+    pmu->setThreadContext(tc);
+
+}
+
 
 MiscReg
 ISA::readMiscRegNoEffect(int misc_reg) const
@@ -978,6 +1013,7 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
           case MISCREG_ID_AA64ISAR1_EL1:
           case MISCREG_ID_AA64MMFR0_EL1:
           case MISCREG_ID_AA64MMFR1_EL1:
+          case MISCREG_ID_AA64MMFR2_EL1:
           case MISCREG_ID_AA64PFR0_EL1:
           case MISCREG_ID_AA64PFR1_EL1:
             // ID registers are constants.
@@ -1946,6 +1982,8 @@ ISA::getGenericTimer(ThreadContext *tc)
     }
 
     timer.reset(new GenericTimerISA(*generic_timer, tc->contextId()));
+    timer->setThreadContext(tc);
+
     return *timer.get();
 }
 

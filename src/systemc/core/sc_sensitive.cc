@@ -27,38 +27,124 @@
  * Authors: Gabe Black
  */
 
-#include "base/logging.hh"
+#include "systemc/core/process.hh"
+#include "systemc/ext/channel/sc_in.hh"
+#include "systemc/ext/channel/sc_inout.hh"
+#include "systemc/ext/channel/sc_signal_in_if.hh"
+#include "systemc/ext/core/messages.hh"
+#include "systemc/ext/core/sc_interface.hh"
+#include "systemc/ext/core/sc_main.hh"
 #include "systemc/ext/core/sc_sensitive.hh"
+#include "systemc/ext/utils/sc_report_handler.hh"
 
 namespace sc_core
 {
 
-sc_sensitive &
-sc_sensitive::operator << (const sc_event &)
+namespace
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+
+void
+checkIfRunning()
+{
+    if (sc_is_running())
+        SC_REPORT_ERROR(SC_ID_MAKE_SENSITIVE_, "simulation running");
+}
+
+} // anonymous namespace
+
+sc_sensitive::sc_sensitive() : currentProcess(nullptr) {}
+
+sc_sensitive &
+sc_sensitive::operator << (const sc_event &e)
+{
+    checkIfRunning();
+    sc_gem5::newStaticSensitivityEvent(currentProcess, &e);
     return *this;
 }
 
 sc_sensitive &
-sc_sensitive::operator << (const sc_interface &)
+sc_sensitive::operator << (const sc_interface &i)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    checkIfRunning();
+    sc_gem5::newStaticSensitivityInterface(currentProcess, &i);
     return *this;
 }
 
 sc_sensitive &
-sc_sensitive::operator << (const sc_port_base &)
+sc_sensitive::operator << (const sc_port_base &b)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    checkIfRunning();
+    sc_gem5::newStaticSensitivityPort(currentProcess, &b);
     return *this;
 }
 
 sc_sensitive &
-sc_sensitive::operator << (sc_event_finder &)
+sc_sensitive::operator << (sc_event_finder &f)
 {
-    warn("%s not implemented.\n", __PRETTY_FUNCTION__);
+    checkIfRunning();
+    sc_gem5::newStaticSensitivityFinder(currentProcess, &f);
     return *this;
+}
+
+sc_sensitive &
+sc_sensitive::operator << (::sc_gem5::Process *p)
+{
+    currentProcess = p;
+    return *this;
+}
+
+
+void
+sc_sensitive::operator () (::sc_gem5::Process *p,
+                           const sc_signal_in_if<bool> &i)
+{
+    checkIfRunning();
+    sc_gem5::newStaticSensitivityEvent(p, &i.posedge_event());
+}
+
+void
+sc_sensitive::operator () (::sc_gem5::Process *p,
+                           const sc_signal_in_if<sc_dt::sc_logic> &i)
+{
+    checkIfRunning();
+    sc_gem5::newStaticSensitivityEvent(p, &i.posedge_event());
+}
+
+void
+sc_sensitive::operator () (::sc_gem5::Process *p, const sc_in<bool> &port)
+{
+    checkIfRunning();
+    sc_gem5::newStaticSensitivityFinder(p, &port.pos());
+}
+
+void
+sc_sensitive::operator () (::sc_gem5::Process *p,
+                           const sc_in<sc_dt::sc_logic> &port)
+{
+    checkIfRunning();
+    sc_gem5::newStaticSensitivityFinder(p, &port.pos());
+}
+
+void
+sc_sensitive::operator () (::sc_gem5::Process *p, const sc_inout<bool> &port)
+{
+    checkIfRunning();
+    sc_gem5::newStaticSensitivityFinder(p, &port.pos());
+}
+
+void
+sc_sensitive::operator () (::sc_gem5::Process *p,
+                           const sc_inout<sc_dt::sc_logic> &port)
+{
+    checkIfRunning();
+    sc_gem5::newStaticSensitivityFinder(p, &port.pos());
+}
+
+void
+sc_sensitive::operator () (::sc_gem5::Process *p, sc_event_finder &f)
+{
+    checkIfRunning();
+    sc_gem5::newStaticSensitivityFinder(p, &f);
 }
 
 } // namespace sc_core

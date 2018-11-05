@@ -66,11 +66,13 @@
 #include "base/compiler.hh"
 #include "systemc/ext/dt/bit/sc_bv_base.hh"
 #include "systemc/ext/dt/bit/sc_lv_base.hh"
+#include "systemc/ext/dt/fx/messages.hh"
 #include "systemc/ext/dt/fx/scfx_ieee.hh"
 #include "systemc/ext/dt/fx/scfx_pow10.hh"
 #include "systemc/ext/dt/fx/scfx_rep.hh"
 #include "systemc/ext/dt/fx/scfx_utils.hh"
 #include "systemc/ext/utils/endian.hh"
+#include "systemc/ext/utils/messages.hh"
 
 namespace sc_dt
 {
@@ -147,7 +149,7 @@ scfx_rep::scfx_rep(long a) :
             a = -a;
             m_sign = -1;
         }
-#       if defined(SC_LONG_64)
+#       if SC_LONG_64
             m_wp = 1;
             m_mant[1] = static_cast<word>(a);
             m_mant[2] = static_cast<word>(a >> bits_in_word);
@@ -171,7 +173,7 @@ scfx_rep::scfx_rep(unsigned long a) :
         m_mant.clear();
         m_wp = m_msw = m_lsw = 2;
         m_state = normal;
-#       if defined(SC_LONG_64)
+#       if SC_LONG_64
             m_wp = 1;
             m_mant[1] = static_cast<word>(a);
             m_mant[2] = static_cast<word>(a >> bits_in_word);
@@ -1057,6 +1059,7 @@ print_other(scfx_string &s, const scfx_rep &a, sc_numrep numrep, int w_prefix,
 
             lsb = (b.m_lsw - b.m_wp) * bits_in_word +
                 scfx_find_lsb(b.m_mant[b.m_lsw]);
+
         }
     }
 
@@ -1077,7 +1080,8 @@ print_other(scfx_string &s, const scfx_rep &a, sc_numrep numrep, int w_prefix,
         step = 4;
         break;
       default:
-        SC_REPORT_FATAL("assertion failed", "unexpected sc_numrep");
+        SC_REPORT_FATAL(sc_core::SC_ID_ASSERTION_FAILED_,
+                "unexpected sc_numrep");
         sc_core::sc_abort();
     }
 
@@ -1960,7 +1964,7 @@ scfx_rep::overflow(const scfx_params &params, bool &o_flag)
           case SC_WRAP_SM: // sign magnitude wrap-around
             {
                 SC_ERROR_IF_(enc == SC_US_,
-                             "SC_WRAP_SM not defined for unsigned numbers");
+                             sc_core::SC_ID_WRAP_SM_NOT_DEFINED_);
 
                 int n_bits = params.n_bits();
 

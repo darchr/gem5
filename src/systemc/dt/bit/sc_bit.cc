@@ -58,8 +58,10 @@
 
 #include <sstream>
 
+#include "systemc/ext/dt/bit/messages.hh"
 #include "systemc/ext/dt/bit/sc_bit.hh"
 #include "systemc/ext/dt/bit/sc_logic.hh"
+#include "systemc/ext/utils/messages.hh"
 #include "systemc/ext/utils/sc_report_handler.hh"
 
 namespace sc_dt
@@ -77,8 +79,8 @@ void
 sc_bit::invalid_value(char c)
 {
     std::stringstream msg;
-    msg << "sc_bit('" << c << "')";
-    SC_REPORT_ERROR("value is not valid", msg.str().c_str());
+    msg << "sc_bit( '" << c << "' )";
+    SC_REPORT_ERROR(sc_core::SC_ID_VALUE_NOT_VALID_, msg.str().c_str());
     sc_core::sc_abort(); // can't recover from here
 }
 
@@ -86,8 +88,8 @@ void
 sc_bit::invalid_value(int i)
 {
     std::stringstream msg;
-    msg << "sc_bit(" << i << ")";
-    SC_REPORT_ERROR("value is not valid", msg.str().c_str());
+    msg << "sc_bit( " << i << " )";
+    SC_REPORT_ERROR(sc_core::SC_ID_VALUE_NOT_VALID_, msg.str().c_str());
     sc_core::sc_abort(); // can't recover from here
 }
 
@@ -119,7 +121,7 @@ sc_deprecated_sc_bit()
     static bool warn_sc_bit_deprecated = true;
     if (warn_sc_bit_deprecated) {
         warn_sc_bit_deprecated = false;
-        SC_REPORT_INFO("/IEEE_Std_1666/deprecated",
+        SC_REPORT_INFO(sc_core::SC_ID_IEEE_1666_DEPRECATION_,
             "sc_bit is deprecated, use bool instead");
     }
 }

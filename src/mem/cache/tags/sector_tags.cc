@@ -30,7 +30,7 @@
 
 /**
  * @file
- * Definitions of a base set associative sector tag store.
+ * Definitions of a sector tag store.
  */
 
 #include "mem/cache/tags/sector_tags.hh"
@@ -42,78 +42,70 @@
 #include "base/intmath.hh"
 #include "base/logging.hh"
 #include "base/types.hh"
-#include "debug/CacheRepl.hh"
 #include "mem/cache/base.hh"
 #include "mem/cache/replacement_policies/base.hh"
+#include "mem/cache/replacement_policies/replaceable_entry.hh"
+#include "mem/cache/tags/indexing_policies/base.hh"
 
 SectorTags::SectorTags(const SectorTagsParams *p)
-    : BaseTags(p), assoc(p->assoc), allocAssoc(p->assoc),
+    : BaseTags(p), allocAssoc(p->assoc),
       sequentialAccess(p->sequential_access),
       replacementPolicy(p->replacement_policy),
       numBlocksPerSector(p->num_blocks_per_sector),
-      numSectors(numBlocks / p->num_blocks_per_sector),
-      numSets(numSectors / p->assoc),
-      blks(numBlocks), secBlks(numSectors), sets(numSets),
-      sectorShift(floorLog2(blkSize)),
-      setShift(sectorShift + floorLog2(numBlocksPerSector)),
-      tagShift(setShift + floorLog2(numSets)),
-      sectorMask(numBlocksPerSector - 1), setMask(numSets - 1)
+      numSectors(numBlocks / p->num_blocks_per_sector), blks(numBlocks),
+      secBlks(numSectors), sectorShift(floorLog2(blkSize)),
+      sectorMask(numBlocksPerSector - 1)
 {
     // Check parameters
     fatal_if(blkSize < 4 || !isPowerOf2(blkSize),
              "Block size must be at least 4 and a power of 2");
-    fatal_if(!isPowerOf2(numSets),
-             "# of sets must be non-zero and a power of 2");
     fatal_if(!isPowerOf2(numBlocksPerSector),
              "# of blocks per sector must be non-zero and a power of 2");
-    fatal_if(assoc <= 0, "associativity must be greater than zero");
+}
 
-    // Initialize all sets
-    unsigned sec_blk_index = 0;   // index into sector blks array
+void
+SectorTags::init(BaseCache* cache)
+{
+    // Set parent cache
+    setCache(cache);
+
+    // Initialize all blocks
     unsigned blk_index = 0;       // index into blks array
-    for (unsigned i = 0; i < numSets; ++i) {
-        sets[i].resize(assoc);
+    for (unsigned sec_blk_index = 0; sec_blk_index < numSectors;
+         sec_blk_index++)
+    {
+        // Locate next cache sector
+        SectorBlk* sec_blk = &secBlks[sec_blk_index];
 
-        // Initialize all sectors in this set
-        for (unsigned j = 0; j < assoc; ++j) {
+        // Link block to indexing policy
+        indexingPolicy->setEntry(sec_blk, sec_blk_index);
+
+        // Associate a replacement data entry to the sector
+        sec_blk->replacementData = replacementPolicy->instantiateEntry();
+
+        // Initialize all blocks in this sector
+        sec_blk->blks.resize(numBlocksPerSector);
+        for (unsigned k = 0; k < numBlocksPerSector; ++k){
             // Select block within the set to be linked
-            SectorBlk*& sec_blk = sets[i][j];
+            SectorSubBlk*& blk = sec_blk->blks[k];
 
-            // Locate next cache sector
-            sec_blk = &secBlks[sec_blk_index];
+            // Locate next cache block
+            blk = &blks[blk_index];
 
-            // Associate a replacement data entry to the sector
-            sec_blk->replacementData = replacementPolicy->instantiateEntry();
+            // Associate a data chunk to the block
+            blk->data = &dataBlks[blkSize*blk_index];
 
-            // Initialize all blocks in this sector
-            sec_blk->blks.resize(numBlocksPerSector);
-            for (unsigned k = 0; k < numBlocksPerSector; ++k){
-                // Select block within the set to be linked
-                SectorSubBlk*& blk = sec_blk->blks[k];
+            // Associate sector block to this block
+            blk->setSectorBlock(sec_blk);
 
-                // Locate next cache block
-                blk = &blks[blk_index];
+            // Associate the sector replacement data to this block
+            blk->replacementData = sec_blk->replacementData;
 
-                // Associate a data chunk to the block
-                blk->data = &dataBlks[blkSize*blk_index];
+            // Set its index and sector offset
+            blk->setSectorOffset(k);
 
-                // Associate sector block to this block
-                blk->setSectorBlock(sec_blk);
-
-                // Associate the sector replacement data to this block
-                blk->replacementData = sec_blk->replacementData;
-
-                // Set its set, way and sector offset
-                blk->set = i;
-                blk->way = j;
-                blk->setSectorOffset(k);
-
-                // Update block index
-                ++blk_index;
-            }
-
-            // Update sector block index
-            ++sec_blk_index;
+            // Update block index
+            ++blk_index;
         }
     }
 }
@@ -187,17 +179,13 @@ SectorTags::accessBlock(Addr addr, bool is_secure, Cycles &lat)
     return blk;
 }
 
-const std::vector<SectorBlk*>
-SectorTags::getPossibleLocations(Addr addr) const
-{
-    return sets[extractSet(addr)];
-}
-
 void
-SectorTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
+SectorTags::insertBlock(const Addr addr, const bool is_secure,
+                        const int src_master_ID, const uint32_t task_ID,
+                        CacheBlk *blk)
 {
-    // Insert block
-    BaseTags::insertBlock(pkt, blk);
+    // Do common block insertion functionality
+    BaseTags::insertBlock(addr, is_secure, src_master_ID, task_ID, blk);
 
     // Get block's sector
     SectorSubBlk* sub_blk = static_cast<SectorSubBlk*>(blk);
@@ -228,12 +216,13 @@ SectorTags::findBlock(Addr addr, bool is_secure) const
     // due to sectors being composed of contiguous-address entries
     const Addr offset = extractSectorOffset(addr);
 
-    // Find all possible sector locations for the given address
-    const std::vector<SectorBlk*> locations = getPossibleLocations(addr);
+    // Find all possible sector entries that may contain the given address
+    const std::vector<ReplaceableEntry*> entries =
+        indexingPolicy->getPossibleEntries(addr);
 
     // Search for block
-    for (const auto& sector : locations) {
-        auto blk = sector->blks[offset];
+    for (const auto& sector : entries) {
+        auto blk = static_cast<SectorBlk*>(sector)->blks[offset];
         if (blk->getTag() == tag && blk->isValid() &&
             blk->isSecure() == is_secure) {
             return blk;
@@ -244,27 +233,22 @@ SectorTags::findBlock(Addr addr, bool is_secure) const
     return nullptr;
 }
 
-ReplaceableEntry*
-SectorTags::findBlockBySetAndWay(int set, int way) const
-{
-    return sets[set][way];
-}
-
 CacheBlk*
 SectorTags::findVictim(Addr addr, const bool is_secure,
                        std::vector<CacheBlk*>& evict_blks) const
 {
-    // Get all possible locations of this sector
-    const std::vector<SectorBlk*> sector_locations =
-        getPossibleLocations(addr);
+    // Get possible entries to be victimized
+    const std::vector<ReplaceableEntry*> sector_entries =
+        indexingPolicy->getPossibleEntries(addr);
 
     // Check if the sector this address belongs to has been allocated
     Addr tag = extractTag(addr);
     SectorBlk* victim_sector = nullptr;
-    for (const auto& sector : sector_locations){
-        if ((tag == sector->getTag()) && sector->isValid() &&
-            (is_secure == sector->isSecure())){
-            victim_sector = sector;
+    for (const auto& sector : sector_entries) {
+        SectorBlk* sector_blk = static_cast<SectorBlk*>(sector);
+        if ((tag == sector_blk->getTag()) && sector_blk->isValid() &&
+            (is_secure == sector_blk->isSecure())){
+            victim_sector = sector_blk;
             break;
         }
     }
@@ -273,11 +257,10 @@ SectorTags::findVictim(Addr addr, const bool is_secure,
     if (victim_sector == nullptr){
         // Choose replacement victim from replacement candidates
         victim_sector = static_cast<SectorBlk*>(replacementPolicy->getVictim(
-                          std::vector<ReplaceableEntry*>(
-                          sector_locations.begin(), sector_locations.end())));
+                                                sector_entries));
     }
 
-    // Get the location of the victim block within the sector
+    // Get the entry of the victim block within the sector
     SectorSubBlk* victim = victim_sector->blks[extractSectorOffset(addr)];
 
     // Get evicted blocks. Blocks are only evicted if the sectors mismatch and
@@ -294,23 +277,7 @@ SectorTags::findVictim(Addr addr, const bool is_secure,
         }
     }
 
-    DPRINTF(CacheRepl, "set %x, way %x, sector offset %x: %s\n",
-            "selecting blk for replacement\n", victim->set, victim->way,
-            victim->getSectorOffset());
-
     return victim;
-}
-
-Addr
-SectorTags::extractTag(Addr addr) const
-{
-    return addr >> tagShift;
-}
-
-int
-SectorTags::extractSet(Addr addr) const
-{
-    return (addr >> setShift) & setMask;
 }
 
 int
@@ -323,8 +290,9 @@ Addr
 SectorTags::regenerateBlkAddr(const CacheBlk* blk) const
 {
     const SectorSubBlk* blk_cast = static_cast<const SectorSubBlk*>(blk);
-    return ((blk_cast->getTag() << tagShift) | ((Addr)blk->set << setShift) |
-            ((Addr)blk_cast->getSectorOffset() << sectorShift));
+    const SectorBlk* sec_blk = blk_cast->getSectorBlock();
+    const Addr sec_addr = indexingPolicy->regenerateAddr(blk->tag, sec_blk);
+    return sec_addr | ((Addr)blk_cast->getSectorOffset() << sectorShift);
 }
 
 void
@@ -349,5 +317,8 @@ SectorTags::anyBlk(std::function<bool(CacheBlk &)> visitor)
 SectorTags *
 SectorTagsParams::create()
 {
+    // There must be a indexing policy
+    fatal_if(!indexing_policy, "An indexing policy is required");
+
     return new SectorTags(this);
 }
