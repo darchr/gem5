@@ -147,51 +147,6 @@ class SimpleDataflowCPU : public BaseCPU
         }
     };
 
-    // END Internal class definitions
-
-    // BEGIN Internal container structs
-
-    struct SplitAccCtrlBlk
-    {
-        // Packet used to communicate to the instruction (completeAcc)
-        // The data always is allocated in this packet. The other packets have
-        // static pointers to the data here.
-        PacketPtr main = nullptr;
-
-        // Used for sending/receiving data from memory system
-        PacketPtr low = nullptr;
-        bool lowReceived = false;
-        PacketPtr high = nullptr;
-        bool highReceived = false;
-    };
-
-    struct MemAccessReq
-    {
-        PacketPtr packet;
-        StaticInstPtr staticInst;
-        std::weak_ptr<ExecContext> execContext;
-        Trace::InstRecord* traceData;
-        ThreadContext* tc;
-        MemCallback callback;
-
-        SplitAccCtrlBlk* split;
-    };
-
-    // END Internal container structs
-
-
-    // BEGIN Internal constants
-
-    // END Internal constants
-
-
-    // BEGIN Internal parameters
-
-    Cycles executionLatency;
-    bool zeroTimeMicroopExecution;
-
-    // END Internal parameters
-
     /**
      * Models a functional unit. Each unit has a latency, in cycles, and a
      * bandwidth in accesses per cycle. A latency of 0 implies the action is
@@ -317,6 +272,53 @@ class SimpleDataflowCPU : public BaseCPU
         bool resourceAvailable() override;
     };
 
+    // END Internal class definitions
+
+    // BEGIN Internal container structs
+
+    struct SplitAccCtrlBlk
+    {
+        // Packet used to communicate to the instruction (completeAcc)
+        // The data always is allocated in this packet. The other packets have
+        // static pointers to the data here.
+        PacketPtr main = nullptr;
+
+        // Used for sending/receiving data from memory system
+        PacketPtr low = nullptr;
+        bool lowReceived = false;
+        PacketPtr high = nullptr;
+        bool highReceived = false;
+    };
+
+    struct MemAccessReq
+    {
+        PacketPtr packet;
+        StaticInstPtr staticInst;
+        std::weak_ptr<ExecContext> execContext;
+        Trace::InstRecord* traceData;
+        ThreadContext* tc;
+        MemCallback callback;
+
+        SplitAccCtrlBlk* split;
+    };
+
+    // END Internal container structs
+
+
+    // BEGIN Internal constants
+
+    // END Internal constants
+
+
+    // BEGIN Internal parameters
+
+    Cycles executionLatency;
+    bool zeroTimeMicroopExecution;
+
+    // END Internal parameters
+
+    // BEGIN Internal state variables
+
     /// Resources for each unit.
     Resource dataAddrTranslationUnit;
     Resource executionUnit;
@@ -324,8 +326,6 @@ class SimpleDataflowCPU : public BaseCPU
     Resource instAddrTranslationUnit;
     Resource issueUnit;
     MemoryResource memoryUnit;
-
-    // BEGIN Internal state variables
 
     DataPort _dataPort;
     InstPort _instPort;
