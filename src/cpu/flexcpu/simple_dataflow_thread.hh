@@ -369,6 +369,12 @@ class SDCPUThread : public ThreadContext
     void handleFault(std::shared_ptr<InflightInst> inst_ptr);
 
     /**
+     * Utility function for handling an interrupt. This function should only be
+     * called if an interrupt has actually been detected for this thread.
+     */
+    void handleInterrupt();
+
+    /**
      * This function checks if the thread should be active at this moment, and
      * whether or not we have a reasonable PC value ready to be able to
      * initiate another fetch at this time.
@@ -693,6 +699,8 @@ class SDCPUThread : public ThreadContext
     virtual ~SDCPUThread();
 
     ThreadContext* getThreadContext();
+
+    void interrupt(Fault intr);
 
     const std::string& name() const
     { return _name; }
