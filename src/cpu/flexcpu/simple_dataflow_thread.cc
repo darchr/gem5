@@ -315,6 +315,7 @@ SDCPUThread::commitAllAvailableInstructions()
     shared_ptr<InflightInst> inst_ptr;
 
     bool buffer_shrunk = false;
+    bool interrupts_checked = false;
     while (!inflightInsts.empty()
         && (canCommit(inst_ptr = inflightInsts.front())
             || inst_ptr->isSquashed())) {
@@ -334,6 +335,17 @@ SDCPUThread::commitAllAvailableInstructions()
 
         inflightInsts.pop_front();
         buffer_shrunk = true;
+
+        if (!interrupts_checked
+         && !inst_ptr->staticInst()->isDelayedCommit()) {
+            if (_cpuPtr->checkInterrupts(this)) {
+                handleInterrupt();
+                DPRINTF(SDCPUThreadEvent, "Handling interrupt.\n");
+
+                return;
+            }
+            interrupts_checked = true;
+        }
     }
 
     if (inflightInsts.empty()) {
@@ -558,6 +570,27 @@ SDCPUThread::handleFault(std::shared_ptr<InflightInst> inst_ptr)
     advanceInst(getNextPC());
 }
 
+void
+SDCPUThread::handleInterrupt()
+{
+    DPRINTF(SDCPUThreadEvent, "Handling interrupt\n");
+
+    squashUpTo(nullptr);
+    decoder.reset();
+
+    TheISA::Interrupts* const ctrller =
+        _cpuPtr->getInterruptController(threadId());
+    assert(ctrller);
+
+    Fault interrupt = ctrller->getInterrupt(this);
+    assert(interrupt != NoFault);
+
+    ctrller->updateIntrInfo(this);
+
+    interrupt->invoke(this);
+    advanceInst(getNextPC());
+}
+
 bool
 SDCPUThread::hasNextPC()
 {
@@ -572,7 +605,7 @@ SDCPUThread::hasNextPC()
 void
 SDCPUThread::issueInstruction(shared_ptr<InflightInst> inst_ptr)
 {
-    DPRINTF(SDCPUInstEvent, "Beginning issuing instruction (seq %d)\n",
+    DPRINTF(SDCPUInstEvent, "Requesting issue for instruction (seq %d)\n",
                             inst_ptr->seqNum());
 
     weak_ptr<InflightInst> weak_inst = inst_ptr;
@@ -896,6 +929,8 @@ SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
         // No need to do anything for an instruction that has been squashed.
         return;
     }
+    DPRINTF(SDCPUInstEvent, "Issuing instruction (seq %d)\n",
+                            inst_ptr->seqNum());
 
 #if TRACING_ON
     // Calls new, must delete eventually.
@@ -905,6 +940,32 @@ SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
 #else
     inst_ptr->traceData(nullptr);
 #endif
+
+    if (inst_ptr->staticInst()->isLastMicroop()) {
+        DPRINTF(SDCPUThreadEvent, "Releasing MacroOp after decoding final "
+                                  "microop\n");
+        curMacroOp = StaticInst::nullStaticInstPtr;
+    }
+
+    const bool interrupt_detected = _cpuPtr->checkInterrupts(this);
+    bool need_advance = true;
+    if (interrupt_detected) {
+        DPRINTF(SDCPUThreadEvent, "Interrupt detected at issue time, clearing "
+                                  "buffer as much as possible.\n");
+        need_advance = false;
+        for (auto& other_inst_ptr : inflightInsts) {
+            if (!other_inst_ptr->staticInst()->isDelayedCommit()) {
+                if (other_inst_ptr != inst_ptr) {
+                    squashUpTo(other_inst_ptr);
+                    return;
+                }
+                break;
+            } else if (other_inst_ptr == inst_ptr) {
+                need_advance = true;
+                break;
+            }
+        }
+    }
 
     inst_ptr->issueSeqNum(nextIssueNum++);
     populateDependencies(inst_ptr);
@@ -920,11 +981,7 @@ SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
         });
     }
 
-    if (inst_ptr->staticInst()->isLastMicroop()) {
-        DPRINTF(SDCPUThreadEvent, "Releasing MacroOp after decoding final "
-                                  "microop\n");
-        curMacroOp = StaticInst::nullStaticInstPtr;
-    }
+    if (!need_advance) return;
 
     if (hasNextPC()) {
         // If we are still running and know where to fetch, we should
@@ -1496,7 +1553,7 @@ SDCPUThread::squashUpTo(shared_ptr<InflightInst> inst_ptr, bool rebuild_lasts)
     shared_ptr<InflightInst> ser_inst = lastSerializingInstruction.lock();
     shared_ptr<InflightInst> bar_inst = lastMemBarrier.lock();
     size_t count = 0;
-    while (inflightInsts.back() != inst_ptr) {
+    while (!inflightInsts.empty() && inflightInsts.back() != inst_ptr) {
         inflightInsts.back()->notifySquashed();
         if (inflightInsts.back() == ser_inst) last_ser_correct = false;
         if (inflightInsts.back() == bar_inst) last_mem_bar_correct = false;
@@ -1541,6 +1598,10 @@ SDCPUThread::squashUpTo(shared_ptr<InflightInst> inst_ptr, bool rebuild_lasts)
     }
 
     decoder.reset();
+    // Theoretically could result in bad edge case if a fault or misprediction
+    // occurred on a microop in the middle of a macroop that wasn't fully read
+    // into the inflightInsts buffer due to instruction window or issue width
+    // constraints. Have yet to observe this behavior.
     curMacroOp = StaticInst::nullStaticInstPtr;
 }
 

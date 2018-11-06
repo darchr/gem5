@@ -59,25 +59,42 @@ SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
     _instPort(name() + "._instPort", this),
     _branchPred(params->branchPred)
 {
-    fatal_if(FullSystem, "FullSystem not implemented for SimpleDataflowCPU");
-
     warn_if(!params->branch_pred_max_depth,
         "Infinite branch predictor depth may play poorly with unconstrained "
         "fetching and decoding.");
 
-    for (ThreadID i = 0; i < numThreads; i++) {
-        // Move constructor + vector should allow us to avoid memory leaks like
-        // the SimpleCPU implementations have.
-        threads.push_back(m5::make_unique<SDCPUThread>(this, i, params->system,
-            params->workload[i], params->itb, params->dtb, params->isa[i],
-            params->branch_pred_max_depth,
-            params->fetch_buffer_size,
-            params->in_order_begin_execute,
-            params->in_order_execute,
-            params->instruction_buffer_size,
-            params->strict_serialization));
+    if (FullSystem) {
+        for (ThreadID i = 0; i < numThreads; i++) {
+            // Move constructor + vector should allow us to avoid memory leaks
+            // like the SimpleCPU implementations have.
+            threads.push_back(m5::make_unique<SDCPUThread>(this, i,
+                params->system,
+                params->itb, params->dtb, params->isa[i], true,
+                params->branch_pred_max_depth,
+                params->fetch_buffer_size,
+                params->in_order_begin_execute,
+                params->in_order_execute,
+                params->instruction_buffer_size,
+                params->strict_serialization));
 
-        threadContexts.push_back(threads[i]->getThreadContext());
+            threadContexts.push_back(threads[i]->getThreadContext());
+        }
+    } else {
+        for (ThreadID i = 0; i < numThreads; i++) {
+            // Move constructor + vector should allow us to avoid memory leaks
+            // like the SimpleCPU implementations have.
+            threads.push_back(m5::make_unique<SDCPUThread>(this, i,
+                params->system,
+                params->workload[i], params->itb, params->dtb, params->isa[i],
+                params->branch_pred_max_depth,
+                params->fetch_buffer_size,
+                params->in_order_begin_execute,
+                params->in_order_execute,
+                params->instruction_buffer_size,
+                params->strict_serialization));
+
+            threadContexts.push_back(threads[i]->getThreadContext());
+        }
     }
     // TODO add any other constructor details
 }
@@ -174,7 +191,7 @@ SimpleDataflowCPU::init()
         system->getMemoryMode() != Enums::timing)
     {
         fatal("The Dataflow CPU requires the memory system to be in "
-              "'timing' mode.\n");
+              "'timing' mode.");
     }
 
     for (auto& thread : threads) {
