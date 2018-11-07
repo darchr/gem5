@@ -77,18 +77,21 @@ system.mem_ranges = [AddrRange('4GB')] # Create an address range
 system.mem_ctrl = SimpleMemory(latency = '0ns', bandwidth = '0GB/s')
 system.mem_ctrl.range = system.mem_ranges[0]
 
-system.xbar = NoncoherentXBar(frontend_latency = 0, forward_latency = 0,
-                              response_latency = 0, width = 64)
-system.xbar.master = system.mem_ctrl.port
+# system.xbar = NoncoherentXBar(frontend_latency = 0, forward_latency = 0,
+#                               response_latency = 0, width = 64)
+# system.xbar.master = system.mem_ctrl.port
 
 # Set up the binary to load
 system.kernel = binary
-system.system_port = system.xbar.slave
+# system.system_port = system.xbar.slave
+system.system_port = system.mem_ctrl.port
 
 # Create the sodor verilator wrapper
 system.sodor = VerilatorObject()
-system.sodor.instPort = system.bar.slave
-system.sodor.dataPort = system.bar.slave
+# system.sodor.instPort = system.xbar.slave
+# system.sodor.dataPort = system.xbar.slave
+system.sodor.instPort = system.mem_ctrl.port
+system.sodor.dataPort = system.mem_ctrl.port
 
 # set up the root SimObject and start the simulation
 root = Root(full_system = True, system = system)
