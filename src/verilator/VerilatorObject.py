@@ -5,8 +5,8 @@ class VerilatorObject(SimObject):
     type = 'VerilatorObject'
     cxx_header = "verilator/verilator_object.hh"
 
-    cycles = Param.Int(0, "Maximum number of cycles to simulate,
-            0 means unlimited")
+    cycles = Param.Int(0, \
+    "Maximum number of cycles to simulate, 0 means unlimited")
     latency = Param.Latency("Clock period of device under test")
     stages = Param.Int(1, "Number of stages in the device under test")
     startTime = Param.Int(0, "Time to start simulation")
