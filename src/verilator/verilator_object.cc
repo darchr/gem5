@@ -103,6 +103,7 @@ VerilatorObject::sendFetch(const RequestPtr &req)
 
         instRequested = true;
         //assertn io.imem.resp.valid response to false to insert bubbles
+        Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall = 1;
 }
 
 
@@ -120,6 +121,7 @@ VerilatorObject::handleResponse(PacketPtr pkt)
         dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_1_data =
                 respData[3] | respData[2] | respData[1] | respData[0];
         //set valid to true
+        Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall = 0;
         //no imem valid signal. set stall instead?
         instRequested = false;
     } else  if (pkt->req->isRead()){
@@ -173,6 +175,7 @@ VerilatorObjectParams::create()
 {
     VerilatorObject * vo = new VerilatorObject(this);
     return vo;
+
 }
 
 void
@@ -189,7 +192,7 @@ VerilatorObject::processEvent()
         setupFetchRequest(ifetch_req);
         sendFetch(ifetch_req);
     }else if (instRequested){
-        //stall
+        dut.Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall = 1;
     }
 
     if (Top__DOT__tile__DOT__memory__DOT__io_core_ports_0_req_valid
