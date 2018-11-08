@@ -31,17 +31,21 @@ class VerilatorCPUMemPort : public MasterPort
 };
 
 
-class VerilatorObject : public ITop, public SimObject
+class VerilatorObject : public ITop, public ClockedObject
 {
     private:
-        void processEvent();
+        void updateCycle();
+
         void sendFetch(const RequestPtr &req ;
         void sendData(const RequestPtr &req, uint8_t *data, bool read);
-        handleResponse(PacketPtr pkt);
+        void buildPayloadForWrite(RequestPtr &data_req, uint8_t * data,
+            uint8_t * &packeddata)
 
+        bool handleResponse(PacketPtr pkt);
+        PacketPtr buildPacket(const RequestPtr &req, bool read)
 
-        dtm_t * dtm;
-        std::vector<std::string> toDtm;
+        //dtm_t * dtm;
+        //std::vector<std::string> toDtm;
         EventFunctionWrapper event;
         int maxCycles;
         Tick latency;
@@ -54,13 +58,10 @@ class VerilatorObject : public ITop, public SimObject
         VerilatorCPUMemPort instPort;
         VerilatorCPUMemPort dataPort;
 
-        PacketPtr inst_pkt;
-        PacketPtr data_pkt;
-
     public:
         VerilatorObject(VerilatorObjectParams *p);
         ~VerilatorObject();
-        void reset(int);
+        void reset(int resetCycles);
         void startup();
 };
 #endif
