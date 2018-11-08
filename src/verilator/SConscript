@@ -3,11 +3,3 @@ Import('*')
 SimObject('VerilatorObject.py')
 Source('verilator_object.cc')
 
-env.Append(CCFLAGS=['\
--I/home/nima/riscv-project/riscv-sodor/emulator/rv32_1stage/obj_dir/ \
--I/usr/share/verilator/include \
--I/usr/share/verilator/include/vltstd-L/usr/local/lib -Wl, \
--rpath,/usr/local/lib -L. \
--lpthread /home/nima/riscv-project/riscv-sodor/riscv-fesvr/build/libfesvr.so \
-/home/nima/riscv-project/riscv-sodor/emulator/rv32_1stage/SimDTM.o'])
-

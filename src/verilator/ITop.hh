@@ -3,11 +3,11 @@
 
 #include <cstring>
 
-#include "VTop.h"
-#include "VTop__Dpi.h"
+#include "include/VTop.h"
+#include "include/VTop__Dpi.h"
+#include "include/verilated.h"
+#include "include/verilator.h"
 #include "sim/sim_object.hh"
-#include "verilated.h"
-#include "verilator.h"
 
 class ITop
 {
