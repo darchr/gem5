@@ -81,9 +81,8 @@ void
 VerilatorObject::sendData(const RequestPtr &req, uint8_t *data, bool read)
 {
     PacketPtr pkt = buildPacket(req, read);
-    pkt->allocate();
     pkt->setData(data);
-    delete[] data;
+    pkt->allocate();
 
     dataPort.sendPacket(pkt)
     dataRequested = true;
@@ -142,15 +141,15 @@ VerilatorObject::handleResponse(PacketPtr pkt)
 
 VerilatorObject::VerilatorObject(VerilatorObjectParams *params) :
     SimObject(params),
-    event([this]{updateCycle();}, params->name),
+    event([this]{processEvent();}, params->name),
     maxCycles(params->cycles),
     latency(params->latency),
-    designStages(params->stages),
-    start(params->startTime),
+   designStages(params->stages),
+   start(params->startTime),
     loadMem(params->memData.c_str()),
-    objName(params->name)
+   objName(params->name)
 {
-    /*//send program or other data to fesvr to communicate
+    //send program or other data to fesvr to communicate
     //with design
     toDtm.push_back(loadMem);
     if (!toDtm.size()){
@@ -163,12 +162,12 @@ VerilatorObject::VerilatorObject(VerilatorObjectParams *params) :
     dtm = new dtm_t(toDtm);
     if (!dtm){
         panic("Could not allocate dtm\n");
-    }*/
+    }
 }
 
 VerilatorObject::~VerilatorObject()
 {
-    //delete dtm;
+    delete dtm;
 }
 
 VerilatorObject*
@@ -180,15 +179,15 @@ VerilatorObjectParams::create()
 }
 
 void
-VerilatorObject::updateCycle()
+VerilatorObject::processEvent()
 {
     //has verilator finished running?
-    if (/*dtm->done() && dut.io_success && */Verilated::gotFinish()){
+    if (dtm->done() && dut.io_success && Verilated::gotFinish()){
         inform("Simulation has Completed\n");
-        exitSimLoop("Done Simulating", 1 /*dtm->exit_code()*/);
+        exitSimLoop("Done Simulating", dtm->exit_code());
     }
 
-    if (!dut.Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall && !instRequested){
+    if (/*dut.io_imem_req_valid*/ && !instRequested){
         RequestPtr ifetch_req = std::make_shared<Request>();
         setupFetchRequest(ifetch_req);
         sendFetch(ifetch_req);
@@ -231,14 +230,14 @@ VerilatorObject::updateCycle()
     cyclesPassed += 1;
     if (maxCycles != 0 && cyclesPassed == maxCycles){
         inform("Simulation Timed Out\n");
-        exitSimLoop("Done Simulating", /*dtm->exit_code()*/);
+        exitSimLoop("Done Simulating", dtm->exit_code());
     }
 
-    schedule(event, nextCycle);
+    schedule(event, curTick() + latency);
 }
 
 void
-VerilatorObject::reset(int resetCycles)
+VerilatorObject::reset(int cycles)
 {
     //if we are pipelining we want to run reset for the number
     //of stages we have
