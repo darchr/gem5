@@ -12,5 +12,3 @@ class VerilatorObject(SimObject):
     startTime = Param.Int(0, "Time to start simulation")
     memData = Param.String("Path to data to be loaded in device memory")
     name = Param.String("VerilatorObject","Object Name")
-    instPort = Param.MasterPort("Instruction Port")
-    dataPort = Param.MasterPort("Data Port")

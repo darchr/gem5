@@ -34,55 +34,31 @@ VerilatorObject::buildPacket(const RequestPtr &req, bool read)
     return read ? Packet::createRead(req) : Packet::createWrite(req);
 }
 
+/* Need to pack data correctly for halfwords and byte write requestes
 void
-VerilatorObject::buildPayloadForWrite(RequestPtr &data_req, uint8_t * data,
-        uint8_t * &packeddata)
+VerilatorObject::buildPayload(uint8_t mask, uint8_t * data,
+    uint8_t * packeddata)
 {
-    //get mask and figure out if we are trying to write a byte, half word or
-    //a word
-    uint8_t mask = dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_mask;
     bool half = mask == 0x3 || mask == 0x6 || mask == 12;
     bool byte = mask == 0x1 || mask == 0x2 || mask == 0x4 || mask ==0x8;
-    //setup request for appropiatly sized packet
     if (byte){
-        data_req = std::make_shared<Request>(
-                new Request(
-                dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_addr),
-                1);
         packeddata = new uint8_t;
     }else if ( half ){
-        data_req = std::make_shared<Request>(
-                new Request(
-                dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_addr),
-                2);
         packeddata = new uint8_t[2];
     }else{
-        data_req = std::make_shared<Request>(
-                new Request(
-                dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_addr),
-                4);
-        packeddata = data;
+        packeddata == data;
     }
-    int j = 0;
     for (int i = 0; i < 4; ++i){
-        //if the mask is active then use this byte in our packed data
-        if (mask & (0x1 << i)){
-                //get index of 1st occurance of a 1 for address offset
-                if (j == 0)
-                    j = i;
+        if (mask & (0x1 << i))
                 packeddata[i] = data[i];
-        }
     }
-    //ofset address based on data size/type
-    data_req->setPaddr(data_req->getPaddr() + j);
-}
+}*/
 
 void
 VerilatorObject::sendData(const RequestPtr &req, uint8_t *data, bool read)
 {
     PacketPtr pkt = buildPacket(req, read);
-    pkt->setData(data);
-    pkt->allocate();
+    pkt->dataDynamic<uint8_t>(data);
 
     dataPort.sendPacket(pkt)
     dataRequested = true;
@@ -113,25 +89,17 @@ VerilatorObject::handleResponse(PacketPtr pkt)
 
     if (pkt->req->isInstFetch()) {
         //set packet data to sodor imem data signal
-        uint8_t * respData;
-        //get read data
-        pkt->writeData(respData);
-        //concat response data to inst data out signal
-        dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_1_data =
-                respData[3] | respData[2] | respData[1] | respData[0];
+        //dut.Top__DOT__tile__DOT__memory__DOT__async
+        //_data_dataInstr_1_data = pkt->
         //set valid to true
         //no imem valid signal. set stall instead?
         instRequested = false;
-    } else  if (pkt->req->isRead()){
+    } else {
         //set packet data to sodor dmem data signal
-        uint8_t * respData;
-        pkt->writeData(respData);
-        dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_0_data =
-                respData[3] | respData[2] | respData[1] | respData[0];
+        //dut.Top__DOT__tile__DOT__memory__DOT__async_
+        //data_dataInstr_0_data = pkt->
         //set valid to true
         dut.Top__DOT__tile__DOT__memory__DOT__io_core_ports_0_resp_valid = 1;
-        //no more outstanding requests so we can make another request
-        //if need be
         dataRequested = false;
     }
     return true;
@@ -194,25 +162,11 @@ VerilatorObject::processEvent()
 
     if (Top__DOT__tile__DOT__memory__DOT__io_core_ports_0_req_valid
         && !dataRequested){
-        RequestPtr data_req;
-        uint8_t * packedData;
-        bool write = dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_en;
-        //if we are writing pack the data properly for writing
-        if (write){
-            buildPayloadForWrite(data_req,
-                dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_data,
-                packedData);
-        }else{
-        //if we are reading then just
-            data_req = std::make_shared<Request>(
-            new Request(
-            dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_0_addr),
-            4);
-                //this doesn't matter for a read, this data will do nothing
-            packeddata =
-                dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_data;
-        }
-        sendData(data_req, packedData, !write);
+        RequestPtr data_req = std::make_shared<Request>();
+        data_req->setPaddr(
+        dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_0_addr);
+        //sendData(data_req, dut.,
+        //dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_en);
     }else if ( dataRequested ){
         dut.Top__DOT__tile__DOT__memory__DOT__io_core_ports_0_resp_valid = 0;
     }
