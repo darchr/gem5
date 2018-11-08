@@ -3,11 +3,13 @@
 
 #include <cstring>
 
+#define VM_TRACE 0
+#define VL_THREADED 0
+
 #include "VTop.h"
 #include "VTop__Dpi.h"
 #include "sim/sim_object.hh"
-#include "verilated.h"
-#include "verilator.h"
+#include <verilated.h>
 
 class ITop
 {
