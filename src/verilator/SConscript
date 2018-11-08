@@ -1,5 +1,0 @@
-Import('*')
-
-SimObject('VerilatorObject.py')
-Source('verilator_object.cc')
-
