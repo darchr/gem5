@@ -1,0 +1,326 @@
+Instantiated DTM.
+Cyc=          0 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x80000004]   Mem[2: R:0x04c0006f W:0x00000000] PC= 0x80000000  J j       pc + 0x4c
+Cyc=          1 Op1=[0x00000000] Op2=[0x00000000] W[W,10= 0x00000000]   Mem[3: R:0x04c0006f W:0x00000000] PC= 0x8000004c    csrr    a0, mhartid
+Cyc=          2 Op1=[0x00000000] Op2=[0x00000000] W[_, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000050    bnez    a0, pc + 0
+Cyc=          3 Op1=[0x00000000] Op2=[0x80000054] W[W, 5= 0x80000054]   Mem[0: R:0x00000297 W:0x00000000] PC= 0x80000054    auipc   t0, 0x0
+Cyc=          4 Op1=[0x80000054] Op2=[0x00000010] W[W, 5= 0x80000064]   Mem[0: R:0x00000297 W:0x00000000] PC= 0x80000058    addi    t0, t0, 16
+Cyc=          5 Op1=[0x80000064] Op2=[0x80000064] W[W, 0= 0x00000100]   Mem[3: R:0x00000297 W:0x80000064] PC= 0x8000005c    csrw    mtvec, t0
+Cyc=          6 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[3: R:0x04c0006f W:0x00000000] PC= 0x80000060    csrwi   satp, 0
+Cyc=          7 Op1=[0x00000000] Op2=[0x80000064] W[W, 5= 0x80000064]   Mem[0: R:0x00000297 W:0x00000000] PC= 0x80000064    auipc   t0, 0x0
+Cyc=          8 Op1=[0x80000064] Op2=[0x0000001c] W[W, 5= 0x80000080]   Mem[0: R:0x00000297 W:0x00000000] PC= 0x80000068    addi    t0, t0, 28
+Cyc=          9 Op1=[0x80000080] Op2=[0x80000080] W[W, 0= 0x00000100]   Mem[3: R:0x00000297 W:0x80000080] PC= 0x8000006c    csrw    mtvec, t0
+Cyc=         10 Op1=[0x00000000] Op2=[0xffffffff] W[W, 5= 0xffffffff]   Mem[0: R:0xc0006f00 W:0x00000000] PC= 0x80000070    li      t0, -1
+Cyc=         11 Op1=[0xffffffff] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[3: R:0xc0006f00 W:0x00000000] PC= 0x80000074    csrw    pmpaddr0, t0
+Cyc=         12 Op1=[0x00000000] Op2=[0x0000001f] W[W, 5= 0x0000001f]   Mem[0: R:0x000f1703 W:0x00000000] PC= 0x80000078    li      t0, 31
+Cyc=         13 Op1=[0x0000001f] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[3: R:0x000f1703 W:0x00000000] PC= 0x8000007c    csrw    pmpcfg0, t0
+Cyc=         14 Op1=[0x00000000] Op2=[0x80000080] W[W, 5= 0x80000080]   Mem[0: R:0x00000297 W:0x00000000] PC= 0x80000080    auipc   t0, 0x0
+Cyc=         15 Op1=[0x80000080] Op2=[0x00000018] W[W, 5= 0x80000098]   Mem[0: R:0x00000193 W:0x00000000] PC= 0x80000084    addi    t0, t0, 24
+Cyc=         16 Op1=[0x80000098] Op2=[0x80000098] W[W, 0= 0x00000100]   Mem[3: R:0x00000193 W:0x80000098] PC= 0x80000088    csrw    mtvec, t0
+Cyc=         17 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[3: R:0x04c0006f W:0x00000000] PC= 0x8000008c    csrwi   medeleg, 0
+Cyc=         18 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[3: R:0x04c0006f W:0x00000000] PC= 0x80000090    csrwi   mideleg, 0
+Cyc=         19 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[3: R:0x04c0006f W:0x00000000] PC= 0x80000094    csrwi   mie, 0
+Cyc=         20 Op1=[0x00000000] Op2=[0x00000000] W[W, 3= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000098    li      gp, 0
+Cyc=         21 Op1=[0x00000000] Op2=[0x8000009c] W[W, 5= 0x8000009c]   Mem[0: R:0x00000297 W:0x00000000] PC= 0x8000009c    auipc   t0, 0x0
+Cyc=         22 Op1=[0x8000009c] Op2=[0xffffff68] W[W, 5= 0x80000004]   Mem[0: R:0x34202f73 W:0x00000000] PC= 0x800000a0    addi    t0, t0, -152
+Cyc=         23 Op1=[0x80000004] Op2=[0x80000004] W[W, 0= 0x00000100]   Mem[3: R:0x34202f73 W:0x80000004] PC= 0x800000a4    csrw    mtvec, t0
+Cyc=         24 Op1=[0x00000000] Op2=[0x00000001] W[W,10= 0x00000001]   Mem[0: R:0x7304c000 W:0x00000000] PC= 0x800000a8    li      a0, 1
+Cyc=         25 Op1=[0x00000001] Op2=[0x0000001f] W[W,10= 0x80000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800000ac    slli    a0, a0, 31
+Cyc=         26 Op1=[0x80000000] Op2=[0x00000000] W[_,16= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800000b0  B bltz    a0, pc + 16
+Cyc=         27 Op1=[0x80000000] Op2=[0x800000c0] W[W, 5= 0x000000c0]   Mem[0: R:0x80000297 W:0x00000000] PC= 0x800000c0    auipc   t0, 0x80000
+Cyc=         28 Op1=[0x000000c0] Op2=[0xffffff40] W[W, 5= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800000c4    addi    t0, t0, -192
+Cyc=         29 Op1=[0x00000000] Op2=[0x00000000] W[_,28= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800000c8  B beqz    t0, pc + 28
+Cyc=         30 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00001800]   Mem[3: R:0x04c0006f W:0x00000000] PC= 0x800000e4    csrwi   mstatus, 0
+Cyc=         31 Op1=[0x00000000] Op2=[0x800000e8] W[W, 5= 0x800000e8]   Mem[0: R:0x00000297 W:0x00000000] PC= 0x800000e8    auipc   t0, 0x0
+Cyc=         32 Op1=[0x800000e8] Op2=[0x00000014] W[W, 5= 0x800000fc]   Mem[0: R:0x06f00693 W:0x00000000] PC= 0x800000ec    addi    t0, t0, 20
+Cyc=         33 Op1=[0x800000fc] Op2=[0x00000000] W[W, 0= 0x80000000]   Mem[3: R:0x06f00693 W:0x00000000] PC= 0x800000f0    csrw    mepc, t0
+Cyc=         34 Op1=[0x00000000] Op2=[0x00000000] W[W,10= 0x00000000]   Mem[3: R:0x04c0006f W:0x00000000] PC= 0x800000f4    csrr    a0, mhartid
+Cyc=         35 Op1=[0x00000000] Op2=[0x00000000] W[_, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800000f8  X mret
+Cyc=         36 Op1=[0x00000000] Op2=[0x0000006f] W[W,13= 0x0000006f]   Mem[0: R:0xf0029330 W:0x00000000] PC= 0x800000fc    li      a3, 111
+Cyc=         37 Op1=[0x00002000] Op2=[0x80000100] W[W,10= 0x80002100]   Mem[0: R:0x00000000 W:0x00000000] PC= 0x80000100    auipc   a0, 0x2
+Cyc=         38 Op1=[0x80002100] Op2=[0xffffff00] W[W,10= 0xffff8693]   Mem[1: R:0xffff8693 W:0x00000000] PC= 0x80000104    lh      a0, -256(a0)
+Cyc=         39 Op1=[0x00002000] Op2=[0x80000108] W[W,11= 0x80002108]   Mem[0: R:0x00000000 W:0x00000000] PC= 0x80000108    auipc   a1, 0x2
+Cyc=         40 Op1=[0x80002108] Op2=[0xfffffefa] W[W,11= 0x000014d6]   Mem[1: R:0x000014d6 W:0x00000000] PC= 0x8000010c    lh      a1, -262(a1)
+Cyc=         41 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000110    nop
+Cyc=         42 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000114    nop
+Cyc=         43 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000118    nop
+Cyc=         44 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x8000011c    nop
+Cyc=         45 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000120    nop
+Cyc=         46 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000124    nop
+Cyc=         47 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000128    nop
+Cyc=         48 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x8000012c    nop
+Cyc=         49 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000130    nop
+Cyc=         50 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000134    nop
+Cyc=         51 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000138    nop
+Cyc=         52 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x8000013c    nop
+Cyc=         53 Op1=[0x00000000] Op2=[0x80000140] W[W, 5= 0x80000140]   Mem[0: R:0x00000297 W:0x00000000] PC= 0x80000140    auipc   t0, 0x0
+Cyc=         54 Op1=[0x80000140] Op2=[0x00000014] W[_,20= 0x80000154]   Mem[0: R:0xffff8693 W:0xffff8693] PC= 0x80000144    sh      a0, 20(t0)
+Cyc=         55 Op1=[0x00000000] Op2=[0x80000148] W[W, 5= 0x80000148]   Mem[0: R:0x00000297 W:0x00000000] PC= 0x80000148    auipc   t0, 0x0
+Cyc=         56 Op1=[0x80000148] Op2=[0x0000000e] W[_,14= 0x80000156]   Mem[0: R:0x00000de6 W:0x000014d6] PC= 0x8000014c    sh      a1, 14(t0)
+Cyc=         57 Op1=[0x00000000] Op2=[0x00000000] W[_, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000150    fence.i
+Cyc=         58 Op1=[0x0000006f] Op2=[0x0000014d] W[W,13= 0x000001bc]   Mem[0: R:0x00000013 W:0x0000006f] PC= 0x80000154    addi    a3, a3, 333
+Cyc=         59 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000158    nop
+Cyc=         60 Op1=[0x00000000] Op2=[0x000001bc] W[W,29= 0x000001bc]   Mem[0: R:0x00000013 W:0x00000000] PC= 0x8000015c    li      t4, 444
+Cyc=         61 Op1=[0x00000000] Op2=[0x00000002] W[W, 3= 0x00000002]   Mem[0: R:0x2f7304c0 W:0x00000000] PC= 0x80000160    li      gp, 2
+Cyc=         62 Op1=[0x000001bc] Op2=[0x000001bc] W[_,20= 0x00000000]   Mem[0: R:0x04c0006f W:0x000001bc] PC= 0x80000164    bne     a3, t4, pc + 116
+Cyc=         63 Op1=[0x00000000] Op2=[0x00000064] W[W,14= 0x00000064]   Mem[0: R:0x00000297 W:0x00000000] PC= 0x80000168    li      a4, 100
+Cyc=         64 Op1=[0x00000064] Op2=[0xffffffff] W[W,14= 0x00000063]   Mem[0: R:0x00029718 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         65 Op1=[0x00000063] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         66 Op1=[0x00000063] Op2=[0xffffffff] W[W,14= 0x00000062]   Mem[0: R:0x02971800 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         67 Op1=[0x00000062] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         68 Op1=[0x00000062] Op2=[0xffffffff] W[W,14= 0x00000061]   Mem[0: R:0x97180050 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         69 Op1=[0x00000061] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         70 Op1=[0x00000061] Op2=[0xffffffff] W[W,14= 0x00000060]   Mem[0: R:0x18005073 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         71 Op1=[0x00000060] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         72 Op1=[0x00000060] Op2=[0xffffffff] W[W,14= 0x0000005f]   Mem[0: R:0x00507330 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         73 Op1=[0x0000005f] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         74 Op1=[0x0000005f] Op2=[0xffffffff] W[W,14= 0x0000005e]   Mem[0: R:0x50733052 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         75 Op1=[0x0000005e] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         76 Op1=[0x0000005e] Op2=[0xffffffff] W[W,14= 0x0000005d]   Mem[0: R:0x73305290 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         77 Op1=[0x0000005d] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         78 Op1=[0x0000005d] Op2=[0xffffffff] W[W,14= 0x0000005c]   Mem[0: R:0x30529073 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         79 Op1=[0x0000005c] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         80 Op1=[0x0000005c] Op2=[0xffffffff] W[W,14= 0x0000005b]   Mem[0: R:0x52907301 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         81 Op1=[0x0000005b] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         82 Op1=[0x0000005b] Op2=[0xffffffff] W[W,14= 0x0000005a]   Mem[0: R:0x90730102 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         83 Op1=[0x0000005a] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         84 Op1=[0x0000005a] Op2=[0xffffffff] W[W,14= 0x00000059]   Mem[0: R:0x73010282 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         85 Op1=[0x00000059] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         86 Op1=[0x00000059] Op2=[0xffffffff] W[W,14= 0x00000058]   Mem[0: R:0x01028293 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         87 Op1=[0x00000058] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         88 Op1=[0x00000058] Op2=[0xffffffff] W[W,14= 0x00000057]   Mem[0: R:0x02829300 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         89 Op1=[0x00000057] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         90 Op1=[0x00000057] Op2=[0xffffffff] W[W,14= 0x00000056]   Mem[0: R:0x82930000 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         91 Op1=[0x00000056] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         92 Op1=[0x00000056] Op2=[0xffffffff] W[W,14= 0x00000055]   Mem[0: R:0x93000002 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         93 Op1=[0x00000055] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         94 Op1=[0x00000055] Op2=[0xffffffff] W[W,14= 0x00000054]   Mem[0: R:0x00000297 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         95 Op1=[0x00000054] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         96 Op1=[0x00000054] Op2=[0xffffffff] W[W,14= 0x00000053]   Mem[0: R:0x00029700 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         97 Op1=[0x00000053] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=         98 Op1=[0x00000053] Op2=[0xffffffff] W[W,14= 0x00000052]   Mem[0: R:0x02970005 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=         99 Op1=[0x00000052] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        100 Op1=[0x00000052] Op2=[0xffffffff] W[W,14= 0x00000051]   Mem[0: R:0x97000510 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        101 Op1=[0x00000051] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        102 Op1=[0x00000051] Op2=[0xffffffff] W[W,14= 0x00000050]   Mem[0: R:0x00051063 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        103 Op1=[0x00000050] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        104 Op1=[0x00000050] Op2=[0xffffffff] W[W,14= 0x0000004f]   Mem[0: R:0x051063f1 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        105 Op1=[0x0000004f] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        106 Op1=[0x0000004f] Op2=[0xffffffff] W[W,14= 0x0000004e]   Mem[0: R:0x1063f140 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        107 Op1=[0x0000004e] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        108 Op1=[0x0000004e] Op2=[0xffffffff] W[W,14= 0x0000004d]   Mem[0: R:0x63f14025 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        109 Op1=[0x0000004d] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        110 Op1=[0x0000004d] Op2=[0xffffffff] W[W,14= 0x0000004c]   Mem[0: R:0xf1402573 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        111 Op1=[0x0000004c] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        112 Op1=[0x0000004c] Op2=[0xffffffff] W[W,14= 0x0000004b]   Mem[0: R:0x402573ff W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        113 Op1=[0x0000004b] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        114 Op1=[0x0000004b] Op2=[0xffffffff] W[W,14= 0x0000004a]   Mem[0: R:0x2573ff9f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        115 Op1=[0x0000004a] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        116 Op1=[0x0000004a] Op2=[0xffffffff] W[W,14= 0x00000049]   Mem[0: R:0x73ff9ff0 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        117 Op1=[0x00000049] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        118 Op1=[0x00000049] Op2=[0xffffffff] W[W,14= 0x00000048]   Mem[0: R:0xff9ff06f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        119 Op1=[0x00000048] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        120 Op1=[0x00000048] Op2=[0xffffffff] W[W,14= 0x00000047]   Mem[0: R:0x9ff06ffc W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        121 Op1=[0x00000047] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        122 Op1=[0x00000047] Op2=[0xffffffff] W[W,14= 0x00000046]   Mem[0: R:0xf06ffc3f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        123 Op1=[0x00000046] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        124 Op1=[0x00000046] Op2=[0xffffffff] W[W,14= 0x00000045]   Mem[0: R:0x6ffc3f20 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        125 Op1=[0x00000045] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        126 Op1=[0x00000045] Op2=[0xffffffff] W[W,14= 0x00000044]   Mem[0: R:0xfc3f2023 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        127 Op1=[0x00000044] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        128 Op1=[0x00000044] Op2=[0xffffffff] W[W,14= 0x00000043]   Mem[0: R:0x3f202300 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        129 Op1=[0x00000043] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        130 Op1=[0x00000043] Op2=[0xffffffff] W[W,14= 0x00000042]   Mem[0: R:0x20230000 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        131 Op1=[0x00000042] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        132 Op1=[0x00000042] Op2=[0xffffffff] W[W,14= 0x00000041]   Mem[0: R:0x2300001f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        133 Op1=[0x00000041] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        134 Op1=[0x00000041] Op2=[0xffffffff] W[W,14= 0x00000040]   Mem[0: R:0x00001f17 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        135 Op1=[0x00000040] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        136 Op1=[0x00000040] Op2=[0xffffffff] W[W,14= 0x0000003f]   Mem[0: R:0x001f1753 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        137 Op1=[0x0000003f] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        138 Op1=[0x0000003f] Op2=[0xffffffff] W[W,14= 0x0000003e]   Mem[0: R:0x1f175391 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        139 Op1=[0x0000003e] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        140 Op1=[0x0000003e] Op2=[0xffffffff] W[W,14= 0x0000003d]   Mem[0: R:0x175391e1 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        141 Op1=[0x0000003d] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        142 Op1=[0x0000003d] Op2=[0xffffffff] W[W,14= 0x0000003c]   Mem[0: R:0x5391e193 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        143 Op1=[0x0000003c] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        144 Op1=[0x0000003c] Op2=[0xffffffff] W[W,14= 0x0000003b]   Mem[0: R:0x91e19300 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        145 Op1=[0x0000003b] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        146 Op1=[0x0000003b] Op2=[0xffffffff] W[W,14= 0x0000003a]   Mem[0: R:0xe1930040 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        147 Op1=[0x0000003a] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        148 Op1=[0x0000003a] Op2=[0xffffffff] W[W,14= 0x00000039]   Mem[0: R:0x93004000 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        149 Op1=[0x00000039] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        150 Op1=[0x00000039] Op2=[0xffffffff] W[W,14= 0x00000038]   Mem[0: R:0x0040006f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        151 Op1=[0x00000038] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        152 Op1=[0x00000038] Op2=[0xffffffff] W[W,14= 0x00000037]   Mem[0: R:0x40006f00 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        153 Op1=[0x00000037] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        154 Op1=[0x00000037] Op2=[0xffffffff] W[W,14= 0x00000036]   Mem[0: R:0x006f000f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        155 Op1=[0x00000036] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        156 Op1=[0x00000036] Op2=[0xffffffff] W[W,14= 0x00000035]   Mem[0: R:0x6f000f54 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        157 Op1=[0x00000035] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        158 Op1=[0x00000035] Op2=[0xffffffff] W[W,14= 0x00000034]   Mem[0: R:0x000f5463 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        159 Op1=[0x00000034] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        160 Op1=[0x00000034] Op2=[0xffffffff] W[W,14= 0x00000033]   Mem[0: R:0x0f546334 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        161 Op1=[0x00000033] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        162 Op1=[0x00000033] Op2=[0xffffffff] W[W,14= 0x00000032]   Mem[0: R:0x54633420 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        163 Op1=[0x00000032] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        164 Op1=[0x00000032] Op2=[0xffffffff] W[W,14= 0x00000031]   Mem[0: R:0x6334202f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        165 Op1=[0x00000031] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        166 Op1=[0x00000031] Op2=[0xffffffff] W[W,14= 0x00000030]   Mem[0: R:0x34202f73 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        167 Op1=[0x00000030] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        168 Op1=[0x00000030] Op2=[0xffffffff] W[W,14= 0x0000002f]   Mem[0: R:0x202f7300 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        169 Op1=[0x0000002f] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        170 Op1=[0x0000002f] Op2=[0xffffffff] W[W,14= 0x0000002e]   Mem[0: R:0x2f73000f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        171 Op1=[0x0000002e] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        172 Op1=[0x0000002e] Op2=[0xffffffff] W[W,14= 0x0000002d]   Mem[0: R:0x73000f00 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        173 Op1=[0x0000002d] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        174 Op1=[0x0000002d] Op2=[0xffffffff] W[W,14= 0x0000002c]   Mem[0: R:0x000f0067 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        175 Op1=[0x0000002c] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        176 Op1=[0x0000002c] Op2=[0xffffffff] W[W,14= 0x0000002b]   Mem[0: R:0x0f006700 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        177 Op1=[0x0000002b] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        178 Op1=[0x0000002b] Op2=[0xffffffff] W[W,14= 0x0000002a]   Mem[0: R:0x0067000f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        179 Op1=[0x0000002a] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        180 Op1=[0x0000002a] Op2=[0xffffffff] W[W,14= 0x00000029]   Mem[0: R:0x67000f04 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        181 Op1=[0x00000029] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        182 Op1=[0x00000029] Op2=[0xffffffff] W[W,14= 0x00000028]   Mem[0: R:0x000f0463 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        183 Op1=[0x00000028] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        184 Op1=[0x00000028] Op2=[0xffffffff] W[W,14= 0x00000027]   Mem[0: R:0x0f0463fe W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        185 Op1=[0x00000027] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        186 Op1=[0x00000027] Op2=[0xffffffff] W[W,14= 0x00000026]   Mem[0: R:0x0463fe0f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        187 Op1=[0x00000026] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        188 Op1=[0x00000026] Op2=[0xffffffff] W[W,14= 0x00000025]   Mem[0: R:0x63fe0f0f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        189 Op1=[0x00000025] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        190 Op1=[0x00000025] Op2=[0xffffffff] W[W,14= 0x00000024]   Mem[0: R:0xfe0f0f13 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        191 Op1=[0x00000024] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        192 Op1=[0x00000024] Op2=[0xffffffff] W[W,14= 0x00000023]   Mem[0: R:0x0f0f1380 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        193 Op1=[0x00000023] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        194 Op1=[0x00000023] Op2=[0xffffffff] W[W,14= 0x00000022]   Mem[0: R:0x0f138000 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        195 Op1=[0x00000022] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        196 Op1=[0x00000022] Op2=[0xffffffff] W[W,14= 0x00000021]   Mem[0: R:0x1380000f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        197 Op1=[0x00000021] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        198 Op1=[0x00000021] Op2=[0xffffffff] W[W,14= 0x00000020]   Mem[0: R:0x80000f17 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        199 Op1=[0x00000020] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        200 Op1=[0x00000020] Op2=[0xffffffff] W[W,14= 0x0000001f]   Mem[0: R:0x000f1703 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        201 Op1=[0x0000001f] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        202 Op1=[0x0000001f] Op2=[0xffffffff] W[W,14= 0x0000001e]   Mem[0: R:0x0f1703ff W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        203 Op1=[0x0000001e] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        204 Op1=[0x0000001e] Op2=[0xffffffff] W[W,14= 0x0000001d]   Mem[0: R:0x1703ff02 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        205 Op1=[0x0000001d] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        206 Op1=[0x0000001d] Op2=[0xffffffff] W[W,14= 0x0000001c]   Mem[0: R:0x03ff0263 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        207 Op1=[0x0000001c] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        208 Op1=[0x0000001c] Op2=[0xffffffff] W[W,14= 0x0000001b]   Mem[0: R:0xff026300 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        209 Op1=[0x0000001b] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        210 Op1=[0x0000001b] Op2=[0xffffffff] W[W,14= 0x0000001a]   Mem[0: R:0x026300b0 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        211 Op1=[0x0000001a] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        212 Op1=[0x0000001a] Op2=[0xffffffff] W[W,14= 0x00000019]   Mem[0: R:0x6300b00f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        213 Op1=[0x00000019] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        214 Op1=[0x00000019] Op2=[0xffffffff] W[W,14= 0x00000018]   Mem[0: R:0x00b00f93 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        215 Op1=[0x00000018] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        216 Op1=[0x00000018] Op2=[0xffffffff] W[W,14= 0x00000017]   Mem[0: R:0xb00f9303 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        217 Op1=[0x00000017] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        218 Op1=[0x00000017] Op2=[0xffffffff] W[W,14= 0x00000016]   Mem[0: R:0x0f9303ff W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        219 Op1=[0x00000016] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        220 Op1=[0x00000016] Op2=[0xffffffff] W[W,14= 0x00000015]   Mem[0: R:0x9303ff06 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        221 Op1=[0x00000015] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        222 Op1=[0x00000015] Op2=[0xffffffff] W[W,14= 0x00000014]   Mem[0: R:0x03ff0663 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        223 Op1=[0x00000014] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        224 Op1=[0x00000014] Op2=[0xffffffff] W[W,14= 0x00000013]   Mem[0: R:0xff066300 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        225 Op1=[0x00000013] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        226 Op1=[0x00000013] Op2=[0xffffffff] W[W,14= 0x00000012]   Mem[0: R:0x06630090 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        227 Op1=[0x00000012] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        228 Op1=[0x00000012] Op2=[0xffffffff] W[W,14= 0x00000011]   Mem[0: R:0x6300900f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        229 Op1=[0x00000011] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        230 Op1=[0x00000011] Op2=[0xffffffff] W[W,14= 0x00000010]   Mem[0: R:0x00900f93 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        231 Op1=[0x00000010] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        232 Op1=[0x00000010] Op2=[0xffffffff] W[W,14= 0x0000000f]   Mem[0: R:0x900f9303 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        233 Op1=[0x0000000f] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        234 Op1=[0x0000000f] Op2=[0xffffffff] W[W,14= 0x0000000e]   Mem[0: R:0x0f9303ff W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        235 Op1=[0x0000000e] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        236 Op1=[0x0000000e] Op2=[0xffffffff] W[W,14= 0x0000000d]   Mem[0: R:0x9303ff0a W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        237 Op1=[0x0000000d] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        238 Op1=[0x0000000d] Op2=[0xffffffff] W[W,14= 0x0000000c]   Mem[0: R:0x03ff0a63 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        239 Op1=[0x0000000c] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        240 Op1=[0x0000000c] Op2=[0xffffffff] W[W,14= 0x0000000b]   Mem[0: R:0xff0a6300 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        241 Op1=[0x0000000b] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        242 Op1=[0x0000000b] Op2=[0xffffffff] W[W,14= 0x0000000a]   Mem[0: R:0x0a630080 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        243 Op1=[0x0000000a] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        244 Op1=[0x0000000a] Op2=[0xffffffff] W[W,14= 0x00000009]   Mem[0: R:0x6300800f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        245 Op1=[0x00000009] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        246 Op1=[0x00000009] Op2=[0xffffffff] W[W,14= 0x00000008]   Mem[0: R:0x00800f93 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        247 Op1=[0x00000008] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        248 Op1=[0x00000008] Op2=[0xffffffff] W[W,14= 0x00000007]   Mem[0: R:0x800f9334 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        249 Op1=[0x00000007] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        250 Op1=[0x00000007] Op2=[0xffffffff] W[W,14= 0x00000006]   Mem[0: R:0x0f933420 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        251 Op1=[0x00000006] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        252 Op1=[0x00000006] Op2=[0xffffffff] W[W,14= 0x00000005]   Mem[0: R:0x9334202f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        253 Op1=[0x00000005] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        254 Op1=[0x00000005] Op2=[0xffffffff] W[W,14= 0x00000004]   Mem[0: R:0x34202f73 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        255 Op1=[0x00000004] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        256 Op1=[0x00000004] Op2=[0xffffffff] W[W,14= 0x00000003]   Mem[0: R:0x202f7304 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        257 Op1=[0x00000003] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        258 Op1=[0x00000003] Op2=[0xffffffff] W[W,14= 0x00000002]   Mem[0: R:0x2f7304c0 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        259 Op1=[0x00000002] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        260 Op1=[0x00000002] Op2=[0xffffffff] W[W,14= 0x00000001]   Mem[0: R:0x7304c000 W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        261 Op1=[0x00000001] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170  B bnez    a4, pc - 4
+Cyc=        262 Op1=[0x00000001] Op2=[0xffffffff] W[W,14= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x8000016c    addi    a4, a4, -1
+Cyc=        263 Op1=[0x00000000] Op2=[0x00000000] W[_,29= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000170    bnez    a4, pc - 4
+Cyc=        264 Op1=[0x00000000] Op2=[0x80000174] W[W, 5= 0x80000174]   Mem[0: R:0x00000297 W:0x00000000] PC= 0x80000174    auipc   t0, 0x0
+Cyc=        265 Op1=[0x80000174] Op2=[0x0000004c] W[_,12= 0x800001c0]   Mem[0: R:0xffff8693 W:0xffff8693] PC= 0x80000178    sh      a0, 76(t0)
+Cyc=        266 Op1=[0x00000000] Op2=[0x8000017c] W[W, 5= 0x8000017c]   Mem[0: R:0x00000297 W:0x00000000] PC= 0x8000017c    auipc   t0, 0x0
+Cyc=        267 Op1=[0x8000017c] Op2=[0x00000046] W[_, 6= 0x800001c2]   Mem[0: R:0x000022b6 W:0x000014d6] PC= 0x80000180    sh      a1, 70(t0)
+Cyc=        268 Op1=[0x00000000] Op2=[0x00000000] W[_, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000184    fence.i
+Cyc=        269 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000188    nop
+Cyc=        270 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x8000018c    nop
+Cyc=        271 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000190    nop
+Cyc=        272 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000194    nop
+Cyc=        273 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x80000198    nop
+Cyc=        274 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x8000019c    nop
+Cyc=        275 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800001a0    nop
+Cyc=        276 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800001a4    nop
+Cyc=        277 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800001a8    nop
+Cyc=        278 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800001ac    nop
+Cyc=        279 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800001b0    nop
+Cyc=        280 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800001b4    nop
+Cyc=        281 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800001b8    nop
+Cyc=        282 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800001bc    nop
+Cyc=        283 Op1=[0x000001bc] Op2=[0x0000014d] W[W,13= 0x00000309]   Mem[0: R:0x00000000 W:0x000001bc] PC= 0x800001c0    addi    a3, a3, 333
+Cyc=        284 Op1=[0x00000000] Op2=[0x00000000] W[W, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800001c4    nop
+Cyc=        285 Op1=[0x00000000] Op2=[0x00000309] W[W,29= 0x00000309]   Mem[0: R:0x00000000 W:0x00000000] PC= 0x800001c8    li      t4, 777
+Cyc=        286 Op1=[0x00000000] Op2=[0x00000003] W[W, 3= 0x00000003]   Mem[0: R:0x202f7304 W:0x00000002] PC= 0x800001cc    li      gp, 3
+Cyc=        287 Op1=[0x00000309] Op2=[0x00000309] W[_, 8= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000309] PC= 0x800001d0    bne     a3, t4, pc + 8
+Cyc=        288 Op1=[0x00000000] Op2=[0x00000003] W[_,24= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000003] PC= 0x800001d4  B bne     zero, gp, pc + 24
+Cyc=        289 Op1=[0x00000000] Op2=[0x00000000] W[_, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800001ec    fence
+Cyc=        290 Op1=[0x00000000] Op2=[0x00000001] W[W, 3= 0x00000001]   Mem[0: R:0x7304c000 W:0x00000000] PC= 0x800001f0    li      gp, 1
+Cyc=        291 Op1=[0x00000000] Op2=[0x00000000] W[_, 0= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000000] PC= 0x800001f4  X ecall
+Cyc=        292 Op1=[0x00000000] Op2=[0x00000000] W[W,30= 0x0000000b]   Mem[3: R:0x04c0006f W:0x00000000] PC= 0x80000004    csrr    t5, mcause
+Cyc=        293 Op1=[0x00000000] Op2=[0x00000008] W[W,31= 0x00000008]   Mem[0: R:0x00800f93 W:0x00000000] PC= 0x80000008    li      t6, 8
+Cyc=        294 Op1=[0x0000000b] Op2=[0x00000008] W[_,20= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000008] PC= 0x8000000c    beq     t5, t6, pc + 52
+Cyc=        295 Op1=[0x00000000] Op2=[0x00000009] W[W,31= 0x00000009]   Mem[0: R:0x6300800f W:0x00000000] PC= 0x80000010    li      t6, 9
+Cyc=        296 Op1=[0x0000000b] Op2=[0x00000009] W[_,12= 0x00000000]   Mem[0: R:0x04c0006f W:0x00000009] PC= 0x80000014    beq     t5, t6, pc + 44
+Cyc=        297 Op1=[0x00000000] Op2=[0x0000000b] W[W,31= 0x0000000b]   Mem[0: R:0xff0a6300 W:0x000014d6] PC= 0x80000018    li      t6, 11
+Cyc=        298 Op1=[0x0000000b] Op2=[0x0000000b] W[_, 4= 0x00000000]   Mem[0: R:0x04c0006f W:0x0000000b] PC= 0x8000001c  B beq     t5, t6, pc + 36
+Cyc=        299 Op1=[0x00001000] Op2=[0x80000040] W[W,30= 0x80001040]   Mem[0: R:0x00000000 W:0x00000000] PC= 0x80000040    auipc   t5, 0x1
+Cyc=        300 Op1=[0x80001040] Op2=[0xffffffc0] W[_, 0= 0x80001000]   Mem[0: R:0x00000000 W:0x00000001] PC= 0x80000044    sw      gp, -64(t5)
+Cyc=        301 Op1=[0x0000000b] Op2=[0x00000000] W[W, 0= 0x8000004c]   Mem[2: R:0x04c0006f W:0x00000000] PC= 0x80000048  J j       pc - 0x8
+Cyc=        302 Op1=[0x00001000] Op2=[0x80000040] W[W,30= 0x80001040]   Mem[0: R:0x00000000 W:0x00000000] PC= 0x80000040    auipc   t5, 0x1
+Cyc=        303 Op1=[0x80001040] Op2=[0xffffffc0] W[_, 0= 0x80001000]   Mem[0: R:0x00000001 W:0x00000001] PC= 0x80000044    sw      gp, -64(t5)
+Cyc=        304 Op1=[0x0000000b] Op2=[0x00000000] W[W, 0= 0x8000004c]   Mem[2: R:0x04c0006f W:0x00000000] PC= 0x80000048  J j       pc - 0x8
+Cyc=        305 Op1=[0x00001000] Op2=[0x80000040] W[W,30= 0x80001040]   Mem[0: R:0x00000000 W:0x00000000] PC= 0x80000040    auipc   t5, 0x1
+Cyc=        306 Op1=[0x80001040] Op2=[0xffffffc0] W[_, 0= 0x80001000]   Mem[0: R:0x00000001 W:0x00000001] PC= 0x80000044    sw      gp, -64(t5)
+Cyc=        307 Op1=[0x0000000b] Op2=[0x00000000] W[W, 0= 0x8000004c]   Mem[2: R:0x04c0006f W:0x00000000] PC= 0x80000048  J j       pc - 0x8
+Cyc=        308 Op1=[0x00001000] Op2=[0x80000040] W[W,30= 0x80001040]   Mem[0: R:0x00000000 W:0x00000000] PC= 0x80000040    auipc   t5, 0x1
+Cyc=        309 Op1=[0x80001040] Op2=[0xffffffc0] W[_, 0= 0x80001000]   Mem[0: R:0x00000001 W:0x00000001] PC= 0x80000044    sw      gp, -64(t5)
+Cyc=        310 Op1=[0x0000000b] Op2=[0x00000000] W[W, 0= 0x8000004c]   Mem[2: R:0x04c0006f W:0x00000000] PC= 0x80000048  J j       pc - 0x8
+Cyc=        311 Op1=[0x00001000] Op2=[0x80000040] W[W,30= 0x80001040]   Mem[0: R:0x00000000 W:0x00000000] PC= 0x80000040    auipc   t5, 0x1
+Cyc=        312 Op1=[0x80001040] Op2=[0xffffffc0] W[_, 0= 0x80001000]   Mem[0: R:0x00000001 W:0x00000001] PC= 0x80000044    sw      gp, -64(t5)
+Cyc=        313 Op1=[0x0000000b] Op2=[0x00000000] W[W, 0= 0x8000004c]   Mem[2: R:0x04c0006f W:0x00000000] PC= 0x80000048  J j       pc - 0x8
+Cyc=        314 Op1=[0x00001000] Op2=[0x80000040] W[W,30= 0x80001040]   Mem[0: R:0x00000000 W:0x00000000] PC= 0x80000040    auipc   t5, 0x1
+Cyc=        315 Op1=[0x80001040] Op2=[0xffffffc0] W[_, 0= 0x80001000]   Mem[0: R:0x00000001 W:0x00000001] PC= 0x80000044    sw      gp, -64(t5)
+Cyc=        316 Op1=[0x0000000b] Op2=[0x00000000] W[W, 0= 0x8000004c]   Mem[2: R:0x04c0006f W:0x00000000] PC= 0x80000048  J j       pc - 0x8
+Cyc=        317 Op1=[0x00001000] Op2=[0x80000040] W[W,30= 0x80001040]   Mem[0: R:0x00000000 W:0x00000000] PC= 0x80000040    auipc   t5, 0x1
+Cyc=        318 Op1=[0x80001040] Op2=[0xffffffc0] W[_, 0= 0x80001000]   Mem[0: R:0x00000001 W:0x00000001] PC= 0x80000044    sw      gp, -64(t5)
+Cyc=        319 Op1=[0x0000000b] Op2=[0x00000000] W[W, 0= 0x8000004c]   Mem[2: R:0x04c0006f W:0x00000000] PC= 0x80000048  J j       pc - 0x8
+Cyc=        320 Op1=[0x00001000] Op2=[0x80000040] W[W,30= 0x80001040]   Mem[0: R:0x00000000 W:0x00000000] PC= 0x80000040    auipc   t5, 0x1
+Cyc=        321 Op1=[0x80001040] Op2=[0xffffffc0] W[_, 0= 0x80001000]   Mem[0: R:0x00000000 W:0x00000001] PC= 0x80000044    sw      gp, -64(t5)
+Cyc=        322 Op1=[0x0000000b] Op2=[0x00000000] W[W, 0= 0x8000004c]   Mem[2: R:0x04c0006f W:0x00000000] PC= 0x80000048  J j       pc - 0x8
+Cyc=        323 Op1=[0x00001000] Op2=[0x80000040] W[W,30= 0x80001040]   Mem[0: R:0x00000000 W:0x00000000] PC= 0x80000040    auipc   t5, 0x1
+*** PASSED ***

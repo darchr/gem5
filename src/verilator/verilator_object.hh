@@ -1,10 +1,11 @@
 
-#ifndef __VERILATOR_VERILATOR_OBJECT_HHH__
-#define __VERILATOR_VERILATOR_OBJECT_HHH__
+#ifndef __VERILATOR_VERILATOR_OBJECT_HH__
+#define __VERILATOR_VERILATOR_OBJECT_HH__
 
-#include <fesvr/dtm.h>
+//#include <fesvr/dtm.h>
 
 #include "ITop.hh"
+#include "mem/mem_object.hh"
 #include "params/VerilatorObject.hh"
 #include "sim/sim_object.hh"
 
