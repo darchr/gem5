@@ -9,7 +9,7 @@
 #include "params/VerilatorObject.hh"
 #include "sim/sim_object.hh"
 
-class VerilatorObject : public ITop, public ClockedObject
+class VerilatorObject : public ITop, public MemObject
 {
     private:
         void updateCycle();
@@ -42,7 +42,7 @@ class VerilatorObject : public ITop, public ClockedObject
             public:
                 VerilatorCPUMemPort(const std::string& name,
                     VerilatorObject *owner) :
-                    MasterPort(name, (MemObject*)((ClockedObject *)owner)),
+                    MasterPort(name, owner),
                     owner(owner),
                     blockedPacket(nullptr)
                 { }

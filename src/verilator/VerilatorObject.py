@@ -1,7 +1,7 @@
 from m5.params import *
-from ClockedObject import ClockedObject
+from MemObject import MemObject
 
-class VerilatorObject(ClockedObject):
+class VerilatorObject(MemObject):
     type = 'VerilatorObject'
     cxx_header = "verilator/verilator_object.hh"
 

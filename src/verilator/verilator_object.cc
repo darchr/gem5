@@ -140,7 +140,7 @@ VerilatorObject::handleResponse(PacketPtr pkt)
 }
 
 VerilatorObject::VerilatorObject(VerilatorObjectParams *params) :
-    ClockedObject(params),
+    MemObject(params),
     event([this]{updateCycle();}, params->name),
     maxCycles(params->cycles),
     latency(params->latency),
