@@ -9,29 +9,6 @@
 #include "params/VerilatorObject.hh"
 #include "sim/sim_object.hh"
 
-class VerilatorCPUMemPort : public MasterPort
-{
-    private:
-        VerilatorObject *owner;
-
-        PacketPtr blockedPacket;
-
-    public:
-        VerilatorCPUMemPort(const std::string& name, VerilatorObject *owner) :
-            owner(owner), blockedPacket(nullptr)
-        { }
-
-        void sendPacket(PacketPtr pkt);
-
-    protected:
-        bool recvTimingResp(PacketPtr pkt) override;
-
-        void recvReqRetry() override;
-
-        void recvRangeChange() override;
-};
-
-
 class VerilatorObject : public ITop, public ClockedObject
 {
     private:
@@ -54,6 +31,31 @@ class VerilatorObject : public ITop, public ClockedObject
         const char * loadMem;
         std::string const objName;
         int cyclesPassed;
+
+        class VerilatorCPUMemPort : public MasterPort
+        {
+            private:
+                VerilatorObject *owner;
+
+                PacketPtr blockedPacket;
+
+            public:
+                VerilatorCPUMemPort(const std::string& name,
+                    VerilatorObject *owner) :
+                    ClockedObject(name, owner),
+                    owner(owner),
+                    blockedPacket(nullptr)
+                { }
+
+                void sendPacket(PacketPtr pkt);
+
+            protected:
+                bool recvTimingResp(PacketPtr pkt) override;
+
+                void recvReqRetry() override;
+
+                void recvRangeChange() override;
+        };
 
         VerilatorCPUMemPort instPort;
         VerilatorCPUMemPort dataPort;

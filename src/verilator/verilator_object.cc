@@ -3,7 +3,7 @@
 #include "verilator_object.hh"
 
 void
-VerilatorCPUMemPort::sendPacket(PacketPtr pkt)
+VerilatorObject::VerilatorCPUMemPort::sendPacket(PacketPtr pkt)
 {
     panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
     if (!sendTimingReq(pkt)) {
@@ -12,7 +12,7 @@ VerilatorCPUMemPort::sendPacket(PacketPtr pkt)
 }
 
 void
-VerilatorCPUMemPort::recvReqRetry()
+VerilatorObject::VerilatorCPUMemPort::recvReqRetry()
 {
     assert(blockedPacket != nullptr);
 
@@ -23,7 +23,7 @@ VerilatorCPUMemPort::recvReqRetry()
 }
 
 bool
-VerilatorCPUMemPort::recvTimingResp(PacketPtr pkt)
+VerilatorObject::VerilatorCPUMemPort::recvTimingResp(PacketPtr pkt)
 {
     return owner->handleResponse(pkt);
 }
@@ -46,21 +46,18 @@ VerilatorObject::buildPayloadForWrite(RequestPtr &data_req, uint64_t data,
     //setup request for appropiatly sized packet
     if (byte){
         data_req = std::make_shared<Request>(
-                new Request(
                 dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_addr,
-                1, 0, 0));
+                1, 0, 0);
         packeddata = new uint8_t;
     }else if ( half ){
         data_req = std::make_shared<Request>(
-                new Request(
                 dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_addr,
-                2, 0, 0));
+                2, 0, 0);
         packeddata = new uint8_t[2];
     }else{
         data_req = std::make_shared<Request>(
-                new Request(
                 dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_addr,
-                4, 0, 0));
+                4, 0, 0);
         packeddata = new uint8_t[4];
         for (int i = 0; i < 4; ++i){
                 packeddata[i] = data & (0xFF << i);
@@ -151,7 +148,9 @@ VerilatorObject::VerilatorObject(VerilatorObjectParams *params) :
     designStages(params->stages),
     start(params->startTime),
     loadMem(params->memData.c_str()),
-    objName(params->name)
+    objName(params->name),
+    instPort(params->name + ".instPort", this),
+    dataPort(params->name + ".dataPort", this)
 {
     /*//send program or other data to fesvr to communicate
     //with design
@@ -213,9 +212,8 @@ VerilatorObject::updateCycle()
         }else{
         //if we are reading then just
             data_req = std::make_shared<Request>(
-            new Request(
             dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_0_addr,
-            4, 0, 0));
+            4, 0, 0);
                 //this doesn't matter for a read, this data will do nothing
             packedData = new uint8_t[4];
 
