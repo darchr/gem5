@@ -17,8 +17,8 @@ class VerilatorCPUMemPort : public MasterPort
         PacketPtr blockedPacket;
 
     public:
-        MemSidePort(const std::string& name, SimpleMemobj *owner) :
-            MasterPort(name, owner), owner(owner), blockedPacket(nullptr)
+        VerilatorCPUMemPort(const std::string& name, VerilatorObject *owner) :
+            owner(owner), blockedPacket(nullptr)
         { }
 
         void sendPacket(PacketPtr pkt);
@@ -37,13 +37,12 @@ class VerilatorObject : public ITop, public ClockedObject
     private:
         void updateCycle();
 
-        void sendFetch(const RequestPtr &req ;
+        void sendFetch(const RequestPtr &req);
         void sendData(const RequestPtr &req, uint8_t *data, bool read);
-        void buildPayloadForWrite(RequestPtr &data_req, uint8_t * data,
-            uint8_t * &packeddata)
+        void buildPayloadForWrite(RequestPtr &data_req, uint64_t data,
+            uint8_t * &packeddata);
 
-        bool handleResponse(PacketPtr pkt);
-        PacketPtr buildPacket(const RequestPtr &req, bool read)
+        PacketPtr buildPacket(const RequestPtr &req, bool read);
 
         //dtm_t * dtm;
         //std::vector<std::string> toDtm;
@@ -58,11 +57,14 @@ class VerilatorObject : public ITop, public ClockedObject
 
         VerilatorCPUMemPort instPort;
         VerilatorCPUMemPort dataPort;
+        bool dataRequested = false;
+        bool instRequested = false;
 
     public:
         VerilatorObject(VerilatorObjectParams *p);
         ~VerilatorObject();
         void reset(int resetCycles);
         void startup();
+        bool handleResponse(PacketPtr pkt);
 };
 #endif

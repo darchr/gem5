@@ -35,7 +35,7 @@ VerilatorObject::buildPacket(const RequestPtr &req, bool read)
 }
 
 void
-VerilatorObject::buildPayloadForWrite(RequestPtr &data_req, uint8_t * data,
+VerilatorObject::buildPayloadForWrite(RequestPtr &data_req, uint64_t data,
         uint8_t * &packeddata)
 {
     //get mask and figure out if we are trying to write a byte, half word or
@@ -47,21 +47,24 @@ VerilatorObject::buildPayloadForWrite(RequestPtr &data_req, uint8_t * data,
     if (byte){
         data_req = std::make_shared<Request>(
                 new Request(
-                dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_addr),
-                1);
+                dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_addr,
+                1, 0, 0));
         packeddata = new uint8_t;
     }else if ( half ){
         data_req = std::make_shared<Request>(
                 new Request(
-                dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_addr),
-                2);
+                dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_addr,
+                2, 0, 0));
         packeddata = new uint8_t[2];
     }else{
         data_req = std::make_shared<Request>(
                 new Request(
-                dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_addr),
-                4);
-        packeddata = data;
+                dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_addr,
+                4, 0, 0));
+        packeddata = new uint8_t[4];
+        for (int i = 0; i < 4; ++i){
+                packeddata[i] = data & (0xFF << i);
+            }
     }
     int j = 0;
     for (int i = 0; i < 4; ++i){
@@ -70,7 +73,7 @@ VerilatorObject::buildPayloadForWrite(RequestPtr &data_req, uint8_t * data,
                 //get index of 1st occurance of a 1 for address offset
                 if (j == 0)
                     j = i;
-                packeddata[i] = data[i];
+                packeddata[i] = data & (0xFF << i);
         }
     }
     //ofset address based on data size/type
@@ -85,7 +88,7 @@ VerilatorObject::sendData(const RequestPtr &req, uint8_t *data, bool read)
     pkt->setData(data);
     delete[] data;
 
-    dataPort.sendPacket(pkt)
+    dataPort.sendPacket(pkt);
     dataRequested = true;
     //Assert io.dmem.resp.valid to false to insert bubbles
     dut.Top__DOT__tile__DOT__memory__DOT__io_core_ports_0_resp_valid = 0;
@@ -95,23 +98,23 @@ VerilatorObject::sendData(const RequestPtr &req, uint8_t *data, bool read)
 void
 VerilatorObject::sendFetch(const RequestPtr &req)
 {
-        DPRINTF(this, "Sending fetch for addr %#x(pa: %#x)\n",
-                req->getVaddr(), req->getPaddr());
+        //DPRINTF(this, "Sending fetch for addr %#x(pa: %#x)\n",
+          //      req->getVaddr(), req->getPaddr());
         PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
-        DPRINTF(this, " -- pkt addr: %#x\n", pkt->getAddr());
+        //DPRINTF(this, " -- pkt addr: %#x\n", pkt->getAddr());
 
-        instPort.sendPacket(pkt)
+        instPort.sendPacket(pkt);
 
         instRequested = true;
         //assertn io.imem.resp.valid response to false to insert bubbles
-        Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall = 1;
+        dut.Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall = 1;
 }
 
 
 bool
 VerilatorObject::handleResponse(PacketPtr pkt)
 {
-    DPRINTF(this, "Got response for addr %#x\n", pkt->getAddr());
+    //DPRINTF(this, "Got response for addr %#x\n", pkt->getAddr());
 
     if (pkt->req->isInstFetch()) {
         //set packet data to sodor imem data signal
@@ -122,10 +125,10 @@ VerilatorObject::handleResponse(PacketPtr pkt)
         dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_1_data =
                 respData[3] | respData[2] | respData[1] | respData[0];
         //set valid to true
-        Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall = 0;
+        dut.Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall = 0;
         //no imem valid signal. set stall instead?
         instRequested = false;
-    } else  if (pkt->req->isRead()){
+    } else  if (pkt->isRead()){
         //set packet data to sodor dmem data signal
         uint8_t * respData;
         pkt->writeData(respData);
@@ -141,7 +144,7 @@ VerilatorObject::handleResponse(PacketPtr pkt)
 }
 
 VerilatorObject::VerilatorObject(VerilatorObjectParams *params) :
-    SimObject(params),
+    ClockedObject(params),
     event([this]{updateCycle();}, params->name),
     maxCycles(params->cycles),
     latency(params->latency),
@@ -189,14 +192,15 @@ VerilatorObject::updateCycle()
     }
 
     if (!dut.Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall && !instRequested){
-        RequestPtr ifetch_req = std::make_shared<Request>();
-        setupFetchRequest(ifetch_req);
+        RequestPtr ifetch_req = std::make_shared<Request>(
+        dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_1_addr,
+        4,0x100,0);
         sendFetch(ifetch_req);
     }else if (instRequested){
         dut.Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall = 1;
     }
 
-    if (Top__DOT__tile__DOT__memory__DOT__io_core_ports_0_req_valid
+    if (dut.Top__DOT__tile__DOT__memory__DOT__io_core_ports_0_req_valid
         && !dataRequested){
         RequestPtr data_req;
         uint8_t * packedData;
@@ -210,11 +214,16 @@ VerilatorObject::updateCycle()
         //if we are reading then just
             data_req = std::make_shared<Request>(
             new Request(
-            dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_0_addr),
-            4);
+            dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_0_addr,
+            4, 0, 0));
                 //this doesn't matter for a read, this data will do nothing
-            packeddata =
-                dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_data;
+            packedData = new uint8_t[4];
+
+            for (int i = 0; i < 4; ++i){
+                packedData[i] =
+                    dut.Top__DOT__tile__DOT__memory__DOT__async_data_dw_data &
+                    (0xFF << i);
+            }
         }
         sendData(data_req, packedData, !write);
     }else if ( dataRequested ){
@@ -231,10 +240,10 @@ VerilatorObject::updateCycle()
     cyclesPassed += 1;
     if (maxCycles != 0 && cyclesPassed == maxCycles){
         inform("Simulation Timed Out\n");
-        exitSimLoop("Done Simulating", /*dtm->exit_code()*/);
+        exitSimLoop("Done Simulating", 1/*dtm->exit_code()*/);
     }
 
-    schedule(event, nextCycle);
+    schedule(event, nextCycle());
 }
 
 void
@@ -242,7 +251,7 @@ VerilatorObject::reset(int resetCycles)
 {
     //if we are pipelining we want to run reset for the number
     //of stages we have
-    for (int i = 0; i < cycles; ++i){
+    for (int i = 0; i < resetCycles; ++i){
         //set reset signal and starting clock signal
         dut.reset = 1;
         dut.clock = 0;
