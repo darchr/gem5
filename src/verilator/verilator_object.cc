@@ -177,8 +177,8 @@ VerilatorObject::~VerilatorObject()
 VerilatorObject*
 VerilatorObjectParams::create()
 {
-    VerilatorObject * vo = new VerilatorObject(this);
-    return vo;
+    void* ptr = aligned_alloc(128, sizeof(VerilatorObject));
+    return new(ptr) VerilatorObject(this);
 
 }
 
