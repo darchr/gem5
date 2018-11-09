@@ -112,10 +112,9 @@ bool
 VerilatorObject::handleResponse(PacketPtr pkt)
 {
     //DPRINTF(this, "Got response for addr %#x\n", pkt->getAddr());
-
+    uint8_t * respData = new uint8_t[4];
     if (pkt->req->isInstFetch()) {
         //set packet data to sodor imem data signal
-        uint8_t * respData;
         //get read data
         pkt->writeData(respData);
         //concat response data to inst data out signal
@@ -127,7 +126,6 @@ VerilatorObject::handleResponse(PacketPtr pkt)
         instRequested = false;
     } else  if (pkt->isRead()){
         //set packet data to sodor dmem data signal
-        uint8_t * respData;
         pkt->writeData(respData);
         dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_0_data =
                 respData[3] | respData[2] | respData[1] | respData[0];
@@ -137,6 +135,7 @@ VerilatorObject::handleResponse(PacketPtr pkt)
         //if need be
         dataRequested = false;
     }
+    delete[] respData;
     return true;
 }
 

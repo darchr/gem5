@@ -42,7 +42,7 @@ class VerilatorObject : public ITop, public ClockedObject
             public:
                 VerilatorCPUMemPort(const std::string& name,
                     VerilatorObject *owner) :
-                    ClockedObject(name, owner),
+                    MasterPort(name, (MemObject*)((ClockedObject *)owner)),
                     owner(owner),
                     blockedPacket(nullptr)
                 { }
