@@ -93,6 +93,8 @@ system.sodor = VerilatorObject()
 system.sodor.instPort = system.mem_ctrl.port
 system.sodor.dataPort = system.mem_ctrl.port
 
+system.sodor.latency = '1ns'
+
 # set up the root SimObject and start the simulation
 root = Root(full_system = True, system = system)
 

@@ -22,6 +22,22 @@ VerilatorObject::VerilatorCPUMemPort::recvReqRetry()
     sendPacket(pkt);
 }
 
+BaseMasterPort&
+VerilatorObject::getMasterPort(const std::string& if_name, PortID idx)
+{
+    panic_if(idx != InvalidPortID, "This object doesn't support vector ports");
+
+    // This is the name from the Python SimObject declaration (SimpleMemobj.py)
+    if (if_name == "instPort") {
+        return instPort;
+    } else if (if_name == "dataPort") {
+        return dataPort;
+    } else {
+        // pass it along to our super class
+        return MemObject::getMasterPort(if_name, idx);
+    }
+}
+
 bool
 VerilatorObject::VerilatorCPUMemPort::recvTimingResp(PacketPtr pkt)
 {

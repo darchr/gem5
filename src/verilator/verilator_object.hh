@@ -65,5 +65,6 @@ class VerilatorObject : public MemObject
         void reset(int resetCycles);
         void startup();
         bool handleResponse(PacketPtr pkt);
+        BaseMasterPort& getMasterPort(const std::string& if_name, PortID idx);
 };
 #endif
