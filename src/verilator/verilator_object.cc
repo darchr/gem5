@@ -142,12 +142,8 @@ VerilatorObject::handleResponse(PacketPtr pkt)
 VerilatorObject::VerilatorObject(VerilatorObjectParams *params) :
     MemObject(params),
     event([this]{updateCycle();}, params->name),
-    maxCycles(params->cycles),
     latency(params->latency),
     designStages(params->stages),
-    start(params->startTime),
-    loadMem(params->memData.c_str()),
-    objName(params->name),
     instPort(params->name + ".instPort", this),
     dataPort(params->name + ".dataPort", this)
 {
@@ -235,10 +231,6 @@ VerilatorObject::updateCycle()
 
     //check if we should stop
     cyclesPassed += 1;
-    if (maxCycles != 0 && cyclesPassed == maxCycles){
-        inform("Simulation Timed Out\n");
-        exitSimLoop("Done Simulating", 1/*dtm->exit_code()*/);
-    }
 
     schedule(event, nextCycle());
 }

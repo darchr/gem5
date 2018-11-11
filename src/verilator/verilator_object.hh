@@ -3,13 +3,15 @@
 #define __VERILATOR_VERILATOR_OBJECT_HH__
 
 //#include <fesvr/dtm.h>
+#define VM_TRACE 0
+#define VL_THREADED 0
 
-#include "ITop.hh"
+#include "VTop.h"
 #include "mem/mem_object.hh"
 #include "params/VerilatorObject.hh"
 #include "sim/sim_object.hh"
 
-class VerilatorObject : public ITop, public MemObject
+class VerilatorObject : public MemObject
 {
     private:
         void updateCycle();
@@ -23,13 +25,10 @@ class VerilatorObject : public ITop, public MemObject
 
         //dtm_t * dtm;
         //std::vector<std::string> toDtm;
+        VTop dut;
         EventFunctionWrapper event;
-        int maxCycles;
         Tick latency;
         int designStages;
-        int start;
-        const char * loadMem;
-        std::string const objName;
         int cyclesPassed;
 
         class VerilatorCPUMemPort : public MasterPort
@@ -53,8 +52,6 @@ class VerilatorObject : public ITop, public MemObject
                 bool recvTimingResp(PacketPtr pkt) override;
 
                 void recvReqRetry() override;
-
-                void recvRangeChange() override;
         };
 
         VerilatorCPUMemPort instPort;

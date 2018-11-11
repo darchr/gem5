@@ -3,5 +3,3 @@ Import('*')
 SimObject('VerilatorObject.py')
 Source('verilator_object.cc')
 
-env.Append(CCFLAGS=["-I/usr/share/verilator/include", "-I/usr/share/verilator/include/vltstd"])
-
