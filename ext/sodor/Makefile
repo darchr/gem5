@@ -1,7 +1,7 @@
 all: libVTop__ALL.a
 
 VTop.mk: Top.v AsyncReadMem.sv SimDTM.v
-	verilator --cc Top.v -Mdir .
+	verilator --cc Top.v -Mdir . -CFLAGS "-g"
 
 verilated.o: VTop.mk
 	make -f VTop.mk $@
