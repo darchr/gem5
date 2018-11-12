@@ -131,14 +131,11 @@ bool
 VerilatorObject::handleResponse(PacketPtr pkt)
 {
     DPRINTF(Verilator, "Got response for addr %#x\n", pkt->getAddr());
-    uint8_t * respData = new uint8_t[4];
+    const uint32_t *t =  pkt->getConstPtr<uint32_t>();
     if (pkt->req->isInstFetch()) {
         //set packet data to sodor imem data signal
         //get read data
-        pkt->writeData(respData);
-        //concat response data to inst data out signal
-        dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_1_data =
-                respData[3] | respData[2] | respData[1] | respData[0];
+        dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_1_data = *t;
 
         DPRINTF(Verilator, "Response is data %#x\n",
             dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_1_data );
@@ -148,16 +145,14 @@ VerilatorObject::handleResponse(PacketPtr pkt)
         instRequested = false;
     } else  if (pkt->isRead()){
         //set packet data to sodor dmem data signal
-        pkt->writeData(respData);
-        dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_0_data =
-                respData[3] | respData[2] | respData[1] | respData[0];
+        const uint32_t *tmp = pkt->getConstPtr<uint32_t>();
+        dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_0_data = *t;
         //set valid to true
         dut.Top__DOT__tile__DOT__memory__DOT__io_core_ports_0_resp_valid = 1;
         //no more outstanding requests so we can make another request
         //if need be
         dataRequested = false;
     }
-    delete[] respData;
     return true;
 }
 
