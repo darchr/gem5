@@ -1,4 +1,5 @@
 #include "base/logging.hh"
+#include "debug/Verilator.hh"
 #include "sim/sim_exit.hh"
 #include "verilator_object.hh"
 
@@ -41,6 +42,7 @@ VerilatorObject::getMasterPort(const std::string& if_name, PortID idx)
 bool
 VerilatorObject::VerilatorCPUMemPort::recvTimingResp(PacketPtr pkt)
 {
+    DPRINTF(Verilator, "MEMORY RESPONSE RECIEVED\n");
     return owner->handleResponse(pkt);
 }
 
@@ -111,23 +113,24 @@ VerilatorObject::sendData(const RequestPtr &req, uint8_t *data, bool read)
 void
 VerilatorObject::sendFetch(const RequestPtr &req)
 {
-        //DPRINTF(this, "Sending fetch for addr %#x(pa: %#x)\n",
-          //      req->getVaddr(), req->getPaddr());
+        DPRINTF(Verilator, "Sending fetch for addr (pa: %#x)\n",
+               req->getPaddr());
         PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
-        //DPRINTF(this, " -- pkt addr: %#x\n", pkt->getAddr());
-
-        instPort.sendPacket(pkt);
+        DPRINTF(Verilator, " -- pkt addr: %#x\n", pkt->getAddr());
+        pkt->allocate();
 
         instRequested = true;
-        //assertn io.imem.resp.valid response to false to insert bubbles
         dut.Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall = 1;
+        instPort.sendPacket(pkt);
+
+        //assertn io.imem.resp.valid response to false to insert bubbles
 }
 
 
 bool
 VerilatorObject::handleResponse(PacketPtr pkt)
 {
-    //DPRINTF(this, "Got response for addr %#x\n", pkt->getAddr());
+    DPRINTF(Verilator, "Got response for addr %#x\n", pkt->getAddr());
     uint8_t * respData = new uint8_t[4];
     if (pkt->req->isInstFetch()) {
         //set packet data to sodor imem data signal
@@ -136,6 +139,9 @@ VerilatorObject::handleResponse(PacketPtr pkt)
         //concat response data to inst data out signal
         dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_1_data =
                 respData[3] | respData[2] | respData[1] | respData[0];
+
+        DPRINTF(Verilator, "Response is data %#x\n",
+            dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_1_data );
         //set valid to true
         dut.Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall = 0;
         //no imem valid signal. set stall instead?
@@ -195,18 +201,27 @@ VerilatorObjectParams::create()
 void
 VerilatorObject::updateCycle()
 {
+
+    DPRINTF(Verilator, "\nTICKING\n");
     //has verilator finished running?
     if (/*dtm->done() && dut.io_success && */Verilated::gotFinish()){
         inform("Simulation has Completed\n");
         exitSimLoop("Done Simulating", 1 /*dtm->exit_code()*/);
     }
 
+    DPRINTF(Verilator, "INSTRUCTION FETCH?\n");
+    //has verilator finished running?
     if (!dut.Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall && !instRequested){
+        DPRINTF(Verilator, "YES BECAUSE !STALL %d && !INSTREQUESTED %d\n",
+               !dut.Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall,
+               !instRequested);
+
         RequestPtr ifetch_req = std::make_shared<Request>(
         dut.Top__DOT__tile__DOT__memory__DOT__async_data_dataInstr_1_addr,
         4,0x100,0);
         sendFetch(ifetch_req);
     }else if (instRequested){
+        DPRINTF(Verilator, "NO BECAUSE INSTREQUESTED %d\n", instRequested);
         dut.Top__DOT__tile__DOT__core__DOT__c_io_ctl_stall = 1;
     }
 
@@ -254,6 +269,8 @@ VerilatorObject::updateCycle()
 void
 VerilatorObject::reset(int resetCycles)
 {
+    DPRINTF(Verilator, "RESETING FOR %d CYCLES\n", resetCycles);
+
     //if we are pipelining we want to run reset for the number
     //of stages we have
     for (int i = 0; i < resetCycles; ++i){
@@ -268,11 +285,15 @@ VerilatorObject::reset(int resetCycles)
         //done reseting
         dut.reset = 0;
     }
+    DPRINTF(Verilator, "DONE RESETING\n");
 }
 
 void
 VerilatorObject::startup()
 {
+    DPRINTF(Verilator, "STARTING UP SODOR\n");
     reset(designStages);
+
+    DPRINTF(Verilator, "SCHEDULING FIRST TICK IN %d\n", latency);
     schedule(event, latency);
 }
