@@ -32,11 +32,9 @@ Import('*')
 
 Source('unittest.cc')
 
-UnitTest('circlebuf', 'circlebuf.cc')
 UnitTest('cprintftime', 'cprintftime.cc')
 UnitTest('initest', 'initest.cc')
 UnitTest('nmtest', 'nmtest.cc')
-UnitTest('rangemaptest', 'rangemaptest.cc')
 UnitTest('refcnttest', 'refcnttest.cc')
 UnitTest('strnumtest', 'strnumtest.cc')
 
