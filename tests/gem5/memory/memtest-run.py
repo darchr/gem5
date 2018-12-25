@@ -80,5 +80,6 @@ root.system.mem_mode = 'timing'
 
 m5.instantiate()
 exit_event = m5.simulate()
-
+if exit_event.getCause() != "maximum number of loads reached":
+    exit(1)
 

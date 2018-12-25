@@ -46,6 +46,7 @@ class Verifier(object):
 
     def instantiate_test(self, name_pfx):
         name = '-'.join([name_pfx, self.__class__.__name__])
+        print("Name of test is " + name)
         return test.TestFunction(self._test,
                 name=name, fixtures=self.fixtures)
 

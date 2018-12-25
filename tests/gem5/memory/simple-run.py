@@ -49,7 +49,7 @@ args = parser.parse_args()
 
 # both traffic generator and communication monitor are only available
 # if we have protobuf support, so potentially skip this test
-# require_sim_object("TrafficGen")
+# require_sim_object("TrafficGen") <-- uncommenting these checks causes the tests to fail
 # require_sim_object("CommMonitor")
 # This needs to be fixed in the new infrastructure
 
@@ -99,5 +99,5 @@ root.system.mem_mode = 'timing'
 
 m5.instantiate()
 exit_event = m5.simulate(100000000000)
-
-print(exit_event.getCause())
+if exit_event.getCause() != "simulate() limit reached":
+    exit(1)
