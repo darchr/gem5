@@ -55,6 +55,11 @@ class TempdirFixture(Fixture):
         if self.path is not None:
             shutil.rmtree(self.path)
 
+    def skip_cleanup(self):
+        # Set path to none so we don't delete the directory.
+        # This is useful when a test fails so we can see the output.
+        self.path = None
+
 
 class SConsFixture(Fixture):
     '''
@@ -155,15 +160,15 @@ class MakeFixture(Fixture):
         super(MakeFixture, self).__init__(build_once=True, lazy_init=False,
                                           name=name,
                                           *args, **kwargs)
-        self.targets = []
+        self.required_by = []
         self.directory = directory
 
-    def setup(self):
-        super(MakeFixture, self).setup()
+    def setup(self, testitem):
+        super(MakeFixture, self).setup(testitem)
         targets = set(self.required_by)
         command = ['make', '-C', self.directory]
         command.extend([target.target for target in targets])
-        log_call(command)
+        log_call(log.test_log, command)
 
 
 class MakeTarget(Fixture):
@@ -178,19 +183,16 @@ class MakeTarget(Fixture):
         self.target = self.name
 
         if make_fixture is None:
-            make_fixture = MakeFixture(
-                    absdirpath(target),
-                    lazy_init=True,
-                    build_once=False)
+            make_fixture = MakeFixture(absdirpath(target))
 
         self.make_fixture = make_fixture
 
         # Add our self to the required targets of the main MakeFixture
-        self.require(self.make_fixture)
+        self.make_fixture.required_by.append(self)
 
     def setup(self, testitem):
-        super(MakeTarget, self).setup()
-        self.make_fixture.setup()
+        super(MakeTarget, self).setup(testitem)
+        self.make_fixture.setup(testitem)
         return self
 
 class TestProgram(MakeTarget):
@@ -222,7 +224,6 @@ class DownloadedProgram(Fixture):
 
         self.program_dir = joinpath('test-progs', path)
         self.path = joinpath(self.program_dir, program)
-
         self.url = self.urlbase + self.path
 
     def _download(self):
@@ -251,7 +252,8 @@ class DownloadedProgram(Fixture):
                 t = self._getremotetime()
             except urllib2.URLError:
                 # Problem checking the server, use the old files.
-                log.debug("Could not contact server. Binaries may be old.")
+                log.test_log.debug("Could not contact server.\
+                        Binaries may be old.")
                 return
             # If the server version is more recent, download it
             if t > os.path.getmtime(self.path):

@@ -1,0 +1,22 @@
+SERVER_USER=
+SERVER_PATH=/z/www/htdocs/dist/current/gem5/cpu_tests/benchmarks/bin/x86
+FETCH_PATH=http://gem5.org/dist/current/gem5/cpu_tests/benchmarks/bin/x86
+UPLOAD_LOCATION=$(SERVER_USER)daystrom.gem5.org:$(SERVER_PATH)
+
+all: Bubblesort FloatMM
+
+upload: Bubblesort FloatMM
+	scp Bubblesort FloatMM $(UPLOAD_LOCATION)
+
+Bubblesort: Bubblesort.c dockcross-x86
+	./dockcross-x86 bash -c '$$CC Bubblesort.c -o Bubblesort -static'
+
+Bubblesort: FloatMM.c dockcross-x86
+	./dockcross-x86 bash -c '$$CC FloatMM.c -o FloatMM -static'
+
+dockcross-x86:
+	docker run --rm dockcross/linux-x86 > ./dockcross-x86
+	chmod +x ./dockcross-x86
+
+clean:
+	rm -f dockcross* Bubblesort FloatMM
