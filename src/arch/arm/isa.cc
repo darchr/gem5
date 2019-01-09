@@ -89,7 +89,7 @@ ISA::ISA(Params *p)
     } else {
         highestELIs64 = true; // ArmSystem::highestELIs64 does the same
         haveSecurity = haveLPAE = haveVirtualization = false;
-        haveCrypto = false;
+        haveCrypto = true;
         haveLargeAsid64 = false;
         physAddrRange = 32;  // dummy value
     }
@@ -123,38 +123,6 @@ ISA::clear()
     // are in SE mode we don't know if our ArmProcess is
     // AArch32 or AArch64
     initID64(p);
-
-    miscRegs[MISCREG_ID_ISAR5] = insertBits(
-        miscRegs[MISCREG_ID_ISAR5], 19, 4,
-        haveCrypto ? 0x1112 : 0x0);
-
-    if (FullSystem && system->highestELIs64()) {
-        // Initialize AArch64 state
-        clear64(p);
-        return;
-    }
-
-    // Initialize AArch32 state...
-
-    CPSR cpsr = 0;
-    cpsr.mode = MODE_USER;
-    miscRegs[MISCREG_CPSR] = cpsr;
-    updateRegMap(cpsr);
-
-    SCTLR sctlr = 0;
-    sctlr.te = (bool) sctlr_rst.te;
-    sctlr.nmfi = (bool) sctlr_rst.nmfi;
-    sctlr.v = (bool) sctlr_rst.v;
-    sctlr.u = 1;
-    sctlr.xp = 1;
-    sctlr.rao2 = 1;
-    sctlr.rao3 = 1;
-    sctlr.rao4 = 0xf;  // SCTLR[6:3]
-    sctlr.uci = 1;
-    sctlr.dze = 1;
-    miscRegs[MISCREG_SCTLR_NS] = sctlr;
-    miscRegs[MISCREG_SCTLR_RST] = sctlr_rst;
-    miscRegs[MISCREG_HCPTR] = 0;
 
     // Start with an event in the mailbox
     miscRegs[MISCREG_SEV_MAILBOX] = 1;
@@ -199,6 +167,7 @@ ISA::clear()
         (2 << 4)  | // 5:4
         (1 << 2)  | // 3:2
         0;          // 1:0
+
     miscRegs[MISCREG_NMRR_NS] =
         (1 << 30) | // 31:30
         (0 << 26) | // 27:26
@@ -215,6 +184,44 @@ ISA::clear()
         (2 << 4)  | // 5:4
         (0 << 2)  | // 3:2
         0;          // 1:0
+
+    if (FullSystem && system->highestELIs64()) {
+        // Initialize AArch64 state
+        clear64(p);
+        return;
+    }
+
+    // Initialize AArch32 state...
+    clear32(p, sctlr_rst);
+}
+
+void
+ISA::clear32(const ArmISAParams *p, const SCTLR &sctlr_rst)
+{
+    CPSR cpsr = 0;
+    cpsr.mode = MODE_USER;
+
+    if (FullSystem) {
+        miscRegs[MISCREG_MVBAR] = system->resetAddr();
+    }
+
+    miscRegs[MISCREG_CPSR] = cpsr;
+    updateRegMap(cpsr);
+
+    SCTLR sctlr = 0;
+    sctlr.te = (bool) sctlr_rst.te;
+    sctlr.nmfi = (bool) sctlr_rst.nmfi;
+    sctlr.v = (bool) sctlr_rst.v;
+    sctlr.u = 1;
+    sctlr.xp = 1;
+    sctlr.rao2 = 1;
+    sctlr.rao3 = 1;
+    sctlr.rao4 = 0xf;  // SCTLR[6:3]
+    sctlr.uci = 1;
+    sctlr.dze = 1;
+    miscRegs[MISCREG_SCTLR_NS] = sctlr;
+    miscRegs[MISCREG_SCTLR_RST] = sctlr_rst;
+    miscRegs[MISCREG_HCPTR] = 0;
 
     miscRegs[MISCREG_CPACR] = 0;
 
@@ -244,7 +251,7 @@ void
 ISA::clear64(const ArmISAParams *p)
 {
     CPSR cpsr = 0;
-    Addr rvbar = system->resetAddr64();
+    Addr rvbar = system->resetAddr();
     switch (system->highestEL()) {
         // Set initial EL to highest implemented EL using associated stack
         // pointer (SP_ELx); set RVBAR_ELx to implementation defined reset
@@ -308,6 +315,10 @@ ISA::initID32(const ArmISAParams *p)
     miscRegs[MISCREG_ID_MMFR1] = p->id_mmfr1;
     miscRegs[MISCREG_ID_MMFR2] = p->id_mmfr2;
     miscRegs[MISCREG_ID_MMFR3] = p->id_mmfr3;
+
+    miscRegs[MISCREG_ID_ISAR5] = insertBits(
+        miscRegs[MISCREG_ID_ISAR5], 19, 4,
+        haveCrypto ? 0x1112 : 0x0);
 }
 
 void
@@ -648,16 +659,6 @@ ISA::readMiscReg(int misc_reg, ThreadContext *tc)
         return readMiscRegNoEffect(MISCREG_DFAR_S);
       case MISCREG_HIFAR: // alias for secure IFAR
         return readMiscRegNoEffect(MISCREG_IFAR_S);
-      case MISCREG_HVBAR: // bottom bits reserved
-        return readMiscRegNoEffect(MISCREG_HVBAR) & 0xFFFFFFE0;
-      case MISCREG_SCTLR:
-        return (readMiscRegNoEffect(misc_reg) & 0x72DD39FF) | 0x00C00818;
-      case MISCREG_SCTLR_EL1:
-        return (readMiscRegNoEffect(misc_reg) & 0x37DDDBBF) | 0x30D00800;
-      case MISCREG_SCTLR_EL2:
-      case MISCREG_SCTLR_EL3:
-      case MISCREG_HSCTLR:
-        return (readMiscRegNoEffect(misc_reg) & 0x32CD183F) | 0x30C50830;
 
       case MISCREG_ID_PFR0:
         // !ThumbEE | !Jazelle | Thumb | ARM
@@ -1634,7 +1635,8 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
               // done in the same mode the core is running in. NOTE: This
               // can't be an atomic translation because that causes problems
               // with unexpected atomic snoop requests.
-              warn("Translating via MISCREG(%d) in functional mode! Fix Me!\n", misc_reg);
+              warn("Translating via %s in functional mode! Fix Me!\n",
+                   miscRegName[misc_reg]);
 
               auto req = std::make_shared<Request>(
                   0, val, 0, flags,  Request::funcMasterId,
@@ -1891,7 +1893,9 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
                 // done in the same mode the core is running in. NOTE: This
                 // can't be an atomic translation because that causes problems
                 // with unexpected atomic snoop requests.
-                warn("Translating via MISCREG(%d) in functional mode! Fix Me!\n", misc_reg);
+                warn("Translating via %s in functional mode! Fix Me!\n",
+                     miscRegName[misc_reg]);
+
                 req->setVirt(0, val, 0, flags,  Request::funcMasterId,
                                tc->pcState().pc());
                 req->setContext(tc->contextId());

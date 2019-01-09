@@ -61,8 +61,8 @@
 #include "mem/request.hh"
 
 template<class Impl>
-LSQUnit<Impl>::WritebackEvent::WritebackEvent(DynInstPtr &_inst, PacketPtr _pkt,
-                                              LSQUnit *lsq_ptr)
+LSQUnit<Impl>::WritebackEvent::WritebackEvent(const DynInstPtr &_inst,
+        PacketPtr _pkt, LSQUnit *lsq_ptr)
     : Event(Default_Pri, AutoDelete),
       inst(_inst), pkt(_pkt), lsqPtr(lsq_ptr)
 {
@@ -142,8 +142,10 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
 }
 
 template <class Impl>
-LSQUnit<Impl>::LSQUnit()
-    : loads(0), stores(0), storesToWB(0), cacheBlockMask(0), stalled(false),
+LSQUnit<Impl>::LSQUnit(uint32_t lqEntries, uint32_t sqEntries)
+    : lsqID(-1), storeQueue(sqEntries+1), loadQueue(lqEntries+1),
+      LQEntries(lqEntries+1), SQEntries(sqEntries+1),
+      loads(0), stores(0), storesToWB(0), cacheBlockMask(0), stalled(false),
       isStoreBlocked(false), storeInFlight(false), hasPendingPkt(false),
       pendingPkt(nullptr)
 {
@@ -152,28 +154,16 @@ LSQUnit<Impl>::LSQUnit()
 template<class Impl>
 void
 LSQUnit<Impl>::init(O3CPU *cpu_ptr, IEW *iew_ptr, DerivO3CPUParams *params,
-        LSQ *lsq_ptr, unsigned maxLQEntries, unsigned maxSQEntries,
-        unsigned id)
+        LSQ *lsq_ptr, unsigned id)
 {
+    lsqID = id;
+
     cpu = cpu_ptr;
     iewStage = iew_ptr;
 
     lsq = lsq_ptr;
 
-    lsqID = id;
-
-    DPRINTF(LSQUnit, "Creating LSQUnit%i object.\n",id);
-
-    // Add 1 for the sentinel entry (they are circular queues).
-    LQEntries = maxLQEntries + 1;
-    SQEntries = maxSQEntries + 1;
-
-    //Due to uint8_t index in LSQSenderState
-    assert(LQEntries <= 256);
-    assert(SQEntries <= 256);
-
-    loadQueue.resize(LQEntries);
-    storeQueue.resize(SQEntries);
+    DPRINTF(LSQUnit, "Creating LSQUnit%i object.\n",lsqID);
 
     depCheckShift = params->LSQDepCheckShift;
     checkLoads = params->LSQCheckLoads;
@@ -339,7 +329,7 @@ LSQUnit<Impl>::resizeSQ(unsigned size)
 
 template <class Impl>
 void
-LSQUnit<Impl>::insert(DynInstPtr &inst)
+LSQUnit<Impl>::insert(const DynInstPtr &inst)
 {
     assert(inst->isMemRef());
 
@@ -356,7 +346,7 @@ LSQUnit<Impl>::insert(DynInstPtr &inst)
 
 template <class Impl>
 void
-LSQUnit<Impl>::insertLoad(DynInstPtr &load_inst)
+LSQUnit<Impl>::insertLoad(const DynInstPtr &load_inst)
 {
     assert((loadTail + 1) % LQEntries != loadHead);
     assert(loads < LQEntries);
@@ -381,7 +371,7 @@ LSQUnit<Impl>::insertLoad(DynInstPtr &load_inst)
 
 template <class Impl>
 void
-LSQUnit<Impl>::insertStore(DynInstPtr &store_inst)
+LSQUnit<Impl>::insertStore(const DynInstPtr &store_inst)
 {
     // Make sure it is not full before inserting an instruction.
     assert((storeTail + 1) % SQEntries != storeHead);
@@ -525,7 +515,7 @@ LSQUnit<Impl>::checkSnoop(PacketPtr pkt)
 
 template <class Impl>
 Fault
-LSQUnit<Impl>::checkViolations(int load_idx, DynInstPtr &inst)
+LSQUnit<Impl>::checkViolations(int load_idx, const DynInstPtr &inst)
 {
     Addr inst_eff_addr1 = inst->effAddr >> depCheckShift;
     Addr inst_eff_addr2 = (inst->effAddr + inst->effSize - 1) >> depCheckShift;
@@ -605,7 +595,7 @@ LSQUnit<Impl>::checkViolations(int load_idx, DynInstPtr &inst)
 
 template <class Impl>
 Fault
-LSQUnit<Impl>::executeLoad(DynInstPtr &inst)
+LSQUnit<Impl>::executeLoad(const DynInstPtr &inst)
 {
     using namespace TheISA;
     // Execute a specific load.
@@ -654,7 +644,7 @@ LSQUnit<Impl>::executeLoad(DynInstPtr &inst)
 
 template <class Impl>
 Fault
-LSQUnit<Impl>::executeStore(DynInstPtr &store_inst)
+LSQUnit<Impl>::executeStore(const DynInstPtr &store_inst)
 {
     using namespace TheISA;
     // Make sure that a store exists.
@@ -1105,7 +1095,7 @@ LSQUnit<Impl>::storePostSend(PacketPtr pkt)
 
 template <class Impl>
 void
-LSQUnit<Impl>::writeback(DynInstPtr &inst, PacketPtr pkt)
+LSQUnit<Impl>::writeback(const DynInstPtr &inst, PacketPtr pkt)
 {
     iewStage->wakeCPU();
 

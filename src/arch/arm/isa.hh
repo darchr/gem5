@@ -229,6 +229,11 @@ namespace ArmISA
                 privNonSecure(v);
                 return *this;
             }
+            chain privRead(bool v = true) const {
+                privSecureRead(v);
+                privNonSecureRead(v);
+                return *this;
+            }
             chain hypRead(bool v = true) const {
                 info[MISCREG_HYP_RD] = v;
                 return *this;
@@ -412,6 +417,7 @@ namespace ArmISA
         void clear();
 
       protected:
+        void clear32(const ArmISAParams *p, const SCTLR &sctlr_rst);
         void clear64(const ArmISAParams *p);
         void initID32(const ArmISAParams *p);
         void initID64(const ArmISAParams *p);

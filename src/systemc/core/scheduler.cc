@@ -33,6 +33,7 @@
 #include "base/logging.hh"
 #include "sim/eventq.hh"
 #include "systemc/core/kernel.hh"
+#include "systemc/core/sc_main_fiber.hh"
 #include "systemc/ext/core/messages.hh"
 #include "systemc/ext/core/sc_main.hh"
 #include "systemc/ext/utils/sc_report.hh"
@@ -46,8 +47,7 @@ namespace sc_gem5
 Scheduler::Scheduler() :
     eq(nullptr), readyEvent(this, false, ReadyPriority),
     pauseEvent(this, false, PausePriority),
-    stopEvent(this, false, StopPriority),
-    scMain(nullptr), _throwToScMain(nullptr),
+    stopEvent(this, false, StopPriority), _throwToScMain(nullptr),
     starvationEvent(this, false, StarvationPriority),
     _elaborationDone(false), _started(false), _stopNow(false),
     _status(StatusOther), maxTickEvent(this, false, MaxTickPriority),
@@ -108,6 +108,8 @@ Scheduler::clear()
 void
 Scheduler::initPhase()
 {
+    runUpdate();
+
     for (Process *p = initList.getNext(); p; p = initList.getNext()) {
         p->popListNode();
 
@@ -121,7 +123,6 @@ Scheduler::initPhase()
         }
     }
 
-    runUpdate();
     runDelta();
 
     for (auto ets: eventsToSchedule)
@@ -349,8 +350,8 @@ Scheduler::pause()
     status(StatusPaused);
     kernel->status(::sc_core::SC_PAUSED);
     runOnce = false;
-    if (scMain && !scMain->finished())
-        scMain->run();
+    if (scMainFiber.called() && !scMainFiber.finished())
+        scMainFiber.run();
 }
 
 void
@@ -362,17 +363,13 @@ Scheduler::stop()
     clear();
 
     runOnce = false;
-    if (scMain && !scMain->finished())
-        scMain->run();
+    if (scMainFiber.called() && !scMainFiber.finished())
+        scMainFiber.run();
 }
 
 void
 Scheduler::start(Tick max_tick, bool run_to_time)
 {
-    // We should be running from sc_main. Keep track of that Fiber to return
-    // to later.
-    scMain = Fiber::currentFiber();
-
     _started = true;
     status(StatusOther);
     runToTime = run_to_time;
@@ -431,7 +428,7 @@ Scheduler::throwToScMain()
     ::sc_core::sc_report report = reportifyException();
     _throwToScMain = &report;
     status(StatusOther);
-    scMain->run();
+    scMainFiber.run();
 }
 
 void

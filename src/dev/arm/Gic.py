@@ -49,6 +49,15 @@ class BaseGic(PioDevice):
 
     platform = Param.Platform(Parent.any, "Platform this device is part of.")
 
+    gicd_iidr = Param.UInt32(0,
+        "Distributor Implementer Identification Register")
+    gicd_pidr = Param.UInt32(0,
+        "Peripheral Identification Register")
+    gicc_iidr = Param.UInt32(0,
+        "CPU Interface Identification Register")
+    gicv_iidr = Param.UInt32(0,
+        "VM CPU Interface Identification Register")
+
 class ArmInterruptPin(SimObject):
     type = 'ArmInterruptPin'
     cxx_header = "dev/arm/base_gic.hh"
@@ -81,6 +90,19 @@ class GicV2(BaseGic):
     it_lines = Param.UInt32(128, "Number of interrupt lines supported (max = 1020)")
     gem5_extensions = Param.Bool(False, "Enable gem5 extensions")
 
+class Gic400(GicV2):
+    """
+    As defined in:
+    "ARM Generic Interrupt Controller Architecture" version 2.0
+    "CoreLink GIC-400 Generic Interrupt Controller" revision r0p1
+    """
+    gicd_pidr = 0x002bb490
+    gicd_iidr = 0x0200143B
+    gicc_iidr = 0x0202143B
+
+    # gicv_iidr same as gicc_idr
+    gicv_iidr = gicc_iidr
+
 class Gicv2mFrame(SimObject):
     type = 'Gicv2mFrame'
     cxx_header = "dev/arm/gic_v2m.hh"
@@ -95,3 +117,46 @@ class Gicv2m(PioDevice):
     pio_delay = Param.Latency('10ns', "Delay for PIO r/w")
     gic = Param.BaseGic(Parent.any, "Gic on which to trigger interrupts")
     frames = VectorParam.Gicv2mFrame([], "Power of two number of frames")
+
+class VGic(PioDevice):
+    type = 'VGic'
+    cxx_header = "dev/arm/vgic.hh"
+    gic = Param.BaseGic(Parent.any, "Gic to use for interrupting")
+    platform = Param.Platform(Parent.any, "Platform this device is part of.")
+    vcpu_addr = Param.Addr(0, "Address for vcpu interfaces")
+    hv_addr = Param.Addr(0, "Address for hv control")
+    pio_delay = Param.Latency('10ns', "Delay for PIO r/w")
+   # The number of list registers is not currently configurable at runtime.
+    ppint = Param.UInt32("HV maintenance interrupt number")
+
+    # gicv_iidr same as gicc_idr
+    gicv_iidr = Param.UInt32(Self.gic.gicc_iidr,
+        "VM CPU Interface Identification Register")
+
+    def generateDeviceTree(self, state):
+        gic = self.gic.unproxy(self)
+
+        node = FdtNode("interrupt-controller")
+        node.appendCompatible(["gem5,gic", "arm,cortex-a15-gic",
+                               "arm,cortex-a9-gic"])
+        node.append(FdtPropertyWords("#interrupt-cells", [3]))
+        node.append(FdtPropertyWords("#address-cells", [0]))
+        node.append(FdtProperty("interrupt-controller"))
+
+        regs = (
+            state.addrCells(gic.dist_addr) +
+            state.sizeCells(0x1000) +
+            state.addrCells(gic.cpu_addr) +
+            state.sizeCells(0x1000) +
+            state.addrCells(self.hv_addr) +
+            state.sizeCells(0x2000) +
+            state.addrCells(self.vcpu_addr) +
+            state.sizeCells(0x2000) )
+
+        node.append(FdtPropertyWords("reg", regs))
+        node.append(FdtPropertyWords("interrupts",
+                                     [1, int(self.ppint)-16, 0xf04]))
+
+        node.appendPhandle(gic)
+
+        yield node

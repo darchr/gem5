@@ -401,8 +401,6 @@ class FullO3CPU : public BaseO3CPU
 
     uint64_t readIntReg(PhysRegIdPtr phys_reg);
 
-    TheISA::FloatReg readFloatReg(PhysRegIdPtr phys_reg);
-
     TheISA::FloatRegBits readFloatRegBits(PhysRegIdPtr phys_reg);
 
     const VecRegContainer& readVecReg(PhysRegIdPtr reg_idx) const;
@@ -449,8 +447,6 @@ class FullO3CPU : public BaseO3CPU
 
     void setIntReg(PhysRegIdPtr phys_reg, uint64_t val);
 
-    void setFloatReg(PhysRegIdPtr phys_reg, TheISA::FloatReg val);
-
     void setFloatRegBits(PhysRegIdPtr phys_reg, TheISA::FloatRegBits val);
 
     void setVecReg(PhysRegIdPtr reg_idx, const VecRegContainer& val);
@@ -461,9 +457,7 @@ class FullO3CPU : public BaseO3CPU
 
     uint64_t readArchIntReg(int reg_idx, ThreadID tid);
 
-    float readArchFloatReg(int reg_idx, ThreadID tid);
-
-    uint64_t readArchFloatRegInt(int reg_idx, ThreadID tid);
+    uint64_t readArchFloatRegBits(int reg_idx, ThreadID tid);
 
     const VecRegContainer& readArchVecReg(int reg_idx, ThreadID tid) const;
     /** Read architectural vector register for modification. */
@@ -502,9 +496,7 @@ class FullO3CPU : public BaseO3CPU
      */
     void setArchIntReg(int reg_idx, uint64_t val, ThreadID tid);
 
-    void setArchFloatReg(int reg_idx, float val, ThreadID tid);
-
-    void setArchFloatRegInt(int reg_idx, uint64_t val, ThreadID tid);
+    void setArchFloatRegBits(int reg_idx, uint64_t val, ThreadID tid);
 
     void setArchVecReg(int reg_idx, const VecRegContainer& val, ThreadID tid);
 
@@ -537,15 +529,15 @@ class FullO3CPU : public BaseO3CPU
     /** Function to add instruction onto the head of the list of the
      *  instructions.  Used when new instructions are fetched.
      */
-    ListIt addInst(DynInstPtr &inst);
+    ListIt addInst(const DynInstPtr &inst);
 
     /** Function to tell the CPU that an instruction has completed. */
-    void instDone(ThreadID tid, DynInstPtr &inst);
+    void instDone(ThreadID tid, const DynInstPtr &inst);
 
     /** Remove an instruction from the front end of the list.  There's
      *  no restriction on location of the instruction.
      */
-    void removeFrontInst(DynInstPtr &inst);
+    void removeFrontInst(const DynInstPtr &inst);
 
     /** Remove all instructions that are not currently in the ROB.
      *  There's also an option to not squash delay slot instructions.*/

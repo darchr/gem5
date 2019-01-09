@@ -29,8 +29,6 @@
 
 #include "systemc/utils/report.hh"
 
-#include "systemc/core/python.hh"
-
 namespace sc_gem5
 {
 
@@ -49,8 +47,19 @@ ReportSevInfo reportSevInfos[sc_core::SC_MAX_SEVERITY] =
     [sc_core::SC_FATAL] = ReportSevInfo(sc_core::SC_DEFAULT_FATAL_ACTIONS)
 };
 
-std::map<std::string, ReportMsgInfo> reportMsgInfoMap;
-std::map<int, std::string> reportIdToMsgMap;
+std::map<std::string, ReportMsgInfo> &
+reportMsgInfoMap()
+{
+    static std::map<std::string, ReportMsgInfo> m;
+    return m;
+}
+
+std::map<int, std::string> &
+reportIdToMsgMap()
+{
+    static std::map<int, std::string> m;
+    return m;
+}
 
 int reportVerbosityLevel = sc_core::SC_MEDIUM;
 
@@ -65,42 +74,11 @@ std::unique_ptr<sc_core::sc_report> globalReportCache;
 
 bool reportWarningsAsErrors = false;
 
-DefaultReportMessages *&
-DefaultReportMessages::top()
-{
-    static DefaultReportMessages *top_ptr = nullptr;
-    return top_ptr;
-}
-
-void
-DefaultReportMessages::install()
+DefaultReportMessages::DefaultReportMessages(
+        std::initializer_list<std::pair<int, const char *>> msgs)
 {
     for (auto &p: msgs)
         sc_core::sc_report::register_id(p.first, p.second);
 }
-
-DefaultReportMessages::DefaultReportMessages(
-        std::initializer_list<std::pair<int, const char *>> msgs) :
-    next(top()), msgs(msgs)
-{
-    top() = this;
-}
-
-void
-DefaultReportMessages::installAll()
-{
-    for (DefaultReportMessages *ptr = top(); ptr; ptr = ptr->next)
-        ptr->install();
-}
-
-namespace
-{
-
-struct InstallDefaultReportMessages : public PythonReadyFunc
-{
-    void run() override { DefaultReportMessages::installAll(); }
-} messageInstaller;
-
-} // anonymous namespace
 
 } // namespace sc_gem5

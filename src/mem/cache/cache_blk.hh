@@ -105,7 +105,10 @@ class CacheBlk : public ReplaceableEntry
     /** The current status of this block. @sa CacheBlockStatusBits */
     State status;
 
-    /** Which curTick() will this block be accessible */
+    /**
+     * Which curTick() will this block be accessible. Its value is only
+     * meaningful if the block is valid.
+     */
     Tick whenReady;
 
     /** Number of references to this block since it was brought in. */
@@ -114,7 +117,10 @@ class CacheBlk : public ReplaceableEntry
     /** holds the source requestor ID for this block. */
     int srcMasterId;
 
-    /** Tick on which the block was inserted in the cache. */
+    /**
+     * Tick on which the block was inserted in the cache. Its value is only
+     * meaningful if the block is valid.
+     */
     Tick tickInserted;
 
   protected:
@@ -160,7 +166,7 @@ class CacheBlk : public ReplaceableEntry
     std::list<Lock> lockList;
 
   public:
-    CacheBlk() : data(nullptr)
+    CacheBlk() : data(nullptr), tickInserted(0)
     {
         invalidate();
     }
@@ -211,7 +217,6 @@ class CacheBlk : public ReplaceableEntry
         whenReady = MaxTick;
         refCount = 0;
         srcMasterId = Request::invldMasterId;
-        tickInserted = MaxTick;
         lockList.clear();
     }
 
@@ -244,10 +249,50 @@ class CacheBlk : public ReplaceableEntry
     }
 
     /**
+     * Set valid bit.
+     */
+    virtual void setValid()
+    {
+        assert(!isValid());
+        status |= BlkValid;
+    }
+
+    /**
+     * Set secure bit.
+     */
+    virtual void setSecure()
+    {
+        status |= BlkSecure;
+    }
+
+    /**
+     * Get tick at which block's data will be available for access.
+     *
+     * @return Data ready tick.
+     */
+    Tick getWhenReady() const
+    {
+        return whenReady;
+    }
+
+    /**
+     * Set tick at which block's data will be available for access. The new
+     * tick must be chronologically sequential with respect to previous
+     * accesses.
+     *
+     * @param tick New data ready tick.
+     */
+    void setWhenReady(const Tick tick)
+    {
+        assert(tick >= tickInserted);
+        whenReady = tick;
+    }
+
+    /**
      * Set member variables when a block insertion occurs. Resets reference
      * count to 1 (the insertion counts as a reference), and touch block if
      * it hadn't been touched previously. Sets the insertion tick to the
-     * current tick. Does not make block valid.
+     * current tick. Marks the block valid.
      *
      * @param tag Block address tag.
      * @param is_secure Whether the block is in secure space or not.
@@ -425,15 +470,19 @@ class TempCacheBlk final : public CacheBlk
     void insert(const Addr addr, const bool is_secure,
                 const int src_master_ID=0, const uint32_t task_ID=0) override
     {
+        // Make sure that the block has been properly invalidated
+        assert(status == 0);
+
         // Set block address
         _addr = addr;
 
         // Set secure state
         if (is_secure) {
-            status = BlkSecure;
-        } else {
-            status = 0;
+            setSecure();
         }
+
+        // Validate block
+        setValid();
     }
 
     /**

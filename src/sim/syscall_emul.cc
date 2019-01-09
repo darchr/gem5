@@ -32,7 +32,7 @@
 #include "sim/syscall_emul.hh"
 
 #include <fcntl.h>
-#include <syscall.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 
 #include <csignal>
@@ -1151,6 +1151,7 @@ rmdirFunc(SyscallDesc *desc, int num, Process *p, ThreadContext *tc)
     return (result == -1) ? -errno : result;
 }
 
+#if defined(SYS_getdents)
 SyscallReturn
 getdentsFunc(SyscallDesc *desc, int callnum, Process *p, ThreadContext *tc)
 {
@@ -1198,4 +1199,4 @@ getdentsFunc(SyscallDesc *desc, int callnum, Process *p, ThreadContext *tc)
     buf_arg.copyOut(tc->getMemProxy());
     return status;
 }
-
+#endif

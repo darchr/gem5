@@ -38,7 +38,6 @@ if env['USE_SYSTEMC']:
     Source('object.cc')
     Source('port.cc')
     Source('process.cc')
-    Source('python.cc')
     Source('scheduler.cc')
     Source('sched_event.cc')
     Source('sensitivity.cc')
@@ -50,6 +49,7 @@ if env['USE_SYSTEMC']:
     Source('sc_interface.cc')
     Source('sc_join.cc')
     Source('sc_main.cc')
+    Source('sc_main_fiber.cc')
     Source('sc_module.cc')
     Source('sc_module_name.cc')
     Source('sc_object.cc')
@@ -60,3 +60,7 @@ if env['USE_SYSTEMC']:
     Source('sc_simcontext.cc')
     Source('sc_spawn.cc')
     Source('sc_time.cc')
+
+    if env['USE_PYTHON']:
+        Source('python.cc')
+        Source('sc_main_python.cc')

@@ -196,13 +196,6 @@ class CheckerCPU : public BaseCPU, public ExecContext
         return thread->readIntReg(reg.index());
     }
 
-    FloatReg readFloatRegOperand(const StaticInst *si, int idx) override
-    {
-        const RegId& reg = si->srcRegIdx(idx);
-        assert(reg.isFloatReg());
-        return thread->readFloatReg(reg.index());
-    }
-
     FloatRegBits readFloatRegOperandBits(const StaticInst *si,
                                          int idx) override
     {
@@ -353,15 +346,6 @@ class CheckerCPU : public BaseCPU, public ExecContext
         setScalarResult(val);
     }
 
-    void setFloatRegOperand(const StaticInst *si, int idx,
-                            FloatReg val) override
-    {
-        const RegId& reg = si->destRegIdx(idx);
-        assert(reg.isFloatReg());
-        thread->setFloatReg(reg.index(), val);
-        setScalarResult(val);
-    }
-
     void setFloatRegOperandBits(const StaticInst *si, int idx,
                                 FloatRegBits val) override
     {
@@ -397,7 +381,8 @@ class CheckerCPU : public BaseCPU, public ExecContext
         setVecElemResult(val);
     }
 
-    bool readPredicate() override { return thread->readPredicate(); }
+    bool readPredicate() const override { return thread->readPredicate(); }
+
     void setPredicate(bool val) override
     {
         thread->setPredicate(val);
@@ -572,18 +557,18 @@ class Checker : public CheckerCPU
 
     void advancePC(const Fault &fault);
 
-    void verify(DynInstPtr &inst);
+    void verify(const DynInstPtr &inst);
 
-    void validateInst(DynInstPtr &inst);
-    void validateExecution(DynInstPtr &inst);
+    void validateInst(const DynInstPtr &inst);
+    void validateExecution(const DynInstPtr &inst);
     void validateState();
 
-    void copyResult(DynInstPtr &inst, const InstResult& mismatch_val,
+    void copyResult(const DynInstPtr &inst, const InstResult& mismatch_val,
                     int start_idx);
     void handlePendingInt();
 
   private:
-    void handleError(DynInstPtr &inst)
+    void handleError(const DynInstPtr &inst)
     {
         if (exitOnError) {
             dumpAndExit(inst);
@@ -592,7 +577,7 @@ class Checker : public CheckerCPU
         }
     }
 
-    void dumpAndExit(DynInstPtr &inst);
+    void dumpAndExit(const DynInstPtr &inst);
 
     bool updateThisCycle;
 

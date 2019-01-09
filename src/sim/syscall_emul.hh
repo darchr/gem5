@@ -303,9 +303,11 @@ SyscallReturn pipeImpl(SyscallDesc *desc, int num, Process *p,
 SyscallReturn getpidFunc(SyscallDesc *desc, int num,
                          Process *p, ThreadContext *tc);
 
+#if defined(SYS_getdents)
 // Target getdents() handler.
 SyscallReturn getdentsFunc(SyscallDesc *desc, int num,
                            Process *p, ThreadContext *tc);
+#endif
 
 // Target getuid() handler.
 SyscallReturn getuidFunc(SyscallDesc *desc, int num,
@@ -695,7 +697,7 @@ openImpl(SyscallDesc *desc, int callnum, Process *p, ThreadContext *tc,
         auto ffdp = std::dynamic_pointer_cast<FileFDEntry>(fdep);
         if (!ffdp)
             return -EBADF;
-        path.insert(0, ffdp->getFileName());
+        path.insert(0, ffdp->getFileName() + "/");
     }
 
     /**

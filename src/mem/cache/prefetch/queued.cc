@@ -63,7 +63,7 @@ QueuedPrefetcher::~QueuedPrefetcher()
     }
 }
 
-Tick
+void
 QueuedPrefetcher::notify(const PacketPtr &pkt)
 {
     // Verify this access type is observed by prefetcher
@@ -91,9 +91,8 @@ QueuedPrefetcher::notify(const PacketPtr &pkt)
 
         // Queue up generated prefetches
         for (AddrPriority& pf_info : addresses) {
-
             // Block align prefetch address
-            pf_info.first &= ~(Addr)(blkSize - 1);
+            pf_info.first = blockAddress(pf_info.first);
 
             pfIdentified++;
             DPRINTF(HWPrefetch, "Found a pf candidate addr: %#x, "
@@ -110,8 +109,6 @@ QueuedPrefetcher::notify(const PacketPtr &pkt)
             }
         }
     }
-
-    return pfq.empty() ? MaxTick : pfq.front().tick;
 }
 
 PacketPtr
@@ -133,7 +130,7 @@ QueuedPrefetcher::getPacket()
     return pkt;
 }
 
-std::list<QueuedPrefetcher::DeferredPacket>::const_iterator
+QueuedPrefetcher::const_iterator
 QueuedPrefetcher::inPrefetch(Addr address, bool is_secure) const
 {
     for (const_iterator dp = pfq.begin(); dp != pfq.end(); dp++) {
@@ -268,8 +265,9 @@ QueuedPrefetcher::insert(AddrPriority &pf_info, bool is_secure)
         pfq.emplace_back(dpp);
     } else {
         iterator it = pfq.end();
-        while (it != pfq.begin() && dpp > *it)
+        do {
             --it;
+        } while (it != pfq.begin() && dpp > *it);
         /* If we reach the head, we have to see if the new element is new head
          * or not */
         if (it == pfq.begin() && dpp <= *it)
