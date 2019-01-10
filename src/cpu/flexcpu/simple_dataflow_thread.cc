@@ -1306,12 +1306,26 @@ void
 SDCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
 {
     const StaticInstPtr static_inst = inst_ptr->staticInst();
+
+    if (DTRACE(SDCPUDeps)) {
+        const int8_t num_srcs = static_inst->numSrcRegs();
+        for (int8_t src_idx = 0; src_idx < num_srcs; ++src_idx) {
+            const RegId& src_reg = flattenRegId(
+                static_inst->srcRegIdx(src_idx));
+            DPRINTF(SDCPUDeps, "seq %d is consumer of %s[%d]\n",
+                    inst_ptr->seqNum(),
+                    src_reg.className(),
+                    src_reg.index());
+        }
+    }
+
     const int8_t num_dsts = static_inst->numDestRegs();
     for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
         const RegId& dst_reg = flattenRegId(static_inst->destRegIdx(dst_idx));
 
         lastUses[dst_reg] = {inst_ptr, dst_idx};
-        DPRINTF(SDCPUDeps, "%d is producer of %s[%d]\n", inst_ptr->seqNum(),
+        DPRINTF(SDCPUDeps, "seq %d is producer of %s[%d]\n",
+                inst_ptr->seqNum(),
                 dst_reg.className(),
                 dst_reg.index());
     }
