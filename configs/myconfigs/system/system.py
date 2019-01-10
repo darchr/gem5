@@ -45,7 +45,7 @@ class MySystem(LinuxX86System):
     SimpleOpts.add_option("--second_disk", default='',
                           help="The second disk image to mount (/dev/hdb)")
 
-    def __init__(self, opts, no_kvm=False):
+    def __init__(self, opts, no_kvm=True):
         super(MySystem, self).__init__()
         self._opts = opts
         self._no_kvm = no_kvm
@@ -58,6 +58,7 @@ class MySystem(LinuxX86System):
         self.clk_domain.voltage_domain = VoltageDomain()
 
         mem_size = '8GB'
+        self.mem_mode = 'timing'
         self.mem_ranges = [AddrRange('100MB'), # For kernel
                            AddrRange(0xC0000000, size=0x100000), # For I/0
                            AddrRange(Addr('4GB'), size = mem_size) # All data
@@ -118,7 +119,7 @@ class MySystem(LinuxX86System):
 
     def createCPU(self):
         if self._no_kvm:
-            self.cpu = [AtomicSimpleCPU(cpu_id = i, switched_out = False)
+            self.cpu = [SimpleDataflowCPU(instruction_buffer_size = 2, cpu_id = i, switched_out = False)
                               for i in range(self._opts.cpus)]
             map(lambda c: c.createThreads(), self.cpu)
         else:
@@ -134,7 +135,7 @@ class MySystem(LinuxX86System):
                               for i in range(self._opts.cpus)]
             map(lambda c: c.createThreads(), self.atomicCpu)
 
-        self.timingCpu = [DerivO3CPU(cpu_id = i,
+        self.timingCpu = [SimpleDataflowCPU(instruction_buffer_size = 2, cpu_id = i,
                                      switched_out = True)
                    for i in range(self._opts.cpus)]
         map(lambda c: c.createThreads(), self.timingCpu)
