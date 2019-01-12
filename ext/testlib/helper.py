@@ -102,6 +102,37 @@ def log_call(logger, command, *popenargs, **kwargs):
     if retval != 0:
         raise subprocess.CalledProcessError(retval, cmdstr)
 
+def skip_test(reason=""):
+    """Signal that a test should be skipped and optionally print why.
+
+    Keyword arguments:
+      reason -- Reason why the test failed. Output is omitted if empty.
+    """
+
+    if reason:
+        print("Skipping test: %s" % reason)
+    sys.exit(2)
+
+def require_sim_object(name, fatal=False):
+    """Test if a SimObject exists and abort/skip test if not.
+
+    Arguments:
+      name -- Name of SimObject (string)
+
+    Keyword arguments:
+      fatal -- Set to True to indicate that the test should fail
+               instead of being skipped.
+    """
+
+    if has_sim_object(name):
+        return
+    else:
+        msg = "Test requires the '%s' SimObject." % name
+        if fatal:
+            m5.fatal(msg)
+        else:
+            skip_test(msg)
+
 # lru_cache stuff (Introduced in python 3.2+)
 # Renamed and modified to cacheresult
 class _HashedSeq(list):
