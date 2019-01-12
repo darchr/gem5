@@ -359,16 +359,34 @@ FlexCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
 
     PacketPtr pkt = Packet::createRead(req);
     pkt->allocate();
+    // Note: pkt is deleted in DataPort::recvTimingResp(), except in the case
+    //       of mmappedIpr where it is deleted in the internally scheduled
+    //       event.
 
-    // Note: pkt is deleted in DataPort::recvTimingResp();
-
+    // Despite mmappedIpr accessing registers, we do not explicitly check any
+    // register dependencies under the assumption that the misc regs will not
+    // be accessed through other means, and that memory dependence resolution
+    // will be sufficient to ensure correct out-of-order behavior.
     if (req->isMmappedIpr()) {
-        // TODO think about limiting access to mmapped IPR
-        panic("FlexCPU not programmed to understand mmapped IPR!");
-        // Cycles delay = TheISA::handleIprRead(tc, pkt);
-        // TODO create an event delay cycles later that calls completeAcc() on
-        //      the StaticInst.
-        return false;
+        // TODO think about limiting access to mmapped IPR, either alongside
+        //      other memory requests, or as its own constraint
+
+        Tick now = curTick();
+        Tick delay(cyclesToTicks(TheISA::handleIprRead(tc, pkt)));
+
+        schedule(
+            new EventFunctionWrapper(
+                [this, pkt, inst, context, trace_data, callback_func, now]
+                {
+                    completeMemAccess(pkt, inst, context, trace_data,
+                                      callback_func, now);
+                    delete pkt;
+                },
+                name() + ".mmappedIprEvent",
+                true),
+            now + delay);
+
+        return true;
     }
 
     Tick queue_time = curTick();
@@ -424,7 +442,9 @@ FlexCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
     }
 
     PacketPtr pkt = Packet::createWrite(req);
-    // Note: pkt is deleted in DataPort::recvTimingResp();
+    // Note: pkt is deleted in DataPort::recvTimingResp(), except in the case
+    //       of mmappedIpr where it is deleted in the internally scheduled
+    //       event.
 
     if (data) {
         const unsigned req_size = req->getSize();
@@ -440,12 +460,25 @@ FlexCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
     }
 
     if (req->isMmappedIpr()) {
-        // TODO think about limiting access to mmapped IPR
-        panic("FlexCPU not programmed to understand mmapped IPR!");
-        // Cycles delay = TheISA::handleIprWrite(tc, pkt);
-        // TODO create an event delay cycles later that calls completeAcc() on
-        //      the StaticInst.
-        return false;
+        // TODO think about limiting access to mmapped IPR, either alongside
+        //      other memory requests, or as its own constraint
+
+        Tick now = curTick();
+        Tick delay(cyclesToTicks(TheISA::handleIprWrite(tc, pkt)));
+
+        schedule(
+            new EventFunctionWrapper(
+                [this, pkt, inst, context, trace_data, callback_func, now]
+                {
+                    completeMemAccess(pkt, inst, context, trace_data,
+                                      callback_func, now);
+                    delete pkt;
+                },
+                name() + ".mmappedIprEvent",
+                true),
+            now + delay);
+
+        return true;
     }
 
     Tick queue_time = curTick();
@@ -504,6 +537,9 @@ FlexCPU::requestSplitMemRead(const RequestPtr& main,
         return false; // TODO figure out if this is even possible on split
                       //      requests?
     }
+
+    panic_if(main->isMmappedIpr(), "SDCPU does not yet support split "
+                                   "mmappedIpr.");
 
     SplitAccCtrlBlk* split_acc = new SplitAccCtrlBlk;
 
@@ -611,6 +647,9 @@ FlexCPU::requestSplitMemWrite(const RequestPtr& main,
         return false; // TODO figure out if this is even possible on split
                       //      requests?
     }
+
+    panic_if(main->isMmappedIpr(), "SDCPU does not yet support split "
+                                   "mmappedIpr.");
 
     SplitAccCtrlBlk* split_acc = new SplitAccCtrlBlk;
 
