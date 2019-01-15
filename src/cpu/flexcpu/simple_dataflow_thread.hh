@@ -63,8 +63,8 @@ class SDCPUThread : public ThreadContext
       protected:
         SDCPUThread& sdCPUThread;
       public:
-        MemIface(SDCPUThread& sdCPUThread_):
-            sdCPUThread(sdCPUThread_)
+        MemIface(SDCPUThread& sd_cpu_thread):
+            sdCPUThread(sd_cpu_thread)
         { }
 
         Fault initiateMemRead(std::shared_ptr<InflightInst> inst, Addr addr,
@@ -73,6 +73,22 @@ class SDCPUThread : public ThreadContext
         Fault writeMem(std::shared_ptr<InflightInst> inst, uint8_t *data,
                        unsigned int size, Addr addr, Request::Flags flags,
                        uint64_t *res) override;
+    };
+
+    class X86Iface : public InflightInst::X86Iface
+    {
+      protected:
+        SDCPUThread& sdCPUThread;
+      public:
+        X86Iface(SDCPUThread& sd_cpu_thread):
+            sdCPUThread(sd_cpu_thread)
+        { }
+
+        void demapPage(Addr vaddr, uint64_t asn) override;
+        void armMonitor(Addr address) override;
+        bool mwait(PacketPtr pkt) override;
+        void mwaitAtomic(ThreadContext *tc) override;
+        AddressMonitor *getAddrMonitor() override;
     };
 
     struct SplitRequest {
@@ -91,6 +107,12 @@ class SDCPUThread : public ThreadContext
      * capture calls to request memory access via our CPU.
      */
     MemIface memIface;
+
+    /**
+     * We implement the x86 interface of the InflightInst so that we can
+     * forward x86 specific ExecContext calls to the CPU.
+     */
+    X86Iface x86Iface;
 
 
     // BEGIN Internal parameters

@@ -133,12 +133,32 @@ class InflightInst : public ExecContext,
         static const MemIface unimplemented;
     };
 
-    // Maybe another interface for more nuanced
+    class X86Iface
+    {
+      public:
+        virtual void demapPage(Addr vaddr, uint64_t asn)
+        { panic("X86Iface::demapPage() not implemented!"); }
+        virtual void armMonitor(Addr address)
+        { panic("X86Iface::armMonitor() not implemented!"); }
+        virtual bool mwait(PacketPtr pkt)
+        { panic("X86Iface::mwait() not implemented!"); }
+        virtual void mwaitAtomic(ThreadContext *tc)
+        { panic("X86Iface::mwaitAtomic() not implemented!"); }
+        virtual AddressMonitor *getAddrMonitor()
+        { panic("X86Iface::getAddrMonitor() not implemented!"); }
+
+        static const X86Iface unimplemented;
+    };
+
+    // Templatizing these interfaces will allow functions to be linked by the
+    // compiler statically instead of requiring virtual function tables to be
+    // traversed at runtime. Should TODO later.
 
   protected:
     ThreadContext* backingContext;
     TheISA::ISA* backingISA;
     MemIface* backingMemoryInterface;
+    X86Iface* backingX86Interface;
 
     // Where am I in completing this instruction?
     Status _status;
@@ -207,8 +227,8 @@ class InflightInst : public ExecContext,
 
   public:
     InflightInst(ThreadContext* backing_context, TheISA::ISA* backing_isa,
-                 MemIface* backing_mem_iface, InstSeqNum seq_num,
-                 const TheISA::PCState& pc_,
+                 MemIface* backing_mem_iface, X86Iface* backing_x86_iface,
+                 InstSeqNum seq_num, const TheISA::PCState& pc_,
                  StaticInstPtr inst_ref = StaticInst::nullStaticInstPtr);
 
     // Unimplemented copy due to presence of raw pointers.
