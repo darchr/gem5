@@ -54,6 +54,7 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                     bool in_order_begin_exec, bool in_order_exec,
                     unsigned inflight_insts_size, bool strict_ser):
     memIface(*this),
+    x86Iface(*this),
     _cpuPtr(cpu_),
     _name(cpu_->name() + ".thread" + to_string(tid_)),
     inOrderBeginExecute(in_order_begin_exec),
@@ -82,6 +83,7 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                     bool in_order_begin_exec, bool in_order_exec,
                     unsigned inflight_insts_size, bool strict_ser):
     memIface(*this),
+    x86Iface(*this),
     _cpuPtr(cpu_),
     _name(cpu_->name() + ".thread" + to_string(tid_)),
     inOrderBeginExecute(in_order_begin_exec),
@@ -168,7 +170,8 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
 
         shared_ptr<InflightInst> inst_ptr =
             make_shared<InflightInst>(getThreadContext(), isa, &memIface,
-                                      seq_num, next_pc, static_inst);
+                                      &x86Iface, seq_num, next_pc,
+                                      static_inst);
         inst_ptr->notifyDecoded();
 
         inflightInsts.push_back(inst_ptr);
@@ -190,7 +193,8 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
 
         shared_ptr<InflightInst> inst_ptr =
             make_shared<InflightInst>(getThreadContext(), isa, &memIface,
-                                      seq_num, next_pc, static_inst);
+                                      &x86Iface, seq_num, next_pc,
+                                      static_inst);
         inst_ptr->notifyDecoded();
 
         inflightInsts.push_back(inst_ptr);
@@ -201,8 +205,8 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
     }
 
     shared_ptr<InflightInst> inst_ptr =
-        make_shared<InflightInst>(getThreadContext(), isa, &memIface, seq_num,
-                                  next_pc);
+        make_shared<InflightInst>(getThreadContext(), isa, &memIface,
+                                  &x86Iface, seq_num, next_pc);
 
     inflightInsts.push_back(inst_ptr);
 
@@ -1458,6 +1462,162 @@ SDCPUThread::recordInstStats(const shared_ptr<InflightInst>& inst)
 }
 
 void
+SDCPUThread::regStats(const std::string &name)
+{
+    _committedState->regStats(name);
+
+    numInstsStat
+        .name(name + ".numInsts")
+        .desc("Total number of instructions committed")
+        ;
+
+    numOpsStat
+        .name(name + ".numOps")
+        .desc("Total number of micro-ops committed")
+        ;
+
+    numSquashed
+        .name(name + ".numSquashed")
+        .init(16)
+        .desc("Instructions squashed on each squash request")
+    ;
+
+    fetchedInstsPerCycle
+        .name(name + ".fetchedInstsPerCycle")
+        .init(16)
+        .desc("Number of instructions \"fetched\" for each cycle")
+    ;
+    squashedPerCycle
+        .name(name + ".squashedPerCycle")
+        .init(16)
+        .desc("Number of instructions squashed each cycle")
+    ;
+
+    activeInstructions
+        .name(name + ".activeInstructions")
+        .init(32)
+        .desc("Number of instructions active each cycle")
+    ;
+
+    serializingInst
+        .name(name + ".serializingInst")
+        .desc("Number of serializing instructions added to inflight insts.")
+        ;
+    waitingForSerializing
+        .name(name + ".waitingForSerializing")
+        .desc("Number of instructions that had to wait a serializing inst")
+        ;
+    waitingForMemBarrier
+        .name(name + ".waitingForMemBarrier")
+        .desc("Number of instructions that had to wait for a memory barrier")
+        ;
+    memBarrier
+        .name(name + ".memBarrier")
+        .desc("Number of memory barriers")
+        ;
+    nonSpeculativeInst
+        .name(name + ".nonSpeculativeInst")
+        .desc("Number of non speculative instructions")
+        ;
+
+    instTypes
+        .name(name + ".instTypes")
+        .init(Enums::Num_OpClass)
+        .desc("Number of each type of instruction committed")
+        ;
+    for (int i=0; i < Enums::Num_OpClass; ++i) {
+        instTypes.subname(i, Enums::OpClassStrings[i]);
+    }
+
+    squashedStage
+        .name(name + ".squashedStage")
+        .init(InflightInst::Status::NumInstStatus)
+        .desc("The stage that the instruction was squashed in")
+        ;
+    squashedStage.subname(InflightInst::Status::Empty, "Empty");
+    squashedStage.subname(InflightInst::Status::Decoded, "Decoded");
+    squashedStage.subname(InflightInst::Status::Issued, "Issued");
+    squashedStage.subname(InflightInst::Status::Executing, "Executing");
+    squashedStage.subname(InflightInst::Status::EffAddred, "EffAddred");
+    squashedStage.subname(InflightInst::Status::Memorying, "Memorying");
+    squashedStage.subname(InflightInst::Status::Complete, "Complete");
+    squashedStage.subname(InflightInst::Status::Committed, "Committed");
+
+    wrongInstsFetched
+        .name(name + ".wrongInstsFetched")
+        .init(16)
+        .desc("The number of instructions fetched before branch resolved.")
+        ;
+    branchMispredictLatency
+        .name(name + ".branchMispredictLatency")
+        .init(16)
+        .desc("Ticks from branch issue to branch resolved wrong.")
+        ;
+
+    instLifespans
+        .name(name + ".instLifespans")
+        .init(16)
+        .desc("")
+        ;
+    squashedInstLifespans
+        .name(name + ".squashedInstLifespans")
+        .init(16)
+        .desc("")
+        ;
+    committedInstLifespans
+        .name(name + ".committedInstLifespans")
+        .init(16)
+        .desc("")
+        ;
+
+    creationToDecodedLatency
+        .name(name + ".creationToDecodedLatency")
+        .init(8)
+        .desc("")
+        ;
+    decodedToIssuedLatency
+        .name(name + ".decodedToIssuedLatency")
+        .init(8)
+        .desc("")
+        ;
+    issuedToExecutingLatency
+        .name(name + ".issuedToExecutingLatency")
+        .init(8)
+        .desc("")
+        ;
+    issuedToCommitLatency
+        .name(name + ".issuedToCommitLatency")
+        .init(8)
+        .desc("")
+        ;
+    executingToCompleteLatency
+        .name(name + ".executingToCompleteLatency")
+        .init(8)
+        .desc("")
+        ;
+    executingToEffAddredLatency
+        .name(name + ".executingToEffAddredLatency")
+        .init(8)
+        .desc("")
+        ;
+    effAddredToMemoryingLatency
+        .name(name + ".effAddredToMemoryingLatency")
+        .init(8)
+        .desc("")
+        ;
+    memoryingToCompleteLatency
+        .name(name + ".memoryingToCompleteLatency")
+        .init(8)
+        .desc("")
+        ;
+    completeToCommitLatency
+        .name(name + ".completeToCommitLatency")
+        .init(8)
+        .desc("")
+        ;
+}
+
+void
 SDCPUThread::sendToMemory(weak_ptr<InflightInst> inst,
                           const RequestPtr& req, bool write,
                           shared_ptr<uint8_t> data,
@@ -1770,157 +1930,33 @@ SDCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
 }
 
 void
-SDCPUThread::regStats(const std::string &name)
+SDCPUThread::X86Iface::demapPage(Addr vaddr, uint64_t asn)
 {
-    _committedState->regStats(name);
+    sdCPUThread.getITBPtr()->demapPage(vaddr, asn);
+    sdCPUThread.getDTBPtr()->demapPage(vaddr, asn);
+}
 
-    numInstsStat
-        .name(name + ".numInsts")
-        .desc("Total number of instructions committed")
-        ;
+void
+SDCPUThread::X86Iface::armMonitor(Addr address)
+{
+    sdCPUThread._cpuPtr->armMonitor(sdCPUThread.threadId(), address);
+}
 
-    numOpsStat
-        .name(name + ".numOps")
-        .desc("Total number of micro-ops committed")
-        ;
+bool
+SDCPUThread::X86Iface::mwait(PacketPtr pkt)
+{
+    return sdCPUThread._cpuPtr->mwait(sdCPUThread.threadId(), pkt);
+}
 
-    numSquashed
-        .name(name + ".numSquashed")
-        .init(16)
-        .desc("Instructions squashed on each squash request")
-    ;
+void
+SDCPUThread::X86Iface::mwaitAtomic(ThreadContext *tc)
+{
+    sdCPUThread._cpuPtr->mwaitAtomic(sdCPUThread.threadId(), tc,
+                                     tc->getDTBPtr());
+}
 
-    fetchedInstsPerCycle
-        .name(name + ".fetchedInstsPerCycle")
-        .init(16)
-        .desc("Number of instructions \"fetched\" for each cycle")
-    ;
-    squashedPerCycle
-        .name(name + ".squashedPerCycle")
-        .init(16)
-        .desc("Number of instructions squashed each cycle")
-    ;
-
-    activeInstructions
-        .name(name + ".activeInstructions")
-        .init(32)
-        .desc("Number of instructions active each cycle")
-    ;
-
-    serializingInst
-        .name(name + ".serializingInst")
-        .desc("Number of serializing instructions added to inflight insts.")
-        ;
-    waitingForSerializing
-        .name(name + ".waitingForSerializing")
-        .desc("Number of instructions that had to wait a serializing inst")
-        ;
-    waitingForMemBarrier
-        .name(name + ".waitingForMemBarrier")
-        .desc("Number of instructions that had to wait for a memory barrier")
-        ;
-    memBarrier
-        .name(name + ".memBarrier")
-        .desc("Number of memory barriers")
-        ;
-    nonSpeculativeInst
-        .name(name + ".nonSpeculativeInst")
-        .desc("Number of non speculative instructions")
-        ;
-
-    instTypes
-        .name(name + ".instTypes")
-        .init(Enums::Num_OpClass)
-        .desc("Number of each type of instruction committed")
-        ;
-    for (int i=0; i < Enums::Num_OpClass; ++i) {
-        instTypes.subname(i, Enums::OpClassStrings[i]);
-    }
-
-    squashedStage
-        .name(name + ".squashedStage")
-        .init(InflightInst::Status::NumInstStatus)
-        .desc("The stage that the instruction was squashed in")
-        ;
-    squashedStage.subname(InflightInst::Status::Empty, "Empty");
-    squashedStage.subname(InflightInst::Status::Decoded, "Decoded");
-    squashedStage.subname(InflightInst::Status::Issued, "Issued");
-    squashedStage.subname(InflightInst::Status::Executing, "Executing");
-    squashedStage.subname(InflightInst::Status::EffAddred, "EffAddred");
-    squashedStage.subname(InflightInst::Status::Memorying, "Memorying");
-    squashedStage.subname(InflightInst::Status::Complete, "Complete");
-    squashedStage.subname(InflightInst::Status::Committed, "Committed");
-
-    wrongInstsFetched
-        .name(name + ".wrongInstsFetched")
-        .init(16)
-        .desc("The number of instructions fetched before branch resolved.")
-        ;
-    branchMispredictLatency
-        .name(name + ".branchMispredictLatency")
-        .init(16)
-        .desc("Ticks from branch issue to branch resolved wrong.")
-        ;
-
-    instLifespans
-        .name(name + ".instLifespans")
-        .init(16)
-        .desc("")
-        ;
-    squashedInstLifespans
-        .name(name + ".squashedInstLifespans")
-        .init(16)
-        .desc("")
-        ;
-    committedInstLifespans
-        .name(name + ".committedInstLifespans")
-        .init(16)
-        .desc("")
-        ;
-
-    creationToDecodedLatency
-        .name(name + ".creationToDecodedLatency")
-        .init(8)
-        .desc("")
-        ;
-    decodedToIssuedLatency
-        .name(name + ".decodedToIssuedLatency")
-        .init(8)
-        .desc("")
-        ;
-    issuedToExecutingLatency
-        .name(name + ".issuedToExecutingLatency")
-        .init(8)
-        .desc("")
-        ;
-    issuedToCommitLatency
-        .name(name + ".issuedToCommitLatency")
-        .init(8)
-        .desc("")
-        ;
-    executingToCompleteLatency
-        .name(name + ".executingToCompleteLatency")
-        .init(8)
-        .desc("")
-        ;
-    executingToEffAddredLatency
-        .name(name + ".executingToEffAddredLatency")
-        .init(8)
-        .desc("")
-        ;
-    effAddredToMemoryingLatency
-        .name(name + ".effAddredToMemoryingLatency")
-        .init(8)
-        .desc("")
-        ;
-    memoryingToCompleteLatency
-        .name(name + ".memoryingToCompleteLatency")
-        .init(8)
-        .desc("")
-        ;
-    completeToCommitLatency
-        .name(name + ".completeToCommitLatency")
-        .init(8)
-        .desc("")
-        ;
+AddressMonitor*
+SDCPUThread::X86Iface::getAddrMonitor()
+{
+    return sdCPUThread._cpuPtr->getCpuAddrMonitor(sdCPUThread.threadId());
 }
