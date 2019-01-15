@@ -39,12 +39,14 @@ using VecElem = TheISA::VecElem;
 InflightInst::InflightInst(ThreadContext* backing_context,
                            TheISA::ISA* backing_isa,
                            MemIface* backing_mem_iface,
+                           X86Iface* backing_x86_iface,
                            InstSeqNum seq_num,
                            const PCState& pc_,
                            StaticInstPtr inst_ref):
     backingContext(backing_context),
     backingISA(backing_isa),
     backingMemoryInterface(backing_mem_iface),
+    backingX86Interface(backing_x86_iface),
     _status(Empty),
     _seqNum(seq_num),
     _pcState(pc_)
@@ -873,38 +875,52 @@ InflightInst::setMemAccPredicate(bool val)
 void
 InflightInst::demapPage(Addr vaddr, uint64_t asn)
 {
-    panic("demapPage() not implemented!");
-    // TODO
+    if (backingX86Interface) {
+        backingX86Interface->demapPage(vaddr, asn);
+    } else {
+        panic("Attempted to demapPage() without a X86 interface!");
+    }
 }
 
 void
 InflightInst::armMonitor(Addr address)
 {
-    panic("armMonitor() not implemented!");
-    // TODO
+    if (backingX86Interface) {
+        backingX86Interface->armMonitor(address);
+    } else {
+        panic("Attempted to armMonitor() without a X86 interface!");
+    }
 }
 
 bool
 InflightInst::mwait(PacketPtr pkt)
 {
-    panic("mwait() not implemented!");
-    return false;
-    // TODO
+    if (backingX86Interface) {
+        return backingX86Interface->mwait(pkt);
+    } else {
+        panic("Attempted to mwait() without a X86 interface!");
+        return false;
+    }
 }
 
 void
 InflightInst::mwaitAtomic(ThreadContext* tc)
 {
-    panic("mwaitAtomic() not implemented!");
-    // TODO
+    if (backingX86Interface) {
+        backingX86Interface->mwaitAtomic(tc);
+    } else {
+        panic("Attempted to mwaitAtomic() without a X86 interface!");
+    }
 }
 
 AddressMonitor*
 InflightInst::getAddrMonitor()
 {
-    panic("getAddrMonitor() not implemented!");
-    return nullptr;
-    // TODO
+    if (backingX86Interface) {
+        return backingX86Interface->getAddrMonitor();
+    } else {
+        panic("Attempted to getAddrMonitor() without a X86 interface!");
+    }
 }
 
 #if THE_ISA == MIPS_ISA

@@ -79,6 +79,22 @@ class FlexCPUThread : public ThreadContext
                        const std::vector<bool>& byte_enable = {}) override;
     };
 
+    class X86Iface : public InflightInst::X86Iface
+    {
+      protected:
+        FlexCPUThread& flexCPUThread;
+      public:
+        X86Iface(FlexCPUThread& flex_cpu_thread):
+            flexCPUThread(flex_cpu_thread)
+        { }
+
+        void demapPage(Addr vaddr, uint64_t asn) override;
+        void armMonitor(Addr address) override;
+        bool mwait(PacketPtr pkt) override;
+        void mwaitAtomic(ThreadContext *tc) override;
+        AddressMonitor *getAddrMonitor() override;
+    };
+
     struct SplitRequest {
         RequestPtr main = nullptr;
         RequestPtr low = nullptr;
@@ -95,6 +111,12 @@ class FlexCPUThread : public ThreadContext
      * capture calls to request memory access via our CPU.
      */
     MemIface memIface;
+
+    /**
+     * We implement the x86 interface of the InflightInst so that we can
+     * forward x86 specific ExecContext calls to the CPU.
+     */
+    X86Iface x86Iface;
 
 
     // BEGIN Internal parameters
