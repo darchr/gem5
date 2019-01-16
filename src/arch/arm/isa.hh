@@ -82,6 +82,9 @@ namespace ArmISA
         // Generic timer interface belonging to this ISA
         std::unique_ptr<BaseISADevice> timer;
 
+        // GICv3 CPU interface belonging to this ISA
+        std::unique_ptr<BaseISADevice> gicv3CpuInterface;
+
         // Cached copies of system-level properties
         bool highestELIs64;
         bool haveSecurity;
@@ -89,6 +92,7 @@ namespace ArmISA
         bool haveVirtualization;
         bool haveCrypto;
         bool haveLargeAsid64;
+        bool haveGICv3CPUInterface;
         uint8_t physAddrRange;
 
         /**
@@ -400,6 +404,7 @@ namespace ArmISA
         }
 
         BaseISADevice &getGenericTimer(ThreadContext *tc);
+        BaseISADevice &getGICv3CPUInterface(ThreadContext *tc);
 
 
       private:
@@ -439,7 +444,8 @@ namespace ArmISA
               case VecRegClass:
                 return RegId(VecRegClass, flattenVecIndex(regId.index()));
               case VecElemClass:
-                return RegId(VecElemClass, flattenVecElemIndex(regId.index()));
+                return RegId(VecElemClass, flattenVecElemIndex(regId.index()),
+                             regId.elemIndex());
               case CCRegClass:
                 return RegId(CCRegClass, flattenCCIndex(regId.index()));
               case MiscRegClass:

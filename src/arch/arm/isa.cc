@@ -48,6 +48,8 @@
 #include "debug/Arm.hh"
 #include "debug/MiscRegs.hh"
 #include "dev/arm/generic_timer.hh"
+#include "dev/arm/gic_v3.hh"
+#include "dev/arm/gic_v3_cpu_interface.hh"
 #include "params/ArmISA.hh"
 #include "sim/faults.hh"
 #include "sim/stat_control.hh"
@@ -92,6 +94,13 @@ ISA::ISA(Params *p)
         haveCrypto = true;
         haveLargeAsid64 = false;
         physAddrRange = 32;  // dummy value
+    }
+
+    // GICv3 CPU interface system registers are supported
+    haveGICv3CPUInterface = false;
+
+    if (system && dynamic_cast<Gicv3 *>(system->getGIC())) {
+        haveGICv3CPUInterface = true;
     }
 
     initializeMiscRegMetadata();
@@ -372,6 +381,13 @@ ISA::startup(ThreadContext *tc)
 {
     pmu->setThreadContext(tc);
 
+    if (system) {
+        Gicv3 *gicv3 = dynamic_cast<Gicv3 *>(system->getGIC());
+        if (gicv3) {
+            gicv3CpuInterface.reset(gicv3->getCPUInterface(tc->contextId()));
+            gicv3CpuInterface->setISA(this);
+        }
+    }
 }
 
 
@@ -461,18 +477,10 @@ ISA::readMiscReg(int misc_reg, ThreadContext *tc)
             return val;
         }
       case MISCREG_MPIDR:
-        cpsr = readMiscRegNoEffect(MISCREG_CPSR);
-        scr  = readMiscRegNoEffect(MISCREG_SCR);
-        if ((cpsr.mode == MODE_HYP) || inSecureState(scr, cpsr)) {
-            return getMPIDR(system, tc);
-        } else {
-            return readMiscReg(MISCREG_VMPIDR, tc);
-        }
-            break;
       case MISCREG_MPIDR_EL1:
-        // @todo in the absence of v8 virtualization support just return MPIDR_EL1
-        return getMPIDR(system, tc) & 0xffffffff;
+        return readMPIDR(system, tc);
       case MISCREG_VMPIDR:
+      case MISCREG_VMPIDR_EL2:
         // top bit defined as RES1
         return readMiscRegNoEffect(misc_reg) | 0x80000000;
       case MISCREG_ID_AFR0: // not implemented, so alias MIDR
@@ -672,10 +680,11 @@ ISA::readMiscReg(int misc_reg, ThreadContext *tc)
                  | (haveTimer          ? 0x00010000 : 0x0);
         }
       case MISCREG_ID_AA64PFR0_EL1:
-        return 0x0000000000000002   // AArch{64,32} supported at EL0
-             | 0x0000000000000020                             // EL1
-             | (haveVirtualization ? 0x0000000000000200 : 0)  // EL2
-             | (haveSecurity       ? 0x0000000000002000 : 0); // EL3
+        return 0x0000000000000002 | // AArch{64,32} supported at EL0
+               0x0000000000000020                               | // EL1
+               (haveVirtualization    ? 0x0000000000000200 : 0) | // EL2
+               (haveSecurity          ? 0x0000000000002000 : 0) | // EL3
+               (haveGICv3CPUInterface ? 0x0000000001000000 : 0);
       case MISCREG_ID_AA64PFR1_EL1:
         return 0; // bits [63:0] RES0 (reserved for future use)
 
@@ -688,6 +697,10 @@ ISA::readMiscReg(int misc_reg, ThreadContext *tc)
       case MISCREG_CNTKCTL_EL1 ... MISCREG_CNTV_CVAL_EL0:
       case MISCREG_CNTVOFF_EL2 ... MISCREG_CNTPS_CVAL_EL1:
         return getGenericTimer(tc).readMiscReg(misc_reg);
+
+      case MISCREG_ICC_PMR_EL1 ... MISCREG_ICC_IGRPEN1_EL3:
+      case MISCREG_ICH_AP0R0_EL2 ... MISCREG_ICH_LR15_EL2:
+        return getGICv3CPUInterface(tc).readMiscReg(misc_reg);
 
       default:
         break;
@@ -1317,9 +1330,17 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
                 tlbiOp.broadcast(tc);
                 return;
             }
-          // @todo: uncomment this to enable Virtualization
-          // case MISCREG_TLBI_ALLE2IS:
-          // case MISCREG_TLBI_ALLE2:
+          // AArch64 TLB Invalidate All, EL2, Inner Shareable
+          case MISCREG_TLBI_ALLE2:
+          case MISCREG_TLBI_ALLE2IS:
+            {
+                assert64(tc);
+                scr = readMiscReg(MISCREG_SCR, tc);
+
+                TLBIALL tlbiOp(EL2, haveSecurity && !scr.ns);
+                tlbiOp(tc);
+                return;
+            }
           // AArch64 TLB Invalidate All, EL1
           case MISCREG_TLBI_ALLE1:
           case MISCREG_TLBI_VMALLE1:
@@ -1965,6 +1986,11 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
           case MISCREG_CNTVOFF_EL2 ... MISCREG_CNTPS_CVAL_EL1:
             getGenericTimer(tc).setMiscReg(misc_reg, newVal);
             break;
+
+          case MISCREG_ICC_PMR_EL1 ... MISCREG_ICC_IGRPEN1_EL3:
+          case MISCREG_ICH_AP0R0_EL2 ... MISCREG_ICH_LR15_EL2:
+            getGICv3CPUInterface(tc).setMiscReg(misc_reg, newVal);
+            return;
         }
     }
     setMiscRegNoEffect(misc_reg, newVal);
@@ -1989,6 +2015,13 @@ ISA::getGenericTimer(ThreadContext *tc)
     timer->setThreadContext(tc);
 
     return *timer.get();
+}
+
+BaseISADevice &
+ISA::getGICv3CPUInterface(ThreadContext *tc)
+{
+    panic_if(!gicv3CpuInterface, "GICV3 cpu interface is not registered!");
+    return *gicv3CpuInterface.get();
 }
 
 }
