@@ -32,6 +32,7 @@
 
 #include "arch/locked_mem.hh"
 #include "arch/mmapped_ipr.hh"
+#include "arch/utility.hh"
 #include "base/compiler.hh"
 #include "debug/FlexCPUCoreEvent.hh"
 
@@ -59,26 +60,41 @@ FlexCPU::FlexCPU(FlexCPUParams* params):
     _instPort(name() + "._instPort", this),
     _branchPred(params->branchPred)
 {
-    fatal_if(FullSystem, "FullSystem not implemented for FlexCPU");
-
     warn_if(!params->branch_pred_max_depth,
         "Infinite branch predictor depth may play poorly with unconstrained "
         "fetching and decoding.");
 
-    for (ThreadID i = 0; i < numThreads; i++) {
-        // Move constructor + vector should allow us to avoid memory leaks like
-        // the SimpleCPU implementations have.
-        threads.push_back(m5::make_unique<FlexCPUThread>(this, i,
-            params->system, params->workload[i], params->itb, params->dtb,
-            params->isa[i],
-            params->branch_pred_max_depth,
-            params->fetch_buffer_size,
-            params->in_order_begin_execute,
-            params->in_order_execute,
-            params->instruction_buffer_size,
-            params->strict_serialization));
+    if (FullSystem) {
+        for (ThreadID i = 0; i < numThreads; i++) {
+            // Move constructor + vector should allow us to avoid memory leaks
+            // like the SimpleCPU implementations have.
+            threads.push_back(m5::make_unique<FlexCPUThread>(this, i,
+                params->system, params->itb, params->dtb, params->isa[i], true,
+                params->branch_pred_max_depth,
+                params->fetch_buffer_size,
+                params->in_order_begin_execute,
+                params->in_order_execute,
+                params->instruction_buffer_size,
+                params->strict_serialization));
 
-        threadContexts.push_back(threads[i].get());
+            threadContexts.push_back(threads[i].get());
+        }
+    } else {
+        for (ThreadID i = 0; i < numThreads; i++) {
+            // Move constructor + vector should allow us to avoid memory leaks
+            // like the SimpleCPU implementations have.
+            threads.push_back(m5::make_unique<FlexCPUThread>(this, i,
+                params->system, params->workload[i], params->itb, params->dtb,
+                params->isa[i],
+                params->branch_pred_max_depth,
+                params->fetch_buffer_size,
+                params->in_order_begin_execute,
+                params->in_order_execute,
+                params->instruction_buffer_size,
+                params->strict_serialization));
+
+            threadContexts.push_back(threads[i].get());
+        }
     }
 }
 
@@ -179,16 +195,17 @@ FlexCPU::init()
         system->getMemoryMode() != Enums::timing)
     {
         fatal("The Dataflow CPU requires the memory system to be in "
-              "'timing' mode.\n");
+              "'timing' mode.");
     }
 
     for (auto& thread : threads) {
         thread->initMemProxies(thread.get());
 
-        // TODO if fullsystem, we need to check if we need to call initCPU on
-        // the ISA
+        if (FullSystem && !params()->switched_out) {
+            // initialize CPU, including PC
+            TheISA::initCPU(thread.get(), thread->contextId());
+        }
     }
-    // TODO add post-construction initialization code
 }
 
 void
