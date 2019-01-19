@@ -49,18 +49,13 @@ class GenericReg {
      * Union storage type, so that GenericReg is a fixed-size class. This
      * allows simple construction of vectors/arrays/etc. of GenericReg.
      */
-    union RegVal
+    union GenericRegVal
     {
-        TheISA::IntReg intReg;
-        TheISA::FloatReg floatReg;
-        TheISA::FloatRegBits floatRegBits;
+        RegVal baseVal;
         TheISA::VecRegContainer vecReg;
         TheISA::VecElem vecElem;
         TheISA::CCReg ccReg;
-        TheISA::MiscReg miscReg;
-    };
-
-    RegVal _value;
+    } _value;
     RegClass _regClass; // Used for enforcement, as well as identification.
 
   public:
@@ -71,14 +66,9 @@ class GenericReg {
     {
         switch(_regClass) {
           case RegClass::IntRegClass:
-            _value.intReg = value;
-            break;
           case RegClass::FloatRegClass:
-            if (typeid(T) == typeid(TheISA::FloatRegBits)) {
-                _value.floatRegBits = value;
-            } else {
-                _value.floatReg = value;
-            }
+          case RegClass::MiscRegClass:
+            _value.baseVal = value;
             break;
           case RegClass::VecRegClass:
             panic("Templated call should not be used for VecRegClass!");
@@ -88,9 +78,6 @@ class GenericReg {
             break;
           case RegClass::CCRegClass:
             _value.ccReg = value;
-            break;
-          case RegClass::MiscRegClass:
-            _value.miscReg = value;
             break;
           default:
             panic("Tried to create a GenericReg with unknown type!");
@@ -113,10 +100,9 @@ class GenericReg {
     {
         switch(_regClass) {
           case RegClass::IntRegClass:
-            _value.intReg = other.asIntReg();
-            break;
           case RegClass::FloatRegClass:
-            _value.floatReg = other.asFloatReg();
+          case RegClass::MiscRegClass:
+            _value.baseVal = other._value.baseVal;
             break;
           case RegClass::VecRegClass:
             _value.vecReg = other.asVecReg();
@@ -126,9 +112,6 @@ class GenericReg {
             break;
           case RegClass::CCRegClass:
             _value.ccReg = other.asCCReg();
-            break;
-          case RegClass::MiscRegClass:
-            _value.miscReg = other.asMiscReg();
             break;
           default:
             panic("Tried to copy a GenericReg with unknown type!");
@@ -140,40 +123,28 @@ class GenericReg {
         return _regClass;
     }
 
-    TheISA::IntReg& asIntReg()
+    RegVal& asIntReg()
     {
         assert(getRegClass() == IntRegClass);
-        return _value.intReg;
+        return _value.baseVal;
     }
 
-    const TheISA::IntReg& asIntReg() const
+    const RegVal& asIntReg() const
     {
         assert(getRegClass() == IntRegClass);
-        return _value.intReg;
+        return _value.baseVal;
     }
 
-    TheISA::FloatReg& asFloatReg()
+    RegVal& asFloatRegBits()
     {
         assert(getRegClass() == FloatRegClass);
-        return _value.floatReg;
+        return _value.baseVal;
     }
 
-    const TheISA::FloatReg& asFloatReg() const
+    const RegVal& asFloatRegBits() const
     {
         assert(getRegClass() == FloatRegClass);
-        return _value.floatReg;
-    }
-
-    TheISA::FloatRegBits& asFloatRegBits()
-    {
-        assert(getRegClass() == FloatRegClass);
-        return _value.floatRegBits;
-    }
-
-    const TheISA::FloatRegBits& asFloatRegBits() const
-    {
-        assert(getRegClass() == FloatRegClass);
-        return _value.floatRegBits;
+        return _value.baseVal;
     }
 
     TheISA::VecRegContainer& asVecReg()
@@ -212,16 +183,16 @@ class GenericReg {
         return _value.ccReg;
     }
 
-    TheISA::MiscReg& asMiscReg()
+    RegVal& asMiscReg()
     {
         assert(getRegClass() == MiscRegClass);
-        return _value.miscReg;
+        return _value.baseVal;
     }
 
-    const TheISA::MiscReg& asMiscReg() const
+    const RegVal& asMiscReg() const
     {
         assert(getRegClass() == MiscRegClass);
-        return _value.miscReg;
+        return _value.baseVal;
     }
 
     GenericReg& operator=(const GenericReg& other)
@@ -229,10 +200,9 @@ class GenericReg {
         _regClass = other.getRegClass();
         switch(_regClass) {
           case RegClass::IntRegClass:
-            _value.intReg = other.asIntReg();
-            break;
           case RegClass::FloatRegClass:
-            _value.floatReg = other.asFloatReg();
+          case RegClass::MiscRegClass:
+            _value.baseVal = other._value.baseVal;
             break;
           case RegClass::VecRegClass:
             _value.vecReg = other.asVecReg();
@@ -242,9 +212,6 @@ class GenericReg {
             break;
           case RegClass::CCRegClass:
             _value.ccReg = other.asCCReg();
-            break;
-          case RegClass::MiscRegClass:
-            _value.miscReg = other.asMiscReg();
             break;
           default:
             panic("Tried to copy a GenericReg with unknown type!");
@@ -258,14 +225,9 @@ class GenericReg {
         _regClass = reg_class;
         switch(_regClass) {
           case RegClass::IntRegClass:
-            _value.intReg = value;
-            break;
           case RegClass::FloatRegClass:
-            if (typeid(T) == typeid(TheISA::FloatRegBits)) {
-                _value.floatRegBits = value;
-            } else {
-                _value.floatReg = value;
-            }
+          case RegClass::MiscRegClass:
+            _value.baseVal = value;
             break;
           case RegClass::VecRegClass:
             panic("Templated call should not be used for VecRegClass!");
@@ -275,9 +237,6 @@ class GenericReg {
             break;
           case RegClass::CCRegClass:
             _value.ccReg = value;
-            break;
-          case RegClass::MiscRegClass:
-            _value.miscReg = value;
             break;
           default:
             panic("Tried to set a GenericReg with unknown type!");

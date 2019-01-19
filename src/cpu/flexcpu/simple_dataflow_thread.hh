@@ -822,13 +822,10 @@ class SDCPUThread : public ThreadContext
     //
     // New accessors for new decoder.
     //
-    uint64_t readIntReg(int reg_idx) override
+    RegVal readIntReg(int reg_idx) override
     { return _committedState->readIntReg(reg_idx); }
 
-    FloatReg readFloatReg(int reg_idx) override
-    { return _committedState->readFloatReg(reg_idx); }
-
-    FloatRegBits readFloatRegBits(int reg_idx) override
+    RegVal readFloatRegBits(int reg_idx) override
     { return _committedState->readFloatRegBits(reg_idx); }
 
     const VecRegContainer& readVecReg(const RegId& reg) const override
@@ -880,13 +877,10 @@ class SDCPUThread : public ThreadContext
     CCReg readCCReg(int reg_idx) override
     { return _committedState->readCCReg(reg_idx); }
 
-    void setIntReg(int reg_idx, uint64_t val) override
+    void setIntReg(int reg_idx, RegVal val) override
     { _committedState->setIntReg(reg_idx, val); }
 
-    void setFloatReg(int reg_idx, FloatReg val) override
-    { _committedState->setFloatReg(reg_idx, val); }
-
-    void setFloatRegBits(int reg_idx, FloatRegBits val) override
+    void setFloatRegBits(int reg_idx, RegVal val) override
     { _committedState->setFloatRegBits(reg_idx, val); }
 
     void setVecReg(const RegId& reg, const VecRegContainer& val) override
@@ -910,16 +904,16 @@ class SDCPUThread : public ThreadContext
     Addr nextInstAddr() override { return _committedState->nextInstAddr(); }
     MicroPC microPC() override { return _committedState->microPC(); }
 
-    MiscReg readMiscRegNoEffect(int misc_reg) const override
+    RegVal readMiscRegNoEffect(int misc_reg) const override
     { return _committedState->readMiscRegNoEffect(misc_reg); }
 
-    MiscReg readMiscReg(int misc_reg) override
+    RegVal readMiscReg(int misc_reg) override
     { return _committedState->readMiscReg(misc_reg); }
 
-    void setMiscRegNoEffect(int misc_reg, const MiscReg &val) override
+    void setMiscRegNoEffect(int misc_reg, const RegVal &val) override
     { return _committedState->setMiscRegNoEffect(misc_reg, val); }
 
-    void setMiscReg(int misc_reg, const MiscReg &val) override
+    void setMiscReg(int misc_reg, const RegVal &val) override
     { return _committedState->setMiscReg(misc_reg, val); }
 
     RegId flattenRegId(const RegId& regId) const override
@@ -943,16 +937,10 @@ class SDCPUThread : public ThreadContext
     void setIntRegFlat(int idx, uint64_t val) override
     { _committedState->setIntRegFlat(idx, val); }
 
-    FloatReg readFloatRegFlat(int idx) override
-    { return _committedState->readFloatRegFlat(idx); }
-
-    void setFloatRegFlat(int idx, FloatReg val) override
-    { _committedState->setFloatRegFlat(idx, val); }
-
-    FloatRegBits readFloatRegBitsFlat(int idx) override
+    RegVal readFloatRegBitsFlat(int idx) override
     { return _committedState->readFloatRegBitsFlat(idx); }
 
-    void setFloatRegBitsFlat(int idx, FloatRegBits val) override
+    void setFloatRegBitsFlat(int idx, RegVal val) override
     { _committedState->setFloatRegBitsFlat(idx, val); }
 
     const VecRegContainer& readVecRegFlat(int id) const override

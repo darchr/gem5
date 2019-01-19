@@ -31,11 +31,8 @@
 #include "cpu/flexcpu/inflight_inst.hh"
 
 using namespace std;
-using IntReg = TheISA::IntReg;
+
 using PCState = TheISA::PCState;
-using FloatReg = TheISA::FloatReg;
-using FloatRegBits = TheISA::FloatRegBits;
-using MiscReg = TheISA::MiscReg;
 
 using CCReg = TheISA::CCReg;
 using VecElem = TheISA::VecElem;
@@ -238,7 +235,8 @@ InflightInst::commitToTC()
             backingContext->setIntReg(dst_reg.index(), result.asIntReg());
             break;
           case FloatRegClass:
-            backingContext->setFloatReg(dst_reg.index(), result.asFloatReg());
+            backingContext->setFloatRegBits(dst_reg.index(),
+                                            result.asFloatRegBits());
             break;
           case VecRegClass:
             backingContext->setVecReg(dst_reg, result.asVecReg());
@@ -410,7 +408,7 @@ InflightInst::staticInst(const StaticInstPtr& inst_ref)
 
 // BEGIN ExecContext interface functions
 
-IntReg
+RegVal
 InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
 {
     // Sanity check
@@ -439,7 +437,7 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
 }
 
 void
-InflightInst::setIntRegOperand(const StaticInst* si, int dst_idx, IntReg val)
+InflightInst::setIntRegOperand(const StaticInst* si, int dst_idx, RegVal val)
 {
     const RegId& reg_id = si->destRegIdx(dst_idx);
     assert(reg_id.isIntReg());
@@ -448,34 +446,8 @@ InflightInst::setIntRegOperand(const StaticInst* si, int dst_idx, IntReg val)
     resultValid[dst_idx] = true;
 }
 
-FloatReg
-InflightInst::readFloatRegOperand(const StaticInst* si, int op_idx)
-{
-    const RegId& reg_id = si->srcRegIdx(op_idx);
-    assert(reg_id.isFloatReg());
 
-    if (reg_id.isZeroReg()) return 0;
-
-    const DataSource& source = sources[op_idx];
-    const shared_ptr<InflightInst> producer = source.producer.lock();
-
-    if (producer) {
-        // If the producing instruction is still in the buffer, grab the result
-        // assuming that it has been produced, and our index is in bounds.
-        assert(producer->isComplete());
-        assert(source.resultIdx >= 0
-            && source.resultIdx < producer->results.size()
-            && producer->resultValid[source.resultIdx]);
-        return producer->getResult(source.resultIdx).asFloatReg();
-    } else {
-        // Either the producing instruction has already been committed, or no
-        // dependency was in-flight at the time that this instruction was
-        // issued.
-        return backingContext->readFloatReg(reg_id.index());
-    }
-}
-
-FloatRegBits
+RegVal
 InflightInst::readFloatRegOperandBits(const StaticInst* si, int op_idx)
 {
     const RegId& reg_id = si->srcRegIdx(op_idx);
@@ -503,19 +475,8 @@ InflightInst::readFloatRegOperandBits(const StaticInst* si, int op_idx)
 }
 
 void
-InflightInst::setFloatRegOperand(const StaticInst* si, int dst_idx,
-                                 FloatReg val)
-{
-    const RegId& reg_id = si->destRegIdx(dst_idx);
-    assert(reg_id.isFloatReg());
-
-    results[dst_idx].set(reg_id.isZeroReg() ? 0 : val, FloatRegClass);
-    resultValid[dst_idx] = true;
-}
-
-void
 InflightInst::setFloatRegOperandBits(const StaticInst* si, int dst_idx,
-                                     FloatRegBits val)
+                                     RegVal val)
 {
     const RegId& reg_id = si->destRegIdx(dst_idx);
     assert(reg_id.isFloatReg());
@@ -711,7 +672,7 @@ InflightInst::setCCRegOperand(const StaticInst* si, int dst_idx, CCReg val)
     resultValid[dst_idx] = true;
 }
 
-MiscReg
+RegVal
 InflightInst::readMiscRegOperand(const StaticInst* si, int op_idx)
 {
     const RegId& reg_id = si->srcRegIdx(op_idx);
@@ -738,7 +699,7 @@ InflightInst::readMiscRegOperand(const StaticInst* si, int op_idx)
 
 void
 InflightInst::setMiscRegOperand(const StaticInst* si, int dst_idx,
-                                const MiscReg& val)
+                                const RegVal& val)
 {
     assert(si->destRegIdx(dst_idx).isMiscReg());
 
@@ -746,14 +707,14 @@ InflightInst::setMiscRegOperand(const StaticInst* si, int dst_idx,
     resultValid[dst_idx] = true;
 }
 
-MiscReg
+RegVal
 InflightInst::readMiscReg(int misc_reg)
 {
     return backingISA->readMiscReg(misc_reg, backingContext);
 }
 
 void
-InflightInst::setMiscReg(int misc_reg, const MiscReg& val)
+InflightInst::setMiscReg(int misc_reg, const RegVal& val)
 {
     // O3 hides multiple writes to the same misc reg during execution, but due
     // to potential side effects of each access, I don't think we should be
@@ -869,7 +830,7 @@ InflightInst::simPalCheck(int palFunc)
 }
 
 bool
-InflightInst::readPredicate()
+InflightInst::readPredicate() const
 {
     panic("readPredicate() not implemented!");
     return false;
@@ -936,7 +897,7 @@ InflightInst::getAddrMonitor()
 }
 
 #if THE_ISA == MIPS_ISA
-MiscReg
+RegVal
 InflightInst::readRegOtherThread(const RegId& reg,
                                  ThreadID tid = InvalidThreadID)
 {
@@ -946,7 +907,7 @@ InflightInst::readRegOtherThread(const RegId& reg,
 }
 
 void
-InflightInst::setRegOtherThread(const RegId& reg, MiscReg val,
+InflightInst::setRegOtherThread(const RegId& reg, RegVal val,
                                 ThreadID tid = InvalidThreadID)
 {
     panic("setRegOtherThread() not implemented!");
