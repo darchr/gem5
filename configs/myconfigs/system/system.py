@@ -39,7 +39,7 @@ class MySystem(LinuxX86System):
                 action="store_true",
                 help="Do NOT run gem5 on multiple host threads (kvm only)")
 
-    SimpleOpts.add_option("--cpus", default=2, type="int",
+    SimpleOpts.add_option("--cpus", default=1, type="int",
                           help="Number of CPUs in the system")
 
     SimpleOpts.add_option("--second_disk", default='',
@@ -119,7 +119,9 @@ class MySystem(LinuxX86System):
 
     def createCPU(self):
         if self._no_kvm:
-            self.cpu = [SimpleDataflowCPU(instruction_buffer_size = 2, cpu_id = i, switched_out = False)
+#            self.cpu = [TimingSimpleCPU(cpu_id = i, switched_out = False)
+#                              for i in range(self._opts.cpus)]
+            self.cpu = [SimpleDataflowCPU(instruction_buffer_size = 1, cpu_id = i, switched_out = False)
                               for i in range(self._opts.cpus)]
             map(lambda c: c.createThreads(), self.cpu)
         else:
@@ -135,7 +137,7 @@ class MySystem(LinuxX86System):
                               for i in range(self._opts.cpus)]
             map(lambda c: c.createThreads(), self.atomicCpu)
 
-        self.timingCpu = [SimpleDataflowCPU(instruction_buffer_size = 2, cpu_id = i,
+        self.timingCpu = [SimpleDataflowCPU(instruction_buffer_size = 1, cpu_id = i,
                                      switched_out = True)
                    for i in range(self._opts.cpus)]
         map(lambda c: c.createThreads(), self.timingCpu)

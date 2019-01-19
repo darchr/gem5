@@ -32,6 +32,7 @@
 
 #include "arch/locked_mem.hh"
 #include "arch/mmapped_ipr.hh"
+#include "arch/utility.hh"
 #include "base/compiler.hh"
 #include "debug/SDCPUCoreEvent.hh"
 
@@ -198,10 +199,11 @@ SimpleDataflowCPU::init()
         ThreadContext* tc = thread->getThreadContext();
         tc->initMemProxies(tc);
 
-        // TODO if fullsystem, we need to check if we need to call initCPU on
-        // the ISA
+        if (FullSystem && !params()->switched_out) {
+            // initialize CPU, including PC
+            TheISA::initCPU(tc, tc->contextId());
+        }
     }
-    // TODO add post-construction initialization code
 }
 
 void
