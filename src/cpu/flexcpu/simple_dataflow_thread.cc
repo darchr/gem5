@@ -135,15 +135,15 @@ SDCPUThread::activate()
 void
 SDCPUThread::advanceInst(TheISA::PCState next_pc)
 {
-    if (status() != ThreadContext::Active) {
-        // If this thread isn't currently active, don't do anything
-        return;
-    }
-
     advanceInstNeedsRetry = static_cast<bool>(inflightInstsMaxSize)
                          && inflightInsts.size() >= inflightInstsMaxSize;
     if (advanceInstNeedsRetry) {
         advanceInstRetryPC = next_pc;
+        return;
+    }
+
+    if (status() != ThreadContext::Active) {
+        // If this thread isn't currently active, don't do anything
         return;
     }
 
@@ -779,16 +779,17 @@ SDCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
             shared_ptr<InflightInst> following_inst =
                 (++it != inflightInsts.end()) ? *it : nullptr;
 
-            if (following_inst) {
-                // This condition is true if a branch prediction was made prior
-                // to this point in simulation.
+            if (following_inst || advanceInstNeedsRetry) {
+                // This condition is true iff a branch prediction was made
+                // prior to this point in simulation for this instruction.
 
                 freeBranchPredDepth();
 
                 const TheISA::PCState calculatedPC = inst_ptr->pcState();
                 TheISA::PCState correctPC = calculatedPC;
                 inst_ptr->staticInst()->advancePC(correctPC);
-                const TheISA::PCState predictedPC = following_inst->pcState();
+                const TheISA::PCState predictedPC = following_inst ?
+                    following_inst->pcState() : advanceInstRetryPC;
 
                 if (correctPC.pc() == predictedPC.pc()
                  && correctPC.upc() == predictedPC.upc()) {
