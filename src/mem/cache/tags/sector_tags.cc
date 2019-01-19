@@ -64,11 +64,8 @@ SectorTags::SectorTags(const SectorTagsParams *p)
 }
 
 void
-SectorTags::init(BaseCache* cache)
+SectorTags::tagsInit()
 {
-    // Set parent cache
-    setCache(cache);
-
     // Initialize all blocks
     unsigned blk_index = 0;       // index into blks array
     for (unsigned sec_blk_index = 0; sec_blk_index < numSectors;
@@ -149,18 +146,8 @@ SectorTags::accessBlock(Addr addr, bool is_secure, Cycles &lat)
         dataAccesses += allocAssoc*numBlocksPerSector;
     }
 
+    // If a cache hit
     if (blk != nullptr) {
-        // If a cache hit
-        lat = accessLatency;
-        // Check if the block to be accessed is available. If not,
-        // apply the accessLatency on top of block->whenReady.
-        if (blk->whenReady > curTick() &&
-            cache->ticksToCycles(blk->whenReady - curTick()) >
-            accessLatency) {
-            lat = cache->ticksToCycles(blk->whenReady - curTick()) +
-            accessLatency;
-        }
-
         // Update number of references to accessed block
         blk->refCount++;
 
@@ -171,10 +158,10 @@ SectorTags::accessBlock(Addr addr, bool is_secure, Cycles &lat)
         // Update replacement data of accessed block, which is shared with
         // the whole sector it belongs to
         replacementPolicy->touch(sector_blk->replacementData);
-    } else {
-        // If a cache miss
-        lat = lookupLatency;
     }
+
+    // The tag lookup latency is the same for a hit or a miss
+    lat = lookupLatency;
 
     return blk;
 }
@@ -184,16 +171,12 @@ SectorTags::insertBlock(const Addr addr, const bool is_secure,
                         const int src_master_ID, const uint32_t task_ID,
                         CacheBlk *blk)
 {
-    // Do common block insertion functionality
-    BaseTags::insertBlock(addr, is_secure, src_master_ID, task_ID, blk);
-
     // Get block's sector
     SectorSubBlk* sub_blk = static_cast<SectorSubBlk*>(blk);
     const SectorBlk* sector_blk = sub_blk->getSectorBlock();
 
     // When a block is inserted, the tag is only a newly used tag if the
     // sector was not previously present in the cache.
-    // This assumes BaseTags::insertBlock does not set the valid bit.
     if (sector_blk->isValid()) {
         // An existing entry's replacement data is just updated
         replacementPolicy->touch(sector_blk->replacementData);
@@ -204,6 +187,9 @@ SectorTags::insertBlock(const Addr addr, const bool is_secure,
         // A new entry resets the replacement data
         replacementPolicy->reset(sector_blk->replacementData);
     }
+
+    // Do common block insertion functionality
+    BaseTags::insertBlock(addr, is_secure, src_master_ID, task_ID, blk);
 }
 
 CacheBlk*

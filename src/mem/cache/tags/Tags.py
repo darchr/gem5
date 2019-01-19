@@ -44,6 +44,10 @@ class BaseTags(ClockedObject):
     type = 'BaseTags'
     abstract = True
     cxx_header = "mem/cache/tags/base.hh"
+
+    # Get system to which it belongs
+    system = Param.System(Parent.any, "System we belong to")
+
     # Get the size from the parent (cache)
     size = Param.MemorySize(Parent.size, "capacity in bytes")
 
@@ -53,10 +57,6 @@ class BaseTags(ClockedObject):
     # Get the tag lookup latency from the parent (cache)
     tag_latency = Param.Cycles(Parent.tag_latency,
                                "The tag lookup latency for this cache")
-
-    # Get the RAM access latency from the parent (cache)
-    data_latency = Param.Cycles(Parent.data_latency,
-                               "The data access latency for this cache")
 
     # Get the warmup percentage from the parent (cache)
     warmup_percentage = Param.Percent(Parent.warmup_percentage,

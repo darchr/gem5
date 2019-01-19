@@ -75,6 +75,7 @@
 #include "mem/request.hh"
 #include "params/WriteAllocator.hh"
 #include "sim/eventq.hh"
+#include "sim/probe/probe.hh"
 #include "sim/serialize.hh"
 #include "sim/sim_exit.hh"
 #include "sim/system.hh"
@@ -324,10 +325,11 @@ class BaseCache : public MemObject
     /** Prefetcher */
     BasePrefetcher *prefetcher;
 
-    /**
-     * Notify the prefetcher on every access, not just misses.
-     */
-    const bool prefetchOnAccess;
+    /** To probe when a cache hit occurs */
+    ProbePointArg<PacketPtr> *ppHit;
+
+    /** To probe when a cache miss occurs */
+    ProbePointArg<PacketPtr> *ppMiss;
 
     /**
      * The writeAllocator drive optimizations for streaming writes.
@@ -417,6 +419,17 @@ class BaseCache : public MemObject
     Addr regenerateBlkAddr(CacheBlk* blk);
 
     /**
+     * Calculate access latency in ticks given a tag lookup latency, and
+     * whether access was a hit or miss.
+     *
+     * @param blk The cache block that was accessed.
+     * @param lookup_lat Latency of the respective tag lookup.
+     * @return The number of ticks that pass due to a block access.
+     */
+    Cycles calculateAccessLatency(const CacheBlk* blk,
+                                  const Cycles lookup_lat) const;
+
+    /**
      * Does all the processing necessary to perform the provided request.
      * @param pkt The memory request to perform.
      * @param blk The cache block to be updated.
@@ -482,16 +495,14 @@ class BaseCache : public MemObject
      * Service non-deferred MSHR targets using the received response
      *
      * Iterates through the list of targets that can be serviced with
-     * the current response. Any writebacks that need to performed
-     * must be appended to the writebacks parameter.
+     * the current response.
      *
      * @param mshr The MSHR that corresponds to the reponse
      * @param pkt The response packet
      * @param blk The reference block
-     * @param writebacks List of writebacks that need to be performed
      */
     virtual void serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
-                                    CacheBlk *blk, PacketList& writebacks) = 0;
+                                    CacheBlk *blk) = 0;
 
     /**
      * Handles a response (cache line fill/write ack) from the bus.
@@ -803,6 +814,11 @@ class BaseCache : public MemObject
      */
     const Cycles responseLatency;
 
+    /**
+     * Whether tags and data are accessed sequentially.
+     */
+    const bool sequentialAccess;
+
     /** The number of targets for each MSHR. */
     const int numTarget;
 
@@ -989,6 +1005,9 @@ class BaseCache : public MemObject
      */
     void regStats() override;
 
+    /** Registers probes. */
+    void regProbePoints() override;
+
   public:
     BaseCache(const BaseCacheParams *p, unsigned blk_size);
     ~BaseCache();
@@ -1136,6 +1155,14 @@ class BaseCache : public MemObject
     }
 
     /**
+     * Checks if the cache is coalescing writes
+     *
+     * @return True if the cache is coalescing writes
+     */
+    bool coalesce() const;
+
+
+    /**
      * Cache block visitor that writes back dirty cache blocks using
      * functional writes.
      */
@@ -1175,7 +1202,6 @@ class BaseCache : public MemObject
      */
     void serialize(CheckpointOut &cp) const override;
     void unserialize(CheckpointIn &cp) override;
-
 };
 
 /**

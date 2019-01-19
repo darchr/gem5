@@ -80,6 +80,7 @@ using namespace std;
 template<class Impl>
 DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
     : cpu(_cpu),
+      branchPred(nullptr),
       decodeToFetchDelay(params->decodeToFetchDelay),
       renameToFetchDelay(params->renameToFetchDelay),
       iewToFetchDelay(params->iewToFetchDelay),
@@ -143,10 +144,19 @@ DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
     instSize = sizeof(TheISA::MachInst);
 
     for (int i = 0; i < Impl::MaxThreads; i++) {
-        decoder[i] = NULL;
+        fetchStatus[i] = Idle;
+        decoder[i] = nullptr;
+        pc[i] = 0;
+        fetchOffset[i] = 0;
+        macroop[i] = nullptr;
+        delayedCommit[i] = false;
+        memReq[i] = nullptr;
+        stalls[i] = {false, false};
         fetchBuffer[i] = NULL;
         fetchBufferPC[i] = 0;
         fetchBufferValid[i] = false;
+        lastIcacheStall[i] = 0;
+        issuePipelinedIfetch[i] = false;
     }
 
     branchPred = params->branchPred;
@@ -546,7 +556,7 @@ DefaultFetch<Impl>::deactivateThread(ThreadID tid)
 template <class Impl>
 bool
 DefaultFetch<Impl>::lookupAndUpdateNextPC(
-        DynInstPtr &inst, TheISA::PCState &nextPC)
+        const DynInstPtr &inst, TheISA::PCState &nextPC)
 {
     // Do branch prediction check here.
     // A bit of a misnomer...next_PC is actually the current PC until
@@ -953,7 +963,7 @@ DefaultFetch<Impl>::tick()
     while (available_insts != 0 && insts_to_decode < decodeWidth) {
         ThreadID tid = *tid_itr;
         if (!stalls[tid].decode && !fetchQueue[tid].empty()) {
-            auto inst = fetchQueue[tid].front();
+            const auto& inst = fetchQueue[tid].front();
             toDecode->insts[toDecode->size++] = inst;
             DPRINTF(Fetch, "[tid:%i][sn:%i]: Sending instruction to decode from "
                     "fetch queue. Fetch queue size: %i.\n",

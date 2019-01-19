@@ -82,6 +82,9 @@ namespace ArmISA
         // Generic timer interface belonging to this ISA
         std::unique_ptr<BaseISADevice> timer;
 
+        // GICv3 CPU interface belonging to this ISA
+        std::unique_ptr<BaseISADevice> gicv3CpuInterface;
+
         // Cached copies of system-level properties
         bool highestELIs64;
         bool haveSecurity;
@@ -89,6 +92,7 @@ namespace ArmISA
         bool haveVirtualization;
         bool haveCrypto;
         bool haveLargeAsid64;
+        bool haveGICv3CPUInterface;
         uint8_t physAddrRange;
 
         /**
@@ -227,6 +231,11 @@ namespace ArmISA
             chain priv(bool v = true) const {
                 privSecure(v);
                 privNonSecure(v);
+                return *this;
+            }
+            chain privRead(bool v = true) const {
+                privSecureRead(v);
+                privNonSecureRead(v);
                 return *this;
             }
             chain hypRead(bool v = true) const {
@@ -395,6 +404,7 @@ namespace ArmISA
         }
 
         BaseISADevice &getGenericTimer(ThreadContext *tc);
+        BaseISADevice &getGICv3CPUInterface(ThreadContext *tc);
 
 
       private:
@@ -412,6 +422,7 @@ namespace ArmISA
         void clear();
 
       protected:
+        void clear32(const ArmISAParams *p, const SCTLR &sctlr_rst);
         void clear64(const ArmISAParams *p);
         void initID32(const ArmISAParams *p);
         void initID64(const ArmISAParams *p);
@@ -433,7 +444,8 @@ namespace ArmISA
               case VecRegClass:
                 return RegId(VecRegClass, flattenVecIndex(regId.index()));
               case VecElemClass:
-                return RegId(VecElemClass, flattenVecElemIndex(regId.index()));
+                return RegId(VecElemClass, flattenVecElemIndex(regId.index()),
+                             regId.elemIndex());
               case CCRegClass:
                 return RegId(CCRegClass, flattenCCIndex(regId.index()));
               case MiscRegClass:

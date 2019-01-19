@@ -382,28 +382,24 @@ class FullO3CPU : public BaseO3CPU
     /** Register accessors.  Index refers to the physical register index. */
 
     /** Reads a miscellaneous register. */
-    TheISA::MiscReg readMiscRegNoEffect(int misc_reg, ThreadID tid) const;
+    RegVal readMiscRegNoEffect(int misc_reg, ThreadID tid) const;
 
     /** Reads a misc. register, including any side effects the read
      * might have as defined by the architecture.
      */
-    TheISA::MiscReg readMiscReg(int misc_reg, ThreadID tid);
+    RegVal readMiscReg(int misc_reg, ThreadID tid);
 
     /** Sets a miscellaneous register. */
-    void setMiscRegNoEffect(int misc_reg, const TheISA::MiscReg &val,
-            ThreadID tid);
+    void setMiscRegNoEffect(int misc_reg, const RegVal &val, ThreadID tid);
 
     /** Sets a misc. register, including any side effects the write
      * might have as defined by the architecture.
      */
-    void setMiscReg(int misc_reg, const TheISA::MiscReg &val,
-            ThreadID tid);
+    void setMiscReg(int misc_reg, const RegVal &val, ThreadID tid);
 
-    uint64_t readIntReg(PhysRegIdPtr phys_reg);
+    RegVal readIntReg(PhysRegIdPtr phys_reg);
 
-    TheISA::FloatReg readFloatReg(PhysRegIdPtr phys_reg);
-
-    TheISA::FloatRegBits readFloatRegBits(PhysRegIdPtr phys_reg);
+    RegVal readFloatRegBits(PhysRegIdPtr phys_reg);
 
     const VecRegContainer& readVecReg(PhysRegIdPtr reg_idx) const;
 
@@ -447,11 +443,9 @@ class FullO3CPU : public BaseO3CPU
 
     TheISA::CCReg readCCReg(PhysRegIdPtr phys_reg);
 
-    void setIntReg(PhysRegIdPtr phys_reg, uint64_t val);
+    void setIntReg(PhysRegIdPtr phys_reg, RegVal val);
 
-    void setFloatReg(PhysRegIdPtr phys_reg, TheISA::FloatReg val);
-
-    void setFloatRegBits(PhysRegIdPtr phys_reg, TheISA::FloatRegBits val);
+    void setFloatRegBits(PhysRegIdPtr phys_reg, RegVal val);
 
     void setVecReg(PhysRegIdPtr reg_idx, const VecRegContainer& val);
 
@@ -459,11 +453,9 @@ class FullO3CPU : public BaseO3CPU
 
     void setCCReg(PhysRegIdPtr phys_reg, TheISA::CCReg val);
 
-    uint64_t readArchIntReg(int reg_idx, ThreadID tid);
+    RegVal readArchIntReg(int reg_idx, ThreadID tid);
 
-    float readArchFloatReg(int reg_idx, ThreadID tid);
-
-    uint64_t readArchFloatRegInt(int reg_idx, ThreadID tid);
+    RegVal readArchFloatRegBits(int reg_idx, ThreadID tid);
 
     const VecRegContainer& readArchVecReg(int reg_idx, ThreadID tid) const;
     /** Read architectural vector register for modification. */
@@ -500,11 +492,9 @@ class FullO3CPU : public BaseO3CPU
      * architected register first, then accesses that physical
      * register.
      */
-    void setArchIntReg(int reg_idx, uint64_t val, ThreadID tid);
+    void setArchIntReg(int reg_idx, RegVal val, ThreadID tid);
 
-    void setArchFloatReg(int reg_idx, float val, ThreadID tid);
-
-    void setArchFloatRegInt(int reg_idx, uint64_t val, ThreadID tid);
+    void setArchFloatRegBits(int reg_idx, RegVal val, ThreadID tid);
 
     void setArchVecReg(int reg_idx, const VecRegContainer& val, ThreadID tid);
 
@@ -537,15 +527,15 @@ class FullO3CPU : public BaseO3CPU
     /** Function to add instruction onto the head of the list of the
      *  instructions.  Used when new instructions are fetched.
      */
-    ListIt addInst(DynInstPtr &inst);
+    ListIt addInst(const DynInstPtr &inst);
 
     /** Function to tell the CPU that an instruction has completed. */
-    void instDone(ThreadID tid, DynInstPtr &inst);
+    void instDone(ThreadID tid, const DynInstPtr &inst);
 
     /** Remove an instruction from the front end of the list.  There's
      *  no restriction on location of the instruction.
      */
-    void removeFrontInst(DynInstPtr &inst);
+    void removeFrontInst(const DynInstPtr &inst);
 
     /** Remove all instructions that are not currently in the ROB.
      *  There's also an option to not squash delay slot instructions.*/

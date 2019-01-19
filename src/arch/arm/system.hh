@@ -54,6 +54,7 @@
 #include "sim/system.hh"
 
 class GenericTimer;
+class BaseGic;
 class ThreadContext;
 
 class ArmSystem : public System
@@ -97,18 +98,18 @@ class ArmSystem : public System
      * Pointer to the Generic Timer wrapper.
      */
     GenericTimer *_genericTimer;
+    BaseGic *_gic;
+
+    /**
+     * Reset address (ARMv8)
+     */
+    const Addr _resetAddr;
 
     /**
      * True if the register width of the highest implemented exception level is
      * 64 bits (ARMv8)
      */
     bool _highestELIs64;
-
-    /**
-     * Reset address if the highest implemented exception level is 64 bits
-     * (ARMv8)
-     */
-    const Addr _resetAddr64;
 
     /**
      * Supported physical address range in bits if the highest implemented
@@ -193,8 +194,17 @@ class ArmSystem : public System
         _genericTimer = generic_timer;
     }
 
+    /** Sets the pointer to the GIC. */
+    void setGIC(BaseGic *gic)
+    {
+        _gic = gic;
+    }
+
     /** Get a pointer to the system's generic timer model */
     GenericTimer *getGenericTimer() const { return _genericTimer; }
+
+    /** Get a pointer to the system's GIC */
+    BaseGic *getGIC() const { return _gic; }
 
     /** Returns true if the register width of the highest implemented exception
      * level is 64 bits (ARMv8) */
@@ -212,7 +222,7 @@ class ArmSystem : public System
 
     /** Returns the reset address if the highest implemented exception level is
      * 64 bits (ARMv8) */
-    Addr resetAddr64() const { return _resetAddr64; }
+    Addr resetAddr() const { return _resetAddr; }
 
     /** Returns true if ASID is 16 bits in AArch64 (ARMv8) */
     bool haveLargeAsid64() const { return _haveLargeAsid64; }
@@ -283,7 +293,7 @@ class ArmSystem : public System
     /** Returns the reset address if the highest implemented exception level
      * for the system of a specific thread context is 64 bits (ARMv8)
      */
-    static Addr resetAddr64(ThreadContext *tc);
+    static Addr resetAddr(ThreadContext *tc);
 
     /** Returns the supported physical address range in bits for the system of a
      * specific thread context

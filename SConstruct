@@ -92,6 +92,7 @@ from os import mkdir, environ
 from os.path import abspath, basename, dirname, expanduser, normpath
 from os.path import exists,  isdir, isfile
 from os.path import join as joinpath, split as splitpath
+from re import match
 
 # SCons includes
 import SCons
@@ -145,6 +146,8 @@ AddLocalOption('--default', dest='default', type='string', action='store',
                help='Override which build_opts file to use for defaults')
 AddLocalOption('--ignore-style', dest='ignore_style', action='store_true',
                help='Disable style checking hooks')
+AddLocalOption('--gold-linker', dest='gold_linker', action='store_true',
+               help='Use the gold linker')
 AddLocalOption('--no-lto', dest='no_lto', action='store_true',
                help='Disable Link-Time Optimization for fast')
 AddLocalOption('--force-lto', dest='force_lto', action='store_true',
@@ -357,6 +360,8 @@ if main['GCC'] or main['CLANG']:
 
     main['FILTER_PSHLINKFLAGS'] = lambda x: str(x).replace(' -shared', '')
     main['PSHLINKFLAGS'] = main.subst('${FILTER_PSHLINKFLAGS(SHLINKFLAGS)}')
+    if GetOption('gold_linker'):
+        main.Append(LINKFLAGS='-fuse-ld=gold')
     main['PLINKFLAGS'] = main.subst('${LINKFLAGS}')
     shared_partial_flags = ['-r', '-nostdlib']
     main.Append(PSHLINKFLAGS=shared_partial_flags)
@@ -706,9 +711,11 @@ if main['USE_PYTHON']:
                                     exception='').strip()
     py_includes = readCommand([python_config, '--includes'],
                               exception='').split()
+    py_includes = filter(lambda s: match(r'.*\/include\/.*',s), py_includes)
     # Strip the -I from the include folders before adding them to the
     # CPPPATH
-    main.Append(CPPPATH=map(lambda inc: inc[2:], py_includes))
+    py_includes = map(lambda s: s[2:] if s.startswith('-I') else s, py_includes)
+    main.Append(CPPPATH=py_includes)
 
     # Read the linker flags and split them into libraries and other link
     # flags. The libraries are added later through the call the CheckLib.
