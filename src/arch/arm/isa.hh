@@ -362,7 +362,7 @@ namespace ArmISA
 
         void initializeMiscRegMetadata();
 
-        MiscReg miscRegs[NumMiscRegs];
+        RegVal miscRegs[NumMiscRegs];
         const IntRegIndex *intRegMap;
 
         void
@@ -428,10 +428,10 @@ namespace ArmISA
         void initID64(const ArmISAParams *p);
 
       public:
-        MiscReg readMiscRegNoEffect(int misc_reg) const;
-        MiscReg readMiscReg(int misc_reg, ThreadContext *tc);
-        void setMiscRegNoEffect(int misc_reg, const MiscReg &val);
-        void setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc);
+        RegVal readMiscRegNoEffect(int misc_reg) const;
+        RegVal readMiscReg(int misc_reg, ThreadContext *tc);
+        void setMiscRegNoEffect(int misc_reg, RegVal val);
+        void setMiscReg(int misc_reg, RegVal val, ThreadContext *tc);
 
         RegId
         flattenRegId(const RegId& regId) const
@@ -444,7 +444,8 @@ namespace ArmISA
               case VecRegClass:
                 return RegId(VecRegClass, flattenVecIndex(regId.index()));
               case VecElemClass:
-                return RegId(VecElemClass, flattenVecElemIndex(regId.index()));
+                return RegId(VecElemClass, flattenVecElemIndex(regId.index()),
+                             regId.elemIndex());
               case CCRegClass:
                 return RegId(CCRegClass, flattenCCIndex(regId.index()));
               case MiscRegClass:
