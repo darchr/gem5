@@ -406,13 +406,15 @@ SDCPUThread::commitInstruction(std::shared_ptr<InflightInst> inst_ptr)
 void
 SDCPUThread::dumpBuffer()
 {
+    if (!DTRACE(SDCPUBufferDump)) return;
+
     DPRINTF(SDCPUBufferDump, "%d instructions on the buffer:\n",
                              inflightInsts.size());
 
     for (shared_ptr<InflightInst>& inst_ptr : inflightInsts) {
         const StaticInstPtr static_inst = inst_ptr->staticInst();
 
-        const char* status;
+        const char* M5_VAR_USED status;
         switch (inst_ptr->status()) {
           case InflightInst::Empty:
             status = "Empty"; break;
@@ -1315,7 +1317,7 @@ SDCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
     if (DTRACE(SDCPUDeps)) {
         const int8_t num_srcs = static_inst->numSrcRegs();
         for (int8_t src_idx = 0; src_idx < num_srcs; ++src_idx) {
-            const RegId& src_reg = flattenRegId(
+            const RegId& M5_VAR_USED src_reg = flattenRegId(
                 static_inst->srcRegIdx(src_idx));
             DPRINTF(SDCPUDeps, "seq %d is consumer of %s[%d]\n",
                     inst_ptr->seqNum(),
