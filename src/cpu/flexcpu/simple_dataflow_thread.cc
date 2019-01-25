@@ -694,10 +694,6 @@ SDCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
         return;
     }
 
-    // TODO set the effective physical address for the inflightInst
-    // TODO add dependencies according to the now known effective address, and
-    //      unset this instruction ready if appropriate.
-
     // IF we have a split request
     if (sreq) {
         if (high) {
@@ -1607,6 +1603,12 @@ SDCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
             return;
         }
 
+        // NOTE: We specifically capture the shared_ptr instead of a weak_ptr
+        //       in this case, because stores are committed once sent, and need
+        //       to be kept alive long enough for the completion event to
+        //       occur. Therefore after this point, the lifespan of the
+        //       InflightInst is managed by this lambda released into the wild
+        //       instead of in the inflightInsts buffer.
         auto callback =
             [this, inst_ptr] (Fault fault) {
                 onExecutionCompleted(inst_ptr, fault);
