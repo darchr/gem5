@@ -60,6 +60,7 @@
 #####################################################################
 
 from __future__ import print_function
+from six import add_metaclass
 import six
 if six.PY3:
     long = int
@@ -92,15 +93,17 @@ allParams = {}
 class MetaParamValue(type):
     def __new__(mcls, name, bases, dct):
         cls = super(MetaParamValue, mcls).__new__(mcls, name, bases, dct)
-        assert name not in allParams
+        if name in allParams:
+            warn("%s already exists in allParams. This may be caused by the " \
+                 "Python 2.7 compatibility layer." % (name, ))
         allParams[name] = cls
         return cls
 
 
 # Dummy base class to identify types that are legitimate for SimObject
 # parameters.
+@add_metaclass(MetaParamValue)
 class ParamValue(object):
-    __metaclass__ = MetaParamValue
     cmd_line_settable = False
 
     # Generate the code needed as a prerequisite for declaring a C++
@@ -238,8 +241,8 @@ class ParamDesc(object):
 # that the value is a vector (list) of the specified type instead of a
 # single value.
 
+@add_metaclass(MetaParamValue)
 class VectorParamValue(list):
-    __metaclass__ = MetaParamValue
     def __setattr__(self, attr, value):
         raise AttributeError("Not allowed to set %s on '%s'" % \
                              (attr, type(self).__name__))
@@ -590,8 +593,8 @@ class CheckedIntType(MetaParamValue):
 # class is subclassed to generate parameter classes with specific
 # bounds.  Initialization of the min and max bounds is done in the
 # metaclass CheckedIntType.__init__.
+@add_metaclass(CheckedIntType)
 class CheckedInt(NumericParamValue):
-    __metaclass__ = CheckedIntType
     cmd_line_settable = True
 
     def _check(self):
@@ -1449,8 +1452,8 @@ module_init(py::module &m_internal)
 
 
 # Base class for enum types.
+@add_metaclass(MetaEnum)
 class Enum(ParamValue):
-    __metaclass__ = MetaEnum
     vals = []
     cmd_line_settable = True
 
@@ -1791,8 +1794,8 @@ class MemoryBandwidth(float,ParamValue):
 # make_param_value() above that lets these be assigned where a
 # SimObject is required.
 # only one copy of a particular node
+@add_metaclass(Singleton)
 class NullSimObject(object):
-    __metaclass__ = Singleton
     _name = 'Null'
 
     def __call__(cls):
@@ -2159,9 +2162,8 @@ VectorSlavePort = VectorResponsePort
 # 'Fake' ParamDesc for Port references to assign to the _pdesc slot of
 # proxy objects (via set_param_desc()) so that proxy error messages
 # make sense.
+@add_metaclass(Singleton)
 class PortParamDesc(object):
-    __metaclass__ = Singleton
-
     ptype_str = 'Port'
     ptype = Port
 
