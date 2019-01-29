@@ -496,21 +496,15 @@ SDCPUThread::freeBranchPredDepth()
 
     // If another branch was denied a prediction earlier due to depth limits,
     // we give them this newly released resource immediately.
-    while (!unpredictedBranches.empty()) {
-        shared_ptr<InflightInst> inst_ptr = unpredictedBranches.front().lock();
+    if (!remainingBranchPredDepth) {
+        shared_ptr<InflightInst> inst_ptr = unpredictedBranch.lock();
+        unpredictedBranch.reset();
 
-        // If the branch who asked before no longer needs a prediction, we
-        // remove it from the queue and keep checking.
-        if (!inst_ptr || inst_ptr->isCommitted() || inst_ptr->isSquashed()
-         || inst_ptr->isComplete()) {
-            unpredictedBranches.pop_front();
-            continue;
+        if (inst_ptr && inst_ptr == inflightInsts.back()
+         && !advanceInstNeedsRetry) {
+            predictCtrlInst(inst_ptr);
+            return;
         }
-
-        predictCtrlInst(inst_ptr);
-        unpredictedBranches.pop_front();
-
-        return;
     }
 
     // If no branches need prediction, we just add to the pool of unused
@@ -940,7 +934,7 @@ SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
                                       "prediction depth limit, not requesting "
                                       "a prediction immediately.\n");
 
-            unpredictedBranches.push_back(inst);
+            unpredictedBranch = inst;
 
             return;
         }

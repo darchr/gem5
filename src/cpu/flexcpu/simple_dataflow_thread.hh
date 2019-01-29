@@ -259,10 +259,10 @@ class SDCPUThread : public ThreadContext
      */
     unsigned remainingBranchPredDepth;
     /**
-     * A queue for control instructions exceeding the above limit to wait for
-     * either execution or prediction.
+     * The branch which could not be predicted as a result of hitting the
+     * maximum branch prediction depth constraint.
      */
-    std::list<std::weak_ptr<InflightInst>> unpredictedBranches;
+    std::weak_ptr<InflightInst> unpredictedBranch;
 
 
     // END Speculative state
