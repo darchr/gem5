@@ -45,6 +45,7 @@
 #ifndef __CPU_O3_THREAD_CONTEXT_IMPL_HH__
 #define __CPU_O3_THREAD_CONTEXT_IMPL_HH__
 
+#include "arch/generic/traits.hh"
 #include "arch/kernel_stats.hh"
 #include "arch/registers.hh"
 #include "config/the_isa.hh"
@@ -176,6 +177,9 @@ template <class Impl>
 void
 O3ThreadContext<Impl>::copyArchRegs(ThreadContext *tc)
 {
+    // Set vector renaming mode before copying registers
+    cpu->vecRenameMode(RenameMode<TheISA::ISA>::mode(tc->pcState()));
+
     // Prevent squashing
     thread->noSquashFromTC = true;
     TheISA::copyRegs(tc, this);
@@ -201,9 +205,9 @@ O3ThreadContext<Impl>::readIntRegFlat(int reg_idx)
 
 template <class Impl>
 RegVal
-O3ThreadContext<Impl>::readFloatRegBitsFlat(int reg_idx)
+O3ThreadContext<Impl>::readFloatRegFlat(int reg_idx)
 {
-    return cpu->readArchFloatRegBits(reg_idx, thread->threadId());
+    return cpu->readArchFloatReg(reg_idx, thread->threadId());
 }
 
 template <class Impl>
@@ -229,6 +233,20 @@ O3ThreadContext<Impl>::readVecElemFlat(const RegIndex& idx,
 }
 
 template <class Impl>
+const TheISA::VecPredRegContainer&
+O3ThreadContext<Impl>::readVecPredRegFlat(int reg_id) const
+{
+    return cpu->readArchVecPredReg(reg_id, thread->threadId());
+}
+
+template <class Impl>
+TheISA::VecPredRegContainer&
+O3ThreadContext<Impl>::getWritableVecPredRegFlat(int reg_id)
+{
+    return cpu->getWritableArchVecPredReg(reg_id, thread->threadId());
+}
+
+template <class Impl>
 TheISA::CCReg
 O3ThreadContext<Impl>::readCCRegFlat(int reg_idx)
 {
@@ -246,9 +264,9 @@ O3ThreadContext<Impl>::setIntRegFlat(int reg_idx, RegVal val)
 
 template <class Impl>
 void
-O3ThreadContext<Impl>::setFloatRegBitsFlat(int reg_idx, RegVal val)
+O3ThreadContext<Impl>::setFloatRegFlat(int reg_idx, RegVal val)
 {
-    cpu->setArchFloatRegBits(reg_idx, val, thread->threadId());
+    cpu->setArchFloatReg(reg_idx, val, thread->threadId());
 
     conditionalSquash();
 }
@@ -268,6 +286,16 @@ O3ThreadContext<Impl>::setVecElemFlat(const RegIndex& idx,
         const ElemIndex& elemIndex, const VecElem& val)
 {
     cpu->setArchVecElem(idx, elemIndex, val, thread->threadId());
+    conditionalSquash();
+}
+
+template <class Impl>
+void
+O3ThreadContext<Impl>::setVecPredRegFlat(int reg_idx,
+                                         const VecPredRegContainer& val)
+{
+    cpu->setArchVecPredReg(reg_idx, val, thread->threadId());
+
     conditionalSquash();
 }
 
