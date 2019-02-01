@@ -80,6 +80,11 @@ class FlexCPU(BaseCPU):
     issue_bandwidth = Param.Int(0, "Number of instructions/micro-ops that can "
                                    "be issued each cycle.")
 
+    stld_forward_enabled = Param.Bool(True,
+                                    "Whether stores which contain a superset "
+                                    "of the data for a future load should "
+                                    "forward that data to the load, bypassing "
+                                    "memory.")
 
     strict_serialization = Param.Bool(True, "Controls behavior of serializing "
                                             "flags on instructions. As of the "

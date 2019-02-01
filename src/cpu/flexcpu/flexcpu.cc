@@ -75,7 +75,8 @@ FlexCPU::FlexCPU(FlexCPUParams* params):
                 params->in_order_begin_execute,
                 params->in_order_execute,
                 params->instruction_buffer_size,
-                params->strict_serialization));
+                params->strict_serialization,
+                params->stld_forward_enabled));
 
             threadContexts.push_back(threads[i].get());
         }
@@ -91,7 +92,8 @@ FlexCPU::FlexCPU(FlexCPUParams* params):
                 params->in_order_begin_execute,
                 params->in_order_execute,
                 params->instruction_buffer_size,
-                params->strict_serialization));
+                params->strict_serialization,
+                params->stld_forward_enabled));
 
             threadContexts.push_back(threads[i].get());
         }
