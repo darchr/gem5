@@ -295,6 +295,18 @@ class InflightInst : public ExecContext,
         accessedSplitPAddrs = range;
     }
 
+    /**
+     * Checks whether this instruction's accessed physical addresses are a
+     * superset of the other instruction's accessed physical addresses. This
+     * function should only be called if both instructions have had their
+     * effective physical addresses calculated.
+     *
+     * @param other The other instruction to compare to
+     * @return Whether this instruction's accessed effective addresses are a
+     *         superset of the other's.
+     */
+    bool effPAddrSuperset(const InflightInst& other) const;
+
     inline const Fault& fault() const
     { return _fault; }
     inline const Fault& fault(const Fault& f)

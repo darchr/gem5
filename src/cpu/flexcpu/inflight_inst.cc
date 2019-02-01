@@ -281,6 +281,33 @@ InflightInst::effAddrOverlap(const InflightInst& other) const
          && accessedSplitPAddrs.intersects(other.accessedSplitPAddrs));
 }
 
+bool
+InflightInst::effPAddrSuperset(const InflightInst& other) const
+{
+    assert(accessedPAddrsValid && other.accessedPAddrsValid
+        && (!_isSplitMemReq || accessedSplitPAddrsValid)
+        && (!other._isSplitMemReq || other.accessedSplitPAddrsValid));
+
+    // In order to simplify this calculation, we also make the assumption
+    // MinorCPU seems to make where split requests will not span page
+    // boundaries, so physical addresses will remain contiguous.
+    assert(!_isSplitMemReq
+        || accessedPAddrs.end() + 1 == accessedSplitPAddrs.start());
+    assert(!other._isSplitMemReq
+        || other.accessedPAddrs.end() + 1
+           == other.accessedSplitPAddrs.start());
+
+    const Addr our_start = accessedPAddrs.start();
+    const Addr our_end = _isSplitMemReq ?
+        accessedSplitPAddrs.end() : accessedPAddrs.end();
+
+    const Addr other_start = other.accessedPAddrs.start();
+    const Addr other_end = other._isSplitMemReq ?
+        other.accessedSplitPAddrs.end() : other.accessedPAddrs.end();
+
+    return our_start <= other_start && other_end <= our_end;
+}
+
 void
 InflightInst::notifyCommitted()
 {
