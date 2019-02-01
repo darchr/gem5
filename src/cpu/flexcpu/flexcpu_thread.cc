@@ -52,7 +52,8 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
                     TheISA::ISA* isa_, bool use_kernel_stats_,
                     unsigned branch_pred_max_depth, unsigned fetch_buf_size,
                     bool in_order_begin_exec, bool in_order_exec,
-                    unsigned inflight_insts_size, bool strict_ser):
+                    unsigned inflight_insts_size, bool strict_ser,
+                    bool stld_forward_enabled):
     memIface(*this),
     x86Iface(*this),
     _cpuPtr(cpu_),
@@ -67,7 +68,8 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
     fetchBuf(vector<uint8_t>(fetch_buf_size)),
     fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1)),
     remainingBranchPredDepth(branch_pred_max_depth ?
-                             branch_pred_max_depth : -1)
+                             branch_pred_max_depth : -1),
+    forwarder(_name + ".forwarder", 0, stld_forward_enabled, Cycles(0), 0)
 {
     fatal_if(fetch_buf_size % sizeof(TheISA::MachInst) != 0,
              "Fetch buffer size should be multiple of instruction size!");
@@ -81,7 +83,8 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
                     BaseTLB* dtb_, TheISA::ISA* isa_,
                     unsigned branch_pred_max_depth, unsigned fetch_buf_size,
                     bool in_order_begin_exec, bool in_order_exec,
-                    unsigned inflight_insts_size, bool strict_ser):
+                    unsigned inflight_insts_size, bool strict_ser,
+                    bool stld_forward_enabled):
     memIface(*this),
     x86Iface(*this),
     _cpuPtr(cpu_),
@@ -96,7 +99,8 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
     fetchBuf(vector<uint8_t>(fetch_buf_size)),
     fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1)),
     remainingBranchPredDepth(branch_pred_max_depth ?
-                             branch_pred_max_depth : -1)
+                             branch_pred_max_depth : -1),
+    forwarder(_name + ".forwarder", 0, stld_forward_enabled, Cycles(0), 0)
 {
     fatal_if(fetch_buf_size % sizeof(TheISA::MachInst) != 0,
              "Fetch buffer size should be multiple of instruction size!");
@@ -732,6 +736,7 @@ FlexCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
             inst_ptr->effPAddrRangeHigh(AddrRange(req->getPaddr(),
                 req->getPaddr() + req->getSize() - 1));
         } else {
+            sreq->main->setPaddr(req->getPaddr());
             sreq->low = req;
             inst_ptr->effPAddrRange(AddrRange(req->getPaddr(),
                 req->getPaddr() + req->getSize() - 1));
@@ -746,7 +751,64 @@ FlexCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
             req->getPaddr() + req->getSize() - 1));
     }
 
+    if (write) {
+        forwarder.associateData(inst_ptr.get(), data,
+            sreq ? sreq->low->getPaddr() : req->getPaddr());
+    }
+
     inst_ptr->notifyEffAddrCalculated();
+
+    if (!write) {
+        weak_ptr<InflightInst> weak_inst(inst_ptr);
+        forwarder.requestLoad(inst_ptr, sreq ? sreq->main : req,
+            [this, weak_inst, req, sreq](PacketPtr pkt) {
+                shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
+                if (!inst_ptr || inst_ptr->isSquashed()) return;
+
+                if (pkt) { // Can forward
+                    if (inst_ptr->isMemReady()) {
+                        Fault fault = inst_ptr->staticInst()->completeAcc(pkt,
+                            inst_ptr.get(), inst_ptr->traceData());
+                        delete pkt;
+
+                        onExecutionCompleted(inst_ptr, fault);
+                    } else { // has remaining dependencies
+                        InflightInst* raw_inst(inst_ptr.get());
+                        inst_ptr->addMemReadyCallback([this, raw_inst, pkt] {
+                            Fault fault = raw_inst->staticInst()->
+                                completeAcc(pkt, raw_inst,
+                                            raw_inst->traceData());
+                            delete pkt;
+
+                            onExecutionCompleted(raw_inst->shared_from_this(),
+                                                 fault);
+                        });
+
+                        inst_ptr->addSquashCallback([pkt, raw_inst] {
+                            if (!raw_inst->isMemorying())
+                                delete pkt;
+                        });
+                    }
+                } else { // Can't forward
+                    forwarder.populateMemDependencies(inst_ptr);
+
+                    if (inst_ptr->isMemReady()) {
+                        sendToMemory(inst_ptr, req, false, nullptr, sreq);
+                    } else { // has remaining dependencies
+                        inst_ptr->addMemReadyCallback(
+                            [this, weak_inst, req, sreq] {
+                                sendToMemory(weak_inst, req, false, nullptr,
+                                             sreq);
+                            }
+                        );
+                    }
+                }
+            });
+
+        return;
+    }
+
+    // TODO attempt the forward.
 
     if (inst_ptr->isMemReady()) {
         sendToMemory(inst_ptr, req, write, data, sreq);
@@ -975,6 +1037,13 @@ FlexCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
     inst_ptr->issueSeqNum(nextIssueNum++);
     populateDependencies(inst_ptr);
     populateUses(inst_ptr);
+
+    const StaticInstPtr& static_inst = inst_ptr->staticInst();
+    if (static_inst->isStore()) {
+        forwarder.registerStore(inst_ptr.get());
+    } else if (static_inst->isMemBarrier()) {
+        forwarder.registerMemBarrier(inst_ptr.get());
+    }
 
     inst_ptr->notifyIssued();
 
@@ -1227,104 +1296,6 @@ FlexCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 
     // END Sequential Consistency
 
-    // BEGIN Conservative Memory dependence ordering
-
-    if (static_inst->isMemRef()) {
-        weak_ptr<InflightInst> weak_inst = inst_ptr;
-
-        // Checking all instructions older than the inst_ptr. (This loop starts
-        // from oldest)
-        for (shared_ptr<InflightInst>& other : inflightInsts) {
-            if (other == inst_ptr) break;
-            if (!other->staticInst()->isStore()) continue;
-
-            if (other->isEffAddred()) {
-                // Case 1: other has already calculated an effective address
-                weak_ptr<InflightInst> weak_other = other;
-                inst_ptr->addEffAddrCalculatedCallback(
-                    [this, weak_inst, weak_other] {
-                        shared_ptr<InflightInst> other = weak_other.lock();
-                        if (!other || other->isSquashed()
-                         || other->isComplete()) return;
-
-                        shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
-                        // Don't need to check validity because this function
-                        // can only be referenced through a valid inst_ptr
-
-                        if (inst_ptr->effAddrOverlap(*other)) {
-                            DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem]\n",
-                                    inst_ptr->seqNum(), other->seqNum());
-                            inst_ptr->addMemDependency(*other);
-                        }
-                    }
-                );
-            } else {
-                // Case 2: other has not yet calculated an effective address
-                //        Case 2a: we will calculate before other
-                //        Case 2b: they will calculate before us
-                //                 (similar to case 1)
-
-                weak_ptr<InflightInst> weak_other = other;
-                inst_ptr->addEffAddrCalculatedCallback(
-                    [this, weak_inst, weak_other] {
-                        shared_ptr<InflightInst> other = weak_other.lock();
-                        if (!other || other->isSquashed()
-                         || other->isComplete()) return;
-
-                        // If the other instruction is still calculating the
-                        // effective address, let it create the dependency when
-                        // it finishes instead, since we don't know if the
-                        // dependency is necessary yet.
-                        if (!other->isEffAddred()) return;
-
-                        shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
-                        // Don't need to check validity because this function
-                        // can only be referenced through a valid inst_ptr
-
-                        if (inst_ptr->effAddrOverlap(*other)) {
-                            DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem]\n",
-                                    inst_ptr->seqNum(), other->seqNum());
-                            inst_ptr->addMemDependency(*other);
-                        }
-                    }
-                );
-                other->addEffAddrCalculatedCallback(
-                    [this, weak_inst, weak_other] {
-                        shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
-                        if (!inst_ptr || inst_ptr->isSquashed()) return;
-
-                        // If the later instruction is still calculating the
-                        // effective address, let it create the dependency when
-                        // it finishes instead, since we don't know if the
-                        // dependency is necessary yet.
-                        if (!inst_ptr->isEffAddred()) return;
-
-                        shared_ptr<InflightInst> other = weak_other.lock();
-                        // Don't need to check validity because this function
-                        // can only be referenced through a valid other
-
-                        if (inst_ptr->effAddrOverlap(*other)) {
-                            DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem]\n",
-                                    inst_ptr->seqNum(), other->seqNum());
-                            inst_ptr->addMemDependency(*other);
-                        }
-                    }
-                );
-
-                // NOTE: It is important that this dependency is added after
-                //       the callback above is added to other, since the
-                //       callback needs to resolve first, to make sure that we
-                //       don't accidentally notifyMemReady() before we've added
-                //       all appropriate memory dependencies.
-                DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem predicted overlap]\n",
-                        inst_ptr->seqNum(), other->seqNum());
-                inst_ptr->addMemEffAddrDependency(*other);
-            }
-        }
-    }
-
-    // END Conservative Memory dependence ordering
-
     // BEGIN Only store if instruction is at head of inflightInsts
 
     if (inflightInsts.size() > 1 && static_inst->isStore()) {
@@ -1463,6 +1434,7 @@ void
 FlexCPUThread::regStats(const std::string &name)
 {
     _committedState->regStats(name);
+    forwarder.regStats(name + ".forwarder");
 
     numInstsStat
         .name(name + ".numInsts")
@@ -1685,7 +1657,8 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
                 inst_ptr->traceData(), data.get(), callback);
         }
 
-        commitAllAvailableInstructions();
+        if (inst_ptr == inflightInsts.front())
+            commitAllAvailableInstructions();
     } else { // read
         auto callback =
             [this, weak_inst] (Fault fault) {
