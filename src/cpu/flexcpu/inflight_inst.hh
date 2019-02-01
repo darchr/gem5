@@ -212,6 +212,8 @@ class InflightInst : public ExecContext,
     std::vector<std::function<void()>> readyCallbacks;
     std::vector<std::function<void()>> memReadyCallbacks;
 
+    std::vector<std::function<void()>> retireCallbacks;
+
     std::vector<std::function<void()>> squashCallbacks;
 
     std::vector<DataSource> sources;
@@ -293,6 +295,15 @@ class InflightInst : public ExecContext,
     void addMemDependency(InflightInst& parent);
     void addMemEffAddrDependency(InflightInst& parent);
     void addReadyCallback(std::function<void()> callback);
+    /**
+     * Retire callbacks occur on either commit or squash (Their purpose) is to
+     * allow for use of callbacks when the instruction is removed from a
+     * primary buffer, regardless of cause. They can be expected to be called
+     * only once, since commit and squash are mutually exclusive.
+     *
+     * @param callback The function to call.
+     */
+    void addRetireCallback(std::function<void()> callback);
     void addSquashCallback(std::function<void()> callback);
     // May be useful to add ability to remove a callback. Will be difficult if
     // we use raw function objects, could be resolved by holding pointers?
@@ -326,6 +337,18 @@ class InflightInst : public ExecContext,
         accessedSplitPAddrsValid = true;
         accessedSplitPAddrs = range;
     }
+
+    /**
+     * Checks whether this instruction's accessed physical addresses are a
+     * superset of the other instruction's accessed physical addresses. This
+     * function should only be called if both instructions have had their
+     * effective physical addresses calculated.
+     *
+     * @param other The other instruction to compare to
+     * @return Whether this instruction's accessed effective addresses are a
+     *         superset of the other's.
+     */
+    bool effPAddrSuperset(const InflightInst& other) const;
 
     inline const Fault& fault() const
     { return _fault; }
