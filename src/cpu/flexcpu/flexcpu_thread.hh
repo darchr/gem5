@@ -40,6 +40,7 @@
 #include "cpu/flexcpu/generic_reg.hh"
 #include "cpu/flexcpu/inflight_inst.hh"
 #include "cpu/flexcpu/flexcpu.hh"
+#include "cpu/flexcpu/stld_forwarder.hh"
 #include "cpu/inst_seq.hh"
 #include "cpu/pred/bpred_unit.hh"
 #include "cpu/reg_class.hh"
@@ -267,6 +268,11 @@ class FlexCPUThread : public ThreadContext
      * maximum branch prediction depth constraint.
      */
     std::weak_ptr<InflightInst> unpredictedBranch;
+
+    /**
+     * A forwarding unit for forwarding memory requests, if possible.
+     */
+    StLdForwarder forwarder;
 
 
     // END Speculative state
@@ -721,19 +727,19 @@ class FlexCPUThread : public ThreadContext
 
     // Fullsystem mode constructor
     FlexCPUThread(FlexCPU* cpu_, ThreadID tid_, System* system_,
-                     BaseTLB* itb_, BaseTLB* dtb_, TheISA::ISA* isa_,
-                     bool use_kernel_stats_, unsigned branch_pred_max_depth,
-                     unsigned fetch_buf_size, bool in_order_begin_exec,
-                     bool in_order_exec, unsigned inflight_insts_size,
-                     bool strict_ser);
+                  BaseTLB* itb_, BaseTLB* dtb_, TheISA::ISA* isa_,
+                  bool use_kernel_stats_, unsigned branch_pred_max_depth,
+                  unsigned fetch_buf_size, bool in_order_begin_exec,
+                  bool in_order_exec, unsigned inflight_insts_size,
+                  bool strict_ser, bool stld_forward_enabled);
 
     // Non-fullsystem constructor
     FlexCPUThread(FlexCPU* cpu_, ThreadID tid_, System* system_,
-                     Process* process_, BaseTLB* itb_, BaseTLB* dtb_,
-                     TheISA::ISA* isa_, unsigned branch_pred_max_depth,
-                     unsigned fetch_buf_size, bool in_order_begin_exec,
-                     bool in_order_exec, unsigned inflight_insts_size,
-                     bool strict_ser);
+                  Process* process_, BaseTLB* itb_, BaseTLB* dtb_,
+                  TheISA::ISA* isa_, unsigned branch_pred_max_depth,
+                  unsigned fetch_buf_size, bool in_order_begin_exec,
+                  bool in_order_exec, unsigned inflight_insts_size,
+                  bool strict_ser, bool stld_forward_enabled);
 
     // May need to define move constructor, due to how SimpleThread is defined,
     // if we want to hold instances of these in a vector instead of pointers

@@ -35,6 +35,7 @@ if 'FlexCPU' in env['CPU_MODELS']:
 
     Source('flexcpu.cc')
     Source('flexcpu_thread.cc')
+    Source('stld_forwarder.cc')
     Source('inflight_inst.cc')
 
     DebugFlag('InflightInst')
@@ -46,7 +47,9 @@ if 'FlexCPU' in env['CPU_MODELS']:
     DebugFlag('FlexCPUBranchPred')
     DebugFlag('FlexCPUBufferDump')
     DebugFlag('FlexCPUDeps')
+    DebugFlag('FlexCPUForwarder')
 
     CompoundFlag('FlexCPUAll', ['FlexCPUCoreEvent', 'FlexCPUInstEvent',
                               'FlexCPUThreadEvent', 'FlexCPUBranchPred',
-                              'FlexCPUBufferDump', 'FlexCPUDeps'])
+                              'FlexCPUBufferDump', 'FlexCPUDeps',
+                              'FlexCPUForwarder'])
