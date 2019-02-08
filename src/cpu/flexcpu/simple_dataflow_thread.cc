@@ -1270,6 +1270,8 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
                         // can only be referenced through a valid inst_ptr
 
                         if (inst_ptr->effAddrOverlap(*other)) {
+                            // TODO if superset, don't add dependency, will
+                            // forward.
                             DPRINTF(SDCPUDeps, "Dep %d -> %d [mem]\n",
                                     inst_ptr->seqNum(), other->seqNum());
                             inst_ptr->addMemDependency(other);
@@ -1300,6 +1302,8 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
                         // can only be referenced through a valid inst_ptr
 
                         if (inst_ptr->effAddrOverlap(*other)) {
+                            // TODO if superset, don't add dependency, will
+                            // forward.
                             DPRINTF(SDCPUDeps, "Dep %d -> %d [mem]\n",
                                     inst_ptr->seqNum(), other->seqNum());
                             inst_ptr->addMemDependency(other);
@@ -1322,6 +1326,8 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
                         // can only be referenced through a valid other
 
                         if (inst_ptr->effAddrOverlap(*other)) {
+                            // TODO if superset, don't add dependency, will
+                            // forward.
                             DPRINTF(SDCPUDeps, "Dep %d -> %d [mem]\n",
                                     inst_ptr->seqNum(), other->seqNum());
                             inst_ptr->addMemDependency(other);
