@@ -233,7 +233,7 @@ class InflightInst : public ExecContext,
     virtual ~InflightInst();
 
     void addBeginExecCallback(std::function<void()> callback);
-    void addBeginExecDependency(std::shared_ptr<InflightInst> parent);
+    void addBeginExecDependency(InflightInst& parent);
     /**
      * Tells this InflightInst to call a particular function when it has been
      * made aware of a commit.
@@ -246,7 +246,7 @@ class InflightInst : public ExecContext,
      * @param callback The function to call.
      */
     void addCommitCallback(std::function<void()> callback);
-    void addCommitDependency(std::shared_ptr<InflightInst> parent);
+    void addCommitDependency(InflightInst& parent);
     void addCompletionCallback(std::function<void()> callback);
 
     /**
@@ -262,13 +262,13 @@ class InflightInst : public ExecContext,
      * @param parent The other instruction whose completion this instruction is
      *  dependent on.
      */
-    void addDependency(std::shared_ptr<InflightInst> parent);
+    void addDependency(InflightInst& parent);
 
     void addEffAddrCalculatedCallback(std::function<void()> callback);
     void addMemReadyCallback(std::function<void()> callback);
-    void addMemCommitDependency(std::shared_ptr<InflightInst> parent);
-    void addMemDependency(std::shared_ptr<InflightInst> parent);
-    void addMemEffAddrDependency(std::shared_ptr<InflightInst> parent);
+    void addMemCommitDependency(InflightInst& parent);
+    void addMemDependency(InflightInst& parent);
+    void addMemEffAddrDependency(InflightInst& parent);
     void addReadyCallback(std::function<void()> callback);
     void addSquashCallback(std::function<void()> callback);
     // May be useful to add ability to remove a callback. Will be difficult if
