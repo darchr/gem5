@@ -30,11 +30,16 @@
 
 #include "cpu/flexcpu/stld_forwarder.hh"
 
+#include "debug/SDCPUDeps.hh"
+#include "debug/SDCPUForwarder.hh"
+
 using namespace std;
 
-StLdForwarder::StLdForwarder(unsigned store_buffer_size,
+StLdForwarder::StLdForwarder(string name,
+                             unsigned store_buffer_size,
                              Cycles stld_forward_latency,
                              unsigned stld_forward_bandwidth):
+    _name(name),
     storeBufferSize(store_buffer_size),
     stldForwardLatency(stld_forward_latency),
     stldForwardBandwidth(stld_forward_bandwidth)
@@ -43,16 +48,29 @@ StLdForwarder::StLdForwarder(unsigned store_buffer_size,
 }
 
 void
-StLdForwarder::commitStore()
+StLdForwarder::associateData(InflightInst* st_inst_ptr,
+                             shared_ptr<uint8_t> data, Addr base)
 {
-    assert(!storeBuffer.empty());
-    assert(storeBuffer.front().inst->isComplete());
-
-    storeBuffer.pop_front();
+    dataMap.emplace(st_inst_ptr, DataEntry({std::move(data), base}));
 }
 
 void
-StLdForwarder::doForward(const PacketPtr src_pkt, const RequestPtr& req,
+StLdForwarder::commitStore()
+{
+    assert(!storeBuffer.empty());
+
+    InflightInst* const& inst_ptr = storeBuffer.front();
+
+    DPRINTF(SDCPUForwarder, "Removing (seq %d) from front of store buffer.\n",
+            inst_ptr->seqNum());
+
+    dataMap.erase(inst_ptr);
+    storeBuffer.pop_front();
+    assert(!storeBuffer.empty() || dataMap.empty());
+}
+
+void
+StLdForwarder::doForward(const DataEntry& src, const RequestPtr& req,
                          const function<void(PacketPtr)>& callback)
 {
 
@@ -66,10 +84,44 @@ StLdForwarder::doForward(const PacketPtr src_pkt, const RequestPtr& req,
     //      this with a separate allocation and data copy. This code
     //      means that the lifespan of the forwarded packet is
     //      implicitly tied to the lifespan of the source packet.
-    pkt_to_provide->dataStatic(src_pkt->getPtr<uint8_t>()
-        + (pkt_to_provide->getAddr() - src_pkt->getAddr()));
+    pkt_to_provide->dataStatic(src.data.get()
+                             + (pkt_to_provide->getAddr() - src.base));
 
-    // TODO accomplish the forward.
+    if (DTRACE(SDCPUForwarder)) {
+        switch (pkt_to_provide->getSize()) {
+          case 1:
+            DPRINTF(SDCPUForwarder, "Forwarder providing packet for Addr: %#x,"
+                                    " Size: %d, Value: %#04x\n",
+                                    req->getPaddr(), req->getSize(),
+                                    *(pkt_to_provide->getPtr<uint8_t>()));
+            break;
+          case 2:
+            DPRINTF(SDCPUForwarder, "Forwarder providing packet for Addr: %#x,"
+                                    " Size: %d, Value: %#06x\n",
+                                    req->getPaddr(), req->getSize(),
+                                    *(pkt_to_provide->getPtr<uint16_t>()));
+            break;
+          case 4:
+            DPRINTF(SDCPUForwarder, "Forwarder providing packet for Addr: %#x,"
+                                    " Size: %d, Value: %#010x\n",
+                                    req->getPaddr(), req->getSize(),
+                                    *(pkt_to_provide->getPtr<uint32_t>()));
+            break;
+          case 8:
+            DPRINTF(SDCPUForwarder, "Forwarder providing packet for Addr: %#x,"
+                                    " Size: %d, Value: %#018x\n",
+                                    req->getPaddr(), req->getSize(),
+                                    *(pkt_to_provide->getPtr<uint64_t>()));
+            break;
+          default:
+            DPRINTF(SDCPUForwarder, "Forwarder providing packet for Addr: %#x,"
+                                    " Size: %d, First byte: %#04x\n",
+                                    req->getPaddr(), req->getSize(),
+                                    *(pkt_to_provide->getPtr<uint8_t>()));
+            break;
+        }
+    }
+
     if (stldForwardLatency == 0) {
         callback(pkt_to_provide);
         delete pkt_to_provide;
@@ -81,27 +133,123 @@ StLdForwarder::doForward(const PacketPtr src_pkt, const RequestPtr& req,
     return;
 }
 
-PacketPtr&
+void
+StLdForwarder::populateMemDependencies(
+    const shared_ptr<InflightInst>& inst_ptr)
+{
+    DPRINTF(SDCPUDeps, "Matching data dependencies through memory for (seq "
+                       "%d).\n", inst_ptr->seqNum());
+    // BEGIN Conservative Memory dependence ordering
+
+    assert(inst_ptr->staticInst()->isLoad());
+
+    // Checking all stores older than the inst_ptr. (This loop starts
+    // from oldest)
+    for (auto itr = storeBuffer.rbegin(); itr != storeBuffer.rend(); ++itr) {
+        InflightInst* other = *itr;
+
+        if (other->seqNum() > inst_ptr->seqNum()) continue;
+
+        // Dependency will already exist on barrier, so older stores don't need
+        // to be checked.
+        if (other->staticInst()->isMemBarrier()) break;
+
+        if (other->isEffAddred()) {
+            // Case 1: other has already calculated an effective address
+
+            if (inst_ptr->effAddrOverlap(*other)) {
+                DPRINTF(SDCPUDeps, "Dep %d -> %d [mem]\n",
+                        inst_ptr->seqNum(), other->seqNum());
+                inst_ptr->addMemDependency(*other);
+            }
+        } else {
+            // Case 2: other has not yet calculated an effective address
+
+            weak_ptr<InflightInst> weak_inst = inst_ptr;
+            other->addEffAddrCalculatedCallback(
+                [this, weak_inst, other] {
+                    shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
+                    if (!inst_ptr || inst_ptr->isSquashed()) return;
+
+                    // If the later instruction is still calculating the
+                    // effective address, let it create the dependency when
+                    // it finishes instead, since we don't know if the
+                    // dependency is necessary yet.
+                    if (!inst_ptr->isEffAddred()) return;
+
+                    if (inst_ptr->effAddrOverlap(*other)) {
+                        DPRINTF(SDCPUDeps, "Dep %d -> %d [mem]\n",
+                                inst_ptr->seqNum(), other->seqNum());
+                        inst_ptr->addMemDependency(*other);
+                    }
+                }
+            );
+
+            // NOTE: It is important that this dependency is added after
+            //       the callback above is added to other, since that
+            //       callback needs to resolve first, to make sure that we
+            //       don't accidentally notifyMemReady() before we've added
+            //       all appropriate memory dependencies.
+            DPRINTF(SDCPUDeps, "Dep %d -> %d [mem predicted overlap]\n",
+                    inst_ptr->seqNum(), other->seqNum());
+            inst_ptr->addMemEffAddrDependency(*other);
+        }
+    }
+
+    // END Conservative Memory dependence ordering
+}
+
+void
+StLdForwarder::registerMemBarrier(InflightInst* inst_ptr)
+{
+    // TODO enforce size bound.
+    DPRINTF(SDCPUForwarder, "Inserting Mem Barrier in store buffer (seq %d) "
+                            "Buffer size: %d\n",
+                            inst_ptr->seqNum(),
+                            storeBuffer.size());
+
+    assert(inst_ptr->staticInst()->isMemBarrier());
+    storeBuffer.emplace_back(inst_ptr);
+
+    // As long as register... is always called in-order, instruction squash
+    // happens from the back, and the number of callbacks called is the key.
+    // Same for commit: if in-order, then removing one from front is always
+    // fine.
+    inst_ptr->addSquashCallback([this] {
+        dataMap.erase(storeBuffer.back());
+        storeBuffer.pop_back();
+        assert(!storeBuffer.empty() || dataMap.empty());
+    });
+    inst_ptr->addCommitCallback([this] { commitStore(); });
+}
+
+void
 StLdForwarder::registerStore(InflightInst* inst_ptr)
 {
     // TODO enforce size bound.
+    DPRINTF(SDCPUForwarder, "Inserting store in store buffer (seq %d) Buffer "
+                            "size: %d\n",
+                            inst_ptr->seqNum(),
+                            storeBuffer.size());
 
-
+    assert(inst_ptr->staticInst()->isStore());
     storeBuffer.emplace_back(inst_ptr);
 
     // As long as registerStore is always called in-order, instruction squash
     // happens from the back, and the number of callbacks called is the key.
     // Same for commit: if in-order, then removing one from front is always
     // fine.
-    inst_ptr->addSquashCallback([this]{ storeBuffer.pop_back(); });
+    inst_ptr->addSquashCallback([this] {
+        dataMap.erase(storeBuffer.back());
+        storeBuffer.pop_back();
+        assert(!storeBuffer.empty() || dataMap.empty());
+    });
     // TODO consider holding onto the store for a little longer (e.g. until
     //      memory response time), so more loads can be forwarded. Pretty sure
     //      the other CPU model LSQs will hold onto items until response anyway
     //      but we haven't implemented it yet only to keep the code simple for
     //      now.
-    inst_ptr->addCommitCallback([this]{ commitStore(); });
-
-    return storeBuffer.back().pkt;
+    inst_ptr->addCommitCallback([this] { commitStore(); });
 }
 
 // anonymous namespace for internal linkage only.
@@ -128,35 +276,48 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                            const function<void(PacketPtr)>& callback)
 {
     // TODO enforce bandwidth bound
+    DPRINTF(SDCPUForwarder, "Checking if load @ %#x (seq %d) can be forwarded."
+                            "\n", req->getPaddr(), inst_ptr->seqNum());
 
     assert(inst_ptr->isEffAddred());
 
     shared_ptr<LoadDepCtrlBlk> ctrl_blk;
 
     auto youngest_older_store_itr = storeBuffer.rbegin();
-    for (auto itr = youngest_older_store_itr; itr != storeBuffer.rend();
+    for (auto itr = youngest_older_store_itr++; itr != storeBuffer.rend();
          ++itr) {
-        InflightInst* const st_inst_ptr = itr->inst;
+        InflightInst* const st_inst_ptr = *itr;
 
         if (st_inst_ptr->seqNum() > inst_ptr->seqNum()) {
             youngest_older_store_itr = itr;
             ++youngest_older_store_itr;
+            // Offset by one so the value stored isn't the past the end reverse
+            // iterator (@see cppreference.com for list<>::rbegin())
+            ++youngest_older_store_itr;
             continue;
         }
 
+        if (st_inst_ptr->staticInst()->isMemBarrier()) break; // Don't forward
+                                                              // across barrier
+
+        assert(st_inst_ptr->staticInst()->isStore());
+
         if (!st_inst_ptr->isEffAddred()) {
-            if (!ctrl_blk) ctrl_blk = make_shared<LoadDepCtrlBlk>(inst_ptr,
-                                                                  req);
+            DPRINTF(SDCPUForwarder,"Store (seq %d) needs to calculate "
+                                   "effective address.\n",
+                                   st_inst_ptr->seqNum());
+            if (!ctrl_blk)
+                ctrl_blk = make_shared<LoadDepCtrlBlk>(inst_ptr, req);
 
             ++ctrl_blk->remaining_unknowns;
 
             st_inst_ptr->addEffAddrCalculatedCallback(
                 [this, ctrl_blk, youngest_older_store_itr, st_inst_ptr,
                  callback] {
-                    shared_ptr<InflightInst> load_inst_ptr =
+                    shared_ptr<InflightInst> ld_inst_ptr =
                         ctrl_blk->load_inst.lock();
 
-                    if (!load_inst_ptr || load_inst_ptr->isSquashed()) return;
+                    if (!ld_inst_ptr || ld_inst_ptr->isSquashed()) return;
 
                     --ctrl_blk->remaining_unknowns;
 
@@ -167,19 +328,35 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                         // forwarding checking purposes, since it regardless of
                         // overlap, its effects are hidden by the later
                         // overlapping store, so we can return now.
+                        DPRINTF(SDCPUForwarder, "Future store overlaps, store "
+                                "(seq %d) cannot influence load (seq %d).\n",
+                                st_inst_ptr->seqNum(),
+                                ld_inst_ptr->seqNum());
                         return;
                     }
 
                     // Check if newly calculated effective address overlaps.
-                    if (st_inst_ptr->effAddrOverlap(*load_inst_ptr)) {
+                    if (st_inst_ptr->effAddrOverlap(*ld_inst_ptr)) {
                         const bool superset =
-                            st_inst_ptr->effPAddrSuperset(*load_inst_ptr);
+                            st_inst_ptr->effPAddrSuperset(*ld_inst_ptr);
 
                         // Any previous value for this variable must be older
                         // or not yet calculated, otherwise would have returned
                         // early above.
+                        DPRINTF(SDCPUForwarder, "Prospective latest st->ld "
+                                "overlap (seq %d -> seq %d), %s superset\n",
+                                st_inst_ptr->seqNum(),
+                                ld_inst_ptr->seqNum(),
+                                superset ? "is" : "not");
+
                         ctrl_blk->latest_overlapping_store = st_inst_ptr;
                         ctrl_blk->is_superset = superset;
+
+                        st_inst_ptr->addRetireCallback([ctrl_blk, st_inst_ptr]{
+                            if (ctrl_blk->latest_overlapping_store
+                             == st_inst_ptr)
+                                ctrl_blk->latest_overlapping_store = nullptr;
+                        });
                     }
 
                     if (!ctrl_blk->remaining_unknowns
@@ -188,6 +365,9 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                         // No further possible unknown stores can forward,
                         // so we don't bother doing any iteration, and can
                         // notify the callback thus.
+                        DPRINTF(SDCPUForwarder, "Load (seq %d) cannot be "
+                                                "forwarded.\n",
+                                                ld_inst_ptr->seqNum());
                         callback(nullptr);
                         return;
                     }
@@ -196,15 +376,30 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                     // encountered any stores enforcing order, then not enough
                     // information is available yet to determine if forwarding
                     // is possible. So we return and let the next event check.
-                    if (!ctrl_blk->latest_overlapping_store) return;
+                    if (!ctrl_blk->latest_overlapping_store) {
+                        DPRINTF(SDCPUForwarder, "Unknowns remain for load "
+                                "(seq %d) and no overlaps known, not "
+                                "forwarding.\n",
+                                ld_inst_ptr->seqNum());
+                        return;
+                    }
 
                     // NOTE Since outer loop uses reverse iterator, ++itr goes
                     //      in the direction of younger to older instruction.
                     auto itr = youngest_older_store_itr;
-                    while (itr->inst != ctrl_blk->latest_overlapping_store) {
+                    // Offset it back one to undo the offset by one before.
+                    --itr;
+                    while (*itr != ctrl_blk->latest_overlapping_store) {
                         // If we see an unknown, we don't know if it might
                         // overlap, and should let that event handle it.
-                        if (!itr->inst->isEffAddred()) return;
+                        if (!(*itr)->isEffAddred()) {
+                            DPRINTF(SDCPUForwarder, "Unknown (seq %d) remains "
+                                    "for load (seq %d) between latest overlap "
+                                    "and load, not forwarding.\n",
+                                    (*itr)->seqNum(),
+                                    ld_inst_ptr->seqNum());
+                            return;
+                        }
 
                         ++itr;
                     }
@@ -213,6 +408,9 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                     // overlapping but not a superset, we can't forward, and
                     // should inform the caller thus.
                     if (!ctrl_blk->is_superset) {
+                        DPRINTF(SDCPUForwarder, "Load (seq %d) cannot be "
+                                                "forwarded.\n",
+                                                ld_inst_ptr->seqNum());
                         callback(nullptr);
                         return;
                     }
@@ -220,9 +418,18 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                     // Otherwise we finally know for certain that the forward
                     // is possible, and have the information to do it, so we
                     // do it here.
-                    PacketPtr& srcPkt = itr->pkt;
-                    doForward(srcPkt, ctrl_blk->req, callback);
+                    // NOTE If the at() call fails, it means no packet was
+                    //      registered for the store.
+                    DPRINTF(SDCPUForwarder, "Load (seq %d) can be forwarded"
+                        "from store (seq %d).\n",
+                        ld_inst_ptr->seqNum(),
+                        ctrl_blk->latest_overlapping_store->seqNum());
+                    doForward(dataMap.at(ctrl_blk->latest_overlapping_store),
+                              ctrl_blk->req,
+                              callback);
             });
+
+            continue;
         }
 
         // If the memory access is unrelated, we keep searching.
@@ -238,45 +445,52 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
             // provide the complete data for forwarding, then we cannot
             // forward.
             if (!superset) {
+                DPRINTF(SDCPUForwarder, "Load (seq %d) cannot be forwarded.\n",
+                                        inst_ptr->seqNum());
                 callback(nullptr);
                 return;
             }
 
-            PacketPtr pkt_to_provide = Packet::createRead(req);
-
-            // We assume requests will not span page boundaries, so accessed
-            // physical addresses should be contiguous.
-
-            PacketPtr& srcPkt = itr->pkt;
-
-            // NOTE If we implement stldforward latency, we have to replace
-            //      this with a separate allocation and data copy. This code
-            //      means that the lifespan of the forwarded packet is
-            //      implicitly tied to the lifespan of the source packet.
-            pkt_to_provide->dataStatic(srcPkt->getPtr<uint8_t>()
-                + (pkt_to_provide->getAddr() - srcPkt->getAddr()));
-
-            // TODO accomplish the forward.
-            if (stldForwardLatency == 0) {
-                callback(pkt_to_provide);
-                delete pkt_to_provide;
-            } else {
-                // TODO schedule an event to perform the callback.
-                panic("Non-zero stldForwardLatency not yet implemented!");
-            }
+            // NOTE If the at() call fails, it means no packet was registered
+            //      for the store.
+            DPRINTF(SDCPUForwarder, "Load (seq %d) can be forwarded from "
+                                    "store (seq %d).\n",
+                                    inst_ptr->seqNum(),
+                                    st_inst_ptr->seqNum());
+            doForward(dataMap.at(st_inst_ptr), req, callback);
 
             return;
         } // End early resolution case
 
         if (!ctrl_blk->latest_overlapping_store) {
+            DPRINTF(SDCPUForwarder, "Prospective latest st->ld overlap "
+                    "(seq %d -> seq %d), %s superset\n", st_inst_ptr->seqNum(),
+                    inst_ptr->seqNum(), superset ? "is" : "not");
             ctrl_blk->latest_overlapping_store = st_inst_ptr;
             ctrl_blk->is_superset = superset;
+
+            st_inst_ptr->addRetireCallback([ctrl_blk, st_inst_ptr]{
+                if (ctrl_blk->latest_overlapping_store
+                    == st_inst_ptr)
+                    ctrl_blk->latest_overlapping_store = nullptr;
+            });
         }
+
+        // No need to look older than a found overlap.
+        break;
     } // END for
 
     // If no unknowns were encountered and we didn't see any overlaps, then we
     // have nothing to forward, and should notify the caller thus.
-    if (!ctrl_blk) callback(nullptr);
+    if (!ctrl_blk) {
+        DPRINTF(SDCPUForwarder, "Load (seq %d) cannot be forwarded.\n",
+                                inst_ptr->seqNum());
+        callback(nullptr);
+        return;
+    }
+
+    DPRINTF(SDCPUForwarder, "Awaiting some prior stores' address calculation."
+                            "\n");
 
     // TODO Implement different behavior for different memory models.
     // TODO start with most conservative approach, just stall all requests we

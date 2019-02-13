@@ -33,44 +33,47 @@
 
 #include <list>
 #include <memory>
+#include <unordered_map>
 
 #include "base/types.hh"
 #include "cpu/flexcpu/inflight_inst.hh"
 
 class StLdForwarder {
   protected:
-    struct StoreEntry {
-      InflightInst* inst;
-      PacketPtr pkt = nullptr;
-      StoreEntry(InflightInst* inst): inst(inst)
-      { }
-
-      ~StoreEntry()
-      {
-          if (pkt) delete pkt;
-      }
+    struct DataEntry {
+        std::shared_ptr<uint8_t> data;
+        Addr base;
     };
+
+    /**
+     * We store a name so name() can be called by tracing functions.
+     */
+    std::string _name;
 
     /**
      * Sorted (by sequence) series of store instructions waiting to be sent to
      * memory.
      */
-    std::list<StoreEntry> storeBuffer;
+    std::list<InflightInst*> storeBuffer;
+    std::unordered_map<InflightInst*, DataEntry> dataMap;
 
     unsigned storeBufferSize; // TODO
     Cycles stldForwardLatency; // TODO
     unsigned stldForwardBandwidth; // TODO
 
-    void doForward(const PacketPtr src_pkt, const RequestPtr& req,
+    void doForward(const DataEntry& src, const RequestPtr& req,
                    const std::function<void(PacketPtr)>& callback);
   public:
     /**
      * Constructor
      */
-    StLdForwarder(unsigned store_buffer_size,
+    StLdForwarder(std::string name, unsigned store_buffer_size,
                   Cycles stld_forward_delay, unsigned stld_forward_bandwidth);
 
     virtual ~StLdForwarder() {}
+
+    void associateData(InflightInst* st_inst_ptr,
+                       std::shared_ptr<uint8_t> data, Addr base);
 
     /**
      * Let the forwarder know that a store should be committed, and necessary
@@ -84,6 +87,35 @@ class StLdForwarder {
     void commitStore();
 
     /**
+     * Accessor for the name field. Added for use with tracing.
+     *
+     * @return The name of the StLdForwarder.
+     */
+    const std::string& name() const
+    { return _name; }
+
+    /**
+     * Use the store buffer data to populate the data dependencies through
+     * memory for a load, absent forwarding. Should be called only after the
+     * load has had its effective address calculated.
+     *
+     * @param inst_ptr A reference to the load instruction for which to
+     *                 populate dependencies.
+     */
+    void populateMemDependencies(
+        const std::shared_ptr<InflightInst>& inst_ptr);
+
+    /**
+     * Let the forwarder know about a memory barrier instruction. This should
+     * be done as soon as the barrier is decoded and identified. This allows
+     * searches through the store buffer to be shortened, since the barrier
+     * will impose stricter restrictions than older stores.
+     *
+     * @param inst_ptr The barrier to inform the forwarder about.
+     */
+    void registerMemBarrier(InflightInst* inst_ptr);
+
+    /**
      * Let the forwarder know about a store instruction. This should be done as
      * soon as the store is decoded and identified. This allows callbacks to be
      * attached so that any subsequent loads can have data forwarded as soon as
@@ -91,7 +123,7 @@ class StLdForwarder {
      *
      * @param inst_ptr The store to inform the forwarder about.
      */
-    PacketPtr& registerStore(InflightInst* inst_ptr);
+    void registerStore(InflightInst* inst_ptr);
 
     /**
      * Request data for a load instruction. If a store has data for the load,

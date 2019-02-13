@@ -216,6 +216,12 @@ InflightInst::addReadyCallback(function<void()> callback)
 }
 
 void
+InflightInst::addRetireCallback(function<void()> callback)
+{
+    retireCallbacks.push_back(callback);
+}
+
+void
 InflightInst::addSquashCallback(function<void()> callback)
 {
     squashCallbacks.push_back(move(callback));
@@ -311,10 +317,15 @@ InflightInst::effPAddrSuperset(const InflightInst& other) const
 void
 InflightInst::notifyCommitted()
 {
+    assert(!isSquashed());
+
     _timingRecord.commitTick = curTick();
     status(Committed);
 
     for (function<void()>& callback_func : commitCallbacks) {
+        callback_func();
+    }
+    for (function<void()>& callback_func : retireCallbacks) {
         callback_func();
     }
 }
@@ -394,10 +405,15 @@ InflightInst::notifySquashed()
 {
     if (isSquashed()) return;
 
+    assert(!isCommitted());
+
     _timingRecord.squashTick = curTick();
     _squashed = true;
 
     for (function<void()>& callback_func : squashCallbacks) {
+        callback_func();
+    }
+    for (function<void()>& callback_func : retireCallbacks) {
         callback_func();
     }
 }

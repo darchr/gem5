@@ -40,6 +40,7 @@
 #include "cpu/flexcpu/generic_reg.hh"
 #include "cpu/flexcpu/inflight_inst.hh"
 #include "cpu/flexcpu/simple_dataflow_cpu.hh"
+#include "cpu/flexcpu/stld_forwarder.hh"
 #include "cpu/inst_seq.hh"
 #include "cpu/pred/bpred_unit.hh"
 #include "cpu/reg_class.hh"
@@ -263,6 +264,11 @@ class SDCPUThread : public ThreadContext
      * maximum branch prediction depth constraint.
      */
     std::weak_ptr<InflightInst> unpredictedBranch;
+
+    /**
+     * A forwarding unit for forwarding memory requests, if possible.
+     */
+    StLdForwarder forwarder;
 
 
     // END Speculative state
