@@ -320,7 +320,7 @@ class CheckerCPU : public BaseCPU, public ExecContext
         return thread->getWritableVecPredReg(reg);
     }
 
-    CCReg
+    RegVal
     readCCRegOperand(const StaticInst *si, int idx) override
     {
         const RegId& reg = si->srcRegIdx(idx);
@@ -379,7 +379,7 @@ class CheckerCPU : public BaseCPU, public ExecContext
     }
 
     void
-    setCCRegOperand(const StaticInst *si, int idx, CCReg val) override
+    setCCRegOperand(const StaticInst *si, int idx, RegVal val) override
     {
         const RegId& reg = si->destRegIdx(idx);
         assert(reg.isCCReg());
@@ -536,8 +536,15 @@ class CheckerCPU : public BaseCPU, public ExecContext
 
     Fault readMem(Addr addr, uint8_t *data, unsigned size,
                   Request::Flags flags) override;
+
     Fault writeMem(uint8_t *data, unsigned size, Addr addr,
                    Request::Flags flags, uint64_t *res) override;
+
+    Fault amoMem(Addr addr, uint8_t* data, unsigned size,
+                 Request::Flags flags, AtomicOpFunctor *amo_op) override
+    {
+        panic("AMO is not supported yet in CPU checker\n");
+    }
 
     unsigned int
     readStCondFailures() const override {

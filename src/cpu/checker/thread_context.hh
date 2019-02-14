@@ -98,7 +98,7 @@ class CheckerThreadContext : public ThreadContext
 
     ContextID contextId() const override { return actualTC->contextId(); }
 
-    void setContextId(ContextID id) override
+    void setContextId(ContextID id)override
     {
        actualTC->setContextId(id);
        checkerTC->setContextId(id);
@@ -116,17 +116,18 @@ class CheckerThreadContext : public ThreadContext
 
     BaseTLB *getDTBPtr() override { return actualTC->getDTBPtr(); }
 
-    CheckerCPU *getCheckerCpuPtr() override
+    CheckerCPU *getCheckerCpuPtr()override
     {
         return checkerCPU;
     }
 
-    TheISA::Decoder *getDecoderPtr() override 
-    { return actualTC->getDecoderPtr(); }
+    TheISA::Decoder *getDecoderPtr() override {
+        return actualTC->getDecoderPtr();
+    }
 
     System *getSystemPtr() override { return actualTC->getSystemPtr(); }
 
-    TheISA::Kernel::Statistics *getKernelStats() override
+    TheISA::Kernel::Statistics *getKernelStats()override
     { return actualTC->getKernelStats(); }
 
     Process *getProcessPtr() override { return actualTC->getProcessPtr(); }
@@ -146,11 +147,12 @@ class CheckerThreadContext : public ThreadContext
         actualTC->connectMemPorts(tc);
     }
 
-    SETranslatingPortProxy &getMemProxy() override 
-    { return actualTC->getMemProxy(); }
+    SETranslatingPortProxy &getMemProxy() override {
+        return actualTC->getMemProxy();
+    }
 
     /** Executes a syscall in SE mode. */
-    void syscall(int64_t callnum, Fault *fault) override
+    void syscall(int64_t callnum, Fault *fault)override
     { return actualTC->syscall(callnum, fault); }
 
     Status status() const override { return actualTC->status(); }
@@ -165,12 +167,12 @@ class CheckerThreadContext : public ThreadContext
     void activate() override { actualTC->activate(); }
 
     /// Set the status to Suspended.
-    void suspend() override { actualTC->suspend(); }
+    void suspend() override{ actualTC->suspend(); }
 
     /// Set the status to Halted.
-    void halt() override { actualTC->halt(); }
+    void halt() override{ actualTC->halt(); }
 
-    void dumpFuncProfile() override { actualTC->dumpFuncProfile(); }
+    void dumpFuncProfile()  override{ actualTC->dumpFuncProfile(); }
 
     void takeOverFrom(ThreadContext *oldContext) override
     {
@@ -184,14 +186,15 @@ class CheckerThreadContext : public ThreadContext
         checkerTC->regStats(name);
     }
 
-    EndQuiesceEvent *getQuiesceEvent() override 
-    { return actualTC->getQuiesceEvent(); }
+    EndQuiesceEvent *getQuiesceEvent() override {
+        return actualTC->getQuiesceEvent();
+    }
 
-    Tick readLastActivate() override { return actualTC->readLastActivate(); }
-    Tick readLastSuspend() override { return actualTC->readLastSuspend(); }
+    Tick readLastActivate()  override{ return actualTC->readLastActivate(); }
+    Tick readLastSuspend()  override{ return actualTC->readLastSuspend(); }
 
-    void profileClear() override { return actualTC->profileClear(); }
-    void profileSample() override { return actualTC->profileSample(); }
+    void profileClear()  override{ return actualTC->profileClear(); }
+    void profileSample()  override{ return actualTC->profileSample(); }
 
     // @todo: Do I need this?
     void copyArchRegs(ThreadContext *tc) override
@@ -209,8 +212,9 @@ class CheckerThreadContext : public ThreadContext
     //
     // New accessors for new decoder.
     //
-    RegVal readIntReg(int reg_idx) override 
-    { return actualTC->readIntReg(reg_idx); }
+    RegVal readIntReg(int reg_idx) override {
+        return actualTC->readIntReg(reg_idx);
+    }
 
     RegVal
     readFloatReg(int reg_idx) override
@@ -218,13 +222,13 @@ class CheckerThreadContext : public ThreadContext
         return actualTC->readFloatReg(reg_idx);
     }
 
-    const VecRegContainer& readVecReg(const RegId& reg) const override
+    const VecRegContainer& readVecReg (const RegId& reg) const override
     { return actualTC->readVecReg(reg); }
 
     /**
      * Read vector register for modification, hierarchical indexing.
      */
-    VecRegContainer& getWritableVecReg(const RegId& reg) override
+    VecRegContainer& getWritableVecReg (const RegId& reg) override
     { return actualTC->getWritableVecReg(reg); }
 
     /** Vector Register Lane Interfaces. */
@@ -273,7 +277,7 @@ class CheckerThreadContext : public ThreadContext
     VecPredRegContainer& getWritableVecPredReg(const RegId& reg) override
     { return actualTC->getWritableVecPredReg(reg); }
 
-    CCReg readCCReg(int reg_idx) override
+    RegVal readCCReg(int reg_idx) override
     { return actualTC->readCCReg(reg_idx); }
 
     void
@@ -312,7 +316,7 @@ class CheckerThreadContext : public ThreadContext
     }
 
     void
-    setCCReg(int reg_idx, CCReg val) override
+    setCCReg(int reg_idx, RegVal val) override
     {
         actualTC->setCCReg(reg_idx, val);
         checkerTC->setCCReg(reg_idx, val);
@@ -399,8 +403,9 @@ class CheckerThreadContext : public ThreadContext
 
     Counter readFuncExeInst() override { return actualTC->readFuncExeInst(); }
 
-    RegVal readIntRegFlat(int idx) override
-    { return actualTC->readIntRegFlat(idx); }
+    RegVal readIntRegFlat(int idx) override {
+        return actualTC->readIntRegFlat(idx);
+    }
 
     void
     setIntRegFlat(int idx, RegVal val) override
@@ -455,10 +460,10 @@ class CheckerThreadContext : public ThreadContext
     void setVecPredRegFlat(int idx, const VecPredRegContainer& val) override
     { actualTC->setVecPredRegFlat(idx, val); }
 
-    CCReg readCCRegFlat(int idx) override
+    RegVal readCCRegFlat(int idx) override
     { return actualTC->readCCRegFlat(idx); }
 
-    void setCCRegFlat(int idx, CCReg val) override
+    void setCCRegFlat(int idx, RegVal val) override
     { actualTC->setCCRegFlat(idx, val); }
 };
 

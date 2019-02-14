@@ -128,11 +128,18 @@ O3ThreadContext<Impl>::halt()
 {
     DPRINTF(O3CPU, "Calling halt on Thread Context %d\n", threadId());
 
-    if (thread->status() == ThreadContext::Halted)
+    if (thread->status() == ThreadContext::Halting ||
+        thread->status() == ThreadContext::Halted)
         return;
 
-    thread->setStatus(ThreadContext::Halted);
-    cpu->haltContext(thread->threadId());
+    // the thread is not going to halt/terminate immediately in this cycle.
+    // The thread will be removed after an exit trap is processed
+    // (e.g., after trapLatency cycles). Until then, the thread's status
+    // will be Halting.
+    thread->setStatus(ThreadContext::Halting);
+
+    // add this thread to the exiting list to mark that it is trying to exit.
+    cpu->addThreadToExitingList(thread->threadId());
 }
 
 template <class Impl>
@@ -247,7 +254,7 @@ O3ThreadContext<Impl>::getWritableVecPredRegFlat(int reg_id)
 }
 
 template <class Impl>
-TheISA::CCReg
+RegVal
 O3ThreadContext<Impl>::readCCRegFlat(int reg_idx)
 {
     return cpu->readArchCCReg(reg_idx, thread->threadId());
@@ -301,7 +308,7 @@ O3ThreadContext<Impl>::setVecPredRegFlat(int reg_idx,
 
 template <class Impl>
 void
-O3ThreadContext<Impl>::setCCRegFlat(int reg_idx, TheISA::CCReg val)
+O3ThreadContext<Impl>::setCCRegFlat(int reg_idx, RegVal val)
 {
     cpu->setArchCCReg(reg_idx, val, thread->threadId());
 

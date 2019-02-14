@@ -101,14 +101,15 @@ class O3ThreadContext : public ThreadContext
     /** Reads this CPU's Socket ID. */
     virtual uint32_t socketId() const override { return cpu->socketId(); }
 
-    virtual ContextID contextId() const override 
-    { return thread->contextId(); }
+    virtual ContextID
+    contextId() const override { return thread->contextId(); }
 
     virtual void setContextId(int id) override { thread->setContextId(id); }
 
     /** Returns this thread's ID number. */
-    virtual int threadId() const override { return thread->threadId(); }
-    virtual void setThreadId(int id) override 
+    virtual int threadId() const override
+    { return thread->threadId(); }
+    virtual void setThreadId(int id) override
     { return thread->setThreadId(id); }
 
     /** Returns a pointer to the system. */
@@ -119,13 +120,13 @@ class O3ThreadContext : public ThreadContext
     { return thread->kernelStats; }
 
     /** Returns a pointer to this thread's process. */
-    virtual Process *getProcessPtr() override 
+    virtual Process *getProcessPtr() override
     { return thread->getProcessPtr(); }
 
     virtual void setProcessPtr(Process *p) override
     { thread->setProcessPtr(p); }
 
-    virtual PortProxy &getPhysProxy() override 
+    virtual PortProxy &getPhysProxy() override
     { return thread->getPhysProxy(); }
 
     virtual FSTranslatingPortProxy &getVirtProxy() override;
@@ -268,17 +269,19 @@ class O3ThreadContext : public ThreadContext
         return readVecElemFlat(flattenRegId(reg).index(), reg.elemIndex());
     }
 
-    virtual const VecPredRegContainer& 
+    virtual const VecPredRegContainer&
     readVecPredReg(const RegId& id) const override {
         return readVecPredRegFlat(flattenRegId(id).index());
     }
 
-    virtual VecPredRegContainer& 
+    virtual VecPredRegContainer&
     getWritableVecPredReg(const RegId& id) override {
         return getWritableVecPredRegFlat(flattenRegId(id).index());
     }
 
-    virtual CCReg readCCReg(int reg_idx) override {
+    virtual RegVal
+    readCCReg(int reg_idx) override
+    {
         return readCCRegFlat(flattenRegId(RegId(CCRegClass,
                                                  reg_idx)).index());
     }
@@ -317,7 +320,7 @@ class O3ThreadContext : public ThreadContext
     }
 
     virtual void
-    setCCReg(int reg_idx, CCReg val) override
+    setCCReg(int reg_idx, RegVal val) override
     {
         setCCRegFlat(flattenRegId(RegId(CCRegClass, reg_idx)).index(), val);
     }
@@ -420,11 +423,12 @@ class O3ThreadContext : public ThreadContext
         cpu->template setArchVecLane(idx, lId, thread->threadId(), val);
     }
 
-    virtual const VecElem& readVecElemFlat(const RegIndex& idx,
-                                           const ElemIndex& elemIndex) 
-        const override;
-    virtual void setVecElemFlat(const RegIndex& idx, const ElemIndex& elemIdx,
-                                const VecElem& val) override;
+    virtual const VecElem& readVecElemFlat(
+        const RegIndex& idx,
+        const ElemIndex& elemIndex) const override;
+    virtual void setVecElemFlat(
+        const RegIndex& idx,
+        const ElemIndex& elemIdx, const VecElem& val) override;
 
     virtual const VecPredRegContainer& readVecPredRegFlat(int idx)
         const override;
@@ -432,8 +436,8 @@ class O3ThreadContext : public ThreadContext
     virtual void setVecPredRegFlat(int idx,
                                    const VecPredRegContainer& val) override;
 
-    virtual CCReg readCCRegFlat(int idx) override;
-    virtual void setCCRegFlat(int idx, CCReg val) override;
+    virtual RegVal readCCRegFlat(int idx) override;
+    virtual void setCCRegFlat(int idx, RegVal val) override;
 };
 
 #endif

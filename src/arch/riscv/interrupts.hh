@@ -74,7 +74,7 @@ class Interrupts : public SimObject
     std::bitset<NumInterruptTypes>
     globalMask(ThreadContext *tc) const
     {
-        INTERRUPT mask;
+        INTERRUPT mask = 0;
         STATUS status = tc->readMiscReg(MISCREG_STATUS);
         if (status.mie)
             mask.mei = mask.mti = mask.msi = 1;
@@ -125,13 +125,13 @@ class Interrupts : public SimObject
         ip = 0;
     }
 
-    MiscReg readIP() const { return (MiscReg)ip.to_ulong(); }
-    MiscReg readIE() const { return (MiscReg)ie.to_ulong(); }
-    void setIP(const MiscReg& val) { ip = val; }
-    void setIE(const MiscReg& val) { ie = val; }
+    uint64_t readIP() const { return (uint64_t)ip.to_ulong(); }
+    uint64_t readIE() const { return (uint64_t)ie.to_ulong(); }
+    void setIP(const uint64_t& val) { ip = val; }
+    void setIE(const uint64_t& val) { ie = val; }
 
     void
-    serialize(CheckpointOut &cp)
+    serialize(CheckpointOut &cp) const
     {
         SERIALIZE_SCALAR(ip.to_ulong());
         SERIALIZE_SCALAR(ie.to_ulong());

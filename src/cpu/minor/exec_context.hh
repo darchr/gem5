@@ -108,7 +108,7 @@ class ExecContext : public ::ExecContext
                     Request::Flags flags) override
     {
         execute.getLSQ().pushRequest(inst, true /* load */, nullptr,
-            size, addr, flags, NULL);
+            size, addr, flags, NULL, nullptr);
         return NoFault;
     }
 
@@ -117,7 +117,17 @@ class ExecContext : public ::ExecContext
              Request::Flags flags, uint64_t *res) override
     {
         execute.getLSQ().pushRequest(inst, false /* store */, data,
-            size, addr, flags, res);
+            size, addr, flags, res, nullptr);
+        return NoFault;
+    }
+
+    Fault
+    initiateMemAMO(Addr addr, unsigned int size, Request::Flags flags,
+                   AtomicOpFunctor *amo_op) override
+    {
+        // AMO requests are pushed through the store path
+        execute.getLSQ().pushRequest(inst, false /* amo */, nullptr,
+            size, addr, flags, nullptr, amo_op);
         return NoFault;
     }
 
@@ -204,7 +214,7 @@ class ExecContext : public ::ExecContext
 
     void
     setVecPredRegOperand(const StaticInst *si, int idx,
-                         const TheISA::VecPredRegContainer& val)
+                         const TheISA::VecPredRegContainer& val) override
     {
         const RegId& reg = si->destRegIdx(idx);
         assert(reg.isVecPredReg());
@@ -401,7 +411,7 @@ class ExecContext : public ::ExecContext
         thread.getDTBPtr()->demapPage(vaddr, asn);
     }
 
-    TheISA::CCReg
+    RegVal
     readCCRegOperand(const StaticInst *si, int idx) override
     {
         const RegId& reg = si->srcRegIdx(idx);
@@ -410,7 +420,7 @@ class ExecContext : public ::ExecContext
     }
 
     void
-    setCCRegOperand(const StaticInst *si, int idx, TheISA::CCReg val) override
+    setCCRegOperand(const StaticInst *si, int idx, RegVal val) override
     {
         const RegId& reg = si->destRegIdx(idx);
         assert(reg.isCCReg());

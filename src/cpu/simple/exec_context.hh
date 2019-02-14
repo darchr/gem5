@@ -60,7 +60,6 @@ class BaseSimpleCPU;
 
 class SimpleExecContext : public ExecContext {
   protected:
-    typedef TheISA::CCReg CCReg;
     using VecRegContainer = TheISA::VecRegContainer;
     using VecElem = TheISA::VecElem;
 
@@ -365,7 +364,7 @@ class SimpleExecContext : public ExecContext {
         thread->setVecPredReg(reg, val);
     }
 
-    CCReg
+    RegVal
     readCCRegOperand(const StaticInst *si, int idx) override
     {
         numCCRegReads++;
@@ -375,7 +374,7 @@ class SimpleExecContext : public ExecContext {
     }
 
     void
-    setCCRegOperand(const StaticInst *si, int idx, CCReg val) override
+    setCCRegOperand(const StaticInst *si, int idx, RegVal val) override
     {
         numCCRegWrites++;
         const RegId& reg = si->destRegIdx(idx);
@@ -455,6 +454,19 @@ class SimpleExecContext : public ExecContext {
              Request::Flags flags, uint64_t *res) override
     {
         return cpu->writeMem(data, size, addr, flags, res);
+    }
+
+    Fault amoMem(Addr addr, uint8_t *data, unsigned int size,
+                 Request::Flags flags, AtomicOpFunctor *amo_op) override
+    {
+        return cpu->amoMem(addr, data, size, flags, amo_op);
+    }
+
+    Fault initiateMemAMO(Addr addr, unsigned int size,
+                         Request::Flags flags,
+                         AtomicOpFunctor *amo_op) override
+    {
+        return cpu->initiateMemAMO(addr, size, flags, amo_op);
     }
 
     /**

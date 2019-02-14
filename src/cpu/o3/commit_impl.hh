@@ -208,6 +208,13 @@ DefaultCommit<Impl>::regStats()
         .flags(total)
         ;
 
+    statComAmos
+        .init(cpu->numThreads)
+        .name(name() +  ".amos")
+        .desc("Number of atomic instructions committed")
+        .flags(total)
+        ;
+
     statComMembars
         .init(cpu->numThreads)
         .name(name() +  ".membars")
@@ -362,6 +369,22 @@ DefaultCommit<Impl>::startupStage()
     cpu->activateStage(O3CPU::CommitIdx);
 
     cpu->activityThisCycle();
+}
+
+template <class Impl>
+void
+DefaultCommit<Impl>::clearStates(ThreadID tid)
+{
+    commitStatus[tid] = Idle;
+    changedROBNumEntries[tid] = false;
+    checkEmptyROB[tid] = false;
+    trapInFlight[tid] = false;
+    committedStores[tid] = false;
+    trapSquash[tid] = false;
+    tcSquash[tid] = false;
+    pc[tid].set(0);
+    lastCommitedSeqNum[tid] = 0;
+    squashAfterInst[tid] = NULL;
 }
 
 template <class Impl>
@@ -813,6 +836,13 @@ DefaultCommit<Impl>::commit()
         if (trapSquash[tid]) {
             assert(!tcSquash[tid]);
             squashFromTrap(tid);
+
+            // If the thread is trying to exit (i.e., an exit syscall was
+            // executed), this trapSquash was originated by the exit
+            // syscall earlier. In this case, schedule an exit event in
+            // the next cycle to fully terminate this thread
+            if (cpu->isThreadExiting(tid))
+                cpu->scheduleThreadExitEvent(tid);
         } else if (tcSquash[tid]) {
             assert(commitStatus[tid] != TrapPending);
             squashFromTC(tid);
@@ -1135,8 +1165,9 @@ DefaultCommit<Impl>::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         // Make sure we are only trying to commit un-executed instructions we
         // think are possible.
         assert(head_inst->isNonSpeculative() || head_inst->isStoreConditional()
-               || head_inst->isMemBarrier() || head_inst->isWriteBarrier() ||
-               (head_inst->isLoad() && head_inst->strictlyOrdered()));
+               || head_inst->isMemBarrier() || head_inst->isWriteBarrier()
+               || head_inst->isAtomic()
+               || (head_inst->isLoad() && head_inst->strictlyOrdered()));
 
         DPRINTF(Commit, "Encountered a barrier or non-speculative "
                 "instruction [sn:%lli] at the head of the ROB, PC %s.\n",
@@ -1283,7 +1314,7 @@ DefaultCommit<Impl>::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
 #endif
 
     // If this was a store, record it for this cycle.
-    if (head_inst->isStore())
+    if (head_inst->isStore() || head_inst->isAtomic())
         committedStores[tid] = true;
 
     // Return true to indicate that we have committed an instruction.
@@ -1375,6 +1406,10 @@ DefaultCommit<Impl>::updateComInstStats(const DynInstPtr &inst)
 
         if (inst->isLoad()) {
             statComLoads[tid]++;
+        }
+
+        if (inst->isAtomic()) {
+            statComAmos[tid]++;
         }
     }
 
