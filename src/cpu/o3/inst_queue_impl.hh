@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014 ARM Limited
+ * Copyright (c) 2011-2014, 2017-2018 ARM Limited
  * Copyright (c) 2013 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
@@ -90,6 +90,7 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
     : cpu(cpu_ptr),
       iewStage(iew_ptr),
       fuPool(params->fuPool),
+      iqPolicy(params->smtIQPolicy),
       numEntries(params->numIQEntries),
       totalWidth(params->issueWidth),
       commitToIEWDelay(params->commitToIEWDelay)
@@ -103,6 +104,7 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
     numPhysRegs = params->numPhysIntRegs + params->numPhysFloatRegs +
                     params->numPhysVecRegs +
                     params->numPhysVecRegs * TheISA::NumVecElemPerVecReg +
+                    params->numPhysVecPredRegs +
                     params->numPhysCCRegs;
 
     //Create an entry for each physical register within the
@@ -120,24 +122,14 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
 
     resetState();
 
-    std::string policy = params->smtIQPolicy;
-
-    //Convert string to lowercase
-    std::transform(policy.begin(), policy.end(), policy.begin(),
-                   (int(*)(int)) tolower);
-
     //Figure out resource sharing policy
-    if (policy == "dynamic") {
-        iqPolicy = Dynamic;
-
+    if (iqPolicy == SMTQueuePolicy::Dynamic) {
         //Set Max Entries to Total ROB Capacity
         for (ThreadID tid = 0; tid < numThreads; tid++) {
             maxEntries[tid] = numEntries;
         }
 
-    } else if (policy == "partitioned") {
-        iqPolicy = Partitioned;
-
+    } else if (iqPolicy == SMTQueuePolicy::Partitioned) {
         //@todo:make work if part_amt doesnt divide evenly.
         int part_amt = numEntries / numThreads;
 
@@ -148,9 +140,7 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
 
         DPRINTF(IQ, "IQ sharing policy set to Partitioned:"
                 "%i entries per thread.\n",part_amt);
-    } else if (policy == "threshold") {
-        iqPolicy = Threshold;
-
+    } else if (iqPolicy == SMTQueuePolicy::Threshold) {
         double threshold =  (double)params->smtIQThreshold / 100;
 
         int thresholdIQ = (int)((double)threshold * numEntries);
@@ -162,9 +152,6 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
 
         DPRINTF(IQ, "IQ sharing policy set to Threshold:"
                 "%i entries per thread.\n",thresholdIQ);
-   } else {
-       panic("Invalid IQ sharing policy. Options are: Dynamic, "
-              "Partitioned, Threshold");
    }
     for (ThreadID tid = numThreads; tid < Impl::MaxThreads; tid++) {
         maxEntries[tid] = 0;
@@ -502,7 +489,7 @@ template <class Impl>
 int
 InstructionQueue<Impl>::entryAmount(ThreadID num_threads)
 {
-    if (iqPolicy == Partitioned) {
+    if (iqPolicy == SMTQueuePolicy::Partitioned) {
         return numEntries / num_threads;
     } else {
         return 0;
@@ -514,7 +501,7 @@ template <class Impl>
 void
 InstructionQueue<Impl>::resetEntries()
 {
-    if (iqPolicy != Dynamic || numThreads > 1) {
+    if (iqPolicy != SMTQueuePolicy::Dynamic || numThreads > 1) {
         int active_threads = activeThreads->size();
 
         list<ThreadID>::iterator threads = activeThreads->begin();
@@ -523,9 +510,10 @@ InstructionQueue<Impl>::resetEntries()
         while (threads != end) {
             ThreadID tid = *threads++;
 
-            if (iqPolicy == Partitioned) {
+            if (iqPolicy == SMTQueuePolicy::Partitioned) {
                 maxEntries[tid] = numEntries / active_threads;
-            } else if (iqPolicy == Threshold && active_threads == 1) {
+            } else if (iqPolicy == SMTQueuePolicy::Threshold &&
+                       active_threads == 1) {
                 maxEntries[tid] = numEntries;
             }
         }
@@ -1153,9 +1141,6 @@ template <class Impl>
 void
 InstructionQueue<Impl>::blockMemInst(const DynInstPtr &blocked_inst)
 {
-    blocked_inst->translationStarted(false);
-    blocked_inst->translationCompleted(false);
-
     blocked_inst->clearIssued();
     blocked_inst->clearCanIssue();
     blockedMemInsts.push_back(blocked_inst);
@@ -1266,13 +1251,15 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
 
             bool is_acq_rel = squashed_inst->isMemBarrier() &&
                          (squashed_inst->isLoad() ||
-                           (squashed_inst->isStore() &&
+                          squashed_inst->isAtomic() ||
+                          (squashed_inst->isStore() &&
                              !squashed_inst->isStoreConditional()));
 
             // Remove the instruction from the dependency list.
             if (is_acq_rel ||
                 (!squashed_inst->isNonSpeculative() &&
                  !squashed_inst->isStoreConditional() &&
+                 !squashed_inst->isAtomic() &&
                  !squashed_inst->isMemBarrier() &&
                  !squashed_inst->isWriteBarrier())) {
 
@@ -1298,9 +1285,9 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
                                            squashed_inst);
                     }
 
-
                     ++iqSquashedOperandsExamined;
                 }
+
             } else if (!squashed_inst->isStoreConditional() ||
                        !squashed_inst->isCompleted()) {
                 NonSpecMapIt ns_inst_it =

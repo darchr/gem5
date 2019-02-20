@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012, 2016 ARM Limited
+ * Copyright (c) 2011-2012, 2016-2018 ARM Limited
  * Copyright (c) 2013 Advanced Micro Devices, Inc.
  * All rights reserved
  *
@@ -95,9 +95,10 @@ class ThreadContext
 {
   protected:
     typedef TheISA::MachInst MachInst;
-    typedef TheISA::CCReg CCReg;
     using VecRegContainer = TheISA::VecRegContainer;
     using VecElem = TheISA::VecElem;
+    using VecPredRegContainer = TheISA::VecPredRegContainer;
+
   public:
 
     enum Status
@@ -109,6 +110,10 @@ class ThreadContext
         /// Temporarily inactive.  Entered while waiting for
         /// synchronization, etc.
         Suspended,
+
+        /// Trying to exit and waiting for an event to completely exit.
+        /// Entered when target executes an exit syscall.
+        Halting,
 
         /// Permanently shut down.  Entered when target executes
         /// m5exit pseudo-instruction.  When all contexts enter
@@ -206,7 +211,7 @@ class ThreadContext
     //
     virtual RegVal readIntReg(int reg_idx) = 0;
 
-    virtual RegVal readFloatRegBits(int reg_idx) = 0;
+    virtual RegVal readFloatReg(int reg_idx) = 0;
 
     virtual const VecRegContainer& readVecReg(const RegId& reg) const = 0;
     virtual VecRegContainer& getWritableVecReg(const RegId& reg) = 0;
@@ -242,17 +247,24 @@ class ThreadContext
 
     virtual const VecElem& readVecElem(const RegId& reg) const = 0;
 
-    virtual CCReg readCCReg(int reg_idx) = 0;
+    virtual const VecPredRegContainer& readVecPredReg(const RegId& reg)
+        const = 0;
+    virtual VecPredRegContainer& getWritableVecPredReg(const RegId& reg) = 0;
+
+    virtual RegVal readCCReg(int reg_idx) = 0;
 
     virtual void setIntReg(int reg_idx, RegVal val) = 0;
 
-    virtual void setFloatRegBits(int reg_idx, RegVal val) = 0;
+    virtual void setFloatReg(int reg_idx, RegVal val) = 0;
 
     virtual void setVecReg(const RegId& reg, const VecRegContainer& val) = 0;
 
     virtual void setVecElem(const RegId& reg, const VecElem& val) = 0;
 
-    virtual void setCCReg(int reg_idx, CCReg val) = 0;
+    virtual void setVecPredReg(const RegId& reg,
+                               const VecPredRegContainer& val) = 0;
+
+    virtual void setCCReg(int reg_idx, RegVal val) = 0;
 
     virtual TheISA::PCState pcState() = 0;
 
@@ -278,9 +290,9 @@ class ThreadContext
 
     virtual RegVal readMiscReg(int misc_reg) = 0;
 
-    virtual void setMiscRegNoEffect(int misc_reg, const RegVal &val) = 0;
+    virtual void setMiscRegNoEffect(int misc_reg, RegVal val) = 0;
 
-    virtual void setMiscReg(int misc_reg, const RegVal &val) = 0;
+    virtual void setMiscReg(int misc_reg, RegVal val) = 0;
 
     virtual RegId flattenRegId(const RegId& regId) const = 0;
 
@@ -291,7 +303,7 @@ class ThreadContext
     }
 
     virtual void
-    setRegOtherThread(const RegId& misc_reg, const RegVal &val, ThreadID tid)
+    setRegOtherThread(const RegId& misc_reg, RegVal val, ThreadID tid)
     {
     }
 
@@ -329,8 +341,8 @@ class ThreadContext
     virtual RegVal readIntRegFlat(int idx) = 0;
     virtual void setIntRegFlat(int idx, RegVal val) = 0;
 
-    virtual RegVal readFloatRegBitsFlat(int idx) = 0;
-    virtual void setFloatRegBitsFlat(int idx, RegVal val) = 0;
+    virtual RegVal readFloatRegFlat(int idx) = 0;
+    virtual void setFloatRegFlat(int idx, RegVal val) = 0;
 
     virtual const VecRegContainer& readVecRegFlat(int idx) const = 0;
     virtual VecRegContainer& getWritableVecRegFlat(int idx) = 0;
@@ -341,8 +353,13 @@ class ThreadContext
     virtual void setVecElemFlat(const RegIndex& idx, const ElemIndex& elemIdx,
                                 const VecElem& val) = 0;
 
-    virtual CCReg readCCRegFlat(int idx) = 0;
-    virtual void setCCRegFlat(int idx, CCReg val) = 0;
+    virtual const VecPredRegContainer& readVecPredRegFlat(int idx) const = 0;
+    virtual VecPredRegContainer& getWritableVecPredRegFlat(int idx) = 0;
+    virtual void setVecPredRegFlat(int idx,
+                                   const VecPredRegContainer& val) = 0;
+
+    virtual RegVal readCCRegFlat(int idx) = 0;
+    virtual void setCCRegFlat(int idx, RegVal val) = 0;
     /** @} */
 
 };
@@ -453,8 +470,8 @@ class ProxyThreadContext : public ThreadContext
     RegVal readIntReg(int reg_idx)
     { return actualTC->readIntReg(reg_idx); }
 
-    RegVal readFloatRegBits(int reg_idx)
-    { return actualTC->readFloatRegBits(reg_idx); }
+    RegVal readFloatReg(int reg_idx)
+    { return actualTC->readFloatReg(reg_idx); }
 
     const VecRegContainer& readVecReg(const RegId& reg) const
     { return actualTC->readVecReg(reg); }
@@ -502,22 +519,31 @@ class ProxyThreadContext : public ThreadContext
     const VecElem& readVecElem(const RegId& reg) const
     { return actualTC->readVecElem(reg); }
 
-    CCReg readCCReg(int reg_idx)
+    const VecPredRegContainer& readVecPredReg(const RegId& reg) const
+    { return actualTC->readVecPredReg(reg); }
+
+    VecPredRegContainer& getWritableVecPredReg(const RegId& reg)
+    { return actualTC->getWritableVecPredReg(reg); }
+
+    RegVal readCCReg(int reg_idx)
     { return actualTC->readCCReg(reg_idx); }
 
     void setIntReg(int reg_idx, RegVal val)
     { actualTC->setIntReg(reg_idx, val); }
 
-    void setFloatRegBits(int reg_idx, RegVal val)
-    { actualTC->setFloatRegBits(reg_idx, val); }
+    void setFloatReg(int reg_idx, RegVal val)
+    { actualTC->setFloatReg(reg_idx, val); }
 
     void setVecReg(const RegId& reg, const VecRegContainer& val)
     { actualTC->setVecReg(reg, val); }
 
+    void setVecPredReg(const RegId& reg, const VecPredRegContainer& val)
+    { actualTC->setVecPredReg(reg, val); }
+
     void setVecElem(const RegId& reg, const VecElem& val)
     { actualTC->setVecElem(reg, val); }
 
-    void setCCReg(int reg_idx, CCReg val)
+    void setCCReg(int reg_idx, RegVal val)
     { actualTC->setCCReg(reg_idx, val); }
 
     TheISA::PCState pcState() { return actualTC->pcState(); }
@@ -541,10 +567,10 @@ class ProxyThreadContext : public ThreadContext
     RegVal readMiscReg(int misc_reg)
     { return actualTC->readMiscReg(misc_reg); }
 
-    void setMiscRegNoEffect(int misc_reg, const RegVal &val)
+    void setMiscRegNoEffect(int misc_reg, RegVal val)
     { return actualTC->setMiscRegNoEffect(misc_reg, val); }
 
-    void setMiscReg(int misc_reg, const RegVal &val)
+    void setMiscReg(int misc_reg, RegVal val)
     { return actualTC->setMiscReg(misc_reg, val); }
 
     RegId flattenRegId(const RegId& regId) const
@@ -567,11 +593,11 @@ class ProxyThreadContext : public ThreadContext
     void setIntRegFlat(int idx, RegVal val)
     { actualTC->setIntRegFlat(idx, val); }
 
-    RegVal readFloatRegBitsFlat(int idx)
-    { return actualTC->readFloatRegBitsFlat(idx); }
+    RegVal readFloatRegFlat(int idx)
+    { return actualTC->readFloatRegFlat(idx); }
 
-    void setFloatRegBitsFlat(int idx, RegVal val)
-    { actualTC->setFloatRegBitsFlat(idx, val); }
+    void setFloatRegFlat(int idx, RegVal val)
+    { actualTC->setFloatRegFlat(idx, val); }
 
     const VecRegContainer& readVecRegFlat(int id) const
     { return actualTC->readVecRegFlat(id); }
@@ -590,10 +616,19 @@ class ProxyThreadContext : public ThreadContext
                         const VecElem& val)
     { actualTC->setVecElemFlat(id, elemIndex, val); }
 
-    CCReg readCCRegFlat(int idx)
+    const VecPredRegContainer& readVecPredRegFlat(int id) const
+    { return actualTC->readVecPredRegFlat(id); }
+
+    VecPredRegContainer& getWritableVecPredRegFlat(int id)
+    { return actualTC->getWritableVecPredRegFlat(id); }
+
+    void setVecPredRegFlat(int idx, const VecPredRegContainer& val)
+    { actualTC->setVecPredRegFlat(idx, val); }
+
+    RegVal readCCRegFlat(int idx)
     { return actualTC->readCCRegFlat(idx); }
 
-    void setCCRegFlat(int idx, CCReg val)
+    void setCCRegFlat(int idx, RegVal val)
     { actualTC->setCCRegFlat(idx, val); }
 };
 

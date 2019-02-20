@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 ARM Limited
+ * Copyright (c) 2016-2017 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -65,11 +65,11 @@ class PhysRegFile
 {
   private:
 
-    typedef TheISA::CCReg CCReg;
     using VecElem = TheISA::VecElem;
     using VecRegContainer = TheISA::VecRegContainer;
     using PhysIds = std::vector<PhysRegId>;
     using VecMode = Enums::VecRegRenameMode;
+    using VecPredRegContainer = TheISA::VecPredRegContainer;
   public:
     using IdRange = std::pair<PhysIds::const_iterator,
                               PhysIds::const_iterator>;
@@ -89,8 +89,12 @@ class PhysRegFile
     std::vector<PhysRegId> vecRegIds;
     std::vector<PhysRegId> vecElemIds;
 
+    /** Predicate register file. */
+    std::vector<VecPredRegContainer> vecPredRegFile;
+    std::vector<PhysRegId> vecPredRegIds;
+
     /** Condition-code register file. */
-    std::vector<CCReg> ccRegFile;
+    std::vector<RegVal> ccRegFile;
     std::vector<PhysRegId> ccRegIds;
 
     /** Misc Reg Ids */
@@ -117,6 +121,11 @@ class PhysRegFile
     unsigned numPhysicalVecElemRegs;
 
     /**
+     * Number of physical predicate registers
+     */
+    unsigned numPhysicalVecPredRegs;
+
+    /**
      * Number of physical CC registers
      */
     unsigned numPhysicalCCRegs;
@@ -135,6 +144,7 @@ class PhysRegFile
     PhysRegFile(unsigned _numPhysicalIntRegs,
                 unsigned _numPhysicalFloatRegs,
                 unsigned _numPhysicalVecRegs,
+                unsigned _numPhysicalVecPredRegs,
                 unsigned _numPhysicalCCRegs,
                 VecMode vmode
                 );
@@ -154,6 +164,8 @@ class PhysRegFile
     unsigned numFloatPhysRegs() const { return numPhysicalFloatRegs; }
     /** @return the number of vector physical registers. */
     unsigned numVecPhysRegs() const { return numPhysicalVecRegs; }
+    /** @return the number of predicate physical registers. */
+    unsigned numPredPhysRegs() const { return numPhysicalVecPredRegs; }
 
     /** @return the number of vector physical registers. */
     unsigned numVecElemPhysRegs() const { return numPhysicalVecElemRegs; }
@@ -181,7 +193,7 @@ class PhysRegFile
     }
 
     RegVal
-    readFloatRegBits(PhysRegIdPtr phys_reg) const
+    readFloatReg(PhysRegIdPtr phys_reg) const
     {
         assert(phys_reg->isFloatPhysReg());
 
@@ -201,7 +213,7 @@ class PhysRegFile
 
         DPRINTF(IEW, "RegFile: Access to vector register %i, has "
                 "data %s\n", int(phys_reg->index()),
-                vectorRegFile[phys_reg->index()].as<VecElem>().print());
+                vectorRegFile[phys_reg->index()].print());
 
         return vectorRegFile[phys_reg->index()];
     }
@@ -258,8 +270,26 @@ class PhysRegFile
         return val;
     }
 
+    /** Reads a predicate register. */
+    const VecPredRegContainer& readVecPredReg(PhysRegIdPtr phys_reg) const
+    {
+        assert(phys_reg->isVecPredPhysReg());
+
+        DPRINTF(IEW, "RegFile: Access to predicate register %i, has "
+                "data %s\n", int(phys_reg->index()),
+                vecPredRegFile[phys_reg->index()].print());
+
+        return vecPredRegFile[phys_reg->index()];
+    }
+
+    VecPredRegContainer& getWritableVecPredReg(PhysRegIdPtr phys_reg)
+    {
+        /* const_cast for not duplicating code above. */
+        return const_cast<VecPredRegContainer&>(readVecPredReg(phys_reg));
+    }
+
     /** Reads a condition-code register. */
-    CCReg
+    RegVal
     readCCReg(PhysRegIdPtr phys_reg)
     {
         assert(phys_reg->isCCPhysReg());
@@ -285,7 +315,7 @@ class PhysRegFile
     }
 
     void
-    setFloatRegBits(PhysRegIdPtr phys_reg, RegVal val)
+    setFloatReg(PhysRegIdPtr phys_reg, RegVal val)
     {
         assert(phys_reg->isFloatPhysReg());
 
@@ -321,9 +351,20 @@ class PhysRegFile
                 val;
     }
 
+    /** Sets a predicate register to the given value. */
+    void setVecPredReg(PhysRegIdPtr phys_reg, const VecPredRegContainer& val)
+    {
+        assert(phys_reg->isVecPredPhysReg());
+
+        DPRINTF(IEW, "RegFile: Setting predicate register %i to %s\n",
+                int(phys_reg->index()), val.print());
+
+        vecPredRegFile[phys_reg->index()] = val;
+    }
+
     /** Sets a condition-code register to the given value. */
     void
-    setCCReg(PhysRegIdPtr phys_reg, CCReg val)
+    setCCReg(PhysRegIdPtr phys_reg, RegVal val)
     {
         assert(phys_reg->isCCPhysReg());
 

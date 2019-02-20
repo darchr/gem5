@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2013 ARM Limited
+ * Copyright (c) 2010-2013, 2018 ARM Limited
  * Copyright (c) 2013 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
@@ -325,6 +325,19 @@ DefaultIEW<Impl>::startupStage()
 
 template<class Impl>
 void
+DefaultIEW<Impl>::clearStates(ThreadID tid)
+{
+    toRename->iewInfo[tid].usedIQ = true;
+    toRename->iewInfo[tid].freeIQEntries =
+        instQueue.numFreeEntries(tid);
+
+    toRename->iewInfo[tid].usedLSQ = true;
+    toRename->iewInfo[tid].freeLQEntries = ldstQueue.numFreeLoadEntries(tid);
+    toRename->iewInfo[tid].freeSQEntries = ldstQueue.numFreeStoreEntries(tid);
+}
+
+template<class Impl>
+void
 DefaultIEW<Impl>::setTimeBuffer(TimeBuffer<TimeStruct> *tb_ptr)
 {
     timeBuffer = tb_ptr;
@@ -466,7 +479,8 @@ DefaultIEW<Impl>::squash(ThreadID tid)
         if (skidBuffer[tid].front()->isLoad()) {
             toRename->iewInfo[tid].dispatchedToLQ++;
         }
-        if (skidBuffer[tid].front()->isStore()) {
+        if (skidBuffer[tid].front()->isStore() ||
+            skidBuffer[tid].front()->isAtomic()) {
             toRename->iewInfo[tid].dispatchedToSQ++;
         }
 
@@ -744,14 +758,6 @@ DefaultIEW<Impl>::updateStatus()
 }
 
 template <class Impl>
-void
-DefaultIEW<Impl>::resetEntries()
-{
-    instQueue.resetEntries();
-    ldstQueue.resetEntries();
-}
-
-template <class Impl>
 bool
 DefaultIEW<Impl>::checkStall(ThreadID tid)
 {
@@ -857,7 +863,8 @@ DefaultIEW<Impl>::emptyRenameInsts(ThreadID tid)
         if (insts[tid].front()->isLoad()) {
             toRename->iewInfo[tid].dispatchedToLQ++;
         }
-        if (insts[tid].front()->isStore()) {
+        if (insts[tid].front()->isStore() ||
+            insts[tid].front()->isAtomic()) {
             toRename->iewInfo[tid].dispatchedToSQ++;
         }
 
@@ -999,7 +1006,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             if (inst->isLoad()) {
                 toRename->iewInfo[tid].dispatchedToLQ++;
             }
-            if (inst->isStore()) {
+            if (inst->isStore() || inst->isAtomic()) {
                 toRename->iewInfo[tid].dispatchedToSQ++;
             }
 
@@ -1025,7 +1032,8 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         }
 
         // Check LSQ if inst is LD/ST
-        if ((inst->isLoad() && ldstQueue.lqFull(tid)) ||
+        if ((inst->isAtomic() && ldstQueue.sqFull(tid)) ||
+            (inst->isLoad() && ldstQueue.lqFull(tid)) ||
             (inst->isStore() && ldstQueue.sqFull(tid))) {
             DPRINTF(IEW, "[tid:%i]: Issue: %s has become full.\n",tid,
                     inst->isLoad() ? "LQ" : "SQ");
@@ -1043,7 +1051,25 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         }
 
         // Otherwise issue the instruction just fine.
-        if (inst->isLoad()) {
+        if (inst->isAtomic()) {
+            DPRINTF(IEW, "[tid:%i]: Issue: Memory instruction "
+                    "encountered, adding to LSQ.\n", tid);
+
+            ldstQueue.insertStore(inst);
+
+            ++iewDispStoreInsts;
+
+            // AMOs need to be set as "canCommit()"
+            // so that commit can process them when they reach the
+            // head of commit.
+            inst->setCanCommit();
+            instQueue.insertNonSpec(inst);
+            add_to_iq = false;
+
+            ++iewDispNonSpecInsts;
+
+            toRename->iewInfo[tid].dispatchedToSQ++;
+        } else if (inst->isLoad()) {
             DPRINTF(IEW, "[tid:%i]: Issue: Memory instruction "
                     "encountered, adding to LSQ.\n", tid);
 
@@ -1238,7 +1264,20 @@ DefaultIEW<Impl>::executeInsts()
                     "reference.\n");
 
             // Tell the LDSTQ to execute this instruction (if it is a load).
-            if (inst->isLoad()) {
+            if (inst->isAtomic()) {
+                // AMOs are treated like store requests
+                fault = ldstQueue.executeStore(inst);
+
+                if (inst->isTranslationDelayed() &&
+                    fault == NoFault) {
+                    // A hw page table walk is currently going on; the
+                    // instruction must be deferred.
+                    DPRINTF(IEW, "Execute: Delayed translation, deferring "
+                            "store.\n");
+                    instQueue.deferMemInst(inst);
+                    continue;
+                }
+            } else if (inst->isLoad()) {
                 // Loads will mark themselves as executed, and their writeback
                 // event adds the instruction to the queue to commit
                 fault = ldstQueue.executeLoad(inst);
@@ -1353,7 +1392,7 @@ DefaultIEW<Impl>::executeInsts()
                 DPRINTF(IEW, "LDSTQ detected a violation. Violator PC: %s "
                         "[sn:%lli], inst PC: %s [sn:%lli]. Addr is: %#x.\n",
                         violator->pcState(), violator->seqNum,
-                        inst->pcState(), inst->seqNum, inst->physEffAddrLow);
+                        inst->pcState(), inst->seqNum, inst->physEffAddr);
 
                 fetchRedirect[tid] = true;
 
@@ -1376,7 +1415,7 @@ DefaultIEW<Impl>::executeInsts()
                 DPRINTF(IEW, "LDSTQ detected a violation.  Violator PC: "
                         "%s, inst PC: %s.  Addr is: %#x.\n",
                         violator->pcState(), inst->pcState(),
-                        inst->physEffAddrLow);
+                        inst->physEffAddr);
                 DPRINTF(IEW, "Violation will not be handled because "
                         "already squashing\n");
 
@@ -1459,6 +1498,8 @@ DefaultIEW<Impl>::tick()
 
     wroteToTimeBuffer = false;
     updatedQueues = false;
+
+    ldstQueue.tick();
 
     sortInsts();
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2010-2012, 2015-2018 ARM Limited
+# Copyright (c) 2010-2012, 2015-2019 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -206,21 +206,8 @@ def makeSparcSystem(mem_mode, mdesc=None, cmdline=None):
 
 def makeArmSystem(mem_mode, machine_type, num_cpus=1, mdesc=None,
                   dtb_filename=None, bare_metal=False, cmdline=None,
-                  external_memory="", ruby=False, security=False,
-                  ignore_dtb=False):
+                  external_memory="", ruby=False, security=False):
     assert machine_type
-
-    default_dtbs = {
-        "RealViewPBX": None,
-        "VExpress_EMM": "vexpress.aarch32.ll_20131205.0-gem5.%dcpu.dtb" % num_cpus,
-        "VExpress_EMM64": "vexpress.aarch64.20140821.dtb",
-    }
-
-    default_kernels = {
-        "RealViewPBX": "vmlinux.arm.smp.fb.2.6.38.8",
-        "VExpress_EMM": "vmlinux.aarch32.ll_20131205.0-gem5",
-        "VExpress_EMM64": "vmlinux.aarch64.20140821",
-    }
 
     pci_devices = []
 
@@ -250,13 +237,6 @@ def makeArmSystem(mem_mode, machine_type, num_cpus=1, mdesc=None,
     machine_type = platform_class.__name__
     self.realview = platform_class()
 
-    if not dtb_filename and not (bare_metal or ignore_dtb):
-        try:
-            dtb_filename = default_dtbs[machine_type]
-        except KeyError:
-            fatal("No DTB specified and no default DTB known for '%s'" % \
-                  machine_type)
-
     if isinstance(self.realview, VExpress_EMM64):
         if os.path.split(mdesc.disk())[-1] == 'linux-aarch32-ael.img':
             print("Selected 64-bit ARM architecture, updating default "
@@ -283,11 +263,11 @@ def makeArmSystem(mem_mode, machine_type, num_cpus=1, mdesc=None,
     self.mem_ranges = []
     size_remain = long(Addr(mdesc.mem()))
     for region in self.realview._mem_regions:
-        if size_remain > long(region[1]):
-            self.mem_ranges.append(AddrRange(region[0], size=region[1]))
-            size_remain = size_remain - long(region[1])
+        if size_remain > long(region.size()):
+            self.mem_ranges.append(region)
+            size_remain = size_remain - long(region.size())
         else:
-            self.mem_ranges.append(AddrRange(region[0], size=size_remain))
+            self.mem_ranges.append(AddrRange(region.start, size=size_remain))
             size_remain = 0
             break
         warn("Memory size specified spans more than one region. Creating" \
@@ -304,10 +284,7 @@ def makeArmSystem(mem_mode, machine_type, num_cpus=1, mdesc=None,
         # EOT character on UART will end the simulation
         self.realview.uart[0].end_on_eot = True
     else:
-        if machine_type in default_kernels:
-            self.kernel = binary(default_kernels[machine_type])
-
-        if dtb_filename and not ignore_dtb:
+        if dtb_filename:
             self.dtb_filename = binary(dtb_filename)
 
         self.machine_type = machine_type if machine_type in ArmMachineType.map \

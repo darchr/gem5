@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012, 2016 ARM Limited
+ * Copyright (c) 2011-2012, 2016-2018 ARM Limited
  * Copyright (c) 2013 Advanced Micro Devices, Inc.
  * All rights reserved
  *
@@ -58,6 +58,7 @@
 #include "debug/CCRegs.hh"
 #include "debug/FloatRegs.hh"
 #include "debug/IntRegs.hh"
+#include "debug/VecPredRegs.hh"
 #include "debug/VecRegs.hh"
 #include "mem/page_table.hh"
 #include "mem/request.hh"
@@ -99,9 +100,9 @@ class SimpleThread : public ThreadState
 {
   protected:
     typedef TheISA::MachInst MachInst;
-    typedef TheISA::CCReg CCReg;
     using VecRegContainer = TheISA::VecRegContainer;
     using VecElem = TheISA::VecElem;
+    using VecPredRegContainer = TheISA::VecPredRegContainer;
   public:
     typedef ThreadContext::Status Status;
 
@@ -109,8 +110,9 @@ class SimpleThread : public ThreadState
     RegVal floatRegs[TheISA::NumFloatRegs];
     RegVal intRegs[TheISA::NumIntRegs];
     VecRegContainer vecRegs[TheISA::NumVecRegs];
+    VecPredRegContainer vecPredRegs[TheISA::NumVecPredRegs];
 #ifdef ISA_HAS_CC_REGS
-    TheISA::CCReg ccRegs[TheISA::NumCCRegs];
+    RegVal ccRegs[TheISA::NumCCRegs];
 #endif
     TheISA::ISA *const isa;    // one "instance" of the current ISA.
 
@@ -228,6 +230,9 @@ class SimpleThread : public ThreadState
         for (int i = 0; i < TheISA::NumVecRegs; i++) {
             vecRegs[i].zero();
         }
+        for (int i = 0; i < TheISA::NumVecPredRegs; i++) {
+            vecPredRegs[i].reset();
+        }
 #ifdef ISA_HAS_CC_REGS
         memset(ccRegs, 0, sizeof(ccRegs));
 #endif
@@ -249,11 +254,11 @@ class SimpleThread : public ThreadState
     }
 
     RegVal
-    readFloatRegBits(int reg_idx)
+    readFloatReg(int reg_idx)
     {
         int flatIndex = isa->flattenFloatIndex(reg_idx);
         assert(flatIndex < TheISA::NumFloatRegs);
-        RegVal regVal(readFloatRegBitsFlat(flatIndex));
+        RegVal regVal(readFloatRegFlat(flatIndex));
         DPRINTF(FloatRegs, "Reading float reg %d (%d) bits as %#x.\n",
                 reg_idx, flatIndex, regVal);
         return regVal;
@@ -266,7 +271,7 @@ class SimpleThread : public ThreadState
         assert(flatIndex < TheISA::NumVecRegs);
         const VecRegContainer& regVal = readVecRegFlat(flatIndex);
         DPRINTF(VecRegs, "Reading vector reg %d (%d) as %s.\n",
-                reg.index(), flatIndex, regVal.as<TheISA::VecElem>().print());
+                reg.index(), flatIndex, regVal.print());
         return regVal;
     }
 
@@ -277,7 +282,7 @@ class SimpleThread : public ThreadState
         assert(flatIndex < TheISA::NumVecRegs);
         VecRegContainer& regVal = getWritableVecRegFlat(flatIndex);
         DPRINTF(VecRegs, "Reading vector reg %d (%d) as %s for modify.\n",
-                reg.index(), flatIndex, regVal.as<TheISA::VecElem>().print());
+                reg.index(), flatIndex, regVal.print());
         return regVal;
     }
 
@@ -350,8 +355,31 @@ class SimpleThread : public ThreadState
         return regVal;
     }
 
+    const VecPredRegContainer&
+    readVecPredReg(const RegId& reg) const
+    {
+        int flatIndex = isa->flattenVecPredIndex(reg.index());
+        assert(flatIndex < TheISA::NumVecPredRegs);
+        const VecPredRegContainer& regVal = readVecPredRegFlat(flatIndex);
+        DPRINTF(VecPredRegs, "Reading predicate reg %d (%d) as %s.\n",
+                reg.index(), flatIndex, regVal.print());
+        return regVal;
+    }
 
-    CCReg readCCReg(int reg_idx)
+    VecPredRegContainer&
+    getWritableVecPredReg(const RegId& reg)
+    {
+        int flatIndex = isa->flattenVecPredIndex(reg.index());
+        assert(flatIndex < TheISA::NumVecPredRegs);
+        VecPredRegContainer& regVal = getWritableVecPredRegFlat(flatIndex);
+        DPRINTF(VecPredRegs,
+                "Reading predicate reg %d (%d) as %s for modify.\n",
+                reg.index(), flatIndex, regVal.print());
+        return regVal;
+    }
+
+    RegVal
+    readCCReg(int reg_idx)
     {
 #ifdef ISA_HAS_CC_REGS
         int flatIndex = isa->flattenCCIndex(reg_idx);
@@ -378,14 +406,14 @@ class SimpleThread : public ThreadState
     }
 
     void
-    setFloatRegBits(int reg_idx, RegVal val)
+    setFloatReg(int reg_idx, RegVal val)
     {
         int flatIndex = isa->flattenFloatIndex(reg_idx);
         assert(flatIndex < TheISA::NumFloatRegs);
         // XXX: Fix array out of bounds compiler error for gem5.fast
         // when checkercpu enabled
         if (flatIndex < TheISA::NumFloatRegs)
-            setFloatRegBitsFlat(flatIndex, val);
+            setFloatRegFlat(flatIndex, val);
         DPRINTF(FloatRegs, "Setting float reg %d (%d) bits to %#x.\n",
                 reg_idx, flatIndex, val);
     }
@@ -411,7 +439,17 @@ class SimpleThread : public ThreadState
     }
 
     void
-    setCCReg(int reg_idx, CCReg val)
+    setVecPredReg(const RegId& reg, const VecPredRegContainer& val)
+    {
+        int flatIndex = isa->flattenVecPredIndex(reg.index());
+        assert(flatIndex < TheISA::NumVecPredRegs);
+        setVecPredRegFlat(flatIndex, val);
+        DPRINTF(VecPredRegs, "Setting predicate reg %d (%d) to %s.\n",
+                reg.index(), flatIndex, val.print());
+    }
+
+    void
+    setCCReg(int reg_idx, RegVal val)
     {
 #ifdef ISA_HAS_CC_REGS
         int flatIndex = isa->flattenCCIndex(reg_idx);
@@ -489,13 +527,13 @@ class SimpleThread : public ThreadState
     }
 
     void
-    setMiscRegNoEffect(int misc_reg, const RegVal &val, ThreadID tid = 0)
+    setMiscRegNoEffect(int misc_reg, RegVal val, ThreadID tid = 0)
     {
         return isa->setMiscRegNoEffect(misc_reg, val);
     }
 
     void
-    setMiscReg(int misc_reg, const RegVal &val, ThreadID tid = 0)
+    setMiscReg(int misc_reg, RegVal val, ThreadID tid = 0)
     {
         return isa->setMiscReg(misc_reg, val, tc);
     }
@@ -520,8 +558,8 @@ class SimpleThread : public ThreadState
     RegVal readIntRegFlat(int idx) { return intRegs[idx]; }
     void setIntRegFlat(int idx, RegVal val) { intRegs[idx] = val; }
 
-    RegVal readFloatRegBitsFlat(int idx) { return floatRegs[idx]; }
-    void setFloatRegBitsFlat(int idx, RegVal val) { floatRegs[idx] = val; }
+    RegVal readFloatRegFlat(int idx) { return floatRegs[idx]; }
+    void setFloatRegFlat(int idx, RegVal val) { floatRegs[idx] = val; }
 
     const VecRegContainer &
     readVecRegFlat(const RegIndex& reg) const
@@ -568,14 +606,29 @@ class SimpleThread : public ThreadState
         vecRegs[reg].as<TheISA::VecElem>()[elemIndex] = val;
     }
 
+    const VecPredRegContainer& readVecPredRegFlat(const RegIndex& reg) const
+    {
+        return vecPredRegs[reg];
+    }
+
+    VecPredRegContainer& getWritableVecPredRegFlat(const RegIndex& reg)
+    {
+        return vecPredRegs[reg];
+    }
+
+    void setVecPredRegFlat(const RegIndex& reg, const VecPredRegContainer& val)
+    {
+        vecPredRegs[reg] = val;
+    }
+
 #ifdef ISA_HAS_CC_REGS
-    CCReg readCCRegFlat(int idx) { return ccRegs[idx]; }
-    void setCCRegFlat(int idx, CCReg val) { ccRegs[idx] = val; }
+    RegVal readCCRegFlat(int idx) { return ccRegs[idx]; }
+    void setCCRegFlat(int idx, RegVal val) { ccRegs[idx] = val; }
 #else
-    CCReg readCCRegFlat(int idx)
+    RegVal readCCRegFlat(int idx)
     { panic("readCCRegFlat w/no CC regs!\n"); }
 
-    void setCCRegFlat(int idx, CCReg val)
+    void setCCRegFlat(int idx, RegVal val)
     { panic("setCCRegFlat w/no CC regs!\n"); }
 #endif
 };

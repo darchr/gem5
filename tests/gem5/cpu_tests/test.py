@@ -28,34 +28,36 @@
 
 '''
 Test file containing simple workloads to run on CPU models.
-Each test takes ~30 seconds to run.
+Each test takes ~10 seconds to run.
 '''
 
 from testlib import *
 
-valid_isas = (constants.x86_tag,)
+workloads = ('Bubblesort','FloatMM')
 
-workloads = ('Bubblesort', 'IntMM', 'FloatMM')
+valid_isas = {
+    'x86': ('AtomicSimpleCPU', 'TimingSimpleCPU', 'DerivO3CPU'),
+    'arm': ('AtomicSimpleCPU', 'TimingSimpleCPU', 'MinorCPU', 'DerivO3CPU'),
+}
 
-cpus = ('TimingSimpleCPU', 'SimpleDataflowCPU')
 
-bm_dir = joinpath(getcwd(), 'benchmarks')
-
-for workload in workloads:
-    for cpu in cpus:
+for isa in valid_isas:
+    bm_dir = joinpath('gem5/cpu_tests/benchmarks/bin/', isa)
+    for workload in workloads:
         ref_path = joinpath(getcwd(), 'ref', workload)
         verifiers = (
-                 verifier.MatchStdout(ref_path),
+                verifier.MatchStdout(ref_path),
         )
 
-        workload_path = joinpath(bm_dir, workload)
-        workload_binary = MakeTarget(workload_path)
+        workload_binary = DownloadedProgram(bm_dir, workload)
+        workload_path = workload_binary.path
 
-        gem5_verify_config(
-                name='cpu_test_{}_{}'.format(cpu, workload),
-                verifiers=verifiers,
-                config=joinpath(getcwd(), 'run.py'),
-                config_args=['--cpu', cpu, workload_path],
-                valid_isas=valid_isas,
-                fixtures = [workload_binary]
-        )
+        for cpu in valid_isas[isa]:
+           gem5_verify_config(
+                  name='cpu_test_{}_{}'.format(cpu,workload),
+                  verifiers=verifiers,
+                  config=joinpath(getcwd(), 'run.py'),
+                  config_args=['--cpu={}'.format(cpu), workload_path],
+                  valid_isas=(isa.upper(),),
+                  fixtures=[workload_binary]
+           )

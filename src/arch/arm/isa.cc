@@ -62,7 +62,7 @@ ISA::ISA(Params *p)
     : SimObject(p),
       system(NULL),
       _decoderFlavour(p->decoderFlavour),
-      _vecRegRenameMode(p->vecRegRenameMode),
+      _vecRegRenameMode(Enums::Full),
       pmu(p->pmu),
       impdefAsNop(p->impdef_nop)
 {
@@ -102,6 +102,10 @@ ISA::ISA(Params *p)
     if (system && dynamic_cast<Gicv3 *>(system->getGIC())) {
         haveGICv3CPUInterface = true;
     }
+
+    // Initial rename mode depends on highestEL
+    const_cast<Enums::VecRegRenameMode&>(_vecRegRenameMode) =
+        highestELIs64 ? Enums::Full : Enums::Elem;
 
     initializeMiscRegMetadata();
     preUnflattenMiscReg();
@@ -391,7 +395,7 @@ ISA::startup(ThreadContext *tc)
 }
 
 
-MiscReg
+RegVal
 ISA::readMiscRegNoEffect(int misc_reg) const
 {
     assert(misc_reg < NumMiscRegs);
@@ -415,7 +419,7 @@ ISA::readMiscRegNoEffect(int misc_reg) const
 }
 
 
-MiscReg
+RegVal
 ISA::readMiscReg(int misc_reg, ThreadContext *tc)
 {
     CPSR cpsr = 0;
@@ -470,7 +474,7 @@ ISA::readMiscReg(int misc_reg, ThreadContext *tc)
                     if (!nsacr.cp11) cpacrMask.cp11 = 0;
                 }
             }
-            MiscReg val = readMiscRegNoEffect(MISCREG_CPACR);
+            RegVal val = readMiscRegNoEffect(MISCREG_CPACR);
             val &= cpacrMask;
             DPRINTF(MiscRegs, "Reading misc reg %s: %#x\n",
                     miscRegName[misc_reg], val);
@@ -647,7 +651,7 @@ ISA::readMiscReg(int misc_reg, ThreadContext *tc)
         return 0x04;  // DC ZVA clear 64-byte chunks
       case MISCREG_HCPTR:
         {
-            MiscReg val = readMiscRegNoEffect(misc_reg);
+            RegVal val = readMiscRegNoEffect(misc_reg);
             // The trap bit associated with CP14 is defined as RAZ
             val &= ~(1 << 14);
             // If a CP bit in NSACR is 0 then the corresponding bit in
@@ -656,7 +660,7 @@ ISA::readMiscReg(int misc_reg, ThreadContext *tc)
                 inSecureState(readMiscRegNoEffect(MISCREG_SCR),
                               readMiscRegNoEffect(MISCREG_CPSR));
             if (!secure_lookup) {
-                MiscReg mask = readMiscRegNoEffect(MISCREG_NSACR);
+                RegVal mask = readMiscRegNoEffect(MISCREG_NSACR);
                 val |= (mask ^ 0x7FFF) & 0xBFFF;
             }
             // Set the bits for unimplemented coprocessors to RAO/WI
@@ -710,7 +714,7 @@ ISA::readMiscReg(int misc_reg, ThreadContext *tc)
 }
 
 void
-ISA::setMiscRegNoEffect(int misc_reg, const MiscReg &val)
+ISA::setMiscRegNoEffect(int misc_reg, RegVal val)
 {
     assert(misc_reg < NumMiscRegs);
 
@@ -732,10 +736,10 @@ ISA::setMiscRegNoEffect(int misc_reg, const MiscReg &val)
 }
 
 void
-ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
+ISA::setMiscReg(int misc_reg, RegVal val, ThreadContext *tc)
 {
 
-    MiscReg newVal = val;
+    RegVal newVal = val;
     bool secure_lookup;
     SCR scr;
 
@@ -801,7 +805,7 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
                     }
                 }
 
-                MiscReg old_val = readMiscRegNoEffect(MISCREG_CPACR);
+                RegVal old_val = readMiscRegNoEffect(MISCREG_CPACR);
                 newVal &= cpacrMask;
                 newVal |= old_val & ~cpacrMask;
                 DPRINTF(MiscRegs, "Writing misc reg %s: %#x\n",
@@ -994,7 +998,7 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
                 SCTLR sctlr = miscRegs[sctlr_idx];
                 SCTLR new_sctlr = newVal;
                 new_sctlr.nmfi =  ((bool)sctlr.nmfi) && !haveVirtualization;
-                miscRegs[sctlr_idx] = (MiscReg)new_sctlr;
+                miscRegs[sctlr_idx] = (RegVal)new_sctlr;
                 getITBPtr(tc)->invalidateMiscReg();
                 getDTBPtr(tc)->invalidateMiscReg();
             }
@@ -1563,8 +1567,9 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
                     inSecureState(readMiscRegNoEffect(MISCREG_SCR),
                                   readMiscRegNoEffect(MISCREG_CPSR));
                 if (!secure_lookup) {
-                    MiscReg oldValue = readMiscRegNoEffect(MISCREG_HCPTR);
-                    MiscReg mask = (readMiscRegNoEffect(MISCREG_NSACR) ^ 0x7FFF) & 0xBFFF;
+                    RegVal oldValue = readMiscRegNoEffect(MISCREG_HCPTR);
+                    RegVal mask =
+                        (readMiscRegNoEffect(MISCREG_NSACR) ^ 0x7FFF) & 0xBFFF;
                     newVal = (newVal & ~mask) | (oldValue & mask);
                 }
                 break;
@@ -1669,7 +1674,7 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
               TTBCR ttbcr = readMiscRegNoEffect(MISCREG_TTBCR);
               HCR   hcr   = readMiscRegNoEffect(MISCREG_HCR);
 
-              MiscReg newVal;
+              RegVal newVal;
               if (fault == NoFault) {
                   Addr paddr = req->getPaddr();
                   if (haveLPAE && (ttbcr.eae || tranType & TLB::HypMode ||
@@ -1923,7 +1928,7 @@ ISA::setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc)
                 fault = getDTBPtr(tc)->translateFunctional(req, tc, mode,
                                                            tranType);
 
-                MiscReg newVal;
+                RegVal newVal;
                 if (fault == NoFault) {
                     Addr paddr = req->getPaddr();
                     uint64_t attr = getDTBPtr(tc)->getAttr();
