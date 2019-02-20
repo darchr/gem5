@@ -45,6 +45,10 @@
  */
 class GenericReg {
   protected:
+    using VecRegContainer = TheISA::VecRegContainer;
+    using VecElem = TheISA::VecElem;
+    using VecPredRegContainer = TheISA::VecPredRegContainer;
+
     /**
      * Union storage type, so that GenericReg is a fixed-size class. This
      * allows simple construction of vectors/arrays/etc. of GenericReg.
@@ -52,10 +56,10 @@ class GenericReg {
     union GenericRegVal
     {
         RegVal baseVal;
-        TheISA::VecRegContainer vecReg;
-        TheISA::VecElem vecElem;
-        TheISA::CCReg ccReg;
-    } _value;
+        VecRegContainer vecReg;
+        VecElem vecElem;
+        VecPredRegContainer vecPredReg;
+    } _value{0};
     RegClass _regClass; // Used for enforcement, as well as identification.
 
   public:
@@ -67,6 +71,7 @@ class GenericReg {
         switch(_regClass) {
           case RegClass::IntRegClass:
           case RegClass::FloatRegClass:
+          case RegClass::CCRegClass:
           case RegClass::MiscRegClass:
             _value.baseVal = value;
             break;
@@ -76,31 +81,44 @@ class GenericReg {
           case RegClass::VecElemClass:
             _value.vecElem = value;
             break;
-          case RegClass::CCRegClass:
-            _value.ccReg = value;
+          case RegClass::VecPredRegClass:
+            panic("Templated call should not be used for VecPredRegClass!");
             break;
           default:
-            panic("Tried to create a GenericReg with unknown type!");
+            panic("Tried to create GenericReg with unknown class!");
         }
     }
 
-    explicit GenericReg(const TheISA::VecRegContainer& value,
+    explicit GenericReg(const VecRegContainer& value,
                         const RegClass reg_class):
-        _value({0}),
-        _regClass(reg_class)
+        _regClass(RegClass::VecRegClass)
     {
-        assert(reg_class == RegClass::VecRegClass);
-        _regClass = reg_class;
+        assert(reg_class == VecRegClass);
         _value.vecReg = value;
     }
 
+    explicit GenericReg(const VecElem& value, const RegClass reg_class):
+        _regClass(RegClass::VecElemClass)
+    {
+        assert(reg_class == RegClass::VecElemClass);
+        _value.vecElem = value;
+    }
+
+    explicit GenericReg(const VecPredRegContainer& value,
+                        const RegClass reg_class):
+        _regClass(RegClass::VecPredRegClass)
+    {
+        assert(reg_class == RegClass::VecPredRegClass);
+        _value.vecPredReg = value;
+    }
+
     GenericReg(const GenericReg& other):
-        _value({0}),
         _regClass(other.getRegClass())
     {
         switch(_regClass) {
           case RegClass::IntRegClass:
           case RegClass::FloatRegClass:
+          case RegClass::CCRegClass:
           case RegClass::MiscRegClass:
             _value.baseVal = other._value.baseVal;
             break;
@@ -110,8 +128,8 @@ class GenericReg {
           case RegClass::VecElemClass:
             _value.vecElem = other.asVecElem();
             break;
-          case RegClass::CCRegClass:
-            _value.ccReg = other.asCCReg();
+          case RegClass::VecPredRegClass:
+            _value.vecPredReg = other.asVecPredReg();
             break;
           default:
             panic("Tried to copy a GenericReg with unknown type!");
@@ -147,40 +165,52 @@ class GenericReg {
         return _value.baseVal;
     }
 
-    TheISA::VecRegContainer& asVecReg()
+    VecRegContainer& asVecReg()
     {
         assert(getRegClass() == VecRegClass);
         return _value.vecReg;
     }
 
-    const TheISA::VecRegContainer& asVecReg() const
+    const VecRegContainer& asVecReg() const
     {
         assert(getRegClass() == VecRegClass);
         return _value.vecReg;
     }
 
-    TheISA::VecElem& asVecElem()
+    VecElem& asVecElem()
     {
         assert(getRegClass() == VecElemClass);
         return _value.vecElem;
     }
 
-    const TheISA::VecElem& asVecElem() const
+    const VecElem& asVecElem() const
     {
         assert(getRegClass() == VecElemClass);
         return _value.vecElem;
     }
 
-    TheISA::CCReg& asCCReg()
+    VecPredRegContainer& asVecPredReg()
     {
-        assert(getRegClass() == CCRegClass);
-        return _value.ccReg;
+        assert(getRegClass() == VecPredRegClass);
+        return _value.vecPredReg;
     }
 
-    const TheISA::CCReg& asCCReg() const
+    const VecPredRegContainer asVecPredReg() const
+    {
+        assert(getRegClass() == VecPredRegClass);
+        return _value.vecPredReg;
+    }
+
+    RegVal& asCCReg()
     {
         assert(getRegClass() == CCRegClass);
-        return _value.ccReg;
+        return _value.baseVal;
+    }
+
+    const RegVal& asCCReg() const
+    {
+        assert(getRegClass() == CCRegClass);
+        return _value.baseVal;
     }
 
     RegVal& asMiscReg()
@@ -201,6 +231,7 @@ class GenericReg {
         switch(_regClass) {
           case RegClass::IntRegClass:
           case RegClass::FloatRegClass:
+          case RegClass::CCRegClass:
           case RegClass::MiscRegClass:
             _value.baseVal = other._value.baseVal;
             break;
@@ -210,8 +241,8 @@ class GenericReg {
           case RegClass::VecElemClass:
             _value.vecElem = other.asVecElem();
             break;
-          case RegClass::CCRegClass:
-            _value.ccReg = other.asCCReg();
+          case RegClass::VecPredRegClass:
+            _value.vecPredReg = other.asVecPredReg();
             break;
           default:
             panic("Tried to copy a GenericReg with unknown type!");
@@ -226,6 +257,7 @@ class GenericReg {
         switch(_regClass) {
           case RegClass::IntRegClass:
           case RegClass::FloatRegClass:
+          case RegClass::CCRegClass:
           case RegClass::MiscRegClass:
             _value.baseVal = value;
             break;
@@ -235,8 +267,8 @@ class GenericReg {
           case RegClass::VecElemClass:
             _value.vecElem = value;
             break;
-          case RegClass::CCRegClass:
-            _value.ccReg = value;
+          case RegClass::VecPredRegClass:
+            panic("Templated call should not be used for VecPredRegClass!");
             break;
           default:
             panic("Tried to set a GenericReg with unknown type!");
@@ -244,12 +276,20 @@ class GenericReg {
         return *this;
     }
 
-    GenericReg& set(const TheISA::VecRegContainer& value,
-                             const RegClass reg_class)
+    GenericReg& set(const VecRegContainer& value, const RegClass reg_class)
     {
         assert(reg_class == RegClass::VecRegClass);
-        _regClass = reg_class;
+        _regClass = RegClass::VecRegClass;
         _value.vecReg = value;
+
+        return *this;
+    }
+
+    GenericReg& set(const VecPredRegContainer& value, const RegClass reg_class)
+    {
+        assert(reg_class == RegClass::VecPredRegClass);
+        _regClass = RegClass::VecPredRegClass;
+        _value.vecPredReg = value;
 
         return *this;
     }

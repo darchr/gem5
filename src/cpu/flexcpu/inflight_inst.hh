@@ -48,9 +48,9 @@ class InflightInst : public ExecContext,
   public:
     using PCState = TheISA::PCState;
 
-    using CCReg = TheISA::CCReg;
     using VecRegContainer = TheISA::VecRegContainer;
     using VecElem = TheISA::VecElem;
+    using VecPredRegContainer = TheISA::VecPredRegContainer;
 
     // Mutually exclusive states through which InflightInsts will transition.
     // The ordering allows the use of >= comparison operators for early states,
@@ -540,16 +540,26 @@ class InflightInst : public ExecContext,
     void setVecElemOperand(const StaticInst* si, int dst_idx,
                            const VecElem val) override;
 
-    CCReg readCCRegOperand(const StaticInst* si, int op_idx) override;
-    void setCCRegOperand(const StaticInst* si, int dst_idx, CCReg val)
+    const VecPredRegContainer&
+    readVecPredRegOperand(const StaticInst *si, int idx) const override;
+
+    VecPredRegContainer&
+    getWritableVecPredRegOperand(const StaticInst *si, int idx) override;
+
+    void
+    setVecPredRegOperand(const StaticInst *si, int idx,
+                         const VecPredRegContainer& val) override;
+
+    RegVal readCCRegOperand(const StaticInst* si, int op_idx) override;
+    void setCCRegOperand(const StaticInst* si, int dst_idx, RegVal val)
                          override;
 
     RegVal readMiscRegOperand(const StaticInst* si, int op_idx) override;
     void setMiscRegOperand(const StaticInst* si, int dst_idx,
-                           const RegVal& val) override;
+                           RegVal val) override;
 
     RegVal readMiscReg(int misc_reg) override;
-    void setMiscReg(int misc_reg, const RegVal& val) override;
+    void setMiscReg(int misc_reg, RegVal val) override;
 
     PCState pcState() const override;
     void pcState(const PCState& val) override;

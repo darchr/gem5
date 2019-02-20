@@ -825,8 +825,8 @@ class SDCPUThread : public ThreadContext
     RegVal readIntReg(int reg_idx) override
     { return _committedState->readIntReg(reg_idx); }
 
-    RegVal readFloatRegBits(int reg_idx) override
-    { return _committedState->readFloatRegBits(reg_idx); }
+    RegVal readFloatReg(int reg_idx) override
+    { return _committedState->readFloatReg(reg_idx); }
 
     const VecRegContainer& readVecReg(const RegId& reg) const override
     { return _committedState->readVecReg(reg); }
@@ -874,14 +874,20 @@ class SDCPUThread : public ThreadContext
     const VecElem& readVecElem(const RegId& reg) const override
     { return _committedState->readVecElem(reg); }
 
-    CCReg readCCReg(int reg_idx) override
+    const VecPredRegContainer& readVecPredReg(const RegId& reg) const override
+    { return _committedState->readVecPredReg(reg); }
+
+    VecPredRegContainer& getWritableVecPredReg(const RegId& reg) override
+    { return _committedState->getWritableVecPredReg(reg); }
+
+    RegVal readCCReg(int reg_idx) override
     { return _committedState->readCCReg(reg_idx); }
 
     void setIntReg(int reg_idx, RegVal val) override
     { _committedState->setIntReg(reg_idx, val); }
 
-    void setFloatRegBits(int reg_idx, RegVal val) override
-    { _committedState->setFloatRegBits(reg_idx, val); }
+    void setFloatReg(int reg_idx, RegVal val) override
+    { _committedState->setFloatReg(reg_idx, val); }
 
     void setVecReg(const RegId& reg, const VecRegContainer& val) override
     { _committedState->setVecReg(reg, val); }
@@ -889,7 +895,12 @@ class SDCPUThread : public ThreadContext
     void setVecElem(const RegId& reg, const VecElem& val) override
     { _committedState->setVecElem(reg, val); }
 
-    void setCCReg(int reg_idx, CCReg val) override
+    void setVecPredReg(const RegId& reg,
+                       const VecPredRegContainer& val) override
+    { _committedState->setVecPredReg(reg, val); }
+
+
+    void setCCReg(int reg_idx, RegVal val) override
     { _committedState->setCCReg(reg_idx, val); }
 
     TheISA::PCState pcState() override { return _committedState->pcState(); }
@@ -910,10 +921,10 @@ class SDCPUThread : public ThreadContext
     RegVal readMiscReg(int misc_reg) override
     { return _committedState->readMiscReg(misc_reg); }
 
-    void setMiscRegNoEffect(int misc_reg, const RegVal &val) override
+    void setMiscRegNoEffect(int misc_reg, RegVal val) override
     { return _committedState->setMiscRegNoEffect(misc_reg, val); }
 
-    void setMiscReg(int misc_reg, const RegVal &val) override
+    void setMiscReg(int misc_reg, RegVal val) override
     { return _committedState->setMiscReg(misc_reg, val); }
 
     RegId flattenRegId(const RegId& regId) const override
@@ -937,11 +948,11 @@ class SDCPUThread : public ThreadContext
     void setIntRegFlat(int idx, uint64_t val) override
     { _committedState->setIntRegFlat(idx, val); }
 
-    RegVal readFloatRegBitsFlat(int idx) override
-    { return _committedState->readFloatRegBitsFlat(idx); }
+    RegVal readFloatRegFlat(int idx) override
+    { return _committedState->readFloatRegFlat(idx); }
 
-    void setFloatRegBitsFlat(int idx, RegVal val) override
-    { _committedState->setFloatRegBitsFlat(idx, val); }
+    void setFloatRegFlat(int idx, RegVal val) override
+    { _committedState->setFloatRegFlat(idx, val); }
 
     const VecRegContainer& readVecRegFlat(int id) const override
     { return _committedState->readVecRegFlat(id); }
@@ -960,10 +971,19 @@ class SDCPUThread : public ThreadContext
                         const VecElem& val) override
     { _committedState->setVecElemFlat(id, elemIndex, val); }
 
-    CCReg readCCRegFlat(int idx) override
+    const VecPredRegContainer& readVecPredRegFlat(int idx) const override
+    { return _committedState->readVecPredRegFlat(idx); }
+
+    VecPredRegContainer& getWritableVecPredRegFlat(int idx) override
+    { return _committedState->getWritableVecPredRegFlat(idx); }
+
+    void setVecPredRegFlat(int idx, const VecPredRegContainer& val) override
+    { _committedState->setVecPredRegFlat(idx, val); }
+
+    RegVal readCCRegFlat(int idx) override
     { return _committedState->readCCRegFlat(idx); }
 
-    void setCCRegFlat(int idx, CCReg val) override
+    void setCCRegFlat(int idx, RegVal val) override
     { _committedState->setCCRegFlat(idx, val); }
 
     // END ThreadContext functions
