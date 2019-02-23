@@ -215,13 +215,8 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
 }
 
 void
-SDCPUThread::attemptFetch(weak_ptr<InflightInst> inst)
+SDCPUThread::attemptFetch(shared_ptr<InflightInst> inst_ptr)
 {
-    const shared_ptr<InflightInst> inst_ptr = inst.lock();
-    if (!inst_ptr || inst_ptr->isSquashed()) {
-        // No need to do anything for an instruction that has been squashed.
-        return;
-    }
 
     DPRINTF(SDCPUThreadEvent, "attemptFetch()\n");
 
@@ -255,7 +250,7 @@ SDCPUThread::attemptFetch(weak_ptr<InflightInst> inst)
             *reinterpret_cast<TheISA::MachInst*>(fetchBuf.data()
                                                + (req_vaddr - fetchBufBase));
 
-        onInstDataFetched(inst, inst_data);
+        onInstDataFetched(inst_ptr, inst_data);
         return;
     } // Else we need to send a request to update the buffer.
 
@@ -279,15 +274,29 @@ SDCPUThread::attemptFetch(weak_ptr<InflightInst> inst)
     fetch_req->setVirt(0, new_buf_base, req_size,
                        Request::INST_FETCH, _cpuPtr->instMasterId(), pc_addr);
 
-    auto callback = [this, inst](Fault f, const RequestPtr& r) {
-        onPCTranslated(inst, f, r);
+    weak_ptr<InflightInst> weak_inst(inst_ptr);
+
+    auto callback = [this, weak_inst](Fault f, const RequestPtr& r) {
+        onPCTranslated(weak_inst, f, r);
     };
 
     _cpuPtr->requestInstAddrTranslation(fetch_req, getThreadContext(),
-        callback, [inst]{
-            shared_ptr<InflightInst> inst_ptr = inst.lock();
+        callback, [weak_inst]{
+            shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
             return !inst_ptr || inst_ptr->isSquashed();
         });
+}
+
+void
+SDCPUThread::attemptFetch(weak_ptr<InflightInst> inst)
+{
+    const shared_ptr<InflightInst> inst_ptr = inst.lock();
+    if (!inst_ptr || inst_ptr->isSquashed()) {
+        // No need to do anything for an instruction that has been squashed.
+        return;
+    }
+
+    attemptFetch(inst_ptr);
 }
 
 void
@@ -303,11 +312,11 @@ SDCPUThread::bufferInstructionData(Addr vaddr, uint8_t* data)
 }
 
 bool
-SDCPUThread::canCommit(shared_ptr<InflightInst> inst_ptr)
+SDCPUThread::canCommit(const InflightInst& inst_ref)
 {
-    return !inst_ptr->isCommitted() &&
-           (inst_ptr->isComplete()
-            || (inst_ptr->isMemorying() && inst_ptr->staticInst()->isStore()));
+    return !inst_ref.isCommitted() &&
+           (inst_ref.isComplete()
+            || (inst_ref.isMemorying() && inst_ref.staticInst()->isStore()));
 }
 
 void
@@ -321,7 +330,7 @@ SDCPUThread::commitAllAvailableInstructions()
     bool buffer_shrunk = false;
     bool interrupts_checked = false;
     while (!inflightInsts.empty()
-        && (canCommit(inst_ptr = inflightInsts.front())
+        && (canCommit(*(inst_ptr = inflightInsts.front()))
             || inst_ptr->isSquashed())) {
 
         if (inst_ptr->fault() != NoFault) {
@@ -331,7 +340,7 @@ SDCPUThread::commitAllAvailableInstructions()
         }
 
         if (!inst_ptr->isSquashed()){
-            commitInstruction(inst_ptr);
+            commitInstruction(inst_ptr.get());
             inst_ptr->notifyCommitted();
         }
 
@@ -371,7 +380,7 @@ SDCPUThread::commitAllAvailableInstructions()
 }
 
 void
-SDCPUThread::commitInstruction(std::shared_ptr<InflightInst> inst_ptr)
+SDCPUThread::commitInstruction(InflightInst* const inst_ptr)
 {
     DPRINTF(SDCPUInstEvent,
             "Committing instruction (seq %d)\n", inst_ptr->seqNum());
@@ -462,33 +471,28 @@ SDCPUThread::dumpBuffer()
 }
 
 void
-SDCPUThread::executeInstruction(weak_ptr<InflightInst> inst)
+SDCPUThread::executeInstruction(shared_ptr<InflightInst> inst_ptr)
 {
-    const shared_ptr<InflightInst> inst_ptr = inst.lock();
-    if (!inst_ptr || inst_ptr->isSquashed()) {
-        // No need to do anything for an instruction that has been squashed.
-        return;
-    }
+    assert(inst_ptr->isReady());
 
-    panic_if(!inst_ptr->isReady(), "Tried to execute an instruction which was "
-                                   "not ready to execute!");
     const StaticInstPtr static_inst = inst_ptr->staticInst();
 
     DPRINTF(SDCPUInstEvent, "Beginning executing instruction (seq %d)\n",
                             inst_ptr->seqNum());
 
     function<void(Fault fault)> callback;
+    weak_ptr<InflightInst> weak_inst = inst_ptr;
 
     if (static_inst->isMemRef()) {
-        callback = [this, inst] (Fault fault) {
-                shared_ptr<InflightInst> inst_ptr = inst.lock();
+        callback = [this, weak_inst] (Fault fault) {
+                shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
                 if (!inst_ptr || inst_ptr->isSquashed()) return;
 
                 if (fault != NoFault) markFault(inst_ptr, fault);
             };
     } else {
-        callback = [this, inst](Fault fault) {
-                onExecutionCompleted(inst, fault);
+        callback = [this, weak_inst](Fault fault) {
+                onExecutionCompleted(weak_inst, fault);
             };
     }
 
@@ -499,6 +503,18 @@ SDCPUThread::executeInstruction(weak_ptr<InflightInst> inst)
     // For memrefs, this will result in a corresponding call to either
     // MemIFace::initiateMemRead() or MemIFace::writeMem(), depending on
     // whether the access is a write or read.
+}
+
+void
+SDCPUThread::executeInstruction(weak_ptr<InflightInst> inst)
+{
+    const shared_ptr<InflightInst> inst_ptr = inst.lock();
+    if (!inst_ptr || inst_ptr->isSquashed()) {
+        // No need to do anything for an instruction that has been squashed.
+        return;
+    }
+
+    executeInstruction(inst_ptr);
 }
 
 void
@@ -628,7 +644,7 @@ SDCPUThread::markFault(shared_ptr<InflightInst> inst_ptr, Fault fault)
 
     inst_ptr->fault(fault);
 
-    squashUpTo(inst_ptr);
+    squashUpTo(inst_ptr.get());
 
     inst_ptr->notifySquashed();
 
@@ -756,14 +772,9 @@ SDCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
 }
 
 void
-SDCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
+SDCPUThread::onExecutionCompleted(shared_ptr<InflightInst> inst_ptr,
+                                  Fault fault)
 {
-    const shared_ptr<InflightInst> inst_ptr = inst.lock();
-    if (!inst_ptr || inst_ptr->isSquashed()) {
-        // No need to do anything for an instruction that has been squashed.
-        return;
-    }
-
     if (fault != NoFault) {
         markFault(inst_ptr, fault);
 
@@ -834,7 +845,7 @@ SDCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
                         nextIssueNum - inst_ptr->issueSeqNum());
 
                     // Squash all mispredicted instructions
-                    squashUpTo(inst_ptr, true);
+                    squashUpTo(inst_ptr.get(), true);
 
                     // Notify branch predictor of incorrect prediction
 
@@ -860,6 +871,18 @@ SDCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
     }
 
     commitAllAvailableInstructions();
+}
+
+void
+SDCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
+{
+    const shared_ptr<InflightInst> inst_ptr = inst.lock();
+    if (!inst_ptr || inst_ptr->isSquashed()) {
+        // No need to do anything for an instruction that has been squashed.
+        return;
+    }
+
+    onExecutionCompleted(inst_ptr, fault);
 }
 
 void
@@ -953,7 +976,7 @@ SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
         for (auto& other_inst_ptr : inflightInsts) {
             if (!other_inst_ptr->staticInst()->isDelayedCommit()) {
                 if (other_inst_ptr != inst_ptr) {
-                    squashUpTo(other_inst_ptr);
+                    squashUpTo(other_inst_ptr.get());
                     return;
                 }
                 break;
@@ -971,7 +994,7 @@ SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
     inst_ptr->notifyIssued();
 
     if (inst_ptr->isReady()) { // If no dependencies, execute now
-        executeInstruction(inst);
+        executeInstruction(inst_ptr);
     } else { // Else, add an event callback to execute when ready
         inst_ptr->addReadyCallback([this, inst](){
             executeInstruction(inst);
@@ -1704,7 +1727,7 @@ SDCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
 }
 
 void
-SDCPUThread::squashUpTo(shared_ptr<InflightInst> inst_ptr, bool rebuild_lasts)
+SDCPUThread::squashUpTo(InflightInst* const inst_ptr, bool rebuild_lasts)
 {
     bool last_ser_correct = true;
     bool last_mem_bar_correct = true;
@@ -1712,11 +1735,12 @@ SDCPUThread::squashUpTo(shared_ptr<InflightInst> inst_ptr, bool rebuild_lasts)
     shared_ptr<InflightInst> ser_inst = lastSerializingInstruction.lock();
     shared_ptr<InflightInst> bar_inst = lastMemBarrier.lock();
     size_t count = 0;
-    while (!inflightInsts.empty() && inflightInsts.back() != inst_ptr) {
-        inflightInsts.back()->notifySquashed();
-        if (inflightInsts.back() == ser_inst) last_ser_correct = false;
-        if (inflightInsts.back() == bar_inst) last_mem_bar_correct = false;
-        recordInstStats(inflightInsts.back());
+    while (!inflightInsts.empty() && inflightInsts.back().get() != inst_ptr) {
+        const shared_ptr<InflightInst>& back_inst = inflightInsts.back();
+        back_inst->notifySquashed();
+        if (back_inst == ser_inst) last_ser_correct = false;
+        if (back_inst == bar_inst) last_mem_bar_correct = false;
+        recordInstStats(back_inst);
         inflightInsts.pop_back();
         ++count;
     }
