@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2003-2005 The Regents of The University of Michigan
+/**
+ * Copyright (c) 2018 Metempsy Technology Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,36 +25,40 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors: Nathan Binkert
- *          Steve Reinhardt
+ * Authors: Javier Bueno
  */
 
-#ifndef __SIM_EXIT_HH__
-#define __SIM_EXIT_HH__
+#ifndef __MEM_CACHE_PREFETCH_SLIM_AMPM_HH__
+#define __MEM_CACHE_PREFETCH_SLIM_AMPM_HH__
 
-#include <string>
+#include "mem/cache/prefetch/access_map_pattern_matching.hh"
+#include "mem/cache/prefetch/delta_correlating_prediction_tables.hh"
+#include "mem/cache/prefetch/queued.hh"
 
-#include "base/types.hh"
+/**
+ * The SlimAMPM Prefetcher
+ * Reference:
+ *    Towards Bandwidth-Efficient Prefetching with Slim AMPM.
+ *    Young, Vinson, and A. Krishna.
+ *    The 2nd Data Prefetching Championship (2015).
+ *
+ * This prefetcher uses two other prefetchers, the AMPM and the DCPT.
+ */
 
-Tick curTick();
+struct SlimAMPMPrefetcherParams;
 
-// forward declaration
-class Callback;
+class SlimAMPMPrefetcher : public QueuedPrefetcher
+{
+   /** AMPM prefetcher object */
+   AccessMapPatternMatching &ampm;
+   /** DCPT prefetcher object */
+   DeltaCorrelatingPredictionTables &dcpt;
+ public:
+   SlimAMPMPrefetcher(const SlimAMPMPrefetcherParams *p);
+   ~SlimAMPMPrefetcher()
+   {}
 
-/// Register a callback to be called when Python exits.  Defined in
-/// sim/main.cc.
-void registerExitCallback(Callback *);
-
-/// Schedule an event to exit the simulation loop (returning to
-/// Python) at the end of the current cycle (curTick()).  The message
-/// and exit_code parameters are saved in the SimLoopExitEvent to
-/// indicate why the exit occurred.
-void exitSimLoop(const std::string &message, int exit_code = 0,
-                 Tick when = curTick(), Tick repeat = 0,
-                 bool serialize = false);
-/// Schedule an event as above, but make it high priority so it runs before
-/// any normal events which are schedule at the current time.
-void exitSimLoopNow(const std::string &message, int exit_code = 0,
-                    Tick repeat = 0, bool serialize = false);
-
-#endif // __SIM_EXIT_HH__
+   void calculatePrefetch(const PrefetchInfo &pfi,
+                          std::vector<AddrPriority> &addresses) override;
+};
+#endif//__MEM_CACHE_PREFETCH_SLIM_AMPM_HH__

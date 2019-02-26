@@ -54,8 +54,8 @@ brief_copyright=\
     "gem5 is copyrighted software; use the --copyright option for details."
 
 def parse_options():
-    import config
-    from options import OptionParser
+    from . import config
+    from .options import OptionParser
 
     options = OptionParser(usage=usage, version=version,
                            description=brief_copyright)
@@ -203,15 +203,15 @@ def _check_tracing():
 def main(*args):
     import m5
 
-    import core
-    import debug
-    import defines
-    import event
-    import info
-    import stats
-    import trace
+    from . import core
+    from . import debug
+    from . import defines
+    from . import event
+    from . import info
+    from . import stats
+    from . import trace
 
-    from util import inform, fatal, panic, isInteractive
+    from .util import inform, fatal, panic, isInteractive
 
     if len(args) == 0:
         options, arguments = parse_options()
@@ -261,7 +261,7 @@ def main(*args):
         print()
         print('compiled %s' % defines.compileDate)
         print('build options:')
-        keys = defines.buildEnv.keys()
+        keys = list(defines.buildEnv.keys())
         keys.sort()
         for key in keys:
             val = defines.buildEnv[key]
@@ -286,15 +286,15 @@ def main(*args):
         debug.help()
 
     if options.list_sim_objects:
-        import SimObject
+        from . import SimObject
         done = True
         print("SimObjects:")
-        objects = SimObject.allClasses.keys()
+        objects = list(SimObject.allClasses.keys())
         objects.sort()
         for name in objects:
             obj = SimObject.allClasses[name]
             print("    %s" % obj)
-            params = obj._params.keys()
+            params = list(obj._params.keys())
             params.sort()
             for pname in params:
                 param = obj._params[pname]

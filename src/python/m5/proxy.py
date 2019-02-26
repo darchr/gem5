@@ -45,9 +45,14 @@
 #
 #####################################################################
 
+from __future__ import print_function
+from __future__ import absolute_import
+import six
+if six.PY3:
+    long = int
+
 import copy
 
-import params
 
 class BaseProxy(object):
     def __init__(self, search_self, search_up):
@@ -232,6 +237,7 @@ class AllProxy(BaseProxy):
         return 'all'
 
 def isproxy(obj):
+    from . import params
     if isinstance(obj, (BaseProxy, params.EthernetAddr)):
         return True
     elif isinstance(obj, (list, tuple)):
@@ -261,6 +267,3 @@ Self = ProxyFactory(search_self = True, search_up = False)
 
 # limit exports on 'from proxy import *'
 __all__ = ['Parent', 'Self']
-
-# see comment on imports at end of __init__.py.
-import params # for EthernetAddr

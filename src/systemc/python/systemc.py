@@ -1,4 +1,4 @@
-# Copyright 2018 Google, Inc.
+# Copyright 2019 Google, Inc.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -25,31 +25,19 @@
 #
 # Authors: Gabe Black
 
-from __future__ import print_function
+import _m5.systemc
 
-import argparse
-import m5
-import os
-import re
-import sys
+from _m5.systemc import sc_main
+from _m5.systemc import sc_time
+from _m5.systemc import sc_main_result_code, sc_main_result_str
 
-from m5.objects import SystemC_Kernel, Root
+class ScMainResult(object):
+    def __init__(self, code, message):
+        self.code = code
+        self.message = message
 
-# pylint:disable=unused-variable
+def sc_main_result():
+    '''Retrieve and return the results of running sc_main'''
+    return ScMainResult(sc_main_result_code(), sc_main_result_str())
 
-kernel = SystemC_Kernel()
-root = Root(full_system=True, systemc_kernel=kernel)
-
-m5.systemc.sc_main('gem5_systemc_test');
-
-m5.instantiate(None)
-
-cause = m5.simulate(m5.MaxTick).getCause()
-
-result = m5.systemc.sc_main_result()
-if result.code != 0:
-    # Arguably this should make gem5 fail, but some tests purposefully
-    # generate errors, and as long as their output matches that's still
-    # considered correct. A "real" systemc config should expect sc_main
-    # (if present) not to fail.
-    sys.exit(int(result.code))
+__all__ = [ 'sc_main', 'sc_time', 'sc_main_result' ]

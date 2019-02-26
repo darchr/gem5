@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2003-2005 The Regents of The University of Michigan
- * All rights reserved.
+ * Copyright 2019 Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -25,36 +24,30 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors: Nathan Binkert
- *          Steve Reinhardt
+ * Authors: Gabe Black
  */
 
-#ifndef __SIM_EXIT_HH__
-#define __SIM_EXIT_HH__
+#include "systemc/core/python.hh"
+#include "systemc/ext/tlm_core/2/quantum/global_quantum.hh"
 
-#include <string>
+namespace
+{
 
-#include "base/types.hh"
+struct InstallTlmGlobalQuantum : public ::sc_gem5::PythonInitFunc
+{
+    void
+    run(pybind11::module &systemc) override
+    {
+        pybind11::class_<tlm::tlm_global_quantum>(
+                systemc, "tlm_global_quantum")
+            .def_static("instance", &tlm::tlm_global_quantum::instance,
+                        pybind11::return_value_policy::reference)
+            .def("set", &tlm::tlm_global_quantum::set)
+            .def("get", &tlm::tlm_global_quantum::get)
+            .def("compute_local_quantum",
+                    &tlm::tlm_global_quantum::compute_local_quantum)
+            ;
+    }
+} installTlmGlobalQuantum;
 
-Tick curTick();
-
-// forward declaration
-class Callback;
-
-/// Register a callback to be called when Python exits.  Defined in
-/// sim/main.cc.
-void registerExitCallback(Callback *);
-
-/// Schedule an event to exit the simulation loop (returning to
-/// Python) at the end of the current cycle (curTick()).  The message
-/// and exit_code parameters are saved in the SimLoopExitEvent to
-/// indicate why the exit occurred.
-void exitSimLoop(const std::string &message, int exit_code = 0,
-                 Tick when = curTick(), Tick repeat = 0,
-                 bool serialize = false);
-/// Schedule an event as above, but make it high priority so it runs before
-/// any normal events which are schedule at the current time.
-void exitSimLoopNow(const std::string &message, int exit_code = 0,
-                    Tick repeat = 0, bool serialize = false);
-
-#endif // __SIM_EXIT_HH__
+} // anonymous namespace
