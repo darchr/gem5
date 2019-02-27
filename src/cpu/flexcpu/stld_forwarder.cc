@@ -73,6 +73,7 @@ void
 StLdForwarder::doForward(const DataEntry& src, const RequestPtr& req,
                          const function<void(PacketPtr)>& callback)
 {
+    ++forwardsProvided;
 
     PacketPtr pkt_to_provide = Packet::createRead(req);
 
@@ -219,8 +220,16 @@ StLdForwarder::registerMemBarrier(InflightInst* inst_ptr)
         dataMap.erase(storeBuffer.back());
         storeBuffer.pop_back();
         assert(!storeBuffer.empty() || dataMap.empty());
+
+        ++barriersSquashed;
     });
-    inst_ptr->addCommitCallback([this] { commitStore(); });
+    inst_ptr->addCommitCallback([this] {
+        commitStore();
+
+        ++barriersCommitted;
+    });
+
+    ++barriersRegistered;
 }
 
 void
@@ -243,13 +252,78 @@ StLdForwarder::registerStore(InflightInst* inst_ptr)
         dataMap.erase(storeBuffer.back());
         storeBuffer.pop_back();
         assert(!storeBuffer.empty() || dataMap.empty());
+
+        ++storesSquashed;
     });
     // TODO consider holding onto the store for a little longer (e.g. until
     //      memory response time), so more loads can be forwarded. Pretty sure
     //      the other CPU model LSQs will hold onto items until response anyway
     //      but we haven't implemented it yet only to keep the code simple for
     //      now.
-    inst_ptr->addCommitCallback([this] { commitStore(); });
+    inst_ptr->addCommitCallback([this] {
+        commitStore();
+
+        ++storesCommitted;
+    });
+
+    ++storesRegistered;
+}
+
+void
+StLdForwarder::regStats(const string& name)
+{
+    storesRegistered
+        .name(name + ".storesRegistered")
+        .desc("Number of stores registered in the forwarder's store buffer.")
+        ;
+
+    storesCommitted
+        .name(name + ".storesCommitted")
+        .desc("Number of stores removed from the store buffer by commit.")
+        ;
+
+    storesSquashed
+        .name(name + ".storesSquashed")
+        .desc("Number of stores removed from the store buffer by squash.")
+        ;
+
+    barriersRegistered
+        .name(name + ".barriersRegistered")
+        .desc("Number of barriers registered in the forwarder's store buffer.")
+        ;
+
+    barriersCommitted
+        .name(name + ".barriersCommitted")
+        .desc("Number of barriers removed from the store buffer by commit.")
+        ;
+
+    barriersSquashed
+        .name(name + ".barriersSquashed")
+        .desc("Number of barriers removed from the store buffer by squash.")
+        ;
+
+    forwardsRequested
+        .name(name + ".forwardsRequested")
+        .desc("Number of requests for forwarding given to the forwarder.")
+        ;
+
+    forwardsProvided
+        .name(name + ".forwardsProvided")
+        .desc("Number of requests for forwarding satisfied by the forwarder.")
+        ;
+
+    forwardsBlockedByMissOrBarrier
+        .name(name + ".forwardsBlockedByMissOrBarrier")
+        .desc("Number of requests for forwarding unavailable because no "
+              "matching store found before end of buffer, or barrier hit.")
+        ;
+
+    forwardsBlockedByOverlap
+        .name(name + ".forwardsBlockedByOverlap")
+        .desc("Number of requests for forwarding unavailable because an "
+              "overlap occurred causing a dependency without enabling "
+              "forwarding.")
+        ;
 }
 
 // anonymous namespace for internal linkage only.
@@ -278,6 +352,8 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
     // TODO enforce bandwidth bound
     DPRINTF(SDCPUForwarder, "Checking if load @ %#x (seq %d) can be forwarded."
                             "\n", req->getPaddr(), inst_ptr->seqNum());
+
+    ++forwardsRequested;
 
     assert(inst_ptr->isEffAddred());
 
@@ -368,6 +444,13 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                         DPRINTF(SDCPUForwarder, "Load (seq %d) cannot be "
                                                 "forwarded.\n",
                                                 ld_inst_ptr->seqNum());
+
+                        if (ctrl_blk->latest_overlapping_store) {
+                            ++forwardsBlockedByOverlap;
+                        } else {
+                            ++forwardsBlockedByMissOrBarrier;
+                        }
+
                         callback(nullptr);
                         return;
                     }
@@ -411,6 +494,9 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                         DPRINTF(SDCPUForwarder, "Load (seq %d) cannot be "
                                                 "forwarded.\n",
                                                 ld_inst_ptr->seqNum());
+
+                        ++forwardsBlockedByOverlap;
+
                         callback(nullptr);
                         return;
                     }
@@ -447,6 +533,9 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
             if (!superset) {
                 DPRINTF(SDCPUForwarder, "Load (seq %d) cannot be forwarded.\n",
                                         inst_ptr->seqNum());
+
+                ++forwardsBlockedByOverlap;
+
                 callback(nullptr);
                 return;
             }
@@ -485,6 +574,9 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
     if (!ctrl_blk) {
         DPRINTF(SDCPUForwarder, "Load (seq %d) cannot be forwarded.\n",
                                 inst_ptr->seqNum());
+
+        ++forwardsBlockedByMissOrBarrier;
+
         callback(nullptr);
         return;
     }

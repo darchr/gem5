@@ -50,6 +50,18 @@ class StLdForwarder {
      */
     std::string _name;
 
+    Stats::Scalar storesRegistered;
+    Stats::Scalar storesCommitted;
+    Stats::Scalar storesSquashed;
+    Stats::Scalar barriersRegistered;
+    Stats::Scalar barriersCommitted;
+    Stats::Scalar barriersSquashed;
+
+    Stats::Scalar forwardsRequested;
+    Stats::Scalar forwardsProvided;
+    Stats::Scalar forwardsBlockedByMissOrBarrier;
+    Stats::Scalar forwardsBlockedByOverlap;
+
     /**
      * Sorted (by sequence) series of store instructions waiting to be sent to
      * memory.
@@ -124,6 +136,15 @@ class StLdForwarder {
      * @param inst_ptr The store to inform the forwarder about.
      */
     void registerStore(InflightInst* inst_ptr);
+
+    /**
+     * Register forwarder-specific stats.
+     * The owner should call this function in its regStats with the forwarder-
+     * specific name
+     *
+     * @param name from the owner for this forwarder.
+     */
+    void regStats(const std::string &name);
 
     /**
      * Request data for a load instruction. If a store has data for the load,

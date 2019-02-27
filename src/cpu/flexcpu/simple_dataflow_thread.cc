@@ -1438,6 +1438,7 @@ void
 SDCPUThread::regStats(const std::string &name)
 {
     _committedState->regStats(name);
+    forwarder.regStats(name + ".forwarder");
 
     numInstsStat
         .name(name + ".numInsts")
