@@ -326,24 +326,6 @@ StLdForwarder::regStats(const string& name)
         ;
 }
 
-// anonymous namespace for internal linkage only.
-namespace {
-struct LoadDepCtrlBlk {
-    weak_ptr<InflightInst> load_inst;
-    RequestPtr req;
-    size_t remaining_unknowns = 0;
-    InflightInst* latest_overlapping_store = nullptr;
-        // If a store before the relevant load is squashed, the load will be
-        // squashed too. Therefore we don't need to use weak_ptr here to check
-        // liveness, as a check on the load will be sufficient.
-    bool is_superset = false;
-
-    LoadDepCtrlBlk(weak_ptr<InflightInst> load_inst,
-                   const RequestPtr& req): load_inst(load_inst), req(req)
-    { }
-};
-};
-
 void
 StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                            const RequestPtr& req,
@@ -356,6 +338,21 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
     ++forwardsRequested;
 
     assert(inst_ptr->isEffAddred());
+
+    struct LoadDepCtrlBlk {
+        weak_ptr<InflightInst> load_inst;
+        RequestPtr req;
+        size_t remaining_unknowns = 0;
+        InflightInst* latest_overlapping_store = nullptr;
+            // If a store before the relevant load is squashed, the load will
+            // be squashed too. Therefore we don't need to use weak_ptr here to
+            // check liveness, as a check on the load will be sufficient.
+        bool is_superset = false;
+
+        LoadDepCtrlBlk(weak_ptr<InflightInst> load_inst,
+                    const RequestPtr& req): load_inst(load_inst), req(req)
+        { }
+    };
 
     shared_ptr<LoadDepCtrlBlk> ctrl_blk;
 
