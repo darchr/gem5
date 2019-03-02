@@ -37,10 +37,12 @@ using namespace std;
 
 StLdForwarder::StLdForwarder(string name,
                              unsigned store_buffer_size,
+                             bool stld_forward_enabled,
                              Cycles stld_forward_latency,
                              unsigned stld_forward_bandwidth):
     _name(name),
     storeBufferSize(store_buffer_size),
+    stldForwardEnabled(stld_forward_enabled),
     stldForwardLatency(stld_forward_latency),
     stldForwardBandwidth(stld_forward_bandwidth)
 {
@@ -332,12 +334,18 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                            const function<void(PacketPtr)>& callback)
 {
     // TODO enforce bandwidth bound
+
+    assert(inst_ptr->isEffAddred());
+
+    if (!stldForwardEnabled) {
+        callback(nullptr);
+        return;
+    }
+
     DPRINTF(SDCPUForwarder, "Checking if load @ %#x (seq %d) can be forwarded."
                             "\n", req->getPaddr(), inst_ptr->seqNum());
 
     ++forwardsRequested;
-
-    assert(inst_ptr->isEffAddred());
 
     struct LoadDepCtrlBlk {
         weak_ptr<InflightInst> load_inst;

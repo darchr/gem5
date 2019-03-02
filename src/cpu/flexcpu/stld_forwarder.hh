@@ -70,6 +70,8 @@ class StLdForwarder {
     std::unordered_map<InflightInst*, DataEntry> dataMap;
 
     unsigned storeBufferSize; // TODO
+
+    bool stldForwardEnabled;
     Cycles stldForwardLatency; // TODO
     unsigned stldForwardBandwidth; // TODO
 
@@ -80,7 +82,8 @@ class StLdForwarder {
      * Constructor
      */
     StLdForwarder(std::string name, unsigned store_buffer_size,
-                  Cycles stld_forward_delay, unsigned stld_forward_bandwidth);
+                  bool stld_forward_enabled, Cycles stld_forward_delay,
+                  unsigned stld_forward_bandwidth);
 
     virtual ~StLdForwarder() {}
 

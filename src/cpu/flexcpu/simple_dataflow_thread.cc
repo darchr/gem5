@@ -52,7 +52,8 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                     TheISA::ISA* isa_, bool use_kernel_stats_,
                     unsigned branch_pred_max_depth, unsigned fetch_buf_size,
                     bool in_order_begin_exec, bool in_order_exec,
-                    unsigned inflight_insts_size, bool strict_ser):
+                    unsigned inflight_insts_size, bool strict_ser,
+                    bool stld_forward_enabled):
     memIface(*this),
     x86Iface(*this),
     _cpuPtr(cpu_),
@@ -68,7 +69,7 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
     fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1)),
     remainingBranchPredDepth(branch_pred_max_depth ?
                              branch_pred_max_depth : -1),
-    forwarder(_name + ".forwarder", 0, Cycles(0), 0)
+    forwarder(_name + ".forwarder", 0, stld_forward_enabled, Cycles(0), 0)
 {
     panic_if(fetch_buf_size % sizeof(TheISA::MachInst) != 0,
              "Fetch buffer size should be multiple of instruction size!");
@@ -82,7 +83,8 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                     BaseTLB* dtb_, TheISA::ISA* isa_,
                     unsigned branch_pred_max_depth, unsigned fetch_buf_size,
                     bool in_order_begin_exec, bool in_order_exec,
-                    unsigned inflight_insts_size, bool strict_ser):
+                    unsigned inflight_insts_size, bool strict_ser,
+                    bool stld_forward_enabled):
     memIface(*this),
     x86Iface(*this),
     _cpuPtr(cpu_),
@@ -98,7 +100,7 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
     fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1)),
     remainingBranchPredDepth(branch_pred_max_depth ?
                              branch_pred_max_depth : -1),
-    forwarder(_name + ".forwarder", 0, Cycles(0), 0)
+    forwarder(_name + ".forwarder", 0, stld_forward_enabled, Cycles(0), 0)
 {
     panic_if(fetch_buf_size % sizeof(TheISA::MachInst) != 0,
              "Fetch buffer size should be multiple of instruction size!");
