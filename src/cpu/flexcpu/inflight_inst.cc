@@ -218,7 +218,7 @@ InflightInst::addReadyCallback(function<void()> callback)
 void
 InflightInst::addRetireCallback(function<void()> callback)
 {
-    retireCallbacks.push_back(callback);
+    retireCallbacks.push_back(move(callback));
 }
 
 void
