@@ -159,12 +159,12 @@ class StLdForwarder {
      * @param inst_ptr The load instruction for which data should be provided.
      * @param req The (translated) request containing the address of the load.
      * @param callback The callback through which the forwarded packet will be
-     *                 provided. The PacketPtr is only guaranteed to be valid
-     *                 for the duration of the call to the callback.
-     *                 Additionally, the callback may be made on the same call
-     *                 stack (before requestLoad() returns) if the latency for
-     *                 forwarding is configured to be zero. Packet is nullptr
-     *                 if forwarding is not possible.
+     *                 provided. The PacketPtr is allocated with new and it is
+     *                 the callback's job to delete it when it no longer needs
+     *                 it. Additionally, the callback may be made on the same
+     *                 call stack (before requestLoad() returns) if the latency
+     *                 for forwarding is configured to be zero. Packet is
+     *                 nullptr if forwarding is not possible.
      */
     void requestLoad(const std::shared_ptr<InflightInst>& inst_ptr,
                      const RequestPtr& req,

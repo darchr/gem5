@@ -83,12 +83,10 @@ StLdForwarder::doForward(const DataEntry& src, const RequestPtr& req,
     // physical addresses should be contiguous.
 
 
-    // NOTE If we implement stldforward latency, we have to replace
-    //      this with a separate allocation and data copy. This code
-    //      means that the lifespan of the forwarded packet is
-    //      implicitly tied to the lifespan of the source packet.
-    pkt_to_provide->dataStatic(src.data.get()
-                             + (pkt_to_provide->getAddr() - src.base));
+    pkt_to_provide->allocate();
+    memcpy(pkt_to_provide->getPtr<void>(),
+           src.data.get() + (pkt_to_provide->getAddr() - src.base),
+           req->getSize());
 
     if (DTRACE(SDCPUForwarder)) {
         switch (pkt_to_provide->getSize()) {
@@ -127,7 +125,6 @@ StLdForwarder::doForward(const DataEntry& src, const RequestPtr& req,
 
     if (stldForwardLatency == 0) {
         callback(pkt_to_provide);
-        delete pkt_to_provide;
     } else {
         // TODO schedule an event to perform the callback.
         panic("Non-zero stldForwardLatency not yet implemented!");

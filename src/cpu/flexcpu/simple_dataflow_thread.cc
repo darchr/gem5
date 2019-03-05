@@ -781,13 +781,25 @@ SDCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
                     if (inst_ptr->isMemReady()) {
                         Fault fault = inst_ptr->staticInst()->completeAcc(pkt,
                             inst_ptr.get(), inst_ptr->traceData());
+                        delete pkt;
+
                         onExecutionCompleted(inst_ptr, fault);
                     } else { // has remaining dependencies
-                        // At the time of writing, the only way for memory
-                        // dependencies at this stage to show up is with mem
-                        // barriers, which should not be forwarded across to be
-                        // safe.
-                        panic("Shouldn't forward across barriers.");
+                        InflightInst* raw_inst(inst_ptr.get());
+                        inst_ptr->addMemReadyCallback([this, raw_inst, pkt] {
+                            Fault fault = raw_inst->staticInst()->
+                                completeAcc(pkt, raw_inst,
+                                            raw_inst->traceData());
+                            delete pkt;
+
+                            onExecutionCompleted(raw_inst->shared_from_this(),
+                                                 fault);
+                        });
+
+                        inst_ptr->addSquashCallback([pkt, raw_inst] {
+                            if (!raw_inst->isMemorying())
+                                delete pkt;
+                        });
                     }
                 } else { // Can't forward
                     forwarder.populateMemDependencies(inst_ptr);
