@@ -2,12 +2,12 @@ import m5
 from m5.objects import *
 
 root = Root(full_system = False);
-root.verilate = VerilatorDinoCPU(cycles = 50,
+root.verilate = VerilatorObject(cycles = 50,
         latency = '1ns' ,
         stages = 1,
         startTime = 0,
         memData = "test",
-        name = "VerilatorDinoCPU")
+        name = "VerilatorObject")
 
 m5.instantiate()
 

@@ -1,7 +1,7 @@
 Import('*')
 
-SimObject('VerilatorObject.py')
-Source('verilator_object.cc')
+SimObject('VerilatorDinoCPU.py')
+Source('VerilatorDinoCPU.cc')
+Source('VerilatorMemBlackBox.cc')
 
 DebugFlag('Verilator')
-
