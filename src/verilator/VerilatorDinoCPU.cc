@@ -4,6 +4,7 @@
 
 VerilatorDinoCPU::VerilatorDinoCPU(VerilatorDinoCPUParams *params) :
     SimObject(params),
+    verilatorMem(params -> verilatorMem),
     event([this]{updateCycle();}, params -> name),
     latency(params -> latency),
     designStages(params -> stages)

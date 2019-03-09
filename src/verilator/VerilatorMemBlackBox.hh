@@ -1,12 +1,18 @@
 #ifndef __VERILATOR_VERILATOR_MEM_BLACK_BOX__HH__
 #define __VERILATOR_VERILATOR_MEM_BLACK_BOX__HH__
 
+#define VM_TRACE 0
+#define VL_THREADED 0
+
+#include "VDualPortedMemoryBlackBox.h"
 #include "mem/mem_object.hh"
 #include "params/VerilatorMemBlackBox.hh"
 
-class DualPortedMemoryBlackBox: public MemObject
+class VerilatorMemBlackBox: public MemObject
 {
     public:
+        DualPortedMemoryBlackBox blkbox;
+
         void doFetch();
         void doMem();
 
