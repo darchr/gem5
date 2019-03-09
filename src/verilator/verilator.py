@@ -6,6 +6,7 @@ root.verilate = VerilatorDinoCPU(cycles = 50,
         latency = '1ns' ,
         stages = 1,
         startTime = 0,
+        verilatorMem = VerilatorMemBlackBox(),
         memData = "test",
         name = "VerilatorDinoCPU")
 

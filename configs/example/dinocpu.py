@@ -82,10 +82,10 @@ system.kernel = binary
 system.system_port = system.mem_ctrl.port
 
 # Create the dinocpu verilator wrapper
-system.dinocpu = VerilatorDinoCPU()
-
-# Create the black box memory wrapper
 system.memblackbox = VerilatorMemBlackBox()
+
+# Create the dinocpu verilator wrapper
+system.dinocpu = VerilatorDinoCPU()
 
 system.memblackbox.instPort = system.mem_ctrl.port
 system.memblackbox.dataPort = system.mem_ctrl.port
