@@ -90,7 +90,7 @@ system.dinocpu = VerilatorDinoCPU()
 system.memblackbox.instPort = system.mem_ctrl.port
 system.memblackbox.dataPort = system.mem_ctrl.port
 
-system.dinocpu.latency = '1ns'
+system.dinocpu.clkperiod = '1ns'
 
 # set up the root SimObject and start the simulation
 root = Root(full_system = True, system = system)

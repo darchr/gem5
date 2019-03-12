@@ -1,4 +1,4 @@
-/*# Copyright (c) 2019 The Regents of the University of California
+# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,36 +25,23 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
-*/
 
 
-#ifndef __VERILATOR_VERILATOR_OBJECT_HH__
-#define __VERILATOR_VERILATOR_OBJECT_HH__
+import m5
+from m5.objects import *
 
-#define VM_TRACE 0
-#define VL_THREADED 0
+root = Root(full_system = False);
+root.verilate = VerilatorDinoCPU(cycles = 50,
+        latency = '1ns' ,
+        stages = 1,
+        startTime = 0,
+        verilatorMem = VerilatorMemBlackBox(),
+        memData = "test",
+        name = "VerilatorDinoCPU")
 
-#include "VTop.h"
-#include "VerilatorMemBlackBox.hh"
-#include "params/VerilatorDinoCPU.hh"
-#include "sim/sim_object.hh"
+m5.instantiate()
 
-class VerilatorDinoCPU
-{
-    private:
-        void updateCycle();
-
-        VTop top;
-        VerilatorMemBlackBox verilatorMem;
-        EventFunctionWrapper event;
-        Tick clkperiod;
-        int designStages;
-        int cyclesPassed;
-
-    public:
-        VerilatorDinoCPUt(VerilatorDinoCPUParams *p);
-        ~VerilatorDinoCPU();
-        void reset(int resetCycles);
-        void startup();
-};
-#endif
+print("Beginning Sim")
+exit_event = m5.simulate()
+print('Exiting @ tick {} because {}' .format(m5.curTick(),
+    exit_event.getCause()))
