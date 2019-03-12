@@ -71,24 +71,43 @@ VerilatorMemBlackBox::~VerilatorMemBlackBox()
 
 void VerilatorMemBlackBox::doFetch()
 {
-
      RequestPtr ifetch_req = std::make_shared<Request>(
         blkbox.Top__DOT__tile_,
-        4,0x100,0);
+        4,
+        Request::Flags.INSTR_FETCH,
+        0);
+
      DPRINTF(Verilator, "Sending fetch for addr (pa: %#x)\n",
-               req->getPaddr());
-     PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
+               ifetch_req->getPaddr());
+     PacketPtr pkt = new Packet(ifetch_req, MemCmd::ReadReq);
      DPRINTF(Verilator, " -- pkt addr: %#x\n", pkt->getAddr());
      pkt->allocate();
      instPort.sendPacket(pkt);
 
 }
 
-void VerilatorMemBlackBox::doMem(const RequestPtr &req, uint8_t *data,
-        bool read )
+void VerilatorMemBlackBox::doMem()
 {
     //need more stuff here
-    PacketPtr pkt = read ? Packet::createRead(req) : Packet::createWrite(req);
+    unsigned int maskmode = 4;
+    //bool read = blkbox.TOP_DOT_tile_DOT_cpu_
+    //DOT_memory_DOT_dmem_DOT_writeenable
+    //if (blkbox.TOP_DOT_tile_DOT_cpu_DOT_
+    //memory_DOT_dmem_DOT_maskmode)
+    //determine size to access depending on above signal
+
+    RequestPtr data_req = std::make_shared<Request>(
+        blkbox.Top__DOT__tile_,
+        maskmode,
+        Request::Flags.PHYSICAL,
+        0);
+
+    DPRINTF(Verilator, "Sending data request for addr (pa: %#x)\n",
+               data_req->getPaddr());
+
+    PacketPtr pkt = read ? Packet::createRead(data_req)
+        : Packet::createWrite(data_req);
+    DPRINTF(Verilator, " -- pkt addr: %#x\n", pkt->getAddr());
     pkt->allocate();
     pkt->setData(data);
     delete[] data;
