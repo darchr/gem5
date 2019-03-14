@@ -65,15 +65,27 @@ class FlexCPU(BaseCPU):
     in_order_execute = Param.Bool(False, "Serialize all instruction "
                                          "execution.")
 
-    instruction_buffer_size = Param.Unsigned(0, "Size of the dynamic "
-                                             "instruction buffer. This buffer "
-                                             "is used for maintaining the "
-                                             "commit order of instructions. "
-                                             "Limiting this limits the number "
-                                             "of instructions that can be "
-                                             "handled at once before commit "
-                                             "(out of order). 0 implies an "
-                                             "infinitely large buffer.")
+    op_buffer_size = Param.Unsigned(0, "Size of the InflightInst buffer. This "
+                                       "buffer stores decoded (possibly "
+                                       "microcoded) instructions used for "
+                                       "maintaining the commit order of "
+                                       "instructions and microops. Limiting "
+                                       "this limits the number of "
+                                       "instructions AND microops that can be "
+                                       "handled at once before commit (out of "
+                                       "order). 0 implies an infinitely large "
+                                       "buffer.")
+
+    max_instruction_window = Param.Unsigned(0, "Normally, the instruction "
+                                            "buffer is bound by the number of "
+                                            "microops that instructions are "
+                                            "decoded into (1 for instructions "
+                                            "that are not microcoded). This "
+                                            "parameter allows for a separate "
+                                            "constraint to be applied just to "
+                                            "the count of ISA instructions, "
+                                            "ignoring any effects of "
+                                            "microcode.")
 
     issue_latency = Param.Cycles(0, "Number of cycles each instruction takes "
                                     "to issue.")

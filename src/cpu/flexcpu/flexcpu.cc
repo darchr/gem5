@@ -74,7 +74,8 @@ FlexCPU::FlexCPU(FlexCPUParams* params):
                 params->fetch_buffer_size,
                 params->in_order_begin_execute,
                 params->in_order_execute,
-                params->instruction_buffer_size,
+                params->op_buffer_size,
+                params->max_instruction_window,
                 params->strict_serialization,
                 params->stld_forward_enabled));
 
@@ -91,7 +92,8 @@ FlexCPU::FlexCPU(FlexCPUParams* params):
                 params->fetch_buffer_size,
                 params->in_order_begin_execute,
                 params->in_order_execute,
-                params->instruction_buffer_size,
+                params->op_buffer_size,
+                params->max_instruction_window,
                 params->strict_serialization,
                 params->stld_forward_enabled));
 
