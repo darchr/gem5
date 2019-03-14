@@ -65,15 +65,21 @@ class FlexCPU(BaseCPU):
     in_order_execute = Param.Bool(False, "Serialize all instruction "
                                          "execution.")
 
-    instruction_buffer_size = Param.Unsigned(0, "Size of the dynamic "
-                                             "instruction buffer. This buffer "
-                                             "is used for maintaining the "
-                                             "commit order of instructions. "
-                                             "Limiting this limits the number "
-                                             "of instructions that can be "
-                                             "handled at once before commit "
-                                             "(out of order). 0 implies an "
-                                             "infinitely large buffer.")
+    op_buffer_size = Param.Unsigned(0, "Size of the InflightInst buffer. This "
+                                       "buffer stores decoded (possibly "
+                                       "microcoded) instructions used for "
+                                       "maintaining the commit order of "
+                                       "instructions and microops. Limiting "
+                                       "this limits the number of "
+                                       "instructions AND microops that can be "
+                                       "handled at once before commit (out of "
+                                       "order). 0 implies an infinitely large "
+                                       "buffer.")
+
+    ignore_microops = Param.Bool(False, "When true, assume microops take 0 "
+                                 "time and treat max_inflight_insts as "
+                                 "counting the number of instructions, not "
+                                 "microops.")
 
     issue_latency = Param.Cycles(0, "Number of cycles each instruction takes "
                                     "to issue.")
@@ -96,10 +102,6 @@ class FlexCPU(BaseCPU):
                                             "default to forcing serialization "
                                             "in both directions when the "
                                             "flags are present.")
-
-    zero_time_microop_execution = Param.Bool(False, "Makes all microops "
-                                             "except the last for a macroop "
-                                             "take zero time.")
 
     @classmethod
     def memory_mode(cls):

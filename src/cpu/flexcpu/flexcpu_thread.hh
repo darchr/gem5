@@ -135,7 +135,18 @@ class FlexCPUThread : public ThreadContext
     const bool inOrderBeginExecute;
     const bool inOrderExecute;
 
+    /**
+     * The inflight inst buffer tracks *microops*, not instructions. This bound
+     * tracks the number of `InflightInst`s (*microops*) in the buffer.
+     */
     const unsigned inflightInstsMaxSize;
+
+    /**
+     * This parameter is used only when `ignore_microops` is true. When
+     * `ignore_microops` is true, then the `inflightInstMaxSize=0` and this is
+     * used to constrain the number of *macroops* (instructions).
+     */
+    const unsigned maxMacroops;
 
     /**
      * Controls behavior of StaticInsts marked with the various serializing
@@ -233,11 +244,17 @@ class FlexCPUThread : public ThreadContext
 
     /**
      * We hold a list of all in-flight instructions, added during issue and
-     * removed after commit. If we always issue in order, this list should
-     * always be sorted, in the order that the instructions should be committed
-     * so replacing this with a queue might be a better idea hmm.
+     * removed after commit. These instructions are in issue order. Note: these
+     * are dynamic "instructions" which may be microops.
      */
     std::list<std::shared_ptr<InflightInst>> inflightInsts;
+
+    /**
+     * The number of actual ISA instructions represented in the buffer
+     * currently (used to separately count insts, since the buffer contains
+     * an entry for each microop for microcoded instructions).
+     */
+    unsigned numMacroopsInWindow = 0;
 
     /**
      * For quick dependency extraction, we keep track of the most recent
@@ -691,6 +708,7 @@ class FlexCPUThread : public ThreadContext
     Stats::Histogram fetchedInstsPerCycle;
     Stats::Histogram squashedPerCycle;
     Stats::Histogram activeInstructions;
+    Stats::Histogram activeOps;
 
     Stats::Scalar serializingInst;
     Stats::Scalar waitingForSerializing;
@@ -731,7 +749,8 @@ class FlexCPUThread : public ThreadContext
                   bool use_kernel_stats_, unsigned branch_pred_max_depth,
                   unsigned fetch_buf_size, bool in_order_begin_exec,
                   bool in_order_exec, unsigned inflight_insts_size,
-                  bool strict_ser, bool stld_forward_enabled);
+                  bool ignore_microops, bool strict_ser,
+                  bool stld_forward_enabled);
 
     // Non-fullsystem constructor
     FlexCPUThread(FlexCPU* cpu_, ThreadID tid_, System* system_,
@@ -739,7 +758,8 @@ class FlexCPUThread : public ThreadContext
                   TheISA::ISA* isa_, unsigned branch_pred_max_depth,
                   unsigned fetch_buf_size, bool in_order_begin_exec,
                   bool in_order_exec, unsigned inflight_insts_size,
-                  bool strict_ser, bool stld_forward_enabled);
+                  bool ignore_microops, bool strict_ser,
+                  bool stld_forward_enabled);
 
     // May need to define move constructor, due to how SimpleThread is defined,
     // if we want to hold instances of these in a vector instead of pointers
