@@ -26,9 +26,10 @@
 #
 # Authors: Nima Ganjehloo
 
-import('*')
+Import('*')
 
 SimObject('VerilatorDinoCPU.py')
+SimObject('VerilatorMemBlackBox.py')
 Source('VerilatorDinoCPU.cc')
 Source('VerilatorMemBlackBox.cc')
 
