@@ -52,7 +52,8 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
                     TheISA::ISA* isa_, bool use_kernel_stats_,
                     unsigned branch_pred_max_depth, unsigned fetch_buf_size,
                     bool in_order_begin_exec, bool in_order_exec,
-                    unsigned inflight_insts_size, bool strict_ser,
+                    unsigned inflight_insts_size,
+                    bool ignore_microops, bool strict_ser,
                     bool stld_forward_enabled):
     memIface(*this),
     x86Iface(*this),
@@ -60,7 +61,10 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
     _name(cpu_->name() + ".thread" + to_string(tid_)),
     inOrderBeginExecute(in_order_begin_exec),
     inOrderExecute(in_order_exec),
-    inflightInstsMaxSize(inflight_insts_size),
+    // If we're ignoring microops, instead of constraining inflight insts, we
+    // want to constrain the number of instructions. See next parameter
+    inflightInstsMaxSize(ignore_microops ? 0 : inflight_insts_size),
+    maxMacroops(ignore_microops ? inflight_insts_size : 0),
     strictSerialize(strict_ser),
     _committedState(new SimpleThread(cpu_, tid_, system_, itb_, dtb_, isa_,
                                      use_kernel_stats_)),
@@ -83,7 +87,8 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
                     BaseTLB* dtb_, TheISA::ISA* isa_,
                     unsigned branch_pred_max_depth, unsigned fetch_buf_size,
                     bool in_order_begin_exec, bool in_order_exec,
-                    unsigned inflight_insts_size, bool strict_ser,
+                    unsigned inflight_insts_size,
+                    bool ignore_microops, bool strict_ser,
                     bool stld_forward_enabled):
     memIface(*this),
     x86Iface(*this),
@@ -91,7 +96,10 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
     _name(cpu_->name() + ".thread" + to_string(tid_)),
     inOrderBeginExecute(in_order_begin_exec),
     inOrderExecute(in_order_exec),
-    inflightInstsMaxSize(inflight_insts_size),
+    // If we're ignoring microops, instead of constraining inflight insts, we
+    // want to constrain the number of instructions. See next parameter
+    inflightInstsMaxSize(ignore_microops ? 0 : inflight_insts_size),
+    maxMacroops(ignore_microops ? inflight_insts_size : 0),
     strictSerialize(strict_ser),
     _committedState(new SimpleThread(cpu_, tid_, system_, process_, itb_, dtb_,
                                      isa_)),
@@ -144,7 +152,7 @@ FlexCPUThread::advanceInst(TheISA::PCState next_pc)
         return;
     }
 
-    advanceInstNeedsRetry = static_cast<bool>(inflightInstsMaxSize)
+    advanceInstNeedsRetry = inflightInstsMaxSize > 0
                          && inflightInsts.size() >= inflightInstsMaxSize;
     if (advanceInstNeedsRetry) {
         advanceInstRetryPC = next_pc;
@@ -155,14 +163,12 @@ FlexCPUThread::advanceInst(TheISA::PCState next_pc)
 
     const InstSeqNum seq_num = lastCommittedInstNum + inflightInsts.size() + 1;
 
-    DPRINTF(FlexCPUThreadEvent, "advanceInst(seq %d, pc %#x, upc %#x)\n",
-                                seq_num,
-                                next_pc.pc(),
-                                next_pc.upc());
-    DPRINTF(FlexCPUThreadEvent, "Buffer size increased to %d\n",
-                                inflightInsts.size());
-
     if (isRomMicroPC(next_pc.microPC())) {
+        DPRINTF(FlexCPUThreadEvent, "advanceInst(seq %d, pc %#x, upc %#x)\n",
+                                    seq_num,
+                                    next_pc.pc(),
+                                    next_pc.upc());
+
         const StaticInstPtr static_inst =
             _cpuPtr->microcodeRom.fetchMicroop(next_pc.microPC(), curMacroOp);
 
@@ -177,6 +183,8 @@ FlexCPUThread::advanceInst(TheISA::PCState next_pc)
                                       next_pc, static_inst);
 
         inflightInsts.push_back(inst_ptr);
+        DPRINTF(FlexCPUThreadEvent, "Buffer size increased to %d\n",
+                                    inflightInsts.size());
 
         issueInstruction(inst_ptr);
 
@@ -184,6 +192,11 @@ FlexCPUThread::advanceInst(TheISA::PCState next_pc)
     }
 
     if (curMacroOp) {
+        DPRINTF(FlexCPUThreadEvent, "advanceInst(seq %d, pc %#x, upc %#x)\n",
+                                    seq_num,
+                                    next_pc.pc(),
+                                    next_pc.upc());
+
         const StaticInstPtr static_inst =
             curMacroOp->fetchMicroop(next_pc.microPC());
 
@@ -199,10 +212,26 @@ FlexCPUThread::advanceInst(TheISA::PCState next_pc)
 
         inflightInsts.push_back(inst_ptr);
 
+        DPRINTF(FlexCPUThreadEvent, "Buffer size increased to %d\n",
+                                    inflightInsts.size());
+
         issueInstruction(inst_ptr);
 
         return;
     }
+
+    advanceInstNeedsRetry = maxMacroops > 0
+                         && numMacroopsInWindow >= maxMacroops;
+    if (advanceInstNeedsRetry) {
+        advanceInstRetryPC = next_pc;
+        return;
+    }
+
+    DPRINTF(FlexCPUThreadEvent, "advanceInst(seq %d, pc %#x)\n",
+                                seq_num,
+                                next_pc.pc());
+
+    ++numMacroopsInWindow;
 
     // Set up an empty slot in the inflightInsts buffer to populate with the
     // result of the next decoding.
@@ -211,6 +240,11 @@ FlexCPUThread::advanceInst(TheISA::PCState next_pc)
                                   next_pc);
 
     inflightInsts.push_back(inst_ptr);
+
+    DPRINTF(FlexCPUThreadEvent, "Buffer size increased to %d\n",
+                                inflightInsts.size());
+    DPRINTF(FlexCPUThreadEvent, "Instructions in window increased to %d\n",
+                                numMacroopsInWindow);
 
     fetchOffset = 0;
     attemptFetch(inst_ptr);
@@ -376,6 +410,9 @@ FlexCPUThread::commitAllAvailableInstructions()
                     "Not yet decoded.");
     }
 
+    DPRINTF(FlexCPUThreadEvent, "Instructions in window after commit: %d\n",
+                                numMacroopsInWindow);
+
     if (buffer_shrunk && advanceInstNeedsRetry) {
         advanceInst(advanceInstRetryPC);
     }
@@ -410,6 +447,8 @@ FlexCPUThread::commitInstruction(InflightInst* const inst_ptr)
         system->totalNumInsts++;
         system->instEventQueue.serviceEvents(system->totalNumInsts);
         getCpuPtr()->comInstEventQueue[threadId()]->serviceEvents(numInsts);
+
+        --numMacroopsInWindow;
     }
     numOpsStat++;
     numOps++;
@@ -572,8 +611,12 @@ FlexCPUThread::handleFault(std::shared_ptr<InflightInst> inst_ptr)
     DPRINTF(FlexCPUThreadEvent, "Handling fault (seq %d): %s\n",
                                 inst_ptr->seqNum(), inst_ptr->fault()->name());
 
+    assert(inflightInsts.size() == 1);
+
     inflightInsts.clear();
     bufferInstructionData(0, nullptr);
+
+    numMacroopsInWindow = 0;
 
     inst_ptr->fault()->invoke(this, inst_ptr->staticInst());
 
@@ -586,6 +629,7 @@ FlexCPUThread::handleInterrupt()
     DPRINTF(FlexCPUThreadEvent, "Handling interrupt\n");
 
     squashUpTo(nullptr);
+    numMacroopsInWindow = 0;
     decoder.reset();
 
     TheISA::Interrupts* const ctrller =
@@ -969,6 +1013,13 @@ FlexCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
             curMacroOp = decode_result;
 
             decode_result = curMacroOp->fetchMicroop(pc.microPC());
+
+            // This decrement is to undo the increment done in advanceInst(),
+            // in the case that a microcoded instruction was jumped into the
+            // middle of. There is an assumption being made that the only way
+            // to jump into the middle of a microcoded instruction is from
+            // itself.
+            if (!decode_result->isFirstMicroop()) --numMacroopsInWindow;
 
             DPRINTF(FlexCPUInstEvent,
                     "Replaced with microop (seq %d) - %#x : %s\n",
@@ -1382,7 +1433,8 @@ FlexCPUThread::predictCtrlInst(shared_ptr<InflightInst> inst_ptr)
 void
 FlexCPUThread::recordCycleStats()
 {
-    activeInstructions.sample(inflightInsts.size());
+    activeInstructions.sample(numMacroopsInWindow);
+    activeOps.sample(inflightInsts.size());
     if (squashedThisCycle > 0) {
         squashedPerCycle.sample(squashedThisCycle);
         squashedThisCycle = 0;
@@ -1467,6 +1519,12 @@ FlexCPUThread::regStats(const std::string &name)
         .name(name + ".activeInstructions")
         .init(32)
         .desc("Number of instructions active each cycle")
+    ;
+
+    activeOps
+        .name(name + ".activeOps")
+        .init(32)
+        .desc("Number of operations active each cycle")
     ;
 
     serializingInst
@@ -1696,6 +1754,13 @@ FlexCPUThread::squashUpTo(InflightInst* const inst_ptr, bool rebuild_lasts)
         if (back_inst == ser_inst) last_ser_correct = false;
         if (back_inst == bar_inst) last_mem_bar_correct = false;
         recordInstStats(back_inst);
+
+        const StaticInstPtr& static_inst = back_inst->staticInst();
+        if (!static_inst || !static_inst->isMicroop()
+                || static_inst->isFirstMicroop()) {
+            --numMacroopsInWindow;
+        }
+
         inflightInsts.pop_back();
         ++count;
     }
@@ -1704,6 +1769,10 @@ FlexCPUThread::squashUpTo(InflightInst* const inst_ptr, bool rebuild_lasts)
     squashedThisCycle += count;
 
     DPRINTF(FlexCPUThreadEvent, "%d instructions squashed.\n", count);
+    DPRINTF(FlexCPUThreadEvent, "Instruction buffer size after squash: %d\n",
+                                inflightInsts.size());
+    DPRINTF(FlexCPUThreadEvent, "Instructions in window after squash: %d\n",
+                                numMacroopsInWindow);
 
     if (rebuild_lasts) {
         for (shared_ptr<InflightInst>& it : inflightInsts) {
