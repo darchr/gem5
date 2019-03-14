@@ -52,7 +52,8 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                     TheISA::ISA* isa_, bool use_kernel_stats_,
                     unsigned branch_pred_max_depth, unsigned fetch_buf_size,
                     bool in_order_begin_exec, bool in_order_exec,
-                    unsigned inflight_insts_size, bool strict_ser,
+                    unsigned inflight_insts_size,
+                    unsigned max_instruction_window, bool strict_ser,
                     bool stld_forward_enabled):
     memIface(*this),
     x86Iface(*this),
@@ -61,6 +62,7 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
     inOrderBeginExecute(in_order_begin_exec),
     inOrderExecute(in_order_exec),
     inflightInstsMaxSize(inflight_insts_size),
+    maxInstWindow(max_instruction_window),
     strictSerialize(strict_ser),
     _committedState(new SimpleThread(cpu_, tid_, system_, itb_, dtb_, isa_,
                                      use_kernel_stats_)),
@@ -83,7 +85,8 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
                     BaseTLB* dtb_, TheISA::ISA* isa_,
                     unsigned branch_pred_max_depth, unsigned fetch_buf_size,
                     bool in_order_begin_exec, bool in_order_exec,
-                    unsigned inflight_insts_size, bool strict_ser,
+                    unsigned inflight_insts_size,
+                    unsigned max_instruction_window, bool strict_ser,
                     bool stld_forward_enabled):
     memIface(*this),
     x86Iface(*this),
@@ -92,6 +95,7 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
     inOrderBeginExecute(in_order_begin_exec),
     inOrderExecute(in_order_exec),
     inflightInstsMaxSize(inflight_insts_size),
+    maxInstWindow(max_instruction_window),
     strictSerialize(strict_ser),
     _committedState(new SimpleThread(cpu_, tid_, system_, process_, itb_, dtb_,
                                      isa_)),
@@ -155,14 +159,12 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
 
     const InstSeqNum seq_num = lastCommittedInstNum + inflightInsts.size() + 1;
 
-    DPRINTF(SDCPUThreadEvent, "advanceInst(seq %d, pc %#x, upc %#x)\n",
-                              seq_num,
-                              next_pc.pc(),
-                              next_pc.upc());
-    DPRINTF(SDCPUThreadEvent, "Buffer size increased to %d\n",
-                              inflightInsts.size());
-
     if (isRomMicroPC(next_pc.microPC())) {
+        DPRINTF(SDCPUThreadEvent, "advanceInst(seq %d, pc %#x, upc %#x)\n",
+                                  seq_num,
+                                  next_pc.pc(),
+                                  next_pc.upc());
+
         const StaticInstPtr static_inst =
             _cpuPtr->microcodeRom.fetchMicroop(next_pc.microPC(), curMacroOp);
 
@@ -179,6 +181,8 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
         inst_ptr->notifyDecoded();
 
         inflightInsts.push_back(inst_ptr);
+        DPRINTF(SDCPUThreadEvent, "Buffer size increased to %d\n",
+                                  inflightInsts.size());
 
         issueInstruction(inst_ptr);
 
@@ -186,6 +190,11 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
     }
 
     if (curMacroOp) {
+        DPRINTF(SDCPUThreadEvent, "advanceInst(seq %d, pc %#x, upc %#x)\n",
+                                  seq_num,
+                                  next_pc.pc(),
+                                  next_pc.upc());
+
         const StaticInstPtr static_inst =
             curMacroOp->fetchMicroop(next_pc.microPC());
 
@@ -203,16 +212,37 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
 
         inflightInsts.push_back(inst_ptr);
 
+        DPRINTF(SDCPUThreadEvent, "Buffer size increased to %d\n",
+                                  inflightInsts.size());
+
         issueInstruction(inst_ptr);
 
         return;
     }
+
+    advanceInstNeedsRetry = static_cast<bool>(maxInstWindow)
+                         && numInstsInWindow >= maxInstWindow;
+    if (advanceInstNeedsRetry) {
+        advanceInstRetryPC = next_pc;
+        return;
+    }
+
+    DPRINTF(SDCPUThreadEvent, "advanceInst(seq %d, pc %#x)\n",
+                              seq_num,
+                              next_pc.pc());
+
+    ++numInstsInWindow;
 
     shared_ptr<InflightInst> inst_ptr =
         make_shared<InflightInst>(getThreadContext(), isa, &memIface,
                                   &x86Iface, seq_num, next_pc);
 
     inflightInsts.push_back(inst_ptr);
+
+    DPRINTF(SDCPUThreadEvent, "Buffer size increased to %d\n",
+                              inflightInsts.size());
+    DPRINTF(SDCPUThreadEvent, "Instructions in window increased to %d\n",
+                              numInstsInWindow);
 
     fetchOffset = 0;
     attemptFetch(weak_ptr<InflightInst>(inst_ptr));
@@ -378,6 +408,9 @@ SDCPUThread::commitAllAvailableInstructions()
                     "Not yet decoded.");
     }
 
+    DPRINTF(SDCPUThreadEvent, "Instructions in window after commit: %d\n",
+                              numInstsInWindow);
+
     if (buffer_shrunk && advanceInstNeedsRetry) {
         advanceInst(advanceInstRetryPC);
     }
@@ -412,6 +445,8 @@ SDCPUThread::commitInstruction(InflightInst* const inst_ptr)
         system->totalNumInsts++;
         system->instEventQueue.serviceEvents(system->totalNumInsts);
         getCpuPtr()->comInstEventQueue[threadId()]->serviceEvents(numInsts);
+
+        --numInstsInWindow;
     }
     numOpsStat++;
     numOps++;
@@ -580,10 +615,11 @@ SDCPUThread::handleFault(std::shared_ptr<InflightInst> inst_ptr)
     DPRINTF(SDCPUThreadEvent, "Handling fault (seq %d): %s\n",
                               inst_ptr->seqNum(), inst_ptr->fault()->name());
 
+    assert(inflightInsts.size() == 1);
+
     inflightInsts.clear();
-    // TODO may need to move any uncommitted InflightInsts somewhere else
-    //      to guarantee the memory is still valid until all events
-    //      involving those objects are handled.
+
+    numInstsInWindow = 0;
 
     inst_ptr->fault()->invoke(this, inst_ptr->staticInst());
 
@@ -596,6 +632,7 @@ SDCPUThread::handleInterrupt()
     DPRINTF(SDCPUThreadEvent, "Handling interrupt\n");
 
     squashUpTo(nullptr);
+    numInstsInWindow = 0;
     decoder.reset();
 
     TheISA::Interrupts* const ctrller =
@@ -984,6 +1021,8 @@ SDCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
             curMacroOp = decode_result;
 
             decode_result = curMacroOp->fetchMicroop(pc.microPC());
+
+            if (!decode_result->isFirstMicroop()) --numInstsInWindow;
 
             DPRINTF(SDCPUInstEvent,
                     "Replaced with microop (seq %d) - %#x : %s\n",
@@ -1400,7 +1439,8 @@ SDCPUThread::predictCtrlInst(shared_ptr<InflightInst> inst_ptr)
 void
 SDCPUThread::recordCycleStats()
 {
-    activeInstructions.sample(inflightInsts.size());
+    activeInstructions.sample(numInstsInWindow);
+    activeOps.sample(inflightInsts.size());
     if (squashedThisCycle > 0) {
         squashedPerCycle.sample(squashedThisCycle);
         squashedThisCycle = 0;
@@ -1485,6 +1525,12 @@ SDCPUThread::regStats(const std::string &name)
         .name(name + ".activeInstructions")
         .init(32)
         .desc("Number of instructions active each cycle")
+    ;
+
+    activeOps
+        .name(name + ".activeOps")
+        .init(32)
+        .desc("Number of operations active each cycle")
     ;
 
     serializingInst
@@ -1714,6 +1760,13 @@ SDCPUThread::squashUpTo(InflightInst* const inst_ptr, bool rebuild_lasts)
         if (back_inst == ser_inst) last_ser_correct = false;
         if (back_inst == bar_inst) last_mem_bar_correct = false;
         recordInstStats(back_inst);
+
+        const StaticInstPtr& static_inst = back_inst->staticInst();
+        if (!static_inst || !static_inst->isMicroop()
+         || static_inst->isFirstMicroop()) {
+            --numInstsInWindow;
+        }
+
         inflightInsts.pop_back();
         ++count;
     }
@@ -1722,6 +1775,10 @@ SDCPUThread::squashUpTo(InflightInst* const inst_ptr, bool rebuild_lasts)
     squashedThisCycle += count;
 
     DPRINTF(SDCPUThreadEvent, "%d instructions squashed.\n", count);
+    DPRINTF(SDCPUThreadEvent, "Instruction buffer size after squash: %d\n",
+                              inflightInsts.size());
+    DPRINTF(SDCPUThreadEvent, "Instructions in window after squash: %d\n",
+                              numInstsInWindow);
 
     if (rebuild_lasts) {
         for (shared_ptr<InflightInst>& it : inflightInsts) {

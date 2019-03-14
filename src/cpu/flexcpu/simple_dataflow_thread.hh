@@ -132,6 +132,7 @@ class SDCPUThread : public ThreadContext
     const bool inOrderExecute;
 
     const unsigned inflightInstsMaxSize;
+    const unsigned maxInstWindow;
 
     /**
      * Controls behavior of StaticInsts marked with the various serializing
@@ -234,6 +235,13 @@ class SDCPUThread : public ThreadContext
      * so replacing this with a queue might be a better idea hmm.
      */
     std::list<std::shared_ptr<InflightInst>> inflightInsts;
+
+    /**
+     * The number of actual ISA instructions represented in the buffer
+     * currently (used to separately count insts, since the buffer countains
+     * an entry for each microop for microcoded instructions).
+     */
+    unsigned numInstsInWindow = 0;
 
     /**
      * For quick dependency extraction, we keep track of the most recent
@@ -681,6 +689,7 @@ class SDCPUThread : public ThreadContext
     Stats::Histogram fetchedInstsPerCycle;
     Stats::Histogram squashedPerCycle;
     Stats::Histogram activeInstructions;
+    Stats::Histogram activeOps;
 
     Stats::Scalar serializingInst;
     Stats::Scalar waitingForSerializing;
@@ -721,7 +730,8 @@ class SDCPUThread : public ThreadContext
                 bool use_kernel_stats_, unsigned branch_pred_max_depth,
                 unsigned fetch_buf_size, bool in_order_begin_exec,
                 bool in_order_exec, unsigned inflight_insts_size,
-                bool strict_ser, bool stld_forward_enabled);
+                unsigned max_instruction_window, bool strict_ser,
+                bool stld_forward_enabled);
 
     // Non-fullsystem constructor
     SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_, System* system_,
@@ -729,7 +739,8 @@ class SDCPUThread : public ThreadContext
                 TheISA::ISA* isa_, unsigned branch_pred_max_depth,
                 unsigned fetch_buf_size, bool in_order_begin_exec,
                 bool in_order_exec, unsigned inflight_insts_size,
-                bool strict_ser, bool stld_forward_enabled);
+                unsigned max_instruction_window, bool strict_ser,
+                bool stld_forward_enabled);
 
     // May need to define move constructor, due to how SimpleThread is defined,
     // if we want to hold instances of these in a vector instead of pointers
