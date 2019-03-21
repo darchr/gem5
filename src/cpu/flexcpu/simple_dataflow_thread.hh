@@ -296,7 +296,7 @@ class SDCPUThread : public ThreadContext
      * @param inst_ptr A reference to the in-flight instruction object for
      *  which to request fetch data.
      */
-    void attemptFetch(std::shared_ptr<InflightInst> inst_ptr);
+    void attemptFetch(InflightInst* const inst_ptr);
 
     /**
      * weak_ptr variant of attemptFetch(), does a pointer liveness check and
@@ -426,10 +426,10 @@ class SDCPUThread : public ThreadContext
      * (Note: Assumes in-order issue. This implies that the weak_ptr should
      *        match the pointer at the tail of the inflightInsts table.)
      *
-     * @param inst A reference to the in-flight instruction object for which to
-     *  request issue.
+     * @param inst_ptr A reference to the in-flight instruction object for
+     *  which to request issue.
      */
-    void issueInstruction(std::shared_ptr<InflightInst> inst);
+    void issueInstruction(InflightInst* const inst_ptr);
 
     /**
      * Utility function for taking note of a fault, and preemptively squashing
@@ -526,11 +526,11 @@ class SDCPUThread : public ThreadContext
      *
      * This function should be called after attemptFetch().
      *
-     * @param inst A reference to the in-flight instruction object for which to
-     *  handle new instruction data.
+     * @param inst_ptr A reference to the in-flight instruction object for
+     *  which to handle new instruction data.
      * @param fetch_data The chunk of data that was fetched.
      */
-    void onInstDataFetched(std::weak_ptr<InflightInst> inst,
+    void onInstDataFetched(InflightInst* const inst_ptr,
                            const MachInst fetch_data);
 
     /**
@@ -543,7 +543,7 @@ class SDCPUThread : public ThreadContext
      * @param inst A reference to the in-flight instruction for which we had
      *  requested issue.
      */
-    void onIssueAccessed(std::weak_ptr<InflightInst> inst);
+    void onIssueAccessed(InflightInst* const inst);
 
     /**
      * This function serves as the event handler for when the CPU has completed
@@ -552,14 +552,14 @@ class SDCPUThread : public ThreadContext
      * This function should be called after attemptFetch(), if we need to
      * access memory.
      *
-     * @param inst A reference to the in-flight instruction object for which to
-     *  handle the given translation.
+     * @param inst_ptr A reference to the in-flight instruction object for
+     *  which to handle the given translation.
      * @param fault If the translation request generated a fault, it should be
      *  returned through this parameter.
      * @param req A reference to a request object which should hold the
      *  translated physical address.
      */
-    void onPCTranslated(std::weak_ptr<InflightInst> inst, Fault fault,
+    void onPCTranslated(InflightInst* const inst_ptr, Fault fault,
                         const RequestPtr& req);
 
     /**
@@ -591,7 +591,7 @@ class SDCPUThread : public ThreadContext
      *
      * @param inst_ptr The control instruction which needs a prediction.
      */
-    void predictCtrlInst(std::shared_ptr<InflightInst> inst_ptr);
+    void predictCtrlInst(InflightInst* const inst_ptr);
 
     /**
      * Utility function for making a request for the CPU to do the memory

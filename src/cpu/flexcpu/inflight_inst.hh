@@ -515,6 +515,26 @@ class InflightInst : public ExecContext,
     inline Trace::InstRecord* traceData(Trace::InstRecord* const trace_data)
     { return _traceData = trace_data; }
 
+#if __cplusplus < 201703L // C++17 provides
+                          // std::enable_shared_from_this::weak_from_this()
+                          // so we use that more efficient version if compiler
+                          // is up to date. If compiler reports older standard
+                          // for C++, we simply use this less efficient call.
+                          // The call series could theoretically be elided, but
+                          // don't count on it, and use an updated compiler for
+                          // optimal performance.
+
+    // NOTE: may require --std=c++17 to use more efficient version, depending
+    //       on compiler. As of g++ 7.3.0, this flag is necessary to enable the
+    //       change in preprocessor define value, and to disable this block.
+
+    inline std::weak_ptr<const InflightInst> weak_from_this() const noexcept
+    { return std::weak_ptr<const InflightInst>(shared_from_this()); }
+
+    inline std::weak_ptr<InflightInst> weak_from_this() noexcept
+    { return std::weak_ptr<InflightInst>(shared_from_this()); }
+
+#endif
 
     // BEGIN ExecContext interface functions
 

@@ -180,7 +180,7 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
 
         inflightInsts.push_back(inst_ptr);
 
-        issueInstruction(inst_ptr);
+        issueInstruction(inst_ptr.get());
 
         return;
     }
@@ -203,7 +203,7 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
 
         inflightInsts.push_back(inst_ptr);
 
-        issueInstruction(inst_ptr);
+        issueInstruction(inst_ptr.get());
 
         return;
     }
@@ -215,13 +215,12 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
     inflightInsts.push_back(inst_ptr);
 
     fetchOffset = 0;
-    attemptFetch(weak_ptr<InflightInst>(inst_ptr));
+    attemptFetch(inst_ptr.get());
 }
 
 void
-SDCPUThread::attemptFetch(shared_ptr<InflightInst> inst_ptr)
+SDCPUThread::attemptFetch(InflightInst* const inst_ptr)
 {
-
     DPRINTF(SDCPUThreadEvent, "attemptFetch()\n");
 
     // TODO check for interrupts
@@ -278,11 +277,14 @@ SDCPUThread::attemptFetch(shared_ptr<InflightInst> inst_ptr)
     fetch_req->setVirt(0, new_buf_base, req_size,
                        Request::INST_FETCH, _cpuPtr->instMasterId(), pc_addr);
 
-    weak_ptr<InflightInst> weak_inst(inst_ptr);
-
-    auto callback = [this, weak_inst](Fault f, const RequestPtr& r) {
-        onPCTranslated(weak_inst, f, r);
+    auto callback = [this, inst_ptr](Fault f, const RequestPtr& r) {
+        // We assume this raw pointer inst_ptr will be valid if the callback is
+        // called, since the squash check callback will handle checking the
+        // shared_ptr which should be handling its lifespan.
+        onPCTranslated(inst_ptr, f, r);
     };
+
+    weak_ptr<InflightInst> weak_inst(inst_ptr->weak_from_this());
 
     _cpuPtr->requestInstAddrTranslation(fetch_req, getThreadContext(),
         callback, [weak_inst]{
@@ -300,7 +302,7 @@ SDCPUThread::attemptFetch(weak_ptr<InflightInst> inst)
         return;
     }
 
-    attemptFetch(inst_ptr);
+    attemptFetch(inst_ptr.get());
 }
 
 void
@@ -534,7 +536,7 @@ SDCPUThread::freeBranchPredDepth()
 
         if (inst_ptr && inst_ptr == inflightInsts.back()
          && !advanceInstNeedsRetry) {
-            predictCtrlInst(inst_ptr);
+            predictCtrlInst(inst_ptr.get());
             return;
         }
     }
@@ -614,24 +616,24 @@ SDCPUThread::handleInterrupt()
 bool
 SDCPUThread::hasNextPC()
 {
-    // TODO check if we're still running
-
     if (inflightInsts.empty()) return true;
 
-    const shared_ptr<InflightInst> inst_ptr = inflightInsts.back();
+    const shared_ptr<InflightInst>& inst_ptr = inflightInsts.back();
     return !inst_ptr->staticInst()->isControl() || inst_ptr->isComplete();
 }
 
 void
-SDCPUThread::issueInstruction(shared_ptr<InflightInst> inst_ptr)
+SDCPUThread::issueInstruction(InflightInst* const inst_ptr)
 {
     DPRINTF(SDCPUInstEvent, "Requesting issue for instruction (seq %d)\n",
                             inst_ptr->seqNum());
 
-    weak_ptr<InflightInst> weak_inst = inst_ptr;
-    auto callback = [this, weak_inst] {
-        onIssueAccessed(weak_inst);
+    auto callback = [this, inst_ptr] {
+        // Assume raw pointer is valid, since the squash check function will
+        // prevent this callback from being called if the weak_ptr has expired.
+        onIssueAccessed(inst_ptr);
     };
+    weak_ptr<InflightInst> weak_inst = inst_ptr->weak_from_this();
     auto squasher = [weak_inst] {
         shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
         return !inst_ptr || inst_ptr->isSquashed();
@@ -948,14 +950,10 @@ SDCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
 }
 
 void
-SDCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
+SDCPUThread::onInstDataFetched(InflightInst* const inst_ptr,
                                const TheISA::MachInst fetch_data)
 {
-    const shared_ptr<InflightInst> inst_ptr = inst.lock();
-    if (!inst_ptr || inst_ptr->isSquashed()) {
-        // No need to do anything for an instruction that has been squashed.
-        return;
-    }
+    assert(!inst_ptr->isSquashed());
 
     // TODO store in fetch buffer, do things with it.
 
@@ -999,18 +997,13 @@ SDCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
 
     } else { // If we still need to fetch more MachInsts.
         fetchOffset += sizeof(TheISA::MachInst);
-        attemptFetch(inst);
+        attemptFetch(inst_ptr);
     }
 }
 
 void
-SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
+SDCPUThread::onIssueAccessed(InflightInst* const inst_ptr)
 {
-    const shared_ptr<InflightInst> inst_ptr = inst.lock();
-    if (!inst_ptr || inst_ptr->isSquashed()) {
-        // No need to do anything for an instruction that has been squashed.
-        return;
-    }
     DPRINTF(SDCPUInstEvent, "Issuing instruction (seq %d)\n",
                             inst_ptr->seqNum());
 
@@ -1037,12 +1030,15 @@ SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
         need_advance = false;
         for (auto& other_inst_ptr : inflightInsts) {
             if (!other_inst_ptr->staticInst()->isDelayedCommit()) {
-                if (other_inst_ptr != inst_ptr) {
+                if (other_inst_ptr.get() != inst_ptr) {
                     squashUpTo(other_inst_ptr.get());
                     return;
                 }
                 break;
-            } else if (other_inst_ptr == inst_ptr) {
+            } else if (other_inst_ptr.get() == inst_ptr) {
+                // Could probably also just check for end of buffer, since
+                // issue is in order, but this may be more robust for
+                // out-of-order issue?
                 need_advance = true;
                 break;
             }
@@ -1098,14 +1094,10 @@ SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
 }
 
 void
-SDCPUThread::onPCTranslated(weak_ptr<InflightInst> inst, Fault fault,
+SDCPUThread::onPCTranslated(InflightInst* const inst_ptr, Fault fault,
                             const RequestPtr& req)
 {
-    const shared_ptr<InflightInst> inst_ptr = inst.lock();
-    if (!inst_ptr || inst_ptr->isSquashed()) {
-        // No need to do anything for an instruction that has been squashed.
-        return;
-    }
+    assert(!inst_ptr->squashed());
 
     const TheISA::PCState pc = inst_ptr->pcState();
 
@@ -1124,16 +1116,24 @@ SDCPUThread::onPCTranslated(weak_ptr<InflightInst> inst, Fault fault,
     DPRINTF(SDCPUThreadEvent, "Received PC translation (va: %#x, pa: %#x)\n",
             vaddr, req->getPaddr());
 
-    auto callback = [this, inst, vaddr](uint8_t* data) {
+    weak_ptr<InflightInst> weak_inst = inst_ptr->weak_from_this();
+
+    // Needs weak_ptr capture instead of raw pointer since this callback
+    // outlives the squash check (across event boundaries) since its lifespan
+    // is tied to the memory port request, not the CPU request interface.
+    auto callback = [this, weak_inst, vaddr](uint8_t* data) {
+        shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
+        if (!inst_ptr || inst_ptr->isSquashed()) return;
+
         bufferInstructionData(vaddr, data);
-        attemptFetch(inst);
+        attemptFetch(inst_ptr.get());
     };
 
     // No changes to the request before asking the CPU to handle it if there is
     // not a fault. Let the CPU generate the packet.
     _cpuPtr->requestInstructionData(req, callback,
-        [inst]{
-            shared_ptr<InflightInst> inst_ptr = inst.lock();
+        [weak_inst]{
+            shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
             return !inst_ptr || inst_ptr->isSquashed();
         });
 }
@@ -1380,7 +1380,7 @@ SDCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
 }
 
 void
-SDCPUThread::predictCtrlInst(shared_ptr<InflightInst> inst_ptr)
+SDCPUThread::predictCtrlInst(InflightInst* const inst_ptr)
 {
     DPRINTF(SDCPUBranchPred, "Requesting branch predictor for control\n");
 
@@ -1389,7 +1389,7 @@ SDCPUThread::predictCtrlInst(shared_ptr<InflightInst> inst_ptr)
         _cpuPtr->getBranchPredictor()->squash(seqnum, threadId());
     });
 
-    const weak_ptr<InflightInst> weak_inst = inst_ptr;
+    const weak_ptr<InflightInst> weak_inst = inst_ptr->weak_from_this();
     auto callback = [this, weak_inst] (BPredUnit* pred) {
         onBranchPredictorAccessed(weak_inst, pred);
     };
