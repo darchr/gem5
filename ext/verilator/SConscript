@@ -7,5 +7,5 @@ main.Prepend(CPPPATH=Dir('/usr/share/verilator/include/vltstd'))
 
 sodor = main.Clone()
 
-main.Append(LIBS=['VTop__ALL'])
-main.Prepend(LIBPATH=[Dir('.')])
+#main.Append(LIBS=['VTop__ALL'])
+#main.Prepend(LIBPATH=[Dir('.')])

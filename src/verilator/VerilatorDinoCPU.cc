@@ -29,19 +29,24 @@
 
 #include "VerilatorDinoCPU.hh"
 #include "base/logging.hh"
+#include "debug/Verilator.hh"
+#include "obj_dir/VTop_DualPortedMemory.h"
+#include "obj_dir/VTop_DualPortedMemoryBlackBox.h"
+#include "obj_dir/VTop_Top.h"
 #include "sim/sim_exit.hh"
 
 VerilatorDinoCPU::VerilatorDinoCPU(VerilatorDinoCPUParams *params) :
-    SimObject(params),
+    ClockedObject(params),
     verilatorMem(params->verilatorMem),
     event([this]{updateCycle();}, params->name),
     clkperiod(params->clkperiod),
     designStages(params->stages)
 {
+    verilatorMem->blkbox = top.Top->mem->memory;
 }
 
 VerilatorDinoCPU*
-VerilatorODinoCPUParams::create()
+VerilatorDinoCPUParams::create()
 {
     //verilator has weird alignment issue for generated code
     void* ptr = aligned_alloc(128, sizeof(VerilatorDinoCPU));
@@ -55,13 +60,13 @@ VerilatorDinoCPU::updateCycle()
     //has verilator finished running?
     if (Verilated::gotFinish()){
         inform("Simulation has Completed\n");
-        exitSimLoop("Done Simulating", 1 /);
+        exitSimLoop("Done Simulating", 1) ;
     }
 
     DPRINTF(Verilator, "INSTRUCTION FETCH?\n");
 
-    verilatorMem.doFetch();
-    verilatorMem.doMem();
+    verilatorMem->doFetch();
+    verilatorMem->doMem();
 
     //run the device under test here through verilator
     top.clock = 0;
@@ -100,7 +105,7 @@ VerilatorDinoCPU::reset(int resetCycles)
 void
 VerilatorDinoCPU::startup()
 {
-    DPRINTF(Verilator, "STARTING UP SODOR\n");
+    DPRINTF(Verilator, "STARTING UP DINOCPU\n");
     reset(designStages);
 
     DPRINTF(Verilator, "SCHEDULING FIRST TICK IN %d\n", clkperiod);

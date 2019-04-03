@@ -34,25 +34,24 @@
 #define VM_TRACE 0
 #define VL_THREADED 0
 
-#include "VTop.h"
 #include "VerilatorMemBlackBox.hh"
+#include "obj_dir/VTop.h"
 #include "params/VerilatorDinoCPU.hh"
-#include "sim/sim_object.hh"
+#include "sim/clocked_object.hh"
 
-class VerilatorDinoCPU
+class VerilatorDinoCPU : public ClockedObject
 {
     private:
         void updateCycle();
 
-        VTop top;
-        VerilatorMemBlackBox verilatorMem;
+        VerilatorMemBlackBox * verilatorMem;
         EventFunctionWrapper event;
         Tick clkperiod;
         int designStages;
         int cyclesPassed;
-
+        VTop top;
     public:
-        VerilatorDinoCPUt(VerilatorDinoCPUParams *p);
+        VerilatorDinoCPU(VerilatorDinoCPUParams *p);
         ~VerilatorDinoCPU();
         void reset(int resetCycles);
         void startup();

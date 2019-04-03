@@ -30,13 +30,13 @@
 
 from m5.params import *
 from VerilatorMemBlackBox import VerilatorMemBlackBox
-from m5.SimObject import SimObject
+from ClockedObject import ClockedObject
 
-class VerilatorDinoCPU(SimObject):
+class VerilatorDinoCPU(ClockedObject):
     type = 'VerilatorDinoCPU'
     cxx_header = "verilator/VerilatorDinoCPU.hh"
 
-    clkperiod = Param.Latency("Clock period of device under test")
-    stages = Param.Int(1, "Number of stages in the device under test")
     verilatorMem = Param.VerilatorMemBlackBox(NULL, "Reference to "
         "verilator memory interface")
+    clkperiod = Param.Latency("Clock period of device under test")
+    stages = Param.Int(1, "Number of stages in the device under test")

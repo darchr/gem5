@@ -27,10 +27,16 @@
 # Authors: Nima Ganjehloo
 */
 
-#include "VeriilatorMemBlackBox.hh"
-#include "base/Logging.hh"
+//Verilator keeps changing the way it wants me to access data lines
+//here is the way it wants me to do it right now:
+//vtop->Top->mem->memory->dataline
+//need to include VTop.h but what else? Adding verilator public
+//caused verilator to generate so many other files :((((((((((((((((
+#include "VerilatorMemBlackBox.hh"
+#include "base/logging.hh"
+#include "debug/Verilator.hh"
 
-void VerilatorMemBlackBox::sendPacket(PacketPtr pkt){
+void VerilatorMemBlackBox::VerilatorMemBlackBoxPort::sendPacket(PacketPtr pkt){
     panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
     if (!sendTimingReq(pkt)) {
         blockedPacket = pkt;
@@ -38,14 +44,15 @@ void VerilatorMemBlackBox::sendPacket(PacketPtr pkt){
 
 }
 
-bool VerilatorMemBlackBox::recvTimingResp( PacketPtr pkt )
+bool VerilatorMemBlackBox::VerilatorMemBlackBoxPort::recvTimingResp
+    ( PacketPtr pkt )
 {
     DPRINTF(Verilator, "MEMORY RESPONSE RECIEVED\n");
     return owner->handleResponse(pkt);
 
 }
 
-void VerilatorMemBlackBox::recvReqRetry(){
+void VerilatorMemBlackBox::VerilatorMemBlackBoxPort::recvReqRetry(){
     assert(blockedPacket != nullptr);
 
     PacketPtr pkt = blockedPacket;
@@ -60,7 +67,7 @@ void VerilatorMemBlackBox::recvReqRetry(){
 VerilatorMemBlackBox::VerilatorMemBlackBox(
         VerilatorMemBlackBoxParams *params) :
     MemObject(params),
-    instData(params->name + ".instPort", this),
+    instPort(params->name + ".instPort", this),
     dataPort(params->name + ".dataPort", this)
 {
 }
@@ -72,9 +79,9 @@ VerilatorMemBlackBox::~VerilatorMemBlackBox()
 void VerilatorMemBlackBox::doFetch()
 {
      RequestPtr ifetch_req = std::make_shared<Request>(
-        blkbox.Top__DOT__tile_,
+        blkbox->imem_address,
         4,
-        Request::Flags.INSTR_FETCH,
+        Request::INST_FETCH,
         0);
 
      DPRINTF(Verilator, "Sending fetch for addr (pa: %#x)\n",
@@ -90,16 +97,19 @@ void VerilatorMemBlackBox::doMem()
 {
     //need more stuff here
     unsigned int maskmode = 4;
-    //bool read = blkbox.TOP_DOT_tile_DOT_cpu_
-    //DOT_memory_DOT_dmem_DOT_writeenable
-    //if (blkbox.TOP_DOT_tile_DOT_cpu_DOT_
-    //memory_DOT_dmem_DOT_maskmode)
+    bool read = blkbox->dmem_memread;
     //determine size to access depending on above signal
+    if ( blkbox->dmem_maskmode != 2 )
+        maskmode = 4;
+    else if ( blkbox->dmem_maskmode == 0 )
+        maskmode = 2;
+    else
+        maskmode = 1;
 
     RequestPtr data_req = std::make_shared<Request>(
-        blkbox.Top__DOT__tile_,
+        blkbox->dmem_address,
         maskmode,
-        Request::Flags.PHYSICAL,
+        Request::PHYSICAL,
         0);
 
     DPRINTF(Verilator, "Sending data request for addr (pa: %#x)\n",
@@ -108,6 +118,11 @@ void VerilatorMemBlackBox::doMem()
     PacketPtr pkt = read ? Packet::createRead(data_req)
         : Packet::createWrite(data_req);
     DPRINTF(Verilator, " -- pkt addr: %#x\n", pkt->getAddr());
+
+    uint8_t * data = new uint8_t[4];
+    for (int i = 0; i < 4; ++i){
+        data[i] = blkbox->dmem_writedata & (0xFF << i);
+    }
     pkt->allocate();
     pkt->setData(data);
     delete[] data;
@@ -118,12 +133,11 @@ void VerilatorMemBlackBox::doMem()
 bool VerilatorMemBlackBox::handleResponse( PacketPtr pkt )
 {
  DPRINTF(Verilator, "Got response for addr %#x\n", pkt->getAddr());
-    const uint32_t *t =  pkt->getConstPtr<uint32_t>();
     if (pkt->req->isInstFetch()) {
-
+        blkbox->imem_dataout = *pkt->getConstPtr<uint32_t>();
     } else  if (pkt->isRead()){
         //set packet data to sodor dmem data signal
-        const uint32_t *tmp = pkt->getConstPtr<uint32_t>();
+        blkbox->dmem_dataout = *pkt->getConstPtr<uint32_t>();
     }
     return true;
 

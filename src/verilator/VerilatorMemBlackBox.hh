@@ -32,14 +32,14 @@
 #define VM_TRACE 0
 #define VL_THREADED 0
 
-#include "VDualPortedMemoryBlackBox.h"
 #include "mem/mem_object.hh"
+#include "obj_dir/VTop_DualPortedMemoryBlackBox.h"
 #include "params/VerilatorMemBlackBox.hh"
 
 class VerilatorMemBlackBox: public MemObject
 {
     public:
-        DualPortedMemoryBlackBox blkbox;
+        VTop_DualPortedMemoryBlackBox* blkbox;
 
         void doFetch();
         void doMem();
