@@ -51,18 +51,8 @@
 #include "base/trace.hh"
 #include "mem/mem_object.hh"
 
-Port::Port(const std::string &_name, MemObject& _owner, PortID _id)
-    : portName(_name), id(_id), owner(_owner)
-{
-}
-
-Port::~Port()
-{
-}
-
-BaseMasterPort::BaseMasterPort(const std::string& name, MemObject* owner,
-                               PortID _id)
-    : Port(name, *owner, _id), _baseSlavePort(NULL)
+BaseMasterPort::BaseMasterPort(const std::string &name, PortID _id)
+    : Port(name, _id), _baseSlavePort(NULL)
 {
 }
 
@@ -80,15 +70,8 @@ BaseMasterPort::getSlavePort() const
     return *_baseSlavePort;
 }
 
-bool
-BaseMasterPort::isConnected() const
-{
-    return _baseSlavePort != NULL;
-}
-
-BaseSlavePort::BaseSlavePort(const std::string& name, MemObject* owner,
-                             PortID _id)
-    : Port(name, *owner, _id), _baseMasterPort(NULL)
+BaseSlavePort::BaseSlavePort(const std::string &name, PortID _id)
+    : Port(name, _id), _baseMasterPort(NULL)
 {
 }
 
@@ -106,17 +89,11 @@ BaseSlavePort::getMasterPort() const
     return *_baseMasterPort;
 }
 
-bool
-BaseSlavePort::isConnected() const
-{
-    return _baseMasterPort != NULL;
-}
-
 /**
  * Master port
  */
-MasterPort::MasterPort(const std::string& name, MemObject* owner, PortID _id)
-    : BaseMasterPort(name, owner, _id), _slavePort(NULL)
+MasterPort::MasterPort(const std::string& name, MemObject* _owner, PortID _id)
+    : BaseMasterPort(name, _id), _slavePort(NULL), owner(*_owner)
 {
 }
 
@@ -125,24 +102,21 @@ MasterPort::~MasterPort()
 }
 
 void
-MasterPort::bind(BaseSlavePort& slave_port)
+MasterPort::bind(Port &peer)
 {
-    // bind on the level of the base ports
-    _baseSlavePort = &slave_port;
-
-    // also attempt to base the slave to the appropriate type
-    SlavePort* cast_slave_port = dynamic_cast<SlavePort*>(&slave_port);
-
-    // if this port is compatible, then proceed with the binding
-    if (cast_slave_port != NULL) {
-        // master port keeps track of the slave port
-        _slavePort = cast_slave_port;
-        // slave port also keeps track of master port
-        _slavePort->bind(*this);
-    } else {
-        fatal("Master port %s cannot bind to %s\n", name(),
-              slave_port.name());
+    auto *slave_port = dynamic_cast<SlavePort *>(&peer);
+    if (!slave_port) {
+        fatal("Attempt to bind port %s to non-slave port %s.",
+                name(), peer.name());
     }
+    // bind on the level of the base ports
+    _baseSlavePort = slave_port;
+
+    // master port keeps track of the slave port
+    _slavePort = slave_port;
+    _connected = true;
+    // slave port also keeps track of master port
+    _slavePort->slaveBind(*this);
 }
 
 void
@@ -151,8 +125,9 @@ MasterPort::unbind()
     if (_slavePort == NULL)
         panic("Attempting to unbind master port %s that is not connected\n",
               name());
-    _slavePort->unbind();
+    _slavePort->slaveUnbind();
     _slavePort = NULL;
+    _connected = false;
     _baseSlavePort = NULL;
 }
 
@@ -219,8 +194,8 @@ MasterPort::printAddr(Addr a)
 /**
  * Slave port
  */
-SlavePort::SlavePort(const std::string& name, MemObject* owner, PortID id)
-    : BaseSlavePort(name, owner, id), _masterPort(NULL)
+SlavePort::SlavePort(const std::string& name, MemObject* _owner, PortID id)
+    : BaseSlavePort(name, id), _masterPort(NULL), owner(*_owner)
 {
 }
 
@@ -229,17 +204,19 @@ SlavePort::~SlavePort()
 }
 
 void
-SlavePort::unbind()
+SlavePort::slaveUnbind()
 {
     _baseMasterPort = NULL;
     _masterPort = NULL;
+    _connected = false;
 }
 
 void
-SlavePort::bind(MasterPort& master_port)
+SlavePort::slaveBind(MasterPort& master_port)
 {
     _baseMasterPort = &master_port;
     _masterPort = &master_port;
+    _connected = true;
 }
 
 Tick

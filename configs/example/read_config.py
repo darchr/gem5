@@ -46,6 +46,7 @@
 # debugging.
 
 from __future__ import print_function
+from __future__ import absolute_import
 
 import argparse
 import ConfigParser
@@ -280,7 +281,7 @@ class ConfigManager(object):
             # Assume that unnamed ports are unconnected
             peers = self.config.get_port_peers(object_name, port_name)
 
-            for index, peer in zip(xrange(0, len(peers)), peers):
+            for index, peer in zip(range(0, len(peers)), peers):
                 parsed_ports.append((
                     PortConnection(object_name, port.name, index),
                     PortConnection.from_string(peer)))

@@ -511,10 +511,10 @@ TLB::unserialize(CheckpointIn &cp)
     }
 }
 
-BaseMasterPort *
-TLB::getMasterPort()
+Port *
+TLB::getTableWalkerPort()
 {
-    return &walker->getMasterPort("port");
+    return &walker->getPort("port");
 }
 
 } // namespace X86ISA

@@ -52,56 +52,9 @@
 
 #include "base/addr_range.hh"
 #include "mem/packet.hh"
+#include "sim/port.hh"
 
 class MemObject;
-
-/**
- * Ports are used to interface memory objects to each other. A port is
- * either a master or a slave and the connected peer is always of the
- * opposite role. Each port has a name, an owner, and an identifier.
- */
-class Port
-{
-
-  private:
-
-    /** Descriptive name (for DPRINTF output) */
-    std::string portName;
-
-  protected:
-
-    /**
-     * A numeric identifier to distinguish ports in a vector, and set
-     * to InvalidPortID in case this port is not part of a vector.
-     */
-    const PortID id;
-
-    /** A reference to the MemObject that owns this port. */
-    MemObject& owner;
-
-    /**
-     * Abstract base class for ports
-     *
-     * @param _name Port name including the owners name
-     * @param _owner The MemObject that is the structural owner of this port
-     * @param _id A port identifier for vector ports
-     */
-    Port(const std::string& _name, MemObject& _owner, PortID _id);
-
-    /**
-     * Virtual destructor due to inheritance.
-     */
-    virtual ~Port();
-
-  public:
-
-    /** Return port name (for DPRINTF). */
-    const std::string name() const { return portName; }
-
-    /** Get the port id. */
-    PortID getId() const { return id; }
-
-};
 
 /** Forward declaration */
 class BaseSlavePort;
@@ -119,16 +72,12 @@ class BaseMasterPort : public Port
 
     BaseSlavePort* _baseSlavePort;
 
-    BaseMasterPort(const std::string& name, MemObject* owner,
-                   PortID id = InvalidPortID);
+    BaseMasterPort(const std::string& name, PortID id=InvalidPortID);
     virtual ~BaseMasterPort();
 
   public:
 
-    virtual void bind(BaseSlavePort& slave_port) = 0;
-    virtual void unbind() = 0;
     BaseSlavePort& getSlavePort() const;
-    bool isConnected() const;
 
 };
 
@@ -143,14 +92,12 @@ class BaseSlavePort : public Port
 
     BaseMasterPort* _baseMasterPort;
 
-    BaseSlavePort(const std::string& name, MemObject* owner,
-                  PortID id = InvalidPortID);
+    BaseSlavePort(const std::string& name, PortID id=InvalidPortID);
     virtual ~BaseSlavePort();
 
   public:
 
     BaseMasterPort& getMasterPort() const;
-    bool isConnected() const;
 
 };
 
@@ -173,22 +120,26 @@ class MasterPort : public BaseMasterPort
 
     SlavePort* _slavePort;
 
+  protected:
+
+    MemObject& owner;
+
   public:
 
-    MasterPort(const std::string& name, MemObject* owner,
-               PortID id = InvalidPortID);
+    MasterPort(const std::string& name, MemObject* _owner,
+               PortID id=InvalidPortID);
     virtual ~MasterPort();
 
     /**
      * Bind this master port to a slave port. This also does the
      * mirror action and binds the slave port to the master port.
      */
-    void bind(BaseSlavePort& slave_port);
+    void bind(Port &peer) override;
 
     /**
      * Unbind this master port and the associated slave port.
      */
-    void unbind();
+    void unbind() override;
 
     /**
      * Send an atomic request packet, where the data is moved and the
@@ -350,10 +301,14 @@ class SlavePort : public BaseSlavePort
 
     MasterPort* _masterPort;
 
+  protected:
+
+    MemObject& owner;
+
   public:
 
-    SlavePort(const std::string& name, MemObject* owner,
-              PortID id = InvalidPortID);
+    SlavePort(const std::string& name, MemObject* _owner,
+              PortID id=InvalidPortID);
     virtual ~SlavePort();
 
     /**
@@ -435,19 +390,25 @@ class SlavePort : public BaseSlavePort
      */
     virtual AddrRangeList getAddrRanges() const = 0;
 
+    /**
+     * We let the master port do the work, so these don't do anything.
+     */
+    void unbind() override {}
+    void bind(Port &peer) override {}
+
   protected:
 
     /**
      * Called by the master port to unbind. Should never be called
      * directly.
      */
-    void unbind();
+    void slaveUnbind();
 
     /**
      * Called by the master port to bind. Should never be called
      * directly.
      */
-    void bind(MasterPort& master_port);
+    void slaveBind(MasterPort& master_port);
 
     /**
      * Receive an atomic request packet from the master port.

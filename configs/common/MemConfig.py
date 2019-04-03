@@ -37,12 +37,13 @@
 #          Andreas Hansson
 
 from __future__ import print_function
+from __future__ import absolute_import
 
 import m5.objects
 import inspect
 import sys
-import HMC
 from textwrap import  TextWrapper
+from . import HMC
 
 # Dictionary of mapping names of real memory controller models to
 # classes.
@@ -86,7 +87,7 @@ def print_mem_list():
 
 def mem_names():
     """Return a list of valid memory names."""
-    return _mem_classes.keys()
+    return list(_mem_classes.keys())
 
 # Add all memory controllers in the object hierarchy.
 for name, cls in inspect.getmembers(m5.objects, is_mem_class):
@@ -215,7 +216,7 @@ def config_mem(options, system):
     # array of controllers and set their parameters to match their
     # address mapping in the case of a DRAM
     for r in system.mem_ranges:
-        for i in xrange(nbr_mem_ctrls):
+        for i in range(nbr_mem_ctrls):
             mem_ctrl = create_mem_ctrl(cls, r, i, nbr_mem_ctrls, intlv_bits,
                                        intlv_size)
             # Set the number of ranks based on the command-line
@@ -233,7 +234,7 @@ def config_mem(options, system):
     subsystem.mem_ctrls = mem_ctrls
 
     # Connect the controllers to the membus
-    for i in xrange(len(subsystem.mem_ctrls)):
+    for i in range(len(subsystem.mem_ctrls)):
         if opt_mem_type == "HMC_2500_1x32":
             subsystem.mem_ctrls[i].port = xbar[i/4].master
             # Set memory device size. There is an independent controller for

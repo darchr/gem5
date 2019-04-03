@@ -121,6 +121,10 @@ class GenericArmPciHost(GenericPciHost):
     int_base = Param.Unsigned("PCI interrupt base")
     int_count = Param.Unsigned("Maximum number of interrupts used by this host")
 
+    # This python parameter can be used in configuration scripts to turn
+    # on/off the fdt dma-coherent flag when doing dtb autogeneration
+    _dma_coherent = True
+
     def generateDeviceTree(self, state):
         local_state = FdtState(addr_cells=3, size_cells=2, cpu_cells=1)
         intterrupt_cells = 1
@@ -182,7 +186,8 @@ class GenericArmPciHost(GenericPciHost):
             m5.fatal("Unsupported PCI interrupt policy " +
                      "for Device Tree generation")
 
-        node.append(FdtProperty("dma-coherent"))
+        if self._dma_coherent:
+            node.append(FdtProperty("dma-coherent"))
 
         yield node
 
@@ -723,7 +728,7 @@ class VExpress_EMM(RealView):
 
     ### On-chip devices ###
     gic = Gic400(dist_addr=0x2C001000, cpu_addr=0x2C002000)
-    vgic   = VGic(vcpu_addr=0x2c006000, hv_addr=0x2c004000, ppint=25)
+    vgic   = VGic(vcpu_addr=0x2c006000, hv_addr=0x2c004000, maint_int=25)
 
     local_cpu_timer = CpuLocalTimer(int_timer=ArmPPI(num=29),
                                     int_watchdog=ArmPPI(num=30),
@@ -1057,7 +1062,7 @@ Interrupts:
 class VExpress_GEM5_V1_Base(VExpress_GEM5_Base):
     gic = kvm_gicv2_class(dist_addr=0x2c001000, cpu_addr=0x2c002000,
                           it_lines=512)
-    vgic = VGic(vcpu_addr=0x2c006000, hv_addr=0x2c004000, ppint=25)
+    vgic = VGic(vcpu_addr=0x2c006000, hv_addr=0x2c004000, maint_int=25)
     gicv2m = Gicv2m()
     gicv2m.frames = [
         Gicv2mFrame(spi_base=256, spi_len=64, addr=0x2c1c0000),
@@ -1078,7 +1083,7 @@ class VExpress_GEM5_V1(VExpress_GEM5_V1_Base):
             ]
 
 class VExpress_GEM5_V2_Base(VExpress_GEM5_Base):
-    gic = Gicv3()
+    gic = Gicv3(maint_int=ArmPPI(num=25))
 
     def _on_chip_devices(self):
         return super(VExpress_GEM5_V2_Base,self)._on_chip_devices() + [
