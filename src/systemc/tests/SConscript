@@ -44,6 +44,7 @@ if env['USE_SYSTEMC']:
             self.reldir = os.path.relpath(dirname, src)
             self.target = os.path.join(self.reldir, name)
             self.sources = []
+            self.deps = []
 
             self.compile_only = False
 
@@ -58,14 +59,16 @@ if env['USE_SYSTEMC']:
             return {
                 'name' : self.name,
                 'path' : self.reldir,
-                'compile_only' : self.compile_only
+                'compile_only' : self.compile_only,
+                'deps' : self.deps
             }
 
-    ext_dir = Dir('..').Dir('ext')
     test_dir = Dir('.')
     class SystemCTestBin(Executable):
         def __init__(self, test):
             super(SystemCTestBin, self).__init__(test.target, *test.sources)
+            self.reldir = test.reldir
+            self.test_deps = test.deps
 
         @classmethod
         def declare_all(cls, env):
@@ -77,7 +80,6 @@ if env['USE_SYSTEMC']:
                 filter(lambda f: f not in to_remove, env['CCFLAGS'])
 
             env.Append(CPPPATH=test_dir.Dir('include'))
-            env.Append(CPPPATH=ext_dir)
 
             shared_lib_path = env['SHARED_LIB'][0].abspath
             sl_dir, sl_base = os.path.split(shared_lib_path)
@@ -89,15 +91,20 @@ if env['USE_SYSTEMC']:
             env = env.Clone()
             sources = list(self.sources)
             for f in self.filters:
-                sources = Source.all.apply_filter(f)
+                sources += Source.all.apply_filter(f)
             objs = self.srcs_to_objs(env, sources)
             objs = objs + env['MAIN_OBJS']
             relpath = os.path.relpath(
                     env['SHARED_LIB'][0].dir.abspath,
                     self.path(env).dir.abspath)
             env.Append(LINKFLAGS=Split('-z origin'))
-            env.Append(RPATH=env.Literal(os.path.join('\\$$ORIGIN', relpath)))
-            return super(SystemCTestBin, self).declare(env, objs)
+            env.Append(RPATH=[
+                    env.Literal(os.path.join('\\$$ORIGIN', relpath))])
+            test_bin = super(SystemCTestBin, self).declare(env, objs)
+            test_dir = self.dir.Dir(self.reldir)
+            for dep in self.test_deps:
+                env.Depends(test_bin, test_dir.File(dep))
+            return test_bin
 
     tests = []
     def new_test(dirname, name):
@@ -119,6 +126,15 @@ if env['USE_SYSTEMC']:
             cpps = endswith('.cpp')
             if not cpps:
                 return
+
+            def get_entries(fname):
+                with open(os.path.join(dirname, fname)) as content:
+                    lines = content.readlines
+                    # Get rid of leading and trailing whitespace.
+                    lines = map(lambda x: x.strip(), content.readlines())
+                    # Get rid of blank lines.
+                    lines = filter(lambda x: x, lines)
+                    return lines
 
             # If there's only one source file, then that files name is the test
             # name, and it's the source for that test.
@@ -142,22 +158,20 @@ if env['USE_SYSTEMC']:
                 f = fs[0]
 
                 test = new_test(dirname, os.path.splitext(f)[0])
-                with open(os.path.join(dirname, f)) as content:
-                    lines = content.readlines
-                    # Get rid of leading and trailing whitespace.
-                    lines = map(lambda x: x.strip(), content.readlines())
-                    # Get rid of blank lines.
-                    lines = filter(lambda x: x, lines)
-                    # Add all the sources to this test.
-                    test.add_sources(lines)
+                # Add all the sources to this test.
+                test.add_sources(get_entries(f))
 
             if 'COMPILE' in names:
                 test.compile_only = True
+
+            if 'DEPS' in names:
+                test.deps = get_entries('DEPS')
 
         subdir_src = Dir('.').srcdir.Dir(subdir)
         os.path.walk(str(subdir_src), visitor, None)
 
     scan_dir_for_tests('systemc')
+    scan_dir_for_tests('tlm')
 
 
     def build_tests_json(target, source, env):

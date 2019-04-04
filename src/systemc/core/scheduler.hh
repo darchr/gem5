@@ -333,8 +333,6 @@ class Scheduler
     // Run delta events.
     void runDelta();
 
-    void setScMainFiber(Fiber *sc_main) { scMain = sc_main; }
-
     void start(Tick max_tick, bool run_to_time);
     void oneCycle();
 
@@ -365,7 +363,9 @@ class Scheduler
     uint64_t changeStamp() { return _changeStamp; }
     void stepChangeStamp() { _changeStamp++; }
 
-    void throwToScMain();
+    // Throw upwards, either to sc_main or to the report handler if sc_main
+    // isn't running.
+    void throwUp();
 
     Status status() { return _status; }
     void status(Status s) { _status = s; }
@@ -426,8 +426,7 @@ class Scheduler
     EventWrapper<Scheduler, &Scheduler::pause> pauseEvent;
     EventWrapper<Scheduler, &Scheduler::stop> stopEvent;
 
-    Fiber *scMain;
-    const ::sc_core::sc_report *_throwToScMain;
+    const ::sc_core::sc_report *_throwUp;
 
     bool
     starved()
@@ -508,7 +507,7 @@ Scheduler::TimeSlot::process()
             scheduler.completeTimeSlot(this);
         else
             scheduler.schedule(this);
-        scheduler.throwToScMain();
+        scheduler.throwUp();
     }
 
     scheduler.status(StatusOther);

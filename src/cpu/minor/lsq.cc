@@ -44,6 +44,7 @@
 
 #include "arch/locked_mem.hh"
 #include "arch/mmapped_ipr.hh"
+#include "base/logging.hh"
 #include "cpu/minor/cpu.hh"
 #include "cpu/minor/exec_context.hh"
 #include "cpu/minor/execute.hh"
@@ -675,9 +676,9 @@ LSQ::StoreBuffer::canForwardDataToLoad(LSQRequestPtr request,
     while (ret == NoAddrRangeCoverage && i != slots.rend()) {
         LSQRequestPtr slot = *i;
 
-        /* Cache maintenance instructions go down via the store path *
-         * but they carry no data and they shouldn't be considered for
-         * forwarding */
+        /* Cache maintenance instructions go down via the store path but
+         * they carry no data and they shouldn't be considered
+         * for forwarding */
         if (slot->packet &&
             slot->inst->id.threadId == request->inst->id.threadId &&
             !slot->packet->req->isCacheMaintenance()) {
@@ -930,8 +931,9 @@ LSQ::tryToSendToTransfers(LSQRequestPtr request)
     bool is_load = request->isLoad;
     bool is_llsc = request->request->isLLSC();
     bool is_swap = request->request->isSwap();
+    bool is_atomic = request->request->isAtomic();
     bool bufferable = !(request->request->isStrictlyOrdered() ||
-        is_llsc || is_swap);
+                        is_llsc || is_swap || is_atomic);
 
     if (is_load) {
         if (numStoresInTransfers != 0) {
@@ -964,9 +966,16 @@ LSQ::tryToSendToTransfers(LSQRequestPtr request)
         if (storeBuffer.canForwardDataToLoad(request, forwarding_slot) !=
             NoAddrRangeCoverage)
         {
+            // There's at least another request that targets the same
+            // address and is staying in the storeBuffer. Since our
+            // request is non-bufferable (e.g., strictly ordered or atomic),
+            // we must wait for the other request in the storeBuffer to
+            // complete before we can issue this non-bufferable request.
+            // This is to make sure that the order they access the cache is
+            // correct.
             DPRINTF(MinorMem, "Memory access can receive forwarded data"
-                " from the store buffer, need to wait for store buffer to"
-                " drain\n");
+                " from the store buffer, but need to wait for store buffer"
+                " to drain\n");
             return;
         }
     }
@@ -1121,8 +1130,7 @@ LSQ::tryToSend(LSQRequestPtr request)
                 request->setState(LSQRequest::StoreBufferIssuing);
                 break;
               default:
-                assert(false);
-                break;
+                panic("Unrecognized LSQ request state %d.", request->state);
             }
 
             state = MemoryRunning;
@@ -1144,8 +1152,7 @@ LSQ::tryToSend(LSQRequestPtr request)
                 request->setState(LSQRequest::StoreBufferNeedsRetry);
                 break;
               default:
-                assert(false);
-                break;
+                panic("Unrecognized LSQ request state %d.", request->state);
             }
         }
     }
@@ -1226,10 +1233,7 @@ LSQ::recvTimingResp(PacketPtr response)
         }
         break;
       default:
-        /* Shouldn't be allowed to receive a response from another
-         *  state */
-        assert(false);
-        break;
+        panic("Shouldn't be allowed to receive a response from another state");
     }
 
     /* We go to idle even if there are more things in the requests queue
@@ -1260,7 +1264,7 @@ LSQ::recvReqRetry()
         retryRequest->setState(LSQRequest::StoreInStoreBuffer);
         break;
       default:
-        assert(false);
+        panic("Unrecognized retry request state %d.", retryRequest->state);
     }
 
     /* Set state back to MemoryRunning so that the following
@@ -1283,8 +1287,7 @@ LSQ::recvReqRetry()
             storeBuffer.countIssuedStore(retryRequest);
             break;
           default:
-            assert(false);
-            break;
+            panic("Unrecognized retry request state %d.", retryRequest->state);
         }
 
         retryRequest = NULL;
@@ -1474,9 +1477,21 @@ LSQ::needsToTick()
 void
 LSQ::pushRequest(MinorDynInstPtr inst, bool isLoad, uint8_t *data,
                  unsigned int size, Addr addr, Request::Flags flags,
-                 uint64_t *res)
+                 uint64_t *res, AtomicOpFunctor *amo_op)
 {
     bool needs_burst = transferNeedsBurst(addr, size, lineWidth);
+
+    if (needs_burst && inst->staticInst->isAtomic()) {
+        // AMO requests that access across a cache line boundary are not
+        // allowed since the cache does not guarantee AMO ops to be executed
+        // atomically in two cache lines
+        // For ISAs such as x86 that requires AMO operations to work on
+        // accesses that cross cache-line boundaries, the cache needs to be
+        // modified to support locking both cache lines to guarantee the
+        // atomicity.
+        panic("Do not expect cross-cache-line atomic memory request\n");
+    }
+
     LSQRequestPtr request;
 
     /* Copy given data into the request.  The request will pass this to the
@@ -1485,15 +1500,16 @@ LSQ::pushRequest(MinorDynInstPtr inst, bool isLoad, uint8_t *data,
 
     DPRINTF(MinorMem, "Pushing request (%s) addr: 0x%x size: %d flags:"
         " 0x%x%s lineWidth : 0x%x\n",
-        (isLoad ? "load" : "store"), addr, size, flags,
+        (isLoad ? "load" : "store/atomic"), addr, size, flags,
             (needs_burst ? " (needs burst)" : ""), lineWidth);
 
     if (!isLoad) {
-        /* request_data becomes the property of a ...DataRequest (see below)
+        /* Request_data becomes the property of a ...DataRequest (see below)
          *  and destroyed by its destructor */
         request_data = new uint8_t[size];
-        if (flags & Request::STORE_NO_DATA) {
-            /* For cache zeroing, just use zeroed data */
+        if (inst->staticInst->isAtomic() ||
+            (flags & Request::STORE_NO_DATA)) {
+            /* For atomic or store-no-data, just use zeroed data */
             std::memset(request_data, 0, size);
         } else {
             std::memcpy(request_data, data, size);
@@ -1516,7 +1532,7 @@ LSQ::pushRequest(MinorDynInstPtr inst, bool isLoad, uint8_t *data,
     request->request->setVirt(0 /* asid */,
         addr, size, flags, cpu.dataMasterId(),
         /* I've no idea why we need the PC, but give it */
-        inst->pc.instAddr());
+        inst->pc.instAddr(), amo_op);
 
     requests.push(request);
     request->startAddrTranslation();

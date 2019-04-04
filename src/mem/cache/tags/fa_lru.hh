@@ -159,11 +159,9 @@ class FALRU : public BaseTags
     ~FALRU();
 
     /**
-     * Initialize blocks and set the parent cache back pointer.
-     *
-     * @param _cache Pointer to parent cache.
+     * Initialize blocks as FALRUBlk instances.
      */
-    void init(BaseCache *_cache) override;
+    void tagsInit() override;
 
     /**
      * Register the stats for this object.
@@ -180,10 +178,11 @@ class FALRU : public BaseTags
      * Access block and update replacement data.  May not succeed, in which
      * case nullptr pointer is returned.  This has all the implications of a
      * cache access and should only be used as such.
-     * Returns the access latency and inCachesMask flags as a side effect.
+     * Returns tag lookup latency and the inCachesMask flags as a side effect.
+     *
      * @param addr The address to look for.
      * @param is_secure True if the target memory space is secure.
-     * @param lat The latency of the access.
+     * @param lat The latency of the tag lookup.
      * @param in_cache_mask Mask indicating the caches in which the blk fits.
      * @return Pointer to the cache block.
      */

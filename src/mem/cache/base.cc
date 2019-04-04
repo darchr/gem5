@@ -69,7 +69,8 @@ using namespace std;
 BaseCache::CacheSlavePort::CacheSlavePort(const std::string &_name,
                                           BaseCache *_cache,
                                           const std::string &_label)
-    : QueuedSlavePort(_name, _cache, queue), queue(*_cache, *this, _label),
+    : QueuedSlavePort(_name, _cache, queue),
+      queue(*_cache, *this, true, _label),
       blocked(false), mustSendRetry(false),
       sendRetryEvent([this]{ processSendRetry(); }, _name)
 {
@@ -83,7 +84,6 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
       writeBuffer("write buffer", p->write_buffers, p->mshrs), // see below
       tags(p->tags),
       prefetcher(p->prefetcher),
-      prefetchOnAccess(p->prefetch_on_access),
       writeAllocator(p->write_allocator),
       writebackClean(p->writeback_clean),
       tempBlockWriteback(nullptr),
@@ -96,6 +96,7 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
       forwardLatency(p->tag_latency),
       fillLatency(p->data_latency),
       responseLatency(p->response_latency),
+      sequentialAccess(p->sequential_access),
       numTarget(p->tgts_per_mshr),
       forwardSnoops(true),
       clusivity(p->clusivity),
@@ -118,7 +119,7 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
 
     tempBlock = new TempCacheBlk(blkSize);
 
-    tags->init(this);
+    tags->tagsInit();
     if (prefetcher)
         prefetcher->setCache(this);
 }
@@ -226,9 +227,9 @@ BaseCache::handleTimingReqHit(PacketPtr pkt, CacheBlk *blk, Tick request_time)
         // In this case we are considering request_time that takes
         // into account the delay of the xbar, if any, and just
         // lat, neglecting responseLatency, modelling hit latency
-        // just as lookupLatency or or the value of lat overriden
-        // by access(), that calls accessBlock() function.
-        cpuSidePort.schedTimingResp(pkt, request_time, true);
+        // just as the value of lat overriden by access(), which calls
+        // the calculateAccessLatency() function.
+        cpuSidePort.schedTimingResp(pkt, request_time);
     } else {
         DPRINTF(Cache, "%s satisfied %s, no response needed\n", __func__,
                 pkt->print());
@@ -343,15 +344,13 @@ BaseCache::recvTimingReq(PacketPtr pkt)
     // the delay provided by the crossbar
     Tick forward_time = clockEdge(forwardLatency) + pkt->headerDelay;
 
-    // We use lookupLatency here because it is used to specify the latency
-    // to access.
-    Cycles lat = lookupLatency;
+    Cycles lat;
     CacheBlk *blk = nullptr;
     bool satisfied = false;
     {
         PacketList writebacks;
         // Note that lat is passed by reference here. The function
-        // access() calls accessBlock() which can modify lat value.
+        // access() will set the lat value.
         satisfied = access(pkt, blk, lat, writebacks);
 
         // copy writebacks to write buffer here to ensure they logically
@@ -361,57 +360,35 @@ BaseCache::recvTimingReq(PacketPtr pkt)
 
     // Here we charge the headerDelay that takes into account the latencies
     // of the bus, if the packet comes from it.
-    // The latency charged it is just lat that is the value of lookupLatency
-    // modified by access() function, or if not just lookupLatency.
+    // The latency charged is just the value set by the access() function.
     // In case of a hit we are neglecting response latency.
     // In case of a miss we are neglecting forward latency.
     Tick request_time = clockEdge(lat) + pkt->headerDelay;
     // Here we reset the timing of the packet.
     pkt->headerDelay = pkt->payloadDelay = 0;
-    // track time of availability of next prefetch, if any
-    Tick next_pf_time = MaxTick;
 
     if (satisfied) {
-        // if need to notify the prefetcher we have to do it before
-        // anything else as later handleTimingReqHit might turn the
-        // packet in a response
-        if (prefetcher &&
-            (prefetchOnAccess || (blk && blk->wasPrefetched()))) {
-            if (blk)
-                blk->status &= ~BlkHWPrefetched;
+        // notify before anything else as later handleTimingReqHit might turn
+        // the packet in a response
+        ppHit->notify(pkt);
 
-            // Don't notify on SWPrefetch
-            if (!pkt->cmd.isSWPrefetch()) {
-                assert(!pkt->req->isCacheMaintenance());
-                next_pf_time = prefetcher->notify(pkt);
-            }
+        if (prefetcher && blk && blk->wasPrefetched()) {
+            blk->status &= ~BlkHWPrefetched;
         }
 
         handleTimingReqHit(pkt, blk, request_time);
     } else {
         handleTimingReqMiss(pkt, blk, forward_time, request_time);
 
-        // We should call the prefetcher reguardless if the request is
-        // satisfied or not, reguardless if the request is in the MSHR
-        // or not. The request could be a ReadReq hit, but still not
-        // satisfied (potentially because of a prior write to the same
-        // cache line. So, even when not satisfied, there is an MSHR
-        // already allocated for this, we need to let the prefetcher
-        // know about the request
-
-        // Don't notify prefetcher on SWPrefetch, cache maintenance
-        // operations or for writes that we are coaslescing.
-        if (prefetcher && pkt &&
-            !pkt->cmd.isSWPrefetch() &&
-            !pkt->req->isCacheMaintenance() &&
-            !(writeAllocator && writeAllocator->coalesce() &&
-              pkt->isWrite())) {
-            next_pf_time = prefetcher->notify(pkt);
-        }
+        ppMiss->notify(pkt);
     }
 
-    if (next_pf_time != MaxTick) {
-        schedMemSideSendEvent(next_pf_time);
+    if (prefetcher) {
+        // track time of availability of next prefetch, if any
+        Tick next_pf_time = prefetcher->nextPrefetchReadyTime();
+        if (next_pf_time != MaxTick) {
+            schedMemSideSendEvent(next_pf_time);
+        }
     }
 }
 
@@ -424,7 +401,7 @@ BaseCache::handleUncacheableWriteResp(PacketPtr pkt)
     // Reset the bus additional time as it is now accounted for
     pkt->headerDelay = pkt->payloadDelay = 0;
 
-    cpuSidePort.schedTimingResp(pkt, completion_time, true);
+    cpuSidePort.schedTimingResp(pkt, completion_time);
 }
 
 void
@@ -501,6 +478,7 @@ BaseCache::recvTimingResp(PacketPtr pkt)
             writeAllocator->allocate() : mshr->allocOnFill();
         blk = handleFill(pkt, blk, writebacks, allocate);
         assert(blk != nullptr);
+        ppFill->notify(pkt);
     }
 
     if (blk && blk->isValid() && pkt->isClean() && !pkt->isInvalidate()) {
@@ -522,7 +500,7 @@ BaseCache::recvTimingResp(PacketPtr pkt)
         mshr->promoteWritable();
     }
 
-    serviceMSHRTargets(mshr, pkt, blk, writebacks);
+    serviceMSHRTargets(mshr, pkt, blk);
 
     if (mshr->promoteDeferredTargets()) {
         // avoid later read getting stale data while write miss is
@@ -569,28 +547,13 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 Tick
 BaseCache::recvAtomic(PacketPtr pkt)
 {
-    // We are in atomic mode so we pay just for lookupLatency here.
-    Cycles lat = lookupLatency;
-
-    // follow the same flow as in recvTimingReq, and check if a cache
-    // above us is responding
-    if (pkt->cacheResponding() && !pkt->isClean()) {
-        assert(!pkt->req->isCacheInvalidate());
-        DPRINTF(Cache, "Cache above responding to %s: not responding\n",
-                pkt->print());
-
-        // if a cache is responding, and it had the line in Owned
-        // rather than Modified state, we need to invalidate any
-        // copies that are not on the same path to memory
-        assert(pkt->needsWritable() && !pkt->responderHadWritable());
-        lat += ticksToCycles(memSidePort.sendAtomic(pkt));
-
-        return lat * clockPeriod();
-    }
-
     // should assert here that there are no outstanding MSHRs or
     // writebacks... that would mean that someone used an atomic
     // access in timing mode
+
+    // We use lookupLatency here because it is used to specify the latency
+    // to access.
+    Cycles lat = lookupLatency;
 
     CacheBlk *blk = nullptr;
     PacketList writebacks;
@@ -861,10 +824,9 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
         if (pkt->isAtomicOp()) {
             // extract data from cache and save it into the data field in
             // the packet as a return value from this atomic op
-
             int offset = tags->extractBlkOffset(pkt->getAddr());
             uint8_t *blk_data = blk->data + offset;
-            std::memcpy(pkt->getPtr<uint8_t>(), blk_data, pkt->getSize());
+            pkt->setData(blk_data);
 
             // execute AMO operation
             (*(pkt->getAtomicOp()))(blk_data);
@@ -924,6 +886,32 @@ BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
 // Access path: requests coming in from the CPU side
 //
 /////////////////////////////////////////////////////
+Cycles
+BaseCache::calculateAccessLatency(const CacheBlk* blk,
+                                  const Cycles lookup_lat) const
+{
+    Cycles lat(lookup_lat);
+
+    if (blk != nullptr) {
+        // First access tags, then data
+        if (sequentialAccess) {
+            lat += dataLatency;
+        // Latency is dictated by the slowest of tag and data latencies
+        } else {
+            lat = std::max(lookup_lat, dataLatency);
+        }
+
+        // Check if the block to be accessed is available. If not, apply the
+        // access latency on top of when the block is ready to be accessed.
+        const Tick when_ready = blk->getWhenReady();
+        if (when_ready > curTick() &&
+            ticksToCycles(when_ready - curTick()) > lat) {
+            lat += ticksToCycles(when_ready - curTick());
+        }
+    }
+
+    return lat;
+}
 
 bool
 BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
@@ -936,9 +924,12 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                   "Should never see a write in a read-only cache %s\n",
                   name());
 
-    // Here lat is the value passed as parameter to accessBlock() function
-    // that can modify its value.
-    blk = tags->accessBlock(pkt->getAddr(), pkt->isSecure(), lat);
+    // Access block in the tags
+    Cycles tag_latency(0);
+    blk = tags->accessBlock(pkt->getAddr(), pkt->isSecure(), tag_latency);
+
+    // Calculate access latency
+    lat = calculateAccessLatency(blk, tag_latency);
 
     DPRINTF(Cache, "%s for %s %s\n", __func__, pkt->print(),
             blk ? "hit " + blk->print() : "miss");
@@ -1016,7 +1007,7 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                 return false;
             }
 
-            blk->status |= (BlkValid | BlkReadable);
+            blk->status |= BlkReadable;
         }
         // only mark the block dirty if we got a writeback command,
         // and leave it as is for a clean writeback
@@ -1036,8 +1027,8 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         DPRINTF(Cache, "%s new state is %s\n", __func__, blk->print());
         incHitCount(pkt);
         // populate the time when the block will be ready to access.
-        blk->whenReady = clockEdge(fillLatency) + pkt->headerDelay +
-            pkt->payloadDelay;
+        blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
+            pkt->payloadDelay);
         return true;
     } else if (pkt->cmd == MemCmd::CleanEvict) {
         if (blk) {
@@ -1074,7 +1065,7 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                     return false;
                 }
 
-                blk->status |= (BlkValid | BlkReadable);
+                blk->status |= BlkReadable;
             }
         }
 
@@ -1093,8 +1084,8 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
 
         incHitCount(pkt);
         // populate the time when the block will be ready to access.
-        blk->whenReady = clockEdge(fillLatency) + pkt->headerDelay +
-            pkt->payloadDelay;
+        blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
+            pkt->payloadDelay);
         // if this a write-through packet it will be sent to cache
         // below
         return !pkt->writeThrough();
@@ -1161,26 +1152,23 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
             // No replaceable block or a mostly exclusive
             // cache... just use temporary storage to complete the
             // current request and then get rid of it
-            assert(!tempBlock->isValid());
             blk = tempBlock;
             tempBlock->insert(addr, is_secure);
             DPRINTF(Cache, "using temp block for %#llx (%s)\n", addr,
                     is_secure ? "s" : "ns");
         }
-
-        // we should never be overwriting a valid block
-        assert(!blk->isValid());
     } else {
         // existing block... probably an upgrade
-        assert(regenerateBlkAddr(blk) == addr);
-        assert(blk->isSecure() == is_secure);
-        // either we're getting new data or the block should already be valid
-        assert(pkt->hasData() || blk->isValid());
         // don't clear block status... if block is already dirty we
         // don't want to lose that
     }
 
-    blk->status |= BlkValid | BlkReadable;
+    // Block is guaranteed to be valid at this point
+    assert(blk->isValid());
+    assert(blk->isSecure() == is_secure);
+    assert(regenerateBlkAddr(blk) == addr);
+
+    blk->status |= BlkReadable;
 
     // sanity check for whole-line writes, which should always be
     // marked as writable as part of the fill, and then later marked
@@ -1227,8 +1215,7 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         pkt->writeDataToBlock(blk->data, blkSize);
     }
     // We pay for fillLatency here.
-    blk->whenReady = clockEdge() + fillLatency * clockPeriod() +
-        pkt->payloadDelay;
+    blk->setWhenReady(clockEdge(fillLatency) + pkt->payloadDelay);
 
     return blk;
 }
@@ -1305,9 +1292,13 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 void
 BaseCache::invalidateBlock(CacheBlk *blk)
 {
-    if (blk != tempBlock)
+    // If handling a block present in the Tags, let it do its invalidation
+    // process, which will update stats and invalidate the block itself
+    if (blk != tempBlock) {
         tags->invalidate(blk);
-    blk->invalidate();
+    } else {
+        tempBlock->invalidate();
+    }
 }
 
 void
@@ -1417,6 +1408,12 @@ bool
 BaseCache::isDirty() const
 {
     return tags->anyBlk([](CacheBlk &blk) { return blk.isDirty(); });
+}
+
+bool
+BaseCache::coalesce() const
+{
+    return writeAllocator && writeAllocator->coalesce();
 }
 
 void
@@ -1663,7 +1660,7 @@ BaseCache::regStats()
 
 // should writebacks be included here?  prior code was inconsistent...
 #define SUM_NON_DEMAND(s) \
-    (s[MemCmd::SoftPFReq] + s[MemCmd::HardPFReq])
+    (s[MemCmd::SoftPFReq] + s[MemCmd::HardPFReq] + s[MemCmd::SoftPFExReq])
 
     demandHits
         .name(name() + ".demand_hits")
@@ -2222,6 +2219,14 @@ BaseCache::regStats()
         ;
 }
 
+void
+BaseCache::regProbePoints()
+{
+    ppHit = new ProbePointArg<PacketPtr>(this->getProbeManager(), "Hit");
+    ppMiss = new ProbePointArg<PacketPtr>(this->getProbeManager(), "Miss");
+    ppFill = new ProbePointArg<PacketPtr>(this->getProbeManager(), "Fill");
+}
+
 ///////////////
 //
 // CpuSidePort
@@ -2398,7 +2403,7 @@ BaseCache::MemSidePort::MemSidePort(const std::string &_name,
                                     const std::string &_label)
     : CacheMasterPort(_name, _cache, _reqQueue, _snoopRespQueue),
       _reqQueue(*_cache, *this, _snoopRespQueue, _label),
-      _snoopRespQueue(*_cache, *this, _label), cache(_cache)
+      _snoopRespQueue(*_cache, *this, true, _label), cache(_cache)
 {
 }
 

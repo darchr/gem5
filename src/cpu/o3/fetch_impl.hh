@@ -79,7 +79,9 @@ using namespace std;
 
 template<class Impl>
 DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
-    : cpu(_cpu),
+    : fetchPolicy(params->smtFetchPolicy),
+      cpu(_cpu),
+      branchPred(nullptr),
       decodeToFetchDelay(params->decodeToFetchDelay),
       renameToFetchDelay(params->renameToFetchDelay),
       iewToFetchDelay(params->iewToFetchDelay),
@@ -111,42 +113,27 @@ DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
         fatal("cache block (%u bytes) is not a multiple of the "
               "fetch buffer (%u bytes)\n", cacheBlkSize, fetchBufferSize);
 
-    std::string policy = params->smtFetchPolicy;
-
-    // Convert string to lowercase
-    std::transform(policy.begin(), policy.end(), policy.begin(),
-                   (int(*)(int)) tolower);
-
     // Figure out fetch policy
-    if (policy == "singlethread") {
-        fetchPolicy = SingleThread;
-        if (numThreads > 1)
-            panic("Invalid Fetch Policy for a SMT workload.");
-    } else if (policy == "roundrobin") {
-        fetchPolicy = RoundRobin;
-        DPRINTF(Fetch, "Fetch policy set to Round Robin\n");
-    } else if (policy == "branch") {
-        fetchPolicy = Branch;
-        DPRINTF(Fetch, "Fetch policy set to Branch Count\n");
-    } else if (policy == "iqcount") {
-        fetchPolicy = IQ;
-        DPRINTF(Fetch, "Fetch policy set to IQ count\n");
-    } else if (policy == "lsqcount") {
-        fetchPolicy = LSQ;
-        DPRINTF(Fetch, "Fetch policy set to LSQ count\n");
-    } else {
-        fatal("Invalid Fetch Policy. Options Are: {SingleThread,"
-              " RoundRobin,LSQcount,IQcount}\n");
-    }
+    panic_if(fetchPolicy == FetchPolicy::SingleThread && numThreads > 1,
+             "Invalid Fetch Policy for a SMT workload.");
 
     // Get the size of an instruction.
     instSize = sizeof(TheISA::MachInst);
 
     for (int i = 0; i < Impl::MaxThreads; i++) {
-        decoder[i] = NULL;
+        fetchStatus[i] = Idle;
+        decoder[i] = nullptr;
+        pc[i] = 0;
+        fetchOffset[i] = 0;
+        macroop[i] = nullptr;
+        delayedCommit[i] = false;
+        memReq[i] = nullptr;
+        stalls[i] = {false, false};
         fetchBuffer[i] = NULL;
         fetchBufferPC[i] = 0;
         fetchBufferValid[i] = false;
+        lastIcacheStall[i] = 0;
+        issuePipelinedIfetch[i] = false;
     }
 
     branchPred = params->branchPred;
@@ -337,6 +324,26 @@ DefaultFetch<Impl>::startupStage()
     // Fetch needs to start fetching instructions at the very beginning,
     // so it must start up in active state.
     switchToActive();
+}
+
+template<class Impl>
+void
+DefaultFetch<Impl>::clearStates(ThreadID tid)
+{
+    fetchStatus[tid] = Running;
+    pc[tid] = cpu->pcState(tid);
+    fetchOffset[tid] = 0;
+    macroop[tid] = NULL;
+    delayedCommit[tid] = false;
+    memReq[tid] = NULL;
+    stalls[tid].decode = false;
+    stalls[tid].drain = false;
+    fetchBufferPC[tid] = 0;
+    fetchBufferValid[tid] = false;
+    fetchQueue[tid].clear();
+
+    // TODO not sure what to do with priorityList for now
+    // priorityList.push_back(tid);
 }
 
 template<class Impl>
@@ -546,7 +553,7 @@ DefaultFetch<Impl>::deactivateThread(ThreadID tid)
 template <class Impl>
 bool
 DefaultFetch<Impl>::lookupAndUpdateNextPC(
-        DynInstPtr &inst, TheISA::PCState &nextPC)
+        const DynInstPtr &inst, TheISA::PCState &nextPC)
 {
     // Do branch prediction check here.
     // A bit of a misnomer...next_PC is actually the current PC until
@@ -953,7 +960,7 @@ DefaultFetch<Impl>::tick()
     while (available_insts != 0 && insts_to_decode < decodeWidth) {
         ThreadID tid = *tid_itr;
         if (!stalls[tid].decode && !fetchQueue[tid].empty()) {
-            auto inst = fetchQueue[tid].front();
+            const auto& inst = fetchQueue[tid].front();
             toDecode->insts[toDecode->size++] = inst;
             DPRINTF(Fetch, "[tid:%i][sn:%i]: Sending instruction to decode from "
                     "fetch queue. Fetch queue size: %i.\n",
@@ -1147,7 +1154,7 @@ DefaultFetch<Impl>::fetch(bool &status_change)
     //////////////////////////////////////////
     // Start actual fetch
     //////////////////////////////////////////
-    ThreadID tid = getFetchingThread(fetchPolicy);
+    ThreadID tid = getFetchingThread();
 
     assert(!cpu->switchedOut());
 
@@ -1436,26 +1443,18 @@ DefaultFetch<Impl>::recvReqRetry()
 ///////////////////////////////////////
 template<class Impl>
 ThreadID
-DefaultFetch<Impl>::getFetchingThread(FetchPriority &fetch_priority)
+DefaultFetch<Impl>::getFetchingThread()
 {
     if (numThreads > 1) {
-        switch (fetch_priority) {
-
-          case SingleThread:
-            return 0;
-
-          case RoundRobin:
+        switch (fetchPolicy) {
+          case FetchPolicy::RoundRobin:
             return roundRobin();
-
-          case IQ:
+          case FetchPolicy::IQCount:
             return iqCount();
-
-          case LSQ:
+          case FetchPolicy::LSQCount:
             return lsqCount();
-
-          case Branch:
+          case FetchPolicy::Branch:
             return branchCount();
-
           default:
             return InvalidThreadID;
         }

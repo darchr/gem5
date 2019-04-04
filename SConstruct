@@ -92,6 +92,7 @@ from os import mkdir, environ
 from os.path import abspath, basename, dirname, expanduser, normpath
 from os.path import exists,  isdir, isfile
 from os.path import join as joinpath, split as splitpath
+from re import match
 
 # SCons includes
 import SCons
@@ -145,6 +146,8 @@ AddLocalOption('--default', dest='default', type='string', action='store',
                help='Override which build_opts file to use for defaults')
 AddLocalOption('--ignore-style', dest='ignore_style', action='store_true',
                help='Disable style checking hooks')
+AddLocalOption('--gold-linker', dest='gold_linker', action='store_true',
+               help='Use the gold linker')
 AddLocalOption('--no-lto', dest='no_lto', action='store_true',
                help='Disable Link-Time Optimization for fast')
 AddLocalOption('--force-lto', dest='force_lto', action='store_true',
@@ -212,6 +215,19 @@ def makePathListAbsolute(path_list, root=GetLaunchDir()):
     return [abspath(joinpath(root, expanduser(str(p))))
             for p in path_list]
 
+def find_first_prog(prog_names):
+    """Find the absolute path to the first existing binary in prog_names"""
+
+    if not isinstance(prog_names, (list, tuple)):
+        prog_names = [ prog_names ]
+
+    for p in prog_names:
+        p = main.WhereIs(p)
+        if p is not None:
+            return p
+
+    return None
+
 # Each target must have 'build' in the interior of the path; the
 # directory below this will determine the build parameters.  For
 # example, for target 'foo/bar/build/ALPHA_SE/arch/alpha/blah.do' we
@@ -273,6 +289,8 @@ global_vars = Variables(global_vars_file, args=ARGUMENTS)
 global_vars.AddVariables(
     ('CC', 'C compiler', environ.get('CC', main['CC'])),
     ('CXX', 'C++ compiler', environ.get('CXX', main['CXX'])),
+    ('PYTHON_CONFIG', 'Python config binary to use',
+     [ 'python2.7-config', 'python-config' ]),
     ('PROTOC', 'protoc tool', environ.get('PROTOC', 'protoc')),
     ('BATCH', 'Use batch pool for build and tests', False),
     ('BATCH_CMD', 'Batch pool submission command name', 'qdo'),
@@ -357,6 +375,8 @@ if main['GCC'] or main['CLANG']:
 
     main['FILTER_PSHLINKFLAGS'] = lambda x: str(x).replace(' -shared', '')
     main['PSHLINKFLAGS'] = main.subst('${FILTER_PSHLINKFLAGS(SHLINKFLAGS)}')
+    if GetOption('gold_linker'):
+        main.Append(LINKFLAGS='-fuse-ld=gold')
     main['PLINKFLAGS'] = main.subst('${LINKFLAGS}')
     shared_partial_flags = ['-r', '-nostdlib']
     main.Append(PSHLINKFLAGS=shared_partial_flags)
@@ -697,18 +717,21 @@ if main['USE_PYTHON']:
     # we add them explicitly below. If you want to link in an alternate
     # version of python, see above for instructions on how to invoke
     # scons with the appropriate PATH set.
-    #
-    # First we check if python2-config exists, else we use python-config
-    python_config = readCommand(['which', 'python2-config'],
-                                exception='').strip()
-    if not os.path.exists(python_config):
-        python_config = readCommand(['which', 'python-config'],
-                                    exception='').strip()
+
+    python_config = find_first_prog(main['PYTHON_CONFIG'])
+    if python_config is None:
+        print("Error: can't find a suitable python-config, tried %s" % \
+              main['PYTHON_CONFIG'])
+        Exit(1)
+
+    print("Info: Using Python config: %s" % (python_config, ))
     py_includes = readCommand([python_config, '--includes'],
                               exception='').split()
+    py_includes = filter(lambda s: match(r'.*\/include\/.*',s), py_includes)
     # Strip the -I from the include folders before adding them to the
     # CPPPATH
-    main.Append(CPPPATH=map(lambda inc: inc[2:], py_includes))
+    py_includes = map(lambda s: s[2:] if s.startswith('-I') else s, py_includes)
+    main.Append(CPPPATH=py_includes)
 
     # Read the linker flags and split them into libraries and other link
     # flags. The libraries are added later through the call the CheckLib.
@@ -1065,6 +1088,29 @@ partial_shared_builder = Builder(action=SCons.Defaults.ShLinkAction,
 main.Append(BUILDERS = { 'PartialShared' : partial_shared_builder,
                          'PartialStatic' : partial_static_builder })
 
+def add_local_rpath(env, *targets):
+    '''Set up an RPATH for a library which lives in the build directory.
+
+    The construction environment variable BIN_RPATH_PREFIX should be set to
+    the relative path of the build directory starting from the location of the
+    binary.'''
+    for target in targets:
+        target = env.Entry(target)
+        if not target.isdir():
+            target = target.dir
+        relpath = os.path.relpath(target.abspath, env['BUILDDIR'])
+        components = [
+            '\\$$ORIGIN',
+            '${BIN_RPATH_PREFIX}',
+            relpath
+        ]
+        env.Append(RPATH=[env.Literal(os.path.join(*components))])
+
+if sys.platform != "darwin":
+    main.Append(LINKFLAGS=Split('-z origin'))
+
+main.AddMethod(add_local_rpath, 'AddLocalRPATH')
+
 # builds in ext are shared across all configs in the build root.
 ext_dir = abspath(joinpath(str(main.root), 'ext'))
 ext_build_dirs = []
@@ -1074,6 +1120,9 @@ for root, dirs, files in os.walk(ext_dir):
         ext_build_dirs.append(build_dir)
         main.SConscript(joinpath(root, 'SConscript'),
                         variant_dir=joinpath(build_root, build_dir))
+
+gdb_xml_dir = joinpath(ext_dir, 'gdb-xml')
+Export('gdb_xml_dir')
 
 main.Prepend(CPPPATH=Dir('ext/pybind11/include/'))
 

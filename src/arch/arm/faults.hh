@@ -81,7 +81,7 @@ class ArmFault : public FaultBase
 
     bool hypRouted; // True if the fault has been routed to Hypervisor
 
-    Addr getVector(ThreadContext *tc);
+    virtual Addr getVector(ThreadContext *tc);
     Addr getVector64(ThreadContext *tc);
 
   public:
@@ -269,6 +269,9 @@ class ArmFaultVals : public ArmFault
 
 class Reset : public ArmFaultVals<Reset>
 {
+  protected:
+    Addr getVector(ThreadContext *tc) override;
+
   public:
     void invoke(ThreadContext *tc, const StaticInstPtr &inst =
                 StaticInst::nullStaticInstPtr) override;
@@ -609,6 +612,7 @@ template<> ArmFault::FaultVals ArmFaultVals<Interrupt>::vals;
 template<> ArmFault::FaultVals ArmFaultVals<VirtualInterrupt>::vals;
 template<> ArmFault::FaultVals ArmFaultVals<FastInterrupt>::vals;
 template<> ArmFault::FaultVals ArmFaultVals<VirtualFastInterrupt>::vals;
+template<> ArmFault::FaultVals ArmFaultVals<IllegalInstSetStateFault>::vals;
 template<> ArmFault::FaultVals ArmFaultVals<SupervisorTrap>::vals;
 template<> ArmFault::FaultVals ArmFaultVals<SecureMonitorTrap>::vals;
 template<> ArmFault::FaultVals ArmFaultVals<PCAlignmentFault>::vals;

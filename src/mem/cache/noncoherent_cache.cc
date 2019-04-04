@@ -243,7 +243,7 @@ NoncoherentCache::functionalAccess(PacketPtr pkt, bool from_cpu_side)
 
 void
 NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
-                                     CacheBlk *blk, PacketList &writebacks)
+                                     CacheBlk *blk)
 {
     MSHR::Target *initial_tgt = mshr->getTarget();
     // First offset for critical word first calculations
@@ -288,7 +288,7 @@ NoncoherentCache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt,
 
             // Reset the bus additional time as it is now accounted for
             tgt_pkt->headerDelay = tgt_pkt->payloadDelay = 0;
-            cpuSidePort.schedTimingResp(tgt_pkt, completion_time, true);
+            cpuSidePort.schedTimingResp(tgt_pkt, completion_time);
             break;
 
           case MSHR::Target::FromPrefetcher:

@@ -44,11 +44,16 @@ from m5.objects import *
 from common.Benchmarks import *
 
 from common import CpuConfig
+from common import BPConfig
 from common import MemConfig
 from common import PlatformConfig
 
 def _listCpuTypes(option, opt, value, parser):
     CpuConfig.print_cpu_list()
+    sys.exit(0)
+
+def _listBPTypes(option, opt, value, parser):
+    BPConfig.print_bp_list()
     sys.exit(0)
 
 def _listMemTypes(option, opt, value, parser):
@@ -146,6 +151,15 @@ def addCommonOptions(parser):
     parser.add_option("--cpu-type", type="choice", default="AtomicSimpleCPU",
                       choices=CpuConfig.cpu_names(),
                       help = "type of cpu to run with")
+    parser.add_option("--list-bp-types",
+                      action="callback", callback=_listBPTypes,
+                      help="List available branch predictor types")
+    parser.add_option("--bp-type", type="choice", default=None,
+                      choices=BPConfig.bp_names(),
+                      help = """
+                      type of branch predictor to run with
+                      (if not set, use the default branch predictor of
+                      the selected CPU)""")
     parser.add_option("--checker", action="store_true");
     parser.add_option("--cpu-clock", action="store", type="string",
                       default='2GHz',
@@ -349,8 +363,6 @@ def addFSOptions(parser):
         parser.add_option("--enable-context-switch-stats-dump", \
                 action="store_true", help="Enable stats dump at context "\
                 "switches and dump tasks file (required for Streamline)")
-        parser.add_option("--generate-dtb", action="store_true", default=False,
-                    help="Automatically generate a dtb file")
 
     # Benchmark options
     parser.add_option("--dual", action="store_true",

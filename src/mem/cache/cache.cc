@@ -391,7 +391,7 @@ Cache::handleTimingReqMiss(PacketPtr pkt, CacheBlk *blk, Tick forward_time,
 
         // request_time is used here, taking into account lat and the delay
         // charged if the packet comes from the xbar.
-        cpuSidePort.schedTimingResp(pkt, request_time, true);
+        cpuSidePort.schedTimingResp(pkt, request_time);
 
         // If an outstanding request is in progress (we found an
         // MSHR) this is set to null
@@ -658,6 +658,21 @@ Cache::recvAtomic(PacketPtr pkt)
 {
     promoteWholeLineWrites(pkt);
 
+    // follow the same flow as in recvTimingReq, and check if a cache
+    // above us is responding
+    if (pkt->cacheResponding()) {
+        assert(!pkt->req->isCacheInvalidate());
+        DPRINTF(Cache, "Cache above responding to %s: not responding\n",
+                pkt->print());
+
+        // if a cache is responding, and it had the line in Owned
+        // rather than Modified state, we need to invalidate any
+        // copies that are not on the same path to memory
+        assert(pkt->needsWritable() && !pkt->responderHadWritable());
+
+        return memSidePort.sendAtomic(pkt);
+    }
+
     return BaseCache::recvAtomic(pkt);
 }
 
@@ -670,8 +685,7 @@ Cache::recvAtomic(PacketPtr pkt)
 
 
 void
-Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
-                          PacketList &writebacks)
+Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
 {
     MSHR::Target *initial_tgt = mshr->getTarget();
     // First offset for critical word first calculations
@@ -788,7 +802,7 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk,
             }
             // Reset the bus additional time as it is now accounted for
             tgt_pkt->headerDelay = tgt_pkt->payloadDelay = 0;
-            cpuSidePort.schedTimingResp(tgt_pkt, completion_time, true);
+            cpuSidePort.schedTimingResp(tgt_pkt, completion_time);
             break;
 
           case MSHR::Target::FromPrefetcher:
@@ -918,7 +932,7 @@ Cache::doTimingSupplyResponse(PacketPtr req_pkt, const uint8_t *blk_data,
     pkt->headerDelay = pkt->payloadDelay = 0;
     DPRINTF(CacheVerbose, "%s: created response: %s tick: %lu\n", __func__,
             pkt->print(), forward_time);
-    memSidePort.schedTimingSnoopResp(pkt, forward_time, true);
+    memSidePort.schedTimingSnoopResp(pkt, forward_time);
 }
 
 uint32_t

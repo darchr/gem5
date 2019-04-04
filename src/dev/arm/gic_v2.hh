@@ -75,14 +75,9 @@ class GicV2 : public BaseGic, public BaseGicRegisters
         DIST_SIZE          = 0x1000,
     };
 
-    /**
-     * As defined in:
-     * "ARM Generic Interrupt Controller Architecture" version 2.0
-     * "CoreLink GIC-400 Generic Interrupt Controller" revision r0p1
-     */
-    static constexpr uint32_t  GICD_400_PIDR_VALUE = 0x002bb490;
-    static constexpr uint32_t  GICD_400_IIDR_VALUE = 0x200143B;
-    static constexpr uint32_t  GICC_400_IIDR_VALUE = 0x202143B;
+    const uint32_t gicdPIDR;
+    const uint32_t gicdIIDR;
+    const uint32_t giccIIDR;
 
     static const AddrRange GICD_IGROUPR;    // interrupt group (unimplemented)
     static const AddrRange GICD_ISENABLER;  // interrupt set enable
@@ -110,6 +105,7 @@ class GicV2 : public BaseGic, public BaseGicRegisters
         GICC_APR2  = 0xd8, // active priority register 2
         GICC_APR3  = 0xdc, // active priority register 3
         GICC_IIDR  = 0xfc, // cpu interface id register
+        GICC_DIR   = 0x1000, // deactive interrupt register
     };
 
     static const int SGI_MAX = 16;  // Number of Software Gen Interrupts

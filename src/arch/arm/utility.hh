@@ -250,7 +250,13 @@ inline bool isSecureBelowEL3(ThreadContext *tc);
 
 bool longDescFormatInUse(ThreadContext *tc);
 
-uint32_t getMPIDR(ArmSystem *arm_sys, ThreadContext *tc);
+/** This helper function is either returing the value of
+ * MPIDR_EL1 (by calling getMPIDR), or it is issuing a read
+ * to VMPIDR_EL2 (as it happens in virtualized systems) */
+RegVal readMPIDR(ArmSystem *arm_sys, ThreadContext *tc);
+
+/** This helper function is returing the value of MPIDR_EL1 */
+RegVal getMPIDR(ArmSystem *arm_sys, ThreadContext *tc);
 
 static inline uint32_t
 mcrMrcIssBuild(bool isRead, uint32_t crm, IntRegIndex rt, uint32_t crn,
@@ -309,13 +315,6 @@ mcrMrc14TrapToHyp(const MiscRegIndex miscReg, HCR hcr, CPSR cpsr, SCR scr,
 bool
 mcrrMrrc15TrapToHyp(const MiscRegIndex miscReg, CPSR cpsr, SCR scr, HSTR hstr,
                     HCR hcr, uint32_t iss);
-
-bool msrMrs64TrapToSup(const MiscRegIndex miscReg, ExceptionLevel el,
-                       CPACR cpacr);
-bool msrMrs64TrapToHyp(const MiscRegIndex miscReg, ExceptionLevel el,
-                       bool isRead, CPTR cptr, HCR hcr, bool * isVfpNeon);
-bool msrMrs64TrapToMon(const MiscRegIndex miscReg, CPTR cptr,
-                       ExceptionLevel el, bool * isVfpNeon);
 
 bool SPAlignmentCheckEnabled(ThreadContext* tc);
 

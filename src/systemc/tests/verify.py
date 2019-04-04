@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python2.7
 #
 # Copyright 2018 Google, Inc.
 #
@@ -45,6 +45,10 @@ import sys
 script_path = os.path.abspath(inspect.getfile(inspect.currentframe()))
 script_dir = os.path.dirname(script_path)
 config_path = os.path.join(script_dir, 'config.py')
+# Parent directories if checked out as part of gem5.
+systemc_dir = os.path.dirname(script_dir)
+src_dir = os.path.dirname(systemc_dir)
+checkout_dir = os.path.dirname(src_dir)
 
 systemc_rel_path = 'systemc'
 tests_rel_path = os.path.join(systemc_rel_path, 'tests')
@@ -131,7 +135,8 @@ class CompilePhase(TestPhaseBase):
         if args.j == 0:
             self.args = ('-j', str(self.main_args.j)) + self.args
 
-        scons_args = [ 'USE_SYSTEMC=1' ] + list(self.args) + targets
+        scons_args = [ '--directory', self.main_args.scons_dir,
+                       'USE_SYSTEMC=1' ] + list(self.args) + targets
         scons(*scons_args)
 
 class RunPhase(TestPhaseBase):
@@ -153,30 +158,26 @@ class RunPhase(TestPhaseBase):
             '--kill-after', str(args.timeout * 2),
             str(args.timeout)
         ]
-        curdir = os.getcwd()
         def run_test(test):
             cmd = []
             if args.timeout:
                 cmd.extend(timeout_cmd)
             cmd.extend([
-                test.full_path(),
+                os.path.abspath(test.full_path()),
                 '-rd', os.path.abspath(test.m5out_dir()),
                 '--listener-mode=off',
                 '--quiet',
-                config_path,
-                '--working-dir',
-                os.path.dirname(test.src_dir())
+                os.path.abspath(config_path),
             ])
             # Ensure the output directory exists.
             if not os.path.exists(test.m5out_dir()):
                 os.makedirs(test.m5out_dir())
             try:
-                subprocess.check_call(cmd)
+                subprocess.check_call(cmd, cwd=os.path.dirname(test.dir()))
             except subprocess.CalledProcessError, error:
                 returncode = error.returncode
             else:
                 returncode = 0
-            os.chdir(curdir)
             with open(test.returncode_file(), 'w') as rc:
                 rc.write('%d\n' % returncode)
 
@@ -516,6 +517,10 @@ parser.add_argument('-j', type=int, default=1,
                     help='Default level of parallelism, can be overriden '
                     'for individual stages')
 
+parser.add_argument('-C', '--scons-dir', metavar='SCONS_DIR',
+                    default=checkout_dir,
+                    help='Directory to run scons from')
+
 filter_opts = parser.add_mutually_exclusive_group()
 filter_opts.add_argument('--filter', default='True',
                          help='Python expression which filters tests based '
@@ -553,7 +558,7 @@ if len(phases) == 0:
 json_path = os.path.join(main_args.build_dir, json_rel_path)
 
 if main_args.update_json:
-    scons(os.path.join(json_path))
+    scons('--directory', main_args.scons_dir, os.path.join(json_path))
 
 with open(json_path) as f:
     test_data = json.load(f)

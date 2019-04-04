@@ -61,6 +61,7 @@ from common import Options
 from common import Simulation
 from common import CacheConfig
 from common import CpuConfig
+from common import BPConfig
 from common import MemConfig
 from common.Caches import *
 from common.cpu2000 import *
@@ -214,7 +215,7 @@ if CpuConfig.is_kvm_cpu(CPUClass) or CpuConfig.is_kvm_cpu(FutureClass):
 
 # Sanity check
 if options.simpoint_profile:
-    if not CpuConfig.is_atomic_cpu(CPUClass):
+    if not CpuConfig.is_noncaching_cpu(CPUClass):
         fatal("SimPoint/BPProbe should be done with an atomic cpu")
     if np > 1:
         fatal("SimPoint generation not supported with more than one CPUs")
@@ -232,6 +233,10 @@ for i in xrange(np):
 
     if options.checker:
         system.cpu[i].addCheckerCpu()
+
+    if options.bp_type:
+        bpClass = BPConfig.get(options.bp_type)
+        system.cpu[i].branchPred = bpClass()
 
     system.cpu[i].createThreads()
 

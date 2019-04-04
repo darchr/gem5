@@ -61,7 +61,7 @@
 #include "params/BaseTags.hh"
 #include "sim/clocked_object.hh"
 
-class BaseCache;
+class System;
 class IndexingPolicy;
 class ReplaceableEntry;
 
@@ -79,14 +79,9 @@ class BaseTags : public ClockedObject
     const unsigned size;
     /** The tag lookup latency of the cache. */
     const Cycles lookupLatency;
-    /**
-     * The total access latency of the cache. This latency
-     * is different depending on the cache access mode
-     * (parallel or sequential)
-     */
-    const Cycles accessLatency;
-    /** Pointer to the parent cache. */
-    BaseCache *cache;
+
+    /** System we are currently operating in. */
+    System *system;
 
     /** Indexing policy */
     BaseIndexingPolicy *indexingPolicy;
@@ -158,13 +153,6 @@ class BaseTags : public ClockedObject
      * @}
      */
 
-    /**
-     * Set the parent cache back pointer.
-     *
-     * @param _cache Pointer to parent cache.
-     */
-    void setCache(BaseCache *_cache);
-
   public:
     typedef BaseTagsParams Params;
     BaseTags(const Params *p);
@@ -175,11 +163,11 @@ class BaseTags : public ClockedObject
     virtual ~BaseTags() {}
 
     /**
-     * Initialize blocks and set the parent cache back pointer.
-     *
-     * @param _cache Pointer to parent cache.
+     * Initialize blocks. Must be overriden by every subclass that uses
+     * a block type different from its parent's, as the current Python
+     * code generation does not allow templates.
      */
-    virtual void init(BaseCache *_cache) = 0;
+    virtual void tagsInit() = 0;
 
     /**
      * Register local statistics.
@@ -293,6 +281,17 @@ class BaseTags : public ClockedObject
     virtual CacheBlk* findVictim(Addr addr, const bool is_secure,
                                  std::vector<CacheBlk*>& evict_blks) const = 0;
 
+    /**
+     * Access block and update replacement data. May not succeed, in which case
+     * nullptr is returned. This has all the implications of a cache access and
+     * should only be used as such. Returns the tag lookup latency as a side
+     * effect.
+     *
+     * @param addr The address to find.
+     * @param is_secure True if the target memory space is secure.
+     * @param lat The latency of the tag lookup.
+     * @return Pointer to the cache block if found.
+     */
     virtual CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat) = 0;
 
     /**

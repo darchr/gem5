@@ -93,8 +93,9 @@ struct ReportSevInfo
 
 extern const char *reportSeverityNames[sc_core::SC_MAX_SEVERITY];
 extern ReportSevInfo reportSevInfos[sc_core::SC_MAX_SEVERITY];
-extern std::map<std::string, ReportMsgInfo> reportMsgInfoMap;
-extern std::map<int, std::string> reportIdToMsgMap;
+
+std::map<std::string, ReportMsgInfo> &reportMsgInfoMap();
+std::map<int, std::string> &reportIdToMsgMap();
 
 extern int reportVerbosityLevel;
 
@@ -110,17 +111,8 @@ extern bool reportWarningsAsErrors;
 
 struct DefaultReportMessages
 {
-  protected:
-    static DefaultReportMessages *&top();
-    DefaultReportMessages *next;
-
-    std::initializer_list<std::pair<int, const char *>> msgs;
-    void install();
-
   public:
     DefaultReportMessages(std::initializer_list<std::pair<int, const char *>>);
-
-    static void installAll();
 };
 
 } // namespace sc_gem5
