@@ -32,8 +32,8 @@
 #define VM_TRACE 0
 #define VL_THREADED 0
 
+#include "VTop_DualPortedMemoryBlackBox.h"
 #include "mem/mem_object.hh"
-#include "obj_dir/VTop_DualPortedMemoryBlackBox.h"
 #include "params/VerilatorMemBlackBox.hh"
 
 class VerilatorMemBlackBox: public MemObject
@@ -70,9 +70,10 @@ class VerilatorMemBlackBox: public MemObject
         VerilatorMemBlackBoxPort instPort;
         VerilatorMemBlackBoxPort dataPort;
 
-    private:
+
         VerilatorMemBlackBox( VerilatorMemBlackBoxParams *p );
         ~VerilatorMemBlackBox();
+    private:
         bool handleResponse( PacketPtr pkt );
         BaseMasterPort& getMasterPort( const std::string& if_name,
                 PortID idx );

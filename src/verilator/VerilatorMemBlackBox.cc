@@ -62,7 +62,11 @@ void VerilatorMemBlackBox::VerilatorMemBlackBoxPort::recvReqRetry(){
 
 }
 
-
+//Create for memblkbx
+VerilatorMemBlackBox*
+VerilatorMemBlackBoxParams::create(){
+    return new VerilatorMemBlackBox(this);
+}
 //need to rewrite after changing memory.scala
 VerilatorMemBlackBox::VerilatorMemBlackBox(
         VerilatorMemBlackBoxParams *params) :

@@ -27,12 +27,12 @@
 # Authors: Nima Ganjehloo
 */
 
+#include "VTop_DualPortedMemory.h"
+#include "VTop_DualPortedMemoryBlackBox.h"
+#include "VTop_Top.h"
 #include "VerilatorDinoCPU.hh"
 #include "base/logging.hh"
 #include "debug/Verilator.hh"
-#include "obj_dir/VTop_DualPortedMemory.h"
-#include "obj_dir/VTop_DualPortedMemoryBlackBox.h"
-#include "obj_dir/VTop_Top.h"
 #include "sim/sim_exit.hh"
 
 VerilatorDinoCPU::VerilatorDinoCPU(VerilatorDinoCPUParams *params) :

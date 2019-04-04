@@ -34,8 +34,8 @@
 #define VM_TRACE 0
 #define VL_THREADED 0
 
+#include "VTop.h"
 #include "VerilatorMemBlackBox.hh"
-#include "obj_dir/VTop.h"
 #include "params/VerilatorDinoCPU.hh"
 #include "sim/clocked_object.hh"
 
