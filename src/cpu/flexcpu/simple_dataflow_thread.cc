@@ -143,7 +143,7 @@ SDCPUThread::activate()
 void
 SDCPUThread::advanceInst(TheISA::PCState next_pc)
 {
-    advanceInstNeedsRetry = static_cast<bool>(inflightInstsMaxSize)
+    advanceInstNeedsRetry = inflightInstsMaxSize > 0
                          && inflightInsts.size() >= inflightInstsMaxSize;
     if (advanceInstNeedsRetry) {
         advanceInstRetryPC = next_pc;
@@ -220,7 +220,7 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
         return;
     }
 
-    advanceInstNeedsRetry = static_cast<bool>(maxInstWindow)
+    advanceInstNeedsRetry = maxInstWindow > 0
                          && numInstsInWindow >= maxInstWindow;
     if (advanceInstNeedsRetry) {
         advanceInstRetryPC = next_pc;
@@ -1022,6 +1022,11 @@ SDCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
 
             decode_result = curMacroOp->fetchMicroop(pc.microPC());
 
+            // This decrement is to undo the increment done in advanceInst(),
+            // in the case that a microcoded instruction was jumped into the
+            // middle of. There is an assumption being made that the only way
+            // to jump into the middle of a microcoded instruction is from
+            // itself.
             if (!decode_result->isFirstMicroop()) --numInstsInWindow;
 
             DPRINTF(SDCPUInstEvent,

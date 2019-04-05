@@ -42,6 +42,15 @@
 #include "sim/core.hh"
 #include "sim/insttracer.hh"
 
+/**
+ * Dynamic instruction class for FlexCPU. Note that an InflightInst may only
+ * refer to a microop for microcoded instructions (similarly to StaticInst),
+ * so multiple InflightInsts (one per op) will make up one instruction in the
+ * trace for microcoded instructions.
+ *
+ * An InflightInst can also be "empty" to serve as a slot on the buffer prior
+ * to instruction decode.
+ */
 class InflightInst : public ExecContext,
                      public std::enable_shared_from_this<InflightInst>
 {
