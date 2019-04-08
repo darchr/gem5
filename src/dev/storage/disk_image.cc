@@ -127,7 +127,10 @@ RawDiskImage::read(uint8_t *data, std::streampos offset) const
     streampos pos = stream.tellg();
     stream.read((char *)data, SectorSize);
 
-    DPRINTF(DiskImageRead, "read: offset=%d\n", (uint64_t)offset);
+    panic_if(stream.fail(), "Read failed. %s\n", strerror(errno));
+
+    DPRINTF(DiskImageRead, "read[%llu,%llu]: offset=%llu\n",
+            (uint64_t)pos, (uint64_t)stream.tellg(), (uint64_t)offset);
     DDUMP(DiskImageRead, data, SectorSize);
 
     return stream.tellg() - pos;
