@@ -70,13 +70,10 @@ class MemCheckerMonitor : public MemObject
     /** Destructor */
     ~MemCheckerMonitor();
 
-    virtual BaseMasterPort& getMasterPort(const std::string& if_name,
-                                          PortID idx = InvalidPortID);
+    Port &getPort(const std::string &if_name,
+                  PortID idx=InvalidPortID) override;
 
-    virtual BaseSlavePort& getSlavePort(const std::string& if_name,
-                                        PortID idx = InvalidPortID);
-
-    virtual void init();
+    void init() override;
 
   private:
 

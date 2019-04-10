@@ -56,8 +56,7 @@ class TempdirFixture(Fixture):
             shutil.rmtree(self.path)
 
     def skip_cleanup(self):
-        # Set path to none so we don't delete the directory.
-        # This is useful when a test fails so we can see the output.
+        # Set path to none so it's not deleted
         self.path = None
 
 
@@ -219,17 +218,33 @@ class DownloadedProgram(Fixture):
     urlbase = "http://gem5.org/dist/current/"
 
     def __init__(self, path, program, **kwargs):
+        """
+        path: string
+            The path to the directory containing the binary relative to
+            $GEM5_BASE/tests
+        program: string
+            The name of the binary file
+        """
         super(DownloadedProgram, self).__init__("download-" + program,
                                                 build_once=True, **kwargs)
 
         self.program_dir = path
-        self.path = joinpath(self.program_dir, program)
-        self.url = self.urlbase + self.path
+        relative_path = joinpath(self.program_dir, program)
+        self.url = self.urlbase + relative_path
+        self.path = os.path.realpath(
+                        joinpath(absdirpath(__file__), '../', relative_path)
+                    )
+
     def _download(self):
         import urllib
+        import errno
         log.test_log.debug("Downloading " + self.url + " to " + self.path)
         if not os.path.exists(self.program_dir):
-            os.makedirs(self.program_dir)
+            try:
+                os.makedirs(self.program_dir)
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    raise
         urllib.urlretrieve(self.url, self.path)
 
     def _getremotetime(self):

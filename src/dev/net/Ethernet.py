@@ -44,12 +44,7 @@ from m5.params import *
 from m5.proxy import *
 from m5.objects.PciDevice import PciDevice
 
-class EtherObject(SimObject):
-    type = 'EtherObject'
-    abstract = True
-    cxx_header = "dev/net/etherobject.hh"
-
-class EtherLink(EtherObject):
+class EtherLink(SimObject):
     type = 'EtherLink'
     cxx_header = "dev/net/etherlink.hh"
     int0 = SlavePort("interface 0")
@@ -59,7 +54,7 @@ class EtherLink(EtherObject):
     speed = Param.NetworkBandwidth('1Gbps', "link speed")
     dump = Param.EtherDump(NULL, "dump object")
 
-class DistEtherLink(EtherObject):
+class DistEtherLink(SimObject):
     type = 'DistEtherLink'
     cxx_header = "dev/net/dist_etherlink.hh"
     int0 = SlavePort("interface 0")
@@ -77,14 +72,14 @@ class DistEtherLink(EtherObject):
     dist_sync_on_pseudo_op = Param.Bool(False, "Start sync with pseudo_op")
     num_nodes = Param.UInt32('2', "Number of simulate nodes")
 
-class EtherBus(EtherObject):
+class EtherBus(SimObject):
     type = 'EtherBus'
     cxx_header = "dev/net/etherbus.hh"
     loopback = Param.Bool(True, "send packet back to the sending interface")
     dump = Param.EtherDump(NULL, "dump object")
     speed = Param.NetworkBandwidth('100Mbps', "bus speed in bits per second")
 
-class EtherSwitch(EtherObject):
+class EtherSwitch(SimObject):
     type = 'EtherSwitch'
     cxx_header = "dev/net/etherswitch.hh"
     dump = Param.EtherDump(NULL, "dump object")
@@ -96,7 +91,7 @@ class EtherSwitch(EtherObject):
     delay_var = Param.Latency('0ns', "packet transmit delay variability")
     time_to_live = Param.Latency('10ms', "time to live of MAC address maping")
 
-class EtherTapBase(EtherObject):
+class EtherTapBase(SimObject):
     type = 'EtherTapBase'
     abstract = True
     cxx_header = "dev/net/ethertap.hh"

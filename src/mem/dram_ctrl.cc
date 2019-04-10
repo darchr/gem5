@@ -644,21 +644,7 @@ DRAMCtrl::recvTimingReq(PacketPtr pkt)
     qosSchedule( { &readQueue, &writeQueue }, burstSize, pkt);
 
     // check local buffers and do not accept if full
-    if (pkt->isRead()) {
-        assert(size != 0);
-        if (readQueueFull(dram_pkt_count)) {
-            DPRINTF(DRAM, "Read queue full, not accepting\n");
-            // remember that we have to retry this port
-            retryRdReq = true;
-            numRdRetry++;
-            return false;
-        } else {
-            addToReadQueue(pkt, dram_pkt_count);
-            readReqs++;
-            bytesReadSys += size;
-        }
-    } else {
-        assert(pkt->isWrite());
+    if (pkt->isWrite()) {
         assert(size != 0);
         if (writeQueueFull(dram_pkt_count)) {
             DPRINTF(DRAM, "Write queue full, not accepting\n");
@@ -670,6 +656,20 @@ DRAMCtrl::recvTimingReq(PacketPtr pkt)
             addToWriteQueue(pkt, dram_pkt_count);
             writeReqs++;
             bytesWrittenSys += size;
+        }
+    } else {
+        assert(pkt->isRead());
+        assert(size != 0);
+        if (readQueueFull(dram_pkt_count)) {
+            DPRINTF(DRAM, "Read queue full, not accepting\n");
+            // remember that we have to retry this port
+            retryRdReq = true;
+            numRdRetry++;
+            return false;
+        } else {
+            addToReadQueue(pkt, dram_pkt_count);
+            readReqs++;
+            bytesReadSys += size;
         }
     }
 
@@ -2845,11 +2845,11 @@ DRAMCtrl::recvFunctional(PacketPtr pkt)
     functionalAccess(pkt);
 }
 
-BaseSlavePort&
-DRAMCtrl::getSlavePort(const string &if_name, PortID idx)
+Port &
+DRAMCtrl::getPort(const string &if_name, PortID idx)
 {
     if (if_name != "port") {
-        return MemObject::getSlavePort(if_name, idx);
+        return MemObject::getPort(if_name, idx);
     } else {
         return port;
     }

@@ -999,8 +999,8 @@ LSQUnit<Impl>::completeStore(typename StoreQueue::iterator store_idx)
 
 #if TRACING_ON
     if (DTRACE(O3PipeView)) {
-        store_idx->instruction()->storeTick =
-            curTick() - store_idx->instruction()->fetchTick;
+        store_inst->storeTick =
+            curTick() - store_inst->fetchTick;
     }
 #endif
 
@@ -1091,7 +1091,7 @@ LSQUnit<Impl>::dumpInsts() const
 
     for (const auto& e: loadQueue) {
         const DynInstPtr &inst(e.instruction());
-        cprintf("%s.[sn:%i] ", inst->pcState(), inst->seqNum);
+        cprintf("%s.[sn:%llu] ", inst->pcState(), inst->seqNum);
     }
     cprintf("\n");
 
@@ -1100,7 +1100,7 @@ LSQUnit<Impl>::dumpInsts() const
 
     for (const auto& e: storeQueue) {
         const DynInstPtr &inst(e.instruction());
-        cprintf("%s.[sn:%i] ", inst->pcState(), inst->seqNum);
+        cprintf("%s.[sn:%llu] ", inst->pcState(), inst->seqNum);
     }
 
     cprintf("\n");

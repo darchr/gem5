@@ -422,14 +422,25 @@ class BaseCache : public MemObject
     Addr regenerateBlkAddr(CacheBlk* blk);
 
     /**
+     * Calculate latency of accesses that only touch the tag array.
+     * @sa calculateAccessLatency
+     *
+     * @param delay The delay until the packet's metadata is present.
+     * @param lookup_lat Latency of the respective tag lookup.
+     * @return The number of ticks that pass due to a tag-only access.
+     */
+    Cycles calculateTagOnlyLatency(const uint32_t delay,
+                                   const Cycles lookup_lat) const;
+    /**
      * Calculate access latency in ticks given a tag lookup latency, and
      * whether access was a hit or miss.
      *
      * @param blk The cache block that was accessed.
+     * @param delay The delay until the packet's metadata is present.
      * @param lookup_lat Latency of the respective tag lookup.
      * @return The number of ticks that pass due to a block access.
      */
-    Cycles calculateAccessLatency(const CacheBlk* blk,
+    Cycles calculateAccessLatency(const CacheBlk* blk, const uint32_t delay,
                                   const Cycles lookup_lat) const;
 
     /**
@@ -1017,10 +1028,8 @@ class BaseCache : public MemObject
 
     void init() override;
 
-    BaseMasterPort &getMasterPort(const std::string &if_name,
-                                  PortID idx = InvalidPortID) override;
-    BaseSlavePort &getSlavePort(const std::string &if_name,
-                                PortID idx = InvalidPortID) override;
+    Port &getPort(const std::string &if_name,
+                  PortID idx=InvalidPortID) override;
 
     /**
      * Query block size of a cache.

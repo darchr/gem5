@@ -128,7 +128,7 @@ class VGic(PioDevice):
     hv_addr = Param.Addr(0, "Address for hv control")
     pio_delay = Param.Latency('10ns', "Delay for PIO r/w")
    # The number of list registers is not currently configurable at runtime.
-    ppint = Param.UInt32("HV maintenance interrupt number")
+    maint_int = Param.UInt32("HV maintenance interrupt number")
 
     # gicv_iidr same as gicc_idr
     gicv_iidr = Param.UInt32(Self.gic.gicc_iidr,
@@ -156,7 +156,7 @@ class VGic(PioDevice):
 
         node.append(FdtPropertyWords("reg", regs))
         node.append(FdtPropertyWords("interrupts",
-                                     [1, int(self.ppint)-16, 0xf04]))
+                                     [1, int(self.maint_int)-16, 0xf04]))
 
         node.appendPhandle(gic)
 
@@ -173,3 +173,8 @@ class Gicv3(BaseGic):
             "Delay for PIO r/w to redistributors")
     it_lines = Param.UInt32(1020,
             "Number of interrupt lines supported (max = 1020)")
+
+    maint_int = Param.ArmInterruptPin(
+        "HV maintenance interrupt."
+        "ARM strongly recommends that maintenance interrupts "
+        "are configured to use INTID 25 (PPI Interrupt).")

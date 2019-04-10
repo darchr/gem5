@@ -81,7 +81,7 @@ def define_options(parser):
                       help="Recycle latency for ruby controller input buffers")
 
     protocol = buildEnv['PROTOCOL']
-    exec "import %s" % protocol
+    exec("from . import %s" % protocol)
     eval("%s.define_options(parser)" % protocol)
     Network.define_options(parser)
 
@@ -144,7 +144,7 @@ def create_topology(controllers, options):
         found in configs/topologies/BaseTopology.py
         This is a wrapper for the legacy topologies.
     """
-    exec "import topologies.%s as Topo" % options.topology
+    exec("import topologies.%s as Topo" % options.topology)
     topology = eval("Topo.%s(controllers)" % options.topology)
     return topology
 
@@ -160,7 +160,7 @@ def create_system(options, full_system, system, piobus = None, dma_ports = [],
     ruby.network = network
 
     protocol = buildEnv['PROTOCOL']
-    exec "import %s" % protocol
+    exec("from . import %s" % protocol)
     try:
         (cpu_sequencers, dir_cntrls, topology) = \
              eval("%s.create_system(options, full_system, system, dma_ports,\
@@ -214,7 +214,7 @@ def create_system(options, full_system, system, piobus = None, dma_ports = [],
 
 def create_directories(options, bootmem, ruby_system, system):
     dir_cntrl_nodes = []
-    for i in xrange(options.num_dirs):
+    for i in range(options.num_dirs):
         dir_cntrl = Directory_Controller()
         dir_cntrl.version = i
         dir_cntrl.directory = RubyDirectoryMemory()

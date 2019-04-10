@@ -142,6 +142,41 @@ class TaggedPrefetcher(QueuedPrefetcher):
 
     degree = Param.Int(2, "Number of prefetches to generate")
 
+class IndirectMemoryPrefetcher(QueuedPrefetcher):
+    type = 'IndirectMemoryPrefetcher'
+    cxx_class = 'IndirectMemoryPrefetcher'
+    cxx_header = "mem/cache/prefetch/indirect_memory.hh"
+    pt_table_entries = Param.MemorySize("16",
+        "Number of entries of the Prefetch Table")
+    pt_table_assoc = Param.Unsigned(16, "Associativity of the Prefetch Table")
+    pt_table_indexing_policy = Param.BaseIndexingPolicy(
+        SetAssociative(entry_size = 1, assoc = Parent.pt_table_assoc,
+        size = Parent.pt_table_entries),
+        "Indexing policy of the pattern table")
+    pt_table_replacement_policy = Param.BaseReplacementPolicy(LRURP(),
+        "Replacement policy of the pattern table")
+    max_prefetch_distance = Param.Unsigned(16, "Maximum prefetch distance")
+    max_indirect_counter_value = Param.Unsigned(8,
+        "Maximum value of the indirect counter")
+    ipd_table_entries = Param.MemorySize("4",
+        "Number of entries of the Indirect Pattern Detector")
+    ipd_table_assoc = Param.Unsigned(4,
+        "Associativity of the Indirect Pattern Detector")
+    ipd_table_indexing_policy = Param.BaseIndexingPolicy(
+        SetAssociative(entry_size = 1, assoc = Parent.ipd_table_assoc,
+        size = Parent.ipd_table_entries),
+        "Indexing policy of the Indirect Pattern Detector")
+    ipd_table_replacement_policy = Param.BaseReplacementPolicy(LRURP(),
+        "Replacement policy of the Indirect Pattern Detector")
+    shift_values = VectorParam.Int([2, 3, 4, -3], "Shift values to evaluate")
+    addr_array_len = Param.Unsigned(4, "Number of misses tracked")
+    prefetch_threshold = Param.Unsigned(2,
+        "Counter threshold to start the indirect prefetching")
+    stream_counter_threshold = Param.Unsigned(4,
+        "Counter threshold to enable the stream prefetcher")
+    streaming_distance = Param.Unsigned(4,
+        "Number of prefetches to generate when using the stream prefetcher")
+
 class SignaturePathPrefetcher(QueuedPrefetcher):
     type = 'SignaturePathPrefetcher'
     cxx_class = 'SignaturePathPrefetcher'
@@ -363,3 +398,88 @@ class BOPPrefetcher(QueuedPrefetcher):
     delay_queue_cycles = Param.Cycles(60,
                 "Cycles to delay a write in the left RR table from the delay \
                 queue")
+
+class SBOOEPrefetcher(QueuedPrefetcher):
+    type = 'SBOOEPrefetcher'
+    cxx_class = 'SBOOEPrefetcher'
+    cxx_header = "mem/cache/prefetch/sbooe.hh"
+    latency_buffer_size = Param.Int(32, "Entries in the latency buffer")
+    sequential_prefetchers = Param.Int(9, "Number of sequential prefetchers")
+    sandbox_entries = Param.Int(1024, "Size of the address buffer")
+    score_threshold_pct = Param.Percent(25, "Min. threshold to issue a \
+        prefetch. The value is the percentage of sandbox entries to use")
+
+class STeMSPrefetcher(QueuedPrefetcher):
+    type = "STeMSPrefetcher"
+    cxx_class = "STeMSPrefetcher"
+    cxx_header = "mem/cache/prefetch/spatio_temporal_memory_streaming.hh"
+
+    spatial_region_size = Param.MemorySize("2kB",
+        "Memory covered by a hot zone")
+    active_generation_table_entries = Param.MemorySize("64",
+        "Number of entries in the active generation table")
+    active_generation_table_assoc = Param.Unsigned(64,
+        "Associativity of the active generation table")
+    active_generation_table_indexing_policy = Param.BaseIndexingPolicy(
+        SetAssociative(entry_size = 1,
+            assoc = Parent.active_generation_table_assoc,
+            size = Parent.active_generation_table_entries),
+        "Indexing policy of the active generation table")
+    active_generation_table_replacement_policy = Param.BaseReplacementPolicy(
+        LRURP(), "Replacement policy of the active generation table")
+
+    pattern_sequence_table_entries = Param.MemorySize("16384",
+        "Number of entries in the pattern sequence table")
+    pattern_sequence_table_assoc = Param.Unsigned(16384,
+        "Associativity of the pattern sequence table")
+    pattern_sequence_table_indexing_policy = Param.BaseIndexingPolicy(
+        SetAssociative(entry_size = 1,
+            assoc = Parent.pattern_sequence_table_assoc,
+            size = Parent.pattern_sequence_table_entries),
+        "Indexing policy of the pattern sequence table")
+    pattern_sequence_table_replacement_policy = Param.BaseReplacementPolicy(
+        LRURP(), "Replacement policy of the pattern sequence table")
+
+    region_miss_order_buffer_entries = Param.Unsigned(131072,
+        "Number of entries of the Region Miss Order Buffer")
+    reconstruction_entries = Param.Unsigned(256,
+        "Number of reconstruction entries")
+
+class HWPProbeEventRetiredInsts(HWPProbeEvent):
+    def register(self):
+        if self.obj:
+            for name in self.names:
+                self.prefetcher.getCCObject().addEventProbeRetiredInsts(
+                    self.obj.getCCObject(), name)
+
+class PIFPrefetcher(QueuedPrefetcher):
+    type = 'PIFPrefetcher'
+    cxx_class = 'PIFPrefetcher'
+    cxx_header = "mem/cache/prefetch/pif.hh"
+    cxx_exports = [
+        PyBindMethod("addEventProbeRetiredInsts"),
+    ]
+
+    prec_spatial_region_bits = Param.Unsigned(2,
+        "Number of preceding addresses in the spatial region")
+    succ_spatial_region_bits = Param.Unsigned(8,
+        "Number of subsequent addresses in the spatial region")
+    compactor_entries = Param.Unsigned(2, "Entries in the temp. compactor")
+    stream_address_buffer_entries = Param.Unsigned(7, "Entries in the SAB")
+    history_buffer_size = Param.Unsigned(16, "Entries in the history buffer")
+
+    index_entries = Param.MemorySize("64",
+        "Number of entries in the index")
+    index_assoc = Param.Unsigned(64,
+        "Associativity of the index")
+    index_indexing_policy = Param.BaseIndexingPolicy(
+        SetAssociative(entry_size = 1, assoc = Parent.index_assoc,
+        size = Parent.index_entries),
+        "Indexing policy of the index")
+    index_replacement_policy = Param.BaseReplacementPolicy(LRURP(),
+        "Replacement policy of the index")
+
+    def listenFromProbeRetiredInstructions(self, simObj):
+        if not isinstance(simObj, SimObject):
+            raise TypeError("argument must be of SimObject type")
+        self.addEvent(HWPProbeEventRetiredInsts(self, simObj,"RetiredInstsPC"))

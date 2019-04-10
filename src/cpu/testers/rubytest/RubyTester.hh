@@ -94,8 +94,8 @@ class RubyTester : public MemObject
     RubyTester(const Params *p);
     ~RubyTester();
 
-    virtual BaseMasterPort &getMasterPort(const std::string &if_name,
-                                          PortID idx = InvalidPortID);
+    Port &getPort(const std::string &if_name,
+                  PortID idx=InvalidPortID) override;
 
     bool isInstOnlyCpuPort(int idx);
     bool isInstDataCpuPort(int idx);
@@ -103,7 +103,7 @@ class RubyTester : public MemObject
     MasterPort* getReadableCpuPort(int idx);
     MasterPort* getWritableCpuPort(int idx);
 
-    virtual void init();
+    void init() override;
 
     void wakeup();
 

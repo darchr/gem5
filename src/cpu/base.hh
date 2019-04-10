@@ -180,7 +180,7 @@ class BaseCPU : public MemObject
     MasterID instMasterId() { return _instMasterId; }
 
     /**
-     * Get a master port on this CPU. All CPUs have a data and
+     * Get a port on this CPU. All CPUs have a data and
      * instruction port, and this method uses getDataPort and
      * getInstPort of the subclasses to resolve the two ports.
      *
@@ -189,8 +189,8 @@ class BaseCPU : public MemObject
      *
      * @return a reference to the port with the given name
      */
-    BaseMasterPort &getMasterPort(const std::string &if_name,
-                                  PortID idx = InvalidPortID) override;
+    Port &getPort(const std::string &if_name,
+                  PortID idx=InvalidPortID) override;
 
     /** Get cpu task id */
     uint32_t taskId() const { return _taskId; }
@@ -487,8 +487,9 @@ class BaseCPU : public MemObject
      * instruction.
      *
      * @param inst Instruction that just committed
+     * @param pc PC of the instruction that just committed
      */
-    virtual void probeInstCommit(const StaticInstPtr &inst);
+    virtual void probeInstCommit(const StaticInstPtr &inst, Addr pc);
 
    protected:
     /**
@@ -509,6 +510,7 @@ class BaseCPU : public MemObject
      * instructions may call notify once for the entire bundle.
      */
     ProbePoints::PMUUPtr ppRetiredInsts;
+    ProbePoints::PMUUPtr ppRetiredInstsPC;
 
     /** Retired load instructions */
     ProbePoints::PMUUPtr ppRetiredLoads;

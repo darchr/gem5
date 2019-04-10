@@ -38,6 +38,7 @@ IMPORTANT: If you modify this file, it's likely that the Learning gem5 book
 
 """
 from __future__ import print_function
+from __future__ import absolute_import
 
 # import the m5 (gem5) library created when gem5 is built
 import m5
@@ -79,7 +80,10 @@ system.caches.setup(system, system.cpu, [system.mem_ctrl])
 isa = str(m5.defines.buildEnv['TARGET_ISA']).lower()
 
 # Run application and use the compiled ISA to find the binary
-binary = 'tests/test-progs/threads/bin/' + isa + '/linux/threads'
+# grab the specific path to the binary
+thispath = os.path.dirname(os.path.realpath(__file__))
+binary = os.path.join(thispath, '../../../', 'tests/test-progs/threads/bin/',
+                      isa, 'linux/threads')
 
 # Create a process for a simple "multi-threaded" application
 process = Process()

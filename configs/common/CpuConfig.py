@@ -36,6 +36,7 @@
 # Authors: Andreas Sandberg
 
 from __future__ import print_function
+from __future__ import absolute_import
 
 from m5 import fatal
 import m5.objects
@@ -99,7 +100,7 @@ def print_cpu_list():
 
 def cpu_names():
     """Return a list of valid CPU names."""
-    return _cpu_classes.keys()
+    return list(_cpu_classes.keys())
 
 def config_etrace(cpu_cls, cpu_list, options):
     if issubclass(cpu_cls, m5.objects.DerivO3CPU):
@@ -134,7 +135,8 @@ from m5.defines import buildEnv
 from importlib import import_module
 for package in [ "generic", buildEnv['TARGET_ISA']]:
     try:
-        package = import_module(".cores." + package, package=__package__)
+        package = import_module(".cores." + package,
+                                package=__name__.rpartition('.')[0])
     except ImportError:
         # No timing models for this ISA
         continue
