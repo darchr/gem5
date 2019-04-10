@@ -35,9 +35,9 @@
 #define VL_THREADED 0
 
 #include "VTop.h"
-#include "VerilatorMemBlackBox.hh"
 #include "params/VerilatorDinoCPU.hh"
 #include "sim/clocked_object.hh"
+#include "verilator/verilator_mem_black_box.hh"
 
 class VerilatorDinoCPU : public ClockedObject
 {
@@ -52,7 +52,6 @@ class VerilatorDinoCPU : public ClockedObject
         VTop top;
     public:
         VerilatorDinoCPU(VerilatorDinoCPUParams *p);
-        ~VerilatorDinoCPU();
         void reset(int resetCycles);
         void startup();
 };

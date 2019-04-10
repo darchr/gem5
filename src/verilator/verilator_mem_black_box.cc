@@ -27,15 +27,11 @@
 # Authors: Nima Ganjehloo
 */
 
-//Verilator keeps changing the way it wants me to access data lines
-//here is the way it wants me to do it right now:
-//vtop->Top->mem->memory->dataline
-//need to include VTop.h but what else? Adding verilator public
-//caused verilator to generate so many other files :((((((((((((((((
-#include "VerilatorMemBlackBox.hh"
 #include "base/logging.hh"
 #include "debug/Verilator.hh"
+#include "verilator_mem_black_box.hh"
 
+//MASTER PORT DEFINITIONS
 void VerilatorMemBlackBox::VerilatorMemBlackBoxPort::sendPacket(PacketPtr pkt){
     panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
     if (!sendTimingReq(pkt)) {
@@ -62,6 +58,23 @@ void VerilatorMemBlackBox::VerilatorMemBlackBoxPort::recvReqRetry(){
 
 }
 
+BaseMasterPort& VerilatorMemBlackBox::getMasterPort(
+        const std::string& if_name, PortID idx )
+{
+    panic_if(idx != InvalidPortID, "This object doesn't support vector ports");
+
+    // This is the name from the Python SimObject declaration (SimpleMemobj.py)
+    if (if_name == "instPort") {
+        return instPort;
+    } else if (if_name == "dataPort") {
+        return dataPort;
+    } else {
+        // pass it along to our super class
+        return MemObject::getMasterPort(if_name, idx);
+    }
+}
+
+
 //Create for memblkbx
 VerilatorMemBlackBox*
 VerilatorMemBlackBoxParams::create(){
@@ -73,10 +86,6 @@ VerilatorMemBlackBox::VerilatorMemBlackBox(
     MemObject(params),
     instPort(params->name + ".instPort", this),
     dataPort(params->name + ".dataPort", this)
-{
-}
-
-VerilatorMemBlackBox::~VerilatorMemBlackBox()
 {
 }
 
@@ -136,30 +145,15 @@ void VerilatorMemBlackBox::doMem()
 
 bool VerilatorMemBlackBox::handleResponse( PacketPtr pkt )
 {
- DPRINTF(Verilator, "Got response for addr %#x\n", pkt->getAddr());
+    DPRINTF(Verilator, "Got response for addr %#x\n", pkt->getAddr());
+
     if (pkt->req->isInstFetch()) {
         blkbox->imem_dataout = *pkt->getConstPtr<uint32_t>();
     } else  if (pkt->isRead()){
         //set packet data to sodor dmem data signal
         blkbox->dmem_dataout = *pkt->getConstPtr<uint32_t>();
     }
+
     return true;
-
-}
-
-BaseMasterPort& VerilatorMemBlackBox::getMasterPort(
-        const std::string& if_name, PortID idx )
-{
- panic_if(idx != InvalidPortID, "This object doesn't support vector ports");
-
-    // This is the name from the Python SimObject declaration (SimpleMemobj.py)
-    if (if_name == "instPort") {
-        return instPort;
-    } else if (if_name == "dataPort") {
-        return dataPort;
-    } else {
-        // pass it along to our super class
-        return MemObject::getMasterPort(if_name, idx);
-    }
 
 }

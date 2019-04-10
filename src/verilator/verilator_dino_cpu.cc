@@ -30,10 +30,10 @@
 #include "VTop_DualPortedMemory.h"
 #include "VTop_DualPortedMemoryBlackBox.h"
 #include "VTop_Top.h"
-#include "VerilatorDinoCPU.hh"
 #include "base/logging.hh"
 #include "debug/Verilator.hh"
 #include "sim/sim_exit.hh"
+#include "verilator_dino_cpu.hh"
 
 VerilatorDinoCPU::VerilatorDinoCPU(VerilatorDinoCPUParams *params) :
     ClockedObject(params),
@@ -58,7 +58,7 @@ VerilatorDinoCPU::updateCycle()
 
     DPRINTF(Verilator, "\nTICKING\n");
     //has verilator finished running?
-    if (Verilated::gotFinish()){
+    if (Verilated::gotFinish()|| cyclesPassed >= 10){
         inform("Simulation has Completed\n");
         exitSimLoop("Done Simulating", 1) ;
     }
@@ -67,7 +67,6 @@ VerilatorDinoCPU::updateCycle()
 
     verilatorMem->doFetch();
     verilatorMem->doMem();
-
     //run the device under test here through verilator
     top.clock = 0;
     top.eval();
@@ -96,9 +95,11 @@ VerilatorDinoCPU::reset(int resetCycles)
         //run verilator for rising edge state
         top.clock = 1;
         top.eval();
-        //done reseting
-        top.reset = 0;
     }
+
+    //done reseting
+    top.reset = 0;
+
     DPRINTF(Verilator, "DONE RESETING\n");
 }
 

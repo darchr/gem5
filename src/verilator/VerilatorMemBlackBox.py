@@ -31,7 +31,7 @@ from MemObject import MemObject
 
 class VerilatorMemBlackBox(MemObject):
     type = 'VerilatorMemBlackBox'
-    cxx_header = "verilator/VerilatorMemBlackBox.hh"
+    cxx_header = "verilator/verilator_mem_black_box.hh"
 
     instPort = MasterPort("Instruction Port")
     dataPort = MasterPort("Data Port")

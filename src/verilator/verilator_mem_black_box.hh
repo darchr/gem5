@@ -38,46 +38,47 @@
 
 class VerilatorMemBlackBox: public MemObject
 {
-    public:
-        VTop_DualPortedMemoryBlackBox* blkbox;
+  public:
+    VTop_DualPortedMemoryBlackBox* blkbox;
 
-        void doFetch();
-        void doMem();
+    //memory access functions for blackbox
+    void doFetch();
+    void doMem();
 
-        class VerilatorMemBlackBoxPort : public MasterPort
-        {
-            private:
-                VerilatorMemBlackBox *owner;
+    BaseMasterPort& getMasterPort( const std::string& if_name,
+                PortID idx = InvalidPortID ) override;
 
-                PacketPtr blockedPacket;
+    //param setup for blackbox warpper
+    VerilatorMemBlackBox( VerilatorMemBlackBoxParams *p );
 
-            public:
-                VerilatorMemBlackBoxPort(const std::string& name,
+  private:
+    //master port for blackbox
+    class VerilatorMemBlackBoxPort : public MasterPort
+    {
+      private:
+        VerilatorMemBlackBox *owner;
+        PacketPtr blockedPacket;
+
+      public:
+        VerilatorMemBlackBoxPort(const std::string& name,
                     VerilatorMemBlackBox *owner) :
                     MasterPort(name, owner),
                     owner(owner),
                     blockedPacket(nullptr)
                 { }
 
-                void sendPacket(PacketPtr pkt);
+        void sendPacket(PacketPtr pkt);
 
-            protected:
-                bool recvTimingResp(PacketPtr pkt) override;
+      protected:
+        bool recvTimingResp(PacketPtr pkt) override;
 
-                void recvReqRetry() override;
-        };
+        void recvReqRetry() override;
+    };
+    //deal with data going back to verilator c++
+    bool handleResponse( PacketPtr pkt );
 
-        VerilatorMemBlackBoxPort instPort;
-        VerilatorMemBlackBoxPort dataPort;
-
-
-        VerilatorMemBlackBox( VerilatorMemBlackBoxParams *p );
-        ~VerilatorMemBlackBox();
-    private:
-        bool handleResponse( PacketPtr pkt );
-        BaseMasterPort& getMasterPort( const std::string& if_name,
-                PortID idx );
-
+    VerilatorMemBlackBoxPort instPort;
+    VerilatorMemBlackBoxPort dataPort;
 
 };
 #endif
