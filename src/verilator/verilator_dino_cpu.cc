@@ -27,89 +27,104 @@
 # Authors: Nima Ganjehloo
 */
 
+//verilator includes for design
 #include "VTop_DualPortedMemory.h"
 #include "VTop_DualPortedMemoryBlackBox.h"
 #include "VTop_Top.h"
+//gem5 includes
 #include "base/logging.hh"
 #include "debug/Verilator.hh"
 #include "sim/sim_exit.hh"
+//gem5 model includes
 #include "verilator_dino_cpu.hh"
 
+//setup design params
 VerilatorDinoCPU::VerilatorDinoCPU(VerilatorDinoCPUParams *params) :
-    ClockedObject(params),
-    verilatorMem(params->verilatorMem),
-    event([this]{updateCycle();}, params->name),
-    clkperiod(params->clkperiod),
-    designStages(params->stages)
+  ClockedObject(params),
+  verilatorMem(params->verilator_mem),
+  memEvent([this]{makeMemReq();}, params->name),
+  clockCPUEvent([this]{updateCycle();}, params->name),
+  designStages(params->stages)
 {
-    verilatorMem->blkbox = top.Top->mem->memory;
+  //give cpu access to memory blackbox so we can make requests
+  //probably better way to do this
+  verilatorMem->blkbox = top.Top->mem->memory;
 }
 
+//creates object for gem5 to use
 VerilatorDinoCPU*
 VerilatorDinoCPUParams::create()
 {
-    //verilator has weird alignment issue for generated code
-    void* ptr = aligned_alloc(128, sizeof(VerilatorDinoCPU));
-    return new(ptr) VerilatorDinoCPU(this);
+  //verilator has weird alignment issue for generated code
+  void* ptr = aligned_alloc(128, sizeof(VerilatorDinoCPU));
+  return new(ptr) VerilatorDinoCPU(this);
 }
+
+void VerilatorDinoCPU::makeMemReq(){
+  DPRINTF(Verilator, "MAKING MEMORY REQUESTS\n");
+  //make memory request through blackbox
+  verilatorMem->doFetch();
+  verilatorMem->doMem();
+  //lets clock the CPU now that we have done ifetch
+  schedule(clockCPUEvent, nextCycle());
+}
+
 void
 VerilatorDinoCPU::updateCycle()
 {
 
-    DPRINTF(Verilator, "\nTICKING\n");
-    //has verilator finished running?
-    if (Verilated::gotFinish()|| cyclesPassed >= 10){
-        inform("Simulation has Completed\n");
-        exitSimLoop("Done Simulating", 1) ;
-    }
+  DPRINTF(Verilator, "CLOCKING DEVICE\n");
 
-    DPRINTF(Verilator, "INSTRUCTION FETCH?\n");
+  //run the device under test here through verilator
+  //when clock = 0 device state is set
+  top.clock = 0;
+  top.eval();
+  //when clock = 1 device state is evaluated
+  top.clock = 1;
+  top.eval();
 
-    verilatorMem->doFetch();
-    verilatorMem->doMem();
-    //run the device under test here through verilator
-    top.clock = 0;
-    top.eval();
-    top.clock = 1;
-    top.eval();
+  cyclesPassed += 1;
 
-    cyclesPassed += 1;
-
-    schedule(event, nextCycle());
+  //schedule another instruction fetch if verilator is not done
+  if (!Verilated::gotFinish()){
+    schedule(memEvent, nextCycle());
+  }
 }
+
 
 
 void
 VerilatorDinoCPU::reset(int resetCycles)
 {
-    DPRINTF(Verilator, "RESETING FOR %d CYCLES\n", resetCycles);
+  DPRINTF(Verilator, "RESETING FOR %d CYCLES\n", resetCycles);
 
-    //if we are pipelining we want to run reset for the number
-    //of stages we have
-    for (int i = 0; i < resetCycles; ++i){
-        //set reset signal and starting clock signal
-        top.reset = 1;
-        top.clock = 0;
-        //run verilator for this state
-        top.eval();
-        //run verilator for rising edge state
-        top.clock = 1;
-        top.eval();
-    }
+  //if we are pipelining we want to run reset for the number
+  //of stages we have
+  for (int i = 0; i < resetCycles; ++i){
+    //set reset signal and starting clock signal
+    top.reset = 1;
+    top.clock = 0;
+    //run verilator for this state
+    top.eval();
+    //run verilator for rising edge state
+    top.clock = 1;
+    top.eval();
+  }
 
-    //done reseting
-    top.reset = 0;
+  //done reseting
+  top.reset = 0;
 
-    DPRINTF(Verilator, "DONE RESETING\n");
+  DPRINTF(Verilator, "DONE RESETING\n");
 }
 
 void
 VerilatorDinoCPU::startup()
 {
-    DPRINTF(Verilator, "STARTING UP DINOCPU\n");
-    reset(designStages);
+  DPRINTF(Verilator, "STARTING UP DINOCPU\n");
+  reset(designStages);
 
-    DPRINTF(Verilator, "SCHEDULING FIRST TICK IN %d\n", clkperiod);
-    schedule(event, clkperiod);
+  //lets fetch an instruction before doing anything
+  DPRINTF(Verilator, "SCHEDULING FIRST TICK \n");
+  schedule(memEvent, nextCycle());
 }
 

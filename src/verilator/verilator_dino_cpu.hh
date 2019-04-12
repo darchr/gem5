@@ -31,28 +31,54 @@
 #ifndef __VERILATOR_VERILATOR_OBJECT_HH__
 #define __VERILATOR_VERILATOR_OBJECT_HH__
 
+//SConscript handles this now REMOVE
 #define VM_TRACE 0
 #define VL_THREADED 0
-
+//verilator design includes
 #include "VTop.h"
+
+//gem5 general includes
 #include "params/VerilatorDinoCPU.hh"
 #include "sim/clocked_object.hh"
+
+//gem5 mdeol includes
 #include "verilator/verilator_mem_black_box.hh"
 
+//Wrapper for verilator generated code. Clocks the device and schedules
+//memory requests in gem5
 class VerilatorDinoCPU : public ClockedObject
 {
-    private:
-        void updateCycle();
+  private:
 
-        VerilatorMemBlackBox * verilatorMem;
-        EventFunctionWrapper event;
-        Tick clkperiod;
-        int designStages;
-        int cyclesPassed;
-        VTop top;
-    public:
-        VerilatorDinoCPU(VerilatorDinoCPUParams *p);
-        void reset(int resetCycles);
-        void startup();
+    //makes memory requests necessary for this device
+    void makeMemReq();
+
+    //clocks the verilator device.
+    void updateCycle();
+
+    //Pointer to verilator memory device. This class probs shouldn't
+    //have this. Change in later general design
+    VerilatorMemBlackBox * verilatorMem;
+
+    //event queue var to schedule mem requests and cycle updates
+    EventFunctionWrapper memEvent;
+    EventFunctionWrapper clockCPUEvent;
+
+    //CPU stages
+    int designStages;
+
+    //count how many cycles we have run
+    int cyclesPassed;
+
+    //Our verilator cpu design
+    VTop top;
+  public:
+    VerilatorDinoCPU(VerilatorDinoCPUParams *p);
+
+    //reset the cpu for a # of cycles
+    void reset(int resetCycles);
+
+    //resets cpu then schedules memory request to fetch instruction
+    void startup();
 };
 #endif

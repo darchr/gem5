@@ -85,13 +85,11 @@ system.system_port = system.mem_ctrl.port
 system.dinocpu = VerilatorDinoCPU()
 
 # Create the dinocpu verilator wrapper
-system.dinocpu.verilatorMem = VerilatorMemBlackBox()
+system.dinocpu.verilator_mem = VerilatorMemBlackBox()
 
 
-system.dinocpu.verilatorMem.instPort = system.mem_ctrl.port
-system.dinocpu.verilatorMem.dataPort = system.mem_ctrl.port
-
-system.dinocpu.clkperiod = '1ns'
+system.dinocpu.verilator_mem.inst_port = system.mem_ctrl.port
+system.dinocpu.verilator_mem.data_port = system.mem_ctrl.port
 
 # set up the root SimObject and start the simulation
 root = Root(full_system = True, system = system)
@@ -100,6 +98,6 @@ root = Root(full_system = True, system = system)
 m5.instantiate()
 
 print("Beginning simulation!")
-exit_event = m5.simulate()
+exit_event = m5.simulate(10000)
 print('Exiting @ tick %i because %s' % (m5.curTick(), exit_event.getCause()))
 
