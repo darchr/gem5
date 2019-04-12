@@ -73,7 +73,11 @@ class VerilatorMemBlackBox: public MemObject
                     blockedPacket(nullptr)
                 { }
 
-        void sendPacket(PacketPtr pkt);
+        void sendTimingPacket(PacketPtr pkt);
+
+        //currently need this for synchronization. tells gem5 to access mem
+        //model immediatly instead of scheduling event to do so
+        bool sendAtomicPacket(PacketPtr pkt);
 
       protected:
         bool recvTimingResp(PacketPtr pkt) override;

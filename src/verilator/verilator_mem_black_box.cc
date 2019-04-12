@@ -34,15 +34,37 @@
 #include "verilator_mem_black_box.hh"
 
 //MASTER PORT DEFINITIONS
-//send packet to gem5 memory system
-void VerilatorMemBlackBox::VerilatorMemBlackBoxPort::sendPacket(PacketPtr pkt){
+//send packet to gem5 memory system,schedules an event
+void VerilatorMemBlackBox::VerilatorMemBlackBoxPort
+  ::sendTimingPacket(PacketPtr pkt){
   panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
   //send packet or block it and save packet for a retry
   if (!sendTimingReq(pkt)) {
+    DPRINTF(Verilator, "Packet for addr: %#x blocked\n", pkt->getAddr());
     blockedPacket = pkt;
   }
 }
 
+//sends a packet to gem5 memory system, recieves response
+//immidiately at end of call chain
+bool VerilatorMemBlackBox::VerilatorMemBlackBoxPort
+  ::sendAtomicPacket(PacketPtr pkt){
+  panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
+  //send packet or block it and save packet for a retry
+  //block if response latency is non zero
+  //
+  //....i dont think blocking the packet here is right. do atomics ever get
+  //request retries?
+  if (!sendAtomic(pkt)) {
+    DPRINTF(Verilator, "ATOMIC MEMORY RESPONSE RECIEVED\n");
+    //let blackbox determine how to deal with returned data
+    return owner->handleResponse(pkt);
+  }else{
+    DPRINTF(Verilator, "Packet for addr: %#x blocked\n", pkt->getAddr());
+    blockedPacket = pkt;
+  }
+  return false;
+}
 //gem5 memory model has reponded to our memory request
 bool VerilatorMemBlackBox::VerilatorMemBlackBoxPort::recvTimingResp
     ( PacketPtr pkt )
@@ -62,7 +84,7 @@ void VerilatorMemBlackBox::VerilatorMemBlackBoxPort::recvReqRetry(){
   blockedPacket = nullptr;
 
   //try request again
-  sendPacket(pkt);
+  sendAtomicPacket(pkt);
 }
 
 //used for configuring simulated device
@@ -119,7 +141,7 @@ void VerilatorMemBlackBox::doFetch()
 
   //allocate space for instruction and send through instPort
   pkt->allocate();
-  instPort.sendPacket(pkt);
+  instPort.sendAtomicPacket(pkt);
 }
 
 //sets up a memory request for memory instructions to gem5 memory sytem
@@ -167,7 +189,7 @@ void VerilatorMemBlackBox::doMem()
   delete[] data;
 
   //send request
-  dataPort.sendPacket(pkt);
+  dataPort.sendAtomicPacket(pkt);
 }
 
 //handles a successful response for a memory request

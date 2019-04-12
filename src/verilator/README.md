@@ -1,26 +1,15 @@
-Basic Verilator Wrapper
-* ITop is intended as a wrapper for the top level module of your design
-* IMem is intended as a wrapper for a blackbox verilog memory module
-	-You should use IMem to forward all memory requests to gem5 rather than the c++ model
-* Verilator Object is a basic implementation of ITop for the riscv sodor 1 stage core
-* IMem is currently a work in progrress
+BASIC VERILATOR WRAPPER
+This is a wrapper for verilator generated c++ code. The intent of this is to allow you to write verilog code and combine it with gem5 models for a robust and ACCURATE simulation of your hardware designs.
 
-Building
-* First you must generate your verilator c++ models, and include them as needed
-	-add flags to the SConscript to modify the compiler flags and include wha tyou need (.i.e. env.Append(CCFLAGS='-I ./<directory>'))
-* Second you must run scons build/X86/gem5.opt
+USAGE
+I) Generating Necessary Files
+  1. Write a verilog design. It is suggested to have your top level file named as Top.v
+  2. Have some sort of black box that you want gem5 to model which exposes necessary wires
+    (i.e. verilog cpu design, but use gem5's ddr model, need address, readoutput, etc)
+  3. Install verilator. It is reccomended to use a package that comes with your linux distro
+  4. Put all .v and/or /sv files in gem5/ext/verilator/
+  5. Type the make command in that directory
+  6. You should have a set of new files now.
 
-Using Verilator With Gem5
-* You will run the application just as with any other gem5 code
-* Inorder to interface your verilog/verilator design with gem5 you must first build your verilog design
-and then set the output files to the include folder
-* Inorder to build verilator support into gem5 you must have verilator installed and add the library path to your
-SConscript
-* Verilator will expose top level signals to C/C++ code in VTop.h
-* You can expose more signals by adding /*verialtor public*/ next to any wire, reg, input, and output in the verilog code
-* Only generated files are included in this repo because of licensing
-
-Notes
-* If you are having issues including verilator header files make sure that your enviornment variables are set correctly
-* If after building the verilator wrapper into Gem5 you get linker errors make sure that you have the ncessary object files
-  included or that you are building with the generated files from verilator
+II) Using The Generated Files
+TODO AFTER WRAPER DESIGN IS GENERALIZED

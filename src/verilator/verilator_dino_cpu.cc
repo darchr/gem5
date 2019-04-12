@@ -66,7 +66,8 @@ void VerilatorDinoCPU::makeMemReq(){
   verilatorMem->doFetch();
   verilatorMem->doMem();
   //lets clock the CPU now that we have done ifetch
-  schedule(clockCPUEvent, nextCycle());
+  updateCycle();
+  //schedule(clockCPUEvent, nextCycle());
 }
 
 void
