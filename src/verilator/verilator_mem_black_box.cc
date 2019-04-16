@@ -30,6 +30,7 @@
 //gem5 gemeral includes
 #include "base/logging.hh"
 #include "debug/Verilator.hh"
+
 //gem5 model includes
 #include "verilator_mem_black_box.hh"
 
@@ -202,14 +203,16 @@ bool VerilatorMemBlackBox::handleResponse( PacketPtr pkt )
     //Get returned data from gem5 mem system and set it to blackbox
     //"wires"
     DPRINTF(Verilator, "Handling response for IFETCH\n");
-    blkbox->imem_dataout = *pkt->getConstPtr<uint32_t>();
-    DPRINTF(Verilator, "Instruction is %#x\n", blkbox->imem_dataout);
+    blkbox->imem_instruction = *pkt->getConstPtr<uint32_t>();
+  //  blkbox->imem_dataout = *pkt->getConstPtr<uint32_t>();
+    DPRINTF(Verilator, "Instruction is %#x\n", blkbox->imem_instruction);
   } else if (pkt->isRead()){
     //Get returned data from gem5 mem system and set it to blackbox
     //"wires"
     DPRINTF(Verilator, "Handling response for data read\n");
-    blkbox->dmem_dataout = *pkt->getConstPtr<uint32_t>();
-    DPRINTF(Verilator, "Data is %#x\n", blkbox->dmem_dataout);
+    blkbox->dmem_readdata = *pkt->getConstPtr<uint32_t>();
+//    blkbox->dmem_dataout = *pkt->getConstPtr<uint32_t>();
+    DPRINTF(Verilator, "Data is %#x\n", blkbox->dmem_readdata);
   }
 
   return true;

@@ -27,53 +27,41 @@
 # Authors: Nima Ganjehloo
 */
 
+#ifndef __VERILATOR_DPI_MANAGER_HH__
+#define __VERILATOR_DPI_MANAGER_HH__
+//verilator inlcudes
+#include "VTop__Dpi.h"
+#include "svdpi.h"
 
-#ifndef __VERILATOR_VERILATOR_DINO_CPU_HH__
-#define __VERILATOR_VERILATOR_DINO_CPU_HH__
+//gem5 includes
+#include "base/logging.hh"
 
-//SConscript handles this now REMOVE
-#define VM_TRACE 0
-#define VL_THREADED 0
-//verilator design includes
-#include "VTop.h"
+VerilatorMemBlackBox * memBlkBox;
 
-//gem5 general includes
-#include "params/VerilatorDinoCPU.hh"
-#include "sim/clocked_object.hh"
+//will run a doFetch from within blackbox wrapper
+int ifetch (int imem_address, void* handle){
+  DPRINTF(Verilator, "DPI INST FETCH MADE\n");
+  VerilatorMemBlackBox* hndl = static_cast<VerilatorMemBlackBox *>(handle);
+  hndl->doFetch();
+  return hndl->blkbox->imem_dataout;
+}
+//will run a doMem from within blackbox wrapper
+int datareq (int dmem_address, int dmem_writedata, unsigned char dmem_memread,
+        unsigned char dmem_memwrite, const svBitVecVal* dmem_maskmode,
+        unsigned char dmem_sext, void* handle){
+   DPRINTF(Verilator, "DPI INST FETCH MADE\n");
+  VerilatorMemBlackBox* hndl = static_cast<VerilatorMemBlackBox *>(handle);
+  hndl->doMem();
+  return hndl->blkbox->dmem_dataout;
 
-//gem5 mdeol includes
-#include "verilator/verilator_mem_black_box.hh"
+}
 
-//Wrapper for verilator generated code. Clocks the device and schedules
-//memory requests in gem5
-class VerilatorDinoCPU : public ClockedObject
-{
-  private:
-    //clocks the verilator device.
-    void updateCycle();
+//gives Dulaportedmemoryblackbox handle to verilatormemblkbox class
+void* setGen5Handle (){
+  panic_if( memBlkBox != nullptr,
+          "Verilog should not try to access null gem5 model!");
+  return (void*) blkbox;
+}
 
-    //Pointer to verilator memory device. This class probs shouldn't
-    //have this. Change in later general design
-    VerilatorMemBlackBox * verilatorMem;
 
-    //event queue var to schedule mem requests and cycle updates
-    EventFunctionWrapper event;
-
-    //CPU stages
-    int designStages;
-
-    //count how many cycles we have run
-    int cyclesPassed;
-
-    //Our verilator cpu design
-    VTop top;
-  public:
-    VerilatorDinoCPU(VerilatorDinoCPUParams *p);
-
-    //reset the cpu for a # of cycles
-    void reset(int resetCycles);
-
-    //resets cpu then schedules memory request to fetch instruction
-    void startup();
-};
 #endif

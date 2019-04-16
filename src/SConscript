@@ -242,10 +242,12 @@ def blobToCpp(data, symbol, cpp_code, hpp_code=None, namespace=None):
     if hpp_code is not None:
         cpp_code('''\
 #include "blobs/{}.hh"
+
 '''.format(symbol))
         hpp_code('''\
 #include <cstddef>
 #include <cstdint>
+
 ''')
         if namespace is not None:
             hpp_code('namespace {} {{'.format(namespace))
@@ -1377,7 +1379,6 @@ if 'opt' in needed_envs:
             CPPDEFINES = ['TRACING_ON=1'],
             LINKFLAGS = Split(ldflags['opt']),
             disable_partial=disable_partial)
-
 
 # "Fast" binary
 if 'fast' in needed_envs:

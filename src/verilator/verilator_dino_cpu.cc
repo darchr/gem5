@@ -27,28 +27,23 @@
 # Authors: Nima Ganjehloo
 */
 
-//verilator includes for design
-#include "VTop_DualPortedMemory.h"
-#include "VTop_DualPortedMemoryBlackBox.h"
-#include "VTop_Top.h"
+//verilator includes for design,
+//should not be needed because of VTap__ALL.a
+//#include "VTop_Top.h"
 //gem5 includes
 #include "base/logging.hh"
 #include "debug/Verilator.hh"
 #include "sim/sim_exit.hh"
+
 //gem5 model includes
 #include "verilator_dino_cpu.hh"
 
 //setup design params
 VerilatorDinoCPU::VerilatorDinoCPU(VerilatorDinoCPUParams *params) :
   ClockedObject(params),
-  verilatorMem(params->verilator_mem),
-  memEvent([this]{makeMemReq();}, params->name),
-  clockCPUEvent([this]{updateCycle();}, params->name),
+  event([this]{updateCycle();}, params->name),
   designStages(params->stages)
 {
-  //give cpu access to memory blackbox so we can make requests
-  //probably better way to do this
-  verilatorMem->blkbox = top.Top->mem->memory;
 }
 
 //creates object for gem5 to use
@@ -58,16 +53,6 @@ VerilatorDinoCPUParams::create()
   //verilator has weird alignment issue for generated code
   void* ptr = aligned_alloc(128, sizeof(VerilatorDinoCPU));
   return new(ptr) VerilatorDinoCPU(this);
-}
-
-void VerilatorDinoCPU::makeMemReq(){
-  DPRINTF(Verilator, "MAKING MEMORY REQUESTS\n");
-  //make memory request through blackbox
-  verilatorMem->doFetch();
-  verilatorMem->doMem();
-  //lets clock the CPU now that we have done ifetch
-  updateCycle();
-  //schedule(clockCPUEvent, nextCycle());
 }
 
 void
@@ -88,11 +73,9 @@ VerilatorDinoCPU::updateCycle()
 
   //schedule another instruction fetch if verilator is not done
   if (!Verilated::gotFinish()){
-    schedule(memEvent, nextCycle());
+    schedule(event, nextCycle());
   }
 }
-
-
 
 void
 VerilatorDinoCPU::reset(int resetCycles)
@@ -101,12 +84,12 @@ VerilatorDinoCPU::reset(int resetCycles)
 
   //if we are pipelining we want to run reset for the number
   //of stages we have
+  top.reset = 1;
   for (int i = 0; i < resetCycles; ++i){
     //set reset signal and starting clock signal
-    top.reset = 1;
     top.clock = 0;
-    //run verilator for this state
     top.eval();
+    //run verilator for this state
     //run verilator for rising edge state
     top.clock = 1;
     top.eval();
@@ -126,6 +109,6 @@ VerilatorDinoCPU::startup()
 
   //lets fetch an instruction before doing anything
   DPRINTF(Verilator, "SCHEDULING FIRST TICK \n");
-  schedule(memEvent, nextCycle());
+  schedule(event, nextCycle());
 }
 

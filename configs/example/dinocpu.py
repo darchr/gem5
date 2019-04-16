@@ -85,11 +85,11 @@ system.system_port = system.mem_ctrl.port
 system.dinocpu = VerilatorDinoCPU()
 
 # Create the dinocpu verilator wrapper
-system.dinocpu.verilator_mem = VerilatorMemBlackBox()
+system.verilator_mem = VerilatorMemBlackBox()
 
 
-system.dinocpu.verilator_mem.inst_port = system.mem_ctrl.port
-system.dinocpu.verilator_mem.data_port = system.mem_ctrl.port
+system.verilator_mem.inst_port = system.mem_ctrl.port
+system.verilator_mem.data_port = system.mem_ctrl.port
 
 # set up the root SimObject and start the simulation
 root = Root(full_system = True, system = system)

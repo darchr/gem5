@@ -35,7 +35,4 @@ from ClockedObject import ClockedObject
 class VerilatorDinoCPU(ClockedObject):
   type = 'VerilatorDinoCPU'
   cxx_header = "verilator/verilator_dino_cpu.hh"
-
-  verilator_mem = Param.VerilatorMemBlackBox("Reference to "
-        "verilator memory interface")
   stages = Param.Int(1, "Number of stages in the device under test")

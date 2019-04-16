@@ -28,16 +28,12 @@
 */
 #ifndef __VERILATOR_VERILATOR_MEM_BLACK_BOX__HH__
 #define __VERILATOR_VERILATOR_MEM_BLACK_BOX__HH__
-
-//We don't want verilator to use its trace features or multi thread
-//I changed sconscript to deal with this REMOVE
-#define VM_TRACE 0
-#define VL_THREADED 0
-
-//verilator includes
+///verilator inlcudes
 #include "VTop_DualPortedMemoryBlackBox.h"
+
 //gem5 general includes
 #include "mem/mem_object.hh"
+
 //gem5 design includes
 #include "params/VerilatorMemBlackBox.hh"
 
@@ -46,7 +42,6 @@ class VerilatorMemBlackBox: public MemObject
   public:
     //pointer to actual verilator blackbox c++
     VTop_DualPortedMemoryBlackBox* blkbox;
-
     //memory access functions for blackbox
     void doFetch();
     void doMem();
