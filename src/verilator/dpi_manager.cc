@@ -27,16 +27,20 @@
 # Authors: Nima Ganjehloo
 */
 
-#ifndef __VERILATOR_DPI_MANAGER_HH__
-#define __VERILATOR_DPI_MANAGER_HH__
 //verilator inlcudes
 #include "VTop__Dpi.h"
 #include "svdpi.h"
 
 //gem5 includes
 #include "base/logging.hh"
+#include "debug/Verilator.hh"
 
-VerilatorMemBlackBox * memBlkBox;
+//gem5 mdeol includes
+#include "verilator/verilator_dino_cpu.hh"
+#include "verilator/verilator_mem_black_box.hh"
+
+VerilatorMemBlackBox * memBlkBox = nullptr;
+VerilatorDinoCPU * dinoCPU = nullptr;
 
 //will run a doFetch from within blackbox wrapper
 int ifetch (int imem_address, void* handle){
@@ -57,11 +61,11 @@ int datareq (int dmem_address, int dmem_writedata, unsigned char dmem_memread,
 }
 
 //gives Dulaportedmemoryblackbox handle to verilatormemblkbox class
-void* setGen5Handle (){
-  panic_if( memBlkBox != nullptr,
+void* setGem5Handle (){
+  DPRINTF(Verilator, "DPI GIVING MEM HANDLE TO VERILOG\n");
+  panic_if( memBlkBox == nullptr,
           "Verilog should not try to access null gem5 model!");
-  return (void*) blkbox;
+
+  return (void*) memBlkBox;
 }
 
-
-#endif

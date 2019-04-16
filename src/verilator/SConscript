@@ -32,5 +32,6 @@ SimObject('VerilatorDinoCPU.py')
 SimObject('VerilatorMemBlackBox.py')
 Source('verilator_dino_cpu.cc')
 Source('verilator_mem_black_box.cc')
+Source('dpi_manager.cc')
 
 DebugFlag('Verilator')
