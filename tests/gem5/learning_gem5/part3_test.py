@@ -1,5 +1,5 @@
-# Copyright (c) 2018 The Regents of the University of California
-# All Rights Reserved.
+# Copyright (c) 2019 The Regents of the University of California.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -26,39 +26,29 @@
 #
 # Authors: Jason Lowe-Power
 
-'''
-Test file containing simple workloads to run on CPU models.
-Each test takes ~10 seconds to run.
-'''
-
 from testlib import *
 
-workloads = ('Bubblesort','FloatMM')
+# Note: This isn't going to work because MSI caches won't be built. Need to
+# think more about this. Maybe we should have another parameter to
+# gem5_verify_config...
 
-valid_isas = {
-    'x86': ('AtomicSimpleCPU', 'TimingSimpleCPU', 'DerivO3CPU'),
-    'arm': ('AtomicSimpleCPU', 'TimingSimpleCPU', 'MinorCPU', 'DerivO3CPU'),
-    'riscv': ('AtomicSimpleCPU', 'TimingSimpleCPU', 'MinorCPU', 'DerivO3CPU'),
-}
+config_path = joinpath(config.base_dir, 'configs', 'learning_gem5', 'part3')
+ref_path = joinpath(getcwd(), 'ref')
 
+gem5_verify_config(
+    name='simple_ruby_test',
+    verifiers = (verifier.MatchStdoutNoPerf(joinpath(ref_path, 'threads')),),
+    config=joinpath(config_path, 'simple_ruby.py'),
+    config_args = [],
+    protocol = 'MSI',
+    valid_isas=("X86",), # Currently only x86 has the threads test
+)
 
-for isa in valid_isas:
-    bm_dir = joinpath('gem5/cpu_tests/benchmarks/bin/', isa)
-    for workload in workloads:
-        ref_path = joinpath(getcwd(), 'ref', workload)
-        verifiers = (
-                verifier.MatchStdout(ref_path),
-        )
-
-        workload_binary = DownloadedProgram(bm_dir, workload)
-        workload_path = workload_binary.path
-
-        for cpu in valid_isas[isa]:
-           gem5_verify_config(
-                  name='cpu_test_{}_{}'.format(cpu,workload),
-                  verifiers=verifiers,
-                  config=joinpath(getcwd(), 'run.py'),
-                  config_args=['--cpu={}'.format(cpu), workload_path],
-                  valid_isas=(isa.upper(),),
-                  fixtures=[workload_binary]
-           )
+gem5_verify_config(
+    name='ruby_test_test',
+    verifiers = (verifier.MatchStdout(joinpath(ref_path, 'test')),),
+    config=joinpath(config_path, 'ruby_test.py'),
+    config_args = [],
+    protocol = 'MSI',
+    valid_isas=("X86",), # Currently only x86 has the threads test
+)
