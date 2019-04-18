@@ -45,24 +45,33 @@ VerilatorDinoCPU * dinoCPU = nullptr;
 //will run a doFetch from within blackbox wrapper
 int ifetch (int imem_address, void* handle){
   DPRINTF(Verilator, "DPI INST FETCH MADE\n");
+
   VerilatorMemBlackBox* hndl = static_cast<VerilatorMemBlackBox *>(handle);
-  hndl->doFetch();
-  return hndl->blkbox->imem_dataout;
+  hndl->doFetch(imem_address);
+
+  return hndl->getImemResp();
 }
 //will run a doMem from within blackbox wrapper
 int datareq (int dmem_address, int dmem_writedata, unsigned char dmem_memread,
         unsigned char dmem_memwrite, const svBitVecVal* dmem_maskmode,
-        unsigned char dmem_sext, void* handle){
-   DPRINTF(Verilator, "DPI INST FETCH MADE\n");
+        unsigned char dmem_sext, void* handle)
+{
+  DPRINTF(Verilator, "DPI INST FETCH MADE\n");
+
   VerilatorMemBlackBox* hndl = static_cast<VerilatorMemBlackBox *>(handle);
-  hndl->doMem();
-  return hndl->blkbox->dmem_dataout;
+  hndl->doMem(dmem_address,  dmem_writedata, dmem_memread,
+        dmem_memwrite, dmem_maskmode,
+        dmem_sext);
+
+  return hndl->getDmemResp();
 
 }
 
 //gives Dulaportedmemoryblackbox handle to verilatormemblkbox class
 void* setGem5Handle (){
   DPRINTF(Verilator, "DPI GIVING MEM HANDLE TO VERILOG\n");
+
+  memBlkBox = VerilatorMemBlackBox::getSingleton();
   panic_if( memBlkBox == nullptr,
           "Verilog should not try to access null gem5 model!");
 

@@ -36,8 +36,10 @@
 
 //MASTER PORT DEFINITIONS
 //send packet to gem5 memory system,schedules an event
-void VerilatorMemBlackBox::VerilatorMemBlackBoxPort
-  ::sendTimingPacket(PacketPtr pkt){
+void
+VerilatorMemBlackBox::VerilatorMemBlackBoxPort
+  ::sendTimingPacket(PacketPtr pkt)
+{
   panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
   //send packet or block it and save packet for a retry
   if (!sendTimingReq(pkt)) {
@@ -48,8 +50,10 @@ void VerilatorMemBlackBox::VerilatorMemBlackBoxPort
 
 //sends a packet to gem5 memory system, recieves response
 //immidiately at end of call chain
-bool VerilatorMemBlackBox::VerilatorMemBlackBoxPort
-  ::sendAtomicPacket(PacketPtr pkt){
+bool
+VerilatorMemBlackBox::VerilatorMemBlackBoxPort
+  ::sendAtomicPacket(PacketPtr pkt)
+{
   panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
   //send packet or block it and save packet for a retry
   //block if response latency is non zero
@@ -66,9 +70,11 @@ bool VerilatorMemBlackBox::VerilatorMemBlackBoxPort
   }
   return false;
 }
+
 //gem5 memory model has reponded to our memory request
-bool VerilatorMemBlackBox::VerilatorMemBlackBoxPort::recvTimingResp
-    ( PacketPtr pkt )
+bool
+VerilatorMemBlackBox::VerilatorMemBlackBoxPort
+    ::recvTimingResp( PacketPtr pkt )
 {
   DPRINTF(Verilator, "MEMORY RESPONSE RECIEVED\n");
   //let blackbox determine how to deal with returned data
@@ -76,7 +82,10 @@ bool VerilatorMemBlackBox::VerilatorMemBlackBoxPort::recvTimingResp
 }
 
 //retry sending a packet if it failed
-void VerilatorMemBlackBox::VerilatorMemBlackBoxPort::recvReqRetry(){
+void
+VerilatorMemBlackBox::VerilatorMemBlackBoxPort
+  ::recvReqRetry()
+{
   //we have to had saved the failed packet before doing a retry
   assert(blockedPacket != nullptr);
 
@@ -89,7 +98,8 @@ void VerilatorMemBlackBox::VerilatorMemBlackBoxPort::recvReqRetry(){
 }
 
 //used for configuring simulated device
-BaseMasterPort& VerilatorMemBlackBox::getMasterPort(
+BaseMasterPort&
+VerilatorMemBlackBox::getMasterPort(
         const std::string& if_name, PortID idx )
 {
   panic_if(idx != InvalidPortID, "This object doesn't support vector ports");
@@ -108,7 +118,8 @@ BaseMasterPort& VerilatorMemBlackBox::getMasterPort(
 
 //Create for memblkbx for gem5
 VerilatorMemBlackBox*
-VerilatorMemBlackBoxParams::create(){
+VerilatorMemBlackBoxParams::create()
+{
   return new VerilatorMemBlackBox(this);
 }
 
@@ -119,15 +130,17 @@ VerilatorMemBlackBox::VerilatorMemBlackBox(
     instPort(params->name + ".inst_port", this),
     dataPort(params->name + ".data_port", this)
 {
+    VerilatorMemBlackBox::singleton =  this;
 }
 
 //sets up a instruction fetch request for gem5 memory system
-void VerilatorMemBlackBox::doFetch()
+void
+VerilatorMemBlackBox::doFetch(int imem_address)
 {
   //dinocpu only uses 4 byte instructions so make 4 byte request with address
   //specified by dinocpu
   RequestPtr ifetch_req = std::make_shared<Request>(
-    blkbox->imem_address,
+    imem_address,
     4,
     Request::INST_FETCH,
     0);
@@ -146,17 +159,20 @@ void VerilatorMemBlackBox::doFetch()
 }
 
 //sets up a memory request for memory instructions to gem5 memory sytem
-void VerilatorMemBlackBox::doMem()
+void
+VerilatorMemBlackBox::doMem(int dmem_address, int dmem_writedata,
+        unsigned char dmem_memread,unsigned char dmem_memwrite,
+        const svBitVecVal* dmem_maskmode, unsigned char dmem_sext)
 {
     //by default assume lw or sw (4 byte request)
   unsigned int maskmode = 4;
     //are we reading or writing?
-  bool read = blkbox->dmem_memread;
-
+  bool read = dmem_memread;
+  bool write = dmem_memwrite;
   //determine size to access if we arent a lw or sw
-  if ( blkbox->dmem_maskmode == 2 )
+  if ( *dmem_maskmode == 2 )
     maskmode = 4;
-  else if ( blkbox->dmem_maskmode == 1 )
+  else if ( *dmem_maskmode == 1 )
     maskmode = 2;
   else
     maskmode = 1;
@@ -164,7 +180,7 @@ void VerilatorMemBlackBox::doMem()
   //make request for corresponding byte size at the specified address provided
   //by dinocpu
   RequestPtr data_req = std::make_shared<Request>(
-    blkbox->dmem_address,
+    dmem_address,
     maskmode,
     Request::PHYSICAL,
     0);
@@ -173,15 +189,17 @@ void VerilatorMemBlackBox::doMem()
     data_req->getPaddr());
 
   //Is the packet a read or write request?
-  PacketPtr pkt = read ? Packet::createRead(data_req)
+  PacketPtr pkt = read || !(read || write)? Packet::createRead(data_req)
     : Packet::createWrite(data_req);
 
   DPRINTF(Verilator, " -- pkt addr: %#x\n", pkt->getAddr());
 
   //not sure if I need this. This is for non 4 byte writes.
   uint8_t * data = new uint8_t[4];
-  for (int i = 0; i < 4; ++i){
-    data[i] = blkbox->dmem_writedata & (0xFF << i);
+  if (write){
+    for (int i = 0; i < 4; ++i){
+      data[i] = dmem_writedata & (0xFF << i);
+    }
   }
 
   //allocate space for memory request
@@ -194,7 +212,8 @@ void VerilatorMemBlackBox::doMem()
 }
 
 //handles a successful response for a memory request
-bool VerilatorMemBlackBox::handleResponse( PacketPtr pkt )
+bool
+VerilatorMemBlackBox::handleResponse( PacketPtr pkt )
 {
   DPRINTF(Verilator, "Got response for addr %#x\n", pkt->getAddr());
 
@@ -203,17 +222,48 @@ bool VerilatorMemBlackBox::handleResponse( PacketPtr pkt )
     //Get returned data from gem5 mem system and set it to blackbox
     //"wires"
     DPRINTF(Verilator, "Handling response for IFETCH\n");
-    blkbox->imem_instruction = *pkt->getConstPtr<uint32_t>();
+    imemResp = *pkt->getConstPtr<uint32_t>();
   //  blkbox->imem_dataout = *pkt->getConstPtr<uint32_t>();
-    DPRINTF(Verilator, "Instruction is %#x\n", blkbox->imem_instruction);
+    DPRINTF(Verilator, "Instruction is %#x\n", imemResp);
   } else if (pkt->isRead()){
     //Get returned data from gem5 mem system and set it to blackbox
     //"wires"
     DPRINTF(Verilator, "Handling response for data read\n");
-    blkbox->dmem_readdata = *pkt->getConstPtr<uint32_t>();
+    dmemResp = *pkt->getConstPtr<uint32_t>();
 //    blkbox->dmem_dataout = *pkt->getConstPtr<uint32_t>();
-    DPRINTF(Verilator, "Data is %#x\n", blkbox->dmem_readdata);
+    DPRINTF(Verilator, "Data is %#x\n", dmemResp);
   }
 
   return true;
+}
+
+//setup static var
+VerilatorMemBlackBox *
+VerilatorMemBlackBox::singleton = nullptr;
+
+//give caller (dpi in this case) access to this class
+VerilatorMemBlackBox *
+VerilatorMemBlackBox::getSingleton()
+{
+  return VerilatorMemBlackBox::singleton;
+}
+
+//setup reference to this class for use with dpi
+void
+VerilatorMemBlackBox::startup()
+{
+  DPRINTF(Verilator, "MEM BLACKBOX STARTUP\n");
+  VerilatorMemBlackBox::singleton = this;
+}
+
+uint32_t
+VerilatorMemBlackBox::getDmemResp()
+{
+  return dmemResp;
+}
+
+uint32_t
+VerilatorMemBlackBox::getImemResp()
+{
+  return imemResp;
 }

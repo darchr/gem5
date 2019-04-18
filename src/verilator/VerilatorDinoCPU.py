@@ -29,7 +29,6 @@
 
 
 from m5.params import *
-from VerilatorMemBlackBox import VerilatorMemBlackBox
 from ClockedObject import ClockedObject
 
 class VerilatorDinoCPU(ClockedObject):

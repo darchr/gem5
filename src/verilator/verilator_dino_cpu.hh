@@ -74,6 +74,6 @@ class VerilatorDinoCPU : public ClockedObject
     void reset(int resetCycles);
 
     //resets cpu then schedules memory request to fetch instruction
-    void startup();
+    void startup() override;
 };
 #endif

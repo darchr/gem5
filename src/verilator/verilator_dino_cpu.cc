@@ -27,9 +27,6 @@
 # Authors: Nima Ganjehloo
 */
 
-//verilator includes for design,
-//should not be needed because of VTap__ALL.a
-//#include "VTop_Top.h"
 //gem5 includes
 #include "base/logging.hh"
 #include "debug/Verilator.hh"
@@ -59,7 +56,7 @@ void
 VerilatorDinoCPU::updateCycle()
 {
 
-  DPRINTF(Verilator, "CLOCKING DEVICE\n");
+  DPRINTF(Verilator, "\n\nCLOCKING DEVICE\n");
 
   //run the device under test here through verilator
   //when clock = 0 device state is set

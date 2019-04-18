@@ -84,7 +84,7 @@ system.system_port = system.mem_ctrl.port
 # Create the dinocpu verilator wrapper
 system.dinocpu = VerilatorDinoCPU()
 
-# Create the dinocpu verilator wrapper
+# Create the mem black box verilator wrapper
 system.verilator_mem = VerilatorMemBlackBox()
 
 
