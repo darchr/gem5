@@ -55,9 +55,14 @@ FlexCPU::FlexCPU(FlexCPUParams* params):
     memoryUnit(this, Cycles(0),
                name() + ".memoryUnit"),
     _dataPort(name() + "._dataPort", this),
-    _instPort(name() + "._instPort", this)
+    _instPort(name() + "._instPort", this),
+    _branchPred(params->branchPred)
 {
     fatal_if(FullSystem, "FullSystem not implemented for FlexCPU");
+
+    warn_if(!params->branch_pred_max_depth,
+        "Infinite branch predictor depth may play poorly with unconstrained "
+        "fetching and decoding.");
 
     for (ThreadID i = 0; i < numThreads; i++) {
         // Move constructor + vector should allow us to avoid memory leaks like
@@ -65,6 +70,7 @@ FlexCPU::FlexCPU(FlexCPUParams* params):
         threads.push_back(m5::make_unique<FlexCPUThread>(this, i,
             params->system, params->workload[i], params->itb, params->dtb,
             params->isa[i],
+            params->branch_pred_max_depth,
             params->fetch_buffer_size,
             params->instruction_buffer_size,
             params->strict_serialization));
@@ -136,6 +142,12 @@ FlexCPU::completeMemAccess(PacketPtr orig_pkt, StaticInstPtr inst,
     callback(fault);
 }
 
+BPredUnit*
+FlexCPU::getBranchPredictor()
+{
+    return _branchPred;
+}
+
 MasterPort&
 FlexCPU::getDataPort()
 {
@@ -146,6 +158,13 @@ MasterPort&
 FlexCPU::getInstPort()
 {
     return _instPort;
+}
+
+bool
+FlexCPU::hasBranchPredictor() const
+{
+    // Explicit conversion from pointer to bool.
+    return static_cast<bool>(_branchPred);
 }
 
 void
@@ -179,6 +198,15 @@ FlexCPU::markActiveCycle()
             thread->recordCycleStats();
         }
     }
+}
+
+void
+FlexCPU::requestBranchPredictor(
+    std::function<void(BPredUnit* pred)> callback_func)
+{
+    schedule(new EventFunctionWrapper([this, callback_func]
+                                      { callback_func(_branchPred); },
+             name() + ".bpredret", true), curTick());
 }
 
 void

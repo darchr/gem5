@@ -41,6 +41,7 @@
 #include "cpu/flexcpu/inflight_inst.hh"
 #include "cpu/flexcpu/flexcpu.hh"
 #include "cpu/inst_seq.hh"
+#include "cpu/pred/bpred_unit.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/simple_thread.hh"
 #include "mem/request.hh"
@@ -231,6 +232,18 @@ class FlexCPUThread : public ThreadContext
      */
     TheISA::PCState advanceInstRetryPC;
 
+    /**
+     * The number of incomplete but predicted branches allowed on the buffer at
+     * any one time.
+     */
+    unsigned remainingBranchPredDepth;
+    /**
+     * The branch which could not be predicted as a result of hitting the
+     * maximum branch prediction depth constraint.
+     */
+    std::weak_ptr<InflightInst> unpredictedBranch;
+
+
     // END Speculative state
     // END FlexCPUThread Internal variables
 
@@ -331,6 +344,12 @@ class FlexCPUThread : public ThreadContext
     void executeInstruction(std::weak_ptr<InflightInst> inst);
 
     /**
+     * Utility function for releasing a held slot toward the limit for the
+     * number of predicted control instructions on the buffer.
+     */
+    void freeBranchPredDepth();
+
+    /**
      * Retrieves the PC value from either the last instruction on the in-flight
      * queue, or from the committed state if the queue is empty. Should not be
      * used while the latest upcoming PC value is not yet knowable.
@@ -394,6 +413,20 @@ class FlexCPUThread : public ThreadContext
      * @param fault The fault that should be associated with the instruction.
      */
     void markFault(std::shared_ptr<InflightInst> inst, Fault fault);
+
+    /**
+     * This function serves as the event handler for when the CPU has granted
+     * us access to the branch predictor it manages. (It is assumed that the
+     * amount of time taken to perform the prediction has also been taken into
+     * account by the time this listener is called).
+     *
+     * @param inst A reference to the in-flight instruction object for which to
+     *  handle branch prediction.
+     * @param pred A pointer the branch prediction unit that is providing this
+     *  prediction.
+     */
+    void onBranchPredictorAccessed(std::weak_ptr<InflightInst> inst,
+                                   BPredUnit* pred);
 
     /**
      * This function serves as the event handler for when the CPU has completed
@@ -526,6 +559,14 @@ class FlexCPUThread : public ThreadContext
     void populateUses(std::shared_ptr<InflightInst> inst_ptr);
 
     /**
+     * This function makes a request for the branch predictor for the given
+     * control instruction.
+     *
+     * @param inst_ptr The control instruction which needs a prediction.
+     */
+    void predictCtrlInst(std::shared_ptr<InflightInst> inst_ptr);
+
+    /**
      * Utility function for making a request for the CPU to do the memory
      * access for this instruction. Should be called once no dependencies
      * remain for the memory stage of the instruction. Will possibly be a
@@ -622,6 +663,9 @@ class FlexCPUThread : public ThreadContext
 
     Stats::Vector squashedStage;
 
+    Stats::Histogram wrongInstsFetched;
+    Stats::Histogram branchMispredictLatency;
+
     /// Statistics for instruction state latency distributions
 
     // Distribution of times from entry/exit to/from buffer.
@@ -647,14 +691,16 @@ class FlexCPUThread : public ThreadContext
     // Fullsystem mode constructor
     FlexCPUThread(FlexCPU* cpu_, ThreadID tid_, System* system_,
                      BaseTLB* itb_, BaseTLB* dtb_, TheISA::ISA* isa_,
-                     bool use_kernel_stats_, unsigned fetch_buf_size,
-                     unsigned inflight_insts_size, bool strict_ser);
+                     bool use_kernel_stats_, unsigned branch_pred_max_depth,
+                     unsigned fetch_buf_size, unsigned inflight_insts_size,
+                     bool strict_ser);
 
     // Non-fullsystem constructor
     FlexCPUThread(FlexCPU* cpu_, ThreadID tid_, System* system_,
                      Process* process_, BaseTLB* itb_, BaseTLB* dtb_,
-                     TheISA::ISA* isa_, unsigned fetch_buf_size,
-                     unsigned inflight_insts_size, bool strict_ser);
+                     TheISA::ISA* isa_, unsigned branch_pred_max_depth,
+                     unsigned fetch_buf_size, unsigned inflight_insts_size,
+                     bool strict_ser);
 
     // May need to define move constructor, due to how SimpleThread is defined,
     // if we want to hold instances of these in a vector instead of pointers
