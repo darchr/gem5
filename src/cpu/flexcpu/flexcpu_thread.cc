@@ -30,11 +30,13 @@
 
 #include "cpu/flexcpu/flexcpu_thread.hh"
 
+#include <algorithm>
 #include <string>
 
 #include "base/intmath.hh"
 #include "base/trace.hh"
 
+#include "debug/FlexCPUBranchPred.hh"
 #include "debug/FlexCPUBufferDump.hh"
 #include "debug/FlexCPUDeps.hh"
 #include "debug/FlexCPUInstEvent.hh"
@@ -48,6 +50,7 @@ using namespace std;
 FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
                     System* system_, BaseTLB* itb_, BaseTLB* dtb_,
                     TheISA::ISA* isa_, bool use_kernel_stats_,
+                    unsigned branch_pred_max_depth,
                     unsigned fetch_buf_size, unsigned inflight_insts_size,
                     bool strict_ser):
     memIface(*this),
@@ -59,7 +62,9 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
     isa(isa_),
     fetchBuf(vector<uint8_t>(fetch_buf_size)),
     fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1)),
-    inflightInstsMaxSize(inflight_insts_size)
+    inflightInstsMaxSize(inflight_insts_size),
+    remainingBranchPredDepth(branch_pred_max_depth ?
+                             branch_pred_max_depth : -1)
 {
     fatal_if(fetch_buf_size % sizeof(TheISA::MachInst) != 0,
              "Fetch buffer size should be multiple of instruction size!");
@@ -70,7 +75,8 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
 // Non-fullsystem constructor
 FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
                     System* system_, Process* process_, BaseTLB* itb_,
-                    BaseTLB* dtb_, TheISA::ISA* isa_, unsigned fetch_buf_size,
+                    BaseTLB* dtb_, TheISA::ISA* isa_,
+                    unsigned branch_pred_max_depth, unsigned fetch_buf_size,
                     unsigned inflight_insts_size, bool strict_ser):
     memIface(*this),
     _cpuPtr(cpu_),
@@ -81,7 +87,9 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
     isa(isa_),
     fetchBuf(vector<uint8_t>(fetch_buf_size)),
     fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1)),
-    inflightInstsMaxSize(inflight_insts_size)
+    inflightInstsMaxSize(inflight_insts_size),
+    remainingBranchPredDepth(branch_pred_max_depth ?
+                             branch_pred_max_depth : -1)
 {
     fatal_if(fetch_buf_size % sizeof(TheISA::MachInst) != 0,
              "Fetch buffer size should be multiple of instruction size!");
@@ -369,6 +377,11 @@ FlexCPUThread::commitInstruction(InflightInst* const inst_ptr)
 
     inst_ptr->commitToTC();
 
+    if (_cpuPtr->hasBranchPredictor() && inst_ptr->staticInst()->isControl()) {
+        _cpuPtr->getBranchPredictor()->update(inst_ptr->issueSeqNum(),
+                                              threadId());
+    }
+
     if (!inst_ptr->staticInst()->isMicroop() ||
            inst_ptr->staticInst()->isLastMicroop()) {
         numInstsStat++;
@@ -485,6 +498,29 @@ FlexCPUThread::executeInstruction(weak_ptr<InflightInst> inst)
     executeInstruction(inst_ptr);
 }
 
+void
+FlexCPUThread::freeBranchPredDepth()
+{
+    DPRINTF(FlexCPUBranchPred, "Released a branch prediction depth limit\n");
+
+    // If another branch was denied a prediction earlier due to depth limits,
+    // we give them this newly released resource immediately.
+    if (!remainingBranchPredDepth) {
+        shared_ptr<InflightInst> inst_ptr = unpredictedBranch.lock();
+        unpredictedBranch.reset();
+
+        if (inst_ptr && inst_ptr == inflightInsts.back()
+         && !advanceInstNeedsRetry) {
+            predictCtrlInst(inst_ptr);
+            return;
+        }
+    }
+
+    // If no branches need prediction, we just add to the pool of unused
+    // resources.
+    ++remainingBranchPredDepth;
+}
+
 TheISA::PCState
 FlexCPUThread::getNextPC()
 {
@@ -570,10 +606,70 @@ FlexCPUThread::markFault(shared_ptr<InflightInst> inst_ptr, Fault fault)
 }
 
 void
+FlexCPUThread::onBranchPredictorAccessed(std::weak_ptr<InflightInst> inst,
+                                         BPredUnit* pred)
+{
+    const shared_ptr<InflightInst> inst_ptr = inst.lock();
+    if (!inst_ptr
+     || inst_ptr->isCommitted()
+     || inst_ptr->isSquashed()
+     || inst_ptr->isComplete()) {
+        freeBranchPredDepth();
+        // No need to do anything for an instruction that has been
+        // squashed, or a branch that has already been resolved.
+        return;
+    }
+
+    // We check before requesting one from the CPU, so this function should
+    // only be called with a non-NULL branch predictor.
+    panic_if(!pred, "I wasn't programmed to understand nullptr branch "
+                    "predictors!");
+
+    TheISA::PCState pc = inst_ptr->pcState();
+
+    const bool taken = pred->predict(inst_ptr->staticInst(),
+                                     inst_ptr->issueSeqNum(), pc, threadId());
+
+    // BPredUnit::predict takes pc by reference, and updates it in-place.
+
+    DPRINTF(FlexCPUBranchPred, "(seq %d) predicted %s (predicted pc: %#x).\n",
+                              inst_ptr->seqNum(),
+                              taken ? "taken" : "not taken",
+                              pc.instAddr());
+    // Count stats using the predict return value?
+
+    StaticInstPtr static_inst = inst_ptr->staticInst();
+    if (static_inst->isDirectCtrl() && static_inst->isUncondCtrl()) {
+        // If we *know* we've mispredicted, no need to keep fetching
+        // new instructions. This optimization improves the simulator's
+        // performance, but may underestimate the instruction fetch bandwidth
+        if (!taken || static_inst->branchTarget(inst_ptr->pcState()) != pc) {
+            DPRINTF(FlexCPUBranchPred, "Unconditional branch mispredicted\n");
+            freeBranchPredDepth();
+            return;
+        }
+    } else if ((static_inst->isCall() || static_inst->isReturn()) && !taken) {
+        // Calls are always taken.
+        DPRINTF(FlexCPUBranchPred, "Call/return taken misprediction\n");
+        freeBranchPredDepth();
+        return;
+    }
+
+    InflightInst* raw_inst = inst_ptr.get();
+    inst_ptr->addSquashCallback([this, raw_inst] {
+        if (!raw_inst->isComplete())
+            freeBranchPredDepth();
+    });
+
+
+    advanceInst(pc);
+}
+
+void
 FlexCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
-                                    const RequestPtr& req, bool write,
-                                    shared_ptr<uint8_t> data,
-                                    shared_ptr<SplitRequest> sreq, bool high)
+                                  const RequestPtr& req, bool write,
+                                  shared_ptr<uint8_t> data,
+                                  shared_ptr<SplitRequest> sreq, bool high)
 {
     const shared_ptr<InflightInst> inst_ptr = inst.lock();
     if (!inst_ptr || inst_ptr->isSquashed()) {
@@ -652,9 +748,76 @@ FlexCPUThread::onExecutionCompleted(shared_ptr<InflightInst> inst_ptr,
     if (inst_ptr->staticInst()->isControl()) {
         // We must have our next PC now, since this branch has just resolved
 
-        // If we are a control instruction, then we were unable to begin a
-        // fetch during decode, so we should start one now.
-        advanceInst(getNextPC());
+        if (_cpuPtr->hasBranchPredictor()) {
+            // If a branch predictor has been set, then we need to check if
+            // a prediction was made, squash instructions if incorrectly
+            // predicted, and notify the predictor accordingly.
+
+            auto it = find(inflightInsts.begin(), inflightInsts.end(),
+                           inst_ptr);
+
+            if (it == inflightInsts.end()) {
+                // Should be unreachable...
+                panic("Did a completion callback on an instruction not in "
+                      "our buffer.");
+            }
+
+            shared_ptr<InflightInst> following_inst =
+                (++it != inflightInsts.end()) ? *it : nullptr;
+
+            if (following_inst || advanceInstNeedsRetry) {
+                // This condition is true iff a branch prediction was made
+                // prior to this point in simulation for this instruction.
+
+                freeBranchPredDepth();
+
+                const TheISA::PCState calculatedPC = inst_ptr->pcState();
+                TheISA::PCState correctPC = calculatedPC;
+                inst_ptr->staticInst()->advancePC(correctPC);
+                const TheISA::PCState predictedPC = following_inst ?
+                    following_inst->pcState() : advanceInstRetryPC;
+
+                if (correctPC.pc() == predictedPC.pc()
+                 && correctPC.upc() == predictedPC.upc()) {
+                    // It was a correct prediction
+                    DPRINTF(FlexCPUBranchPred,
+                            "Branch predicted correctly (seq %d)\n",
+                            inst_ptr->seqNum());
+                    // Calculate stat correct predictions?
+                    // Otherwise do nothing because we guessed correctly.
+                    // Just remember to update the branch predictor at commit.
+                } else { // It was an incorrect prediction
+                    DPRINTF(FlexCPUBranchPred,
+                            "Branch predicted incorrectly (seq %d)\n",
+                            inst_ptr->seqNum());
+
+                    wrongInstsFetched.sample(
+                        nextIssueNum - inst_ptr->issueSeqNum());
+
+                    // Squash all mispredicted instructions
+                    squashUpTo(inst_ptr.get(), true);
+
+                    // Notify branch predictor of incorrect prediction
+
+                    _cpuPtr->getBranchPredictor()->squash(
+                        inst_ptr->issueSeqNum(), correctPC,
+                        calculatedPC.branching(), threadId());
+
+                    // Track time from the first wrong fetch to now.
+                    branchMispredictLatency.sample(
+                        curTick() - inst_ptr->getTimingRecord().issueTick);
+
+                    advanceInst(correctPC);
+                }
+            } else { // predictor hasn't fired yet, so we can preemptively
+                     // place the next inst on the buffer with the known pc.
+                advanceInst(getNextPC());
+            }
+        } else { // No branch predictor
+            // If we are a control instruction, then we were unable to begin a
+            // fetch during decode, so we should start one now.
+            advanceInst(getNextPC());
+        }
     }
 
     commitAllAvailableInstructions();
@@ -768,6 +931,20 @@ FlexCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
         // immediately send the necessary requests to the CPU to fetch the next
         // instruction
         advanceInst(getNextPC());
+    } else if (_cpuPtr->hasBranchPredictor()) {
+        if (!remainingBranchPredDepth) {
+            DPRINTF(FlexCPUBranchPred, "This control would exceed the branch "
+                                      "prediction depth limit, not requesting "
+                                      "a prediction immediately.\n");
+
+            unpredictedBranch = inst;
+
+            return;
+        }
+
+        --remainingBranchPredDepth;
+
+        predictCtrlInst(inst_ptr);
     } else {
         DPRINTF(FlexCPUThreadEvent, "Delaying fetch until control "
                                     "instruction's execution.\n");
@@ -1136,6 +1313,24 @@ FlexCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
                 dst_reg.className(),
                 dst_reg.index());
     }
+}
+
+void
+FlexCPUThread::predictCtrlInst(shared_ptr<InflightInst> inst_ptr)
+{
+    DPRINTF(FlexCPUBranchPred, "Requesting branch predictor for control\n");
+
+    const InstSeqNum seqnum = inst_ptr->issueSeqNum();
+    inst_ptr->addSquashCallback([this, seqnum] {
+        _cpuPtr->getBranchPredictor()->squash(seqnum, threadId());
+    });
+
+    const weak_ptr<InflightInst> weak_inst = inst_ptr;
+    auto callback = [this, weak_inst] (BPredUnit* pred) {
+        onBranchPredictorAccessed(weak_inst, pred);
+    };
+
+    _cpuPtr->requestBranchPredictor(callback);
 }
 
 void
@@ -1591,6 +1786,17 @@ FlexCPUThread::regStats(const std::string &name)
     squashedStage.subname(InflightInst::Status::Memorying, "Memorying");
     squashedStage.subname(InflightInst::Status::Complete, "Complete");
     squashedStage.subname(InflightInst::Status::Committed, "Committed");
+
+    wrongInstsFetched
+        .name(name + ".wrongInstsFetched")
+        .init(16)
+        .desc("The number of instructions fetched before branch resolved.")
+        ;
+    branchMispredictLatency
+        .name(name + ".branchMispredictLatency")
+        .init(16)
+        .desc("Ticks from branch issue to branch resolved wrong.")
+        ;
 
     instLifespans
         .name(name + ".instLifespans")
