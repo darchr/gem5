@@ -29,15 +29,15 @@
 
 module DualPortedMemoryBlackBox(
 	input clk,
-	input [31:0] imem_address /*verilator public*/,
-	output [31:0] imem_instruction /*verilator public*/,
-	input [31:0] dmem_address /*verilator public*/, 
-	input [31:0] dmem_writedata /*verilator public*/,
-	input dmem_memread /*verilator public*/,
-	input dmem_memwrite /*verilator public*/,
-	input [1:0] dmem_maskmode /*verilator public*/,
-	input dmem_sext /*verilator public*/,
-	output [31:0] dmem_readdata /*verilator public*/
+	input [31:0] imem_address,
+	output [31:0] imem_instruction,
+	input [31:0] dmem_address, 
+	input [31:0] dmem_writedata,
+	input dmem_memread,
+	input dmem_memwrite,
+	input [1:0] dmem_maskmode,
+	input dmem_sext,
+	output [31:0] dmem_readdata
 );
   import "DPI-C" function int ifetch(input int imem_address, chandle handle);
   import "DPI-C" function int datareq(input int dmem_address, 
@@ -52,8 +52,6 @@ module DualPortedMemoryBlackBox(
       gem5MemBlkBox = setGem5Handle();
   end
 
-	wire [31:0] dmem_dataout /*verilator public*/;
-	wire [31:0] imem_dataout /*verilator public*/;
   always_comb imem_instruction = ifetch(imem_address, gem5MemBlkBox);
 
   always_comb dmem_readdata = datareq(dmem_address, dmem_writedata,

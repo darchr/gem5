@@ -197,9 +197,13 @@ VerilatorMemBlackBox::doMem(int dmem_address, int dmem_writedata,
   //not sure if I need this. This is for non 4 byte writes.
   uint8_t * data = new uint8_t[4];
   if (write){
+    DPRINTF(Verilator, "WRITING %x AS %d BYTES\n", dmem_writedata, maskmode);
     for (int i = 0; i < 4; ++i){
       data[i] = dmem_writedata & (0xFF << i);
     }
+
+    DPRINTF(Verilator, "DATA TO WRITE IS %x %x %x %x\n", data[0], data[1],
+            data[2], data[3]);
   }
 
   //allocate space for memory request
