@@ -199,11 +199,11 @@ VerilatorMemBlackBox::doMem(int dmem_address, int dmem_writedata,
   if (write){
     DPRINTF(Verilator, "WRITING %x AS %d BYTES\n", dmem_writedata, maskmode);
     for (int i = 0; i < 4; ++i){
-      data[i] = dmem_writedata & (0xFF << i);
+      data[i] = dmem_writedata & (0xFF << i*8);
     }
 
-    DPRINTF(Verilator, "DATA TO WRITE IS %x %x %x %x\n", data[0], data[1],
-            data[2], data[3]);
+    DPRINTF(Verilator, "DATA TO WRITE IS %x %x %x %x\n", data[3], data[2],
+            data[1], data[0]);
   }
 
   //allocate space for memory request

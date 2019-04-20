@@ -946,6 +946,7 @@ module SingleCycleCPU(
   output [31:0] io_imem_address,
   input  [31:0] io_imem_instruction,
   output [31:0] io_dmem_address,
+  output [31:0] io_dmem_writedata,
   output        io_dmem_memread,
   output        io_dmem_memwrite,
   output [1:0]  io_dmem_maskmode,
@@ -1082,6 +1083,7 @@ module SingleCycleCPU(
   assign _T_27 = reset == 1'h0; // @[cpu.scala 112:9]
   assign io_imem_address = pc; // @[cpu.scala 30:19]
   assign io_dmem_address = alu_io_result; // @[cpu.scala 71:21]
+  assign io_dmem_writedata = registers_io_readdata2; // @[cpu.scala 72:21]
   assign io_dmem_memread = control_io_memread; // @[cpu.scala 73:21]
   assign io_dmem_memwrite = control_io_memwrite; // @[cpu.scala 74:21]
   assign io_dmem_maskmode = io_imem_instruction[13:12]; // @[cpu.scala 75:21]
@@ -1305,6 +1307,7 @@ module DualPortedMemory(
   input  [31:0] io_imem_address,
   output [31:0] io_imem_instruction,
   input  [31:0] io_dmem_address,
+  input  [31:0] io_dmem_writedata,
   input         io_dmem_memread,
   input         io_dmem_memwrite,
   input  [1:0]  io_dmem_maskmode,
@@ -1358,7 +1361,7 @@ module DualPortedMemory(
   assign memory_clk = clock; // @[memory.scala 85:17]
   assign memory_imem_address = io_imem_address; // @[memory.scala 75:26]
   assign memory_dmem_address = io_dmem_address; // @[memory.scala 79:26]
-  assign memory_dmem_writedata = 32'h0;
+  assign memory_dmem_writedata = io_dmem_writedata; // @[memory.scala 80:28]
   assign memory_dmem_memread = io_dmem_memread; // @[memory.scala 81:26]
   assign memory_dmem_memwrite = io_dmem_memwrite; // @[memory.scala 82:27]
   assign memory_dmem_maskmode = io_dmem_maskmode; // @[memory.scala 83:27]
@@ -1374,6 +1377,7 @@ module Top(
   wire [31:0] cpu_io_imem_address; // @[top.scala 14:21]
   wire [31:0] cpu_io_imem_instruction; // @[top.scala 14:21]
   wire [31:0] cpu_io_dmem_address; // @[top.scala 14:21]
+  wire [31:0] cpu_io_dmem_writedata; // @[top.scala 14:21]
   wire  cpu_io_dmem_memread; // @[top.scala 14:21]
   wire  cpu_io_dmem_memwrite; // @[top.scala 14:21]
   wire [1:0] cpu_io_dmem_maskmode; // @[top.scala 14:21]
@@ -1383,6 +1387,7 @@ module Top(
   wire [31:0] mem_io_imem_address; // @[top.scala 15:20]
   wire [31:0] mem_io_imem_instruction; // @[top.scala 15:20]
   wire [31:0] mem_io_dmem_address; // @[top.scala 15:20]
+  wire [31:0] mem_io_dmem_writedata; // @[top.scala 15:20]
   wire  mem_io_dmem_memread; // @[top.scala 15:20]
   wire  mem_io_dmem_memwrite; // @[top.scala 15:20]
   wire [1:0] mem_io_dmem_maskmode; // @[top.scala 15:20]
@@ -1394,6 +1399,7 @@ module Top(
     .io_imem_address(cpu_io_imem_address),
     .io_imem_instruction(cpu_io_imem_instruction),
     .io_dmem_address(cpu_io_dmem_address),
+    .io_dmem_writedata(cpu_io_dmem_writedata),
     .io_dmem_memread(cpu_io_dmem_memread),
     .io_dmem_memwrite(cpu_io_dmem_memwrite),
     .io_dmem_maskmode(cpu_io_dmem_maskmode),
@@ -1405,6 +1411,7 @@ module Top(
     .io_imem_address(mem_io_imem_address),
     .io_imem_instruction(mem_io_imem_instruction),
     .io_dmem_address(mem_io_dmem_address),
+    .io_dmem_writedata(mem_io_dmem_writedata),
     .io_dmem_memread(mem_io_dmem_memread),
     .io_dmem_memwrite(mem_io_dmem_memwrite),
     .io_dmem_maskmode(mem_io_dmem_maskmode),
@@ -1419,6 +1426,7 @@ module Top(
   assign mem_clock = clock;
   assign mem_io_imem_address = cpu_io_imem_address; // @[top.scala 17:15]
   assign mem_io_dmem_address = cpu_io_dmem_address; // @[top.scala 18:15]
+  assign mem_io_dmem_writedata = cpu_io_dmem_writedata; // @[top.scala 18:15]
   assign mem_io_dmem_memread = cpu_io_dmem_memread; // @[top.scala 18:15]
   assign mem_io_dmem_memwrite = cpu_io_dmem_memwrite; // @[top.scala 18:15]
   assign mem_io_dmem_maskmode = cpu_io_dmem_maskmode; // @[top.scala 18:15]

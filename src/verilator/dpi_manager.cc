@@ -56,12 +56,11 @@ int datareq (int dmem_address, int dmem_writedata, unsigned char dmem_memread,
         unsigned char dmem_memwrite, const svBitVecVal* dmem_maskmode,
         unsigned char dmem_sext, void* handle)
 {
-  DPRINTF(Verilator, "DPI INST FETCH MADE\n");
+  DPRINTF(Verilator, "DPI DATA REQ MADE\n");
 
   VerilatorMemBlackBox* hndl = static_cast<VerilatorMemBlackBox *>(handle);
   hndl->doMem(dmem_address,  dmem_writedata, dmem_memread,
-        dmem_memwrite, dmem_maskmode,
-        dmem_sext);
+        dmem_memwrite, dmem_maskmode, dmem_sext);
 
   return hndl->getDmemResp();
 
