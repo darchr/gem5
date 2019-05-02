@@ -152,8 +152,7 @@ CoherentXBar::recvTimingReq(PacketPtr pkt, PortID slave_port_id)
     assert(is_express_snoop == cache_responding);
 
     // determine the destination based on the destination address range
-    AddrRange addr_range = RangeSize(pkt->getAddr(), pkt->getSize());
-    PortID master_port_id = findPort(addr_range);
+    PortID master_port_id = findPort(pkt->getAddrRange());
 
     // test if the crossbar should be considered occupied for the current
     // port, and exclude express snoops from the check
@@ -552,9 +551,7 @@ CoherentXBar::recvTimingSnoopReq(PacketPtr pkt, PortID master_port_id)
     // device responsible for the address range something is
     // wrong, hence there is nothing further to do as the packet
     // would be going back to where it came from
-    AddrRange addr_range M5_VAR_USED =
-        RangeSize(pkt->getAddr(), pkt->getSize());
-    assert(findPort(addr_range) == master_port_id);
+    assert(findPort(pkt->getAddrRange()) == master_port_id);
 }
 
 bool
@@ -721,7 +718,8 @@ CoherentXBar::recvReqRetry(PortID master_port_id)
 }
 
 Tick
-CoherentXBar::recvAtomic(PacketPtr pkt, PortID slave_port_id)
+CoherentXBar::recvAtomicBackdoor(PacketPtr pkt, PortID slave_port_id,
+                                 MemBackdoorPtr *backdoor)
 {
     DPRINTF(CoherentXBar, "%s: src %s packet %s\n", __func__,
             slavePorts[slave_port_id]->name(), pkt->print());
@@ -784,8 +782,7 @@ CoherentXBar::recvAtomic(PacketPtr pkt, PortID slave_port_id)
 
     // even if we had a snoop response, we must continue and also
     // perform the actual request at the destination
-    AddrRange addr_range = RangeSize(pkt->getAddr(), pkt->getSize());
-    PortID master_port_id = findPort(addr_range);
+    PortID master_port_id = findPort(pkt->getAddrRange());
 
     if (sink_packet) {
         DPRINTF(CoherentXBar, "%s: Not forwarding %s\n", __func__,
@@ -800,7 +797,10 @@ CoherentXBar::recvAtomic(PacketPtr pkt, PortID slave_port_id)
             }
 
             // forward the request to the appropriate destination
-            response_latency = masterPorts[master_port_id]->sendAtomic(pkt);
+            auto master = masterPorts[master_port_id];
+            response_latency = backdoor ?
+                master->sendAtomicBackdoor(pkt, *backdoor) :
+                master->sendAtomic(pkt);
         } else {
             // if it does not need a response we sink the packet above
             assert(pkt->needsResponse());
@@ -1009,7 +1009,7 @@ CoherentXBar::recvFunctional(PacketPtr pkt, PortID slave_port_id)
             }
         }
 
-        PortID dest_id = findPort(RangeSize(pkt->getAddr(), pkt->getSize()));
+        PortID dest_id = findPort(pkt->getAddrRange());
 
         masterPorts[dest_id]->sendFunctional(pkt);
     }

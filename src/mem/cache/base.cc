@@ -77,7 +77,7 @@ BaseCache::CacheSlavePort::CacheSlavePort(const std::string &_name,
 }
 
 BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
-    : MemObject(p),
+    : ClockedObject(p),
       cpuSidePort (p->name + ".cpu_side", this, "CpuSidePort"),
       memSidePort(p->name + ".mem_side", this, "MemSidePort"),
       mshrQueue("MSHRs", p->mshrs, 0, p->demand_mshr_reserve), // see below
@@ -193,7 +193,7 @@ BaseCache::getPort(const std::string &if_name, PortID idx)
     } else if (if_name == "cpu_side") {
         return cpuSidePort;
     }  else {
-        return MemObject::getPort(if_name, idx);
+        return ClockedObject::getPort(if_name, idx);
     }
 }
 
@@ -439,7 +439,7 @@ BaseCache::recvTimingResp(PacketPtr pkt)
     }
 
     // Initial target is used just for stats
-    MSHR::Target *initial_tgt = mshr->getTarget();
+    QueueEntry::Target *initial_tgt = mshr->getTarget();
     int stats_cmd_idx = initial_tgt->pkt->cmdToIndex();
     Tick miss_latency = curTick() - initial_tgt->recvTime;
 
@@ -649,8 +649,8 @@ BaseCache::functionalAccess(PacketPtr pkt, bool from_cpu_side)
 
     bool done = have_dirty ||
         cpuSidePort.trySatisfyFunctional(pkt) ||
-        mshrQueue.trySatisfyFunctional(pkt, blk_addr) ||
-        writeBuffer.trySatisfyFunctional(pkt, blk_addr) ||
+        mshrQueue.trySatisfyFunctional(pkt) ||
+        writeBuffer.trySatisfyFunctional(pkt) ||
         memSidePort.trySatisfyFunctional(pkt);
 
     DPRINTF(CacheVerbose, "%s: %s %s%s%s\n", __func__,  pkt->print(),
@@ -729,9 +729,7 @@ BaseCache::getNextQueueEntry()
     // full write buffer, otherwise we favour the miss requests
     if (wq_entry && (writeBuffer.isFull() || !miss_mshr)) {
         // need to search MSHR queue for conflicting earlier miss.
-        MSHR *conflict_mshr =
-            mshrQueue.findPending(wq_entry->blkAddr,
-                                  wq_entry->isSecure);
+        MSHR *conflict_mshr = mshrQueue.findPending(wq_entry);
 
         if (conflict_mshr && conflict_mshr->order < wq_entry->order) {
             // Service misses in order until conflict is cleared.
@@ -744,9 +742,7 @@ BaseCache::getNextQueueEntry()
         return wq_entry;
     } else if (miss_mshr) {
         // need to check for conflicting earlier writeback
-        WriteQueueEntry *conflict_mshr =
-            writeBuffer.findPending(miss_mshr->blkAddr,
-                                    miss_mshr->isSecure);
+        WriteQueueEntry *conflict_mshr = writeBuffer.findPending(miss_mshr);
         if (conflict_mshr) {
             // not sure why we don't check order here... it was in the
             // original code but commented out.
@@ -1311,8 +1307,11 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 
     // Check for transient state allocations. If any of the entries listed
     // for eviction has a transient state, the allocation fails
+    bool replacement = false;
     for (const auto& blk : evict_blks) {
         if (blk->isValid()) {
+            replacement = true;
+
             Addr repl_addr = regenerateBlkAddr(blk);
             MSHR *repl_mshr = mshrQueue.findMatch(repl_addr, blk->isSecure());
             if (repl_mshr) {
@@ -1330,25 +1329,23 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
 
     // The victim will be replaced by a new entry, so increase the replacement
     // counter if a valid block is being replaced
-    if (victim->isValid()) {
-        DPRINTF(Cache, "replacement: replacing %#llx (%s) with %#llx "
-                "(%s): %s\n", regenerateBlkAddr(victim),
-                victim->isSecure() ? "s" : "ns",
-                addr, is_secure ? "s" : "ns",
-                victim->isDirty() ? "writeback" : "clean");
+    if (replacement) {
+        // Evict valid blocks associated to this victim block
+        for (const auto& blk : evict_blks) {
+            if (blk->isValid()) {
+                DPRINTF(CacheRepl, "Evicting %s (%#llx) to make room for " \
+                        "%#llx (%s)\n", blk->print(), regenerateBlkAddr(blk),
+                        addr, is_secure);
+
+                if (blk->wasPrefetched()) {
+                    unusedPrefetches++;
+                }
+
+                evictBlock(blk, writebacks);
+            }
+        }
 
         replacements++;
-    }
-
-    // Evict valid blocks associated to this victim block
-    for (const auto& blk : evict_blks) {
-        if (blk->isValid()) {
-            if (blk->wasPrefetched()) {
-                unusedPrefetches++;
-            }
-
-            evictBlock(blk, writebacks);
-        }
     }
 
     // Insert new block at victimized entry
@@ -1699,7 +1696,7 @@ BaseCache::unserialize(CheckpointIn &cp)
 void
 BaseCache::regStats()
 {
-    MemObject::regStats();
+    ClockedObject::regStats();
 
     using namespace Stats;
 
@@ -2451,7 +2448,7 @@ BaseCache::CacheReqPacketQueue::sendDeferredPacket()
     } else {
         // let our snoop responses go first if there are responses to
         // the same addresses
-        if (checkConflictingSnoop(entry->blkAddr)) {
+        if (checkConflictingSnoop(entry->getTarget()->pkt)) {
             return;
         }
         waitingOnRetry = entry->sendPacket(cache);

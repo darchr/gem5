@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011 The Regents of The University of Michigan
+ * Copyright (c) 2015 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,46 +25,39 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors: Korey Sewell
- *
+ * Authors: David Hashe
  */
 
-#ifndef __ARCH_SPARC_MT_HH__
-#define __ARCH_SPARC_MT_HH__
+#include "sim/redirect_path.hh"
 
-/**
- * @file
- *
- * ISA-specific helper functions for multithreaded execution.
- */
+#include <unistd.h>
 
-#include <iostream>
-
-#include "arch/isa_traits.hh"
-#include "base/bitfield.hh"
-#include "base/logging.hh"
-#include "base/trace.hh"
-
-namespace SparcISA
+static std::string
+normalizePath(std::string path)
 {
+    char buf[PATH_MAX];
+    std::string gem5_cwd = getcwd(buf, PATH_MAX);
 
-template <class TC>
-inline unsigned
-getVirtProcNum(TC *tc)
-{
-    fatal("Sparc is not setup for multithreaded ISA extensions");
-    return 0;
+    if (!startswith(path, "/")) {
+        path = realpath((gem5_cwd + "/" + path).c_str(), buf);
+    }
+    if (path[path.length()-1] != '/') path.push_back('/');
+
+    return path;
 }
 
-
-template <class TC>
-inline unsigned
-getTargetThread(TC *tc)
+RedirectPath::RedirectPath(const RedirectPathParams *p)
+    : SimObject(p)
 {
-    fatal("Sparc is not setup for multithreaded ISA extensions");
-    return 0;
+    _appPath = normalizePath(p->app_path);
+
+    for (auto hp : p->host_paths) {
+        _hostPaths.push_back(normalizePath(hp));
+    }
 }
 
-} // namespace SparcISA
-
-#endif
+RedirectPath*
+RedirectPathParams::create()
+{
+    return new RedirectPath(this);
+}

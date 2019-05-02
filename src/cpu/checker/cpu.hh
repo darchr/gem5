@@ -483,21 +483,6 @@ class CheckerCPU : public BaseCPU, public ExecContext
         return this->setMiscReg(reg.index(), val);
     }
 
-#if THE_ISA == MIPS_ISA
-    RegVal
-    readRegOtherThread(const RegId &misc_reg, ThreadID tid) override
-    {
-        panic("MIPS MT not defined for CheckerCPU.\n");
-        return 0;
-    }
-
-    void
-    setRegOtherThread(const RegId& misc_reg, RegVal val, ThreadID tid) override
-    {
-        panic("MIPS MT not defined for CheckerCPU.\n");
-    }
-#endif
-
     /////////////////////////////////////////
 
     void
@@ -554,9 +539,6 @@ class CheckerCPU : public BaseCPU, public ExecContext
     void setStCondFailures(unsigned int sc_failures) override {}
     /////////////////////////////////////////////////////
 
-    Fault hwrei() override { return thread->hwrei(); }
-    bool simPalCheck(int palFunc) override
-    { return thread->simPalCheck(palFunc); }
     void wakeup(ThreadID tid) override { }
     // Assume that the normal CPU's call to syscall was successful.
     // The checker's state would have already been updated by the syscall.

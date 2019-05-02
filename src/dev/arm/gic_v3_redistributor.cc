@@ -44,6 +44,7 @@ Gicv3Redistributor::Gicv3Redistributor(Gicv3 * gic, uint32_t cpu_id)
       distributor(nullptr),
       cpuInterface(nullptr),
       cpuId(cpu_id),
+      memProxy(nullptr),
       irqGroup(Gicv3::SGI_MAX + Gicv3::PPI_MAX),
       irqEnabled(Gicv3::SGI_MAX + Gicv3::PPI_MAX),
       irqPending(Gicv3::SGI_MAX + Gicv3::PPI_MAX),
@@ -51,7 +52,8 @@ Gicv3Redistributor::Gicv3Redistributor(Gicv3 * gic, uint32_t cpu_id)
       irqPriority(Gicv3::SGI_MAX + Gicv3::PPI_MAX),
       irqConfig(Gicv3::SGI_MAX + Gicv3::PPI_MAX),
       irqGrpmod(Gicv3::SGI_MAX + Gicv3::PPI_MAX),
-      irqNsacr(Gicv3::SGI_MAX + Gicv3::PPI_MAX)
+      irqNsacr(Gicv3::SGI_MAX + Gicv3::PPI_MAX),
+      addrRangeSize(gic->params()->gicv4 ? 0x40000 : 0x20000)
 {
 }
 
@@ -60,6 +62,8 @@ Gicv3Redistributor::init()
 {
     distributor = gic->getDistributor();
     cpuInterface = gic->getCPUInterface(cpuId);
+
+    memProxy = &gic->getSystem()->physProxy;
 }
 
 void
@@ -674,9 +678,6 @@ Gicv3Redistributor::write(Addr addr, uint64_t data, size_t size,
               lpiIDBits = 0xf;
           }
 
-          uint32_t largest_lpi_id = 2 ^ (lpiIDBits + 1);
-          uint32_t number_lpis = largest_lpi_id - SMALLEST_LPI_ID + 1;
-          lpiConfigurationTable.resize(number_lpis);
           break;
       }
 
@@ -697,25 +698,12 @@ Gicv3Redistributor::write(Addr addr, uint64_t data, size_t size,
         break;
 
       case GICR_INVLPIR: { // Redistributor Invalidate LPI Register
-          uint32_t lpi_id = data & 0xffffffff;
-          uint32_t largest_lpi_id = 2 ^ (lpiIDBits + 1);
-
-          if (lpi_id > largest_lpi_id) {
-              return;
-          }
-
-          uint32_t lpi_table_entry_index = lpi_id - SMALLEST_LPI_ID;
-          invalLpiConfig(lpi_table_entry_index);
+          // Do nothing: no caching supported
           break;
       }
 
       case GICR_INVALLR: { // Redistributor Invalidate All Register
-          for (int lpi_table_entry_index = 0;
-               lpi_table_entry_index < lpiConfigurationTable.size();
-               lpi_table_entry_index++) {
-              invalLpiConfig(lpi_table_entry_index);
-          }
-
+          // Do nothing: no caching supported
           break;
       }
 
@@ -723,17 +711,6 @@ Gicv3Redistributor::write(Addr addr, uint64_t data, size_t size,
         panic("Gicv3Redistributor::write(): invalid offset %#x\n", addr);
         break;
     }
-}
-
-void
-Gicv3Redistributor::invalLpiConfig(uint32_t lpi_entry_index)
-{
-    Addr lpi_table_entry_ptr = lpiConfigurationTablePtr +
-        lpi_entry_index * sizeof(LPIConfigurationTableEntry);
-    ThreadContext * tc = gic->getSystem()->getThreadContext(cpuId);
-    tc->getVirtProxy().readBlob(lpi_table_entry_ptr,
-            (uint8_t*) &lpiConfigurationTable[lpi_entry_index],
-            sizeof(LPIConfigurationTableEntry));
 }
 
 void
@@ -829,45 +806,95 @@ Gicv3Redistributor::update()
     }
 
     // Check LPIs
-    uint32_t largest_lpi_id = 2 ^ (lpiIDBits + 1);
-    char lpi_pending_table[largest_lpi_id / 8];
-    ThreadContext * tc = gic->getSystem()->getThreadContext(cpuId);
-    tc->getVirtProxy().readBlob(lpiPendingTablePtr,
-                                (uint8_t *) lpi_pending_table,
-                                sizeof(lpi_pending_table));
-    for (int lpi_id = SMALLEST_LPI_ID; lpi_id < largest_lpi_id;
-         largest_lpi_id++) {
-        uint32_t lpi_pending_entry_byte = lpi_id / 8;
-        uint8_t lpi_pending_entry_bit_position = lpi_id % 8;
-        bool lpi_is_pending = lpi_pending_table[lpi_pending_entry_byte] &
-                              1 << lpi_pending_entry_bit_position;
-        uint32_t lpi_configuration_entry_index = lpi_id - SMALLEST_LPI_ID;
-        bool lpi_is_enable =
-            lpiConfigurationTable[lpi_configuration_entry_index].enable;
-        // LPIs are always Non-secure Group 1 interrupts,
-        // in a system where two Security states are enabled.
-        Gicv3::GroupId lpi_group = Gicv3::G1NS;
-        bool group_enabled = distributor->groupEnabled(lpi_group);
+    if (EnableLPIs) {
 
-        if (lpi_is_pending && lpi_is_enable && group_enabled) {
-            uint8_t lpi_priority =
-                lpiConfigurationTable[lpi_configuration_entry_index].priority;
+        const uint32_t largest_lpi_id = 1 << (lpiIDBits + 1);
+        const uint32_t number_lpis = largest_lpi_id - SMALLEST_LPI_ID + 1;
 
-            if ((lpi_priority < cpuInterface->hppi.prio) ||
-                (lpi_priority == cpuInterface->hppi.prio &&
-                 lpi_id < cpuInterface->hppi.intid)) {
-                cpuInterface->hppi.intid = lpi_id;
-                cpuInterface->hppi.prio = lpi_priority;
-                cpuInterface->hppi.group = lpi_group;
-                new_hppi = true;
+        uint8_t lpi_pending_table[largest_lpi_id / 8];
+        uint8_t lpi_config_table[number_lpis];
+
+        memProxy->readBlob(lpiPendingTablePtr,
+                           (uint8_t *) lpi_pending_table,
+                           sizeof(lpi_pending_table));
+
+        memProxy->readBlob(lpiConfigurationTablePtr,
+                           (uint8_t*) lpi_config_table,
+                           sizeof(lpi_config_table));
+
+        for (int lpi_id = SMALLEST_LPI_ID; lpi_id < largest_lpi_id;
+             lpi_id++) {
+            uint32_t lpi_pending_entry_byte = lpi_id / 8;
+            uint8_t lpi_pending_entry_bit_position = lpi_id % 8;
+            bool lpi_is_pending = lpi_pending_table[lpi_pending_entry_byte] &
+                                  1 << lpi_pending_entry_bit_position;
+            uint32_t lpi_configuration_entry_index = lpi_id - SMALLEST_LPI_ID;
+
+            LPIConfigurationTableEntry config_entry =
+                lpi_config_table[lpi_configuration_entry_index];
+
+            bool lpi_is_enable = config_entry.enable;
+
+            // LPIs are always Non-secure Group 1 interrupts,
+            // in a system where two Security states are enabled.
+            Gicv3::GroupId lpi_group = Gicv3::G1NS;
+            bool group_enabled = distributor->groupEnabled(lpi_group);
+
+            if (lpi_is_pending && lpi_is_enable && group_enabled) {
+                uint8_t lpi_priority = config_entry.priority << 2;
+
+                if ((lpi_priority < cpuInterface->hppi.prio) ||
+                    (lpi_priority == cpuInterface->hppi.prio &&
+                     lpi_id < cpuInterface->hppi.intid)) {
+                    cpuInterface->hppi.intid = lpi_id;
+                    cpuInterface->hppi.prio = lpi_priority;
+                    cpuInterface->hppi.group = lpi_group;
+                    new_hppi = true;
+                }
             }
         }
     }
 
     if (!new_hppi && cpuInterface->hppi.prio != 0xff &&
-        cpuInterface->hppi.intid < Gicv3::SGI_MAX + Gicv3::PPI_MAX) {
+        (cpuInterface->hppi.intid < Gicv3::SGI_MAX + Gicv3::PPI_MAX ||
+         cpuInterface->hppi.intid > SMALLEST_LPI_ID)) {
         distributor->fullUpdate();
     }
+}
+
+uint8_t
+Gicv3Redistributor::readEntryLPI(uint32_t lpi_id)
+{
+    Addr lpi_pending_entry_ptr = lpiPendingTablePtr + (lpi_id / 8);
+
+    uint8_t lpi_pending_entry;
+    memProxy->readBlob(lpi_pending_entry_ptr,
+                       (uint8_t*) &lpi_pending_entry,
+                       sizeof(lpi_pending_entry));
+
+    return lpi_pending_entry;
+}
+
+void
+Gicv3Redistributor::writeEntryLPI(uint32_t lpi_id, uint8_t lpi_pending_entry)
+{
+    Addr lpi_pending_entry_ptr = lpiPendingTablePtr + (lpi_id / 8);
+
+    memProxy->writeBlob(lpi_pending_entry_ptr,
+                        (uint8_t*) &lpi_pending_entry,
+                        sizeof(lpi_pending_entry));
+}
+
+bool
+Gicv3Redistributor::isPendingLPI(uint32_t lpi_id)
+{
+    // Fetch the LPI pending entry from memory
+    uint8_t lpi_pending_entry = readEntryLPI(lpi_id);
+
+    uint8_t lpi_pending_entry_bit_position = lpi_id % 8;
+    bool is_set = lpi_pending_entry & (1 << lpi_pending_entry_bit_position);
+
+    return is_set;
 }
 
 void
@@ -880,7 +907,7 @@ Gicv3Redistributor::setClrLPI(uint64_t data, bool set)
     }
 
     uint32_t lpi_id = data & 0xffffffff;
-    uint32_t largest_lpi_id = 2 ^ (lpiIDBits + 1);
+    uint32_t largest_lpi_id = 1 << (lpiIDBits + 1);
 
     if (lpi_id > largest_lpi_id) {
         // Writes to GICR_SETLPIR or GICR_CLRLPIR have not effect if
@@ -888,12 +915,9 @@ Gicv3Redistributor::setClrLPI(uint64_t data, bool set)
         return;
     }
 
-    Addr lpi_pending_entry_ptr = lpiPendingTablePtr + (lpi_id / 8);
-    uint8_t lpi_pending_entry;
-    ThreadContext * tc = gic->getSystem()->getThreadContext(cpuId);
-    tc->getVirtProxy().readBlob(lpi_pending_entry_ptr,
-            (uint8_t*) &lpi_pending_entry,
-            sizeof(lpi_pending_entry));
+    // Fetch the LPI pending entry from memory
+    uint8_t lpi_pending_entry = readEntryLPI(lpi_id);
+
     uint8_t lpi_pending_entry_bit_position = lpi_id % 8;
     bool is_set = lpi_pending_entry & (1 << lpi_pending_entry_bit_position);
 
@@ -915,9 +939,8 @@ Gicv3Redistributor::setClrLPI(uint64_t data, bool set)
         lpi_pending_entry &= ~(1 << (lpi_pending_entry_bit_position));
     }
 
-    tc->getVirtProxy().writeBlob(lpi_pending_entry_ptr,
-            (uint8_t*) &lpi_pending_entry,
-            sizeof(lpi_pending_entry));
+    writeEntryLPI(lpi_id, lpi_pending_entry);
+
     updateAndInformCPUInterface();
 }
 

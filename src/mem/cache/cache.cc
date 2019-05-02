@@ -383,7 +383,7 @@ Cache::handleTimingReqMiss(PacketPtr pkt, CacheBlk *blk, Tick forward_time,
                                                        pkt->req->masterId());
             pf = new Packet(req, pkt->cmd);
             pf->allocate();
-            assert(pf->getAddr() == pkt->getAddr());
+            assert(pf->matchAddr(pkt));
             assert(pf->getSize() == pkt->getSize());
         }
 
@@ -687,7 +687,7 @@ Cache::recvAtomic(PacketPtr pkt)
 void
 Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
 {
-    MSHR::Target *initial_tgt = mshr->getTarget();
+    QueueEntry::Target *initial_tgt = mshr->getTarget();
     // First offset for critical word first calculations
     const int initial_offset = initial_tgt->pkt->getOffset(blkSize);
 
@@ -781,7 +781,7 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
                     pkt->payloadDelay;
                 if (pkt->isRead() && !is_error) {
                     // sanity check
-                    assert(pkt->getAddr() == tgt_pkt->getAddr());
+                    assert(pkt->matchAddr(tgt_pkt));
                     assert(pkt->getSize() >= tgt_pkt->getSize());
 
                     tgt_pkt->setData(pkt->getConstPtr<uint8_t>());
@@ -1177,13 +1177,6 @@ Cache::recvTimingSnoopReq(PacketPtr pkt)
         DPRINTF(Cache, "Setting block cached for %s from lower cache on "
                 "mshr hit\n", pkt->print());
         pkt->setBlockCached();
-        return;
-    }
-
-    // Bypass any existing cache maintenance requests if the request
-    // has been satisfied already (i.e., the dirty block has been
-    // found).
-    if (mshr && pkt->req->isCacheMaintenance() && pkt->satisfied()) {
         return;
     }
 

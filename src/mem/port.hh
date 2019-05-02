@@ -51,10 +51,11 @@
 #define __MEM_PORT_HH__
 
 #include "base/addr_range.hh"
+#include "mem/backdoor.hh"
 #include "mem/packet.hh"
 #include "sim/port.hh"
 
-class MemObject;
+class SimObject;
 
 /** Forward declaration */
 class BaseSlavePort;
@@ -122,11 +123,11 @@ class MasterPort : public BaseMasterPort
 
   protected:
 
-    MemObject& owner;
+    SimObject& owner;
 
   public:
 
-    MasterPort(const std::string& name, MemObject* _owner,
+    MasterPort(const std::string& name, SimObject* _owner,
                PortID id=InvalidPortID);
     virtual ~MasterPort();
 
@@ -151,6 +152,18 @@ class MasterPort : public BaseMasterPort
      * @return Estimated latency of access.
      */
     Tick sendAtomic(PacketPtr pkt);
+
+    /**
+     * Send an atomic request packet like above, but also request a backdoor
+     * to the data being accessed.
+     *
+     * @param pkt Packet to send.
+     * @param backdoor Can be set to a back door pointer by the target to let
+     *        caller have direct access to the requested data.
+     *
+     * @return Estimated latency of access.
+     */
+    Tick sendAtomicBackdoor(PacketPtr pkt, MemBackdoorPtr &backdoor);
 
     /**
      * Send a functional request packet, where the data is instantly
@@ -300,14 +313,15 @@ class SlavePort : public BaseSlavePort
   private:
 
     MasterPort* _masterPort;
+    bool defaultBackdoorWarned;
 
   protected:
 
-    MemObject& owner;
+    SimObject& owner;
 
   public:
 
-    SlavePort(const std::string& name, MemObject* _owner,
+    SlavePort(const std::string& name, SimObject* _owner,
               PortID id=InvalidPortID);
     virtual ~SlavePort();
 
@@ -414,6 +428,12 @@ class SlavePort : public BaseSlavePort
      * Receive an atomic request packet from the master port.
      */
     virtual Tick recvAtomic(PacketPtr pkt) = 0;
+
+    /**
+     * Receive an atomic request packet from the master port, and optionally
+     * provide a backdoor to the data being accessed.
+     */
+    virtual Tick recvAtomicBackdoor(PacketPtr pkt, MemBackdoorPtr &backdoor);
 
     /**
      * Receive a functional request packet from the master port.

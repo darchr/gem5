@@ -166,9 +166,9 @@ class Gicv3(BaseGic):
     type = 'Gicv3'
     cxx_header = "dev/arm/gic_v3.hh"
 
-    dist_addr = Param.Addr(0x2c000000, "Address for distributor")
+    dist_addr = Param.Addr("Address for distributor")
     dist_pio_delay = Param.Latency('10ns', "Delay for PIO r/w to distributor")
-    redist_addr = Param.Addr(0x2c010000, "Address for redistributors")
+    redist_addr = Param.Addr("Address for redistributors")
     redist_pio_delay = Param.Latency('10ns',
             "Delay for PIO r/w to redistributors")
     it_lines = Param.UInt32(1020,
@@ -178,3 +178,9 @@ class Gicv3(BaseGic):
         "HV maintenance interrupt."
         "ARM strongly recommends that maintenance interrupts "
         "are configured to use INTID 25 (PPI Interrupt).")
+
+    cpu_max = Param.Unsigned(256,
+        "Maximum number of PE. This is affecting the maximum number of "
+        "redistributors")
+
+    gicv4 = Param.Bool(True, "GICv4 extension available")

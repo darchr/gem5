@@ -57,7 +57,10 @@
 using namespace std;
 
 AbstractMemory::AbstractMemory(const Params *p) :
-    MemObject(p), range(params()->range), pmemAddr(NULL),
+    ClockedObject(p), range(params()->range), pmemAddr(NULL),
+    backdoor(params()->range, nullptr,
+             (MemBackdoor::Flags)(MemBackdoor::Readable |
+                                  MemBackdoor::Writeable)),
     confTableReported(p->conf_table_reported), inAddrMap(p->in_addr_map),
     kvmMap(p->kvm_map), _system(NULL)
 {
@@ -75,13 +78,20 @@ AbstractMemory::init()
 void
 AbstractMemory::setBackingStore(uint8_t* pmem_addr)
 {
+    // If there was an existing backdoor, let everybody know it's going away.
+    if (backdoor.ptr())
+        backdoor.invalidate();
+
+    // The back door can't handle interleaved memory.
+    backdoor.ptr(range.interleaved() ? nullptr : pmem_addr);
+
     pmemAddr = pmem_addr;
 }
 
 void
 AbstractMemory::regStats()
 {
-    MemObject::regStats();
+    ClockedObject::regStats();
 
     using namespace Stats;
 
@@ -329,8 +339,7 @@ AbstractMemory::access(PacketPtr pkt)
       return;
     }
 
-    assert(AddrRange(pkt->getAddr(),
-                     pkt->getAddr() + (pkt->getSize() - 1)).isSubset(range));
+    assert(pkt->getAddrRange().isSubset(range));
 
     uint8_t *hostAddr = pmemAddr + pkt->getAddr() - range.start();
 
@@ -420,8 +429,7 @@ AbstractMemory::access(PacketPtr pkt)
 void
 AbstractMemory::functionalAccess(PacketPtr pkt)
 {
-    assert(AddrRange(pkt->getAddr(),
-                     pkt->getAddr() + pkt->getSize() - 1).isSubset(range));
+    assert(pkt->getAddrRange().isSubset(range));
 
     uint8_t *hostAddr = pmemAddr + pkt->getAddr() - range.start();
 

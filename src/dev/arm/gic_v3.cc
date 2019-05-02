@@ -48,20 +48,28 @@ Gicv3::Gicv3(const Params * p)
 void
 Gicv3::init()
 {
-    distRange = RangeSize(params()->dist_addr,
-                          Gicv3Distributor::ADDR_RANGE_SIZE - 1);
-    redistRange = RangeSize(params()->redist_addr,
-        Gicv3Redistributor::ADDR_RANGE_SIZE * sys->numContexts() - 1);
-    addrRanges = {distRange, redistRange};
-    BaseGic::init();
     distributor = new Gicv3Distributor(this, params()->it_lines);
     redistributors.resize(sys->numContexts(), nullptr);
     cpuInterfaces.resize(sys->numContexts(), nullptr);
+
+    panic_if(sys->numContexts() > params()->cpu_max,
+        "Exceeding maximum number of PEs supported by GICv3: "
+        "using %u while maximum is %u\n", sys->numContexts(),
+        params()->cpu_max);
 
     for (int i = 0; i < sys->numContexts(); i++) {
         redistributors[i] = new Gicv3Redistributor(this, i);
         cpuInterfaces[i] = new Gicv3CPUInterface(this, i);
     }
+
+    distRange = RangeSize(params()->dist_addr,
+        Gicv3Distributor::ADDR_RANGE_SIZE - 1);
+
+    redistSize = redistributors[0]->addrRangeSize;
+    redistRange = RangeSize(params()->redist_addr,
+         redistSize * sys->numContexts() - 1);
+
+    addrRanges = {distRange, redistRange};
 
     distributor->init();
 
@@ -69,6 +77,8 @@ Gicv3::init()
         redistributors[i]->init();
         cpuInterfaces[i]->init();
     }
+
+    BaseGic::init();
 }
 
 void
@@ -100,19 +110,15 @@ Gicv3::read(PacketPtr pkt)
                 "size %d is_secure_access %d (value %#x)\n",
                 pkt->req->contextId(), daddr, size, is_secure_access, resp);
     } else if (redistRange.contains(addr)) {
-        Addr daddr = addr - redistRange.start();
-        uint32_t redistributor_id =
-            daddr / Gicv3Redistributor::ADDR_RANGE_SIZE;
-        daddr = daddr % Gicv3Redistributor::ADDR_RANGE_SIZE;
-        panic_if(redistributor_id >= redistributors.size(),
-                 "Invalid redistributor_id!");
-        panic_if(!redistributors[redistributor_id], "Redistributor is null!");
-        resp = redistributors[redistributor_id]->read(daddr, size,
-                                                      is_secure_access);
+        Addr daddr = (addr - redistRange.start()) % redistSize;
+
+        Gicv3Redistributor *redist = getRedistributorByAddr(addr);
+        resp = redist->read(daddr, size, is_secure_access);
+
         delay = params()->redist_pio_delay;
         DPRINTF(GIC, "Gicv3::read(): (redistributor %d) context_id %d "
                 "register %#x size %d is_secure_access %d (value %#x)\n",
-                redistributor_id, pkt->req->contextId(), daddr, size,
+                redist->processorNumber(), pkt->req->contextId(), daddr, size,
                 is_secure_access, resp);
     } else {
         panic("Gicv3::read(): unknown address %#x\n", addr);
@@ -141,19 +147,16 @@ Gicv3::write(PacketPtr pkt)
         distributor->write(daddr, data, size, is_secure_access);
         delay = params()->dist_pio_delay;
     } else if (redistRange.contains(addr)) {
-        Addr daddr = addr - redistRange.start();
-        uint32_t redistributor_id =
-            daddr / Gicv3Redistributor::ADDR_RANGE_SIZE;
-        daddr = daddr % Gicv3Redistributor::ADDR_RANGE_SIZE;
-        panic_if(redistributor_id >= redistributors.size(),
-                 "Invalid redistributor_id!");
-        panic_if(!redistributors[redistributor_id], "Redistributor is null!");
+        Addr daddr = (addr - redistRange.start()) % redistSize;
+
+        Gicv3Redistributor *redist = getRedistributorByAddr(addr);
         DPRINTF(GIC, "Gicv3::write(): (redistributor %d) context_id %d "
                 "register %#x size %d is_secure_access %d value %#x\n",
-                redistributor_id, pkt->req->contextId(), daddr, size,
+                redist->processorNumber(), pkt->req->contextId(), daddr, size,
                 is_secure_access, data);
-        redistributors[redistributor_id]->write(daddr, data, size,
-                                                is_secure_access);
+
+        redist->write(daddr, data, size, is_secure_access);
+
         delay = params()->redist_pio_delay;
     } else {
         panic("Gicv3::write(): unknown address %#x\n", addr);
@@ -216,6 +219,22 @@ Gicv3::getRedistributorByAffinity(uint32_t affinity) const
     }
 
     return nullptr;
+}
+
+Gicv3Redistributor *
+Gicv3::getRedistributorByAddr(Addr addr) const
+{
+    panic_if(!redistRange.contains(addr),
+        "Address not pointing to a valid redistributor\n");
+
+    const Addr daddr = addr - redistRange.start();
+    const uint32_t redistributor_id = daddr / redistSize;
+
+    panic_if(redistributor_id >= redistributors.size(),
+             "Invalid redistributor_id!");
+    panic_if(!redistributors[redistributor_id], "Redistributor is null!");
+
+    return redistributors[redistributor_id];
 }
 
 void

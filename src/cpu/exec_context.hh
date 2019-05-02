@@ -311,25 +311,6 @@ class ExecContext {
 
     /**
      * @{
-     * @name Alpha-Specific Interfaces
-     */
-
-    /**
-     * Somewhat Alpha-specific function that handles returning from an
-     * error or interrupt.
-     */
-    virtual Fault hwrei() = 0;
-
-    /**
-     * Check for special simulator handling of specific PAL calls.  If
-     * return value is false, actual PAL call will be suppressed.
-     */
-    virtual bool simPalCheck(int palFunc) = 0;
-
-    /** @} */
-
-    /**
-     * @{
      * @name ARM-Specific Interfaces
      */
 
@@ -351,20 +332,6 @@ class ExecContext {
     virtual bool mwait(PacketPtr pkt) = 0;
     virtual void mwaitAtomic(ThreadContext *tc) = 0;
     virtual AddressMonitor *getAddrMonitor() = 0;
-
-    /** @} */
-
-    /**
-     * @{
-     * @name MIPS-Specific Interfaces
-     */
-
-#if THE_ISA == MIPS_ISA
-    virtual RegVal readRegOtherThread(const RegId &reg,
-                                       ThreadID tid=InvalidThreadID) = 0;
-    virtual void setRegOtherThread(const RegId& reg, RegVal val,
-                                   ThreadID tid=InvalidThreadID) = 0;
-#endif
 
     /** @} */
 };

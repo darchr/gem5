@@ -68,12 +68,12 @@
 #include "mem/cache/tags/base.hh"
 #include "mem/cache/write_queue.hh"
 #include "mem/cache/write_queue_entry.hh"
-#include "mem/mem_object.hh"
 #include "mem/packet.hh"
 #include "mem/packet_queue.hh"
 #include "mem/qport.hh"
 #include "mem/request.hh"
 #include "params/WriteAllocator.hh"
+#include "sim/clocked_object.hh"
 #include "sim/eventq.hh"
 #include "sim/probe/probe.hh"
 #include "sim/serialize.hh"
@@ -91,7 +91,7 @@ struct BaseCacheParams;
 /**
  * A basic cache interface. Implements some common functions for speed.
  */
-class BaseCache : public MemObject
+class BaseCache : public ClockedObject
 {
   protected:
     /**
@@ -189,10 +189,12 @@ class BaseCache : public MemObject
          * send out, and if so simply stall any requests, and schedule
          * a send event at the same time as the next snoop response is
          * being sent out.
+         *
+         * @param pkt The packet to check for conflicts against.
          */
-        bool checkConflictingSnoop(Addr addr)
+        bool checkConflictingSnoop(const PacketPtr pkt)
         {
-            if (snoopRespQueue.hasAddr(addr)) {
+            if (snoopRespQueue.checkConflict(pkt, cache.blkSize)) {
                 DPRINTF(CachePort, "Waiting for snoop response to be "
                         "sent\n");
                 Tick when = snoopRespQueue.deferredPacketReadyTime();

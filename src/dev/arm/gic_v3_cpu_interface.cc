@@ -36,6 +36,9 @@
 #include "dev/arm/gic_v3_distributor.hh"
 #include "dev/arm/gic_v3_redistributor.hh"
 
+const uint8_t Gicv3CPUInterface::GIC_MIN_BPR;
+const uint8_t Gicv3CPUInterface::GIC_MIN_BPR_NS;
+
 Gicv3CPUInterface::Gicv3CPUInterface(Gicv3 * gic, uint32_t cpu_id)
     : BaseISADevice(),
       gic(gic),
@@ -322,6 +325,8 @@ Gicv3CPUInterface::readMiscReg(int misc_reg)
                 bpr = isa->readMiscRegNoEffect(MISCREG_ICC_BPR0_EL1);
             } else {
                 bpr = isa->readMiscRegNoEffect(MISCREG_ICC_BPR1_EL1);
+                bpr = std::max(bpr, group == Gicv3::G1S ?
+                    GIC_MIN_BPR : GIC_MIN_BPR_NS);
             }
 
             if (sat_inc) {
@@ -409,7 +414,8 @@ Gicv3CPUInterface::readMiscReg(int misc_reg)
               int_id = getHPPIR0();
 
               // avoid activation for special interrupts
-              if (int_id < Gicv3::INTID_SECURE) {
+              if (int_id < Gicv3::INTID_SECURE ||
+                  int_id >= Gicv3Redistributor::SMALLEST_LPI_ID) {
                   activateIRQ(int_id, hppi.group);
               }
           } else {
@@ -464,7 +470,8 @@ Gicv3CPUInterface::readMiscReg(int misc_reg)
               int_id = getHPPIR1();
 
               // avoid activation for special interrupts
-              if (int_id < Gicv3::INTID_SECURE) {
+              if (int_id < Gicv3::INTID_SECURE ||
+                  int_id >= Gicv3Redistributor::SMALLEST_LPI_ID) {
                   activateIRQ(int_id, hppi.group);
               }
           } else {
@@ -778,7 +785,8 @@ Gicv3CPUInterface::setMiscReg(int misc_reg, RegVal val)
           int int_id = val & 0xffffff;
 
           // avoid activation for special interrupts
-          if (int_id >= Gicv3::INTID_SECURE) {
+          if (int_id >= Gicv3::INTID_SECURE &&
+              int_id <= Gicv3::INTID_SPURIOUS) {
               return;
           }
 
@@ -847,7 +855,8 @@ Gicv3CPUInterface::setMiscReg(int misc_reg, RegVal val)
           int int_id = val & 0xffffff;
 
           // avoid deactivation for special interrupts
-          if (int_id >= Gicv3::INTID_SECURE) {
+          if (int_id >= Gicv3::INTID_SECURE &&
+              int_id <= Gicv3::INTID_SPURIOUS) {
               return;
           }
 
@@ -1770,6 +1779,9 @@ Gicv3CPUInterface::activateIRQ(uint32_t int_id, Gicv3::GroupId group)
         // SPI, distributor
         distributor->activateIRQ(int_id);
         distributor->updateAndInformCPUInterfaces();
+    } else if (int_id >= Gicv3Redistributor::SMALLEST_LPI_ID) {
+        // LPI, Redistributor
+        redistributor->setClrLPI(int_id, false);
     }
 }
 
@@ -1806,7 +1818,8 @@ Gicv3CPUInterface::deactivateIRQ(uint32_t int_id, Gicv3::GroupId group)
         distributor->deactivateIRQ(int_id);
         distributor->updateAndInformCPUInterfaces();
     } else {
-        return;
+        // LPI, redistributor, shouldn't deactivate
+        redistributor->updateAndInformCPUInterface();
     }
 }
 
@@ -1836,7 +1849,7 @@ Gicv3CPUInterface::virtualDeactivateIRQ(int lr_idx)
  * GroupBits() Pseudocode from spec.
  */
 uint32_t
-Gicv3CPUInterface::groupPriorityMask(Gicv3::GroupId group) const
+Gicv3CPUInterface::groupPriorityMask(Gicv3::GroupId group)
 {
     ICC_CTLR_EL1 icc_ctlr_el1_s =
         isa->readMiscRegNoEffect(MISCREG_ICC_CTLR_EL1_S);
@@ -1851,9 +1864,9 @@ Gicv3CPUInterface::groupPriorityMask(Gicv3::GroupId group) const
     int bpr;
 
     if (group == Gicv3::G0S) {
-        bpr = isa->readMiscRegNoEffect(MISCREG_ICC_BPR0_EL1) & 0x7;
+        bpr = readMiscReg(MISCREG_ICC_BPR0_EL1) & 0x7;
     } else {
-        bpr = isa->readMiscRegNoEffect(MISCREG_ICC_BPR1_EL1) & 0x7;
+        bpr = readMiscReg(MISCREG_ICC_BPR1_EL1) & 0x7;
     }
 
     if (group == Gicv3::G1NS) {
@@ -2157,7 +2170,7 @@ Gicv3CPUInterface::intSignalType(Gicv3::GroupId group) const
 }
 
 bool
-Gicv3CPUInterface::hppiCanPreempt() const
+Gicv3CPUInterface::hppiCanPreempt()
 {
     if (hppi.prio == 0xff) {
         // there is no pending interrupt

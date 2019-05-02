@@ -502,22 +502,6 @@ class SimpleExecContext : public ExecContext {
     /** Returns a pointer to the ThreadContext. */
     ThreadContext *tcBase() override { return thread->getTC(); }
 
-    /**
-     * Somewhat Alpha-specific function that handles returning from an
-     * error or interrupt.
-     */
-    Fault hwrei() override { return thread->hwrei(); }
-
-    /**
-     * Check for special simulator handling of specific PAL calls.  If
-     * return value is false, actual PAL call will be suppressed.
-     */
-    bool
-    simPalCheck(int palFunc) override
-    {
-        return thread->simPalCheck(palFunc);
-    }
-
     bool
     readPredicate() const override
     {
@@ -566,25 +550,6 @@ class SimpleExecContext : public ExecContext {
     {
         return cpu->getCpuAddrMonitor(thread->threadId());
     }
-
-#if THE_ISA == MIPS_ISA
-    RegVal
-    readRegOtherThread(const RegId& reg, ThreadID tid=InvalidThreadID)
-        override
-    {
-        panic("Simple CPU models do not support multithreaded "
-              "register access.");
-    }
-
-    void
-    setRegOtherThread(const RegId& reg, RegVal val,
-                      ThreadID tid=InvalidThreadID) override
-    {
-        panic("Simple CPU models do not support multithreaded "
-              "register access.");
-    }
-#endif
-
 };
 
 #endif // __CPU_EXEC_CONTEXT_HH__

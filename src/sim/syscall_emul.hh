@@ -78,14 +78,19 @@
 
 #endif
 #include <fcntl.h>
+#include <net/if.h>
 #include <poll.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+
 #if (NO_STATFS == 0)
 #include <sys/statfs.h>
+
 #else
 #include <sys/mount.h>
+
 #endif
 #include <sys/time.h>
 #include <sys/types.h>
@@ -749,23 +754,65 @@ ioctlFunc(SyscallDesc *desc, int callnum, Process *p, ThreadContext *tc)
     int tgt_fd = p->getSyscallArg(tc, index);
     unsigned req = p->getSyscallArg(tc, index);
 
-    DPRINTF(SyscallVerbose, "ioctl(%d, 0x%x, ...)\n", tgt_fd, req);
+    DPRINTF_SYSCALL(Verbose, "ioctl(%d, 0x%x, ...)\n", tgt_fd, req);
 
     if (OS::isTtyReq(req))
         return -ENOTTY;
 
     auto dfdp = std::dynamic_pointer_cast<DeviceFDEntry>((*p->fds)[tgt_fd]);
-    if (!dfdp)
-        return -EBADF;
+    if (dfdp) {
+        EmulatedDriver *emul_driver = dfdp->getDriver();
+        if (emul_driver)
+            return emul_driver->ioctl(p, tc, req);
+    }
 
-    /**
-     * If the driver is valid, issue the ioctl through it. Otherwise,
-     * there's an implicit assumption that the device is a TTY type and we
-     * return that we do not have a valid TTY.
-     */
-    EmulatedDriver *emul_driver = dfdp->getDriver();
-    if (emul_driver)
-        return emul_driver->ioctl(p, tc, req);
+    auto sfdp = std::dynamic_pointer_cast<SocketFDEntry>((*p->fds)[tgt_fd]);
+    if (sfdp) {
+        int status;
+
+        switch (req) {
+          case SIOCGIFCONF: {
+            Addr conf_addr = p->getSyscallArg(tc, index);
+            BufferArg conf_arg(conf_addr, sizeof(ifconf));
+            conf_arg.copyIn(tc->getMemProxy());
+
+            ifconf *conf = (ifconf*)conf_arg.bufferPtr();
+            Addr ifc_buf_addr = (Addr)conf->ifc_buf;
+            BufferArg ifc_buf_arg(ifc_buf_addr, conf->ifc_len);
+            ifc_buf_arg.copyIn(tc->getMemProxy());
+
+            conf->ifc_buf = (char*)ifc_buf_arg.bufferPtr();
+
+            status = ioctl(sfdp->getSimFD(), req, conf_arg.bufferPtr());
+            if (status != -1) {
+                conf->ifc_buf = (char*)ifc_buf_addr;
+                ifc_buf_arg.copyOut(tc->getMemProxy());
+                conf_arg.copyOut(tc->getMemProxy());
+            }
+
+            return status;
+          }
+          case SIOCGIFFLAGS:
+#ifdef __linux__
+          case SIOCGIFINDEX:
+#endif
+          case SIOCGIFNETMASK:
+          case SIOCGIFADDR:
+#ifdef __linux__
+          case SIOCGIFHWADDR:
+#endif
+          case SIOCGIFMTU: {
+            Addr req_addr = p->getSyscallArg(tc, index);
+            BufferArg req_arg(req_addr, sizeof(ifreq));
+            req_arg.copyIn(tc->getMemProxy());
+
+            status = ioctl(sfdp->getSimFD(), req, req_arg.bufferPtr());
+            if (status != -1)
+                req_arg.copyOut(tc->getMemProxy());
+            return status;
+          }
+        }
+    }
 
     /**
      * For lack of a better return code, return ENOTTY. Ideally, we should
@@ -837,14 +884,18 @@ openImpl(SyscallDesc *desc, int callnum, Process *p, ThreadContext *tc,
      * In every case, we should have a full path (which is relevant to the
      * host) to work with after this block has been passed.
      */
-    if (!isopenat || (isopenat && tgt_dirfd == OS::TGT_AT_FDCWD)) {
-        path = p->fullPath(path);
+    std::string redir_path = path;
+    std::string abs_path = path;
+    if (!isopenat || tgt_dirfd == OS::TGT_AT_FDCWD) {
+        abs_path = p->absolutePath(path, true);
+        redir_path = p->checkPathRedirect(path);
     } else if (!startswith(path, "/")) {
         std::shared_ptr<FDEntry> fdep = ((*p->fds)[tgt_dirfd]);
         auto ffdp = std::dynamic_pointer_cast<FileFDEntry>(fdep);
         if (!ffdp)
             return -EBADF;
-        path.insert(0, ffdp->getFileName() + "/");
+        abs_path = ffdp->getFileName() + path;
+        redir_path = p->checkPathRedirect(abs_path);
     }
 
     /**
@@ -853,13 +904,13 @@ openImpl(SyscallDesc *desc, int callnum, Process *p, ThreadContext *tc,
      * the process class through Python; this allows us to create a file
      * descriptor for subsequent ioctl or mmap calls.
      */
-    if (startswith(path, "/dev/")) {
-        std::string filename = path.substr(strlen("/dev/"));
+    if (startswith(abs_path, "/dev/")) {
+        std::string filename = abs_path.substr(strlen("/dev/"));
         EmulatedDriver *drv = p->findDriver(filename);
         if (drv) {
             DPRINTF_SYSCALL(Verbose, "open%s: passing call to "
                             "driver open with path[%s]\n",
-                            isopenat ? "at" : "", path.c_str());
+                            isopenat ? "at" : "", abs_path.c_str());
             return drv->open(p, tc, mode, host_flags);
         }
         /**
@@ -869,28 +920,49 @@ openImpl(SyscallDesc *desc, int callnum, Process *p, ThreadContext *tc,
     }
 
     /**
-     * Some special paths and files cannot be called on the host and need
-     * to be handled as special cases inside the simulator.
-     * If the full path that was created above does not match any of the
-     * special cases, pass it through to the open call on the host to let
-     * the host open the file on our behalf.
-     * If the host cannot open the file, return the host's error code back
-     * through the system call to the simulated process.
+     * We make several attempts resolve a call to open.
+     *
+     * 1) Resolve any path redirection before hand. This will set the path
+     * up with variable 'redir_path' which may contain a modified path or
+     * the original path value. This should already be done in prior code.
+     * 2) Try to handle the access using 'special_paths'. Some special_paths
+     * and files cannot be called on the host and need to be handled as
+     * special cases inside the simulator. These special_paths are handled by
+     * C++ routines to provide output back to userspace.
+     * 3) If the full path that was created above does not match any of the
+     * special cases, pass it through to the open call on the __HOST__ to let
+     * the host open the file on our behalf. Again, the openImpl tries to
+     * USE_THE_HOST_FILESYSTEM_OPEN (with a possible redirection to the
+     * faux-filesystem files). The faux-filesystem is dynamically created
+     * during simulator configuration using Python functions.
+     * 4) If the host cannot open the file, the open attempt failed in "3)".
+     * Return the host's error code back through the system call to the
+     * simulated process. If running a debug trace, also notify the user that
+     * the open call failed.
+     *
+     * Any success will set sim_fd to something other than -1 and skip the
+     * next conditions effectively bypassing them.
      */
     int sim_fd = -1;
+    std::string used_path;
     std::vector<std::string> special_paths =
-            { "/proc/", "/system/", "/sys/", "/platform/", "/etc/passwd" };
+            { "/proc/meminfo/", "/system/", "/sys/", "/platform/",
+              "/etc/passwd" };
     for (auto entry : special_paths) {
-        if (startswith(path, entry))
-            sim_fd = OS::openSpecialFile(path, p, tc);
+        if (startswith(path, entry)) {
+            sim_fd = OS::openSpecialFile(abs_path, p, tc);
+            used_path = abs_path;
+        }
     }
     if (sim_fd == -1) {
-        sim_fd = open(path.c_str(), host_flags, mode);
+        sim_fd = open(redir_path.c_str(), host_flags, mode);
+        used_path = redir_path;
     }
     if (sim_fd == -1) {
         int local = -errno;
-        DPRINTF_SYSCALL(Verbose, "open%s: failed -> path:%s\n",
-                        isopenat ? "at" : "", path.c_str());
+        DPRINTF_SYSCALL(Verbose, "open%s: failed -> path:%s "
+                        "(inferred from:%s)\n", isopenat ? "at" : "",
+                        used_path.c_str(), path.c_str());
         return local;
     }
 
@@ -904,8 +976,9 @@ openImpl(SyscallDesc *desc, int callnum, Process *p, ThreadContext *tc,
      */
     auto ffdp = std::make_shared<FileFDEntry>(sim_fd, host_flags, path, 0);
     int tgt_fd = p->fds->allocFD(ffdp);
-    DPRINTF_SYSCALL(Verbose, "open%s: sim_fd[%d], target_fd[%d] -> path:%s\n",
-                    isopenat ? "at" : "", sim_fd, tgt_fd, path.c_str());
+    DPRINTF_SYSCALL(Verbose, "open%s: sim_fd[%d], target_fd[%d] -> path:%s\n"
+                    "(inferred from:%s)\n", isopenat ? "at" : "",
+                    sim_fd, tgt_fd, used_path.c_str(), path.c_str());
     return tgt_fd;
 }
 
@@ -995,9 +1068,9 @@ renameatFunc(SyscallDesc *desc, int callnum, Process *process,
                                          process->getSyscallArg(tc, index)))
         return -EFAULT;
 
-    // Adjust path for current working directory
-    old_name = process->fullPath(old_name);
-    new_name = process->fullPath(new_name);
+    // Adjust path for cwd and redirection
+    old_name = process->checkPathRedirect(old_name);
+    new_name = process->checkPathRedirect(new_name);
 
     int result = rename(old_name.c_str(), new_name.c_str());
     return (result == -1) ? -errno : result;
@@ -1043,8 +1116,8 @@ chmodFunc(SyscallDesc *desc, int callnum, Process *process,
     // XXX translate mode flags via OS::something???
     hostMode = mode;
 
-    // Adjust path for current working directory
-    path = process->fullPath(path);
+    // Adjust path for cwd and redirection
+    path = process->checkPathRedirect(path);
 
     // do the chmod
     int result = chmod(path.c_str(), hostMode);
@@ -1244,8 +1317,8 @@ statFunc(SyscallDesc *desc, int callnum, Process *process,
     }
     Addr bufPtr = process->getSyscallArg(tc, index);
 
-    // Adjust path for current working directory
-    path = process->fullPath(path);
+    // Adjust path for cwd and redirection
+    path = process->checkPathRedirect(path);
 
     struct stat hostBuf;
     int result = stat(path.c_str(), &hostBuf);
@@ -1273,8 +1346,8 @@ stat64Func(SyscallDesc *desc, int callnum, Process *process,
         return -EFAULT;
     Addr bufPtr = process->getSyscallArg(tc, index);
 
-    // Adjust path for current working directory
-    path = process->fullPath(path);
+    // Adjust path for cwd and redirection
+    path = process->checkPathRedirect(path);
 
 #if NO_STAT64
     struct stat  hostBuf;
@@ -1310,8 +1383,8 @@ fstatat64Func(SyscallDesc *desc, int callnum, Process *process,
         return -EFAULT;
     Addr bufPtr = process->getSyscallArg(tc, index);
 
-    // Adjust path for current working directory
-    path = process->fullPath(path);
+    // Adjust path for cwd and redirection
+    path = process->checkPathRedirect(path);
 
 #if NO_STAT64
     struct stat  hostBuf;
@@ -1376,8 +1449,8 @@ lstatFunc(SyscallDesc *desc, int callnum, Process *process,
     }
     Addr bufPtr = process->getSyscallArg(tc, index);
 
-    // Adjust path for current working directory
-    path = process->fullPath(path);
+    // Adjust path for cwd and redirection
+    path = process->checkPathRedirect(path);
 
     struct stat hostBuf;
     int result = lstat(path.c_str(), &hostBuf);
@@ -1405,8 +1478,8 @@ lstat64Func(SyscallDesc *desc, int callnum, Process *process,
     }
     Addr bufPtr = process->getSyscallArg(tc, index);
 
-    // Adjust path for current working directory
-    path = process->fullPath(path);
+    // Adjust path for cwd and redirection
+    path = process->checkPathRedirect(path);
 
 #if NO_STAT64
     struct stat hostBuf;
@@ -1469,8 +1542,8 @@ statfsFunc(SyscallDesc *desc, int callnum, Process *process,
     }
     Addr bufPtr = process->getSyscallArg(tc, index);
 
-    // Adjust path for current working directory
-    path = process->fullPath(path);
+    // Adjust path for cwd and redirection
+    path = process->checkPathRedirect(path);
 
     struct statfs hostBuf;
     int result = statfs(path.c_str(), &hostBuf);
@@ -1531,7 +1604,7 @@ cloneFunc(SyscallDesc *desc, int callnum, Process *p, ThreadContext *tc)
     pp->executable.assign(*(new std::string(p->progName())));
     pp->cmd.push_back(*(new std::string(p->progName())));
     pp->system = p->system;
-    pp->cwd.assign(p->getcwd());
+    pp->cwd.assign(p->tgtCwd);
     pp->input.assign("stdin");
     pp->output.assign("stdout");
     pp->errout.assign("stderr");
@@ -1551,6 +1624,8 @@ cloneFunc(SyscallDesc *desc, int callnum, Process *p, ThreadContext *tc)
 
     pp->pid = temp_pid;
     pp->ppid = (flags & OS::TGT_CLONE_THREAD) ? p->ppid() : p->pid();
+    pp->useArchPT = p->useArchPT;
+    pp->kvmInSE = p->kvmInSE;
     Process *cp = pp->create();
     delete pp;
 
@@ -1566,6 +1641,10 @@ cloneFunc(SyscallDesc *desc, int callnum, Process *p, ThreadContext *tc)
         ptidBuf.copyOut(tc->getMemProxy());
     }
 
+    if (flags & OS::TGT_CLONE_THREAD) {
+        cp->pTable->shared = true;
+        cp->useForClone = true;
+    }
     cp->initState();
     p->clone(tc, ctc, cp, flags);
 
@@ -1599,9 +1678,17 @@ cloneFunc(SyscallDesc *desc, int callnum, Process *p, ThreadContext *tc)
     ctc->setIntReg(TheISA::SyscallPseudoReturnReg, 1);
 #endif
 
-    TheISA::PCState cpc = tc->pcState();
-    cpc.advance();
-    ctc->pcState(cpc);
+    if (p->kvmInSE) {
+#if THE_ISA == X86_ISA
+        ctc->pcState(tc->readIntReg(TheISA::INTREG_RCX));
+#else
+        panic("KVM CPU model is not supported for this ISA");
+#endif
+    } else {
+        TheISA::PCState cpc = tc->pcState();
+        cpc.advance();
+        ctc->pcState(cpc);
+    }
     ctc->activate();
 
     return cp->pid();
@@ -2082,8 +2169,8 @@ utimesFunc(SyscallDesc *desc, int callnum, Process *process,
         hostTimeval[i].tv_usec = TheISA::gtoh((*tp)[i].tv_usec);
     }
 
-    // Adjust path for current working directory
-    path = process->fullPath(path);
+    // Adjust path for cwd and redirection
+    path = process->checkPathRedirect(path);
 
     int result = utimes(path.c_str(), hostTimeval);
 
@@ -2145,7 +2232,7 @@ execveFunc(SyscallDesc *desc, int callnum, Process *p, ThreadContext *tc)
     pp->input.assign("cin");
     pp->output.assign("cout");
     pp->errout.assign("cerr");
-    pp->cwd.assign(p->getcwd());
+    pp->cwd.assign(p->tgtCwd);
     pp->system = p->system;
     /**
      * Prevent process object creation with identical PIDs (which will trip
@@ -2654,10 +2741,9 @@ wait4Func(SyscallDesc *desc, int num, Process *p, ThreadContext *tc)
     Addr rusagePtr = p->getSyscallArg(tc, index);
 
     if (rusagePtr)
-        DPRINTFR(SyscallVerbose,
-                 "%d: %s: syscall wait4: rusage pointer provided however "
+        DPRINTF_SYSCALL(Verbose, "wait4: rusage pointer provided %lx, however "
                  "functionality not supported. Ignoring rusage pointer.\n",
-                 curTick(), tc->getCpuPtr()->name());
+                 rusagePtr);
 
     /**
      * Currently, wait4 is only implemented so that it will wait for children

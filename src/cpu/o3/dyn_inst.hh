@@ -248,11 +248,8 @@ class BaseO3DynInst : public BaseDynInst<Impl>
             }
         }
     }
-    /** Calls hardware return from error interrupt. */
-    Fault hwrei() override;
     /** Traps to handle specified fault. */
     void trap(const Fault &fault);
-    bool simPalCheck(int palFunc) override;
 
     /** Emulates a syscall. */
     void syscall(int64_t callnum, Fault *fault) override;
@@ -429,21 +426,6 @@ class BaseO3DynInst : public BaseDynInst<Impl>
         this->cpu->setCCReg(this->_destRegIdx[idx], val);
         BaseDynInst<Impl>::setCCRegOperand(si, idx, val);
     }
-
-#if THE_ISA == MIPS_ISA
-    RegVal
-    readRegOtherThread(const RegId& misc_reg, ThreadID tid) override
-    {
-        panic("MIPS MT not defined for O3 CPU.\n");
-        return 0;
-    }
-
-    void
-    setRegOtherThread(const RegId& misc_reg, RegVal val, ThreadID tid) override
-    {
-        panic("MIPS MT not defined for O3 CPU.\n");
-    }
-#endif
 };
 
 #endif // __CPU_O3_ALPHA_DYN_INST_HH__

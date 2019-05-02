@@ -43,7 +43,6 @@
 
 #include "cpu/simple/base.hh"
 
-#include "arch/kernel_stats.hh"
 #include "arch/stacktrace.hh"
 #include "arch/utility.hh"
 #include "arch/vtophys.hh"
@@ -70,7 +69,6 @@
 #include "debug/Decode.hh"
 #include "debug/Fetch.hh"
 #include "debug/Quiesce.hh"
-#include "mem/mem_object.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
 #include "params/BaseSimpleCPU.hh"
@@ -175,12 +173,12 @@ BaseSimpleCPU::countInst()
     if (!curStaticInst->isMicroop() || curStaticInst->isLastMicroop()) {
         t_info.numInst++;
         t_info.numInsts++;
+
+        system->totalNumInsts++;
+        t_info.thread->funcExeInst++;
     }
     t_info.numOp++;
     t_info.numOps++;
-
-    system->totalNumInsts++;
-    t_info.thread->funcExeInst++;
 }
 
 Counter
