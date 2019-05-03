@@ -28,8 +28,8 @@
  * Authors: Bradley Wang
  */
 
-#ifndef __CPU_FLEXCPU_SIMPLE_DATAFLOW_CPU_HH__
-#define __CPU_FLEXCPU_SIMPLE_DATAFLOW_CPU_HH__
+#ifndef __CPU_FLEXCPU_FLEXCPU_HH__
+#define __CPU_FLEXCPU_FLEXCPU_HH__
 
 #include <functional>
 #include <list>
@@ -37,17 +37,17 @@
 #include <vector>
 
 #include "cpu/base.hh"
-#include "cpu/flexcpu/simple_dataflow_thread.hh"
+#include "cpu/flexcpu/flexcpu_thread.hh"
 #include "mem/packet.hh"
-#include "params/SimpleDataflowCPU.hh"
+#include "params/FlexCPU.hh"
 
-class SDCPUThread;
+class FlexCPUThread;
 /**
  * The CPU class represents a core, which contains hardware capable of running
  * one or more threads. This class has the responsibility of managing hardware
  * structures and controlling the timing of events.
  */
-class SimpleDataflowCPU : public BaseCPU
+class FlexCPU : public BaseCPU
 {
   public:
     using ExecCallback = std::function<void(Fault)>;
@@ -70,11 +70,11 @@ class SimpleDataflowCPU : public BaseCPU
     class DataPort : public MasterPort
     {
       protected:
-        SimpleDataflowCPU* cpu;
+        FlexCPU* cpu;
       public:
         PacketPtr blockedPkt = nullptr;
 
-        DataPort(const std::string& name_, SimpleDataflowCPU* cpu_):
+        DataPort(const std::string& name_, FlexCPU* cpu_):
             MasterPort(name_, cpu_),
             cpu(cpu_)
         { }
@@ -94,11 +94,11 @@ class SimpleDataflowCPU : public BaseCPU
     class InstPort : public MasterPort
     {
       protected:
-        SimpleDataflowCPU* cpu;
+        FlexCPU* cpu;
       public:
         PacketPtr blockedPkt = nullptr;
 
-        InstPort(const std::string& name_, SimpleDataflowCPU* cpu_):
+        InstPort(const std::string& name_, FlexCPU* cpu_):
             MasterPort(name_, cpu_),
             cpu(cpu_)
         { }
@@ -130,11 +130,11 @@ class SimpleDataflowCPU : public BaseCPU
     class CallbackTransHandler : public BaseTLB::Translation
     {
       protected:
-        SimpleDataflowCPU *cpu;
+        FlexCPU *cpu;
         TranslationCallback callback;
         Tick sendTime;
       public:
-        CallbackTransHandler(SimpleDataflowCPU *cpu,
+        CallbackTransHandler(FlexCPU *cpu,
                              TranslationCallback callback,
                              Tick send_time):
             cpu(cpu), callback(callback), sendTime(send_time)
@@ -194,7 +194,7 @@ class SimpleDataflowCPU : public BaseCPU
     class Resource
     {
       protected:
-        SimpleDataflowCPU* cpu;
+        FlexCPU* cpu;
 
       private:
         const Cycles latency;
@@ -246,7 +246,7 @@ class SimpleDataflowCPU : public BaseCPU
          * @param whether the event should run last (with lower priority) in
          *        the event queue. Needed for fetches.
          */
-        Resource(SimpleDataflowCPU *cpu,
+        Resource(FlexCPU *cpu,
                  Cycles latency, int bandwidth,
                  std::string _name, bool run_last = false);
 
@@ -285,7 +285,7 @@ class SimpleDataflowCPU : public BaseCPU
     class InstFetchResource : public Resource
     {
       public:
-        InstFetchResource(SimpleDataflowCPU *cpu, int bandwidth,
+        InstFetchResource(FlexCPU *cpu, int bandwidth,
                           std::string _name);
       private:
         bool resourceAvailable() override;
@@ -294,7 +294,7 @@ class SimpleDataflowCPU : public BaseCPU
     class MemoryResource : public Resource
     {
       public:
-        MemoryResource(SimpleDataflowCPU *cpu, int bandwidth,
+        MemoryResource(FlexCPU *cpu, int bandwidth,
                        std::string _name);
       private:
         bool resourceAvailable() override;
@@ -316,7 +316,7 @@ class SimpleDataflowCPU : public BaseCPU
     // Using unique_ptr for now since holding objects directly results
     // in calls to the object's copy constructor, which SimpleThread does not
     // like.
-    std::vector<std::unique_ptr<SDCPUThread>> threads;
+    std::vector<std::unique_ptr<FlexCPUThread>> threads;
 
     // Note: I was informed that the pointer you get back is the same pointer
     //       you send through the port, so it's safe to do this mapping. It may
@@ -368,13 +368,13 @@ class SimpleDataflowCPU : public BaseCPU
     /**
      * Constructor.
      */
-    SimpleDataflowCPU(SimpleDataflowCPUParams* params);
+    FlexCPU(FlexCPUParams* params);
 
     /**
      * Virtual destructor explicitly declared, so that this class can be
      * subclassed.
      */
-    virtual ~SimpleDataflowCPU() = default;
+    virtual ~FlexCPU() = default;
 
     // BEGIN Member functions (sorted alphabetically)
 
@@ -646,4 +646,4 @@ class SimpleDataflowCPU : public BaseCPU
 };
 
 
-#endif // __CPU_FLEXCPU_SIMPLE_DATAFLOW_CPU_HH__
+#endif // __CPU_FLEXCPU_FLEXCPU_HH__

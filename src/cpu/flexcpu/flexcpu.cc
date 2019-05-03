@@ -28,18 +28,18 @@
  * Authors: Bradley Wang
  */
 
-#include "cpu/flexcpu/simple_dataflow_cpu.hh"
+#include "cpu/flexcpu/flexcpu.hh"
 
 #include "arch/locked_mem.hh"
 #include "arch/mmapped_ipr.hh"
 #include "base/compiler.hh"
-#include "debug/SDCPUCoreEvent.hh"
+#include "debug/FlexCPUCoreEvent.hh"
 
 using namespace std;
 using namespace TheISA;
 
 
-SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
+FlexCPU::FlexCPU(FlexCPUParams* params):
     BaseCPU(params),
     cacheBlockMask(~(cacheLineSize() - 1)),
     executionLatency(params->execution_latency),
@@ -57,13 +57,14 @@ SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
     _dataPort(name() + "._dataPort", this),
     _instPort(name() + "._instPort", this)
 {
-    fatal_if(FullSystem, "FullSystem not implemented for SimpleDataflowCPU");
+    fatal_if(FullSystem, "FullSystem not implemented for FlexCPU");
 
     for (ThreadID i = 0; i < numThreads; i++) {
         // Move constructor + vector should allow us to avoid memory leaks like
         // the SimpleCPU implementations have.
-        threads.push_back(m5::make_unique<SDCPUThread>(this, i, params->system,
-            params->workload[i], params->itb, params->dtb, params->isa[i],
+        threads.push_back(m5::make_unique<FlexCPUThread>(this, i,
+            params->system, params->workload[i], params->itb, params->dtb,
+            params->isa[i],
             params->fetch_buffer_size,
             params->instruction_buffer_size,
             params->strict_serialization));
@@ -73,15 +74,15 @@ SimpleDataflowCPU::SimpleDataflowCPU(SimpleDataflowCPUParams* params):
 }
 
 void
-SimpleDataflowCPU::activateContext(ThreadID tid)
+FlexCPU::activateContext(ThreadID tid)
 {
-    DPRINTF(SDCPUCoreEvent, "activateContext(%d)\n", tid);
+    DPRINTF(FlexCPUCoreEvent, "activateContext(%d)\n", tid);
 
     BaseCPU::activateContext(tid);
 }
 
 void
-SimpleDataflowCPU::completeMemAccess(PacketPtr orig_pkt, StaticInstPtr inst,
+FlexCPU::completeMemAccess(PacketPtr orig_pkt, StaticInstPtr inst,
                                      std::weak_ptr<ExecContext> context,
                                      Trace::InstRecord* trace_data,
                                      MemCallback callback,
@@ -136,19 +137,19 @@ SimpleDataflowCPU::completeMemAccess(PacketPtr orig_pkt, StaticInstPtr inst,
 }
 
 MasterPort&
-SimpleDataflowCPU::getDataPort()
+FlexCPU::getDataPort()
 {
     return _dataPort;
 }
 
 MasterPort&
-SimpleDataflowCPU::getInstPort()
+FlexCPU::getInstPort()
 {
     return _instPort;
 }
 
 void
-SimpleDataflowCPU::init()
+FlexCPU::init()
 {
     BaseCPU::init();
 
@@ -169,7 +170,7 @@ SimpleDataflowCPU::init()
 }
 
 void
-SimpleDataflowCPU::markActiveCycle()
+FlexCPU::markActiveCycle()
 {
     if (curTick() != lastActiveTick) {
         numCycles++;
@@ -181,11 +182,11 @@ SimpleDataflowCPU::markActiveCycle()
 }
 
 void
-SimpleDataflowCPU::requestDataAddrTranslation(const RequestPtr& req,
+FlexCPU::requestDataAddrTranslation(const RequestPtr& req,
     ThreadContext* tc, bool write, std::weak_ptr<ExecContext> context,
     TranslationCallback callback_func)
 {
-    DPRINTF(SDCPUCoreEvent, "requestDataAddrTranslation()\n");
+    DPRINTF(FlexCPUCoreEvent, "requestDataAddrTranslation()\n");
     // delay if we're out of slots for simultaneous dtb translations
 
     Tick queue_time = curTick();
@@ -214,12 +215,12 @@ SimpleDataflowCPU::requestDataAddrTranslation(const RequestPtr& req,
 }
 
 void
-SimpleDataflowCPU::requestExecution(StaticInstPtr inst,
+FlexCPU::requestExecution(StaticInstPtr inst,
                                     weak_ptr<ExecContext> context,
                                     Trace::InstRecord* trace_data,
                                     ExecCallback callback_func)
 {
-    DPRINTF(SDCPUCoreEvent, "requestExecution()\n");
+    DPRINTF(FlexCPUCoreEvent, "requestExecution()\n");
 
     Tick queue_time = curTick();
 
@@ -255,12 +256,12 @@ SimpleDataflowCPU::requestExecution(StaticInstPtr inst,
 }
 
 void
-SimpleDataflowCPU::requestInstAddrTranslation(const RequestPtr& req,
+FlexCPU::requestInstAddrTranslation(const RequestPtr& req,
     ThreadContext* tc,
     TranslationCallback callback_func,
     std::function<bool()> is_squashed)
 {
-    DPRINTF(SDCPUCoreEvent, "requestInstAddrTranslation()\n");
+    DPRINTF(FlexCPUCoreEvent, "requestInstAddrTranslation()\n");
 
     Tick queue_time = curTick();
 
@@ -286,10 +287,10 @@ SimpleDataflowCPU::requestInstAddrTranslation(const RequestPtr& req,
 }
 
 void
-SimpleDataflowCPU::requestInstructionData(const RequestPtr& req,
+FlexCPU::requestInstructionData(const RequestPtr& req,
     FetchCallback callback_func, std::function<bool()> is_squashed)
 {
-    DPRINTF(SDCPUCoreEvent, "requestInstructionData()\n");
+    DPRINTF(FlexCPUCoreEvent, "requestInstructionData()\n");
 
     // Allocate some memory for objects we're about to send through the Port
     // system
@@ -313,7 +314,7 @@ SimpleDataflowCPU::requestInstructionData(const RequestPtr& req,
         //  Don't send any requests while we're waiting for recvReqRetry
         _instPort.sendPacket(pkt);
 
-        DPRINTF(SDCPUCoreEvent, "Sent a fetch request(pa: %#x)\n",
+        DPRINTF(FlexCPUCoreEvent, "Sent a fetch request(pa: %#x)\n",
                                 pkt->req->getPaddr());
 
         // We mark the control flow so that we know what to call when memory
@@ -327,10 +328,10 @@ SimpleDataflowCPU::requestInstructionData(const RequestPtr& req,
 }
 
 void
-SimpleDataflowCPU::requestIssue(function<void()> callback_func,
+FlexCPU::requestIssue(function<void()> callback_func,
                                 std::function<bool()> is_squashed)
 {
-    DPRINTF(SDCPUCoreEvent, "requestIssue()\n");
+    DPRINTF(FlexCPUCoreEvent, "requestIssue()\n");
 
     issueUnit.addRequest([callback_func, is_squashed] {
         if (is_squashed()) return false;
@@ -343,13 +344,13 @@ SimpleDataflowCPU::requestIssue(function<void()> callback_func,
 
 
 bool
-SimpleDataflowCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
+FlexCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
                                   StaticInstPtr inst,
                                   weak_ptr<ExecContext> context,
                                   Trace::InstRecord* trace_data,
                                   MemCallback callback_func)
 {
-    DPRINTF(SDCPUCoreEvent, "requestMemRead()\n");
+    DPRINTF(FlexCPUCoreEvent, "requestMemRead()\n");
 
     // Request can be handled immediately
     if (req->getFlags().isSet(Request::NO_ACCESS)) {
@@ -363,7 +364,7 @@ SimpleDataflowCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
 
     if (req->isMmappedIpr()) {
         // TODO think about limiting access to mmapped IPR
-        panic("SDCPU not programmed to understand mmapped IPR!");
+        panic("FlexCPU not programmed to understand mmapped IPR!");
         // Cycles delay = TheISA::handleIprRead(tc, pkt);
         // TODO create an event delay cycles later that calls completeAcc() on
         //      the StaticInst.
@@ -389,7 +390,7 @@ SimpleDataflowCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
         if (req->isLLSC()) {
             TheISA::handleLockedRead(tc, req);
         }
-        DPRINTF(SDCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
+        DPRINTF(FlexCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
                                 req->getPaddr());
 
         // When the result comes back from memory, call completeMemAccess
@@ -409,13 +410,13 @@ SimpleDataflowCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
 }
 
 bool
-SimpleDataflowCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
+FlexCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
                                    StaticInstPtr inst,
                                    weak_ptr<ExecContext> context,
                                    Trace::InstRecord* trace_data,
                                    uint8_t* data, MemCallback callback_func)
 {
-    DPRINTF(SDCPUCoreEvent, "requestMemWrite()\n");
+    DPRINTF(FlexCPUCoreEvent, "requestMemWrite()\n");
 
     // Request can be handled immediately
     if (req->getFlags().isSet(Request::NO_ACCESS)) {
@@ -440,7 +441,7 @@ SimpleDataflowCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
 
     if (req->isMmappedIpr()) {
         // TODO think about limiting access to mmapped IPR
-        panic("SDCPU not programmed to understand mmapped IPR!");
+        panic("FlexCPU not programmed to understand mmapped IPR!");
         // Cycles delay = TheISA::handleIprWrite(tc, pkt);
         // TODO create an event delay cycles later that calls completeAcc() on
         //      the StaticInst.
@@ -470,7 +471,7 @@ SimpleDataflowCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
 
         _dataPort.sendPacket(pkt);
 
-        DPRINTF(SDCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
+        DPRINTF(FlexCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
                                 req->getPaddr());
 
         // When the result comes back from memory, call completeMemAccess
@@ -490,7 +491,7 @@ SimpleDataflowCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
 }
 
 bool
-SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
+FlexCPU::requestSplitMemRead(const RequestPtr& main,
                                        const RequestPtr& low,
                                        const RequestPtr& high,
                                        ThreadContext* tc, StaticInstPtr inst,
@@ -539,7 +540,7 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
         if (low->isLLSC()) {
             TheISA::handleLockedRead(tc, low);
         }
-        DPRINTF(SDCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
+        DPRINTF(FlexCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
                                 low->getPaddr());
 
         // When the result comes back from memory, call completeMemAccess
@@ -576,7 +577,7 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
         if (high->isLLSC()) {
             TheISA::handleLockedRead(tc, high);
         }
-        DPRINTF(SDCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
+        DPRINTF(FlexCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
                                 high->getPaddr());
 
         // When the result comes back from memory, call completeMemAccess
@@ -596,7 +597,7 @@ SimpleDataflowCPU::requestSplitMemRead(const RequestPtr& main,
 }
 
 bool
-SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
+FlexCPU::requestSplitMemWrite(const RequestPtr& main,
                                         const RequestPtr& low,
                                         const RequestPtr& high,
                                         ThreadContext* tc, StaticInstPtr inst,
@@ -662,7 +663,7 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
 
         _dataPort.sendPacket(split_acc->low);
 
-        DPRINTF(SDCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
+        DPRINTF(FlexCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
                                 low->getPaddr());
 
         // When the result comes back from memory, call completeMemAccess
@@ -703,7 +704,7 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
 
         _dataPort.sendPacket(split_acc->high);
 
-        DPRINTF(SDCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
+        DPRINTF(FlexCPUCoreEvent, "Sent a memory request(pa: %#x)\n",
                                 high->getPaddr());
 
         // When the result comes back from memory, call completeMemAccess
@@ -724,7 +725,7 @@ SimpleDataflowCPU::requestSplitMemWrite(const RequestPtr& main,
 }
 
 void
-SimpleDataflowCPU::startup()
+FlexCPU::startup()
 {
     BaseCPU::startup();
 
@@ -734,21 +735,21 @@ SimpleDataflowCPU::startup()
 }
 
 void
-SimpleDataflowCPU::suspendContext(ThreadID tid)
+FlexCPU::suspendContext(ThreadID tid)
 {
     // Need to de-schedule any instructions in the pipeline?
     BaseCPU::suspendContext(tid);
 }
 
 void
-SimpleDataflowCPU::haltContext(ThreadID tid)
+FlexCPU::haltContext(ThreadID tid)
 {
     // Need to de-schedule any instructions in the pipeline?
     BaseCPU::haltContext(tid);
 }
 
 void
-SimpleDataflowCPU::switchOut()
+FlexCPU::switchOut()
 {
     // TODO flush speculative state.
     // TODO clear any outstanding memory requests.
@@ -757,7 +758,7 @@ SimpleDataflowCPU::switchOut()
 }
 
 void
-SimpleDataflowCPU::takeOverFrom(BaseCPU* cpu)
+FlexCPU::takeOverFrom(BaseCPU* cpu)
 {
     // TODO may want to ensure clean speculative state prior to attempting?
 
@@ -769,7 +770,7 @@ SimpleDataflowCPU::takeOverFrom(BaseCPU* cpu)
 }
 
 Counter
-SimpleDataflowCPU::totalInsts() const
+FlexCPU::totalInsts() const
 {
     Counter insts = 0;
     for (auto &thread : threads) {
@@ -779,7 +780,7 @@ SimpleDataflowCPU::totalInsts() const
 }
 
 Counter
-SimpleDataflowCPU::totalOps() const
+FlexCPU::totalOps() const
 {
     Counter ops = 0;
     for (auto &thread : threads) {
@@ -789,7 +790,7 @@ SimpleDataflowCPU::totalOps() const
 }
 
 void
-SimpleDataflowCPU::wakeup(ThreadID tid)
+FlexCPU::wakeup(ThreadID tid)
 {
     assert(tid < numThreads);
 
@@ -803,7 +804,7 @@ SimpleDataflowCPU::wakeup(ThreadID tid)
 }
 
 bool
-SimpleDataflowCPU::DataPort::recvTimingResp(PacketPtr pkt)
+FlexCPU::DataPort::recvTimingResp(PacketPtr pkt)
 {
     panic_if(!cpu->outstandingMemReqs.count(pkt),
         "Received a data port response we don't remember sending!");
@@ -819,38 +820,38 @@ SimpleDataflowCPU::DataPort::recvTimingResp(PacketPtr pkt)
 }
 
 void
-SimpleDataflowCPU::DataPort::recvReqRetry()
+FlexCPU::DataPort::recvReqRetry()
 {
     assert(blockedPkt);
-    DPRINTF(SDCPUCoreEvent, "data retrying %s\n", blockedPkt->print());
+    DPRINTF(FlexCPUCoreEvent, "data retrying %s\n", blockedPkt->print());
 
     PacketPtr pkt = blockedPkt;
     blockedPkt = nullptr;
     sendPacket(pkt);
 
     if (!blockedPkt) {
-        DPRINTF(SDCPUCoreEvent, "Sent successfully!\n");
+        DPRINTF(FlexCPUCoreEvent, "Sent successfully!\n");
         // If we're now unblocked, try to schedule other things from memoryunit
         cpu->memoryUnit.schedule();
     }
 }
 
 void
-SimpleDataflowCPU::DataPort::sendPacket(PacketPtr pkt)
+FlexCPU::DataPort::sendPacket(PacketPtr pkt)
 {
-    DPRINTF(SDCPUCoreEvent, "Data sending %s\n", pkt->print());
+    DPRINTF(FlexCPUCoreEvent, "Data sending %s\n", pkt->print());
     assert(!blockedPkt);
     if (!sendTimingReq(pkt)) {
-        DPRINTF(SDCPUCoreEvent, "Data failed to send %s\n",
+        DPRINTF(FlexCPUCoreEvent, "Data failed to send %s\n",
                  pkt->print());
         blockedPkt = pkt;
     }
 }
 
 bool
-SimpleDataflowCPU::InstPort::recvTimingResp(PacketPtr pkt)
+FlexCPU::InstPort::recvTimingResp(PacketPtr pkt)
 {
-    DPRINTF(SDCPUCoreEvent, "Received _instPort response (pa: %#x)\n",
+    DPRINTF(FlexCPUCoreEvent, "Received _instPort response (pa: %#x)\n",
                             pkt->req->getPaddr());
 
     panic_if(!cpu->outstandingFetches.count(pkt),
@@ -871,35 +872,35 @@ SimpleDataflowCPU::InstPort::recvTimingResp(PacketPtr pkt)
 }
 
 void
-SimpleDataflowCPU::InstPort::recvReqRetry()
+FlexCPU::InstPort::recvReqRetry()
 {
     assert(blockedPkt);
-    DPRINTF(SDCPUCoreEvent, "inst retrying %s\n", blockedPkt->print());
+    DPRINTF(FlexCPUCoreEvent, "inst retrying %s\n", blockedPkt->print());
 
     PacketPtr pkt = blockedPkt;
     blockedPkt = nullptr;
     sendPacket(pkt);
 
     if (!blockedPkt) {
-        DPRINTF(SDCPUCoreEvent,  "Sent successfully!\n");
+        DPRINTF(FlexCPUCoreEvent,  "Sent successfully!\n");
         // If we're now unblocked, try to schedule other things from memoryunit
         cpu->instFetchUnit.schedule();
     }
 }
 
 void
-SimpleDataflowCPU::InstPort::sendPacket(PacketPtr pkt)
+FlexCPU::InstPort::sendPacket(PacketPtr pkt)
 {
-    DPRINTF(SDCPUCoreEvent, "Inst sending %s\n", pkt->print());
+    DPRINTF(FlexCPUCoreEvent, "Inst sending %s\n", pkt->print());
     assert(!blockedPkt);
     if (!sendTimingReq(pkt)) {
-        DPRINTF(SDCPUCoreEvent, "Inst failed to send %s\n",
+        DPRINTF(FlexCPUCoreEvent, "Inst failed to send %s\n",
                 pkt->print());
         blockedPkt = pkt;
     }
 }
 
-SimpleDataflowCPU::Resource::Resource(SimpleDataflowCPU *cpu,
+FlexCPU::Resource::Resource(FlexCPU *cpu,
     Cycles latency, int bandwidth, std::string _name, bool run_last) :
     cpu(cpu), latency(latency), bandwidth(bandwidth),
     _name(_name),
@@ -911,17 +912,18 @@ SimpleDataflowCPU::Resource::Resource(SimpleDataflowCPU *cpu,
 }
 
 void
-SimpleDataflowCPU::Resource::addRequest(
+FlexCPU::Resource::addRequest(
     const std::function<bool ()>& run_function)
 {
-    DPRINTF(SDCPUCoreEvent, "Adding request. %d on queue\n", requests.size());
+    DPRINTF(FlexCPUCoreEvent, "Adding request. %d on queue\n",
+                              requests.size());
     requests.push_back(run_function);
 }
 
 void
-SimpleDataflowCPU::Resource::attemptAllRequests()
+FlexCPU::Resource::attemptAllRequests()
 {
-    DPRINTF(SDCPUCoreEvent, "Attempting all requests. %d on queue\n",
+    DPRINTF(FlexCPUCoreEvent, "Attempting all requests. %d on queue\n",
             requests.size());
 
     if (curTick() != lastActiveTick) {
@@ -932,7 +934,8 @@ SimpleDataflowCPU::Resource::attemptAllRequests()
         bandwidthPerCycle.sample(usedBandwidth);
 
         // Reset the bandwidth since we're on a new cycle.
-        DPRINTF(SDCPUCoreEvent, "reseting the bandwidth. Used %d last cycle\n",
+        DPRINTF(FlexCPUCoreEvent,
+                "resetting the bandwidth. Used %d last cycle\n",
                 usedBandwidth);
         usedBandwidth = 0;
         lastActiveTick = curTick();
@@ -946,10 +949,10 @@ SimpleDataflowCPU::Resource::attemptAllRequests()
     }
 
     while (!requests.empty() && resourceAvailable()) {
-        DPRINTF(SDCPUCoreEvent, "Running request. %d left in queue. "
+        DPRINTF(FlexCPUCoreEvent, "Running request. %d left in queue. "
                 "%d this cycle\n", requests.size(), usedBandwidth);
         auto& req = requests.front();
-        DPRINTF(SDCPUCoreEvent, "Executing request directly\n");
+        DPRINTF(FlexCPUCoreEvent, "Executing request directly\n");
         if (req()) usedBandwidth++;
 
         requests.pop_front();
@@ -957,7 +960,7 @@ SimpleDataflowCPU::Resource::attemptAllRequests()
 
     if (!requests.empty()) {
         // There's more thing to execute so reschedule the event for next time
-        DPRINTF(SDCPUCoreEvent, "Rescheduling resource\n");
+        DPRINTF(FlexCPUCoreEvent, "Rescheduling resource\n");
         Tick next_time;
         if (latency == 0) {
             next_time = cpu->nextCycle();
@@ -973,7 +976,7 @@ SimpleDataflowCPU::Resource::attemptAllRequests()
 }
 
 bool
-SimpleDataflowCPU::Resource::resourceAvailable()
+FlexCPU::Resource::resourceAvailable()
 {
     // Bandwidth of 0 implies infinite
     if (!bandwidth || usedBandwidth < bandwidth) {
@@ -984,20 +987,20 @@ SimpleDataflowCPU::Resource::resourceAvailable()
 }
 
 void
-SimpleDataflowCPU::Resource::schedule()
+FlexCPU::Resource::schedule()
 {
     // Note: on retries from memory we could try to schedule this even though
     //       the list of requests is empty. Revist this after implementing an
     //       LSQ.
-    DPRINTF(SDCPUCoreEvent, "Trying to schedule resource\n");
+    DPRINTF(FlexCPUCoreEvent, "Trying to schedule resource\n");
     if (!requests.empty() && !attemptAllEvent.scheduled()) {
-        DPRINTF(SDCPUCoreEvent, "Scheduling attempt all\n");
+        DPRINTF(FlexCPUCoreEvent, "Scheduling attempt all\n");
         cpu->schedule(&attemptAllEvent, cpu->clockEdge());
     }
 }
 
 bool
-SimpleDataflowCPU::InstFetchResource::resourceAvailable()
+FlexCPU::InstFetchResource::resourceAvailable()
 {
     if (cpu->_instPort.blocked()) {
         return false;
@@ -1006,18 +1009,18 @@ SimpleDataflowCPU::InstFetchResource::resourceAvailable()
     }
 }
 
-SimpleDataflowCPU::MemoryResource::MemoryResource(SimpleDataflowCPU *cpu,
+FlexCPU::MemoryResource::MemoryResource(FlexCPU *cpu,
     int bandwidth, std::string _name) :
     Resource(cpu, Cycles(0), bandwidth, _name)
 { }
 
-SimpleDataflowCPU::InstFetchResource::InstFetchResource(SimpleDataflowCPU *cpu,
+FlexCPU::InstFetchResource::InstFetchResource(FlexCPU *cpu,
     int bandwidth, std::string _name) :
     Resource(cpu, Cycles(0), bandwidth, _name, true)
 { }
 
 bool
-SimpleDataflowCPU::MemoryResource::resourceAvailable()
+FlexCPU::MemoryResource::resourceAvailable()
 {
     if (cpu->_dataPort.blocked()) {
         return false;
@@ -1027,7 +1030,7 @@ SimpleDataflowCPU::MemoryResource::resourceAvailable()
 }
 
 void
-SimpleDataflowCPU::regStats()
+FlexCPU::regStats()
 {
     dataAddrTranslationUnit.regStats();
     executionUnit.regStats();
@@ -1071,7 +1074,7 @@ SimpleDataflowCPU::regStats()
 }
 
 void
-SimpleDataflowCPU::Resource::regStats()
+FlexCPU::Resource::regStats()
 {
     activeCycles
         .name(name() + ".activeCycles")
@@ -1086,8 +1089,8 @@ SimpleDataflowCPU::Resource::regStats()
     ;
 }
 
-SimpleDataflowCPU*
-SimpleDataflowCPUParams::create()
+FlexCPU*
+FlexCPUParams::create()
 {
-    return new SimpleDataflowCPU(this);
+    return new FlexCPU(this);
 }

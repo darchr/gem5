@@ -28,24 +28,24 @@
  * Authors: Bradley Wang
  */
 
-#include "cpu/flexcpu/simple_dataflow_thread.hh"
+#include "cpu/flexcpu/flexcpu_thread.hh"
 
 #include <string>
 
 #include "base/intmath.hh"
 #include "base/trace.hh"
 
-#include "debug/SDCPUBufferDump.hh"
-#include "debug/SDCPUDeps.hh"
-#include "debug/SDCPUInstEvent.hh"
-#include "debug/SDCPUThreadEvent.hh"
+#include "debug/FlexCPUBufferDump.hh"
+#include "debug/FlexCPUDeps.hh"
+#include "debug/FlexCPUInstEvent.hh"
+#include "debug/FlexCPUThreadEvent.hh"
 #include "mem/request.hh"
 #include "sim/byteswap.hh"
 
 using namespace std;
 
 // Fullsystem mode constructor
-SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
+FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
                     System* system_, BaseTLB* itb_, BaseTLB* dtb_,
                     TheISA::ISA* isa_, bool use_kernel_stats_,
                     unsigned fetch_buf_size, unsigned inflight_insts_size,
@@ -68,7 +68,7 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
 }
 
 // Non-fullsystem constructor
-SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
+FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
                     System* system_, Process* process_, BaseTLB* itb_,
                     BaseTLB* dtb_, TheISA::ISA* isa_, unsigned fetch_buf_size,
                     unsigned inflight_insts_size, bool strict_ser):
@@ -89,7 +89,7 @@ SDCPUThread::SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_,
              "Can't send fetch requests larger than cache lines!");
 }
 
-SDCPUThread::~SDCPUThread()
+FlexCPUThread::~FlexCPUThread()
 {
     // TODO Properly hold state since THIS IS SUPER UNSAFE AND WILL RESULT IN
     // MULTIPLE DELETION UPON COPY.
@@ -97,7 +97,7 @@ SDCPUThread::~SDCPUThread()
 }
 
 void
-SDCPUThread::activate()
+FlexCPUThread::activate()
 {
     // Assuming everything else has been set up, and I can immediately request
     // my first instruction via a fetch request.
@@ -118,7 +118,7 @@ SDCPUThread::activate()
 }
 
 void
-SDCPUThread::advanceInst(TheISA::PCState next_pc)
+FlexCPUThread::advanceInst(TheISA::PCState next_pc)
 {
     if (status() != ThreadContext::Active) {
         // If this thread isn't currently active, don't do anything
@@ -136,18 +136,18 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
 
     const InstSeqNum seq_num = lastCommittedInstNum + inflightInsts.size() + 1;
 
-    DPRINTF(SDCPUThreadEvent, "advanceInst(seq %d, pc %#x, upc %#x)\n",
-                              seq_num,
-                              next_pc.pc(),
-                              next_pc.upc());
-    DPRINTF(SDCPUThreadEvent, "Buffer size increased to %d\n",
-                              inflightInsts.size());
+    DPRINTF(FlexCPUThreadEvent, "advanceInst(seq %d, pc %#x, upc %#x)\n",
+                                seq_num,
+                                next_pc.pc(),
+                                next_pc.upc());
+    DPRINTF(FlexCPUThreadEvent, "Buffer size increased to %d\n",
+                                inflightInsts.size());
 
     if (isRomMicroPC(next_pc.microPC())) {
         const StaticInstPtr static_inst =
             _cpuPtr->microcodeRom.fetchMicroop(next_pc.microPC(), curMacroOp);
 
-        DPRINTF(SDCPUInstEvent,
+        DPRINTF(FlexCPUInstEvent,
                 "Decoded ROM microop (seq %d) - %#x : %s\n",
                 seq_num,
                 next_pc.microPC(),
@@ -169,7 +169,7 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
         const StaticInstPtr static_inst =
             curMacroOp->fetchMicroop(next_pc.microPC());
 
-        DPRINTF(SDCPUInstEvent,
+        DPRINTF(FlexCPUInstEvent,
                 "Decoded microop (seq %d) - %#x : %s\n",
                 seq_num,
                 next_pc.microPC(),
@@ -200,10 +200,10 @@ SDCPUThread::advanceInst(TheISA::PCState next_pc)
 }
 
 void
-SDCPUThread::attemptFetch(shared_ptr<InflightInst> inst_ptr)
+FlexCPUThread::attemptFetch(shared_ptr<InflightInst> inst_ptr)
 {
 
-    DPRINTF(SDCPUThreadEvent, "attemptFetch()\n");
+    DPRINTF(FlexCPUThreadEvent, "attemptFetch()\n");
 
     // TODO check for interrupts
     // NOTE: You cannot take an interrupt in the middle of a macro-op.
@@ -228,8 +228,8 @@ SDCPUThread::attemptFetch(shared_ptr<InflightInst> inst_ptr)
      && req_vaddr >= fetchBufBase
      && req_vaddr + sizeof(TheISA::MachInst)
         <= fetchBufBase + fetchBuf.size()) {
-        DPRINTF(SDCPUThreadEvent, "Grabbing fetch data for vaddr(%#x) from "
-                                  "buffer.\n", req_vaddr);
+        DPRINTF(FlexCPUThreadEvent, "Grabbing fetch data for vaddr(%#x) from "
+                                    "buffer.\n", req_vaddr);
 
         const TheISA::MachInst inst_data =
             *reinterpret_cast<TheISA::MachInst*>(fetchBuf.data()
@@ -239,8 +239,8 @@ SDCPUThread::attemptFetch(shared_ptr<InflightInst> inst_ptr)
         return;
     } // Else we need to send a request to update the buffer.
 
-    DPRINTF(SDCPUThreadEvent, "Preparing inst translation request at %#x\n",
-                              req_vaddr);
+    DPRINTF(FlexCPUThreadEvent, "Preparing inst translation request at %#x\n",
+                                req_vaddr);
 
     const RequestPtr fetch_req = std::make_shared<Request>();
 
@@ -273,7 +273,7 @@ SDCPUThread::attemptFetch(shared_ptr<InflightInst> inst_ptr)
 }
 
 void
-SDCPUThread::attemptFetch(weak_ptr<InflightInst> inst)
+FlexCPUThread::attemptFetch(weak_ptr<InflightInst> inst)
 {
     const shared_ptr<InflightInst> inst_ptr = inst.lock();
     if (!inst_ptr || inst_ptr->isSquashed()) {
@@ -285,10 +285,10 @@ SDCPUThread::attemptFetch(weak_ptr<InflightInst> inst)
 }
 
 void
-SDCPUThread::bufferInstructionData(Addr vaddr, uint8_t* data)
+FlexCPUThread::bufferInstructionData(Addr vaddr, uint8_t* data)
 {
-    DPRINTF(SDCPUThreadEvent, "Updating fetch buffer with data from %#x\n",
-                              vaddr);
+    DPRINTF(FlexCPUThreadEvent, "Updating fetch buffer with data from %#x\n",
+                                vaddr);
 
     fetchBufBase = vaddr;
     if (!vaddr) return;
@@ -297,7 +297,7 @@ SDCPUThread::bufferInstructionData(Addr vaddr, uint8_t* data)
 }
 
 bool
-SDCPUThread::canCommit(const InflightInst& inst_ref)
+FlexCPUThread::canCommit(const InflightInst& inst_ref)
 {
     return !inst_ref.isCommitted() &&
            (inst_ref.isComplete()
@@ -305,10 +305,10 @@ SDCPUThread::canCommit(const InflightInst& inst_ref)
 }
 
 void
-SDCPUThread::commitAllAvailableInstructions()
+FlexCPUThread::commitAllAvailableInstructions()
 {
-    DPRINTF(SDCPUThreadEvent, "Committing complete instructions from head of "
-                              "buffer(%d).\n", inflightInsts.size());
+    DPRINTF(FlexCPUThreadEvent, "Committing complete instructions from head "
+                                "of buffer(%d).\n", inflightInsts.size());
 
     shared_ptr<InflightInst> inst_ptr;
 
@@ -335,9 +335,9 @@ SDCPUThread::commitAllAvailableInstructions()
     }
 
     if (inflightInsts.empty()) {
-        DPRINTF(SDCPUThreadEvent, "Buffer has completely emptied.\n");
+        DPRINTF(FlexCPUThreadEvent, "Buffer has completely emptied.\n");
     } else {
-        DPRINTF(SDCPUThreadEvent,
+        DPRINTF(FlexCPUThreadEvent,
             "%d commits stopped by (seq %d): %s\n",
             inflightInsts.size(),
             inst_ptr->seqNum(),
@@ -353,9 +353,9 @@ SDCPUThread::commitAllAvailableInstructions()
 }
 
 void
-SDCPUThread::commitInstruction(InflightInst* const inst_ptr)
+FlexCPUThread::commitInstruction(InflightInst* const inst_ptr)
 {
-    DPRINTF(SDCPUInstEvent,
+    DPRINTF(FlexCPUInstEvent,
             "Committing instruction (seq %d)\n", inst_ptr->seqNum());
 
     System *system = getSystemPtr();
@@ -393,12 +393,12 @@ SDCPUThread::commitInstruction(InflightInst* const inst_ptr)
 }
 
 void
-SDCPUThread::dumpBuffer()
+FlexCPUThread::dumpBuffer()
 {
-    if (!DTRACE(SDCPUBufferDump)) return;
+    if (!DTRACE(FlexCPUBufferDump)) return;
 
-    DPRINTF(SDCPUBufferDump, "%d instructions on the buffer:\n",
-                             inflightInsts.size());
+    DPRINTF(FlexCPUBufferDump, "%d instructions on the buffer:\n",
+                               inflightInsts.size());
 
     for (shared_ptr<InflightInst>& inst_ptr : inflightInsts) {
         const StaticInstPtr static_inst = inst_ptr->staticInst();
@@ -425,7 +425,7 @@ SDCPUThread::dumpBuffer()
             status = "Unknown";
         }
 
-        DPRINTF(SDCPUBufferDump, "(seq %d) Squashed: %s, Status: %s, Ready: "
+        DPRINTF(FlexCPUBufferDump, "(seq %d) Squashed: %s, Status: %s, Ready: "
                                  "%s, MemReady: %s\n    %s\n",
             inst_ptr->seqNum(),
             inst_ptr->isSquashed() ? "yes" : "no",
@@ -439,14 +439,14 @@ SDCPUThread::dumpBuffer()
 }
 
 void
-SDCPUThread::executeInstruction(shared_ptr<InflightInst> inst_ptr)
+FlexCPUThread::executeInstruction(shared_ptr<InflightInst> inst_ptr)
 {
     assert(inst_ptr->isReady());
 
     const StaticInstPtr static_inst = inst_ptr->staticInst();
 
-    DPRINTF(SDCPUInstEvent, "Beginning executing instruction (seq %d)\n",
-                            inst_ptr->seqNum());
+    DPRINTF(FlexCPUInstEvent, "Beginning executing instruction (seq %d)\n",
+                              inst_ptr->seqNum());
 
     function<void(Fault fault)> callback;
     weak_ptr<InflightInst> weak_inst = inst_ptr;
@@ -474,7 +474,7 @@ SDCPUThread::executeInstruction(shared_ptr<InflightInst> inst_ptr)
 }
 
 void
-SDCPUThread::executeInstruction(weak_ptr<InflightInst> inst)
+FlexCPUThread::executeInstruction(weak_ptr<InflightInst> inst)
 {
     const shared_ptr<InflightInst> inst_ptr = inst.lock();
     if (!inst_ptr || inst_ptr->isSquashed()) {
@@ -486,12 +486,12 @@ SDCPUThread::executeInstruction(weak_ptr<InflightInst> inst)
 }
 
 TheISA::PCState
-SDCPUThread::getNextPC()
+FlexCPUThread::getNextPC()
 {
     if (inflightInsts.empty()) {
         const TheISA::PCState ret = _committedState->pcState();
-        DPRINTF(SDCPUThreadEvent, "Getting PC %#x from committed state\n",
-                                  ret.instAddr());
+        DPRINTF(FlexCPUThreadEvent, "Getting PC %#x from committed state\n",
+                                    ret.instAddr());
         return ret;
     } else {
         const shared_ptr<InflightInst>& inst_ptr = inflightInsts.back();
@@ -501,19 +501,19 @@ SDCPUThread::getNextPC()
         TheISA::PCState ret = inst_ptr->pcState();
         inst_ptr->staticInst()->advancePC(ret);
 
-        DPRINTF(SDCPUThreadEvent, "Getting PC %#x from inst (seq %d)\n",
-                                  ret.instAddr(),
-                                  inst_ptr->seqNum());
+        DPRINTF(FlexCPUThreadEvent, "Getting PC %#x from inst (seq %d)\n",
+                                    ret.instAddr(),
+                                    inst_ptr->seqNum());
 
         return ret;
     }
 }
 
 void
-SDCPUThread::handleFault(std::shared_ptr<InflightInst> inst_ptr)
+FlexCPUThread::handleFault(std::shared_ptr<InflightInst> inst_ptr)
 {
-    DPRINTF(SDCPUThreadEvent, "Handling fault (seq %d): %s\n",
-                              inst_ptr->seqNum(), inst_ptr->fault()->name());
+    DPRINTF(FlexCPUThreadEvent, "Handling fault (seq %d): %s\n",
+                                inst_ptr->seqNum(), inst_ptr->fault()->name());
 
     inflightInsts.clear();
     bufferInstructionData(0, nullptr);
@@ -524,7 +524,7 @@ SDCPUThread::handleFault(std::shared_ptr<InflightInst> inst_ptr)
 }
 
 bool
-SDCPUThread::hasNextPC()
+FlexCPUThread::hasNextPC()
 {
     // TODO check if we're still running
 
@@ -535,10 +535,10 @@ SDCPUThread::hasNextPC()
 }
 
 void
-SDCPUThread::issueInstruction(shared_ptr<InflightInst> inst_ptr)
+FlexCPUThread::issueInstruction(shared_ptr<InflightInst> inst_ptr)
 {
-    DPRINTF(SDCPUInstEvent, "Beginning issuing instruction (seq %d)\n",
-                            inst_ptr->seqNum());
+    DPRINTF(FlexCPUInstEvent, "Beginning issuing instruction (seq %d)\n",
+                              inst_ptr->seqNum());
 
     weak_ptr<InflightInst> weak_inst = inst_ptr;
     auto callback = [this, weak_inst] {
@@ -553,10 +553,10 @@ SDCPUThread::issueInstruction(shared_ptr<InflightInst> inst_ptr)
 }
 
 void
-SDCPUThread::markFault(shared_ptr<InflightInst> inst_ptr, Fault fault)
+FlexCPUThread::markFault(shared_ptr<InflightInst> inst_ptr, Fault fault)
 {
-    DPRINTF(SDCPUThreadEvent, "Fault detected (seq %d): %s\n",
-                              inst_ptr->seqNum(), fault->name());
+    DPRINTF(FlexCPUThreadEvent, "Fault detected (seq %d): %s\n",
+                                inst_ptr->seqNum(), fault->name());
 
     inst_ptr->fault(fault);
 
@@ -570,10 +570,10 @@ SDCPUThread::markFault(shared_ptr<InflightInst> inst_ptr, Fault fault)
 }
 
 void
-SDCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
-                                  const RequestPtr& req, bool write,
-                                  shared_ptr<uint8_t> data,
-                                  shared_ptr<SplitRequest> sreq, bool high)
+FlexCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
+                                    const RequestPtr& req, bool write,
+                                    shared_ptr<uint8_t> data,
+                                    shared_ptr<SplitRequest> sreq, bool high)
 {
     const shared_ptr<InflightInst> inst_ptr = inst.lock();
     if (!inst_ptr || inst_ptr->isSquashed()) {
@@ -581,9 +581,9 @@ SDCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
         return;
     }
 
-    DPRINTF(SDCPUThreadEvent, "onDataAddrTranslated(seq %d%s)\n",
-                              inst_ptr->seqNum(),
-                              sreq ? (high ? ", high" : ", low") : "");
+    DPRINTF(FlexCPUThreadEvent, "onDataAddrTranslated(seq %d%s)\n",
+                                inst_ptr->seqNum(),
+                                sreq ? (high ? ", high" : ", low") : "");
 
     if (fault != NoFault) {
         markFault(inst_ptr, fault);
@@ -626,8 +626,8 @@ SDCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
 }
 
 void
-SDCPUThread::onExecutionCompleted(shared_ptr<InflightInst> inst_ptr,
-                                  Fault fault)
+FlexCPUThread::onExecutionCompleted(shared_ptr<InflightInst> inst_ptr,
+                                    Fault fault)
 {
     if (fault != NoFault) {
         markFault(inst_ptr, fault);
@@ -638,11 +638,11 @@ SDCPUThread::onExecutionCompleted(shared_ptr<InflightInst> inst_ptr,
     // if (!inst->readPredicate()) // TODO ensure this is enforced.
     //     inst->forwardOldRegs();
 
-    DPRINTF(SDCPUThreadEvent, "onExecutionCompleted(seq %d)\n",
-                              inst_ptr->seqNum());
+    DPRINTF(FlexCPUThreadEvent, "onExecutionCompleted(seq %d)\n",
+                                inst_ptr->seqNum());
 
-    DPRINTF(SDCPUInstEvent, "Marking instruction as complete (seq %d)\n",
-                            inst_ptr->seqNum());
+    DPRINTF(FlexCPUInstEvent, "Marking instruction as complete (seq %d)\n",
+                              inst_ptr->seqNum());
 
     // The InflightInst will match any of its dependencies automatically,
     // and perform ready callbacks if any instructions are made ready as a
@@ -661,7 +661,7 @@ SDCPUThread::onExecutionCompleted(shared_ptr<InflightInst> inst_ptr,
 }
 
 void
-SDCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
+FlexCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
 {
     const shared_ptr<InflightInst> inst_ptr = inst.lock();
     if (!inst_ptr || inst_ptr->isSquashed()) {
@@ -673,8 +673,8 @@ SDCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
 }
 
 void
-SDCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
-                               const TheISA::MachInst fetch_data)
+FlexCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
+                                 const TheISA::MachInst fetch_data)
 {
     const shared_ptr<InflightInst> inst_ptr = inst.lock();
     if (!inst_ptr || inst_ptr->isSquashed()) {
@@ -682,8 +682,8 @@ SDCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
         return;
     }
 
-    DPRINTF(SDCPUThreadEvent, "onInstDataFetched(%#x)\n",
-                              TheISA::gtoh(fetch_data));
+    DPRINTF(FlexCPUThreadEvent, "onInstDataFetched(%#x)\n",
+                                TheISA::gtoh(fetch_data));
 
     // Capure the PC state at the point of instruction retrieval.
     TheISA::PCState pc = inst_ptr->pcState();
@@ -695,19 +695,19 @@ SDCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
     inst_ptr->pcState(pc);
 
     if (decode_result) { // If a complete instruction was decoded
-        DPRINTF(SDCPUInstEvent,
+        DPRINTF(FlexCPUInstEvent,
                 "Decoded instruction (seq %d) - %#x : %s\n",
                 inst_ptr->seqNum(),
                 pc.instAddr(),
                 decode_result->disassemble(pc.instAddr()).c_str());
 
         if (decode_result->isMacroop()) {
-            DPRINTF(SDCPUThreadEvent, "Detected MacroOp, capturing...\n");
+            DPRINTF(FlexCPUThreadEvent, "Detected MacroOp, capturing...\n");
             curMacroOp = decode_result;
 
             decode_result = curMacroOp->fetchMicroop(pc.microPC());
 
-            DPRINTF(SDCPUInstEvent,
+            DPRINTF(FlexCPUInstEvent,
                     "Replaced with microop (seq %d) - %#x : %s\n",
                     inst_ptr->seqNum(),
                     pc.microPC(),
@@ -726,7 +726,7 @@ SDCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
 }
 
 void
-SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
+FlexCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
 {
     const shared_ptr<InflightInst> inst_ptr = inst.lock();
     if (!inst_ptr || inst_ptr->isSquashed()) {
@@ -758,8 +758,8 @@ SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
     }
 
     if (inst_ptr->staticInst()->isLastMicroop()) {
-        DPRINTF(SDCPUThreadEvent, "Releasing MacroOp after decoding final "
-                                  "microop\n");
+        DPRINTF(FlexCPUThreadEvent, "Releasing MacroOp after decoding final "
+                                    "microop\n");
         curMacroOp = StaticInst::nullStaticInstPtr;
     }
 
@@ -769,14 +769,14 @@ SDCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
         // instruction
         advanceInst(getNextPC());
     } else {
-        DPRINTF(SDCPUThreadEvent, "Delaying fetch until control instruction's "
-                                  "execution.\n");
+        DPRINTF(FlexCPUThreadEvent, "Delaying fetch until control "
+                                    "instruction's execution.\n");
     }
 }
 
 void
-SDCPUThread::onPCTranslated(weak_ptr<InflightInst> inst, Fault fault,
-                            const RequestPtr& req)
+FlexCPUThread::onPCTranslated(weak_ptr<InflightInst> inst, Fault fault,
+                              const RequestPtr& req)
 {
     const shared_ptr<InflightInst> inst_ptr = inst.lock();
     if (!inst_ptr || inst_ptr->isSquashed()) {
@@ -786,8 +786,8 @@ SDCPUThread::onPCTranslated(weak_ptr<InflightInst> inst, Fault fault,
 
     const TheISA::PCState pc = inst_ptr->pcState();
 
-    DPRINTF(SDCPUThreadEvent, "onPCTranslated(pc: %#x)\n",
-                              pc.instAddr());
+    DPRINTF(FlexCPUThreadEvent, "onPCTranslated(pc: %#x)\n",
+                                pc.instAddr());
 
     if (fault != NoFault) {
         markFault(inst_ptr, fault);
@@ -797,7 +797,7 @@ SDCPUThread::onPCTranslated(weak_ptr<InflightInst> inst, Fault fault,
 
     const Addr vaddr = req->getVaddr();
 
-    DPRINTF(SDCPUThreadEvent, "Received PC translation (va: %#x, pa: %#x)\n",
+    DPRINTF(FlexCPUThreadEvent, "Received PC translation (va: %#x, pa: %#x)\n",
             vaddr, req->getPaddr());
 
     auto callback = [this, inst, vaddr](uint8_t* data) {
@@ -815,7 +815,7 @@ SDCPUThread::onPCTranslated(weak_ptr<InflightInst> inst, Fault fault,
 }
 
 void
-SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
+FlexCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 {
     // NOTE: instead of implementing dependency detection all in this one
     //       function, maybe it's better to define a dependency provider
@@ -844,7 +844,7 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
     auto serializing_inst = lastSerializingInstruction.lock();
     if (serializing_inst && !(serializing_inst->isCommitted()
                             || serializing_inst->isSquashed())) {
-        DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
+        DPRINTF(FlexCPUDeps, "Dep %d -> %d [serial]\n",
                 inst_ptr->seqNum(), serializing_inst->seqNum());
         inst_ptr->addCommitDependency(*serializing_inst);
         waitingForSerializing++;
@@ -858,7 +858,7 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
             // TODO don't add the dependency when last is squashed, but find
             //      newest instruction that isn't squashed
             if (!(last_inst->isCommitted() || last_inst->isSquashed())) {
-                DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
+                DPRINTF(FlexCPUDeps, "Dep %d -> %d [serial]\n",
                         inst_ptr->seqNum(), last_inst->seqNum());
                 inst_ptr->addCommitDependency(*last_inst);
                 serializingInst++;
@@ -871,7 +871,7 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
             const shared_ptr<InflightInst> last_inst =
                 *(++inflightInsts.rbegin());
 
-            DPRINTF(SDCPUDeps, "Dep %d -> %d [serial]\n",
+            DPRINTF(FlexCPUDeps, "Dep %d -> %d [serial]\n",
                     inst_ptr->seqNum(), last_inst->seqNum());
             inst_ptr->addCommitDependency(*last_inst);
             serializingInst++;
@@ -893,7 +893,7 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
     if (static_inst->isMemRef()) {
         shared_ptr<InflightInst> last_barrier = lastMemBarrier.lock();
         if (last_barrier) {
-            DPRINTF(SDCPUDeps, "Dep %d -> %d [mem ref -> barrier]\n",
+            DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem ref -> barrier]\n",
                     inst_ptr->seqNum(), last_barrier->seqNum());
             inst_ptr->addMemDependency(*last_barrier);
             waitingForMemBarrier++;
@@ -912,8 +912,8 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
             const StaticInstPtr other_si = (*itr)->staticInst();
 
             if (other_si->isMemBarrier() || other_si->isMemRef()) {
-                DPRINTF(SDCPUDeps, "Dep %d -> %d [mem barrier -> ref/barrier]"
-                                   "\n",
+                DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem barrier -> "
+                                     "ref/barrier]\n",
                         inst_ptr->seqNum(), (*itr)->seqNum());
                 if (static_inst->isMemRef()) {
                     inst_ptr->addMemDependency(**itr);
@@ -965,7 +965,7 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
     //         const StaticInstPtr other_si = (*itr)->staticInst();
 
     //         if (other_si->isMemRef() || other_si->isMemBarrier()) {
-    //             DPRINTF(SDCPUDeps, "Dep %d -> %d [mem barrier]\n",
+    //             DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem barrier]\n",
     //                     inst_ptr->seqNum(), (*itr)->seqNum());
     //             inst_ptr->addMemDependency(*itr);
     //             break;
@@ -1000,7 +1000,7 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
                         // can only be referenced through a valid inst_ptr
 
                         if (inst_ptr->effAddrOverlap(*other)) {
-                            DPRINTF(SDCPUDeps, "Dep %d -> %d [mem]\n",
+                            DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem]\n",
                                     inst_ptr->seqNum(), other->seqNum());
                             inst_ptr->addMemDependency(*other);
                         }
@@ -1030,7 +1030,7 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
                         // can only be referenced through a valid inst_ptr
 
                         if (inst_ptr->effAddrOverlap(*other)) {
-                            DPRINTF(SDCPUDeps, "Dep %d -> %d [mem]\n",
+                            DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem]\n",
                                     inst_ptr->seqNum(), other->seqNum());
                             inst_ptr->addMemDependency(*other);
                         }
@@ -1052,7 +1052,7 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
                         // can only be referenced through a valid other
 
                         if (inst_ptr->effAddrOverlap(*other)) {
-                            DPRINTF(SDCPUDeps, "Dep %d -> %d [mem]\n",
+                            DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem]\n",
                                     inst_ptr->seqNum(), other->seqNum());
                             inst_ptr->addMemDependency(*other);
                         }
@@ -1064,7 +1064,7 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
                 //       callback needs to resolve first, to make sure that we
                 //       don't accidentally notifyMemReady() before we've added
                 //       all appropriate memory dependencies.
-                DPRINTF(SDCPUDeps, "Dep %d -> %d [mem predicted overlap]\n",
+                DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem predicted overlap]\n",
                         inst_ptr->seqNum(), other->seqNum());
                 inst_ptr->addMemEffAddrDependency(*other);
             }
@@ -1077,7 +1077,7 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 
     if (inflightInsts.size() > 1 && static_inst->isStore()) {
         const shared_ptr<InflightInst> last_inst = *(++inflightInsts.rbegin());
-        DPRINTF(SDCPUDeps, "Dep %d -> %d [st @ commit]\n",
+        DPRINTF(FlexCPUDeps, "Dep %d -> %d [st @ commit]\n",
                 inst_ptr->seqNum(), last_inst->seqNum());
         inst_ptr->addMemCommitDependency(*last_inst);
     }
@@ -1096,7 +1096,7 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 
         // Attach the dependency if the instruction is still around
         if (producer) {
-            DPRINTF(SDCPUDeps, "Dep %d -> %d [data (%s[%d])]\n",
+            DPRINTF(FlexCPUDeps, "Dep %d -> %d [data (%s[%d])]\n",
                     inst_ptr->seqNum(), producer->seqNum(),
                     src_reg.className(),
                     src_reg.index());
@@ -1110,16 +1110,16 @@ SDCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 }
 
 void
-SDCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
+FlexCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
 {
     const StaticInstPtr static_inst = inst_ptr->staticInst();
 
-    if (DTRACE(SDCPUDeps)) {
+    if (DTRACE(FlexCPUDeps)) {
         const int8_t num_srcs = static_inst->numSrcRegs();
         for (int8_t src_idx = 0; src_idx < num_srcs; ++src_idx) {
             const RegId& M5_VAR_USED src_reg = flattenRegId(
                 static_inst->srcRegIdx(src_idx));
-            DPRINTF(SDCPUDeps, "seq %d is consumer of %s[%d]\n",
+            DPRINTF(FlexCPUDeps, "seq %d is consumer of %s[%d]\n",
                     inst_ptr->seqNum(),
                     src_reg.className(),
                     src_reg.index());
@@ -1131,7 +1131,7 @@ SDCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
         const RegId& dst_reg = flattenRegId(static_inst->destRegIdx(dst_idx));
 
         lastUses[dst_reg] = {inst_ptr, dst_idx};
-        DPRINTF(SDCPUDeps, "seq %d is producer of %s[%d]\n",
+        DPRINTF(FlexCPUDeps, "seq %d is producer of %s[%d]\n",
                 inst_ptr->seqNum(),
                 dst_reg.className(),
                 dst_reg.index());
@@ -1139,7 +1139,7 @@ SDCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
 }
 
 void
-SDCPUThread::recordCycleStats()
+FlexCPUThread::recordCycleStats()
 {
     activeInstructions.sample(inflightInsts.size());
     if (squashedThisCycle > 0) {
@@ -1153,7 +1153,7 @@ SDCPUThread::recordCycleStats()
 }
 
 void
-SDCPUThread::recordInstStats(const shared_ptr<InflightInst>& inst)
+FlexCPUThread::recordInstStats(const shared_ptr<InflightInst>& inst)
 {
     const InflightInst::TimingRecord& rec = inst->getTimingRecord();
 
@@ -1190,10 +1190,10 @@ SDCPUThread::recordInstStats(const shared_ptr<InflightInst>& inst)
 }
 
 void
-SDCPUThread::sendToMemory(weak_ptr<InflightInst> inst,
-                          const RequestPtr& req, bool write,
-                          shared_ptr<uint8_t> data,
-                          shared_ptr<SplitRequest> sreq)
+FlexCPUThread::sendToMemory(weak_ptr<InflightInst> inst,
+                            const RequestPtr& req, bool write,
+                            shared_ptr<uint8_t> data,
+                            shared_ptr<SplitRequest> sreq)
 {
     const shared_ptr<InflightInst> inst_ptr = inst.lock();
     if (!inst_ptr || inst_ptr->isSquashed()) {
@@ -1205,10 +1205,10 @@ SDCPUThread::sendToMemory(weak_ptr<InflightInst> inst,
 }
 
 void
-SDCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
-                          const RequestPtr& req, bool write,
-                          shared_ptr<uint8_t> data,
-                          shared_ptr<SplitRequest> sreq)
+FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
+                            const RequestPtr& req, bool write,
+                            shared_ptr<uint8_t> data,
+                            shared_ptr<SplitRequest> sreq)
 {
     inst_ptr->notifyMemorying();
 
@@ -1223,8 +1223,8 @@ SDCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
 
         Fault f = inst_ptr->staticInst()->completeAcc(resp, inst_ptr.get(),
                                                       inst_ptr->traceData());
-        // NOTE: SDCPU may do other things for special instruction types, which
-        //       may no longer work correctly with this change.
+        // NOTE: FlexCPU may do other things for special instruction types,
+        //       which may no longer work correctly with this change.
 
         delete resp;
 
@@ -1283,7 +1283,7 @@ SDCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
 }
 
 void
-SDCPUThread::squashUpTo(InflightInst* const inst_ptr, bool rebuild_lasts)
+FlexCPUThread::squashUpTo(InflightInst* const inst_ptr, bool rebuild_lasts)
 {
     bool last_ser_correct = true;
     bool last_mem_bar_correct = true;
@@ -1304,7 +1304,7 @@ SDCPUThread::squashUpTo(InflightInst* const inst_ptr, bool rebuild_lasts)
     numSquashed.sample(count);
     squashedThisCycle += count;
 
-    DPRINTF(SDCPUThreadEvent, "%d instructions squashed.\n", count);
+    DPRINTF(FlexCPUThreadEvent, "%d instructions squashed.\n", count);
 
     if (rebuild_lasts) {
         for (shared_ptr<InflightInst>& it : inflightInsts) {
@@ -1341,23 +1341,23 @@ SDCPUThread::squashUpTo(InflightInst* const inst_ptr, bool rebuild_lasts)
 }
 
 void
-SDCPUThread::startup()
+FlexCPUThread::startup()
 {
     isa->startup(this);
     // TODO other things?
 }
 
 Fault
-SDCPUThread::MemIface::initiateMemRead(shared_ptr<InflightInst> inst_ptr,
-                                       Addr addr, unsigned int size,
-                                       Request::Flags flags,
-                                       const vector<bool>& byte_enable)
+FlexCPUThread::MemIface::initiateMemRead(shared_ptr<InflightInst> inst_ptr,
+                                         Addr addr, unsigned int size,
+                                         Request::Flags flags,
+                                         const vector<bool>& byte_enable)
 {
     const int asid = 0;
     const Addr pc = 0; // TODO extract this from inflightinst, but otherwise
                        //      only used for tracing/debugging.
-    const MasterID mid = sdCPUThread._cpuPtr->dataMasterId();
-    ThreadContext* const tc = &sdCPUThread;
+    const MasterID mid = flexCPUThread._cpuPtr->dataMasterId();
+    ThreadContext* const tc = &flexCPUThread;
     const ContextID cid = tc->contextId();
 
     RequestPtr req = make_shared<Request>(asid, addr, size, flags, mid, pc,
@@ -1366,9 +1366,9 @@ SDCPUThread::MemIface::initiateMemRead(shared_ptr<InflightInst> inst_ptr,
     if (!byte_enable.empty()) req->setByteEnable(byte_enable);
 
     // For tracing?
-    req->taskId(sdCPUThread._cpuPtr->taskId());
+    req->taskId(flexCPUThread._cpuPtr->taskId());
 
-    const unsigned cache_line_size = sdCPUThread._cpuPtr->cacheLineSize();
+    const unsigned cache_line_size = flexCPUThread._cpuPtr->cacheLineSize();
     const Addr split_addr = roundDown(addr + size - 1, cache_line_size);
 
     weak_ptr<InflightInst> inst = inst_ptr;
@@ -1389,48 +1389,48 @@ SDCPUThread::MemIface::initiateMemRead(shared_ptr<InflightInst> inst_ptr,
 
         auto callback1 = [this, inst, split_acc](Fault fault,
                                                  const RequestPtr& req) {
-            sdCPUThread.onDataAddrTranslated(inst, fault, req, false,
-                                             nullptr, split_acc, false);
+            flexCPUThread.onDataAddrTranslated(inst, fault, req, false,
+                                               nullptr, split_acc, false);
         };
         auto callback2 = [this, inst, split_acc](Fault fault,
                                                  const RequestPtr& req) {
-            sdCPUThread.onDataAddrTranslated(inst, fault, req, false,
-                                             nullptr, split_acc, true);
+            flexCPUThread.onDataAddrTranslated(inst, fault, req, false,
+                                               nullptr, split_acc, true);
         };
 
-        sdCPUThread._cpuPtr->requestDataAddrTranslation(req1, tc, false,
-                                                        inst_ptr, callback1);
+        flexCPUThread._cpuPtr->requestDataAddrTranslation(req1, tc, false,
+                                                          inst_ptr, callback1);
 
-        sdCPUThread._cpuPtr->requestDataAddrTranslation(req2, tc, false,
-                                                        inst_ptr, callback2);
+        flexCPUThread._cpuPtr->requestDataAddrTranslation(req2, tc, false,
+                                                          inst_ptr, callback2);
 
         return NoFault;
     }
 
 
     auto callback = [this, inst](Fault fault, const RequestPtr& req) {
-        sdCPUThread.onDataAddrTranslated(inst, fault, req, false,
-                                         nullptr);
+        flexCPUThread.onDataAddrTranslated(inst, fault, req, false,
+                                           nullptr);
     };
 
-    sdCPUThread._cpuPtr->requestDataAddrTranslation(req, tc, false, inst_ptr,
-                                                    callback);
+    flexCPUThread._cpuPtr->requestDataAddrTranslation(req, tc, false, inst_ptr,
+                                                      callback);
 
     return NoFault;
 }
 
 Fault
-SDCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
-                                uint8_t *data,
-                                unsigned int size, Addr addr,
-                                Request::Flags flags, uint64_t *res,
-                                const vector<bool>& byte_enable)
+FlexCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
+                                  uint8_t *data,
+                                  unsigned int size, Addr addr,
+                                  Request::Flags flags, uint64_t *res,
+                                  const vector<bool>& byte_enable)
 {
     const int asid = 0;
     const Addr pc = 0; // TODO extract this from inflightinst, but otherwise
                        //      only used for tracing/debugging.
-    const MasterID mid = sdCPUThread._cpuPtr->dataMasterId();
-    ThreadContext* const tc = &sdCPUThread;
+    const MasterID mid = flexCPUThread._cpuPtr->dataMasterId();
+    ThreadContext* const tc = &flexCPUThread;
     const ContextID cid = tc->contextId();
 
     RequestPtr req = make_shared<Request>(asid, addr, size, flags, mid, pc,
@@ -1439,9 +1439,9 @@ SDCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
     if (!byte_enable.empty()) req->setByteEnable(byte_enable);
 
     // For tracing?
-    req->taskId(sdCPUThread._cpuPtr->taskId());
+    req->taskId(flexCPUThread._cpuPtr->taskId());
 
-    const unsigned cache_line_size = sdCPUThread._cpuPtr->cacheLineSize();
+    const unsigned cache_line_size = flexCPUThread._cpuPtr->cacheLineSize();
     const Addr split_addr = roundDown(addr + size - 1, cache_line_size);
 
     weak_ptr<InflightInst> inst = inst_ptr;
@@ -1469,22 +1469,22 @@ SDCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
 
         auto callback1 = [this, inst, split_acc, copy, size](Fault fault,
             const RequestPtr& req) {
-            sdCPUThread.onDataAddrTranslated(inst, fault, req, true,
-                                             copy, split_acc, false);
+            flexCPUThread.onDataAddrTranslated(inst, fault, req, true,
+                                               copy, split_acc, false);
         };
 
         auto callback2 = [this, inst, split_acc, copy, size](Fault fault,
                                                  const RequestPtr& req) {
-            sdCPUThread.onDataAddrTranslated(inst, fault, req, true,
-                                             copy, split_acc, true);
+            flexCPUThread.onDataAddrTranslated(inst, fault, req, true,
+                                               copy, split_acc, true);
         };
 
 
-        sdCPUThread._cpuPtr->requestDataAddrTranslation(req1, tc, true,
-                                                        inst_ptr, callback1);
+        flexCPUThread._cpuPtr->requestDataAddrTranslation(req1, tc, true,
+                                                          inst_ptr, callback1);
 
-        sdCPUThread._cpuPtr->requestDataAddrTranslation(req2, tc, true,
-                                                        inst_ptr, callback2);
+        flexCPUThread._cpuPtr->requestDataAddrTranslation(req2, tc, true,
+                                                          inst_ptr, callback2);
 
         return NoFault;
     }
@@ -1501,17 +1501,17 @@ SDCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
 
     auto callback = [this, inst, copy](Fault fault,
                                             const RequestPtr& req) {
-        sdCPUThread.onDataAddrTranslated(inst, fault, req, true, copy);
+        flexCPUThread.onDataAddrTranslated(inst, fault, req, true, copy);
     };
 
-    sdCPUThread._cpuPtr->requestDataAddrTranslation(req, tc, true, inst_ptr,
+    flexCPUThread._cpuPtr->requestDataAddrTranslation(req, tc, true, inst_ptr,
                                                     callback);
 
     return NoFault;
 }
 
 void
-SDCPUThread::regStats(const std::string &name)
+FlexCPUThread::regStats(const std::string &name)
 {
     _committedState->regStats(name);
 
