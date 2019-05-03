@@ -31,9 +31,9 @@ from BaseCPU import BaseCPU
 from m5.params import *
 from m5.proxy import *
 
-class SimpleDataflowCPU(BaseCPU):
-    type = 'SimpleDataflowCPU'
-    cxx_header = 'cpu/flexcpu/simple_dataflow_cpu.hh'
+class FlexCPU(BaseCPU):
+    type = 'FlexCPU'
+    cxx_header = 'cpu/flexcpu/flexcpu.hh'
 
     execution_latency = Param.Cycles(1, "Number of cycles for each "
                                          "instruction to execute")

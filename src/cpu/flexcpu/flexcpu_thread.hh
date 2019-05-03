@@ -28,8 +28,8 @@
  * Authors: Bradley Wang
  */
 
-#ifndef __CPU_FLEXCPU_SIMPLE_DATAFLOW_THREAD_HH__
-#define __CPU_FLEXCPU_SIMPLE_DATAFLOW_THREAD_HH__
+#ifndef __CPU_FLEXCPU_FLEXCPU_THREAD_HH__
+#define __CPU_FLEXCPU_FLEXCPU_THREAD_HH__
 
 #include <list>
 #include <memory>
@@ -39,32 +39,32 @@
 #include "cpu/exec_context.hh"
 #include "cpu/flexcpu/generic_reg.hh"
 #include "cpu/flexcpu/inflight_inst.hh"
-#include "cpu/flexcpu/simple_dataflow_cpu.hh"
+#include "cpu/flexcpu/flexcpu.hh"
 #include "cpu/inst_seq.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/simple_thread.hh"
 #include "mem/request.hh"
 
-class SimpleDataflowCPU;
+class FlexCPU;
 
 /**
  * Instances of this class represent a logical "Hyperthread" within the
- * SimpleDataflowCPU. A thread contains an independent complete architectural
+ * FlexCPU. A thread contains an independent complete architectural
  * state, and in this case, also the logical control flow.
  */
-class SDCPUThread : public ThreadContext
+class FlexCPUThread : public ThreadContext
 {
   protected:
-    // BEGIN SDCPUThread Internal definitions
+    // BEGIN FlexCPUThread Internal definitions
 
     // Implementation of ExecContext functions that are memory dependent.
     class MemIface : public InflightInst::MemIface
     {
       protected:
-        SDCPUThread& sdCPUThread;
+        FlexCPUThread& flexCPUThread;
       public:
-        MemIface(SDCPUThread& sdCPUThread_):
-            sdCPUThread(sdCPUThread_)
+        MemIface(FlexCPUThread& flexCPUThread_):
+            flexCPUThread(flexCPUThread_)
         { }
 
         Fault initiateMemRead(std::shared_ptr<InflightInst> inst, Addr addr,
@@ -84,10 +84,10 @@ class SDCPUThread : public ThreadContext
         RequestPtr high = nullptr;
     };
 
-    // END SDCPUThread Internal definitions
+    // END FlexCPUThread Internal definitions
 
 
-    // BEGIN SDCPUThread Internal variables
+    // BEGIN FlexCPUThread Internal variables
 
     /**
      * We implement the memory interface of the InflightInst so that we can
@@ -101,7 +101,7 @@ class SDCPUThread : public ThreadContext
     /**
      * We hold a pointer to the CPU which owns this logical thread.
      */
-    SimpleDataflowCPU* _cpuPtr;
+    FlexCPU* _cpuPtr;
 
     /**
      * We store a name for use with tracing
@@ -232,7 +232,7 @@ class SDCPUThread : public ThreadContext
     TheISA::PCState advanceInstRetryPC;
 
     // END Speculative state
-    // END SDCPU Internal variables
+    // END FlexCPUThread Internal variables
 
 
     // BEGIN Internal functions
@@ -645,13 +645,13 @@ class SDCPUThread : public ThreadContext
   public:
 
     // Fullsystem mode constructor
-    SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_, System* system_,
+    FlexCPUThread(FlexCPU* cpu_, ThreadID tid_, System* system_,
                      BaseTLB* itb_, BaseTLB* dtb_, TheISA::ISA* isa_,
                      bool use_kernel_stats_, unsigned fetch_buf_size,
                      unsigned inflight_insts_size, bool strict_ser);
 
     // Non-fullsystem constructor
-    SDCPUThread(SimpleDataflowCPU* cpu_, ThreadID tid_, System* system_,
+    FlexCPUThread(FlexCPU* cpu_, ThreadID tid_, System* system_,
                      Process* process_, BaseTLB* itb_, BaseTLB* dtb_,
                      TheISA::ISA* isa_, unsigned fetch_buf_size,
                      unsigned inflight_insts_size, bool strict_ser);
@@ -660,7 +660,7 @@ class SDCPUThread : public ThreadContext
     // if we want to hold instances of these in a vector instead of pointers
     // gotten from new.
 
-    virtual ~SDCPUThread();
+    virtual ~FlexCPUThread();
 
     const std::string& name() const
     { return _name; }
@@ -961,4 +961,4 @@ class SDCPUThread : public ThreadContext
     // END ThreadContext functions
 };
 
-#endif // __CPU_FLEXCPU_SIMPLE_DATAFLOW_THREAD_HH__
+#endif // __CPU_FLEXCPU_FLEXCPU_THREAD_HH__

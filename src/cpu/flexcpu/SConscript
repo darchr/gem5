@@ -30,22 +30,22 @@
 
 Import('*')
 
-if 'SimpleDataflowCPU' in env['CPU_MODELS']:
-    SimObject('SimpleDataflowCPU.py')
+if 'FlexCPU' in env['CPU_MODELS']:
+    SimObject('FlexCPU.py')
 
-    Source('simple_dataflow_cpu.cc')
-    Source('simple_dataflow_thread.cc')
+    Source('flexcpu.cc')
+    Source('flexcpu_thread.cc')
     Source('inflight_inst.cc')
 
     DebugFlag('InflightInst')
 
-    DebugFlag('SDCPUCoreEvent')
-    DebugFlag('SDCPUInstEvent')
-    DebugFlag('SDCPUThreadEvent')
+    DebugFlag('FlexCPUCoreEvent')
+    DebugFlag('FlexCPUInstEvent')
+    DebugFlag('FlexCPUThreadEvent')
 
-    DebugFlag('SDCPUBufferDump')
-    DebugFlag('SDCPUDeps')
+    DebugFlag('FlexCPUBufferDump')
+    DebugFlag('FlexCPUDeps')
 
-    CompoundFlag('SDCPUAll', ['SDCPUCoreEvent', 'SDCPUInstEvent',
-                              'SDCPUThreadEvent',
-                              'SDCPUBufferDump', 'SDCPUDeps'])
+    CompoundFlag('FlexCPUAll', ['FlexCPUCoreEvent', 'FlexCPUInstEvent',
+                              'FlexCPUThreadEvent',
+                              'FlexCPUBufferDump', 'FlexCPUDeps'])

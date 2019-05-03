@@ -30,4 +30,4 @@
 
 Import('*')
 
-CpuModel('SimpleDataflowCPU', default=True)
+CpuModel('FlexCPU', default=True)
