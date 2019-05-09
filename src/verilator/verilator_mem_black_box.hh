@@ -29,7 +29,6 @@
 #ifndef __VERILATOR_VERILATOR_MEM_BLACK_BOX__HH__
 #define __VERILATOR_VERILATOR_MEM_BLACK_BOX__HH__
 ///verilator inlcudes
-#include "VTop_DualPortedMemoryBlackBox.h"
 #include "svdpi.h"
 
 //gem5 general includes
