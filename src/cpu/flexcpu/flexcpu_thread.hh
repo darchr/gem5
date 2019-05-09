@@ -804,7 +804,7 @@ class FlexCPUThread : public ThreadContext
     { return _committedState->getCheckerCpuPtr(); }
 
 
-    TheISA::ISA *getIsaPtr()
+    TheISA::ISA *getIsaPtr() override
     { return _committedState->getIsaPtr(); }
 
     TheISA::Decoder *getDecoderPtr() override

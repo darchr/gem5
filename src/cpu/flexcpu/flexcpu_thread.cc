@@ -1870,13 +1870,13 @@ FlexCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
         shared_ptr<SplitRequest> split_acc = make_shared<SplitRequest>();
         split_acc->main = req;
 
-        auto callback1 = [this, inst, split_acc, copy, size](Fault fault,
+        auto callback1 = [this, inst, split_acc, copy](Fault fault,
             const RequestPtr& req) {
             flexCPUThread.onDataAddrTranslated(inst, fault, req, true,
                                                copy, split_acc, false);
         };
 
-        auto callback2 = [this, inst, split_acc, copy, size](Fault fault,
+        auto callback2 = [this, inst, split_acc, copy](Fault fault,
                                                  const RequestPtr& req) {
             flexCPUThread.onDataAddrTranslated(inst, fault, req, true,
                                                copy, split_acc, true);
