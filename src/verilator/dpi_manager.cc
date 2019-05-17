@@ -45,11 +45,28 @@ VerilatorDinoCPU * dinoCPU = nullptr;
 //will run a doFetch from within blackbox wrapper
 int ifetch (int imem_address, void* handle){
   DPRINTF(Verilator, "DPI INST FETCH MADE\n");
-
   VerilatorMemBlackBox* hndl = static_cast<VerilatorMemBlackBox *>(handle);
-  hndl->doFetch(imem_address);
+  //lazy exception handeling
+  if (imem_address == 0x80000000 ){
+    DPRINTF(Verilator, "DPI INST FETCH ILLEGAL INST EXCEPTION\n");
+    return 0x00c0006f;//jal x0, 12; effectively halt the processor
+  }else if ( imem_address == 0x80000004 ){
+    DPRINTF(Verilator, "DPI INST FETCH TRAPPING FOR ECALL\n");
+    return 0x0080006f;//jal x0, 8; effectively halt the processor
+  }else if ( imem_address == 0x80000008 ){
+    DPRINTF(Verilator, "DPI INST FETCH TRAPPING FOR EBREAK\n");
+    return 0x0040006f;//jal x0, 4; effectively halt the processor
+  }else if ( imem_address > 0x80000008 ){
+    //if for w/e reason we end up here then our exception could not be handled
+    //either due to a lack of a handler or maybe a stray cosmic ray
+    DPRINTF(Verilator, "UNHANDLED EXCEPTION, INDEFINITELY STALLING CPU\n");
+    return 0x13; //do a nop for now
+  }else{
+    //normal instruction fetch
+    hndl->doFetch(imem_address);
 
-  return hndl->getImemResp();
+    return hndl->getImemResp();
+  }
 }
 //will run a doMem from within blackbox wrapper
 int datareq (int dmem_address, int dmem_writedata, unsigned char dmem_memread,
