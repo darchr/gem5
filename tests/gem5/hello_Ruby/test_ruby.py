@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Mark D. Hill and David A. Wood
+# Copyright (c) 2018 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,26 +24,26 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Authors: Sean Wilson
+# Authors: Marjan Fariborz
 
 '''
 Test file for the util m5 exit assembly instruction.
 '''
 from testlib import *
 
-test_progs = {
-    'hello64-static', 'hello64-dynamic', 'hello32-static',
-}
+#test_progs = {
+#    'hello64-static', 'hello64-dynamic', 'hello32-static',
+#}
 isa='x86'
-for binary in test_progs:
-    import os
-    ref_path = joinpath(getcwd(), 'ref')
-    gem5_verify_config(
-        name='test_ruby'+binary,
-        verifiers=(),
-        fixtures=(),
-        config=joinpath(config.base_dir,'configs','example',
-        'ruby_random_test.py'),
-        config_args=[],
-        valid_isas=(isa.upper(),),
-        )
+#for binary in test_progs:
+import os
+ref_path = joinpath(getcwd(), 'ref')
+gem5_verify_config(
+    name='test_ruby',
+    verifiers=(),
+    fixtures=(),
+    config=joinpath(config.base_dir,'configs','example',
+    'ruby_random_test.py'),
+    config_args=[],
+    valid_isas=(isa.upper(),),
+    )

@@ -59,15 +59,10 @@ def config_filesystem(options):
     # Set up /proc
     procdir = joinpath(fsdir, 'proc')
     mkdir(procdir)
-    cpu_clock = '0'
+    cpu_clock='0'
     if hasattr(options, 'cpu_clock'):
         cpu_clock = options.cpu_clock
-    cpu_clock = toFrequency(cpu_clock)/mega
 
-    l2_size = '0'
-    if hasattr(options, 'l2_size'):
-        l2_size = options.l2_size
-    l2_size = toMemorySize(l2_size)/kibi
 
     cacheline_size = '0'
     if hasattr(options, 'cacheline_size'):
@@ -80,6 +75,8 @@ def config_filesystem(options):
                   'model           : 0\n'                         + \
                   'model name      : Generic\n'                   + \
                   'stepping        : 0\n'                         + \
+                  'cpu MHz         : %0.3d\n'                       \
+                        % (toFrequency(cpu_clock)/mega)           + \
                   'cache size:     : %dK\n'                         \
                         % (toMemorySize(options.l2_size)/kibi)    + \
                   'physical id     : 0\n'                         + \
