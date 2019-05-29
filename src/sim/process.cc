@@ -72,34 +72,6 @@
 #include "sim/syscall_desc.hh"
 #include "sim/system.hh"
 
-#if THE_ISA == ALPHA_ISA
-#include "arch/alpha/linux/process.hh"
-
-#elif THE_ISA == SPARC_ISA
-#include "arch/sparc/linux/process.hh"
-#include "arch/sparc/solaris/process.hh"
-
-#elif THE_ISA == MIPS_ISA
-#include "arch/mips/linux/process.hh"
-
-#elif THE_ISA == ARM_ISA
-#include "arch/arm/freebsd/process.hh"
-#include "arch/arm/linux/process.hh"
-
-#elif THE_ISA == X86_ISA
-#include "arch/x86/linux/process.hh"
-
-#elif THE_ISA == POWER_ISA
-#include "arch/power/linux/process.hh"
-
-#elif THE_ISA == RISCV_ISA
-#include "arch/riscv/linux/process.hh"
-
-#else
-#error "THE_ISA not set"
-#endif
-
-
 using namespace std;
 using namespace TheISA;
 
@@ -387,11 +359,6 @@ Process::serialize(CheckpointOut &cp) const
      */
 
     warn("Checkpoints for file descriptors currently do not work.");
-#if 0
-    for (int x = 0; x < fds->getSize(); x++)
-        (*fds)[x].serializeSection(cp, csprintf("FDEntry%d", x));
-#endif
-
 }
 
 void
@@ -404,11 +371,6 @@ Process::unserialize(CheckpointIn &cp)
      * come back and fix them at a later date.
      */
     warn("Checkpoints for file descriptors currently do not work.");
-#if 0
-    for (int x = 0; x < fds->getSize(); x++)
-        (*fds)[x]->unserializeSection(cp, csprintf("FDEntry%d", x));
-    fds->restoreFileOffsets();
-#endif
     // The above returns a bool so that you could do something if you don't
     // find the param in the checkpoint if you wanted to, like set a default
     // but in this case we'll just stick with the instantiated value if not
@@ -433,7 +395,7 @@ Process::syscall(int64_t callnum, ThreadContext *tc, Fault *fault)
     if (desc == nullptr)
         fatal("Syscall %d out of range", callnum);
 
-    desc->doSyscall(callnum, this, tc, fault);
+    desc->doSyscall(callnum, tc, fault);
 }
 
 RegVal
@@ -573,151 +535,10 @@ ProcessParams::create()
     }
 
     ObjectFile *obj_file = createObjectFile(executable);
-    if (obj_file == nullptr) {
-        fatal("Can't load object file %s", executable);
-    }
+    fatal_if(!obj_file, "Can't load object file %s", executable);
 
-#if THE_ISA == ALPHA_ISA
-    if (obj_file->getArch() != ObjectFile::Alpha)
-        fatal("Object file architecture does not match compiled ISA (Alpha).");
+    process = ObjectFile::tryLoaders(this, obj_file);
+    fatal_if(!process, "Unknown error creating process object.");
 
-    switch (obj_file->getOpSys()) {
-      case ObjectFile::UnknownOpSys:
-        warn("Unknown operating system; assuming Linux.");
-        // fall through
-      case ObjectFile::Linux:
-        process = new AlphaLinuxProcess(this, obj_file);
-        break;
-
-      default:
-        fatal("Unknown/unsupported operating system.");
-    }
-#elif THE_ISA == SPARC_ISA
-    if (obj_file->getArch() != ObjectFile::SPARC64 &&
-        obj_file->getArch() != ObjectFile::SPARC32)
-        fatal("Object file architecture does not match compiled ISA (SPARC).");
-    switch (obj_file->getOpSys()) {
-      case ObjectFile::UnknownOpSys:
-        warn("Unknown operating system; assuming Linux.");
-        // fall through
-      case ObjectFile::Linux:
-        if (obj_file->getArch() == ObjectFile::SPARC64) {
-            process = new Sparc64LinuxProcess(this, obj_file);
-        } else {
-            process = new Sparc32LinuxProcess(this, obj_file);
-        }
-        break;
-
-      case ObjectFile::Solaris:
-        process = new SparcSolarisProcess(this, obj_file);
-        break;
-
-      default:
-        fatal("Unknown/unsupported operating system.");
-    }
-#elif THE_ISA == X86_ISA
-    if (obj_file->getArch() != ObjectFile::X86_64 &&
-        obj_file->getArch() != ObjectFile::I386)
-        fatal("Object file architecture does not match compiled ISA (x86).");
-    switch (obj_file->getOpSys()) {
-      case ObjectFile::UnknownOpSys:
-        warn("Unknown operating system; assuming Linux.");
-        // fall through
-      case ObjectFile::Linux:
-        if (obj_file->getArch() == ObjectFile::X86_64) {
-            process = new X86_64LinuxProcess(this, obj_file);
-        } else {
-            process = new I386LinuxProcess(this, obj_file);
-        }
-        break;
-
-      default:
-        fatal("Unknown/unsupported operating system.");
-    }
-#elif THE_ISA == MIPS_ISA
-    if (obj_file->getArch() != ObjectFile::Mips)
-        fatal("Object file architecture does not match compiled ISA (MIPS).");
-    switch (obj_file->getOpSys()) {
-      case ObjectFile::UnknownOpSys:
-        warn("Unknown operating system; assuming Linux.");
-        // fall through
-      case ObjectFile::Linux:
-        process = new MipsLinuxProcess(this, obj_file);
-        break;
-
-      default:
-        fatal("Unknown/unsupported operating system.");
-    }
-#elif THE_ISA == ARM_ISA
-    ObjectFile::Arch arch = obj_file->getArch();
-    if (arch != ObjectFile::Arm && arch != ObjectFile::Thumb &&
-        arch != ObjectFile::Arm64)
-        fatal("Object file architecture does not match compiled ISA (ARM).");
-    switch (obj_file->getOpSys()) {
-      case ObjectFile::UnknownOpSys:
-        warn("Unknown operating system; assuming Linux.");
-        // fall through
-      case ObjectFile::Linux:
-        if (arch == ObjectFile::Arm64) {
-            process = new ArmLinuxProcess64(this, obj_file,
-                                            obj_file->getArch());
-        } else {
-            process = new ArmLinuxProcess32(this, obj_file,
-                                            obj_file->getArch());
-        }
-        break;
-      case ObjectFile::FreeBSD:
-        if (arch == ObjectFile::Arm64) {
-            process = new ArmFreebsdProcess64(this, obj_file,
-                                              obj_file->getArch());
-        } else {
-            process = new ArmFreebsdProcess32(this, obj_file,
-                                              obj_file->getArch());
-        }
-        break;
-      case ObjectFile::LinuxArmOABI:
-        fatal("M5 does not support ARM OABI binaries. Please recompile with an"
-              " EABI compiler.");
-      default:
-        fatal("Unknown/unsupported operating system.");
-    }
-#elif THE_ISA == POWER_ISA
-    if (obj_file->getArch() != ObjectFile::Power)
-        fatal("Object file architecture does not match compiled ISA (Power).");
-    switch (obj_file->getOpSys()) {
-      case ObjectFile::UnknownOpSys:
-        warn("Unknown operating system; assuming Linux.");
-        // fall through
-      case ObjectFile::Linux:
-        process = new PowerLinuxProcess(this, obj_file);
-        break;
-
-      default:
-        fatal("Unknown/unsupported operating system.");
-    }
-#elif THE_ISA == RISCV_ISA
-    ObjectFile::Arch arch = obj_file->getArch();
-    if (arch != ObjectFile::Riscv64 && arch != ObjectFile::Riscv32)
-        fatal("Object file architecture does not match compiled ISA (RISCV).");
-    switch (obj_file->getOpSys()) {
-      case ObjectFile::UnknownOpSys:
-        warn("Unknown operating system; assuming Linux.");
-        // fall through
-      case ObjectFile::Linux:
-        if (arch == ObjectFile::Riscv64) {
-            process = new RiscvLinuxProcess64(this, obj_file);
-        } else {
-            process = new RiscvLinuxProcess32(this, obj_file);
-        }
-        break;
-      default:
-        fatal("Unknown/unsupported operating system.");
-    }
-#else
-#error "THE_ISA not set"
-#endif
-
-    if (process == nullptr)
-        fatal("Unknown error creating process object.");
     return process;
 }

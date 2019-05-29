@@ -52,9 +52,8 @@ SectorTags::SectorTags(const SectorTagsParams *p)
       sequentialAccess(p->sequential_access),
       replacementPolicy(p->replacement_policy),
       numBlocksPerSector(p->num_blocks_per_sector),
-      numSectors(numBlocks / p->num_blocks_per_sector), blks(numBlocks),
-      secBlks(numSectors), sectorShift(floorLog2(blkSize)),
-      sectorMask(numBlocksPerSector - 1)
+      numSectors(numBlocks / numBlocksPerSector),
+      sectorShift(floorLog2(blkSize)), sectorMask(numBlocksPerSector - 1)
 {
     // Check parameters
     fatal_if(blkSize < 4 || !isPowerOf2(blkSize),
@@ -66,6 +65,10 @@ SectorTags::SectorTags(const SectorTagsParams *p)
 void
 SectorTags::tagsInit()
 {
+    // Create blocks and sector blocks
+    blks = std::vector<SectorSubBlk>(numBlocks);
+    secBlks = std::vector<SectorBlk>(numSectors);
+
     // Initialize all blocks
     unsigned blk_index = 0;       // index into blks array
     for (unsigned sec_blk_index = 0; sec_blk_index < numSectors;
@@ -218,7 +221,7 @@ SectorTags::findBlock(Addr addr, bool is_secure) const
 }
 
 CacheBlk*
-SectorTags::findVictim(Addr addr, const bool is_secure,
+SectorTags::findVictim(Addr addr, const bool is_secure, const std::size_t size,
                        std::vector<CacheBlk*>& evict_blks) const
 {
     // Get possible entries to be victimized

@@ -50,6 +50,7 @@
 
 #include "arch/arm/isa_traits.hh"
 #include "arch/arm/linux/linux.hh"
+#include "base/loader/object_file.hh"
 #include "base/trace.hh"
 #include "cpu/thread_context.hh"
 #include "kern/linux/linux.hh"
@@ -61,12 +62,53 @@
 using namespace std;
 using namespace ArmISA;
 
+namespace
+{
+
+class ArmLinuxObjectFileLoader : public ObjectFile::Loader
+{
+  public:
+    Process *
+    load(ProcessParams *params, ObjectFile *obj_file) override
+    {
+        auto arch = obj_file->getArch();
+        auto opsys = obj_file->getOpSys();
+
+        if (arch != ObjectFile::Arm && arch != ObjectFile::Thumb &&
+                arch != ObjectFile::Arm64) {
+            return nullptr;
+        }
+
+        if (opsys == ObjectFile::UnknownOpSys) {
+            warn("Unknown operating system; assuming Linux.");
+            opsys = ObjectFile::Linux;
+        }
+
+        if (opsys == ObjectFile::LinuxArmOABI) {
+            fatal("gem5 does not support ARM OABI binaries. Please recompile "
+                    "with an EABI compiler.");
+        }
+
+        if (opsys != ObjectFile::Linux)
+            return nullptr;
+
+        if (arch == ObjectFile::Arm64)
+            return new ArmLinuxProcess64(params, obj_file, arch);
+        else
+            return new ArmLinuxProcess32(params, obj_file, arch);
+    }
+};
+
+ArmLinuxObjectFileLoader loader;
+
+} // anonymous namespace
+
 /// Target uname() handler.
 static SyscallReturn
-unameFunc32(SyscallDesc *desc, int callnum, Process *process,
-            ThreadContext *tc)
+unameFunc32(SyscallDesc *desc, int callnum, ThreadContext *tc)
 {
     int index = 0;
+    auto process = tc->getProcessPtr();
     TypedBufferArg<Linux::utsname> name(process->getSyscallArg(tc, index));
 
     strcpy(name->sysname, "Linux");
@@ -81,10 +123,10 @@ unameFunc32(SyscallDesc *desc, int callnum, Process *process,
 
 /// Target uname() handler.
 static SyscallReturn
-unameFunc64(SyscallDesc *desc, int callnum, Process *process,
-            ThreadContext *tc)
+unameFunc64(SyscallDesc *desc, int callnum, ThreadContext *tc)
 {
     int index = 0;
+    auto process = tc->getProcessPtr();
     TypedBufferArg<Linux::utsname> name(process->getSyscallArg(tc, index));
 
     strcpy(name->sysname, "Linux");
@@ -99,10 +141,10 @@ unameFunc64(SyscallDesc *desc, int callnum, Process *process,
 
 /// Target set_tls() handler.
 static SyscallReturn
-setTLSFunc32(SyscallDesc *desc, int callnum, Process *process,
-             ThreadContext *tc)
+setTLSFunc32(SyscallDesc *desc, int callnum, ThreadContext *tc)
 {
     int index = 0;
+    auto process = tc->getProcessPtr();
     uint32_t tlsPtr = process->getSyscallArg(tc, index);
 
     tc->getMemProxy().writeBlob(ArmLinuxProcess32::commPage + 0x0ff0,
@@ -112,10 +154,10 @@ setTLSFunc32(SyscallDesc *desc, int callnum, Process *process,
 }
 
 static SyscallReturn
-setTLSFunc64(SyscallDesc *desc, int callnum, Process *process,
-             ThreadContext *tc)
+setTLSFunc64(SyscallDesc *desc, int callnum, ThreadContext *tc)
 {
     int index = 0;
+    auto process = tc->getProcessPtr();
     uint32_t tlsPtr = process->getSyscallArg(tc, index);
 
     tc->setMiscReg(MISCREG_TPIDRRO_EL0, tlsPtr);

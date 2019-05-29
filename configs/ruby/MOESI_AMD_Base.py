@@ -38,7 +38,7 @@ from m5.defines import buildEnv
 from m5.util import addToPath
 from Ruby import create_topology
 from Ruby import send_evicts
-import FileSystemConfig
+from common import FileSystemConfig
 
 addToPath('../')
 
@@ -102,8 +102,6 @@ class CPCntrl(CorePair_Controller, CntrlBase):
         self.L2cache.create(options)
 
         self.sequencer = RubySequencer()
-        self.sequencer.icache_hit_latency = 2
-        self.sequencer.dcache_hit_latency = 2
         self.sequencer.version = self.seqCount()
         self.sequencer.icache = self.L1Icache
         self.sequencer.dcache = self.L1D0cache
@@ -115,11 +113,12 @@ class CPCntrl(CorePair_Controller, CntrlBase):
         self.sequencer1.version = self.seqCount()
         self.sequencer1.icache = self.L1Icache
         self.sequencer1.dcache = self.L1D1cache
-        self.sequencer1.icache_hit_latency = 2
-        self.sequencer1.dcache_hit_latency = 2
         self.sequencer1.ruby_system = ruby_system
         self.sequencer1.coreid = 1
         self.sequencer1.is_cpu_sequencer = True
+
+        # Defines icache/dcache hit latency
+        self.mandatory_queue_latency = 2
 
         self.issue_latency = options.cpu_to_dir_latency
         self.send_evictions = send_evicts(options)
@@ -329,7 +328,6 @@ def create_system(options, full_system, system, dma_devices, bootmem,
 
     # Register CPUs and caches for each CorePair and directory (SE mode only)
     if not full_system:
-        FileSystemConfig.config_filesystem(options)
         for i in xrange((options.num_cpus + 1) // 2):
             FileSystemConfig.register_cpu(physical_package_id = 0,
                                           core_siblings =

@@ -44,6 +44,7 @@
 #include "arch/x86/isa_traits.hh"
 #include "arch/x86/linux/linux.hh"
 #include "arch/x86/registers.hh"
+#include "base/loader/object_file.hh"
 #include "base/trace.hh"
 #include "cpu/thread_context.hh"
 #include "kern/linux/linux.hh"
@@ -54,12 +55,46 @@
 using namespace std;
 using namespace X86ISA;
 
+namespace
+{
+
+class X86LinuxObjectFileLoader : public ObjectFile::Loader
+{
+  public:
+    Process *
+    load(ProcessParams *params, ObjectFile *obj_file) override
+    {
+        auto arch = obj_file->getArch();
+        auto opsys = obj_file->getOpSys();
+
+        if (arch != ObjectFile::X86_64 && arch != ObjectFile::I386)
+            return nullptr;
+
+        if (opsys == ObjectFile::UnknownOpSys) {
+            warn("Unknown operating system; assuming Linux.");
+            opsys = ObjectFile::Linux;
+        }
+
+        if (opsys != ObjectFile::Linux)
+            return nullptr;
+
+        if (arch == ObjectFile::X86_64)
+            return new X86_64LinuxProcess(params, obj_file);
+        else
+            return new I386LinuxProcess(params, obj_file);
+    }
+};
+
+X86LinuxObjectFileLoader loader;
+
+} // anonymous namespace
+
 /// Target uname() handler.
 static SyscallReturn
-unameFunc(SyscallDesc *desc, int callnum, Process *process,
-          ThreadContext *tc)
+unameFunc(SyscallDesc *desc, int callnum, ThreadContext *tc)
 {
     int index = 0;
+    auto process = tc->getProcessPtr();
     TypedBufferArg<Linux::utsname> name(process->getSyscallArg(tc, index));
 
     strcpy(name->sysname, "Linux");
@@ -74,8 +109,7 @@ unameFunc(SyscallDesc *desc, int callnum, Process *process,
 }
 
 static SyscallReturn
-archPrctlFunc(SyscallDesc *desc, int callnum, Process *process,
-              ThreadContext *tc)
+archPrctlFunc(SyscallDesc *desc, int callnum, ThreadContext *tc)
 {
     enum ArchPrctlCodes
     {
@@ -87,6 +121,7 @@ archPrctlFunc(SyscallDesc *desc, int callnum, Process *process,
 
     // First argument is the code, second is the address
     int index = 0;
+    auto process = tc->getProcessPtr();
     int code = process->getSyscallArg(tc, index);
     uint64_t addr = process->getSyscallArg(tc, index);
     uint64_t fsBase, gsBase;
@@ -140,12 +175,13 @@ struct UserDesc64 {
 };
 
 static SyscallReturn
-setThreadArea32Func(SyscallDesc *desc, int callnum,
-                    Process *process, ThreadContext *tc)
+setThreadArea32Func(SyscallDesc *desc, int callnum, ThreadContext *tc)
 {
     const int minTLSEntry = 6;
     const int numTLSEntries = 3;
     const int maxTLSEntry = minTLSEntry + numTLSEntries - 1;
+
+    auto process = tc->getProcessPtr();
 
     X86Process *x86p = dynamic_cast<X86Process *>(process);
     assert(x86p);
@@ -510,13 +546,13 @@ static SyscallDesc syscallDescs64[] = {
     /* 281 */ SyscallDesc("epoll_pwait", unimplementedFunc),
     /* 282 */ SyscallDesc("signalfd", unimplementedFunc),
     /* 283 */ SyscallDesc("timerfd_create", unimplementedFunc),
-    /* 284 */ SyscallDesc("eventfd", unimplementedFunc),
+    /* 284 */ SyscallDesc("eventfd", eventfdFunc<X86Linux64>),
     /* 285 */ SyscallDesc("fallocate", fallocateFunc),
     /* 286 */ SyscallDesc("timerfd_settime", unimplementedFunc),
     /* 287 */ SyscallDesc("timerfd_gettime", unimplementedFunc),
     /* 288 */ SyscallDesc("accept4", unimplementedFunc),
     /* 289 */ SyscallDesc("signalfd4", unimplementedFunc),
-    /* 290 */ SyscallDesc("eventfd2", unimplementedFunc),
+    /* 290 */ SyscallDesc("eventfd2", eventfdFunc<X86Linux64>),
     /* 291 */ SyscallDesc("epoll_create1", unimplementedFunc),
     /* 292 */ SyscallDesc("dup3", unimplementedFunc),
     /* 293 */ SyscallDesc("pipe2", unimplementedFunc),
@@ -882,7 +918,7 @@ static SyscallDesc syscallDescs32[] = {
     /* 320 */ SyscallDesc("utimensat", unimplementedFunc),
     /* 321 */ SyscallDesc("signalfd", unimplementedFunc),
     /* 322 */ SyscallDesc("timerfd", unimplementedFunc),
-    /* 323 */ SyscallDesc("eventfd", unimplementedFunc)
+    /* 323 */ SyscallDesc("eventfd", eventfdFunc<X86Linux32>)
 };
 
 I386LinuxProcess::I386LinuxProcess(ProcessParams * params, ObjectFile *objFile)

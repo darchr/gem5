@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 ARM Limited
+ * Copyright (c) 2013-2014,2018 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -248,14 +248,7 @@ Execute::tryToBranch(MinorDynInstPtr inst, Fault fault, BranchData &branch)
             pc_before, target);
     }
 
-    if (thread->status() == ThreadContext::Suspended) {
-        /* Thread got suspended */
-        DPRINTF(Branch, "Thread got suspended: branch from 0x%x to 0x%x "
-            "inst: %s\n",
-            inst->pc.instAddr(), target.instAddr(), *inst);
-
-        reason = BranchData::SuspendThread;
-    } else if (inst->predictedTaken && !force_branch) {
+    if (inst->predictedTaken && !force_branch) {
         /* Predicted to branch */
         if (!must_branch) {
             /* No branch was taken, change stream to get us back to the
@@ -364,6 +357,8 @@ Execute::handleMemResponse(MinorDynInstPtr inst,
         DPRINTF(MinorMem, "Completing failed request inst: %s\n",
             *inst);
         use_context_predicate = false;
+        if (!context.readMemAccPredicate())
+            inst->staticInst->completeAcc(nullptr, &context, inst->traceData);
     } else if (packet->isError()) {
         DPRINTF(MinorMem, "Trying to commit error response: %s\n",
             *inst);
@@ -481,6 +476,10 @@ Execute::executeMemRefInst(MinorDynInstPtr inst, BranchData &branch,
         } else {
             /* Only set this if the instruction passed its
              * predicate */
+            if (!context.readMemAccPredicate()) {
+                DPRINTF(MinorMem, "No memory access for inst: %s\n", *inst);
+                assert(context.readPredicate());
+            }
             passed_predicate = context.readPredicate();
 
             /* Set predicate in tracing */
@@ -928,7 +927,7 @@ Execute::commitInst(MinorDynInstPtr inst, bool early_memory_issue,
                  *  until it gets to the head of inFlightInsts */
                 inst->canEarlyIssue = false;
                 /* Not completed as we'll come here again to pick up
-                *  the fault when we get to the end of the FU */
+                 * the fault when we get to the end of the FU */
                 completed_inst = false;
             } else {
                 DPRINTF(MinorExecute, "Fault in execute: %s\n",
@@ -1683,12 +1682,7 @@ Execute::getCommittingThread()
 
     for (auto tid : priority_list) {
         ExecuteThreadInfo &ex_info = executeInfo[tid];
-
-        bool is_thread_active =
-                cpu.getContext(tid)->status() == ThreadContext::Active;
-        bool can_commit_insts = !ex_info.inFlightInsts->empty() &&
-                                is_thread_active;
-
+        bool can_commit_insts = !ex_info.inFlightInsts->empty();
         if (can_commit_insts) {
             QueuedInst *head_inflight_inst = &(ex_info.inFlightInsts->front());
             MinorDynInstPtr inst = head_inflight_inst->inst;
@@ -1754,8 +1748,7 @@ Execute::getIssuingThread()
     }
 
     for (auto tid : priority_list) {
-        if (cpu.getContext(tid)->status() == ThreadContext::Active &&
-            getInput(tid)) {
+        if (getInput(tid)) {
             issuePriority = tid;
             return tid;
         }

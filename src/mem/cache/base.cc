@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, 2018 ARM Limited
+ * Copyright (c) 2012-2013, 2018-2019 ARM Limited
  * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
@@ -51,12 +51,15 @@
 #include "base/compiler.hh"
 #include "base/logging.hh"
 #include "debug/Cache.hh"
+#include "debug/CacheComp.hh"
 #include "debug/CachePort.hh"
 #include "debug/CacheRepl.hh"
 #include "debug/CacheVerbose.hh"
+#include "mem/cache/compressors/base.hh"
 #include "mem/cache/mshr.hh"
 #include "mem/cache/prefetch/base.hh"
 #include "mem/cache/queue_entry.hh"
+#include "mem/cache/tags/super_blk.hh"
 #include "params/BaseCache.hh"
 #include "params/WriteAllocator.hh"
 #include "sim/core.hh"
@@ -83,6 +86,7 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
       mshrQueue("MSHRs", p->mshrs, 0, p->demand_mshr_reserve), // see below
       writeBuffer("write buffer", p->write_buffers, p->mshrs), // see below
       tags(p->tags),
+      compressor(p->compressor),
       prefetcher(p->prefetcher),
       writeAllocator(p->write_allocator),
       writebackClean(p->writeback_clean),
@@ -338,20 +342,11 @@ BaseCache::recvTimingReq(PacketPtr pkt)
     // the delay provided by the crossbar
     Tick forward_time = clockEdge(forwardLatency) + pkt->headerDelay;
 
+    // Note that lat is passed by reference here. The function
+    // access() will set the lat value.
     Cycles lat;
     CacheBlk *blk = nullptr;
-    bool satisfied = false;
-    {
-        PacketList writebacks;
-        // Note that lat is passed by reference here. The function
-        // access() will set the lat value.
-        satisfied = access(pkt, blk, lat, writebacks);
-
-        // After the evicted blocks are selected, they must be forwarded
-        // to the write buffer to ensure they logically precede anything
-        // happening below
-        doWritebacks(writebacks, clockEdge(lat + forwardLatency));
-    }
+    bool satisfied = access(pkt, blk, lat);
 
     // Here we charge the headerDelay that takes into account the latencies
     // of the bus, if the packet comes from it.
@@ -453,8 +448,6 @@ BaseCache::recvTimingResp(PacketPtr pkt)
             miss_latency;
     }
 
-    PacketList writebacks;
-
     bool is_fill = !mshr->isForward &&
         (pkt->isRead() || pkt->cmd == MemCmd::UpgradeResp ||
          mshr->wasWholeLineWrite);
@@ -471,7 +464,7 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
         const bool allocate = (writeAllocator && mshr->wasWholeLineWrite) ?
             writeAllocator->allocate() : mshr->allocOnFill();
-        blk = handleFill(pkt, blk, writebacks, allocate);
+        blk = handleFill(pkt, blk, allocate);
         assert(blk != nullptr);
         ppFill->notify(pkt);
     }
@@ -527,12 +520,8 @@ BaseCache::recvTimingResp(PacketPtr pkt)
 
     // if we used temp block, check to see if its valid and then clear it out
     if (blk == tempBlock && tempBlock->isValid()) {
-        evictBlock(blk, writebacks);
+        evictBlock(blk, clockEdge(forwardLatency) + pkt->headerDelay);
     }
-
-    const Tick forward_time = clockEdge(forwardLatency) + pkt->headerDelay;
-    // copy writebacks to write buffer
-    doWritebacks(writebacks, forward_time);
 
     DPRINTF(CacheVerbose, "%s: Leaving with %s\n", __func__, pkt->print());
     delete pkt;
@@ -551,8 +540,7 @@ BaseCache::recvAtomic(PacketPtr pkt)
     Cycles lat = lookupLatency;
 
     CacheBlk *blk = nullptr;
-    PacketList writebacks;
-    bool satisfied = access(pkt, blk, lat, writebacks);
+    bool satisfied = access(pkt, blk, lat);
 
     if (pkt->isClean() && blk && blk->isDirty()) {
         // A cache clean opearation is looking for a dirty
@@ -562,17 +550,12 @@ BaseCache::recvAtomic(PacketPtr pkt)
         DPRINTF(CacheVerbose, "%s: packet %s found block: %s\n",
                 __func__, pkt->print(), blk->print());
         PacketPtr wb_pkt = writecleanBlk(blk, pkt->req->getDest(), pkt->id);
-        writebacks.push_back(wb_pkt);
         pkt->setSatisfied();
+        doWritebacksAtomic(wb_pkt);
     }
 
-    // handle writebacks resulting from the access here to ensure they
-    // logically precede anything happening below
-    doWritebacksAtomic(writebacks);
-    assert(writebacks.empty());
-
     if (!satisfied) {
-        lat += handleAtomicReqMiss(pkt, blk, writebacks);
+        lat += handleAtomicReqMiss(pkt, blk);
     }
 
     // Note that we don't invoke the prefetcher at all in atomic mode.
@@ -585,9 +568,6 @@ BaseCache::recvAtomic(PacketPtr pkt)
     // for an example (though we'd want to issue the prefetch(es)
     // immediately rather than calling requestMemSideBus() as we do
     // there).
-
-    // do any writebacks resulting from the response handling
-    doWritebacksAtomic(writebacks);
 
     // if we used temp block, check to see if its valid and if so
     // clear it out, but only do so after the call to recvAtomic is
@@ -794,6 +774,106 @@ BaseCache::getNextQueueEntry()
     return nullptr;
 }
 
+bool
+BaseCache::updateCompressionData(CacheBlk *blk, const uint64_t* data,
+    uint32_t delay, Cycles tag_latency)
+{
+    // tempBlock does not exist in the tags, so don't do anything for it.
+    if (blk == tempBlock) {
+        return true;
+    }
+
+    // Get superblock of the given block
+    CompressionBlk* compression_blk = static_cast<CompressionBlk*>(blk);
+    const SuperBlk* superblock = static_cast<const SuperBlk*>(
+        compression_blk->getSectorBlock());
+
+    // The compressor is called to compress the updated data, so that its
+    // metadata can be updated.
+    std::size_t compression_size = 0;
+    Cycles compression_lat = Cycles(0);
+    Cycles decompression_lat = Cycles(0);
+    compressor->compress(data, compression_lat, decompression_lat,
+                         compression_size);
+
+    // If block's compression factor increased, it may not be co-allocatable
+    // anymore. If so, some blocks might need to be evicted to make room for
+    // the bigger block
+
+    // Get previous compressed size
+    const std::size_t M5_VAR_USED prev_size = compression_blk->getSizeBits();
+
+    // Check if new data is co-allocatable
+    const bool is_co_allocatable = superblock->isCompressed(compression_blk) &&
+        superblock->canCoAllocate(compression_size);
+
+    // If block was compressed, possibly co-allocated with other blocks, and
+    // cannot be co-allocated anymore, one or more blocks must be evicted to
+    // make room for the expanded block. As of now we decide to evict the co-
+    // allocated blocks to make room for the expansion, but other approaches
+    // that take the replacement data of the superblock into account may
+    // generate better results
+    std::vector<CacheBlk*> evict_blks;
+    const bool was_compressed = compression_blk->isCompressed();
+    if (was_compressed && !is_co_allocatable) {
+        // Get all co-allocated blocks
+        for (const auto& sub_blk : superblock->blks) {
+            if (sub_blk->isValid() && (compression_blk != sub_blk)) {
+                // Check for transient state allocations. If any of the
+                // entries listed for eviction has a transient state, the
+                // allocation fails
+                const Addr repl_addr = regenerateBlkAddr(sub_blk);
+                const MSHR *repl_mshr =
+                    mshrQueue.findMatch(repl_addr, sub_blk->isSecure());
+                if (repl_mshr) {
+                    DPRINTF(CacheRepl, "Aborting data expansion of %s due " \
+                            "to replacement of block in transient state: %s\n",
+                            compression_blk->print(), sub_blk->print());
+                    // Too hard to replace block with transient state, so it
+                    // cannot be evicted. Mark the update as failed and expect
+                    // the caller to evict this block. Since this is called
+                    // only when writebacks arrive, and packets do not contain
+                    // compressed data, there is no need to decompress
+                    compression_blk->setSizeBits(blkSize * 8);
+                    compression_blk->setDecompressionLatency(Cycles(0));
+                    compression_blk->setUncompressed();
+                    return false;
+                }
+
+                evict_blks.push_back(sub_blk);
+            }
+        }
+
+        // Update the number of data expansions
+        dataExpansions++;
+
+        DPRINTF(CacheComp, "Data expansion: expanding [%s] from %d to %d bits"
+                "\n", blk->print(), prev_size, compression_size);
+    }
+
+    // We always store compressed blocks when possible
+    if (is_co_allocatable) {
+        compression_blk->setCompressed();
+    } else {
+        compression_blk->setUncompressed();
+    }
+    compression_blk->setSizeBits(compression_size);
+    compression_blk->setDecompressionLatency(decompression_lat);
+
+    // Evict valid blocks
+    for (const auto& evict_blk : evict_blks) {
+        if (evict_blk->isValid()) {
+            if (evict_blk->wasPrefetched()) {
+                unusedPrefetches++;
+            }
+            Cycles lat = calculateAccessLatency(evict_blk, delay, tag_latency);
+            evictBlock(evict_blk, clockEdge(lat + forwardLatency));
+        }
+    }
+
+    return true;
+}
+
 void
 BaseCache::satisfyRequest(PacketPtr pkt, CacheBlk *blk, bool, bool)
 {
@@ -921,8 +1001,7 @@ BaseCache::calculateAccessLatency(const CacheBlk* blk, const uint32_t delay,
 }
 
 bool
-BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
-                  PacketList &writebacks)
+BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat)
 {
     // sanity check
     assert(pkt->isRequest());
@@ -1021,7 +1100,7 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
 
         if (!blk) {
             // need to do a replacement
-            blk = allocateBlock(pkt, writebacks);
+            blk = allocateBlock(pkt, tag_latency);
             if (!blk) {
                 // no replaceable block available: give up, fwd to next level.
                 incMissCount(pkt);
@@ -1034,7 +1113,26 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             }
 
             blk->status |= BlkReadable;
+        } else if (compressor) {
+            // This is an overwrite to an existing block, therefore we need
+            // to check for data expansion (i.e., block was compressed with
+            // a smaller size, and now it doesn't fit the entry anymore).
+            // If that is the case we might need to evict blocks.
+            if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
+                pkt->headerDelay, tag_latency)) {
+                // This is a failed data expansion (write), which happened
+                // after finding the replacement entries and accessing the
+                // block's data. There were no replaceable entries available
+                // to make room for the expanded block, and since it does not
+                // fit anymore and it has been properly updated to contain
+                // the new data, forward it to the next level
+                lat = calculateAccessLatency(blk, pkt->headerDelay,
+                                             tag_latency);
+                invalidateBlock(blk);
+                return false;
+            }
         }
+
         // only mark the block dirty if we got a writeback command,
         // and leave it as is for a clean writeback
         if (pkt->cmd == MemCmd::WritebackDirty) {
@@ -1097,7 +1195,7 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                 return false;
             } else {
                 // a writeback that misses needs to allocate a new block
-                blk = allocateBlock(pkt, writebacks);
+                blk = allocateBlock(pkt, tag_latency);
                 if (!blk) {
                     // no replaceable block available: give up, fwd to
                     // next level.
@@ -1113,6 +1211,24 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                 }
 
                 blk->status |= BlkReadable;
+            }
+        } else if (compressor) {
+            // This is an overwrite to an existing block, therefore we need
+            // to check for data expansion (i.e., block was compressed with
+            // a smaller size, and now it doesn't fit the entry anymore).
+            // If that is the case we might need to evict blocks.
+            if (!updateCompressionData(blk, pkt->getConstPtr<uint64_t>(),
+                pkt->headerDelay, tag_latency)) {
+                // This is a failed data expansion (write), which happened
+                // after finding the replacement entries and accessing the
+                // block's data. There were no replaceable entries available
+                // to make room for the expanded block, and since it does not
+                // fit anymore and it has been properly updated to contain
+                // the new data, forward it to the next level
+                lat = calculateAccessLatency(blk, pkt->headerDelay,
+                                             tag_latency);
+                invalidateBlock(blk);
+                return false;
             }
         }
 
@@ -1140,8 +1256,7 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
             std::max(cyclesToTicks(tag_latency), (uint64_t)pkt->payloadDelay));
 
-        // if this a write-through packet it will be sent to cache
-        // below
+        // If this a write-through packet it will be sent to cache below
         return !pkt->writeThrough();
     } else if (blk && (pkt->needsWritable() ? blk->isWritable() :
                        blk->isReadable())) {
@@ -1151,6 +1266,12 @@ BaseCache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
         // Calculate access latency based on the need to access the data array
         if (pkt->isRead() || pkt->isWrite()) {
             lat = calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
+
+            // When a block is compressed, it must first be decompressed
+            // before being read. This adds to the access latency.
+            if (compressor && pkt->isRead()) {
+                lat += compressor->getDecompressionLatency(blk);
+            }
         } else {
             lat = calculateTagOnlyLatency(pkt->headerDelay, tag_latency);
         }
@@ -1190,8 +1311,7 @@ BaseCache::maintainClusivity(bool from_cache, CacheBlk *blk)
 }
 
 CacheBlk*
-BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
-                      bool allocate)
+BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, bool allocate)
 {
     assert(pkt->isResponse());
     Addr addr = pkt->getAddr();
@@ -1208,9 +1328,12 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
         // better have read new data...
         assert(pkt->hasData() || pkt->cmd == MemCmd::InvalidateResp);
 
-        // need to do a replacement if allocating, otherwise we stick
-        // with the temporary storage
-        blk = allocate ? allocateBlock(pkt, writebacks) : nullptr;
+        // Need to do a replacement if allocating, otherwise we stick
+        // with the temporary storage. The tag lookup has already been
+        // done to decide the eviction victims, so it is set to 0 here.
+        // The eviction itself, however, is delayed until the new data
+        // for the block that is requesting the replacement arrives.
+        blk = allocate ? allocateBlock(pkt, Cycles(0)) : nullptr;
 
         if (!blk) {
             // No replaceable block or a mostly exclusive
@@ -1263,6 +1386,31 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
 
             chatty_assert(!isReadOnly, "Should never see dirty snoop response "
                           "in read-only cache %s\n", name());
+
+        } else if (pkt->cmd.isSWPrefetch() && pkt->needsWritable()) {
+            // All other copies of the block were invalidated and we
+            // have an exclusive copy.
+
+            // The coherence protocol assumes that if we fetched an
+            // exclusive copy of the block, we have the intention to
+            // modify it. Therefore the MSHR for the PrefetchExReq has
+            // been the point of ordering and this cache has commited
+            // to respond to snoops for the block.
+            //
+            // In most cases this is true anyway - a PrefetchExReq
+            // will be followed by a WriteReq. However, if that
+            // doesn't happen, the block is not marked as dirty and
+            // the cache doesn't respond to snoops that has committed
+            // to do so.
+            //
+            // To avoid deadlocks in cases where there is a snoop
+            // between the PrefetchExReq and the expected WriteReq, we
+            // proactively mark the block as Dirty.
+
+            blk->status |= BlkDirty;
+
+            panic_if(!isReadOnly, "Prefetch exclusive requests from read-only "
+                     "cache %s\n", name());
         }
     }
 
@@ -1286,7 +1434,7 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
 }
 
 CacheBlk*
-BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
+BaseCache::allocateBlock(const PacketPtr pkt, Cycles tag_latency)
 {
     // Get address
     const Addr addr = pkt->getAddr();
@@ -1294,9 +1442,27 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
     // Get secure bit
     const bool is_secure = pkt->isSecure();
 
+    // Block size and compression related access latency. Only relevant if
+    // using a compressor, otherwise there is no extra delay, and the block
+    // is fully sized
+    std::size_t blk_size_bits = blkSize*8;
+    Cycles compression_lat = Cycles(0);
+    Cycles decompression_lat = Cycles(0);
+
+    // If a compressor is being used, it is called to compress data before
+    // insertion. Although in Gem5 the data is stored uncompressed, even if a
+    // compressor is used, the compression/decompression methods are called to
+    // calculate the amount of extra cycles needed to read or write compressed
+    // blocks.
+    if (compressor) {
+        compressor->compress(pkt->getConstPtr<uint64_t>(), compression_lat,
+                             decompression_lat, blk_size_bits);
+    }
+
     // Find replacement victim
     std::vector<CacheBlk*> evict_blks;
-    CacheBlk *victim = tags->findVictim(addr, is_secure, evict_blks);
+    CacheBlk *victim = tags->findVictim(addr, is_secure, blk_size_bits,
+                                        evict_blks);
 
     // It is valid to return nullptr if there is no victim
     if (!victim)
@@ -1341,11 +1507,20 @@ BaseCache::allocateBlock(const PacketPtr pkt, PacketList &writebacks)
                     unusedPrefetches++;
                 }
 
-                evictBlock(blk, writebacks);
+                Cycles lat =
+                    calculateAccessLatency(blk, pkt->headerDelay, tag_latency);
+                evictBlock(blk, clockEdge(lat + forwardLatency));
             }
         }
 
         replacements++;
+    }
+
+    // If using a compressor, set compression data. This must be done before
+    // block insertion, as compressed tags use this information.
+    if (compressor) {
+        compressor->setSizeBits(victim, blk_size_bits);
+        compressor->setDecompressionLatency(victim, decompression_lat);
     }
 
     // Insert new block at victimized entry
@@ -1367,11 +1542,15 @@ BaseCache::invalidateBlock(CacheBlk *blk)
 }
 
 void
-BaseCache::evictBlock(CacheBlk *blk, PacketList &writebacks)
+BaseCache::evictBlock(CacheBlk *blk, Tick forward_timing)
 {
     PacketPtr pkt = evictBlock(blk);
     if (pkt) {
-        writebacks.push_back(pkt);
+        if (system->isTimingMode()) {
+            doWritebacks(pkt, forward_timing);
+        } else {
+            doWritebacksAtomic(pkt);
+        }
     }
 }
 
@@ -1414,6 +1593,12 @@ BaseCache::writebackBlk(CacheBlk *blk)
     pkt->allocate();
     pkt->setDataFromBlock(blk->data, blkSize);
 
+    // When a block is compressed, it must first be decompressed before being
+    // sent for writeback.
+    if (compressor) {
+        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+    }
+
     return pkt;
 }
 
@@ -1452,6 +1637,12 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
 
     pkt->allocate();
     pkt->setDataFromBlock(blk->data, blkSize);
+
+    // When a block is compressed, it must first be decompressed before being
+    // sent for writeback.
+    if (compressor) {
+        pkt->payloadDelay = compressor->getDecompressionLatency(blk);
+    }
 
     return pkt;
 }
@@ -1628,9 +1819,7 @@ BaseCache::sendMSHRQueuePacket(MSHR* mshr)
                     __func__, pkt->print(), blk->print());
             PacketPtr wb_pkt = writecleanBlk(blk, pkt->req->getDest(),
                                              pkt->id);
-            PacketList writebacks;
-            writebacks.push_back(wb_pkt);
-            doWritebacks(writebacks, 0);
+            doWritebacks(wb_pkt, 0);
         }
 
         return false;
@@ -2139,38 +2328,6 @@ BaseCache::regStats()
         overallMshrUncacheableLatency.subname(i, system->getMasterName(i));
     }
 
-#if 0
-    // MSHR access formulas
-    for (int access_idx = 0; access_idx < MemCmd::NUM_MEM_CMDS; ++access_idx) {
-        MemCmd cmd(access_idx);
-        const string &cstr = cmd.toString();
-
-        mshrAccesses[access_idx]
-            .name(name() + "." + cstr + "_mshr_accesses")
-            .desc("number of " + cstr + " mshr accesses(hits+misses)")
-            .flags(total | nozero | nonan)
-            ;
-        mshrAccesses[access_idx] =
-            mshr_hits[access_idx] + mshr_misses[access_idx]
-            + mshr_uncacheable[access_idx];
-    }
-
-    demandMshrAccesses
-        .name(name() + ".demand_mshr_accesses")
-        .desc("number of demand (read+write) mshr accesses")
-        .flags(total | nozero | nonan)
-        ;
-    demandMshrAccesses = demandMshrHits + demandMshrMisses;
-
-    overallMshrAccesses
-        .name(name() + ".overall_mshr_accesses")
-        .desc("number of overall (read+write) mshr accesses")
-        .flags(total | nozero | nonan)
-        ;
-    overallMshrAccesses = overallMshrHits + overallMshrMisses
-        + overallMshrUncacheable;
-#endif
-
     // MSHR miss rate formulas
     for (int access_idx = 0; access_idx < MemCmd::NUM_MEM_CMDS; ++access_idx) {
         MemCmd cmd(access_idx);
@@ -2281,6 +2438,12 @@ BaseCache::regStats()
     replacements
         .name(name() + ".replacements")
         .desc("number of replacements")
+        ;
+
+    dataExpansions
+        .name(name() + ".data_expansions")
+        .desc("number of data expansions")
+        .flags(nozero | nonan)
         ;
 }
 

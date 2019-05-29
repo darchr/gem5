@@ -120,7 +120,6 @@ Fetch2::dumpAllInput(ThreadID tid)
         popInput(tid);
 
     fetchInfo[tid].inputIndex = 0;
-    fetchInfo[tid].havePC = false;
 }
 
 void
@@ -586,9 +585,7 @@ Fetch2::getScheduledThread()
     }
 
     for (auto tid : priority_list) {
-        if (cpu.getContext(tid)->status() == ThreadContext::Active &&
-            getInput(tid) &&
-            !fetchInfo[tid].blocked) {
+        if (getInput(tid) && !fetchInfo[tid].blocked) {
             threadPriority = tid;
             return tid;
         }

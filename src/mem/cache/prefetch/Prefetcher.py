@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2014 ARM Limited
+# Copyright (c) 2012, 2014, 2019 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -99,6 +99,13 @@ class BasePrefetcher(ClockedObject):
             raise TypeError("probeNames must have at least one element")
         self.addEvent(HWPProbeEvent(self, simObj, *probeNames))
 
+class MultiPrefetcher(BasePrefetcher):
+    type = 'MultiPrefetcher'
+    cxx_class = 'MultiPrefetcher'
+    cxx_header = 'mem/cache/prefetch/multi.hh'
+
+    prefetchers = VectorParam.BasePrefetcher([], "Array of prefetchers")
+
 class QueuedPrefetcher(BasePrefetcher):
     type = "QueuedPrefetcher"
     abstract = True
@@ -156,8 +163,8 @@ class IndirectMemoryPrefetcher(QueuedPrefetcher):
     pt_table_replacement_policy = Param.BaseReplacementPolicy(LRURP(),
         "Replacement policy of the pattern table")
     max_prefetch_distance = Param.Unsigned(16, "Maximum prefetch distance")
-    max_indirect_counter_value = Param.Unsigned(8,
-        "Maximum value of the indirect counter")
+    num_indirect_counter_bits = Param.Unsigned(3,
+        "Number of bits of the indirect counter")
     ipd_table_entries = Param.MemorySize("4",
         "Number of entries of the Indirect Pattern Detector")
     ipd_table_assoc = Param.Unsigned(4,
@@ -197,7 +204,8 @@ class SignaturePathPrefetcher(QueuedPrefetcher):
     signature_table_replacement_policy = Param.BaseReplacementPolicy(LRURP(),
         "Replacement policy of the signature table")
 
-    max_counter_value = Param.UInt8(7, "Maximum pattern counter value")
+    num_counter_bits = Param.UInt8(3,
+        "Number of bits of the saturating counters")
     pattern_table_entries = Param.MemorySize("4096",
         "Number of entries of the pattern table")
     pattern_table_assoc = Param.Unsigned(1,
@@ -225,7 +233,7 @@ class SignaturePathPrefetcherV2(SignaturePathPrefetcher):
     signature_table_assoc = 1
     pattern_table_entries = "512"
     pattern_table_assoc = 1
-    max_counter_value = 15
+    num_counter_bits = 4
     prefetch_confidence_threshold = 0.25
     lookahead_confidence_threshold = 0.25
 
@@ -318,8 +326,8 @@ class IrregularStreamBufferPrefetcher(QueuedPrefetcher):
     cxx_class = "IrregularStreamBufferPrefetcher"
     cxx_header = "mem/cache/prefetch/irregular_stream_buffer.hh"
 
-    max_counter_value = Param.Unsigned(3,
-        "Maximum value of the confidence counter")
+    num_counter_bits = Param.Unsigned(2,
+        "Number of bits of the confidence counter")
     chunk_size = Param.Unsigned(256,
         "Maximum number of addresses in a temporal stream")
     degree = Param.Unsigned(4, "Number of prefetches to generate")

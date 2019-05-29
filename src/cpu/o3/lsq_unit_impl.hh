@@ -542,6 +542,15 @@ LSQUnit<Impl>::executeLoad(const DynInstPtr &inst)
 
     load_fault = inst->initiateAcc();
 
+    if (load_fault == NoFault && !inst->readMemAccPredicate()) {
+        assert(inst->readPredicate());
+        inst->setExecuted();
+        inst->completeAcc(nullptr);
+        iewStage->instToCommit(inst);
+        iewStage->activityThisCycle();
+        return NoFault;
+    }
+
     if (inst->isTranslationDelayed() && load_fault == NoFault)
         return load_fault;
 

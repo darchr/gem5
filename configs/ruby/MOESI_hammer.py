@@ -33,7 +33,7 @@ from m5.objects import *
 from m5.defines import buildEnv
 from Ruby import create_topology, create_directories
 from Ruby import send_evicts
-import FileSystemConfig
+from common import FileSystemConfig
 
 #
 # Declare caches used by the protocol
@@ -258,8 +258,6 @@ def create_system(options, full_system, system, dma_ports, bootmem,
         all_cntrls = all_cntrls + [io_controller]
     # Register configuration with filesystem
     else:
-        FileSystemConfig.config_filesystem(options)
-
         for i in xrange(options.num_cpus):
             FileSystemConfig.register_cpu(physical_package_id = 0,
                                           core_siblings = [],
