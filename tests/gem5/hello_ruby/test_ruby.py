@@ -27,23 +27,19 @@
 # Authors: Marjan Fariborz
 
 '''
-Test file for the util m5 exit assembly instruction.
+Test file for Ruby random tester.
+
+For now, this file only tests MI_example to reduce build time. However, we
+should expand this file for all of the Ruby protocols we care about.
 '''
 from testlib import *
 
-#test_progs = {
-#    'hello64-static', 'hello64-dynamic', 'hello32-static',
-#}
-isa='x86'
-#for binary in test_progs:
-import os
-ref_path = joinpath(getcwd(), 'ref')
 gem5_verify_config(
     name='test_ruby',
     verifiers=(),
     fixtures=(),
-    config=joinpath(config.base_dir,'configs','example',
-    'ruby_random_test.py'),
-    config_args=[],
-    valid_isas=(isa.upper(),),
-    )
+    config=joinpath(config.base_dir, 'configs', 'example',
+                    'ruby_random_test.py'),
+    config_args=['-n', '16', '--maxloads', '1000'],
+    valid_isas=('NULL',),
+)
