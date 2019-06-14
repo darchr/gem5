@@ -26,55 +26,81 @@
 #
 # Authors: Nima Ganjehloo
 */
-#ifndef __VERILATOR_VERILATOR_MEM_BLACK_BOX__HH__
-#define __VERILATOR_VERILATOR_MEM_BLACK_BOX__HH__
 
-//gem5 general includes
-#include "mem/mem_object.hh"
-#include "sim/clocked_object.hh"
+//gem5 includes
+#include "base/logging.hh"
+#include "debug/Verilator.hh"
+#include "sim/sim_exit.hh"
 
 //gem5 model includes
-#include "params/VerilatorMemBlackBox.hh"
+#include "verilator_driver.hh"
 
-//Interface for different types of memory models
-class VerilatorMemBlackBox: public MemObject
+//setup design params
+VerilatorDriver::VerilatorDriver( ) :
+  event([this]{clockDevice();}),
 {
-  public:
-    //memory access functions for blackbox
-    virtual void doFetch(){}
-    virtual void doMem(){}
+}
 
-    virtual uint32_t getDmemResp() = 0;
-    virtual uint32_t getImemResp() = 0;
+void
+VerilatorDinoCPU::clockDevice()
+{
 
-    VerilatorMemBlackBox( VerilatorMemBlackBoxParams *params) :
-    MemObject(params)
-    {}
+  DPRINTF(Verilator, "\n\nCLOCKING DEVICE\n");
 
-  protected:
-  //master port for blackbox
-    class VerilatorMemBlackBoxPort : public MasterPort
-    {
-      protected:
-        VerilatorMemBlackBox *owner;
-        PacketPtr blockedPacket;
+  //run the device under test here through verilator
+  //when clock = 0 device state is set
+  top.clock = 0;
+  top.eval();
+  //when clock = 1 device state is evaluated
+  top.clock = 1;
+  top.eval();
 
-      public:
+  cyclesPassed += 1;
 
-         VerilatorMemBlackBoxPort(const std::string& name,
-                    VerilatorMemBlackBox *owner) :
-                    MasterPort(name, owner),
-                    owner(owner),
-                    blockedPacket(nullptr)
-                { }
+  //schedule another instruction fetch if verilator is not done
+  if (!Verilated::gotFinish()){
+    schedule(event, nextCycle());
+  }
+}
 
-        virtual void sendTimingPacket(){}
+unsigned int
+VerilatorDriver::getClockState()
+{
+  return top.clock;
+}
 
-        //currently need this for synchronization. tells gem5 to access mem
-        //model immediatly instead of scheduling event to do so
-        virtual void sendAtomicPacket(){}
-    };
-    //deal with data going back to verilator c++
-   virtual void handleResponse(){}
-};
-#endif
+void
+VerilatorDriver::reset(int resetCycles)
+{
+  DPRINTF(Verilator, "RESETING FOR %d CYCLES\n", resetCycles);
+
+  //if we are pipelining we want to run reset for the number
+  //of stages we have
+  top.reset = 1;
+  for (int i = 0; i < resetCycles; ++i){
+    //set reset signal and starting clock signal
+    top.clock = 0;
+    top.eval();
+    //run verilator for this state
+    //run verilator for rising edge state
+    top.clock = 1;
+    top.eval();
+  }
+
+  //done reseting
+  top.reset = 0;
+
+  DPRINTF(Verilator, "DONE RESETING\n");
+}
+
+void
+VerilatorDriver::startup()
+{
+  DPRINTF(Verilator, "STARTING UP DINOCPU\n");
+  reset(designStages);
+
+  //lets fetch an instruction before doing anything
+  DPRINTF(Verilator, "SCHEDULING FIRST TICK \n");
+  schedule(event, nextCycle());
+}
+

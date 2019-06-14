@@ -36,18 +36,19 @@
 #include "debug/Verilator.hh"
 
 //gem5 mdeol includes
+#include "verilator/dinocpu_sync_mem/verilator_sync_mem_black_box.hh"
 #include "verilator/verilator_dino_cpu.hh"
-#include "verilator/verilator_mem_black_box.hh"
 
 VerilatorMemBlackBox * memBlkBox = nullptr;
 VerilatorDinoCPU * dinoCPU = nullptr;
 
 //will run a doFetch from within blackbox wrapper
-int ifetch (int imem_address, void* handle){
+int ifetch (unsigned int imem_address, void* handle){
   DPRINTF(Verilator, "DPI INST FETCH MADE\n");
-  VerilatorMemBlackBox* hndl = static_cast<VerilatorMemBlackBox *>(handle);
+  VerilatorSyncMemBlackBox* hndl =
+    static_cast<VerilatorSyncMemBlackBox *>(handle);
   //lazy exception handeling
-  if (imem_address == 0x80000000 ){
+/*  if (imem_address == 0x80000000 ){
     DPRINTF(Verilator, "DPI INST FETCH ILLEGAL INST EXCEPTION\n");
     return 0x00c0006f;//jal x0, 12; effectively halt the processor
   }else if ( imem_address == 0x80000004 ){
@@ -61,21 +62,23 @@ int ifetch (int imem_address, void* handle){
     //either due to a lack of a handler or maybe a stray cosmic ray
     DPRINTF(Verilator, "UNHANDLED EXCEPTION, INDEFINITELY STALLING CPU\n");
     return 0x13; //do a nop for now
-  }else{
+  }else{*/
     //normal instruction fetch
     hndl->doFetch(imem_address);
 
     return hndl->getImemResp();
-  }
+  //}
 }
 //will run a doMem from within blackbox wrapper
-int datareq (int dmem_address, int dmem_writedata, unsigned char dmem_memread,
-        unsigned char dmem_memwrite, const svBitVecVal* dmem_maskmode,
-        unsigned char dmem_sext, void* handle)
+int datareq (unsigned int dmem_address, unsigned int dmem_writedata,
+        unsigned char dmem_memread, unsigned char dmem_memwrite,
+        const svBitVecVal* dmem_maskmode, unsigned char dmem_sext,
+        void* handle)
 {
   DPRINTF(Verilator, "DPI DATA REQ MADE\n");
 
-  VerilatorMemBlackBox* hndl = static_cast<VerilatorMemBlackBox *>(handle);
+  VerilatorSyncMemBlackBox* hndl =
+    static_cast<VerilatorSyncMemBlackBox *>(handle);
   hndl->doMem(dmem_address,  dmem_writedata, dmem_memread,
         dmem_memwrite, dmem_maskmode, dmem_sext);
 
@@ -87,7 +90,7 @@ int datareq (int dmem_address, int dmem_writedata, unsigned char dmem_memread,
 void* setGem5Handle (){
   DPRINTF(Verilator, "DPI GIVING MEM HANDLE TO VERILOG\n");
 
-  memBlkBox = VerilatorMemBlackBox::getSingleton();
+  memBlkBox = VerilatorSyncMemBlackBox::getSingleton();
   panic_if( memBlkBox == nullptr,
           "Verilog should not try to access null gem5 model!");
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2019 The Regents of the University of California
+/*# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,11 +25,34 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
+*/
 
-from m5.params import *
-from MemObject import MemObject
 
-class VerilatorMemBlackBox(MemObject):
-  type = 'VerilatorMemBlackBox'
-  cxx_header = "verilator/verilator_mem_black_box.hh"
+//verilator design includes
+#include "VTop.h"
 
+//Wrapper for verilator generated code. Clocks the device
+class VerilatorDriver
+    //event queue var to schedule mem requests and cycle updates
+    EventFunctionWrapper event;
+
+    //count how many cycles we have run
+    int cyclesPassed;
+
+    //Our verilator design
+    VTop top;
+  public:
+    VerilatorDinoCPU();
+
+    //clocks the verilator device.
+    void clockDevice();
+
+    //get the currently set clock on the device
+    unsigned char getClockState();
+
+    //reset the cpu for a # of cycles
+    void reset(int resetCycles);
+
+    //resets cpu then schedules memory request to fetch instruction
+    void startup() override;
+};

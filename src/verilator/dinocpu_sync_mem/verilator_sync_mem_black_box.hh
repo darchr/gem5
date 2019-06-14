@@ -26,55 +26,70 @@
 #
 # Authors: Nima Ganjehloo
 */
-#ifndef __VERILATOR_VERILATOR_MEM_BLACK_BOX__HH__
-#define __VERILATOR_VERILATOR_MEM_BLACK_BOX__HH__
-
-//gem5 general includes
-#include "mem/mem_object.hh"
-#include "sim/clocked_object.hh"
+#ifndef __VERILATOR_VERILATOR_SYNC_MEM_BLACK_BOX__HH__
+#define __VERILATOR_VERILATOR_SYNC_MEM_BLACK_BOX__HH__
+///verilator inlcudes
+#include "svdpi.h"
 
 //gem5 model includes
-#include "params/VerilatorMemBlackBox.hh"
+#include "verilator/verilator_mem_black_box.hh"
 
-//Interface for different types of memory models
-class VerilatorMemBlackBox: public MemObject
+class VerilatorSyncMemBlackBox: public VerilatorMemBlackBox
 {
   public:
     //memory access functions for blackbox
-    virtual void doFetch(){}
-    virtual void doMem(){}
+    void doFetch(unsigned int imem_address );
+    void doMem(unsigned int dmem_address, unsigned int dmem_writedata,
+        unsigned char dmem_memread,unsigned char dmem_memwrite,
+        const svBitVecVal* dmem_maskmode, unsigned char dmem_sext);
 
-    virtual uint32_t getDmemResp() = 0;
-    virtual uint32_t getImemResp() = 0;
+    BaseMasterPort& getMasterPort( const std::string& if_name,
+                PortID idx = InvalidPortID ) override;
 
-    VerilatorMemBlackBox( VerilatorMemBlackBoxParams *params) :
-    MemObject(params)
-    {}
+    //param setup for blackbox warpper
+    VerilatorSyncMemBlackBox( VerilatorMemBlackBoxParams *p );
 
-  protected:
-  //master port for blackbox
-    class VerilatorMemBlackBoxPort : public MasterPort
+    //setsup singleton for use with dpi getters
+    void startup() override;
+    static VerilatorSyncMemBlackBox * getSingleton();
+    uint32_t getDmemResp() override;
+    uint32_t getImemResp() override;
+
+  private:
+    //master port for blackbox
+    class VerilatorSyncMemBlackBoxPort :
+    public VerilatorMemBlackBox::VerilatorMemBlackBoxPort
     {
-      protected:
-        VerilatorMemBlackBox *owner;
-        PacketPtr blockedPacket;
 
       public:
-
-         VerilatorMemBlackBoxPort(const std::string& name,
+        VerilatorSyncMemBlackBoxPort(const std::string& name,
                     VerilatorMemBlackBox *owner) :
-                    MasterPort(name, owner),
-                    owner(owner),
-                    blockedPacket(nullptr)
+                    VerilatorMemBlackBoxPort(name, owner)
                 { }
 
-        virtual void sendTimingPacket(){}
+        void sendTimingPacket(PacketPtr pkt);
 
         //currently need this for synchronization. tells gem5 to access mem
         //model immediatly instead of scheduling event to do so
-        virtual void sendAtomicPacket(){}
+        bool sendAtomicPacket(PacketPtr pkt);
+
+      protected:
+        bool recvTimingResp(PacketPtr pkt) override;
+
+        void recvReqRetry() override;
     };
     //deal with data going back to verilator c++
-   virtual void handleResponse(){}
+    bool handleResponse( PacketPtr pkt );
+
+    //memory ports for imem and dmem requests
+    VerilatorSyncMemBlackBoxPort instPort;
+    VerilatorSyncMemBlackBoxPort dataPort;
+    //pointer for dpi
+    static VerilatorSyncMemBlackBox * singleton;
+
+    //data for response to dpi
+    uint32_t dmemResp;
+    uint32_t imemResp;
+
 };
 #endif

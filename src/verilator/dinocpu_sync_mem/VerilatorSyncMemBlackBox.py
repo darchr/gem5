@@ -29,7 +29,10 @@
 from m5.params import *
 from MemObject import MemObject
 
-class VerilatorMemBlackBox(MemObject):
-  type = 'VerilatorMemBlackBox'
-  cxx_header = "verilator/verilator_mem_black_box.hh"
+class VerilatorSyncMemBlackBox(MemObject):
+  type = 'VerilatorSyncMemBlackBox'
+  cxx_header = "verilator/dinocpu_sync_mem/verilator_sync_mem_black_box.hh"
+
+  inst_port = MasterPort("Instruction Port")
+  data_port = MasterPort("Data Port")
 

@@ -71,7 +71,7 @@ system.clk_domain.voltage_domain = VoltageDomain()
 
 # Set up the system
 system.mem_mode = 'timing'               # Use timing accesses
-system.mem_ranges = [AddrRange('4GB')] # Create an address range
+system.mem_ranges = [AddrRange('8GB')] # Create an address range
 
 # Create a DDR3 memory controller
 system.mem_ctrl = SimpleMemory(latency = '0ns', bandwidth = '0GB/s')
@@ -85,7 +85,7 @@ system.system_port = system.mem_ctrl.port
 system.dinocpu = VerilatorDinoCPU()
 
 # Create the mem black box verilator wrapper
-system.verilator_mem = VerilatorMemBlackBox()
+system.verilator_mem = VerilatorSyncMemBlackBox()
 
 
 system.verilator_mem.inst_port = system.mem_ctrl.port
@@ -98,6 +98,6 @@ root = Root(full_system = True, system = system)
 m5.instantiate()
 
 print("Beginning simulation!")
-exit_event = m5.simulate(10000)
+exit_event = m5.simulate(300000000)
 print('Exiting @ tick %i because %s' % (m5.curTick(), exit_event.getCause()))
 
