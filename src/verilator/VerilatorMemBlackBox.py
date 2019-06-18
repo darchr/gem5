@@ -31,5 +31,6 @@ from MemObject import MemObject
 
 class VerilatorMemBlackBox(MemObject):
   type = 'VerilatorMemBlackBox'
+  abstract = True
   cxx_header = "verilator/verilator_mem_black_box.hh"
 

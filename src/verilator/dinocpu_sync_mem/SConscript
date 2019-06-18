@@ -26,14 +26,7 @@
 #
 # Authors: Nima Ganjehloo
 
-from m5.params import *
-from MemObject import MemObject
-from VerilatorMemBlackBox import VerilatorMemBlackBox
+Import('*')
 
-class VerilatorSyncMemBlackBox(VerilatorMemBlackBox):
-  type = 'VerilatorSyncMemBlackBox'
-  cxx_header = "verilator/dinocpu_sync_mem/verilator_sync_mem_black_box.hh"
-
-  inst_port = MasterPort("Instruction Port")
-  data_port = MasterPort("Data Port")
-
+SimObject('VerilatorSyncMemBlackBox.py')
+Source('verilator_sync_mem_black_box.cc')

@@ -41,9 +41,6 @@
 #include "params/VerilatorDinoCPU.hh"
 #include "sim/clocked_object.hh"
 
-//gem5 mdeol includes
-#include "verilator/verilator_mem_black_box.hh"
-
 //Wrapper for verilator generated code. Clocks the device and schedules
 //memory requests in gem5
 class VerilatorDinoCPU : public ClockedObject
@@ -51,11 +48,6 @@ class VerilatorDinoCPU : public ClockedObject
   private:
     //clocks the verilator device.
     void updateCycle();
-
-    //Pointer to verilator memory device. This class probs shouldn't
-    //have this. Change in later general design
-    VerilatorMemBlackBox * verilatorMem;
-
     //event queue var to schedule mem requests and cycle updates
     EventFunctionWrapper event;
 

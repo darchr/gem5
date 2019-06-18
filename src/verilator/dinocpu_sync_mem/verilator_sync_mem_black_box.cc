@@ -119,16 +119,15 @@ VerilatorSyncMemBlackBox::getMasterPort(
 
 
 //Create for memblkbx for gem5
-VerilatorMemBlackBox*
-VerilatorMemBlackBoxParams::create()
+VerilatorSyncMemBlackBox*
+VerilatorSyncMemBlackBoxParams::create()
 {
-  return static_cast<VerilatorMemBlackBox *>
-    (new VerilatorSyncMemBlackBox(this));
+  return new VerilatorSyncMemBlackBox(this);
 }
 
 //setup our black box
 VerilatorSyncMemBlackBox::VerilatorSyncMemBlackBox(
-        VerilatorMemBlackBoxParams *params) :
+        VerilatorSyncMemBlackBoxParams *params) :
         VerilatorMemBlackBox(params),
         instPort(params->name + ".inst_port", this),
         dataPort(params->name + ".data_port", this)

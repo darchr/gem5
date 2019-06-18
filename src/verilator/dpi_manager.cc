@@ -39,7 +39,7 @@
 #include "verilator/dinocpu_sync_mem/verilator_sync_mem_black_box.hh"
 #include "verilator/verilator_dino_cpu.hh"
 
-VerilatorMemBlackBox * memBlkBox = nullptr;
+VerilatorSyncMemBlackBox * memBlkBox = nullptr;
 VerilatorDinoCPU * dinoCPU = nullptr;
 
 //will run a doFetch from within blackbox wrapper

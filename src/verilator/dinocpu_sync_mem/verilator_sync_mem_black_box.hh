@@ -33,6 +33,8 @@
 
 //gem5 model includes
 #include "verilator/verilator_mem_black_box.hh"
+//gem5 model includes
+#include "params/VerilatorSyncMemBlackBox.hh"
 
 class VerilatorSyncMemBlackBox: public VerilatorMemBlackBox
 {
@@ -47,7 +49,7 @@ class VerilatorSyncMemBlackBox: public VerilatorMemBlackBox
                 PortID idx = InvalidPortID ) override;
 
     //param setup for blackbox warpper
-    VerilatorSyncMemBlackBox( VerilatorMemBlackBoxParams *p );
+    VerilatorSyncMemBlackBox( VerilatorSyncMemBlackBoxParams *params );
 
     //setsup singleton for use with dpi getters
     void startup() override;
@@ -63,7 +65,7 @@ class VerilatorSyncMemBlackBox: public VerilatorMemBlackBox
 
       public:
         VerilatorSyncMemBlackBoxPort(const std::string& name,
-                    VerilatorMemBlackBox *owner) :
+                    VerilatorSyncMemBlackBox *owner) :
                     VerilatorMemBlackBoxPort(name, owner)
                 { }
 
