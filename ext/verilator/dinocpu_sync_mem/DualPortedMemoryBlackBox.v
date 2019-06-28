@@ -1,4 +1,4 @@
-# Copyright (c) 2019 The Regents of the University of California
+/*# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,12 +25,36 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
+*/
 
-Import('*')
+module DualPortedMemoryBlackBox(
+	input clk,
+	input [31:0] imem_address,
+	output [31:0] imem_instruction,
+	input [31:0] dmem_address, 
+	input [31:0] dmem_writedata,
+	input dmem_memread,
+	input dmem_memwrite,
+	input [1:0] dmem_maskmode,
+	input dmem_sext,
+	output [31:0] dmem_readdata
+);
+  import "DPI-C" function int ifetch(input int imem_address, chandle handle);
+  import "DPI-C" function int datareq(input int dmem_address, 
+      input int dmem_writedata,input bit dmem_memread, 
+      input bit dmem_memwrite, input bit [1:0] dmem_maskmode, 
+      input bit dmem_sext, chandle handle);
 
-SimObject('DrivenObject.py')
-SimObject('VerilatorMemBlackBox.py')
-Source('driven_object.cc')
-Source('dpi_manager.cc')
+  import "DPI-C" function chandle setGem5Handle(); 
 
-DebugFlag('Verilator')
+  chandle gem5MemBlkBox;
+  initial begin
+      gem5MemBlkBox = setGem5Handle();
+  end
+
+  always_comb imem_instruction = ifetch(imem_address, gem5MemBlkBox);
+
+  always_comb dmem_readdata = datareq(dmem_address, dmem_writedata,
+      dmem_memread, dmem_memwrite, dmem_maskmode, dmem_sext, gem5MemBlkBox);
+
+endmodule

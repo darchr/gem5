@@ -1,4 +1,4 @@
-# Copyright (c) 2019 The Regents of the University of California
+/*# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,12 +25,74 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
+*/
 
-Import('*')
+//gem5 includes
+#include "base/logging.hh"
+#include "debug/Verilator.hh"
+#include "sim/sim_exit.hh"
 
-SimObject('DrivenObject.py')
-SimObject('VerilatorMemBlackBox.py')
-Source('driven_object.cc')
-Source('dpi_manager.cc')
+//gem5 model includes
+#include "verilator_driver.hh"
 
-DebugFlag('Verilator')
+//setup design params
+VerilatorDriver::VerilatorDriver( )
+{
+}
+
+void
+VerilatorDinoCPU::clockDevice()
+{
+
+  DPRINTF(Verilator, "\n\nCLOCKING DEVICE\n");
+
+  //run the device under test here through verilator
+  //when clock = 0 device state is set
+  top.clock = 0;
+  top.eval();
+  //when clock = 1 device state is evaluated
+  top.clock = 1;
+  top.eval();
+
+  cyclesPassed += 1;
+}
+
+unsigned int
+VerilatorDriver::getClockState()
+{
+  return top.clock;
+}
+
+void
+VerilatorDriver::reset(int resetCycles)
+{
+  DPRINTF(Verilator, "RESETING FOR %d CYCLES\n", resetCycles);
+
+  //if we are pipelining we want to run reset for the number
+  //of stages we have
+  top.reset = 1;
+  for (int i = 0; i < resetCycles; ++i){
+    //set reset signal and starting clock signal
+    top.clock = 0;
+    top.eval();
+    //run verilator for this state
+    //run verilator for rising edge state
+    top.clock = 1;
+    top.eval();
+  }
+
+  //done reseting
+  top.reset = 0;
+
+  DPRINTF(Verilator, "DONE RESETING\n");
+}
+
+bool
+VerilatorDriver::isFinished(){
+  return Verilated::gotFinish();
+}
+
+unsigned int
+VerilatorDriver::getCyclesPassed(){
+  return cyclesPassed;
+}

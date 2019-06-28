@@ -26,11 +26,11 @@
 #
 # Authors: Nima Ganjehloo
 
-Import('*')
 
-SimObject('DrivenObject.py')
-SimObject('VerilatorMemBlackBox.py')
-Source('driven_object.cc')
-Source('dpi_manager.cc')
+from m5.params import *
+from ClockedObject import ClockedObject
 
-DebugFlag('Verilator')
+class DrivenObject(ClockedObject):
+  type = 'DrivenObject'
+  cxx_header = "verilator/driven_object.hh"
+  resetCycles = Param.Int(1, "Number of cycles in the device under test")

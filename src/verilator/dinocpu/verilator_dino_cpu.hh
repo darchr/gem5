@@ -1,4 +1,4 @@
-# Copyright (c) 2019 The Regents of the University of California
+/*# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,12 +25,47 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
+*/
 
-Import('*')
 
-SimObject('DrivenObject.py')
-SimObject('VerilatorMemBlackBox.py')
-Source('driven_object.cc')
-Source('dpi_manager.cc')
+#ifndef __VERILATOR_VERILATOR_DINO_CPU_HH__
+#define __VERILATOR_VERILATOR_DINO_CPU_HH__
 
-DebugFlag('Verilator')
+//SConscript handles this now REMOVE
+#define VM_TRACE 0
+#define VL_THREADED 0
+//verilator design includes
+#include "VTop.h"
+
+//gem5 general includes
+#include "params/VerilatorDinoCPU.hh"
+#include "sim/clocked_object.hh"
+
+//Wrapper for verilator generated code. Clocks the device and schedules
+//memory requests in gem5
+class VerilatorDinoCPU : public ClockedObject
+{
+  private:
+    //clocks the verilator device.
+    void updateCycle();
+    //event queue var to schedule mem requests and cycle updates
+    EventFunctionWrapper event;
+
+    //CPU stages
+    int designStages;
+
+    //count how many cycles we have run
+    int cyclesPassed;
+
+    //Our verilator cpu design
+    VTop top;
+  public:
+    VerilatorDinoCPU(VerilatorDinoCPUParams *p);
+
+    //reset the cpu for a # of cycles
+    void reset(int resetCycles);
+
+    //resets cpu then schedules memory request to fetch instruction
+    void startup() override;
+};
+#endif

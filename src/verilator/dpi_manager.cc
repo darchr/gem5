@@ -37,50 +37,37 @@
 
 //gem5 mdeol includes
 #include "verilator/dinocpu_sync_mem/verilator_sync_mem_black_box.hh"
-#include "verilator/verilator_dino_cpu.hh"
+#include "verilator/driven_object.hh"
 
 VerilatorSyncMemBlackBox * memBlkBox = nullptr;
-VerilatorDinoCPU * dinoCPU = nullptr;
+DrivenObject * drivenObj = nullptr;
 
 //will run a doFetch from within blackbox wrapper
-int ifetch (unsigned int imem_address, void* handle){
+int ifetch(unsigned char imem_request_ready, unsigned char imem_request_valid,
+  unsigned int imem_request_bits_address, unsigned char* imem_response_valid,
+  void** handle)
+{
   DPRINTF(Verilator, "DPI INST FETCH MADE\n");
   VerilatorSyncMemBlackBox* hndl =
     static_cast<VerilatorSyncMemBlackBox *>(handle);
-  //lazy exception handeling
-/*  if (imem_address == 0x80000000 ){
-    DPRINTF(Verilator, "DPI INST FETCH ILLEGAL INST EXCEPTION\n");
-    return 0x00c0006f;//jal x0, 12; effectively halt the processor
-  }else if ( imem_address == 0x80000004 ){
-    DPRINTF(Verilator, "DPI INST FETCH TRAPPING FOR ECALL\n");
-    return 0x0080006f;//jal x0, 8; effectively halt the processor
-  }else if ( imem_address == 0x80000008 ){
-    DPRINTF(Verilator, "DPI INST FETCH TRAPPING FOR EBREAK\n");
-    return 0x0040006f;//jal x0, 4; effectively halt the processor
-  }else if ( imem_address > 0x80000008 ){
-    //if for w/e reason we end up here then our exception could not be handled
-    //either due to a lack of a handler or maybe a stray cosmic ray
-    DPRINTF(Verilator, "UNHANDLED EXCEPTION, INDEFINITELY STALLING CPU\n");
-    return 0x13; //do a nop for now
-  }else{*/
-    //normal instruction fetch
-    hndl->doFetch(imem_address);
-
+    hndl->doFetch(imem_request_ready, imem_request_valid,
+      imem_request_bits_address, imem_response_valid);
     return hndl->getImemResp();
-  //}
 }
+
 //will run a doMem from within blackbox wrapper
-int datareq (unsigned int dmem_address, unsigned int dmem_writedata,
-        unsigned char dmem_memread, unsigned char dmem_memwrite,
-        const svBitVecVal* dmem_maskmode, unsigned char dmem_sext,
-        void* handle)
+int datareq(unsigned char dmem_request_ready, unsigned char dmem_request_valid,
+  int dmem_request_bits_address, int dmem_request_bits_writedata,
+  unsigned char dmem_request_bits_operation,unsigned char* dmem_response_valid,
+  void** handle)
 {
   DPRINTF(Verilator, "DPI DATA REQ MADE\n");
 
   VerilatorSyncMemBlackBox* hndl =
     static_cast<VerilatorSyncMemBlackBox *>(handle);
-  hndl->doMem(dmem_address,  dmem_writedata, dmem_memread,
-        dmem_memwrite, dmem_maskmode, dmem_sext);
+  hndl->doMem(dmem_request_ready, dmem_request_valid,dmem_request_bits_address,
+        dmem_request_bits_writedata, dmem_request_bits_operation,
+        dmem_response_valid);
 
   return hndl->getDmemResp();
 

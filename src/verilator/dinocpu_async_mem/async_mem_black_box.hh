@@ -26,9 +26,8 @@
 #
 # Authors: Nima Ganjehloo
 */
-
-#ifndef __VERILATOR_VERILATOR_SYNC_MEM_BLACK_BOX__HH__
-#define __VERILATOR_VERILATOR_SYNC_MEM_BLACK_BOX__HH__
+#ifndef __VERILATOR_ASYNC_MEM_BLACK_BOX__HH__
+#define __VERILATOR_ASYNC_MEM_BLACK_BOX__HH__
 ///verilator inlcudes
 #include "svdpi.h"
 
@@ -36,39 +35,44 @@
 #include "verilator/verilator_mem_black_box.hh"
 
 //gem5 model includes
-#include "params/VerilatorSyncMemBlackBox.hh"
+#include "params/ASyncMemBlackBox.hh"
 
-class VerilatorSyncMemBlackBox: public VerilatorMemBlackBox
+class ASyncMemBlackBox: public VerilatorMemBlackBox
 {
   public:
     //memory access functions for blackbox
-    void doFetch(unsigned int imem_address );
-    void doMem(unsigned int dmem_address, unsigned int dmem_writedata,
-        unsigned char dmem_memread,unsigned char dmem_memwrite,
-        const svBitVecVal* dmem_maskmode, unsigned char dmem_sext);
+    void doFetch(unsigned char imem_request_ready,
+      unsigned char imem_request_valid, unsigned int imem_request_bits_address,
+      unsigned char* imem_response_valid, void** handle);
+
+    void doMem(unsigned char dmem_request_ready,
+      unsigned char dmem_request_valid, int dmem_request_bits_address,
+      int dmem_request_bits_writedata,
+      unsigned char dmem_request_bits_operation,
+      unsigned char* dmem_response_valid, void** handle);
 
     BaseMasterPort& getMasterPort( const std::string& if_name,
                 PortID idx = InvalidPortID ) override;
 
     //param setup for blackbox warpper
-    VerilatorSyncMemBlackBox( VerilatorSyncMemBlackBoxParams *params );
+    ASyncMemBlackBox( ASyncMemBlackBoxParams *params );
 
     //setsup singleton for use with dpi getters
     void startup() override;
-    static VerilatorSyncMemBlackBox * getSingleton();
+    static ASyncMemBlackBox * getSingleton();
     uint32_t getDmemResp() override;
     uint32_t getImemResp() override;
 
   private:
     //master port for blackbox
-    class VerilatorSyncMemBlackBoxPort :
+    class ASyncMemBlackBoxPort :
     public VerilatorMemBlackBox::VerilatorMemBlackBoxPort
     {
 
       public:
-        VerilatorSyncMemBlackBoxPort(const std::string& name,
-                    VerilatorSyncMemBlackBox *owner) :
-                    VerilatorMemBlackBoxPort(name, owner)
+        ASyncMemBlackBoxPort(const std::string& name,
+                    ASyncMemBlackBox *owner) :
+                    ASyncMemBlackBoxPort(name, owner)
                 { }
 
         void sendTimingPacket(PacketPtr pkt);
@@ -86,10 +90,10 @@ class VerilatorSyncMemBlackBox: public VerilatorMemBlackBox
     bool handleResponse( PacketPtr pkt );
 
     //memory ports for imem and dmem requests
-    VerilatorSyncMemBlackBoxPort instPort;
-    VerilatorSyncMemBlackBoxPort dataPort;
+    ASyncMemBlackBoxPort instPort;
+    ASyncMemBlackBoxPort dataPort;
     //pointer for dpi
-    static VerilatorSyncMemBlackBox * singleton;
+    static ASyncMemBlackBox * singleton;
 
     //data for response to dpi
     uint32_t dmemResp;

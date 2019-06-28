@@ -26,11 +26,12 @@
 #
 # Authors: Nima Ganjehloo
 
-Import('*')
 
-SimObject('DrivenObject.py')
-SimObject('VerilatorMemBlackBox.py')
-Source('driven_object.cc')
-Source('dpi_manager.cc')
 
-DebugFlag('Verilator')
+from m5.params import *
+from ClockedObject import ClockedObject
+
+class VerilatorDinoCPU(ClockedObject):
+  type = 'VerilatorDinoCPU'
+  cxx_header = "verilator/verilator_dino_cpu.hh"
+  stages = Param.Int(1, "Number of stages in the device under test")

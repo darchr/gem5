@@ -1,4 +1,5 @@
-# Copyright (c) 2019 The Regents of the University of California
+
+/*# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,12 +26,37 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
+*/
 
-Import('*')
+#ifndef __VERILATOR_DRIVER_OBJECT_HH__
+#define __VERILATOR_DRIVER_OBJECT_HH__
 
-SimObject('DrivenObject.py')
-SimObject('VerilatorMemBlackBox.py')
-Source('driven_object.cc')
-Source('dpi_manager.cc')
+//verilator design includes
+#include "driver/verilator_driver.hh"
 
-DebugFlag('Verilator')
+//gem5 general includes
+#include "params/DrivenObject.hh"
+#include "sim/clocked_object.hh"
+
+class DrivenObject : public ClockedObject
+{
+  private:
+    //clocks the verilator device.
+    void updateCycle();
+
+    //event queue var to schedule mem requests and cycle updates
+    EventFunctionWrapper event;
+
+    //how many cycles to reset the top level of the design
+    unsigned int resetCycles;
+
+    //driver for top level design
+    VerilatorDriver driver;
+
+  public:
+    DrivenObject(DrivenObjectParams *p);
+
+    //resets cpu then schedules memory request to fetch instruction
+    void startup() override;
+};
+#endif

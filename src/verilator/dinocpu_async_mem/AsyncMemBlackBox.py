@@ -26,11 +26,14 @@
 #
 # Authors: Nima Ganjehloo
 
-Import('*')
 
-SimObject('DrivenObject.py')
-SimObject('VerilatorMemBlackBox.py')
-Source('driven_object.cc')
-Source('dpi_manager.cc')
+from m5.params import *
+from MemObject import MemObject
+from VerilatorMemBlackBox import VerilatorMemBlackBox
 
-DebugFlag('Verilator')
+class AsyncMemBlackBox(VerilatorMemBlackBox):
+  type = 'AsyncMemBlackBox'
+  cxx_header = "verilator/dinocpu_async_mem/async_mem_black_box.hh"
+
+  inst_port = MasterPort("Instruction Port")
+  data_port = MasterPort("Data Port")

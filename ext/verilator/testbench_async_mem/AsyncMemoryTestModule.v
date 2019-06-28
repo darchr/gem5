@@ -368,7 +368,7 @@ module DualPortedAsyncMemory(
   assign memory_dmem_request_bits_writedata = io_dmem_request_bits_writedata; // @[memory-async.scala 90:19 memory-async.scala 111:45]
   assign memory_dmem_request_bits_operation = io_dmem_request_bits_operation; // @[memory-async.scala 90:19]
 endmodule
-module Top(
+module AsyncMemoryTestModule(
   input         clock,
   input         reset,
   input  [31:0] io_imem_address,

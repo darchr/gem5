@@ -1,4 +1,4 @@
-# Copyright (c) 2019 The Regents of the University of California
+/*# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,12 +25,37 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
+*/
 
-Import('*')
 
-SimObject('DrivenObject.py')
-SimObject('VerilatorMemBlackBox.py')
-Source('driven_object.cc')
-Source('dpi_manager.cc')
+//verilator design includes
+#include "VTop.h"
 
-DebugFlag('Verilator')
+//Wrapper for verilator generated code. Clocks the device
+class VerilatorDriver{
+  private:
+    //count how many cycles we have run
+    unsigned int cyclesPassed;
+
+    //Our verilator design
+    VTop top;
+  public:
+    VerilatorDriver();
+
+    //clocks the verilator device.
+    void clockDevice();
+
+    const VTop * getTopLevel();
+
+    //get the currently set clock on the device
+    unsigned char getClockState();
+
+    //is the verilated device finished with execution?
+    bool isFinished();
+
+    //get the number of elapsed cycles
+    unsigned int getCyclesPassed();
+
+    //reset the cpu for a # of cycles
+    void reset(int resetCycles);
+};

@@ -1,4 +1,5 @@
-# Copyright (c) 2019 The Regents of the University of California
+
+/*# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,12 +26,53 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
+*/
 
-Import('*')
+//gem5 includes
+#include "base/logging.hh"
+#include "debug/Verilator.hh"
+#include "sim/sim_exit.hh"
 
-SimObject('DrivenObject.py')
-SimObject('VerilatorMemBlackBox.py')
-Source('driven_object.cc')
-Source('dpi_manager.cc')
+//gem5 model includes
+#include "driven_object.hh"
 
-DebugFlag('Verilator')
+//setup driven object
+DrivenObject::DrivenObject(DrivenObjectParams *params):
+    ClockedObject(params),
+    event([this]{updateCycle();}, params->name),
+    resetCycles(params->resetCycles)
+{
+}
+
+//creates object for gem5 to use
+DrivenObject*
+DrivenObjectParams::create()
+{
+  //verilator has weird alignment issue for generated code
+  void* ptr = aligned_alloc(128, sizeof(DrivenObject));
+  return new(ptr) DrivenObject(this);
+}
+
+void
+DrivenObject::updateCycle()
+{
+  //clock the device
+  driver.clockDevice();
+
+  DPRINTF(Verilator, "\n\nSCHEDULE NEXT CYCLE\n");
+  //schedule next clock cycle if verilator is not done
+  if (!driver.isFinished()){
+    schedule(event, nextCycle());
+  }
+}
+
+void
+DrivenObject::startup()
+{
+  DPRINTF(Verilator, "STARTING UP DINOCPU\n");
+  driver.reset(resetCycles);
+
+  //lets fetch an instruction before doing anything
+  DPRINTF(Verilator, "SCHEDULING FIRST TICK \n");
+  schedule(event, nextCycle());
+}
