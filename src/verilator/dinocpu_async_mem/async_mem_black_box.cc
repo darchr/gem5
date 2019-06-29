@@ -145,7 +145,7 @@ ASyncMemBlackBox::doFetch(unsigned char imem_request_ready,
   //dinocpu only uses 4 byte instructions so make 4 byte request with address
   //specified by dinocpu
   RequestPtr ifetch_req = std::make_shared<Request>(
-    imem_address,
+    imem_request_bits_address >> 2,
     4,
     Request::INST_FETCH,
     0);
@@ -171,28 +171,15 @@ ASyncMemBlackBox::doMem(unsigned char dmem_request_ready,
   unsigned char* dmem_response_valid, void** handle)
 {
   //by default assume lw or sw (4 byte request)
-  unsigned int maskmode = 4;
   //are we reading or writing?
-  bool read = dmem_memread;
-  bool write = dmem_memwrite;
+  bool operation = dmem_request_bits_operation;
 
-  if (!read && !write){
-    DPRINTF(Verilator, "NOT READ OR WRITE. NO MEM REQ MADE \n");
-    return;
-  }
-  //determine size to access if we arent a lw or sw
-  if ( *dmem_maskmode == 2 )
-    maskmode = 4;
-  else if ( *dmem_maskmode == 1 )
-    maskmode = 2;
-  else
-    maskmode = 1;
 
   //make request for corresponding byte size at the specified address provided
   //by dinocpu
   RequestPtr data_req = std::make_shared<Request>(
-    dmem_address,
-    maskmode,
+    dmem_request_bits_address >> 2,
+    4,
     Request::PHYSICAL,
     0);
 
@@ -202,9 +189,9 @@ ASyncMemBlackBox::doMem(unsigned char dmem_request_ready,
   //Is the packet a read or write request?
 
   PacketPtr pkt = nullptr;
-  if (read && !write){
+  if (!operation){
       pkt = Packet::createRead(data_req);
-  }else if (write && !read){
+  }else{
       pkt = Packet::createWrite(data_req);
   }
 
@@ -212,8 +199,9 @@ ASyncMemBlackBox::doMem(unsigned char dmem_request_ready,
 
   //not sure if I need this. This is for non 4 byte writes.
   uint8_t * data = new uint8_t[4];
-  if (write){
-    DPRINTF(Verilator, "WRITING %x AS %d BYTES\n", dmem_writedata, maskmode);
+  if (operation){
+    DPRINTF(Verilator, "WRITING %x AS %d BYTES\n",
+      dmem_request_bits_writedata, 4);
     for (int i = 0; i < 4; ++i){
       data[i] = (dmem_writedata & (0xFF << i*8)) >> i*8;
     }
@@ -243,20 +231,11 @@ ASyncMemBlackBox::handleResponse( PacketPtr pkt )
     //"wires"
     DPRINTF(Verilator, "Handling response for IFETCH\n");
     imemResp = *pkt->getConstPtr<uint32_t>();
-  //  blkbox->imem_dataout = *pkt->getConstPtr<uint32_t>();
     DPRINTF(Verilator, "Instruction is %#x\n", imemResp);
   } else if (pkt->isRead()){
     //Get returned data from gem5 mem system and set it to blackbox
-    //"wires"
     DPRINTF(Verilator, "Handling response for data read\n");
-    if ( pkt->getSize() == 2 ){
-      dmemResp = *pkt->getConstPtr<uint16_t>();
-    }else if ( pkt->getSize() == 1 ){
-      dmemResp = *pkt->getConstPtr<uint8_t>();
-    }else{
-      dmemResp = *pkt->getConstPtr<uint32_t>();
-    }
-//    blkbox->dmem_dataout = *pkt->getConstPtr<uint32_t>();
+    dmemResp = *pkt->getConstPtr<uint32_t>();
     DPRINTF(Verilator, "Data is %#x\n", dmemResp);
   }
 
