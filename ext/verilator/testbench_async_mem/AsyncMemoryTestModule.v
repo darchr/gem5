@@ -336,6 +336,7 @@ module DualPortedAsyncMemory(
   wire  _T_4; // @[memory-async.scala 104:42]
   wire  _GEN_2; // @[memory-async.scala 108:61]
   wire  _GEN_4; // @[memory-async.scala 104:51]
+  wire [31:0] _GEN_5; // @[memory-async.scala 104:51]
   DualPortedAsyncMemoryBlackBox memory ( // @[memory-async.scala 88:26]
     .imem_request_ready(memory_imem_request_ready),
     .imem_request_valid(memory_imem_request_valid),
@@ -355,10 +356,11 @@ module DualPortedAsyncMemory(
   assign _T_4 = io_dmem_request_bits_operation == 1'h0; // @[memory-async.scala 104:42]
   assign _GEN_2 = io_dmem_request_bits_operation ? 1'h0 : memory_dmem_response_valid; // @[memory-async.scala 108:61]
   assign _GEN_4 = _T_4 ? 1'h1 : _GEN_2; // @[memory-async.scala 104:51]
+  assign _GEN_5 = memory_dmem_response_bits_data; // @[memory-async.scala 104:51]
   assign io_imem_response_valid = io_imem_request_valid; // @[memory-async.scala 89:19 memory-async.scala 94:28 memory-async.scala 98:28]
   assign io_imem_response_bits_data = memory_imem_response_bits_data; // @[memory-async.scala 89:19 memory-async.scala 96:32]
   assign io_dmem_response_valid = io_dmem_request_valid ? _GEN_4 : 1'h0; // @[memory-async.scala 90:19 memory-async.scala 105:31 memory-async.scala 109:31 memory-async.scala 114:28]
-  assign io_dmem_response_bits_data = memory_dmem_response_bits_data; // @[memory-async.scala 90:19]
+  assign io_dmem_response_bits_data = io_dmem_request_valid ? _GEN_5 : memory_dmem_response_bits_data; // @[memory-async.scala 90:19 memory-async.scala 107:34]
   assign memory_imem_request_valid = io_imem_request_valid; // @[memory-async.scala 89:19]
   assign memory_imem_request_bits_address = io_imem_request_bits_address; // @[memory-async.scala 89:19]
   assign memory_imem_request_bits_writedata = 32'h0; // @[memory-async.scala 89:19]
