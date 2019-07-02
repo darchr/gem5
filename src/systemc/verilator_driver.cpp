@@ -27,34 +27,80 @@
 # Authors: Nima Ganjehloo
 */
 
-module DualPortedMemoryBlackBox(
-	input clk,
-	input [31:0] imem_address,
-	output [31:0] imem_instruction,
-	input [31:0] dmem_address, 
-	input [31:0] dmem_writedata,
-	input dmem_memread,
-	input dmem_memwrite,
-	input [1:0] dmem_maskmode,
-	input dmem_sext,
-	output [31:0] dmem_readdata
-);
-  import "DPI-C" function int ifetch(input int imem_address, chandle handle);
-  import "DPI-C" function int datareq(input int dmem_address, 
-      input int dmem_writedata,input bit dmem_memread, 
-      input bit dmem_memwrite, input bit [1:0] dmem_maskmode, 
-      input bit dmem_sext, chandle handle);
+//gem5 includes
+#include "base/logging.hh"
+#include "debug/Verilator.hh"
+#include "sim/sim_exit.hh"
 
-  import "DPI-C" function chandle setGem5Handle(); 
+//gem5 model includes
+#include "verilator_driver.hh"
 
-  chandle gem5MemBlkBox;
-  initial begin
-      gem5MemBlkBox = setGem5Handle();
-  end
+//setup design params
+VerilatorDriver::VerilatorDriver() :
+  event([this]{clockDevice();}),
+{
+}
 
-  always_comb imem_instruction = ifetch(imem_address, gem5MemBlkBox);
+void
+VerilatorDriver::clockDevice()
+{
 
-  always_comb dmem_readdata = datareq(dmem_address, dmem_writedata,
-      dmem_memread, dmem_memwrite, dmem_maskmode, dmem_sext, gem5MemBlkBox);
+  DPRINTF(Verilator, "\n\nCLOCKING DEVICE\n");
 
-endmodule
+  //run the device under test here through verilator
+  //when clock = 0 device state is set
+  top.clock = 0;
+  top.eval();
+  //when clock = 1 device state is evaluated
+  top.clock = 1;
+  top.eval();
+
+  cyclesPassed += 1;
+
+  //schedule another instruction fetch if verilator is not done
+  if (!Verilated::gotFinish()){
+    schedule(event, nextCycle());
+  }
+}
+
+unsigned int
+VerilatorDriver::getClockState()
+{
+  return top.clock;
+}
+
+void
+VerilatorDriver::reset(int resetCycles)
+{
+  DPRINTF(Verilator, "RESETING FOR %d CYCLES\n", resetCycles);
+
+  //if we are pipelining we want to run reset for the number
+  //of stages we have
+  top.reset = 1;
+  for (int i = 0; i < resetCycles; ++i){
+    //set reset signal and starting clock signal
+    top.clock = 0;
+    top.eval();
+    //run verilator for this state
+    //run verilator for rising edge state
+    top.clock = 1;
+    top.eval();
+  }
+
+  //done reseting
+  top.reset = 0;
+
+  DPRINTF(Verilator, "DONE RESETING\n");
+}
+
+void
+VerilatorDriver::startup()
+{
+  DPRINTF(Verilator, "STARTING UP DINOCPU\n");
+  reset(designStages);
+
+  //lets fetch an instruction before doing anything
+  DPRINTF(Verilator, "SCHEDULING FIRST TICK \n");
+  schedule(event, nextCycle());
+}
+

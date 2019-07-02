@@ -36,35 +36,36 @@
 #include "debug/Verilator.hh"
 
 //gem5 mdeol includes
-#include "verilator/dinocpu_sync_mem/verilator_sync_mem_black_box.hh"
+#include "verilator/dinocpu_async_mem/async_mem_black_box.hh"
 #include "verilator/driven_object.hh"
 
-VerilatorSyncMemBlackBox * memBlkBox = nullptr;
+AsyncMemBlackBox * memBlkBox = nullptr;
 DrivenObject * drivenObj = nullptr;
 
 //will run a doFetch from within blackbox wrapper
-int ifetch(unsigned char imem_request_ready, unsigned char imem_request_valid,
-  unsigned int imem_request_bits_address, unsigned char* imem_response_valid,
-  void** handle)
+int ifetch(unsigned char imem_request_ready,
+      unsigned char imem_request_valid, unsigned int imem_request_bits_address,
+      unsigned char* imem_response_valid, void** handle)
 {
   DPRINTF(Verilator, "DPI INST FETCH MADE\n");
-  VerilatorSyncMemBlackBox* hndl =
-    static_cast<VerilatorSyncMemBlackBox *>(handle);
+  AsyncMemBlackBox* hndl =
+    static_cast<AsyncMemBlackBox *>(*handle);
     hndl->doFetch(imem_request_ready, imem_request_valid,
       imem_request_bits_address, imem_response_valid);
     return hndl->getImemResp();
 }
 
 //will run a doMem from within blackbox wrapper
-int datareq(unsigned char dmem_request_ready, unsigned char dmem_request_valid,
-  int dmem_request_bits_address, int dmem_request_bits_writedata,
-  unsigned char dmem_request_bits_operation,unsigned char* dmem_response_valid,
-  void** handle)
+int datareq(unsigned char dmem_request_ready,
+      unsigned char dmem_request_valid, int dmem_request_bits_address,
+      int dmem_request_bits_writedata,
+      unsigned char dmem_request_bits_operation,
+      unsigned char* dmem_response_valid, void** handle)
 {
   DPRINTF(Verilator, "DPI DATA REQ MADE\n");
 
-  VerilatorSyncMemBlackBox* hndl =
-    static_cast<VerilatorSyncMemBlackBox *>(handle);
+  AsyncMemBlackBox* hndl =
+    static_cast<AsyncMemBlackBox *>(*handle);
   hndl->doMem(dmem_request_ready, dmem_request_valid,dmem_request_bits_address,
         dmem_request_bits_writedata, dmem_request_bits_operation,
         dmem_response_valid);
@@ -77,7 +78,7 @@ int datareq(unsigned char dmem_request_ready, unsigned char dmem_request_valid,
 void* setGem5Handle (){
   DPRINTF(Verilator, "DPI GIVING MEM HANDLE TO VERILOG\n");
 
-  memBlkBox = VerilatorSyncMemBlackBox::getSingleton();
+  memBlkBox = AsyncMemBlackBox::getSingleton();
   panic_if( memBlkBox == nullptr,
           "Verilog should not try to access null gem5 model!");
 

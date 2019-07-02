@@ -39,7 +39,7 @@
 //MASTER PORT DEFINITIONS
 //send packet to gem5 memory system,schedules an event
 void
-ASyncMemBlackBox::ASyncMemBlackBoxPort
+AsyncMemBlackBox::AsyncMemBlackBoxPort
   ::sendTimingPacket(PacketPtr pkt)
 {
   panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
@@ -53,7 +53,7 @@ ASyncMemBlackBox::ASyncMemBlackBoxPort
 //sends a packet to gem5 memory system, recieves response
 //immidiately at end of call chain
 bool
-ASyncMemBlackBox::ASyncMemBlackBoxPort
+AsyncMemBlackBox::AsyncMemBlackBoxPort
   ::sendAtomicPacket(PacketPtr pkt)
 {
   panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
@@ -65,7 +65,7 @@ ASyncMemBlackBox::ASyncMemBlackBoxPort
   if (!sendAtomic(pkt)) {
     DPRINTF(Verilator, "ATOMIC MEMORY RESPONSE RECIEVED\n");
     //let blackbox determine how to deal with returned data
-    return static_cast<ASyncMemBlackBox *>(owner)->handleResponse(pkt);
+    return static_cast<AsyncMemBlackBox *>(owner)->handleResponse(pkt);
   }else{
     DPRINTF(Verilator, "Packet for addr: %#x blocked\n", pkt->getAddr());
     blockedPacket = pkt;
@@ -75,17 +75,17 @@ ASyncMemBlackBox::ASyncMemBlackBoxPort
 
 //gem5 memory model has reponded to our memory request
 bool
-ASyncMemBlackBox::ASyncMemBlackBoxPort
+AsyncMemBlackBox::AsyncMemBlackBoxPort
     ::recvTimingResp( PacketPtr pkt )
 {
   DPRINTF(Verilator, "MEMORY RESPONSE RECIEVED\n");
   //let blackbox determine how to deal with returned data
-  return static_cast<ASyncMemBlackBox *>(owner)->handleResponse(pkt);
+  return static_cast<AsyncMemBlackBox *>(owner)->handleResponse(pkt);
 }
 
 //retry sending a packet if it failed
 void
-ASyncMemBlackBox::ASyncMemBlackBoxPort
+AsyncMemBlackBox::AsyncMemBlackBoxPort
   ::recvReqRetry()
 {
   //we have to had saved the failed packet before doing a retry
@@ -101,7 +101,7 @@ ASyncMemBlackBox::ASyncMemBlackBoxPort
 
 //used for configuring simulated device
 BaseMasterPort&
-ASyncMemBlackBox::getMasterPort(
+AsyncMemBlackBox::getMasterPort(
         const std::string& if_name, PortID idx )
 {
   panic_if(idx != InvalidPortID, "This object doesn't support vector ports");
@@ -119,28 +119,28 @@ ASyncMemBlackBox::getMasterPort(
 
 
 //Create for memblkbx for gem5
-ASyncMemBlackBox*
-ASyncMemBlackBoxParams::create()
+AsyncMemBlackBox*
+AsyncMemBlackBoxParams::create()
 {
-  return new ASyncMemBlackBox(this);
+  return new AsyncMemBlackBox(this);
 }
 
 //setup our black box
-ASyncMemBlackBox::ASyncMemBlackBox(
-        ASyncMemBlackBoxParams *params) :
-        ASyncMemBlackBox(params),
+AsyncMemBlackBox::AsyncMemBlackBox(
+        AsyncMemBlackBoxParams *params) :
+        VerilatorMemBlackBox(params),
         instPort(params->name + ".inst_port", this),
         dataPort(params->name + ".data_port", this)
 {
 
-    ASyncMemBlackBox::singleton =  this;
+    AsyncMemBlackBox::singleton =  this;
 }
 
 //sets up a instruction fetch request for gem5 memory system
 void
-ASyncMemBlackBox::doFetch(unsigned char imem_request_ready,
+AsyncMemBlackBox::doFetch(unsigned char imem_request_ready,
   unsigned char imem_request_valid, unsigned int imem_request_bits_address,
-  unsigned char* imem_response_valid, void** handle)
+  unsigned char* imem_response_valid)
 {
   //dinocpu only uses 4 byte instructions so make 4 byte request with address
   //specified by dinocpu
@@ -165,10 +165,10 @@ ASyncMemBlackBox::doFetch(unsigned char imem_request_ready,
 
 //sets up a memory request for memory instructions to gem5 memory sytem
 void
-ASyncMemBlackBox::doMem(unsigned char dmem_request_ready,
+AsyncMemBlackBox::doMem(unsigned char dmem_request_ready,
   unsigned char dmem_request_valid, int dmem_request_bits_address,
   int dmem_request_bits_writedata, unsigned char dmem_request_bits_operation,
-  unsigned char* dmem_response_valid, void** handle)
+  unsigned char* dmem_response_valid)
 {
   //by default assume lw or sw (4 byte request)
   //are we reading or writing?
@@ -203,7 +203,7 @@ ASyncMemBlackBox::doMem(unsigned char dmem_request_ready,
     DPRINTF(Verilator, "WRITING %x AS %d BYTES\n",
       dmem_request_bits_writedata, 4);
     for (int i = 0; i < 4; ++i){
-      data[i] = (dmem_writedata & (0xFF << i*8)) >> i*8;
+      data[i] = (dmem_request_bits_writedata & (0xFF << i*8)) >> i*8;
     }
 
     DPRINTF(Verilator, "DATA TO WRITE IS %x %x %x %x\n", data[3], data[2],
@@ -221,7 +221,7 @@ ASyncMemBlackBox::doMem(unsigned char dmem_request_ready,
 
 //handles a successful response for a memory request
 bool
-ASyncMemBlackBox::handleResponse( PacketPtr pkt )
+AsyncMemBlackBox::handleResponse( PacketPtr pkt )
 {
   DPRINTF(Verilator, "Got response for addr %#x\n", pkt->getAddr());
 
@@ -243,32 +243,32 @@ ASyncMemBlackBox::handleResponse( PacketPtr pkt )
 }
 
 //setup static var
-ASyncMemBlackBox *
-ASyncMemBlackBox::singleton = nullptr;
+AsyncMemBlackBox *
+AsyncMemBlackBox::singleton = nullptr;
 
 //give caller (dpi in this case) access to this class
-ASyncMemBlackBox *
-ASyncMemBlackBox::getSingleton()
+AsyncMemBlackBox *
+AsyncMemBlackBox::getSingleton()
 {
-  return ASyncMemBlackBox::singleton;
+  return AsyncMemBlackBox::singleton;
 }
 
 //setup reference to this class for use with dpi
 void
-ASyncMemBlackBox::startup()
+AsyncMemBlackBox::startup()
 {
   DPRINTF(Verilator, "MEM BLACKBOX STARTUP\n");
-  ASyncMemBlackBox::singleton = this;
+  AsyncMemBlackBox::singleton = this;
 }
 
 uint32_t
-ASyncMemBlackBox::getDmemResp()
+AsyncMemBlackBox::getDmemResp()
 {
   return dmemResp;
 }
 
 uint32_t
-ASyncMemBlackBox::getImemResp()
+AsyncMemBlackBox::getImemResp()
 {
   return imemResp;
 }

@@ -26,7 +26,8 @@
 #
 # Authors: Nima Ganjehloo
 */
-
+#ifndef __VERILATOR_VERILATOR_DRIVER_HH__
+#define __VERILATOR_VERILATOR_DRIVER_HH__
 
 //verilator design includes
 #include "VTop.h"
@@ -42,7 +43,7 @@ class VerilatorDriver
     //Our verilator design
     VTop top;
   public:
-    VerilatorDinoCPU();
+    VerilatorDriver();
 
     //clocks the verilator device.
     void clockDevice();
@@ -56,3 +57,4 @@ class VerilatorDriver
     //resets cpu then schedules memory request to fetch instruction
     void startup() override;
 };
+#endif

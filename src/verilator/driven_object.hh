@@ -28,8 +28,8 @@
 # Authors: Nima Ganjehloo
 */
 
-#ifndef __VERILATOR_DRIVER_OBJECT_HH__
-#define __VERILATOR_DRIVER_OBJECT_HH__
+#ifndef __VERILATOR_DRIVEN_OBJECT_HH__
+#define __VERILATOR_DRIVEN_OBJECT_HH__
 
 //verilator design includes
 #include "driver/verilator_driver.hh"

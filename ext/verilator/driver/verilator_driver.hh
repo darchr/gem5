@@ -26,7 +26,8 @@
 #
 # Authors: Nima Ganjehloo
 */
-
+#ifndef __VERILATOR_VERILATOR_DRIVER_HH__
+#define __VERILATOR_VERILATOR_DRIVER_HH__
 
 //verilator design includes
 #include "VTop.h"
@@ -59,3 +60,4 @@ class VerilatorDriver{
     //reset the cpu for a # of cycles
     void reset(int resetCycles);
 };
+#endif

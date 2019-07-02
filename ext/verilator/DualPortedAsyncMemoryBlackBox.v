@@ -46,8 +46,6 @@ module DualPortedAsyncMemoryBlackBox(
   import "DPI-C" function int ifetch(input bit imem_request_ready,
     input bit imem_request_valid,
     input int imem_request_bits_address,
-    input int imem_request_bits_writedata,
-    input bit imem_request_bits_operation,
     output bit imem_response_valid, chandle handle);
 
   import "DPI-C" function int datareq( input bit dmem_request_ready,
@@ -55,8 +53,7 @@ module DualPortedAsyncMemoryBlackBox(
     input int dmem_request_bits_address,
     input int dmem_request_bits_writedata,
     input bit dmem_request_bits_operation,
-    output bit dmem_response_valid,
-    output int dmem_response_bits_data, chandle handle);
+    output bit dmem_response_valid, chandle handle);
 
   import "DPI-C" function chandle setGem5Handle(); 
 
@@ -65,13 +62,12 @@ module DualPortedAsyncMemoryBlackBox(
       gem5MemBlkBox = setGem5Handle();
   end
 
-  always_comb imem_response_bits_data = ifetch(imem_request_ready, imem_request_valid,
-    imem_request_bits_address, imem_request_bits_writedata, 
-    imem_request_bits_operation, imem_response_valid, gem5MemBlkBox);
+  always_comb imem_response_bits_data = ifetch(imem_request_ready,
+    imem_request_valid, imem_request_bits_address, imem_response_valid,
+    gem5MemBlkBox);
 
   always_comb dmem_response_bits_data = datareq(dmem_request_ready, dmem_request_valid, 
     dmem_request_bits_address, dmem_request_bits_writedata, 
-    dmem_request_bits_operation, dmem_response_valid, 
-    dmem_response_bits_data, gem5MemBlkBox);
+    dmem_request_bits_operation, dmem_response_valid, gem5MemBlkBox);
 
 endmodule

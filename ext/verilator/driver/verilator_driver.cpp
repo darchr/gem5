@@ -41,7 +41,7 @@ VerilatorDriver::VerilatorDriver( )
 }
 
 void
-VerilatorDinoCPU::clockDevice()
+VerilatorDriver::clockDevice()
 {
 
   DPRINTF(Verilator, "\n\nCLOCKING DEVICE\n");
