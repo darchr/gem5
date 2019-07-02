@@ -32,7 +32,7 @@
 #define __VERILATOR_DRIVEN_OBJECT_HH__
 
 //verilator design includes
-#include "driver/verilator_driver.hh"
+#include "verilator_driver.hh"
 
 //gem5 general includes
 #include "params/DrivenObject.hh"
