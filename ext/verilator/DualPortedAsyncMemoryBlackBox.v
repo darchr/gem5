@@ -46,14 +46,14 @@ module DualPortedAsyncMemoryBlackBox(
   import "DPI-C" function int ifetch(input bit imem_request_ready,
     input bit imem_request_valid,
     input int imem_request_bits_address,
-    output bit imem_response_valid, chandle handle);
+    output bit imem_response_valid, input chandle handle);
 
   import "DPI-C" function int datareq( input bit dmem_request_ready,
     input bit dmem_request_valid,
     input int dmem_request_bits_address,
     input int dmem_request_bits_writedata,
     input bit dmem_request_bits_operation,
-    output bit dmem_response_valid, chandle handle);
+    output bit dmem_response_valid, input chandle handle);
 
   import "DPI-C" function chandle setGem5Handle(); 
 
