@@ -42,6 +42,7 @@ DrivenObject::DrivenObject(DrivenObjectParams *params):
     event([this]{updateCycle();}, params->name),
     resetCycles(params->resetCycles)
 {
+
 }
 
 //creates object for gem5 to use
@@ -56,6 +57,7 @@ DrivenObjectParams::create()
 void
 DrivenObject::updateCycle()
 {
+   DPRINTF(Verilator, "\n\nCLOCKING DEVICE\n");
   //clock the device
   driver.clockDevice();
 
@@ -70,7 +72,10 @@ void
 DrivenObject::startup()
 {
   DPRINTF(Verilator, "STARTING UP DINOCPU\n");
+
+  DPRINTF(Verilator, "RESETING FOR %d CYCLES\n", resetCycles);
   driver.reset(resetCycles);
+  DPRINTF(Verilator, "DONE RESETING\n");
 
   //lets fetch an instruction before doing anything
   DPRINTF(Verilator, "SCHEDULING FIRST TICK \n");

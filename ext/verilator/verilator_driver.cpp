@@ -27,11 +27,6 @@
 # Authors: Nima Ganjehloo
 */
 
-//gem5 includes
-#include "base/logging.hh"
-#include "debug/Verilator.hh"
-#include "sim/sim_exit.hh"
-
 //gem5 model includes
 #include "verilator_driver.hh"
 
@@ -43,9 +38,6 @@ VerilatorDriver::VerilatorDriver( )
 void
 VerilatorDriver::clockDevice()
 {
-
-  DPRINTF(Verilator, "\n\nCLOCKING DEVICE\n");
-
   //run the device under test here through verilator
   //when clock = 0 device state is set
   top.clock = 0;
@@ -63,11 +55,15 @@ VerilatorDriver::getClockState()
   return top.clock;
 }
 
+const VTop *
+VerilatorDriver::getTopLevel()
+{
+  return &top;
+}
+
 void
 VerilatorDriver::reset(int resetCycles)
 {
-  DPRINTF(Verilator, "RESETING FOR %d CYCLES\n", resetCycles);
-
   //if we are pipelining we want to run reset for the number
   //of stages we have
   top.reset = 1;
@@ -83,8 +79,6 @@ VerilatorDriver::reset(int resetCycles)
 
   //done reseting
   top.reset = 0;
-
-  DPRINTF(Verilator, "DONE RESETING\n");
 }
 
 bool

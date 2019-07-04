@@ -45,11 +45,11 @@ DrivenObject * drivenObj = nullptr;
 //will run a doFetch from within blackbox wrapper
 int ifetch(unsigned char imem_request_ready,
       unsigned char imem_request_valid, unsigned int imem_request_bits_address,
-      unsigned char* imem_response_valid, void** handle)
+      unsigned char* imem_response_valid, void* handle)
 {
   DPRINTF(Verilator, "DPI INST FETCH MADE\n");
   AsyncMemBlackBox* hndl =
-    static_cast<AsyncMemBlackBox *>(*handle);
+    static_cast<AsyncMemBlackBox *>(handle);
     hndl->doFetch(imem_request_ready, imem_request_valid,
       imem_request_bits_address, imem_response_valid);
     return hndl->getImemResp();
@@ -57,15 +57,15 @@ int ifetch(unsigned char imem_request_ready,
 
 //will run a doMem from within blackbox wrapper
 int datareq(unsigned char dmem_request_ready,
-      unsigned char dmem_request_valid, int dmem_request_bits_address,
-      int dmem_request_bits_writedata,
+      unsigned char dmem_request_valid, unsigned int dmem_request_bits_address,
+      unsigned int dmem_request_bits_writedata,
       unsigned char dmem_request_bits_operation,
-      unsigned char* dmem_response_valid, void** handle)
+      unsigned char* dmem_response_valid, void* handle)
 {
   DPRINTF(Verilator, "DPI DATA REQ MADE\n");
 
   AsyncMemBlackBox* hndl =
-    static_cast<AsyncMemBlackBox *>(*handle);
+    static_cast<AsyncMemBlackBox *>(handle);
   hndl->doMem(dmem_request_ready, dmem_request_valid,dmem_request_bits_address,
         dmem_request_bits_writedata, dmem_request_bits_operation,
         dmem_response_valid);
