@@ -97,7 +97,8 @@ class MySimpleMemory(SimpleMemory):
 if buildEnv['TARGET_ISA'] == 'x86':
   valid_cpu = {'AtomicSimpleCPU': AtomicSimpleCPU,
                'TimingSimpleCPU': TimingSimpleCPU,
-               'DerivO3CPU': DerivO3CPU
+               'DerivO3CPU': DerivO3CPU,
+               'FlexCPU':FlexCPU,
               }
 else:
   valid_cpu = {'AtomicSimpleCPU': AtomicSimpleCPU,
