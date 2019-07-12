@@ -966,23 +966,4 @@ InflightInst::getAddrMonitor()
     }
 }
 
-#if THE_ISA == MIPS_ISA
-RegVal
-InflightInst::readRegOtherThread(const RegId& reg,
-                                 ThreadID tid = InvalidThreadID)
-{
-    panic("readRegOtherThread() not implemented!");
-    return 0;
-    // TODO
-}
-
-void
-InflightInst::setRegOtherThread(const RegId& reg, RegVal val,
-                                ThreadID tid = InvalidThreadID)
-{
-    panic("setRegOtherThread() not implemented!");
-    // TODO
-}
-#endif
-
 // END ExecContext interface functions

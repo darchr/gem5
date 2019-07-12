@@ -659,16 +659,6 @@ class InflightInst : public ExecContext,
     void mwaitAtomic(ThreadContext* tc) override;
     AddressMonitor* getAddrMonitor() override;
 
-    /**
-     * MIPS-Specific
-     */
-#if THE_ISA == MIPS_ISA
-    RegVal readRegOtherThread(const RegId& reg,
-                               ThreadID tid = InvalidThreadID) override;
-    void setRegOtherThread(const RegId& reg, RegVal val,
-                           ThreadID tid = InvalidThreadID) override;
-#endif
-
     // END ExecContext interface functions
 }; // END class InflightInst
 
