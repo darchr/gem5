@@ -36,7 +36,7 @@ from testlib import *
 workloads = ('Bubblesort','FloatMM')
 
 valid_isas = {
-    'x86': ('AtomicSimpleCPU', 'TimingSimpleCPU', 'DerivO3CPU'),
+    'x86': ('AtomicSimpleCPU', 'TimingSimpleCPU', 'DerivO3CPU', 'FlexCPU'),
     'arm': ('AtomicSimpleCPU', 'TimingSimpleCPU', 'MinorCPU', 'DerivO3CPU'),
     'riscv': ('AtomicSimpleCPU', 'TimingSimpleCPU', 'MinorCPU', 'DerivO3CPU'),
 }
