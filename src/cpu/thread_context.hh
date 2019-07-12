@@ -65,8 +65,6 @@ class BaseTLB;
 class CheckerCPU;
 class Checkpoint;
 class EndQuiesceEvent;
-class SETranslatingPortProxy;
-class FSTranslatingPortProxy;
 class PortProxy;
 class Process;
 class System;
@@ -152,7 +150,7 @@ class ThreadContext
 
     virtual PortProxy &getPhysProxy() = 0;
 
-    virtual FSTranslatingPortProxy &getVirtProxy() = 0;
+    virtual PortProxy &getVirtProxy() = 0;
 
     /**
      * Initialise the physical and virtual port proxies and tie them to
@@ -161,8 +159,6 @@ class ThreadContext
      * tc ThreadContext for the virtual-to-physical translation
      */
     virtual void initMemProxies(ThreadContext *tc) = 0;
-
-    virtual SETranslatingPortProxy &getMemProxy() = 0;
 
     virtual Process *getProcessPtr() = 0;
 

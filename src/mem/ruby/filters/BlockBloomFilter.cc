@@ -28,20 +28,12 @@
 
 #include "mem/ruby/filters/BlockBloomFilter.hh"
 
-#include "base/intmath.hh"
-#include "base/str.hh"
-#include "mem/ruby/system/RubySystem.hh"
+#include "base/bitfield.hh"
+#include "params/BlockBloomFilter.hh"
 
-using namespace std;
-
-BlockBloomFilter::BlockBloomFilter(int size)
+BlockBloomFilter::BlockBloomFilter(const BlockBloomFilterParams* p)
+    : AbstractBloomFilter(p)
 {
-    m_filter_size = size;
-    m_filter_size_bits = floorLog2(m_filter_size);
-
-    m_filter.resize(m_filter_size);
-
-    clear();
 }
 
 BlockBloomFilter::~BlockBloomFilter()
@@ -49,110 +41,40 @@ BlockBloomFilter::~BlockBloomFilter()
 }
 
 void
-BlockBloomFilter::clear()
-{
-    for (int i = 0; i < m_filter_size; i++) {
-        m_filter[i] = 0;
-    }
-}
-
-void
-BlockBloomFilter::increment(Addr addr)
-{
-    // Not used
-}
-
-void
-BlockBloomFilter::decrement(Addr addr)
-{
-    // Not used
-}
-
-void
-BlockBloomFilter::merge(AbstractBloomFilter * other_filter)
-{
-    // TODO
-}
-
-void
 BlockBloomFilter::set(Addr addr)
 {
-    int i = get_index(addr);
-    m_filter[i] = 1;
+    filter[hash(addr)] = 1;
 }
 
 void
 BlockBloomFilter::unset(Addr addr)
 {
-    int i = get_index(addr);
-    m_filter[i] = 0;
-}
-
-bool
-BlockBloomFilter::isSet(Addr addr)
-{
-    int i = get_index(addr);
-    return (m_filter[i]);
+    filter[hash(addr)] = 0;
 }
 
 int
-BlockBloomFilter::getCount(Addr addr)
+BlockBloomFilter::getCount(Addr addr) const
 {
-    return m_filter[get_index(addr)];
+    return filter[hash(addr)];
 }
 
 int
-BlockBloomFilter::getTotalCount()
-{
-    int count = 0;
-
-    for (int i = 0; i < m_filter_size; i++) {
-        if (m_filter[i]) {
-            count++;
-        }
-    }
-    return count;
-}
-
-int
-BlockBloomFilter::getIndex(Addr addr)
-{
-    return get_index(addr);
-}
-
-void
-BlockBloomFilter::print(ostream& out) const
-{
-}
-
-int
-BlockBloomFilter::readBit(const int index)
-{
-    return m_filter[index];
-}
-
-void
-BlockBloomFilter::writeBit(const int index, const int value)
-{
-    m_filter[index] = value;
-}
-
-int
-BlockBloomFilter::get_index(Addr addr)
+BlockBloomFilter::hash(Addr addr) const
 {
     // Pull out some bit field ==> B1
     // Pull out additional bits, not the same as B1 ==> B2
     //  XOR B1 and B2 to get hash index
-    Addr block_bits = bitSelect(addr, RubySystem::getBlockSizeBits(),
-                       2 * RubySystem::getBlockSizeBits() - 1);
+    Addr block_bits = bits(addr, 2 * offsetBits - 1, offsetBits);
     int offset = 5;
-    Addr other_bits = bitSelect(addr,
-                       2 * RubySystem::getBlockSizeBits() + offset,
-                       2 * RubySystem::getBlockSizeBits() + offset +
-                       m_filter_size_bits - 1);
+    Addr other_bits = bits(addr, 2 * offsetBits + offset + sizeBits - 1,
+        2 * offsetBits + offset);
     int index = block_bits ^ other_bits;
-    assert(index < m_filter_size);
+    assert(index < filter.size());
     return index;
 }
 
-
+BlockBloomFilter*
+BlockBloomFilterParams::create()
+{
+    return new BlockBloomFilter(this);
+}

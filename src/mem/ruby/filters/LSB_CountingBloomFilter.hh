@@ -29,43 +29,26 @@
 #ifndef __MEM_RUBY_FILTERS_LSB_COUNTINGBLOOMFILTER_HH__
 #define __MEM_RUBY_FILTERS_LSB_COUNTINGBLOOMFILTER_HH__
 
-#include <iostream>
-#include <vector>
-
-#include "mem/ruby/common/Address.hh"
 #include "mem/ruby/filters/AbstractBloomFilter.hh"
+
+struct LSB_CountingBloomFilterParams;
 
 class LSB_CountingBloomFilter : public AbstractBloomFilter
 {
   public:
-    LSB_CountingBloomFilter(int head, int tail);
+    LSB_CountingBloomFilter(const LSB_CountingBloomFilterParams* p);
     ~LSB_CountingBloomFilter();
 
-    void clear();
-    void increment(Addr addr);
-    void decrement(Addr addr);
-    void merge(AbstractBloomFilter * other_filter);
-    void set(Addr addr);
-    void unset(Addr addr);
+    void set(Addr addr) override;
+    void unset(Addr addr) override;
 
-    bool isSet(Addr addr);
-    int getCount(Addr addr);
-    int getTotalCount();
-    int getIndex(Addr addr);
-    int readBit(const int index);
-    void writeBit(const int index, const int value);
-
-    void print(std::ostream& out) const;
+    int getCount(Addr addr) const override;
 
   private:
-    int get_index(Addr addr);
+    int hash(Addr addr) const;
 
-    std::vector<int> m_filter;
-    int m_filter_size;
-    int m_filter_size_bits;
-
-    int m_count_bits;
-    int m_count;
+    /** Maximum value of the filter entries. */
+    const int maxValue;
 };
 
 #endif //__MEM_RUBY_FILTERS_LSB_COUNTINGBLOOMFILTER_HH__

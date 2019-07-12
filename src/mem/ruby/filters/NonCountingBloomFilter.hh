@@ -29,48 +29,30 @@
 #ifndef __MEM_RUBY_FILTERS_NONCOUNTINGBLOOMFILTER_HH__
 #define __MEM_RUBY_FILTERS_NONCOUNTINGBLOOMFILTER_HH__
 
-#include <iostream>
-#include <vector>
-
-#include "mem/ruby/common/Address.hh"
 #include "mem/ruby/filters/AbstractBloomFilter.hh"
+
+struct NonCountingBloomFilterParams;
 
 class NonCountingBloomFilter : public AbstractBloomFilter
 {
   public:
-    NonCountingBloomFilter(int head, int tail);
+    NonCountingBloomFilter(const NonCountingBloomFilterParams* p);
     ~NonCountingBloomFilter();
 
-    void clear();
-    void increment(Addr addr);
-    void decrement(Addr addr);
-    void merge(AbstractBloomFilter * other_filter);
-    void set(Addr addr);
-    void unset(Addr addr);
+    void merge(const AbstractBloomFilter* other) override;
+    void set(Addr addr) override;
+    void unset(Addr addr) override;
 
-    bool isSet(Addr addr);
-    int getCount(Addr addr);
-    int getTotalCount();
-
-    int getIndex(Addr addr);
-    int readBit(const int index);
-    void writeBit(const int index, const int value);
-
-    void print(std::ostream& out) const;
-
-    int
-    operator[](const int index) const
-    {
-        return this->m_filter[index];
-    }
+    int getCount(Addr addr) const override;
 
   private:
-    int get_index(Addr addr);
+    int hash(Addr addr) const;
 
-    std::vector<int> m_filter;
-    int m_filter_size;
-    int m_offset;
-    int m_filter_size_bits;
+    /**
+     * Bit offset from block number. Used to simulate bit selection hashing
+     * on larger than cache-line granularities, by skipping some bits.
+     */
+    int skipBits;
 };
 
 #endif // __MEM_RUBY_FILTERS_NONCOUNTINGBLOOMFILTER_HH__

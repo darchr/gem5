@@ -28,29 +28,14 @@
 
 #include "mem/ruby/filters/BulkBloomFilter.hh"
 
-#include <cassert>
+#include <limits>
 
-#include "base/intmath.hh"
-#include "base/str.hh"
-#include "mem/ruby/system/RubySystem.hh"
+#include "base/bitfield.hh"
+#include "params/BulkBloomFilter.hh"
 
-using namespace std;
-
-BulkBloomFilter::BulkBloomFilter(int size)
+BulkBloomFilter::BulkBloomFilter(const BulkBloomFilterParams* p)
+    : AbstractBloomFilter(p), sectorBits(sizeBits - 1)
 {
-    m_filter_size = size;
-    m_filter_size_bits = floorLog2(m_filter_size);
-    // split the filter bits in half, c0 and c1
-    m_sector_bits = m_filter_size_bits - 1;
-
-    m_temp_filter.resize(m_filter_size);
-    m_filter.resize(m_filter_size);
-    clear();
-
-    // clear temp filter
-    for (int i = 0; i < m_filter_size; ++i) {
-        m_temp_filter[i] = 0;
-    }
 }
 
 BulkBloomFilter::~BulkBloomFilter()
@@ -58,191 +43,117 @@ BulkBloomFilter::~BulkBloomFilter()
 }
 
 void
-BulkBloomFilter::clear()
-{
-    for (int i = 0; i < m_filter_size; i++) {
-        m_filter[i] = 0;
-    }
-}
-
-void
-BulkBloomFilter::increment(Addr addr)
-{
-    // Not used
-}
-
-void
-BulkBloomFilter::decrement(Addr addr)
-{
-    // Not used
-}
-
-void
-BulkBloomFilter::merge(AbstractBloomFilter * other_filter)
-{
-    // TODO
-}
-
-void
 BulkBloomFilter::set(Addr addr)
 {
     // c0 contains the cache index bits
-    int set_bits = m_sector_bits;
-    int block_bits = RubySystem::getBlockSizeBits();
-    int c0 = bitSelect(addr, block_bits, block_bits + set_bits - 1);
-    // c1 contains the lower m_sector_bits permuted bits
+    int c0 = bits(addr, offsetBits + sectorBits - 1, offsetBits);
+    // c1 contains the lower sectorBits permuted bits
     //Address permuted_bits = permute(addr);
-    //int c1 = permuted_bits.bitSelect(0, set_bits-1);
-    int c1 = bitSelect(addr, block_bits+set_bits, (block_bits+2*set_bits) - 1);
-    //assert(c0 < (m_filter_size/2));
-    //assert(c0 + (m_filter_size/2) < m_filter_size);
-    //assert(c1 < (m_filter_size/2));
+    int c1 = bits(addr, (offsetBits + 2 * sectorBits) - 1,
+        offsetBits + sectorBits);
+    //assert(c0 < (filter_size/2));
+    //assert(c0 + (filter_size/2) < filter_size);
+    //assert(c1 < (filter_size/2));
     // set v0 bit
-    m_filter[c0 + (m_filter_size/2)] = 1;
+    filter[c0 + (filter.size()/2)] = 1;
     // set v1 bit
-    m_filter[c1] = 1;
-}
-
-void
-BulkBloomFilter::unset(Addr addr)
-{
-    // not used
+    filter[c1] = 1;
 }
 
 bool
-BulkBloomFilter::isSet(Addr addr)
+BulkBloomFilter::isSet(Addr addr) const
 {
     // c0 contains the cache index bits
-    int set_bits = m_sector_bits;
-    int block_bits = RubySystem::getBlockSizeBits();
-    int c0 = bitSelect(addr, block_bits, block_bits + set_bits - 1);
+    const int filter_size = filter.size();
+    int c0 = bits(addr, offsetBits + sectorBits - 1, offsetBits);
     // c1 contains the lower 10 permuted bits
     //Address permuted_bits = permute(addr);
-    //int c1 = permuted_bits.bitSelect(0, set_bits-1);
-    int c1 = bitSelect(addr, block_bits+set_bits, (block_bits+2*set_bits) - 1);
-    //assert(c0 < (m_filter_size/2));
-    //assert(c0 + (m_filter_size/2) < m_filter_size);
-    //assert(c1 < (m_filter_size/2));
+    int c1 = bits(addr, (offsetBits + 2 * sectorBits) - 1,
+        offsetBits + sectorBits);
+    //assert(c0 < (filter_size/2));
+    //assert(c0 + (filter_size/2) < filter_size);
+    //assert(c1 < (filter_size/2));
     // set v0 bit
-    m_temp_filter[c0 + (m_filter_size/2)] = 1;
+    std::vector<int> temp_filter(filter.size(), 0);
+    temp_filter[c0 + (filter_size/2)] = 1;
     // set v1 bit
-    m_temp_filter[c1] = 1;
+    temp_filter[c1] = 1;
 
     // perform filter intersection. If any c part is 0, no possibility
     // of address being in signature.  get first c intersection part
     bool zero = false;
-    for (int i = 0; i < m_filter_size/2; ++i){
+    for (int i = 0; i < filter_size/2; ++i){
         // get intersection of signatures
-        m_temp_filter[i] = m_temp_filter[i] && m_filter[i];
-        zero = zero || m_temp_filter[i];
+        temp_filter[i] = temp_filter[i] && filter[i];
+        zero = zero || temp_filter[i];
     }
     zero = !zero;
     if (zero) {
         // one section is zero, no possiblility of address in signature
         // reset bits we just set
-        m_temp_filter[c0 + (m_filter_size / 2)] = 0;
-        m_temp_filter[c1] = 0;
+        temp_filter[c0 + (filter_size / 2)] = 0;
+        temp_filter[c1] = 0;
         return false;
     }
 
     // check second section
     zero = false;
-    for (int i = m_filter_size / 2; i < m_filter_size; ++i) {
+    for (int i = filter_size / 2; i < filter_size; ++i) {
         // get intersection of signatures
-        m_temp_filter[i] =  m_temp_filter[i] && m_filter[i];
-        zero = zero || m_temp_filter[i];
+        temp_filter[i] =  temp_filter[i] && filter[i];
+        zero = zero || temp_filter[i];
     }
     zero = !zero;
     if (zero) {
         // one section is zero, no possiblility of address in signature
-        m_temp_filter[c0 + (m_filter_size / 2)] = 0;
-        m_temp_filter[c1] = 0;
+        temp_filter[c0 + (filter_size / 2)] = 0;
+        temp_filter[c1] = 0;
         return false;
     }
     // one section has at least one bit set
-    m_temp_filter[c0 + (m_filter_size / 2)] = 0;
-    m_temp_filter[c1] = 0;
+    temp_filter[c0 + (filter_size / 2)] = 0;
+    temp_filter[c1] = 0;
     return true;
 }
 
 int
-BulkBloomFilter::getCount(Addr addr)
+BulkBloomFilter::getCount(Addr addr) const
 {
-    // not used
+    // TODO as in the multi-hashed filters
     return 0;
-}
-
-int
-BulkBloomFilter::getTotalCount()
-{
-    int count = 0;
-    for (int i = 0; i < m_filter_size; i++) {
-        if (m_filter[i]) {
-            count++;
-        }
-    }
-    return count;
-}
-
-int
-BulkBloomFilter::getIndex(Addr addr)
-{
-    return get_index(addr);
-}
-
-int
-BulkBloomFilter::readBit(const int index)
-{
-    return 0;
-    // TODO
-}
-
-void
-BulkBloomFilter::writeBit(const int index, const int value)
-{
-    // TODO
-}
-
-void
-BulkBloomFilter::print(ostream& out) const
-{
-}
-
-int
-BulkBloomFilter::get_index(Addr addr)
-{
-    return bitSelect(addr, RubySystem::getBlockSizeBits(),
-                     RubySystem::getBlockSizeBits() +
-                     m_filter_size_bits - 1);
 }
 
 Addr
-BulkBloomFilter::permute(Addr addr)
+BulkBloomFilter::hash(Addr addr) const
 {
     // permutes the original address bits according to Table 5
-    int block_offset = RubySystem::getBlockSizeBits();
-    Addr part1 = bitSelect(addr, block_offset, block_offset + 6),
-        part2 = bitSelect(addr, block_offset + 9, block_offset + 9),
-        part3 = bitSelect(addr, block_offset + 11, block_offset + 11),
-        part4 = bitSelect(addr, block_offset + 17, block_offset + 17),
-        part5 = bitSelect(addr, block_offset + 7, block_offset + 8),
-        part6 = bitSelect(addr, block_offset + 10, block_offset + 10),
-        part7 = bitSelect(addr, block_offset + 12, block_offset + 12),
-        part8 = bitSelect(addr, block_offset + 13, block_offset + 13),
-        part9 = bitSelect(addr, block_offset + 15, block_offset + 16),
-        part10 = bitSelect(addr, block_offset + 18, block_offset + 20),
-        part11 = bitSelect(addr, block_offset + 14, block_offset + 14);
+    Addr part1  = bits(addr, offsetBits + 6, offsetBits),
+         part2  = bits(addr, offsetBits + 9),
+         part3  = bits(addr, offsetBits + 11),
+         part4  = bits(addr, offsetBits + 17),
+         part5  = bits(addr, offsetBits + 8, offsetBits + 7),
+         part6  = bits(addr, offsetBits + 10),
+         part7  = bits(addr, offsetBits + 12),
+         part8  = bits(addr, offsetBits + 13),
+         part9  = bits(addr, offsetBits + 16, offsetBits + 15),
+         part10 = bits(addr, offsetBits + 20, offsetBits + 18),
+         part11 = bits(addr, offsetBits + 14);
 
     Addr result =
         (part1 << 14) | (part2 << 13) | (part3 << 12) | (part4 << 11) |
         (part5 << 9)  | (part6 << 8)  | (part7 << 7)  | (part8 << 6)  |
         (part9 << 4)  | (part10 << 1) | (part11);
 
-    // assume 32 bit addresses (both virtual and physical)
-    // select the remaining high-order 11 bits
-    Addr remaining_bits =
-        bitSelect(addr, block_offset + 21, 31) << 21;
+    // Select the remaining high-order bits
+    Addr remaining_bits = bits(addr, std::numeric_limits<Addr>::digits - 1,
+        offsetBits + 21) << 21;
     result = result | remaining_bits;
 
     return result;
+}
+
+BulkBloomFilter*
+BulkBloomFilterParams::create()
+{
+    return new BulkBloomFilter(this);
 }

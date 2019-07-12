@@ -1,6 +1,6 @@
 # -*- mode:python -*-
 
-# Copyright (c) 2013, 2015-2017 ARM Limited
+# Copyright (c) 2013, 2015-2017, 2019 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -290,6 +290,8 @@ global_vars = Variables(global_vars_file, args=ARGUMENTS)
 global_vars.AddVariables(
     ('CC', 'C compiler', environ.get('CC', main['CC'])),
     ('CXX', 'C++ compiler', environ.get('CXX', main['CXX'])),
+    ('CCFLAGS_EXTRA', 'Extra C and C++ compiler flags', ''),
+    ('LDFLAGS_EXTRA', 'Extra linker flags', ''),
     ('PYTHON_CONFIG', 'Python config binary to use',
      [ 'python2.7-config', 'python-config' ]),
     ('PROTOC', 'protoc tool', environ.get('PROTOC', 'protoc')),
@@ -1013,14 +1015,17 @@ sticky_vars.AddVariables(
     EnumVariable('PROTOCOL', 'Coherence protocol for Ruby', 'None',
                   all_protocols),
     EnumVariable('BACKTRACE_IMPL', 'Post-mortem dump implementation',
-                 backtrace_impls[-1], backtrace_impls)
+                 backtrace_impls[-1], backtrace_impls),
+    ('NUMBER_BITS_PER_SET', 'Max elements in set (default 64)',
+                 64),
     )
 
 # These variables get exported to #defines in config/*.hh (see src/SConscript).
 export_vars += ['USE_FENV', 'SS_COMPATIBLE_FP', 'TARGET_ISA', 'TARGET_GPU_ISA',
                 'CP_ANNOTATE', 'USE_POSIX_CLOCK', 'USE_KVM', 'USE_TUNTAP',
                 'PROTOCOL', 'HAVE_PROTOBUF', 'HAVE_VALGRIND',
-                'HAVE_PERF_ATTR_EXCLUDE_HOST', 'USE_PNG']
+                'HAVE_PERF_ATTR_EXCLUDE_HOST', 'USE_PNG',
+                'NUMBER_BITS_PER_SET']
 
 ###################################################
 #
@@ -1281,6 +1286,9 @@ for variant_path in variant_paths:
 
     if env['USE_SSE2']:
         env.Append(CCFLAGS=['-msse2'])
+
+    env.Append(CCFLAGS='$CCFLAGS_EXTRA')
+    env.Append(LINKFLAGS='$LDFLAGS_EXTRA')
 
     # The src/SConscript file sets up the build rules in 'env' according
     # to the configured variables.  It returns a list of environments,

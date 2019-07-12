@@ -132,18 +132,12 @@ class O3ThreadContext : public ThreadContext
 
     PortProxy &getPhysProxy() override { return thread->getPhysProxy(); }
 
-    FSTranslatingPortProxy &getVirtProxy() override;
+    PortProxy &getVirtProxy() override;
 
     void
     initMemProxies(ThreadContext *tc) override
     {
         thread->initMemProxies(tc);
-    }
-
-    SETranslatingPortProxy &
-    getMemProxy() override
-    {
-        return thread->getMemProxy();
     }
 
     /** Returns this thread's status. */

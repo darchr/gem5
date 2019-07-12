@@ -90,8 +90,8 @@ LinuxAlphaSystem::initState()
      * kernel arguments directly into the kernel's memory.
      */
     virtProxy.writeBlob(CommandLine(),
-                        (uint8_t*)params()->boot_osflags.c_str(),
-                        params()->boot_osflags.length()+1);
+                        params()->boot_osflags.c_str(),
+                        params()->boot_osflags.length() + 1);
 
     /**
      * find the address of the est_cycle_freq variable and insert it
@@ -176,7 +176,7 @@ LinuxAlphaSystem::setDelayLoop(ThreadContext *tc)
     if (kernelSymtab->findAddress("loops_per_jiffy", addr)) {
         Tick cpuFreq = tc->getCpuPtr()->frequency();
         assert(intrFreq);
-        FSTranslatingPortProxy &vp = tc->getVirtProxy();
+        PortProxy &vp = tc->getVirtProxy();
         vp.write(addr, (uint32_t)((cpuFreq / intrFreq) * 0.9988),
                  GuestByteOrder);
     }

@@ -146,7 +146,7 @@ class CheckerThreadContext : public ThreadContext
 
     PortProxy &getPhysProxy() override { return actualTC->getPhysProxy(); }
 
-    FSTranslatingPortProxy &
+    PortProxy &
     getVirtProxy() override
     {
         return actualTC->getVirtProxy();
@@ -162,12 +162,6 @@ class CheckerThreadContext : public ThreadContext
     connectMemPorts(ThreadContext *tc)
     {
         actualTC->connectMemPorts(tc);
-    }
-
-    SETranslatingPortProxy &
-    getMemProxy() override
-    {
-        return actualTC->getMemProxy();
     }
 
     /** Executes a syscall in SE mode. */

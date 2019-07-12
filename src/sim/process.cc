@@ -97,6 +97,7 @@ Process::Process(ProcessParams *params, EmulationPageTable *pTable,
       executable(params->executable),
       tgtCwd(normalize(params->cwd)),
       hostCwd(checkPathRedirect(tgtCwd)),
+      release(params->release),
       _uid(params->uid), _euid(params->euid),
       _gid(params->gid), _egid(params->egid),
       _pid(params->pid), _ppid(params->ppid),
@@ -160,7 +161,9 @@ Process::clone(ThreadContext *otc, ThreadContext *ntc,
          */
         delete np->pTable;
         np->pTable = pTable;
-        ntc->getMemProxy().setPageTable(np->pTable);
+        auto &proxy = dynamic_cast<SETranslatingPortProxy &>(
+                ntc->getVirtProxy());
+        proxy.setPageTable(np->pTable);
 
         np->memState = memState;
     } else {
@@ -308,13 +311,13 @@ Process::replicatePage(Addr vaddr, Addr new_paddr, ThreadContext *old_tc,
 
     // Read from old physical page.
     uint8_t *buf_p = new uint8_t[PageBytes];
-    old_tc->getMemProxy().readBlob(vaddr, buf_p, PageBytes);
+    old_tc->getVirtProxy().readBlob(vaddr, buf_p, PageBytes);
 
     // Create new mapping in process address space by clobbering existing
     // mapping (if any existed) and then write to the new physical page.
     bool clobber = true;
     pTable->map(vaddr, new_paddr, PageBytes, clobber);
-    new_tc->getMemProxy().writeBlob(vaddr, buf_p, PageBytes);
+    new_tc->getVirtProxy().writeBlob(vaddr, buf_p, PageBytes);
     delete[] buf_p;
 }
 
