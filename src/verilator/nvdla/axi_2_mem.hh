@@ -83,33 +83,41 @@ private:
 #define AXI_BLOCK_SIZE 4096
 #define AXI_WIDTH 512
 
-
+        //read request
         struct axi_r_txn {
                 int rvalid;
                 int rlast;
                 uint32_t rdata[AXI_WIDTH / 32];
                 uint8_t rid;
         };
+        //read request buffer
         std::queue<axi_r_txn> r_fifo;
+        //read response buffer
         std::queue<axi_r_txn> r0_fifo;
 
+        //write request
         struct axi_aw_txn {
                 uint8_t awid;
                 uint32_t awaddr;
                 uint8_t awlen;
         };
+        //write request buffer
         std::queue<axi_aw_txn> aw_fifo;
 
+        //write data
         struct axi_w_txn {
                 uint32_t wdata[AXI_WIDTH / 32];
                 uint64_t wstrb;
                 uint8_t wlast;
         };
+        //write data buffer
         std::queue<axi_w_txn> w_fifo;
 
+        //write response
         struct axi_b_txn {
                 uint8_t bid;
         };
+        //write response buffer
         std::queue<axi_b_txn> b_fifo;
 
         struct connections dla;
