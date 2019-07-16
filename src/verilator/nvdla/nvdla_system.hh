@@ -1,4 +1,4 @@
-# Copyright (c) 2019 The Regents of the University of California
+/*# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,31 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
+*/
 
+#ifndef __VERILATOR_NVDLA_SYSTEM__HH__
+#define __VERILATOR_NVDLA_SYSTEM__HH__
 
-Import('main')
+#include <string>
+#include <vector>
 
-# Include?
-main.Prepend(CPPPATH=Dir('./'))
-main.Prepend(CPPPATH=Dir('/usr/share/verilator/include'))
-main.Prepend(CPPPATH=Dir('/usr/share/verilator/include/vltstd'))
+#include "base/loader/hex_file.hh"
+#include "base/loader/symtab.hh"
+#include "kern/system_events.hh"
+#include "params/NVDLASystem.hh"
+#include "sim/sim_object.hh"
+#include "sim/system.hh"
 
-dinocpu = main.Clone()
+class NVDLASystem : public System {
 
-main.Append(LIBS=['VTop__ALL'])
-main.Prepend(LIBPATH=[Dir('.')])
-main.Append(CPPDEFINES = 'VM_TRACE=0')
-main.Append(CPPDEFINES = 'VL_THREADED=0')
+    bool isStandalone;
+
+    typedef NVDLASystemParams Params;
+    NVDLASystem(Params *p);
+    ~NVDLASystem();
+
+    HexFile *hexFile;
+
+};
+
+#endif

@@ -1,4 +1,4 @@
-# Copyright (c) 2019 The Regents of the University of California
+/*# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
+*/
 
+#ifndef __VERILATOR_NVDLA_WRAPPER__HH__
+#define __VERILATOR_NVDLA_WRAPPER__HH__
 
-Import('main')
+class NVDLAWrapper {
+    public:
+        NVDLAWrapper();
+    private:
+};
 
-# Include?
-main.Prepend(CPPPATH=Dir('./'))
-main.Prepend(CPPPATH=Dir('/usr/share/verilator/include'))
-main.Prepend(CPPPATH=Dir('/usr/share/verilator/include/vltstd'))
-
-dinocpu = main.Clone()
-
-main.Append(LIBS=['VTop__ALL'])
-main.Prepend(LIBPATH=[Dir('.')])
-main.Append(CPPDEFINES = 'VM_TRACE=0')
-main.Append(CPPDEFINES = 'VL_THREADED=0')
+#endif

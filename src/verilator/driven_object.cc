@@ -28,6 +28,10 @@
 # Authors: Nima Ganjehloo
 */
 
+//generic includes
+//#define NDEBUG
+#include <cassert>
+
 //gem5 includes
 #include "base/logging.hh"
 #include "debug/Verilator.hh"
@@ -40,9 +44,9 @@
 DrivenObject::DrivenObject(DrivenObjectParams *params):
     ClockedObject(params),
     event([this]{updateCycle();}, params->name),
-    resetCycles(params->resetCycles)
+    resetCycles(params->resetCycles),
+    latency(params->memLatency)
 {
-
 }
 
 //creates object for gem5 to use
@@ -57,15 +61,13 @@ DrivenObjectParams::create()
 void
 DrivenObject::updateCycle()
 {
-   DPRINTF(Verilator, "\n\nCLOCKING DEVICE\n");
+  DPRINTF(Verilator, "\n\nCLOCKING DEVICE\n");
   //clock the device
   driver.clockDevice();
 
   DPRINTF(Verilator, "\n\nSCHEDULE NEXT CYCLE\n");
-  //schedule next clock cycle if verilator is not done
-  if (!driver.isFinished()){
+  if (!driver.isFinished())
     schedule(event, nextCycle());
-  }
 }
 
 void

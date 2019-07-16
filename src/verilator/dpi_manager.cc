@@ -66,9 +66,9 @@ int datareq(unsigned char dmem_request_ready,
 
   AsyncMemBlackBox* hndl =
     static_cast<AsyncMemBlackBox *>(handle);
-  hndl->doMem(dmem_request_ready, dmem_request_valid,dmem_request_bits_address,
-        dmem_request_bits_writedata, dmem_request_bits_operation,
-        dmem_response_valid);
+  hndl->doMem(dmem_request_ready, dmem_request_valid,
+        dmem_request_bits_address, dmem_request_bits_writedata,
+        dmem_request_bits_operation, dmem_response_valid);
 
   return hndl->getDmemResp();
 

@@ -71,7 +71,7 @@ system.clk_domain.voltage_domain = VoltageDomain()
 
 # Set up the system
 system.mem_mode = 'timing'               # Use timing accesses
-system.mem_ranges = [AddrRange('8GB')] # Create an address range
+system.mem_ranges = [AddrRange('4GB')] # Create an address range
 
 # Create a DDR3 memory controller
 system.mem_ctrl = SimpleMemory(latency = '0ns', bandwidth = '0GB/s')

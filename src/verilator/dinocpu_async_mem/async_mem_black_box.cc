@@ -32,6 +32,7 @@
 //gem5 gemeral includes
 #include "base/logging.hh"
 #include "debug/Verilator.hh"
+#include "mem/packet_access.hh"
 
 //gem5 model includes
 #include "async_mem_black_box.hh"
@@ -96,7 +97,7 @@ AsyncMemBlackBox::AsyncMemBlackBoxPort
   blockedPacket = nullptr;
 
   //try request again
-  sendAtomicPacket(pkt);
+  sendTimingPacket(pkt);
 }
 
 //used for configuring simulated device
@@ -160,7 +161,7 @@ AsyncMemBlackBox::doFetch(unsigned char imem_request_ready,
 
   //allocate space for instruction and send through instPort
   pkt->allocate();
-  instPort.sendAtomicPacket(pkt);
+  instPort.sendTimingPacket(pkt);
 }
 
 //sets up a memory request for memory instructions to gem5 memory sytem
@@ -212,11 +213,11 @@ AsyncMemBlackBox::doMem(unsigned char dmem_request_ready,
 
   //allocate space for memory request
   pkt->allocate();
-  pkt->setData(data);
+  pkt->setLE(dmem_request_bits_writedata);
   delete[] data;
 
   //send request
-  dataPort.sendAtomicPacket(pkt);
+  dataPort.sendTimingPacket(pkt);
 }
 
 //handles a successful response for a memory request

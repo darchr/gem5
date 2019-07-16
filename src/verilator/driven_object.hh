@@ -31,6 +31,11 @@
 #ifndef __VERILATOR_DRIVEN_OBJECT_HH__
 #define __VERILATOR_DRIVEN_OBJECT_HH__
 
+//generic includes
+#include <functional>
+#include <string>
+#include <vector>
+
 //verilator design includes
 #include "verilator_driver.hh"
 
@@ -49,6 +54,9 @@ class DrivenObject : public ClockedObject
 
     //how many cycles to reset the top level of the design
     unsigned int resetCycles;
+
+    //memory latency
+    unsigned int latency;
 
     //driver for top level design
     VerilatorDriver driver;

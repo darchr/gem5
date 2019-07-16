@@ -1,4 +1,13 @@
-# Copyright (c) 2019 The Regents of the University of California
+/* nvdla.cpp
+ * Driver for Verilator testbench
+ * NVDLA Open Source Project
+ *
+ * Copyright (c) 2017 NVIDIA Corporation.  Licensed under the NVDLA Open
+ * Hardware License.  For more information, see the "LICENSE" file that came
+ * with this distribution.
+ */
+
+/*# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,18 +34,48 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
+*/
 
+#ifndef __VERILATOR_CSB_MASTER__HH__
+#define __VERILATOR_CSB_MASTER__HH__
 
-Import('main')
+#include <fcntl.h>
 
-# Include?
-main.Prepend(CPPPATH=Dir('./'))
-main.Prepend(CPPPATH=Dir('/usr/share/verilator/include'))
-main.Prepend(CPPPATH=Dir('/usr/share/verilator/include/vltstd'))
+#include <cstdio>
+#include <cstdlib>
+#include <queue>
 
-dinocpu = main.Clone()
+class CSBMaster {
+        struct csb_op {
+                int is_ext;
+                int write;
+                int tries;
+                int reading;
+                uint32_t addr;
+                uint32_t mask;
+                uint32_t data;
+        };
 
-main.Append(LIBS=['VTop__ALL'])
-main.Prepend(LIBPATH=[Dir('.')])
-main.Append(CPPDEFINES = 'VM_TRACE=0')
-main.Append(CPPDEFINES = 'VL_THREADED=0')
+        std::queue<csb_op> opq;
+
+        VNV_nvdla *dla;
+
+        int _test_passed;
+
+public:
+        CSBMaster(VNV_nvdla *_dla);
+
+        void read(uint32_t addr, uint32_t mask, uint32_t data);
+
+        void write(uint32_t addr, uint32_t data);
+
+        void ext_event(int ext);
+
+        int eval(int noop);
+
+        bool done();
+
+        int test_passed();
+};
+
+#endif

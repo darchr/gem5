@@ -1,4 +1,13 @@
-# Copyright (c) 2019 The Regents of the University of California
+/* nvdla.cpp
+ * Driver for Verilator testbench
+ * NVDLA Open Source Project
+ *
+ * Copyright (c) 2017 NVIDIA Corporation.  Licensed under the NVDLA Open
+ * Hardware License.  For more information, see the "LICENSE" file that came
+ * with this distribution.
+ */
+
+/*# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,18 +34,57 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
+*/
 
 
-Import('main')
+#ifndef __VERILATOR_TRACE_LOADER__HH__
+#define __VERILATOR_TRACE_LOADER__HH__
 
-# Include?
-main.Prepend(CPPPATH=Dir('./'))
-main.Prepend(CPPPATH=Dir('/usr/share/verilator/include'))
-main.Prepend(CPPPATH=Dir('/usr/share/verilator/include/vltstd'))
 
-dinocpu = main.Clone()
+#include <fcntl.h>
 
-main.Append(LIBS=['VTop__ALL'])
-main.Prepend(LIBPATH=[Dir('.')])
-main.Append(CPPDEFINES = 'VM_TRACE=0')
-main.Append(CPPDEFINES = 'VL_THREADED=0')
+#include <cstdio>
+#include <cstdlib>
+#include <queue>
+
+#define VERILY_READ(p, n) do { if (read(fd, (p), (n)) != (n)) { \
+    perror("short read"); abort(); } } while (0)
+
+class TraceLoader {
+        enum axi_opc {
+                AXI_LOADMEM,
+                AXI_DUMPMEM
+        };
+
+        struct axi_op {
+                axi_opc opcode;
+                uint32_t addr;
+                uint32_t len;
+                const uint8_t *buf;
+                const char *fname;
+        };
+        std::queue<axi_op> opq;
+
+        CSBMaster *csb;
+        AXIResponder<uint64_t> *axi_dbb, *axi_cvsram;
+
+        int _test_passed;
+
+public:
+        enum stop_type {
+                TRACE_CONTINUE = 0,
+                TRACE_AXIEVENT,
+                TRACE_WFI
+        };
+
+        TraceLoader(CSBMaster *_csb, AXIResponder<uint64_t> *_axi_dbb,
+            AXIResponder<uint64_t> *_axi_cvsram);
+
+        void load(const char *fname);
+
+        void axievent();
+
+        int test_passed();
+};
+
+#endif

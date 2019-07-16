@@ -44,7 +44,7 @@ class VerilatorDriver{
     //clocks the verilator device.
     void clockDevice();
 
-    const VTop * getTopLevel();
+    VTop * getTopLevel();
 
     //get the currently set clock on the device
     unsigned char getClockState();

@@ -55,7 +55,7 @@ VerilatorDriver::getClockState()
   return top.clock;
 }
 
-const VTop *
+VTop *
 VerilatorDriver::getTopLevel()
 {
   return &top;

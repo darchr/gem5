@@ -25,18 +25,3 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
-
-
-Import('main')
-
-# Include?
-main.Prepend(CPPPATH=Dir('./'))
-main.Prepend(CPPPATH=Dir('/usr/share/verilator/include'))
-main.Prepend(CPPPATH=Dir('/usr/share/verilator/include/vltstd'))
-
-dinocpu = main.Clone()
-
-main.Append(LIBS=['VTop__ALL'])
-main.Prepend(LIBPATH=[Dir('.')])
-main.Append(CPPDEFINES = 'VM_TRACE=0')
-main.Append(CPPDEFINES = 'VL_THREADED=0')
