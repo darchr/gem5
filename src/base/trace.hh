@@ -42,7 +42,7 @@
 #include "base/debug.hh"
 #include "base/match.hh"
 #include "base/types.hh"
-#include "sim/core.hh"
+//#include "sim/core.hh" TODO: BAZEL
 
 namespace Trace {
 

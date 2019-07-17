@@ -50,7 +50,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <zfstream.h>
+//#include <zfstream.h> TODO: BAZEL
 
 #include <cassert>
 #include <cerrno>
@@ -229,7 +229,7 @@ OutputDirectory::open(const std::string &name,
         // correct mode for gzofstream as this used directly to set the file
         // mode.
         mode |= std::ios::out;
-        os = new OutputFile<gzofstream>(*this, name, mode, recreateable);
+        //os = new OutputFile<gzofstream>(*this, name, mode, recreateable);
     } else {
         os = new OutputFile<ofstream>(*this, name, mode, recreateable);
     }

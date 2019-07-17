@@ -1,24 +1,38 @@
-# Note: To deal with the circular dependencies, we can declare all of these
-# files in a single library called "base"
 
 cc_library(
-    name = "bitfield",
-    srcs = ["bitfield.cc"],
-    hdrs = ["bitfield.hh"],
-    visibility = ["//visibility:public"],
-)
-
-cc_library(
-    name = "bitunion",
-    hdrs = ["bitunion.hh"],
-    deps = [
-        "bitfield",
+    name = "base",
+    srcs = [
+        "bitfield.cc",
+        "cprintf.cc",
+        "debug.cc",
+        "logging.cc",
+        "hostinfo.cc",
+        "inifile.cc",
+        "match.cc",
+        "output.cc",
+        "str.cc",
+        "trace.cc",
+        "types.cc",
     ],
-)
-
-cc_library(
-    name = "compiler",
-    hdrs = ["compiler.hh"],
+    hdrs = [
+        "bitfield.hh",
+        "bitunion.hh",
+        "compiler.hh",
+        "cprintf.hh",
+        "debug.hh",
+        "logging.hh",
+        "hostinfo.hh",
+        "inifile.hh",
+        "match.hh",
+        "output.hh",
+        "refcnt.hh",
+        "str.hh",
+        "trace.hh",
+        "types.hh",
+    ],
+    deps = [
+        "cprintf_formats",
+    ],
     visibility = ["//visibility:public"],
 )
 
@@ -28,45 +42,11 @@ cc_library(
     visibility = ["//visibility:private"],
 )
 
-cc_library(
-    name = "cprintf",
-    srcs = ["cprintf.cc"],
-    hdrs = ["cprintf.hh"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "cprintf_formats",
-        "compiler",
-    ],
-)
-
-cc_library(
-    name = "logging",
-    srcs = ["logging.cc"],
-    hdrs = ["logging.hh"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "hostinfo",
-        "compiler",
-        "cprintf",
-    ]
-)
-
-cc_library(
-    name = "hostinfo",
-    srcs = ["hostinfo.cc"],
-    hdrs = ["hostinfo.hh"],
-    deps = [
-        "types",
-        "logging",
-        "string"
-    ]
-)
-
 cc_test(
     name = "bitunion-test",
     srcs = ["bitunion.test.cc"],
     deps = [
-        "bitunion",
+        "base",
         "@gtest//:gtest",
         "@gtest//:gtest_main",
     ],
@@ -76,7 +56,7 @@ cc_test(
     name = "cprintf-test",
     srcs = ["cprintf.test.cc"],
     deps = [
-        "cprintf",
+        "base",
         "@gtest//:gtest",
         "@gtest//:gtest_main",
     ],
