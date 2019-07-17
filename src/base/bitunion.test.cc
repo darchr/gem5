@@ -34,7 +34,6 @@
 #include <type_traits>
 
 #include "base/bitunion.hh"
-#include "base/cprintf.hh"
 
 using namespace std;
 
