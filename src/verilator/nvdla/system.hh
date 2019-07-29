@@ -1,4 +1,3 @@
-
 /*# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
@@ -28,57 +27,32 @@
 # Authors: Nima Ganjehloo
 */
 
-//generic includes
-//#define NDEBUG
-#include <cassert>
+#ifndef __VERILATOR_NVDLA_SYSTEM__HH__
+#define __VERILATOR_NVDLA_SYSTEM__HH__
 
-//gem5 includes
-#include "base/logging.hh"
-#include "debug/Verilator.hh"
-#include "sim/sim_exit.hh"
+#include <string>
+#include <vector>
 
-//gem5 model includes
-#include "driven_object.hh"
+#include "base/loader/hex_file.hh"
+#include "base/loader/symtab.hh"
+#include "kern/system_events.hh"
+#include "params/NVDLASystem.hh"
+#include "sim/sim_object.hh"
+#include "sim/system.hh"
 
-//setup driven object
-DrivenObject::DrivenObject(DrivenObjectParams *params):
-    ClockedObject(params),
-    event([this]{updateCycle();}, params->name),
-    resetCycles(params->resetCycles)
-{
-}
+class NVDLASystem : public System {
+    private:
+        bool isTracerSystem;
 
-//creates object for gem5 to use
-DrivenObject*
-DrivenObjectParams::create()
-{
-  //verilator has weird alignment issue for generated code
-  void* ptr = aligned_alloc(128, sizeof(DrivenObject));
-  return new(ptr) DrivenObject(this);
-}
+    public:
+        typedef NVDLASystemParams Params;
+        NVDLASystem(Params *p);
+        ~NVDLASystem();
 
-void
-DrivenObject::updateCycle()
-{
-  DPRINTF(Verilator, "\n\nCLOCKING DEVICE\n");
-  //clock the device
-  driver.clockDevice();
+        bool isTracerSystem() const { return isTracerSystem; }
 
-  DPRINTF(Verilator, "\n\nSCHEDULE NEXT CYCLE\n");
-  if (!driver.isFinished())
-    schedule(event, nextCycle());
-}
+    protected:
+        const Params *params() const { return (const Params *)_params; }
+};
 
-void
-DrivenObject::startup()
-{
-  DPRINTF(Verilator, "STARTING UP DINOCPU\n");
-
-  DPRINTF(Verilator, "RESETING FOR %d CYCLES\n", resetCycles);
-  driver.reset(resetCycles);
-  DPRINTF(Verilator, "DONE RESETING\n");
-
-  //lets fetch an instruction before doing anything
-  DPRINTF(Verilator, "SCHEDULING FIRST TICK \n");
-  schedule(event, nextCycle());
-}
+#endif

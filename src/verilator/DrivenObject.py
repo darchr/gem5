@@ -34,4 +34,3 @@ class DrivenObject(ClockedObject):
   type = 'DrivenObject'
   cxx_header = "verilator/driven_object.hh"
   resetCycles = Param.Int(1, "Number of cycles in the device under test")
-  memLatency = Param.Int(0, "Number of cycles that memory takes to respond")

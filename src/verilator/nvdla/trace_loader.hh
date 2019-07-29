@@ -47,8 +47,15 @@
 #include <cstdlib>
 #include <queue>
 
-#define VERILY_READ(p, n) do { if (read(fd, (p), (n)) != (n)) { \
-    perror("short read"); abort(); } } while (0)
+#define VERILY_READ(p, n)                      \
+        do                                     \
+        {                                      \
+                if (read(fd, (p), (n)) != (n)) \
+                {                              \
+                        perror("short read");  \
+                        abort();               \
+                }                              \
+        } while (0)
 
 class TraceLoader {
         enum axi_opc {

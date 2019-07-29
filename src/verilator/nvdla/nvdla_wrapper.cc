@@ -26,30 +26,3 @@
 #
 # Authors: Nima Ganjehloo
 */
-
-#ifndef __VERILATOR_NVDLA_SYSTEM__HH__
-#define __VERILATOR_NVDLA_SYSTEM__HH__
-
-#include <string>
-#include <vector>
-
-#include "base/loader/hex_file.hh"
-#include "base/loader/symtab.hh"
-#include "kern/system_events.hh"
-#include "params/NVDLASystem.hh"
-#include "sim/sim_object.hh"
-#include "sim/system.hh"
-
-class NVDLASystem : public System {
-
-    bool isStandalone;
-
-    typedef NVDLASystemParams Params;
-    NVDLASystem(Params *p);
-    ~NVDLASystem();
-
-    HexFile *hexFile;
-
-};
-
-#endif

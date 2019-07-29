@@ -30,10 +30,27 @@
 #ifndef __VERILATOR_NVDLA_WRAPPER__HH__
 #define __VERILATOR_NVDLA_WRAPPER__HH__
 
-class NVDLAWrapper {
+#include "axi_2_mem.hh"
+#include "csb_master.hh"
+#include "params/NVDLAWrapper.hh"
+#include "trace_loader.hh"
+
+class NVDLAWrapper : public DrivenObject{
     public:
-        NVDLAWrapper();
+        NVDLAWrapper(NVDLAWrapperParams *p);
+
+        void startup() override;
     private:
+        void runNVDLA();
+        void evalTrace();
+
+    private:
+        bool testTrace;
+
+        CSBMaster csb;
+        TraceLoader tloader;
+        AXIResponder<uint64_t> axi;
+
 };
 
 #endif

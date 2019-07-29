@@ -55,9 +55,7 @@ class DrivenObject : public ClockedObject
     //how many cycles to reset the top level of the design
     unsigned int resetCycles;
 
-    //memory latency
-    unsigned int latency;
-
+  protected:
     //driver for top level design
     VerilatorDriver driver;
 
@@ -66,5 +64,6 @@ class DrivenObject : public ClockedObject
 
     //resets cpu then schedules memory request to fetch instruction
     void startup() override;
+
 };
 #endif

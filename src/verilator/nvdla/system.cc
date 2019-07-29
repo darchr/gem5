@@ -1,4 +1,3 @@
-
 /*# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
@@ -28,57 +27,31 @@
 # Authors: Nima Ganjehloo
 */
 
-//generic includes
-//#define NDEBUG
-#include <cassert>
+#include "arch/vtophys.hh"
+#include "base/loader/hex_file.hh"
+#include "base/loader/object_file.hh"
+#include "base/loader/symtab.hh"
+#include "base/trace.hh"
+#include "mem/physical.hh"
+#include "params/NVDLASystem.hh"
+#include "sim/byteswap.hh"
+#include "src/verilator/nvdla/system.hh"
 
-//gem5 includes
-#include "base/logging.hh"
-#include "debug/Verilator.hh"
-#include "sim/sim_exit.hh"
-
-//gem5 model includes
-#include "driven_object.hh"
-
-//setup driven object
-DrivenObject::DrivenObject(DrivenObjectParams *params):
-    ClockedObject(params),
-    event([this]{updateCycle();}, params->name),
-    resetCycles(params->resetCycles)
+NVDLASystem::NVDLASystem(Params *p)
+    : System(p),
+      isBareNVDLA(p->bare_nvdla)
 {
 }
 
-//creates object for gem5 to use
-DrivenObject*
-DrivenObjectParams::create()
+NVDLASystem::~NVDLASystem()
 {
-  //verilator has weird alignment issue for generated code
-  void* ptr = aligned_alloc(128, sizeof(DrivenObject));
-  return new(ptr) DrivenObject(this);
 }
 
-void
-DrivenObject::updateCycle()
-{
-  DPRINTF(Verilator, "\n\nCLOCKING DEVICE\n");
-  //clock the device
-  driver.clockDevice();
 
-  DPRINTF(Verilator, "\n\nSCHEDULE NEXT CYCLE\n");
-  if (!driver.isFinished())
-    schedule(event, nextCycle());
+
+NVDLASystem *
+NVDLASystemParams::create()
+{
+    return new NVDLASystem(this);
 }
 
-void
-DrivenObject::startup()
-{
-  DPRINTF(Verilator, "STARTING UP DINOCPU\n");
-
-  DPRINTF(Verilator, "RESETING FOR %d CYCLES\n", resetCycles);
-  driver.reset(resetCycles);
-  DPRINTF(Verilator, "DONE RESETING\n");
-
-  //lets fetch an instruction before doing anything
-  DPRINTF(Verilator, "SCHEDULING FIRST TICK \n");
-  schedule(event, nextCycle());
-}
