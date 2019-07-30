@@ -44,7 +44,7 @@
 DrivenObject::DrivenObject(DrivenObjectParams *params):
     ClockedObject(params),
     event([this]{updateCycle();}, params->name),
-    resetCycles(params->resetCycles)
+    resetCycles(params->reset_cycles)
 {
 }
 

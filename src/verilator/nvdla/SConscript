@@ -25,3 +25,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
+
+
+Import('*')
+
+SimObject('NVDLA.py')
+Source('nvdla_wrapper.cc')

@@ -25,3 +25,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
+
+
+from m5.params import *
+from DrivenObject import DrivenObject
+
+class NVDLAWrapper(DrivenObject):
+  type = 'NVDLAWrapper'
+  cxx_header = "verilator/nvdla_wrapper.hh"
+  do_trace = Param.Bool(True, "Use the specified trace file?")
+  buf_clear_cycles = Param.Int(4096,
+    "Number of cycles to clear hardware buffers")
+  trace_file = Param.String("input.txn", "Name of trace file to run test" )

@@ -32,5 +32,6 @@ from ClockedObject import ClockedObject
 
 class DrivenObject(ClockedObject):
   type = 'DrivenObject'
+  abstract = True
   cxx_header = "verilator/driven_object.hh"
-  resetCycles = Param.Int(1, "Number of cycles in the device under test")
+  reset_cycles = Param.Int(20, "Number of cycles in the device under test")

@@ -1,4 +1,4 @@
-/*# Copyright (c) 2019 The Regents of the University of California
+# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,33 +25,19 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
-*/
+from m5.params import *
 
-BareNVDLASystem::BareNVDLASystem(Params *p)
-    : NVDLASystem(p),
-    objFile(createObjectFile(p->load_weight_file, true))
-{
-    if (objFile == NULL) {
-         fatal("Could not load data into mem from file %s",
-        p->load_weight_file);
-    }
-    objFile.setTextBase(p->load_weight_addr);
-}
+from m5.objects.System import System
 
-BareNVDLASystem::~BareNVDLASystem()
-{
-    delete objFile;
-}
+class NVDLASystem(System):
+    type = 'NVDLASystem'
+    cxx_header = 'verilator/nvdla/system.hh'
+    bare_nvdla = Param.Bool(True, "Using Trace to test?")
 
-void
-BareNVDLASystem::initState()
-{
-    NVDLASystem::initState();
-
-}
-
-BareNVDLASystem *
-BareNVDLASystemParams::create()
-{
-    return new BareNVDLASystem(this);
-}
+class BareNVDLASystem(NVDLASystem):
+    type = 'BareNVDLASystem'
+    cxx_header = 'verilator/nvdla/bare_nvdla/system.hh'
+    load_weight_file = Param.String("input_weight.dat",
+        "Input weights for net")
+    load_weight_addr = Param.Int(0x00100000, "where to load eights")
+    load_weight_offset = Param.Int(0x10000, "Offset for each kernel")

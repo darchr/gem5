@@ -62,7 +62,7 @@ else:
 ##############################################################################
 
 # create the system we are going to simulate
-system = System()
+system = BareNVDLASystem()
 
 # Set the clock frequency of the system (and all of its children)
 system.clk_domain = SrcClockDomain()
@@ -82,7 +82,7 @@ system.kernel = binary
 system.system_port = system.mem_ctrl.port
 
 # Create the dinocpu verilator wrapper
-system.dinocpu = DrivenObject()
+system.nvdla = NVDLAWrapper()
 
 # Create the mem black box verilator wrapper
 system.verilator_mem = AsyncMemBlackBox()

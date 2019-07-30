@@ -30,7 +30,7 @@ Import('*')
 
 SimObject('DrivenObject.py')
 SimObject('VerilatorMemBlackBox.py')
-Source('driven_object.cc')
+#Source('driven_object.cc')
 Source('dpi_manager.cc')
 Source('verilator_driver.cc')
 

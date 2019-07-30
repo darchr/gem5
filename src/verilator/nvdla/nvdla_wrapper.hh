@@ -50,7 +50,7 @@ class NVDLAWrapper : public DrivenObject{
 
     private:
         bool testTrace;
-        unsigned int bufferClearCycles;
+        int bufferClearCycles;
         int waiting;
         char * tracePath;
 
