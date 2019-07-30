@@ -34,6 +34,7 @@ BareNVDLASystem::BareNVDLASystem(Params *p)
     if (objFile == NULL) {
          fatal("Could not load data into mem from file %s", p->loadmemfile);
     }
+    objFile.setTextBase(p->loadmemaddr);
 
 }
 

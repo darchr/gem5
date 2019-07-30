@@ -39,7 +39,7 @@ class BareNVDLASystem : public NVDLASystem
     ObjectFile* objFile;
 
   public:
-    typedef BareNVDLASystemmParams Params;
+    typedef BareNVDLASystemParams Params;
     BareNVDLASystem(Params *p);
     ~BareNVDLASystem();
 
