@@ -36,49 +36,103 @@ VerilatorDriver::VerilatorDriver( )
 }
 
 void
-VerilatorDriver::clockDevice()
+VerilatorDriver::clockDevice(unsigned int numSigs, ...)
 {
+  va_list ap;
+
+  va_start(ap, numSigs);
+
   //run the device under test here through verilator
   //when clock = 0 device state is set
-  top.clock = 0;
+  for ( int j = 0; j < numSigs; ++j){
+    unsigned char * sig = va_arg(ap, unsigned char *);
+    *sig = 0;
+  }
+
   top.eval();
   //when clock = 1 device state is evaluated
-  top.clock = 1;
+  for ( int j = 0; j < numSigs; ++j){
+    unsigned char * sig = va_arg(ap, unsigned char *);
+    *sig = 1;
+  }
   top.eval();
 
   cyclesPassed += 1;
+
+  va_end(ap);
 }
 
-unsigned char
-VerilatorDriver::getClockState()
-{
-  return top.clock;
-}
-
-VTop *
+inline VTop *
 VerilatorDriver::getTopLevel()
 {
   return &top;
 }
 
 void
-VerilatorDriver::reset(int resetCycles)
+VerilatorDriver::reset(int resetCycles, char * fmt, unsigned int numSigs, ...)
 {
+  //we pass in a variable number of signals needed to reset
+  //the device
+  va_list ap;
+
+  va_start(ap, numSigs);
   //if we are pipelining we want to run reset for the number
   //of stages we have
-  top.reset = 1;
   for (int i = 0; i < resetCycles; ++i){
-    //set reset signal and starting clock signal
-    top.clock = 0;
+
+    //assert reset signals and starting clock signal
+    for ( int j = 0; j < numSigs; ++j){
+      switch(fmt[j])
+      {
+        case 0:
+          unsigned char * sig = va_arg(ap, unsigned char *);
+          *sig = 0;
+          break;
+        case 1:
+          unsigned short * sig = va_arg(ap, unsigned short *);
+          *sig = 0;
+          break;
+        case 2:
+          unsigned int * sig = va_arg(ap, unsigned int *);
+          *sig = 0;
+          break;
+        case 3:
+          unsigned long * sig = va_arg(ap, unsigned long *);
+          *sig = 0;
+          break;
+        default:
+      }
+    }
     top.eval();
     //run verilator for this state
+
     //run verilator for rising edge state
-    top.clock = 1;
+    //deassert reset signals and starting clock signal
+    for ( int j = 0; j < numSigs; ++j){
+      switch(fmt[j])
+      {
+        case 0:
+          unsigned char * sig = va_arg(ap, unsigned char *);
+          *sig = 1;
+          break;
+        case 1:
+          unsigned short * sig = va_arg(ap, unsigned short *);
+          *sig = 1;
+          break;
+        case 2:
+          unsigned int * sig = va_arg(ap, unsigned int *);
+          *sig = 1;
+          break;
+        case 3:
+          unsigned long * sig = va_arg(ap, unsigned long *);
+          *sig = 1;
+          break;
+        default:
+      }
+    }
     top.eval();
   }
-
-  //done reseting
-  top.reset = 0;
+  va_end(ap);
 }
 
 bool

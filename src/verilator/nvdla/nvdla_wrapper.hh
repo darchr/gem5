@@ -40,16 +40,22 @@ class NVDLAWrapper : public DrivenObject{
         NVDLAWrapper(NVDLAWrapperParams *p);
 
         void startup() override;
+        void updateCycle() override;
     private:
+        void initNVDLA();
         void runNVDLA();
         void evalTrace();
+        void resetNVDLA();
+        void initClearDLABuffers();
 
     private:
         bool testTrace;
-
+        unsigned int bufferClearCycles;
+        int waiting;
         CSBMaster csb;
         TraceLoader tloader;
-        AXIResponder<uint64_t> axi;
+        AXIResponder<uint64_t> axi_dbb;
+        AXIResponder<uint64_t> axi_cvsram;
 
 };
 

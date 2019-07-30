@@ -30,6 +30,9 @@
 //verilator design includes
 #include "VTop.h"
 
+//general includes
+#include <cstdarg>
+
 //Wrapper for verilator generated code. Clocks the device
 class VerilatorDriver{
   private:
@@ -41,13 +44,17 @@ class VerilatorDriver{
   public:
     VerilatorDriver();
 
-    //clocks the verilator device.
-    void clockDevice();
+/* clocks the device
+    * PARAMS: number of clocks to set,
+    * signal pointer list
+    * DESCRIPTION: Because verilator top level designs can drastically vary
+    * this function is designed to generalize the clocking process. This
+    * currently assumes a clock is a vluint_8 type. It will count the number
+    * of cycles passed.
+    * */
+    void clockDevice(unsigned int numSigs, ...);
 
     VTop * getTopLevel();
-
-    //get the currently set clock on the device
-    unsigned char getClockState();
 
     //is the verilated device finished with execution?
     bool isFinished();
@@ -55,6 +62,17 @@ class VerilatorDriver{
     //get the number of elapsed cycles
     unsigned int getCyclesPassed();
 
-    //reset the cpu for a # of cycles
-    void reset(int resetCycles);
+    /* reset the device for a # of cycles
+    * PARAMS: number of cycles to reset,
+    * specifies signal types to interpret
+    * (unsigned char 0, unsigned short 1, unsigned int 2, unsigned long 3),
+    * number of signal pointers passed,
+    * signal pointer list
+    * DESCRIPTION: Because verilator top level designs can drastically vary
+    * this function is designed to generalize the reset process. You must
+    * specify how many cycles to reset, the type of signals you are passing,
+    * the number of signals you are passing and then the signals
+    * themselves in the order specified by the input format
+    * */
+    void reset(int resetCycles, char * fmt, unsigned int numSigs, ...);
 };

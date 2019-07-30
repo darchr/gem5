@@ -26,3 +26,91 @@
 #
 # Authors: Nima Ganjehloo
 */
+
+#include "nvdla_wrapper.hh"
+
+void NVDLAWrapper::runNVDLA(){
+    //int op = ?
+    //csb.ext_event( op )
+    int extevent = csb.eval( waiting );
+
+    if (testTracce){
+        if (extevent == TraceLoader::TRACE_AXIEVENT)
+                        tloader.axievent();
+                else if (extevent == TraceLoader::TRACE_WFI) {
+                        waiting = 1;
+                }
+
+                if (waiting && driver.getTopLevel()->dla_intr) {
+                        waiting = 0;
+                }
+    }
+
+    //axi events
+    axi_dbb->eval();
+        axi_cvsram->eval();
+
+    updateCycle();
+
+    if ( !csb->done() || !driver.isFinished())
+        schedule(event, nextCycle());
+
+}
+
+void NVDLAWrapper::initNVDLA(){
+    driver.getTopLevel()->global_clk_ovr_on = 0;
+        driver.getTopLevel()->tmc2slcg_disable_clock_gating = 0;
+        driver.getTopLevel()->test_mode = 0;
+        driver.getTopLevel()->nvdla_pwrbus_ram_c_pd = 0;
+        driver.getTopLevel()->nvdla_pwrbus_ram_ma_pd = 0;
+        driver.getTopLevel()->nvdla_pwrbus_ram_mb_pd = 0;
+        driver.getTopLevel()->nvdla_pwrbus_ram_p_pd = 0;
+        driver.getTopLevel()->nvdla_pwrbus_ram_o_pd = 0;
+        driver.getTopLevel()->nvdla_pwrbus_ram_a_pd = 0;
+}
+
+void NVDLAWrapper::resetNVDLA(){
+    char fmt[2] = {0,0};
+    //reset
+    driver.getTopLevel()->dla_reset_rstn = 1;
+    driver.getTopLevel()->direct_reset_ = 1;
+    driver.getTopLevel()->eval();
+
+    driver.reset(resetCycles, fmt,
+        &(driver.getTopLevel()->dla_core_clk),
+        &(driver.getTopLevel()->dla_csb_clk));
+
+    driver.getTopLevel()->dla_reset_rstn = 0;
+    driver.getTopLevel()->direct_reset_ = 0;
+    driver.getTopLevel()->eval();
+
+     driver.reset(resetCycles, fmt,
+        &(driver.getTopLevel()->dla_core_clk),
+        &(driver.getTopLevel()->dla_csb_clk));
+}
+
+void NVDLAWrapper::initClearDLABuffers(){
+    char fmt[2] = {0,0};
+
+    //clear buffers
+    driver.getTopLevel()->dla_reset_rstn = 1;
+    driver.getTopLevel()->direct_reset_ = 1;
+
+     driver.reset(bufferClearCycles, fmt,
+        &(driver.getTopLevel()->dla_core_clk),
+        &(driver.getTopLevel()->dla_csb_clk));
+}
+
+
+void NVDLAWrapper::startup(){
+    if (testTrace)
+        tloader.load("path");
+    //init NVDLA
+    initNVDLA();
+    //reset
+    resetNVDLA();
+    //clear hardware buffers
+    clearDLABuffers();
+
+    schedule(event, nextCycle());
+}
