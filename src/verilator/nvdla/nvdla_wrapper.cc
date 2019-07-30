@@ -29,11 +29,43 @@
 
 #include "nvdla_wrapper.hh"
 
+NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
+    DrivenObject(p),
+    event([this]{runNVDLA();}, params->name)
+    testTrace(p->do_trace),
+    resetCycles(p->reset_cycles),
+    bufferClearCycles(p->buf_clear_cycles),
+    tracePath(p->trace_file)
+{
+    waiting = 0;
+}
+
+//creates object for gem5 to use
+NVDLAWrapper*
+NVDLAWrapperParams::create()
+{
+  //verilator has weird alignment issue for generated code
+  void* ptr = aligned_alloc(128, sizeof(NVDLAWrapper));
+  return new(ptr) NVDLAWrapper(this);
+}
+
+void NVDLAWrapper::updateCycle(){
+    //clock the device
+  driver.clockDevice(2,
+        &(driver.getTopLevel()->dla_core_clk),
+        &(driver.getTopLevel()->dla_csb_clk) );
+}
+
 void NVDLAWrapper::runNVDLA(){
-    //int op = ?
-    //csb.ext_event( op )
+    //poll csb for new operation requested by external controller
+    if (!testTrace){
+        //int op = ?
+        //csb.ext_event( op )
+    }
+
     int extevent = csb.eval( waiting );
 
+    //trace specific commands
     if (testTracce){
         if (extevent == TraceLoader::TRACE_AXIEVENT)
                         tloader.axievent();
@@ -46,12 +78,16 @@ void NVDLAWrapper::runNVDLA(){
                 }
     }
 
-    //axi events
+    //axi events for memory
     axi_dbb->eval();
-        axi_cvsram->eval();
+    axi_cvsram->eval();
 
+    //evaluate nvdla state
     updateCycle();
 
+    //continue execution?
+    //us csb->done only for traces? will controller
+    //submitting commands ever allow for empty buffer of nvdla commands?
     if ( !csb->done() || !driver.isFinished())
         schedule(event, nextCycle());
 
@@ -104,7 +140,7 @@ void NVDLAWrapper::initClearDLABuffers(){
 
 void NVDLAWrapper::startup(){
     if (testTrace)
-        tloader.load("path");
+        tloader.load(tracePath);
     //init NVDLA
     initNVDLA();
     //reset

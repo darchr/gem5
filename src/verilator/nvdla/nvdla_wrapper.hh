@@ -52,6 +52,8 @@ class NVDLAWrapper : public DrivenObject{
         bool testTrace;
         unsigned int bufferClearCycles;
         int waiting;
+        char * tracePath;
+
         CSBMaster csb;
         TraceLoader tloader;
         AXIResponder<uint64_t> axi_dbb;
