@@ -31,13 +31,87 @@
 
 NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
     DrivenObject(p),
-    event([this]{runNVDLA();}, params->name)
+    event([this]{runNVDLA();}, p->name),
     testTrace(p->do_trace),
-    resetCycles(p->reset_cycles),
     bufferClearCycles(p->buf_clear_cycles),
-    tracePath(p->trace_file)
+    dla(nullptr),
+    csb(nullptr),
+    tloader(&csb, axi_dbb, axi_cvsram),
+    axi_dbb(nullptr),
+    axi_cvsram(nullptr)
 {
+    resetCycles = p->reset_cycles;
+    tracePath = (p->trace_file).c_str();
     waiting = 0;
+
+    dla = driver.getTopLevel();
+    //csb reg file (i.e, like instruction decoder)
+    csb = CSBMaster(dla);
+
+    //make axi connections
+    AXIResponder<uint64_t>::connections dbbconn = {
+                .aw_awvalid = &dla->nvdla_core2dbb_aw_awvalid,
+                .aw_awready = &dla->nvdla_core2dbb_aw_awready,
+                .aw_awid = &dla->nvdla_core2dbb_aw_awid,
+                .aw_awlen = &dla->nvdla_core2dbb_aw_awlen,
+                .aw_awaddr = &dla->nvdla_core2dbb_aw_awaddr,
+
+                .w_wvalid = &dla->nvdla_core2dbb_w_wvalid,
+                .w_wready = &dla->nvdla_core2dbb_w_wready,
+                .w_wdata = dla->nvdla_core2dbb_w_wdata,
+                .w_wstrb = &dla->nvdla_core2dbb_w_wstrb,
+                .w_wlast = &dla->nvdla_core2dbb_w_wlast,
+
+                .b_bvalid = &dla->nvdla_core2dbb_b_bvalid,
+                .b_bready = &dla->nvdla_core2dbb_b_bready,
+                .b_bid = &dla->nvdla_core2dbb_b_bid,
+
+                .ar_arvalid = &dla->nvdla_core2dbb_ar_arvalid,
+                .ar_arready = &dla->nvdla_core2dbb_ar_arready,
+                .ar_arid = &dla->nvdla_core2dbb_ar_arid,
+                .ar_arlen = &dla->nvdla_core2dbb_ar_arlen,
+                .ar_araddr = &dla->nvdla_core2dbb_ar_araddr,
+
+                .r_rvalid = &dla->nvdla_core2dbb_r_rvalid,
+                .r_rready = &dla->nvdla_core2dbb_r_rready,
+                .r_rid = &dla->nvdla_core2dbb_r_rid,
+                .r_rlast = &dla->nvdla_core2dbb_r_rlast,
+                .r_rdata = dla->nvdla_core2dbb_r_rdata,
+        };
+        axi_dbb = new AXIResponder<uint64_t>(dbbconn, "DBB");
+
+    AXIResponder<uint64_t>::connections cvsramconn = {
+                .aw_awvalid = &dla->nvdla_core2cvsram_aw_awvalid,
+                .aw_awready = &dla->nvdla_core2cvsram_aw_awready,
+                .aw_awid = &dla->nvdla_core2cvsram_aw_awid,
+                .aw_awlen = &dla->nvdla_core2cvsram_aw_awlen,
+                .aw_awaddr = &dla->nvdla_core2cvsram_aw_awaddr,
+
+                .w_wvalid = &dla->nvdla_core2cvsram_w_wvalid,
+                .w_wready = &dla->nvdla_core2cvsram_w_wready,
+                .w_wdata = dla->nvdla_core2cvsram_w_wdata,
+                .w_wstrb = &dla->nvdla_core2cvsram_w_wstrb,
+                .w_wlast = &dla->nvdla_core2cvsram_w_wlast,
+
+                .b_bvalid = &dla->nvdla_core2cvsram_b_bvalid,
+                .b_bready = &dla->nvdla_core2cvsram_b_bready,
+                .b_bid = &dla->nvdla_core2cvsram_b_bid,
+
+                .ar_arvalid = &dla->nvdla_core2cvsram_ar_arvalid,
+                .ar_arready = &dla->nvdla_core2cvsram_ar_arready,
+                .ar_arid = &dla->nvdla_core2cvsram_ar_arid,
+                .ar_arlen = &dla->nvdla_core2cvsram_ar_arlen,
+                .ar_araddr = &dla->nvdla_core2cvsram_ar_araddr,
+
+                .r_rvalid = &dla->nvdla_core2cvsram_r_rvalid,
+                .r_rready = &dla->nvdla_core2cvsram_r_rready,
+                .r_rid = &dla->nvdla_core2cvsram_r_rid,
+                .r_rlast = &dla->nvdla_core2cvsram_r_rlast,
+                .r_rdata = dla->nvdla_core2cvsram_r_rdata,
+        };
+        axi_cvsram = new AXIResponder<uint64_t>(cvsramconn, "CVSRAM");
+
+
 }
 
 //creates object for gem5 to use
@@ -52,8 +126,8 @@ NVDLAWrapperParams::create()
 void NVDLAWrapper::updateCycle(){
     //clock the device
   driver.clockDevice(2,
-        &(driver.getTopLevel()->dla_core_clk),
-        &(driver.getTopLevel()->dla_csb_clk) );
+        &(dla->dla_core_clk),
+        &(dla->dla_csb_clk) );
 }
 
 void NVDLAWrapper::runNVDLA(){
@@ -66,14 +140,14 @@ void NVDLAWrapper::runNVDLA(){
     int extevent = csb.eval( waiting );
 
     //trace specific commands
-    if (testTracce){
+    if (testTrace){
         if (extevent == TraceLoader::TRACE_AXIEVENT)
                         tloader.axievent();
                 else if (extevent == TraceLoader::TRACE_WFI) {
                         waiting = 1;
                 }
 
-                if (waiting && driver.getTopLevel()->dla_intr) {
+                if (waiting && dla->dla_intr) {
                         waiting = 0;
                 }
     }
@@ -88,53 +162,53 @@ void NVDLAWrapper::runNVDLA(){
     //continue execution?
     //us csb->done only for traces? will controller
     //submitting commands ever allow for empty buffer of nvdla commands?
-    if ( !csb->done() || !driver.isFinished())
+    if ( !csb.done() || !driver.isFinished())
         schedule(event, nextCycle());
 
 }
 
 void NVDLAWrapper::initNVDLA(){
-    driver.getTopLevel()->global_clk_ovr_on = 0;
-        driver.getTopLevel()->tmc2slcg_disable_clock_gating = 0;
-        driver.getTopLevel()->test_mode = 0;
-        driver.getTopLevel()->nvdla_pwrbus_ram_c_pd = 0;
-        driver.getTopLevel()->nvdla_pwrbus_ram_ma_pd = 0;
-        driver.getTopLevel()->nvdla_pwrbus_ram_mb_pd = 0;
-        driver.getTopLevel()->nvdla_pwrbus_ram_p_pd = 0;
-        driver.getTopLevel()->nvdla_pwrbus_ram_o_pd = 0;
-        driver.getTopLevel()->nvdla_pwrbus_ram_a_pd = 0;
+    dla->global_clk_ovr_on = 0;
+        dla->tmc2slcg_disable_clock_gating = 0;
+        dla->test_mode = 0;
+        dla->nvdla_pwrbus_ram_c_pd = 0;
+        dla->nvdla_pwrbus_ram_ma_pd = 0;
+        dla->nvdla_pwrbus_ram_mb_pd = 0;
+        dla->nvdla_pwrbus_ram_p_pd = 0;
+        dla->nvdla_pwrbus_ram_o_pd = 0;
+        dla->nvdla_pwrbus_ram_a_pd = 0;
 }
 
 void NVDLAWrapper::resetNVDLA(){
     char fmt[2] = {0,0};
     //reset
-    driver.getTopLevel()->dla_reset_rstn = 1;
-    driver.getTopLevel()->direct_reset_ = 1;
-    driver.getTopLevel()->eval();
+    dla->dla_reset_rstn = 1;
+    dla->direct_reset_ = 1;
+    dla->eval();
 
     driver.reset(resetCycles, fmt,
-        &(driver.getTopLevel()->dla_core_clk),
-        &(driver.getTopLevel()->dla_csb_clk));
+        &(dla->dla_core_clk),
+        &(dla->dla_csb_clk));
 
-    driver.getTopLevel()->dla_reset_rstn = 0;
-    driver.getTopLevel()->direct_reset_ = 0;
-    driver.getTopLevel()->eval();
+    dla->dla_reset_rstn = 0;
+    dla->direct_reset_ = 0;
+    dla->eval();
 
      driver.reset(resetCycles, fmt,
-        &(driver.getTopLevel()->dla_core_clk),
-        &(driver.getTopLevel()->dla_csb_clk));
+        &(dla->dla_core_clk),
+        &(dla->dla_csb_clk));
 }
 
 void NVDLAWrapper::initClearDLABuffers(){
     char fmt[2] = {0,0};
 
     //clear buffers
-    driver.getTopLevel()->dla_reset_rstn = 1;
-    driver.getTopLevel()->direct_reset_ = 1;
+    dla->dla_reset_rstn = 1;
+    dla->direct_reset_ = 1;
 
      driver.reset(bufferClearCycles, fmt,
-        &(driver.getTopLevel()->dla_core_clk),
-        &(driver.getTopLevel()->dla_csb_clk));
+        &(dla->dla_core_clk),
+        &(dla->dla_csb_clk));
 }
 
 
@@ -146,7 +220,7 @@ void NVDLAWrapper::startup(){
     //reset
     resetNVDLA();
     //clear hardware buffers
-    clearDLABuffers();
+    initClearDLABuffers();
 
     schedule(event, nextCycle());
 }

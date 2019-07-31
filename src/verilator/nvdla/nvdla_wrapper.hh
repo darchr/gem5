@@ -34,6 +34,9 @@
 #include "csb_master.hh"
 #include "params/NVDLAWrapper.hh"
 #include "trace_loader.hh"
+#include "verilator/driven_object.hh"
+
+class VTop;
 
 class NVDLAWrapper : public DrivenObject{
     public:
@@ -49,15 +52,18 @@ class NVDLAWrapper : public DrivenObject{
         void initClearDLABuffers();
 
     private:
+        //event queue var to schedule mem requests and cycle updates
+        EventFunctionWrapper event;
         bool testTrace;
         int bufferClearCycles;
+        const char * tracePath;
         int waiting;
-        char * tracePath;
 
+        VTop * dla;
         CSBMaster csb;
         TraceLoader tloader;
-        AXIResponder<uint64_t> axi_dbb;
-        AXIResponder<uint64_t> axi_cvsram;
+        AXIResponder<uint64_t> * axi_dbb;
+        AXIResponder<uint64_t> * axi_cvsram;
 
 };
 

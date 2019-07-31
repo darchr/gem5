@@ -32,7 +32,7 @@ from DrivenObject import DrivenObject
 
 class NVDLAWrapper(DrivenObject):
   type = 'NVDLAWrapper'
-  cxx_header = "verilator/nvdla_wrapper.hh"
+  cxx_header = "verilator/nvdla/nvdla_wrapper.hh"
   do_trace = Param.Bool(True, "Use the specified trace file?")
   buf_clear_cycles = Param.Int(4096,
     "Number of cycles to clear hardware buffers")

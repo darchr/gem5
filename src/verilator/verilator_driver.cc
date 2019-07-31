@@ -82,25 +82,29 @@ VerilatorDriver::reset(int resetCycles, char * fmt, unsigned int numSigs, ...)
 
     //assert reset signals and starting clock signal
     for ( int j = 0; j < numSigs; ++j){
-      switch(fmt[j])
-      {
-        case 0:
+      switch(fmt[j]){
+        case 0: {
           unsigned char * sig = va_arg(ap, unsigned char *);
           *sig = 0;
           break;
-        case 1:
+        }
+        case 1: {
           unsigned short * sig = va_arg(ap, unsigned short *);
           *sig = 0;
           break;
-        case 2:
+        }
+        case 2: {
           unsigned int * sig = va_arg(ap, unsigned int *);
           *sig = 0;
           break;
-        case 3:
+        }
+        case 3: {
           unsigned long * sig = va_arg(ap, unsigned long *);
           *sig = 0;
           break;
+        }
         default:
+          break;
       }
     }
     top.eval();
@@ -109,25 +113,29 @@ VerilatorDriver::reset(int resetCycles, char * fmt, unsigned int numSigs, ...)
     //run verilator for rising edge state
     //deassert reset signals and starting clock signal
     for ( int j = 0; j < numSigs; ++j){
-      switch(fmt[j])
-      {
-        case 0:
+       switch(fmt[j]){
+        case 0: {
           unsigned char * sig = va_arg(ap, unsigned char *);
           *sig = 1;
           break;
-        case 1:
+        }
+        case 1: {
           unsigned short * sig = va_arg(ap, unsigned short *);
           *sig = 1;
           break;
-        case 2:
+        }
+        case 2: {
           unsigned int * sig = va_arg(ap, unsigned int *);
           *sig = 1;
           break;
-        case 3:
+        }
+        case 3: {
           unsigned long * sig = va_arg(ap, unsigned long *);
           *sig = 1;
           break;
+        }
         default:
+          break;
       }
     }
     top.eval();

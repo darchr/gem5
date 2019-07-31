@@ -38,7 +38,7 @@
 
 #include "csb_master.hh"
 
-CSBMaster::CSBMaster(VNV_nvdla *_dla)
+CSBMaster::CSBMaster(VTop *_dla)
 {
     dla = _dla;
 

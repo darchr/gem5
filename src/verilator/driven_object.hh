@@ -45,12 +45,13 @@
 
 class DrivenObject : public ClockedObject
 {
-  protected:
-  //clocks the verilator device.
-   virtual void updateCycle();
-
-      //event queue var to schedule mem requests and cycle updates
+  private:
+    //event queue var to schedule mem requests and cycle updates
     EventFunctionWrapper event;
+
+  protected:
+    //clocks the verilator device.
+    virtual void updateCycle();
 
     //how many cycles to reset the top level of the design
     unsigned int resetCycles;

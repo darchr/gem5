@@ -40,10 +40,13 @@
 #define __VERILATOR_CSB_MASTER__HH__
 
 #include <fcntl.h>
+#include <stdint.h>
 
 #include <cstdio>
 #include <cstdlib>
 #include <queue>
+
+class VTop;
 
 class CSBMaster {
         struct csb_op {
@@ -58,12 +61,12 @@ class CSBMaster {
 
         std::queue<csb_op> opq;
 
-        VNV_nvdla *dla;
+        VTop *dla;
 
         int _test_passed;
 
 public:
-        CSBMaster(VNV_nvdla *_dla);
+        CSBMaster(VTop *_dla);
 
         void read(uint32_t addr, uint32_t mask, uint32_t data);
 

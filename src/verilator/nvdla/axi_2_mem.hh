@@ -40,6 +40,7 @@
 #define __VERILATOR_AXI_2_MEM__HH__
 
 #include <fcntl.h>
+#include <stdint.h>
 
 #include <cstdio>
 #include <cstdlib>
