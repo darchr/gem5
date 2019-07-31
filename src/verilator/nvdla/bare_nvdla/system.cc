@@ -29,13 +29,31 @@
 
 BareNVDLASystem::BareNVDLASystem(Params *p)
     : NVDLASystem(p),
-    objFile(createObjectFile(p->load_weight_file, true))
+    weights(createObjectFile(p->load_weight_file, true)),
+    features(createObjectFile(p->load_features_file, true)),
+    outRegion(createObjectFile(p->load_out_region_init_file, true)),
 {
-    if (objFile == NULL) {
-         fatal("Could not load data into mem from file %s",
+    if (weights == NULL && !p->load_weight_file.compare("none")) {
+        fatal("Could not load weights into mem from file %s",
         p->load_weight_file);
+    }else if ( !p->load_weight_file.compare("none")){
+        weights.setTextBase(p->load_weight_addr);
     }
-    objFile.setTextBase(p->load_weight_addr);
+
+    if (features == NULL && !p->load_features_file.compare("none")) {
+         fatal("Could not load features into mem from file %s",
+        p->load_features_file);
+    }else if ( !p->load_features_file.compare("none")){
+        features.setTextBase(p->load_features_addr);
+    }
+
+    if (outRegion == NULL && !p->load_out_region_init_file.compare("none")) {
+         fatal("Could not load out region into mem from file %s",
+        p->load_out_region_init_file);
+    }else if ( !p->load_out_region_init_file.compare("none")){
+        features.setTextBase(p->load_out_region_init_addr);
+    }
+
 }
 
 BareNVDLASystem::~BareNVDLASystem()
