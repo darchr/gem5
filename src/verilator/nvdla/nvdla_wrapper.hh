@@ -54,10 +54,10 @@ class NVDLAWrapper : public DrivenObject{
     private:
         //event queue var to schedule mem requests and cycle updates
         EventFunctionWrapper event;
-        bool testTrace;
         int bufferClearCycles;
-        const char * tracePath;
         int waiting;
+
+        NVDLASystem * system;
 
         VTop * dla;
         CSBMaster csb;

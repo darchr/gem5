@@ -29,19 +29,20 @@
 
 BareNVDLASystem::BareNVDLASystem(Params *p)
     : NVDLASystem(p),
-    trace(createObjectFile(p->load_trace, true)),
+    tracePath(p->load_trace.c_str())
 {
     if (trace == NULL && !p->load_trace.compare("none")) {
-        fatal("Could not load trace into mem from file %s",
-        p->load_trace);
-    }else if ( !p->load_trace.compare("none")){
-        trace.setTextBase(p->load_trace_addr);
+        fatal("Could not load trace from file %s", p->load_trace);
+    }else if ( p->load_trace.compare("none")){
+        isTracerSystem = false;
+    }else{
+        isTracerSystem = true;
     }
 }
 
 BareNVDLASystem::~BareNVDLASystem()
 {
-    delete trace;
+    delete tracePath;
 }
 
 void

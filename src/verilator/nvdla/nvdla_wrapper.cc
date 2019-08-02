@@ -32,8 +32,8 @@
 NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
     DrivenObject(p),
     event([this]{runNVDLA();}, p->name),
-    testTrace(p->do_trace),
     bufferClearCycles(p->buf_clear_cycles),
+    system(p->nvdla_sys),
     dla(nullptr),
     csb(nullptr),
     tloader(&csb, axi_dbb, axi_cvsram),
@@ -132,7 +132,7 @@ void NVDLAWrapper::updateCycle(){
 
 void NVDLAWrapper::runNVDLA(){
     //poll csb for new operation requested by external controller
-    if (!testTrace){
+    if (!system->isTracerSystem()){
         //int op = ?
         //csb.ext_event( op )
     }
@@ -140,7 +140,7 @@ void NVDLAWrapper::runNVDLA(){
     int extevent = csb.eval( waiting );
 
     //trace specific commands
-    if (testTrace){
+    if (system->isTracerSystem()){
         if (extevent == TraceLoader::TRACE_AXIEVENT)
                         tloader.axievent();
                 else if (extevent == TraceLoader::TRACE_WFI) {
@@ -211,10 +211,9 @@ void NVDLAWrapper::initClearDLABuffers(){
         &(dla->dla_csb_clk));
 }
 
-
 void NVDLAWrapper::startup(){
-    if (testTrace)
-        tloader.load(tracePath);
+    if (system->isTracerSystem())
+        tloader.load(system->getTracePath());
     //init NVDLA
     initNVDLA();
     //reset

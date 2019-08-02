@@ -33,7 +33,6 @@ from DrivenObject import DrivenObject
 class NVDLAWrapper(DrivenObject):
   type = 'NVDLAWrapper'
   cxx_header = "verilator/nvdla/nvdla_wrapper.hh"
-  do_trace = Param.Bool(True, "Use the specified trace file?")
   buf_clear_cycles = Param.Int(4096,
     "Number of cycles to clear hardware buffers")
-  trace_file = Param.String("input.txn", "Name of trace file to run test" )
+  nvdla_sys = Param.System(Parent.Any, "Pointer to nvdla system")

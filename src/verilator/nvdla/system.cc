@@ -39,7 +39,7 @@
 
 NVDLASystem::NVDLASystem(Params *p)
     : System(p),
-      isBareNVDLA(p->bare_nvdla)
+      isTracerSystem(p->bare_nvdla)
 {
 }
 

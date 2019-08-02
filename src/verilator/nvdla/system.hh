@@ -41,9 +41,6 @@
 #include "sim/system.hh"
 
 class NVDLASystem : public System {
-    private:
-        bool isTracerSystem;
-
     public:
         typedef NVDLASystemParams Params;
         NVDLASystem(Params *p);
@@ -53,6 +50,7 @@ class NVDLASystem : public System {
 
     protected:
         const Params *params() const { return (const Params *)_params; }
+        bool isTracerSystem;
 };
 
 #endif

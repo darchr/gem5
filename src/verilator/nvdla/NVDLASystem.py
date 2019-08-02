@@ -41,4 +41,4 @@ class BareNVDLASystem(NVDLASystem):
     #weights
     load_trace = Param.String("trace.bin",
         "Input trace for net")
-    load_trace_addr = Param.Int(0x5002dfe0, "where to load trace")
+    load_trace_addr = Param.Int(0x0, "where to load trace")

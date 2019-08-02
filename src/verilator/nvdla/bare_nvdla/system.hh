@@ -36,8 +36,7 @@
 class BareNVDLASystem : public NVDLASystem
 {
   protected:
-    ObjectFile* trace;
-
+    const char * tracePath;
   public:
     typedef BareNVDLASystemParams Params;
     BareNVDLASystem(Params *p);
@@ -45,6 +44,9 @@ class BareNVDLASystem : public NVDLASystem
 
     // initialize the system
     virtual void initState();
+
+    //get path to tracefile
+    const char getTracePath(){ return tracePath; }
 };
 
 #endif
