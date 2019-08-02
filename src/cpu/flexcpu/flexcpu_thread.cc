@@ -1216,7 +1216,9 @@ FlexCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
     if (serializing_inst && !(serializing_inst->isCommitted()
                             || serializing_inst->isSquashed())) {
         DPRINTF(FlexCPUDeps, "Dep %d -> %d [serial]\n",
-                inst_ptr->seqNum(), serializing_inst->seqNum());
+                inst_ptr->issueSeqNum(), serializing_inst->issueSeqNum());
+        DPRINTFR(FlexPipeView, "dep;%d;%d\n",
+                inst_ptr->issueSeqNum(), serializing_inst->issueSeqNum());
         inst_ptr->addCommitDependency(*serializing_inst);
         waitingForSerializing++;
     }
@@ -1230,7 +1232,9 @@ FlexCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
             //      newest instruction that isn't squashed
             if (!(last_inst->isCommitted() || last_inst->isSquashed())) {
                 DPRINTF(FlexCPUDeps, "Dep %d -> %d [serial]\n",
-                        inst_ptr->seqNum(), last_inst->seqNum());
+                        inst_ptr->issueSeqNum(), last_inst->issueSeqNum());
+                DPRINTFR(FlexPipeView, "dep;%d;%d\n",
+                        inst_ptr->issueSeqNum(), last_inst->issueSeqNum());
                 inst_ptr->addCommitDependency(*last_inst);
                 serializingInst++;
             }
@@ -1243,7 +1247,9 @@ FlexCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
                 *(++inflightInsts.rbegin());
 
             DPRINTF(FlexCPUDeps, "Dep %d -> %d [serial]\n",
-                    inst_ptr->seqNum(), last_inst->seqNum());
+                    inst_ptr->issueSeqNum(), last_inst->issueSeqNum());
+            DPRINTFR(FlexPipeView, "dep;%d;%d\n",
+                    inst_ptr->issueSeqNum(), last_inst->issueSeqNum());
             inst_ptr->addCommitDependency(*last_inst);
             serializingInst++;
         }
@@ -1265,7 +1271,9 @@ FlexCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
         shared_ptr<InflightInst> last_barrier = lastMemBarrier.lock();
         if (last_barrier) {
             DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem ref -> barrier]\n",
-                    inst_ptr->seqNum(), last_barrier->seqNum());
+                    inst_ptr->issueSeqNum(), last_barrier->issueSeqNum());
+            DPRINTFR(FlexPipeView, "dep;%d;%d\n",
+                    inst_ptr->issueSeqNum(), last_barrier->issueSeqNum());
             inst_ptr->addMemDependency(*last_barrier);
             waitingForMemBarrier++;
         }
@@ -1285,7 +1293,9 @@ FlexCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
             if (other_si->isMemBarrier() || other_si->isMemRef()) {
                 DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem barrier -> "
                                      "ref/barrier]\n",
-                        inst_ptr->seqNum(), (*itr)->seqNum());
+                        inst_ptr->issueSeqNum(), (*itr)->issueSeqNum());
+                DPRINTFR(FlexPipeView, "dep;%d;%d\n",
+                        inst_ptr->issueSeqNum(), (*itr)->issueSeqNum());
                 if (static_inst->isMemRef()) {
                     inst_ptr->addMemDependency(**itr);
                     waitingForMemBarrier++;
@@ -1351,7 +1361,9 @@ FlexCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
     if (inflightInsts.size() > 1 && static_inst->isStore()) {
         const shared_ptr<InflightInst> last_inst = *(++inflightInsts.rbegin());
         DPRINTF(FlexCPUDeps, "Dep %d -> %d [st @ commit]\n",
-                inst_ptr->seqNum(), last_inst->seqNum());
+                inst_ptr->issueSeqNum(), last_inst->issueSeqNum());
+        DPRINTFR(FlexPipeView, "dep;%d;%d\n",
+                inst_ptr->issueSeqNum(), last_inst->issueSeqNum());
         inst_ptr->addMemCommitDependency(*last_inst);
     }
 
@@ -1370,10 +1382,12 @@ FlexCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
         // Attach the dependency if the instruction is still around
         if (producer) {
             DPRINTF(FlexCPUDeps, "Dep %d -> %d [data (%s[%d])]\n",
-                    inst_ptr->seqNum(), producer->seqNum(),
+                    inst_ptr->issueSeqNum(), producer->issueSeqNum(),
                     src_reg.className(),
                     src_reg.index());
             inst_ptr->addDependency(*producer);
+            DPRINTFR(FlexPipeView, "dep;%d;%d\n",
+                    inst_ptr->issueSeqNum(), producer->issueSeqNum());
         }
 
         inst_ptr->setDataSource(src_idx, last_use);
@@ -1393,7 +1407,7 @@ FlexCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
             const RegId& M5_VAR_USED src_reg = flattenRegId(
                 static_inst->srcRegIdx(src_idx));
             DPRINTF(FlexCPUDeps, "seq %d is consumer of %s[%d]\n",
-                    inst_ptr->seqNum(),
+                    inst_ptr->issueSeqNum(),
                     src_reg.className(),
                     src_reg.index());
         }
@@ -1405,7 +1419,7 @@ FlexCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
 
         lastUses[dst_reg] = {inst_ptr, dst_idx};
         DPRINTF(FlexCPUDeps, "seq %d is producer of %s[%d]\n",
-                inst_ptr->seqNum(),
+                inst_ptr->issueSeqNum(),
                 dst_reg.className(),
                 dst_reg.index());
     }
@@ -1450,6 +1464,8 @@ FlexCPUThread::recordInstStats(const shared_ptr<InflightInst>& inst)
     const InflightInst::TimingRecord& rec = inst->getTimingRecord();
 
     assert(inst->status() > InflightInst::Status::Invalid);
+
+    inst->pipeTrace();
 
     if (inst->isSquashed()) {
         instLifespans.sample(rec.squashTick - rec.creationTick);

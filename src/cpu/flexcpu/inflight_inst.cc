@@ -29,6 +29,7 @@
  */
 
 #include "cpu/flexcpu/inflight_inst.hh"
+#include "debug/FlexPipeView.hh"
 
 using namespace std;
 
@@ -64,6 +65,52 @@ InflightInst::~InflightInst()
     // the object along with the instance, when the instance is no longer
     // needed.
     if (_traceData) delete _traceData;
+}
+
+void InflightInst::pipeTrace()
+{
+#if TRACING_ON
+    // Output the information about the lifecycle of a dynamic instruction in
+    // the pipeline including issueSeqNum, which is unique to each created
+    // InflightInst, followed by pc, micro pc, the static instruction if
+    // exists, and the Tick's when the instruction's state changes.
+    if (DTRACE(FlexPipeView)) {
+        if (!static_cast<bool>(instRef)) {
+            DPRINTFR(FlexPipeView,
+                     "pipe;%llu;%llx;%llx;null;"
+                     "%llu;%llu;%llu;%llu;%llu;%llu;%llu;%llu;%llu\n",
+                     this->issueSeqNum(),
+                     this->_pcState.pc(),
+                     this->_pcState.upc(),
+                     this->_timingRecord.creationTick,
+                     this->_timingRecord.decodeTick,
+                     this->_timingRecord.issueTick,
+                     this->_timingRecord.beginExecuteTick,
+                     this->_timingRecord.effAddredTick,
+                     this->_timingRecord.beginMemoryTick,
+                     this->_timingRecord.completionTick,
+                     this->_timingRecord.commitTick,
+                     this->_timingRecord.squashTick);
+        } else {
+            DPRINTFR(FlexPipeView,
+                     "pipe;%llu;%llx;%llx;%s;"
+                     "%llu;%llu;%llu;%llu;%llu;%llu;%llu;%llu;%llu\n",
+                     this->issueSeqNum(),
+                     this->_pcState.pc(),
+                     this->_pcState.upc(),
+                     this->instRef->disassemble(this->_pcState.npc()),
+                     this->_timingRecord.creationTick,
+                     this->_timingRecord.decodeTick,
+                     this->_timingRecord.issueTick,
+                     this->_timingRecord.beginExecuteTick,
+                     this->_timingRecord.effAddredTick,
+                     this->_timingRecord.beginMemoryTick,
+                     this->_timingRecord.completionTick,
+                     this->_timingRecord.commitTick,
+                     this->_timingRecord.squashTick);
+        }
+    }
+#endif
 }
 
 void
