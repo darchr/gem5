@@ -180,7 +180,7 @@ FlexCPUThread::advanceInst(TheISA::PCState next_pc)
 
         shared_ptr<InflightInst> inst_ptr =
             make_shared<InflightInst>(this, isa, &memIface, &x86Iface, seq_num,
-                                      next_pc, static_inst);
+                                      ++nextIssueNum, next_pc, static_inst);
 
         inflightInsts.push_back(inst_ptr);
         DPRINTF(FlexCPUThreadEvent, "Buffer size increased to %d\n",
@@ -208,7 +208,7 @@ FlexCPUThread::advanceInst(TheISA::PCState next_pc)
 
         shared_ptr<InflightInst> inst_ptr =
             make_shared<InflightInst>(this, isa, &memIface, &x86Iface, seq_num,
-                                      next_pc, static_inst);
+                                      ++nextIssueNum, next_pc, static_inst);
 
         inflightInsts.push_back(inst_ptr);
 
@@ -237,7 +237,7 @@ FlexCPUThread::advanceInst(TheISA::PCState next_pc)
     // result of the next decoding.
     shared_ptr<InflightInst> inst_ptr =
         make_shared<InflightInst>(this, isa, &memIface, &x86Iface, seq_num,
-                                  next_pc);
+                                  ++nextIssueNum, next_pc);
 
     inflightInsts.push_back(inst_ptr);
 
@@ -1085,7 +1085,6 @@ FlexCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
         }
     }
 
-    inst_ptr->issueSeqNum(nextIssueNum++);
     populateDependencies(inst_ptr);
     populateUses(inst_ptr);
 

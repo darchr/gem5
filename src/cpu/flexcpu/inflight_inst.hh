@@ -250,7 +250,8 @@ class InflightInst : public ExecContext,
   public:
     InflightInst(ThreadContext* backing_context, TheISA::ISA* backing_isa,
                  MemIface* backing_mem_iface, X86Iface* backing_x86_iface,
-                 InstSeqNum seq_num, const TheISA::PCState& pc_,
+                 InstSeqNum seq_num, InstSeqNum issue_seq_num,
+                 const TheISA::PCState& pc_,
                  StaticInstPtr inst_ref = StaticInst::nullStaticInstPtr);
 
     // Unimplemented copy due to presence of raw pointers.
@@ -522,18 +523,6 @@ class InflightInst : public ExecContext,
      */
     inline InstSeqNum issueSeqNum() const
     { return _issueSeqNum; }
-
-    /**
-     * Set the sequence number of the InflightInst
-     */
-    inline InstSeqNum seqNum(InstSeqNum seqNum)
-    { return _seqNum = seqNum; }
-
-    /**
-     * Set the sequence number of the InflightInst
-     */
-    inline InstSeqNum issueSeqNum(InstSeqNum seqNum)
-    { return _issueSeqNum = seqNum; }
 
     inline const StaticInstPtr& staticInst() const
     { return instRef; }
