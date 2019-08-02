@@ -36,9 +36,7 @@
 class BareNVDLASystem : public NVDLASystem
 {
   protected:
-    ObjectFile* weights;
-    ObjectFile* features;
-    ObjectFile* outRegion;
+    ObjectFile* trace;
 
   public:
     typedef BareNVDLASystemParams Params;

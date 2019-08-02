@@ -39,17 +39,6 @@ class BareNVDLASystem(NVDLASystem):
     cxx_header = 'verilator/nvdla/bare_nvdla/system.hh'
 
     #weights
-    load_weight_file = Param.String("input_weight.dat",
-        "Input weights for net")
-    load_weight_addr = Param.Int(0x5002dfe0, "where to load weights")
-    load_weight_offset = Param.Int(0x36000, "Offset for each kernel")
-    #features
-    load_features_file = Param.String("input_feature_map.dat",
-        "Input features for net")
-    load_features_addr = Param.Int(0x50064080, "where to load features")
-    load_features_offset = Param.Int(0xb480, "Offset for each kernel")
-    #output region initialization
-    load_out_region_init_file = Param.String("initialize_output_region.dat",
-        "Init output memory space for net")
-    load_out_region_init_addr = Param.Int(0x500000e0, "where to setup output")
-    load_out_region_init_offset = Param.Int(0x2da80, "Offset for each kernel")
+    load_trace = Param.String("trace.bin",
+        "Input trace for net")
+    load_trace_addr = Param.Int(0x5002dfe0, "where to load trace")

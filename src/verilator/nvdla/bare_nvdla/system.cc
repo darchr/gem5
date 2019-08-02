@@ -29,36 +29,19 @@
 
 BareNVDLASystem::BareNVDLASystem(Params *p)
     : NVDLASystem(p),
-    weights(createObjectFile(p->load_weight_file, true)),
-    features(createObjectFile(p->load_features_file, true)),
-    outRegion(createObjectFile(p->load_out_region_init_file, true)),
+    trace(createObjectFile(p->load_trace, true)),
 {
-    if (weights == NULL && !p->load_weight_file.compare("none")) {
-        fatal("Could not load weights into mem from file %s",
-        p->load_weight_file);
-    }else if ( !p->load_weight_file.compare("none")){
-        weights.setTextBase(p->load_weight_addr);
+    if (trace == NULL && !p->load_trace.compare("none")) {
+        fatal("Could not load trace into mem from file %s",
+        p->load_trace);
+    }else if ( !p->load_trace.compare("none")){
+        trace.setTextBase(p->load_trace_addr);
     }
-
-    if (features == NULL && !p->load_features_file.compare("none")) {
-         fatal("Could not load features into mem from file %s",
-        p->load_features_file);
-    }else if ( !p->load_features_file.compare("none")){
-        features.setTextBase(p->load_features_addr);
-    }
-
-    if (outRegion == NULL && !p->load_out_region_init_file.compare("none")) {
-         fatal("Could not load out region into mem from file %s",
-        p->load_out_region_init_file);
-    }else if ( !p->load_out_region_init_file.compare("none")){
-        features.setTextBase(p->load_out_region_init_addr);
-    }
-
 }
 
 BareNVDLASystem::~BareNVDLASystem()
 {
-    delete objFile;
+    delete trace;
 }
 
 void
