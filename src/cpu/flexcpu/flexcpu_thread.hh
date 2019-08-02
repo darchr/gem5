@@ -45,6 +45,7 @@
 #include "cpu/pred/bpred_unit.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/simple_thread.hh"
+#include "debug/FlexPipeView.hh"
 #include "mem/request.hh"
 
 class FlexCPU;
