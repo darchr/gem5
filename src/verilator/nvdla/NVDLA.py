@@ -35,4 +35,4 @@ class NVDLAWrapper(DrivenObject):
   cxx_header = "verilator/nvdla/nvdla_wrapper.hh"
   buf_clear_cycles = Param.Int(4096,
     "Number of cycles to clear hardware buffers")
-  nvdla_sys = Param.System(Parent.Any, "Pointer to nvdla system")
+  nvdla_sys = Param.System(Parent.any, "Pointer to nvdla system")
