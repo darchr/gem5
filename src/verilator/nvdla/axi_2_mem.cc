@@ -37,21 +37,23 @@
 
 #include "axi_2_mem.hh"
 
-AXIResponder::AXIResponder(struct connections _dla, const char *_name)
+AXIResponder::AXIResponder(struct connections _dla, const char *_name,
+    AsyncMemBlackBox *mem)
 {
+    memblkbox = mem;
     dla = _dla;
 
-        *dla.aw_awready = 1;
-        *dla.w_wready = 1;
-        *dla.b_bvalid = 0;
-        *dla.ar_arready = 1;
-        *dla.r_rvalid = 0;
+    *dla.aw_awready = 1;
+    *dla.w_wready = 1;
+    *dla.b_bvalid = 0;
+    *dla.ar_arready = 1;
+    *dla.r_rvalid = 0;
 
-        name = _name;
+    name = _name;
 
     //WE SHOULDNT NEED THIS  r0 is initial steady state fifo
-        /* add some latency... */
-        /*for (int i = 0; i < AXI_R_LATENCY; i++) {
+    /* add some latency... */
+    /*for (int i = 0; i < AXI_R_LATENCY; i++) {
                 axi_r_txn txn;
 
                 txn.rvalid = 0;
@@ -69,23 +71,23 @@ AXIResponder::AXIResponder(struct connections _dla, const char *_name)
 uint8_t
 AXIResponder::read(uint32_t addr)
 {
-        //fetch a blocks worth of data from gem5 memory model
-                return ;
+    //fetch a blocks worth of data from gem5 memory model
+    memblkbox->doMem(1,1, addr, 0, 0, nullptr);
+    return (memblkbox->dmemResp & 0xFF);
 }
-void
-AXIResponder::write(uint32_t addr, uint8_t data)
+void AXIResponder::write(uint32_t addr, uint8_t data)
 {
-                 //write data to gem5 memory model
+    //write data to gem5 memory model
+    memblkbox->doMem(1,1, addr, data, 1, nullptr);
 }
 
-void
-AXIResponder::eval()
+void AXIResponder::eval()
 {
     /* write request */
     if (*dla.aw_awvalid && *dla.aw_awready)
     {
         printf("(%lu) %s: write request from dla, addr %08lx id %d\n",
-            ticks, name, *dla.aw_awaddr, *dla.aw_awid);
+               ticks, name, *dla.aw_awaddr, *dla.aw_awid);
 
         axi_aw_txn txn;
 
@@ -105,7 +107,7 @@ AXIResponder::eval()
     if (*dla.w_wvalid)
     {
         printf("(%lu) %s: write data from dla (%08x %08x...)\n", ticks,
-            name, dla.w_wdata[0], dla.w_wdata[1]);
+               name, dla.w_wdata[0], dla.w_wdata[1]);
 
         axi_w_txn txn;
 
@@ -123,7 +125,7 @@ AXIResponder::eval()
         uint8_t len = *dla.ar_arlen;
 
         printf("(%lu) %s: read request from dla, addr %08lx burst %d id %d\n",
-            ticks, name, *dla.ar_araddr, *dla.ar_arlen, *dla.ar_arid);
+               ticks, name, *dla.ar_araddr, *dla.ar_arlen, *dla.ar_arid);
 
         do
         {
@@ -183,7 +185,8 @@ AXIResponder::eval()
             if (!((wtxn.wstrb >> i) & 1))
                 continue;
 
-            write(awtxn.awaddr + i, (wtxn.wdata[i / 4] >> ((i%4) * 8))& 0xFF);
+            write(awtxn.awaddr + i,
+                (wtxn.wdata[i / 4] >> ((i % 4) * 8)) & 0xFF);
         }
 
         if (wtxn.wlast)
@@ -244,8 +247,8 @@ AXIResponder::eval()
 
         if (txn.rvalid)
             printf("(%lu) %s: read push: id %d, da %08x %08x %08x %08x\n",
-                    ticks, name, txn.rid, txn.rdata[0], txn.rdata[1],
-                    txn.rdata[2], txn.rdata[3]);
+                   ticks, name, txn.rid, txn.rdata[0], txn.rdata[1],
+                   txn.rdata[2], txn.rdata[3]);
 
         r0_fifo.pop();
     }

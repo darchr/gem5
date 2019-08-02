@@ -46,6 +46,8 @@
 #include <cstdlib>
 #include <queue>
 
+#include "async_mem_black_box.hh"
+
 template <typename ADDRTYPE>
 class AXIResponder {
 public:
@@ -123,6 +125,7 @@ private:
 
         struct connections dla;
         const char *name;
+        AsyncMemBlackBox * memblkbox;
 
 public:
         AXIResponder(struct connections _dla, const char *_name);
