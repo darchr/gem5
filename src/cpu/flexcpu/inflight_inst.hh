@@ -86,29 +86,31 @@ class InflightInst : public ExecContext,
 
     struct TimingRecord
     {
+        // All Tick's are initialized to MaxTick, which means if a Tick hasn't
+        // been recorded, its value will be MaxTick
         // When was this InflightInst object created?
-        Tick creationTick;
+        Tick creationTick = MaxTick;
         // When was this InflightInst object provided with a StaticInst?
-        Tick decodeTick;
+        Tick decodeTick = MaxTick;
         // NOTE: may want to consider a rename stage.
         // When was this InflightInst object placed into consideration for
         // execution?
-        Tick issueTick;
+        Tick issueTick = MaxTick;
         // When did this InflightInst object get execution requested for it?
-        Tick beginExecuteTick;
+        Tick beginExecuteTick = MaxTick;
         // (For memory only) When did this InflightInst object have its
         // physical effective address(es) calculated?
-        Tick effAddredTick;
+        Tick effAddredTick = MaxTick;
         // (For memory only) When did this InflightInst object get memory
         // requested for it?
-        Tick beginMemoryTick;
+        Tick beginMemoryTick = MaxTick;
         // When were all steps for computing the state changes that this
         // InflightInst object will apply to committed state completed?
-        Tick completionTick;
+        Tick completionTick = MaxTick;
         // When was this InflightInst finally applied to committed state?
-        Tick commitTick;
+        Tick commitTick = MaxTick;
         // If squashed, when was this InflightInst squashed?
-        Tick squashTick;
+        Tick squashTick = MaxTick;
     };
 
     // Plain old container for storing where this instruction should retrieve
@@ -639,6 +641,8 @@ class InflightInst : public ExecContext,
     void syscall(int64_t callnum, Fault* fault) override;
 
     ThreadContext* tcBase() override;
+
+    void pipeTrace();
 
     /**
      * ARM-specific
