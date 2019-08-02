@@ -1,4 +1,4 @@
-# Copyright (c) 2019 The Regents of the University of California
+/*# Copyright (c) 2019 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,16 +25,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors: Nima Ganjehloo
+*/
 
-
-from m5.params import *
-from DrivenObject import DrivenObject
-
-class NVDLAWrapper(DrivenObject):
-  type = 'NVDLAWrapper'
-  cxx_header = "verilator/nvdla/nvdla_wrapper.hh"
-  buf_clear_cycles = Param.Int(4096,
-    "Number of cycles to clear hardware buffers")
-  nvdla_sys = Param.System(Parent.any, "Pointer to nvdla system")
-  axi_2_gem5 = Param.MemObject(Parent.any,
-    "Get Pointer to mem black box")
+#include "axi_to_mem.hh"

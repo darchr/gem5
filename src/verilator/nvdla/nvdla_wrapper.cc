@@ -79,7 +79,7 @@ NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
                 .r_rdata = dla->nvdla_core2dbb_r_rdata,
         };
         axi_dbb = new AXIResponder<uint64_t>(dbbconn, "DBB",
-             p->memory_blk_box);
+             p->axi_2_gem5);
 
     AXIResponder<uint64_t>::connections cvsramconn = {
                 .aw_awvalid = &dla->nvdla_core2cvsram_aw_awvalid,
@@ -111,7 +111,7 @@ NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
                 .r_rdata = dla->nvdla_core2cvsram_r_rdata,
         };
         axi_cvsram = new AXIResponder<uint64_t>(cvsramconn, "CVSRAM",
-            p->memory_blk_box);
+            p->axi_2_gem5);
 
 
 }

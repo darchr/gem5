@@ -26,46 +26,60 @@
 #
 # Authors: Nima Ganjehloo
 */
+#ifndef __VERILATO_AXI_TO_MEM_HH__
+#define __VERILATO_AXI_TO_MEM_HH__
 
-#ifndef __VERILATOR_NVDLA_WRAPPER__HH__
-#define __VERILATOR_NVDLA_WRAPPER__HH__
+//gem5 model includes
+#include "verilator/verilator_mem_black_box.hh"
 
-#include "axi_responder.hh"
-#include "axi_to_mem.hh"
-#include "csb_master.hh"
-#include "params/NVDLAWrapper.hh"
-#include "trace_loader.hh"
-#include "verilator/driven_object.hh"
+//gem5 model includes
+#include "params/AXIToMem.hh"
 
-class VTop;
+//Interface for different types of memory models
+class AXIToMem: public VerilatorMemBlackBox
+{
+  public:
+    //memory access functions for blackbox
+    void doMem(int req_addr, unsigned char req_operation,
+      unsigned char req_write_data);
 
-class NVDLAWrapper : public DrivenObject{
-    public:
-        NVDLAWrapper(NVDLAWrapperParams *p);
+    BaseMasterPort& getMasterPort( const std::string& if_name,
+                PortID idx = InvalidPortID ) override;
 
-        void startup() override;
-        void updateCycle() override;
-    private:
-        void initNVDLA();
-        void runNVDLA();
-        void evalTrace();
-        void resetNVDLA();
-        void initClearDLABuffers();
+    AXIToMem( AXIToMemParams *params);
 
-    private:
-        //event queue var to schedule mem requests and cycle updates
-        EventFunctionWrapper event;
-        int bufferClearCycles;
-        int waiting;
+    void startup() override;
+    uint32_t getDmemResp() override;
 
-        NVDLASystem * system;
+  protected:
+  //master port for blackbox
+    class AXIToMemPort :
+    public VerilatorMemBlackBox::VerilatorMemBlackBoxPort
+    {
+      public:
 
-        VTop * dla;
-        CSBMaster csb;
-        TraceLoader tloader;
-        AXIResponder<uint64_t> * axi_dbb;
-        AXIResponder<uint64_t> * axi_cvsram;
+         AXIToMemPort(const std::string& name,
+                    AXIToMem *owner) :
+                    AXIToMemPort(name, owner)
+                { }
 
+        vvoid sendTimingPacket(PacketPtr pkt);
+
+        //currently need this for synchronization. tells gem5 to access mem
+        //model immediatly instead of scheduling event to do so
+        bool sendAtomicPacket(PacketPtr pkt);
+
+      protected:
+        bool recvTimingResp(PacketPtr pkt) override;
+
+        void recvReqRetry() override;
+    };
+    //deal with data going back to verilator c++
+    bool handleResponse( PacketPtr pkt );
+
+    AXIToMemPort dataPort;
+
+    //data for response to dpi
+    uint8_t dmemResp;
 };
-
 #endif

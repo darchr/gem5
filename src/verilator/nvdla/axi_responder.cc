@@ -35,12 +35,12 @@
 # Authors: Nima Ganjehloo
 */
 
-#include "axi_2_mem.hh"
+#include "axi_responder.hh"
 
 AXIResponder::AXIResponder(struct connections _dla, const char *_name,
-    AsyncMemBlackBox *mem)
+    AXIToMem *mem)
 {
-    memblkbox = mem;
+    axi2gem = mem;
     dla = _dla;
 
     *dla.aw_awready = 1;
@@ -72,13 +72,14 @@ uint8_t
 AXIResponder::read(uint32_t addr)
 {
     //fetch a blocks worth of data from gem5 memory model
-    memblkbox->doMem(1,1, addr, 0, 0, nullptr);
-    return (memblkbox->dmemResp & 0xFF);
+    memblkbox->doMem(addr, 0, 0,);
+    return memblkbox->dmemResp;
 }
+
 void AXIResponder::write(uint32_t addr, uint8_t data)
 {
     //write data to gem5 memory model
-    memblkbox->doMem(1,1, addr, data, 1, nullptr);
+    memblkbox->doMem(addr, 1, data);
 }
 
 void AXIResponder::eval()

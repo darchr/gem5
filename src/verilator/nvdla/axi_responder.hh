@@ -36,8 +36,8 @@
 # Authors: Nima Ganjehloo
 */
 
-#ifndef __VERILATOR_AXI_2_MEM__HH__
-#define __VERILATOR_AXI_2_MEM__HH__
+#ifndef __VERILATOR_AXI_RESPONDER__HH__
+#define __VERILATOR_AXI_RESPONDER__HH__
 
 #include <fcntl.h>
 #include <stdint.h>
@@ -46,7 +46,7 @@
 #include <cstdlib>
 #include <queue>
 
-#include "async_mem_black_box.hh"
+#include "axi_to_mem.hh"
 
 template <typename ADDRTYPE>
 class AXIResponder {
@@ -125,10 +125,11 @@ private:
 
         struct connections dla;
         const char *name;
-        AsyncMemBlackBox * memblkbox;
+        AXIToMem * axi2gem;
 
 public:
-        AXIResponder(struct connections _dla, const char *_name);
+        AXIResponder(struct connections _dla, const char *_name,
+                AXIToMem * mem);
 
         uint8_t read(uint32_t addr);
 
