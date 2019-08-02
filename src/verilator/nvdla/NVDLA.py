@@ -36,3 +36,5 @@ class NVDLAWrapper(DrivenObject):
   buf_clear_cycles = Param.Int(4096,
     "Number of cycles to clear hardware buffers")
   nvdla_sys = Param.System(Parent.any, "Pointer to nvdla system")
+  memory_blk_box = Param.AsyncMemBlackBox(Parent.any,
+    "Get Pointer to mem black box")
