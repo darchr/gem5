@@ -41,6 +41,7 @@ InflightInst::InflightInst(ThreadContext* backing_context,
                            MemIface* backing_mem_iface,
                            X86Iface* backing_x86_iface,
                            InstSeqNum seq_num,
+                           InstSeqNum issue_seq_num,
                            const PCState& pc_,
                            StaticInstPtr inst_ref):
     backingContext(backing_context),
@@ -49,6 +50,7 @@ InflightInst::InflightInst(ThreadContext* backing_context,
     backingX86Interface(backing_x86_iface),
     _status(Empty),
     _seqNum(seq_num),
+    _issueSeqNum(issue_seq_num),
     _pcState(pc_)
 {
     _timingRecord.creationTick = curTick();
