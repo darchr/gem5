@@ -49,6 +49,7 @@ class AXIToMem: public VerilatorMemBlackBox
     AXIToMem( AXIToMemParams *params);
 
     void startup() override;
+    static AXIToMem * getSingleton();
     uint32_t getDmemResp() override;
 
   protected:
@@ -74,10 +75,13 @@ class AXIToMem: public VerilatorMemBlackBox
 
         void recvReqRetry() override;
     };
-    //deal with data going back to verilator c++
+    //deal with data going back to axi responder
     bool handleResponse( PacketPtr pkt );
 
     AXIToMemPort dataPort;
+
+    //pointer for wrapper
+    static AXIToMem * singleton;
 
     //data for response to dpi
     uint8_t dmemResp;

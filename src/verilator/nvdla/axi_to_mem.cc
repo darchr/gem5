@@ -27,4 +27,201 @@
 # Authors: Nima Ganjehloo
 */
 
+///verilator inlcudes
+#include "svdpi.h"
+
+//gem5 gemeral includes
+#include "base/logging.hh"
+#include "debug/Verilator.hh"
+#include "mem/packet_access.hh"
+
+//gem5 model includes
 #include "axi_to_mem.hh"
+
+//MASTER PORT DEFINITIONS
+//send packet to gem5 memory system,schedules an event
+void
+AXIToMem::AXIToMemPort
+  ::sendTimingPacket(PacketPtr pkt)
+{
+  panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
+  //send packet or block it and save packet for a retry
+  if (!sendTimingReq(pkt)) {
+    DPRINTF(Verilator, "Packet for addr: %#x blocked\n", pkt->getAddr());
+    blockedPacket = pkt;
+  }
+}
+
+//sends a packet to gem5 memory system, recieves response
+//immidiately at end of call chain
+bool
+AXIToMem::AXIToMemPort
+  ::sendAtomicPacket(PacketPtr pkt)
+{
+  panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
+  //send packet or block it and save packet for a retry
+  //block if response latency is non zero
+  //
+  //....i dont think blocking the packet here is right. do atomics ever get
+  //request retries?
+  if (!sendAtomic(pkt)) {
+    DPRINTF(Verilator, "ATOMIC MEMORY RESPONSE RECIEVED\n");
+    //let blackbox determine how to deal with returned data
+    return static_cast<AXIToMem *>(owner)->handleResponse(pkt);
+  }else{
+    DPRINTF(Verilator, "Packet for addr: %#x blocked\n", pkt->getAddr());
+    blockedPacket = pkt;
+  }
+  return false;
+}
+
+//gem5 memory model has reponded to our memory request
+bool
+AXIToMem::AXIToMemPort
+    ::recvTimingResp( PacketPtr pkt )
+{
+  DPRINTF(Verilator, "MEMORY RESPONSE RECIEVED\n");
+  //let blackbox determine how to deal with returned data
+  return static_cast<AXIToMem *>(owner)->handleResponse(pkt);
+}
+
+//retry sending a packet if it failed
+void
+AXIToMem::AXIToMemPort
+  ::recvReqRetry()
+{
+  //we have to had saved the failed packet before doing a retry
+  assert(blockedPacket != nullptr);
+
+  //move data around
+  PacketPtr pkt = blockedPacket;
+  blockedPacket = nullptr;
+
+  //try request again
+  sendTimingPacket(pkt);
+}
+
+//used for configuring simulated device
+BaseMasterPort&
+AXIToMem::getMasterPort(
+        const std::string& if_name, PortID idx )
+{
+  panic_if(idx != InvalidPortID, "This object doesn't support vector ports");
+
+  // This is the name from the Python SimObject declaration (SimpleMemobj.py)
+  if (if_name == "data_port") {
+    return dataPort;
+  } else {
+    // pass it along to our super class
+    return MemObject::getMasterPort(if_name, idx);
+  }
+}
+
+
+//Create for memblkbx for gem5
+AXIToMem*
+AXIToMemParams::create()
+{
+  return new AXIToMem(this);
+}
+
+//setup our black box
+AXIToMem::AXIToMem(
+        AXIToMemParams *params) :
+        VerilatorMemBlackBox(params),
+        dataPort(params->name + ".data_port", this)
+{
+
+    AXIToMem::singleton =  this;
+}
+
+//sets up a memory request for memory instructions to gem5 memory sytem
+void
+AXIToMem::doMem(int req_addr, unsigned char req_operation,
+      unsigned char req_write_data))
+{
+  //are we reading or writing?
+  bool operation = req_operation;
+
+
+  //make request for corresponding byte size at the specified address provided
+  //by dinocpu
+  RequestPtr data_req = std::make_shared<Request>(
+    dmem_request_bits_address >> 2,
+    1,
+    Request::PHYSICAL,
+    0);
+
+  DPRINTF(Verilator, "Sending data request for addr (pa: %#x)\n",
+    data_req->getPaddr());
+
+  //Is the packet a read or write request?
+
+  PacketPtr pkt = nullptr;
+  if (!operation){
+      pkt = Packet::createRead(data_req);
+  }else{
+      pkt = Packet::createWrite(data_req);
+  }
+
+  DPRINTF(Verilator, " -- pkt addr: %#x\n", pkt->getAddr());
+
+  //not sure if I need this. This is for non 4 byte writes.
+  uint8_t * data = new uint8_t[1];
+  if (operation){
+    DPRINTF(Verilator, "WRITING %x AS %d BYTES\n",
+      dmem_request_bits_writedata, 1);
+      data[0] = req_write_data;
+
+    DPRINTF(Verilator, "DATA TO WRITE IS %x %x %x %x\n", data[0]);
+  }
+
+  //allocate space for memory request
+  pkt->allocate();
+  pkt->setLE(dmem_request_bits_writedata);
+  delete[] data;
+
+  //send request
+  dataPort.sendTimingPacket(pkt);
+}
+
+//handles a successful response for a memory request
+bool
+AXIToMem::handleResponse( PacketPtr pkt )
+{
+  DPRINTF(Verilator, "Got response for addr %#x\n", pkt->getAddr());
+
+  if (pkt->isRead()){
+    //Get returned data from gem5 mem system and set it to blackbox
+    DPRINTF(Verilator, "Handling response for data read\n");
+    dmemResp = *pkt->getConstPtr<uint8_t>();
+    DPRINTF(Verilator, "Data is %#x\n", dmemResp);
+  }
+
+  return true;
+}
+
+//setup static var
+AXIToMem *
+AXIToMem::singleton = nullptr;
+
+//give caller (dpi in this case) access to this class
+AXIToMem *
+AXIToMem::getSingleton()
+{
+  return AXIToMem::singleton;
+}
+
+//setup reference to this class for use with dpi
+void
+AXIToMem::startup()
+{
+  DPRINTF(Verilator, "MEM BLACKBOX STARTUP\n");
+  AXIToMem::singleton = this;
+}
+
+uint8_t
+AXIToMem::getDmemResp()
+{
+  return dmemResp;
+}
