@@ -83,13 +83,10 @@ system.system_port = system.mem_ctrl.port
 
 # Create the dinocpu verilator wrapper
 system.nvdla = NVDLAWrapper()
-
-# Create the mem black box verilator wrapper
-system.verilator_mem = AsyncMemBlackBox()
+system.nvdla.axi_2_gem5 = AXIToMem()
 
 
-system.verilator_mem.inst_port = system.mem_ctrl.port
-system.verilator_mem.data_port = system.mem_ctrl.port
+system.nvdla.axi_2_gem5.data_port = system.mem_ctrl.port
 
 # set up the root SimObject and start the simulation
 root = Root(full_system = True, system = system)
