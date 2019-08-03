@@ -38,4 +38,4 @@ class NVDLAWrapper(DrivenObject):
   buf_clear_cycles = Param.Int(4096,
     "Number of cycles to clear hardware buffers")
   nvdla_sys = Param.System(Parent.any, "Pointer to nvdla system")
-  axi_2_gem5 = AXIToMem("Pointer to AXIgem5 interface")
+  axi_2_gem5 = Param.AXIToMem(NULL, "Pointer to AXIgem5 interface")

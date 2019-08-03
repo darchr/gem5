@@ -131,8 +131,6 @@ AXIToMem::AXIToMem(
         VerilatorMemBlackBox(params),
         dataPort(params->name + ".data_port", this)
 {
-
-    AXIToMem::singleton =  this;
 }
 
 //sets up a memory request for memory instructions to gem5 memory sytem
@@ -199,17 +197,6 @@ AXIToMem::handleResponse( PacketPtr pkt )
   }
 
   return true;
-}
-
-//setup static var
-AXIToMem *
-AXIToMem::singleton = nullptr;
-
-//give caller (dpi in this case) access to this class
-AXIToMem *
-AXIToMem::getSingleton()
-{
-  return AXIToMem::singleton;
 }
 
 //setup reference to this class for use with dpi

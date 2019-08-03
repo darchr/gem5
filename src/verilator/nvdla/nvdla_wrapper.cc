@@ -40,6 +40,9 @@ NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
     axi_dbb(nullptr),
     axi_cvsram(nullptr)
 {
+    if (p->axi_2_gem5 == nullptr)
+        fatal("Could not instantiate AXI to gem5 interface")
+
     resetCycles = p->reset_cycles;
     tracePath = (p->trace_file).c_str();
     waiting = 0;

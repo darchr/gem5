@@ -49,7 +49,6 @@ class AXIToMem: public VerilatorMemBlackBox
     AXIToMem( AXIToMemParams *params);
 
     void startup() override;
-    static AXIToMem * getSingleton();
     uint32_t getDmemResp() override;
 
   protected:
@@ -61,7 +60,7 @@ class AXIToMem: public VerilatorMemBlackBox
 
          AXIToMemPort(const std::string& name,
                     AXIToMem *owner) :
-                    AXIToMemPort(name, owner)
+                    VerilatorMemBlackBoxPort(name, owner)
                 { }
 
         void sendTimingPacket(PacketPtr pkt);
@@ -79,9 +78,6 @@ class AXIToMem: public VerilatorMemBlackBox
     bool handleResponse( PacketPtr pkt );
 
     AXIToMemPort dataPort;
-
-    //pointer for wrapper
-    static AXIToMem * singleton;
 
     //data for response to dpi
     uint8_t dmemResp;
