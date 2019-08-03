@@ -38,7 +38,7 @@ class BareNVDLASystem(NVDLASystem):
     type = 'BareNVDLASystem'
     cxx_header = 'verilator/nvdla/bare_nvdla/system.hh'
 
-    #weights
+    #trace
     load_trace = Param.String("trace.bin",
         "Input trace for net")
     load_trace_addr = Param.Int(0x0, "where to load trace")

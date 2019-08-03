@@ -26,16 +26,12 @@
 #
 # Authors: Nima Ganjehloo
 
-
 from m5.params import *
-from DrivenObject import DrivenObject
-from AXIToMem import AXIToMem
+from MemObject import MemObject
+from VerilatorMemBlackBox import VerilatorMemBlackBox
 
+class AXIToMem(VerilatorMemBlackBox):
+  type = 'AXIToMem'
+  cxx_header = "verilator/nvdla/axi_to_mem.hh"
 
-class NVDLAWrapper(DrivenObject):
-  type = 'NVDLAWrapper'
-  cxx_header = "verilator/nvdla/nvdla_wrapper.hh"
-  buf_clear_cycles = Param.Int(4096,
-    "Number of cycles to clear hardware buffers")
-  nvdla_sys = Param.System(Parent.any, "Pointer to nvdla system")
-  axi_2_gem5 = AXIToMem("Pointer to AXIgem5 interface")
+  data_port = MasterPort("Data Port")

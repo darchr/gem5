@@ -31,3 +31,9 @@ Import('*')
 
 SimObject('NVDLA.py')
 Source('nvdla_wrapper.cc')
+
+SimObject('NVDLASystem.py')
+Source('system.cc')
+
+SimObject('AXIToMem.py')
+Source('axi_to_mem.cc')
