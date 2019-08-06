@@ -60,8 +60,8 @@ class AsyncMemBlackBox: public VerilatorMemBlackBox
     //setsup singleton for use with dpi getters
     void startup() override;
     static AsyncMemBlackBox * getSingleton();
-    uint32_t getDmemResp() override;
-    uint32_t getImemResp() override;
+    uint32_t getDmemResp();
+    uint32_t getImemResp();
 
   private:
     //master port for blackbox

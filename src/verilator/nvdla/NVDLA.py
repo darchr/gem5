@@ -30,6 +30,8 @@
 from m5.params import *
 from DrivenObject import DrivenObject
 from AXIToMem import AXIToMem
+from NVDLASystem import NVDLASystem
+from m5.proxy import *
 
 
 class NVDLAWrapper(DrivenObject):
@@ -37,5 +39,5 @@ class NVDLAWrapper(DrivenObject):
   cxx_header = "verilator/nvdla/nvdla_wrapper.hh"
   buf_clear_cycles = Param.Int(4096,
     "Number of cycles to clear hardware buffers")
-  nvdla_sys = Param.System(Parent.any, "Pointer to nvdla system")
+  nvdla_sys = Param.BareNVDLASystem(Parent.any, "Pointer to nvdla system")
   axi_2_gem5 = Param.AXIToMem(NULL, "Pointer to AXIgem5 interface")

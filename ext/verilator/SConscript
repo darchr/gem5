@@ -36,7 +36,7 @@ main.Prepend(CPPPATH=Dir('/usr/share/verilator/include/vltstd'))
 
 dinocpu = main.Clone()
 
-main.Append(LIBS=['VTop__ALL'])
+main.Append(LIBS=['VNV_nvdla__ALL'])
 main.Prepend(LIBPATH=[Dir('.')])
 main.Append(CPPDEFINES = 'VM_TRACE=0')
 main.Append(CPPDEFINES = 'VL_THREADED=0')

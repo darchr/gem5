@@ -46,7 +46,7 @@
 #include <cstdlib>
 #include <queue>
 
-class VTop;
+class VNV_nvdla;
 
 class CSBMaster {
         struct csb_op {
@@ -61,12 +61,12 @@ class CSBMaster {
 
         std::queue<csb_op> opq;
 
-        VTop *dla;
+        VNV_nvdla *dla;
 
         int _test_passed;
 
 public:
-        CSBMaster(VTop *_dla);
+        CSBMaster(VNV_nvdla *_dla);
 
         void read(uint32_t addr, uint32_t mask, uint32_t data);
 

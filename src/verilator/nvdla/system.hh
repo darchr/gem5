@@ -46,11 +46,12 @@ class NVDLASystem : public System {
         NVDLASystem(Params *p);
         ~NVDLASystem();
 
-        bool isTracerSystem() const { return isTracerSystem; }
+        bool isTracerSystem() const { return tracerSystem; }
 
     protected:
         const Params *params() const { return (const Params *)_params; }
-        bool isTracerSystem;
+
+        bool tracerSystem;
 };
 
 #endif

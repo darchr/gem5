@@ -49,7 +49,7 @@ class AXIToMem: public VerilatorMemBlackBox
     AXIToMem( AXIToMemParams *params);
 
     void startup() override;
-    uint32_t getDmemResp() override;
+    uint8_t getDmemResp();
 
   protected:
   //master port for blackbox

@@ -41,11 +41,11 @@ class VerilatorMemBlackBox: public MemObject
 {
   public:
     //memory access functions for blackbox
-    virtual void doFetch(){}
-    virtual void doMem(){}
+    //virtual void doFetch(){}
+    //virtual void doMem(){}
 
-    virtual uint32_t getDmemResp() = 0;
-    virtual uint32_t getImemResp() = 0;
+    //virtual uint32_t getDmemResp() = 0;
+    //virtual uint32_t getImemResp() = 0;
 
     VerilatorMemBlackBox( VerilatorMemBlackBoxParams *params) :
     MemObject(params)

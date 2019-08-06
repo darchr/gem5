@@ -27,7 +27,6 @@
 # Authors: Nima Ganjehloo
 */
 
-#include "arch/vtophys.hh"
 #include "base/loader/hex_file.hh"
 #include "base/loader/object_file.hh"
 #include "base/loader/symtab.hh"
@@ -39,7 +38,7 @@
 
 NVDLASystem::NVDLASystem(Params *p)
     : System(p),
-      isTracerSystem(p->bare_nvdla)
+      tracerSystem(p->bare_nvdla)
 {
 }
 

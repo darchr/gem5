@@ -41,10 +41,9 @@ NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
     axi_cvsram(nullptr)
 {
     if (p->axi_2_gem5 == nullptr)
-        fatal("Could not instantiate AXI to gem5 interface")
+        fatal("Could not instantiate AXI to gem5 interface");
 
     resetCycles = p->reset_cycles;
-    tracePath = (p->trace_file).c_str();
     waiting = 0;
 
     dla = driver.getTopLevel();
@@ -191,7 +190,7 @@ void NVDLAWrapper::resetNVDLA(){
     dla->direct_reset_ = 1;
     dla->eval();
 
-    driver.reset(resetCycles, fmt,
+    driver.reset(resetCycles, fmt, 2
         &(dla->dla_core_clk),
         &(dla->dla_csb_clk));
 
@@ -199,7 +198,7 @@ void NVDLAWrapper::resetNVDLA(){
     dla->direct_reset_ = 0;
     dla->eval();
 
-     driver.reset(resetCycles, fmt,
+     driver.reset(resetCycles, fmt, 2,
         &(dla->dla_core_clk),
         &(dla->dla_csb_clk));
 }
@@ -211,7 +210,7 @@ void NVDLAWrapper::initClearDLABuffers(){
     dla->dla_reset_rstn = 1;
     dla->direct_reset_ = 1;
 
-     driver.reset(bufferClearCycles, fmt,
+     driver.reset(bufferClearCycles, fmt, 2
         &(dla->dla_core_clk),
         &(dla->dla_csb_clk));
 }

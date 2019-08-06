@@ -27,16 +27,18 @@
 # Authors: Nima Ganjehloo
 */
 
+#include "verilator/nvdla/bare_nvdla/system.hh"
+
 BareNVDLASystem::BareNVDLASystem(Params *p)
     : NVDLASystem(p),
     tracePath(p->load_trace.c_str())
 {
-    if (trace == NULL && !p->load_trace.compare("none")) {
+    if (tracePath == NULL && !p->load_trace.compare("none")) {
         fatal("Could not load trace from file %s", p->load_trace);
     }else if ( p->load_trace.compare("none")){
-        isTracerSystem = false;
+        tracerSystem = false;
     }else{
-        isTracerSystem = true;
+        tracerSystem = true;
     }
 }
 

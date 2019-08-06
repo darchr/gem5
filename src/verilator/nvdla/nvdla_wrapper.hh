@@ -36,6 +36,8 @@
 #include "params/NVDLAWrapper.hh"
 #include "trace_loader.hh"
 #include "verilator/driven_object.hh"
+#include "verilator/nvdla/bare_nvdla/system.hh"
+#include "verilator/nvdla/system.hh"
 
 class VTop;
 
@@ -58,9 +60,9 @@ class NVDLAWrapper : public DrivenObject{
         int bufferClearCycles;
         int waiting;
 
-        NVDLASystem * system;
+        BareNVDLASystem * system;
 
-        VTop * dla;
+        Top * dla;
         CSBMaster csb;
         TraceLoader tloader;
         AXIResponder<uint64_t> * axi_dbb;

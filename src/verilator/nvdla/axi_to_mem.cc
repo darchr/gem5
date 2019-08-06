@@ -136,7 +136,7 @@ AXIToMem::AXIToMem(
 //sets up a memory request for memory instructions to gem5 memory sytem
 void
 AXIToMem::doMem(int req_addr, unsigned char req_operation,
-      unsigned char req_write_data))
+      unsigned char req_write_data)
 {
   //are we reading or writing?
   bool operation = req_operation;
@@ -145,7 +145,7 @@ AXIToMem::doMem(int req_addr, unsigned char req_operation,
   //make request for corresponding byte size at the specified address provided
   //by dinocpu
   RequestPtr data_req = std::make_shared<Request>(
-    dmem_request_bits_address >> 2,
+    req_addr,
     1,
     Request::PHYSICAL,
     0);
@@ -168,7 +168,7 @@ AXIToMem::doMem(int req_addr, unsigned char req_operation,
   uint8_t * data = new uint8_t[1];
   if (operation){
     DPRINTF(Verilator, "WRITING %x AS %d BYTES\n",
-      dmem_request_bits_writedata, 1);
+      req_write_data, 1);
       data[0] = req_write_data;
 
     DPRINTF(Verilator, "DATA TO WRITE IS %x %x %x %x\n", data[0]);
@@ -176,7 +176,7 @@ AXIToMem::doMem(int req_addr, unsigned char req_operation,
 
   //allocate space for memory request
   pkt->allocate();
-  pkt->setLE(dmem_request_bits_writedata);
+  pkt->setLE(req_write_data);
   delete[] data;
 
   //send request
@@ -204,7 +204,6 @@ void
 AXIToMem::startup()
 {
   DPRINTF(Verilator, "MEM BLACKBOX STARTUP\n");
-  AXIToMem::singleton = this;
 }
 
 uint8_t

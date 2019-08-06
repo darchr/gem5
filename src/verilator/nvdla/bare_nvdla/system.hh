@@ -31,7 +31,7 @@
 #define __VERILATOR_BARE_NVDLA_SYSTEM__HH__
 
 #include "params/BareNVDLASystem.hh"
-#include "src/verilator/nvdla/system.hh"
+#include "verilator/nvdla/system.hh"
 
 class BareNVDLASystem : public NVDLASystem
 {
@@ -43,10 +43,10 @@ class BareNVDLASystem : public NVDLASystem
     ~BareNVDLASystem();
 
     // initialize the system
-    virtual void initState();
+    void initState() override;
 
     //get path to tracefile
-    const char getTracePath(){ return tracePath; }
+    const char * getTracePath(){ return tracePath; }
 };
 
 #endif
