@@ -34,9 +34,10 @@ main.Prepend(CPPPATH=Dir('./'))
 main.Prepend(CPPPATH=Dir('/usr/share/verilator/include'))
 main.Prepend(CPPPATH=Dir('/usr/share/verilator/include/vltstd'))
 
-dinocpu = main.Clone()
+verilator = main.Clone()
 
 main.Append(LIBS=['VNV_nvdla__ALL'])
 main.Prepend(LIBPATH=[Dir('.')])
+main.Prepend(LIBPATH=[Dir('./nvdla/generated/')])
 main.Append(CPPDEFINES = 'VM_TRACE=0')
 main.Append(CPPDEFINES = 'VL_THREADED=0')

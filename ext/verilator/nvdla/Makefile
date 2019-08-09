@@ -1,25 +1,22 @@
-# Makefile
-# Build system for Verilator testbench
-# NVDLA Open Source Project
-#
-# Copyright (c) 2017 NVIDIA Corporation.  Licensed under the NVDLA Open
-# Hardware License.  For more information, see the "LICENSE" file that came
-# with this distribution.
-
-GEM5 = ../../..
 DEPTH = ../../../../hw
 include $(DEPTH)/tools/make/common.make
+NVRTL = outdir/nv_full
+OBJFILES =  $(patsubst %.cpp, %.o, ./generated)
 
-default: VNV_nvdla
+default: libVNV_nvdla__ALL.a
 
 VERILATOR_PARAMS ?= --compiler clang --output-split 250000000
-# Perhaps you need to trace?
-#   VERILATOR_PARAMS += --trace --trace-depth 7 --trace-max-array 8
 
-# We end up hardcoding this, because the .f file applies only to nv_full,
-# living in outdir, right now.  Otherwise, you're on your own...
-VNV_nvdla.mk: verilator.f  $(DEPTH)/outdir/nv_full/vmod # and a lot of RTL...
-	$(VERILATOR) -CFLAGS -fPIC --cc --exe -f verilator.f nvdla.cpp --compiler clang --output-split 250000000
+VNV_nvdla.mk: verilator.f $(DEPTH)/$(NVRTL)/vmod
+	$(VERILATOR) -CFLAGS -g --cc -f verilator.f -Mdir ./generated --compiler clang --output-split 250000000
 
-VNV_nvdla: VNV_nvdla.mk nvdla.cpp
-	make -f VNV_nvdla.mk CC=$(CLANG) CXX=$(CLANG)++ VM_PARALLEL_BUILDS=1
+%.o: VNV_nvdla.mk
+	make -C ./generated -f VNV_nvdla.mk CC=$(CLANG) CCX=$(CLANG)++ VM_PARRALLEL_BUILDS=1
+
+libVNV_nvdla__ALL.a: $(OBJFILES)
+	ar rvs libVNV_nvdla__ALL.a $(OBJFILES)
+
+.PHONY: clean
+
+clean:
+	rm -rf *.o *.a *.mk *.d VNV_nvdla*
