@@ -532,6 +532,15 @@ FlexCPUThread::executeInstruction(shared_ptr<InflightInst> inst_ptr)
                 if (!inst_ptr || inst_ptr->isSquashed()) return;
 
                 if (fault != NoFault) markFault(inst_ptr, fault);
+
+                // if the predicate for memory instruction is false then go
+                // straight to complete stage
+                if (!inst_ptr->readPredicate()) {
+                    // inst_ptr->notifyComplete();
+                    // should do better than this
+                    // i.e. don't update branch pred, mem statistics, etc.
+                    onExecutionCompleted(weak_inst, fault);
+                }
             };
     } else {
         callback = [this, weak_inst](Fault fault) {
