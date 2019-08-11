@@ -47,9 +47,9 @@ InflightInst::InflightInst(ThreadContext* backing_context,
     backingISA(backing_isa),
     backingMemoryInterface(backing_mem_iface),
     backingX86Interface(backing_x86_iface),
-    status(Empty),
-    seqNum(seq_num),
-    pcState(pc),
+    _status(Empty),
+    _seqNum(seq_num),
+    _pcState(pc),
     predicate(true),
     memAccPredicate(true)
 {
