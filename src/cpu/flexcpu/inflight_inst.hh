@@ -247,6 +247,9 @@ class InflightInst : public ExecContext,
     AddrRange accessedSplitPAddrs; // Second variable to store range for second
                                    // request as part of split accesses
 
+    // Predicate flags, used by ARM ISA
+    bool predicate;
+    bool memAccPredicate;
   public:
     InflightInst(ThreadContext* backing_context, TheISA::ISA* backing_isa,
                  MemIface* backing_mem_iface, X86Iface* backing_x86_iface,
