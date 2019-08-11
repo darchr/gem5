@@ -53,6 +53,8 @@ InflightInst::InflightInst(ThreadContext* backing_context,
     _seqNum(seq_num),
     _issueSeqNum(issue_seq_num),
     _pcState(pc_)
+    predicate(true),
+    memAccPredicate(true)
 {
     _timingRecord.creationTick = curTick();
     staticInst(inst_ref);
@@ -936,32 +938,25 @@ InflightInst::tcBase()
 bool
 InflightInst::readPredicate() const
 {
-    panic("readPredicate() not implemented!");
-    return false;
-    // TODO
+    return this->predicate;
 }
 
 void
 InflightInst::setPredicate(bool val)
 {
-    panic("setPredicate() not implemented!");
-    if (_traceData) _traceData->setPredicate(val);
-    // TODO
+    this->predicate = val;
 }
 
 bool
 InflightInst::readMemAccPredicate() const
 {
-    panic("readMemAccPredicate() not implemented!");
-    return false;
-    // TODO
+    return this->memAccPredicate;
 }
 
 void
 InflightInst::setMemAccPredicate(bool val)
 {
-    panic("setMemAccPredicate() not implemented!");
-    // TODO
+    this->memAccPredicate = val;
 }
 
 void
