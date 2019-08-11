@@ -90,27 +90,28 @@ def parse_pipe(line):
     pc = int(line[2], 16)
     upc = int(line[3], 16)
     inst = line[4].strip()
+    predicated = int(line[5].strip())
 
-    creationTick = max_tick_to_invalid_tick_lambda(int(line[5]))
-    decodeTick = max_tick_to_invalid_tick_lambda(int(line[6]))
-    issueTick = max_tick_to_invalid_tick_lambda(int(line[7]))
-    beginExecuteTick = max_tick_to_invalid_tick_lambda(int(line[8]))
-    effAddredTick = max_tick_to_invalid_tick_lambda(int(line[9]))
-    beginMemoryTick = max_tick_to_invalid_tick_lambda(int(line[10]))
-    completionTick = max_tick_to_invalid_tick_lambda(int(line[11]))
-    commitTick = max_tick_to_invalid_tick_lambda(int(line[12]))
-    squashTick = max_tick_to_invalid_tick_lambda(int(line[13]))
+    creationTick = max_tick_to_invalid_tick_lambda(int(line[6]))
+    decodeTick = max_tick_to_invalid_tick_lambda(int(line[7]))
+    issueTick = max_tick_to_invalid_tick_lambda(int(line[8]))
+    beginExecuteTick = max_tick_to_invalid_tick_lambda(int(line[9]))
+    effAddredTick = max_tick_to_invalid_tick_lambda(int(line[10]))
+    beginMemoryTick = max_tick_to_invalid_tick_lambda(int(line[11]))
+    completionTick = max_tick_to_invalid_tick_lambda(int(line[12]))
+    commitTick = max_tick_to_invalid_tick_lambda(int(line[13]))
+    squashTick = max_tick_to_invalid_tick_lambda(int(line[14]))
 
     ticks = (creationTick, decodeTick, issueTick, beginExecuteTick,
              effAddredTick, beginMemoryTick, completionTick, commitTick,
              squashTick)
-    return seq_num, pc, upc, inst, ticks
+    return seq_num, pc, upc, inst, ticks, predicated
 
 def pipe_to_string(line, tick_start, tick_end, coloring_fnct, width,
                    cycle_time, dep):
     ticks_per_line = cycle_time * width
     # decode the instruction info
-    seq_num, pc, upc, inst, ticks = parse_pipe(line)
+    seq_num, pc, upc, inst, ticks, predicated = parse_pipe(line)
     creationTick = ticks[0]
     squashTick = ticks[-1]
     wrap_around = False
@@ -142,10 +143,13 @@ def pipe_to_string(line, tick_start, tick_end, coloring_fnct, width,
     # the pipeline looks like:
     #   [=======f====] if the instruction is squashed
     #   [.......f....] if the instruction is committed
-    if squashTick == INVALID_TICK:
-        pipe = ["."] * (width * n_lines)
-    else:
+    #   [#######f####] if not predicated
+    if not squashTick == INVALID_TICK:
         pipe = ["="] * (width * n_lines)
+    elif predicated == 0:
+        pipe = ["#"] * (width * n_lines)
+    else:
+        pipe = ["."] * (width * n_lines)
 
     for tick, name in zip(ticks, stages):
         if not tick == INVALID_TICK:

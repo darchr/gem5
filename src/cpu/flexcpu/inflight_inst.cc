@@ -79,7 +79,7 @@ void InflightInst::pipeTrace()
     if (DTRACE(FlexPipeView)) {
         if (!static_cast<bool>(instRef)) {
             DPRINTFR(FlexPipeView,
-                     "pipe;%llu;%llx;%llx;null;"
+                     "pipe;%llu;%llx;%llx;null;%d;"
                      "%llu;%llu;%llu;%llu;%llu;%llu;%llu;%llu;%llu\n",
                      this->issueSeqNum(),
                      this->_pcState.pc(),
@@ -95,7 +95,7 @@ void InflightInst::pipeTrace()
                      this->_timingRecord.squashTick);
         } else {
             DPRINTFR(FlexPipeView,
-                     "pipe;%llu;%llx;%llx;%s;"
+                     "pipe;%llu;%llx;%llx;%s;%d;"
                      "%llu;%llu;%llu;%llu;%llu;%llu;%llu;%llu;%llu\n",
                      this->issueSeqNum(),
                      this->_pcState.pc(),
