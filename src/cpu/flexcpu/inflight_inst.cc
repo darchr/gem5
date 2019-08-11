@@ -239,6 +239,11 @@ InflightInst::commitToTC()
     const int8_t num_dsts = instRef->numDestRegs();
     for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
         const RegId& dst_reg = instRef->destRegIdx(dst_idx);
+        // The ARM ISA doesn't update the PC register, so we'll skip updating
+        // register if it's the PC register.
+        if (THE_ISA == ARM_ISA && dst_reg.classValue() == IntRegClass
+            && dst_reg.index() == TheISA::PCReg)
+            continue;
         const GenericReg& result = getResult(dst_idx);
 
         switch (dst_reg.classValue()) {
