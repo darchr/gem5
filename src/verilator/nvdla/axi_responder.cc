@@ -37,7 +37,8 @@
 
 #include "axi_responder.hh"
 
-AXIResponder::AXIResponder(struct connections _dla, const char *_name,
+template <typename ADDRTYPE>
+AXIResponder<ADDRTYPE>::AXIResponder(struct connections _dla,const char *_name,
     AXIToMem *mem)
 {
     axi2gem = mem;
@@ -68,21 +69,26 @@ AXIResponder::AXIResponder(struct connections _dla, const char *_name,
     }*/
 }
 
+template <typename ADDRTYPE>
 uint8_t
-AXIResponder::read(uint32_t addr)
+AXIResponder<ADDRTYPE>::read(uint32_t addr)
 {
     //fetch a blocks worth of data from gem5 memory model
     axi2gem->doMem(addr, 0, 0);
     return axi2gem->dmemResp;
 }
 
-void AXIResponder::write(uint32_t addr, uint8_t data)
+template <typename ADDRTYPE>
+void
+AXIResponder<ADDRTYPE>::write(uint32_t addr, uint8_t data)
 {
     //write data to gem5 memory model
     axi2gem->doMem(addr, 1, data);
 }
 
-void AXIResponder::eval()
+template <typename ADDRTYPE>
+void
+AXIResponder<ADDRTYPE>::eval()
 {
     /* write request */
     if (*dla.aw_awvalid && *dla.aw_awready)

@@ -86,6 +86,8 @@ private:
 #define AXI_BLOCK_SIZE 4096
 #define AXI_WIDTH 512
 
+#define AXI_R_DELAY 32
+
         //read request
         struct axi_r_txn {
                 int rvalid;
