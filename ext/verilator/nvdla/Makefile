@@ -1,22 +1,33 @@
 DEPTH = ../../../../hw
-include $(DEPTH)/tools/make/common.make
+#include $(DEPTH)/tools/make/common.make
 NVRTL = outdir/nv_full
-OBJFILES =  $(patsubst %.cpp, %.o, ./generated)
-
-default: libVNV_nvdla__ALL.a
+SRCS = $(wildcard *.cpp)
+OBJFILES = $(SRCS:%.cpp=%.o)
 
 VERILATOR_PARAMS ?= --compiler clang --output-split 250000000
 
-VNV_nvdla.mk: verilator.f $(DEPTH)/$(NVRTL)/vmod
-	$(VERILATOR) -CFLAGS -g --cc -f verilator.f -Mdir ./generated --compiler clang --output-split 250000000
 
-%.o: VNV_nvdla.mk
-	make -C ./generated -f VNV_nvdla.mk CC=$(CLANG) CCX=$(CLANG)++ VM_PARRALLEL_BUILDS=1
+all: libVNV_nvdla__ALL.a
 
-libVNV_nvdla__ALL.a: $(OBJFILES)
-	ar rvs libVNV_nvdla__ALL.a $(OBJFILES)
+VNV_nvdla.mk: verilator.f
+	verilator -Wno-UNOPTFLAT --cc -f verilator.f -Mdir . --compiler clang --output-split 250000000 -CFLAGS -g
 
-.PHONY: clean
+verilated.o: VNV_nvdla.mk
+	make -f VNV_nvdla.mk $@
+
+verilated_dpi.o: VNV_nvdla.mk
+	make -f VNV_nvdla.mk $@
+
+VNV_nvdla__ALLcls.o: VNV_nvdla.mk
+	make -f VNV_nvdla.mk CC=$(CLANG) CCX=$(CLANG)++ VM_PARRALLEL_BUILDS=1
+
+VNV_nvdla__ALLsup.o: VNV_nvdla.mk
+	make -f VNV_nvdla.mk CC=$(CLANG) CCX=$(CLANG)++ VM_PARRALLEL_BUILDS=1
+
+libVNV_nvdla__ALL.a: verilated.o verilated_dpi.o VNV_nvdla__ALLcls.o VNV_nvdla__ALLsup.o
+	ar rvs libVNV_nvdla__ALL.a VNV_nvdla__ALLcls.o VNV_nvdla__ALLsup.o verilated.o verilated_dpi.o
+
+.PHONY: all clean
 
 clean:
-	rm -rf *.o *.a *.mk *.d VNV_nvdla*
+	rm -rf *.o *.a *.mk *.d

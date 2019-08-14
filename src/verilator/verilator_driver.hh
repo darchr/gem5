@@ -31,7 +31,7 @@
 
 #define Top VNV_nvdla
 
-#include "nvdla/generated/VNV_nvdla.h"
+#include "nvdla/VNV_nvdla.h"
 
 //general includes
 #include <cstdarg>

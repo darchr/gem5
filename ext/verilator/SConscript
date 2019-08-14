@@ -38,6 +38,6 @@ verilator = main.Clone()
 
 main.Append(LIBS=['VNV_nvdla__ALL'])
 main.Prepend(LIBPATH=[Dir('.')])
-main.Prepend(LIBPATH=[Dir('./nvdla/generated/')])
+main.Prepend(LIBPATH=[Dir('./nvdla/')])
 main.Append(CPPDEFINES = 'VM_TRACE=0')
 main.Append(CPPDEFINES = 'VL_THREADED=0')
