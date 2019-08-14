@@ -30,14 +30,14 @@
 #ifndef __VERILATOR_NVDLA_WRAPPER__HH__
 #define __VERILATOR_NVDLA_WRAPPER__HH__
 
+#include "../driven_object.hh"
+#include "./bare_nvdla/system.hh"
+#include "./system.hh"
 #include "axi_responder.hh"
 #include "axi_to_mem.hh"
 #include "csb_master.hh"
 #include "params/NVDLAWrapper.hh"
 #include "trace_loader.hh"
-#include "verilator/driven_object.hh"
-#include "verilator/nvdla/bare_nvdla/system.hh"
-#include "verilator/nvdla/system.hh"
 
 class VTop;
 

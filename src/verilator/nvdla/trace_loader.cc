@@ -36,6 +36,7 @@
 # Authors: Nima Ganjehloo
 */
 
+#include "base/logging.hh"
 #include "trace_loader.hh"
 
 TraceLoader::TraceLoader(CSBMaster *_csb, AXIResponder<uint64_t> *_axi_dbb,
@@ -54,8 +55,7 @@ TraceLoader::load(const char *fname)
     fd = open(fname, O_RDONLY);
     if (fd < 0)
     {
-        perror("open(trace file)");
-        abort();
+        fatal("open(trace file)");
     }
 
     unsigned char cmd;
@@ -67,7 +67,7 @@ TraceLoader::load(const char *fname)
         switch (cmd)
         {
         case 1:
-            printf("CMD: wait\n");
+            DPRINTF(Verilator, "CMD: wait\n");
             csb->ext_event(TRACE_WFI);
             break;
         case 2:
@@ -77,7 +77,7 @@ TraceLoader::load(const char *fname)
 
             VERILY_READ(&addr, 4);
             VERILY_READ(&data, 4);
-            printf("CMD: write_reg %08x %08x\n", addr, data);
+            DPRINTF(Verilator,"CMD: write_reg %08x %08x\n", addr, data);
             csb->write(addr, data);
             break;
         }
@@ -90,7 +90,8 @@ TraceLoader::load(const char *fname)
             VERILY_READ(&addr, 4);
             VERILY_READ(&mask, 4);
             VERILY_READ(&data, 4);
-            printf("CMD: read_reg %08x %08x %08x\n", addr, mask, data);
+            DPRINTF(Verilator,"CMD: read_reg %08x %08x %08x\n",
+                addr, mask, data);
             csb->read(addr, mask, data);
             break;
         }
@@ -121,7 +122,7 @@ TraceLoader::load(const char *fname)
             opq.push(op);
             csb->ext_event(TRACE_AXIEVENT);
 
-            printf("CMD: dump_mem %08x bytes from %08x -> %s\n",
+            DPRINTF(Verilator,"CMD: dump_mem %08x bytes from %08x -> %s\n",
                 len, addr, fname);
             break;
         }
@@ -144,15 +145,14 @@ TraceLoader::load(const char *fname)
             opq.push(op);
             csb->ext_event(TRACE_AXIEVENT);
 
-            printf("CMD: load_mem %08x bytes to %08x\n", len, addr);
+            DPRINTF(Verilator,"CMD: load_mem %08x bytes to %08x\n", len, addr);
             break;
         }
         case 0xFF:
-            printf("CMD: done\n");
+            DPRINTF(Verilator,"CMD: done\n");
             break;
         default:
-            printf("unknown command %c\n", cmd);
-            abort();
+            fatal("unknown command %c\n", cmd);
         }
     } while (cmd != 0xFF);
 
@@ -164,8 +164,7 @@ TraceLoader::axievent()
 {
     if (opq.empty())
     {
-        printf("extevent with nothing in the queue?\n");
-        abort();
+        fatal("extevent with nothing in the queue?\n");
     }
 
     axi_op &op = opq.front();
@@ -177,8 +176,7 @@ TraceLoader::axievent()
         axi = axi_dbb;
     else
     {
-        printf("AXI event to bad offset\n");
-        abort();
+        fatal("AXI event to bad offset\n");
     }
 
     switch (op.opcode)
@@ -187,7 +185,7 @@ TraceLoader::axievent()
     {
         const uint8_t *buf = op.buf;
 
-        printf("AXI: loading memory at 0x%08x\n", op.addr);
+        DPRINTF(Verilator, "AXI: loading memory at 0x%08x\n", op.addr);
         while (op.len)
         {
             axi->write(op.addr, *buf);
@@ -203,11 +201,11 @@ TraceLoader::axievent()
         const uint8_t *buf = op.buf;
         int matched = 1;
 
-        printf("AXI: dumping memory to %s\n", op.fname);
+        DPRINTF(Verilator,"AXI: dumping memory to %s\n", op.fname);
         fd = creat(op.fname, 0666);
         if (!fd)
         {
-            perror("creat(dumpmem)");
+            DPRINTF(Verilator, "creat(dumpmem)");
             break;
         }
         while (op.len)
@@ -216,8 +214,9 @@ TraceLoader::axievent()
             write(fd, &da, 1);
             if (da != *buf && matched)
             {
-                printf("AXI: FAIL: mismatch at memory address %08x (exp 0x%02x,
-                    got 0x%02x), and maybe others too\n", op.addr, *buf, da);
+                DPRINTF(Verilator,"AXI: FAIL: mismatch at memory address %08x
+                    (exp 0x%02x,got 0x%02x), and maybe others too\n",
+                     op.addr, *buf, da);
                 matched = 0;
                 _test_passed = 0;
             }
@@ -232,7 +231,7 @@ TraceLoader::axievent()
         break;
     }
     default:
-        abort();
+        fatal("Unknown trace event");
     }
 
     opq.pop();

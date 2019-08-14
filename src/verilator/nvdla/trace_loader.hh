@@ -40,20 +40,21 @@
 #ifndef __VERILATOR_TRACE_LOADER__HH__
 #define __VERILATOR_TRACE_LOADER__HH__
 
-
 #include <fcntl.h>
 
 #include <cstdio>
 #include <cstdlib>
 #include <queue>
 
+#include "verilator/nvdla/axi_responder.hh"
+#include "verilator/nvdla/csb_master.hh"
+
 #define VERILY_READ(p, n)                      \
         do                                     \
         {                                      \
                 if (read(fd, (p), (n)) != (n)) \
                 {                              \
-                        perror("short read");  \
-                        abort();               \
+                        fatal("short read");  \
                 }                              \
         } while (0)
 

@@ -29,8 +29,9 @@
 Import('*')
 
 SimObject('DrivenObject.py')
-SimObject('VerilatorMemBlackBox.py')
 #Source('driven_object.cc')
+
+SimObject('VerilatorMemBlackBox.py')
 #Source('dpi_manager.cc')
 Source('verilator_driver.cc')
 
