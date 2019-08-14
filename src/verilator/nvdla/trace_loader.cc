@@ -37,6 +37,7 @@
 */
 
 #include "base/logging.hh"
+#include "debug/Verilator.hh"
 #include "trace_loader.hh"
 
 TraceLoader::TraceLoader(CSBMaster *_csb, AXIResponder<uint64_t> *_axi_dbb,
@@ -59,7 +60,7 @@ TraceLoader::load(const char *fname)
     }
 
     unsigned char cmd;
-    int rv;
+    //int rv;
     do
     {
         VERILY_READ(&cmd, 1);
@@ -214,8 +215,8 @@ TraceLoader::axievent()
             write(fd, &da, 1);
             if (da != *buf && matched)
             {
-                DPRINTF(Verilator,"AXI: FAIL: mismatch at memory address %08x
-                    (exp 0x%02x,got 0x%02x), and maybe others too\n",
+                DPRINTF(Verilator,"AXI: FAIL: mismatch at memory address %08x"
+                    " (exp 0x%02x,got 0x%02x), and maybe others too\n",
                      op.addr, *buf, da);
                 matched = 0;
                 _test_passed = 0;
@@ -237,7 +238,8 @@ TraceLoader::axievent()
     opq.pop();
 }
 
-int test_passed()
+int
+TraceLoader::test_passed()
 {
     return _test_passed;
 }

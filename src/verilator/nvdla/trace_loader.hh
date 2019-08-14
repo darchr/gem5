@@ -41,6 +41,7 @@
 #define __VERILATOR_TRACE_LOADER__HH__
 
 #include <fcntl.h>
+#include <unistd.h>
 
 #include <cstdio>
 #include <cstdlib>

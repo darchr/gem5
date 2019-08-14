@@ -72,14 +72,14 @@ uint8_t
 AXIResponder::read(uint32_t addr)
 {
     //fetch a blocks worth of data from gem5 memory model
-    memblkbox->doMem(addr, 0, 0,);
-    return memblkbox->dmemResp;
+    axi2gem->doMem(addr, 0, 0);
+    return axi2gem->dmemResp;
 }
 
 void AXIResponder::write(uint32_t addr, uint8_t data)
 {
     //write data to gem5 memory model
-    memblkbox->doMem(addr, 1, data);
+    axi2gem->doMem(addr, 1, data);
 }
 
 void AXIResponder::eval()
