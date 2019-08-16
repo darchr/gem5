@@ -41,6 +41,7 @@
 #include "debug/FlexCPUDeps.hh"
 #include "debug/FlexCPUInstEvent.hh"
 #include "debug/FlexCPUThreadEvent.hh"
+#include "debug/FlexCPUTrace.hh"
 #include "mem/request.hh"
 #include "sim/byteswap.hh"
 
@@ -352,6 +353,14 @@ FlexCPUThread::bufferInstructionData(Addr vaddr, uint8_t* data)
 bool
 FlexCPUThread::canCommit(const InflightInst& inst_ref)
 {
+    DPRINTF(FlexCPUTrace, "Can commit %d?\n", inst_ref.issueSeqNum());
+    DPRINTF(FlexCPUTrace, "     Commited %d \n", inst_ref.isCommitted());
+    DPRINTF(FlexCPUTrace, "     Completed %d \n", inst_ref.isComplete());
+    DPRINTF(FlexCPUTrace, "     Memorying %d \n", inst_ref.isMemorying());
+    if (inst_ref.isMemorying())
+        DPRINTF(FlexCPUTrace, "     Store %d \n",
+            inst_ref.staticInst()->isStore());
+    inst_ref.dumpInfo();
     return !inst_ref.isCommitted() &&
            (inst_ref.isComplete()
             || (inst_ref.isMemorying() && inst_ref.staticInst()->isStore()));
@@ -405,7 +414,7 @@ FlexCPUThread::commitAllAvailableInstructions()
         DPRINTF(FlexCPUThreadEvent,
             "%d commits stopped by (seq %d): %s\n",
             inflightInsts.size(),
-            inst_ptr->seqNum(),
+            inst_ptr->issueSeqNum(),
             inst_ptr->staticInst() ?
                 inst_ptr->staticInst()->disassemble(
                     inst_ptr->pcState().instAddr()).c_str() :
@@ -424,7 +433,7 @@ void
 FlexCPUThread::commitInstruction(InflightInst* const inst_ptr)
 {
     DPRINTF(FlexCPUInstEvent,
-            "Committing instruction (seq %d)\n", inst_ptr->seqNum());
+            "Committing instruction (seq %d)\n", inst_ptr->issueSeqNum());
 
     System *system = getSystemPtr();
 
@@ -502,7 +511,7 @@ FlexCPUThread::dumpBuffer()
 
         DPRINTF(FlexCPUBufferDump, "(seq %d) Squashed: %s, Status: %s, Ready: "
                                  "%s, MemReady: %s\n    %s\n",
-            inst_ptr->seqNum(),
+            inst_ptr->issueSeqNum(),
             inst_ptr->isSquashed() ? "yes" : "no",
             status,
             inst_ptr->isReady() ? "yes" : "no",
@@ -521,7 +530,7 @@ FlexCPUThread::executeInstruction(shared_ptr<InflightInst> inst_ptr)
     const StaticInstPtr static_inst = inst_ptr->staticInst();
 
     DPRINTF(FlexCPUInstEvent, "Beginning executing instruction (seq %d)\n",
-                              inst_ptr->seqNum());
+                              inst_ptr->issueSeqNum());
 
     function<void(Fault fault)> callback;
     weak_ptr<InflightInst> weak_inst = inst_ptr;
@@ -536,9 +545,9 @@ FlexCPUThread::executeInstruction(shared_ptr<InflightInst> inst_ptr)
                 // if the predicate for memory instruction is false then go
                 // straight to complete stage
                 if (!inst_ptr->readPredicate()) {
-                    // inst_ptr->notifyComplete();
-                    // should do better than this
-                    // i.e. don't update branch pred, mem statistics, etc.
+                    DPRINTFR(FlexCPUTrace, "SN: %d not predicated\n",
+                            inst_ptr->issueSeqNum());
+                    inst_ptr->callEffCallbacks();
                     onExecutionCompleted(weak_inst, fault);
                 }
             };
@@ -610,7 +619,7 @@ FlexCPUThread::getNextPC()
 
         DPRINTF(FlexCPUThreadEvent, "Getting PC %#x from inst (seq %d)\n",
                                     ret.instAddr(),
-                                    inst_ptr->seqNum());
+                                    inst_ptr->issueSeqNum());
 
         return ret;
     }
@@ -620,7 +629,8 @@ void
 FlexCPUThread::handleFault(std::shared_ptr<InflightInst> inst_ptr)
 {
     DPRINTF(FlexCPUThreadEvent, "Handling fault (seq %d): %s\n",
-                                inst_ptr->seqNum(), inst_ptr->fault()->name());
+                                inst_ptr->issueSeqNum(),
+                                inst_ptr->fault()->name());
 
     assert(inflightInsts.size() == 1);
 
@@ -671,7 +681,7 @@ void
 FlexCPUThread::issueInstruction(shared_ptr<InflightInst> inst_ptr)
 {
     DPRINTF(FlexCPUInstEvent, "Requesting issue for instruction (seq %d)\n",
-                            inst_ptr->seqNum());
+                            inst_ptr->issueSeqNum());
 
     weak_ptr<InflightInst> weak_inst = inst_ptr;
     auto callback = [this, weak_inst] {
@@ -689,7 +699,7 @@ void
 FlexCPUThread::markFault(shared_ptr<InflightInst> inst_ptr, Fault fault)
 {
     DPRINTF(FlexCPUThreadEvent, "Fault detected (seq %d): %s\n",
-                                inst_ptr->seqNum(), fault->name());
+                                inst_ptr->issueSeqNum(), fault->name());
 
     inst_ptr->fault(fault);
 
@@ -730,7 +740,7 @@ FlexCPUThread::onBranchPredictorAccessed(std::weak_ptr<InflightInst> inst,
     // BPredUnit::predict takes pc by reference, and updates it in-place.
 
     DPRINTF(FlexCPUBranchPred, "(seq %d) predicted %s (predicted pc: %#x).\n",
-                              inst_ptr->seqNum(),
+                              inst_ptr->issueSeqNum(),
                               taken ? "taken" : "not taken",
                               pc.instAddr());
     // Count stats using the predict return value?
@@ -775,7 +785,7 @@ FlexCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
     }
 
     DPRINTF(FlexCPUThreadEvent, "onDataAddrTranslated(seq %d%s)\n",
-                                inst_ptr->seqNum(),
+                                inst_ptr->issueSeqNum(),
                                 sreq ? (high ? ", high" : ", low") : "");
 
     if (fault != NoFault) {
@@ -890,10 +900,10 @@ FlexCPUThread::onExecutionCompleted(shared_ptr<InflightInst> inst_ptr,
     //     inst->forwardOldRegs();
 
     DPRINTF(FlexCPUThreadEvent, "onExecutionCompleted(seq %d)\n",
-                                inst_ptr->seqNum());
+                                inst_ptr->issueSeqNum());
 
     DPRINTF(FlexCPUInstEvent, "Marking instruction as complete (seq %d)\n",
-                              inst_ptr->seqNum());
+                              inst_ptr->issueSeqNum());
 
     // The InflightInst will match any of its dependencies automatically,
     // and perform ready callbacks if any instructions are made ready as a
@@ -937,14 +947,14 @@ FlexCPUThread::onExecutionCompleted(shared_ptr<InflightInst> inst_ptr,
                     // It was a correct prediction
                     DPRINTF(FlexCPUBranchPred,
                             "Branch predicted correctly (seq %d)\n",
-                            inst_ptr->seqNum());
+                            inst_ptr->issueSeqNum());
                     // Calculate stat correct predictions?
                     // Otherwise do nothing because we guessed correctly.
                     // Just remember to update the branch predictor at commit.
                 } else { // It was an incorrect prediction
                     DPRINTF(FlexCPUBranchPred,
                             "Branch predicted incorrectly (seq %d)\n",
-                            inst_ptr->seqNum());
+                            inst_ptr->issueSeqNum());
 
                     wrongInstsFetched.sample(
                         nextIssueNum - inst_ptr->issueSeqNum());
@@ -1015,7 +1025,7 @@ FlexCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
     if (decode_result) { // If a complete instruction was decoded
         DPRINTF(FlexCPUInstEvent,
                 "Decoded instruction (seq %d) - %#x : %s\n",
-                inst_ptr->seqNum(),
+                inst_ptr->issueSeqNum(),
                 pc.instAddr(),
                 decode_result->disassemble(pc.instAddr()).c_str());
 
@@ -1034,7 +1044,7 @@ FlexCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
 
             DPRINTF(FlexCPUInstEvent,
                     "Replaced with microop (seq %d) - %#x : %s\n",
-                    inst_ptr->seqNum(),
+                    inst_ptr->issueSeqNum(),
                     pc.microPC(),
                     decode_result->disassemble(pc.microPC()).c_str());
         }
@@ -1059,7 +1069,7 @@ FlexCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
         return;
     }
     DPRINTF(FlexCPUInstEvent, "Issuing instruction (seq %d)\n",
-                              inst_ptr->seqNum());
+                              inst_ptr->issueSeqNum());
 
 #if TRACING_ON
     // Calls new, must delete eventually.

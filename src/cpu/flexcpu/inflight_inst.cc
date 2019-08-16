@@ -29,6 +29,7 @@
  */
 
 #include "cpu/flexcpu/inflight_inst.hh"
+#include "debug/FlexCPUTrace.hh"
 #include "debug/FlexPipeView.hh"
 
 using namespace std;
@@ -52,7 +53,7 @@ InflightInst::InflightInst(ThreadContext* backing_context,
     _status(Empty),
     _seqNum(seq_num),
     _issueSeqNum(issue_seq_num),
-    _pcState(pc_)
+    _pcState(pc_),
     predicate(true),
     memAccPredicate(true)
 {
@@ -84,6 +85,7 @@ void InflightInst::pipeTrace()
                      this->issueSeqNum(),
                      this->_pcState.pc(),
                      this->_pcState.upc(),
+                     this->predicate,
                      this->_timingRecord.creationTick,
                      this->_timingRecord.decodeTick,
                      this->_timingRecord.issueTick,
@@ -101,6 +103,7 @@ void InflightInst::pipeTrace()
                      this->_pcState.pc(),
                      this->_pcState.upc(),
                      this->instRef->disassemble(this->_pcState.npc()),
+                     this->predicate,
                      this->_timingRecord.creationTick,
                      this->_timingRecord.decodeTick,
                      this->_timingRecord.issueTick,
@@ -113,6 +116,26 @@ void InflightInst::pipeTrace()
         }
     }
 #endif
+}
+
+void InflightInst::dumpInfo() const
+{
+    DPRINTFR(FlexCPUTrace, "    remain deps: %d\n",
+             this->remainingDependencies);
+    DPRINTFR(FlexCPUTrace, "    remain mem deps: %d\n",
+             this->remainingMemDependencies);
+    DPRINTFR(FlexCPUTrace, "    eff %d\n",
+             this->effAddrCalculatedCallbacks.size());
+    DPRINTFR(FlexCPUTrace, "    mem %d\n",
+             this->memReadyCallbacks.size());
+}
+
+void InflightInst::callEffCallbacks()
+{
+    for (auto callback: this->effAddrCalculatedCallbacks)
+    {
+        callback();
+    }
 }
 
 void
@@ -178,13 +201,21 @@ InflightInst::addDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isComplete()) return;
     ++remainingDependencies;
-
+    auto parentIssueSeqNum = parent.issueSeqNum();
+    DPRINTF(FlexCPUTrace, "SN: %d has %d deps [added %d]\n",
+                    this->issueSeqNum(),
+                    this->remainingDependencies,
+                    parentIssueSeqNum);
     weak_ptr<InflightInst> weak_this = shared_from_this();
-    parent.addCompletionCallback([weak_this]() {
+    parent.addCompletionCallback([weak_this, parentIssueSeqNum]() {
         shared_ptr<InflightInst> inst_ptr = weak_this.lock();
         if (!inst_ptr) return;
 
         --inst_ptr->remainingDependencies;
+        DPRINTF(FlexCPUTrace, "SN: %d has %d deps [removed %d]\n",
+                    inst_ptr->issueSeqNum(),
+                    inst_ptr->remainingDependencies,
+                    parentIssueSeqNum);
 
         if (!inst_ptr->remainingDependencies) {
             inst_ptr->notifyReady();
@@ -229,6 +260,12 @@ InflightInst::addMemDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isComplete()) return;
 
+    if (!parent.readPredicate())
+        return;
+
+    DPRINTFR(FlexCPUTrace, "added memDep from %d to %d\n",
+                            parent.issueSeqNum(), this->issueSeqNum());
+
     ++remainingMemDependencies;
 
     weak_ptr<InflightInst> weak_this = shared_from_this();
@@ -248,6 +285,12 @@ void
 InflightInst::addMemEffAddrDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isEffAddred()) return;
+
+    if (!parent.readPredicate())
+        return;
+
+    DPRINTFR(FlexCPUTrace, "added memEffDep from %d to %d\n",
+                            parent.issueSeqNum(), this->issueSeqNum());
 
     ++remainingMemDependencies;
 
@@ -285,38 +328,42 @@ InflightInst::addSquashCallback(function<void()> callback)
 void
 InflightInst::commitToTC()
 {
-    const int8_t num_dsts = instRef->numDestRegs();
-    for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
-        const RegId& dst_reg = instRef->destRegIdx(dst_idx);
-        // The ARM ISA doesn't update the PC register, so we'll skip updating
-        // register if it's the PC register.
-        if (THE_ISA == ARM_ISA && dst_reg.classValue() == IntRegClass
-            && dst_reg.index() == TheISA::PCReg)
-            continue;
-        const GenericReg& result = getResult(dst_idx);
+    if (this->readPredicate())
+    {
+        const int8_t num_dsts = instRef->numDestRegs();
+        for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
+            const RegId& dst_reg = instRef->destRegIdx(dst_idx);
+            // The ARM ISA doesn't update the PC register, so we'll skip
+            // updating register if it's the PC register.
+            if (THE_ISA == ARM_ISA && dst_reg.classValue() == IntRegClass
+                && dst_reg.index() == TheISA::PCReg)
+                continue;
+            const GenericReg& result = getResult(dst_idx);
 
-        switch (dst_reg.classValue()) {
-          case IntRegClass:
-            backingContext->setIntReg(dst_reg.index(), result.asIntReg());
-            break;
-          case FloatRegClass:
-            backingContext->setFloatReg(dst_reg.index(),
-                                        result.asFloatRegBits());
-            break;
-          case VecRegClass:
-            backingContext->setVecReg(dst_reg, result.asVecReg());
-            break;
-          case VecElemClass:
-            backingContext->setVecElem(dst_reg, result.asVecElem());
-            break;
-          case CCRegClass:
-            backingContext->setCCReg(dst_reg.index(), result.asCCReg());
-            break;
-          case MiscRegClass:
-            backingContext->setMiscReg(dst_reg.index(), result.asMiscReg());
-            break;
-          default:
-            break;
+            switch (dst_reg.classValue()) {
+            case IntRegClass:
+                backingContext->setIntReg(dst_reg.index(), result.asIntReg());
+                break;
+            case FloatRegClass:
+                backingContext->setFloatReg(dst_reg.index(),
+                                            result.asFloatRegBits());
+                break;
+            case VecRegClass:
+                backingContext->setVecReg(dst_reg, result.asVecReg());
+                break;
+            case VecElemClass:
+                backingContext->setVecElem(dst_reg, result.asVecElem());
+                break;
+            case CCRegClass:
+                backingContext->setCCReg(dst_reg.index(), result.asCCReg());
+                break;
+            case MiscRegClass:
+                backingContext->setMiscReg(dst_reg.index(),
+                                            result.asMiscReg());
+                break;
+            default:
+                break;
+            }
         }
     }
 
@@ -324,9 +371,12 @@ InflightInst::commitToTC()
     instRef->advancePC(pc);
     backingContext->pcState(pc);
 
-    for (size_t i = 0; i < miscResultIdxs.size(); i++)
-        backingISA->setMiscReg(
-            miscResultIdxs[i], miscResultVals[i], backingContext);
+    if (this->readPredicate())
+    {
+        for (size_t i = 0; i < miscResultIdxs.size(); i++)
+            backingISA->setMiscReg(
+                miscResultIdxs[i], miscResultVals[i], backingContext);
+    }
 
     backingContext->getCpuPtr()->probeInstCommit(instRef, pc.instAddr());
 }
@@ -521,6 +571,10 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
 
     const DataSource& source = sources[op_idx];
     const shared_ptr<InflightInst> producer = source.producer.lock();
+
+    if (producer && !producer->readPredicate()) {
+        return backingContext->readIntReg(reg_id.index());
+    }
 
     if (producer) {
         // If the producing instruction is still in the buffer, grab the result

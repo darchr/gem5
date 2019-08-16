@@ -32,6 +32,7 @@
 
 #include "debug/FlexCPUDeps.hh"
 #include "debug/FlexCPUForwarder.hh"
+#include "debug/FlexCPUTrace.hh"
 
 using namespace std;
 
@@ -64,7 +65,7 @@ StLdForwarder::commitStore()
     InflightInst* const& inst_ptr = storeBuffer.front();
 
     DPRINTF(FlexCPUForwarder, "Removing (seq %d) from front of store buffer.\n",
-            inst_ptr->seqNum());
+            inst_ptr->issueSeqNum());
 
     dataMap.erase(inst_ptr);
     storeBuffer.pop_front();
@@ -138,7 +139,7 @@ StLdForwarder::populateMemDependencies(
     const shared_ptr<InflightInst>& inst_ptr)
 {
     DPRINTF(FlexCPUDeps, "Matching data dependencies through memory for (seq "
-                       "%d).\n", inst_ptr->seqNum());
+                       "%d).\n", inst_ptr->issueSeqNum());
     // BEGIN Conservative Memory dependence ordering
 
     assert(inst_ptr->staticInst()->isLoad());
@@ -154,18 +155,24 @@ StLdForwarder::populateMemDependencies(
         // to be checked.
         if (other->staticInst()->isMemBarrier()) break;
 
+        if (!other->readPredicate())
+            continue;
+
         if (other->isEffAddred()) {
             // Case 1: other has already calculated an effective address
 
             if (inst_ptr->effAddrOverlap(*other)) {
                 DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem]\n",
-                        inst_ptr->seqNum(), other->seqNum());
+                        inst_ptr->issueSeqNum(), other->issueSeqNum());
                 inst_ptr->addMemDependency(*other);
             }
         } else {
             // Case 2: other has not yet calculated an effective address
 
             weak_ptr<InflightInst> weak_inst = inst_ptr;
+            DPRINTF(FlexCPUTrace,
+                    "added EffAddrCallback in populate(), from %d to %d\n",
+                    other->issueSeqNum(), inst_ptr->issueSeqNum());
             other->addEffAddrCalculatedCallback(
                 [this, weak_inst, other] {
                     shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
@@ -179,7 +186,7 @@ StLdForwarder::populateMemDependencies(
 
                     if (inst_ptr->effAddrOverlap(*other)) {
                         DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem]\n",
-                                inst_ptr->seqNum(), other->seqNum());
+                                inst_ptr->issueSeqNum(), other->issueSeqNum());
                         inst_ptr->addMemDependency(*other);
                     }
                 }
@@ -191,7 +198,7 @@ StLdForwarder::populateMemDependencies(
             //       don't accidentally notifyMemReady() before we've added
             //       all appropriate memory dependencies.
             DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem predicted overlap]\n",
-                    inst_ptr->seqNum(), other->seqNum());
+                    inst_ptr->issueSeqNum(), other->issueSeqNum());
             inst_ptr->addMemEffAddrDependency(*other);
         }
     }
@@ -205,7 +212,7 @@ StLdForwarder::registerMemBarrier(InflightInst* inst_ptr)
     // TODO enforce size bound.
     DPRINTF(FlexCPUForwarder, "Inserting Mem Barrier in store buffer (seq %d) "
                             "Buffer size: %d\n",
-                            inst_ptr->seqNum(),
+                            inst_ptr->issueSeqNum(),
                             storeBuffer.size());
 
     assert(inst_ptr->staticInst()->isMemBarrier());
@@ -237,7 +244,7 @@ StLdForwarder::registerStore(InflightInst* inst_ptr)
     // TODO enforce size bound.
     DPRINTF(FlexCPUForwarder, "Inserting store in store buffer (seq %d) Buffer "
                             "size: %d\n",
-                            inst_ptr->seqNum(),
+                            inst_ptr->issueSeqNum(),
                             storeBuffer.size());
 
     assert(inst_ptr->staticInst()->isStore());
@@ -340,7 +347,7 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
     }
 
     DPRINTF(FlexCPUForwarder, "Checking if load @ %#x (seq %d) can be forwarded."
-                            "\n", req->getPaddr(), inst_ptr->seqNum());
+                            "\n", req->getPaddr(), inst_ptr->issueSeqNum());
 
     ++forwardsRequested;
 
@@ -380,14 +387,23 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
 
         assert(st_inst_ptr->staticInst()->isStore());
 
+        // if the store instruction is not predicated, don't wait for forwarder
+        if (!st_inst_ptr->readPredicate())
+            continue;
+
         if (!st_inst_ptr->isEffAddred()) {
             DPRINTF(FlexCPUForwarder,"Store (seq %d) needs to calculate "
                                    "effective address.\n",
-                                   st_inst_ptr->seqNum());
+                                   st_inst_ptr->issueSeqNum());
             if (!ctrl_blk)
                 ctrl_blk = make_shared<LoadDepCtrlBlk>(inst_ptr, req);
 
             ++ctrl_blk->remaining_unknowns;
+
+            DPRINTF(FlexCPUTrace,
+                    "added EffAddrCallback in requestLoad(), from %d to %d\n",
+                    st_inst_ptr->issueSeqNum(),
+                    inst_ptr->issueSeqNum());
 
             st_inst_ptr->addEffAddrCalculatedCallback(
                 [this, ctrl_blk, youngest_older_store_itr, st_inst_ptr,
@@ -399,6 +415,13 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
 
                     --ctrl_blk->remaining_unknowns;
 
+                    if (!st_inst_ptr->readPredicate()) {
+                        if (!ctrl_blk->remaining_unknowns) {
+                            callback(nullptr);
+                        }
+                        return;
+                    }
+
                     if (ctrl_blk->latest_overlapping_store
                      && ctrl_blk->latest_overlapping_store->seqNum()
                         > st_inst_ptr->seqNum()) {
@@ -408,8 +431,8 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                         // overlapping store, so we can return now.
                         DPRINTF(FlexCPUForwarder, "Future store overlaps, store "
                                 "(seq %d) cannot influence load (seq %d).\n",
-                                st_inst_ptr->seqNum(),
-                                ld_inst_ptr->seqNum());
+                                st_inst_ptr->issueSeqNum(),
+                                ld_inst_ptr->issueSeqNum());
                         return;
                     }
 
@@ -423,8 +446,8 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                         // early above.
                         DPRINTF(FlexCPUForwarder, "Prospective latest st->ld "
                                 "overlap (seq %d -> seq %d), %s superset\n",
-                                st_inst_ptr->seqNum(),
-                                ld_inst_ptr->seqNum(),
+                                st_inst_ptr->issueSeqNum(),
+                                ld_inst_ptr->issueSeqNum(),
                                 superset ? "is" : "not");
 
                         ctrl_blk->latest_overlapping_store = st_inst_ptr;
@@ -445,7 +468,7 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                         // notify the callback thus.
                         DPRINTF(FlexCPUForwarder, "Load (seq %d) cannot be "
                                                 "forwarded.\n",
-                                                ld_inst_ptr->seqNum());
+                                                ld_inst_ptr->issueSeqNum());
 
                         if (ctrl_blk->latest_overlapping_store) {
                             ++forwardsBlockedByOverlap;
@@ -465,7 +488,7 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                         DPRINTF(FlexCPUForwarder, "Unknowns remain for load "
                                 "(seq %d) and no overlaps known, not "
                                 "forwarding.\n",
-                                ld_inst_ptr->seqNum());
+                                ld_inst_ptr->issueSeqNum());
                         return;
                     }
 
@@ -481,8 +504,8 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                             DPRINTF(FlexCPUForwarder, "Unknown (seq %d) remains "
                                     "for load (seq %d) between latest overlap "
                                     "and load, not forwarding.\n",
-                                    (*itr)->seqNum(),
-                                    ld_inst_ptr->seqNum());
+                                    (*itr)->issueSeqNum(),
+                                    ld_inst_ptr->issueSeqNum());
                             return;
                         }
 
@@ -495,7 +518,7 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                     if (!ctrl_blk->is_superset) {
                         DPRINTF(FlexCPUForwarder, "Load (seq %d) cannot be "
                                                 "forwarded.\n",
-                                                ld_inst_ptr->seqNum());
+                                                ld_inst_ptr->issueSeqNum());
 
                         ++forwardsBlockedByOverlap;
 
@@ -510,8 +533,8 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                     //      registered for the store.
                     DPRINTF(FlexCPUForwarder, "Load (seq %d) can be forwarded"
                         "from store (seq %d).\n",
-                        ld_inst_ptr->seqNum(),
-                        ctrl_blk->latest_overlapping_store->seqNum());
+                        ld_inst_ptr->issueSeqNum(),
+                        ctrl_blk->latest_overlapping_store->issueSeqNum());
                     doForward(dataMap.at(ctrl_blk->latest_overlapping_store),
                               ctrl_blk->req,
                               callback);
@@ -534,7 +557,7 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
             // forward.
             if (!superset) {
                 DPRINTF(FlexCPUForwarder, "Load (seq %d) cannot be forwarded.\n",
-                                        inst_ptr->seqNum());
+                                        inst_ptr->issueSeqNum());
 
                 ++forwardsBlockedByOverlap;
 
@@ -546,8 +569,8 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
             //      for the store.
             DPRINTF(FlexCPUForwarder, "Load (seq %d) can be forwarded from "
                                     "store (seq %d).\n",
-                                    inst_ptr->seqNum(),
-                                    st_inst_ptr->seqNum());
+                                    inst_ptr->issueSeqNum(),
+                                    st_inst_ptr->issueSeqNum());
             doForward(dataMap.at(st_inst_ptr), req, callback);
 
             return;
@@ -555,8 +578,9 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
 
         if (!ctrl_blk->latest_overlapping_store) {
             DPRINTF(FlexCPUForwarder, "Prospective latest st->ld overlap "
-                    "(seq %d -> seq %d), %s superset\n", st_inst_ptr->seqNum(),
-                    inst_ptr->seqNum(), superset ? "is" : "not");
+                    "(seq %d -> seq %d), %s superset\n",
+                    st_inst_ptr->issueSeqNum(),
+                    inst_ptr->issueSeqNum(), superset ? "is" : "not");
             ctrl_blk->latest_overlapping_store = st_inst_ptr;
             ctrl_blk->is_superset = superset;
 
@@ -575,7 +599,7 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
     // have nothing to forward, and should notify the caller thus.
     if (!ctrl_blk) {
         DPRINTF(FlexCPUForwarder, "Load (seq %d) cannot be forwarded.\n",
-                                inst_ptr->seqNum());
+                                inst_ptr->issueSeqNum());
 
         ++forwardsBlockedByMissOrBarrier;
 

@@ -647,6 +647,10 @@ class InflightInst : public ExecContext,
 
     void pipeTrace();
 
+    void dumpInfo() const;
+
+    void callEffCallbacks();
+
     /**
      * ARM-specific
      */
