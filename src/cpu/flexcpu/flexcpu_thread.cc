@@ -33,9 +33,9 @@
 #include <algorithm>
 #include <string>
 
+#include "arch/locked_mem.hh"
 #include "base/intmath.hh"
 #include "base/trace.hh"
-
 #include "debug/FlexCPUBranchPred.hh"
 #include "debug/FlexCPUBufferDump.hh"
 #include "debug/FlexCPUDeps.hh"
@@ -557,7 +557,7 @@ FlexCPUThread::executeInstruction(shared_ptr<InflightInst> inst_ptr)
             };
     }
 
-    _cpuPtr->requestExecution(static_inst,
+    _cpuPtr->requestExecution(static_inst, inst_ptr->issueSeqNum(),
                               static_pointer_cast<ExecContext>(inst_ptr),
                               inst_ptr->traceData(), callback);
     inst_ptr->notifyExecuting();
@@ -1713,6 +1713,37 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
         }
         resp->makeResponse();
 
+        if (inst_ptr->staticInst()->isStoreConditional()) {
+            inst_ptr->setRecordResult(false);
+            TheISA::handleLockedWrite(inst_ptr->tcBase(), req,
+                                                    _cpuPtr->cacheBlockMask);
+            inst_ptr->setRecordResult(true);
+            auto callback = [this, inst_ptr, resp] (Fault fault) {
+                Fault f = inst_ptr->staticInst()->completeAcc(resp,
+                                inst_ptr.get(), inst_ptr->traceData());
+
+                onExecutionCompleted(inst_ptr, fault);
+            };
+            if (sreq) { // split
+                assert(sreq->high && sreq->low);
+                _cpuPtr->requestSplitMemWrite(sreq->main, sreq->low,
+                    sreq->high, this,
+                    inst_ptr->staticInst(),
+                    static_pointer_cast<ExecContext>(inst_ptr),
+                    inst_ptr->traceData(), data.get(),
+                    callback);
+            } else { // not split
+                _cpuPtr->requestMemWrite(req, this,
+                    inst_ptr->staticInst(),
+                    static_pointer_cast<ExecContext>(inst_ptr),
+                    inst_ptr->traceData(), data.get(), callback);
+            }
+
+            //if (inst_ptr == inflightInsts.front())
+            //    commitAllAvailableInstructions();
+            return;
+        }
+
         Fault f = inst_ptr->staticInst()->completeAcc(resp, inst_ptr.get(),
                                                       inst_ptr->traceData());
         // NOTE: FlexCPU may do other things for special instruction types,
@@ -2002,6 +2033,11 @@ FlexCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
     // and store it in the request as it makes its way through the system. Also
     // TimingSimpleCPU's implementation of this seems to imply a request can't
     // be split and a condswap at the same time.
+
+    bool x = inst_ptr->staticInst()->isStoreConditional();
+    DPRINTFR(FlexCPUTrace,"SN: %d (store conditional %d)\n",
+                                                inst_ptr->issueSeqNum(), x);
+
     if (req->isCondSwap()) {
         assert(res);
         req->setExtraData(*res);

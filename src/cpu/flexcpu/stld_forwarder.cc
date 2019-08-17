@@ -184,6 +184,9 @@ StLdForwarder::populateMemDependencies(
                     // dependency is necessary yet.
                     if (!inst_ptr->isEffAddred()) return;
 
+                    if (!other->readPredicate())
+                        return;
+
                     if (inst_ptr->effAddrOverlap(*other)) {
                         DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem]\n",
                                 inst_ptr->issueSeqNum(), other->issueSeqNum());

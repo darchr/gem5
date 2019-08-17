@@ -267,7 +267,7 @@ FlexCPU::requestDataAddrTranslation(const RequestPtr& req,
 }
 
 void
-FlexCPU::requestExecution(StaticInstPtr inst,
+FlexCPU::requestExecution(StaticInstPtr inst, InstSeqNum issueSeqNum,
                                     weak_ptr<ExecContext> context,
                                     Trace::InstRecord* trace_data,
                                     ExecCallback callback_func)
@@ -278,19 +278,20 @@ FlexCPU::requestExecution(StaticInstPtr inst,
 
     // Do this when we *actually* execute the instruction
     executionUnit.addRequest([this, inst, context, trace_data, callback_func,
-                              queue_time]
+                              queue_time, issueSeqNum]
     {
         if (context.expired()) return false; // Don't execute squashed inst
 
         waitingForExecution.sample(curTick() - queue_time);
 
         Event *e = new EventFunctionWrapper([context, inst, trace_data,
-                                             callback_func]{
+                                             callback_func, issueSeqNum]{
             const shared_ptr<ExecContext> ctxt = context.lock();
             if (!ctxt) return;
             // If the context expired (a result of instruction squash), then
             // a callback is unnecessary, at least for existing FlexCPUThread
             // implementation.
+
 
             Fault fault = inst->isMemRef() ?
                           inst->initiateAcc(ctxt.get(), trace_data) :

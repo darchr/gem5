@@ -477,7 +477,7 @@ class FlexCPU : public BaseCPU
      * @param callback_func The function reference for purposes of handling the
      *  result of the execution
      */
-    void requestExecution(StaticInstPtr inst,
+    void requestExecution(StaticInstPtr inst, InstSeqNum issueSeqNum,
                           std::weak_ptr<ExecContext> context,
                           Trace::InstRecord* trace_data,
                           ExecCallback callback_func);

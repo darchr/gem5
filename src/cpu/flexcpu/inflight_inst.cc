@@ -55,7 +55,8 @@ InflightInst::InflightInst(ThreadContext* backing_context,
     _issueSeqNum(issue_seq_num),
     _pcState(pc_),
     predicate(true),
-    memAccPredicate(true)
+    memAccPredicate(true),
+    recordResult(true)
 {
     _timingRecord.creationTick = curTick();
     staticInst(inst_ref);
@@ -595,6 +596,8 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
 void
 InflightInst::setIntRegOperand(const StaticInst* si, int dst_idx, RegVal val)
 {
+    if (!recordResult)
+        return;
     const RegId& reg_id = si->destRegIdx(dst_idx);
     assert(reg_id.isIntReg());
 
@@ -613,6 +616,10 @@ InflightInst::readFloatRegOperandBits(const StaticInst* si, int op_idx)
 
     const DataSource& source = sources[op_idx];
     const shared_ptr<InflightInst> producer = source.producer.lock();
+
+    if (producer && !producer->readPredicate()) {
+        return backingContext->readFloatReg(reg_id.index());
+    }
 
     if (producer) {
         // If the producing instruction is still in the buffer, grab the result
@@ -634,6 +641,8 @@ void
 InflightInst::setFloatRegOperandBits(const StaticInst* si, int dst_idx,
                                      RegVal val)
 {
+    if (!recordResult)
+        return;
     const RegId& reg_id = si->destRegIdx(dst_idx);
     assert(reg_id.isFloatReg());
 
@@ -649,6 +658,10 @@ InflightInst::readVecRegOperand(const StaticInst* si, int op_idx) const
 
     const DataSource& source = sources[op_idx];
     const shared_ptr<InflightInst> producer = source.producer.lock();
+
+    if (producer && !producer->readPredicate()) {
+        return backingContext->readVecReg(reg_id);
+    }
 
     if (producer) {
         // If the producing instruction is still in the buffer, grab the result
@@ -680,6 +693,10 @@ InflightInst::getWritableVecRegOperand(const StaticInst* si, int op_idx)
     const DataSource& source = sources[op_idx];
     const shared_ptr<InflightInst> producer = source.producer.lock();
 
+    if (producer && !producer->readPredicate()) {
+        return backingContext->getWritableVecReg(reg_id);
+    }
+
     if (producer) {
         // If the producing instruction is still in the buffer, grab the result
         // assuming that it has been produced, and our index is in bounds.
@@ -700,6 +717,8 @@ void
 InflightInst::setVecRegOperand(const StaticInst* si, int dst_idx,
                                const TheISA::VecRegContainer& val)
 {
+    if (!recordResult)
+        return;
     assert(si->destRegIdx(dst_idx).isVecReg());
 
     // NOTE This assignment results in two calls to copy the VecRegContainer
@@ -827,6 +846,10 @@ InflightInst::readCCRegOperand(const StaticInst* si, int op_idx)
     const DataSource& source = sources[op_idx];
     const shared_ptr<InflightInst> producer = source.producer.lock();
 
+    if (producer && !producer->readPredicate()) {
+        return backingContext->readCCReg(reg_id.index());
+    }
+
     if (producer) {
         // If the producing instruction is still in the buffer, grab the result
         // assuming that it has been produced, and our index is in bounds.
@@ -846,6 +869,8 @@ InflightInst::readCCRegOperand(const StaticInst* si, int op_idx)
 void
 InflightInst::setCCRegOperand(const StaticInst* si, int dst_idx, RegVal val)
 {
+    if (!recordResult)
+        return;
     assert(si->destRegIdx(dst_idx).isCCReg());
 
     results[dst_idx].set(val, CCRegClass);
@@ -860,6 +885,10 @@ InflightInst::readMiscRegOperand(const StaticInst* si, int op_idx)
 
     const DataSource& source = sources[op_idx];
     const shared_ptr<InflightInst> producer = source.producer.lock();
+
+    if (producer && !producer->readPredicate()) {
+        return backingContext->readMiscReg(reg_id.index());
+    }
 
     if (producer) {
         // If the producing instruction is still in the buffer, grab the result
@@ -880,6 +909,8 @@ InflightInst::readMiscRegOperand(const StaticInst* si, int op_idx)
 void
 InflightInst::setMiscRegOperand(const StaticInst* si, int dst_idx, RegVal val)
 {
+    if (!recordResult)
+        return;
     assert(si->destRegIdx(dst_idx).isMiscReg());
 
     results[dst_idx].set(val, MiscRegClass);

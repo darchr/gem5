@@ -252,6 +252,10 @@ class InflightInst : public ExecContext,
     // Predicate flags, used by ARM ISA
     bool predicate;
     bool memAccPredicate;
+
+    // Would the instruction write to registers?
+    bool recordResult;
+
   public:
     InflightInst(ThreadContext* backing_context, TheISA::ISA* backing_isa,
                  MemIface* backing_mem_iface, X86Iface* backing_x86_iface,
@@ -650,6 +654,10 @@ class InflightInst : public ExecContext,
     void dumpInfo() const;
 
     void callEffCallbacks();
+
+    void setRecordResult(bool val) { this->recordResult = val; }
+
+    bool readRecordResult() { return this->recordResult; }
 
     /**
      * ARM-specific
