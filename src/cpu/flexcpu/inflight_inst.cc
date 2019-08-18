@@ -800,8 +800,9 @@ InflightInst::setVecLaneOperand(const StaticInst* si, int dst_idx,
 VecElem
 InflightInst::readVecElemOperand(const StaticInst* si, int op_idx) const
 {
-    panic("readVecElemOperand() not implemented!");
-    return 0;
+    return this->backingContext->readVecElem(si->srcRegIdx(op_idx));
+    //panic("readVecElemOperand() not implemented!");
+    //return 0;
     // TODO
 }
 
@@ -809,7 +810,9 @@ void
 InflightInst::setVecElemOperand(const StaticInst* si, int dst_idx,
                                 const VecElem val)
 {
-    panic("setVecElemOperand() not implemented!");
+    this->backingContext->setVecElem(si->destRegIdx(dst_idx), val);
+    //BaseDynInst<Impl>::setVecRegOperand(si, idx, val);
+    //panic("setVecElemOperand() not implemented!");
     // TODO
 }
 
