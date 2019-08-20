@@ -1715,29 +1715,42 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
 
         if (inst_ptr->staticInst()->isStoreConditional()) {
             inst_ptr->setRecordResult(false);
-            TheISA::handleLockedWrite(inst_ptr->tcBase(), req,
+            bool success = TheISA::handleLockedWrite(inst_ptr->tcBase(), req,
                                                     _cpuPtr->cacheBlockMask);
             inst_ptr->setRecordResult(true);
             auto callback = [this, inst_ptr, resp] (Fault fault) {
-                Fault f = inst_ptr->staticInst()->completeAcc(resp,
+                if (!inst_ptr || inst_ptr->isSquashed())
+                    return;
+                if (inst_ptr->readPredicate())
+                    Fault f = inst_ptr->staticInst()->completeAcc(resp,
                                 inst_ptr.get(), inst_ptr->traceData());
-
+                delete resp;
                 onExecutionCompleted(inst_ptr, fault);
             };
+            if (!success) {
+                DPRINTF(FlexCPUTrace, "SN %d store failed\n",
+                        inst_ptr->issueSeqNum());
+                Fault f = inst_ptr->staticInst()->completeAcc(resp,
+                                inst_ptr.get(), inst_ptr->traceData());
+                onExecutionCompleted(inst_ptr, NoFault);
+                return;
+            }
+            DPRINTF(FlexCPUTrace, "SN %d stored\n", inst_ptr->issueSeqNum());
+
             if (sreq) { // split
                 assert(sreq->high && sreq->low);
                 _cpuPtr->requestSplitMemWrite(sreq->main, sreq->low,
                     sreq->high, this,
                     inst_ptr->staticInst(),
                     static_pointer_cast<ExecContext>(inst_ptr),
-                    inst_ptr->traceData(), data.get(),
-                    callback);
+                    inst_ptr->traceData(), data.get(), callback);
             } else { // not split
                 _cpuPtr->requestMemWrite(req, this,
                     inst_ptr->staticInst(),
                     static_pointer_cast<ExecContext>(inst_ptr),
                     inst_ptr->traceData(), data.get(), callback);
             }
+
 
             //if (inst_ptr == inflightInsts.front())
             //    commitAllAvailableInstructions();
