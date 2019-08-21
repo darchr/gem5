@@ -74,6 +74,7 @@ class AXIToMem: public VerilatorMemBlackBox
 
         void recvReqRetry() override;
     };
+    public:
     //deal with data going back to axi responder
     bool handleResponse( PacketPtr pkt );
 
