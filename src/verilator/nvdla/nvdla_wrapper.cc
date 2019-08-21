@@ -122,7 +122,6 @@ NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
 NVDLAWrapper*
 NVDLAWrapperParams::create()
 {
-  //verilator has weird alignment issue for generated code
   void* ptr = aligned_alloc(128, sizeof(NVDLAWrapper));
   return new(ptr) NVDLAWrapper(this);
 }

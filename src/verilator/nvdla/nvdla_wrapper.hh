@@ -36,10 +36,9 @@
 #include "axi_responder.hh"
 #include "axi_to_mem.hh"
 #include "csb_master.hh"
+#include "nvdla/VNV_nvdla.h"
 #include "params/NVDLAWrapper.hh"
 #include "trace_loader.hh"
-
-class VTop;
 
 class NVDLAWrapper : public DrivenObject{
     public:
@@ -62,7 +61,7 @@ class NVDLAWrapper : public DrivenObject{
 
         BareNVDLASystem * system;
 
-        Top * dla;
+        VNV_nvdla * dla;
         CSBMaster csb;
         TraceLoader tloader;
         AXIResponder<uint64_t> * axi_dbb;
