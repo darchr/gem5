@@ -34,7 +34,7 @@
 #include "mem/physical.hh"
 #include "params/NVDLASystem.hh"
 #include "sim/byteswap.hh"
-#include "src/verilator/nvdla/system.hh"
+#include "system.hh"
 
 NVDLASystem::NVDLASystem(Params *p)
     : System(p),

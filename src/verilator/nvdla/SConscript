@@ -29,16 +29,15 @@
 
 Import('*')
 
-SimObject('NVDLA.py')
+SimObject('NVDLAWrapper.py')
 Source('nvdla_wrapper.cc')
 
 SimObject('NVDLASystem.py')
+#Source('system.cc')
 Source('bare_nvdla/system.cc')
 
 SimObject('AXIToMem.py')
 Source('axi_to_mem.cc')
 
-Source('csb_master.cc')
-Source('axi_responder.cc')
 Source('trace_loader.cc')
-
+Source('csb_master.cc')
