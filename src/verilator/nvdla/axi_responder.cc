@@ -37,37 +37,8 @@
 
 #include "axi_responder.hh"
 
-template <typename ADDRTYPE>
-AXIResponder<ADDRTYPE>::AXIResponder(struct connections _dla,const char *_name,
-    AXIToMem *mem)
-{
-    axi2gem = mem;
-    dla = _dla;
-
-    *dla.aw_awready = 1;
-    *dla.w_wready = 1;
-    *dla.b_bvalid = 0;
-    *dla.ar_arready = 1;
-    *dla.r_rvalid = 0;
-
-    name = _name;
-
-    //WE SHOULDNT NEED THIS  r0 is initial steady state fifo
-    /* add some latency... */
-    /*for (int i = 0; i < AXI_R_LATENCY; i++) {
-                axi_r_txn txn;
-
-                txn.rvalid = 0;
-                txn.rvalid = 0;
-                txn.rid = 0;
-                txn.rlast = 0;
-                for (int i = 0; i < AXI_WIDTH / 32; i++) {
-                        txn.rdata[i] = 0xAAAAAAAA;
-                }
-
-                r0_fifo.push(txn);
-    }*/
-}
+#include "base/logging.hh"
+#include "debug/Verilator.hh"
 
 template <typename ADDRTYPE>
 uint8_t
@@ -93,8 +64,8 @@ AXIResponder<ADDRTYPE>::eval()
     /* write request */
     if (*dla.aw_awvalid && *dla.aw_awready)
     {
-        printf("(%lu) %s: write request from dla, addr %08lx id %d\n",
-               ticks, name, *dla.aw_awaddr, *dla.aw_awid);
+        DPRINTF(Verilator,"%s: write request from dla, addr %08lx id %d\n",
+               conn_name, *dla.aw_awaddr, *dla.aw_awid);
 
         axi_aw_txn txn;
 
@@ -113,8 +84,8 @@ AXIResponder<ADDRTYPE>::eval()
     /* write data */
     if (*dla.w_wvalid)
     {
-        printf("(%lu) %s: write data from dla (%08x %08x...)\n", ticks,
-               name, dla.w_wdata[0], dla.w_wdata[1]);
+        DPRINTF(Verilator,"%s: write data from dla (%08x %08x...)\n",
+               conn_name, dla.w_wdata[0], dla.w_wdata[1]);
 
         axi_w_txn txn;
 
@@ -131,8 +102,9 @@ AXIResponder<ADDRTYPE>::eval()
         ADDRTYPE addr = *dla.ar_araddr & ~(ADDRTYPE)(AXI_WIDTH / 8 - 1);
         uint8_t len = *dla.ar_arlen;
 
-        printf("(%lu) %s: read request from dla, addr %08lx burst %d id %d\n",
-               ticks, name, *dla.ar_araddr, *dla.ar_arlen, *dla.ar_arid);
+        DPRINTF(Verilator,"%s: read request from dla,
+            addr %08lx burst %d id %d\n",
+            conn_name, *dla.ar_araddr, *dla.ar_arlen, *dla.ar_arid);
 
         do
         {
@@ -183,8 +155,7 @@ AXIResponder<ADDRTYPE>::eval()
 
         if (wtxn.wlast != (awtxn.awlen == 0))
         {
-            printf("(%lu) %s: wlast / awlen mismatch\n", ticks, name);
-            abort();
+            fatal("%s: wlast / awlen mismatch\n", conn_name);
         }
 
         for (int i = 0; i < AXI_WIDTH / 8; i++)
@@ -198,7 +169,7 @@ AXIResponder<ADDRTYPE>::eval()
 
         if (wtxn.wlast)
         {
-            printf("(%lu) %s: write, last tick\n", ticks, name);
+            DPRINTF(Verilator,"%s: write, last tick\n", conn_name);
             aw_fifo.pop();
 
             axi_b_txn btxn;
@@ -207,7 +178,7 @@ AXIResponder<ADDRTYPE>::eval()
         }
         else
         {
-            printf("(%lu) %s: write, ticks remaining\n", ticks, name);
+            DPRINTF(Verilator,"%s: write, ticks remaining\n", conn_name);
 
             awtxn.awlen--;
             awtxn.awaddr += AXI_WIDTH / 8;
@@ -253,8 +224,9 @@ AXIResponder<ADDRTYPE>::eval()
         }
 
         if (txn.rvalid)
-            printf("(%lu) %s: read push: id %d, da %08x %08x %08x %08x\n",
-                   ticks, name, txn.rid, txn.rdata[0], txn.rdata[1],
+            DPRINTF(Verilator, "%s: read push: id %d,
+                   da %08x %08x %08x %08x\n",
+                   conn_name, txn.rid, txn.rdata[0], txn.rdata[1],
                    txn.rdata[2], txn.rdata[3]);
 
         r0_fifo.pop();
