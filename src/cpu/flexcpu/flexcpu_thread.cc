@@ -42,6 +42,7 @@
 #include "debug/FlexCPUInstEvent.hh"
 #include "debug/FlexCPUThreadEvent.hh"
 #include "debug/FlexCPUTrace.hh"
+#include "debug/FlexCommit.hh"
 #include "mem/request.hh"
 #include "sim/byteswap.hh"
 
@@ -444,6 +445,9 @@ FlexCPUThread::commitInstruction(InflightInst* const inst_ptr)
     assert(oldpc == pc); // We currently don't handle the case where we
                          // shouldn't commit this instruction
 
+    DPRINTFR(FlexCommit, "commit;%d;%s\n", inst_ptr->issueSeqNum(),
+                inst_ptr->staticInst()->disassemble(this->pcState().upc()));
+
     inst_ptr->commitToTC();
 
     if (_cpuPtr->hasBranchPredictor() && inst_ptr->staticInst()->isControl()) {
@@ -779,6 +783,11 @@ FlexCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
                                   shared_ptr<SplitRequest> sreq, bool high)
 {
     const shared_ptr<InflightInst> inst_ptr = inst.lock();
+    if (inst_ptr->issueSeqNum() == 144686)
+    {
+        int aaa = 2;
+        aaa += 1;
+    }
     if (!inst_ptr || inst_ptr->isSquashed()) {
         // No need to do anything for an instruction that has been squashed.
         return;
@@ -829,6 +838,11 @@ FlexCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
             [this, weak_inst, req, sreq](PacketPtr pkt) {
                 shared_ptr<InflightInst> inst_ptr = weak_inst.lock();
                 if (!inst_ptr || inst_ptr->isSquashed()) return;
+                if (!inst_ptr->readPredicate()) {
+                    if (pkt)
+                        delete pkt;
+                    return;
+                }
 
                 if (pkt) { // Can forward
                     if (inst_ptr->isMemReady()) {
@@ -1714,10 +1728,10 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
         resp->makeResponse();
 
         if (inst_ptr->staticInst()->isStoreConditional()) {
-            inst_ptr->setRecordResult(false);
+            //inst_ptr->setRecordResult(false);
             bool success = TheISA::handleLockedWrite(inst_ptr->tcBase(), req,
                                                     _cpuPtr->cacheBlockMask);
-            inst_ptr->setRecordResult(true);
+            //inst_ptr->setRecordResult(true);
             auto callback = [this, inst_ptr, resp] (Fault fault) {
                 if (!inst_ptr || inst_ptr->isSquashed())
                     return;
@@ -1730,8 +1744,8 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
             if (!success) {
                 DPRINTF(FlexCPUTrace, "SN %d store failed\n",
                         inst_ptr->issueSeqNum());
-                Fault f = inst_ptr->staticInst()->completeAcc(resp,
-                                inst_ptr.get(), inst_ptr->traceData());
+                //Fault f = inst_ptr->staticInst()->completeAcc(resp,
+                //                inst_ptr.get(), inst_ptr->traceData());
                 onExecutionCompleted(inst_ptr, NoFault);
                 return;
             }
@@ -1739,12 +1753,14 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
 
             if (sreq) { // split
                 assert(sreq->high && sreq->low);
+                assert(inst_ptr->readPredicate());
                 _cpuPtr->requestSplitMemWrite(sreq->main, sreq->low,
                     sreq->high, this,
                     inst_ptr->staticInst(),
                     static_pointer_cast<ExecContext>(inst_ptr),
                     inst_ptr->traceData(), data.get(), callback);
             } else { // not split
+                assert(inst_ptr->readPredicate());
                 _cpuPtr->requestMemWrite(req, this,
                     inst_ptr->staticInst(),
                     static_pointer_cast<ExecContext>(inst_ptr),
@@ -1756,7 +1772,7 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
             //    commitAllAvailableInstructions();
             return;
         }
-
+        assert(inst_ptr->readPredicate());
         Fault f = inst_ptr->staticInst()->completeAcc(resp, inst_ptr.get(),
                                                       inst_ptr->traceData());
         // NOTE: FlexCPU may do other things for special instruction types,
@@ -1777,10 +1793,13 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
         //       instead of in the inflightInsts buffer.
         auto callback =
             [this, inst_ptr] (Fault fault) {
+                if (inst_ptr)
+                    assert(inst_ptr->readPredicate());
                 onExecutionCompleted(inst_ptr, fault);
             };
 
         if (sreq) { // split
+            assert(inst_ptr->readPredicate());
             assert(sreq->high && sreq->low);
             _cpuPtr->requestSplitMemWrite(sreq->main, sreq->low,
                 sreq->high, this,
@@ -1789,6 +1808,7 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
                 inst_ptr->traceData(), data.get(),
                 callback);
         } else { // not split
+            assert(inst_ptr->readPredicate());
             _cpuPtr->requestMemWrite(req, this,
                 inst_ptr->staticInst(),
                 static_pointer_cast<ExecContext>(inst_ptr),
@@ -1804,6 +1824,7 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
             };
         if (sreq) { // split
             assert(sreq->high && sreq->low);
+            assert(inst_ptr->readPredicate());
             _cpuPtr->requestSplitMemRead(sreq->main, sreq->low,
                 sreq->high, this,
                 inst_ptr->staticInst(),
@@ -1811,6 +1832,7 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
                 inst_ptr->traceData(),
                 callback);
         } else { // not split
+            assert(inst_ptr->readPredicate());
             _cpuPtr->requestMemRead(req, this,
                 inst_ptr->staticInst(),
                 static_pointer_cast<ExecContext>(inst_ptr),
