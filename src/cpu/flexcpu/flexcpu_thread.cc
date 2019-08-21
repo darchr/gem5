@@ -783,11 +783,6 @@ FlexCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
                                   shared_ptr<SplitRequest> sreq, bool high)
 {
     const shared_ptr<InflightInst> inst_ptr = inst.lock();
-    if (inst_ptr->issueSeqNum() == 144686)
-    {
-        int aaa = 2;
-        aaa += 1;
-    }
     if (!inst_ptr || inst_ptr->isSquashed()) {
         // No need to do anything for an instruction that has been squashed.
         return;
