@@ -46,7 +46,7 @@
 #include <cstdlib>
 #include <queue>
 
-class VNV_nvdla;
+#include "nvdla/VNV_nvdla.h"
 
 class CSBMaster {
         struct csb_op {
