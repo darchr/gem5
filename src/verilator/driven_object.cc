@@ -40,14 +40,6 @@
 //gem5 model includes
 #include "driven_object.hh"
 
-//setup driven object
-DrivenObject::DrivenObject(DrivenObjectParams *params):
-    ClockedObject(params),
-    event([this]{updateCycle();}, params->name),
-    resetCycles(params->reset_cycles)
-{
-}
-
 //creates object for gem5 to use
 DrivenObject*
 DrivenObjectParams::create()
@@ -55,6 +47,8 @@ DrivenObjectParams::create()
   //verilator has weird alignment issue for generated code
   void* ptr = aligned_alloc(128, sizeof(DrivenObject));
   return new(ptr) DrivenObject(this);
+  //return DrivenObject(this);
+
 }
 
 void

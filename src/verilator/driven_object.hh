@@ -60,7 +60,14 @@ class DrivenObject : public ClockedObject
     VerilatorDriver driver;
 
   public:
-    DrivenObject(DrivenObjectParams *p);
+
+  //setup driven object
+   DrivenObject(DrivenObjectParams *params):
+    ClockedObject(params),
+    event([this]{updateCycle();}, params->name),
+    resetCycles(params->reset_cycles)
+    {
+    }
 
     //resets cpu then schedules memory request to fetch instruction
     void startup() override;
