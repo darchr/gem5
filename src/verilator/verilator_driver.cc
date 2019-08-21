@@ -62,7 +62,7 @@ VerilatorDriver::clockDevice(unsigned int numSigs, ...)
   va_end(ap);
 }
 
-inline Top *
+VNV_nvdla *
 VerilatorDriver::getTopLevel()
 {
   return &top;

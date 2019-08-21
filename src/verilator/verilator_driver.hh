@@ -29,8 +29,6 @@
 
 //verilator design includes
 
-#define Top VNV_nvdla
-
 #include "nvdla/VNV_nvdla.h"
 
 //general includes
@@ -43,7 +41,7 @@ class VerilatorDriver{
     unsigned int cyclesPassed;
 
     //Our verilator design
-    Top top;
+    VNV_nvdla top;
   public:
     VerilatorDriver();
 
@@ -57,7 +55,7 @@ class VerilatorDriver{
     * */
     void clockDevice(unsigned int numSigs, ...);
 
-    Top * getTopLevel();
+    VNV_nvdla * getTopLevel();
 
     //is the verilated device finished with execution?
     bool isFinished();
