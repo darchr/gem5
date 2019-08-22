@@ -47,7 +47,6 @@ DrivenObjectParams::create()
   //verilator has weird alignment issue for generated code
   void* ptr = aligned_alloc(128, sizeof(DrivenObject));
   return new(ptr) DrivenObject(this);
-  //return DrivenObject(this);
 
 }
 
@@ -62,6 +61,7 @@ DrivenObject::updateCycle()
   if (!driver.isFinished())
     schedule(event, nextCycle());
 }
+
 
 void
 DrivenObject::startup()
