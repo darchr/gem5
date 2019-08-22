@@ -31,6 +31,7 @@ from m5.objects.System import System
 
 class NVDLASystem(System):
     type = 'NVDLASystem'
+    abstract = True
     cxx_header = 'verilator/nvdla/system.hh'
     bare_nvdla = Param.Bool(True, "Using Trace to test?")
 
