@@ -43,9 +43,10 @@
 class NVDLASystem : public System {
     public:
         typedef NVDLASystemParams Params;
-        NVDLASystem(Params *p);
-        ~NVDLASystem();
-
+        NVDLASystem(Params *p): System(p),
+            tracerSystem(p->bare_nvdla)
+        {
+        }
         bool isTracerSystem() const { return tracerSystem; }
 
     protected:

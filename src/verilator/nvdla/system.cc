@@ -36,18 +36,6 @@
 #include "sim/byteswap.hh"
 #include "system.hh"
 
-NVDLASystem::NVDLASystem(Params *p)
-    : System(p),
-      tracerSystem(p->bare_nvdla)
-{
-}
-
-NVDLASystem::~NVDLASystem()
-{
-}
-
-
-
 NVDLASystem *
 NVDLASystemParams::create()
 {

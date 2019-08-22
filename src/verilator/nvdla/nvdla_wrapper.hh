@@ -44,8 +44,8 @@ class NVDLAWrapper : public DrivenObject{
     public:
         NVDLAWrapper(NVDLAWrapperParams *p);
 
-        void startup() override;
         void updateCycle() override;
+        void startup() override;
     private:
         void initNVDLA();
         void runNVDLA();
@@ -56,6 +56,7 @@ class NVDLAWrapper : public DrivenObject{
     private:
         //event queue var to schedule mem requests and cycle updates
         EventFunctionWrapper event;
+
         int bufferClearCycles;
         int waiting;
 
