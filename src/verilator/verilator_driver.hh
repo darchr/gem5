@@ -30,7 +30,6 @@
 //verilator design includes
 
 #include "nvdla/VNV_nvdla.h"
-
 //general includes
 #include <cstdarg>
 

@@ -29,6 +29,10 @@
 
 #include "nvdla_wrapper.hh"
 
+double sc_time_stamp(){
+  return 0.0f;
+}
+
 NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
     DrivenObject(p),
     event([this]{runNVDLA();}, p->name),
