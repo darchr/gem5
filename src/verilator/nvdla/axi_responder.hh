@@ -180,9 +180,9 @@ public:
                 /* write request */
                 if (*dla.aw_awvalid && *dla.aw_awready)
                 {
-                // DPRINTF(Verilator,"%s: write request from dla,
-                //addr %08lx id %d\n",
-                // conn_name, *dla.aw_awaddr, *dla.aw_awid);
+                printf("%s: write request from dla, \
+                addr %08lx id %d\n", conn_name, *dla.aw_awaddr,
+                *dla.aw_awid);
 
                         axi_aw_txn txn;
 
@@ -202,8 +202,8 @@ public:
                 /* write data */
                 if (*dla.w_wvalid)
                 {
-                //DPRINTF(Verilator,"%s: write data from dla (%08x %08x...)\n",
-                //conn_name, dla.w_wdata[0], dla.w_wdata[1]);
+                printf("%s: write data from dla (%08x %08x...)\n",
+                conn_name, dla.w_wdata[0], dla.w_wdata[1]);
 
                         axi_w_txn txn;
 
@@ -221,9 +221,9 @@ public:
                                 & ~(ADDRTYPE)(AXI_WIDTH / 8 - 1);
                         uint8_t len = *dla.ar_arlen;
 
-                //DPRINTF(Verilator,"%s: read request from dla,
-                //addr %08lx burst %d id %d\n",
-                //conn_name, *dla.ar_araddr, *dla.ar_arlen, *dla.ar_arid);
+                printf("%s:read request from dla, addr %08lx burst %d id %d\n",
+                        conn_name, *dla.ar_araddr,
+                        *dla.ar_arlen, *dla.ar_arid);
 
                         do
                         {
@@ -288,8 +288,7 @@ public:
 
                         if (wtxn.wlast)
                         {
-                        //DPRINTF(Verilator,"%s: write,
-                        //last tick\n", conn_name);
+                        printf("%s: write, last tick\n", conn_name);
                         aw_fifo.pop();
 
                         axi_b_txn btxn;
@@ -298,8 +297,7 @@ public:
                         }
                         else
                         {
-                        //DPRINTF(Verilator,"%s: write,
-                        //ticks remaining\n", conn_name);
+                        printf("%s: write, ticks remaining\n", conn_name);
 
                         awtxn.awlen--;
                         awtxn.awaddr += AXI_WIDTH / 8;
@@ -345,10 +343,9 @@ public:
                         }
 
                         if (txn.rvalid)
-                        //DPRINTF(Verilator, "%s: read push: id %d,
-                        //da %08x %08x %08x %08x\n",
-                        //conn_name, txn.rid, txn.rdata[0], txn.rdata[1],
-                        //txn.rdata[2], txn.rdata[3]);
+                        printf("%s: read push: id %d,da %08x %08x %08x %08x\n",
+                                conn_name, txn.rid, txn.rdata[0], txn.rdata[1],
+                                txn.rdata[2], txn.rdata[3]);
 
                         r0_fifo.pop();
                 }

@@ -36,9 +36,12 @@
 # Authors: Nima Ganjehloo
 */
 
+//gem5 gemeral includes
 #include "base/logging.hh"
-#include "csb_master.hh"
 #include "debug/Verilator.hh"
+
+//gem5 model includes
+#include "csb_master.hh"
 
 CSBMaster::CSBMaster(VNV_nvdla *_dla) : dla(_dla)
 {
@@ -93,7 +96,7 @@ int
 CSBMaster::eval(int noop)
 {
     if (dla->nvdla2csb_wr_complete)
-       // DPRINTF(Verilator,"write complete from CSB\n");
+        printf("write complete from CSB\n");
 
     dla->csb2nvdla_valid = 0;
     if (opq.empty())
@@ -111,17 +114,17 @@ CSBMaster::eval(int noop)
 
     if (!op.write && op.reading && dla->nvdla2csb_valid)
     {
-        //DPRINTF(Verilator," read response from nvdla: %08x\n",
-        //    dla->nvdla2csb_data);
+        printf(" read response from nvdla: %08x\n",
+           dla->nvdla2csb_data);
 
         if ((dla->nvdla2csb_data & op.mask) != (op.data & op.mask))
         {
             op.reading = 0;
             op.tries--;
-            //DPRINTF(Verilator," invalid response -- trying again\n");
+            printf(" invalid response -- trying again\n");
             if (!op.tries)
             {
-             //   DPRINTF(Verilator," ERROR: timed out reading response\n");
+                printf(" ERROR: timed out reading response\n");
                 _test_passed = 0;
                 opq.pop();
             }
@@ -138,7 +141,7 @@ CSBMaster::eval(int noop)
 
     if (!dla->csb2nvdla_ready)
     {
-       // DPRINTF(Verilator," CSB stalled...\n");
+        printf(" CSB stalled...\n");
         return 0;
     }
 
@@ -149,8 +152,8 @@ CSBMaster::eval(int noop)
         dla->csb2nvdla_wdat = op.data;
         dla->csb2nvdla_write = 1;
         dla->csb2nvdla_nposted = 0;
-       // DPRINTF(Verilator," write to nvdla: addr %08x, data %08x\n", op.addr,
-        //    op.data);
+        printf(" write to nvdla: addr %08x, data %08x\n", op.addr,
+            op.data);
         opq.pop();
     }
     else
@@ -158,7 +161,7 @@ CSBMaster::eval(int noop)
         dla->csb2nvdla_valid = 1;
         dla->csb2nvdla_addr = op.addr;
         dla->csb2nvdla_write = 0;
-      //  DPRINTF(Verilator, "read from nvdla: addr %08x\n", op.addr);
+        printf("read from nvdla: addr %08x\n", op.addr);
 
         op.reading = 1;
     }
