@@ -220,18 +220,20 @@ void NVDLAWrapper::initClearDLABuffers(){
 
 void NVDLAWrapper::startup(){
 
-    const char * argv [] = {"nvdlaXgem5", "test/sanity0/trace.bin"};
-    Verilated::commandArgs(2, argv);
 
     //init NVDLA
     initNVDLA();
+
+    const char * argv [] = {"nvdlaXgem5", "test/sanity0/trace.bin"};
+    Verilated::commandArgs(2, argv);
+
+    if (system->isTracerSystem())
+        tloader.load(system->getTracePath());
+
     //reset
     resetNVDLA();
     //clear hardware buffers
     initClearDLABuffers();
-
-    if (system->isTracerSystem())
-        tloader.load(system->getTracePath());
 
     schedule(event, nextCycle());
 }
