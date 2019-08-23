@@ -40,12 +40,15 @@
 #include "csb_master.hh"
 #include "debug/Verilator.hh"
 
-CSBMaster::CSBMaster(VNV_nvdla *_dla)
+CSBMaster::CSBMaster(VNV_nvdla *_dla) : dla(_dla)
 {
-    dla = _dla;
+}
 
-    dla->csb2nvdla_valid = 0;
-    _test_passed = 1;
+void
+CSBMaster::CSBInit(){
+        dla->csb2nvdla_valid = 0;
+        _test_passed = 1;
+
 }
 
 void

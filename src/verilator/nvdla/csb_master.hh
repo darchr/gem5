@@ -68,6 +68,8 @@ class CSBMaster {
 public:
         CSBMaster(VNV_nvdla *_dla);
 
+        void CSBInit();
+
         void read(uint32_t addr, uint32_t mask, uint32_t data);
 
         void write(uint32_t addr, uint32_t data);
