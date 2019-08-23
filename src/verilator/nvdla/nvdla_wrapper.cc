@@ -53,7 +53,7 @@ NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
     dla = driver.getTopLevel();
     //csb reg file (i.e, like instruction decoder)
     csb = CSBMaster(dla);
-
+    csb.CSBInit();
     //make axi connections
     AXIResponder<uint64_t>::connections dbbconn = {
                 .aw_awvalid = &dla->nvdla_core2dbb_aw_awvalid,
@@ -193,7 +193,7 @@ void NVDLAWrapper::resetNVDLA(){
     dla->direct_reset_ = 1;
     dla->eval();
 
-    driver.reset(resetCycles, fmt, 2
+    driver.reset(resetCycles, fmt, 2,
         &(dla->dla_core_clk),
         &(dla->dla_csb_clk));
 
@@ -219,14 +219,19 @@ void NVDLAWrapper::initClearDLABuffers(){
 }
 
 void NVDLAWrapper::startup(){
-    if (system->isTracerSystem())
-        tloader.load(system->getTracePath());
+
+    const char * argv [] = {"nvdlaXgem5", "test/sanity0/trace.bin"};
+    Verilated::commandArgs(2, argv);
+
     //init NVDLA
     initNVDLA();
     //reset
     resetNVDLA();
     //clear hardware buffers
     initClearDLABuffers();
+
+    if (system->isTracerSystem())
+        tloader.load(system->getTracePath());
 
     schedule(event, nextCycle());
 }
