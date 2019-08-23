@@ -48,14 +48,14 @@ VerilatorDriver::clockDevice(unsigned int numSigs, ...)
   //when clock = 0 device state is set
   for ( int j = 0; j < numSigs; ++j){
     unsigned char * sig = va_arg(ap0, unsigned char *);
-    *sig = 0;
+    *sig = 1;
   }
 
   top.eval();
   //when clock = 1 device state is evaluated
   for ( int j = 0; j < numSigs; ++j){
     unsigned char * sig = va_arg(ap1, unsigned char *);
-    *sig = 1;
+    *sig = 0;
   }
   top.eval();
 
@@ -90,22 +90,22 @@ VerilatorDriver::reset(int resetCycles, char * fmt, unsigned int numSigs, ...)
       switch(fmt[j]){
         case 0: {
           unsigned char * sig = va_arg(ap0, unsigned char *);
-          *sig = 0;
+          *sig = 1;
           break;
         }
         case 1: {
           unsigned short * sig = va_arg(ap0, unsigned short *);
-          *sig = 0;
+          *sig = 1;
           break;
         }
         case 2: {
           unsigned int * sig = va_arg(ap0, unsigned int *);
-          *sig = 0;
+          *sig = 1;
           break;
         }
         case 3: {
           unsigned long * sig = va_arg(ap0, unsigned long *);
-          *sig = 0;
+          *sig = 1;
           break;
         }
         default:
@@ -121,22 +121,22 @@ VerilatorDriver::reset(int resetCycles, char * fmt, unsigned int numSigs, ...)
        switch(fmt[j]){
         case 0: {
           unsigned char * sig = va_arg(ap1, unsigned char *);
-          *sig = 1;
+          *sig = 0;
           break;
         }
         case 1: {
           unsigned short * sig = va_arg(ap1, unsigned short *);
-          *sig = 1;
+          *sig = 0;
           break;
         }
         case 2: {
           unsigned int * sig = va_arg(ap1, unsigned int *);
-          *sig = 1;
+          *sig = 0;
           break;
         }
         case 3: {
           unsigned long * sig = va_arg(ap1, unsigned long *);
-          *sig = 1;
+          *sig = 0;
           break;
         }
         default:
