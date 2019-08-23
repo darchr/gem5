@@ -35,7 +35,7 @@ BareNVDLASystem::BareNVDLASystem(Params *p)
 {
     if (tracePath == NULL && !p->load_trace.compare("none")) {
         fatal("Could not load trace from file %s", p->load_trace);
-    }else if ( p->load_trace.compare("none")){
+    }else if ( !p->load_trace.compare("none")){
         tracerSystem = false;
     }else{
         tracerSystem = true;
