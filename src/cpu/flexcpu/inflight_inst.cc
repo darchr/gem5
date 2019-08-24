@@ -574,25 +574,25 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
 
     if (producer && !producer->readPredicate()) {
         shared_ptr<InflightInst> inst_walker = producer;
-        auto target_phys_reg =
-            backingContext->flattenRegId(si->srcRegIdx(op_idx)).flatIndex();
+        auto target_phys_reg = backingContext
+                                ->flattenRegId(si->srcRegIdx(op_idx));
         bool found_valid_reg_value = false;
         while (true) {
             bool found_src = false;
             for (const auto& data_src: inst_walker->sources) {
                 std::shared_ptr<InflightInst> curr_producer =
-                                                data_src.producer.lock();
+                                            data_src.producer.lock();
                 if (!curr_producer) {
                     continue;
                 }
                 auto phys_reg = curr_producer
                                 ->backingContext
                                 ->flattenRegId(curr_producer->staticInst()
-                                ->destRegIdx(data_src.resultIdx)).flatIndex();
+                                ->destRegIdx(data_src.resultIdx));
                 if (phys_reg == target_phys_reg) {
                     if (curr_producer->readPredicate()) {
                         return curr_producer
-                                ->getResult(data_src.resultIdx).asIntReg();
+                        ->getResult(data_src.resultIdx).asIntReg();
                     } else {
                         found_src = true;
                         inst_walker = curr_producer;
