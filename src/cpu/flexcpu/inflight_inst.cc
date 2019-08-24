@@ -55,8 +55,7 @@ InflightInst::InflightInst(ThreadContext* backing_context,
     _issueSeqNum(issue_seq_num),
     _pcState(pc_),
     predicate(true),
-    memAccPredicate(true),
-    recordResult(true)
+    memAccPredicate(true)
 {
     _timingRecord.creationTick = curTick();
     staticInst(inst_ref);
@@ -574,7 +573,38 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
     const shared_ptr<InflightInst> producer = source.producer.lock();
 
     if (producer && !producer->readPredicate()) {
-        return backingContext->readIntReg(reg_id.index());
+        shared_ptr<InflightInst> inst_walker = producer;
+        auto target_phys_reg =
+            backingContext->flattenRegId(si->srcRegIdx(op_idx)).flatIndex();
+        bool found_valid_reg_value = false;
+        while (true) {
+            bool found_src = false;
+            for (const auto& data_src: inst_walker->sources) {
+                std::shared_ptr<InflightInst> curr_producer =
+                                                data_src.producer.lock();
+                if (!curr_producer) {
+                    continue;
+                }
+                auto phys_reg = curr_producer
+                                ->backingContext
+                                ->flattenRegId(curr_producer->staticInst()
+                                ->destRegIdx(data_src.resultIdx)).flatIndex();
+                if (phys_reg == target_phys_reg) {
+                    if (curr_producer->readPredicate()) {
+                        return curr_producer
+                                ->getResult(data_src.resultIdx).asIntReg();
+                    } else {
+                        found_src = true;
+                        inst_walker = curr_producer;
+                        break;
+                    }
+                }
+            }
+            if (!found_src)
+                break;
+        }
+        if (!found_valid_reg_value)
+            return backingContext->readIntReg(reg_id.index());
     }
 
     if (producer) {
@@ -596,8 +626,6 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
 void
 InflightInst::setIntRegOperand(const StaticInst* si, int dst_idx, RegVal val)
 {
-    if (!recordResult)
-        return;
     const RegId& reg_id = si->destRegIdx(dst_idx);
     assert(reg_id.isIntReg());
 
@@ -641,8 +669,6 @@ void
 InflightInst::setFloatRegOperandBits(const StaticInst* si, int dst_idx,
                                      RegVal val)
 {
-    if (!recordResult)
-        return;
     const RegId& reg_id = si->destRegIdx(dst_idx);
     assert(reg_id.isFloatReg());
 
@@ -717,8 +743,6 @@ void
 InflightInst::setVecRegOperand(const StaticInst* si, int dst_idx,
                                const TheISA::VecRegContainer& val)
 {
-    if (!recordResult)
-        return;
     assert(si->destRegIdx(dst_idx).isVecReg());
 
     // NOTE This assignment results in two calls to copy the VecRegContainer
@@ -872,8 +896,6 @@ InflightInst::readCCRegOperand(const StaticInst* si, int op_idx)
 void
 InflightInst::setCCRegOperand(const StaticInst* si, int dst_idx, RegVal val)
 {
-    if (!recordResult)
-        return;
     assert(si->destRegIdx(dst_idx).isCCReg());
 
     results[dst_idx].set(val, CCRegClass);
@@ -912,8 +934,6 @@ InflightInst::readMiscRegOperand(const StaticInst* si, int op_idx)
 void
 InflightInst::setMiscRegOperand(const StaticInst* si, int dst_idx, RegVal val)
 {
-    if (!recordResult)
-        return;
     assert(si->destRegIdx(dst_idx).isMiscReg());
 
     results[dst_idx].set(val, MiscRegClass);
