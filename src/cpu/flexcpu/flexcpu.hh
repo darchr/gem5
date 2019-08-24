@@ -333,7 +333,8 @@ class FlexCPU : public BaseCPU
     //       be safer to do this mapping through the SenderState struct instead
     //       based on what has been learned since the writing of this though.
     std::unordered_map<PacketPtr, FetchCallback> outstandingFetches;
-    std::unordered_map<PacketPtr, std::function<void()>> outstandingMemReqs;
+    std::unordered_map<PacketPtr, std::function<void(PacketPtr)>>
+                                                            outstandingMemReqs;
 
     // Tick that the CPU was last active for tracking active cycles
     Tick lastActiveTick = MaxTick;
@@ -361,6 +362,7 @@ class FlexCPU : public BaseCPU
                            Trace::InstRecord* trace_data,
                            MemCallback callback,
                            Tick send_time,
+                           InstSeqNum issueSeqNum,
                            SplitAccCtrlBlk* split = nullptr);
 
     /**
@@ -552,7 +554,8 @@ class FlexCPU : public BaseCPU
     bool requestMemRead(const RequestPtr& req, ThreadContext* tc,
                         StaticInstPtr inst, std::weak_ptr<ExecContext> context,
                         Trace::InstRecord* trace_data,
-                        MemCallback callback_func);
+                        MemCallback callback_func,
+                                   InstSeqNum issueSeqNum);
 
     /**
      * Event-driven means for classes to request a write access to memory. Upon
@@ -580,7 +583,8 @@ class FlexCPU : public BaseCPU
                          StaticInstPtr inst,
                          std::weak_ptr<ExecContext> context,
                          Trace::InstRecord* trace_data, uint8_t* data,
-                         MemCallback callback_func);
+                         MemCallback callback_func,
+                                   InstSeqNum issueSeqNum);
 
     /**
      * Event-driven means for classes to request a split read access to memory.
@@ -611,7 +615,8 @@ class FlexCPU : public BaseCPU
                              StaticInstPtr inst,
                              std::weak_ptr<ExecContext> context,
                              Trace::InstRecord* trace_data,
-                             MemCallback callback_func);
+                             MemCallback callback_func,
+                                       InstSeqNum issueSeqNum);
 
     /**
      * Event-driven means for classes to request a split write access to
@@ -645,7 +650,8 @@ class FlexCPU : public BaseCPU
                               StaticInstPtr inst,
                               std::weak_ptr<ExecContext> context,
                               Trace::InstRecord* trace_data,
-                              uint8_t* data, MemCallback callback_func);
+                              uint8_t* data, MemCallback callback_func,
+                                       InstSeqNum issueSeqNum);
 
     /**
      * Called after init, during the first simulate() event.

@@ -574,14 +574,14 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
 
     if (producer && !producer->readPredicate()) {
         shared_ptr<InflightInst> inst_walker = producer;
-        auto target_phys_reg = backingContext
-                                ->flattenRegId(si->srcRegIdx(op_idx));
+        auto target_phys_reg =
+                        backingContext->flattenRegId(si->srcRegIdx(op_idx));
         bool found_valid_reg_value = false;
         while (true) {
             bool found_src = false;
             for (const auto& data_src: inst_walker->sources) {
                 std::shared_ptr<InflightInst> curr_producer =
-                                            data_src.producer.lock();
+                                                    data_src.producer.lock();
                 if (!curr_producer) {
                     continue;
                 }
@@ -607,7 +607,7 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
             return backingContext->readIntReg(reg_id.index());
     }
 
-    if (producer) {
+    if (producer && !producer->isSquashed()) {
         // If the producing instruction is still in the buffer, grab the result
         // assuming that it has been produced, and our index is in bounds.
         assert(producer->isComplete());

@@ -364,7 +364,9 @@ FlexCPUThread::canCommit(const InflightInst& inst_ref)
     inst_ref.dumpInfo();
     return !inst_ref.isCommitted() &&
            (inst_ref.isComplete()
-            || (inst_ref.isMemorying() && inst_ref.staticInst()->isStore()));
+            || (inst_ref.isMemorying() &&
+            (inst_ref.staticInst()->isStore()
+            && !inst_ref.staticInst()->isStoreConditional())));
 }
 
 void
@@ -1714,7 +1716,7 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
     inst_ptr->notifyMemorying();
 
     weak_ptr<InflightInst> weak_inst(inst_ptr);
-
+/*
     if (write) {
         PacketPtr resp = Packet::createWrite(sreq ? sreq->main : req);
         if (resp->hasData()) {
@@ -1767,6 +1769,7 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
             //    commitAllAvailableInstructions();
             return;
         }
+
         assert(inst_ptr->readPredicate());
         Fault f = inst_ptr->staticInst()->completeAcc(resp, inst_ptr.get(),
                                                       inst_ptr->traceData());
@@ -1834,6 +1837,62 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
                 inst_ptr->traceData(), callback);
         }
     }
+*/
+
+    if (inst_ptr->staticInst()->isStoreConditional()) {
+        bool success = TheISA::handleLockedWrite(inst_ptr->tcBase(), req,
+            _cpuPtr->cacheBlockMask);
+        if (!success) {
+            DPRINTF(FlexCPUTrace, "SN %d store failed\n",
+                                 inst_ptr->issueSeqNum());
+                onExecutionCompleted(inst_ptr, NoFault);
+                return;
+        }
+    }
+
+    auto callback = [this, inst_ptr] (Fault fault) {
+        assert(inst_ptr->readPredicate());
+        onExecutionCompleted(inst_ptr, fault);
+    };
+
+    if (write) {
+        if (sreq) { // split
+            assert(inst_ptr->readPredicate());
+            assert(sreq->high && sreq->low);
+            _cpuPtr->requestSplitMemWrite(sreq->main, sreq->low,
+                sreq->high, this,
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(), data.get(),
+                callback, inst_ptr->issueSeqNum());
+        } else { // not split
+            assert(inst_ptr->readPredicate());
+            _cpuPtr->requestMemWrite(req, this,
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(), data.get(), callback,
+                inst_ptr->issueSeqNum());
+        }
+    } else { // read
+        if (sreq) { // split
+            assert(sreq->high && sreq->low);
+            assert(inst_ptr->readPredicate());
+            _cpuPtr->requestSplitMemRead(sreq->main, sreq->low,
+                sreq->high, this,
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(),
+                callback, inst_ptr->issueSeqNum());
+        } else { // not split
+            assert(inst_ptr->readPredicate());
+            _cpuPtr->requestMemRead(req, this,
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(), callback, inst_ptr->issueSeqNum());
+        }
+    }
+
+
 }
 
 void

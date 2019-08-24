@@ -116,6 +116,7 @@ FlexCPU::completeMemAccess(PacketPtr orig_pkt, StaticInstPtr inst,
                                      Trace::InstRecord* trace_data,
                                      MemCallback callback,
                                      Tick send_time,
+                                     InstSeqNum issueSeqNum,
                                      SplitAccCtrlBlk* split)
 {
     PacketPtr pkt;
@@ -153,7 +154,7 @@ FlexCPU::completeMemAccess(PacketPtr orig_pkt, StaticInstPtr inst,
 
     const shared_ptr<ExecContext> ctxt = context.lock();
 
-    Fault fault = ctxt && !inst->isStore() ?
+    Fault fault = ctxt  ?
         inst->completeAcc(pkt, ctxt.get(), trace_data) : NoFault;
 
     if (split) {
@@ -406,7 +407,8 @@ FlexCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
                                   StaticInstPtr inst,
                                   weak_ptr<ExecContext> context,
                                   Trace::InstRecord* trace_data,
-                                  MemCallback callback_func)
+                                  MemCallback callback_func,
+                                   InstSeqNum issueSeqNum)
 {
     DPRINTF(FlexCPUCoreEvent, "requestMemRead()\n");
 
@@ -434,10 +436,11 @@ FlexCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
 
         schedule(
             new EventFunctionWrapper(
-                [this, pkt, inst, context, trace_data, callback_func, now]
+                [this, pkt, inst, context, trace_data, callback_func, now,
+                issueSeqNum]
                 {
                     completeMemAccess(pkt, inst, context, trace_data,
-                                      callback_func, now);
+                                      callback_func, now, issueSeqNum);
                     delete pkt;
                 },
                 name() + ".mmappedIprEvent",
@@ -450,7 +453,7 @@ FlexCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
     Tick queue_time = curTick();
 
     memoryUnit.addRequest([this, req, tc, inst, context, trace_data,
-                           callback_func, pkt, queue_time]
+                           callback_func, pkt, queue_time, issueSeqNum]
     {
         if (context.expired()) {
             // No need to send req if squashed
@@ -470,11 +473,12 @@ FlexCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
                                 req->getPaddr());
 
         // When the result comes back from memory, call completeMemAccess
-        outstandingMemReqs.emplace(pkt, [this, pkt, inst, context, trace_data,
-                                         callback_func, now]
+        outstandingMemReqs.emplace(pkt, [this, inst, context, trace_data,
+                                         callback_func, issueSeqNum, now]
+                                         (PacketPtr pkt)
         {
             completeMemAccess(pkt, inst, context, trace_data, callback_func,
-                              now);
+                              now, issueSeqNum);
         });
 
         return true;
@@ -490,7 +494,8 @@ FlexCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
                                    StaticInstPtr inst,
                                    weak_ptr<ExecContext> context,
                                    Trace::InstRecord* trace_data,
-                                   uint8_t* data, MemCallback callback_func)
+                                   uint8_t* data, MemCallback callback_func,
+                                   InstSeqNum issueSeqNum)
 {
     DPRINTF(FlexCPUCoreEvent, "requestMemWrite()\n");
 
@@ -526,10 +531,11 @@ FlexCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
 
         schedule(
             new EventFunctionWrapper(
-                [this, pkt, inst, context, trace_data, callback_func, now]
+                [this, pkt, inst, context, trace_data, callback_func, now,
+                issueSeqNum]
                 {
                     completeMemAccess(pkt, inst, context, trace_data,
-                                      callback_func, now);
+                                      callback_func, now, issueSeqNum);
                     delete pkt;
                 },
                 name() + ".mmappedIprEvent",
@@ -542,7 +548,7 @@ FlexCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
     Tick queue_time = curTick();
 
     memoryUnit.addRequest([this, req, tc, inst, context, trace_data,
-                           callback_func, pkt, queue_time]
+                           callback_func, pkt, queue_time, issueSeqNum]
     {
         if (context.expired()) {
             // No need to send req if squashed
@@ -566,11 +572,12 @@ FlexCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
                                 req->getPaddr());
 
         // When the result comes back from memory, call completeMemAccess
-        outstandingMemReqs.emplace(pkt, [this, pkt, inst, context, trace_data,
-                                         callback_func, now]
+        outstandingMemReqs.emplace(pkt, [this, inst, context, trace_data,
+                                         callback_func, now, issueSeqNum]
+                                         (PacketPtr pkt)
         {
             completeMemAccess(pkt, inst, context, trace_data, callback_func,
-                              now);
+                              now, issueSeqNum);
         });
 
         return true;
@@ -588,7 +595,8 @@ FlexCPU::requestSplitMemRead(const RequestPtr& main,
                                        ThreadContext* tc, StaticInstPtr inst,
                                        weak_ptr<ExecContext> context,
                                        Trace::InstRecord* trace_data,
-                                       MemCallback callback_func)
+                                       MemCallback callback_func,
+                                       InstSeqNum issueSeqNum)
 {
     // Request can be handled immediately
     if (main->getFlags().isSet(Request::NO_ACCESS)) {
@@ -613,7 +621,7 @@ FlexCPU::requestSplitMemRead(const RequestPtr& main,
     Tick queue_time = curTick();
 
     memoryUnit.addRequest([this, low, tc, inst, context, trace_data,
-                           callback_func, split_acc, queue_time]
+                           callback_func, split_acc, queue_time, issueSeqNum]
     {
         if (context.expired()) {
             // No need to send req if squashed
@@ -640,17 +648,19 @@ FlexCPU::requestSplitMemRead(const RequestPtr& main,
         // When the result comes back from memory, call completeMemAccess
         outstandingMemReqs.emplace(split_acc->low, [this, inst, context,
                                                    trace_data, callback_func,
-                                                   split_acc, now]
+                                                   split_acc, now,
+                                                   issueSeqNum]
+                                                   (PacketPtr pkt)
         {
             completeMemAccess(split_acc->low, inst, context, trace_data,
-                              callback_func, now, split_acc);
+                              callback_func, now, issueSeqNum, split_acc);
         });
 
         return false;
     });
 
     memoryUnit.addRequest([this, high, tc, inst, context, trace_data,
-                           callback_func, split_acc, queue_time]
+                           callback_func, split_acc, queue_time, issueSeqNum]
     {
         if (context.expired()) {
             // No need to send req if squashed
@@ -677,10 +687,12 @@ FlexCPU::requestSplitMemRead(const RequestPtr& main,
         // When the result comes back from memory, call completeMemAccess
         outstandingMemReqs.emplace(split_acc->high, [this, inst, context,
                                                      trace_data, callback_func,
-                                                     split_acc, now]
+                                                     split_acc, now,
+                                                     issueSeqNum]
+                                                    (PacketPtr pkt)
         {
             completeMemAccess(split_acc->high, inst, context, trace_data,
-                              callback_func, now, split_acc);
+                              callback_func, now, issueSeqNum, split_acc);
         });
         return true;
     });
@@ -698,7 +710,8 @@ FlexCPU::requestSplitMemWrite(const RequestPtr& main,
                                         weak_ptr<ExecContext> context,
                                         Trace::InstRecord* trace_data,
                                         uint8_t* data,
-                                        MemCallback callback_func)
+                                        MemCallback callback_func,
+                                       InstSeqNum issueSeqNum)
 {
     // Request can be handled immediately
     if (main->getFlags().isSet(Request::NO_ACCESS)) {
@@ -735,7 +748,7 @@ FlexCPU::requestSplitMemWrite(const RequestPtr& main,
     Tick queue_time = curTick();
 
     memoryUnit.addRequest([this, low, tc, inst, context, trace_data,
-                           callback_func, split_acc, queue_time]
+                           callback_func, split_acc, queue_time, issueSeqNum]
     {
         if (context.expired()) {
             // No need to send req if squashed
@@ -766,17 +779,19 @@ FlexCPU::requestSplitMemWrite(const RequestPtr& main,
         // When the result comes back from memory, call completeMemAccess
         outstandingMemReqs.emplace(split_acc->low, [this, inst, context,
                                                     trace_data, callback_func,
-                                                    split_acc, now]
+                                                    split_acc, now,
+                                                    issueSeqNum]
+                                                    (PacketPtr pkt)
         {
             completeMemAccess(split_acc->low, inst, context, trace_data,
-                              callback_func, now, split_acc);
+                              callback_func, now, issueSeqNum, split_acc);
         });
 
         return true;
     });
 
     memoryUnit.addRequest([this, high, tc, inst, context, trace_data,
-                           callback_func, split_acc, queue_time]
+                           callback_func, split_acc, queue_time, issueSeqNum]
     {
         if (context.expired()) {
             // No need to send req if squashed
@@ -807,10 +822,12 @@ FlexCPU::requestSplitMemWrite(const RequestPtr& main,
         // When the result comes back from memory, call completeMemAccess
         outstandingMemReqs.emplace(split_acc->high, [this, inst, context,
                                                      trace_data, callback_func,
-                                                     split_acc, now]
+                                                     split_acc, now,
+                                                     issueSeqNum]
+                                                     (PacketPtr pkt)
         {
             completeMemAccess(split_acc->high, inst, context, trace_data,
-                              callback_func, now, split_acc);
+                              callback_func, now, issueSeqNum, split_acc);
         });
 
         return true;
@@ -908,7 +925,7 @@ FlexCPU::DataPort::recvTimingResp(PacketPtr pkt)
 
     auto& callback = cpu->outstandingMemReqs[pkt];
 
-    callback();
+    callback(pkt);
 
     cpu->outstandingMemReqs.erase(pkt);
     delete pkt;
