@@ -337,7 +337,10 @@ InflightInst::commitToTC()
             // updating register if it's the PC register.
             if (THE_ISA == ARM_ISA && dst_reg.classValue() == IntRegClass
                 && dst_reg.index() == TheISA::PCReg)
-                continue;
+                // R15 can be used?
+                if (!resultValid[dst_idx])
+                    continue;
+
             const GenericReg& result = getResult(dst_idx);
 
             switch (dst_reg.classValue()) {
@@ -1213,13 +1216,15 @@ InflightInst::setPredicate(bool val)
 bool
 InflightInst::readMemAccPredicate() const
 {
-    return this->memAccPredicate;
+    panic("readMemAccPredicate() not implemented");
+    //return this->memAccPredicate;
 }
 
 void
 InflightInst::setMemAccPredicate(bool val)
 {
-    this->memAccPredicate = val;
+    panic("setMemAccPredicate() not implemented");
+    //this->memAccPredicate = val;
 }
 
 void
