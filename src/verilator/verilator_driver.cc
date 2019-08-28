@@ -33,6 +33,9 @@
 //setup design params
 VerilatorDriver::VerilatorDriver( )
 {
+  cyclesPassed = 0;
+  void* ptr = aligned_alloc(128, sizeof(VNV_nvdla));
+  top = new(ptr) VNV_nvdla();
 }
 
 void
@@ -51,13 +54,16 @@ VerilatorDriver::clockDevice(unsigned int numSigs, ...)
     *sig = 1;
   }
 
-  top.eval();
+  top->eval();
+
+  cyclesPassed += 1;
+
   //when clock = 1 device state is evaluated
   for ( int j = 0; j < numSigs; ++j){
     unsigned char * sig = va_arg(ap1, unsigned char *);
     *sig = 0;
   }
-  top.eval();
+  top->eval();
 
   cyclesPassed += 1;
 
@@ -68,7 +74,7 @@ VerilatorDriver::clockDevice(unsigned int numSigs, ...)
 VNV_nvdla *
 VerilatorDriver::getTopLevel()
 {
-  return &top;
+  return top;
 }
 
 void
@@ -112,7 +118,10 @@ VerilatorDriver::reset(int resetCycles, char * fmt, unsigned int numSigs, ...)
           break;
       }
     }
-    top.eval();
+    top->eval();
+
+    cyclesPassed += 1;
+
     //run verilator for this state
 
     //run verilator for rising edge state
@@ -143,7 +152,10 @@ VerilatorDriver::reset(int resetCycles, char * fmt, unsigned int numSigs, ...)
           break;
       }
     }
-    top.eval();
+    top->eval();
+
+    cyclesPassed += 1;
+
     va_end(ap0);
     va_end(ap1);
   }

@@ -40,7 +40,7 @@ class VerilatorDriver{
     unsigned int cyclesPassed;
 
     //Our verilator design
-    VNV_nvdla top;
+    VNV_nvdla * top;
   public:
     VerilatorDriver();
 
