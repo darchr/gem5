@@ -63,8 +63,8 @@ class NVDLAWrapper : public DrivenObject{
         BareNVDLASystem * system;
 
         VNV_nvdla * dla;
-        CSBMaster csb;
-        TraceLoader tloader;
+        CSBMaster * csb;
+        TraceLoader * tloader;
         AXIResponder<uint64_t> * axi_dbb;
         AXIResponder<uint64_t> * axi_cvsram;
 

@@ -26,7 +26,9 @@
 #
 # Authors: Nima Ganjehloo
 */
-
+//gem5 gemeral includes
+#include "base/logging.hh"
+#include "debug/Verilator.hh"
 #include "nvdla_wrapper.hh"
 
 double sc_time_stamp(){
@@ -40,10 +42,12 @@ NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
     system(p->nvdla_sys),
     dla(nullptr),
     csb(nullptr),
-    tloader(&csb, axi_dbb, axi_cvsram),
+    tloader(nullptr),
     axi_dbb(nullptr),
     axi_cvsram(nullptr)
 {
+    DPRINTF(Verilator, "Setting up NVDLA Wrapper\n");
+
     if (p->axi_2_gem5 == nullptr)
         fatal("Could not instantiate AXI to gem5 interface");
 
@@ -52,8 +56,9 @@ NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
 
     dla = driver.getTopLevel();
     //csb reg file (i.e, like instruction decoder)
-    csb = CSBMaster(dla);
-    csb.CSBInit();
+    csb = new CSBMaster(dla);
+    csb->CSBInit();
+
     //make axi connections
     AXIResponder<uint64_t>::connections dbbconn = {
                 .aw_awvalid = &dla->nvdla_core2dbb_aw_awvalid,
@@ -84,6 +89,8 @@ NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
                 .r_rlast = &dla->nvdla_core2dbb_r_rlast,
                 .r_rdata = dla->nvdla_core2dbb_r_rdata,
         };
+        DPRINTF(Verilator, "Connecting AXI Interface To gem5 Memory (DRAM)\n");
+
         axi_dbb = new AXIResponder<uint64_t>(dbbconn, "DBB",
              p->axi_2_gem5);
 
@@ -116,9 +123,14 @@ NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
                 .r_rlast = &dla->nvdla_core2cvsram_r_rlast,
                 .r_rdata = dla->nvdla_core2cvsram_r_rdata,
         };
+        DPRINTF(Verilator, "Connecting AXI Interface To gem5 Memory(SRAM)\n");
+
         axi_cvsram = new AXIResponder<uint64_t>(cvsramconn, "CVSRAM",
             p->axi_2_gem5);
 
+        DPRINTF(Verilator, "Setting up Trace Loader\n");
+
+        tloader = new TraceLoader(csb, axi_dbb, axi_cvsram);
 
 }
 
@@ -138,18 +150,22 @@ void NVDLAWrapper::updateCycle(){
 }
 
 void NVDLAWrapper::runNVDLA(){
+    DPRINTF(Verilator, "----VERILATOR TICKS PASSED: %d----\n",
+        driver.getCyclesPassed());
     //poll csb for new operation requested by external controller
     if (!system->isTracerSystem()){
         //int op = ?
         //csb.ext_event( op )
     }
 
-    int extevent = csb.eval( waiting );
+    DPRINTF(Verilator, "    Executing CSB\n");
+    int extevent = csb->eval( waiting );
 
     //trace specific commands
+    DPRINTF(Verilator, "    Executing Trace\n");
     if (system->isTracerSystem()){
         if (extevent == TraceLoader::TRACE_AXIEVENT)
-                        tloader.axievent();
+                        tloader->axievent();
                 else if (extevent == TraceLoader::TRACE_WFI) {
                         waiting = 1;
                 }
@@ -159,34 +175,56 @@ void NVDLAWrapper::runNVDLA(){
                 }
     }
 
+
     //axi events for memory
+    DPRINTF(Verilator, "    Executing AXI DRAM\n");
     axi_dbb->eval();
+    DPRINTF(Verilator, "    Executing AXI SRAM\n");
     axi_cvsram->eval();
 
     //evaluate nvdla state
+    DPRINTF(Verilator, "    Executing Next NVDLA Cycle\n");
     updateCycle();
 
     //continue execution?
     //us csb->done only for traces? will controller
     //submitting commands ever allow for empty buffer of nvdla commands?
-    if ( !csb.done() || !driver.isFinished())
+    if ( !csb->done()){
         schedule(event, nextCycle());
+    }else if (system->isTracerSystem()){
+        inform("****TRACE HAS COMPLETED @ Verilator Tick %d****\n",
+            driver.getCyclesPassed() );
+
+        if (!tloader->test_passed()) {
+            fatal("*** FAIL: test failed due to output mismatch\n");
+        }
+
+        if (!csb->test_passed()) {
+            fatal("*** FAIL: test failed due to CSB read mismatch\n");
+        }
+
+            inform("*** PASS\n");
+    }
 
 }
 
 void NVDLAWrapper::initNVDLA(){
+    DPRINTF(Verilator, "Initializing nvdla clock and power signals\n");
+
     dla->global_clk_ovr_on = 0;
-        dla->tmc2slcg_disable_clock_gating = 0;
-        dla->test_mode = 0;
-        dla->nvdla_pwrbus_ram_c_pd = 0;
-        dla->nvdla_pwrbus_ram_ma_pd = 0;
-        dla->nvdla_pwrbus_ram_mb_pd = 0;
-        dla->nvdla_pwrbus_ram_p_pd = 0;
-        dla->nvdla_pwrbus_ram_o_pd = 0;
-        dla->nvdla_pwrbus_ram_a_pd = 0;
+    dla->tmc2slcg_disable_clock_gating = 0;
+    dla->test_mode = 0;
+    dla->nvdla_pwrbus_ram_c_pd = 0;
+    dla->nvdla_pwrbus_ram_ma_pd = 0;
+    dla->nvdla_pwrbus_ram_mb_pd = 0;
+    dla->nvdla_pwrbus_ram_p_pd = 0;
+    dla->nvdla_pwrbus_ram_o_pd = 0;
+    dla->nvdla_pwrbus_ram_a_pd = 0;
 }
 
 void NVDLAWrapper::resetNVDLA(){
+    DPRINTF(Verilator, "Resetting nvdla for %d cycles\n", resetCycles*2);
+
     char fmt[2] = {0,0};
     //reset
     dla->dla_reset_rstn = 1;
@@ -207,13 +245,17 @@ void NVDLAWrapper::resetNVDLA(){
 }
 
 void NVDLAWrapper::initClearDLABuffers(){
+
+    DPRINTF(Verilator, "Clearing hardware buffers for %d cycles\n",
+        bufferClearCycles);
+
     char fmt[2] = {0,0};
 
     //clear buffers
     dla->dla_reset_rstn = 1;
     dla->direct_reset_ = 1;
 
-     driver.reset(bufferClearCycles, fmt, 2
+     driver.reset(bufferClearCycles, fmt, 2,
         &(dla->dla_core_clk),
         &(dla->dla_csb_clk));
 }
@@ -224,11 +266,12 @@ void NVDLAWrapper::startup(){
     //init NVDLA
     initNVDLA();
 
-    const char * argv [] = {"nvdlaXgem5", "test/sanity0/trace.bin"};
+    const char * argv [] = {"/home/nganjehl/gem5/build/NULL/gem5.debug",
+         "/home/nganjehl/hw/outdir/nv_full/verilator/test/sanity0/trace.bin"};
     Verilated::commandArgs(2, argv);
 
     if (system->isTracerSystem())
-        tloader.load(system->getTracePath());
+        tloader->load(system->getTracePath());
 
     //reset
     resetNVDLA();
