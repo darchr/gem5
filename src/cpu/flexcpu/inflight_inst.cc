@@ -572,6 +572,9 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
     const DataSource& source = sources[op_idx];
     const shared_ptr<InflightInst> producer = source.producer.lock();
 
+    assert(!this->isSquashed());
+    assert(!producer || (producer && !producer->isSquashed()));
+
     if (producer && !producer->readPredicate()) {
         shared_ptr<InflightInst> inst_walker = producer;
         auto target_phys_reg =
@@ -607,7 +610,7 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
         return backingContext->readIntReg(reg_id.index());
     }
 
-    if (producer && !producer->isSquashed()) {
+    if (producer) {
         // If the producing instruction is still in the buffer, grab the result
         // assuming that it has been produced, and our index is in bounds.
         assert(producer->isComplete());
@@ -645,6 +648,9 @@ InflightInst::readFloatRegOperandBits(const StaticInst* si, int op_idx)
     const DataSource& source = sources[op_idx];
     const shared_ptr<InflightInst> producer = source.producer.lock();
 
+    assert(!this->isSquashed());
+    assert(!producer || (producer && !producer->isSquashed()));
+
     if (producer && !producer->readPredicate()) {
         shared_ptr<InflightInst> inst_walker = producer;
         auto target_phys_reg =
@@ -679,7 +685,7 @@ InflightInst::readFloatRegOperandBits(const StaticInst* si, int op_idx)
         return backingContext->readFloatReg(reg_id.index());
     }
 
-    if (producer && !producer->isSquashed()) {
+    if (producer) {
         // If the producing instruction is still in the buffer, grab the result
         // assuming that it has been produced, and our index is in bounds.
         assert(producer->isComplete());
@@ -715,6 +721,9 @@ InflightInst::readVecRegOperand(const StaticInst* si, int op_idx) const
     const DataSource& source = sources[op_idx];
     const shared_ptr<InflightInst> producer = source.producer.lock();
 
+    assert(!this->isSquashed());
+    assert(!producer || (producer && !producer->isSquashed()));
+
     if (producer && !producer->readPredicate()) {
         shared_ptr<InflightInst> inst_walker = producer;
         auto target_phys_reg =
@@ -749,7 +758,7 @@ InflightInst::readVecRegOperand(const StaticInst* si, int op_idx) const
         return backingContext->readVecReg(reg_id);
     }
 
-    if (producer && !producer->isSquashed()) {
+    if (producer) {
         // If the producing instruction is still in the buffer, grab the result
         // assuming that it has been produced, and our index is in bounds.
         assert(producer->isComplete());
@@ -778,6 +787,9 @@ InflightInst::getWritableVecRegOperand(const StaticInst* si, int op_idx)
 
     const DataSource& source = sources[op_idx];
     const shared_ptr<InflightInst> producer = source.producer.lock();
+
+    assert(!this->isSquashed());
+    assert(!producer || (producer && !producer->isSquashed()));
 
     results[op_idx].setAsVecReg();
     resultValid[op_idx] = true;
@@ -816,7 +828,7 @@ InflightInst::getWritableVecRegOperand(const StaticInst* si, int op_idx)
         return backingContext->getWritableVecReg(reg_id);
     }
 
-    if (producer && !producer->isSquashed()) {
+    if (producer) {
         // If the producing instruction is still in the buffer, grab the result
         // assuming that it has been produced, and our index is in bounds.
         assert(producer->isComplete());
@@ -966,6 +978,9 @@ InflightInst::readCCRegOperand(const StaticInst* si, int op_idx)
     const DataSource& source = sources[op_idx];
     const shared_ptr<InflightInst> producer = source.producer.lock();
 
+    assert(!this->isSquashed());
+    assert(!producer || (producer && !producer->isSquashed()));
+
     if (producer && !producer->readPredicate()) {
         shared_ptr<InflightInst> inst_walker = producer;
         auto target_phys_reg =
@@ -1000,7 +1015,7 @@ InflightInst::readCCRegOperand(const StaticInst* si, int op_idx)
         return backingContext->readCCReg(reg_id.index());
     }
 
-    if (producer && !producer->isSquashed()) {
+    if (producer) {
         // If the producing instruction is still in the buffer, grab the result
         // assuming that it has been produced, and our index is in bounds.
         assert(producer->isComplete());
@@ -1033,6 +1048,9 @@ InflightInst::readMiscRegOperand(const StaticInst* si, int op_idx)
 
     const DataSource& source = sources[op_idx];
     const shared_ptr<InflightInst> producer = source.producer.lock();
+
+    assert(!this->isSquashed());
+    assert(!producer || (producer && !producer->isSquashed()));
 
     if (producer && !producer->readPredicate()) {
         shared_ptr<InflightInst> inst_walker = producer;
@@ -1068,7 +1086,7 @@ InflightInst::readMiscRegOperand(const StaticInst* si, int op_idx)
         return backingContext->readMiscReg(reg_id.index());
     }
 
-    if (producer && !producer->isSquashed()) {
+    if (producer) {
         // If the producing instruction is still in the buffer, grab the result
         // assuming that it has been produced, and our index is in bounds.
         assert(producer->isComplete());

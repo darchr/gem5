@@ -361,6 +361,7 @@ FlexCPUThread::canCommit(const InflightInst& inst_ref)
     if (inst_ref.isMemorying())
         DPRINTF(FlexCPUTrace, "     Store %d \n",
             inst_ref.staticInst()->isStore());
+    //assert(!inst_ref.isSquashed());
     inst_ref.dumpInfo();
     return !inst_ref.isCommitted() &&
            (inst_ref.isComplete()
@@ -383,7 +384,7 @@ FlexCPUThread::commitAllAvailableInstructions()
         && (canCommit(*(inst_ptr = inflightInsts.front()))
             || inst_ptr->isSquashed())) {
 
-        if (inst_ptr->fault() != NoFault) {
+        if (inst_ptr->fault() != NoFault && !inst_ptr->isSquashed()) {
             handleFault(inst_ptr);
 
             return;
@@ -634,9 +635,10 @@ FlexCPUThread::getNextPC()
 void
 FlexCPUThread::handleFault(std::shared_ptr<InflightInst> inst_ptr)
 {
-    DPRINTF(FlexCPUThreadEvent, "Handling fault (seq %d): %s\n",
+    DPRINTF(FlexCPUThreadEvent, "Handling fault (seq %d): %s, vadrr: %d\n",
                                 inst_ptr->issueSeqNum(),
-                                inst_ptr->fault()->name());
+                                inst_ptr->fault()->name(),
+                                this->_cpuPtr->getCpuAddrMonitor(0)->vAddr);
 
     assert(inflightInsts.size() == 1);
 
@@ -644,7 +646,6 @@ FlexCPUThread::handleFault(std::shared_ptr<InflightInst> inst_ptr)
     bufferInstructionData(0, nullptr);
 
     numMacroopsInWindow = 0;
-
     inst_ptr->fault()->invoke(this, inst_ptr->staticInst());
 
     advanceInst(getNextPC());
@@ -901,6 +902,7 @@ void
 FlexCPUThread::onExecutionCompleted(shared_ptr<InflightInst> inst_ptr,
                                     Fault fault)
 {
+    assert(!inst_ptr->isSquashed());
     if (fault != NoFault) {
         markFault(inst_ptr, fault);
 
@@ -1007,6 +1009,7 @@ FlexCPUThread::onExecutionCompleted(weak_ptr<InflightInst> inst, Fault fault)
         // No need to do anything for an instruction that has been squashed.
         return;
     }
+    assert(inst_ptr->readPredicate());
 
     onExecutionCompleted(inst_ptr, fault);
 }
@@ -1716,128 +1719,7 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
     inst_ptr->notifyMemorying();
 
     weak_ptr<InflightInst> weak_inst(inst_ptr);
-/*
-    if (write) {
-        PacketPtr resp = Packet::createWrite(sreq ? sreq->main : req);
-        if (resp->hasData()) {
-            resp->dataStatic(data.get());
-        }
-        resp->makeResponse();
 
-        if (inst_ptr->staticInst()->isStoreConditional()) {
-            //inst_ptr->setRecordResult(false);
-            bool success = TheISA::handleLockedWrite(inst_ptr->tcBase(), req,
-                                                    _cpuPtr->cacheBlockMask);
-            //inst_ptr->setRecordResult(true);
-            auto callback = [this, inst_ptr, resp] (Fault fault) {
-                if (!inst_ptr || inst_ptr->isSquashed())
-                    return;
-                if (inst_ptr->readPredicate())
-                    Fault f = inst_ptr->staticInst()->completeAcc(resp,
-                                inst_ptr.get(), inst_ptr->traceData());
-                delete resp;
-                onExecutionCompleted(inst_ptr, fault);
-            };
-            if (!success) {
-                DPRINTF(FlexCPUTrace, "SN %d store failed\n",
-                        inst_ptr->issueSeqNum());
-                //Fault f = inst_ptr->staticInst()->completeAcc(resp,
-                //                inst_ptr.get(), inst_ptr->traceData());
-                onExecutionCompleted(inst_ptr, NoFault);
-                return;
-            }
-            DPRINTF(FlexCPUTrace, "SN %d stored\n", inst_ptr->issueSeqNum());
-
-            if (sreq) { // split
-                assert(sreq->high && sreq->low);
-                assert(inst_ptr->readPredicate());
-                _cpuPtr->requestSplitMemWrite(sreq->main, sreq->low,
-                    sreq->high, this,
-                    inst_ptr->staticInst(),
-                    static_pointer_cast<ExecContext>(inst_ptr),
-                    inst_ptr->traceData(), data.get(), callback);
-            } else { // not split
-                assert(inst_ptr->readPredicate());
-                _cpuPtr->requestMemWrite(req, this,
-                    inst_ptr->staticInst(),
-                    static_pointer_cast<ExecContext>(inst_ptr),
-                    inst_ptr->traceData(), data.get(), callback);
-            }
-
-
-            //if (inst_ptr == inflightInsts.front())
-            //    commitAllAvailableInstructions();
-            return;
-        }
-
-        assert(inst_ptr->readPredicate());
-        Fault f = inst_ptr->staticInst()->completeAcc(resp, inst_ptr.get(),
-                                                      inst_ptr->traceData());
-        // NOTE: FlexCPU may do other things for special instruction types,
-        //       which may no longer work correctly with this change.
-
-        delete resp;
-
-        if (f != NoFault) {
-            markFault(inst_ptr, f);
-            return;
-        }
-
-        // NOTE: We specifically capture the shared_ptr instead of a weak_ptr
-        //       in this case, because stores are committed once sent, and need
-        //       to be kept alive long enough for the completion event to
-        //       occur. Therefore after this point, the lifespan of the
-        //       InflightInst is managed by this lambda released into the wild
-        //       instead of in the inflightInsts buffer.
-        auto callback =
-            [this, inst_ptr] (Fault fault) {
-                if (inst_ptr)
-                    assert(inst_ptr->readPredicate());
-                onExecutionCompleted(inst_ptr, fault);
-            };
-
-        if (sreq) { // split
-            assert(inst_ptr->readPredicate());
-            assert(sreq->high && sreq->low);
-            _cpuPtr->requestSplitMemWrite(sreq->main, sreq->low,
-                sreq->high, this,
-                inst_ptr->staticInst(),
-                static_pointer_cast<ExecContext>(inst_ptr),
-                inst_ptr->traceData(), data.get(),
-                callback);
-        } else { // not split
-            assert(inst_ptr->readPredicate());
-            _cpuPtr->requestMemWrite(req, this,
-                inst_ptr->staticInst(),
-                static_pointer_cast<ExecContext>(inst_ptr),
-                inst_ptr->traceData(), data.get(), callback);
-        }
-
-        if (inst_ptr == inflightInsts.front())
-            commitAllAvailableInstructions();
-    } else { // read
-        auto callback =
-            [this, weak_inst] (Fault fault) {
-                onExecutionCompleted(weak_inst, fault);
-            };
-        if (sreq) { // split
-            assert(sreq->high && sreq->low);
-            assert(inst_ptr->readPredicate());
-            _cpuPtr->requestSplitMemRead(sreq->main, sreq->low,
-                sreq->high, this,
-                inst_ptr->staticInst(),
-                static_pointer_cast<ExecContext>(inst_ptr),
-                inst_ptr->traceData(),
-                callback);
-        } else { // not split
-            assert(inst_ptr->readPredicate());
-            _cpuPtr->requestMemRead(req, this,
-                inst_ptr->staticInst(),
-                static_pointer_cast<ExecContext>(inst_ptr),
-                inst_ptr->traceData(), callback);
-        }
-    }
-*/
 
     if (inst_ptr->staticInst()->isStoreConditional()) {
         bool success = TheISA::handleLockedWrite(inst_ptr->tcBase(), req,
@@ -1851,7 +1733,6 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
     }
 
     auto callback = [this, inst_ptr] (Fault fault) {
-        assert(inst_ptr->readPredicate());
         onExecutionCompleted(inst_ptr, fault);
     };
 
@@ -1981,6 +1862,7 @@ FlexCPUThread::MemIface::initiateMemRead(shared_ptr<InflightInst> inst_ptr,
                                          Request::Flags flags,
                                          const vector<bool>& byte_enable)
 {
+    assert(inst_ptr->readPredicate());
     const int asid = 0;
     const Addr pc = 0; // TODO extract this from inflightinst, but otherwise
                        //      only used for tracing/debugging.
