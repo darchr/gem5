@@ -212,7 +212,9 @@ TraceLoader::axievent()
         while (op.len)
         {
             uint8_t da = axi->read(op.addr);
-            write(fd, &da, 1);
+            ssize_t amtwrtn = write(fd, &da, 1);
+            if ( amtwrtn < 0)
+                fatal("AXI attempted to write to file, but failed\n");
             if (da != *buf && matched)
             {
                 DPRINTF(Verilator,"AXI: FAIL: mismatch at memory address %08x"
