@@ -131,7 +131,7 @@ private:
         AXIToMem * axi2gem;
 
 public:
-        AXIResponder(AXIResponder<ADDRTYPE>::connections _dla,
+        AXIResponder(struct connections _dla,
         const char *_name,
                 AXIToMem * mem)
         {
@@ -259,7 +259,7 @@ public:
                         }
 
                         for (int i = 0; i < AXI_R_DELAY; i++)
-                        r_fifo.push(txn);
+                                r_fifo.push(txn);
 
                         *dla.ar_arready = 0;
                 }
