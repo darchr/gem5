@@ -132,8 +132,7 @@ void InflightInst::dumpInfo() const
 
 void InflightInst::callEffCallbacks()
 {
-    for (auto callback: this->effAddrCalculatedCallbacks)
-    {
+    for (auto callback: this->effAddrCalculatedCallbacks) {
         callback();
     }
 }
@@ -333,14 +332,12 @@ InflightInst::commitToTC()
         const int8_t num_dsts = instRef->numDestRegs();
         for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
             const RegId& dst_reg = instRef->destRegIdx(dst_idx);
-            // The ARM ISA doesn't update the PC register, so we'll skip
-            // updating register if it's the PC register.
-            if (THE_ISA == ARM_ISA && dst_reg.classValue() == IntRegClass
-                && dst_reg.index() == TheISA::PCReg)
-                // R15 can be used?
-                if (!resultValid[dst_idx])
-                    continue;
-
+            // If ARM32 ignores write to X15
+            if (!resultValid[dst_idx]) {
+                panic_if(!(dst_reg.index() == TheISA::PCReg),
+                            "Tried to commit invalid result!");
+                continue;
+            }
             const GenericReg& result = getResult(dst_idx);
 
             switch (dst_reg.classValue()) {
@@ -776,11 +773,14 @@ InflightInst::getWritableVecRegOperand(const StaticInst* si, int op_idx)
     //      correctly, nor will the changed state necessarily be applied to the
     //      committed state during commit time.
 
-    const RegId& reg_id = si->srcRegIdx(op_idx);
+    const RegId& reg_id = si->destRegIdx(op_idx);
     assert(reg_id.isVecReg());
 
     const DataSource& source = sources[op_idx];
     const shared_ptr<InflightInst> producer = source.producer.lock();
+
+    results[op_idx].setAsVecReg();
+    resultValid[op_idx] = true;
 
     if (producer && !producer->readPredicate()) {
         shared_ptr<InflightInst> inst_walker = producer;
