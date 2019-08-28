@@ -292,6 +292,11 @@ class GenericReg {
 
         return *this;
     }
+
+    void setAsVecReg()
+    {
+      this->_regClass = RegClass::VecRegClass;
+    }
 };
 
 #endif // __CPU_FLEXCPU_GENERIC_REG_HH__
