@@ -30,6 +30,7 @@
 
 #include "cpu/flexcpu/inflight_inst.hh"
 #include "debug/FlexCPUTrace.hh"
+#include "debug/FlexIntRegs.hh"
 #include "debug/FlexPipeView.hh"
 
 using namespace std;
@@ -594,6 +595,10 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
                                 ->destRegIdx(data_src.resultIdx));
                 if (phys_reg == target_phys_reg) {
                     if (curr_producer->readPredicate()) {
+                        DPRINTF(FlexIntRegs, "RegInt %d read: %x\n",
+                        si->srcRegIdx(op_idx).index(),
+                        curr_producer
+                        ->getResult(data_src.resultIdx).asIntReg());
                         return curr_producer
                         ->getResult(data_src.resultIdx).asIntReg();
                     } else {
@@ -607,6 +612,9 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
                 break;
         }
 
+        DPRINTF(FlexIntRegs, "RegInt %d read: %x\n",
+        si->srcRegIdx(op_idx).index(),
+        backingContext->readIntReg(reg_id.index()));
         return backingContext->readIntReg(reg_id.index());
     }
 
@@ -617,11 +625,19 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
         assert(source.resultIdx >= 0
             && source.resultIdx < producer->results.size()
             && producer->resultValid[source.resultIdx]);
+
+        DPRINTF(FlexIntRegs, "RegInt %d read: %x\n",
+        si->srcRegIdx(op_idx).index(),
+        producer->getResult(source.resultIdx).asIntReg());
         return producer->getResult(source.resultIdx).asIntReg();
     } else {
         // Either the producing instruction has already been committed, or no
         // dependency was in-flight at the time that this instruction was
         // issued.
+
+        DPRINTF(FlexIntRegs, "RegInt %d read: %x\n",
+        si->srcRegIdx(op_idx).index(),
+        backingContext->readIntReg(reg_id.index()));
         return backingContext->readIntReg(reg_id.index());
     }
 }
@@ -631,7 +647,7 @@ InflightInst::setIntRegOperand(const StaticInst* si, int dst_idx, RegVal val)
 {
     const RegId& reg_id = si->destRegIdx(dst_idx);
     assert(reg_id.isIntReg());
-
+    DPRINTF(FlexIntRegs, "RegInt %d set to: %x\n", reg_id.index(), val);
     results[dst_idx].set(reg_id.isZeroReg() ? 0 : val, IntRegClass);
     resultValid[dst_idx] = true;
 }
@@ -825,7 +841,8 @@ InflightInst::getWritableVecRegOperand(const StaticInst* si, int op_idx)
                 break;
         }
 
-        return backingContext->getWritableVecReg(reg_id);
+        //return backingContext->getWritableVecReg(reg_id);
+        return this->getResult(op_idx).asVecReg();
     }
 
     if (producer) {
@@ -840,7 +857,8 @@ InflightInst::getWritableVecRegOperand(const StaticInst* si, int op_idx)
         // Either the producing instruction has already been committed, or no
         // dependency was in-flight at the time that this instruction was
         // issued.
-        return backingContext->getWritableVecReg(reg_id);
+        //return backingContext->getWritableVecReg(reg_id);
+        return this->getResult(op_idx).asVecReg();
     }
 }
 

@@ -54,6 +54,7 @@ if 'FlexCPU' in env['CPU_MODELS']:
     DebugFlag('FlexCPUTrace')
 
     DebugFlag('FlexCommit')
+    DebugFlag('FlexIntRegs')
 
     CompoundFlag('FlexCPUAll', ['FlexCPUCoreEvent', 'FlexCPUInstEvent',
                               'FlexCPUThreadEvent', 'FlexCPUBranchPred',
