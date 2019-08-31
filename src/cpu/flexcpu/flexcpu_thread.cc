@@ -384,7 +384,7 @@ FlexCPUThread::commitAllAvailableInstructions()
         && (canCommit(*(inst_ptr = inflightInsts.front()))
             || inst_ptr->isSquashed())) {
 
-        if (inst_ptr->fault() != NoFault && !inst_ptr->isSquashed()) {
+        if (inst_ptr->fault() != NoFault){// && !inst_ptr->isSquashed()) {
             handleFault(inst_ptr);
 
             return;
@@ -902,7 +902,9 @@ void
 FlexCPUThread::onExecutionCompleted(shared_ptr<InflightInst> inst_ptr,
                                     Fault fault)
 {
-    assert(!inst_ptr->isSquashed());
+    //if (!inst_ptr || inst_ptr->isSquashed())
+    //    return;
+    //assert(!inst_ptr->isSquashed());
     if (fault != NoFault) {
         markFault(inst_ptr, fault);
 
@@ -1732,11 +1734,31 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
         }
     }
 
-    auto callback = [this, inst_ptr] (Fault fault) {
-        onExecutionCompleted(inst_ptr, fault);
-    };
-
-    if (write) {
+    if (inst_ptr->staticInst()->isStoreConditional()) {
+        auto callback = [this, weak_inst] (Fault fault) {
+            onExecutionCompleted(weak_inst, fault);
+        };
+        if (sreq) { // split
+            assert(inst_ptr->readPredicate());
+            assert(sreq->high && sreq->low);
+            _cpuPtr->requestSplitMemWrite(sreq->main, sreq->low,
+                sreq->high, this,
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(), data.get(),
+                callback, inst_ptr->issueSeqNum());
+        } else { // not split
+            assert(inst_ptr->readPredicate());
+            _cpuPtr->requestMemWrite(req, this,
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(), data.get(), callback,
+                inst_ptr->issueSeqNum());
+        }
+    } else if (write) {
+        auto callback = [this, inst_ptr] (Fault fault) {
+            onExecutionCompleted(inst_ptr, fault);
+        };
         if (sreq) { // split
             assert(inst_ptr->readPredicate());
             assert(sreq->high && sreq->low);
@@ -1755,6 +1777,9 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
                 inst_ptr->issueSeqNum());
         }
     } else { // read
+        auto callback = [this, weak_inst] (Fault fault) {
+            onExecutionCompleted(weak_inst, fault);
+        };
         if (sreq) { // split
             assert(sreq->high && sreq->low);
             assert(inst_ptr->readPredicate());

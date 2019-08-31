@@ -804,12 +804,13 @@ InflightInst::getWritableVecRegOperand(const StaticInst* si, int op_idx)
     const DataSource& source = sources[op_idx];
     const shared_ptr<InflightInst> producer = source.producer.lock();
 
-    assert(!this->isSquashed());
-    assert(!producer || (producer && !producer->isSquashed()));
+    //assert(!this->isSquashed()); TODO: is this correct?
+    //assert(!producer || (producer && !producer->isSquashed()));
 
     results[op_idx].setAsVecReg();
     resultValid[op_idx] = true;
-
+    return this->getResult(op_idx).asVecReg();
+/*
     if (producer && !producer->readPredicate()) {
         shared_ptr<InflightInst> inst_walker = producer;
         auto target_phys_reg =
@@ -860,6 +861,7 @@ InflightInst::getWritableVecRegOperand(const StaticInst* si, int op_idx)
         //return backingContext->getWritableVecReg(reg_id);
         return this->getResult(op_idx).asVecReg();
     }
+    */
 }
 
 void

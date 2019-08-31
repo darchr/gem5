@@ -35,6 +35,7 @@
 #include "arch/utility.hh"
 #include "base/compiler.hh"
 #include "debug/FlexCPUCoreEvent.hh"
+#include "debug/FlexIntRegs.hh"
 
 using namespace std;
 using namespace TheISA;
@@ -292,6 +293,8 @@ FlexCPU::requestExecution(StaticInstPtr inst, InstSeqNum issueSeqNum,
             // If the context expired (a result of instruction squash), then
             // a callback is unnecessary, at least for existing FlexCPUThread
             // implementation.
+
+            DPRINTFR(FlexIntRegs, "RegInt Executing %d\n", issueSeqNum);
 
 
             Fault fault = inst->isMemRef() ?
