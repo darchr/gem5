@@ -203,6 +203,7 @@ void NVDLAWrapper::runNVDLA(){
             fatal("*** FAIL: test failed due to CSB read mismatch\n");
         }
 
+        if (csb->test_passed() && tloader->test_passed() )
             inform("*** PASS\n");
     }
 
@@ -266,8 +267,8 @@ void NVDLAWrapper::startup(){
     //init NVDLA
     initNVDLA();
 
-    const char * argv [] = {"/home/nganjehl/gem5/build/NULL/gem5.debug",
-         "/home/nganjehl/hw/outdir/nv_full/verilator/test/sanity0/trace.bin"};
+    const char * argv [2] = {"/home/nganjehl/gem5/build/NULL/gem5.debug", ""};
+    argv[1] = system->getTracePath();
     Verilated::commandArgs(2, argv);
 
     if (system->isTracerSystem())
