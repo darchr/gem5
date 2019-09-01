@@ -129,13 +129,14 @@ AXIToMemParams::create()
 AXIToMem::AXIToMem(
         AXIToMemParams *params) :
         VerilatorMemBlackBox(params),
-        dataPort(params->name + ".data_port", this)
+        dataPort(params->name + ".data_port", this),
+        memMode(params->mem_mode)
 {
 }
 
 //sets up a memory request for memory instructions to gem5 memory sytem
 void
-AXIToMem::doMem(int req_addr, unsigned char req_operation,
+AXIToMem::doMem(unsigned int req_addr, unsigned char req_operation,
       unsigned char req_write_data)
 {
   //are we reading or writing?
@@ -171,7 +172,7 @@ AXIToMem::doMem(int req_addr, unsigned char req_operation,
       req_write_data, 1);
       data[0] = req_write_data;
 
-    DPRINTF(Verilator, "DATA TO WRITE IS %x %x %x %x\n", data[0]);
+    DPRINTF(Verilator, "DATA TO WRITE IS %x\n", data[0]);
   }
 
   //allocate space for memory request
@@ -180,7 +181,11 @@ AXIToMem::doMem(int req_addr, unsigned char req_operation,
   delete[] data;
 
   //send request
-  dataPort.sendTimingPacket(pkt);
+  if ( memMode )
+    dataPort.sendTimingPacket(pkt);
+  else
+    dataPort.sendAtomicPacket(pkt);
+
 }
 
 //handles a successful response for a memory request

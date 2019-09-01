@@ -40,7 +40,7 @@ class AXIToMem: public VerilatorMemBlackBox
 {
   public:
     //memory access functions for blackbox
-    void doMem(int req_addr, unsigned char req_operation,
+    void doMem(unsigned int req_addr, unsigned char req_operation,
       unsigned char req_write_data);
 
     BaseMasterPort& getMasterPort( const std::string& if_name,
@@ -82,5 +82,7 @@ class AXIToMem: public VerilatorMemBlackBox
 
     //data for response to dpi
     uint8_t dmemResp;
+    //0 for atomic/tests, 1 for timing
+    int memMode;
 };
 #endif
