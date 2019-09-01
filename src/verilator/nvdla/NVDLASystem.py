@@ -40,6 +40,6 @@ class BareNVDLASystem(NVDLASystem):
     cxx_header = 'verilator/nvdla/bare_nvdla/system.hh'
 
     #trace
-    load_trace = Param.String("./ext/verilator/nvdla/test/sanity1/trace.bin",
+    load_trace = Param.String("./ext/verilator/nvdla/test/sanity0/trace.bin",
         "Input trace for net")
     load_trace_addr = Param.Int(0x0, "where to load trace")

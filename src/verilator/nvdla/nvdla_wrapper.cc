@@ -53,6 +53,7 @@ NVDLAWrapper::NVDLAWrapper(NVDLAWrapperParams *p):
 
     resetCycles = p->reset_cycles;
     waiting = 0;
+    quiesc_timer = 200;
 
     dla = driver.getTopLevel();
     //csb reg file (i.e, like instruction decoder)
@@ -189,7 +190,7 @@ void NVDLAWrapper::runNVDLA(){
     //continue execution?
     //us csb->done only for traces? will controller
     //submitting commands ever allow for empty buffer of nvdla commands?
-    if ( !csb->done()){
+    if ( !csb->done() || quiesc_timer--){
         schedule(event, nextCycle());
     }else if (system->isTracerSystem()){
         inform("****TRACE HAS COMPLETED @ Verilator Tick %d****\n",

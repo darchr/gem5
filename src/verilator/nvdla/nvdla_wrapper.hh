@@ -59,6 +59,7 @@ class NVDLAWrapper : public DrivenObject{
 
         int bufferClearCycles;
         int waiting;
+        int quiesc_timer;
 
         BareNVDLASystem * system;
 
