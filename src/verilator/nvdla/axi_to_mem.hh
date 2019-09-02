@@ -63,7 +63,7 @@ class AXIToMem: public VerilatorMemBlackBox
                     VerilatorMemBlackBoxPort(name, owner)
                 { }
 
-        void sendTimingPacket(PacketPtr pkt);
+        bool sendTimingPacket(PacketPtr pkt);
 
         //currently need this for synchronization. tells gem5 to access mem
         //model immediatly instead of scheduling event to do so

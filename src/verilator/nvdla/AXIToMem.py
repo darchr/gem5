@@ -35,4 +35,4 @@ class AXIToMem(VerilatorMemBlackBox):
   cxx_header = "verilator/nvdla/axi_to_mem.hh"
 
   data_port = MasterPort("Data Port")
-  mem_mode = Param.Int(0, "0 for atomic, 1 for timing")
+  mem_mode = Param.Int(1, "0 for atomic, 1 for timing")

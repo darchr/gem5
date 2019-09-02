@@ -40,7 +40,7 @@
 
 //MASTER PORT DEFINITIONS
 //send packet to gem5 memory system,schedules an event
-void
+bool
 AXIToMem::AXIToMemPort
   ::sendTimingPacket(PacketPtr pkt)
 {
@@ -49,7 +49,12 @@ AXIToMem::AXIToMemPort
   if (!sendTimingReq(pkt)) {
     DPRINTF(Verilator, "Packet for addr: %#x blocked\n", pkt->getAddr());
     blockedPacket = pkt;
+  }else{
+    DPRINTF(Verilator, "TIMING MEMORY RESPONSE RECIEVED\n");
+    //let blackbox determine how to deal with returned data
+    return static_cast<AXIToMem *>(owner)->handleResponse(pkt);
   }
+  return false;
 }
 
 //sends a packet to gem5 memory system, recieves response
@@ -65,12 +70,12 @@ AXIToMem::AXIToMemPort
   //....i dont think blocking the packet here is right. do atomics ever get
   //request retries?
   if (!sendAtomic(pkt)) {
+    DPRINTF(Verilator, "Packet for addr: %#x blocked\n", pkt->getAddr());
+    blockedPacket = pkt;
+  }else{
     DPRINTF(Verilator, "ATOMIC MEMORY RESPONSE RECIEVED\n");
     //let blackbox determine how to deal with returned data
     return static_cast<AXIToMem *>(owner)->handleResponse(pkt);
-  }else{
-    DPRINTF(Verilator, "Packet for addr: %#x blocked\n", pkt->getAddr());
-    blockedPacket = pkt;
   }
   return false;
 }
