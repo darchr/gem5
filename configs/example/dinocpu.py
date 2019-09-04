@@ -62,7 +62,7 @@ else:
 ##############################################################################
 
 # create the system we are going to simulate
-system = BareNVDLASystem()
+system = System()
 
 # Set the clock frequency of the system (and all of its children)
 system.clk_domain = SrcClockDomain()
@@ -71,10 +71,10 @@ system.clk_domain.voltage_domain = VoltageDomain()
 
 # Set up the system
 system.mem_mode = 'timing'               # Use timing accesses
-system.mem_ranges = [AddrRange('4GB')] # Create an address range
+system.mem_ranges = [AddrRange('8GB')] # Create an address range
 
 # Create a DDR3 memory controller
-system.mem_ctrl = SimpleMemory(latency = '1ns', bandwidth = '0GB/s')
+system.mem_ctrl = SimpleMemory(latency = '0ns', bandwidth = '0GB/s')
 system.mem_ctrl.range = system.mem_ranges[0]
 
 # Set up the binary to load
@@ -82,11 +82,14 @@ system.kernel = binary
 system.system_port = system.mem_ctrl.port
 
 # Create the dinocpu verilator wrapper
-system.nvdla = NVDLAWrapper()
-system.nvdla.axi_2_gem5 = AXIToMem()
+system.dinocpu = DrivenObject()
+
+# Create the mem black box verilator wrapper
+system.verilator_mem = AsyncMemBlackBox()
 
 
-system.nvdla.axi_2_gem5.data_port = system.mem_ctrl.port
+system.verilator_mem.inst_port = system.mem_ctrl.port
+system.verilator_mem.data_port = system.mem_ctrl.port
 
 # set up the root SimObject and start the simulation
 root = Root(full_system = True, system = system)
@@ -95,6 +98,5 @@ root = Root(full_system = True, system = system)
 m5.instantiate()
 
 print("Beginning simulation!")
-exit_event = m5.simulate(1000000000)
+exit_event = m5.simulate(200000)
 print('Exiting @ tick %i because %s' % (m5.curTick(), exit_event.getCause()))
-
