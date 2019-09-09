@@ -28,4 +28,8 @@ Fill in the answers below.
 - I am using **\<x86 or ARM or RISC-V or other>**
 
 ## Other details
-<Fill in anything here :)>
+Fill in more details here.
+
+Do *not* post screenshots of terminals!
+Copy-paste the *relevant details* if you need.
+Alternatively, you can upload the stdout/stderr and attach it to this report.
