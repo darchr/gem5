@@ -51,3 +51,8 @@ This includes runscripts/config scripts, exact command lines, and any other inpu
 
 ## Additional information
 **\<Here, you can put any additional information>**
+
+Do *not* post screenshots of terminals!
+Copy-paste the *relevant details* if you need.
+Alternatively, you can upload the stdout/stderr and attach it to this report.
+
