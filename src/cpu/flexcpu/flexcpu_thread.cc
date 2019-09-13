@@ -532,6 +532,16 @@ FlexCPUThread::executeInstruction(shared_ptr<InflightInst> inst_ptr)
                 if (!inst_ptr || inst_ptr->isSquashed()) return;
 
                 if (fault != NoFault) markFault(inst_ptr, fault);
+
+                // If the predicate for memory instruction is false
+                // then go straight to complete stage.
+                // Effective memory address should be called since
+                // there might be other instructions waiting for
+                // this instruction to have the address calculated.
+                if (!inst_ptr->readPredicate()) {
+                    inst_ptr->notifyEffAddrCalculated();
+                    onExecutionCompleted(weak_inst, fault);
+                }
             };
     } else {
         callback = [this, weak_inst](Fault fault) {

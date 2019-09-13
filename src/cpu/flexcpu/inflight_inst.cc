@@ -125,6 +125,10 @@ InflightInst::addBeginExecDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isExecuting()) return;
 
+    // If the parent instruction is not predicated then the dependency doesn't
+    // exist
+    if (!parent.readPredicate()) return;
+
     ++remainingDependencies;
 
     weak_ptr<InflightInst> weak_this = shared_from_this();
@@ -151,6 +155,10 @@ InflightInst::addCommitDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isCommitted()) return;
 
+    // If the parent instruction is not predicated then the dependency doesn't
+    // exist
+    if (!parent.readPredicate()) return;
+
     ++remainingDependencies;
 
     weak_ptr<InflightInst> weak_this = shared_from_this();
@@ -176,6 +184,11 @@ void
 InflightInst::addDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isComplete()) return;
+
+    // If the parent instruction is not predicated then the dependency doesn't
+    // exist
+    if (!parent.readPredicate()) return;
+
     ++remainingDependencies;
 
     weak_ptr<InflightInst> weak_this = shared_from_this();
@@ -208,6 +221,10 @@ InflightInst::addMemCommitDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isCommitted()) return;
 
+    // If the parent instruction is not predicated then the dependency doesn't
+    // exist
+    if (!parent.readPredicate()) return;
+
     ++remainingMemDependencies;
 
     weak_ptr<InflightInst> weak_this = shared_from_this();
@@ -228,6 +245,10 @@ InflightInst::addMemDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isComplete()) return;
 
+    // If the parent instruction is not predicated then the dependency doesn't
+    // exist
+    if (!parent.readPredicate()) return;
+
     ++remainingMemDependencies;
 
     weak_ptr<InflightInst> weak_this = shared_from_this();
@@ -247,6 +268,10 @@ void
 InflightInst::addMemEffAddrDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isEffAddred()) return;
+
+    // If the parent instruction is not predicated then the dependency doesn't
+    // exist
+    if (!parent.readPredicate()) return;
 
     ++remainingMemDependencies;
 

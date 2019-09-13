@@ -154,6 +154,10 @@ StLdForwarder::populateMemDependencies(
         // to be checked.
         if (other->staticInst()->isMemBarrier()) break;
 
+        // If the older store is not predicated, the dependency does not exist
+        if (!other->readPredicate())
+            continue;
+
         if (other->isEffAddred()) {
             // Case 1: other has already calculated an effective address
 
@@ -176,6 +180,11 @@ StLdForwarder::populateMemDependencies(
                     // it finishes instead, since we don't know if the
                     // dependency is necessary yet.
                     if (!inst_ptr->isEffAddred()) return;
+
+                    // If the older store is not predicated, the dependency
+                    // does not exist
+                    if (!other->readPredicate())
+                        return;
 
                     if (inst_ptr->effAddrOverlap(*other)) {
                         DPRINTF(FlexCPUDeps, "Dep %d -> %d [mem]\n",
@@ -380,6 +389,10 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
 
         assert(st_inst_ptr->staticInst()->isStore());
 
+        // if the store instruction is not predicated, don't wait for forwarder
+        if (!st_inst_ptr->readPredicate())
+            continue;
+
         if (!st_inst_ptr->isEffAddred()) {
             DPRINTF(FlexCPUForwarder,"Store (seq %d) needs to calculate "
                                    "effective address.\n",
@@ -398,6 +411,15 @@ StLdForwarder::requestLoad(const shared_ptr<InflightInst>& inst_ptr,
                     if (!ld_inst_ptr || ld_inst_ptr->isSquashed()) return;
 
                     --ctrl_blk->remaining_unknowns;
+
+                    // If the older store is not predicated, it won't affect
+                    // the memory. Therefore, further checking is unnecessary.
+                    if (!st_inst_ptr->readPredicate()) {
+                        if (!ctrl_blk->remaining_unknowns) {
+                            callback(nullptr);
+                        }
+                        return;
+                    }
 
                     if (ctrl_blk->latest_overlapping_store
                      && ctrl_blk->latest_overlapping_store->seqNum()
