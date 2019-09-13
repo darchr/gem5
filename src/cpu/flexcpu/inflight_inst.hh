@@ -31,6 +31,7 @@
 #ifndef __CPU_FLEXCPU_INFLIGHT_INST_HH__
 #define __CPU_FLEXCPU_INFLIGHT_INST_HH__
 
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -231,6 +232,8 @@ class InflightInst : public ExecContext,
     std::vector<GenericReg> results;
     std::vector<bool> resultValid;
 
+    std::array<DataSource, TheISA::MaxInstDestRegs> destRegPrevProducer;
+
     /**
      * For use in storing results of writes to miscRegs that don't go through
      * the operands of the StaticInst.
@@ -248,6 +251,8 @@ class InflightInst : public ExecContext,
     bool accessedSplitPAddrsValid = false;
     AddrRange accessedSplitPAddrs; // Second variable to store range for second
                                    // request as part of split accesses
+
+    bool predicate; // used by predicated instructions, perhaps specific to ARM
 
   public:
     InflightInst(ThreadContext* backing_context, TheISA::ISA* backing_isa,
@@ -366,6 +371,14 @@ class InflightInst : public ExecContext,
     { return _fault; }
     inline const Fault& fault(const Fault& f)
     { return _fault = f; }
+
+
+    /**
+     * This function sends previous destination registers from the previous
+     * instruction wrote to those destination registers to the destination
+     * registers of this instruction.
+     */
+    void forwardDestRegsFromProducers();
 
     /**
      * Accessor function to retrieve a result produced by this instruction.
@@ -513,6 +526,21 @@ class InflightInst : public ExecContext,
      *  that I want
      */
     void setDataSource(int8_t src_idx, DataSource source);
+
+    /**
+     * Since there are instructions that are not executed, the destination
+     * registers of thoses instructions won't be updated. However, as there
+     * are younger instructions having those non-executed instructions as
+     * data source, the destination registers of non-executed instructions
+     * need to have the results from the most recent older instructions that
+     * update those registers. Therefore, for each destination register of each
+     * instruction, we will keep track of the most recent older instruction
+     * that has the same destination register. If this instruction is not
+     * executed, we will get the register values from the older instructions.
+     * Note that we do this regardless of the predicate status of the older
+     * instruction.
+     */
+    void setDestRegPrevProducer(int this_dst_idx, DataSource data_src);
 
     /**
      * Ask the InflightInst what its current (committed) sequence number is

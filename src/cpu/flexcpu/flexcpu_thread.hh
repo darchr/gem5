@@ -261,7 +261,7 @@ class FlexCPUThread : public ThreadContext
      * For quick dependency extraction, we keep track of the most recent
      * write accesses to each unique register.
      */
-    std::unordered_map<RegId, InflightInst::DataSource> lastUses;
+    std::unordered_map<RegId, InflightInst::DataSource> lastProducers;
 
     /**
      * Whether a recent attempted advanceInst failed due to the inflightInsts
@@ -599,10 +599,26 @@ class FlexCPUThread : public ThreadContext
      * An assumption is currently being made that this instruction is the tail
      * of the inflightInsts buffer.
      *
+     * This function keeps track of all RAW (Read-after-write) dependencies.
+     *
      * @param inst_ptr The instruction for which we want to detect
      * dependencies.
      */
     void populateDependencies(std::shared_ptr<InflightInst> inst_ptr);
+
+    /**
+     * This function iterates through the destination registers and determines
+     * which instruction was the last one to write to the destination register
+     * of this instruction.
+     *
+     * This function keeps track of all WAW (Write-after-write) dependencies,
+     * which are needed when an older instruction does not execute,
+     * eg. predication.
+     *
+     * @param inst_ptr The instruction for which we want to track previous
+     * destination register producers.
+     */
+    void populatePrevDestRegProducer(std::shared_ptr<InflightInst> inst_ptr);
 
     /**
      * This function iterates through the registers that this instruction
@@ -611,7 +627,7 @@ class FlexCPUThread : public ThreadContext
      *
      * @param inst_ptr The instruction for which we want to track uses.
      */
-    void populateUses(std::shared_ptr<InflightInst> inst_ptr);
+    void populateProducers(std::shared_ptr<InflightInst> inst_ptr);
 
     /**
      * This function makes a request for the branch predictor for the given
@@ -675,8 +691,9 @@ class FlexCPUThread : public ThreadContext
      * If inst_ptr is not in the buffer, then this will clear the entire
      * buffer.
      *
-     * This function may also has the side effect of rebuilding the lastUses
-     * map, since squashing instructions may invalidate entries in the map.
+     * This function may also has the side effect of rebuilding the
+     * lastProducers map, since squashing instructions may invalidate entries
+     * in the map.
      *
      * @param inst_ptr The instruction before the oldest instruction that
      *  should be squashed and removed.
