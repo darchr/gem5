@@ -249,6 +249,8 @@ class InflightInst : public ExecContext,
     AddrRange accessedSplitPAddrs; // Second variable to store range for second
                                    // request as part of split accesses
 
+    bool predicate; // used by predicated instructions, perhaps specific to ARM
+
   public:
     InflightInst(ThreadContext* backing_context, TheISA::ISA* backing_isa,
                  MemIface* backing_mem_iface, X86Iface* backing_x86_iface,

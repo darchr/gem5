@@ -52,7 +52,8 @@ InflightInst::InflightInst(ThreadContext* backing_context,
     _status(Empty),
     _seqNum(seq_num),
     _issueSeqNum(issue_seq_num),
-    _pcState(pc_)
+    _pcState(pc_),
+    predicate(true)
 {
     _timingRecord.creationTick = curTick();
     staticInst(inst_ref);
@@ -943,17 +944,14 @@ InflightInst::tcBase()
 bool
 InflightInst::readPredicate() const
 {
-    panic("readPredicate() not implemented!");
-    return false;
-    // TODO
+    return predicate;
 }
 
 void
 InflightInst::setPredicate(bool val)
 {
-    panic("setPredicate() not implemented!");
+    predicate = val;
     if (_traceData) _traceData->setPredicate(val);
-    // TODO
 }
 
 bool
