@@ -288,6 +288,13 @@ InflightInst::commitToTC()
         const RegId& dst_reg = instRef->destRegIdx(dst_idx);
         const GenericReg& result = getResult(dst_idx);
 
+        // If ARM32 ignores write to X15
+        if (!resultValid[dst_idx]) {
+            panic_if(!(dst_reg.index() == TheISA::PCReg),
+                        "Tried to commit invalid result");
+            continue;
+        }
+
         switch (dst_reg.classValue()) {
           case IntRegClass:
             backingContext->setIntReg(dst_reg.index(), result.asIntReg());
