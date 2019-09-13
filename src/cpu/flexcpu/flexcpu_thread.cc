@@ -71,6 +71,7 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
     isa(isa_),
     fetchBuf(vector<uint8_t>(fetch_buf_size)),
     fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1)),
+    decoder(TheISA::Decoder(isa_)),
     remainingBranchPredDepth(branch_pred_max_depth ?
                              branch_pred_max_depth : -1),
     forwarder(_name + ".forwarder", 0, stld_forward_enabled, Cycles(0), 0)
@@ -106,6 +107,7 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
     isa(isa_),
     fetchBuf(vector<uint8_t>(fetch_buf_size)),
     fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1)),
+    decoder(TheISA::Decoder(isa_)),
     remainingBranchPredDepth(branch_pred_max_depth ?
                              branch_pred_max_depth : -1),
     forwarder(_name + ".forwarder", 0, stld_forward_enabled, Cycles(0), 0)
