@@ -37,8 +37,10 @@ workloads = ('Bubblesort','FloatMM')
 
 valid_isas = {
     'x86': ('AtomicSimpleCPU', 'TimingSimpleCPU', 'DerivO3CPU', 'FlexCPU'),
-    'arm': ('AtomicSimpleCPU', 'TimingSimpleCPU', 'MinorCPU', 'DerivO3CPU'),
-    'riscv': ('AtomicSimpleCPU', 'TimingSimpleCPU', 'MinorCPU', 'DerivO3CPU'),
+    'arm': ('AtomicSimpleCPU', 'TimingSimpleCPU', 'MinorCPU', 'DerivO3CPU',
+            'FlexCPU'),
+    'riscv': ('AtomicSimpleCPU', 'TimingSimpleCPU', 'MinorCPU', 'DerivO3CPU',
+              'FlexCPU'),
 }
 
 

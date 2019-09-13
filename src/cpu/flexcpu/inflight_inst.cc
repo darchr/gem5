@@ -52,7 +52,8 @@ InflightInst::InflightInst(ThreadContext* backing_context,
     _status(Empty),
     _seqNum(seq_num),
     _issueSeqNum(issue_seq_num),
-    _pcState(pc_)
+    _pcState(pc_),
+    predicate(true)
 {
     _timingRecord.creationTick = curTick();
     staticInst(inst_ref);
@@ -77,11 +78,12 @@ void InflightInst::pipeTrace()
     if (DTRACE(FlexPipeView)) {
         if (!static_cast<bool>(instRef)) {
             DPRINTFR(FlexPipeView,
-                     "pipe;%llu;%llx;%llx;null;"
+                     "pipe;%llu;%llx;%llx;null;%d;"
                      "%llu;%llu;%llu;%llu;%llu;%llu;%llu;%llu;%llu\n",
                      this->issueSeqNum(),
                      this->_pcState.pc(),
                      this->_pcState.upc(),
+                     this->predicate,
                      this->_timingRecord.creationTick,
                      this->_timingRecord.decodeTick,
                      this->_timingRecord.issueTick,
@@ -93,12 +95,13 @@ void InflightInst::pipeTrace()
                      this->_timingRecord.squashTick);
         } else {
             DPRINTFR(FlexPipeView,
-                     "pipe;%llu;%llx;%llx;%s;"
+                     "pipe;%llu;%llx;%llx;%s;%d;"
                      "%llu;%llu;%llu;%llu;%llu;%llu;%llu;%llu;%llu\n",
                      this->issueSeqNum(),
                      this->_pcState.pc(),
                      this->_pcState.upc(),
                      this->instRef->disassemble(this->_pcState.npc()),
+                     this->predicate,
                      this->_timingRecord.creationTick,
                      this->_timingRecord.decodeTick,
                      this->_timingRecord.issueTick,
@@ -123,6 +126,10 @@ void
 InflightInst::addBeginExecDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isExecuting()) return;
+
+    // If the parent instruction is not predicated then the dependency doesn't
+    // exist
+    if (!parent.readPredicate()) return;
 
     ++remainingDependencies;
 
@@ -150,6 +157,10 @@ InflightInst::addCommitDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isCommitted()) return;
 
+    // If the parent instruction is not predicated then the dependency doesn't
+    // exist
+    if (!parent.readPredicate()) return;
+
     ++remainingDependencies;
 
     weak_ptr<InflightInst> weak_this = shared_from_this();
@@ -175,6 +186,11 @@ void
 InflightInst::addDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isComplete()) return;
+
+    // If the parent instruction is not predicated then the dependency doesn't
+    // exist
+    if (!parent.readPredicate()) return;
+
     ++remainingDependencies;
 
     weak_ptr<InflightInst> weak_this = shared_from_this();
@@ -189,6 +205,7 @@ InflightInst::addDependency(InflightInst& parent)
         }
     });
 }
+
 
 void
 InflightInst::addEffAddrCalculatedCallback(function<void()> callback)
@@ -206,6 +223,10 @@ void
 InflightInst::addMemCommitDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isCommitted()) return;
+
+    // If the parent instruction is not predicated then the dependency doesn't
+    // exist
+    if (!parent.readPredicate()) return;
 
     ++remainingMemDependencies;
 
@@ -227,6 +248,10 @@ InflightInst::addMemDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isComplete()) return;
 
+    // If the parent instruction is not predicated then the dependency doesn't
+    // exist
+    if (!parent.readPredicate()) return;
+
     ++remainingMemDependencies;
 
     weak_ptr<InflightInst> weak_this = shared_from_this();
@@ -246,6 +271,10 @@ void
 InflightInst::addMemEffAddrDependency(InflightInst& parent)
 {
     if (parent.isSquashed() || parent.isEffAddred()) return;
+
+    // If the parent instruction is not predicated then the dependency doesn't
+    // exist
+    if (!parent.readPredicate()) return;
 
     ++remainingMemDependencies;
 
@@ -283,9 +312,24 @@ InflightInst::addSquashCallback(function<void()> callback)
 void
 InflightInst::commitToTC()
 {
+    // If the instruction is predicated to false, we don't need to update the
+    // registers.
+    if (!this->readPredicate()) {
+        TheISA::PCState pc = pcState();
+        instRef->advancePC(pc);
+        backingContext->pcState(pc);
+        backingContext->getCpuPtr()->probeInstCommit(instRef, pc.instAddr());
+        return;
+    }
+
     const int8_t num_dsts = instRef->numDestRegs();
     for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
         const RegId& dst_reg = instRef->destRegIdx(dst_idx);
+
+        // If aarch32 needs to deal with PC register, we don't support aarch32
+        // To support aarch32, resultValid of PC register is never valid, so
+        // if dst_reg is the PC register, we need to skip.
+
         const GenericReg& result = getResult(dst_idx);
 
         switch (dst_reg.classValue()) {
@@ -365,6 +409,92 @@ InflightInst::effPAddrSuperset(const InflightInst& other) const
         other.accessedSplitPAddrs.end() : other.accessedPAddrs.end();
 
     return our_start <= other_start && other_end <= our_end;
+}
+
+void
+InflightInst::forwardDestRegsFromProducers()
+{
+    const int8_t num_dsts = instRef->numDestRegs();
+    for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
+        const DataSource data_src = destRegPrevProducer[dst_idx];
+        auto producer = data_src.producer.lock();
+        auto producer_dst_idx = data_src.resultIdx;
+
+        if (producer) {
+            assert(!producer->isSquashed());
+            assert(producer->issueSeqNum() < this->issueSeqNum());
+            switch (instRef->destRegIdx(dst_idx).classValue()) {
+                case IntRegClass:
+                    setIntRegOperand(staticInst().get(), dst_idx,
+                       producer->getResult(producer_dst_idx).asIntReg());
+                    break;
+                case FloatRegClass:
+                    setFloatRegOperandBits(staticInst().get(), dst_idx,
+                       producer->getResult(producer_dst_idx).asFloatRegBits());
+                    break;
+                case VecRegClass:
+                    setVecRegOperand(staticInst().get(), dst_idx,
+                       producer->getResult(producer_dst_idx).asVecReg());
+                    break;
+                case VecElemClass:
+                    setVecElemOperand(staticInst().get(), dst_idx,
+                       producer->getResult(producer_dst_idx).asVecElem());
+                    break;
+                case VecPredRegClass:
+                    setVecPredRegOperand(staticInst().get(), dst_idx,
+                       producer->getResult(producer_dst_idx).asVecPredReg());
+                    break;
+                case CCRegClass:
+                    setCCRegOperand(staticInst().get(), dst_idx,
+                       producer->getResult(producer_dst_idx).asCCReg());
+                    break;
+                case MiscRegClass:
+                    // no need to forward misc reg values
+                    break;
+                default:
+                    panic("Unknown register class: %d",
+                            (int)instRef->destRegIdx(dst_idx).classValue());
+            }
+
+        } else {
+            auto reg_idx = staticInst()->destRegIdx(dst_idx).flatIndex();
+            switch (instRef->destRegIdx(dst_idx).classValue()) {
+                case IntRegClass:
+                    setIntRegOperand(staticInst().get(), dst_idx,
+                                     backingContext->readIntReg(reg_idx));
+                    break;
+                case FloatRegClass:
+                    setFloatRegOperandBits(staticInst().get(), dst_idx,
+                                        backingContext->readFloatReg(reg_idx));
+                    break;
+                case VecRegClass:
+                    setVecRegOperand(staticInst().get(), dst_idx,
+                        backingContext->readVecReg(
+                            staticInst()->destRegIdx(dst_idx)));
+                    break;
+                case VecElemClass:
+                    setVecElemOperand(staticInst().get(), dst_idx,
+                        backingContext->readVecElem(
+                            staticInst()->destRegIdx(dst_idx)));
+                    break;
+                case VecPredRegClass:
+                    setVecPredRegOperand(staticInst().get(), dst_idx,
+                        backingContext->readVecPredReg(
+                            staticInst()->destRegIdx(dst_idx)));
+                    break;
+                case CCRegClass:
+                    setCCRegOperand(staticInst().get(), dst_idx,
+                                    backingContext->readCCReg(reg_idx));
+                    break;
+                case MiscRegClass:
+                    // no need to forward misc reg values
+                    break;
+                default:
+                    panic("Unknown register class: %d",
+                            (int)instRef->destRegIdx(dst_idx).classValue());
+            }
+        }
+    }
 }
 
 void
@@ -477,6 +607,12 @@ InflightInst::setDataSource(int8_t src_idx, DataSource source)
     sources[src_idx] = source;
 }
 
+void
+InflightInst::setDestRegPrevProducer(int this_dst_idx, DataSource data_src)
+{
+    destRegPrevProducer[this_dst_idx] = data_src;
+}
+
 const StaticInstPtr&
 InflightInst::staticInst(const StaticInstPtr& inst_ref)
 {
@@ -530,6 +666,7 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
         return backingContext->readIntReg(reg_id.index());
     }
 }
+
 
 void
 InflightInst::setIntRegOperand(const StaticInst* si, int dst_idx, RegVal val)
@@ -613,26 +750,18 @@ InflightInst::getWritableVecRegOperand(const StaticInst* si, int op_idx)
     //      correctly, nor will the changed state necessarily be applied to the
     //      committed state during commit time.
 
-    const RegId& reg_id = si->srcRegIdx(op_idx);
+    const RegId& reg_id = si->destRegIdx(op_idx);
     assert(reg_id.isVecReg());
 
-    const DataSource& source = sources[op_idx];
-    const shared_ptr<InflightInst> producer = source.producer.lock();
-
-    if (producer) {
-        // If the producing instruction is still in the buffer, grab the result
-        // assuming that it has been produced, and our index is in bounds.
-        assert(producer->isComplete());
-        assert(source.resultIdx >= 0
-            && source.resultIdx < producer->results.size()
-            && producer->resultValid[source.resultIdx]);
-        return producer->getResult(source.resultIdx).asVecReg();
-    } else {
-        // Either the producing instruction has already been committed, or no
-        // dependency was in-flight at the time that this instruction was
-        // issued.
-        return backingContext->getWritableVecReg(reg_id);
-    }
+    // This function returns a reference to the vector register, and the ISA
+    // will modify directly on the vector without using other functions that
+    // write to register. Prior values of the register are not used as well.
+    // So, we can treat this function the same as other set register functions.
+    // Therefore, it is necessary to set the type of the register to vector,
+    // and to set that the register is updated.
+    results[op_idx].setAsVecReg();
+    resultValid[op_idx] = true;
+    return this->getResult(op_idx).asVecReg();
 }
 
 void
@@ -720,17 +849,37 @@ InflightInst::setVecLaneOperand(const StaticInst* si, int dst_idx,
 VecElem
 InflightInst::readVecElemOperand(const StaticInst* si, int op_idx) const
 {
-    panic("readVecElemOperand() not implemented!");
-    return 0;
-    // TODO
+    const RegId& reg_id = si->srcRegIdx(op_idx);
+    assert(reg_id.isVecElem());
+
+    const DataSource& source = sources[op_idx];
+    const shared_ptr<InflightInst> producer = source.producer.lock();
+
+    if (producer) {
+        // If the producing instruction is still in the buffer, grab the result
+        // assuming that it has been produced, and our index is in bounds.
+        assert(producer->isComplete());
+        assert(source.resultIdx >= 0
+            && source.resultIdx < producer->results.size()
+            && producer->resultValid[source.resultIdx]);
+        return producer->getResult(source.resultIdx).asVecElem();
+    } else {
+        // Either the producing instruction has already been committed, or no
+        // dependency was in-flight at the time that this instruction was
+        // issued.
+        return backingContext->readVecElem(reg_id);
+    }
 }
 
 void
 InflightInst::setVecElemOperand(const StaticInst* si, int dst_idx,
                                 const VecElem val)
 {
-    panic("setVecElemOperand() not implemented!");
-    // TODO
+    const RegId& reg_id = si->destRegIdx(dst_idx);
+    assert(reg_id.isVecElem());
+
+    results[dst_idx].set(val, VecElemClass);
+    resultValid[dst_idx] = true;
 }
 
 const TheISA::VecPredRegContainer&
@@ -936,17 +1085,14 @@ InflightInst::tcBase()
 bool
 InflightInst::readPredicate() const
 {
-    panic("readPredicate() not implemented!");
-    return false;
-    // TODO
+    return predicate;
 }
 
 void
 InflightInst::setPredicate(bool val)
 {
-    panic("setPredicate() not implemented!");
+    predicate = val;
     if (_traceData) _traceData->setPredicate(val);
-    // TODO
 }
 
 bool

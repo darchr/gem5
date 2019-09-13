@@ -33,9 +33,9 @@
 #include <algorithm>
 #include <string>
 
+#include "arch/locked_mem.hh"
 #include "base/intmath.hh"
 #include "base/trace.hh"
-
 #include "debug/FlexCPUBranchPred.hh"
 #include "debug/FlexCPUBufferDump.hh"
 #include "debug/FlexCPUDeps.hh"
@@ -71,6 +71,7 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
     isa(isa_),
     fetchBuf(vector<uint8_t>(fetch_buf_size)),
     fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1)),
+    decoder(TheISA::Decoder(isa_)),
     remainingBranchPredDepth(branch_pred_max_depth ?
                              branch_pred_max_depth : -1),
     forwarder(_name + ".forwarder", 0, stld_forward_enabled, Cycles(0), 0)
@@ -106,6 +107,7 @@ FlexCPUThread::FlexCPUThread(FlexCPU* cpu_, ThreadID tid_,
     isa(isa_),
     fetchBuf(vector<uint8_t>(fetch_buf_size)),
     fetchBufMask(~(static_cast<Addr>(fetch_buf_size) - 1)),
+    decoder(TheISA::Decoder(isa_)),
     remainingBranchPredDepth(branch_pred_max_depth ?
                              branch_pred_max_depth : -1),
     forwarder(_name + ".forwarder", 0, stld_forward_enabled, Cycles(0), 0)
@@ -350,9 +352,18 @@ FlexCPUThread::bufferInstructionData(Addr vaddr, uint8_t* data)
 bool
 FlexCPUThread::canCommit(const InflightInst& inst_ref)
 {
+    // An instruction could be committed if it hasn't been committed and
+    // either:
+    //   - the instruction is in complete stage (all regs are updated)
+    //   - not in complete stage but is a store instruction that is not a
+    // store conditional (a normal store do not update regs, while a store
+    // conditional does)
+    bool non_conditional_store = inst_ref.isMemorying() &&
+                                 inst_ref.staticInst()->isStore() &&
+                                 !inst_ref.staticInst()->isStoreConditional();
+
     return !inst_ref.isCommitted() &&
-           (inst_ref.isComplete()
-            || (inst_ref.isMemorying() && inst_ref.staticInst()->isStore()));
+           (inst_ref.isComplete() || non_conditional_store);
 }
 
 void
@@ -403,7 +414,7 @@ FlexCPUThread::commitAllAvailableInstructions()
         DPRINTF(FlexCPUThreadEvent,
             "%d commits stopped by (seq %d): %s\n",
             inflightInsts.size(),
-            inst_ptr->seqNum(),
+            inst_ptr->issueSeqNum(),
             inst_ptr->staticInst() ?
                 inst_ptr->staticInst()->disassemble(
                     inst_ptr->pcState().instAddr()).c_str() :
@@ -422,7 +433,7 @@ void
 FlexCPUThread::commitInstruction(InflightInst* const inst_ptr)
 {
     DPRINTF(FlexCPUInstEvent,
-            "Committing instruction (seq %d)\n", inst_ptr->seqNum());
+            "Committing instruction (seq %d)\n", inst_ptr->issueSeqNum());
 
     System *system = getSystemPtr();
 
@@ -500,7 +511,7 @@ FlexCPUThread::dumpBuffer()
 
         DPRINTF(FlexCPUBufferDump, "(seq %d) Squashed: %s, Status: %s, Ready: "
                                  "%s, MemReady: %s\n    %s\n",
-            inst_ptr->seqNum(),
+            inst_ptr->issueSeqNum(),
             inst_ptr->isSquashed() ? "yes" : "no",
             status,
             inst_ptr->isReady() ? "yes" : "no",
@@ -519,7 +530,7 @@ FlexCPUThread::executeInstruction(shared_ptr<InflightInst> inst_ptr)
     const StaticInstPtr static_inst = inst_ptr->staticInst();
 
     DPRINTF(FlexCPUInstEvent, "Beginning executing instruction (seq %d)\n",
-                              inst_ptr->seqNum());
+                              inst_ptr->issueSeqNum());
 
     function<void(Fault fault)> callback;
     weak_ptr<InflightInst> weak_inst = inst_ptr;
@@ -530,6 +541,16 @@ FlexCPUThread::executeInstruction(shared_ptr<InflightInst> inst_ptr)
                 if (!inst_ptr || inst_ptr->isSquashed()) return;
 
                 if (fault != NoFault) markFault(inst_ptr, fault);
+
+                // If the predicate for memory instruction is false
+                // then go straight to complete stage.
+                // Effective memory address should be called since
+                // there might be other instructions waiting for
+                // this instruction to have the address calculated.
+                if (!inst_ptr->readPredicate()) {
+                    inst_ptr->notifyEffAddrCalculated();
+                    onExecutionCompleted(weak_inst, fault);
+                }
             };
     } else {
         callback = [this, weak_inst](Fault fault) {
@@ -599,7 +620,7 @@ FlexCPUThread::getNextPC()
 
         DPRINTF(FlexCPUThreadEvent, "Getting PC %#x from inst (seq %d)\n",
                                     ret.instAddr(),
-                                    inst_ptr->seqNum());
+                                    inst_ptr->issueSeqNum());
 
         return ret;
     }
@@ -609,7 +630,8 @@ void
 FlexCPUThread::handleFault(std::shared_ptr<InflightInst> inst_ptr)
 {
     DPRINTF(FlexCPUThreadEvent, "Handling fault (seq %d): %s\n",
-                                inst_ptr->seqNum(), inst_ptr->fault()->name());
+                                inst_ptr->issueSeqNum(),
+                                inst_ptr->fault()->name());
 
     assert(inflightInsts.size() == 1);
 
@@ -660,7 +682,7 @@ void
 FlexCPUThread::issueInstruction(shared_ptr<InflightInst> inst_ptr)
 {
     DPRINTF(FlexCPUInstEvent, "Requesting issue for instruction (seq %d)\n",
-                            inst_ptr->seqNum());
+                            inst_ptr->issueSeqNum());
 
     weak_ptr<InflightInst> weak_inst = inst_ptr;
     auto callback = [this, weak_inst] {
@@ -678,7 +700,7 @@ void
 FlexCPUThread::markFault(shared_ptr<InflightInst> inst_ptr, Fault fault)
 {
     DPRINTF(FlexCPUThreadEvent, "Fault detected (seq %d): %s\n",
-                                inst_ptr->seqNum(), fault->name());
+                                inst_ptr->issueSeqNum(), fault->name());
 
     inst_ptr->fault(fault);
 
@@ -719,7 +741,7 @@ FlexCPUThread::onBranchPredictorAccessed(std::weak_ptr<InflightInst> inst,
     // BPredUnit::predict takes pc by reference, and updates it in-place.
 
     DPRINTF(FlexCPUBranchPred, "(seq %d) predicted %s (predicted pc: %#x).\n",
-                              inst_ptr->seqNum(),
+                              inst_ptr->issueSeqNum(),
                               taken ? "taken" : "not taken",
                               pc.instAddr());
     // Count stats using the predict return value?
@@ -764,7 +786,7 @@ FlexCPUThread::onDataAddrTranslated(weak_ptr<InflightInst> inst, Fault fault,
     }
 
     DPRINTF(FlexCPUThreadEvent, "onDataAddrTranslated(seq %d%s)\n",
-                                inst_ptr->seqNum(),
+                                inst_ptr->issueSeqNum(),
                                 sreq ? (high ? ", high" : ", low") : "");
 
     if (fault != NoFault) {
@@ -875,14 +897,14 @@ FlexCPUThread::onExecutionCompleted(shared_ptr<InflightInst> inst_ptr,
         return;
     }
 
-    // if (!inst->readPredicate()) // TODO ensure this is enforced.
-    //     inst->forwardOldRegs();
+    if (!inst_ptr->readPredicate())
+        inst_ptr->forwardDestRegsFromProducers();
 
     DPRINTF(FlexCPUThreadEvent, "onExecutionCompleted(seq %d)\n",
-                                inst_ptr->seqNum());
+                                inst_ptr->issueSeqNum());
 
     DPRINTF(FlexCPUInstEvent, "Marking instruction as complete (seq %d)\n",
-                              inst_ptr->seqNum());
+                              inst_ptr->issueSeqNum());
 
     // The InflightInst will match any of its dependencies automatically,
     // and perform ready callbacks if any instructions are made ready as a
@@ -926,14 +948,14 @@ FlexCPUThread::onExecutionCompleted(shared_ptr<InflightInst> inst_ptr,
                     // It was a correct prediction
                     DPRINTF(FlexCPUBranchPred,
                             "Branch predicted correctly (seq %d)\n",
-                            inst_ptr->seqNum());
+                            inst_ptr->issueSeqNum());
                     // Calculate stat correct predictions?
                     // Otherwise do nothing because we guessed correctly.
                     // Just remember to update the branch predictor at commit.
                 } else { // It was an incorrect prediction
                     DPRINTF(FlexCPUBranchPred,
                             "Branch predicted incorrectly (seq %d)\n",
-                            inst_ptr->seqNum());
+                            inst_ptr->issueSeqNum());
 
                     wrongInstsFetched.sample(
                         nextIssueNum - inst_ptr->issueSeqNum());
@@ -1004,7 +1026,7 @@ FlexCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
     if (decode_result) { // If a complete instruction was decoded
         DPRINTF(FlexCPUInstEvent,
                 "Decoded instruction (seq %d) - %#x : %s\n",
-                inst_ptr->seqNum(),
+                inst_ptr->issueSeqNum(),
                 pc.instAddr(),
                 decode_result->disassemble(pc.instAddr()).c_str());
 
@@ -1023,7 +1045,7 @@ FlexCPUThread::onInstDataFetched(weak_ptr<InflightInst> inst,
 
             DPRINTF(FlexCPUInstEvent,
                     "Replaced with microop (seq %d) - %#x : %s\n",
-                    inst_ptr->seqNum(),
+                    inst_ptr->issueSeqNum(),
                     pc.microPC(),
                     decode_result->disassemble(pc.microPC()).c_str());
         }
@@ -1048,7 +1070,7 @@ FlexCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
         return;
     }
     DPRINTF(FlexCPUInstEvent, "Issuing instruction (seq %d)\n",
-                              inst_ptr->seqNum());
+                              inst_ptr->issueSeqNum());
 
 #if TRACING_ON
     // Calls new, must delete eventually.
@@ -1086,7 +1108,8 @@ FlexCPUThread::onIssueAccessed(weak_ptr<InflightInst> inst)
     }
 
     populateDependencies(inst_ptr);
-    populateUses(inst_ptr);
+    populatePrevDestRegProducer(inst_ptr);
+    populateProducers(inst_ptr);
 
     const StaticInstPtr& static_inst = inst_ptr->staticInst();
     if (static_inst->isStore()) {
@@ -1376,7 +1399,7 @@ FlexCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
         const RegId& src_reg = flattenRegId(static_inst->srcRegIdx(src_idx));
         if (src_reg.isZeroReg()) continue;
 
-        const InflightInst::DataSource& last_use = lastUses[src_reg];
+        const InflightInst::DataSource& last_use = lastProducers[src_reg];
         const shared_ptr<InflightInst> producer = last_use.producer.lock();
 
         // Attach the dependency if the instruction is still around
@@ -1397,7 +1420,28 @@ FlexCPUThread::populateDependencies(shared_ptr<InflightInst> inst_ptr)
 }
 
 void
-FlexCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
+FlexCPUThread::populatePrevDestRegProducer(shared_ptr<InflightInst> inst_ptr)
+{
+    const StaticInstPtr static_inst = inst_ptr->staticInst();
+    const int8_t num_dsts = static_inst->numDestRegs();
+    for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
+        const RegId& dst_reg = flattenRegId(static_inst->destRegIdx(dst_idx));
+        InflightInst::DataSource lastDestRegProducer = lastProducers[dst_reg];
+        inst_ptr->setDestRegPrevProducer(dst_idx, lastDestRegProducer);
+        auto producer = lastDestRegProducer.producer.lock();
+        if (!producer) {
+            DPRINTFR(FlexCPUDeps, "SN %d, reg %d, no producer\n",
+                inst_ptr->issueSeqNum(), dst_idx);
+        } else {
+            DPRINTFR(FlexCPUDeps, "SN %d, reg %d, producer is SN %d, reg %d\n",
+                     inst_ptr->issueSeqNum(), dst_idx, producer->issueSeqNum(),
+                     lastDestRegProducer.resultIdx);
+        }
+    }
+}
+
+void
+FlexCPUThread::populateProducers(shared_ptr<InflightInst> inst_ptr)
 {
     const StaticInstPtr static_inst = inst_ptr->staticInst();
 
@@ -1417,7 +1461,7 @@ FlexCPUThread::populateUses(shared_ptr<InflightInst> inst_ptr)
     for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
         const RegId& dst_reg = flattenRegId(static_inst->destRegIdx(dst_idx));
 
-        lastUses[dst_reg] = {inst_ptr, dst_idx};
+        lastProducers[dst_reg] = {inst_ptr, dst_idx};
         DPRINTF(FlexCPUDeps, "seq %d is producer of %s[%d]\n",
                 inst_ptr->issueSeqNum(),
                 dst_reg.className(),
@@ -1685,25 +1729,68 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
 
     weak_ptr<InflightInst> weak_inst(inst_ptr);
 
-    if (write) {
-        PacketPtr resp = Packet::createWrite(sreq ? sreq->main : req);
-        if (resp->hasData()) {
-            resp->dataStatic(data.get());
-        }
-        resp->makeResponse();
-
-        Fault f = inst_ptr->staticInst()->completeAcc(resp, inst_ptr.get(),
-                                                      inst_ptr->traceData());
-        // NOTE: FlexCPU may do other things for special instruction types,
-        //       which may no longer work correctly with this change.
-
-        delete resp;
-
-        if (f != NoFault) {
-            markFault(inst_ptr, f);
+    // Store conditional locks memory before memory access.
+    // The instruction will go to memory only if the lock is available.
+    // If the lock is unavailable, we can complete mem access right away.
+    if (inst_ptr->staticInst()->isStoreConditional()) {
+        bool locking_successful = TheISA::handleLockedWrite(inst_ptr->tcBase(),
+                                                 req, _cpuPtr->cacheBlockMask);
+        if (!locking_successful) {
+            // We still need to complete mem access to let the instruction
+            // write the results to destination registers.
+            PacketPtr pkt = new Packet(req, MemCmd::StoreCondFailReq);
+            inst_ptr->staticInst()->completeAcc(pkt, inst_ptr.get(),
+                                                inst_ptr->traceData());
+            delete pkt;
+            onExecutionCompleted(inst_ptr, NoFault);
             return;
         }
+    }
 
+    // NOTE: about the choice of weak_ptr and shared_ptr
+    //     The choice of weak_ptr and shared_ptr is (partially) affected by how
+    // an instruction is squashed and how we populate register dependencies.
+    // To determine a register dependency, we maintain a 'lastUse' map, which
+    // keeps track of the last instruction updating a register.
+    //     When an instruction is squashed, we release the strong reference to
+    // the instruction from the instruction buffer. When the instruction buffer
+    // is squashed, we repopulate the register dependencies from the remaining
+    // instructions in the buffer. Note that we don't remove squashed
+    // instructions from the lastUse map; therefore, we need the squashed
+    // instructions to become nullptr as soon as they are squashed.
+    //     Loads and store conditionals update registers, hence a younger
+    // instruction might have register dependencies on them. Here, we use
+    // **weak_ptr** to capture them in the callback, so the instruction buffer
+    // is the only place the strong reference to the instructions is hold when
+    // they are in memory stage. As the result, if the memory instructions are
+    // squashed while they are in memory stage, they will become nullptr
+    // immediately. Therefore, no younger instruction will have register
+    // dependencies on the squashed memory instructions.
+    //     A store that is not a store conditional will not update registers,
+    // hence a younger instruction won't have register dependencies on those
+    // stores. However, those stores will be committed as soon as they go to
+    // memory, and they will be released from the instruction buffer as the
+    // result. Therefore, we use **shared_ptr** to keep the instructions alive
+    // after they are released from the buffer until the memory access is
+    // complete.
+    if (write && inst_ptr->staticInst()->isStoreConditional()) {
+        auto callback = [this, weak_inst] (Fault fault) {
+            onExecutionCompleted(weak_inst, fault);
+        };
+        if (sreq) { // split
+            assert(sreq->high && sreq->low);
+            _cpuPtr->requestSplitMemWrite(sreq->main, sreq->low,
+                sreq->high, this,
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(), data.get(), callback);
+        } else { // not split
+            _cpuPtr->requestMemWrite(req, this,
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(), data.get(), callback);
+        }
+    } else if (write) {
         // NOTE: We specifically capture the shared_ptr instead of a weak_ptr
         //       in this case, because stores are committed once sent, and need
         //       to be kept alive long enough for the completion event to
@@ -1732,6 +1819,7 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
 
         if (inst_ptr == inflightInsts.front())
             commitAllAvailableInstructions();
+
     } else { // read
         auto callback =
             [this, weak_inst] (Fault fault) {
@@ -1791,7 +1879,7 @@ FlexCPUThread::squashUpTo(InflightInst* const inst_ptr, bool rebuild_lasts)
 
     if (rebuild_lasts) {
         for (shared_ptr<InflightInst>& it : inflightInsts) {
-            populateUses(it);
+            populateProducers(it);
         }
 
         for (auto itr = inflightInsts.rbegin();
@@ -1939,7 +2027,12 @@ FlexCPUThread::MemIface::writeMem(shared_ptr<InflightInst> inst_ptr,
     // deleting that packet anyway in more cases, if the translation fails.
     // Note: size + 1 for an extra slot for ref-counting.
     shared_ptr<uint8_t> copy(new uint8_t[size], default_delete<uint8_t[]>());
-    memcpy(copy.get(), data, size);
+
+    bool store_no_data = flags & Request::STORE_NO_DATA;
+    if (store_no_data)
+        memset(copy.get(), 0, size);
+    else
+        memcpy(copy.get(), data, size);
 
     if (split_addr > addr) { // The request spans two cache lines
         assert(!(req->isLLSC() || req->isMmappedIpr())); // don't deal with
