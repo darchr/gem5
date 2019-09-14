@@ -471,6 +471,7 @@ FlexCPU::requestMemRead(const RequestPtr& req, ThreadContext* tc,
         // When the result comes back from memory, call completeMemAccess
         outstandingMemReqs.emplace(pkt, [this, pkt, inst, context, trace_data,
                                          callback_func, now]
+                                        (PacketPtr pkt)
         {
             completeMemAccess(pkt, inst, context, trace_data, callback_func,
                               now);
@@ -567,6 +568,7 @@ FlexCPU::requestMemWrite(const RequestPtr& req, ThreadContext* tc,
         // When the result comes back from memory, call completeMemAccess
         outstandingMemReqs.emplace(pkt, [this, pkt, inst, context, trace_data,
                                          callback_func, now]
+                                        (PacketPtr pkt)
         {
             completeMemAccess(pkt, inst, context, trace_data, callback_func,
                               now);
@@ -640,6 +642,7 @@ FlexCPU::requestSplitMemRead(const RequestPtr& main,
         outstandingMemReqs.emplace(split_acc->low, [this, inst, context,
                                                    trace_data, callback_func,
                                                    split_acc, now]
+                                                   (PacketPtr pkt)
         {
             completeMemAccess(split_acc->low, inst, context, trace_data,
                               callback_func, now, split_acc);
@@ -677,6 +680,7 @@ FlexCPU::requestSplitMemRead(const RequestPtr& main,
         outstandingMemReqs.emplace(split_acc->high, [this, inst, context,
                                                      trace_data, callback_func,
                                                      split_acc, now]
+                                                    (PacketPtr pkt)
         {
             completeMemAccess(split_acc->high, inst, context, trace_data,
                               callback_func, now, split_acc);
@@ -766,6 +770,7 @@ FlexCPU::requestSplitMemWrite(const RequestPtr& main,
         outstandingMemReqs.emplace(split_acc->low, [this, inst, context,
                                                     trace_data, callback_func,
                                                     split_acc, now]
+                                                   (PacketPtr pkt)
         {
             completeMemAccess(split_acc->low, inst, context, trace_data,
                               callback_func, now, split_acc);
@@ -807,6 +812,7 @@ FlexCPU::requestSplitMemWrite(const RequestPtr& main,
         outstandingMemReqs.emplace(split_acc->high, [this, inst, context,
                                                      trace_data, callback_func,
                                                      split_acc, now]
+                                                    (PacketPtr pkt)
         {
             completeMemAccess(split_acc->high, inst, context, trace_data,
                               callback_func, now, split_acc);
@@ -907,7 +913,7 @@ FlexCPU::DataPort::recvTimingResp(PacketPtr pkt)
 
     auto& callback = cpu->outstandingMemReqs[pkt];
 
-    callback();
+    callback(pkt);
 
     cpu->outstandingMemReqs.erase(pkt);
     delete pkt;

@@ -333,7 +333,8 @@ class FlexCPU : public BaseCPU
     //       be safer to do this mapping through the SenderState struct instead
     //       based on what has been learned since the writing of this though.
     std::unordered_map<PacketPtr, FetchCallback> outstandingFetches;
-    std::unordered_map<PacketPtr, std::function<void()>> outstandingMemReqs;
+    std::unordered_map<PacketPtr, std::function<void(PacketPtr)>>
+                                                            outstandingMemReqs;
 
     // Tick that the CPU was last active for tracking active cycles
     Tick lastActiveTick = MaxTick;
