@@ -787,17 +787,32 @@ InflightInst::setVecLaneOperand(const StaticInst* si, int dst_idx,
 VecElem
 InflightInst::readVecElemOperand(const StaticInst* si, int op_idx) const
 {
-    panic("readVecElemOperand() not implemented!");
-    return 0;
-    // TODO
+    // Sanity check
+    const RegId& reg_id = si->srcRegIdx(op_idx);
+    assert(reg_id.isVecElem());
+
+    auto regProducer = getRegProducer(si, op_idx);
+    auto producer = regProducer.first;
+    auto src_idx = regProducer.second;
+    // If we couldn't find the producer, the value of the reg is available in
+    // the backing context
+    if (!producer) {
+        return backingContext->readVecElem(reg_id);
+    } else {
+        // Otherwise, we could forward the value of the reg from the producer
+        return producer->getResult(src_idx).asVecElem();
+    }
 }
 
 void
 InflightInst::setVecElemOperand(const StaticInst* si, int dst_idx,
                                 const VecElem val)
 {
-    panic("setVecElemOperand() not implemented!");
-    // TODO
+    const RegId& reg_id = si->destRegIdx(dst_idx);
+    assert(reg_id.isVecElem());
+
+    results[dst_idx].set(val, VecElemClass);
+    resultValid[dst_idx] = true;
 }
 
 const TheISA::VecPredRegContainer&
