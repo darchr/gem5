@@ -114,6 +114,64 @@ void InflightInst::pipeTrace()
 #endif
 }
 
+pair<shared_ptr<InflightInst>, int>
+InflightInst::getRegProducer(const StaticInst* si, int op_idx) const
+{
+    const DataSource& source = sources[op_idx];
+    const shared_ptr<InflightInst> producer = source.producer.lock();
+
+    assert(!this->isSquashed());
+    assert(!producer || (producer && !producer->isSquashed()));
+
+    if (producer && !producer->readPredicate()) {
+        shared_ptr<InflightInst> inst_walker = producer;
+        auto target_phys_reg =
+                        backingContext->flattenRegId(si->srcRegIdx(op_idx));
+        while (true) {
+            bool found_src = false;
+            for (const auto& data_src: inst_walker->sources) {
+                std::shared_ptr<InflightInst> curr_producer =
+                                                    data_src.producer.lock();
+                if (!curr_producer) {
+                    continue;
+                }
+                auto phys_reg = curr_producer
+                                ->backingContext
+                                ->flattenRegId(curr_producer->staticInst()
+                                ->destRegIdx(data_src.resultIdx));
+                if (phys_reg == target_phys_reg) {
+                    if (curr_producer->readPredicate()) {
+                        return make_pair(curr_producer, data_src.resultIdx);
+                    } else {
+                        found_src = true;
+                        inst_walker = curr_producer;
+                        break;
+                    }
+                }
+            }
+            if (!found_src)
+                break;
+        }
+
+        return make_pair(nullptr, 0);
+    }
+
+    if (producer) {
+        // If the producing instruction is still in the buffer, grab the result
+        // assuming that it has been produced, and our index is in bounds.
+        assert(producer->isComplete());
+        assert(source.resultIdx >= 0
+            && source.resultIdx < producer->results.size()
+            && producer->resultValid[source.resultIdx]);
+        return make_pair(producer, source.resultIdx);
+    } else {
+        // Either the producing instruction has already been committed, or no
+        // dependency was in-flight at the time that this instruction was
+        // issued.
+        return make_pair(nullptr, 0);
+    }
+}
+
 void
 InflightInst::addBeginExecCallback(function<void()> callback)
 {
@@ -545,22 +603,16 @@ InflightInst::readIntRegOperand(const StaticInst* si, int op_idx)
 
     if (reg_id.isZeroReg()) return 0;
 
-    const DataSource& source = sources[op_idx];
-    const shared_ptr<InflightInst> producer = source.producer.lock();
-
-    if (producer) {
-        // If the producing instruction is still in the buffer, grab the result
-        // assuming that it has been produced, and our index is in bounds.
-        assert(producer->isComplete());
-        assert(source.resultIdx >= 0
-            && source.resultIdx < producer->results.size()
-            && producer->resultValid[source.resultIdx]);
-        return producer->getResult(source.resultIdx).asIntReg();
-    } else {
-        // Either the producing instruction has already been committed, or no
-        // dependency was in-flight at the time that this instruction was
-        // issued.
+    auto regProducer = getRegProducer(si, op_idx);
+    auto producer = regProducer.first;
+    auto src_idx = regProducer.second;
+    // If we couldn't find the producer, the value of the reg is available in
+    // the backing context
+    if (!producer) {
         return backingContext->readIntReg(reg_id.index());
+    } else {
+        // Otherwise, we could forward the value of the reg from the producer
+        return producer->getResult(src_idx).asIntReg();
     }
 }
 
@@ -583,22 +635,16 @@ InflightInst::readFloatRegOperandBits(const StaticInst* si, int op_idx)
 
     if (reg_id.isZeroReg()) return 0;
 
-    const DataSource& source = sources[op_idx];
-    const shared_ptr<InflightInst> producer = source.producer.lock();
-
-    if (producer) {
-        // If the producing instruction is still in the buffer, grab the result
-        // assuming that it has been produced, and our index is in bounds.
-        assert(producer->isComplete());
-        assert(source.resultIdx >= 0
-            && source.resultIdx < producer->results.size()
-            && producer->resultValid[source.resultIdx]);
-        return producer->getResult(source.resultIdx).asFloatRegBits();
-    } else {
-        // Either the producing instruction has already been committed, or no
-        // dependency was in-flight at the time that this instruction was
-        // issued.
+    auto regProducer = getRegProducer(si, op_idx);
+    auto producer = regProducer.first;
+    auto src_idx = regProducer.second;
+    // If we couldn't find the producer, the value of the reg is available in
+    // the backing context
+    if (!producer) {
         return backingContext->readFloatReg(reg_id.index());
+    } else {
+        // Otherwise, we could forward the value of the reg from the producer
+        return producer->getResult(src_idx).asFloatRegBits();
     }
 }
 
@@ -619,22 +665,16 @@ InflightInst::readVecRegOperand(const StaticInst* si, int op_idx) const
     const RegId& reg_id = si->srcRegIdx(op_idx);
     assert(reg_id.isVecReg());
 
-    const DataSource& source = sources[op_idx];
-    const shared_ptr<InflightInst> producer = source.producer.lock();
-
-    if (producer) {
-        // If the producing instruction is still in the buffer, grab the result
-        // assuming that it has been produced, and our index is in bounds.
-        assert(producer->isComplete());
-        assert(source.resultIdx >= 0
-            && source.resultIdx < producer->results.size()
-            && producer->resultValid[source.resultIdx]);
-        return producer->getResult(source.resultIdx).asVecReg();
-    } else {
-        // Either the producing instruction has already been committed, or no
-        // dependency was in-flight at the time that this instruction was
-        // issued.
+    auto regProducer = getRegProducer(si, op_idx);
+    auto producer = regProducer.first;
+    auto src_idx = regProducer.second;
+    // If we couldn't find the producer, the value of the reg is available in
+    // the backing context
+    if (!producer) {
         return backingContext->readVecReg(reg_id);
+    } else {
+        // Otherwise, we could forward the value of the reg from the producer
+        return producer->getResult(src_idx).asVecReg();
     }
 }
 
@@ -796,22 +836,16 @@ InflightInst::readCCRegOperand(const StaticInst* si, int op_idx)
     const RegId& reg_id = si->srcRegIdx(op_idx);
     assert(reg_id.isCCReg());
 
-    const DataSource& source = sources[op_idx];
-    const shared_ptr<InflightInst> producer = source.producer.lock();
-
-    if (producer) {
-        // If the producing instruction is still in the buffer, grab the result
-        // assuming that it has been produced, and our index is in bounds.
-        assert(producer->isComplete());
-        assert(source.resultIdx >= 0
-            && source.resultIdx < producer->results.size()
-            && producer->resultValid[source.resultIdx]);
-        return producer->getResult(source.resultIdx).asCCReg();
-    } else {
-        // Either the producing instruction has already been committed, or no
-        // dependency was in-flight at the time that this instruction was
-        // issued.
+    auto regProducer = getRegProducer(si, op_idx);
+    auto producer = regProducer.first;
+    auto src_idx = regProducer.second;
+    // If we couldn't find the producer, the value of the reg is available in
+    // the backing context
+    if (!producer) {
         return backingContext->readCCReg(reg_id.index());
+    } else {
+        // Otherwise, we could forward the value of the reg from the producer
+        return producer->getResult(src_idx).asCCReg();
     }
 }
 
@@ -830,22 +864,16 @@ InflightInst::readMiscRegOperand(const StaticInst* si, int op_idx)
     const RegId& reg_id = si->srcRegIdx(op_idx);
     assert(reg_id.isMiscReg());
 
-    const DataSource& source = sources[op_idx];
-    const shared_ptr<InflightInst> producer = source.producer.lock();
-
-    if (producer) {
-        // If the producing instruction is still in the buffer, grab the result
-        // assuming that it has been produced, and our index is in bounds.
-        assert(producer->isComplete());
-        assert(source.resultIdx >= 0
-            && source.resultIdx < producer->results.size()
-            && producer->resultValid[source.resultIdx]);
-        return producer->getResult(source.resultIdx).asMiscReg();
-    } else {
-        // Either the producing instruction has already been committed, or no
-        // dependency was in-flight at the time that this instruction was
-        // issued.
+    auto regProducer = getRegProducer(si, op_idx);
+    auto producer = regProducer.first;
+    auto src_idx = regProducer.second;
+    // If we couldn't find the producer, the value of the reg is available in
+    // the backing context
+    if (!producer) {
         return backingContext->readMiscReg(reg_id.index());
+    } else {
+        // Otherwise, we could forward the value of the reg from the producer
+        return producer->getResult(src_idx).asMiscReg();
     }
 }
 

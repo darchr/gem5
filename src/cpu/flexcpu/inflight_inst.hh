@@ -32,6 +32,7 @@
 #define __CPU_FLEXCPU_INFLIGHT_INST_HH__
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "arch/isa.hh"
@@ -645,6 +646,14 @@ class InflightInst : public ExecContext,
     ThreadContext* tcBase() override;
 
     void pipeTrace();
+
+    // Since there are predicated instructions, the producer of a register
+    // might be predicated to false, and we should not forward anything
+    // from the instruction. This function determines the instruction holding
+    // the valid result from the register dependency chain. If no such an
+    // instruction exists, the backing context is holding the valid result.
+    std::pair<std::shared_ptr<InflightInst>, int>
+    getRegProducer(const StaticInst* si, int op_idx) const;
 
     /**
      * ARM-specific
