@@ -1698,24 +1698,6 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
     weak_ptr<InflightInst> weak_inst(inst_ptr);
 
     if (write) {
-        PacketPtr resp = Packet::createWrite(sreq ? sreq->main : req);
-        if (resp->hasData()) {
-            resp->dataStatic(data.get());
-        }
-        resp->makeResponse();
-
-        Fault f = inst_ptr->staticInst()->completeAcc(resp, inst_ptr.get(),
-                                                      inst_ptr->traceData());
-        // NOTE: FlexCPU may do other things for special instruction types,
-        //       which may no longer work correctly with this change.
-
-        delete resp;
-
-        if (f != NoFault) {
-            markFault(inst_ptr, f);
-            return;
-        }
-
         // NOTE: We specifically capture the shared_ptr instead of a weak_ptr
         //       in this case, because stores are committed once sent, and need
         //       to be kept alive long enough for the completion event to
@@ -1741,9 +1723,6 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
                 static_pointer_cast<ExecContext>(inst_ptr),
                 inst_ptr->traceData(), data.get(), callback);
         }
-
-        if (inst_ptr == inflightInsts.front())
-            commitAllAvailableInstructions();
     } else { // read
         auto callback =
             [this, weak_inst] (Fault fault) {

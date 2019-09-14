@@ -153,7 +153,7 @@ FlexCPU::completeMemAccess(PacketPtr orig_pkt, StaticInstPtr inst,
 
     const shared_ptr<ExecContext> ctxt = context.lock();
 
-    Fault fault = ctxt && !inst->isStore() ?
+    Fault fault = ctxt ?
         inst->completeAcc(pkt, ctxt.get(), trace_data) : NoFault;
 
     if (split) {
