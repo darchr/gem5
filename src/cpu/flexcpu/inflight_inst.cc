@@ -688,26 +688,18 @@ InflightInst::getWritableVecRegOperand(const StaticInst* si, int op_idx)
     //      correctly, nor will the changed state necessarily be applied to the
     //      committed state during commit time.
 
-    const RegId& reg_id = si->srcRegIdx(op_idx);
+    const RegId& reg_id = si->destRegIdx(op_idx);
     assert(reg_id.isVecReg());
 
-    const DataSource& source = sources[op_idx];
-    const shared_ptr<InflightInst> producer = source.producer.lock();
-
-    if (producer) {
-        // If the producing instruction is still in the buffer, grab the result
-        // assuming that it has been produced, and our index is in bounds.
-        assert(producer->isComplete());
-        assert(source.resultIdx >= 0
-            && source.resultIdx < producer->results.size()
-            && producer->resultValid[source.resultIdx]);
-        return producer->getResult(source.resultIdx).asVecReg();
-    } else {
-        // Either the producing instruction has already been committed, or no
-        // dependency was in-flight at the time that this instruction was
-        // issued.
-        return backingContext->getWritableVecReg(reg_id);
-    }
+    // This function returns a reference to the vector register, and the ISA
+    // will modify directly on the vector without using other functions that
+    // write to register. Prior values of the register are not used as well.
+    // So, we can treat this function the same as other set register functions.
+    // Therefore, it is necessary to set the type of the register to vector,
+    // and to set that the register is updated.
+    results[op_idx].setAsVecReg();
+    resultValid[op_idx] = true;
+    return this->getResult(op_idx).asVecReg();
 }
 
 void
