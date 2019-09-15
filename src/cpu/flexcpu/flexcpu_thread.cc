@@ -33,9 +33,9 @@
 #include <algorithm>
 #include <string>
 
+#include "arch/locked_mem.hh"
 #include "base/intmath.hh"
 #include "base/trace.hh"
-
 #include "debug/FlexCPUBranchPred.hh"
 #include "debug/FlexCPUBufferDump.hh"
 #include "debug/FlexCPUDeps.hh"
@@ -352,9 +352,17 @@ FlexCPUThread::bufferInstructionData(Addr vaddr, uint8_t* data)
 bool
 FlexCPUThread::canCommit(const InflightInst& inst_ref)
 {
+    // An instruction could be committed if it hasn't been committed and
+    // either:
+    //   - the instruction is in complete stage (all regs are updated)
+    //   - not in complete stage but is a store instruction that is not a
+    // store conditional (a normal store do not update regs,
+    // while store conditional does)
     return !inst_ref.isCommitted() &&
            (inst_ref.isComplete()
-            || (inst_ref.isMemorying() && inst_ref.staticInst()->isStore()));
+            || (inst_ref.isMemorying() &&
+                (inst_ref.staticInst()->isStore() &&
+                 !inst_ref.staticInst()->isStoreConditional())));
 }
 
 void
@@ -1697,7 +1705,62 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
 
     weak_ptr<InflightInst> weak_inst(inst_ptr);
 
-    if (write) {
+    // Store conditional locks memory before memory access.
+    // The instruction will go to memory only if the lock is available.
+    // If the lock is unavailable, we can complete mem access right away.
+    if (inst_ptr->staticInst()->isStoreConditional()) {
+        bool locking_successful = TheISA::handleLockedWrite(inst_ptr->tcBase(),
+                                                 req, _cpuPtr->cacheBlockMask);
+        if (!locking_successful) {
+            onExecutionCompleted(inst_ptr, NoFault);
+            return;
+        }
+    }
+
+    // NOTE: about the choice of weak_ptr and shared_ptr
+    //     The choice of weak_ptr and shared_ptr is (partially) affected by how
+    // an instruction is squashed and how we populate register dependencies.
+    // To determine a register dependency, we maintain a 'lastUse' map, which
+    // keeps track of the last instruction updating a register.
+    //     When an instruction is squashed, we release the strong reference to
+    // the instruction from the instruction buffer. When the instruction buffer
+    // is squashed, we repopulate the register dependencies from the remaining
+    // instructions in the buffer. Note that we don't remove squashed
+    // instructions from the lastUse map; therefore, we need the squashed
+    // instructions to become nullptr as soon as they are squashed.
+    //     Loads and store conditionals update registers, hence a younger
+    // instruction might have register dependencies on them. Here, we use
+    // **weak_ptr** to capture them in the callback, so the instruction buffer
+    // is the only place the strong reference to the instructions is hold when
+    // they are in memory stage. As the result, if the memory instructions are
+    // squashed while they are in memory stage, they will become nullptr
+    // immediately. Therefore, no younger instruction will have register
+    // dependencies on the squashed memory instructions.
+    //     A store that is not a store conditional will not update registers,
+    // hence a younger instruction won't have register dependencies on those
+    // stores. However, those stores will be committed as soon as they go to
+    // memory, and they will be released from the instruction buffer as the
+    // result. Therefore, we use **shared_ptr** to keep the instructions alive
+    // after they are released from the buffer until the memory access is
+    // complete.
+    if (write && inst_ptr->staticInst()->isStoreConditional()) {
+        auto callback = [this, weak_inst] (Fault fault) {
+            onExecutionCompleted(weak_inst, fault);
+        };
+        if (sreq) { // split
+            assert(sreq->high && sreq->low);
+            _cpuPtr->requestSplitMemWrite(sreq->main, sreq->low,
+                sreq->high, this,
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(), data.get(), callback);
+        } else { // not split
+            _cpuPtr->requestMemWrite(req, this,
+                inst_ptr->staticInst(),
+                static_pointer_cast<ExecContext>(inst_ptr),
+                inst_ptr->traceData(), data.get(), callback);
+        }
+    } else if (write) {
         // NOTE: We specifically capture the shared_ptr instead of a weak_ptr
         //       in this case, because stores are committed once sent, and need
         //       to be kept alive long enough for the completion event to
