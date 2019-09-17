@@ -356,13 +356,14 @@ FlexCPUThread::canCommit(const InflightInst& inst_ref)
     // either:
     //   - the instruction is in complete stage (all regs are updated)
     //   - not in complete stage but is a store instruction that is not a
-    // store conditional (a normal store do not update regs,
-    // while store conditional does)
+    // store conditional (a normal store do not update regs, while a store
+    // conditional does)
+    bool non_conditional_store = inst_ref.isMemorying() &&
+                                 inst_ref.staticInst()->isStore() &&
+                                 !inst_ref.staticInst()->isStoreConditional();
+
     return !inst_ref.isCommitted() &&
-           (inst_ref.isComplete()
-            || (inst_ref.isMemorying() &&
-                (inst_ref.staticInst()->isStore() &&
-                 !inst_ref.staticInst()->isStoreConditional())));
+           (inst_ref.isComplete() || non_conditional_store);
 }
 
 void
