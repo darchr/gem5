@@ -370,7 +370,6 @@ InflightInst::commitToTC()
     const int8_t num_dsts = instRef->numDestRegs();
     for (int8_t dst_idx = 0; dst_idx < num_dsts; ++dst_idx) {
         const RegId& dst_reg = instRef->destRegIdx(dst_idx);
-        const GenericReg& result = getResult(dst_idx);
 
 #if THE_ISA == ARM_ISA
         // If ARM32 ignores write to X15
@@ -380,6 +379,8 @@ InflightInst::commitToTC()
             continue;
         }
 #endif
+
+        const GenericReg& result = getResult(dst_idx);
 
         switch (dst_reg.classValue()) {
           case IntRegClass:
