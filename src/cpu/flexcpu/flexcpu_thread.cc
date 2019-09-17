@@ -1787,6 +1787,9 @@ FlexCPUThread::sendToMemory(shared_ptr<InflightInst> inst_ptr,
                 static_pointer_cast<ExecContext>(inst_ptr),
                 inst_ptr->traceData(), data.get(), callback);
         }
+
+        if (inst_ptr == inflightInsts.front())
+            commitAllAvailableInstructions();
     } else { // read
         auto callback =
             [this, weak_inst] (Fault fault) {
