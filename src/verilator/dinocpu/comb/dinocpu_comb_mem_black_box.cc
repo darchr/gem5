@@ -34,12 +34,13 @@
 #include "debug/Verilator.hh"
 
 //gem5 model includes
-#include "verilator_sync_mem_black_box.hh"
+#include "dinocpu_comb_mem_black_box.hh"
 
 //MASTER PORT DEFINITIONS
 //send packet to gem5 memory system,schedules an event
+//wont work for combinational based system
 void
-VerilatorSyncMemBlackBox::VerilatorSyncMemBlackBoxPort
+DinoCPUCombMemBlackBox::DinoCPUCombMemBlackBoxPort
   ::sendTimingPacket(PacketPtr pkt)
 {
   panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
@@ -53,7 +54,7 @@ VerilatorSyncMemBlackBox::VerilatorSyncMemBlackBoxPort
 //sends a packet to gem5 memory system, recieves response
 //immidiately at end of call chain
 bool
-VerilatorSyncMemBlackBox::VerilatorSyncMemBlackBoxPort
+DinoCPUCombMemBlackBox::DinoCPUCombMemBlackBoxPort
   ::sendAtomicPacket(PacketPtr pkt)
 {
   panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
@@ -65,7 +66,7 @@ VerilatorSyncMemBlackBox::VerilatorSyncMemBlackBoxPort
   if (!sendAtomic(pkt)) {
     DPRINTF(Verilator, "ATOMIC MEMORY RESPONSE RECIEVED\n");
     //let blackbox determine how to deal with returned data
-    return static_cast<VerilatorSyncMemBlackBox *>(owner)->handleResponse(pkt);
+    return static_cast<DinoCPUCombMemBlackBox *>(owner)->handleResponse(pkt);
   }else{
     DPRINTF(Verilator, "Packet for addr: %#x blocked\n", pkt->getAddr());
     blockedPacket = pkt;
@@ -75,17 +76,18 @@ VerilatorSyncMemBlackBox::VerilatorSyncMemBlackBoxPort
 
 //gem5 memory model has reponded to our memory request
 bool
-VerilatorSyncMemBlackBox::VerilatorSyncMemBlackBoxPort
+DinoCPUCombMemBlackBox::DinoCPUCombMemBlackBoxPort
     ::recvTimingResp( PacketPtr pkt )
 {
   DPRINTF(Verilator, "MEMORY RESPONSE RECIEVED\n");
   //let blackbox determine how to deal with returned data
-  return static_cast<VerilatorSyncMemBlackBox *>(owner)->handleResponse(pkt);
+  return static_cast<DinoCPUCombMemBlackBox *>(owner)->handleResponse(pkt);
 }
 
 //retry sending a packet if it failed
+//shouldnt ever actually get called. somethng is wrong if it does
 void
-VerilatorSyncMemBlackBox::VerilatorSyncMemBlackBoxPort
+DinoCPUCombMemBlackBox::DinoCPUCombMemBlackBoxPort
   ::recvReqRetry()
 {
   //we have to had saved the failed packet before doing a retry
@@ -101,7 +103,7 @@ VerilatorSyncMemBlackBox::VerilatorSyncMemBlackBoxPort
 
 //used for configuring simulated device
 BaseMasterPort&
-VerilatorSyncMemBlackBox::getMasterPort(
+DinoCPUCombMemBlackBox::getMasterPort(
         const std::string& if_name, PortID idx )
 {
   panic_if(idx != InvalidPortID, "This object doesn't support vector ports");
@@ -119,26 +121,26 @@ VerilatorSyncMemBlackBox::getMasterPort(
 
 
 //Create for memblkbx for gem5
-VerilatorSyncMemBlackBox*
-VerilatorSyncMemBlackBoxParams::create()
+DinoCPUCombMemBlackBox*
+DinoCPUCombMemBlackBoxParams::create()
 {
-  return new VerilatorSyncMemBlackBox(this);
+  return new DinoCPUCombMemBlackBox(this);
 }
 
 //setup our black box
-VerilatorSyncMemBlackBox::VerilatorSyncMemBlackBox(
-        VerilatorSyncMemBlackBoxParams *params) :
+DinoCPUCombMemBlackBox::DinoCPUCombMemBlackBox(
+        DinoCPUCombMemBlackBoxParams *params) :
         VerilatorMemBlackBox(params),
         instPort(params->name + ".inst_port", this),
         dataPort(params->name + ".data_port", this)
 {
 
-    VerilatorSyncMemBlackBox::singleton =  this;
+    DinoCPUCombMemBlackBox::singleton =  this;
 }
 
 //sets up a instruction fetch request for gem5 memory system
 void
-VerilatorSyncMemBlackBox::doFetch(unsigned int imem_address)
+DinoCPUCombMemBlackBox::doFetch(unsigned int imem_address)
 {
   //dinocpu only uses 4 byte instructions so make 4 byte request with address
   //specified by dinocpu
@@ -163,7 +165,7 @@ VerilatorSyncMemBlackBox::doFetch(unsigned int imem_address)
 
 //sets up a memory request for memory instructions to gem5 memory sytem
 void
-VerilatorSyncMemBlackBox::doMem(unsigned int dmem_address,
+DinoCPUCombMemBlackBox::doMem(unsigned int dmem_address,
         unsigned int dmem_writedata, unsigned char dmem_memread,
         unsigned char dmem_memwrite, const svBitVecVal* dmem_maskmode,
         unsigned char dmem_sext)
@@ -231,7 +233,7 @@ VerilatorSyncMemBlackBox::doMem(unsigned int dmem_address,
 
 //handles a successful response for a memory request
 bool
-VerilatorSyncMemBlackBox::handleResponse( PacketPtr pkt )
+DinoCPUCombMemBlackBox::handleResponse( PacketPtr pkt )
 {
   DPRINTF(Verilator, "Got response for addr %#x\n", pkt->getAddr());
 
@@ -262,32 +264,32 @@ VerilatorSyncMemBlackBox::handleResponse( PacketPtr pkt )
 }
 
 //setup static var
-VerilatorSyncMemBlackBox *
-VerilatorSyncMemBlackBox::singleton = nullptr;
+DinoCPUCombMemBlackBox *
+DinoCPUCombMemBlackBox::singleton = nullptr;
 
 //give caller (dpi in this case) access to this class
-VerilatorSyncMemBlackBox *
-VerilatorSyncMemBlackBox::getSingleton()
+DinoCPUCombMemBlackBox *
+DinoCPUCombMemBlackBox::getSingleton()
 {
-  return VerilatorSyncMemBlackBox::singleton;
+  return DinoCPUCombMemBlackBox::singleton;
 }
 
 //setup reference to this class for use with dpi
 void
-VerilatorSyncMemBlackBox::startup()
+DinoCPUCombMemBlackBox::startup()
 {
   DPRINTF(Verilator, "MEM BLACKBOX STARTUP\n");
-  VerilatorSyncMemBlackBox::singleton = this;
+  DinoCPUCombMemBlackBox::singleton = this;
 }
 
 uint32_t
-VerilatorSyncMemBlackBox::getDmemResp()
+DinoCPUCombMemBlackBox::getDmemResp()
 {
   return dmemResp;
 }
 
 uint32_t
-VerilatorSyncMemBlackBox::getImemResp()
+DinoCPUCombMemBlackBox::getImemResp()
 {
   return imemResp;
 }

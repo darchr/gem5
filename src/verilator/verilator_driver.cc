@@ -34,8 +34,8 @@
 VerilatorDriver::VerilatorDriver( )
 {
   cyclesPassed = 0;
-  void* ptr = aligned_alloc(128, sizeof(VNV_nvdla));
-  top = new(ptr) VNV_nvdla();
+  void* ptr = aligned_alloc(128, sizeof(VDevice));
+  top = new(ptr) VDevice();
 }
 
 void
@@ -71,7 +71,7 @@ VerilatorDriver::clockDevice(unsigned int numSigs, ...)
   va_end(ap1);
 }
 
-VNV_nvdla *
+VDevice *
 VerilatorDriver::getTopLevel()
 {
   return top;

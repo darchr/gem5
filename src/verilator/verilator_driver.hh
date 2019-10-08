@@ -29,18 +29,21 @@
 
 //verilator design includes
 
+#include "dinocpu/comb/VTop.h"
 #include "nvdla/VNV_nvdla.h"
 //general includes
 #include <cstdarg>
 
+#define VDevice VTop
 //Wrapper for verilator generated code. Clocks the device
 class VerilatorDriver{
+
   private:
     //count how many cycles we have run
     unsigned int cyclesPassed;
 
     //Our verilator design
-    VNV_nvdla * top;
+    VDevice * top;
   public:
     VerilatorDriver();
 
@@ -54,7 +57,7 @@ class VerilatorDriver{
     * */
     void clockDevice(unsigned int numSigs, ...);
 
-    VNV_nvdla * getTopLevel();
+    VDevice * getTopLevel();
 
     //is the verilated device finished with execution?
     bool isFinished();

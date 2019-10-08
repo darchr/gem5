@@ -26,14 +26,7 @@
 #
 # Authors: Nima Ganjehloo
 
+Import('*')
 
-from m5.params import *
-from MemObject import MemObject
-from VerilatorMemBlackBox import VerilatorMemBlackBox
-
-class AsyncMemBlackBox(VerilatorMemBlackBox):
-  type = 'AsyncMemBlackBox'
-  cxx_header = "verilator/dinocpu_async_mem/async_mem_black_box.hh"
-
-  inst_port = MasterPort("Instruction Port")
-  data_port = MasterPort("Data Port")
+SimObject('NonCombMemBlackBox.py')
+Source('non_comb_mem_black_box.cc')

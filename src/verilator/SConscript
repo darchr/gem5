@@ -32,7 +32,7 @@ SimObject('DrivenObject.py')
 #Source('driven_object.cc')
 
 SimObject('VerilatorMemBlackBox.py')
-#Source('dpi_manager.cc')
+Source('dpi_manager.cc')
 Source('verilator_driver.cc')
 
 DebugFlag('Verilator')

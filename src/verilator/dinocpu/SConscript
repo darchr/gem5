@@ -1,0 +1,8 @@
+Import('*')
+
+SimObject('VerilatorDinoCPU.py')
+Source('verilator_dino_cpu.cc')
+
+SimObject('DinoCPUSystem.py')
+Source('system.cc')
+

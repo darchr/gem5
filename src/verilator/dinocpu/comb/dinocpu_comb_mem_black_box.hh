@@ -27,8 +27,8 @@
 # Authors: Nima Ganjehloo
 */
 
-#ifndef __VERILATOR_VERILATOR_SYNC_MEM_BLACK_BOX__HH__
-#define __VERILATOR_VERILATOR_SYNC_MEM_BLACK_BOX__HH__
+#ifndef __VERILATOR_DINOCPU_MEM_BLACK_BOX__HH__
+#define __VERILATOR_DINOCPU_MEM_BLACK_BOX__HH__
 ///verilator inlcudes
 #include "svdpi.h"
 
@@ -36,9 +36,9 @@
 #include "verilator/verilator_mem_black_box.hh"
 
 //gem5 model includes
-#include "params/VerilatorSyncMemBlackBox.hh"
+#include "params/DinoCPUCombMemBlackBox.hh"
 
-class VerilatorSyncMemBlackBox: public VerilatorMemBlackBox
+class DinoCPUCombMemBlackBox: public VerilatorMemBlackBox
 {
   public:
     //memory access functions for blackbox
@@ -51,23 +51,23 @@ class VerilatorSyncMemBlackBox: public VerilatorMemBlackBox
                 PortID idx = InvalidPortID ) override;
 
     //param setup for blackbox warpper
-    VerilatorSyncMemBlackBox( VerilatorSyncMemBlackBoxParams *params );
+    DinoCPUCombMemBlackBox( DinoCPUCombMemBlackBoxParams *params );
 
     //setsup singleton for use with dpi getters
     void startup() override;
-    static VerilatorSyncMemBlackBox * getSingleton();
+    static DinoCPUCombMemBlackBox * getSingleton();
     uint32_t getDmemResp();
     uint32_t getImemResp();
 
   private:
     //master port for blackbox
-    class VerilatorSyncMemBlackBoxPort :
+    class DinoCPUCombMemBlackBoxPort :
     public VerilatorMemBlackBox::VerilatorMemBlackBoxPort
     {
 
       public:
-        VerilatorSyncMemBlackBoxPort(const std::string& name,
-                    VerilatorSyncMemBlackBox *owner) :
+        DinoCPUCombMemBlackBoxPort(const std::string& name,
+                    DinoCPUCombMemBlackBox *owner) :
                     VerilatorMemBlackBoxPort(name, owner)
                 { }
 
@@ -86,10 +86,11 @@ class VerilatorSyncMemBlackBox: public VerilatorMemBlackBox
     bool handleResponse( PacketPtr pkt );
 
     //memory ports for imem and dmem requests
-    VerilatorSyncMemBlackBoxPort instPort;
-    VerilatorSyncMemBlackBoxPort dataPort;
+    DinoCPUCombMemBlackBoxPort instPort;
+    DinoCPUCombMemBlackBoxPort dataPort;
+
     //pointer for dpi
-    static VerilatorSyncMemBlackBox * singleton;
+    static DinoCPUCombMemBlackBox * singleton;
 
     //data for response to dpi
     uint32_t dmemResp;

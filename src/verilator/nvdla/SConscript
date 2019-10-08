@@ -27,17 +27,18 @@
 # Authors: Nima Ganjehloo
 
 
-Import('*')
+#Import('*')
 
-SimObject('NVDLAWrapper.py')
-Source('nvdla_wrapper.cc')
+#SimObject('NVDLAWrapper.py')
+#Source('nvdla_wrapper.cc')
 
-SimObject('NVDLASystem.py')
+#SimObject('NVDLASystem.py')
 #Source('system.cc')
-Source('bare_nvdla/system.cc')
+#Source('bare_nvdla/system.cc')
 
-SimObject('AXIToMem.py')
-Source('axi_to_mem.cc')
+#SimObject('AXIToMem.py')
+#Source('axi_to_mem.cc')
 
-Source('trace_loader.cc')
-Source('csb_master.cc')
+#Source('trace_loader.cc')
+#Source('csb_master.cc')
+

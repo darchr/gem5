@@ -38,32 +38,36 @@
 #include "VTop.h"
 
 //gem5 general includes
+#include "../driven_object.hh"
+#include "./system.hh"
 #include "params/VerilatorDinoCPU.hh"
-#include "sim/clocked_object.hh"
 
 //Wrapper for verilator generated code. Clocks the device and schedules
 //memory requests in gem5
-class VerilatorDinoCPU : public ClockedObject
+class VerilatorDinoCPU : public DrivenObject
 {
+
   private:
-    //clocks the verilator device.
-    void updateCycle();
     //event queue var to schedule mem requests and cycle updates
     EventFunctionWrapper event;
-
-    //CPU stages
-    int designStages;
 
     //count how many cycles we have run
     int cyclesPassed;
 
-    //Our verilator cpu design
-    VTop top;
+    //pointer to top of verilated c++ model
+    VTop * top;
+
+    //pointer to dinocpu
+    DinoCPUSystem * system;
+
   public:
     VerilatorDinoCPU(VerilatorDinoCPUParams *p);
 
     //reset the cpu for a # of cycles
     void reset(int resetCycles);
+
+    //clocs the verilator device
+    void updateCycle() override;
 
     //resets cpu then schedules memory request to fetch instruction
     void startup() override;

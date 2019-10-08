@@ -37,10 +37,11 @@
 
 //setup design params
 VerilatorDinoCPU::VerilatorDinoCPU(VerilatorDinoCPUParams *params) :
-  ClockedObject(params),
+  DrivenObject(params),
   event([this]{updateCycle();}, params->name),
-  designStages(params->stages)
+  system(params->dinocpu_sys)
 {
+  top = driver.getTopLevel();
 }
 
 //creates object for gem5 to use
@@ -58,18 +59,10 @@ VerilatorDinoCPU::updateCycle()
 
   DPRINTF(Verilator, "\n\nCLOCKING DEVICE\n");
 
-  //run the device under test here through verilator
-  //when clock = 0 device state is set
-  top.clock = 0;
-  top.eval();
-  //when clock = 1 device state is evaluated
-  top.clock = 1;
-  top.eval();
-
-  cyclesPassed += 1;
+  driver.clockDevice(1, &(top->clock));
 
   //schedule another instruction fetch if verilator is not done
-  if (!Verilated::gotFinish()){
+  if (!driver.isFinished()){
     schedule(event, nextCycle());
   }
 }
@@ -79,21 +72,14 @@ VerilatorDinoCPU::reset(int resetCycles)
 {
   DPRINTF(Verilator, "RESETING FOR %d CYCLES\n", resetCycles);
 
-  //if we are pipelining we want to run reset for the number
-  //of stages we have
-  top.reset = 1;
-  for (int i = 0; i < resetCycles; ++i){
-    //set reset signal and starting clock signal
-    top.clock = 0;
-    top.eval();
-    //run verilator for this state
-    //run verilator for rising edge state
-    top.clock = 1;
-    top.eval();
-  }
+  char fmt[1] = {0};
+
+  //reset
+  top->reset = 1;
+  driver.reset(resetCycles, fmt, 1, &(top->clock));
 
   //done reseting
-  top.reset = 0;
+  top->reset = 0;
 
   DPRINTF(Verilator, "DONE RESETING\n");
 }
@@ -102,7 +88,7 @@ void
 VerilatorDinoCPU::startup()
 {
   DPRINTF(Verilator, "STARTING UP DINOCPU\n");
-  reset(designStages);
+  reset(resetCycles);
 
   //lets fetch an instruction before doing anything
   DPRINTF(Verilator, "SCHEDULING FIRST TICK \n");

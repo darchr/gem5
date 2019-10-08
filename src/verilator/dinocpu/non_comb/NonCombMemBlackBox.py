@@ -26,14 +26,14 @@
 #
 # Authors: Nima Ganjehloo
 
+
 from m5.params import *
 from MemObject import MemObject
 from VerilatorMemBlackBox import VerilatorMemBlackBox
 
-class VerilatorSyncMemBlackBox(VerilatorMemBlackBox):
-  type = 'VerilatorSyncMemBlackBox'
-  cxx_header = "verilator/dinocpu_sync_mem/verilator_sync_mem_black_box.hh"
+class NonCombMemBlackBox(VerilatorMemBlackBox):
+  type = 'NonCombMemBlackBox'
+  cxx_header = "verilator/dinocpu/non_comb/non_comb_mem_black_box.hh"
 
   inst_port = MasterPort("Instruction Port")
   data_port = MasterPort("Data Port")
-

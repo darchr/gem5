@@ -26,7 +26,13 @@
 #
 # Authors: Nima Ganjehloo
 
-Import('*')
+from m5.params import *
+from MemObject import MemObject
+from VerilatorMemBlackBox import VerilatorMemBlackBox
 
-SimObject('VerilatorSyncMemBlackBox.py')
-Source('verilator_sync_mem_black_box.cc')
+class DinoCPUCombMemBlackBox(VerilatorMemBlackBox):
+  type = 'DinoCPUCombMemBlackBox'
+  cxx_header = "verilator/dinocpu/comb/dinocpu_comb_mem_black_box.hh"
+
+  inst_port = MasterPort("Instruction Port")
+  data_port = MasterPort("Data Port")

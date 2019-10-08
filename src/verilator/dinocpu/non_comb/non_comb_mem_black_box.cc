@@ -35,12 +35,12 @@
 #include "mem/packet_access.hh"
 
 //gem5 model includes
-#include "async_mem_black_box.hh"
+#include "non_comb_mem_black_box.hh"
 
 //MASTER PORT DEFINITIONS
 //send packet to gem5 memory system,schedules an event
 void
-AsyncMemBlackBox::AsyncMemBlackBoxPort
+NonCombMemBlackBox::NonCombMemBlackBoxPort
   ::sendTimingPacket(PacketPtr pkt)
 {
   panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
@@ -54,7 +54,7 @@ AsyncMemBlackBox::AsyncMemBlackBoxPort
 //sends a packet to gem5 memory system, recieves response
 //immidiately at end of call chain
 bool
-AsyncMemBlackBox::AsyncMemBlackBoxPort
+NonCombMemBlackBox::NonCombMemBlackBoxPort
   ::sendAtomicPacket(PacketPtr pkt)
 {
   panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
@@ -66,7 +66,7 @@ AsyncMemBlackBox::AsyncMemBlackBoxPort
   if (!sendAtomic(pkt)) {
     DPRINTF(Verilator, "ATOMIC MEMORY RESPONSE RECIEVED\n");
     //let blackbox determine how to deal with returned data
-    return static_cast<AsyncMemBlackBox *>(owner)->handleResponse(pkt);
+    return static_cast<NonCombMemBlackBox *>(owner)->handleResponse(pkt);
   }else{
     DPRINTF(Verilator, "Packet for addr: %#x blocked\n", pkt->getAddr());
     blockedPacket = pkt;
@@ -76,17 +76,17 @@ AsyncMemBlackBox::AsyncMemBlackBoxPort
 
 //gem5 memory model has reponded to our memory request
 bool
-AsyncMemBlackBox::AsyncMemBlackBoxPort
+NonCombMemBlackBox::NonCombMemBlackBoxPort
     ::recvTimingResp( PacketPtr pkt )
 {
   DPRINTF(Verilator, "MEMORY RESPONSE RECIEVED\n");
   //let blackbox determine how to deal with returned data
-  return static_cast<AsyncMemBlackBox *>(owner)->handleResponse(pkt);
+  return static_cast<NonCombMemBlackBox *>(owner)->handleResponse(pkt);
 }
 
 //retry sending a packet if it failed
 void
-AsyncMemBlackBox::AsyncMemBlackBoxPort
+NonCombMemBlackBox::NonCombMemBlackBoxPort
   ::recvReqRetry()
 {
   //we have to had saved the failed packet before doing a retry
@@ -102,7 +102,7 @@ AsyncMemBlackBox::AsyncMemBlackBoxPort
 
 //used for configuring simulated device
 BaseMasterPort&
-AsyncMemBlackBox::getMasterPort(
+NonCombMemBlackBox::getMasterPort(
         const std::string& if_name, PortID idx )
 {
   panic_if(idx != InvalidPortID, "This object doesn't support vector ports");
@@ -120,26 +120,26 @@ AsyncMemBlackBox::getMasterPort(
 
 
 //Create for memblkbx for gem5
-AsyncMemBlackBox*
-AsyncMemBlackBoxParams::create()
+NonCombMemBlackBox*
+NonCombMemBlackBoxParams::create()
 {
-  return new AsyncMemBlackBox(this);
+  return new NonCombMemBlackBox(this);
 }
 
 //setup our black box
-AsyncMemBlackBox::AsyncMemBlackBox(
-        AsyncMemBlackBoxParams *params) :
+NonCombMemBlackBox::NonCombMemBlackBox(
+        NonCombMemBlackBoxParams *params) :
         VerilatorMemBlackBox(params),
         instPort(params->name + ".inst_port", this),
         dataPort(params->name + ".data_port", this)
 {
 
-    AsyncMemBlackBox::singleton =  this;
+    NonCombMemBlackBox::singleton =  this;
 }
 
 //sets up a instruction fetch request for gem5 memory system
 void
-AsyncMemBlackBox::doFetch(unsigned char imem_request_ready,
+NonCombMemBlackBox::doFetch(unsigned char imem_request_ready,
   unsigned char imem_request_valid, unsigned int imem_request_bits_address,
   unsigned char* imem_response_valid)
 {
@@ -166,7 +166,7 @@ AsyncMemBlackBox::doFetch(unsigned char imem_request_ready,
 
 //sets up a memory request for memory instructions to gem5 memory sytem
 void
-AsyncMemBlackBox::doMem(unsigned char dmem_request_ready,
+NonCombMemBlackBox::doMem(unsigned char dmem_request_ready,
   unsigned char dmem_request_valid, int dmem_request_bits_address,
   int dmem_request_bits_writedata, unsigned char dmem_request_bits_operation,
   unsigned char* dmem_response_valid)
@@ -222,7 +222,7 @@ AsyncMemBlackBox::doMem(unsigned char dmem_request_ready,
 
 //handles a successful response for a memory request
 bool
-AsyncMemBlackBox::handleResponse( PacketPtr pkt )
+NonCombMemBlackBox::handleResponse( PacketPtr pkt )
 {
   DPRINTF(Verilator, "Got response for addr %#x\n", pkt->getAddr());
 
@@ -244,32 +244,32 @@ AsyncMemBlackBox::handleResponse( PacketPtr pkt )
 }
 
 //setup static var
-AsyncMemBlackBox *
-AsyncMemBlackBox::singleton = nullptr;
+NonCombMemBlackBox *
+NonCombMemBlackBox::singleton = nullptr;
 
 //give caller (dpi in this case) access to this class
-AsyncMemBlackBox *
-AsyncMemBlackBox::getSingleton()
+NonCombMemBlackBox *
+NonCombMemBlackBox::getSingleton()
 {
-  return AsyncMemBlackBox::singleton;
+  return NonCombMemBlackBox::singleton;
 }
 
 //setup reference to this class for use with dpi
 void
-AsyncMemBlackBox::startup()
+NonCombMemBlackBox::startup()
 {
   DPRINTF(Verilator, "MEM BLACKBOX STARTUP\n");
-  AsyncMemBlackBox::singleton = this;
+  NonCombMemBlackBox::singleton = this;
 }
 
 uint32_t
-AsyncMemBlackBox::getDmemResp()
+NonCombMemBlackBox::getDmemResp()
 {
   return dmemResp;
 }
 
 uint32_t
-AsyncMemBlackBox::getImemResp()
+NonCombMemBlackBox::getImemResp()
 {
   return imemResp;
 }

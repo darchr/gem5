@@ -26,8 +26,8 @@
 #
 # Authors: Nima Ganjehloo
 */
-#ifndef __VERILATOR_ASYNC_MEM_BLACK_BOX__HH__
-#define __VERILATOR_ASYNC_MEM_BLACK_BOX__HH__
+#ifndef __VERILATOR_NON_COMB_MEM_BLACK_BOX__HH__
+#define __VERILATOR_NON_COMB_MEM_BLACK_BOX__HH__
 ///verilator inlcudes
 #include "svdpi.h"
 
@@ -35,9 +35,9 @@
 #include "verilator/verilator_mem_black_box.hh"
 
 //gem5 model includes
-#include "params/AsyncMemBlackBox.hh"
+#include "params/NonCombMemBlackBox.hh"
 
-class AsyncMemBlackBox: public VerilatorMemBlackBox
+class NonCombMemBlackBox: public VerilatorMemBlackBox
 {
   public:
     //memory access functions for blackbox
@@ -55,23 +55,23 @@ class AsyncMemBlackBox: public VerilatorMemBlackBox
                 PortID idx = InvalidPortID ) override;
 
     //param setup for blackbox warpper
-    AsyncMemBlackBox( AsyncMemBlackBoxParams *params );
+    NonCombMemBlackBox( NonCombMemBlackBoxParams *params );
 
     //setsup singleton for use with dpi getters
     void startup() override;
-    static AsyncMemBlackBox * getSingleton();
+    static NonCombMemBlackBox * getSingleton();
     uint32_t getDmemResp();
     uint32_t getImemResp();
 
   private:
     //master port for blackbox
-    class AsyncMemBlackBoxPort :
+    class NonCombMemBlackBoxPort :
     public VerilatorMemBlackBox::VerilatorMemBlackBoxPort
     {
 
       public:
-        AsyncMemBlackBoxPort(const std::string& name,
-                    AsyncMemBlackBox *owner) :
+        NonCombMemBlackBoxPort(const std::string& name,
+                    NonCombMemBlackBox *owner) :
                     VerilatorMemBlackBoxPort(name, owner)
                 { }
 
@@ -90,10 +90,10 @@ class AsyncMemBlackBox: public VerilatorMemBlackBox
     bool handleResponse( PacketPtr pkt );
 
     //memory ports for imem and dmem requests
-    AsyncMemBlackBoxPort instPort;
-    AsyncMemBlackBoxPort dataPort;
+    NonCombMemBlackBoxPort instPort;
+    NonCombMemBlackBoxPort dataPort;
     //pointer for dpi
-    static AsyncMemBlackBox * singleton;
+    static NonCombMemBlackBox * singleton;
 
     //data for response to dpi
     uint32_t dmemResp;

@@ -29,9 +29,12 @@
 
 
 from m5.params import *
-from ClockedObject import ClockedObject
-
-class VerilatorDinoCPU(ClockedObject):
+from DinoCPUSystem import DinoCPUSystem
+from DrivenObject import DrivenObject
+from m5.proxy import *
+from MemObject import MemObject
+class VerilatorDinoCPU(DrivenObject):
   type = 'VerilatorDinoCPU'
-  cxx_header = "verilator/verilator_dino_cpu.hh"
-  stages = Param.Int(1, "Number of stages in the device under test")
+  cxx_header = "verilator/dinocpu/verilator_dino_cpu.hh"
+  dinocpu_sys = Param.DinoCPUSystem(Parent.any,
+    "Pointer to combinational dinocpu system")
