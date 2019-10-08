@@ -70,23 +70,33 @@ system.clk_domain.clock = '1GHz'
 system.clk_domain.voltage_domain = VoltageDomain()
 
 # Set up the system
-system.mem_mode = 'timing'               # Use timing accesses
-system.mem_ranges = [AddrRange('4GB')] # Create an address range
+system.mem_mode = 'atomic'               # Use timing accesses
+system.mem_ranges =  [
+    AddrRange(0x50000000, size='512MB'),
+    AddrRange(0x80000000, size='1GB')] # Create an address range
 
-# Create a DDR3 memory controller
-system.mem_ctrl = SimpleMemory(latency = '1ns', bandwidth = '0GB/s')
-system.mem_ctrl.range = system.mem_ranges[0]
+
+# Create a "SRAM" and "DRAM" memory controller
+system.mem_ctrls = [SimpleMemory(latency = '0ns', bandwidth = '0GB/s'),
+                   DDR3_1600_8x8() ]
+system.mem_ctrls[0].range = system.mem_ranges[0] #sram range
+system.mem_ctrls[1].range = system.mem_ranges[1] #dram range
+
+system.membus = SystemXBar()
 
 # Set up the binary to load
 system.kernel = binary
-system.system_port = system.mem_ctrl.port
+system.system_port = system.membus.slave
 
 # Create the dinocpu verilator wrapper
 system.nvdla = NVDLAWrapper()
 system.nvdla.axi_2_gem5 = AXIToMem()
 
+system.nvdla.axi_2_gem5.sram_data_port = system.membus.slave
+system.nvdla.axi_2_gem5.dbb_data_port = system.membus.slave
 
-system.nvdla.axi_2_gem5.data_port = system.mem_ctrl.port
+system.mem_ctrls[0].port = system.membus.master
+system.mem_ctrls[1].port = system.membus.master
 
 # set up the root SimObject and start the simulation
 root = Root(full_system = True, system = system)

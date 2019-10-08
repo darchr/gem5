@@ -34,7 +34,7 @@
 //general includes
 #include <cstdarg>
 
-#define VDevice VTop
+#define VDevice VNV_nvdla
 //Wrapper for verilator generated code. Clocks the device
 class VerilatorDriver{
 

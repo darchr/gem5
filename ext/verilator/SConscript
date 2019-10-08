@@ -36,7 +36,7 @@ main.Prepend(CPPPATH=Dir('/usr/share/verilator/include/vltstd'))
 
 verilator = main.Clone()
 
-main.Append(LIBS=['VTop__ALL'])
+main.Append(LIBS=['VNV_nvdla__ALL'])
 main.Prepend(LIBPATH=[Dir('.')])
 main.Prepend(LIBPATH=[Dir('./nvdla/')])
 main.Prepend(LIBPATH=[Dir('./dinocpu/')])

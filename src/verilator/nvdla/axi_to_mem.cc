@@ -69,7 +69,7 @@ AXIToMem::AXIToMemPort
   //
   //....i dont think blocking the packet here is right. do atomics ever get
   //request retries?
-  if (!sendAtomic(pkt)) {
+  if (sendAtomic(pkt)) {
     DPRINTF(Verilator, "Packet for addr: %#x blocked\n", pkt->getAddr());
     blockedPacket = pkt;
   }else{
@@ -114,9 +114,11 @@ AXIToMem::getMasterPort(
   panic_if(idx != InvalidPortID, "This object doesn't support vector ports");
 
   // This is the name from the Python SimObject declaration (SimpleMemobj.py)
-  if (if_name == "data_port") {
+  if (if_name == "dbb_data_port") {
     return dataPort;
-  } else {
+  } else if ( if_name == "sram_data_port") {
+    return fdataPort;
+  }else{
     // pass it along to our super class
     return MemObject::getMasterPort(if_name, idx);
   }
@@ -134,7 +136,8 @@ AXIToMemParams::create()
 AXIToMem::AXIToMem(
         AXIToMemParams *params) :
         VerilatorMemBlackBox(params),
-        dataPort(params->name + ".data_port", this),
+        dataPort(params->name + ".dbb_data_port", this),
+        fdataPort(params->name + ".sram_data_port", this),
         memMode(params->mem_mode)
 {
 }

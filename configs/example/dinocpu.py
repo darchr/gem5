@@ -74,8 +74,8 @@ system.mem_mode = 'atomic'               # Use timing accesses
 system.mem_ranges = [AddrRange('4GB')] # Create an address range
 
 # Create a DDR3 memory controller
-system.mem_ctrl = SimpleMemory(latency = '0ns', bandwidth = '0GB/s')
-system.mem_ctrl.range = system.mem_ranges[0]
+system.mem_ctrls = [SimpleMemory(latency = '0ns', bandwidth = '0GB/s')]
+system.mem_ctrls.range = system.mem_ranges[0]
 
 # Set up the binary to load
 system.kernel = binary

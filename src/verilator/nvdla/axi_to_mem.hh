@@ -79,6 +79,8 @@ class AXIToMem: public VerilatorMemBlackBox
     bool handleResponse( PacketPtr pkt );
 
     AXIToMemPort dataPort;
+    AXIToMemPort fdataPort;
+
 
     //data for response to dpi
     uint8_t dmemResp;

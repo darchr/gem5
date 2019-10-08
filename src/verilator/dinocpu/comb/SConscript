@@ -26,7 +26,7 @@
 #
 # Authors: Nima Ganjehloo
 
-Import('*')
+#Import('*')
 
-SimObject('DinoCPUCombMemBlackBox.py')
-Source('dinocpu_comb_mem_black_box.cc')
+#SimObject('DinoCPUCombMemBlackBox.py')
+#Source('dinocpu_comb_mem_black_box.cc')
