@@ -307,7 +307,7 @@ end
     `endif // SYNTHESIS
   end
 endmodule
-module DualPortedAsyncMemory(
+module DualPortedSyncMemory(
   input         io_imem_request_valid,
   input  [31:0] io_imem_request_bits_address,
   output        io_imem_response_valid,
@@ -336,7 +336,8 @@ module DualPortedAsyncMemory(
   wire  _T_4; // @[memory-async.scala 104:42]
   wire  _GEN_2; // @[memory-async.scala 108:61]
   wire  _GEN_4; // @[memory-async.scala 104:51]
-  DualPortedAsyncMemoryBlackBox memory ( // @[memory-async.scala 88:26]
+  wire [31:0] _GEN_5; // @[memory-async.scala 104:51]
+  DualPortedSyncMemoryBlackBox memory ( // @[memory-async.scala 88:26]
     .imem_request_ready(memory_imem_request_ready),
     .imem_request_valid(memory_imem_request_valid),
     .imem_request_bits_address(memory_imem_request_bits_address),
@@ -355,10 +356,11 @@ module DualPortedAsyncMemory(
   assign _T_4 = io_dmem_request_bits_operation == 1'h0; // @[memory-async.scala 104:42]
   assign _GEN_2 = io_dmem_request_bits_operation ? 1'h0 : memory_dmem_response_valid; // @[memory-async.scala 108:61]
   assign _GEN_4 = _T_4 ? 1'h1 : _GEN_2; // @[memory-async.scala 104:51]
+  assign _GEN_5 = memory_dmem_response_bits_data; // @[memory-async.scala 104:51]
   assign io_imem_response_valid = io_imem_request_valid; // @[memory-async.scala 89:19 memory-async.scala 94:28 memory-async.scala 98:28]
   assign io_imem_response_bits_data = memory_imem_response_bits_data; // @[memory-async.scala 89:19 memory-async.scala 96:32]
   assign io_dmem_response_valid = io_dmem_request_valid ? _GEN_4 : 1'h0; // @[memory-async.scala 90:19 memory-async.scala 105:31 memory-async.scala 109:31 memory-async.scala 114:28]
-  assign io_dmem_response_bits_data = memory_dmem_response_bits_data; // @[memory-async.scala 90:19]
+  assign io_dmem_response_bits_data = io_dmem_request_valid ? _GEN_5 : memory_dmem_response_bits_data; // @[memory-async.scala 90:19 memory-async.scala 107:34]
   assign memory_imem_request_valid = io_imem_request_valid; // @[memory-async.scala 89:19]
   assign memory_imem_request_bits_address = io_imem_request_bits_address; // @[memory-async.scala 89:19]
   assign memory_imem_request_bits_writedata = 32'h0; // @[memory-async.scala 89:19]
@@ -368,7 +370,7 @@ module DualPortedAsyncMemory(
   assign memory_dmem_request_bits_writedata = io_dmem_request_bits_writedata; // @[memory-async.scala 90:19 memory-async.scala 111:45]
   assign memory_dmem_request_bits_operation = io_dmem_request_bits_operation; // @[memory-async.scala 90:19]
 endmodule
-module Top(
+module SyncMemoryTestModule(
   input         clock,
   input         reset,
   input  [31:0] io_imem_address,
@@ -385,42 +387,42 @@ module Top(
   output [31:0] io_dmem_readdata,
   output        io_dmem_good
 );
-  wire [31:0] imem_io_address; // @[AsyncMemoryTestModule.scala 34:20]
-  wire  imem_io_valid; // @[AsyncMemoryTestModule.scala 34:20]
-  wire  imem_io_good; // @[AsyncMemoryTestModule.scala 34:20]
-  wire  imem_io_response_valid; // @[AsyncMemoryTestModule.scala 34:20]
-  wire [31:0] imem_io_response_bits_data; // @[AsyncMemoryTestModule.scala 34:20]
-  wire  imem_io_request_valid; // @[AsyncMemoryTestModule.scala 34:20]
-  wire [31:0] imem_io_request_bits_address; // @[AsyncMemoryTestModule.scala 34:20]
-  wire [31:0] imem_io_instruction; // @[AsyncMemoryTestModule.scala 34:20]
-  wire  dmem_clock; // @[AsyncMemoryTestModule.scala 36:20]
-  wire  dmem_reset; // @[AsyncMemoryTestModule.scala 36:20]
-  wire [31:0] dmem_io_address; // @[AsyncMemoryTestModule.scala 36:20]
-  wire  dmem_io_valid; // @[AsyncMemoryTestModule.scala 36:20]
-  wire  dmem_io_good; // @[AsyncMemoryTestModule.scala 36:20]
-  wire  dmem_io_response_valid; // @[AsyncMemoryTestModule.scala 36:20]
-  wire [31:0] dmem_io_response_bits_data; // @[AsyncMemoryTestModule.scala 36:20]
-  wire  dmem_io_request_valid; // @[AsyncMemoryTestModule.scala 36:20]
-  wire [31:0] dmem_io_request_bits_address; // @[AsyncMemoryTestModule.scala 36:20]
-  wire [31:0] dmem_io_request_bits_writedata; // @[AsyncMemoryTestModule.scala 36:20]
-  wire  dmem_io_request_bits_operation; // @[AsyncMemoryTestModule.scala 36:20]
-  wire [31:0] dmem_io_writedata; // @[AsyncMemoryTestModule.scala 36:20]
-  wire  dmem_io_memread; // @[AsyncMemoryTestModule.scala 36:20]
-  wire  dmem_io_memwrite; // @[AsyncMemoryTestModule.scala 36:20]
-  wire [1:0] dmem_io_maskmode; // @[AsyncMemoryTestModule.scala 36:20]
-  wire  dmem_io_sext; // @[AsyncMemoryTestModule.scala 36:20]
-  wire [31:0] dmem_io_readdata; // @[AsyncMemoryTestModule.scala 36:20]
-  wire  memory_io_imem_request_valid; // @[AsyncMemoryTestModule.scala 37:22]
-  wire [31:0] memory_io_imem_request_bits_address; // @[AsyncMemoryTestModule.scala 37:22]
-  wire  memory_io_imem_response_valid; // @[AsyncMemoryTestModule.scala 37:22]
-  wire [31:0] memory_io_imem_response_bits_data; // @[AsyncMemoryTestModule.scala 37:22]
-  wire  memory_io_dmem_request_valid; // @[AsyncMemoryTestModule.scala 37:22]
-  wire [31:0] memory_io_dmem_request_bits_address; // @[AsyncMemoryTestModule.scala 37:22]
-  wire [31:0] memory_io_dmem_request_bits_writedata; // @[AsyncMemoryTestModule.scala 37:22]
-  wire  memory_io_dmem_request_bits_operation; // @[AsyncMemoryTestModule.scala 37:22]
-  wire  memory_io_dmem_response_valid; // @[AsyncMemoryTestModule.scala 37:22]
-  wire [31:0] memory_io_dmem_response_bits_data; // @[AsyncMemoryTestModule.scala 37:22]
-  IMemPort imem ( // @[AsyncMemoryTestModule.scala 34:20]
+  wire [31:0] imem_io_address; // @[SyncMemoryTestModule.scala 34:20]
+  wire  imem_io_valid; // @[SyncMemoryTestModule.scala 34:20]
+  wire  imem_io_good; // @[SyncMemoryTestModule.scala 34:20]
+  wire  imem_io_response_valid; // @[SyncMemoryTestModule.scala 34:20]
+  wire [31:0] imem_io_response_bits_data; // @[SyncMemoryTestModule.scala 34:20]
+  wire  imem_io_request_valid; // @[SyncMemoryTestModule.scala 34:20]
+  wire [31:0] imem_io_request_bits_address; // @[SyncMemoryTestModule.scala 34:20]
+  wire [31:0] imem_io_instruction; // @[SyncMemoryTestModule.scala 34:20]
+  wire  dmem_clock; // @[SyncMemoryTestModule.scala 36:20]
+  wire  dmem_reset; // @[SyncMemoryTestModule.scala 36:20]
+  wire [31:0] dmem_io_address; // @[SyncMemoryTestModule.scala 36:20]
+  wire  dmem_io_valid; // @[SyncMemoryTestModule.scala 36:20]
+  wire  dmem_io_good; // @[SyncMemoryTestModule.scala 36:20]
+  wire  dmem_io_response_valid; // @[SyncMemoryTestModule.scala 36:20]
+  wire [31:0] dmem_io_response_bits_data; // @[SyncMemoryTestModule.scala 36:20]
+  wire  dmem_io_request_valid; // @[SyncMemoryTestModule.scala 36:20]
+  wire [31:0] dmem_io_request_bits_address; // @[SyncMemoryTestModule.scala 36:20]
+  wire [31:0] dmem_io_request_bits_writedata; // @[SyncMemoryTestModule.scala 36:20]
+  wire  dmem_io_request_bits_operation; // @[SyncMemoryTestModule.scala 36:20]
+  wire [31:0] dmem_io_writedata; // @[SyncMemoryTestModule.scala 36:20]
+  wire  dmem_io_memread; // @[SyncMemoryTestModule.scala 36:20]
+  wire  dmem_io_memwrite; // @[SyncMemoryTestModule.scala 36:20]
+  wire [1:0] dmem_io_maskmode; // @[SyncMemoryTestModule.scala 36:20]
+  wire  dmem_io_sext; // @[SyncMemoryTestModule.scala 36:20]
+  wire [31:0] dmem_io_readdata; // @[SyncMemoryTestModule.scala 36:20]
+  wire  memory_io_imem_request_valid; // @[SyncMemoryTestModule.scala 37:22]
+  wire [31:0] memory_io_imem_request_bits_address; // @[SyncMemoryTestModule.scala 37:22]
+  wire  memory_io_imem_response_valid; // @[SyncMemoryTestModule.scala 37:22]
+  wire [31:0] memory_io_imem_response_bits_data; // @[SyncMemoryTestModule.scala 37:22]
+  wire  memory_io_dmem_request_valid; // @[SyncMemoryTestModule.scala 37:22]
+  wire [31:0] memory_io_dmem_request_bits_address; // @[SyncMemoryTestModule.scala 37:22]
+  wire [31:0] memory_io_dmem_request_bits_writedata; // @[SyncMemoryTestModule.scala 37:22]
+  wire  memory_io_dmem_request_bits_operation; // @[SyncMemoryTestModule.scala 37:22]
+  wire  memory_io_dmem_response_valid; // @[SyncMemoryTestModule.scala 37:22]
+  wire [31:0] memory_io_dmem_response_bits_data; // @[SyncMemoryTestModule.scala 37:22]
+  IMemPort imem ( // @[SyncMemoryTestModule.scala 34:20]
     .io_address(imem_io_address),
     .io_valid(imem_io_valid),
     .io_good(imem_io_good),
@@ -430,7 +432,7 @@ module Top(
     .io_request_bits_address(imem_io_request_bits_address),
     .io_instruction(imem_io_instruction)
   );
-  DMemPort dmem ( // @[AsyncMemoryTestModule.scala 36:20]
+  DMemPort dmem ( // @[SyncMemoryTestModule.scala 36:20]
     .clock(dmem_clock),
     .reset(dmem_reset),
     .io_address(dmem_io_address),
@@ -449,7 +451,7 @@ module Top(
     .io_sext(dmem_io_sext),
     .io_readdata(dmem_io_readdata)
   );
-  DualPortedAsyncMemory memory ( // @[AsyncMemoryTestModule.scala 37:22]
+  DualPortedSyncMemory memory ( // @[SyncMemoryTestModule.scala 37:22]
     .io_imem_request_valid(memory_io_imem_request_valid),
     .io_imem_request_bits_address(memory_io_imem_request_bits_address),
     .io_imem_response_valid(memory_io_imem_response_valid),
@@ -461,29 +463,29 @@ module Top(
     .io_dmem_response_valid(memory_io_dmem_response_valid),
     .io_dmem_response_bits_data(memory_io_dmem_response_bits_data)
   );
-  assign io_imem_instruction = imem_io_instruction; // @[AsyncMemoryTestModule.scala 43:23]
-  assign io_imem_good = imem_io_good; // @[AsyncMemoryTestModule.scala 44:23]
-  assign io_dmem_readdata = dmem_io_readdata; // @[AsyncMemoryTestModule.scala 52:23]
-  assign io_dmem_good = dmem_io_good; // @[AsyncMemoryTestModule.scala 53:23]
-  assign imem_io_address = io_imem_address; // @[AsyncMemoryTestModule.scala 41:23]
-  assign imem_io_valid = io_imem_valid; // @[AsyncMemoryTestModule.scala 42:23]
-  assign imem_io_response_valid = memory_io_imem_response_valid; // @[AsyncMemoryTestModule.scala 58:27]
-  assign imem_io_response_bits_data = memory_io_imem_response_bits_data; // @[AsyncMemoryTestModule.scala 58:27]
+  assign io_imem_instruction = imem_io_instruction; // @[SyncMemoryTestModule.scala 43:23]
+  assign io_imem_good = imem_io_good; // @[SyncMemoryTestModule.scala 44:23]
+  assign io_dmem_readdata = dmem_io_readdata; // @[SyncMemoryTestModule.scala 52:23]
+  assign io_dmem_good = dmem_io_good; // @[SyncMemoryTestModule.scala 53:23]
+  assign imem_io_address = io_imem_address; // @[SyncMemoryTestModule.scala 41:23]
+  assign imem_io_valid = io_imem_valid; // @[SyncMemoryTestModule.scala 42:23]
+  assign imem_io_response_valid = memory_io_imem_response_valid; // @[SyncMemoryTestModule.scala 58:27]
+  assign imem_io_response_bits_data = memory_io_imem_response_bits_data; // @[SyncMemoryTestModule.scala 58:27]
   assign dmem_clock = clock;
   assign dmem_reset = reset;
-  assign dmem_io_address = io_dmem_address; // @[AsyncMemoryTestModule.scala 45:23]
-  assign dmem_io_valid = io_dmem_valid; // @[AsyncMemoryTestModule.scala 46:23]
-  assign dmem_io_response_valid = memory_io_dmem_response_valid; // @[AsyncMemoryTestModule.scala 61:27]
-  assign dmem_io_response_bits_data = memory_io_dmem_response_bits_data; // @[AsyncMemoryTestModule.scala 61:27]
-  assign dmem_io_writedata = io_dmem_writedata; // @[AsyncMemoryTestModule.scala 47:23]
-  assign dmem_io_memread = io_dmem_memread; // @[AsyncMemoryTestModule.scala 48:23]
-  assign dmem_io_memwrite = io_dmem_memwrite; // @[AsyncMemoryTestModule.scala 49:23]
-  assign dmem_io_maskmode = io_dmem_maskmode; // @[AsyncMemoryTestModule.scala 50:23]
-  assign dmem_io_sext = io_dmem_sext; // @[AsyncMemoryTestModule.scala 51:23]
-  assign memory_io_imem_request_valid = imem_io_request_valid; // @[AsyncMemoryTestModule.scala 57:27]
-  assign memory_io_imem_request_bits_address = imem_io_request_bits_address; // @[AsyncMemoryTestModule.scala 57:27]
-  assign memory_io_dmem_request_valid = dmem_io_request_valid; // @[AsyncMemoryTestModule.scala 60:27]
-  assign memory_io_dmem_request_bits_address = dmem_io_request_bits_address; // @[AsyncMemoryTestModule.scala 60:27]
-  assign memory_io_dmem_request_bits_writedata = dmem_io_request_bits_writedata; // @[AsyncMemoryTestModule.scala 60:27]
-  assign memory_io_dmem_request_bits_operation = dmem_io_request_bits_operation; // @[AsyncMemoryTestModule.scala 60:27]
+  assign dmem_io_address = io_dmem_address; // @[SyncMemoryTestModule.scala 45:23]
+  assign dmem_io_valid = io_dmem_valid; // @[SyncMemoryTestModule.scala 46:23]
+  assign dmem_io_response_valid = memory_io_dmem_response_valid; // @[SyncMemoryTestModule.scala 61:27]
+  assign dmem_io_response_bits_data = memory_io_dmem_response_bits_data; // @[SyncMemoryTestModule.scala 61:27]
+  assign dmem_io_writedata = io_dmem_writedata; // @[SyncMemoryTestModule.scala 47:23]
+  assign dmem_io_memread = io_dmem_memread; // @[SyncMemoryTestModule.scala 48:23]
+  assign dmem_io_memwrite = io_dmem_memwrite; // @[SyncMemoryTestModule.scala 49:23]
+  assign dmem_io_maskmode = io_dmem_maskmode; // @[SyncMemoryTestModule.scala 50:23]
+  assign dmem_io_sext = io_dmem_sext; // @[SyncMemoryTestModule.scala 51:23]
+  assign memory_io_imem_request_valid = imem_io_request_valid; // @[SyncMemoryTestModule.scala 57:27]
+  assign memory_io_imem_request_bits_address = imem_io_request_bits_address; // @[SyncMemoryTestModule.scala 57:27]
+  assign memory_io_dmem_request_valid = dmem_io_request_valid; // @[SyncMemoryTestModule.scala 60:27]
+  assign memory_io_dmem_request_bits_address = dmem_io_request_bits_address; // @[SyncMemoryTestModule.scala 60:27]
+  assign memory_io_dmem_request_bits_writedata = dmem_io_request_bits_writedata; // @[SyncMemoryTestModule.scala 60:27]
+  assign memory_io_dmem_request_bits_operation = dmem_io_request_bits_operation; // @[SyncMemoryTestModule.scala 60:27]
 endmodule

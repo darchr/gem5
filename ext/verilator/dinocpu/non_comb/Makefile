@@ -1,6 +1,6 @@
 all: libVTop__ALL.a
 
-VTop.mk: Top.v DualPortedMemoryBlackBox.v
+VTop.mk: Top.v DualPortedSyncMemoryBlackBox.v
 	verilator -Wno-UNOPTFLAT --cc Top.v -Mdir . -CFLAGS "-g"
 
 verilated.o: VTop.mk

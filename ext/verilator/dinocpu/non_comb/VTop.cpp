@@ -123,7 +123,7 @@ VL_INLINE_OPT void VTop::_combo__TOP__1(VTop__Syms* __restrict vlSymsp) {
     // Body
     vlTOPp->io_dmem_good = vlTOPp->Top__DOT__memory_io_dmem_response_valid;
     vlTOPp->io_imem_good = vlTOPp->io_imem_valid;
-    // ALWAYS at DualPortedAsyncMemoryBlackBox.v:65
+    // ALWAYS at DualPortedSyncMemoryBlackBox.v:65
     vlTOPp->__Vdpiimwrap_Top__DOT__memory__DOT__memory__DOT__ifetch_TOP(vlTOPp->Top__DOT__memory__DOT__memory_imem_request_ready, (IData)(vlTOPp->io_imem_valid), vlTOPp->io_imem_address, vlTOPp->__Vfunc_Top__DOT__memory__DOT__memory__DOT__ifetch__1__imem_response_valid, vlTOPp->Top__DOT__memory__DOT__memory__DOT__gem5MemBlkBox, vlTOPp->__Vfunc_Top__DOT__memory__DOT__memory__DOT__ifetch__1__Vfuncout);
     vlTOPp->Top__DOT__memory__DOT__memory_imem_response_bits_data 
 	= vlTOPp->__Vfunc_Top__DOT__memory__DOT__memory__DOT__ifetch__1__Vfuncout;
@@ -243,8 +243,8 @@ void VTop::_initial__TOP__3(VTop__Syms* __restrict vlSymsp) {
     // Variables
     VL_SIG64(__Vfunc_Top__DOT__memory__DOT__memory__DOT__setGem5Handle__0__Vfuncout,63,0);
     // Body
-    // INITIAL at DualPortedAsyncMemoryBlackBox.v:61
-    // Function: setGem5Handle at DualPortedAsyncMemoryBlackBox.v:62
+    // INITIAL at DualPortedSyncMemoryBlackBox.v:61
+    // Function: setGem5Handle at DualPortedSyncMemoryBlackBox.v:62
     vlTOPp->__Vdpiimwrap_Top__DOT__memory__DOT__memory__DOT__setGem5Handle_TOP(__Vfunc_Top__DOT__memory__DOT__memory__DOT__setGem5Handle__0__Vfuncout);
     vlTOPp->Top__DOT__memory__DOT__memory__DOT__gem5MemBlkBox 
 	= __Vfunc_Top__DOT__memory__DOT__memory__DOT__setGem5Handle__0__Vfuncout;
@@ -265,9 +265,9 @@ VL_INLINE_OPT void VTop::_sequent__TOP__4(VTop__Syms* __restrict vlSymsp) {
 		     & (~ ((~ ((IData)(vlTOPp->io_dmem_memread) 
 			       & (IData)(vlTOPp->io_dmem_memwrite))) 
 			   | (IData)(vlTOPp->reset)))))) {
-	//VL_WRITEF("[%0t] %%Error: Top.v:280: Assertion failed in %NTop.dmem\n",
-	//	  64,VL_TIME_Q(),vlSymsp->name());
-	//VL_STOP_MT("Top.v",280,"");
+	VL_WRITEF("[%0t] %%Error: Top.v:280: Assertion failed in %NTop.dmem\n",
+		  64,VL_TIME_Q(),vlSymsp->name());
+	VL_STOP_MT("Top.v",280,"");
     }
     if (VL_UNLIKELY(((IData)(vlTOPp->Top__DOT__memory_io_dmem_response_valid) 
 		     & (~ ((IData)(vlTOPp->Top__DOT__dmem__DOT__outstandingReq_valid) 
@@ -277,9 +277,9 @@ VL_INLINE_OPT void VTop::_sequent__TOP__4(VTop__Syms* __restrict vlSymsp) {
     if (VL_UNLIKELY(((IData)(vlTOPp->Top__DOT__memory_io_dmem_response_valid) 
 		     & (~ ((IData)(vlTOPp->Top__DOT__dmem__DOT__outstandingReq_valid) 
 			   | (IData)(vlTOPp->reset)))))) {
-	//VL_WRITEF("[%0t] %%Error: Top.v:302: Assertion failed in %NTop.dmem\n",
-	//	  64,VL_TIME_Q(),vlSymsp->name());
-	//VL_STOP_MT("Top.v",302,"");
+	VL_WRITEF("[%0t] %%Error: Top.v:302: Assertion failed in %NTop.dmem\n",
+		  64,VL_TIME_Q(),vlSymsp->name());
+	VL_STOP_MT("Top.v",302,"");
     }
     // ALWAYS at Top.v:221
     if (vlTOPp->reset) {
@@ -337,11 +337,11 @@ void VTop::_settle__TOP__5(VTop__Syms* __restrict vlSymsp) {
     VL_DEBUG_IF(VL_DBG_MSGF("+    VTop::_settle__TOP__5\n"); );
     VTop* __restrict vlTOPp VL_ATTR_UNUSED = vlSymsp->TOPp;
     // Body
-    // ALWAYS at DualPortedAsyncMemoryBlackBox.v:65
+    // ALWAYS at DualPortedSyncMemoryBlackBox.v:65
     vlTOPp->__Vdpiimwrap_Top__DOT__memory__DOT__memory__DOT__ifetch_TOP(vlTOPp->Top__DOT__memory__DOT__memory_imem_request_ready, (IData)(vlTOPp->io_imem_valid), vlTOPp->io_imem_address, vlTOPp->__Vfunc_Top__DOT__memory__DOT__memory__DOT__ifetch__1__imem_response_valid, vlTOPp->Top__DOT__memory__DOT__memory__DOT__gem5MemBlkBox, vlTOPp->__Vfunc_Top__DOT__memory__DOT__memory__DOT__ifetch__1__Vfuncout);
     vlTOPp->Top__DOT__memory__DOT__memory_imem_response_bits_data 
 	= vlTOPp->__Vfunc_Top__DOT__memory__DOT__memory__DOT__ifetch__1__Vfuncout;
-    // ALWAYS at DualPortedAsyncMemoryBlackBox.v:69
+    // ALWAYS at DualPortedSyncMemoryBlackBox.v:69
     vlTOPp->__Vdpiimwrap_Top__DOT__memory__DOT__memory__DOT__datareq_TOP(vlTOPp->Top__DOT__memory__DOT__memory_dmem_request_ready, (IData)(vlTOPp->Top__DOT__dmem_io_request_valid), 
 									 ((IData)(vlTOPp->Top__DOT__memory_io_dmem_response_valid)
 									   ? 
@@ -467,7 +467,7 @@ VL_INLINE_OPT void VTop::_combo__TOP__6(VTop__Syms* __restrict vlSymsp) {
 					       & vlTOPp->Top__DOT__dmem__DOT___GEN_12))
 					 : vlTOPp->Top__DOT__dmem__DOT___GEN_12))
 				 : vlTOPp->Top__DOT__dmem__DOT___GEN_12);
-    // ALWAYS at DualPortedAsyncMemoryBlackBox.v:69
+    // ALWAYS at DualPortedSyncMemoryBlackBox.v:69
     vlTOPp->__Vdpiimwrap_Top__DOT__memory__DOT__memory__DOT__datareq_TOP(vlTOPp->Top__DOT__memory__DOT__memory_dmem_request_ready, (IData)(vlTOPp->Top__DOT__dmem_io_request_valid), 
 									 ((IData)(vlTOPp->Top__DOT__memory_io_dmem_response_valid)
 									   ? 
