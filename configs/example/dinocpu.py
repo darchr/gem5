@@ -62,7 +62,7 @@ else:
 ##############################################################################
 
 # create the system we are going to simulate
-system = System()
+system = DinoCPUSystem()
 
 # Set the clock frequency of the system (and all of its children)
 system.clk_domain = SrcClockDomain()
@@ -70,8 +70,8 @@ system.clk_domain.clock = '1GHz'
 system.clk_domain.voltage_domain = VoltageDomain()
 
 # Set up the system
-system.mem_mode = 'timing'               # Use timing accesses
-system.mem_ranges = [AddrRange('8GB')] # Create an address range
+system.mem_mode = 'atomic'               # Use timing accesses
+system.mem_ranges = [AddrRange('4GB')] # Create an address range
 
 # Create a DDR3 memory controller
 system.mem_ctrl = SimpleMemory(latency = '0ns', bandwidth = '0GB/s')
@@ -82,10 +82,10 @@ system.kernel = binary
 system.system_port = system.mem_ctrl.port
 
 # Create the dinocpu verilator wrapper
-system.dinocpu = DrivenObject()
+system.dinocpu = VerilatorDinoCPU()
 
 # Create the mem black box verilator wrapper
-system.verilator_mem = AsyncMemBlackBox()
+system.verilator_mem = DinoCPUCombMemBlackBox()
 
 
 system.verilator_mem.inst_port = system.mem_ctrl.port
