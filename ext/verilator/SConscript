@@ -26,18 +26,20 @@
 #
 # Authors: Nima Ganjehloo
 
-
 Import('main')
 
 # Include?
 main.Prepend(CPPPATH=Dir('./'))
+main.Prepend(CPPPATH=Dir('./dinocpu/comb'))
 main.Prepend(CPPPATH=Dir('/usr/share/verilator/include'))
 main.Prepend(CPPPATH=Dir('/usr/share/verilator/include/vltstd'))
 
 verilator = main.Clone()
 
-main.Append(LIBS=['VNV_nvdla__ALL'])
+main.Append(LIBS=['VTop__ALL'])
 main.Prepend(LIBPATH=[Dir('.')])
 main.Prepend(LIBPATH=[Dir('./nvdla/')])
+main.Prepend(LIBPATH=[Dir('./dinocpu/')])
+main.Prepend(LIBPATH=[Dir('./dinocpu/comb/')])
 main.Append(CPPDEFINES = 'VM_TRACE=0')
 main.Append(CPPDEFINES = 'VL_THREADED=0')
