@@ -204,12 +204,12 @@ LearningSimpleCPU::executeInstruction(StaticInstPtr inst)
     LearningSimpleContext exec_context(*this, thread, inst);
 
     if (inst->isMemRef()) {
-        DPRINTF(LearningSimpleCPU, "Found a memory instruciton!\n");
+        DPRINTF(LearningSimpleCPU, "Found a memory instruction!\n");
         // Make the memory reference...
         Fault fault = inst->initiateAcc(&exec_context, traceData);
         panic_if(fault != NoFault, "Don't know how to deal with mem faults!");
     } else {
-        DPRINTF(LearningSimpleCPU, "Found a non-memory instruciton!\n");
+        DPRINTF(LearningSimpleCPU, "Found a non-memory instruction!\n");
         // Execute the instruction...
         Fault fault = inst->execute(&exec_context, traceData);
         finishExecute(inst, fault);
