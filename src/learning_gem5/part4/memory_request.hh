@@ -173,7 +173,7 @@ class MemoryRequest : public BaseTLB::Translation
     PacketPtr getPkt() { return pkt; }
 
     /**
-     * Getter for the instrucion for this request.
+     * Getter for the instruction for this request.
      */
     StaticInstPtr getInst() { return inst; }
 
