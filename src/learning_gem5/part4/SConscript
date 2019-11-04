@@ -32,6 +32,7 @@ Import('*')
 SimObject('LearningSimpleCPU.py')
 
 Source('cpu.cc')
+Source('cpu_port.cc')
 Source('memory_request.cc')
 
 DebugFlag('LearningSimpleCPU')

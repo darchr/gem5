@@ -98,57 +98,6 @@ LearningSimpleCPU::activateContext(ThreadID tid)
 }
 
 void
-LearningSimpleCPU::CPUPort::sendPacket(MemoryRequest *request, PacketPtr pkt)
-{
-    // Note: This flow control is very simple since the CPU is blocking.
-    panic_if(blockedPacket != nullptr, "Should never try to send if blocked!");
-
-    // On a retry, the request is first removed, then replaced here.
-    assert(outstandingRequest == nullptr);
-    outstandingRequest = request;
-
-    DPRINTF(LearningSimpleCPU, "Sending packet %s\n", pkt->print());
-
-    // If we can't send the packet across the port, store it for later.
-    if (!sendTimingReq(pkt)) {
-        blockedPacket = pkt;
-    }
-}
-
-bool
-LearningSimpleCPU::CPUPort::recvTimingResp(PacketPtr pkt)
-{
-    DPRINTF(LearningSimpleCPU, "Got response for addr %#x\n",
-             pkt->getAddr());
-    assert(outstandingRequest);
-
-    MemoryRequest *request = outstandingRequest;
-    outstandingRequest = nullptr;
-
-    return request->recvResponse(pkt);
-}
-
-void
-LearningSimpleCPU::CPUPort::recvReqRetry()
-{
-    // We should have a blocked packet if this function is called.
-    assert(blockedPacket != nullptr);
-    assert(outstandingRequest);
-
-    DPRINTF(LearningSimpleCPU, "Got retry request.\n");
-
-    // Grab the blocked packet.
-    PacketPtr pkt = blockedPacket;
-    blockedPacket = nullptr;
-
-    MemoryRequest *request = outstandingRequest;
-    outstandingRequest = nullptr;
-
-    // Try to resend it. It's possible that it fails again.
-    sendPacket(request, pkt);
-}
-
-void
 LearningSimpleCPU::fetch(Addr offset)
 {
     // Make sure it's aligned to the closest PCMask value
