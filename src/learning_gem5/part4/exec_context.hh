@@ -72,7 +72,7 @@ class LearningSimpleContext : public ExecContext {
      */
 
     /** Reads an integer register. */
-    IntReg readIntRegOperand(const StaticInst *si, int idx) override
+    RegVal readIntRegOperand(const StaticInst *si, int idx) override
     {
         const RegId& reg = si->srcRegIdx(idx);
         assert(reg.isIntReg());
@@ -80,7 +80,7 @@ class LearningSimpleContext : public ExecContext {
     }
 
     /** Sets an integer register to a value. */
-    void setIntRegOperand(const StaticInst *si, int idx, IntReg val) override
+    void setIntRegOperand(const StaticInst *si, int idx, RegVal val) override
     {
         const RegId& reg = si->destRegIdx(idx);
         assert(reg.isIntReg());
@@ -95,41 +95,24 @@ class LearningSimpleContext : public ExecContext {
      * @name Floating Point Register Interfaces
      */
 
-    /** Reads a floating point register of single register width. */
-    FloatReg readFloatRegOperand(const StaticInst *si, int idx) override
+    /** Reads a floating point register in its binary format, instead
+     * of by value. */
+    RegVal readFloatRegOperandBits(const StaticInst *si, int idx)
+        override
     {
         const RegId& reg = si->srcRegIdx(idx);
         assert(reg.isFloatReg());
         return thread.readFloatReg(reg.index());
     }
 
-    /** Reads a floating point register in its binary format, instead
-     * of by value. */
-    FloatRegBits readFloatRegOperandBits(const StaticInst *si, int idx)
-        override
-    {
-        const RegId& reg = si->srcRegIdx(idx);
-        assert(reg.isFloatReg());
-        return thread.readFloatRegBits(reg.index());
-    }
-
-    /** Sets a floating point register of single width to a value. */
-    void setFloatRegOperand(const StaticInst *si, int idx, FloatReg val)
-        override
+    /** Sets the bits of a floating point register of single width
+     * to a binary value. */
+    void setFloatRegOperandBits(const StaticInst *si, int idx,
+                                RegVal val) override
     {
         const RegId& reg = si->destRegIdx(idx);
         assert(reg.isFloatReg());
         thread.setFloatReg(reg.index(), val);
-    }
-
-    /** Sets the bits of a floating point register of single width
-     * to a binary value. */
-    void setFloatRegOperandBits(const StaticInst *si, int idx,
-                                FloatRegBits val) override
-    {
-        const RegId& reg = si->destRegIdx(idx);
-        assert(reg.isFloatReg());
-        thread.setFloatRegBits(reg.index(), val);
     }
 
     /** @} */
@@ -240,17 +223,51 @@ class LearningSimpleContext : public ExecContext {
     }
     /** @} */
 
+    /** Predicate registers interface. */
+    /** @{ */
+    /** Reads source predicate register operand. */
+    virtual const VecPredRegContainer&
+    readVecPredRegOperand(const StaticInst *si, int idx) const override
+    {
+        const RegId& reg = si->srcRegIdx(idx);
+        assert(reg.isVecPredReg());
+        return thread.readVecPredReg(reg);
+    }
+
+    /** Gets destination predicate register operand for modification. */
+    virtual VecPredRegContainer&
+    getWritableVecPredRegOperand(const StaticInst *si, int idx) override
+    {
+        const RegId& reg = si->destRegIdx(idx);
+        assert(reg.isVecPredReg());
+        return thread.getWritableVecPredReg(reg);
+    }
+
+    /** Sets a destination predicate register operand to a value. */
+    virtual void
+    setVecPredRegOperand(const StaticInst *si, int idx,
+                         const VecPredRegContainer& val) override
+    {
+        const RegId& reg = si->destRegIdx(idx);
+        assert(reg.isVecPredReg());
+        thread.setVecPredReg(reg, val);
+    }
+
+    /** @} */
+
     /**
      * @{
      * @name Condition Code Registers
      */
-    CCReg readCCRegOperand(const StaticInst *si, int idx) override
+    RegVal
+    readCCRegOperand(const StaticInst *si, int idx) override
     {
         const RegId& reg = si->srcRegIdx(idx);
         assert(reg.isCCReg());
         return thread.readCCReg(reg.index());
     }
-    void setCCRegOperand(const StaticInst *si, int idx, CCReg val) override
+    void
+    setCCRegOperand(const StaticInst *si, int idx, RegVal val) override
     {
         const RegId& reg = si->destRegIdx(idx);
         assert(reg.isCCReg());
@@ -262,14 +279,15 @@ class LearningSimpleContext : public ExecContext {
      * @{
      * @name Misc Register Interfaces
      */
-    MiscReg readMiscRegOperand(const StaticInst *si, int idx) override
+    RegVal
+    readMiscRegOperand(const StaticInst *si, int idx) override
     {
         const RegId& reg = si->srcRegIdx(idx);
         assert(reg.isMiscReg());
         return thread.readMiscReg(reg.index());
     }
-    void setMiscRegOperand(const StaticInst *si, int idx, const MiscReg &val)
-        override
+    void
+    setMiscRegOperand(const StaticInst *si, int idx, RegVal val) override
     {
         const RegId& reg = si->destRegIdx(idx);
         assert(reg.isMiscReg());
@@ -280,14 +298,16 @@ class LearningSimpleContext : public ExecContext {
      * Reads a miscellaneous register, handling any architectural
      * side effects due to reading that register.
      */
-    MiscReg readMiscReg(int misc_reg) override
+    RegVal
+    readMiscReg(int misc_reg) override
     { return thread.readMiscReg(misc_reg); }
 
     /**
      * Sets a miscellaneous register, handling any architectural
      * side effects due to writing that register.
      */
-    void setMiscReg(int misc_reg, const MiscReg &val) override
+    void
+    setMiscReg(int misc_reg, RegVal val) override
     { thread.setMiscReg(misc_reg, val); }
 
     /** @} */
@@ -313,8 +333,11 @@ class LearningSimpleContext : public ExecContext {
      * mode need not override (though in that case this function
      * should never be called).
      */
-    Fault readMem(Addr addr, uint8_t *data, unsigned int size,
-                  Request::Flags flags) override
+    Fault
+    readMem(Addr addr, uint8_t *data, unsigned int size,
+                  Request::Flags flags,
+                  const std::vector<bool>& byteEnable = std::vector<bool>())
+        override
     { panic("LearningSimpleCPU doesn't support atomic accesses."); }
 
     /**
@@ -324,7 +347,9 @@ class LearningSimpleContext : public ExecContext {
      * mode need not override (though in that case this function
      * should never be called).
      */
-    Fault initiateMemRead(Addr addr, unsigned int size, Request::Flags flags)
+    Fault
+    initiateMemRead(Addr addr, unsigned int size, Request::Flags flags,
+                    const std::vector<bool>& byteEnable = std::vector<bool>())
         override
     {
         MemoryRequest *request = new MemoryRequest(cpu, thread, inst,
@@ -338,7 +363,9 @@ class LearningSimpleContext : public ExecContext {
      * For timing-mode contexts, initiate a timing memory write operation.
      */
     Fault writeMem(uint8_t *data, unsigned int size, Addr addr,
-                   Request::Flags flags, uint64_t *res) override
+                   Request::Flags flags, uint64_t *res,
+                   const std::vector<bool>& byteEnable = std::vector<bool>())
+        override
     {
         MemoryRequest *request = new MemoryRequest(cpu, thread, inst,
                                                    addr, size, flags,
@@ -380,34 +407,24 @@ class LearningSimpleContext : public ExecContext {
 
     /**
      * @{
-     * @name Alpha-Specific Interfaces
-     */
-
-    /**
-     * Somewhat Alpha-specific function that handles returning from an
-     * error or interrupt.
-     */
-    Fault hwrei() override
-    { return thread.hwrei(); }
-
-    /**
-     * Check for special simulator handling of specific PAL calls.  If
-     * return value is false, actual PAL call will be suppressed.
-     */
-    bool simPalCheck(int palFunc) override
-    { return thread.simPalCheck(palFunc); }
-
-    /** @} */
-
-    /**
-     * @{
      * @name ARM-Specific Interfaces
      */
 
-    bool readPredicate() override
+    bool
+    readPredicate() const override
     { return thread.readPredicate(); }
-    void setPredicate(bool val) override
+
+    void
+    setPredicate(bool val) override
     { thread.setPredicate(val); }
+
+    bool
+    readMemAccPredicate() const override
+    { return thread.readMemAccPredicate(); }
+
+    void
+    setMemAccPredicate(bool val) override
+    { thread.setMemAccPredicate(val); }
 
     /** @} */
 
@@ -429,22 +446,6 @@ class LearningSimpleContext : public ExecContext {
     { panic("mwaitAtomic not implemented for LearningSimpleCPU"); }
     AddressMonitor *getAddrMonitor() override
     { panic("getAddrMonitor not implemented for LearningSimpleCPU"); }
-
-    /** @} */
-
-    /**
-     * @{
-     * @name MIPS-Specific Interfaces
-     */
-
-#if THE_ISA == MIPS_ISA
-    MiscReg readRegOtherThread(int regIdx, ThreadID tid = InvalidThreadID)
-        override
-    { panic("No support for multithreaded register access."); }
-    void setRegOtherThread(int regIdx, MiscReg val,
-                           ThreadID tid = InvalidThreadID) override
-    { panic("No support for multithreaded register access."); }
-#endif
 
     /** @} */
 };
