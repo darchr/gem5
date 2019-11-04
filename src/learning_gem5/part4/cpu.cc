@@ -308,7 +308,7 @@ LearningSimpleCPU::finishExecute(StaticInstPtr inst, const Fault &fault)
         DPRINTF(LearningSimpleCPU, "Fetching a new instruction\n");
         // Schedule an instruction fetch for the next cycle.
         schedule(new EventFunctionWrapper([this]{ fetch(); },
-                                          name()+".initial_fetch",
+                                          name()+".next_fetch",
                                           true),
                  nextCycle());
     }
