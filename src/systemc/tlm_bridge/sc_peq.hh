@@ -37,8 +37,8 @@
 #ifndef PAYLOAD_EVENT_H_
 #define PAYLOAD_EVENT_H_
 
-// TLM includes
-#include <tlm.h>
+// header file required by sc_core::sc_time
+#include "../ext/core/sc_main.hh"
 
 // gem5 includes
 #include <sim/eventq.hh>
