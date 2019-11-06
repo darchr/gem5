@@ -69,7 +69,6 @@ class MatchGoldStandard(Verifier):
         '''
         :param standard_filename: The path of the standard file to compare
         output to.
-
         :param ignore_regex: A string, compiled regex, or iterable containing
         either which will be ignored in 'standard' and test output files when
         diffing.
@@ -91,6 +90,7 @@ class MatchGoldStandard(Verifier):
                             self.test_filename,
                             ignore_regexes=self.ignore_regex,
                             logger=params.log)
+
         if diff is not None:
             self.failed(fixtures)
             test.fail('Stdout did not match:\n%s\nSee %s for full results'
@@ -105,6 +105,36 @@ class MatchGoldStandard(Verifier):
             raise ValueError('If you are setting test_filename use the more'
                              ' generic %s'
                              ' instead' % MatchGoldStandard.__name__)
+
+class MatchStats(MatchGoldStandard):
+    """
+    For a list of stats, this verifier checks if any of them have changed.
+    If so, the test fails. This class does a simple diff like
+    MatchGoldStandard, but then only checks for the stats
+    in the diff. This allows some stats to change (e.g., host stats) without
+    causing the test to fail.
+    """
+    def __init__(self, stats):
+        self.stats = stats
+
+    def test(self, params):
+        # We need a tempdir fixture from our parent verifier suite.
+        fixtures = params.fixtures
+        # Get the file from the tempdir of the test.
+        tempdir = fixtures[constants.tempdir_fixture_name].path
+        self.test_filename = joinpath(tempdir, self.test_filename)
+
+        diff = diff_out_file(self.standard_filename,
+                            self.test_filename,
+                            ignore_regexes=self.ignore_regex,
+                            logger=params.log)
+
+        for line in diff:
+            for stat in self.stats:
+                if stat in line:
+                    self.failed(fixtures)
+                    test.fail('Stats did not match:\n%s\nSee %s for results'
+                        % (diff, tempdir))
 
 class DerivedGoldStandard(MatchGoldStandard):
     __ignore_regex_sentinel = object()
