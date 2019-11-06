@@ -91,6 +91,13 @@ class MatchGoldStandard(Verifier):
                             self.test_filename,
                             ignore_regexes=self.ignore_regex,
                             logger=params.log)
+        '''
+        for line in diff:
+            if "committedInsts" in line:
+                self.failed(fixtures)
+                test.fail('Stats did not match:\n%s\nSee %s for full results'
+                      % (diff, tempdir))
+        '''
         if diff is not None:
             self.failed(fixtures)
             test.fail('Stdout did not match:\n%s\nSee %s for full results'

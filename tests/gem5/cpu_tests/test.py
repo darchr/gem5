@@ -49,7 +49,7 @@ for isa in valid_isas:
     for workload in workloads:
         ref_path = joinpath(getcwd(), 'ref', workload)
         verifiers = (
-                verifier.MatchStdout(ref_path),
+                verifier.MatchStats(ref_path),
         )
 
         url = base_url + isa + '/' + workload
