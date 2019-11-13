@@ -48,20 +48,27 @@ import m5
 # import all of the SimObjects
 from m5.objects import *
 
+import argparse
+
 # Add the common scripts to our path
 m5.util.addToPath('../../')
 
 # import the caches which we made
 from caches import *
 
-# import the SimpleOpts module
-from common import SimpleOpts
+parser = argparse.ArgumentParser(description='Set cache size.')
 
 # Set the usage message to display
-SimpleOpts.set_usage("usage: %prog [options] <binary to execute>")
+parser.print_help()
 
 # Finalize the arguments and grab the opts so we can pass it on to our objects
-(opts, args) = SimpleOpts.parse_args()
+
+parser.add_argument('size', metavar='cache_size',
+                    help='Cache Size',
+                    nargs='?', dest='accumulate', action='store_const')
+
+args = parser.parse_args()
+opts = args.accumulate(args.size)
 
 # get ISA for the default binary to run. This is mostly for simple testing
 isa = str(m5.defines.buildEnv['TARGET_ISA']).lower()
@@ -77,7 +84,7 @@ binary = os.path.join(thispath, '../../../',
 if len(args) == 1:
     binary = args[0]
 elif len(args) > 1:
-    SimpleOpts.print_help()
+    parser.print_help()
     m5.fatal("Expected a binary to execute as positional argument")
 
 # create the system we are going to simulate
