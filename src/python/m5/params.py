@@ -94,8 +94,8 @@ class MetaParamValue(type):
     def __new__(mcls, name, bases, dct):
         cls = super(MetaParamValue, mcls).__new__(mcls, name, bases, dct)
         if name in allParams:
-            warn("%s already exists in allParams. This may be caused by the " \
-                 "Python 2.7 compatibility layer." % (name, ))
+            warn("%s already exists in allParams. This may be caused by the "
+                 "Python 2.7 compatibility layer.".format(name))
         allParams[name] = cls
         return cls
 
@@ -1302,7 +1302,9 @@ allEnums = {}
 # Metaclass for Enum types
 class MetaEnum(MetaParamValue):
     def __new__(mcls, name, bases, dict):
-        assert name not in allEnums
+        if name in allEnums:
+            warn("%s already exists in allEnums. This may be caused by the "
+                 "Python 2.7 compatibility layer.".format(name))
 
         cls = super(MetaEnum, mcls).__new__(mcls, name, bases, dict)
         allEnums[name] = cls
@@ -1506,8 +1508,8 @@ class Enum(ParamValue):
         return self.value
 
 # This param will generate a scoped c++ enum and its python bindings.
+@add_metaclass(MetaEnum)
 class ScopedEnum(Enum):
-    __metaclass__ = MetaEnum
     vals = []
     cmd_line_settable = True
 
