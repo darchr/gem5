@@ -280,16 +280,6 @@ Process::regStats()
         ;
 }
 
-ThreadContext *
-Process::findFreeContext()
-{
-    for (auto &it : system->threadContexts) {
-        if (ThreadContext::Halted == it->status())
-            return it;
-    }
-    return nullptr;
-}
-
 void
 Process::revokeThreadContext(int context_id)
 {
@@ -437,7 +427,7 @@ Process::map(Addr vaddr, Addr paddr, int size, bool cacheable)
 }
 
 void
-Process::syscall(int64_t callnum, ThreadContext *tc, Fault *fault)
+Process::doSyscall(int64_t callnum, ThreadContext *tc, Fault *fault)
 {
     numSyscalls++;
 

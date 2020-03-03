@@ -38,16 +38,16 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.SimObject import SimObject
 
 from m5.objects.ArmPMU import ArmPMU
 from m5.objects.ArmSystem import SveVectorLength
+from m5.objects.BaseISA import BaseISA
 from m5.objects.ISACommon import VecRegRenameMode
 
 # Enum for DecoderFlavour
 class DecoderFlavour(Enum): vals = ['Generic']
 
-class ArmISA(SimObject):
+class ArmISA(BaseISA):
     type = 'ArmISA'
     cxx_class = 'ArmISA::ISA'
     cxx_header = "arch/arm/isa.hh"
@@ -57,7 +57,11 @@ class ArmISA(SimObject):
     pmu = Param.ArmPMU(NULL, "Performance Monitoring Unit")
     decoderFlavour = Param.DecoderFlavour('Generic', "Decoder flavour specification")
 
-    midr = Param.UInt32(0x410fc0f0, "MIDR value")
+    # If no MIDR value is provided, 0x0 is treated by gem5 as follows:
+    # When 'highest_el_is_64' (AArch64 support) is:
+    #   True  -> Cortex-A57 TRM r0p0 MIDR is used
+    #   False -> Cortex-A15 TRM r0p0 MIDR is used
+    midr = Param.UInt32(0x0, "MIDR value")
 
     # See section B4.1.89 - B4.1.92 of the ARM ARM
     #  VMSAv7 support
@@ -98,8 +102,9 @@ class ArmISA(SimObject):
     # !CRC32 | !SHA2 | !SHA1 | !AES
     id_aa64isar0_el1 = Param.UInt64(0x0000000000000000,
         "AArch64 Instruction Set Attribute Register 0")
-    # Reserved for future expansion
-    id_aa64isar1_el1 = Param.UInt64(0x0000000000000000,
+
+    # GPI = 0x0 | GPA = 0x1| API=0x0 | APA=0x1
+    id_aa64isar1_el1 = Param.UInt64(0x0000000001000010,
         "AArch64 Instruction Set Attribute Register 1")
 
     # 4K | 64K | !16K | !BigEndEL0 | !SNSMem | !BigEnd | 8b ASID | 40b PA

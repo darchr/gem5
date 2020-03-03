@@ -63,36 +63,6 @@ getDTBPtr(T *tc)
 
 ////////////////////////////////////////////////////////////////////////
 //
-//  Machine dependent functions
-//
-void
-initCPU(ThreadContext *tc, int cpuId)
-{
-    initIPRs(tc, cpuId);
-
-    tc->setIntReg(16, cpuId);
-    tc->setIntReg(0, cpuId);
-
-    AlphaFault *reset = new ResetFault;
-
-    tc->pcState(tc->readMiscRegNoEffect(IPR_PAL_BASE) + reset->vect());
-
-    delete reset;
-}
-
-template <class CPU>
-void
-zeroRegisters(CPU *cpu)
-{
-    // Insure ISA semantics
-    // (no longer very clean due to the change in setIntReg() in the
-    // cpu model.  Consider changing later.)
-    cpu->thread->setIntReg(ZeroReg, 0);
-    cpu->thread->setFloatReg(ZeroReg, 0);
-}
-
-////////////////////////////////////////////////////////////////////////
-//
 //
 //
 void

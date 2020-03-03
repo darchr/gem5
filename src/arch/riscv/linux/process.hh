@@ -39,6 +39,7 @@
 #include "arch/riscv/linux/linux.hh"
 #include "arch/riscv/process.hh"
 #include "sim/eventq.hh"
+#include "sim/syscall_desc.hh"
 
 /// A process with emulated Riscv/Linux syscalls.
 class RiscvLinuxProcess64 : public RiscvProcess64
@@ -55,8 +56,10 @@ class RiscvLinuxProcess64 : public RiscvProcess64
     /// ID of the thread group leader for the process
     uint64_t __tgid;
 
+    void syscall(ThreadContext *tc, Fault *fault) override;
+
     /// Array of syscall descriptors, indexed by call number.
-    static std::map<int, SyscallDesc> syscallDescs;
+    static std::map<int, SyscallDescABI<DefaultSyscallABI>> syscallDescs;
 };
 
 class RiscvLinuxProcess32 : public RiscvProcess32
@@ -73,8 +76,10 @@ class RiscvLinuxProcess32 : public RiscvProcess32
     /// ID of the thread group leader for the process
     uint64_t __tgid;
 
+    void syscall(ThreadContext *tc, Fault *fault) override;
+
     /// Array of syscall descriptors, indexed by call number.
-    static std::map<int, SyscallDesc> syscallDescs;
+    static std::map<int, SyscallDescABI<DefaultSyscallABI>> syscallDescs;
 };
 
 #endif // __RISCV_LINUX_PROCESS_HH__

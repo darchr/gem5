@@ -1,6 +1,7 @@
 Authors: Jason Lowe-Power
          Andreas Sandberg
          Steve Reinhardt
+         Bobby R. Bruce
 
 If you've made changes to gem5 that might benefit others, we strongly encourage
 you to contribute those changes to the public gem5 repository. There are
@@ -22,7 +23,7 @@ https://gem5-review.googlesource.com/. This documents describes the details of
 how to create code changes, upload your changes, have your changes
 reviewed, and finally push your changes to gem5. More information can be found
 from the following sources:
- * http://gem5.org/Submitting_Contributions
+ * http://gem5.org/contributing
  * https://gerrit-review.googlesource.com/Documentation/index.html
  * https://git-scm.com/book
 
@@ -179,6 +180,11 @@ Signed-off-by tag to the commit message. By adding this line, the contributor
 certifies the contribution is made under the terms of the Developer Certificate
 of Origin (DCO) [https://developercertificate.org/].
 
+If your change relates to a [Jira Issue](https://gem5.atlassian.net), it is
+advised that you provide a link to the issue in the commit message (or messages
+if the Jira Issue relates to multiple commits). Though optional, doing this
+can help reviewers understand the context of a change.
+
 It is imperative that you use your real name and your real email address in
 both tags and in the author field of the changeset.
 
@@ -302,6 +308,38 @@ gerrit (e.g., reviewers, labels). The gerrit documentation has more
 information.
 https://gerrit-review.googlesource.com/Documentation/user-upload.html
 
+Branches
+========
+
+By default, contributions to gem5 should be made on the master branch. Branches
+are generally discouraged due to their tendency to bloat git repositories with
+abandoned code. However, the creation of branches is permitted for development
+of a specific feature or improvement if one or more of the following criteria
+are met:
+
+1. The feature/improvement is likely to be of a large size, consisting of many
+commits, with little logic in these commits being contributed separately.
+2. The feature/improvement will be developed over a long period of time.
+3. There is sufficient reason that a feature/improvement should not be merged
+into the master branch yet (e.g., the feature/improvement is not intended for
+the next release but a future release).
+
+If a branch is required it can only be created by a project maintainer.
+Therefore, if a gem5 contributor desires a separate branch for their work, they
+should request one from the maintainer of the component the work relates to
+(see MAINTAINERS for the list of maintainers and the components they are
+responsible for). **The maintainer shall use their discretion to determine
+whether the creation of a branch is necessary**. If approved, the maintainer
+shall create the branch which the contributor may then use.
+
+Development on a branch within Gerrit functions in exactly the same way as
+contributing to the master branch. When contributors to a branch are satisfied,
+they should create a merge commit into the master branch. The maintainer should
+then be notified that the branch they created can now be deleted.
+
+**Abandonment of changes within branches may result in these branches being
+removed from the repository. All branches within a repo should be under active
+development.**
 
 Reviewing patches
 =================
@@ -332,8 +370,9 @@ below.
    the patch can be merged. The patch will receive a +1 if gem5 builds and
    runs, and it will receive a +2 if the stats match.
  * Style-Check: This is automatically generated and tests the patch against the
-   gem5 code style (http://www.gem5.org/Coding_Style). The patch must receive a
-   +1 from the style checker to be pushed.
+   gem5 code style
+   (http://www.gem5.org/documentation/general_docs/development/coding_style/).
+   The patch must receive a +1 from the style checker to be pushed.
 
 Note: Whenever the patch creator updates the patch all reviewers must re-review
 the patch. There is no longer a "Fix it, then Ship It" option.

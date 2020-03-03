@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 ARM Limited
+ * Copyright (c) 2018, 2019 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -138,6 +138,9 @@ ArmSemihosting::ArmSemihosting(const ArmSemihostingParams *p)
       timeBase([p]{ struct tm t = p->time; return mkutctime(&t); }()),
       tickShift(calcTickShift()),
       semiErrno(0),
+      filesRootDir(!p->files_root_dir.empty() &&
+                   p->files_root_dir.back() != '/' ?
+                   p->files_root_dir + '/' : p->files_root_dir),
       stdin(getSTDIO("stdin", p->stdin, "r")),
       stdout(getSTDIO("stdout", p->stdout, "w")),
       stderr(p->stderr == p->stdout ?
@@ -291,6 +294,8 @@ ArmSemihosting::callOpen(ThreadContext *tc, bool aarch64,
         return retError(EINVAL);
 
     std::string fname = readString(tc, name_base, name_size);
+    if (!fname.empty() && fname.front() != '/')
+        fname = filesRootDir + fname;
 
     std::unique_ptr<ArmSemihosting::FileBase> file =
         FileBase::create(*this, fname, mode);
@@ -454,11 +459,11 @@ ArmSemihosting::callFLen(ThreadContext *tc, bool aarch64,
     if (argv[1] > files.size() || !files[argv[1]])
         return retError(EBADF);
 
-    int64_t ret = files[argv[1]]->isTTY();
+    int64_t ret = files[argv[1]]->flen();
     if (ret < 0) {
         return retError(-ret);
     } else {
-        return retOK(0);
+        return retOK(ret);
     }
 }
 

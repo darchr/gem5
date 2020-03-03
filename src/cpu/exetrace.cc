@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 ARM Limited
+ * Copyright (c) 2017, 2019 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -46,6 +46,7 @@
 #include "cpu/exetrace.hh"
 
 #include <iomanip>
+#include <sstream>
 
 #include "arch/isa_traits.hh"
 #include "arch/utility.hh"
@@ -55,6 +56,7 @@
 #include "cpu/static_inst.hh"
 #include "cpu/thread_context.hh"
 #include "debug/ExecAll.hh"
+#include "debug/FmtTicksOff.hh"
 #include "enums/OpClass.hh"
 
 using namespace std;
@@ -63,26 +65,15 @@ using namespace TheISA;
 namespace Trace {
 
 void
-ExeTracerRecord::dumpTicks(ostream &outs)
-{
-    ccprintf(outs, "%7d: ", when);
-}
-
-void
 Trace::ExeTracerRecord::traceInst(const StaticInstPtr &inst, bool ran)
 {
-    ostream &outs = Trace::output();
+    std::stringstream outs;
 
     if (!Debug::ExecUser || !Debug::ExecKernel) {
         bool in_user_mode = TheISA::inUserMode(thread);
         if (in_user_mode && !Debug::ExecUser) return;
         if (!in_user_mode && !Debug::ExecKernel) return;
     }
-
-    if (Debug::ExecTicks)
-        dumpTicks(outs);
-
-    outs << thread->getCpuPtr()->name() << " ";
 
     if (Debug::ExecAsid)
         outs << "A" << dec << TheISA::getExecutingAsid(thread) << " ";
@@ -184,6 +175,10 @@ Trace::ExeTracerRecord::traceInst(const StaticInstPtr &inst, bool ran)
     //  End of line...
     //
     outs << endl;
+
+    Trace::getDebugLogger()->dprintf_flag(
+        when, thread->getCpuPtr()->name(), "ExecEnable", "%s",
+        outs.str().c_str());
 }
 
 void

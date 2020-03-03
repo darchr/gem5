@@ -284,7 +284,7 @@ class FullO3CPU : public BaseO3CPU
     /** Executes a syscall.
      * @todo: Determine if this needs to be virtual.
      */
-    void syscall(int64_t callnum, ThreadID tid, Fault *fault);
+    void syscall(ThreadID tid, Fault *fault);
 
     /** Starts draining the CPU's pipeline of all instructions in
      * order to stop all memory accesses. */
@@ -714,12 +714,12 @@ class FullO3CPU : public BaseO3CPU
     Fault pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
                       unsigned int size, Addr addr, Request::Flags flags,
                       uint64_t *res, AtomicOpFunctorPtr amo_op = nullptr,
-                      const std::vector<bool>& byteEnable =
+                      const std::vector<bool>& byte_enable =
                           std::vector<bool>())
 
     {
         return iew.ldstQueue.pushRequest(inst, isLoad, data, size, addr,
-                flags, res, std::move(amo_op), byteEnable);
+                flags, res, std::move(amo_op), byte_enable);
     }
 
     /** CPU read function, forwards read to LSQ. */

@@ -47,6 +47,7 @@
 #include <iostream>
 #include <string>
 
+#include "arch/generic/isa.hh"
 #include "arch/registers.hh"
 #include "arch/types.hh"
 #include "base/types.hh"
@@ -141,7 +142,7 @@ class ThreadContext : public PCEventScope
 
     virtual CheckerCPU *getCheckerCpuPtr() = 0;
 
-    virtual TheISA::ISA *getIsaPtr() = 0;
+    virtual BaseISA *getIsaPtr() = 0;
 
     virtual TheISA::Decoder *getDecoderPtr() = 0;
 
@@ -307,7 +308,7 @@ class ThreadContext : public PCEventScope
     // Same with st cond failures.
     virtual Counter readFuncExeInst() const = 0;
 
-    virtual void syscall(int64_t callnum, Fault *fault) = 0;
+    virtual void syscall(Fault *fault) = 0;
 
     // This function exits the thread context in the CPU and returns
     // 1 if the CPU has no more active threads (meaning it's OK to exit);

@@ -253,13 +253,4 @@ skipFunction(ThreadContext *tc)
     tc->pcState(newPC);
 }
 
-
-void
-initCPU(ThreadContext *tc, int cpuId)
-{
-    static Fault por = std::make_shared<PowerOnReset>();
-    if (cpuId == 0)
-        por->invoke(tc);
-}
-
 } // namespace SPARC_ISA

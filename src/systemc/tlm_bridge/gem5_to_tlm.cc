@@ -105,13 +105,10 @@ packet2payload(PacketPtr packet)
         trans->set_command(tlm::TLM_IGNORE_COMMAND);
     } else if (packet->isRead()) {
         trans->set_command(tlm::TLM_READ_COMMAND);
-    } else if (packet->isInvalidate()) {
-        /* Do nothing */
-        trans->set_command(tlm::TLM_IGNORE_COMMAND);
     } else if (packet->isWrite()) {
         trans->set_command(tlm::TLM_WRITE_COMMAND);
     } else {
-        SC_REPORT_FATAL("Gem5ToTlmBridge", "No R/W packet");
+        trans->set_command(tlm::TLM_IGNORE_COMMAND);
     }
 
     // Attach the packet pointer to the TLM transaction to keep track.
@@ -124,7 +121,6 @@ packet2payload(PacketPtr packet)
 template <unsigned int BITWIDTH>
 void
 Gem5ToTlmBridge<BITWIDTH>::pec(
-        Gem5SystemC::PayloadEvent<Gem5ToTlmBridge<BITWIDTH>> *pe,
         tlm::tlm_generic_payload &trans, const tlm::tlm_phase &phase)
 {
     sc_core::sc_time delay;
@@ -176,7 +172,6 @@ Gem5ToTlmBridge<BITWIDTH>::pec(
             }
         }
     }
-    delete pe;
 }
 
 template <unsigned int BITWIDTH>
@@ -286,10 +281,6 @@ Gem5ToTlmBridge<BITWIDTH>::recvTimingReq(PacketPtr packet)
     panic_if(packet->cacheResponding(),
              "Should not see packets where cache is responding");
 
-    panic_if(!(packet->isRead() || packet->isWrite()),
-             "Should only see read and writes at TLM memory\n");
-
-
     // We should never get a second request after noting that a retry is
     // required.
     sc_assert(!needToSendRequestRetry);
@@ -354,12 +345,9 @@ Gem5ToTlmBridge<BITWIDTH>::recvTimingReq(PacketPtr packet)
     } else if (status == tlm::TLM_UPDATED) {
         // The Timing annotation must be honored:
         sc_assert(phase == tlm::END_REQ || phase == tlm::BEGIN_RESP);
-
-        auto *pe = new Gem5SystemC::PayloadEvent<Gem5ToTlmBridge>(
-                *this, &Gem5ToTlmBridge::pec, "PEQ");
-        Tick nextEventTick = curTick() + delay.value();
-        system->wakeupEventQueue(nextEventTick);
-        system->schedule(pe, nextEventTick);
+        auto cb = [this, trans, phase]() { pec(*trans, phase); };
+        system->schedule(new EventFunctionWrapper(cb, "pec", true),
+                         curTick() + delay.value());
     } else if (status == tlm::TLM_COMPLETED) {
         // Transaction is over nothing has do be done.
         sc_assert(phase == tlm::END_RESP);
@@ -432,11 +420,9 @@ tlm::tlm_sync_enum
 Gem5ToTlmBridge<BITWIDTH>::nb_transport_bw(tlm::tlm_generic_payload &trans,
     tlm::tlm_phase &phase, sc_core::sc_time &delay)
 {
-    auto *pe = new Gem5SystemC::PayloadEvent<Gem5ToTlmBridge>(
-            *this, &Gem5ToTlmBridge::pec, "PE");
-    Tick nextEventTick = curTick() + delay.value();
-    system->wakeupEventQueue(nextEventTick);
-    system->schedule(pe, nextEventTick);
+    auto cb = [this, &trans, phase]() { pec(trans, phase); };
+    system->schedule(new EventFunctionWrapper(cb, "pec", true),
+                     curTick() + delay.value());
     return tlm::TLM_ACCEPTED;
 }
 

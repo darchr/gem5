@@ -17,6 +17,7 @@ PMC Members (general maintainers):
   Brad Beckmann <brad.beckmann@amd.com>
   David Wood <david@cs.wisc.edu>
   Gabe Black <gabeblack@google.com>
+  Giacomo Travaglini <giacomo.travaglini@arm.com>
   Jason Lowe-Power <jason@lowepower.com> (chair)
   Matt Sinclair <sinclair@cs.wisc.edu>
   Tony Gutierrez <anthony.gutierrez@amd.com>
@@ -60,6 +61,9 @@ dev-arm:
   Giacomo Travaglini <giacomo.travaglini@arm.com>
 
 ext: Components external to gem5
+
+fastmodel: Changes relating to ARM Fast Models
+  Gabe Black <gabeblack@google.com>
 
 gpu-compute:
   Tony Gutierrez <anthony.gutierrez@amd.com>

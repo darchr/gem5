@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014,2017-2018 ARM Limited
+ * Copyright (c) 2011-2014,2017-2019 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -111,6 +111,9 @@ System::System(Params *p)
       numWorkIds(p->num_work_ids),
       thermalModel(p->thermal_model),
       _params(p),
+      _m5opRange(p->m5ops_base ?
+                 RangeSize(p->m5ops_base, 0x10000) :
+                 AddrRange(1, 0)), // Create an empty range if disabled
       totalNumInsts(0),
       redirectPaths(p->redirect_paths)
 {
@@ -192,10 +195,15 @@ System::System(Params *p)
             // connected so it will happen in initState()
         }
 
-        for (const auto &obj_name : p->kernel_extras) {
-            inform("Loading additional kernel object: %s", obj_name);
-            ObjectFile *obj = createObjectFile(obj_name);
-            fatal_if(!obj, "Failed to additional kernel object '%s'.\n",
+        if (p->kernel_extras_addrs.empty())
+            p->kernel_extras_addrs.resize(p->kernel_extras.size(), MaxAddr);
+        fatal_if(p->kernel_extras.size() != p->kernel_extras_addrs.size(),
+            "Additional kernel objects, not all load addresses specified\n");
+        for (int ker_idx = 0; ker_idx < p->kernel_extras.size(); ker_idx++) {
+            const std::string &obj_name = p->kernel_extras[ker_idx];
+            const bool raw = p->kernel_extras_addrs[ker_idx] != MaxAddr;
+            ObjectFile *obj = createObjectFile(obj_name, raw);
+            fatal_if(!obj, "Failed to build additional kernel object '%s'.\n",
                      obj_name);
             kernelExtras.push_back(obj);
         }
@@ -294,6 +302,16 @@ System::registerThreadContext(ThreadContext *tc, ContextID assigned)
     return id;
 }
 
+ThreadContext *
+System::findFreeContext()
+{
+    for (auto &it : threadContexts) {
+        if (ThreadContext::Halted == it->status())
+            return it;
+    }
+    return nullptr;
+}
+
 bool
 System::schedule(PCEvent *event)
 {
@@ -331,8 +349,6 @@ void
 System::initState()
 {
     if (FullSystem) {
-        for (int i = 0; i < threadContexts.size(); i++)
-            TheISA::startupCPU(threadContexts[i], i);
         // Moved from the constructor to here since it relies on the
         // address map being resolved in the interconnect
         /**
@@ -354,13 +370,21 @@ System::initState()
             }
             // Load program sections into memory
             kernelImage.write(physProxy);
-            for (const auto &extra_kernel : kernelExtras)
-                extra_kernel->buildImage().move(mapper).write(physProxy);
 
             DPRINTF(Loader, "Kernel start = %#x\n", kernelStart);
             DPRINTF(Loader, "Kernel end   = %#x\n", kernelEnd);
             DPRINTF(Loader, "Kernel entry = %#x\n", kernelEntry);
             DPRINTF(Loader, "Kernel loaded...\n");
+        }
+        std::function<Addr(Addr)> extra_mapper;
+        for (auto ker_idx = 0; ker_idx < kernelExtras.size(); ker_idx++) {
+            const Addr load_addr = params()->kernel_extras_addrs[ker_idx];
+            auto image = kernelExtras[ker_idx]->buildImage();
+            if (load_addr != MaxAddr)
+                image = image.offset(load_addr);
+            else
+                image = image.move(mapper);
+            image.write(physProxy);
         }
     }
 }
@@ -408,8 +432,7 @@ System::allocPhysPages(int npages)
 
     Addr next_return_addr = pagePtr << PageShift;
 
-    AddrRange m5opRange(0xffff0000, 0xffffffff);
-    if (m5opRange.contains(next_return_addr)) {
+    if (_m5opRange.contains(next_return_addr)) {
         warn("Reached m5ops MMIO region\n");
         return_addr = 0xffffffff;
         pagePtr = 0xffffffff >> PageShift;

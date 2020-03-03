@@ -1,4 +1,4 @@
-# Copyright (c) 2013 ARM Limited
+# Copyright (c) 2013-2019 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -47,6 +47,16 @@ from m5.objects import *
 
 from .Benchmarks import *
 from . import ObjectList
+
+vio_9p_help = """\
+Enable the Virtio 9P device and set the path to share. The default 9p path is
+m5ou5/9p/share, and it can be changed by setting VirtIO9p.root with --param. A
+sample guest mount command is: "mount -t 9p -o
+trans=virtio,version=9p2000.L,aname=<host-full-path> gem5 /mnt/9p" where
+"<host-full-path>" is the full path being shared on the host, and "gem5" is a
+fixed mount tag. This option requires the diod 9P server to be installed in the
+host PATH or selected with with: VirtIO9PDiod.diod.
+"""
 
 def _listCpuTypes(option, opt, value, parser):
     ObjectList.cpu_list.print()
@@ -173,8 +183,7 @@ def addCommonOptions(parser):
                       type of branch predictor to run with
                       (if not set, use the default branch predictor of
                       the selected CPU)""")
-    parser.add_option("--indirect-bp-type", type="choice",
-                      default="SimpleIndirectPredictor",
+    parser.add_option("--indirect-bp-type", type="choice", default=None,
                       choices=ObjectList.indirect_bp_list.get_names(),
                       help = "type of indirect branch predictor to run with")
     parser.add_option("--list-hwp-types",
@@ -369,7 +378,7 @@ def addSEOptions(parser):
                       help="Redirect stdout to a file.")
     parser.add_option("--errout", default="",
                       help="Redirect stderr to a file.")
-    parser.add_option("--chroot", action="store", type="string", default="/",
+    parser.add_option("--chroot", action="store", type="string", default=None,
                       help="The chroot option allows a user to alter the "    \
                            "search path for processes running in SE mode. "   \
                            "Normally, the search path would begin at the "    \
@@ -381,6 +390,22 @@ def addSEOptions(parser):
                            "for information or functionality. Instead of "    \
                            "finding files on the __HOST__ filesystem, the "   \
                            "process will find the user's replacment files.")
+    parser.add_option("--interp-dir", action="store", type="string",
+                      default=None,
+                      help="The interp-dir option is used for "
+                           "setting the interpreter's path. This will "
+                           "allow to load the guest dynamic linker/loader "
+                           "itself from the elf binary. The option points to "
+                           "the parent folder of the guest /lib in the "
+                           "host fs")
+
+    parser.add_option("--redirects", action="append", type="string",
+                      default=[],
+                      help="A collection of one or more redirect paths "
+                           "to be used in syscall emulation."
+                           "Usage: gem5.opt [...] --redirects /dir1=/path/"
+                           "to/host/dir1 --redirects /dir2=/path/to/host/dir2")
+
 
 
 def addFSOptions(parser):
@@ -409,7 +434,7 @@ def addFSOptions(parser):
                       help="List available platform types")
         parser.add_option("--machine-type", action="store", type="choice",
                 choices=ObjectList.platform_list.get_names(),
-                default="VExpress_EMM")
+                default="VExpress_GEM5_V1")
         parser.add_option("--dtb-filename", action="store", type="string",
               help="Specifies device tree blob file to use with device-tree-"\
               "enabled kernels")
@@ -418,6 +443,9 @@ def addFSOptions(parser):
         parser.add_option("--enable-context-switch-stats-dump", \
                 action="store_true", help="Enable stats dump at context "\
                 "switches and dump tasks file (required for Streamline)")
+        parser.add_option("--vio-9p", action="store_true", help=vio_9p_help)
+        parser.add_option("--bootloader", action='append',
+                help="executable file that runs before the --kernel")
 
     # Benchmark options
     parser.add_option("--dual", action="store_true",
@@ -433,10 +461,10 @@ def addFSOptions(parser):
                       "ethernet traffic")
 
     # Disk Image Options
-    parser.add_option("--disk-image", action="store", type="string", default=None,
-                      help="Path to the disk image to use.")
-    parser.add_option("--root-device", action="store", type="string", default=None,
-                      help="OS device name for root partition")
+    parser.add_option("--disk-image", action="append", type="string",
+            default=[], help="Path to the disk images to use.")
+    parser.add_option("--root-device", action="store", type="string",
+            default=None, help="OS device name for root partition")
 
     # Command line options
     parser.add_option("--command-line", action="store", type="string",

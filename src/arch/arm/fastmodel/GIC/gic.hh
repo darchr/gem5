@@ -30,7 +30,10 @@
 #ifndef __ARCH_ARM_FASTMODEL_GIC_GIC_HH__
 #define __ARCH_ARM_FASTMODEL_GIC_GIC_HH__
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Woverloaded-virtual"
 #include <amba_pv.h>
+#pragma GCC diagnostic pop
 
 #include <memory>
 

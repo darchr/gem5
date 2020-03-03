@@ -29,8 +29,12 @@
 
 #include "arch/arm/fastmodel/iris/thread_context.hh"
 
+#include <utility>
+
 #include "iris/detail/IrisCppAdapter.h"
 #include "iris/detail/IrisObjects.h"
+#include "mem/fs_translating_port_proxy.hh"
+#include "mem/se_translating_port_proxy.hh"
 
 namespace Iris
 {
@@ -43,6 +47,22 @@ ThreadContext::initFromIrisInstance(const ResourceMap &resources)
     _status = enabled ? Active : Suspended;
 
     suspend();
+
+    call().memory_getMemorySpaces(_instId, memorySpaces);
+    call().memory_getUsefulAddressTranslations(_instId, translations);
+
+    typedef ThreadContext Self;
+    iris::EventSourceInfo evSrcInfo;
+
+    client.registerEventCallback<Self, &Self::breakpointHit>(
+            this, "ec_IRIS_BREAKPOINT_HIT",
+            "Handle hitting a breakpoint", "Iris::ThreadContext");
+    call().event_getEventSource(_instId, evSrcInfo, "IRIS_BREAKPOINT_HIT");
+    call().eventStream_create(_instId, breakpointEventStreamId,
+            evSrcInfo.evSrcId, client.getInstId());
+
+    for (auto it = bps.begin(); it != bps.end(); it++)
+        installBp(it);
 }
 
 iris::ResourceId
@@ -95,6 +115,48 @@ ThreadContext::maintainStepping()
         call().step_setup(_instId, remaining, "instruction");
         break;
     }
+}
+
+ThreadContext::BpInfoIt
+ThreadContext::getOrAllocBp(Addr pc)
+{
+    auto pc_it = bps.find(pc);
+
+    if (pc_it != bps.end())
+        return pc_it;
+
+    auto res = bps.emplace(std::make_pair(pc, new BpInfo(pc)));
+    panic_if(!res.second, "Inserting breakpoint failed.");
+    return res.first;
+}
+
+void
+ThreadContext::installBp(BpInfoIt it)
+{
+    BpId id;
+    Addr pc = it->second->pc;
+    auto space_id = getBpSpaceId(pc);
+    call().breakpoint_set_code(_instId, id, pc, space_id, 0, true);
+    it->second->id = id;
+}
+
+void
+ThreadContext::uninstallBp(BpInfoIt it)
+{
+    call().breakpoint_delete(_instId, it->second->id);
+    it->second->clearId();
+}
+
+void
+ThreadContext::delBp(BpInfoIt it)
+{
+    panic_if(!it->second->empty(),
+             "BP info still had events associated with it.");
+
+    if (it->second->validId())
+        uninstallBp(it);
+
+    bps.erase(it);
 }
 
 iris::IrisErrorCode
@@ -158,11 +220,32 @@ ThreadContext::simulationTimeEvent(
     return iris::E_ok;
 }
 
+iris::IrisErrorCode
+ThreadContext::breakpointHit(
+        uint64_t esId, const iris::IrisValueMap &fields, uint64_t time,
+        uint64_t sInstId, bool syncEc, std::string &error_message_out)
+{
+    Addr pc = fields.at("PC").getU64();
+
+    auto it = getOrAllocBp(pc);
+
+    auto e_it = it->second->events.begin();
+    while (e_it != it->second->events.end()) {
+        PCEvent *e = *e_it;
+        // Advance e_it here since e might remove itself from the list.
+        e_it++;
+        e->process(this);
+    }
+
+    return iris::E_ok;
+}
+
 ThreadContext::ThreadContext(
         BaseCPU *cpu, int id, System *system, ::BaseTLB *dtb, ::BaseTLB *itb,
         iris::IrisConnectionInterface *iris_if, const std::string &iris_path) :
     _cpu(cpu), _threadId(id), _system(system), _dtb(dtb), _itb(itb),
-    _irisPath(iris_path), _instId(iris::IRIS_UINT64_MAX), _status(Active),
+    _irisPath(iris_path), vecRegs(ArmISA::NumVecRegs),
+    vecPredRegs(ArmISA::NumVecPredRegs),
     comInstEventQueue("instruction-based event queue"),
     client(iris_if, "client." + iris_path)
 {
@@ -211,6 +294,8 @@ ThreadContext::ThreadContext(
     call().eventStream_create(
             iris::IrisInstIdSimulationEngine, timeEventStreamId,
             evSrcInfo.evSrcId, client.getInstId());
+
+    breakpointEventStreamId = iris::IRIS_UINT64_MAX;
 }
 
 ThreadContext::~ThreadContext()
@@ -229,6 +314,60 @@ ThreadContext::~ThreadContext()
             iris::IrisInstIdGlobalInstance, timeEventStreamId);
     timeEventStreamId = iris::IRIS_UINT64_MAX;
     client.unregisterEventCallback("ec_IRIS_SIMULATION_TIME_EVENT");
+}
+
+bool
+ThreadContext::schedule(PCEvent *e)
+{
+    auto it = getOrAllocBp(e->pc());
+    it->second->events.push_back(e);
+
+    if (_instId != iris::IRIS_UINT64_MAX && !it->second->validId())
+        installBp(it);
+
+    return true;
+}
+
+bool
+ThreadContext::remove(PCEvent *e)
+{
+    auto it = getOrAllocBp(e->pc());
+    it->second->events.remove(e);
+
+    if (it->second->empty())
+        delBp(it);
+
+    return true;
+}
+
+bool
+ThreadContext::translateAddress(Addr &paddr, iris::MemorySpaceId p_space,
+                                Addr vaddr, iris::MemorySpaceId v_space)
+{
+    iris::MemoryAddressTranslationResult result;
+    auto ret = noThrow().memory_translateAddress(
+            _instId, result, v_space, vaddr, p_space);
+
+    if (ret != iris::E_ok) {
+        // Check if there was  a legal translation between these two spaces.
+        // If so, something else went wrong.
+        for (auto &trans: translations)
+            if (trans.inSpaceId == v_space && trans.outSpaceId == p_space)
+                return false;
+
+        panic("No legal translation IRIS address translation found.");
+    }
+
+    if (result.address.empty())
+        return false;
+
+    if (result.address.size() > 1) {
+        warn("Multiple mappings for address %#x.", vaddr);
+        return false;
+    }
+
+    paddr = result.address[0];
+    return true;
 }
 
 void
@@ -258,6 +397,22 @@ ThreadContext::getCurrentInstCount()
     return count;
 }
 
+void
+ThreadContext::initMemProxies(::ThreadContext *tc)
+{
+    if (FullSystem) {
+        assert(!physProxy && !virtProxy);
+        physProxy.reset(new PortProxy(_cpu->getSendFunctional(),
+                                      _cpu->cacheLineSize()));
+        virtProxy.reset(new FSTranslatingPortProxy(tc));
+    } else {
+        assert(!virtProxy);
+        virtProxy.reset(new SETranslatingPortProxy(
+                        _cpu->getSendFunctional(), getProcessPtr(),
+                        SETranslatingPortProxy::NextPage));
+    }
+}
+
 ThreadContext::Status
 ThreadContext::status() const
 {
@@ -275,6 +430,54 @@ ThreadContext::setStatus(Status new_status)
             call().perInstanceExecution_setState(_instId, false);
     }
     _status = new_status;
+}
+
+ArmISA::PCState
+ThreadContext::pcState() const
+{
+    ArmISA::CPSR cpsr = readMiscRegNoEffect(ArmISA::MISCREG_CPSR);
+    ArmISA::PCState pc;
+
+    pc.thumb(cpsr.t);
+    pc.nextThumb(pc.thumb());
+    pc.jazelle(cpsr.j);
+    pc.nextJazelle(cpsr.j);
+    pc.aarch64(!cpsr.width);
+    pc.nextAArch64(!cpsr.width);
+    pc.illegalExec(false);
+
+    iris::ResourceReadResult result;
+    call().resource_read(_instId, result, pcRscId);
+    Addr addr = result.data.at(0);
+    if (cpsr.width && cpsr.t)
+        addr = addr & ~0x1;
+    pc.set(addr);
+
+    return pc;
+}
+void
+ThreadContext::pcState(const ArmISA::PCState &val)
+{
+    Addr pc = val.pc();
+
+    ArmISA::CPSR cpsr = readMiscRegNoEffect(ArmISA::MISCREG_CPSR);
+    if (cpsr.width && cpsr.t)
+        pc = pc | 0x1;
+
+    iris::ResourceWriteResult result;
+    call().resource_write(_instId, result, pcRscId, pc);
+}
+
+Addr
+ThreadContext::instAddr() const
+{
+    return pcState().instAddr();
+}
+
+Addr
+ThreadContext::nextInstAddr() const
+{
+    return pcState().nextInstAddr();
 }
 
 RegVal
@@ -295,16 +498,137 @@ ThreadContext::setMiscRegNoEffect(RegIndex misc_reg, const RegVal val)
 RegVal
 ThreadContext::readIntReg(RegIndex reg_idx) const
 {
+    ArmISA::CPSR cpsr = readMiscRegNoEffect(ArmISA::MISCREG_CPSR);
+
     iris::ResourceReadResult result;
-    call().resource_read(_instId, result, intRegIds.at(reg_idx));
+    if (cpsr.width)
+        call().resource_read(_instId, result, intReg32Ids.at(reg_idx));
+    else
+        call().resource_read(_instId, result, intReg64Ids.at(reg_idx));
     return result.data.at(0);
 }
 
 void
 ThreadContext::setIntReg(RegIndex reg_idx, RegVal val)
 {
+    ArmISA::CPSR cpsr = readMiscRegNoEffect(ArmISA::MISCREG_CPSR);
+
     iris::ResourceWriteResult result;
-    call().resource_write(_instId, result, intRegIds.at(reg_idx), val);
+    if (cpsr.width)
+        call().resource_write(_instId, result, intReg32Ids.at(reg_idx), val);
+    else
+        call().resource_write(_instId, result, intReg64Ids.at(reg_idx), val);
+}
+
+/*
+ * The 64 bit version of registers gives us a pre-flattened view of the reg
+ * file, no matter what mode we're in or if we're currently 32 or 64 bit.
+ */
+RegVal
+ThreadContext::readIntRegFlat(RegIndex idx) const
+{
+    if (idx >= flattenedIntIds.size())
+        return 0;
+    iris::ResourceId res_id = flattenedIntIds.at(idx);
+    if (res_id == iris::IRIS_UINT64_MAX)
+        return 0;
+    iris::ResourceReadResult result;
+    call().resource_read(_instId, result, res_id);
+    return result.data.at(0);
+}
+
+void
+ThreadContext::setIntRegFlat(RegIndex idx, uint64_t val)
+{
+    iris::ResourceId res_id =
+        (idx >= flattenedIntIds.size()) ? iris::IRIS_UINT64_MAX :
+        flattenedIntIds.at(idx);
+    panic_if(res_id == iris::IRIS_UINT64_MAX,
+            "Int reg %d is not supported by fast model.", idx);
+    iris::ResourceWriteResult result;
+    call().resource_write(_instId, result, flattenedIntIds.at(idx), val);
+}
+
+RegVal
+ThreadContext::readCCRegFlat(RegIndex idx) const
+{
+    if (idx >= ccRegIds.size())
+        return 0;
+    iris::ResourceReadResult result;
+    call().resource_read(_instId, result, ccRegIds.at(idx));
+    return result.data.at(0);
+}
+
+void
+ThreadContext::setCCRegFlat(RegIndex idx, RegVal val)
+{
+    panic_if(idx >= ccRegIds.size(),
+            "CC reg %d is not supported by fast model.", idx);
+    iris::ResourceWriteResult result;
+    call().resource_write(_instId, result, ccRegIds.at(idx), val);
+}
+
+const ArmISA::VecRegContainer &
+ThreadContext::readVecReg(const RegId &reg_id) const
+{
+    const RegIndex idx = reg_id.index();
+    ArmISA::VecRegContainer &reg = vecRegs.at(idx);
+    reg.zero();
+
+    // Ignore accesses to registers which aren't architected. gem5 defines a
+    // few extra registers which it uses internally in the implementation of
+    // some instructions.
+    if (idx >= vecRegIds.size())
+        return reg;
+
+    iris::ResourceReadResult result;
+    call().resource_read(_instId, result, vecRegIds.at(idx));
+    size_t data_size = result.data.size() * (sizeof(*result.data.data()));
+    size_t size = std::min(data_size, reg.SIZE);
+    memcpy(reg.raw_ptr<void>(), (void *)result.data.data(), size);
+
+    return reg;
+}
+
+const ArmISA::VecRegContainer &
+ThreadContext::readVecRegFlat(RegIndex idx) const
+{
+    return readVecReg(RegId(VecRegClass, idx));
+}
+
+const ArmISA::VecPredRegContainer &
+ThreadContext::readVecPredReg(const RegId &reg_id) const
+{
+    RegIndex idx = reg_id.index();
+
+    ArmISA::VecPredRegContainer &reg = vecPredRegs.at(idx);
+    reg.reset();
+
+    if (idx >= vecPredRegIds.size())
+        return reg;
+
+    iris::ResourceReadResult result;
+    call().resource_read(_instId, result, vecPredRegIds.at(idx));
+
+    size_t offset = 0;
+    size_t num_bits = reg.NUM_BITS;
+    uint8_t *bytes = (uint8_t *)result.data.data();
+    while (num_bits > 8) {
+        reg.set_bits(offset, 8, *bytes);
+        offset += 8;
+        num_bits -= 8;
+        bytes++;
+    }
+    if (num_bits)
+        reg.set_bits(offset, num_bits, *bytes);
+
+    return reg;
+}
+
+const ArmISA::VecPredRegContainer &
+ThreadContext::readVecPredRegFlat(RegIndex idx) const
+{
+    return readVecPredReg(RegId(VecPredRegClass, idx));
 }
 
 } // namespace Iris

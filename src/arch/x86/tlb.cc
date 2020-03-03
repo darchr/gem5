@@ -61,7 +61,7 @@ namespace X86ISA {
 
 TLB::TLB(const Params *p)
     : BaseTLB(p), configAddress(0), size(p->size),
-      tlb(size), lruSeq(0)
+      tlb(size), lruSeq(0), m5opRange(p->system->m5opRange())
 {
     if (!size)
         fatal("TLBs must have a non-zero size.\n");
@@ -229,19 +229,14 @@ TLB::finalizePhysical(const RequestPtr &req,
 {
     Addr paddr = req->getPaddr();
 
-    AddrRange m5opRange(0xFFFF0000, 0xFFFFFFFF);
-
     if (m5opRange.contains(paddr)) {
-        req->setFlags(Request::MMAPPED_IPR | Request::GENERIC_IPR |
-                      Request::STRICT_ORDER);
-        req->setPaddr(GenericISA::iprAddressPseudoInst((paddr >> 8) & 0xFF,
-                                                       paddr & 0xFF));
+        req->setFlags(Request::MMAPPED_IPR | Request::STRICT_ORDER);
     } else if (FullSystem) {
         // Check for an access to the local APIC
         LocalApicBase localApicBase =
             tc->readMiscRegNoEffect(MISCREG_APIC_BASE);
         AddrRange apicRange(localApicBase.base * PageBytes,
-                            (localApicBase.base + 1) * PageBytes - 1);
+                            (localApicBase.base + 1) * PageBytes);
 
         if (apicRange.contains(paddr)) {
             // The Intel developer's manuals say the below restrictions apply,

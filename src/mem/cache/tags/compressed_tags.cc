@@ -103,7 +103,7 @@ CompressedTags::tagsInit()
 CacheBlk*
 CompressedTags::findVictim(Addr addr, const bool is_secure,
                            const std::size_t compressed_size,
-                           std::vector<CacheBlk*>& evict_blks) const
+                           std::vector<CacheBlk*>& evict_blks)
 {
     // Get all possible locations of this superblock
     const std::vector<ReplaceableEntry*> superblock_entries =
@@ -138,7 +138,9 @@ CompressedTags::findVictim(Addr addr, const bool is_secure,
 
         // The whole superblock must be evicted to make room for the new one
         for (const auto& blk : victim_superblock->blks){
-            evict_blks.push_back(blk);
+            if (blk->isValid()) {
+                evict_blks.push_back(blk);
+            }
         }
     }
 
@@ -158,6 +160,9 @@ CompressedTags::findVictim(Addr addr, const bool is_secure,
             }
         }
     }
+
+    // Update number of sub-blocks evicted due to a replacement
+    sectorStats.evictionsReplacement[evict_blks.size()]++;
 
     return victim;
 }

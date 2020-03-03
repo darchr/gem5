@@ -116,6 +116,10 @@ class BaseCPU : public ::BaseCPU
         periodAttribute->value = clockPeriod();
         clockEvent->notify();
     }
+
+    void init() override;
+
+    void serializeThread(CheckpointOut &cp, ThreadID tid) const override;
 };
 
 // This class specializes the one above and sets up ThreadContexts based on

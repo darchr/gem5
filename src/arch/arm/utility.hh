@@ -95,18 +95,6 @@ testPredicate(uint32_t nz, uint32_t c, uint32_t v, ConditionCode code)
     }
 }
 
-/**
- * Function to insure ISA semantics about 0 registers.
- * @param tc The thread context.
- */
-template <class TC>
-void zeroRegisters(TC *tc);
-
-inline void startupCPU(ThreadContext *tc, int cpuId)
-{
-    tc->activate();
-}
-
 void copyRegs(ThreadContext *src, ThreadContext *dest);
 
 static inline void
@@ -114,8 +102,6 @@ copyMiscRegs(ThreadContext *src, ThreadContext *dest)
 {
     panic("Copy Misc. Regs Not Implemented Yet\n");
 }
-
-void initCPU(ThreadContext *tc, int cpuId);
 
 /** Send an event (SEV) to a specific PE if there isn't
  * already a pending event */
@@ -165,6 +151,11 @@ currEL(CPSR cpsr)
 {
     return opModeToEL((OperatingMode) (uint8_t)cpsr.mode);
 }
+
+bool HaveVirtHostExt(ThreadContext *tc);
+bool HaveSecureEL2Ext(ThreadContext *tc);
+bool IsSecureEL2Enabled(ThreadContext *tc);
+bool EL2Enabled(ThreadContext *tc);
 
 /**
  * This function checks whether selected EL provided as an argument
@@ -226,6 +217,8 @@ itState(CPSR psr)
     return (uint8_t)it;
 }
 
+ExceptionLevel s1TranslationRegime(ThreadContext* tc, ExceptionLevel el);
+
 /**
  * Removes the tag from tagged addresses if that mode is enabled.
  * @param addr The address to be purified.
@@ -234,8 +227,11 @@ itState(CPSR psr)
  * @return The purified address.
  */
 Addr purifyTaggedAddr(Addr addr, ThreadContext *tc, ExceptionLevel el,
-                      TTBCR tcr);
-Addr purifyTaggedAddr(Addr addr, ThreadContext *tc, ExceptionLevel el);
+                      TCR tcr, bool isInstr);
+Addr purifyTaggedAddr(Addr addr, ThreadContext *tc, ExceptionLevel el,
+                      bool isInstr);
+int computeAddrTop(ThreadContext *tc, bool selbit, bool isInstr,
+               TTBCR tcr, ExceptionLevel el);
 
 static inline bool
 inSecureState(SCR scr, CPSR cpsr)
@@ -255,13 +251,6 @@ inSecureState(SCR scr, CPSR cpsr)
 }
 
 bool inSecureState(ThreadContext *tc);
-
-/**
- * Return TRUE if an Exception level below EL3 is in Secure state.
- * Differs from inSecureState in that it ignores the current EL
- * or Mode in considering security state.
- */
-inline bool isSecureBelowEL3(ThreadContext *tc);
 
 bool longDescFormatInUse(ThreadContext *tc);
 

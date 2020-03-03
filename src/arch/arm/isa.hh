@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012-2019 ARM Limited
+ * Copyright (c) 2010, 2012-2020 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -49,6 +49,7 @@
 #include "arch/arm/system.hh"
 #include "arch/arm/tlb.hh"
 #include "arch/arm/types.hh"
+#include "arch/generic/isa.hh"
 #include "arch/generic/traits.hh"
 #include "debug/Checkpoint.hh"
 #include "enums/VecRegRenameMode.hh"
@@ -63,7 +64,7 @@ class EventManager;
 
 namespace ArmISA
 {
-    class ISA : public SimObject
+    class ISA : public BaseISA
     {
       protected:
         // Parent system
@@ -250,11 +251,26 @@ namespace ArmISA
                 privNonSecureRead(v);
                 return *this;
             }
+            chain hypE2HRead(bool v = true) const {
+                info[MISCREG_HYP_E2H_RD] = v;
+                return *this;
+            }
+            chain hypE2HWrite(bool v = true) const {
+                info[MISCREG_HYP_E2H_WR] = v;
+                return *this;
+            }
+            chain hypE2H(bool v = true) const {
+                hypE2HRead(v);
+                hypE2HWrite(v);
+                return *this;
+            }
             chain hypRead(bool v = true) const {
+                hypE2HRead(v);
                 info[MISCREG_HYP_RD] = v;
                 return *this;
             }
             chain hypWrite(bool v = true) const {
+                hypE2HWrite(v);
                 info[MISCREG_HYP_WR] = v;
                 return *this;
             }
@@ -263,19 +279,36 @@ namespace ArmISA
                 hypWrite(v);
                 return *this;
             }
+            chain monE2HRead(bool v = true) const {
+                info[MISCREG_MON_E2H_RD] = v;
+                return *this;
+            }
+            chain monE2HWrite(bool v = true) const {
+                info[MISCREG_MON_E2H_WR] = v;
+                return *this;
+            }
+            chain monE2H(bool v = true) const {
+                monE2HRead(v);
+                monE2HWrite(v);
+                return *this;
+            }
             chain monSecureRead(bool v = true) const {
+                monE2HRead(v);
                 info[MISCREG_MON_NS0_RD] = v;
                 return *this;
             }
             chain monSecureWrite(bool v = true) const {
+                monE2HWrite(v);
                 info[MISCREG_MON_NS0_WR] = v;
                 return *this;
             }
             chain monNonSecureRead(bool v = true) const {
+                monE2HRead(v);
                 info[MISCREG_MON_NS1_RD] = v;
                 return *this;
             }
             chain monNonSecureWrite(bool v = true) const {
+                monE2HWrite(v);
                 info[MISCREG_MON_NS1_WR] = v;
                 return *this;
             }
@@ -357,6 +390,7 @@ namespace ArmISA
                 user(0);
                 return *this;
             }
+            chain highest(ArmSystem *const sys) const;
             MiscRegLUTEntryInitializer(struct MiscRegLUTEntry &e,
                                        std::bitset<NUM_MISCREG_INFOS> &i)
               : entry(e),
@@ -693,39 +727,20 @@ namespace ArmISA
         static void zeroSveVecRegUpperPart(VecRegContainer &vc,
                                            unsigned eCount);
 
-        void serialize(CheckpointOut &cp) const
+        void
+        serialize(CheckpointOut &cp) const
         {
             DPRINTF(Checkpoint, "Serializing Arm Misc Registers\n");
             SERIALIZE_ARRAY(miscRegs, NUM_PHYS_MISCREGS);
-
-            SERIALIZE_SCALAR(highestELIs64);
-            SERIALIZE_SCALAR(haveSecurity);
-            SERIALIZE_SCALAR(haveLPAE);
-            SERIALIZE_SCALAR(haveVirtualization);
-            SERIALIZE_SCALAR(haveLargeAsid64);
-            SERIALIZE_SCALAR(physAddrRange);
-            SERIALIZE_SCALAR(haveSVE);
-            SERIALIZE_SCALAR(sveVL);
-            SERIALIZE_SCALAR(haveLSE);
-            SERIALIZE_SCALAR(havePAN);
         }
-        void unserialize(CheckpointIn &cp)
+
+        void
+        unserialize(CheckpointIn &cp)
         {
             DPRINTF(Checkpoint, "Unserializing Arm Misc Registers\n");
             UNSERIALIZE_ARRAY(miscRegs, NUM_PHYS_MISCREGS);
             CPSR tmp_cpsr = miscRegs[MISCREG_CPSR];
             updateRegMap(tmp_cpsr);
-
-            UNSERIALIZE_SCALAR(highestELIs64);
-            UNSERIALIZE_SCALAR(haveSecurity);
-            UNSERIALIZE_SCALAR(haveLPAE);
-            UNSERIALIZE_SCALAR(haveVirtualization);
-            UNSERIALIZE_SCALAR(haveLargeAsid64);
-            UNSERIALIZE_SCALAR(physAddrRange);
-            UNSERIALIZE_SCALAR(haveSVE);
-            UNSERIALIZE_SCALAR(sveVL);
-            UNSERIALIZE_SCALAR(haveLSE);
-            UNSERIALIZE_SCALAR(havePAN);
         }
 
         void startup(ThreadContext *tc);
@@ -749,7 +764,7 @@ namespace ArmISA
         }
 
         /// Explicitly import the otherwise hidden startup
-        using SimObject::startup;
+        using BaseISA::startup;
 
         typedef ArmISAParams Params;
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2009-2019 ARM Limited
+# Copyright (c) 2009-2020 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -45,7 +45,7 @@ from m5.defines import buildEnv
 from m5.params import *
 from m5.proxy import *
 from m5.util.fdthelper import *
-from m5.objects.ClockDomain import ClockDomain
+from m5.objects.ClockDomain import ClockDomain, SrcClockDomain
 from m5.objects.VoltageDomain import VoltageDomain
 from m5.objects.Device import \
     BasicPioDevice, PioDevice, IsaFake, BadAddr, DmaDevice
@@ -59,7 +59,6 @@ from m5.objects.SimpleMemory import SimpleMemory
 from m5.objects.Gic import *
 from m5.objects.EnergyCtrl import EnergyCtrl
 from m5.objects.ClockedObject import ClockedObject
-from m5.objects.ClockDomain import SrcClockDomain
 from m5.objects.SubSystem import SubSystem
 from m5.objects.Graphics import ImageFormat
 from m5.objects.ClockedObject import ClockedObject
@@ -351,6 +350,26 @@ class AmbaFake(AmbaPioDevice):
     ignore_access = Param.Bool(False, "Ignore reads/writes to this device, (e.g. IsaFake + AMBA)")
     amba_id = 0;
 
+# Simple fixed-rate clock source. Intended to be instantiated in Platform
+# instances for definition of clock bindings on DTB auto-generation
+class FixedClock(SrcClockDomain):
+    # Keep track of the number of FixedClock instances in the system
+    # to provide unique names
+    _index = 0
+
+    def generateDeviceTree(self, state):
+        if len(self.clock) > 1:
+            fatal('FixedClock configured with multiple frequencies')
+        node = FdtNode('clock{}'.format(FixedClock._index))
+        node.appendCompatible('fixed-clock')
+        node.append(FdtPropertyWords('#clock-cells', 0))
+        node.append(FdtPropertyWords('clock-frequency',
+                                     self.clock[0].frequency))
+        node.appendPhandle(self)
+        FixedClock._index += 1
+
+        yield node
+
 class Pl011(Uart):
     type = 'Pl011'
     cxx_header = "dev/arm/pl011.hh"
@@ -383,6 +402,34 @@ class Sp804(AmbaPioDevice):
     clock1 = Param.Clock('1MHz', "Clock speed of the input")
     amba_id = 0x00141804
 
+class Sp805(AmbaIntDevice):
+    """
+Arm Watchdog Module (SP805)
+Reference:
+    Arm Watchdog Module (SP805) - Technical Reference Manual - rev. r1p0
+    Doc. ID: ARM DDI 0270B
+    """
+
+    type = 'Sp805'
+    cxx_header = 'dev/arm/watchdog_sp805.hh'
+
+    amba_id = 0x00141805
+
+    def generateDeviceTree(self, state):
+        node = self.generateBasicPioDeviceNode(state, 'watchdog',
+            self.pio_addr, 0x1000, [int(self.int_num)])
+        node.appendCompatible(['arm,sp805', 'arm,primecell'])
+        clocks = [state.phandle(self.clk_domain.unproxy(self))]
+        clock_names = ['wdogclk']
+        platform = self._parent.unproxy(self)
+        if self in platform._off_chip_devices():
+            clocks.append(state.phandle(platform.dcc.osc_smb))
+            clock_names.append('apb_pclk')
+        node.append(FdtPropertyWords('clocks', clocks))
+        node.append(FdtPropertyStrings('clock-names', clock_names))
+
+        yield node
+
 class A9GlobalTimer(BasicPioDevice):
     type = 'A9GlobalTimer'
     cxx_header = "dev/arm/timer_a9global.hh"
@@ -403,6 +450,10 @@ class GenericTimer(ClockedObject):
     int_phys_ns = Param.ArmPPI("Physical (NS) timer interrupt")
     int_virt = Param.ArmPPI("Virtual timer interrupt")
     int_hyp = Param.ArmPPI("Hypervisor timer interrupt")
+
+    freqs = VectorParam.UInt32([0x01800000], "Frequencies available for the "
+        "system counter (in Hz). First element is the base frequency, "
+        "following are alternative lower ones which must be exact divisors")
 
     def generateDeviceTree(self, state):
         node = FdtNode("timer")
@@ -429,6 +480,10 @@ class GenericTimerMem(PioDevice):
 
     int_phys = Param.ArmSPI("Physical Interrupt")
     int_virt = Param.ArmSPI("Virtual Interrupt")
+
+    freqs = VectorParam.UInt32([0x01800000], "Frequencies available for the "
+        "system counter (in Hz). First element is the base frequency, "
+        "following are alternative lower ones which must be exact divisors")
 
 class PL031(AmbaIntDevice):
     type = 'PL031'
@@ -542,6 +597,7 @@ class RealView(Platform):
     cxx_header = "dev/arm/realview.hh"
     system = Param.System(Parent.any, "system")
     _mem_regions = [ AddrRange(0, size='256MB') ]
+    _num_pci_dev = 0
 
     def _on_chip_devices(self):
         return []
@@ -601,10 +657,10 @@ class RealView(Platform):
     def attachIO(self, *args, **kwargs):
         self._attach_io(self._off_chip_devices(), *args, **kwargs)
 
-    def setupBootLoader(self, cur_sys, loc):
-        cur_sys.boot_loader = loc('boot.arm')
-        cur_sys.atags_addr = 0x100
-        cur_sys.load_offset = 0
+    def setupBootLoader(self, cur_sys, boot_loader, atags_addr, load_offset):
+        cur_sys.boot_loader = boot_loader
+        cur_sys.atags_addr = atags_addr
+        cur_sys.load_offset = load_offset
 
     def generateDeviceTree(self, state):
         node = FdtNode("/") # Things in this module need to end up in the root
@@ -752,11 +808,11 @@ class VExpress_EMM(RealView):
         self.gicv2m = Gicv2m()
         self.gicv2m.frames = [Gicv2mFrame(spi_base=256, spi_len=64, addr=0x2C1C0000)]
 
-    def setupBootLoader(self, cur_sys, loc):
-        if not cur_sys.boot_loader:
-            cur_sys.boot_loader = loc('boot_emm.arm')
-        cur_sys.atags_addr = 0x8000000
-        cur_sys.load_offset = 0x80000000
+    def setupBootLoader(self, cur_sys, loc, boot_loader=None):
+        if boot_loader is None:
+            boot_loader = loc('boot_emm.arm')
+        super(VExpress_EMM, self).setupBootLoader(
+                cur_sys, boot_loader, 0x8000000, 0x80000000)
 
 class VExpress_EMM64(VExpress_EMM):
     # Three memory regions are specified totalling 512GB
@@ -767,11 +823,11 @@ class VExpress_EMM64(VExpress_EMM):
         conf_base=0x30000000, conf_size='256MB', conf_device_bits=12,
         pci_pio_base=0x2f000000)
 
-    def setupBootLoader(self, cur_sys, loc):
-        if not cur_sys.boot_loader:
-            cur_sys.boot_loader = loc('boot_emm.arm64')
-        cur_sys.atags_addr = 0x8000000
-        cur_sys.load_offset = 0x80000000
+    def setupBootLoader(self, cur_sys, loc, boot_loader=None):
+        if boot_loader is None:
+            boot_loader = loc('boot_emm.arm64')
+        RealView.setupBootLoader(self, cur_sys, boot_loader,
+                0x8000000, 0x80000000)
 
 class VExpress_GEM5_Base(RealView):
     """
@@ -787,13 +843,35 @@ model in the future. Such devices should normally have interrupts in
 the gem5-specific SPI range.
 
 On-chip peripherals are loosely modeled after the ARM CoreTile Express
-A15x2 A7x3 memory and interrupt map. In particular, the GIC and
+A15x2 memory and interrupt map. In particular, the GIC and
 Generic Timer have the same interrupt lines and base addresses. Other
 on-chip devices are gem5 specific.
 
 Unlike the original Versatile Express RS2 extended platform, gem5 implements a
 large contigious DRAM space, without aliases or holes, starting at the
 2GiB boundary. This means that PCI memory is limited to 1GiB.
+
+References:
+
+    Technical Reference Manuals:
+        Arm Motherboard Express uATX (V2M-P1) - ARM DUI 0447J
+        Arm CoreTile Express A15x2 (V2P-CA15) - ARM DUI 0604E
+
+    Official Linux device tree specifications:
+        V2M-P1   - arch/arm/boot/dts/vexpress-v2m-rs1.dtsi
+        V2P-CA15 - arch/arm/boot/dts/vexpress-v2p-ca15-tc1.dts
+
+    Memory map:
+        Arm CoreTile Express A15x2 (V2P-CA15) - ARM DUI 0604E
+        Daughterboard (global)
+            Section 3.2.1 - Table 3-1 - Daughterboard memory map
+        On-chip
+            Section 3.2.3 - Table 3-2 - Cortex-A15 MPCore on-chip peripheral
+                                        memory map
+
+    Interrupts:
+        Arm CoreTile Express A15x2 (V2P-CA15) - ARM DUI 0604E
+        Section 2.8.2 - Test chip interrupts
 
 Memory map:
    0x00000000-0x03ffffff: Boot memory (CS0)
@@ -814,12 +892,15 @@ Memory map:
        0x1c0a0000-0x1c0affff: UART1 (reserved)
        0x1c0b0000-0x1c0bffff: UART2 (reserved)
        0x1c0c0000-0x1c0cffff: UART3 (reserved)
+       0x1c0f0000-0x1c0fffff: Watchdog (SP805)
        0x1c130000-0x1c13ffff: VirtIO (gem5/FM extension)
        0x1c140000-0x1c14ffff: VirtIO (gem5/FM extension)
        0x1c170000-0x1c17ffff: RTC
 
    0x20000000-0x3fffffff: On-chip peripherals:
        0x2b000000-0x2b00ffff: HDLCD
+
+       0x2b060000-0x2b060fff: System Watchdog (SP805)
 
        0x2b400000-0x2b41ffff: SMMUv3
 
@@ -849,7 +930,7 @@ Interrupts:
         30   : generic_timer (phys, non-sec)
         31   : Reserved (Legacy IRQ)
     32- 95: Mother board peripherals (SPIs)
-        32   : Reserved (SP805)
+        32   : Watchdog (SP805)
         33   : Reserved (IOFPGA SW int)
         34-35: Reserved (SP804)
         36   : RTC
@@ -867,6 +948,7 @@ Interrupts:
          95    : HDLCD
          96- 98: GPU (reserved)
         100-103: PCI
+        130    : System Watchdog (SP805)
    256-319: MSI frame 0 (gem5-specific, SPIs)
    320-511: Unused
 
@@ -877,9 +959,9 @@ Interrupts:
 
     _off_chip_ranges = [
         # CS1-CS5
-        AddrRange(0x0c000000, 0x1fffffff),
+        AddrRange(0x0c000000, 0x20000000),
         # External AXI interface (PCI)
-        AddrRange(0x2f000000, 0x7fffffff),
+        AddrRange(0x2f000000, 0x80000000),
     ]
 
     bootmem = SimpleMemory(range=AddrRange(0, size='64MB'),
@@ -897,9 +979,12 @@ Interrupts:
                                  int_virt=ArmPPI(num=27),
                                  int_hyp=ArmPPI(num=26))
 
+    system_watchdog = Sp805(pio_addr=0x2b060000, int_num=130)
+
     def _on_chip_devices(self):
         return [
             self.generic_timer,
+            self.system_watchdog
         ]
 
     def _on_chip_memory(self):
@@ -909,8 +994,9 @@ Interrupts:
         return memories
 
     ### Off-chip devices ###
-    clock24MHz = SrcClockDomain(clock="24MHz",
-        voltage_domain=VoltageDomain(voltage="3.3V"))
+    io_voltage = VoltageDomain(voltage="3.3V")
+    clock32KHz = SrcClockDomain(clock="32kHz")
+    clock24MHz = SrcClockDomain(clock="24MHz")
 
     uart = [
         Pl011(pio_addr=0x1c090000, int_num=37),
@@ -918,6 +1004,8 @@ Interrupts:
 
     kmi0 = Pl050(pio_addr=0x1c060000, int_num=44, ps2=PS2Keyboard())
     kmi1 = Pl050(pio_addr=0x1c070000, int_num=45, ps2=PS2TouchKit())
+
+    watchdog = Sp805(pio_addr=0x1c0f0000, int_num=32)
 
     rtc = PL031(pio_addr=0x1c170000, int_num=36)
 
@@ -942,16 +1030,29 @@ Interrupts:
             self.uart[0],
             self.kmi0,
             self.kmi1,
+            self.watchdog,
             self.rtc,
             self.pci_host,
             self.energy_ctrl,
+            self.clock32KHz,
             self.clock24MHz,
             self.vio[0],
             self.vio[1],
         ]
 
+    def __init__(self, **kwargs):
+        super(VExpress_GEM5_Base, self).__init__(**kwargs)
+        self.clock32KHz.voltage_domain = self.io_voltage
+        self.clock24MHz.voltage_domain = self.io_voltage
+        self.system_watchdog.clk_domain = self.dcc.osc_sys
+        self.watchdog.clk_domain = self.clock32KHz
+
     def attachPciDevice(self, device, *args, **kwargs):
         device.host = self.pci_host
+        self._num_pci_dev += 1
+        device.pci_bus = 0
+        device.pci_dev = self._num_pci_dev
+        device.pci_func = 0
         self._attach_device(device, *args, **kwargs)
 
     def attachSmmu(self, devices, bus):
@@ -979,11 +1080,11 @@ Interrupts:
             self._attach_device(dev, bus, dma_ports)
             self.smmu.connect(dev, bus)
 
-    def setupBootLoader(self, cur_sys, loc):
-        if not cur_sys.boot_loader:
-            cur_sys.boot_loader = [ loc('boot_emm.arm64'), loc('boot_emm.arm') ]
-        cur_sys.atags_addr = 0x8000000
-        cur_sys.load_offset = 0x80000000
+    def setupBootLoader(self, cur_sys, loc, boot_loader=None):
+        if boot_loader is None:
+            boot_loader = [ loc('boot.arm64'), loc('boot.arm') ]
+        super(VExpress_GEM5_Base, self).setupBootLoader(
+                cur_sys, boot_loader, 0x8000000, 0x80000000)
 
         #  Setup m5ops. It's technically not a part of the boot
         #  loader, but this is the only place we can configure the
@@ -1040,10 +1141,11 @@ class VExpress_GEM5_V2_Base(VExpress_GEM5_Base):
                 self.gic, self.gic.its
             ]
 
-    def setupBootLoader(self, cur_sys, loc):
-        cur_sys.boot_loader = [ loc('boot_emm_v2.arm64') ]
-        super(VExpress_GEM5_V2_Base,self).setupBootLoader(
-                cur_sys, loc)
+    def setupBootLoader(self, cur_sys, loc, boot_loader=None):
+        if boot_loader is None:
+            boot_loader = [ loc('boot_v2.arm64') ]
+        super(VExpress_GEM5_V2_Base, self).setupBootLoader(
+                cur_sys, boot_loader)
 
 class VExpress_GEM5_V2(VExpress_GEM5_V2_Base):
     hdlcd  = HDLcd(pxl_clk=VExpress_GEM5_V2_Base.dcc.osc_pxl,

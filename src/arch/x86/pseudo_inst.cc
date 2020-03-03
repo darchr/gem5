@@ -41,23 +41,6 @@ using namespace X86ISA;
 namespace X86ISA {
 
 /*
- * This function is executed when the simulation is executing the syscall
- * handler in System Emulation mode.
- */
-void
-m5Syscall(ThreadContext *tc)
-{
-    DPRINTF(PseudoInst, "PseudoInst::m5Syscall()\n");
-
-    Fault fault;
-    tc->syscall(tc->readIntReg(INTREG_RAX), &fault);
-
-    RegVal rflags = tc->readMiscReg(MISCREG_RFLAGS);
-    rflags &= ~(1 << 16);
-    tc->setMiscReg(MISCREG_RFLAGS, rflags);
-}
-
-/*
  * This function is executed when the simulation is executing the pagefault
  * handler in System Emulation mode.
  */

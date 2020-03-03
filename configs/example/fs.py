@@ -92,14 +92,20 @@ def build_test_system(np):
         test_sys = makeLinuxX86System(test_mem_mode, np, bm[0], options.ruby,
                                       cmdline=cmdline)
     elif buildEnv['TARGET_ISA'] == "arm":
-        test_sys = makeArmSystem(test_mem_mode, options.machine_type, np,
-                                 bm[0], options.dtb_filename,
-                                 bare_metal=options.bare_metal,
-                                 cmdline=cmdline,
-                                 external_memory=
-                                   options.external_memory_system,
-                                 ruby=options.ruby,
-                                 security=options.enable_security_extensions)
+        test_sys = makeArmSystem(
+            test_mem_mode,
+            options.machine_type,
+            np,
+            bm[0],
+            options.dtb_filename,
+            bare_metal=options.bare_metal,
+            cmdline=cmdline,
+            external_memory=options.external_memory_system,
+            ruby=options.ruby,
+            security=options.enable_security_extensions,
+            vio_9p=options.vio_9p,
+            bootloader=options.bootloader,
+        )
         if options.enable_context_switch_stats_dump:
             test_sys.enable_context_switch_stats_dump = True
     else:
@@ -125,9 +131,6 @@ def build_test_system(np):
 
     if options.kernel is not None:
         test_sys.kernel = binary(options.kernel)
-    else:
-        print("Error: a kernel must be provided to run in full system mode")
-        sys.exit(1)
 
     if options.script is not None:
         test_sys.readfile = options.script
@@ -276,9 +279,6 @@ def build_drive_system(np):
     drive_sys.cpu.connectAllPorts(drive_sys.membus)
     if options.kernel is not None:
         drive_sys.kernel = binary(options.kernel)
-    else:
-        print("Error: a kernel must be provided to run in full system mode")
-        sys.exit(1)
 
     if ObjectList.is_kvm_cpu(DriveCPUClass):
         drive_sys.kvm_vm = KvmVM()
@@ -329,12 +329,12 @@ if options.benchmark:
         sys.exit(1)
 else:
     if options.dual:
-        bm = [SysConfig(disk=options.disk_image, rootdev=options.root_device,
+        bm = [SysConfig(disks=options.disk_image, rootdev=options.root_device,
                         mem=options.mem_size, os_type=options.os_type),
-              SysConfig(disk=options.disk_image, rootdev=options.root_device,
+              SysConfig(disks=options.disk_image, rootdev=options.root_device,
                         mem=options.mem_size, os_type=options.os_type)]
     else:
-        bm = [SysConfig(disk=options.disk_image, rootdev=options.root_device,
+        bm = [SysConfig(disks=options.disk_image, rootdev=options.root_device,
                         mem=options.mem_size, os_type=options.os_type)]
 
 np = options.num_cpus

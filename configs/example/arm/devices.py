@@ -159,6 +159,31 @@ class CpuCluster(SubSystem):
             cpu.connectAllPorts(self.toL2Bus)
         self.toL2Bus.master = self.l2.cpu_side
 
+    def addPMUs(self, ints, events=[]):
+        """
+        Instantiates 1 ArmPMU per PE. The method is accepting a list of
+        interrupt numbers (ints) used by the PMU and a list of events to
+        register in it.
+
+        :param ints: List of interrupt numbers. The code will iterate over
+            the cpu list in order and will assign to every cpu in the cluster
+            a PMU with the matching interrupt.
+        :type ints: List[int]
+        :param events: Additional events to be measured by the PMUs
+        :type events: List[Union[ProbeEvent, SoftwareIncrement]]
+        """
+        assert len(ints) == len(self.cpus)
+        for cpu, pint in zip(self.cpus, ints):
+            int_cls = ArmPPI if pint < 32 else ArmSPI
+            for isa in cpu.isa:
+                isa.pmu = ArmPMU(interrupt=int_cls(num=pint))
+                isa.pmu.addArchEvents(cpu=cpu, itb=cpu.itb, dtb=cpu.dtb,
+                                      icache=getattr(cpu, 'icache', None),
+                                      dcache=getattr(cpu, 'dcache', None),
+                                      l2cache=getattr(self, 'l2', None))
+                for ev in events:
+                    isa.pmu.addEvent(ev)
+
     def connectMemSide(self, bus):
         bus.slave
         try:
@@ -303,14 +328,10 @@ def simpleSystem(BaseSystem, caches, mem_size, platform=None, **kwargs):
                 self.dmabridge = Bridge(delay='50ns',
                                         ranges=[self.mem_ranges[0]])
 
-            self._pci_devices = 0
             self._clusters = []
             self._num_cpus = 0
 
         def attach_pci(self, dev):
-            dev.pci_bus, dev.pci_dev, dev.pci_func = \
-                (0, self._pci_devices + 1, 0)
-            self._pci_devices += 1
             self.realview.attachPciDevice(dev, self.iobus)
 
         def connect(self):

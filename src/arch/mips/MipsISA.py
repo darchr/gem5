@@ -35,11 +35,12 @@
 #
 # Authors: Andreas Sandberg
 
-from m5.SimObject import SimObject
 from m5.params import *
 from m5.proxy import *
 
-class MipsISA(SimObject):
+from m5.objects.BaseISA import BaseISA
+
+class MipsISA(BaseISA):
     type = 'MipsISA'
     cxx_class = 'MipsISA::ISA'
     cxx_header = "arch/mips/isa.hh"
