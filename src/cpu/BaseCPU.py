@@ -202,10 +202,10 @@ class BaseCPU(ClockedObject):
 
     _uncached_slave_ports = []
     _uncached_master_ports = []
-    if buildEnv['TARGET_ISA'] == 'x86':
-        _uncached_slave_ports += ["interrupts[0].pio",
-                                  "interrupts[0].int_slave"]
-        _uncached_master_ports += ["interrupts[0].int_master"]
+    #if buildEnv['TARGET_ISA'] == 'x86':
+    #    _uncached_slave_ports += ["interrupts[0].pio",
+    #                              "interrupts[0].int_slave"]
+    #    _uncached_master_ports += ["interrupts[0].int_master"]
 
     def createInterruptController(self):
         self.interrupts = [ArchInterrupts() for i in range(self.numThreads)]
@@ -267,6 +267,12 @@ class BaseCPU(ClockedObject):
             if len(self.isa) != int(self.numThreads):
                 raise RuntimeError("Number of ISA instances doesn't "
                                    "match thread count")
+        if buildEnv['TARGET_ISA'] == 'x86':
+            for i in range(self.numThreads):
+                _uncached_slave_ports += ["interrupts[{}].pio".format(i),
+                                        "interrupts[{}].int_slave".format(i)]
+                _uncached_master_ports += [
+                                       "interrupts[{}].int_master".format(i)]
         if self.checker != NULL:
             self.checker.createThreads()
 
