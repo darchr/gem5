@@ -281,9 +281,9 @@ else:
 for cpu in system.cpu:
     cpu.createInterruptController()
     #cpu.connectAllPorts(system.membus)
-    cpu.interrupts[0].pio = system.membus.master
-    cpu.interrupts[0].int_master = system.membus.slave
-    cpu.interrupts[0].int_slave = system.membus.master 
+    #cpu.interrupts[0].pio = system.membus.master
+    #cpu.interrupts[0].int_master = system.membus.slave
+    #cpu.interrupts[0].int_slave = system.membus.master
 
 root = Root(full_system = False, system = system)
 Simulation.run(options, root, system, FutureClass)
