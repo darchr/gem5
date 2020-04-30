@@ -278,9 +278,9 @@ else:
     MemConfig.config_mem(options, system)
     config_filesystem(system, options)
 
-for cpu in system.cpu:
-    cpu.createInterruptController()
-    #cpu.connectAllPorts(system.membus)
+#for cpu in system.cpu:
+#    cpu.createInterruptController()
+#    cpu.connectAllPorts(system.membus)
     #cpu.interrupts[0].pio = system.membus.master
     #cpu.interrupts[0].int_master = system.membus.slave
     #cpu.interrupts[0].int_slave = system.membus.master
