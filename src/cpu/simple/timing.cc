@@ -672,7 +672,8 @@ TimingSimpleCPU::fetch()
         ifetch_req->taskId(taskId());
         ifetch_req->setContext(thread->contextId());
         setupFetchRequest(ifetch_req);
-        DPRINTF(SimpleCPU, "Translating address %#x\n", ifetch_req->getVaddr());
+        DPRINTF(SimpleCPU, "Thread %d: Translating address %#x\n",
+                thread->threadId(), ifetch_req->getVaddr());
         thread->itb->translateTiming(ifetch_req, thread->getTC(),
                 &fetchTranslation, BaseTLB::Execute);
     } else {
@@ -690,8 +691,8 @@ TimingSimpleCPU::sendFetch(const Fault &fault, const RequestPtr &req,
                            ThreadContext *tc)
 {
     if (fault == NoFault) {
-        DPRINTF(SimpleCPU, "Sending fetch for addr %#x(pa: %#x)\n",
-                req->getVaddr(), req->getPaddr());
+        DPRINTF(SimpleCPU, "Thread %d: Sending fetch for addr %#x(pa: %#x)\n",
+                tc->threadId(), req->getVaddr(), req->getPaddr());
         ifetch_pkt = new Packet(req, MemCmd::ReadReq);
         ifetch_pkt->dataStatic(&inst);
         DPRINTF(SimpleCPU, " -- pkt addr: %#x\n", ifetch_pkt->getAddr());
