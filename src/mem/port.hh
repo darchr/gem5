@@ -245,7 +245,8 @@ class RequestPort: public Port, public AtomicRequestProtocol,
 }
 
 [[deprecated]]
-class MasterPort : public Port, public AtomicRequestProtocol,
+class MasterPort : public RequestPort
+{};
     public TimingRequestProtocol, public FunctionalRequestProtocol
 {
     friend class SlavePort;
