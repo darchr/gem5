@@ -57,6 +57,7 @@ class SimObject;
 
 /** Forward declaration */
 class SlavePort;
+class ResponsePort;
 
 /**
  * A MasterPort is a specialisation of a BaseMasterPort, which
