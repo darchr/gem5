@@ -46,8 +46,8 @@
 
 MemCheckerMonitor::MemCheckerMonitor(Params* params)
     : SimObject(params),
-      masterPort(name() + "-master", *this),
-      slavePort(name() + "-slave", *this),
+      requestPort(name() + "-request", *this),
+      responsePort(name() + "-response", *this),
       warnOnly(params->warn_only),
       memchecker(params->memchecker)
 {}
@@ -65,17 +65,17 @@ void
 MemCheckerMonitor::init()
 {
     // make sure both sides of the monitor are connected
-    if (!slavePort.isConnected() || !masterPort.isConnected())
+    if (!responsePort.isConnected() || !requestPort.isConnected())
         fatal("Communication monitor is not connected on both sides.\n");
 }
 
 Port &
 MemCheckerMonitor::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "master" || if_name == "mem_side") {
-        return masterPort;
-    } else if (if_name == "slave" || if_name == "cpu_side") {
-        return slavePort;
+    if (if_name == "request" || if_name == "mem_side") {
+        return requestPort;
+    } else if (if_name == "response" || if_name == "cpu_side") {
+        return responsePort;
     } else {
         return SimObject::getPort(if_name, idx);
     }
@@ -92,7 +92,7 @@ MemCheckerMonitor::recvFunctional(PacketPtr pkt)
     // reads/writes to these location from other devices we do not see.
     memchecker->reset(addr, size);
 
-    masterPort.sendFunctional(pkt);
+    requestPort.sendFunctional(pkt);
 
     DPRINTF(MemCheckerMonitor,
             "Forwarded functional access: addr = %#llx, size = %d\n",
@@ -108,7 +108,7 @@ MemCheckerMonitor::recvFunctionalSnoop(PacketPtr pkt)
     // See above.
     memchecker->reset(addr, size);
 
-    slavePort.sendFunctionalSnoop(pkt);
+    responsePort.sendFunctionalSnoop(pkt);
 
     DPRINTF(MemCheckerMonitor,
             "Received functional snoop: addr = %#llx, size = %d\n",
@@ -164,7 +164,7 @@ MemCheckerMonitor::recvTimingReq(PacketPtr pkt)
     }
 
     // Attempt to send the packet
-    bool successful = masterPort.sendTimingReq(pkt);
+    bool successful = requestPort.sendTimingReq(pkt);
 
     // If not successful, restore the sender state
     if (!successful && expects_response && (is_read || is_write)) {
@@ -180,9 +180,10 @@ MemCheckerMonitor::recvTimingReq(PacketPtr pkt)
             // At the time where we push the sender-state, we do not yet know
             // the serial the MemChecker class will assign to this request. We
             // cannot call startRead at the time we push the sender-state, as
-            // the masterPort may not be successful in executing sendTimingReq,
-            // and in case of a failure, we must not modify the state of the
-            // MemChecker.
+            // the requestPort may not be successful in executing
+            // sendTimingReq, and in case of a failure, we must not modify the
+            // state of the MemChecker.
+            //
             //
             // Once we know that sendTimingReq was successful, we can set the
             // serial of the newly constructed sender-state. This is legal, as
@@ -256,7 +257,7 @@ MemCheckerMonitor::recvTimingResp(PacketPtr pkt)
     }
 
     // Attempt to send the packet
-    bool successful = slavePort.sendTimingResp(pkt);
+    bool successful = responsePort.sendTimingResp(pkt);
 
     // If packet successfully send, complete transaction in MemChecker
     // instance, and delete sender state, otherwise restore state.
@@ -318,43 +319,43 @@ MemCheckerMonitor::recvTimingResp(PacketPtr pkt)
 void
 MemCheckerMonitor::recvTimingSnoopReq(PacketPtr pkt)
 {
-    slavePort.sendTimingSnoopReq(pkt);
+    responsePort.sendTimingSnoopReq(pkt);
 }
 
 bool
 MemCheckerMonitor::recvTimingSnoopResp(PacketPtr pkt)
 {
-    return masterPort.sendTimingSnoopResp(pkt);
+    return requestPort.sendTimingSnoopResp(pkt);
 }
 
 bool
 MemCheckerMonitor::isSnooping() const
 {
-    // check if the connected master port is snooping
-    return slavePort.isSnooping();
+    // check if the connected request port is snooping
+    return responsePort.isSnooping();
 }
 
 AddrRangeList
 MemCheckerMonitor::getAddrRanges() const
 {
-    // get the address ranges of the connected slave port
-    return masterPort.getAddrRanges();
+    // get the address ranges of the connected response port
+    return requestPort.getAddrRanges();
 }
 
 void
 MemCheckerMonitor::recvReqRetry()
 {
-    slavePort.sendRetryReq();
+    responsePort.sendRetryReq();
 }
 
 void
 MemCheckerMonitor::recvRespRetry()
 {
-    masterPort.sendRetryResp();
+    requestPort.sendRetryResp();
 }
 
 void
 MemCheckerMonitor::recvRangeChange()
 {
-    slavePort.sendRangeChange();
+    responsePort.sendRangeChange();
 }

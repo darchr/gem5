@@ -35,7 +35,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mem/external_master.hh"
+#include "mem/external_requestor.hh"
 
 #include <cctype>
 #include <iomanip>
@@ -44,10 +44,10 @@
 #include "debug/ExternalPort.hh"
 #include "sim/system.hh"
 
-std::map<std::string, ExternalMaster::Handler *>
-    ExternalMaster::portHandlers;
+std::map<std::string, ExternalRequestor::Handler *>
+    ExternalRequestor::portHandlers;
 
-ExternalMaster::ExternalMaster(ExternalMasterParams *params) :
+ExternalRequestor::ExternalRequestor(ExternalRequestorParams *params) :
     SimObject(params),
     externalPort(NULL),
     portName(params->name + ".port"),
@@ -57,7 +57,7 @@ ExternalMaster::ExternalMaster(ExternalMasterParams *params) :
 {}
 
 Port &
-ExternalMaster::getPort(const std::string &if_name, PortID idx)
+ExternalRequestor::getPort(const std::string &if_name, PortID idx)
 {
     if (if_name == "port") {
         DPRINTF(ExternalPort, "Trying to bind external port: %s %s\n",
@@ -84,23 +84,23 @@ ExternalMaster::getPort(const std::string &if_name, PortID idx)
 }
 
 void
-ExternalMaster::init()
+ExternalRequestor::init()
 {
     if (!externalPort) {
-        fatal("ExternalMaster %s: externalPort not set!\n", name());
+        fatal("ExternalRequestor %s: externalPort not set!\n", name());
     } else if (!externalPort->isConnected()) {
-        fatal("ExternalMaster %s is unconnected!\n", name());
+        fatal("ExternalRequestor %s is unconnected!\n", name());
     }
 }
 
-ExternalMaster *
-ExternalMasterParams::create()
+ExternalRequestor *
+ExternalRequestorParams::create()
 {
-    return new ExternalMaster(this);
+    return new ExternalRequestor(this);
 }
 
 void
-ExternalMaster::registerHandler(const std::string &handler_name,
+ExternalRequestor::registerHandler(const std::string &handler_name,
     Handler *handler)
 {
     portHandlers[handler_name] = handler;

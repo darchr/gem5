@@ -36,11 +36,11 @@
 from m5.params import *
 from m5.SimObject import SimObject
 
-class ExternalSlave(SimObject):
-    type = 'ExternalSlave'
-    cxx_header = "mem/external_slave.hh"
+class ExternalResponse(SimObject):
+    type = 'ExternalResponse'
+    cxx_header = "mem/external_responder.hh"
 
-    port = SlavePort("Slave port")
+    port = ResponsePort("Response port")
 
     addr_ranges = VectorParam.AddrRange([], 'Addresses served by'
         ' this port\'s external agent')

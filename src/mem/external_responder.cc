@@ -35,7 +35,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "mem/external_slave.hh"
+#include "mem/external_responder.hh"
 
 #include <cctype>
 #include <iomanip>
@@ -47,7 +47,7 @@
  *  a message.  The stub port can be used to configure and test a system
  *  where the external port is used for a peripheral before connecting
  *  the external port */
-class StubSlavePort : public ExternalSlave::ExternalPort
+class StubResponsePort : public ExternalResponder::ExternalPort
 {
   public:
     void processResponseEvent();
@@ -62,9 +62,9 @@ class StubSlavePort : public ExternalSlave::ExternalPort
      *  a retry after completing this packet */
     bool mustRetry;
 
-    StubSlavePort(const std::string &name_,
-        ExternalSlave &owner_) :
-        ExternalSlave::ExternalPort(name_, owner_),
+    StubResponsePort(const std::string &name_,
+        ExternalResponder &owner_) :
+        ExternalResponder::ExternalPort(name_, owner_),
         responseEvent([this]{ processResponseEvent(); }, name()),
         responsePacket(NULL), mustRetry(false)
     { }
@@ -77,29 +77,29 @@ class StubSlavePort : public ExternalSlave::ExternalPort
     void recvFunctionalSnoop(PacketPtr packet);
 };
 
-class StubSlavePortHandler : public
-    ExternalSlave::Handler
+class StubResponsePortHandler : public
+    ExternalResponder::Handler
 {
   public:
-    ExternalSlave::ExternalPort *getExternalPort(
+    ExternalResponder::ExternalPort *getExternalPort(
         const std::string &name_,
-        ExternalSlave &owner,
+        ExternalResponder &owner,
         const std::string &port_data)
     {
         StringWrap name(name_);
 
         DPRINTF(ExternalPort, "finding stub port '%s'\n", port_data);
-        return new StubSlavePort(name_, owner);
+        return new StubResponderPort(name_, owner);
     }
 };
 
 Tick
-StubSlavePort::recvAtomic(PacketPtr packet)
+StubResponsePort::recvAtomic(PacketPtr packet)
 {
     if (DTRACE(ExternalPort)) {
         unsigned int M5_VAR_USED size = packet->getSize();
 
-        DPRINTF(ExternalPort, "StubSlavePort: recvAtomic a: 0x%x size: %d"
+        DPRINTF(ExternalPort, "StubResponsePort: recvAtomic a: 0x%x size: %d"
             " data: ...\n", packet->getAddr(), size);
         DDUMP(ExternalPort, packet->getConstPtr<uint8_t>(), size);
     }
@@ -108,13 +108,13 @@ StubSlavePort::recvAtomic(PacketPtr packet)
 }
 
 void
-StubSlavePort::recvFunctional(PacketPtr packet)
+StubResponsePort::recvFunctional(PacketPtr packet)
 {
     recvAtomic(packet);
 }
 
 void
-StubSlavePort::processResponseEvent()
+StubResponsePort::processResponseEvent()
 {
     responsePacket->makeResponse();
     responsePacket->headerDelay = 0;
@@ -130,7 +130,7 @@ StubSlavePort::processResponseEvent()
 }
 
 bool
-StubSlavePort::recvTimingReq(PacketPtr packet)
+StubResponsePort::recvTimingReq(PacketPtr packet)
 {
     if (responsePacket) {
         mustRetry = true;
@@ -147,14 +147,14 @@ StubSlavePort::recvTimingReq(PacketPtr packet)
 }
 
 bool
-StubSlavePort::recvTimingSnoopResp(PacketPtr packet)
+StubResponsePort::recvTimingSnoopResp(PacketPtr packet)
 {
-    fatal("StubSlavePort: function: %s\n", __func__);
+    fatal("StubResponsePort: function: %s\n", __func__);
     return false;
 }
 
 void
-StubSlavePort::recvRespRetry()
+StubResponsePort::recvRespRetry()
 {
     assert(responsePacket);
     /* Stub handles only one response at a time so responseEvent should never
@@ -164,21 +164,21 @@ StubSlavePort::recvRespRetry()
 }
 
 void
-StubSlavePort::recvFunctionalSnoop(PacketPtr packet)
+StubResponsePort::recvFunctionalSnoop(PacketPtr packet)
 {
-    fatal("StubSlavePort: unimplemented function: %s\n", __func__);
+    fatal("StubResponsePort: unimplemented function: %s\n", __func__);
 }
 
-std::map<std::string, ExternalSlave::Handler *>
-    ExternalSlave::portHandlers;
+std::map<std::string, ExternalResponder::Handler *>
+    ExternalResponder::portHandlers;
 
 AddrRangeList
-ExternalSlave::ExternalPort::getAddrRanges() const
+ExternalResponder::ExternalPort::getAddrRanges() const
 {
     return owner.addrRanges;
 }
 
-ExternalSlave::ExternalSlave(ExternalSlaveParams *params) :
+ExternalResponder::ExternalResponder(ExternalResponderParams *params) :
     SimObject(params),
     externalPort(NULL),
     portName(params->name + ".port"),
@@ -188,11 +188,11 @@ ExternalSlave::ExternalSlave(ExternalSlaveParams *params) :
 {
     /* Register the stub handler if it hasn't already been registered */
     if (portHandlers.find("stub") == portHandlers.end())
-        registerHandler("stub", new StubSlavePortHandler);
+        registerHandler("stub", new StubResponderPortHandler);
 }
 
 Port &
-ExternalSlave::getPort(const std::string &if_name, PortID idx)
+ExternalResponder::getPort(const std::string &if_name, PortID idx)
 {
     if (if_name == "port") {
         DPRINTF(ExternalPort, "Trying to bind external port: %s %s\n",
@@ -219,25 +219,25 @@ ExternalSlave::getPort(const std::string &if_name, PortID idx)
 }
 
 void
-ExternalSlave::init()
+ExternalResponder::init()
 {
     if (!externalPort) {
-        fatal("ExternalSlave %s: externalPort not set!\n", name());
+        fatal("ExternalResponder %s: externalPort not set!\n", name());
     } else if (!externalPort->isConnected()) {
-        fatal("ExternalSlave %s is unconnected!\n", name());
+        fatal("ExternalResponder %s is unconnected!\n", name());
     } else {
         externalPort->sendRangeChange();
     }
 }
 
-ExternalSlave *
-ExternalSlaveParams::create()
+ExternalResponder *
+ExternalResponderParams::create()
 {
-    return new ExternalSlave(this);
+    return new ExternalResponder(this);
 }
 
 void
-ExternalSlave::registerHandler(const std::string &handler_name,
+ExternalResponder::registerHandler(const std::string &handler_name,
     Handler *handler)
 {
     portHandlers[handler_name] = handler;
