@@ -47,8 +47,8 @@ class CommMonitor(SimObject):
     system = Param.System(Parent.any, "System that the monitor belongs to.")
 
     # one port in each direction
-    master = MasterPort("Master port")
-    slave = SlavePort("Slave port")
+    requestor = RequestPort("Request port")
+    responder = ResponsePort("Response port")
 
     # control the sample period window length of this monitor
     sample_period = Param.Clock("1ms", "Sample period for histograms")

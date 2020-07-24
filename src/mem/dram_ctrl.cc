@@ -402,7 +402,7 @@ DRAMCtrl::addToReadQueue(PacketPtr pkt, unsigned int pktCount)
                                  base_addr + pkt->getSize()) - addr;
         stats.readPktSize[ceilLog2(size)]++;
         stats.readBursts++;
-        stats.masterReadAccesses[pkt->masterId()]++;
+        stats.requestorReadAccesses[pkt->requestorId()]++;
 
         // First check write buffer to see if the data is already at
         // the controller
@@ -456,7 +456,7 @@ DRAMCtrl::addToReadQueue(PacketPtr pkt, unsigned int pktCount)
             ++dram_pkt->rankRef.readEntries;
 
             // log packet
-            logRequest(MemCtrl::READ, pkt->masterId(), pkt->qosValue(),
+            logRequest(MemCtrl::READ, pkt->requestorId(), pkt->qosValue(),
                        dram_pkt->addr, 1);
 
             // Update stats
@@ -501,7 +501,7 @@ DRAMCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pktCount)
                                  base_addr + pkt->getSize()) - addr;
         stats.writePktSize[ceilLog2(size)]++;
         stats.writeBursts++;
-        stats.masterWriteAccesses[pkt->masterId()]++;
+        stats.requestorWriteAccesses[pkt->requestorId()]++;
 
         // see if we can merge with an existing item in the write
         // queue and keep track of whether we have merged or not
@@ -522,7 +522,7 @@ DRAMCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pktCount)
             isInWriteQueue.insert(burstAlign(addr));
 
             // log packet
-            logRequest(MemCtrl::WRITE, pkt->masterId(), pkt->qosValue(),
+            logRequest(MemCtrl::WRITE, pkt->requestorId(), pkt->qosValue(),
                        dram_pkt->addr, 1);
 
             assert(totalWriteQueueSize == isInWriteQueue.size());
@@ -1451,20 +1451,20 @@ DRAMCtrl::doDRAMAccess(DRAMPacket* dram_pkt)
 
         // Update latency stats
         stats.totMemAccLat += dram_pkt->readyTime - dram_pkt->entryTime;
-        stats.masterReadTotalLat[dram_pkt->masterId()] +=
+        stats.requestorReadTotalLat[dram_pkt->requestorId()] +=
             dram_pkt->readyTime - dram_pkt->entryTime;
 
         stats.totBusLat += tBURST;
         stats.totQLat += cmd_at - dram_pkt->entryTime;
-        stats.masterReadBytes[dram_pkt->masterId()] += dram_pkt->size;
+        stats.requestorReadBytes[dram_pkt->requestorId()] += dram_pkt->size;
     } else {
         ++writesThisTime;
         if (row_hit)
             stats.writeRowHits++;
         stats.bytesWritten += burstSize;
         stats.perBankWrBursts[dram_pkt->bankId]++;
-        stats.masterWriteBytes[dram_pkt->masterId()] += dram_pkt->size;
-        stats.masterWriteTotalLat[dram_pkt->masterId()] +=
+        stats.requestorWriteBytes[dram_pkt->requestorId()] += dram_pkt->size;
+        stats.requestorWriteTotalLat[dram_pkt->requestorId()] +=
             dram_pkt->readyTime - dram_pkt->entryTime;
     }
 }
@@ -1630,7 +1630,7 @@ DRAMCtrl::processNextReqEvent()
             assert(dram_pkt->readyTime >= curTick());
 
             // log the response
-            logResponse(MemCtrl::READ, (*to_read)->masterId(),
+            logResponse(MemCtrl::READ, (*to_read)->requestorId(),
                         dram_pkt->qosValue(), dram_pkt->getAddr(), 1,
                         dram_pkt->readyTime - dram_pkt->entryTime);
 
@@ -1730,7 +1730,7 @@ DRAMCtrl::processNextReqEvent()
         isInWriteQueue.erase(burstAlign(dram_pkt->addr));
 
         // log the response
-        logResponse(MemCtrl::WRITE, dram_pkt->masterId(),
+        logResponse(MemCtrl::WRITE, dram_pkt->requestorId(),
                     dram_pkt->qosValue(), dram_pkt->getAddr(), 1,
                     dram_pkt->readyTime - dram_pkt->entryTime);
 
@@ -2650,24 +2650,24 @@ DRAMCtrl::DRAMStats::DRAMStats(DRAMCtrl &_dram)
     ADD_STAT(totGap, "Total gap between requests"),
     ADD_STAT(avgGap, "Average gap between requests"),
 
-    ADD_STAT(masterReadBytes, "Per-master bytes read from memory"),
-    ADD_STAT(masterWriteBytes, "Per-master bytes write to memory"),
-    ADD_STAT(masterReadRate,
-             "Per-master bytes read from memory rate (Bytes/sec)"),
-    ADD_STAT(masterWriteRate,
-             "Per-master bytes write to memory rate (Bytes/sec)"),
-    ADD_STAT(masterReadAccesses,
-             "Per-master read serviced memory accesses"),
-    ADD_STAT(masterWriteAccesses,
-             "Per-master write serviced memory accesses"),
-    ADD_STAT(masterReadTotalLat,
-             "Per-master read total memory access latency"),
-    ADD_STAT(masterWriteTotalLat,
-             "Per-master write total memory access latency"),
-    ADD_STAT(masterReadAvgLat,
-             "Per-master read average memory access latency"),
-    ADD_STAT(masterWriteAvgLat,
-             "Per-master write average memory access latency"),
+    ADD_STAT(requestorReadBytes, "Per-requestor bytes read from memory"),
+    ADD_STAT(requestorWriteBytes, "Per-requestor bytes write to memory"),
+    ADD_STAT(requestorReadRate,
+             "Per-requestor bytes read from memory rate (Bytes/sec)"),
+    ADD_STAT(requestorWriteRate,
+             "Per-requestor bytes write to memory rate (Bytes/sec)"),
+    ADD_STAT(requestorReadAccesses,
+             "Per-requestor read serviced memory accesses"),
+    ADD_STAT(requestorWriteAccesses,
+             "Per-requestor write serviced memory accesses"),
+    ADD_STAT(requestorReadTotalLat,
+             "Per-requestor read total memory access latency"),
+    ADD_STAT(requestorWriteTotalLat,
+             "Per-requestor write total memory access latency"),
+    ADD_STAT(requestorReadAvgLat,
+             "Per-requestor read average memory access latency"),
+    ADD_STAT(requestorWriteAvgLat,
+             "Per-requestor write average memory access latency"),
 
     ADD_STAT(pageHitRate, "Row buffer hit rate, read and write combined")
 {
@@ -2679,7 +2679,7 @@ DRAMCtrl::DRAMStats::regStats()
     using namespace Stats;
 
     assert(dram._system);
-    const auto max_masters = dram._system->maxMasters();
+    const auto max_requestors = dram._system->maxRequestors();
 
     perBankRdBursts.init(dram.banksPerRank * dram.ranksPerChannel);
     perBankWrBursts.init(dram.banksPerRank * dram.ranksPerChannel);
@@ -2722,33 +2722,33 @@ DRAMCtrl::DRAMStats::regStats()
     pageHitRate.precision(2);
 
 
-    // per-master bytes read and written to memory
-    masterReadBytes
-        .init(max_masters)
+    // per-requestor bytes read and written to memory
+    requestorReadBytes
+        .init(max_requestors)
         .flags(nozero | nonan);
 
-    masterWriteBytes
-        .init(max_masters)
+    requestorWriteBytes
+        .init(max_requestors)
         .flags(nozero | nonan);
 
-    // per-master bytes read and written to memory rate
-    masterReadRate
+    // per-requestor bytes read and written to memory rate
+    requestorReadRate
         .flags(nozero | nonan)
         .precision(12);
 
-    masterReadAccesses
-        .init(max_masters)
+    requestorReadAccesses
+        .init(max_requestors)
         .flags(nozero);
 
-    masterWriteAccesses
-        .init(max_masters)
+    requestorWriteAccesses
+        .init(max_requestors)
         .flags(nozero);
 
-    masterReadTotalLat
-        .init(max_masters)
+    requestorReadTotalLat
+        .init(max_requestors)
         .flags(nozero | nonan);
 
-    masterReadAvgLat
+    requestorReadAvgLat
         .flags(nonan)
         .precision(2);
 
@@ -2756,30 +2756,30 @@ DRAMCtrl::DRAMStats::regStats()
     busUtilRead
         .precision(2);
 
-    masterWriteRate
+    requestorWriteRate
         .flags(nozero | nonan)
         .precision(12);
 
-    masterWriteTotalLat
-        .init(max_masters)
+    requestorWriteTotalLat
+        .init(max_requestors)
         .flags(nozero | nonan);
 
-    masterWriteAvgLat
+    requestorWriteAvgLat
         .flags(nonan)
         .precision(2);
 
-    for (int i = 0; i < max_masters; i++) {
-        const std::string master = dram._system->getMasterName(i);
-        masterReadBytes.subname(i, master);
-        masterReadRate.subname(i, master);
-        masterWriteBytes.subname(i, master);
-        masterWriteRate.subname(i, master);
-        masterReadAccesses.subname(i, master);
-        masterWriteAccesses.subname(i, master);
-        masterReadTotalLat.subname(i, master);
-        masterReadAvgLat.subname(i, master);
-        masterWriteTotalLat.subname(i, master);
-        masterWriteAvgLat.subname(i, master);
+    for (int i = 0; i < max_requestors; i++) {
+        const std::string requestor = dram._system->getRequestorName(i);
+        requestorReadBytes.subname(i, requestor);
+        requestorReadRate.subname(i, requestor);
+        requestorWriteBytes.subname(i, requestor);
+        requestorWriteRate.subname(i, requestor);
+        requestorReadAccesses.subname(i, requestor);
+        requestorWriteAccesses.subname(i, requestor);
+        requestorReadTotalLat.subname(i, requestor);
+        requestorReadAvgLat.subname(i, requestor);
+        requestorWriteTotalLat.subname(i, requestor);
+        requestorWriteAvgLat.subname(i, requestor);
     }
 
     // Formula stats
@@ -2807,10 +2807,10 @@ DRAMCtrl::DRAMStats::regStats()
     pageHitRate = (writeRowHits + readRowHits) /
         (writeBursts - mergedWrBursts + readBursts - servicedByWrQ) * 100;
 
-    masterReadRate = masterReadBytes / simSeconds;
-    masterWriteRate = masterWriteBytes / simSeconds;
-    masterReadAvgLat = masterReadTotalLat / masterReadAccesses;
-    masterWriteAvgLat = masterWriteTotalLat / masterWriteAccesses;
+    requestorReadRate = requestorReadBytes / simSeconds;
+    requestorWriteRate = requestorWriteBytes / simSeconds;
+    requestorReadAvgLat = requestorReadTotalLat / requestorReadAccesses;
+    requestorWriteAvgLat = requestorWriteTotalLat / requestorWriteAccesses;
 }
 
 void
@@ -2960,7 +2960,7 @@ DRAMCtrl::drainResume()
 }
 
 DRAMCtrl::MemoryPort::MemoryPort(const std::string& name, DRAMCtrl& _memory)
-    : QueuedSlavePort(name, &_memory, queue), queue(_memory, *this, true),
+    : QueuedResponsePort(name, &_memory, queue), queue(_memory, *this, true),
       memory(_memory)
 { }
 

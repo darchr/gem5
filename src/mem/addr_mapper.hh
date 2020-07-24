@@ -45,10 +45,10 @@
 
 /**
  * An address mapper changes the packet addresses in going from the
- * slave port side of the mapper to the master port side. When the
- * slave port is queried for the address ranges, it also performs the
+ * responder port side of the mapper to the requestor port side. When the
+ * responder port is queried for the address ranges, it also performs the
  * necessary range updates. Note that snoop requests that travel from
- * the master port (i.e. the memory side) to the slave port are
+ * the requestor port (i.e. the memory side) to the responder port are
  * currently not modified.
  */
 
@@ -98,13 +98,13 @@ class AddrMapper : public SimObject
 
     };
 
-    class MapperMasterPort : public MasterPort
+    class MapperRequestPort : public RequestPort
     {
 
       public:
 
-        MapperMasterPort(const std::string& _name, AddrMapper& _mapper)
-            : MasterPort(_name, &_mapper), mapper(_mapper)
+        MapperRequestPort(const std::string& _name, AddrMapper& _mapper)
+            : RequestPort(_name, &_mapper), mapper(_mapper)
         { }
 
       protected:
@@ -150,16 +150,16 @@ class AddrMapper : public SimObject
 
     };
 
-    /** Instance of master port, facing the memory side */
-    MapperMasterPort masterPort;
+    /** Instance of requestor port, facing the memory side */
+    MapperRequestPort requestPort;
 
-    class MapperSlavePort : public SlavePort
+    class MapperResponsePort : public ResponsePort
     {
 
       public:
 
-        MapperSlavePort(const std::string& _name, AddrMapper& _mapper)
-            : SlavePort(_name, &_mapper), mapper(_mapper)
+        MapperResponsePort(const std::string& _name, AddrMapper& _mapper)
+            : ResponsePort(_name, &_mapper), mapper(_mapper)
         { }
 
       protected:
@@ -200,8 +200,8 @@ class AddrMapper : public SimObject
 
     };
 
-    /** Instance of slave port, i.e. on the CPU side */
-    MapperSlavePort slavePort;
+    /** Instance of response port, i.e. on the CPU side */
+    MapperResponsePort responsePort;
 
     void recvFunctional(PacketPtr pkt);
 
