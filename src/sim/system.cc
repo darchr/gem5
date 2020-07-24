@@ -247,13 +247,13 @@ System::System(Params *p)
         warn_once("Cache line size is neither 16, 32, 64 nor 128 bytes.\n");
 
     // Get the generic system master IDs
-    MasterID tmp_id M5_VAR_USED;
-    tmp_id = getMasterId(this, "writebacks");
-    assert(tmp_id == Request::wbMasterId);
-    tmp_id = getMasterId(this, "functional");
-    assert(tmp_id == Request::funcMasterId);
-    tmp_id = getMasterId(this, "interrupt");
-    assert(tmp_id == Request::intMasterId);
+    RequestorID tmp_id M5_VAR_USED;
+    tmp_id = getRequestorId(this, "writebacks");
+    assert(tmp_id == Request::wbRequestorId);
+    tmp_id = getRequestorId(this, "functional");
+    assert(tmp_id == Request::funcRequestorId);
+    tmp_id = getRequestorId(this, "interrupt");
+    assert(tmp_id == Request::intRequestorId);
 
     // increment the number of running systems
     numSystemsRunning++;
@@ -420,27 +420,27 @@ System::isMemAddr(Addr addr) const
 }
 
 void
-System::addDeviceMemory(MasterID masterId, AbstractMemory *deviceMemory)
+System::addDeviceMemory(RequestorID requestorId, AbstractMemory *deviceMemory)
 {
-    if (!deviceMemMap.count(masterId)) {
-        deviceMemMap.insert(std::make_pair(masterId, deviceMemory));
+    if (!deviceMemMap.count(requestorId)) {
+        deviceMemMap.insert(std::make_pair(requestorId, deviceMemory));
     }
 }
 
 bool
 System::isDeviceMemAddr(PacketPtr pkt) const
 {
-    const MasterID& mid = pkt->masterId();
+    const RequestorID& mid = pkt->requestorId();
 
     return (deviceMemMap.count(mid) &&
             deviceMemMap.at(mid)->getAddrRange().contains(pkt->getAddr()));
 }
 
 AbstractMemory *
-System::getDeviceMemory(MasterID mid) const
+System::getDeviceMemory(RequestorID mid) const
 {
     panic_if(!deviceMemMap.count(mid),
-             "No device memory found for MasterID %d\n", mid);
+             "No device memory found for RequestorID %d\n", mid);
     return deviceMemMap.at(mid);
 }
 
@@ -553,10 +553,10 @@ System::stripSystemName(const std::string& master_name) const
     }
 }
 
-MasterID
-System::lookupMasterId(const SimObject* obj) const
+RequestorID
+System::lookupRequestorId(const SimObject* obj) const
 {
-    MasterID id = Request::invldMasterId;
+    RequestorID id = Request::invldRequestorId;
 
     // number of occurrences of the SimObject pointer
     // in the master list.
@@ -570,14 +570,14 @@ System::lookupMasterId(const SimObject* obj) const
     }
 
     fatal_if(obj_number > 1,
-        "Cannot lookup MasterID by SimObject pointer: "
+        "Cannot lookup RequestorID by SimObject pointer: "
         "More than one master is sharing the same SimObject\n");
 
     return id;
 }
 
-MasterID
-System::lookupMasterId(const std::string& master_name) const
+RequestorID
+System::lookupRequestorId(const std::string& master_name) const
 {
     std::string name = stripSystemName(master_name);
 
@@ -587,24 +587,25 @@ System::lookupMasterId(const std::string& master_name) const
         }
     }
 
-    return Request::invldMasterId;
+    return Request::invldRequestorId;
 }
 
-MasterID
-System::getGlobalMasterId(const std::string& master_name)
+RequestorID
+System::getGlobalRequestorId(const std::string& master_name)
 {
-    return _getMasterId(nullptr, master_name);
+    return _getRequestorId(nullptr, master_name);
 }
 
-MasterID
-System::getMasterId(const SimObject* master, std::string submaster)
+RequestorID
+System::getRequestorId(const SimObject* master, std::string submaster)
 {
     auto master_name = leafMasterName(master, submaster);
-    return _getMasterId(master, master_name);
+    return _getRequestorId(master, master_name);
 }
 
-MasterID
-System::_getMasterId(const SimObject* master, const std::string& master_name)
+RequestorID
+System::_getRequestorId(const SimObject* master,
+ const std::string& master_name)
 {
     std::string name = stripSystemName(master_name);
 
@@ -620,17 +621,17 @@ System::_getMasterId(const SimObject* master, const std::string& master_name)
     // they will be too small
 
     if (Stats::enabled()) {
-        fatal("Can't request a masterId after regStats(). "
+        fatal("Can't request a fequestorId after regStats(). "
                 "You must do so in init().\n");
     }
 
-    // Generate a new MasterID incrementally
-    MasterID master_id = masters.size();
+    // Generate a new RequestorID incrementally
+    RequestorID requestor_id = masters.size();
 
     // Append the new Master metadata to the group of system Masters.
-    masters.emplace_back(master, name, master_id);
+    masters.emplace_back(master, name, requestor_id);
 
-    return masters.back().masterId;
+    return masters.back().requestorId;
 }
 
 std::string
@@ -646,12 +647,12 @@ System::leafMasterName(const SimObject* master, const std::string& submaster)
 }
 
 std::string
-System::getMasterName(MasterID master_id)
+System::getMasterName(RequestorID requestor_id)
 {
-    if (master_id >= masters.size())
-        fatal("Invalid master_id passed to getMasterName()\n");
+    if (requestor_id >= masters.size())
+        fatal("Invalid requestor_id passed to getMasterName()\n");
 
-    const auto& master_info = masters[master_id];
+    const auto& master_info = masters[requestor_id];
     return master_info.masterName;
 }
 
