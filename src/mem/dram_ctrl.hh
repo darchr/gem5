@@ -92,7 +92,7 @@ class DRAMCtrl : public QoS::MemCtrl
 
   private:
 
-    // For now, make use of a queued slave port to avoid dealing with
+    // For now, make use of a queued response port to avoid dealing with
     // flow control for the responses being sent back
     class MemoryPort : public QueuedSlavePort
     {
@@ -617,8 +617,8 @@ class DRAMCtrl : public QoS::MemCtrl
         /** This comes from the outside world */
         const PacketPtr pkt;
 
-        /** MasterID associated with the packet */
-        const MasterID _masterId;
+        /** RequestorID associated with the packet */
+        const RequestorID _requestorId;
 
         const bool read;
 
@@ -674,10 +674,10 @@ class DRAMCtrl : public QoS::MemCtrl
         inline uint8_t qosValue() const { return _qosValue; }
 
         /**
-         * Get the packet MasterID
+         * Get the packet RequestorID
          * (interface compatibility with Packet)
          */
-        inline MasterID masterId() const { return _masterId; }
+        inline RequestorID requestorId() const { return _requestorId; }
 
         /**
          * Get the packet size
@@ -708,7 +708,7 @@ class DRAMCtrl : public QoS::MemCtrl
                    uint32_t _row, uint16_t bank_id, Addr _addr,
                    unsigned int _size, Bank& bank_ref, Rank& rank_ref)
             : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
-              _masterId(pkt->masterId()),
+              _requestorId(pkt->requestorId()),
               read(is_read), rank(_rank), bank(_bank), row(_row),
               bankId(bank_id), addr(_addr), size(_size), burstHelper(NULL),
               bankRef(bank_ref), rankRef(rank_ref), _qosValue(_pkt->qosValue())
@@ -1167,25 +1167,25 @@ class DRAMCtrl : public QoS::MemCtrl
         Stats::Scalar totGap;
         Stats::Formula avgGap;
 
-        // per-master bytes read and written to memory
-        Stats::Vector masterReadBytes;
-        Stats::Vector masterWriteBytes;
+        // per-requestor bytes read and written to memory
+        Stats::Vector requestorReadBytes;
+        Stats::Vector requestorWriteBytes;
 
-        // per-master bytes read and written to memory rate
-        Stats::Formula masterReadRate;
-        Stats::Formula masterWriteRate;
+        // per-requestor bytes read and written to memory rate
+        Stats::Formula requestorReadRate;
+        Stats::Formula requestorWriteRate;
 
-        // per-master read and write serviced memory accesses
-        Stats::Vector masterReadAccesses;
-        Stats::Vector masterWriteAccesses;
+        // per-requestor read and write serviced memory accesses
+        Stats::Vector requestorReadAccesses;
+        Stats::Vector requestorWriteAccesses;
 
-        // per-master read and write total memory access latency
-        Stats::Vector masterReadTotalLat;
-        Stats::Vector masterWriteTotalLat;
+        // per-requestor read and write total memory access latency
+        Stats::Vector requestorReadTotalLat;
+        Stats::Vector requestorWriteTotalLat;
 
-        // per-master raed and write average memory access latency
-        Stats::Formula masterReadAvgLat;
-        Stats::Formula masterWriteAvgLat;
+        // per-requestor read and write average memory access latency
+        Stats::Formula requestorReadAvgLat;
+        Stats::Formula requestorWriteAvgLat;
 
         // DRAM Power Calculation
         Stats::Formula pageHitRate;

@@ -53,7 +53,7 @@ ExternalRequestor::ExternalRequestor(ExternalRequestorParams *params) :
     portName(params->name + ".port"),
     portType(params->port_type),
     portData(params->port_data),
-    masterId(params->system->getMasterId(this))
+    requestorId(params->system->getRequestorId(this))
 {}
 
 Port &

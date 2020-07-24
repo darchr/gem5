@@ -326,7 +326,7 @@ Cache::handleTimingReqMiss(PacketPtr pkt, CacheBlk *blk, Tick forward_time,
         // should have flushed and have no valid block
         assert(!blk || !blk->isValid());
 
-        stats.cmdStats(pkt).mshr_uncacheable[pkt->req->masterId()]++;
+        stats.cmdStats(pkt).mshr_uncacheable[pkt->req->requestorId()]++;
 
         if (pkt->isWrite()) {
             allocateWriteBuffer(pkt, forward_time);
@@ -373,7 +373,7 @@ Cache::handleTimingReqMiss(PacketPtr pkt, CacheBlk *blk, Tick forward_time,
             RequestPtr req = std::make_shared<Request>(pkt->req->getPaddr(),
                                                        pkt->req->getSize(),
                                                        pkt->req->getFlags(),
-                                                       pkt->req->masterId());
+                                                    pkt->req->requestorId());
             pf = new Packet(req, pkt->cmd);
             pf->allocate();
             assert(pf->matchAddr(pkt));
@@ -774,9 +774,9 @@ Cache::serviceMSHRTargets(MSHR *mshr, const PacketPtr pkt, CacheBlk *blk)
 
                 assert(!tgt_pkt->req->isUncacheable());
 
-                assert(tgt_pkt->req->masterId() < system->maxMasters());
+                assert(tgt_pkt->req->requestorId() < system->maxRequestors());
                 stats.cmdStats(tgt_pkt)
-                    .missLatency[tgt_pkt->req->masterId()] +=
+                    .missLatency[tgt_pkt->req->requestorId()] +=
                     completion_time - target.recvTime;
             } else if (pkt->cmd == MemCmd::UpgradeFailResp) {
                 // failed StoreCond upgrade
@@ -912,7 +912,7 @@ Cache::cleanEvictBlk(CacheBlk *blk)
 
     // Creating a zero sized write, a message to the snoop filter
     RequestPtr req = std::make_shared<Request>(
-        regenerateBlkAddr(blk), blkSize, 0, Request::wbMasterId);
+        regenerateBlkAddr(blk), blkSize, 0, Request::wbRequestorId);
 
     if (blk->isSecure())
         req->setFlags(Request::SECURE);
