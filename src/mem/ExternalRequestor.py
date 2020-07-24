@@ -37,11 +37,11 @@ from m5.params import *
 from m5.proxy import *
 from m5.SimObject import SimObject
 
-class ExternalMaster(SimObject):
-    type = 'ExternalMaster'
-    cxx_header = "mem/external_master.hh"
+class ExternalRequestor(SimObject):
+    type = 'ExternalRequestor'
+    cxx_header = "mem/external_requestor.hh"
 
-    port = MasterPort("Master port")
+    port = RequestPort("Request port")
 
     port_type = Param.String('stub', 'Registered external port handler'
         ' to pass this port to in instantiation')

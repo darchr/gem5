@@ -38,8 +38,8 @@
 /**
  * @file
  *
- * ExternalSlave is a memory object representing a binding from
- * a gem5 master to a slave port in a system external to gem5.
+ * ExternalResponder is a memory object representing a binding from
+ * a gem5 master to a response port in a system external to gem5.
  *
  * During initialisation, a `handler' for the port type specified in the
  * port's port_type parameter is found from the registered port handlers
@@ -48,10 +48,10 @@
  * port which is to be bound to.  A port handler will usually construct a
  * bridge object in the external system to accomodate the port-to-port
  * mapping but this bridge is not exposed to gem5 other than be the
- * presentation of the SlavePort which can be bound.
+ * presentation of the ResponsePort which can be bound.
  *
- * The external port must provide a gem5 SlavePort interface (with the
- * exception of getAddrRanges which is provided by the ExternalSlave
+ * The external port must provide a gem5 ResponsePort interface (with the
+ * exception of getAddrRanges which is provided by the ExternalResponder
  * object).
  */
 
@@ -59,22 +59,22 @@
 #define __MEM_EXTERNAL_SLAVE_HH__
 
 #include "mem/port.hh"
-#include "params/ExternalSlave.hh"
+#include "params/ExternalResponder.hh"
 #include "sim/sim_object.hh"
 
-class ExternalSlave : public SimObject
+class ExternalResponder : public SimObject
 {
   public:
     /** Derive from this class to create an external port interface */
-    class ExternalPort : public SlavePort
+    class ExternalPort : public ResponsePort
     {
       protected:
-        ExternalSlave &owner;
+        ExternalResponder &owner;
 
       public:
         ExternalPort(const std::string &name_,
-            ExternalSlave &owner_) :
-            SlavePort(name_, &owner_), owner(owner_)
+            ExternalResponder &owner_) :
+            ResponsePort(name_, &owner_), owner(owner_)
         { }
 
         ~ExternalPort() { }
@@ -87,15 +87,16 @@ class ExternalSlave : public SimObject
 
     /* Handlers are specific to *types* of port not specific port
      * instantiations.  A handler will typically build a bridge to the
-     * external port from gem5 and provide gem5 with a SlavePort that can be
-     * bound to for each call to Handler::getExternalPort.*/
+     * external port from gem5 and provide gem5 with a ResponderPort
+     * that can be bound to for each call to Handler::getExternalPort.
+     */
     class Handler
     {
       public:
         /** Create or find an external port which can be bound.  Returns
          *  NULL on failure */
         virtual ExternalPort *getExternalPort(
-            const std::string &name, ExternalSlave &owner,
+            const std::string &name, ExternalResponder &owner,
             const std::string &port_data) = 0;
     };
 
@@ -117,13 +118,13 @@ class ExternalSlave : public SimObject
     AddrRangeList addrRanges;
 
     /** Registered handlers.  Handlers are chosen using the port_type
-     *  parameter on ExternalSlaves.  port_types form a global namespace
+     *  parameter on ExternalResponders.  port_types form a global namespace
      *  across the simulation and so handlers are registered into a global
      *  structure */
     static std::map<std::string, Handler *> portHandlers;
 
   public:
-    ExternalSlave(ExternalSlaveParams *params);
+    ExternalResponder(ExternalResponderParams *params);
 
     /** Port interface.  Responds only to port "port" */
     Port &getPort(const std::string &if_name,
