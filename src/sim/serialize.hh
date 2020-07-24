@@ -75,6 +75,9 @@ class CheckpointIn
     const std::string _cptDir;
 
   public:
+    /**
+     * @ingroup api_python_core
+     */
     CheckpointIn(const std::string &cpt_dir, SimObjectResolver &resolver);
     ~CheckpointIn();
 
@@ -298,11 +301,13 @@ class Serializable
 
     /**
      * @ingroup api_serialize
+     * @ingroup api_python_core
      */
     static void serializeAll(const std::string &cpt_dir);
 
     /**
      * @ingroup api_serialize
+     * @ingroup api_python_core
      */
     static void unserializeGlobals(CheckpointIn &cp);
 

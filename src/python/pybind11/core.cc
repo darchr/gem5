@@ -210,11 +210,12 @@ init_loader(py::module &m_native)
 void
 pybind_init_core(py::module &m_native)
 {
-    py::module m_core = m_native.def_submodule("core");
+    py::module m_core = m_native.def_submodule("core",
+        "Contains gem5 core types and functions.");
 
     py::class_<Cycles>(m_core, "Cycles")
-        .def(py::init<>())
-        .def(py::init<uint64_t>())
+        .def(py::init<>(), "Initializes the cycles to 0.")
+        .def(py::init<uint64_t>(), "Initializes with the given value.")
         .def("__int__", &Cycles::operator uint64_t)
         .def("__add__", &Cycles::operator+)
         .def("__sub__", &Cycles::operator-)
@@ -241,22 +242,51 @@ pybind_init_core(py::module &m_native)
         ;
 
     m_core
-        .def("setLogLevel", &Logger::setLevel)
-        .def("setOutputDir", &setOutputDir)
-        .def("doExitCleanup", &doExitCleanup)
+        .def("setLogLevel", &Logger::setLevel,
+            "Sets the log level to dump all logs at this level and above.")
+        .def("setOutputDir", &setOutputDir,
+            "Sets the directory for gem5's output files.\n"
+            "\n"
+            "These files include config.ini, stats.txt, etc.")
+        .def("doExitCleanup", &doExitCleanup,
+            "Do C++ simulator exit processing. Calls all exit callbacks.")
 
-        .def("disableAllListeners", &ListenSocket::disableAll)
-        .def("listenersDisabled", &ListenSocket::allDisabled)
-        .def("listenersLoopbackOnly", &ListenSocket::loopbackOnly)
-        .def("seedRandom", [](uint64_t seed) { random_mt.init(seed); })
+        .def("disableAllListeners", &ListenSocket::disableAll,
+            "Disable all socket listeners (e.g., gdb, term, etc.).")
+        .def("listenersDisabled", &ListenSocket::allDisabled,
+            "Returns true if all listeners are disabled.")
+        .def("listenersLoopbackOnly", &ListenSocket::loopbackOnly,
+            "Binds all listeners to the loopback device.")
+        .def("seedRandom", [](uint64_t seed) { random_mt.init(seed); },
+            "Sets gem5's random seed.\n"
+            "\n"
+            "There may be unexpected behavior when using dist-gem5. See "
+            "src/dev/net/dist_iface.cc for details.")
 
 
-        .def("fixClockFrequency", &fixClockFrequency)
-        .def("clockFrequencyFixed", &clockFrequencyFixed)
+        .def("fixClockFrequency", &fixClockFrequency,
+            "Finalizes the global tick frequency.\n"
+            "\n"
+            "Can only be called once. If called a second time, the frequency "
+            "doesn't change.")
+        .def("clockFrequencyFixed", &clockFrequencyFixed,
+            "Returns true if the global tick frequency has been fixed.")
 
-        .def("setClockFrequency", &setClockFrequency)
-        .def("getClockFrequency", &getClockFrequency)
-        .def("curTick", curTick)
+        .def("setClockFrequency", &setClockFrequency,
+            "Sets the global tick frequency.\n"
+            "\n"
+            "Sets the internal tick frequency to the specified number of "
+            "ticks per second.\n"
+            "Note: The global clock frequency cannot be changed after it is "
+            "\"fixed.\" A panic will occur if this function is called after "
+            "`fixClockFrequency`.")
+        .def("getClockFrequency", &getClockFrequency,
+            "Returns the number of ticks per second for gem5's internal "
+            "simulation clock.")
+        .def("curTick", curTick,
+            "Returns the current tick since the beginning of simulation.\n"
+            "\n"
+            "This is gem'5 universal simulation clock.")
         ;
 
     /* TODO: These should be read-only */
@@ -274,12 +304,27 @@ pybind_init_core(py::module &m_native)
      * Serialization helpers
      */
     m_core
-        .def("serializeAll", &Serializable::serializeAll)
-        .def("unserializeGlobals", &Serializable::unserializeGlobals)
+        .def("serializeAll", &Serializable::serializeAll,
+            "Creates a checkpoint in the given checkpoint directory.\n"
+            "\n"
+            "Finds all globals and all SimObjects in the simulation and saves "
+            "their current state to the checkpoint directory specified. This "
+            "checkpoint can then be loaded in a new simulation.")
+        .def("unserializeGlobals", &Serializable::unserializeGlobals,
+            "Given a checkpoint file, unserialize the \"globals\"\n"
+            "\n"
+            "The globals in a checkpoint include the current simulation tick "
+            "and the version of the checkpoint. There are loud warnings if "
+            "you try to run this function with a checkpoint scheme version "
+            "which does not match.")
         .def("getCheckpoint", [](const std::string &cpt_dir) {
-            return new CheckpointIn(cpt_dir, pybindSimObjectResolver);
-        })
-
+                return new CheckpointIn(cpt_dir, pybindSimObjectResolver);
+            },
+            "Returns a `CheckpointIn` object given a directory containing a "
+            "checkpoint\n"
+            "\n"
+            "This `CheckpointIn` object can then be used to load every object "
+            "in the *current* simulation context.")
         ;
 
 

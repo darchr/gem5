@@ -142,10 +142,6 @@ registerExitCallback(Callback *callback)
     exitCallbacks().add(callback);
 }
 
-/**
- * Do C++ simulator exit processing.  Exported to Python to be invoked
- * when simulator terminates via Python's atexit mechanism.
- */
 void
 doExitCleanup()
 {

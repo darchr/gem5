@@ -64,6 +64,9 @@ class Logger
         NUM_LOG_LEVELS,
     };
 
+    /**
+     * @group api_python_core
+     */
     static void
     setLevel(LogLevel ll)
     {

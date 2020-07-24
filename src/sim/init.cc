@@ -198,7 +198,13 @@ EmbeddedPyBind::initAll()
 {
     std::list<EmbeddedPyBind *> pending;
 
-    py::module m_m5 = py::module("_m5");
+    py::module m_m5 = py::module("_m5",
+        "Internal gem5 C++ components exposed to Python.\n"
+        "\n"
+        "This module should only be used by internal gem5 Python libraries. "
+        "The APIs and modules contained in _m5 could change at any time. "
+        "The name is _m5 to keep backwards compatibility with all scripts "
+        "from before the m5->gem5 name change.");
     m_m5.attr("__package__") = py::cast("_m5");
 
     pybind_init_core(m_m5);

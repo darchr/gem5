@@ -40,7 +40,9 @@
 #include "base/types.hh"
 #include "sim/eventq.hh"
 
-/// The universal simulation clock.
+/** The universal simulation clock.
+ * @ingroup api_python_core
+ */
 inline Tick curTick() { return _curEventQueue->getCurTick(); }
 
 /// These are variables that are set based on the simulator frequency
@@ -87,6 +89,10 @@ extern Tick ps; ///< picosecond
 } // namespace SimClock
 /** @} */
 
+/**
+ * @ingroup api_python_core
+ * @{
+ */
 void fixClockFrequency();
 bool clockFrequencyFixed();
 
@@ -94,9 +100,17 @@ void setClockFrequency(Tick ticksPerSecond);
 Tick getClockFrequency(); // Ticks per second.
 
 void setOutputDir(const std::string &dir);
+/**@}*/ // end api_python_core
+
 
 class Callback;
 void registerExitCallback(Callback *callback);
+
+/**
+ * Do C++ simulator exit processing.  Exported to Python to be invoked
+ * when simulator terminates via Python's atexit mechanism.
+ * @ingroup api_python_core
+ */
 void doExitCleanup();
 
 #endif /* __SIM_CORE_HH__ */

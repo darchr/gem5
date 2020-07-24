@@ -88,13 +88,17 @@ class Cycles
 
   public:
 
-    /** Explicit constructor assigning a value. */
+    /** Explicit constructor assigning a value.
+     * @ingroup api_python_core
+     */
     explicit constexpr Cycles(uint64_t _c) : c(_c) { }
 
     /** Default constructor for parameter classes. */
     Cycles() : c(0) { }
 
-    /** Converting back to the value type. */
+    /** Converting back to the value type.
+     * @ingroup api_python_core
+     */
     constexpr operator uint64_t() const { return c; }
 
     /** Prefix increment operator. */
@@ -113,9 +117,15 @@ class Cycles
     constexpr bool operator>(const Cycles& cc) const
     { return c > cc.c; }
 
+    /**
+     * @ingroup api_python_core
+     */
     constexpr Cycles operator +(const Cycles& b) const
     { return Cycles(c + b.c); }
 
+    /**
+     * @ingroup api_python_core
+     */
     constexpr Cycles operator -(const Cycles& b) const
     {
         return c >= b.c ? Cycles(c - b.c) :

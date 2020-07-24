@@ -38,10 +38,15 @@ class ListenSocket
     static bool bindToLoopback;
 
   public:
+    /**
+     * @ingroup api_python_core
+     * @{
+     */
     static void disableAll();
     static bool allDisabled();
 
     static void loopbackOnly();
+    /**@}*/ //end of api_python_core
 
   protected:
     bool listening;
