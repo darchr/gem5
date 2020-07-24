@@ -60,7 +60,7 @@ class SlavePort;
 class ResponsePort;
 
 /**
- * A MasterPort is a specialisation of a BaseMasterPort, which
+ * A RequestPort is a specialisation of a Port, which
  * implements the default protocol for the three different level of
  * transport functions. In addition to the basic functionality of
  * sending packets, it also has functions to receive range changes or
@@ -69,24 +69,24 @@ class ResponsePort;
  * The three protocols are atomic, timing, and functional, each with its own
  * header file.
  */
-class MasterPort : public Port, public AtomicRequestProtocol,
+class RequestPort: public Port, public AtomicRequestProtocol,
     public TimingRequestProtocol, public FunctionalRequestProtocol
 {
-    friend class SlavePort;
+    friend class ResponsePort;
 
-  private:
-    SlavePort *_slavePort;
+    private:
+    ResponsePort *_responsePort;
 
   protected:
     SimObject &owner;
 
   public:
-    MasterPort(const std::string& name, SimObject* _owner,
+    RequestPort(const std::string& name, SimObject* _owner,
                PortID id=InvalidPortID);
-    virtual ~MasterPort();
+    virtual ~RequestPort();
 
     /**
-     * Bind this master port to a slave port. This also does the
+     * Bind this request port to a response port. This also does the
      * mirror action and binds the slave port to the master port.
      */
     void bind(Port &peer) override;
@@ -242,6 +242,9 @@ class MasterPort : public Port, public AtomicRequestProtocol,
         panic("%s was not expecting a snoop retry.\n", name());
     }
 };
+
+class MasterPort : public RequestPort
+{};
 
 /**
  * A SlavePort is a specialisation of a port. In addition to the
