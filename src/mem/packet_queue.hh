@@ -57,7 +57,7 @@
 
 /**
  * A packet queue is a class that holds deferred packets and later
- * sends them using the associated slave port or master port.
+ * sends them using the associated response port or request port.
  */
 class PacketQueue : public Drainable
 {
@@ -224,32 +224,32 @@ class ReqPacketQueue : public PacketQueue
 
   protected:
 
-    MasterPort& masterPort;
+    RequestPort& requestPort;
 
     // Static definition so it can be called when constructing the parent
     // without us being completely initialized.
-    static const std::string name(const MasterPort& masterPort,
+    static const std::string name(const RequestPort& requestPort,
                                   const std::string& label)
-    { return masterPort.name() + "-" + label; }
+    { return requestPort.name() + "-" + label; }
 
   public:
 
     /**
      * Create a request packet queue, linked to an event manager, a
-     * master port, and a label that will be used for functional print
+     * request port, and a label that will be used for functional print
      * request packets.
      *
      * @param _em Event manager used for scheduling this queue
-     * @param _masterPort Master port used to send the packets
+     * @param _requestPort Request port used to send the packets
      * @param _label Label to push on the label stack for print request packets
      */
-    ReqPacketQueue(EventManager& _em, MasterPort& _masterPort,
+    ReqPacketQueue(EventManager& _em, RequestPort& _requestPort,
                    const std::string _label = "ReqPacketQueue");
 
     virtual ~ReqPacketQueue() { }
 
     const std::string name() const
-    { return name(masterPort, label); }
+    { return name(requestPort, label); }
 
     bool sendTiming(PacketPtr pkt);
 
@@ -260,34 +260,34 @@ class SnoopRespPacketQueue : public PacketQueue
 
   protected:
 
-    MasterPort& masterPort;
+    RequestPort& requestPort;
 
     // Static definition so it can be called when constructing the parent
     // without us being completely initialized.
-    static const std::string name(const MasterPort& masterPort,
+    static const std::string name(const RequestPort& requestPort,
                                   const std::string& label)
-    { return masterPort.name() + "-" + label; }
+    { return requestPort.name() + "-" + label; }
 
   public:
 
     /**
      * Create a snoop response packet queue, linked to an event
-     * manager, a master port, and a label that will be used for
+     * manager, a request port, and a label that will be used for
      * functional print request packets.
      *
      * @param _em Event manager used for scheduling this queue
-     * @param _masterPort Master port used to send the packets
+     * @param _requestPort Request port used to send the packets
      * @param force_order Force insertion order for packets with same address
      * @param _label Label to push on the label stack for print request packets
      */
-    SnoopRespPacketQueue(EventManager& _em, MasterPort& _masterPort,
+    SnoopRespPacketQueue(EventManager& _em, RequestPort& _requestPort,
                          bool force_order = false,
                          const std::string _label = "SnoopRespPacketQueue");
 
     virtual ~SnoopRespPacketQueue() { }
 
     const std::string name() const
-    { return name(masterPort, label); }
+    { return name(requestPort, label); }
 
     bool sendTiming(PacketPtr pkt);
 
@@ -298,34 +298,34 @@ class RespPacketQueue : public PacketQueue
 
   protected:
 
-    SlavePort& slavePort;
+    ResponsePort& responsePort;
 
     // Static definition so it can be called when constructing the parent
     // without us being completely initialized.
-    static const std::string name(const SlavePort& slavePort,
+    static const std::string name(const ResponsePort& responsePort,
                                   const std::string& label)
-    { return slavePort.name() + "-" + label; }
+    { return responsePort.name() + "-" + label; }
 
   public:
 
     /**
      * Create a response packet queue, linked to an event manager, a
-     * slave port, and a label that will be used for functional print
+     * response port, and a label that will be used for functional print
      * request packets.
      *
      * @param _em Event manager used for scheduling this queue
-     * @param _slavePort Slave port used to send the packets
+     * @param _responsePort Response port used to send the packets
      * @param force_order Force insertion order for packets with same address
      * @param _label Label to push on the label stack for print request packets
      */
-    RespPacketQueue(EventManager& _em, SlavePort& _slavePort,
+    RespPacketQueue(EventManager& _em, ResponsePort& _responsePort,
                     bool force_order = false,
                     const std::string _label = "RespPacketQueue");
 
     virtual ~RespPacketQueue() { }
 
     const std::string name() const
-    { return name(slavePort, label); }
+    { return name(responsePort, label); }
 
     bool sendTiming(PacketPtr pkt);
 

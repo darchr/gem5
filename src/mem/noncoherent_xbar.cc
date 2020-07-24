@@ -53,34 +53,35 @@
 NoncoherentXBar::NoncoherentXBar(const NoncoherentXBarParams *p)
     : BaseXBar(p)
 {
-    // create the ports based on the size of the master and slave
+    // create the ports based on the size of the request and response
     // vector ports, and the presence of the default port, the ports
     // are enumerated starting from zero
-    for (int i = 0; i < p->port_master_connection_count; ++i) {
-        std::string portName = csprintf("%s.master[%d]", name(), i);
-        MasterPort* bp = new NoncoherentXBarMasterPort(portName, *this, i);
-        masterPorts.push_back(bp);
+    for (int i = 0; i < p->port_request_connection_count; ++i) {
+        std::string portName = csprintf("%s.request[%d]", name(), i);
+        RequestPort* bp = new NoncoherentXBarRequestPort(portName, *this, i);
+        requestPorts.push_back(bp);
         reqLayers.push_back(new ReqLayer(*bp, *this,
                                          csprintf("reqLayer%d", i)));
     }
 
-    // see if we have a default slave device connected and if so add
-    // our corresponding master port
+    // see if we have a default response device connected and if so add
+    // our corresponding request port
     if (p->port_default_connection_count) {
-        defaultPortID = masterPorts.size();
+        defaultPortID = requestPorts.size();
         std::string portName = name() + ".default";
-        MasterPort* bp = new NoncoherentXBarMasterPort(portName, *this,
+        RequestPort* bp = new NoncoherentXBarRequestPort(portName, *this,
                                                       defaultPortID);
-        masterPorts.push_back(bp);
+        requestPorts.push_back(bp);
         reqLayers.push_back(new ReqLayer(*bp, *this, csprintf("reqLayer%d",
                                                               defaultPortID)));
     }
 
-    // create the slave ports, once again starting at zero
-    for (int i = 0; i < p->port_slave_connection_count; ++i) {
-        std::string portName = csprintf("%s.slave[%d]", name(), i);
-        QueuedSlavePort* bp = new NoncoherentXBarSlavePort(portName, *this, i);
-        slavePorts.push_back(bp);
+    // create the response ports, once again starting at zero
+    for (int i = 0; i < p->port_response_connection_count; ++i) {
+        std::string portName = csprintf("%s.response[%d]", name(), i);
+        QueuedResponsePort* bp = new
+        NoncoherentXBarResponsePort(portName, *this, i);
+        responsePorts.push_back(bp);
         respLayers.push_back(new RespLayer(*bp, *this,
                                            csprintf("respLayer%d", i)));
     }
@@ -98,7 +99,7 @@ bool
 NoncoherentXBar::recvTimingReq(PacketPtr pkt, PortID slave_port_id)
 {
     // determine the source port based on the id
-    SlavePort *src_port = slavePorts[slave_port_id];
+    ResponsePort *src_port = responsePorts[slave_port_id];
 
     // we should never see express snoops on a non-coherent crossbar
     assert(!pkt->isExpressSnoop());
@@ -140,7 +141,7 @@ NoncoherentXBar::recvTimingReq(PacketPtr pkt, PortID slave_port_id)
         !pkt->cacheResponding();
 
     // since it is a normal request, attempt to send the packet
-    bool success = masterPorts[master_port_id]->sendTimingReq(pkt);
+    bool success = requestPorts[master_port_id]->sendTimingReq(pkt);
 
     if (!success)  {
         DPRINTF(NoncoherentXBar, "recvTimingReq: src %s %s 0x%x RETRY\n",
@@ -150,7 +151,7 @@ NoncoherentXBar::recvTimingReq(PacketPtr pkt, PortID slave_port_id)
         pkt->headerDelay = old_header_delay;
 
         // occupy until the header is sent
-        reqLayers[master_port_id]->failedTiming(src_port,
+        reqLayers[request_port_id]->failedTiming(src_port,
                                                 clockEdge(Cycles(1)));
 
         return false;
@@ -176,7 +177,7 @@ bool
 NoncoherentXBar::recvTimingResp(PacketPtr pkt, PortID master_port_id)
 {
     // determine the source port based on the id
-    MasterPort *src_port = masterPorts[master_port_id];
+    RequestPort *src_port = requestPorts[master_port_id];
 
     // determine the destination
     const auto route_lookup = routeTo.find(pkt->req);
@@ -210,11 +211,11 @@ NoncoherentXBar::recvTimingResp(PacketPtr pkt, PortID master_port_id)
     // determine how long to be crossbar layer is busy
     Tick packetFinishTime = clockEdge(Cycles(1)) + pkt->payloadDelay;
 
-    // send the packet through the destination slave port, and pay for
+    // send the packet through the destination response port, and pay for
     // any outstanding latency
     Tick latency = pkt->headerDelay;
     pkt->headerDelay = 0;
-    slavePorts[slave_port_id]->schedTimingResp(pkt, curTick() + latency);
+    responsePorts[slave_port_id]->schedTimingResp(pkt, curTick() + latency);
 
     // remove the request from the routing table
     routeTo.erase(route_lookup);
@@ -243,7 +244,7 @@ NoncoherentXBar::recvAtomicBackdoor(PacketPtr pkt, PortID slave_port_id,
                                     MemBackdoorPtr *backdoor)
 {
     DPRINTF(NoncoherentXBar, "recvAtomic: packet src %s addr 0x%x cmd %s\n",
-            slavePorts[slave_port_id]->name(), pkt->getAddr(),
+            responsePorts[slave_port_id]->name(), pkt->getAddr(),
             pkt->cmdString());
 
     unsigned int pkt_size = pkt->hasData() ? pkt->getSize() : 0;
@@ -258,9 +259,9 @@ NoncoherentXBar::recvAtomicBackdoor(PacketPtr pkt, PortID slave_port_id,
     transDist[pkt_cmd]++;
 
     // forward the request to the appropriate destination
-    auto master = masterPorts[master_port_id];
+    auto request = requestPorts[master_port_id];
     Tick response_latency = backdoor ?
-        master->sendAtomicBackdoor(pkt, *backdoor) : master->sendAtomic(pkt);
+        request->sendAtomicBackdoor(pkt, *backdoor) : request->sendAtomic(pkt);
 
     // add the response data
     if (pkt->isResponse()) {
@@ -285,12 +286,12 @@ NoncoherentXBar::recvFunctional(PacketPtr pkt, PortID slave_port_id)
         // don't do DPRINTFs on PrintReq as it clutters up the output
         DPRINTF(NoncoherentXBar,
                 "recvFunctional: packet src %s addr 0x%x cmd %s\n",
-                slavePorts[slave_port_id]->name(), pkt->getAddr(),
+                responsePorts[slave_port_id]->name(), pkt->getAddr(),
                 pkt->cmdString());
     }
 
-    // since our slave ports are queued ports we need to check them as well
-    for (const auto& p : slavePorts) {
+    // since our response ports are queued ports we need to check them as well
+    for (const auto& p : responsePorts) {
         // if we find a response that has the data, then the
         // downstream caches/memories may be out of date, so simply stop
         // here
@@ -305,7 +306,7 @@ NoncoherentXBar::recvFunctional(PacketPtr pkt, PortID slave_port_id)
     PortID dest_id = findPort(pkt->getAddrRange());
 
     // forward the request to the appropriate destination
-    masterPorts[dest_id]->sendFunctional(pkt);
+    requestPorts[dest_id]->sendFunctional(pkt);
 }
 
 NoncoherentXBar*
