@@ -145,54 +145,54 @@ AbstractMemory::MemStats::regStats()
 
     System *sys = mem.system();
     assert(sys);
-    const auto max_masters = sys->maxMasters();
+    const auto max_requestors = sys->maxRequestors();
 
     bytesRead
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
-        bytesRead.subname(i, sys->getMasterName(i));
+    for (int i = 0; i < max_requestors; i++) {
+        bytesRead.subname(i, sys->getRequestorName(i));
     }
 
     bytesInstRead
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
-        bytesInstRead.subname(i, sys->getMasterName(i));
+    for (int i = 0; i < max_requestors; i++) {
+        bytesInstRead.subname(i, sys->getRequestorName(i));
     }
 
     bytesWritten
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
-        bytesWritten.subname(i, sys->getMasterName(i));
+    for (int i = 0; i < max_requestors; i++) {
+        bytesWritten.subname(i, sys->getRequestorName(i));
     }
 
     numReads
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
-        numReads.subname(i, sys->getMasterName(i));
+    for (int i = 0; i < max_requestors; i++) {
+        numReads.subname(i, sys->getRequestorName(i));
     }
 
     numWrites
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
-        numWrites.subname(i, sys->getMasterName(i));
+    for (int i = 0; i < max_requestors; i++) {
+        numWrites.subname(i, sys->getRequestorName(i));
     }
 
     numOther
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
-        numOther.subname(i, sys->getMasterName(i));
+    for (int i = 0; i < max_requestors; i++) {
+        numOther.subname(i, sys->getRequestorName(i));
     }
 
     bwRead
@@ -200,8 +200,8 @@ AbstractMemory::MemStats::regStats()
         .prereq(bytesRead)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
-        bwRead.subname(i, sys->getMasterName(i));
+    for (int i = 0; i < max_requestors; i++) {
+        bwRead.subname(i, sys->getRequestorName(i));
     }
 
     bwInstRead
@@ -209,8 +209,8 @@ AbstractMemory::MemStats::regStats()
         .prereq(bytesInstRead)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
-        bwInstRead.subname(i, sys->getMasterName(i));
+    for (int i = 0; i < max_requestors; i++) {
+        bwInstRead.subname(i, sys->getRequestorName(i));
     }
 
     bwWrite
@@ -218,8 +218,8 @@ AbstractMemory::MemStats::regStats()
         .prereq(bytesWritten)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
-        bwWrite.subname(i, sys->getMasterName(i));
+    for (int i = 0; i < max_requestors; i++) {
+        bwWrite.subname(i, sys->getRequestorName(i));
     }
 
     bwTotal
@@ -227,8 +227,8 @@ AbstractMemory::MemStats::regStats()
         .prereq(bwTotal)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
-        bwTotal.subname(i, sys->getMasterName(i));
+    for (int i = 0; i < max_requestors; i++) {
+        bwTotal.subname(i, sys->getRequestorName(i));
     }
 
     bwRead = bytesRead / simSeconds;
@@ -349,14 +349,15 @@ tracePacket(System *sys, const char *label, PacketPtr pkt)
 #if THE_ISA != NULL_ISA
     if (size == 1 || size == 2 || size == 4 || size == 8) {
         DPRINTF(MemoryAccess,"%s from %s of size %i on address %#x data "
-                "%#x %c\n", label, sys->getMasterName(pkt->req->masterId()),
+                "%#x %c\n", label, sys->getRequestorName(pkt->
+                                                    req->requestorId()),
                 size, pkt->getAddr(), pkt->getUintX(TheISA::GuestByteOrder),
                 pkt->req->isUncacheable() ? 'U' : 'C');
         return;
     }
 #endif
     DPRINTF(MemoryAccess, "%s from %s of size %i on address %#x %c\n",
-            label, sys->getMasterName(pkt->req->masterId()),
+            label, sys->getRequestorName(pkt->req->requestorId()),
             size, pkt->getAddr(), pkt->req->isUncacheable() ? 'U' : 'C');
     DDUMP(MemoryAccess, pkt->getConstPtr<uint8_t>(), pkt->getSize());
 }
@@ -423,7 +424,7 @@ AbstractMemory::access(PacketPtr pkt)
 
             assert(!pkt->req->isInstFetch());
             TRACE_PACKET("Read/Write");
-            stats.numOther[pkt->req->masterId()]++;
+            stats.numOther[pkt->req->requestorId()]++;
         }
     } else if (pkt->isRead()) {
         assert(!pkt->isWrite());
@@ -437,10 +438,10 @@ AbstractMemory::access(PacketPtr pkt)
             pkt->setData(host_addr);
         }
         TRACE_PACKET(pkt->req->isInstFetch() ? "IFetch" : "Read");
-        stats.numReads[pkt->req->masterId()]++;
-        stats.bytesRead[pkt->req->masterId()] += pkt->getSize();
+        stats.numReads[pkt->req->requestorId()]++;
+        stats.bytesRead[pkt->req->requestorId()] += pkt->getSize();
         if (pkt->req->isInstFetch())
-            stats.bytesInstRead[pkt->req->masterId()] += pkt->getSize();
+            stats.bytesInstRead[pkt->req->requestorId()] += pkt->getSize();
     } else if (pkt->isInvalidate() || pkt->isClean()) {
         assert(!pkt->isWrite());
         // in a fastmem system invalidating and/or cleaning packets
@@ -456,8 +457,8 @@ AbstractMemory::access(PacketPtr pkt)
             }
             assert(!pkt->req->isInstFetch());
             TRACE_PACKET("Write");
-            stats.numWrites[pkt->req->masterId()]++;
-            stats.bytesWritten[pkt->req->masterId()] += pkt->getSize();
+            stats.numWrites[pkt->req->requestorId()]++;
+            stats.bytesWritten[pkt->req->requestorId()] += pkt->getSize();
         }
     } else {
         panic("Unexpected packet %s", pkt->print());

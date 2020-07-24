@@ -53,8 +53,8 @@
  * The external port must provide a gem5 RequestPort interface.
  */
 
-#ifndef __MEM_EXTERNAL_MASTER_HH__
-#define __MEM_EXTERNAL_MASTER_HH__
+#ifndef __MEM_EXTERNAL_Requestor_HH__
+#define __MEM_EXTERNAL_Requestor_HH__
 
 #include "mem/port.hh"
 #include "params/ExternalRequestor.hh"
@@ -128,8 +128,8 @@ class ExternalRequestor : public SimObject
 
     void init() override;
 
-    const MasterID masterId;
+    const RequestorID requestorId;
 };
 
 
-#endif //__MEM_EXTERNAL_MASTER_HH__
+#endif //__MEM_EXTERNAL_Requestor_HH__

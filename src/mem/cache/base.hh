@@ -79,7 +79,7 @@ namespace Prefetcher {
     class Base;
 }
 class MSHR;
-class MasterPort;
+class RequestPort;
 class QueueEntry;
 struct BaseCacheParams;
 
@@ -111,7 +111,7 @@ class BaseCache : public ClockedObject
   protected:
 
     /**
-     * A cache master port is used for the memory-side port of the
+     * A cache requestor port is used for the memory-side port of the
      * cache, and in addition to the basic timing port that only sends
      * response packets through a transmit list, it also offers the
      * ability to schedule and send request packets (requests &
@@ -119,7 +119,7 @@ class BaseCache : public ClockedObject
      * and the sendDeferredPacket of the timing port is modified to
      * consider both the transmit list and the requests from the MSHR.
      */
-    class CacheMasterPort : public QueuedMasterPort
+    class CacheRequestPort : public QueuedRequestPort
     {
 
       public:
@@ -136,10 +136,10 @@ class BaseCache : public ClockedObject
 
       protected:
 
-        CacheMasterPort(const std::string &_name, BaseCache *_cache,
+        CacheRequestPort(const std::string &_name, BaseCache *_cache,
                         ReqPacketQueue &_reqQueue,
                         SnoopRespPacketQueue &_snoopRespQueue) :
-            QueuedMasterPort(_name, _cache, _reqQueue, _snoopRespQueue)
+            QueuedRequestPort(_name, _cache, _reqQueue, _snoopRespQueue)
         { }
 
         /**
@@ -166,7 +166,7 @@ class BaseCache : public ClockedObject
 
       public:
 
-        CacheReqPacketQueue(BaseCache &cache, MasterPort &port,
+        CacheReqPacketQueue(BaseCache &cache, RequestPort &port,
                             SnoopRespPacketQueue &snoop_resp_queue,
                             const std::string &label) :
             ReqPacketQueue(cache, port, label), cache(cache),
@@ -202,10 +202,10 @@ class BaseCache : public ClockedObject
 
 
     /**
-     * The memory-side port extends the base cache master port with
+     * The memory-side port extends the base cache requestor port with
      * access functions for functional, atomic and timing snoops.
      */
-    class MemSidePort : public CacheMasterPort
+    class MemSidePort : public CacheRequestPort
     {
       private:
 
@@ -236,7 +236,7 @@ class BaseCache : public ClockedObject
     /**
      * A cache slave port is used for the CPU-side port of the cache,
      * and it is basically a simple timing port that uses a transmit
-     * list for responses to the CPU (or connected master). In
+     * list for responses to the CPU (or connected requestor). In
      * addition, it has the functionality to block the port for
      * incoming requests. If blocked, the port will issue a retry once
      * unblocked.
@@ -1219,8 +1219,8 @@ class BaseCache : public ClockedObject
 
     void incMissCount(PacketPtr pkt)
     {
-        assert(pkt->req->masterId() < system->maxMasters());
-        stats.cmdStats(pkt).misses[pkt->req->masterId()]++;
+        assert(pkt->req->requestorId() < system->maxRequestors());
+        stats.cmdStats(pkt).misses[pkt->req->requestorId()]++;
         pkt->req->incAccessDepth();
         if (missCount) {
             --missCount;
@@ -1230,8 +1230,8 @@ class BaseCache : public ClockedObject
     }
     void incHitCount(PacketPtr pkt)
     {
-        assert(pkt->req->masterId() < system->maxMasters());
-        stats.cmdStats(pkt).hits[pkt->req->masterId()]++;
+        assert(pkt->req->requestorId() < system->maxRequestors());
+        stats.cmdStats(pkt).hits[pkt->req->requestorId()]++;
     }
 
     /**

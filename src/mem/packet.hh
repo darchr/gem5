@@ -706,7 +706,7 @@ class Packet : public Printable
     inline void qosValue(const uint8_t qos_value)
     { _qosValue = qos_value; }
 
-    inline MasterID masterId() const { return req->masterId(); }
+    inline RequestorID requestorId() const { return req->requestorId(); }
 
     // Network error conditions... encapsulate them as methods since
     // their encoding keeps changing (from result field to command

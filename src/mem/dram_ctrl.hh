@@ -617,8 +617,8 @@ class DRAMCtrl : public QoS::MemCtrl
         /** This comes from the outside world */
         const PacketPtr pkt;
 
-        /** MasterID associated with the packet */
-        const MasterID _masterId;
+        /** RequestorID associated with the packet */
+        const RequestorID _requestorId;
 
         const bool read;
 
@@ -674,10 +674,10 @@ class DRAMCtrl : public QoS::MemCtrl
         inline uint8_t qosValue() const { return _qosValue; }
 
         /**
-         * Get the packet MasterID
+         * Get the packet RequestorID
          * (interface compatibility with Packet)
          */
-        inline MasterID masterId() const { return _masterId; }
+        inline RequestorID requestorId() const { return _requestorId; }
 
         /**
          * Get the packet size
@@ -708,7 +708,7 @@ class DRAMCtrl : public QoS::MemCtrl
                    uint32_t _row, uint16_t bank_id, Addr _addr,
                    unsigned int _size, Bank& bank_ref, Rank& rank_ref)
             : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
-              _masterId(pkt->masterId()),
+              _requestorId(pkt->requestorId()),
               read(is_read), rank(_rank), bank(_bank), row(_row),
               bankId(bank_id), addr(_addr), size(_size), burstHelper(NULL),
               bankRef(bank_ref), rankRef(rank_ref), _qosValue(_pkt->qosValue())
@@ -1183,7 +1183,11 @@ class DRAMCtrl : public QoS::MemCtrl
         Stats::Vector requestorReadTotalLat;
         Stats::Vector requestorWriteTotalLat;
 
+<<<<<<< HEAD
         // per-requestor raed and write average memory access latency
+=======
+        // per-requestor read and write average memory access latency
+>>>>>>> shivani/reqresp
         Stats::Formula requestorReadAvgLat;
         Stats::Formula requestorWriteAvgLat;
 
