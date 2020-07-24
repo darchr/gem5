@@ -50,13 +50,13 @@
 #include "params/NoncoherentXBar.hh"
 
 /**
- * A non-coherent crossbar connects a number of non-snooping masters
- * and slaves, and routes the request and response packets based on
- * the address. The request packets issued by the master connected to
+ * A non-coherent crossbar connects a number of non-snooping requests
+ * and responses, and routes the request and response packets based on
+ * the address. The request packets issued by the request connected to
  * a non-coherent crossbar could still snoop in caches attached to a
  * coherent crossbar, as is the case with the I/O bus and memory bus
  * in most system configurations. No snoops will, however, reach any
- * master on the non-coherent crossbar itself.
+ * request on the non-coherent crossbar itself.
  *
  * The non-coherent crossbar can be used as a template for modelling
  * PCIe, and non-coherent AMBA and OCP buses, and is typically used
@@ -75,11 +75,11 @@ class NoncoherentXBar : public BaseXBar
     std::vector<RespLayer*> respLayers;
 
     /**
-     * Declaration of the non-coherent crossbar slave port type, one
-     * will be instantiated for each of the master ports connecting to
+     * Declaration of the non-coherent crossbar response port type, one
+     * will be instantiated for each of the request ports connecting to
      * the crossbar.
      */
-    class NoncoherentXBarSlavePort : public QueuedSlavePort
+    class NoncoherentXBarResponsePort : public QueuedResponsePort
     {
       private:
 
@@ -91,9 +91,9 @@ class NoncoherentXBar : public BaseXBar
 
       public:
 
-        NoncoherentXBarSlavePort(const std::string &_name,
+        NoncoherentXBarResponsePort(const std::string &_name,
                                 NoncoherentXBar &_xbar, PortID _id)
-            : QueuedSlavePort(_name, &_xbar, queue, _id), xbar(_xbar),
+            : QueuedResponsePort(_name, &_xbar, queue, _id), xbar(_xbar),
               queue(_xbar, *this)
         { }
 
@@ -131,11 +131,11 @@ class NoncoherentXBar : public BaseXBar
     };
 
     /**
-     * Declaration of the crossbar master port type, one will be
-     * instantiated for each of the slave ports connecting to the
+     * Declaration of the crossbar request port type, one will be
+     * instantiated for each of the response ports connecting to the
      * crossbar.
      */
-    class NoncoherentXBarMasterPort : public MasterPort
+    class NoncoherentXBarRequestPort : public RequestPort
     {
       private:
 
@@ -144,9 +144,9 @@ class NoncoherentXBar : public BaseXBar
 
       public:
 
-        NoncoherentXBarMasterPort(const std::string &_name,
+        NoncoherentXBarRequestPort(const std::string &_name,
                                  NoncoherentXBar &_xbar, PortID _id)
-            : MasterPort(_name, &_xbar, _id), xbar(_xbar)
+            : RequestPort(_name, &_xbar, _id), xbar(_xbar)
         { }
 
       protected:
