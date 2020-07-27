@@ -2019,7 +2019,7 @@ ISA::setMiscReg(int misc_reg, RegVal val)
                    miscRegName[misc_reg]);
 
               auto req = std::make_shared<Request>(
-                  val, 0, flags,  Request::funcMasterId,
+                  val, 0, flags,  Request::funcRequestorId,
                   tc->pcState().pc(), tc->contextId());
 
               fault = getDTBPtr(tc)->translateFunctional(
@@ -2286,7 +2286,7 @@ ISA::setMiscReg(int misc_reg, RegVal val)
                 warn("Translating via %s in functional mode! Fix Me!\n",
                      miscRegName[misc_reg]);
 
-                req->setVirt(val, 0, flags,  Request::funcMasterId,
+                req->setVirt(val, 0, flags,  Request::funcRequestorId,
                              tc->pcState().pc());
                 req->setContext(tc->contextId());
                 fault = getDTBPtr(tc)->translateFunctional(req, tc, mode,
