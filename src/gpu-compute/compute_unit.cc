@@ -94,7 +94,7 @@ ComputeUnit::ComputeUnit(const Params *p) : ClockedObject(p),
     countPages(p->countPages),
     req_tick_latency(p->mem_req_latency * p->clk_domain->clockPeriod()),
     resp_tick_latency(p->mem_resp_latency * p->clk_domain->clockPeriod()),
-    _masterId(p->system->getMasterId(this, "ComputeUnit")),
+    _requestorId(p->system->getRequestorId(this, "ComputeUnit")),
     lds(*p->localDataStore), gmTokenPort(name() + ".gmTokenPort", this),
     _cacheLineSize(p->system->cacheLineSize()),
     _numBarrierSlots(p->num_barrier_slots),
@@ -171,7 +171,7 @@ ComputeUnit::ComputeUnit(const Params *p) : ClockedObject(p),
 
     memPort.resize(wfSize());
 
-    // Setup tokens for slave ports. The number of tokens in memSlaveTokens
+    // Setup tokens for response ports. The number of tokens in memSlaveTokens
     // is the total token count for the entire vector port (i.e., this CU).
     memPortTokens = new TokenManager(p->max_cu_tokens);
 
@@ -1230,7 +1230,7 @@ ComputeUnit::injectGlobalMemFence(GPUDynInstPtr gpuDynInst,
 
     if (!req) {
         req = std::make_shared<Request>(
-            0, 0, 0, masterId(), 0, gpuDynInst->wfDynId);
+            0, 0, 0, requestorId(), 0, gpuDynInst->wfDynId);
     }
 
     // all mem sync requests have Paddr == 0
@@ -1495,7 +1495,7 @@ ComputeUnit::DTLBPort::recvTimingResp(PacketPtr pkt)
             RequestPtr prefetch_req = std::make_shared<Request>(
                 vaddr + stride * pf * TheISA::PageBytes,
                 sizeof(uint8_t), 0,
-                computeUnit->masterId(),
+                computeUnit->requestorId(),
                 0, 0, nullptr);
 
             PacketPtr prefetch_pkt = new Packet(prefetch_req, requestCmd);
@@ -1523,7 +1523,7 @@ ComputeUnit::DTLBPort::recvTimingResp(PacketPtr pkt)
     }
 
     // First we must convert the response cmd back to a request cmd so that
-    // the request can be sent through the cu's master port
+    // the request can be sent through the cu's request port
     PacketPtr new_pkt = new Packet(pkt->req, requestCmd);
     new_pkt->dataStatic(pkt->getPtr<uint8_t>());
     delete pkt->senderState;
@@ -1746,7 +1746,7 @@ ComputeUnit::ITLBPort::recvTimingResp(PacketPtr pkt)
     if (success) {
         // pkt is reused in fetch(), don't delete it here.  However, we must
         // reset the command to be a request so that it can be sent through
-        // the cu's master port
+        // the cu's request port
         assert(pkt->cmd == MemCmd::ReadResp);
         pkt->cmd = MemCmd::ReadReq;
 
@@ -2593,7 +2593,7 @@ ComputeUnit::LDSPort::sendTimingReq(PacketPtr pkt)
                         computeUnit->cu_id, gpuDynInst->simdId,
                         gpuDynInst->wfSlotId);
         return false;
-    } else if (!MasterPort::sendTimingReq(pkt)) {
+    } else if (!RequestPort::sendTimingReq(pkt)) {
         // need to stall the LDS port until a recvReqRetry() is received
         // this indicates that there is more space
         stallPort();
@@ -2637,7 +2637,7 @@ ComputeUnit::LDSPort::recvReqRetry()
 
         DPRINTF(GPUPort, "CU%d: retrying LDS send\n", computeUnit->cu_id);
 
-        if (!MasterPort::sendTimingReq(packet)) {
+        if (!RequestPort::sendTimingReq(packet)) {
             // Stall port
             stallPort();
             DPRINTF(GPUPort, ": LDS send failed again\n");

@@ -4,9 +4,9 @@ specifically, it creates a .so that wraps the libgem5_*.so library. At a
 high level, this allows memory traffic to pass between the two simulators.
 SST Links are roughly analogous to gem5 Ports, although Links do not have
 a notion of master and slave. This distinction is important to gem5, so
-when connecting a gem5 CPU to an SST cache, an ExternalSlave must be used,
+when connecting a gem5 CPU to an SST cache, an ExternalResponder must be used,
 and similarly when connecting the memory side of SST cache to a gem5 port
-(for memory <-> I/O), an ExternalMaster must be used.
+(for memory <-> I/O), an ExternalRequestormust be used.
 
 The connector handles the administrative aspects of gem5
 (initialization, simulation, shutdown) as well as translating
@@ -50,13 +50,13 @@ This directory provides:
    (sst/elements/memHierarchy stuff - caches, memories, etc.)
    This lets gem5 receive packets from SST, as in
    an SST LL$ (a master external to gem5) <-> I/O devices.
-3. a class that implements gem5's "ExternalSlave" interface to connect with
+3. a class that implements gem5's "ExternalResponder" interface to connect with
    SST "Link"s exchanging "memEvents" once again with the packet flow reversed:
    gem5 CPU <-> SST L1 cache (a slave external to gem5)
 4. an example configuration that uses both as follows:
    gem5 CPUs
        ^
-       | [ExternalSlave]
+       | [ExternalResponder]
        v
    SST cache hierarchy <-> SST memory
        ^

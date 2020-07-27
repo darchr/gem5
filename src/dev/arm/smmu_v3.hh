@@ -85,13 +85,13 @@ class SMMUv3 : public ClockedObject
     friend class SMMUProcess;
     friend class SMMUTranslationProcess;
     friend class SMMUCommandExecProcess;
-    friend class SMMUv3SlaveInterface;
+    friend class SMMUv3ResponseInterface;
 
     const System &system;
-    const MasterID masterId;
+    const RequestorID requestorId;
 
-    SMMUMasterPort    masterPort;
-    SMMUMasterTableWalkPort masterTableWalkPort;
+    SMMURequestPort    requestPort;
+    SMMURequestTableWalkPort requestTableWalkPort;
     SMMUControlPort   controlPort;
 
     ARMArchTLB  tlb;
@@ -108,7 +108,7 @@ class SMMUv3 : public ClockedObject
     const bool walkCacheNonfinalEnable;
     const unsigned walkCacheS1Levels;
     const unsigned walkCacheS2Levels;
-    const unsigned masterPortWidth; // in bytes
+    const unsigned requestPortWidth; // in bytes
 
     SMMUSemaphore tlbSem;
     SMMUSemaphore ifcSmmuSem;
@@ -116,7 +116,7 @@ class SMMUv3 : public ClockedObject
     SMMUSemaphore configSem;
     SMMUSemaphore ipaSem;
     SMMUSemaphore walkSem;
-    SMMUSemaphore masterPortSem;
+    SMMUSemaphore requestPortSem;
 
     SMMUSemaphore transSem; // max N transactions in SMMU
     SMMUSemaphore ptwSem; // max N concurrent PTWs
@@ -138,7 +138,7 @@ class SMMUv3 : public ClockedObject
     Stats::Distribution translationTimeDist;
     Stats::Distribution ptwTimeDist;
 
-    std::vector<SMMUv3SlaveInterface *> slaveInterfaces;
+    std::vector<SMMUv3ResponseInterface *> responseInterfaces;
 
     SMMUCommandExecProcess commandExecutor;
 
@@ -151,7 +151,7 @@ class SMMUv3 : public ClockedObject
     std::queue<SMMUAction> packetsTableWalkToRetry;
 
 
-    void scheduleSlaveRetries();
+    void scheduleResponseRetries();
 
     SMMUAction runProcess(SMMUProcess *proc, PacketPtr pkt);
     SMMUAction runProcessAtomic(SMMUProcess *proc, PacketPtr pkt);
@@ -171,13 +171,13 @@ class SMMUv3 : public ClockedObject
     virtual void init() override;
     virtual void regStats() override;
 
-    Tick slaveRecvAtomic(PacketPtr pkt, PortID id);
-    bool slaveRecvTimingReq(PacketPtr pkt, PortID id);
-    bool masterRecvTimingResp(PacketPtr pkt);
-    void masterRecvReqRetry();
+    Tick responseRecvAtomic(PacketPtr pkt, PortID id);
+    bool responseRecvTimingReq(PacketPtr pkt, PortID id);
+    bool requestRecvTimingResp(PacketPtr pkt);
+    void requestRecvReqRetry();
 
-    bool masterTableWalkRecvTimingResp(PacketPtr pkt);
-    void masterTableWalkRecvReqRetry();
+    bool requestTableWalkRecvTimingResp(PacketPtr pkt);
+    void requestTableWalkRecvReqRetry();
 
     Tick readControl(PacketPtr pkt);
     Tick writeControl(PacketPtr pkt);

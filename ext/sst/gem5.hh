@@ -60,7 +60,7 @@ namespace SST {
 namespace gem5 {
 
 class gem5Component : public SST::Component,
-                      public ExternalSlave::Handler,
+                      public ExternalResponder::Handler,
                       public ExternalMaster::Handler {
 private:
 
@@ -84,11 +84,11 @@ public:
     bool clockTick(Cycle_t);
 
     virtual ExternalMaster::Port *getExternalPort(
-        const std::string &name, ExternalMaster &owner,
+        const std::string &name, ExternalRequestor&owner,
         const std::string &port_data);
 
-    virtual ExternalSlave::Port *getExternalPort(
-        const std::string &name, ExternalSlave &owner,
+    virtual ExternalResponder::Port *getExternalPort(
+        const std::string &name, ExternalResponder &owner,
         const std::string &port_data);
 };
 
