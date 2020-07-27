@@ -59,7 +59,7 @@ system.clk_domain = SrcClockDomain(clock = '1.5GHz',
     voltage_domain = VoltageDomain(voltage = '1V'))
 
 # Create a external TLM port:
-system.tlm = ExternalSlave()
+system.tlm = ExternalResponder()
 system.tlm.addr_ranges = [AddrRange('512MB')]
 system.tlm.port_type = "tlm_slave"
 system.tlm.port_data = "transactor"

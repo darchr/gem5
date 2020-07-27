@@ -89,7 +89,7 @@ class TlmToGem5Bridge : public TlmToGem5BridgeBase
         TlmSenderState(tlm::tlm_generic_payload &trans) : trans(trans) {}
     };
 
-    class BridgeMasterPort : public MasterPort
+    class BridgeRequestPort : public RequestPort
     {
       protected:
         TlmToGem5Bridge<BITWIDTH> &bridge;
@@ -103,9 +103,9 @@ class TlmToGem5Bridge : public TlmToGem5BridgeBase
         void recvRangeChange() override { bridge.recvRangeChange(); }
 
       public:
-        BridgeMasterPort(const std::string &name_,
+        BridgeRequestPort(const std::string &name_,
                          TlmToGem5Bridge<BITWIDTH> &bridge_) :
-            MasterPort(name_, nullptr), bridge(bridge_)
+            RequestPort(name_, nullptr), bridge(bridge_)
         {}
     };
 
@@ -119,7 +119,7 @@ class TlmToGem5Bridge : public TlmToGem5BridgeBase
 
     bool responseInProgress;
 
-    BridgeMasterPort bmp;
+    BridgeRequestPort bmp;
     tlm_utils::simple_target_socket<
         TlmToGem5Bridge<BITWIDTH>, BITWIDTH> socket;
     sc_gem5::TlmTargetWrapper<BITWIDTH> wrapper;

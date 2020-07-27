@@ -315,7 +315,7 @@ def makeArmSystem(mem_mode, machine_type, num_cpus=1, mdesc=None,
         self.external_io.port = self.iobus.slave
 
         # Ensure iocache only receives traffic destined for (actual) memory.
-        self.iocache = ExternalSlave(port_data="iocache",
+        self.iocache = ExternalResponder(port_data="iocache",
                                      port_type=external_memory,
                                      addr_ranges=self.mem_ranges)
         self.iocache.port = self.iobus.master

@@ -55,7 +55,7 @@
 #include "cpu/base.hh"
 #include "cpu/pc_event.hh"
 #include "enums/MemoryMode.hh"
-#include "mem/mem_master.hh"
+#include "mem/mem_requestor.hh"
 #include "mem/physical.hh"
 #include "mem/port.hh"
 #include "mem/port_proxy.hh"
@@ -76,10 +76,10 @@ class System : public SimObject, public PCEventScope
 
     /**
      * Private class for the system port which is only used as a
-     * master for debug access and for non-structural entities that do
+     * requestor for debug access and for non-structural entities that do
      * not have a port of their own.
      */
-    class SystemPort : public MasterPort
+    class SystemPort : public RequestPort
     {
       public:
 
@@ -87,7 +87,7 @@ class System : public SimObject, public PCEventScope
          * Create a system port with a name and an owner.
          */
         SystemPort(const std::string &_name, SimObject *_owner)
-            : MasterPort(_name, _owner)
+            : RequestPort(_name, _owner)
         { }
         bool recvTimingResp(PacketPtr pkt) override
         { panic("SystemPort does not receive timing!\n"); return false; }
@@ -237,7 +237,7 @@ class System : public SimObject, public PCEventScope
      *
      * @return a reference to the system port we own
      */
-    MasterPort& getSystemPort() { return _systemPort; }
+    RequestPort& getSystemPort() { return _systemPort; }
 
     /**
      * Additional function to return the Port of a memory object.
@@ -424,71 +424,71 @@ class System : public SimObject, public PCEventScope
     uint32_t numWorkIds;
 
     /** This array is a per-system list of all devices capable of issuing a
-     * memory system request and an associated string for each master id.
-     * It's used to uniquely id any master in the system by name for things
+     * memory system request and an associated string for each requestor id.
+     * It's used to uniquely id any requestor in the system by name for things
      * like cache statistics.
      */
-    std::vector<MasterInfo> masters;
+    std::vector<RequestorInfo> requestors;
 
     ThermalModel * thermalModel;
 
   protected:
     /**
-     * Strips off the system name from a master name
+     * Strips off the system name from a requestor name
      */
-    std::string stripSystemName(const std::string& master_name) const;
+    std::string stripSystemName(const std::string& requestor_name) const;
 
   public:
 
     /**
      * Request an id used to create a request object in the system. All objects
      * that intend to issues requests into the memory system must request an id
-     * in the init() phase of startup. All master ids must be fixed by the
+     * in the init() phase of startup. All requestor ids must be fixed by the
      * regStats() phase that immediately precedes it. This allows objects in
-     * the memory system to understand how many masters may exist and
-     * appropriately name the bins of their per-master stats before the stats
-     * are finalized.
+     * the memory system to understand how many requestors may exist and
+     * appropriately name the bins of their per-requestor stats before the
+     * stats are finalized.
      *
      * Registers a RequestorID:
      * This method takes two parameters, one of which is optional.
-     * The first one is the master object, and it is compulsory; in case
-     * a object has multiple (sub)masters, a second parameter must be
-     * provided and it contains the name of the submaster. The method will
-     * create a master's name by concatenating the SimObject name with the
-     * eventual submaster string, separated by a dot.
+     * The first one is the requestor object, and it is compulsory; in case
+     * a object has multiple (sub)requestors, a second parameter must be
+     * provided and it contains the name of the subrequestor. The method will
+     * create a requestor's name by concatenating the SimObject name with the
+     * eventual subrequestor string, separated by a dot.
      *
      * As an example:
-     * For a cpu having two masters: a data master and an instruction master,
-     * the method must be called twice:
+     * For a cpu having two requestors: a data requestor and an instruction
+     * requestor, the method must be called twice:
      *
      * instRequestorId = getRequestorId(cpu, "inst");
      * dataRequestorId = getRequestorId(cpu, "data");
      *
-     * and the masters' names will be:
+     * and the requestors' names will be:
      * - "cpu.inst"
      * - "cpu.data"
      *
-     * @param master SimObject related to the master
-     * @param submaster String containing the submaster's name
-     * @return the master's ID.
+     * @param requestor SimObject related to the requestor
+     * @param subrequestor String containing the subrequestor's name
+     * @return the requestor's ID.
      */
-    MRequestorID getRequestorId(const SimObject* master,
-                         std::string submaster = std::string());
+    MRequestorID getRequestorId(const SimObject* requestor,
+                         std::string subrequestor = std::string());
 
     /**
      * Registers a GLOBAL RequestorID, which is a RequestorID not related
      * to any particular SimObject; since no SimObject is passed,
-     * the master gets registered by providing the full master name.
+     * the requestor gets registered by providing the full requestor name.
      *
-     * @param masterName full name of the master
-     * @return the master's ID.
+     * @param requestorName full name of the requestor
+     * @return the requestor's ID.
      */
-    RequestorID getGlobalRequestorId(const std::string& master_name);
+    RequestorID getGlobalRequestorId(const std::string& requestor_name);
 
     /**
      * Get the name of an object for a given request id.
      */
-    std::string getMasterName(RequestorID requestor_id);
+    std::string getRequestorName(RequestorID requestor_id);
 
     /**
      * Looks up the RequestorID for a given SimObject
@@ -502,20 +502,20 @@ class System : public SimObject, public PCEventScope
      */
     RequestorID lookupRequestorId(const std::string& name) const;
 
-    /** Get the number of masters registered in the system */
-    RequestorID maxMasters() { return masters.size(); }
+    /** Get the number of requestors registered in the system */
+    RequestorID maxRequestors() { return requestors.size(); }
 
   protected:
     /** helper function for getRequestorId */
-    RequestorID _getRequestorId(const SimObject* master,
-                          const std::string& master_name);
+    RequestorID _getRequestorId(const SimObject* requestor,
+                          const std::string& requestor_name);
 
     /**
-     * Helper function for constructing the full (sub)master name
-     * by providing the root master and the relative submaster name.
+     * Helper function for constructing the full (sub)requestor name
+     * by providing the root requestor and the relative subrequestor name.
      */
-    std::string leafMasterName(const SimObject* master,
-                               const std::string& submaster);
+    std::string leafRequestorName(const SimObject* requestor,
+                               const std::string& subrequestor);
 
   public:
 

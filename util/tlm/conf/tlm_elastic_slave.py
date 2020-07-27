@@ -102,7 +102,7 @@ system.membus = IOXBar(width = 16)
 system.physmem = SimpleMemory() # This must be instantiated, even if not needed
 
 # Create a external TLM port:
-system.tlm = ExternalSlave()
+system.tlm = ExternalResponder()
 system.tlm.addr_ranges = [AddrRange('512MB')]
 system.tlm.port_type = "tlm_slave"
 system.tlm.port_data = "transactor"

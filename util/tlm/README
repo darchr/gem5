@@ -11,7 +11,7 @@ I. Overview
 The sources in this directory provide three SystemC modules that manage the
 SystemC/gem5 co-simulation: Gem5SimControl, Gem5MasterTransactor, and
 Gem5SlaveTransactor. They also implement gem5's ExternalMaster::Port interface
-(SCMasterPort) and ExternalSlave::Port interface (SCSlavePort).
+(SCMasterPort) and ExternalResponder::Port interface (SCSlavePort).
 
 **SCMasterPort** and **Gem5MasterTransactor** together form a TLM-to-gem5
 bridge. SCMasterPort implements gem5's ExternalMaster::Port interface and forms
@@ -28,7 +28,7 @@ them for the same port name.
 **SCSlavePort** and **Gem5SlaveTransactor** together form a gem5-to-TLM bridge.
 Gem5SlaveTransactor is a SystemC module that provides a initiator socket and
 represents the TLM end of the bridge. SCSlavePort implements gem5's
-ExternalSlave::Port interface and forms the gem5 side of the bridge. All gem5
+ExternalResponder::Port interface and forms the gem5 side of the bridge. All gem5
 requests sent to the SCSlavePort, are translated to TLM requests and forwarded
 to the TLM world through the initiator socket of the Gem5SlaveTransactor. Then
 the TLM world handles the request and eventually issues a response. When the

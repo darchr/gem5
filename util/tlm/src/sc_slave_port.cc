@@ -360,8 +360,8 @@ SCSlavePort::nb_transport_bw(tlm::tlm_generic_payload& trans,
 
 SCSlavePort::SCSlavePort(const std::string &name_,
     const std::string &systemc_name,
-    ExternalSlave &owner_) :
-    ExternalSlave::Port(name_, owner_),
+    ExternalResponder &owner_) :
+    ExternalResponder::Port(name_, owner_),
     blockingRequest(NULL),
     needToSendRequestRetry(false),
     blockingResponse(NULL),
@@ -380,9 +380,9 @@ SCSlavePort::bindToTransactor(Gem5SlaveTransactor* transactor)
                                                 &SCSlavePort::nb_transport_bw);
 }
 
-ExternalSlave::Port*
+ExternalResponder::Port*
 SCSlavePortHandler::getExternalPort(const std::string &name,
-                                    ExternalSlave &owner,
+                                    ExternalResponder &owner,
                                     const std::string &port_data)
 {
     // Create and register a new SystemC slave port

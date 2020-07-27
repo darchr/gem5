@@ -60,7 +60,7 @@ namespace gem5 {
 
 class gem5Component;
 
-class ExtSlave : public ExternalSlave::Port {
+class ExtSlave : public ExternalResponder::Port {
   public:
     const std::string name;
 
@@ -98,7 +98,7 @@ class ExtSlave : public ExternalSlave::Port {
     PacketMap_t PacketMap; // SST Event id -> gem5 Packet*
 
 public:
-    ExtSlave(gem5Component*, Output&, ExternalSlave&, std::string&);
+    ExtSlave(gem5Component*, Output&, ExternalResponder&, std::string&);
     void init(unsigned phase);
 
     void
