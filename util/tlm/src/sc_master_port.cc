@@ -412,7 +412,7 @@ SCMasterPort::recvRangeChange()
 
 ExternalMaster::Port*
 SCMasterPortHandler::getExternalPort(const std::string &name,
-                                     ExternalMaster &owner,
+                                     ExternalRequestor&owner,
                                      const std::string &port_data)
 {
     // Create and register a new SystemC master port

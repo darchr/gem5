@@ -203,20 +203,20 @@ def config_cache(options, system):
 
     return system
 
-# ExternalSlave provides a "port", but when that port connects to a cache,
+# ExternalResponder provides a "port", but when that port connects to a cache,
 # the connecting CPU SimObject wants to refer to its "cpu_side".
 # The 'ExternalCache' class provides this adaptation by rewriting the name,
 # eliminating distracting changes elsewhere in the config code.
-class ExternalCache(ExternalSlave):
+class ExternalCache(ExternalResponder):
     def __getattr__(cls, attr):
         if (attr == "cpu_side"):
             attr = "port"
-        return super(ExternalSlave, cls).__getattr__(attr)
+        return super(ExternalResponder, cls).__getattr__(attr)
 
     def __setattr__(cls, attr, value):
         if (attr == "cpu_side"):
             attr = "port"
-        return super(ExternalSlave, cls).__setattr__(attr, value)
+        return super(ExternalResponder, cls).__setattr__(attr, value)
 
 def ExternalCacheFactory(port_type):
     def make(name):

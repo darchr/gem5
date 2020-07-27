@@ -125,7 +125,7 @@ def config_mem(options, system):
         xbar = system.membus
 
     if opt_tlm_memory:
-        system.external_memory = m5.objects.ExternalSlave(
+        system.external_memory = m5.objects.ExternalResponder(
             port_type="tlm_slave",
             port_data=opt_tlm_memory,
             port=system.membus.master,
@@ -134,7 +134,7 @@ def config_mem(options, system):
         return
 
     if opt_external_memory_system:
-        subsystem.external_memory = m5.objects.ExternalSlave(
+        subsystem.external_memory = m5.objects.ExternalResponder(
             port_type=opt_external_memory_system,
             port_data="init_mem0", port=xbar.master,
             addr_ranges=system.mem_ranges)

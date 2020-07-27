@@ -150,7 +150,7 @@ class SCMasterPortHandler : public ExternalMaster::Handler
     SCMasterPortHandler(Gem5SimControl& control) : control(control) {}
 
     ExternalMaster::Port *getExternalPort(const std::string &name,
-                                          ExternalMaster &owner,
+                                          ExternalRequestor&owner,
                                           const std::string &port_data);
 };
 
