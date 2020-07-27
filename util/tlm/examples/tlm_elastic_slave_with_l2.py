@@ -110,7 +110,7 @@ system.l2cache = L2Cache(size="1MB")
 system.physmem = SimpleMemory() # This must be instantiated, even if not needed
 
 # Create a external TLM port:
-system.tlm = ExternalSlave()
+system.tlm = ExternalResponder()
 system.tlm.addr_ranges = [AddrRange('4096MB')]
 system.tlm.port_type = "tlm_slave"
 system.tlm.port_data = "transactor1"

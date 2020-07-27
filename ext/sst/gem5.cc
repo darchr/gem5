@@ -112,7 +112,7 @@ gem5Component::gem5Component(ComponentId_t id, Params &params) :
     }
 
     ExternalMaster::registerHandler("sst", this); // these are idempotent
-    ExternalSlave ::registerHandler("sst", this);
+    ExternalResponder ::registerHandler("sst", this);
 
     // Initialize m5 special signal handling.
     initSignals();
@@ -250,7 +250,7 @@ gem5Component::initPython(int argc, char *argv[])
 
 ExternalMaster::Port*
 gem5Component::getExternalPort(const std::string &name,
-    ExternalMaster &owner, const std::string &port_data)
+    ExternalRequestor&owner, const std::string &port_data)
 {
     std::string s(name); // bridges non-& result and &-arg
     auto master = new ExtMaster(this, info, owner, s);
@@ -258,9 +258,9 @@ gem5Component::getExternalPort(const std::string &name,
     return master;
 }
 
-ExternalSlave::Port*
+ExternalResponder::Port*
 gem5Component::getExternalPort(const std::string &name,
-    ExternalSlave &owner, const std::string &port_data)
+    ExternalResponder &owner, const std::string &port_data)
 {
     std::string s(name); // bridges non-& result and &-arg
     auto slave = new ExtSlave(this, info, owner, s);
