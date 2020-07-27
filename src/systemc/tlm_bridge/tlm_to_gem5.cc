@@ -390,7 +390,7 @@ TlmToGem5Bridge<BITWIDTH>::recvTimingResp(PacketPtr pkt)
     /*
      * Pay for annotated transport delays.
      *
-     * See recvTimingReq in sc_slave_port.cc for a detailed description.
+     * See recvTimingReq in sc_response_port.cc for a detailed description.
      */
     auto delay = sc_core::sc_time::from_value(pkt->payloadDelay);
     // reset the delays
@@ -467,7 +467,7 @@ TlmToGem5Bridge<BITWIDTH>::TlmToGem5Bridge(
     TlmToGem5BridgeBase(mn), peq(this, &TlmToGem5Bridge<BITWIDTH>::peq_cb),
     waitForRetry(false), pendingRequest(nullptr), pendingPacket(nullptr),
     needToSendRetry(false), responseInProgress(false),
-    bmp(std::string(name()) + "master", *this), socket("tlm_socket"),
+    bmp(std::string(name()) + "request", *this), socket("tlm_socket"),
     wrapper(socket, std::string(name()) + ".tlm", InvalidPortID),
     system(params->system),
     requestorId(params->system->getGlobalRequestorId(
