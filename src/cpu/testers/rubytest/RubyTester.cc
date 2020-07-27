@@ -53,7 +53,7 @@ RubyTester::RubyTester(const Params *p)
   : ClockedObject(p),
     checkStartEvent([this]{ wakeup(); }, "RubyTester tick",
                     false, Event::CPU_Tick_Pri),
-    _masterId(p->system->getMasterId(this)),
+    _requestorId(p->system->getRequestorId(this)),
     m_checkTable_ptr(nullptr),
     m_num_cpus(p->num_cpus),
     m_checks_to_complete(p->checks_to_complete),
@@ -203,7 +203,7 @@ RubyTester::isInstDataCpuPort(int idx)
             (idx < (m_num_inst_only_ports + m_num_inst_data_ports)));
 }
 
-MasterPort*
+RequestPort*
 RubyTester::getReadableCpuPort(int idx)
 {
     assert(idx >= 0 && idx < readPorts.size());
@@ -211,7 +211,7 @@ RubyTester::getReadableCpuPort(int idx)
     return readPorts[idx];
 }
 
-MasterPort*
+RequestPort*
 RubyTester::getWritableCpuPort(int idx)
 {
     assert(idx >= 0 && idx < writePorts.size());

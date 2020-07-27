@@ -55,12 +55,13 @@ SeriesRequestGenerator::initiate()
     DPRINTF(DirectedTest, "initiating request\n");
     assert(m_status == SeriesRequestGeneratorStatus_Thinking);
 
-    MasterPort* port = m_directed_tester->getCpuPort(m_active_node);
+    RequestPort* port = m_directed_tester->getCpuPort(m_active_node);
 
     Request::Flags flags;
 
     // For simplicity, requests are assumed to be 1 byte-sized
-    RequestPtr req = std::make_shared<Request>(m_address, 1, flags, masterId);
+    RequestPtr req = std::make_shared<Request>(m_address, 1,
+                                        flags, requestorId);
 
     Packet::Command cmd;
     bool do_write = (random_mt.random(0, 100) < m_percent_writes);

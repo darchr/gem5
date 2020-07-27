@@ -54,13 +54,14 @@ InvalidateGenerator::~InvalidateGenerator()
 bool
 InvalidateGenerator::initiate()
 {
-    MasterPort* port;
+    RequestPort* port;
     Request::Flags flags;
     PacketPtr pkt;
     Packet::Command cmd;
 
     // For simplicity, requests are assumed to be 1 byte-sized
-    RequestPtr req = std::make_shared<Request>(m_address, 1, flags, masterId);
+    RequestPtr req = std::make_shared<Request>(m_address, 1,
+                                        flags, requestorId);
 
     //
     // Based on the current state, issue a load or a store

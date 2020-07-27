@@ -78,7 +78,7 @@ BaseTrafficGen::BaseTrafficGen(const BaseTrafficGenParams* p)
       retryPktTick(0), blockedWaitingResp(false),
       updateEvent([this]{ update(); }, name()),
       stats(this),
-      masterID(system->getMasterId(this)),
+      requestorID(system->getRequestorId(this)),
       streamGenerator(StreamGen::create(p))
 {
 }
@@ -356,13 +356,13 @@ BaseTrafficGen::StatGroup::StatGroup(Stats::Group *parent)
 std::shared_ptr<BaseGen>
 BaseTrafficGen::createIdle(Tick duration)
 {
-    return std::shared_ptr<BaseGen>(new IdleGen(*this, masterID, duration));
+    return std::shared_ptr<BaseGen>(new IdleGen(*this, requestorID, duration));
 }
 
 std::shared_ptr<BaseGen>
 BaseTrafficGen::createExit(Tick duration)
 {
-    return std::shared_ptr<BaseGen>(new ExitGen(*this, masterID, duration));
+    return std::shared_ptr<BaseGen>(new ExitGen(*this, requestorID, duration));
 }
 
 std::shared_ptr<BaseGen>
@@ -371,7 +371,7 @@ BaseTrafficGen::createLinear(Tick duration,
                              Tick min_period, Tick max_period,
                              uint8_t read_percent, Addr data_limit)
 {
-    return std::shared_ptr<BaseGen>(new LinearGen(*this, masterID,
+    return std::shared_ptr<BaseGen>(new LinearGen(*this, requestorID,
                                                   duration, start_addr,
                                                   end_addr, blocksize,
                                                   system->cacheLineSize(),
@@ -385,7 +385,7 @@ BaseTrafficGen::createRandom(Tick duration,
                              Tick min_period, Tick max_period,
                              uint8_t read_percent, Addr data_limit)
 {
-    return std::shared_ptr<BaseGen>(new RandomGen(*this, masterID,
+    return std::shared_ptr<BaseGen>(new RandomGen(*this, requestorID,
                                                   duration, start_addr,
                                                   end_addr, blocksize,
                                                   system->cacheLineSize(),
@@ -404,7 +404,7 @@ BaseTrafficGen::createDram(Tick duration,
                            Enums::AddrMap addr_mapping,
                            unsigned int nbr_of_ranks)
 {
-    return std::shared_ptr<BaseGen>(new DramGen(*this, masterID,
+    return std::shared_ptr<BaseGen>(new DramGen(*this, requestorID,
                                                 duration, start_addr,
                                                 end_addr, blocksize,
                                                 system->cacheLineSize(),
@@ -430,7 +430,7 @@ BaseTrafficGen::createDramRot(Tick duration,
                               unsigned int nbr_of_ranks,
                               unsigned int max_seq_count_per_rank)
 {
-    return std::shared_ptr<BaseGen>(new DramRotGen(*this, masterID,
+    return std::shared_ptr<BaseGen>(new DramRotGen(*this, requestorID,
                                                    duration, start_addr,
                                                    end_addr, blocksize,
                                                    system->cacheLineSize(),
@@ -450,7 +450,7 @@ BaseTrafficGen::createTrace(Tick duration,
 {
 #if HAVE_PROTOBUF
     return std::shared_ptr<BaseGen>(
-        new TraceGen(*this, masterID, duration, trace_file, addr_offset));
+        new TraceGen(*this, requestorID, duration, trace_file, addr_offset));
 #else
     panic("Can't instantiate trace generation without Protobuf support!\n");
 #endif

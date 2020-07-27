@@ -65,7 +65,7 @@
  * same trace is used for playback on different memory sub-systems.
  *
  * The TraceCPU inherits from BaseCPU so some virtual methods need to be
- * defined. It has two port subclasses inherited from MasterPort for
+ * defined. It has two port subclasses inherited from RequestPort for
  * instruction and data ports. It issues the memory requests deducing the
  * timing from the trace and without performing real execution of micro-ops. As
  * soon as the last dependency for an instruction is complete, its
@@ -221,12 +221,12 @@ class TraceCPU : public BaseCPU
     /**
      * IcachePort class that interfaces with L1 Instruction Cache.
      */
-    class IcachePort : public MasterPort
+    class IcachePort : public RequestPort
     {
       public:
         /** Default constructor. */
         IcachePort(TraceCPU* _cpu)
-            : MasterPort(_cpu->name() + ".icache_port", _cpu),
+            : RequestPort(_cpu->name() + ".icache_port", _cpu),
                          owner(_cpu)
         { }
 
@@ -261,13 +261,13 @@ class TraceCPU : public BaseCPU
     /**
      * DcachePort class that interfaces with L1 Data Cache.
      */
-    class DcachePort : public MasterPort
+    class DcachePort : public RequestPort
     {
 
       public:
         /** Default constructor. */
         DcachePort(TraceCPU* _cpu)
-            : MasterPort(_cpu->name() + ".dcache_port", _cpu),
+            : RequestPort(_cpu->name() + ".dcache_port", _cpu),
                          owner(_cpu)
         { }
 
@@ -321,11 +321,11 @@ class TraceCPU : public BaseCPU
     /** Port to connect to L1 data cache. */
     DcachePort dcachePort;
 
-    /** Master id for instruction read requests. */
-    const MasterID instMasterID;
+    /** Requestor id for instruction read requests. */
+    const RequestorID instRequestorID;
 
-    /** Master id for data read and write requests. */
-    const MasterID dataMasterID;
+    /** Requestor id for data read and write requests. */
+    const RequestorID dataRequestorID;
 
     /** File names for input instruction and data traces. */
     std::string instTraceFile, dataTraceFile;
@@ -423,11 +423,11 @@ class TraceCPU : public BaseCPU
         public:
         /* Constructor */
         FixedRetryGen(TraceCPU& _owner, const std::string& _name,
-                   MasterPort& _port, MasterID master_id,
+                   RequestPort& _port, RequestorID requestor_id,
                    const std::string& trace_file)
             : owner(_owner),
               port(_port),
-              masterID(master_id),
+              requestorID(requestor_id),
               trace(trace_file),
               genName(owner.name() + ".fixedretry" + _name),
               retryPkt(nullptr),
@@ -501,10 +501,10 @@ class TraceCPU : public BaseCPU
         TraceCPU& owner;
 
         /** Reference of the port to be used to issue memory requests. */
-        MasterPort& port;
+        RequestPort& port;
 
-        /** MasterID used for the requests being sent. */
-        const MasterID masterID;
+        /** RequestorID used for the requests being sent. */
+        const RequestorID requestorID;
 
         /** Input stream used for reading the input trace file. */
         InputStream trace;
@@ -847,11 +847,11 @@ class TraceCPU : public BaseCPU
         public:
         /* Constructor */
         ElasticDataGen(TraceCPU& _owner, const std::string& _name,
-                   MasterPort& _port, MasterID master_id,
+                   RequestPort& _port, RequestorID requestor_id,
                    const std::string& trace_file, TraceCPUParams *params)
             : owner(_owner),
               port(_port),
-              masterID(master_id),
+              requestorID(requestor_id),
               trace(trace_file, 1.0 / params->freqMultiplier),
               genName(owner.name() + ".elastic" + _name),
               retryPkt(nullptr),
@@ -984,10 +984,10 @@ class TraceCPU : public BaseCPU
         TraceCPU& owner;
 
         /** Reference of the port to be used to issue memory requests. */
-        MasterPort& port;
+        RequestPort& port;
 
-        /** MasterID used for the requests being sent. */
-        const MasterID masterID;
+        /** RequestorID used for the requests being sent. */
+        const RequestorID requestorID;
 
         /** Input stream used for reading the input trace file. */
         InputStream trace;

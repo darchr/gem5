@@ -91,14 +91,14 @@ class MemTest : public ClockedObject
 
     EventFunctionWrapper noResponseEvent;
 
-    class CpuPort : public MasterPort
+    class CpuPort : public RequestorPort
     {
         MemTest &memtest;
 
       public:
 
         CpuPort(const std::string &_name, MemTest &_memtest)
-            : MasterPort(_name, &_memtest), memtest(_memtest)
+            : RequestorPort(_name, &_memtest), memtest(_memtest)
         { }
 
       protected:
@@ -127,7 +127,7 @@ class MemTest : public ClockedObject
     const unsigned percentUncacheable;
 
     /** Request id for all generated traffic */
-    MasterID masterId;
+    RequestorID requestorId;
 
     unsigned int id;
 
