@@ -163,13 +163,13 @@ class SimpleMemobj : public SimObject
 
         /**
          * Called by the response port if sendTimingReq was called on this
-         * request port (causing recvTimingReq to be called on the responder
+         * request port (causing recvTimingReq to be called on the response
          * port) and was unsuccesful.
          */
         void recvReqRetry() override;
 
         /**
-         * Called to receive an address range change from the peer responder
+         * Called to receive an address range change from the peer response
          * port. The default implementation ignores the change and does
          * nothing. Override this function in a derived class if the owner
          * needs to be aware of the address ranges, e.g. in an
