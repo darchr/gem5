@@ -217,7 +217,7 @@ gem5Component::initPython(int argc, char *argv[])
 
     Py_Initialize();
 
-    int ret = initM5Python();
+    int ret = EmbeddedPython::initAll();
     if (ret != 0) {
         dbg.fatal(CALL_INFO, -1, "Python failed to initialize. Code: %d\n",
                   ret);
