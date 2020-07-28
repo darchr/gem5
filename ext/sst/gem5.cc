@@ -249,6 +249,24 @@ gem5Component::initPython(int argc, char *argv[])
     }
 }
 
+Link*
+gem5Component::configureLink( const std::string& name, TimeConverter* time_base, SST::Event::HandlerBase* handler )
+{
+    return SST::Component::configureLink(name, time_base, handler);
+}
+
+Link*
+gem5Component::configureLink( const std::string& name, const std::string& time_base, SST::Event::HandlerBase* handler )
+{
+    return SST::Component::configureLink(name, time_base, handler);
+}
+
+Link*
+gem5Component::configureLink( const std::string& name, SST::Event::HandlerBase* handler)
+{
+    return SST::Component::configureLink(name, handler);
+}
+
 ExternalMaster::ExternalPort*
 gem5Component::getExternalPort(const std::string &name,
     ExternalMaster &owner, const std::string &port_data)

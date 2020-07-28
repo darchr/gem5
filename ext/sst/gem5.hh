@@ -83,6 +83,10 @@ public:
     virtual void finish();
     bool clockTick(Cycle_t);
 
+    Link* configureLink( const std::string& name, TimeConverter* time_base, SST::Event::HandlerBase* handler = nullptr );
+    Link* configureLink( const std::string& name, const std::string& time_base, SST::Event::HandlerBase* handler = nullptr );
+    Link* configureLink( const std::string& name, SST::Event::HandlerBase* handler = nullptr);
+
     virtual ExternalMaster::ExternalPort *getExternalPort(
         const std::string &name, ExternalMaster &owner,
         const std::string &port_data);
