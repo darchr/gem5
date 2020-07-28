@@ -56,6 +56,7 @@
 #include <sim/init.hh>
 #include <sim/init_signals.hh>
 #include <sim/system.hh>
+#include <sim/sim_events.hh>
 #include <sim/sim_object.hh>
 #include <base/logging.hh>
 #include <base/debug.hh>
