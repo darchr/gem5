@@ -1,5 +1,5 @@
 # These two variables are designed to be modifiable.
-SST_VERSION=SST-trunk
+SST_VERSION=$HOME/sst/lib/pkgconfig/SST-10.0.0.pc
 GEM5_LIB=gem5_opt
 
 LDFLAGS=-shared -fno-common ${shell pkg-config ${SST_VERSION} --libs} -L../../build/ARM
