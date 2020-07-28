@@ -248,7 +248,7 @@ gem5Component::initPython(int argc, char *argv[])
     }
 }
 
-ExternalMaster::Port*
+ExternalMaster::ExternalPort*
 gem5Component::getExternalPort(const std::string &name,
     ExternalMaster &owner, const std::string &port_data)
 {
@@ -258,7 +258,7 @@ gem5Component::getExternalPort(const std::string &name,
     return master;
 }
 
-ExternalSlave::Port*
+ExternalSlave::ExternalPort*
 gem5Component::getExternalPort(const std::string &name,
     ExternalSlave &owner, const std::string &port_data)
 {

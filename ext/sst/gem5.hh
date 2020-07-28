@@ -83,11 +83,11 @@ public:
     virtual void finish();
     bool clockTick(Cycle_t);
 
-    virtual ExternalMaster::Port *getExternalPort(
+    virtual ExternalMaster::ExternalPort *getExternalPort(
         const std::string &name, ExternalMaster &owner,
         const std::string &port_data);
 
-    virtual ExternalSlave::Port *getExternalPort(
+    virtual ExternalSlave::ExternalPort *getExternalPort(
         const std::string &name, ExternalSlave &owner,
         const std::string &port_data);
 };

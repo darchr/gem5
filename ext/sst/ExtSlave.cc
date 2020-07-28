@@ -54,7 +54,7 @@ using namespace SST::MemHierarchy;
 
 ExtSlave::ExtSlave(gem5Component *g5c, Output &out,
         ::ExternalSlave& port, std::string &name) :
-    Port(name, port),
+    ExternalPort(name, port),
     comp(g5c), out(out), simPhase(CONSTRUCTION), initPackets(NULL),
     link(comp->configureLink(name, new Event::Handler<ExtSlave>(this,
                                               &ExtSlave::handleEvent)))

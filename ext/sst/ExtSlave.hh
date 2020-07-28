@@ -60,7 +60,7 @@ namespace gem5 {
 
 class gem5Component;
 
-class ExtSlave : public ExternalSlave::Port {
+class ExtSlave : public ExternalSlave::ExternalPort {
   public:
     const std::string name;
 

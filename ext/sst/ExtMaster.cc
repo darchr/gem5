@@ -58,7 +58,7 @@ using namespace SST::MemHierarchy;
 
 ExtMaster::ExtMaster(gem5Component *g, Output &o, ::ExternalMaster& p,
         std::string &n) :
-    Port(n, p), out(o), port(p), simPhase(CONSTRUCTION),
+    ExternalPort(n, p), out(o), port(p), simPhase(CONSTRUCTION),
     gem5(g), name(n)
 {
     Params _p; // will be ignored

@@ -70,7 +70,7 @@ namespace gem5 {
 
 class gem5Component;
 
-class ExtMaster : public ExternalMaster::Port {
+class ExtMaster : public ExternalMaster::ExternalPort {
 
     enum Phase { CONSTRUCTION, INIT, RUN };
 
