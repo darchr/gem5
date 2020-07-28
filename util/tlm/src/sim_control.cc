@@ -42,7 +42,7 @@
 #include <systemc>
 #include <tlm>
 
-#include "sc_master_port.hh"
+#include "sc_request_port.hh"
 #include "sc_slave_port.hh"
 #include "sim/cxx_config_ini.hh"
 #include "sim/init_signals.hh"

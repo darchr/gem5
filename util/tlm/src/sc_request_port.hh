@@ -30,8 +30,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __SC_MASTER_PORT_HH__
-#define __SC_MASTER_PORT_HH__
+#ifndef __SC_REQUEST_PORT_HH__
+#define __SC_REQUEST_PORT_HH__
 
 #include <tlm_utils/peq_with_cb_and_phase.h>
 

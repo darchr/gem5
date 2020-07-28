@@ -31,7 +31,7 @@
  */
 
 #include "master_transactor.hh"
-#include "sc_master_port.hh"
+#include "sc_request_port.hh"
 #include "sim_control.hh"
 
 namespace Gem5SystemC

@@ -38,7 +38,7 @@
 #include <systemc>
 #include <tlm>
 
-#include "sc_master_port.hh"
+#include "sc_request_port.hh"
 #include "sim_control_if.hh"
 
 namespace Gem5SystemC
