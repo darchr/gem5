@@ -85,7 +85,7 @@ gem5Component::gem5Component(ComponentId_t id, Params &params) :
     sim_cycles = clock->getFactor();
 
     // Disable gem5's inform() messages.
-    want_info = false;
+    Logger::setLevel(Logger::LogLevel::WARN);
 
     std::string cmd = params.find<std::string>("cmd", "");
     if (cmd.empty()) {
