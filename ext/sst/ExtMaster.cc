@@ -134,25 +134,25 @@ ExtMaster::handleEvent(SST::Event* event)
     bool data = false;
 
     switch (cmdI) {
-        case GetS:      cmdO = MemCmd::ReadReq;                break;
-        case GetX:      cmdO = MemCmd::WriteReq;  data = true; break;
-        case GetSEx:
-        case PutS:
-        case PutM:
-        case PutE:
-        case PutX:
-        case PutXE:
-        case Inv:
-        case FetchInv:
-        case FetchInvX:
+        case Command::GetS:      cmdO = MemCmd::ReadReq;                break;
+        case Command::GetX:      cmdO = MemCmd::WriteReq;  data = true; break;
+        case Command::GetSEx:
+        case Command::PutS:
+        case Command::PutM:
+        case Command::PutE:
+        case Command::PutX:
+        case Command::PutXE:
+        case Command::Inv:
+        case Command::FetchInv:
+        case Command::FetchInvX:
 
-        case NACK:
+        case Command::NACK:
 
-        case NULLCMD:
-        case GetSResp:
-        case GetXResp:
-        case FetchResp:
-        case FetchXResp:
+        case Command::NULLCMD:
+        case Command::GetSResp:
+        case Command::GetXResp:
+        case Command::FetchResp:
+        case Command::FetchXResp:
             out.fatal(CALL_INFO, 1, "Don't know how to convert "
                                     "SST command %s to gem5\n",
                       CommandString[cmdI]);
@@ -164,10 +164,10 @@ ExtMaster::handleEvent(SST::Event* event)
     if (ev->queryFlag(MemEvent::F_NONCACHEABLE))
         flags |= Request::UNCACHEABLE;
     if (ev->isLoadLink()) {
-        assert(cmdI == GetS);
+        assert(cmdI == Command::GetS);
         cmdO = MemCmd::LoadLockedReq;
     } else if (ev->isStoreConditional()) {
-        assert(cmdI == GetX);
+        assert(cmdI == Command::GetX);
         cmdO = MemCmd::StoreCondReq;
     }
 

@@ -87,7 +87,7 @@ ExtSlave::recvFunctional(PacketPtr pkt)
         ::MemCmd::Command pktCmd = (::MemCmd::Command)pkt->cmd.toInt();
         assert(pktCmd == ::MemCmd::WriteReq);
         Addr a = pkt->getAddr();
-        MemEvent* ev = new MemEvent(comp, a, a, GetX);
+        MemEvent* ev = new MemEvent(comp, a, a, Command::GetX);
         ev->setPayload(pkt->getSize(), pkt->getPtr<uint8_t>());
         initPackets->push_back(ev);
     } else {
@@ -104,9 +104,9 @@ ExtSlave::recvTimingReq(PacketPtr pkt)
     case ::MemCmd::SoftPFReq:
     case ::MemCmd::LoadLockedReq:
     case ::MemCmd::ReadExReq:
-    case ::MemCmd::ReadReq:       cmd = GetS;   break;
+    case ::MemCmd::ReadReq:       cmd = Command::GetS;   break;
     case ::MemCmd::StoreCondReq:
-    case ::MemCmd::WriteReq:      cmd = GetX;   break;
+    case ::MemCmd::WriteReq:      cmd = Command::GetX;   break;
     default:
         out.fatal(CALL_INFO, 1, "Don't know how to convert gem5 packet "
                   "command %s to SST\n", pkt->cmd.toString().c_str());
@@ -171,7 +171,7 @@ ExtSlave::handleEvent(Event* ev)
         }
     } else { // we can handle unexpected invalidates, but nothing else.
         Command cmd = event->getCmd();
-        assert(cmd == Inv);
+        assert(cmd == Command::Inv);
 
         // make Req/Pkt for Snoop/no response needed
         // presently no consideration for masterId, packet type, flags...
