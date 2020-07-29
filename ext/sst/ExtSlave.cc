@@ -121,7 +121,6 @@ ExtSlave::recvTimingReq(PacketPtr pkt)
 
     if (pkt->req->isLockedRMW())   ev->setFlag(MemEvent::F_LOCKED);
     if (pkt->req->isUncacheable()) ev->setFlag(MemEvent::F_NONCACHEABLE);
-    if (pkt->req->hasContextId())  ev->setGroupId(pkt->req->contextId());
 // Prefetches not working with SST; it maybe be dropping them, treating them
 // as not deserving of responses, or something else -- not sure yet.
 //  ev->setPrefetchFlag(pkt->req->isPrefetch());

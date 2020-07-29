@@ -172,7 +172,6 @@ ExtMaster::handleEvent(SST::Event* event)
     }
 
     auto req = std::make_shared<Request>(ev->getAddr(), ev->getSize(), flags, 0);
-    req->setContext(ev->getGroupId());
 
     auto pkt = new Packet(req, cmdO);
     pkt->allocate();
