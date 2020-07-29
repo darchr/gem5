@@ -33,5 +33,5 @@ class BaseTLB(SimObject):
     abstract = True
     cxx_header = "arch/generic/tlb.hh"
     # Ports to connect with other TLB levels
-    slave  = VectorSlavePort("Port closer to the CPU side")
-    master = MasterPort("Port closer to memory side")
+    slave  = VectorResponsePort("Port closer to the CPU side")
+    master = RequestPort("Port closer to memory side")
