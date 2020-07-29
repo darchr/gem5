@@ -160,7 +160,7 @@ ExtSlave::handleEvent(Event* ev)
 
         // Resolve the success of Store Conditionals
         if (pkt->isLLSC() && pkt->isWrite()) {
-            pkt->req->setExtraData(event->isAtomic());
+            pkt->req->setExtraData(event->isStoreConditional());
         }
 
         // Clear out bus delay notifications
