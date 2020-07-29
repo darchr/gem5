@@ -501,7 +501,7 @@ class MetaSimObject(type):
             cls._base = base
             cls._params.parent = base._params
             cls._ports.parent = base._ports
-            cls._deprecated_params = base._deprecated_params
+            cls._deprecated_params.parent = base._deprecated_params
             cls._values.parent = base._values
             cls._hr_values.parent = base._hr_values
             cls._children.parent = base._children
