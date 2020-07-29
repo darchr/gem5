@@ -136,12 +136,11 @@ ExtMaster::handleEvent(SST::Event* event)
     switch (cmdI) {
         case Command::GetS:      cmdO = MemCmd::ReadReq;                break;
         case Command::GetX:      cmdO = MemCmd::WriteReq;  data = true; break;
-        case Command::GetSEx:
+        case Command::GetSX:
         case Command::PutS:
         case Command::PutM:
         case Command::PutE:
         case Command::PutX:
-        case Command::PutXE:
         case Command::Inv:
         case Command::FetchInv:
         case Command::FetchInvX:
