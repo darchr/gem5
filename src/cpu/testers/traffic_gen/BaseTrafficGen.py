@@ -110,9 +110,9 @@ class BaseTrafficGen(ClockedObject):
     def connectCachedPorts(self, bus):
         if hasattr(self, '_cached_ports') and (len(self._cached_ports) > 0):
             for p in self._cached_ports:
-                exec('self.%s = bus.slave' % p)
+                exec('self.%s = bus.responder' % p)
         else:
-            self.port = bus.slave
+            self.port = bus.responder
 
     def connectAllPorts(self, cached_bus, uncached_bus = None):
         self.connectCachedPorts(cached_bus)
