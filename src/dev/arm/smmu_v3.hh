@@ -90,7 +90,7 @@ class SMMUv3 : public ClockedObject
     const System &system;
     const MasterID masterId;
 
-    SMMUMasterPort    masterPort;
+    SMMUMasterPort    requestPort;
     SMMUMasterTableWalkPort masterTableWalkPort;
     SMMUControlPort   controlPort;
 
