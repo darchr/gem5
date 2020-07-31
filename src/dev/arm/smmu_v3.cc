@@ -55,7 +55,7 @@ SMMUv3::SMMUv3(SMMUv3Params *params) :
     ClockedObject(params),
     system(*params->system),
     masterId(params->system->getMasterId(this)),
-    requestPort(name() + ".master", *this),
+    masterPort(name() + ".master", *this),
     masterTableWalkPort(name() + ".master_walker", *this),
     controlPort(name() + ".control", *this, params->reg_map),
     tlb(params->tlb_entries, params->tlb_assoc, params->tlb_policy),
@@ -153,7 +153,7 @@ SMMUv3::masterRecvReqRetry()
         DPRINTF(SMMUv3, "[t] master retr addr=%#x size=%#x\n",
             a.pkt->getAddr(), a.pkt->getSize());
 
-        if (!requestPort.sendTimingReq(a.pkt))
+        if (!masterPort.sendTimingReq(a.pkt))
             break;
 
         packetsToRetry.pop();
@@ -249,7 +249,7 @@ SMMUv3::runProcessAtomic(SMMUProcess *proc, PacketPtr pkt)
                 }
                 M5_FALLTHROUGH;
             case ACTION_SEND_REQ_FINAL:
-                delay += requestPort.sendAtomic(action.pkt);
+                delay += masterPort.sendAtomic(action.pkt);
                 pkt = action.pkt;
                 break;
 
@@ -311,7 +311,7 @@ SMMUv3::runProcessTiming(SMMUProcess *proc, PacketPtr pkt)
                     action.pkt->getAddr(), action.pkt->getSize());
 
             if (packetsToRetry.empty() &&
-            requestPort.sendTimingReq(action.pkt)) {
+            masterPort.sendTimingReq(action.pkt)) {
                 scheduleSlaveRetries();
             } else {
                 DPRINTF(SMMUv3, "[t] master req  needs retry, qlen=%d\n",
@@ -718,7 +718,7 @@ void
 SMMUv3::init()
 {
     // make sure both sides are connected and have the same block size
-    if (!requestPort.isConnected())
+    if (!masterPort.isConnected())
         fatal("Master port is not connected.\n");
 
     // If the second master port is connected for the table walks, enable
@@ -817,7 +817,7 @@ Port&
 SMMUv3::getPort(const std::string &name, PortID id)
 {
     if (name == "master") {
-        return requestPort;
+        return masterPort;
     } else if (name == "master_walker") {
         return masterTableWalkPort;
     } else if (name == "control") {

@@ -77,8 +77,8 @@ class SMMUv3(ClockedObject):
     master = RequestPort('Master port')
     master_walker = RequestPort(
         'Master port for SMMU initiated HWTW requests (optional)')
-    control =
-    ResponsePort('Control port for accessing memory-mapped registers')
+    control = ResponsePort(
+        'Control port for accessing memory-mapped registers')
     sample_period = Param.Clock('10us', 'Stats sample period')
     reg_map = Param.AddrRange('Address range for control registers')
     system = Param.System(Parent.any, "System this device is part of")
