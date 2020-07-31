@@ -146,7 +146,7 @@ class CoherentXBar : public BaseXBar
      * instantiated for each of the slave interfaces connecting to the
      * crossbar.
      */
-    class CoherentXBarMasterPort : public RequestPort
+    class CoherentXBarMasterPort : public MasterPort
     {
       private:
         /** A reference to the crossbar to which this port belongs. */
@@ -156,7 +156,7 @@ class CoherentXBar : public BaseXBar
 
         CoherentXBarMasterPort(const std::string &_name,
                               CoherentXBar &_xbar, PortID _id)
-            : RequestPort(_name, &_xbar, _id), xbar(_xbar)
+            : MasterPort(_name, &_xbar, _id), xbar(_xbar)
         { }
 
       protected:
@@ -203,7 +203,7 @@ class CoherentXBar : public BaseXBar
      * from a slave port and forwarding it through an outgoing slave
      * port. It is effectively a dangling master port.
      */
-    class SnoopRespPort : public RequestPort
+    class SnoopRespPort : public MasterPort
     {
 
       private:
@@ -217,7 +217,7 @@ class CoherentXBar : public BaseXBar
          * Create a snoop response port that mirrors a given slave port.
          */
         SnoopRespPort(QueuedSlavePort& slave_port, CoherentXBar& _xbar) :
-            RequestPort(slave_port.name() + ".snoopRespPort", &_xbar),
+            MasterPort(slave_port.name() + ".snoopRespPort", &_xbar),
             slavePort(slave_port) { }
 
         /**
