@@ -72,7 +72,7 @@ class SMMUv3SlaveInterface : public ClockedObject
     const Cycles microTLBLat;
     const Cycles mainTLBLat;
 
-    SMMUSlavePort *slavePort;
+    SMMUSlavePort *responsePort;
     SMMUATSSlavePort  atsSlavePort;
     SMMUATSMasterPort atsMasterPort;
 
