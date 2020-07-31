@@ -311,7 +311,7 @@ SMMUv3::runProcessTiming(SMMUProcess *proc, PacketPtr pkt)
                     action.pkt->getAddr(), action.pkt->getSize());
 
             if (packetsToRetry.empty() &&
-            masterPort.sendTimingReq(action.pkt)) {
+                    masterPort.sendTimingReq(action.pkt)) {
                 scheduleSlaveRetries();
             } else {
                 DPRINTF(SMMUv3, "[t] master req  needs retry, qlen=%d\n",
