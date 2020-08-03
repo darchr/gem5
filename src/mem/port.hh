@@ -450,8 +450,8 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
 
 class M5_DEPRECATED SlavePort : public ResponsePort
 {
-    public:
-        SlavePort(const std::string& name, SimObject* _owner,
+  public:
+    SlavePort(const std::string& name, SimObject* _owner,
               PortID id=InvalidPortID) : ResponsePort(name, _owner, id){}
 };
 
