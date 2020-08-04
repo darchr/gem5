@@ -76,7 +76,7 @@ class RequestPort: public Port, public AtomicRequestProtocol,
 {
     friend class ResponsePort;
 
-    private:
+  private:
     ResponsePort *_responsePort;
 
   protected:
@@ -247,8 +247,8 @@ class RequestPort: public Port, public AtomicRequestProtocol,
 
 class M5_DEPRECATED MasterPort : public RequestPort
 {
-    public:
-        MasterPort(const std::string& name, SimObject* _owner,
+  public:
+    MasterPort(const std::string& name, SimObject* _owner,
                PortID id=InvalidPortID) : RequestPort(name, _owner, id) {}
 };
 
@@ -450,8 +450,8 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
 
 class M5_DEPRECATED SlavePort : public ResponsePort
 {
-    public:
-        SlavePort(const std::string& name, SimObject* _owner,
+  public:
+    SlavePort(const std::string& name, SimObject* _owner,
               PortID id=InvalidPortID) : ResponsePort(name, _owner, id){}
 };
 
