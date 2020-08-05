@@ -58,7 +58,7 @@ NoncoherentXBar::NoncoherentXBar(const NoncoherentXBarParams *p)
     // are enumerated starting from zero
     for (int i = 0; i < p->port_master_connection_count; ++i) {
         std::string portName = csprintf("%s.master[%d]", name(), i);
-        RequestPort* bp = new NoncoherentXBarMasterPort(portName, *this, i);
+        RequestPort* bp = new NoncoherentXBarRequestPort(portName, *this, i);
         masterPorts.push_back(bp);
         reqLayers.push_back(new ReqLayer(*bp, *this,
                                          csprintf("reqLayer%d", i)));
@@ -69,7 +69,7 @@ NoncoherentXBar::NoncoherentXBar(const NoncoherentXBarParams *p)
     if (p->port_default_connection_count) {
         defaultPortID = masterPorts.size();
         std::string portName = name() + ".default";
-        RequestPort* bp = new NoncoherentXBarMasterPort(portName, *this,
+        RequestPort* bp = new NoncoherentXBarRequestPort(portName, *this,
                                                       defaultPortID);
         masterPorts.push_back(bp);
         reqLayers.push_back(new ReqLayer(*bp, *this, csprintf("reqLayer%d",
@@ -80,7 +80,7 @@ NoncoherentXBar::NoncoherentXBar(const NoncoherentXBarParams *p)
     for (int i = 0; i < p->port_slave_connection_count; ++i) {
         std::string portName = csprintf("%s.slave[%d]", name(), i);
         QueuedResponsePort* bp =
-         new NoncoherentXBarSlavePort(portName, *this, i);
+         new NoncoherentXBarResponsePort(portName, *this, i);
         slavePorts.push_back(bp);
         respLayers.push_back(new RespLayer(*bp, *this,
                                            csprintf("respLayer%d", i)));
