@@ -38,16 +38,16 @@
 #include "sim/clocked_object.hh"
 
 class TokenManager;
-class TokenSlavePort;
+class TokenResponsePort;
 
-class TokenMasterPort : public RequestPort
+class TokenRequestPort : public RequestPort
 {
   private:
     /* Manager to track tokens between this token port pair. */
     TokenManager *tokenManager;
 
   public:
-    TokenMasterPort(const std::string& name, SimObject* owner,
+    TokenRequestPort(const std::string& name, SimObject* owner,
                     PortID id = InvalidPortID) :
         RequestPort(name, owner, id), tokenManager(nullptr)
     { }
@@ -82,26 +82,26 @@ class TokenMasterPort : public RequestPort
 
     /**
      * Specify a token manger, which will handle tracking of tokens for a
-     * TokenMasterPort/SlaveMasterPort pair.
+     * TokenRequestPort/SlaveMasterPort pair.
      */
     void setTokenManager(TokenManager *_tokenManager);
 };
 
-class TokenSlavePort : public ResponsePort
+class TokenResponsePort : public ResponsePort
 {
   private:
-    TokenMasterPort *tokenMasterPort;
+    TokenRequestPort *tokenMasterPort;
 
     std::deque<PacketPtr> respQueue;
 
     void recvRespRetry() override;
 
   public:
-    TokenSlavePort(const std::string& name, ClockedObject *owner,
+    TokenResponsePort(const std::string& name, ClockedObject *owner,
                    PortID id = InvalidPortID) :
         ResponsePort(name, owner, id), tokenMasterPort(nullptr)
     { }
-    ~TokenSlavePort() { }
+    ~TokenResponsePort() { }
 
     /**
      * Bind this slave port to a master port. This also does the mirror

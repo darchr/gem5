@@ -650,12 +650,12 @@ class ComputeUnit : public ClockedObject
 
     CUExitCallback *cuExitCallback;
 
-    class GMTokenPort : public TokenMasterPort
+    class GMTokenPort : public TokenRequestPort
     {
       public:
         GMTokenPort(const std::string& name, SimObject *owner,
                     PortID id = InvalidPortID)
-            : TokenMasterPort(name, owner, id)
+            : TokenRequestPort(name, owner, id)
         { }
         ~GMTokenPort() { }
 
