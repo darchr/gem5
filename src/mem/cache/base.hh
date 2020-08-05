@@ -119,7 +119,7 @@ class BaseCache : public ClockedObject
      * and the sendDeferredPacket of the timing port is modified to
      * consider both the transmit list and the requests from the MSHR.
      */
-    class CacheMasterPort : public QueuedMasterPort
+    class CacheMasterPort : public QueuedRequestPort
     {
 
       public:
@@ -139,7 +139,7 @@ class BaseCache : public ClockedObject
         CacheMasterPort(const std::string &_name, BaseCache *_cache,
                         ReqPacketQueue &_reqQueue,
                         SnoopRespPacketQueue &_snoopRespQueue) :
-            QueuedMasterPort(_name, _cache, _reqQueue, _snoopRespQueue)
+            QueuedRequestPort(_name, _cache, _reqQueue, _snoopRespQueue)
         { }
 
         /**
@@ -241,7 +241,7 @@ class BaseCache : public ClockedObject
      * incoming requests. If blocked, the port will issue a retry once
      * unblocked.
      */
-    class CacheSlavePort : public QueuedSlavePort
+    class CacheSlavePort : public QueuedResponsePort
     {
 
       public:

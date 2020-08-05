@@ -64,7 +64,7 @@ class MemSinkCtrl : public MemCtrl
     using PacketQueue = std::deque<PacketPtr>;
 
   private:
-    class MemoryPort : public QueuedSlavePort
+    class MemoryPort : public QueuedResponsePort
     {
       private:
         /** reference to parent memory object */

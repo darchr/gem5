@@ -80,7 +80,7 @@ SMMUSlavePort::SMMUSlavePort(const std::string &_name,
                              SMMUv3SlaveInterface &_ifc,
                              PortID _id)
 :
-    QueuedSlavePort(_name, &_ifc, respQueue, _id),
+    QueuedResponsePort(_name, &_ifc, respQueue, _id),
     ifc(_ifc),
     respQueue(_ifc, *this)
 {}
@@ -138,7 +138,7 @@ SMMUControlPort::getAddrRanges() const
 
 SMMUATSMasterPort::SMMUATSMasterPort(const std::string &_name,
                                      SMMUv3SlaveInterface &_ifc) :
-    QueuedMasterPort(_name, &_ifc, reqQueue, snoopRespQueue),
+    QueuedRequestPort(_name, &_ifc, reqQueue, snoopRespQueue),
     ifc(_ifc),
     reqQueue(_ifc, *this),
     snoopRespQueue(_ifc, *this)
@@ -152,7 +152,7 @@ SMMUATSMasterPort::recvTimingResp(PacketPtr pkt)
 
 SMMUATSSlavePort::SMMUATSSlavePort(const std::string &_name,
                                    SMMUv3SlaveInterface &_ifc) :
-    QueuedSlavePort(_name, &_ifc, respQueue),
+    QueuedResponsePort(_name, &_ifc, respQueue),
     ifc(_ifc),
     respQueue(_ifc, *this)
 {}

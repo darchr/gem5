@@ -66,7 +66,7 @@ using namespace std;
 BaseCache::CacheSlavePort::CacheSlavePort(const std::string &_name,
                                           BaseCache *_cache,
                                           const std::string &_label)
-    : QueuedSlavePort(_name, _cache, queue),
+    : QueuedResponsePort(_name, _cache, queue),
       queue(*_cache, *this, true, _label),
       blocked(false), mustSendRetry(false),
       sendRetryEvent([this]{ processSendRetry(); }, _name)

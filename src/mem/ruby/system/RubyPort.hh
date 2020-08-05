@@ -58,7 +58,7 @@ class AbstractController;
 class RubyPort : public ClockedObject
 {
   public:
-    class MemMasterPort : public QueuedMasterPort
+    class MemMasterPort : public QueuedRequestPort
     {
       private:
         ReqPacketQueue reqQueue;
@@ -72,7 +72,7 @@ class RubyPort : public ClockedObject
         void recvRangeChange() {}
     };
 
-    class MemSlavePort : public QueuedSlavePort
+    class MemSlavePort : public QueuedResponsePort
     {
       private:
         RespPacketQueue queue;
@@ -102,7 +102,7 @@ class RubyPort : public ClockedObject
         bool isPhysMemAddress(PacketPtr pkt) const;
     };
 
-    class PioMasterPort : public QueuedMasterPort
+    class PioMasterPort : public QueuedRequestPort
     {
       private:
         ReqPacketQueue reqQueue;
@@ -116,7 +116,7 @@ class RubyPort : public ClockedObject
         void recvRangeChange();
     };
 
-    class PioSlavePort : public QueuedSlavePort
+    class PioSlavePort : public QueuedResponsePort
     {
       private:
         RespPacketQueue queue;

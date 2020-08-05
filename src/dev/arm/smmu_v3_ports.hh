@@ -71,7 +71,7 @@ class SMMUMasterTableWalkPort : public RequestPort
     virtual ~SMMUMasterTableWalkPort() {}
 };
 
-class SMMUSlavePort : public QueuedSlavePort
+class SMMUSlavePort : public QueuedResponsePort
 {
   protected:
     SMMUv3SlaveInterface &ifc;
@@ -106,7 +106,7 @@ class SMMUControlPort : public SimpleTimingPort
     virtual ~SMMUControlPort() {}
 };
 
-class SMMUATSMasterPort : public QueuedMasterPort
+class SMMUATSMasterPort : public QueuedRequestPort
 {
   protected:
     SMMUv3SlaveInterface &ifc;
@@ -120,7 +120,7 @@ class SMMUATSMasterPort : public QueuedMasterPort
     virtual ~SMMUATSMasterPort() {}
 };
 
-class SMMUATSSlavePort : public QueuedSlavePort
+class SMMUATSSlavePort : public QueuedResponsePort
 {
   protected:
     SMMUv3SlaveInterface &ifc;

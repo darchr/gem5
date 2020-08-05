@@ -94,7 +94,7 @@ buildIntPacket(Addr addr, T payload)
 }
 
 template <class Device>
-class IntMasterPort : public QueuedMasterPort
+class IntMasterPort : public QueuedRequestPort
 {
   private:
     ReqPacketQueue reqQueue;
@@ -115,7 +115,7 @@ class IntMasterPort : public QueuedMasterPort
   public:
     IntMasterPort(const std::string& _name, SimObject* _parent,
                   Device* dev, Tick _latency) :
-        QueuedMasterPort(_name, _parent, reqQueue, snoopRespQueue),
+        QueuedRequestPort(_name, _parent, reqQueue, snoopRespQueue),
         reqQueue(*_parent, *this), snoopRespQueue(*_parent, *this),
         device(dev), latency(_latency)
     {

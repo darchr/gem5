@@ -79,7 +79,7 @@ class NoncoherentXBar : public BaseXBar
      * will be instantiated for each of the master ports connecting to
      * the crossbar.
      */
-    class NoncoherentXBarSlavePort : public QueuedSlavePort
+    class NoncoherentXBarSlavePort : public QueuedResponsePort
     {
       private:
 
@@ -93,7 +93,7 @@ class NoncoherentXBar : public BaseXBar
 
         NoncoherentXBarSlavePort(const std::string &_name,
                                 NoncoherentXBar &_xbar, PortID _id)
-            : QueuedSlavePort(_name, &_xbar, queue, _id), xbar(_xbar),
+            : QueuedResponsePort(_name, &_xbar, queue, _id), xbar(_xbar),
               queue(_xbar, *this)
         { }
 
