@@ -397,7 +397,7 @@ class TLB : public BaseTLB
      * reference. For ARM this method will always return a valid port
      * pointer.
      *
-     * @return A pointer to the walker master port
+     * @return A pointer to the walker requestor port
      */
     Port *getTableWalkerPort() override;
 
