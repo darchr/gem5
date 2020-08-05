@@ -310,8 +310,7 @@ SMMUv3::runProcessTiming(SMMUProcess *proc, PacketPtr pkt)
             DPRINTF(SMMUv3, "[t] master req  addr=%#x size=%#x\n",
                     action.pkt->getAddr(), action.pkt->getSize());
 
-            if (packetsToRetry.empty() &&
-                    masterPort.sendTimingReq(action.pkt)) {
+            if (packetsToRetry.empty() && masterPort.sendTimingReq(action.pkt)) {
                 scheduleSlaveRetries();
             } else {
                 DPRINTF(SMMUv3, "[t] master req  needs retry, qlen=%d\n",
