@@ -41,19 +41,19 @@
 #include "dev/arm/smmu_v3.hh"
 #include "dev/arm/smmu_v3_slaveifc.hh"
 
-SMMUMasterPort::SMMUMasterPort(const std::string &_name, SMMUv3 &_smmu) :
+SMMURequestPort::SMMURequestPort(const std::string &_name, SMMUv3 &_smmu) :
     RequestPort(_name, &_smmu),
     smmu(_smmu)
 {}
 
 bool
-SMMUMasterPort::recvTimingResp(PacketPtr pkt)
+SMMURequestPort::recvTimingResp(PacketPtr pkt)
 {
     return smmu.masterRecvTimingResp(pkt);
 }
 
 void
-SMMUMasterPort::recvReqRetry()
+SMMURequestPort::recvReqRetry()
 {
     return smmu.masterRecvReqRetry();
 }
@@ -76,7 +76,7 @@ SMMUMasterTableWalkPort::recvReqRetry()
     return smmu.masterTableWalkRecvReqRetry();
 }
 
-SMMUSlavePort::SMMUSlavePort(const std::string &_name,
+SMMUResponsePort::SMMUResponsePort(const std::string &_name,
                              SMMUv3SlaveInterface &_ifc,
                              PortID _id)
 :
@@ -86,20 +86,20 @@ SMMUSlavePort::SMMUSlavePort(const std::string &_name,
 {}
 
 void
-SMMUSlavePort::recvFunctional(PacketPtr pkt)
+SMMUResponsePort::recvFunctional(PacketPtr pkt)
 {
     if (!respQueue.trySatisfyFunctional(pkt))
         recvAtomic(pkt);
 }
 
 Tick
-SMMUSlavePort::recvAtomic(PacketPtr pkt)
+SMMUResponsePort::recvAtomic(PacketPtr pkt)
 {
     return ifc.recvAtomic(pkt);
 }
 
 bool
-SMMUSlavePort::recvTimingReq(PacketPtr pkt)
+SMMUResponsePort::recvTimingReq(PacketPtr pkt)
 {
     return ifc.recvTimingReq(pkt);
 }
