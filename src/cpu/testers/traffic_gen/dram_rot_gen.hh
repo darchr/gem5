@@ -63,7 +63,7 @@ class DramRotGen : public DramGen
      * 3) Ranks per channel
      *
      * @param obj SimObject owning this sequence generator
-     * @param master_id MasterID related to the memory requests
+     * @param master_id UniqueID related to the memory requests
      * @param _duration duration of this state before transitioning
      * @param start_addr Start address
      * @param end_addr End address
@@ -82,7 +82,7 @@ class DramRotGen : public DramGen
      * @param addr_mapping Address mapping to be used,
      *                     assumes single channel system
      */
-    DramRotGen(SimObject &obj, MasterID master_id, Tick _duration,
+    DramRotGen(SimObject &obj, UniqueID master_id, Tick _duration,
             Addr start_addr, Addr end_addr,
             Addr _blocksize, Addr cacheline_size,
             Tick min_period, Tick max_period,

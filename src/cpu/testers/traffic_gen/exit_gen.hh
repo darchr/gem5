@@ -54,7 +54,7 @@ class ExitGen : public BaseGen
 
   public:
 
-    ExitGen(SimObject &obj, MasterID master_id, Tick _duration)
+    ExitGen(SimObject &obj, UniqueID master_id, Tick _duration)
         : BaseGen(obj, master_id, _duration)
     { }
 

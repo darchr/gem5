@@ -46,7 +46,7 @@
 #include "debug/TrafficGen.hh"
 #include "sim/system.hh"
 
-BaseGen::BaseGen(SimObject &obj, MasterID master_id, Tick _duration)
+BaseGen::BaseGen(SimObject &obj, UniqueID master_id, Tick _duration)
     : _name(obj.name()), masterID(master_id),
       duration(_duration)
 {
@@ -76,7 +76,7 @@ BaseGen::getPacket(Addr addr, unsigned size, const MemCmd& cmd,
 }
 
 StochasticGen::StochasticGen(SimObject &obj,
-                             MasterID master_id, Tick _duration,
+                             UniqueID master_id, Tick _duration,
                              Addr start_addr, Addr end_addr,
                              Addr _blocksize, Addr cacheline_size,
                              Tick min_period, Tick max_period,
