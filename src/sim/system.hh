@@ -482,31 +482,31 @@ class System : public SimObject, public PCEventScope
      * @param masterName full name of the master
      * @return the master's ID.
      */
-    MasterID getGlobalMasterId(const std::string& master_name);
+    UniqueID getGlobalMasterId(const std::string& master_name);
 
     /**
      * Get the name of an object for a given request id.
      */
-    std::string getMasterName(MasterID master_id);
+    std::string getMasterName(UniqueID master_id);
 
     /**
-     * Looks up the MasterID for a given SimObject
-     * returns an invalid MasterID (invldMasterId) if not found.
+     * Looks up the UniqueID for a given SimObject
+     * returns an invalid UniqueID (invldMasterId) if not found.
      */
-    MasterID lookupMasterId(const SimObject* obj) const;
+    UniqueID lookupMasterId(const SimObject* obj) const;
 
     /**
-     * Looks up the MasterID for a given object name string
+     * Looks up the UniqueID for a given object name string
      * returns an invalid MasterID (invldMasterId) if not found.
      */
-    MasterID lookupMasterId(const std::string& name) const;
+    UniqueID lookupMasterId(const std::string& name) const;
 
     /** Get the number of masters registered in the system */
-    MasterID maxMasters() { return masters.size(); }
+    UniqueID maxMasters() { return masters.size(); }
 
   protected:
     /** helper function for getMasterId */
-    MasterID _getMasterId(const SimObject* master,
+    UniqueID _getMasterId(const SimObject* master,
                           const std::string& master_name);
 
     /**
