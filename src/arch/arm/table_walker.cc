@@ -96,7 +96,7 @@ TableWalker::~TableWalker()
 }
 
 void
-TableWalker::setMMU(Stage2MMU *m, MasterID master_id)
+TableWalker::setMMU(Stage2MMU *m, UniqueID master_id)
 {
     stage2Mmu = m;
     port = &m->getDMAPort();

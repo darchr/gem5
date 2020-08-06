@@ -220,7 +220,7 @@ class TLB : public BaseTLB
 
     TableWalker *getTableWalker() { return tableWalker; }
 
-    void setMMU(Stage2MMU *m, MasterID master_id);
+    void setMMU(Stage2MMU *m, UniqueID master_id);
 
     int getsize() const { return size; }
 
