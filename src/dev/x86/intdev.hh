@@ -53,12 +53,12 @@ namespace X86ISA
 {
 
 template <class Device>
-class IntSlavePort : public SimpleTimingPort
+class IntResponsePort : public SimpleTimingPort
 {
     Device * device;
 
   public:
-    IntSlavePort(const std::string& _name, SimObject* _parent,
+    IntResponsePort(const std::string& _name, SimObject* _parent,
                  Device* dev) :
         SimpleTimingPort(_name, _parent), device(dev)
     {
@@ -94,7 +94,7 @@ buildIntPacket(Addr addr, T payload)
 }
 
 template <class Device>
-class IntMasterPort : public QueuedRequestPort
+class IntRequestPort : public QueuedRequestPort
 {
   private:
     ReqPacketQueue reqQueue;
@@ -113,7 +113,7 @@ class IntMasterPort : public QueuedRequestPort
     static void defaultOnCompletion(PacketPtr pkt) { delete pkt; }
 
   public:
-    IntMasterPort(const std::string& _name, SimObject* _parent,
+    IntRequestPort(const std::string& _name, SimObject* _parent,
                   Device* dev, Tick _latency) :
         QueuedRequestPort(_name, _parent, reqQueue, snoopRespQueue),
         reqQueue(*_parent, *this), snoopRespQueue(*_parent, *this),
