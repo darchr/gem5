@@ -82,7 +82,7 @@ class CoherentXBar : public BaseXBar
      * be instantiated for each of the master ports connecting to the
      * crossbar.
      */
-    class CoherentXBarSlavePort : public QueuedResponsePort
+    class CoherentXBarResponsePort : public QueuedResponsePort
     {
 
       private:
@@ -95,7 +95,7 @@ class CoherentXBar : public BaseXBar
 
       public:
 
-        CoherentXBarSlavePort(const std::string &_name,
+        CoherentXBarResponsePort(const std::string &_name,
                              CoherentXBar &_xbar, PortID _id)
             : QueuedResponsePort(_name, &_xbar, queue, _id), xbar(_xbar),
               queue(_xbar, *this)
@@ -146,7 +146,7 @@ class CoherentXBar : public BaseXBar
      * instantiated for each of the slave interfaces connecting to the
      * crossbar.
      */
-    class CoherentXBarMasterPort : public RequestPort
+    class CoherentXBarRequestPort : public RequestPort
     {
       private:
         /** A reference to the crossbar to which this port belongs. */
@@ -154,7 +154,7 @@ class CoherentXBar : public BaseXBar
 
       public:
 
-        CoherentXBarMasterPort(const std::string &_name,
+        CoherentXBarRequestPort(const std::string &_name,
                               CoherentXBar &_xbar, PortID _id)
             : RequestPort(_name, &_xbar, _id), xbar(_xbar)
         { }
