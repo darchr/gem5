@@ -52,11 +52,10 @@
 DmaPort::DmaPort(ClockedObject *dev, System *s,
                  uint32_t sid, uint32_t ssid)
     : RequestPort(dev->name() + ".dma", dev),
-      device(dev), sys(s), masterId(s->getMasterId(dev)),
+      _id(s->getMasterId(dev)), device(dev), sys(s),
       sendEvent([this]{ sendDma(); }, dev->name()),
       pendingCount(0), inRetry(false),
-      defaultSid(sid),
-      defaultSSid(ssid)
+      defaultSid(sid), defaultSSid(ssid)
 { }
 
 void
@@ -166,7 +165,7 @@ DmaPort::dmaAction(Packet::Command cmd, Addr addr, int size, Event *event,
          !gen.done(); gen.next()) {
 
         req = std::make_shared<Request>(
-            gen.addr(), gen.size(), flag, masterId);
+            gen.addr(), gen.size(), flag, _id);
 
         req->setStreamId(sid);
         req->setSubStreamId(ssid);

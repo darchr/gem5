@@ -816,7 +816,7 @@ Port&
 SMMUv3::getPort(const std::string &name, PortID id)
 {
     if (name == "master") {
-        return masterPort;
+        return requestPort;
     } else if (name == "master_walker") {
         return masterTableWalkPort;
     } else if (name == "control") {
