@@ -617,8 +617,8 @@ class DRAMCtrl : public QoS::MemCtrl
         /** This comes from the outside world */
         const PacketPtr pkt;
 
-        /** ID associated with the packet */
-        const MasterID _requestorId;
+        /** MasterID associated with the packet */
+        const MasterID _masterId;
 
         const bool read;
 
@@ -677,7 +677,7 @@ class DRAMCtrl : public QoS::MemCtrl
          * Get the packet MasterID
          * (interface compatibility with Packet)
          */
-        inline MasterID masterId() const { return _requestorId; }
+        inline MasterID masterId() const { return _masterId; }
 
         /**
          * Get the packet size
@@ -708,7 +708,7 @@ class DRAMCtrl : public QoS::MemCtrl
                    uint32_t _row, uint16_t bank_id, Addr _addr,
                    unsigned int _size, Bank& bank_ref, Rank& rank_ref)
             : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
-              _requestorId(pkt->masterId()),
+              _masterId(pkt->masterId()),
               read(is_read), rank(_rank), bank(_bank), row(_row),
               bankId(bank_id), addr(_addr), size(_size), burstHelper(NULL),
               bankRef(bank_ref), rankRef(rank_ref), _qosValue(_pkt->qosValue())

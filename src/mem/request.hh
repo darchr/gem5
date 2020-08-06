@@ -302,7 +302,7 @@ class Request
     /** The requestor ID which is unique in the system for all ports
      * that are capable of issuing a transaction
      */
-    MasterID _requestorId = invldMasterId;
+    MasterID _masterId = invldMasterId;
 
     /** Flag structure for the request. */
     Flags _flags;
@@ -377,7 +377,7 @@ class Request
      * These fields are adequate to perform a request.
      */
     Request(Addr paddr, unsigned size, Flags flags, MasterID mid) :
-        _paddr(paddr), _size(size), _requestorId(mid), _time(curTick())
+        _paddr(paddr), _size(size), _masterId(mid), _time(curTick())
     {
         _flags.set(flags);
         privateFlags.set(VALID_PADDR|VALID_SIZE);
@@ -394,7 +394,7 @@ class Request
     Request(const Request& other)
         : _paddr(other._paddr), _size(other._size),
           _byteEnable(other._byteEnable),
-          _requestorId(other._requestorId),
+          _masterId(other._masterId),
           _flags(other._flags),
           _cacheCoherenceFlags(other._cacheCoherenceFlags),
           privateFlags(other.privateFlags),
@@ -447,7 +447,7 @@ class Request
     {
         _vaddr = vaddr;
         _size = size;
-        _requestorId = mid;
+        _masterId = mid;
         _pc = pc;
         _time = curTick();
 
@@ -652,11 +652,11 @@ class Request
         return _vaddr;
     }
 
-    /** Accessor for the requestor id. */
+    /** Accesssor for the requestor id. */
     MasterID
     masterId() const
     {
-        return _requestorId;
+        return _masterId;
     }
 
     uint32_t
