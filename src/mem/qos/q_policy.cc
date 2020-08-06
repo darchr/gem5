@@ -68,7 +68,7 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
     QueuePolicy::PacketQueue::iterator ret = q->end();
 
     // Tracks one packet per master in the queue
-    std::unordered_map<MasterID, QueuePolicy::PacketQueue::iterator> track;
+    std::unordered_map<UniqueID, QueuePolicy::PacketQueue::iterator> track;
 
     // Cycle queue only once
     for (auto pkt_it = q->begin(); pkt_it != q->end(); ++pkt_it) {
@@ -78,8 +78,8 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
         panic_if(!pkt->req,
                  "QoSQPolicy::lrg detected packet without request");
 
-        // Get Request MasterID
-        MasterID m_id = pkt->req->masterId();
+        // Get Request UniqueID
+        UniqueID m_id = pkt->req->masterId();
         DPRINTF(QOS, "QoSQPolicy::lrg checking packet "
                      "from queue with id %d\n", m_id);
 
@@ -93,7 +93,7 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
         if (toServe.front() == m_id) {
             DPRINTF(QOS, "QoSQPolicy::lrg matched to served "
                          "master id %d\n", m_id);
-            // This packet matches the MasterID to be served next
+            // This packet matches the UniqueID to be served next
             // move toServe front to back
             toServe.push_back(m_id);
             toServe.pop_front();
@@ -138,7 +138,7 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
 void
 LrgQueuePolicy::enqueuePacket(PacketPtr pkt)
 {
-    MasterID m_id = pkt->masterId();
+    UniqueID m_id = pkt->masterId();
     if (!memCtrl->hasMaster(m_id)) {
         toServe.push_back(m_id);
     }

@@ -53,7 +53,7 @@ struct MasterInfo
 {
     MasterInfo(const SimObject* _obj,
                std::string master_name,
-               MasterID master_id)
+               UniqueID master_id)
       : obj(_obj), masterName(master_name), masterId(master_id)
     {}
 
@@ -63,8 +63,8 @@ struct MasterInfo
     /** Master Name */
     std::string masterName;
 
-    /** Master ID */
-    MasterID masterId;
+    /** Unique ID */
+    UniqueID masterId;
 };
 
 #endif // __MEM_MEM_MASTER_HH__

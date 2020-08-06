@@ -48,7 +48,7 @@ namespace QoS {
 /**
  * Fixed Priority QoS Policy
  *
- * Fixed Priority Policy: based on a configured MasterID to priority map,
+ * Fixed Priority Policy: based on a configured UniqueID to priority map,
  * it returns a fixed QoS priority value: every master has a fixed priority.
  */
 class FixedPriorityPolicy : public Policy
@@ -87,7 +87,7 @@ class FixedPriorityPolicy : public Policy
      * @param data data to schedule
      * @return QoS priority value
      */
-    virtual uint8_t schedule(const MasterID, const uint64_t) override;
+    virtual uint8_t schedule(const UniqueID, const uint64_t) override;
 
   protected:
     /** Default fixed priority value for non-listed masters */
@@ -97,7 +97,7 @@ class FixedPriorityPolicy : public Policy
      * Priority map, associates configured masters with
      * a fixed QoS priority value
      */
-    std::map<MasterID, uint8_t> priorityMap;
+    std::map<UniqueID, uint8_t> priorityMap;
 };
 
 } // namespace QoS

@@ -182,7 +182,7 @@ class LrgQueuePolicy : public QueuePolicy
      * keeps track of serviced masters,
      * always serve the front element.
      */
-    std::list<MasterID> toServe;
+    std::list<UniqueID> toServe;
 };
 
 } // namespace QoS

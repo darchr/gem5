@@ -85,13 +85,13 @@ class MemCtrl: public AbstractMemory
     const bool qosSyncroScheduler;
 
     /** Hash of master ID - master name */
-    std::unordered_map<MasterID, const std::string> masters;
+    std::unordered_map<UniqueID, const std::string> masters;
 
     /** Hash of masters - number of packets queued per priority */
-    std::unordered_map<MasterID, std::vector<uint64_t> > packetPriorities;
+    std::unordered_map<UniqueID, std::vector<uint64_t> > packetPriorities;
 
     /** Hash of masters - address of request - queue of times of request */
-    std::unordered_map<MasterID,
+    std::unordered_map<UniqueID,
             std::unordered_map<uint64_t, std::deque<uint64_t>> > requestTimes;
 
     /**
@@ -157,7 +157,7 @@ class MemCtrl: public AbstractMemory
      *
      * @param m_id the master ID
      */
-    void addMaster(const MasterID m_id);
+    void addMaster(const UniqueID m_id);
 
     /**
      * Called upon receiving a request or
@@ -169,7 +169,7 @@ class MemCtrl: public AbstractMemory
      * @param addr packet address
      * @param entries number of entries to record
      */
-    void logRequest(BusState dir, MasterID m_id, uint8_t qos,
+    void logRequest(BusState dir, UniqueID m_id, uint8_t qos,
                     Addr addr, uint64_t entries);
 
     /**
@@ -183,7 +183,7 @@ class MemCtrl: public AbstractMemory
      * @param entries number of entries to record
      * @param delay response delay
      */
-    void logResponse(BusState dir, MasterID m_id, uint8_t qos,
+    void logResponse(BusState dir, UniqueID m_id, uint8_t qos,
                      Addr addr, uint64_t entries, double delay);
 
     /**
@@ -200,7 +200,7 @@ class MemCtrl: public AbstractMemory
                         uint64_t queue_entry_size, const PacketPtr pkt);
 
     using SimObject::schedule;
-    uint8_t schedule(MasterID m_id, uint64_t data);
+    uint8_t schedule(UniqueID m_id, uint64_t data);
     uint8_t schedule(const PacketPtr pkt);
 
     /**
@@ -234,7 +234,7 @@ class MemCtrl: public AbstractMemory
     template<typename Queues>
     void escalate(std::initializer_list<Queues*> queues,
                   uint64_t queue_entry_size,
-                  MasterID m_id, uint8_t tgt_prio);
+                  UniqueID m_id, uint8_t tgt_prio);
 
     /**
      * Escalates/demotes priority of all packets
@@ -253,7 +253,7 @@ class MemCtrl: public AbstractMemory
      */
     template<typename Queues>
     void escalateQueues(Queues& queues, uint64_t queue_entry_size,
-                        MasterID m_id, uint8_t curr_prio, uint8_t tgt_prio);
+                        UniqueID m_id, uint8_t curr_prio, uint8_t tgt_prio);
 
   public:
     /**
@@ -294,7 +294,7 @@ class MemCtrl: public AbstractMemory
      * @return true if the memory controller has received a packet
      *         from the master, false otherwise.
      */
-    bool hasMaster(MasterID m_id) const
+    bool hasMaster(UniqueID m_id) const
     {
         return masters.find(m_id) != masters.end();
     }
@@ -351,7 +351,7 @@ class MemCtrl: public AbstractMemory
 template<typename Queues>
 void
 MemCtrl::escalateQueues(Queues& queues, uint64_t queue_entry_size,
-                        MasterID m_id, uint8_t curr_prio, uint8_t tgt_prio)
+                        UniqueID m_id, uint8_t curr_prio, uint8_t tgt_prio)
 {
     auto it = queues[curr_prio].begin();
     while (it != queues[curr_prio].end()) {
@@ -424,7 +424,7 @@ template<typename Queues>
 void
 MemCtrl::escalate(std::initializer_list<Queues*> queues,
                   uint64_t queue_entry_size,
-                  MasterID m_id, uint8_t tgt_prio)
+                  UniqueID m_id, uint8_t tgt_prio)
 {
     // If needed, initialize all counters and statistics
     // for this master

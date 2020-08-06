@@ -94,7 +94,7 @@ class PropFairPolicy : public Policy
      * @return QoS priority value
      */
     virtual uint8_t
-    schedule(const MasterID m_id, const uint64_t pkt_size) override;
+    schedule(const UniqueID m_id, const uint64_t pkt_size) override;
 
   protected:
     template <typename Master>
@@ -108,7 +108,7 @@ class PropFairPolicy : public Policy
     const double weight;
 
     /** history is keeping track of every master's score */
-    using MasterHistory = std::pair<MasterID, double>;
+    using MasterHistory = std::pair<UniqueID, double>;
     std::vector<MasterHistory> history;
 };
 

@@ -105,7 +105,7 @@ BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
     // to insert the new one
 
     // Deal with what we are bringing in
-    MasterID master_id = pkt->req->masterId();
+    UniqueID master_id = pkt->req->masterId();
     assert(master_id < system->maxMasters());
     stats.occupancies[master_id]++;
 

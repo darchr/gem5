@@ -74,18 +74,18 @@ class Policy : public SimObject
     void setMemCtrl(MemCtrl* mem) { memCtrl = mem; };
 
     /**
-     * Builds a MasterID/value pair given a master input.
+     * Builds a UniqueID/value pair given a master input.
      * This will be lookuped in the system list of masters in order
-     * to retrieve the associated MasterID.
+     * to retrieve the associated UniqueID.
      * In case the master name/object cannot be resolved, the pairing
      * method will panic.
      *
      * @param master Master to lookup in the system
-     * @param value Value to be associated with the MasterID
-     * @return A MasterID/Value pair.
+     * @param value Value to be associated with the UniqueID
+     * @return A UniqueID/Value pair.
      */
     template <typename M, typename T>
-    std::pair<MasterID, T> pair(M master, T value);
+    std::pair<UniqueID, T> pair(M master, T value);
 
     /**
      * Schedules data - must be defined by derived class
@@ -94,7 +94,7 @@ class Policy : public SimObject
      * @param data data to schedule
      * @return QoS priority value
      */
-    virtual uint8_t schedule(const MasterID mId, const uint64_t data) = 0;
+    virtual uint8_t schedule(const UniqueID mId, const uint64_t data) = 0;
 
     /**
      * Schedules a packet. Non virtual interface for the scheduling
@@ -111,7 +111,7 @@ class Policy : public SimObject
 };
 
 template <typename M, typename T>
-std::pair<MasterID, T>
+std::pair<UniqueID, T>
 Policy::pair(M master, T value)
 {
     auto id = memCtrl->system()->lookupMasterId(master);
@@ -123,7 +123,7 @@ Policy::pair(M master, T value)
             "Master %s [id %d] associated with QoS data %d\n",
             master, id, value);
 
-    return std::pair<MasterID, T>(id, value);
+    return std::pair<UniqueID, T>(id, value);
 }
 
 } // namespace QoS

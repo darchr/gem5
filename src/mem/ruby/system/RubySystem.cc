@@ -130,16 +130,16 @@ RubySystem::registerMachineID(const MachineID& mach_id, Network* network)
 void
 RubySystem::registerMasterIDs()
 {
-    // Create the map for MasterID to network node. This is done in init()
-    // because all MasterIDs must be obtained in the constructor and
+    // Create the map for UniqueID to network node. This is done in init()
+    // because all UniqueIDs must be obtained in the constructor and
     // AbstractControllers are registered in their constructor. This is done
     // in two steps: (1) Add all of the AbstractControllers. Since we don't
-    // have a mapping of MasterID to MachineID this is the easiest way to
+    // have a mapping of UniqueID to MachineID this is the easiest way to
     // filter out AbstractControllers from non-Ruby masters. (2) Go through
-    // the system's list of MasterIDs and add missing MasterIDs to network 0
+    // the system's list of UniqueIDs and add missing UniqueIDs to network 0
     // (the default).
     for (auto& cntrl : m_abs_cntrl_vec) {
-        MasterID mid = cntrl->getMasterId();
+        UniqueID mid = cntrl->getMasterId();
         MachineID mach_id = cntrl->getMachineID();
 
         // These are setup in Network constructor and should exist
