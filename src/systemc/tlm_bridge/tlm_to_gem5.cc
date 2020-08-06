@@ -67,7 +67,7 @@ namespace sc_gem5
 {
 
 PacketPtr
-payload2packet(MasterID masterId, tlm::tlm_generic_payload &trans)
+payload2packet(UniqueID masterId, tlm::tlm_generic_payload &trans)
 {
     MemCmd cmd;
 
