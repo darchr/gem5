@@ -201,12 +201,12 @@ class PendingWriteInst
 class GPUCoalescer : public RubyPort
 {
   public:
-    class GMTokenPort : public TokenSlavePort
+    class GMTokenPort : public TokenResponsePort
     {
       public:
         GMTokenPort(const std::string& name, ClockedObject *owner,
                     PortID id = InvalidPortID)
-            : TokenSlavePort(name, owner, id)
+            : TokenResponsePort(name, owner, id)
         { }
         ~GMTokenPort() { }
 

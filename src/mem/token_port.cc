@@ -40,13 +40,13 @@
 #include "debug/TokenPort.hh"
 
 void
-TokenMasterPort::bind(Port &peer)
+TokenRequestPort::bind(Port &peer)
 {
     RequestPort::bind(peer);
 }
 
 void
-TokenMasterPort::recvTokens(int num_tokens)
+TokenRequestPort::recvTokens(int num_tokens)
 {
     panic_if(!tokenManager, "TokenManager not set for %s.\n", name());
 
@@ -54,7 +54,7 @@ TokenMasterPort::recvTokens(int num_tokens)
 }
 
 bool
-TokenMasterPort::haveTokens(int num_tokens)
+TokenRequestPort::haveTokens(int num_tokens)
 {
     panic_if(!tokenManager, "TokenManager not set for %s.\n", name());
 
@@ -62,7 +62,7 @@ TokenMasterPort::haveTokens(int num_tokens)
 }
 
 void
-TokenMasterPort::acquireTokens(int num_tokens)
+TokenRequestPort::acquireTokens(int num_tokens)
 {
     panic_if(!tokenManager, "TokenManager not set for %s.\n", name());
 
@@ -70,13 +70,13 @@ TokenMasterPort::acquireTokens(int num_tokens)
 }
 
 void
-TokenMasterPort::setTokenManager(TokenManager *_tokenManager)
+TokenRequestPort::setTokenManager(TokenManager *_tokenManager)
 {
     tokenManager = _tokenManager;
 }
 
 void
-TokenSlavePort::sendTokens(int num_tokens)
+TokenResponsePort::sendTokens(int num_tokens)
 {
     fatal_if(!tokenMasterPort, "Tried sendTokens to non-token master!\n");
 
@@ -85,12 +85,12 @@ TokenSlavePort::sendTokens(int num_tokens)
 }
 
 void
-TokenSlavePort::bind(Port& peer)
+TokenResponsePort::bind(Port& peer)
 {
-    // TokenSlavePort is allowed to bind to either TokenMasterPort or a
+    // TokenResponsePort is allowed to bind to either TokenRequestPort or a
     // RequestPort as fallback. If the type is a RequestPort, tokenMasterPort
     // is set to nullptr to indicate tokens should not be exchanged.
-    auto *token_master_port = dynamic_cast<TokenMasterPort*>(&peer);
+    auto *token_master_port = dynamic_cast<TokenRequestPort*>(&peer);
     auto *master_port = dynamic_cast<RequestPort*>(&peer);
     if (!token_master_port && !master_port) {
         fatal("Attempt to bind port %s to unsupported slave port %s.",
@@ -107,14 +107,14 @@ TokenSlavePort::bind(Port& peer)
 }
 
 void
-TokenSlavePort::unbind()
+TokenResponsePort::unbind()
 {
     ResponsePort::responderUnbind();
     tokenMasterPort = nullptr;
 }
 
 void
-TokenSlavePort::recvRespRetry()
+TokenResponsePort::recvRespRetry()
 {
     // fallback to QueuedResponsePort-like impl for now
     panic_if(respQueue.empty(),
@@ -129,7 +129,7 @@ TokenSlavePort::recvRespRetry()
 }
 
 bool
-TokenSlavePort::sendTimingResp(PacketPtr pkt)
+TokenResponsePort::sendTimingResp(PacketPtr pkt)
 {
     bool success = ResponsePort::sendTimingResp(pkt);
 
