@@ -463,13 +463,13 @@ class ComputeUnit : public ClockedObject
     void processFetchReturn(PacketPtr pkt);
     void updatePageDivergenceDist(Addr addr);
 
-    MasterID masterId() { return _masterId; }
+    MasterID getId() { return __id; }
 
     bool isDone() const;
     bool isVectorAluIdle(uint32_t simdId) const;
 
   protected:
-    MasterID _masterId;
+    MasterID __id;
 
     LdsState &lds;
 
