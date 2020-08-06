@@ -50,9 +50,9 @@
 #include "debug/Bridge.hh"
 #include "params/Bridge.hh"
 
-Bridge::BridgeSlavePort::BridgeSlavePort(const std::string& _name,
+Bridge::BridgeResponsePort::BridgeResponsePort(const std::string& _name,
                                          Bridge& _bridge,
-                                         BridgeMasterPort& _masterPort,
+                                         BridgeRequestPort& _masterPort,
                                          Cycles _delay, int _resp_limit,
                                          std::vector<AddrRange> _ranges)
     : ResponsePort(_name, &_bridge), bridge(_bridge), masterPort(_masterPort),
@@ -62,9 +62,9 @@ Bridge::BridgeSlavePort::BridgeSlavePort(const std::string& _name,
 {
 }
 
-Bridge::BridgeMasterPort::BridgeMasterPort(const std::string& _name,
+Bridge::BridgeRequestPort::BridgeRequestPort(const std::string& _name,
                                            Bridge& _bridge,
-                                           BridgeSlavePort& _slavePort,
+                                           BridgeResponsePort& _slavePort,
                                            Cycles _delay, int _req_limit)
     : RequestPort(_name, &_bridge), bridge(_bridge), slavePort(_slavePort),
       delay(_delay), reqQueueLimit(_req_limit),
@@ -105,19 +105,19 @@ Bridge::init()
 }
 
 bool
-Bridge::BridgeSlavePort::respQueueFull() const
+Bridge::BridgeResponsePort::respQueueFull() const
 {
     return outstandingResponses == respQueueLimit;
 }
 
 bool
-Bridge::BridgeMasterPort::reqQueueFull() const
+Bridge::BridgeRequestPort::reqQueueFull() const
 {
     return transmitList.size() == reqQueueLimit;
 }
 
 bool
-Bridge::BridgeMasterPort::recvTimingResp(PacketPtr pkt)
+Bridge::BridgeRequestPort::recvTimingResp(PacketPtr pkt)
 {
     // all checks are done when the request is accepted on the slave
     // side, so we are guaranteed to have space for the response
@@ -139,7 +139,7 @@ Bridge::BridgeMasterPort::recvTimingResp(PacketPtr pkt)
 }
 
 bool
-Bridge::BridgeSlavePort::recvTimingReq(PacketPtr pkt)
+Bridge::BridgeResponsePort::recvTimingReq(PacketPtr pkt)
 {
     DPRINTF(Bridge, "recvTimingReq: %s addr 0x%x\n",
             pkt->cmdString(), pkt->getAddr());
@@ -199,7 +199,7 @@ Bridge::BridgeSlavePort::recvTimingReq(PacketPtr pkt)
 }
 
 void
-Bridge::BridgeSlavePort::retryStalledReq()
+Bridge::BridgeResponsePort::retryStalledReq()
 {
     if (retryReq) {
         DPRINTF(Bridge, "Request waiting for retry, now retrying\n");
@@ -209,7 +209,7 @@ Bridge::BridgeSlavePort::retryStalledReq()
 }
 
 void
-Bridge::BridgeMasterPort::schedTimingReq(PacketPtr pkt, Tick when)
+Bridge::BridgeRequestPort::schedTimingReq(PacketPtr pkt, Tick when)
 {
     // If we're about to put this packet at the head of the queue, we
     // need to schedule an event to do the transmit.  Otherwise there
@@ -226,7 +226,7 @@ Bridge::BridgeMasterPort::schedTimingReq(PacketPtr pkt, Tick when)
 
 
 void
-Bridge::BridgeSlavePort::schedTimingResp(PacketPtr pkt, Tick when)
+Bridge::BridgeResponsePort::schedTimingResp(PacketPtr pkt, Tick when)
 {
     // If we're about to put this packet at the head of the queue, we
     // need to schedule an event to do the transmit.  Otherwise there
@@ -240,7 +240,7 @@ Bridge::BridgeSlavePort::schedTimingResp(PacketPtr pkt, Tick when)
 }
 
 void
-Bridge::BridgeMasterPort::trySendTiming()
+Bridge::BridgeRequestPort::trySendTiming()
 {
     assert(!transmitList.empty());
 
@@ -278,7 +278,7 @@ Bridge::BridgeMasterPort::trySendTiming()
 }
 
 void
-Bridge::BridgeSlavePort::trySendTiming()
+Bridge::BridgeResponsePort::trySendTiming()
 {
     assert(!transmitList.empty());
 
@@ -322,19 +322,19 @@ Bridge::BridgeSlavePort::trySendTiming()
 }
 
 void
-Bridge::BridgeMasterPort::recvReqRetry()
+Bridge::BridgeRequestPort::recvReqRetry()
 {
     trySendTiming();
 }
 
 void
-Bridge::BridgeSlavePort::recvRespRetry()
+Bridge::BridgeResponsePort::recvRespRetry()
 {
     trySendTiming();
 }
 
 Tick
-Bridge::BridgeSlavePort::recvAtomic(PacketPtr pkt)
+Bridge::BridgeResponsePort::recvAtomic(PacketPtr pkt)
 {
     panic_if(pkt->cacheResponding(), "Should not see packets where cache "
              "is responding");
@@ -343,7 +343,7 @@ Bridge::BridgeSlavePort::recvAtomic(PacketPtr pkt)
 }
 
 void
-Bridge::BridgeSlavePort::recvFunctional(PacketPtr pkt)
+Bridge::BridgeResponsePort::recvFunctional(PacketPtr pkt)
 {
     pkt->pushLabel(name());
 
@@ -367,7 +367,7 @@ Bridge::BridgeSlavePort::recvFunctional(PacketPtr pkt)
 }
 
 bool
-Bridge::BridgeMasterPort::trySatisfyFunctional(PacketPtr pkt)
+Bridge::BridgeRequestPort::trySatisfyFunctional(PacketPtr pkt)
 {
     bool found = false;
     auto i = transmitList.begin();
@@ -384,7 +384,7 @@ Bridge::BridgeMasterPort::trySatisfyFunctional(PacketPtr pkt)
 }
 
 AddrRangeList
-Bridge::BridgeSlavePort::getAddrRanges() const
+Bridge::BridgeResponsePort::getAddrRanges() const
 {
     return ranges;
 }
