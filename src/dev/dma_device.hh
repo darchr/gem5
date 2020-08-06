@@ -105,6 +105,9 @@ class DmaPort : public RequestPort, public Drainable
         {}
     };
 
+    /** Id for all requests */
+    const MasterID _id;
+
   public:
     /** The device that owns this port. */
     ClockedObject *const device;
@@ -112,9 +115,6 @@ class DmaPort : public RequestPort, public Drainable
     /** The system that device/port are in. This is used to select which mode
      * we are currently operating in. */
     System *const sys;
-
-    /** Id for all requests */
-    const MasterID masterId;
 
   protected:
     /** Use a deque as we never do any insertion or removal in the middle */
