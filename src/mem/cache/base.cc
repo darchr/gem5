@@ -63,7 +63,7 @@
 
 using namespace std;
 
-BaseCache::CacheSlavePort::CacheSlavePort(const std::string &_name,
+BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
                                           BaseCache *_cache,
                                           const std::string &_label)
     : QueuedResponsePort(_name, _cache, queue),
@@ -129,7 +129,7 @@ BaseCache::~BaseCache()
 }
 
 void
-BaseCache::CacheSlavePort::setBlocked()
+BaseCache::CacheResponsePort::setBlocked()
 {
     assert(!blocked);
     DPRINTF(CachePort, "Port is blocking new requests\n");
@@ -144,7 +144,7 @@ BaseCache::CacheSlavePort::setBlocked()
 }
 
 void
-BaseCache::CacheSlavePort::clearBlocked()
+BaseCache::CacheResponsePort::clearBlocked()
 {
     assert(blocked);
     DPRINTF(CachePort, "Port is accepting new requests\n");
@@ -156,7 +156,7 @@ BaseCache::CacheSlavePort::clearBlocked()
 }
 
 void
-BaseCache::CacheSlavePort::processSendRetry()
+BaseCache::CacheResponsePort::processSendRetry()
 {
     DPRINTF(CachePort, "Port is sending retry\n");
 
@@ -2364,7 +2364,7 @@ BaseCache::CpuSidePort::getAddrRanges() const
 BaseCache::
 CpuSidePort::CpuSidePort(const std::string &_name, BaseCache *_cache,
                          const std::string &_label)
-    : CacheSlavePort(_name, _cache, _label), cache(_cache)
+    : CacheResponsePort(_name, _cache, _label), cache(_cache)
 {
 }
 
@@ -2451,7 +2451,7 @@ BaseCache::CacheReqPacketQueue::sendDeferredPacket()
 BaseCache::MemSidePort::MemSidePort(const std::string &_name,
                                     BaseCache *_cache,
                                     const std::string &_label)
-    : CacheMasterPort(_name, _cache, _reqQueue, _snoopRespQueue),
+    : CacheRequestPort(_name, _cache, _reqQueue, _snoopRespQueue),
       _reqQueue(*_cache, *this, _snoopRespQueue, _label),
       _snoopRespQueue(*_cache, *this, true, _label), cache(_cache)
 {
