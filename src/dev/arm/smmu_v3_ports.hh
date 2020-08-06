@@ -106,7 +106,7 @@ class SMMUControlPort : public SimpleTimingPort
     virtual ~SMMUControlPort() {}
 };
 
-class SMMUATSMasterPort : public QueuedRequestPort
+class SMMUATSRequestPort : public QueuedRequestPort
 {
   protected:
     SMMUv3SlaveInterface &ifc;
@@ -116,11 +116,11 @@ class SMMUATSMasterPort : public QueuedRequestPort
     virtual bool recvTimingResp(PacketPtr pkt);
 
   public:
-    SMMUATSMasterPort(const std::string &_name, SMMUv3SlaveInterface &_ifc);
-    virtual ~SMMUATSMasterPort() {}
+    SMMUATSRequestPort(const std::string &_name, SMMUv3SlaveInterface &_ifc);
+    virtual ~SMMUATSRequestPort() {}
 };
 
-class SMMUATSSlavePort : public QueuedResponsePort
+class SMMUATSResponsePort : public QueuedResponsePort
 {
   protected:
     SMMUv3SlaveInterface &ifc;
@@ -134,8 +134,8 @@ class SMMUATSSlavePort : public QueuedResponsePort
     { return AddrRangeList(); }
 
   public:
-    SMMUATSSlavePort(const std::string &_name, SMMUv3SlaveInterface &_ifc);
-    virtual ~SMMUATSSlavePort() {}
+    SMMUATSResponsePort(const std::string &_name, SMMUv3SlaveInterface &_ifc);
+    virtual ~SMMUATSResponsePort() {}
 };
 
 #endif /* __DEV_ARM_SMMU_V3_PORTS_HH__ */

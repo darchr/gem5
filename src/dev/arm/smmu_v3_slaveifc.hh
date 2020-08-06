@@ -73,8 +73,8 @@ class SMMUv3SlaveInterface : public ClockedObject
     const Cycles mainTLBLat;
 
     SMMUResponsePort *slavePort;
-    SMMUATSSlavePort  atsSlavePort;
-    SMMUATSMasterPort atsMasterPort;
+    SMMUATSResponsePort  atsSlavePort;
+    SMMUATSRequestPort atsMasterPort;
 
     // in bytes
     const unsigned portWidth;
