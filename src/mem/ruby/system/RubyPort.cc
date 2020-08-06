@@ -76,7 +76,7 @@ RubyPort::RubyPort(const Params *p)
 
     // create the master ports based on the number of connected ports
     for (size_t i = 0; i < p->port_master_connection_count; ++i) {
-        master_ports.push_back(new PioMasterPort(csprintf("%s.master%d",
+        master_ports.push_back(new PioRequestPort(csprintf("%s.master%d",
             name(), i), this));
     }
 }
@@ -121,7 +121,7 @@ RubyPort::getPort(const std::string &if_name, PortID idx)
     return ClockedObject::getPort(if_name, idx);
 }
 
-RubyPort::PioMasterPort::PioMasterPort(const std::string &_name,
+RubyPort::PioRequestPort::PioRequestPort(const std::string &_name,
                            RubyPort *_port)
     : QueuedRequestPort(_name, _port, reqQueue, snoopRespQueue),
       reqQueue(*_port, *this), snoopRespQueue(*_port, *this)
@@ -129,7 +129,7 @@ RubyPort::PioMasterPort::PioMasterPort(const std::string &_name,
     DPRINTF(RubyPort, "Created master pioport on sequencer %s\n", _name);
 }
 
-RubyPort::PioSlavePort::PioSlavePort(const std::string &_name,
+RubyPort::PioResponsePort::PioResponsePort(const std::string &_name,
                            RubyPort *_port)
     : QueuedResponsePort(_name, _port, queue), queue(*_port, *this)
 {
@@ -156,7 +156,7 @@ MemResponsePort::MemResponsePort(const std::string &_name, RubyPort *_port,
 }
 
 bool
-RubyPort::PioMasterPort::recvTimingResp(PacketPtr pkt)
+RubyPort::PioRequestPort::recvTimingResp(PacketPtr pkt)
 {
     RubyPort *rp = static_cast<RubyPort *>(&owner);
     DPRINTF(RubyPort, "Response for address: 0x%#x\n", pkt->getAddr());
@@ -192,7 +192,7 @@ bool RubyPort::MemRequestPort::recvTimingResp(PacketPtr pkt)
 }
 
 bool
-RubyPort::PioSlavePort::recvTimingReq(PacketPtr pkt)
+RubyPort::PioResponsePort::recvTimingReq(PacketPtr pkt)
 {
     RubyPort *ruby_port = static_cast<RubyPort *>(&owner);
 
@@ -213,7 +213,7 @@ RubyPort::PioSlavePort::recvTimingReq(PacketPtr pkt)
 }
 
 Tick
-RubyPort::PioSlavePort::recvAtomic(PacketPtr pkt)
+RubyPort::PioResponsePort::recvAtomic(PacketPtr pkt)
 {
     RubyPort *ruby_port = static_cast<RubyPort *>(&owner);
     // Only atomic_noncaching mode supported!
@@ -584,7 +584,7 @@ RubyPort::MemResponsePort::hitCallback(PacketPtr pkt)
 }
 
 AddrRangeList
-RubyPort::PioSlavePort::getAddrRanges() const
+RubyPort::PioResponsePort::getAddrRanges() const
 {
     // at the moment the assumption is that the master does not care
     AddrRangeList ranges;
@@ -631,7 +631,7 @@ RubyPort::ruby_eviction_callback(Addr address)
 }
 
 void
-RubyPort::PioMasterPort::recvRangeChange()
+RubyPort::PioRequestPort::recvRangeChange()
 {
     RubyPort &r = static_cast<RubyPort &>(owner);
     r.gotAddrRanges--;

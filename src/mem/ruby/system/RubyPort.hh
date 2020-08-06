@@ -102,27 +102,27 @@ class RubyPort : public ClockedObject
         bool isPhysMemAddress(PacketPtr pkt) const;
     };
 
-    class PioMasterPort : public QueuedRequestPort
+    class PioRequestPort : public QueuedRequestPort
     {
       private:
         ReqPacketQueue reqQueue;
         SnoopRespPacketQueue snoopRespQueue;
 
       public:
-        PioMasterPort(const std::string &_name, RubyPort *_port);
+        PioRequestPort(const std::string &_name, RubyPort *_port);
 
       protected:
         bool recvTimingResp(PacketPtr pkt);
         void recvRangeChange();
     };
 
-    class PioSlavePort : public QueuedResponsePort
+    class PioResponsePort : public QueuedResponsePort
     {
       private:
         RespPacketQueue queue;
 
       public:
-        PioSlavePort(const std::string &_name, RubyPort *_port);
+        PioResponsePort(const std::string &_name, RubyPort *_port);
 
       protected:
         bool recvTimingReq(PacketPtr pkt);
@@ -205,15 +205,15 @@ class RubyPort : public ClockedObject
         retryList.push_back(port);
     }
 
-    PioMasterPort pioMasterPort;
-    PioSlavePort pioSlavePort;
+    PioRequestPort pioMasterPort;
+    PioResponsePort pioSlavePort;
     MemRequestPort memMasterPort;
     MemResponsePort memSlavePort;
     unsigned int gotAddrRanges;
 
     /** Vector of M5 Ports attached to this Ruby port. */
     typedef std::vector<MemResponsePort *>::iterator CpuPortIter;
-    std::vector<PioMasterPort *> master_ports;
+    std::vector<PioRequestPort *> master_ports;
 
     //
     // Based on similar code in the M5 bus.  Stores pointers to those ports
