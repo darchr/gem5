@@ -98,12 +98,12 @@ class AddrMapper : public SimObject
 
     };
 
-    class MapperMasterPort : public RequestPort
+    class MapperRequestPort : public RequestPort
     {
 
       public:
 
-        MapperMasterPort(const std::string& _name, AddrMapper& _mapper)
+        MapperRequestPort(const std::string& _name, AddrMapper& _mapper)
             : RequestPort(_name, &_mapper), mapper(_mapper)
         { }
 
@@ -151,14 +151,14 @@ class AddrMapper : public SimObject
     };
 
     /** Instance of master port, facing the memory side */
-    MapperMasterPort masterPort;
+    MapperRequestPort masterPort;
 
-    class MapperSlavePort : public ResponsePort
+    class MapperResponsePort : public ResponsePort
     {
 
       public:
 
-        MapperSlavePort(const std::string& _name, AddrMapper& _mapper)
+        MapperResponsePort(const std::string& _name, AddrMapper& _mapper)
             : ResponsePort(_name, &_mapper), mapper(_mapper)
         { }
 
@@ -201,7 +201,7 @@ class AddrMapper : public SimObject
     };
 
     /** Instance of slave port, i.e. on the CPU side */
-    MapperSlavePort slavePort;
+    MapperResponsePort slavePort;
 
     void recvFunctional(PacketPtr pkt);
 
