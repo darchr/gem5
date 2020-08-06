@@ -37,7 +37,7 @@
 
 /**
  * @file
- * MasterInfo declaration.
+ * RequestorInfo declaration.
  */
 
 #ifndef __MEM_MEM_MASTER_HH__
@@ -47,11 +47,11 @@
 #include "sim/sim_object.hh"
 
 /**
- * The MasterInfo class contains data about a specific master.
+ * The RequestorInfo class contains data about a specific master.
  */
-struct MasterInfo
+struct RequestorInfo
 {
-    MasterInfo(const SimObject* _obj,
+    RequestorInfo(const SimObject* _obj,
                std::string master_name,
                UniqueID master_id)
       : obj(_obj), masterName(master_name), masterId(master_id)

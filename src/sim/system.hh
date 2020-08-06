@@ -427,7 +427,7 @@ class System : public SimObject, public PCEventScope
      * It's used to uniquely id any master in the system by name for things
      * like cache statistics.
      */
-    std::vector<MasterInfo> masters;
+    std::vector<RequestorInfo> masters;
 
     ThermalModel * thermalModel;
 
