@@ -116,7 +116,7 @@ TokenSlavePort::unbind()
 void
 TokenSlavePort::recvRespRetry()
 {
-    // fallback to QueuedSlavePort-like impl for now
+    // fallback to QueuedResponsePort-like impl for now
     panic_if(respQueue.empty(),
              "Attempted to retry a response when no retry was queued!\n");
 

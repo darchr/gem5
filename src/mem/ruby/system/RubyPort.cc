@@ -122,7 +122,7 @@ RubyPort::getPort(const std::string &if_name, PortID idx)
 
 RubyPort::PioMasterPort::PioMasterPort(const std::string &_name,
                            RubyPort *_port)
-    : QueuedMasterPort(_name, _port, reqQueue, snoopRespQueue),
+    : QueuedRequestPort(_name, _port, reqQueue, snoopRespQueue),
       reqQueue(*_port, *this), snoopRespQueue(*_port, *this)
 {
     DPRINTF(RubyPort, "Created master pioport on sequencer %s\n", _name);
@@ -130,14 +130,14 @@ RubyPort::PioMasterPort::PioMasterPort(const std::string &_name,
 
 RubyPort::PioSlavePort::PioSlavePort(const std::string &_name,
                            RubyPort *_port)
-    : QueuedSlavePort(_name, _port, queue), queue(*_port, *this)
+    : QueuedResponsePort(_name, _port, queue), queue(*_port, *this)
 {
     DPRINTF(RubyPort, "Created slave pioport on sequencer %s\n", _name);
 }
 
 RubyPort::MemMasterPort::MemMasterPort(const std::string &_name,
                            RubyPort *_port)
-    : QueuedMasterPort(_name, _port, reqQueue, snoopRespQueue),
+    : QueuedRequestPort(_name, _port, reqQueue, snoopRespQueue),
       reqQueue(*_port, *this), snoopRespQueue(*_port, *this)
 {
     DPRINTF(RubyPort, "Created master memport on ruby sequencer %s\n", _name);
@@ -146,7 +146,7 @@ RubyPort::MemMasterPort::MemMasterPort(const std::string &_name,
 RubyPort::MemSlavePort::MemSlavePort(const std::string &_name, RubyPort *_port,
                                      bool _access_backing_store, PortID id,
                                      bool _no_retry_on_stall)
-    : QueuedSlavePort(_name, _port, queue, id), queue(*_port, *this),
+    : QueuedResponsePort(_name, _port, queue, id), queue(*_port, *this),
       access_backing_store(_access_backing_store),
       no_retry_on_stall(_no_retry_on_stall)
 {

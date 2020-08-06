@@ -79,7 +79,8 @@ NoncoherentXBar::NoncoherentXBar(const NoncoherentXBarParams *p)
     // create the slave ports, once again starting at zero
     for (int i = 0; i < p->port_slave_connection_count; ++i) {
         std::string portName = csprintf("%s.slave[%d]", name(), i);
-        QueuedSlavePort* bp = new NoncoherentXBarSlavePort(portName, *this, i);
+        QueuedResponsePort* bp =
+         new NoncoherentXBarSlavePort(portName, *this, i);
         slavePorts.push_back(bp);
         respLayers.push_back(new RespLayer(*bp, *this,
                                            csprintf("respLayer%d", i)));

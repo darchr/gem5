@@ -92,9 +92,9 @@ class DRAMCtrl : public QoS::MemCtrl
 
   private:
 
-    // For now, make use of a queued slave port to avoid dealing with
+    // For now, make use of a queued response port to avoid dealing with
     // flow control for the responses being sent back
-    class MemoryPort : public QueuedSlavePort
+    class MemoryPort : public QueuedResponsePort
     {
 
         RespPacketQueue queue;
