@@ -40,7 +40,7 @@ class ExternalSlave(SimObject):
     type = 'ExternalSlave'
     cxx_header = "mem/external_slave.hh"
 
-    port = SlavePort("Slave port")
+    port = ResponsePort("This port receives requests")
 
     addr_ranges = VectorParam.AddrRange([], 'Addresses served by'
         ' this port\'s external agent')

@@ -46,10 +46,12 @@ class MemCheckerMonitor(SimObject):
     cxx_header = "mem/mem_checker_monitor.hh"
 
     # one port in each direction
-    master = RequestPort("Master port")
-    slave = ResponsePort("Slave port")
-    cpu_side = ResponsePort("Alias for slave")
-    mem_side = RequestPort("Alias for master")
+    memSide = RequestPort("Port closest to memory")
+    master = DeprecatedParam(memSide, '`master` is now called `memSide`')
+
+    cpuSide = ResponsePort("Port closest to cpu")
+    slave = DeprecatedParam(cpuSide, '`slave` is now called `cpuSide`')
+
     warn_only = Param.Bool(False, "Warn about violations only")
     memchecker = Param.MemChecker("Instance shared with other monitors")
 

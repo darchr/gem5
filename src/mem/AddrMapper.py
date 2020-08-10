@@ -37,10 +37,10 @@ from m5.params import *
 from m5.SimObject import SimObject
 
 # An address mapper changes the packet addresses in going from the
-# slave port side of the mapper to the master port side. When the
-# slave port is queried for the address ranges, it also performs the
+# cpuSide port side of the mapper to the memSide port side. When the
+# cpuSide port is queried for the address ranges, it also performs the
 # necessary range updates. Note that snoop requests that travel from
-# the master port (i.e. the memory side) to the slave port are
+# the memSide port (i.e. the memory side) to the cpuSide port are
 # currently not modified.
 class AddrMapper(SimObject):
     type = 'AddrMapper'
@@ -48,8 +48,11 @@ class AddrMapper(SimObject):
     abstract = True
 
     # one port in each direction
-    master = RequestPort("Master port")
-    slave = ResponsePort("Slave port")
+    memSide = RequestPort("Port on the memory side, sends requests")
+    master  = DeprecatedParam(memSide, "`master` is now called `memSide`")
+
+    cpuSide = ResponsePort("Port on the cpu side, receives requests")
+    slave   = DeprecatedParam(cpuSide, "`slave` is now called cpuSide")
 
 
 # Range address mapper that maps a set of original ranges to a set of
