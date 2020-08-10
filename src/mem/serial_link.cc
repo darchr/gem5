@@ -51,9 +51,10 @@
 #include "debug/SerialLink.hh"
 #include "params/SerialLink.hh"
 
-SerialLink::SerialLinkSlavePort::SerialLinkSlavePort(const std::string& _name,
+SerialLink::SerialLinkResponsePort::
+SerialLinkResponsePort(const std::string& _name,
                                          SerialLink& _serial_link,
-                                         SerialLinkMasterPort& _masterPort,
+                                         SerialLinkRequestPort& _masterPort,
                                          Cycles _delay, int _resp_limit,
                                          const std::vector<AddrRange>&
                                          _ranges)
@@ -66,9 +67,9 @@ SerialLink::SerialLinkSlavePort::SerialLinkSlavePort(const std::string& _name,
 {
 }
 
-SerialLink::SerialLinkMasterPort::SerialLinkMasterPort(const std::string&
+SerialLink::SerialLinkRequestPort::SerialLinkRequestPort(const std::string&
                                            _name, SerialLink& _serial_link,
-                                           SerialLinkSlavePort& _slavePort,
+                                           SerialLinkResponsePort& _slavePort,
                                            Cycles _delay, int _req_limit)
     : RequestPort(_name, &_serial_link), serial_link(_serial_link),
       slavePort(_slavePort), delay(_delay), reqQueueLimit(_req_limit),
@@ -112,19 +113,19 @@ SerialLink::init()
 }
 
 bool
-SerialLink::SerialLinkSlavePort::respQueueFull() const
+SerialLink::SerialLinkResponsePort::respQueueFull() const
 {
     return outstandingResponses == respQueueLimit;
 }
 
 bool
-SerialLink::SerialLinkMasterPort::reqQueueFull() const
+SerialLink::SerialLinkRequestPort::reqQueueFull() const
 {
     return transmitList.size() == reqQueueLimit;
 }
 
 bool
-SerialLink::SerialLinkMasterPort::recvTimingResp(PacketPtr pkt)
+SerialLink::SerialLinkRequestPort::recvTimingResp(PacketPtr pkt)
 {
     // all checks are done when the request is accepted on the slave
     // side, so we are guaranteed to have space for the response
@@ -157,7 +158,7 @@ SerialLink::SerialLinkMasterPort::recvTimingResp(PacketPtr pkt)
 }
 
 bool
-SerialLink::SerialLinkSlavePort::recvTimingReq(PacketPtr pkt)
+SerialLink::SerialLinkResponsePort::recvTimingReq(PacketPtr pkt)
 {
     DPRINTF(SerialLink, "recvTimingReq: %s addr 0x%x\n",
             pkt->cmdString(), pkt->getAddr());
@@ -224,7 +225,7 @@ SerialLink::SerialLinkSlavePort::recvTimingReq(PacketPtr pkt)
 }
 
 void
-SerialLink::SerialLinkSlavePort::retryStalledReq()
+SerialLink::SerialLinkResponsePort::retryStalledReq()
 {
     if (retryReq) {
         DPRINTF(SerialLink, "Request waiting for retry, now retrying\n");
@@ -234,7 +235,7 @@ SerialLink::SerialLinkSlavePort::retryStalledReq()
 }
 
 void
-SerialLink::SerialLinkMasterPort::schedTimingReq(PacketPtr pkt, Tick when)
+SerialLink::SerialLinkRequestPort::schedTimingReq(PacketPtr pkt, Tick when)
 {
     // If we're about to put this packet at the head of the queue, we
     // need to schedule an event to do the transmit.  Otherwise there
@@ -251,7 +252,7 @@ SerialLink::SerialLinkMasterPort::schedTimingReq(PacketPtr pkt, Tick when)
 
 
 void
-SerialLink::SerialLinkSlavePort::schedTimingResp(PacketPtr pkt, Tick when)
+SerialLink::SerialLinkResponsePort::schedTimingResp(PacketPtr pkt, Tick when)
 {
     // If we're about to put this packet at the head of the queue, we
     // need to schedule an event to do the transmit.  Otherwise there
@@ -265,7 +266,7 @@ SerialLink::SerialLinkSlavePort::schedTimingResp(PacketPtr pkt, Tick when)
 }
 
 void
-SerialLink::SerialLinkMasterPort::trySendTiming()
+SerialLink::SerialLinkRequestPort::trySendTiming()
 {
     assert(!transmitList.empty());
 
@@ -308,7 +309,7 @@ SerialLink::SerialLinkMasterPort::trySendTiming()
 }
 
 void
-SerialLink::SerialLinkSlavePort::trySendTiming()
+SerialLink::SerialLinkResponsePort::trySendTiming()
 {
     assert(!transmitList.empty());
 
@@ -356,25 +357,25 @@ SerialLink::SerialLinkSlavePort::trySendTiming()
 }
 
 void
-SerialLink::SerialLinkMasterPort::recvReqRetry()
+SerialLink::SerialLinkRequestPort::recvReqRetry()
 {
     trySendTiming();
 }
 
 void
-SerialLink::SerialLinkSlavePort::recvRespRetry()
+SerialLink::SerialLinkResponsePort::recvRespRetry()
 {
     trySendTiming();
 }
 
 Tick
-SerialLink::SerialLinkSlavePort::recvAtomic(PacketPtr pkt)
+SerialLink::SerialLinkResponsePort::recvAtomic(PacketPtr pkt)
 {
     return delay * serial_link.clockPeriod() + masterPort.sendAtomic(pkt);
 }
 
 void
-SerialLink::SerialLinkSlavePort::recvFunctional(PacketPtr pkt)
+SerialLink::SerialLinkResponsePort::recvFunctional(PacketPtr pkt)
 {
     pkt->pushLabel(name());
 
@@ -398,7 +399,7 @@ SerialLink::SerialLinkSlavePort::recvFunctional(PacketPtr pkt)
 }
 
 bool
-SerialLink::SerialLinkMasterPort::trySatisfyFunctional(PacketPtr pkt)
+SerialLink::SerialLinkRequestPort::trySatisfyFunctional(PacketPtr pkt)
 {
     bool found = false;
     auto i = transmitList.begin();
@@ -415,7 +416,7 @@ SerialLink::SerialLinkMasterPort::trySatisfyFunctional(PacketPtr pkt)
 }
 
 AddrRangeList
-SerialLink::SerialLinkSlavePort::getAddrRanges() const
+SerialLink::SerialLinkResponsePort::getAddrRanges() const
 {
     return ranges;
 }

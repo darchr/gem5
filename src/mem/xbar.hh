@@ -373,7 +373,7 @@ class BaseXBar : public ClockedObject
     bool gotAllAddrRanges;
 
     /** The master and slave ports of the crossbar */
-    std::vector<QueuedSlavePort*> slavePorts;
+    std::vector<QueuedResponsePort*> slavePorts;
     std::vector<RequestPort*> masterPorts;
 
     /** Port that handles requests that don't match any of the interfaces.*/

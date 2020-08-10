@@ -50,7 +50,7 @@
 
 class SMMUTranslationProcess;
 class SMMUv3;
-class SMMUSlavePort;
+class SMMUResponsePort;
 
 class SMMUv3SlaveInterface : public ClockedObject
 {
@@ -72,9 +72,9 @@ class SMMUv3SlaveInterface : public ClockedObject
     const Cycles microTLBLat;
     const Cycles mainTLBLat;
 
-    SMMUSlavePort *slavePort;
-    SMMUATSSlavePort  atsSlavePort;
-    SMMUATSMasterPort atsMasterPort;
+    SMMUResponsePort *slavePort;
+    SMMUATSResponsePort  atsSlavePort;
+    SMMUATSRequestPort atsMasterPort;
 
     // in bytes
     const unsigned portWidth;

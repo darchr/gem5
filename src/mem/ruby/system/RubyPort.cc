@@ -68,14 +68,15 @@ RubyPort::RubyPort(const Params *p)
 
     // create the slave ports based on the number of connected ports
     for (size_t i = 0; i < p->port_slave_connection_count; ++i) {
-        slave_ports.push_back(new MemSlavePort(csprintf("%s.slave%d", name(),
+        slave_ports.push_back
+            (new MemResponsePort(csprintf("%s.slave%d", name(),
             i), this, p->ruby_system->getAccessBackingStore(),
             i, p->no_retry_on_stall));
     }
 
     // create the master ports based on the number of connected ports
     for (size_t i = 0; i < p->port_master_connection_count; ++i) {
-        master_ports.push_back(new PioMasterPort(csprintf("%s.master%d",
+        master_ports.push_back(new PioRequestPort(csprintf("%s.master%d",
             name(), i), this));
     }
 }
@@ -120,33 +121,34 @@ RubyPort::getPort(const std::string &if_name, PortID idx)
     return ClockedObject::getPort(if_name, idx);
 }
 
-RubyPort::PioMasterPort::PioMasterPort(const std::string &_name,
+RubyPort::PioRequestPort::PioRequestPort(const std::string &_name,
                            RubyPort *_port)
-    : QueuedMasterPort(_name, _port, reqQueue, snoopRespQueue),
+    : QueuedRequestPort(_name, _port, reqQueue, snoopRespQueue),
       reqQueue(*_port, *this), snoopRespQueue(*_port, *this)
 {
     DPRINTF(RubyPort, "Created master pioport on sequencer %s\n", _name);
 }
 
-RubyPort::PioSlavePort::PioSlavePort(const std::string &_name,
+RubyPort::PioResponsePort::PioResponsePort(const std::string &_name,
                            RubyPort *_port)
-    : QueuedSlavePort(_name, _port, queue), queue(*_port, *this)
+    : QueuedResponsePort(_name, _port, queue), queue(*_port, *this)
 {
     DPRINTF(RubyPort, "Created slave pioport on sequencer %s\n", _name);
 }
 
-RubyPort::MemMasterPort::MemMasterPort(const std::string &_name,
+RubyPort::MemRequestPort::MemRequestPort(const std::string &_name,
                            RubyPort *_port)
-    : QueuedMasterPort(_name, _port, reqQueue, snoopRespQueue),
+    : QueuedRequestPort(_name, _port, reqQueue, snoopRespQueue),
       reqQueue(*_port, *this), snoopRespQueue(*_port, *this)
 {
     DPRINTF(RubyPort, "Created master memport on ruby sequencer %s\n", _name);
 }
 
-RubyPort::MemSlavePort::MemSlavePort(const std::string &_name, RubyPort *_port,
+RubyPort::
+MemResponsePort::MemResponsePort(const std::string &_name, RubyPort *_port,
                                      bool _access_backing_store, PortID id,
                                      bool _no_retry_on_stall)
-    : QueuedSlavePort(_name, _port, queue, id), queue(*_port, *this),
+    : QueuedResponsePort(_name, _port, queue, id), queue(*_port, *this),
       access_backing_store(_access_backing_store),
       no_retry_on_stall(_no_retry_on_stall)
 {
@@ -154,7 +156,7 @@ RubyPort::MemSlavePort::MemSlavePort(const std::string &_name, RubyPort *_port,
 }
 
 bool
-RubyPort::PioMasterPort::recvTimingResp(PacketPtr pkt)
+RubyPort::PioRequestPort::recvTimingResp(PacketPtr pkt)
 {
     RubyPort *rp = static_cast<RubyPort *>(&owner);
     DPRINTF(RubyPort, "Response for address: 0x%#x\n", pkt->getAddr());
@@ -165,7 +167,7 @@ RubyPort::PioMasterPort::recvTimingResp(PacketPtr pkt)
     return true;
 }
 
-bool RubyPort::MemMasterPort::recvTimingResp(PacketPtr pkt)
+bool RubyPort::MemRequestPort::recvTimingResp(PacketPtr pkt)
 {
     // got a response from a device
     assert(pkt->isResponse());
@@ -173,7 +175,7 @@ bool RubyPort::MemMasterPort::recvTimingResp(PacketPtr pkt)
     // First we must retrieve the request port from the sender State
     RubyPort::SenderState *senderState =
         safe_cast<RubyPort::SenderState *>(pkt->popSenderState());
-    MemSlavePort *port = senderState->port;
+    MemResponsePort *port = senderState->port;
     assert(port != NULL);
     delete senderState;
 
@@ -190,7 +192,7 @@ bool RubyPort::MemMasterPort::recvTimingResp(PacketPtr pkt)
 }
 
 bool
-RubyPort::PioSlavePort::recvTimingReq(PacketPtr pkt)
+RubyPort::PioResponsePort::recvTimingReq(PacketPtr pkt)
 {
     RubyPort *ruby_port = static_cast<RubyPort *>(&owner);
 
@@ -211,7 +213,7 @@ RubyPort::PioSlavePort::recvTimingReq(PacketPtr pkt)
 }
 
 Tick
-RubyPort::PioSlavePort::recvAtomic(PacketPtr pkt)
+RubyPort::PioResponsePort::recvAtomic(PacketPtr pkt)
 {
     RubyPort *ruby_port = static_cast<RubyPort *>(&owner);
     // Only atomic_noncaching mode supported!
@@ -231,7 +233,7 @@ RubyPort::PioSlavePort::recvAtomic(PacketPtr pkt)
 }
 
 bool
-RubyPort::MemSlavePort::recvTimingReq(PacketPtr pkt)
+RubyPort::MemResponsePort::recvTimingReq(PacketPtr pkt)
 {
     DPRINTF(RubyPort, "Timing request for address %#x on port %d\n",
             pkt->getAddr(), id);
@@ -302,7 +304,7 @@ RubyPort::MemSlavePort::recvTimingReq(PacketPtr pkt)
 }
 
 Tick
-RubyPort::MemSlavePort::recvAtomic(PacketPtr pkt)
+RubyPort::MemResponsePort::recvAtomic(PacketPtr pkt)
 {
     RubyPort *ruby_port = static_cast<RubyPort *>(&owner);
     // Only atomic_noncaching mode supported!
@@ -347,7 +349,7 @@ RubyPort::MemSlavePort::recvAtomic(PacketPtr pkt)
 }
 
 void
-RubyPort::MemSlavePort::addToRetryList()
+RubyPort::MemResponsePort::addToRetryList()
 {
     RubyPort *ruby_port = static_cast<RubyPort *>(&owner);
 
@@ -362,7 +364,7 @@ RubyPort::MemSlavePort::addToRetryList()
 }
 
 void
-RubyPort::MemSlavePort::recvFunctional(PacketPtr pkt)
+RubyPort::MemResponsePort::recvFunctional(PacketPtr pkt)
 {
     DPRINTF(RubyPort, "Functional access for address: %#x\n", pkt->getAddr());
 
@@ -437,7 +439,7 @@ RubyPort::ruby_hit_callback(PacketPtr pkt)
     // First we must retrieve the request port from the sender State
     RubyPort::SenderState *senderState =
         safe_cast<RubyPort::SenderState *>(pkt->popSenderState());
-    MemSlavePort *port = senderState->port;
+    MemResponsePort *port = senderState->port;
     assert(port != NULL);
     delete senderState;
 
@@ -450,8 +452,8 @@ void
 RubyPort::trySendRetries()
 {
     //
-    // If we had to stall the MemSlavePorts, wake them up because the sequencer
-    // likely has free resources now.
+    // If we had to stall the MemResponsePorts,
+    //  wake them up because the sequencer likely has free resources now.
     //
     if (!retryList.empty()) {
         // Record the current list of ports to retry on a temporary list
@@ -459,7 +461,7 @@ RubyPort::trySendRetries()
         // an immediate retry, which may result in the ports being put back on
         // the list. Therefore we want to clear the retryList before calling
         // sendRetryReq.
-        std::vector<MemSlavePort *> curRetryList(retryList);
+        std::vector<MemResponsePort *> curRetryList(retryList);
 
         retryList.clear();
 
@@ -507,7 +509,7 @@ RubyPort::drain()
 }
 
 void
-RubyPort::MemSlavePort::hitCallback(PacketPtr pkt)
+RubyPort::MemResponsePort::hitCallback(PacketPtr pkt)
 {
     bool needsResponse = pkt->needsResponse();
 
@@ -582,7 +584,7 @@ RubyPort::MemSlavePort::hitCallback(PacketPtr pkt)
 }
 
 AddrRangeList
-RubyPort::PioSlavePort::getAddrRanges() const
+RubyPort::PioResponsePort::getAddrRanges() const
 {
     // at the moment the assumption is that the master does not care
     AddrRangeList ranges;
@@ -598,7 +600,7 @@ RubyPort::PioSlavePort::getAddrRanges() const
 }
 
 bool
-RubyPort::MemSlavePort::isPhysMemAddress(PacketPtr pkt) const
+RubyPort::MemResponsePort::isPhysMemAddress(PacketPtr pkt) const
 {
     RubyPort *ruby_port = static_cast<RubyPort *>(&owner);
     return ruby_port->system->isMemAddr(pkt->getAddr())
@@ -629,7 +631,7 @@ RubyPort::ruby_eviction_callback(Addr address)
 }
 
 void
-RubyPort::PioMasterPort::recvRangeChange()
+RubyPort::PioRequestPort::recvRangeChange()
 {
     RubyPort &r = static_cast<RubyPort &>(owner);
     r.gotAddrRanges--;

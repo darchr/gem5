@@ -83,7 +83,7 @@ MemCtrl::init()
 }
 
 void
-MemCtrl::logRequest(BusState dir, MasterID m_id, uint8_t qos,
+MemCtrl::logRequest(BusState dir, UniqueID m_id, uint8_t qos,
                     Addr addr, uint64_t entries)
 {
     // If needed, initialize all counters and statistics
@@ -140,7 +140,7 @@ MemCtrl::logRequest(BusState dir, MasterID m_id, uint8_t qos,
 }
 
 void
-MemCtrl::logResponse(BusState dir, MasterID m_id, uint8_t qos,
+MemCtrl::logResponse(BusState dir, UniqueID m_id, uint8_t qos,
                      Addr addr, uint64_t entries, double delay)
 {
     panic_if(!hasMaster(m_id),
@@ -209,7 +209,7 @@ MemCtrl::logResponse(BusState dir, MasterID m_id, uint8_t qos,
 }
 
 uint8_t
-MemCtrl::schedule(MasterID m_id, uint64_t data)
+MemCtrl::schedule(UniqueID m_id, uint64_t data)
 {
     if (policy) {
         return policy->schedule(m_id, data);
@@ -266,7 +266,7 @@ MemCtrl::selectNextBusState()
 }
 
 void
-MemCtrl::addMaster(MasterID m_id)
+MemCtrl::addMaster(UniqueID m_id)
 {
     if (!hasMaster(m_id)) {
         masters.emplace(m_id, _system->getMasterName(m_id));

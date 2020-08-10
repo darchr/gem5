@@ -45,7 +45,7 @@
 #include "enums/AddrMap.hh"
 
 DramGen::DramGen(SimObject &obj,
-                 MasterID master_id, Tick _duration,
+                 UniqueID master_id, Tick _duration,
                  Addr start_addr, Addr end_addr,
                  Addr _blocksize, Addr cacheline_size,
                  Tick min_period, Tick max_period,

@@ -2960,7 +2960,7 @@ DRAMCtrl::drainResume()
 }
 
 DRAMCtrl::MemoryPort::MemoryPort(const std::string& name, DRAMCtrl& _memory)
-    : QueuedSlavePort(name, &_memory, queue), queue(_memory, *this, true),
+    : QueuedResponsePort(name, &_memory, queue), queue(_memory, *this, true),
       memory(_memory)
 { }
 

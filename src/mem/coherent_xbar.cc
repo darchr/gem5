@@ -68,7 +68,7 @@ CoherentXBar::CoherentXBar(const CoherentXBarParams *p)
     // are enumerated starting from zero
     for (int i = 0; i < p->port_master_connection_count; ++i) {
         std::string portName = csprintf("%s.master[%d]", name(), i);
-        RequestPort* bp = new CoherentXBarMasterPort(portName, *this, i);
+        RequestPort* bp = new CoherentXBarRequestPort(portName, *this, i);
         masterPorts.push_back(bp);
         reqLayers.push_back(new ReqLayer(*bp, *this,
                                          csprintf("reqLayer%d", i)));
@@ -81,7 +81,7 @@ CoherentXBar::CoherentXBar(const CoherentXBarParams *p)
     if (p->port_default_connection_count) {
         defaultPortID = masterPorts.size();
         std::string portName = name() + ".default";
-        RequestPort* bp = new CoherentXBarMasterPort(portName, *this,
+        RequestPort* bp = new CoherentXBarRequestPort(portName, *this,
                                                     defaultPortID);
         masterPorts.push_back(bp);
         reqLayers.push_back(new ReqLayer(*bp, *this, csprintf("reqLayer%d",
@@ -94,7 +94,8 @@ CoherentXBar::CoherentXBar(const CoherentXBarParams *p)
     // create the slave ports, once again starting at zero
     for (int i = 0; i < p->port_slave_connection_count; ++i) {
         std::string portName = csprintf("%s.slave[%d]", name(), i);
-        QueuedSlavePort* bp = new CoherentXBarSlavePort(portName, *this, i);
+        QueuedResponsePort* bp =
+            new CoherentXBarResponsePort(portName, *this, i);
         slavePorts.push_back(bp);
         respLayers.push_back(new RespLayer(*bp, *this,
                                            csprintf("respLayer%d", i)));
@@ -685,7 +686,7 @@ CoherentXBar::recvTimingSnoopResp(PacketPtr pkt, PortID slave_port_id)
 
 void
 CoherentXBar::forwardTiming(PacketPtr pkt, PortID exclude_slave_port_id,
-                           const std::vector<QueuedSlavePort*>& dests)
+                           const std::vector<QueuedResponsePort*>& dests)
 {
     DPRINTF(CoherentXBar, "%s for %s\n", __func__, pkt->print());
 
@@ -915,7 +916,7 @@ CoherentXBar::recvAtomicSnoop(PacketPtr pkt, PortID master_port_id)
 std::pair<MemCmd, Tick>
 CoherentXBar::forwardAtomic(PacketPtr pkt, PortID exclude_slave_port_id,
                            PortID source_master_port_id,
-                           const std::vector<QueuedSlavePort*>& dests)
+                           const std::vector<QueuedResponsePort*>& dests)
 {
     // the packet may be changed on snoops, record the original
     // command to enable us to restore it between snoops so that

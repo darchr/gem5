@@ -247,7 +247,7 @@ System::System(Params *p)
         warn_once("Cache line size is neither 16, 32, 64 nor 128 bytes.\n");
 
     // Get the generic system master IDs
-    MasterID tmp_id M5_VAR_USED;
+    UniqueID tmp_id M5_VAR_USED;
     tmp_id = getMasterId(this, "writebacks");
     assert(tmp_id == Request::wbMasterId);
     tmp_id = getMasterId(this, "functional");
@@ -420,7 +420,7 @@ System::isMemAddr(Addr addr) const
 }
 
 void
-System::addDeviceMemory(MasterID masterId, AbstractMemory *deviceMemory)
+System::addDeviceMemory(UniqueID masterId, AbstractMemory *deviceMemory)
 {
     if (!deviceMemMap.count(masterId)) {
         deviceMemMap.insert(std::make_pair(masterId, deviceMemory));
@@ -430,17 +430,17 @@ System::addDeviceMemory(MasterID masterId, AbstractMemory *deviceMemory)
 bool
 System::isDeviceMemAddr(PacketPtr pkt) const
 {
-    const MasterID& mid = pkt->masterId();
+    const UniqueID& mid = pkt->masterId();
 
     return (deviceMemMap.count(mid) &&
             deviceMemMap.at(mid)->getAddrRange().contains(pkt->getAddr()));
 }
 
 AbstractMemory *
-System::getDeviceMemory(MasterID mid) const
+System::getDeviceMemory(UniqueID mid) const
 {
     panic_if(!deviceMemMap.count(mid),
-             "No device memory found for MasterID %d\n", mid);
+             "No device memory found for UniqueID %d\n", mid);
     return deviceMemMap.at(mid);
 }
 
@@ -553,10 +553,10 @@ System::stripSystemName(const std::string& master_name) const
     }
 }
 
-MasterID
+UniqueID
 System::lookupMasterId(const SimObject* obj) const
 {
-    MasterID id = Request::invldMasterId;
+    UniqueID id = Request::invldMasterId;
 
     // number of occurrences of the SimObject pointer
     // in the master list.
@@ -570,13 +570,13 @@ System::lookupMasterId(const SimObject* obj) const
     }
 
     fatal_if(obj_number > 1,
-        "Cannot lookup MasterID by SimObject pointer: "
+        "Cannot lookup UniqueID by SimObject pointer: "
         "More than one master is sharing the same SimObject\n");
 
     return id;
 }
 
-MasterID
+UniqueID
 System::lookupMasterId(const std::string& master_name) const
 {
     std::string name = stripSystemName(master_name);
@@ -590,20 +590,20 @@ System::lookupMasterId(const std::string& master_name) const
     return Request::invldMasterId;
 }
 
-MasterID
+UniqueID
 System::getGlobalMasterId(const std::string& master_name)
 {
     return _getMasterId(nullptr, master_name);
 }
 
-MasterID
+UniqueID
 System::getMasterId(const SimObject* master, std::string submaster)
 {
     auto master_name = leafMasterName(master, submaster);
     return _getMasterId(master, master_name);
 }
 
-MasterID
+UniqueID
 System::_getMasterId(const SimObject* master, const std::string& master_name)
 {
     std::string name = stripSystemName(master_name);
@@ -624,8 +624,8 @@ System::_getMasterId(const SimObject* master, const std::string& master_name)
                 "You must do so in init().\n");
     }
 
-    // Generate a new MasterID incrementally
-    MasterID master_id = masters.size();
+    // Generate a new UniqueID incrementally
+    UniqueID master_id = masters.size();
 
     // Append the new Master metadata to the group of system Masters.
     masters.emplace_back(master, name, master_id);
@@ -646,7 +646,7 @@ System::leafMasterName(const SimObject* master, const std::string& submaster)
 }
 
 std::string
-System::getMasterName(MasterID master_id)
+System::getMasterName(UniqueID master_id)
 {
     if (master_id >= masters.size())
         fatal("Invalid master_id passed to getMasterName()\n");

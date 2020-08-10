@@ -92,9 +92,9 @@ class DRAMCtrl : public QoS::MemCtrl
 
   private:
 
-    // For now, make use of a queued slave port to avoid dealing with
+    // For now, make use of a queued response port to avoid dealing with
     // flow control for the responses being sent back
-    class MemoryPort : public QueuedSlavePort
+    class MemoryPort : public QueuedResponsePort
     {
 
         RespPacketQueue queue;
@@ -617,8 +617,8 @@ class DRAMCtrl : public QoS::MemCtrl
         /** This comes from the outside world */
         const PacketPtr pkt;
 
-        /** MasterID associated with the packet */
-        const MasterID _masterId;
+        /** UniqueID associated with the packet */
+        const UniqueID _masterId;
 
         const bool read;
 
@@ -674,10 +674,10 @@ class DRAMCtrl : public QoS::MemCtrl
         inline uint8_t qosValue() const { return _qosValue; }
 
         /**
-         * Get the packet MasterID
+         * Get the packet UniqueID
          * (interface compatibility with Packet)
          */
-        inline MasterID masterId() const { return _masterId; }
+        inline UniqueID masterId() const { return _masterId; }
 
         /**
          * Get the packet size

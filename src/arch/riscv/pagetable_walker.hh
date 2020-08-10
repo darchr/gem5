@@ -166,7 +166,7 @@ namespace RiscvISA
         // The TLB we're supposed to load.
         TLB * tlb;
         System * sys;
-        MasterID masterId;
+        UniqueID masterId;
 
         // The number of outstanding walks that can be squashed per cycle.
         unsigned numSquashable;

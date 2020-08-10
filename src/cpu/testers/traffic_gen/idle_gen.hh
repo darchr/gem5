@@ -56,7 +56,7 @@ class IdleGen : public BaseGen
 
   public:
 
-    IdleGen(SimObject &obj, MasterID master_id, Tick _duration)
+    IdleGen(SimObject &obj, UniqueID master_id, Tick _duration)
         : BaseGen(obj, master_id, _duration)
     { }
 

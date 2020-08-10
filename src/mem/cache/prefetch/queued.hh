@@ -106,7 +106,7 @@ class Queued : public Base
          *        tagged
          * @param t time when the prefetch becomes ready
          */
-        void createPkt(Addr paddr, unsigned blk_size, MasterID mid,
+        void createPkt(Addr paddr, unsigned blk_size, UniqueID mid,
                        bool tag_prefetch, Tick t);
 
         /**

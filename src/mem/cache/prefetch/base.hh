@@ -94,7 +94,7 @@ class Base : public ClockedObject
         /** The program counter that generated this address. */
         Addr pc;
         /** The requestor ID that generated this address. */
-        MasterID masterId;
+        UniqueID masterId;
         /** Validity bit for the PC of this address. */
         bool validPC;
         /** Whether this address targets the secure memory space. */
@@ -152,7 +152,7 @@ class Base : public ClockedObject
          * Gets the requestor ID that generated this address
          * @return the requestor ID that generated this address
          */
-        MasterID getMasterId() const
+        UniqueID getMasterId() const
         {
             return masterId;
         }
@@ -281,7 +281,7 @@ class Base : public ClockedObject
     const bool onInst;
 
     /** Request id for prefetches */
-    const MasterID masterId;
+    const UniqueID masterId;
 
     const Addr pageBytes;
 

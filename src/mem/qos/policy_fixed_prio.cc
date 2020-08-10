@@ -73,9 +73,9 @@ FixedPriorityPolicy::initMasterObj(const SimObject* master, uint8_t priority)
 }
 
 uint8_t
-FixedPriorityPolicy::schedule(const MasterID mId, const uint64_t data)
+FixedPriorityPolicy::schedule(const UniqueID mId, const uint64_t data)
 {
-    // Reads a packet's MasterID contained in its encapsulated request
+    // Reads a packet's UniqueID contained in its encapsulated request
     // if a match is found in the configured priority map, returns the
     // matching priority, else returns zero
 
@@ -84,7 +84,7 @@ FixedPriorityPolicy::schedule(const MasterID mId, const uint64_t data)
     if (ret != priorityMap.end()) {
         return ret->second;
     } else {
-        DPRINTF(QOS, "Master %s (MasterID %d) not present in priorityMap, "
+        DPRINTF(QOS, "Master %s (UniqueID %d) not present in priorityMap, "
                      "assigning default priority %d\n",
                       memCtrl->system()->getMasterName(mId),
                       mId, defaultPriority);

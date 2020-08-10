@@ -128,7 +128,7 @@ class ExternalMaster : public SimObject
 
     void init() override;
 
-    const MasterID masterId;
+    const UniqueID masterId;
 };
 
 

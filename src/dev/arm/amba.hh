@@ -43,7 +43,7 @@
 namespace AMBA
 {
 
-typedef MasterID OrderID;
+typedef UniqueID OrderID;
 
 static OrderID
 orderId(PacketPtr pkt)

@@ -57,7 +57,7 @@ template <typename Master>
 void
 PropFairPolicy::initMaster(const Master master, const double score)
 {
-    MasterID m_id = memCtrl->system()->lookupMasterId(master);
+    UniqueID m_id = memCtrl->system()->lookupMasterId(master);
 
     assert(m_id != Request::invldMasterId);
 
@@ -89,7 +89,7 @@ PropFairPolicy::updateScore(
 }
 
 uint8_t
-PropFairPolicy::schedule(const MasterID pkt_mid, const uint64_t pkt_size)
+PropFairPolicy::schedule(const UniqueID pkt_mid, const uint64_t pkt_size)
 {
     auto sort_pred =
     [] (const MasterHistory& lhs, const MasterHistory& rhs)
@@ -105,7 +105,7 @@ PropFairPolicy::schedule(const MasterID pkt_mid, const uint64_t pkt_size)
     uint8_t pkt_priority = 0;
     for (auto m_hist = history.begin(); m_hist != history.end(); m_hist++) {
 
-        MasterID curr_mid = m_hist->first;
+        UniqueID curr_mid = m_hist->first;
         double& curr_score = m_hist->second;
 
         if (curr_mid == pkt_mid) {

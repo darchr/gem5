@@ -456,7 +456,7 @@ class LSQ
          */
         void
         setVirt(Addr vaddr, unsigned size, Request::Flags flags_,
-                MasterID mid, Addr pc)
+                UniqueID mid, Addr pc)
         {
             request()->setVirt(vaddr, size, flags_, mid, pc);
         }

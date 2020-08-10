@@ -321,11 +321,11 @@ class TraceCPU : public BaseCPU
     /** Port to connect to L1 data cache. */
     DcachePort dcachePort;
 
-    /** Master id for instruction read requests. */
-    const MasterID instMasterID;
+    /** Unique id for instruction read requests. */
+    const UniqueID instMasterID;
 
-    /** Master id for data read and write requests. */
-    const MasterID dataMasterID;
+    /** Unique id for data read and write requests. */
+    const UniqueID dataMasterID;
 
     /** File names for input instruction and data traces. */
     std::string instTraceFile, dataTraceFile;
@@ -423,7 +423,7 @@ class TraceCPU : public BaseCPU
         public:
         /* Constructor */
         FixedRetryGen(TraceCPU& _owner, const std::string& _name,
-                   RequestPort& _port, MasterID master_id,
+                   RequestPort& _port, UniqueID master_id,
                    const std::string& trace_file)
             : owner(_owner),
               port(_port),
@@ -503,8 +503,8 @@ class TraceCPU : public BaseCPU
         /** Reference of the port to be used to issue memory requests. */
         RequestPort& port;
 
-        /** MasterID used for the requests being sent. */
-        const MasterID masterID;
+        /** UniqueID used for the requests being sent. */
+        const UniqueID masterID;
 
         /** Input stream used for reading the input trace file. */
         InputStream trace;
@@ -847,7 +847,7 @@ class TraceCPU : public BaseCPU
         public:
         /* Constructor */
         ElasticDataGen(TraceCPU& _owner, const std::string& _name,
-                   RequestPort& _port, MasterID master_id,
+                   RequestPort& _port, UniqueID master_id,
                    const std::string& trace_file, TraceCPUParams *params)
             : owner(_owner),
               port(_port),
@@ -986,8 +986,8 @@ class TraceCPU : public BaseCPU
         /** Reference of the port to be used to issue memory requests. */
         RequestPort& port;
 
-        /** MasterID used for the requests being sent. */
-        const MasterID masterID;
+        /** UniqueID used for the requests being sent. */
+        const UniqueID masterID;
 
         /** Input stream used for reading the input trace file. */
         InputStream trace;

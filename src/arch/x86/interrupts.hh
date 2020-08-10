@@ -174,8 +174,8 @@ class Interrupts : public BaseInterrupts
     int initialApicId;
 
     // Ports for interrupts.
-    IntSlavePort<Interrupts> intSlavePort;
-    IntMasterPort<Interrupts> intMasterPort;
+    IntResponsePort<Interrupts> intSlavePort;
+    IntRequestPort<Interrupts> intMasterPort;
 
     // Port for memory mapped register accesses.
     PioPort<Interrupts> pioPort;

@@ -75,7 +75,7 @@ class RandomGen : public StochasticGen
      * @param data_limit Upper limit on how much data to read/write
      */
     RandomGen(SimObject &obj,
-              MasterID master_id, Tick _duration,
+              UniqueID master_id, Tick _duration,
               Addr start_addr, Addr end_addr,
               Addr _blocksize, Addr cacheline_size,
               Tick min_period, Tick max_period,

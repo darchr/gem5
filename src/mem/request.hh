@@ -81,7 +81,7 @@ class Request;
 class ThreadContext;
 
 typedef std::shared_ptr<Request> RequestPtr;
-typedef uint16_t MasterID;
+typedef uint16_t UniqueID;
 
 class Request
 {
@@ -196,9 +196,9 @@ class Request
     static const FlagsType STORE_NO_DATA = CACHE_BLOCK_ZERO |
         CLEAN | INVALIDATE;
 
-    /** Master Ids that are statically allocated
+    /** Unique Ids that are statically allocated
      * @{*/
-    enum : MasterID {
+    enum : UniqueID {
         /** This master id is used for writeback requests by the caches */
         wbMasterId = 0,
         /**
@@ -212,7 +212,7 @@ class Request
          * Invalid master id for assertion checking only. It is
          * invalid behavior to ever send this id as part of a request.
          */
-        invldMasterId = std::numeric_limits<MasterID>::max()
+        invldMasterId = std::numeric_limits<UniqueID>::max()
     };
     /** @} */
 
@@ -302,7 +302,7 @@ class Request
     /** The requestor ID which is unique in the system for all ports
      * that are capable of issuing a transaction
      */
-    MasterID _masterId = invldMasterId;
+    UniqueID _masterId = invldMasterId;
 
     /** Flag structure for the request. */
     Flags _flags;
@@ -376,7 +376,7 @@ class Request
      * just physical address, size, flags, and timestamp (to curTick()).
      * These fields are adequate to perform a request.
      */
-    Request(Addr paddr, unsigned size, Flags flags, MasterID mid) :
+    Request(Addr paddr, unsigned size, Flags flags, UniqueID mid) :
         _paddr(paddr), _size(size), _masterId(mid), _time(curTick())
     {
         _flags.set(flags);
@@ -384,7 +384,7 @@ class Request
     }
 
     Request(Addr vaddr, unsigned size, Flags flags,
-            MasterID mid, Addr pc, ContextID cid,
+            UniqueID mid, Addr pc, ContextID cid,
             AtomicOpFunctorPtr atomic_op=nullptr)
     {
         setVirt(vaddr, size, flags, mid, pc, std::move(atomic_op));
@@ -442,7 +442,7 @@ class Request
      * allocated Request object.
      */
     void
-    setVirt(Addr vaddr, unsigned size, Flags flags, MasterID mid, Addr pc,
+    setVirt(Addr vaddr, unsigned size, Flags flags, UniqueID mid, Addr pc,
             AtomicOpFunctorPtr amo_op=nullptr)
     {
         _vaddr = vaddr;
@@ -653,7 +653,7 @@ class Request
     }
 
     /** Accesssor for the requestor id. */
-    MasterID
+    UniqueID
     masterId() const
     {
         return _masterId;

@@ -125,10 +125,10 @@ class BaseCPU : public ClockedObject
     const uint32_t _socketId;
 
     /** instruction side request id that must be placed in all requests */
-    MasterID _instMasterId;
+    UniqueID _instMasterId;
 
     /** data side request id that must be placed in all requests */
-    MasterID _dataMasterId;
+    UniqueID _dataMasterId;
 
     /** An intrenal representation of a task identifier within gem5. This is
      * used so the CPU can add which taskId (which is an internal representation
@@ -183,9 +183,9 @@ class BaseCPU : public ClockedObject
     uint32_t socketId() const { return _socketId; }
 
     /** Reads this CPU's unique data requestor ID */
-    MasterID dataMasterId() const { return _dataMasterId; }
+    UniqueID dataMasterId() const { return _dataMasterId; }
     /** Reads this CPU's unique instruction requestor ID */
-    MasterID instMasterId() const { return _instMasterId; }
+    UniqueID instMasterId() const { return _instMasterId; }
 
     /**
      * Get a port on this CPU. All CPUs have a data and

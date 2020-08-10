@@ -59,7 +59,7 @@ SMMUv3SlaveInterface::SMMUv3SlaveInterface(
     mainTLBSem(p->tlb_slots),
     microTLBLat(p->utlb_lat),
     mainTLBLat(p->tlb_lat),
-    slavePort(new SMMUSlavePort(csprintf("%s.slave", name()), *this)),
+    slavePort(new SMMUResponsePort(csprintf("%s.slave", name()), *this)),
     atsSlavePort(name() + ".atsSlave", *this),
     atsMasterPort(name() + ".atsMaster", *this),
     portWidth(p->port_width),

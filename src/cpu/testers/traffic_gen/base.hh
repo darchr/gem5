@@ -299,9 +299,9 @@ class BaseTrafficGen : public ClockedObject
     virtual std::shared_ptr<BaseGen> nextGenerator() = 0;
 
     /**
-     * MasterID used in generated requests.
+     * UniqueID used in generated requests.
      */
-    const MasterID masterID;
+    const UniqueID masterID;
 
     /** Currently active generator */
     std::shared_ptr<BaseGen> activeGenerator;

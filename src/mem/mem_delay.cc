@@ -78,7 +78,7 @@ MemDelay::trySatisfyFunctional(PacketPtr pkt)
 }
 
 MemDelay::RequestPort::RequestPort(const std::string &_name, MemDelay &_parent)
-    : QueuedMasterPort(_name, &_parent,
+    : QueuedRequestPort(_name, &_parent,
                        _parent.reqQueue, _parent.snoopRespQueue),
       parent(_parent)
 {
@@ -126,7 +126,7 @@ MemDelay::RequestPort::recvTimingSnoopReq(PacketPtr pkt)
 
 MemDelay::ResponsePort::
 ResponsePort(const std::string &_name, MemDelay &_parent)
-    : QueuedSlavePort(_name, &_parent, _parent.respQueue),
+    : QueuedResponsePort(_name, &_parent, _parent.respQueue),
       parent(_parent)
 {
 }

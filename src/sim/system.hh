@@ -99,7 +99,7 @@ class System : public SimObject, public PCEventScope
     SystemPort _systemPort;
 
     // Map of memory address ranges for devices with their own backing stores
-    std::unordered_map<MasterID, AbstractMemory *> deviceMemMap;
+    std::unordered_map<UniqueID, AbstractMemory *> deviceMemMap;
 
   public:
 
@@ -361,19 +361,19 @@ class System : public SimObject, public PCEventScope
      * be considered a non-PIO memory address if the masterId of the packet
      * and range match something in the device memory map.
      */
-    void addDeviceMemory(MasterID masterID, AbstractMemory *deviceMemory);
+    void addDeviceMemory(UniqueID masterID, AbstractMemory *deviceMemory);
 
     /**
      * Similar to isMemAddr but for devices. Checks if a physical address
      * of the packet match an address range of a device corresponding to the
-     * MasterId of the request.
+     * UniqueId of the request.
      */
     bool isDeviceMemAddr(PacketPtr pkt) const;
 
     /**
      * Return a pointer to the device memory.
      */
-    AbstractMemory *getDeviceMemory(MasterID masterID) const;
+    AbstractMemory *getDeviceMemory(UniqueID masterID) const;
 
     /**
      * Get the architecture.
@@ -427,7 +427,7 @@ class System : public SimObject, public PCEventScope
      * It's used to uniquely id any master in the system by name for things
      * like cache statistics.
      */
-    std::vector<MasterInfo> masters;
+    std::vector<RequestorInfo> masters;
 
     ThermalModel * thermalModel;
 
@@ -448,7 +448,7 @@ class System : public SimObject, public PCEventScope
      * appropriately name the bins of their per-master stats before the stats
      * are finalized.
      *
-     * Registers a MasterID:
+     * Registers a UniqueID:
      * This method takes two parameters, one of which is optional.
      * The first one is the master object, and it is compulsory; in case
      * a object has multiple (sub)masters, a second parameter must be
@@ -471,42 +471,42 @@ class System : public SimObject, public PCEventScope
      * @param submaster String containing the submaster's name
      * @return the master's ID.
      */
-    MasterID getMasterId(const SimObject* master,
+    UniqueID getMasterId(const SimObject* master,
                          std::string submaster = std::string());
 
     /**
-     * Registers a GLOBAL MasterID, which is a MasterID not related
+     * Registers a GLOBAL UniqueID, which is a UniqueID not related
      * to any particular SimObject; since no SimObject is passed,
      * the master gets registered by providing the full master name.
      *
      * @param masterName full name of the master
      * @return the master's ID.
      */
-    MasterID getGlobalMasterId(const std::string& master_name);
+    UniqueID getGlobalMasterId(const std::string& master_name);
 
     /**
      * Get the name of an object for a given request id.
      */
-    std::string getMasterName(MasterID master_id);
+    std::string getMasterName(UniqueID master_id);
 
     /**
-     * Looks up the MasterID for a given SimObject
-     * returns an invalid MasterID (invldMasterId) if not found.
+     * Looks up the UniqueID for a given SimObject
+     * returns an invalid UniqueID (invldMasterId) if not found.
      */
-    MasterID lookupMasterId(const SimObject* obj) const;
+    UniqueID lookupMasterId(const SimObject* obj) const;
 
     /**
-     * Looks up the MasterID for a given object name string
+     * Looks up the UniqueID for a given object name string
      * returns an invalid MasterID (invldMasterId) if not found.
      */
-    MasterID lookupMasterId(const std::string& name) const;
+    UniqueID lookupMasterId(const std::string& name) const;
 
     /** Get the number of masters registered in the system */
-    MasterID maxMasters() { return masters.size(); }
+    UniqueID maxMasters() { return masters.size(); }
 
   protected:
     /** helper function for getMasterId */
-    MasterID _getMasterId(const SimObject* master,
+    UniqueID _getMasterId(const SimObject* master,
                           const std::string& master_name);
 
     /**

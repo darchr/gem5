@@ -44,7 +44,7 @@
 class SMMUv3;
 class SMMUv3SlaveInterface;
 
-class SMMUMasterPort : public RequestPort
+class SMMURequestPort : public RequestPort
 {
   protected:
     SMMUv3 &smmu;
@@ -53,8 +53,8 @@ class SMMUMasterPort : public RequestPort
     virtual void recvReqRetry();
 
   public:
-    SMMUMasterPort(const std::string &_name, SMMUv3 &_smmu);
-    virtual ~SMMUMasterPort() {}
+    SMMURequestPort(const std::string &_name, SMMUv3 &_smmu);
+    virtual ~SMMURequestPort() {}
 };
 
 // Separate master port to send MMU initiated requests on
@@ -71,7 +71,7 @@ class SMMUMasterTableWalkPort : public RequestPort
     virtual ~SMMUMasterTableWalkPort() {}
 };
 
-class SMMUSlavePort : public QueuedSlavePort
+class SMMUResponsePort : public QueuedResponsePort
 {
   protected:
     SMMUv3SlaveInterface &ifc;
@@ -82,10 +82,10 @@ class SMMUSlavePort : public QueuedSlavePort
     virtual bool recvTimingReq(PacketPtr pkt);
 
   public:
-    SMMUSlavePort(const std::string &_name,
+    SMMUResponsePort(const std::string &_name,
                   SMMUv3SlaveInterface &_ifc,
                   PortID _id = InvalidPortID);
-    virtual ~SMMUSlavePort() {}
+    virtual ~SMMUResponsePort() {}
 
     virtual AddrRangeList getAddrRanges() const
     { return AddrRangeList { AddrRange(0, UINT64_MAX) }; }
@@ -106,7 +106,7 @@ class SMMUControlPort : public SimpleTimingPort
     virtual ~SMMUControlPort() {}
 };
 
-class SMMUATSMasterPort : public QueuedMasterPort
+class SMMUATSRequestPort : public QueuedRequestPort
 {
   protected:
     SMMUv3SlaveInterface &ifc;
@@ -116,11 +116,11 @@ class SMMUATSMasterPort : public QueuedMasterPort
     virtual bool recvTimingResp(PacketPtr pkt);
 
   public:
-    SMMUATSMasterPort(const std::string &_name, SMMUv3SlaveInterface &_ifc);
-    virtual ~SMMUATSMasterPort() {}
+    SMMUATSRequestPort(const std::string &_name, SMMUv3SlaveInterface &_ifc);
+    virtual ~SMMUATSRequestPort() {}
 };
 
-class SMMUATSSlavePort : public QueuedSlavePort
+class SMMUATSResponsePort : public QueuedResponsePort
 {
   protected:
     SMMUv3SlaveInterface &ifc;
@@ -134,8 +134,8 @@ class SMMUATSSlavePort : public QueuedSlavePort
     { return AddrRangeList(); }
 
   public:
-    SMMUATSSlavePort(const std::string &_name, SMMUv3SlaveInterface &_ifc);
-    virtual ~SMMUATSSlavePort() {}
+    SMMUATSResponsePort(const std::string &_name, SMMUv3SlaveInterface &_ifc);
+    virtual ~SMMUATSResponsePort() {}
 };
 
 #endif /* __DEV_ARM_SMMU_V3_PORTS_HH__ */

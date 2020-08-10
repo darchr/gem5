@@ -71,7 +71,7 @@ class MemDelay : public ClockedObject
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 
-    class RequestPort : public QueuedMasterPort
+    class RequestPort : public QueuedRequestPort
     {
       public:
         RequestPort(const std::string &_name, MemDelay &_parent);
@@ -97,7 +97,7 @@ class MemDelay : public ClockedObject
         MemDelay& parent;
     };
 
-    class ResponsePort : public QueuedSlavePort
+    class ResponsePort : public QueuedResponsePort
     {
       public:
         ResponsePort(const std::string &_name, MemDelay &_parent);

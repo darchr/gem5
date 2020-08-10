@@ -344,7 +344,8 @@ MemSinkCtrl::regStats()
 
 MemSinkCtrl::MemoryPort::MemoryPort(const std::string& n,
                                     MemSinkCtrl& m)
-  : QueuedSlavePort(n, &m, queue, true), memory(m), queue(memory, *this, true)
+  : QueuedResponsePort(n, &m, queue, true),
+   memory(m), queue(memory, *this, true)
 {}
 
 AddrRangeList
