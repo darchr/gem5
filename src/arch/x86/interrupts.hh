@@ -228,9 +228,9 @@ class Interrupts : public BaseInterrupts
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override
     {
-        if (if_name == "int_master") {
+        if (if_name == "int_requestor") {
             return intMasterPort;
-        } else if (if_name == "int_slave") {
+        } else if (if_name == "int_responder") {
             return intSlavePort;
         } else if (if_name == "pio") {
             return pioPort;

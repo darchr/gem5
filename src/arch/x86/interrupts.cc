@@ -603,8 +603,8 @@ X86ISA::Interrupts::Interrupts(Params *p)
       pendingStartup(false), startupVector(0),
       startedUp(false), pendingUnmaskableInt(false),
       pendingIPIs(0),
-      intSlavePort(name() + ".int_slave", this, this),
-      intMasterPort(name() + ".int_master", this, this, p->int_latency),
+      intSlavePort(name() + ".int_responder", this, this),
+      intMasterPort(name() + ".int_requestor", this, this, p->int_latency),
       pioPort(this), pioDelay(p->pio_latency)
 {
     memset(regs, 0, sizeof(regs));
