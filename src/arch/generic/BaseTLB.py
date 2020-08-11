@@ -33,8 +33,8 @@ class BaseTLB(SimObject):
     abstract = True
     cxx_header = "arch/generic/tlb.hh"
     # Ports to connect with other TLB levels
-    cpuSide  = VectorSlavePort("Port closer to the CPU side")
-    slave    = DeprecatedParam(cpuSide, '`slave` is now called `cpuSide`')
+    cpu_side  = VectorSlavePort("Port closer to the CPU side")
+    slave    = DeprecatedParam(cpu_side, '`slave` is now called `cpu_side`')
 
-    memSide = RequestPort("Port closer to memory side")
-    master  = DeprecatedParam(memSide, '`master` is now called `memSide`')
+    mem_side = RequestPort("Port closer to memory side")
+    master  = DeprecatedParam(mem_side, '`master` is now called `mem_side`')
