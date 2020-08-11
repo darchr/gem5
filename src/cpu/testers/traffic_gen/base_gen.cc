@@ -47,7 +47,7 @@
 #include "sim/system.hh"
 
 BaseGen::BaseGen(SimObject &obj, MasterID unique_id, Tick _duration)
-    : _name(obj.name()), masterID(unique_id),
+    : _name(obj.name()), _id(unique_id),
       duration(_duration)
 {
 }
@@ -57,10 +57,10 @@ BaseGen::getPacket(Addr addr, unsigned size, const MemCmd& cmd,
                    Request::FlagsType flags)
 {
     // Create new request
-    RequestPtr req = std::make_shared<Request>(addr, size, flags, masterID);
+    RequestPtr req = std::make_shared<Request>(addr, size, flags, _id);
     // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
     // bits
-    req->setPC(((Addr)masterID) << 2);
+    req->setPC(((Addr)_id) << 2);
 
     // Embed it in a packet
     PacketPtr pkt = new Packet(req, cmd);
@@ -69,7 +69,7 @@ BaseGen::getPacket(Addr addr, unsigned size, const MemCmd& cmd,
     pkt->dataDynamic(pkt_data);
 
     if (cmd.isWrite()) {
-        std::fill_n(pkt_data, req->getSize(), (uint8_t)masterID);
+        std::fill_n(pkt_data, req->getSize(), (uint8_t)_id);
     }
 
     return pkt;

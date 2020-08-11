@@ -63,7 +63,7 @@ class BaseGen
     const std::string _name;
 
     /** The MasterID used for generating requests */
-    const MasterID masterID;
+    const MasterID _id;
 
     /**
      * Generate a new request and associated packet

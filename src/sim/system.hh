@@ -373,7 +373,7 @@ class System : public SimObject, public PCEventScope
     /**
      * Return a pointer to the device memory.
      */
-    AbstractMemory *getDeviceMemory(MasterID masterID) const;
+    AbstractMemory *getDeviceMemory(MasterID _id) const;
 
     /**
      * Get the architecture.

@@ -650,7 +650,7 @@ TraceCPU::ElasticDataGen::executeMemReq(GraphNode* node_ptr)
 
     // Create a request and the packet containing request
     auto req = std::make_shared<Request>(
-        node_ptr->physAddr, node_ptr->size, node_ptr->flags, masterID);
+        node_ptr->physAddr, node_ptr->size, node_ptr->flags, _id);
     req->setReqInstSeqNum(node_ptr->seqNum);
 
     req->setPC(node_ptr->pc);
@@ -658,7 +658,7 @@ TraceCPU::ElasticDataGen::executeMemReq(GraphNode* node_ptr)
     // of the request.
     if (node_ptr->virtAddr != 0) {
         req->setVirt(node_ptr->virtAddr, node_ptr->size,
-                     node_ptr->flags, masterID, node_ptr->pc);
+                     node_ptr->flags, _id, node_ptr->pc);
         req->setPaddr(node_ptr->physAddr);
         req->setReqInstSeqNum(node_ptr->seqNum);
     }
@@ -1146,7 +1146,7 @@ TraceCPU::FixedRetryGen::send(Addr addr, unsigned size, const MemCmd& cmd,
 {
 
     // Create new request
-    auto req = std::make_shared<Request>(addr, size, flags, masterID);
+    auto req = std::make_shared<Request>(addr, size, flags, _id);
     req->setPC(pc);
 
     // If this is not done it triggers assert in L1 cache for invalid contextId

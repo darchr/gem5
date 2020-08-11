@@ -427,7 +427,7 @@ class TraceCPU : public BaseCPU
                    const std::string& trace_file)
             : owner(_owner),
               port(_port),
-              masterID(unique_id),
+              _id(unique_id),
               trace(trace_file),
               genName(owner.name() + ".fixedretry" + _name),
               retryPkt(nullptr),
@@ -504,7 +504,7 @@ class TraceCPU : public BaseCPU
         RequestPort& port;
 
         /** MasterID used for the requests being sent. */
-        const MasterID masterID;
+        const MasterID _id;
 
         /** Input stream used for reading the input trace file. */
         InputStream trace;
@@ -851,7 +851,7 @@ class TraceCPU : public BaseCPU
                    const std::string& trace_file, TraceCPUParams *params)
             : owner(_owner),
               port(_port),
-              masterID(unique_id),
+              _id(unique_id),
               trace(trace_file, 1.0 / params->freqMultiplier),
               genName(owner.name() + ".elastic" + _name),
               retryPkt(nullptr),
@@ -987,7 +987,7 @@ class TraceCPU : public BaseCPU
         RequestPort& port;
 
         /** MasterID used for the requests being sent. */
-        const MasterID masterID;
+        const MasterID _id;
 
         /** Input stream used for reading the input trace file. */
         InputStream trace;
