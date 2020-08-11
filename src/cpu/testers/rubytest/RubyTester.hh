@@ -117,11 +117,11 @@ class RubyTester : public ClockedObject
     void print(std::ostream& out) const;
     bool getCheckFlush() { return m_check_flush; }
 
-    MasterID masterId() { return _masterId; }
+    MasterID masterId() { return _id; }
   protected:
     EventFunctionWrapper checkStartEvent;
 
-    MasterID _masterId;
+    MasterID _id;
 
   private:
     void hitCallback(NodeID proc, SubBlock* data);

@@ -88,7 +88,7 @@ class SMMUv3 : public ClockedObject
     friend class SMMUv3SlaveInterface;
 
     const System &system;
-    const MasterID masterId;
+    const MasterID _id;
 
     SMMUMasterPort    requestPort;
     SMMUMasterTableWalkPort masterTableWalkPort;

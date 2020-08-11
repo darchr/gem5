@@ -420,28 +420,28 @@ System::isMemAddr(Addr addr) const
 }
 
 void
-System::addDeviceMemory(MasterID masterId, AbstractMemory *deviceMemory)
+System::addDeviceMemory(MasterID unique_id, AbstractMemory *deviceMemory)
 {
-    if (!deviceMemMap.count(masterId)) {
-        deviceMemMap.insert(std::make_pair(masterId, deviceMemory));
+    if (!deviceMemMap.count(unique_id)) {
+        deviceMemMap.insert(std::make_pair(unique_id, deviceMemory));
     }
 }
 
 bool
 System::isDeviceMemAddr(PacketPtr pkt) const
 {
-    const MasterID& mid = pkt->masterId();
+    const MasterID& id = pkt->masterId();
 
-    return (deviceMemMap.count(mid) &&
-            deviceMemMap.at(mid)->getAddrRange().contains(pkt->getAddr()));
+    return (deviceMemMap.count(id) &&
+            deviceMemMap.at(id)->getAddrRange().contains(pkt->getAddr()));
 }
 
 AbstractMemory *
-System::getDeviceMemory(MasterID mid) const
+System::getDeviceMemory(MasterID id) const
 {
-    panic_if(!deviceMemMap.count(mid),
-             "No device memory found for MasterID %d\n", mid);
-    return deviceMemMap.at(mid);
+    panic_if(!deviceMemMap.count(id),
+             "No device memory found for MasterID %d\n", id);
+    return deviceMemMap.at(id);
 }
 
 void
@@ -620,7 +620,7 @@ System::_getMasterId(const SimObject* master, const std::string& master_name)
     // they will be too small
 
     if (Stats::enabled()) {
-        fatal("Can't request a masterId after regStats(). "
+        fatal("Can't request a uniqueId after regStats(). "
                 "You must do so in init().\n");
     }
 
@@ -630,7 +630,7 @@ System::_getMasterId(const SimObject* master, const std::string& master_name)
     // Append the new Master metadata to the group of system Masters.
     masters.emplace_back(master, name, master_id);
 
-    return masters.back().masterId;
+    return masters.back()._id;
 }
 
 std::string

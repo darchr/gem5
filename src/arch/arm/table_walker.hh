@@ -830,7 +830,7 @@ class TableWalker : public ClockedObject
     DmaPort* port;
 
     /** Master id assigned by the MMU. */
-    MasterID masterId;
+    MasterID _id;
 
     /** Indicates whether this table walker is part of the stage 2 mmu */
     const bool isStage2;

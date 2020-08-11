@@ -358,10 +358,10 @@ class System : public SimObject, public PCEventScope
 
     /**
      * Add a physical memory range for a device. The ranges added here will
-     * be considered a non-PIO memory address if the masterId of the packet
+     * be considered a non-PIO memory address if the uniqueId of the packet
      * and range match something in the device memory map.
      */
-    void addDeviceMemory(MasterID masterID, AbstractMemory *deviceMemory);
+    void addDeviceMemory(MasterID uniqueID, AbstractMemory *deviceMemory);
 
     /**
      * Similar to isMemAddr but for devices. Checks if a physical address

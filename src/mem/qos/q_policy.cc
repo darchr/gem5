@@ -115,14 +115,14 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
 
     // If here, the current master to be serviced doesn't have a pending
     // packet in the queue: look for the next master in the list.
-    for (const auto& masterId : toServe) {
+    for (const auto& uniqueId : toServe) {
         DPRINTF(QOS, "QoSQPolicy::lrg evaluating alternative "
-                     "master id %d\n", masterId);
+                     "master id %d\n", uniqueId);
 
-        if (track.find(masterId) != track.end()) {
-            ret = track[masterId];
-            DPRINTF(QOS, "QoSQPolicy::lrg master id "
-                         "%d selected for service\n", masterId);
+        if (track.find(uniqueId) != track.end()) {
+            ret = track[uniqueId];
+            DPRINTF(QOS, "QoSQPolicy::lrg unique id "
+                         "%d selected for service\n", uniqueId);
 
             return ret;
         }
