@@ -65,7 +65,7 @@
  * same trace is used for playback on different memory sub-systems.
  *
  * The TraceCPU inherits from BaseCPU so some virtual methods need to be
- * defined. It has two port subclasses inherited from MasterPort for
+ * defined. It has two port subclasses inherited from RequestPort for
  * instruction and data ports. It issues the memory requests deducing the
  * timing from the trace and without performing real execution of micro-ops. As
  * soon as the last dependency for an instruction is complete, its

@@ -55,7 +55,7 @@ SMMUv3::SMMUv3(SMMUv3Params *params) :
     ClockedObject(params),
     system(*params->system),
     masterId(params->system->getMasterId(this)),
-    masterPort(name() + ".master", *this),
+    requestPort(name() + ".master", *this),
     masterTableWalkPort(name() + ".master_walker", *this),
     controlPort(name() + ".control", *this, params->reg_map),
     tlb(params->tlb_entries, params->tlb_assoc, params->tlb_policy),
@@ -74,14 +74,14 @@ SMMUv3::SMMUv3(SMMUv3Params *params) :
     walkCacheNonfinalEnable(params->wc_nonfinal_enable),
     walkCacheS1Levels(params->wc_s1_levels),
     walkCacheS2Levels(params->wc_s2_levels),
-    masterPortWidth(params->master_port_width),
+    requestPortWidth(params->master_port_width),
     tlbSem(params->tlb_slots),
     ifcSmmuSem(1),
     smmuIfcSem(1),
     configSem(params->cfg_slots),
     ipaSem(params->ipa_slots),
     walkSem(params->walk_slots),
-    masterPortSem(1),
+    requestPortSem(1),
     transSem(params->xlate_slots),
     ptwSem(params->ptw_slots),
     cycleSem(1),
@@ -153,7 +153,7 @@ SMMUv3::masterRecvReqRetry()
         DPRINTF(SMMUv3, "[t] master retr addr=%#x size=%#x\n",
             a.pkt->getAddr(), a.pkt->getSize());
 
-        if (!masterPort.sendTimingReq(a.pkt))
+        if (!requestPort.sendTimingReq(a.pkt))
             break;
 
         packetsToRetry.pop();
@@ -249,7 +249,7 @@ SMMUv3::runProcessAtomic(SMMUProcess *proc, PacketPtr pkt)
                 }
                 M5_FALLTHROUGH;
             case ACTION_SEND_REQ_FINAL:
-                delay += masterPort.sendAtomic(action.pkt);
+                delay += requestPort.sendAtomic(action.pkt);
                 pkt = action.pkt;
                 break;
 
@@ -310,7 +310,8 @@ SMMUv3::runProcessTiming(SMMUProcess *proc, PacketPtr pkt)
             DPRINTF(SMMUv3, "[t] master req  addr=%#x size=%#x\n",
                     action.pkt->getAddr(), action.pkt->getSize());
 
-            if (packetsToRetry.empty() && masterPort.sendTimingReq(action.pkt)) {
+            if (packetsToRetry.empty() &&
+                requestPort.sendTimingReq(action.pkt)) {
                 scheduleSlaveRetries();
             } else {
                 DPRINTF(SMMUv3, "[t] master req  needs retry, qlen=%d\n",
@@ -717,7 +718,7 @@ void
 SMMUv3::init()
 {
     // make sure both sides are connected and have the same block size
-    if (!masterPort.isConnected())
+    if (!requestPort.isConnected())
         fatal("Master port is not connected.\n");
 
     // If the second master port is connected for the table walks, enable
@@ -816,7 +817,7 @@ Port&
 SMMUv3::getPort(const std::string &name, PortID id)
 {
     if (name == "master") {
-        return masterPort;
+        return requestPort;
     } else if (name == "master_walker") {
         return masterTableWalkPort;
     } else if (name == "control") {

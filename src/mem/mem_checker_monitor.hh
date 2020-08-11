@@ -141,7 +141,7 @@ class MemCheckerMonitor : public SimObject
     };
 
     /** Instance of master port, facing the memory side */
-    MonitorMasterPort masterPort;
+    MonitorMasterPort requestPort;
 
     /**
      * This is the slave port of the communication monitor. All recv
@@ -197,7 +197,7 @@ class MemCheckerMonitor : public SimObject
     };
 
     /** Instance of slave port, i.e. on the CPU side */
-    MonitorSlavePort slavePort;
+    MonitorSlavePort responsePort;
 
     void recvFunctional(PacketPtr pkt);
 

@@ -102,7 +102,7 @@ class SerialLink : public ClockedObject
         /**
          * Master port on the other side of the serial_link.
          */
-        SerialLinkMasterPort& masterPort;
+        SerialLinkMasterPort& requestPort;
 
         /** Minimum request delay though this serial_link. */
         const Cycles delay;
@@ -151,14 +151,14 @@ class SerialLink : public ClockedObject
          *
          * @param _name the port name including the owner
          * @param _serial_link the structural owner
-         * @param _masterPort the master port on the other side of the
+         * @param _requestPort the master port on the other side of the
          * serial_link
          * @param _delay the delay in cycles from receiving to sending
          * @param _resp_limit the size of the response queue
          * @param _ranges a number of address ranges to forward
          */
         SerialLinkSlavePort(const std::string& _name, SerialLink&
-                        _serial_link, SerialLinkMasterPort& _masterPort,
+                        _serial_link, SerialLinkMasterPort& _requestPort,
                         Cycles _delay, int _resp_limit, const
                         std::vector<AddrRange>& _ranges);
 
@@ -218,7 +218,7 @@ class SerialLink : public ClockedObject
         /**
          * The slave port on the other side of the serial_link.
          */
-        SerialLinkSlavePort& slavePort;
+        SerialLinkSlavePort& responsePort;
 
         /** Minimum delay though this serial_link. */
         const Cycles delay;
@@ -251,14 +251,14 @@ class SerialLink : public ClockedObject
          *
          * @param _name the port name including the owner
          * @param _serial_link the structural owner
-         * @param _slavePort the slave port on the other side of the
+         * @param _responsePort the slave port on the other side of the
          * serial_link
          * @param _delay the delay in cycles from receiving to sending
          * @param _req_limit the size of the request queue
          */
         SerialLinkMasterPort(const std::string& _name, SerialLink&
-                         _serial_link, SerialLinkSlavePort& _slavePort, Cycles
-                         _delay, int _req_limit);
+                         _serial_link, SerialLinkSlavePort& _responsePort,
+                         Cycles _delay, int _req_limit);
 
         /**
          * Is this side blocked from accepting new request packets.
@@ -298,10 +298,10 @@ class SerialLink : public ClockedObject
     };
 
     /** Slave port of the serial_link. */
-    SerialLinkSlavePort slavePort;
+    SerialLinkSlavePort responsePort;
 
     /** Master port of the serial_link. */
-    SerialLinkMasterPort masterPort;
+    SerialLinkMasterPort requestPort;
 
     /** Number of parallel lanes in this serial link */
     unsigned num_lanes;

@@ -673,7 +673,7 @@ TraceCPU::ElasticDataGen::executeMemReq(GraphNode* node_ptr)
     }
     pkt->dataDynamic(pkt_data);
 
-    // Call MasterPort method to send a timing request for this packet
+    // Call RequestPort method to send a timing request for this packet
     bool success = port.sendTimingReq(pkt);
     ++numSendAttempted;
 
@@ -1162,7 +1162,7 @@ TraceCPU::FixedRetryGen::send(Addr addr, unsigned size, const MemCmd& cmd,
         memset(pkt_data, 0xA, req->getSize());
     }
 
-    // Call MasterPort method to send a timing request for this packet
+    // Call RequestPort method to send a timing request for this packet
     bool success = port.sendTimingReq(pkt);
     if (!success) {
         // If it fails, save the packet to retry when a retry is signalled by

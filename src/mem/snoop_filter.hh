@@ -111,7 +111,7 @@ class SnoopFilter : public SimObject {
         for (const auto& p : slave_ports) {
             // no need to track this port if it is not snooping
             if (p->isSnooping()) {
-                slavePorts.push_back(p);
+                responsePorts.push_back(p);
                 localSlavePortIds[p->getId()] = id++;
             }
         }
@@ -224,7 +224,7 @@ class SnoopFilter : public SimObject {
      */
     std::pair<SnoopList, Cycles> snoopAll(Cycles latency) const
     {
-        return std::make_pair(slavePorts, latency);
+        return std::make_pair(responsePorts, latency);
     }
     std::pair<SnoopList, Cycles> snoopSelected(const SnoopList& slave_ports,
                                                Cycles latency) const
@@ -291,7 +291,7 @@ class SnoopFilter : public SimObject {
     } reqLookupResult;
 
     /** List of all attached snooping slave ports. */
-    SnoopList slavePorts;
+    SnoopList responsePorts;
     /** Track the mapping from port ids to the local mask ids. */
     std::vector<PortID> localSlavePortIds;
     /** Cache line size. */
@@ -332,7 +332,7 @@ inline SnoopFilter::SnoopList
 SnoopFilter::maskToPortList(SnoopMask port_mask) const
 {
     SnoopList res;
-    for (const auto& p : slavePorts)
+    for (const auto& p : responsePorts)
         if ((port_mask & portToMask(*p)).any())
             res.push_back(p);
     return res;

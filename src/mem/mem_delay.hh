@@ -86,11 +86,11 @@ class MemDelay : public ClockedObject
         void recvTimingSnoopReq(PacketPtr pkt) override;
 
         void recvRangeChange() override {
-            parent.slavePort.sendRangeChange();
+            parent.responsePort.sendRangeChange();
         }
 
         bool isSnooping() const override {
-            return parent.slavePort.isSnooping();
+            return parent.responsePort.isSnooping();
         }
 
       private:
@@ -109,7 +109,7 @@ class MemDelay : public ClockedObject
         bool recvTimingSnoopResp(PacketPtr pkt) override;
 
         AddrRangeList getAddrRanges() const override {
-            return parent.masterPort.getAddrRanges();
+            return parent.requestPort.getAddrRanges();
         }
 
         bool tryTiming(PacketPtr pkt) override { return true; }
@@ -122,8 +122,8 @@ class MemDelay : public ClockedObject
 
     bool trySatisfyFunctional(PacketPtr pkt);
 
-    RequestPort masterPort;
-    ResponsePort slavePort;
+    RequestPort requestPort;
+    ResponsePort responsePort;
 
     ReqPacketQueue reqQueue;
     RespPacketQueue respQueue;

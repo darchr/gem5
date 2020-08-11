@@ -224,13 +224,13 @@ class ReqPacketQueue : public PacketQueue
 
   protected:
 
-    RequestPort& masterPort;
+    RequestPort& requestPort;
 
     // Static definition so it can be called when constructing the parent
     // without us being completely initialized.
-    static const std::string name(const RequestPort& masterPort,
+    static const std::string name(const RequestPort& requestPort,
                                   const std::string& label)
-    { return masterPort.name() + "-" + label; }
+    { return requestPort.name() + "-" + label; }
 
   public:
 
@@ -240,16 +240,16 @@ class ReqPacketQueue : public PacketQueue
      * request packets.
      *
      * @param _em Event manager used for scheduling this queue
-     * @param _masterPort Master port used to send the packets
+     * @param _requestPort Master port used to send the packets
      * @param _label Label to push on the label stack for print request packets
      */
-    ReqPacketQueue(EventManager& _em, RequestPort& _masterPort,
+    ReqPacketQueue(EventManager& _em, RequestPort& _requestPort,
                    const std::string _label = "ReqPacketQueue");
 
     virtual ~ReqPacketQueue() { }
 
     const std::string name() const
-    { return name(masterPort, label); }
+    { return name(requestPort, label); }
 
     bool sendTiming(PacketPtr pkt);
 
@@ -260,13 +260,13 @@ class SnoopRespPacketQueue : public PacketQueue
 
   protected:
 
-    RequestPort& masterPort;
+    RequestPort& requestPort;
 
     // Static definition so it can be called when constructing the parent
     // without us being completely initialized.
-    static const std::string name(const RequestPort& masterPort,
+    static const std::string name(const RequestPort& requestPort,
                                   const std::string& label)
-    { return masterPort.name() + "-" + label; }
+    { return requestPort.name() + "-" + label; }
 
   public:
 
@@ -276,18 +276,18 @@ class SnoopRespPacketQueue : public PacketQueue
      * functional print request packets.
      *
      * @param _em Event manager used for scheduling this queue
-     * @param _masterPort Master port used to send the packets
+     * @param _requestPort Master port used to send the packets
      * @param force_order Force insertion order for packets with same address
      * @param _label Label to push on the label stack for print request packets
      */
-    SnoopRespPacketQueue(EventManager& _em, RequestPort& _masterPort,
+    SnoopRespPacketQueue(EventManager& _em, RequestPort& _requestPort,
                          bool force_order = false,
                          const std::string _label = "SnoopRespPacketQueue");
 
     virtual ~SnoopRespPacketQueue() { }
 
     const std::string name() const
-    { return name(masterPort, label); }
+    { return name(requestPort, label); }
 
     bool sendTiming(PacketPtr pkt);
 
@@ -298,13 +298,13 @@ class RespPacketQueue : public PacketQueue
 
   protected:
 
-    ResponsePort& slavePort;
+    ResponsePort& responsePort;
 
     // Static definition so it can be called when constructing the parent
     // without us being completely initialized.
-    static const std::string name(const ResponsePort& slavePort,
+    static const std::string name(const ResponsePort& responsePort,
                                   const std::string& label)
-    { return slavePort.name() + "-" + label; }
+    { return responsePort.name() + "-" + label; }
 
   public:
 
@@ -314,18 +314,18 @@ class RespPacketQueue : public PacketQueue
      * request packets.
      *
      * @param _em Event manager used for scheduling this queue
-     * @param _slavePort Slave port used to send the packets
+     * @param _responsePort Slave port used to send the packets
      * @param force_order Force insertion order for packets with same address
      * @param _label Label to push on the label stack for print request packets
      */
-    RespPacketQueue(EventManager& _em, ResponsePort& _slavePort,
+    RespPacketQueue(EventManager& _em, ResponsePort& _responsePort,
                     bool force_order = false,
                     const std::string _label = "RespPacketQueue");
 
     virtual ~RespPacketQueue() { }
 
     const std::string name() const
-    { return name(slavePort, label); }
+    { return name(responsePort, label); }
 
     bool sendTiming(PacketPtr pkt);
 

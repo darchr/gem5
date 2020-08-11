@@ -107,7 +107,7 @@ class Bridge : public ClockedObject
         /**
          * Master port on the other side of the bridge.
          */
-        BridgeMasterPort& masterPort;
+        BridgeMasterPort& requestPort;
 
         /** Minimum request delay though this bridge. */
         const Cycles delay;
@@ -162,13 +162,13 @@ class Bridge : public ClockedObject
          *
          * @param _name the port name including the owner
          * @param _bridge the structural owner
-         * @param _masterPort the master port on the other side of the bridge
+         * @param _requestPort the master port on the other side of the bridge
          * @param _delay the delay in cycles from receiving to sending
          * @param _resp_limit the size of the response queue
          * @param _ranges a number of address ranges to forward
          */
         BridgeSlavePort(const std::string& _name, Bridge& _bridge,
-                        BridgeMasterPort& _masterPort, Cycles _delay,
+                        BridgeMasterPort& _requestPort, Cycles _delay,
                         int _resp_limit, std::vector<AddrRange> _ranges);
 
         /**
@@ -227,7 +227,7 @@ class Bridge : public ClockedObject
         /**
          * The slave port on the other side of the bridge.
          */
-        BridgeSlavePort& slavePort;
+        BridgeSlavePort& responsePort;
 
         /** Minimum delay though this bridge. */
         const Cycles delay;
@@ -260,12 +260,12 @@ class Bridge : public ClockedObject
          *
          * @param _name the port name including the owner
          * @param _bridge the structural owner
-         * @param _slavePort the slave port on the other side of the bridge
+         * @param _responsePort the slave port on the other side of the bridge
          * @param _delay the delay in cycles from receiving to sending
          * @param _req_limit the size of the request queue
          */
         BridgeMasterPort(const std::string& _name, Bridge& _bridge,
-                         BridgeSlavePort& _slavePort, Cycles _delay,
+                         BridgeSlavePort& _responsePort, Cycles _delay,
                          int _req_limit);
 
         /**
@@ -306,10 +306,10 @@ class Bridge : public ClockedObject
     };
 
     /** Slave port of the bridge. */
-    BridgeSlavePort slavePort;
+    BridgeSlavePort responsePort;
 
     /** Master port of the bridge. */
-    BridgeMasterPort masterPort;
+    BridgeMasterPort requestPort;
 
   public:
 
