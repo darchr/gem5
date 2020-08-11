@@ -68,14 +68,15 @@ RubyPort::RubyPort(const Params *p)
 
     // create the slave ports based on the number of connected ports
     for (size_t i = 0; i < p->port_slave_connection_count; ++i) {
-        slave_ports.push_back(new MemSlavePort(csprintf("%s.slave%d", name(),
-            i), this, p->ruby_system->getAccessBackingStore(),
+        response_ports.push_back(new MemSlavePort(csprintf
+            ("%s.slave%d", name(), i), this,
+            p->ruby_system->getAccessBackingStore(),
             i, p->no_retry_on_stall));
     }
 
     // create the master ports based on the number of connected ports
     for (size_t i = 0; i < p->port_master_connection_count; ++i) {
-        master_ports.push_back(new PioMasterPort(csprintf("%s.master%d",
+        request_ports.push_back(new PioMasterPort(csprintf("%s.master%d",
             name(), i), this));
     }
 }
@@ -90,30 +91,30 @@ RubyPort::init()
 Port &
 RubyPort::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "mem_master_port") {
+    if (if_name == "mem_request_port") {
         return memMasterPort;
-    } else if (if_name == "pio_master_port") {
+    } else if (if_name == "pio_request_port") {
         return pioMasterPort;
-    } else if (if_name == "mem_slave_port") {
+    } else if (if_name == "mem_response_port") {
         return memSlavePort;
-    } else if (if_name == "pio_slave_port") {
+    } else if (if_name == "pio_response_port") {
         return pioSlavePort;
     } else if (if_name == "master") {
         // used by the x86 CPUs to connect the interrupt PIO and interrupt
         // slave port
-        if (idx >= static_cast<PortID>(master_ports.size())) {
+        if (idx >= static_cast<PortID>(request_ports.size())) {
             panic("RubyPort::getPort master: unknown index %d\n", idx);
         }
 
-        return *master_ports[idx];
+        return *request_ports[idx];
     } else if (if_name == "slave") {
         // used by the CPUs to connect the caches to the interconnect, and
         // for the x86 case also the interrupt master
-        if (idx >= static_cast<PortID>(slave_ports.size())) {
+        if (idx >= static_cast<PortID>(response_ports.size())) {
             panic("RubyPort::getPort slave: unknown index %d\n", idx);
         }
 
-        return *slave_ports[idx];
+        return *response_ports[idx];
     }
 
     // pass it along to our super class
@@ -194,14 +195,14 @@ RubyPort::PioSlavePort::recvTimingReq(PacketPtr pkt)
 {
     RubyPort *ruby_port = static_cast<RubyPort *>(&owner);
 
-    for (size_t i = 0; i < ruby_port->master_ports.size(); ++i) {
-        AddrRangeList l = ruby_port->master_ports[i]->getAddrRanges();
+    for (size_t i = 0; i < ruby_port->request_ports.size(); ++i) {
+        AddrRangeList l = ruby_port->request_ports[i]->getAddrRanges();
         for (auto it = l.begin(); it != l.end(); ++it) {
             if (it->contains(pkt->getAddr())) {
                 // generally it is not safe to assume success here as
                 // the port could be blocked
                 bool M5_VAR_USED success =
-                    ruby_port->master_ports[i]->sendTimingReq(pkt);
+                    ruby_port->request_ports[i]->sendTimingReq(pkt);
                 assert(success);
                 return true;
             }
@@ -219,11 +220,11 @@ RubyPort::PioSlavePort::recvAtomic(PacketPtr pkt)
         panic("Ruby supports atomic accesses only in noncaching mode\n");
     }
 
-    for (size_t i = 0; i < ruby_port->master_ports.size(); ++i) {
-        AddrRangeList l = ruby_port->master_ports[i]->getAddrRanges();
+    for (size_t i = 0; i < ruby_port->request_ports.size(); ++i) {
+        AddrRangeList l = ruby_port->request_ports[i]->getAddrRanges();
         for (auto it = l.begin(); it != l.end(); ++it) {
             if (it->contains(pkt->getAddr())) {
-                return ruby_port->master_ports[i]->sendAtomic(pkt);
+                return ruby_port->request_ports[i]->sendAtomic(pkt);
             }
         }
     }
@@ -588,9 +589,9 @@ RubyPort::PioSlavePort::getAddrRanges() const
     AddrRangeList ranges;
     RubyPort *ruby_port = static_cast<RubyPort *>(&owner);
 
-    for (size_t i = 0; i < ruby_port->master_ports.size(); ++i) {
+    for (size_t i = 0; i < ruby_port->request_ports.size(); ++i) {
         ranges.splice(ranges.begin(),
-                ruby_port->master_ports[i]->getAddrRanges());
+                ruby_port->request_ports[i]->getAddrRanges());
     }
     for (const auto M5_VAR_USED &r : ranges)
         DPRINTF(RubyPort, "%s\n", r.to_string());
@@ -619,7 +620,8 @@ RubyPort::ruby_eviction_callback(Addr address)
     // Use a single packet to signal all snooping ports of the invalidation.
     // This assumes that snooping ports do NOT modify the packet/request
     Packet pkt(request, MemCmd::InvalidateReq);
-    for (CpuPortIter p = slave_ports.begin(); p != slave_ports.end(); ++p) {
+    for (CpuPortIter p = response_ports.begin(); p != response_ports.end();
+         ++p) {
         // check if the connected master port is snooping
         if ((*p)->isSnooping()) {
             // send as a snoop request
@@ -643,7 +645,7 @@ int
 RubyPort::functionalWrite(Packet *func_pkt)
 {
     int num_written = 0;
-    for (auto port : slave_ports) {
+    for (auto port : response_ports) {
         if (port->trySatisfyFunctional(func_pkt)) {
             num_written += 1;
         }

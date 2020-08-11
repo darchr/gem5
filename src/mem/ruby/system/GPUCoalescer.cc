@@ -669,7 +669,7 @@ GPUCoalescer::coalescePacket(PacketPtr pkt)
             // back the requesting CU when we receive write
             // complete callbacks for all issued Ruby requests of this
             // instruction.
-            RubyPort::MemSlavePort* mem_slave_port = ss->port;
+            RubyPort::MemSlavePort* mem_response_port = ss->port;
 
             GPUDynInstPtr gpuDynInst = nullptr;
 
@@ -686,7 +686,8 @@ GPUCoalescer::coalescePacket(PacketPtr pkt)
             }
 
             PendingWriteInst& inst = pendingWriteInsts[seqNum];
-            inst.addPendingReq(mem_slave_port, gpuDynInst, m_usingRubyTester);
+            inst.addPendingReq(mem_response_port, gpuDynInst,
+                               m_usingRubyTester);
         }
 
         return true;

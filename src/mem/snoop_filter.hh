@@ -102,13 +102,13 @@ class SnoopFilter : public SimObject {
      * Init a new snoop filter and tell it about all the slave ports
      * of the enclosing bus.
      *
-     * @param slave_ports Slave ports that the bus is attached to.
+     * @param response_ports Slave ports that the bus is attached to.
      */
-    void setSlavePorts(const SnoopList& slave_ports) {
-        localSlavePortIds.resize(slave_ports.size(), InvalidPortID);
+    void setSlavePorts(const SnoopList& response_ports) {
+        localSlavePortIds.resize(response_ports.size(), InvalidPortID);
 
         PortID id = 0;
-        for (const auto& p : slave_ports) {
+        for (const auto& p : response_ports) {
             // no need to track this port if it is not snooping
             if (p->isSnooping()) {
                 responsePorts.push_back(p);
@@ -131,11 +131,11 @@ class SnoopFilter : public SimObject {
      * retry or not.
      *
      * @param cpkt          Pointer to the request packet. Not changed.
-     * @param slave_port    Slave port where the request came from.
+     * @param response_port    Slave port where the request came from.
      * @return Pair of a vector of snoop target ports and lookup latency.
      */
     std::pair<SnoopList, Cycles> lookupRequest(const Packet* cpkt,
-                                               const ResponsePort& slave_port);
+                                        const ResponsePort& response_port);
 
     /**
      * For an un-successful request, revert the change to the snoop
@@ -190,10 +190,10 @@ class SnoopFilter : public SimObject {
      * the snoop filter.
      *
      * @param cpkt       Pointer to const Packet holding the snoop response.
-     * @param slave_port ResponsePort that made the original request and
+     * @param response_port ResponsePort that made the original request and
      *                   is the target of this response.
      */
-    void updateResponse(const Packet *cpkt, const ResponsePort& slave_port);
+    void updateResponse(const Packet *cpkt, const ResponsePort& response_port);
 
     virtual void regStats();
 
@@ -226,10 +226,10 @@ class SnoopFilter : public SimObject {
     {
         return std::make_pair(responsePorts, latency);
     }
-    std::pair<SnoopList, Cycles> snoopSelected(const SnoopList& slave_ports,
+    std::pair<SnoopList, Cycles> snoopSelected(const SnoopList& response_ports,
                                                Cycles latency) const
     {
-        return std::make_pair(slave_ports, latency);
+        return std::make_pair(response_ports, latency);
     }
     std::pair<SnoopList, Cycles> snoopDown(Cycles latency) const
     {

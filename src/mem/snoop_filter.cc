@@ -61,19 +61,20 @@ SnoopFilter::eraseIfNullEntry(SnoopFilterCache::iterator& sf_it)
 }
 
 std::pair<SnoopFilter::SnoopList, Cycles>
-SnoopFilter::lookupRequest(const Packet* cpkt, const ResponsePort& slave_port)
+SnoopFilter::lookupRequest(const Packet* cpkt, const ResponsePort&
+                           response_port)
 {
     DPRINTF(SnoopFilter, "%s: src %s packet %s\n", __func__,
-            slave_port.name(), cpkt->print());
+            response_port.name(), cpkt->print());
 
     // check if the packet came from a cache
-    bool allocate = !cpkt->req->isUncacheable() && slave_port.isSnooping() &&
-        cpkt->fromCache();
+    bool allocate = !cpkt->req->isUncacheable() && response_port.isSnooping()
+        && cpkt->fromCache();
     Addr line_addr = cpkt->getBlockAddr(linesize);
     if (cpkt->isSecure()) {
         line_addr |= LineSecure;
     }
-    SnoopMask req_port = portToMask(slave_port);
+    SnoopMask req_port = portToMask(response_port);
     reqLookupResult.it = cachedLocations.find(line_addr);
     bool is_hit = (reqLookupResult.it != cachedLocations.end());
 
@@ -333,16 +334,17 @@ SnoopFilter::updateSnoopForward(const Packet* cpkt,
 }
 
 void
-SnoopFilter::updateResponse(const Packet* cpkt, const ResponsePort& slave_port)
+SnoopFilter::updateResponse(const Packet* cpkt, const ResponsePort&
+                            response_port)
 {
     DPRINTF(SnoopFilter, "%s: src %s packet %s\n",
-            __func__, slave_port.name(), cpkt->print());
+            __func__, response_port.name(), cpkt->print());
 
     assert(cpkt->isResponse());
 
     // we only allocate if the packet actually came from a cache, but
     // start by checking if the port is snooping
-    if (cpkt->req->isUncacheable() || !slave_port.isSnooping())
+    if (cpkt->req->isUncacheable() || !response_port.isSnooping())
         return;
 
     // next check if we actually allocated an entry
@@ -354,7 +356,7 @@ SnoopFilter::updateResponse(const Packet* cpkt, const ResponsePort& slave_port)
     if (sf_it == cachedLocations.end())
         return;
 
-    SnoopMask slave_mask = portToMask(slave_port);
+    SnoopMask slave_mask = portToMask(response_port);
     SnoopItem& sf_item = sf_it->second;
 
     DPRINTF(SnoopFilter, "%s:   old SF value %x.%x\n",

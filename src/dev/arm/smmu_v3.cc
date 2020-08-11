@@ -74,7 +74,7 @@ SMMUv3::SMMUv3(SMMUv3Params *params) :
     walkCacheNonfinalEnable(params->wc_nonfinal_enable),
     walkCacheS1Levels(params->wc_s1_levels),
     walkCacheS2Levels(params->wc_s2_levels),
-    requestPortWidth(params->master_port_width),
+    requestPortWidth(params->request_port_width),
     tlbSem(params->tlb_slots),
     ifcSmmuSem(1),
     smmuIfcSem(1),

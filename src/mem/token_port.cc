@@ -90,18 +90,18 @@ TokenSlavePort::bind(Port& peer)
     // TokenSlavePort is allowed to bind to either TokenMasterPort or a
     // RequestPort as fallback. If the type is a RequestPort, tokenMasterPort
     // is set to nullptr to indicate tokens should not be exchanged.
-    auto *token_master_port = dynamic_cast<TokenMasterPort*>(&peer);
-    auto *master_port = dynamic_cast<RequestPort*>(&peer);
-    if (!token_master_port && !master_port) {
+    auto *token_request_port = dynamic_cast<TokenMasterPort*>(&peer);
+    auto *request_port = dynamic_cast<RequestPort*>(&peer);
+    if (!token_request_port && !request_port) {
         fatal("Attempt to bind port %s to unsupported slave port %s.",
               name(), peer.name());
-    } else if (token_master_port) {
+    } else if (token_request_port) {
         // slave port keeps track of the master port
-        tokenMasterPort = token_master_port;
+        tokenMasterPort = token_request_port;
 
         // master port also keeps track of slave port
         tokenMasterPort->bind(*this);
-    } else if (master_port) {
+    } else if (request_port) {
         tokenMasterPort = nullptr;
     }
 }

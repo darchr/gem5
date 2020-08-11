@@ -123,7 +123,7 @@ class tlm_transport_channel : public sc_core::sc_module
     do_binding()
     {
         target_export(t2m.target_export);
-        t2m.master_port(req_rsp.master_export);
+        t2m.request_port(req_rsp.master_export);
 
         get_request_export(req_rsp.get_request_export);
         put_response_export(req_rsp.put_response_export);

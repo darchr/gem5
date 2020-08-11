@@ -178,11 +178,11 @@ class RubyPort : public ClockedObject
      * Called by the PIO port when receiving a timing response.
      *
      * @param pkt Response packet
-     * @param master_port_id Port id of the PIO port
+     * @param request_port_id Port id of the PIO port
      *
      * @return Whether successfully sent
      */
-    bool recvTimingResp(PacketPtr pkt, PortID master_port_id);
+    bool recvTimingResp(PacketPtr pkt, PortID request_port_id);
 
     RubySystem *m_ruby_system;
     uint32_t m_version;
@@ -191,7 +191,7 @@ class RubyPort : public ClockedObject
     bool m_usingRubyTester;
     System* system;
 
-    std::vector<MemSlavePort *> slave_ports;
+    std::vector<MemSlavePort *> response_ports;
 
   private:
     bool onRetryList(MemSlavePort * port)
@@ -213,7 +213,7 @@ class RubyPort : public ClockedObject
 
     /** Vector of M5 Ports attached to this Ruby port. */
     typedef std::vector<MemSlavePort *>::iterator CpuPortIter;
-    std::vector<PioMasterPort *> master_ports;
+    std::vector<PioMasterPort *> request_ports;
 
     //
     // Based on similar code in the M5 bus.  Stores pointers to those ports
