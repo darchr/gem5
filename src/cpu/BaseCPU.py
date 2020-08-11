@@ -196,13 +196,13 @@ class BaseCPU(ClockedObject):
 
     def connectCachedPorts(self, bus):
         for p in self._cached_ports:
-            exec('self.%s = bus.slave' % p)
+            exec('self.%s = bus.cpu_side' % p)
 
     def connectUncachedPorts(self, bus):
         for p in self._uncached_slave_ports:
-            exec('self.%s = bus.master' % p)
+            exec('self.%s = bus.mem_side' % p)
         for p in self._uncached_master_ports:
-            exec('self.%s = bus.slave' % p)
+            exec('self.%s = bus.cpu_side' % p)
 
     def connectAllPorts(self, cached_bus, uncached_bus = None):
         self.connectCachedPorts(cached_bus)

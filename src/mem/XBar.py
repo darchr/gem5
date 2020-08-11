@@ -48,8 +48,11 @@ class BaseXBar(ClockedObject):
     abstract = True
     cxx_header = "mem/xbar.hh"
 
-    slave = VectorSlavePort("Vector port for connecting masters")
-    master = VectorMasterPort("Vector port for connecting slaves")
+    cpu_side = VectorSlavePort("Vector port for connecting memory side ports")
+    slave   = DeprecatedParam(cpu_side, '`slave` is now called `cpu_side`')
+
+    mem_side = VectorMasterPort("Vector port for connecting cpu side ports")
+    master  = DeprecatedParam(mem_side, '`master` is now called `mem_side`')
 
     # Latencies governing the time taken for the variuos paths a
     # packet has through the crossbar. Note that the crossbar itself
@@ -68,17 +71,17 @@ class BaseXBar(ClockedObject):
     forward_latency = Param.Cycles("Forward latency")
     response_latency = Param.Cycles("Response latency")
 
-    # The XBar uses one Layer per master. Each Layer forwards a packet
-    # to its destination and is occupied for header_latency + size /
-    # width cycles
+    # The XBar uses one Layer per requestor/mem_side port.
+    # Each Layer forwards a packet to its destination and
+    # is occupied for header_latency + size / width cycles
     header_latency = Param.Cycles(1, "Header latency")
 
     # Width governing the throughput of the crossbar
     width = Param.Unsigned("Datapath width per port (bytes)")
 
     # The default port can be left unconnected, or be used to connect
-    # a default slave port
-    default = RequestPort("Port for connecting an optional default slave")
+    # a default responder port
+    default = RequestPort("Port for connecting an optional default responder")
 
     # The default port can be used unconditionally, or based on
     # address range, in which case it may overlap with other
@@ -134,8 +137,8 @@ class SnoopFilter(SimObject):
     # Sanity check on max capacity to track, adjust if needed.
     max_capacity = Param.MemorySize('8MB', "Maximum capacity of snoop filter")
 
-# We use a coherent crossbar to connect multiple masters to the L2
-# caches. Normally this crossbar would be part of the cache itself.
+# We use a coherent crossbar to connect multiple requestorts/mem_side ports
+# to the L2 caches. Normally this crossbar would be part of the cache itself.
 class L2XBar(CoherentXBar):
     # 256-bit crossbar by default
     width = 32
@@ -159,7 +162,7 @@ class L2XBar(CoherentXBar):
 
 # One of the key coherent crossbar instances is the system
 # interconnect, tying together the CPU clusters, GPUs, and any I/O
-# coherent masters, and DRAM controllers.
+# coherent requestors, and DRAM controllers.
 class SystemXBar(CoherentXBar):
     # 128-bit crossbar by default
     width = 16

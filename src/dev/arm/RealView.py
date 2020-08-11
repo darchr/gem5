@@ -576,16 +576,16 @@ class RealView(Platform):
     def _attach_memory(self, mem, bus, mem_ports=None):
         if hasattr(mem, "port"):
             if mem_ports is None:
-                mem.port = bus.master
+                mem.port = bus.mem_side
             else:
                 mem_ports.append(mem.port)
 
     def _attach_device(self, device, bus, dma_ports=None):
         if hasattr(device, "pio"):
-            device.pio = bus.master
+            device.pio = bus.mem_side
         if hasattr(device, "dma"):
             if dma_ports is None:
-                device.dma = bus.slave
+                device.dma = bus.cpu_side
             else:
                 dma_ports.append(device.dma)
 
@@ -1108,8 +1108,8 @@ Interrupts:
 
         self.smmu = SMMUv3(reg_map=AddrRange(0x2b400000, size=0x00020000))
 
-        self.smmu.master = bus.slave
-        self.smmu.control = bus.master
+        self.smmu.master = bus.cpu_side
+        self.smmu.control = bus.mem_side
 
         dma_ports = []
         for dev in devices:

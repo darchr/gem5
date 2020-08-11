@@ -66,7 +66,7 @@ CoherentXBar::CoherentXBar(const CoherentXBarParams *p)
     // create the ports based on the size of the master and slave
     // vector ports, and the presence of the default port, the ports
     // are enumerated starting from zero
-    for (int i = 0; i < p->port_master_connection_count; ++i) {
+    for (int i = 0; i < p->port_mem_side_connection_count; ++i) {
         std::string portName = csprintf("%s.master[%d]", name(), i);
         RequestPort* bp = new CoherentXBarRequestPort(portName, *this, i);
         masterPorts.push_back(bp);
@@ -92,7 +92,7 @@ CoherentXBar::CoherentXBar(const CoherentXBarParams *p)
     }
 
     // create the slave ports, once again starting at zero
-    for (int i = 0; i < p->port_slave_connection_count; ++i) {
+    for (int i = 0; i < p->port_default_connection_count; ++i) {
         std::string portName = csprintf("%s.slave[%d]", name(), i);
         QueuedResponsePort* bp =
             new CoherentXBarResponsePort(portName, *this, i);

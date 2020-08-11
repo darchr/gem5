@@ -59,7 +59,7 @@ BaseXBar::BaseXBar(const BaseXBarParams *p)
       headerLatency(p->header_latency),
       width(p->width),
       gotAddrRanges(p->port_default_connection_count +
-                          p->port_master_connection_count, false),
+                          p->port_mem_side_connection_count, false),
       gotAllAddrRanges(false), defaultPortID(InvalidPortID),
       useDefaultRange(p->use_default_range),
 
@@ -83,12 +83,12 @@ BaseXBar::~BaseXBar()
 Port &
 BaseXBar::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "master" && idx < masterPorts.size()) {
+    if (if_name == "mem_side" && idx < masterPorts.size()) {
         // the master port index translates directly to the vector position
         return *masterPorts[idx];
     } else  if (if_name == "default") {
         return *masterPorts[defaultPortID];
-    } else if (if_name == "slave" && idx < slavePorts.size()) {
+    } else if (if_name == "cpu_side" && idx < slavePorts.size()) {
         // the slave port index translates directly to the vector position
         return *slavePorts[idx];
     } else {

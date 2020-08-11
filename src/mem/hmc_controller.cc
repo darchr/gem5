@@ -6,10 +6,10 @@
 
 HMCController::HMCController(const HMCControllerParams* p) :
     NoncoherentXBar(p),
-    n_master_ports(p->port_master_connection_count),
+    n_master_ports(p->port_mem_side_connection_count),
     rr_counter(0)
 {
-    assert(p->port_slave_connection_count == 1);
+    assert(p->port_default_connection_count == 1);
 }
 
 HMCController*
