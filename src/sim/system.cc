@@ -625,10 +625,10 @@ System::_getMasterId(const SimObject* master, const std::string& master_name)
     }
 
     // Generate a new MasterID incrementally
-    MasterID master_id = masters.size();
+    MasterID unique_id = masters.size();
 
     // Append the new Master metadata to the group of system Masters.
-    masters.emplace_back(master, name, master_id);
+    masters.emplace_back(master, name, unique_id);
 
     return masters.back()._id;
 }
@@ -646,12 +646,12 @@ System::leafMasterName(const SimObject* master, const std::string& submaster)
 }
 
 std::string
-System::getMasterName(MasterID master_id)
+System::getMasterName(MasterID unique_id)
 {
-    if (master_id >= masters.size())
-        fatal("Invalid master_id passed to getMasterName()\n");
+    if (unique_id >= masters.size())
+        fatal("Invalid unique_id passed to getMasterName()\n");
 
-    const auto& master_info = masters[master_id];
+    const auto& master_info = masters[unique_id];
     return master_info.masterName;
 }
 

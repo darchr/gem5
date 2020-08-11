@@ -423,11 +423,11 @@ class TraceCPU : public BaseCPU
         public:
         /* Constructor */
         FixedRetryGen(TraceCPU& _owner, const std::string& _name,
-                   RequestPort& _port, MasterID master_id,
+                   RequestPort& _port, MasterID unique_id,
                    const std::string& trace_file)
             : owner(_owner),
               port(_port),
-              masterID(master_id),
+              masterID(unique_id),
               trace(trace_file),
               genName(owner.name() + ".fixedretry" + _name),
               retryPkt(nullptr),
@@ -847,11 +847,11 @@ class TraceCPU : public BaseCPU
         public:
         /* Constructor */
         ElasticDataGen(TraceCPU& _owner, const std::string& _name,
-                   RequestPort& _port, MasterID master_id,
+                   RequestPort& _port, MasterID unique_id,
                    const std::string& trace_file, TraceCPUParams *params)
             : owner(_owner),
               port(_port),
-              masterID(master_id),
+              masterID(unique_id),
               trace(trace_file, 1.0 / params->freqMultiplier),
               genName(owner.name() + ".elastic" + _name),
               retryPkt(nullptr),

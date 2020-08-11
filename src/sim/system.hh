@@ -487,7 +487,7 @@ class System : public SimObject, public PCEventScope
     /**
      * Get the name of an object for a given request id.
      */
-    std::string getMasterName(MasterID master_id);
+    std::string getMasterName(MasterID unique_id);
 
     /**
      * Looks up the MasterID for a given SimObject

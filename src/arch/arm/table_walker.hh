@@ -911,7 +911,7 @@ class TableWalker : public ClockedObject
 
     void setTlb(TLB *_tlb) { tlb = _tlb; }
     TLB* getTlb() { return tlb; }
-    void setMMU(Stage2MMU *m, MasterID master_id);
+    void setMMU(Stage2MMU *m, MasterID unique_id);
     void memAttrs(ThreadContext *tc, TlbEntry &te, SCTLR sctlr,
                   uint8_t texcb, bool s);
     void memAttrsLPAE(ThreadContext *tc, TlbEntry &te,

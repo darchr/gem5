@@ -53,8 +53,8 @@ struct MasterInfo
 {
     MasterInfo(const SimObject* _obj,
                std::string master_name,
-               MasterID master_id)
-      : obj(_obj), masterName(master_name), _id(master_id)
+               MasterID unique_id)
+      : obj(_obj), masterName(master_name), _id(unique_id)
     {}
 
     /** SimObject related to the Master */
