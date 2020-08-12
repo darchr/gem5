@@ -58,17 +58,23 @@ class RubyPortProxy : public RubyPort
      * Create a new RubyPortProxy.
      *
      * @param p Parameters inherited from the RubyPort
+     *
+     * @ingroup api_port
      */
     RubyPortProxy(const RubyPortProxyParams* p);
 
     /**
      * Destruct a RubyPortProxy.
+     *
+     * @ingroup api_port
      */
     virtual ~RubyPortProxy();
 
     /**
      * Initialise a RubyPortProxy by doing nothing and avoid
      * involving the super class.
+     *
+     * @ingroup api_port
      */
     void init();
 
@@ -79,6 +85,8 @@ class RubyPortProxy : public RubyPort
      *
      * @param pkt The packet to serve to Ruby
      * @returns always a NULL status
+     *
+     * @ingroup api_port
      */
     RequestStatus makeRequest(PacketPtr pkt);
 
@@ -88,6 +96,8 @@ class RubyPortProxy : public RubyPort
      * functional accesses).
      *
      * @returns always 0
+     *
+     * @ingroup api_port
      */
     int outstandingCount() const { return 0; }
 
@@ -97,6 +107,8 @@ class RubyPortProxy : public RubyPort
      * functional accesses).
      *
      * @returns always false
+     *
+     * @ingroup api_port
      */
     bool isDeadlockEventScheduled() const { return false; }
 
@@ -104,6 +116,8 @@ class RubyPortProxy : public RubyPort
      * Pure virtual member in the super class that we are forced to
      * implement even if it is never used (since there are only
      * functional accesses).
+     *
+     * @ingroup api_port
      */
     void descheduleDeadlockEvent() { }
 
