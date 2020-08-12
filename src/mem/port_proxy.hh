@@ -97,6 +97,10 @@ class PortProxy : FunctionalRequestProtocol
     }
 
   public:
+    /**
+     * @ingroup api_port
+     * @{
+     */
     PortProxy(SendFunctionalFunc func, unsigned int cacheLineSize) :
         sendFunctional(func), _cacheLineSize(cacheLineSize)
     {}
@@ -106,25 +110,31 @@ class PortProxy : FunctionalRequestProtocol
             }), _cacheLineSize(cacheLineSize)
     {}
     virtual ~PortProxy() { }
-
+    /** @} */ // end api_port
 
 
     /** Fixed functionality for use in base classes. */
 
     /**
      * Read size bytes memory at physical address and store in p.
+     *
+     * @ingroup api_port
      */
     void readBlobPhys(Addr addr, Request::Flags flags,
                       void *p, int size) const;
 
     /**
      * Write size bytes from p to physical address.
+     *
+     * @ingroup api_port
      */
     void writeBlobPhys(Addr addr, Request::Flags flags,
                        const void *p, int size) const;
 
     /**
      * Fill size bytes starting at physical addr with byte value val.
+     *
+     * @ingroup api_port
      */
     void memsetBlobPhys(Addr addr, Request::Flags flags,
                         uint8_t v, int size) const;
@@ -136,6 +146,8 @@ class PortProxy : FunctionalRequestProtocol
     /**
      * Read size bytes memory at address and store in p.
      * Returns true on success and false on failure.
+     *
+     * @ingroup api_port
      */
     virtual bool
     tryReadBlob(Addr addr, void *p, int size) const
@@ -147,6 +159,8 @@ class PortProxy : FunctionalRequestProtocol
     /**
      * Write size bytes from p to address.
      * Returns true on success and false on failure.
+     *
+     * @ingroup api_port
      */
     virtual bool
     tryWriteBlob(Addr addr, const void *p, int size) const
@@ -158,6 +172,8 @@ class PortProxy : FunctionalRequestProtocol
     /**
      * Fill size bytes starting at addr with byte value val.
      * Returns true on success and false on failure.
+     *
+     * @ingroup api_port
      */
     virtual bool
     tryMemsetBlob(Addr addr, uint8_t val, int size) const
@@ -172,6 +188,8 @@ class PortProxy : FunctionalRequestProtocol
 
     /**
      * Same as tryReadBlob, but insists on success.
+     *
+     * @ingroup api_port
      */
     void
     readBlob(Addr addr, void *p, int size) const
@@ -182,6 +200,8 @@ class PortProxy : FunctionalRequestProtocol
 
     /**
      * Same as tryWriteBlob, but insists on success.
+     *
+     * @ingroup api_port
      */
     void
     writeBlob(Addr addr, const void *p, int size) const
@@ -192,6 +212,8 @@ class PortProxy : FunctionalRequestProtocol
 
     /**
      * Same as tryMemsetBlob, but insists on success.
+     *
+     * @ingroup api_port
      */
     void
     memsetBlob(Addr addr, uint8_t v, int size) const
@@ -202,12 +224,16 @@ class PortProxy : FunctionalRequestProtocol
 
     /**
      * Read sizeof(T) bytes from address and return as object T.
+     *
+     * @ingroup api_port
      */
     template <typename T>
     T read(Addr address) const;
 
     /**
      * Write object T to address. Writes sizeof(T) bytes.
+     *
+     * @ingroup api_port
      */
     template <typename T>
     void write(Addr address, const T &data) const;
@@ -215,6 +241,8 @@ class PortProxy : FunctionalRequestProtocol
     /**
      * Read sizeof(T) bytes from address and return as object T.
      * Performs endianness conversion from the selected guest to host order.
+     *
+     * @ingroup api_port
      */
     template <typename T>
     T read(Addr address, ByteOrder guest_byte_order) const;
@@ -222,6 +250,8 @@ class PortProxy : FunctionalRequestProtocol
     /**
      * Write object T to address. Writes sizeof(T) bytes.
      * Performs endianness conversion from host to the selected guest order.
+     *
+     * @ingroup api_port
      */
     template <typename T>
     void write(Addr address, T data, ByteOrder guest_byte_order) const;
@@ -229,11 +259,15 @@ class PortProxy : FunctionalRequestProtocol
     /**
      * Write the string str into guest memory at address addr.
      * Returns true on success and false on failure.
+     *
+     * @ingroup api_port
      */
     bool tryWriteString(Addr addr, const char *str) const;
 
     /**
      * Same as tryWriteString, but insists on success.
+     *
+     * @ingroup api_port
      */
     void
     writeString(Addr addr, const char *str) const
@@ -245,11 +279,15 @@ class PortProxy : FunctionalRequestProtocol
     /**
      * Reads the string at guest address addr into the std::string str.
      * Returns true on success and false on failure.
+     *
+     * @ingroup api_port
      */
     bool tryReadString(std::string &str, Addr addr) const;
 
     /**
      * Same as tryReadString, but insists on success.
+     *
+     * @ingroup api_port
      */
     void
     readString(std::string &str, Addr addr) const
@@ -262,11 +300,15 @@ class PortProxy : FunctionalRequestProtocol
      * Reads the string at guest address addr into the char * str, reading up
      * to maxlen characters. The last character read is always a nul
      * terminator. Returns true on success and false on failure.
+     *
+     * @ingroup api_port
      */
     bool tryReadString(char *str, Addr addr, size_t maxlen) const;
 
     /**
      * Same as tryReadString, but insists on success.
+     *
+     * @ingroup api_port
      */
     void
     readString(char *str, Addr addr, size_t maxlen) const
