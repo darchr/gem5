@@ -612,10 +612,10 @@ RubyPort::ruby_eviction_callback(Addr address)
     DPRINTF(RubyPort, "Sending invalidations.\n");
     // Allocate the invalidate request and packet on the stack, as it is
     // assumed they will not be modified or deleted by receivers.
-    // TODO: should this really be using funcMasterId?
+    // TODO: should this really be using funcUniqueId?
     auto request = std::make_shared<Request>(
         address, RubySystem::getBlockSizeBytes(), 0,
-        Request::funcMasterId);
+        Request::funcUniqueId);
 
     // Use a single packet to signal all snooping ports of the invalidation.
     // This assumes that snooping ports do NOT modify the packet/request

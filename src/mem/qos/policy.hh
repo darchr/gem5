@@ -116,7 +116,7 @@ Policy::pair(M master, T value)
 {
     auto id = memCtrl->system()->lookupMasterId(master);
 
-    panic_if(id == Request::invldMasterId,
+    panic_if(id == Request::invldUniqueId,
              "Unable to find master %s\n", master);
 
     DPRINTF(QOS,

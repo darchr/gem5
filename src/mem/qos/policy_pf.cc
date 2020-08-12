@@ -59,7 +59,7 @@ PropFairPolicy::initMaster(const Master master, const double score)
 {
     MasterID m_id = memCtrl->system()->lookupMasterId(master);
 
-    assert(m_id != Request::invldMasterId);
+    assert(id != Request::invldUniqueId);
 
     // Setting the Initial score for the selected master.
     history.push_back(std::make_pair(m_id, score));
