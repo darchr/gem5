@@ -80,18 +80,27 @@ class MasterPort : public Port, public AtomicRequestProtocol,
     SimObject &owner;
 
   public:
+    /**
+     * @ingroup api_port
+     * @{
+     */
     MasterPort(const std::string& name, SimObject* _owner,
                PortID id=InvalidPortID);
     virtual ~MasterPort();
+    /** @}*/ //end of api_port
 
     /**
      * Bind this master port to a slave port. This also does the
      * mirror action and binds the slave port to the master port.
+     *
+     * @ingroup api_port
      */
     void bind(Port &peer) override;
 
     /**
      * Unbind this master port and the associated slave port.
+     *
+     * @ingroup api_port
      */
     void unbind() override;
 
@@ -103,11 +112,15 @@ class MasterPort : public Port, public AtomicRequestProtocol,
      * function.
      *
      * @return true if the port should be considered a snooper
+     *
+     * @ingroup api_port
      */
     virtual bool isSnooping() const { return false; }
 
     /**
      * Get the address ranges of the connected slave port.
+     *
+     * @ingroup api_port
      */
     AddrRangeList getAddrRanges() const;
 
@@ -128,6 +141,8 @@ class MasterPort : public Port, public AtomicRequestProtocol,
      * @param pkt Packet to send.
      *
      * @return Estimated latency of access.
+     *
+     * @ingroup api_port
      */
     Tick sendAtomic(PacketPtr pkt);
 
@@ -140,6 +155,8 @@ class MasterPort : public Port, public AtomicRequestProtocol,
      *        caller have direct access to the requested data.
      *
      * @return Estimated latency of access.
+     *
+     * @ingroup api_port
      */
     Tick sendAtomicBackdoor(PacketPtr pkt, MemBackdoorPtr &backdoor);
 
@@ -152,6 +169,8 @@ class MasterPort : public Port, public AtomicRequestProtocol,
      * current state of any block or moving the block.
      *
      * @param pkt Packet to send.
+     *
+     * @ingroup api_port
      */
     void sendFunctional(PacketPtr pkt) const;
 
@@ -168,6 +187,8 @@ class MasterPort : public Port, public AtomicRequestProtocol,
      * @param pkt Packet to send.
      *
      * @return If the send was succesful or not.
+     *
+     * @ingroup api_port
     */
     bool sendTimingReq(PacketPtr pkt);
 
@@ -181,6 +202,8 @@ class MasterPort : public Port, public AtomicRequestProtocol,
      * @param pkt Packet to send.
      *
      * @return If the send was succesful or not.
+     *
+     * @ingroup api_port
      */
     bool tryTiming(PacketPtr pkt) const;
 
@@ -192,6 +215,8 @@ class MasterPort : public Port, public AtomicRequestProtocol,
      * re-issue a sendTimingSnoopResp.
      *
      * @param pkt Packet to send.
+     *
+     * @ingroup api_port
      */
     bool sendTimingSnoopResp(PacketPtr pkt);
 
@@ -200,6 +225,8 @@ class MasterPort : public Port, public AtomicRequestProtocol,
      * sendTimingResp to this master port and failed. Note that this
      * is virtual so that the "fake" snoop response port in the
      * coherent crossbar can override the behaviour.
+     *
+     * @ingroup api_port
      */
     virtual void sendRetryResp();
 
