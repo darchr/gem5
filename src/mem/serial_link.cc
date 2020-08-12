@@ -386,7 +386,7 @@ SerialLink::SerialLinkSlavePort::recvFunctional(PacketPtr pkt)
         }
     }
 
-    // also check the master port's request queue
+    // also check the request port's request queue
     if (requestPort.trySatisfyFunctional(pkt)) {
         return;
     }

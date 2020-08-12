@@ -100,7 +100,7 @@ class SerialLink : public ClockedObject
         SerialLink& serial_link;
 
         /**
-         * Master port on the other side of the serial_link.
+         * Request port on the other side of the serial_link.
          */
         SerialLinkMasterPort& requestPort;
 
@@ -151,7 +151,7 @@ class SerialLink : public ClockedObject
          *
          * @param _name the port name including the owner
          * @param _serial_link the structural owner
-         * @param _requestPort the master port on the other side of the
+         * @param _requestPort the request port on the other side of the
          * serial_link
          * @param _delay the delay in cycles from receiving to sending
          * @param _resp_limit the size of the response queue
@@ -204,7 +204,7 @@ class SerialLink : public ClockedObject
 
     /**
      * Port on the side that forwards requests and receives
-     * responses. The master port has a buffer for the requests not
+     * responses. The request port has a buffer for the requests not
      * yet sent.
      */
     class SerialLinkMasterPort : public RequestPort
@@ -300,7 +300,7 @@ class SerialLink : public ClockedObject
     /** Slave port of the serial_link. */
     SerialLinkSlavePort responsePort;
 
-    /** Master port of the serial_link. */
+    /** Request port of the serial_link. */
     SerialLinkMasterPort requestPort;
 
     /** Number of parallel lanes in this serial link */

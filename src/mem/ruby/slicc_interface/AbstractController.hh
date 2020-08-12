@@ -250,7 +250,7 @@ class AbstractController : public ClockedObject, public Consumer
         void recvReqRetry();
     };
 
-    /* Master port to the memory controller. */
+    /* Request port to the memory controller. */
     MemoryPort memoryPort;
 
     // State that is stored in packets sent to the memory controller.

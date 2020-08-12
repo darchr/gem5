@@ -111,7 +111,7 @@ class BaseCache : public ClockedObject
   protected:
 
     /**
-     * A cache master port is used for the memory-side port of the
+     * A cache request port is used for the memory-side port of the
      * cache, and in addition to the basic timing port that only sends
      * response packets through a transmit list, it also offers the
      * ability to schedule and send request packets (requests &
@@ -202,7 +202,7 @@ class BaseCache : public ClockedObject
 
 
     /**
-     * The memory-side port extends the base cache master port with
+     * The memory-side port extends the base cache request port with
      * access functions for functional, atomic and timing snoops.
      */
     class MemSidePort : public CacheMasterPort

@@ -60,7 +60,7 @@
  * responses. The bridge has a fixed delay for packets passing through
  * it and responds to a fixed set of address ranges.
  *
- * The bridge comprises a slave port and a master port, that buffer
+ * The bridge comprises a slave port and a request port, that buffer
  * outgoing responses and requests respectively. Buffer space is
  * reserved when a request arrives, also reserving response space
  * before forwarding the request. If there is no space present, then
@@ -105,7 +105,7 @@ class Bridge : public ClockedObject
         Bridge& bridge;
 
         /**
-         * Master port on the other side of the bridge.
+         * Request port on the other side of the bridge.
          */
         BridgeMasterPort& requestPort;
 
@@ -162,7 +162,7 @@ class Bridge : public ClockedObject
          *
          * @param _name the port name including the owner
          * @param _bridge the structural owner
-         * @param _requestPort the master port on the other side of the bridge
+         * @param _requestPort the request port on the other side of the bridge
          * @param _delay the delay in cycles from receiving to sending
          * @param _resp_limit the size of the response queue
          * @param _ranges a number of address ranges to forward
@@ -213,7 +213,7 @@ class Bridge : public ClockedObject
 
     /**
      * Port on the side that forwards requests and receives
-     * responses. The master port has a buffer for the requests not
+     * responses. The request port has a buffer for the requests not
      * yet sent.
      */
     class BridgeMasterPort : public RequestPort
@@ -308,7 +308,7 @@ class Bridge : public ClockedObject
     /** Slave port of the bridge. */
     BridgeSlavePort responsePort;
 
-    /** Master port of the bridge. */
+    /** Request port of the bridge. */
     BridgeMasterPort requestPort;
 
   public:

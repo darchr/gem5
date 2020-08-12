@@ -83,7 +83,7 @@ class MemCheckerMonitor : public SimObject
     };
 
     /**
-     * This is the master port of the communication monitor. All recv
+     * This is the request port of the communication monitor. All recv
      * functions call a function in MemCheckerMonitor, where the
      * send function of the slave port is called. Besides this, these
      * functions can also perform actions for capturing statistics.
@@ -140,13 +140,13 @@ class MemCheckerMonitor : public SimObject
 
     };
 
-    /** Instance of master port, facing the memory side */
+    /** Instance of request port, facing the memory side */
     MonitorMasterPort requestPort;
 
     /**
      * This is the slave port of the communication monitor. All recv
      * functions call a function in MemCheckerMonitor, where the
-     * send function of the master port is called. Besides this, these
+     * send function of the request port is called. Besides this, these
      * functions can also perform actions for capturing statistics.
      */
     class MonitorSlavePort : public ResponsePort

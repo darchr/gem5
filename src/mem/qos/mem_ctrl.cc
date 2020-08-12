@@ -215,7 +215,7 @@ MemCtrl::schedule(MasterID m_id, uint64_t data)
         return policy->schedule(m_id, data);
     } else {
         DPRINTF(QOS,
-                "QoSScheduler::schedule master ID [%d] "
+                "QoSScheduler::schedule unique id [%d] "
                 "data received [%d], but QoS scheduler not initialized\n",
                 m_id,data);
         return 0;

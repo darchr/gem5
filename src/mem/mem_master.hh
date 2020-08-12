@@ -63,7 +63,7 @@ struct MasterInfo
     /** Master Name */
     std::string masterName;
 
-    /** Master ID */
+    /** Unique id */
     MasterID _id;
 };
 

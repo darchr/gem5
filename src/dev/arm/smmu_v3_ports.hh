@@ -57,7 +57,7 @@ class SMMUMasterPort : public RequestPort
     virtual ~SMMUMasterPort() {}
 };
 
-// Separate master port to send MMU initiated requests on
+// Separate request port to send MMU initiated requests on
 class SMMUMasterTableWalkPort : public RequestPort
 {
   protected:

@@ -96,10 +96,10 @@ TokenSlavePort::bind(Port& peer)
         fatal("Attempt to bind port %s to unsupported slave port %s.",
               name(), peer.name());
     } else if (token_request_port) {
-        // slave port keeps track of the master port
+        // slave port keeps track of the request port
         tokenMasterPort = token_request_port;
 
-        // master port also keeps track of slave port
+        // request port also keeps track of slave port
         tokenMasterPort->bind(*this);
     } else if (request_port) {
         tokenMasterPort = nullptr;

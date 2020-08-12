@@ -155,7 +155,7 @@ class FifoQueuePolicy : public QueuePolicy
 /**
  * Least Recently Granted Queue Policy
  * It selects packets from the queue with a round
- * robin-like policy: using the master id as a switching
+ * robin-like policy: using the unique id as a switching
  * parameter rather than switching over a time quantum.
  */
 class LrgQueuePolicy : public QueuePolicy

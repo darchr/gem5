@@ -57,7 +57,7 @@
 
 /**
  * A packet queue is a class that holds deferred packets and later
- * sends them using the associated slave port or master port.
+ * sends them using the associated slave port or request port.
  */
 class PacketQueue : public Drainable
 {
@@ -236,11 +236,11 @@ class ReqPacketQueue : public PacketQueue
 
     /**
      * Create a request packet queue, linked to an event manager, a
-     * master port, and a label that will be used for functional print
+     * request port, and a label that will be used for functional print
      * request packets.
      *
      * @param _em Event manager used for scheduling this queue
-     * @param _requestPort Master port used to send the packets
+     * @param _requestPort Request port used to send the packets
      * @param _label Label to push on the label stack for print request packets
      */
     ReqPacketQueue(EventManager& _em, RequestPort& _requestPort,
@@ -272,11 +272,11 @@ class SnoopRespPacketQueue : public PacketQueue
 
     /**
      * Create a snoop response packet queue, linked to an event
-     * manager, a master port, and a label that will be used for
+     * manager, a request port, and a label that will be used for
      * functional print request packets.
      *
      * @param _em Event manager used for scheduling this queue
-     * @param _requestPort Master port used to send the packets
+     * @param _requestPort Request port used to send the packets
      * @param force_order Force insertion order for packets with same address
      * @param _label Label to push on the label stack for print request packets
      */

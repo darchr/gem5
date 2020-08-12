@@ -622,7 +622,7 @@ RubyPort::ruby_eviction_callback(Addr address)
     Packet pkt(request, MemCmd::InvalidateReq);
     for (CpuPortIter p = response_ports.begin(); p != response_ports.end();
          ++p) {
-        // check if the connected master port is snooping
+        // check if the connected request port is snooping
         if ((*p)->isSnooping()) {
             // send as a snoop request
             (*p)->sendTimingSnoopReq(&pkt);

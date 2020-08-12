@@ -719,9 +719,9 @@ SMMUv3::init()
 {
     // make sure both sides are connected and have the same block size
     if (!requestPort.isConnected())
-        fatal("Master port is not connected.\n");
+        fatal("Request port is not connected.\n");
 
-    // If the second master port is connected for the table walks, enable
+    // If the second request port is connected for the table walks, enable
     // the mode to send table walks through this port instead
     if (masterTableWalkPort.isConnected())
         tableWalkPortEnable = true;

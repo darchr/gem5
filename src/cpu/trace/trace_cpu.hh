@@ -321,10 +321,10 @@ class TraceCPU : public BaseCPU
     /** Port to connect to L1 data cache. */
     DcachePort dcachePort;
 
-    /** Master id for instruction read requests. */
+    /** Unique id for instruction read requests. */
     const MasterID instMasterID;
 
-    /** Master id for data read and write requests. */
+    /** Unique id for data read and write requests. */
     const MasterID dataMasterID;
 
     /** File names for input instruction and data traces. */

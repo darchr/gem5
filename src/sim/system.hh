@@ -423,7 +423,7 @@ class System : public SimObject, public PCEventScope
     uint32_t numWorkIds;
 
     /** This array is a per-system list of all devices capable of issuing a
-     * memory system request and an associated string for each master id.
+     * memory system request and an associated string for each unique id.
      * It's used to uniquely id any master in the system by name for things
      * like cache statistics.
      */

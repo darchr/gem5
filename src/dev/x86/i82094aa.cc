@@ -71,7 +71,7 @@ X86ISA::I82094AA::init()
     // the piodevice init() function.
     BasicPioDevice::init();
 
-    // If the master port isn't connected, we can't send interrupts anywhere.
+    // If the request port isn't connected, we can't send interrupts anywhere.
     panic_if(!intMasterPort.isConnected(),
             "Int port not connected to anything!");
 }

@@ -53,7 +53,7 @@ struct TrafficGenParams;
  * components that are not yet modelled in detail, e.g. a video engine
  * or baseband subsystem in an SoC.
  *
- * The traffic generator has a single master port that is used to send
+ * The traffic generator has a single request port that is used to send
  * requests, independent of the specific behaviour. The behaviour of
  * the traffic generator is specified in a configuration file, and this
  * file describes a state transition graph where each state is a

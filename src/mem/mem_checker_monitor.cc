@@ -330,7 +330,7 @@ MemCheckerMonitor::recvTimingSnoopResp(PacketPtr pkt)
 bool
 MemCheckerMonitor::isSnooping() const
 {
-    // check if the connected master port is snooping
+    // check if the connected request port is snooping
     return responsePort.isSnooping();
 }
 

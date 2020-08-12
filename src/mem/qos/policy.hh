@@ -90,7 +90,7 @@ class Policy : public SimObject
     /**
      * Schedules data - must be defined by derived class
      *
-     * @param mId master id to schedule
+     * @param mId unique id to schedule
      * @param data data to schedule
      * @return QoS priority value
      */
@@ -98,7 +98,7 @@ class Policy : public SimObject
 
     /**
      * Schedules a packet. Non virtual interface for the scheduling
-     * method requiring a master ID.
+     * method requiring a unique id.
      *
      * @param pkt pointer to packet to schedule
      * @return QoS priority value

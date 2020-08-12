@@ -130,7 +130,7 @@ class CxxConfigManager
         PortID requestPortIndex, SimObject *slaveObject,
         const std::string &responsePort, PortID responsePortIndex);
 
-    /** Bind a single (possibly vectored) master port to peers from the
+    /** Bind a single (possibly vectored) request port to peers from the
      *  unparsed list peers with elements in the .ini connection format:
      *  path(.path)*.port[index] */
     void bindMasterPort(SimObject *object,

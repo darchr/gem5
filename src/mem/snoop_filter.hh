@@ -149,7 +149,7 @@ class SnoopFilter : public SimObject {
     void finishRequest(bool will_retry, Addr addr, bool is_secure);
 
     /**
-     * Handle an incoming snoop from below (the master port). These
+     * Handle an incoming snoop from below (the request port). These
      * can upgrade the tracking logic and may also benefit from
      * additional steering thanks to the snoop filter.
      *

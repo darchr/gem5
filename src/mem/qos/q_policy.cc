@@ -92,7 +92,7 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
 
         if (toServe.front() == m_id) {
             DPRINTF(QOS, "QoSQPolicy::lrg matched to served "
-                         "master id %d\n", m_id);
+                         "unique id %d\n", m_id);
             // This packet matches the MasterID to be served next
             // move toServe front to back
             toServe.push_back(m_id);
@@ -103,13 +103,13 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
 
         // The master generating the packet is not first in the toServe list
         // (Doesn't have the highest priority among masters)
-        // Check if this is the first packet seen with its master ID
+        // Check if this is the first packet seen with its unique id
         // and remember it. Then keep looping over the remaining packets
         // in the queue.
         if (track.find(m_id) == track.end()) {
             track[m_id] = pkt_it;
             DPRINTF(QOS, "QoSQPolicy::lrg tracking a packet for "
-                         "master id %d\n", m_id);
+                         "unique id %d\n", m_id);
         }
     }
 
@@ -117,7 +117,7 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
     // packet in the queue: look for the next master in the list.
     for (const auto& uniqueId : toServe) {
         DPRINTF(QOS, "QoSQPolicy::lrg evaluating alternative "
-                     "master id %d\n", uniqueId);
+                     "unique id %d\n", uniqueId);
 
         if (track.find(uniqueId) != track.end()) {
             ret = track[uniqueId];

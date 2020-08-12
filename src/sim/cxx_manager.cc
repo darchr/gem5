@@ -461,7 +461,7 @@ CxxConfigManager::bindPort(
 
     if (request_port.isConnected()) {
         throw Exception(master_object->name(), csprintf(
-            "Master port: %s[%d] is already connected\n", request_port_name,
+            "Request port: %s[%d] is already connected\n", request_port_name,
             request_port_index));
     }
 

@@ -123,7 +123,7 @@ class BaseTrafficGen : public ClockedObject
     const int maxOutstandingReqs;
 
 
-    /** Master port specialisation for the traffic generator */
+    /** Request port specialisation for the traffic generator */
     class TrafficGenPort : public RequestPort
     {
       public:
@@ -157,7 +157,7 @@ class BaseTrafficGen : public ClockedObject
      */
     void update();
 
-    /** The instance of master port used by the traffic generator. */
+    /** The instance of request port used by the traffic generator. */
     TrafficGenPort port;
 
     /** Packet waiting to be sent. */

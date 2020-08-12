@@ -53,7 +53,7 @@ class TokenMasterPort : public RequestPort
     { }
 
     /**
-     * Bind this master port to slave port. Called by the slave port in
+     * Bind this request port to slave port. Called by the slave port in
      * this token implementation.
      */
     void bind(Port &peer) override;
@@ -104,19 +104,19 @@ class TokenSlavePort : public ResponsePort
     ~TokenSlavePort() { }
 
     /**
-     * Bind this slave port to a master port. This also does the mirror
-     * action and bainds the master port to the slave port as well as
+     * Bind this slave port to a request port. This also does the mirror
+     * action and bainds the request port to the slave port as well as
      * binding the base class types.
      */
     void bind(Port &peer) override;
 
     /**
-     * Unbind this slave port and associated master port.
+     * Unbind this slave port and associated request port.
      */
     void unbind() override;
 
     /**
-     * Return num_tokens tokens back to the master port.
+     * Return num_tokens tokens back to the request port.
      */
     void sendTokens(int num_tokens);
 
