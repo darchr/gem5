@@ -72,12 +72,17 @@ class ExternalSlave : public SimObject
         ExternalSlave &owner;
 
       public:
+        /**
+         * @ingroup api_port
+         * @{
+         */
         ExternalPort(const std::string &name_,
             ExternalSlave &owner_) :
             SlavePort(name_, &owner_), owner(owner_)
         { }
 
         ~ExternalPort() { }
+        /** @} */
 
         /** Any or all of recv... can be overloaded to provide the port's
          *  functionality */
@@ -92,8 +97,12 @@ class ExternalSlave : public SimObject
     class Handler
     {
       public:
-        /** Create or find an external port which can be bound.  Returns
-         *  NULL on failure */
+        /** 
+         * Create or find an external port which can be bound. Returns
+         * NULL on failure
+         *
+         * @ingroup api_port
+         */
         virtual ExternalPort *getExternalPort(
             const std::string &name, ExternalSlave &owner,
             const std::string &port_data) = 0;
@@ -123,17 +132,31 @@ class ExternalSlave : public SimObject
     static std::map<std::string, Handler *> portHandlers;
 
   public:
+    /**
+     * @ingroup api_port
+     */
     ExternalSlave(ExternalSlaveParams *params);
 
-    /** Port interface.  Responds only to port "port" */
+    /**
+     * Port interface. Responds only to port "port".
+     *
+     * @ingroup api_port
+     */
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 
-    /** Register a handler which can provide ports with port_type ==
-     *  handler_name */
+    /**
+     * Register a handler which can provide ports with port_type ==
+     * handler_name
+     *
+     * @ingroup api_port
+     */
     static void registerHandler(const std::string &handler_name,
         Handler *handler);
 
+    /**
+     * @ingroup api_port
+     */
     void init() override;
 };
 
