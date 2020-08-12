@@ -59,6 +59,9 @@ class SETranslatingPortProxy : public TranslatingPortProxy
   protected:
     bool fixupAddr(Addr addr, BaseTLB::Mode mode) const override;
 
+  /**
+   * @ingroup api_port
+   */
   public:
     SETranslatingPortProxy(ThreadContext *tc, AllocType alloc=NextPage,
                            Request::Flags _flags=0);
