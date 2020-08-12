@@ -96,19 +96,37 @@ class Port
 
     /**
      * Virtual destructor due to inheritance.
+     *
+     * @ingroup api_port
      */
     virtual ~Port();
 
-    /** Return a reference to this port's peer. */
+    /**
+     * Return a reference to this port's peer. 
+     *
+     * @ingroup api_port
+     */
     Port &getPeer() { return *_peer; }
 
-    /** Return port name (for DPRINTF). */
+    /**
+     * Return port name (for DPRINTF).
+     *
+     * @ingroup api_port
+     */
     const std::string name() const { return portName; }
 
-    /** Get the port id. */
+    /**
+     * Get the port id. 
+     *
+     * @ingroup api_port
+     */
     PortID getId() const { return id; }
 
-    /** Attach to a peer port. */
+    /**
+     * Attach to a peer port. 
+     *
+     * @ingroup api_port
+     */
     virtual void
     bind(Port &peer)
     {
@@ -116,7 +134,11 @@ class Port
         _connected = true;
     }
 
-    /** Dettach from a peer port. */
+    /**
+     * Dettach from a peer port.
+     *
+     * @ingroup api_port
+     */
     virtual void
     unbind()
     {
@@ -124,10 +146,18 @@ class Port
         _connected = false;
     }
 
-    /** Is this port currently connected to a peer? */
+    /**
+     * Is this port currently connected to a peer?
+     *
+     * @ingroup api_port
+     */
     bool isConnected() const { return _connected; }
 
-    /** A utility function to make it easier to swap out ports. */
+    /** 
+     * A utility function to make it easier to swap out ports.
+     *
+     * @ingroup api_port
+     */
     void
     takeOverFrom(Port *old)
     {
@@ -147,6 +177,9 @@ class Port
     }
 };
 
+/**
+ * @ingroup api_port
+ */
 static inline std::ostream &
 operator << (std::ostream &os, const Port &port)
 {
