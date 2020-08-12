@@ -292,19 +292,28 @@ class SlavePort : public Port, public AtomicResponseProtocol,
     SimObject& owner;
 
   public:
+    /**
+     * @ingroup api_port
+     * @{
+     */
     SlavePort(const std::string& name, SimObject* _owner,
               PortID id=InvalidPortID);
     virtual ~SlavePort();
+    /** @} */ // end of api_port
 
     /**
      * Find out if the peer master port is snooping or not.
      *
      * @return true if the peer master port is snooping
+     *
+     * @ingroup api_port
      */
     bool isSnooping() const { return _masterPort->isSnooping(); }
 
     /**
-     * Called by the owner to send a range change
+     * Called by the owner to send a range change.
+     *
+     * @ingroup api_port
      */
     void sendRangeChange() const { _masterPort->recvRangeChange(); }
 
@@ -314,15 +323,20 @@ class SlavePort : public Port, public AtomicResponseProtocol,
      * and return a populated list with at least one item.
      *
      * @return a list of ranges responded to
+     *
+     * @ingroup api_port
      */
     virtual AddrRangeList getAddrRanges() const = 0;
 
     /**
      * We let the master port do the work, so these don't do anything.
+     *
+     * @ingroup api_port
+     * @{
      */
     void unbind() override {}
     void bind(Port &peer) override {}
-
+    /** @} */ // end of api_port
   public:
     /* The atomic protocol. */
 
@@ -354,6 +368,8 @@ class SlavePort : public Port, public AtomicResponseProtocol,
      * affecting the current state of any block or moving the block.
      *
      * @param pkt Snoop packet to send.
+     *
+     * @ingroup api_port
      */
     void
     sendFunctionalSnoop(PacketPtr pkt) const
@@ -378,6 +394,8 @@ class SlavePort : public Port, public AtomicResponseProtocol,
      * @param pkt Packet to send.
      *
      * @return If the send was succesful or not.
+     *
+     * @ingroup api_port
     */
     bool
     sendTimingResp(PacketPtr pkt)
@@ -395,6 +413,8 @@ class SlavePort : public Port, public AtomicResponseProtocol,
      * always succeed and hence no return value is needed.
      *
      * @param pkt Packet to send.
+     *
+     * @ingroup api_port
      */
     void
     sendTimingSnoopReq(PacketPtr pkt)
@@ -409,6 +429,8 @@ class SlavePort : public Port, public AtomicResponseProtocol,
     /**
      * Send a retry to the master port that previously attempted a
      * sendTimingReq to this slave port and failed.
+     *
+     * @ingroup api_port
      */
     void
     sendRetryReq()
@@ -423,6 +445,8 @@ class SlavePort : public Port, public AtomicResponseProtocol,
     /**
      * Send a retry to the master port that previously attempted a
      * sendTimingSnoopResp to this slave port and failed.
+     *
+     * @ingroup api_port
      */
     void
     sendRetrySnoopResp()
