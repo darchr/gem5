@@ -338,9 +338,9 @@ MemCtrl::MemCtrlStats::regStats()
         ;
 
     for (int i = 0; i < max_masters; i++) {
-        const std::string master = system->getMasterName(i);
-        avgPriority.subname(i, master);
-        avgPriorityDistance.subname(i, master);
+        const std::string name = system->getMasterName(i);
+        avgPriority.subname(i, name);
+        avgPriorityDistance.subname(i, name);
     }
 
     for (int j = 0; j < num_priorities; ++j) {

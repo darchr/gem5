@@ -246,7 +246,7 @@ System::System(Params *p)
           _cacheLineSize == 64 || _cacheLineSize == 128))
         warn_once("Cache line size is neither 16, 32, 64 nor 128 bytes.\n");
 
-    // Get the generic system master IDs
+    // Get the generic system unique IDs
     MasterID tmp_id M5_VAR_USED;
     tmp_id = getMasterId(this, "writebacks");
     assert(tmp_id == Request::wbUniqueId);
@@ -597,14 +597,15 @@ System::getGlobalMasterId(const std::string& master_name)
 }
 
 MasterID
-System::getMasterId(const SimObject* master, std::string submaster)
+System::getMasterId(const SimObject* requestor, std::string submaster)
 {
-    auto master_name = leafMasterName(master, submaster);
-    return _getMasterId(master, master_name);
+    auto master_name = leafMasterName(requestor, submaster);
+    return _getMasterId(requestor, master_name);
 }
 
 MasterID
-System::_getMasterId(const SimObject* master, const std::string& master_name)
+System::_getMasterId(const SimObject* requestor,
+                     const std::string& master_name)
 {
     std::string name = stripSystemName(master_name);
 
@@ -628,20 +629,21 @@ System::_getMasterId(const SimObject* master, const std::string& master_name)
     MasterID unique_id = masters.size();
 
     // Append the new Master metadata to the group of system Masters.
-    masters.emplace_back(master, name, unique_id);
+    masters.emplace_back(requestor, name, unique_id);
 
     return masters.back()._id;
 }
 
 std::string
-System::leafMasterName(const SimObject* master, const std::string& submaster)
+System::leafMasterName(const SimObject* requestor,
+                       const std::string& submaster)
 {
     if (submaster.empty()) {
-        return master->name();
+        return requestor->name();
     } else {
-        // Get the full master name by appending the submaster name to
-        // the root SimObject master name
-        return master->name() + "." + submaster;
+        // Get the full requestor name by appending the submaster name to
+        // the root SimObject requestor name
+        return requestor->name() + "." + submaster;
     }
 }
 
