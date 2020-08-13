@@ -74,18 +74,18 @@ class Policy : public SimObject
     void setMemCtrl(MemCtrl* mem) { memCtrl = mem; };
 
     /**
-     * Builds a MasterID/value pair given a master input.
-     * This will be lookuped in the system list of masters in order
+     * Builds a MasterID/value pair given a requestor input.
+     * This will be lookuped in the system list of requestors in order
      * to retrieve the associated MasterID.
-     * In case the master name/object cannot be resolved, the pairing
+     * In case the requestor name/object cannot be resolved, the pairing
      * method will panic.
      *
-     * @param master Master to lookup in the system
+     * @param requestor Master to lookup in the system
      * @param value Value to be associated with the MasterID
      * @return A MasterID/Value pair.
      */
     template <typename M, typename T>
-    std::pair<MasterID, T> pair(M master, T value);
+    std::pair<MasterID, T> pair(M requestor, T value);
 
     /**
      * Schedules data - must be defined by derived class
@@ -112,16 +112,16 @@ class Policy : public SimObject
 
 template <typename M, typename T>
 std::pair<MasterID, T>
-Policy::pair(M master, T value)
+Policy::pair(M requestor, T value)
 {
-    auto id = memCtrl->system()->lookupMasterId(master);
+    auto id = memCtrl->system()->lookupMasterId(requestor);
 
     panic_if(id == Request::invldUniqueId,
-             "Unable to find master %s\n", master);
+             "Unable to find requestor %s\n", requestor);
 
     DPRINTF(QOS,
             "Master %s [id %d] associated with QoS data %d\n",
-            master, id, value);
+            requestor, id, value);
 
     return std::pair<MasterID, T>(id, value);
 }

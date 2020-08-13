@@ -179,7 +179,7 @@ class LrgQueuePolicy : public QueuePolicy
   protected:
     /**
      * Support structure for lrg algorithms:
-     * keeps track of serviced masters,
+     * keeps track of serviced requestors,
      * always serve the front element.
      */
     std::list<MasterID> toServe;

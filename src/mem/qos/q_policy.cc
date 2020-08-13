@@ -67,7 +67,7 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
 {
     QueuePolicy::PacketQueue::iterator ret = q->end();
 
-    // Tracks one packet per master in the queue
+    // Tracks one packet per requestor in the queue
     std::unordered_map<MasterID, QueuePolicy::PacketQueue::iterator> track;
 
     // Cycle queue only once
@@ -83,7 +83,7 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
         DPRINTF(QOS, "QoSQPolicy::lrg checking packet "
                      "from queue with id %d\n", m_id);
 
-        // Check if this is a known master.
+        // Check if this is a known requestor.
         panic_if(memCtrl->hasMaster(m_id),
                  "%s: Unrecognized Master\n", __func__);
 
@@ -101,8 +101,8 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
             return pkt_it;
         }
 
-        // The master generating the packet is not first in the toServe list
-        // (Doesn't have the highest priority among masters)
+        // The requestor generating the packet is not first in the toServe list
+        // (Doesn't have the highest priority among requestors)
         // Check if this is the first packet seen with its unique id
         // and remember it. Then keep looping over the remaining packets
         // in the queue.
@@ -113,8 +113,8 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
         }
     }
 
-    // If here, the current master to be serviced doesn't have a pending
-    // packet in the queue: look for the next master in the list.
+    // If here, the current requestor to be serviced doesn't have a pending
+    // packet in the queue: look for the next requestor in the list.
     for (const auto& uniqueId : toServe) {
         DPRINTF(QOS, "QoSQPolicy::lrg evaluating alternative "
                      "unique id %d\n", uniqueId);

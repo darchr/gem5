@@ -544,12 +544,12 @@ printSystems()
 }
 
 std::string
-System::stripSystemName(const std::string& master_name) const
+System::stripSystemName(const std::string& requestor_name) const
 {
-    if (startswith(master_name, name())) {
-        return master_name.substr(name().size());
+    if (startswith(requestor_name, name())) {
+        return requestor_name.substr(name().size());
     } else {
-        return master_name;
+        return requestor_name;
     }
 }
 
@@ -559,11 +559,11 @@ System::lookupMasterId(const SimObject* obj) const
     MasterID id = Request::invldUniqueId;
 
     // number of occurrences of the SimObject pointer
-    // in the master list.
+    // in the requestor list.
     auto obj_number = 0;
 
-    for (int i = 0; i < masters.size(); i++) {
-        if (masters[i].obj == obj) {
+    for (int i = 0; i < requestors.size(); i++) {
+        if (requestors[i].obj == obj) {
             id = i;
             obj_number++;
         }
@@ -571,18 +571,18 @@ System::lookupMasterId(const SimObject* obj) const
 
     fatal_if(obj_number > 1,
         "Cannot lookup MasterID by SimObject pointer: "
-        "More than one master is sharing the same SimObject\n");
+        "More than one requestor is sharing the same SimObject\n");
 
     return id;
 }
 
 MasterID
-System::lookupMasterId(const std::string& master_name) const
+System::lookupMasterId(const std::string& requestor_name) const
 {
-    std::string name = stripSystemName(master_name);
+    std::string name = stripSystemName(requestor_name);
 
-    for (int i = 0; i < masters.size(); i++) {
-        if (masters[i].masterName == name) {
+    for (int i = 0; i < requestors.size(); i++) {
+        if (requestors[i].requestorName == name) {
             return i;
         }
     }
@@ -591,27 +591,27 @@ System::lookupMasterId(const std::string& master_name) const
 }
 
 MasterID
-System::getGlobalMasterId(const std::string& master_name)
+System::getGlobalMasterId(const std::string& requestor_name)
 {
-    return _getMasterId(nullptr, master_name);
+    return _getMasterId(nullptr, requestor_name);
 }
 
 MasterID
-System::getMasterId(const SimObject* requestor, std::string submaster)
+System::getMasterId(const SimObject* requestor, std::string subrequestor)
 {
-    auto master_name = leafMasterName(requestor, submaster);
-    return _getMasterId(requestor, master_name);
+    auto requestor_name = leafMasterName(requestor, subrequestor);
+    return _getMasterId(requestor, requestor_name);
 }
 
 MasterID
 System::_getMasterId(const SimObject* requestor,
-                     const std::string& master_name)
+                     const std::string& requestor_name)
 {
-    std::string name = stripSystemName(master_name);
+    std::string name = stripSystemName(requestor_name);
 
     // CPUs in switch_cpus ask for ids again after switching
-    for (int i = 0; i < masters.size(); i++) {
-        if (masters[i].masterName == name) {
+    for (int i = 0; i < requestors.size(); i++) {
+        if (requestors[i].requestorName == name) {
             return i;
         }
     }
@@ -626,35 +626,35 @@ System::_getMasterId(const SimObject* requestor,
     }
 
     // Generate a new MasterID incrementally
-    MasterID unique_id = masters.size();
+    MasterID unique_id = requestors.size();
 
     // Append the new Master metadata to the group of system Masters.
-    masters.emplace_back(requestor, name, unique_id);
+    requestors.emplace_back(requestor, name, unique_id);
 
-    return masters.back()._id;
+    return requestors.back()._id;
 }
 
 std::string
 System::leafMasterName(const SimObject* requestor,
-                       const std::string& submaster)
+                       const std::string& subrequestor)
 {
-    if (submaster.empty()) {
+    if (subrequestor.empty()) {
         return requestor->name();
     } else {
-        // Get the full requestor name by appending the submaster name to
+        // Get the full requestor name by appending the subrequestor name to
         // the root SimObject requestor name
-        return requestor->name() + "." + submaster;
+        return requestor->name() + "." + subrequestor;
     }
 }
 
 std::string
 System::getMasterName(MasterID unique_id)
 {
-    if (unique_id >= masters.size())
+    if (unique_id >= requestors.size())
         fatal("Invalid unique_id passed to getMasterName()\n");
 
-    const auto& master_info = masters[unique_id];
-    return master_info.masterName;
+    const auto& requestor_info = requestors[unique_id];
+    return requestor_info.requestorName;
 }
 
 System *
