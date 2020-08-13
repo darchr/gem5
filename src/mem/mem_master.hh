@@ -47,21 +47,21 @@
 #include "sim/sim_object.hh"
 
 /**
- * The MasterInfo class contains data about a specific master.
+ * The MasterInfo class contains data about a specific requestor.
  */
 struct MasterInfo
 {
     MasterInfo(const SimObject* _obj,
-               std::string master_name,
+               std::string requestor_name,
                MasterID unique_id)
-      : obj(_obj), masterName(master_name), _id(unique_id)
+      : obj(_obj), req_name(requestor_name), _id(unique_id)
     {}
 
     /** SimObject related to the Master */
     const SimObject* obj;
 
-    /** Master Name */
-    std::string masterName;
+    /** Requestor Name */
+    std::string req_name;
 
     /** Unique id */
     MasterID _id;
