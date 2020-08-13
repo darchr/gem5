@@ -188,8 +188,8 @@ class BaseCPU(ClockedObject):
     _uncached_master_ports = []
     if buildEnv['TARGET_ISA'] == 'x86':
         _uncached_slave_ports += ["interrupts[0].pio",
-                                  "interrupts[0].int_slave"]
-        _uncached_master_ports += ["interrupts[0].int_master"]
+                                  "interrupts[0].int_responder"]
+        _uncached_master_ports += ["interrupts[0].int_requestor"]
 
     def createInterruptController(self):
         self.interrupts = [ArchInterrupts() for i in range(self.numThreads)]

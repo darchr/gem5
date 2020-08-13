@@ -42,7 +42,7 @@
 X86ISA::I82094AA::I82094AA(Params *p)
     : BasicPioDevice(p, 20), extIntPic(p->external_int_pic),
       lowestPriorityOffset(0),
-      intMasterPort(name() + ".int_master", this, this, p->int_latency)
+      intMasterPort(name() + ".int_requestor", this, this, p->int_latency)
 {
     // This assumes there's only one I/O APIC in the system and since the apic
     // id is stored in a 8-bit field with 0xff meaning broadcast, the id must
@@ -79,7 +79,7 @@ X86ISA::I82094AA::init()
 Port &
 X86ISA::I82094AA::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "int_master")
+    if (if_name == "int_requestor")
         return intMasterPort;
     if (if_name == "inputs")
         return *inputs.at(idx);
