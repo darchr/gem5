@@ -146,14 +146,8 @@ class ExternalMaster : public SimObject
     static void registerHandler(const std::string &handler_name,
         Handler *handler);
 
-    /**
-      * @ingroup api_port
-      */
     void init() override;
 
-    /**
-      * @ingroup api_port
-      */
     const MasterID masterId;
 };
 
