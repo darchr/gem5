@@ -71,7 +71,7 @@ class ExternalMaster : public SimObject
 
       public:
         /**
-         * @ingroup api_port
+         * @ingroup api_external
          * @{
          */
         ExternalPort(const std::string &name_,
@@ -80,7 +80,7 @@ class ExternalMaster : public SimObject
         { }
 
         ~ExternalPort() { }
-        /** @} */ // end of api_port
+        /** @} */ // end of api_external
 
         /** Any or all of recv... can be overloaded to provide the port's
          *  functionality */
@@ -97,7 +97,7 @@ class ExternalMaster : public SimObject
          * Create or find an external port which can be bound. Returns
          * NULL on failure
          *
-         * @ingroup api_port
+         * @ingroup api_external
          */
         virtual ExternalPort *getExternalPort(
             const std::string &name, ExternalMaster &owner,
@@ -125,14 +125,14 @@ class ExternalMaster : public SimObject
 
   public:
     /**
-      * @ingroup api_port
+      * @ingroup api_external
       */
     ExternalMaster(ExternalMasterParams *params);
 
     /**
      * Port interface.  Responds only to port "port"
      *
-     * @ingroup api_port
+     * @ingroup api_external
      */
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
@@ -141,7 +141,7 @@ class ExternalMaster : public SimObject
      * Register a handler which can provide ports with port_type ==
      * handler_name
      *
-     * @ingroup api_port
+     * @ingroup api_external
      */
     static void registerHandler(const std::string &handler_name,
         Handler *handler);
