@@ -127,8 +127,8 @@ class SimpleCache : public ClockedObject
 
         /**
          * Called by the request port if sendTimingResp was called on this
-         * slave port (causing recvTimingResp to be called on the master
-         * port) and was unsuccesful.
+         * slave port (causing recvTimingResp to be called on the request
+         * port) and was unsuccessful.
          */
         void recvRespRetry() override;
     };

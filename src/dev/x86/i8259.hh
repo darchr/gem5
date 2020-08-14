@@ -62,8 +62,9 @@ class I8259 : public BasicPioDevice
     uint8_t vectorOffset;
 
     bool cascadeMode;
-    // A bit vector of lines with slaves attached, or the slave id, depending
-    // on if this is a master or slave PIC.
+    // A bit vector of lines with responders attached, or the
+    // responder id, depending
+    // on if this is a requestor or responder PIC.
     uint8_t cascadeBits;
 
     bool edgeTriggered;

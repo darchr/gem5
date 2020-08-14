@@ -212,7 +212,7 @@ SMMUv3SlaveInterface::atsSlaveRecvTimingReq(PacketPtr pkt)
 bool
 SMMUv3SlaveInterface::atsMasterRecvTimingResp(PacketPtr pkt)
 {
-    DPRINTF(SMMUv3, "[t] ATS master resp addr=%#x size=%#x\n",
+    DPRINTF(SMMUv3, "[t] ATS requestor resp addr=%#x size=%#x\n",
             pkt->getAddr(), pkt->getSize());
 
     // @todo: We need to pay for this and not just zero it out

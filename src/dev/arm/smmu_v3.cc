@@ -55,8 +55,8 @@ SMMUv3::SMMUv3(SMMUv3Params *params) :
     ClockedObject(params),
     system(*params->system),
     _id(params->system->getMasterId(this)),
-    requestPort(name() + ".master", *this),
-    masterTableWalkPort(name() + ".master_walker", *this),
+    requestPort(name() + ".request", *this),
+    requestTableWalkPort(name() + ".request_walker", *this),
     controlPort(name() + ".control", *this, params->reg_map),
     tlb(params->tlb_entries, params->tlb_assoc, params->tlb_policy),
     configCache(params->cfg_entries, params->cfg_assoc, params->cfg_policy),
@@ -126,7 +126,7 @@ SMMUv3::SMMUv3(SMMUv3Params *params) :
 bool
 SMMUv3::masterRecvTimingResp(PacketPtr pkt)
 {
-    DPRINTF(SMMUv3, "[t] master resp addr=%#x size=%#x\n",
+    DPRINTF(SMMUv3, "[t] requestor resp addr=%#x size=%#x\n",
         pkt->getAddr(), pkt->getSize());
 
     // @todo: We need to pay for this and not just zero it out
@@ -150,7 +150,7 @@ SMMUv3::masterRecvReqRetry()
 
         assert(a.type==ACTION_SEND_REQ || a.type==ACTION_SEND_REQ_FINAL);
 
-        DPRINTF(SMMUv3, "[t] master retr addr=%#x size=%#x\n",
+        DPRINTF(SMMUv3, "[t] requestor retr addr=%#x size=%#x\n",
             a.pkt->getAddr(), a.pkt->getSize());
 
         if (!requestPort.sendTimingReq(a.pkt))
@@ -160,7 +160,7 @@ SMMUv3::masterRecvReqRetry()
 
         /*
          * ACTION_SEND_REQ_FINAL means that we have just forwarded the packet
-         * on the master interface; this means that we no longer hold on to
+         * on the requestor interface; this means that we no longer hold on to
          * that transaction and therefore can accept a new one.
          * If the slave port was stalled then unstall it (send retry).
          */
@@ -172,7 +172,7 @@ SMMUv3::masterRecvReqRetry()
 bool
 SMMUv3::masterTableWalkRecvTimingResp(PacketPtr pkt)
 {
-    DPRINTF(SMMUv3, "[t] master HWTW resp addr=%#x size=%#x\n",
+    DPRINTF(SMMUv3, "[t] requestor HWTW resp addr=%#x size=%#x\n",
         pkt->getAddr(), pkt->getSize());
 
     // @todo: We need to pay for this and not just zero it out
@@ -197,10 +197,10 @@ SMMUv3::masterTableWalkRecvReqRetry()
 
         assert(a.type==ACTION_SEND_REQ);
 
-        DPRINTF(SMMUv3, "[t] master HWTW retr addr=%#x size=%#x\n",
+        DPRINTF(SMMUv3, "[t] requestor HWTW retr addr=%#x size=%#x\n",
             a.pkt->getAddr(), a.pkt->getSize());
 
-        if (!masterTableWalkPort.sendTimingReq(a.pkt))
+        if (!requestTableWalkPort.sendTimingReq(a.pkt))
             break;
 
         packetsTableWalkToRetry.pop();
@@ -243,7 +243,7 @@ SMMUv3::runProcessAtomic(SMMUProcess *proc, PacketPtr pkt)
                 // enabled. Otherwise, fall through and handle same as the final
                 // ACTION_SEND_REQ_FINAL request.
                 if (tableWalkPortEnable) {
-                    delay += masterTableWalkPort.sendAtomic(action.pkt);
+                    delay += requestTableWalkPort.sendAtomic(action.pkt);
                     pkt = action.pkt;
                     break;
                 }
@@ -289,14 +289,14 @@ SMMUv3::runProcessTiming(SMMUProcess *proc, PacketPtr pkt)
             if (tableWalkPortEnable) {
                 action.pkt->pushSenderState(proc);
 
-                DPRINTF(SMMUv3, "[t] master HWTW req  addr=%#x size=%#x\n",
+                DPRINTF(SMMUv3, "[t] requestor HWTW req  addr=%#x size=%#x\n",
                         action.pkt->getAddr(), action.pkt->getSize());
 
                 if (packetsTableWalkToRetry.empty()
-                        && masterTableWalkPort.sendTimingReq(action.pkt)) {
+                        && requestTableWalkPort.sendTimingReq(action.pkt)) {
                     scheduleSlaveRetries();
                 } else {
-                    DPRINTF(SMMUv3, "[t] master HWTW req  needs retry,"
+                    DPRINTF(SMMUv3, "[t] requestor HWTW req  needs retry,"
                             " qlen=%d\n", packetsTableWalkToRetry.size());
                     packetsTableWalkToRetry.push(action);
                 }
@@ -307,14 +307,14 @@ SMMUv3::runProcessTiming(SMMUProcess *proc, PacketPtr pkt)
         case ACTION_SEND_REQ_FINAL:
             action.pkt->pushSenderState(proc);
 
-            DPRINTF(SMMUv3, "[t] master req  addr=%#x size=%#x\n",
+            DPRINTF(SMMUv3, "[t] requestor req  addr=%#x size=%#x\n",
                     action.pkt->getAddr(), action.pkt->getSize());
 
             if (packetsToRetry.empty() &&
                 requestPort.sendTimingReq(action.pkt)) {
                 scheduleSlaveRetries();
             } else {
-                DPRINTF(SMMUv3, "[t] master req  needs retry, qlen=%d\n",
+                DPRINTF(SMMUv3, "[t] requestor req  needs retry, qlen=%d\n",
                         packetsToRetry.size());
                 packetsToRetry.push(action);
             }
@@ -723,10 +723,10 @@ SMMUv3::init()
 
     // If the second request port is connected for the table walks, enable
     // the mode to send table walks through this port instead
-    if (masterTableWalkPort.isConnected())
+    if (requestTableWalkPort.isConnected())
         tableWalkPortEnable = true;
 
-    // notify the master side  of our address ranges
+    // notify the requestor side  of our address ranges
     for (auto ifc : slaveInterfaces) {
         ifc->sendRange();
     }
@@ -816,10 +816,10 @@ SMMUv3::unserialize(CheckpointIn &cp)
 Port&
 SMMUv3::getPort(const std::string &name, PortID id)
 {
-    if (name == "master") {
+    if (name == "request") {
         return requestPort;
-    } else if (name == "master_walker") {
-        return masterTableWalkPort;
+    } else if (name == "request_walker") {
+        return requestTableWalkPort;
     } else if (name == "control") {
         return controlPort;
     } else {

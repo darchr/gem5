@@ -53,7 +53,7 @@ class System;
 struct BaseTrafficGenParams;
 
 /**
- * The traffic generator is a master module that generates stimuli for
+ * The traffic generator is a memside module that generates stimuli for
  * the memory system, based on a collection of simple generator
  * behaviours that are either probabilistic or based on traces. It can
  * be used stand alone for creating test cases for interconnect and

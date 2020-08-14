@@ -57,7 +57,7 @@ TLBCoalescer::TLBCoalescer(const Params *p)
                                               this, i));
     }
 
-    // create the master ports based on the number of connected ports
+    // create the request ports based on the number of connected ports
     for (size_t i = 0; i < p->port_master_connection_count; ++i) {
         memSidePort.push_back(new MemSidePort(csprintf("%s-port%d", name(), i),
                                               this, i));
@@ -73,7 +73,7 @@ TLBCoalescer::getPort(const std::string &if_name, PortID idx)
         }
 
         return *cpuSidePort[idx];
-    } else  if (if_name == "master") {
+    } else  if (if_name == "request") {
         if (idx >= static_cast<PortID>(memSidePort.size())) {
             panic("TLBCoalescer::getPort: unknown index %d\n", idx);
         }
@@ -358,7 +358,7 @@ TLBCoalescer::CpuSidePort::recvFunctional(PacketPtr pkt)
 AddrRangeList
 TLBCoalescer::CpuSidePort::getAddrRanges() const
 {
-    // currently not checked by the master
+    // currently not checked by the requestor
     AddrRangeList ranges;
 
     return ranges;
