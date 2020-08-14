@@ -114,7 +114,7 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
     // buffer before committing to an MSHR
 
     // forward snoops is overridden in init() once we can query
-    // whether the connected master is actually snooping or not
+    // whether the connected requestor is actually snooping or not
 
     tempBlock = new TempCacheBlk(blkSize);
 
@@ -2290,7 +2290,7 @@ BaseCache::CpuSidePort::recvTimingSnoopResp(PacketPtr pkt)
 
     assert(pkt->isResponse());
 
-    // Express snoop responses from master to slave, e.g., from L1 to L2
+    // Express snoop responses from requestor to responder, e.g., from L1 to L2
     cache->recvTimingSnoopResp(pkt);
     return true;
 }

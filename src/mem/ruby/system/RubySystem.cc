@@ -123,8 +123,8 @@ RubySystem::registerMachineID(const MachineID& mach_id, Network* network)
     machineToNetwork.insert(std::make_pair(mach_id, network_id));
 }
 
-// This registers all master IDs in the system for functional reads. This
-// should be called in init() since master IDs are obtained in a SimObject's
+// This registers all requestor IDs in the system for functional reads. This
+// should be called in init() since requestor IDs are obtained in a SimObject's
 // constructor and there are functional reads/writes between init() and
 // startup().
 void
@@ -154,7 +154,7 @@ RubySystem::registerMasterIDs()
         netCntrls[network_id].push_back(cntrl);
     }
 
-    // Default all other master IDs to network 0
+    // Default all other requestor IDs to network 0
     for (auto mid = 0; mid < params()->system->maxMasters(); ++mid) {
         if (!masterToNetwork.count(mid)) {
             masterToNetwork.insert(std::make_pair(mid, 0));

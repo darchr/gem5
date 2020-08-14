@@ -85,7 +85,7 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
 
         // Check if this is a known requestor.
         panic_if(memCtrl->hasMaster(m_id),
-                 "%s: Unrecognized Master\n", __func__);
+                 "%s: Unrecognized Requestor\n", __func__);
 
         panic_if(toServe.size() > 0,
                  "%s: toServe list is empty\n", __func__);

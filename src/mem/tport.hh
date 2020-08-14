@@ -54,7 +54,7 @@ class SimObject;
 /**
  * The simple timing port uses a queued port to implement
  * recvFunctional and recvTimingReq through recvAtomic. It is always a
- * slave port.
+ * response port.
  */
 class SimpleTimingPort : public QueuedSlavePort
 {

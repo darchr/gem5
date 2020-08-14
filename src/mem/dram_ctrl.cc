@@ -2650,24 +2650,24 @@ DRAMCtrl::DRAMStats::DRAMStats(DRAMCtrl &_dram)
     ADD_STAT(totGap, "Total gap between requests"),
     ADD_STAT(avgGap, "Average gap between requests"),
 
-    ADD_STAT(masterReadBytes, "Per-master bytes read from memory"),
-    ADD_STAT(masterWriteBytes, "Per-master bytes write to memory"),
+    ADD_STAT(masterReadBytes, "Per-requestor bytes read from memory"),
+    ADD_STAT(masterWriteBytes, "Per-requestor bytes write to memory"),
     ADD_STAT(masterReadRate,
-             "Per-master bytes read from memory rate (Bytes/sec)"),
+             "Per-requestor bytes read from memory rate (Bytes/sec)"),
     ADD_STAT(masterWriteRate,
-             "Per-master bytes write to memory rate (Bytes/sec)"),
+             "Per-requestor bytes write to memory rate (Bytes/sec)"),
     ADD_STAT(masterReadAccesses,
-             "Per-master read serviced memory accesses"),
+             "Per-requestor read serviced memory accesses"),
     ADD_STAT(masterWriteAccesses,
-             "Per-master write serviced memory accesses"),
+             "Per-requestor write serviced memory accesses"),
     ADD_STAT(masterReadTotalLat,
-             "Per-master read total memory access latency"),
+             "Per-requestor read total memory access latency"),
     ADD_STAT(masterWriteTotalLat,
-             "Per-master write total memory access latency"),
+             "Per-requestor write total memory access latency"),
     ADD_STAT(masterReadAvgLat,
-             "Per-master read average memory access latency"),
+             "Per-requestor read average memory access latency"),
     ADD_STAT(masterWriteAvgLat,
-             "Per-master write average memory access latency"),
+             "Per-requestor write average memory access latency"),
 
     ADD_STAT(pageHitRate, "Row buffer hit rate, read and write combined")
 {
@@ -2722,7 +2722,7 @@ DRAMCtrl::DRAMStats::regStats()
     pageHitRate.precision(2);
 
 
-    // per-master bytes read and written to memory
+    // per-requestor bytes read and written to memory
     masterReadBytes
         .init(max_masters)
         .flags(nozero | nonan);
@@ -2731,7 +2731,7 @@ DRAMCtrl::DRAMStats::regStats()
         .init(max_masters)
         .flags(nozero | nonan);
 
-    // per-master bytes read and written to memory rate
+    // per-requestor bytes read and written to memory rate
     masterReadRate
         .flags(nozero | nonan)
         .precision(12);

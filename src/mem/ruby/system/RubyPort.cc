@@ -55,10 +55,10 @@ RubyPort::RubyPort(const Params *p)
     : ClockedObject(p), m_ruby_system(p->ruby_system), m_version(p->version),
       m_controller(NULL), m_mandatory_q_ptr(NULL),
       m_usingRubyTester(p->using_ruby_tester), system(p->system),
-      pioMasterPort(csprintf("%s.pio-master-port", name()), this),
-      pioSlavePort(csprintf("%s.pio-slave-port", name()), this),
-      memMasterPort(csprintf("%s.mem-master-port", name()), this),
-      memSlavePort(csprintf("%s-mem-slave-port", name()), this,
+      pioMasterPort(csprintf("%s.pio-request-port", name()), this),
+      pioSlavePort(csprintf("%s.pio-response-port", name()), this),
+      memMasterPort(csprintf("%s.mem-request-port", name()), this),
+      memSlavePort(csprintf("%s-mem-response-port", name()), this,
                    p->ruby_system->getAccessBackingStore(), -1,
                    p->no_retry_on_stall),
       gotAddrRanges(p->port_master_connection_count),
@@ -66,17 +66,17 @@ RubyPort::RubyPort(const Params *p)
 {
     assert(m_version != -1);
 
-    // create the slave ports based on the number of connected ports
+    // create the response ports based on the number of connected ports
     for (size_t i = 0; i < p->port_slave_connection_count; ++i) {
         response_ports.push_back(new MemSlavePort(csprintf
-            ("%s.slave%d", name(), i), this,
+            ("%s.response%d", name(), i), this,
             p->ruby_system->getAccessBackingStore(),
             i, p->no_retry_on_stall));
     }
 
-    // create the master ports based on the number of connected ports
+    // create the request ports based on the number of connected ports
     for (size_t i = 0; i < p->port_master_connection_count; ++i) {
-        request_ports.push_back(new PioMasterPort(csprintf("%s.master%d",
+        request_ports.push_back(new PioMasterPort(csprintf("%s.request%d",
             name(), i), this));
     }
 }
@@ -99,19 +99,19 @@ RubyPort::getPort(const std::string &if_name, PortID idx)
         return memSlavePort;
     } else if (if_name == "pio_response_port") {
         return pioSlavePort;
-    } else if (if_name == "master") {
+    } else if (if_name == "request") {
         // used by the x86 CPUs to connect the interrupt PIO and interrupt
-        // slave port
+        // response port
         if (idx >= static_cast<PortID>(request_ports.size())) {
-            panic("RubyPort::getPort master: unknown index %d\n", idx);
+            panic("RubyPort::getPort requestor: unknown index %d\n", idx);
         }
 
         return *request_ports[idx];
-    } else if (if_name == "slave") {
+    } else if (if_name == "response") {
         // used by the CPUs to connect the caches to the interconnect, and
-        // for the x86 case also the interrupt master
+        // for the x86 case also the interrupt requestor
         if (idx >= static_cast<PortID>(response_ports.size())) {
-            panic("RubyPort::getPort slave: unknown index %d\n", idx);
+            panic("RubyPort::getPort reponder: unknown index %d\n", idx);
         }
 
         return *response_ports[idx];
@@ -126,14 +126,14 @@ RubyPort::PioMasterPort::PioMasterPort(const std::string &_name,
     : QueuedMasterPort(_name, _port, reqQueue, snoopRespQueue),
       reqQueue(*_port, *this), snoopRespQueue(*_port, *this)
 {
-    DPRINTF(RubyPort, "Created master pioport on sequencer %s\n", _name);
+    DPRINTF(RubyPort, "Created request pioport on sequencer %s\n", _name);
 }
 
 RubyPort::PioSlavePort::PioSlavePort(const std::string &_name,
                            RubyPort *_port)
     : QueuedSlavePort(_name, _port, queue), queue(*_port, *this)
 {
-    DPRINTF(RubyPort, "Created slave pioport on sequencer %s\n", _name);
+    DPRINTF(RubyPort, "Created response pioport on sequencer %s\n", _name);
 }
 
 RubyPort::MemMasterPort::MemMasterPort(const std::string &_name,
@@ -141,7 +141,7 @@ RubyPort::MemMasterPort::MemMasterPort(const std::string &_name,
     : QueuedMasterPort(_name, _port, reqQueue, snoopRespQueue),
       reqQueue(*_port, *this), snoopRespQueue(*_port, *this)
 {
-    DPRINTF(RubyPort, "Created master memport on ruby sequencer %s\n", _name);
+    DPRINTF(RubyPort, "Created request memport on ruby sequencer %s\n", _name);
 }
 
 RubyPort::MemSlavePort::MemSlavePort(const std::string &_name, RubyPort *_port,
@@ -151,7 +151,8 @@ RubyPort::MemSlavePort::MemSlavePort(const std::string &_name, RubyPort *_port,
       access_backing_store(_access_backing_store),
       no_retry_on_stall(_no_retry_on_stall)
 {
-    DPRINTF(RubyPort, "Created slave memport on ruby sequencer %s\n", _name);
+    DPRINTF(RubyPort, "Created response memport on ruby sequencer %s\n",
+            _name);
 }
 
 bool
@@ -585,7 +586,7 @@ RubyPort::MemSlavePort::hitCallback(PacketPtr pkt)
 AddrRangeList
 RubyPort::PioSlavePort::getAddrRanges() const
 {
-    // at the moment the assumption is that the master does not care
+    // at the moment the assumption is that the requestor does not care
     AddrRangeList ranges;
     RubyPort *ruby_port = static_cast<RubyPort *>(&owner);
 

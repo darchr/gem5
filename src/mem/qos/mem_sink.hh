@@ -131,11 +131,11 @@ class MemSinkCtrl : public MemCtrl
     DrainState drain() override;
 
     /**
-     * Getter method to access this memory's slave port
+     * Getter method to access this memory's response port
      *
      * @param if_name interface name
      * @param idx port ID number
-     * @return reference to this memory's slave port
+     * @return reference to this memory's response port
      */
     Port &getPort(const std::string &if_name, PortID=InvalidPortID) override;
 
@@ -160,7 +160,7 @@ class MemSinkCtrl : public MemCtrl
     /** Write request packets queue buffer size in #packets */
     const uint64_t writeBufferSize;
 
-    /** Memory slave port */
+    /** Memory response port */
     MemoryPort port;
 
     /** Read request pending */

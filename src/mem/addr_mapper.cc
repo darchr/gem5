@@ -39,8 +39,8 @@
 
 AddrMapper::AddrMapper(const AddrMapperParams* p)
     : SimObject(p),
-      requestPort(name() + "-master", *this),
-      responsePort(name() + "-slave", *this)
+      requestPort(name() + "-request", *this),
+      responsePort(name() + "-response", *this)
 {
 }
 
@@ -54,9 +54,9 @@ AddrMapper::init()
 Port &
 AddrMapper::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "master") {
+    if (if_name == "request") {
         return requestPort;
-    } else if (if_name == "slave") {
+    } else if (if_name == "response") {
         return responsePort;
     } else {
         return SimObject::getPort(if_name, idx);

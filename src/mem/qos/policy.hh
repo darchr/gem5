@@ -80,7 +80,7 @@ class Policy : public SimObject
      * In case the requestor name/object cannot be resolved, the pairing
      * method will panic.
      *
-     * @param requestor Master to lookup in the system
+     * @param requestor Requestor to lookup in the system
      * @param value Value to be associated with the MasterID
      * @return A MasterID/Value pair.
      */
@@ -120,7 +120,7 @@ Policy::pair(M requestor, T value)
              "Unable to find requestor %s\n", requestor);
 
     DPRINTF(QOS,
-            "Master %s [id %d] associated with QoS data %d\n",
+            "Requestor %s [id %d] associated with QoS data %d\n",
             requestor, id, value);
 
     return std::pair<MasterID, T>(id, value);

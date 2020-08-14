@@ -82,7 +82,7 @@ private:
     //  the same range)
     virtual void recvRangeChange(PortID master_port_id);
 
-    // Receive a request and distribute it among slave ports
+    // Receive a request and distribute it among response ports
     //  Simply forwards the packet to the next serial link based on a
     //  Round-robin counter
     virtual bool recvTimingReq(PacketPtr pkt, PortID slave_port_id);

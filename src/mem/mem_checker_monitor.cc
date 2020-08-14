@@ -46,8 +46,8 @@
 
 MemCheckerMonitor::MemCheckerMonitor(Params* params)
     : SimObject(params),
-      requestPort(name() + "-master", *this),
-      responsePort(name() + "-slave", *this),
+      requestPort(name() + "-request", *this),
+      responsePort(name() + "-response", *this),
       warnOnly(params->warn_only),
       memchecker(params->memchecker)
 {}
@@ -72,9 +72,9 @@ MemCheckerMonitor::init()
 Port &
 MemCheckerMonitor::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "master" || if_name == "mem_side") {
+    if (if_name == "request" || if_name == "mem_side") {
         return requestPort;
-    } else if (if_name == "slave" || if_name == "cpu_side") {
+    } else if (if_name == "response" || if_name == "cpu_side") {
         return responsePort;
     } else {
         return SimObject::getPort(if_name, idx);
@@ -337,7 +337,7 @@ MemCheckerMonitor::isSnooping() const
 AddrRangeList
 MemCheckerMonitor::getAddrRanges() const
 {
-    // get the address ranges of the connected slave port
+    // get the address ranges of the connected response port
     return requestPort.getAddrRanges();
 }
 

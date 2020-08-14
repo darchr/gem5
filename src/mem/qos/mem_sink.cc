@@ -132,7 +132,7 @@ MemSinkCtrl::recvTimingReq(PacketPtr pkt)
              __func__);
 
     DPRINTF(QOS,
-            "%s: MASTER %s request %s addr %lld size %d\n",
+            "%s: REQUESTOR %s request %s addr %lld size %d\n",
             __func__,
             _system->getMasterName(pkt->req->masterId()),
             pkt->cmdString(), pkt->getAddr(), pkt->getSize());
@@ -251,7 +251,7 @@ MemSinkCtrl::processNextReqEvent()
             queue->erase(p_it);
 
             DPRINTF(QOS,
-                    "%s scheduling packet address %d for master %s from "
+                    "%s scheduling packet address %d for requestor %s from "
                     "priority queue %d\n", __func__, pkt->getAddr(),
                     _system->getMasterName(pkt->req->masterId()),
                     curr_prio);
@@ -268,7 +268,7 @@ MemSinkCtrl::processNextReqEvent()
     uint64_t removed_entries = divCeil(pkt->getSize(), memoryPacketSize);
 
     DPRINTF(QOS,
-            "%s scheduled packet address %d for master %s size is %d, "
+            "%s scheduled packet address %d for requestor %s size is %d, "
             "corresponds to %d memory packets\n", __func__, pkt->getAddr(),
             _system->getMasterName(pkt->req->masterId()),
             pkt->getSize(), removed_entries);

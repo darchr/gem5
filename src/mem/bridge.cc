@@ -40,8 +40,8 @@
 
 /**
  * @file
- * Implementation of a memory-mapped bridge that connects a master
- * and a slave through a request and response queue.
+ * Implementation of a memory-mapped bridge that connects a requestor
+ * and a responder through a request and response queue.
  */
 
 #include "mem/bridge.hh"
@@ -76,9 +76,9 @@ Bridge::BridgeMasterPort::BridgeMasterPort(const std::string& _name,
 
 Bridge::Bridge(Params *p)
     : ClockedObject(p),
-      responsePort(p->name + ".slave", *this, requestPort,
+      responsePort(p->name + ".response", *this, requestPort,
                 ticksToCycles(p->delay), p->resp_size, p->ranges),
-      requestPort(p->name + ".master", *this, responsePort,
+      requestPort(p->name + ".request", *this, responsePort,
                  ticksToCycles(p->delay), p->req_size)
 {
 }
@@ -86,9 +86,9 @@ Bridge::Bridge(Params *p)
 Port &
 Bridge::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "master")
+    if (if_name == "request")
         return requestPort;
-    else if (if_name == "slave")
+    else if (if_name == "response")
         return responsePort;
     else
         // pass it along to our super class
@@ -102,7 +102,7 @@ Bridge::init()
     if (!responsePort.isConnected() || !requestPort.isConnected())
         fatal("Both ports of a bridge must be connected.\n");
 
-    // notify the master side  of our address ranges
+    // notify the request side  of our address ranges
     responsePort.sendRangeChange();
 }
 
@@ -121,7 +121,7 @@ Bridge::BridgeMasterPort::reqQueueFull() const
 bool
 Bridge::BridgeMasterPort::recvTimingResp(PacketPtr pkt)
 {
-    // all checks are done when the request is accepted on the slave
+    // all checks are done when the request is accepted on the response
     // side, so we are guaranteed to have space for the response
     DPRINTF(Bridge, "recvTimingResp: %s addr 0x%x\n",
             pkt->cmdString(), pkt->getAddr());
@@ -194,7 +194,7 @@ Bridge::BridgeSlavePort::recvTimingReq(PacketPtr pkt)
     }
 
     // remember that we are now stalling a packet and that we have to
-    // tell the sending master to retry once space becomes available,
+    // tell the sending requestor to retry once space becomes available,
     // we make no distinction whether the stalling is due to the
     // request queue or response queue being full
     return !retryReq;

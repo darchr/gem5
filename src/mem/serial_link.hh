@@ -82,13 +82,13 @@ class SerialLink : public ClockedObject
         { }
     };
 
-    // Forward declaration to allow the slave port to have a pointer
+    // Forward declaration to allow the response port to have a pointer
     class SerialLinkMasterPort;
 
     /**
      * The port on the side that receives requests and sends
-     * responses. The slave port has a set of address ranges that it
-     * is responsible for. The slave port also has a buffer for the
+     * responses. The response port has a set of address ranges that it
+     * is responsible for. The response port also has a buffer for the
      * responses not yet sent.
      */
     class SerialLinkSlavePort : public ResponsePort
@@ -216,7 +216,7 @@ class SerialLink : public ClockedObject
         SerialLink& serial_link;
 
         /**
-         * The slave port on the other side of the serial_link.
+         * The response port on the other side of the serial_link.
          */
         SerialLinkSlavePort& responsePort;
 
@@ -251,7 +251,7 @@ class SerialLink : public ClockedObject
          *
          * @param _name the port name including the owner
          * @param _serial_link the structural owner
-         * @param _responsePort the slave port on the other side of the
+         * @param _responsePort the response port on the other side of the
          * serial_link
          * @param _delay the delay in cycles from receiving to sending
          * @param _req_limit the size of the request queue
@@ -297,7 +297,7 @@ class SerialLink : public ClockedObject
         void recvReqRetry();
     };
 
-    /** Slave port of the serial_link. */
+    /** Response port of the serial_link. */
     SerialLinkSlavePort responsePort;
 
     /** Request port of the serial_link. */

@@ -92,7 +92,7 @@ class DRAMCtrl : public QoS::MemCtrl
 
   private:
 
-    // For now, make use of a queued slave port to avoid dealing with
+    // For now, make use of a queued response port to avoid dealing with
     // flow control for the responses being sent back
     class MemoryPort : public QueuedSlavePort
     {
@@ -1167,23 +1167,23 @@ class DRAMCtrl : public QoS::MemCtrl
         Stats::Scalar totGap;
         Stats::Formula avgGap;
 
-        // per-master bytes read and written to memory
+        // per-requestor bytes read and written to memory
         Stats::Vector masterReadBytes;
         Stats::Vector masterWriteBytes;
 
-        // per-master bytes read and written to memory rate
+        // per-requestor bytes read and written to memory rate
         Stats::Formula masterReadRate;
         Stats::Formula masterWriteRate;
 
-        // per-master read and write serviced memory accesses
+        // per-requestor read and write serviced memory accesses
         Stats::Vector masterReadAccesses;
         Stats::Vector masterWriteAccesses;
 
-        // per-master read and write total memory access latency
+        // per-requestor read and write total memory access latency
         Stats::Vector masterReadTotalLat;
         Stats::Vector masterWriteTotalLat;
 
-        // per-master raed and write average memory access latency
+        // per-requestor raed and write average memory access latency
         Stats::Formula masterReadAvgLat;
         Stats::Formula masterWriteAvgLat;
 

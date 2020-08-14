@@ -196,7 +196,7 @@ class Request
     static const FlagsType STORE_NO_DATA = CACHE_BLOCK_ZERO |
         CLEAN | INVALIDATE;
 
-    /** Master Ids that are statically allocated
+    /** Unique Ids that are statically allocated
      * @{*/
     enum : MasterID {
         /** This unique id is used for writeback requests by the caches */

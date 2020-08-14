@@ -40,8 +40,8 @@
 
 /**
  * @file
- * Declaration of a memory-mapped bridge that connects a master
- * and a slave through a request and response queue.
+ * Declaration of a memory-mapped bridge that connects a requestor
+ * and a responder through a request and response queue.
  */
 
 #ifndef __MEM_BRIDGE_HH__
@@ -56,11 +56,11 @@
 
 /**
  * A bridge is used to interface two different crossbars (or in general a
- * memory-mapped master and slave), with buffering for requests and
+ * memory-mapped requestor and responder), with buffering for requests and
  * responses. The bridge has a fixed delay for packets passing through
  * it and responds to a fixed set of address ranges.
  *
- * The bridge comprises a slave port and a request port, that buffer
+ * The bridge comprises a response port and a request port, that buffer
  * outgoing responses and requests respectively. Buffer space is
  * reserved when a request arrives, also reserving response space
  * before forwarding the request. If there is no space present, then
@@ -87,13 +87,13 @@ class Bridge : public ClockedObject
         { }
     };
 
-    // Forward declaration to allow the slave port to have a pointer
+    // Forward declaration to allow the response port to have a pointer
     class BridgeMasterPort;
 
     /**
      * The port on the side that receives requests and sends
-     * responses. The slave port has a set of address ranges that it
-     * is responsible for. The slave port also has a buffer for the
+     * responses. The response port has a set of address ranges that it
+     * is responsible for. The response port also has a buffer for the
      * responses not yet sent.
      */
     class BridgeSlavePort : public ResponsePort
@@ -225,7 +225,7 @@ class Bridge : public ClockedObject
         Bridge& bridge;
 
         /**
-         * The slave port on the other side of the bridge.
+         * The response port on the other side of the bridge.
          */
         BridgeSlavePort& responsePort;
 
@@ -260,7 +260,8 @@ class Bridge : public ClockedObject
          *
          * @param _name the port name including the owner
          * @param _bridge the structural owner
-         * @param _responsePort the slave port on the other side of the bridge
+         * @param _responsePort the response port on the other side of
+         * the bridge
          * @param _delay the delay in cycles from receiving to sending
          * @param _req_limit the size of the request queue
          */
@@ -305,7 +306,7 @@ class Bridge : public ClockedObject
         void recvReqRetry();
     };
 
-    /** Slave port of the bridge. */
+    /** Response port of the bridge. */
     BridgeSlavePort responsePort;
 
     /** Request port of the bridge. */

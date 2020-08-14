@@ -57,7 +57,7 @@
 
 /**
  * A packet queue is a class that holds deferred packets and later
- * sends them using the associated slave port or request port.
+ * sends them using the associated response port or request port.
  */
 class PacketQueue : public Drainable
 {
@@ -310,11 +310,11 @@ class RespPacketQueue : public PacketQueue
 
     /**
      * Create a response packet queue, linked to an event manager, a
-     * slave port, and a label that will be used for functional print
+     * response port, and a label that will be used for functional print
      * request packets.
      *
      * @param _em Event manager used for scheduling this queue
-     * @param _responsePort Slave port used to send the packets
+     * @param _responsePort Response port used to send the packets
      * @param force_order Force insertion order for packets with same address
      * @param _label Label to push on the label stack for print request packets
      */

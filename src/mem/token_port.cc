@@ -78,9 +78,9 @@ TokenMasterPort::setTokenManager(TokenManager *_tokenManager)
 void
 TokenSlavePort::sendTokens(int num_tokens)
 {
-    fatal_if(!tokenMasterPort, "Tried sendTokens to non-token master!\n");
+    fatal_if(!tokenMasterPort, "Tried sendTokens to non-token requestor!\n");
 
-    // Send tokens to a master
+    // Send tokens to a requestor
     tokenMasterPort->recvTokens(num_tokens);
 }
 
@@ -93,13 +93,13 @@ TokenSlavePort::bind(Port& peer)
     auto *token_request_port = dynamic_cast<TokenMasterPort*>(&peer);
     auto *request_port = dynamic_cast<RequestPort*>(&peer);
     if (!token_request_port && !request_port) {
-        fatal("Attempt to bind port %s to unsupported slave port %s.",
+        fatal("Attempt to bind port %s to unsupported response port %s.",
               name(), peer.name());
     } else if (token_request_port) {
-        // slave port keeps track of the request port
+        // response port keeps track of the request port
         tokenMasterPort = token_request_port;
 
-        // request port also keeps track of slave port
+        // request port also keeps track of response port
         tokenMasterPort->bind(*this);
     } else if (request_port) {
         tokenMasterPort = nullptr;

@@ -45,10 +45,10 @@
 
 /**
  * An address mapper changes the packet addresses in going from the
- * slave port side of the mapper to the request port side. When the
- * slave port is queried for the address ranges, it also performs the
+ * response port side of the mapper to the request port side. When the
+ * response port is queried for the address ranges, it also performs the
  * necessary range updates. Note that snoop requests that travel from
- * the request port (i.e. the memory side) to the slave port are
+ * the request port (i.e. the memory side) to the response port are
  * currently not modified.
  */
 
@@ -200,7 +200,7 @@ class AddrMapper : public SimObject
 
     };
 
-    /** Instance of slave port, i.e. on the CPU side */
+    /** Instance of response port, i.e. on the CPU side */
     MapperSlavePort responsePort;
 
     void recvFunctional(PacketPtr pkt);

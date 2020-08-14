@@ -99,10 +99,10 @@ class SnoopFilter : public SimObject {
     }
 
     /**
-     * Init a new snoop filter and tell it about all the slave ports
+     * Init a new snoop filter and tell it about all the response ports
      * of the enclosing bus.
      *
-     * @param response_ports Slave ports that the bus is attached to.
+     * @param response_ports Response ports that the bus is attached to.
      */
     void setSlavePorts(const SnoopList& response_ports) {
         localSlavePortIds.resize(response_ports.size(), InvalidPortID);
@@ -123,15 +123,15 @@ class SnoopFilter : public SimObject {
     }
 
     /**
-     * Lookup a request (from a slave port) in the snoop filter and
-     * return a list of other slave ports that need forwarding of the
+     * Lookup a request (from a response port) in the snoop filter and
+     * return a list of other response ports that need forwarding of the
      * resulting snoops.  Additionally, update the tracking structures
      * with new request information. Note that the caller must also
      * call finishRequest once it is known if the request needs to
      * retry or not.
      *
      * @param cpkt          Pointer to the request packet. Not changed.
-     * @param response_port    Slave port where the request came from.
+     * @param response_port    Response port where the request came from.
      * @return Pair of a vector of snoop target ports and lookup latency.
      */
     std::pair<SnoopList, Cycles> lookupRequest(const Packet* cpkt,
@@ -290,7 +290,7 @@ class SnoopFilter : public SimObject {
         ReqLookupResult() = delete;
     } reqLookupResult;
 
-    /** List of all attached snooping slave ports. */
+    /** List of all attached snooping response ports. */
     SnoopList responsePorts;
     /** Track the mapping from port ids to the local mask ids. */
     std::vector<PortID> localSlavePortIds;

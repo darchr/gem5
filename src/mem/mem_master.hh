@@ -57,7 +57,7 @@ struct MasterInfo
       : obj(_obj), req_name(requestor_name), _id(unique_id)
     {}
 
-    /** SimObject related to the Master */
+    /** SimObject related to the Requestor */
     const SimObject* obj;
 
     /** Requestor Name */

@@ -39,7 +39,7 @@
  * @file
  *
  * ExternalMaster is a memory object representing a binding from
- * a gem5 slave to a request port in a system external to gem5.
+ * a gem5 responder to a request port in a system external to gem5.
  *
  * During initialisation, a `handler' for the port type specified in the
  * port's port_type parameter is found from the registered port handlers

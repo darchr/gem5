@@ -91,7 +91,7 @@ MemCtrl::logRequest(BusState dir, MasterID id, uint8_t qos,
     addMaster(id);
 
     DPRINTF(QOS,
-            "QoSMemCtrl::logRequest MASTER %s [id %d] address %d"
+            "QoSMemCtrl::logRequest REQUESTOR %s [id %d] address %d"
             " prio %d this requestor q packets %d"
             " - queue size %d - requested entries %d\n",
             requestors[id], id, addr, qos, packetPriorities[id][qos],
@@ -123,7 +123,7 @@ MemCtrl::logRequest(BusState dir, MasterID id, uint8_t qos,
         if (distance > 0) {
             stats.avgPriorityDistance[id].sample(distance);
             DPRINTF(QOS,
-                    "QoSMemCtrl::logRequest MASTER %s [id %d]"
+                    "QoSMemCtrl::logRequest REQUESTOR %s [id %d]"
                     " registering priority distance %d for priority %d"
                     " (packets %d)\n",
                     requestors[id], id, distance, i,
@@ -132,7 +132,7 @@ MemCtrl::logRequest(BusState dir, MasterID id, uint8_t qos,
     }
 
     DPRINTF(QOS,
-            "QoSMemCtrl::logRequest MASTER %s [id %d] prio %d "
+            "QoSMemCtrl::logRequest REQUESTOR %s [id %d] prio %d "
             "this requestor q packets %d - new queue size %d\n",
             requestors[id], id, qos, packetPriorities[id][qos],
             (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos]);
@@ -147,7 +147,7 @@ MemCtrl::logResponse(BusState dir, MasterID id, uint8_t qos,
         "Logging response with invalid requestor\n");
 
     DPRINTF(QOS,
-            "QoSMemCtrl::logResponse MASTER %s [id %d] address %d prio"
+            "QoSMemCtrl::logResponse REQUESTOR %s [id %d] address %d prio"
             " %d this requestor q packets %d"
             " - queue size %d - requested entries %d\n",
             requestors[id], id, addr, qos, packetPriorities[id][qos],
@@ -202,7 +202,7 @@ MemCtrl::logResponse(BusState dir, MasterID id, uint8_t qos,
     }
 
     DPRINTF(QOS,
-            "QoSMemCtrl::logResponse MASTER %s [id %d] prio %d "
+            "QoSMemCtrl::logResponse REQUESTOR %s [id %d] prio %d "
             "this requestor q packets %d - new queue size %d\n",
             requestors[id], id, qos, packetPriorities[id][qos],
             (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos]);
@@ -274,7 +274,7 @@ MemCtrl::addMaster(MasterID id)
 
         DPRINTF(QOS,
                 "QoSMemCtrl::addMaster registering"
-                " Master %s [id %d]\n",
+                " requestor %s [id %d]\n",
                 requestors[id], id);
     }
 }
