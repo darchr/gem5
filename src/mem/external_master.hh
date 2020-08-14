@@ -124,16 +124,8 @@ class ExternalMaster : public SimObject
     static std::map<std::string, Handler *> portHandlers;
 
   public:
-    /**
-      * @ingroup api_external
-      */
     ExternalMaster(ExternalMasterParams *params);
 
-    /**
-     * Port interface.  Responds only to port "port"
-     *
-     * @ingroup api_external
-     */
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 
