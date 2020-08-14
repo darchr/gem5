@@ -312,18 +312,18 @@ MemCtrl::MemCtrlStats::regStats()
     using namespace Stats;
 
     System *system = memCtrl._system;
-    const auto max_masters = system->maxMasters();
+    const auto max_requestors = system->maxMasters();
     const auto num_priorities = memCtrl.numPriorities();
 
     // Initializes per requestor statistics
     avgPriority
-        .init(max_masters)
+        .init(max_requestors)
         .flags(nozero | nonan)
         .precision(2)
         ;
 
     avgPriorityDistance
-        .init(max_masters)
+        .init(max_requestors)
         .flags(nozero | nonan)
         ;
 
@@ -337,7 +337,7 @@ MemCtrl::MemCtrlStats::regStats()
         .precision(12)
         ;
 
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         const std::string name = system->getMasterName(i);
         avgPriority.subname(i, name);
         avgPriorityDistance.subname(i, name);

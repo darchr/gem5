@@ -2679,7 +2679,7 @@ DRAMCtrl::DRAMStats::regStats()
     using namespace Stats;
 
     assert(dram._system);
-    const auto max_masters = dram._system->maxMasters();
+    const auto max_requestors = dram._system->maxMasters();
 
     perBankRdBursts.init(dram.banksPerRank * dram.ranksPerChannel);
     perBankWrBursts.init(dram.banksPerRank * dram.ranksPerChannel);
@@ -2724,11 +2724,11 @@ DRAMCtrl::DRAMStats::regStats()
 
     // per-requestor bytes read and written to memory
     masterReadBytes
-        .init(max_masters)
+        .init(max_requestors)
         .flags(nozero | nonan);
 
     masterWriteBytes
-        .init(max_masters)
+        .init(max_requestors)
         .flags(nozero | nonan);
 
     // per-requestor bytes read and written to memory rate
@@ -2737,15 +2737,15 @@ DRAMCtrl::DRAMStats::regStats()
         .precision(12);
 
     masterReadAccesses
-        .init(max_masters)
+        .init(max_requestors)
         .flags(nozero);
 
     masterWriteAccesses
-        .init(max_masters)
+        .init(max_requestors)
         .flags(nozero);
 
     masterReadTotalLat
-        .init(max_masters)
+        .init(max_requestors)
         .flags(nozero | nonan);
 
     masterReadAvgLat
@@ -2761,14 +2761,14 @@ DRAMCtrl::DRAMStats::regStats()
         .precision(12);
 
     masterWriteTotalLat
-        .init(max_masters)
+        .init(max_requestors)
         .flags(nozero | nonan);
 
     masterWriteAvgLat
         .flags(nonan)
         .precision(2);
 
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         const std::string master = dram._system->getMasterName(i);
         masterReadBytes.subname(i, master);
         masterReadRate.subname(i, master);
