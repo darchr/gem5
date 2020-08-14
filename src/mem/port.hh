@@ -92,15 +92,11 @@ class MasterPort : public Port, public AtomicRequestProtocol,
     /**
      * Bind this master port to a slave port. This also does the
      * mirror action and binds the slave port to the master port.
-     *
-     * @ingroup api_port
      */
     void bind(Port &peer) override;
 
     /**
      * Unbind this master port and the associated slave port.
-     *
-     * @ingroup api_port
      */
     void unbind() override;
 
@@ -328,15 +324,9 @@ class SlavePort : public Port, public AtomicResponseProtocol,
      */
     virtual AddrRangeList getAddrRanges() const = 0;
 
-    /**
-     * We let the master port do the work, so these don't do anything.
-     *
-     * @ingroup api_port
-     * @{
-     */
     void unbind() override {}
     void bind(Port &peer) override {}
-    /** @} */ // end of api_port
+
   public:
     /* The atomic protocol. */
 
