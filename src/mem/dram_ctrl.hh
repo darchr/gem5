@@ -1168,24 +1168,24 @@ class DRAMCtrl : public QoS::MemCtrl
         Stats::Formula avgGap;
 
         // per-requestor bytes read and written to memory
-        Stats::Vector masterReadBytes;
-        Stats::Vector masterWriteBytes;
+        Stats::Vector requestorReadBytes;
+        Stats::Vector requestorWriteBytes;
 
         // per-requestor bytes read and written to memory rate
-        Stats::Formula masterReadRate;
-        Stats::Formula masterWriteRate;
+        Stats::Formula requestorReadRate;
+        Stats::Formula requestorWriteRate;
 
         // per-requestor read and write serviced memory accesses
-        Stats::Vector masterReadAccesses;
-        Stats::Vector masterWriteAccesses;
+        Stats::Vector requestorReadAccesses;
+        Stats::Vector requestorWriteAccesses;
 
         // per-requestor read and write total memory access latency
-        Stats::Vector masterReadTotalLat;
-        Stats::Vector masterWriteTotalLat;
+        Stats::Vector requestorReadTotalLat;
+        Stats::Vector requestorWriteTotalLat;
 
-        // per-requestor raed and write average memory access latency
-        Stats::Formula masterReadAvgLat;
-        Stats::Formula masterWriteAvgLat;
+        // per-requestor read and write average memory access latency
+        Stats::Formula requestorReadAvgLat;
+        Stats::Formula requestorWriteAvgLat;
 
         // DRAM Power Calculation
         Stats::Formula pageHitRate;

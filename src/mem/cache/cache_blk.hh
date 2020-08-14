@@ -296,11 +296,11 @@ class CacheBlk : public ReplaceableEntry
      *
      * @param tag Block address tag.
      * @param is_secure Whether the block is in secure space or not.
-     * @param src_master_ID The source requestor ID.
+     * @param src_requestor_ID The source requestor ID.
      * @param task_ID The new task ID.
      */
     virtual void insert(const Addr tag, const bool is_secure,
-                        const int src_master_ID, const uint32_t task_ID);
+                        const int src_requestor_ID, const uint32_t task_ID);
 
     /**
      * Track the fact that a local locked was issued to the
@@ -469,7 +469,8 @@ class TempCacheBlk final : public CacheBlk
     }
 
     void insert(const Addr addr, const bool is_secure,
-                const int src_master_ID=0, const uint32_t task_ID=0) override
+                const int src_requestor_ID=0, const uint32_t task_ID=0)
+                override
     {
         // Make sure that the block has been properly invalidated
         assert(status == 0);
