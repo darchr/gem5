@@ -39,8 +39,8 @@
 
 AddrMapper::AddrMapper(const AddrMapperParams* p)
     : SimObject(p),
-      requestPort(name() + "-request", *this),
-      responsePort(name() + "-response", *this)
+      requestPort(name() + "-mem_side", *this),
+      responsePort(name() + "-cpu_side", *this)
 {
 }
 
@@ -54,9 +54,9 @@ AddrMapper::init()
 Port &
 AddrMapper::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "request") {
+    if (if_name == "mem_side") {
         return requestPort;
-    } else if (if_name == "response") {
+    } else if (if_name == "cpu_side") {
         return responsePort;
     } else {
         return SimObject::getPort(if_name, idx);
