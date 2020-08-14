@@ -80,23 +80,17 @@ class TranslatingPortProxy : public PortProxy
     /**
      * Version of tryReadblob that translates virt->phys and deals
      * with page boundries.
-     *
-     * @ingroup api_port
      */
     bool tryReadBlob(Addr addr, void *p, int size) const override;
 
     /**
      * Version of tryWriteBlob that translates virt->phys and deals
      * with page boundries.
-     *
-     * @ingroup api_port
      */
     bool tryWriteBlob(Addr addr, const void *p, int size) const override;
 
     /**
      * Fill size bytes starting at addr with byte value val.
-     *
-     * @ingroup api_port
      */
     bool tryMemsetBlob(Addr address, uint8_t  v, int size) const override;
 };
