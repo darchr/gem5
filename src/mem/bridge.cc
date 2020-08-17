@@ -74,9 +74,9 @@ Bridge::BridgeMasterPort::BridgeMasterPort(const std::string& _name,
 
 Bridge::Bridge(Params *p)
     : ClockedObject(p),
-      slavePort(p->name + ".slave", *this, masterPort,
+      slavePort(p->name + ".cpu_side", *this, masterPort,
                 ticksToCycles(p->delay), p->resp_size, p->ranges),
-      masterPort(p->name + ".master", *this, slavePort,
+      masterPort(p->name + ".mem_side", *this, slavePort,
                  ticksToCycles(p->delay), p->req_size)
 {
 }
@@ -84,9 +84,9 @@ Bridge::Bridge(Params *p)
 Port &
 Bridge::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "master")
+    if (if_name == "mem_side")
         return masterPort;
-    else if (if_name == "slave")
+    else if (if_name == "cpu_side")
         return slavePort;
     else
         // pass it along to our super class

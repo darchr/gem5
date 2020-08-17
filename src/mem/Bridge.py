@@ -42,8 +42,12 @@ from m5.objects.ClockedObject import ClockedObject
 class Bridge(ClockedObject):
     type = 'Bridge'
     cxx_header = "mem/bridge.hh"
-    slave = ResponsePort('Slave port')
-    master = RequestPort('Master port')
+
+    cpu_side = ResponsePort('This port receives requests and sends responses')
+    slave    = DeprecatedParam(cpu_side, '`slave` is now called `cpu_side`')
+    mem_side = RequestPort('This port sends requests and receives responses')
+    master   = DeprecatedParam(mem_side, '`master` is now called `mem_side`')
+
     req_size = Param.Unsigned(16, "The number of requests to buffer")
     resp_size = Param.Unsigned(16, "The number of responses to buffer")
     delay = Param.Latency('0ns', "The latency of this bridge")
