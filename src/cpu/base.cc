@@ -123,8 +123,8 @@ CPUProgressEvent::description() const
 
 BaseCPU::BaseCPU(Params *p, bool is_checker)
     : ClockedObject(p), instCnt(0), _cpuId(p->cpu_id), _socketId(p->socket_id),
-      _instMasterId(p->system->getMasterId(this, "inst")),
-      _dataMasterId(p->system->getMasterId(this, "data")),
+      _instUniqueId(p->system->getMasterId(this, "inst")),
+      _dataUniqueId(p->system->getMasterId(this, "data")),
       _taskId(ContextSwitchTaskId::Unknown), _pid(invldPid),
       _switchedOut(p->switched_out), _cacheLineSize(p->system->cacheLineSize()),
       interrupts(p->interrupts), profileEvent(NULL),

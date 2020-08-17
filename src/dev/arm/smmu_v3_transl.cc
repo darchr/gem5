@@ -1226,13 +1226,13 @@ SMMUTranslationProcess::completeTransaction(Yield &yield,
 {
     assert(tr.fault == FAULT_NONE);
 
-    unsigned numMasterBeats = request.isWrite ?
+    unsigned numRequestorBeats = request.isWrite ?
         (request.size + (smmu.requestPortWidth-1))
             / smmu.requestPortWidth :
         1;
 
     doSemaphoreDown(yield, smmu.requestPortSem);
-    doDelay(yield, Cycles(numMasterBeats));
+    doDelay(yield, Cycles(numRequestorBeats));
     doSemaphoreUp(smmu.requestPortSem);
 
 

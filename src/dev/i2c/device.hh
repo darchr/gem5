@@ -76,7 +76,7 @@ class I2CDevice : public SimObject
      * register, perform an interrupt, update a register pointer or
      * command register, etc...)
      *
-     * @param msg 8-bit message from master
+     * @param msg 8-bit message from requestor
      */
     virtual void write(uint8_t msg) = 0;
 

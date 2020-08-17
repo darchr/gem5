@@ -114,7 +114,7 @@ class CacheBlk : public ReplaceableEntry
     unsigned refCount;
 
     /** holds the source requestor ID for this block. */
-    int srcMasterId;
+    int srcUniqueId;
 
     /**
      * Tick on which the block was inserted in the cache. Its value is only
@@ -215,7 +215,7 @@ class CacheBlk : public ReplaceableEntry
         status = 0;
         whenReady = MaxTick;
         refCount = 0;
-        srcMasterId = Request::invldUniqueId;
+        srcUniqueId = Request::invldUniqueId;
         lockList.clear();
     }
 

@@ -53,7 +53,7 @@ CacheBlk::insert(const Addr tag, const bool is_secure,
     this->tag = tag;
 
     // Set source requestor ID
-    srcMasterId = src_requestor_ID;
+    srcUniqueId = src_requestor_ID;
 
     // Set task ID
     task_id = task_ID;

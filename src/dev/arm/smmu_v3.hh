@@ -91,7 +91,7 @@ class SMMUv3 : public ClockedObject
     const MasterID _id;
 
     SMMUMasterPort    requestPort;
-    SMMUMasterTableWalkPort masterTableWalkPort;
+    SMMUMasterTableWalkPort requestTableWalkPort;
     SMMUControlPort   controlPort;
 
     ARMArchTLB  tlb;

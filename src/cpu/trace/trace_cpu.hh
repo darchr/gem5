@@ -322,10 +322,10 @@ class TraceCPU : public BaseCPU
     DcachePort dcachePort;
 
     /** Unique id for instruction read requests. */
-    const MasterID instMasterID;
+    const MasterID instUniqueID;
 
     /** Unique id for data read and write requests. */
-    const MasterID dataMasterID;
+    const MasterID dataUniqueID;
 
     /** File names for input instruction and data traces. */
     std::string instTraceFile, dataTraceFile;
