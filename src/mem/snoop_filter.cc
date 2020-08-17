@@ -356,31 +356,31 @@ SnoopFilter::updateResponse(const Packet* cpkt, const ResponsePort&
     if (sf_it == cachedLocations.end())
         return;
 
-    SnoopMask slave_mask = portToMask(response_port);
+    SnoopMask response_mask = portToMask(response_port);
     SnoopItem& sf_item = sf_it->second;
 
     DPRINTF(SnoopFilter, "%s:   old SF value %x.%x\n",
             __func__,  sf_item.requested, sf_item.holder);
 
     // Make sure we have seen the actual request, too
-    panic_if((sf_item.requested & slave_mask).none(),
+    panic_if((sf_item.requested & response_mask).none(),
              "SF value %x.%x missing request bit\n",
              sf_item.requested, sf_item.holder);
 
-    sf_item.requested &= ~slave_mask;
+    sf_item.requested &= ~response_mask;
     // Update the residency of the cache line.
 
     if (cpkt->req->isCacheMaintenance()) {
         // A cache clean response does not carry any data so it
         // shouldn't change the holders, unless it is invalidating.
         if (cpkt->isInvalidate()) {
-            sf_item.holder &= ~slave_mask;
+            sf_item.holder &= ~response_mask;
         }
         eraseIfNullEntry(sf_it);
     } else {
         // Any other response implies that a cache above will have the
         // block.
-        sf_item.holder |= slave_mask;
+        sf_item.holder |= response_mask;
         assert((sf_item.holder | sf_item.requested).any());
     }
     DPRINTF(SnoopFilter, "%s:   new SF value %x.%x\n",

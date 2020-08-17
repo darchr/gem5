@@ -138,7 +138,7 @@ class SMMUv3 : public ClockedObject
     Stats::Distribution translationTimeDist;
     Stats::Distribution ptwTimeDist;
 
-    std::vector<SMMUv3SlaveInterface *> slaveInterfaces;
+    std::vector<SMMUv3SlaveInterface *> responseInterfaces;
 
     SMMUCommandExecProcess commandExecutor;
 

@@ -112,7 +112,7 @@ namespace X86ISA
         missLatency1 = p->missLatency1;
         missLatency2 = p->missLatency2;
 
-        // create the slave ports based on the number of connected ports
+        // create the response ports based on the number of connected ports
         for (size_t i = 0; i < p->port_slave_connection_count; ++i) {
             cpuSidePort.push_back(new CpuSidePort(csprintf("%s-port%d",
                                   name(), i), this, i));

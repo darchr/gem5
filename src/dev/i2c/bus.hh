@@ -90,7 +90,7 @@ class I2CBus : public BasicPioDevice
     int currBit;
 
     /**
-     * Key used to access a device in the slave devices map. This
+     * Key used to access a device in the response devices map. This
      * is the same address that is specified in kernel board
      * initialization code (e.g., arch/arm/mach-realview/core.c).
      */
@@ -100,7 +100,7 @@ class I2CBus : public BasicPioDevice
     uint8_t message;
 
     /**
-     * All the slave i2c devices that are connected to this
+     * All the response i2c devices that are connected to this
      * bus. Each device has an address that points to the actual
      * device.
      */

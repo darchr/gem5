@@ -171,7 +171,7 @@ ComputeUnit::ComputeUnit(const Params *p) : ClockedObject(p),
 
     memPort.resize(wfSize());
 
-    // Setup tokens for slave ports. The number of tokens in memSlaveTokens
+    // Setup tokens for response ports. The number of tokens in memSlaveTokens
     // is the total token count for the entire vector port (i.e., this CU).
     memPortTokens = new TokenManager(p->max_cu_tokens);
 

@@ -86,7 +86,7 @@ class SimpleCache : public ClockedObject
 
         /**
          * Get a list of the non-overlapping address ranges the owner is
-         * responsible for. All slave ports must override this function
+         * responsible for. All response ports must override this function
          * and return a populated list with at least one item.
          *
          * @return a list of ranges responded to
@@ -127,7 +127,7 @@ class SimpleCache : public ClockedObject
 
         /**
          * Called by the request port if sendTimingResp was called on this
-         * slave port (causing recvTimingResp to be called on the request
+         * response port (causing recvTimingResp to be called on the request
          * port) and was unsuccessful.
          */
         void recvRespRetry() override;
@@ -165,19 +165,19 @@ class SimpleCache : public ClockedObject
 
       protected:
         /**
-         * Receive a timing response from the slave port.
+         * Receive a timing response from the response port.
          */
         bool recvTimingResp(PacketPtr pkt) override;
 
         /**
-         * Called by the slave port if sendTimingReq was called on this
-         * request port (causing recvTimingReq to be called on the slave
+         * Called by the response port if sendTimingReq was called on this
+         * request port (causing recvTimingReq to be called on the response
          * port) and was unsuccesful.
          */
         void recvReqRetry() override;
 
         /**
-         * Called to receive an address range change from the peer slave
+         * Called to receive an address range change from the peer response
          * port. The default implementation ignores the change and does
          * nothing. Override this function in a derived class if the owner
          * needs to be aware of the address ranges, e.g. in an

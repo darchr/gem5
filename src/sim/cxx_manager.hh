@@ -127,7 +127,7 @@ class CxxConfigManager
 
     /** Bind a single connection between two objects' ports */
     void bindPort(SimObject *masterObject, const std::string &requestPort,
-        PortID requestPortIndex, SimObject *slaveObject,
+        PortID requestPortIndex, SimObject *responseObject,
         const std::string &responsePort, PortID responsePortIndex);
 
     /** Bind a single (possibly vectored) request port to peers from the

@@ -105,14 +105,14 @@ class SnoopFilter : public SimObject {
      * @param response_ports Response ports that the bus is attached to.
      */
     void setSlavePorts(const SnoopList& response_ports) {
-        localSlavePortIds.resize(response_ports.size(), InvalidPortID);
+        localResponsePortIds.resize(response_ports.size(), InvalidPortID);
 
         PortID id = 0;
         for (const auto& p : response_ports) {
             // no need to track this port if it is not snooping
             if (p->isSnooping()) {
                 responsePorts.push_back(p);
-                localSlavePortIds[p->getId()] = id++;
+                localResponsePortIds[p->getId()] = id++;
             }
         }
 
@@ -293,7 +293,7 @@ class SnoopFilter : public SimObject {
     /** List of all attached snooping response ports. */
     SnoopList responsePorts;
     /** Track the mapping from port ids to the local mask ids. */
-    std::vector<PortID> localSlavePortIds;
+    std::vector<PortID> localResponsePortIds;
     /** Cache line size. */
     const unsigned linesize;
     /** Latency for doing a lookup in the filter */
@@ -325,7 +325,7 @@ SnoopFilter::portToMask(const ResponsePort& port) const
     assert(port.getId() != InvalidPortID);
     // if this is not a snooping port, return a zero mask
     return !port.isSnooping() ? 0 :
-        ((SnoopMask)1) << localSlavePortIds[port.getId()];
+        ((SnoopMask)1) << localResponsePortIds[port.getId()];
 }
 
 inline SnoopFilter::SnoopList

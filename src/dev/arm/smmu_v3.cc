@@ -91,7 +91,7 @@ SMMUv3::SMMUv3(SMMUv3Params *params) :
     configLat(params->cfg_lat),
     ipaLat(params->ipa_lat),
     walkLat(params->walk_lat),
-    slaveInterfaces(params->slave_interfaces),
+    responseInterfaces(params->response_interfaces),
     commandExecutor(name() + ".cmd_exec", *this),
     regsMap(params->reg_map),
     processCommandsEvent(this)
@@ -119,7 +119,7 @@ SMMUv3::SMMUv3(SMMUv3Params *params) :
     // store an unallowed values or if the are configuration conflicts.
     warn("SMMUv3 IDx register values unchecked\n");
 
-    for (auto ifc : slaveInterfaces)
+    for (auto ifc : responseInterfaces)
         ifc->setSMMU(this);
 }
 
@@ -162,7 +162,7 @@ SMMUv3::masterRecvReqRetry()
          * ACTION_SEND_REQ_FINAL means that we have just forwarded the packet
          * on the requestor interface; this means that we no longer hold on to
          * that transaction and therefore can accept a new one.
-         * If the slave port was stalled then unstall it (send retry).
+         * If the response port was stalled then unstall it (send retry).
          */
         if (a.type == ACTION_SEND_REQ_FINAL)
             scheduleSlaveRetries();
@@ -210,7 +210,7 @@ SMMUv3::masterTableWalkRecvReqRetry()
 void
 SMMUv3::scheduleSlaveRetries()
 {
-    for (auto ifc : slaveInterfaces) {
+    for (auto ifc : responseInterfaces) {
         ifc->scheduleDeviceRetry();
     }
 }
@@ -325,7 +325,7 @@ SMMUv3::runProcessTiming(SMMUProcess *proc, PacketPtr pkt)
             // @todo: We need to pay for this and not just zero it out
             action.pkt->headerDelay = action.pkt->payloadDelay = 0;
 
-            DPRINTF(SMMUv3, "[t] slave resp addr=%#x size=%#x\n",
+            DPRINTF(SMMUv3, "[t] response resp addr=%#x size=%#x\n",
                     action.pkt->getAddr(),
                     action.pkt->getSize());
 
@@ -339,7 +339,7 @@ SMMUv3::runProcessTiming(SMMUProcess *proc, PacketPtr pkt)
             // @todo: We need to pay for this and not just zero it out
             action.pkt->headerDelay = action.pkt->payloadDelay = 0;
 
-            DPRINTF(SMMUv3, "[t] ATS slave resp addr=%#x size=%#x\n",
+            DPRINTF(SMMUv3, "[t] ATS response resp addr=%#x size=%#x\n",
                     action.pkt->getAddr(), action.pkt->getSize());
 
             assert(action.ifc);
@@ -395,9 +395,9 @@ SMMUv3::processCommand(const SMMUCommand &cmd)
             DPRINTF(SMMUv3, "CMD_CFGI_STE sid=%#x\n", cmd.dw0.sid);
             configCache.invalidateSID(cmd.dw0.sid);
 
-            for (auto slave_interface : slaveInterfaces) {
-                slave_interface->microTLB->invalidateSID(cmd.dw0.sid);
-                slave_interface->mainTLB->invalidateSID(cmd.dw0.sid);
+            for (auto response_interface : responseInterfaces) {
+                response_interface->microTLB->invalidateSID(cmd.dw0.sid);
+                response_interface->mainTLB->invalidateSID(cmd.dw0.sid);
             }
             break;
         }
@@ -410,9 +410,9 @@ SMMUv3::processCommand(const SMMUCommand &cmd)
                 DPRINTF(SMMUv3, "CMD_CFGI_ALL\n");
                 configCache.invalidateAll();
 
-                for (auto slave_interface : slaveInterfaces) {
-                    slave_interface->microTLB->invalidateAll();
-                    slave_interface->mainTLB->invalidateAll();
+                for (auto response_interface : responseInterfaces) {
+                    response_interface->microTLB->invalidateAll();
+                    response_interface->mainTLB->invalidateAll();
                 }
             } else {
                 DPRINTF(SMMUv3, "CMD_CFGI_STE_RANGE\n");
@@ -421,9 +421,9 @@ SMMUv3::processCommand(const SMMUCommand &cmd)
                 for (auto sid = start_sid; sid <= end_sid; sid++) {
                     configCache.invalidateSID(sid);
 
-                    for (auto slave_interface : slaveInterfaces) {
-                        slave_interface->microTLB->invalidateSID(sid);
-                        slave_interface->mainTLB->invalidateSID(sid);
+                    for (auto response_interface : responseInterfaces) {
+                        response_interface->microTLB->invalidateSID(sid);
+                        response_interface->mainTLB->invalidateSID(sid);
                     }
                 }
             }
@@ -435,10 +435,10 @@ SMMUv3::processCommand(const SMMUCommand &cmd)
                     cmd.dw0.sid, cmd.dw0.ssid);
             configCache.invalidateSSID(cmd.dw0.sid, cmd.dw0.ssid);
 
-            for (auto slave_interface : slaveInterfaces) {
-                slave_interface->microTLB->invalidateSSID(
+            for (auto response_interface : responseInterfaces) {
+                response_interface->microTLB->invalidateSSID(
                     cmd.dw0.sid, cmd.dw0.ssid);
-                slave_interface->mainTLB->invalidateSSID(
+                response_interface->mainTLB->invalidateSSID(
                     cmd.dw0.sid, cmd.dw0.ssid);
             }
             break;
@@ -448,18 +448,18 @@ SMMUv3::processCommand(const SMMUCommand &cmd)
             DPRINTF(SMMUv3, "CMD_CFGI_CD_ALL sid=%#x\n", cmd.dw0.sid);
             configCache.invalidateSID(cmd.dw0.sid);
 
-            for (auto slave_interface : slaveInterfaces) {
-                slave_interface->microTLB->invalidateSID(cmd.dw0.sid);
-                slave_interface->mainTLB->invalidateSID(cmd.dw0.sid);
+            for (auto response_interface : responseInterfaces) {
+                response_interface->microTLB->invalidateSID(cmd.dw0.sid);
+                response_interface->mainTLB->invalidateSID(cmd.dw0.sid);
             }
             break;
         }
 
         case CMD_TLBI_NH_ALL: {
             DPRINTF(SMMUv3, "CMD_TLBI_NH_ALL vmid=%#x\n", cmd.dw0.vmid);
-            for (auto slave_interface : slaveInterfaces) {
-                slave_interface->microTLB->invalidateVMID(cmd.dw0.vmid);
-                slave_interface->mainTLB->invalidateVMID(cmd.dw0.vmid);
+            for (auto response_interface : responseInterfaces) {
+                response_interface->microTLB->invalidateVMID(cmd.dw0.vmid);
+                response_interface->mainTLB->invalidateVMID(cmd.dw0.vmid);
             }
             tlb.invalidateVMID(cmd.dw0.vmid);
             walkCache.invalidateVMID(cmd.dw0.vmid);
@@ -469,10 +469,10 @@ SMMUv3::processCommand(const SMMUCommand &cmd)
         case CMD_TLBI_NH_ASID: {
             DPRINTF(SMMUv3, "CMD_TLBI_NH_ASID asid=%#x vmid=%#x\n",
                     cmd.dw0.asid, cmd.dw0.vmid);
-            for (auto slave_interface : slaveInterfaces) {
-                slave_interface->microTLB->invalidateASID(
+            for (auto response_interface : responseInterfaces) {
+                response_interface->microTLB->invalidateASID(
                     cmd.dw0.asid, cmd.dw0.vmid);
-                slave_interface->mainTLB->invalidateASID(
+                response_interface->mainTLB->invalidateASID(
                     cmd.dw0.asid, cmd.dw0.vmid);
             }
             tlb.invalidateASID(cmd.dw0.asid, cmd.dw0.vmid);
@@ -484,10 +484,10 @@ SMMUv3::processCommand(const SMMUCommand &cmd)
             const Addr addr = cmd.addr();
             DPRINTF(SMMUv3, "CMD_TLBI_NH_VAA va=%#08x vmid=%#x\n",
                     addr, cmd.dw0.vmid);
-            for (auto slave_interface : slaveInterfaces) {
-                slave_interface->microTLB->invalidateVAA(
+            for (auto response_interface : responseInterfaces) {
+                response_interface->microTLB->invalidateVAA(
                     addr, cmd.dw0.vmid);
-                slave_interface->mainTLB->invalidateVAA(
+                response_interface->mainTLB->invalidateVAA(
                     addr, cmd.dw0.vmid);
             }
             tlb.invalidateVAA(addr, cmd.dw0.vmid);
@@ -500,10 +500,10 @@ SMMUv3::processCommand(const SMMUCommand &cmd)
             const Addr addr = cmd.addr();
             DPRINTF(SMMUv3, "CMD_TLBI_NH_VA va=%#08x asid=%#x vmid=%#x\n",
                     addr, cmd.dw0.asid, cmd.dw0.vmid);
-            for (auto slave_interface : slaveInterfaces) {
-                slave_interface->microTLB->invalidateVA(
+            for (auto response_interface : responseInterfaces) {
+                response_interface->microTLB->invalidateVA(
                     addr, cmd.dw0.asid, cmd.dw0.vmid);
-                slave_interface->mainTLB->invalidateVA(
+                response_interface->mainTLB->invalidateVA(
                     addr, cmd.dw0.asid, cmd.dw0.vmid);
             }
             tlb.invalidateVA(addr, cmd.dw0.asid, cmd.dw0.vmid);
@@ -528,9 +528,9 @@ SMMUv3::processCommand(const SMMUCommand &cmd)
 
         case CMD_TLBI_S12_VMALL: {
             DPRINTF(SMMUv3, "CMD_TLBI_S12_VMALL vmid=%#x\n", cmd.dw0.vmid);
-            for (auto slave_interface : slaveInterfaces) {
-                slave_interface->microTLB->invalidateVMID(cmd.dw0.vmid);
-                slave_interface->mainTLB->invalidateVMID(cmd.dw0.vmid);
+            for (auto response_interface : responseInterfaces) {
+                response_interface->microTLB->invalidateVMID(cmd.dw0.vmid);
+                response_interface->mainTLB->invalidateVMID(cmd.dw0.vmid);
             }
             tlb.invalidateVMID(cmd.dw0.vmid);
             ipaCache.invalidateVMID(cmd.dw0.vmid);
@@ -540,9 +540,9 @@ SMMUv3::processCommand(const SMMUCommand &cmd)
 
         case CMD_TLBI_NSNH_ALL: {
             DPRINTF(SMMUv3, "CMD_TLBI_NSNH_ALL\n");
-            for (auto slave_interface : slaveInterfaces) {
-                slave_interface->microTLB->invalidateAll();
-                slave_interface->mainTLB->invalidateAll();
+            for (auto response_interface : responseInterfaces) {
+                response_interface->microTLB->invalidateAll();
+                response_interface->mainTLB->invalidateAll();
             }
             tlb.invalidateAll();
             ipaCache.invalidateAll();
@@ -727,7 +727,7 @@ SMMUv3::init()
         tableWalkPortEnable = true;
 
     // notify the requestor side  of our address ranges
-    for (auto ifc : slaveInterfaces) {
+    for (auto ifc : responseInterfaces) {
         ifc->sendRange();
     }
 
@@ -742,10 +742,10 @@ SMMUv3::regStats()
 
     using namespace Stats;
 
-    for (size_t i = 0; i < slaveInterfaces.size(); i++) {
-        slaveInterfaces[i]->microTLB->regStats(
+    for (size_t i = 0; i < responseInterfaces.size(); i++) {
+        responseInterfaces[i]->microTLB->regStats(
             csprintf("%s.utlb%d", name(), i));
-        slaveInterfaces[i]->mainTLB->regStats(
+        responseInterfaces[i]->mainTLB->regStats(
             csprintf("%s.maintlb%d", name(), i));
     }
 
