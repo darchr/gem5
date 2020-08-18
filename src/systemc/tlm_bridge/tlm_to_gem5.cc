@@ -67,7 +67,7 @@ namespace sc_gem5
 {
 
 PacketPtr
-payload2packet(MasterID _id, tlm::tlm_generic_payload &trans)
+payload2packet(MasterID masterId, tlm::tlm_generic_payload &trans)
 {
     MemCmd cmd;
 
@@ -87,7 +87,7 @@ payload2packet(MasterID _id, tlm::tlm_generic_payload &trans)
 
     Request::Flags flags;
     auto req = std::make_shared<Request>(
-        trans.get_address(), trans.get_data_length(), flags, _id);
+        trans.get_address(), trans.get_data_length(), flags, masterId);
 
     /*
      * Allocate a new Packet. The packet will be deleted when it returns from
@@ -156,7 +156,7 @@ TlmToGem5Bridge<BITWIDTH>::handleBeginReq(tlm::tlm_generic_payload &trans)
         extension->setPipeThrough();
         pkt = extension->getPacket();
     } else {
-        pkt = payload2packet(_id, trans);
+        pkt = payload2packet(masterId, trans);
     }
 
     auto tlmSenderState = new TlmSenderState(trans);
@@ -274,7 +274,7 @@ TlmToGem5Bridge<BITWIDTH>::b_transport(tlm::tlm_generic_payload &trans,
         extension->setPipeThrough();
         pkt = extension->getPacket();
     } else {
-        pkt = payload2packet(_id, trans);
+        pkt = payload2packet(masterId, trans);
     }
 
     MemBackdoorPtr backdoor = nullptr;
@@ -311,7 +311,7 @@ TlmToGem5Bridge<BITWIDTH>::transport_dbg(tlm::tlm_generic_payload &trans)
         extension->setPipeThrough();
         bmp.sendFunctional(extension->getPacket());
     } else {
-        auto pkt = payload2packet(_id, trans);
+        auto pkt = payload2packet(masterId, trans);
         if (pkt) {
             bmp.sendFunctional(pkt);
             destroyPacket(pkt);
@@ -337,7 +337,7 @@ TlmToGem5Bridge<BITWIDTH>::get_direct_mem_ptr(tlm::tlm_generic_payload &trans,
         extension->setPipeThrough();
         pkt = extension->getPacket();
     } else {
-        pkt = payload2packet(_id, trans);
+        pkt = payload2packet(masterId, trans);
         pkt->req->setFlags(Request::NO_ACCESS);
     }
 
@@ -470,7 +470,7 @@ TlmToGem5Bridge<BITWIDTH>::TlmToGem5Bridge(
     bmp(std::string(name()) + "master", *this), socket("tlm_socket"),
     wrapper(socket, std::string(name()) + ".tlm", InvalidPortID),
     system(params->system),
-    _id(params->system->getGlobalMasterId(
+    masterId(params->system->getGlobalMasterId(
                 std::string("[systemc].") + name()))
 {
 }

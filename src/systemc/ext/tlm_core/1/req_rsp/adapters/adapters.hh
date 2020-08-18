@@ -31,7 +31,7 @@ class tlm_transport_to_master : public sc_core::sc_module,
 {
   public:
     sc_core::sc_export<tlm_transport_if<REQ, RSP>> target_export;
-    sc_core::sc_port<tlm_master_if<REQ, RSP>> request_port;
+    sc_core::sc_port<tlm_master_if<REQ, RSP>> master_port;
 
     tlm_transport_to_master(sc_core::sc_module_name nm) :
         sc_core::sc_module(nm)
@@ -50,8 +50,8 @@ class tlm_transport_to_master : public sc_core::sc_module,
     transport(const REQ &req)
     {
         mutex.lock();
-        request_port->put(req);
-        rsp = request_port->get();
+        master_port->put(req);
+        rsp = master_port->get();
 
         mutex.unlock();
         return rsp;
@@ -68,7 +68,7 @@ class tlm_slave_to_transport : public sc_core::sc_module
   public:
     SC_HAS_PROCESS(tlm_slave_to_transport);
 
-    sc_core::sc_port<tlm_slave_if<REQ, RSP>> response_port;
+    sc_core::sc_port<tlm_slave_if<REQ, RSP>> slave_port;
     sc_core::sc_port<tlm_transport_if<REQ, RSP>> initiator_port;
 
     tlm_slave_to_transport(sc_core::sc_module_name nm) :
@@ -88,9 +88,9 @@ class tlm_slave_to_transport : public sc_core::sc_module
         RSP rsp;
 
         while (true) {
-            response_port->get(req);
+            slave_port->get(req);
             rsp = initiator_port->transport(req);
-            response_port->put(rsp);
+            slave_port->put(rsp);
         }
     }
 };
