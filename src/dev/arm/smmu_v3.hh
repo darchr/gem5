@@ -88,10 +88,10 @@ class SMMUv3 : public ClockedObject
     friend class SMMUv3SlaveInterface;
 
     const System &system;
-    const MasterID _id;
+    const MasterID masterId;
 
     SMMUMasterPort    requestPort;
-    SMMUMasterTableWalkPort requestTableWalkPort;
+    SMMUMasterTableWalkPort masterTableWalkPort;
     SMMUControlPort   controlPort;
 
     ARMArchTLB  tlb;
@@ -138,7 +138,7 @@ class SMMUv3 : public ClockedObject
     Stats::Distribution translationTimeDist;
     Stats::Distribution ptwTimeDist;
 
-    std::vector<SMMUv3SlaveInterface *> responseInterfaces;
+    std::vector<SMMUv3SlaveInterface *> slaveInterfaces;
 
     SMMUCommandExecProcess commandExecutor;
 
