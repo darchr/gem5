@@ -55,10 +55,16 @@ class Barrier
     unsigned numLeft;
 
   public:
+    /**
+     * @ingroup api_base
+     */
     Barrier(unsigned _numWaiting)
         : numWaiting(_numWaiting), generation(0), numLeft(_numWaiting)
     {}
 
+    /**
+     * @ingroup api_base
+     */
     bool
     wait()
     {
