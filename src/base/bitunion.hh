@@ -117,9 +117,16 @@ class BitfieldType : public BitfieldTypeImpl<Base>
     using typename Impl::Type;
 
   public:
+    /**
+     * @ingroup api_base
+     */
     BitfieldType() = default;
     BitfieldType(const BitfieldType &) = default;
+    /** @} */ // end of api_base
 
+    /**
+     * @ingroup api_base
+     */
     operator Type () const { return Impl::operator Type(); }
     Type operator=(const Type val) { return Impl::operator=(val); }
     Type
@@ -127,6 +134,7 @@ class BitfieldType : public BitfieldTypeImpl<Base>
     {
         return Impl::operator=(other);
     }
+    /** @} */ // end of api_base
 };
 
 //A wrapper which only supports getting.
@@ -325,6 +333,9 @@ namespace BitfieldBackend
 //followed by a typedef which makes "name" refer to a BitfieldOperator
 //class inheriting from the class and union just defined, which completes
 //building up the type for the user.
+/**
+ * @ingroup api_base
+ */
 #define EndBitUnion(name) \
         }; \
     }; \
@@ -348,6 +359,9 @@ namespace BitfieldBackend
 //The operators are defined in the macro itself instead of a class for
 //technical reasons. If someone determines a way to move them to one, please
 //do so.
+/**
+ * @ingroup api_base
+ */
 #define EndSubBitUnion(name) \
         }; \
         inline operator __StorageType () const \
@@ -359,11 +373,17 @@ namespace BitfieldBackend
 
 //Regular bitfields
 //These define macros for read/write regular bitfield based subbitfields.
+/**
+ * @ingroup api_base
+ */
 #define SubBitUnion(name, first, last) \
     __SubBitUnion(name, Bitfield, first, last)
 
 //Regular bitfields
 //These define macros for read/write regular bitfield based subbitfields.
+/**
+ * @ingroup api_base
+ */
 #define SignedSubBitUnion(name, first, last) \
     __SubBitUnion(name, SignedBitfield, first, last)
 
@@ -371,11 +391,15 @@ namespace BitfieldBackend
 #define BitUnion(type, name) __BitUnion(type, name)
 
 //Use this to define conveniently sized values overlayed with bitfields.
+/**
+ * @ingroup api_base
+ * @{
+ */
 #define BitUnion64(name) __BitUnion(uint64_t, name)
 #define BitUnion32(name) __BitUnion(uint32_t, name)
 #define BitUnion16(name) __BitUnion(uint16_t, name)
 #define BitUnion8(name) __BitUnion(uint8_t, name)
-
+/** @} */ // end of api_base
 
 //These templates make it possible to define other templates related to
 //BitUnions without having to refer to internal typedefs or the BitfieldBackend
@@ -391,7 +415,9 @@ namespace BitfieldBackend
 //void func(BitUnionType<T> u) { BitUnionBaseType<T> b = u; }
 
 //Also, BitUnionBaseType can be used on a BitUnion type directly.
-
+/**
+ * @ingroup api_base
+ */
 template <typename T>
 using BitUnionType = BitfieldBackend::BitUnionOperators<T>;
 
@@ -410,6 +436,9 @@ namespace BitfieldBackend
     };
 }
 
+/**
+ * @ingroup api_base
+ */
 template <typename T>
 using BitUnionBaseType = typename BitfieldBackend::BitUnionBaseType<T>::Type;
 
@@ -460,8 +489,12 @@ namespace BitfieldBackend
     }
 }
 
-//A default << operator which casts a bitunion to its underlying type and
-//passes it to BitfieldBackend::bitfieldBackendPrinter.
+/**
+ * A default << operator which casts a bitunion to its underlying type and
+ * passes it to BitfieldBackend::bitfieldBackendPrinter.
+ *
+ * @ingroup api_base
+ */
 template <typename T>
 std::ostream &
 operator << (std::ostream &os, const BitUnionType<T> &bu)
