@@ -26,4 +26,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/**
+ * @ingroup api_version
+ */
 const char *gem5Version = "[DEVELOP-FOR-V20.1]";
