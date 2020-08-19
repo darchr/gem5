@@ -54,6 +54,9 @@ safe_cast(U ptr)
 // want to use.  This is technically unsafe, but this is only for
 // cases where we know that this should work by construction.
 
+/**
+ * @ingroup api_base
+ */
 template <class T, class U>
 inline T
 safe_cast(U ptr)
