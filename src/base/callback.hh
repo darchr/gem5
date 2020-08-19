@@ -47,16 +47,12 @@ class Callback
     /**
      * virtualize the destructor to make sure that the correct one
      * gets called.
-     *
-     * @ingroup api_callback
      */
     virtual ~Callback() {}
 
     /**
      * virtual process function that is invoked when the callback
      * queue is executed.
-     *
-     * @ingroup api_callback
      */
     virtual void process() = 0;
 };
@@ -91,9 +87,6 @@ class CallbackQueue2 : public std::list<std::function<void()>>
 
     using Base::Base;
 
-    /**
-     * @ingroup api_callback
-     */
     void
     process()
     {
@@ -117,20 +110,12 @@ class CallbackQueue
     queue callbacks;
 
   public:
-    /**
-     * @ingroup api_callback
-     */
     ~CallbackQueue();
-    /**
-     * @ingroup api_callback
-     */
     std::string name() const { return "CallbackQueue"; }
 
     /**
      * Add a callback to the end of the queue
      * @param callback the callback to be added to the queue
-     *
-     * @ingroup api_callback
      */
     void
     add(Callback *callback)
@@ -138,9 +123,6 @@ class CallbackQueue
         callbacks.push_back(callback);
     }
 
-    /**
-     * @ingroup api_callback
-     */
     template <class T, void (T::* F)()>
     void
     add(T *obj)
@@ -148,9 +130,6 @@ class CallbackQueue
         add(new MakeCallback<T, F>(obj, true));
     }
 
-    /**
-     * @ingroup api_callback
-     */
     template <class T, void (T::* F)()>
     void
     add(T &obj)
@@ -160,15 +139,11 @@ class CallbackQueue
 
     /**
      * Find out if there are any callbacks in the queue
-     *
-     * @ingroup api_callback
      */
     bool empty() const { return callbacks.empty(); }
 
     /**
      * process all callbacks
-     *
-     * @ingroup api_callback
      */
     void
     process()
@@ -184,8 +159,6 @@ class CallbackQueue
 
     /**
      * clear the callback queue
-     *
-     * @ingroup api_callback
      */
     void
     clear()
