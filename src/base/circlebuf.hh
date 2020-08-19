@@ -49,7 +49,7 @@
 /**
  * Circular buffer backed by a vector though a CircularQueue.
  *
- * The data in the cricular buffer is stored in a standard
+ * The data in the circular buffer is stored in a standard
  * vector.
  *
  */
