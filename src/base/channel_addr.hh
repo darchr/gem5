@@ -51,85 +51,156 @@ class ChannelAddr
   public:
     using Type = Addr;
 
-    /** Explicit constructor assigning a value. */
+    /**
+     * Explicit constructor assigning a value.
+     *
+     * @ingroup api_base
+     */
     explicit constexpr ChannelAddr(Type _a) : a(_a) { }
 
-    /** Converting back to the value type. */
+    /** Converting back to the value type.
+     *
+     * @ingroup api_base
+     */
     explicit constexpr operator Type() const { return a; }
 
-    /** Converting back to the value type. */
+    /** Converting back to the value type.
+     *
+     * @ingroup api_base
+     */
     constexpr Type value() const { return a; }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr() : a(0) { }
 
+    /**
+     * @ingroup api_base
+     */
     ChannelAddr(const AddrRange &range, Addr _a)
         : a(range.removeIntlvBits(_a)) {}
 
+    /**
+     * @ingroup api_base
+     */
     ChannelAddr(const ChannelAddr &) = default;
+
+    /**
+     * @ingroup api_base
+     */
     ChannelAddr &operator=(const ChannelAddr &) = default;
 
-
+    /**
+     * @ingroup api_base
+     */
     Addr getPA(const AddrRange &range) const {
         return range.addIntlvBits(a);
     }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr operator|(const Type b) const {
         return ChannelAddr(a | b);
     }
+
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr operator&(const Type b) const {
         return ChannelAddr(a & b);
     }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr operator>>(const int b) const {
         return ChannelAddr(a >> b);
     }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr operator<<(const int b) const {
         return ChannelAddr(a << b);
     }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr operator*(const Type &b) const {
         return ChannelAddr(a * b);
     }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr operator/(const Type &b) const {
         return ChannelAddr(a / b);
     }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr operator+(const Type &b) const {
         return ChannelAddr(a + b);
     }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr operator-(const Type &b) const {
         return ChannelAddr(a - b);
     }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr operator|(const ChannelAddr &b) const {
         return ChannelAddr(a | b.a);
     }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr operator&(const ChannelAddr &b) const {
         return ChannelAddr(a & b.a);
     }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr operator^(const ChannelAddr &b) const {
         return ChannelAddr(a ^ b.a);
     }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr operator+(const ChannelAddr &b) const {
         return ChannelAddr(a + b.a);
     }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr operator-(const ChannelAddr &b) const {
         return ChannelAddr(a - b.a);
     }
 
+    /**
+     * @ingroup api_base
+     *
+     * @{
+     */
     constexpr bool operator>(const ChannelAddr &b) const { return a > b.a; }
     constexpr bool operator>=(const ChannelAddr &b) const { return a >= b.a; }
     constexpr bool operator<(const ChannelAddr &b) const { return a < b.a; }
     constexpr bool operator<=(const ChannelAddr &b) const { return a <= b.a; }
     constexpr bool operator==(const ChannelAddr &b) const { return a == b.a; }
     constexpr bool operator!=(const ChannelAddr &b) const { return a != b.a; }
+    /** @} */ // end of api_base
 
   private:
     /** Member holding the actual value. */
@@ -143,24 +214,56 @@ class ChannelAddr
 class ChannelAddrRange
 {
   public:
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddrRange()
         : ChannelAddrRange(ChannelAddr(1), ChannelAddr(0)) {}
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddrRange(ChannelAddr start, ChannelAddr end)
         : _start(start), _end(end) {}
 
+    /**
+     * @ingroup api_base
+     */
     ChannelAddrRange(AddrRange ch_range, Addr start, Addr end);
+
+    /**
+     * @ingroup api_base
+     */
     ChannelAddrRange(AddrRange ch_range, AddrRange range);
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddrRange(const ChannelAddrRange &) = default;
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr size() const { return _end - _start + 1; }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr bool valid() const { return _start <= _end; }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr start() const { return _start; }
+
+    /**
+     * @ingroup api_base
+     */
     constexpr ChannelAddr end() const { return _end; }
 
+    /**
+     * @ingroup api_base
+     */
     constexpr bool contains(ChannelAddr a) const {
         return a >= _start && a <= _end;
     }
@@ -172,6 +275,9 @@ class ChannelAddrRange
 
 namespace std
 {
+    /**
+     * @ingroup api_base
+     */
     template<>
     struct hash<ChannelAddr>
     {
@@ -186,6 +292,9 @@ namespace std
     };
 }
 
+/**
+ * @ingroup api_base
+ */
 std::ostream &operator<<(std::ostream &out, const ChannelAddr &addr);
 
 #endif // __BASE_CHANNEL_ADDR_HH__
