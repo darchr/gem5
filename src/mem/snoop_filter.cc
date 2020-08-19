@@ -62,19 +62,19 @@ SnoopFilter::eraseIfNullEntry(SnoopFilterCache::iterator& sf_it)
 
 std::pair<SnoopFilter::SnoopList, Cycles>
 SnoopFilter::lookupRequest(const Packet* cpkt, const ResponsePort&
-                           response_port)
+                           cpu_side)
 {
     DPRINTF(SnoopFilter, "%s: src %s packet %s\n", __func__,
-            response_port.name(), cpkt->print());
+            cpu_side.name(), cpkt->print());
 
     // check if the packet came from a cache
-    bool allocate = !cpkt->req->isUncacheable() && response_port.isSnooping()
+    bool allocate = !cpkt->req->isUncacheable() && cpu_side.isSnooping()
         && cpkt->fromCache();
     Addr line_addr = cpkt->getBlockAddr(linesize);
     if (cpkt->isSecure()) {
         line_addr |= LineSecure;
     }
-    SnoopMask req_port = portToMask(response_port);
+    SnoopMask req_port = portToMask(cpu_side);
     reqLookupResult.it = cachedLocations.find(line_addr);
     bool is_hit = (reqLookupResult.it != cachedLocations.end());
 
@@ -335,16 +335,16 @@ SnoopFilter::updateSnoopForward(const Packet* cpkt,
 
 void
 SnoopFilter::updateResponse(const Packet* cpkt, const ResponsePort&
-                            response_port)
+                            cpu_side)
 {
     DPRINTF(SnoopFilter, "%s: src %s packet %s\n",
-            __func__, response_port.name(), cpkt->print());
+            __func__, cpu_side.name(), cpkt->print());
 
     assert(cpkt->isResponse());
 
     // we only allocate if the packet actually came from a cache, but
     // start by checking if the port is snooping
-    if (cpkt->req->isUncacheable() || !response_port.isSnooping())
+    if (cpkt->req->isUncacheable() || !cpu_side.isSnooping())
         return;
 
     // next check if we actually allocated an entry
@@ -356,7 +356,7 @@ SnoopFilter::updateResponse(const Packet* cpkt, const ResponsePort&
     if (sf_it == cachedLocations.end())
         return;
 
-    SnoopMask response_mask = portToMask(response_port);
+    SnoopMask response_mask = portToMask(cpu_side);
     SnoopItem& sf_item = sf_it->second;
 
     DPRINTF(SnoopFilter, "%s:   old SF value %x.%x\n",

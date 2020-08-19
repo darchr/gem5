@@ -582,7 +582,7 @@ System::lookupMasterId(const std::string& requestor_name) const
     std::string name = stripSystemName(requestor_name);
 
     for (int i = 0; i < requestors.size(); i++) {
-        if (requestors[i].requestorName == name) {
+        if (requestors[i].req_name == name) {
             return i;
         }
     }
@@ -611,7 +611,7 @@ System::_getMasterId(const SimObject* requestor,
 
     // CPUs in switch_cpus ask for ids again after switching
     for (int i = 0; i < requestors.size(); i++) {
-        if (requestors[i].requestorName == name) {
+        if (requestors[i].req_name == name) {
             return i;
         }
     }
@@ -654,7 +654,7 @@ System::getMasterName(MasterID unique_id)
         fatal("Invalid unique_id passed to getMasterName()\n");
 
     const auto& requestor_info = requestors[unique_id];
-    return requestor_info.requestorName;
+    return requestor_info.req_name;
 }
 
 System *

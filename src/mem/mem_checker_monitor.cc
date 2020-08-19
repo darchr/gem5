@@ -46,8 +46,8 @@
 
 MemCheckerMonitor::MemCheckerMonitor(Params* params)
     : SimObject(params),
-      requestPort(name() + "-request", *this),
-      responsePort(name() + "-response", *this),
+      mem_side(name() + "-mem_side", *this),
+      cpu_side(name() + "-cpu_side", *this),
       warnOnly(params->warn_only),
       memchecker(params->memchecker)
 {}
@@ -65,7 +65,7 @@ void
 MemCheckerMonitor::init()
 {
     // make sure both sides of the monitor are connected
-    if (!responsePort.isConnected() || !requestPort.isConnected())
+    if (!cpu_side.isConnected() || !mem_side.isConnected())
         fatal("Communication monitor is not connected on both sides.\n");
 }
 
@@ -73,9 +73,9 @@ Port &
 MemCheckerMonitor::getPort(const std::string &if_name, PortID idx)
 {
     if (if_name == "request" || if_name == "mem_side") {
-        return requestPort;
+        return mem_side;
     } else if (if_name == "response" || if_name == "cpu_side") {
-        return responsePort;
+        return cpu_side;
     } else {
         return SimObject::getPort(if_name, idx);
     }
@@ -92,7 +92,7 @@ MemCheckerMonitor::recvFunctional(PacketPtr pkt)
     // reads/writes to these location from other devices we do not see.
     memchecker->reset(addr, size);
 
-    requestPort.sendFunctional(pkt);
+    mem_side.sendFunctional(pkt);
 
     DPRINTF(MemCheckerMonitor,
             "Forwarded functional access: addr = %#llx, size = %d\n",
@@ -108,7 +108,7 @@ MemCheckerMonitor::recvFunctionalSnoop(PacketPtr pkt)
     // See above.
     memchecker->reset(addr, size);
 
-    responsePort.sendFunctionalSnoop(pkt);
+    cpu_side.sendFunctionalSnoop(pkt);
 
     DPRINTF(MemCheckerMonitor,
             "Received functional snoop: addr = %#llx, size = %d\n",
@@ -164,7 +164,7 @@ MemCheckerMonitor::recvTimingReq(PacketPtr pkt)
     }
 
     // Attempt to send the packet
-    bool successful = requestPort.sendTimingReq(pkt);
+    bool successful = mem_side.sendTimingReq(pkt);
 
     // If not successful, restore the sender state
     if (!successful && expects_response && (is_read || is_write)) {
@@ -180,7 +180,7 @@ MemCheckerMonitor::recvTimingReq(PacketPtr pkt)
             // At the time where we push the sender-state, we do not yet know
             // the serial the MemChecker class will assign to this request. We
             // cannot call startRead at the time we push the sender-state, as
-            // the requestPort may not be successful in executing
+            // the mem_side may not be successful in executing
             // sendTimingReq, and in case of a failure, we must not
             // modify the state of the MemChecker.
             //
@@ -256,7 +256,7 @@ MemCheckerMonitor::recvTimingResp(PacketPtr pkt)
     }
 
     // Attempt to send the packet
-    bool successful = responsePort.sendTimingResp(pkt);
+    bool successful = cpu_side.sendTimingResp(pkt);
 
     // If packet successfully send, complete transaction in MemChecker
     // instance, and delete sender state, otherwise restore state.
@@ -318,43 +318,43 @@ MemCheckerMonitor::recvTimingResp(PacketPtr pkt)
 void
 MemCheckerMonitor::recvTimingSnoopReq(PacketPtr pkt)
 {
-    responsePort.sendTimingSnoopReq(pkt);
+    cpu_side.sendTimingSnoopReq(pkt);
 }
 
 bool
 MemCheckerMonitor::recvTimingSnoopResp(PacketPtr pkt)
 {
-    return requestPort.sendTimingSnoopResp(pkt);
+    return mem_side.sendTimingSnoopResp(pkt);
 }
 
 bool
 MemCheckerMonitor::isSnooping() const
 {
-    // check if the connected request port is snooping
-    return responsePort.isSnooping();
+    // check if the connected mem_side port is snooping
+    return cpu_side.isSnooping();
 }
 
 AddrRangeList
 MemCheckerMonitor::getAddrRanges() const
 {
-    // get the address ranges of the connected response port
-    return requestPort.getAddrRanges();
+    // get the address ranges of the connected cpu_side port
+    return mem_side.getAddrRanges();
 }
 
 void
 MemCheckerMonitor::recvReqRetry()
 {
-    responsePort.sendRetryReq();
+    cpu_side.sendRetryReq();
 }
 
 void
 MemCheckerMonitor::recvRespRetry()
 {
-    requestPort.sendRetryResp();
+    mem_side.sendRetryResp();
 }
 
 void
 MemCheckerMonitor::recvRangeChange()
 {
-    responsePort.sendRangeChange();
+    cpu_side.sendRangeChange();
 }

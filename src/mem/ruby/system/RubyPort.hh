@@ -191,7 +191,7 @@ class RubyPort : public ClockedObject
     bool m_usingRubyTester;
     System* system;
 
-    std::vector<MemSlavePort *> response_ports;
+    std::vector<MemSlavePort *> cpu_side_ports;
 
   private:
     bool onRetryList(MemSlavePort * port)
@@ -213,7 +213,7 @@ class RubyPort : public ClockedObject
 
     /** Vector of M5 Ports attached to this Ruby port. */
     typedef std::vector<MemSlavePort *>::iterator CpuPortIter;
-    std::vector<PioMasterPort *> request_ports;
+    std::vector<PioMasterPort *> mem_side_ports;
 
     //
     // Based on similar code in the M5 bus.  Stores pointers to those ports

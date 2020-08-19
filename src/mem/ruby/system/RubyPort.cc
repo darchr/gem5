@@ -66,17 +66,17 @@ RubyPort::RubyPort(const Params *p)
 {
     assert(m_version != -1);
 
-    // create the response ports based on the number of connected ports
+    // create the cpu_side ports based on the number of connected ports
     for (size_t i = 0; i < p->port_slave_connection_count; ++i) {
-        response_ports.push_back(new MemSlavePort(csprintf
-            ("%s.response%d", name(), i), this,
+        cpu_side_ports.push_back(new MemSlavePort(csprintf
+            ("%s.cpu_side%d", name(), i), this,
             p->ruby_system->getAccessBackingStore(),
             i, p->no_retry_on_stall));
     }
 
-    // create the request ports based on the number of connected ports
+    // create the mem_side ports based on the number of connected ports
     for (size_t i = 0; i < p->port_master_connection_count; ++i) {
-        request_ports.push_back(new PioMasterPort(csprintf("%s.request%d",
+        mem_side_ports.push_back(new PioMasterPort(csprintf("%s.mem_side%d",
             name(), i), this));
     }
 }
@@ -99,22 +99,22 @@ RubyPort::getPort(const std::string &if_name, PortID idx)
         return memSlavePort;
     } else if (if_name == "pio_response_port") {
         return pioSlavePort;
-    } else if (if_name == "request") {
+    } else if (if_name == "mem_side") {
         // used by the x86 CPUs to connect the interrupt PIO and interrupt
         // response port
-        if (idx >= static_cast<PortID>(request_ports.size())) {
-            panic("RubyPort::getPort requestor: unknown index %d\n", idx);
+        if (idx >= static_cast<PortID>(mem_side_ports.size())) {
+            panic("RubyPort::getPort cpu_side: unknown index %d\n", idx);
         }
 
-        return *request_ports[idx];
-    } else if (if_name == "response") {
+        return *mem_side_ports[idx];
+    } else if (if_name == "cpu_side") {
         // used by the CPUs to connect the caches to the interconnect, and
         // for the x86 case also the interrupt requestor
-        if (idx >= static_cast<PortID>(response_ports.size())) {
-            panic("RubyPort::getPort reponder: unknown index %d\n", idx);
+        if (idx >= static_cast<PortID>(cpu_side_ports.size())) {
+            panic("RubyPort::getPort mem_side: unknown index %d\n", idx);
         }
 
-        return *response_ports[idx];
+        return *cpu_side_ports[idx];
     }
 
     // pass it along to our super class
@@ -196,14 +196,14 @@ RubyPort::PioSlavePort::recvTimingReq(PacketPtr pkt)
 {
     RubyPort *ruby_port = static_cast<RubyPort *>(&owner);
 
-    for (size_t i = 0; i < ruby_port->request_ports.size(); ++i) {
-        AddrRangeList l = ruby_port->request_ports[i]->getAddrRanges();
+    for (size_t i = 0; i < ruby_port->mem_side_ports.size(); ++i) {
+        AddrRangeList l = ruby_port->mem_side_ports[i]->getAddrRanges();
         for (auto it = l.begin(); it != l.end(); ++it) {
             if (it->contains(pkt->getAddr())) {
                 // generally it is not safe to assume success here as
                 // the port could be blocked
                 bool M5_VAR_USED success =
-                    ruby_port->request_ports[i]->sendTimingReq(pkt);
+                    ruby_port->mem_side_ports[i]->sendTimingReq(pkt);
                 assert(success);
                 return true;
             }
@@ -221,11 +221,11 @@ RubyPort::PioSlavePort::recvAtomic(PacketPtr pkt)
         panic("Ruby supports atomic accesses only in noncaching mode\n");
     }
 
-    for (size_t i = 0; i < ruby_port->request_ports.size(); ++i) {
-        AddrRangeList l = ruby_port->request_ports[i]->getAddrRanges();
+    for (size_t i = 0; i < ruby_port->mem_side_ports.size(); ++i) {
+        AddrRangeList l = ruby_port->mem_side_ports[i]->getAddrRanges();
         for (auto it = l.begin(); it != l.end(); ++it) {
             if (it->contains(pkt->getAddr())) {
-                return ruby_port->request_ports[i]->sendAtomic(pkt);
+                return ruby_port->mem_side_ports[i]->sendAtomic(pkt);
             }
         }
     }
@@ -513,7 +513,7 @@ RubyPort::MemSlavePort::hitCallback(PacketPtr pkt)
 {
     bool needsResponse = pkt->needsResponse();
 
-    // Unless specified at configuraiton, all responses except failed SC
+    // Unless specified at configuration, all responses except failed SC
     // and Flush operations access M5 physical memory.
     bool accessPhysMem = access_backing_store;
 
@@ -590,9 +590,9 @@ RubyPort::PioSlavePort::getAddrRanges() const
     AddrRangeList ranges;
     RubyPort *ruby_port = static_cast<RubyPort *>(&owner);
 
-    for (size_t i = 0; i < ruby_port->request_ports.size(); ++i) {
+    for (size_t i = 0; i < ruby_port->mem_side_ports.size(); ++i) {
         ranges.splice(ranges.begin(),
-                ruby_port->request_ports[i]->getAddrRanges());
+                ruby_port->mem_side_ports[i]->getAddrRanges());
     }
     for (const auto M5_VAR_USED &r : ranges)
         DPRINTF(RubyPort, "%s\n", r.to_string());
@@ -621,7 +621,7 @@ RubyPort::ruby_eviction_callback(Addr address)
     // Use a single packet to signal all snooping ports of the invalidation.
     // This assumes that snooping ports do NOT modify the packet/request
     Packet pkt(request, MemCmd::InvalidateReq);
-    for (CpuPortIter p = response_ports.begin(); p != response_ports.end();
+    for (CpuPortIter p = cpu_side_ports.begin(); p != cpu_side_ports.end();
          ++p) {
         // check if the connected request port is snooping
         if ((*p)->isSnooping()) {
@@ -646,7 +646,7 @@ int
 RubyPort::functionalWrite(Packet *func_pkt)
 {
     int num_written = 0;
-    for (auto port : response_ports) {
+    for (auto port : cpu_side_ports) {
         if (port->trySatisfyFunctional(func_pkt)) {
             num_written += 1;
         }

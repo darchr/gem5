@@ -42,18 +42,18 @@
 
 MemDelay::MemDelay(const MemDelayParams *p)
     : ClockedObject(p),
-      requestPort(name() + "-request", *this),
-      responsePort(name() + "-response", *this),
-      reqQueue(*this, requestPort),
-      respQueue(*this, responsePort),
-      snoopRespQueue(*this, requestPort)
+      request_port(name() + "-mem_side", *this),
+      response_port(name() + "-cpu_side", *this),
+      reqQueue(*this, request_port),
+      respQueue(*this, response_port),
+      snoopRespQueue(*this, request_port)
 {
 }
 
 void
 MemDelay::init()
 {
-    if (!responsePort.isConnected() || !requestPort.isConnected())
+    if (!response_port.isConnected() || !request_port.isConnected())
         fatal("Memory delay is not connected on both sides.\n");
 }
 
@@ -61,10 +61,10 @@ MemDelay::init()
 Port &
 MemDelay::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "request") {
-        return requestPort;
-    } else if (if_name == "response") {
-        return responsePort;
+    if (if_name == "mem_side") {
+        return request_port;
+    } else if (if_name == "cpu_side") {
+        return response_port;
     } else {
         return ClockedObject::getPort(if_name, idx);
     }
@@ -73,8 +73,8 @@ MemDelay::getPort(const std::string &if_name, PortID idx)
 bool
 MemDelay::trySatisfyFunctional(PacketPtr pkt)
 {
-    return responsePort.trySatisfyFunctional(pkt) ||
-        requestPort.trySatisfyFunctional(pkt);
+    return response_port.trySatisfyFunctional(pkt) ||
+        request_port.trySatisfyFunctional(pkt);
 }
 
 MemDelay::RequestPort::RequestPort(const std::string &_name, MemDelay &_parent)
@@ -94,7 +94,7 @@ MemDelay::RequestPort::recvTimingResp(PacketPtr pkt)
 
     const Tick when = curTick() + parent.delayResp(pkt) + receive_delay;
 
-    parent.responsePort.schedTimingResp(pkt, when);
+    parent.response_port.schedTimingResp(pkt, when);
 
     return true;
 }
@@ -105,7 +105,7 @@ MemDelay::RequestPort::recvFunctionalSnoop(PacketPtr pkt)
     if (parent.trySatisfyFunctional(pkt)) {
         pkt->makeResponse();
     } else {
-        parent.responsePort.sendFunctionalSnoop(pkt);
+        parent.response_port.sendFunctionalSnoop(pkt);
     }
 }
 
@@ -114,13 +114,13 @@ MemDelay::RequestPort::recvAtomicSnoop(PacketPtr pkt)
 {
     const Tick delay = parent.delaySnoopResp(pkt);
 
-    return delay + parent.responsePort.sendAtomicSnoop(pkt);
+    return delay + parent.response_port.sendAtomicSnoop(pkt);
 }
 
 void
 MemDelay::RequestPort::recvTimingSnoopReq(PacketPtr pkt)
 {
-    parent.responsePort.sendTimingSnoopReq(pkt);
+    parent.response_port.sendTimingSnoopReq(pkt);
 }
 
 
@@ -136,7 +136,7 @@ MemDelay::ResponsePort::recvAtomic(PacketPtr pkt)
 {
     const Tick delay = parent.delayReq(pkt) + parent.delayResp(pkt);
 
-    return delay + parent.requestPort.sendAtomic(pkt);
+    return delay + parent.request_port.sendAtomic(pkt);
 }
 
 bool
@@ -150,7 +150,7 @@ MemDelay::ResponsePort::recvTimingReq(PacketPtr pkt)
 
     const Tick when = curTick() + parent.delayReq(pkt) + receive_delay;
 
-    parent.requestPort.schedTimingReq(pkt, when);
+    parent.request_port.schedTimingReq(pkt, when);
 
     return true;
 }
@@ -161,7 +161,7 @@ MemDelay::ResponsePort::recvFunctional(PacketPtr pkt)
     if (parent.trySatisfyFunctional(pkt)) {
         pkt->makeResponse();
     } else {
-        parent.requestPort.sendFunctional(pkt);
+        parent.request_port.sendFunctional(pkt);
     }
 }
 
@@ -170,7 +170,7 @@ MemDelay::ResponsePort::recvTimingSnoopResp(PacketPtr pkt)
 {
     const Tick when = curTick() + parent.delaySnoopResp(pkt);
 
-    parent.requestPort.schedTimingSnoopResp(pkt, when);
+    parent.request_port.schedTimingSnoopResp(pkt, when);
 
     return true;
 }

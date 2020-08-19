@@ -82,13 +82,13 @@ class SerialLink : public ClockedObject
         { }
     };
 
-    // Forward declaration to allow the response port to have a pointer
+    // Forward declaration to allow the cpu_side port to have a pointer
     class SerialLinkMasterPort;
 
     /**
      * The port on the side that receives requests and sends
-     * responses. The response port has a set of address ranges that it
-     * is responsible for. The response port also has a buffer for the
+     * responses. The cpu_side port has a set of address ranges that it
+     * is responsible for. The cpu_side port also has a buffer for the
      * responses not yet sent.
      */
     class SerialLinkSlavePort : public ResponsePort
@@ -102,7 +102,7 @@ class SerialLink : public ClockedObject
         /**
          * Request port on the other side of the serial_link.
          */
-        SerialLinkMasterPort& requestPort;
+        SerialLinkMasterPort& mem_side;
 
         /** Minimum request delay though this serial_link. */
         const Cycles delay;
@@ -151,14 +151,14 @@ class SerialLink : public ClockedObject
          *
          * @param _name the port name including the owner
          * @param _serial_link the structural owner
-         * @param _requestPort the request port on the other side of the
+         * @param _mem_side the mem_side port on the other side of the
          * serial_link
          * @param _delay the delay in cycles from receiving to sending
          * @param _resp_limit the size of the response queue
          * @param _ranges a number of address ranges to forward
          */
         SerialLinkSlavePort(const std::string& _name, SerialLink&
-                        _serial_link, SerialLinkMasterPort& _requestPort,
+                        _serial_link, SerialLinkMasterPort& _mem_side,
                         Cycles _delay, int _resp_limit, const
                         std::vector<AddrRange>& _ranges);
 
@@ -204,7 +204,7 @@ class SerialLink : public ClockedObject
 
     /**
      * Port on the side that forwards requests and receives
-     * responses. The request port has a buffer for the requests not
+     * responses. The mem_side port has a buffer for the requests not
      * yet sent.
      */
     class SerialLinkMasterPort : public RequestPort
@@ -216,9 +216,9 @@ class SerialLink : public ClockedObject
         SerialLink& serial_link;
 
         /**
-         * The response port on the other side of the serial_link.
+         * The response (cpu_side) port on the other side of the serial_link.
          */
-        SerialLinkSlavePort& responsePort;
+        SerialLinkSlavePort& cpu_side;
 
         /** Minimum delay though this serial_link. */
         const Cycles delay;
@@ -251,13 +251,13 @@ class SerialLink : public ClockedObject
          *
          * @param _name the port name including the owner
          * @param _serial_link the structural owner
-         * @param _responsePort the response port on the other side of the
+         * @param _cpu_side the cpu_side port on the other side of the
          * serial_link
          * @param _delay the delay in cycles from receiving to sending
          * @param _req_limit the size of the request queue
          */
         SerialLinkMasterPort(const std::string& _name, SerialLink&
-                         _serial_link, SerialLinkSlavePort& _responsePort,
+                         _serial_link, SerialLinkSlavePort& _cpu_side,
                          Cycles _delay, int _req_limit);
 
         /**
@@ -298,10 +298,10 @@ class SerialLink : public ClockedObject
     };
 
     /** Response port of the serial_link. */
-    SerialLinkSlavePort responsePort;
+    SerialLinkSlavePort cpu_side;
 
     /** Request port of the serial_link. */
-    SerialLinkMasterPort requestPort;
+    SerialLinkMasterPort mem_side;
 
     /** Number of parallel lanes in this serial link */
     unsigned num_lanes;

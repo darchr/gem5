@@ -53,12 +53,12 @@
 
 SerialLink::SerialLinkSlavePort::SerialLinkSlavePort(const std::string& _name,
                                          SerialLink& _serial_link,
-                                         SerialLinkMasterPort& _requestPort,
+                                         SerialLinkMasterPort& _mem_side,
                                          Cycles _delay, int _resp_limit,
                                          const std::vector<AddrRange>&
                                          _ranges)
     : ResponsePort(_name, &_serial_link), serial_link(_serial_link),
-      requestPort(_requestPort), delay(_delay),
+      mem_side(_mem_side), delay(_delay),
       ranges(_ranges.begin(), _ranges.end()),
       outstandingResponses(0), retryReq(false),
       respQueueLimit(_resp_limit),
@@ -68,19 +68,19 @@ SerialLink::SerialLinkSlavePort::SerialLinkSlavePort(const std::string& _name,
 
 SerialLink::SerialLinkMasterPort::SerialLinkMasterPort(const std::string&
                                            _name, SerialLink& _serial_link,
-                                           SerialLinkSlavePort& _responsePort,
+                                           SerialLinkSlavePort& _cpu_side,
                                            Cycles _delay, int _req_limit)
     : RequestPort(_name, &_serial_link), serial_link(_serial_link),
-      responsePort(_responsePort), delay(_delay), reqQueueLimit(_req_limit),
+      cpu_side(_cpu_side), delay(_delay), reqQueueLimit(_req_limit),
       sendEvent([this]{ trySendTiming(); }, _name)
 {
 }
 
 SerialLink::SerialLink(SerialLinkParams *p)
     : ClockedObject(p),
-      responsePort(p->name + ".response", *this, requestPort,
+      cpu_side(p->name + ".cpu_side", *this, mem_side,
                 ticksToCycles(p->delay), p->resp_size, p->ranges),
-      requestPort(p->name + ".request", *this, responsePort,
+      mem_side(p->name + ".mem_side", *this, cpu_side,
                  ticksToCycles(p->delay), p->req_size),
       num_lanes(p->num_lanes),
       link_speed(p->link_speed)
@@ -91,10 +91,10 @@ SerialLink::SerialLink(SerialLinkParams *p)
 Port&
 SerialLink::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "request")
-        return requestPort;
-    else if (if_name == "response")
-        return responsePort;
+    if (if_name == "mem_side")
+        return mem_side;
+    else if (if_name == "cpu_side")
+        return cpu_side;
     else
         // pass it along to our super class
         return ClockedObject::getPort(if_name, idx);
@@ -104,11 +104,11 @@ void
 SerialLink::init()
 {
     // make sure both sides are connected and have the same block size
-    if (!responsePort.isConnected() || !requestPort.isConnected())
+    if (!cpu_side.isConnected() || !mem_side.isConnected())
         fatal("Both ports of a serial_link must be connected.\n");
 
     // notify the request side  of our address ranges
-    responsePort.sendRangeChange();
+    cpu_side.sendRangeChange();
 }
 
 bool
@@ -151,7 +151,7 @@ SerialLink::SerialLinkMasterPort::recvTimingResp(PacketPtr pkt)
     // one crosses this link faster than the first one (because the packet
     // waits in the link based on its size). This can reorder the received
     // response.
-    responsePort.schedTimingResp(pkt, t);
+    cpu_side.schedTimingResp(pkt, t);
 
     return true;
 }
@@ -169,7 +169,7 @@ SerialLink::SerialLinkSlavePort::recvTimingReq(PacketPtr pkt)
             transmitList.size(), outstandingResponses);
 
     // if the request queue is full then there is no hope
-    if (requestPort.reqQueueFull()) {
+    if (mem_side.reqQueueFull()) {
         DPRINTF(SerialLink, "Request queue full\n");
         retryReq = true;
     } else if ( !retryReq ) {
@@ -212,7 +212,7 @@ SerialLink::SerialLinkSlavePort::recvTimingReq(PacketPtr pkt)
             // that the second one crosses this link faster than the first one
             // (because the packet waits in the link based on its size).
             // This can reorder the received response.
-            requestPort.schedTimingReq(pkt, t);
+            mem_side.schedTimingReq(pkt, t);
         }
     }
 
@@ -300,7 +300,7 @@ SerialLink::SerialLinkMasterPort::trySendTiming()
         // then send a retry at this point, also note that if the
         // request we stalled was waiting for the response queue
         // rather than the request queue we might stall it again
-        responsePort.retryStalledReq();
+        cpu_side.retryStalledReq();
     }
 
     // if the send failed, then we try again once we receive a retry,
@@ -344,7 +344,7 @@ SerialLink::SerialLinkSlavePort::trySendTiming()
         // if there is space in the request queue and we were stalling
         // a request, it will definitely be possible to accept it now
         // since there is guaranteed space in the response queue
-        if (!requestPort.reqQueueFull() && retryReq) {
+        if (!mem_side.reqQueueFull() && retryReq) {
             DPRINTF(SerialLink, "Request waiting for retry, now retrying\n");
             retryReq = false;
             sendRetryReq();
@@ -370,7 +370,7 @@ SerialLink::SerialLinkSlavePort::recvRespRetry()
 Tick
 SerialLink::SerialLinkSlavePort::recvAtomic(PacketPtr pkt)
 {
-    return delay * serial_link.clockPeriod() + requestPort.sendAtomic(pkt);
+    return delay * serial_link.clockPeriod() + mem_side.sendAtomic(pkt);
 }
 
 void
@@ -386,15 +386,15 @@ SerialLink::SerialLinkSlavePort::recvFunctional(PacketPtr pkt)
         }
     }
 
-    // also check the request port's request queue
-    if (requestPort.trySatisfyFunctional(pkt)) {
+    // also check the mem_side port's request queue
+    if (mem_side.trySatisfyFunctional(pkt)) {
         return;
     }
 
     pkt->popLabel();
 
     // fall through if pkt still not satisfied
-    requestPort.sendFunctional(pkt);
+    mem_side.sendFunctional(pkt);
 }
 
 bool

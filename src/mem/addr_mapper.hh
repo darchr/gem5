@@ -151,7 +151,7 @@ class AddrMapper : public SimObject
     };
 
     /** Instance of request port, facing the memory side */
-    MapperMasterPort requestPort;
+    MapperMasterPort mem_side;
 
     class MapperSlavePort : public ResponsePort
     {
@@ -201,7 +201,7 @@ class AddrMapper : public SimObject
     };
 
     /** Instance of response port, i.e. on the CPU side */
-    MapperSlavePort responsePort;
+    MapperSlavePort cpu_side;
 
     void recvFunctional(PacketPtr pkt);
 
