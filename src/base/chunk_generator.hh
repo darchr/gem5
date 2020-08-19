@@ -75,6 +75,8 @@ class ChunkGenerator
      * @param totalSize The total size of the region.
      * @param _chunkSize The size/alignment of chunks into which
      *    the region should be decomposed.
+     *
+     * @ingroup api_base
      */
     ChunkGenerator(Addr _startAddr, unsigned totalSize, unsigned _chunkSize)
         : startAddr(_startAddr), chunkSize(_chunkSize)
@@ -105,24 +107,40 @@ class ChunkGenerator
         sizeLeft = totalSize - curSize;
     }
 
-    /** Return starting address of current chunk. */
+    /**
+     * Return starting address of current chunk.
+     *
+     * @ingroup api_base
+     */
     Addr addr() const { return curAddr; }
-    /** Return size in bytes of current chunk. */
+    /**
+     * Return size in bytes of current chunk.
+     *
+     * @ingroup api_base
+     */
     unsigned size() const { return curSize; }
 
-    /** Number of bytes we have already chunked up. */
+    /** 
+     * Number of bytes we have already chunked up.
+     *
+     * @ingroup api_base
+     */
     unsigned complete() const { return curAddr - startAddr; }
 
     /**
      * Are we done?  That is, did the last call to next() advance
      * past the end of the region?
      * @return True if yes, false if more to go.
+     *
+     * @ingroup api_base
      */
     bool done() const { return (curSize == 0); }
 
     /**
      * Is this the last chunk?
      * @return True if yes, false if more to go.
+     *
+     * @ingroup api_base
      */
     bool last() const { return (sizeLeft == 0); }
 
@@ -130,6 +148,8 @@ class ChunkGenerator
      * Advance generator to next chunk.
      * @return True if successful, false if unsuccessful
      * (because we were at the last chunk).
+     *
+     * @ingroup api_base
      */
     bool
     next()
