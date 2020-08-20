@@ -59,38 +59,38 @@ BaseXBar::BaseXBar(const BaseXBarParams *p)
       headerLatency(p->header_latency),
       width(p->width),
       gotAddrRanges(p->port_default_connection_count +
-                          p->port_master_connection_count, false),
+                          p->port_mem_side_connection_count, false),
       gotAllAddrRanges(false), defaultPortID(InvalidPortID),
       useDefaultRange(p->use_default_range),
 
       transDist(this, "trans_dist", "Transaction distribution"),
       pktCount(this, "pkt_count",
-                   "Packet count per connected master and slave (bytes)"),
-      pktSize(this, "pkt_size",
-              "Cumulative packet size per connected master and slave (bytes)")
+              "Packet count per connected requestor and responder (bytes)"),
+      pktSize(this, "pkt_size", "Cumulative packet size per connected "
+             "responder and responder (bytes)")
 {
 }
 
 BaseXBar::~BaseXBar()
 {
-    for (auto m: masterPorts)
+    for (auto m: mem_side_ports)
         delete m;
 
-    for (auto s: slavePorts)
+    for (auto s: cpu_side_ports)
         delete s;
 }
 
 Port &
 BaseXBar::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "master" && idx < masterPorts.size()) {
-        // the master port index translates directly to the vector position
-        return *masterPorts[idx];
+    if (if_name == "mem_side" && idx < mem_side_ports.size()) {
+        // the mem_side port index translates directly to the vector position
+        return *mem_side_ports[idx];
     } else  if (if_name == "default") {
-        return *masterPorts[defaultPortID];
-    } else if (if_name == "slave" && idx < slavePorts.size()) {
-        // the slave port index translates directly to the vector position
-        return *slavePorts[idx];
+        return *mem_side_ports[defaultPortID];
+    } else if (if_name == "cpu_side" && idx < cpu_side_ports.size()) {
+        // the cpu_side port index translates directly to the vector position
+        return *cpu_side_ports[idx];
     } else {
         return ClockedObject::getPort(if_name, idx);
     }
@@ -179,7 +179,7 @@ BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port)
 {
     // if we are in the retry state, we will not see anything but the
     // retrying port (or in the case of the snoop ports the snoop
-    // response port that mirrors the actual slave port) as we leave
+    // response port that mirrors the actual cpu_side port) as we leave
     // this state again in zero time if the peer does not immediately
     // call the layer when receiving the retry
 
@@ -326,7 +326,7 @@ PortID
 BaseXBar::findPort(AddrRange addr_range)
 {
     // we should never see any address lookups before we've got the
-    // ranges of all connected slave modules
+    // ranges of all connected cpu_side modules
     assert(gotAllAddrRanges);
 
     // Check the address map interval tree
@@ -356,14 +356,14 @@ BaseXBar::findPort(AddrRange addr_range)
 
 /** Function called by the port when the crossbar is receiving a range change.*/
 void
-BaseXBar::recvRangeChange(PortID master_port_id)
+BaseXBar::recvRangeChange(PortID mem_side_port_id)
 {
-    DPRINTF(AddrRanges, "Received range change from slave port %s\n",
-            masterPorts[master_port_id]->getPeer());
+    DPRINTF(AddrRanges, "Received range change from cpu_side port %s\n",
+            mem_side_ports[mem_side_port_id]->getPeer());
 
-    // remember that we got a range from this master port and thus the
-    // connected slave module
-    gotAddrRanges[master_port_id] = true;
+    // remember that we got a range from this mem_side port and thus the
+    // connected cpu_side module
+    gotAddrRanges[mem_side_port_id] = true;
 
     // update the global flag
     if (!gotAllAddrRanges) {
@@ -375,19 +375,20 @@ BaseXBar::recvRangeChange(PortID master_port_id)
             gotAllAddrRanges &= *r++;
         }
         if (gotAllAddrRanges)
-            DPRINTF(AddrRanges, "Got address ranges from all slaves\n");
+            DPRINTF(AddrRanges, "Got address ranges from all responders\n");
     }
 
     // note that we could get the range from the default port at any
     // point in time, and we cannot assume that the default range is
     // set before the other ones are, so we do additional checks once
     // all ranges are provided
-    if (master_port_id == defaultPortID) {
+    if (mem_side_port_id == defaultPortID) {
         // only update if we are indeed checking ranges for the
         // default port since the port might not have a valid range
         // otherwise
         if (useDefaultRange) {
-            AddrRangeList ranges = masterPorts[master_port_id]->getAddrRanges();
+            AddrRangeList ranges = mem_side_ports[mem_side_port_id]->
+                                   getAddrRanges();
 
             if (ranges.size() != 1)
                 fatal("Crossbar %s may only have a single default range",
@@ -398,9 +399,9 @@ BaseXBar::recvRangeChange(PortID master_port_id)
     } else {
         // the ports are allowed to update their address ranges
         // dynamically, so remove any existing entries
-        if (gotAddrRanges[master_port_id]) {
+        if (gotAddrRanges[mem_side_port_id]) {
             for (auto p = portMap.begin(); p != portMap.end(); ) {
-                if (p->second == master_port_id)
+                if (p->second == mem_side_port_id)
                     // erasing invalidates the iterator, so advance it
                     // before the deletion takes place
                     portMap.erase(p++);
@@ -409,25 +410,26 @@ BaseXBar::recvRangeChange(PortID master_port_id)
             }
         }
 
-        AddrRangeList ranges = masterPorts[master_port_id]->getAddrRanges();
+        AddrRangeList ranges = mem_side_ports[mem_side_port_id]->
+                               getAddrRanges();
 
         for (const auto& r: ranges) {
             DPRINTF(AddrRanges, "Adding range %s for id %d\n",
-                    r.to_string(), master_port_id);
-            if (portMap.insert(r, master_port_id) == portMap.end()) {
+                    r.to_string(), mem_side_port_id);
+            if (portMap.insert(r, mem_side_port_id) == portMap.end()) {
                 PortID conflict_id = portMap.intersects(r)->second;
                 fatal("%s has two ports responding within range "
                       "%s:\n\t%s\n\t%s\n",
                       name(),
                       r.to_string(),
-                      masterPorts[master_port_id]->getPeer(),
-                      masterPorts[conflict_id]->getPeer());
+                      mem_side_ports[mem_side_port_id]->getPeer(),
+                      mem_side_ports[conflict_id]->getPeer());
             }
         }
     }
 
-    // if we have received ranges from all our neighbouring slave
-    // modules, go ahead and tell our connected master modules in
+    // if we have received ranges from all our neighbouring cpu_side
+    // modules, go ahead and tell our connected mem_side modules in
     // turn, this effectively assumes a tree structure of the system
     if (gotAllAddrRanges) {
         DPRINTF(AddrRanges, "Aggregating address ranges\n");
@@ -508,9 +510,9 @@ BaseXBar::recvRangeChange(PortID master_port_id)
             }
         }
 
-        // tell all our neighbouring master ports that our address
+        // tell all our neighbouring mem_side ports that our address
         // ranges have changed
-        for (const auto& s: slavePorts)
+        for (const auto& s: cpu_side_ports)
             s->sendRangeChange();
     }
 }
@@ -524,7 +526,7 @@ BaseXBar::getAddrRanges() const
     assert(gotAllAddrRanges);
 
     // at the moment, this never happens, as there are no cycles in
-    // the range queries and no devices on the master side of a crossbar
+    // the range queries and no devices on the mem_side side of a crossbar
     // (CPU, cache, bridge etc) actually care about the ranges of the
     // ports they are connected to
 
@@ -552,25 +554,25 @@ BaseXBar::regStats()
     }
 
     pktCount
-        .init(slavePorts.size(), masterPorts.size())
+        .init(cpu_side_ports.size(), mem_side_ports.size())
         .flags(total | nozero | nonan);
 
     pktSize
-        .init(slavePorts.size(), masterPorts.size())
+        .init(cpu_side_ports.size(), mem_side_ports.size())
         .flags(total | nozero | nonan);
 
     // both the packet count and total size are two-dimensional
-    // vectors, indexed by slave port id and master port id, thus the
-    // neighbouring master and slave, they do not differentiate what
-    // came from the master and was forwarded to the slave (requests
-    // and snoop responses) and what came from the slave and was
-    // forwarded to the master (responses and snoop requests)
-    for (int i = 0; i < slavePorts.size(); i++) {
-        pktCount.subname(i, slavePorts[i]->getPeer().name());
-        pktSize.subname(i, slavePorts[i]->getPeer().name());
-        for (int j = 0; j < masterPorts.size(); j++) {
-            pktCount.ysubname(j, masterPorts[j]->getPeer().name());
-            pktSize.ysubname(j, masterPorts[j]->getPeer().name());
+    // vectors, indexed by cpu_side port id and mem_side port id, thus the
+    // neighbouring mem_side and cpu_side, they do not differentiate what
+    // came from the mem_side and was forwarded to the cpu_side (requests
+    // and snoop responses) and what came from the cpu_side and was
+    // forwarded to the mem_side (responses and snoop requests)
+    for (int i = 0; i < cpu_side_ports.size(); i++) {
+        pktCount.subname(i, cpu_side_ports[i]->getPeer().name());
+        pktSize.subname(i, cpu_side_ports[i]->getPeer().name());
+        for (int j = 0; j < mem_side_ports.size(); j++) {
+            pktCount.ysubname(j, mem_side_ports[j]->getPeer().name());
+            pktSize.ysubname(j, mem_side_ports[j]->getPeer().name());
         }
     }
 }
