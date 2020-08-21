@@ -166,7 +166,7 @@ class TraceCPU : public BaseCPU
      */
     Counter totalOps() const
     {
-        return numOps.value();
+        return stats_trace.numOps.value();
     }
 
     /*
@@ -432,7 +432,7 @@ class TraceCPU : public BaseCPU
               genName(owner.name() + ".fixedretry" + _name),
               retryPkt(nullptr),
               delta(0),
-              traceComplete(false)
+              traceComplete(false), stats_fixed(&_owner)
         {
         }
 
@@ -493,7 +493,7 @@ class TraceCPU : public BaseCPU
 
         int64_t tickDelta() { return delta; }
 
-        void regStats();
+
 
       private:
 
@@ -529,14 +529,18 @@ class TraceCPU : public BaseCPU
 
         /** Store an element read from the trace to send as the next packet. */
         TraceElement currElement;
-
+        protected:
+        struct FixedRetryGenStatGroup : public Stats::Group
+        {
+            FixedRetryGenStatGroup(Stats::Group *parent);
         /** Stats for instruction accesses replayed. */
-        Stats::Scalar numSendAttempted;
-        Stats::Scalar numSendSucceeded;
-        Stats::Scalar numSendFailed;
-        Stats::Scalar numRetrySucceeded;
+            Stats::Scalar numSendAttempted;
+            Stats::Scalar numSendSucceeded;
+            Stats::Scalar numSendFailed;
+            Stats::Scalar numRetrySucceeded;
         /** Last simulated tick by the FixedRetryGen */
-        Stats::Scalar instLastTick;
+            Stats::Scalar instLastTick;
+        } stats_fixed;
 
     };
 
@@ -860,7 +864,7 @@ class TraceCPU : public BaseCPU
               execComplete(false),
               windowSize(trace.getWindowSize()),
               hwResource(params->sizeROB, params->sizeStoreBuffer,
-                         params->sizeLoadBuffer)
+                         params->sizeLoadBuffer), stats_elastic(&_owner)
         {
             DPRINTF(TraceCPUData, "Window size in the trace is %d.\n",
                     windowSize);
@@ -976,7 +980,6 @@ class TraceCPU : public BaseCPU
         /** Get number of micro-ops modelled in the TraceCPU replay */
         uint64_t getMicroOpCount() const { return trace.getMicroOpCount(); }
 
-        void regStats();
 
       private:
 
@@ -1040,17 +1043,23 @@ class TraceCPU : public BaseCPU
         std::list<ReadyNode> readyList;
 
         /** Stats for data memory accesses replayed. */
-        Stats::Scalar maxDependents;
-        Stats::Scalar maxReadyListSize;
-        Stats::Scalar numSendAttempted;
-        Stats::Scalar numSendSucceeded;
-        Stats::Scalar numSendFailed;
-        Stats::Scalar numRetrySucceeded;
-        Stats::Scalar numSplitReqs;
-        Stats::Scalar numSOLoads;
-        Stats::Scalar numSOStores;
+         protected:
+        // Defining the a stat group
+        struct ElasticDataGenStatGroup : public Stats::Group
+        {
+            ElasticDataGenStatGroup(Stats::Group *parent);
+            Stats::Scalar maxDependents;
+            Stats::Scalar maxReadyListSize;
+            Stats::Scalar numSendAttempted;
+            Stats::Scalar numSendSucceeded;
+            Stats::Scalar numSendFailed;
+            Stats::Scalar numRetrySucceeded;
+            Stats::Scalar numSplitReqs;
+            Stats::Scalar numSOLoads;
+            Stats::Scalar numSOStores;
         /** Tick when ElasticDataGen completes execution */
-        Stats::Scalar dataLastTick;
+            Stats::Scalar dataLastTick;
+        } stats_elastic;
     };
 
     /** Instance of FixedRetryGen to replay instruction read requests. */
@@ -1127,14 +1136,16 @@ class TraceCPU : public BaseCPU
      * message is printed.
      */
     uint64_t progressMsgThreshold;
-
-    Stats::Scalar numSchedDcacheEvent;
-    Stats::Scalar numSchedIcacheEvent;
-
+    struct TraceStats : public Stats::Group
+    {
+        TraceStats(TraceCPU *trace);
+        Stats::Scalar numSchedDcacheEvent;
+        Stats::Scalar numSchedIcacheEvent;
     /** Stat for number of simulated micro-ops. */
-    Stats::Scalar numOps;
+        Stats::Scalar numOps;
     /** Stat for the CPI. This is really cycles per micro-op and not inst. */
-    Stats::Formula cpi;
+        Stats::Formula cpi;
+    } stats_trace;
 
   public:
 
@@ -1144,6 +1155,5 @@ class TraceCPU : public BaseCPU
     /** Used to get a reference to the dcache port. */
     Port &getDataPort() { return dcachePort; }
 
-    void regStats();
 };
 #endif // __CPU_TRACE_TRACE_CPU_HH__
