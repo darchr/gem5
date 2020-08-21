@@ -73,13 +73,13 @@ MinorStats::regStats(const std::string &name, BaseCPU &baseCpu)
         .name(name + ".cpi")
         .desc("CPI: cycles per instruction")
         .precision(6);
-    cpi = baseCpu.numCycles / numInsts;
+    cpi = baseCpu.stats_base.numCycles / numInsts;
 
     ipc
         .name(name + ".ipc")
         .desc("IPC: instructions per cycle")
         .precision(6);
-    ipc = numInsts / baseCpu.numCycles;
+    ipc = numInsts / baseCpu.stats_base.numCycles;
 
     committedInstType
         .init(baseCpu.numThreads, Enums::Num_OpClass)

@@ -112,7 +112,6 @@ MinorCPU::init()
 void
 MinorCPU::regStats()
 {
-    BaseCPU::regStats();
     stats.regStats(name(), *this);
     pipeline->regStats();
 }
