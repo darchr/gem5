@@ -82,7 +82,6 @@ class BaseO3CPU : public BaseCPU
   public:
     BaseO3CPU(BaseCPUParams *params);
 
-    void regStats();
 };
 
 /**
@@ -184,8 +183,6 @@ class FullO3CPU : public BaseO3CPU
     /** Destructor. */
     ~FullO3CPU();
 
-    /** Registers statistics. */
-    void regStats() override;
 
     ProbePointArg<PacketPtr> *ppInstAccessComplete;
     ProbePointArg<std::pair<DynInstPtr, PacketPtr> > *ppDataAccessComplete;
@@ -379,7 +376,7 @@ class FullO3CPU : public BaseO3CPU
     VecLaneT<VecElem, true>
     readVecLane(PhysRegIdPtr phys_reg) const
     {
-        vecRegfileReads++;
+        stats_o3_cpu.vecRegfileReads++;
         return regFile.readVecLane<VecElem, LaneIdx>(phys_reg);
     }
 
@@ -390,7 +387,7 @@ class FullO3CPU : public BaseO3CPU
     VecLaneT<VecElem, true>
     readVecLane(PhysRegIdPtr phys_reg) const
     {
-        vecRegfileReads++;
+        stats_o3_cpu.vecRegfileReads++;
         return regFile.readVecLane<VecElem>(phys_reg);
     }
 
@@ -399,7 +396,7 @@ class FullO3CPU : public BaseO3CPU
     void
     setVecLane(PhysRegIdPtr phys_reg, const LD& val)
     {
-        vecRegfileWrites++;
+        stats_o3_cpu.vecRegfileWrites++;
         return regFile.setVecLane(phys_reg, val);
     }
 
@@ -749,45 +746,50 @@ class FullO3CPU : public BaseO3CPU
     {
         return this->iew.ldstQueue.getDataPort();
     }
-
+    protected:
+    struct StatGroup : public Stats::Group
+    {
+        StatGroup(FullO3CPU *parent);
     /** Stat for total number of times the CPU is descheduled. */
-    Stats::Scalar timesIdled;
+        Stats::Scalar timesIdled;
     /** Stat for total number of cycles the CPU spends descheduled. */
-    Stats::Scalar idleCycles;
+        Stats::Scalar idleCycles;
     /** Stat for total number of cycles the CPU spends descheduled due to a
      * quiesce operation or waiting for an interrupt. */
-    Stats::Scalar quiesceCycles;
+        Stats::Scalar quiesceCycles;
     /** Stat for the number of committed instructions per thread. */
-    Stats::Vector committedInsts;
-    /** Stat for the number of committed ops (including micro ops) per thread. */
-    Stats::Vector committedOps;
+        Stats::Vector committedInsts;
+    /** Stat for the number of committed ops
+     * (including micro ops) per thread. */
+        Stats::Vector committedOps;
     /** Stat for the CPI per thread. */
-    Stats::Formula cpi;
+        Stats::Formula cpi;
     /** Stat for the total CPI. */
-    Stats::Formula totalCpi;
+        Stats::Formula totalCpi;
     /** Stat for the IPC per thread. */
-    Stats::Formula ipc;
+        Stats::Formula ipc;
     /** Stat for the total IPC. */
-    Stats::Formula totalIpc;
+        Stats::Formula totalIpc;
 
     //number of integer register file accesses
-    Stats::Scalar intRegfileReads;
-    Stats::Scalar intRegfileWrites;
+        Stats::Scalar intRegfileReads;
+        Stats::Scalar intRegfileWrites;
     //number of float register file accesses
-    Stats::Scalar fpRegfileReads;
-    Stats::Scalar fpRegfileWrites;
+        Stats::Scalar fpRegfileReads;
+        Stats::Scalar fpRegfileWrites;
     //number of vector register file accesses
-    mutable Stats::Scalar vecRegfileReads;
-    Stats::Scalar vecRegfileWrites;
+        mutable Stats::Scalar vecRegfileReads;
+        Stats::Scalar vecRegfileWrites;
     //number of predicate register file accesses
-    mutable Stats::Scalar vecPredRegfileReads;
-    Stats::Scalar vecPredRegfileWrites;
+        mutable Stats::Scalar vecPredRegfileReads;
+        Stats::Scalar vecPredRegfileWrites;
     //number of CC register file accesses
-    Stats::Scalar ccRegfileReads;
-    Stats::Scalar ccRegfileWrites;
+        Stats::Scalar ccRegfileReads;
+        Stats::Scalar ccRegfileWrites;
     //number of misc
-    Stats::Scalar miscRegfileReads;
-    Stats::Scalar miscRegfileWrites;
+        Stats::Scalar miscRegfileReads;
+        Stats::Scalar miscRegfileWrites;
+    } stats_o3_cpu;
 };
 
 #endif // __CPU_O3_CPU_HH__

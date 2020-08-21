@@ -90,7 +90,8 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
       iqPolicy(params->smtIQPolicy),
       numEntries(params->numIQEntries),
       totalWidth(params->issueWidth),
-      commitToIEWDelay(params->commitToIEWDelay)
+      commitToIEWDelay(params->commitToIEWDelay),
+       stats_inst_queue(cpu_ptr, this)
 {
     assert(fuPool);
 
@@ -173,72 +174,77 @@ InstructionQueue<Impl>::name() const
 }
 
 template <class Impl>
-void
-InstructionQueue<Impl>::regStats()
-{
-    using namespace Stats;
-    iqInstsAdded
-        .name(name() + ".iqInstsAdded")
-        .desc("Number of instructions added to the IQ (excludes non-spec)")
-        .prereq(iqInstsAdded);
-
-    iqNonSpecInstsAdded
-        .name(name() + ".iqNonSpecInstsAdded")
-        .desc("Number of non-speculative instructions added to the IQ")
-        .prereq(iqNonSpecInstsAdded);
-
-    iqInstsIssued
-        .name(name() + ".iqInstsIssued")
-        .desc("Number of instructions issued")
-        .prereq(iqInstsIssued);
-
-    iqIntInstsIssued
-        .name(name() + ".iqIntInstsIssued")
-        .desc("Number of integer instructions issued")
-        .prereq(iqIntInstsIssued);
-
-    iqFloatInstsIssued
-        .name(name() + ".iqFloatInstsIssued")
-        .desc("Number of float instructions issued")
-        .prereq(iqFloatInstsIssued);
-
-    iqBranchInstsIssued
-        .name(name() + ".iqBranchInstsIssued")
-        .desc("Number of branch instructions issued")
-        .prereq(iqBranchInstsIssued);
-
-    iqMemInstsIssued
-        .name(name() + ".iqMemInstsIssued")
-        .desc("Number of memory instructions issued")
-        .prereq(iqMemInstsIssued);
-
-    iqMiscInstsIssued
-        .name(name() + ".iqMiscInstsIssued")
-        .desc("Number of miscellaneous instructions issued")
-        .prereq(iqMiscInstsIssued);
-
-    iqSquashedInstsIssued
-        .name(name() + ".iqSquashedInstsIssued")
-        .desc("Number of squashed instructions issued")
-        .prereq(iqSquashedInstsIssued);
-
-    iqSquashedInstsExamined
-        .name(name() + ".iqSquashedInstsExamined")
-        .desc("Number of squashed instructions iterated over during squash;"
-              " mainly for profiling")
-        .prereq(iqSquashedInstsExamined);
-
-    iqSquashedOperandsExamined
-        .name(name() + ".iqSquashedOperandsExamined")
-        .desc("Number of squashed operands that are examined and possibly "
-              "removed from graph")
-        .prereq(iqSquashedOperandsExamined);
-
-    iqSquashedNonSpecRemoved
-        .name(name() + ".iqSquashedNonSpecRemoved")
-        .desc("Number of squashed non-spec instructions that were removed")
-        .prereq(iqSquashedNonSpecRemoved);
-/*
+InstructionQueue<Impl>::
+InstQueueStats::InstQueueStats(O3CPU *cpu, InstructionQueue *inqueue)
+    : Stats::Group(cpu, "inqueue"),
+    ADD_STAT(iqInstsAdded,
+     "Number of instructions added to the IQ (excludes non-spec)"),
+    ADD_STAT(iqNonSpecInstsAdded,
+     "Number of non-speculative instructions added to the IQ"),
+    ADD_STAT(iqInstsIssued, "Number of instructions issued"),
+    ADD_STAT(iqIntInstsIssued, "Number of integer instructions issued"),
+    ADD_STAT(iqFloatInstsIssued, "Number of float instructions issued"),
+    ADD_STAT(iqBranchInstsIssued, "Number of branch instructions issued"),
+    ADD_STAT(iqMemInstsIssued, "Number of memory instructions issued"),
+    ADD_STAT(iqMiscInstsIssued, "Number of miscellaneous instructions issued"),
+    ADD_STAT(iqSquashedInstsIssued, "Number of squashed instructions issued"),
+    ADD_STAT(iqSquashedInstsExamined,
+     "Number of squashed instructions iterated over during squash;"
+              " mainly for profiling"),
+    ADD_STAT(iqSquashedOperandsExamined,
+     "Number of squashed operands that are examined and possibly "
+              "removed from graph"),
+    ADD_STAT(iqSquashedNonSpecRemoved,
+     "Number of squashed non-spec instructions that were removed"),
+    ADD_STAT(numIssuedDist, "Number of insts issued each cycle"),
+    ADD_STAT(statFuBusy, "attempts to use FU when none available"),
+    ADD_STAT(statIssuedInstType, "Type of FU issued"),
+    ADD_STAT(issueRate, "Inst issue rate",
+     iqInstsIssued / cpu->stats_base.numCycles),
+    ADD_STAT(fuBusy, "FU busy when requested"),
+    ADD_STAT(fuBusyRate, "FU busy rate (busy events/executed inst)",
+     fuBusy / iqInstsIssued),
+    ADD_STAT(intInstQueueReads, "Number of integer instruction queue reads"),
+    ADD_STAT(intInstQueueWrites, "Number of integer instruction queue writes"),
+    ADD_STAT(intInstQueueWakeupAccesses,
+     "Number of integer instruction queue wakeup accesses"),
+    ADD_STAT(fpInstQueueReads, "Number of floating instruction queue reads"),
+    ADD_STAT(fpInstQueueWrites, "Number of floating instruction queue writes"),
+    ADD_STAT(fpInstQueueWakeupAccesses,
+     "Number of floating instruction queue wakeup accesses"),
+    ADD_STAT(vecInstQueueReads, "Number of vector instruction queue reads"),
+    ADD_STAT(vecInstQueueWrites, "Number of vector instruction queue writes"),
+    ADD_STAT(vecInstQueueWakeupAccesses,
+     "Number of vector instruction queue wakeup accesses"),
+    ADD_STAT(intAluAccesses, "Number of integer alu accesses"),
+    ADD_STAT(fpAluAccesses, "Number of floating point alu accesses"),
+    ADD_STAT(vecAluAccesses, "Number of vector alu accesses")
+    {
+        iqInstsAdded
+            .prereq(iqInstsAdded);
+        iqNonSpecInstsAdded
+            .prereq(iqNonSpecInstsAdded);
+        iqInstsIssued
+            .prereq(iqInstsIssued);
+        iqIntInstsIssued
+            .prereq(iqIntInstsIssued);
+        iqFloatInstsIssued
+            .prereq(iqFloatInstsIssued);
+        iqBranchInstsIssued
+            .prereq(iqBranchInstsIssued);
+        iqMemInstsIssued
+            .prereq(iqMemInstsIssued);
+        iqMiscInstsIssued
+            .prereq(iqMiscInstsIssued);
+        iqSquashedInstsIssued
+            .prereq(iqSquashedInstsIssued);
+        iqSquashedInstsExamined
+            .prereq(iqSquashedInstsExamined);
+        iqSquashedOperandsExamined
+            .prereq(iqSquashedOperandsExamined);
+        iqSquashedNonSpecRemoved
+            .prereq(iqSquashedNonSpecRemoved);
+        /*
     queueResDist
         .init(Num_OpClasses, 0, 99, 2)
         .name(name() + ".IQ:residence:")
@@ -249,13 +255,10 @@ InstructionQueue<Impl>::regStats()
         queueResDist.subname(i, opClassStrings[i]);
     }
 */
-    numIssuedDist
-        .init(0,totalWidth,1)
-        .name(name() + ".issued_per_cycle")
-        .desc("Number of insts issued each cycle")
-        .flags(pdf)
-        ;
-/*
+        numIssuedDist
+            .init(0,inqueue->totalWidth,1)
+            .flags(Stats::pdf);
+        /*
     dist_unissued
         .init(Num_OpClasses+2)
         .name(name() + ".unissued_cause")
@@ -266,15 +269,11 @@ InstructionQueue<Impl>::regStats()
         dist_unissued.subname(i, unissued_names[i]);
     }
 */
-    statIssuedInstType
-        .init(numThreads,Enums::Num_OpClass)
-        .name(name() + ".FU_type")
-        .desc("Type of FU issued")
-        .flags(total | pdf | dist)
-        ;
-    statIssuedInstType.ysubnames(Enums::OpClassStrings);
-
-    //
+        statIssuedInstType
+            .init(inqueue->numThreads,Enums::Num_OpClass)
+            .flags(Stats::total | Stats::pdf | Stats::dist);
+            statIssuedInstType.ysubnames(Enums::OpClassStrings);
+        //
     //  How long did instructions for a particular FU type wait prior to issue
     //
 /*
@@ -291,103 +290,44 @@ InstructionQueue<Impl>::regStats()
         issueDelayDist.subname(i, subname.str());
     }
 */
-    issueRate
-        .name(name() + ".rate")
-        .desc("Inst issue rate")
-        .flags(total)
-        ;
-    issueRate = iqInstsIssued / cpu->numCycles;
-
-    statFuBusy
-        .init(Num_OpClasses)
-        .name(name() + ".fu_full")
-        .desc("attempts to use FU when none available")
-        .flags(pdf | dist)
-        ;
-    for (int i=0; i < Num_OpClasses; ++i) {
-        statFuBusy.subname(i, Enums::OpClassStrings[i]);
+        issueRate
+            .flags(Stats::total);
+        statFuBusy
+            .init(Num_OpClasses)
+            .flags(Stats::pdf | Stats::dist);
+            for (int i=0; i < Num_OpClasses; ++i) {
+            statFuBusy.subname(i, Enums::OpClassStrings[i]);
+            }
+        fuBusy
+            .init(inqueue->numThreads)
+            .flags(Stats::total);
+        fuBusyRate
+            .flags(Stats::total);
+        intInstQueueReads
+            .flags(Stats::total);
+        intInstQueueWrites
+            .flags(Stats::total);
+        intInstQueueWakeupAccesses
+            .flags(Stats::total);
+        fpInstQueueReads
+            .flags(Stats::total);
+        fpInstQueueWrites
+            .flags(Stats::total);
+        fpInstQueueWakeupAccesses
+            .flags(Stats::total);
+        vecInstQueueReads
+            .flags(Stats::total);
+        vecInstQueueWrites
+            .flags(Stats::total);
+        vecInstQueueWakeupAccesses
+            .flags(Stats::total);
+        intAluAccesses
+            .flags(Stats::total);
+        fpAluAccesses
+            .flags(Stats::total);
+        vecAluAccesses
+            .flags(Stats::total);
     }
-
-    fuBusy
-        .init(numThreads)
-        .name(name() + ".fu_busy_cnt")
-        .desc("FU busy when requested")
-        .flags(total)
-        ;
-
-    fuBusyRate
-        .name(name() + ".fu_busy_rate")
-        .desc("FU busy rate (busy events/executed inst)")
-        .flags(total)
-        ;
-    fuBusyRate = fuBusy / iqInstsIssued;
-
-    for (ThreadID tid = 0; tid < numThreads; tid++) {
-        // Tell mem dependence unit to reg stats as well.
-        memDepUnit[tid].regStats();
-    }
-
-    intInstQueueReads
-        .name(name() + ".int_inst_queue_reads")
-        .desc("Number of integer instruction queue reads")
-        .flags(total);
-
-    intInstQueueWrites
-        .name(name() + ".int_inst_queue_writes")
-        .desc("Number of integer instruction queue writes")
-        .flags(total);
-
-    intInstQueueWakeupAccesses
-        .name(name() + ".int_inst_queue_wakeup_accesses")
-        .desc("Number of integer instruction queue wakeup accesses")
-        .flags(total);
-
-    fpInstQueueReads
-        .name(name() + ".fp_inst_queue_reads")
-        .desc("Number of floating instruction queue reads")
-        .flags(total);
-
-    fpInstQueueWrites
-        .name(name() + ".fp_inst_queue_writes")
-        .desc("Number of floating instruction queue writes")
-        .flags(total);
-
-    fpInstQueueWakeupAccesses
-        .name(name() + ".fp_inst_queue_wakeup_accesses")
-        .desc("Number of floating instruction queue wakeup accesses")
-        .flags(total);
-
-    vecInstQueueReads
-        .name(name() + ".vec_inst_queue_reads")
-        .desc("Number of vector instruction queue reads")
-        .flags(total);
-
-    vecInstQueueWrites
-        .name(name() + ".vec_inst_queue_writes")
-        .desc("Number of vector instruction queue writes")
-        .flags(total);
-
-    vecInstQueueWakeupAccesses
-        .name(name() + ".vec_inst_queue_wakeup_accesses")
-        .desc("Number of vector instruction queue wakeup accesses")
-        .flags(total);
-
-    intAluAccesses
-        .name(name() + ".int_alu_accesses")
-        .desc("Number of integer alu accesses")
-        .flags(total);
-
-    fpAluAccesses
-        .name(name() + ".fp_alu_accesses")
-        .desc("Number of floating point alu accesses")
-        .flags(total);
-
-    vecAluAccesses
-        .name(name() + ".vec_alu_accesses")
-        .desc("Number of vector alu accesses")
-        .flags(total);
-
-}
 
 template <class Impl>
 void
@@ -577,11 +517,11 @@ void
 InstructionQueue<Impl>::insert(const DynInstPtr &new_inst)
 {
     if (new_inst->isFloating()) {
-        fpInstQueueWrites++;
+        stats_inst_queue.fpInstQueueWrites++;
     } else if (new_inst->isVector()) {
-        vecInstQueueWrites++;
+        stats_inst_queue.vecInstQueueWrites++;
     } else {
-        intInstQueueWrites++;
+        stats_inst_queue.intInstQueueWrites++;
     }
     // Make sure the instruction is valid
     assert(new_inst);
@@ -611,7 +551,7 @@ InstructionQueue<Impl>::insert(const DynInstPtr &new_inst)
         addIfReady(new_inst);
     }
 
-    ++iqInstsAdded;
+    ++stats_inst_queue.iqInstsAdded;
 
     count[new_inst->threadNumber]++;
 
@@ -625,11 +565,11 @@ InstructionQueue<Impl>::insertNonSpec(const DynInstPtr &new_inst)
     // @todo: Clean up this code; can do it by setting inst as unable
     // to issue, then calling normal insert on the inst.
     if (new_inst->isFloating()) {
-        fpInstQueueWrites++;
+        stats_inst_queue.fpInstQueueWrites++;
     } else if (new_inst->isVector()) {
-        vecInstQueueWrites++;
+        stats_inst_queue.vecInstQueueWrites++;
     } else {
-        intInstQueueWrites++;
+        stats_inst_queue.intInstQueueWrites++;
     }
 
     assert(new_inst);
@@ -658,7 +598,7 @@ InstructionQueue<Impl>::insertNonSpec(const DynInstPtr &new_inst)
         memDepUnit[new_inst->threadNumber].insertNonSpec(new_inst);
     }
 
-    ++iqNonSpecInstsAdded;
+    ++stats_inst_queue.iqNonSpecInstsAdded;
 
     count[new_inst->threadNumber]++;
 
@@ -682,11 +622,11 @@ InstructionQueue<Impl>::getInstToExecute()
     DynInstPtr inst = std::move(instsToExecute.front());
     instsToExecute.pop_front();
     if (inst->isFloating()) {
-        fpInstQueueReads++;
+        stats_inst_queue.fpInstQueueReads++;
     } else if (inst->isVector()) {
-        vecInstQueueReads++;
+        stats_inst_queue.vecInstQueueReads++;
     } else {
-        intInstQueueReads++;
+        stats_inst_queue.intInstQueueReads++;
     }
     return inst;
 }
@@ -807,11 +747,11 @@ InstructionQueue<Impl>::scheduleReadyInsts()
         DynInstPtr issuing_inst = readyInsts[op_class].top();
 
         if (issuing_inst->isFloating()) {
-            fpInstQueueReads++;
+            stats_inst_queue.fpInstQueueReads++;
         } else if (issuing_inst->isVector()) {
-            vecInstQueueReads++;
+            stats_inst_queue.vecInstQueueReads++;
         } else {
-            intInstQueueReads++;
+            stats_inst_queue.intInstQueueReads++;
         }
 
         assert(issuing_inst->seqNum == (*order_it).oldestInst);
@@ -828,7 +768,7 @@ InstructionQueue<Impl>::scheduleReadyInsts()
 
             listOrder.erase(order_it++);
 
-            ++iqSquashedInstsIssued;
+            ++stats_inst_queue.iqSquashedInstsIssued;
 
             continue;
         }
@@ -840,11 +780,11 @@ InstructionQueue<Impl>::scheduleReadyInsts()
         if (op_class != No_OpClass) {
             idx = fuPool->getUnit(op_class);
             if (issuing_inst->isFloating()) {
-                fpAluAccesses++;
+                stats_inst_queue.fpAluAccesses++;
             } else if (issuing_inst->isVector()) {
-                vecAluAccesses++;
+                stats_inst_queue.vecAluAccesses++;
             } else {
-                intAluAccesses++;
+                stats_inst_queue.intAluAccesses++;
             }
             if (idx > FUPool::NoFreeFU) {
                 op_latency = fuPool->getOpLatency(op_class);
@@ -914,16 +854,16 @@ InstructionQueue<Impl>::scheduleReadyInsts()
             }
 
             listOrder.erase(order_it++);
-            statIssuedInstType[tid][op_class]++;
+            stats_inst_queue.statIssuedInstType[tid][op_class]++;
         } else {
-            statFuBusy[op_class]++;
-            fuBusy[tid]++;
+            stats_inst_queue.statFuBusy[op_class]++;
+            stats_inst_queue.fuBusy[tid]++;
             ++order_it;
         }
     }
 
-    numIssuedDist.sample(total_issued);
-    iqInstsIssued+= total_issued;
+    stats_inst_queue.numIssuedDist.sample(total_issued);
+    stats_inst_queue.iqInstsIssued+= total_issued;
 
     // If we issued any instructions, tell the CPU we had activity.
     // @todo If the way deferred memory instructions are handeled due to
@@ -990,11 +930,11 @@ InstructionQueue<Impl>::wakeDependents(const DynInstPtr &completed_inst)
 
     // The instruction queue here takes care of both floating and int ops
     if (completed_inst->isFloating()) {
-        fpInstQueueWakeupAccesses++;
+        stats_inst_queue.fpInstQueueWakeupAccesses++;
     } else if (completed_inst->isVector()) {
-        vecInstQueueWakeupAccesses++;
+        stats_inst_queue.vecInstQueueWakeupAccesses++;
     } else {
-        intInstQueueWakeupAccesses++;
+        stats_inst_queue.intInstQueueWakeupAccesses++;
     }
 
     DPRINTF(IQ, "Waking dependents of completed instruction.\n");
@@ -1184,7 +1124,7 @@ void
 InstructionQueue<Impl>::violation(const DynInstPtr &store,
                                   const DynInstPtr &faulting_load)
 {
-    intInstQueueWrites++;
+    stats_inst_queue.intInstQueueWrites++;
     memDepUnit[store->threadNumber].violation(store, faulting_load);
 }
 
@@ -1223,11 +1163,11 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
 
         DynInstPtr squashed_inst = (*squash_it);
         if (squashed_inst->isFloating()) {
-            fpInstQueueWrites++;
+            stats_inst_queue.fpInstQueueWrites++;
         } else if (squashed_inst->isVector()) {
-            vecInstQueueWrites++;
+            stats_inst_queue.vecInstQueueWrites++;
         } else {
-            intInstQueueWrites++;
+            stats_inst_queue.intInstQueueWrites++;
         }
 
         // Only handle the instruction if it actually is in the IQ and
@@ -1280,7 +1220,7 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
                                            squashed_inst);
                     }
 
-                    ++iqSquashedOperandsExamined;
+                    ++stats_inst_queue.iqSquashedOperandsExamined;
                 }
 
             } else if (!squashed_inst->isStoreConditional() ||
@@ -1303,7 +1243,7 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
 
                     nonSpecInsts.erase(ns_inst_it);
 
-                    ++iqSquashedNonSpecRemoved;
+                    ++stats_inst_queue.iqSquashedNonSpecRemoved;
                 }
             }
 
@@ -1344,7 +1284,7 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
             dependGraph.clearInst(dest_reg->flatIndex());
         }
         instList[tid].erase(squash_it--);
-        ++iqSquashedInstsExamined;
+        ++stats_inst_queue.iqSquashedInstsExamined;
     }
 }
 

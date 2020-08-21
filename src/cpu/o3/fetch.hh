@@ -222,9 +222,6 @@ class DefaultFetch
     /** Returns the name of fetch. */
     std::string name() const;
 
-    /** Registers statistics. */
-    void regStats();
-
     /** Registers probes. */
     void regProbePoints();
 
@@ -545,58 +542,62 @@ class DefaultFetch
 
     /** Event used to delay fault generation of translation faults */
     FinishTranslationEvent finishTranslationEvent;
-
+    protected:
+    struct FetchStatGroup : public Stats::Group
+    {
+        FetchStatGroup(O3CPU *cpu, DefaultFetch *fetch);
     // @todo: Consider making these vectors and tracking on a per thread basis.
     /** Stat for total number of cycles stalled due to an icache miss. */
-    Stats::Scalar icacheStallCycles;
+        Stats::Scalar icacheStallCycles;
     /** Stat for total number of fetched instructions. */
-    Stats::Scalar fetchedInsts;
+        Stats::Scalar fetchedInsts;
     /** Total number of fetched branches. */
-    Stats::Scalar fetchedBranches;
+        Stats::Scalar fetchedBranches;
     /** Stat for total number of predicted branches. */
-    Stats::Scalar predictedBranches;
+        Stats::Scalar predictedBranches;
     /** Stat for total number of cycles spent fetching. */
-    Stats::Scalar fetchCycles;
+        Stats::Scalar fetchCycles;
     /** Stat for total number of cycles spent squashing. */
-    Stats::Scalar fetchSquashCycles;
+        Stats::Scalar fetchSquashCycles;
     /** Stat for total number of cycles spent waiting for translation */
-    Stats::Scalar fetchTlbCycles;
+        Stats::Scalar fetchTlbCycles;
     /** Stat for total number of cycles spent blocked due to other stages in
      * the pipeline.
      */
-    Stats::Scalar fetchIdleCycles;
+        Stats::Scalar fetchIdleCycles;
     /** Total number of cycles spent blocked. */
-    Stats::Scalar fetchBlockedCycles;
+        Stats::Scalar fetchBlockedCycles;
     /** Total number of cycles spent in any other state. */
-    Stats::Scalar fetchMiscStallCycles;
+        Stats::Scalar fetchMiscStallCycles;
     /** Total number of cycles spent in waiting for drains. */
-    Stats::Scalar fetchPendingDrainCycles;
+        Stats::Scalar fetchPendingDrainCycles;
     /** Total number of stall cycles caused by no active threads to run. */
-    Stats::Scalar fetchNoActiveThreadStallCycles;
+        Stats::Scalar fetchNoActiveThreadStallCycles;
     /** Total number of stall cycles caused by pending traps. */
-    Stats::Scalar fetchPendingTrapStallCycles;
+        Stats::Scalar fetchPendingTrapStallCycles;
     /** Total number of stall cycles caused by pending quiesce instructions. */
-    Stats::Scalar fetchPendingQuiesceStallCycles;
+        Stats::Scalar fetchPendingQuiesceStallCycles;
     /** Total number of stall cycles caused by I-cache wait retrys. */
-    Stats::Scalar fetchIcacheWaitRetryStallCycles;
+        Stats::Scalar fetchIcacheWaitRetryStallCycles;
     /** Stat for total number of fetched cache lines. */
-    Stats::Scalar fetchedCacheLines;
+        Stats::Scalar fetchedCacheLines;
     /** Total number of outstanding icache accesses that were dropped
      * due to a squash.
      */
-    Stats::Scalar fetchIcacheSquashes;
+        Stats::Scalar fetchIcacheSquashes;
     /** Total number of outstanding tlb accesses that were dropped
      * due to a squash.
      */
-    Stats::Scalar fetchTlbSquashes;
+        Stats::Scalar fetchTlbSquashes;
     /** Distribution of number of instructions fetched each cycle. */
-    Stats::Distribution fetchNisnDist;
+        Stats::Distribution fetchNisnDist;
     /** Rate of how often fetch was idle. */
-    Stats::Formula idleRate;
+        Stats::Formula idleRate;
     /** Number of branch fetches per cycle. */
-    Stats::Formula branchRate;
+        Stats::Formula branchRate;
     /** Number of instruction fetched per cycle. */
-    Stats::Formula fetchRate;
+        Stats::Formula fetchRate;
+    } stats_fetch;
 };
 
 #endif //__CPU_O3_FETCH_HH__

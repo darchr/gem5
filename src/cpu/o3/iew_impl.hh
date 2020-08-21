@@ -77,7 +77,7 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       wbNumInst(0),
       wbCycle(0),
       wbWidth(params->wbWidth),
-      numThreads(params->numThreads)
+      numThreads(params->numThreads), stats_iew(_cpu, this)
 {
     if (dispatchWidth > Impl::MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -140,164 +140,88 @@ DefaultIEW<Impl>::regProbePoints()
 }
 
 template <class Impl>
-void
-DefaultIEW<Impl>::regStats()
-{
-    using namespace Stats;
-
-    instQueue.regStats();
-    ldstQueue.regStats();
-
-    iewIdleCycles
-        .name(name() + ".iewIdleCycles")
-        .desc("Number of cycles IEW is idle");
-
-    iewSquashCycles
-        .name(name() + ".iewSquashCycles")
-        .desc("Number of cycles IEW is squashing");
-
-    iewBlockCycles
-        .name(name() + ".iewBlockCycles")
-        .desc("Number of cycles IEW is blocking");
-
-    iewUnblockCycles
-        .name(name() + ".iewUnblockCycles")
-        .desc("Number of cycles IEW is unblocking");
-
-    iewDispatchedInsts
-        .name(name() + ".iewDispatchedInsts")
-        .desc("Number of instructions dispatched to IQ");
-
-    iewDispSquashedInsts
-        .name(name() + ".iewDispSquashedInsts")
-        .desc("Number of squashed instructions skipped by dispatch");
-
-    iewDispLoadInsts
-        .name(name() + ".iewDispLoadInsts")
-        .desc("Number of dispatched load instructions");
-
-    iewDispStoreInsts
-        .name(name() + ".iewDispStoreInsts")
-        .desc("Number of dispatched store instructions");
-
-    iewDispNonSpecInsts
-        .name(name() + ".iewDispNonSpecInsts")
-        .desc("Number of dispatched non-speculative instructions");
-
-    iewIQFullEvents
-        .name(name() + ".iewIQFullEvents")
-        .desc("Number of times the IQ has become full, causing a stall");
-
-    iewLSQFullEvents
-        .name(name() + ".iewLSQFullEvents")
-        .desc("Number of times the LSQ has become full, causing a stall");
-
-    memOrderViolationEvents
-        .name(name() + ".memOrderViolationEvents")
-        .desc("Number of memory order violations");
-
-    predictedTakenIncorrect
-        .name(name() + ".predictedTakenIncorrect")
-        .desc("Number of branches that were predicted taken incorrectly");
-
-    predictedNotTakenIncorrect
-        .name(name() + ".predictedNotTakenIncorrect")
-        .desc("Number of branches that were predicted not taken incorrectly");
-
-    branchMispredicts
-        .name(name() + ".branchMispredicts")
-        .desc("Number of branch mispredicts detected at execute");
-
-    branchMispredicts = predictedTakenIncorrect + predictedNotTakenIncorrect;
-
-    iewExecutedInsts
-        .name(name() + ".iewExecutedInsts")
-        .desc("Number of executed instructions");
-
-    iewExecLoadInsts
-        .init(cpu->numThreads)
-        .name(name() + ".iewExecLoadInsts")
-        .desc("Number of load instructions executed")
-        .flags(total);
-
-    iewExecSquashedInsts
-        .name(name() + ".iewExecSquashedInsts")
-        .desc("Number of squashed instructions skipped in execute");
-
-    iewExecutedSwp
-        .init(cpu->numThreads)
-        .name(name() + ".exec_swp")
-        .desc("number of swp insts executed")
-        .flags(total);
-
-    iewExecutedNop
-        .init(cpu->numThreads)
-        .name(name() + ".exec_nop")
-        .desc("number of nop insts executed")
-        .flags(total);
-
-    iewExecutedRefs
-        .init(cpu->numThreads)
-        .name(name() + ".exec_refs")
-        .desc("number of memory reference insts executed")
-        .flags(total);
-
-    iewExecutedBranches
-        .init(cpu->numThreads)
-        .name(name() + ".exec_branches")
-        .desc("Number of branches executed")
-        .flags(total);
-
-    iewExecStoreInsts
-        .name(name() + ".exec_stores")
-        .desc("Number of stores executed")
-        .flags(total);
-    iewExecStoreInsts = iewExecutedRefs - iewExecLoadInsts;
-
-    iewExecRate
-        .name(name() + ".exec_rate")
-        .desc("Inst execution rate")
-        .flags(total);
-
-    iewExecRate = iewExecutedInsts / cpu->numCycles;
-
-    iewInstsToCommit
-        .init(cpu->numThreads)
-        .name(name() + ".wb_sent")
-        .desc("cumulative count of insts sent to commit")
-        .flags(total);
-
-    writebackCount
-        .init(cpu->numThreads)
-        .name(name() + ".wb_count")
-        .desc("cumulative count of insts written-back")
-        .flags(total);
-
-    producerInst
-        .init(cpu->numThreads)
-        .name(name() + ".wb_producers")
-        .desc("num instructions producing a value")
-        .flags(total);
-
-    consumerInst
-        .init(cpu->numThreads)
-        .name(name() + ".wb_consumers")
-        .desc("num instructions consuming a value")
-        .flags(total);
-
-    wbFanout
-        .name(name() + ".wb_fanout")
-        .desc("average fanout of values written-back")
-        .flags(total);
-
-    wbFanout = producerInst / consumerInst;
-
-    wbRate
-        .name(name() + ".wb_rate")
-        .desc("insts written-back per cycle")
-        .flags(total);
-    wbRate = writebackCount / cpu->numCycles;
-}
+DefaultIEW<Impl>::IEWStatGroup::IEWStatGroup(O3CPU *cpu, DefaultIEW *iew)
+    : Stats::Group(cpu, "iew"),
+    ADD_STAT(iewIdleCycles, "Number of cycles IEW is idle"),
+    ADD_STAT(iewSquashCycles, "Number of cycles IEW is squashing"),
+    ADD_STAT(iewBlockCycles, "Number of cycles IEW is blocking"),
+    ADD_STAT(iewUnblockCycles, "Number of cycles IEW is unblocking"),
+    ADD_STAT(iewDispatchedInsts, "Number of instructions dispatched to IQ"),
+    ADD_STAT(iewDispSquashedInsts,
+     "Number of squashed instructions skipped by dispatch"),
+    ADD_STAT(iewDispLoadInsts, "Number of dispatched load instructions"),
+    ADD_STAT(iewDispStoreInsts, "Number of dispatched store instructions"),
+    ADD_STAT(iewDispNonSpecInsts,
+     "Number of dispatched non-speculative instructions"),
+    ADD_STAT(iewIQFullEvents,
+     "Number of times the IQ has become full, causing a stall"),
+    ADD_STAT(iewLSQFullEvents,
+     "Number of times the LSQ has become full, causing a stall"),
+    ADD_STAT(memOrderViolationEvents, "Number of memory order violations"),
+    ADD_STAT(predictedTakenIncorrect,
+     "Number of branches that were predicted taken incorrectly"),
+    ADD_STAT(predictedNotTakenIncorrect,
+     "Number of branches that were predicted not taken incorrectly"),
+    ADD_STAT(branchMispredicts,
+     "Number of branch mispredicts detected at execute",
+     predictedTakenIncorrect + predictedNotTakenIncorrect),
+    ADD_STAT(iewExecutedInsts, "Number of executed instructions"),
+    ADD_STAT(iewExecLoadInsts, "Number of load instructions executed"),
+    ADD_STAT(iewExecSquashedInsts,
+     "Number of squashed instructions skipped in execute"),
+    ADD_STAT(iewExecutedSwp, "number of swp insts executed"),
+    ADD_STAT(iewExecutedNop, "number of nop insts executed"),
+    ADD_STAT(iewExecutedRefs, "number of memory reference insts executed"),
+    ADD_STAT(iewExecutedBranches, "Number of branches executed"),
+    ADD_STAT(iewExecStoreInsts, "Number of stores executed",
+     iewExecutedRefs - iewExecLoadInsts),
+    ADD_STAT(iewExecRate, "Inst execution rate",
+     iewExecutedInsts / cpu->stats_base.numCycles),
+    ADD_STAT(iewInstsToCommit, "cumulative count of insts sent to commit"),
+    ADD_STAT(writebackCount, "cumulative count of insts written-back"),
+    ADD_STAT(producerInst, "num instructions producing a value"),
+    ADD_STAT(consumerInst, "num instructions consuming a value"),
+    ADD_STAT(wbRate, "insts written-back per cycle",
+     writebackCount / cpu->stats_base.numCycles),
+    ADD_STAT(wbFanout, "average fanout of values written-back",
+     producerInst / consumerInst)
+    {
+        iewExecLoadInsts
+            .init(cpu->numThreads)
+            .flags(Stats::total);
+        iewExecutedSwp
+            .init(cpu->numThreads)
+            .flags(Stats::total);
+        iewExecutedNop
+            .init(cpu->numThreads)
+            .flags(Stats::total);
+        iewExecutedRefs
+            .init(cpu->numThreads)
+            .flags(Stats::total);
+        iewExecutedBranches
+            .init(cpu->numThreads)
+            .flags(Stats::total);
+        iewExecStoreInsts
+            .flags(Stats::total);
+        iewExecRate
+            .flags(Stats::total);
+        iewInstsToCommit
+            .init(cpu->numThreads)
+            .flags(Stats::total);
+        writebackCount
+            .init(cpu->numThreads)
+            .flags(Stats::total);
+        producerInst
+            .init(cpu->numThreads)
+            .flags(Stats::total);
+        consumerInst
+            .init(cpu->numThreads)
+            .flags(Stats::total);
+        wbFanout
+            .flags(Stats::total);
+        wbRate
+            .flags(Stats::total);
+    }
 
 template<class Impl>
 void
@@ -738,7 +662,7 @@ DefaultIEW<Impl>::updateStatus()
     // If there are no ready instructions waiting to be scheduled by the IQ,
     // and there's no stores waiting to write back, and dispatch is not
     // unblocking, then there is no internal activity for the IEW stage.
-    instQueue.intInstQueueReads++;
+    instQueue.stats_inst_queue.intInstQueueReads++;
     if (_status == Active && !instQueue.hasReadyInsts() &&
         !ldstQueue.willWB() && !any_unblocking) {
         DPRINTF(IEW, "IEW switching to idle\n");
@@ -918,10 +842,10 @@ DefaultIEW<Impl>::dispatch(ThreadID tid)
     //     check if stall conditions have passed
 
     if (dispatchStatus[tid] == Blocked) {
-        ++iewBlockCycles;
+        ++stats_iew.iewBlockCycles;
 
     } else if (dispatchStatus[tid] == Squashing) {
-        ++iewSquashCycles;
+        ++stats_iew.iewSquashCycles;
     }
 
     // Dispatch should try to dispatch as many instructions as its bandwidth
@@ -942,7 +866,7 @@ DefaultIEW<Impl>::dispatch(ThreadID tid)
         // the rest of unblocking.
         dispatchInsts(tid);
 
-        ++iewUnblockCycles;
+        ++stats_iew.iewUnblockCycles;
 
         if (validInstsFromRename()) {
             // Add the current inputs to the skid buffer so they can be
@@ -999,7 +923,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             DPRINTF(IEW, "[tid:%i] Issue: Squashed instruction encountered, "
                     "not adding to IQ.\n", tid);
 
-            ++iewDispSquashedInsts;
+            ++stats_iew.iewDispSquashedInsts;
 
             insts_to_dispatch.pop();
 
@@ -1028,7 +952,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             // get full in the IQ.
             toRename->iewUnblock[tid] = false;
 
-            ++iewIQFullEvents;
+            ++stats_iew.iewIQFullEvents;
             break;
         }
 
@@ -1047,7 +971,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             // get full in the IQ.
             toRename->iewUnblock[tid] = false;
 
-            ++iewLSQFullEvents;
+            ++stats_iew.iewLSQFullEvents;
             break;
         }
 
@@ -1058,7 +982,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             ldstQueue.insertStore(inst);
 
-            ++iewDispStoreInsts;
+            ++stats_iew.iewDispStoreInsts;
 
             // AMOs need to be set as "canCommit()"
             // so that commit can process them when they reach the
@@ -1067,7 +991,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             instQueue.insertNonSpec(inst);
             add_to_iq = false;
 
-            ++iewDispNonSpecInsts;
+            ++stats_iew.iewDispNonSpecInsts;
 
             toRename->iewInfo[tid].dispatchedToSQ++;
         } else if (inst->isLoad()) {
@@ -1078,7 +1002,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             // memory access.
             ldstQueue.insertLoad(inst);
 
-            ++iewDispLoadInsts;
+            ++stats_iew.iewDispLoadInsts;
 
             add_to_iq = true;
 
@@ -1089,7 +1013,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             ldstQueue.insertStore(inst);
 
-            ++iewDispStoreInsts;
+            ++stats_iew.iewDispStoreInsts;
 
             if (inst->isStoreConditional()) {
                 // Store conditionals need to be set as "canCommit()"
@@ -1100,7 +1024,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                 instQueue.insertNonSpec(inst);
                 add_to_iq = false;
 
-                ++iewDispNonSpecInsts;
+                ++stats_iew.iewDispNonSpecInsts;
             } else {
                 add_to_iq = true;
             }
@@ -1121,7 +1045,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             instQueue.recordProducer(inst);
 
-            iewExecutedNop[tid]++;
+            stats_iew.iewExecutedNop[tid]++;
 
             add_to_iq = false;
         } else {
@@ -1139,7 +1063,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             // Specifically insert it as nonspeculative.
             instQueue.insertNonSpec(inst);
 
-            ++iewDispNonSpecInsts;
+            ++stats_iew.iewDispNonSpecInsts;
 
             add_to_iq = false;
         }
@@ -1154,7 +1078,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
         toRename->iewInfo[tid].dispatched++;
 
-        ++iewDispatchedInsts;
+        ++stats_iew.iewDispatchedInsts;
 
 #if TRACING_ON
         inst->dispatchTick = curTick() - inst->fetchTick;
@@ -1250,7 +1174,7 @@ DefaultIEW<Impl>::executeInsts()
             // commit any squashed instructions.  I like the latter a bit more.
             inst->setCanCommit();
 
-            ++iewExecSquashedInsts;
+            ++stats_iew.iewExecSquashedInsts;
 
             continue;
         }
@@ -1382,9 +1306,9 @@ DefaultIEW<Impl>::executeInsts()
                 ppMispredict->notify(inst);
 
                 if (inst->readPredTaken()) {
-                    predictedTakenIncorrect++;
+                    stats_iew.predictedTakenIncorrect++;
                 } else {
-                    predictedNotTakenIncorrect++;
+                    stats_iew.predictedNotTakenIncorrect++;
                 }
             } else if (ldstQueue.violation(tid)) {
                 assert(inst->isMemRef());
@@ -1407,7 +1331,7 @@ DefaultIEW<Impl>::executeInsts()
                 // Squash.
                 squashDueToMemOrder(violator, tid);
 
-                ++memOrderViolationEvents;
+                ++stats_iew.memOrderViolationEvents;
             }
         } else {
             // Reset any state associated with redirects that will not
@@ -1424,7 +1348,7 @@ DefaultIEW<Impl>::executeInsts()
                 DPRINTF(IEW, "Violation will not be handled because "
                         "already squashing\n");
 
-                ++memOrderViolationEvents;
+                ++stats_iew.memOrderViolationEvents;
             }
         }
     }
@@ -1464,7 +1388,7 @@ DefaultIEW<Impl>::writebackInsts()
         DPRINTF(IEW, "Sending instructions to commit, [sn:%lli] PC %s.\n",
                 inst->seqNum, inst->pcState());
 
-        iewInstsToCommit[tid]++;
+        stats_iew.iewInstsToCommit[tid]++;
         // Notify potential listeners that execution is complete for this
         // instruction.
         ppToCommit->notify(inst);
@@ -1489,10 +1413,10 @@ DefaultIEW<Impl>::writebackInsts()
             }
 
             if (dependents) {
-                producerInst[tid]++;
-                consumerInst[tid]+= dependents;
+                stats_iew.producerInst[tid]++;
+                stats_iew.consumerInst[tid]+= dependents;
             }
-            writebackCount[tid]++;
+            stats_iew.writebackCount[tid]++;
         }
     }
 }
@@ -1633,7 +1557,7 @@ DefaultIEW<Impl>::updateExeInstStats(const DynInstPtr& inst)
 {
     ThreadID tid = inst->threadNumber;
 
-    iewExecutedInsts++;
+    stats_iew.iewExecutedInsts++;
 
 #if TRACING_ON
     if (DTRACE(O3PipeView)) {
@@ -1645,16 +1569,16 @@ DefaultIEW<Impl>::updateExeInstStats(const DynInstPtr& inst)
     //  Control operations
     //
     if (inst->isControl())
-        iewExecutedBranches[tid]++;
+        stats_iew.iewExecutedBranches[tid]++;
 
     //
     //  Memory operations
     //
     if (inst->isMemRef()) {
-        iewExecutedRefs[tid]++;
+        stats_iew.iewExecutedRefs[tid]++;
 
         if (inst->isLoad()) {
-            iewExecLoadInsts[tid]++;
+            stats_iew.iewExecLoadInsts[tid]++;
         }
     }
 }
@@ -1689,9 +1613,9 @@ DefaultIEW<Impl>::checkMisprediction(const DynInstPtr& inst)
             squashDueToBranch(inst, tid);
 
             if (inst->readPredTaken()) {
-                predictedTakenIncorrect++;
+                stats_iew.predictedTakenIncorrect++;
             } else {
-                predictedNotTakenIncorrect++;
+                stats_iew.predictedNotTakenIncorrect++;
             }
         }
     }
