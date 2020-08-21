@@ -319,7 +319,10 @@ class Base : public ClockedObject
     /** Build the address of the i-th block inside the page */
     Addr pageIthBlockAddress(Addr page, uint32_t i) const;
 
-    Stats::Scalar pfIssued;
+    struct StatGroup : public Stats::Group {
+            StatGroup(Stats::Group *parent);
+            Stats::Scalar pfIssued;
+    } stats_base;
 
     /** Total prefetches issued */
     uint64_t issuedPrefetches;
@@ -349,10 +352,6 @@ class Base : public ClockedObject
 
     virtual Tick nextPrefetchReadyTime() const = 0;
 
-    /**
-     * Register local statistics.
-     */
-    void regStats() override;
 
     /**
      * Register probe points for this object.

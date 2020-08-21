@@ -97,7 +97,7 @@ Queued::Queued(const QueuedPrefetcherParams *p)
       latency(p->latency), queueSquash(p->queue_squash),
       queueFilter(p->queue_filter), cacheSnoop(p->cache_snoop),
       tagPrefetch(p->tag_prefetch),
-      throttleControlPct(p->throttle_control_percentage)
+      throttleControlPct(p->throttle_control_percentage), stats(this)
 {
 }
 
@@ -174,13 +174,13 @@ Queued::notify(const PacketPtr &pkt, const PrefetchInfo &pfi)
         addr_prio.first = blockAddress(addr_prio.first);
 
         if (!samePage(addr_prio.first, pfi.getAddr())) {
-            pfSpanPage += 1;
+            stats.pfSpanPage += 1;
         }
 
         bool can_cross_page = (tlb != nullptr);
         if (can_cross_page || samePage(addr_prio.first, pfi.getAddr())) {
             PrefetchInfo new_pfi(pfi,addr_prio.first);
-            pfIdentified++;
+            stats.pfIdentified++;
             DPRINTF(HWPrefetch, "Found a pf candidate addr: %#x, "
                     "inserting into prefetch queue.\n", new_pfi.getAddr());
             // Create and insert the request
@@ -214,7 +214,7 @@ Queued::getPacket()
     PacketPtr pkt = pfq.front().pkt;
     pfq.pop_front();
 
-    pfIssued++;
+    stats_base.pfIssued++;
     issuedPrefetches += 1;
     assert(pkt != nullptr);
     DPRINTF(HWPrefetch, "Generating prefetch for %#x.\n", pkt->getAddr());
@@ -222,32 +222,21 @@ Queued::getPacket()
     processMissingTranslations(queueSize - pfq.size());
     return pkt;
 }
+Queued::QueuedStats::QueuedStats(Stats::Group *parent)
+    : Stats::Group(parent),
+    ADD_STAT(pfIdentified, "number of prefetch candidates identified"),
+    ADD_STAT(pfBufferHit,
+     "number of redundant prefetches already in prefetch queue"),
+    ADD_STAT(pfInCache,
+     "number of redundant prefetches already in cache/mshr dropped"),
+    ADD_STAT(pfRemovedFull,
+     "number of prefetches dropped due to prefetch queue size"),
+    ADD_STAT(pfSpanPage, "number of prefetches that crossed the page")
+    {
 
-void
-Queued::regStats()
-{
-    Base::regStats();
+    }
 
-    pfIdentified
-        .name(name() + ".pfIdentified")
-        .desc("number of prefetch candidates identified");
 
-    pfBufferHit
-        .name(name() + ".pfBufferHit")
-        .desc("number of redundant prefetches already in prefetch queue");
-
-    pfInCache
-        .name(name() + ".pfInCache")
-        .desc("number of redundant prefetches already in cache/mshr dropped");
-
-    pfRemovedFull
-        .name(name() + ".pfRemovedFull")
-        .desc("number of prefetches dropped due to prefetch queue size");
-
-    pfSpanPage
-        .name(name() + ".pfSpanPage")
-        .desc("number of prefetches that crossed the page");
-}
 
 
 void
@@ -285,7 +274,7 @@ Queued::translationComplete(DeferredPacket *dp, bool failed)
         // check if this prefetch is already redundant
         if (cacheSnoop && (inCache(target_paddr, it->pfInfo.isSecure()) ||
                     inMissQueue(target_paddr, it->pfInfo.isSecure()))) {
-            pfInCache++;
+            stats.pfInCache++;
             DPRINTF(HWPrefetch, "Dropping redundant in "
                     "cache/MSHR prefetch addr:%#x\n", target_paddr);
         } else {
@@ -314,7 +303,7 @@ Queued::alreadyInQueue(std::list<DeferredPacket> &queue,
 
     /* If the address is already in the queue, update priority and leave */
     if (it != queue.end()) {
-        pfBufferHit++;
+        stats.pfBufferHit++;
         if (it->priority < priority) {
             /* Update priority value and position in the queue */
             it->priority = priority;
@@ -421,7 +410,7 @@ Queued::insert(const PacketPtr &pkt, PrefetchInfo &new_pfi,
     if (has_target_pa && cacheSnoop &&
             (inCache(target_paddr, new_pfi.isSecure()) ||
             inMissQueue(target_paddr, new_pfi.isSecure()))) {
-        pfInCache++;
+        stats.pfInCache++;
         DPRINTF(HWPrefetch, "Dropping redundant in "
                 "cache/MSHR prefetch addr:%#x\n", target_paddr);
         return;
@@ -452,7 +441,7 @@ Queued::addToQueue(std::list<DeferredPacket> &queue,
 {
     /* Verify prefetch buffer space for request */
     if (queue.size() == queueSize) {
-        pfRemovedFull++;
+        stats.pfRemovedFull++;
         /* Lowest priority packet */
         iterator it = queue.end();
         panic_if (it == queue.begin(),

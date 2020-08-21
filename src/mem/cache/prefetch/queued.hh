@@ -166,13 +166,16 @@ class Queued : public Base
 
     /** Percentage of requests that can be throttled */
     const unsigned int throttleControlPct;
-
+    protected:
     // STATS
+    struct QueuedStats : public Stats::Group {
+    QueuedStats(Stats::Group *parent);
     Stats::Scalar pfIdentified;
     Stats::Scalar pfBufferHit;
     Stats::Scalar pfInCache;
     Stats::Scalar pfRemovedFull;
     Stats::Scalar pfSpanPage;
+    } stats;
 
   public:
     using AddrPriority = std::pair<Addr, int32_t>;
@@ -193,7 +196,6 @@ class Queued : public Base
         return pfq.empty() ? MaxTick : pfq.front().tick;
     }
 
-    void regStats() override;
 
   private:
 
