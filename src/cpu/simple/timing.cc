@@ -923,7 +923,7 @@ TimingSimpleCPU::updateCycleCounts()
 {
     const Cycles delta(curCycle() - previousCycle);
 
-    numCycles += delta;
+    stats_base.numCycles += delta;
 
     previousCycle = curCycle();
 }

@@ -213,7 +213,6 @@ BaseSimpleCPU::regStats()
 {
     using namespace Stats;
 
-    BaseCPU::regStats();
 
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         SimpleExecContext& t_info = *threadInfo[tid];
@@ -373,8 +372,8 @@ BaseSimpleCPU::regStats()
         }
 
         t_info.idleFraction = constant(1.0) - t_info.notIdleFraction;
-        t_info.numIdleCycles = t_info.idleFraction * numCycles;
-        t_info.numBusyCycles = t_info.notIdleFraction * numCycles;
+        t_info.numIdleCycles = t_info.idleFraction * stats_base.numCycles;
+        t_info.numBusyCycles = t_info.notIdleFraction * stats_base.numCycles;
 
         t_info.numBranches
             .name(thread_str + ".Branches")
