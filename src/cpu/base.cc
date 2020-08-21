@@ -129,7 +129,7 @@ BaseCPU::BaseCPU(Params *p, bool is_checker)
       interrupts(p->interrupts), numThreads(p->numThreads), system(p->system),
       previousCycle(0), previousState(CPU_STATE_SLEEP),
       functionTraceStream(nullptr), currentFunctionStart(0),
-      currentFunctionEnd(0), functionEntryTick(0),
+      currentFunctionEnd(0), functionEntryTick(0), stats_base(this),
       addressMonitor(p->numThreads),
       syscallRetryLatency(p->syscallRetryLatency),
       pwrGatingLatency(p->pwr_gating_latency),
@@ -364,39 +364,14 @@ BaseCPU::probeInstCommit(const StaticInstPtr &inst, Addr pc)
     if (inst->isControl())
         ppRetiredBranches->notify(1);
 }
+BaseCPU::BaseStatGroup::BaseStatGroup(BaseCPU *base)
+    : Stats::Group(base),
+    ADD_STAT(numCycles, "number of cpu cycles simulated"),
+    ADD_STAT(numWorkItemsStarted, "number of work items this cpu started"),
+    ADD_STAT(numWorkItemsCompleted, "number of work items this cpu completed")
+    {
 
-void
-BaseCPU::regStats()
-{
-    ClockedObject::regStats();
-
-    using namespace Stats;
-
-    numCycles
-        .name(name() + ".numCycles")
-        .desc("number of cpu cycles simulated")
-        ;
-
-    numWorkItemsStarted
-        .name(name() + ".numWorkItemsStarted")
-        .desc("number of work items this cpu started")
-        ;
-
-    numWorkItemsCompleted
-        .name(name() + ".numWorkItemsCompleted")
-        .desc("number of work items this cpu completed")
-        ;
-
-    int size = threadContexts.size();
-    if (size > 1) {
-        for (int i = 0; i < size; ++i) {
-            stringstream namestr;
-            ccprintf(namestr, "%s.ctx%d", name(), i);
-            threadContexts[i]->regStats(namestr.str());
-        }
-    } else if (size == 1)
-        threadContexts[0]->regStats(name());
-}
+    }
 
 Port &
 BaseCPU::getPort(const string &if_name, PortID idx)

@@ -208,8 +208,8 @@ class BaseCPU : public ClockedObject
     uint32_t getPid() const { return _pid; }
     void setPid(uint32_t pid) { _pid = pid; }
 
-    inline void workItemBegin() { numWorkItemsStarted++; }
-    inline void workItemEnd() { numWorkItemsCompleted++; }
+    inline void workItemBegin() { stats_base.numWorkItemsStarted++; }
+    inline void workItemEnd() { stats_base.numWorkItemsCompleted++; }
     // @todo remove me after debugging with legion done
     Tick instCount() { return instCnt; }
 
@@ -304,7 +304,6 @@ class BaseCPU : public ClockedObject
 
     void init() override;
     void startup() override;
-    void regStats() override;
 
     void regProbePoints() override;
 
@@ -588,10 +587,14 @@ class BaseCPU : public ClockedObject
     }
 
   public:
+  struct BaseStatGroup : public Stats::Group
+  {
+      BaseStatGroup(BaseCPU *base);
     // Number of CPU cycles simulated
-    Stats::Scalar numCycles;
-    Stats::Scalar numWorkItemsStarted;
-    Stats::Scalar numWorkItemsCompleted;
+      Stats::Scalar numCycles;
+      Stats::Scalar numWorkItemsStarted;
+      Stats::Scalar numWorkItemsCompleted;
+  } stats_base;
 
   private:
     std::vector<AddressMonitor> addressMonitor;
