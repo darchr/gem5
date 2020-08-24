@@ -108,4 +108,4 @@ class SouthBridge(SimObject):
         self.pit.pio = bus.master
         self.speaker.pio = bus.master
         self.io_apic.pio = bus.master
-        self.io_apic.int_master = bus.slave
+        self.io_apic.int_requestor = bus.slave

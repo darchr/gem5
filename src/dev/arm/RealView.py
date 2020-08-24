@@ -93,8 +93,9 @@ class AmbaDmaDevice(DmaDevice):
     type = 'AmbaDmaDevice'
     abstract = True
     cxx_header = "dev/arm/amba_device.hh"
-    pio_addr = Param.Addr("Address for AMBA slave interface")
-    pio_latency = Param.Latency("10ns", "Time between action and write/read result by AMBA DMA Device")
+    pio_addr = Param.Addr("Address for AMBA responder interface")
+    pio_latency = Param.Latency("10ns",
+        "Time between action and write/read result by AMBA DMA Device")
     interrupt = Param.ArmInterruptPin("Interrupt that connects to GIC")
     amba_id = Param.UInt32("ID of AMBA device for kernel detection")
 
