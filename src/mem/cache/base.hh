@@ -111,7 +111,7 @@ class BaseCache : public ClockedObject
   protected:
 
     /**
-     * A cache master port is used for the memory-side port of the
+     * A cache request port is used for the memory-side port of the
      * cache, and in addition to the basic timing port that only sends
      * response packets through a transmit list, it also offers the
      * ability to schedule and send request packets (requests &
@@ -202,7 +202,7 @@ class BaseCache : public ClockedObject
 
 
     /**
-     * The memory-side port extends the base cache master port with
+     * The memory-side port extends the base cache request port with
      * access functions for functional, atomic and timing snoops.
      */
     class MemSidePort : public CacheMasterPort
@@ -234,9 +234,9 @@ class BaseCache : public ClockedObject
     };
 
     /**
-     * A cache slave port is used for the CPU-side port of the cache,
+     * A cache response port is used for the CPU-side port of the cache,
      * and it is basically a simple timing port that uses a transmit
-     * list for responses to the CPU (or connected master). In
+     * list for responses to the CPU (or connected requestor). In
      * addition, it has the functionality to block the port for
      * incoming requests. If blocked, the port will issue a retry once
      * unblocked.
@@ -275,7 +275,7 @@ class BaseCache : public ClockedObject
     };
 
     /**
-     * The CPU-side port extends the base cache slave port with access
+     * The CPU-side port extends the base cache response port with access
      * functions for functional, atomic and timing requests.
      */
     class CpuSidePort : public CacheSlavePort
@@ -1154,7 +1154,7 @@ class BaseCache : public ClockedObject
 
     /**
      * Marks the access path of the cache as blocked for the given cause. This
-     * also sets the blocked flag in the slave interface.
+     * also sets the blocked flag in the response interface.
      * @param cause The reason for the cache blocking.
      */
     void setBlocked(BlockedCause cause)

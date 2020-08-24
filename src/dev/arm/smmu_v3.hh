@@ -88,10 +88,10 @@ class SMMUv3 : public ClockedObject
     friend class SMMUv3SlaveInterface;
 
     const System &system;
-    const MasterID masterId;
+    const MasterID _id;
 
-    SMMUMasterPort    masterPort;
-    SMMUMasterTableWalkPort masterTableWalkPort;
+    SMMUMasterPort    requestPort;
+    SMMUMasterTableWalkPort requestTableWalkPort;
     SMMUControlPort   controlPort;
 
     ARMArchTLB  tlb;
@@ -108,7 +108,7 @@ class SMMUv3 : public ClockedObject
     const bool walkCacheNonfinalEnable;
     const unsigned walkCacheS1Levels;
     const unsigned walkCacheS2Levels;
-    const unsigned masterPortWidth; // in bytes
+    const unsigned requestPortWidth; // in bytes
 
     SMMUSemaphore tlbSem;
     SMMUSemaphore ifcSmmuSem;
@@ -116,7 +116,7 @@ class SMMUv3 : public ClockedObject
     SMMUSemaphore configSem;
     SMMUSemaphore ipaSem;
     SMMUSemaphore walkSem;
-    SMMUSemaphore masterPortSem;
+    SMMUSemaphore requestPortSem;
 
     SMMUSemaphore transSem; // max N transactions in SMMU
     SMMUSemaphore ptwSem; // max N concurrent PTWs
@@ -138,7 +138,7 @@ class SMMUv3 : public ClockedObject
     Stats::Distribution translationTimeDist;
     Stats::Distribution ptwTimeDist;
 
-    std::vector<SMMUv3SlaveInterface *> slaveInterfaces;
+    std::vector<SMMUv3SlaveInterface *> respInterfaces;
 
     SMMUCommandExecProcess commandExecutor;
 

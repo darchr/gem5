@@ -105,12 +105,12 @@ BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
     // to insert the new one
 
     // Deal with what we are bringing in
-    MasterID master_id = pkt->req->masterId();
-    assert(master_id < system->maxMasters());
-    stats.occupancies[master_id]++;
+    MasterID unique_id = pkt->req->masterId();
+    assert(unique_id < system->maxMasters());
+    stats.occupancies[unique_id]++;
 
-    // Insert block with tag, src master id and task id
-    blk->insert(extractTag(pkt->getAddr()), pkt->isSecure(), master_id,
+    // Insert block with tag, src unique id and task id
+    blk->insert(extractTag(pkt->getAddr()), pkt->isSecure(), unique_id,
                 pkt->req->taskId());
 
     // Check if cache warm up is done

@@ -114,7 +114,7 @@ BaseCache::BaseCache(const BaseCacheParams *p, unsigned blk_size)
     // buffer before committing to an MSHR
 
     // forward snoops is overridden in init() once we can query
-    // whether the connected master is actually snooping or not
+    // whether the connected requestor is actually snooping or not
 
     tempBlock = new TempCacheBlk(blkSize);
 
@@ -1488,10 +1488,10 @@ BaseCache::writebackBlk(CacheBlk *blk)
                   "Writeback from read-only cache");
     assert(blk && blk->isValid() && (blk->isDirty() || writebackClean));
 
-    stats.writebacks[Request::wbMasterId]++;
+    stats.writebacks[Request::wbUniqueId]++;
 
     RequestPtr req = std::make_shared<Request>(
-        regenerateBlkAddr(blk), blkSize, 0, Request::wbMasterId);
+        regenerateBlkAddr(blk), blkSize, 0, Request::wbUniqueId);
 
     if (blk->isSecure())
         req->setFlags(Request::SECURE);
@@ -1533,7 +1533,7 @@ PacketPtr
 BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
 {
     RequestPtr req = std::make_shared<Request>(
-        regenerateBlkAddr(blk), blkSize, 0, Request::wbMasterId);
+        regenerateBlkAddr(blk), blkSize, 0, Request::wbUniqueId);
 
     if (blk->isSecure()) {
         req->setFlags(Request::SECURE);
@@ -1606,7 +1606,7 @@ BaseCache::writebackVisitor(CacheBlk &blk)
         assert(blk.isValid());
 
         RequestPtr request = std::make_shared<Request>(
-            regenerateBlkAddr(&blk), blkSize, 0, Request::funcMasterId);
+            regenerateBlkAddr(&blk), blkSize, 0, Request::funcUniqueId);
 
         request->taskId(blk.task_id);
         if (blk.isSecure()) {
@@ -1868,98 +1868,98 @@ BaseCache::CacheCmdStats::regStatsFromParent()
 
     Stats::Group::regStats();
     System *system = cache.system;
-    const auto max_masters = system->maxMasters();
+    const auto max_requestors = system->maxMasters();
 
     hits
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         hits.subname(i, system->getMasterName(i));
     }
 
     // Miss statistics
     misses
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         misses.subname(i, system->getMasterName(i));
     }
 
     // Miss latency statistics
     missLatency
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         missLatency.subname(i, system->getMasterName(i));
     }
 
     // access formulas
     accesses.flags(total | nozero | nonan);
     accesses = hits + misses;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         accesses.subname(i, system->getMasterName(i));
     }
 
     // miss rate formulas
     missRate.flags(total | nozero | nonan);
     missRate = misses / accesses;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         missRate.subname(i, system->getMasterName(i));
     }
 
     // miss latency formulas
     avgMissLatency.flags(total | nozero | nonan);
     avgMissLatency = missLatency / misses;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         avgMissLatency.subname(i, system->getMasterName(i));
     }
 
     // MSHR statistics
     // MSHR hit statistics
     mshr_hits
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         mshr_hits.subname(i, system->getMasterName(i));
     }
 
     // MSHR miss statistics
     mshr_misses
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         mshr_misses.subname(i, system->getMasterName(i));
     }
 
     // MSHR miss latency statistics
     mshr_miss_latency
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         mshr_miss_latency.subname(i, system->getMasterName(i));
     }
 
     // MSHR uncacheable statistics
     mshr_uncacheable
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         mshr_uncacheable.subname(i, system->getMasterName(i));
     }
 
     // MSHR miss latency statistics
     mshr_uncacheable_lat
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         mshr_uncacheable_lat.subname(i, system->getMasterName(i));
     }
 
@@ -1967,21 +1967,21 @@ BaseCache::CacheCmdStats::regStatsFromParent()
     mshrMissRate.flags(total | nozero | nonan);
     mshrMissRate = mshr_misses / accesses;
 
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         mshrMissRate.subname(i, system->getMasterName(i));
     }
 
     // mshrMiss latency formulas
     avgMshrMissLatency.flags(total | nozero | nonan);
     avgMshrMissLatency = mshr_miss_latency / mshr_misses;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         avgMshrMissLatency.subname(i, system->getMasterName(i));
     }
 
     // mshrUncacheable latency formulas
     avgMshrUncacheableLatency.flags(total | nozero | nonan);
     avgMshrUncacheableLatency = mshr_uncacheable_lat / mshr_uncacheable;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         avgMshrUncacheableLatency.subname(i, system->getMasterName(i));
     }
 }
@@ -2063,7 +2063,7 @@ BaseCache::CacheStats::regStats()
     Stats::Group::regStats();
 
     System *system = cache.system;
-    const auto max_masters = system->maxMasters();
+    const auto max_requestors = system->maxMasters();
 
     for (auto &cs : cmd)
         cs->regStatsFromParent();
@@ -2083,73 +2083,73 @@ BaseCache::CacheStats::regStats()
 
     demandHits.flags(total | nozero | nonan);
     demandHits = SUM_DEMAND(hits);
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         demandHits.subname(i, system->getMasterName(i));
     }
 
     overallHits.flags(total | nozero | nonan);
     overallHits = demandHits + SUM_NON_DEMAND(hits);
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         overallHits.subname(i, system->getMasterName(i));
     }
 
     demandMisses.flags(total | nozero | nonan);
     demandMisses = SUM_DEMAND(misses);
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         demandMisses.subname(i, system->getMasterName(i));
     }
 
     overallMisses.flags(total | nozero | nonan);
     overallMisses = demandMisses + SUM_NON_DEMAND(misses);
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         overallMisses.subname(i, system->getMasterName(i));
     }
 
     demandMissLatency.flags(total | nozero | nonan);
     demandMissLatency = SUM_DEMAND(missLatency);
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         demandMissLatency.subname(i, system->getMasterName(i));
     }
 
     overallMissLatency.flags(total | nozero | nonan);
     overallMissLatency = demandMissLatency + SUM_NON_DEMAND(missLatency);
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         overallMissLatency.subname(i, system->getMasterName(i));
     }
 
     demandAccesses.flags(total | nozero | nonan);
     demandAccesses = demandHits + demandMisses;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         demandAccesses.subname(i, system->getMasterName(i));
     }
 
     overallAccesses.flags(total | nozero | nonan);
     overallAccesses = overallHits + overallMisses;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         overallAccesses.subname(i, system->getMasterName(i));
     }
 
     demandMissRate.flags(total | nozero | nonan);
     demandMissRate = demandMisses / demandAccesses;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         demandMissRate.subname(i, system->getMasterName(i));
     }
 
     overallMissRate.flags(total | nozero | nonan);
     overallMissRate = overallMisses / overallAccesses;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         overallMissRate.subname(i, system->getMasterName(i));
     }
 
     demandAvgMissLatency.flags(total | nozero | nonan);
     demandAvgMissLatency = demandMissLatency / demandMisses;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         demandAvgMissLatency.subname(i, system->getMasterName(i));
     }
 
     overallAvgMissLatency.flags(total | nozero | nonan);
     overallAvgMissLatency = overallMissLatency / overallMisses;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         overallAvgMissLatency.subname(i, system->getMasterName(i));
     }
 
@@ -2175,54 +2175,54 @@ BaseCache::CacheStats::regStats()
     unusedPrefetches.flags(nozero);
 
     writebacks
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         writebacks.subname(i, system->getMasterName(i));
     }
 
     demandMshrHits.flags(total | nozero | nonan);
     demandMshrHits = SUM_DEMAND(mshr_hits);
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         demandMshrHits.subname(i, system->getMasterName(i));
     }
 
     overallMshrHits.flags(total | nozero | nonan);
     overallMshrHits = demandMshrHits + SUM_NON_DEMAND(mshr_hits);
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         overallMshrHits.subname(i, system->getMasterName(i));
     }
 
     demandMshrMisses.flags(total | nozero | nonan);
     demandMshrMisses = SUM_DEMAND(mshr_misses);
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         demandMshrMisses.subname(i, system->getMasterName(i));
     }
 
     overallMshrMisses.flags(total | nozero | nonan);
     overallMshrMisses = demandMshrMisses + SUM_NON_DEMAND(mshr_misses);
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         overallMshrMisses.subname(i, system->getMasterName(i));
     }
 
     demandMshrMissLatency.flags(total | nozero | nonan);
     demandMshrMissLatency = SUM_DEMAND(mshr_miss_latency);
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         demandMshrMissLatency.subname(i, system->getMasterName(i));
     }
 
     overallMshrMissLatency.flags(total | nozero | nonan);
     overallMshrMissLatency =
         demandMshrMissLatency + SUM_NON_DEMAND(mshr_miss_latency);
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         overallMshrMissLatency.subname(i, system->getMasterName(i));
     }
 
     overallMshrUncacheable.flags(total | nozero | nonan);
     overallMshrUncacheable =
         SUM_DEMAND(mshr_uncacheable) + SUM_NON_DEMAND(mshr_uncacheable);
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         overallMshrUncacheable.subname(i, system->getMasterName(i));
     }
 
@@ -2231,38 +2231,38 @@ BaseCache::CacheStats::regStats()
     overallMshrUncacheableLatency =
         SUM_DEMAND(mshr_uncacheable_lat) +
         SUM_NON_DEMAND(mshr_uncacheable_lat);
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         overallMshrUncacheableLatency.subname(i, system->getMasterName(i));
     }
 
     demandMshrMissRate.flags(total | nozero | nonan);
     demandMshrMissRate = demandMshrMisses / demandAccesses;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         demandMshrMissRate.subname(i, system->getMasterName(i));
     }
 
     overallMshrMissRate.flags(total | nozero | nonan);
     overallMshrMissRate = overallMshrMisses / overallAccesses;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         overallMshrMissRate.subname(i, system->getMasterName(i));
     }
 
     demandAvgMshrMissLatency.flags(total | nozero | nonan);
     demandAvgMshrMissLatency = demandMshrMissLatency / demandMshrMisses;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         demandAvgMshrMissLatency.subname(i, system->getMasterName(i));
     }
 
     overallAvgMshrMissLatency.flags(total | nozero | nonan);
     overallAvgMshrMissLatency = overallMshrMissLatency / overallMshrMisses;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         overallAvgMshrMissLatency.subname(i, system->getMasterName(i));
     }
 
     overallAvgMshrUncacheableLatency.flags(total | nozero | nonan);
     overallAvgMshrUncacheableLatency =
         overallMshrUncacheableLatency / overallMshrUncacheable;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         overallAvgMshrUncacheableLatency.subname(i, system->getMasterName(i));
     }
 
@@ -2290,7 +2290,7 @@ BaseCache::CpuSidePort::recvTimingSnoopResp(PacketPtr pkt)
 
     assert(pkt->isResponse());
 
-    // Express snoop responses from master to slave, e.g., from L1 to L2
+    // Express snoop responses from requestor to responder, e.g., from L1 to L2
     cache->recvTimingSnoopResp(pkt);
     return true;
 }

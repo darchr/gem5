@@ -238,11 +238,11 @@ Checker<Impl>::verify(const DynInstPtr &completed_inst)
             if (!curMacroStaticInst) {
                 // set up memory request for instruction fetch
                 auto mem_req = std::make_shared<Request>(
-                    fetch_PC, sizeof(MachInst), 0, masterId, fetch_PC,
+                    fetch_PC, sizeof(MachInst), 0, _id, fetch_PC,
                     thread->contextId());
 
                 mem_req->setVirt(fetch_PC, sizeof(MachInst),
-                                 Request::INST_FETCH, masterId,
+                                 Request::INST_FETCH, _id,
                                  thread->instAddr());
 
                 fault = itb->translateFunctional(

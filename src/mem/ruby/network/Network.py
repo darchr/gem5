@@ -49,5 +49,7 @@ class RubyNetwork(ClockedObject):
     ext_links = VectorParam.BasicExtLink("Links to external nodes")
     int_links = VectorParam.BasicIntLink("Links between internal nodes")
 
-    slave = VectorSlavePort("CPU slave port")
-    master = VectorMasterPort("CPU master port")
+    in_port = VectorSlavePort("CPU slave port")
+    slave = DeprecatedParam(in_port, '`slave` is now called `in_port`')
+    out_port = VectorMasterPort("CPU master port")
+    master = DeprecatedParam(out_port, '`master` is now called `out_port`')

@@ -65,16 +65,16 @@ class SMMUv3SlaveInterface : public ClockedObject
     const bool microTLBEnable;
     const bool mainTLBEnable;
 
-    SMMUSemaphore slavePortSem;
+    SMMUSemaphore responsePortSem;
     SMMUSemaphore microTLBSem;
     SMMUSemaphore mainTLBSem;
 
     const Cycles microTLBLat;
     const Cycles mainTLBLat;
 
-    SMMUSlavePort *slavePort;
-    SMMUATSSlavePort  atsSlavePort;
-    SMMUATSMasterPort atsMasterPort;
+    SMMUSlavePort *responsePort;
+    SMMUATSSlavePort  atsResponsePort;
+    SMMUATSMasterPort atsRequestPort;
 
     // in bytes
     const unsigned portWidth;
@@ -93,7 +93,7 @@ class SMMUv3SlaveInterface : public ClockedObject
     std::list<SMMUTranslationProcess *> dependentWrites[SMMU_MAX_TRANS_ID];
     SMMUSignal dependentReqRemoved;
 
-    // Receiving translation requests from the master device
+    // Receiving translation requests from the requestor device
     Tick recvAtomic(PacketPtr pkt);
     bool recvTimingReq(PacketPtr pkt);
     void schedTimingResp(PacketPtr pkt);

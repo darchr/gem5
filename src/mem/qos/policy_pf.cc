@@ -55,30 +55,30 @@ PropFairPolicy::~PropFairPolicy()
 
 template <typename Master>
 void
-PropFairPolicy::initMaster(const Master master, const double score)
+PropFairPolicy::initMaster(const Master requestor, const double score)
 {
-    MasterID m_id = memCtrl->system()->lookupMasterId(master);
+    MasterID id = memCtrl->system()->lookupMasterId(requestor);
 
-    assert(m_id != Request::invldMasterId);
+    assert(id != Request::invldUniqueId);
 
-    // Setting the Initial score for the selected master.
-    history.push_back(std::make_pair(m_id, score));
+    // Setting the Initial score for the selected requestor.
+    history.push_back(std::make_pair(id, score));
 
     fatal_if(history.size() > memCtrl->numPriorities(),
-        "Policy's maximum number of masters is currently dictated "
+        "Policy's maximum number of requestors is currently dictated "
         "by the maximum number of priorities\n");
 }
 
 void
-PropFairPolicy::initMasterName(const std::string master, const double score)
+PropFairPolicy::initMasterName(const std::string requestor, const double score)
 {
-    initMaster(master, score);
+    initMaster(requestor, score);
 }
 
 void
-PropFairPolicy::initMasterObj(const SimObject* master, const double score)
+PropFairPolicy::initMasterObj(const SimObject* requestor, const double score)
 {
-    initMaster(master, score);
+    initMaster(requestor, score);
 }
 
 double
@@ -89,7 +89,7 @@ PropFairPolicy::updateScore(
 }
 
 uint8_t
-PropFairPolicy::schedule(const MasterID pkt_mid, const uint64_t pkt_size)
+PropFairPolicy::schedule(const MasterID pkt_id, const uint64_t pkt_size)
 {
     auto sort_pred =
     [] (const MasterHistory& lhs, const MasterHistory& rhs)
@@ -105,10 +105,10 @@ PropFairPolicy::schedule(const MasterID pkt_mid, const uint64_t pkt_size)
     uint8_t pkt_priority = 0;
     for (auto m_hist = history.begin(); m_hist != history.end(); m_hist++) {
 
-        MasterID curr_mid = m_hist->first;
+        MasterID curr_id = m_hist->first;
         double& curr_score = m_hist->second;
 
-        if (curr_mid == pkt_mid) {
+        if (curr_id == pkt_id) {
             // The qos priority is the position in the sorted vector.
             pkt_priority = std::distance(history.begin(), m_hist);
 

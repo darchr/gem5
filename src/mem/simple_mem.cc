@@ -260,7 +260,7 @@ SimpleMemory::drain()
 
 SimpleMemory::MemoryPort::MemoryPort(const std::string& _name,
                                      SimpleMemory& _memory)
-    : SlavePort(_name, &_memory), memory(_memory)
+    : ResponsePort(_name, &_memory), memory(_memory)
 { }
 
 AddrRangeList

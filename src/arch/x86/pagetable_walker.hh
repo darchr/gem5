@@ -168,7 +168,7 @@ namespace X86ISA
         // The TLB we're supposed to load.
         TLB * tlb;
         System * sys;
-        MasterID masterId;
+        MasterID _id;
 
         // The number of outstanding walks that can be squashed per cycle.
         unsigned numSquashable;
@@ -204,7 +204,7 @@ namespace X86ISA
         Walker(const Params *params) :
             ClockedObject(params), port(name() + ".port", this),
             funcState(this, NULL, NULL, true), tlb(NULL), sys(params->system),
-            masterId(sys->getMasterId(this)),
+            _id(sys->getMasterId(this)),
             numSquashable(params->num_squash_per_cycle),
             startWalkWrapperEvent([this]{ startWalkWrapper(); }, name())
         {

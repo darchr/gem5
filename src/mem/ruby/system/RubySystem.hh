@@ -142,7 +142,7 @@ class RubySystem : public ClockedObject
     Cycles m_start_cycle;
 
     std::unordered_map<MachineID, unsigned> machineToNetwork;
-    std::unordered_map<MasterID, unsigned> masterToNetwork;
+    std::unordered_map<MasterID, unsigned> requestorToNetwork;
     std::unordered_map<unsigned, std::vector<AbstractController*>> netCntrls;
 
   public:

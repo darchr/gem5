@@ -171,7 +171,7 @@ class TlmToGem5Bridge : public TlmToGem5BridgeBase
 
     void before_end_of_elaboration() override;
 
-    const MasterID masterId;
+    const MasterID _id;
 };
 
 } // namespace sc_gem5

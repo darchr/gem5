@@ -45,10 +45,30 @@
 
 /**
  * An address mapper changes the packet addresses in going from the
- * slave port side of the mapper to the master port side. When the
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+ * response port side of the mapper to the request port side. When the
+ * response port is queried for the address ranges, it also performs the
+ * necessary range updates. Note that snoop requests that travel from
+ * the request port (i.e. the memory side) to the response port are
+=======
+=======
+>>>>>>> 01304339d... mem: comments
+ * slave port side of the mapper to the request port side. When the
  * slave port is queried for the address ranges, it also performs the
  * necessary range updates. Note that snoop requests that travel from
- * the master port (i.e. the memory side) to the slave port are
+ * the request port (i.e. the memory side) to the slave port are
+<<<<<<< HEAD
+>>>>>>> 01304339d... mem: comments
+=======
+ * response port side of the mapper to the request port side. When the
+ * response port is queried for the address ranges, it also performs the
+ * necessary range updates. Note that snoop requests that travel from
+ * the request port (i.e. the memory side) to the response port are
+>>>>>>> b0c484be1... mem: Update master/slave variables -edit
+=======
+>>>>>>> 01304339d... mem: comments
  * currently not modified.
  */
 
@@ -150,8 +170,8 @@ class AddrMapper : public SimObject
 
     };
 
-    /** Instance of master port, facing the memory side */
-    MapperMasterPort masterPort;
+    /** Instance of request port, facing the memory side */
+    MapperMasterPort mem_side;
 
     class MapperSlavePort : public ResponsePort
     {
@@ -200,8 +220,8 @@ class AddrMapper : public SimObject
 
     };
 
-    /** Instance of slave port, i.e. on the CPU side */
-    MapperSlavePort slavePort;
+    /** Instance of response port, i.e. on the CPU side */
+    MapperSlavePort cpu_side;
 
     void recvFunctional(PacketPtr pkt);
 

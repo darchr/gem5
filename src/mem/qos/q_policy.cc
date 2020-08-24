@@ -67,7 +67,7 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
 {
     QueuePolicy::PacketQueue::iterator ret = q->end();
 
-    // Tracks one packet per master in the queue
+    // Tracks one packet per requestor in the queue
     std::unordered_map<MasterID, QueuePolicy::PacketQueue::iterator> track;
 
     // Cycle queue only once
@@ -83,16 +83,16 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
         DPRINTF(QOS, "QoSQPolicy::lrg checking packet "
                      "from queue with id %d\n", m_id);
 
-        // Check if this is a known master.
+        // Check if this is a known requestor.
         panic_if(memCtrl->hasMaster(m_id),
-                 "%s: Unrecognized Master\n", __func__);
+                 "%s: Unrecognized Requestor\n", __func__);
 
         panic_if(toServe.size() > 0,
                  "%s: toServe list is empty\n", __func__);
 
         if (toServe.front() == m_id) {
             DPRINTF(QOS, "QoSQPolicy::lrg matched to served "
-                         "master id %d\n", m_id);
+                         "unique id %d\n", m_id);
             // This packet matches the MasterID to be served next
             // move toServe front to back
             toServe.push_back(m_id);
@@ -101,28 +101,28 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
             return pkt_it;
         }
 
-        // The master generating the packet is not first in the toServe list
-        // (Doesn't have the highest priority among masters)
-        // Check if this is the first packet seen with its master ID
+        // The requestor generating the packet is not first in the toServe list
+        // (Doesn't have the highest priority among requestors)
+        // Check if this is the first packet seen with its unique id
         // and remember it. Then keep looping over the remaining packets
         // in the queue.
         if (track.find(m_id) == track.end()) {
             track[m_id] = pkt_it;
             DPRINTF(QOS, "QoSQPolicy::lrg tracking a packet for "
-                         "master id %d\n", m_id);
+                         "unique id %d\n", m_id);
         }
     }
 
-    // If here, the current master to be serviced doesn't have a pending
-    // packet in the queue: look for the next master in the list.
-    for (const auto& masterId : toServe) {
+    // If here, the current requestor to be serviced doesn't have a pending
+    // packet in the queue: look for the next requestor in the list.
+    for (const auto& uniqueId : toServe) {
         DPRINTF(QOS, "QoSQPolicy::lrg evaluating alternative "
-                     "master id %d\n", masterId);
+                     "unique id %d\n", uniqueId);
 
-        if (track.find(masterId) != track.end()) {
-            ret = track[masterId];
-            DPRINTF(QOS, "QoSQPolicy::lrg master id "
-                         "%d selected for service\n", masterId);
+        if (track.find(uniqueId) != track.end()) {
+            ret = track[uniqueId];
+            DPRINTF(QOS, "QoSQPolicy::lrg unique id "
+                         "%d selected for service\n", uniqueId);
 
             return ret;
         }

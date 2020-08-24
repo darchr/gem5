@@ -130,7 +130,7 @@ class GarnetSyntheticTraffic : public ClockedObject
 
     const Cycles responseLimit;
 
-    MasterID masterId;
+    MasterID _id;
 
     void completeRequest(PacketPtr pkt);
 

@@ -66,7 +66,7 @@ class QoSMemCtrl(AbstractMemory):
         "Memory Controller Requests same-QoS selection policy")
 
     # flag to select QoS syncronised scheduling
-    # (calls the scheduler on all masters at every packet arrival)
+    # (calls the scheduler on all requestors at every packet arrival)
     qos_syncro_scheduler = Param.Bool(False,
         "Enables QoS syncronized scheduling")
 
@@ -74,6 +74,6 @@ class QoSMemCtrl(AbstractMemory):
     qos_priority_escalation = Param.Bool(False,
         "Enables QoS priority escalation")
 
-    # Master ID to be mapped to service parameters in QoS schedulers
-    qos_masters = VectorParam.String(['']* 16,
-        "Master Names to be mapped to service parameters in QoS scheduler")
+    # Requestor ID to be mapped to service parameters in QoS schedulers
+    qos_requestors = VectorParam.String(['']* 16,
+        "Requestor Names to be mapped to service parameters in QoS scheduler")

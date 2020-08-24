@@ -112,9 +112,9 @@ class CommMonitor : public SimObject
     };
 
     /**
-     * This is the master port of the communication monitor. All recv
+     * This is the request port of the communication monitor. All recv
      * functions call a function in CommMonitor, where the
-     * send function of the slave port is called. Besides this, these
+     * send function of the cpu_side port is called. Besides this, these
      * functions can also perform actions for capturing statistics.
      */
     class MonitorMasterPort : public RequestPort
@@ -174,13 +174,13 @@ class CommMonitor : public SimObject
 
     };
 
-    /** Instance of master port, facing the memory side */
-    MonitorMasterPort masterPort;
+    /** Instance of request port, facing the memory side */
+    MonitorMasterPort mem_side_port;
 
     /**
-     * This is the slave port of the communication monitor. All recv
+     * This is the cpu_side port of the communication monitor. All recv
      * functions call a function in CommMonitor, where the
-     * send function of the master port is called. Besides this, these
+     * send function of the request port is called. Besides this, these
      * functions can also perform actions for capturing statistics.
      */
     class MonitorSlavePort : public ResponsePort
@@ -235,8 +235,8 @@ class CommMonitor : public SimObject
 
     };
 
-    /** Instance of slave port, i.e. on the CPU side */
-    MonitorSlavePort slavePort;
+    /** Instance of cpu_side port, i.e. on the CPU side */
+    MonitorSlavePort cpu_side_port;
 
     void recvFunctional(PacketPtr pkt);
 
