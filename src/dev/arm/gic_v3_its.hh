@@ -319,7 +319,7 @@ class Gicv3Its : public BasicPioDevice
 
   private:
     std::queue<ItsAction> packetsToRetry;
-    uint32_t masterId;
+    uint32_t _id;
     Gicv3 *gic;
     EventFunctionWrapper commandEvent;
 
