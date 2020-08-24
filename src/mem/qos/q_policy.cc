@@ -119,10 +119,10 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
         DPRINTF(QOS, "QoSQPolicy::lrg evaluating alternative "
                      "unique id %d\n", uniqueId);
 
-        if (track.find(masterId) != track.end()) {
-            ret = track[masterId];
-            DPRINTF(QOS, "QoSQPolicy::lrg master id "
-                         "%d selected for service\n", masterId);
+        if (track.find(uniqueId) != track.end()) {
+            ret = track[uniqueId];
+            DPRINTF(QOS, "QoSQPolicy::lrg unique id "
+                         "%d selected for service\n", uniqueId);
 
             return ret;
         }
