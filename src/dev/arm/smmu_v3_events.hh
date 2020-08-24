@@ -41,15 +41,15 @@
 #include <base/types.hh>
 #include <sim/eventq.hh>
 
-class SMMUv3SlaveInterface;
+class SMMUv3DeviceInterface;
 
 class SMMUDeviceRetryEvent : public Event
 {
   private:
-    SMMUv3SlaveInterface &smmuIfc;
+    SMMUv3DeviceInterface &smmuIfc;
 
   public:
-    SMMUDeviceRetryEvent(SMMUv3SlaveInterface &ifc)
+    SMMUDeviceRetryEvent(SMMUv3DeviceInterface &ifc)
         : smmuIfc(ifc)
     {}
 

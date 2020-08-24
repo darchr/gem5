@@ -37,7 +37,7 @@
 
 /**
  * @file
- * MasterInfo declaration.
+ * RequestorInfo declaration.
  */
 
 #ifndef __MEM_MEM_MASTER_HH__
@@ -47,24 +47,24 @@
 #include "sim/sim_object.hh"
 
 /**
- * The MasterInfo class contains data about a specific master.
+ * The RequestorInfo class contains data about a specific master.
  */
-struct MasterInfo
+struct RequestorInfo
 {
-    MasterInfo(const SimObject* _obj,
-               std::string master_name,
-               MasterID master_id)
-      : obj(_obj), masterName(master_name), masterId(master_id)
+    RequestorInfo(const SimObject* _obj,
+               std::string requestor_name,
+               RequestorID requestor_id)
+      : obj(_obj), req_name(requestor_name), id(requestor_id)
     {}
 
-    /** SimObject related to the Master */
+    /** SimObject related to the Requestor */
     const SimObject* obj;
 
-    /** Master Name */
-    std::string masterName;
+    /** Requestor Name */
+    std::string req_name;
 
-    /** Master ID */
-    MasterID masterId;
+    /** Requestor id */
+    RequestorID id;
 };
 
 #endif // __MEM_MEM_MASTER_HH__
