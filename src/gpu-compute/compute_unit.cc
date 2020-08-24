@@ -171,7 +171,7 @@ ComputeUnit::ComputeUnit(const Params *p) : ClockedObject(p),
 
     memPort.resize(wfSize());
 
-    // Setup tokens for slave ports. The number of tokens in memSlaveTokens
+    // Setup tokens for response ports. The number of tokens in memSlaveTokens
     // is the total token count for the entire vector port (i.e., this CU).
     memPortTokens = new TokenManager(p->max_cu_tokens);
 
@@ -1523,7 +1523,7 @@ ComputeUnit::DTLBPort::recvTimingResp(PacketPtr pkt)
     }
 
     // First we must convert the response cmd back to a request cmd so that
-    // the request can be sent through the cu's master port
+    // the request can be sent through the cu's request port
     PacketPtr new_pkt = new Packet(pkt->req, requestCmd);
     new_pkt->dataStatic(pkt->getPtr<uint8_t>());
     delete pkt->senderState;
@@ -1746,7 +1746,7 @@ ComputeUnit::ITLBPort::recvTimingResp(PacketPtr pkt)
     if (success) {
         // pkt is reused in fetch(), don't delete it here.  However, we must
         // reset the command to be a request so that it can be sent through
-        // the cu's master port
+        // the cu's request port
         assert(pkt->cmd == MemCmd::ReadResp);
         pkt->cmd = MemCmd::ReadReq;
 
