@@ -77,7 +77,7 @@ Stride::Stride(const StridePrefetcherParams *p)
   : Queued(p),
     initConfidence(p->confidence_counter_bits, p->initial_confidence),
     threshConf(p->confidence_threshold/100.0),
-    useMasterId(p->use_master_id),
+    useUniqueId(p->use_requestor_id),
     degree(p->degree),
     pcTableInfo(p->table_assoc, p->table_entries, p->table_indexing_policy,
         p->table_replacement_policy)
@@ -124,7 +124,7 @@ Stride::calculatePrefetch(const PrefetchInfo &pfi,
     Addr pf_addr = pfi.getAddr();
     Addr pc = pfi.getPC();
     bool is_secure = pfi.isSecure();
-    MasterID unique_id = useMasterId ? pfi.getMasterId() : 0;
+    MasterID unique_id = useUniqueId ? pfi.getMasterId() : 0;
 
     // Get corresponding pc table
     PCTable* pcTable = findTable(unique_id);

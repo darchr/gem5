@@ -109,7 +109,7 @@ BaseTags::insertBlock(const PacketPtr pkt, CacheBlk *blk)
     assert(unique_id < system->maxMasters());
     stats.occupancies[unique_id]++;
 
-    // Insert block with tag, src master id and task id
+    // Insert block with tag, src unique id and task id
     blk->insert(extractTag(pkt->getAddr()), pkt->isSecure(), unique_id,
                 pkt->req->taskId());
 
