@@ -830,7 +830,7 @@ class TableWalker : public ClockedObject
     DmaPort* port;
 
     /** Master id assigned by the MMU. */
-    MasterID masterId;
+    MasterID _id;
 
     /** Indicates whether this table walker is part of the stage 2 mmu */
     const bool isStage2;
@@ -912,7 +912,7 @@ class TableWalker : public ClockedObject
 
     void setTlb(TLB *_tlb) { tlb = _tlb; }
     TLB* getTlb() { return tlb; }
-    void setMMU(Stage2MMU *m, MasterID master_id);
+    void setMMU(Stage2MMU *m, MasterID unique_id);
     void memAttrs(ThreadContext *tc, TlbEntry &te, SCTLR sctlr,
                   uint8_t texcb, bool s);
     void memAttrsLPAE(ThreadContext *tc, TlbEntry &te,
