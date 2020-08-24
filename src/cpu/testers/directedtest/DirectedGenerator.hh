@@ -49,7 +49,7 @@ class DirectedGenerator : public SimObject
 
   protected:
     int m_num_cpus;
-    MasterID masterId;
+    MasterID _id;
     RubyDirectedTester* m_directed_tester;
 };
 
