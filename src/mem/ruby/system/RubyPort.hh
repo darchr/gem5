@@ -130,7 +130,8 @@ class RubyPort : public ClockedObject
         Tick recvAtomic(PacketPtr pkt);
 
         void recvFunctional(PacketPtr pkt)
-        { panic("recvFunctional should never be called on pio slave port!"); }
+        { panic("recvFunctional should never be called on pio response "
+                "port!"); }
 
         AddrRangeList getAddrRanges() const;
     };

@@ -126,14 +126,14 @@ RubyPort::PioMasterPort::PioMasterPort(const std::string &_name,
     : QueuedMasterPort(_name, _port, reqQueue, snoopRespQueue),
       reqQueue(*_port, *this), snoopRespQueue(*_port, *this)
 {
-    DPRINTF(RubyPort, "Created master pioport on sequencer %s\n", _name);
+    DPRINTF(RubyPort, "Created request pioport on sequencer %s\n", _name);
 }
 
 RubyPort::PioSlavePort::PioSlavePort(const std::string &_name,
                            RubyPort *_port)
     : QueuedSlavePort(_name, _port, queue), queue(*_port, *this)
 {
-    DPRINTF(RubyPort, "Created slave pioport on sequencer %s\n", _name);
+    DPRINTF(RubyPort, "Created response pioport on sequencer %s\n", _name);
 }
 
 RubyPort::MemMasterPort::MemMasterPort(const std::string &_name,
@@ -141,7 +141,7 @@ RubyPort::MemMasterPort::MemMasterPort(const std::string &_name,
     : QueuedMasterPort(_name, _port, reqQueue, snoopRespQueue),
       reqQueue(*_port, *this), snoopRespQueue(*_port, *this)
 {
-    DPRINTF(RubyPort, "Created master memport on ruby sequencer %s\n", _name);
+    DPRINTF(RubyPort, "Created request memport on ruby sequencer %s\n", _name);
 }
 
 RubyPort::MemSlavePort::MemSlavePort(const std::string &_name, RubyPort *_port,
@@ -151,7 +151,8 @@ RubyPort::MemSlavePort::MemSlavePort(const std::string &_name, RubyPort *_port,
       access_backing_store(_access_backing_store),
       no_retry_on_stall(_no_retry_on_stall)
 {
-    DPRINTF(RubyPort, "Created slave memport on ruby sequencer %s\n", _name);
+    DPRINTF(RubyPort, "Created response memport on ruby sequencer %s\n",
+            _name);
 }
 
 bool
@@ -585,7 +586,7 @@ RubyPort::MemSlavePort::hitCallback(PacketPtr pkt)
 AddrRangeList
 RubyPort::PioSlavePort::getAddrRanges() const
 {
-    // at the moment the assumption is that the master does not care
+    // at the moment the assumption is that the requestor does not care
     AddrRangeList ranges;
     RubyPort *ruby_port = static_cast<RubyPort *>(&owner);
 
@@ -612,10 +613,10 @@ RubyPort::ruby_eviction_callback(Addr address)
     DPRINTF(RubyPort, "Sending invalidations.\n");
     // Allocate the invalidate request and packet on the stack, as it is
     // assumed they will not be modified or deleted by receivers.
-    // TODO: should this really be using funcMasterId?
+    // TODO: should this really be using funcUniqueId?
     auto request = std::make_shared<Request>(
         address, RubySystem::getBlockSizeBytes(), 0,
-        Request::funcMasterId);
+        Request::funcUniqueId);
 
     // Use a single packet to signal all snooping ports of the invalidation.
     // This assumes that snooping ports do NOT modify the packet/request
