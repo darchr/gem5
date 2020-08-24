@@ -215,7 +215,7 @@ class CacheBlk : public ReplaceableEntry
         status = 0;
         whenReady = MaxTick;
         refCount = 0;
-        srcMasterId = Request::invldMasterId;
+        srcMasterId = Request::invldUniqueId;
         lockList.clear();
     }
 

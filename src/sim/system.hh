@@ -491,13 +491,13 @@ class System : public SimObject, public PCEventScope
 
     /**
      * Looks up the MasterID for a given SimObject
-     * returns an invalid MasterID (invldMasterId) if not found.
+     * returns an invalid MasterID (invldUniqueId) if not found.
      */
     MasterID lookupMasterId(const SimObject* obj) const;
 
     /**
      * Looks up the MasterID for a given object name string
-     * returns an invalid MasterID (invldMasterId) if not found.
+     * returns an invalid MasterID (invldUniqueId) if not found.
      */
     MasterID lookupMasterId(const std::string& name) const;
 

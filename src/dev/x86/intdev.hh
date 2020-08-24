@@ -86,7 +86,7 @@ PacketPtr
 buildIntPacket(Addr addr, T payload)
 {
     RequestPtr req = std::make_shared<Request>(
-        addr, sizeof(T), Request::UNCACHEABLE, Request::intMasterId);
+        addr, sizeof(T), Request::UNCACHEABLE, Request::intUniqueId);
     PacketPtr pkt = new Packet(req, MemCmd::WriteReq);
     pkt->allocate();
     pkt->setRaw<T>(payload);

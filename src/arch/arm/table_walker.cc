@@ -55,7 +55,7 @@ using namespace ArmISA;
 
 TableWalker::TableWalker(const Params *p)
     : ClockedObject(p),
-      stage2Mmu(NULL), port(NULL), _id(Request::invldMasterId),
+      stage2Mmu(NULL), port(NULL), _id(Request::invldUniqueId),
       isStage2(p->is_stage2), tlb(NULL),
       currState(NULL), pending(false),
       numSquashable(p->num_squash_per_cycle),
