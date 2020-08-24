@@ -138,7 +138,7 @@ class PowerState : public SimObject
     {
         PowerStateStats(PowerState &ps);
 
-        void regStats() override;
+
         void preDumpStats() override;
 
         PowerState &powerState;

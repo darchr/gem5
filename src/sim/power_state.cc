@@ -226,31 +226,19 @@ PowerState::PowerStateStats::PowerStateStats(PowerState &co)
     ADD_STAT(pwrStateResidencyTicks,
              "Cumulative time (in ticks) in various power states")
 {
-}
-
-void
-PowerState::PowerStateStats::regStats()
-{
-    Stats::Group::regStats();
-
-    using namespace Stats;
-
     const PowerStateParams *p = powerState.params();
-
-    numTransitions.flags(nozero);
-    numPwrMatchStateTransitions.flags(nozero);
-
-    // Each sample is time in ticks
+    numTransitions
+        .flags(Stats::nozero);
+    numPwrMatchStateTransitions
+        .flags(Stats::nozero);
     unsigned num_bins = std::max(p->clk_gate_bins, 10U);
     ticksClkGated
         .init(p->clk_gate_min, p->clk_gate_max,
               (p->clk_gate_max / num_bins))
-        .flags(pdf | nozero | nonan)
-        ;
-
+        .flags(Stats::pdf | Stats::nozero | Stats::nonan);
     pwrStateResidencyTicks
         .init(Enums::PwrState::Num_PwrState)
-        .flags(nozero)
+        .flags(Stats::nozero)
         ;
     for (int i = 0; i < Enums::PwrState::Num_PwrState; i++) {
         pwrStateResidencyTicks.subname(i, Enums::PwrStateStrings[i]);
@@ -258,6 +246,7 @@ PowerState::PowerStateStats::regStats()
 
     numTransitions = 0;
 }
+
 
 void
 PowerState::PowerStateStats::preDumpStats()
