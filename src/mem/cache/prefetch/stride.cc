@@ -124,10 +124,10 @@ Stride::calculatePrefetch(const PrefetchInfo &pfi,
     Addr pf_addr = pfi.getAddr();
     Addr pc = pfi.getPC();
     bool is_secure = pfi.isSecure();
-    MasterID master_id = useMasterId ? pfi.getMasterId() : 0;
+    MasterID unique_id = useMasterId ? pfi.getMasterId() : 0;
 
     // Get corresponding pc table
-    PCTable* pcTable = findTable(master_id);
+    PCTable* pcTable = findTable(unique_id);
 
     // Search for entry in the pc table
     StrideEntry *entry = pcTable->findEntry(pc, is_secure);
