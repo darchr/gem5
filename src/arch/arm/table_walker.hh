@@ -829,7 +829,7 @@ class TableWalker : public ClockedObject
     /** Port shared by the two table walkers. */
     DmaPort* port;
 
-    /** Master id assigned by the MMU. */
+    /** Unique id assigned by the MMU. */
     MasterID _id;
 
     /** Indicates whether this table walker is part of the stage 2 mmu */
