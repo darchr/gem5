@@ -174,8 +174,8 @@ class Interrupts : public BaseInterrupts
     int initialApicId;
 
     // Ports for interrupts.
-    IntSlavePort<Interrupts> intSlavePort;
-    IntMasterPort<Interrupts> intMasterPort;
+    IntSlavePort<Interrupts> intResponsePort;
+    IntMasterPort<Interrupts> intRequestPort;
 
     // Port for memory mapped register accesses.
     PioPort<Interrupts> pioPort;
@@ -231,7 +231,7 @@ class Interrupts : public BaseInterrupts
         if (if_name == "int_requestor") {
             return intRequestPort;
         } else if (if_name == "int_responder") {
-            return intSlavePort;
+            return intResponsePort;
         } else if (if_name == "pio") {
             return pioPort;
         }
