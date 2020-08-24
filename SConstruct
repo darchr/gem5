@@ -1246,6 +1246,8 @@ for variant_path in variant_paths:
     if env['EFENCE']:
         env.Append(LIBS=['efence'])
 
+    env.Append(LIBS=['elf'])
+
     if env['USE_KVM']:
         if not have_kvm:
             warning("Can not enable KVM, host seems to lack KVM support")
