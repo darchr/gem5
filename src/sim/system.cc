@@ -581,8 +581,8 @@ System::lookupMasterId(const std::string& master_name) const
 {
     std::string name = stripSystemName(master_name);
 
-    for (int i = 0; i < masters.size(); i++) {
-        if (masters[i].masterName == name) {
+    for (int i = 0; i < requestors.size(); i++) {
+        if (requestors[i].req_name == name) {
             return i;
         }
     }
@@ -609,8 +609,8 @@ System::_getMasterId(const SimObject* master, const std::string& master_name)
     std::string name = stripSystemName(master_name);
 
     // CPUs in switch_cpus ask for ids again after switching
-    for (int i = 0; i < masters.size(); i++) {
-        if (masters[i].masterName == name) {
+    for (int i = 0; i < requestors.size(); i++) {
+        if (requestors[i].req_name == name) {
             return i;
         }
     }
@@ -651,8 +651,8 @@ System::getMasterName(MasterID master_id)
     if (master_id >= masters.size())
         fatal("Invalid master_id passed to getMasterName()\n");
 
-    const auto& master_info = masters[master_id];
-    return master_info.masterName;
+    const auto& requestor_info = requestors[unique_id];
+    return requestor_info.req_name;
 }
 
 System *
