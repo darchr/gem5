@@ -147,7 +147,7 @@ class AbstractController : public ClockedObject, public Consumer
 
   public:
     MachineID getMachineID() const { return m_machineID; }
-    MasterID getMasterId() const { return m_masterId; }
+    MasterID getMasterId() const { return m_id; }
 
     Stats::Histogram& getDelayHist() { return m_delayHistogram; }
     Stats::Histogram& getDelayVCHist(uint32_t index)
@@ -186,7 +186,7 @@ class AbstractController : public ClockedObject, public Consumer
     const NodeID m_clusterID;
 
     // MasterID used by some components of gem5.
-    const MasterID m_masterId;
+    const MasterID m_id;
 
     Network *m_net_ptr;
     bool m_is_blocking;
