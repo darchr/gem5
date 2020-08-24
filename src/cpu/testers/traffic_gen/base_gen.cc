@@ -46,8 +46,8 @@
 #include "debug/TrafficGen.hh"
 #include "sim/system.hh"
 
-BaseGen::BaseGen(SimObject &obj, MasterID master_id, Tick _duration)
-    : _name(obj.name()), masterID(master_id),
+BaseGen::BaseGen(SimObject &obj, MasterID unique_id, Tick _duration)
+    : _name(obj.name()), _id(unique_id),
       duration(_duration)
 {
 }
@@ -57,10 +57,10 @@ BaseGen::getPacket(Addr addr, unsigned size, const MemCmd& cmd,
                    Request::FlagsType flags)
 {
     // Create new request
-    RequestPtr req = std::make_shared<Request>(addr, size, flags, masterID);
+    RequestPtr req = std::make_shared<Request>(addr, size, flags, _id);
     // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
     // bits
-    req->setPC(((Addr)masterID) << 2);
+    req->setPC(((Addr)_id) << 2);
 
     // Embed it in a packet
     PacketPtr pkt = new Packet(req, cmd);
@@ -69,19 +69,19 @@ BaseGen::getPacket(Addr addr, unsigned size, const MemCmd& cmd,
     pkt->dataDynamic(pkt_data);
 
     if (cmd.isWrite()) {
-        std::fill_n(pkt_data, req->getSize(), (uint8_t)masterID);
+        std::fill_n(pkt_data, req->getSize(), (uint8_t)_id);
     }
 
     return pkt;
 }
 
 StochasticGen::StochasticGen(SimObject &obj,
-                             MasterID master_id, Tick _duration,
+                             MasterID unique_id, Tick _duration,
                              Addr start_addr, Addr end_addr,
                              Addr _blocksize, Addr cacheline_size,
                              Tick min_period, Tick max_period,
                              uint8_t read_percent, Addr data_limit)
-        : BaseGen(obj, master_id, _duration),
+        : BaseGen(obj, unique_id, _duration),
           startAddr(start_addr), endAddr(end_addr),
           blocksize(_blocksize), cacheLineSize(cacheline_size),
           minPeriod(min_period), maxPeriod(max_period),

@@ -127,7 +127,7 @@ class MemTest : public ClockedObject
     const unsigned percentUncacheable;
 
     /** Request id for all generated traffic */
-    MasterID masterId;
+    MasterID _id;
 
     unsigned int id;
 

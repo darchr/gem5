@@ -301,7 +301,7 @@ class BaseTrafficGen : public ClockedObject
     /**
      * MasterID used in generated requests.
      */
-    const MasterID masterID;
+    const MasterID _id;
 
     /** Currently active generator */
     std::shared_ptr<BaseGen> activeGenerator;
