@@ -82,7 +82,7 @@ SMMUTranslationProcess::SMMUTranslationProcess(const std::string &name,
     SMMUProcess(name, _smmu),
     ifc(_ifc)
 {
-    // Decrease number of pending translation slots on the slave interface
+    // Decrease number of pending translation slots on the response interface
     assert(ifc.xlateSlotsRemaining > 0);
     ifc.xlateSlotsRemaining--;
 
@@ -92,12 +92,12 @@ SMMUTranslationProcess::SMMUTranslationProcess(const std::string &name,
 
 SMMUTranslationProcess::~SMMUTranslationProcess()
 {
-    // Increase number of pending translation slots on the slave interface
+    // Increase number of pending translation slots on the response interface
     assert(ifc.pendingMemAccesses > 0);
     ifc.pendingMemAccesses--;
 
     // If no more SMMU memory accesses are pending,
-    // signal SMMU Slave Interface as drained
+    // signal SMMU Response Interface as drained
     if (ifc.pendingMemAccesses == 0) {
         ifc.signalDrainDone();
     }
@@ -147,11 +147,11 @@ SMMUTranslationProcess::main(Yield &yield)
                 request.addr, request.size);
 
 
-    unsigned numSlaveBeats = request.isWrite ?
+    unsigned numResponderBeats = request.isWrite ?
         (request.size + (ifc.portWidth - 1)) / ifc.portWidth : 1;
 
     doSemaphoreDown(yield, ifc.responsePortSem);
-    doDelay(yield, Cycles(numSlaveBeats));
+    doDelay(yield, Cycles(numResponderBeats));
     doSemaphoreUp(ifc.responsePortSem);
 
 
@@ -295,7 +295,7 @@ SMMUTranslationProcess::smmuTranslation(Yield &yield)
             smmuTLBUpdate(yield, tr);
     }
 
-    // Simulate pipelined SMMU->SLAVE INTERFACE link
+    // Simulate pipelined SMMU->RESPONSE INTERFACE link
     doSemaphoreDown(yield, smmu.smmuIfcSem);
     doDelay(yield, Cycles(1)); // serialize transactions
     doSemaphoreUp(smmu.smmuIfcSem);
@@ -353,14 +353,14 @@ SMMUTranslationProcess::ifcTLBLookup(Yield &yield, TranslResult &tr,
 
     if (!e) {
         DPRINTF(SMMUv3,
-                "SLAVE Interface TLB miss vaddr=%#x sid=%#x ssid=%#x\n",
+                "RESPONSE Interface TLB miss vaddr=%#x sid=%#x ssid=%#x\n",
                 request.addr, request.sid, request.ssid);
 
         return false;
     }
 
     DPRINTF(SMMUv3,
-            "SLAVE Interface TLB hit vaddr=%#x amask=%#x sid=%#x ssid=%#x "
+            "RESPONSE Interface TLB hit vaddr=%#x amask=%#x sid=%#x ssid=%#x "
             "paddr=%#x\n", request.addr, e->vaMask, request.sid,
             request.ssid, e->pa);
 
@@ -465,7 +465,7 @@ SMMUTranslationProcess::ifcTLBUpdate(Yield &yield,
     doSemaphoreDown(yield, ifc.mainTLBSem);
 
     DPRINTF(SMMUv3,
-            "SLAVE Interface upd vaddr=%#x amask=%#x paddr=%#x sid=%#x "
+            "RESPONSE Interface upd vaddr=%#x amask=%#x paddr=%#x sid=%#x "
             "ssid=%#x\n", e.va, e.vaMask, e.pa, e.sid, e.ssid);
 
     ifc.mainTLB->store(e, alloc);
@@ -1226,13 +1226,13 @@ SMMUTranslationProcess::completeTransaction(Yield &yield,
 {
     assert(tr.fault == FAULT_NONE);
 
-    unsigned numMasterBeats = request.isWrite ?
+    unsigned numRequestorBeats = request.isWrite ?
         (request.size + (smmu.requestPortWidth-1))
             / smmu.requestPortWidth :
         1;
 
     doSemaphoreDown(yield, smmu.requestPortSem);
-    doDelay(yield, Cycles(numMasterBeats));
+    doDelay(yield, Cycles(numRequestorBeats));
     doSemaphoreUp(smmu.requestPortSem);
 
 

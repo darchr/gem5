@@ -76,7 +76,7 @@ SMMUProcess::doRead(Yield &yield, Addr addr, void *ptr, size_t size)
     a.type = ACTION_SEND_REQ;
 
     RequestPtr req = std::make_shared<Request>(
-        addr, size, 0, smmu.masterId);
+        addr, size, 0, smmu._id);
 
     req->taskId(ContextSwitchTaskId::DMA);
 
@@ -109,7 +109,7 @@ SMMUProcess::doWrite(Yield &yield, Addr addr, const void *ptr, size_t size)
     a.type = ACTION_SEND_REQ;
 
     RequestPtr req = std::make_shared<Request>(
-        addr, size, 0, smmu.masterId);
+        addr, size, 0, smmu._id);
 
     req->taskId(ContextSwitchTaskId::DMA);
 
