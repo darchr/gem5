@@ -34,12 +34,19 @@ class RubyPort(ClockedObject):
    cxx_header = "mem/ruby/system/RubyPort.hh"
    version = Param.Int(0, "")
 
-   slave = VectorSlavePort("CPU slave port")
-   master = VectorMasterPort("CPU master port")
-   pio_master_port = RequestPort("Ruby mem master port")
-   mem_master_port = RequestPort("Ruby mem master port")
-   pio_slave_port = ResponsePort("Ruby pio slave port")
-   mem_slave_port = ResponsePort("Ruby memory port")
+   responder = VectorSlavePort("CPU response port")
+   slave     = DeprecatedParam(responder, '`slave` is now called `responder`')
+   requestor = VectorMasterPort("CPU request port")
+   master    = DeprecatedParam(requestor, '`master` is now called `requestor`')
+   pio_request_port = RequestPort("Ruby pio request port")
+   pio_master_port  = DeprecatedParam(pio_request_port,
+                        '`pio_master_port` is now called `pio_request_port`')
+   mem_request_port = RequestPort("Ruby mem request port")
+   mem_master_port  = DeprecatedParam(mem_request_port,
+                        '`mem_master_port` is now called `mem_request_port`')
+   pio_response_port = ResponsePort("Ruby pio response port")
+   pio_slave_port    = DeprecatedParam(pio_response_port,
+                        '`pio_slave_port` is now called `pio_response_port`')
 
    using_ruby_tester = Param.Bool(False, "")
    no_retry_on_stall = Param.Bool(False, "")
