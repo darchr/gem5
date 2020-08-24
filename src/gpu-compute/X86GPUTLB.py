@@ -58,8 +58,10 @@ class X86GPUTLB(ClockedObject):
     missLatency1 = Param.Int(5, "Latency #1 of a TLB miss")
     missLatency2 = Param.Int(100, "Latency #2 of a TLB miss")
     maxOutstandingReqs = Param.Int(64, "# of maximum outstanding requests")
-    slave = VectorSlavePort("Port on side closer to CPU/CU")
-    master = VectorMasterPort("Port on side closer to memory")
+    cpu_side = VectorSlavePort("Port on side closer to CPU/CU")
+    slave    = DeprecatedParam(cpu_side, '`slave` is now called `cpu_side`')
+    mem_side = VectorMasterPort("Port on side closer to memory")
+    master   = DeprecatedParam(mem_side, '`master` is now called `mem_side`')
     allocationPolicy = Param.Bool(True, "Allocate on an access")
     accessDistance = Param.Bool(False, "print accessDistance stats")
 
@@ -69,6 +71,8 @@ class TLBCoalescer(ClockedObject):
     cxx_header = 'gpu-compute/tlb_coalescer.hh'
     probesPerCycle = Param.Int(2, "Number of TLB probes per cycle")
     coalescingWindow = Param.Int(1, "Permit coalescing across that many ticks")
-    slave = VectorSlavePort("Port on side closer to CPU/CU")
-    master = VectorMasterPort("Port on side closer to memory")
+    cpu_side = VectorSlavePort("Port on side closer to CPU/CU")
+    slave    = DeprecatedParam(cpu_side, '`slave` is now called `cpu_side`')
+    mem_side = VectorMasterPort("Port on side closer to memory")
+    master   DeprecatedParam(mem_side, '`master` is now called `mem_side`')
     disableCoalescing = Param.Bool(False,"Dispable Coalescing")
