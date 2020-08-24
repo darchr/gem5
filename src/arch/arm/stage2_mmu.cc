@@ -52,7 +52,7 @@ Stage2MMU::Stage2MMU(const Params *p)
       _id(p->sys->getMasterId(_stage1Tlb->getTableWalker()))
 {
     // we use the stage-one table walker as the parent of the port,
-    // and to get our master id, this is done to keep things
+    // and to get our unique id, this is done to keep things
     // symmetrical with other ISAs in terms of naming and stats
     stage1Tlb()->setMMU(this, _id);
     stage2Tlb()->setMMU(this, _id);
