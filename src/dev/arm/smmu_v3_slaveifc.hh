@@ -73,8 +73,8 @@ class SMMUv3SlaveInterface : public ClockedObject
     const Cycles mainTLBLat;
 
     SMMUSlavePort *responsePort;
-    SMMUATSSlavePort  atsSlavePort;
-    SMMUATSMasterPort atsMasterPort;
+    SMMUATSSlavePort  atsResponsePort;
+    SMMUATSMasterPort atsRequestPort;
 
     // in bytes
     const unsigned portWidth;
@@ -93,7 +93,7 @@ class SMMUv3SlaveInterface : public ClockedObject
     std::list<SMMUTranslationProcess *> dependentWrites[SMMU_MAX_TRANS_ID];
     SMMUSignal dependentReqRemoved;
 
-    // Receiving translation requests from the master device
+    // Receiving translation requests from the requestor device
     Tick recvAtomic(PacketPtr pkt);
     bool recvTimingReq(PacketPtr pkt);
     void schedTimingResp(PacketPtr pkt);

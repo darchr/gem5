@@ -79,11 +79,11 @@ void
 SMMUv3SlaveInterface::sendRange()
 {
     if (responsePort->isConnected()) {
-        inform("Slave port is connected to %s\n", responsePort->getPeer());
+        inform("Response port is connected to %s\n", responsePort->getPeer());
 
         responsePort->sendRangeChange();
     } else {
-        fatal("Slave port is not connected.\n");
+        fatal("Response port is not connected.\n");
     }
 }
 
@@ -110,7 +110,7 @@ SMMUv3SlaveInterface::schedTimingResp(PacketPtr pkt)
 void
 SMMUv3SlaveInterface::schedAtsTimingResp(PacketPtr pkt)
 {
-    atsSlavePort.schedTimingResp(pkt, nextCycle());
+    atsResponsePort.schedTimingResp(pkt, nextCycle());
 
     if (atsDeviceNeedsRetry) {
         atsDeviceNeedsRetry = false;
@@ -169,7 +169,7 @@ SMMUv3SlaveInterface::recvTimingReq(PacketPtr pkt)
 Tick
 SMMUv3SlaveInterface::atsSlaveRecvAtomic(PacketPtr pkt)
 {
-    DPRINTF(SMMUv3, "[a] ATS slave  req  addr=%#x size=%#x\n",
+    DPRINTF(SMMUv3, "[a] ATS responder req  addr=%#x size=%#x\n",
             pkt->getAddr(), pkt->getSize());
 
     std::string proc_name = csprintf("%s.atsport", name());
@@ -187,7 +187,7 @@ SMMUv3SlaveInterface::atsSlaveRecvAtomic(PacketPtr pkt)
 bool
 SMMUv3SlaveInterface::atsSlaveRecvTimingReq(PacketPtr pkt)
 {
-    DPRINTF(SMMUv3, "[t] ATS slave  req  addr=%#x size=%#x\n",
+    DPRINTF(SMMUv3, "[t] ATS responder  req  addr=%#x size=%#x\n",
             pkt->getAddr(), pkt->getSize());
 
     // @todo: We need to pay for this and not just zero it out
@@ -212,7 +212,7 @@ SMMUv3SlaveInterface::atsSlaveRecvTimingReq(PacketPtr pkt)
 bool
 SMMUv3SlaveInterface::atsMasterRecvTimingResp(PacketPtr pkt)
 {
-    DPRINTF(SMMUv3, "[t] ATS master resp addr=%#x size=%#x\n",
+    DPRINTF(SMMUv3, "[t] ATS mem_side resp addr=%#x size=%#x\n",
             pkt->getAddr(), pkt->getSize());
 
     // @todo: We need to pay for this and not just zero it out
@@ -236,14 +236,14 @@ void
 SMMUv3SlaveInterface::atsSendDeviceRetry()
 {
     DPRINTF(SMMUv3, "ATS retry\n");
-    atsSlavePort.sendRetryReq();
+    atsResponsePort.sendRetryReq();
 }
 
 void
 SMMUv3SlaveInterface::scheduleDeviceRetry()
 {
     if (deviceNeedsRetry && !sendDeviceRetryEvent.scheduled()) {
-        DPRINTF(SMMUv3, "sched slave retry\n");
+        DPRINTF(SMMUv3, "sched responder retry\n");
         deviceNeedsRetry = false;
         schedule(sendDeviceRetryEvent, nextCycle());
     }
