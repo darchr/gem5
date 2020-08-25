@@ -150,9 +150,9 @@ SMMUTranslationProcess::main(Yield &yield)
     unsigned numSlaveBeats = request.isWrite ?
         (request.size + (ifc.portWidth - 1)) / ifc.portWidth : 1;
 
-    doSemaphoreDown(yield, ifc.slavePortSem);
+    doSemaphoreDown(yield, ifc.responsePortSem);
     doDelay(yield, Cycles(numSlaveBeats));
-    doSemaphoreUp(ifc.slavePortSem);
+    doSemaphoreUp(ifc.responsePortSem);
 
 
     recvTick = curTick();
@@ -1227,13 +1227,13 @@ SMMUTranslationProcess::completeTransaction(Yield &yield,
     assert(tr.fault == FAULT_NONE);
 
     unsigned numMasterBeats = request.isWrite ?
-        (request.size + (smmu.masterPortWidth-1))
-            / smmu.masterPortWidth :
+        (request.size + (smmu.requestPortWidth-1))
+            / smmu.requestPortWidth :
         1;
 
-    doSemaphoreDown(yield, smmu.masterPortSem);
+    doSemaphoreDown(yield, smmu.requestPortSem);
     doDelay(yield, Cycles(numMasterBeats));
-    doSemaphoreUp(smmu.masterPortSem);
+    doSemaphoreUp(smmu.requestPortSem);
 
 
     smmu.translationTimeDist.sample(curTick() - recvTick);
