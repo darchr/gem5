@@ -145,53 +145,53 @@ AbstractMemory::MemStats::regStats()
 
     System *sys = mem.system();
     assert(sys);
-    const auto max_masters = sys->maxMasters();
+    const auto max_requestors = sys->maxMasters();
 
     bytesRead
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         bytesRead.subname(i, sys->getMasterName(i));
     }
 
     bytesInstRead
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         bytesInstRead.subname(i, sys->getMasterName(i));
     }
 
     bytesWritten
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         bytesWritten.subname(i, sys->getMasterName(i));
     }
 
     numReads
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         numReads.subname(i, sys->getMasterName(i));
     }
 
     numWrites
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         numWrites.subname(i, sys->getMasterName(i));
     }
 
     numOther
-        .init(max_masters)
+        .init(max_requestors)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         numOther.subname(i, sys->getMasterName(i));
     }
 
@@ -200,7 +200,7 @@ AbstractMemory::MemStats::regStats()
         .prereq(bytesRead)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         bwRead.subname(i, sys->getMasterName(i));
     }
 
@@ -209,7 +209,7 @@ AbstractMemory::MemStats::regStats()
         .prereq(bytesInstRead)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         bwInstRead.subname(i, sys->getMasterName(i));
     }
 
@@ -218,7 +218,7 @@ AbstractMemory::MemStats::regStats()
         .prereq(bytesWritten)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         bwWrite.subname(i, sys->getMasterName(i));
     }
 
@@ -227,7 +227,7 @@ AbstractMemory::MemStats::regStats()
         .prereq(bwTotal)
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < max_masters; i++) {
+    for (int i = 0; i < max_requestors; i++) {
         bwTotal.subname(i, sys->getMasterName(i));
     }
 

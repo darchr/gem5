@@ -40,8 +40,8 @@
 
 /**
  * @file
- * Declaration of a memory-mapped bridge that connects a master
- * and a slave through a request and response queue.
+ * Declaration of a memory-mapped bridge that connects a requestor
+ * and a responder through a request and response queue.
  */
 
 #ifndef __MEM_BRIDGE_HH__
@@ -56,11 +56,32 @@
 
 /**
  * A bridge is used to interface two different crossbars (or in general a
- * memory-mapped master and slave), with buffering for requests and
+ * memory-mapped requestor and responder), with buffering for requests and
  * responses. The bridge has a fixed delay for packets passing through
  * it and responds to a fixed set of address ranges.
  *
- * The bridge comprises a slave port and a master port, that buffer
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+ * The bridge comprises a response port and a request port, that buffer
+=======
+ * The bridge comprises a slave port and a request port, that buffer
+>>>>>>> 01304339d... mem: comments
+=======
+=======
+>>>>>>> 264c1900e... mem: Update master/slave variables
+ * The bridge comprises a response port and a request port, that buffer
+>>>>>>> b0c484be1... mem: Update master/slave variables -edit
+=======
+ * The bridge comprises a slave port and a request port, that buffer
+>>>>>>> 01304339d... mem: comments
+=======
+ * The bridge comprises a response port and a request port, that buffer
+>>>>>>> b0c484be1... mem: Update master/slave variables -edit
+=======
+ * The bridge comprises a slave port and a request port, that buffer
+>>>>>>> 01304339d... mem: comments
  * outgoing responses and requests respectively. Buffer space is
  * reserved when a request arrives, also reserving response space
  * before forwarding the request. If there is no space present, then
@@ -87,13 +108,13 @@ class Bridge : public ClockedObject
         { }
     };
 
-    // Forward declaration to allow the slave port to have a pointer
+    // Forward declaration to allow the response port to have a pointer
     class BridgeMasterPort;
 
     /**
      * The port on the side that receives requests and sends
-     * responses. The slave port has a set of address ranges that it
-     * is responsible for. The slave port also has a buffer for the
+     * responses. The response port has a set of address ranges that it
+     * is responsible for. The response port also has a buffer for the
      * responses not yet sent.
      */
     class BridgeSlavePort : public ResponsePort
@@ -105,9 +126,9 @@ class Bridge : public ClockedObject
         Bridge& bridge;
 
         /**
-         * Master port on the other side of the bridge.
+         * Request port on the other side of the bridge.
          */
-        BridgeMasterPort& masterPort;
+        BridgeMasterPort& mem_side;
 
         /** Minimum request delay though this bridge. */
         const Cycles delay;
@@ -162,13 +183,34 @@ class Bridge : public ClockedObject
          *
          * @param _name the port name including the owner
          * @param _bridge the structural owner
-         * @param _masterPort the master port on the other side of the bridge
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+         * @param _mem_side the request port on the other side of the bridge
+=======
+         * @param _requestPort the request port on the other side of the bridge
+>>>>>>> 01304339d... mem: comments
+=======
+=======
+>>>>>>> 264c1900e... mem: Update master/slave variables
+         * @param _mem_side the request port on the other side of the bridge
+>>>>>>> b0c484be1... mem: Update master/slave variables -edit
+=======
+         * @param _requestPort the request port on the other side of the bridge
+>>>>>>> 01304339d... mem: comments
+=======
+         * @param _mem_side the request port on the other side of the bridge
+>>>>>>> b0c484be1... mem: Update master/slave variables -edit
+=======
+         * @param _requestPort the request port on the other side of the bridge
+>>>>>>> 01304339d... mem: comments
          * @param _delay the delay in cycles from receiving to sending
          * @param _resp_limit the size of the response queue
          * @param _ranges a number of address ranges to forward
          */
         BridgeSlavePort(const std::string& _name, Bridge& _bridge,
-                        BridgeMasterPort& _masterPort, Cycles _delay,
+                        BridgeMasterPort& _mem_side, Cycles _delay,
                         int _resp_limit, std::vector<AddrRange> _ranges);
 
         /**
@@ -213,7 +255,7 @@ class Bridge : public ClockedObject
 
     /**
      * Port on the side that forwards requests and receives
-     * responses. The master port has a buffer for the requests not
+     * responses. The request port has a buffer for the requests not
      * yet sent.
      */
     class BridgeMasterPort : public RequestPort
@@ -225,9 +267,9 @@ class Bridge : public ClockedObject
         Bridge& bridge;
 
         /**
-         * The slave port on the other side of the bridge.
+         * The response port on the other side of the bridge.
          */
-        BridgeSlavePort& slavePort;
+        BridgeSlavePort& cpu_side;
 
         /** Minimum delay though this bridge. */
         const Cycles delay;
@@ -260,12 +302,13 @@ class Bridge : public ClockedObject
          *
          * @param _name the port name including the owner
          * @param _bridge the structural owner
-         * @param _slavePort the slave port on the other side of the bridge
+         * @param _cpu_side the response port on the other side of
+         * the bridge
          * @param _delay the delay in cycles from receiving to sending
          * @param _req_limit the size of the request queue
          */
         BridgeMasterPort(const std::string& _name, Bridge& _bridge,
-                         BridgeSlavePort& _slavePort, Cycles _delay,
+                         BridgeSlavePort& _cpu_side, Cycles _delay,
                          int _req_limit);
 
         /**
@@ -305,11 +348,11 @@ class Bridge : public ClockedObject
         void recvReqRetry();
     };
 
-    /** Slave port of the bridge. */
-    BridgeSlavePort slavePort;
+    /** Response port of the bridge. */
+    BridgeSlavePort cpu_side;
 
-    /** Master port of the bridge. */
-    BridgeMasterPort masterPort;
+    /** Request port of the bridge. */
+    BridgeMasterPort mem_side;
 
   public:
 

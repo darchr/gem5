@@ -57,30 +57,31 @@ class QoSFixedPriorityPolicy(QoSPolicy):
 
     _mpriorities = None
 
-    def setMasterPriority(self, master, priority):
+    def setMasterPriority(self, requestor, priority):
         if not self._mpriorities:
             self._mpriorities = []
 
-        self._mpriorities.append([master, priority])
+        self._mpriorities.append([requestor, priority])
 
     def init(self):
         if not self._mpriorities:
-            print("Error, use setMasterPriority to init masters/priorities\n");
+            print("Error,"
+                    "use setMasterPriority to init requestors/priorities\n");
             exit(1)
         else:
             for mprio in self._mpriorities:
-                master = mprio[0]
+                requestor = mprio[0]
                 priority = mprio[1]
-                if isinstance(master, string_types):
+                if isinstance(requestor, string_types):
                     self.getCCObject().initMasterName(
-                        master, int(priority))
+                        requestor, int(priority))
                 else:
                     self.getCCObject().initMasterObj(
-                        master.getCCObject(), priority)
+                        requestor.getCCObject(), priority)
 
-    # default fixed priority value for non-listed Masters
+    # default fixed priority value for non-listed Requestors
     qos_fixed_prio_default_prio = Param.UInt8(0,
-        "Default priority for non-listed Masters")
+        "Default priority for non-listed Requestors")
 
 class QoSPropFairPolicy(QoSPolicy):
     type = 'QoSPropFairPolicy'
@@ -94,25 +95,25 @@ class QoSPropFairPolicy(QoSPolicy):
 
     _mscores = None
 
-    def setInitialScore(self, master, score):
+    def setInitialScore(self, requestor, score):
         if not self._mscores:
             self._mscores = []
 
-        self._mscores.append([master, score])
+        self._mscores.append([requestor, score])
 
     def init(self):
         if not self._mscores:
-            print("Error, use setInitialScore to init masters/scores\n");
+            print("Error, use setInitialScore to init requestors/scores\n");
             exit(1)
         else:
             for mprio in self._mscores:
-                master = mprio[0]
+                requestor = mprio[0]
                 score = mprio[1]
-                if isinstance(master, string_types):
+                if isinstance(requestor, string_types):
                     self.getCCObject().initMasterName(
-                        master, float(score))
+                        requestor, float(score))
                 else:
                     self.getCCObject().initMasterObj(
-                        master.getCCObject(), float(score))
+                        requestor.getCCObject(), float(score))
 
     weight = Param.Float(0.5, "Pf score weight")

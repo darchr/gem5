@@ -153,7 +153,7 @@ class MemCtrl: public AbstractMemory
 
     /**
      * Initializes dynamically counters and
-     * statistics for a given Master
+     * statistics for a given Requestor
      *
      * @param m_id the master ID
      */
@@ -373,7 +373,7 @@ MemCtrl::escalateQueues(Queues& queues, uint64_t queue_entry_size,
                                              queue_entry_size);
 
             DPRINTF(QOS,
-                    "QoSMemCtrl::escalate Master %s [id %d] moving "
+                    "QoSMemCtrl::escalate Requestor %s [id %d] moving "
                     "packet addr %d size %d (p size %d) from priority %d "
                     "to priority %d - "
                     "this master packets %d (entries to move %d)\n",
@@ -431,9 +431,9 @@ MemCtrl::escalate(std::initializer_list<Queues*> queues,
     addMaster(m_id);
 
     DPRINTF(QOS,
-            "QoSMemCtrl::escalate Master %s [id %d] to priority "
-            "%d (currently %d packets)\n",masters[m_id], m_id, tgt_prio,
-            packetPriorities[m_id][tgt_prio]);
+            "QoSMemCtrl::escalate Requestor %s [id %d] to priority "
+            "%d (currently %d packets)\n",requestors[id], id, tgt_prio,
+            packetPriorities[id][tgt_prio]);
 
     for (uint8_t curr_prio = 0; curr_prio < numPriorities(); ++curr_prio) {
         // Skip target priority
@@ -493,7 +493,7 @@ MemCtrl::qosSchedule(std::initializer_list<Queues*> queues,
             if (qosPriorityEscalation) {
                 DPRINTF(QOS,
                         "QoSMemCtrl::qosSchedule: (syncro) escalating "
-                        "MASTER %s to assigned priority %d\n",
+                        "REQUESTOR %s to assigned priority %d\n",
                         _system->getMasterName(m.first),
                         prio);
                 escalate(queues, queue_entry_size, m.first, prio);
@@ -504,7 +504,7 @@ MemCtrl::qosSchedule(std::initializer_list<Queues*> queues,
     if (qosPriorityEscalation) {
         DPRINTF(QOS,
                 "QoSMemCtrl::qosSchedule: escalating "
-                "MASTER %s to assigned priority %d\n",
+                "REQUESTOR %s to assigned priority %d\n",
                 _system->getMasterName(pkt->masterId()),
                 pkt_priority);
         escalate(queues, queue_entry_size, pkt->masterId(), pkt_priority);

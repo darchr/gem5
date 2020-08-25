@@ -39,25 +39,25 @@
 
 AddrMapper::AddrMapper(const AddrMapperParams* p)
     : SimObject(p),
-      masterPort(name() + "-master", *this),
-      slavePort(name() + "-slave", *this)
+      mem_side(name() + "-mem_side", *this),
+      cpu_side(name() + "-cpu_side", *this)
 {
 }
 
 void
 AddrMapper::init()
 {
-    if (!slavePort.isConnected() || !masterPort.isConnected())
+    if (!cpu_side.isConnected() || !mem_side.isConnected())
         fatal("Address mapper is not connected on both sides.\n");
 }
 
 Port &
 AddrMapper::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "master") {
-        return masterPort;
-    } else if (if_name == "slave") {
-        return slavePort;
+    if (if_name == "mem_side") {
+        return mem_side;
+    } else if (if_name == "cpu_side") {
+        return cpu_side;
     } else {
         return SimObject::getPort(if_name, idx);
     }
@@ -68,7 +68,7 @@ AddrMapper::recvFunctional(PacketPtr pkt)
 {
     Addr orig_addr = pkt->getAddr();
     pkt->setAddr(remapAddr(orig_addr));
-    masterPort.sendFunctional(pkt);
+    mem_side.sendFunctional(pkt);
     pkt->setAddr(orig_addr);
 }
 
@@ -77,7 +77,7 @@ AddrMapper::recvFunctionalSnoop(PacketPtr pkt)
 {
     Addr orig_addr = pkt->getAddr();
     pkt->setAddr(remapAddr(orig_addr));
-    slavePort.sendFunctionalSnoop(pkt);
+    cpu_side.sendFunctionalSnoop(pkt);
     pkt->setAddr(orig_addr);
 }
 
@@ -86,7 +86,7 @@ AddrMapper::recvAtomic(PacketPtr pkt)
 {
     Addr orig_addr = pkt->getAddr();
     pkt->setAddr(remapAddr(orig_addr));
-    Tick ret_tick =  masterPort.sendAtomic(pkt);
+    Tick ret_tick =  mem_side.sendAtomic(pkt);
     pkt->setAddr(orig_addr);
     return ret_tick;
 }
@@ -96,7 +96,7 @@ AddrMapper::recvAtomicSnoop(PacketPtr pkt)
 {
     Addr orig_addr = pkt->getAddr();
     pkt->setAddr(remapAddr(orig_addr));
-    Tick ret_tick = slavePort.sendAtomicSnoop(pkt);
+    Tick ret_tick = cpu_side.sendAtomicSnoop(pkt);
     pkt->setAddr(orig_addr);
     return ret_tick;
 }
@@ -115,7 +115,7 @@ AddrMapper::recvTimingReq(PacketPtr pkt)
     pkt->setAddr(remapAddr(orig_addr));
 
     // Attempt to send the packet
-    bool successful = masterPort.sendTimingReq(pkt);
+    bool successful = mem_side.sendTimingReq(pkt);
 
     // If not successful, restore the address and sender state
     if (!successful) {
@@ -147,7 +147,7 @@ AddrMapper::recvTimingResp(PacketPtr pkt)
     pkt->setAddr(receivedState->origAddr);
 
     // Attempt to send the packet
-    bool successful = slavePort.sendTimingResp(pkt);
+    bool successful = cpu_side.sendTimingResp(pkt);
 
     // If packet successfully sent, delete the sender state, otherwise
     // restore state
@@ -165,19 +165,19 @@ AddrMapper::recvTimingResp(PacketPtr pkt)
 void
 AddrMapper::recvTimingSnoopReq(PacketPtr pkt)
 {
-    slavePort.sendTimingSnoopReq(pkt);
+    cpu_side.sendTimingSnoopReq(pkt);
 }
 
 bool
 AddrMapper::recvTimingSnoopResp(PacketPtr pkt)
 {
-    return masterPort.sendTimingSnoopResp(pkt);
+    return mem_side.sendTimingSnoopResp(pkt);
 }
 
 bool
 AddrMapper::isSnooping() const
 {
-    if (slavePort.isSnooping())
+    if (cpu_side.isSnooping())
         fatal("AddrMapper doesn't support remapping of snooping requests\n");
     return false;
 }
@@ -185,19 +185,19 @@ AddrMapper::isSnooping() const
 void
 AddrMapper::recvReqRetry()
 {
-    slavePort.sendRetryReq();
+    cpu_side.sendRetryReq();
 }
 
 void
 AddrMapper::recvRespRetry()
 {
-    masterPort.sendRetryResp();
+    mem_side.sendRetryResp();
 }
 
 void
 AddrMapper::recvRangeChange()
 {
-    slavePort.sendRangeChange();
+    cpu_side.sendRangeChange();
 }
 
 RangeAddrMapper::RangeAddrMapper(const RangeAddrMapperParams* p) :

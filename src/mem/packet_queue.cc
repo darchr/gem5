@@ -232,44 +232,45 @@ PacketQueue::drain()
     }
 }
 
-ReqPacketQueue::ReqPacketQueue(EventManager& _em, RequestPort& _masterPort,
+ReqPacketQueue::ReqPacketQueue(EventManager& _em, RequestPort& _mem_side,
                                const std::string _label)
-    : PacketQueue(_em, _label, name(_masterPort, _label)),
-      masterPort(_masterPort)
+    : PacketQueue(_em, _label, name(_mem_side, _label)),
+      mem_side(_mem_side)
 {
 }
 
 bool
 ReqPacketQueue::sendTiming(PacketPtr pkt)
 {
-    return masterPort.sendTimingReq(pkt);
+    return mem_side.sendTimingReq(pkt);
 }
 
 SnoopRespPacketQueue::SnoopRespPacketQueue(EventManager& _em,
-                                           RequestPort& _masterPort,
+                                           RequestPort& _mem_side,
                                            bool force_order,
                                            const std::string _label)
-    : PacketQueue(_em, _label, name(_masterPort, _label), force_order),
-      masterPort(_masterPort)
+    : PacketQueue(_em, _label, name(_mem_side, _label), force_order),
+      mem_side(_mem_side)
 {
 }
 
 bool
 SnoopRespPacketQueue::sendTiming(PacketPtr pkt)
 {
-    return masterPort.sendTimingSnoopResp(pkt);
+    return mem_side.sendTimingSnoopResp(pkt);
 }
 
-RespPacketQueue::RespPacketQueue(EventManager& _em, ResponsePort& _slavePort,
+RespPacketQueue::RespPacketQueue(EventManager& _em,
+                                 ResponsePort& _cpu_side,
                                  bool force_order,
                                  const std::string _label)
-    : PacketQueue(_em, _label, name(_slavePort, _label), force_order),
-      slavePort(_slavePort)
+    : PacketQueue(_em, _label, name(_cpu_side, _label), force_order),
+      cpu_side(_cpu_side)
 {
 }
 
 bool
 RespPacketQueue::sendTiming(PacketPtr pkt)
 {
-    return slavePort.sendTimingResp(pkt);
+    return cpu_side.sendTimingResp(pkt);
 }

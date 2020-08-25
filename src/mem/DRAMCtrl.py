@@ -70,7 +70,7 @@ class DRAMCtrl(QoSMemCtrl):
 
     # single-ported on the system interface side, instantiate with a
     # bus in front of the controller for multiple ports
-    port = SlavePort("Slave port")
+    port = ResponsePort("This port sends responses and receives requests")
 
     # the basic configuration of the controller architecture, note
     # that each entry corresponds to a burst for the specific DRAM

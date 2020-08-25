@@ -18,7 +18,7 @@ HMCControllerParams::create()
     return new HMCController(this);
 }
 
-// Since this module is a load distributor, all its master ports have the same
+// Since this module is a load distributor, all its request ports have the same
 //  range so we should keep only one of the ranges and ignore the others
 void HMCController::recvRangeChange(PortID master_port_id)
 {

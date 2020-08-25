@@ -45,8 +45,8 @@
 
 CommMonitor::CommMonitor(Params* params)
     : SimObject(params),
-      masterPort(name() + "-master", *this),
-      slavePort(name() + "-slave", *this),
+      masterPort(name() + "-mem_side", *this),
+      slavePort(name() + "-cpu_side", *this),
       samplePeriodicEvent([this]{ samplePeriodic(); }, name()),
       samplePeriodTicks(params->sample_period),
       samplePeriod(params->sample_period / SimClock::Float::s),
@@ -81,9 +81,9 @@ CommMonitor::regProbePoints()
 Port &
 CommMonitor::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "master") {
+    if (if_name == "mem_side") {
         return masterPort;
-    } else if (if_name == "slave") {
+    } else if (if_name == "cpu_side") {
         return slavePort;
     } else {
         return SimObject::getPort(if_name, idx);
@@ -474,7 +474,7 @@ CommMonitor::recvRetrySnoopResp()
 bool
 CommMonitor::isSnooping() const
 {
-    // check if the connected master port is snooping
+    // check if the connected request port is snooping
     return slavePort.isSnooping();
 }
 
