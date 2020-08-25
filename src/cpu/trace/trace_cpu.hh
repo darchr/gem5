@@ -65,7 +65,7 @@
  * same trace is used for playback on different memory sub-systems.
  *
  * The TraceCPU inherits from BaseCPU so some virtual methods need to be
- * defined. It has two port subclasses inherited from MasterPort for
+ * defined. It has two port subclasses inherited from RequestPort for
  * instruction and data ports. It issues the memory requests deducing the
  * timing from the trace and without performing real execution of micro-ops. As
  * soon as the last dependency for an instruction is complete, its
@@ -321,11 +321,11 @@ class TraceCPU : public BaseCPU
     /** Port to connect to L1 data cache. */
     DcachePort dcachePort;
 
-    /** Master id for instruction read requests. */
-    const MasterID instMasterID;
+    /** Unique id for instruction read requests. */
+    const MasterID instUniqueID;
 
-    /** Master id for data read and write requests. */
-    const MasterID dataMasterID;
+    /** Unique id for data read and write requests. */
+    const MasterID dataUniqueID;
 
     /** File names for input instruction and data traces. */
     std::string instTraceFile, dataTraceFile;
