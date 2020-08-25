@@ -779,7 +779,7 @@ Gicv3Its::Gicv3Its(const Gicv3ItsParams *params)
    gitsCbaser(0), gitsCreadr(0),
    gitsCwriter(0), gitsIidr(0),
    tableBases(NUM_BASER_REGS, 0),
-   masterId(params->system->getMasterId(this)),
+   masterId(params->system->getUniqueId(this)),
    gic(nullptr),
    commandEvent([this] { checkCommandQueue(); }, name()),
    pendingCommands(false),

@@ -90,7 +90,7 @@ GarnetSyntheticTraffic::GarnetSyntheticTraffic(const Params *p)
       injVnet(p->inj_vnet),
       precision(p->precision),
       responseLimit(p->response_limit),
-      masterId(p->system->getMasterId(this))
+      masterId(p->system->getUniqueId(this))
 {
     // set up counters
     noResponseCycles = 0;

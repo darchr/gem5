@@ -460,8 +460,8 @@ class System : public SimObject, public PCEventScope
      * For a cpu having two masters: a data master and an instruction master,
      * the method must be called twice:
      *
-     * instMasterId = getMasterId(cpu, "inst");
-     * dataMasterId = getMasterId(cpu, "data");
+     * instMasterId = getUniqueId(cpu, "inst");
+     * dataMasterId = getUniqueId(cpu, "data");
      *
      * and the masters' names will be:
      * - "cpu.inst"
@@ -471,7 +471,7 @@ class System : public SimObject, public PCEventScope
      * @param submaster String containing the submaster's name
      * @return the master's ID.
      */
-    MasterID getMasterId(const SimObject* master,
+    MasterID getUniqueId(const SimObject* master,
                          std::string submaster = std::string());
 
     /**
@@ -505,8 +505,8 @@ class System : public SimObject, public PCEventScope
     MasterID maxMasters() { return masters.size(); }
 
   protected:
-    /** helper function for getMasterId */
-    MasterID _getMasterId(const SimObject* master,
+    /** helper function for getUniqueId */
+    MasterID _getUniqueId(const SimObject* master,
                           const std::string& master_name);
 
     /**

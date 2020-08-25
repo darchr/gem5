@@ -58,7 +58,7 @@ using namespace TheISA;
 void
 CheckerCPU::init()
 {
-    masterId = systemPtr->getMasterId(this);
+    masterId = systemPtr->getUniqueId(this);
 }
 
 CheckerCPU::CheckerCPU(Params *p)

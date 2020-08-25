@@ -52,7 +52,7 @@
 DmaPort::DmaPort(ClockedObject *dev, System *s,
                  uint32_t sid, uint32_t ssid)
     : RequestPort(dev->name() + ".dma", dev),
-      device(dev), sys(s), masterId(s->getMasterId(dev)),
+      device(dev), sys(s), masterId(s->getUniqueId(dev)),
       sendEvent([this]{ sendDma(); }, dev->name()),
       pendingCount(0), inRetry(false),
       defaultSid(sid),

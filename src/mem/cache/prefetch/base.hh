@@ -152,7 +152,7 @@ class Base : public ClockedObject
          * Gets the requestor ID that generated this address
          * @return the requestor ID that generated this address
          */
-        MasterID getMasterId() const
+        MasterID getUniqueId() const
         {
             return masterId;
         }

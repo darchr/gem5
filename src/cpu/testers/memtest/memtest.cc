@@ -91,7 +91,7 @@ MemTest::MemTest(const Params *p)
       percentReads(p->percent_reads),
       percentFunctional(p->percent_functional),
       percentUncacheable(p->percent_uncacheable),
-      masterId(p->system->getMasterId(this)),
+      masterId(p->system->getUniqueId(this)),
       blockSize(p->system->cacheLineSize()),
       blockAddrMask(blockSize - 1),
       progressInterval(p->progress_interval),

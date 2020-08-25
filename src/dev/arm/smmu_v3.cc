@@ -54,7 +54,7 @@
 SMMUv3::SMMUv3(SMMUv3Params *params) :
     ClockedObject(params),
     system(*params->system),
-    masterId(params->system->getMasterId(this)),
+    masterId(params->system->getUniqueId(this)),
     masterPort(name() + ".master", *this),
     masterTableWalkPort(name() + ".master_walker", *this),
     controlPort(name() + ".control", *this, params->reg_map),

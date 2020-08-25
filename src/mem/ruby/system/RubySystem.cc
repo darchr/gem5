@@ -139,7 +139,7 @@ RubySystem::registerMasterIDs()
     // the system's list of MasterIDs and add missing MasterIDs to network 0
     // (the default).
     for (auto& cntrl : m_abs_cntrl_vec) {
-        MasterID mid = cntrl->getMasterId();
+        MasterID mid = cntrl->getUniqueId();
         MachineID mach_id = cntrl->getMachineID();
 
         // These are setup in Network constructor and should exist

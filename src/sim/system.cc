@@ -248,11 +248,11 @@ System::System(Params *p)
 
     // Get the generic system master IDs
     MasterID tmp_id M5_VAR_USED;
-    tmp_id = getMasterId(this, "writebacks");
+    tmp_id = getUniqueId(this, "writebacks");
     assert(tmp_id == Request::wbMasterId);
-    tmp_id = getMasterId(this, "functional");
+    tmp_id = getUniqueId(this, "functional");
     assert(tmp_id == Request::funcMasterId);
-    tmp_id = getMasterId(this, "interrupt");
+    tmp_id = getUniqueId(this, "interrupt");
     assert(tmp_id == Request::intMasterId);
 
     // increment the number of running systems
@@ -593,18 +593,18 @@ System::lookupMasterId(const std::string& master_name) const
 MasterID
 System::getGlobalMasterId(const std::string& master_name)
 {
-    return _getMasterId(nullptr, master_name);
+    return _getUniqueId(nullptr, master_name);
 }
 
 MasterID
-System::getMasterId(const SimObject* master, std::string submaster)
+System::getUniqueId(const SimObject* master, std::string submaster)
 {
     auto master_name = leafMasterName(master, submaster);
-    return _getMasterId(master, master_name);
+    return _getUniqueId(master, master_name);
 }
 
 MasterID
-System::_getMasterId(const SimObject* master, const std::string& master_name)
+System::_getUniqueId(const SimObject* master, const std::string& master_name)
 {
     std::string name = stripSystemName(master_name);
 

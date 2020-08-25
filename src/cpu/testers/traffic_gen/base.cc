@@ -78,7 +78,7 @@ BaseTrafficGen::BaseTrafficGen(const BaseTrafficGenParams* p)
       retryPktTick(0), blockedWaitingResp(false),
       updateEvent([this]{ update(); }, name()),
       stats(this),
-      masterID(system->getMasterId(this)),
+      masterID(system->getUniqueId(this)),
       streamGenerator(StreamGen::create(p))
 {
 }
