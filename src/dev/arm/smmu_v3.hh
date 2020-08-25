@@ -90,7 +90,7 @@ class SMMUv3 : public ClockedObject
     const System &system;
     const MasterID masterId;
 
-    SMMUMasterPort    masterPort;
+    SMMUMasterPort    requestPort;
     SMMUMasterTableWalkPort masterTableWalkPort;
     SMMUControlPort   controlPort;
 
@@ -108,7 +108,7 @@ class SMMUv3 : public ClockedObject
     const bool walkCacheNonfinalEnable;
     const unsigned walkCacheS1Levels;
     const unsigned walkCacheS2Levels;
-    const unsigned masterPortWidth; // in bytes
+    const unsigned requestPortWidth; // in bytes
 
     SMMUSemaphore tlbSem;
     SMMUSemaphore ifcSmmuSem;
@@ -116,7 +116,7 @@ class SMMUv3 : public ClockedObject
     SMMUSemaphore configSem;
     SMMUSemaphore ipaSem;
     SMMUSemaphore walkSem;
-    SMMUSemaphore masterPortSem;
+    SMMUSemaphore requestPortSem;
 
     SMMUSemaphore transSem; // max N transactions in SMMU
     SMMUSemaphore ptwSem; // max N concurrent PTWs

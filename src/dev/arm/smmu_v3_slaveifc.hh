@@ -65,14 +65,14 @@ class SMMUv3SlaveInterface : public ClockedObject
     const bool microTLBEnable;
     const bool mainTLBEnable;
 
-    SMMUSemaphore slavePortSem;
+    SMMUSemaphore responsePortSem;
     SMMUSemaphore microTLBSem;
     SMMUSemaphore mainTLBSem;
 
     const Cycles microTLBLat;
     const Cycles mainTLBLat;
 
-    SMMUSlavePort *slavePort;
+    SMMUSlavePort *responsePort;
     SMMUATSSlavePort  atsSlavePort;
     SMMUATSMasterPort atsMasterPort;
 

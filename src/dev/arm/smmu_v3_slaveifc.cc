@@ -54,12 +54,12 @@ SMMUv3SlaveInterface::SMMUv3SlaveInterface(
                         p->tlb_policy)),
     microTLBEnable(p->utlb_enable),
     mainTLBEnable(p->tlb_enable),
-    slavePortSem(1),
+    responsePortSem(1),
     microTLBSem(p->utlb_slots),
     mainTLBSem(p->tlb_slots),
     microTLBLat(p->utlb_lat),
     mainTLBLat(p->tlb_lat),
-    slavePort(new SMMUSlavePort(csprintf("%s.slave", name()), *this)),
+    responsePort(new SMMUSlavePort(csprintf("%s.slave", name()), *this)),
     atsSlavePort(name() + ".atsSlave", *this),
     atsMasterPort(name() + ".atsMaster", *this),
     portWidth(p->port_width),
@@ -78,10 +78,10 @@ SMMUv3SlaveInterface::SMMUv3SlaveInterface(
 void
 SMMUv3SlaveInterface::sendRange()
 {
-    if (slavePort->isConnected()) {
-        inform("Slave port is connected to %s\n", slavePort->getPeer());
+    if (responsePort->isConnected()) {
+        inform("Slave port is connected to %s\n", responsePort->getPeer());
 
-        slavePort->sendRangeChange();
+        responsePort->sendRangeChange();
     } else {
         fatal("Slave port is not connected.\n");
     }
@@ -93,7 +93,7 @@ SMMUv3SlaveInterface::getPort(const std::string &name, PortID id)
     if (name == "ats_master") {
         return atsMasterPort;
     } else if (name == "slave") {
-        return *slavePort;
+        return *responsePort;
     } else if (name == "ats_slave") {
         return atsSlavePort;
     } else {
@@ -104,7 +104,7 @@ SMMUv3SlaveInterface::getPort(const std::string &name, PortID id)
 void
 SMMUv3SlaveInterface::schedTimingResp(PacketPtr pkt)
 {
-    slavePort->schedTimingResp(pkt, nextCycle());
+    responsePort->schedTimingResp(pkt, nextCycle());
 }
 
 void
@@ -122,7 +122,7 @@ Tick
 SMMUv3SlaveInterface::recvAtomic(PacketPtr pkt)
 {
     DPRINTF(SMMUv3, "[a] req from %s addr=%#x size=%#x\n",
-            slavePort->getPeer(), pkt->getAddr(), pkt->getSize());
+            responsePort->getPeer(), pkt->getAddr(), pkt->getSize());
 
     std::string proc_name = csprintf("%s.port", name());
     SMMUTranslationProcess proc(proc_name, *smmu, *this);
@@ -138,7 +138,7 @@ bool
 SMMUv3SlaveInterface::recvTimingReq(PacketPtr pkt)
 {
     DPRINTF(SMMUv3, "[t] req from %s addr=%#x size=%#x\n",
-            slavePort->getPeer(), pkt->getAddr(), pkt->getSize());
+            responsePort->getPeer(), pkt->getAddr(), pkt->getSize());
 
     // @todo: We need to pay for this and not just zero it out
     pkt->headerDelay = pkt->payloadDelay = 0;
@@ -229,7 +229,7 @@ SMMUv3SlaveInterface::atsMasterRecvTimingResp(PacketPtr pkt)
 void
 SMMUv3SlaveInterface::sendDeviceRetry()
 {
-    slavePort->sendRetryReq();
+    responsePort->sendRetryReq();
 }
 
 void
