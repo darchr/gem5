@@ -94,8 +94,8 @@ class AmbaDmaDevice(DmaDevice):
     abstract = True
     cxx_header = "dev/arm/amba_device.hh"
     pio_addr = Param.Addr("Address for AMBA responder interface")
-    pio_latency = Param.Latency("10ns",
-        "Time between action and write/read result by AMBA DMA Device")
+    pio_latency = Param.Latency("10ns", "Time between action and write/read"
+                                        "result by AMBA DMA Device")
     interrupt = Param.ArmInterruptPin("Interrupt that connects to GIC")
     amba_id = Param.UInt32("ID of AMBA device for kernel detection")
 
@@ -577,16 +577,16 @@ class RealView(Platform):
     def _attach_memory(self, mem, bus, mem_ports=None):
         if hasattr(mem, "port"):
             if mem_ports is None:
-                mem.port = bus.master
+                mem.port = bus.mem_side
             else:
                 mem_ports.append(mem.port)
 
     def _attach_device(self, device, bus, dma_ports=None):
         if hasattr(device, "pio"):
-            device.pio = bus.master
+            device.pio = bus.mem_side
         if hasattr(device, "dma"):
             if dma_ports is None:
-                device.dma = bus.slave
+                device.dma = bus.cpu_side
             else:
                 dma_ports.append(device.dma)
 
@@ -1093,15 +1093,15 @@ Interrupts:
         """
         Instantiate a single SMMU and attach a group of client devices to it.
         The devices' dma port is wired to the SMMU and the SMMU's dma port
-        (master) is attached to the bus. In order to make it work, the list
+        (requestor) is attached to the bus. In order to make it work, the list
         of clients shouldn't contain any device part of the _off_chip_devices
         or _on_chip_devices.
         This method should be called only once.
 
         Parameters:
             devices (list): List of devices which will be using the SMMU
-            bus (Bus): The bus downstream of the SMMU. Its slave port will
-                       receive memory requests from the SMMU, and its master
+            bus (Bus): The bus downstream of the SMMU. Its response port will
+                       receive memory requests from the SMMU, and its request
                        port will forward accesses to the memory mapped devices
         """
         if hasattr(self, 'smmu'):
@@ -1109,8 +1109,8 @@ Interrupts:
 
         self.smmu = SMMUv3(reg_map=AddrRange(0x2b400000, size=0x00020000))
 
-        self.smmu.master = bus.slave
-        self.smmu.control = bus.master
+        self.smmu.mem_side = bus.cpu_side
+        self.smmu.control = bus.mem_side
 
         dma_ports = []
         for dev in devices:
