@@ -2769,7 +2769,7 @@ DRAMCtrl::DRAMStats::regStats()
         .precision(2);
 
     for (int i = 0; i < max_masters; i++) {
-        const std::string master = dram._system->getMasterName(i);
+        const std::string master = dram._system->getRequestorName(i);
         masterReadBytes.subname(i, master);
         masterReadRate.subname(i, master);
         masterWriteBytes.subname(i, master);

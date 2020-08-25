@@ -269,7 +269,7 @@ void
 MemCtrl::addMaster(MasterID m_id)
 {
     if (!hasMaster(m_id)) {
-        masters.emplace(m_id, _system->getMasterName(m_id));
+        masters.emplace(m_id, _system->getRequestorName(m_id));
         packetPriorities[m_id].resize(numPriorities(), 0);
 
         DPRINTF(QOS,
@@ -338,7 +338,7 @@ MemCtrl::MemCtrlStats::regStats()
         ;
 
     for (int i = 0; i < max_masters; i++) {
-        const std::string master = system->getMasterName(i);
+        const std::string master = system->getRequestorName(i);
         avgPriority.subname(i, master);
         avgPriorityDistance.subname(i, master);
     }

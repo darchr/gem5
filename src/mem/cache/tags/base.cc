@@ -244,12 +244,12 @@ BaseTags::BaseTagStats::regStats()
         .flags(nozero | nonan)
         ;
     for (int i = 0; i < system->maxMasters(); i++) {
-        occupancies.subname(i, system->getMasterName(i));
+        occupancies.subname(i, system->getRequestorName(i));
     }
 
     avgOccs.flags(nozero | total);
     for (int i = 0; i < system->maxMasters(); i++) {
-        avgOccs.subname(i, system->getMasterName(i));
+        avgOccs.subname(i, system->getRequestorName(i));
     }
 
     avgOccs = occupancies / Stats::constant(tags.numBlocks);

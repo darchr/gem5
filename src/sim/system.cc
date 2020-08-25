@@ -646,10 +646,10 @@ System::leafMasterName(const SimObject* master, const std::string& submaster)
 }
 
 std::string
-System::getMasterName(MasterID master_id)
+System::getRequestorName(MasterID master_id)
 {
     if (master_id >= masters.size())
-        fatal("Invalid master_id passed to getMasterName()\n");
+        fatal("Invalid master_id passed to getRequestorName()\n");
 
     const auto& master_info = masters[master_id];
     return master_info.masterName;

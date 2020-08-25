@@ -86,7 +86,7 @@ FixedPriorityPolicy::schedule(const MasterID mId, const uint64_t data)
     } else {
         DPRINTF(QOS, "Master %s (MasterID %d) not present in priorityMap, "
                      "assigning default priority %d\n",
-                      memCtrl->system()->getMasterName(mId),
+                      memCtrl->system()->getRequestorName(mId),
                       mId, defaultPriority);
         return defaultPriority;
     }

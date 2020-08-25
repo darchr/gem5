@@ -152,7 +152,7 @@ AbstractMemory::MemStats::regStats()
         .flags(total | nozero | nonan)
         ;
     for (int i = 0; i < max_masters; i++) {
-        bytesRead.subname(i, sys->getMasterName(i));
+        bytesRead.subname(i, sys->getRequestorName(i));
     }
 
     bytesInstRead
@@ -160,7 +160,7 @@ AbstractMemory::MemStats::regStats()
         .flags(total | nozero | nonan)
         ;
     for (int i = 0; i < max_masters; i++) {
-        bytesInstRead.subname(i, sys->getMasterName(i));
+        bytesInstRead.subname(i, sys->getRequestorName(i));
     }
 
     bytesWritten
@@ -168,7 +168,7 @@ AbstractMemory::MemStats::regStats()
         .flags(total | nozero | nonan)
         ;
     for (int i = 0; i < max_masters; i++) {
-        bytesWritten.subname(i, sys->getMasterName(i));
+        bytesWritten.subname(i, sys->getRequestorName(i));
     }
 
     numReads
@@ -176,7 +176,7 @@ AbstractMemory::MemStats::regStats()
         .flags(total | nozero | nonan)
         ;
     for (int i = 0; i < max_masters; i++) {
-        numReads.subname(i, sys->getMasterName(i));
+        numReads.subname(i, sys->getRequestorName(i));
     }
 
     numWrites
@@ -184,7 +184,7 @@ AbstractMemory::MemStats::regStats()
         .flags(total | nozero | nonan)
         ;
     for (int i = 0; i < max_masters; i++) {
-        numWrites.subname(i, sys->getMasterName(i));
+        numWrites.subname(i, sys->getRequestorName(i));
     }
 
     numOther
@@ -192,7 +192,7 @@ AbstractMemory::MemStats::regStats()
         .flags(total | nozero | nonan)
         ;
     for (int i = 0; i < max_masters; i++) {
-        numOther.subname(i, sys->getMasterName(i));
+        numOther.subname(i, sys->getRequestorName(i));
     }
 
     bwRead
@@ -201,7 +201,7 @@ AbstractMemory::MemStats::regStats()
         .flags(total | nozero | nonan)
         ;
     for (int i = 0; i < max_masters; i++) {
-        bwRead.subname(i, sys->getMasterName(i));
+        bwRead.subname(i, sys->getRequestorName(i));
     }
 
     bwInstRead
@@ -210,7 +210,7 @@ AbstractMemory::MemStats::regStats()
         .flags(total | nozero | nonan)
         ;
     for (int i = 0; i < max_masters; i++) {
-        bwInstRead.subname(i, sys->getMasterName(i));
+        bwInstRead.subname(i, sys->getRequestorName(i));
     }
 
     bwWrite
@@ -219,7 +219,7 @@ AbstractMemory::MemStats::regStats()
         .flags(total | nozero | nonan)
         ;
     for (int i = 0; i < max_masters; i++) {
-        bwWrite.subname(i, sys->getMasterName(i));
+        bwWrite.subname(i, sys->getRequestorName(i));
     }
 
     bwTotal
@@ -228,7 +228,7 @@ AbstractMemory::MemStats::regStats()
         .flags(total | nozero | nonan)
         ;
     for (int i = 0; i < max_masters; i++) {
-        bwTotal.subname(i, sys->getMasterName(i));
+        bwTotal.subname(i, sys->getRequestorName(i));
     }
 
     bwRead = bytesRead / simSeconds;

@@ -494,7 +494,7 @@ MemCtrl::qosSchedule(std::initializer_list<Queues*> queues,
                 DPRINTF(QOS,
                         "QoSMemCtrl::qosSchedule: (syncro) escalating "
                         "MASTER %s to assigned priority %d\n",
-                        _system->getMasterName(m.first),
+                        _system->getRequestorName(m.first),
                         prio);
                 escalate(queues, queue_entry_size, m.first, prio);
             }

@@ -89,7 +89,7 @@ MemTraceProbe::startup()
     for (int i = 0; i < system->maxMasters(); i++) {
         auto id_string = header_msg.add_id_strings();
         id_string->set_key(i);
-        id_string->set_value(system->getMasterName(i));
+        id_string->set_value(system->getRequestorName(i));
     }
 
     traceStream->write(header_msg);
