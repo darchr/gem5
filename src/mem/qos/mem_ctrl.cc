@@ -91,8 +91,8 @@ MemCtrl::logRequest(BusState dir, MasterID m_id, uint8_t qos,
     addMaster(m_id);
 
     DPRINTF(QOS,
-            "QoSMemCtrl::logRequest MASTER %s [id %d] address %d"
-            " prio %d this master q packets %d"
+            "QoSMemCtrl::logRequest REQUESTOR %s [id %d] address %d"
+            " prio %d this requestor q packets %d"
             " - queue size %d - requested entries %d\n",
             masters[m_id], m_id, addr, qos, packetPriorities[m_id][qos],
             (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos],
@@ -123,7 +123,7 @@ MemCtrl::logRequest(BusState dir, MasterID m_id, uint8_t qos,
         if (distance > 0) {
             stats.avgPriorityDistance[m_id].sample(distance);
             DPRINTF(QOS,
-                    "QoSMemCtrl::logRequest MASTER %s [id %d]"
+                    "QoSMemCtrl::logRequest REQUESTOR %s [id %d]"
                     " registering priority distance %d for priority %d"
                     " (packets %d)\n",
                     masters[m_id], m_id, distance, i,
@@ -132,9 +132,9 @@ MemCtrl::logRequest(BusState dir, MasterID m_id, uint8_t qos,
     }
 
     DPRINTF(QOS,
-            "QoSMemCtrl::logRequest MASTER %s [id %d] prio %d "
-            "this master q packets %d - new queue size %d\n",
-            masters[m_id], m_id, qos, packetPriorities[m_id][qos],
+            "QoSMemCtrl::logRequest REQUESTOR %s [id %d] prio %d "
+            "this requestor q packets %d - new queue size %d\n",
+            requestors[id], id, qos, packetPriorities[id][qos],
             (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos]);
 
 }
@@ -147,8 +147,8 @@ MemCtrl::logResponse(BusState dir, MasterID m_id, uint8_t qos,
         "Logging response with invalid master\n");
 
     DPRINTF(QOS,
-            "QoSMemCtrl::logResponse MASTER %s [id %d] address %d prio"
-            " %d this master q packets %d"
+            "QoSMemCtrl::logResponse REQUESTOR %s [id %d] address %d prio"
+            " %d this requestor q packets %d"
             " - queue size %d - requested entries %d\n",
             masters[m_id], m_id, addr, qos, packetPriorities[m_id][qos],
             (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos],
@@ -202,9 +202,9 @@ MemCtrl::logResponse(BusState dir, MasterID m_id, uint8_t qos,
     }
 
     DPRINTF(QOS,
-            "QoSMemCtrl::logResponse MASTER %s [id %d] prio %d "
-            "this master q packets %d - new queue size %d\n",
-            masters[m_id], m_id, qos, packetPriorities[m_id][qos],
+            "QoSMemCtrl::logResponse REQUESTOR %s [id %d] prio %d "
+            "this requestor q packets %d - new queue size %d\n",
+            requestors[id], id, qos, packetPriorities[id][qos],
             (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos]);
 }
 
@@ -215,7 +215,7 @@ MemCtrl::schedule(MasterID m_id, uint64_t data)
         return policy->schedule(m_id, data);
     } else {
         DPRINTF(QOS,
-                "QoSScheduler::schedule master ID [%d] "
+                "QoSScheduler::schedule unique id [%d] "
                 "data received [%d], but QoS scheduler not initialized\n",
                 m_id,data);
         return 0;
@@ -312,18 +312,18 @@ MemCtrl::MemCtrlStats::regStats()
     using namespace Stats;
 
     System *system = memCtrl._system;
-    const auto max_masters = system->maxMasters();
+    const auto max_requestors = system->maxMasters();
     const auto num_priorities = memCtrl.numPriorities();
 
     // Initializes per master statistics
     avgPriority
-        .init(max_masters)
+        .init(max_requestors)
         .flags(nozero | nonan)
         .precision(2)
         ;
 
     avgPriorityDistance
-        .init(max_masters)
+        .init(max_requestors)
         .flags(nozero | nonan)
         ;
 
@@ -337,10 +337,10 @@ MemCtrl::MemCtrlStats::regStats()
         .precision(12)
         ;
 
-    for (int i = 0; i < max_masters; i++) {
-        const std::string master = system->getMasterName(i);
-        avgPriority.subname(i, master);
-        avgPriorityDistance.subname(i, master);
+    for (int i = 0; i < max_requestors; i++) {
+        const std::string name = system->getMasterName(i);
+        avgPriority.subname(i, name);
+        avgPriorityDistance.subname(i, name);
     }
 
     for (int j = 0; j < num_priorities; ++j) {

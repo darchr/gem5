@@ -59,35 +59,36 @@ FixedPriorityPolicy::init()
 }
 
 void
-FixedPriorityPolicy::initMasterName(std::string master, uint8_t priority)
+FixedPriorityPolicy::initMasterName(std::string requestor, uint8_t priority)
 {
     priorityMap.insert(
-        this->pair<std::string, uint8_t>(master, priority));
+        this->pair<std::string, uint8_t>(requestor, priority));
 }
 
 void
-FixedPriorityPolicy::initMasterObj(const SimObject* master, uint8_t priority)
+FixedPriorityPolicy::initMasterObj(const SimObject* requestor,
+                                   uint8_t priority)
 {
     priorityMap.insert(
-        this->pair<const SimObject*, uint8_t>(master, priority));
+        this->pair<const SimObject*, uint8_t>(requestor, priority));
 }
 
 uint8_t
-FixedPriorityPolicy::schedule(const MasterID mId, const uint64_t data)
+FixedPriorityPolicy::schedule(const MasterID id, const uint64_t data)
 {
     // Reads a packet's MasterID contained in its encapsulated request
     // if a match is found in the configured priority map, returns the
     // matching priority, else returns zero
 
-    auto ret = priorityMap.find(mId);
+    auto ret = priorityMap.find(id);
 
     if (ret != priorityMap.end()) {
         return ret->second;
     } else {
-        DPRINTF(QOS, "Master %s (MasterID %d) not present in priorityMap, "
+        DPRINTF(QOS, "Requestor %s (MasterID %d) not present in priorityMap, "
                      "assigning default priority %d\n",
-                      memCtrl->system()->getMasterName(mId),
-                      mId, defaultPriority);
+                      memCtrl->system()->getMasterName(id),
+                      id, defaultPriority);
         return defaultPriority;
     }
 }

@@ -51,7 +51,7 @@
  * A queued port is a port that has an infinite queue for outgoing
  * packets and thus decouples the module that wants to send
  * request/responses from the flow control (retry mechanism) of the
- * port. A queued port can be used by both a master and a slave. The
+ * port. A queued port can be used by both a requestor and a responder. The
  * queue is a parameter to allow tailoring of the queue implementation
  * (used in the cache).
  */
