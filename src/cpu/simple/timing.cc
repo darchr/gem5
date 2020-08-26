@@ -427,7 +427,7 @@ TimingSimpleCPU::initiateMemRead(Addr addr, unsigned size,
         traceData->setMem(addr, size, flags);
 
     RequestPtr req = std::make_shared<Request>(
-        addr, size, flags, dataMasterId(), pc, thread->contextId());
+        addr, size, flags, dataUniqueId(), pc, thread->contextId());
     if (!byte_enable.empty()) {
         req->setByteEnable(byte_enable);
     }
@@ -511,7 +511,7 @@ TimingSimpleCPU::writeMem(uint8_t *data, unsigned size,
         traceData->setMem(addr, size, flags);
 
     RequestPtr req = std::make_shared<Request>(
-        addr, size, flags, dataMasterId(), pc, thread->contextId());
+        addr, size, flags, dataUniqueId(), pc, thread->contextId());
     if (!byte_enable.empty()) {
         req->setByteEnable(byte_enable);
     }
@@ -569,7 +569,7 @@ TimingSimpleCPU::initiateMemAMO(Addr addr, unsigned size,
         traceData->setMem(addr, size, flags);
 
     RequestPtr req = make_shared<Request>(addr, size, flags,
-                            dataMasterId(), pc, thread->contextId(),
+                            dataUniqueId(), pc, thread->contextId(),
                             std::move(amo_op));
 
     assert(req->hasAtomicOpFunctor());

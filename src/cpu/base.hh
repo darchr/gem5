@@ -182,9 +182,9 @@ class BaseCPU : public ClockedObject
     uint32_t socketId() const { return _socketId; }
 
     /** Reads this CPU's unique data requestor ID */
-    MasterID dataMasterId() const { return _dataMasterId; }
+    MasterID dataUniqueId() const { return _dataMasterId; }
     /** Reads this CPU's unique instruction requestor ID */
-    MasterID instMasterId() const { return _instMasterId; }
+    MasterID instUniqueId() const { return _instMasterId; }
 
     /**
      * Get a port on this CPU. All CPUs have a data and

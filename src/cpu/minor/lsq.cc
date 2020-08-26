@@ -1645,7 +1645,7 @@ LSQ::pushRequest(MinorDynInstPtr inst, bool isLoad, uint8_t *data,
     int cid = cpu.threads[inst->id.threadId]->getTC()->contextId();
     request->request->setContext(cid);
     request->request->setVirt(
-        addr, size, flags, cpu.dataMasterId(),
+        addr, size, flags, cpu.dataUniqueId(),
         /* I've no idea why we need the PC, but give it */
         inst->pc.instAddr(), std::move(amo_op));
     request->request->setByteEnable(byte_enable);

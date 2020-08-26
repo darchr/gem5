@@ -475,7 +475,7 @@ BaseSimpleCPU::setupFetchRequest(const RequestPtr &req)
     DPRINTF(Fetch, "Fetch: Inst PC:%08p, Fetch PC:%08p\n", instAddr, fetchPC);
 
     req->setVirt(fetchPC, sizeof(MachInst), Request::INST_FETCH,
-                 instMasterId(), instAddr);
+                 instUniqueId(), instAddr);
 }
 
 
