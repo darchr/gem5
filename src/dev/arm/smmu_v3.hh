@@ -151,7 +151,7 @@ class SMMUv3 : public ClockedObject
     std::queue<SMMUAction> packetsTableWalkToRetry;
 
 
-    void scheduleSlaveRetries();
+    void scheduleResponseRetries();
 
     SMMUAction runProcess(SMMUProcess *proc, PacketPtr pkt);
     SMMUAction runProcessAtomic(SMMUProcess *proc, PacketPtr pkt);
@@ -171,13 +171,13 @@ class SMMUv3 : public ClockedObject
     virtual void init() override;
     virtual void regStats() override;
 
-    Tick slaveRecvAtomic(PacketPtr pkt, PortID id);
-    bool slaveRecvTimingReq(PacketPtr pkt, PortID id);
-    bool masterRecvTimingResp(PacketPtr pkt);
-    void masterRecvReqRetry();
+    Tick responderRecvAtomic(PacketPtr pkt, PortID id);
+    bool responderRecvTimingReq(PacketPtr pkt, PortID id);
+    bool requestorRecvTimingResp(PacketPtr pkt);
+    void requestorRecvReqRetry();
 
-    bool masterTableWalkRecvTimingResp(PacketPtr pkt);
-    void masterTableWalkRecvReqRetry();
+    bool requestTableWalkRecvTimingResp(PacketPtr pkt);
+    void requestTableWalkRecvReqRetry();
 
     Tick readControl(PacketPtr pkt);
     Tick writeControl(PacketPtr pkt);

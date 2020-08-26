@@ -49,13 +49,13 @@ SMMUMasterPort::SMMUMasterPort(const std::string &_name, SMMUv3 &_smmu) :
 bool
 SMMUMasterPort::recvTimingResp(PacketPtr pkt)
 {
-    return smmu.masterRecvTimingResp(pkt);
+    return smmu.requestorRecvTimingResp(pkt);
 }
 
 void
 SMMUMasterPort::recvReqRetry()
 {
-    return smmu.masterRecvReqRetry();
+    return smmu.requestorRecvReqRetry();
 }
 
 SMMUMasterTableWalkPort::SMMUMasterTableWalkPort(const std::string &_name,
@@ -67,13 +67,13 @@ SMMUMasterTableWalkPort::SMMUMasterTableWalkPort(const std::string &_name,
 bool
 SMMUMasterTableWalkPort::recvTimingResp(PacketPtr pkt)
 {
-    return smmu.masterTableWalkRecvTimingResp(pkt);
+    return smmu.requestTableWalkRecvTimingResp(pkt);
 }
 
 void
 SMMUMasterTableWalkPort::recvReqRetry()
 {
-    return smmu.masterTableWalkRecvReqRetry();
+    return smmu.requestTableWalkRecvReqRetry();
 }
 
 SMMUSlavePort::SMMUSlavePort(const std::string &_name,
@@ -147,7 +147,7 @@ SMMUATSMasterPort::SMMUATSMasterPort(const std::string &_name,
 bool
 SMMUATSMasterPort::recvTimingResp(PacketPtr pkt)
 {
-    return ifc.atsMasterRecvTimingResp(pkt);
+    return ifc.atsRequestorRecvTimingResp(pkt);
 }
 
 SMMUATSSlavePort::SMMUATSSlavePort(const std::string &_name,
@@ -166,11 +166,11 @@ SMMUATSSlavePort::recvFunctional(PacketPtr pkt)
 Tick
 SMMUATSSlavePort::recvAtomic(PacketPtr pkt)
 {
-    return ifc.atsSlaveRecvAtomic(pkt);
+    return ifc.atsResponderRecvAtomic(pkt);
 }
 
 bool
 SMMUATSSlavePort::recvTimingReq(PacketPtr pkt)
 {
-    return ifc.atsSlaveRecvTimingReq(pkt);
+    return ifc.atsResponderRecvTimingReq(pkt);
 }

@@ -98,9 +98,9 @@ class SMMUv3SlaveInterface : public ClockedObject
     bool recvTimingReq(PacketPtr pkt);
     void schedTimingResp(PacketPtr pkt);
 
-    Tick atsSlaveRecvAtomic(PacketPtr pkt);
-    bool atsSlaveRecvTimingReq(PacketPtr pkt);
-    bool atsMasterRecvTimingResp(PacketPtr pkt);
+    Tick atsResponderRecvAtomic(PacketPtr pkt);
+    bool atsResponderRecvTimingReq(PacketPtr pkt);
+    bool atsRequestorRecvTimingResp(PacketPtr pkt);
     void schedAtsTimingResp(PacketPtr pkt);
 
     void scheduleDeviceRetry();

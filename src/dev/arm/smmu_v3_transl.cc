@@ -1242,7 +1242,7 @@ SMMUTranslationProcess::completeTransaction(Yield &yield,
         ifc.wrBufSlotsRemaining +=
             (request.size + (ifc.portWidth-1)) / ifc.portWidth;
 
-    smmu.scheduleSlaveRetries();
+    smmu.scheduleResponseRetries();
 
 
     SMMUAction a;

@@ -124,7 +124,7 @@ SMMUv3::SMMUv3(SMMUv3Params *params) :
 }
 
 bool
-SMMUv3::masterRecvTimingResp(PacketPtr pkt)
+SMMUv3::requestorRecvTimingResp(PacketPtr pkt)
 {
     DPRINTF(SMMUv3, "[t] master resp addr=%#x size=%#x\n",
         pkt->getAddr(), pkt->getSize());
@@ -141,7 +141,7 @@ SMMUv3::masterRecvTimingResp(PacketPtr pkt)
 }
 
 void
-SMMUv3::masterRecvReqRetry()
+SMMUv3::requestorRecvReqRetry()
 {
     assert(!packetsToRetry.empty());
 
@@ -165,12 +165,12 @@ SMMUv3::masterRecvReqRetry()
          * If the slave port was stalled then unstall it (send retry).
          */
         if (a.type == ACTION_SEND_REQ_FINAL)
-            scheduleSlaveRetries();
+            scheduleResponseRetries();
     }
 }
 
 bool
-SMMUv3::masterTableWalkRecvTimingResp(PacketPtr pkt)
+SMMUv3::requestTableWalkRecvTimingResp(PacketPtr pkt)
 {
     DPRINTF(SMMUv3, "[t] master HWTW resp addr=%#x size=%#x\n",
         pkt->getAddr(), pkt->getSize());
@@ -187,7 +187,7 @@ SMMUv3::masterTableWalkRecvTimingResp(PacketPtr pkt)
 }
 
 void
-SMMUv3::masterTableWalkRecvReqRetry()
+SMMUv3::requestTableWalkRecvReqRetry()
 {
     assert(tableWalkPortEnable);
     assert(!packetsTableWalkToRetry.empty());
@@ -208,7 +208,7 @@ SMMUv3::masterTableWalkRecvReqRetry()
 }
 
 void
-SMMUv3::scheduleSlaveRetries()
+SMMUv3::scheduleResponseRetries()
 {
     for (auto ifc : slaveInterfaces) {
         ifc->scheduleDeviceRetry();
@@ -294,7 +294,7 @@ SMMUv3::runProcessTiming(SMMUProcess *proc, PacketPtr pkt)
 
                 if (packetsTableWalkToRetry.empty()
                         && masterTableWalkPort.sendTimingReq(action.pkt)) {
-                    scheduleSlaveRetries();
+                    scheduleResponseRetries();
                 } else {
                     DPRINTF(SMMUv3, "[t] master HWTW req  needs retry,"
                             " qlen=%d\n", packetsTableWalkToRetry.size());
@@ -311,7 +311,7 @@ SMMUv3::runProcessTiming(SMMUProcess *proc, PacketPtr pkt)
                     action.pkt->getAddr(), action.pkt->getSize());
 
             if (packetsToRetry.empty() && masterPort.sendTimingReq(action.pkt)) {
-                scheduleSlaveRetries();
+                scheduleResponseRetries();
             } else {
                 DPRINTF(SMMUv3, "[t] master req  needs retry, qlen=%d\n",
                         packetsToRetry.size());

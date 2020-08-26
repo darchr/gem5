@@ -167,7 +167,7 @@ SMMUv3SlaveInterface::recvTimingReq(PacketPtr pkt)
 }
 
 Tick
-SMMUv3SlaveInterface::atsSlaveRecvAtomic(PacketPtr pkt)
+SMMUv3SlaveInterface::atsResponderRecvAtomic(PacketPtr pkt)
 {
     DPRINTF(SMMUv3, "[a] ATS slave  req  addr=%#x size=%#x\n",
             pkt->getAddr(), pkt->getSize());
@@ -185,7 +185,7 @@ SMMUv3SlaveInterface::atsSlaveRecvAtomic(PacketPtr pkt)
 }
 
 bool
-SMMUv3SlaveInterface::atsSlaveRecvTimingReq(PacketPtr pkt)
+SMMUv3SlaveInterface::atsResponderRecvTimingReq(PacketPtr pkt)
 {
     DPRINTF(SMMUv3, "[t] ATS slave  req  addr=%#x size=%#x\n",
             pkt->getAddr(), pkt->getSize());
@@ -210,7 +210,7 @@ SMMUv3SlaveInterface::atsSlaveRecvTimingReq(PacketPtr pkt)
 }
 
 bool
-SMMUv3SlaveInterface::atsMasterRecvTimingResp(PacketPtr pkt)
+SMMUv3SlaveInterface::atsRequestorRecvTimingResp(PacketPtr pkt)
 {
     DPRINTF(SMMUv3, "[t] ATS master resp addr=%#x size=%#x\n",
             pkt->getAddr(), pkt->getSize());
