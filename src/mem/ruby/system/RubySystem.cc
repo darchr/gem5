@@ -128,7 +128,7 @@ RubySystem::registerMachineID(const MachineID& mach_id, Network* network)
 // constructor and there are functional reads/writes between init() and
 // startup().
 void
-RubySystem::registerMasterIDs()
+RubySystem::registerRequestorIDs()
 {
     // Create the map for MasterID to network node. This is done in init()
     // because all MasterIDs must be obtained in the constructor and
@@ -400,7 +400,7 @@ RubySystem::unserialize(CheckpointIn &cp)
 void
 RubySystem::init()
 {
-    registerMasterIDs();
+    registerRequestorIDs();
 }
 
 void

@@ -97,7 +97,7 @@ class RubySystem : public ClockedObject
     void registerNetwork(Network*);
     void registerAbstractController(AbstractController*);
     void registerMachineID(const MachineID& mach_id, Network* network);
-    void registerMasterIDs();
+    void registerRequestorIDs();
 
     bool eventQueueEmpty() { return eventq->empty(); }
     void enqueueRubyEvent(Tick tick)
