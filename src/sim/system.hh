@@ -502,7 +502,7 @@ class System : public SimObject, public PCEventScope
     MasterID lookupMasterId(const std::string& name) const;
 
     /** Get the number of masters registered in the system */
-    MasterID maxMasters() { return masters.size(); }
+    MasterID maxRequestors() { return masters.size(); }
 
   protected:
     /** helper function for getUniqueId */

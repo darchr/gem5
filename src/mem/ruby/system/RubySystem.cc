@@ -155,7 +155,7 @@ RubySystem::registerMasterIDs()
     }
 
     // Default all other master IDs to network 0
-    for (auto mid = 0; mid < params()->system->maxMasters(); ++mid) {
+    for (auto mid = 0; mid < params()->system->maxRequestors(); ++mid) {
         if (!masterToNetwork.count(mid)) {
             masterToNetwork.insert(std::make_pair(mid, 0));
         }

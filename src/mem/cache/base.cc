@@ -1868,7 +1868,7 @@ BaseCache::CacheCmdStats::regStatsFromParent()
 
     Stats::Group::regStats();
     System *system = cache.system;
-    const auto max_masters = system->maxMasters();
+    const auto max_masters = system->maxRequestors();
 
     hits
         .init(max_masters)
@@ -2063,7 +2063,7 @@ BaseCache::CacheStats::regStats()
     Stats::Group::regStats();
 
     System *system = cache.system;
-    const auto max_masters = system->maxMasters();
+    const auto max_masters = system->maxRequestors();
 
     for (auto &cs : cmd)
         cs->regStatsFromParent();

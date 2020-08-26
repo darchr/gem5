@@ -145,7 +145,7 @@ AbstractMemory::MemStats::regStats()
 
     System *sys = mem.system();
     assert(sys);
-    const auto max_masters = sys->maxMasters();
+    const auto max_masters = sys->maxRequestors();
 
     bytesRead
         .init(max_masters)

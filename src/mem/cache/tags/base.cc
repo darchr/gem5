@@ -240,15 +240,15 @@ BaseTags::BaseTagStats::regStats()
     avgRefs = totalRefs / sampledRefs;
 
     occupancies
-        .init(system->maxMasters())
+        .init(system->maxRequestors())
         .flags(nozero | nonan)
         ;
-    for (int i = 0; i < system->maxMasters(); i++) {
+    for (int i = 0; i < system->maxRequestors(); i++) {
         occupancies.subname(i, system->getRequestorName(i));
     }
 
     avgOccs.flags(nozero | total);
-    for (int i = 0; i < system->maxMasters(); i++) {
+    for (int i = 0; i < system->maxRequestors(); i++) {
         avgOccs.subname(i, system->getRequestorName(i));
     }
 

@@ -312,7 +312,7 @@ MemCtrl::MemCtrlStats::regStats()
     using namespace Stats;
 
     System *system = memCtrl._system;
-    const auto max_masters = system->maxMasters();
+    const auto max_masters = system->maxRequestors();
     const auto num_priorities = memCtrl.numPriorities();
 
     // Initializes per master statistics

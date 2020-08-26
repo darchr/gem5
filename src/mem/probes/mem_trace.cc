@@ -86,7 +86,7 @@ MemTraceProbe::startup()
     header_msg.set_obj_id(name());
     header_msg.set_tick_freq(SimClock::Frequency);
 
-    for (int i = 0; i < system->maxMasters(); i++) {
+    for (int i = 0; i < system->maxRequestors(); i++) {
         auto id_string = header_msg.add_id_strings();
         id_string->set_key(i);
         id_string->set_value(system->getRequestorName(i));

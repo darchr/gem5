@@ -2679,7 +2679,7 @@ DRAMCtrl::DRAMStats::regStats()
     using namespace Stats;
 
     assert(dram._system);
-    const auto max_masters = dram._system->maxMasters();
+    const auto max_masters = dram._system->maxRequestors();
 
     perBankRdBursts.init(dram.banksPerRank * dram.ranksPerChannel);
     perBankWrBursts.init(dram.banksPerRank * dram.ranksPerChannel);
