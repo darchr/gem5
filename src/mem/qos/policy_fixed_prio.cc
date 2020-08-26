@@ -59,14 +59,15 @@ FixedPriorityPolicy::init()
 }
 
 void
-FixedPriorityPolicy::initMasterName(std::string master, uint8_t priority)
+FixedPriorityPolicy::initRequestorName(std::string master, uint8_t priority)
 {
     priorityMap.insert(
         this->pair<std::string, uint8_t>(master, priority));
 }
 
 void
-FixedPriorityPolicy::initMasterObj(const SimObject* master, uint8_t priority)
+FixedPriorityPolicy::initRequestorObj(const SimObject* master,
+                                      uint8_t priority)
 {
     priorityMap.insert(
         this->pair<const SimObject*, uint8_t>(master, priority));

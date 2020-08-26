@@ -51,8 +51,8 @@ class QoSFixedPriorityPolicy(QoSPolicy):
     cxx_class = 'QoS::FixedPriorityPolicy'
 
     cxx_exports = [
-        PyBindMethod('initMasterName'),
-        PyBindMethod('initMasterObj'),
+        PyBindMethod('initRequestorName'),
+        PyBindMethod('initRequestorObj'),
     ]
 
     _mpriorities = None
@@ -72,10 +72,10 @@ class QoSFixedPriorityPolicy(QoSPolicy):
                 master = mprio[0]
                 priority = mprio[1]
                 if isinstance(master, string_types):
-                    self.getCCObject().initMasterName(
+                    self.getCCObject().initRequestorName(
                         master, int(priority))
                 else:
-                    self.getCCObject().initMasterObj(
+                    self.getCCObject().initRequestorObj(
                         master.getCCObject(), priority)
 
     # default fixed priority value for non-listed Masters
@@ -88,8 +88,8 @@ class QoSPropFairPolicy(QoSPolicy):
     cxx_class = 'QoS::PropFairPolicy'
 
     cxx_exports = [
-        PyBindMethod('initMasterName'),
-        PyBindMethod('initMasterObj'),
+        PyBindMethod('initRequestorName'),
+        PyBindMethod('initRequestorObj'),
     ]
 
     _mscores = None
@@ -109,10 +109,10 @@ class QoSPropFairPolicy(QoSPolicy):
                 master = mprio[0]
                 score = mprio[1]
                 if isinstance(master, string_types):
-                    self.getCCObject().initMasterName(
+                    self.getCCObject().initRequestorName(
                         master, float(score))
                 else:
-                    self.getCCObject().initMasterObj(
+                    self.getCCObject().initRequestorObj(
                         master.getCCObject(), float(score))
 
     weight = Param.Float(0.5, "Pf score weight")

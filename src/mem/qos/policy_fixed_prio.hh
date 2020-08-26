@@ -69,7 +69,7 @@ class FixedPriorityPolicy : public Policy
      * @param master master's name to lookup.
      * @param priority priority value for the master
      */
-    void initMasterName(std::string master, uint8_t priority);
+    void initRequestorName(std::string master, uint8_t priority);
 
     /**
      * Initialize the fixed master's priority by providing
@@ -78,7 +78,7 @@ class FixedPriorityPolicy : public Policy
      * @param master master's SimObject pointer to lookup.
      * @param priority priority value for the master
      */
-    void initMasterObj(const SimObject* master, uint8_t priority);
+    void initRequestorObj(const SimObject* master, uint8_t priority);
 
     /**
      * Schedules a packet based on fixed priority configuration

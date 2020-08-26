@@ -74,7 +74,7 @@ class PropFairPolicy : public Policy
      * @param master master's name to lookup.
      * @param score initial score value for the master
      */
-    void initMasterName(const std::string master, const double score);
+    void initRequestorName(const std::string master, const double score);
 
     /**
      * Initialize the master's score by providing
@@ -84,7 +84,7 @@ class PropFairPolicy : public Policy
      * @param master master's SimObject pointer to lookup.
      * @param score initial score value for the master
      */
-    void initMasterObj(const SimObject* master, const double score);
+    void initRequestorObj(const SimObject* master, const double score);
 
     /**
      * Schedules a packet based on proportional fair configuration
@@ -98,7 +98,7 @@ class PropFairPolicy : public Policy
 
   protected:
     template <typename Master>
-    void initMaster(const Master master, const double score);
+    void initRequestor(const Master master, const double score);
 
     inline double
     updateScore(const double old_score, const uint64_t served_bytes) const;

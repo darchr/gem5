@@ -55,7 +55,7 @@ PropFairPolicy::~PropFairPolicy()
 
 template <typename Master>
 void
-PropFairPolicy::initMaster(const Master master, const double score)
+PropFairPolicy::initRequestor(const Master master, const double score)
 {
     MasterID m_id = memCtrl->system()->lookupMasterId(master);
 
@@ -70,15 +70,15 @@ PropFairPolicy::initMaster(const Master master, const double score)
 }
 
 void
-PropFairPolicy::initMasterName(const std::string master, const double score)
+PropFairPolicy::initRequestorName(const std::string master, const double score)
 {
-    initMaster(master, score);
+    initRequestor(master, score);
 }
 
 void
-PropFairPolicy::initMasterObj(const SimObject* master, const double score)
+PropFairPolicy::initRequestorObj(const SimObject* master, const double score)
 {
-    initMaster(master, score);
+    initRequestor(master, score);
 }
 
 double
