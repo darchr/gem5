@@ -46,6 +46,11 @@ import inspect
 import os
 import re
 import sys
+# Allow pre-commit hook to parse unicode/non-ASCII characters
+# by setting the python encoding to utf-8.
+# This should be removed when moving to Python3
+reload(sys)
+sys.setdefaultencoding('utf-8')
 
 from six import add_metaclass
 
