@@ -88,7 +88,7 @@ MemCtrl::logRequest(BusState dir, MasterID m_id, uint8_t qos,
 {
     // If needed, initialize all counters and statistics
     // for this master
-    addMaster(m_id);
+    addRequestor(m_id);
 
     DPRINTF(QOS,
             "QoSMemCtrl::logRequest MASTER %s [id %d] address %d"
@@ -143,7 +143,7 @@ void
 MemCtrl::logResponse(BusState dir, MasterID m_id, uint8_t qos,
                      Addr addr, uint64_t entries, double delay)
 {
-    panic_if(!hasMaster(m_id),
+    panic_if(!hasRequestor(m_id),
         "Logging response with invalid master\n");
 
     DPRINTF(QOS,
@@ -266,14 +266,14 @@ MemCtrl::selectNextBusState()
 }
 
 void
-MemCtrl::addMaster(MasterID m_id)
+MemCtrl::addRequestor(MasterID m_id)
 {
-    if (!hasMaster(m_id)) {
+    if (!hasRequestor(m_id)) {
         masters.emplace(m_id, _system->getRequestorName(m_id));
         packetPriorities[m_id].resize(numPriorities(), 0);
 
         DPRINTF(QOS,
-                "QoSMemCtrl::addMaster registering"
+                "QoSMemCtrl::addRequestor registering"
                 " Master %s [id %d]\n",
                 masters[m_id], m_id);
     }

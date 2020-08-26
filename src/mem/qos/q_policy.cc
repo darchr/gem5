@@ -84,7 +84,7 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
                      "from queue with id %d\n", m_id);
 
         // Check if this is a known master.
-        panic_if(memCtrl->hasMaster(m_id),
+        panic_if(memCtrl->hasRequestor(m_id),
                  "%s: Unrecognized Master\n", __func__);
 
         panic_if(toServe.size() > 0,

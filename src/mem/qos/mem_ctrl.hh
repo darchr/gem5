@@ -157,7 +157,7 @@ class MemCtrl: public AbstractMemory
      *
      * @param m_id the master ID
      */
-    void addMaster(const MasterID m_id);
+    void addRequestor(const MasterID m_id);
 
     /**
      * Called upon receiving a request or
@@ -285,7 +285,7 @@ class MemCtrl: public AbstractMemory
     BusState getBusStateNext() const { return busStateNext; }
 
     /**
-     * hasMaster returns true if the selected master(ID) has
+     * hasRequestor returns true if the selected master(ID) has
      * been registered in the memory controller, which happens if
      * the memory controller has received at least a packet from
      * that master.
@@ -294,7 +294,7 @@ class MemCtrl: public AbstractMemory
      * @return true if the memory controller has received a packet
      *         from the master, false otherwise.
      */
-    bool hasMaster(MasterID m_id) const
+    bool hasRequestor(MasterID m_id) const
     {
         return masters.find(m_id) != masters.end();
     }
@@ -428,7 +428,7 @@ MemCtrl::escalate(std::initializer_list<Queues*> queues,
 {
     // If needed, initialize all counters and statistics
     // for this master
-    addMaster(m_id);
+    addRequestor(m_id);
 
     DPRINTF(QOS,
             "QoSMemCtrl::escalate Master %s [id %d] to priority "
