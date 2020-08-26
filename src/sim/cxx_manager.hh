@@ -133,7 +133,7 @@ class CxxConfigManager
     /** Bind a single (possibly vectored) master port to peers from the
      *  unparsed list peers with elements in the .ini connection format:
      *  path(.path)*.port[index] */
-    void bindMasterPort(SimObject *object,
+    void bindRequestPort(SimObject *object,
         const CxxConfigDirectoryEntry::PortDesc &port,
         const std::vector<std::string> &peers);
 

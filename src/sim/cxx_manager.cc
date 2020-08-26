@@ -480,7 +480,7 @@ CxxConfigManager::bindPort(
 }
 
 void
-CxxConfigManager::bindMasterPort(SimObject *object,
+CxxConfigManager::bindRequestPort(SimObject *object,
     const CxxConfigDirectoryEntry::PortDesc &port,
     const std::vector<std::string> &peers)
 {
@@ -547,7 +547,7 @@ CxxConfigManager::bindObjectPorts(SimObject *object)
                     port->name, peers.size()));
             }
 
-            bindMasterPort(object, *port, peers);
+            bindRequestPort(object, *port, peers);
         }
     }
 }
