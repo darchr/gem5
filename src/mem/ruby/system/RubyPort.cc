@@ -94,8 +94,6 @@ RubyPort::getPort(const std::string &if_name, PortID idx)
         return memMasterPort;
     } else if (if_name == "pio_master_port") {
         return pioMasterPort;
-    } else if (if_name == "mem_slave_port") {
-        return memSlavePort;
     } else if (if_name == "pio_slave_port") {
         return pioSlavePort;
     } else if (if_name == "master") {
