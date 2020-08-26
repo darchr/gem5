@@ -493,13 +493,13 @@ class System : public SimObject, public PCEventScope
      * Looks up the MasterID for a given SimObject
      * returns an invalid MasterID (invldMasterId) if not found.
      */
-    MasterID lookupMasterId(const SimObject* obj) const;
+    MasterID lookupRequestorId(const SimObject* obj) const;
 
     /**
      * Looks up the MasterID for a given object name string
      * returns an invalid MasterID (invldMasterId) if not found.
      */
-    MasterID lookupMasterId(const std::string& name) const;
+    MasterID lookupRequestorId(const std::string& name) const;
 
     /** Get the number of masters registered in the system */
     MasterID maxRequestors() { return masters.size(); }

@@ -114,7 +114,7 @@ template <typename M, typename T>
 std::pair<MasterID, T>
 Policy::pair(M master, T value)
 {
-    auto id = memCtrl->system()->lookupMasterId(master);
+    auto id = memCtrl->system()->lookupRequestorId(master);
 
     panic_if(id == Request::invldMasterId,
              "Unable to find master %s\n", master);

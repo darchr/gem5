@@ -554,7 +554,7 @@ System::stripSystemName(const std::string& master_name) const
 }
 
 MasterID
-System::lookupMasterId(const SimObject* obj) const
+System::lookupRequestorId(const SimObject* obj) const
 {
     MasterID id = Request::invldMasterId;
 
@@ -577,7 +577,7 @@ System::lookupMasterId(const SimObject* obj) const
 }
 
 MasterID
-System::lookupMasterId(const std::string& master_name) const
+System::lookupRequestorId(const std::string& master_name) const
 {
     std::string name = stripSystemName(master_name);
 

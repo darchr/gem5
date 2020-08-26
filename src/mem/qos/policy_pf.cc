@@ -57,7 +57,7 @@ template <typename Master>
 void
 PropFairPolicy::initRequestor(const Master master, const double score)
 {
-    MasterID m_id = memCtrl->system()->lookupMasterId(master);
+    MasterID m_id = memCtrl->system()->lookupRequestorId(master);
 
     assert(m_id != Request::invldMasterId);
 
