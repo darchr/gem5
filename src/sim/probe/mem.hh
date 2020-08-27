@@ -64,7 +64,7 @@ struct PacketInfo {
         size(pkt->getSize()),
         flags(pkt->req->getFlags()),
         pc(pkt->req->hasPC() ? pkt->req->getPC() : 0),
-        master(pkt->req->masterId())  { }
+        master(pkt->req->requestorId())  { }
 };
 
 /**

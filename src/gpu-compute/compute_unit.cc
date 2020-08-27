@@ -1228,7 +1228,7 @@ ComputeUnit::injectGlobalMemFence(GPUDynInstPtr gpuDynInst,
 
     if (!req) {
         req = std::make_shared<Request>(
-            0, 0, 0, masterId(), 0, gpuDynInst->wfDynId);
+            0, 0, 0, requestorId(), 0, gpuDynInst->wfDynId);
     }
 
     // all mem sync requests have Paddr == 0
@@ -1493,7 +1493,7 @@ ComputeUnit::DTLBPort::recvTimingResp(PacketPtr pkt)
             RequestPtr prefetch_req = std::make_shared<Request>(
                 vaddr + stride * pf * TheISA::PageBytes,
                 sizeof(uint8_t), 0,
-                computeUnit->masterId(),
+                computeUnit->requestorId(),
                 0, 0, nullptr);
 
             PacketPtr prefetch_pkt = new Packet(prefetch_req, requestCmd);

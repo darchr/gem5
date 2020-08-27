@@ -270,8 +270,8 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                 DPRINTF(Cache, "%s coalescing MSHR for %s\n", __func__,
                         pkt->print());
 
-                assert(pkt->req->masterId() < system->maxMasters());
-                stats.cmdStats(pkt).mshr_hits[pkt->req->masterId()]++;
+                assert(pkt->req->requestorId() < system->maxRequestors());
+                stats.cmdStats(pkt).mshr_hits[pkt->req->requestorId()]++;
 
                 // We use forward_time here because it is the same
                 // considering new targets. We have multiple
@@ -294,8 +294,8 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
         }
     } else {
         // no MSHR
-        assert(pkt->req->masterId() < system->maxMasters());
-        stats.cmdStats(pkt).mshr_misses[pkt->req->masterId()]++;
+        assert(pkt->req->requestorId() < system->maxRequestors());
+        stats.cmdStats(pkt).mshr_misses[pkt->req->requestorId()]++;
 
         if (pkt->isEviction() || pkt->cmd == MemCmd::WriteClean) {
             // We use forward_time here because there is an
@@ -441,13 +441,13 @@ BaseCache::recvTimingResp(PacketPtr pkt)
     const QueueEntry::Target *initial_tgt = mshr->getTarget();
     const Tick miss_latency = curTick() - initial_tgt->recvTime;
     if (pkt->req->isUncacheable()) {
-        assert(pkt->req->masterId() < system->maxMasters());
+        assert(pkt->req->requestorId() < system->maxRequestors());
         stats.cmdStats(initial_tgt->pkt)
-            .mshr_uncacheable_lat[pkt->req->masterId()] += miss_latency;
+            .mshr_uncacheable_lat[pkt->req->requestorId()] += miss_latency;
     } else {
-        assert(pkt->req->masterId() < system->maxMasters());
+        assert(pkt->req->requestorId() < system->maxRequestors());
         stats.cmdStats(initial_tgt->pkt)
-            .mshr_miss_latency[pkt->req->masterId()] += miss_latency;
+            .mshr_miss_latency[pkt->req->requestorId()] += miss_latency;
     }
 
     PacketList writebacks;
@@ -774,8 +774,8 @@ BaseCache::getNextQueueEntry()
                 !writeBuffer.findMatch(pf_addr, pkt->isSecure())) {
                 // Update statistic on number of prefetches issued
                 // (hwpf_mshr_misses)
-                assert(pkt->req->masterId() < system->maxMasters());
-                stats.cmdStats(pkt).mshr_misses[pkt->req->masterId()]++;
+                assert(pkt->req->requestorId() < system->maxRequestors());
+                stats.cmdStats(pkt).mshr_misses[pkt->req->requestorId()]++;
 
                 // allocate an MSHR and return it, note
                 // that we send the packet straight away, so do not

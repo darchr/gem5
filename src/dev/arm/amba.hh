@@ -48,7 +48,7 @@ typedef MasterID OrderID;
 static OrderID
 orderId(PacketPtr pkt)
 {
-    return pkt->req->masterId();
+    return pkt->req->requestorId();
 }
 
 } // namespace AMBA

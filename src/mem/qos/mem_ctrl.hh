@@ -364,10 +364,10 @@ MemCtrl::escalateQueues(Queues& queues, uint64_t queue_entry_size,
         DPRINTF(QOS,
                 "QoSMemCtrl::escalate checking priority %d packet "
                 "m_id %d address %d\n", curr_prio,
-                pkt->masterId(), pkt->getAddr());
+                pkt->requestorId(), pkt->getAddr());
 
         // Found a packet to move
-        if (pkt->masterId() == m_id) {
+        if (pkt->requestorId() == m_id) {
 
             uint64_t moved_entries = divCeil(pkt->getSize(),
                                              queue_entry_size);
@@ -485,7 +485,7 @@ MemCtrl::qosSchedule(std::initializer_list<Queues*> queues,
         // Call the scheduling function on all other masters.
         for (const auto& m : masters) {
 
-            if (m.first == pkt->masterId())
+            if (m.first == pkt->requestorId())
                 continue;
 
             uint8_t prio = schedule(m.first, 0);
@@ -505,9 +505,9 @@ MemCtrl::qosSchedule(std::initializer_list<Queues*> queues,
         DPRINTF(QOS,
                 "QoSMemCtrl::qosSchedule: escalating "
                 "MASTER %s to assigned priority %d\n",
-                _system->getMasterName(pkt->masterId()),
+                _system->getRequestorName(pkt->requestorId()),
                 pkt_priority);
-        escalate(queues, queue_entry_size, pkt->masterId(), pkt_priority);
+        escalate(queues, queue_entry_size, pkt->requestorId(), pkt_priority);
     }
 
     // Update last service tick for selected priority

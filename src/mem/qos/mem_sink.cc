@@ -134,7 +134,7 @@ MemSinkCtrl::recvTimingReq(PacketPtr pkt)
     DPRINTF(QOS,
             "%s: MASTER %s request %s addr %lld size %d\n",
             __func__,
-            _system->getMasterName(pkt->req->masterId()),
+            _system->getRequestorName(pkt->req->requestorId()),
             pkt->cmdString(), pkt->getAddr(), pkt->getSize());
 
     uint64_t required_entries = divCeil(pkt->getSize(), memoryPacketSize);
@@ -178,7 +178,7 @@ MemSinkCtrl::recvTimingReq(PacketPtr pkt)
     if (req_accepted) {
         // The packet is accepted - log it
         logRequest(pkt->isRead()? READ : WRITE,
-                   pkt->req->masterId(),
+                   pkt->req->requestorId(),
                    pkt->qosValue(),
                    pkt->getAddr(),
                    required_entries);
@@ -221,7 +221,7 @@ MemSinkCtrl::processNextReqEvent()
         for (uint8_t i = 0; i < numPriorities(); ++i) {
             std::string plist = "";
             for (auto& e : (busState == WRITE ? writeQueue[i]: readQueue[i])) {
-                plist += (std::to_string(e->req->masterId())) + " ";
+                plist += (std::to_string(e->req->requestorId())) + " ";
             }
             DPRINTF(QOS,
                     "%s priority Queue [%i] contains %i elements, "
@@ -253,7 +253,7 @@ MemSinkCtrl::processNextReqEvent()
             DPRINTF(QOS,
                     "%s scheduling packet address %d for master %s from "
                     "priority queue %d\n", __func__, pkt->getAddr(),
-                    _system->getMasterName(pkt->req->masterId()),
+                    _system->getRequestorName(pkt->req->requestorId()),
                     curr_prio);
             break;
         }
@@ -270,7 +270,7 @@ MemSinkCtrl::processNextReqEvent()
     DPRINTF(QOS,
             "%s scheduled packet address %d for master %s size is %d, "
             "corresponds to %d memory packets\n", __func__, pkt->getAddr(),
-            _system->getMasterName(pkt->req->masterId()),
+            _system->getRequestorName(pkt->req->requestorId()),
             pkt->getSize(), removed_entries);
 
     // Schedule response
@@ -283,7 +283,7 @@ MemSinkCtrl::processNextReqEvent()
 
     // Log the response
     logResponse(pkt->isRead()? READ : WRITE,
-                pkt->req->masterId(),
+                pkt->req->requestorId(),
                 pkt->qosValue(),
                 pkt->getAddr(),
                 removed_entries, responseLatency);

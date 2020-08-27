@@ -654,7 +654,7 @@ class Request
 
     /** Accesssor for the requestor id. */
     MasterID
-    masterId() const
+    requestorId() const
     {
         return _masterId;
     }

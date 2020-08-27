@@ -350,14 +350,15 @@ tracePacket(System *sys, const char *label, PacketPtr pkt)
     if (size == 1 || size == 2 || size == 4 || size == 8) {
         ByteOrder byte_order = sys->getGuestByteOrder();
         DPRINTF(MemoryAccess,"%s from %s of size %i on address %#x data "
-                "%#x %c\n", label, sys->getMasterName(pkt->req->masterId()),
+                "%#x %c\n", label, sys->getRequestorName(pkt->req->
+                requestorId()), size, pkt->getAddr(),
                 size, pkt->getAddr(), pkt->getUintX(byte_order),
                 pkt->req->isUncacheable() ? 'U' : 'C');
         return;
     }
 #endif
     DPRINTF(MemoryAccess, "%s from %s of size %i on address %#x %c\n",
-            label, sys->getMasterName(pkt->req->masterId()),
+            label, sys->getRequestorName(pkt->req->requestorId()),
             size, pkt->getAddr(), pkt->req->isUncacheable() ? 'U' : 'C');
     DDUMP(MemoryAccess, pkt->getConstPtr<uint8_t>(), pkt->getSize());
 }
@@ -424,7 +425,7 @@ AbstractMemory::access(PacketPtr pkt)
 
             assert(!pkt->req->isInstFetch());
             TRACE_PACKET("Read/Write");
-            stats.numOther[pkt->req->masterId()]++;
+            stats.numOther[pkt->req->requestorId()]++;
         }
     } else if (pkt->isRead()) {
         assert(!pkt->isWrite());
@@ -438,10 +439,10 @@ AbstractMemory::access(PacketPtr pkt)
             pkt->setData(host_addr);
         }
         TRACE_PACKET(pkt->req->isInstFetch() ? "IFetch" : "Read");
-        stats.numReads[pkt->req->masterId()]++;
-        stats.bytesRead[pkt->req->masterId()] += pkt->getSize();
+        stats.numReads[pkt->req->requestorId()]++;
+        stats.bytesRead[pkt->req->requestorId()] += pkt->getSize();
         if (pkt->req->isInstFetch())
-            stats.bytesInstRead[pkt->req->masterId()] += pkt->getSize();
+            stats.bytesInstRead[pkt->req->requestorId()] += pkt->getSize();
     } else if (pkt->isInvalidate() || pkt->isClean()) {
         assert(!pkt->isWrite());
         // in a fastmem system invalidating and/or cleaning packets
@@ -457,8 +458,8 @@ AbstractMemory::access(PacketPtr pkt)
             }
             assert(!pkt->req->isInstFetch());
             TRACE_PACKET("Write");
-            stats.numWrites[pkt->req->masterId()]++;
-            stats.bytesWritten[pkt->req->masterId()] += pkt->getSize();
+            stats.numWrites[pkt->req->requestorId()]++;
+            stats.bytesWritten[pkt->req->requestorId()] += pkt->getSize();
         }
     } else {
         panic("Unexpected packet %s", pkt->print());

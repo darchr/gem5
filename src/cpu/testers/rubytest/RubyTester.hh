@@ -117,7 +117,7 @@ class RubyTester : public ClockedObject
     void print(std::ostream& out) const;
     bool getCheckFlush() { return m_check_flush; }
 
-    MasterID masterId() { return _masterId; }
+    MasterID requestorId() { return _masterId; }
   protected:
     EventFunctionWrapper checkStartEvent;
 

@@ -491,8 +491,8 @@ RubySystem::functionalRead(PacketPtr pkt)
     unsigned int num_invalid = 0;
 
     // Only send functional requests within the same network.
-    assert(masterToNetwork.count(pkt->masterId()));
-    int master_net_id = masterToNetwork[pkt->masterId()];
+    assert(masterToNetwork.count(pkt->requestorId()));
+    int master_net_id = masterToNetwork[pkt->requestorId()];
     assert(netCntrls.count(master_net_id));
 
     AbstractController *ctrl_ro = nullptr;
@@ -605,8 +605,8 @@ RubySystem::functionalWrite(PacketPtr pkt)
     uint32_t M5_VAR_USED num_functional_writes = 0;
 
     // Only send functional requests within the same network.
-    assert(masterToNetwork.count(pkt->masterId()));
-    int master_net_id = masterToNetwork[pkt->masterId()];
+    assert(masterToNetwork.count(pkt->requestorId()));
+    int master_net_id = masterToNetwork[pkt->requestorId()];
     assert(netCntrls.count(master_net_id));
 
     for (auto& cntrl : netCntrls[master_net_id]) {

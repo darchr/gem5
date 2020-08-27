@@ -430,7 +430,7 @@ System::addDeviceMemory(MasterID masterId, AbstractMemory *deviceMemory)
 bool
 System::isDeviceMemAddr(PacketPtr pkt) const
 {
-    const MasterID& mid = pkt->masterId();
+    const MasterID& mid = pkt->requestorId();
 
     return (deviceMemMap.count(mid) &&
             deviceMemMap.at(mid)->getAddrRange().contains(pkt->getAddr()));

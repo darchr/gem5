@@ -402,7 +402,7 @@ DRAMCtrl::addToReadQueue(PacketPtr pkt, unsigned int pktCount)
                                  base_addr + pkt->getSize()) - addr;
         stats.readPktSize[ceilLog2(size)]++;
         stats.readBursts++;
-        stats.masterReadAccesses[pkt->masterId()]++;
+        stats.masterReadAccesses[pkt->requestorId()]++;
 
         // First check write buffer to see if the data is already at
         // the controller
@@ -456,7 +456,7 @@ DRAMCtrl::addToReadQueue(PacketPtr pkt, unsigned int pktCount)
             ++dram_pkt->rankRef.readEntries;
 
             // log packet
-            logRequest(MemCtrl::READ, pkt->masterId(), pkt->qosValue(),
+            logRequest(MemCtrl::READ, pkt->requestorId(), pkt->qosValue(),
                        dram_pkt->addr, 1);
 
             // Update stats
@@ -501,7 +501,7 @@ DRAMCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pktCount)
                                  base_addr + pkt->getSize()) - addr;
         stats.writePktSize[ceilLog2(size)]++;
         stats.writeBursts++;
-        stats.masterWriteAccesses[pkt->masterId()]++;
+        stats.masterWriteAccesses[pkt->requestorId()]++;
 
         // see if we can merge with an existing item in the write
         // queue and keep track of whether we have merged or not
@@ -522,7 +522,7 @@ DRAMCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pktCount)
             isInWriteQueue.insert(burstAlign(addr));
 
             // log packet
-            logRequest(MemCtrl::WRITE, pkt->masterId(), pkt->qosValue(),
+            logRequest(MemCtrl::WRITE, pkt->requestorId(), pkt->qosValue(),
                        dram_pkt->addr, 1);
 
             assert(totalWriteQueueSize == isInWriteQueue.size());
@@ -1451,20 +1451,20 @@ DRAMCtrl::doDRAMAccess(DRAMPacket* dram_pkt)
 
         // Update latency stats
         stats.totMemAccLat += dram_pkt->readyTime - dram_pkt->entryTime;
-        stats.masterReadTotalLat[dram_pkt->masterId()] +=
+        stats.masterReadTotalLat[dram_pkt->requestorId()] +=
             dram_pkt->readyTime - dram_pkt->entryTime;
 
         stats.totBusLat += tBURST;
         stats.totQLat += cmd_at - dram_pkt->entryTime;
-        stats.masterReadBytes[dram_pkt->masterId()] += dram_pkt->size;
+        stats.masterReadBytes[dram_pkt->requestorId()] += dram_pkt->size;
     } else {
         ++writesThisTime;
         if (row_hit)
             stats.writeRowHits++;
         stats.bytesWritten += burstSize;
         stats.perBankWrBursts[dram_pkt->bankId]++;
-        stats.masterWriteBytes[dram_pkt->masterId()] += dram_pkt->size;
-        stats.masterWriteTotalLat[dram_pkt->masterId()] +=
+        stats.masterWriteBytes[dram_pkt->requestorId()] += dram_pkt->size;
+        stats.masterWriteTotalLat[dram_pkt->requestorId()] +=
             dram_pkt->readyTime - dram_pkt->entryTime;
     }
 }
@@ -1630,7 +1630,7 @@ DRAMCtrl::processNextReqEvent()
             assert(dram_pkt->readyTime >= curTick());
 
             // log the response
-            logResponse(MemCtrl::READ, (*to_read)->masterId(),
+            logResponse(MemCtrl::READ, (*to_read)->requestorId(),
                         dram_pkt->qosValue(), dram_pkt->getAddr(), 1,
                         dram_pkt->readyTime - dram_pkt->entryTime);
 
@@ -1730,7 +1730,7 @@ DRAMCtrl::processNextReqEvent()
         isInWriteQueue.erase(burstAlign(dram_pkt->addr));
 
         // log the response
-        logResponse(MemCtrl::WRITE, dram_pkt->masterId(),
+        logResponse(MemCtrl::WRITE, dram_pkt->requestorId(),
                     dram_pkt->qosValue(), dram_pkt->getAddr(), 1,
                     dram_pkt->readyTime - dram_pkt->entryTime);
 

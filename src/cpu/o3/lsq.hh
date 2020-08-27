@@ -409,7 +409,7 @@ class LSQ
             if (byte_enable.empty() ||
                 isAnyActiveElement(byte_enable.begin(), byte_enable.end())) {
                 auto request = std::make_shared<Request>(
-                        addr, size, _flags, _inst->masterId(),
+                        addr, size, _flags, _inst->requestorId(),
                         _inst->instAddr(), _inst->contextId(),
                         std::move(_amo_op));
                 if (!byte_enable.empty()) {

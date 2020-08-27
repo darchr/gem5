@@ -498,7 +498,7 @@ LSQ::SplitDataRequest::makeFragmentRequests()
         if (byte_enable.empty()) {
             fragment->setVirt(
                 fragment_addr, fragment_size, request->getFlags(),
-                request->masterId(), request->getPC());
+                request->requestorId(), request->getPC());
         } else {
             // Set up byte-enable mask for the current fragment
             auto it_start = byte_enable.begin() +
@@ -508,7 +508,7 @@ LSQ::SplitDataRequest::makeFragmentRequests()
             if (isAnyActiveElement(it_start, it_end)) {
                 fragment->setVirt(
                     fragment_addr, fragment_size, request->getFlags(),
-                    request->masterId(), request->getPC());
+                    request->requestorId(), request->getPC());
                 fragment->setByteEnable(std::vector<bool>(it_start, it_end));
             } else {
                 disabled_fragment = true;

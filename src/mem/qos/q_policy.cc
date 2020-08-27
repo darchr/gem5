@@ -79,7 +79,7 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
                  "QoSQPolicy::lrg detected packet without request");
 
         // Get Request MasterID
-        MasterID m_id = pkt->req->masterId();
+        MasterID m_id = pkt->req->requestorId();
         DPRINTF(QOS, "QoSQPolicy::lrg checking packet "
                      "from queue with id %d\n", m_id);
 
@@ -138,8 +138,8 @@ LrgQueuePolicy::selectPacket(PacketQueue* q)
 void
 LrgQueuePolicy::enqueuePacket(PacketPtr pkt)
 {
-    MasterID m_id = pkt->masterId();
-    if (!memCtrl->hasMaster(m_id)) {
+    MasterID m_id = pkt->requestorId();
+    if (!memCtrl->hasRequestor(m_id)) {
         toServe.push_back(m_id);
     }
 };

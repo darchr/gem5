@@ -458,7 +458,7 @@ class ComputeUnit : public ClockedObject
     void processFetchReturn(PacketPtr pkt);
     void updatePageDivergenceDist(Addr addr);
 
-    MasterID masterId() { return _masterId; }
+    MasterID requestorId() { return _masterId; }
 
     bool isDone() const;
     bool isVectorAluIdle(uint32_t simdId) const;

@@ -1219,8 +1219,8 @@ class BaseCache : public ClockedObject
 
     void incMissCount(PacketPtr pkt)
     {
-        assert(pkt->req->masterId() < system->maxMasters());
-        stats.cmdStats(pkt).misses[pkt->req->masterId()]++;
+        assert(pkt->req->requestorId() < system->maxRequestors());
+        stats.cmdStats(pkt).misses[pkt->req->requestorId()]++;
         pkt->req->incAccessDepth();
         if (missCount) {
             --missCount;
@@ -1230,8 +1230,8 @@ class BaseCache : public ClockedObject
     }
     void incHitCount(PacketPtr pkt)
     {
-        assert(pkt->req->masterId() < system->maxMasters());
-        stats.cmdStats(pkt).hits[pkt->req->masterId()]++;
+        assert(pkt->req->requestorId() < system->maxRequestors());
+        stats.cmdStats(pkt).hits[pkt->req->requestorId()]++;
     }
 
     /**
