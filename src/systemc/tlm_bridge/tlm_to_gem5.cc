@@ -470,7 +470,7 @@ TlmToGem5Bridge<BITWIDTH>::TlmToGem5Bridge(
     bmp(std::string(name()) + "master", *this), socket("tlm_socket"),
     wrapper(socket, std::string(name()) + ".tlm", InvalidPortID),
     system(params->system),
-    masterId(params->system->getGlobalMasterId(
+    masterId(params->system->getGlobalUniqueId(
                 std::string("[systemc].") + name()))
 {
 }

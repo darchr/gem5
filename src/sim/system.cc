@@ -591,7 +591,7 @@ System::lookupRequestorId(const std::string& master_name) const
 }
 
 MasterID
-System::getGlobalMasterId(const std::string& master_name)
+System::getGlobalUniqueId(const std::string& master_name)
 {
     return _getUniqueId(nullptr, master_name);
 }
@@ -599,7 +599,7 @@ System::getGlobalMasterId(const std::string& master_name)
 MasterID
 System::getUniqueId(const SimObject* master, std::string submaster)
 {
-    auto master_name = leafMasterName(master, submaster);
+    auto master_name = leafRequestorName(master, submaster);
     return _getUniqueId(master, master_name);
 }
 
@@ -634,7 +634,8 @@ System::_getUniqueId(const SimObject* master, const std::string& master_name)
 }
 
 std::string
-System::leafMasterName(const SimObject* master, const std::string& submaster)
+System::leafRequestorName(const SimObject* master, const std::string&
+                          submaster)
 {
     if (submaster.empty()) {
         return master->name();

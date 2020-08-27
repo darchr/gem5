@@ -482,7 +482,7 @@ class System : public SimObject, public PCEventScope
      * @param masterName full name of the master
      * @return the master's ID.
      */
-    MasterID getGlobalMasterId(const std::string& master_name);
+    MasterID getGlobalUniqueId(const std::string& master_name);
 
     /**
      * Get the name of an object for a given request id.
@@ -513,7 +513,7 @@ class System : public SimObject, public PCEventScope
      * Helper function for constructing the full (sub)master name
      * by providing the root master and the relative submaster name.
      */
-    std::string leafMasterName(const SimObject* master,
+    std::string leafRequestorName(const SimObject* master,
                                const std::string& submaster);
 
   public:
