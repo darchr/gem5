@@ -55,7 +55,7 @@ SMMUv3::SMMUv3(SMMUv3Params *params) :
     ClockedObject(params),
     system(*params->system),
     requestorId(params->system->getRequestorId(this)),
-    requestPort(name() + ".requestor", *this),
+    requestPort(name() + ".request", *this),
     tableWalkPort(name() + ".walker", *this),
     controlPort(name() + ".control", *this, params->reg_map),
     tlb(params->tlb_entries, params->tlb_assoc, params->tlb_policy),
@@ -816,7 +816,7 @@ SMMUv3::unserialize(CheckpointIn &cp)
 Port&
 SMMUv3::getPort(const std::string &name, PortID id)
 {
-    if (name == "requestor") {
+    if (name == "request") {
         return requestPort;
     } else if (name == "walker") {
         return tableWalkPort;

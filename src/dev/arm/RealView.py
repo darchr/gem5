@@ -1093,9 +1093,9 @@ Interrupts:
         """
         Instantiate a single SMMU and attach a group of client devices to it.
         The devices' dma port is wired to the SMMU and the SMMU's dma port
-        (requestor) is attached to the bus. In order to make it work, the list
-        of clients shouldn't contain any device part of the _off_chip_devices
-        or _on_chip_devices.
+        is attached to the bus. In order to make it work, the list of clients
+        shouldn't contain any device part of the _off_chip_devices or
+        _on_chip_devices.
         This method should be called only once.
 
         Parameters:
@@ -1109,7 +1109,7 @@ Interrupts:
 
         self.smmu = SMMUv3(reg_map=AddrRange(0x2b400000, size=0x00020000))
 
-        self.smmu.mem_side_port = bus.cpu_side_ports
+        self.smmu.request = bus.cpu_side_ports
         self.smmu.control = bus.mem_side_ports
 
         dma_ports = []

@@ -82,7 +82,7 @@ class SMMUv3(ClockedObject):
     type = 'SMMUv3'
     cxx_header = 'dev/arm/smmu_v3.hh'
 
-    request_port = RequestPort('Request port')
+    request = RequestPort('Request port')
     walker = RequestPort(
         'Request port for SMMU initiated HWTW requests (optional)')
     control = ResponsePort(
