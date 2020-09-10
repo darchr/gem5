@@ -55,7 +55,7 @@
 #include "cpu/base.hh"
 #include "cpu/pc_event.hh"
 #include "enums/MemoryMode.hh"
-#include "mem/mem_master.hh"
+#include "mem/mem_requestor.hh"
 #include "mem/physical.hh"
 #include "mem/port.hh"
 #include "mem/port_proxy.hh"
