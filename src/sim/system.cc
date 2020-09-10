@@ -628,7 +628,7 @@ System::_getRequestorId(const SimObject* requestor,
     // Generate a new RequestorID incrementally
     RequestorID requestor_id = requestors.size();
 
-    // Append the new Master metadata to the group of system Masters.
+    // Append the new Requestor metadata to the group of system Requestors.
     requestors.emplace_back(requestor, name, requestor_id);
 
     return requestors.back().id;

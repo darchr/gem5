@@ -458,8 +458,8 @@ class System : public SimObject, public PCEventScope
      * instruction requestor,
      * the method must be called twice:
      *
-     * instMasterId = getRequestorId(cpu, "inst");
-     * dataMasterId = getRequestorId(cpu, "data");
+     * instRequestorId = getRequestorId(cpu, "inst");
+     * dataRequestorId = getRequestorId(cpu, "data");
      *
      * and the requestors' names will be:
      * - "cpu.inst"
@@ -503,7 +503,7 @@ class System : public SimObject, public PCEventScope
     RequestorID maxRequestors() { return requestors.size(); }
 
   protected:
-    /** helper function for getMasterId */
+    /** helper function for getRequestorId */
     RequestorID _getRequestorId(const SimObject* requestor,
                           const std::string& requestor_name);
 

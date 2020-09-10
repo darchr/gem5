@@ -81,7 +81,7 @@ class Policy : public SimObject
      * method will panic.
      *
      * @param requestor Requestor to lookup in the system
-     * @param value Value to be associated with the MasterID
+     * @param value Value to be associated with the RequestorID
      * @return A RequestorID/Value pair.
      */
     template <typename Requestor, typename T>

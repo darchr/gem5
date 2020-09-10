@@ -137,7 +137,7 @@ CoherentXBar::init()
     // inform the snoop filter about the CPU-side ports so it can create
     // its own internal representation
     if (snoopFilter)
-        snoopFilter->setSlavePorts(cpuSidePorts);
+        snoopFilter->setCPUSidePorts(cpuSidePorts);
 }
 
 bool

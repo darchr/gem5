@@ -58,7 +58,7 @@ class SMMUDeviceRetryEvent : public Event
     const std::string name() const;
 
     const char *description() const
-    { return "SlaveRetryEvent"; }
+    { return "DeviceRetryEvent"; }
 };
 
 #endif /* __DEV_ARM_SMMU_V3_EVENTS_HH__ */

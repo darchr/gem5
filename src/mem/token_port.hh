@@ -82,7 +82,7 @@ class TokenRequestPort : public RequestPort
 
     /**
      * Specify a token manger, which will handle tracking of tokens for a
-     * TokenMasterPort/SlaveMasterPort pair.
+     * TokenRequestPort/ResponseRequestPort pair.
      */
     void setTokenManager(TokenManager *_tokenManager);
 };

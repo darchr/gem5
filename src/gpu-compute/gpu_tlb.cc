@@ -930,7 +930,7 @@ namespace X86ISA
         Addr paddr = local_entry->paddr | (vaddr & (page_size - 1));
         DPRINTF(GPUTLB, "Translated %#x -> %#x.\n", vaddr, paddr);
 
-        // Since this packet will be sent through the cpu side slave port,
+        // Since this packet will be sent through the cpu side port,
         // it must be converted to a response pkt if it is not one already
         if (pkt->isRequest()) {
             pkt->makeTimingResponse();

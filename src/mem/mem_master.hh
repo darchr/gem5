@@ -40,14 +40,14 @@
  * RequestorInfo declaration.
  */
 
-#ifndef __MEM_MEM_MASTER_HH__
-#define __MEM_MEM_MASTER_HH__
+#ifndef __MEM_MEM_REQUESTOR_HH__
+#define __MEM_MEM_REQUESTOR_HH__
 
 #include "mem/request.hh"
 #include "sim/sim_object.hh"
 
 /**
- * The RequestorInfo class contains data about a specific master.
+ * The RequestorInfo class contains data about a specific requestor.
  */
 struct RequestorInfo
 {
@@ -67,4 +67,4 @@ struct RequestorInfo
     RequestorID id;
 };
 
-#endif // __MEM_MEM_MASTER_HH__
+#endif // __MEM_MEM_REQUESTOR_HH__

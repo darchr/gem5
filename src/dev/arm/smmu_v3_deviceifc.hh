@@ -35,8 +35,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __DEV_ARM_SMMU_V3_SLAVEIFC_HH__
-#define __DEV_ARM_SMMU_V3_SLAVEIFC_HH__
+#ifndef __DEV_ARM_SMMU_V3_DEVICEIFC_HH__
+#define __DEV_ARM_SMMU_V3_DEVICEIFC_HH__
 
 #include <list>
 
@@ -138,4 +138,4 @@ class SMMUv3DeviceInterface : public ClockedObject
     void sendRange();
 };
 
-#endif /* __DEV_ARM_SMMU_V3_SLAVEIFC_HH__ */
+#endif /* __DEV_ARM_SMMU_V3_DEVICEIFC_HH__ */

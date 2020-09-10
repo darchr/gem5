@@ -104,7 +104,7 @@ class SnoopFilter : public SimObject {
      *
      * @param _cpu_side_ports Response ports that the bus is attached to.
      */
-    void setSlavePorts(const SnoopList& _cpu_side_ports) {
+    void setCPUSidePorts(const SnoopList& _cpu_side_ports) {
         localResponsePortIds.resize(_cpu_side_ports.size(), InvalidPortID);
 
         PortID id = 0;
