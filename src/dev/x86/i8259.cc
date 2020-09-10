@@ -38,7 +38,7 @@
 X86ISA::I8259::I8259(Params * p)
     : BasicPioDevice(p, 2),
       latency(p->pio_latency),
-      mode(p->mode), responsePort(p->slave),
+      mode(p->mode), slave(p->slave),
       IRR(0), ISR(0), IMR(0),
       readIRR(true), initControlWord(0), autoEOI(false)
 {
@@ -321,10 +321,10 @@ X86ISA::I8259::getVector()
     } else {
         ISR |= 1 << line;
     }
-    if (responsePort && bits(cascadeBits, line)) {
+    if (slave && bits(cascadeBits, line)) {
         DPRINTF(I8259, "Interrupt was from responder who will "
                 "provide the vector.\n");
-        return responsePort->getVector();
+        return slave->getVector();
     }
     return line | vectorOffset;
 }

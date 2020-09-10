@@ -49,7 +49,7 @@ class I8259 : public BasicPioDevice
     std::vector<IntSourcePin<I8259> *> output;
     std::vector<IntSinkPin<I8259> *> inputs;
     Enums::X86I8259CascadeMode mode;
-    I8259 * responsePort;
+    I8259 *slave;
 
     // Interrupt Request Register
     uint8_t IRR;
