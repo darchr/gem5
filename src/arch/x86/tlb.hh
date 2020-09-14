@@ -147,7 +147,7 @@ namespace X86ISA
         Fault finalizePhysical(const RequestPtr &req, ThreadContext *tc,
                                Mode mode) const override;
 
-        TlbEntry *insert(Addr vpn, const TlbEntry &entry);
+        TlbEntry *insert(Addr vpn, const TlbEntry &entry, int asn);
 
         /*
          * Function to register Stats

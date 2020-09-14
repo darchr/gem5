@@ -44,8 +44,10 @@ import m5
 # import all of the SimObjects
 from m5.objects import *
 
+SMT_test = True
+
 # create the system we are going to simulate
-system = System()
+system = System(multi_thread = SMT_test)
 
 # Set the clock fequency of the system (and all of its children)
 system.clk_domain = SrcClockDomain()
@@ -57,7 +59,10 @@ system.mem_mode = 'timing'               # Use timing accesses
 system.mem_ranges = [AddrRange('512MB')] # Create an address range
 
 # Create a simple CPU
-system.cpu = TimingSimpleCPU()
+if SMT_test:
+    system.cpu = TimingSimpleCPU(numThreads = 2)
+else:
+    system.cpu = TimingSimpleCPU()
 
 # Create a memory bus, a system crossbar, in this case
 system.membus = SystemXBar()
@@ -72,9 +77,10 @@ system.cpu.createInterruptController()
 # For x86 only, make sure the interrupts are connected to the memory
 # Note: these are directly connected to the memory bus and are not cached
 if m5.defines.buildEnv['TARGET_ISA'] == "x86":
-    system.cpu.interrupts[0].pio = system.membus.master
-    system.cpu.interrupts[0].int_master = system.membus.slave
-    system.cpu.interrupts[0].int_slave = system.membus.master
+    for i in range(system.cpu.numThreads):
+        system.cpu.interrupts[i].pio = system.membus.master
+        system.cpu.interrupts[i].int_master = system.membus.slave
+        system.cpu.interrupts[i].int_slave = system.membus.master
 
 # Create a DDR3 memory controller and connect it to the membus
 system.mem_ctrl = DDR3_1600_8x8()
@@ -90,16 +96,30 @@ isa = str(m5.defines.buildEnv['TARGET_ISA']).lower()
 # Default to running 'hello', use the compiled ISA to find the binary
 # grab the specific path to the binary
 thispath = os.path.dirname(os.path.realpath(__file__))
-binary = os.path.join(thispath, '../../../',
-                      'tests/test-progs/hello/bin/', isa, 'linux/hello')
+binary1 = os.path.join(thispath, '../../../',
+                      'tests/test-progs/hello/bin/x86/linux/hello')
+binary2 = os.path.join(thispath, '../../../',
+                      'tests/test-progs/hello/bin/x86/linux/hello')
 
+#binary3 = os.path.join(thispath,'../../../',
+#                      'tests/test-progs/threads/bin/x86/linux/threads')
 # Create a process for a simple "Hello World" application
-process = Process()
+process1 = Process(pid=1000)
+process2 = Process(pid=1001)
+
 # Set the command
 # cmd is a list which begins with the executable (like argv)
-process.cmd = [binary]
+process1.cmd = [binary1]
+process2.cmd = [binary2]
+#process1.cmd = [binary3]
+
 # Set the cpu to use the process as its workload and create thread contexts
-system.cpu.workload = process
+if SMT_test:
+    system.cpu.workload = [process1, process2]
+    #system.cpu.workload = process1
+else:
+    system.cpu.workload = process1
+
 system.cpu.createThreads()
 
 # set up the root SimObject and start the simulation

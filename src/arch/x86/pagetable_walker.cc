@@ -511,7 +511,9 @@ Walker::WalkerState::stepWalk(PacketPtr &write)
     if (doEndWalk) {
         if (doTLBInsert)
             if (!functional)
-                walker->tlb->insert(entry.vaddr, entry);
+                //This is needed to just compile gem5 (since the tlb->insert()
+                //is updated), but would not effect SE mode runs
+                walker->tlb->insert(entry.vaddr, entry, 0);
         endWalk();
     } else {
         PacketPtr oldRead = read;

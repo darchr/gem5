@@ -94,8 +94,11 @@ TLB::evictLRU()
 }
 
 TlbEntry *
-TLB::insert(Addr vpn, const TlbEntry &entry)
+TLB::insert(Addr vpn, const TlbEntry &entry, int asn)
 {
+
+    vpn = vpn | (asn & 1);
+
     // If somebody beat us to it, just use that existing entry.
     TlbEntry *newEntry = trie.lookup(vpn);
     if (newEntry) {
@@ -113,7 +116,7 @@ TLB::insert(Addr vpn, const TlbEntry &entry)
     newEntry->lruSeq = nextSeq();
     newEntry->vaddr = vpn;
     newEntry->trieHandle =
-    trie.insert(vpn, TlbEntryTrie::MaxBits - entry.logBytes, newEntry);
+    trie.insert(vpn, TlbEntryTrie::MaxBits, newEntry);
     return newEntry;
 }
 
@@ -371,7 +374,13 @@ TLB::translate(const RequestPtr &req,
         if (m5Reg.paging) {
             DPRINTF(TLB, "Paging enabled.\n");
             // The vaddr already has the segment base applied.
-            TlbEntry *entry = lookup(vaddr);
+
+            //Appending the threadId() to the vaddr
+            Process *p_temp = tc->getProcessPtr();
+            Addr alignedVaddr_temp = p_temp->pTable->pageAlign(vaddr);
+            alignedVaddr_temp = (alignedVaddr_temp) | tc->threadId();
+            TlbEntry *entry = lookup(alignedVaddr_temp);
+
             if (mode == Read) {
                 rdAccesses++;
             } else {
@@ -409,7 +418,9 @@ TLB::translate(const RequestPtr &req,
                         entry = insert(alignedVaddr, TlbEntry(
                                 p->pTable->pid(), alignedVaddr, pte->paddr,
                                 pte->flags & EmulationPageTable::Uncacheable,
-                                pte->flags & EmulationPageTable::ReadOnly));
+                                pte->flags & EmulationPageTable::ReadOnly),
+                                        (int)p->pTable->pid());
+
                     }
                     DPRINTF(TLB, "Miss was serviced.\n");
                 }
