@@ -94,10 +94,13 @@ TLB::evictLRU()
 }
 
 TlbEntry *
-TLB::insert(Addr vpn, const TlbEntry &entry, int asn)
+TLB::insert(Addr vpn, const TlbEntry &entry, uint64_t pid)
 {
-
-    vpn = vpn | (asn & 1);
+    //Adding pid to the page address so
+    //that multiple processes using the same
+    //tlb do not conflict when using the same
+    //virtual addresses
+    vpn = concAddrPid(vpn, pid);
 
     // If somebody beat us to it, just use that existing entry.
     TlbEntry *newEntry = trie.lookup(vpn);
@@ -378,7 +381,8 @@ TLB::translate(const RequestPtr &req,
             //Appending the threadId() to the vaddr
             Process *p_temp = tc->getProcessPtr();
             Addr alignedVaddr_temp = p_temp->pTable->pageAlign(vaddr);
-            alignedVaddr_temp = (alignedVaddr_temp) | tc->threadId();
+            alignedVaddr_temp = concAddrPid(alignedVaddr_temp,
+                                        p_temp->pTable->pid());
             TlbEntry *entry = lookup(alignedVaddr_temp);
 
             if (mode == Read) {
@@ -419,7 +423,7 @@ TLB::translate(const RequestPtr &req,
                                 p->pTable->pid(), alignedVaddr, pte->paddr,
                                 pte->flags & EmulationPageTable::Uncacheable,
                                 pte->flags & EmulationPageTable::ReadOnly),
-                                        (int)p->pTable->pid());
+                                        p->pTable->pid());
 
                     }
                     DPRINTF(TLB, "Miss was serviced.\n");

@@ -74,6 +74,12 @@ namespace X86ISA
 
         void setConfigAddress(uint32_t addr);
 
+        //concatenate Page Addr and pid
+        inline Addr concAddrPid(Addr vpn, uint64_t pid)
+        {
+          return (vpn | pid);
+        }
+
       protected:
 
         EntryList::iterator lookupIt(Addr va, bool update_lru = true);
@@ -147,7 +153,7 @@ namespace X86ISA
         Fault finalizePhysical(const RequestPtr &req, ThreadContext *tc,
                                Mode mode) const override;
 
-        TlbEntry *insert(Addr vpn, const TlbEntry &entry, int asn);
+        TlbEntry *insert(Addr vpn, const TlbEntry &entry, uint64_t pid);
 
         /*
          * Function to register Stats
