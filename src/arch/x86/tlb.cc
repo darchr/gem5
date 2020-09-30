@@ -94,13 +94,13 @@ TLB::evictLRU()
 }
 
 TlbEntry *
-TLB::insert(Addr vpn, const TlbEntry &entry, uint64_t pid)
+TLB::insert(Addr vpn, const TlbEntry &entry, uint64_t pcid)
 {
-    //Adding pid to the page address so
+    //Adding pcid to the page address so
     //that multiple processes using the same
     //tlb do not conflict when using the same
     //virtual addresses
-    vpn = concAddrPid(vpn, pid);
+    vpn = concAddrPid(vpn, pcid);
 
     // If somebody beat us to it, just use that existing entry.
     TlbEntry *newEntry = trie.lookup(vpn);
@@ -378,11 +378,12 @@ TLB::translate(const RequestPtr &req,
             DPRINTF(TLB, "Paging enabled.\n");
             // The vaddr already has the segment base applied.
 
-            //Appending the threadId() to the vaddr
+            //Appending the pcid (last 12 bits of CR3) to the
+            //page aligned vaddr
             Process *p_temp = tc->getProcessPtr();
             Addr alignedVaddr_temp = p_temp->pTable->pageAlign(vaddr);
             alignedVaddr_temp = concAddrPid(alignedVaddr_temp,
-                                        p_temp->pTable->pid());
+                                tc->readMiscRegNoEffect(MISCREG_CR3) & 0xfff);
             TlbEntry *entry = lookup(alignedVaddr_temp);
 
             if (mode == Read) {
@@ -423,7 +424,7 @@ TLB::translate(const RequestPtr &req,
                                 p->pTable->pid(), alignedVaddr, pte->paddr,
                                 pte->flags & EmulationPageTable::Uncacheable,
                                 pte->flags & EmulationPageTable::ReadOnly),
-                                        p->pTable->pid());
+                                tc->readMiscRegNoEffect(MISCREG_CR3) & 0xfff);
 
                     }
                     DPRINTF(TLB, "Miss was serviced.\n");

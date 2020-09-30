@@ -580,6 +580,7 @@ X86_64Process::initState()
             tc->setMiscReg(MISCREG_CR0, cr0);
 
             tc->setMiscReg(MISCREG_MXCSR, 0x1f80);
+            tc->setMiscReg(MISCREG_CR3, pTable->pid());
         }
     }
 }
