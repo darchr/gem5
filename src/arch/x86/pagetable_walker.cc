@@ -510,9 +510,18 @@ Walker::WalkerState::stepWalk(PacketPtr &write)
     }
     if (doEndWalk) {
         if (doTLBInsert)
-            if (!functional)
-                walker->tlb->insert(entry.vaddr, entry,
-                            tc->readMiscRegNoEffect(MISCREG_CR3) & 0xfff);
+            if (!functional) {
+
+                // Setting PCIDE in CR4 to read PCID from CR3
+                CR4 cr4 = tc->readMiscRegNoEffect(MISCREG_CR4);
+                cr4.pcide = 1;
+                tc->setMiscReg(MISCREG_CR4, cr4);
+                CR3 cr3 = tc->readMiscRegNoEffect(MISCREG_CR3);
+                walker->tlb->insert(entry.vaddr, entry, cr3.pcid);
+                cr4.pcide = 0;
+                tc->setMiscReg(MISCREG_CR4, cr4);
+
+            }
         endWalk();
     } else {
         PacketPtr oldRead = read;

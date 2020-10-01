@@ -580,6 +580,11 @@ X86_64Process::initState()
             tc->setMiscReg(MISCREG_CR0, cr0);
 
             tc->setMiscReg(MISCREG_MXCSR, 0x1f80);
+
+            // Setting CR3 to the pid so that concatinated page addr with
+            // lower 12 bits of CR3 can be used in SE mode as well to
+            // avoid conflicts between tlb entries with same virtual
+            // addresses belonging to different processes
             tc->setMiscReg(MISCREG_CR3, pTable->pid());
         }
     }

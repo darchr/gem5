@@ -74,10 +74,10 @@ namespace X86ISA
 
         void setConfigAddress(uint32_t addr);
 
-        //concatenate Page Addr and pid
-        inline Addr concAddrPid(Addr vpn, uint64_t pid)
+        //concatenate Page Addr and pcid
+        inline Addr concAddrPid(Addr vpn, uint64_t pcid)
         {
-          return (vpn | pid);
+          return (vpn | pcid);
         }
 
       protected:

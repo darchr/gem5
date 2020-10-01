@@ -380,10 +380,10 @@ TLB::translate(const RequestPtr &req,
 
             //Appending the pcid (last 12 bits of CR3) to the
             //page aligned vaddr
+            CR3 cr3 = tc->readMiscRegNoEffect(MISCREG_CR3);
             Process *p_temp = tc->getProcessPtr();
             Addr alignedVaddr_temp = p_temp->pTable->pageAlign(vaddr);
-            alignedVaddr_temp = concAddrPid(alignedVaddr_temp,
-                                tc->readMiscRegNoEffect(MISCREG_CR3) & 0xfff);
+            alignedVaddr_temp = concAddrPid(alignedVaddr_temp, cr3.pcid);
             TlbEntry *entry = lookup(alignedVaddr_temp);
 
             if (mode == Read) {
@@ -407,7 +407,7 @@ TLB::translate(const RequestPtr &req,
                         delayedResponse = true;
                         return fault;
                     }
-                    entry = lookup(vaddr);
+                    entry = lookup(alignedVaddr_temp);
                     assert(entry);
                 } else {
                     Process *p = tc->getProcessPtr();
@@ -424,7 +424,7 @@ TLB::translate(const RequestPtr &req,
                                 p->pTable->pid(), alignedVaddr, pte->paddr,
                                 pte->flags & EmulationPageTable::Uncacheable,
                                 pte->flags & EmulationPageTable::ReadOnly),
-                                tc->readMiscRegNoEffect(MISCREG_CR3) & 0xfff);
+                                cr3.pcid);
 
                     }
                     DPRINTF(TLB, "Miss was serviced.\n");
