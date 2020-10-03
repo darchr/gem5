@@ -100,7 +100,7 @@ TLB::insert(Addr vpn, const TlbEntry &entry, uint64_t pcid)
     //that multiple processes using the same
     //tlb do not conflict when using the same
     //virtual addresses
-    vpn = concAddrPid(vpn, pcid);
+    vpn = concAddrPcid(vpn, pcid);
 
     // If somebody beat us to it, just use that existing entry.
     TlbEntry *newEntry = trie.lookup(vpn);
@@ -379,12 +379,19 @@ TLB::translate(const RequestPtr &req,
             // The vaddr already has the segment base applied.
 
             //Appending the pcid (last 12 bits of CR3) to the
-            //page aligned vaddr
+            //page aligned vaddr if pcide is set
+            CR4 cr4 = tc->readMiscRegNoEffect(MISCREG_CR4);
+            Addr pageAlignedVaddr = vaddr & X86ISA::PageBytes;
             CR3 cr3 = tc->readMiscRegNoEffect(MISCREG_CR3);
-            Process *p_temp = tc->getProcessPtr();
-            Addr alignedVaddr_temp = p_temp->pTable->pageAlign(vaddr);
-            alignedVaddr_temp = concAddrPid(alignedVaddr_temp, cr3.pcid);
-            TlbEntry *entry = lookup(alignedVaddr_temp);
+            uint64_t pcid;
+
+            if (cr4.pcide)
+                pcid = cr3.pcid;
+            else
+                pcid = 0x000;
+
+            pageAlignedVaddr = concAddrPcid(pageAlignedVaddr, pcid);
+            TlbEntry *entry = lookup(pageAlignedVaddr);
 
             if (mode == Read) {
                 rdAccesses++;
@@ -407,7 +414,7 @@ TLB::translate(const RequestPtr &req,
                         delayedResponse = true;
                         return fault;
                     }
-                    entry = lookup(alignedVaddr_temp);
+                    entry = lookup(pageAlignedVaddr);
                     assert(entry);
                 } else {
                     Process *p = tc->getProcessPtr();
@@ -424,7 +431,7 @@ TLB::translate(const RequestPtr &req,
                                 p->pTable->pid(), alignedVaddr, pte->paddr,
                                 pte->flags & EmulationPageTable::Uncacheable,
                                 pte->flags & EmulationPageTable::ReadOnly),
-                                cr3.pcid);
+                                pcid);
 
                     }
                     DPRINTF(TLB, "Miss was serviced.\n");

@@ -586,6 +586,12 @@ X86_64Process::initState()
             // avoid conflicts between tlb entries with same virtual
             // addresses belonging to different processes
             tc->setMiscReg(MISCREG_CR3, pTable->pid());
+
+            // Setting pcide bit in CR4
+            CR4 cr4 = 0;
+            cr4.pcide = 1;
+            tc->setMiscReg(MISCREG_CR4, cr4);
+
         }
     }
 }

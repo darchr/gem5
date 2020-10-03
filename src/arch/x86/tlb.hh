@@ -75,7 +75,7 @@ namespace X86ISA
         void setConfigAddress(uint32_t addr);
 
         //concatenate Page Addr and pcid
-        inline Addr concAddrPid(Addr vpn, uint64_t pcid)
+        inline Addr concAddrPcid(Addr vpn, uint64_t pcid)
         {
           return (vpn | pcid);
         }
@@ -153,7 +153,7 @@ namespace X86ISA
         Fault finalizePhysical(const RequestPtr &req, ThreadContext *tc,
                                Mode mode) const override;
 
-        TlbEntry *insert(Addr vpn, const TlbEntry &entry, uint64_t pid);
+        TlbEntry *insert(Addr vpn, const TlbEntry &entry, uint64_t pcid);
 
         /*
          * Function to register Stats
