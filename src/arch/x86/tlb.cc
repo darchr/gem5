@@ -381,7 +381,7 @@ TLB::translate(const RequestPtr &req,
             //Appending the pcid (last 12 bits of CR3) to the
             //page aligned vaddr if pcide is set
             CR4 cr4 = tc->readMiscRegNoEffect(MISCREG_CR4);
-            Addr pageAlignedVaddr = vaddr & X86ISA::PageBytes;
+            Addr pageAlignedVaddr = vaddr & mask(X86ISA::PageShift);
             CR3 cr3 = tc->readMiscRegNoEffect(MISCREG_CR3);
             uint64_t pcid;
 
