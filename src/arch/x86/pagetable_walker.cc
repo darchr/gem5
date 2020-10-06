@@ -600,7 +600,7 @@ Walker::WalkerState::setupWalk(Addr vaddr)
 
     // PCD can't be used if CR4.PCIDE=1 [sec 2.5
     // of Intel's Software Developer's manual]
-    if (cr3.pcd && cr4.pcide!=1)
+    if (!cr4.pcide && cr3.pcd)
         flags.set(Request::UNCACHEABLE);
 
     RequestPtr request = std::make_shared<Request>(
