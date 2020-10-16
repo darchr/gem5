@@ -430,6 +430,53 @@ Once a patch meets the above criteria, the submitter of the patch will be able
 to merge the patch by pressing the "Submit" button on Gerrit. When the patch is
 submitted, it is merged into the public gem5 branch.
 
+For "primary" gem5 features at least two different people should review the
+change before it is committed, except for trivial changes. There is no
+automatic enforcement of this rule, but we expect the community to respect this
+guideline. This guideline is meant to increase transparency in the development
+process and prevent painful changes from affecting gem5's users.
+
+"Primary" gem5 features are features used by a large number of users or which
+affect many users indirectly. This will include most of the code in base/,
+sim/, etc. This does not include legacy-supported ISAs (i.e., SPARC, MIPS,
+POWER) or other subsystems that are not widely used (e.g., SystemC, Arm
+Fastmodel, GPU VIPER coherence protocol, etc.). All APIs are "primary"
+features.
+
+Updating APIs
+=============
+
+gem5's APIs are currently documented via [doxygen]. More information about
+gem5's APIs can be found on the [gem5 website][APIs]. Currently, it is the
+responsibility of the gem5 reviewers to make sure the [API change rules][APIs]
+are followed.
+
+[doxygen]: http://doxygen.gem5.org/release/current/modules.html
+[APIs]: http://www.gem5.org/documentation/general_docs/gem5-apis/
+
+Before changing a gem5 API is it imperative to receive buy-in from the gem5
+community. The best way to do this is through communication with the community
+before making the API change or after making a proposal for the change. We ask
+that before any changes to the API are pushed to gerrit (or at a minimum at the
+same time) the committer also does the following:
+
+1. Create an issue on the [issue tracker].
+2. Send an email to gem5-dev mailing list
+
+[issue tracker]: https://gem5.atlassian.net/
+
+We ask that these extra steps are taken for API changes to improve the
+transparency and publicity of API changes. Not all users will track all Jira
+issues or all commits pushed to Jira. Additionally, it is important to provide
+the gem5 users with some stability to build on top of gem5.
+
+All APIs are considered "primary" gem5 features and require at least two
+reviewers. Additionally, APIs must be deprecated for at least one release
+before the old API is removed. The gem5 community is going through a transition
+to increase its stability, and during this time, there maybe some APIs that
+have not been marked as such, but still require higher scrutiny before
+committing.
+
 Review moderation and guidelines
 --------------------------------
 
