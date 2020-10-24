@@ -2493,9 +2493,3 @@ ISA::MiscRegLUTEntryInitializer::highest(ArmSystem *const sys) const
 }
 
 }  // namespace ArmISA
-
-ArmISA::ISA *
-ArmISAParams::create() const
-{
-    return new ArmISA::ISA(*this);
-}
