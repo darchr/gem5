@@ -35,7 +35,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "sim/ticked.hh"
+#include "cpu/minor/ticked.hh"
 
 #include "params/Ticked.hh"
 #include "sim/clocked_object.hh"

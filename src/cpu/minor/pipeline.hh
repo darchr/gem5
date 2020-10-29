@@ -52,7 +52,7 @@
 #include "cpu/minor/fetch1.hh"
 #include "cpu/minor/fetch2.hh"
 #include "params/MinorCPU.hh"
-#include "sim/ticked_object.hh"
+#include "cpu/minor/ticked.hh"
 
 namespace Minor
 {

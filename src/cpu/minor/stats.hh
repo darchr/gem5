@@ -46,7 +46,7 @@
 
 #include "base/statistics.hh"
 #include "cpu/base.hh"
-#include "sim/ticked_object.hh"
+#include "cpu/minor/ticked.hh"
 
 namespace Minor
 {

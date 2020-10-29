@@ -42,6 +42,7 @@ Import('*')
 
 if 'MinorCPU' in env['CPU_MODELS']:
     SimObject('MinorCPU.py')
+    SimObject('Ticked.py')
 
     Source('activity.cc')
     Source('cpu.cc')
@@ -56,6 +57,7 @@ if 'MinorCPU' in env['CPU_MODELS']:
     Source('pipeline.cc')
     Source('scoreboard.cc')
     Source('stats.cc')
+    Source('ticked.cc')
 
     DebugFlag('MinorCPU', 'Minor CPU-level events')
     DebugFlag('MinorExecute', 'Minor Execute stage')
