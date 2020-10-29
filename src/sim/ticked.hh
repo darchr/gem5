@@ -39,16 +39,13 @@
  * @file
  *
  *  Base classes for ClockedObjects which have evaluate functions to
- *  look like clock ticking operations.  TickedObject attaches gem5's event
- *  queue to Ticked to apply actual scheduling.
+ *  look like clock ticking operations. 
  */
 
-#ifndef __SIM_TICKED_OBJECT_HH__
-#define __SIM_TICKED_OBJECT_HH__
+#ifndef __SIM_TICKED_HH__
+#define __SIM_TICKED_HH__
 
 #include "sim/clocked_object.hh"
-
-class TickedObjectParams;
 
 /** Ticked attaches gem5's event queue/scheduler to evaluate
  *  calls and provides a start/stop interface to ticking.
@@ -158,23 +155,4 @@ class Ticked : public Serializable
     virtual void countCycles(Cycles delta) {}
 };
 
-/** TickedObject attaches Ticked to ClockedObject and can be used as
- *  a base class where ticked operation */
-class TickedObject : public ClockedObject, public Ticked
-{
-  public:
-    TickedObject(const TickedObjectParams &params,
-        Event::Priority priority = Event::CPU_Tick_Pri);
-
-    /** Disambiguate to make these functions overload correctly */
-    using ClockedObject::regStats;
-    using ClockedObject::serialize;
-    using ClockedObject::unserialize;
-
-    /** Pass on regStats, serialize etc. onto Ticked */
-    void regStats() override;
-    void serialize(CheckpointOut &cp) const override;
-    void unserialize(CheckpointIn &cp) override;
-};
-
-#endif /* __SIM_TICKED_OBJECT_HH__ */
+#endif /* __SIM_TICKED_HH__ */

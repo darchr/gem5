@@ -36,6 +36,6 @@
 from m5.objects.ClockedObject import ClockedObject
 
 class TickedObject(ClockedObject):
-    type = 'TickedObject'
+    type = 'Ticked'
     abstract = True
-    cxx_header = "sim/ticked_object.hh"
+    cxx_header = "sim/ticked.hh"

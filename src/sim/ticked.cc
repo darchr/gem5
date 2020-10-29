@@ -35,9 +35,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "sim/ticked_object.hh"
+#include "sim/ticked.hh"
 
-#include "params/TickedObject.hh"
+#include "params/Ticked.hh"
 #include "sim/clocked_object.hh"
 
 Ticked::Ticked(ClockedObject &object_,
@@ -104,31 +104,4 @@ Ticked::unserialize(CheckpointIn &cp)
     optParamIn(cp, "lastStopped", lastStoppedUint);
 
     lastStopped = Cycles(lastStoppedUint);
-}
-
-TickedObject::TickedObject(const TickedObjectParams &params,
-    Event::Priority priority) :
-    ClockedObject(params),
-    /* Make numCycles in Ticked */
-    Ticked(*this, NULL, priority)
-{ }
-
-void
-TickedObject::regStats()
-{
-    Ticked::regStats();
-    ClockedObject::regStats();
-}
-
-void
-TickedObject::serialize(CheckpointOut &cp) const
-{
-    Ticked::serialize(cp);
-    ClockedObject::serialize(cp);
-}
-void
-TickedObject::unserialize(CheckpointIn &cp)
-{
-    Ticked::unserialize(cp);
-    ClockedObject::unserialize(cp);
 }
