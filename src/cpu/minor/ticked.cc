@@ -47,15 +47,14 @@ Ticked::Ticked(ClockedObject &object_,
     event([this]{ processClockEvent(); }, object_.name(), false, priority),
     running(false),
     lastStopped(0),
-    /* Allocate numCycles if an external stat wasn't passed in */
-    numCyclesLocal((imported_num_cycles ? NULL : new Stats::Scalar)),
-    numCycles((imported_num_cycles ? *imported_num_cycles :
-        *numCyclesLocal))
+    // Pass the external cycles stat to numCycles.
+    numCycles(*imported_num_cycles),
+    stats(this)
 { }
 
 void
 Ticked::processClockEvent() {
-    ++tickCycles;
+    ++stats.tickCycles;
     ++numCycles;
     countCycles(Cycles(1));
     evaluate();
@@ -63,23 +62,14 @@ Ticked::processClockEvent() {
         object.schedule(event, object.clockEdge(Cycles(1)));
 }
 
-void
-Ticked::regStats()
+TickedStats::TickedStats(Stats::Group *parent)
+    : Stats::Group(parent, "Ticked"),
+      ADD_STAT(tickCycles,
+                    "Number of cycles that the object actually ticked."),
+      ADD_STAT(idleCycles, "Total number of cycles that the object"
+                    "has spent stopped.",numCycles - tickCycles)
 {
-    if (numCyclesLocal) {
-        numCycles
-            .name(object.name() + ".totalTickCycles")
-            .desc("Number of cycles that the object ticked or was stopped");
-    }
 
-    tickCycles
-        .name(object.name() + ".tickCycles")
-        .desc("Number of cycles that the object actually ticked");
-
-    idleCycles
-        .name(object.name() + ".idleCycles")
-        .desc("Total number of cycles that the object has spent stopped");
-    idleCycles = numCycles - tickCycles;
 }
 
 void

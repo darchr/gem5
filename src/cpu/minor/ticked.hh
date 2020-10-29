@@ -52,7 +52,7 @@
  *
  *  Ticked is not a ClockedObject but can be attached to one by
  *  inheritance and by calling regStats, serialize/unserialize */
-class Ticked : public Serializable
+class Ticked : public Serializable, public Stats::Group
 {
   protected:
     /** ClockedObject who is responsible for this Ticked's actions/stats */
@@ -78,11 +78,15 @@ class Ticked : public Serializable
     /** Total number of cycles either ticked or spend stopped */
     Stats::Scalar &numCycles;
 
+    struct TickedStats : public Stats::Group {
+      TickedStats(Stats::Group *parent);
+
     /** Number of cycles ticked */
     Stats::Scalar tickCycles;
 
     /** Number of cycles stopped */
     Stats::Formula idleCycles;
+    } stats;
 
   public:
     Ticked(ClockedObject &object_,
@@ -90,10 +94,6 @@ class Ticked : public Serializable
         Event::Priority priority = Event::CPU_Tick_Pri);
 
     virtual ~Ticked() { }
-
-    /** Register {num,ticks}Cycles if necessary.  If numCycles is
-     *  imported, be sure to register it *before* calling this regStats */
-    void regStats();
 
     /** Start ticking */
     void
