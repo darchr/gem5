@@ -62,7 +62,7 @@ Ticked::processClockEvent() {
         object.schedule(event, object.clockEdge(Cycles(1)));
 }
 
-TickedStats::TickedStats(Stats::Group *parent)
+Ticked::TickedStats::TickedStats(Stats::Group *parent)
     : Stats::Group(parent, "Ticked"),
       ADD_STAT(tickCycles,
                     "Number of cycles that the object actually ticked."),
