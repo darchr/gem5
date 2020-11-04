@@ -39,7 +39,7 @@
  * @file
  *
  *  Base classes for ClockedObjects which have evaluate functions to
- *  look like clock ticking operations. 
+ *  look like clock ticking operations.
  */
 
 #ifndef __SIM_TICKED_HH__
@@ -79,7 +79,7 @@ class Ticked : public Serializable, public Stats::Group
     Stats::Scalar &numCycles;
 
     struct TickedStats : public Stats::Group {
-      TickedStats(Stats::Group *parent);
+      TickedStats(Ticked *parent);
 
     /** Number of cycles ticked */
     Stats::Scalar tickCycles;

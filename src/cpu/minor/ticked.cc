@@ -43,6 +43,7 @@
 Ticked::Ticked(ClockedObject &object_,
     Stats::Scalar *imported_num_cycles,
     Event::Priority priority) :
+    Stats::Group(nullptr),
     object(object_),
     event([this]{ processClockEvent(); }, object_.name(), false, priority),
     running(false),
@@ -62,12 +63,12 @@ Ticked::processClockEvent() {
         object.schedule(event, object.clockEdge(Cycles(1)));
 }
 
-Ticked::TickedStats::TickedStats(Stats::Group *parent)
+Ticked::TickedStats::TickedStats(Ticked *parent)
     : Stats::Group(parent, "Ticked"),
       ADD_STAT(tickCycles,
                     "Number of cycles that the object actually ticked."),
       ADD_STAT(idleCycles, "Total number of cycles that the object"
-                    "has spent stopped.",numCycles - tickCycles)
+                    "has spent stopped.", parent->numCycles - tickCycles)
 {
 
 }
