@@ -253,19 +253,20 @@ class MemScheduler : public SimObject
     const uint32_t respBufferSize;
     const uint32_t numberPorts;
     const uint32_t numberQueues;
-    bool respBlocked;
 
-    // std::queue<PacketPtr> *readQueue;
-    // std::queue<PacketPtr> *writeQueue;
     std::unordered_map<RequestorID, std::queue<PacketPtr> >::iterator currentReadEntry;
     std::unordered_map<RequestorID, std::queue<PacketPtr> >::iterator currentWriteEntry;
+    std::unordered_map<RequestorID, std::queue<PacketPtr> >::iterator currentRespEntry;
     std::unordered_map<RequestorID, std::queue<PacketPtr> > readQueues;
     std::unordered_map<RequestorID, std::queue<PacketPtr> > writeQueues;
+    std::unordered_map<RequestorID, std::queue<PacketPtr> > respQueues;
+    std::unordered_map<RequestorID, CPUSidePort*> routingTable;
     /// True if this is currently blocked waiting for a response.
     std::unordered_map<RequestorID, bool> readBlocked;
     std::unordered_map<RequestorID, bool> writeBlocked;
-    std::unordered_map<RequestorID, CPUSidePort*> routingTable;
-    std::queue<PacketPtr> respQueue;
+    std::unordered_map<RequestorID, bool> respBlocked;
+
+
   public:
 
     /** constructor
