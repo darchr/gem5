@@ -58,6 +58,7 @@ class MemScheduler : public SimObject
       private:
         /// The object that owns this object (MemScheduler)
         MemScheduler *owner;
+        int id;
 
         /// True if the port needs to send a retry req.
         bool needRetry;

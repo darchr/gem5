@@ -61,6 +61,13 @@ MemScheduler::MemScheduler(MemSchedulerParams *params) :
     currentWriteEntry = writeQueues.begin();
 }
 
+void
+MemScheduler::startup()
+{
+    int requestors = system->getNumRequestors();
+    requestQueues.resize(requestors);
+}
+
 Port &
 MemScheduler::getPort(const std::string &if_name, PortID idx)
 {
@@ -135,7 +142,7 @@ bool
 MemScheduler::CPUSidePort::recvTimingReq(PacketPtr pkt)
 {
     // Just forward to the memobj.
-    if (!owner->handleRequest(this, pkt)) {
+    if (!owner->handleRequest(id, pkt)) {
         DPRINTF(MemScheduler, "recvTimingReq: handleRequest returned false.\n");
         needRetry = true;
         return false;
@@ -206,17 +213,22 @@ MemScheduler::MemSidePort::recvRangeChange()
 }
 
 bool
-MemScheduler::handleRequest(CPUSidePort *port, PacketPtr pkt)
+MemScheduler::handleRequest(int id, PacketPtr pkt)
 {
     panic_if(!(pkt->isRead() || pkt->isWrite()),
              "Should only see read and writes at memory controller\n");
 
     uint32_t requestorId = pkt->req->requestorId();
 
+    auto request_queue = requestQueues[id];
+
+    // Check or update routing table
     std::unordered_map<RequestorID, CPUSidePort*>::const_iterator ret = routingTable.find(requestorId);
     if (ret == routingTable.end())
         routingTable[requestorId] = port;
 
+    // Check get read queue and write queue for requestor and check if either
+    // queue is blocked
     std::unordered_map<RequestorID, bool>::const_iterator rit = readBlocked.find(requestorId);
     if (rit == readBlocked.end())
         readBlocked[requestorId] = false;
