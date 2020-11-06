@@ -37,7 +37,6 @@
 
 #include "cpu/minor/ticked.hh"
 
-#include "params/Ticked.hh"
 #include "sim/clocked_object.hh"
 
 Ticked::Ticked(ClockedObject &object_,

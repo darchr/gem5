@@ -35,7 +35,9 @@
 
 from m5.objects.ClockedObject import ClockedObject
 
-class Ticked(ClockedObject):
+class Ticked():
     type = 'Ticked'
     abstract = True
     cxx_header = "cpu/minor/ticked.hh"
+
+    cxx_extra_bases = [ "Serializable", "Stats::Group" ]
