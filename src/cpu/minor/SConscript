@@ -42,7 +42,6 @@ Import('*')
 
 if 'MinorCPU' in env['CPU_MODELS']:
     SimObject('MinorCPU.py')
-    SimObject('Ticked.py')
 
     Source('activity.cc')
     Source('cpu.cc')
