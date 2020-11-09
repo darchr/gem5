@@ -52,7 +52,7 @@
  *
  *  Ticked is not a ClockedObject but can be attached to one by
  *  inheritance and by calling regStats, serialize/unserialize */
-class Ticked : public Serializable, public Stats::Group
+class Ticked : public Serializable
 {
   protected:
     /** ClockedObject who is responsible for this Ticked's actions/stats */
@@ -79,7 +79,7 @@ class Ticked : public Serializable, public Stats::Group
     Stats::Scalar &numCycles;
 
     struct TickedStats : public Stats::Group {
-      TickedStats(Ticked *parent);
+      TickedStats(ClockedObject *parent, Stats::Scalar &numCycles);
 
     /** Number of cycles ticked */
     Stats::Scalar tickCycles;
