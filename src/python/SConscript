@@ -64,6 +64,13 @@ PySource('m5.ext', 'm5/ext/__init__.py')
 PySource('m5.ext.pyfdt', 'm5/ext/pyfdt/pyfdt.py')
 PySource('m5.ext.pyfdt', 'm5/ext/pyfdt/__init__.py')
 
+PySource('m5.simstats', 'm5/simstats/__init__.py')
+PySource('m5.simstats', 'm5/simstats/model.py')
+PySource('m5.simstats', 'm5/simstats/simstat.py')
+PySource('m5.simstats', 'm5/simstats/statistic.py')
+PySource('m5.simstats', 'm5/simstats/statshandler.py')
+PySource('m5.simstats', 'm5/simstats/util.py')
+
 Source('pybind11/core.cc', add_tags='python')
 Source('pybind11/debug.cc', add_tags='python')
 Source('pybind11/event.cc', add_tags='python')
