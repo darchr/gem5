@@ -67,6 +67,9 @@ cast_stat_info(const Stats::Info *info)
     } while (0)
 
     TRY_CAST(Stats::ScalarInfo);
+    TRY_CAST(Stats::FormulaInfo);
+    TRY_CAST(Stats::VectorInfo);
+    TRY_CAST(Stats::DistInfo);
 
     return py::cast(info);
 
@@ -145,6 +148,30 @@ pybind_init_stats(py::module &m_native)
         .def("value", &Stats::ScalarInfo::value)
         .def("result", &Stats::ScalarInfo::result)
         .def("total", &Stats::ScalarInfo::total)
+        ;
+
+    py::class_<Stats::VectorInfo, Stats::Info,
+               std::unique_ptr<Stats::VectorInfo, py::nodelete>>(
+                    m, "VectorInfo")
+        .def_readwrite("subnames", &Stats::VectorInfo::subnames)
+        .def_readwrite("subdescs", &Stats::VectorInfo::subdescs)
+        .def("size", &Stats::VectorInfo::size)
+        .def("value", &Stats::VectorInfo::value)
+        ;
+
+    py::class_<Stats::FormulaInfo, Stats::VectorInfo,
+               std::unique_ptr<Stats::FormulaInfo, py::nodelete>>(
+                      m, "FormulaInfo")
+        .def("str", &Stats::FormulaInfo::str)
+        ;
+
+    py::class_<Stats::DistInfo, Stats::Info,
+                std::unique_ptr<Stats::DistInfo, py::nodelete>>(
+                    m, "DistInfo")
+        .def("min", &Stats::DistInfo::min)
+        .def("max", &Stats::DistInfo::max)
+        .def("bucket_size", &Stats::DistInfo::bucket_size)
+        .def("values", &Stats::DistInfo::values)
         ;
 
     py::class_<Stats::Group, std::unique_ptr<Stats::Group, py::nodelete>>(

@@ -195,6 +195,11 @@ class DistInfo : public Info
   public:
     /** Local storage for the entry values, used for printing. */
     DistData data;
+
+    virtual Counter min() const = 0;
+    virtual Counter max() const = 0;
+    virtual Counter bucket_size() const = 0;
+    virtual VCounter values() const = 0;
 };
 
 class VectorDistInfo : public Info

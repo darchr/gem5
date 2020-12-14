@@ -153,6 +153,11 @@ class DistInfoProxy : public InfoProxy<Stat, DistInfo>
 {
   public:
     DistInfoProxy(Stat &stat) : InfoProxy<Stat, DistInfo>(stat) {}
+
+    Counter min() const { return this->data.min; }
+    Counter max() const { return this->data.max; }
+    Counter bucket_size() const { return this->data.bucket_size; }
+    VCounter values() const { return this->data.cvec; }
 };
 
 template <class Stat>
