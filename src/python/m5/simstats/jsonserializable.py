@@ -24,17 +24,31 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from .jsonserializable import JsonSerializable
-from .model import Model
-from .simstat import SimStat
-from .statistic import Statistic
-from .util import TimeConversion, StorageType
+import json
+from datetime import datetime, timezone
 
-__all__ = ["Model",
-           "SimStat",
-           "Statistic",
-           "TimeConversion",
-           "StorageType",
-           "StatsHandler",
-           "JsonSerializable",
-          ]
+from typing import Union
+
+class JsonSerializable:
+
+    # Must be in accordance to the JSON Schema
+    def to_json_dict(self) -> dict:
+        model_dct = {}
+        for key, value in self.__dict__.items():
+            model_dct[key] = process_value(value)
+        return model_dct
+
+def process_value(value):
+    if isinstance(value, JsonSerializable):
+        return value.to_json_dict()
+    elif isinstance(value, (str, int, float)):
+        return value
+    elif isinstance(value, datetime):
+        return value.replace(microsecond=0).isoformat()
+    elif isinstance(value, list):
+        to_return = []
+
+        for v in value:
+            to_return.append(process_value(v))
+
+        return to_return

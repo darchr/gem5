@@ -26,6 +26,7 @@
 
 import _m5.stats
 import json
+from datetime import datetime
 # import all of the SimObjects
 from m5.objects import *
 from .model import *
@@ -65,21 +66,29 @@ def _get_statistic(statistic):
         return Scalar(value, stat_type, unit, description, datatype)
     return None
 
-def _dump_json_dct(model: Model):
-    model_dct = {}
-    for key, value in model.__dict__.items():
-        if isinstance(value, Model) or isinstance(value, Statistic):
-            model_dct[key] = _dump_json_dct(value)
-        else:
-            model_dct[key] = value
-    return model_dct
+def _get_simstat(root: Root):
+    creation_time = datetime.now()
+    time_converstion = None # TODO
+    final_tick = root.resolveStat("final_tick").value()
+    # The number of ticks simulated.
+    sim_ticks = root.resolveStat("sim_ticks").value()
+    simulated_begin_time = int(final_tick - sim_ticks)
+    simulated_end_time = int(final_tick)
 
-def get_json_str(simobj: SimObject, indent: Optional[int] = 4):
-    return json.dumps(_dump_json_dct(_get_model(simobj)), indent=indent)
+    stats_map = {}
+    for key,value in root.getStatGroups().items():
+        stats_map[key] = _get_model(value)
 
-def json_to_file(simobj: SimObject, file: str):
+    return SimStat(creationTime=creation_time,
+                   timeConversion=time_converstion,
+                   simulatedBeginTime=simulated_begin_time,
+                   simulatedEndTime=simulated_end_time,
+                   **stats_map)
+
+def get_json_str(root: Root, indent: Optional[int] = 4):
+    simstat = _get_simstat(root)
+    return json.dumps(simstat.to_json_dict(), indent=indent)
+
+def json_to_file(root: Root, file: str):
     with open(file, "w") as out:
-        out.write(get_json_str(simobj))
-
-def test(simobj: SimObject):
-    return _dump_json_dct(_get_model(simobj))
+        out.write(get_json_str(root))

@@ -29,9 +29,10 @@ from typing import Any, Dict, KeysView, List, Optional, Tuple, Union
 
 from .statistic import Statistic
 from .util import TimeConversion
+from .jsonserializable import JsonSerializable
 
 
-class Model:
+class Model(JsonSerializable):
 
     type: Optional[str]
     timeConversion: Optional[TimeConversion]
@@ -68,3 +69,4 @@ class Model:
     def load(cls, data: Dict[str,
                 Union["Model",Statistic,List["Model"]]]) -> "Model":
         return cls(data)
+

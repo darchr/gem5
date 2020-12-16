@@ -2,8 +2,9 @@
 from typing import Any, Dict, Optional, Union
 
 from .util import StorageType
+from .jsonserializable import JsonSerializable
 
-class Statistic:
+class Statistic(JsonSerializable):
     """
     A simulator statistic.
     """
@@ -35,6 +36,9 @@ class Statistic:
     def load(cls, data: Dict[str, Any]) -> "Statistic":
         return cls(data)
 
+    def to_json_dict(self) ->Dict:
+        raise NotImplementedError
+
 
 class Scalar(Statistic):
 
@@ -65,3 +69,12 @@ class Scalar(Statistic):
     @classmethod
     def load(cls, data: Dict[str, Any]) -> "Scalar":
         return cls(data)
+
+    def to_json_dict(self) ->Dict:
+        model_dct = {}
+        for key, value in self.__dict__.items():
+            if isinstance(value, JsonSerializable):
+                model_dct[key] = value.to_json_dict(value)
+            else:
+                model_dct[key] = value
+        return model_dct

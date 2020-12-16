@@ -65,6 +65,7 @@ PySource('m5.ext.pyfdt', 'm5/ext/pyfdt/pyfdt.py')
 PySource('m5.ext.pyfdt', 'm5/ext/pyfdt/__init__.py')
 
 PySource('m5.simstats', 'm5/simstats/__init__.py')
+PySource('m5.simstats', 'm5/simstats/jsonserializable.py')
 PySource('m5.simstats', 'm5/simstats/model.py')
 PySource('m5.simstats', 'm5/simstats/simstat.py')
 PySource('m5.simstats', 'm5/simstats/statistic.py')
