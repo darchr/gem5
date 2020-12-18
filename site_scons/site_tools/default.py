@@ -71,8 +71,6 @@ def common_config(env):
     # https://github.com/SCons/scons/issues/2811
     env['IMPLICIT_COMMAND_DEPENDENCIES'] = 0
     env.Decider('MD5-timestamp')
-    env.root = env.Dir('#')
-    env.srcdir = env.root.Dir('src')
 
     # add useful python code PYTHONPATH so it can be used by subprocesses
     # as well
