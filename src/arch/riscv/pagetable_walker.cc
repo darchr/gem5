@@ -490,8 +490,29 @@ Walker::WalkerState::recvPacket(PacketPtr pkt)
             Addr paddr = walker->tlb->translateWithTLB(vaddr, satp.asid, mode);
             req->setPaddr(paddr);
             walker->pma->check(req);
+
+            if (pmode != PrivilegeMode::PRV_M){
+                bool pass = walker->pmp->pmp_check(req, mode);
+                // what else to do here?
+                // raise some kind of an exception
+
+                if (!pass)
+                {
+                    ExceptionCode code;
+                    if (mode == TLB::Read)
+                        code = ExceptionCode::LOAD_ACCESS;
+                    else if (mode == TLB::Write)
+                        code = ExceptionCode::STORE_ACCESS;
+                    else
+                        code = ExceptionCode::INST_ACCESS;
+                    timingFault = std::make_shared<AddressFault>
+                        (req->getVaddr(), code);
+                }
+            }
             // Let the CPU continue.
-            translation->finish(NoFault, req, tc, mode);
+            // timingFault will be NoFault if pmp
+            // checks are passed.
+            translation->finish(timingFault, req, tc, mode);
         } else {
             // There was a fault during the walk. Let the CPU know.
             translation->finish(timingFault, req, tc, mode);

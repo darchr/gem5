@@ -31,11 +31,14 @@
 #include "arch/riscv/isa.hh"
 
 #include <ctime>
+#include <iostream>
 #include <set>
 #include <sstream>
 
 #include "arch/riscv/interrupts.hh"
+#include "arch/riscv/mmu.hh"
 #include "arch/riscv/pagetable.hh"
+#include "arch/riscv/pmp.hh"
 #include "arch/riscv/registers.hh"
 #include "base/bitfield.hh"
 #include "base/compiler.hh"
@@ -331,6 +334,60 @@ ISA::setMiscReg(int misc_reg, RegVal val)
         warn("Ignoring write to %s.\n", CSRData.at(misc_reg).name);
     } else {
         switch (misc_reg) {
+
+          case MISCREG_PMPCFG0:
+          case MISCREG_PMPCFG2:
+            {
+
+                // might need to assert that we are
+                // in the M mode.
+
+                // PMP registers should only be modified in M mode
+                assert(readMiscRegNoEffect(MISCREG_PRV) == PRV_M);
+
+                // Do the specs define some sequencing!
+                // At least that's what qemu is doing!
+
+                std::cout << "PMP cfg update " << std::endl;
+
+                int i;
+                for (i=0; i < sizeof(val); i++)
+                {
+
+                uint8_t cfg_val = (val >> 8 * i)  & 0xff;
+                auto mmu = dynamic_cast<RiscvISA::MMU *>(tc->getMMUPtr());
+
+                auto pp = dynamic_cast<PMP *>(mmu->getPMP());
+
+                pp->pmp_update_cfg(i+(4*(misc_reg-MISCREG_PMPCFG0)),
+                                  cfg_val);
+                }
+                setMiscRegNoEffect(misc_reg, val);
+            }
+            break;
+
+          case MISCREG_PMPADDR00 ... MISCREG_PMPADDR15:
+            {
+
+                std::cout << "PMP addr Update " << std::endl;
+
+                // In qemu, the rule is updated whenever
+                // pmpaddr is written
+                // (in other words, pmpcfg/addr are converted)
+                // into a rule
+
+                assert(readMiscRegNoEffect(MISCREG_PRV) == PRV_M);
+
+                auto mmu = dynamic_cast<RiscvISA::MMU *>(tc->getMMUPtr());
+
+                auto pp = dynamic_cast<PMP *>(mmu->getPMP());
+
+                pp->pmp_update_addr(misc_reg-MISCREG_PMPADDR00, val);
+
+                setMiscRegNoEffect(misc_reg, val);
+            }
+            break;
+
           case MISCREG_IP:
             {
                 auto ic = dynamic_cast<RiscvISA::Interrupts *>(

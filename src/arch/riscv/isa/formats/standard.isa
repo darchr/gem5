@@ -316,6 +316,14 @@ def template CSRExecute {{
 
         RegVal data, olddata;
         switch (csr) {
+
+          // If PMPADDR is read/written
+          case CSR_PMPADDR00:
+
+          // If PMPCFG is read/written
+          case CSR_PMPCFG0:
+
+
           case CSR_FCSR:
             olddata = xc->readMiscReg(MISCREG_FFLAGS) |
                       (xc->readMiscReg(MISCREG_FRM) << FRM_OFFSET);

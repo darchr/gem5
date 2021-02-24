@@ -64,6 +64,12 @@ class MMU : public BaseMMU
     {
         return static_cast<TLB*>(dtb)->getWalker();
     }
+
+    PMP *
+    getPMP()
+    {
+        return static_cast<TLB*>(dtb)->pmp;
+    }
 };
 
 } // namespace RiscvISA

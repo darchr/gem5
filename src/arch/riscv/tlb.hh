@@ -85,6 +85,7 @@ class TLB : public BaseTLB
 
   public:
     PMAChecker *pma;
+    PMP *pmp;
 
   public:
     typedef RiscvTLBParams Params;

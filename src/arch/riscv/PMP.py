@@ -1,16 +1,5 @@
-# -*- mode:python -*-
-
-# Copyright (c) 2020 ARM Limited
-# All rights reserved.
-#
-# The license below extends only to copyright in the software and shall
-# not be construed as granting a license to any other intellectual
-# property including but not limited to intellectual property relating
-# to a hardware implementation of the functionality of the software
-# licensed hereunder.  You may use the software subject to the license
-# terms below provided that you ensure that this notice is replicated
-# unmodified and in its entirety in all distributions of the software,
-# modified or unmodified, in source code or in binary form.
+# Copyright (c) 2021 The Regents of the University of California
+# All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -35,24 +24,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.objects.BaseMMU import BaseMMU
-from m5.objects.RiscvTLB import RiscvTLB
-from m5.objects.PMAChecker import PMAChecker
-from m5.objects.PMP import PMP
+from m5.SimObject import SimObject
+from m5.params import *
+from m5.proxy import *
 
-class RiscvMMU(BaseMMU):
-    type = 'RiscvMMU'
-    cxx_class = 'RiscvISA::MMU'
-    cxx_header = 'arch/riscv/mmu.hh'
-    itb = RiscvTLB()
-    dtb = RiscvTLB()
-    pma_checker = PMAChecker()
-    pmp = PMP()
+class PMP(SimObject):
+    type = 'PMP'
+    cxx_header = 'arch/riscv/pmp.hh'
+    max_pmp = Param.Int(16, "Max PMP Entries")
 
-    @classmethod
-    def walkerPorts(cls):
-        return ["mmu.itb.walker.port", "mmu.dtb.walker.port"]
-
-    def connectWalkerPorts(self, iport, dport):
-        self.itb.walker.port = iport
-        self.dtb.walker.port = dport
