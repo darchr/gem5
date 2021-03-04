@@ -49,6 +49,10 @@ Source('linear_gen.cc')
 Source('nvm_gen.cc')
 Source('random_gen.cc')
 Source('stream_gen.cc')
+Source('gups_gen.cc')
+
+SimObject('GUPSGen.py')
+DebugFlag('GUPSGen')
 
 DebugFlag('TrafficGen')
 SimObject('BaseTrafficGen.py')
