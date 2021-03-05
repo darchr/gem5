@@ -34,7 +34,7 @@ class GUPSGen : public ClockedObject {
                  */
                 MemSidePort(const std::string& name, GUPSGen *owner) :
                     RequestPort(name, owner), owner(owner), _blocked(false),
-                                blockedPacket(nullptr)
+                                                    blockedPacket(nullptr)
                 {}
 
                 /**
@@ -43,7 +43,7 @@ class GUPSGen : public ClockedObject {
                  * control is hanled in this function.
                  * @param packet to send.
                  */
-                void trySendRetry();
+                // void trySendRetry();
 
                 void sendTimingPacket(PacketPtr pkt);
                 void sendFunctionalPacket(PacketPtr pkt);
@@ -74,7 +74,7 @@ class GUPSGen : public ClockedObject {
                  * needs to be aware of the address ranges, e.g. in an
                  * interconnect component like a bus.
                  */
-                void recvRangeChange() override;
+                // void recvRangeChange() override;
         };
 
 
@@ -82,7 +82,7 @@ class GUPSGen : public ClockedObject {
 
         virtual void init() override;
 
-        bool handleResponse(PortID memPortId, PacketPtr pkt);
+        void handleResponse(PacketPtr pkt);
 
 
         PacketPtr getReadPacket(Addr);

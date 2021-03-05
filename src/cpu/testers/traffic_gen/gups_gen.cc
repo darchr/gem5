@@ -59,6 +59,7 @@ GUPSGen::startup()
      * initialize memory by functional access
      * call generateNextBatch here.
     */
+   generateNextBatch();
 }
 
 void
@@ -224,6 +225,12 @@ GUPSGen::indexToAddr (uint64_t index)
 }
 
 void
+GUPSGen::handleResponse(PacketPtr pkt)
+{
+    responsePool.push(pkt);
+}
+
+void
 GUPSGen::MemSidePort::sendTimingPacket(PacketPtr pkt)
 {
     panic_if(_blocked, "Should never try to send if blocked MemSide!");
@@ -246,6 +253,15 @@ GUPSGen::MemSidePort::recvReqRetry()
 
     owner->wakeUp();
 }
+
+bool
+GUPSGen::MemSidePort::recvTimingResp(PacketPtr pkt)
+{
+    owner->handleResponse(pkt);
+    return true;
+}
+
+
 
 void
 GUPSGen::MemSidePort::sendFunctionalPacket(PacketPtr pkt)
