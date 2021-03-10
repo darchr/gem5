@@ -38,9 +38,9 @@ from m5.proxy import *
 from m5.objects.QoSMemCtrl import *
 
 
-class IntMemCtrl(QoSMemCtrl):
+class HetMemCtrl(QoSMemCtrl):
     type = 'IntMemCtrl'
-    cxx_header = "mem/int_mem_ctrl.hh"
+    cxx_header = "mem/het_mem_ctrl.hh"
 
     # single-ported on the system interface side, instantiate with a
     # bus in front of the controller for multiple ports
