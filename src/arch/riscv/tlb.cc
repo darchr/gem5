@@ -264,6 +264,21 @@ TLB::createPagefault(Addr vaddr, Mode mode)
     return std::make_shared<AddressFault>(vaddr, code);
 }
 
+// TODO: merge createPagefault and createAddrfault
+Fault
+TLB::createAddrfault(Addr vaddr, Mode mode)
+{
+    ExceptionCode code;
+    if (mode == TLB::Read) {
+        code = ExceptionCode::LOAD_ACCESS;
+    } else if (mode == TLB::Write) {
+           code = ExceptionCode::STORE_ACCESS;
+    } else {
+            code = ExceptionCode::INST_ACCESS;
+    }
+    return std::make_shared<AddressFault>(vaddr, code);
+}
+
 Addr
 TLB::translateWithTLB(Addr vaddr, uint16_t asid, Mode mode)
 {
@@ -368,30 +383,13 @@ TLB::translate(const RequestPtr &req, ThreadContext *tc,
 
         if (!delayed && fault == NoFault) {
             pma->check(req);
-
-            // not sure if this is the
-            // best place for pmp checks
-
+            // do pmp checks here if not in M mode
             if (pmode != PrivilegeMode::PRV_M){
-                bool pass = pmp->pmp_check(req, mode);
-                // what else to do here?
-                // raise some kind of an exception
-
-                if (!pass)
-                {
-
-                    ExceptionCode code;
-                    if (mode == TLB::Read)
-                        code = ExceptionCode::LOAD_ACCESS;
-                    else if (mode == TLB::Write)
-                        code = ExceptionCode::STORE_ACCESS;
-                    else
-                        code = ExceptionCode::INST_ACCESS;
-                    fault = std::make_shared<AddressFault>
-                        (req->getVaddr(), code);
-
+                bool pass = pmp->pmpCheck(req, mode);
+                // raise exception if checks do not pass
+                if (!pass) {
+                    fault = createAddrfault(req->getVaddr(), mode);
                 }
-
             }
 
         }

@@ -102,7 +102,7 @@ class TLB : public BaseTLB
     Fault checkPermissions(STATUS status, PrivilegeMode pmode, Addr vaddr,
                            Mode mode, PTESv39 pte);
     Fault createPagefault(Addr vaddr, Mode mode);
-
+    Fault createAddrfault(Addr vaddr, Mode mode);
     PrivilegeMode getMemPriv(ThreadContext *tc, Mode mode);
 
     // Checkpointing

@@ -491,22 +491,12 @@ Walker::WalkerState::recvPacket(PacketPtr pkt)
             req->setPaddr(paddr);
             walker->pma->check(req);
 
-            if (pmode != PrivilegeMode::PRV_M){
-                bool pass = walker->pmp->pmp_check(req, mode);
-                // what else to do here?
-                // raise some kind of an exception
-
-                if (!pass)
-                {
-                    ExceptionCode code;
-                    if (mode == TLB::Read)
-                        code = ExceptionCode::LOAD_ACCESS;
-                    else if (mode == TLB::Write)
-                        code = ExceptionCode::STORE_ACCESS;
-                    else
-                        code = ExceptionCode::INST_ACCESS;
-                    timingFault = std::make_shared<AddressFault>
-                        (req->getVaddr(), code);
+            // If we are not in the m-mode, check pmp
+            // permissions
+            if (pmode != PrivilegeMode::PRV_M) {
+                bool pass = walker->pmp->pmpCheck(req, mode);
+                if (!pass) {
+                    timingFault = createAddrfault(req->getVaddr(), mode);
                 }
             }
             // Let the CPU continue.
@@ -521,6 +511,20 @@ Walker::WalkerState::recvPacket(PacketPtr pkt)
     }
 
     return false;
+}
+
+Fault
+Walker::WalkerState::createAddrfault(Addr vaddr, BaseTLB::Mode mode)
+{
+    ExceptionCode code;
+    if (mode == TLB::Read) {
+        code = ExceptionCode::LOAD_ACCESS;
+    } else if (mode == TLB::Write) {
+           code = ExceptionCode::STORE_ACCESS;
+    } else {
+            code = ExceptionCode::INST_ACCESS;
+    }
+    return std::make_shared<AddressFault>(vaddr, code);
 }
 
 void
