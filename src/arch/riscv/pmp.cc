@@ -41,6 +41,9 @@ SimObject(params), maxEntries(params.max_pmp)
 
     for (int i=0; i < maxEntries; i++) {
         pmpEntry* entry = new pmpEntry;
+        AddrRange thisRange(0,-1);
+        entry->pmpAddr = thisRange;
+        entry->pmpCfg = 0;
         pmpTable.push_back(entry);
     }
 
@@ -52,6 +55,8 @@ bool
 PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode)
 {
 
+    std::cout << "pmp: check" << std::endl;
+
     // all pmp entries need to be looked from the lowest to
     // the highest number
 
@@ -59,10 +64,12 @@ PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode)
 
     int i;
     for (i = 0; i < pmpTable.size(); i++) {
-        if (pmpTable[i]->pmpAddr.contains(req->getPaddr()))
+        std::cout << "pmp: table check " << i << "   " << std::endl;
+        if (pmpTable[i]->pmpAddr.contains(req->getPaddr())){
            //address matched
             addrMatch = true;
-
+            break;
+        }
     }
 
     if (!addrMatch)
@@ -75,6 +82,8 @@ PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode)
 
     // i is the index of pmp table which matched
     allowedPrivs &= pmpTable[i]->pmpCfg;
+
+    std::cout << "pmp: priv check " << std::endl;
 
     if ((mode == BaseTLB::Mode::Read) &&
             ((PMP_READ & allowedPrivs) == PMP_READ))
@@ -101,6 +110,9 @@ PMP::pmpGetAField(uint8_t cfg)
 void
 PMP::pmpUpdateCfg(uint32_t pmpIndex, uint8_t thisCfg)
 {
+
+    std::cout << "pmp: update cfg" << std::endl;
+
     pmpTable[pmpIndex]->pmpCfg = thisCfg;
 
     Addr thisAddr = pmpTable[pmpIndex]->rawAddr;
@@ -154,6 +166,8 @@ PMP::pmpUpdateAddr(uint32_t pmpIndex, Addr thisAddr)
     // just writing the raw addr in the pmp table
     // will convert it into a range, once cfg
     // reg is written
+
+    std::cout << "pmp: update addr" << std::endl;
 
     pmpTable[pmpIndex]->rawAddr = thisAddr;
 
