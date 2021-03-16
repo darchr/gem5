@@ -491,12 +491,15 @@ Walker::WalkerState::recvPacket(PacketPtr pkt)
             req->setPaddr(paddr);
             walker->pma->check(req);
 
-            // If we are not in the m-mode, check pmp
-            // permissions
-            if (pmode != PrivilegeMode::PRV_M) {
-                bool pass = walker->pmp->pmpCheck(req, mode);
+            // do pmp checks if any condition is met
+            if (walker->pmp->shouldCheckPMP(pmode, mode, tc)){
+                bool pass = walker->pmp->pmpCheck(req, mode, pmode);
+                // raise exception if checks do not pass
                 if (!pass) {
                     timingFault = createAddrfault(req->getVaddr(), mode);
+                }
+                else{
+                    assert (timingFault == NoFault);
                 }
             }
             // Let the CPU continue.

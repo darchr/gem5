@@ -27,9 +27,12 @@
  */
 
 #include "arch/riscv/pmp.hh"
+
 #include "arch/generic/tlb.hh"
+#include "arch/riscv/isa.hh"
 #include "base/addr_range.hh"
 #include "base/types.hh"
+#include "cpu/thread_context.hh"
 #include "math.h"
 #include "mem/request.hh"
 #include "params/PMP.hh"
@@ -41,21 +44,27 @@ SimObject(params), maxEntries(params.max_pmp)
 
     for (int i=0; i < maxEntries; i++) {
         pmpEntry* entry = new pmpEntry;
-        AddrRange thisRange(0,-1);
+        AddrRange thisRange(-1,-2);
         entry->pmpAddr = thisRange;
         entry->pmpCfg = 0;
         pmpTable.push_back(entry);
     }
+
+    num_rules = 0;
 
 }
 
 // check if this region can be
 // accessed (else raise an exception)
 bool
-PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode)
+PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode,
+              RiscvISA::PrivilegeMode pmode)
 {
 
-    std::cout << "pmp: check" << std::endl;
+    if (num_rules == 0)
+        return true;
+
+    int ret = -1;
 
     // all pmp entries need to be looked from the lowest to
     // the highest number
@@ -64,16 +73,15 @@ PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode)
 
     int i;
     for (i = 0; i < pmpTable.size(); i++) {
-        std::cout << "pmp: table check " << i << "   " << std::endl;
+        //std::cout << "pmp: table check " << i << "   " << std::endl;
         if (pmpTable[i]->pmpAddr.contains(req->getPaddr())){
            //address matched
             addrMatch = true;
-            break;
+            //break;
         }
-    }
 
-    if (!addrMatch)
-        return false; //no pmp entry has a matching address
+    //if (!addrMatch)
+    //    return false; //no pmp entry has a matching address
 
 
     // else check the RWX permissions from the pmp entry
@@ -83,19 +91,44 @@ PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode)
     // i is the index of pmp table which matched
     allowedPrivs &= pmpTable[i]->pmpCfg;
 
-    std::cout << "pmp: priv check " << std::endl;
-
+    if ((PMP_OFF != pmpGetAField(pmpTable[i]->pmpCfg)) && (addrMatch)){
     if ((mode == BaseTLB::Mode::Read) &&
             ((PMP_READ & allowedPrivs) == PMP_READ))
-        return true;
+        {ret = 1;
+         break;
+        }//return true;
     else if ((mode == BaseTLB::Mode::Write) &&
             ((PMP_WRITE & allowedPrivs) == PMP_WRITE))
-        return true;
+        {ret = 1;
+        break;
+        }//return true;
     else if ((mode == BaseTLB::Mode::Execute) &&
-            ((PMP_WRITE & allowedPrivs) == PMP_EXEC))
-        return true;
-    else
-        return false;
+            ((PMP_EXEC & allowedPrivs) == PMP_EXEC))
+        {ret = 1;
+        break;
+        }//return true;
+    else{
+        ret = 0;
+        break;
+        }//return false;
+    }
+
+    }
+
+    // No PMP entry matched
+    if (ret == -1) {
+        if (pmode == RiscvISA::PrivilegeMode::PRV_M) {
+            // Based on spec v1.10, M mode access
+            // should still succeed
+            ret = 1;
+        } else {
+            // Other modes should not succeed without
+            // an entry match
+            ret = 0;
+        }
+    }
+
+    return ret == 1 ? true : false;
 }
 
 // to get a field from pmpcfg register
@@ -103,31 +136,38 @@ inline uint8_t
 PMP::pmpGetAField(uint8_t cfg)
 {
     uint8_t a = cfg >> 3;
-    return a & 0x3;
+    return a & 0x03;
 }
 
 
 void
 PMP::pmpUpdateCfg(uint32_t pmpIndex, uint8_t thisCfg)
 {
-
-    std::cout << "pmp: update cfg" << std::endl;
-
     pmpTable[pmpIndex]->pmpCfg = thisCfg;
+    pmpUpdateRule(pmpIndex);
 
-    Addr thisAddr = pmpTable[pmpIndex]->rawAddr;
+}
 
+void
+PMP::pmpUpdateRule(uint32_t pmpIndex)
+{
+    // In qemu, the rule is updated whenever
+    // pmpaddr/pmpcfg is written
+
+    num_rules = 0;
     Addr prevAddr = 0;
 
     if (pmpIndex >= 1) {
-
-        prevAddr = pmpTable[pmpIndex - 1]->pmpAddr.end();
+        prevAddr = pmpTable[pmpIndex - 1]->rawAddr;
     }
+
+    Addr thisAddr = pmpTable[pmpIndex]->rawAddr;
+    uint8_t thisCfg = pmpTable[pmpIndex]->pmpCfg;
 
     switch (pmpGetAField(thisCfg)) {
     case PMP_OFF:
         {
-        AddrRange thisRange(0, -1);
+        AddrRange thisRange(-1, -2);
         pmpTable[pmpIndex]->pmpAddr = thisRange;
         break;
         }
@@ -151,12 +191,19 @@ PMP::pmpUpdateCfg(uint32_t pmpIndex, uint8_t thisCfg)
         }
     default:
         {
-        AddrRange thisRange(0,0);
+        AddrRange thisRange(-1,-2);
         pmpTable[pmpIndex]->pmpAddr = thisRange;
         break;
         }
     }
-
+        int i = 0;
+        for (i = 0; i < maxEntries; i++) {
+        const uint8_t a_field =
+            pmpGetAField(pmpTable[i]->pmpCfg);
+        if (PMP_OFF != a_field) {
+            num_rules++;
+        }
+    }
 
 }
 
@@ -167,12 +214,35 @@ PMP::pmpUpdateAddr(uint32_t pmpIndex, Addr thisAddr)
     // will convert it into a range, once cfg
     // reg is written
 
-    std::cout << "pmp: update addr" << std::endl;
-
     pmpTable[pmpIndex]->rawAddr = thisAddr;
+
+    pmpUpdateRule(pmpIndex);
 
 }
 
+bool
+PMP::shouldCheckPMP(RiscvISA::PrivilegeMode pmode,
+            BaseTLB::Mode mode, ThreadContext *tc)
+{
+    // instruction fetch in S and U mode
+    bool cond1 = (mode == BaseTLB::Execute &&
+            (pmode != RiscvISA::PrivilegeMode::PRV_M));
+
+    // data access in S and U mode when MPRV in mstatus is clear
+    RiscvISA::STATUS status =
+            tc->readMiscRegNoEffect(RiscvISA::MISCREG_STATUS);
+
+    bool cond2 = (mode != BaseTLB::Execute &&
+                 (pmode != RiscvISA::PrivilegeMode::PRV_M)
+                 && (!status.mprv));
+
+    // data access in any mode when MPRV bit in mstatus is set
+    // and the MPP field in mstatus is S or U
+    bool cond3 = (mode != BaseTLB::Execute && (status.mprv)
+    && (status.mpp != RiscvISA::PrivilegeMode::PRV_M));
+
+    return (cond1 || cond2 || cond3);
+}
 
 AddrRange
 PMP::pmpDecodeNapot(Addr a)

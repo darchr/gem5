@@ -383,9 +383,10 @@ TLB::translate(const RequestPtr &req, ThreadContext *tc,
 
         if (!delayed && fault == NoFault) {
             pma->check(req);
-            // do pmp checks here if not in M mode
-            if (pmode != PrivilegeMode::PRV_M){
-                bool pass = pmp->pmpCheck(req, mode);
+            // do pmp checks if any condition is met
+
+            if (pmp->shouldCheckPMP(pmode, mode, tc)){
+                bool pass = pmp->pmpCheck(req, mode, pmode);
                 // raise exception if checks do not pass
                 if (!pass) {
                     fault = createAddrfault(req->getVaddr(), mode);

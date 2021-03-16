@@ -353,17 +353,17 @@ ISA::setMiscReg(int misc_reg, RegVal val)
                 // pmp addr regs are written (with the assumption
                 // that cfg regs are already written)
 
-                // temp. printing for debugging
-                std::cout << "PMP cfg update " << std::endl;
-
                 int i;
                 for (i=0; i < sizeof(val); i++) {
 
-                    uint8_t cfgVal = (val >> 8 * i) & 0xff;
+                    uint8_t cfgVal = (val >> (8*i)) & 0xff;
+
                     auto mmu = dynamic_cast<RiscvISA::MMU *>
                                 (tc->getMMUPtr());
+
+                    //MISCREG_PMPCFG2 - MISCREG_PMPCFG0 = 1
                     mmu->getPMP()->pmpUpdateCfg
-                                (i+(4*(misc_reg-MISCREG_PMPCFG0)),cfgVal);
+                                (i+(8*(misc_reg-MISCREG_PMPCFG0)),cfgVal);
                 }
 
                 setMiscRegNoEffect(misc_reg, val);
@@ -371,13 +371,6 @@ ISA::setMiscReg(int misc_reg, RegVal val)
             break;
           case MISCREG_PMPADDR00 ... MISCREG_PMPADDR15:
             {
-                // temp. printing for debugging
-                std::cout << "PMP addr update " << std::endl;
-
-                // In qemu, the rule is updated whenever
-                // pmpaddr is written (in other words,
-                // pmpcfg/addr are converted) into a rule
-
                 // PMP registers should only be modified in M mode
                 assert(readMiscRegNoEffect(MISCREG_PRV) == PRV_M);
 
@@ -389,6 +382,7 @@ ISA::setMiscReg(int misc_reg, RegVal val)
                 setMiscRegNoEffect(misc_reg, val);
             }
             break;
+
           case MISCREG_IP:
             {
                 auto ic = dynamic_cast<RiscvISA::Interrupts *>(

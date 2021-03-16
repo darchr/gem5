@@ -30,6 +30,7 @@
 #define __ARCH_RISCV_PMP_HH__
 
 #include "arch/generic/tlb.hh"
+#include "arch/riscv/isa.hh"
 #include "base/addr_range.hh"
 #include "base/types.hh"
 #include "mem/packet.hh"
@@ -73,6 +74,8 @@ class PMP : public SimObject
     const uint8_t PMP_EXEC  = 1 << 2;
     const uint8_t PMP_LOCK  = 1 << 7;
 
+    int num_rules;
+
     // struct corresponding to a single
     // PMP entry
     typedef struct {
@@ -83,11 +86,15 @@ class PMP : public SimObject
 
     std::vector<pmpEntry*> pmpTable;
 
-    bool pmpCheck(const RequestPtr &req, BaseTLB::Mode mode);
-    static inline uint8_t pmpGetAField(uint8_t cfg);
+    bool pmpCheck(const RequestPtr &req, BaseTLB::Mode mode,
+                RiscvISA::PrivilegeMode pmode);
+    inline uint8_t pmpGetAField(uint8_t cfg);
     void pmpUpdateCfg(uint32_t pmpIndex, uint8_t thisCfg);
     void pmpUpdateAddr(uint32_t pmpIndex, Addr thisAddr);
-    AddrRange pmpDecodeNapot(Addr a);
+    void pmpUpdateRule(uint32_t pmpIndex);
+    bool shouldCheckPMP(RiscvISA::PrivilegeMode pmode,
+                BaseTLB::Mode mode, ThreadContext *tc);
+    inline AddrRange pmpDecodeNapot(Addr a);
 
 };
 
