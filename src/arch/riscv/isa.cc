@@ -353,17 +353,20 @@ ISA::setMiscReg(int misc_reg, RegVal val)
                 // pmp addr regs are written (with the assumption
                 // that cfg regs are already written)
 
-                int i;
-                for (i=0; i < sizeof(val); i++) {
+                for (int i=0; i < sizeof(val); i++) {
 
-                    uint8_t cfgVal = (val >> (8*i)) & 0xff;
+                    uint8_t cfg_val = (val >> (8*i)) & 0xff;
 
                     auto mmu = dynamic_cast<RiscvISA::MMU *>
                                 (tc->getMMUPtr());
 
-                    //MISCREG_PMPCFG2 - MISCREG_PMPCFG0 = 1
-                    mmu->getPMP()->pmpUpdateCfg
-                                (i+(8*(misc_reg-MISCREG_PMPCFG0)),cfgVal);
+                    // Form pmp_index using the index i and
+                    // PMPCFG register number
+                    // Note: MISCREG_PMPCFG2 - MISCREG_PMPCFG0 = 1
+                    // 8*(misc_reg-MISCREG_PMPCFG0) will be useful
+                    // if a system contains more than 16 PMP entries
+                    uint32_t pmp_index = i+(8*(misc_reg-MISCREG_PMPCFG0));
+                    mmu->getPMP()->pmpUpdateCfg(pmp_index,cfg_val);
                 }
 
                 setMiscRegNoEffect(misc_reg, val);
@@ -376,8 +379,8 @@ ISA::setMiscReg(int misc_reg, RegVal val)
 
                 auto mmu = dynamic_cast<RiscvISA::MMU *>
                               (tc->getMMUPtr());
-                mmu->getPMP()->pmpUpdateAddr
-                              (misc_reg-MISCREG_PMPADDR00, val);
+                uint32_t pmp_index = misc_reg-MISCREG_PMPADDR00;
+                mmu->getPMP()->pmpUpdateAddr(pmp_index, val);
 
                 setMiscRegNoEffect(misc_reg, val);
             }

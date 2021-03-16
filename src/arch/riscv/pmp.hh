@@ -89,9 +89,9 @@ class PMP : public SimObject
     bool pmpCheck(const RequestPtr &req, BaseTLB::Mode mode,
                 RiscvISA::PrivilegeMode pmode);
     inline uint8_t pmpGetAField(uint8_t cfg);
-    void pmpUpdateCfg(uint32_t pmpIndex, uint8_t thisCfg);
-    void pmpUpdateAddr(uint32_t pmpIndex, Addr thisAddr);
-    void pmpUpdateRule(uint32_t pmpIndex);
+    void pmpUpdateCfg(uint32_t pmp_index, uint8_t this_cfg);
+    void pmpUpdateAddr(uint32_t pmp_index, Addr this_addr);
+    void pmpUpdateRule(uint32_t pmp_index);
     bool shouldCheckPMP(RiscvISA::PrivilegeMode pmode,
                 BaseTLB::Mode mode, ThreadContext *tc);
     inline AddrRange pmpDecodeNapot(Addr a);

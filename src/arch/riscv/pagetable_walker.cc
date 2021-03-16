@@ -493,9 +493,8 @@ Walker::WalkerState::recvPacket(PacketPtr pkt)
 
             // do pmp checks if any condition is met
             if (walker->pmp->shouldCheckPMP(pmode, mode, tc)){
-                bool pass = walker->pmp->pmpCheck(req, mode, pmode);
                 // raise exception if checks do not pass
-                if (!pass) {
+                if (!walker->pmp->pmpCheck(req, mode, pmode)) {
                     timingFault = createAddrfault(req->getVaddr(), mode);
                 }
                 else{
@@ -523,9 +522,9 @@ Walker::WalkerState::createAddrfault(Addr vaddr, BaseTLB::Mode mode)
     if (mode == TLB::Read) {
         code = ExceptionCode::LOAD_ACCESS;
     } else if (mode == TLB::Write) {
-           code = ExceptionCode::STORE_ACCESS;
+        code = ExceptionCode::STORE_ACCESS;
     } else {
-            code = ExceptionCode::INST_ACCESS;
+        code = ExceptionCode::INST_ACCESS;
     }
     return std::make_shared<AddressFault>(vaddr, code);
 }

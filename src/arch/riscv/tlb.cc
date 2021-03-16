@@ -272,9 +272,9 @@ TLB::createAddrfault(Addr vaddr, Mode mode)
     if (mode == TLB::Read) {
         code = ExceptionCode::LOAD_ACCESS;
     } else if (mode == TLB::Write) {
-           code = ExceptionCode::STORE_ACCESS;
+        code = ExceptionCode::STORE_ACCESS;
     } else {
-            code = ExceptionCode::INST_ACCESS;
+        code = ExceptionCode::INST_ACCESS;
     }
     return std::make_shared<AddressFault>(vaddr, code);
 }
@@ -386,9 +386,8 @@ TLB::translate(const RequestPtr &req, ThreadContext *tc,
             // do pmp checks if any condition is met
 
             if (pmp->shouldCheckPMP(pmode, mode, tc)){
-                bool pass = pmp->pmpCheck(req, mode, pmode);
                 // raise exception if checks do not pass
-                if (!pass) {
+                if (!pmp->pmpCheck(req, mode, pmode)) {
                     fault = createAddrfault(req->getVaddr(), mode);
                 }
             }

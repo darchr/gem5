@@ -39,9 +39,9 @@
 #include "sim/sim_object.hh"
 
 PMP::PMP(const Params &params) :
-SimObject(params), maxEntries(params.max_pmp)
+    SimObject(params),
+    maxEntries(params.max_pmp)
 {
-
     for (int i=0; i < maxEntries; i++) {
         pmpEntry* entry = new pmpEntry;
         AddrRange thisRange(-1,-2);
@@ -54,13 +54,12 @@ SimObject(params), maxEntries(params.max_pmp)
 
 }
 
-// check if this region can be
-// accessed (else raise an exception)
 bool
 PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode,
               RiscvISA::PrivilegeMode pmode)
 {
-
+    // This function checks if the request
+    // is allowed based on PMP rules
     if (num_rules == 0)
         return true;
 
@@ -69,49 +68,42 @@ PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode,
     // all pmp entries need to be looked from the lowest to
     // the highest number
 
-    bool addrMatch = false;
+    int match_index = -1;
 
-    int i;
-    for (i = 0; i < pmpTable.size(); i++) {
+    for (int i = 0; i < pmpTable.size(); i++) {
         //std::cout << "pmp: table check " << i << "   " << std::endl;
         if (pmpTable[i]->pmpAddr.contains(req->getPaddr())){
            //address matched
-            addrMatch = true;
-            //break;
+            match_index = i;
         }
 
-    //if (!addrMatch)
-    //    return false; //no pmp entry has a matching address
+        if ((PMP_OFF != pmpGetAField(pmpTable[match_index]->pmpCfg))
+                                            && (match_index > -1)){
+            // check the RWX permissions from the pmp entry
+            uint8_t allowed_privs = PMP_READ | PMP_WRITE | PMP_EXEC;
 
+            // i is the index of pmp table which matched
+            allowed_privs &= pmpTable[match_index]->pmpCfg;
 
-    // else check the RWX permissions from the pmp entry
-
-    uint8_t allowedPrivs = PMP_READ | PMP_WRITE | PMP_EXEC;
-
-    // i is the index of pmp table which matched
-    allowedPrivs &= pmpTable[i]->pmpCfg;
-
-    if ((PMP_OFF != pmpGetAField(pmpTable[i]->pmpCfg)) && (addrMatch)){
-    if ((mode == BaseTLB::Mode::Read) &&
-            ((PMP_READ & allowedPrivs) == PMP_READ))
-        {ret = 1;
-         break;
-        }//return true;
-    else if ((mode == BaseTLB::Mode::Write) &&
-            ((PMP_WRITE & allowedPrivs) == PMP_WRITE))
-        {ret = 1;
-        break;
-        }//return true;
-    else if ((mode == BaseTLB::Mode::Execute) &&
-            ((PMP_EXEC & allowedPrivs) == PMP_EXEC))
-        {ret = 1;
-        break;
-        }//return true;
-    else{
-        ret = 0;
-        break;
-        }//return false;
-    }
+            if ((mode == BaseTLB::Mode::Read) && (PMP_READ & allowed_privs))
+                {ret = 1;
+                break;
+                }
+            else if ((mode == BaseTLB::Mode::Write) &&
+                                            (PMP_WRITE & allowed_privs))
+                {ret = 1;
+                break;
+                }
+            else if ((mode == BaseTLB::Mode::Execute) &&
+                                            (PMP_EXEC & allowed_privs))
+                {ret = 1;
+                break;
+                }
+            else{
+                ret = 0;
+                break;
+                }
+        }
 
     }
 
@@ -131,25 +123,25 @@ PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode,
     return ret == 1 ? true : false;
 }
 
-// to get a field from pmpcfg register
 inline uint8_t
 PMP::pmpGetAField(uint8_t cfg)
 {
+    // to get a field from pmpcfg register
     uint8_t a = cfg >> 3;
     return a & 0x03;
 }
 
 
 void
-PMP::pmpUpdateCfg(uint32_t pmpIndex, uint8_t thisCfg)
+PMP::pmpUpdateCfg(uint32_t pmp_index, uint8_t this_cfg)
 {
-    pmpTable[pmpIndex]->pmpCfg = thisCfg;
-    pmpUpdateRule(pmpIndex);
+    pmpTable[pmp_index]->pmpCfg = this_cfg;
+    pmpUpdateRule(pmp_index);
 
 }
 
 void
-PMP::pmpUpdateRule(uint32_t pmpIndex)
+PMP::pmpUpdateRule(uint32_t pmp_index)
 {
     // In qemu, the rule is updated whenever
     // pmpaddr/pmpcfg is written
@@ -157,47 +149,46 @@ PMP::pmpUpdateRule(uint32_t pmpIndex)
     num_rules = 0;
     Addr prevAddr = 0;
 
-    if (pmpIndex >= 1) {
-        prevAddr = pmpTable[pmpIndex - 1]->rawAddr;
+    if (pmp_index >= 1) {
+        prevAddr = pmpTable[pmp_index - 1]->rawAddr;
     }
 
-    Addr thisAddr = pmpTable[pmpIndex]->rawAddr;
-    uint8_t thisCfg = pmpTable[pmpIndex]->pmpCfg;
+    Addr this_addr = pmpTable[pmp_index]->rawAddr;
+    uint8_t this_cfg = pmpTable[pmp_index]->pmpCfg;
 
-    switch (pmpGetAField(thisCfg)) {
+    switch (pmpGetAField(this_cfg)) {
     case PMP_OFF:
         {
         AddrRange thisRange(-1, -2);
-        pmpTable[pmpIndex]->pmpAddr = thisRange;
+        pmpTable[pmp_index]->pmpAddr = thisRange;
         break;
         }
     case PMP_TOR:
         {
-        AddrRange thisRange(prevAddr << 2, (thisAddr << 2) - 1);
-        pmpTable[pmpIndex]->pmpAddr = thisRange;
+        AddrRange thisRange(prevAddr << 2, (this_addr << 2) - 1);
+        pmpTable[pmp_index]->pmpAddr = thisRange;
         break;
         }
     case PMP_NA4:
         {
-        AddrRange thisRange(thisAddr << 2, (thisAddr + 4) - 1);
-        pmpTable[pmpIndex]->pmpAddr = thisRange;
+        AddrRange thisRange(this_addr << 2, (this_addr + 4) - 1);
+        pmpTable[pmp_index]->pmpAddr = thisRange;
         break;
         }
     case PMP_NAPOT:
         {
-        AddrRange thisRange = pmpDecodeNapot(thisAddr);
-        pmpTable[pmpIndex]->pmpAddr = thisRange;
+        AddrRange thisRange = pmpDecodeNapot(this_addr);
+        pmpTable[pmp_index]->pmpAddr = thisRange;
         break;
         }
     default:
         {
         AddrRange thisRange(-1,-2);
-        pmpTable[pmpIndex]->pmpAddr = thisRange;
+        pmpTable[pmp_index]->pmpAddr = thisRange;
         break;
         }
     }
-        int i = 0;
-        for (i = 0; i < maxEntries; i++) {
+        for (int i = 0; i < maxEntries; i++) {
         const uint8_t a_field =
             pmpGetAField(pmpTable[i]->pmpCfg);
         if (PMP_OFF != a_field) {
@@ -208,15 +199,15 @@ PMP::pmpUpdateRule(uint32_t pmpIndex)
 }
 
 void
-PMP::pmpUpdateAddr(uint32_t pmpIndex, Addr thisAddr)
+PMP::pmpUpdateAddr(uint32_t pmp_index, Addr this_addr)
 {
     // just writing the raw addr in the pmp table
     // will convert it into a range, once cfg
     // reg is written
 
-    pmpTable[pmpIndex]->rawAddr = thisAddr;
+    pmpTable[pmp_index]->rawAddr = this_addr;
 
-    pmpUpdateRule(pmpIndex);
+    pmpUpdateRule(pmp_index);
 
 }
 
