@@ -646,7 +646,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
     }
 
     // DRAMPower trace command to be written
-    std::string mem_cmd = mem_pkt->isRead() ? "RD" : "WR";
+    std::string mem_cmd = (mem_pkt->isRead() || (!mem_pkt->isRead() && mem_pkt->isReadBeforeWrite())) ? "RD" : "WR";
 
     // MemCommand required for DRAMPower library
     MemCommand::cmds command = (mem_cmd == "RD") ? MemCommand::RD :

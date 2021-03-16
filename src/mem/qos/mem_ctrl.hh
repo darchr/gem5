@@ -60,7 +60,7 @@ class MemCtrl : public ClockedObject
 {
   public:
     /** Bus Direction */
-    enum BusState { READ, WRITE };
+    enum BusState { READ, WRITE, ReadBeforeWrite };
 
   protected:
     /** QoS Policy, assigns QoS priority to the incoming packets */
