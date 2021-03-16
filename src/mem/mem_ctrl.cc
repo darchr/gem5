@@ -335,6 +335,15 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
         // and enqueue it
         if (!merged) {
             MemPacket* mem_pkt;
+
+            // AYAZ: Here we need to determine how to handle this for
+            // DRAM cache
+            // the mem_pkt returned has interface specific things (different)
+            // for different devices
+            // If this is not serviced by DRAM let's say, then you will need
+            // a way to re-write the packet in the write queue.
+
+            // AYAZ: Check if this packet is in DRAM cache through tags
             if (is_dram) {
                 mem_pkt = dram->decodePacket(pkt, addr, size, false, true);
                 dram->setupRank(mem_pkt->rank, false);
@@ -342,11 +351,14 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
                 mem_pkt = nvm->decodePacket(pkt, addr, size, false, false);
                 nvm->setupRank(mem_pkt->rank, false);
             }
+
+            // AYAZ: What's the difference between the 2
             assert(totalWriteQueueSize < writeBufferSize);
             stats.wrQLenPdf[totalWriteQueueSize]++;
 
             DPRINTF(MemCtrl, "Adding to write queue\n");
 
+            //AYAZ: push back to appropriate queue
             writeQueue[mem_pkt->qosValue()].push_back(mem_pkt);
             isInWriteQueue.insert(burstAlign(addr, is_dram));
 
@@ -371,13 +383,19 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
         // Starting address of next memory pkt (aligned to burst_size boundary)
         addr = (addr | (burst_size - 1)) + 1;
     }
+    //AYAZ: Done writing at this point.
 
+    // AYAZ: This comment seems important!
     // we do not wait for the writes to be send to the actual memory,
     // but instead take responsibility for the consistency here and
     // snoop the write queue for any upcoming reads
     // @todo, if a pkt size is larger than burst size, we might need a
     // different front end latency
+    // AYAZ: this pkt is not MemPacket, rather this is the packet from the
+    // outer world
     accessAndRespond(pkt, frontendLatency);
+
+    // AYAZ: Done till this point
 
     // If we are not already scheduled to get a request out of the
     // queue, do so now
@@ -433,6 +451,10 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
 
     // What type of media does this packet access?
     bool is_dram;
+
+    // AYAZ: Don't think, this will happen in the same
+    // way
+
     if (dram && dram->getAddrRange().contains(pkt->getAddr())) {
         is_dram = true;
     } else if (nvm && nvm->getAddrRange().contains(pkt->getAddr())) {
@@ -447,12 +469,19 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     // If the burst size is equal or larger than the pkt size, then a pkt
     // translates to only one memory packet. Otherwise, a pkt translates to
     // multiple memory packets
+
+    //AYAZ: A memory packet can't be bigger than the burst size
     unsigned size = pkt->getSize();
     uint32_t burst_size = is_dram ? dram->bytesPerBurst() :
                                     nvm->bytesPerBurst();
     unsigned offset = pkt->getAddr() & (burst_size - 1);
     unsigned int pkt_count = divCeil(offset + size, burst_size);
 
+    // AYAZ: This pkt_count is probably memory packet count
+
+    // AYAZ: We never pass any QoS priority value, so I think
+    // the packet's pkt_priority will stay 0.
+    //
     // run the QoS scheduler and assign a QoS priority value to the packet
     qosSchedule( { &readQueue, &writeQueue }, burst_size, pkt);
 
@@ -492,6 +521,8 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
 void
 MemCtrl::processRespondEvent()
 {
+    // AYAZ: When are these events scheduled.
+
     DPRINTF(MemCtrl,
             "processRespondEvent(): Some req has reached its readyTime\n");
 
@@ -633,11 +664,29 @@ MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency)
 {
     DPRINTF(MemCtrl, "Responding to Address %lld.. \n",pkt->getAddr());
 
+
+    // AYAZ: Wouldn't all packets need some kind of response?
     bool needsResponse = pkt->needsResponse();
     // do the actual memory access which also turns the packet into a
     // response
+
+    //AYAZ: Here the actual memory access is happening!!!
+    //AYAZ: this is not clear. I thought, we were going to service
+    // A read request form the write queue. Then why there is need for
+    // an actual access in the device
+
+    // AYAZ: access function of base AbstractMemory (which is
+    // untimed access) and dram.nvm interfaces inherit from AbstractMemory
+    // converting a req packet to a response packet (if our original request)
+    // needed a response
+
     if (dram && dram->getAddrRange().contains(pkt->getAddr())) {
         dram->access(pkt);
+
+        //AYAZ: access is from the abstract memory. does it mean
+        // device is not accessed here?
+        //AYAZ: It seems like this will access the memory instantly
+
     } else if (nvm && nvm->getAddrRange().contains(pkt->getAddr())) {
         nvm->access(pkt);
     } else {
@@ -660,6 +709,8 @@ MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency)
 
         // queue the packet in the response queue to be sent out after
         // the static latency has passed
+        // AYAZ: this is the incoming port...
+        // schedule the response on this port
         port.schedTimingResp(pkt, response_time);
     } else {
         // @todo the packet is going to be deleted, and the MemPacket
@@ -823,6 +874,9 @@ MemCtrl::doBurstAccess(MemPacket* mem_pkt)
         std::tie(cmd_at, nextBurstAt) =
                  dram->doBurstAccess(mem_pkt, nextBurstAt, queue);
 
+        //AYAZ: The above call returns the tick of current burst issue
+        // and the tick of when the next burst can be issued
+
         // Update timing for NVM ranks if NVM is configured on this channel
         if (nvm)
             nvm->addRankToRankDelay(cmd_at);
@@ -866,11 +920,22 @@ MemCtrl::doBurstAccess(MemPacket* mem_pkt)
 void
 MemCtrl::processNextReqEvent()
 {
+
+    //AYAZ: This is scheduled inside AddToWriteQueue and
+    // AddToReadQueue function
+    // and probably other places as well
+
+    // AYAZ: Maybe, we just need to add a layer on
+    // these events
+
     // transition is handled by QoS algorithm if enabled
     if (turnPolicy) {
         // select bus state - only done if QoS algorithms are in use
         busStateNext = selectNextBusState();
     }
+
+
+    //bus state refers to the reading/writing state
 
     // detect bus state change
     bool switched_cmd_type = (busState != busStateNext);
@@ -900,6 +965,7 @@ MemCtrl::processNextReqEvent()
     // updates current state
     busState = busStateNext;
 
+    // AYAZ: Not sure what is happening here!
     if (nvm) {
         for (auto queue = readQueue.rbegin();
              queue != readQueue.rend(); ++queue) {
@@ -930,6 +996,8 @@ MemCtrl::processNextReqEvent()
         // if all ranks are refreshing wait for them to finish
         // and stall this state machine without taking any further
         // action, and do not schedule a new nextReqEvent
+
+        // AYAZ: Then who schedules and how the nextReqEvent is scheduled
         return;
     }
 
@@ -984,6 +1052,11 @@ MemCtrl::processNextReqEvent()
                 // Figure out which read request goes next
                 // If we are changing command type, incorporate the minimum
                 // bus turnaround delay which will be rank to rank delay
+
+                //AYAZ: why do we need to choose a request?
+                //AYAZ: is this not a queue
+                //AYAZ: actually the arbitration b/w different
+                //memory requests happen here
                 to_read = chooseNext((*queue), switched_cmd_type ?
                                                minWriteToReadDataGap() : 0);
 
@@ -1018,6 +1091,8 @@ MemCtrl::processNextReqEvent()
             logResponse(MemCtrl::READ, (*to_read)->requestorId(),
                         mem_pkt->qosValue(), mem_pkt->getAddr(), 1,
                         mem_pkt->readyTime - mem_pkt->entryTime);
+
+// AYAZ: This is where we are writing the responses in the response queue
 
 
             // Insert into response queue. It will be sent back to the
@@ -1097,6 +1172,9 @@ MemCtrl::processNextReqEvent()
 
         doBurstAccess(mem_pkt);
 
+        //AYAZ: In comparison to reads, nothing is written to
+        // response queue
+
         isInWriteQueue.erase(burstAlign(mem_pkt->addr, mem_pkt->isDram()));
 
         // log the response
@@ -1134,6 +1212,8 @@ MemCtrl::processNextReqEvent()
             // nothing to do
         }
     }
+
+    //AYAZ: Not sure what this comment means
     // It is possible that a refresh to another rank kicks things back into
     // action before reaching this point.
     if (!nextReqEvent.scheduled())
