@@ -38,13 +38,18 @@
 #include "sim/sim_object.hh"
 
 /**
- * Place-holder for Doxygen comments on this class
+ * @file
+ * PMP header file.
  */
 
+/**
+ * This class helps to implement RISCV's physical memory
+ * protection (pmp) primitive.
+ * @todo Add statistics and debug prints.
+ */
 class PMP : public SimObject
 {
   public:
-
     typedef PMPParams Params;
 
     const Params &
@@ -53,13 +58,20 @@ class PMP : public SimObject
         return dynamic_cast<const Params &>(_params);
     }
 
-    int maxEntries;
-
     PMP(const Params &params);
 
-    // For encoding of address matching
-    // mode of PMP address register
-    // A (3-4) bits of pmpcfg register
+  private:
+    /** maximum number of entries in the pmp table */
+    int maxEntries;
+
+    /** This enum is used for encoding of address matching mode of
+     * pmp address register, which is present in bits 3-4 (A) of
+     * pmpcfg register for a pmp entry.
+     * PMP_OFF = null region (pmp disabled)
+     * MP_TOR = top of range mode
+     * PMP_NA4 = naturally aligned four byte region
+     * PMP_NAPOT = naturally aligned power of two region, >= 8 bytes
+     */
     typedef enum {
         PMP_OFF,
         PMP_TOR,
@@ -67,34 +79,115 @@ class PMP : public SimObject
         PMP_NAPOT
     } pmpAmatch;
 
+    /** pmpcfg address range read permission mask */
+    const uint8_t PMP_READ = 1 << 0;
 
-    // PMP range permissions
-    const uint8_t PMP_READ  =  1 << 0;
+    /** pmpcfg address range write permission mask */
     const uint8_t PMP_WRITE = 1 << 1;
-    const uint8_t PMP_EXEC  = 1 << 2;
-    const uint8_t PMP_LOCK  = 1 << 7;
 
-    int num_rules;
+    /** pmpcfg address range execute permission mask */
+    const uint8_t PMP_EXEC = 1 << 2;
 
-    // struct corresponding to a single
-    // PMP entry
+    /** pmpcfg address range locked mask */
+    const uint8_t PMP_LOCK = 1 << 7;
+
+    /** variable to keep track of active number of rules any time */
+    int numRules;
+
+    /** single pmp entry struct*/
     typedef struct {
-        AddrRange pmpAddr;
+        /** addr range corresponding to a single pmp entry */
+        AddrRange pmpAddr = AddrRange(-1, -2);
+        /** raw addr in pmpaddr register for a pmp entry */
         Addr rawAddr;
-        uint8_t  pmpCfg;
-    } pmpEntry;
+        /** pmpcfg reg value for a pmp entry */
+        uint8_t pmpCfg = 0;
+    } PmpEntry;
 
-    std::vector<pmpEntry*> pmpTable;
+    /** a table of pmp entries */
+    std::vector<PmpEntry> pmpTable;
 
-    bool pmpCheck(const RequestPtr &req, BaseTLB::Mode mode,
-                RiscvISA::PrivilegeMode pmode);
-    inline uint8_t pmpGetAField(uint8_t cfg);
+  public:
+    /**
+     * pmpCheck checks if a particular memory access
+     * is allowed based on the pmp rules.
+     * @param req memory request.
+     * @param mode mode of request (read, write, execute).
+     * @param pmode current privilege mode of execution (U, S, M).
+     * @param tc thread context.
+     * @return Fault.
+     */
+    Fault pmpCheck(const RequestPtr &req, BaseTLB::Mode mode,
+                  RiscvISA::PrivilegeMode pmode, ThreadContext *tc);
+
+    /**
+     * pmpUpdateCfg updates the pmpcfg for a pmp
+     * entry and calls pmpUpdateRule to update the
+     * rule of corresponding pmp entry.
+     * @param pmp_index pmp entry index.
+     * @param this_cfg value to be written to pmpcfg.
+     */
     void pmpUpdateCfg(uint32_t pmp_index, uint8_t this_cfg);
+
+    /**
+     * pmpUpdateAddr updates the pmpaddr for a pmp
+     * entry and calls pmpUpdateRule to update the
+     * rule of corresponding pmp entry.
+     * @param pmp_index pmp entry index.
+     * @param this_addr value to be written to pmpaddr.
+     */
     void pmpUpdateAddr(uint32_t pmp_index, Addr this_addr);
-    void pmpUpdateRule(uint32_t pmp_index);
+
+  private:
+    /**
+     * This function is called during a memory
+     * access to determine if the pmp table
+     * should be consulted for this access.
+     * @param pmode current privilege mode of execution (U, S, M).
+     * @param mode mode of request (read, write, execute).
+     * @param tc thread context.
+     * @return true or false.
+     */
     bool shouldCheckPMP(RiscvISA::PrivilegeMode pmode,
                 BaseTLB::Mode mode, ThreadContext *tc);
-    inline AddrRange pmpDecodeNapot(Addr a);
+
+    /**
+     * createAddrfault creates an address fault
+     * if the pmp checks fail to pass for a given
+     * access. This function is used by pmpCheck().
+     * given pmp entry depending on the value
+     * of pmpaddr and pmpcfg for that entry.
+     * @param vaddr virtual address of the access.
+     * @param mode mode of access(read, write, execute).
+     * @return Fault.
+     */
+    Fault createAddrfault(Addr vaddr, BaseTLB::Mode mode);
+
+    /**
+     * pmpUpdateRule updates the pmp rule for a
+     * given pmp entry depending on the value
+     * of pmpaddr and pmpcfg for that entry.
+     * @param pmp_index pmp entry index.
+     */
+    void pmpUpdateRule(uint32_t pmp_index);
+
+    /**
+     * pmpGetAField extracts the A field (address matching mode)
+     * from an input pmpcfg register
+     * @param cfg pmpcfg register value.
+     * @return The A field.
+     */
+    inline uint8_t pmpGetAField(uint8_t cfg);
+
+    /**
+     * This function decodes a pmpaddr register value
+     * into an address range when A field of pmpcfg
+     * register is set to NAPOT mode (naturally aligned
+     * power of two region).
+     * @param pmpaddr input address from a pmp entry.
+     * @return an address range.
+     */
+    inline AddrRange pmpDecodeNapot(Addr pmpaddr);
 
 };
 

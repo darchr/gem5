@@ -124,7 +124,6 @@ namespace RiscvISA
                            bool _isTiming = false);
             Fault startWalk();
             Fault startFunctional(Addr &addr, unsigned &logBytes);
-            Fault createAddrfault(Addr vaddr, BaseTLB::Mode mode);
             bool recvPacket(PacketPtr pkt);
             unsigned numInflight() const;
             bool isRetrying();

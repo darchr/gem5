@@ -491,19 +491,12 @@ Walker::WalkerState::recvPacket(PacketPtr pkt)
             req->setPaddr(paddr);
             walker->pma->check(req);
 
-            // do pmp checks if any condition is met
-            if (walker->pmp->shouldCheckPMP(pmode, mode, tc)){
-                // raise exception if checks do not pass
-                if (!walker->pmp->pmpCheck(req, mode, pmode)) {
-                    timingFault = createAddrfault(req->getVaddr(), mode);
-                }
-                else{
-                    assert (timingFault == NoFault);
-                }
-            }
+            // do pmp check if any checking condition is met.
+            // timingFault will be NoFault if pmp checks are
+            // passed, otherwise an address fault will be returned.
+            timingFault = walker->pmp->pmpCheck(req, mode, pmode, tc);
+
             // Let the CPU continue.
-            // timingFault will be NoFault if pmp
-            // checks are passed.
             translation->finish(timingFault, req, tc, mode);
         } else {
             // There was a fault during the walk. Let the CPU know.
@@ -513,20 +506,6 @@ Walker::WalkerState::recvPacket(PacketPtr pkt)
     }
 
     return false;
-}
-
-Fault
-Walker::WalkerState::createAddrfault(Addr vaddr, BaseTLB::Mode mode)
-{
-    ExceptionCode code;
-    if (mode == TLB::Read) {
-        code = ExceptionCode::LOAD_ACCESS;
-    } else if (mode == TLB::Write) {
-        code = ExceptionCode::STORE_ACCESS;
-    } else {
-        code = ExceptionCode::INST_ACCESS;
-    }
-    return std::make_shared<AddressFault>(vaddr, code);
 }
 
 void
