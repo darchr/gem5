@@ -97,7 +97,7 @@ class PMP : public SimObject
     /** single pmp entry struct*/
     typedef struct {
         /** addr range corresponding to a single pmp entry */
-        AddrRange pmpAddr = AddrRange(-1, -2);
+        AddrRange pmpAddr = AddrRange(0, 0);
         /** raw addr in pmpaddr register for a pmp entry */
         Addr rawAddr;
         /** pmpcfg reg value for a pmp entry */

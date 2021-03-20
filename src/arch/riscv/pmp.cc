@@ -64,13 +64,20 @@ PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode,
     if (numRules == 0 || (pmode == RiscvISA::PrivilegeMode::PRV_M))
         return NoFault;
 
+    // match_index will be used to identify the pmp entry
+    // which matched for the given address
+    int match_index = -1;
+
     // all pmp entries need to be looked from the lowest to
     // the highest number
-    int match_index = -1;
     for (int i = 0; i < pmpTable.size(); i++) {
-        if (pmpTable[i].pmpAddr.contains(req->getPaddr())) {
-           //address matched
-            match_index = i;
+        AddrRange pmp_range = pmpTable[i].pmpAddr;
+        if (pmp_range.contains(req->getPaddr()) &&
+                pmp_range.contains(req->getPaddr() + req->getSize())) {
+           // according to specs address is only matched,
+           // when (addr) and (addr + request_size) are both
+           // within the pmp range
+           match_index = i;
         }
 
         if ((PMP_OFF != pmpGetAField(pmpTable[match_index].pmpCfg))
@@ -83,10 +90,12 @@ PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode,
 
             // mode: R = 0, W = 1, X = 2
             uint8_t mode_mask = 1 << mode;
-            if ((allowed_privs & mode_mask) > 0)
+            if ((allowed_privs & mode_mask) > 0) {
                 return NoFault;
-            else
+            }
+            else {
                 return createAddrfault(req->getVaddr(), mode);
+            }
         }
     }
     // if no entry matched and we are not in M mode return fault
@@ -145,7 +154,7 @@ PMP::pmpUpdateRule(uint32_t pmp_index)
       // checking the address matching mode of pmp entry
       case PMP_OFF:
         // null region (pmp disabled)
-        this_range = AddrRange(-1, -2);
+        this_range = AddrRange(0, 0);
         break;
       case PMP_TOR:
         // top of range mode
@@ -160,16 +169,16 @@ PMP::pmpUpdateRule(uint32_t pmp_index)
         this_range = AddrRange(pmpDecodeNapot(this_addr));
         break;
       default:
-        this_range = AddrRange(-1,-2);
+        this_range = AddrRange(0,0);
     }
 
     pmpTable[pmp_index].pmpAddr = this_range;
 
     for (int i = 0; i < maxEntries; i++) {
       const uint8_t a_field =
-        pmpGetAField(pmpTable[i].pmpCfg);
+          pmpGetAField(pmpTable[i].pmpCfg);
       if (PMP_OFF != a_field) {
-        numRules++;
+          numRules++;
       }
     }
 }
