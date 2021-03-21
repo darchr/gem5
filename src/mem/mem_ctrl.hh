@@ -269,6 +269,22 @@ class MemCtrl : public QoS::MemCtrl
      */
     MemoryPort port;
 
+
+    // Add a tag store map
+    struct{
+      Addr tag = 0;
+      Addr index = 0;
+      // xxxxxxdv (dirty and valid bits)
+      uint8_t meta_bits = 0;
+    } tag_entry;
+
+    // DC refers to Dram Cache
+    int dramCacheSize;
+    vector<tag_entry> tagStoreDC;
+
+    // function to return tag from a pkt addr
+    inline Addr returnTag(Addr pkt_addr);
+
     /**
      * Remember if the memory system is in timing mode
      */
