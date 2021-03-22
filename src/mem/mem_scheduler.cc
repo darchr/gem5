@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 UC regents
+ * Copyright (c) 2020 The Regents of the University of California.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -109,6 +109,14 @@ MemScheduler::CPUSidePort::trySendRetry()
 {
     DPRINTF(MemScheduler, "Sending retry req for %d\n", portId());
     sendRetryReq();
+}
+
+Tick
+MemScheduler::CPUSidePort::recvAtomic(PacketPtr pkt)
+{
+    DPRINTF(MemScheduler, "recvAtomic: Atomic request to memSched %s\n",
+            pkt->print());
+    return owner->handleAtomic(pkt);
 }
 
 void
@@ -712,18 +720,33 @@ MemScheduler::handleResponse(PortID memPortId, PacketPtr pkt)
     return true;
 }
 
-void
-MemScheduler::handleFunctional(PacketPtr pkt)
+Tick
+MemScheduler::handleAtomic(PacketPtr pkt)
 {
     // Just pass this on to the memory side to handle for now.
     const Addr base_addr = pkt->getAddr();
-    // Simply forward to the memory port
-    for (auto &memPort : memPorts)
-        // AddrRangeList addr_range = memPort->getAddrRanges();
-        for (auto &addr_range : memPort.getAddrRanges())
-            if (addr_range.start() <= base_addr &&
-                    base_addr <= addr_range.end())
-                memPort.sendFunctional(pkt);
+
+    PortID memPortId = memPortMap.contains(base_addr)->second;
+    DPRINTF(MemScheduler, "handleAtomic: Looked up outgoing routing"
+        " table for MemSidePort PortID: %d\n", memPortId);
+    auto memPort = find_if(memPorts.begin(), memPorts.end(),
+        [memPortId](MemSidePort &obj)
+        {return obj.portId() == memPortId;});
+    return memPort->sendAtomic(pkt);
+}
+
+void
+MemScheduler::handleFunctional(PacketPtr pkt)
+{
+    const Addr base_addr = pkt->getAddr();
+
+    PortID memPortId = memPortMap.contains(base_addr)->second;
+    DPRINTF(MemScheduler, "handleFunctional: Looked up outgoing routing"
+        " table for MemSidePort PortID: %d\n", memPortId);
+    auto memPort = find_if(memPorts.begin(), memPorts.end(),
+        [memPortId](MemSidePort &obj)
+        {return obj.portId() == memPortId;});
+    memPort->sendFunctional(pkt);
 }
 
 AddrRangeList
