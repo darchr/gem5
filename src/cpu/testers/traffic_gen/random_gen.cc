@@ -61,11 +61,10 @@ RandomGen::getNextPacket()
            readPercent != 100);
 
     // address of the request
-    Addr addr = random_mt.random(startAddr / blocksize, endAddr / blocksize - 1);
-    DPRINTF(TrafficGen, "startAddr: %u, endAddr: %u\n", startAddr, endAddr);
+    Addr addr = random_mt.random(startAddr, endAddr - 1);
+
     // round down to start address of block
-    // addr -= addr % blocksize;
-    addr *= blocksize;
+    addr -= addr % blocksize;
 
     DPRINTF(TrafficGen, "RandomGen::getNextPacket: %c to addr %x, size %d\n",
             isRead ? 'r' : 'w', addr, blocksize);

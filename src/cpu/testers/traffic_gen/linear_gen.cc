@@ -71,7 +71,7 @@ LinearGen::getNextPacket()
                               isRead ? MemCmd::ReadReq : MemCmd::WriteReq);
 
     // increment the address
-    nextAddr += blocksize * 16;
+    nextAddr += blocksize;
 
     // If we have reached the end of the address space, reset the
     // address to the start of the range

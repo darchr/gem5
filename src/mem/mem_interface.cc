@@ -292,7 +292,7 @@ DRAMInterface::activateBank(Rank& rank_ref, Bank& bank_ref,
     if (twoCycleActivate) {
         act_at = ctrl->verifyMultiCmd(act_tick, maxCommandsPerWindow, tAAD);
     }
-    else{
+    else {
         DPRINTF(DRAM, "activateBank: calling verifySingleCmd\n");
         act_at = ctrl->verifySingleCmd(act_tick, maxCommandsPerWindow);
     }
