@@ -253,6 +253,7 @@ class MemCtrl : public QoS::MemCtrl
       protected:
 
         Tick recvAtomic(PacketPtr pkt);
+        Tick recvAtomicBackdoor(PacketPtr pkt, MemBackdoorPtr &backdoor);
 
         void recvFunctional(PacketPtr pkt);
 
@@ -610,7 +611,7 @@ class MemCtrl : public QoS::MemCtrl
 
   public:
 
-    MemCtrl(const MemCtrlParams* p);
+    MemCtrl(const MemCtrlParams &p);
 
     /**
      * Ensure that all interfaced have drained commands
@@ -702,6 +703,7 @@ class MemCtrl : public QoS::MemCtrl
   protected:
 
     Tick recvAtomic(PacketPtr pkt);
+    Tick recvAtomicBackdoor(PacketPtr pkt, MemBackdoorPtr &backdoor);
     void recvFunctional(PacketPtr pkt);
     bool recvTimingReq(PacketPtr pkt);
 
