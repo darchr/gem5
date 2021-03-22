@@ -89,6 +89,8 @@ class MemInterface : public AbstractMemory
         uint8_t bank;
         uint8_t bankgr;
 
+        bool isRead;
+
         Tick rdAllowedAt;
         Tick wrAllowedAt;
         Tick preAllowedAt;
@@ -98,7 +100,7 @@ class MemInterface : public AbstractMemory
         uint32_t bytesAccessed;
 
         Bank() :
-            openRow(NO_ROW), bank(0), bankgr(0),
+            openRow(NO_ROW), bank(0), bankgr(0), isRead(true),
             rdAllowedAt(0), wrAllowedAt(0), preAllowedAt(0), actAllowedAt(0),
             rowAccesses(0), bytesAccessed(0)
         { }
@@ -733,6 +735,7 @@ class DRAMInterface : public MemInterface
     const Tick tRP;
     const Tick tRAS;
     const Tick tWR;
+    const Tick tWA;
     const Tick tRTP;
     const Tick tRFC;
     const Tick tREFI;

@@ -92,6 +92,7 @@ class DRAMInterface(MemInterface):
 
     # minimum time between a write data transfer and a precharge
     tWR = Param.Latency("Write recovery time")
+    tWA = Param.Latency("0ns", "Write to activate time")
 
     # minimum time between a read and precharge command
     tRTP = Param.Latency("Read to precharge")
@@ -1055,7 +1056,7 @@ class HBM_1000_4H_1x128(DRAMInterface):
     tWR = '18ns'
     tRTP = '7.5ns'
     tWTR = '10ns'
-
+    tWA = '3ns'
     # start with 2 cycles turnaround, similar to other memory classes
     # could be more with variations across the stack
     tRTW = '4ns'

@@ -120,7 +120,7 @@ MemInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr,
 
         // lastly, get the row bits, no need to remove them from addr
         row = addr % rowsPerBank;
-        if (!subarrayPerBank){
+        if (subarrayPerBank != 0){
             subarray = row / subarrayPerBank;
         }
     } else if (addrMapping == Enums::RoCoRaBaCh) {
@@ -150,7 +150,7 @@ MemInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr,
 
         // lastly, get the row bits, no need to remove them from addr
         row = addr % rowsPerBank;
-        if (!subarrayPerBank){
+        if (!subarrayPerBank != 0){
             subarray = row / subarrayPerBank;
         }
     } else
@@ -161,7 +161,7 @@ MemInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr,
     assert(row < rowsPerBank);
     assert(row < Bank::NO_ROW);
 
-    DPRINTF(DRAM, "Address: %lld Rank %d Bank %d Row %d Subarray %d\n",
+    DPRINTF(DRAM, "Address: %lld Rank %d Bank %d Row %d subarray %d\n",
             pkt_addr, rank, bank, row, subarray);
 
     // create the corresponding memory packet with the entry time and
@@ -210,8 +210,8 @@ DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
             const Tick col_allowed_at = pkt->isRead() ? bank.rdAllowedAt :
                                                         bank.wrAllowedAt;
 
-            DPRINTF(DRAM, "%s checking DRAM packet in bank %d, row %d\n",
-                    __func__, pkt->bank, pkt->row);
+            DPRINTF(DRAM, "%s checking DRAM packet in bank %d, row %d\n"
+                    ,__func__, pkt->bank, pkt->row);
 
             // check if rank is not doing a refresh and thus is available,
             // if not, jump to the next packet
@@ -357,13 +357,13 @@ DRAMInterface::activateBank(Rank& rank_ref, Bank& bank_ref,
     // then we directly schedule an activate power event
     if (!rank_ref.actTicks.empty()) {
         // sanity check
-        if (rank_ref.actTicks.back() &&
-           (act_at - rank_ref.actTicks.back()) < tXAW) {
-            panic("Got %d activates in window %d (%llu - %llu) which "
-                  "is smaller than %llu\n", activationLimit, act_at -
-                  rank_ref.actTicks.back(), act_at,
-                  rank_ref.actTicks.back(), tXAW);
-        }
+        // if (rank_ref.actTicks.back() &&
+        //    (act_at - rank_ref.actTicks.back()) < tXAW) {
+        //     panic("Got %d activates in window %d (%llu - %llu) which "
+        //           "is smaller than %llu\n", activationLimit, act_at -
+        //           rank_ref.actTicks.back(), act_at,
+        //           rank_ref.actTicks.back(), tXAW);
+        // }
 
         // shift the times used for the book keeping, the last element
         // (highest index) is the oldest one and hence the lowest value
@@ -400,7 +400,7 @@ DRAMInterface::activateBank(Rank& rank_ref, Bank& bank_ref,
 
 void
 DRAMInterface::prechargeBank(Rank& rank_ref, Bank& bank, Tick pre_tick,
-                            bool hit_subaaray, bool auto_or_preall,
+                            bool hit_subaray, bool auto_or_preall,
                             bool trace)
 {
     // make sure the bank has an open row
@@ -429,11 +429,14 @@ DRAMInterface::prechargeBank(Rank& rank_ref, Bank& bank, Tick pre_tick,
 
     Tick pre_done_at = pre_at + tRP;
 
-    if (!hit_subaaray && salp_en) {
-        bank.actAllowedAt = std::max(pre_done_at-tRP, curTick());
+    if (!hit_subaray && salp_en && bank.isRead) {
+        bank.actAllowedAt = std::max(pre_at, curTick());
+    } else if (!hit_subaray && salp_en && !bank.isRead) {
+        bank.actAllowedAt = std::max(pre_at - tWR + tWA , curTick());
     } else {
         bank.actAllowedAt = std::max(bank.actAllowedAt, pre_done_at);
     }
+
     assert(rank_ref.numBanksActive != 0);
     --rank_ref.numBanksActive;
 
@@ -468,8 +471,9 @@ std::pair<Tick, Tick>
 DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                              const std::vector<MemPacketQueue>& queue)
 {
-    DPRINTF(DRAM, "Timing access to addr %lld, rank/bank/row %d %d %d\n",
-            mem_pkt->addr, mem_pkt->rank, mem_pkt->bank, mem_pkt->row);
+    DPRINTF(DRAM, "Timing access to addr %lld, rank/bank/row/subarray "
+            "%d %d %d %d\n", mem_pkt->addr, mem_pkt->rank, mem_pkt->bank,
+            mem_pkt->row, mem_pkt->subarray);
 
     // get the rank
     Rank& rank_ref = *ranks[mem_pkt->rank];
@@ -495,14 +499,14 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         // nothing to do
     } else {
         row_hit = false;
-        const bool hit_subaaray =
+        const bool hit_subaray =
                 (bank_ref.openRow/subarrayPerBank == mem_pkt->subarray);
         // If there is a page open, precharge it.
         if (bank_ref.openRow != Bank::NO_ROW) {
             prechargeBank(rank_ref, bank_ref, std::max(bank_ref.preAllowedAt,
-                                                   curTick()), hit_subaaray);
+                                                   curTick()), hit_subaray);
         }
-
+        bank_ref.isRead = mem_pkt->isRead();
         // next we need to account for the delay in activating the page
         Tick act_tick = std::max(bank_ref.actAllowedAt, curTick());
         // Record the activation and deal with all the global timing
