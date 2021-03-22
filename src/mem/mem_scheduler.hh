@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 UC regents
+ * Copyright (c) 2020 The Regents of the University of California.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,16 +32,14 @@
 #include <queue>
 #include <unordered_map>
 
+#include "base/addr_range_map.hh"
 #include "base/statistics.hh"
 #include "mem/port.hh"
 #include "params/MemScheduler.hh"
-
-// #include "sim/sim_object.hh"
-#include "base/addr_range_map.hh"
 #include "sim/clocked_object.hh"
 
 /**
- * A very simple memory object. This object can be connected to multiple memory
+ * This object can be connected to multiple memory
  * controllers.
  * One queue per port is  created and memory scheduler  serialize the requests
  * to different memory controllers connected to the memory scheduler.
@@ -190,8 +188,7 @@ class MemScheduler : public ClockedObject
          * Receive an atomic request packet from the request port.
          * No need to implement in this simple memobj.
          */
-        Tick recvAtomic(PacketPtr pkt) override
-        { panic("recvAtomic unimpl."); }
+        Tick recvAtomic(PacketPtr pkt) override;
 
         /**
          * Receive a functional request packet from the request port.
@@ -307,6 +304,7 @@ class MemScheduler : public ClockedObject
      *
      * @param packet to functionally handle
      */
+    Tick handleAtomic(PacketPtr pkt);
     void handleFunctional(PacketPtr pkt);
 
     /**
