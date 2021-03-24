@@ -271,16 +271,26 @@ class MemCtrl : public QoS::MemCtrl
 
 
     // Add a tag store map
+    // TODO: look at what the intialization
+    // values should be
     struct{
-      Addr tag = 0;
-      Addr index = 0;
+      Addr tag = -1;
+      Addr index = -1;
       // xxxxxxdv (dirty and valid bits)
       uint8_t meta_bits = 0;
     } tag_entry;
 
     // DC refers to Dram Cache
-    int dramCacheSize;
-    vector<tag_entry> tagStoreDC;
+    uint64_t dramCacheSize;
+    uint64_t num_entries;
+
+    // COMMENT: we assumed metadata is stored nither on the dram
+    // (right adjacent to the data), nor on the SRAM caches, but
+    // in a separate structure as tagStoreDC in the main memory
+    // controller. Have this in mind that this assumption may lead
+    // gem5-dram-cache outperform the real hardware such as
+    // Intel Optane.
+    std::vector<tag_entry> tagStoreDC;
 
     // function to return tag from a pkt addr
     inline Addr returnTag(Addr pkt_addr);
@@ -519,6 +529,12 @@ class MemCtrl : public QoS::MemCtrl
      * by the memory.
      */
     const Tick backendLatency;
+
+    /**
+     * This is the latency parameter to check
+     * DRAM cache tags.
+     */
+    const Tick tagcheckLatency;
 
     /**
      * Length of a command window, used to check

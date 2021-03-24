@@ -91,4 +91,6 @@ class MemCtrl(QoSMemCtrl):
     static_frontend_latency = Param.Latency("10ns", "Static frontend latency")
     static_backend_latency = Param.Latency("10ns", "Static backend latency")
 
+    # latency for dram cache tag check
+    static_tagcheck_latency = Param.Latency("2ns", "Static tagcheck latency")
     command_window = Param.Latency("10ns", "Static backend latency")

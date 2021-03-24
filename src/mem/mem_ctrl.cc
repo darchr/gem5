@@ -66,6 +66,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     writesThisTime(0), readsThisTime(0),
     memSchedPolicy(p.mem_sched_policy),
     frontendLatency(p.static_frontend_latency),
+    tagcheckLatency(p.static_tagcheck_latency),
     backendLatency(p.static_backend_latency),
     commandWindow(p.command_window),
     nextBurstAt(0), prevArrival(0),
@@ -91,7 +92,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
               "high threshold %d\n", p.write_low_thresh_perc,
               p.write_high_thresh_perc);
 
-    int num_entries = log(dramCacheSize/64);
+    num_entries = ceilLog2(dramCacheSize/64);
 
     for (int i = 0; i < num_entries; i++) {
         tag_entry entry;
@@ -403,7 +404,9 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
     // different front end latency
     // COMMENT: this pkt is not MemPacket, rather this is the packet from the
     // outer world
-    accessAndRespond(pkt, frontendLatency);
+
+    // TODO: what should be the tag check latency
+    accessAndRespond(pkt, frontendLatency + tagcheckLatency);
 
     // COMMENT: Done till this point
 
@@ -443,8 +446,8 @@ MemCtrl::printQs() const
 inline Addr
 MemCtrl::returnTag(Addr request_addr)
 {
-    int index_bits = log(numentries);
-    int block_bits = log(64);
+    int index_bits = ceilLog2(num_entries);
+    int block_bits = ceilLog2(64);
     return request_addr >> (index_bits+block_bits);
 }
 
@@ -468,7 +471,7 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     prevArrival = curTick();
 
     // What type of media does this packet access?
-    bool is_dram;
+    bool is_dram = false;
 
     // COMMENT: Don't think, this will happen in the same
     // way
@@ -478,7 +481,9 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     // if they do not is_dram : false. In both cases add tag check latency
     // later on when the request is sent to memory
 
-    int index = bits(T val, log(64)+log(numEntries), log(64));
+
+    int index = bits(pkt->getAddr(),
+                ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
     if (tagStoreDC[index].tag == returnTag(pkt->getAddr())){
         // if true it is DRAM cache hit
         is_dram = true;
@@ -487,6 +492,8 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     // just validate that pkt's address maps to the nvm
     assert(nvm && nvm->getAddrRange().contains(pkt->getAddr()));
 
+    // TODO remove this
+    /*
     if (dram && dram->getAddrRange().contains(pkt->getAddr())) {
         is_dram = true;
     } else if (nvm && nvm->getAddrRange().contains(pkt->getAddr())) {
@@ -495,14 +502,21 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
         panic("Can't handle address range for packet %s\n",
               pkt->print());
     }
-
+    */
 
     // Find out how many memory packets a pkt translates to
     // If the burst size is equal or larger than the pkt size, then a pkt
     // translates to only one memory packet. Otherwise, a pkt translates to
     // multiple memory packets
 
-    //COMMENT: A memory packet can't be bigger than the burst size
+    // COMMENT: A memory packet can't be bigger than the burst size
+    // COMMENT: This implements a no-allocate on write miss policy
+    // which means that on a write miss in dram, we should send this packet
+    // to nvm
+    // COMMENT: Also, DRAMCache is following a writeback policy, which means
+    // that we should write a block back to nvm if it is valid and dirty and
+    // needs to be evicted from DRAM cache.
+
     unsigned size = pkt->getSize();
     uint32_t burst_size = is_dram ? dram->bytesPerBurst() :
                                     nvm->bytesPerBurst();
@@ -1142,7 +1156,8 @@ MemCtrl::processNextReqEvent()
                         mem_pkt->qosValue(), mem_pkt->getAddr(), 1,
                         mem_pkt->readyTime - mem_pkt->entryTime);
 
-// COMMENT: This is where we are writing the responses in the response queue
+            // COMMENT: This is where we are writing the
+            // responses in the response queue
 
 
             // Insert into response queue. It will be sent back to the
@@ -1196,6 +1211,8 @@ MemCtrl::processNextReqEvent()
 
             // If we are changing command type, incorporate the minimum
             // bus turnaround delay
+            // TODO: how to choose next when we have DRAM cache and nvm packets
+            // in the queue
             to_write = chooseNext((*queue),
                      switched_cmd_type ? minReadToWriteDataGap() : 0);
 
@@ -1235,6 +1252,15 @@ MemCtrl::processNextReqEvent()
                     mem_pkt->readyTime - mem_pkt->entryTime);
 
 
+        // COMMENT: We should update the dirty bits right before deleting
+        // the packet
+
+        int index = bits(mem_pkt->pkt->getAddr(),
+                        ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
+
+        // setting the dirty bit here
+        tagStoreDC[index].meta_bits = tagStoreDC[index].meta_bits | 0x02;
+
         // remove the request from the queue - the iterator is no longer valid
         writeQueue[mem_pkt->qosValue()].erase(to_write);
 
@@ -1265,7 +1291,7 @@ MemCtrl::processNextReqEvent()
         }
     }
 
-    //COMMENT: Not sure what this comment means
+    // COMMENT: Not sure what this comment means
     // It is possible that a refresh to another rank kicks things back into
     // action before reaching this point.
     if (!nextReqEvent.scheduled())
