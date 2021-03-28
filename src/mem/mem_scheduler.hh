@@ -115,7 +115,7 @@ class MemScheduler : public ClockedObject
       PortID memPortId;
       bool sendRetry;
       bool blocked(){
-        return respQueue.size() == respQueueSize;
+        return (respQueue.size() == respQueueSize) && (respQueueSize != 0);
       }
       bool empty(){
         return respQueue.empty();
