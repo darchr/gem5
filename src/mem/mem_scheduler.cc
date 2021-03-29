@@ -37,6 +37,7 @@ typedef std::pair<uint64_t, PortID> QueuePair;
 
 MemScheduler::MemScheduler(const MemSchedulerParams &params):
     ClockedObject(params),
+    system(params.system),
     nextReqEvent([this]{ processNextReqEventOpt(); }, name()),
     nextRespEvent([this]{ processNextRespEvent(); }, name()),
     readBufferSize(params.read_buffer_size),
@@ -45,6 +46,7 @@ MemScheduler::MemScheduler(const MemSchedulerParams &params):
     nMemPorts(params.port_mem_side_connection_count),
     nCpuPorts(params.port_cpu_side_connection_count),
     unifiedQueue(params.unified_queue),
+    lastVirtCPUPortId(0),
     stats(this)
 {
 
@@ -54,13 +56,20 @@ MemScheduler::MemScheduler(const MemSchedulerParams &params):
     for (uint32_t i = 0; i < nCpuPorts; ++i){
         cpuPorts.emplace_back(name() + ".cpu_side" + std::to_string(i),
                               i, this);
-        requestQueues.push_back(RequestQueue(readBufferSize, writeBufferSize,
-                            params.service_write_threshold, unifiedQueue, i));
-        responseQueues.push_back(ResponseQueue(respBufferSize, i));
+// requestQueues.push_back(RequestQueue(readBufferSize, writeBufferSize,
+//                     params.service_write_threshold, unifiedQueue, i));
+// responseQueues.push_back(ResponseQueue(respBufferSize, i));
     }
     for (uint32_t i = 0; i < nMemPorts; ++i){
         memPorts.emplace_back(name() + ".mem_side" + std::to_string(i),
                                 i, this);
+    }
+
+    uint16_t num_requestors = system->maxRequestors();
+    for (uint16_t i = 0; i < num_requestors; ++i) {
+        requestQueues.emplace_back(readBufferSize, writeBufferSize,
+                            params.service_write_threshold, unifiedQueue, i);
+        responseQueues.emplace_back(respBufferSize, i);
     }
 }
 
@@ -238,11 +247,21 @@ MemScheduler::MemSchedulerStat::regStats(){
 }
 
 bool
-MemScheduler::handleRequest(PortID portId, PacketPtr pkt)
+MemScheduler::handleRequest(PortID cpuPortId, PacketPtr pkt)
 {
-      ///////////////////////////////////////////////////////////////////////
-     /////////////////// TODO: adjust the schedule freq ////////////////////
-    ///////////////////////////////////////////////////////////////////////
+    PortID portId;
+
+    auto search = rubyTranslationTable.find(pkt->req->requestorId());
+    if (search != rubyTranslationTable.end()) {
+        portId = search->second;
+    }
+    else {
+        rubyTranslationTable[pkt->req->requestorId()] = lastVirtCPUPortId;
+        responseTranslationTable[lastVirtCPUPortId] = cpuPortId;
+        portId = lastVirtCPUPortId;
+        lastVirtCPUPortId++;
+    }
+
     DPRINTF(MemScheduler, "handleRequest: "
         "Got request from cpuPort[%d]\n", portId);
     auto queue = find_if(requestQueues.begin(), requestQueues.end(),
@@ -626,7 +645,8 @@ MemScheduler::processNextRespEvent(){
     DPRINTF(MemScheduler, "processNextRespEvent: "
     "Iterating over respQueues to send resp to cpuPorts\n");
     for (auto &queue : responseQueues){
-        PortID cpuPortId = queue.cpuPortId;
+        // PortID cpuPortId = queue.cpuPortId;
+        PortID cpuPortId = responseTranslationTable[queue.cpuPortId];
         auto cpuPort = find_if(cpuPorts.begin(), cpuPorts.end(),
             [cpuPortId](CPUSidePort &obj)
             {return obj.portId() == cpuPortId;});
@@ -719,6 +739,22 @@ MemScheduler::handleResponse(PortID memPortId, PacketPtr pkt)
     }
     return true;
 }
+
+// bool
+// MemScheduler::handleResponse(PortID memPortId, PacketPtr pkt) {
+//     RequestPtr req = pkt->req;
+//     PortID cpuPortId = respRoutingTable[req];
+//     DPRINTF(MemScheduler, "handleResponse: "
+//         "Received response from memSidePort[%d]\n", memPortId);
+//     DPRINTF(MemScheduler, "handleResponse: "
+//         "Looking up the incoming routing table to find proper "
+//         "port for response, <%s, %d>\n",
+//         pkt->getAddrRange().to_string(), cpuPortId);
+//     auto responsePort = find_if(cpuPorts.begin(), cpuPorts.end(),
+//         [cpuPortId](CPUSidePort &obj)
+//         {return obj.portId() == cpuPortId;});
+//     responsePort.sendPacket(pkt);
+// }
 
 Tick
 MemScheduler::handleAtomic(PacketPtr pkt)

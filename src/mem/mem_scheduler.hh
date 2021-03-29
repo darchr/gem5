@@ -37,6 +37,7 @@
 #include "mem/port.hh"
 #include "params/MemScheduler.hh"
 #include "sim/clocked_object.hh"
+#include "sim/system.hh"
 
 /**
  * This object can be connected to multiple memory
@@ -287,7 +288,7 @@ class MemScheduler : public ClockedObject
      * @return true if we can handle the request this cycle, false if the
      *         requestor needs to retry later
      */
-    bool handleRequest(PortID portId, PacketPtr pkt);
+    bool handleRequest(PortID cpuPortId, PacketPtr pkt);
 
     /**
      * Handle the respone from the memory side
@@ -332,6 +333,8 @@ class MemScheduler : public ClockedObject
 
     RequestQueue* arbitrate(std::map<PortID, bool> visited);
 
+    System *const system;
+
     void processNextReqEvent();
     void processNextReqEventOpt();
     EventFunctionWrapper nextReqEvent;
@@ -354,6 +357,11 @@ class MemScheduler : public ClockedObject
 
     std::unordered_map<PacketPtr, Tick> entryTimes;
     std::unordered_map<PacketPtr, Tick> respEntryTimes;
+
+    std::unordered_map<RequestorID, PortID> rubyTranslationTable;
+    std::unordered_map<PortID, PortID> responseTranslationTable;
+    PortID lastVirtCPUPortId;
+
     struct MemSchedulerStat : public Stats::Group
     {
       MemSchedulerStat(MemScheduler *parent);

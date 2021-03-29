@@ -25,12 +25,14 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.params import *
-from m5.SimObject import SimObject
+from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
 
 class MemScheduler(ClockedObject):
     type = 'MemScheduler'
     cxx_header = "mem/mem_scheduler.hh"
+
+    system = Param.System(Parent.any, 'System this generator is a part of')
 
     cpu_side = VectorResponsePort("CPU side port, receives requests")
     mem_side = VectorRequestPort("Ports on the memory "
