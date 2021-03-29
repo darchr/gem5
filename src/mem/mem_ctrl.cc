@@ -299,6 +299,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
 
     // If all packets are serviced by write queue, we send the repsonse back
     if (pktsServicedByWrQ == pkt_count) {
+        // COMMENT: should the tagcheckLatency be added here
         accessAndRespond(pkt, frontendLatency);
         return;
     }
@@ -313,7 +314,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
         DPRINTF(MemCtrl, "Request scheduled immediately\n");
         //COMMENT: DRAM cache tag check latency should be added to the
         // curTick()
-        schedule(nextReqEvent, curTick());
+        schedule(nextReqEvent, curTick() + tagcheckLatency);
     }
 }
 
@@ -1046,6 +1047,7 @@ MemCtrl::processNextReqEvent()
     // check ranks for refresh/wakeup - uses busStateNext, so done after
     // turnaround decisions
     // Default to busy status and update based on interface specifics
+    // COMMENT: should look here
     bool dram_busy = dram ? dram->isBusy() : true;
     bool nvm_busy = true;
     bool all_writes_nvm = false;
@@ -1121,6 +1123,8 @@ MemCtrl::processNextReqEvent()
                 //COMMENT: is this not a queue
                 //COMMENT: actually the arbitration b/w different
                 //memory requests happen here
+
+                // COMMENT: check a busy bit available in the metadata
                 to_read = chooseNext((*queue), switched_cmd_type ?
                                                minWriteToReadDataGap() : 0);
 
