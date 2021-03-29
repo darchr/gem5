@@ -254,6 +254,9 @@ MemScheduler::handleRequest(PortID cpuPortId, PacketPtr pkt)
     DPRINTF(MemScheduler, "%s: Received a packet from port: %d,"
                         " requestorId: %d\n", __func__, cpuPortId,
                         pkt->req->requestorId());
+    DPRINTF(MemScheduler, "%s: Retrieving name of the requestor,"
+                        " requestor: %s\n", __func__,
+                        system->getRequestorName(pkt->req->requestorId()));
 
     auto search = rubyTranslationTable.find(pkt->req->requestorId());
     if (search != rubyTranslationTable.end()) {
