@@ -66,6 +66,8 @@ MemScheduler::MemScheduler(const MemSchedulerParams &params):
     }
 
     uint16_t num_requestors = system->maxRequestors();
+    DPRINTF(MemScheduler, "%s: num_requestors: %d\n",
+                            __func__, num_requestors);
     for (uint16_t i = 0; i < num_requestors; ++i) {
         requestQueues.emplace_back(readBufferSize, writeBufferSize,
                             params.service_write_threshold, unifiedQueue, i);
@@ -76,7 +78,6 @@ MemScheduler::MemScheduler(const MemSchedulerParams &params):
 Port &
 MemScheduler::getPort(const std::string &if_name, PortID idx)
 {
-
     // This is the name from the Python SimObject declaration (MemScheduler.py)
     if (if_name == "mem_side" && idx < memPorts.size()) {
         return memPorts[idx];
@@ -250,15 +251,24 @@ bool
 MemScheduler::handleRequest(PortID cpuPortId, PacketPtr pkt)
 {
     PortID portId;
+    DPRINTF(MemScheduler, "%s: Received a packet from port: %d,"
+                        " requestorId: %d\n", __func__, cpuPortId,
+                        pkt->req->requestorId());
 
     auto search = rubyTranslationTable.find(pkt->req->requestorId());
     if (search != rubyTranslationTable.end()) {
         portId = search->second;
+        DPRINTF(MemScheduler, "%s: Translation already exist,"
+                            " (req: %d, port: %d)\n", __func__,
+                            pkt->req->requestorId(), portId);
     }
     else {
         rubyTranslationTable[pkt->req->requestorId()] = lastVirtCPUPortId;
         responseTranslationTable[lastVirtCPUPortId] = cpuPortId;
         portId = lastVirtCPUPortId;
+        DPRINTF(MemScheduler, "%s: New translation,"
+                            " (req: %d, port: %d)\n", __func__,
+                            pkt->req->requestorId(), portId);
         lastVirtCPUPortId++;
     }
 
@@ -301,7 +311,7 @@ MemScheduler::handleRequest(PortID cpuPortId, PacketPtr pkt)
     if (!nextReqEvent.scheduled()){
         DPRINTF(MemScheduler, "handleRequest: "
             "Scheduling nextReqEvent in handleRequest\n");
-        schedule(nextReqEvent, curTick() + 100);
+        schedule(nextReqEvent, nextCycle());
     }
     return true;
 }
@@ -405,7 +415,7 @@ MemScheduler::processNextReqEvent(){
             if (!queue.emptyRead() || queue.serviceWrite()){
                 DPRINTF(MemScheduler, "processNextReqEvent: "
                     "Scheduling nextReqEvent in processNextReqEvent\n");
-                schedule(nextReqEvent, curTick() + 500);
+                schedule(nextReqEvent, nextCycle());
                 break;
             }
         }
@@ -477,6 +487,7 @@ MemScheduler::arbitrate(std::map<PortID, bool> visited){
             queue->cpuPortId, queue->timesChecked, queue->readQueue.size(),
             queue->writeQueue.size(), queue->emptyRead(),
             queue->serviceWrite());
+            queue->timesChecked++;
     }
     return queue;
 }
@@ -587,7 +598,7 @@ MemScheduler::processNextReqEventOpt(){
             if (!queue.emptyRead() || queue.serviceWrite()){
                 DPRINTF(MemScheduler, "processNextReqEvent: "
                     "Scheduling nextReqEvent in processNextReqEvent\n");
-                schedule(nextReqEvent, curTick() + 500);
+                schedule(nextReqEvent, nextCycle());
                 break;
             }
         }
@@ -673,7 +684,7 @@ MemScheduler::processNextRespEvent(){
             if (!queue.empty()){
                 DPRINTF(MemScheduler, "processNextRespEvent: "
                     "Scheduling nextRespEvent in processNextRespEvent\n");
-                schedule(nextRespEvent, curTick() + 500);
+                schedule(nextRespEvent, nextCycle());
                 break;
             }
         }
@@ -735,7 +746,7 @@ MemScheduler::handleResponse(PortID memPortId, PacketPtr pkt)
     if (!nextRespEvent.scheduled()){
         DPRINTF(MemScheduler, "handleResponse: "
             "Scheduling nextRespEvent in handleResponse\n");
-        schedule(nextRespEvent, curTick() + 100);
+        schedule(nextRespEvent, nextCycle());
     }
     return true;
 }
@@ -829,7 +840,7 @@ MemScheduler::wakeUp()
     if (!nextReqEvent.scheduled()){
         for (auto &queue : requestQueues){
             if (!queue.emptyRead()){
-                schedule(nextReqEvent, curTick() + 100);
+                schedule(nextReqEvent, nextCycle());
                 return;
             }
         }
