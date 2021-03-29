@@ -78,9 +78,9 @@ parser.add_option("--rd-perc", type="int", default=100,
 parser.add_option("--nvm-perc", type="int", default=100,
                   help = "Percentage of NVM commands")
 
-parser.add_option("--mode", type="choice", default="HYBRID",
-                  choices=hybrid_generators.keys(),
-                  help = "Hybrid: Random DRAM + NVM traffic")
+#parser.add_option("--mode", type="choice", default="HYBRID",
+#                  choices=hybrid_generators.keys(),
+#                  help = "Hybrid: Random DRAM + NVM traffic")
 
 parser.add_option("--addr-map", type="choice",
                   choices=ObjectList.dram_addr_map_list.get_names(),
@@ -209,7 +209,7 @@ m5.instantiate()
 
 def trace():
     addr_map = ObjectList.dram_addr_map_list.get(options.addr_map)
-    generator = hybrid_generators[options.mode](system.tgen)
+    generator = hybrid_generators["HYBRID"](system.tgen)
     for stride_size in range(burst_size, max_stride + 1, burst_size):
         num_seq_pkts_dram = int(math.ceil(float(stride_size) /
                                           burst_size_dram))
