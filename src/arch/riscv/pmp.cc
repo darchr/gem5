@@ -233,8 +233,11 @@ PMP::pmpDecodeNapot(Addr pmpaddr)
       return this_range;
     } else {
         uint64_t t1 = ctz64(~pmpaddr);
-        uint64_t range = std::pow(2,t1+3);
-        uint64_t base = bits(pmpaddr, 63, t1+1);
+        uint64_t range = (std::pow(2,t1+3))-1;
+
+        // pmpaddr reg encodes bits 55-2 of a
+        // 56 bit physical address for RV64
+        uint64_t base = mbits(pmpaddr, 63, t1) << 2;
         AddrRange this_range(base, base+range);
         return this_range;
     }
