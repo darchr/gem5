@@ -34,6 +34,7 @@
 #include "base/addr_range.hh"
 #include "base/types.hh"
 #include "cpu/thread_context.hh"
+#include "debug/PMP.hh"
 #include "math.h"
 #include "mem/request.hh"
 #include "params/PMP.hh"
@@ -57,6 +58,9 @@ PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode,
     // First determine if pmp table should be consulted
     if (!shouldCheckPMP(pmode, mode, tc))
         return NoFault;
+
+    DPRINTF(PMP, "Checking pmp permissions for va: %#x , pa: %#x\n",
+            req->getVaddr(), req->getPaddr());
 
     // An access should be successful if there are
     // no rules defined yet or we are in M mode (based
@@ -128,6 +132,8 @@ PMP::pmpGetAField(uint8_t cfg)
 void
 PMP::pmpUpdateCfg(uint32_t pmp_index, uint8_t this_cfg)
 {
+    DPRINTF(PMP, "Update pmp config with %u for pmp entry: %u \n",
+                                    (unsigned)this_cfg, pmp_index);
     pmpTable[pmp_index].pmpCfg = this_cfg;
     pmpUpdateRule(pmp_index);
 
@@ -186,6 +192,9 @@ PMP::pmpUpdateRule(uint32_t pmp_index)
 void
 PMP::pmpUpdateAddr(uint32_t pmp_index, Addr this_addr)
 {
+    DPRINTF(PMP, "Update pmp addr %#x for pmp entry %u \n",
+                                      this_addr, pmp_index);
+
     // just writing the raw addr in the pmp table
     // will convert it into a range, once cfg
     // reg is written

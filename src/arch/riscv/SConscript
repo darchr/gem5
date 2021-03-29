@@ -73,6 +73,7 @@ if env['TARGET_ISA'] == 'riscv':
 
     DebugFlag('RiscvMisc')
     DebugFlag('TLBVerbose')
+    DebugFlag('PMP')
     DebugFlag('PageTableWalker', \
               "Page table walker state machine debugging")
 
