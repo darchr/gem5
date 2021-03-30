@@ -273,15 +273,16 @@ class MemCtrl : public QoS::MemCtrl
     // Add a tag store map
     // TODO: look at what the intialization
     // values should be
-    struct{
+    class tag_entry{
+      public:
       Addr tag = -1;
       Addr index = -1;
       // xxxxxxdv (dirty and valid bits)
       uint8_t meta_bits = 0;
-    } tag_entry;
+    } ;
 
     // DC refers to Dram Cache
-    uint64_t dramCacheSize;
+    //uint64_t dramCacheSize;
     uint64_t num_entries;
 
     // COMMENT: we assumed metadata is stored nither on the dram
@@ -556,6 +557,8 @@ class MemCtrl : public QoS::MemCtrl
      * and access, it is tRP + tRCD + tCL.
      */
     Tick nextReqTime;
+
+    uint64_t dramCacheSize;
 
     struct CtrlStats : public Stats::Group
     {

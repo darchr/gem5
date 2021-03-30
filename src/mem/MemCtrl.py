@@ -58,7 +58,7 @@ class MemCtrl(QoSMemCtrl):
     # bus in front of the controller for multiple ports
     port = ResponsePort("This port responds to memory requests")
 
-    dram_cache_size = Param.Int('1GB', "DRAM cache size")
+    dram_cache_size = Param.Int('1024', "DRAM cache size")
 
     # Interface to volatile, DRAM media
     dram = Param.DRAMInterface(NULL, "DRAM interface")
