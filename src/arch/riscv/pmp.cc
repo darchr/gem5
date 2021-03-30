@@ -92,9 +92,16 @@ PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode,
             // i is the index of pmp table which matched
             allowed_privs &= pmpTable[match_index].pmpCfg;
 
-            // mode: R = 0, W = 1, X = 2
-            uint8_t mode_mask = 1 << mode;
-            if ((allowed_privs & mode_mask) > 0) {
+            if ((mode == BaseTLB::Mode::Read) &&
+                                        (PMP_READ & allowed_privs)) {
+                return NoFault;
+            }
+            else if ((mode == BaseTLB::Mode::Write) &&
+                                        (PMP_WRITE & allowed_privs)) {
+                return NoFault;
+            }
+            else if ((mode == BaseTLB::Mode::Execute) &&
+                                        (PMP_EXEC & allowed_privs)) {
                 return NoFault;
             }
             else {
@@ -134,6 +141,9 @@ PMP::pmpUpdateCfg(uint32_t pmp_index, uint8_t this_cfg)
 {
     DPRINTF(PMP, "Update pmp config with %u for pmp entry: %u \n",
                                     (unsigned)this_cfg, pmp_index);
+
+    warn_if((PMP_LOCK & this_cfg), "pmp lock feature is not supported.");
+
     pmpTable[pmp_index].pmpCfg = this_cfg;
     pmpUpdateRule(pmp_index);
 
