@@ -206,7 +206,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
     assert(pkt_count != 0);
 
     // if the request size is larger than burst size, the pkt is split into
-    // multiple packets
+    // multiple packets (mem pkts)
     // Note if the pkt starting address is not aligened to burst size, the
     // address of first packet is kept unaliged. Subsequent packets
     // are aligned to burst size boundaries. This is to ensure we accurately
@@ -488,7 +488,43 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     if (tagStoreDC[index].tag == returnTag(pkt->getAddr())){
         // if true it is DRAM cache hit
         is_dram = true;
+        // I think we can also update the metabits here, or
+        // maybe we should do that once we get response back
+        // from the memory
+
+
+       // If we are writing something here and the request is coming from
+       // LLC , let's just say that this line is dirty here
+       // How to check that this request is not from NVM?
+        if(pkt->isWrite() && !pkt->req->nvm_req()) {
+            tagStoreDC[index].meta_bits &= DIRTY_LINE;
+
+            // Also, make a note that this line is a
+            // valid line
+            tagStoreDC[index].meta_bits &= VALID_LINE;
+        }
+
+        // what about the case when a read request shows up for
+        // the same location: it should be serviced from the
+        // write queue, I think.
     }
+
+    // if the request is a read and a miss then find out if the
+    // request in DRAM cache is dirty or not
+
+    else if (pkt->isRead()) {
+
+        // I think for reads, we need to check tags on
+        // our way back when things are put in the response
+        // queue
+
+       // if clean ---> NVM read and DRAM write
+       // if dirty ---> NVM write for old data,
+       //               NVM read for new data
+       //               and write for new data
+
+    }
+
 
     // just validate that pkt's address maps to the nvm
     assert(nvm && nvm->getAddrRange().contains(pkt->getAddr()));

@@ -280,6 +280,14 @@ class MemCtrl : public QoS::MemCtrl
       // xxxxxxdv (dirty and valid bits)
       uint8_t meta_bits = 0;
     } ;
+0
+    // constant to indicate that the cache line is
+    // dirty
+     const uint8_t DIRTY_LINE = 1 << 0;
+
+    // constant to indicate that the cache line is
+    // valid
+     const uint8_t VALID_LINE = 1 << 1;
 
     // DC refers to Dram Cache
     //uint64_t dramCacheSize;
