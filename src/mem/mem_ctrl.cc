@@ -626,6 +626,25 @@ MemCtrl::processRespondEvent()
 
     MemPacket* mem_pkt = respQueue.front();
 
+    // ****************
+
+    // assuming that read will still be true on the way back
+    if (mem_pkt->isRead()) {
+
+        int index = bits(mem_pkt->pkt->getAddr(),
+                ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
+
+        if (tagStoreDC[index].tag == returnTag(mem_pkt->pkt->getAddr())) {
+            // if true it is DRAM cache hit
+
+           // can we be sure that nothing in between two mem pkts belonging
+           // to the same pkt will change tags for that pkt in the tag store
+
+        }
+    }
+
+    // *****************
+
     if (mem_pkt->isDram()) {
         // media specific checks and functions when read response is complete
         dram->respondEvent(mem_pkt->rank);
@@ -649,6 +668,7 @@ MemCtrl::processRespondEvent()
         // COMMENT: only called for reads
         accessAndRespond(mem_pkt->pkt, frontendLatency + backendLatency);
     }
+
 
     delete respQueue.front();
     respQueue.pop_front();
