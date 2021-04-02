@@ -60,6 +60,7 @@ SimObject('SerialLink.py')
 SimObject('MemDelay.py')
 SimObject('MemScheduler.py')
 SimObject('LLMInterface.py')
+SimObject('FGDRAMInterface.py')
 
 Source('abstract_mem.cc')
 Source('addr_mapper.cc')
