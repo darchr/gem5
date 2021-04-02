@@ -539,6 +539,7 @@ MemScheduler::processNextReqEventOpt(){
     }
 
     memPort->sendPacket(pkt);
+    pick->timesChecked++;
 
     if (!pick->serviceWrite()){
         DPRINTF(MemScheduler, "processNextReqEvent: "

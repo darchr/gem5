@@ -43,7 +43,7 @@ class LLM(DRAMInterface):
 
     # Sending 64bytes every 16ns (tBURST)
     # BL = 16ns / 2ns (tCK) = 8
-    burst_length = 8
+    burst_length = 512
 
     # Size of channel in bytes, 4H stack of 8Gb dies is 4GB per stack.
     # 16 channels (memscheduler) For 64 Bank per channel.
@@ -62,7 +62,7 @@ class LLM(DRAMInterface):
     banks_per_rank = 2
 
     # One bank group per bank
-    bank_groups_per_rank = 1
+    bank_groups_per_rank = 0
 
     # use values from IDD measurement in JEDEC spec
     # use tRP value for tRCD and tCL similar to other classes
