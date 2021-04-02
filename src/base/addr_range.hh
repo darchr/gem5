@@ -84,7 +84,7 @@ class AddrRange
     std::vector<Addr> masks;
 
     /** The value to compare sel with. */
-    uint8_t intlvMatch;
+    uint32_t intlvMatch;
 
   public:
 
@@ -126,7 +126,7 @@ class AddrRange
      * @ingroup api_addr_range
      */
     AddrRange(Addr _start, Addr _end, const std::vector<Addr> &_masks,
-              uint8_t _intlv_match)
+              uint32_t _intlv_match)
         : _start(_start), _end(_end), masks(_masks),
           intlvMatch(_intlv_match)
     {
@@ -164,7 +164,7 @@ class AddrRange
      */
     AddrRange(Addr _start, Addr _end, uint8_t _intlv_high_bit,
               uint8_t _xor_high_bit, uint8_t _intlv_bits,
-              uint8_t _intlv_match)
+              uint32_t _intlv_match)
         : _start(_start), _end(_end), masks(_intlv_bits),
           intlvMatch(_intlv_match)
     {
@@ -230,7 +230,7 @@ class AddrRange
                 fatal("Got %d ranges spanning %d interleaving bits\n",
                       ranges.size(), masks.size());
 
-            uint8_t match = 0;
+            uint32_t match = 0;
             for (const auto& r : ranges) {
                 if (!mergesWith(r))
                     fatal("Can only merge ranges with the same start, end "

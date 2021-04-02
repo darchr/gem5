@@ -802,8 +802,8 @@ sticky_vars.AddVariables(
     BoolVariable('BUILD_GPU', 'Build the compute-GPU model', False),
     EnumVariable('PROTOCOL', 'Coherence protocol for Ruby', 'None',
                   all_protocols),
-    ('NUMBER_BITS_PER_SET', 'Max elements in set (default 64)',
-                 64),
+    ('NUMBER_BITS_PER_SET', 'Max elements in set (default 1024)',
+                 1024),
     BoolVariable('USE_HDF5', 'Enable the HDF5 support', have_hdf5),
     )
 
