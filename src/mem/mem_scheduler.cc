@@ -282,7 +282,7 @@ MemScheduler::handleRequest(PortID portId, PacketPtr pkt)
     if (!nextReqEvent.scheduled()){
         DPRINTF(MemScheduler, "handleRequest: "
             "Scheduling nextReqEvent in handleRequest\n");
-        schedule(nextReqEvent, curTick() + 100);
+        schedule(nextReqEvent, nextCycle());
     }
     return true;
 }
@@ -386,7 +386,7 @@ MemScheduler::processNextReqEvent(){
             if (!queue.emptyRead() || queue.serviceWrite()){
                 DPRINTF(MemScheduler, "processNextReqEvent: "
                     "Scheduling nextReqEvent in processNextReqEvent\n");
-                schedule(nextReqEvent, curTick() + 500);
+                schedule(nextReqEvent, nextCycle());
                 break;
             }
         }
@@ -569,7 +569,7 @@ MemScheduler::processNextReqEventOpt(){
             if (!queue.emptyRead() || queue.serviceWrite()){
                 DPRINTF(MemScheduler, "processNextReqEvent: "
                     "Scheduling nextReqEvent in processNextReqEvent\n");
-                schedule(nextReqEvent, curTick() + 500);
+                schedule(nextReqEvent, nextCycle());
                 break;
             }
         }
@@ -654,7 +654,7 @@ MemScheduler::processNextRespEvent(){
             if (!queue.empty()){
                 DPRINTF(MemScheduler, "processNextRespEvent: "
                     "Scheduling nextRespEvent in processNextRespEvent\n");
-                schedule(nextRespEvent, curTick() + 500);
+                schedule(nextRespEvent, nextCycle());
                 break;
             }
         }
@@ -716,7 +716,7 @@ MemScheduler::handleResponse(PortID memPortId, PacketPtr pkt)
     if (!nextRespEvent.scheduled()){
         DPRINTF(MemScheduler, "handleResponse: "
             "Scheduling nextRespEvent in handleResponse\n");
-        schedule(nextRespEvent, curTick() + 100);
+        schedule(nextRespEvent, nextCycle());
     }
     return true;
 }
@@ -794,7 +794,7 @@ MemScheduler::wakeUp()
     if (!nextReqEvent.scheduled()){
         for (auto &queue : requestQueues){
             if (!queue.emptyRead()){
-                schedule(nextReqEvent, curTick() + 100);
+                schedule(nextReqEvent, nextCycle());
                 return;
             }
         }
