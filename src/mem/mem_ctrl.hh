@@ -344,6 +344,22 @@ class MemCtrl : public QoS::MemCtrl
     bool writeQueueFull(unsigned int pkt_count) const;
 
     /**
+     * Check if the nvm read queue has room for more entries
+     *
+     * @param pkt_count The number of entries needed in the nvm read queue
+     * @return true if nvm read queue is full, false otherwise
+     */
+    bool nvmReadQueueFull(unsigned int pkt_count) const;
+
+    /**
+     * Check if the nvm write queue has room for more entries
+     *
+     * @param pkt_count The number of entries needed in the nvm write queue
+     * @return true if write queue is full, false otherwise
+     */
+    bool nvmWriteQueueFull(unsigned int pkt_count) const;
+
+    /**
      * When a new read comes in, first check if the write q has a
      * pending request to the same address.\ If not, decode the
      * address to populate rank/bank/row, create one or mutliple
@@ -373,6 +389,19 @@ class MemCtrl : public QoS::MemCtrl
      * then pkt_count is greater than one.
      */
     void addToWriteQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram);
+
+    /**
+     *
+     * @param pkt The mem pkt to add to the nvm read queue
+     */
+    void addToNVMReadQueue(MemPacket pkt);
+
+    /**
+     *
+     * @param pkt The mem pkt to add to the nvm read queue
+     */
+    void addToNVMWriteQueue(MemPacket pkt);
+
 
     /**
      * Actually do the burst based on media specific access function.
@@ -468,6 +497,13 @@ class MemCtrl : public QoS::MemCtrl
      */
     std::vector<MemPacketQueue> readQueue;
     std::vector<MemPacketQueue> writeQueue;
+
+    /**
+     * These are NVM read and write queues
+     *
+     */
+    std::vector<MemPacketQueue> nvmReadQueue;
+    std::vector<MemPacketQueue> nvmWriteQueue;
 
     /**
      * To avoid iterating over the write queue to check for

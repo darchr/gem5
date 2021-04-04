@@ -197,6 +197,14 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
 }
 
 void
+MemCtrl::addToNVMReadQueue(MemPacket pkt)
+{
+
+
+
+}
+
+void
 MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
 {
     // only add to the read queue here. whenever the request is
@@ -265,11 +273,13 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
             }
 
             MemPacket* mem_pkt;
-            if (is_dram) {
+            if (is_dram) { // COMMENT: this is basically converting
+                           // physical address to device address
                 mem_pkt = dram->decodePacket(pkt, addr, size, true, true);
                 // increment read entries of the rank
                 dram->setupRank(mem_pkt->rank, true);
             } else {
+
                 mem_pkt = nvm->decodePacket(pkt, addr, size, true, false);
                 // Increment count to trigger issue of non-deterministic read
                 nvm->setupRank(mem_pkt->rank, true);
@@ -314,7 +324,8 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
         DPRINTF(MemCtrl, "Request scheduled immediately\n");
         //COMMENT: DRAM cache tag check latency should be added to the
         // curTick()
-        schedule(nextReqEvent, curTick() + tagcheckLatency);
+        schedule(nextReqEvent, curTick());
+        //COMMENT: tags will be checked on the way back
     }
 }
 
@@ -474,6 +485,9 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     // What type of media does this packet access?
     bool is_dram = false;
 
+    // COMMENT: is_dram kind of now means if this request should be
+    // forwarded to DRAM or not.
+
     // COMMENT: Don't think, this will happen in the same
     // way
 
@@ -483,9 +497,10 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     // later on when the request is sent to memory
 
 
+    // COMMENT: probably do not need to check tags here
     int index = bits(pkt->getAddr(),
                 ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
-    if (tagStoreDC[index].tag == returnTag(pkt->getAddr())){
+    if (tagStoreDC[index].tag == returnTag(pkt->getAddr()) && pkt->isWrite()) {
         // if true it is DRAM cache hit
         is_dram = true;
         // I think we can also update the metabits here, or
@@ -513,6 +528,10 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     // request in DRAM cache is dirty or not
 
     else if (pkt->isRead()) {
+        // no tag checking here, but to make sure
+        // this read request is going to DRAM
+
+        is_dram = true;
 
         // I think for reads, we need to check tags on
         // our way back when things are put in the response
@@ -524,7 +543,6 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
        //               and write for new data
 
     }
-
 
     // just validate that pkt's address maps to the nvm
     assert(nvm && nvm->getAddrRange().contains(pkt->getAddr()));
@@ -593,6 +611,8 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
             return false;
         } else {
             addToReadQueue(pkt, pkt_count, is_dram);
+
+            // COMMENT: revisit stats
             stats.readReqs++;
             stats.bytesReadSys += size;
         }
@@ -629,18 +649,23 @@ MemCtrl::processRespondEvent()
     // ****************
 
     // assuming that read will still be true on the way back
-    if (mem_pkt->isRead()) {
 
-        int index = bits(mem_pkt->pkt->getAddr(),
-                ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
+    assert(mem_pkt->isRead());
 
-        if (tagStoreDC[index].tag == returnTag(mem_pkt->pkt->getAddr())) {
-            // if true it is DRAM cache hit
 
-           // can we be sure that nothing in between two mem pkts belonging
-           // to the same pkt will change tags for that pkt in the tag store
+    int index = bits(mem_pkt->pkt->getAddr(),
+            ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
 
-        }
+    if (tagStoreDC[index].tag == returnTag(mem_pkt->pkt->getAddr())) {
+        // if true it is DRAM cache hit and we do not need to do anything
+    }
+
+
+    else if (tagStoreDC[index].tag != returnTag(mem_pkt->pkt->getAddr())
+                    &&  (!(tagStoreDC[index].meta_bits & 0x02)))         {
+         // clean miss
+
+
     }
 
     // *****************
@@ -730,6 +755,7 @@ MemCtrl::chooseNext(MemPacketQueue& queue, Tick extra_col_delay)
                 }
             }
         } else if (memSchedPolicy == Enums::frfcfs) {
+            // COMMENT: I think this frfcfs is the policy we can safely assume
             ret = chooseNextFRFCFS(queue, extra_col_delay);
         } else {
             panic("No scheduling policy chosen\n");
@@ -755,6 +781,9 @@ MemCtrl::chooseNextFRFCFS(MemPacketQueue& queue, Tick extra_col_delay)
 
         // Select packet by default to give priority if both
         // can issue at the same time or seamlessly
+
+        // COMMENT: interfaces pick the optimal packet
+        // from the read queue
         std::tie(selected_pkt_it, col_allowed_at) =
                  dram->chooseNextFRFCFS(queue, min_col_at);
         std::tie(nvm_pkt_it, nvm_col_at) =
@@ -762,6 +791,8 @@ MemCtrl::chooseNextFRFCFS(MemPacketQueue& queue, Tick extra_col_delay)
 
         // Compare DRAM and NVM and select NVM if it can issue
         // earlier than the DRAM packet
+        // COMMENT: note that nvm is given preference only if it can
+        // issue earlier than DRAM
         if (col_allowed_at > nvm_col_at) {
             selected_pkt_it = nvm_pkt_it;
         }
@@ -1055,6 +1086,8 @@ MemCtrl::processNextReqEvent()
         busStateNext = selectNextBusState();
     }
 
+    // COMMENT: I don't think these policies are going
+    // to interfere the way we want other things to play out
 
     //bus state refers to the reading/writing state
 
@@ -1157,7 +1190,7 @@ MemCtrl::processNextReqEvent()
                 return;
             }
         } else {
-
+            // COMMENT: we have something in read queue
             bool read_found = false;
             MemPacketQueue::iterator to_read;
             uint8_t prio = numPriorities();
@@ -1222,6 +1255,10 @@ MemCtrl::processNextReqEvent()
 
             // Insert into response queue. It will be sent back to the
             // requestor at its readyTime
+            // COMMENT: why do we only schedule when respQueue
+            // is empty and not schedule other times
+            // Actually the other respondEvents are scheduled once
+            // we are in a process Respond Event already
             if (respQueue.empty()) {
                 assert(!respondEvent.scheduled());
                 schedule(respondEvent, mem_pkt->readyTime);
