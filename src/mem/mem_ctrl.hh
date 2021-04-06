@@ -72,7 +72,6 @@ class NVMInterface;
 class BurstHelper
 {
   public:
-
     /** Number of bursts requred for a system packet **/
     const unsigned int burstCount;
 
@@ -81,7 +80,8 @@ class BurstHelper
 
     BurstHelper(unsigned int _burstCount)
         : burstCount(_burstCount), burstsServiced(0)
-    { }
+    {
+   }
 };
 
 /**
@@ -91,7 +91,6 @@ class BurstHelper
 class MemPacket
 {
   public:
-
     /** When did request enter the controller */
     const Tick entryTime;
 
@@ -139,7 +138,7 @@ class MemPacket
      * A pointer to the BurstHelper if this MemPacket is a split packet
      * If not a split packet (common case), this is set to NULL
      */
-    BurstHelper* burstHelper;
+    BurstHelper *burstHelper;
 
     /**
      * QoS value of the encapsulated packet read at queuing time
@@ -194,21 +193,20 @@ class MemPacket
     inline bool isDram() const { return dram; }
 
     MemPacket(PacketPtr _pkt, bool is_read, bool is_dram, uint8_t _rank,
-               uint8_t _bank, uint32_t _row, uint16_t bank_id, Addr _addr,
-               unsigned int _size)
+              uint8_t _bank, uint32_t _row, uint16_t bank_id, Addr _addr,
+              unsigned int _size)
         : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
           _requestorId(pkt->requestorId()),
           read(is_read), dram(is_dram), rank(_rank), bank(_bank), row(_row),
           bankId(bank_id), addr(_addr), size(_size), burstHelper(NULL),
           _qosValue(_pkt->qosValue())
-    { }
-
+    {
+    }
 };
 
 // The memory packets are store in a multiple dequeue structure,
 // based on their QoS priority
-typedef std::deque<MemPacket*> MemPacketQueue;
-
+typedef std::deque<MemPacket *> MemPacketQueue;
 
 /**
  * The memory controller is a single-channel memory controller capturing
@@ -236,31 +234,27 @@ typedef std::deque<MemPacket*> MemPacketQueue;
 class MemCtrl : public QoS::MemCtrl
 {
   private:
-
     // For now, make use of a queued response port to avoid dealing with
     // flow control for the responses being sent back
     class MemoryPort : public QueuedResponsePort
     {
 
-        RespPacketQueue queue;
-        MemCtrl& ctrl;
+      RespPacketQueue queue;
+      MemCtrl &ctrl;
 
-      public:
+    public:
+      MemoryPort(const std::string &name, MemCtrl &_ctrl);
 
-        MemoryPort(const std::string& name, MemCtrl& _ctrl);
+    protected:
+      Tick recvAtomic(PacketPtr pkt) override;
+      Tick recvAtomicBackdoor(
+          PacketPtr pkt, MemBackdoorPtr &backdoor) override;
 
-      protected:
+      void recvFunctional(PacketPtr pkt) override;
 
-        Tick recvAtomic(PacketPtr pkt) override;
-        Tick recvAtomicBackdoor(
-                PacketPtr pkt, MemBackdoorPtr &backdoor) override;
+      bool recvTimingReq(PacketPtr) override;
 
-        void recvFunctional(PacketPtr pkt) override;
-
-        bool recvTimingReq(PacketPtr) override;
-
-        AddrRangeList getAddrRanges() const override;
-
+      AddrRangeList getAddrRanges() const override;
     };
 
     /**
@@ -269,25 +263,25 @@ class MemCtrl : public QoS::MemCtrl
      */
     MemoryPort port;
 
-
     // Add a tag store map
     // TODO: look at what the intialization
     // values should be
-    class tag_entry{
-      public:
+    class tag_entry
+    {
+    public:
       Addr tag = -1;
       Addr index = -1;
       // xxxxxxdv (dirty and valid bits)
       uint8_t meta_bits = 0;
-    } ;
-0
-    // constant to indicate that the cache line is
-    // dirty
-     const uint8_t DIRTY_LINE = 1 << 0;
+    };
+    0
+        // constant to indicate that the cache line is
+        // dirty
+        const uint8_t DIRTY_LINE = 1 << 0;
 
     // constant to indicate that the cache line is
     // valid
-     const uint8_t VALID_LINE = 1 << 1;
+    const uint8_t VALID_LINE = 1 << 1;
 
     // DC refers to Dram Cache
     //uint64_t dramCacheSize;
@@ -360,6 +354,13 @@ class MemCtrl : public QoS::MemCtrl
     bool nvmWriteQueueFull(unsigned int pkt_count) const;
 
     /**
+     * Check if the dram fill queue has room for more entries
+     *
+     * @param pkt_count The number of entries needed in dram fill queue
+     * @return true if write queue is full, false otherwise
+     */
+    bool dramFillQueueFull(unsigned int pkt_count) const;
+    /**
      * When a new read comes in, first check if the write q has a
      * pending request to the same address.\ If not, decode the
      * address to populate rank/bank/row, create one or mutliple
@@ -394,7 +395,7 @@ class MemCtrl : public QoS::MemCtrl
      *
      * @param pkt The mem pkt to add to the nvm read queue
      */
-    void addToNVMReadQueue(MemPacket pkt);
+    void addToNVMReadQueue(MemPacket *pkt);
 
     /**
      *
@@ -402,6 +403,11 @@ class MemCtrl : public QoS::MemCtrl
      */
     void addToNVMWriteQueue(MemPacket pkt);
 
+    /**
+     *
+     * @param pkt The mem pkt to add to the dram fill queue
+     */
+    void addToDRAMFillQueue(MemPacket pkt);
 
     /**
      * Actually do the burst based on media specific access function.
@@ -409,7 +415,7 @@ class MemCtrl : public QoS::MemCtrl
      *
      * @param mem_pkt The memory packet created from the outside world pkt
      */
-    void doBurstAccess(MemPacket* mem_pkt);
+    void doBurstAccess(MemPacket *mem_pkt);
 
     /**
      * When a packet reaches its "readyTime" in the response Q,
@@ -427,7 +433,7 @@ class MemCtrl : public QoS::MemCtrl
      *
      * @param pkt The packet to evaluate
      */
-    bool packetReady(MemPacket* pkt);
+    bool packetReady(MemPacket *pkt);
 
     /**
      * Calculate the minimum delay used when scheduling a read-to-write
@@ -454,8 +460,8 @@ class MemCtrl : public QoS::MemCtrl
      * @param extra_col_delay Any extra delay due to a read/write switch
      * @return an iterator to the selected packet, else queue.end()
      */
-    MemPacketQueue::iterator chooseNext(MemPacketQueue& queue,
-        Tick extra_col_delay);
+    MemPacketQueue::iterator chooseNext(MemPacketQueue &queue,
+                                        Tick extra_col_delay);
 
     /**
      * For FR-FCFS policy reorder the read/write queue depending on row buffer
@@ -465,8 +471,8 @@ class MemCtrl : public QoS::MemCtrl
      * @param extra_col_delay Any extra delay due to a read/write switch
      * @return an iterator to the selected packet, else queue.end()
      */
-    MemPacketQueue::iterator chooseNextFRFCFS(MemPacketQueue& queue,
-            Tick extra_col_delay);
+    MemPacketQueue::iterator chooseNextFRFCFS(MemPacketQueue &queue,
+                                              Tick extra_col_delay);
 
     /**
      * Calculate burst window aligned tick
@@ -506,6 +512,12 @@ class MemCtrl : public QoS::MemCtrl
     std::vector<MemPacketQueue> nvmWriteQueue;
 
     /**
+     * This is DRAM Fill queue
+     *
+     */
+    std::vector<MemPacketQueue> dramFillQueue;
+
+    /**
      * To avoid iterating over the write queue to check for
      * overlapping transactions, maintain a set of burst addresses
      * that are currently queued. Since we merge writes to the same
@@ -522,7 +534,7 @@ class MemCtrl : public QoS::MemCtrl
      * as sizing the read queue, this and the main read queue need to
      * be added together.
      */
-    std::deque<MemPacket*> respQueue;
+    std::deque<MemPacket *> respQueue;
 
     /**
      * Holds count of commands issued in burst window starting at
@@ -534,12 +546,12 @@ class MemCtrl : public QoS::MemCtrl
     /**
      * Create pointer to interface of the actual dram media when connected
      */
-    DRAMInterface* const dram;
+    DRAMInterface *const dram;
 
     /**
      * Create pointer to interface of the actual nvm media when connected
      */
-    NVMInterface* const nvm;
+    NVMInterface *const nvm;
 
     /**
      * The following are basic design parameters of the memory
@@ -678,9 +690,9 @@ class MemCtrl : public QoS::MemCtrl
      * @param is_read The current burst is a read, select read queue
      * @return a reference to the appropriate queue
      */
-    std::vector<MemPacketQueue>& selQueue(bool is_read)
+    std::vector<MemPacketQueue> &selQueue(bool is_read)
     {
-        return (is_read ? readQueue : writeQueue);
+      return (is_read ? readQueue : writeQueue);
     };
 
     /**
@@ -689,7 +701,6 @@ class MemCtrl : public QoS::MemCtrl
     void pruneBurstTick();
 
   public:
-
     MemCtrl(const MemCtrlParams &p);
 
     /**
@@ -773,19 +784,17 @@ class MemCtrl : public QoS::MemCtrl
     bool inWriteBusState(bool next_state) const;
 
     Port &getPort(const std::string &if_name,
-                  PortID idx=InvalidPortID) override;
+                  PortID idx = InvalidPortID) override;
 
     virtual void init() override;
     virtual void startup() override;
     virtual void drainResume() override;
 
   protected:
-
     Tick recvAtomic(PacketPtr pkt);
     Tick recvAtomicBackdoor(PacketPtr pkt, MemBackdoorPtr &backdoor);
     void recvFunctional(PacketPtr pkt);
     bool recvTimingReq(PacketPtr pkt);
-
 };
 
 #endif //__MEM_CTRL_HH__
