@@ -395,7 +395,6 @@ MemCtrl::addToDRAMFillQueue(MemPacket mem_pkt)
 
 }
 
-
 void
 MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
 {
@@ -1297,35 +1296,55 @@ MemCtrl::processNextReqEvent()
             MemPacketQueue::iterator to_read;
             uint8_t prio = numPriorities();
 
-            for (auto queue = readQueue.rbegin();
-                 queue != readQueue.rend(); ++queue) {
+            // this is used to track
+            // if the read request is found
+            // in nvm read queue
+            bool nvm_q_read = false;
 
-                prio--;
+            // First check NVM Read Queue
 
-                DPRINTF(QOS,
-                        "Checking READ queue [%d] priority [%d elements]\n",
-                        prio, queue->size());
+            auto queue = nvmReadQueue.rbegin()
+            to_read = chooseNext((*queue), switched_cmd_type ?
+                                        minWriteToReadDataGap() : 0);
 
-                // Figure out which read request goes next
-                // If we are changing command type, incorporate the minimum
-                // bus turnaround delay which will be rank to rank delay
-
-                //COMMENT: why do we need to choose a request?
-                //COMMENT: is this not a queue
-                //COMMENT: actually the arbitration b/w different
-                //memory requests happen here
-
-                // COMMENT: check a busy bit available in the metadata
-                to_read = chooseNext((*queue), switched_cmd_type ?
-                                               minWriteToReadDataGap() : 0);
-
-                if (to_read != queue->end()) {
-                    // candidate read found
-                    read_found = true;
-                    break;
-                }
+            if (to_read != queue->end()) {
+                // candidate read found
+                read_found = true;
+                nvm_q_read = true;
             }
 
+            // If we already have not found a read in
+            // the nvm read queue, go to the other queues
+            if (!read_found) {
+                for (auto queue = readQueue.rbegin();
+                    queue != readQueue.rend(); ++queue) {
+
+                    prio--;
+
+                    DPRINTF(QOS, "Checking READ queue [%d]
+                                 priority [%d elements]\n",
+                                 prio, queue->size());
+
+                    // Figure out which read request goes next
+                    // If we are changing command type, incorporate the minimum
+                    // bus turnaround delay which will be rank to rank delay
+
+                    //COMMENT: why do we need to choose a request?
+                    //COMMENT: is this not a queue
+                    //COMMENT: actually the arbitration b/w different
+                    //memory requests happen here
+
+                    // COMMENT: check a busy bit available in the metadata
+                    to_read = chooseNext((*queue), switched_cmd_type ?
+                                                minWriteToReadDataGap() : 0);
+
+                    if (to_read != queue->end()) {
+                        // candidate read found
+                        read_found = true;
+                        break;
+                    }
+                }
+            }
             // if no read to an available rank is found then return
             // at this point. There could be writes to the available ranks
             // which are above the required threshold. However, to
@@ -1379,11 +1398,15 @@ MemCtrl::processNextReqEvent()
                 switch_to_writes = true;
             }
 
-            // remove the request from the queue
-            // the iterator is no longer valid .
-            // COMMENTS: we should try to hold this buffer entry and
-            // not erase it here
-            readQueue[mem_pkt->qosValue()].erase(to_read);
+            // erase the packet depending on which
+            // queue is it taken from
+            if (nvm_q_read) {
+                nvmReadQueue.erase(to_read);
+            }
+            else {
+                readQueue[mem_pkt->qosValue()].erase(to_read);
+            }
+
         }
 
         // switching to writes, either because the read queue is empty
