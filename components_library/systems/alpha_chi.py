@@ -25,9 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
-Chi: Χ
-
-A simple x86 system.
+αχ: A simple x86 system.
 """
 
 from components_library.motherboards.x86_motherboard import X86Motherboard
@@ -38,7 +36,7 @@ from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
 from components_library.processors.simple_processor import SimpleProcessor
 from components_library.processors.cpu_types import CPUTypes
 
-class ChiSystem:
+class AlphaChiSystem:
 
     def __init__(self, kernel_path: str, disk_path: str):
 
