@@ -67,6 +67,7 @@ class SimpleMotherboard(AbstractMotherboard):
         self.get_system_simobject().clk_domain.clock = clk_freq
         self.get_system_simobject().clk_domain.voltage_domain = VoltageDomain()
 
+        # Set the memory mode.
         if self.get_processor().get_cpu_type() == CPUTypes.TIMING \
             or self.get_processor().get_cpu_type() == CPUTypes.O3 :
             self.get_system_simobject().mem_mode = 'timing'

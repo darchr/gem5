@@ -61,6 +61,8 @@ motherboard = X86Motherboard(clk_freq="3GHz",
                                 cache_hierarchy=cache_hierarchy,
                                )
 
+
+
 thispath = os.path.dirname(os.path.realpath(__file__))
 
 kernel_url = \
@@ -69,28 +71,22 @@ kernel_path = os.path.join(thispath, 'vmlinux-5.4.49')
 if not os.path.exists(kernel_path):
     subprocess.run(["wget", kernel_url])
 
-parsec_img_url = \
-    "http://dist.gem5.org/dist/v21-0/images/x86/ubuntu-18-04/parsec.img.gz"
-parsec_img_path_gz = os.path.join(thispath, 'parsec.img.gz')
-parsec_img_path = os.path.join(thispath, 'parsec.img')
+boot_img_url = \
+    "http://dist.gem5.org/dist/v21-0/images/x86/ubuntu-18-04/boot-exit.img.gz"
+boot_img_path_gz = os.path.join(thispath, 'boot-exit.img.gz')
+boot_img_path = os.path.join(thispath, 'boot-exit.img')
 
-if not os.path.exists(parsec_img_path):
-    subprocess.run(["wget", parsec_img_path_gz, parsec_img_url])
-    fp = open(parsec_img_path, 'wb')
-    with gzip.open(parsec_img_path_gz, "rb") as f:
+if not os.path.exists(boot_img_path):
+    subprocess.run(["wget", boot_img_url])
+    fp = open(boot_img_path, 'wb')
+    with gzip.open(boot_img_path_gz, "rb") as f:
         bindata = f.read()
         fp.write(bindata)
         fp.close()
 
-# Example command to run blackscholes with simsmall.
-command =  "cd /home/gem5/parsec-benchmark\n"
-command += "source env.sh\n"
-command += "parsecmgmt -a run -p blackscholes "
-command += "-c gcc-hooks -i simsmall -n {}\n".format(processor.get_num_cores())
-command += "sleep 5 \n"
-command += "m5 exit \n"
+command =  "m5 exit \n"
 
-motherboard.set_workload(kernel = kernel_path, disk_image = parsec_img_path,
+motherboard.set_workload(kernel = kernel_path, disk_image = boot_img_path,
                          command = command)
 
 print("Running with ISA: " + motherboard.get_runtime_isa().name)

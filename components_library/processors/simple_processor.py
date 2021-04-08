@@ -61,6 +61,15 @@ class SimpleProcessor(AbstractProcessor):
         for cpu in self._cpus:
             cpu.createThreads()
 
+        if self.get_cpu_type() == CPUTypes.KVM:
+            # To get the KVM CPUs to run on different host CPUs
+            # Specify a different event queue for each CPU
+            for i,cpu in enumerate(self._cpus):
+                for obj in cpu.descendants():
+                    obj.eventq_index = 0
+                cpu.eventq_index = i + 1
+
+
     def _create_cores(self, cpu_class: BaseCPU, num_cores: int):
         return [cpu_class(cpu_id = i) for i in range(num_cores)]
 

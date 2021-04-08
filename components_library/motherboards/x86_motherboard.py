@@ -279,9 +279,10 @@ class X86Motherboard(SimpleMotherboard):
 
         # Set the script to be passed to the simulated system to execute after
         # boot.
-        file_name = '{}./run'.format(m5.options.outdir)
+        file_name = '{}/run'.format(m5.options.outdir)
         bench_file = open(file_name, 'w+')
         bench_file.write(command)
+        bench_file.close()
 
         # Set to the system readfile
         self.get_system_simobject().readfile = file_name
