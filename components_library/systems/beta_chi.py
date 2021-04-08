@@ -34,6 +34,7 @@ It has 4 cores, 3GHz frequency.
 It exposes the L2 size and the coherence mechanisms as parameters.
 """
 
+from .abstract_system import AbstractFullSystem
 from ..cachehierarchies.abstract_cache_hierarchy import AbstractCacheHierarchy
 from ..motherboards.x86_motherboard import X86Motherboard
 
@@ -42,7 +43,7 @@ from ..cachehierarchies.moesi_hammer \
 from ..memory.ddr3_1600_8x8 import DDR3_1600_8x8
 from ..processors import SingleCycleProcessor
 
-class BetaChiSystem:
+class BetaChiSystem(AbstractFullSystem):
     """
     This is a long description of this system.
     """
