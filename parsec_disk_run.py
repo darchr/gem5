@@ -51,6 +51,8 @@ cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size = "32kB",
 # For an even simpler setup, have no cache at all!
 #cache_hierarchy = NoCache()
 
+# Warning!!! This must be kept at 3GB for now. X86Motherboard does not support
+# anything else right now!
 memory = DDR3_1600_8x8(size="3GB")
 
 processor = SimpleProcessor(cpu_type = CPUTypes.ATOMIC, num_cores=1)
