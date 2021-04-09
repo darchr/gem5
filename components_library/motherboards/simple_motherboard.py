@@ -44,7 +44,8 @@ class SimpleMotherboard(AbstractMotherboard):
     This is an incredibly simple system. It contains no I/O, and will work to
     work with a classic cache hierarchy setup.
 
-    You can run a bare-metal executable via the `set_workload` function.
+    You can run a bare-metal executable via the `set_workload` function (SE
+    mode only!).
     """
     def __init__(self, clk_freq: str,
                  processor: AbstractProcessor,
