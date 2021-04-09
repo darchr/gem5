@@ -44,15 +44,11 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy):
                  l1d_size: str,
                  l1i_size: str,
                  l2_size: str,
-                 # TODO: I don't like this hack.
-                 inc_mmu: Optional[bool] = False,
                 ) -> None:
 
         self._l1d_size = l1d_size
         self._l1i_size = l1i_size
         self._l2_size = l2_size
-        self._inc_mmu = inc_mmu
-        #self._mmu_size = mmu
 
     def incorporate_cache(self, motherboard: AbstractMotherboard) -> None:
         for cpu in motherboard.get_processor().get_cpu_simobjects():
@@ -79,11 +75,8 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy):
             # Connect the L2 cache to the bus
             cpu.l2cache.connect_bus_side(motherboard.get_membus())
 
-            #cpu.mmu.connectWalkerPorts(
-             #   motherboard.get_membus().cpu_side_ports,
-             #   motherboard.get_membus().cpu_side_ports
-            #)
-            if self._inc_mmu:
-                cpu.mmucache = MMUCache()
-                cpu.mmucache.connect_cpu_side(cpu)
-                cpu.mmucache.connect_bus_side(cpu.l2bus)
+            # Connect the CPU MMU's to the membus
+            cpu.mmu.connectWalkerPorts(
+                motherboard.get_membus().cpu_side_ports,
+                motherboard.get_membus().cpu_side_ports
+            )

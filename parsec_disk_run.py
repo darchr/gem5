@@ -46,7 +46,6 @@ import shutil
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size = "32kB",
                                                    l1i_size = "32kB",
                                                    l2_size = "256kB",
-                                                   inc_mmu = True,
                                                   )
 
 # For an even simpler setup, have no cache at all!
