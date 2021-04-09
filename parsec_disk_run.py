@@ -40,6 +40,7 @@ from components_library.processors.cpu_types import CPUTypes
 import os
 import subprocess
 import gzip
+import shutil
 
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size = "32kB",
@@ -77,12 +78,10 @@ parsec_img_path_gz = os.path.join(thispath, 'parsec.img.gz')
 parsec_img_path = os.path.join(thispath, 'parsec.img')
 
 if not os.path.exists(parsec_img_path):
-    subprocess.run(["wget", parsec_img_path_gz, parsec_img_url])
-    fp = open(parsec_img_path, 'wb')
+    subprocess.run(["wget", parsec_img_url])
     with gzip.open(parsec_img_path_gz, "rb") as f:
-        bindata = f.read()
-        fp.write(bindata)
-        fp.close()
+        with open(parsec_img_path, 'wb') as o:
+            shutil.copyfileobj(f,o)
 
 # Example command to run blackscholes with simsmall.
 command =  "cd /home/gem5/parsec-benchmark\n"

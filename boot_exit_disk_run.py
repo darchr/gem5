@@ -40,6 +40,7 @@ from components_library.processors.cpu_types import CPUTypes
 import os
 import subprocess
 import gzip
+import shutil
 
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size = "32kB",
@@ -78,11 +79,9 @@ boot_img_path = os.path.join(thispath, 'boot-exit.img')
 
 if not os.path.exists(boot_img_path):
     subprocess.run(["wget", boot_img_url])
-    fp = open(boot_img_path, 'wb')
     with gzip.open(boot_img_path_gz, "rb") as f:
-        bindata = f.read()
-        fp.write(bindata)
-        fp.close()
+        with open(boot_img_path, 'wb') as o:
+            shutil.copyfileobj(f,o)
 
 command =  "m5 exit \n"
 
