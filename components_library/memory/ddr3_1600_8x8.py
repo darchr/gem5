@@ -52,10 +52,3 @@ class DDR3_1600_8x8(AbstractMemory):
             MemCtrl(dram = self._dram,
                     port = motherboard.get_membus().mem_side_ports)
         ]
-        #mem_ctrl = MemCtrl()
-        #mem_ctrl.dram = self._dram
-        #mem_ctrl.port = motherboard.get_membus().mem_side_ports
-        #motherboard.get_system_simobject().mem_ctrl = mem_ctrl
-
-        #motherboard.get_system_simobject().system_port = \
-        #    motherboard.get_membus().cpu_side_ports

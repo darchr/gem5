@@ -76,8 +76,6 @@ class X86Motherboard(SimpleMotherboard):
          #       AddrRange(Addr(self.get_memory().get_size_str()),
           #          size=0x100000))
 
-        # Copy and paste ugliness:
-
         self.get_system_simobject().pc = Pc()
 
         self.get_system_simobject().workload = X86FsLinux()
@@ -154,9 +152,6 @@ class X86Motherboard(SimpleMotherboard):
             self.get_system_simobject().iobus.mem_side_ports
         self.get_system_simobject().iocache.mem_side = \
             self.get_system_simobject().membus.cpu_side_ports
-
-        # TODO: For some reason I can't find the IntrControl object? (WHY?!)
-        #self.get_system_simobject().intrctrl = IntrControl()
 
         # Add in a Bios information structure.
         self.get_system_simobject().workload.smbios_table.structures = \
