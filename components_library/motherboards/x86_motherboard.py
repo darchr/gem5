@@ -31,7 +31,10 @@ from m5.objects import Cache, Pc, AddrRange, X86FsLinux, \
                        Addr, X86SMBiosBiosInformation, X86IntelMPProcessor,\
                        X86IntelMPIOAPIC, X86IntelMPBus,X86IntelMPBusHierarchy,\
                        X86IntelMPIOIntAssignment, X86E820Entry, Bridge,\
-                       IOXBar, IdeDisk, CowDiskImage, RawDiskImage
+                       IOXBar, IdeDisk, CowDiskImage, RawDiskImage, BaseXBar,\
+                       BaseCPU
+
+from m5.params import Port
 
 
 from .simple_motherboard import SimpleMotherboard
@@ -41,7 +44,7 @@ from ..cachehierarchies.abstract_classic_cache_hierarchy import \
                                     AbstractClassicCacheHierarchy
 
 
-from typing import Optional
+from typing import Optional, Sequence, Tuple
 
 
 class X86Motherboard(SimpleMotherboard):
@@ -282,5 +285,19 @@ class X86Motherboard(SimpleMotherboard):
         # Set to the system readfile
         self.get_system_simobject().readfile = file_name
 
+    def get_iobus(self) -> BaseXBar:
+        return self.get_system_simobject().iobus
 
+    def get_dma_ports(self) -> Sequence[Port]:
+        return [self.get_system_simobject().pc.south_bridge.ide.dma,
+        self.get_system_simobject().iobus.mem_side_ports]
 
+    def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port,Port]:
+        ports = self.get_cache_hierarchy().get_interrupt_ports()
+        if ports is not None:
+            return ports
+        else:
+            return (
+                self.get_membus().mem_side_ports,
+                self.get_membus().cpu_side_ports
+            )

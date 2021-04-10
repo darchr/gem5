@@ -25,7 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from components_library.processors.cpu_types import CPUTypes
-import m5
+
 from m5.objects import SystemXBar, AddrRange, SrcClockDomain, VoltageDomain,\
                        Addr, Process, SEWorkload
 

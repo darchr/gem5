@@ -33,7 +33,9 @@ from ..motherboards.abstract_motherboard import AbstractMotherboard
 
 from m5.objects import L2XBar
 
-from typing import Optional
+from m5.params import Port
+
+from typing import Optional, Tuple
 
 class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy):
     '''
@@ -80,3 +82,8 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy):
                 motherboard.get_membus().cpu_side_ports,
                 motherboard.get_membus().cpu_side_ports
             )
+
+    def get_interrupt_ports(self) -> Tuple[Port,Port]:
+        # HACK: this should return the below, but it's in the system...
+        # self.membus.mem_side_ports, self.membus.cpu_side_ports
+        return None
