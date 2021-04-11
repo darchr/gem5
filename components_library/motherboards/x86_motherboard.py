@@ -298,7 +298,7 @@ class X86Motherboard(SimpleMotherboard):
         self.get_system_simobject().iobus.mem_side_ports]
 
     def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port,Port]:
-        ports = self.get_cache_hierarchy().get_interrupt_ports()
+        ports = self.get_cache_hierarchy().get_interrupt_ports(cpu)
         if ports is not None:
             return ports
         else:

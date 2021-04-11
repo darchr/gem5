@@ -59,4 +59,4 @@ class DDR3_1600_8x8(AbstractMemory):
             ctrl.port = motherboard.get_membus().mem_side_ports
 
     def get_mem_ports(self) -> Tuple[Sequence[AddrRange], Port]:
-        return [(ctrl.range, ctrl.port) for ctrl in self.controllers]
+        return [(self._dram.range, ctrl.port) for ctrl in self.controllers]
