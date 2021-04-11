@@ -35,6 +35,8 @@ connection.
 
 """
 
+from components_library.cachehierarchies.mesi_two_level_cache_hierarchy \
+    import MESITwoLevelCacheHierarchy
 from components_library.motherboards.x86_motherboard import X86Motherboard
 import m5
 from m5.objects import Root
@@ -62,6 +64,10 @@ cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
     l2_size="256kB",
 )
 
+# cache_hierarchy = MESITwoLevelCacheHierarchy(
+#     '32KiB', 8, '32KiB', 8, '512KiB', 16, 1
+# )
+
 # For an even simpler setup, have no cache at all!
 # cache_hierarchy = NoCache()
 
@@ -69,7 +75,7 @@ cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
 # anything else right now!
 memory = DDR3_1600_8x8(size="3GB")
 
-processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, num_cores=1)
+processor = SimpleProcessor(cpu_type=CPUTypes.ATOMIC, num_cores=1)
 
 motherboard = X86Motherboard(
     clk_freq="3GHz",
@@ -77,6 +83,7 @@ motherboard = X86Motherboard(
     memory=memory,
     cache_hierarchy=cache_hierarchy,
 )
+motherboard.connect_things()
 
 thispath = os.path.dirname(os.path.realpath(__file__))
 
