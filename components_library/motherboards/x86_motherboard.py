@@ -91,7 +91,8 @@ class X86Motherboard(SimpleMotherboard):
 
         # North Bridge
         self.get_system_simobject().iobus = IOXBar()
-        self.get_system_simobject().bridge = Bridge(delay='50ns')
+
+        # self.get_system_simobject().bridge = Bridge(delay='50ns')
 
         # Allow the bridge to pass through:
         #  1) kernel configured PCI device memory map address: address range
@@ -109,35 +110,35 @@ class X86Motherboard(SimpleMotherboard):
           #            Addr.max)
          #   ]
 
-        self.get_system_simobject().bridge.ranges = \
-            [
-            AddrRange(0xC0000000, 0xFFFF0000),
-            AddrRange(IO_address_space_base,
-                      interrupts_address_space_base - 1),
-            AddrRange(pci_config_address_space_base,
-                      Addr.max)
-            ]
+        # self.get_system_simobject().bridge.ranges = \
+        #     [
+        #     AddrRange(0xC0000000, 0xFFFF0000),
+        #     AddrRange(IO_address_space_base,
+        #               interrupts_address_space_base - 1),
+        #     AddrRange(pci_config_address_space_base,
+        #               Addr.max)
+        #     ]
 
         # Create a bridge from the IO bus to the memory bus to allow access
         # to the local APIC (two pages)
-        self.get_system_simobject().apicbridge = Bridge(delay='50ns')
-        self.get_system_simobject().apicbridge.ranges = \
-            [AddrRange(interrupts_address_space_base,
-                interrupts_address_space_base +
-                self.get_processor().get_num_cores() * APIC_range_size
-                - 1)]
+        # self.get_system_simobject().apicbridge = Bridge(delay='50ns')
+        # self.get_system_simobject().apicbridge.ranges = \
+        #     [AddrRange(interrupts_address_space_base,
+        #         interrupts_address_space_base +
+        #         self.get_processor().get_num_cores() * APIC_range_size
+        #         - 1)]
 
         # Add a tiny cache to the IO bus.
         # This cache is required for the classic memory model for coherence
-        self.get_system_simobject().iocache = Cache(assoc=8,
-                            tag_latency = 50,
-                            data_latency = 50,
-                            response_latency = 50,
-                            mshrs = 20,
-                            size = '1kB',
-                            tgts_per_mshr = 12,
-                            addr_ranges = \
-                                self.get_system_simobject().mem_ranges)
+        # self.get_system_simobject().iocache = Cache(assoc=8,
+        #                     tag_latency = 50,
+        #                     data_latency = 50,
+        #                     response_latency = 50,
+        #                     mshrs = 20,
+        #                     size = '1kB',
+        #                     tgts_per_mshr = 12,
+        #                     addr_ranges = \
+        #                         self.get_system_simobject().mem_ranges)
 
         # Add in a Bios information structure.
         self.get_system_simobject().workload.smbios_table.structures = \
@@ -236,24 +237,26 @@ class X86Motherboard(SimpleMotherboard):
     def connect_things(self) -> None:
         super().connect_things()
 
-        self.get_system_simobject().iocache.cpu_side = \
-            self.get_system_simobject().iobus.mem_side_ports
-        self.get_system_simobject().iocache.mem_side = \
-            self.get_system_simobject().membus.cpu_side_ports
+        # self.get_system_simobject().iocache.cpu_side = \
+        #     self.get_system_simobject().iobus.mem_side_ports
+        # self.get_system_simobject().iocache.mem_side = \
+        #     self.get_system_simobject().membus.cpu_side_ports
 
-        self.get_system_simobject().apicbridge.cpu_side_port = \
-            self.get_system_simobject().iobus.mem_side_ports
-        self.get_system_simobject().apicbridge.mem_side_port = \
-            self.get_membus().cpu_side_ports
+        # self.get_system_simobject().apicbridge.cpu_side_port = \
+        #     self.get_system_simobject().iobus.mem_side_ports
+        # self.get_system_simobject().apicbridge.mem_side_port = \
+        #     self.get_membus().cpu_side_ports
 
-        self.get_system_simobject().bridge.mem_side_port = \
-            self.get_system_simobject().iobus.cpu_side_ports
-        self.get_system_simobject().bridge.cpu_side_port = \
-            self.get_membus().mem_side_ports
+        # self.get_system_simobject().bridge.mem_side_port = \
+        #     self.get_system_simobject().iobus.cpu_side_ports
+        # self.get_system_simobject().bridge.cpu_side_port = \
+        #     self.get_membus().mem_side_ports
 
         # connect the io bus
         self.get_system_simobject().pc.attachIO(
-            self.get_system_simobject().iobus)
+            self.get_system_simobject().iobus,
+            [self.get_system_simobject().pc.south_bridge.ide.dma]
+        )
 
     def set_workload(self, kernel: str, disk_image: str, command: str):
 

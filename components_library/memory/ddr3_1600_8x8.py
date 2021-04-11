@@ -55,8 +55,8 @@ class DDR3_1600_8x8(AbstractMemory):
     def incorporate_memory(self, motherboard: AbstractMotherboard) -> None:
         # Setup the memory controller and set the memory
         motherboard.get_system_simobject().mem_cntrls = self.controllers
-        for ctrl in self.controllers:
-            ctrl.port = motherboard.get_membus().mem_side_ports
+        # for ctrl in self.controllers:
+        #     ctrl.port = motherboard.get_membus().mem_side_ports
 
     def get_mem_ports(self) -> Tuple[Sequence[AddrRange], Port]:
         return [(self._dram.range, ctrl.port) for ctrl in self.controllers]

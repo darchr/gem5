@@ -58,15 +58,15 @@ import time
 import shutil
 
 
-cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
-    l1d_size="32kB",
-    l1i_size="32kB",
-    l2_size="256kB",
-)
-
-# cache_hierarchy = MESITwoLevelCacheHierarchy(
-#     '32KiB', 8, '32KiB', 8, '512KiB', 16, 1
+# cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
+#     l1d_size="32kB",
+#     l1i_size="32kB",
+#     l2_size="256kB",
 # )
+
+cache_hierarchy = MESITwoLevelCacheHierarchy(
+    '32KiB', 8, '32KiB', 8, '512KiB', 16, 1
+)
 
 # For an even simpler setup, have no cache at all!
 # cache_hierarchy = NoCache()
@@ -75,7 +75,7 @@ cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
 # anything else right now!
 memory = DDR3_1600_8x8(size="3GB")
 
-processor = SimpleProcessor(cpu_type=CPUTypes.ATOMIC, num_cores=1)
+processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, num_cores=1)
 
 motherboard = X86Motherboard(
     clk_freq="3GHz",
