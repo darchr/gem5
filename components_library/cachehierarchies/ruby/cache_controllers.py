@@ -21,17 +21,19 @@ class AbstractL1Cache(L1Cache_Controller):
         cls._version += 1  # Use count for this particular type
         return cls._version - 1
 
+    # TODO: I don't love that we have to pass in the cache line size.
+    # However, we need some way to set the index bits
     def __init__(self, network, cache_line_size):
         """"""
         super(AbstractL1Cache, self).__init__()
 
         self.version = self.versionCount()
-        self.cache_line_size = cache_line_size
+        self._cache_line_size = cache_line_size
         self.connectQueues(network)
 
     def getBlockSizeBits(self):
-        bits = int(math.log(self.cache_line_size, 2))
-        if 2 ** bits != self.cache_line_size.value:
+        bits = int(math.log(self._cache_line_size, 2))
+        if 2 ** bits != self._cache_line_size.value:
             panic("Cache line size not a power of 2!")
         return bits
 
@@ -65,7 +67,7 @@ class AbstractL2Cache(L2Cache_Controller):
         super(AbstractL2Cache, self).__init__()
 
         self.version = self.versionCount()
-        self.cache_line_size = cache_line_size
+        self._cache_line_size = cache_line_size
         self.connectQueues(network)
 
     @abstractmethod
@@ -87,7 +89,7 @@ class AbstractDirectory(Directory_Controller):
         """"""
         super(AbstractDirectory, self).__init__()
         self.version = self.versionCount()
-        self.cache_line_size = cache_line_size
+        self._cache_line_size = cache_line_size
         self.connectQueues(network)
 
     @abstractmethod
@@ -108,7 +110,7 @@ class AbstractDMAController(DMA_Controller):
     def __init__(self, network, cache_line_size):
         super(AbstractDMAController, self).__init__()
         self.version = self.versionCount()
-        self.cache_line_size = cache_line_size
+        self._cache_line_size = cache_line_size
         self.connectQueues(network)
 
     @abstractmethod

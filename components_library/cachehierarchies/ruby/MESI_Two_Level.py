@@ -107,10 +107,8 @@ class L2Cache(AbstractL2Cache):
     def __init__(
         self, l2_size, l2_assoc, network, num_l2Caches, cache_line_size
     ):
-
         super(L2Cache, self).__init__(network, cache_line_size)
 
-        self.version = self.versionCount()
         # This is the cache memory object that stores the cache data and tags
         self.L2cache = RubyCache(
             size=l2_size,
@@ -119,11 +117,10 @@ class L2Cache(AbstractL2Cache):
         )
 
         self.transitions_per_cycle = "4"
-        self.connectQueues(network)
 
     def getIndexBit(self, num_l2caches):
         l2_bits = int(math.log(num_l2caches, 2))
-        bits = int(math.log(self.cache_line_size, 2)) + l2_bits
+        bits = int(math.log(self._cache_line_size, 2)) + l2_bits
         return bits
 
     def connectQueues(self, network):

@@ -36,9 +36,6 @@ class SimplePt2Pt(SimpleNetwork):
 
         # TODO: These should be in a base class
         self.ruby_system = ruby_system
-        self.number_of_virtual_networks = (
-            ruby_system.number_of_virtual_networks
-        )
 
     def connectControllers(self, controllers):
         """Connect all of the controllers to routers and connec the routers
@@ -57,12 +54,13 @@ class SimplePt2Pt(SimpleNetwork):
         # Make an "internal" link (internal to the network) between every pair
         # of routers.
         link_count = 0
-        self.int_links = []
+        int_links = []
         for ri in self.routers:
             for rj in self.routers:
                 if ri == rj:
                     continue  # Don't connect a router to itself!
                 link_count += 1
-                self.int_links.append(
+                int_links.append(
                     SimpleIntLink(link_id=link_count, src_node=ri, dst_node=rj)
                 )
+        self.int_links = int_links

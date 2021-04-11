@@ -35,7 +35,13 @@ from .ruby.topologies.pt2pt import SimplePt2Pt
 
 from .ruby.MESI_Two_Level import L1Cache, L2Cache, Directory, DMAController
 
-from m5.objects import RubySystem, RubySequencer, BaseCPU
+from m5.objects import (
+    RubySystem,
+    RubySequencer,
+    BaseCPU,
+    DMASequencer,
+    RubyPortProxy,
+)
 
 from m5.params import Port
 
@@ -71,37 +77,42 @@ class MESITwoLevelCacheHierarchy(
     def incorporate_cache(self, motherboard: AbstractMotherboard) -> None:
         cache_line_size = motherboard.get_system_simobject().cache_line_size
 
-        self.ruby_system = RubySystem()
+        motherboard.get_system_simobject().ruby_system = RubySystem()
+        self.ruby_system = motherboard.get_system_simobject().ruby_system
 
         # MESI_Two_Level needs 5 virtual networks
         self.ruby_system.number_of_virtual_networks = 5
 
-        self.network = SimplePt2Pt(self.ruby_system)
+        self.ruby_system.network = SimplePt2Pt(self.ruby_system)
+        self.ruby_system.network.number_of_virtual_networks = 5
 
         # QUESTION: HOW IS THIS KNOWN???
         iobus = motherboard.get_iobus()
 
         self.l1_controllers = []
         self.cpu_map = {}
-        for cpu in motherboard.get_processor().get_cpu_simobjects():
+        for i, cpu in enumerate(
+            motherboard.get_processor().get_cpu_simobjects()
+        ):
             cache = L1Cache(
                 self.l1i_size,
                 self.l1i_assoc,
                 self.l1d_size,
                 self.l1d_assoc,
-                self.network,
+                self.ruby_system.network,
                 cpu,
                 self.num_l2_banks,
                 cache_line_size,
             )
             cache.sequencer = RubySequencer(
                 version=i,
-                dcache=ctrl.L1Dcache,
-                clk_domain=ctrl.clock_domain,
+                dcache=cache.L1Dcache,
+                clk_domain=cache.clk_domain,
                 pio_request_port=iobus.cpu_side_ports,
                 mem_request_port=iobus.cpu_side_ports,
                 pio_response_port=iobus.mem_side_ports,
             )
+            cache.ruby_system = self.ruby_system
 
             cpu.icache_port = cache.sequencer.in_ports
             cpu.dcache_port = cache.sequencer.in_ports
@@ -117,47 +128,58 @@ class MESITwoLevelCacheHierarchy(
             L2Cache(
                 self.l2_size,
                 self.l2_assoc,
-                self.network,
+                self.ruby_system.network,
                 self.num_l2_banks,
                 cache_line_size,
             )
             for _ in range(self.num_l2_banks)
         ]
+        # TODO: Make this prettier: The problem is not being able to proxy
+        # the ruby system correctly
+        for cache in self.l2_controllers:
+            cache.ruby_system = self.ruby_system
 
         self.directory_controllers = [
-            Directory(self.network, cache_line_size, range, port)
+            Directory(self.ruby_system.network, cache_line_size, range, port)
             for range, port in motherboard.get_memory().get_mem_ports()
         ]
+        # TODO: Make this prettier: The problem is not being able to proxy
+        # the ruby system correctly
+        for dir in self.directory_controllers:
+            dir.ruby_system = self.ruby_system
 
         dma_ports = motherboard.get_dma_ports()
         self.dma_controllers = []
         for i, port in enumerate(dma_ports):
-            ctrl = DMAController(self.network, cache_line_size)
-            ctrl.sequencer = DMASequencer(version=i, in_ports=port)
+            ctrl = DMAController(self.ruby_system.network, cache_line_size)
+            ctrl.dma_sequencer = DMASequencer(version=i, in_ports=port)
             self.dma_controllers.append(ctrl)
+            ctrl.ruby_system = self.ruby_system
 
         self.ruby_system.num_of_sequencers = len(self.l1_controllers) + len(
             self.dma_controllers
         )
+        self.ruby_system.l1_controllers = self.l1_controllers
+        self.ruby_system.l2_controllers = self.l2_controllers
+        self.ruby_system.directory_controllers = self.directory_controllers
+        self.ruby_system.dma_controllers = self.dma_controllers
 
         # Create the network and connect the controllers.
-        # NOTE: This is quite different if using Garnet!
-        self.network.connectControllers(
+        self.ruby_system.network.connectControllers(
             self.l1_controllers
             + self.l2_controllers
             + self.directory_controllers
             + self.dma_controllers
         )
-        self.network.setup_buffers()
+        self.ruby_system.network.setup_buffers()
 
         # Set up a proxy port for the system_port. Used for load binaries and
         # other functional-only things.
-        self.ruby_system.sys_port_proxy = RubyPortProxy(
-            pio_request_port=iobus.cpu_side_ports
-        )
+        self.ruby_system.sys_port_proxy = RubyPortProxy()
         motherboard.get_system_simobject().system_port = (
             self.ruby_system.sys_port_proxy.in_ports
         )
+        self.ruby_system.sys_port_proxy.pio_request_port = iobus.cpu_side_ports
 
     def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port, Port]:
         req_port = self.cpu_map[cpu].sequencer.interrupt_out_port
