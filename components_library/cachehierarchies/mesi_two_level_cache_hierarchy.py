@@ -27,7 +27,6 @@
 import enum
 from sys import version
 
-from mem.ruby.system.Sequencer import DMASequencer, RubyPortProxy
 from .abstract_cache_hierarchy import AbstractTwoLevelHierarchy
 from .abstract_ruby_cache_hierarhcy import AbstractRubyCacheHierarchy
 from ..motherboards.abstract_motherboard import AbstractMotherboard
@@ -64,7 +63,7 @@ class MESITwoLevelCacheHierarchy(
         l2_assoc: str,
         num_l2_banks: int,
     ):
-        super(AbstractTwoLevelHierarchy).__init__(
+        super().__init__(
             l1i_size, l1i_assoc, l1d_size, l1d_assoc, l2_size, l2_assoc
         )
         self.num_l2_banks = num_l2_banks
@@ -74,13 +73,13 @@ class MESITwoLevelCacheHierarchy(
 
         self.ruby_system = RubySystem()
 
+        # MESI_Two_Level needs 5 virtual networks
+        self.ruby_system.number_of_virtual_networks = 5
+
         self.network = SimplePt2Pt(self.ruby_system)
 
         # QUESTION: HOW IS THIS KNOWN???
         iobus = motherboard.get_iobus()
-
-        # MESI_Two_Level needs 5 virtual networks
-        self.ruby_system.number_of_virtual_networks = 5
 
         self.l1_controllers = []
         self.cpu_map = {}
