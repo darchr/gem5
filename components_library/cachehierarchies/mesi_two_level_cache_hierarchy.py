@@ -44,6 +44,7 @@ from m5.objects import (
 )
 
 from m5.params import Port
+from m5.util.convert import toMemorySize
 
 from typing import Tuple
 
@@ -69,10 +70,18 @@ class MESITwoLevelCacheHierarchy(
         l2_assoc: str,
         num_l2_banks: int,
     ):
-        super().__init__(
-            l1i_size, l1i_assoc, l1d_size, l1d_assoc, l2_size, l2_assoc
-        )
         self.num_l2_banks = num_l2_banks
+        # TODO: check to be sure that the size of the cache is divisible
+        # by the number of banks
+        l2_bank_size = toMemorySize(l2_size) // num_l2_banks
+        super().__init__(
+            l1i_size,
+            l1i_assoc,
+            l1d_size,
+            l1d_assoc,
+            str(l2_bank_size)+'B',
+            l2_assoc,
+        )
 
     def incorporate_cache(self, motherboard: AbstractMotherboard) -> None:
         cache_line_size = motherboard.get_system_simobject().cache_line_size
