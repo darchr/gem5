@@ -196,6 +196,54 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
     return  wrsize_new > writeBufferSize;
 }
 
+bool
+MemCtrl::writeQueueFull(unsigned int neededEntries) const
+{
+    DPRINTF(MemCtrl,
+            "Write queue limit %d, current size %d, entries needed %d\n",
+            writeBufferSize, totalWriteQueueSize, neededEntries);
+
+    auto wrsize_new = (totalWriteQueueSize + neededEntries);
+    return  wrsize_new > writeBufferSize;
+}
+
+bool
+MemCtrl::writeQueueFull(unsigned int neededEntries) const
+{
+    DPRINTF(MemCtrl,
+            "Write queue limit %d, current size %d, entries needed %d\n",
+            writeBufferSize, totalWriteQueueSize, neededEntries);
+
+    auto wrsize_new = (totalWriteQueueSize + neededEntries);
+    return  wrsize_new > writeBufferSize;
+}
+
+bool
+MemCtrl::nvmWriteQueueFull(unsigned int neededEntries) const
+{
+    auto size = (nvmWriteQueueSize + neededEntries);
+    // random size to compare with for now
+    return  size_new > 64;
+}
+
+
+bool
+MemCtrl::nvmReadQueueFull(unsigned int neededEntries) const
+{
+    auto size = (nvmReadQueueSize + neededEntries);
+    // random size to compare with for now
+    return  size_new > 64;
+}
+
+
+bool
+MemCtrl::dramFillQueueFull(unsigned int neededEntries) const
+{
+    auto size = (dramFillQueueSize + neededEntries);
+    // random size to compare with for now
+    return  size_new > 64;
+}
+
 void
 MemCtrl::addToNVMReadQueue(MemPacket* mem_pkt)
 {
@@ -218,6 +266,8 @@ MemCtrl::addToNVMReadQueue(MemPacket* mem_pkt)
         mem_pkt->readyTime = MaxTick;
 
         nvmReadQueue.push_back(mem_pkt);
+
+        nvmReadQueueSize++;
 
         if (!nextReqEvent.scheduled()) {
         // COMEMNT: scheduling a request if it has not been
@@ -377,6 +427,8 @@ MemCtrl::addToDRAMFillQueue(MemPacket mem_pkt)
         // now
         dramFillQueue.push_back(mem_pkt);
 
+        dramFillQueueSize++;
+
         // update the DRAM tags as well
 
         int index = bits(mem_pkt->pkt->getAddr(),
@@ -423,6 +475,8 @@ MemCtrl::addToNVMWriteQueue(MemPacket* mem_pkt)
         mem_pkt->readyTime = MaxTick;
 
         nvmWriteQueue.push_back(mem_pkt);
+
+        nvmWriteQueueSize++;
 
         if (!nextReqEvent.scheduled()) {
         // COMEMNT: scheduling a request if it has not been
@@ -827,11 +881,11 @@ MemCtrl::processRespondEvent()
             // what did we end up getting from
             // DRAM
             // push this packet to the nvm read queue
-            addToNVMReadQueue(mem_pkt);
-
 
             addToNVMWriteQueue(mem_pkt);
 
+
+            addToNVMReadQueue(mem_pkt);
 
          }
 

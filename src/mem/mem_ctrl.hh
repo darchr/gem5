@@ -308,6 +308,14 @@ class MemCtrl : public QoS::MemCtrl
     bool retryRdReq;
     bool retryWrReq;
 
+
+    /**
+     * Current sizes of nvmReadQueue, nvmWriteQueue, dramFillQueue
+     *
+     */
+    uint64_t nvmReadQueueSize;
+    uint64_t nvmWriteQueueSize;
+    uint64_t dramFillQueueSize;
     /**
      * Bunch of things requires to setup "events" in gem5
      * When event "respondEvent" occurs for example, the method
