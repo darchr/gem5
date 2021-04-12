@@ -274,7 +274,6 @@ class MemCtrl : public QoS::MemCtrl
       // xxxxxxdv (dirty and valid bits)
       uint8_t meta_bits = 0;
     };
-    0
         // constant to indicate that the cache line is
         // dirty
         const uint8_t DIRTY_LINE = 1 << 0;

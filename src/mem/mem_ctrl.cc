@@ -377,6 +377,17 @@ MemCtrl::addToDRAMFillQueue(MemPacket mem_pkt)
         // now
         dramFillQueue.push_back(mem_pkt);
 
+        // update the DRAM tags as well
+
+        int index = bits(mem_pkt->pkt->getAddr(),
+                ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
+
+        tagStoreDC[index].tag = returnTag(mem_pkt->pkt->getAddr());
+
+        // make sure that the block is set to be valid and clean
+
+        tagStoreDC[index].meta_bits = 0x01;
+
         //isInWriteQueue.insert(burstAlign(addr, is_dram));
 
         if (!nextReqEvent.scheduled()) {
@@ -393,6 +404,36 @@ MemCtrl::addToDRAMFillQueue(MemPacket mem_pkt)
 
     }
 
+}
+
+void
+MemCtrl::addToNVMWriteQueue(MemPacket* mem_pkt)
+{
+    assert(pkt->isWrite());
+
+    if (!nvmWriteQueueFull(1)) {
+
+        // COMMENT: Should overwrite the mem_pkt?
+        // COMMENT: Currently, we are assuming that
+        // a pkt will be decomposed in only one mem_pkt
+        // which probably is not a reasonable assumption
+        mem_pkt = nvm->decodePacket(mem_pkt->pkt, mem_pkt->pkt->getAddr(),
+                                mem_pkt->pkt->getSize(), true, false);
+        nvm->setupRank(mem_pkt->rank, true);
+        mem_pkt->readyTime = MaxTick;
+
+        nvmWriteQueue.push_back(mem_pkt);
+
+        if (!nextReqEvent.scheduled()) {
+        // COMEMNT: scheduling a request if it has not been
+        // previously scheduled.
+        // If something else has scheduled nextReqEvent, how would
+        // we add tagCheckLatency. And does it even matter to add that
+        schedule(nextReqEvent, curTick() + tagCheckLatency);
+        //COMMENT: tags will be checked on the way back
+    }
+
+    }
 }
 
 void
@@ -730,7 +771,6 @@ MemCtrl::processRespondEvent()
         // if true it is DRAM cache hit and we do not need to do anything
     }
 
-
     else if (tagStoreDC[index].tag != returnTag(mem_pkt->pkt->getAddr())
                     &&  (!(tagStoreDC[index].meta_bits & 0x02)))         {
 
@@ -745,6 +785,11 @@ MemCtrl::processRespondEvent()
          }
 
          else {
+
+             // No need to check tags here.
+             // We are here, becuase in the first place
+             // this was a miss in DRAM
+
              // this means that the pkt was already added
              // to the nvm read queue and we have
              // response now from NVM
@@ -765,6 +810,56 @@ MemCtrl::processRespondEvent()
     }
 
     // *****************
+
+    // dirty miss
+
+    else if (tagStoreDC[index].tag != returnTag(mem_pkt->pkt->getAddr())
+                    &&  (!(tagStoreDC[index].meta_bits & 0x03))) {
+
+
+        // we probably need to first check if this
+        // block is a DRAM access or not
+
+        if (mem_pkt->isDram()) {
+            // clean miss
+            dram_miss = true;
+            // Btw, if this is a miss
+            // what did we end up getting from
+            // DRAM
+            // push this packet to the nvm read queue
+            addToNVMReadQueue(mem_pkt);
+
+
+            addToNVMWriteQueue(mem_pkt);
+
+
+         }
+
+         else {
+
+             // No need to check tags here.
+             // We are here, becuase in the first place
+             // this was a miss in DRAM
+
+             // this means that the pkt was already added
+             // to the nvm read queue and we have
+             // response now from NVM
+
+             // Wait!!! I don't think we need to even
+             // check tags, as any request that got serviced
+             // by NVM must have been a misss from in DRAM
+
+             // now need to add the packet to dram fill queue
+             // so that it can be written to dram
+
+            addToDRAMFillQueue(mem_pkt);
+             // also I don't think we need to set
+             // dram_miss, because we want to send this
+             // response back
+         }
+
+    }
+    //
 
     if (mem_pkt->isDram()) {
         // media specific checks and functions when read response is complete
