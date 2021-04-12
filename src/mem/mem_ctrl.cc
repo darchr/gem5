@@ -882,11 +882,12 @@ MemCtrl::processRespondEvent()
             // DRAM
             // push this packet to the nvm read queue
 
-            addToNVMWriteQueue(mem_pkt);
-
-
             addToNVMReadQueue(mem_pkt);
 
+            // need to create a request out of the response
+
+            mem_pkt->read = false;
+            addToNVMWriteQueue(mem_pkt);
          }
 
          else {
@@ -1451,6 +1452,7 @@ MemCtrl::processNextReqEvent()
             bool nvm_q_read = false;
 
             // First check NVM Read Queue
+            // Question: which queues should be prioritized
 
             auto queue = nvmReadQueue.rbegin()
             to_read = chooseNext((*queue), switched_cmd_type ?
@@ -1571,28 +1573,63 @@ MemCtrl::processNextReqEvent()
         MemPacketQueue::iterator to_write;
         uint8_t prio = numPriorities();
 
-        for (auto queue = writeQueue.rbegin();
-             queue != writeQueue.rend(); ++queue) {
 
-            prio--;
+        // this is used to track
+        // if the write request is found
+        // in nvm write queue
+        bool nvm_q_write = false;
+        // or dram fill queue
+        bool dfill_q_write = false;
+        // First check NVM Write Queue
 
-            DPRINTF(QOS,
-                    "Checking WRITE queue [%d] priority [%d elements]\n",
-                    prio, queue->size());
+        // Question: which queues should be prioritized
 
-            // If we are changing command type, incorporate the minimum
-            // bus turnaround delay
-            // TODO: how to choose next when we have DRAM cache and nvm packets
-            // in the queue
-            to_write = chooseNext((*queue),
-                     switched_cmd_type ? minReadToWriteDataGap() : 0);
+        auto queue = dramFillQueue.rbegin()
+        to_write = chooseNext((*queue), switched_cmd_type ?
+                                    minReadToWriteDataGap() : 0);
+
+        if (to_write != queue->end()) {
+                // candidate write found in dramfillqueue
+                write_found = true;
+                dfill_q_write = true;
+        }
+
+        else { // next check in nvm write queue
+            auto queue = nvmWriteQueue.rbegin()
+            to_write = chooseNext((*queue), switched_cmd_type ?
+                                    minReadToWriteDataGap() : 0);
 
             if (to_write != queue->end()) {
+                // candidate write found in nvm write queue
                 write_found = true;
-                break;
+                nvm_q_write = true;
             }
         }
 
+        if (!write_found) { // if write candidate is not already found
+            for (auto queue = writeQueue.rbegin();
+                queue != writeQueue.rend(); ++queue) {
+
+                prio--;
+
+                DPRINTF(QOS,
+                        "Checking WRITE queue [%d] priority [%d elements]\n",
+                        prio, queue->size());
+
+                // If we are changing command type, incorporate the minimum
+                // bus turnaround delay
+                // TODO: how to choose next when we have
+                // DRAM cache and nvm packets
+                // in the queue
+                to_write = chooseNext((*queue),
+                        switched_cmd_type ? minReadToWriteDataGap() : 0);
+
+                if (to_write != queue->end()) {
+                    write_found = true;
+                    break;
+                }
+            }
+        }
         // if there are no writes to a rank that is available to service
         // requests (i.e. rank is in refresh idle state) are found then
         // return. There could be reads to the available ranks. However, to
@@ -1626,14 +1663,25 @@ MemCtrl::processNextReqEvent()
         // COMMENT: We should update the dirty bits right before deleting
         // the packet
 
+
+        // ***************** Update the tags ***************** //
         int index = bits(mem_pkt->pkt->getAddr(),
                         ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
 
         // setting the dirty bit here
         tagStoreDC[index].meta_bits = tagStoreDC[index].meta_bits | 0x02;
 
+        // ***************** Update the tags ***************** //
+
+
         // remove the request from the queue - the iterator is no longer valid
-        writeQueue[mem_pkt->qosValue()].erase(to_write);
+
+        if (dfill_q_write)
+            dramFillQueue.erase(to_write);
+        else if (nvm_q_write)
+            nvmQueueWrite.erase(to_write)
+        else
+            writeQueue[mem_pkt->qosValue()].erase(to_write);
 
         delete mem_pkt;
 
