@@ -35,6 +35,8 @@ from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
 from components_library.cachehierarchies.no_cache import NoCache
 from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
 from components_library.processors.simple_processor import SimpleProcessor
+from components_library.processors.simple_switched_out_processor import \
+    SimpleSwitchedOutProcessor
 from components_library.processors.cpu_types import CPUTypes
 
 import os
@@ -62,6 +64,10 @@ motherboard = X86Motherboard(clk_freq="3GHz",
                                 memory=memory,
                                 cache_hierarchy=cache_hierarchy,
                                )
+
+# A processor to switch to after boot
+switch_processor = SimpleSwitchedOutProcessor(cpu_type = CPUTypes.TIMING,
+                                              num_cores = 1)
 
 thispath = os.path.dirname(os.path.realpath(__file__))
 
@@ -104,4 +110,20 @@ m5.instantiate()
 
 print("Beginning simulation!")
 exit_event = m5.simulate()
+
+if exit_event.getCause() == "workend":
+    # Reached the end of ROI
+    # end of ROI is marked by an
+    # m5_work_end() call
+    m5.stats.reset()
+
+    # Switch the the more detailed "Timing" processor.
+    motherboard.swap_processor_to(switch_processor)
+else:
+    print("Unexpected termination of simulation!")
+    exit()
+
+    # Simulate the remaning part of the benchmark
+    exit_event = m5.simulate()
+
 print('Exiting @ tick %i because %s' % (m5.curTick(), exit_event.getCause()))

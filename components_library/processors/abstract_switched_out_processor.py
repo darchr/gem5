@@ -24,36 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from abc import ABC, abstractmethod
-from components_library.processors.cpu_types import CPUTypes
+from .abstract_processor import AbstractProcessor
 
-from m5.objects import BaseCPU
-
-from ..motherboards.abstract_motherboard import AbstractMotherboard
-
-from typing import List
-
-class AbstractProcessor(ABC):
-
-    def __init__(self, cpu_type: CPUTypes, num_cores: int) -> None:
-        assert(num_cores > 0)
-
-        self._num_cores = num_cores
-        self._cpu_type = cpu_type
-
-    def get_num_cores(self) -> int:
-        return self._num_cores
-
-    def get_cpu_type(self) -> CPUTypes:
-        return self._cpu_type
-    
-    def switched_out(self) -> bool:
-        return self._switched_out
-
-    @abstractmethod
-    def get_cpu_simobjects(self) -> List[BaseCPU]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def incorporate_processor(self, motherboard: AbstractMotherboard) -> None:
-        raise NotImplementedError
+class AbstractSwitchedOutProcessor(AbstractProcessor):
+    pass

@@ -24,36 +24,31 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from abc import ABC, abstractmethod
-from components_library.processors.cpu_types import CPUTypes
+from .abstract_swapped_out_processor import \
+    AbstractAbstractSwitchedOutProcessor
+from .simple_processor import SimpleProcessor
 
-from m5.objects import BaseCPU
+import ..utils.override
 
-from ..motherboards.abstract_motherboard import AbstractMotherboard
-
-from typing import List
-
-class AbstractProcessor(ABC):
+class SimpleSwitchedOutProcessor(AbstractAbstractSwitchedOutProcessor,
+                                  SimpleProcessor):
 
     def __init__(self, cpu_type: CPUTypes, num_cores: int) -> None:
-        assert(num_cores > 0)
+        super(SimpleSwitchedOutProcessor, self).__init__(
+            cpu_type = cpu_type,
+            num_cores = num_cores,
+        )
 
-        self._num_cores = num_cores
-        self._cpu_type = cpu_type
+    def __init__(self, processor: SimpleProcessor):
+        """
+        Returns the switched-out form of the current processor.
+        """
+        super(SimpleSwitchedOutProcessor, self).__init__(
+            cpu_type = processor.get_cpu_type(),
+            num_cores = processor.get_num_cores(),
+        )
 
-    def get_num_cores(self) -> int:
-        return self._num_cores
-
-    def get_cpu_type(self) -> CPUTypes:
-        return self._cpu_type
-    
-    def switched_out(self) -> bool:
-        return self._switched_out
-
-    @abstractmethod
-    def get_cpu_simobjects(self) -> List[BaseCPU]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def incorporate_processor(self, motherboard: AbstractMotherboard) -> None:
-        raise NotImplementedError
+    @override(SimpleProcessor)
+    def _create_cores(self, cpu_class: BaseCPU, num_cores: int):
+        return [cpu_class(cpu_id = i, switched_out = True) 
+                for i in range(num_cores)]

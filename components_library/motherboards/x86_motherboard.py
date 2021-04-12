@@ -35,6 +35,7 @@ from m5.objects import Cache, Pc, AddrRange, X86FsLinux, \
 
 
 from .simple_motherboard import SimpleMotherboard
+from .abstractswitchable_processors import AbstractSwitchableProcessors
 from ..processors.abstract_processor import AbstractProcessor
 from ..memory.abstract_memory import AbstractMemory
 from ..cachehierarchies.abstract_classic_cache_hierarchy import \
@@ -44,9 +45,10 @@ from ..cachehierarchies.abstract_classic_cache_hierarchy import \
 from typing import Optional
 
 
-class X86Motherboard(SimpleMotherboard):
+class X86Motherboard(SimpleMotherboard, AbstractSwitchableProcessors):
     """
-    A motherboard capable of full system simulation for X86.
+    A motherboard capable of full system simulation for X86, with switchable
+    processors.
     """
 
     def __init__(self, clk_freq: str,
@@ -55,13 +57,16 @@ class X86Motherboard(SimpleMotherboard):
                  cache_hierarchy: AbstractClassicCacheHierarchy,
                  xbar_width: Optional[int] = 64,
                 ) -> None:
-        super(X86Motherboard, self).__init__(
-                                            clk_freq = clk_freq,
-                                            processor=processor,
-                                            memory=memory,
-                                            cache_hierarchy=cache_hierarchy,
-                                            xbar_width = xbar_width,
-                                               )
+        SimpleMotherboard.__init__(
+                                    clk_freq = clk_freq,
+                                    processor=processor,
+                                    memory=memory,
+                                    cache_hierarchy=cache_hierarchy,
+                                    xbar_width = xbar_width,
+                                   )
+        AbstractSwitchableProcessors.__init__(
+                                    current_processor = processor,
+                                             )
 
         if self.get_runtime_isa() != ISA.X86:
                 raise EnvironmentError("X86Motherboard will only work with the"
