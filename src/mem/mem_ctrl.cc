@@ -196,7 +196,7 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
     return  wrsize_new > writeBufferSize;
 }
 
-bool
+/*bool
 MemCtrl::writeQueueFull(unsigned int neededEntries) const
 {
     DPRINTF(MemCtrl,
@@ -216,14 +216,15 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
 
     auto wrsize_new = (totalWriteQueueSize + neededEntries);
     return  wrsize_new > writeBufferSize;
-}
+}*/
 
 bool
 MemCtrl::nvmWriteQueueFull(unsigned int neededEntries) const
 {
     auto size = (nvmWriteQueueSize + neededEntries);
     // random size to compare with for now
-    return  size_new > 64;
+    //return  size_new > 64;
+    return  size > 64;
 }
 
 
@@ -232,7 +233,8 @@ MemCtrl::nvmReadQueueFull(unsigned int neededEntries) const
 {
     auto size = (nvmReadQueueSize + neededEntries);
     // random size to compare with for now
-    return  size_new > 64;
+    //return  size_new > 64;
+    return  size > 64;
 }
 
 
@@ -241,7 +243,8 @@ MemCtrl::dramFillQueueFull(unsigned int neededEntries) const
 {
     auto size = (dramFillQueueSize + neededEntries);
     // random size to compare with for now
-    return  size_new > 64;
+    //return  size_new > 64;
+    return  size > 64;
 }
 
 void
@@ -253,7 +256,8 @@ MemCtrl::addToNVMReadQueue(MemPacket* mem_pkt)
     // to the same address in this queue
     // If yes, then they should be merged
 
-    assert(!pkt->isWrite());
+    //assert(!pkt->isWrite());
+    assert(!mem_pkt->isWrite());
     if (!nvmReadQueueFull(1)) {
 
         // COMMENT: Should overwrite the mem_pkt?
@@ -410,7 +414,7 @@ void
 MemCtrl::addToDRAMFillQueue(MemPacket mem_pkt)
 {
     // this is the packet that came from NVRAM
-    assert(pkt->isRead());
+    assert(mem_pkt->isRead());
 
     if (!dramFillQueueFull(1)) {
 
@@ -1472,9 +1476,9 @@ MemCtrl::processNextReqEvent()
 
                     prio--;
 
-                    DPRINTF(QOS, "Checking READ queue [%d]
-                                 priority [%d elements]\n",
-                                 prio, queue->size());
+                    DPRINTF(QOS, "Checking READ queue
+                                  [%d] priority [%d] elements\n",
+                                  prio, queue->size());
 
                     // Figure out which read request goes next
                     // If we are changing command type, incorporate the minimum
