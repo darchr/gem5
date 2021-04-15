@@ -48,12 +48,13 @@ class AbstractMotherboard(ABC):
         # Create the main memory bus
         # This connects to main memory
         # TODO: This probably shouldn't exist in the abstract
-        self._system.membus = membus
-        self._system.membus.badaddr_responder = BadAddr()
-        self._system.membus.default = self._system.membus.badaddr_responder.pio
+        # self._system.membus = membus
+        # self._system.membus.badaddr_responder = BadAddr()
+        # self._system.membus.default = \
+        #     self._system.membus.badaddr_responder.pio
 
         # Set up the system port for functional access from the simulator.
-        self._system.system_port = self._system.membus.cpu_side_ports
+        # self._system.system_port = self._system.membus.cpu_side_ports
 
     def get_processor(self) -> "AbstractProcessor":
         return self._processor

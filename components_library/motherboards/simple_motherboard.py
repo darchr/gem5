@@ -25,7 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from components_library.processors.cpu_types import CPUTypes
-import m5
+
 from m5.objects import SystemXBar, AddrRange, SrcClockDomain, VoltageDomain,\
                        Addr, Process, SEWorkload
 
@@ -69,6 +69,7 @@ class SimpleMotherboard(AbstractMotherboard):
         self.get_system_simobject().clk_domain.voltage_domain = VoltageDomain()
 
         # Set the memory mode.
+        # TODO: The CPU has a method for this.
         if self.get_processor().get_cpu_type() == CPUTypes.TIMING \
             or self.get_processor().get_cpu_type() == CPUTypes.O3 :
             self.get_system_simobject().mem_mode = 'timing'
@@ -82,7 +83,8 @@ class SimpleMotherboard(AbstractMotherboard):
         self.get_system_simobject().mem_ranges = \
             [AddrRange(Addr(memory.get_size_str()))]
 
-        # Incorporate the cache heirarchy for the motherboard.
+    def connect_things(self) -> None:
+        # Incorporate the cache hierarchy for the motherboard.
         self.get_cache_hierarchy().incorporate_cache(self)
 
         # Incorporate the processor into the motherboard.

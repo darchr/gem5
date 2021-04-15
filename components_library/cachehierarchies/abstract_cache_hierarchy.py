@@ -28,8 +28,39 @@ from abc import ABC, abstractmethod
 
 from ..motherboards.abstract_motherboard import AbstractMotherboard
 
-class AbstractCacheHierarchy(ABC):
 
+class AbstractCacheHierarchy(ABC):
     @abstractmethod
-    def incorporate_cache(self, motherboard : AbstractMotherboard):
+    def incorporate_cache(self, motherboard: AbstractMotherboard):
+        """
+        Incorporates the caches into a board.
+
+        Each specific hierarchy needs to implement this function. This function
+        will be called after the CPU and memory (and this cache hierarchy) have
+        been constructed.
+        """
+
         raise NotImplementedError
+
+
+class AbstractTwoLevelHierarchy(AbstractCacheHierarchy):
+    """
+    An abstract two-level hierarchy with a configurable L1 and L2 size and
+    associativity.
+    """
+
+    def __init__(
+        self,
+        l1i_size: str,
+        l1i_assoc: str,
+        l1d_size: str,
+        l1d_assoc: str,
+        l2_size: str,
+        l2_assoc: str,
+    ):
+        self.l1i_size = l1i_size
+        self.l1i_assoc = l1i_assoc
+        self.l1d_size = l1d_size
+        self.l1d_assoc = l1d_assoc
+        self.l2_size = l2_size
+        self.l2_assoc = l2_assoc

@@ -30,9 +30,12 @@ from typing import Optional
 
 from m5.objects import DDR3_1600_8x8 as DIMM
 from m5.objects import MemCtrl
+from m5.params import Port, AddrRange
 
 from .abstract_memory import AbstractMemory
 from ..motherboards.abstract_motherboard import AbstractMotherboard
+
+from typing import Tuple, Sequence
 
 class DDR3_1600_8x8(AbstractMemory):
 
@@ -45,10 +48,15 @@ class DDR3_1600_8x8(AbstractMemory):
         # make sense for a DDR3_1600_8x8 device. Only the size has been
         # exposed.
         self._dram = DIMM(range = self.get_size_str())
+        self.controllers = [
+            MemCtrl(dram = self._dram)
+        ]
 
     def incorporate_memory(self, motherboard: AbstractMotherboard) -> None:
         # Setup the memory controller and set the memory
-        motherboard.get_system_simobject().mem_cntrls = [
-            MemCtrl(dram = self._dram,
-                    port = motherboard.get_membus().mem_side_ports)
-        ]
+        motherboard.get_system_simobject().mem_cntrls = self.controllers
+        # for ctrl in self.controllers:
+        #     ctrl.port = motherboard.get_membus().mem_side_ports
+
+    def get_mem_ports(self) -> Tuple[Sequence[AddrRange], Port]:
+        return [(self._dram.range, ctrl.port) for ctrl in self.controllers]

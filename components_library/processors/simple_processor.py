@@ -53,6 +53,7 @@ class SimpleProcessor(AbstractProcessor):
             self._cpus = self._create_cores(cpu_class = X86KvmCPU,
                                             num_cores = num_cores)
             self.kvm_vm = KvmVM()
+
         else:
             raise NotADirectoryError("SimpleProcessor does not currently " +
                                      "support cpu type '" +
@@ -81,12 +82,17 @@ class SimpleProcessor(AbstractProcessor):
             # create the interrupt controller CPU and connect to the membus
             cpu.createInterruptController()
 
+            # TODO: This needs to be a function on the cache hierarchy
+            # get_interrupt_ports()
             if motherboard.get_runtime_isa() == ISA.X86 :
-                cpu.interrupts[0].pio = motherboard.get_membus().mem_side_ports
-                cpu.interrupts[0].int_requestor = \
-                    motherboard.get_membus().cpu_side_ports
-                cpu.interrupts[0].int_responder = \
-                    motherboard.get_membus().mem_side_ports
+                int_req_port, int_resp_port = \
+                    motherboard.get_interrupt_ports(cpu)
+                cpu.interrupts[0].pio = int_req_port
+                cpu.interrupts[0].int_requestor = int_resp_port
+                cpu.interrupts[0].int_responder = int_req_port
+
+        if self.get_cpu_type() == CPUTypes.KVM:
+            motherboard.get_system_simobject().kvm_vm = self.kvm_vm
 
     def get_cpu_simobjects(self) -> List[BaseCPU]:
         return self._cpus

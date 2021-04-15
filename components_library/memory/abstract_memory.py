@@ -25,11 +25,14 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from abc import ABC, abstractmethod
+from typing import Tuple, Sequence
 
 from ..motherboards.abstract_motherboard import AbstractMotherboard
 
-class AbstractMemory(ABC):
+from m5.objects import AddrRange, Port
 
+
+class AbstractMemory(ABC):
     def __init__(self, size: str) -> None:
         self._size = size
 
@@ -38,4 +41,8 @@ class AbstractMemory(ABC):
 
     @abstractmethod
     def incorporate_memory(self, motherboard: AbstractMotherboard) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
         raise NotImplementedError
