@@ -24,27 +24,28 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from components_library.motherboards.x86_motherboard import X86Motherboard
+
 import m5
+import m5.ticks
 from m5.objects import Root
 
-from components_library.motherboards.simple_motherboard \
-    import SimpleMotherboard
+from components_library.motherboards.x86_motherboard import X86Motherboard
 from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
     import PrivateL1PrivateL2CacheHierarchy
 from components_library.cachehierarchies.no_cache import NoCache
 from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
 from components_library.processors.simple_processor import SimpleProcessor
-from components_library.processors.simple_switched_out_processor import \
-    SimpleSwitchedOutProcessor
+from components_library.processors.simple_switchable_processor import \
+    SimpleSwitchableProcessor
 from components_library.processors.cpu_types import CPUTypes
 
 import os
 import subprocess
 import gzip
 import shutil
+import time
 
-
+# Setup the cachie hierarchy.
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size = "32kB",
                                                    l1i_size = "32kB",
                                                    l2_size = "256kB",
@@ -53,22 +54,29 @@ cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size = "32kB",
 # For an even simpler setup, have no cache at all!
 #cache_hierarchy = NoCache()
 
+# Setup the memory system.
 # Warning!!! This must be kept at 3GB for now. X86Motherboard does not support
 # anything else right now!
 memory = DDR3_1600_8x8(size="3GB")
 
-processor = SimpleProcessor(cpu_type = CPUTypes.ATOMIC, num_cores=1)
+# The processor. In this case we use the special "SwitchableProcessor" which
+# allows us to switch between different SimpleProcessors. In this case we start
+# with an atomic CPU and change to Timing later in the simulation
+start_processor = SimpleProcessor(cpu_type = CPUTypes.ATOMIC, num_cores=1)
+switch_processor = SimpleProcessor(cpu_type = CPUTypes.TIMING, num_cores = 1)
+processor = SimpleSwitchableProcessor(starting_processor=start_processor,
+                                      switchable_processor=switch_processor)
 
+# Setup the motherboard.
 motherboard = X86Motherboard(clk_freq="3GHz",
-                                processor=processor,
-                                memory=memory,
-                                cache_hierarchy=cache_hierarchy,
-                               )
+                            processor=processor,
+                            memory=memory,
+                            cache_hierarchy=cache_hierarchy,
+                             )
 
-# A processor to switch to after boot
-switch_processor = SimpleSwitchedOutProcessor(cpu_type = CPUTypes.TIMING,
-                                              num_cores = 1)
 
+# Download the linux kernel and parsec disk image needed to run the
+# simuluation.
 thispath = os.path.dirname(os.path.realpath(__file__))
 
 kernel_url = \
@@ -88,7 +96,8 @@ if not os.path.exists(parsec_img_path):
         with open(parsec_img_path, 'wb') as o:
             shutil.copyfileobj(f,o)
 
-# Example command to run blackscholes with simsmall.
+# The command to run. In this case the blackscholes app with the simsmall
+# workload.
 command =  "cd /home/gem5/parsec-benchmark\n"
 command += "source env.sh\n"
 command += "parsecmgmt -a run -p blackscholes "
@@ -104,26 +113,84 @@ print("Running with protocol: " +
     motherboard.get_runtime_coherence_protocol().name)
 print()
 
+# Setup and run the simulation.
 root = Root(full_system = True, system = motherboard.get_system_simobject())
 
+# instantiate all of the objects we've created above and start the simulation.
 m5.instantiate()
 
-print("Beginning simulation!")
+globalStart = time.time()
+print("Running the simulation")
+
+start_tick = m5.curTick()
+end_tick = m5.curTick()
+
+m5.stats.reset()
+
 exit_event = m5.simulate()
 
+if exit_event.getCause() == "workbegin":
+    print("Done booting Linux")
+    # Reached the start of ROI
+    # start of ROI is marked by an
+    # m5_work_begin() call
+    print("Resetting stats at the start of ROI!")
+    m5.stats.reset()
+    start_tick = m5.curTick()
+
+    # Switch to the Timing Processor
+    motherboard.get_processor().switch()
+else:
+    print("Unexpected termination of simulation!")
+    print()
+
+    m5.stats.dump()
+    end_tick = m5.curTick()
+
+    m5.stats.reset()
+    print("Performance statistics:")
+    print("Simulated time: %.2fs" % ((end_tick-start_tick)/1e12))
+    print("Ran a total of", m5.curTick()/1e12, "simulated seconds")
+    print("Total wallclock time: %.2fs, %.2f min" % \
+                (time.time()-globalStart, (time.time()-globalStart)/60))
+    exit()
+
+# Simulate the ROI
+exit_event = m5.simulate()
+
+# Reached the end of ROI
+# Finish executing the benchmark with kvm cpu
 if exit_event.getCause() == "workend":
     # Reached the end of ROI
     # end of ROI is marked by an
     # m5_work_end() call
+    print("Dump stats at the end of the ROI!")
+    m5.stats.dump()
+    end_tick = m5.curTick()
     m5.stats.reset()
 
-    # Switch the the more detailed "Timing" processor.
-    motherboard.swap_processor_to(switch_processor)
+    # Switch back to the Atomic Processor
+    motherboard.get_processor().switch()
 else:
     print("Unexpected termination of simulation!")
+    print()
+    m5.stats.dump()
+    end_tick = m5.curTick()
+    m5.stats.reset()
+    print("Performance statistics:")
+    print("Simulated time: %.2fs" % ((end_tick-start_tick)/1e12))
+    print("Ran a total of", m5.curTick()/1e12, "simulated seconds")
+    print("Total wallclock time: %.2fs, %.2f min" % \
+                (time.time()-globalStart, (time.time()-globalStart)/60))
     exit()
 
-    # Simulate the remaning part of the benchmark
-    exit_event = m5.simulate()
+# Simulate the remaning part of the benchmark
+exit_event = m5.simulate()
 
-print('Exiting @ tick %i because %s' % (m5.curTick(), exit_event.getCause()))
+print("Done with the simulation")
+print()
+print("Performance statistics:")
+print("Simulated time in ROI: %.2fs" % ((end_tick-start_tick)/1e12))
+print("Ran a total of", m5.curTick()/1e12, "simulated seconds")
+print("Total wallclock time: %.2fs, %.2f min" % \
+            (time.time()-globalStart, (time.time()-globalStart)/60))

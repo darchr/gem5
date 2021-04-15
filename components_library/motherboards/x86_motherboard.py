@@ -35,7 +35,6 @@ from m5.objects import Cache, Pc, AddrRange, X86FsLinux, \
 
 
 from .simple_motherboard import SimpleMotherboard
-from .abstractswitchable_processors import AbstractSwitchableProcessors
 from ..processors.abstract_processor import AbstractProcessor
 from ..memory.abstract_memory import AbstractMemory
 from ..cachehierarchies.abstract_classic_cache_hierarchy import \
@@ -45,7 +44,7 @@ from ..cachehierarchies.abstract_classic_cache_hierarchy import \
 from typing import Optional
 
 
-class X86Motherboard(SimpleMotherboard, AbstractSwitchableProcessors):
+class X86Motherboard(SimpleMotherboard):
     """
     A motherboard capable of full system simulation for X86, with switchable
     processors.
@@ -57,16 +56,13 @@ class X86Motherboard(SimpleMotherboard, AbstractSwitchableProcessors):
                  cache_hierarchy: AbstractClassicCacheHierarchy,
                  xbar_width: Optional[int] = 64,
                 ) -> None:
-        SimpleMotherboard.__init__(
-                                    clk_freq = clk_freq,
-                                    processor=processor,
-                                    memory=memory,
-                                    cache_hierarchy=cache_hierarchy,
-                                    xbar_width = xbar_width,
-                                   )
-        AbstractSwitchableProcessors.__init__(
-                                    current_processor = processor,
-                                             )
+        super(X86Motherboard, self).__init__(
+                                             clk_freq= clk_freq,
+                                             processor=processor,
+                                             memory=memory,
+                                             cache_hierarchy=cache_hierarchy,
+                                             xbar_width = xbar_width,
+                                            )
 
         if self.get_runtime_isa() != ISA.X86:
                 raise EnvironmentError("X86Motherboard will only work with the"
@@ -82,6 +78,9 @@ class X86Motherboard(SimpleMotherboard, AbstractSwitchableProcessors):
           #          size=0x100000))
 
         self.get_system_simobject().pc = Pc()
+
+        #TODO: This should be configurable
+        self.get_system_simobject().exit_on_work_items = True
 
         self.get_system_simobject().workload = X86FsLinux()
 
