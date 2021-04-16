@@ -294,6 +294,8 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
 
     assert(pkt_count != 0);
 
+    assert(is_dram);
+
     // if the request size is larger than burst size, the pkt is split into
     // multiple packets (mem pkts)
     // Note if the pkt starting address is not aligened to burst size, the
@@ -303,6 +305,8 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
     const Addr base_addr = pkt->getAddr();
     Addr addr = base_addr;
     unsigned pktsServicedByWrQ = 0;
+    unsigned pktsServicedByDRAMFillQ = 0;
+    unsigned pktsServicedByNVMWrQ = 0;
     BurstHelper* burst_helper = NULL;
 
     uint32_t burst_size = is_dram ? dram->bytesPerBurst() :
@@ -342,9 +346,54 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
             }
         }
 
+        // ************************//
+
+        // Also check in dramFillQueue, nvmWriteQueue
+
+        bool foundInDRAMFillQ = false;
+
+        for (const auto& p : dramFillQueue) {
+            // check if the read is subsumed in the write queue
+            // packet we are looking at
+            if (p->addr <= addr &&
+                ((addr + size) <= (p->addr + p->size))) {
+
+                foundInDRAMFillQ = true;
+                //stats.servicedByWrQ++;
+                pktsServicedByDRAMFillQ++;
+                //DPRINTF(MemCtrl,
+                //        "Read to addr %lld with size %d serviced by "
+                //        "write queue\n",
+                //        addr, size);
+                //stats.bytesReadWrQ += burst_size;
+                break;
+            }
+        }
+
+        bool foundInNVMWriteQ = false;
+
+        for (const auto& p : nvmWriteQueue) {
+            // check if the read is subsumed in the write queue
+            // packet we are looking at
+            if (p->addr <= addr &&
+                ((addr + size) <= (p->addr + p->size))) {
+
+                foundInNVMWriteQ = true;
+                //stats.servicedByWrQ++;
+                pktsServicedByNVMWrQ++;
+                //DPRINTF(MemCtrl,
+                //        "Read to addr %lld with size %d serviced by "
+                //        "write queue\n",
+                //        addr, size);
+                //stats.bytesReadWrQ += burst_size;
+                break;
+            }
+        }
+
+
         // If not found in the write q, make a memory packet and
         // push it onto the read queue
-        if (!foundInWrQ) {
+        if (!foundInWrQ && !foundInDRAMFillQ && !foundInNVMWriteQ) {
 
             // Make the burst helper for split packets
             if (pkt_count > 1 && burst_helper == NULL) {
@@ -389,7 +438,10 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
     }
 
     // If all packets are serviced by write queue, we send the repsonse back
-    if (pktsServicedByWrQ == pkt_count) {
+    if (pktsServicedByWrQ == pkt_count
+            || pktsServicedByDRAMFillQ == pkt_count
+            || pktsServicedByNVMWrQ == pkt_count) {
+
         // COMMENT: should the tagcheckLatency be added here
         accessAndRespond(pkt, frontendLatency);
         return;
@@ -651,7 +703,9 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     prevArrival = curTick();
 
     // What type of media does this packet access?
-    bool is_dram = false;
+    //bool is_dram = false;
+
+    bool is_dram = true;
 
     // COMMENT: is_dram kind of now means if this request should be
     // forwarded to DRAM or not.
@@ -1417,11 +1471,12 @@ MemCtrl::processNextReqEvent()
         // track if we should switch or not
         bool switch_to_writes = false;
 
-        if (totalReadQueueSize == 0) {
+        if (totalReadQueueSize == 0 && nvmReadQueueSize == 0) {
             // In the case there is no read request to go next,
             // trigger writes if we have passed the low threshold (or
             // if we are draining)
-            if (!(totalWriteQueueSize == 0) &&
+            if ((totalWriteQueueSize != 0 || nvmWriteQueueSize != 0
+                   || dramFillQueueSize != 0)&&
                 (drainState() == DrainState::Draining ||
                  totalWriteQueueSize > writeLowThreshold)) {
 
