@@ -250,6 +250,10 @@ MemCtrl::dramFillQueueFull(unsigned int neededEntries) const
 void
 MemCtrl::addToNVMReadQueue(MemPacket* mem_pkt)
 {
+
+    // return true if this request can succeed
+    // false otherwise
+
     // COMMENT: Do we need to snoop the write queue?
 
     // COMMENT: Can there be another read request
@@ -258,31 +262,30 @@ MemCtrl::addToNVMReadQueue(MemPacket* mem_pkt)
 
     //assert(!pkt->isWrite());
     assert(!mem_pkt->isWrite());
-    if (!nvmReadQueueFull(1)) {
+    assert(!nvmReadQueueFull(1));
 
-        // COMMENT: Should overwrite the mem_pkt?
-        // COMMENT: Currently, we are assuming that
-        // a pkt will be decomposed in only one mem_pkt
-        // which probably is not a reasonable assumption
-        mem_pkt = nvm->decodePacket(mem_pkt->pkt, mem_pkt->pkt->getAddr(),
-                                mem_pkt->pkt->getSize(), true, false);
-        nvm->setupRank(mem_pkt->rank, true);
-        mem_pkt->readyTime = MaxTick;
+    // COMMENT: Should overwrite the mem_pkt?
+    // COMMENT: Currently, we are assuming that
+    // a pkt will be decomposed in only one mem_pkt
+    // which probably is not a reasonable assumption
+    mem_pkt = nvm->decodePacket(mem_pkt->pkt, mem_pkt->pkt->getAddr(),
+                            mem_pkt->pkt->getSize(), true, false);
+    nvm->setupRank(mem_pkt->rank, true);
+    mem_pkt->readyTime = MaxTick;
 
-        nvmReadQueue.push_back(mem_pkt);
+    nvmReadQueue.push_back(mem_pkt);
 
-        nvmReadQueueSize++;
+    nvmReadQueueSize++;
 
-        if (!nextReqEvent.scheduled()) {
-        // COMEMNT: scheduling a request if it has not been
-        // previously scheduled.
-        // If something else has scheduled nextReqEvent, how would
-        // we add tagCheckLatency. And does it even matter to add that
-        schedule(nextReqEvent, curTick() + tagCheckLatency);
-        //COMMENT: tags will be checked on the way back
+    if (!nextReqEvent.scheduled()) {
+    // COMEMNT: scheduling a request if it has not been
+    // previously scheduled.
+    // If something else has scheduled nextReqEvent, how would
+    // we add tagCheckLatency. And does it even matter to add that
+    schedule(nextReqEvent, curTick() + tagCheckLatency);
+    //COMMENT: tags will be checked on the way back
     }
 
-    }
 }
 
 void
@@ -465,85 +468,77 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
 void
 MemCtrl::addToDRAMFillQueue(MemPacket mem_pkt)
 {
-    // this is the packet that came from NVRAM
+    // this is the packet that came from resp queue
+    // and is sent ot nvm read queue (if it did not come from
+    // nvm read queue already)
+
     assert(mem_pkt->isRead());
+    assert(!dramFillQueueFull(1));
 
-    if (!dramFillQueueFull(1)) {
+    // COMMENT: Should overwrite the mem_pkt?
+    // COMMENT: Currently, we are assuming that
+    // a pkt will be decomposed in only one mem_pkt
+    // which probably is not a reasonable assumption
+    mem_pkt = dram->decodePacket(mem_pkt->pkt, mem_pkt->pkt->getAddr(),
+                            mem_pkt->pkt->getSize(), false, false);
+    dram->setupRank(mem_pkt->rank, false);
+    mem_pkt->readyTime = MaxTick;
 
-        // COMMENT: Should overwrite the mem_pkt?
-        // COMMENT: Currently, we are assuming that
-        // a pkt will be decomposed in only one mem_pkt
-        // which probably is not a reasonable assumption
-        mem_pkt = dram->decodePacket(mem_pkt->pkt, mem_pkt->pkt->getAddr(),
-                                mem_pkt->pkt->getSize(), false, false);
-        dram->setupRank(mem_pkt->rank, false);
-        mem_pkt->readyTime = MaxTick;
+    // the mem_pkt needs to become a write request
+    // now
+    dramFillQueue.push_back(mem_pkt);
 
-        // the mem_pkt needs to become a write request
-        // now
-        dramFillQueue.push_back(mem_pkt);
+    dramFillQueueSize++;
 
-        dramFillQueueSize++;
+    // update the DRAM tags as well
 
-        // update the DRAM tags as well
+    int index = bits(mem_pkt->pkt->getAddr(),
+            ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
 
-        int index = bits(mem_pkt->pkt->getAddr(),
-                ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
+    tagStoreDC[index].tag = returnTag(mem_pkt->pkt->getAddr());
 
-        tagStoreDC[index].tag = returnTag(mem_pkt->pkt->getAddr());
+    // make sure that the block is set to be valid and clean
 
-        // make sure that the block is set to be valid and clean
+    tagStoreDC[index].meta_bits = 0x01;
 
-        tagStoreDC[index].meta_bits = 0x01;
+    //isInWriteQueue.insert(burstAlign(addr, is_dram));
 
-        //isInWriteQueue.insert(burstAlign(addr, is_dram));
-
-        if (!nextReqEvent.scheduled()) {
-            // We might need to add tag check latency
-            // because the NVM response might check tags
-            // to see if dram miss was clean or dirty
-            schedule(nextReqEvent, curTick());
+    if (!nextReqEvent.scheduled()) {
+        // We might need to add tag check latency
+        // because the NVM response might check tags
+        // to see if dram miss was clean or dirty
+        schedule(nextReqEvent, curTick());
     }
-
-    }
-
-    else {
-        // what to do if the queue is full
-
-    }
-
 }
 
 void
 MemCtrl::addToNVMWriteQueue(MemPacket* mem_pkt)
 {
     assert(pkt->isWrite());
+    assert(!isNVMWriteQueueFull());
 
-    if (!nvmWriteQueueFull(1)) {
+    // COMMENT: Should overwrite the mem_pkt?
+    // COMMENT: Currently, we are assuming that
+    // a pkt will be decomposed in only one mem_pkt
+    // which probably is not a reasonable assumption
+    mem_pkt = nvm->decodePacket(mem_pkt->pkt, mem_pkt->pkt->getAddr(),
+                            mem_pkt->pkt->getSize(), true, false);
+    nvm->setupRank(mem_pkt->rank, true);
+    mem_pkt->readyTime = MaxTick;
 
-        // COMMENT: Should overwrite the mem_pkt?
-        // COMMENT: Currently, we are assuming that
-        // a pkt will be decomposed in only one mem_pkt
-        // which probably is not a reasonable assumption
-        mem_pkt = nvm->decodePacket(mem_pkt->pkt, mem_pkt->pkt->getAddr(),
-                                mem_pkt->pkt->getSize(), true, false);
-        nvm->setupRank(mem_pkt->rank, true);
-        mem_pkt->readyTime = MaxTick;
+    nvmWriteQueue.push_back(mem_pkt);
 
-        nvmWriteQueue.push_back(mem_pkt);
+    nvmWriteQueueSize++;
 
-        nvmWriteQueueSize++;
-
-        if (!nextReqEvent.scheduled()) {
-        // COMEMNT: scheduling a request if it has not been
-        // previously scheduled.
-        // If something else has scheduled nextReqEvent, how would
-        // we add tagCheckLatency. And does it even matter to add that
-        schedule(nextReqEvent, curTick() + tagCheckLatency);
-        //COMMENT: tags will be checked on the way back
+    if (!nextReqEvent.scheduled()) {
+    // COMEMNT: scheduling a request if it has not been
+    // previously scheduled.
+    // If something else has scheduled nextReqEvent, how would
+    // we add tagCheckLatency. And does it even matter to add that
+    schedule(nextReqEvent, curTick() + tagCheckLatency);
+    //COMMENT: tags will be checked on the way back
     }
 
-    }
 }
 
 void
@@ -866,6 +861,9 @@ MemCtrl::processRespondEvent()
     // COMMENT: things to do: update tags in MC
     // and sent data to dram prob by creating a write req (dummy)
 
+    //
+
+
     MemPacket* mem_pkt = respQueue.front();
 
     // ****************
@@ -893,7 +891,23 @@ MemCtrl::processRespondEvent()
             // what did we end up getting from
             // DRAM
             // push this packet to the nvm read queue
+
+            if (!nvmReadQueueFull(1) && !dramFillQueueFull(1)) {
+
             addToNVMReadQueue(mem_pkt);
+            addToDRAMFillQueue(mem_pkt);
+
+            }
+
+            else {
+
+                // if any of the queues are successful
+                schedule(respondEvent, respQueue.front()->readyTime + 2);
+               // re schedule the respondEvent process
+               // not sure what should be the delay above and if even
+               // this method would work as there might be overlap with
+               // other events already scheduled for resp queue
+            }
          }
 
          else {
@@ -913,10 +927,28 @@ MemCtrl::processRespondEvent()
              // now need to add the packet to dram fill queue
              // so that it can be written to dram
 
-            addToDRAMFillQueue(mem_pkt);
+            //addToDRAMFillQueue(mem_pkt);
              // also I don't think we need to set
              // dram_miss, because we want to send this
              // response back
+
+            if (!dramFillQueueFull(1)) {
+
+                addToDRAMFillQueue(mem_pkt);
+            }
+
+            else {
+
+                // if any of the queues are successful
+                schedule(respondEvent, respQueue.front()->readyTime + 2);
+               // re schedule the respondEvent process
+               // not sure what should be the delay above and if even
+               // this method would work as there might be overlap with
+               // other events already scheduled for resp queue
+            }
+
+
+
          }
 
     }

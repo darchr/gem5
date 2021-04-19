@@ -308,7 +308,6 @@ class MemCtrl : public QoS::MemCtrl
     bool retryRdReq;
     bool retryWrReq;
 
-
     /**
      * Current sizes of nvmReadQueue, nvmWriteQueue, dramFillQueue
      *
