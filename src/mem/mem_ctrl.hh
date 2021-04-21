@@ -539,8 +539,10 @@ class MemCtrl : public QoS::MemCtrl
      * and help with events scheduling. For all logical purposes such
      * as sizing the read queue, this and the main read queue need to
      * be added together.
+     * This is a priority queue where
      */
-    std::deque<MemPacket *> respQueue;
+    //std::deque<MemPacket *> respQueue;
+    std::priority_queue<std::pair<Tick, MemPacket *> > respQueue;
 
     /**
      * Holds count of commands issued in burst window starting at

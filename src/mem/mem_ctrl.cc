@@ -658,7 +658,7 @@ MemCtrl::printQs() const
 
     DPRINTF(MemCtrl, "\n===RESP QUEUE===\n\n");
     for (const auto& packet : respQueue) {
-        DPRINTF(MemCtrl, "Response %lu\n", packet->addr);
+        DPRINTF(MemCtrl, "Response %lu\n", packet->second->addr);
     }
 
     DPRINTF(MemCtrl, "\n===WRITE QUEUE===\n\n");
@@ -863,8 +863,7 @@ MemCtrl::processRespondEvent()
 
     //
 
-
-    MemPacket* mem_pkt = respQueue.front();
+    MemPacket* mem_pkt = respQueue.top().second;
 
     // ****************
 
@@ -902,7 +901,10 @@ MemCtrl::processRespondEvent()
             else {
 
                 // if any of the queues are successful
-                schedule(respondEvent, respQueue.front()->readyTime + 2);
+                assert(respQueue.top().second->readyTime ==
+                                                respQueue.top.first);
+                schedule(respondEvent,
+                              respQueue.top().second->readyTime + 2);
                // re schedule the respondEvent process
                // not sure what should be the delay above and if even
                // this method would work as there might be overlap with
@@ -940,7 +942,7 @@ MemCtrl::processRespondEvent()
             else {
 
                 // if any of the queues are successful
-                schedule(respondEvent, respQueue.front()->readyTime + 2);
+                schedule(respondEvent, respQueue.top.second->readyTime + 2);
                // re schedule the respondEvent process
                // not sure what should be the delay above and if even
                // this method would work as there might be overlap with
@@ -1036,13 +1038,13 @@ MemCtrl::processRespondEvent()
     // COMMENT: if it was a dram miss do you still
     // delete the mem pkt from resp queue
     // COMMENT: I think you should!!
-    delete respQueue.front();
-    respQueue.pop_front();
+    delete respQueue.top();
+    respQueue.pop();
 
     if (!respQueue.empty()) {
-        assert(respQueue.front()->readyTime >= curTick());
+        assert(respQueue.top().second->readyTime >= curTick());
         assert(!respondEvent.scheduled());
-        schedule(respondEvent, respQueue.front()->readyTime);
+        schedule(respondEvent, respQueue.top().second->readyTime);
     } else {
         // if there is nothing left in any queue, signal a drain
         if (drainState() == DrainState::Draining &&
@@ -1626,11 +1628,14 @@ MemCtrl::processNextReqEvent()
                 assert(!respondEvent.scheduled());
                 schedule(respondEvent, mem_pkt->readyTime);
             } else {
-                assert(respQueue.back()->readyTime <= mem_pkt->readyTime);
+
+                // How to check the last element of a priority queue,
+                // using its size?
+                //assert(respQueue.back()->readyTime <= mem_pkt->readyTime);
                 assert(respondEvent.scheduled());
             }
 
-            respQueue.push_back(mem_pkt);
+            respQueue.push_back(std::pair<mem_pkt->readyTime,mem_pkt>);
 
             // we have so many writes that we have to transition
             // don't transition if the writeRespQueue is full and
