@@ -28,18 +28,35 @@ from abc import ABC, abstractmethod
 
 from ..motherboards.abstract_motherboard import AbstractMotherboard
 
+from m5.objects import  BaseCPU, BaseXBar
+from m5.params import Port
+
+from typing import Tuple
 
 class AbstractCacheHierarchy(ABC):
+
+    """
+    A Cache Hierarchy incorporates any system components which exist between
+    the Processor and System memory. E.g., Caches, the MemBus, MMU, and the
+    MMU Cache.
+    """
+
     @abstractmethod
     def incorporate_cache(self, motherboard: AbstractMotherboard):
         """
         Incorporates the caches into a board.
 
-        Each specific hierarchy needs to implement this function. This function
-        will be called after the CPU and memory (and this cache hierarchy) have
-        been constructed.
+        Each specific hierarchy needs to implement this function.
         """
 
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port, Port]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_membus(self) -> BaseXBar:
         raise NotImplementedError
 
 

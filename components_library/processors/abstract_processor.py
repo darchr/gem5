@@ -47,8 +47,10 @@ class AbstractProcessor(ABC):
     def get_cpu_type(self) -> CPUTypes:
         return self._cpu_type
     
-    def switched_out(self) -> bool:
-        return self._switched_out
+    # TODO: This messes somewhat with my switched out design in
+    # simple_switchable processor.py. Look into and fix this.
+    #def switched_out(self) -> bool:
+    #    return self._switched_out
 
     @abstractmethod
     def get_cpu_simobjects(self) -> List[BaseCPU]:

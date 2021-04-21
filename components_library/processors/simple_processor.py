@@ -82,11 +82,9 @@ class SimpleProcessor(AbstractProcessor):
             # create the interrupt controller CPU and connect to the membus
             cpu.createInterruptController()
 
-            # TODO: This needs to be a function on the cache hierarchy
-            # get_interrupt_ports()
             if motherboard.get_runtime_isa() == ISA.X86 :
                 int_req_port, int_resp_port = \
-                    motherboard.get_interrupt_ports(cpu)
+                    motherboard.get_cache_hierarchy().get_interrupt_ports(cpu)
                 cpu.interrupts[0].pio = int_req_port
                 cpu.interrupts[0].int_requestor = int_resp_port
                 cpu.interrupts[0].int_responder = int_req_port

@@ -32,6 +32,3 @@ class AbstractRubyCacheHierarchy(AbstractCacheHierarchy):
     All Ruby-based cache hierarchies inherit from this class. This class
     provides the shared infrastructure that all Ruby protocols need.
     """
-
-    def incorporate_cache(self, motherboard: AbstractMotherboard) -> None:
-        pass

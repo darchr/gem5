@@ -35,6 +35,8 @@ from m5.params import Port, AddrRange
 from .abstract_memory import AbstractMemory
 from ..motherboards.abstract_motherboard import AbstractMotherboard
 
+from ..utils.override import *
+
 from typing import Tuple, Sequence
 
 class DDR3_1600_8x8(AbstractMemory):
@@ -52,11 +54,16 @@ class DDR3_1600_8x8(AbstractMemory):
             MemCtrl(dram = self._dram)
         ]
 
+    @overrides(AbstractMemory)
     def incorporate_memory(self, motherboard: AbstractMotherboard) -> None:
         # Setup the memory controller and set the memory
         motherboard.get_system_simobject().mem_cntrls = self.controllers
-        # for ctrl in self.controllers:
-        #     ctrl.port = motherboard.get_membus().mem_side_ports
 
+        # TODO: I don't like how this reaches into the cache_hierarchy
+        for ctrl in self.controllers:
+            ctrl.port = motherboard.get_cache_hierarchy()\
+                .get_membus().mem_side_ports
+
+    @overrides(AbstractMemory)
     def get_mem_ports(self) -> Tuple[Sequence[AddrRange], Port]:
         return [(self._dram.range, ctrl.port) for ctrl in self.controllers]

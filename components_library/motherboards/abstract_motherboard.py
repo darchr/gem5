@@ -24,10 +24,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from abc import ABC
+from abc import ABC, abstractmethod
 
 from m5.defines import buildEnv
-from m5.objects import System, BadAddr, BaseXBar
+from m5.objects import System, BadAddr, BaseXBar, SystemXBar
 
 from .isas import ISA
 from .coherence_protocol import CoherenceProtocol
@@ -36,8 +36,7 @@ class AbstractMotherboard(ABC):
     def __init__(self,
                  processor: "AbstractProcessor",
                  memory: "AbstractMemory",
-                 cache_hierarchy: "AbstractCacheHierarchy",
-                 membus: "BaseXBar",
+                 cache_hierarchy: "AbstractCacheHierarchy"
                 ) -> None:
 
         self._processor = processor
@@ -45,16 +44,7 @@ class AbstractMotherboard(ABC):
         self._cache_hierarchy = cache_hierarchy
         self._system = System()
 
-        # Create the main memory bus
-        # This connects to main memory
-        # TODO: This probably shouldn't exist in the abstract
-        # self._system.membus = membus
-        # self._system.membus.badaddr_responder = BadAddr()
-        # self._system.membus.default = \
-        #     self._system.membus.badaddr_responder.pio
-
-        # Set up the system port for functional access from the simulator.
-        # self._system.system_port = self._system.membus.cpu_side_ports
+        self.connect_things()
 
     def get_processor(self) -> "AbstractProcessor":
         return self._processor
@@ -68,8 +58,9 @@ class AbstractMotherboard(ABC):
     def get_system_simobject(self) -> System:
         return self._system
 
-    def get_membus(self) -> BaseXBar:
-        return self._system.membus
+    @abstractmethod
+    def connect_things(self) -> None:
+        raise NotImplementedError
 
     def get_runtime_isa(self) -> ISA:
         isa_map = {
@@ -88,8 +79,6 @@ class AbstractMotherboard(ABC):
                                       "' not recognized.")
 
         return isa_map[isa_str]
-
-
 
     def get_runtime_coherence_protocol(self) -> CoherenceProtocol:
         protocol_map = {

@@ -24,9 +24,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-<<<<<<< HEAD
-
-=======
 """
 A run script for running the parsec benchmark suite in gem5.
 
@@ -38,21 +35,14 @@ connection.
 
 """
 
-from components_library.cachehierarchies.mesi_two_level_cache_hierarchy \
-    import MESITwoLevelCacheHierarchy
+#from components_library.cachehierarchies.mesi_two_level_cache_hierarchy \
+#    import MESITwoLevelCacheHierarchy
 from components_library.motherboards.x86_motherboard import X86Motherboard
->>>>>>> jason/components-lib-v2
+
 import m5
 import m5.ticks
 from m5.objects import Root
 
-<<<<<<< HEAD
-from components_library.motherboards.x86_motherboard import X86Motherboard
-=======
-from components_library.motherboards.simple_motherboard import (
-    SimpleMotherboard,
-)
->>>>>>> jason/components-lib-v2
 from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
     import PrivateL1PrivateL2CacheHierarchy
 from components_library.cachehierarchies.no_cache import NoCache
@@ -71,24 +61,18 @@ import time
 
 
 # Setup the cachie hierarchy.
-#cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size = "32kB",
-#                                                   l1i_size = "32kB",
-#                                                   l2_size = "256kB",
-#                                                  )
+cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size = "32kB",
+                                                   l1i_size = "32kB",
+                                                   l2_size = "256kB",
+                                                  )
 
 
-# cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
-#     l1d_size="32kB",
-#     l1i_size="32kB",
-#     l2_size="256kB",
-# )
-
-cache_hierarchy = MESITwoLevelCacheHierarchy(
-    '32KiB', 8, '32KiB', 8, '512KiB', 16, 1
-)
+#cache_hierarchy = MESITwoLevelCacheHierarchy(
+#    '32KiB', 8, '32KiB', 8, '512KiB', 16, 1
+#)
 
 # For an even simpler setup, have no cache at all!
-# cache_hierarchy = NoCache()
+#cache_hierarchy = NoCache()
 
 # Setup the memory system.
 # Warning!!! This must be kept at 3GB for now. X86Motherboard does not support
@@ -111,7 +95,6 @@ motherboard = X86Motherboard(
     memory=memory,
     cache_hierarchy=cache_hierarchy,
 )
-motherboard.connect_things()
 
 
 # Download the linux kernel and parsec disk image needed to run the

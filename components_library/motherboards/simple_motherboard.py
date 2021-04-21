@@ -26,7 +26,7 @@
 
 from components_library.processors.cpu_types import CPUTypes
 
-from m5.objects import SystemXBar, AddrRange, SrcClockDomain, VoltageDomain,\
+from m5.objects import AddrRange, SrcClockDomain, VoltageDomain,\
                        Addr, Process, SEWorkload
 
 from .abstract_motherboard import AbstractMotherboard
@@ -34,6 +34,7 @@ from ..processors.abstract_processor import AbstractProcessor
 from ..memory.abstract_memory import AbstractMemory
 from ..cachehierarchies.abstract_classic_cache_hierarchy import \
                                     AbstractClassicCacheHierarchy
+from ..utils.override import overrides
 
 
 from typing import List, Optional
@@ -51,17 +52,12 @@ class SimpleMotherboard(AbstractMotherboard):
                  processor: AbstractProcessor,
                  memory: AbstractMemory,
                  cache_hierarchy: AbstractClassicCacheHierarchy,
-                 xbar_width: Optional[int] = 64,
                 ) -> None:
         super(SimpleMotherboard, self).__init__(
                                         processor=processor,
                                         memory=memory,
                                         cache_hierarchy=cache_hierarchy,
-                                        membus=SystemXBar(width = xbar_width)
-                                            )
-
-        # TODO: On second thought, a lot of thise could be put safely in the
-        # AbstractMotherboard base class.
+                                               )
 
         # Set up the clock domain and the voltage domain.
         self.get_system_simobject().clk_domain = SrcClockDomain()
@@ -83,6 +79,7 @@ class SimpleMotherboard(AbstractMotherboard):
         self.get_system_simobject().mem_ranges = \
             [AddrRange(Addr(memory.get_size_str()))]
 
+    @overrides(AbstractMotherboard)
     def connect_things(self) -> None:
         # Incorporate the cache hierarchy for the motherboard.
         self.get_cache_hierarchy().incorporate_cache(self)

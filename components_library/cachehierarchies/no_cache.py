@@ -27,21 +27,69 @@
 from .abstract_cache_hierarchy import AbstractCacheHierarchy
 from ..motherboards.abstract_motherboard import AbstractMotherboard
 
-from m5.objects import L2XBar
+from m5.objects import  BaseCPU, BaseXBar, SystemXBar, BadAddr
+from m5.params import Port
+
+from typing import Tuple, Optional
+
+from ..utils.override import *
 
 class NoCache(AbstractCacheHierarchy):
     '''
     No cache hierarchy. The CPUs are connected straight to the memory bus.
+
+    By default a SystemXBar of width 64bit is used, though this can be
+    configured via the constructor.
+
+    NOTE: At present this does not work with FS. The following error is
+    received:
+
+    ```
+    ...
+    build/X86/mem/snoop_filter.cc:277: panic: panic condition
+    (sf_item.requested & req_mask).none() occurred: SF value
+    0000000000000000000000000000000000000000000000000000000000000000 ...
+    missing the original request
+    Memory Usage: 3554472 KBytes
+    Program aborted at tick 1668400099164
+    --- BEGIN LIBC BACKTRACE ---
+    ...
+    ```
     '''
 
-    def __init__(self) -> None:
-        super(NoCache, self).__init__()
+    @staticmethod
+    def _get_default_membus() -> SystemXBar:
+        membus = SystemXBar(width = 64)
+        membus.badaddr_responder = BadAddr()
+        membus.default = membus.badaddr_responder.pio
+        return membus
 
+    def __init__(self,
+                 membus: Optional[BaseXBar] = \
+                     _get_default_membus.__func__()) -> None:
+        super(NoCache, self).__init__()
+        self._membus = membus
+
+
+    @overrides(AbstractCacheHierarchy)
     def incorporate_cache(self, motherboard: AbstractMotherboard) -> None:
+        motherboard.get_system_simobject().membus = self.get_membus()
         for cpu in motherboard.get_processor().get_cpu_simobjects():
-            cpu.icache_port = motherboard.get_membus().cpu_side_ports
-            cpu.dcache_port = motherboard.get_membus().cpu_side_ports
+            cpu.icache_port = self.get_membus().cpu_side_ports
+            cpu.dcache_port = self.get_membus().cpu_side_ports
             cpu.mmu.connectWalkerPorts(
-                motherboard.get_membus().cpu_side_ports,
-                motherboard.get_membus().cpu_side_ports
+                self.get_membus().cpu_side_ports,
+                self.get_membus().cpu_side_ports
             )
+        # Set up the system port for functional access from the simulator.
+        motherboard.get_system_simobject().system_port = \
+            self.get_membus().cpu_side_ports
+
+    @overrides(AbstractCacheHierarchy)
+    def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port, Port]:
+        return self.get_membus().mem_side_ports, \
+               self.get_membus().cpu_side_ports
+
+    @overrides(AbstractCacheHierarchy)
+    def get_membus(self) -> BaseXBar:
+        return self._membus
