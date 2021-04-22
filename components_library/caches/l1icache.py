@@ -26,14 +26,18 @@
 
 from typing import Optional
 
+from .abstract_prefetch_cache import AbstractPrefetchCache
 from .abstract_l1cache import AbstractL1Cache
+from ..utils.override import *
 
 from m5.objects import BaseXBar, BaseCPU
 
 from typing import Union
 
 class L1ICache(AbstractL1Cache):
-    """Simple L1 instruction cache with default values"""
+    """
+    A simple L1 instruction cache with default values.
+    """
 
     def __init__(self,
                 size: str,
@@ -54,7 +58,7 @@ class L1ICache(AbstractL1Cache):
                                        tgts_per_mshr=tgts_per_mshr,
                                        writeback_clean=writeback_clean
                                        )
-
+    @overrides(AbstractPrefetchCache)
     def connect_cpu_side(self, cpu_side: Union[BaseXBar, BaseCPU]) -> None:
         """Connect this cache's port to a CPU icache port"""
         self.cpu_side = cpu_side.icache_port

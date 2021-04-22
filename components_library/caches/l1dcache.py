@@ -24,14 +24,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from .abstract_prefetch_cache import AbstractPrefetchCache
 from .abstract_l1cache import AbstractL1Cache
-from m5.objects import BaseXBar, BaseCPU
+from ..utils.override import *
 
+from m5.objects import BaseXBar, BaseCPU
 
 from typing import Optional, Union
 
 class L1DCache(AbstractL1Cache):
-    """Simple L1 data cache with default values"""
+    """
+    A simple L1 data cache with default values.
+    """
 
     def __init__(self,
                 size: str,
@@ -52,6 +56,6 @@ class L1DCache(AbstractL1Cache):
                                        writeback_clean=writeback_clean
                                        )
 
+    @overrides(AbstractPrefetchCache)
     def connect_cpu_side(self, cpu_side: Union[BaseXBar, BaseCPU]) -> None:
-        """Connect this cache's port to a CPU dcache port"""
         self.cpu_side = cpu_side.dcache_port

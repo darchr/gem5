@@ -31,6 +31,10 @@ from m5.objects import Cache, StridePrefetcher, BaseXBar, BaseCPU
 from typing import Union
 
 class AbstractPrefetchCache(Cache):
+    """
+    Classes which inherit from the AbstractPrefetchCache are prefetch caches.
+    This class provides common properties and methods for all prefetch caches.
+    """
 
     def __init__(self,
                 size: str,
@@ -42,6 +46,39 @@ class AbstractPrefetchCache(Cache):
                 tgts_per_mshr: int,
                 writeback_clean: bool
                 ):
+        """
+        :param size: The size of the cache (e.g, "32kB").
+
+        :type size: str
+
+        :param assoc: The associativity of the cache.
+
+        :type assoc: int
+
+        :param tag_latency: The tag latency of the cache.
+
+        :type tag_latency: int
+
+        :param data_latency: The data letency of the cache.
+
+        :type data_latency: int
+
+        :param responce_latency: The responce latency of the cache.
+
+        :type responce_latency: int
+
+        :param mshrs: Number of MSHRs (??? #TODO: I have no idea)
+
+        :type mshrs: int
+
+        :param tgts_per_mshr: The Ticket-Granting-Tickets (TGT) per HSHR.
+
+        :type tgts_per_mshr: int
+
+        :param writeback_clean: Whether the writeback is clean.
+
+        :type writeback_clean: bool
+        """
         super(AbstractPrefetchCache, self).__init__()
         self.size = size
         self.assoc = assoc
@@ -55,8 +92,27 @@ class AbstractPrefetchCache(Cache):
 
     @abstractmethod
     def connect_bus_side(self, bus_side: BaseXBar) -> None:
+        """
+        Connects the "bus side" of the cache to the bus.
+
+        :param bus_side: The XBar to connect this cache to.
+
+        :type bus_side: BaseXBar
+        """
         raise NotImplementedError
 
     @abstractmethod
     def connect_cpu_side(self, cpu_side: Union[BaseXBar, BaseCPU]) -> None:
+        """
+        Connects the "cpu side" of the cache to the the cpu Side.
+
+        Note: the CPU side may not necessarily connect to a CPU, it may
+        connect to an XBar. For example, a L2 cache will typically connect to
+        an XBar which then connects to the L1 cache. It is the "side" of the
+        cache closer to the CPU, in contrast to main memory.
+
+        :param bus_side: The CPU or XBar to connect this cache to.
+
+        :type cpu_side: Union[BaseXBar, BaseCPU]
+        """
         raise NotImplementedError

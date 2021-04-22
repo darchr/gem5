@@ -24,15 +24,22 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.objects import Cache, L2XBar, BaseXBar, BaseCPU
+
+from .abstract_prefetch_cache import AbstractPrefetchCache
+from ..utils.override import *
+
+from m5.objects import L2XBar, BaseXBar, BaseCPU
 
 from typing import Optional, Union
 
 
-class MMUCache(Cache):
+class MMUCache(AbstractPrefetchCache):
+    """
+    A simple Memory Management Unit (MMU) cache with default values.
+    """
 
     def __init__(self,
-                size: Optional[str] = '8kB',
+                size: str,
                 assoc: Optional[int] = 4,
                 tag_latency: Optional[int] = 1,
                 data_latency: Optional[int] = 1,
@@ -52,14 +59,14 @@ class MMUCache(Cache):
                                        )
 
 
+    @overrides(AbstractPrefetchCache)
     def connect_bus_side(self, bus_side: BaseXBar) -> None:
-        """Connect this cache to a memory-side bus"""
         self.mem_side = bus_side.cpu_side_ports
 
+    @overrides(AbstractPrefetchCache)
     def connect_cpu_side(self, cpu_side: Union[BaseXBar, BaseCPU]) -> None:
-        """Connect the CPU itb and dtb to the cache
-           Note: This creates a new crossbar
-        """
+        # Connect the CPU itb and dtb to the cache
+        # Note: This creates a new crossbar
         self.mmubus = L2XBar()
         self.cpu_side = self.mmubus.mem_side_ports
         cpu_side.mmu.connectWalkerPorts(self.mmubus.cpu_side_ports,

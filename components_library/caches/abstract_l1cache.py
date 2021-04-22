@@ -25,15 +25,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from .abstract_prefetch_cache import AbstractPrefetchCache
+from ..utils.override import *
 
-from m5.objects import BaseXBar, BaseCPU
-
-from typing import Union
-
-from abc import abstractmethod
+from m5.objects import BaseXBar
 
 class AbstractL1Cache(AbstractPrefetchCache):
-    """A simple abstract L1 Cache"""
+    """
+    Classes which inherit from AbstractL1Cache are L1 caches. This abstract
+    class handles common properties and methods for all prefetch caches.
+    """
 
     def __init__(self,
                 size: str,
@@ -56,10 +56,6 @@ class AbstractL1Cache(AbstractPrefetchCache):
                                       writeback_clean=writeback_clean
                                              )
 
+    @overrides(AbstractPrefetchCache)
     def connect_bus_side(self, bus_side: BaseXBar) -> None:
-        """Connect this cache to a memory-side bus"""
         self.mem_side = bus_side.cpu_side_ports
-
-    @abstractmethod
-    def connect_cpu_side(self, cpu_side: Union[BaseXBar, BaseCPU]) -> None:
-        raise NotImplementedError
