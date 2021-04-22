@@ -24,9 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from components_library.cachehierarchies.abstract_cache_hierarchy import \
-    AbstractCacheHierarchy
+from .abstract_cache_hierarchy import AbstractCacheHierarchy
 from .abstract_classic_cache_hierarchy import AbstractClassicCacheHierarchy
+from .abstract_two_level_cache_hierarchy import AbstractTwoLevelCacheHierarchy
 from ..caches.l1dcache import L1DCache
 from ..caches.l1icache import L1ICache
 from ..caches.l2cache import L2Cache
@@ -40,13 +40,24 @@ from typing import Optional, Tuple
 
 from ..utils.override import *
 
-class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy):
+class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
+                                       AbstractTwoLevelCacheHierarchy):
     '''
-    A cache setup, where each core has a private Data and Instruction Cache.
+    A cache setup where each core has a private L1 Data and Instruction Cache,
+    and a private L2 cache.
     '''
 
     @staticmethod
     def _get_default_membus() -> SystemXBar:
+        """
+        A method used to obtain the default memory bus of 64 bit in width for
+        the PrivateL1PrivateL2 CacheHierarchy.
+
+        :returns: The default memory bus for the PrivateL1PrivateL2
+        CacheHierarchy.
+
+        :rtype: SystemXBar
+        """
         membus = SystemXBar(width = 64)
         membus.badaddr_responder = BadAddr()
         membus.default = membus.badaddr_responder.pio
@@ -58,10 +69,35 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy):
                  l2_size: str,
                  membus: Optional[BaseXBar] = _get_default_membus.__func__()
                 ) -> None:
+        """
+        :param l1d_size: The size of the L1 Data Cache (e.g., "32kB").
 
-        self._l1d_size = l1d_size
-        self._l1i_size = l1i_size
-        self._l2_size = l2_size
+        :type l1d_size: str
+
+        :param  l1i_size: The size of the L1 Instruction Cache (e.g., "32kB").
+
+        :type l1i_size: str
+
+        :param l2_size: The size of the L2 Cache (e.g., "256kB").
+
+        :type l2_size: str
+
+        :param membus: The memory bus. This parameter is optional parameter and
+        will default to a 64 bit width SystemXBar is not specified.
+
+        :type membus: Optional[BaseXBar]
+        """
+
+        AbstractTwoLevelCacheHierarchy.__init__(
+            self,
+            l1i_size = l1i_size,
+            l1i_assoc = 1, #TODO: Is this correct? I'm a Cache Hierarchy noob.
+            l1d_size = l1d_size,
+            l1d_assoc = 1, #TODO: Same as above.
+            l2_size = l2_size,
+            l2_assoc = 1, #TODO: Same as above.
+        )
+
         self._membus = membus
 
     @overrides(AbstractCacheHierarchy)
@@ -70,39 +106,39 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy):
         # Connect the membus to the system.
         motherboard.get_system_simobject().membus = self.get_membus()
 
+        # Set up the system port for functional access from the simulator.
+        motherboard.get_system_simobject().system_port = \
+            self.get_membus().cpu_side_ports
+
         for cpu in motherboard.get_processor().get_cpu_simobjects():
 
-            # Create a memory bus, a coherent crossbar, in this case
+            # Create a memory bus, a coherent crossbar, in this case.
             cpu.l2bus = L2XBar()
 
-            # Create an L1 instruction and data cache
-            cpu.icache = L1ICache(size = self._l1i_size)
-            cpu.dcache = L1DCache(size = self._l1d_size)
+            # Create an L1 instruction and data cache.
+            cpu.icache = L1ICache(size = self.get_l1i_size())
+            cpu.dcache = L1DCache(size = self.get_l1d_size())
 
-            # Connect the instruction and data caches to the CPU
+            # Connect the instruction and data caches to the CPU.
             cpu.icache.connect_cpu_side(cpu)
             cpu.dcache.connect_cpu_side(cpu)
 
-            # Hook the CPU ports up to the l2bus
+            # Hook the CPU ports up to the l2bus.
             cpu.icache.connect_bus_side(cpu.l2bus)
             cpu.dcache.connect_bus_side(cpu.l2bus)
 
-            # Create an L2 cache and connect it to the l2bus
-            cpu.l2cache = L2Cache(size = self._l2_size)
+            # Create an L2 cache and connect it to the l2bus.
+            cpu.l2cache = L2Cache(size = self.get_l2_size())
             cpu.l2cache.connect_cpu_side(cpu.l2bus)
 
-            # Connect the L2 cache to the bus
+            # Connect the L2 cache to the bus.
             cpu.l2cache.connect_bus_side(self.get_membus())
 
-            # Connect the CPU MMU's to the membus
+            # Connect the CPU MMU's to the membus.
             cpu.mmu.connectWalkerPorts(
                 self.get_membus().cpu_side_ports,
                 self.get_membus().cpu_side_ports
             )
-
-        # Set up the system port for functional access from the simulator.
-        motherboard.get_system_simobject().system_port = \
-            self.get_membus().cpu_side_ports
 
     @overrides(AbstractCacheHierarchy)
     def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port,Port]:

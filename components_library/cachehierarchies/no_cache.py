@@ -59,6 +59,14 @@ class NoCache(AbstractCacheHierarchy):
 
     @staticmethod
     def _get_default_membus() -> SystemXBar:
+        """
+        A method used to obtain the default memory bus of 64 bit in width for
+        the NoCache CacheHierarchy.
+
+        :returns: The default memory bus for the NoCache CacheHierarchy.
+
+        :rtype: SystemXBar
+        """
         membus = SystemXBar(width = 64)
         membus.badaddr_responder = BadAddr()
         membus.default = membus.badaddr_responder.pio
@@ -67,6 +75,12 @@ class NoCache(AbstractCacheHierarchy):
     def __init__(self,
                  membus: Optional[BaseXBar] = \
                      _get_default_membus.__func__()) -> None:
+        """
+        :param membus: The memory bus for this setup. This parameter is
+        optional and will default toa 64 bit width SystemXBar is not specified.
+
+        :type membus: Optional[BaseXBar]
+        """
         super(NoCache, self).__init__()
         self._membus = membus
 

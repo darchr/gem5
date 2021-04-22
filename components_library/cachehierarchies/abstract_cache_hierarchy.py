@@ -36,9 +36,12 @@ from typing import Tuple
 class AbstractCacheHierarchy(ABC):
 
     """
-    A Cache Hierarchy incorporates any system components which exist between
-    the Processor and System memory. E.g., Caches, the MemBus, MMU, and the
-    MMU Cache.
+    A Cache Hierarchy incorporates any system components which manages
+    communicaton between the processor and memory. E.g., Caches, the MemBus,
+    MMU, and the MMU Cache.
+
+    TODO: "CacheHierarchy" isn't the best of names for this. This could be
+    improved.
     """
 
     @abstractmethod
@@ -46,38 +49,41 @@ class AbstractCacheHierarchy(ABC):
         """
         Incorporates the caches into a board.
 
-        Each specific hierarchy needs to implement this function.
+        Each specific hierarchy needs to implement this function and will be
+        unique for each setup.
+
+        TODO: This should probably be renamed. Perhaps "incorporate(...)" (?)
+
+        :param motherboard: The motherboard in which the cache heirarchy is to
+        be incorporated.
+
+        :type motherboard: AbstractMotherboard
         """
 
         raise NotImplementedError
 
     @abstractmethod
     def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port, Port]:
+        """
+        Obtain the interupt ports.
+
+        :param cpu: The CPU in which the interupt ports belong.
+
+        :type cpu: BaseCPU
+
+        :returns: A 2-dimensional tuple of the request and the responce port.
+
+        :rtype: Tuple[Port, Port]
+        """
         raise NotImplementedError
 
     @abstractmethod
     def get_membus(self) -> BaseXBar:
+        """
+        Obtain the Memory Bus.
+
+        :returns: The memory bus.
+
+        :rtype: BaseXBar
+        """
         raise NotImplementedError
-
-
-class AbstractTwoLevelHierarchy(AbstractCacheHierarchy):
-    """
-    An abstract two-level hierarchy with a configurable L1 and L2 size and
-    associativity.
-    """
-
-    def __init__(
-        self,
-        l1i_size: str,
-        l1i_assoc: str,
-        l1d_size: str,
-        l1d_assoc: str,
-        l2_size: str,
-        l2_assoc: str,
-    ):
-        self.l1i_size = l1i_size
-        self.l1i_assoc = l1i_assoc
-        self.l1d_size = l1d_size
-        self.l1d_assoc = l1d_assoc
-        self.l2_size = l2_size
-        self.l2_assoc = l2_assoc
