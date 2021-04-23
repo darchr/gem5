@@ -715,7 +715,7 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
 
 
     // COMMENT: probably do not need to check tags here
-    int index = bits(pkt->getAddr(),
+    /*int index = bits(pkt->getAddr(),
                 ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
     if (tagStoreDC[index].tag == returnTag(pkt->getAddr()) && pkt->isWrite()) {
         // if true it is DRAM cache hit
@@ -760,7 +760,7 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
        //               and write for new data
 
     }
-
+    */
     // just validate that pkt's address maps to the nvm
     assert(nvm && nvm->getAddrRange().contains(pkt->getAddr()));
 
@@ -1663,7 +1663,7 @@ MemCtrl::processNextReqEvent()
             // transition to writing
             busStateNext = WRITE;
         }
-    } else {
+    } else { // write
 
         bool write_found = false;
         MemPacketQueue::iterator to_write;
@@ -1702,7 +1702,7 @@ MemCtrl::processNextReqEvent()
             }
         }
 
-        if (!write_found) { // if write candidate is not already found
+        if (!write_found) { // if write candidate is not already found, check writeReq queue. This write needs a read first!
             for (auto queue = writeQueue.rbegin();
                 queue != writeQueue.rend(); ++queue) {
 
@@ -1759,13 +1759,13 @@ MemCtrl::processNextReqEvent()
         // COMMENT: We should update the dirty bits right before deleting
         // the packet
 
-
+        // MARYAM: This sould not be checked here! Should be transferred to resp process event!
         // ***************** Update the tags ***************** //
-        int index = bits(mem_pkt->pkt->getAddr(),
+        /*int index = bits(mem_pkt->pkt->getAddr(),
                         ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
 
         // setting the dirty bit here
-        tagStoreDC[index].meta_bits = tagStoreDC[index].meta_bits | 0x02;
+        tagStoreDC[index].meta_bits = tagStoreDC[index].meta_bits | 0x02;*/
 
         // ***************** Update the tags ***************** //
 

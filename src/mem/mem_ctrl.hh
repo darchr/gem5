@@ -105,6 +105,9 @@ class MemPacket
 
     const bool read;
 
+    //every write will initiate a read first
+    const bool read_before_write;
+
     /** Does this packet access DRAM?*/
     const bool dram;
 
@@ -188,8 +191,15 @@ class MemPacket
     inline bool isWrite() const { return !read; }
 
     /**
+     * Return true if its a initial read for a write packet
+     * (interface compatibility with Packet)
+     */
+    inline bool isReadBeforeWrite() const { return read_before_write; }
+
+    /**
      * Return true if its a DRAM access
      */
+    
     inline bool isDram() const { return dram; }
 
     MemPacket(PacketPtr _pkt, bool is_read, bool is_dram, uint8_t _rank,
@@ -197,11 +207,12 @@ class MemPacket
               unsigned int _size)
         : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
           _requestorId(pkt->requestorId()),
-          read(is_read), dram(is_dram), rank(_rank), bank(_bank), row(_row),
+          read(is_read), read_before_write(!is_read), dram(is_dram), rank(_rank), bank(_bank), row(_row),
           bankId(bank_id), addr(_addr), size(_size), burstHelper(NULL),
           _qosValue(_pkt->qosValue())
-    {
-    }
+          {
+          }
+    
 };
 
 // The memory packets are store in a multiple dequeue structure,
@@ -274,9 +285,9 @@ class MemCtrl : public QoS::MemCtrl
       // xxxxxxdv (dirty and valid bits)
       uint8_t meta_bits = 0;
     };
-        // constant to indicate that the cache line is
-        // dirty
-        const uint8_t DIRTY_LINE = 1 << 0;
+    // constant to indicate that the cache line is
+    // dirty
+    const uint8_t DIRTY_LINE = 1 << 0;
 
     // constant to indicate that the cache line is
     // valid
