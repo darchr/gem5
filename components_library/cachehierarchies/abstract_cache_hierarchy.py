@@ -24,21 +24,24 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 
 from ..motherboards.abstract_motherboard import AbstractMotherboard
 
-from m5.objects import  BaseCPU, BaseXBar
+from m5.objects import  BaseCPU, BaseXBar, SubSystem
 from m5.params import Port
 
 from typing import Tuple
 
-class AbstractCacheHierarchy(ABC):
+class AbstractCacheHierarchy(SubSystem):
+    __metaclass__ = ABCMeta
 
     """
     A Cache Hierarchy incorporates any system components which manages
     communicaton between the processor and memory. E.g., Caches, the MemBus,
     MMU, and the MMU Cache.
+
+    All Cache Hierarchies must have this as a base class.
 
     TODO: "CacheHierarchy" isn't the best of names for this. This could be
     improved.

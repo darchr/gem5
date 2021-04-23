@@ -24,9 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from .abstract_cache_hierarchy import AbstractCacheHierarchy
+#from .abstract_cache_hierarchy import AbstractCacheHierarchy
 
-class AbstractTwoLevelCacheHierarchy(AbstractCacheHierarchy):
+class AbstractTwoLevelCacheHierarchy():
     """
     An abstract two-level hierarchy with a configurable L1 and L2 size and
     associativity.

@@ -24,16 +24,17 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from components_library.processors.cpu_types import CPUTypes
 
-from m5.objects import BaseCPU
+from m5.objects import BaseCPU, SubSystem
 
 from ..motherboards.abstract_motherboard import AbstractMotherboard
 
 from typing import List
 
-class AbstractProcessor(ABC):
+class AbstractProcessor(SubSystem):
+    __metaclass__ = ABCMeta
 
     def __init__(self, cpu_type: CPUTypes, num_cores: int) -> None:
         assert(num_cores > 0)
