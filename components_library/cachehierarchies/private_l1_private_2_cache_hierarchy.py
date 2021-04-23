@@ -98,13 +98,13 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
             l2_assoc = 1, #TODO: Same as above.
         )
 
-        self._membus = membus
+        self.membus = membus
 
     @overrides(AbstractCacheHierarchy)
     def incorporate_cache(self, motherboard: AbstractMotherboard) -> None:
 
         # Connect the membus to the system.
-        motherboard.get_system_simobject().membus = self.get_membus()
+        #motherboard.get_system_simobject().membus = self.get_membus()
 
         # Set up the system port for functional access from the simulator.
         motherboard.get_system_simobject().system_port = \
@@ -147,4 +147,4 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
 
     @overrides(AbstractCacheHierarchy)
     def get_membus(self) -> BaseXBar:
-        return self._membus
+        return self.membus

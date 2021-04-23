@@ -41,7 +41,7 @@ class AbstractMotherboard(ABC):
 
         self._processor = processor
         self._memory = memory
-        self._cache_hierarchy = cache_hierarchy
+        self.cache_hierarchy = cache_hierarchy
         self._system = System()
 
         self.connect_things()
@@ -53,7 +53,7 @@ class AbstractMotherboard(ABC):
         return self._memory
 
     def get_cache_hierarchy(self) -> "AbstractCacheHierarchy":
-        return self._cache_hierarchy
+        return self.cache_hierarchy
 
     def get_system_simobject(self) -> System:
         return self._system
