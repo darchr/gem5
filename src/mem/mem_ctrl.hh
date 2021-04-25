@@ -199,7 +199,7 @@ class MemPacket
     /**
      * Return true if its a DRAM access
      */
-    
+
     inline bool isDram() const { return dram; }
 
     MemPacket(PacketPtr _pkt, bool is_read, bool is_dram, uint8_t _rank,
@@ -212,7 +212,7 @@ class MemPacket
           _qosValue(_pkt->qosValue())
           {
           }
-    
+
 };
 
 // The memory packets are store in a multiple dequeue structure,
@@ -318,6 +318,13 @@ class MemCtrl : public QoS::MemCtrl
      */
     bool retryRdReq;
     bool retryWrReq;
+
+    /**
+     * Remember if we have to retry because NVMRd queue or DRAM
+     * Fill queue were full
+     */
+    bool retryNVMRdReq;
+    bool retryDRAMFillReq;
 
     /**
      * Current sizes of nvmReadQueue, nvmWriteQueue, dramFillQueue
@@ -553,7 +560,9 @@ class MemCtrl : public QoS::MemCtrl
      * This is a priority queue where
      */
     //std::deque<MemPacket *> respQueue;
-    std::priority_queue<std::pair<Tick, MemPacket *> > respQueue;
+    //priority queue ordered by earliest tick
+    std::priority_queue<std::pair<Tick, MemPacket *>,
+                        std::greater<Tick>> respQueue;
 
     /**
      * Holds count of commands issued in burst window starting at

@@ -53,6 +53,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     QoS::MemCtrl(p),
     port(name() + ".port", *this), isTimingMode(false),
     retryRdReq(false), retryWrReq(false),
+    retryNVMRdReq(false), retryDRAMFillReq(false),
     nextReqEvent([this]{ processNextReqEvent(); }, name()),
     respondEvent([this]{ processRespondEvent(); }, name()),
     dram(p.dram), nvm(p.nvm),
@@ -903,8 +904,15 @@ MemCtrl::processRespondEvent()
                 // if any of the queues are successful
                 assert(respQueue.top().second->readyTime ==
                                                 respQueue.top.first);
-                schedule(respondEvent,
-                              respQueue.top().second->readyTime + 2);
+
+                if (nvmReadQueueFull(1))
+                    retryNVMRdReq = true;
+
+                if (dramFillQueueFull(1))
+                    retryDRAMFillReq = true;
+
+                //schedule(respondEvent,
+                //              respQueue.top().second->readyTime + 2);
                // re schedule the respondEvent process
                // not sure what should be the delay above and if even
                // this method would work as there might be overlap with
@@ -942,7 +950,8 @@ MemCtrl::processRespondEvent()
             else {
 
                 // if any of the queues are successful
-                schedule(respondEvent, respQueue.top.second->readyTime + 2);
+                retryDRAMFillReq = true;
+                //schedule(respondEvent, respQueue.top.second->readyTime + 2);
                // re schedule the respondEvent process
                // not sure what should be the delay above and if even
                // this method would work as there might be overlap with
@@ -1649,6 +1658,13 @@ MemCtrl::processNextReqEvent()
             // queue is it taken from
             if (nvm_q_read) {
                 nvmReadQueue.erase(to_read);
+
+                if (retryNVMRd){
+                    // if we could not process a response because
+                    // NVMRd queue was full, let's schedule it now
+                    retryNVMRdReq = false;
+                    schedule(respondEvent, curTick()+1);
+                }
             }
             else {
                 readQueue[mem_pkt->qosValue()].erase(to_read);
@@ -1772,12 +1788,25 @@ MemCtrl::processNextReqEvent()
 
         // remove the request from the queue - the iterator is no longer valid
 
-        if (dfill_q_write)
+        if (dfill_q_write) {
+
             dramFillQueue.erase(to_write);
-        else if (nvm_q_write)
+            if (retryDRAMFillReq) {
+                // retry processing respond event if we
+                // could not do it before becasue dram fill
+                // queue was full
+
+                retryDRAMFillReq = false;
+                schedule(respondEvent, curTick()+1);
+            }
+
+        }
+        else if (nvm_q_write) {
             nvmQueueWrite.erase(to_write)
-        else
+        }
+        else {
             writeQueue[mem_pkt->qosValue()].erase(to_write);
+        }
 
         delete mem_pkt;
 
