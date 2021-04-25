@@ -73,6 +73,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     nextBurstAt(0), prevArrival(0),
     nextReqTime(0),
     dramCacheSize(p.dram_cache_size),
+    writeAllocatePolicy(p.write_allocate_policy),
     stats(*this)
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
@@ -839,6 +840,7 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     return true;
 }
 
+//MARYAM: When/how/where this function is called?
 void
 MemCtrl::processRespondEvent()
 {
@@ -866,23 +868,28 @@ MemCtrl::processRespondEvent()
 
     MemPacket* mem_pkt = respQueue.top().second;
 
+    // Just in case, the packet was a write from WQ, 
+    // make it false so it does not generate a read again.
+    mem_pkt->read_before_write = false;
+
     // ****************
-
+    // MARYAM: Assuming read & writes, why do you assert for reads?
     // assuming that read will still be true on the way back
-
-    assert(mem_pkt->isRead());
+    // assert(mem_pkt->isRead());
 
     bool dram_miss = false;
 
     int index = bits(mem_pkt->pkt->getAddr(),
             ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
 
+    // **************** DRAM CACHE HIT **************** //
     if (tagStoreDC[index].tag == returnTag(mem_pkt->pkt->getAddr())) {
         // if true it is DRAM cache hit and we do not need to do anything
     }
 
+    // **************** DRAM CACHE MISS, CLEAN **************** //
     else if (tagStoreDC[index].tag != returnTag(mem_pkt->pkt->getAddr())
-                    &&  (!(tagStoreDC[index].meta_bits & 0x02)))         {
+             &&  (!(tagStoreDC[index].meta_bits & 0x02))){ 
 
          if (mem_pkt->isDram()) {
             // clean miss
@@ -964,10 +971,8 @@ MemCtrl::processRespondEvent()
 
     }
 
-    // *****************
 
-    // dirty miss
-
+    // **************** DRAM CACHE MISS, CLEAN **************** //
     else if (tagStoreDC[index].tag != returnTag(mem_pkt->pkt->getAddr())
                     &&  (!(tagStoreDC[index].meta_bits & 0x03))) {
 
@@ -1682,6 +1687,7 @@ MemCtrl::processNextReqEvent()
     } else { // write
 
         bool write_found = false;
+        bool write_WQ = false;
         MemPacketQueue::iterator to_write;
         uint8_t prio = numPriorities();
 
@@ -1738,6 +1744,7 @@ MemCtrl::processNextReqEvent()
 
                 if (to_write != queue->end()) {
                     write_found = true;
+                    write_WQ = true;
                     break;
                 }
             }
@@ -1753,6 +1760,8 @@ MemCtrl::processNextReqEvent()
         }
 
         auto mem_pkt = *to_write;
+        if(write_WQ)
+            mem_pkt->read_before_write = true;
 
         // sanity check
         assert(mem_pkt->size <= (mem_pkt->isDram() ?

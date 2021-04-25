@@ -59,7 +59,7 @@ class MemCtrl(QoSMemCtrl):
     port = ResponsePort("This port responds to memory requests")
 
     dram_cache_size = Param.Int('1024', "DRAM cache size")
-
+    write_allocate_policy = Param.Int('false', "DRAM cache write allocate policy, can be 'allocate on write' or 'no allocate on write'")
     # Interface to volatile, DRAM media
     dram = Param.DRAMInterface(NULL, "DRAM interface")
 
