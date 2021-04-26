@@ -324,6 +324,7 @@ class MemCtrl : public QoS::MemCtrl
      * Fill queue were full
      */
     bool retryNVMRdReq;
+    bool retryNVMWrReq;
     bool retryDRAMFillReq;
 
     /**
