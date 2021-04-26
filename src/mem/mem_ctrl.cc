@@ -841,26 +841,6 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
 }
 
 //MARYAM: When/how/where this function is called?
-/******************************************************************************
-
-                              Online C++ Compiler.
-               Code, Compile, Run and Debug C++ program online.
-Write your code in this editor and press "Run" button to compile and execute it.
-
-*******************************************************************************/
-
-#include <iostream>
-
-using namespace std;
-
-int main()
-{
-    cout<<"Hello World";
-
-    return 0;
-}
-
-//MARYAM: When/how/where this function is called?
 void
 MemCtrl::processRespondEvent()
 {
@@ -999,10 +979,8 @@ MemCtrl::processRespondEvent()
                         // this method would work as there might be overlap with
                         // other events already scheduled for resp queue
                     }
-
                 }
             }
-        
         }
         
         // **************** DRAM CACHE MISS, Dirty **************** //
@@ -1114,7 +1092,7 @@ MemCtrl::processRespondEvent()
             }
         } else { //write packet
             
-            // TO DO
+            // TO DO 
         }
     }
     
