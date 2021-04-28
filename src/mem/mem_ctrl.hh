@@ -109,7 +109,8 @@ class MemPacket
     bool read_before_write;
 
     /** Does this packet access DRAM?*/
-    const bool dram;
+    //const bool dram;
+    bool dram;
 
     /** Will be populated by address decoder */
     const uint8_t rank;
@@ -207,7 +208,8 @@ class MemPacket
               unsigned int _size)
         : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
           _requestorId(pkt->requestorId()),
-          read(is_read), read_before_write(is_read), dram(is_dram), rank(_rank), bank(_bank), row(_row),
+          read(is_read), read_before_write(false), dram(is_dram),
+          rank(_rank), bank(_bank), row(_row),
           bankId(bank_id), addr(_addr), size(_size), burstHelper(NULL),
           _qosValue(_pkt->qosValue())
           {

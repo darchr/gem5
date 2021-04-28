@@ -263,7 +263,7 @@ MemCtrl::addToNVMReadQueue(MemPacket* mem_pkt)
     // If yes, then they should be merged
 
     //assert(!pkt->isWrite());
-    assert(!mem_pkt->isWrite());
+    assert(mem_pkt->isRead());
     assert(!nvmReadQueueFull(1));
 
     // COMMENT: Should overwrite the mem_pkt?
@@ -274,7 +274,6 @@ MemCtrl::addToNVMReadQueue(MemPacket* mem_pkt)
                             mem_pkt->pkt->getSize(), true, false);
     nvm->setupRank(mem_pkt->rank, true);
     mem_pkt->readyTime = MaxTick;
-
     nvmReadQueue.push_back(mem_pkt);
 
     nvmReadQueueSize++;
@@ -295,7 +294,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
 {
     // only add to the read queue here. whenever the request is
     // eventually done, set the readyTime, and call schedule()
-    assert(!pkt->isWrite());
+    assert(pkt->isRead());
 
     assert(pkt_count != 0);
 
@@ -474,7 +473,8 @@ MemCtrl::addToDRAMFillQueue(MemPacket mem_pkt)
     // and is sent ot nvm read queue (if it did not come from
     // nvm read queue already)
 
-    assert(mem_pkt->isRead());
+    //MARYAM: I guess the next line must assert for WRITES, not READS!
+    assert(mem_pkt->isWrite());
     assert(!dramFillQueueFull(1));
 
     // COMMENT: Should overwrite the mem_pkt?
@@ -583,6 +583,7 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
             // COMMENT: Check if this packet is in DRAM cache through tags
             if (is_dram) {
                 mem_pkt = dram->decodePacket(pkt, addr, size, false, true);
+                mem_pkt->read_before_write = true;
                 dram->setupRank(mem_pkt->rank, false);
             } else {
                 mem_pkt = nvm->decodePacket(pkt, addr, size, false, false);
@@ -702,6 +703,8 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     // What type of media does this packet access?
     //bool is_dram = false;
 
+    // MARYAM: the next line is a MUST to make sure every single packet
+    // checks DRAM first. Don't change it.
     bool is_dram = true;
 
     // COMMENT: is_dram kind of now means if this request should be
@@ -1794,6 +1797,7 @@ MemCtrl::processNextReqEvent()
     busState = busStateNext;
 
     // COMMENT: Not sure what is happening here!
+    //MARYAM: I guess we should remove this nvm check.
     if (nvm) {
         for (auto queue = readQueue.rbegin();
              queue != readQueue.rend(); ++queue) {
@@ -2077,8 +2081,12 @@ MemCtrl::processNextReqEvent()
         }
 
         auto mem_pkt = *to_write;
-        if(write_WQ)
-            mem_pkt->read_before_write = true;
+
+        // next lines are moved to addtoWrQ func
+        //if (write_WQ) {
+        //    mem_pkt->read_before_write = true;
+        //    mem_pkt->dram = true;
+        //}
 
         // sanity check
         assert(mem_pkt->size <= (mem_pkt->isDram() ?
