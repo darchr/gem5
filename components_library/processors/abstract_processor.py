@@ -29,7 +29,7 @@ from components_library.processors.cpu_types import CPUTypes
 
 from m5.objects import BaseCPU, SubSystem
 
-from ..motherboards.abstract_motherboard import AbstractMotherboard
+from ..boards.abstract_board import AbstractBoard
 
 from typing import List
 
@@ -37,6 +37,7 @@ class AbstractProcessor(SubSystem):
     __metaclass__ = ABCMeta
 
     def __init__(self, cpu_type: CPUTypes, num_cores: int) -> None:
+        super(AbstractProcessor, self).__init__()
         assert(num_cores > 0)
 
         self._num_cores = num_cores
@@ -58,5 +59,5 @@ class AbstractProcessor(SubSystem):
         raise NotImplementedError
 
     @abstractmethod
-    def incorporate_processor(self, motherboard: AbstractMotherboard) -> None:
+    def incorporate_processor(self, board: AbstractBoard) -> None:
         raise NotImplementedError

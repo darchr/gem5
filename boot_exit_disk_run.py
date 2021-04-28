@@ -24,12 +24,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from components_library.motherboards.x86_motherboard import X86Motherboard
 import m5
 from m5.objects import Root
 
-from components_library.motherboards.simple_motherboard \
-    import SimpleMotherboard
+from components_library.boards.x86_board import X86Board
 from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
     import PrivateL1PrivateL2CacheHierarchy
 from components_library.cachehierarchies.no_cache import NoCache
@@ -55,11 +53,11 @@ memory = DDR3_1600_8x8(size="3GB")
 
 processor = SimpleProcessor(cpu_type = CPUTypes.ATOMIC, num_cores=1)
 
-motherboard = X86Motherboard(clk_freq="3GHz",
-                                processor=processor,
-                                memory=memory,
-                                cache_hierarchy=cache_hierarchy,
-                               )
+motherboard = X86Board(clk_freq="3GHz",
+                       processor=processor,
+                       memory=memory,
+                       cache_hierarchy=cache_hierarchy,
+                      )
 
 
 

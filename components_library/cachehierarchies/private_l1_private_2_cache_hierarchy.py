@@ -30,7 +30,7 @@ from .abstract_two_level_cache_hierarchy import AbstractTwoLevelCacheHierarchy
 from ..caches.l1dcache import L1DCache
 from ..caches.l1icache import L1ICache
 from ..caches.l2cache import L2Cache
-from ..motherboards.abstract_motherboard import AbstractMotherboard
+from ..boards.abstract_board import AbstractBoard
 
 from m5.objects import L2XBar, BaseCPU, BaseXBar, SystemXBar, BadAddr
 
@@ -88,6 +88,7 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
         :type membus: Optional[BaseXBar]
         """
 
+        AbstractClassicCacheHierarchy.__init__(self=self)
         AbstractTwoLevelCacheHierarchy.__init__(
             self,
             l1i_size = l1i_size,
@@ -101,16 +102,18 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
         self.membus = membus
 
     @overrides(AbstractCacheHierarchy)
-    def incorporate_cache(self, motherboard: AbstractMotherboard) -> None:
+    def incorporate_cache(self, board: AbstractBoard) -> None:
 
+
+        board.get_system_simobject().cache_hierarchy = self
         # Connect the membus to the system.
         #motherboard.get_system_simobject().membus = self.get_membus()
 
         # Set up the system port for functional access from the simulator.
-        motherboard.get_system_simobject().system_port = \
+        board.get_system_simobject().system_port = \
             self.get_membus().cpu_side_ports
 
-        for cpu in motherboard.get_processor().get_cpu_simobjects():
+        for cpu in board.get_processor().get_cpu_simobjects():
 
             # Create a memory bus, a coherent crossbar, in this case.
             cpu.l2bus = L2XBar()

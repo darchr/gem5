@@ -27,17 +27,30 @@
 from abc import ABC, abstractmethod
 
 from m5.defines import buildEnv
-from m5.objects import System, BadAddr, BaseXBar, SystemXBar
+from m5.objects import System
 
 from .isas import ISA
 from .coherence_protocol import CoherenceProtocol
 
-class AbstractMotherboard(ABC):
+class AbstractBoard(ABC):
     def __init__(self,
                  processor: "AbstractProcessor",
                  memory: "AbstractMemory",
                  cache_hierarchy: "AbstractCacheHierarchy"
                 ) -> None:
+        """
+        :param processor: The processor for this board.
+
+        :type processor: AbstractProcessor
+
+        :param memory: The memory for this board.
+
+        :type memory: AbstractMemory
+
+        :param cache_hierarchy: The Cachie Hierarchy for this board.
+
+        :type cache_hierarchy: AbstractCacheHierarchy
+        """
 
         self._processor = processor
         self._memory = memory
@@ -47,22 +60,62 @@ class AbstractMotherboard(ABC):
         self.connect_things()
 
     def get_processor(self) -> "AbstractProcessor":
+        """
+        Get the board's processor.
+
+        :returns: The processor.
+
+        :rtype: AbstractProcessor
+        """
         return self._processor
 
     def get_memory(self) -> "AbstractMemory":
+        """
+        Get the board's memory system.
+
+        :returns: The memory system.
+
+        :rtype: AbstractMemory
+        """
         return self._memory
 
     def get_cache_hierarchy(self) -> "AbstractCacheHierarchy":
+        """
+        Get the board's cache hierarchy.
+
+        :returns: The cache hierarchy.
+
+        :rtype: AbstractCacheHierarchy
+        """
         return self.cache_hierarchy
 
     def get_system_simobject(self) -> System:
+        """
+        Get the System simobject.
+
+        :returns: The System simobject.
+
+        :rtype: System
+        """
         return self._system
 
     @abstractmethod
     def connect_things(self) -> None:
+        """
+        Connects all the components to the board.
+        """
         raise NotImplementedError
 
     def get_runtime_isa(self) -> ISA:
+        """
+        Gets the target ISA.
+
+        This can be inferred at runtime.
+
+        :returns: The target ISA.
+
+        :rtype: ISA
+        """
         isa_map = {
             "sparc" : ISA.SPARC,
             "mips" : ISA.MIPS,
@@ -81,6 +134,15 @@ class AbstractMotherboard(ABC):
         return isa_map[isa_str]
 
     def get_runtime_coherence_protocol(self) -> CoherenceProtocol:
+        """
+        Gets the cache coherence protocol.
+
+        This can be inferred at runtime.
+
+        :returns: The cache coherence protocol.
+
+        :rtype: CoherenceProtocol
+        """
         protocol_map = {
             "mi_example" : CoherenceProtocol.MI_EXAMPLE,
             "moesi_hammer" : CoherenceProtocol.ARM_MOESI_HAMMER,

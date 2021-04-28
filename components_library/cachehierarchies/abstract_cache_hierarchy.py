@@ -26,7 +26,7 @@
 
 from abc import ABCMeta, abstractmethod
 
-from ..motherboards.abstract_motherboard import AbstractMotherboard
+from ..boards.abstract_board import AbstractBoard
 
 from m5.objects import  BaseCPU, BaseXBar, SubSystem
 from m5.params import Port
@@ -35,6 +35,9 @@ from typing import Tuple
 
 class AbstractCacheHierarchy(SubSystem):
     __metaclass__ = ABCMeta
+
+    def __init__(self):
+        super(AbstractCacheHierarchy, self).__init__()
 
     """
     A Cache Hierarchy incorporates any system components which manages
@@ -48,7 +51,7 @@ class AbstractCacheHierarchy(SubSystem):
     """
 
     @abstractmethod
-    def incorporate_cache(self, motherboard: AbstractMotherboard):
+    def incorporate_cache(self, board: AbstractBoard):
         """
         Incorporates the caches into a board.
 
@@ -57,10 +60,10 @@ class AbstractCacheHierarchy(SubSystem):
 
         TODO: This should probably be renamed. Perhaps "incorporate(...)" (?)
 
-        :param motherboard: The motherboard in which the cache heirarchy is to
-        be incorporated.
+        :param board: The board in which the cache heirarchy is to be
+        incorporated.
 
-        :type motherboard: AbstractMotherboard
+        :type board: AbstractBoard
         """
 
         raise NotImplementedError

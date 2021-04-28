@@ -32,4 +32,5 @@ class AbstractClassicCacheHierarchy(AbstractCacheHierarchy):
     provides the shared infrastructure that all classic memory system
     implementations need.
     """
-    pass
+    def __init__(self):
+        super(AbstractClassicCacheHierarchy, self).__init__()

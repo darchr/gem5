@@ -30,7 +30,7 @@ from sys import version
 from .abstract_cache_hierarchy import AbstractCacheHierarchy
 from .abstract_two_level_cache_hierarchy import AbstractTwoLevelCacheHierarchy
 from .abstract_ruby_cache_hierarhcy import AbstractRubyCacheHierarchy
-from ..motherboards.abstract_motherboard import AbstractMotherboard
+from ..boards.abstract_board import AbstractBoard
 
 from .ruby.topologies.pt2pt import SimplePt2Pt
 
@@ -129,11 +129,11 @@ class MESITwoLevelCacheHierarchy(AbstractRubyCacheHierarchy,
 
 
     @overrides(AbstractCacheHierarchy)
-    def incorporate_cache(self, motherboard: AbstractMotherboard) -> None:
-        cache_line_size = motherboard.get_system_simobject().cache_line_size
+    def incorporate_cache(self, board: AbstractBoard) -> None:
+        cache_line_size = board.get_system_simobject().cache_line_size
 
-        motherboard.get_system_simobject().ruby_system = RubySystem()
-        self._ruby_system = motherboard.get_system_simobject().ruby_system
+        board.get_system_simobject().ruby_system = RubySystem()
+        self._ruby_system = board.get_system_simobject().ruby_system
 
         # MESI_Two_Level needs 5 virtual networks
         self._ruby_system.number_of_virtual_networks = 5
@@ -142,12 +142,12 @@ class MESITwoLevelCacheHierarchy(AbstractRubyCacheHierarchy,
         self._ruby_system.network.number_of_virtual_networks = 5
 
         # QUESTION: HOW IS THIS KNOWN???
-        iobus = motherboard.get_iobus()
+        iobus = board.get_iobus()
 
         self._l1_controllers = []
         self._cpu_map = {}
         for i, cpu in enumerate(
-            motherboard.get_processor().get_cpu_simobjects()
+            board.get_processor().get_cpu_simobjects()
         ):
             cache = L1Cache(
                 self.get_l1d_size(),
@@ -196,14 +196,14 @@ class MESITwoLevelCacheHierarchy(AbstractRubyCacheHierarchy,
 
         self.directory_controllers = [
             Directory(self._ruby_system.network, cache_line_size, range, port)
-            for range, port in motherboard.get_memory().get_mem_ports()
+            for range, port in board.get_memory().get_mem_ports()
         ]
         # TODO: Make this prettier: The problem is not being able to proxy
         # the ruby system correctly
         for dir in self.directory_controllers:
             dir.ruby_system = self._ruby_system
 
-        dma_ports = motherboard.get_dma_ports()
+        dma_ports = board.get_dma_ports()
         self.dma_controllers = []
         for i, port in enumerate(dma_ports):
             ctrl = DMAController(self._ruby_system.network, cache_line_size)
@@ -231,7 +231,7 @@ class MESITwoLevelCacheHierarchy(AbstractRubyCacheHierarchy,
         # Set up a proxy port for the system_port. Used for load binaries and
         # other functional-only things.
         self._ruby_system.sys_port_proxy = RubyPortProxy()
-        motherboard.get_system_simobject().system_port = (
+        board.get_system_simobject().system_port = (
             self._ruby_system.sys_port_proxy.in_ports
         )
         self._ruby_system.sys_port_proxy.pio_request_port = \

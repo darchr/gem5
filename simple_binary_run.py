@@ -27,8 +27,7 @@
 import m5
 from m5.objects import Root
 
-from components_library.motherboards.simple_motherboard \
-    import SimpleMotherboard
+from components_library.boards.simple_board import SimpleBoard
 from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
     import PrivateL1PrivateL2CacheHierarchy
 from components_library.cachehierarchies.no_cache import NoCache
@@ -51,11 +50,11 @@ memory = DDR3_1600_8x8(size="512MiB")
 
 processor = SimpleProcessor(cpu_type = CPUTypes.ATOMIC, num_cores=1)
 
-motherboard = SimpleMotherboard(clk_freq="3GHz",
-                                processor=processor,
-                                memory=memory,
-                                cache_hierarchy=cache_hierarchy,
-                               )
+motherboard = SimpleBoard(clk_freq="3GHz",
+                          processor=processor,
+                          memory=memory,
+                          cache_hierarchy=cache_hierarchy,
+                         )
 
 thispath = os.path.dirname(os.path.realpath(__file__))
 binary = os.path.join(thispath, 'tests/test-progs/hello/bin/x86/linux/hello')

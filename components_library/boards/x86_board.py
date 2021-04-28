@@ -25,20 +25,20 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-from components_library.motherboards.isas import ISA
 import m5
 from m5.objects import Cache, Pc, AddrRange, X86FsLinux, \
                        Addr, X86SMBiosBiosInformation, X86IntelMPProcessor,\
                        X86IntelMPIOAPIC, X86IntelMPBus,X86IntelMPBusHierarchy,\
                        X86IntelMPIOIntAssignment, X86E820Entry, Bridge,\
-                       IOXBar, IdeDisk, CowDiskImage, RawDiskImage, BaseXBar,\
-                       BaseCPU
+                       IOXBar, IdeDisk, CowDiskImage, RawDiskImage, BaseXBar
 
 from m5.params import Port
 
 
-from .abstract_motherboard import AbstractMotherboard
-from .simple_motherboard import SimpleMotherboard
+from .simple_board import SimpleBoard
+
+from .abstract_board import AbstractBoard
+from .isas import ISA
 from ..processors.abstract_processor import AbstractProcessor
 from ..memory.abstract_memory import AbstractMemory
 from ..cachehierarchies.abstract_classic_cache_hierarchy import \
@@ -46,10 +46,10 @@ from ..cachehierarchies.abstract_classic_cache_hierarchy import \
 from ..utils.override import *
 
 
-from typing import Sequence, Tuple
+from typing import Sequence, Optional
 
 
-class X86Motherboard(SimpleMotherboard):
+class X86Board(SimpleBoard):
     """
     A motherboard capable of full system simulation for X86, with switchable
     processors.
@@ -59,8 +59,9 @@ class X86Motherboard(SimpleMotherboard):
                  processor: AbstractProcessor,
                  memory: AbstractMemory,
                  cache_hierarchy: AbstractClassicCacheHierarchy,
+                 exit_on_work_items : Optional[bool] = False,
                 ) -> None:
-        super(X86Motherboard, self).__init__(
+        super(X86Board, self).__init__(
                                              clk_freq= clk_freq,
                                              processor=processor,
                                              memory=memory,
@@ -82,8 +83,7 @@ class X86Motherboard(SimpleMotherboard):
 
         self.get_system_simobject().pc = Pc()
 
-        #TODO: This should be configurable
-        self.get_system_simobject().exit_on_work_items = True
+        self.get_system_simobject().exit_on_work_items = exit_on_work_items
 
         self.get_system_simobject().workload = X86FsLinux()
 
@@ -256,7 +256,7 @@ class X86Motherboard(SimpleMotherboard):
 
         self.get_system_simobject().workload.e820_table.entries = entries
 
-    @overrides(AbstractMotherboard)
+    @overrides(AbstractBoard)
     def connect_things(self) -> None:
         super().connect_things()
 

@@ -35,14 +35,11 @@ connection.
 
 """
 
-#from components_library.cachehierarchies.mesi_two_level_cache_hierarchy \
-#    import MESITwoLevelCacheHierarchy
-from components_library.motherboards.x86_motherboard import X86Motherboard
-
 import m5
 import m5.ticks
 from m5.objects import Root
 
+from components_library.boards.x86_board import X86Board
 from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
     import PrivateL1PrivateL2CacheHierarchy
 from components_library.cachehierarchies.no_cache import NoCache
@@ -89,11 +86,12 @@ processor = SimpleSwitchableProcessor(starting_processor=start_processor,
                                       switchable_processor=switch_processor)
 
 
-motherboard = X86Motherboard(
+motherboard = X86Board(
     clk_freq="3GHz",
     processor=processor,
     memory=memory,
     cache_hierarchy=cache_hierarchy,
+    exit_on_work_items=True,
 )
 
 

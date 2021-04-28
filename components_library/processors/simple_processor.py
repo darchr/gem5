@@ -24,13 +24,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from components_library.motherboards.isas import ISA
+
 from m5.objects import AtomicSimpleCPU, DerivO3CPU, TimingSimpleCPU, BaseCPU,\
                        X86KvmCPU, KvmVM
 
 from .abstract_processor import AbstractProcessor
 from .cpu_types import CPUTypes
-from ..motherboards.abstract_motherboard import AbstractMotherboard
+from ..boards.abstract_board import AbstractBoard
+from ..boards.isas import ISA
 
 from typing import List
 
@@ -41,16 +42,16 @@ class SimpleProcessor(AbstractProcessor):
                                               num_cores = num_cores)
 
         if self.get_cpu_type() == CPUTypes.ATOMIC:
-            self._cpus = self._create_cores(cpu_class = AtomicSimpleCPU,
+            self.cpus = self._create_cores(cpu_class = AtomicSimpleCPU,
                                             num_cores = num_cores)
         elif self.get_cpu_type() == CPUTypes.O3:
-            self._cpus = self._create_cores(cpu_class = DerivO3CPU,
+            self.cpus = self._create_cores(cpu_class = DerivO3CPU,
                                             num_cores = num_cores)
         elif self.get_cpu_type() == CPUTypes.TIMING:
-            self._cpus = self._create_cores(cpu_class = TimingSimpleCPU,
+            self.cpus = self._create_cores(cpu_class = TimingSimpleCPU,
                                             num_cores = num_cores)
         elif self.get_cpu_type() == CPUTypes.KVM:
-            self._cpus = self._create_cores(cpu_class = X86KvmCPU,
+            self.cpus = self._create_cores(cpu_class = X86KvmCPU,
                                             num_cores = num_cores)
             self.kvm_vm = KvmVM()
 
@@ -59,13 +60,13 @@ class SimpleProcessor(AbstractProcessor):
                                      "support cpu type '" +
                                      self.get_cpu_type().name + "'")
 
-        for cpu in self._cpus:
+        for cpu in self.cpus:
             cpu.createThreads()
 
         if self.get_cpu_type() == CPUTypes.KVM:
             # To get the KVM CPUs to run on different host CPUs
             # Specify a different event queue for each CPU
-            for i,cpu in enumerate(self._cpus):
+            for i,cpu in enumerate(self.cpus):
                 for obj in cpu.descendants():
                     obj.eventq_index = 0
                 cpu.eventq_index = i + 1
@@ -74,23 +75,24 @@ class SimpleProcessor(AbstractProcessor):
     def _create_cores(self, cpu_class: BaseCPU, num_cores: int):
         return [cpu_class(cpu_id = i) for i in range(num_cores)]
 
-    def incorporate_processor(self, motherboard: AbstractMotherboard) -> None:
+    def incorporate_processor(self, board: AbstractBoard) -> None:
 
-        motherboard.get_system_simobject().detailedCPU = \
-            self.get_cpu_simobjects()
+        board.get_system_simobject().processor = self
+        #board.get_system_simobject().detailedCPU = \
+         #   self.get_cpu_simobjects()
         for cpu in self.get_cpu_simobjects():
             # create the interrupt controller CPU and connect to the membus
             cpu.createInterruptController()
 
-            if motherboard.get_runtime_isa() == ISA.X86 :
+            if board.get_runtime_isa() == ISA.X86 :
                 int_req_port, int_resp_port = \
-                    motherboard.get_cache_hierarchy().get_interrupt_ports(cpu)
+                    board.get_cache_hierarchy().get_interrupt_ports(cpu)
                 cpu.interrupts[0].pio = int_req_port
                 cpu.interrupts[0].int_requestor = int_resp_port
                 cpu.interrupts[0].int_responder = int_req_port
 
         if self.get_cpu_type() == CPUTypes.KVM:
-            motherboard.get_system_simobject().kvm_vm = self.kvm_vm
+            board.get_system_simobject().kvm_vm = self.kvm_vm
 
     def get_cpu_simobjects(self) -> List[BaseCPU]:
-        return self._cpus
+        return self.cpus

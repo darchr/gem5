@@ -24,8 +24,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from ..motherboards.abstract_motherboard import AbstractMotherboard
-
 from typing import Optional
 
 from m5.objects import DDR3_1600_8x8 as DIMM
@@ -33,7 +31,7 @@ from m5.objects import MemCtrl
 from m5.params import Port, AddrRange
 
 from .abstract_memory import AbstractMemory
-from ..motherboards.abstract_motherboard import AbstractMotherboard
+from ..boards.abstract_board import AbstractBoard
 
 from ..utils.override import *
 
@@ -55,13 +53,13 @@ class DDR3_1600_8x8(AbstractMemory):
         ]
 
     @overrides(AbstractMemory)
-    def incorporate_memory(self, motherboard: AbstractMotherboard) -> None:
+    def incorporate_memory(self, board: AbstractBoard) -> None:
         # Setup the memory controller and set the memory
-        motherboard.get_system_simobject().mem_cntrls = self.controllers
+        board.get_system_simobject().mem_cntrls = self.controllers
 
         # TODO: I don't like how this reaches into the cache_hierarchy
         for ctrl in self.controllers:
-            ctrl.port = motherboard.get_cache_hierarchy()\
+            ctrl.port = board.get_cache_hierarchy()\
                 .get_membus().mem_side_ports
 
     @overrides(AbstractMemory)

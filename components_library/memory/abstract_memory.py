@@ -27,7 +27,7 @@
 from abc import ABC, abstractmethod
 from typing import Tuple, Sequence
 
-from ..motherboards.abstract_motherboard import AbstractMotherboard
+from ..boards.abstract_board import AbstractBoard
 
 from m5.objects import AddrRange, Port
 
@@ -40,7 +40,7 @@ class AbstractMemory(ABC):
         return self._size
 
     @abstractmethod
-    def incorporate_memory(self, motherboard: AbstractMotherboard) -> None:
+    def incorporate_memory(self, board: AbstractBoard) -> None:
         raise NotImplementedError
 
     @abstractmethod

@@ -29,7 +29,7 @@ from components_library.processors.cpu_types import CPUTypes
 from m5.objects import AddrRange, SrcClockDomain, VoltageDomain,\
                        Addr, Process, SEWorkload
 
-from .abstract_motherboard import AbstractMotherboard
+from .abstract_board import AbstractBoard
 from ..processors.abstract_processor import AbstractProcessor
 from ..memory.abstract_memory import AbstractMemory
 from ..cachehierarchies.abstract_classic_cache_hierarchy import \
@@ -37,10 +37,7 @@ from ..cachehierarchies.abstract_classic_cache_hierarchy import \
 from ..utils.override import overrides
 
 
-from typing import List, Optional
-
-
-class SimpleMotherboard(AbstractMotherboard):
+class SimpleBoard(AbstractBoard):
     """
     This is an incredibly simple system. It contains no I/O, and will work to
     work with a classic cache hierarchy setup.
@@ -53,7 +50,7 @@ class SimpleMotherboard(AbstractMotherboard):
                  memory: AbstractMemory,
                  cache_hierarchy: AbstractClassicCacheHierarchy,
                 ) -> None:
-        super(SimpleMotherboard, self).__init__(
+        super(SimpleBoard, self).__init__(
                                         processor=processor,
                                         memory=memory,
                                         cache_hierarchy=cache_hierarchy,
@@ -79,7 +76,7 @@ class SimpleMotherboard(AbstractMotherboard):
         self.get_system_simobject().mem_ranges = \
             [AddrRange(Addr(memory.get_size_str()))]
 
-    @overrides(AbstractMotherboard)
+    @overrides(AbstractBoard)
     def connect_things(self) -> None:
         # Incorporate the cache hierarchy for the motherboard.
         self.get_cache_hierarchy().incorporate_cache(self)

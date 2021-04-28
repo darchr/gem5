@@ -24,7 +24,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from ..motherboards.abstract_motherboard import AbstractMotherboard
 from .abstract_cache_hierarchy import AbstractCacheHierarchy
 
 class AbstractRubyCacheHierarchy(AbstractCacheHierarchy):
@@ -32,4 +31,5 @@ class AbstractRubyCacheHierarchy(AbstractCacheHierarchy):
     All Ruby-based cache hierarchies inherit from this class. This class
     provides the shared infrastructure that all Ruby protocols need.
     """
-    pass
+    def __init__(self):
+        super(AbstractRubyCacheHierarchy, self).__init__()

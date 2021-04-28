@@ -25,7 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from .abstract_cache_hierarchy import AbstractCacheHierarchy
-from ..motherboards.abstract_motherboard import AbstractMotherboard
+from ..boards.abstract_board import AbstractBoard
 
 from m5.objects import  BaseCPU, BaseXBar, SystemXBar, BadAddr
 from m5.params import Port
@@ -82,13 +82,15 @@ class NoCache(AbstractCacheHierarchy):
         :type membus: Optional[BaseXBar]
         """
         super(NoCache, self).__init__()
-        self._membus = membus
+        self.membus = membus
 
 
     @overrides(AbstractCacheHierarchy)
-    def incorporate_cache(self, motherboard: AbstractMotherboard) -> None:
-        motherboard.get_system_simobject().membus = self.get_membus()
-        for cpu in motherboard.get_processor().get_cpu_simobjects():
+    def incorporate_cache(self, board: AbstractBoard) -> None:
+
+        board.get_system_simobject().cache_hierarchy = self
+
+        for cpu in board.get_processor().get_cpu_simobjects():
             cpu.icache_port = self.get_membus().cpu_side_ports
             cpu.dcache_port = self.get_membus().cpu_side_ports
             cpu.mmu.connectWalkerPorts(
@@ -96,7 +98,7 @@ class NoCache(AbstractCacheHierarchy):
                 self.get_membus().cpu_side_ports
             )
         # Set up the system port for functional access from the simulator.
-        motherboard.get_system_simobject().system_port = \
+        board.get_system_simobject().system_port = \
             self.get_membus().cpu_side_ports
 
     @overrides(AbstractCacheHierarchy)
@@ -106,4 +108,4 @@ class NoCache(AbstractCacheHierarchy):
 
     @overrides(AbstractCacheHierarchy)
     def get_membus(self) -> BaseXBar:
-        return self._membus
+        return self.membus

@@ -31,8 +31,7 @@ from m5.objects import BaseCPU
 from typing import Dict, Any, List
 
 from .abstract_processor import AbstractProcessor
-from ..motherboards.abstract_motherboard import AbstractMotherboard
-from ..motherboards.abstract_motherboard import AbstractMotherboard
+from ..boards.abstract_board import AbstractBoard
 from ..utils.override import *
 
 class SwitchableProcessor(AbstractProcessor):
@@ -76,27 +75,26 @@ class SwitchableProcessor(AbstractProcessor):
         return self._current_processor.get_cpu_simobjects()
 
     @overrides(AbstractProcessor)
-    def incorporate_processor(self, motherboard: AbstractMotherboard) -> None:
-        self._current_processor.incorporate_processor(motherboard=motherboard)
+    def incorporate_processor(self, board: AbstractBoard) -> None:
+        self._current_processor.incorporate_processor(board=board)
 
         index = 0
         for proc in self._switchable_processors.values():
             if proc is not self._current_processor:
-                setattr(motherboard.get_system_simobject(),
-                    "switchable_proc" + str(index),
-                    proc.get_cpu_simobjects())
+                setattr(board.get_system_simobject(),
+                    "switchable_proc" + str(index), proc)
                 index += 1
 
         # This is a bit of a hack. The `m5.switchCpus` function, used in the
         # "switch_to_processor" function, requires the System simobject as an
         # argument. We therefore need to store the motherboard when
         # incorporating the procsesor
-        self._motherboard = motherboard
+        self._board = board
 
     def switch_to_processor(self, switchable_processor_key: Any):
 
         # Run various checks.
-        if not hasattr(self, '_motherboard'):
+        if not hasattr(self, '_board'):
             raise AssertionError("The processor has not been incorporated.")
 
         if switchable_processor_key not in self._switchable_processors.keys():
@@ -124,7 +122,7 @@ class SwitchableProcessor(AbstractProcessor):
                                      "therefore cannot be switched in.")
 
         # Switch the CPUs
-        m5.switchCpus(self._motherboard.get_system_simobject(), list(zip(
+        m5.switchCpus(self._board.get_system_simobject(), list(zip(
             self._current_processor.get_cpu_simobjects(),
             to_switch.get_cpu_simobjects()
                                                  )
