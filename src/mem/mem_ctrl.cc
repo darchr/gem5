@@ -1086,20 +1086,25 @@ MemCtrl::processRespondEvent()
             // dram_miss, because we want to send this
             // response back
 
-            if (!dramFillQueueFull(1)) {
-                addToDRAMFillQueue(mem_pkt);
-            } else {
-                // if any of the queues are successful
-                retryDRAMFillReq = true;
-                //schedule(respondEvent, respQueue.top.second->readyTime + 2);
-               // re schedule the respondEvent process
-               // not sure what should be the delay above and if even
-               // this method would work as there might be overlap with
-               // other events already scheduled for resp queue
+            // MARYAM: The following is only correct for
+            // slides 13, 14. Complete it for for slides 9, 10.
+            if (writeAllocatePolicy) {
+                if (!dramFillQueueFull(1)) {
+                    addToDRAMFillQueue(mem_pkt);
+                } else {
+                    // if any of the queues are successful
+                    retryDRAMFillReq = true;
+                    //schedule(respondEvent,
+                    //respQueue.top.second->readyTime + 2);
+                    // re schedule the respondEvent process
+                    // not sure what should be the delay above and if even
+                    // this method would work as there might be overlap with
+                    // other events already scheduled for resp queue
+                }
             }
         } else { //write packet
             
-            // TO DO 
+            // TO DO: [MARYAM] I guess nothing is required to do
         }
     }
     
