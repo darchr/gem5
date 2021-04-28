@@ -500,7 +500,7 @@ MemCtrl::addToDRAMFillQueue(MemPacket mem_pkt)
     tagStoreDC[index].tag = returnTag(mem_pkt->pkt->getAddr());
 
     // make sure that the block is set to be valid and clean
-
+    // MARYAM: only valid bit is set here. How about dirty bit?
     tagStoreDC[index].meta_bits = 0x01;
 
     //isInWriteQueue.insert(burstAlign(addr, is_dram));
@@ -885,11 +885,11 @@ MemCtrl::processRespondEvent()
         Addr currTag = returnTag(mem_pkt->pkt->getAddr());
 
 
-        // **************** THE ENTRY IS FREE/EMPTY/INVALID **************** //
-        if (!(tagStoreDC[index].meta_bits & 0x0) ) {
+        // **************** THE ENTRY IS EMPTY, POPULATE **************** //
+        if (!(tagStoreDC[index].meta_bits & 0x0) &&  mem_pkt->isWrite()) {
 
             // TO DO
-            // MARYAM: Is this case possible?
+            // MARYAM: probably nothing is required to do
         }
 
         // **************** DRAM CACHE HIT **************** //
