@@ -387,6 +387,7 @@ class MemCtrl : public QoS::MemCtrl
      * @return true if write queue is full, false otherwise
      */
     bool dramFillQueueFull(unsigned int pkt_count) const;
+
     /**
      * When a new read comes in, first check if the write q has a
      * pending request to the same address.\ If not, decode the
