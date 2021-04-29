@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 
 from m5.defines import buildEnv
 from m5.objects import System
@@ -32,12 +32,15 @@ from m5.objects import System
 from .isas import ISA
 from .coherence_protocol import CoherenceProtocol
 
-class AbstractBoard(ABC):
+class AbstractBoard(System):
+    __metaclass__ = ABCMeta
+
     def __init__(self,
                  processor: "AbstractProcessor",
                  memory: "AbstractMemory",
                  cache_hierarchy: "AbstractCacheHierarchy"
                 ) -> None:
+        super(AbstractBoard, self).__init__()
         """
         :param processor: The processor for this board.
 
@@ -52,10 +55,10 @@ class AbstractBoard(ABC):
         :type cache_hierarchy: AbstractCacheHierarchy
         """
 
-        self._processor = processor
+        self.processor = processor
         self._memory = memory
         self.cache_hierarchy = cache_hierarchy
-        self._system = System()
+        #self._system = System()
 
         self.connect_things()
 
@@ -67,7 +70,7 @@ class AbstractBoard(ABC):
 
         :rtype: AbstractProcessor
         """
-        return self._processor
+        return self.processor
 
     def get_memory(self) -> "AbstractMemory":
         """
@@ -97,7 +100,7 @@ class AbstractBoard(ABC):
 
         :rtype: System
         """
-        return self._system
+        return self #._system
 
     @abstractmethod
     def connect_things(self) -> None:

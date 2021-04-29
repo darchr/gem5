@@ -77,7 +77,7 @@ class SimpleProcessor(AbstractProcessor):
 
     def incorporate_processor(self, board: AbstractBoard) -> None:
 
-        board.get_system_simobject().processor = self
+        #board.get_system_simobject().processor = self
         #board.get_system_simobject().detailedCPU = \
          #   self.get_cpu_simobjects()
         for cpu in self.get_cpu_simobjects():

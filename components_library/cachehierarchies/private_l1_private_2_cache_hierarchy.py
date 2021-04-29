@@ -105,7 +105,7 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
     def incorporate_cache(self, board: AbstractBoard) -> None:
 
 
-        board.get_system_simobject().cache_hierarchy = self
+        #board.get_system_simobject().cache_hierarchy = self
         # Connect the membus to the system.
         #motherboard.get_system_simobject().membus = self.get_membus()
 

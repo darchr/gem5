@@ -88,7 +88,7 @@ class NoCache(AbstractCacheHierarchy):
     @overrides(AbstractCacheHierarchy)
     def incorporate_cache(self, board: AbstractBoard) -> None:
 
-        board.get_system_simobject().cache_hierarchy = self
+        #board.get_system_simobject().cache_hierarchy = self
 
         for cpu in board.get_processor().get_cpu_simobjects():
             cpu.icache_port = self.get_membus().cpu_side_ports

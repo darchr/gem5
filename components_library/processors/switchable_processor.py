@@ -44,7 +44,7 @@ class SwitchableProcessor(AbstractProcessor):
     switched in later.
 
     Though this class can be used directly, it is best inherited from. See
-    "SimpleSwitchableCPU" as an example of this
+    "SimpleSwitchableCPU" for an example of this.
     '''
     def __init__(self, switchable_processors: Dict[Any, AbstractProcessor],
                        starting_processor_key: Any) -> None:
@@ -78,12 +78,15 @@ class SwitchableProcessor(AbstractProcessor):
     def incorporate_processor(self, board: AbstractBoard) -> None:
         self._current_processor.incorporate_processor(board=board)
 
+        # TODO: This these swichable processors should be set as a child of
+        # this class. Though, for some reason, gem5 doesn't like this
+        # "SubSystem within a SubSystem" design. Therefore, for the meantime,
+        # the switchable processors are children of the board (System).
         index = 0
         for proc in self._switchable_processors.values():
-            if proc is not self._current_processor:
-                setattr(board.get_system_simobject(),
+            setattr(board.get_system_simobject(),
                     "switchable_proc" + str(index), proc)
-                index += 1
+            index += 1
 
         # This is a bit of a hack. The `m5.switchCpus` function, used in the
         # "switch_to_processor" function, requires the System simobject as an
