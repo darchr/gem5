@@ -110,14 +110,6 @@ class X86Board(SimpleBoard):
         #     contained in 1),
         #  3) everything in the IO address range up to the local APIC, and
         #  4) then the entire PCI address space and beyond.
-        #self.get_system_simobject().bridge.ranges = \
-        #    [
-        #   AddrRange(Addr(self.get_memory().get_size_str()), size=0x3FFF0000),
-         #   AddrRange(IO_address_space_base,
-         #             interrupts_address_space_base - 1),
-          #  AddrRange(pci_config_address_space_base,
-          #            Addr.max)
-         #   ]
 
         self.get_system_simobject().bridge.ranges = \
              [
@@ -324,13 +316,3 @@ class X86Board(SimpleBoard):
     def get_dma_ports(self) -> Sequence[Port]:
         return [self.get_system_simobject().pc.south_bridge.ide.dma,
         self.get_system_simobject().iobus.mem_side_ports]
-
- #   def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port,Port]:
-  #      ports = self.get_cache_hierarchy().get_interrupt_ports(cpu)
-   #     if ports is not None:
-    #        return ports
-     #   else:
-      #      return (
-       #         self.get_membus().mem_side_ports,
-        #        self.get_membus().cpu_side_ports
-         #   )
