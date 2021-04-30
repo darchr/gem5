@@ -31,7 +31,7 @@ from m5.objects import AddrRange, SrcClockDomain, VoltageDomain,\
 
 from .abstract_board import AbstractBoard
 from ..processors.abstract_processor import AbstractProcessor
-from ..memory.abstract_memory import AbstractMemory
+from ..memory.abstract_memory_system import AbstractMemorySystem
 from ..cachehierarchies.abstract_classic_cache_hierarchy import \
                                     AbstractClassicCacheHierarchy
 from ..utils.override import overrides
@@ -47,7 +47,7 @@ class SimpleBoard(AbstractBoard):
     """
     def __init__(self, clk_freq: str,
                  processor: AbstractProcessor,
-                 memory: AbstractMemory,
+                 memory: AbstractMemorySystem,
                  cache_hierarchy: AbstractClassicCacheHierarchy,
                 ) -> None:
         super(SimpleBoard, self).__init__(

@@ -40,7 +40,7 @@ from .simple_board import SimpleBoard
 from .abstract_board import AbstractBoard
 from .isas import ISA
 from ..processors.abstract_processor import AbstractProcessor
-from ..memory.abstract_memory import AbstractMemory
+from ..memory.abstract_memory_system import AbstractMemorySystem
 from ..cachehierarchies.abstract_classic_cache_hierarchy import \
                                     AbstractClassicCacheHierarchy
 from ..utils.override import *
@@ -57,7 +57,7 @@ class X86Board(SimpleBoard):
 
     def __init__(self, clk_freq: str,
                  processor: AbstractProcessor,
-                 memory: AbstractMemory,
+                 memory: AbstractMemorySystem,
                  cache_hierarchy: AbstractClassicCacheHierarchy,
                  exit_on_work_items : Optional[bool] = False,
                 ) -> None:

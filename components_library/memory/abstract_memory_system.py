@@ -24,16 +24,20 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import Tuple, Sequence
+
 
 from ..boards.abstract_board import AbstractBoard
 
-from m5.objects import AddrRange, Port
+from m5.objects import AddrRange, Port, SubSystem
 
 
-class AbstractMemory(ABC):
+class AbstractMemorySystem(SubSystem):
+    __metaclass__ = ABCMeta
+
     def __init__(self, size: str) -> None:
+        super(AbstractMemorySystem, self).__init__()
         self._size = size
 
     def get_size_str(self) -> str:

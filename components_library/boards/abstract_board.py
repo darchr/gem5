@@ -56,9 +56,8 @@ class AbstractBoard(System):
         """
 
         self.processor = processor
-        self._memory = memory
+        self.memory = memory
         self.cache_hierarchy = cache_hierarchy
-        #self._system = System()
 
         self.connect_things()
 
@@ -80,7 +79,7 @@ class AbstractBoard(System):
 
         :rtype: AbstractMemory
         """
-        return self._memory
+        return self.memory
 
     def get_cache_hierarchy(self) -> "AbstractCacheHierarchy":
         """

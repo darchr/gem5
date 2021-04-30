@@ -30,14 +30,14 @@ from m5.objects import DDR3_1600_8x8 as DIMM
 from m5.objects import MemCtrl
 from m5.params import Port, AddrRange
 
-from .abstract_memory import AbstractMemory
+from .abstract_memory_system import AbstractMemorySystem
 from ..boards.abstract_board import AbstractBoard
 
 from ..utils.override import *
 
 from typing import Tuple, Sequence
 
-class DDR3_1600_8x8(AbstractMemory):
+class DDR3_1600_8x8(AbstractMemorySystem):
 
     def __init__(self,
                 size : Optional[str] = "512MiB",
@@ -48,20 +48,18 @@ class DDR3_1600_8x8(AbstractMemory):
         # make sense for a DDR3_1600_8x8 device. Only the size has been
         # exposed.
         self._dram = DIMM(range = self.get_size_str())
-        self.controllers = [
+        self.mem_cntrls = [
             MemCtrl(dram = self._dram)
         ]
 
-    @overrides(AbstractMemory)
+    @overrides(AbstractMemorySystem)
     def incorporate_memory(self, board: AbstractBoard) -> None:
-        # Setup the memory controller and set the memory
-        board.get_system_simobject().mem_cntrls = self.controllers
 
         # TODO: I don't like how this reaches into the cache_hierarchy
-        for ctrl in self.controllers:
+        for ctrl in self.mem_cntrls:
             ctrl.port = board.get_cache_hierarchy()\
                 .get_membus().mem_side_ports
 
-    @overrides(AbstractMemory)
+    @overrides(AbstractMemorySystem)
     def get_mem_ports(self) -> Tuple[Sequence[AddrRange], Port]:
         return [(self._dram.range, ctrl.port) for ctrl in self.controllers]
