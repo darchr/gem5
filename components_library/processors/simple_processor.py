@@ -77,9 +77,6 @@ class SimpleProcessor(AbstractProcessor):
 
     def incorporate_processor(self, board: AbstractBoard) -> None:
 
-        #board.get_system_simobject().processor = self
-        #board.get_system_simobject().detailedCPU = \
-         #   self.get_cpu_simobjects()
         for cpu in self.get_cpu_simobjects():
             # create the interrupt controller CPU and connect to the membus
             cpu.createInterruptController()
@@ -92,7 +89,7 @@ class SimpleProcessor(AbstractProcessor):
                 cpu.interrupts[0].int_responder = int_req_port
 
         if self.get_cpu_type() == CPUTypes.KVM:
-            board.get_system_simobject().kvm_vm = self.kvm_vm
+            board.kvm_vm = self.kvm_vm
 
     def get_cpu_simobjects(self) -> List[BaseCPU]:
         return self.cpus

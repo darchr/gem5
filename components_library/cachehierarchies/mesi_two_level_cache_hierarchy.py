@@ -130,10 +130,10 @@ class MESITwoLevelCacheHierarchy(AbstractRubyCacheHierarchy,
 
     @overrides(AbstractCacheHierarchy)
     def incorporate_cache(self, board: AbstractBoard) -> None:
-        cache_line_size = board.get_system_simobject().cache_line_size
+        cache_line_size = board.cache_line_size
 
-        board.get_system_simobject().ruby_system = RubySystem()
-        self._ruby_system = board.get_system_simobject().ruby_system
+        board.ruby_system = RubySystem()
+        self._ruby_system = board.ruby_system
 
         # MESI_Two_Level needs 5 virtual networks
         self._ruby_system.number_of_virtual_networks = 5
@@ -231,7 +231,7 @@ class MESITwoLevelCacheHierarchy(AbstractRubyCacheHierarchy,
         # Set up a proxy port for the system_port. Used for load binaries and
         # other functional-only things.
         self._ruby_system.sys_port_proxy = RubyPortProxy()
-        board.get_system_simobject().system_port = (
+        board.system_port = (
             self._ruby_system.sys_port_proxy.in_ports
         )
         self._ruby_system.sys_port_proxy.pio_request_port = \

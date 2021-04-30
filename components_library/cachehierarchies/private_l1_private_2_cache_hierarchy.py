@@ -104,14 +104,8 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
     @overrides(AbstractCacheHierarchy)
     def incorporate_cache(self, board: AbstractBoard) -> None:
 
-
-        #board.get_system_simobject().cache_hierarchy = self
-        # Connect the membus to the system.
-        #motherboard.get_system_simobject().membus = self.get_membus()
-
         # Set up the system port for functional access from the simulator.
-        board.get_system_simobject().system_port = \
-            self.get_membus().cpu_side_ports
+        board.system_port = self.get_membus().cpu_side_ports
 
         for cpu in board.get_processor().get_cpu_simobjects():
 

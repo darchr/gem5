@@ -91,16 +91,6 @@ class AbstractBoard(System):
         """
         return self.cache_hierarchy
 
-    def get_system_simobject(self) -> System:
-        """
-        Get the System simobject.
-
-        :returns: The System simobject.
-
-        :rtype: System
-        """
-        return self #._system
-
     @abstractmethod
     def connect_things(self) -> None:
         """

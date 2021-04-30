@@ -57,24 +57,23 @@ class SimpleBoard(AbstractBoard):
                                                )
 
         # Set up the clock domain and the voltage domain.
-        self.get_system_simobject().clk_domain = SrcClockDomain()
-        self.get_system_simobject().clk_domain.clock = clk_freq
-        self.get_system_simobject().clk_domain.voltage_domain = VoltageDomain()
+        self.clk_domain = SrcClockDomain()
+        self.clk_domain.clock = clk_freq
+        self.clk_domain.voltage_domain = VoltageDomain()
 
         # Set the memory mode.
         # TODO: The CPU has a method for this.
         if self.get_processor().get_cpu_type() == CPUTypes.TIMING \
             or self.get_processor().get_cpu_type() == CPUTypes.O3 :
-            self.get_system_simobject().mem_mode = 'timing'
+            self.mem_mode = 'timing'
         elif self.get_processor().get_cpu_type() == CPUTypes.KVM :
-            self.get_system_simobject().mem_mode = "atomic_noncaching"
+            self.mem_mode = "atomic_noncaching"
         elif self.get_processor().get_cpu_type() == CPUTypes.ATOMIC :
-            self.get_system_simobject().mem_mode = "atomic"
+            self.mem_mode = "atomic"
         else:
             raise NotImplementedError
 
-        self.get_system_simobject().mem_ranges = \
-            [AddrRange(Addr(memory.get_size_str()))]
+        self.mem_ranges = [AddrRange(Addr(memory.get_size_str()))]
 
     @overrides(AbstractBoard)
     def connect_things(self) -> None:
@@ -90,8 +89,7 @@ class SimpleBoard(AbstractBoard):
     def set_workload(self, binary:str) ->None:
         # This is very limited, single binary, putting on a single Core.
 
-        self.get_system_simobject().workload = \
-            SEWorkload.init_compatible(binary)
+        self.workload = SEWorkload.init_compatible(binary)
 
         process = Process()
         process.cmd = [binary]

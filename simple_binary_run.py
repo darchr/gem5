@@ -66,7 +66,7 @@ print("Running with protocol: " +
     motherboard.get_runtime_coherence_protocol().name)
 print()
 
-root = Root(full_system = False, system = motherboard.get_system_simobject())
+root = Root(full_system = False, system = motherboard)
 
 m5.instantiate()
 

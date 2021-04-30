@@ -141,7 +141,7 @@ print()
 
 root = Root(
     full_system=True,
-    system=motherboard.get_system_simobject(),
+    system=motherboard,
     sim_quantum=int(1e9), # Needed if running in KVM mode
 )
 

@@ -84,8 +84,7 @@ class SwitchableProcessor(AbstractProcessor):
         # the switchable processors are children of the board (System).
         index = 0
         for proc in self._switchable_processors.values():
-            setattr(board.get_system_simobject(),
-                    "switchable_proc" + str(index), proc)
+            setattr(board, "switchable_proc" + str(index), proc)
             index += 1
 
         # This is a bit of a hack. The `m5.switchCpus` function, used in the
@@ -125,11 +124,11 @@ class SwitchableProcessor(AbstractProcessor):
                                      "therefore cannot be switched in.")
 
         # Switch the CPUs
-        m5.switchCpus(self._board.get_system_simobject(), list(zip(
+        m5.switchCpus(self._board, list(zip(
             self._current_processor.get_cpu_simobjects(),
             to_switch.get_cpu_simobjects()
-                                                 )
-                                             )
+                                            )
+                                       )
                       )
 
         # Ensure the current processor is updated.

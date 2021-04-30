@@ -77,15 +77,15 @@ class X86Board(SimpleBoard):
         self.mem_ranges = [AddrRange(Addr('3GB')), # All data
                            AddrRange(0xC0000000, size=0x100000), # For I/0
                            ]
-        #self.get_system_simobject().mem_ranges.append(
+        #self.mem_ranges.append(
          #       AddrRange(Addr(self.get_memory().get_size_str()),
           #          size=0x100000))
 
-        self.get_system_simobject().pc = Pc()
+        self.pc = Pc()
 
-        self.get_system_simobject().exit_on_work_items = exit_on_work_items
+        self.exit_on_work_items = exit_on_work_items
 
-        self.get_system_simobject().workload = X86FsLinux()
+        self.workload = X86FsLinux()
 
         # Constants similar to x86_traits.hh
         IO_address_space_base = 0x8000000000000000
@@ -94,14 +94,13 @@ class X86Board(SimpleBoard):
         APIC_range_size = 1 << 12
 
         # North Bridge
-        self.get_system_simobject().iobus = IOXBar()
-        self.get_system_simobject().bridge = Bridge(delay='50ns')
-        self.get_system_simobject().bridge.mem_side_port = \
-            self.get_system_simobject().iobus.cpu_side_ports
-        self.get_system_simobject().bridge.cpu_side_port = \
+        self.iobus = IOXBar()
+        self.bridge = Bridge(delay='50ns')
+        self.bridge.mem_side_port = self.iobus.cpu_side_ports
+        self.bridge.cpu_side_port = \
             self.get_cache_hierarchy().get_membus().mem_side_ports
 
-        # self.get_system_simobject().bridge = Bridge(delay='50ns')
+        # self.bridge = Bridge(delay='50ns')
 
         # Allow the bridge to pass through:
         #  1) kernel configured PCI device memory map address: address range
@@ -111,7 +110,7 @@ class X86Board(SimpleBoard):
         #  3) everything in the IO address range up to the local APIC, and
         #  4) then the entire PCI address space and beyond.
 
-        self.get_system_simobject().bridge.ranges = \
+        self.bridge.ranges = \
              [
              AddrRange(0xC0000000, 0xFFFF0000),
              AddrRange(IO_address_space_base,
@@ -122,24 +121,21 @@ class X86Board(SimpleBoard):
 
         # Create a bridge from the IO bus to the memory bus to allow access
         # to the local APIC (two pages)
-        self.get_system_simobject().apicbridge = Bridge(delay='50ns')
-        self.get_system_simobject().apicbridge.cpu_side_port = \
-            self.get_system_simobject().iobus.mem_side_ports
-        self.get_system_simobject().apicbridge.mem_side_port = \
+        self.apicbridge = Bridge(delay='50ns')
+        self.apicbridge.cpu_side_port = self.iobus.mem_side_ports
+        self.apicbridge.mem_side_port = \
             self.get_cache_hierarchy().get_membus().cpu_side_ports
-        self.get_system_simobject().apicbridge.ranges = \
-             [AddrRange(interrupts_address_space_base,
+        self.apicbridge.ranges = [AddrRange(interrupts_address_space_base,
                  interrupts_address_space_base +
                  self.get_processor().get_num_cores() * APIC_range_size
                  - 1)]
 
         # connect the io bus
-        self.get_system_simobject().pc.attachIO(
-            self.get_system_simobject().iobus)
+        self.pc.attachIO(self.iobus)
 
         # Add a tiny cache to the IO bus.
         # This cache is required for the classic memory model for coherence
-        self.get_system_simobject().iocache = Cache(assoc=8,
+        self.iocache = Cache(assoc=8,
                              tag_latency = 50,
                              data_latency = 50,
                              response_latency = 50,
@@ -147,15 +143,14 @@ class X86Board(SimpleBoard):
                              size = '1kB',
                              tgts_per_mshr = 12,
                              addr_ranges = \
-                                 self.get_system_simobject().mem_ranges)
+                                 self.mem_ranges)
 
-        self.get_system_simobject().iocache.cpu_side = \
-            self.get_system_simobject().iobus.mem_side_ports
-        self.get_system_simobject().iocache.mem_side = \
+        self.iocache.cpu_side = self.iobus.mem_side_ports
+        self.iocache.mem_side = \
             self.get_cache_hierarchy().get_membus().cpu_side_ports
 
         # Add in a Bios information structure.
-        self.get_system_simobject().workload.smbios_table.structures = \
+        self.workload.smbios_table.structures = \
             [X86SMBiosBiosInformation()]
 
         # Set up the Intel MP table
@@ -175,7 +170,7 @@ class X86Board(SimpleBoard):
                 enable = True,
                 address = 0xfec00000)
 
-        self.get_system_simobject().pc.south_bridge.io_apic.apic_id = \
+        self.pc.south_bridge.io_apic.apic_id = \
             io_apic.id
         base_entries.append(io_apic)
         pci_bus = X86IntelMPBus(bus_id = 0, bus_type='PCI   ')
@@ -225,9 +220,9 @@ class X86Board(SimpleBoard):
         for i in range(3, 15):
             assignISAInt(i, i)
 
-        self.get_system_simobject().workload.intel_mp_table.base_entries = \
+        self.workload.intel_mp_table.base_entries = \
             base_entries
-        self.get_system_simobject().workload.intel_mp_table.ext_entries = \
+        self.workload.intel_mp_table.ext_entries = \
             ext_entries
 
         entries = \
@@ -237,8 +232,7 @@ class X86Board(SimpleBoard):
             X86E820Entry(addr = 0x9fc00, size = '385kB', range_type = 2),
             # Mark the rest of physical memory as available
             X86E820Entry(addr = 0x100000,
-                    size = '%dB' % (self.get_system_simobject()\
-                        .mem_ranges[0].size() - 0x100000),
+                    size = '%dB' % (self.mem_ranges[0].size() - 0x100000),
                     range_type = 1),
             ]
 
@@ -246,31 +240,31 @@ class X86Board(SimpleBoard):
         entries.append(X86E820Entry(addr = 0xFFFF0000, size = '64kB',
                                     range_type=2))
 
-        self.get_system_simobject().workload.e820_table.entries = entries
+        self.workload.e820_table.entries = entries
 
     @overrides(AbstractBoard)
     def connect_things(self) -> None:
         super().connect_things()
 
-        #self.get_system_simobject().iocache.cpu_side = \
-        #     self.get_system_simobject().iobus.mem_side_ports
-        #self.get_system_simobject().iocache.mem_side = \
-        #     self.get_system_simobject().membus.cpu_side_ports
+        #self.iocache.cpu_side = \
+        #     self.iobus.mem_side_ports
+        #self.iocache.mem_side = \
+        #     self.membus.cpu_side_ports
 
-        #self.get_system_simobject().apicbridge.cpu_side_port = \
-        #     self.get_system_simobject().iobus.mem_side_ports
-        #self.get_system_simobject().apicbridge.mem_side_port = \
+        #self.apicbridge.cpu_side_port = \
+        #     self.iobus.mem_side_ports
+        #self.apicbridge.mem_side_port = \
         #     self.get_membus().cpu_side_ports
 
-        #self.get_system_simobject().bridge.mem_side_port = \
-        #     self.get_system_simobject().iobus.cpu_side_ports
-        #self.get_system_simobject().bridge.cpu_side_port = \
+        #self.bridge.mem_side_port = \
+        #     self.iobus.cpu_side_ports
+        #self.bridge.cpu_side_port = \
         #     self.get_membus().mem_side_ports
 
         # connect the io bus
-        ##self.get_system_simobject().pc.attachIO(
-         #   self.get_system_simobject().iobus,
-        #    [self.get_system_simobject().pc.south_bridge.ide.dma]
+        ##self.pc.attachIO(
+         #   self.iobus,
+        #    [self.pc.south_bridge.ide.dma]
        # )
 
     def set_workload(self, kernel: str, disk_image: str, command: str):
@@ -278,10 +272,10 @@ class X86Board(SimpleBoard):
         # command to run.
 
         # Set the Linux kernel to use.
-        self.get_system_simobject().workload.object_file = kernel
+        self.workload.object_file = kernel
 
         # Options specified on the kernel command line.
-        self.get_system_simobject().workload.command_line = ' '.join(
+        self.workload.command_line = ' '.join(
             [
                 'earlyprintk=ttyS0',
                 'console=ttyS0',
@@ -298,7 +292,7 @@ class X86Board(SimpleBoard):
         ide_disk.image.child.image_file = disk_image
 
         # Attach the SimObject to the system.
-        self.get_system_simobject().pc.south_bridge.ide.disks = [ide_disk]
+        self.pc.south_bridge.ide.disks = [ide_disk]
 
         # Set the script to be passed to the simulated system to execute after
         # boot.
@@ -308,11 +302,11 @@ class X86Board(SimpleBoard):
         bench_file.close()
 
         # Set to the system readfile
-        self.get_system_simobject().readfile = file_name
+        self.readfile = file_name
 
     def get_iobus(self) -> BaseXBar:
-        return self.get_system_simobject().iobus
+        return self.iobus
 
     def get_dma_ports(self) -> Sequence[Port]:
-        return [self.get_system_simobject().pc.south_bridge.ide.dma,
-        self.get_system_simobject().iobus.mem_side_ports]
+        return [self.pc.south_bridge.ide.dma,
+        self.iobus.mem_side_ports]

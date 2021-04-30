@@ -88,8 +88,6 @@ class NoCache(AbstractCacheHierarchy):
     @overrides(AbstractCacheHierarchy)
     def incorporate_cache(self, board: AbstractBoard) -> None:
 
-        #board.get_system_simobject().cache_hierarchy = self
-
         for cpu in board.get_processor().get_cpu_simobjects():
             cpu.icache_port = self.get_membus().cpu_side_ports
             cpu.dcache_port = self.get_membus().cpu_side_ports
@@ -98,8 +96,7 @@ class NoCache(AbstractCacheHierarchy):
                 self.get_membus().cpu_side_ports
             )
         # Set up the system port for functional access from the simulator.
-        board.get_system_simobject().system_port = \
-            self.get_membus().cpu_side_ports
+        board.system_port = self.get_membus().cpu_side_ports
 
     @overrides(AbstractCacheHierarchy)
     def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port, Port]:
