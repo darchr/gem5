@@ -886,10 +886,79 @@ MemCtrl::processRespondEvent()
 
 
         // **************** THE ENTRY IS EMPTY, POPULATE **************** //
-        if (!(tagStoreDC[index].meta_bits & 0x0) &&  mem_pkt->isWrite()) {
+        if ((tagStoreDC[index].meta_bits==0 ||
+             tagStoreDC[index].meta_bits==2) &&
+            /*((mem_pkt->isWrite() && writeAllocatePolicy)
+            || mem_pkt->isRead())*/) {
 
-            // TO DO
-            // MARYAM: probably nothing is required to do
+            // cold miss?!
+            dram_miss = true;
+            // Btw, if this is a miss
+            // what did we end up getting from
+            // DRAM
+            // push this packet to the nvm read queue
+            if (mem_pkt->isRead()){
+                if (!nvmReadQueueFull(1) && !dramFillQueueFull(1)) {
+                    addToNVMReadQueue(mem_pkt);
+                    addToDRAMFillQueue(mem_pkt);
+                } else {
+                    // if any of the queues are successful
+                    assert(respQueue.top().second->readyTime ==
+                                                    respQueue.top.first);
+                    if (nvmReadQueueFull(1))
+                        retryNVMRdReq = true;
+                    if (dramFillQueueFull(1))
+                        retryDRAMFillReq = true;
+
+                    //schedule(respondEvent,
+                    //              respQueue.top().second->readyTime + 2);
+                    // re schedule the respondEvent process
+                    // not sure what should be the delay above and if even
+                    // this method would work as there might be overlap with
+                    // other events already scheduled for resp queue
+                }
+            } else { // write packet
+                if (!writeAllocatePolicy) { // false = no allocate on writes
+                    if (!nvmWriteQueueFull(1) ) {
+                        addToNVMWriteQueue(mem_pkt);
+                    } else {
+                        // if any of the queues are successful
+                        assert(respQueue.top().second->readyTime ==
+                                                        respQueue.top.first);
+                        if (nvmWriteQueueFull(1))
+                            retryNVMWrReq = true;
+
+                        //schedule(respondEvent,
+                        //              respQueue.top().second->readyTime + 2);
+                        // re schedule the respondEvent process
+                        // not sure what should be the delay above and if even
+                        // this method would work as
+                        // there might be overlap with
+                        // other events already scheduled for resp queue
+                    }
+                } else { // true = allocate on writes
+                    if (!nvmReadQueueFull(1) && !dramFillQueueFull(1)) {
+                        addToNVMReadQueue(mem_pkt);
+                        addToDRAMFillQueue(mem_pkt);
+                    } else {
+                        // if any of the queues are successful
+                        assert(respQueue.top().second->readyTime ==
+                                                        respQueue.top.first);
+                        if (nvmReadQueueFull(1))
+                            retryNVMRdReq = true;
+                        if (dramFillQueueFull(1))
+                            retryDRAMFillReq = true;
+
+                        //schedule(respondEvent,
+                        //              respQueue.top().second->readyTime + 2);
+                        // re schedule the respondEvent process
+                        // not sure what should be the delay above and if even
+                        // this method would work as there
+                        // might be overlap with
+                        // other events already scheduled for resp queue
+                    }
+                }
+            }
         }
 
         // **************** DRAM CACHE HIT **************** //
@@ -897,6 +966,7 @@ MemCtrl::processRespondEvent()
             if (mem_pkt->isRead()) {
                 // TO DO
                 // send the respond to requestor
+                // probably nothing is required to do
 
             } else { // write packet
                 if (!dramFillQueueFull(1)) {
@@ -921,7 +991,7 @@ MemCtrl::processRespondEvent()
         
         // **************** DRAM CACHE MISS, CLEAN **************** //
         else if (tagStoreDC[index].tag != currTag
-                &&  (!(tagStoreDC[index].meta_bits & 0x02))) {
+                &&  (!(tagStoreDC[index].meta_bits==1))) {
             // clean miss
             dram_miss = true;
             // Btw, if this is a miss
@@ -991,10 +1061,11 @@ MemCtrl::processRespondEvent()
         }
         
         // **************** DRAM CACHE MISS, Dirty **************** //
-        else if (tagStoreDC[index].tag != currTag && (!(tagStoreDC[index].meta_bits & 0x03))) {
-                    
-            if(mem_pkt->isRead()){
-                if (!nvmReadQueueFull(1) && !nvmWriteQueueFull(1) && !dramFillQueueFull(1)) {
+        else if (tagStoreDC[index].tag != currTag
+                && (!(tagStoreDC[index].meta_bits==3))) {
+            if (mem_pkt->isRead()) {
+                if (!nvmReadQueueFull(1) && !nvmWriteQueueFull(1)
+                    && !dramFillQueueFull(1)) {
                     addToNVMReadQueue(mem_pkt);
                     addToNVMWriteQueue(mem_pkt);
                     addToDRAMFillQueue(mem_pkt);
