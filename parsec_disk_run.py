@@ -139,8 +139,6 @@ print(
 )
 print()
 
-motherboard.get_system_simobject().exit_on_work_items = True
-
 root = Root(
     full_system=True,
     system=motherboard.get_system_simobject(),
