@@ -58,8 +58,8 @@ class MemCtrl(QoSMemCtrl):
     # bus in front of the controller for multiple ports
     port = ResponsePort("This port responds to memory requests")
 
-    dram_cache_size = Param.Int('1024', "DRAM cache size")
-    write_allocate_policy = Param.Int('false', "DRAM cache write allocate policy, can be 'allocate on write' or 'no allocate on write'")
+    dram_cache_size = Param.MemorySize('1024MB', "DRAM cache size")
+    write_allocate_policy = Param.Bool('false', "DRAM cache allocation policy on writes, false='no allocate on write' and True='allocate on write'")
     # Interface to volatile, DRAM media
     dram = Param.DRAMInterface(NULL, "DRAM interface")
 
@@ -92,5 +92,5 @@ class MemCtrl(QoSMemCtrl):
     static_backend_latency = Param.Latency("10ns", "Static backend latency")
 
     # latency for dram cache tag check
-    static_tagcheck_latency = Param.Latency("2ns", "Static tagcheck latency")
+    static_tagcheck_latency = Param.Latency("2ns", "Static latency for dram cache tag check")
     command_window = Param.Latency("10ns", "Static backend latency")

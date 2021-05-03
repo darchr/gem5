@@ -68,7 +68,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     memSchedPolicy(p.mem_sched_policy),
     frontendLatency(p.static_frontend_latency),
     backendLatency(p.static_backend_latency),
-    tagcheckLatency(p.static_tagcheck_latency),
+    tagCheckLatency(p.static_tagcheck_latency),
     commandWindow(p.command_window),
     nextBurstAt(0), prevArrival(0),
     nextReqTime(0),
@@ -94,10 +94,10 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
               "high threshold %d\n", p.write_low_thresh_perc,
               p.write_high_thresh_perc);
 
-    num_entries = ceilLog2(dramCacheSize/64);
+    numEntries = ceilLog2(dramCacheSize/64);
 
-    for (int i = 0; i < num_entries; i++) {
-        tag_entry entry;
+    for (int i = 0; i < numEntries; i++) {
+        tagEntry entry;
         tagStoreDC.emplace_back(entry);
     }
 }
@@ -496,13 +496,13 @@ MemCtrl::addToDRAMFillQueue(MemPacket mem_pkt)
     // update the DRAM tags as well
 
     int index = bits(mem_pkt->pkt->getAddr(),
-            ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
+            ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
 
     tagStoreDC[index].tag = returnTag(mem_pkt->pkt->getAddr());
 
     // make sure that the block is set to be valid and clean
     // MARYAM: only valid bit is set here. How about dirty bit?
-    tagStoreDC[index].meta_bits = 0x01;
+    tagStoreDC[index].metadata = 0x01;
 
     //isInWriteQueue.insert(burstAlign(addr, is_dram));
 
@@ -677,7 +677,7 @@ MemCtrl::printQs() const
 inline Addr
 MemCtrl::returnTag(Addr request_addr)
 {
-    int index_bits = ceilLog2(num_entries);
+    int index_bits = ceilLog2(numEntries);
     int block_bits = ceilLog2(64);
     return request_addr >> (index_bits+block_bits);
 }
@@ -882,13 +882,13 @@ MemCtrl::processRespondEvent()
 
         bool dram_miss = false;
         int index = bits(mem_pkt->pkt->getAddr(),
-                        ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
+                        ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
         Addr currTag = returnTag(mem_pkt->pkt->getAddr());
 
 
         // **************** THE ENTRY IS EMPTY, POPULATE **************** //
-        if ((tagStoreDC[index].meta_bits==0 ||
-             tagStoreDC[index].meta_bits==2) &&
+        if ((tagStoreDC[index].metadata==0 ||
+             tagStoreDC[index].metadata==2) &&
             /*((mem_pkt->isWrite() && writeAllocatePolicy)
             || mem_pkt->isRead())*/) {
 
@@ -992,7 +992,7 @@ MemCtrl::processRespondEvent()
 
         // **************** DRAM CACHE MISS, CLEAN **************** //
         else if (tagStoreDC[index].tag != currTag
-                &&  (!(tagStoreDC[index].meta_bits==1))) {
+                &&  (!(tagStoreDC[index].metadata==1))) {
             // clean miss
             dram_miss = true;
             // Btw, if this is a miss
@@ -1063,7 +1063,7 @@ MemCtrl::processRespondEvent()
 
         // **************** DRAM CACHE MISS, Dirty **************** //
         else if (tagStoreDC[index].tag != currTag
-                && (!(tagStoreDC[index].meta_bits==3))) {
+                && (!(tagStoreDC[index].metadata==3))) {
             if (mem_pkt->isRead()) {
                 if (!nvmReadQueueFull(1) && !nvmWriteQueueFull(1)
                     && !dramFillQueueFull(1)) {
@@ -2084,10 +2084,10 @@ MemCtrl::processNextReqEvent()
 
         // ***************** Update the tags ***************** //
         int index = bits(mem_pkt->pkt->getAddr(),
-                        ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
+                        ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
 
         // setting the dirty bit here
-        tagStoreDC[index].meta_bits = tagStoreDC[index].meta_bits | 0x02;
+        tagStoreDC[index].metadata = tagStoreDC[index].metadata | 0x02;
 
         // ***************** Update the tags ***************** //
 

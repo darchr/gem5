@@ -80,8 +80,7 @@ class BurstHelper
 
     BurstHelper(unsigned int _burstCount)
         : burstCount(_burstCount), burstsServiced(0)
-    {
-   }
+    {}
 };
 
 /**
@@ -142,7 +141,7 @@ class MemPacket
      * A pointer to the BurstHelper if this MemPacket is a split packet
      * If not a split packet (common case), this is set to NULL
      */
-    BurstHelper *burstHelper;
+    BurstHelper* burstHelper;
 
     /**
      * QoS value of the encapsulated packet read at queuing time
@@ -279,13 +278,13 @@ class MemCtrl : public QoS::MemCtrl
     // Add a tag store map
     // TODO: look at what the intialization
     // values should be
-    class tag_entry
+    class tagEntry
     {
     public:
-      Addr tag = -1;
-      Addr index = -1;
+      Addr tag = 0;
+      Addr index = 0;
       // xxxxxxdv (dirty and valid bits)
-      uint8_t meta_bits = 0;
+      uint8_t metadata = 0;
     };
     // constant to indicate that the cache line is
     // dirty
@@ -297,7 +296,7 @@ class MemCtrl : public QoS::MemCtrl
 
     // DC refers to Dram Cache
     //uint64_t dramCacheSize;
-    uint64_t num_entries;
+    uint64_t numEntries;
 
     // COMMENT: we assumed metadata is stored nither on the dram
     // (right adjacent to the data), nor on the SRAM caches, but
@@ -305,7 +304,7 @@ class MemCtrl : public QoS::MemCtrl
     // controller. Have this in mind that this assumption may lead
     // gem5-dram-cache outperform the real hardware such as
     // Intel Optane.
-    std::vector<tag_entry> tagStoreDC;
+    std::vector<tagEntry> tagStoreDC;
 
     // function to return tag from a pkt addr
     inline Addr returnTag(Addr pkt_addr);
@@ -333,9 +332,9 @@ class MemCtrl : public QoS::MemCtrl
      * Current sizes of nvmReadQueue, nvmWriteQueue, dramFillQueue
      *
      */
-    uint64_t nvmReadQueueSize;
-    uint64_t nvmWriteQueueSize;
-    uint64_t dramFillQueueSize;
+    const uint64_t nvmReadQueueSize;
+    const uint64_t nvmWriteQueueSize;
+    const uint64_t dramFillQueueSize;
     /**
      * Bunch of things requires to setup "events" in gem5
      * When event "respondEvent" occurs for example, the method
@@ -623,7 +622,7 @@ class MemCtrl : public QoS::MemCtrl
      * This is the latency parameter to check
      * DRAM cache tags.
      */
-    const Tick tagcheckLatency;
+    const Tick tagCheckLatency;
 
     /**
      * Length of a command window, used to check
