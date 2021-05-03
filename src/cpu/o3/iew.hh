@@ -46,6 +46,8 @@
 
 #include "base/statistics.hh"
 #include "cpu/o3/comm.hh"
+#include "cpu/o3/inst_queue.hh"
+#include "cpu/o3/limits.hh"
 #include "cpu/o3/lsq.hh"
 #include "cpu/o3/scoreboard.hh"
 #include "cpu/timebuf.hh"
@@ -83,10 +85,6 @@ class DefaultIEW
     typedef typename Impl::DynInstPtr DynInstPtr;
     typedef typename Impl::O3CPU O3CPU;
 
-    typedef typename CPUPol::IQ IQ;
-    typedef typename CPUPol::RenameMap RenameMap;
-    typedef typename CPUPol::LSQ LSQ;
-
     typedef typename CPUPol::TimeStruct TimeStruct;
     typedef typename CPUPol::IEWStruct IEWStruct;
     typedef typename CPUPol::RenameStruct RenameStruct;
@@ -117,7 +115,7 @@ class DefaultIEW
     /** Overall stage status. */
     Status _status;
     /** Dispatch status. */
-    StageStatus dispatchStatus[Impl::MaxThreads];
+    StageStatus dispatchStatus[O3MaxThreads];
     /** Execute status. */
     StageStatus exeStatus;
     /** Writeback status. */
@@ -341,10 +339,10 @@ class DefaultIEW
     typename TimeBuffer<IEWStruct>::wire toCommit;
 
     /** Queue of all instructions coming from rename this cycle. */
-    std::queue<DynInstPtr> insts[Impl::MaxThreads];
+    std::queue<DynInstPtr> insts[O3MaxThreads];
 
     /** Skid buffer between rename and IEW. */
-    std::queue<DynInstPtr> skidBuffer[Impl::MaxThreads];
+    std::queue<DynInstPtr> skidBuffer[O3MaxThreads];
 
     /** Scoreboard pointer. */
     Scoreboard* scoreboard;
@@ -363,10 +361,10 @@ class DefaultIEW
 
   public:
     /** Instruction queue. */
-    IQ instQueue;
+    InstructionQueue<Impl> instQueue;
 
     /** Load / store queue. */
-    LSQ ldstQueue;
+    LSQ<Impl> ldstQueue;
 
     /** Pointer to the functional unit pool. */
     FUPool *fuPool;
@@ -377,7 +375,7 @@ class DefaultIEW
 
   private:
     /** Records if there is a fetch redirect on this cycle for each thread. */
-    bool fetchRedirect[Impl::MaxThreads];
+    bool fetchRedirect[O3MaxThreads];
 
     /** Records if the queues have been changed (inserted or issued insts),
      * so that IEW knows to broadcast the updated amount of free entries.

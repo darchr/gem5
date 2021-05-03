@@ -37,8 +37,6 @@ from m5.SimObject import SimObject
 from m5.objects.Bridge import Bridge
 from m5.objects.ClockedObject import ClockedObject
 from m5.objects.Device import DmaDevice
-from m5.objects.HSADevice import HSADevice
-from m5.objects.HSADriver import HSADriver
 from m5.objects.LdsState import LdsState
 from m5.objects.Process import EmulatedDriver
 
@@ -48,6 +46,12 @@ class PrefetchType(Enum): vals = [
     'PF_WF',
     'PF_STRIDE',
     'PF_END',
+    ]
+
+class GfxVersion(ScopedEnum): vals = [
+    'gfx801',
+    'gfx803',
+    'gfx900',
     ]
 
 class PoolManager(SimObject):
@@ -233,18 +237,33 @@ class Shader(ClockedObject):
     idlecu_timeout = Param.Tick(0, "Idle CU watchdog timeout threshold")
     max_valu_insts = Param.Int(0, "Maximum vALU insts before exiting")
 
-class GPUComputeDriver(HSADriver):
+class GPUComputeDriver(EmulatedDriver):
     type = 'GPUComputeDriver'
     cxx_header = 'gpu-compute/gpu_compute_driver.hh'
+    device = Param.GPUCommandProcessor('GPU controlled by this driver')
+    isdGPU = Param.Bool(False, 'Driver is for a dGPU')
+    gfxVersion = Param.GfxVersion('gfx801', 'ISA of gpu to model')
+    dGPUPoolID = Param.Int(False, 'Pool ID for dGPU.')
+    # Default Mtype for caches
+    #--     1   1   1   C_RW_S  (Cached-ReadWrite-Shared)
+    #--     1   1   0   C_RW_US (Cached-ReadWrite-Unshared)
+    #--     1   0   1   C_RO_S  (Cached-ReadOnly-Shared)
+    #--     1   0   0   C_RO_US (Cached-ReadOnly-Unshared)
+    #--     0   1   x   UC_L2   (Uncached_GL2)
+    #--     0   0   x   UC_All  (Uncached_All_Load)
+    # default value: 5/C_RO_S (only allow caching in GL2 for read. Shared)
+    m_type = Param.Int("Default MTYPE for cache. Valid values between 0-7");
 
 class GPUDispatcher(SimObject):
     type = 'GPUDispatcher'
     cxx_header = 'gpu-compute/dispatcher.hh'
 
-class GPUCommandProcessor(HSADevice):
+class GPUCommandProcessor(DmaDevice):
     type = 'GPUCommandProcessor'
     cxx_header = 'gpu-compute/gpu_command_processor.hh'
     dispatcher = Param.GPUDispatcher('workgroup dispatcher for the GPU')
+
+    hsapp = Param.HSAPacketProcessor('PP attached to this device')
 
 class StorageClassType(Enum): vals = [
     'SC_SPILL',

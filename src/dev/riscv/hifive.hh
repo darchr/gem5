@@ -48,7 +48,6 @@ using namespace RiscvISA;
 class HiFive : public Platform
 {
   public:
-    System *system;
     Clint *clint;
     Plic *plic;
     int uartIntID;
@@ -64,8 +63,6 @@ class HiFive : public Platform
     void postPciInt(int line) override;
 
     void clearPciInt(int line) override;
-
-    virtual Addr pciToDma(Addr pciAddr) const;
 
     void serialize(CheckpointOut &cp) const override;
 

@@ -45,6 +45,7 @@
 #include "enums/StorageClassType.hh"
 #include "gpu-compute/compute_unit.hh"
 #include "gpu-compute/gpu_exec_context.hh"
+#include "gpu-compute/operand_info.hh"
 
 class GPUStaticInst;
 
@@ -74,6 +75,43 @@ class AtomicOpCAS : public TypedAtomicOpFunctor<T>
     AtomicOpFunctor* clone () { return new AtomicOpCAS(c, s, computeUnit); }
 };
 
+class RegisterOperandInfo
+{
+  public:
+    RegisterOperandInfo() = delete;
+    RegisterOperandInfo(int op_idx, int num_dwords,
+                        const std::vector<int> &virt_indices,
+                        const std::vector<int> &phys_indices)
+        : opIdx(op_idx), numDWORDs(num_dwords), virtIndices(virt_indices),
+          physIndices(phys_indices)
+    {
+    }
+
+    /**
+     * The number of registers required to store this operand.
+     */
+    int numRegisters() const { return numDWORDs / TheGpuISA::RegSizeDWords; }
+    int operandIdx() const { return opIdx; }
+    /**
+     * We typically only need the first virtual register for the operand
+     * regardless of its size.
+     */
+    int virtIdx(int reg_num=0) const { return virtIndices.at(reg_num); }
+
+  private:
+    /**
+     * Index of this operand within the set of its parent instruction's
+     * operand list.
+     */
+    const int opIdx;
+    /**
+     * Size of this operand in DWORDs.
+     */
+    const int numDWORDs;
+    const std::vector<int> virtIndices;
+    const std::vector<int> physIndices;
+};
+
 class GPUDynInst : public GPUExecContext
 {
   public:
@@ -81,36 +119,41 @@ class GPUDynInst : public GPUExecContext
                uint64_t instSeqNum);
     ~GPUDynInst();
     void execute(GPUDynInstPtr gpuDynInst);
+
+    const std::vector<OperandInfo>& srcVecRegOperands() const;
+    const std::vector<OperandInfo>& dstVecRegOperands() const;
+    const std::vector<OperandInfo>& srcScalarRegOperands() const;
+    const std::vector<OperandInfo>& dstScalarRegOperands() const;
+
     int numSrcRegOperands();
     int numDstRegOperands();
-    int numDstVecOperands();
-    int numSrcVecOperands();
-    int numSrcVecDWORDs();
-    int numDstVecDWORDs();
-    int numOpdDWORDs(int operandIdx);
-    int getNumOperands();
-    bool isVectorRegister(int operandIdx);
-    bool isScalarRegister(int operandIdx);
-    int getRegisterIndex(int operandIdx, GPUDynInstPtr gpuDynInst);
-    int getOperandSize(int operandIdx);
-    bool isDstOperand(int operandIdx);
-    bool isSrcOperand(int operandIdx);
 
-    bool hasDestinationSgpr() const;
+    int numSrcVecRegOperands() const;
+    int numDstVecRegOperands() const;
+    int maxSrcVecRegOperandSize();
+    int numSrcVecDWords();
+    int numDstVecDWords();
+
+    int numSrcScalarRegOperands() const;
+    int numDstScalarRegOperands() const;
+    int maxSrcScalarRegOperandSize();
+    int numSrcScalarDWords();
+    int numDstScalarDWords();
+
+    int maxOperandSize();
+
+    int getNumOperands() const;
+
     bool hasSourceSgpr() const;
-    bool hasDestinationVgpr() const;
+    bool hasDestinationSgpr() const;
     bool hasSourceVgpr() const;
-
-    bool hasSgprRawDependence(GPUDynInstPtr s);
-    bool hasVgprRawDependence(GPUDynInstPtr s);
+    bool hasDestinationVgpr() const;
 
     // returns true if the string "opcodeStr" is found in the
     // opcode of the instruction
     bool isOpcode(const std::string& opcodeStr) const;
     bool isOpcode(const std::string& opcodeStr,
                   const std::string& extStr) const;
-    // returns true if source operand at "index" is a vector register
-    bool srcIsVgpr(int index) const;
 
     const std::string &disassemble() const;
 
@@ -199,8 +242,8 @@ class GPUDynInst : public GPUExecContext
     bool writesSCC() const;
     bool readsVCC() const;
     bool writesVCC() const;
-    bool readsEXEC() const;
-    bool writesEXEC() const;
+    bool readsExec() const;
+    bool writesExec() const;
     bool readsMode() const;
     bool writesMode() const;
     bool ignoreExec() const;
@@ -431,6 +474,8 @@ class GPUDynInst : public GPUExecContext
   private:
     GPUStaticInst *_staticInst;
     const InstSeqNum _seqNum;
+    int maxSrcVecRegOpSize;
+    int maxSrcScalarRegOpSize;
 
     // the time the request was started
     Tick accessTime = -1;

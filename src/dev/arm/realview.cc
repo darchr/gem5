@@ -44,17 +44,11 @@
 
 #include "dev/arm/realview.hh"
 
-#include <deque>
-#include <string>
-#include <vector>
-
-#include "cpu/intr_control.hh"
+#include "base/logging.hh"
 #include "dev/arm/base_gic.hh"
-#include "sim/system.hh"
-
 
 RealView::RealView(const Params &p)
-    : Platform(p), system(p.system), gic(nullptr)
+    : Platform(p), gic(nullptr)
 {}
 
 void

@@ -139,15 +139,13 @@ ISA::ISA(const X86ISAParams &p) : BaseISA(p), vendorString(p.vendor_string)
     fatal_if(vendorString.size() != 12,
              "CPUID vendor string must be 12 characters\n");
 
-    _regClasses.insert(_regClasses.end(), {
-            { NumIntRegs },
-            { NumFloatRegs },
-            { 1 }, // Not applicable to X86
-            { 2 }, // Not applicable to X86
-            { 1 }, // Not applicable to X86
-            { NUM_CCREGS },
-            { NUM_MISCREGS },
-    });
+    _regClasses.emplace_back(NumIntRegs, NUM_INTREGS);
+    _regClasses.emplace_back(NumFloatRegs);
+    _regClasses.emplace_back(1); // Not applicable to X86
+    _regClasses.emplace_back(2); // Not applicable to X86
+    _regClasses.emplace_back(1); // Not applicable to X86
+    _regClasses.emplace_back(NUM_CCREGS);
+    _regClasses.emplace_back(NUM_MISCREGS);
 
     clear();
 }
@@ -182,7 +180,7 @@ ISA::copyRegsFrom(ThreadContext *src)
     for (int i = 0; i < NumFloatRegs; ++i)
          tc->setFloatRegFlat(i, src->readFloatRegFlat(i));
     //copy condition-code regs
-    for (int i = 0; i < NumCCRegs; ++i)
+    for (int i = 0; i < NUM_CCREGS; ++i)
          tc->setCCRegFlat(i, src->readCCRegFlat(i));
     copyMiscRegs(src, tc);
     tc->pcState(src->pcState());

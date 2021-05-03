@@ -31,7 +31,6 @@
 #ifndef __ARCH_MIPS_REMOTE_GDB_HH__
 #define __ARCH_MIPS_REMOTE_GDB_HH__
 
-#include "arch/mips/registers.hh"
 #include "base/bitfield.hh"
 #include "base/remote_gdb.hh"
 
@@ -50,7 +49,8 @@ class RemoteGDB : public BaseRemoteGDB
     {
       using BaseGdbRegCache::BaseGdbRegCache;
       private:
-        struct {
+        struct
+        {
             uint32_t gpr[32];
             uint32_t sr;
             uint32_t lo;

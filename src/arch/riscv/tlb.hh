@@ -36,9 +36,9 @@
 
 #include "arch/generic/tlb.hh"
 #include "arch/riscv/isa.hh"
-#include "arch/riscv/isa_traits.hh"
 #include "arch/riscv/pagetable.hh"
 #include "arch/riscv/pma_checker.hh"
+#include "arch/riscv/regs/misc.hh"
 #include "arch/riscv/utility.hh"
 #include "base/statistics.hh"
 #include "mem/request.hh"
@@ -54,7 +54,7 @@ namespace RiscvISA {
 class Walker;
 
 class TLB : public BaseTLB
-  {
+{
     typedef std::list<TlbEntry *> EntryList;
 
   protected:
@@ -66,7 +66,8 @@ class TLB : public BaseTLB
 
     Walker *walker;
 
-    struct TlbStats : public Stats::Group{
+    struct TlbStats : public Stats::Group
+    {
         TlbStats(Stats::Group *parent);
 
         Stats::Scalar readHits;
@@ -85,6 +86,7 @@ class TLB : public BaseTLB
 
   public:
     PMAChecker *pma;
+    PMP *pmp;
 
   public:
     typedef RiscvTLBParams Params;

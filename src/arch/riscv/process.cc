@@ -38,8 +38,9 @@
 #include <vector>
 
 #include "arch/riscv/isa.hh"
-#include "arch/riscv/isa_traits.hh"
-#include "arch/riscv/registers.hh"
+#include "arch/riscv/page_size.hh"
+#include "arch/riscv/regs/int.hh"
+#include "arch/riscv/regs/misc.hh"
 #include "base/loader/elf_object.hh"
 #include "base/loader/object_file.hh"
 #include "base/logging.hh"
@@ -198,7 +199,7 @@ RiscvProcess::argsInit(int pageSize)
     Addr sp = memState->getStackMin();
     const auto pushOntoStack =
         [this, &sp](IntType data) {
-            initVirtMem->write(sp, data, GuestByteOrder);
+            initVirtMem->write(sp, data, ByteOrder::little);
             sp += sizeof(data);
         };
 

@@ -42,8 +42,8 @@
 #define __ARCH_ARM_ISA_HH__
 
 #include "arch/arm/isa_device.hh"
-#include "arch/arm/miscregs.hh"
 #include "arch/arm/registers.hh"
+#include "arch/arm/regs/misc.hh"
 #include "arch/arm/self_debug.hh"
 #include "arch/arm/system.hh"
 #include "arch/arm/tlb.hh"
@@ -852,8 +852,17 @@ namespace ArmISA
 
         unsigned getCurSveVecLenInBitsAtReset() const { return sveVL * 128; }
 
-        static void zeroSveVecRegUpperPart(VecRegContainer &vc,
-                                           unsigned eCount);
+        template <typename Elem>
+        static void
+        zeroSveVecRegUpperPart(Elem *v, unsigned eCount)
+        {
+            static_assert(sizeof(Elem) <= sizeof(uint64_t),
+                    "Elem type is too large.");
+            eCount *= (sizeof(uint64_t) / sizeof(Elem));
+            for (int i = 16 / sizeof(Elem); i < eCount; ++i) {
+                v[i] = 0;
+            }
+        }
 
         void serialize(CheckpointOut &cp) const override;
         void unserialize(CheckpointIn &cp) override;

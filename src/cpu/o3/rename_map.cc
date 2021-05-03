@@ -57,14 +57,14 @@ SimpleRenameMap::SimpleRenameMap()
 
 void
 SimpleRenameMap::init(const RegClassInfo &reg_class_info,
-        SimpleFreeList *_freeList, RegIndex _zeroReg)
+        SimpleFreeList *_freeList)
 {
     assert(freeList == NULL);
     assert(map.empty());
 
     map.resize(reg_class_info.size());
     freeList = _freeList;
-    zeroReg = RegId(IntRegClass, _zeroReg);
+    zeroReg = RegId(IntRegClass, reg_class_info.zeroReg());
 }
 
 SimpleRenameMap::RenameInfo
@@ -76,7 +76,7 @@ SimpleRenameMap::rename(const RegId& arch_reg)
     PhysRegIdPtr prev_reg = map[arch_reg.flatIndex()];
 
     if (arch_reg == zeroReg) {
-        assert(prev_reg->isZeroReg());
+        assert(prev_reg->index() == zeroReg.index());
         renamed_reg = prev_reg;
     } else if (prev_reg->getNumPinnedWrites() > 0) {
         // Do not rename if the register is pinned
@@ -107,30 +107,17 @@ SimpleRenameMap::rename(const RegId& arch_reg)
 
 void
 UnifiedRenameMap::init(const BaseISA::RegClasses &regClasses,
-                       PhysRegFile *_regFile,
-                       RegIndex _intZeroReg,
-                       RegIndex _floatZeroReg,
-                       UnifiedFreeList *freeList,
-                       VecMode _mode)
+        PhysRegFile *_regFile, UnifiedFreeList *freeList, VecMode _mode)
 {
     regFile = _regFile;
     vecMode = _mode;
 
-    intMap.init(regClasses.at(IntRegClass), &(freeList->intList), _intZeroReg);
-
-    floatMap.init(regClasses.at(FloatRegClass), &(freeList->floatList),
-            _floatZeroReg);
-
-    vecMap.init(regClasses.at(VecRegClass), &(freeList->vecList),
-            (RegIndex)-1);
-
-    vecElemMap.init(regClasses.at(VecElemClass), &(freeList->vecElemList),
-            (RegIndex)-1);
-
-    predMap.init(regClasses.at(VecPredRegClass), &(freeList->predList),
-            (RegIndex)-1);
-
-    ccMap.init(regClasses.at(CCRegClass), &(freeList->ccList), (RegIndex)-1);
+    intMap.init(regClasses.at(IntRegClass), &(freeList->intList));
+    floatMap.init(regClasses.at(FloatRegClass), &(freeList->floatList));
+    vecMap.init(regClasses.at(VecRegClass), &(freeList->vecList));
+    vecElemMap.init(regClasses.at(VecElemClass), &(freeList->vecElemList));
+    predMap.init(regClasses.at(VecPredRegClass), &(freeList->predList));
+    ccMap.init(regClasses.at(CCRegClass), &(freeList->ccList));
 
 }
 
@@ -207,7 +194,7 @@ UnifiedRenameMap::switchMode(VecMode newVecMode)
         const size_t numElems = vecElemMap.numArchRegs();
         const size_t elemsPerVec = numElems / numVecs;
         for (uint32_t i = 0; i < numVecs; i++) {
-            TheISA::VecReg dst = new_RF[i].as<TheISA::VecElem>();
+            TheISA::VecElem *dst = new_RF[i].as<TheISA::VecElem>();
             for (uint32_t l = 0; l < elemsPerVec; l++) {
                 RegId s_rid(VecElemClass, i, l);
                 PhysRegIdPtr s_prid = vecElemMap.lookup(s_rid);

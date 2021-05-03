@@ -35,7 +35,8 @@
 
 #include <string>
 
-#include "arch/riscv/registers.hh"
+#include "arch/riscv/regs/float.hh"
+#include "arch/riscv/regs/int.hh"
 #include "base/remote_gdb.hh"
 
 class System;
@@ -66,7 +67,8 @@ class RemoteGDB : public BaseRemoteGDB
          * 2. Add register to struct below
          * 3. Modify RiscvGdbRegCache::getRegs and setRegs
          */
-        struct {
+        struct
+        {
             uint64_t gpr[NumIntArchRegs];
             uint64_t pc;
             uint64_t fpu[NumFloatRegs];

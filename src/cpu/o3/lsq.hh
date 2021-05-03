@@ -53,7 +53,6 @@
 #include "base/flags.hh"
 #include "base/types.hh"
 #include "cpu/inst_seq.hh"
-#include "cpu/o3/lsq_unit.hh"
 #include "cpu/utils.hh"
 #include "enums/SMTQueuePolicy.hh"
 #include "mem/port.hh"
@@ -65,14 +64,17 @@ template <class Impl>
 class FullO3CPU;
 
 template <class Impl>
-class LSQ
+class DefaultIEW;
 
+template <class Impl>
+class LSQUnit;
+
+template <class Impl>
+class LSQ
 {
   public:
     typedef typename Impl::O3CPU O3CPU;
     typedef typename Impl::DynInstPtr DynInstPtr;
-    typedef typename Impl::CPUPol::IEW IEW;
-    typedef typename Impl::CPUPol::LSQUnit LSQUnit;
 
     class LSQRequest;
     /** Derived class to hold any sender state the LSQ needs. */
@@ -290,7 +292,7 @@ class LSQ
         bool isDelayed() { return flags.isSet(Flag::Delayed); }
 
       public:
-        LSQUnit& _port;
+        LSQUnit<Impl>& _port;
         const DynInstPtr _inst;
         uint32_t _taskId;
         PacketDataPtr _data;
@@ -305,8 +307,8 @@ class LSQ
         uint32_t _numOutstandingPackets;
         AtomicOpFunctorPtr _amo_op;
       protected:
-        LSQUnit* lsqUnit() { return &_port; }
-        LSQRequest(LSQUnit* port, const DynInstPtr& inst, bool isLoad) :
+        LSQUnit<Impl>* lsqUnit() { return &_port; }
+        LSQRequest(LSQUnit<Impl> *port, const DynInstPtr& inst, bool isLoad) :
             _state(State::NotIssued), _senderState(nullptr),
             _port(*port), _inst(inst), _data(nullptr),
             _res(nullptr), _addr(0), _size(0), _flags(0),
@@ -318,7 +320,7 @@ class LSQ
             flags.set(Flag::IsAtomic, _inst->isAtomic());
             install();
         }
-        LSQRequest(LSQUnit* port, const DynInstPtr& inst, bool isLoad,
+        LSQRequest(LSQUnit<Impl>* port, const DynInstPtr& inst, bool isLoad,
                    const Addr& addr, const uint32_t& size,
                    const Request::Flags& flags_,
                    PacketDataPtr data = nullptr, uint64_t* res = nullptr,
@@ -726,12 +728,10 @@ class LSQ
         using LSQRequest::_numOutstandingPackets;
         using LSQRequest::_amo_op;
       public:
-        SingleDataRequest(LSQUnit* port, const DynInstPtr& inst, bool isLoad,
-                          const Addr& addr, const uint32_t& size,
-                          const Request::Flags& flags_,
-                          PacketDataPtr data = nullptr,
-                          uint64_t* res = nullptr,
-                          AtomicOpFunctorPtr amo_op = nullptr) :
+        SingleDataRequest(LSQUnit<Impl>* port, const DynInstPtr& inst,
+                bool isLoad, const Addr& addr, const uint32_t& size,
+                const Request::Flags& flags_, PacketDataPtr data=nullptr,
+                uint64_t* res=nullptr, AtomicOpFunctorPtr amo_op=nullptr) :
             LSQRequest(port, inst, isLoad, addr, size, flags_, data, res,
                        std::move(amo_op)) {}
 
@@ -766,8 +766,8 @@ class LSQ
       using LSQRequest::flags;
       using LSQRequest::setState;
     public:
-      HtmCmdRequest(LSQUnit* port, const DynInstPtr& inst,
-                        const Request::Flags& flags_);
+      HtmCmdRequest(LSQUnit<Impl>* port, const DynInstPtr& inst,
+              const Request::Flags& flags_);
       inline virtual ~HtmCmdRequest() {}
       virtual void initiateTranslation();
       virtual void finish(const Fault &fault, const RequestPtr &req,
@@ -813,11 +813,10 @@ class LSQ
         PacketPtr _mainPacket;
 
       public:
-        SplitDataRequest(LSQUnit* port, const DynInstPtr& inst, bool isLoad,
-                         const Addr& addr, const uint32_t& size,
-                         const Request::Flags & flags_,
-                         PacketDataPtr data = nullptr,
-                         uint64_t* res = nullptr) :
+        SplitDataRequest(LSQUnit<Impl>* port, const DynInstPtr& inst,
+                bool isLoad, const Addr& addr, const uint32_t& size,
+                const Request::Flags & flags_, PacketDataPtr data=nullptr,
+                uint64_t* res=nullptr) :
             LSQRequest(port, inst, isLoad, addr, size, flags_, data, res,
                        nullptr),
             numFragments(0),
@@ -853,7 +852,8 @@ class LSQ
     };
 
     /** Constructs an LSQ with the given parameters. */
-    LSQ(O3CPU *cpu_ptr, IEW *iew_ptr, const DerivO3CPUParams &params);
+    LSQ(O3CPU *cpu_ptr, DefaultIEW<Impl> *iew_ptr,
+            const DerivO3CPUParams &params);
     ~LSQ() { }
 
     /** Returns the name of the LSQ. */
@@ -1112,7 +1112,7 @@ class LSQ
     O3CPU *cpu;
 
     /** The IEW stage pointer. */
-    IEW *iewStage;
+    DefaultIEW<Impl> *iewStage;
 
     /** Is D-cache blocked? */
     bool cacheBlocked() const;
@@ -1182,7 +1182,7 @@ class LSQ
     DcachePort dcachePort;
 
     /** The LSQ units for individual threads. */
-    std::vector<LSQUnit> thread;
+    std::vector<LSQUnit<Impl>> thread;
 
     /** Number of Threads. */
     ThreadID numThreads;

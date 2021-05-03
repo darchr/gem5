@@ -62,12 +62,34 @@
 
 #include "params/Gem5ToTlmBridge32.hh"
 #include "params/Gem5ToTlmBridge64.hh"
+#include "params/Gem5ToTlmBridge128.hh"
+#include "params/Gem5ToTlmBridge256.hh"
+#include "params/Gem5ToTlmBridge512.hh"
+#include "sim/eventq.hh"
 #include "sim/system.hh"
 #include "systemc/tlm_bridge/sc_ext.hh"
 #include "systemc/tlm_bridge/sc_mm.hh"
 
 namespace sc_gem5
 {
+
+/**
+ * Helper function to help set priority of phase change events of tlm
+ * transactions. This is to workaround the uncertainty of gem5 eventq if
+ * multiple events are scheduled at the same timestamp.
+ */
+static EventBase::Priority
+getPriorityOfTlmPhase(const tlm::tlm_phase& phase)
+{
+    // In theory, for all phase change events of a specific TLM base protocol
+    // transaction, only tlm::END_REQ and tlm::BEGIN_RESP would be scheduled at
+    // the same time in the same queue. So we only need to ensure END_REQ has a
+    // higher priority (less in pri value) than BEGIN_RESP.
+    if (phase == tlm::END_REQ) {
+        return EventBase::Default_Pri - 1;
+    }
+    return EventBase::Default_Pri;
+}
 
 /**
  * Instantiate a tlm memory manager that takes care about all the
@@ -132,6 +154,14 @@ packet2payload(PacketPtr packet)
     // Attach the packet pointer to the TLM transaction to keep track.
     auto *extension = new Gem5SystemC::Gem5Extension(packet);
     trans->set_auto_extension(extension);
+
+    if (packet->isAtomicOp()) {
+        auto *atomic_ex = new Gem5SystemC::AtomicExtension(
+            std::shared_ptr<AtomicOpFunctor>(
+                packet->req->getAtomicOpFunctor()->clone()),
+            packet->req->isAtomicReturn());
+        trans->set_auto_extension(atomic_ex);
+    }
 
     // Apply all conversion steps necessary in this specific setup.
     for (auto &step : extraPacketToPayloadSteps) {
@@ -367,8 +397,9 @@ Gem5ToTlmBridge<BITWIDTH>::recvTimingReq(PacketPtr packet)
         // Accepted but is now blocking until END_REQ (exclusion rule).
         blockingRequest = trans;
         auto cb = [this, trans, phase]() { pec(*trans, phase); };
-        system->schedule(new EventFunctionWrapper(cb, "pec", true),
-                         curTick() + delay.value());
+        auto event = new EventFunctionWrapper(
+                cb, "pec", true, getPriorityOfTlmPhase(phase));
+        system->schedule(event, curTick() + delay.value());
     } else if (status == tlm::TLM_COMPLETED) {
         // Transaction is over nothing has do be done.
         sc_assert(phase == tlm::END_RESP);
@@ -442,8 +473,9 @@ Gem5ToTlmBridge<BITWIDTH>::nb_transport_bw(tlm::tlm_generic_payload &trans,
     tlm::tlm_phase &phase, sc_core::sc_time &delay)
 {
     auto cb = [this, &trans, phase]() { pec(trans, phase); };
-    system->schedule(new EventFunctionWrapper(cb, "pec", true),
-                     curTick() + delay.value());
+    auto event = new EventFunctionWrapper(
+            cb, "pec", true, getPriorityOfTlmPhase(phase));
+    system->schedule(event, curTick() + delay.value());
     return tlm::TLM_ACCEPTED;
 }
 
@@ -515,5 +547,26 @@ sc_gem5::Gem5ToTlmBridge<64> *
 Gem5ToTlmBridge64Params::create() const
 {
     return new sc_gem5::Gem5ToTlmBridge<64>(
+            *this, sc_core::sc_module_name(name.c_str()));
+}
+
+sc_gem5::Gem5ToTlmBridge<128> *
+Gem5ToTlmBridge128Params::create() const
+{
+    return new sc_gem5::Gem5ToTlmBridge<128>(
+            *this, sc_core::sc_module_name(name.c_str()));
+}
+
+sc_gem5::Gem5ToTlmBridge<256> *
+Gem5ToTlmBridge256Params::create() const
+{
+    return new sc_gem5::Gem5ToTlmBridge<256>(
+            *this, sc_core::sc_module_name(name.c_str()));
+}
+
+sc_gem5::Gem5ToTlmBridge<512> *
+Gem5ToTlmBridge512Params::create() const
+{
+    return new sc_gem5::Gem5ToTlmBridge<512>(
             *this, sc_core::sc_module_name(name.c_str()));
 }

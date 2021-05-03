@@ -48,6 +48,7 @@
 #include "base/str.hh"
 #include "config/the_isa.hh"
 #include "cpu/checker/cpu.hh"
+#include "cpu/o3/limits.hh"
 #include "cpu/o3/lsq.hh"
 #include "cpu/o3/lsq_unit.hh"
 #include "debug/Activity.hh"
@@ -214,8 +215,8 @@ LSQUnit<Impl>::LSQUnit(uint32_t lqEntries, uint32_t sqEntries)
 
 template<class Impl>
 void
-LSQUnit<Impl>::init(O3CPU *cpu_ptr, IEW *iew_ptr,
-        const DerivO3CPUParams &params, LSQ *lsq_ptr, unsigned id)
+LSQUnit<Impl>::init(O3CPU *cpu_ptr, DefaultIEW<Impl> *iew_ptr,
+        const DerivO3CPUParams &params, LSQ<Impl> *lsq_ptr, unsigned id)
 {
     lsqID = id;
 
@@ -260,7 +261,7 @@ template<class Impl>
 std::string
 LSQUnit<Impl>::name() const
 {
-    if (Impl::MaxThreads == 1) {
+    if (O3MaxThreads == 1) {
         return iewStage->name() + ".lsq";
     } else {
         return iewStage->name() + ".lsq.thread" + std::to_string(lsqID);

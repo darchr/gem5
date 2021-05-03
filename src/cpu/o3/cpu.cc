@@ -47,6 +47,7 @@
 #include "cpu/checker/cpu.hh"
 #include "cpu/checker/thread_context.hh"
 #include "cpu/o3/isa_specific.hh"
+#include "cpu/o3/limits.hh"
 #include "cpu/o3/thread_context.hh"
 #include "cpu/simple_thread.hh"
 #include "cpu/thread_context.hh"
@@ -94,15 +95,15 @@ FullO3CPU<Impl>::FullO3CPU(const DerivO3CPUParams &params)
               params.numPhysVecRegs,
               params.numPhysVecPredRegs,
               params.numPhysCCRegs,
-              params.isa[0]->regClasses().at(MiscRegClass).size(),
+              params.isa[0]->regClasses(),
               vecMode),
 
       freeList(name() + ".freelist", &regFile),
 
       rob(this, params),
 
-      scoreboard(name() + ".scoreboard",
-                 regFile.totalNumPhysRegs()),
+      scoreboard(name() + ".scoreboard", regFile.totalNumPhysRegs(),
+              params.isa[0]->regClasses().at(IntRegClass).zeroReg()),
 
       isa(numThreads, NULL),
 
@@ -187,10 +188,9 @@ FullO3CPU<Impl>::FullO3CPU(const DerivO3CPUParams &params)
     } else {
         active_threads = params.workload.size();
 
-        if (active_threads > Impl::MaxThreads) {
-            panic("Workload Size too large. Increase the 'MaxThreads' "
-                  "constant in your O3CPU impl. file (e.g. o3/alpha/impl.hh) "
-                  "or edit your workload size.");
+        if (active_threads > O3MaxThreads) {
+            panic("Workload Size too large. Increase the 'O3MaxThreads' "
+                  "constant in cpu/o3/limits.hh or edit your workload size.");
         }
     }
 
@@ -225,16 +225,8 @@ FullO3CPU<Impl>::FullO3CPU(const DerivO3CPUParams &params)
         assert(isa[tid]->initVecRegRenameMode() ==
                 isa[0]->initVecRegRenameMode());
 
-        // Only Alpha has an FP zero register, so for other ISAs we
-        // use an invalid FP register index to avoid special treatment
-        // of any valid FP reg.
-        RegIndex invalidFPReg = regClasses.at(FloatRegClass).size() + 1;
-
-        commitRenameMap[tid].init(regClasses, &regFile, TheISA::ZeroReg,
-                invalidFPReg, &freeList, vecMode);
-
-        renameMap[tid].init(regClasses, &regFile, TheISA::ZeroReg,
-                invalidFPReg, &freeList, vecMode);
+        commitRenameMap[tid].init(regClasses, &regFile, &freeList, vecMode);
+        renameMap[tid].init(regClasses, &regFile, &freeList, vecMode);
     }
 
     // Initialize rename map to assign physical registers to the
@@ -450,7 +442,7 @@ FullO3CPUStats::FullO3CPUStats(FullO3CPU *cpu)
     // Number of Instructions simulated
     // --------------------------------
     // Should probably be in Base CPU but need templated
-    // MaxThreads so put in here instead
+    // O3MaxThreads so put in here instead
     committedInsts
         .init(cpu->numThreads)
         .flags(Stats::total);
@@ -773,29 +765,23 @@ FullO3CPU<Impl>::insertThread(ThreadID tid)
     //Bind Int Regs to Rename Map
     const auto &regClasses = isa[tid]->regClasses();
 
-    for (RegId reg_id(IntRegClass, 0);
-            reg_id.index() < regClasses.at(IntRegClass).size();
-            reg_id.index()++) {
+    for (RegIndex idx = 0; idx < regClasses.at(IntRegClass).size(); idx++) {
         PhysRegIdPtr phys_reg = freeList.getIntReg();
-        renameMap[tid].setEntry(reg_id, phys_reg);
+        renameMap[tid].setEntry(RegId(IntRegClass, idx), phys_reg);
         scoreboard.setReg(phys_reg);
     }
 
     //Bind Float Regs to Rename Map
-    for (RegId reg_id(FloatRegClass, 0);
-            reg_id.index() < regClasses.at(FloatRegClass).size();
-            reg_id.index()++) {
+    for (RegIndex idx = 0; idx < regClasses.at(FloatRegClass).size(); idx++) {
         PhysRegIdPtr phys_reg = freeList.getFloatReg();
-        renameMap[tid].setEntry(reg_id, phys_reg);
+        renameMap[tid].setEntry(RegId(FloatRegClass, idx), phys_reg);
         scoreboard.setReg(phys_reg);
     }
 
     //Bind condition-code Regs to Rename Map
-    for (RegId reg_id(CCRegClass, 0);
-            reg_id.index() < regClasses.at(CCRegClass).size();
-            reg_id.index()++) {
+    for (RegIndex idx = 0; idx < regClasses.at(CCRegClass).size(); idx++) {
         PhysRegIdPtr phys_reg = freeList.getCCReg();
-        renameMap[tid].setEntry(reg_id, phys_reg);
+        renameMap[tid].setEntry(RegId(CCRegClass, idx), phys_reg);
         scoreboard.setReg(phys_reg);
     }
 

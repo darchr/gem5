@@ -50,41 +50,39 @@ Scoreboard::findIndex(const RegId& reg, Index &scoreboard_index)
 {
     bool ret = false;
 
-    if (reg.isZeroReg()) {
-        /* Don't bother with the zero register */
-        ret = false;
-    } else {
-        switch (reg.classValue())
-        {
-          case IntRegClass:
+    switch (reg.classValue()) {
+      case IntRegClass:
+        if (reg.index() == zeroReg) {
+            /* Don't bother with the zero register */
+            ret = false;
+        } else {
             scoreboard_index = reg.index();
             ret = true;
-            break;
-          case FloatRegClass:
-            scoreboard_index = floatRegOffset + reg.index();
-            ret = true;
-            break;
-          case VecRegClass:
-          case VecElemClass:
-            scoreboard_index = vecRegOffset + reg.index();
-            ret = true;
-            break;
-          case VecPredRegClass:
-            scoreboard_index = vecPredRegOffset + reg.index();
-            ret = true;
-            break;
-          case CCRegClass:
-            scoreboard_index = ccRegOffset + reg.index();
-            ret = true;
-            break;
-          case MiscRegClass:
-              /* Don't bother with Misc registers */
-            ret = false;
-            break;
-          default:
-            panic("Unknown register class: %d",
-                    static_cast<int>(reg.classValue()));
         }
+        break;
+      case FloatRegClass:
+        scoreboard_index = floatRegOffset + reg.index();
+        ret = true;
+        break;
+      case VecRegClass:
+      case VecElemClass:
+        scoreboard_index = vecRegOffset + reg.index();
+        ret = true;
+        break;
+      case VecPredRegClass:
+        scoreboard_index = vecPredRegOffset + reg.index();
+        ret = true;
+        break;
+      case CCRegClass:
+        scoreboard_index = ccRegOffset + reg.index();
+        ret = true;
+        break;
+      case MiscRegClass:
+          /* Don't bother with Misc registers */
+        ret = false;
+        break;
+      default:
+        panic("Unknown register class: %d", reg.classValue());
     }
 
     return ret;
@@ -134,9 +132,8 @@ Scoreboard::markupInstDests(MinorDynInstPtr inst, Cycles retire_time,
                 " regIndex: %d final numResults: %d returnCycle: %d\n",
                 *inst, index, numResults[index], returnCycle[index]);
         } else {
-            /* Use ZeroReg to mark invalid/untracked dests */
-            inst->flatDestRegIdx[dest_index] = RegId(IntRegClass,
-                                                     TheISA::ZeroReg);
+            /* Use zeroReg to mark invalid/untracked dests */
+            inst->flatDestRegIdx[dest_index] = RegId(IntRegClass, zeroReg);
         }
     }
 }

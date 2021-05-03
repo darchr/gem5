@@ -49,7 +49,6 @@
 #include "arch/types.hh"
 #include "base/statistics.hh"
 #include "cpu/base.hh"
-#include "cpu/base_dyn_inst.hh"
 #include "cpu/exec_context.hh"
 #include "cpu/inst_res.hh"
 #include "cpu/pc_event.hh"
@@ -60,9 +59,6 @@
 #include "params/CheckerCPU.hh"
 #include "sim/eventq.hh"
 
-class BaseTLB;
-template <class>
-class BaseDynInst;
 class ThreadContext;
 class Request;
 
@@ -87,6 +83,8 @@ class CheckerCPU : public BaseCPU, public ExecContext
   protected:
     /** id attached to all issued requests */
     RequestorID requestorId;
+
+    const RegIndex zeroReg;
 
   public:
     void init() override;

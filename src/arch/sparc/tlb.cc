@@ -33,9 +33,8 @@
 #include "arch/sparc/asi.hh"
 #include "arch/sparc/faults.hh"
 #include "arch/sparc/interrupts.hh"
-#include "arch/sparc/miscregs.hh"
 #include "arch/sparc/mmu.hh"
-#include "arch/sparc/registers.hh"
+#include "arch/sparc/regs/misc.hh"
 #include "base/bitfield.hh"
 #include "base/compiler.hh"
 #include "base/trace.hh"
@@ -1239,8 +1238,7 @@ TLB::doMmuRegWrite(ThreadContext *tc, Packet *pkt)
             itb->sfsr = data;
             break;
           case 0x30:
-            sext<59>(bits(data, 59,0));
-            itb->tag_access = data;
+            itb->tag_access = szext<60>(data);
             break;
           default:
             goto doMmuWriteError;
@@ -1316,8 +1314,7 @@ TLB::doMmuRegWrite(ThreadContext *tc, Packet *pkt)
             sfsr = data;
             break;
           case 0x30:
-            sext<59>(bits(data, 59,0));
-            tag_access = data;
+            tag_access = szext<60>(data);
             break;
           case 0x80:
             tc->setMiscReg(MISCREG_MMU_PART_ID, data);

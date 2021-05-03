@@ -28,7 +28,8 @@
 
 #include "arch/mips/process.hh"
 
-#include "arch/mips/isa_traits.hh"
+#include "arch/mips/page_size.hh"
+#include "arch/mips/regs/int.hh"
 #include "base/loader/elf_object.hh"
 #include "base/loader/object_file.hh"
 #include "base/logging.hh"
@@ -37,6 +38,7 @@
 #include "mem/page_table.hh"
 #include "params/Process.hh"
 #include "sim/aux_vector.hh"
+#include "sim/byteswap.hh"
 #include "sim/process.hh"
 #include "sim/process_impl.hh"
 #include "sim/syscall_return.hh"
@@ -184,7 +186,7 @@ MipsProcess::argsInit(int pageSize)
     // Copy the aux vector
     Addr auxv_array_end = auxv_array_base;
     for (const auto &aux: auxv) {
-        initVirtMem->write(auxv_array_end, aux, GuestByteOrder);
+        initVirtMem->write(auxv_array_end, aux, ByteOrder::little);
         auxv_array_end += sizeof(aux);
     }
 

@@ -37,8 +37,9 @@
 
 #include "arch/power/isa.hh"
 
-#include "arch/power/miscregs.hh"
-#include "arch/power/registers.hh"
+#include "arch/power/regs/float.hh"
+#include "arch/power/regs/int.hh"
+#include "arch/power/regs/misc.hh"
 #include "cpu/thread_context.hh"
 #include "params/PowerISA.hh"
 
@@ -47,15 +48,13 @@ namespace PowerISA
 
 ISA::ISA(const Params &p) : BaseISA(p)
 {
-    _regClasses.insert(_regClasses.end(), {
-            { NumIntRegs },
-            { NumFloatRegs },
-            { 1 },
-            { 2 },
-            { 1 },
-            { 0 },
-            { NUM_MISCREGS }
-    });
+    _regClasses.emplace_back(NumIntRegs, NumIntRegs - 1);
+    _regClasses.emplace_back(NumFloatRegs);
+    _regClasses.emplace_back(1);
+    _regClasses.emplace_back(2);
+    _regClasses.emplace_back(1);
+    _regClasses.emplace_back(0);
+    _regClasses.emplace_back(NUM_MISCREGS);
     clear();
 }
 

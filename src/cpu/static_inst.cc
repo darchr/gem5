@@ -30,40 +30,6 @@
 
 #include <iostream>
 
-#include "sim/core.hh"
-
-namespace {
-
-class NopStaticInst : public StaticInst
-{
-  public:
-    NopStaticInst() : StaticInst("gem5 nop", No_OpClass) {}
-
-    Fault
-    execute(ExecContext *xc, Trace::InstRecord *traceData) const override
-    {
-        return NoFault;
-    }
-
-    void
-    advancePC(TheISA::PCState &pcState) const override
-    {
-        pcState.advance();
-    }
-
-    std::string
-    generateDisassembly(Addr pc,
-            const Loader::SymbolTable *symtab) const override
-    {
-        return mnemonic;
-    }
-};
-
-}
-
-StaticInstPtr StaticInst::nullStaticInstPtr;
-StaticInstPtr StaticInst::nopStaticInstPtr = new NopStaticInst;
-
 bool
 StaticInst::hasBranchTarget(const TheISA::PCState &pc, ThreadContext *tc,
                             TheISA::PCState &tgt) const

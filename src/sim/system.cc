@@ -98,7 +98,7 @@ System::Threads::Thread::quiesce() const
         workload->recordQuiesce();
 }
 
-ContextID
+void
 System::Threads::insert(ThreadContext *tc, ContextID id)
 {
     if (id == InvalidContextID) {
@@ -107,6 +107,8 @@ System::Threads::insert(ThreadContext *tc, ContextID id)
                 break;
         }
     }
+
+    tc->setContextId(id);
 
     if (id >= size())
         threads.resize(id + 1);
@@ -129,8 +131,6 @@ System::Threads::insert(ThreadContext *tc, ContextID id)
         t.gdb->listen();
     }
 #   endif
-
-    return id;
 }
 
 void
@@ -204,21 +204,16 @@ int System::numSystemsRunning = 0;
 System::System(const Params &p)
     : SimObject(p), _systemPort("system_port", this),
       multiThread(p.multi_thread),
-      pagePtr(0),
       init_param(p.init_param),
       physProxy(_systemPort, p.cache_line_size),
       workload(p.workload),
 #if USE_KVM
       kvmVM(p.kvm_vm),
-#else
-      kvmVM(nullptr),
 #endif
       physmem(name() + ".physmem", p.memories, p.mmap_using_noreserve,
               p.shared_backstore),
       memoryMode(p.mem_mode),
       _cacheLineSize(p.cache_line_size),
-      workItemsBegin(0),
-      workItemsEnd(0),
       numWorkIds(p.num_work_ids),
       thermalModel(p.thermal_model),
       _m5opRange(p.m5ops_base ?
@@ -238,10 +233,26 @@ System::System(const Params &p)
     }
 #endif
 
+    if (!FullSystem) {
+        AddrRangeList memories = physmem.getConfAddrRanges();
+        assert(!memories.empty());
+        for (const auto &memory : memories) {
+            assert(!memory.interleaved());
+            memPools.emplace_back(this, memory.start(), memory.end());
+        }
+
+        /*
+         * Set freePage to what it was before Gabe Black's page table changes
+         * so allocations don't trample the page table entries.
+         */
+        memPools[0].setFreePage(memPools[0].freePage() + 70);
+    }
+
     // check if the cache line size is a value known to work
-    if (!(_cacheLineSize == 16 || _cacheLineSize == 32 ||
-          _cacheLineSize == 64 || _cacheLineSize == 128))
+    if (_cacheLineSize != 16 && _cacheLineSize != 32 &&
+        _cacheLineSize != 64 && _cacheLineSize != 128) {
         warn_once("Cache line size is neither 16, 32, 64 nor 128 bytes.\n");
+    }
 
     // Get the generic system requestor IDs
     M5_VAR_USED RequestorID tmp_id;
@@ -300,25 +311,16 @@ System::setMemoryMode(Enums::MemoryMode mode)
     memoryMode = mode;
 }
 
-bool System::breakpoint()
-{
-    if (!threads.size())
-        return false;
-    auto *gdb = threads.thread(0).gdb;
-    if (!gdb)
-        return false;
-    return gdb->breakpoint();
-}
-
-ContextID
+void
 System::registerThreadContext(ThreadContext *tc, ContextID assigned)
 {
-    ContextID id = threads.insert(tc, assigned);
+    threads.insert(tc, assigned);
+
+    if (workload)
+        workload->registerThreadContext(tc);
 
     for (auto *e: liveEvents)
         tc->schedule(e);
-
-    return id;
 }
 
 bool
@@ -347,6 +349,9 @@ System::replaceThreadContext(ThreadContext *tc, ContextID context_id)
     auto *otc = threads[context_id];
     threads.replace(tc, context_id);
 
+    if (workload)
+        workload->replaceThreadContext(tc);
+
     for (auto *e: liveEvents) {
         otc->remove(e);
         tc->schedule(e);
@@ -372,34 +377,24 @@ System::validKvmEnvironment() const
 }
 
 Addr
-System::allocPhysPages(int npages)
+System::allocPhysPages(int npages, int poolID)
 {
-    Addr return_addr = pagePtr << TheISA::PageShift;
-    pagePtr += npages;
-
-    Addr next_return_addr = pagePtr << TheISA::PageShift;
-
-    if (_m5opRange.contains(next_return_addr)) {
-        warn("Reached m5ops MMIO region\n");
-        return_addr = 0xffffffff;
-        pagePtr = 0xffffffff >> TheISA::PageShift;
-    }
-
-    if ((pagePtr << TheISA::PageShift) > physmem.totalSize())
-        fatal("Out of memory, please increase size of physical memory.");
-    return return_addr;
+    assert(!FullSystem);
+    return memPools[poolID].allocate(npages);
 }
 
 Addr
-System::memSize() const
+System::memSize(int poolID) const
 {
-    return physmem.totalSize();
+    assert(!FullSystem);
+    return memPools[poolID].totalBytes();
 }
 
 Addr
-System::freeMemSize() const
+System::freeMemSize(int poolID) const
 {
-   return physmem.totalSize() - (pagePtr << TheISA::PageShift);
+    assert(!FullSystem);
+    return memPools[poolID].freeBytes();
 }
 
 bool
@@ -436,8 +431,6 @@ System::getDeviceMemory(RequestorID id) const
 void
 System::serialize(CheckpointOut &cp) const
 {
-    SERIALIZE_SCALAR(pagePtr);
-
     for (auto &t: threads.threads) {
         Tick when = 0;
         if (t.resumeEvent && t.resumeEvent->scheduled())
@@ -445,6 +438,17 @@ System::serialize(CheckpointOut &cp) const
         ContextID id = t.context->contextId();
         paramOut(cp, csprintf("quiesceEndTick_%d", id), when);
     }
+
+    std::vector<Addr> ptrs;
+    std::vector<Addr> limits;
+
+    for (const auto& memPool : memPools) {
+        ptrs.push_back(memPool.freePageAddr());
+        limits.push_back(memPool.totalBytes());
+    }
+
+    SERIALIZE_CONTAINER(ptrs);
+    SERIALIZE_CONTAINER(limits);
 
     // also serialize the memories in the system
     physmem.serializeSection(cp, "physmem");
@@ -454,8 +458,6 @@ System::serialize(CheckpointOut &cp) const
 void
 System::unserialize(CheckpointIn &cp)
 {
-    UNSERIALIZE_SCALAR(pagePtr);
-
     for (auto &t: threads.threads) {
         Tick when = 0;
         ContextID id = t.context->contextId();
@@ -467,6 +469,16 @@ System::unserialize(CheckpointIn &cp)
         t.context->getCpuPtr()->schedule(t.resumeEvent, when);
 #       endif
     }
+
+    std::vector<Addr> ptrs;
+    std::vector<Addr> limits;
+
+    UNSERIALIZE_CONTAINER(ptrs);
+    UNSERIALIZE_CONTAINER(limits);
+
+    assert(ptrs.size() == limits.size());
+    for (size_t i = 0; i < ptrs.size(); i++)
+        memPools.emplace_back(this, ptrs[i], limits[i]);
 
     // also unserialize the memories in the system
     physmem.unserializeSection(cp, "physmem");
@@ -503,6 +515,16 @@ System::workItemEnd(uint32_t tid, uint32_t workid)
 
     workItemStats[workid]->sample(samp);
     lastWorkItemStarted.erase(p);
+}
+
+bool
+System::trapToGdb(int signal, ContextID ctx_id) const
+{
+    auto *gdb = threads.thread(ctx_id).gdb;
+    if (!gdb)
+        return false;
+    gdb->trap(signal);
+    return true;
 }
 
 void

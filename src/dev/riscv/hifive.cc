@@ -45,7 +45,7 @@
 using namespace RiscvISA;
 
 HiFive::HiFive(const Params &params) :
-    Platform(params), system(params.system),
+    Platform(params),
     clint(params.clint), plic(params.plic),
     uartIntID(params.uart_int_id)
 {
@@ -73,12 +73,6 @@ void
 HiFive::clearPciInt(int line)
 {
     plic->clear(line);
-}
-
-Addr
-HiFive::pciToDma(Addr pciAddr) const
-{
-    panic("HiFive::pciToDma() has not been implemented.");
 }
 
 void

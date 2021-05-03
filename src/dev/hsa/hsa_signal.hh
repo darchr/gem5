@@ -33,6 +33,8 @@
 #ifndef DEV_HSA_HSA_SIGNAL_H
 #define DEV_HSA_HSA_SIGNAL_H
 
+#include <cstdint>
+
 // AMD Signal Kind Enumeration Values.
 typedef int64_t amd_signal_kind64_t;
 enum amd_signal_kind_t
@@ -44,9 +46,11 @@ enum amd_signal_kind_t
 };
 
 // AMD Signal.
-typedef struct amd_signal_s {
+typedef struct amd_signal_s
+{
   amd_signal_kind64_t kind;
-  union {
+  union
+  {
     volatile int64_t value;
     volatile uint32_t* legacy_hardware_doorbell_ptr;
     volatile uint64_t* hardware_doorbell_ptr;
@@ -56,7 +60,8 @@ typedef struct amd_signal_s {
   uint32_t reserved1;
   uint64_t start_ts;
   uint64_t end_ts;
-  union {
+  union
+  {
     uint64_t queue_ptr;
     uint64_t reserved2;
   };

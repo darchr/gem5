@@ -453,7 +453,7 @@ Wavefront::initRegState(HSAQueueEntry *task, int wgSizeInWorkItems)
                 {
                     physVgprIdx = computeUnit->registerManager
                         ->mapVgpr(this, regInitIdx);
-                    TheGpuISA::VecRegU32 vgpr_x
+                    TheGpuISA::VecElemU32 *vgpr_x
                         = raw_vgpr.as<TheGpuISA::VecElemU32>();
 
                     for (int lane = 0; lane < workItemId[0].size(); ++lane) {
@@ -469,7 +469,7 @@ Wavefront::initRegState(HSAQueueEntry *task, int wgSizeInWorkItems)
                 {
                     physVgprIdx = computeUnit->registerManager
                         ->mapVgpr(this, regInitIdx);
-                    TheGpuISA::VecRegU32 vgpr_y
+                    TheGpuISA::VecElemU32 *vgpr_y
                         = raw_vgpr.as<TheGpuISA::VecElemU32>();
 
                     for (int lane = 0; lane < workItemId[1].size(); ++lane) {
@@ -485,7 +485,7 @@ Wavefront::initRegState(HSAQueueEntry *task, int wgSizeInWorkItems)
                 {
                     physVgprIdx = computeUnit->registerManager->
                         mapVgpr(this, regInitIdx);
-                    TheGpuISA::VecRegU32 vgpr_z
+                    TheGpuISA::VecElemU32 *vgpr_z
                         = raw_vgpr.as<TheGpuISA::VecElemU32>();
 
                     for (int lane = 0; lane < workItemId[2].size(); ++lane) {
@@ -904,8 +904,8 @@ Wavefront::exec()
     }
     computeUnit->srf[simdId]->waveExecuteInst(this, ii);
 
-    computeUnit->shader->incVectorInstSrcOperand(ii->numSrcVecOperands());
-    computeUnit->shader->incVectorInstDstOperand(ii->numDstVecOperands());
+    computeUnit->shader->incVectorInstSrcOperand(ii->numSrcVecRegOperands());
+    computeUnit->shader->incVectorInstDstOperand(ii->numDstVecRegOperands());
     computeUnit->stats.numInstrExecuted++;
     stats.numInstrExecuted++;
     computeUnit->instExecPerSimd[simdId]++;
@@ -925,33 +925,30 @@ Wavefront::exec()
     // number of reads that occur per value written
 
     // vector RAW dependency tracking
-    for (int i = 0; i < ii->getNumOperands(); i++) {
-        if (ii->isVectorRegister(i)) {
-            int vgpr = ii->getRegisterIndex(i, ii);
-            int nReg = ii->getOperandSize(i) <= 4 ? 1 :
-                ii->getOperandSize(i) / 4;
-            for (int n = 0; n < nReg; n++) {
-                if (ii->isSrcOperand(i)) {
-                    // This check should never fail, but to be safe we check
-                    if (rawDist.find(vgpr+n) != rawDist.end()) {
-                        stats.vecRawDistance.sample(
-                            stats.numInstrExecuted.value() - rawDist[vgpr+n]);
-                    }
-                    // increment number of reads to this register
-                    vecReads[vgpr+n]++;
-                } else if (ii->isDstOperand(i)) {
-                    // rawDist is set on writes, but will not be set
-                    // for the first write to each physical register
-                    if (rawDist.find(vgpr+n) != rawDist.end()) {
-                        // sample the number of reads that were performed
-                        stats.readsPerWrite.sample(vecReads[vgpr+n]);
-                    }
-                    // on a write, reset count of reads to 0
-                    vecReads[vgpr+n] = 0;
-
-                    rawDist[vgpr+n] = stats.numInstrExecuted.value();
-                }
+    for (const auto& srcVecOp : ii->srcVecRegOperands()) {
+        for (const auto& virtIdx : srcVecOp.virtIndices()) {
+            // This check should never fail, but to be safe we check
+            if (rawDist.find(virtIdx) != rawDist.end()) {
+                stats.vecRawDistance.sample(stats.numInstrExecuted.value() -
+                                      rawDist[virtIdx]);
             }
+            // increment number of reads to this register
+            vecReads[virtIdx]++;
+        }
+    }
+
+    for (const auto& dstVecOp : ii->dstVecRegOperands()) {
+        for (const auto& virtIdx : dstVecOp.virtIndices()) {
+            // rawDist is set on writes, but will not be set for the first
+            // write to each physical register
+            if (rawDist.find(virtIdx) != rawDist.end()) {
+                // Sample the number of reads that were performed
+                stats.readsPerWrite.sample(vecReads[virtIdx]);
+            }
+            // on a write, reset count of reads to 0
+            vecReads[virtIdx] = 0;
+
+            rawDist[virtIdx] = stats.numInstrExecuted.value();
         }
     }
 

@@ -45,7 +45,7 @@
 #include <vector>
 
 #include "arch/x86/fs_workload.hh"
-#include "arch/x86/isa_traits.hh"
+#include "arch/x86/page_size.hh"
 #include "arch/x86/regs/misc.hh"
 #include "arch/x86/regs/segment.hh"
 #include "arch/x86/se_workload.hh"
@@ -60,6 +60,7 @@
 #include "mem/page_table.hh"
 #include "params/Process.hh"
 #include "sim/aux_vector.hh"
+#include "sim/byteswap.hh"
 #include "sim/process_impl.hh"
 #include "sim/syscall_desc.hh"
 #include "sim/syscall_return.hh"
@@ -411,7 +412,8 @@ X86_64Process::initState()
 
         /* Set up the content of the TSS and write it to physical memory. */
 
-        struct {
+        struct
+        {
             uint32_t reserved0;        // +00h
             uint32_t RSP0_low;         // +04h
             uint32_t RSP0_high;        // +08h
@@ -466,7 +468,8 @@ X86_64Process::initState()
         GateDescriptorHigh PFGateHigh = 0;
         PFGateHigh.offset = bits(PFHandlerVirtAddr, 63, 32);
 
-        struct {
+        struct
+        {
             uint64_t low;
             uint64_t high;
         } PFGate = {PFGateLow, PFGateHigh};
@@ -961,7 +964,7 @@ X86Process::argsInit(int pageSize,
     // Copy the aux stuff
     Addr auxv_array_end = auxv_array_base;
     for (const auto &aux: auxv) {
-        initVirtMem->write(auxv_array_end, aux, GuestByteOrder);
+        initVirtMem->write(auxv_array_end, aux, ByteOrder::little);
         auxv_array_end += sizeof(aux);
     }
     // Write out the terminating zeroed auxiliary vector
@@ -980,7 +983,7 @@ X86Process::argsInit(int pageSize,
 
     ThreadContext *tc = system->threads[contextIds[0]];
     // Set the stack pointer register
-    tc->setIntReg(StackPointerReg, stack_min);
+    tc->setIntReg(INTREG_RSP, stack_min);
 
     // There doesn't need to be any segment base added in since we're dealing
     // with the flat segmentation model.

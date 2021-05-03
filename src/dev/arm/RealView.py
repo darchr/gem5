@@ -66,6 +66,8 @@ from m5.objects.Scmi import *
 from m5.objects.SMMUv3 import SMMUv3
 from m5.objects.PciDevice import PciLegacyIoBar, PciIoBar
 
+from m5.objects.CfiMemory import CfiMemory
+
 # Platforms with KVM support should generally use in-kernel GIC
 # emulation. Use a GIC model that automatically switches between
 # gem5's GIC model and KVM's GIC model if KVM is available.
@@ -649,7 +651,6 @@ class GenericMHU(MHU):
 class RealView(Platform):
     type = 'RealView'
     cxx_header = "dev/arm/realview.hh"
-    system = Param.System(Parent.any, "system")
     _mem_regions = [ AddrRange(0, size='256MiB') ]
     _num_pci_dev = 0
 
@@ -1166,8 +1167,8 @@ Interrupts:
     ]
 
     # NOR flash, flash1
-    flash1 = SimpleMemory(range=AddrRange(0x0c000000, 0x10000000),
-                          conf_table_reported=False)
+    flash1 = CfiMemory(range=AddrRange(0x0c000000, 0x10000000),
+                       conf_table_reported=False)
 
     # VRAM
     vram = SimpleMemory(range=AddrRange(0x18000000, size='32MB'),
@@ -1375,12 +1376,19 @@ class VExpress_GEM5_Foundation(VExpress_GEM5_Base):
     Reference for memory and interrupt map:
         Armv8-A Foundation Platform - User Guide - Version 11.8
         Document ID: 100961_1180_00_en
+
+    We are adding PCI capabilities to the Armv8-A FVP Foundation
+    Platform. We are enabling it by using the PCI memory map
+    of the Armv8-A FVP Base Platform:
+        Fast Models - Reference Manual - Version 11.8
+        Document ID: 100964_1108_00_en
     """
     _off_chip_ranges = [
         # CS1-CS5
         AddrRange(0x0c000000, 0x20000000),
         # External AXI interface (PCI)
         AddrRange(0x40000000, 0x80000000),
+        AddrRange(0x4000000000, 0x800000000),
     ]
 
     sp810_fake = AmbaFake(pio_addr=0x1C020000, ignore_access=True)
@@ -1394,7 +1402,7 @@ class VExpress_GEM5_Foundation(VExpress_GEM5_Base):
     pci_host = GenericArmPciHost(
         conf_base=0x40000000, conf_size='256MiB', conf_device_bits=12,
         pci_pio_base=0x50000000,
-        pci_mem_base=0x400000000,
+        pci_mem_base=0x4000000000,
         int_policy="ARM_PCI_INT_DEV", int_base=100, int_count=4)
 
     def _on_chip_devices(self):

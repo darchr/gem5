@@ -45,15 +45,17 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "enums/GPUStaticInstFlags.hh"
 #include "enums/StorageClassType.hh"
 #include "gpu-compute/gpu_dyn_inst.hh"
 #include "gpu-compute/misc.hh"
+#include "gpu-compute/operand_info.hh"
+#include "gpu-compute/wavefront.hh"
 
 class BaseOperand;
 class BaseRegOperand;
-class Wavefront;
 
 class GPUStaticInst : public GPUStaticInstFlags
 {
@@ -74,32 +76,33 @@ class GPUStaticInst : public GPUStaticInstFlags
 
     virtual TheGpuISA::ScalarRegU32 srcLiteral() const { return 0; }
 
+    void initDynOperandInfo(Wavefront *wf, ComputeUnit *cu);
+
+    virtual void initOperandInfo() = 0;
     virtual void execute(GPUDynInstPtr gpuDynInst) = 0;
     virtual void generateDisassembly() = 0;
     const std::string& disassemble();
     virtual int getNumOperands() = 0;
-    virtual bool isScalarRegister(int operandIndex) = 0;
-    virtual bool isVectorRegister(int operandIndex) = 0;
-    virtual bool isSrcOperand(int operandIndex) = 0;
-    virtual bool isDstOperand(int operandIndex) = 0;
     virtual bool isFlatScratchRegister(int opIdx) = 0;
     virtual bool isExecMaskRegister(int opIdx) = 0;
     virtual int getOperandSize(int operandIndex) = 0;
 
-    virtual int getRegisterIndex(int operandIndex,
-                                 GPUDynInstPtr gpuDynInst) = 0;
-
     virtual int numDstRegOperands() = 0;
     virtual int numSrcRegOperands() = 0;
 
-    virtual int coalescerTokenCount() const { return 0; }
-
-    int numDstVecOperands();
     int numSrcVecOperands();
-    int numDstVecDWORDs();
-    int numSrcVecDWORDs();
+    int numDstVecOperands();
+    int numSrcVecDWords();
+    int numDstVecDWords();
 
-    int numOpdDWORDs(int operandIdx);
+    int numSrcScalarOperands();
+    int numDstScalarOperands();
+    int numSrcScalarDWords();
+    int numDstScalarDWords();
+
+    int maxOperandSize();
+
+    virtual int coalescerTokenCount() const { return 0; }
 
     bool isALU() const { return _flags[ALU]; }
     bool isBranch() const { return _flags[Branch]; }
@@ -257,15 +260,58 @@ class GPUStaticInst : public GPUStaticInstFlags
     }
     const std::string& opcode() const { return _opcode; }
 
+    const std::vector<OperandInfo>& srcOperands() const { return srcOps; }
+    const std::vector<OperandInfo>& dstOperands() const { return dstOps; }
+
+    const std::vector<OperandInfo>&
+    srcVecRegOperands() const
+    {
+        return srcVecRegOps;
+    }
+
+    const std::vector<OperandInfo>&
+    dstVecRegOperands() const
+    {
+        return dstVecRegOps;
+    }
+
+    const std::vector<OperandInfo>&
+    srcScalarRegOperands() const
+    {
+        return srcScalarRegOps;
+    }
+
+    const std::vector<OperandInfo>&
+    dstScalarRegOperands() const
+    {
+        return dstScalarRegOps;
+    }
+
+    // These next 2 lines are used in initDynOperandInfo to let the lambda
+    // function work
+    typedef int (RegisterManager::*MapRegFn)(Wavefront *, int);
+    enum OpType { SRC_VEC, SRC_SCALAR, DST_VEC, DST_SCALAR };
+
   protected:
     const std::string _opcode;
     std::string disassembly;
     int _instNum;
     int _instAddr;
-    int srcVecOperands;
-    int dstVecOperands;
-    int srcVecDWORDs;
-    int dstVecDWORDs;
+    std::vector<OperandInfo> srcOps;
+    std::vector<OperandInfo> dstOps;
+
+  private:
+    int srcVecDWords;
+    int dstVecDWords;
+    int srcScalarDWords;
+    int dstScalarDWords;
+    int maxOpSize;
+
+    std::vector<OperandInfo> srcVecRegOps;
+    std::vector<OperandInfo> dstVecRegOps;
+    std::vector<OperandInfo> srcScalarRegOps;
+    std::vector<OperandInfo> dstScalarRegOps;
+
     /**
      * Identifier of the immediate post-dominator instruction.
      */
@@ -298,22 +344,13 @@ class KernelLaunchStaticInst : public GPUStaticInst
         disassembly = _opcode;
     }
 
+    void initOperandInfo() override { return; }
     int getNumOperands() override { return 0; }
     bool isFlatScratchRegister(int opIdx) override { return false; }
     // return true if the Execute mask is explicitly used as a source
     // register operand
     bool isExecMaskRegister(int opIdx) override { return false; }
-    bool isScalarRegister(int operandIndex) override { return false; }
-    bool isVectorRegister(int operandIndex) override { return false; }
-    bool isSrcOperand(int operandIndex) override { return false; }
-    bool isDstOperand(int operandIndex) override { return false; }
     int getOperandSize(int operandIndex) override { return 0; }
-
-    int
-    getRegisterIndex(int operandIndex, GPUDynInstPtr gpuDynInst) override
-    {
-        return 0;
-    }
 
     int numDstRegOperands() override { return 0; }
     int numSrcRegOperands() override { return 0; }

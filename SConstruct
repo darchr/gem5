@@ -77,14 +77,13 @@
 
 # Global Python includes
 import atexit
-import itertools
 import os
 import sys
 
 from os import mkdir, environ
-from os.path import abspath, basename, dirname, expanduser, normpath
-from os.path import exists,  isdir, isfile
-from os.path import join as joinpath, split as splitpath
+from os.path import abspath, dirname, expanduser
+from os.path import isdir, isfile
+from os.path import join, split
 from re import match
 
 # SCons includes
@@ -95,8 +94,6 @@ import SCons.Tool
 
 from m5.util import compareVersions, readCommand, readCommandWithReturn
 
-AddOption('--colors', dest='use_colors', action='store_true',
-          help="Add color to abbreviated scons output")
 AddOption('--no-colors', dest='use_colors', action='store_false',
           help="Don't add color to abbreviated scons output")
 AddOption('--with-cxx-config', action='store_true',
@@ -124,8 +121,11 @@ AddOption('--with-systemc-tests', action='store_true',
           help='Build systemc tests')
 
 from gem5_scons import Transform, error, warning, summarize_warnings
-from gem5_scons import TempFileSpawn, parse_build_path
+from gem5_scons import TempFileSpawn, parse_build_path, EnvDefaults
+from gem5_scons import MakeAction, MakeActionTool
 import gem5_scons
+
+Export('MakeAction')
 
 ########################################################################
 #
@@ -133,7 +133,9 @@ import gem5_scons
 #
 ########################################################################
 
-main = Environment(tools=['default', 'git', TempFileSpawn])
+main = Environment(tools=[
+        'default', 'git', TempFileSpawn, EnvDefaults, MakeActionTool
+    ])
 
 main.Tool(SCons.Tool.FindTool(['gcc', 'clang'], main))
 main.Tool(SCons.Tool.FindTool(['g++', 'clang++'], main))
@@ -166,7 +168,7 @@ def rfind(l, elt, offs = -1):
 # paths made absolute and ~-expanded.  Paths will be interpreted
 # relative to the launch directory unless a different root is provided
 def makePathListAbsolute(path_list, root=GetLaunchDir()):
-    return [abspath(joinpath(root, expanduser(str(p))))
+    return [abspath(os.path.join(root, expanduser(str(p))))
             for p in path_list]
 
 # Each target must have 'build' in the interior of the path; the
@@ -204,20 +206,14 @@ main['BUILDROOT'] = build_root
 
 Export('main')
 
-main.SConsignFile(joinpath(build_root, "sconsign"))
-
-# Default duplicate option is to use hard links, but this messes up
-# when you use emacs to edit a file in the target dir, as emacs moves
-# file to file~ then copies to file, breaking the link.  Symbolic
-# (soft) links work better.
-main.SetOption('duplicate', 'soft-copy')
+main.SConsignFile(os.path.join(build_root, "sconsign"))
 
 #
 # Set up global sticky variables... these are common to an entire build
 # tree (not specific to a particular build like X86)
 #
 
-global_vars_file = joinpath(build_root, 'variables.global')
+global_vars_file = os.path.join(build_root, 'variables.global')
 
 global_vars = Variables(global_vars_file, args=ARGUMENTS)
 
@@ -265,23 +261,6 @@ main.Append(CPPPATH=[Dir('ext')])
 # Add shared top-level headers
 main.Prepend(CPPPATH=Dir('include'))
 
-if GetOption('verbose'):
-    def MakeAction(action, string, *args, **kwargs):
-        return Action(action, *args, **kwargs)
-else:
-    MakeAction = Action
-    main['CCCOMSTR']        = Transform("CC")
-    main['CXXCOMSTR']       = Transform("CXX")
-    main['ASCOMSTR']        = Transform("AS")
-    main['ARCOMSTR']        = Transform("AR", 0)
-    main['LINKCOMSTR']      = Transform("LINK", 0)
-    main['SHLINKCOMSTR']    = Transform("SHLINK", 0)
-    main['RANLIBCOMSTR']    = Transform("RANLIB", 0)
-    main['M4COMSTR']        = Transform("M4")
-    main['SHCCCOMSTR']      = Transform("SHCC")
-    main['SHCXXCOMSTR']     = Transform("SHCXX")
-Export('MakeAction')
-
 # Initialize the Link-Time Optimization (LTO) flags
 main['LTO_CCFLAGS'] = []
 main['LTO_LDFLAGS'] = []
@@ -291,10 +270,6 @@ main['LTO_LDFLAGS'] = []
 # are compiler-specific, so we need to set them after we detect which
 # compiler we're using.
 main['TCMALLOC_CCFLAGS'] = []
-
-# Platform-specific configuration.  Note again that we assume that all
-# builds under a given build root run on the same host platform.
-conf = gem5_scons.Configure(main)
 
 CXX_version = readCommand([main['CXX'], '--version'], exception=False)
 
@@ -308,17 +283,23 @@ if main['GCC'] or main['CLANG']:
     # As gcc and clang share many flags, do the common parts here
     main.Append(CCFLAGS=['-pipe'])
     main.Append(CCFLAGS=['-fno-strict-aliasing'])
+
     # Enable -Wall and -Wextra and then disable the few warnings that
     # we consistently violate
     main.Append(CCFLAGS=['-Wall', '-Wundef', '-Wextra',
                          '-Wno-sign-compare', '-Wno-unused-parameter'])
+
     # We always compile using C++14
     main.Append(CXXFLAGS=['-std=c++14'])
+
     if sys.platform.startswith('freebsd'):
         main.Append(CCFLAGS=['-I/usr/local/include'])
         main.Append(CXXFLAGS=['-I/usr/local/include'])
+        # On FreeBSD we need libthr.
+        main.Append(LIBS=['thr'])
 
-    conf.CheckLinkFlag('-Wl,--as-needed')
+    with gem5_scons.Configure(main) as conf:
+        conf.CheckLinkFlag('-Wl,--as-needed')
     if GetOption('gold_linker'):
         main.Append(LINKFLAGS='-fuse-ld=gold')
 
@@ -347,8 +328,7 @@ if main['GCC']:
         error('gcc version 5 or newer required.\n'
               'Installed version:', main['CXXVERSION'])
 
-    # Add the appropriate Link-Time Optimization (LTO) flags
-    # unless LTO is explicitly turned off.
+    # If not disabled, set the Link-Time Optimization (LTO) flags.
     if not GetOption('no_lto'):
         # g++ uses "make" to parallelize LTO. The program can be overriden with
         # the environment variable "MAKE", but we currently make no attempt to
@@ -360,14 +340,9 @@ if main['GCC']:
             warning('"make" not found, link time optimization will be '
                     'single threaded.')
 
-        # Pass the LTO flag when compiling to produce GIMPLE
-        # output, we merely create the flags here and only append
-        # them later
-        main['LTO_CCFLAGS'] = ['-flto%s' % parallelism]
-
-        # Use the same amount of jobs for LTO as we are running
-        # scons with
-        main['LTO_LDFLAGS'] = ['-flto%s' % parallelism]
+        for var in 'LTO_CCFLAGS', 'LTO_LDFLAGS':
+            # Use the same amount of jobs for LTO as we are running scons with.
+            main[var] = ['-flto%s' % parallelism]
 
     main.Append(TCMALLOC_CCFLAGS=['-fno-builtin-malloc', '-fno-builtin-calloc',
                                   '-fno-builtin-realloc', '-fno-builtin-free'])
@@ -377,13 +352,15 @@ elif main['CLANG']:
         error('clang version 3.9 or newer required.\n'
               'Installed version:', main['CXXVERSION'])
 
-    # clang has a few additional warnings that we disable, extraneous
-    # parantheses are allowed due to Ruby's printing of the AST,
-    # finally self assignments are allowed as the generated CPU code
-    # is relying on this
-    main.Append(CCFLAGS=['-Wno-parentheses', '-Wno-self-assign'])
-    conf.CheckCxxFlag('-Wno-c99-designator')
-    conf.CheckCxxFlag('-Wno-defaulted-function-deleted')
+    # If not disabled, set the Link-Time Optimization (LTO) flags.
+    if not GetOption('no_lto'):
+        for var in 'LTO_CCFLAGS', 'LTO_LDFLAGS':
+            main[var] = ['-flto']
+
+    # clang has a few additional warnings that we disable.
+    with gem5_scons.Configure(main) as conf:
+        conf.CheckCxxFlag('-Wno-c99-designator')
+        conf.CheckCxxFlag('-Wno-defaulted-function-deleted')
 
     main.Append(TCMALLOC_CCFLAGS=['-fno-builtin'])
 
@@ -392,10 +369,6 @@ elif main['CLANG']:
     if sys.platform == "darwin":
         main.Append(CXXFLAGS=['-stdlib=libc++'])
         main.Append(LIBS=['c++'])
-
-    # On FreeBSD we need libthr.
-    if sys.platform.startswith('freebsd'):
-        main.Append(LIBS=['thr'])
 
 # Add sanitizers flags
 sanitizers=[]
@@ -439,36 +412,7 @@ if sys.platform == 'cygwin':
     main.Append(CCFLAGS=["-Wno-uninitialized"])
 
 
-have_pkg_config = main.Detect('pkg-config')
-
-# Check for the protobuf compiler
-main['HAVE_PROTOC'] = False
-protoc_version = []
-try:
-    protoc_version = readCommand([main['PROTOC'], '--version']).split()
-except Exception as e:
-    warning('While checking protoc version:', str(e))
-
-# Based on the availability of the compress stream wrappers, require 2.1.0.
-min_protoc_version = '2.1.0'
-
-# First two words should be "libprotoc x.y.z"
-if len(protoc_version) < 2 or protoc_version[0] != 'libprotoc':
-    warning('Protocol buffer compiler (protoc) not found.\n'
-            'Please install protobuf-compiler for tracing support.')
-elif compareVersions(protoc_version[1], min_protoc_version) < 0:
-    warning('protoc version', min_protoc_version, 'or newer required.\n'
-            'Installed version:', protoc_version[1])
-else:
-    # Attempt to determine the appropriate include path and
-    # library path using pkg-config, that means we also need to
-    # check for pkg-config. Note that it is possible to use
-    # protobuf without the involvement of pkg-config. Later on we
-    # check go a library config check and at that point the test
-    # will fail if libprotobuf cannot be found.
-    if have_pkg_config:
-        conf.CheckPkgConfig('protobuf', '--cflags', '--libs-only-L')
-    main['HAVE_PROTOC'] = True
+main['HAVE_PKG_CONFIG'] = main.Detect('pkg-config')
 
 
 
@@ -478,10 +422,11 @@ if main['M5_BUILD_CACHE']:
     CacheDir(main['M5_BUILD_CACHE'])
 
 if not GetOption('no_compress_debug'):
-    if not conf.CheckCxxFlag('-gz'):
-        warning("Can't enable object file debug section compression")
-    if not conf.CheckLinkFlag('-gz'):
-        warning("Can't enable executable debug section compression")
+    with gem5_scons.Configure(main) as conf:
+        if not conf.CheckCxxFlag('-gz'):
+            warning("Can't enable object file debug section compression")
+        if not conf.CheckLinkFlag('-gz'):
+            warning("Can't enable executable debug section compression")
 
 main['USE_PYTHON'] = not GetOption('without_python')
 if main['USE_PYTHON']:
@@ -536,32 +481,33 @@ if main['USE_PYTHON']:
              if lib not in py_libs:
                  py_libs.append(lib)
 
-    # verify that this stuff works
-    if not conf.CheckHeader('Python.h', '<>'):
-        error("Check failed for Python.h header in",
-                ' '.join(py_includes), "\n"
-              "Two possible reasons:\n"
-              "1. Python headers are not installed (You can install the "
-              "package python-dev on Ubuntu and RedHat)\n"
-              "2. SCons is using a wrong C compiler. This can happen if "
-              "CC has the wrong value.\n"
-              "CC = %s" % main['CC'])
-
-    for lib in py_libs:
-        if not conf.CheckLib(lib):
-            error("Can't find library %s required by python." % lib)
-
     main.Prepend(CPPPATH=Dir('ext/pybind11/include/'))
+
+    with gem5_scons.Configure(main) as conf:
+        # verify that this stuff works
+        if not conf.CheckHeader('Python.h', '<>'):
+            error("Check failed for Python.h header in",
+                    ' '.join(py_includes), "\n"
+                  "Two possible reasons:\n"
+                  "1. Python headers are not installed (You can install the "
+                  "package python-dev on Ubuntu and RedHat)\n"
+                  "2. SCons is using a wrong C compiler. This can happen if "
+                  "CC has the wrong value.\n"
+                  "CC = %s" % main['CC'])
+
+        for lib in py_libs:
+            if not conf.CheckLib(lib):
+                error("Can't find library %s required by python." % lib)
+
+        py_version = conf.CheckPythonLib()
+        if not py_version:
+            error("Can't find a working Python installation")
 
     marshal_env = main.Clone()
 
     # Bare minimum environment that only includes python
     marshal_env.Append(CCFLAGS='$MARSHAL_CCFLAGS_EXTRA')
     marshal_env.Append(LINKFLAGS='$MARSHAL_LDFLAGS_EXTRA')
-
-    py_version = conf.CheckPythonLib()
-    if not py_version:
-        error("Can't find a working Python installation")
 
     # Found a working Python installation. Check if it meets minimum
     # requirements.
@@ -571,177 +517,42 @@ if main['USE_PYTHON']:
     elif py_version[0] > 3:
         warning('Python version too new. Python 3 expected.')
 
-# On Solaris you need to use libsocket for socket ops
-if not conf.CheckLibWithHeader(
-        [None, 'socket'], 'sys/socket.h', 'C++', 'accept(0,0,0);'):
-   error("Can't find library with socket calls (e.g. accept()).")
+with gem5_scons.Configure(main) as conf:
+    # On Solaris you need to use libsocket for socket ops
+    if not conf.CheckLibWithHeader(
+            [None, 'socket'], 'sys/socket.h', 'C++', 'accept(0,0,0);'):
+       error("Can't find library with socket calls (e.g. accept()).")
 
-# Check for zlib.  If the check passes, libz will be automatically
-# added to the LIBS environment variable.
-if not conf.CheckLibWithHeader('z', 'zlib.h', 'C++','zlibVersion();'):
-    error('Did not find needed zlib compression library '
-          'and/or zlib.h header file.\n'
-          'Please install zlib and try again.')
+    # Check for zlib.  If the check passes, libz will be automatically
+    # added to the LIBS environment variable.
+    if not conf.CheckLibWithHeader('z', 'zlib.h', 'C++','zlibVersion();'):
+        error('Did not find needed zlib compression library '
+              'and/or zlib.h header file.\n'
+              'Please install zlib and try again.')
 
-# If we have the protobuf compiler, also make sure we have the
-# development libraries. If the check passes, libprotobuf will be
-# automatically added to the LIBS environment variable. After
-# this, we can use the HAVE_PROTOBUF flag to determine if we have
-# got both protoc and libprotobuf available.
-main['HAVE_PROTOBUF'] = main['HAVE_PROTOC'] and \
-    conf.CheckLibWithHeader('protobuf', 'google/protobuf/message.h',
-                            'C++', 'GOOGLE_PROTOBUF_VERIFY_VERSION;')
-
-# Valgrind gets much less confused if you tell it when you're using
-# alternative stacks.
-main['HAVE_VALGRIND'] = conf.CheckCHeader('valgrind/valgrind.h')
-
-# If we have the compiler but not the library, print another warning.
-if main['HAVE_PROTOC'] and not main['HAVE_PROTOBUF']:
-    warning('Did not find protocol buffer library and/or headers.\n'
-            'Please install libprotobuf-dev for tracing support.')
-
-# Check for librt.
-have_posix_clock = \
-    conf.CheckLibWithHeader([None, 'rt'], 'time.h', 'C',
-                            'clock_nanosleep(0,0,NULL,NULL);')
-if not have_posix_clock:
-    warning("Can't find library for POSIX clocks.")
-
-have_posix_timers = \
-    conf.CheckLibWithHeader([None, 'rt'], [ 'time.h', 'signal.h' ], 'C',
-                            'timer_create(CLOCK_MONOTONIC, NULL, NULL);')
 
 if not GetOption('without_tcmalloc'):
-    if conf.CheckLib('tcmalloc'):
-        main.Append(CCFLAGS=main['TCMALLOC_CCFLAGS'])
-    elif conf.CheckLib('tcmalloc_minimal'):
-        main.Append(CCFLAGS=main['TCMALLOC_CCFLAGS'])
-    else:
-        warning("You can get a 12% performance improvement by "
-                "installing tcmalloc (libgoogle-perftools-dev package "
-                "on Ubuntu or RedHat).")
+    with gem5_scons.Configure(main) as conf:
+        if conf.CheckLib('tcmalloc'):
+            conf.env.Append(CCFLAGS=main['TCMALLOC_CCFLAGS'])
+        elif conf.CheckLib('tcmalloc_minimal'):
+            conf.env.Append(CCFLAGS=main['TCMALLOC_CCFLAGS'])
+        else:
+            warning("You can get a 12% performance improvement by "
+                    "installing tcmalloc (libgoogle-perftools-dev package "
+                    "on Ubuntu or RedHat).")
 
-
-if conf.CheckLibWithHeader([None, 'execinfo'], 'execinfo.h', 'C',
-        'char temp; backtrace_symbols_fd((void *)&temp, 0, 0);'):
-    main['BACKTRACE_IMPL'] = 'glibc'
-else:
-    main['BACKTRACE_IMPL'] = 'none'
-    warning("No suitable back trace implementation found.")
-
-# Check for <fenv.h> (C99 FP environment control)
-have_fenv = conf.CheckHeader('fenv.h', '<>')
-if not have_fenv:
-    warning("Header file <fenv.h> not found.\n"
-            "This host has no IEEE FP rounding mode control.")
-
-# Check for <png.h> (libpng library needed if wanting to dump
-# frame buffer image in png format)
-have_png = conf.CheckHeader('png.h', '<>')
-if not have_png:
-    warning("Header file <png.h> not found.\n"
-            "This host has no libpng library.\n"
-            "Disabling support for PNG framebuffers.")
-
-# Check if we should enable KVM-based hardware virtualization. The API
-# we rely on exists since version 2.6.36 of the kernel, but somehow
-# the KVM_API_VERSION does not reflect the change. We test for one of
-# the types as a fall back.
-have_kvm = conf.CheckHeader('linux/kvm.h', '<>')
-if not have_kvm:
-    print("Info: Compatible header file <linux/kvm.h> not found, "
-          "disabling KVM support.")
-
-# Check if the TUN/TAP driver is available.
-have_tuntap = conf.CheckHeader('linux/if_tun.h', '<>')
-if not have_tuntap:
-    print("Info: Compatible header file <linux/if_tun.h> not found.")
-
-# Determine what ISA KVM can support on this host.
-kvm_isa = None
-host_isa = None
-try:
-    import platform
-    host_isa = platform.machine()
-except:
-    pass
-
-if not host_isa:
-    warning("Failed to determine host ISA.")
-elif not have_posix_timers:
-    warning("Cannot enable KVM, host seems to lack support for POSIX timers")
-elif host_isa in ('armv7l', 'aarch64'):
-    kvm_isa = 'arm'
-elif host_isa == 'x86_64':
-    if conf.CheckTypeSize('struct kvm_xsave', '#include <linux/kvm.h>') != 0:
-        kvm_isa = 'x86'
-    else:
-        warning("KVM on x86 requires xsave support in kernel headers.")
-
-
-# Check if the exclude_host attribute is available. We want this to
-# get accurate instruction counts in KVM.
-main['HAVE_PERF_ATTR_EXCLUDE_HOST'] = conf.CheckMember(
-    'linux/perf_event.h', 'struct perf_event_attr', 'exclude_host')
-
-# Check if there is a pkg-config configuration for hdf5. If we find
-# it, setup the environment to enable linking and header inclusion. We
-# don't actually try to include any headers or link with hdf5 at this
-# stage.
-if have_pkg_config:
-    conf.CheckPkgConfig(['hdf5-serial', 'hdf5'],
-            '--cflags-only-I', '--libs-only-L')
-
-# Check if the HDF5 libraries can be found. This check respects the
-# include path and library path provided by pkg-config. We perform
-# this check even if there isn't a pkg-config configuration for hdf5
-# since some installations don't use pkg-config.
-have_hdf5 = \
-        conf.CheckLibWithHeader('hdf5', 'hdf5.h', 'C',
-                                'H5Fcreate("", 0, 0, 0);') and \
-        conf.CheckLibWithHeader('hdf5_cpp', 'H5Cpp.h', 'C++',
-                                'H5::H5File("", 0);')
-if not have_hdf5:
-    warning("Couldn't find any HDF5 C++ libraries. Disabling HDF5 support.")
-
-######################################################################
-#
-# Finish the configuration
-#
-main = conf.Finish()
 
 ######################################################################
 #
 # Collect all non-global variables
 #
 
-# Define the universe of supported ISAs
-all_isa_list = [ ]
-all_gpu_isa_list = [ ]
-Export('all_isa_list')
-Export('all_gpu_isa_list')
-
-class CpuModel(object):
-    '''The CpuModel class encapsulates everything the ISA parser needs to
-    know about a particular CPU model.'''
-
-    # Dict of available CPU model objects.  Accessible as CpuModel.dict.
-    dict = {}
-
-    # Constructor.  Automatically adds models to CpuModel.dict.
-    def __init__(self, name, default=False):
-        self.name = name           # name of model
-
-        # This cpu is enabled by default
-        self.default = default
-
-        # Add self to dict
-        if name in CpuModel.dict:
-            raise AttributeError("CpuModel '%s' already registered" % name)
-        CpuModel.dict[name] = self
-
-Export('CpuModel')
+# Register a callback which is called after all SConsopts files have been read.
+after_sconsopts_callbacks = []
+def AfterSConsopts(cb):
+    after_sconsopts_callbacks.append(cb)
+Export('AfterSConsopts')
 
 # Sticky variables get saved in the variables file so they persist from
 # one invocation to the next (unless overridden, in which case the new
@@ -749,20 +560,10 @@ Export('CpuModel')
 sticky_vars = Variables(args=ARGUMENTS)
 Export('sticky_vars')
 
-# Sticky variables that should be exported
+# Sticky variables that should be exported to #defines in config/*.hh
+# (see src/SConscript).
 export_vars = []
 Export('export_vars')
-
-# For Ruby
-all_protocols = []
-Export('all_protocols')
-protocol_dirs = []
-Export('protocol_dirs')
-slicc_includes = []
-Export('slicc_includes')
-# list of protocols that require the partial functional read interface
-need_partial_func_reads = []
-Export('need_partial_func_reads')
 
 # Walk the tree and execute all SConsopts scripts that wil add to the
 # above variables
@@ -774,45 +575,14 @@ for bdir in [ base_dir ] + extras_dir_list:
     for root, dirs, files in os.walk(bdir):
         if 'SConsopts' in files:
             if GetOption('verbose'):
-                print("Reading", joinpath(root, 'SConsopts'))
-            SConscript(joinpath(root, 'SConsopts'))
+                print("Reading", os.path.join(root, 'SConsopts'))
+            SConscript(os.path.join(root, 'SConsopts'))
 
-all_isa_list.sort()
-all_gpu_isa_list.sort()
+for cb in after_sconsopts_callbacks:
+    cb()
 
-sticky_vars.AddVariables(
-    EnumVariable('TARGET_ISA', 'Target ISA', 'null', all_isa_list),
-    EnumVariable('TARGET_GPU_ISA', 'Target GPU ISA', 'gcn3', all_gpu_isa_list),
-    ListVariable('CPU_MODELS', 'CPU models',
-                 sorted(n for n,m in CpuModel.dict.items() if m.default),
-                 sorted(CpuModel.dict.keys())),
-    BoolVariable('EFENCE', 'Link with Electric Fence malloc debugger',
-                 False),
-    BoolVariable('USE_SSE2',
-                 'Compile for SSE2 (-msse2) to get IEEE FP on x86 hosts',
-                 False),
-    BoolVariable('USE_POSIX_CLOCK', 'Use POSIX Clocks', have_posix_clock),
-    BoolVariable('USE_FENV', 'Use <fenv.h> IEEE mode control', have_fenv),
-    BoolVariable('USE_PNG',  'Enable support for PNG images', have_png),
-    BoolVariable('USE_KVM', 'Enable hardware virtualized (KVM) CPU models',
-                 have_kvm),
-    BoolVariable('USE_TUNTAP',
-                 'Enable using a tap device to bridge to the host network',
-                 have_tuntap),
-    BoolVariable('BUILD_GPU', 'Build the compute-GPU model', False),
-    EnumVariable('PROTOCOL', 'Coherence protocol for Ruby', 'None',
-                  all_protocols),
-    ('NUMBER_BITS_PER_SET', 'Max elements in set (default 64)',
-                 64),
-    BoolVariable('USE_HDF5', 'Enable the HDF5 support', have_hdf5),
-    )
-
-# These variables get exported to #defines in config/*.hh (see src/SConscript).
-export_vars += ['USE_FENV', 'TARGET_ISA', 'TARGET_GPU_ISA',
-                'USE_POSIX_CLOCK', 'USE_KVM', 'USE_TUNTAP', 'PROTOCOL',
-                'HAVE_PROTOBUF', 'HAVE_VALGRIND',
-                'HAVE_PERF_ATTR_EXCLUDE_HOST', 'USE_PNG',
-                'NUMBER_BITS_PER_SET', 'USE_HDF5']
+sticky_vars.Add(BoolVariable('USE_EFENCE',
+    'Link with Electric Fence malloc debugger', False))
 
 ###################################################
 #
@@ -884,10 +654,10 @@ for root, dirs, files in os.walk(ext_dir):
     if 'SConscript' in files:
         build_dir = os.path.relpath(root, ext_dir)
         ext_build_dirs.append(build_dir)
-        main.SConscript(joinpath(root, 'SConscript'),
-                        variant_dir=joinpath(build_root, build_dir))
+        main.SConscript(os.path.join(root, 'SConscript'),
+                        variant_dir=os.path.join(build_root, build_dir))
 
-gdb_xml_dir = joinpath(ext_dir, 'gdb-xml')
+gdb_xml_dir = os.path.join(ext_dir, 'gdb-xml')
 Export('gdb_xml_dir')
 
 ###################################################
@@ -939,14 +709,14 @@ for variant_path in variant_paths:
 
     # variant_dir is the tail component of build path, and is used to
     # determine the build parameters (e.g., 'X86')
-    (build_root, variant_dir) = splitpath(variant_path)
+    (build_root, variant_dir) = os.path.split(variant_path)
 
     # Set env variables according to the build directory config.
     sticky_vars.files = []
     # Variables for $BUILD_ROOT/$VARIANT_DIR are stored in
     # $BUILD_ROOT/variables/$VARIANT_DIR so you can nuke
     # $BUILD_ROOT/$VARIANT_DIR without losing your variables settings.
-    current_vars_file = joinpath(build_root, 'variables', variant_dir)
+    current_vars_file = os.path.join(build_root, 'variables', variant_dir)
     if isfile(current_vars_file):
         sticky_vars.files.append(current_vars_file)
         if not GetOption('silent'):
@@ -968,10 +738,12 @@ for variant_path in variant_paths:
         default = GetOption('default')
         opts_dir = Dir('#build_opts').abspath
         if default:
-            default_vars_files = [joinpath(build_root, 'variables', default),
-                                  joinpath(opts_dir, default)]
+            default_vars_files = [
+                    os.path.join(build_root, 'variables', default),
+                    os.path.join(opts_dir, default)
+                ]
         else:
-            default_vars_files = [joinpath(opts_dir, variant_dir)]
+            default_vars_files = [os.path.join(opts_dir, variant_dir)]
         existing_files = list(filter(isfile, default_vars_files))
         if existing_files:
             default_vars_file = existing_files[0]
@@ -993,55 +765,14 @@ Build variables for {dir}:
          append=True)
 
     # Process variable settings.
-
-    if not have_fenv and env['USE_FENV']:
-        warning("<fenv.h> not available; forcing USE_FENV to False in",
-                variant_dir + ".")
-        env['USE_FENV'] = False
-
-    if not env['USE_FENV']:
-        warning("No IEEE FP rounding mode control in", variant_dir + ".\n"
-                "FP results may deviate slightly from other platforms.")
-
-    if not have_png and env['USE_PNG']:
-        warning("<png.h> not available; forcing USE_PNG to False in",
-                variant_dir + ".")
-        env['USE_PNG'] = False
-
-    if env['USE_PNG']:
-        env.Append(LIBS=['png'])
-
-    if env['EFENCE']:
+    if env['USE_EFENCE']:
         env.Append(LIBS=['efence'])
 
-    if env['USE_KVM']:
-        if not have_kvm:
-            warning("Can not enable KVM, host seems to lack KVM support")
-            env['USE_KVM'] = False
-        elif kvm_isa != env['TARGET_ISA']:
-            print("Info: KVM for %s not supported on %s host." %
-                  (env['TARGET_ISA'], kvm_isa))
-            env['USE_KVM'] = False
-
-    if env['USE_TUNTAP']:
-        if not have_tuntap:
-            warning("Can't connect EtherTap with a tap device.")
-            env['USE_TUNTAP'] = False
-
-    if env['BUILD_GPU']:
-        env.Append(CPPDEFINES=['BUILD_GPU'])
-
-    # Warn about missing optional functionality
-    if env['USE_KVM']:
-        if not main['HAVE_PERF_ATTR_EXCLUDE_HOST']:
-            warning("perf_event headers lack support for the exclude_host "
-                    "attribute. KVM instruction counts will be inaccurate.")
+    if env['KVM_ISA'] != env['TARGET_ISA']:
+        env['USE_KVM'] = False
 
     # Save sticky variable settings back to current variables file
     sticky_vars.Save(current_vars_file, env)
-
-    if env['USE_SSE2']:
-        env.Append(CCFLAGS=['-msse2'])
 
     env.Append(CCFLAGS='$CCFLAGS_EXTRA')
     env.Append(LINKFLAGS='$LDFLAGS_EXTRA')

@@ -29,7 +29,6 @@
 #ifndef __ARCH_MIPS_DSP_HH__
 #define __ARCH_MIPS_DSP_HH__
 
-#include "arch/mips/isa_traits.hh"
 #include "arch/mips/types.hh"
 #include "base/logging.hh"
 #include "base/types.hh"
@@ -39,7 +38,8 @@ class ThreadContext;
 namespace MipsISA {
 
 // SIMD formats
-enum {
+enum
+{
     SIMD_FMT_L,    // long word
     SIMD_FMT_W,    // word
     SIMD_FMT_PH,   // paired halfword
@@ -48,7 +48,8 @@ enum {
 };
 
 // DSPControl Fields
-enum {
+enum
+{
     DSP_POS,       // insertion bitfield position
     DSP_SCOUNT,    // insertion bitfield size
     DSP_C,         // carry bit
@@ -59,14 +60,16 @@ enum {
 };
 
 // compare instruction operations
-enum {
+enum
+{
     CMP_EQ,        // equal
     CMP_LT,        // less than
     CMP_LE         // less than or equal
 };
 
 // SIMD operation order modes
-enum {
+enum
+{
     MODE_L,        // left
     MODE_R,        // right
     MODE_LA,       // left-alternate

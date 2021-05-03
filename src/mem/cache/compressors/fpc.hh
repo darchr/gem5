@@ -75,7 +75,8 @@ class FPC : public DictionaryCompressor<uint32_t>
      * The possible patterns. If a new pattern is added, it must be done
      * before NUM_PATTERNS.
      */
-    typedef enum {
+    typedef enum
+    {
         ZERO_RUN, SIGN_EXTENDED_4_BITS, SIGN_EXTENDED_1_BYTE,
         SIGN_EXTENDED_HALFWORD, ZERO_PADDED_HALFWORD,
         SIGN_EXTENDED_TWO_HALFWORDS, REP_BYTES, UNCOMPRESSED,
@@ -265,16 +266,16 @@ class FPC::SignExtendedTwoHalfwords : public Pattern
             int16_t(data & mask(16)),
             int16_t((data >> 16) & mask(16))
         };
-        return (halfwords[0] == sext<8>(halfwords[0] & mask(8))) &&
-            (halfwords[1] == sext<8>(halfwords[1] & mask(8)));
+        return (halfwords[0] == (uint16_t)szext<8>(halfwords[0])) &&
+            (halfwords[1] == (uint16_t)szext<8>(halfwords[1]));
     }
 
     DictionaryEntry
     decompress(const DictionaryEntry dict_bytes) const override
     {
         uint16_t halfwords[2] = {
-            uint16_t(sext<8>(extendedBytes[0]) & mask(16)),
-            uint16_t(sext<8>(extendedBytes[1]) & mask(16))
+            (uint16_t)szext<8>(extendedBytes[0]),
+            (uint16_t)szext<8>(extendedBytes[1])
         };
         return toDictionaryEntry((halfwords[1] << 16) | halfwords[0]);
     }

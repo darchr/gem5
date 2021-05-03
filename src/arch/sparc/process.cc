@@ -30,9 +30,9 @@
 
 #include "arch/sparc/asi.hh"
 #include "arch/sparc/handlers.hh"
-#include "arch/sparc/isa_traits.hh"
-#include "arch/sparc/miscregs.hh"
-#include "arch/sparc/registers.hh"
+#include "arch/sparc/page_size.hh"
+#include "arch/sparc/regs/int.hh"
+#include "arch/sparc/regs/misc.hh"
 #include "arch/sparc/types.hh"
 #include "base/loader/elf_object.hh"
 #include "base/loader/object_file.hh"
@@ -42,6 +42,7 @@
 #include "mem/page_table.hh"
 #include "params/Process.hh"
 #include "sim/aux_vector.hh"
+#include "sim/byteswap.hh"
 #include "sim/process_impl.hh"
 #include "sim/syscall_return.hh"
 #include "sim/system.hh"
@@ -326,7 +327,7 @@ SparcProcess::argsInit(int pageSize)
     // Copy the aux stuff
     Addr auxv_array_end = auxv_array_base;
     for (const auto &aux: auxv) {
-        initVirtMem->write(auxv_array_end, aux, GuestByteOrder);
+        initVirtMem->write(auxv_array_end, aux, ByteOrder::big);
         auxv_array_end += sizeof(aux);
     }
 

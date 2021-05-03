@@ -44,7 +44,8 @@
 
 #include <vector>
 
-#include "arch/types.hh"
+#include "arch/generic/isa.hh"
+#include "arch/registers.hh"
 #include "base/trace.hh"
 #include "config/the_isa.hh"
 #include "cpu/o3/comm.hh"
@@ -69,6 +70,7 @@ class PhysRegFile
     /** Integer register file. */
     std::vector<RegVal> intRegFile;
     std::vector<PhysRegId> intRegIds;
+    RegId zeroReg;
 
     /** Floating point register file. */
     std::vector<RegVal> floatRegFile;
@@ -136,7 +138,7 @@ class PhysRegFile
                 unsigned _numPhysicalVecRegs,
                 unsigned _numPhysicalVecPredRegs,
                 unsigned _numPhysicalCCRegs,
-                unsigned _numPhysicalMiscRegs,
+                const BaseISA::RegClasses &regClasses,
                 VecMode vmode
                 );
 
@@ -239,7 +241,7 @@ class PhysRegFile
 
         DPRINTF(IEW, "RegFile: Access to predicate register %i, has "
                 "data %s\n", int(phys_reg->index()),
-                vecPredRegFile[phys_reg->index()].print());
+                vecPredRegFile[phys_reg->index()]);
 
         return vecPredRegFile[phys_reg->index()];
     }
@@ -274,7 +276,7 @@ class PhysRegFile
         DPRINTF(IEW, "RegFile: Setting int register %i to %#x\n",
                 phys_reg->index(), val);
 
-        if (!phys_reg->isZeroReg())
+        if (phys_reg->index() != zeroReg.index())
             intRegFile[phys_reg->index()] = val;
     }
 
@@ -286,8 +288,7 @@ class PhysRegFile
         DPRINTF(IEW, "RegFile: Setting float register %i to %#x\n",
                 phys_reg->index(), (uint64_t)val);
 
-        if (!phys_reg->isZeroReg())
-            floatRegFile[phys_reg->index()] = val;
+        floatRegFile[phys_reg->index()] = val;
     }
 
     /** Sets a vector register to the given value. */
@@ -323,7 +324,7 @@ class PhysRegFile
         assert(phys_reg->isVecPredPhysReg());
 
         DPRINTF(IEW, "RegFile: Setting predicate register %i to %s\n",
-                int(phys_reg->index()), val.print());
+                int(phys_reg->index()), val);
 
         vecPredRegFile[phys_reg->index()] = val;
     }

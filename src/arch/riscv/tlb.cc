@@ -35,11 +35,11 @@
 #include <vector>
 
 #include "arch/riscv/faults.hh"
-#include "arch/riscv/fs_workload.hh"
 #include "arch/riscv/mmu.hh"
 #include "arch/riscv/pagetable.hh"
 #include "arch/riscv/pagetable_walker.hh"
 #include "arch/riscv/pma_checker.hh"
+#include "arch/riscv/pmp.hh"
 #include "arch/riscv/pra_constants.hh"
 #include "arch/riscv/utility.hh"
 #include "base/inifile.hh"
@@ -69,7 +69,8 @@ buildKey(Addr vpn, uint16_t asid)
 
 TLB::TLB(const Params &p) :
     BaseTLB(p), size(p.size), tlb(size),
-    lruSeq(0), stats(this), pma(p.pma_checker)
+    lruSeq(0), stats(this), pma(p.pma_checker),
+    pmp(p.pmp)
 {
     for (size_t x = 0; x < size; x++) {
         tlb[x].trieHandle = NULL;
@@ -366,6 +367,11 @@ TLB::translate(const RequestPtr &req, ThreadContext *tc,
 
         if (!delayed && fault == NoFault) {
             pma->check(req);
+
+            // do pmp check if any checking condition is met.
+            // timingFault will be NoFault if pmp checks are
+            // passed, otherwise an address fault will be returned.
+            fault = pmp->pmpCheck(req, mode, pmode, tc);
         }
 
         return fault;

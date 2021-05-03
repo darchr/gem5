@@ -55,7 +55,8 @@
 // Ideally, each queue should store this status and
 // the processPkt() should make decisions based on that
 // status variable.
-typedef enum {
+typedef enum
+{
     UNBLOCKED = 0, // Unblocked queue, can submit packets.
     BLOCKED_BBIT,  // Queue blocked by barrier bit.
                    // Can submit packet packets after
@@ -65,7 +66,7 @@ typedef enum {
                    // barrier packet completes.
 } Q_STATE;
 
-class HSADevice;
+class GPUCommandProcessor;
 class HWScheduler;
 
 // Our internal representation of an HSA queue
@@ -85,7 +86,7 @@ class HSAQueueDescriptor
                            uint64_t hri_ptr, uint32_t size)
           : basePointer(base_ptr), doorbellPointer(db_ptr),
             writeIndex(0), readIndex(0),
-            numElts(size), hostReadIndexPtr(hri_ptr),
+            numElts(size / AQL_PACKET_SIZE), hostReadIndexPtr(hri_ptr),
             stalledOnDmaBufAvailability(false),
             dmaInProgress(false)
         {  }
@@ -98,6 +99,13 @@ class HSAQueueDescriptor
 
         uint64_t ptr(uint64_t ix)
         {
+            /**
+             * Sometimes queues report that their size is 512k, which would
+             * indicate numElts of 0x2000. However, they only have 256k
+             * mapped which means any index over 0x1000 will fail an
+             * address translation.
+             */
+            assert(ix % numElts < 0x1000);
             return basePointer +
                 ((ix % numElts) * objSize());
         }
@@ -112,7 +120,7 @@ class HSAQueueDescriptor
  * FREE: Entry is empty
  * ALLOCATED: Entry has been allocated for a packet, but the DMA has not
  *            yet completed
- * SUBMITTED: Packet has been submitted to the HSADevice, but has not
+ * SUBMITTED: Packet has been submitted to the GPUCommandProcessor, but has not
  *            yet completed
  */
 class AQLRingBuffer
@@ -198,7 +206,8 @@ class AQLRingBuffer
      uint64_t compltnPending() { return (_dispIdx - _rdIdx); }
 };
 
-typedef struct QueueContext {
+typedef struct QueueContext
+{
     HSAQueueDescriptor* qDesc;
     AQLRingBuffer* aqlBuf;
     // used for HSA packets that enforce synchronization with barrier bit
@@ -215,7 +224,7 @@ class HSAPacketProcessor: public DmaDevice
     friend class HWScheduler;
   protected:
     typedef void (DmaDevice::*DmaFnPtr)(Addr, int, Event*, uint8_t*, Tick);
-    HSADevice *hsa_device;
+    GPUCommandProcessor *gpu_device;
     HWScheduler *hwSchdlr;
 
     // Structure to store the read values of dependency signals
@@ -322,9 +331,9 @@ class HSAPacketProcessor: public DmaDevice
     void setDeviceQueueDesc(uint64_t hostReadIndexPointer,
                             uint64_t basePointer,
                             uint64_t queue_id,
-                            uint32_t size);
-    void unsetDeviceQueueDesc(uint64_t queue_id);
-    void setDevice(HSADevice * dev);
+                            uint32_t size, int doorbellSize);
+    void unsetDeviceQueueDesc(uint64_t queue_id, int doorbellSize);
+    void setDevice(GPUCommandProcessor * dev);
     void updateReadIndex(int, uint32_t);
     void getCommandsFromHost(int pid, uint32_t rl_idx);
 

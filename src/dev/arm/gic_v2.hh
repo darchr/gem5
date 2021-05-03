@@ -51,7 +51,6 @@
 #include "arch/arm/interrupts.hh"
 #include "base/addr_range.hh"
 #include "base/bitunion.hh"
-#include "cpu/intr_control.hh"
 #include "dev/arm/base_gic.hh"
 #include "dev/io_device.hh"
 #include "dev/platform.hh"
@@ -61,7 +60,8 @@ class GicV2 : public BaseGic, public BaseGicRegisters
 {
   protected:
     // distributor memory addresses
-    enum {
+    enum
+    {
         GICD_CTLR          = 0x000, // control register
         GICD_TYPER         = 0x004, // controller type
         GICD_IIDR          = 0x008, // implementer id
@@ -90,7 +90,8 @@ class GicV2 : public BaseGic, public BaseGicRegisters
     static const AddrRange GICD_ICFGR;      // interrupt config registers
 
     // cpu memory addresses
-    enum {
+    enum
+    {
         GICC_CTLR  = 0x00, // CPU control register
         GICC_PMR   = 0x04, // Interrupt priority mask
         GICC_BPR   = 0x08, // binary point register

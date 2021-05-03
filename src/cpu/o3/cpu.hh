@@ -54,7 +54,15 @@
 #include "base/statistics.hh"
 #include "config/the_isa.hh"
 #include "cpu/o3/comm.hh"
+#include "cpu/o3/commit.hh"
 #include "cpu/o3/cpu_policy.hh"
+#include "cpu/o3/decode.hh"
+#include "cpu/o3/fetch.hh"
+#include "cpu/o3/free_list.hh"
+#include "cpu/o3/iew.hh"
+#include "cpu/o3/limits.hh"
+#include "cpu/o3/rename.hh"
+#include "cpu/o3/rob.hh"
 #include "cpu/o3/scoreboard.hh"
 #include "cpu/o3/thread_state.hh"
 #include "cpu/activity.hh"
@@ -486,19 +494,19 @@ class FullO3CPU : public BaseO3CPU
 
   protected:
     /** The fetch stage. */
-    typename CPUPolicy::Fetch fetch;
+    DefaultFetch<Impl> fetch;
 
     /** The decode stage. */
-    typename CPUPolicy::Decode decode;
+    DefaultDecode<Impl> decode;
 
     /** The dispatch stage. */
-    typename CPUPolicy::Rename rename;
+    DefaultRename<Impl> rename;
 
     /** The issue/execute/writeback stages. */
-    typename CPUPolicy::IEW iew;
+    DefaultIEW<Impl> iew;
 
     /** The commit stage. */
-    typename CPUPolicy::Commit commit;
+    DefaultCommit<Impl> commit;
 
     /** The rename mode of the vector registers */
     Enums::VecRegRenameMode vecMode;
@@ -507,16 +515,16 @@ class FullO3CPU : public BaseO3CPU
     PhysRegFile regFile;
 
     /** The free list. */
-    typename CPUPolicy::FreeList freeList;
+    UnifiedFreeList freeList;
 
     /** The rename map. */
-    typename CPUPolicy::RenameMap renameMap[Impl::MaxThreads];
+    UnifiedRenameMap renameMap[O3MaxThreads];
 
     /** The commit rename map. */
-    typename CPUPolicy::RenameMap commitRenameMap[Impl::MaxThreads];
+    UnifiedRenameMap commitRenameMap[O3MaxThreads];
 
     /** The re-order buffer. */
-    typename CPUPolicy::ROB rob;
+    ROB<Impl> rob;
 
     /** Active Threads List */
     std::list<ThreadID> activeThreads;
@@ -611,7 +619,7 @@ class FullO3CPU : public BaseO3CPU
     }
 
     /** The global sequence number counter. */
-    InstSeqNum globalSeqNum;//[Impl::MaxThreads];
+    InstSeqNum globalSeqNum;//[O3MaxThreads];
 
     /** Pointer to the checker, which can dynamically verify
      * instruction results at run time.  This can be set to NULL if it
