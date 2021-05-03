@@ -32,19 +32,13 @@
 
 #include "dev/mips/malta.hh"
 
-#include <deque>
-#include <string>
-#include <vector>
-
-#include "cpu/intr_control.hh"
 #include "debug/Malta.hh"
 #include "dev/mips/malta_cchip.hh"
 #include "dev/mips/malta_io.hh"
 #include "params/Malta.hh"
-#include "sim/system.hh"
 
 Malta::Malta(const Params &p)
-    : Platform(p), system(p.system)
+    : Platform(p)
 {
     for (int i = 0; i < Malta::Max_CPUs; i++)
         intr_sum_type[i] = 0;
@@ -74,12 +68,6 @@ void
 Malta::clearPciInt(int line)
 {
     panic("Malta::clearPciInt() has not been implemented.");
-}
-
-Addr
-Malta::pciToDma(Addr pciAddr) const
-{
-    panic("Malta::pciToDma() has not been implemented.");
 }
 
 void

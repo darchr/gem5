@@ -68,6 +68,12 @@ arch-gcn3:
     - Matt Poremba <matthew.poremba@amd.com>
     - Matt Sinclair <sinclair@cs.wisc.edu>
 
+arch-vega:
+  status: maintained
+  maintainers:
+    - Matt Poremba <matthew.poremba@amd.com>
+    - Matt Sinclair <sinclair@cs.wisc.edu>
+
 arch-mips:
   status: orphaned
 
@@ -136,6 +142,11 @@ dev:
     - Gabe Black <gabe.black@gmail.com>
 
 dev-hsa:
+  status: maintained
+  maintainers:
+    - Matt Poremba <matthew.poremba@amd.com>
+
+dev-amdgpu:
   status: maintained
   maintainers:
     - Matt Poremba <matthew.poremba@amd.com>
@@ -302,6 +313,12 @@ util-m5:
   status: maintained
   maintainers:
     - Gabe Black <gabe.black@gmail.com>
+
+util-gem5art:
+  status: maintained
+  maintainers:
+    - Bobby Bruce <bbruce@ucdavis.edu>
+    - Jason Lowe-Power <jason@lowepower.com>
 
 website:
   desc: >-

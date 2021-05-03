@@ -345,57 +345,59 @@ class DirCntrl(Directory_Controller, CntrlBase):
         self.probeToL3 = probe_to_l3
         self.respToL3 = resp_to_l3
 
+
 def define_options(parser):
-    parser.add_option("--num-subcaches", type = "int", default = 4)
-    parser.add_option("--l3-data-latency", type = "int", default = 20)
-    parser.add_option("--l3-tag-latency", type = "int", default = 15)
-    parser.add_option("--cpu-to-dir-latency", type = "int", default = 120)
-    parser.add_option("--gpu-to-dir-latency", type = "int", default = 120)
-    parser.add_option("--no-resource-stalls", action = "store_false",
-                      default = True)
-    parser.add_option("--no-tcc-resource-stalls", action = "store_false",
-                      default = True)
-    parser.add_option("--use-L3-on-WT", action = "store_true", default = False)
-    parser.add_option("--num-tbes", type = "int", default = 256)
-    parser.add_option("--l2-latency", type = "int", default = 50)  # load to use
-    parser.add_option("--num-tccs", type = "int", default = 1,
-                      help = "number of TCC banks in the GPU")
-    parser.add_option("--sqc-size", type = 'string', default = '32kB',
-                      help = "SQC cache size")
-    parser.add_option("--sqc-assoc", type = 'int', default = 8,
-                      help = "SQC cache assoc")
-    parser.add_option("--sqc-deadlock-threshold", type='int',
-                      help="Set the SQC deadlock threshold to some value")
+    parser.add_argument("--num-subcaches", type=int, default=4)
+    parser.add_argument("--l3-data-latency", type=int, default=20)
+    parser.add_argument("--l3-tag-latency", type=int, default=15)
+    parser.add_argument("--cpu-to-dir-latency", type=int, default=120)
+    parser.add_argument("--gpu-to-dir-latency", type=int, default=120)
+    parser.add_argument("--no-resource-stalls", action="store_false",
+                        default=True)
+    parser.add_argument("--no-tcc-resource-stalls", action="store_false",
+                        default=True)
+    parser.add_argument("--use-L3-on-WT", action="store_true", default=False)
+    parser.add_argument("--num-tbes", type=int, default=256)
+    parser.add_argument("--l2-latency", type=int, default=50)  # load to use
+    parser.add_argument("--num-tccs", type=int, default=1,
+                        help="number of TCC banks in the GPU")
+    parser.add_argument("--sqc-size", type=str, default='32kB',
+                        help="SQC cache size")
+    parser.add_argument("--sqc-assoc", type=int, default=8,
+                        help="SQC cache assoc")
+    parser.add_argument("--sqc-deadlock-threshold", type=int,
+                        help="Set the SQC deadlock threshold to some value")
 
-    parser.add_option("--WB_L1", action = "store_true", default = False,
-                      help = "writeback L1")
-    parser.add_option("--WB_L2", action = "store_true", default = False,
-                      help = "writeback L2")
-    parser.add_option("--TCP_latency", type = "int", default = 4,
-                      help = "TCP latency")
-    parser.add_option("--TCC_latency", type = "int", default = 16,
-                      help = "TCC latency")
-    parser.add_option("--tcc-size", type = 'string', default = '256kB',
-                      help = "agregate tcc size")
-    parser.add_option("--tcc-assoc", type = 'int', default = 16,
-                      help = "tcc assoc")
-    parser.add_option("--tcp-size", type = 'string', default = '16kB',
-                      help = "tcp size")
-    parser.add_option("--tcp-assoc", type = 'int', default = 16,
-                      help = "tcp assoc")
-    parser.add_option("--tcp-deadlock-threshold", type='int',
-                      help="Set the TCP deadlock threshold to some value")
-    parser.add_option("--max-coalesces-per-cycle", type="int", default=1,
-                      help="Maximum insts that may coalesce in a cycle");
+    parser.add_argument("--WB_L1", action="store_true", default=False,
+                        help="writeback L1")
+    parser.add_argument("--WB_L2", action="store_true", default=False,
+                        help="writeback L2")
+    parser.add_argument("--TCP_latency", type=int, default=4,
+                        help="TCP latency")
+    parser.add_argument("--TCC_latency", type=int, default=16,
+                        help="TCC latency")
+    parser.add_argument("--tcc-size", type=str, default='256kB',
+                        help="agregate tcc size")
+    parser.add_argument("--tcc-assoc", type=int, default=16,
+                        help="tcc assoc")
+    parser.add_argument("--tcp-size", type=str, default='16kB',
+                        help="tcp size")
+    parser.add_argument("--tcp-assoc", type=int, default=16,
+                        help="tcp assoc")
+    parser.add_argument("--tcp-deadlock-threshold", type=int,
+                        help="Set the TCP deadlock threshold to some value")
+    parser.add_argument("--max-coalesces-per-cycle", type=int, default=1,
+                        help="Maximum insts that may coalesce in a cycle")
 
-    parser.add_option("--noL1", action = "store_true", default = False,
-                      help = "bypassL1")
-    parser.add_option("--scalar-buffer-size", type = 'int', default = 128,
-                      help="Size of the mandatory queue in the GPU scalar "
-                      "cache controller")
+    parser.add_argument("--noL1", action="store_true", default=False,
+                        help="bypassL1")
+    parser.add_argument("--scalar-buffer-size", type=int, default=128,
+                        help="Size of the mandatory queue in the GPU scalar "
+                        "cache controller")
+
 
 def create_system(options, full_system, system, dma_devices, bootmem,
-                  ruby_system):
+                  ruby_system, cpus):
     if buildEnv['PROTOCOL'] != 'GPU_VIPER':
         panic("This script requires the GPU_VIPER protocol to be built.")
 
@@ -460,19 +462,19 @@ def create_system(options, full_system, system, dma_devices, bootmem,
 
         # Connect the Directory controller to the ruby network
         dir_cntrl.requestFromCores = MessageBuffer(ordered = True)
-        dir_cntrl.requestFromCores.slave = ruby_system.network.master
+        dir_cntrl.requestFromCores.in_port = ruby_system.network.out_port
 
         dir_cntrl.responseFromCores = MessageBuffer()
-        dir_cntrl.responseFromCores.slave = ruby_system.network.master
+        dir_cntrl.responseFromCores.in_port = ruby_system.network.out_port
 
         dir_cntrl.unblockFromCores = MessageBuffer()
-        dir_cntrl.unblockFromCores.slave = ruby_system.network.master
+        dir_cntrl.unblockFromCores.in_port = ruby_system.network.out_port
 
         dir_cntrl.probeToCore = MessageBuffer()
-        dir_cntrl.probeToCore.master = ruby_system.network.slave
+        dir_cntrl.probeToCore.out_port = ruby_system.network.in_port
 
         dir_cntrl.responseToCore = MessageBuffer()
-        dir_cntrl.responseToCore.master = ruby_system.network.slave
+        dir_cntrl.responseToCore.out_port = ruby_system.network.in_port
 
         dir_cntrl.triggerQueue = MessageBuffer(ordered = True)
         dir_cntrl.L3triggerQueue = MessageBuffer(ordered = True)
@@ -480,10 +482,10 @@ def create_system(options, full_system, system, dma_devices, bootmem,
         dir_cntrl.responseFromMemory = MessageBuffer()
 
         dir_cntrl.requestFromDMA = MessageBuffer(ordered=True)
-        dir_cntrl.requestFromDMA.slave = ruby_system.network.master
+        dir_cntrl.requestFromDMA.in_port = ruby_system.network.out_port
 
         dir_cntrl.responseToDMA = MessageBuffer()
-        dir_cntrl.responseToDMA.master = ruby_system.network.slave
+        dir_cntrl.responseToDMA.out_port = ruby_system.network.in_port
 
         dir_cntrl.requestToMemory = MessageBuffer()
         dir_cntrl.responseFromMemory = MessageBuffer()
@@ -511,19 +513,19 @@ def create_system(options, full_system, system, dma_devices, bootmem,
 
         # Connect the CP controllers and the network
         cp_cntrl.requestFromCore = MessageBuffer()
-        cp_cntrl.requestFromCore.master = ruby_system.network.slave
+        cp_cntrl.requestFromCore.out_port = ruby_system.network.in_port
 
         cp_cntrl.responseFromCore = MessageBuffer()
-        cp_cntrl.responseFromCore.master = ruby_system.network.slave
+        cp_cntrl.responseFromCore.out_port = ruby_system.network.in_port
 
         cp_cntrl.unblockFromCore = MessageBuffer()
-        cp_cntrl.unblockFromCore.master = ruby_system.network.slave
+        cp_cntrl.unblockFromCore.out_port = ruby_system.network.in_port
 
         cp_cntrl.probeToCore = MessageBuffer()
-        cp_cntrl.probeToCore.slave = ruby_system.network.master
+        cp_cntrl.probeToCore.in_port = ruby_system.network.out_port
 
         cp_cntrl.responseToCore = MessageBuffer()
-        cp_cntrl.responseToCore.slave = ruby_system.network.master
+        cp_cntrl.responseToCore.in_port = ruby_system.network.out_port
 
         cp_cntrl.mandatoryQueue = MessageBuffer()
         cp_cntrl.triggerQueue = MessageBuffer(ordered = True)
@@ -608,19 +610,19 @@ def create_system(options, full_system, system, dma_devices, bootmem,
 
         # Connect the TCP controller to the ruby network
         tcp_cntrl.requestFromTCP = MessageBuffer(ordered = True)
-        tcp_cntrl.requestFromTCP.master = ruby_system.network.slave
+        tcp_cntrl.requestFromTCP.out_port = ruby_system.network.in_port
 
         tcp_cntrl.responseFromTCP = MessageBuffer(ordered = True)
-        tcp_cntrl.responseFromTCP.master = ruby_system.network.slave
+        tcp_cntrl.responseFromTCP.out_port = ruby_system.network.in_port
 
         tcp_cntrl.unblockFromCore = MessageBuffer()
-        tcp_cntrl.unblockFromCore.master = ruby_system.network.slave
+        tcp_cntrl.unblockFromCore.out_port = ruby_system.network.in_port
 
         tcp_cntrl.probeToTCP = MessageBuffer(ordered = True)
-        tcp_cntrl.probeToTCP.slave = ruby_system.network.master
+        tcp_cntrl.probeToTCP.in_port = ruby_system.network.out_port
 
         tcp_cntrl.responseToTCP = MessageBuffer(ordered = True)
-        tcp_cntrl.responseToTCP.slave = ruby_system.network.master
+        tcp_cntrl.responseToTCP.in_port = ruby_system.network.out_port
 
         tcp_cntrl.mandatoryQueue = MessageBuffer()
 
@@ -639,13 +641,13 @@ def create_system(options, full_system, system, dma_devices, bootmem,
 
         # Connect the SQC controller to the ruby network
         sqc_cntrl.requestFromSQC = MessageBuffer(ordered = True)
-        sqc_cntrl.requestFromSQC.master = ruby_system.network.slave
+        sqc_cntrl.requestFromSQC.out_port = ruby_system.network.in_port
 
         sqc_cntrl.probeToSQC = MessageBuffer(ordered = True)
-        sqc_cntrl.probeToSQC.slave = ruby_system.network.master
+        sqc_cntrl.probeToSQC.in_port = ruby_system.network.out_port
 
         sqc_cntrl.responseToSQC = MessageBuffer(ordered = True)
-        sqc_cntrl.responseToSQC.slave = ruby_system.network.master
+        sqc_cntrl.responseToSQC.in_port = ruby_system.network.out_port
 
         sqc_cntrl.mandatoryQueue = MessageBuffer()
 
@@ -661,13 +663,13 @@ def create_system(options, full_system, system, dma_devices, bootmem,
         cpu_sequencers.append(scalar_cntrl.sequencer)
 
         scalar_cntrl.requestFromSQC = MessageBuffer(ordered = True)
-        scalar_cntrl.requestFromSQC.master = ruby_system.network.slave
+        scalar_cntrl.requestFromSQC.out_port = ruby_system.network.in_port
 
         scalar_cntrl.probeToSQC = MessageBuffer(ordered = True)
-        scalar_cntrl.probeToSQC.slave = ruby_system.network.master
+        scalar_cntrl.probeToSQC.in_port = ruby_system.network.out_port
 
         scalar_cntrl.responseToSQC = MessageBuffer(ordered = True)
-        scalar_cntrl.responseToSQC.slave = ruby_system.network.master
+        scalar_cntrl.responseToSQC.in_port = ruby_system.network.out_port
 
         scalar_cntrl.mandatoryQueue = \
             MessageBuffer(buffer_size=options.scalar_buffer_size)
@@ -698,19 +700,19 @@ def create_system(options, full_system, system, dma_devices, bootmem,
 
         # Connect the CP (TCP) controllers to the ruby network
         tcp_cntrl.requestFromTCP = MessageBuffer(ordered = True)
-        tcp_cntrl.requestFromTCP.master = ruby_system.network.slave
+        tcp_cntrl.requestFromTCP.out_port = ruby_system.network.in_port
 
         tcp_cntrl.responseFromTCP = MessageBuffer(ordered = True)
-        tcp_cntrl.responseFromTCP.master = ruby_system.network.slave
+        tcp_cntrl.responseFromTCP.out_port = ruby_system.network.in_port
 
         tcp_cntrl.unblockFromCore = MessageBuffer(ordered = True)
-        tcp_cntrl.unblockFromCore.master = ruby_system.network.slave
+        tcp_cntrl.unblockFromCore.out_port = ruby_system.network.in_port
 
         tcp_cntrl.probeToTCP = MessageBuffer(ordered = True)
-        tcp_cntrl.probeToTCP.slave = ruby_system.network.master
+        tcp_cntrl.probeToTCP.in_port = ruby_system.network.out_port
 
         tcp_cntrl.responseToTCP = MessageBuffer(ordered = True)
-        tcp_cntrl.responseToTCP.slave = ruby_system.network.master
+        tcp_cntrl.responseToTCP.in_port = ruby_system.network.out_port
 
         tcp_cntrl.mandatoryQueue = MessageBuffer()
 
@@ -741,25 +743,25 @@ def create_system(options, full_system, system, dma_devices, bootmem,
 
         # Connect the TCC controllers to the ruby network
         tcc_cntrl.requestFromTCP = MessageBuffer(ordered = True)
-        tcc_cntrl.requestFromTCP.slave = ruby_system.network.master
+        tcc_cntrl.requestFromTCP.in_port = ruby_system.network.out_port
 
         tcc_cntrl.responseToCore = MessageBuffer(ordered = True)
-        tcc_cntrl.responseToCore.master = ruby_system.network.slave
+        tcc_cntrl.responseToCore.out_port = ruby_system.network.in_port
 
         tcc_cntrl.probeFromNB = MessageBuffer()
-        tcc_cntrl.probeFromNB.slave = ruby_system.network.master
+        tcc_cntrl.probeFromNB.in_port = ruby_system.network.out_port
 
         tcc_cntrl.responseFromNB = MessageBuffer()
-        tcc_cntrl.responseFromNB.slave = ruby_system.network.master
+        tcc_cntrl.responseFromNB.in_port = ruby_system.network.out_port
 
         tcc_cntrl.requestToNB = MessageBuffer(ordered = True)
-        tcc_cntrl.requestToNB.master = ruby_system.network.slave
+        tcc_cntrl.requestToNB.out_port = ruby_system.network.in_port
 
         tcc_cntrl.responseToNB = MessageBuffer()
-        tcc_cntrl.responseToNB.master = ruby_system.network.slave
+        tcc_cntrl.responseToNB.out_port = ruby_system.network.in_port
 
         tcc_cntrl.unblockToNB = MessageBuffer()
-        tcc_cntrl.unblockToNB.master = ruby_system.network.slave
+        tcc_cntrl.unblockToNB.out_port = ruby_system.network.in_port
 
         tcc_cntrl.triggerQueue = MessageBuffer(ordered = True)
 
@@ -774,15 +776,21 @@ def create_system(options, full_system, system, dma_devices, bootmem,
         dma_cntrl = DMA_Controller(version=i, dma_sequencer=dma_seq,
                                    ruby_system=ruby_system)
         exec('system.dma_cntrl%d = dma_cntrl' % i)
-        if dma_device.type == 'MemTest':
-            exec('system.dma_cntrl%d.dma_sequencer.slave = dma_devices.test'
+
+        # IDE doesn't have a .type but seems like everything else does.
+        if not hasattr(dma_device, 'type'):
+            exec('system.dma_cntrl%d.dma_sequencer.in_ports = dma_device' % i)
+        elif dma_device.type == 'MemTest':
+            exec('system.dma_cntrl%d.dma_sequencer.in_ports = dma_devices.test'
                  % i)
         else:
-            exec('system.dma_cntrl%d.dma_sequencer.slave = dma_device.dma' % i)
+            exec('system.dma_cntrl%d.dma_sequencer.in_ports = dma_device.dma'
+                 % i)
+
         dma_cntrl.requestToDir = MessageBuffer(buffer_size=0)
-        dma_cntrl.requestToDir.master = ruby_system.network.slave
+        dma_cntrl.requestToDir.out_port = ruby_system.network.in_port
         dma_cntrl.responseFromDir = MessageBuffer(buffer_size=0)
-        dma_cntrl.responseFromDir.slave = ruby_system.network.master
+        dma_cntrl.responseFromDir.in_port = ruby_system.network.out_port
         dma_cntrl.mandatoryQueue = MessageBuffer(buffer_size = 0)
         gpuCluster.add(dma_cntrl)
 

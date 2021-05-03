@@ -44,7 +44,7 @@ if __name__ == "__m5_main__":
     import unittest
 
     loader = unittest.TestLoader()
-    tests = loader.discover("pyunit")
+    tests = loader.discover("pyunit", pattern='pyunit*.py')
 
     runner = unittest.runner.TextTestRunner(verbosity=2)
     runner.run(tests)

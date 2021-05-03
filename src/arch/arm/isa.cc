@@ -65,15 +65,13 @@ ISA::ISA(const Params &p) : BaseISA(p), system(NULL),
     _decoderFlavor(p.decoderFlavor), pmu(p.pmu), impdefAsNop(p.impdef_nop),
     afterStartup(false)
 {
-    _regClasses.insert(_regClasses.end(), {
-            { NUM_INTREGS },
-            { 0 },
-            { NumVecRegs },
-            { NumVecRegs * TheISA::NumVecElemPerVecReg },
-            { NumVecPredRegs },
-            { NUM_CCREGS },
-            { NUM_MISCREGS }
-    });
+    _regClasses.emplace_back(NUM_INTREGS, INTREG_ZERO);
+    _regClasses.emplace_back(0);
+    _regClasses.emplace_back(NumVecRegs);
+    _regClasses.emplace_back(NumVecRegs * TheISA::NumVecElemPerVecReg);
+    _regClasses.emplace_back(NumVecPredRegs);
+    _regClasses.emplace_back(NUM_CCREGS);
+    _regClasses.emplace_back(NUM_MISCREGS);
 
     miscRegs[MISCREG_SCTLR_RST] = 0;
 
@@ -2394,15 +2392,6 @@ ISA::getCurSveVecLenInBits() const
     len = std::min(len, sveVL - 1);
 
     return (len + 1) * 128;
-}
-
-void
-ISA::zeroSveVecRegUpperPart(VecRegContainer &vc, unsigned eCount)
-{
-    auto vv = vc.as<uint64_t>();
-    for (int i = 2; i < eCount; ++i) {
-        vv[i] = 0;
-    }
 }
 
 void

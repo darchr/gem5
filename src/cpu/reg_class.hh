@@ -44,8 +44,8 @@
 #include <cassert>
 #include <cstddef>
 
-#include "arch/generic/types.hh"
 #include "arch/registers.hh"
+#include "base/types.hh"
 #include "config/the_isa.hh"
 
 /** Enumerate the classes of registers. */
@@ -66,11 +66,15 @@ class RegClassInfo
 {
   private:
     size_t _size;
+    const RegIndex _zeroReg;
 
   public:
-    RegClassInfo(size_t new_size) : _size(new_size) {}
+    RegClassInfo(size_t new_size, RegIndex new_zero = -1) :
+        _size(new_size), _zeroReg(new_zero)
+    {}
 
     size_t size() const { return _size; }
+    RegIndex zeroReg() const { return _zeroReg; }
 };
 
 /** Number of register classes.
@@ -100,13 +104,13 @@ class RegId
     RegId() : RegId(IntRegClass, 0) {}
 
     RegId(RegClass reg_class, RegIndex reg_idx)
-        : RegId(reg_class, reg_idx, ILLEGAL_ELEM_INDEX) {}
+        : RegId(reg_class, reg_idx, IllegalElemIndex) {}
 
     explicit RegId(RegClass reg_class, RegIndex reg_idx, ElemIndex elem_idx)
         : regClass(reg_class), regIdx(reg_idx), elemIdx(elem_idx),
           numPinnedWrites(0)
     {
-        if (elemIdx == ILLEGAL_ELEM_INDEX) {
+        if (elemIdx == IllegalElemIndex) {
             panic_if(regClass == VecElemClass,
                     "Creating vector physical index w/o element index");
         } else {
@@ -145,18 +149,6 @@ class RegId
         return regClass != MiscRegClass;
     }
 
-    /**
-     * Check if this is the zero register.
-     * Returns true if this register is a zero register (needs to have a
-     * constant zero value throughout the execution).
-     */
-
-    inline bool
-    isZeroReg() const
-    {
-        return regClass == IntRegClass && regIdx == TheISA::ZeroReg;
-    }
-
     /** @return true if it is an integer physical register. */
     bool isIntReg() const { return regClass == IntRegClass; }
 
@@ -180,13 +172,12 @@ class RegId
 
     /** Index accessors */
     /** @{ */
-    const RegIndex& index() const { return regIdx; }
-    RegIndex& index() { return regIdx; }
+    RegIndex index() const { return regIdx; }
 
     /** Index flattening.
      * Required to be able to use a vector for the register mapping.
      */
-    inline RegIndex
+    RegIndex
     flatIndex() const
     {
         switch (regClass) {
@@ -206,9 +197,9 @@ class RegId
     /** @} */
 
     /** Elem accessor */
-    const RegIndex& elemIndex() const { return elemIdx; }
+    RegIndex elemIndex() const { return elemIdx; }
     /** Class accessor */
-    const RegClass& classValue() const { return regClass; }
+    RegClass classValue() const { return regClass; }
     /** Return a const char* with the register class name. */
     const char* className() const { return regClassStrings[regClass]; }
 
@@ -262,7 +253,6 @@ class PhysRegId : private RegId
     /** @{ */
     using RegId::index;
     using RegId::classValue;
-    using RegId::isZeroReg;
     using RegId::className;
     using RegId::elemIndex;
      /** @} */

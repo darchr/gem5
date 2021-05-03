@@ -53,6 +53,7 @@
 #include "arch/locked_mem.hh"
 #include "config/the_isa.hh"
 #include "cpu/inst_seq.hh"
+#include "cpu/o3/lsq.hh"
 #include "cpu/timebuf.hh"
 #include "debug/HtmCpu.hh"
 #include "debug/LSQUnit.hh"
@@ -61,6 +62,9 @@
 
 struct DerivO3CPUParams;
 #include "base/circular_queue.hh"
+
+template <class Impl>
+class DefaultIEW;
 
 /**
  * Class that implements the actual LQ and SQ for each specific
@@ -82,12 +86,10 @@ class LSQUnit
 
     typedef typename Impl::O3CPU O3CPU;
     typedef typename Impl::DynInstPtr DynInstPtr;
-    typedef typename Impl::CPUPol::IEW IEW;
-    typedef typename Impl::CPUPol::LSQ LSQ;
     typedef typename Impl::CPUPol::IssueStruct IssueStruct;
 
-    using LSQSenderState = typename LSQ::LSQSenderState;
-    using LSQRequest = typename Impl::CPUPol::LSQ::LSQRequest;
+    using LSQSenderState = typename LSQ<Impl>::LSQSenderState;
+    using LSQRequest = typename LSQ<Impl>::LSQRequest;
   private:
     class LSQEntry
     {
@@ -232,8 +234,8 @@ class LSQUnit
     }
 
     /** Initializes the LSQ unit with the specified number of entries. */
-    void init(O3CPU *cpu_ptr, IEW *iew_ptr, const DerivO3CPUParams &params,
-            LSQ *lsq_ptr, unsigned id);
+    void init(O3CPU *cpu_ptr, DefaultIEW<Impl> *iew_ptr,
+            const DerivO3CPUParams &params, LSQ<Impl> *lsq_ptr, unsigned id);
 
     /** Returns the name of the LSQ unit. */
     std::string name() const;
@@ -408,10 +410,10 @@ class LSQUnit
     O3CPU *cpu;
 
     /** Pointer to the IEW stage. */
-    IEW *iewStage;
+    DefaultIEW<Impl> *iewStage;
 
     /** Pointer to the LSQ. */
-    LSQ *lsq;
+    LSQ<Impl> *lsq;
 
     /** Pointer to the dcache port.  Used only for sending. */
     RequestPort *dcachePort;
@@ -566,7 +568,8 @@ class LSQUnit
     // Will also need how many read/write ports the Dcache has.  Or keep track
     // of that in stage that is one level up, and only call executeLoad/Store
     // the appropriate number of times.
-    struct LSQUnitStats : public Stats::Group{
+    struct LSQUnitStats : public Stats::Group
+    {
         LSQUnitStats(Stats::Group *parent);
 
         /** Total number of loads forwaded from LSQ stores. */

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2020 ARM Limited
+# Copyright (c) 2019-2021 Arm Limited
 # All rights reserved
 #
 # The license below extends only to copyright in the software and shall
@@ -41,8 +41,11 @@ from os.path import join as joinpath
 
 from testlib import *
 
+import re
+
 arm_fs_kvm_tests = [
     'realview64-kvm',
+    'realview64-kvm-dual',
 ]
 
 arm_fs_quick_tests = [
@@ -92,7 +95,7 @@ arm_fs_long_tests = [
     #'realview64-o3-checker',
 ]
 
-tarball = 'aarch-system-20200611.tar.bz2'
+tarball = 'aarch-system-20210904.tar.bz2'
 url = config.resource_url + "/arm/" + tarball
 filepath = os.path.dirname(os.path.abspath(__file__))
 path = joinpath(config.bin_path, 'arm')
@@ -100,6 +103,15 @@ arm_fs_binaries = DownloadedArchive(url, path, tarball)
 
 def support_kvm():
     return os.access("/dev/kvm", os.R_OK | os.W_OK)
+
+def verifier_list(name):
+    verifiers=[]
+    if "dual" in name:
+        verifiers.append(verifier.MatchFileRegex(
+            re.compile(r'.*CPU1: Booted secondary processor.*'),
+            ["system.terminal"]))
+
+    return verifiers
 
 for name in arm_fs_quick_tests:
     if name in arm_fs_kvm_tests:
@@ -120,7 +132,7 @@ for name in arm_fs_quick_tests:
     ]
     gem5_verify_config(
         name=name,
-        verifiers=(), # Add basic stat verifiers
+        verifiers=verifier_list(name), # Add basic stat verifiers
         config=joinpath(filepath, 'run.py'),
         config_args=args,
         valid_isas=(constants.arm_tag,),
@@ -137,7 +149,7 @@ for name in arm_fs_long_tests:
     ]
     gem5_verify_config(
         name=name,
-        verifiers=(), # TODO: Add basic stat verifiers
+        verifiers=verifier_list(name), # TODO: Add basic stat verifiers
         config=joinpath(filepath, 'run.py'),
         config_args=args,
         valid_isas=(constants.arm_tag,),

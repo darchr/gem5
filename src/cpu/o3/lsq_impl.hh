@@ -48,6 +48,8 @@
 
 #include "base/logging.hh"
 #include "cpu/o3/cpu.hh"
+#include "cpu/o3/iew.hh"
+#include "cpu/o3/limits.hh"
 #include "cpu/o3/lsq.hh"
 #include "debug/Drain.hh"
 #include "debug/Fetch.hh"
@@ -57,7 +59,8 @@
 #include "params/DerivO3CPU.hh"
 
 template <class Impl>
-LSQ<Impl>::LSQ(O3CPU *cpu_ptr, IEW *iew_ptr, const DerivO3CPUParams &params)
+LSQ<Impl>::LSQ(O3CPU *cpu_ptr, DefaultIEW<Impl> *iew_ptr,
+        const DerivO3CPUParams &params)
     : cpu(cpu_ptr), iewStage(iew_ptr),
       _cacheBlocked(false),
       cacheStorePorts(params.cacheStorePorts), usedStorePorts(0),
@@ -72,7 +75,7 @@ LSQ<Impl>::LSQ(O3CPU *cpu_ptr, IEW *iew_ptr, const DerivO3CPUParams &params)
       dcachePort(this, cpu_ptr),
       numThreads(params.numThreads)
 {
-    assert(numThreads > 0 && numThreads <= Impl::MaxThreads);
+    assert(numThreads > 0 && numThreads <= O3MaxThreads);
 
     //**********************************************
     //************ Handle SMT Parameters ***********
@@ -1221,7 +1224,7 @@ LSQ<Impl>::DcachePort::recvReqRetry()
 }
 
 template<class Impl>
-LSQ<Impl>::HtmCmdRequest::HtmCmdRequest(LSQUnit* port,
+LSQ<Impl>::HtmCmdRequest::HtmCmdRequest(LSQUnit<Impl>* port,
                   const DynInstPtr& inst,
                   const Request::Flags& flags_) :
     SingleDataRequest(port, inst, true, 0x0lu, 8, flags_,

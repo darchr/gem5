@@ -29,7 +29,8 @@
 
 #include "arch/power/process.hh"
 
-#include "arch/power/isa_traits.hh"
+#include "arch/power/page_size.hh"
+#include "arch/power/regs/int.hh"
 #include "arch/power/types.hh"
 #include "base/loader/elf_object.hh"
 #include "base/loader/object_file.hh"
@@ -39,6 +40,7 @@
 #include "mem/page_table.hh"
 #include "params/Process.hh"
 #include "sim/aux_vector.hh"
+#include "sim/byteswap.hh"
 #include "sim/process_impl.hh"
 #include "sim/syscall_return.hh"
 #include "sim/system.hh"
@@ -251,7 +253,7 @@ PowerProcess::argsInit(int intSize, int pageSize)
     //Copy the aux stuff
     Addr auxv_array_end = auxv_array_base;
     for (const auto &aux: auxv) {
-        initVirtMem->write(auxv_array_end, aux, GuestByteOrder);
+        initVirtMem->write(auxv_array_end, aux, ByteOrder::big);
         auxv_array_end += sizeof(aux);
     }
     //Write out the terminating zeroed auxilliary vector

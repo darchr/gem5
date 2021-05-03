@@ -38,15 +38,8 @@
 #include "dev/platform.hh"
 #include "params/T1000.hh"
 
-class IdeController;
-class System;
-
 class T1000 : public Platform
 {
-  public:
-    /** Pointer to the system */
-    System *system;
-
   public:
     typedef T1000Params Params;
     /**
@@ -76,24 +69,6 @@ class T1000 : public Platform
      * Clear a posted PCI->CPU interrupt
      */
     virtual void clearPciInt(int line);
-
-
-    virtual Addr pciToDma(Addr pciAddr) const;
-
-    /**
-     * Calculate the configuration address given a bus/dev/func.
-     */
-    virtual Addr calcPciConfigAddr(int bus, int dev, int func);
-
-    /**
-     * Calculate the address for an IO location on the PCI bus.
-     */
-    virtual Addr calcPciIOAddr(Addr addr);
-
-    /**
-     * Calculate the address for a memory location on the PCI bus.
-     */
-    virtual Addr calcPciMemAddr(Addr addr);
 };
 
 #endif // __DEV_T1000_HH__

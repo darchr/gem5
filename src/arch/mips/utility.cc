@@ -30,8 +30,9 @@
 
 #include <cmath>
 
-#include "arch/mips/isa_traits.hh"
-#include "arch/mips/registers.hh"
+#include "arch/mips/regs/float.hh"
+#include "arch/mips/regs/int.hh"
+#include "arch/mips/regs/misc.hh"
 #include "base/bitfield.hh"
 #include "base/logging.hh"
 #include "cpu/static_inst.hh"

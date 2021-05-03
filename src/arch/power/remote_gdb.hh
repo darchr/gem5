@@ -32,7 +32,8 @@
 #ifndef __ARCH_POWER_REMOTE_GDB_HH__
 #define __ARCH_POWER_REMOTE_GDB_HH__
 
-#include "arch/power/registers.hh"
+#include "arch/power/regs/float.hh"
+#include "arch/power/regs/int.hh"
 #include "arch/power/remote_gdb.hh"
 #include "base/remote_gdb.hh"
 
@@ -49,7 +50,8 @@ class RemoteGDB : public BaseRemoteGDB
     {
       using BaseGdbRegCache::BaseGdbRegCache;
       private:
-        struct {
+        struct
+        {
             uint32_t gpr[NumIntArchRegs];
             uint64_t fpr[NumFloatArchRegs];
             uint32_t pc;

@@ -47,8 +47,8 @@
 
 #include "base/refcnt.hh"
 #include "config/the_isa.hh"
-#include "cpu/base_dyn_inst.hh"
 #include "cpu/exetrace.hh"
+#include "cpu/null_static_inst.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/simple_thread.hh"
 #include "cpu/static_inst.hh"
@@ -64,13 +64,13 @@ void
 Checker<Impl>::advancePC(const Fault &fault)
 {
     if (fault != NoFault) {
-        curMacroStaticInst = StaticInst::nullStaticInstPtr;
+        curMacroStaticInst = nullStaticInstPtr;
         fault->invoke(tc, curStaticInst);
         thread->decoder.reset();
     } else {
         if (curStaticInst) {
             if (curStaticInst->isLastMicroop())
-                curMacroStaticInst = StaticInst::nullStaticInstPtr;
+                curMacroStaticInst = nullStaticInstPtr;
             TheISA::PCState pcState = thread->pcState();
             curStaticInst->advancePC(pcState);
             thread->pcState(pcState);
@@ -111,7 +111,7 @@ Checker<Impl>::handlePendingInt()
     }
     boundaryInst = NULL;
     thread->decoder.reset();
-    curMacroStaticInst = StaticInst::nullStaticInstPtr;
+    curMacroStaticInst = nullStaticInstPtr;
 }
 
 template <class Impl>
@@ -198,7 +198,7 @@ Checker<Impl>::verify(const DynInstPtr &completed_inst)
         Fault fault = NoFault;
 
         // maintain $r0 semantics
-        thread->setIntReg(TheISA::ZeroReg, 0);
+        thread->setIntReg(zeroReg, 0);
 
         // Check if any recent PC changes match up with anything we
         // expect to happen.  This is mostly to check if traps or
@@ -385,7 +385,7 @@ Checker<Impl>::verify(const DynInstPtr &completed_inst)
                 willChangePC = true;
                 newPCState = thread->pcState();
                 DPRINTF(Checker, "Fault, PC is now %s\n", newPCState);
-                curMacroStaticInst = StaticInst::nullStaticInstPtr;
+                curMacroStaticInst = nullStaticInstPtr;
             }
         } else {
            advancePC(fault);

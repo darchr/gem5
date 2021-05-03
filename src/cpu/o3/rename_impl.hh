@@ -44,6 +44,7 @@
 
 #include <list>
 
+#include "cpu/o3/limits.hh"
 #include "cpu/o3/rename.hh"
 #include "cpu/reg_class.hh"
 #include "debug/Activity.hh"
@@ -62,14 +63,14 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, const DerivO3CPUParams &params)
       numThreads(params.numThreads),
       stats(_cpu)
 {
-    if (renameWidth > Impl::MaxWidth)
+    if (renameWidth > O3MaxWidth)
         fatal("renameWidth (%d) is larger than compiled limit (%d),\n"
-             "\tincrease MaxWidth in src/cpu/o3/impl.hh\n",
-             renameWidth, static_cast<int>(Impl::MaxWidth));
+             "\tincrease O3MaxWidth in src/cpu/o3/limits.hh\n",
+             renameWidth, static_cast<int>(O3MaxWidth));
 
     // @todo: Make into a parameter.
     skidBufferMax = (decodeToRenameDelay + 1) * params.decodeWidth;
-    for (uint32_t tid = 0; tid < Impl::MaxThreads; tid++) {
+    for (uint32_t tid = 0; tid < O3MaxThreads; tid++) {
         renameStatus[tid] = Idle;
         renameMap[tid] = nullptr;
         instsInProgress[tid] = 0;
@@ -279,7 +280,7 @@ DefaultRename<Impl>::setActiveThreads(std::list<ThreadID> *at_ptr)
 
 template <class Impl>
 void
-DefaultRename<Impl>::setRenameMap(RenameMap rm_ptr[])
+DefaultRename<Impl>::setRenameMap(UnifiedRenameMap rm_ptr[])
 {
     for (ThreadID tid = 0; tid < numThreads; tid++)
         renameMap[tid] = &rm_ptr[tid];
@@ -287,7 +288,7 @@ DefaultRename<Impl>::setRenameMap(RenameMap rm_ptr[])
 
 template <class Impl>
 void
-DefaultRename<Impl>::setFreeList(FreeList *fl_ptr)
+DefaultRename<Impl>::setFreeList(UnifiedFreeList *fl_ptr)
 {
     freeList = fl_ptr;
 }
@@ -1030,7 +1031,7 @@ inline void
 DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
 {
     ThreadContext *tc = inst->tcBase();
-    RenameMap *map = renameMap[tid];
+    UnifiedRenameMap *map = renameMap[tid];
     unsigned num_src_regs = inst->numSrcRegs();
 
     // Get the architectual register numbers from the source and
@@ -1097,13 +1098,13 @@ inline void
 DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
 {
     ThreadContext *tc = inst->tcBase();
-    RenameMap *map = renameMap[tid];
+    UnifiedRenameMap *map = renameMap[tid];
     unsigned num_dest_regs = inst->numDestRegs();
 
     // Rename the destination registers.
     for (int dest_idx = 0; dest_idx < num_dest_regs; dest_idx++) {
         const RegId& dest_reg = inst->destRegIdx(dest_idx);
-        typename RenameMap::RenameInfo rename_result;
+        UnifiedRenameMap::RenameInfo rename_result;
 
         RegId flat_dest_regid = tc->flattenRegId(dest_reg);
         flat_dest_regid.setNumPinnedWrites(dest_reg.getNumPinnedWrites());

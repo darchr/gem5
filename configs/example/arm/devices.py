@@ -1,4 +1,4 @@
-# Copyright (c) 2016-2017, 2019 ARM Limited
+# Copyright (c) 2016-2017, 2019, 2021 Arm Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -277,11 +277,11 @@ class FastmodelCluster(SubSystem):
     def connectMemSide(self, bus):
         pass
 
-class SimpleSystem(ArmSystem):
+class BaseSimpleSystem(ArmSystem):
     cache_line_size = 64
 
-    def __init__(self, caches, mem_size, platform=None, **kwargs):
-        super(SimpleSystem, self).__init__(**kwargs)
+    def __init__(self, mem_size, platform, **kwargs):
+        super(BaseSimpleSystem, self).__init__(**kwargs)
 
         self.voltage_domain = VoltageDomain(voltage="1.0V")
         self.clk_domain = SrcClockDomain(
@@ -296,50 +296,36 @@ class SimpleSystem(ArmSystem):
         if hasattr(self.realview.gic, 'cpu_addr'):
             self.gic_cpu_addr = self.realview.gic.cpu_addr
 
-        self.membus = MemBus()
-
-        self.intrctrl = IntrControl()
         self.terminal = Terminal()
         self.vncserver = VncServer()
 
         self.iobus = IOXBar()
-        # CPUs->PIO
-        self.iobridge = Bridge(delay='50ns')
         # Device DMA -> MEM
-        mem_range = self.realview._mem_regions[0]
-        assert int(mem_range.size()) >= int(Addr(mem_size))
-        self.mem_ranges = [
-            AddrRange(start=mem_range.start, size=mem_size) ]
-
-        self._caches = caches
-        if self._caches:
-            self.iocache = IOCache(addr_ranges=[self.mem_ranges[0]])
-        else:
-            self.dmabridge = Bridge(delay='50ns',
-                                    ranges=[self.mem_ranges[0]])
+        self.mem_ranges = self.getMemRanges(int(Addr(mem_size)))
 
         self._clusters = []
         self._num_cpus = 0
 
-    def attach_pci(self, dev):
-        self.realview.attachPciDevice(dev, self.iobus)
+    def getMemRanges(self, mem_size):
+        """
+        Define system memory ranges. This depends on the physical
+        memory map provided by the realview platform and by the memory
+        size provided by the user (mem_size argument).
+        The method is iterating over all platform ranges until they cover
+        the entire user's memory requirements.
+        """
+        mem_ranges = []
+        for mem_range in self.realview._mem_regions:
+            size_in_range = min(mem_size, mem_range.size())
 
-    def connect(self):
-        self.iobridge.mem_side_port = self.iobus.cpu_side_ports
-        self.iobridge.cpu_side_port = self.membus.mem_side_ports
+            mem_ranges.append(
+                AddrRange(start=mem_range.start, size=size_in_range))
 
-        if self._caches:
-            self.iocache.mem_side = self.membus.cpu_side_ports
-            self.iocache.cpu_side = self.iobus.mem_side_ports
-        else:
-            self.dmabridge.mem_side_port = self.membus.cpu_side_ports
-            self.dmabridge.cpu_side_port = self.iobus.mem_side_ports
+            mem_size -= size_in_range
+            if mem_size == 0:
+                return mem_ranges
 
-        if hasattr(self.realview.gic, 'cpu_addr'):
-            self.gic_cpu_addr = self.realview.gic.cpu_addr
-        self.realview.attachOnChipIO(self.membus, self.iobridge)
-        self.realview.attachIO(self.iobus)
-        self.system_port = self.membus.cpu_side_ports
+        raise ValueError("memory size too big for platform capabilities")
 
     def numCpuClusters(self):
         return len(self._clusters)
@@ -379,3 +365,64 @@ class SimpleSystem(ArmSystem):
         # connect each cluster to the memory hierarchy
         for cluster in self._clusters:
             cluster.connectMemSide(cluster_mem_bus)
+
+class SimpleSystem(BaseSimpleSystem):
+    """
+    Meant to be used with the classic memory model
+    """
+    def __init__(self, caches, mem_size, platform=None, **kwargs):
+        super(SimpleSystem, self).__init__(mem_size, platform, **kwargs)
+
+        self.membus = MemBus()
+        # CPUs->PIO
+        self.iobridge = Bridge(delay='50ns')
+
+        self._caches = caches
+        if self._caches:
+            self.iocache = IOCache(addr_ranges=self.mem_ranges)
+        else:
+            self.dmabridge = Bridge(delay='50ns',
+                                    ranges=self.mem_ranges)
+
+    def connect(self):
+        self.iobridge.mem_side_port = self.iobus.cpu_side_ports
+        self.iobridge.cpu_side_port = self.membus.mem_side_ports
+
+        if self._caches:
+            self.iocache.mem_side = self.membus.cpu_side_ports
+            self.iocache.cpu_side = self.iobus.mem_side_ports
+        else:
+            self.dmabridge.mem_side_port = self.membus.cpu_side_ports
+            self.dmabridge.cpu_side_port = self.iobus.mem_side_ports
+
+        if hasattr(self.realview.gic, 'cpu_addr'):
+            self.gic_cpu_addr = self.realview.gic.cpu_addr
+        self.realview.attachOnChipIO(self.membus, self.iobridge)
+        self.realview.attachIO(self.iobus)
+        self.system_port = self.membus.cpu_side_ports
+
+    def attach_pci(self, dev):
+        self.realview.attachPciDevice(dev, self.iobus)
+
+class ArmRubySystem(BaseSimpleSystem):
+    """
+    Meant to be used with ruby
+    """
+    def __init__(self, mem_size, platform=None, **kwargs):
+        super(ArmRubySystem, self).__init__(mem_size, platform, **kwargs)
+        self._dma_ports = []
+        self._mem_ports = []
+
+    def connect(self):
+        self.realview.attachOnChipIO(self.iobus,
+            dma_ports=self._dma_ports, mem_ports=self._mem_ports)
+
+        self.realview.attachIO(self.iobus, dma_ports=self._dma_ports)
+
+        for cluster in self._clusters:
+            for i, cpu in enumerate(cluster.cpus):
+                self.ruby._cpu_ports[i].connectCpuPorts(cpu)
+
+    def attach_pci(self, dev):
+        self.realview.attachPciDevice(dev, self.iobus,
+            dma_ports=self._dma_ports)

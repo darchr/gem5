@@ -31,6 +31,9 @@
 #include "arch/mips/mt.hh"
 #include "arch/mips/mt_constants.hh"
 #include "arch/mips/pra_constants.hh"
+#include "arch/mips/regs/float.hh"
+#include "arch/mips/regs/int.hh"
+#include "arch/mips/regs/misc.hh"
 #include "base/bitfield.hh"
 #include "cpu/base.hh"
 #include "cpu/reg_class.hh"
@@ -91,15 +94,13 @@ ISA::miscRegNames[MISCREG_NUMREGS] =
 ISA::ISA(const Params &p) : BaseISA(p), numThreads(p.num_threads),
     numVpes(p.num_vpes)
 {
-    _regClasses.insert(_regClasses.end(), {
-            { NumIntRegs },
-            { NumFloatRegs },
-            { 1 }, // Not applicable to MIPS.
-            { 2 }, // Not applicable to MIPS.
-            { 1 }, // Not applicable to MIPS.
-            { 0 }, // Not applicable to MIPS.
-            { MISCREG_NUMREGS }
-    });
+    _regClasses.emplace_back(NumIntRegs, 0);
+    _regClasses.emplace_back(NumFloatRegs);
+    _regClasses.emplace_back(1); // Not applicable to MIPS.
+    _regClasses.emplace_back(2); // Not applicable to MIPS.
+    _regClasses.emplace_back(1); // Not applicable to MIPS.
+    _regClasses.emplace_back(0); // Not applicable to MIPS.
+    _regClasses.emplace_back(MISCREG_NUMREGS);
 
     miscRegFile.resize(MISCREG_NUMREGS);
     bankType.resize(MISCREG_NUMREGS);

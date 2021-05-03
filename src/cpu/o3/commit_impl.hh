@@ -48,11 +48,13 @@
 #include "base/loader/symtab.hh"
 #include "base/logging.hh"
 #include "config/the_isa.hh"
-#include "cpu/checker/cpu.hh"
-#include "cpu/o3/commit.hh"
-#include "cpu/o3/thread_state.hh"
 #include "cpu/base.hh"
+#include "cpu/checker/cpu.hh"
 #include "cpu/exetrace.hh"
+#include "cpu/null_static_inst.hh"
+#include "cpu/o3/commit.hh"
+#include "cpu/o3/limits.hh"
+#include "cpu/o3/thread_state.hh"
 #include "cpu/timebuf.hh"
 #include "debug/Activity.hh"
 #include "debug/Commit.hh"
@@ -92,10 +94,10 @@ DefaultCommit<Impl>::DefaultCommit(O3CPU *_cpu, const DerivO3CPUParams &params)
       avoidQuiesceLiveLock(false),
       stats(_cpu, this)
 {
-    if (commitWidth > Impl::MaxWidth)
+    if (commitWidth > O3MaxWidth)
         fatal("commitWidth (%d) is larger than compiled limit (%d),\n"
-             "\tincrease MaxWidth in src/cpu/o3/impl.hh\n",
-             commitWidth, static_cast<int>(Impl::MaxWidth));
+             "\tincrease O3MaxWidth in src/cpu/o3/limits.hh\n",
+             commitWidth, static_cast<int>(O3MaxWidth));
 
     _status = Active;
     _nextStatus = Inactive;
@@ -107,7 +109,7 @@ DefaultCommit<Impl>::DefaultCommit(O3CPU *_cpu, const DerivO3CPUParams &params)
         }
     }
 
-    for (ThreadID tid = 0; tid < Impl::MaxThreads; tid++) {
+    for (ThreadID tid = 0; tid < O3MaxThreads; tid++) {
         commitStatus[tid] = Idle;
         changedROBNumEntries[tid] = false;
         trapSquash[tid] = false;
@@ -289,7 +291,7 @@ DefaultCommit<Impl>::setIEWQueue(TimeBuffer<IEWStruct> *iq_ptr)
 
 template <class Impl>
 void
-DefaultCommit<Impl>::setIEWStage(IEW *iew_stage)
+DefaultCommit<Impl>::setIEWStage(DefaultIEW<Impl> *iew_stage)
 {
     iewStage = iew_stage;
 }
@@ -303,7 +305,7 @@ DefaultCommit<Impl>::setActiveThreads(std::list<ThreadID> *at_ptr)
 
 template <class Impl>
 void
-DefaultCommit<Impl>::setRenameMap(RenameMap rm_ptr[])
+DefaultCommit<Impl>::setRenameMap(UnifiedRenameMap rm_ptr[])
 {
     for (ThreadID tid = 0; tid < numThreads; tid++)
         renameMap[tid] = &rm_ptr[tid];
@@ -311,7 +313,7 @@ DefaultCommit<Impl>::setRenameMap(RenameMap rm_ptr[])
 
 template <class Impl>
 void
-DefaultCommit<Impl>::setROB(ROB *rob_ptr)
+DefaultCommit<Impl>::setROB(ROB<Impl> *rob_ptr)
 {
     rob = rob_ptr;
 }
@@ -1296,8 +1298,7 @@ DefaultCommit<Impl>::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         // prevents external agents from changing any specific state
         // that the trap need.
         cpu->trap(inst_fault, tid,
-                  head_inst->notAnInst() ?
-                      StaticInst::nullStaticInstPtr :
+                  head_inst->notAnInst() ? nullStaticInstPtr :
                       head_inst->staticInst);
 
         // Exit state update mode to avoid accidental updating.

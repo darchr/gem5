@@ -30,6 +30,7 @@
 #define __ARCH_POWER_INSTS_INTEGER_HH__
 
 #include "arch/power/insts/static_inst.hh"
+#include "arch/power/regs/misc.hh"
 #include "base/bitfield.hh"
 #include "base/cprintf.hh"
 
@@ -65,28 +66,30 @@ class IntOp : public PowerStaticInst
 
     /* Compute the CR (condition register) field using signed comparison */
     inline uint32_t
-    makeCRField(int32_t a, int32_t b, uint32_t xerSO) const
+    makeCRFieldSigned(int64_t a, int64_t b, bool so) const
     {
-        uint32_t c = xerSO;
+        Cr cr = 0;
 
-        /* We've pre-shifted the immediate values here */
-        if (a < b)      { c += 0x8; }
-        else if (a > b) { c += 0x4; }
-        else            { c += 0x2; }
-        return c;
+        if (a < b)      { cr.cr0.lt = 1; }
+        else if (a > b) { cr.cr0.gt = 1; }
+        else            { cr.cr0.eq = 1; }
+        if (so)         { cr.cr0.so = 1; }
+
+        return cr.cr0;
     }
 
     /* Compute the CR (condition register) field using unsigned comparison */
     inline uint32_t
-    makeCRField(uint32_t a, uint32_t b, uint32_t xerSO) const
+    makeCRFieldUnsigned(uint64_t a, uint64_t b, bool so) const
     {
-        uint32_t c = xerSO;
+        Cr cr = 0;
 
-        /* We've pre-shifted the immediate values here */
-        if (a < b)      { c += 0x8; }
-        else if (a > b) { c += 0x4; }
-        else            { c += 0x2; }
-        return c;
+        if (a < b)      { cr.cr0.lt = 1; }
+        else if (a > b) { cr.cr0.gt = 1; }
+        else            { cr.cr0.eq = 1; }
+        if (so)         { cr.cr0.so = 1; }
+
+        return cr.cr0;
     }
 
     std::string generateDisassembly(

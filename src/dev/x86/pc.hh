@@ -38,16 +38,12 @@
 #include "dev/platform.hh"
 #include "params/Pc.hh"
 
-class IdeController;
-class System;
 class SouthBridge;
 
 class Pc : public Platform
 {
   public:
-    /** Pointer to the system */
-    System *system;
-    SouthBridge *southBridge;
+    SouthBridge *southBridge = nullptr;
 
   public:
     typedef PcParams Params;

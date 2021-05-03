@@ -35,8 +35,12 @@
 #include <sstream>
 
 #include "arch/riscv/interrupts.hh"
+#include "arch/riscv/mmu.hh"
 #include "arch/riscv/pagetable.hh"
-#include "arch/riscv/registers.hh"
+#include "arch/riscv/pmp.hh"
+#include "arch/riscv/regs/float.hh"
+#include "arch/riscv/regs/int.hh"
+#include "arch/riscv/regs/misc.hh"
 #include "base/bitfield.hh"
 #include "base/compiler.hh"
 #include "cpu/base.hh"
@@ -178,15 +182,13 @@ M5_VAR_USED const std::array<const char *, NUM_MISCREGS> MiscRegNames = {{
 
 ISA::ISA(const Params &p) : BaseISA(p)
 {
-    _regClasses.insert(_regClasses.begin(), {
-            { NumIntRegs },
-            { NumFloatRegs },
-            { 1 }, // Not applicable to RISCV
-            { 2 }, // Not applicable to RISCV
-            { 1 }, // Not applicable to RISCV
-            { 0 }, // Not applicable to RISCV
-            { NUM_MISCREGS }
-    });
+    _regClasses.emplace_back(NumIntRegs, 0);
+    _regClasses.emplace_back(NumFloatRegs);
+    _regClasses.emplace_back(1); // Not applicable to RISCV
+    _regClasses.emplace_back(2); // Not applicable to RISCV
+    _regClasses.emplace_back(1); // Not applicable to RISCV
+    _regClasses.emplace_back(0); // Not applicable to RISCV
+    _regClasses.emplace_back(NUM_MISCREGS);
 
     miscRegFile.resize(NUM_MISCREGS);
     clear();
@@ -356,6 +358,57 @@ ISA::setMiscReg(int misc_reg, RegVal val)
         warn("Ignoring write to %s.\n", CSRData.at(misc_reg).name);
     } else {
         switch (misc_reg) {
+
+          // From section 3.7.1 of RISCV priv. specs
+          // V1.12, the odd-numbered configuration
+          // registers are illegal for RV64 and
+          // each 64 bit CFG register hold configurations
+          // for 8 PMP entries.
+
+          case MISCREG_PMPCFG0:
+          case MISCREG_PMPCFG2:
+            {
+                // PMP registers should only be modified in M mode
+                assert(readMiscRegNoEffect(MISCREG_PRV) == PRV_M);
+
+                // Specs do not seem to mention what should be
+                // configured first, cfg or address regs!
+                // qemu seems to update the tables when
+                // pmp addr regs are written (with the assumption
+                // that cfg regs are already written)
+
+                for (int i=0; i < sizeof(val); i++) {
+
+                    uint8_t cfg_val = (val >> (8*i)) & 0xff;
+                    auto mmu = dynamic_cast<RiscvISA::MMU *>
+                                (tc->getMMUPtr());
+
+                    // Form pmp_index using the index i and
+                    // PMPCFG register number
+                    // Note: MISCREG_PMPCFG2 - MISCREG_PMPCFG0 = 1
+                    // 8*(misc_reg-MISCREG_PMPCFG0) will be useful
+                    // if a system contains more than 16 PMP entries
+                    uint32_t pmp_index = i+(8*(misc_reg-MISCREG_PMPCFG0));
+                    mmu->getPMP()->pmpUpdateCfg(pmp_index,cfg_val);
+                }
+
+                setMiscRegNoEffect(misc_reg, val);
+            }
+            break;
+          case MISCREG_PMPADDR00 ... MISCREG_PMPADDR15:
+            {
+                // PMP registers should only be modified in M mode
+                assert(readMiscRegNoEffect(MISCREG_PRV) == PRV_M);
+
+                auto mmu = dynamic_cast<RiscvISA::MMU *>
+                              (tc->getMMUPtr());
+                uint32_t pmp_index = misc_reg-MISCREG_PMPADDR00;
+                mmu->getPMP()->pmpUpdateAddr(pmp_index, val);
+
+                setMiscRegNoEffect(misc_reg, val);
+            }
+            break;
+
           case MISCREG_IP:
             {
                 auto ic = dynamic_cast<RiscvISA::Interrupts *>(

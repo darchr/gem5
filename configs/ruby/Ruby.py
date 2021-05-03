@@ -56,36 +56,43 @@ def define_options(parser):
     # By default, ruby uses the simple timing cpu
     parser.set_defaults(cpu_type="TimingSimpleCPU")
 
-    parser.add_option("--ruby-clock", action="store", type="string",
-                      default='2GHz',
-                      help="Clock for blocks running at Ruby system's speed")
+    parser.add_argument(
+        "--ruby-clock", action="store", type=str,
+        default='2GHz',
+        help="Clock for blocks running at Ruby system's speed")
 
-    parser.add_option("--access-backing-store", action="store_true", default=False,
-                      help="Should ruby maintain a second copy of memory")
+    parser.add_argument(
+        "--access-backing-store", action="store_true", default=False,
+        help="Should ruby maintain a second copy of memory")
 
     # Options related to cache structure
-    parser.add_option("--ports", action="store", type="int", default=4,
-                      help="used of transitions per cycle which is a proxy \
-                            for the number of ports.")
+    parser.add_argument(
+        "--ports", action="store", type=int, default=4,
+        help="used of transitions per cycle which is a proxy \
+            for the number of ports.")
 
     # network options are in network/Network.py
 
     # ruby mapping options
-    parser.add_option("--numa-high-bit", type="int", default=0,
-                      help="high order address bit to use for numa mapping. " \
-                           "0 = highest bit, not specified = lowest bit")
-    parser.add_option("--interleaving-bits", type="int", default=0,
-                      help="number of bits to specify interleaving " \
-                           "in directory, memory controllers and caches. "
-                           "0 = not specified")
-    parser.add_option("--xor-low-bit", type="int", default=20,
-                      help="hashing bit for channel selection" \
-                           "see MemConfig for explanation of the default"\
-                           "parameter. If set to 0, xor_high_bit is also"\
-                           "set to 0.")
+    parser.add_argument(
+        "--numa-high-bit", type=int, default=0,
+        help="high order address bit to use for numa mapping. "
+        "0 = highest bit, not specified = lowest bit")
+    parser.add_argument(
+        "--interleaving-bits", type=int, default=0,
+        help="number of bits to specify interleaving " \
+           "in directory, memory controllers and caches. "
+           "0 = not specified")
+    parser.add_argument(
+        "--xor-low-bit", type=int, default=20,
+        help="hashing bit for channel selection" \
+           "see MemConfig for explanation of the default"\
+           "parameter. If set to 0, xor_high_bit is also"\
+           "set to 0.")
 
-    parser.add_option("--recycle-latency", type="int", default=10,
-                      help="Recycle latency for ruby controller input buffers")
+    parser.add_argument(
+        "--recycle-latency", type=int, default=10,
+        help="Recycle latency for ruby controller input buffers")
 
     protocol = buildEnv['PROTOCOL']
     exec("from . import %s" % protocol)
@@ -129,7 +136,7 @@ def setup_memory_controllers(system, ruby, dir_cntrls, options):
         for r in system.mem_ranges:
             mem_type = ObjectList.mem_list.get(options.mem_type)
             dram_intf = MemConfig.create_mem_intf(mem_type, r, index,
-                options.num_dirs, int(math.log(options.num_dirs, 2)),
+                int(math.log(options.num_dirs, 2)),
                 intlv_size, options.xor_low_bit)
             if issubclass(mem_type, DRAMInterface):
                 mem_ctrl = m5.objects.MemCtrl(dram = dram_intf)
@@ -172,7 +179,7 @@ def create_topology(controllers, options):
     return topology
 
 def create_system(options, full_system, system, piobus = None, dma_ports = [],
-                  bootmem=None):
+                  bootmem=None, cpus=None):
 
     system.ruby = RubySystem()
     ruby = system.ruby
@@ -185,12 +192,15 @@ def create_system(options, full_system, system, piobus = None, dma_ports = [],
         Network.create_network(options, ruby)
     ruby.network = network
 
+    if cpus is None:
+        cpus = system.cpu
+
     protocol = buildEnv['PROTOCOL']
     exec("from . import %s" % protocol)
     try:
         (cpu_sequencers, dir_cntrls, topology) = \
              eval("%s.create_system(options, full_system, system, dma_ports,\
-                                    bootmem, ruby)"
+                                    bootmem, ruby, cpus)"
                   % protocol)
     except:
         print("Error: could not create sytem for ruby protocol %s" % protocol)

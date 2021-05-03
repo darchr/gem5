@@ -40,9 +40,8 @@
 
 #include "arch/arm/nativetrace.hh"
 
-#include "arch/arm/ccregs.hh"
-#include "arch/arm/isa_traits.hh"
-#include "arch/arm/miscregs.hh"
+#include "arch/arm/regs/cc.hh"
+#include "arch/arm/regs/misc.hh"
 #include "cpu/thread_context.hh"
 #include "debug/ExecRegDelta.hh"
 #include "params/ArmNativeTrace.hh"
@@ -127,8 +126,7 @@ Trace::ArmNativeTrace::ThreadState::update(ThreadContext *tc)
     changed[STATE_CPSR] = (newState[STATE_CPSR] != oldState[STATE_CPSR]);
 
     for (int i = 0; i < NumVecV7ArchRegs; i++) {
-        auto vec(tc->readVecReg(RegId(VecRegClass,i))
-            .as<uint64_t, MaxSveVecLenInDWords>());
+        auto *vec = tc->readVecReg(RegId(VecRegClass,i)).as<uint64_t>();
         newState[STATE_F0 + 2*i] = vec[0];
         newState[STATE_F0 + 2*i + 1] = vec[1];
     }

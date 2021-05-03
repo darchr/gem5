@@ -33,6 +33,9 @@
 
 #include "gpu-compute/gpu_command_processor.hh"
 
+#include <cassert>
+
+#include "base/chunk_generator.hh"
 #include "debug/GPUCommandProc.hh"
 #include "debug/GPUKernelInfo.hh"
 #include "gpu-compute/dispatcher.hh"
@@ -42,9 +45,73 @@
 #include "sim/syscall_emul_buf.hh"
 
 GPUCommandProcessor::GPUCommandProcessor(const Params &p)
-    : HSADevice(p), dispatcher(*p.dispatcher), driver(nullptr)
+    : DmaDevice(p), dispatcher(*p.dispatcher), _driver(nullptr), hsaPP(p.hsapp)
 {
+    assert(hsaPP);
+    hsaPP->setDevice(this);
     dispatcher.setCommandProcessor(this);
+}
+
+HSAPacketProcessor&
+GPUCommandProcessor::hsaPacketProc()
+{
+    return *hsaPP;
+}
+
+void
+GPUCommandProcessor::dmaReadVirt(Addr host_addr, unsigned size,
+                                 DmaCallback *cb, void *data, Tick delay)
+{
+    dmaVirt(&DmaDevice::dmaRead, host_addr, size, cb, data, delay);
+}
+
+void
+GPUCommandProcessor::dmaWriteVirt(Addr host_addr, unsigned size,
+                                  DmaCallback *cb, void *data, Tick delay)
+{
+    dmaVirt(&DmaDevice::dmaWrite, host_addr, size, cb, data, delay);
+}
+
+void
+GPUCommandProcessor::dmaVirt(DmaFnPtr dmaFn, Addr addr, unsigned size,
+                             DmaCallback *cb, void *data, Tick delay)
+{
+    if (size == 0) {
+        if (cb)
+            schedule(cb->getChunkEvent(), curTick() + delay);
+        return;
+    }
+
+    // move the buffer data pointer with the chunks
+    uint8_t *loc_data = (uint8_t*)data;
+
+    for (ChunkGenerator gen(addr, size, PAGE_SIZE); !gen.done(); gen.next()) {
+        Addr phys;
+
+        // translate pages into their corresponding frames
+        translateOrDie(gen.addr(), phys);
+
+        Event *event = cb ? cb->getChunkEvent() : nullptr;
+
+        (this->*dmaFn)(phys, gen.size(), event, loc_data, delay);
+
+        loc_data += gen.size();
+    }
+}
+
+void
+GPUCommandProcessor::translateOrDie(Addr vaddr, Addr &paddr)
+{
+    /**
+     * Grab the process and try to translate the virtual address with it;
+     * with new extensions, it will likely be wrong to just arbitrarily
+     * grab context zero.
+     */
+    auto process = sys->threads[0]->getProcessPtr();
+
+    if (!process->pTable->translate(vaddr, paddr)) {
+        fatal("failed translation: vaddr 0x%x\n", vaddr);
+    }
 }
 
 /**
@@ -157,7 +224,8 @@ GPUCommandProcessor::functionalReadHsaSignal(Addr signal_handle)
 }
 
 void
-GPUCommandProcessor::updateHsaSignal(Addr signal_handle, uint64_t signal_value)
+GPUCommandProcessor::updateHsaSignal(Addr signal_handle, uint64_t signal_value,
+                                     HsaSignalCallbackFunction function)
 {
     // The signal value is aligned 8 bytes from
     // the actual handle in the runtime
@@ -166,10 +234,9 @@ GPUCommandProcessor::updateHsaSignal(Addr signal_handle, uint64_t signal_value)
     Addr event_addr = getHsaSignalEventAddr(signal_handle);
     DPRINTF(GPUCommandProc, "Triggering completion signal: %x!\n", value_addr);
 
-    Addr *new_signal = new Addr;
-    *new_signal = signal_value;
+    auto cb = new CPDmaCallback<uint64_t>(function, signal_value);
 
-    dmaWriteVirt(value_addr, sizeof(Addr), nullptr, new_signal, 0);
+    dmaWriteVirt(value_addr, sizeof(Addr), cb, &cb->dmaBuffer, 0);
 
     auto tc = system()->threads[0];
     ConstVPtr<uint64_t> mailbox_ptr(mailbox_addr, tc);
@@ -192,10 +259,19 @@ GPUCommandProcessor::updateHsaSignal(Addr signal_handle, uint64_t signal_value)
 }
 
 void
-GPUCommandProcessor::attachDriver(HSADriver *hsa_driver)
+GPUCommandProcessor::attachDriver(GPUComputeDriver *gpu_driver)
 {
-    fatal_if(driver, "Should not overwrite driver.");
-    driver = hsa_driver;
+    fatal_if(_driver, "Should not overwrite driver.");
+    // TODO: GPU Driver inheritance hierarchy doesn't really make sense.
+    // Should get rid of the base class.
+    _driver = gpu_driver;
+    assert(_driver);
+}
+
+GPUComputeDriver*
+GPUCommandProcessor::driver()
+{
+    return _driver;
 }
 
 /**
@@ -285,7 +361,7 @@ GPUCommandProcessor::dispatchPkt(HSAQueueEntry *task)
 void
 GPUCommandProcessor::signalWakeupEvent(uint32_t event_id)
 {
-    driver->signalWakeupEvent(event_id);
+    _driver->signalWakeupEvent(event_id);
 }
 
 /**
@@ -297,14 +373,15 @@ GPUCommandProcessor::signalWakeupEvent(uint32_t event_id)
 void
 GPUCommandProcessor::initABI(HSAQueueEntry *task)
 {
-    auto *readDispIdOffEvent = new ReadDispIdOffsetDmaEvent(*this, task);
+    auto cb = new CPDmaCallback<uint32_t>(
+        [ = ] (const uint32_t &readDispIdOffset)
+            { ReadDispIdOffsetDmaEvent(task, readDispIdOffset); }, 0);
 
     Addr hostReadIdxPtr
         = hsaPP->getQueueDesc(task->queueId())->hostReadIndexPtr;
 
     dmaReadVirt(hostReadIdxPtr + sizeof(hostReadIdxPtr),
-        sizeof(readDispIdOffEvent->readDispIdOffset), readDispIdOffEvent,
-            &readDispIdOffEvent->readDispIdOffset);
+        sizeof(uint32_t), cb, &cb->dmaBuffer);
 }
 
 System*

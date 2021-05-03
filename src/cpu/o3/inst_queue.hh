@@ -49,8 +49,11 @@
 
 #include "base/statistics.hh"
 #include "base/types.hh"
-#include "cpu/o3/dep_graph.hh"
 #include "cpu/inst_seq.hh"
+#include "cpu/o3/dep_graph.hh"
+#include "cpu/o3/limits.hh"
+#include "cpu/o3/mem_dep_unit.hh"
+#include "cpu/o3/store_set.hh"
 #include "cpu/op_class.hh"
 #include "cpu/timebuf.hh"
 #include "enums/SMTQueuePolicy.hh"
@@ -59,6 +62,9 @@
 struct DerivO3CPUParams;
 class FUPool;
 class MemInterface;
+
+template <class Impl>
+class DefaultIEW;
 
 /**
  * A standard instruction queue class.  It holds ready instructions, in
@@ -85,8 +91,6 @@ class InstructionQueue
     typedef typename Impl::O3CPU O3CPU;
     typedef typename Impl::DynInstPtr DynInstPtr;
 
-    typedef typename Impl::CPUPol::IEW IEW;
-    typedef typename Impl::CPUPol::MemDepUnit MemDepUnit;
     typedef typename Impl::CPUPol::IssueStruct IssueStruct;
     typedef typename Impl::CPUPol::TimeStruct TimeStruct;
 
@@ -122,7 +126,7 @@ class InstructionQueue
     };
 
     /** Constructs an IQ. */
-    InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
+    InstructionQueue(O3CPU *cpu_ptr, DefaultIEW<Impl> *iew_ptr,
                      const DerivO3CPUParams &params);
 
     /** Destructs the IQ. */
@@ -281,12 +285,12 @@ class InstructionQueue
     MemInterface *dcacheInterface;
 
     /** Pointer to IEW stage. */
-    IEW *iewStage;
+    DefaultIEW<Impl> *iewStage;
 
     /** The memory dependence unit, which tracks/predicts memory dependences
      *  between instructions.
      */
-    MemDepUnit memDepUnit[Impl::MaxThreads];
+    MemDepUnit<StoreSet, Impl> memDepUnit[O3MaxThreads];
 
     /** The queue to the execute stage.  Issued instructions will be written
      *  into it.
@@ -307,7 +311,7 @@ class InstructionQueue
     //////////////////////////////////////
 
     /** List of all the instructions in the IQ (some of which may be issued). */
-    std::list<DynInstPtr> instList[Impl::MaxThreads];
+    std::list<DynInstPtr> instList[O3MaxThreads];
 
     /** List of instructions that are ready to be executed. */
     std::list<DynInstPtr> instsToExecute;
@@ -410,10 +414,10 @@ class InstructionQueue
     std::list<ThreadID> *activeThreads;
 
     /** Per Thread IQ count */
-    unsigned count[Impl::MaxThreads];
+    unsigned count[O3MaxThreads];
 
     /** Max IQ Entries Per Thread */
-    unsigned maxEntries[Impl::MaxThreads];
+    unsigned maxEntries[O3MaxThreads];
 
     /** Number of free IQ entries left. */
     unsigned freeEntries;
@@ -436,7 +440,7 @@ class InstructionQueue
     Cycles commitToIEWDelay;
 
     /** The sequence number of the squashed instruction. */
-    InstSeqNum squashedSeqNum[Impl::MaxThreads];
+    InstSeqNum squashedSeqNum[O3MaxThreads];
 
     /** A cache of the recently woken registers.  It is 1 if the register
      *  has been woken up recently, and 0 if the register has been added
