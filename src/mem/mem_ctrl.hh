@@ -80,7 +80,7 @@ class BurstHelper
 
     BurstHelper(unsigned int _burstCount)
         : burstCount(_burstCount), burstsServiced(0)
-    {}
+    { }
 };
 
 /**
@@ -90,6 +90,7 @@ class BurstHelper
 class MemPacket
 {
   public:
+
     /** When did request enter the controller */
     const Tick entryTime;
 
@@ -104,12 +105,19 @@ class MemPacket
 
     const bool read;
 
-    //every write will initiate a read first
+    /**Initially this flag is false for all the packets. In order 
+     * to check tag and metadata, every packet will initiate a 
+     * read access first, including write packets. In case of a 
+     * write packet, the packet will turn into a read packet 
+     * and the 'read_before_write' flag will be set to true, to
+     * show the packet is originally a write packet in the state
+     * of reading the tag and metadata. After reading the tags
+     * and metadata, the flag will be set to false and the packet
+     * will turn back to write packet.*/
     bool read_before_write;
 
     /** Does this packet access DRAM?*/
-    //const bool dram;
-    bool dram;
+    const bool dram;
 
     /** Will be populated by address decoder */
     const uint8_t rank;
@@ -218,7 +226,7 @@ class MemPacket
 
 // The memory packets are store in a multiple dequeue structure,
 // based on their QoS priority
-typedef std::deque<MemPacket *> MemPacketQueue;
+typedef std::deque<MemPacket*> MemPacketQueue;
 
 /**
  * The memory controller is a single-channel memory controller capturing
@@ -442,7 +450,7 @@ class MemCtrl : public QoS::MemCtrl
      *
      * @param mem_pkt The memory packet created from the outside world pkt
      */
-    void doBurstAccess(MemPacket *mem_pkt);
+    void doBurstAccess(MemPacket* mem_pkt);
 
     /**
      * When a packet reaches its "readyTime" in the response Q,
@@ -460,7 +468,7 @@ class MemCtrl : public QoS::MemCtrl
      *
      * @param pkt The packet to evaluate
      */
-    bool packetReady(MemPacket *pkt);
+    bool packetReady(MemPacket* pkt);
 
     /**
      * Calculate the minimum delay used when scheduling a read-to-write
@@ -487,7 +495,7 @@ class MemCtrl : public QoS::MemCtrl
      * @param extra_col_delay Any extra delay due to a read/write switch
      * @return an iterator to the selected packet, else queue.end()
      */
-    MemPacketQueue::iterator chooseNext(MemPacketQueue &queue,
+    MemPacketQueue::iterator chooseNext(MemPacketQueue& queue,
                                         Tick extra_col_delay);
 
     /**
@@ -498,7 +506,7 @@ class MemCtrl : public QoS::MemCtrl
      * @param extra_col_delay Any extra delay due to a read/write switch
      * @return an iterator to the selected packet, else queue.end()
      */
-    MemPacketQueue::iterator chooseNextFRFCFS(MemPacketQueue &queue,
+    MemPacketQueue::iterator chooseNextFRFCFS(MemPacketQueue& queue,
                                               Tick extra_col_delay);
 
     /**
@@ -564,7 +572,7 @@ class MemCtrl : public QoS::MemCtrl
      */
     //std::deque<MemPacket *> respQueue;
     //priority queue ordered by earliest tick
-    std::priority_queue<std::pair<Tick, MemPacket *>,
+    std::priority_queue<std::pair<Tick, MemPacket*>,
                         std::greater<Tick>> respQueue;
 
     /**
@@ -577,12 +585,12 @@ class MemCtrl : public QoS::MemCtrl
     /**
      * Create pointer to interface of the actual dram media when connected
      */
-    DRAMInterface *const dram;
+    DRAMInterface* const dram;
 
     /**
      * Create pointer to interface of the actual nvm media when connected
      */
-    NVMInterface *const nvm;
+    NVMInterface* const nvm;
 
     /**
      * The following are basic design parameters of the memory
@@ -723,7 +731,7 @@ class MemCtrl : public QoS::MemCtrl
      * @param is_read The current burst is a read, select read queue
      * @return a reference to the appropriate queue
      */
-    std::vector<MemPacketQueue> &selQueue(bool is_read)
+    std::vector<MemPacketQueue>& selQueue(bool is_read)
     {
       return (is_read ? readQueue : writeQueue);
     };
@@ -734,6 +742,7 @@ class MemCtrl : public QoS::MemCtrl
     void pruneBurstTick();
 
   public:
+
     MemCtrl(const MemCtrlParams &p);
 
     /**
@@ -817,7 +826,7 @@ class MemCtrl : public QoS::MemCtrl
     bool inWriteBusState(bool next_state) const;
 
     Port &getPort(const std::string &if_name,
-                  PortID idx = InvalidPortID) override;
+                  PortID idx=InvalidPortID) override;
 
     virtual void init() override;
     virtual void startup() override;
