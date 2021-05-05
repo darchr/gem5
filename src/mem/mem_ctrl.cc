@@ -446,7 +446,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
 }
 
 void
-MemCtrl::addToDRAMFillQueue(MemPacket mem_pkt)
+MemCtrl::addToDRAMFillQueue(const MemPacket *mem_pkt)
 {
     // this is the packet that came from resp queue
     // and is sent ot nvm read queue (if it did not come from
