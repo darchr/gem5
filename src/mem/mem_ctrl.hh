@@ -288,11 +288,11 @@ class MemCtrl : public QoS::MemCtrl
     // values should be
     class tagEntry
     {
-    public:
-      Addr tag = 0;
-      Addr index = 0;
-      // xxxxxxdv (dirty and valid bits)
-      uint8_t metadata = 0;
+      public:
+        Addr tag = 0;
+        Addr index = 0;
+        // xxxxxxdv (dirty and valid bits)
+        uint8_t metadata = 0;
     };
     // constant to indicate that the cache line is
     // dirty
