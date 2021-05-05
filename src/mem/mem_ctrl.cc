@@ -493,7 +493,7 @@ MemCtrl::addToDRAMFillQueue(const MemPacket *mem_pkt)
 }
 
 void
-MemCtrl::addToNVMWriteQueue(MemPacket* mem_pkt)
+MemCtrl::addToNVMWriteQueue(const MemPacket* mem_pkt)
 {
     assert(pkt->isWrite());
     assert(!isNVMWriteQueueFull());
