@@ -228,7 +228,7 @@ MemCtrl::dramFillQueueFull(unsigned int neededEntries) const
 }
 
 void
-MemCtrl::addToNVMReadQueue(MemPacket* mem_pkt)
+MemCtrl::addToNVMReadQueue(const MemPacket* mem_pkt)
 {
 
     // return true if this request can succeed
