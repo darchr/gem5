@@ -201,7 +201,7 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
 bool
 MemCtrl::nvmWriteQueueFull(unsigned int neededEntries) const
 {
-    auto size = (nvmWriteQueueSize + neededEntries);
+    int size = (nvmWriteQueue.size() + neededEntries);
     // random size to compare with for now
     //return  size_new > 64;
     return  size > 64;
