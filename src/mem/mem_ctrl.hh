@@ -286,7 +286,7 @@ class MemCtrl : public QoS::MemCtrl
     // Add a tag store map
     // TODO: look at what the intialization
     // values should be
-    class tagEntry
+    class TagEntry
     {
       public:
         Addr tag = 0;
