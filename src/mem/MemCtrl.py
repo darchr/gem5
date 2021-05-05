@@ -61,7 +61,9 @@ class MemCtrl(QoSMemCtrl):
     dram_cache_size = Param.MemorySize('1024MiB', "DRAM cache size")
 
     #false='no allocate on write' and True='allocate on write'
-    write_allocate_policy = Param.Bool('false', "DRAM cache allocation policy on writes")
+    write_allocate_policy = Param.Bool(False, "DRAM cache allocation policy on "
+                                                             "writes. False means no write allocate, True "
+                                                             "means allocate on writes.")
     
     # Interface to volatile, DRAM media
     dram = Param.DRAMInterface(NULL, "DRAM interface")
