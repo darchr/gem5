@@ -338,13 +338,6 @@ class MemCtrl : public QoS::MemCtrl
     bool retryDRAMFillReq;
 
     /**
-     * Current sizes of nvmReadQueue, nvmWriteQueue, dramFillQueue
-     *
-     */
-    const uint64_t nvmReadQueueSize;
-    const uint64_t nvmWriteQueueSize;
-    const uint64_t dramFillQueueSize;
-    /**
      * Bunch of things requires to setup "events" in gem5
      * When event "respondEvent" occurs for example, the method
      * processRespondEvent is called; no parameters are allowed
@@ -608,6 +601,24 @@ class MemCtrl : public QoS::MemCtrl
     uint32_t readsThisTime;
 
     /**
+     * Maximum sizes of readQueue, writeQueue, nvmReadQueue, 
+     * nvmWriteQueue, dramFillQueue.
+     */
+    const uint64_t maxReadQueueSize;
+    const uint64_t maxWriteQueueSize;
+    const uint64_t maxNvmReadQueueSize;
+    const uint64_t maxNvmWriteQueueSize;
+    const uint64_t maxDramFillQueueSize;
+
+    /**
+     * Current sizes of nvmReadQueue, nvmWriteQueue, dramFillQueue.
+     *
+     */
+    const uint64_t nvmReadQueueSize;
+    const uint64_t nvmWriteQueueSize;
+    const uint64_t dramFillQueueSize;
+
+    /**
      * Memory controller configuration initialized based on parameter
      * values.
      */
@@ -654,7 +665,7 @@ class MemCtrl : public QoS::MemCtrl
      */
     Tick nextReqTime;
 
-    // DC refers to Dram Cache
+    // DC refers to 'Dram Cache'
     uint64_t dramCacheSize;
 
     // Number of blocks/entries in the DRAM cache

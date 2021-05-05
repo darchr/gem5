@@ -65,6 +65,11 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     writeLowThreshold(writeBufferSize * p.write_low_thresh_perc / 100.0),
     minWritesPerSwitch(p.min_writes_per_switch),
     writesThisTime(0), readsThisTime(0),
+    maxReadQueueSize(p.max_read_queue_size),
+    maxWriteQueueSize(p.max_write_queue_size),
+    maxNvmReadQueueSize(p.max_nvm_read_queue_size),
+    maxNvmWriteQueueSize(p.max_nvm_write_queue_size),
+    maxDramFillQueueSize(p.max_dram_fill_queue_size),
     memSchedPolicy(p.mem_sched_policy),
     frontendLatency(p.static_frontend_latency),
     backendLatency(p.static_backend_latency),
@@ -73,6 +78,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     nextBurstAt(0), prevArrival(0),
     nextReqTime(0),
     dramCacheSize(p.dram_cache_size),
+    numEntries(ceilLog2(p.dram_cache_size/64));
     writeAllocatePolicy(p.write_allocate_policy),
     stats(*this)
 {
@@ -93,8 +99,6 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
         fatal("Write buffer low threshold %d must be smaller than the "
               "high threshold %d\n", p.write_low_thresh_perc,
               p.write_high_thresh_perc);
-
-    numEntries = ceilLog2(dramCacheSize/64);
 
     for (int i = 0; i < numEntries; i++) {
         TagEntry entry;
