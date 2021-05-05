@@ -286,7 +286,7 @@ class MemCtrl : public QoS::MemCtrl
     // Add a tag store map
     // TODO: look at what the intialization
     // values should be
-    class tagEntry
+    class TagEntry
     {
     public:
       Addr tag = 0;
@@ -304,7 +304,8 @@ class MemCtrl : public QoS::MemCtrl
 
     // DC refers to Dram Cache
     //uint64_t dramCacheSize;
-    uint64_t numEntries;
+    //Number of blocks/entries in the DRAM cache
+    //uint64_t numEntries;
 
     // COMMENT: we assumed metadata is stored nither on the dram
     // (right adjacent to the data), nor on the SRAM caches, but
@@ -312,7 +313,7 @@ class MemCtrl : public QoS::MemCtrl
     // controller. Have this in mind that this assumption may lead
     // gem5-dram-cache outperform the real hardware such as
     // Intel Optane.
-    std::vector<tagEntry> tagStoreDC;
+    std::vector<TagEntry> tagStoreDC;
 
     // function to return tag from a pkt addr
     inline Addr returnTag(Addr pkt_addr);
@@ -653,8 +654,15 @@ class MemCtrl : public QoS::MemCtrl
      */
     Tick nextReqTime;
 
+    // DC refers to Dram Cache
     uint64_t dramCacheSize;
 
+    // Number of blocks/entries in the DRAM cache
+    uint64_t numEntries;
+
+    // write allocation policy for writes,
+    // if true, allocates a new block on writes misses
+    // if false, does not allocate on write misses
     const bool writeAllocatePolicy;
 
     struct CtrlStats : public Stats::Group

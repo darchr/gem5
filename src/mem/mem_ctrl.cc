@@ -97,7 +97,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     numEntries = ceilLog2(dramCacheSize/64);
 
     for (int i = 0; i < numEntries; i++) {
-        tagEntry entry;
+        TagEntry entry;
         tagStoreDC.emplace_back(entry);
     }
 }
@@ -197,28 +197,6 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
     auto wrsize_new = (totalWriteQueueSize + neededEntries);
     return  wrsize_new > writeBufferSize;
 }
-
-/*bool
-MemCtrl::writeQueueFull(unsigned int neededEntries) const
-{
-    DPRINTF(MemCtrl,
-            "Write queue limit %d, current size %d, entries needed %d\n",
-            writeBufferSize, totalWriteQueueSize, neededEntries);
-
-    auto wrsize_new = (totalWriteQueueSize + neededEntries);
-    return  wrsize_new > writeBufferSize;
-}
-
-bool
-MemCtrl::writeQueueFull(unsigned int neededEntries) const
-{
-    DPRINTF(MemCtrl,
-            "Write queue limit %d, current size %d, entries needed %d\n",
-            writeBufferSize, totalWriteQueueSize, neededEntries);
-
-    auto wrsize_new = (totalWriteQueueSize + neededEntries);
-    return  wrsize_new > writeBufferSize;
-}*/
 
 bool
 MemCtrl::nvmWriteQueueFull(unsigned int neededEntries) const
@@ -583,7 +561,13 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
 
             // COMMENT: Check if this packet is in DRAM cache through tags
             if (is_dram) {
-                mem_pkt = dram->decodePacket(pkt, addr, size, false, true);
+                // Every write packet received by write request queue,
+                // will initiate a read to check tag and metadata. Thus,
+                // we create a read packet and set 'read_before_write' flag
+                // to show this is actually a write packet in the state of
+                // checking tags and metadata. Later on, if needed, will set
+                // 'read_before_write' to false and set the packet to write.
+                mem_pkt = dram->decodePacket(pkt, addr, size, true, true);
                 mem_pkt->read_before_write = true;
                 dram->setupRank(mem_pkt->rank, false);
             } else {
@@ -719,54 +703,6 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     // if they do not is_dram : false. In both cases add tag check latency
     // later on when the request is sent to memory
 
-
-    // COMMENT: probably do not need to check tags here
-    /*int index = bits(pkt->getAddr(),
-                ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
-    if (tagStoreDC[index].tag == returnTag(pkt->getAddr()) && pkt->isWrite()) {
-        // if true it is DRAM cache hit
-        is_dram = true;
-        // I think we can also update the metabits here, or
-        // maybe we should do that once we get response back
-        // from the memory
-
-
-       // If we are writing something here and the request is coming from
-       // LLC , let's just say that this line is dirty here
-       // How to check that this request is not from NVM?
-        if(pkt->isWrite() && !pkt->req->nvm_req()) {
-            tagStoreDC[index].meta_bits &= DIRTY_LINE;
-
-            // Also, make a note that this line is a
-            // valid line
-            tagStoreDC[index].meta_bits &= VALID_LINE;
-        }
-
-        // what about the case when a read request shows up for
-        // the same location: it should be serviced from the
-        // write queue, I think.
-    }
-
-    // if the request is a read and a miss then find out if the
-    // request in DRAM cache is dirty or not
-
-    else if (pkt->isRead()) {
-        // no tag checking here, but to make sure
-        // this read request is going to DRAM
-
-        is_dram = true;
-
-        // I think for reads, we need to check tags on
-        // our way back when things are put in the response
-        // queue
-
-       // if clean ---> NVM read and DRAM write
-       // if dirty ---> NVM write for old data,
-       //               NVM read for new data
-       //               and write for new data
-
-    }
-    */
     // just validate that pkt's address maps to the nvm
     assert(nvm && nvm->getAddrRange().contains(pkt->getAddr()));
 
@@ -1858,12 +1794,12 @@ MemCtrl::processNextReqEvent()
             // transition to writing
             busStateNext = WRITE;
         }
-    } else if (busState == WRITE) { // write
+    } else { // write
 
         bool write_found = false;
         MemPacketQueue::iterator to_write;
         uint8_t prio = numPriorities();
-        bool switch_to_rbf = false;
+
 
         // this is used to track
         // if the write request is found
@@ -1897,9 +1833,7 @@ MemCtrl::processNextReqEvent()
             }
         }
 
-        /*if (!write_found) {
-            // if write candidate is not already found, check writeReq queue.
-            // This write needs a read first!
+        if (!write_found) { // if write candidate is not already found, check writeReq queue. This write needs a read first!
             for (auto queue = writeQueue.rbegin();
                 queue != writeQueue.rend(); ++queue) {
 
@@ -1922,7 +1856,7 @@ MemCtrl::processNextReqEvent()
                     break;
                 }
             }
-        }*/
+        }
         // if there are no writes to a rank that is available to service
         // requests (i.e. rank is in refresh idle state) are found then
         // return. There could be reads to the available ranks. However, to
@@ -1955,16 +1889,16 @@ MemCtrl::processNextReqEvent()
 
         // COMMENT: We should update the dirty bits right before deleting
         // the packet
-        /*
+
+        // MARYAM: This sould not be checked here! Should be transferred to resp process event!
         // ***************** Update the tags ***************** //
-        int index = bits(mem_pkt->pkt->getAddr(),
+        /*int index = bits(mem_pkt->pkt->getAddr(),
                         ceilLog2(64)+ceilLog2(num_entries), ceilLog2(64));
-
         // setting the dirty bit here
-        tagStoreDC[index].meta_bits = tagStoreDC[index].meta_bits | 0x02;
+        tagStoreDC[index].meta_bits = tagStoreDC[index].meta_bits | 0x02;*/
 
         // ***************** Update the tags ***************** //
-        */
+
 
         // remove the request from the queue - the iterator is no longer valid
 
@@ -1984,118 +1918,9 @@ MemCtrl::processNextReqEvent()
         else if (nvm_q_write) {
             nvmQueueWrite.erase(to_write);
         }
-        /*else {
+        else {
             writeQueue[mem_pkt->qosValue()].erase(to_write);
-        }*/
-
-        delete mem_pkt;
-
-        // If we emptied the write queue, or got sufficiently below the
-        // threshold (using the minWritesPerSwitch as the hysteresis) and
-        // are not draining, or we have reads waiting and have done enough
-        // writes, then switch to reads.
-        // If we are interfacing to NVM and have filled the writeRespQueue,
-        // with only NVM writes in Q, then switch to reads
-        bool below_threshold =
-            totalWriteQueueSize + minWritesPerSwitch < writeLowThreshold;
-
-        if (totalWriteQueueSize == 0 ||
-            (below_threshold && drainState() != DrainState::Draining) ||
-            (totalReadQueueSize && writesThisTime >= minWritesPerSwitch) ||
-            (totalReadQueueSize && nvm && nvm->writeRespQueueFull() &&
-             all_writes_nvm)) {
-
-            // turn the bus back around for reads again
-            //busStateNext = MemCtrl::READ;
-            switch_to_rbf = true;
-
-            // note that the we switch back to reads also in the idle
-            // case, which eventually will check for any draining and
-            // also pause any further scheduling if there is really
-            // nothing to do
         }
-        if (switch_to_rbf) {
-            busStateNext = WRITE;
-        }
-    } // end of write
-    else { // Read Before Write
-        bool rbf_found = false;
-        MemPacketQueue::iterator to_write;
-        uint8_t prio = numPriorities();
-
-        if (!rbf_found) {
-            // if write candidate is not already found, check writeReq queue.
-            //This write needs a read first!
-            for (auto queue = writeQueue.rbegin();
-                queue != writeQueue.rend(); ++queue) {
-
-                prio--;
-
-                DPRINTF(QOS,
-                        "Checking WRITE queue [%d] priority [%d elements]\n",
-                        prio, queue->size());
-
-                // If we are changing command type, incorporate the minimum
-                // bus turnaround delay
-                // TODO: how to choose next when we have
-                // DRAM cache and nvm packets
-                // in the queue
-                to_write = chooseNext((*queue),
-                        switched_cmd_type ? minReadToWriteDataGap() : 0);
-
-                if (to_write != queue->end()) {
-                    rbf_found = true;
-                    break;
-                }
-            }
-        }
-        // if there are no writes to a rank that is available to service
-        // requests (i.e. rank is in refresh idle state) are found then
-        // return. There could be reads to the available ranks. However, to
-        // avoid adding more complexity to the code, return at this point and
-        // wait for a refresh event to kick things into action again.
-        if (!rbf_found) {
-            DPRINTF(MemCtrl, "No Writes Found - exiting\n");
-            return;
-        }
-
-        auto mem_pkt = *to_write;
-
-        // sanity check
-        assert(mem_pkt->size <= (mem_pkt->isDram() ?
-                                  dram->bytesPerBurst() :
-                                  nvm->bytesPerBurst()) );
-
-        doBurstAccess(mem_pkt);
-
-        //COMMENT: In comparison to reads, nothing is written to
-        // response queue
-
-        isInWriteQueue.erase(burstAlign(mem_pkt->addr, mem_pkt->isDram()));
-
-        // log the response
-        logResponse(MemCtrl::WRITE, mem_pkt->requestorId(),
-                    mem_pkt->qosValue(), mem_pkt->getAddr(), 1,
-                    mem_pkt->readyTime - mem_pkt->entryTime);
-
-
-        // COMMENT: We should update the dirty bits right before deleting
-        // the packet
-
-        // ***************** Update the tags ***************** //
-        int index = bits(mem_pkt->pkt->getAddr(),
-                        ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
-
-        // setting the dirty bit here
-        tagStoreDC[index].metadata = tagStoreDC[index].metadata | 0x02;
-
-        // ***************** Update the tags ***************** //
-
-
-        // remove the request from the queue - the iterator is no longer valid
-
-        writeQueue[mem_pkt->qosValue()].erase(to_write);
-
 
         delete mem_pkt;
 
@@ -2123,7 +1948,6 @@ MemCtrl::processNextReqEvent()
             // nothing to do
         }
     }
-
 
     // COMMENT: Not sure what this comment means
     // It is possible that a refresh to another rank kicks things back into
