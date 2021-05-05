@@ -204,7 +204,6 @@ root.system.mem_mode = 'timing'
 m5.instantiate()
 
 def trace():
-
     addr_map = ObjectList.dram_addr_map_list.get(args.addr_map)
     generator = hybrid_generators[args.mode](system.tgen)
     for stride_size in range(burst_size, max_stride + 1, burst_size):
