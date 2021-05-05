@@ -205,7 +205,7 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
 bool
 MemCtrl::nvmWriteQueueFull(unsigned int neededEntries) const
 {
-    auto size = (nvmWriteQueueSize + neededEntries);
+    int size = (nvmWriteQueue.size() + neededEntries);
     // random size to compare with for now
     //return  size_new > 64;
     return  size > 64;
@@ -232,7 +232,7 @@ MemCtrl::dramFillQueueFull(unsigned int neededEntries) const
 }
 
 void
-MemCtrl::addToNVMReadQueue(MemPacket* mem_pkt)
+MemCtrl::addToNVMReadQueue(const MemPacket* mem_pkt)
 {
 
     // return true if this request can succeed
@@ -450,7 +450,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
 }
 
 void
-MemCtrl::addToDRAMFillQueue(MemPacket mem_pkt)
+MemCtrl::addToDRAMFillQueue(const MemPacket *mem_pkt)
 {
     // this is the packet that came from resp queue
     // and is sent ot nvm read queue (if it did not come from
@@ -497,7 +497,7 @@ MemCtrl::addToDRAMFillQueue(MemPacket mem_pkt)
 }
 
 void
-MemCtrl::addToNVMWriteQueue(MemPacket* mem_pkt)
+MemCtrl::addToNVMWriteQueue(const MemPacket* mem_pkt)
 {
     assert(pkt->isWrite());
     assert(!isNVMWriteQueueFull());
