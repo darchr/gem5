@@ -505,6 +505,11 @@ class MemCtrl : public QoS::MemCtrl
     const Tick backendLatency;
 
     /**
+     * Memory encryption engine latency
+     */
+    const Tick encryptionLatency;
+
+    /**
      * Length of a command window, used to check
      * command bandwidth
      */

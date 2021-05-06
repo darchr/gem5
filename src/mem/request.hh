@@ -355,6 +355,9 @@ class Request
     /** Byte-enable mask for writes. */
     std::vector<bool> _byteEnable;
 
+    /** A flag to indicate if this block should be ebcrypted.*/
+    bool _encrypt = false;
+
     /** The requestor ID which is unique in the system for all ports
      * that are capable of issuing a transaction
      */
@@ -643,6 +646,18 @@ class Request
     {
         assert(be.size() == _size);
         _byteEnable = be;
+    }
+
+    void
+    setEncrypt()
+    {
+        _encrypt = true;
+    }
+
+    bool
+    getEncrypt()
+    {
+        return _encrypt;
     }
 
     /**

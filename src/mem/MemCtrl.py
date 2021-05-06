@@ -89,4 +89,7 @@ class MemCtrl(QoSMemCtrl):
     static_frontend_latency = Param.Latency("10ns", "Static frontend latency")
     static_backend_latency = Param.Latency("10ns", "Static backend latency")
 
+    # memory encryption latency for blocks that need to be encrypted
+    encryption_latency = Param.Latency("10ns", "Memory encryption latency")
+
     command_window = Param.Latency("10ns", "Static backend latency")

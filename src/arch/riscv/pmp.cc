@@ -91,12 +91,15 @@ PMP::pmpCheck(const RequestPtr &req, BaseTLB::Mode mode,
 
             if ((mode == BaseTLB::Mode::Read) &&
                                         (PMP_READ & allowed_privs)) {
+                req->setEncrypt();
                 return NoFault;
             } else if ((mode == BaseTLB::Mode::Write) &&
                                         (PMP_WRITE & allowed_privs)) {
+                req->setEncrypt();
                 return NoFault;
             } else if ((mode == BaseTLB::Mode::Execute) &&
                                         (PMP_EXEC & allowed_privs)) {
+                req->setEncrypt();
                 return NoFault;
             } else {
                 return createAddrfault(req->getVaddr(), mode);

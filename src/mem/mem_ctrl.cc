@@ -67,6 +67,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     memSchedPolicy(p.mem_sched_policy),
     frontendLatency(p.static_frontend_latency),
     backendLatency(p.static_backend_latency),
+    encryptionLatency(p.encryption_latency),
     commandWindow(p.command_window),
     nextBurstAt(0), prevArrival(0),
     nextReqTime(0),
@@ -377,7 +378,12 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
     // snoop the write queue for any upcoming reads
     // @todo, if a pkt size is larger than burst size, we might need a
     // different front end latency
-    accessAndRespond(pkt, frontendLatency);
+    if (pkt->req->getEncrypt()) {
+        accessAndRespond(pkt, frontendLatency + encryptionLatency);
+    }
+    else {
+        accessAndRespond(pkt, frontendLatency);
+    }
 
     // If we are not already scheduled to get a request out of the
     // queue, do so now
@@ -511,13 +517,27 @@ MemCtrl::processRespondEvent()
             // so we can now respond to the requestor
             // @todo we probably want to have a different front end and back
             // end latency for split packets
-            accessAndRespond(mem_pkt->pkt, frontendLatency + backendLatency);
+            if (mem_pkt->pkt->req->getEncrypt()) {
+                accessAndRespond(mem_pkt->pkt, frontendLatency +
+                                    backendLatency + encryptionLatency);
+            }
+            else {
+                accessAndRespond(mem_pkt->pkt, frontendLatency +
+                                                    backendLatency);
+            }
             delete mem_pkt->burstHelper;
             mem_pkt->burstHelper = NULL;
         }
     } else {
         // it is not a split packet
-        accessAndRespond(mem_pkt->pkt, frontendLatency + backendLatency);
+            if (mem_pkt->pkt->req->getEncrypt()) {
+                accessAndRespond(mem_pkt->pkt, frontendLatency +
+                                    backendLatency + encryptionLatency);
+            }
+            else {
+                accessAndRespond(mem_pkt->pkt, frontendLatency +
+                                                    backendLatency);
+            }
     }
 
     delete respQueue.front();
