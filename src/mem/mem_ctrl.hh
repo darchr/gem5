@@ -422,21 +422,46 @@ class MemCtrl : public QoS::MemCtrl
 
     /**
      *
-     * @param pkt The mem pkt to add to the nvm read queue
+     * @param mempkt The mem pkt to add to the nvm read queue
      */
-    void addToNVMReadQueue(MemPacket *pkt);
+    void addToNVMReadQueue(MemPacket* mem_pkt);
 
     /**
      *
-     * @param pkt The mem pkt to add to the nvm read queue
+     * @param mem_pkt The mem pkt to add to the nvm read queue
      */
-    void addToNVMWriteQueue(MemPacket pkt);
+    void addToNVMWriteQueue(MemPacket* mem_pkt);
 
     /**
      *
-     * @param pkt The mem pkt to add to the dram fill queue
+     * @param mem_pkt The mem pkt to add to the dram fill queue
      */
-    void addToDRAMFillQueue(MemPacket pkt);
+    void addToDRAMFillQueue(MemPacket* mem_pkt);
+
+    /**
+     *
+     * @param mem_pkt The mem pkt to to be handled for 'EpmtyEntry' case
+     */
+    void handleInvalidEntry(MemPacket* mem_pkt);
+
+    /**
+     *
+     * @param mem_pkt The mem pkt to to be handled for 'Hit' case
+     */
+    void handleHit(MemPacket* mem_pkt);
+    
+    /**
+     *
+     * @param mem_pkt The mem pkt to to be handled for 'Clean Miss' case
+     */
+    void handleCleanMiss(MemPacket* mem_pkt);
+
+    /**
+     *
+     * @param mem_pkt The mem pkt to to be handled for 'Dirty Miss' case
+     */
+    void handleDirtyMiss(MemPacket* mem_pkt);
+
 
     /**
      * Actually do the burst based on media specific access function.
