@@ -24,6 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from abc import abstractmethod
 from typing import Optional
 
 from m5.objects import DDR3_1600_8x8 as DIMM
@@ -35,7 +36,7 @@ from ..boards.abstract_board import AbstractBoard
 
 from ..utils.override import *
 
-from typing import Tuple, Sequence
+from typing import Tuple, Sequence, List
 
 class DDR3_1600_8x8(AbstractMemorySystem):
 
@@ -63,3 +64,7 @@ class DDR3_1600_8x8(AbstractMemorySystem):
     @overrides(AbstractMemorySystem)
     def get_mem_ports(self) -> Tuple[Sequence[AddrRange], Port]:
         return [(self._dram.range, ctrl.port) for ctrl in self.controllers]
+
+    @overrides(AbstractMemorySystem)
+    def get_memory_controllers(self) -> List[MemCtrl]:
+        return self.mem_cntrls

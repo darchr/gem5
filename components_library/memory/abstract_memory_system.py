@@ -25,12 +25,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from abc import ABCMeta, abstractmethod
-from typing import Tuple, Sequence
+from typing import Tuple, Sequence, List
 
 
 from ..boards.abstract_board import AbstractBoard
 
-from m5.objects import AddrRange, Port, SubSystem
+from m5.objects import AddrRange, Port, SubSystem, MemCtrl
 
 
 class AbstractMemorySystem(SubSystem):
@@ -49,4 +49,8 @@ class AbstractMemorySystem(SubSystem):
 
     @abstractmethod
     def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_memory_controllers(self) -> List[MemCtrl]:
         raise NotImplementedError
