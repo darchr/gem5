@@ -440,12 +440,6 @@ class MemCtrl : public QoS::MemCtrl
 
     /**
      *
-     * @param mem_pkt The mem pkt to to be handled for 'EpmtyEntry' case
-     */
-    void handleInvalidEntry(MemPacket* mem_pkt);
-
-    /**
-     *
      * @param mem_pkt The mem pkt to to be handled for 'Hit' case
      */
     void handleHit(MemPacket* mem_pkt);
