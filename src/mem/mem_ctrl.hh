@@ -105,10 +105,10 @@ class MemPacket
 
     const bool read;
 
-    /**Initially this flag is false for all the packets. In order 
-     * to check tag and metadata, every packet will initiate a 
-     * read access first, including write packets. In case of a 
-     * write packet, the packet will turn into a read packet 
+    /**Initially this flag is false for all the packets. In order
+     * to check tag and metadata, every packet will initiate a
+     * read access first, including write packets. In case of a
+     * write packet, the packet will turn into a read packet
      * and the 'read_before_write' flag will be set to true, to
      * show the packet is originally a write packet in the state
      * of reading the tag and metadata. After reading the tags
@@ -291,16 +291,11 @@ class MemCtrl : public QoS::MemCtrl
       public:
         Addr tag = 0;
         Addr index = 0;
-        // xxxxxxdv (dirty and valid bits)
-        uint8_t metadata = 0;
+        // constant to indicate that the cache line is valid
+        bool valid_line = 0;
+        //constant to indicate that the cache line is dirty
+        bool dirty_line = 0;
     };
-    // constant to indicate that the cache line is
-    // dirty
-    const uint8_t DIRTY_LINE = 1 << 0;
-
-    // constant to indicate that the cache line is
-    // valid
-    const uint8_t VALID_LINE = 1 << 1;
 
     // DC refers to Dram Cache
     //uint64_t dramCacheSize;
@@ -443,7 +438,7 @@ class MemCtrl : public QoS::MemCtrl
      * @param mem_pkt The mem pkt to to be handled for 'Hit' case
      */
     void handleHit(MemPacket* mem_pkt);
-    
+
     /**
      *
      * @param mem_pkt The mem pkt to to be handled for 'Clean Miss' case
@@ -620,7 +615,7 @@ class MemCtrl : public QoS::MemCtrl
     uint32_t readsThisTime;
 
     /**
-     * Maximum sizes of readQueue, writeQueue, nvmReadQueue, 
+     * Maximum sizes of readQueue, writeQueue, nvmReadQueue,
      * nvmWriteQueue, dramFillQueue.
      */
     const uint64_t maxReadQueueSize;
