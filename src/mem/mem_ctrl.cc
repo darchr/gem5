@@ -557,7 +557,7 @@ MemCtrl::addToDRAMFillQueue(const MemPacket *mem_pkt)
 
     // make sure that the block is set to be valid and clean
     // MARYAM: only valid bit is set here. How about dirty bit?
-    tagStoreDC[index].metadata = 0x01;
+    tagStoreDC[index].valid_line = true;
 
     //isInWriteQueue.insert(burstAlign(addr, is_dram));
 
@@ -998,28 +998,30 @@ MemCtrl::processRespondEvent()
 
 
         // **************** THE ENTRY IS INVALID, POPULATE **************** //
-        if (tagStoreDC[index].metadata & 0X01 == 0) {
+        if (!(tagStoreDC[index].valid_line)) {
             //MARYAM: should dram_miss = true or false?
             dram_miss = true;
             handleCleanMiss(mem_pkt);
         }
 
         // **************** DRAM CACHE HIT **************** //
-        else if (tagStoreDC[index].tag == currTag && 
-                 tagStoreDC[index].metadata & 0X01 == 1) {
-            handleHit(mem_pkt);               
+        else if (tagStoreDC[index].tag == currTag &&
+                 tagStoreDC[index].valid_line) {
+            handleHit(mem_pkt);
         }
 
         // **************** DRAM CACHE MISS, CLEAN **************** //
         else if (tagStoreDC[index].tag != currTag &&
-                 ((tagStoreDC[index].metadata & 0X01 == 1)) {
+                 tagStoreDC[index].valid_line &&
+                 !(tagStoreDC[index].dirty_line)) {
             dram_miss = true;
             handleCleanMiss(mem_pkt);
         }
 
         // **************** DRAM CACHE MISS, Dirty **************** //
-        else if (tagStoreDC[index].tag != currTag
-                && (!(tagStoreDC[index].metadata & 0X03 == 3))) {
+        else if (tagStoreDC[index].tag != currTag &&
+                 tagStoreDC[index].valid_line &&
+                 tagStoreDC[index].dirty_line) {
             dram_miss = true;
             handleDirtyMiss(mem_pkt);
         }
@@ -1932,7 +1934,7 @@ MemCtrl::processNextReqEvent()
         int index = bits(mem_pkt->pkt->getAddr(),
                         ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
         // setting the dirty bit here
-        tagStoreDC[index].metadata = tagStoreDC[index].metadata | 0x02;
+        tagStoreDC[index].dirty_line = true;
 
         // remove the request from the queue - the iterator is no longer valid
         if (dfill_q_write) {
