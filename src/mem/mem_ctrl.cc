@@ -215,7 +215,7 @@ MemCtrl::nvmWriteQueueFull(unsigned int neededEntries) const
 bool
 MemCtrl::nvmReadQueueFull(unsigned int neededEntries) const
 {
-    auto size = (nvmReadQueueSize + neededEntries);
+    auto size = (nvmReadQueue.size() + neededEntries);
     // random size to compare with for now
     //return  size_new > 64;
     return  size > maxNvmReadQueueSize;
@@ -642,7 +642,7 @@ MemCtrl::addToNVMWriteQueue(const MemPacket* mem_pkt)
 void
 MemCtrl::handleHit(MemPacket* mem_pkt)
 {
-    if (mem_pkt->isRead()) {
+    if (mem_pkt->isRead() && !mem_pkt->read_before_write) {
                 // send the respond to requestor
     } else { // write packet
         if (!dramFillQueueFull(1)) {
@@ -651,9 +651,9 @@ MemCtrl::handleHit(MemPacket* mem_pkt)
             // if any of the queues are successful
             assert(respQueue.top().second->readyTime ==
                                             respQueue.top.first);
-            if (dramFillQueueFull(1))
+            if (dramFillQueueFull(1)) {
                 retryDRAMFillReq = true;
-
+            }
             //schedule(respondEvent,
             //              respQueue.top().second->readyTime + 2);
             // re schedule the respondEvent process
@@ -667,13 +667,8 @@ MemCtrl::handleHit(MemPacket* mem_pkt)
 void
 MemCtrl::handleCleanMiss(MemPacket* mem_pkt)
 {
-    // clean miss
-    dram_miss = true;
-    // Btw, if this is a miss
-    // what did we end up getting from
-    // DRAM
     // push this packet to the nvm read queue
-    if(mem_pkt->isRead()){
+    if(mem_pkt->isRead() && !mem_pkt->read_before_write) {
         if (!nvmReadQueueFull(1) && !dramFillQueueFull(1)) {
             addToNVMReadQueue(mem_pkt);
             addToDRAMFillQueue(mem_pkt);
@@ -681,10 +676,12 @@ MemCtrl::handleCleanMiss(MemPacket* mem_pkt)
             // if any of the queues are successful
             assert(respQueue.top().second->readyTime ==
                                             respQueue.top.first);
-            if (nvmReadQueueFull(1))
+            if (nvmReadQueueFull(1)) {
                 retryNVMRdReq = true;
-            if (dramFillQueueFull(1))
+            }
+            if (dramFillQueueFull(1)) {
                 retryDRAMFillReq = true;
+            }
 
             //schedule(respondEvent,
             //              respQueue.top().second->readyTime + 2);
@@ -701,8 +698,9 @@ MemCtrl::handleCleanMiss(MemPacket* mem_pkt)
                 // if any of the queues are successful
                 assert(respQueue.top().second->readyTime ==
                                                 respQueue.top.first);
-                if (nvmWriteQueueFull(1))
+                if (nvmWriteQueueFull(1)) {
                     retryNVMWrReq = true;
+                }
 
                 //schedule(respondEvent,
                 //              respQueue.top().second->readyTime + 2);
@@ -719,10 +717,12 @@ MemCtrl::handleCleanMiss(MemPacket* mem_pkt)
                 // if any of the queues are successful
                 assert(respQueue.top().second->readyTime ==
                                                 respQueue.top.first);
-                if (nvmReadQueueFull(1))
+                if (nvmReadQueueFull(1)) {
                     retryNVMRdReq = true;
-                if (dramFillQueueFull(1))
+                }
+                if (dramFillQueueFull(1)) {
                     retryDRAMFillReq = true;
+                }
 
                 //schedule(respondEvent,
                 //              respQueue.top().second->readyTime + 2);
@@ -738,7 +738,7 @@ MemCtrl::handleCleanMiss(MemPacket* mem_pkt)
 void
 MemCtrl::handleDirtyMiss(MemPacket* mem_pkt)
 {
-    if (mem_pkt->isRead()) {
+    if (mem_pkt->isRead() && !mem_pkt->read_before_write) {
         if (!nvmReadQueueFull(1) && !nvmWriteQueueFull(1)
             && !dramFillQueueFull(1)) {
             addToNVMReadQueue(mem_pkt);
@@ -748,12 +748,15 @@ MemCtrl::handleDirtyMiss(MemPacket* mem_pkt)
             // if any of the queues are successful
             assert(respQueue.top().second->readyTime ==
                                             respQueue.top.first);
-            if (nvmReadQueueFull(1))
+            if (nvmReadQueueFull(1)) {
                 retryNVMRdReq = true;
-            if (nvmWriteQueueFull(1))
+            }
+            if (nvmWriteQueueFull(1)) {
                 retryNVMRdReq = true;
-            if (dramFillQueueFull(1))
+            }
+            if (dramFillQueueFull(1)) {
                 retryDRAMFillReq = true;
+            }
 
             //schedule(respondEvent,
             //              respQueue.top().second->readyTime + 2);
@@ -770,8 +773,9 @@ MemCtrl::handleDirtyMiss(MemPacket* mem_pkt)
                 // if any of the queues are successful
                 assert(respQueue.top().second->readyTime ==
                                                 respQueue.top.first);
-                if (nvmWriteQueueFull(1))
+                if (nvmWriteQueueFull(1)) {
                     retryNVMWrReq = true;
+                }
 
                 //schedule(respondEvent,
                 //              respQueue.top().second->readyTime + 2);
@@ -789,13 +793,16 @@ MemCtrl::handleDirtyMiss(MemPacket* mem_pkt)
                 // if any of the queues are successful
                 assert(respQueue.top().second->readyTime ==
                                                 respQueue.top.first);
-                if (nvmReadQueueFull(1))
+                if (nvmReadQueueFull(1)) {
                     retryNVMRdReq = true;
-                if (nvmWriteQueueFull(1))
+                }
+                if (nvmWriteQueueFull(1)) {
                     retryNVMRdReq = true;
-                if (dramFillQueueFull(1))
+                }
+                if (dramFillQueueFull(1)) {
                     retryDRAMFillReq = true;
-
+                }
+                
                 //schedule(respondEvent,
                 //              respQueue.top().second->readyTime + 2);
                 // re schedule the respondEvent process
@@ -979,8 +986,6 @@ MemCtrl::processRespondEvent()
     // COMMENT: things to do: update tags in MC
     // and sent data to dram prob by creating a write req (dummy)
 
-    //
-
     MemPacket* mem_pkt = respQueue.top().second;
 
     // ****************
@@ -997,20 +1002,20 @@ MemCtrl::processRespondEvent()
         Addr currTag = returnTag(mem_pkt->pkt->getAddr());
 
 
-        // **************** THE ENTRY IS INVALID, POPULATE **************** //
+        // THE ENTRY IS INVALID, POPULATE 
         if (!(tagStoreDC[index].valid_line)) {
             //MARYAM: should dram_miss = true or false?
             dram_miss = true;
             handleCleanMiss(mem_pkt);
         }
 
-        // **************** DRAM CACHE HIT **************** //
+        // DRAM CACHE HIT
         else if (tagStoreDC[index].tag == currTag &&
                  tagStoreDC[index].valid_line) {
             handleHit(mem_pkt);
         }
 
-        // **************** DRAM CACHE MISS, CLEAN **************** //
+        // DRAM CACHE MISS, CLEAN
         else if (tagStoreDC[index].tag != currTag &&
                  tagStoreDC[index].valid_line &&
                  !(tagStoreDC[index].dirty_line)) {
@@ -1018,7 +1023,7 @@ MemCtrl::processRespondEvent()
             handleCleanMiss(mem_pkt);
         }
 
-        // **************** DRAM CACHE MISS, Dirty **************** //
+        // DRAM CACHE MISS, Dirty
         else if (tagStoreDC[index].tag != currTag &&
                  tagStoreDC[index].valid_line &&
                  tagStoreDC[index].dirty_line) {
@@ -1805,7 +1810,7 @@ MemCtrl::processNextReqEvent()
             int index = bits(mem_pkt->pkt->getAddr(),
                             ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
             // setting the dirty bit here
-            tagStoreDC[index].metadata = tagStoreDC[index].metadata | 0x02;
+            tagStoreDC[index].dirty_line = true;
 
             // remove the request from the queue - the iterator is no longer valid
             writeQueue[mem_pkt->qosValue()].erase(to_write);
@@ -1875,30 +1880,6 @@ MemCtrl::processNextReqEvent()
             }
         }
 
-        /*if (!write_found) { // if write candidate is not already found, check writeReq queue. This write needs a read first!
-            for (auto queue = writeQueue.rbegin();
-                queue != writeQueue.rend(); ++queue) {
-
-                prio--;
-
-                DPRINTF(QOS,
-                        "Checking WRITE queue [%d] priority [%d elements]\n",
-                        prio, queue->size());
-
-                // If we are changing command type, incorporate the minimum
-                // bus turnaround delay
-                // TODO: how to choose next when we have
-                // DRAM cache and nvm packets
-                // in the queue
-                to_write = chooseNext((*queue),
-                        switched_cmd_type ? minReadToWriteDataGap() : 0);
-
-                if (to_write != queue->end()) {
-                    write_found = true;
-                    break;
-                }
-            }
-        }*/
         // if there are no writes to a rank that is available to service
         // requests (i.e. rank is in refresh idle state) are found then
         // return. There could be reads to the available ranks. However, to
