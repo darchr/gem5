@@ -1737,6 +1737,103 @@ MemCtrl::processNextReqEvent()
             // transition to writing
             busStateNext = WRITE;
         }
+        // checking for write packets in the writeQueue which
+        // needs a read first, to check tag and metadata.
+        if(nvmWriteQueue.size()==0 && dramFillQueue.size()==0 && writeQueue.size()!=0){
+            bool write_found = false;
+            MemPacketQueue::iterator to_write;
+            uint8_t prio = numPriorities();
+
+            if (!write_found) {
+                for (auto queue = writeQueue.rbegin();
+                    queue != writeQueue.rend(); ++queue) {
+
+                    prio--;
+
+                    DPRINTF(QOS,
+                            "Checking WRITE queue [%d] priority [%d elements]\n",
+                            prio, queue->size());
+
+                    // If we are changing command type, incorporate the minimum
+                    // bus turnaround delay
+                    // TODO: how to choose next when we have
+                    // DRAM cache and nvm packets
+                    // in the queue
+                    to_write = chooseNext((*queue),
+                            switched_cmd_type ? minReadToWriteDataGap() : 0);
+
+                    if (to_write != queue->end()) {
+                        write_found = true;
+                        break;
+                    }
+                }
+            }
+            // if there are no writes to a rank that is available to service
+            // requests (i.e. rank is in refresh idle state) are found then
+            // return. There could be reads to the available ranks. However, to
+            // avoid adding more complexity to the code, return at this point and
+            // wait for a refresh event to kick things into action again.
+            if (!write_found) {
+                DPRINTF(MemCtrl, "No Writes Found in Write Request Queue - exiting\n");
+                return;
+            }
+
+            auto mem_pkt = *to_write;
+
+            // sanity check
+            assert(mem_pkt->size <= (mem_pkt->isDram() ?
+                                    dram->bytesPerBurst() :
+                                    nvm->bytesPerBurst()) );
+
+            doBurstAccess(mem_pkt);
+
+            //COMMENT: In comparison to reads, nothing is written to
+            // response queue
+
+            isInWriteQueue.erase(burstAlign(mem_pkt->addr, mem_pkt->isDram()));
+
+            // log the response
+            logResponse(MemCtrl::WRITE, mem_pkt->requestorId(),
+                        mem_pkt->qosValue(), mem_pkt->getAddr(), 1,
+                        mem_pkt->readyTime - mem_pkt->entryTime);
+
+
+            // We should update the dirty bits right before deleting
+            // the packet.
+            int index = bits(mem_pkt->pkt->getAddr(),
+                            ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
+            // setting the dirty bit here
+            tagStoreDC[index].metadata = tagStoreDC[index].metadata | 0x02;
+
+            // remove the request from the queue - the iterator is no longer valid
+            writeQueue[mem_pkt->qosValue()].erase(to_write);
+            
+            delete mem_pkt;
+
+            // If we emptied the write queue, or got sufficiently below the
+            // threshold (using the minWritesPerSwitch as the hysteresis) and
+            // are not draining, or we have reads waiting and have done enough
+            // writes, then switch to reads.
+            // If we are interfacing to NVM and have filled the writeRespQueue,
+            // with only NVM writes in Q, then switch to reads
+            bool below_threshold =
+                totalWriteQueueSize + minWritesPerSwitch < writeLowThreshold;
+
+            if (totalWriteQueueSize == 0 ||
+                (below_threshold && drainState() != DrainState::Draining) ||
+                (totalReadQueueSize && writesThisTime >= minWritesPerSwitch) ||
+                (totalReadQueueSize && nvm && nvm->writeRespQueueFull() &&
+                all_writes_nvm)) {
+
+                // turn the bus back around for reads again
+                busStateNext = MemCtrl::READ;
+
+                // note that the we switch back to reads also in the idle
+                // case, which eventually will check for any draining and
+                // also pause any further scheduling if there is really
+                // nothing to do
+            }
+        }
     } else { // write
 
         bool write_found = false;
@@ -1776,7 +1873,7 @@ MemCtrl::processNextReqEvent()
             }
         }
 
-        if (!write_found) { // if write candidate is not already found, check writeReq queue. This write needs a read first!
+        /*if (!write_found) { // if write candidate is not already found, check writeReq queue. This write needs a read first!
             for (auto queue = writeQueue.rbegin();
                 queue != writeQueue.rend(); ++queue) {
 
@@ -1799,7 +1896,7 @@ MemCtrl::processNextReqEvent()
                     break;
                 }
             }
-        }
+        }*/
         // if there are no writes to a rank that is available to service
         // requests (i.e. rank is in refresh idle state) are found then
         // return. There could be reads to the available ranks. However, to
