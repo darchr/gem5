@@ -42,6 +42,8 @@ from m5.objects import Root
 from components_library.boards.x86_board import X86Board
 from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
     import PrivateL1PrivateL2CacheHierarchy
+from components_library.cachehierarchies.mesi_two_level_cache_hierarchy \
+    import MESITwoLevelCacheHierarchy
 from components_library.cachehierarchies.no_cache import NoCache
 from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
 from components_library.processors.simple_processor import SimpleProcessor
@@ -58,15 +60,19 @@ import time
 
 
 # Setup the cachie hierarchy.
-cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size = "32kB",
-                                                   l1i_size = "32kB",
-                                                   l2_size = "256kB",
-                                                  )
+#cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size="32kB",
+#                                                   l1i_size="32kB",
+#                                                   l2_size="256kB",
+#                                                   )
 
-
-#cache_hierarchy = MESITwoLevelCacheHierarchy(
-#    '32KiB', 8, '32KiB', 8, '512KiB', 16, 1
-#)
+cache_hierarchy = MESITwoLevelCacheHierarchy(l1d_size = "32kB",
+                                             l1d_assoc = 8,
+                                             l1i_size = "32kB",
+                                             l1i_assoc = 8,
+                                             l2_size = "256kB",
+                                             l2_assoc = 16,
+                                             num_l2_banks = 1,
+                                            )
 
 # For an even simpler setup, have no cache at all!
 #cache_hierarchy = NoCache()
@@ -80,19 +86,21 @@ memory = DDR3_1600_8x8(size="3GB")
 # The processor. In this case we use the special "SwitchableProcessor" which
 # allows us to switch between different SimpleProcessors. In this case we start
 # with an atomic CPU and change to Timing later in the simulation
-start_processor = SimpleProcessor(cpu_type = CPUTypes.ATOMIC, num_cores=1)
-switch_processor = SimpleProcessor(cpu_type = CPUTypes.TIMING, num_cores = 1)
+start_processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, num_cores=1)
+switch_processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, num_cores=1)
 processor = SimpleSwitchableProcessor(starting_processor=start_processor,
                                       switchable_processor=switch_processor)
 
 
 motherboard = X86Board(
     clk_freq="3GHz",
-    processor=processor,
+    processor=start_processor,  # processor,
     memory=memory,
     cache_hierarchy=cache_hierarchy,
     exit_on_work_items=True,
 )
+
+motherboard.connect_things()
 
 
 # Download the linux kernel and parsec disk image needed to run the
@@ -121,7 +129,7 @@ if not os.path.exists(parsec_img_path):
 
 # The command to run. In this case the blackscholes app with the simsmall
 # workload.
-command =  "cd /home/gem5/parsec-benchmark\n"
+command = "cd /home/gem5/parsec-benchmark\n"
 command += "source env.sh\n"
 command += "parsecmgmt -a run -p blackscholes "
 command += "-c gcc-hooks -i simsmall -n {}\n".format(processor.get_num_cores())
@@ -142,7 +150,7 @@ print()
 root = Root(
     full_system=True,
     system=motherboard,
-    sim_quantum=int(1e9), # Needed if running in KVM mode
+    sim_quantum=int(1e9),  # Needed if running in KVM mode
 )
 
 # instantiate all of the objects we've created above and start the simulation.
@@ -180,8 +188,8 @@ else:
     print("Performance statistics:")
     print("Simulated time: %.2fs" % ((end_tick-start_tick)/1e12))
     print("Ran a total of", m5.curTick()/1e12, "simulated seconds")
-    print("Total wallclock time: %.2fs, %.2f min" % \
-                (time.time()-globalStart, (time.time()-globalStart)/60))
+    print("Total wallclock time: %.2fs, %.2f min" %
+          (time.time()-globalStart, (time.time()-globalStart)/60))
     exit()
 
 # Simulate the ROI
@@ -212,8 +220,8 @@ else:
     print("Performance statistics:")
     print("Simulated time: %.2fs" % ((end_tick-start_tick)/1e12))
     print("Ran a total of", m5.curTick()/1e12, "simulated seconds")
-    print("Total wallclock time: %.2fs, %.2f min" % \
-                (time.time()-globalStart, (time.time()-globalStart)/60))
+    print("Total wallclock time: %.2fs, %.2f min" %
+          (time.time()-globalStart, (time.time()-globalStart)/60))
     exit()
 
 # Simulate the remaning part of the benchmark
@@ -228,6 +236,5 @@ print("Performance statistics:")
 
 print("Simulated time in ROI: %.2fs" % ((end_tick-start_tick)/1e12))
 print("Ran a total of", m5.curTick()/1e12, "simulated seconds")
-print("Total wallclock time: %.2fs, %.2f min" % \
-            (time.time()-globalStart, (time.time()-globalStart)/60))
-
+print("Total wallclock time: %.2fs, %.2f min" %
+      (time.time()-globalStart, (time.time()-globalStart)/60))

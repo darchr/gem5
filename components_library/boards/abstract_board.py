@@ -27,10 +27,12 @@
 from abc import ABCMeta, abstractmethod
 
 from m5.defines import buildEnv
-from m5.objects import System
+from m5.objects import System, Port, IOXBar
 
 from .isas import ISA
 from .coherence_protocol import CoherenceProtocol
+
+from typing import List
 
 class AbstractBoard(System):
     __metaclass__ = ABCMeta
@@ -58,8 +60,6 @@ class AbstractBoard(System):
         self.processor = processor
         self.memory = memory
         self.cache_hierarchy = cache_hierarchy
-
-        self.connect_things()
 
     def get_processor(self) -> "AbstractProcessor":
         """
@@ -90,6 +90,30 @@ class AbstractBoard(System):
         :rtype: AbstractCacheHierarchy
         """
         return self.cache_hierarchy
+
+    def get_dma_ports(self) -> List[Port]:
+        """
+        Get the board's Direct Memory Access ports.
+
+        This abstract method must be implemented within the subclasses.
+
+        :returns: A List of the Direct Memory Access ports.
+
+        :rtype: List[Port]
+        """
+        raise NotImplementedError
+
+    def get_io_bus(self) ->IOXBar:
+        """
+        Get the board's IO Bus.
+
+        This abstract method must be implemented within a subclass.
+
+        :returns: The IO Bus
+
+        :rtype: IOXBar
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def connect_things(self) -> None:

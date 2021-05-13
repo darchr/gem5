@@ -38,32 +38,33 @@ from ..utils.override import *
 
 from typing import Tuple, Sequence, List
 
+
 class DDR3_1600_8x8(AbstractMemorySystem):
 
     def __init__(self,
-                size : Optional[str] = "512MiB",
-                ) -> None:
-        super(DDR3_1600_8x8, self).__init__(size = size)
+                 size: Optional[str] = "512MiB",
+                 ) -> None:
+        super(DDR3_1600_8x8, self).__init__(size=size)
 
         # The DDR3_1600_8x8 has a lot of variables with sensible defaults that
         # make sense for a DDR3_1600_8x8 device. Only the size has been
         # exposed.
-        self._dram = DIMM(range = self.get_size_str())
+        self._dram = DIMM(range=self.get_size_str())
         self.mem_cntrls = [
-            MemCtrl(dram = self._dram)
+            MemCtrl(dram=self._dram)
         ]
 
     @overrides(AbstractMemorySystem)
     def incorporate_memory(self, board: AbstractBoard) -> None:
-
+        pass
         # TODO: I don't like how this reaches into the cache_hierarchy
-        for ctrl in self.mem_cntrls:
-            ctrl.port = board.get_cache_hierarchy()\
-                .get_membus().mem_side_ports
+        # for ctrl in self.mem_cntrls:
+        #   ctrl.port = board.get_cache_hierarchy()\
+        #      .get_membus().mem_side_ports
 
     @overrides(AbstractMemorySystem)
     def get_mem_ports(self) -> Tuple[Sequence[AddrRange], Port]:
-        return [(self._dram.range, ctrl.port) for ctrl in self.controllers]
+        return [(self._dram.range, ctrl.port) for ctrl in self.mem_cntrls]
 
     @overrides(AbstractMemorySystem)
     def get_memory_controllers(self) -> List[MemCtrl]:

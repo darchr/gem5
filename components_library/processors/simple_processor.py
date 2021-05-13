@@ -62,6 +62,7 @@ class SimpleProcessor(AbstractProcessor):
 
         for cpu in self.cpus:
             cpu.createThreads()
+            cpu.createInterruptController()
 
         if self.get_cpu_type() == CPUTypes.KVM:
             # To get the KVM CPUs to run on different host CPUs
@@ -76,17 +77,6 @@ class SimpleProcessor(AbstractProcessor):
         return [cpu_class(cpu_id = i) for i in range(num_cores)]
 
     def incorporate_processor(self, board: AbstractBoard) -> None:
-
-        for cpu in self.get_cpu_simobjects():
-            # create the interrupt controller CPU and connect to the membus
-            cpu.createInterruptController()
-
-            if board.get_runtime_isa() == ISA.X86 :
-                int_req_port, int_resp_port = \
-                    board.get_cache_hierarchy().get_interrupt_ports(cpu)
-                cpu.interrupts[0].pio = int_req_port
-                cpu.interrupts[0].int_requestor = int_resp_port
-                cpu.interrupts[0].int_responder = int_req_port
 
         if self.get_cpu_type() == CPUTypes.KVM:
             board.kvm_vm = self.kvm_vm

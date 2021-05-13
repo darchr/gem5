@@ -25,65 +25,59 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+from components_library.boards.isas import ISA
 import m5
 from m5.objects import Cache, Pc, AddrRange, X86FsLinux, \
                        Addr, X86SMBiosBiosInformation, X86IntelMPProcessor,\
                        X86IntelMPIOAPIC, X86IntelMPBus,X86IntelMPBusHierarchy,\
                        X86IntelMPIOIntAssignment, X86E820Entry, Bridge,\
-                       IOXBar, IdeDisk, CowDiskImage, RawDiskImage, BaseXBar
+                       IOXBar, IdeDisk, CowDiskImage, RawDiskImage, BaseXBar,\
+                       BaseCPU
 
 from m5.params import Port
 
 
 from .simple_board import SimpleBoard
-
-from .abstract_board import AbstractBoard
-from .isas import ISA
 from ..processors.abstract_processor import AbstractProcessor
 from ..memory.abstract_memory_system import AbstractMemorySystem
-from ..cachehierarchies.abstract_classic_cache_hierarchy import \
-                                    AbstractClassicCacheHierarchy
-from ..utils.override import *
+from ..cachehierarchies.abstract_cache_hierarchy import AbstractCacheHierarchy
 
 
-from typing import Sequence, Optional
+from typing import Optional, Sequence, Tuple
 
 
 class X86Board(SimpleBoard):
     """
-    A motherboard capable of full system simulation for X86, with switchable
-    processors.
+    A motherboard capable of full system simulation for X86.
     """
 
     def __init__(self, clk_freq: str,
                  processor: AbstractProcessor,
                  memory: AbstractMemorySystem,
-                 cache_hierarchy: AbstractClassicCacheHierarchy,
-                 exit_on_work_items : Optional[bool] = False,
+                 cache_hierarchy: AbstractCacheHierarchy,
+                 xbar_width: Optional[int] = 64,
+                 exit_on_work_items: bool = False,
                 ) -> None:
         super(X86Board, self).__init__(
-                                             clk_freq= clk_freq,
-                                             processor=processor,
-                                             memory=memory,
-                                             cache_hierarchy=cache_hierarchy,
-                                            )
+                                        clk_freq = clk_freq,
+                                        processor=processor,
+                                        memory=memory,
+                                        cache_hierarchy=cache_hierarchy,
+                                      )
 
         if self.get_runtime_isa() != ISA.X86:
                 raise EnvironmentError("X86Motherboard will only work with the"
                                        " X86 ISA.")
+
+        self.exit_on_work_items = exit_on_work_items
 
         # Add the address range for the IO
         # TODO: This should definitely NOT be hardcoded to 3GB
         self.mem_ranges = [AddrRange(Addr('3GB')), # All data
                            AddrRange(0xC0000000, size=0x100000), # For I/0
                            ]
-        #self.mem_ranges.append(
-         #       AddrRange(Addr(self.get_memory().get_size_str()),
-          #          size=0x100000))
 
         self.pc = Pc()
-
-        self.exit_on_work_items = exit_on_work_items
 
         self.workload = X86FsLinux()
 
@@ -95,59 +89,6 @@ class X86Board(SimpleBoard):
 
         # North Bridge
         self.iobus = IOXBar()
-        self.bridge = Bridge(delay='50ns')
-        self.bridge.mem_side_port = self.iobus.cpu_side_ports
-        self.bridge.cpu_side_port = \
-            self.get_cache_hierarchy().get_membus().mem_side_ports
-
-        # self.bridge = Bridge(delay='50ns')
-
-        # Allow the bridge to pass through:
-        #  1) kernel configured PCI device memory map address: address range
-        #  [0xC0000000, 0xFFFF0000). (The upper 64kB are reserved for m5ops.)
-        #  2) the bridge to pass through the IO APIC (two pages, already
-        #     contained in 1),
-        #  3) everything in the IO address range up to the local APIC, and
-        #  4) then the entire PCI address space and beyond.
-
-        self.bridge.ranges = \
-             [
-             AddrRange(0xC0000000, 0xFFFF0000),
-             AddrRange(IO_address_space_base,
-                       interrupts_address_space_base - 1),
-             AddrRange(pci_config_address_space_base,
-                       Addr.max)
-             ]
-
-        # Create a bridge from the IO bus to the memory bus to allow access
-        # to the local APIC (two pages)
-        self.apicbridge = Bridge(delay='50ns')
-        self.apicbridge.cpu_side_port = self.iobus.mem_side_ports
-        self.apicbridge.mem_side_port = \
-            self.get_cache_hierarchy().get_membus().cpu_side_ports
-        self.apicbridge.ranges = [AddrRange(interrupts_address_space_base,
-                 interrupts_address_space_base +
-                 self.get_processor().get_num_cores() * APIC_range_size
-                 - 1)]
-
-        # connect the io bus
-        self.pc.attachIO(self.iobus)
-
-        # Add a tiny cache to the IO bus.
-        # This cache is required for the classic memory model for coherence
-        self.iocache = Cache(assoc=8,
-                             tag_latency = 50,
-                             data_latency = 50,
-                             response_latency = 50,
-                             mshrs = 20,
-                             size = '1kB',
-                             tgts_per_mshr = 12,
-                             addr_ranges = \
-                                 self.mem_ranges)
-
-        self.iocache.cpu_side = self.iobus.mem_side_ports
-        self.iocache.mem_side = \
-            self.get_cache_hierarchy().get_membus().cpu_side_ports
 
         # Add in a Bios information structure.
         self.workload.smbios_table.structures = \
@@ -232,7 +173,8 @@ class X86Board(SimpleBoard):
             X86E820Entry(addr = 0x9fc00, size = '385kB', range_type = 2),
             # Mark the rest of physical memory as available
             X86E820Entry(addr = 0x100000,
-                    size = '%dB' % (self.mem_ranges[0].size() - 0x100000),
+                    size = '%dB' % (self\
+                        .mem_ranges[0].size() - 0x100000),
                     range_type = 1),
             ]
 
@@ -242,34 +184,10 @@ class X86Board(SimpleBoard):
 
         self.workload.e820_table.entries = entries
 
-    @overrides(AbstractBoard)
     def connect_things(self) -> None:
         super().connect_things()
 
-        #self.iocache.cpu_side = \
-        #     self.iobus.mem_side_ports
-        #self.iocache.mem_side = \
-        #     self.membus.cpu_side_ports
-
-        #self.apicbridge.cpu_side_port = \
-        #     self.iobus.mem_side_ports
-        #self.apicbridge.mem_side_port = \
-        #     self.get_membus().cpu_side_ports
-
-        #self.bridge.mem_side_port = \
-        #     self.iobus.cpu_side_ports
-        #self.bridge.cpu_side_port = \
-        #     self.get_membus().mem_side_ports
-
-        # connect the io bus
-        ##self.pc.attachIO(
-         #   self.iobus,
-        #    [self.pc.south_bridge.ide.dma]
-       # )
-
     def set_workload(self, kernel: str, disk_image: str, command: str):
-        # TODO: This strongly couples the the idea of kernel, disk_image and a
-        # command to run.
 
         # Set the Linux kernel to use.
         self.workload.object_file = kernel
@@ -304,7 +222,7 @@ class X86Board(SimpleBoard):
         # Set to the system readfile
         self.readfile = file_name
 
-    def get_iobus(self) -> BaseXBar:
+    def get_io_bus(self) -> BaseXBar:
         return self.iobus
 
     def get_dma_ports(self) -> Sequence[Port]:

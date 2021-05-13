@@ -98,11 +98,11 @@ class NoCache(AbstractCacheHierarchy):
         # Set up the system port for functional access from the simulator.
         board.system_port = self.get_membus().cpu_side_ports
 
-    @overrides(AbstractCacheHierarchy)
+ #   @overrides(AbstractCacheHierarchy)
     def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port, Port]:
         return self.get_membus().mem_side_ports, \
                self.get_membus().cpu_side_ports
 
-    @overrides(AbstractCacheHierarchy)
+ #   @overrides(AbstractCacheHierarchy)
     def get_membus(self) -> BaseXBar:
         return self.membus
