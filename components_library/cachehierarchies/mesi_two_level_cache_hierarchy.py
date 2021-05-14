@@ -206,4 +206,5 @@ class MESITwoLevelCacheHierarchy(
         # connect the io bus
         # TODO: This interface needs fixed. The PC should not be accessed in
         # This way
-        board.pc.attachIO(board.get_io_bus(), [self.pc.south_bridge.ide.dma])
+        motherboard.pc.attachIO(motherboard.get_io_bus(),
+                         [motherboard.pc.south_bridge.ide.dma])
