@@ -1629,8 +1629,8 @@ MemCtrl::processNextReqEvent()
 
                     prio--;
 
-                    DPRINTF(QOS, "Checking READ queue
-                                  [%d] priority [%d] elements\n",
+                    DPRINTF(QOS, "Checking READ queue [%d] priority
+                                  [%d] elements\n",
                                   prio, queue->size());
 
                     // Figure out which read request goes next

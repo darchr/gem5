@@ -47,6 +47,7 @@
 #define __MEM_CTRL_HH__
 
 #include <deque>
+#include <queue>
 #include <string>
 #include <unordered_set>
 #include <utility>
