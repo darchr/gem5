@@ -617,7 +617,7 @@ MemCtrl::addToNVMReadQueue(const MemPacket* mem_pkt)
 void
 MemCtrl::addToNVMWriteQueue(const MemPacket* mem_pkt)
 {
-    assert(pkt->isWrite());
+    assert(mem_pkt->isWrite());
     assert(nvmWriteQueueFull(1));
 
     // COMMENT: Should overwrite the mem_pkt?
@@ -833,8 +833,16 @@ MemCtrl::printQs() const
     }
 
     DPRINTF(MemCtrl, "\n===RESP QUEUE===\n\n");
-    for (const auto& packet : respQueue) {
-        DPRINTF(MemCtrl, "Response %lu\n", packet->second->addr);
+    //A priority queue's interface does not allow iteration.
+    //So, relying on the following workaround (but there should
+    //be better alternatives)
+    typedef std::pair<Tick, MemPacket*> entry;
+    std::priority_queue<entry, std::vector<entry>,
+                        std::greater<entry> > temp = respQueue;
+
+    while (!temp.empty()){
+        DPRINTF(MemCtrl, "Response %lu\n", temp.top().second->addr);
+        temp.pop();
     }
 
     DPRINTF(MemCtrl, "\n===WRITE QUEUE===\n\n");
@@ -992,7 +1000,7 @@ MemCtrl::processRespondEvent()
     // and sent data to dram prob by creating a write req (dummy)
 
     MemPacket* mem_pkt = respQueue.top().second;
-
+    bool dram_miss = false;
     // ****************
     // MARYAM: Assuming read & writes, why do you assert for reads?
     // assuming that read will still be true on the way back
@@ -1001,7 +1009,7 @@ MemCtrl::processRespondEvent()
     //DRAM ACCESS, check tag and metadata
     if (mem_pkt->isDram()) {
 
-        bool dram_miss = false;
+        dram_miss = false;
         int index = bits(mem_pkt->pkt->getAddr(),
                         ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
         Addr currTag = returnTag(mem_pkt->pkt->getAddr());
