@@ -802,7 +802,7 @@ MemCtrl::handleDirtyMiss(MemPacket* mem_pkt)
                 if (dramFillQueueFull(1)) {
                     retryDRAMFillReq = true;
                 }
-                
+
                 //schedule(respondEvent,
                 //              respQueue.top().second->readyTime + 2);
                 // re schedule the respondEvent process
@@ -1002,7 +1002,7 @@ MemCtrl::processRespondEvent()
         Addr currTag = returnTag(mem_pkt->pkt->getAddr());
 
 
-        // THE ENTRY IS INVALID, POPULATE 
+        // THE ENTRY IS INVALID, POPULATE
         if (!(tagStoreDC[index].valid_line)) {
             //MARYAM: should dram_miss = true or false?
             dram_miss = true;
@@ -1611,7 +1611,7 @@ MemCtrl::processNextReqEvent()
             // First check NVM Read Queue
             // Question: which queues should be prioritized
 
-            auto queue = nvmReadQueue.rbegin()
+            auto queue = nvmReadQueue.rbegin();
             to_read = chooseNext((*queue), switched_cmd_type ?
                                         minWriteToReadDataGap() : 0);
 
@@ -1629,9 +1629,10 @@ MemCtrl::processNextReqEvent()
 
                     prio--;
 
-                    DPRINTF(QOS, "Checking READ queue [%d] priority
-                                  [%d] elements\n",
-                                  prio, queue->size());
+                    DPRINTF(QOS,
+                            "Checking READ queue [%d] priority"
+                            "[%d] elements \n",
+                            prio, queue->size());
 
                     // Figure out which read request goes next
                     // If we are changing command type, incorporate the minimum
@@ -1814,7 +1815,7 @@ MemCtrl::processNextReqEvent()
 
             // remove the request from the queue - the iterator is no longer valid
             writeQueue[mem_pkt->qosValue()].erase(to_write);
-            
+
             delete mem_pkt;
 
             // If we emptied the write queue, or got sufficiently below the
