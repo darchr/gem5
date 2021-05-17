@@ -70,6 +70,9 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     maxNvmReadQueueSize(p.max_nvm_read_queue_size),
     maxNvmWriteQueueSize(p.max_nvm_write_queue_size),
     maxDramFillQueueSize(p.max_dram_fill_queue_size),
+    nvmReadQueueSize(0),
+    nvmWriteQueueSize(0),
+    dramFillQueueSize(0),
     memSchedPolicy(p.mem_sched_policy),
     frontendLatency(p.static_frontend_latency),
     backendLatency(p.static_backend_latency),
@@ -78,7 +81,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     nextBurstAt(0), prevArrival(0),
     nextReqTime(0),
     dramCacheSize(p.dram_cache_size),
-    numEntries(ceilLog2(p.dram_cache_size/64));
+    numEntries(ceilLog2(p.dram_cache_size/64)),
     writeAllocatePolicy(p.write_allocate_policy),
     stats(*this)
 {
