@@ -1113,7 +1113,7 @@ MemCtrl::processRespondEvent()
     // COMMENT: if it was a dram miss do you still
     // delete the mem pkt from resp queue
     // COMMENT: I think you should!!
-    delete respQueue.top();
+    delete respQueue.top().second;
     respQueue.pop();
 
     if (!respQueue.empty()) {
@@ -1713,7 +1713,7 @@ MemCtrl::processNextReqEvent()
                 assert(respondEvent.scheduled());
             }
 
-            respQueue.push_back(std::pair<mem_pkt->readyTime,mem_pkt>);
+            respQueue.push(std::make_pair(mem_pkt->readyTime, mem_pkt));
 
             // we have so many writes that we have to transition
             // don't transition if the writeRespQueue is full and
