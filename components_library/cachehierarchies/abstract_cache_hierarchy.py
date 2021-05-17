@@ -28,10 +28,11 @@ from abc import ABCMeta, abstractmethod
 
 from ..boards.abstract_board import AbstractBoard
 
-from m5.objects import  BaseCPU, BaseXBar, SubSystem
+from m5.objects import BaseCPU, BaseXBar, SubSystem
 from m5.params import Port
 
 from typing import Tuple
+
 
 class AbstractCacheHierarchy(SubSystem):
     __metaclass__ = ABCMeta
@@ -68,32 +69,34 @@ class AbstractCacheHierarchy(SubSystem):
 
         raise NotImplementedError
 
-  #  @abstractmethod
-  #  def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port, Port]:
-  #      """
-  #      Obtain the interupt ports.
-#
-  #      :param cpu: The CPU in which the interupt ports belong.
-#
-  #      :type cpu: BaseCPU
-#
-  #      :returns: A 2-dimensional tuple of the request and the responce port.
-##
- #       :rtype: Tuple[Port, Port]
-  #      """
-        raise NotImplementedError
-#
-   # @abstractmethod
- #   def get_membus(self) -> BaseXBar:
-  #     """
-  #      Obtain the Memory Bus.
-#
-  #      :returns: The memory bus.
-#
-   #     :rtype: BaseXBar
-  #      """
-  #      raise NotImplementedError
+    #  @abstractmethod
+    #  def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port, Port]:
+    #      """
+    #      Obtain the interupt ports.
+    #
+    #      :param cpu: The CPU in which the interupt ports belong.
+    #
+    #      :type cpu: BaseCPU
+    #
+    #      :returns: A 2-dimensional tuple of the request and the responce port
+    ##
+    #       :rtype: Tuple[Port, Port]
+    #      """
+    # raise NotImplementedError
 
- #   @abstractmethod
- #   def get_io_port(self) -> Port:
-  #      raise NotImplementedError
+
+    #
+    # @abstractmethod
+    #   def get_membus(self) -> BaseXBar:
+    #     """
+    #      Obtain the Memory Bus.
+    #
+    #      :returns: The memory bus.
+    #
+    #     :rtype: BaseXBar
+    #      """
+    #      raise NotImplementedError
+
+    #   @abstractmethod
+    #   def get_io_port(self) -> Port:
+    #      raise NotImplementedError

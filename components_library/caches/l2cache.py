@@ -25,35 +25,38 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from .abstract_prefetch_cache import AbstractPrefetchCache
-from m5.objects import  BaseXBar, BaseCPU
+from m5.objects import BaseXBar, BaseCPU
 from ..utils.override import *
 
 from typing import Optional, Union
+
 
 class L2Cache(AbstractPrefetchCache):
     """
     A simple L2 Cache with default values.
     """
 
-    def __init__(self,
-                size: str,
-                assoc: Optional[int] = 16,
-                tag_latency: Optional[int] = 10,
-                data_latency: Optional[int] = 10,
-                response_latency: Optional[int] = 1,
-                mshrs: Optional[int] = 20,
-                tgts_per_mshr: Optional[int] = 12,
-                writeback_clean: Optional[bool] = True):
+    def __init__(
+        self,
+        size: str,
+        assoc: Optional[int] = 16,
+        tag_latency: Optional[int] = 10,
+        data_latency: Optional[int] = 10,
+        response_latency: Optional[int] = 1,
+        mshrs: Optional[int] = 20,
+        tgts_per_mshr: Optional[int] = 12,
+        writeback_clean: Optional[bool] = True,
+    ):
         super(L2Cache, self).__init__(
-                                       size = size,
-                                       assoc= assoc,
-                                       tag_latency=tag_latency,
-                                       data_latency=data_latency,
-                                       response_latency=response_latency,
-                                       mshrs=mshrs,
-                                       tgts_per_mshr=tgts_per_mshr,
-                                       writeback_clean=writeback_clean
-                                     )
+            size=size,
+            assoc=assoc,
+            tag_latency=tag_latency,
+            data_latency=data_latency,
+            response_latency=response_latency,
+            mshrs=mshrs,
+            tgts_per_mshr=tgts_per_mshr,
+            writeback_clean=writeback_clean,
+        )
 
     @overrides(AbstractPrefetchCache)
     def connect_cpu_side(self, cpu_side: Union[BaseXBar, BaseCPU]) -> None:

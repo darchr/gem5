@@ -34,14 +34,16 @@ from .coherence_protocol import CoherenceProtocol
 
 from typing import List
 
+
 class AbstractBoard(System):
     __metaclass__ = ABCMeta
 
-    def __init__(self,
-                 processor: "AbstractProcessor",
-                 memory: "AbstractMemory",
-                 cache_hierarchy: "AbstractCacheHierarchy"
-                ) -> None:
+    def __init__(
+        self,
+        processor: "AbstractProcessor",
+        memory: "AbstractMemory",
+        cache_hierarchy: "AbstractCacheHierarchy",
+    ) -> None:
         super(AbstractBoard, self).__init__()
         """
         :param processor: The processor for this board.
@@ -103,7 +105,7 @@ class AbstractBoard(System):
         """
         raise NotImplementedError
 
-    def get_io_bus(self) ->IOXBar:
+    def get_io_bus(self) -> IOXBar:
         """
         Get the board's IO Bus.
 
@@ -133,19 +135,20 @@ class AbstractBoard(System):
         :rtype: ISA
         """
         isa_map = {
-            "sparc" : ISA.SPARC,
-            "mips" : ISA.MIPS,
-            "null" : ISA.NULL,
-            "arm" : ISA.ARM,
-            "x86" : ISA.X86,
-            "power" : ISA.POWER,
-            "riscv" : ISA.RISCV,
+            "sparc": ISA.SPARC,
+            "mips": ISA.MIPS,
+            "null": ISA.NULL,
+            "arm": ISA.ARM,
+            "x86": ISA.X86,
+            "power": ISA.POWER,
+            "riscv": ISA.RISCV,
         }
 
-        isa_str = str(buildEnv['TARGET_ISA']).lower()
+        isa_str = str(buildEnv["TARGET_ISA"]).lower()
         if isa_str not in isa_map.keys():
-            raise NotImplementedError("ISA '" + buildEnv['TARGET_ISA'] +
-                                      "' not recognized.")
+            raise NotImplementedError(
+                "ISA '" + buildEnv["TARGET_ISA"] + "' not recognized."
+            )
 
         return isa_map[isa_str]
 
@@ -160,21 +163,22 @@ class AbstractBoard(System):
         :rtype: CoherenceProtocol
         """
         protocol_map = {
-            "mi_example" : CoherenceProtocol.MI_EXAMPLE,
-            "moesi_hammer" : CoherenceProtocol.ARM_MOESI_HAMMER,
-            "garnet_standalone" : CoherenceProtocol.GARNET_STANDALONE,
-            "moesi_cmp_token" : CoherenceProtocol.MOESI_CMP_TOKEN,
-            "mesi_two_level" : CoherenceProtocol.MESI_TWO_LEVEL,
-            "moesi_amd_base" : CoherenceProtocol.MOESI_AMD_BASE,
-            "mesi_three_level_htm" : CoherenceProtocol.MESI_THREE_LEVEL_HTM,
-            "mesi_three_level" : CoherenceProtocol.MESI_THREE_LEVEL,
-            "gpu_viper" : CoherenceProtocol.GPU_VIPER,
-            "chi" : CoherenceProtocol.CHI,
+            "mi_example": CoherenceProtocol.MI_EXAMPLE,
+            "moesi_hammer": CoherenceProtocol.ARM_MOESI_HAMMER,
+            "garnet_standalone": CoherenceProtocol.GARNET_STANDALONE,
+            "moesi_cmp_token": CoherenceProtocol.MOESI_CMP_TOKEN,
+            "mesi_two_level": CoherenceProtocol.MESI_TWO_LEVEL,
+            "moesi_amd_base": CoherenceProtocol.MOESI_AMD_BASE,
+            "mesi_three_level_htm": CoherenceProtocol.MESI_THREE_LEVEL_HTM,
+            "mesi_three_level": CoherenceProtocol.MESI_THREE_LEVEL,
+            "gpu_viper": CoherenceProtocol.GPU_VIPER,
+            "chi": CoherenceProtocol.CHI,
         }
 
-        protocol_str = str(buildEnv['PROTOCOL']).lower()
+        protocol_str = str(buildEnv["PROTOCOL"]).lower()
         if protocol_str not in protocol_map.keys():
-            raise NotImplementedError("Protocol '" + buildEnv['PROTOCOL'] +
-                                      "' not recognized.")
+            raise NotImplementedError(
+                "Protocol '" + buildEnv["PROTOCOL"] + "' not recognized."
+            )
 
         return protocol_map[protocol_str]

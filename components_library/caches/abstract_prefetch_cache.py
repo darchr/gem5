@@ -30,22 +30,24 @@ from m5.objects import Cache, StridePrefetcher, BaseXBar, BaseCPU
 
 from typing import Union
 
+
 class AbstractPrefetchCache(Cache):
     """
     Classes which inherit from the AbstractPrefetchCache are prefetch caches.
     This class provides common properties and methods for all prefetch caches.
     """
 
-    def __init__(self,
-                size: str,
-                assoc: int,
-                tag_latency: int,
-                data_latency: int,
-                response_latency: int,
-                mshrs: int,
-                tgts_per_mshr: int,
-                writeback_clean: bool
-                ):
+    def __init__(
+        self,
+        size: str,
+        assoc: int,
+        tag_latency: int,
+        data_latency: int,
+        response_latency: int,
+        mshrs: int,
+        tgts_per_mshr: int,
+        writeback_clean: bool,
+    ):
         """
         :param size: The size of the cache (e.g, "32kB").
 

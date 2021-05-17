@@ -26,11 +26,13 @@
 
 from .abstract_cache_hierarchy import AbstractCacheHierarchy
 
+
 class AbstractClassicCacheHierarchy(AbstractCacheHierarchy):
     """
     All classic cache hierarchies inherit from this class. This class
     provides the shared infrastructure that all classic memory system
     implementations need.
     """
+
     def __init__(self):
         super(AbstractClassicCacheHierarchy, self).__init__()

@@ -29,32 +29,34 @@ from ..utils.override import *
 
 from m5.objects import BaseXBar
 
+
 class AbstractL1Cache(AbstractPrefetchCache):
     """
     Classes which inherit from AbstractL1Cache are L1 caches. This abstract
     class handles common properties and methods for all prefetch caches.
     """
 
-    def __init__(self,
-                size: str,
-                assoc: int,
-                tag_latency: int,
-                data_latency: int,
-                response_latency: int,
-                mshrs: int,
-                tgts_per_mshr: int,
-                writeback_clean: bool
-                ):
+    def __init__(
+        self,
+        size: str,
+        assoc: int,
+        tag_latency: int,
+        data_latency: int,
+        response_latency: int,
+        mshrs: int,
+        tgts_per_mshr: int,
+        writeback_clean: bool,
+    ):
         super(AbstractL1Cache, self).__init__(
-                                      size = size,
-                                      assoc= assoc,
-                                      tag_latency=tag_latency,
-                                      data_latency=data_latency,
-                                      response_latency=response_latency,
-                                      mshrs=mshrs,
-                                      tgts_per_mshr=tgts_per_mshr,
-                                      writeback_clean=writeback_clean
-                                             )
+            size=size,
+            assoc=assoc,
+            tag_latency=tag_latency,
+            data_latency=data_latency,
+            response_latency=response_latency,
+            mshrs=mshrs,
+            tgts_per_mshr=tgts_per_mshr,
+            writeback_clean=writeback_clean,
+        )
 
     @overrides(AbstractPrefetchCache)
     def connect_bus_side(self, bus_side: BaseXBar) -> None:

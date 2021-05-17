@@ -27,7 +27,6 @@
 import enum
 from sys import version
 
-#from .abstract_two_level_cache_hierarchy import AbstractTwoLevelCacheHierarchy
 from .abstract_ruby_cache_hierarhcy import AbstractRubyCacheHierarchy
 from ..boards.isas import ISA
 from ..boards.abstract_board import AbstractBoard
@@ -51,7 +50,8 @@ from typing import Tuple
 
 
 class MESITwoLevelCacheHierarchy(
-    AbstractRubyCacheHierarchy): #, AbstractTwoLevelHierarchy
+    AbstractRubyCacheHierarchy
+):  # , AbstractTwoLevelHierarchy
     """A two level private L1 shared L2 MESI hierarchy.
 
     In addition to the normal two level parameters, you can also change the
@@ -71,12 +71,12 @@ class MESITwoLevelCacheHierarchy(
         num_l2_banks: int,
     ):
         super().__init__(
-           # l1i_size,
-          #  l1i_assoc,
-          #  l1d_size,
-           # l1d_assoc,
-           # str(l2_bank_size)+'B',
-          #  l2_assoc,
+            # l1i_size,
+            #  l1i_assoc,
+            #  l1d_size,
+            # l1d_assoc,
+            # str(l2_bank_size)+'B',
+            #  l2_assoc,
         )
 
         self._l1i_size = l1i_size
@@ -88,8 +88,7 @@ class MESITwoLevelCacheHierarchy(
         self._num_l2_banks = num_l2_banks
         # TODO: check to be sure that the size of the cache is divisible
         # by the number of banks
-        #l2_bank_size = toMemorySize(l2_size) // num_l2_banks
-
+        # l2_bank_size = toMemorySize(l2_size) // num_l2_banks
 
     def incorporate_cache(self, motherboard: AbstractBoard) -> None:
         cache_line_size = motherboard.cache_line_size
@@ -136,7 +135,7 @@ class MESITwoLevelCacheHierarchy(
             )
 
             # Connect the interrupt ports
-            if motherboard.get_runtime_isa() == ISA.X86 :
+            if motherboard.get_runtime_isa() == ISA.X86:
                 int_req_port = cache.sequencer.interrupt_out_port
                 int_resp_port = cache.sequencer.in_ports
                 cpu.interrupts[0].pio = int_req_port
@@ -144,7 +143,6 @@ class MESITwoLevelCacheHierarchy(
                 cpu.interrupts[0].int_responder = int_req_port
 
             self._l1_controllers.append(cache)
-
 
         self._l2_controllers = [
             L2Cache(
@@ -198,13 +196,12 @@ class MESITwoLevelCacheHierarchy(
         # Set up a proxy port for the system_port. Used for load binaries and
         # other functional-only things.
         self.ruby_system.sys_port_proxy = RubyPortProxy()
-        motherboard.system_port = (
-            self.ruby_system.sys_port_proxy.in_ports
-        )
+        motherboard.system_port = self.ruby_system.sys_port_proxy.in_ports
         self.ruby_system.sys_port_proxy.pio_request_port = iobus.cpu_side_ports
 
         # connect the io bus
         # TODO: This interface needs fixed. The PC should not be accessed in
         # This way
-        motherboard.pc.attachIO(motherboard.get_io_bus(),
-                         [motherboard.pc.south_bridge.ide.dma])
+        motherboard.pc.attachIO(
+            motherboard.get_io_bus(), [motherboard.pc.south_bridge.ide.dma]
+        )

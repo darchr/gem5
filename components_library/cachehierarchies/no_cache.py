@@ -27,15 +27,16 @@
 from .abstract_cache_hierarchy import AbstractCacheHierarchy
 from ..boards.abstract_board import AbstractBoard
 
-from m5.objects import  BaseCPU, BaseXBar, SystemXBar, BadAddr
+from m5.objects import BaseCPU, BaseXBar, SystemXBar, BadAddr
 from m5.params import Port
 
 from typing import Tuple, Optional
 
 from ..utils.override import *
 
+
 class NoCache(AbstractCacheHierarchy):
-    '''
+    """
     No cache hierarchy. The CPUs are connected straight to the memory bus.
 
     By default a SystemXBar of width 64bit is used, though this can be
@@ -55,7 +56,7 @@ class NoCache(AbstractCacheHierarchy):
     --- BEGIN LIBC BACKTRACE ---
     ...
     ```
-    '''
+    """
 
     @staticmethod
     def _get_default_membus() -> SystemXBar:
@@ -67,14 +68,14 @@ class NoCache(AbstractCacheHierarchy):
 
         :rtype: SystemXBar
         """
-        membus = SystemXBar(width = 64)
+        membus = SystemXBar(width=64)
         membus.badaddr_responder = BadAddr()
         membus.default = membus.badaddr_responder.pio
         return membus
 
-    def __init__(self,
-                 membus: Optional[BaseXBar] = \
-                     _get_default_membus.__func__()) -> None:
+    def __init__(
+        self, membus: Optional[BaseXBar] = _get_default_membus.__func__()
+    ) -> None:
         """
         :param membus: The memory bus for this setup. This parameter is
         optional and will default toa 64 bit width SystemXBar is not specified.
@@ -84,7 +85,6 @@ class NoCache(AbstractCacheHierarchy):
         super(NoCache, self).__init__()
         self.membus = membus
 
-
     @overrides(AbstractCacheHierarchy)
     def incorporate_cache(self, board: AbstractBoard) -> None:
 
@@ -93,16 +93,18 @@ class NoCache(AbstractCacheHierarchy):
             cpu.dcache_port = self.get_membus().cpu_side_ports
             cpu.mmu.connectWalkerPorts(
                 self.get_membus().cpu_side_ports,
-                self.get_membus().cpu_side_ports
+                self.get_membus().cpu_side_ports,
             )
         # Set up the system port for functional access from the simulator.
         board.system_port = self.get_membus().cpu_side_ports
 
- #   @overrides(AbstractCacheHierarchy)
+    #   @overrides(AbstractCacheHierarchy)
     def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port, Port]:
-        return self.get_membus().mem_side_ports, \
-               self.get_membus().cpu_side_ports
+        return (
+            self.get_membus().mem_side_ports,
+            self.get_membus().cpu_side_ports,
+        )
 
- #   @overrides(AbstractCacheHierarchy)
+    #   @overrides(AbstractCacheHierarchy)
     def get_membus(self) -> BaseXBar:
         return self.membus

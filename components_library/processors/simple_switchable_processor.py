@@ -29,6 +29,7 @@ from .simple_processor import SimpleProcessor
 
 from ..utils.override import *
 
+
 class SimpleSwitchableProcessor(SwitchableProcessor):
     """
     A Simplified implementation of SwitchableProcessor where there is one
@@ -37,27 +38,35 @@ class SimpleSwitchableProcessor(SwitchableProcessor):
     fast/detailed CPU setups.
     """
 
-    def __init__(self, starting_processor: SimpleProcessor,
-                       switchable_processor: SimpleProcessor) -> None:
+    def __init__(
+        self,
+        starting_processor: SimpleProcessor,
+        switchable_processor: SimpleProcessor,
+    ) -> None:
         self._start_key = "start"
         self._switch_key = "switch"
 
         self._current_processor_is_start = True
 
         super(SimpleSwitchableProcessor, self).__init__(
-            switchable_processors={self._switch_key : switchable_processor,
-                                   self._start_key : starting_processor},
+            switchable_processors={
+                self._switch_key: switchable_processor,
+                self._start_key: starting_processor,
+            },
             starting_processor_key=self._start_key,
         )
 
-        if starting_processor.get_num_cores() != \
-            switchable_processor.get_num_cores():
+        if (
+            starting_processor.get_num_cores()
+            != switchable_processor.get_num_cores()
+        ):
 
             # TODO: This shouldn't be an assertion error. Figure out what this
             # should be.
-            raise AssertionError("The starting_processor does not have the "
-                                 "same number of CPUs as the "
-                                 "switchable_processor")
+            raise AssertionError(
+                "The starting_processor does not have the same number of CPUs"
+                " as the switchable_processor"
+            )
 
     def switch(self):
         if self._current_processor_is_start:
@@ -66,4 +75,3 @@ class SimpleSwitchableProcessor(SwitchableProcessor):
             self.switch_to_processor(self._start_key)
 
         self._current_processor_is_start = not self._current_processor_is_start
-

@@ -26,10 +26,12 @@
 
 from .abstract_cache_hierarchy import AbstractCacheHierarchy
 
+
 class AbstractRubyCacheHierarchy(AbstractCacheHierarchy):
     """
     All Ruby-based cache hierarchies inherit from this class. This class
     provides the shared infrastructure that all Ruby protocols need.
     """
+
     def __init__(self):
         super(AbstractRubyCacheHierarchy, self).__init__()

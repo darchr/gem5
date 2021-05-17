@@ -38,26 +38,27 @@ class MMUCache(AbstractPrefetchCache):
     A simple Memory Management Unit (MMU) cache with default values.
     """
 
-    def __init__(self,
-                size: str,
-                assoc: Optional[int] = 4,
-                tag_latency: Optional[int] = 1,
-                data_latency: Optional[int] = 1,
-                response_latency: Optional[int] = 1,
-                mshrs: Optional[int] = 20,
-                tgts_per_mshr: Optional[int] = 12,
-                writeback_clean: Optional[bool] = True):
+    def __init__(
+        self,
+        size: str,
+        assoc: Optional[int] = 4,
+        tag_latency: Optional[int] = 1,
+        data_latency: Optional[int] = 1,
+        response_latency: Optional[int] = 1,
+        mshrs: Optional[int] = 20,
+        tgts_per_mshr: Optional[int] = 12,
+        writeback_clean: Optional[bool] = True,
+    ):
         super(MMUCache, self).__init__(
-                                       size = size,
-                                       assoc= assoc,
-                                       tag_latency=tag_latency,
-                                       data_latency=data_latency,
-                                       response_latency=response_latency,
-                                       mshrs=mshrs,
-                                       tgts_per_mshr=tgts_per_mshr,
-                                       writeback_clean=writeback_clean
-                                       )
-
+            size=size,
+            assoc=assoc,
+            tag_latency=tag_latency,
+            data_latency=data_latency,
+            response_latency=response_latency,
+            mshrs=mshrs,
+            tgts_per_mshr=tgts_per_mshr,
+            writeback_clean=writeback_clean,
+        )
 
     @overrides(AbstractPrefetchCache)
     def connect_bus_side(self, bus_side: BaseXBar) -> None:
@@ -69,5 +70,6 @@ class MMUCache(AbstractPrefetchCache):
         # Note: This creates a new crossbar
         self.mmubus = L2XBar()
         self.cpu_side = self.mmubus.mem_side_ports
-        cpu_side.mmu.connectWalkerPorts(self.mmubus.cpu_side_ports,
-                                        self.mmubus.cpu_side_ports)
+        cpu_side.mmu.connectWalkerPorts(
+            self.mmubus.cpu_side_ports, self.mmubus.cpu_side_ports
+        )

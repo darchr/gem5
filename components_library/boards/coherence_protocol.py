@@ -26,6 +26,7 @@
 
 from enum import Enum
 
+
 class CoherenceProtocol(Enum):
     MESI_THREE_LEVEL = 1
     MESI_THREE_LEVEL_HTM = 2

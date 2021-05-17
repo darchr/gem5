@@ -25,8 +25,14 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-from m5.objects import AtomicSimpleCPU, DerivO3CPU, TimingSimpleCPU, BaseCPU,\
-                       X86KvmCPU, KvmVM
+from m5.objects import (
+    AtomicSimpleCPU,
+    DerivO3CPU,
+    TimingSimpleCPU,
+    BaseCPU,
+    X86KvmCPU,
+    KvmVM,
+)
 
 from .abstract_processor import AbstractProcessor
 from .cpu_types import CPUTypes
@@ -35,30 +41,36 @@ from ..boards.isas import ISA
 
 from typing import List
 
-class SimpleProcessor(AbstractProcessor):
 
+class SimpleProcessor(AbstractProcessor):
     def __init__(self, cpu_type: CPUTypes, num_cores: int) -> None:
-        super(SimpleProcessor, self).__init__(cpu_type = cpu_type,
-                                              num_cores = num_cores)
+        super(SimpleProcessor, self).__init__(
+            cpu_type=cpu_type, num_cores=num_cores
+        )
 
         if self.get_cpu_type() == CPUTypes.ATOMIC:
-            self.cpus = self._create_cores(cpu_class = AtomicSimpleCPU,
-                                            num_cores = num_cores)
+            self.cpus = self._create_cores(
+                cpu_class=AtomicSimpleCPU, num_cores=num_cores
+            )
         elif self.get_cpu_type() == CPUTypes.O3:
-            self.cpus = self._create_cores(cpu_class = DerivO3CPU,
-                                            num_cores = num_cores)
+            self.cpus = self._create_cores(
+                cpu_class=DerivO3CPU, num_cores=num_cores
+            )
         elif self.get_cpu_type() == CPUTypes.TIMING:
-            self.cpus = self._create_cores(cpu_class = TimingSimpleCPU,
-                                            num_cores = num_cores)
+            self.cpus = self._create_cores(
+                cpu_class=TimingSimpleCPU, num_cores=num_cores
+            )
         elif self.get_cpu_type() == CPUTypes.KVM:
-            self.cpus = self._create_cores(cpu_class = X86KvmCPU,
-                                            num_cores = num_cores)
+            self.cpus = self._create_cores(
+                cpu_class=X86KvmCPU, num_cores=num_cores
+            )
             self.kvm_vm = KvmVM()
 
         else:
-            raise NotADirectoryError("SimpleProcessor does not currently " +
-                                     "support cpu type '" +
-                                     self.get_cpu_type().name + "'")
+            raise NotADirectoryError(
+                f"SimpleProcessor does not currently support cpu type"
+                f" {self.get_cpu_type().name}."
+            )
 
         for cpu in self.cpus:
             cpu.createThreads()
@@ -67,14 +79,13 @@ class SimpleProcessor(AbstractProcessor):
         if self.get_cpu_type() == CPUTypes.KVM:
             # To get the KVM CPUs to run on different host CPUs
             # Specify a different event queue for each CPU
-            for i,cpu in enumerate(self.cpus):
+            for i, cpu in enumerate(self.cpus):
                 for obj in cpu.descendants():
                     obj.eventq_index = 0
                 cpu.eventq_index = i + 1
 
-
     def _create_cores(self, cpu_class: BaseCPU, num_cores: int):
-        return [cpu_class(cpu_id = i) for i in range(num_cores)]
+        return [cpu_class(cpu_id=i) for i in range(num_cores)]
 
     def incorporate_processor(self, board: AbstractBoard) -> None:
 

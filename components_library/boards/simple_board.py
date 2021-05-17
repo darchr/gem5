@@ -26,8 +26,16 @@
 
 from components_library.processors.cpu_types import CPUTypes
 
-from m5.objects import AddrRange, SrcClockDomain, VoltageDomain,\
-                       Addr, Process, SEWorkload, IOXBar, Port
+from m5.objects import (
+    AddrRange,
+    SrcClockDomain,
+    VoltageDomain,
+    Addr,
+    Process,
+    SEWorkload,
+    IOXBar,
+    Port,
+)
 
 from .abstract_board import AbstractBoard
 from ..processors.abstract_processor import AbstractProcessor
@@ -46,16 +54,19 @@ class SimpleBoard(AbstractBoard):
     You can run a bare-metal executable via the `set_workload` function (SE
     mode only).
     """
-    def __init__(self, clk_freq: str,
-                 processor: AbstractProcessor,
-                 memory: AbstractMemorySystem,
-                 cache_hierarchy: AbstractCacheHierarchy,
-                ) -> None:
+
+    def __init__(
+        self,
+        clk_freq: str,
+        processor: AbstractProcessor,
+        memory: AbstractMemorySystem,
+        cache_hierarchy: AbstractCacheHierarchy,
+    ) -> None:
         super(SimpleBoard, self).__init__(
-                                        processor=processor,
-                                        memory=memory,
-                                        cache_hierarchy=cache_hierarchy,
-                                         )
+            processor=processor,
+            memory=memory,
+            cache_hierarchy=cache_hierarchy,
+        )
 
         # Set up the clock domain and the voltage domain.
         self.clk_domain = SrcClockDomain()
@@ -64,12 +75,14 @@ class SimpleBoard(AbstractBoard):
 
         # Set the memory mode.
         # TODO: The CPU has a method for this.
-        if self.get_processor().get_cpu_type() == CPUTypes.TIMING \
-            or self.get_processor().get_cpu_type() == CPUTypes.O3 :
-            self.mem_mode = 'timing'
-        elif self.get_processor().get_cpu_type() == CPUTypes.KVM :
+        if (
+            self.get_processor().get_cpu_type() == CPUTypes.TIMING
+            or self.get_processor().get_cpu_type() == CPUTypes.O3
+        ):
+            self.mem_mode = "timing"
+        elif self.get_processor().get_cpu_type() == CPUTypes.KVM:
             self.mem_mode = "atomic_noncaching"
-        elif self.get_processor().get_cpu_type() == CPUTypes.ATOMIC :
+        elif self.get_processor().get_cpu_type() == CPUTypes.ATOMIC:
             # TODO: FOR Ruby, this should convert to 'atomic_noncaching' and
             # throw a warning that this change has occurred.
             self.mem_mode = "atomic_caching"
@@ -97,7 +110,7 @@ class SimpleBoard(AbstractBoard):
     def get_dma_ports(self) -> List[Port]:
         raise NotImplementedError("SimpleBoard does not have DMA Ports.")
 
-    def set_workload(self, binary:str) ->None:
+    def set_workload(self, binary: str) -> None:
         # This is very limited, single binary, putting on a single Core.
 
         self.workload = SEWorkload.init_compatible(binary)

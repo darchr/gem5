@@ -33,8 +33,17 @@ from ..caches.l2cache import L2Cache
 from ..boards.abstract_board import AbstractBoard
 from ..boards.isas import ISA
 
-from m5.objects import L2XBar, BaseCPU, BaseXBar, SystemXBar, BadAddr, \
-                       Bridge, AddrRange, Addr, Cache
+from m5.objects import (
+    L2XBar,
+    BaseCPU,
+    BaseXBar,
+    SystemXBar,
+    BadAddr,
+    Bridge,
+    AddrRange,
+    Addr,
+    Cache,
+)
 
 from m5.params import Port
 
@@ -42,12 +51,14 @@ from typing import Optional, Tuple
 
 from ..utils.override import *
 
-class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
-                                       AbstractTwoLevelCacheHierarchy):
-    '''
+
+class PrivateL1PrivateL2CacheHierarchy(
+    AbstractClassicCacheHierarchy, AbstractTwoLevelCacheHierarchy
+):
+    """
     A cache setup where each core has a private L1 Data and Instruction Cache,
     and a private L2 cache.
-    '''
+    """
 
     @staticmethod
     def _get_default_membus() -> SystemXBar:
@@ -60,17 +71,18 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
 
         :rtype: SystemXBar
         """
-        membus = SystemXBar(width = 64)
+        membus = SystemXBar(width=64)
         membus.badaddr_responder = BadAddr()
         membus.default = membus.badaddr_responder.pio
         return membus
 
-    def __init__(self,
-                 l1d_size: str,
-                 l1i_size: str,
-                 l2_size: str,
-                 membus: Optional[BaseXBar] = _get_default_membus.__func__()
-                ) -> None:
+    def __init__(
+        self,
+        l1d_size: str,
+        l1i_size: str,
+        l2_size: str,
+        membus: Optional[BaseXBar] = _get_default_membus.__func__(),
+    ) -> None:
         """
         :param l1d_size: The size of the L1 Data Cache (e.g., "32kB").
 
@@ -93,12 +105,12 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
         AbstractClassicCacheHierarchy.__init__(self=self)
         AbstractTwoLevelCacheHierarchy.__init__(
             self,
-            l1i_size = l1i_size,
-            l1i_assoc = 1, #TODO: Is this correct? I'm a Cache Hierarchy noob.
-            l1d_size = l1d_size,
-            l1d_assoc = 1, #TODO: Same as above.
-            l2_size = l2_size,
-            l2_assoc = 1, #TODO: Same as above.
+            l1i_size=l1i_size,
+            l1i_assoc=1,  # TODO: Is this correct? I'm a Cache Hierarchy noob.
+            l1d_size=l1d_size,
+            l1d_assoc=1,  # TODO: Same as above.
+            l2_size=l2_size,
+            l2_assoc=1,  # TODO: Same as above.
         )
 
         self.membus = membus
@@ -112,32 +124,35 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
         #######################################################################
         # TODO: I'm really unsure about all this. Specialized to X86
 
-        board.bridge = Bridge(delay='50ns')
+        board.bridge = Bridge(delay="50ns")
         board.bridge.mem_side_port = board.get_io_bus().cpu_side_ports
         board.bridge.cpu_side_port = self.membus.mem_side_ports
 
         # Constants similar to x86_traits.hh
         IO_address_space_base = 0x8000000000000000
-        pci_config_address_space_base = 0xc000000000000000
-        interrupts_address_space_base = 0xa000000000000000
+        pci_config_address_space_base = 0xC000000000000000
+        interrupts_address_space_base = 0xA000000000000000
         APIC_range_size = 1 << 12
 
-        board.bridge.ranges = \
-             [
-             AddrRange(0xC0000000, 0xFFFF0000),
-             AddrRange(IO_address_space_base,
-                       interrupts_address_space_base - 1),
-             AddrRange(pci_config_address_space_base,
-                       Addr.max)
-             ]
+        board.bridge.ranges = [
+            AddrRange(0xC0000000, 0xFFFF0000),
+            AddrRange(
+                IO_address_space_base, interrupts_address_space_base - 1
+            ),
+            AddrRange(pci_config_address_space_base, Addr.max),
+        ]
 
-        board.apicbridge = Bridge(delay='50ns')
+        board.apicbridge = Bridge(delay="50ns")
         board.apicbridge.cpu_side_port = board.get_io_bus().mem_side_ports
         board.apicbridge.mem_side_port = self.membus.cpu_side_ports
-        board.apicbridge.ranges = [AddrRange(interrupts_address_space_base,
-                 interrupts_address_space_base +
-                 board.get_processor().get_num_cores() * APIC_range_size
-                 - 1)]
+        board.apicbridge.ranges = [
+            AddrRange(
+                interrupts_address_space_base,
+                interrupts_address_space_base
+                + board.get_processor().get_num_cores() * APIC_range_size
+                - 1,
+            )
+        ]
 
         # connect the io bus
         # TODO: This interface needs fixed. The PC should not be accessed in
@@ -146,15 +161,16 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
 
         # Add a tiny cache to the IO bus.
         # This cache is required for the classic memory model for coherence
-        self.iocache = Cache(assoc=8,
-                             tag_latency = 50,
-                             data_latency = 50,
-                             response_latency = 50,
-                             mshrs = 20,
-                             size = '1kB',
-                             tgts_per_mshr = 12,
-                             addr_ranges = \
-                                 board.mem_ranges)
+        self.iocache = Cache(
+            assoc=8,
+            tag_latency=50,
+            data_latency=50,
+            response_latency=50,
+            mshrs=20,
+            size="1kB",
+            tgts_per_mshr=12,
+            addr_ranges=board.mem_ranges,
+        )
 
         self.iocache.cpu_side = board.get_io_bus().mem_side_ports
         self.iocache.mem_side = self.membus.cpu_side_ports
@@ -170,8 +186,8 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
             cpu.l2bus = L2XBar()
 
             # Create an L1 instruction and data cache.
-            cpu.icache = L1ICache(size = self.get_l1i_size())
-            cpu.dcache = L1DCache(size = self.get_l1d_size())
+            cpu.icache = L1ICache(size=self.get_l1i_size())
+            cpu.dcache = L1DCache(size=self.get_l1d_size())
 
             # Connect the instruction and data caches to the CPU.
             cpu.icache.connect_cpu_side(cpu)
@@ -182,7 +198,7 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
             cpu.dcache.connect_bus_side(cpu.l2bus)
 
             # Create an L2 cache and connect it to the l2bus.
-            cpu.l2cache = L2Cache(size = self.get_l2_size())
+            cpu.l2cache = L2Cache(size=self.get_l2_size())
             cpu.l2cache.connect_cpu_side(cpu.l2bus)
 
             # Connect the L2 cache to the bus.
@@ -190,23 +206,23 @@ class PrivateL1PrivateL2CacheHierarchy(AbstractClassicCacheHierarchy,
 
             # Connect the CPU MMU's to the membus.
             cpu.mmu.connectWalkerPorts(
-                self.membus.cpu_side_ports,
-                self.membus.cpu_side_ports
+                self.membus.cpu_side_ports, self.membus.cpu_side_ports
             )
 
             # Connect the interrupt ports
-            if board.get_runtime_isa() == ISA.X86 :
+            if board.get_runtime_isa() == ISA.X86:
                 int_req_port = self.membus.mem_side_ports
                 int_resp_port = self.membus.cpu_side_ports
                 cpu.interrupts[0].pio = int_req_port
                 cpu.interrupts[0].int_requestor = int_resp_port
                 cpu.interrupts[0].int_responder = int_req_port
 
-   # @overrides(AbstractCacheHierarchy)
-  #  def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port,Port]:
-  #      return self.get_membus().mem_side_ports, \
-   #            self.get_membus().cpu_side_ports
 
-   # @overrides(AbstractCacheHierarchy)
-  #  def get_membus(self) -> BaseXBar:
-    #    return self.membus
+# @overrides(AbstractCacheHierarchy)
+#  def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port,Port]:
+#      return self.get_membus().mem_side_ports, \
+#            self.get_membus().cpu_side_ports
+
+# @overrides(AbstractCacheHierarchy)
+#  def get_membus(self) -> BaseXBar:
+#    return self.membus

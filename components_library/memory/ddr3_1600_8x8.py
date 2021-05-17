@@ -40,19 +40,14 @@ from typing import Tuple, Sequence, List
 
 
 class DDR3_1600_8x8(AbstractMemorySystem):
-
-    def __init__(self,
-                 size: Optional[str] = "512MiB",
-                 ) -> None:
+    def __init__(self, size: Optional[str] = "512MiB") -> None:
         super(DDR3_1600_8x8, self).__init__(size=size)
 
         # The DDR3_1600_8x8 has a lot of variables with sensible defaults that
         # make sense for a DDR3_1600_8x8 device. Only the size has been
         # exposed.
         self._dram = DIMM(range=self.get_size_str())
-        self.mem_cntrls = [
-            MemCtrl(dram=self._dram)
-        ]
+        self.mem_cntrls = [MemCtrl(dram=self._dram)]
 
     @overrides(AbstractMemorySystem)
     def incorporate_memory(self, board: AbstractBoard) -> None:

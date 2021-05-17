@@ -33,12 +33,13 @@ from ..boards.abstract_board import AbstractBoard
 
 from typing import List
 
+
 class AbstractProcessor(SubSystem):
     __metaclass__ = ABCMeta
 
     def __init__(self, cpu_type: CPUTypes, num_cores: int) -> None:
         super(AbstractProcessor, self).__init__()
-        assert(num_cores > 0)
+        assert num_cores > 0
 
         self._num_cores = num_cores
         self._cpu_type = cpu_type
@@ -48,10 +49,10 @@ class AbstractProcessor(SubSystem):
 
     def get_cpu_type(self) -> CPUTypes:
         return self._cpu_type
-    
+
     # TODO: This messes somewhat with my switched out design in
     # simple_switchable processor.py. Look into and fix this.
-    #def switched_out(self) -> bool:
+    # def switched_out(self) -> bool:
     #    return self._switched_out
 
     @abstractmethod

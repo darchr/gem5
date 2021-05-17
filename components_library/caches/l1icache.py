@@ -34,30 +34,34 @@ from m5.objects import BaseXBar, BaseCPU
 
 from typing import Union
 
+
 class L1ICache(AbstractL1Cache):
     """
     A simple L1 instruction cache with default values.
     """
 
-    def __init__(self,
-                size: str,
-                assoc: Optional[int] = 8,
-                tag_latency: Optional[int] = 1,
-                data_latency: Optional[int] = 1,
-                response_latency: Optional[int] = 1,
-                mshrs: Optional[int] = 16,
-                tgts_per_mshr: Optional[int] = 20,
-                writeback_clean: Optional[bool] = True
-                ):
-        super(L1ICache, self).__init__(size = size,
-                                       assoc= assoc,
-                                       tag_latency=tag_latency,
-                                       data_latency=data_latency,
-                                       response_latency=response_latency,
-                                       mshrs=mshrs,
-                                       tgts_per_mshr=tgts_per_mshr,
-                                       writeback_clean=writeback_clean
-                                       )
+    def __init__(
+        self,
+        size: str,
+        assoc: Optional[int] = 8,
+        tag_latency: Optional[int] = 1,
+        data_latency: Optional[int] = 1,
+        response_latency: Optional[int] = 1,
+        mshrs: Optional[int] = 16,
+        tgts_per_mshr: Optional[int] = 20,
+        writeback_clean: Optional[bool] = True,
+    ):
+        super(L1ICache, self).__init__(
+            size=size,
+            assoc=assoc,
+            tag_latency=tag_latency,
+            data_latency=data_latency,
+            response_latency=response_latency,
+            mshrs=mshrs,
+            tgts_per_mshr=tgts_per_mshr,
+            writeback_clean=writeback_clean,
+        )
+
     @overrides(AbstractPrefetchCache)
     def connect_cpu_side(self, cpu_side: Union[BaseXBar, BaseCPU]) -> None:
         """Connect this cache's port to a CPU icache port"""

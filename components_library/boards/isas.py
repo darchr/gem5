@@ -26,6 +26,7 @@
 
 from enum import Enum
 
+
 class ISA(Enum):
     X86 = 1
     RISCV = 2

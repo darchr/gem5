@@ -26,6 +26,7 @@
 
 from enum import Enum
 
+
 class CPUTypes(Enum):
     ATOMIC = 1
     KVM = 2
