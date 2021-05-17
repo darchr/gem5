@@ -301,44 +301,46 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
 
         bool foundInDRAMFillQ = false;
 
-        for (const auto& p : dramFillQueue) {
-            // check if the read is subsumed in the write queue
-            // packet we are looking at
-            if (p->addr <= addr &&
-                ((addr + size) <= (p->addr + p->size))) {
+        for (const auto& vec : dramFillQueue) {
+                for (const auto& p : vec) {
+                // check if the read is subsumed in the write queue
+                // packet we are looking at
+                if (p->addr <= addr &&
+                    ((addr + size) <= (p->addr + p->size))) {
 
-                foundInDRAMFillQ = true;
-                //stats.servicedByWrQ++;
-                pktsServicedByDRAMFillQ++;
-                //DPRINTF(MemCtrl,
-                //        "Read to addr %lld with size %d serviced by "
-                //        "write queue\n",
-                //        addr, size);
-                //stats.bytesReadWrQ += burst_size;
-                break;
+                    foundInDRAMFillQ = true;
+                    //stats.servicedByWrQ++;
+                    pktsServicedByDRAMFillQ++;
+                    //DPRINTF(MemCtrl,
+                    //        "Read to addr %lld with size %d serviced by "
+                    //        "write queue\n",
+                    //        addr, size);
+                    //stats.bytesReadWrQ += burst_size;
+                    break;
+                }
             }
         }
-
         bool foundInNVMWriteQ = false;
 
-        for (const auto& p : nvmWriteQueue) {
-            // check if the read is subsumed in the write queue
-            // packet we are looking at
-            if (p->addr <= addr &&
-                ((addr + size) <= (p->addr + p->size))) {
+        for (const auto& vec : nvmWriteQueue) {
+            for (const auto& p : vec) {
+                // check if the read is subsumed in the write queue
+                // packet we are looking at
+                if (p->addr <= addr &&
+                    ((addr + size) <= (p->addr + p->size))) {
 
-                foundInNVMWriteQ = true;
-                //stats.servicedByWrQ++;
-                pktsServicedByNVMWrQ++;
-                //DPRINTF(MemCtrl,
-                //        "Read to addr %lld with size %d serviced by "
-                //        "write queue\n",
-                //        addr, size);
-                //stats.bytesReadWrQ += burst_size;
-                break;
+                    foundInNVMWriteQ = true;
+                    //stats.servicedByWrQ++;
+                    pktsServicedByNVMWrQ++;
+                    //DPRINTF(MemCtrl,
+                    //        "Read to addr %lld with size %d serviced by "
+                    //        "write queue\n",
+                    //        addr, size);
+                    //stats.bytesReadWrQ += burst_size;
+                    break;
+                }
             }
         }
-
 
         // If not found in the write q, make a memory packet and
         // push it onto the read queue
