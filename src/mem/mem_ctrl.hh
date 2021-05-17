@@ -420,19 +420,19 @@ class MemCtrl : public QoS::MemCtrl
      *
      * @param mempkt The mem pkt to add to the nvm read queue
      */
-    void addToNVMReadQueue(MemPacket* mem_pkt);
+    void addToNVMReadQueue(const MemPacket *mem_pkt);
 
     /**
      *
      * @param mem_pkt The mem pkt to add to the nvm read queue
      */
-    void addToNVMWriteQueue(MemPacket* mem_pkt);
+    void addToNVMWriteQueue(const MemPacket *mem_pkt);
 
     /**
      *
      * @param mem_pkt The mem pkt to add to the dram fill queue
      */
-    void addToDRAMFillQueue(MemPacket* mem_pkt);
+    void addToDRAMFillQueue(const MemPacket *mem_pkt);
 
     /**
      *
@@ -631,9 +631,9 @@ class MemCtrl : public QoS::MemCtrl
      * Current sizes of nvmReadQueue, nvmWriteQueue, dramFillQueue.
      *
      */
-    const uint64_t nvmReadQueueSize;
-    const uint64_t nvmWriteQueueSize;
-    const uint64_t dramFillQueueSize;
+    uint64_t nvmReadQueueSize;
+    uint64_t nvmWriteQueueSize;
+    uint64_t dramFillQueueSize;
 
     /**
      * Memory controller configuration initialized based on parameter

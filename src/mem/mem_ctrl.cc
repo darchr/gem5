@@ -549,7 +549,7 @@ MemCtrl::addToDRAMFillQueue(const MemPacket *mem_pkt)
 
     // the mem_pkt needs to become a write request
     // now
-    dramFillQueue.push_back(fill_pkt);
+    dramFillQueue[fill_pkt->qosValue()].push_back(fill_pkt);
 
     dramFillQueueSize++;
 
@@ -599,7 +599,7 @@ MemCtrl::addToNVMReadQueue(const MemPacket* mem_pkt)
                             mem_pkt->pkt->getSize(), true, false);
     nvm->setupRank(nvm_pkt->rank, true);
     nvm_pkt->readyTime = MaxTick;
-    nvmReadQueue.push_back(nvm_pkt);
+    nvmReadQueue[nvm_pkt->qosValue()].push_back(nvm_pkt);
 
     nvmReadQueueSize++;
 
@@ -629,7 +629,7 @@ MemCtrl::addToNVMWriteQueue(const MemPacket* mem_pkt)
     nvm->setupRank(nvm_pkt->rank, true);
     nvm_pkt->readyTime = MaxTick;
 
-    nvmWriteQueue.push_back(nvm_pkt);
+    nvmWriteQueue[nvm_pkt->qosValue()].push_back(nvm_pkt);
 
     nvmWriteQueueSize++;
 
@@ -655,7 +655,7 @@ MemCtrl::handleHit(MemPacket* mem_pkt)
         } else {
             // if any of the queues are successful
             assert(respQueue.top().second->readyTime ==
-                                            respQueue.top.first);
+                                            respQueue.top().first);
             if (dramFillQueueFull(1)) {
                 retryDRAMFillReq = true;
             }
@@ -680,7 +680,7 @@ MemCtrl::handleCleanMiss(MemPacket* mem_pkt)
         } else {
             // if any of the queues are successful
             assert(respQueue.top().second->readyTime ==
-                                            respQueue.top.first);
+                                            respQueue.top().first);
             if (nvmReadQueueFull(1)) {
                 retryNVMRdReq = true;
             }
@@ -702,7 +702,7 @@ MemCtrl::handleCleanMiss(MemPacket* mem_pkt)
             } else {
                 // if any of the queues are successful
                 assert(respQueue.top().second->readyTime ==
-                                                respQueue.top.first);
+                                                respQueue.top().first);
                 if (nvmWriteQueueFull(1)) {
                     retryNVMWrReq = true;
                 }
@@ -721,7 +721,7 @@ MemCtrl::handleCleanMiss(MemPacket* mem_pkt)
             } else {
                 // if any of the queues are successful
                 assert(respQueue.top().second->readyTime ==
-                                                respQueue.top.first);
+                                                respQueue.top().first);
                 if (nvmReadQueueFull(1)) {
                     retryNVMRdReq = true;
                 }
@@ -752,7 +752,7 @@ MemCtrl::handleDirtyMiss(MemPacket* mem_pkt)
         } else {
             // if any of the queues are successful
             assert(respQueue.top().second->readyTime ==
-                                            respQueue.top.first);
+                                            respQueue.top().first);
             if (nvmReadQueueFull(1)) {
                 retryNVMRdReq = true;
             }
@@ -777,7 +777,7 @@ MemCtrl::handleDirtyMiss(MemPacket* mem_pkt)
             } else {
                 // if any of the queues are successful
                 assert(respQueue.top().second->readyTime ==
-                                                respQueue.top.first);
+                                                respQueue.top().first);
                 if (nvmWriteQueueFull(1)) {
                     retryNVMWrReq = true;
                 }
@@ -797,7 +797,7 @@ MemCtrl::handleDirtyMiss(MemPacket* mem_pkt)
             } else {
                 // if any of the queues are successful
                 assert(respQueue.top().second->readyTime ==
-                                                respQueue.top.first);
+                                                respQueue.top().first);
                 if (nvmReadQueueFull(1)) {
                     retryNVMRdReq = true;
                 }
