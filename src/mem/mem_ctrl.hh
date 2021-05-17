@@ -581,8 +581,10 @@ class MemCtrl : public QoS::MemCtrl
      */
     //std::deque<MemPacket *> respQueue;
     //priority queue ordered by earliest tick
-    std::priority_queue<std::pair<Tick, MemPacket*>,
-                        std::greater<Tick>> respQueue;
+    typedef std::pair<Tick, MemPacket*> entry;
+    // The min heap will be ordered by the first element of the pair
+    std::priority_queue<entry, std::vector<entry>,
+                        std::greater<entry> > respQueue;
 
     /**
      * Holds count of commands issued in burst window starting at
