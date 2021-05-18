@@ -1736,9 +1736,9 @@ MemCtrl::processNextReqEvent()
             // erase the packet depending on which
             // queue is it taken from
             if (nvm_q_read) {
-                nvmReadQueue.erase(to_read);
+                nvmReadQueue[mem_pkt->qosValue()].erase(to_read);
 
-                if (retryNVMRd){
+                if (retryNVMRdReq){
                     // if we could not process a response because
                     // NVMRd queue was full, let's schedule it now
                     retryNVMRdReq = false;
@@ -1859,8 +1859,6 @@ MemCtrl::processNextReqEvent()
 
         bool write_found = false;
         MemPacketQueue::iterator to_write;
-        uint8_t prio = numPriorities();
-
 
         // this is used to track
         // if the write request is found
@@ -1872,7 +1870,7 @@ MemCtrl::processNextReqEvent()
 
         // Question: which queues should be prioritized
 
-        auto queue = dramFillQueue.rbegin()
+        auto queue = dramFillQueue.rbegin();
         to_write = chooseNext((*queue), switched_cmd_type ?
                                     minReadToWriteDataGap() : 0);
 
@@ -1883,7 +1881,7 @@ MemCtrl::processNextReqEvent()
         }
 
         if (!write_found) { // next check in nvm write queue
-            auto queue = nvmWriteQueue.rbegin()
+            auto queue = nvmWriteQueue.rbegin();
             to_write = chooseNext((*queue), switched_cmd_type ?
                                     minReadToWriteDataGap() : 0);
 
@@ -1933,7 +1931,7 @@ MemCtrl::processNextReqEvent()
 
         // remove the request from the queue - the iterator is no longer valid
         if (dfill_q_write) {
-            dramFillQueue.erase(to_write);
+            dramFillQueue[mem_pkt->qosValue()].erase(to_write);
             if (retryDRAMFillReq) {
                 // retry processing respond event if we
                 // could not do it before becasue dram fill
@@ -1944,7 +1942,7 @@ MemCtrl::processNextReqEvent()
             }
         }
         else if (nvm_q_write) {
-            nvmQueueWrite.erase(to_write);
+            nvmWriteQueue[mem_pkt->qosValue()].erase(to_write);
              if (retryNVMWrReq) {
                 // retry processing respond event if we could
                 // not do it before becasue NVMWriteQueue was full
