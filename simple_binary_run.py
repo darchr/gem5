@@ -37,14 +37,7 @@ from components_library.processors.cpu_types import CPUTypes
 
 import os
 
-
-cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size = "32kB",
-                                                   l1i_size = "32kB",
-                                                   l2_size = "256kB",
-                                                  )
-
-# For an even simpler setup, have no cache at all!
-#cache_hierarchy = NoCache()
+cache_hierarchy = NoCache()
 
 memory = DDR3_1600_8x8(size="512MiB")
 
@@ -56,10 +49,14 @@ motherboard = SimpleBoard(clk_freq="3GHz",
                           cache_hierarchy=cache_hierarchy,
                          )
 
+motherboard.connect_things()
+
 thispath = os.path.dirname(os.path.realpath(__file__))
 binary = os.path.join(thispath, 'tests/test-progs/hello/bin/x86/linux/hello')
 
 motherboard.set_workload(binary)
+
+
 
 print("Running with ISA: " + motherboard.get_runtime_isa().name)
 print("Running with protocol: " +

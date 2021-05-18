@@ -85,7 +85,7 @@ class SimpleBoard(AbstractBoard):
         elif self.get_processor().get_cpu_type() == CPUTypes.ATOMIC:
             # TODO: FOR Ruby, this should convert to 'atomic_noncaching' and
             # throw a warning that this change has occurred.
-            self.mem_mode = "atomic_caching"
+            self.mem_mode = "atomic"
         else:
             raise NotImplementedError
 
