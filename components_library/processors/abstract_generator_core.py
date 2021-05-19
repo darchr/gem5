@@ -24,12 +24,49 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from enum import Enum
+from abc import abstractmethod
+from m5.objects import PyTrafficGen
+
+from cpu_types import CPUTypes
+from abstract_core import AbstractCore
 
 
-class CPUTypes(Enum):
-    ATOMIC = 1
-    KVM = 2
-    O3 = 3
-    TIMING = 4
-    GEN = 5
+class AbstractGeneratorCore(AbstractCore):
+    def __init__(self):
+        super(AbstractGeneratorCore, self).__init__()
+        self.setup_dummy_generator()
+        self._cpu_type = CPUType.GEN
+
+    def get_type(self) -> CPUTypes:
+        return self._cpu_type
+
+    def connect_icache(self, port: Port) -> None:
+        self.dummy_generator.port = port
+
+    @abstractmethod
+    def connect_dcache(self, port: Port) -> None:
+        raise NotImplementedError
+
+    def connect_walker_ports(self, port1: Port, port2: Port) -> None:
+        pass
+
+    def set_workload(self, process: Process) -> None:
+        pass
+
+    def connect_interrupt(self,
+        interrupt_requestor: Port,
+        interrupt_responce: Port
+    ) -> None:
+        pass
+
+    def setup_dummy_generator(self):
+        self.dummy_generator = PyTrafficGen()
+        self._dummy_traffic = self.dummy_generator.createIdle(1e15)
+
+    @abstractmethod
+    def set_traffic(self, traffic = None):
+        raise NotImplementedError
+
+    @abstractmethod
+    def start_traffic(self):
+        raise NotImplementedError

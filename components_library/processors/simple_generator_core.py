@@ -24,12 +24,20 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from enum import Enum
+from m5.objects import PyTrafficGen
 
+from abstract_generator_core import AbstractGeneratorCore
 
-class CPUTypes(Enum):
-    ATOMIC = 1
-    KVM = 2
-    O3 = 3
-    TIMING = 4
-    GEN = 5
+class SimpleGeneratorCore(AbstractGeneratorCore):
+    def __init__(self):
+        super(SimpleGeneratorCore, self).__init__()
+        self.main_generator = PyTrafficGen()
+
+    def connect_dcache(self, port: Port) -> None:
+        self.main_generator.port = port
+
+    def set_traffic(self, traffic = None):
+        self._main_traffic = traffic
+
+    def start_traffic(self):
+        self.main_generator.start(self._main_traffic)
