@@ -26,11 +26,11 @@
 
 from m5.objects import Port, PyTrafficGen
 
-from components_library.processors.abstract_generator_core import AbstractGeneratorCore
+from .abstract_generator_core import AbstractGeneratorCore
 
 class PyGeneratorCore(AbstractGeneratorCore):
     def __init__(self):
-        super(SimpleGeneratorCore, self).__init__()
+        super(PyGeneratorCore, self).__init__()
         self.main_generator = PyTrafficGen()
 
     def connect_dcache(self, port: Port) -> None:

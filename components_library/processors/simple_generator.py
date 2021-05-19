@@ -24,25 +24,38 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from abc import ABCMeta, abstractmethod
 
-from components_library.processors.abstract_processor import AbstractProcessor
-from components_library.processors.abstract_generator_core import AbstractGeneratorCore
+from .cpu_types import CPUTypes
+from .py_generator_core import PyGeneratorCore
 
+
+from .abstract_processor import AbstractProcessor
 from ..boards.abstract_board import AbstractBoard
 
-from typing import List
 
+class SimpleGenerator(AbstractProcessor):
+    """
+    A SimpeProcessor contains a number of cores of a a single CPUType.
+    """
 
-class AbstractGenerator(AbstractProcessor):
-    __metaclass__ = ABCMeta
+    def __init__(self, cpu_type: CPUTypes, num_cores: int) -> None:
+        super(SimpleGenerator, self).__init__(
+            cores=self._create_cores(
+                cpu_type=cpu_type,
+                num_cores=num_cores,
+            )
+        )
+        assert cpu_type == CPUTypes.PYGEN or cpu_type == CPUTypes.GUPSGEN
+        self._cpu_type = cpu_type
 
-    def __init__(self, cores: List[AbstractGeneratorCore]) -> None:
-        super(AbstractGenerator, self).__init__(cores)
+    def _create_cores(self, cpu_type: CPUTypes, num_cores: int):
+        if cpu_type == CPUTypes.GUPSGEN:
+            raise NotImplementedError('GUPSGen is not implemented yet!')
+        elif cpu_type == CPUTypes.PYGEN:
+            return [PyGeneratorCore() for i in range(num_cores)]
+        else:
+            raise NotImplementedError('Your cpu type is not a generator!')
 
-    def get_cores(self) -> List[AbstractGeneratorCore]:
-        return self.cores
-
-    @abstractmethod
     def incorporate_processor(self, board: AbstractBoard) -> None:
-        raise NotImplementedError
+        # TODO: Shouldn't we do this with a setter function?
+        board.mem_mode = 'timing'

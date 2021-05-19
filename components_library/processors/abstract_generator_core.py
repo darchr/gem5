@@ -27,12 +27,13 @@
 from abc import abstractmethod
 from m5.objects import Port, Process, PyTrafficGen
 
-from components_library.processors.cpu_types import CPUTypes
-from components_library.processors.abstract_core import AbstractCore
+from .cpu_types import CPUTypes
+from .abstract_core import AbstractCore
 
 class AbstractGeneratorCore(AbstractCore):
-    def __init__(self):
-        super(AbstractGeneratorCore, self).__init__(CPUTypes.GEN)
+    def __init__(self, cpu_type: CPUTypes):
+        super(AbstractGeneratorCore, self).__init__(cpu_type)
+        assert cpu_type == CPUTypes.PYGEN or cpu_type == CPUTypes.GUPSGEN
         self.setup_dummy_generator()
 
     def connect_icache(self, port: Port) -> None:
