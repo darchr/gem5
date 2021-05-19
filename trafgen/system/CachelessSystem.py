@@ -51,14 +51,14 @@ class CachelessSystem(System):
         addr_map = mem_name.addr_mapping
         intlv_size = self.cache_line_size
 
-        cls = mem_name
-
         intlv_low_bit = int(log(intlv_size, 2))
         intlv_bits = int(log(num_chnls, 2))
 
+        cls_d = mem_name
+        cls_n = mem_info['NVM']['gname']
         for chnl in range(num_chnls):
-            interface = cls()
-            interface.range = AddrRange(
+            interfaceD = cls_d()
+            interfaceD.range = AddrRange(
                 addr_range.start,
                 size=addr_range.size(),
                 intlvHighBit=intlv_low_bit + intlv_bits - 1,
@@ -66,8 +66,20 @@ class CachelessSystem(System):
                 intlvBits=intlv_bits,
                 intlvMatch=chnl,
             )
+
+            interfaceN = cls_n()
+            interfaceN.range = AddrRange(
+                addr_range.start,
+                size=addr_range.size(),
+                intlvHighBit=intlv_low_bit + intlv_bits - 1,
+                xorHighBit=0,
+                intlvBits=intlv_bits,
+                intlvMatch=chnl,
+            )
+
             ctrl = MemCtrl()
-            ctrl.dram = interface
+            ctrl.dram = interfaceD
+            ctrl.nvm  = interfaceN
             ctrl.dram.null = True
 
             mem_ctrls.append(ctrl)
