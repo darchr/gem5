@@ -25,31 +25,40 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from abc import ABCMeta, abstractmethod
-from components_library.processors.abstract_core import AbstractCore
-from components_library.processors.cpu_types import CPUTypes
+from .cpu_types import CPUTypes
 
-from m5.objects import BaseCPU, SubSystem
-
-from ..boards.abstract_board import AbstractBoard
-
-from typing import List
+from m5.objects import Port, SubSystem, Process
 
 
-class AbstractProcessor(SubSystem):
+class AbstractCore(SubSystem):
     __metaclass__ = ABCMeta
 
-    def __init__(self, cores: List[AbstractCore]) -> None:
-        super(AbstractProcessor, self).__init__()
-        assert len(cores) > 0
+    def __init__(self, cpu_type: CPUTypes):
+        super(AbstractCore, self).__init__()
+        self._cpu_type = cpu_type
 
-        self.cores = cores
-
-    def get_num_cores(self) -> int:
-        return len(self.cores)
-
-    def get_cores(self) -> List[AbstractCore]:
-        return self.cores
+    def get_type(self) -> CPUTypes:
+        return self._cpu_type
 
     @abstractmethod
-    def incorporate_processor(self, board: AbstractBoard) -> None:
+    def connect_icache(self, port: Port) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def connect_dcache(self, port: Port) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def connect_walker_ports(self, port1: Port, port2: Port) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_workload(self, process: Process) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def connect_interrupt(self,
+        interrupt_requestor: Port,
+        interrupt_responce: Port
+    ) -> None:
         raise NotImplementedError

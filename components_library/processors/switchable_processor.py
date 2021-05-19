@@ -91,6 +91,7 @@ class SwitchableProcessor(AbstractProcessor):
         # the switchable processors are children of the board (System).
         index = 0
         for proc in self._switchable_processors.values():
+            proc.incorporate_processor(board=board)
             setattr(board, "switchable_proc" + str(index), proc)
             index += 1
 

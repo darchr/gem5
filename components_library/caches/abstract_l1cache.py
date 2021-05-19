@@ -58,6 +58,6 @@ class AbstractL1Cache(AbstractPrefetchCache):
             writeback_clean=writeback_clean,
         )
 
-    @overrides(AbstractPrefetchCache)
-    def connect_bus_side(self, bus_side: BaseXBar) -> None:
-        self.mem_side = bus_side.cpu_side_ports
+ #   @overrides(AbstractPrefetchCache)
+#    def get_bus_side(self):
+#        return self.mem_side

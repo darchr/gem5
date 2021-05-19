@@ -57,11 +57,3 @@ class L2Cache(AbstractPrefetchCache):
             tgts_per_mshr=tgts_per_mshr,
             writeback_clean=writeback_clean,
         )
-
-    @overrides(AbstractPrefetchCache)
-    def connect_cpu_side(self, cpu_side: Union[BaseXBar, BaseCPU]) -> None:
-        self.cpu_side = cpu_side.mem_side_ports
-
-    @overrides(AbstractPrefetchCache)
-    def connect_bus_side(self, bus_side: BaseXBar) -> None:
-        self.mem_side = bus_side.cpu_side_ports

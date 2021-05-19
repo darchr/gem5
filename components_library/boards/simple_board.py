@@ -73,22 +73,6 @@ class SimpleBoard(AbstractBoard):
         self.clk_domain.clock = clk_freq
         self.clk_domain.voltage_domain = VoltageDomain()
 
-        # Set the memory mode.
-        # TODO: The CPU has a method for this.
-        if (
-            self.get_processor().get_cpu_type() == CPUTypes.TIMING
-            or self.get_processor().get_cpu_type() == CPUTypes.O3
-        ):
-            self.mem_mode = "timing"
-        elif self.get_processor().get_cpu_type() == CPUTypes.KVM:
-            self.mem_mode = "atomic_noncaching"
-        elif self.get_processor().get_cpu_type() == CPUTypes.ATOMIC:
-            # TODO: FOR Ruby, this should convert to 'atomic_noncaching' and
-            # throw a warning that this change has occurred.
-            self.mem_mode = "atomic"
-        else:
-            raise NotImplementedError
-
         self.mem_ranges = [AddrRange(Addr(memory.get_size_str()))]
 
     @overrides(AbstractBoard)
@@ -117,5 +101,4 @@ class SimpleBoard(AbstractBoard):
 
         process = Process()
         process.cmd = [binary]
-        self.get_processor().get_cpu_simobjects()[0].workload = process
-        self.get_processor().get_cpu_simobjects()[0].createThreads()
+        self.get_processor().get_cores()[0].set_workload(process)

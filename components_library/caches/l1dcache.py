@@ -59,7 +59,3 @@ class L1DCache(AbstractL1Cache):
             tgts_per_mshr=tgts_per_mshr,
             writeback_clean=writeback_clean,
         )
-
-    @overrides(AbstractPrefetchCache)
-    def connect_cpu_side(self, cpu_side: Union[BaseXBar, BaseCPU]) -> None:
-        self.cpu_side = cpu_side.dcache_port

@@ -60,16 +60,16 @@ class MMUCache(AbstractPrefetchCache):
             writeback_clean=writeback_clean,
         )
 
-    @overrides(AbstractPrefetchCache)
-    def connect_bus_side(self, bus_side: BaseXBar) -> None:
-        self.mem_side = bus_side.cpu_side_ports
+#    @overrides(AbstractPrefetchCache)
+ #   def connect_bus_side(self, bus_side: BaseXBar) -> None:
+  #      self.mem_side = bus_side.cpu_side_ports
 
-    @overrides(AbstractPrefetchCache)
-    def connect_cpu_side(self, cpu_side: Union[BaseXBar, BaseCPU]) -> None:
+ #   @overrides(AbstractPrefetchCache)
+ #   def connect_cpu_side(self):
         # Connect the CPU itb and dtb to the cache
         # Note: This creates a new crossbar
-        self.mmubus = L2XBar()
-        self.cpu_side = self.mmubus.mem_side_ports
-        cpu_side.mmu.connectWalkerPorts(
-            self.mmubus.cpu_side_ports, self.mmubus.cpu_side_ports
-        )
+  #      self.mmubus = L2XBar()
+  #      self.cpu_side = self.mmubus.mem_side_ports
+  #      cpu_side.mmu.connectWalkerPorts(
+    #        self.mmubus.cpu_side_ports, self.mmubus.cpu_side_ports
+   #     )

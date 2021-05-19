@@ -178,51 +178,34 @@ class PrivateL1PrivateL2CacheHierarchy(
         for cntr in board.get_memory().get_memory_controllers():
             cntr.port = self.membus.mem_side_ports
 
+        self.l1icaches = [L1ICache(size = self.get_l1i_size())
+            for i in range(board.get_processor().get_num_cores())]
+        self.l1dcaches = [L1DCache(size = self.get_l1i_size())
+            for i in range(board.get_processor().get_num_cores())]
+        self.l2buses = [L2XBar()
+            for i in range(board.get_processor().get_num_cores())]
+        self.l2caches = [L2Cache(size = self.get_l2_size())
+            for i in range(board.get_processor().get_num_cores())]
+
         ######################################################################
 
-        for cpu in board.get_processor().get_cpu_simobjects():
+        for i,cpu in enumerate(board.get_processor().get_cores()):
 
-            # Create a memory bus, a coherent crossbar, in this case.
-            cpu.l2bus = L2XBar()
+            cpu.connect_icache(self.l1icaches[i].cpu_side)
+            cpu.connect_dcache(self.l1dcaches[i].cpu_side)
 
-            # Create an L1 instruction and data cache.
-            cpu.icache = L1ICache(size=self.get_l1i_size())
-            cpu.dcache = L1DCache(size=self.get_l1d_size())
+            self.l1icaches[i].mem_side = self.l2buses[i].cpu_side_ports
+            self.l1dcaches[i].mem_side = self.l2buses[i].cpu_side_ports
 
-            # Connect the instruction and data caches to the CPU.
-            cpu.icache.connect_cpu_side(cpu)
-            cpu.dcache.connect_cpu_side(cpu)
+            self.l2buses[i].mem_side_ports = self.l2caches[i].cpu_side
 
-            # Hook the CPU ports up to the l2bus.
-            cpu.icache.connect_bus_side(cpu.l2bus)
-            cpu.dcache.connect_bus_side(cpu.l2bus)
+            self.membus.cpu_side_ports = self.l2caches[i].mem_side
 
-            # Create an L2 cache and connect it to the l2bus.
-            cpu.l2cache = L2Cache(size=self.get_l2_size())
-            cpu.l2cache.connect_cpu_side(cpu.l2bus)
-
-            # Connect the L2 cache to the bus.
-            cpu.l2cache.connect_bus_side(self.membus)
-
-            # Connect the CPU MMU's to the membus.
-            cpu.mmu.connectWalkerPorts(
+            cpu.connect_walker_ports(
                 self.membus.cpu_side_ports, self.membus.cpu_side_ports
             )
 
-            # Connect the interrupt ports
             if board.get_runtime_isa() == ISA.X86:
                 int_req_port = self.membus.mem_side_ports
                 int_resp_port = self.membus.cpu_side_ports
-                cpu.interrupts[0].pio = int_req_port
-                cpu.interrupts[0].int_requestor = int_resp_port
-                cpu.interrupts[0].int_responder = int_req_port
-
-
-# @overrides(AbstractCacheHierarchy)
-#  def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port,Port]:
-#      return self.get_membus().mem_side_ports, \
-#            self.get_membus().cpu_side_ports
-
-# @overrides(AbstractCacheHierarchy)
-#  def get_membus(self) -> BaseXBar:
-#    return self.membus
+                cpu.connect_interrupt(int_req_port, int_resp_port)

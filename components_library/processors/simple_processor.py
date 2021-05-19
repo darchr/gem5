@@ -25,6 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+from components_library.processors.simple_core import SimpleCore
 from m5.objects import (
     AtomicSimpleCPU,
     DerivO3CPU,
@@ -43,54 +44,46 @@ from typing import List
 
 
 class SimpleProcessor(AbstractProcessor):
+    """
+    A SimpeProcessor contains a number of cores of a a single CPUType.
+    """
+
     def __init__(self, cpu_type: CPUTypes, num_cores: int) -> None:
         super(SimpleProcessor, self).__init__(
-            cpu_type=cpu_type, num_cores=num_cores
+            cores=self._create_cores(
+                cpu_type=cpu_type, num_cores=num_cores,
+            )
         )
 
-        if self.get_cpu_type() == CPUTypes.ATOMIC:
-            self.cpus = self._create_cores(
-                cpu_class=AtomicSimpleCPU, num_cores=num_cores
-            )
-        elif self.get_cpu_type() == CPUTypes.O3:
-            self.cpus = self._create_cores(
-                cpu_class=DerivO3CPU, num_cores=num_cores
-            )
-        elif self.get_cpu_type() == CPUTypes.TIMING:
-            self.cpus = self._create_cores(
-                cpu_class=TimingSimpleCPU, num_cores=num_cores
-            )
-        elif self.get_cpu_type() == CPUTypes.KVM:
-            self.cpus = self._create_cores(
-                cpu_class=X86KvmCPU, num_cores=num_cores
-            )
+        self._cpu_type = cpu_type
+        if self._cpu_type == CPUTypes.KVM:
             self.kvm_vm = KvmVM()
-
-        else:
-            raise NotADirectoryError(
-                f"SimpleProcessor does not currently support cpu type"
-                f" {self.get_cpu_type().name}."
-            )
-
-        for cpu in self.cpus:
-            cpu.createThreads()
-            cpu.createInterruptController()
-
-        if self.get_cpu_type() == CPUTypes.KVM:
             # To get the KVM CPUs to run on different host CPUs
             # Specify a different event queue for each CPU
-            for i, cpu in enumerate(self.cpus):
-                for obj in cpu.descendants():
+            for i, core in enumerate(self.cores):
+                for obj in core.get_simobject().descendants():
                     obj.eventq_index = 0
-                cpu.eventq_index = i + 1
+                core.get_simobject().eventq_index = i + 1
 
-    def _create_cores(self, cpu_class: BaseCPU, num_cores: int):
-        return [cpu_class(cpu_id=i) for i in range(num_cores)]
+    def _create_cores(self, cpu_type: CPUTypes, num_cores: int):
+        return [SimpleCore(cpu_type=cpu_type, core_id=i)
+                for i in range(num_cores)]
 
     def incorporate_processor(self, board: AbstractBoard) -> None:
-
-        if self.get_cpu_type() == CPUTypes.KVM:
+        if self._cpu_type == CPUTypes.KVM:
             board.kvm_vm = self.kvm_vm
 
-    def get_cpu_simobjects(self) -> List[BaseCPU]:
-        return self.cpus
+        # Set the memory mode.
+        # TODO: The CPU has a method for this.
+        if (
+            self._cpu_type == CPUTypes.TIMING or self._cpu_type == CPUTypes.O3
+        ):
+            board.mem_mode = "timing"
+        elif self._cpu_type == CPUTypes.KVM:
+            board.mem_mode = "atomic_noncaching"
+        elif self._cpu_type == CPUTypes.ATOMIC:
+            # TODO: For Ruby, this should convert to 'atomic_noncaching' and
+            # throw a warning that this change has occurred.
+            board.mem_mode = "atomic"
+        else:
+            raise NotImplementedError

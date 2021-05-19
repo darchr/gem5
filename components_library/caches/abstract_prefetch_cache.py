@@ -92,29 +92,10 @@ class AbstractPrefetchCache(Cache):
         self.writeback_clean = writeback_clean
         self.prefetcher = StridePrefetcher()
 
-    @abstractmethod
-    def connect_bus_side(self, bus_side: BaseXBar) -> None:
-        """
-        Connects the "bus side" of the cache to the bus.
+  #  @abstractmethod
+  #  def get_bus_side(self):
+  #      raise NotImplementedError
 
-        :param bus_side: The XBar to connect this cache to.
-
-        :type bus_side: BaseXBar
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def connect_cpu_side(self, cpu_side: Union[BaseXBar, BaseCPU]) -> None:
-        """
-        Connects the "cpu side" of the cache to the the cpu Side.
-
-        Note: the CPU side may not necessarily connect to a CPU, it may
-        connect to an XBar. For example, a L2 cache will typically connect to
-        an XBar which then connects to the L1 cache. It is the "side" of the
-        cache closer to the CPU, in contrast to main memory.
-
-        :param bus_side: The CPU or XBar to connect this cache to.
-
-        :type cpu_side: Union[BaseXBar, BaseCPU]
-        """
-        raise NotImplementedError
+ #   @abstractmethod
+ #   def connect_cpu_side(self):
+ #       raise NotImplementedError
