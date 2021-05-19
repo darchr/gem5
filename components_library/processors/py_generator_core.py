@@ -24,11 +24,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.objects import PyTrafficGen
+from m5.objects import Port, PyTrafficGen
 
-from abstract_generator_core import AbstractGeneratorCore
+from components_library.processors.abstract_generator_core import AbstractGeneratorCore
 
-class SimpleGeneratorCore(AbstractGeneratorCore):
+class PyGeneratorCore(AbstractGeneratorCore):
     def __init__(self):
         super(SimpleGeneratorCore, self).__init__()
         self.main_generator = PyTrafficGen()

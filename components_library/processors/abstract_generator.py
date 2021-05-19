@@ -24,44 +24,25 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from abc import abstractmethod
-from m5.objects import Port, Process, PyTrafficGen
+from abc import ABCMeta, abstractmethod
 
-from components_library.processors.cpu_types import CPUTypes
-from components_library.processors.abstract_core import AbstractCore
+from components_library.processors.abstract_processor import AbstractProcessor
+from components_library.processors.abstract_generator_core import AbstractGeneratorCore
 
-class AbstractGeneratorCore(AbstractCore):
-    def __init__(self):
-        super(AbstractGeneratorCore, self).__init__(CPUTypes.GEN)
-        self.setup_dummy_generator()
+from ..boards.abstract_board import AbstractBoard
 
-    def connect_icache(self, port: Port) -> None:
-        self.dummy_generator.port = port
+from typing import List
 
-    @abstractmethod
-    def connect_dcache(self, port: Port) -> None:
-        raise NotImplementedError
 
-    def connect_walker_ports(self, port1: Port, port2: Port) -> None:
-        pass
+class AbstractGenerator(AbstractProcessor):
+    __metaclass__ = ABCMeta
 
-    def set_workload(self, process: Process) -> None:
-        pass
+    def __init__(self, cores: List[AbstractGeneratorCore]) -> None:
+        super(AbstractGenerator, self).__init__(cores)
 
-    def connect_interrupt(self,
-        interrupt_requestor: Port,
-        interrupt_responce: Port
-    ) -> None:
-        pass
-
-    def setup_dummy_generator(self):
-        self.dummy_generator = PyTrafficGen()
-        self._dummy_traffic = self.dummy_generator.createIdle(0)
+    def get_cores(self) -> List[AbstractGeneratorCore]:
+        return self.cores
 
     @abstractmethod
-    def set_traffic(self, traffic = None):
-        raise NotImplementedError
-
-    @abstractmethod
-    def start_traffic(self):
+    def incorporate_processor(self, board: AbstractBoard) -> None:
         raise NotImplementedError
