@@ -24,47 +24,43 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import m5
+from m5.objects import Root, PyTrafficGen
 
-from .cpu_types import CPUTypes
-from .py_generator_core import PyGeneratorCore
+from components_library.boards.simple_board import SimpleBoard
+from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
+    import PrivateL1PrivateL2CacheHierarchy
+from components_library.cachehierarchies.no_cache import NoCache
+from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
+from components_library.processors.simple_processor import SimpleProcessor
+from components_library.processors.simple_generator import SimpleGenerator
+from components_library.processors.cpu_types import CPUTypes
+
+import os
+
+cache_hierarchy = NoCache()
+
+memory = DDR3_1600_8x8(size="512MiB")
+
+generator = SimpleGenerator(cpu_type = CPUTypes.PYGEN, num_cores=1)
+
+motherboard = SimpleBoard(clk_freq="3GHz",
+                          processor=generator,
+                          memory=memory,
+                          cache_hierarchy=cache_hierarchy,
+                         )
+
+motherboard.connect_things()
 
 
-from .abstract_processor import AbstractProcessor
-from ..boards.abstract_board import AbstractBoard
+root = Root(full_system = False, system = motherboard)
 
-from typing import List
+m5.instantiate()
 
-class SimpleGenerator(AbstractProcessor):
-    """
-    A SimpeProcessor contains a number of cores of a a single CPUType.
-    """
-
-    def __init__(self, cpu_type: CPUTypes, num_cores: int) -> None:
-        super(SimpleGenerator, self).__init__(
-            cores=self._create_cores(
-                cpu_type=cpu_type,
-                num_cores=num_cores,
-            )
-        )
-        assert cpu_type == CPUTypes.PYGEN or cpu_type == CPUTypes.GUPSGEN
-        self._cpu_type = cpu_type
-
-    def _create_cores(self, cpu_type: CPUTypes, num_cores: int):
-        if cpu_type == CPUTypes.GUPSGEN:
-            raise NotImplementedError('GUPSGen is not implemented yet!')
-        elif cpu_type == CPUTypes.PYGEN:
-            return [PyGeneratorCore() for i in range(num_cores)]
-        else:
-            raise NotImplementedError('Your cpu type is not a generator!')
-
-    def incorporate_processor(self, board: AbstractBoard) -> None:
-        # TODO: Shouldn't we do this with a setter function?
-        board.mem_mode = 'timing'
-
-    def set_traffic(self, traffic: List):
-        for i, core in enumerate(self.cores):
-            core.set_traffic(traffic[i])
-
-    def start_traffic(self):
-        for core in self.cores:
-            core.start_traffic()
+tempGen = PyTrafficGen()
+linear = tempGen.createLinear(1e7, 0, 16384, 64, 7450, 7450, 100, 0)
+generator.set_traffic([linear])
+generator.start_traffic()
+print("Beginning simulation!")
+exit_event = m5.simulate()
+print('Exiting @ tick %i because %s' % (m5.curTick(), exit_event.getCause()))
