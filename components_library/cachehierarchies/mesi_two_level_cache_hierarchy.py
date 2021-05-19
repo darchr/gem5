@@ -24,6 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from components_library.boards.coherence_protocol import CoherenceProtocol
 import enum
 from sys import version
 
@@ -38,7 +39,6 @@ from .ruby.MESI_Two_Level import L1Cache, L2Cache, Directory, DMAController
 from m5.objects import (
     RubySystem,
     RubySequencer,
-    BaseCPU,
     DMASequencer,
     RubyPortProxy,
 )
@@ -91,6 +91,12 @@ class MESITwoLevelCacheHierarchy(
         # l2_bank_size = toMemorySize(l2_size) // num_l2_banks
 
     def incorporate_cache(self, motherboard: AbstractBoard) -> None:
+        if motherboard.get_runtime_coherence_protocol() != \
+            CoherenceProtocol.MESI_TWO_LEVEL:
+            raise EnvironmentError("The MESITwoLevelCacheHierarchy must be "
+                                   "used with with the MESI_Two_Level "
+                                   "coherence protocol.")
+
         cache_line_size = motherboard.cache_line_size
 
         self.ruby_system = RubySystem()
@@ -104,18 +110,18 @@ class MESITwoLevelCacheHierarchy(
         iobus = motherboard.get_io_bus()
 
         self._l1_controllers = []
-        for i, cpu in enumerate(
-            motherboard.get_processor().get_cpu_simobjects()
-        ):
+        for i, core in enumerate(motherboard.get_processor().get_cores()):
             cache = L1Cache(
                 self._l1i_size,
                 self._l1i_assoc,
                 self._l1d_size,
                 self._l1d_assoc,
                 self.ruby_system.network,
-                cpu,
+                core,
                 self._num_l2_banks,
                 cache_line_size,
+                motherboard.get_runtime_isa(),
+                motherboard.clk_domain, #TODO: DIRECT ACCESS!! This needs fixed
             )
             cache.sequencer = RubySequencer(
                 version=i,
@@ -127,20 +133,17 @@ class MESITwoLevelCacheHierarchy(
             )
             cache.ruby_system = self.ruby_system
 
-            cpu.icache_port = cache.sequencer.in_ports
-            cpu.dcache_port = cache.sequencer.in_ports
+            core.connect_icache(cache.sequencer.in_ports)
+            core.connect_dcache(cache.sequencer.in_ports)
 
-            cpu.mmu.connectWalkerPorts(
-                cache.sequencer.in_ports, cache.sequencer.in_ports
-            )
+            core.connect_walker_ports(
+                cache.sequencer.in_ports, cache.sequencer.in_ports)
 
             # Connect the interrupt ports
             if motherboard.get_runtime_isa() == ISA.X86:
                 int_req_port = cache.sequencer.interrupt_out_port
                 int_resp_port = cache.sequencer.in_ports
-                cpu.interrupts[0].pio = int_req_port
-                cpu.interrupts[0].int_requestor = int_resp_port
-                cpu.interrupts[0].int_responder = int_req_port
+                core.connect_interrupt(int_req_port, int_resp_port)
 
             self._l1_controllers.append(cache)
 

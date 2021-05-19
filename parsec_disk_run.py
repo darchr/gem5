@@ -47,8 +47,8 @@ from components_library.cachehierarchies.mesi_two_level_cache_hierarchy \
 from components_library.cachehierarchies.no_cache import NoCache
 from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
 from components_library.processors.simple_processor import SimpleProcessor
-from components_library.processors.simple_switchable_processor import \
-    SimpleSwitchableProcessor
+#from components_library.processors.simple_switchable_processor import \
+#    SimpleSwitchableProcessor
 from components_library.processors.cpu_types import CPUTypes
 
 import os
@@ -86,15 +86,15 @@ memory = DDR3_1600_8x8(size="3GB")
 # The processor. In this case we use the special "SwitchableProcessor" which
 # allows us to switch between different SimpleProcessors. In this case we start
 # with an atomic CPU and change to Timing later in the simulation
-start_processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, num_cores=1)
+start_processor = SimpleProcessor(cpu_type=CPUTypes.ATOMIC, num_cores=1)
 switch_processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, num_cores=1)
-processor = SimpleSwitchableProcessor(starting_processor=start_processor,
-                                      switchable_processor=switch_processor)
+#processor = SimpleSwitchableProcessor(starting_processor=start_processor,
+    #                                  switchable_processor=switch_processor)
 
 
 motherboard = X86Board(
     clk_freq="3GHz",
-    processor=start_processor,  # processor,
+    processor=switch_processor, #processor,
     memory=memory,
     cache_hierarchy=cache_hierarchy,
     exit_on_work_items=True,
@@ -132,7 +132,8 @@ if not os.path.exists(parsec_img_path):
 command = "cd /home/gem5/parsec-benchmark\n"
 command += "source env.sh\n"
 command += "parsecmgmt -a run -p blackscholes "
-command += "-c gcc-hooks -i simsmall -n {}\n".format(processor.get_num_cores())
+command += "-c gcc-hooks -i simsmall -n {}\n".format(
+    switch_processor.get_num_cores())
 command += "sleep 5 \n"
 command += "m5 exit \n"
 

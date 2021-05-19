@@ -1,13 +1,17 @@
 from abc import abstractmethod
+from components_library.boards.isas import ISA
+from components_library.processors.cpu_types import CPUTypes
+
 from m5.objects import (
     L1Cache_Controller,
     L2Cache_Controller,
     Directory_Controller,
     DMA_Controller,
 )
-from m5.objects import DerivO3CPU
+
 from m5.util import panic
-from m5.defines import buildEnv
+
+from components_library.processors.abstract_core import AbstractCore
 
 import math
 
@@ -37,14 +41,14 @@ class AbstractL1Cache(L1Cache_Controller):
             panic("Cache line size not a power of 2!")
         return bits
 
-    def sendEvicts(self, cpu):
+    def sendEvicts(self, core: AbstractCore, target_isa: ISA):
         """True if the CPU model or ISA requires sending evictions from caches
         to the CPU. Two scenarios warrant forwarding evictions to the CPU:
         1. The O3 model must keep the LSQ coherent with the caches
         2. The x86 mwait instruction is built on top of coherence
         3. The local exclusive monitor in ARM systems
         """
-        if type(cpu) is DerivO3CPU or buildEnv["TARGET_ISA"] in ("x86", "arm"):
+        if core.get_type() is CPUTypes.O3 or target_isa in (ISA.X86, ISA.ARM):
             return True
         return False
 

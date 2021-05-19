@@ -35,10 +35,13 @@ from m5.objects import (
     KvmVM,
 )
 
+from m5.util import warn
+
 from .abstract_processor import AbstractProcessor
 from .cpu_types import CPUTypes
 from ..boards.abstract_board import AbstractBoard
 from ..boards.isas import ISA
+from ..boards.coherence_protocol import is_ruby
 
 from typing import List
 
@@ -74,7 +77,6 @@ class SimpleProcessor(AbstractProcessor):
             board.kvm_vm = self.kvm_vm
 
         # Set the memory mode.
-        # TODO: The CPU has a method for this.
         if (
             self._cpu_type == CPUTypes.TIMING or self._cpu_type == CPUTypes.O3
         ):
@@ -82,8 +84,12 @@ class SimpleProcessor(AbstractProcessor):
         elif self._cpu_type == CPUTypes.KVM:
             board.mem_mode = "atomic_noncaching"
         elif self._cpu_type == CPUTypes.ATOMIC:
-            # TODO: For Ruby, this should convert to 'atomic_noncaching' and
-            # throw a warning that this change has occurred.
-            board.mem_mode = "atomic"
+            if is_ruby(board.get_runtime_coherence_protocol()):
+                warn("Using an atomic core with Ruby will result in "
+                     "'atomic_noncaching' memory mode. This will skip caching "
+                     "completely.")
+                board.mem_mode = "atomic_noncaching"
+            else:
+                board.mem_mode = "atomic"
         else:
             raise NotImplementedError

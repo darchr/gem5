@@ -39,3 +39,27 @@ class CoherenceProtocol(Enum):
     MI_EXAMPLE = 9
     GPU_VIPER = 10
     CHI = 11
+
+def is_classic(protocol: CoherenceProtocol) -> bool:
+    classic = (
+        CoherenceProtocol.CHI,
+    )
+
+    return protocol in classic
+
+def is_ruby(protocol: CoherenceProtocol) -> bool:
+    # TODO: I have no idea if this is correct. I should check.
+    ruby = (
+        CoherenceProtocol.MESI_THREE_LEVEL,
+        CoherenceProtocol.MESI_THREE_LEVEL_HTM,
+        CoherenceProtocol.ARM_MOESI_HAMMER,
+        CoherenceProtocol.GARNET_STANDALONE,
+        CoherenceProtocol.MESI_TWO_LEVEL,
+        CoherenceProtocol.MOESI_CMP_DIRECTORY,
+        CoherenceProtocol.MOESI_CMP_TOKEN,
+        CoherenceProtocol.MOESI_AMD_BASE,
+        CoherenceProtocol.MI_EXAMPLE,
+        CoherenceProtocol.GPU_VIPER,
+    )
+
+    return protocol in ruby
