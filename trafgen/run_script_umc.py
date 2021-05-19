@@ -91,13 +91,6 @@ if options.mode == "linear":
     system.startLinearTraffic(options)
 elif options.mode == "random":
     system.startRandomTraffic(options)
-elif "CUSTOM" in options.mode:
-    overlap = options.mode
-    overlap = overlap.replace("CUSTOM", "")
-    overlap = int(overlap)
-    options.overlap = overlap
-    system.startCustomTraffic(options)
-
 else:
     print("Traffic type not supported!")
     exit()
