@@ -103,10 +103,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
               "high threshold %d\n", p.write_low_thresh_perc,
               p.write_high_thresh_perc);
 
-    for (int i = 0; i < numEntries; i++) {
-        TagEntry entry;
-        tagStoreDC.emplace_back(entry);
-    }
+    tagStoreDC.resize(numEntries);
 }
 
 void
@@ -455,6 +452,8 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
 
             // COMMENT: Check if this packet is in DRAM cache through tags
             if (is_dram) {
+                // This condition will always be true in the current design
+                // Probably no need to check for it.
                 // Every write packet received by write request queue,
                 // will initiate a read to check tag and metadata. Thus,
                 // we create a read packet and set 'read_before_write' flag
@@ -859,7 +858,7 @@ MemCtrl::returnTag(Addr request_addr)
 {
     int index_bits = ceilLog2(numEntries);
     int block_bits = ceilLog2(64);
-    return request_addr >> (index_bits+block_bits);
+    return bits(request_addr, 63, (index_bits+block_bits));
 }
 
 bool
@@ -1090,6 +1089,8 @@ MemCtrl::processRespondEvent()
 
     if (mem_pkt->burstHelper) {
         // it is a split packet
+        panic("Split packets are not handled properly!\n");
+
         mem_pkt->burstHelper->burstsServiced++;
         if (mem_pkt->burstHelper->burstsServiced ==
             mem_pkt->burstHelper->burstCount) {
