@@ -26,6 +26,8 @@
 
 import m5
 
+from m5.objects import Root
+
 from components_library.boards.simple_board import SimpleBoard
 from components_library.cachehierarchies.no_cache import NoCache
 from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8

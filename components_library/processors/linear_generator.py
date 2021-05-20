@@ -24,7 +24,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from components_library.processors.cpu_types import CPUTypes
 from .linear_generator_core import LinearGeneratorCore
 
 from .abstract_processor import AbstractProcessor
