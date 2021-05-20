@@ -44,18 +44,19 @@ class CachelessSystem(System):
 
     def createMemoryCtrl(self):
         mem_ctrls = []
-        #if self._sim == 'gem5':
         mem_name = self._mem_name
         num_chnls = self._num_chnls
         addr_range = self.mem_ranges[0]
         addr_map = mem_name.addr_mapping
         intlv_size = self.cache_line_size
 
+        cls_d = mem_name
+        cls_n = mem_info['NVM']['gname']
+
+        #addr_map == "RoRaBaCoCh"
         intlv_low_bit = int(log(intlv_size, 2))
         intlv_bits = int(log(num_chnls, 2))
 
-        cls_d = mem_name
-        cls_n = mem_info['NVM']['gname']
         for chnl in range(num_chnls):
             interfaceD = cls_d()
             interfaceD.range = AddrRange(

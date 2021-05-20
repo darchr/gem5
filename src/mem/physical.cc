@@ -90,9 +90,9 @@ PhysicalMemory::PhysicalMemory(const std::string& _name,
 
             // add the range to our interval tree and make sure it does not
             // intersect an existing range
-            fatal_if(addrMap.insert(m->getAddrRange(), m) == addrMap.end(),
-                     "Memory address range for %s is overlapping\n",
-                     m->name());
+            //fatal_if(addrMap.insert(m->getAddrRange(), m) == addrMap.end(),
+            //         "Memory address range for %s is overlapping\n",
+            //         m->name());
         } else {
             // this type of memory is used e.g. as reference memory by
             // Ruby, and they also needs a backing store, but should
