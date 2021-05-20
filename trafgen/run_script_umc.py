@@ -8,9 +8,15 @@ from m5.stats import gem5stats
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
-    "mem_type",
+    "mem_type_N",
     type=str,
-    help="type of memory to use",
+    help="type of NVM memory to use",
+)
+
+parser.add_argument(
+    "mem_type_D",
+    type=str,
+    help="type of DRAM memory to use",
 )
 
 parser.add_argument(
@@ -71,9 +77,10 @@ parser.add_argument(
 
 options = parser.parse_args()
 from system.CachelessSystem import CachelessSystem
-system = CachelessSystem(options.mem_type, options.num_chnls)
+system = CachelessSystem(options.mem_type_D,
+            options.mem_type_N, options.num_chnls)
 
-options.block_size = system.getCachelineSize()
+options.block_size = system.getCachelineSize(options.mem_type_D)
 options.duration = int(toLatency(options.duration) * 1e12)
 injection_period = int(
     (1e12 * options.block_size) / (options.injection_rate * 1073741824)
