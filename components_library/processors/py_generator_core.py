@@ -24,20 +24,25 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from components_library.processors.cpu_types import CPUTypes
 from m5.objects import Port, PyTrafficGen
 
 from .abstract_generator_core import AbstractGeneratorCore
 
+
 class PyGeneratorCore(AbstractGeneratorCore):
-    def __init__(self):
-        super(PyGeneratorCore, self).__init__()
+    def __init__(self , cpu_type: CPUTypes):
+        super(PyGeneratorCore, self).__init__(cpu_type=cpu_type)
         self.main_generator = PyTrafficGen()
 
     def connect_dcache(self, port: Port) -> None:
         self.main_generator.port = port
 
-    def set_traffic(self, traffic = None):
-        self._main_traffic = traffic
+    def create_traffic(self, rate):
+        raise NotImplementedError
+
+    def set_traffic(self, rate):
+        raise NotImplementedError
 
     def start_traffic(self):
         self.main_generator.start(self._main_traffic)

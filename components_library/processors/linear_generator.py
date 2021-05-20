@@ -24,46 +24,36 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-from .cpu_types import CPUTypes
-from .py_generator_core import PyGeneratorCore
-
+from components_library.processors.cpu_types import CPUTypes
+from .linear_generator_core import LinearGeneratorCore
 
 from .abstract_processor import AbstractProcessor
 from ..boards.abstract_board import AbstractBoard
 
 from typing import List
 
-class SimpleGenerator(AbstractProcessor):
+
+class LinearGenerator(AbstractProcessor):
     """
     A SimpeProcessor contains a number of cores of a a single CPUType.
     """
 
-    def __init__(self, cpu_type: CPUTypes, num_cores: int) -> None:
-        super(SimpleGenerator, self).__init__(
-            cores=self._create_cores(
-                cpu_type=cpu_type,
-                num_cores=num_cores,
-            )
+    def __init__(self, num_cores: int, rate: int) -> None:
+        super(LinearGenerator, self).__init__(
+            cores=self._create_cores(num_cores=num_cores, rate=rate)
         )
-        assert cpu_type == CPUTypes.PYGEN or cpu_type == CPUTypes.GUPSGEN
-        self._cpu_type = cpu_type
+        self.set_traffic(rate)
 
-    def _create_cores(self, cpu_type: CPUTypes, num_cores: int):
-        if cpu_type == CPUTypes.GUPSGEN:
-            raise NotImplementedError('GUPSGen is not implemented yet!')
-        elif cpu_type == CPUTypes.PYGEN:
-            return [PyGeneratorCore() for i in range(num_cores)]
-        else:
-            raise NotImplementedError('Your cpu type is not a generator!')
+    def _create_cores(self, num_cores: int, rate: int):
+        return [LinearGeneratorCore(rate=rate) for i in range(num_cores)]
 
     def incorporate_processor(self, board: AbstractBoard) -> None:
         # TODO: Shouldn't we do this with a setter function?
-        board.mem_mode = 'timing'
+        board.mem_mode = "timing"
 
-    def set_traffic(self, traffic: List):
-        for i, core in enumerate(self.cores):
-            core.set_traffic(traffic[i])
+    def set_traffic(self, rate):
+        for core in self.cores:
+            core.set_traffic(rate)
 
     def start_traffic(self):
         for core in self.cores:

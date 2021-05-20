@@ -25,15 +25,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from abc import abstractmethod
-from m5.objects import Port, Process, PyTrafficGen
+from m5.objects import Port, PyTrafficGen
 
 from .cpu_types import CPUTypes
 from .abstract_core import AbstractCore
+from .createTraffic import createIdleTraffic
 
 class AbstractGeneratorCore(AbstractCore):
     def __init__(self, cpu_type: CPUTypes):
         super(AbstractGeneratorCore, self).__init__(cpu_type)
-        assert cpu_type == CPUTypes.PYGEN or cpu_type == CPUTypes.GUPSGEN
         self.setup_dummy_generator()
 
     def connect_icache(self, port: Port) -> None:
@@ -46,7 +46,7 @@ class AbstractGeneratorCore(AbstractCore):
     def connect_walker_ports(self, port1: Port, port2: Port) -> None:
         pass
 
-    def set_workload(self, process: Process) -> None:
+    def set_workload(self, process: "Process") -> None:
         pass
 
     def connect_interrupt(self,
@@ -57,10 +57,10 @@ class AbstractGeneratorCore(AbstractCore):
 
     def setup_dummy_generator(self):
         self.dummy_generator = PyTrafficGen()
-        self._dummy_traffic = self.dummy_generator.createIdle(0)
+        self._dummy_traffic = createIdleTraffic(self.dummy_generator)
 
     @abstractmethod
-    def set_traffic(self, traffic = None):
+    def set_traffic(self, mode, rate):
         raise NotImplementedError
 
     @abstractmethod

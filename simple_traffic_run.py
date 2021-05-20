@@ -25,42 +25,34 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import m5
-from m5.objects import Root, PyTrafficGen
 
 from components_library.boards.simple_board import SimpleBoard
-from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
-    import PrivateL1PrivateL2CacheHierarchy
 from components_library.cachehierarchies.no_cache import NoCache
 from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
-from components_library.processors.simple_processor import SimpleProcessor
-from components_library.processors.simple_generator import SimpleGenerator
-from components_library.processors.cpu_types import CPUTypes
-
-import os
+from components_library.processors.linear_generator import LinearGenerator
 
 cache_hierarchy = NoCache()
 
 memory = DDR3_1600_8x8(size="512MiB")
 
-generator = SimpleGenerator(cpu_type = CPUTypes.PYGEN, num_cores=1)
+generator = LinearGenerator(num_cores=1, rate=100)
 
-motherboard = SimpleBoard(clk_freq="3GHz",
-                          processor=generator,
-                          memory=memory,
-                          cache_hierarchy=cache_hierarchy,
-                         )
+motherboard = SimpleBoard(
+    clk_freq="3GHz",
+    processor=generator,
+    memory=memory,
+    cache_hierarchy=cache_hierarchy,
+)
 
 motherboard.connect_things()
 
 
-root = Root(full_system = False, system = motherboard)
+root = Root(full_system=False, system=motherboard)
 
 m5.instantiate()
 
-tempGen = PyTrafficGen()
-linear = tempGen.createLinear(1e7, 0, 16384, 64, 7450, 7450, 100, 0)
-generator.set_traffic([linear])
+
 generator.start_traffic()
 print("Beginning simulation!")
 exit_event = m5.simulate()
-print('Exiting @ tick %i because %s' % (m5.curTick(), exit_event.getCause()))
+print("Exiting @ tick %i because %s" % (m5.curTick(), exit_event.getCause()))
