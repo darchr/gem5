@@ -1155,7 +1155,6 @@ MemCtrl::chooseNext(MemPacketQueue& queue, Tick extra_col_delay)
     // COMMENT: What policies scheduling can have
     // if DRAM cache is used
     // This method does the arbitration between requests.
-
     MemPacketQueue::iterator ret = queue.end();
 
     if (!queue.empty()) {
@@ -1583,11 +1582,11 @@ MemCtrl::processNextReqEvent()
 
     // when we get here it is either a read or a write
     if (busState == READ) {
-
         // track if we should switch or not
         bool switch_to_writes = false;
-
-        if (totalReadQueueSize == 0 && nvmReadQueueSize == 0) {
+        if (readQueue.size() == 0 && nvmReadQueue.size() == 0 &&
+            nvmWriteQueue.size() == 0 && dramFillQueue.size() == 0 &&
+            writeQueue.size() != 0) {
             // In the case there is no read request to go next,
             // trigger writes if we have passed the low threshold (or
             // if we are draining)
@@ -1628,20 +1627,20 @@ MemCtrl::processNextReqEvent()
 
             // First check NVM Read Queue
             // Question: which queues should be prioritized
+            if (nvmReadQueue.size() != 0) {
+                auto queue = nvmReadQueue.rbegin();
+                to_read = chooseNext((*queue), switched_cmd_type ?
+                                            minWriteToReadDataGap() : 0);
 
-            auto queue = nvmReadQueue.rbegin();
-            to_read = chooseNext((*queue), switched_cmd_type ?
-                                        minWriteToReadDataGap() : 0);
-
-            if (to_read != queue->end()) {
-                // candidate read found
-                read_found = true;
-                nvm_q_read = true;
+                if (to_read != queue->end()) {
+                    // candidate read found
+                    read_found = true;
+                    nvm_q_read = true;
+                }
             }
-
             // If we already have not found a read in
             // the nvm read queue, go to the other queues
-            if (!read_found) {
+            if (!read_found && readQueue.size() != 0) {
                 for (auto queue = readQueue.rbegin();
                     queue != readQueue.rend(); ++queue) {
 
