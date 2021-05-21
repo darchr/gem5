@@ -38,10 +38,10 @@ class PyGeneratorCore(AbstractGeneratorCore):
     def connect_dcache(self, port: Port) -> None:
         self.main_generator.port = port
 
-    def create_traffic(self, rate):
+    def create_traffic(self):
         raise NotImplementedError
 
-    def set_traffic(self, rate):
+    def set_traffic(self):
         raise NotImplementedError
 
     def start_traffic(self):

@@ -33,3 +33,5 @@ class CPUTypes(Enum):
     O3 = 3
     TIMING = 4
     LINGEN = 5
+    RNDGEN = 6
+    CMXGEN = 7
