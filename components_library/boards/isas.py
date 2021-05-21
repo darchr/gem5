@@ -24,6 +24,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+"""Specifies the ISA enum
+
+Used for typing in python. This enum needs to be extended/modified as the
+components library supports more ISAs.
+"""
+
 from enum import Enum
 
 
