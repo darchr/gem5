@@ -51,8 +51,10 @@ class SimpleBoard(AbstractBoard):
     This is an incredibly simple system. It contains no I/O, and will work to
     work with a classic cache hierarchy setup.
 
-    You can run a bare-metal executable via the `set_workload` function (SE
-    mode only).
+    **Limitations**
+    * Only supports SE mode
+
+    You can run a binary executable via the `set_workload` function.
     """
 
     def __init__(
@@ -95,7 +97,15 @@ class SimpleBoard(AbstractBoard):
         raise NotImplementedError("SimpleBoard does not have DMA Ports.")
 
     def set_workload(self, binary: str) -> None:
-        # This is very limited, single binary, putting on a single Core.
+        """Set up the system to run a specific binary.
+
+        **Limitations**
+        * Only supports single threaded applications
+        * Dynamically linked executables are partially supported when the host
+          ISA and the simulated ISA are the same.
+
+        :param binary: The path on the *host* to the binary to run in gem5.
+        """
 
         self.workload = SEWorkload.init_compatible(binary)
 
