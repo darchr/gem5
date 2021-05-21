@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from .linear_generator_core import LinearGeneratorCore
+from .random_generator_core import RandomGeneratorCore
 
 from .abstract_processor import AbstractProcessor
 from ..boards.abstract_board import AbstractBoard
@@ -32,7 +32,7 @@ from ..boards.abstract_board import AbstractBoard
 from typing import List
 
 
-class LinearGenerator(AbstractProcessor):
+class RandomGenerator(AbstractProcessor):
     """
     A SimpeProcessor contains a number of cores of a a single CPUType.
     """
@@ -48,16 +48,16 @@ class LinearGenerator(AbstractProcessor):
         rd_perc=100,
         data_limit=0,
     ) -> None:
-        super(LinearGenerator, self).__init__(
+        super(RandomGenerator, self).__init__(
             cores=self._create_cores(
-                num_cores=num_cores,
-                duration=duration,
-                rate=rate,
-                block_size=block_size,
-                min_addr=min_addr,
-                max_addr=max_addr,
-                rd_perc=rd_perc,
-                data_limit=data_limit,
+                num_cores,
+                duration,
+                rate,
+                block_size,
+                min_addr,
+                max_addr,
+                rd_perc,
+                data_limit,
             )
         )
         self.set_traffic()
@@ -74,7 +74,7 @@ class LinearGenerator(AbstractProcessor):
         data_limit,
     ):
         return [
-            LinearGeneratorCore(
+            RandomGeneratorCore(
                 duration=duration,
                 rate=rate,
                 block_size=block_size,

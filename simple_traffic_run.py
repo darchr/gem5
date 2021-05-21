@@ -32,16 +32,18 @@ from components_library.boards.simple_board import SimpleBoard
 from components_library.cachehierarchies.no_cache import NoCache
 from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
 from components_library.processors.linear_generator import LinearGenerator
+from components_library.processors.random_generator import RandomGenerator
 
 cache_hierarchy = NoCache()
 
 memory = DDR3_1600_8x8(size="512MiB")
 
-generator = LinearGenerator(num_cores=1, rate=100)
+lingen = LinearGenerator(num_cores=1, rate="100GB/s")
+rndgen = RandomGenerator(num_cores=2, block_size = 32, rate = "50")
 
 motherboard = SimpleBoard(
     clk_freq="3GHz",
-    processor=generator,
+    processor=rndgen,
     memory=memory,
     cache_hierarchy=cache_hierarchy,
 )
@@ -54,7 +56,7 @@ root = Root(full_system=False, system=motherboard)
 m5.instantiate()
 
 
-generator.start_traffic()
+rndgen.start_traffic()
 print("Beginning simulation!")
 exit_event = m5.simulate()
 print("Exiting @ tick %i because %s" % (m5.curTick(), exit_event.getCause()))

@@ -7,7 +7,7 @@ from components_library.processors.py_generator_core import PyGeneratorCore
 from .py_generator_core import PyGeneratorCore
 
 
-class LinearGeneratorCore(PyGeneratorCore):
+class RandomGeneratorCore(PyGeneratorCore):
     def __init__(
         self,
         duration="1ms",
@@ -18,7 +18,7 @@ class LinearGeneratorCore(PyGeneratorCore):
         rd_perc=100,
         data_limit=0,
     ):
-        super(LinearGeneratorCore, self).__init__(CPUTypes.LINGEN)
+        super(RandomGeneratorCore, self).__init__(CPUTypes.RNDGEN)
         self._duration = int(toLatency(duration) * 1e12)
         self._rate = toMemoryBandwidth(rate)
         self._block_size = block_size
@@ -32,7 +32,7 @@ class LinearGeneratorCore(PyGeneratorCore):
         period = int(float(self._block_size * 1e12) / self._rate)
         self._min_period = period
         self._max_period = period
-        yield self.main_generator.createLinear(
+        yield self.main_generator.createRandom(
             self._duration,
             self._min_addr,
             self._max_addr,
