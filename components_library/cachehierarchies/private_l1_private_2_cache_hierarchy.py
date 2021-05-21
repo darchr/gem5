@@ -178,18 +178,25 @@ class PrivateL1PrivateL2CacheHierarchy(
         for cntr in board.get_memory().get_memory_controllers():
             cntr.port = self.membus.mem_side_ports
 
-        self.l1icaches = [L1ICache(size = self.get_l1i_size())
-            for i in range(board.get_processor().get_num_cores())]
-        self.l1dcaches = [L1DCache(size = self.get_l1i_size())
-            for i in range(board.get_processor().get_num_cores())]
-        self.l2buses = [L2XBar()
-            for i in range(board.get_processor().get_num_cores())]
-        self.l2caches = [L2Cache(size = self.get_l2_size())
-            for i in range(board.get_processor().get_num_cores())]
+        self.l1icaches = [
+            L1ICache(size=self.get_l1i_size())
+            for i in range(board.get_processor().get_num_cores())
+        ]
+        self.l1dcaches = [
+            L1DCache(size=self.get_l1i_size())
+            for i in range(board.get_processor().get_num_cores())
+        ]
+        self.l2buses = [
+            L2XBar() for i in range(board.get_processor().get_num_cores())
+        ]
+        self.l2caches = [
+            L2Cache(size=self.get_l2_size())
+            for i in range(board.get_processor().get_num_cores())
+        ]
 
         ######################################################################
 
-        for i,cpu in enumerate(board.get_processor().get_cores()):
+        for i, cpu in enumerate(board.get_processor().get_cores()):
 
             cpu.connect_icache(self.l1icaches[i].cpu_side)
             cpu.connect_dcache(self.l1dcaches[i].cpu_side)

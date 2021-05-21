@@ -57,8 +57,7 @@ class AbstractCore(SubSystem):
         raise NotImplementedError
 
     @abstractmethod
-    def connect_interrupt(self,
-        interrupt_requestor: Port,
-        interrupt_responce: Port
+    def connect_interrupt(
+        self, interrupt_requestor: Port, interrupt_responce: Port
     ) -> None:
         raise NotImplementedError

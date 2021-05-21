@@ -93,14 +93,14 @@ class NoCache(AbstractCacheHierarchy):
 
             core.connect_icache(self.membus.cpu_side_ports)
             core.connect_dcache(self.membus.cpu_side_ports)
-            core.connect_walker_ports(self.membus.cpu_side_ports,
-                                      self.membus.cpu_side_ports)
+            core.connect_walker_ports(
+                self.membus.cpu_side_ports, self.membus.cpu_side_ports
+            )
 
             if board.get_runtime_isa() == ISA.X86:
                 int_req_port = self.membus.mem_side_ports
                 int_resp_port = self.membus.cpu_side_ports
                 core.connect_interrupt(int_req_port, int_resp_port)
-
 
         # Set up the system port for functional access from the simulator.
         board.system_port = self.membus.cpu_side_ports
