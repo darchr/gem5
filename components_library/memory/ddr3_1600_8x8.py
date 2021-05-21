@@ -41,12 +41,12 @@ from typing import Tuple, Sequence, List
 
 class DDR3_1600_8x8(AbstractMemorySystem):
     def __init__(self, size: Optional[str] = "512MiB") -> None:
-        super(DDR3_1600_8x8, self).__init__(size=size)
+        super(DDR3_1600_8x8, self).__init__()
 
         # The DDR3_1600_8x8 has a lot of variables with sensible defaults that
         # make sense for a DDR3_1600_8x8 device. Only the size has been
         # exposed.
-        self._dram = DIMM(range=self.get_size_str())
+        self._dram = DIMM(range=size)
         self.mem_cntrls = [MemCtrl(dram=self._dram)]
 
     @overrides(AbstractMemorySystem)
@@ -64,3 +64,7 @@ class DDR3_1600_8x8(AbstractMemorySystem):
     @overrides(AbstractMemorySystem)
     def get_memory_controllers(self) -> List[MemCtrl]:
         return self.mem_cntrls
+
+    @overrides(AbstractMemorySystem)
+    def get_memory_ranges(self):
+        return [self._dram.range]

@@ -75,7 +75,7 @@ class SimpleBoard(AbstractBoard):
         self.clk_domain.clock = clk_freq
         self.clk_domain.voltage_domain = VoltageDomain()
 
-        self.mem_ranges = [AddrRange(Addr(memory.get_size_str()))]
+        self.mem_ranges = memory.get_memory_ranges()
 
     @overrides(AbstractBoard)
     def connect_things(self) -> None:

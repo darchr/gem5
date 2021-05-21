@@ -213,7 +213,7 @@ class X86Board(SimpleBoard):
         super().connect_things()
 
     def set_workload(
-        self, kernel: str, disk_image: str, command: Optiona[str] = None
+        self, kernel: str, disk_image: str, command: Optional[str] = None
     ):
         """Setup the full system files
 
