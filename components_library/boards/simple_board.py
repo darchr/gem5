@@ -35,6 +35,7 @@ from m5.objects import (
     SEWorkload,
     IOXBar,
     Port,
+    ClockDomain,
 )
 
 from .abstract_board import AbstractBoard
@@ -74,6 +75,14 @@ class SimpleBoard(AbstractBoard):
         self.clk_domain.voltage_domain = VoltageDomain()
 
         self.mem_ranges = [AddrRange(Addr(memory.get_size_str()))]
+
+    @overrides(AbstractBoard)
+    def get_clock_domain(self) -> ClockDomain:
+        return self.clk_domain
+
+    @overrides(AbstractBoard)
+    def connect_system_port(self, port: Port) -> None:
+        self.system_port = port
 
     @overrides(AbstractBoard)
     def connect_things(self) -> None:

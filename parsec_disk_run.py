@@ -44,11 +44,9 @@ from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
     import PrivateL1PrivateL2CacheHierarchy
 from components_library.cachehierarchies.mesi_two_level_cache_hierarchy \
     import MESITwoLevelCacheHierarchy
-from components_library.cachehierarchies.no_cache import NoCache
 from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
-from components_library.processors.simple_processor import SimpleProcessor
-#from components_library.processors.simple_switchable_processor import \
-#    SimpleSwitchableProcessor
+from components_library.processors.simple_switchable_processor import \
+   SimpleSwitchableProcessor
 from components_library.processors.cpu_types import CPUTypes
 
 import os
@@ -60,22 +58,20 @@ import time
 
 
 # Setup the cachie hierarchy.
-#cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size="32kB",
-#                                                   l1i_size="32kB",
-#                                                   l2_size="256kB",
-#                                                   )
+cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size="32kB",
+                                                 l1i_size="32kB",
+                                                 l2_size="256kB",
+                                                  )
 
-cache_hierarchy = MESITwoLevelCacheHierarchy(l1d_size = "32kB",
-                                             l1d_assoc = 8,
-                                             l1i_size = "32kB",
-                                             l1i_assoc = 8,
-                                             l2_size = "256kB",
-                                             l2_assoc = 16,
-                                             num_l2_banks = 1,
-                                            )
+#cache_hierarchy = MESITwoLevelCacheHierarchy(l1d_size = "32kB",
+ #                                            l1d_assoc = 8,
+  #                                           l1i_size = "32kB",
+   #                                          l1i_assoc = 8,
+    #                                         l2_size = "256kB",
+     #                                        l2_assoc = 16,
+      #                                       num_l2_banks = 1,
+       #                                     )
 
-# For an even simpler setup, have no cache at all!
-#cache_hierarchy = NoCache()
 
 # Setup the memory system.
 # Warning!!! This must be kept at 3GB for now. X86Motherboard does not support
@@ -86,15 +82,15 @@ memory = DDR3_1600_8x8(size="3GB")
 # The processor. In this case we use the special "SwitchableProcessor" which
 # allows us to switch between different SimpleProcessors. In this case we start
 # with an atomic CPU and change to Timing later in the simulation
-start_processor = SimpleProcessor(cpu_type=CPUTypes.ATOMIC, num_cores=1)
-switch_processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, num_cores=1)
-#processor = SimpleSwitchableProcessor(starting_processor=start_processor,
-    #                                  switchable_processor=switch_processor)
+
+processor = SimpleSwitchableProcessor(starting_core_type=CPUTypes.TIMING,
+                                      switch_core_type=CPUTypes.ATOMIC,
+                                      num_cores=4)
 
 
 motherboard = X86Board(
     clk_freq="3GHz",
-    processor=switch_processor, #processor,
+    processor=processor,
     memory=memory,
     cache_hierarchy=cache_hierarchy,
     exit_on_work_items=True,
@@ -133,7 +129,7 @@ command = "cd /home/gem5/parsec-benchmark\n"
 command += "source env.sh\n"
 command += "parsecmgmt -a run -p blackscholes "
 command += "-c gcc-hooks -i simsmall -n {}\n".format(
-    switch_processor.get_num_cores())
+    processor.get_num_cores())
 command += "sleep 5 \n"
 command += "m5 exit \n"
 

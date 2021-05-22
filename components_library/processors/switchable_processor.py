@@ -25,6 +25,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+from components_library.processors.simple_core import SimpleCore
+from components_library.processors.cpu_types import CPUTypes
+from components_library.processors.abstract_core import AbstractCore
 import m5
 from m5.objects import BaseCPU
 
@@ -50,50 +53,29 @@ class SwitchableProcessor(AbstractProcessor):
 
     def __init__(
         self,
-        switchable_processors: Dict[Any, AbstractProcessor],
-        starting_processor_key: Any,
+        switchable_cores: Dict[Any, List[SimpleCore]],
+        starting_cores: Any,
     ) -> None:
 
-        if starting_processor_key not in switchable_processors.keys():
+        if starting_cores not in switchable_cores.keys():
             raise AssertionError(
-                f"Key {starting_processor_key} cannot be found in the"
-                " switchable_processors dictionary."
+                f"Key {starting_cores} cannot be found in the "
+                "switchable_processors dictionary."
             )
 
-        self._current_processor = switchable_processors[starting_processor_key]
-        self._switchable_processors = switchable_processors
+        self._current_cores = switchable_cores[starting_cores]
+        self._switchable_cores = switchable_cores
 
-        # Set the processor's "switched_out" status.
-        for cpu in self._current_processor.get_cpu_simobjects():
-            cpu.switched_out = False
+        all_cores = []
+        for core_list in self._switchable_cores.values():
+            for core in core_list:
+                core.set_switched_out(core not in self._current_cores)
+                all_cores.append(core)
 
-        for proc in self._switchable_processors.values():
-            if proc is not self._current_processor:
-                for cpu in proc.get_cpu_simobjects():
-                    cpu.switched_out = True
-
-        super(SwitchableProcessor, self).__init__(
-            cpu_type=self._current_processor.get_cpu_type(),
-            num_cores=self._current_processor.get_num_cores(),
-        )
-
-    @overrides(AbstractProcessor)
-    def get_cpu_simobjects(self) -> List[BaseCPU]:
-        return self._current_processor.get_cpu_simobjects()
+        super(SwitchableProcessor, self).__init__(cores=all_cores)
 
     @overrides(AbstractProcessor)
     def incorporate_processor(self, board: AbstractBoard) -> None:
-        self._current_processor.incorporate_processor(board=board)
-
-        # TODO: This these swichable processors should be set as a child of
-        # this class. Though, for some reason, gem5 doesn't like this
-        # "SubSystem within a SubSystem" design. Therefore, for the meantime,
-        # the switchable processors are children of the board (System).
-        index = 0
-        for proc in self._switchable_processors.values():
-            proc.incorporate_processor(board=board)
-            setattr(board, "switchable_proc" + str(index), proc)
-            index += 1
 
         # This is a bit of a hack. The `m5.switchCpus` function, used in the
         # "switch_to_processor" function, requires the System simobject as an
@@ -101,55 +83,50 @@ class SwitchableProcessor(AbstractProcessor):
         # incorporating the procsesor
         self._board = board
 
-    def switch_to_processor(self, switchable_processor_key: Any):
+    @overrides(AbstractProcessor)
+    def get_num_cores(self) -> int:
+        # Note: This is a special case where the total number of cores in the
+        # design is not the number of cores, due to some being switched out.
+        return len(self._current_cores)
+
+    @overrides(AbstractProcessor)
+    def get_cores(self) -> List[AbstractCore]:
+        return self._current_cores
+
+    def switch_to_processor(self, switchable_core_key: Any):
 
         # Run various checks.
         if not hasattr(self, "_board"):
             raise AssertionError("The processor has not been incorporated.")
 
-        if switchable_processor_key not in self._switchable_processors.keys():
+        if switchable_core_key not in self._switchable_cores.keys():
             raise AssertionError(
-                f"Key {switchable_processor_key} is not a key in the"
+                f"Key {switchable_core_key} is not a key in the"
                 " switchable_processor dictionary."
             )
 
         # Select the correct processor to switch to.
-        to_switch = self._switchable_processors[switchable_processor_key]
+        to_switch = self._switchable_cores[switchable_core_key]
 
         # Run more checks.
-        if to_switch == self._current_processor:
+        if to_switch == self._current_cores:
             raise AssertionError(
-                "Cannot swap current processor with current processor"
+                "Cannot swap current cores with the current cores"
             )
 
-        if (
-            to_switch.get_num_cores()
-            != self._current_processor.get_num_cores()
-        ):
+        if len(to_switch) != len(self._current_cores):
             raise AssertionError(
-                "The number of cores in the processor to swap in is not the"
-                " current processor. This is not allowed."
+                "The number of cores to swap in is not the same as the number "
+                "already swapped in. This is not allowed."
             )
 
-        for cpu in to_switch.get_cpu_simobjects():
-            if not cpu.switchedOut():
-                raise AssertionError(
-                    "The cpu is not switched out. It therefore cannot be"
-                    " switched in."
-                )
-
+        current_core_simobj = [core.get_simobject() \
+            for core in self._current_cores]
+        to_switch_simobj = [core.get_simobject() for core in to_switch]
         # Switch the CPUs
         m5.switchCpus(
-            self._board,
-            list(
-                zip(
-                    self._current_processor.get_cpu_simobjects(),
-                    to_switch.get_cpu_simobjects(),
-                )
-            ),
+            self._board, list(zip(current_core_simobj, to_switch_simobj)),
         )
 
         # Ensure the current processor is updated.
-        self._current_processor = to_switch
-        self._cpu_type = to_switch.get_cpu_type()
-        self._num_cores = to_switch.get_num_cores()
+        self._current_cores = to_switch

@@ -34,7 +34,9 @@ from m5.objects import Port, AtomicSimpleCPU, DerivO3CPU, TimingSimpleCPU, \
 
 class SimpleCore(AbstractCore):
 
-    def __init__(self, cpu_type: CPUTypes, core_id: int):
+    def __init__(self, cpu_type: CPUTypes,
+                 core_id: int
+                ):
         super(SimpleCore, self).__init__(cpu_type=cpu_type)
 
         if cpu_type == CPUTypes.ATOMIC:
@@ -49,7 +51,6 @@ class SimpleCore(AbstractCore):
             raise NotImplementedError
 
         self.core.createThreads()
-        self.core.createInterruptController()
 
     def get_simobject(self) -> BaseCPU:
         return self.core
@@ -71,10 +72,18 @@ class SimpleCore(AbstractCore):
         self.core.workload = process
 
     @overrides(AbstractCore)
+    def set_switched_out(self, value: bool) -> None:
+        self.core.switched_out = value
+
+    @overrides(AbstractCore)
     def connect_interrupt(self,
         interrupt_requestor: Port,
         interrupt_responce: Port
     ) -> None:
+
+        # TODO: This model assumes that we will only create an interrupt
+        # controller as we require it. Not sure how true this is in all cases.
+        self.core.createInterruptController()
 
         self.core.interrupts[0].pio = interrupt_requestor
         self.core.interrupts[0].int_requestor = interrupt_responce

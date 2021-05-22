@@ -24,10 +24,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from components_library.boards.abstract_board import AbstractBoard
+from components_library.processors.simple_core import SimpleCore
+from components_library.processors.cpu_types import CPUTypes
 from .switchable_processor import SwitchableProcessor
-from .simple_processor import SimpleProcessor
 
 from ..utils.override import *
+
+from m5.util import warn
+
+from m5.objects import KvmVM
+
+from ..boards.coherence_protocol import is_ruby
 
 
 class SimpleSwitchableProcessor(SwitchableProcessor):
@@ -40,38 +48,61 @@ class SimpleSwitchableProcessor(SwitchableProcessor):
 
     def __init__(
         self,
-        starting_processor: SimpleProcessor,
-        switchable_processor: SimpleProcessor,
+        starting_core_type: CPUTypes,
+        switch_core_type: CPUTypes,
+        num_cores: int,
     ) -> None:
+
+        if num_cores <= 0:
+            raise AssertionError("Number of cores must be a positive integer!")
+
         self._start_key = "start"
         self._switch_key = "switch"
+        self._current_is_start = True
+        self._prepare_kvm = CPUTypes.KVM in (starting_core_type,
+            switch_core_type)
 
-        self._current_processor_is_start = True
+        if starting_core_type in (CPUTypes.TIMING, CPUTypes.O3):
+            self._mem_mode = "timing"
+        elif starting_core_type == CPUTypes.KVM:
+            self._mem_mode = "atomic_noncaching"
+        elif starting_core_type == CPUTypes.ATOMIC:
+            self._mem_mode = "atomic"
+        else:
+            raise NotImplementedError
+
+        switchable_cores = {
+            self._start_key: [
+                SimpleCore(cpu_type=starting_core_type, core_id=i)
+                for i in range(num_cores)
+            ],
+            self._switch_key: [
+                SimpleCore(cpu_type=switch_core_type, core_id=i)
+                for i in range(num_cores)
+            ],
+        }
 
         super(SimpleSwitchableProcessor, self).__init__(
-            switchable_processors={
-                self._switch_key: switchable_processor,
-                self._start_key: starting_processor,
-            },
-            starting_processor_key=self._start_key,
+            switchable_cores=switchable_cores,
+            starting_cores=self._start_key,
         )
 
-        if (
-            starting_processor.get_num_cores()
-            != switchable_processor.get_num_cores()
-        ):
+    @overrides(SwitchableProcessor)
+    def incorporate_processor(self, board: AbstractBoard) -> None:
+        super().incorporate_processor(board=board)
 
-            # TODO: This shouldn't be an assertion error. Figure out what this
-            # should be.
-            raise AssertionError(
-                "The starting_processor does not have the same number of CPUs"
-                " as the switchable_processor"
-            )
+        if self._prepare_kvm:
+
+            board.kvm_vm = KvmVM()
+
+        board.mem_mode = self._mem_mode
+
+        # print(bla)
 
     def switch(self):
-        if self._current_processor_is_start:
+        if self._current_is_start:
             self.switch_to_processor(self._switch_key)
         else:
             self.switch_to_processor(self._start_key)
 
-        self._current_processor_is_start = not self._current_processor_is_start
+        self._current_is_start = not self._current_is_start

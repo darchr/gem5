@@ -121,7 +121,7 @@ class MESITwoLevelCacheHierarchy(
                 self._num_l2_banks,
                 cache_line_size,
                 motherboard.get_runtime_isa(),
-                motherboard.clk_domain, #TODO: DIRECT ACCESS!! This needs fixed
+                motherboard.get_clock_domain(),
             )
             cache.sequencer = RubySequencer(
                 version=i,
@@ -199,7 +199,8 @@ class MESITwoLevelCacheHierarchy(
         # Set up a proxy port for the system_port. Used for load binaries and
         # other functional-only things.
         self.ruby_system.sys_port_proxy = RubyPortProxy()
-        motherboard.system_port = self.ruby_system.sys_port_proxy.in_ports
+        motherboard.connect_system_port(
+            self.ruby_system.sys_port_proxy.in_ports)
         self.ruby_system.sys_port_proxy.pio_request_port = iobus.cpu_side_ports
 
         # connect the io bus

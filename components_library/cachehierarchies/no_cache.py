@@ -103,7 +103,7 @@ class NoCache(AbstractCacheHierarchy):
 
 
         # Set up the system port for functional access from the simulator.
-        board.system_port = self.membus.cpu_side_ports
+        board.connect_system_port(self.membus.cpu_side_ports)
 
         for cntr in board.get_memory().get_memory_controllers():
             cntr.port = self.membus.mem_side_ports

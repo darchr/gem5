@@ -27,7 +27,7 @@
 from abc import ABCMeta, abstractmethod
 
 from m5.defines import buildEnv
-from m5.objects import System, Port, IOXBar
+from m5.objects import System, Port, IOXBar, ClockDomain
 
 from .isas import ISA
 from .coherence_protocol import CoherenceProtocol
@@ -115,6 +115,13 @@ class AbstractBoard(System):
 
         :rtype: IOXBar
         """
+        raise NotImplementedError
+
+    def get_clock_domain(self) -> ClockDomain:
+        raise NotImplementedError
+
+    @abstractmethod
+    def connect_system_port(self, port: Port) -> None:
         raise NotImplementedError
 
     @abstractmethod

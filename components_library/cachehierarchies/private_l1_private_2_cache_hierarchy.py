@@ -119,7 +119,7 @@ class PrivateL1PrivateL2CacheHierarchy(
     def incorporate_cache(self, board: AbstractBoard) -> None:
 
         # Set up the system port for functional access from the simulator.
-        board.system_port = self.membus.cpu_side_ports
+        board.connect_system_port(self.membus.cpu_side_ports)
 
         #######################################################################
         # TODO: I'm really unsure about all this. Specialized to X86

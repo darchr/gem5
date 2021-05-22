@@ -57,6 +57,10 @@ class AbstractCore(SubSystem):
         raise NotImplementedError
 
     @abstractmethod
+    def set_switched_out(self, value: bool) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     def connect_interrupt(self,
         interrupt_requestor: Port,
         interrupt_responce: Port
