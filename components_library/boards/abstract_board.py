@@ -36,6 +36,21 @@ from typing import List
 
 
 class AbstractBoard(System):
+    """The abstract board interface.
+
+    Boards are used as the object which can connect together all other system
+    components. This abstract class defines the external interface that other
+    boards must provide. Boards can be specialized for different ISAs or system
+    designs (e.g., core counts, cache types, memory channels, I/O devices, etc)
+
+    In addition to providing the place that system components are connected,
+    the board also exposes an interface for the caches, processor, and memory
+    to interact.
+
+    The board also exposes an interface to set up I/O devices which needs to be
+    specialized for each ISA and/or platform.
+    """
+
     __metaclass__ = ABCMeta
 
     def __init__(
@@ -47,16 +62,8 @@ class AbstractBoard(System):
         super(AbstractBoard, self).__init__()
         """
         :param processor: The processor for this board.
-
-        :type processor: AbstractProcessor
-
         :param memory: The memory for this board.
-
-        :type memory: AbstractMemory
-
         :param cache_hierarchy: The Cachie Hierarchy for this board.
-
-        :type cache_hierarchy: AbstractCacheHierarchy
         """
 
         self.processor = processor
@@ -64,56 +71,47 @@ class AbstractBoard(System):
         self.cache_hierarchy = cache_hierarchy
 
     def get_processor(self) -> "AbstractProcessor":
-        """
-        Get the board's processor.
+        """Get the processor connected to the board.
 
         :returns: The processor.
-
-        :rtype: AbstractProcessor
         """
         return self.processor
 
     def get_memory(self) -> "AbstractMemory":
-        """
-        Get the board's memory system.
+        """Get the memory (RAM) connected to the board.
 
         :returns: The memory system.
-
-        :rtype: AbstractMemory
         """
         return self.memory
 
     def get_cache_hierarchy(self) -> "AbstractCacheHierarchy":
-        """
-        Get the board's cache hierarchy.
+        """Get the cache hierarchy connected to the board.
 
         :returns: The cache hierarchy.
-
-        :rtype: AbstractCacheHierarchy
         """
         return self.cache_hierarchy
 
     def get_dma_ports(self) -> List[Port]:
-        """
-        Get the board's Direct Memory Access ports.
-
-        This abstract method must be implemented within the subclasses.
+        """Get the board's Direct Memory Access ports.
+        This abstract method must be implemented within the subclasses if they
+        support DMA and/or full system simulation.
 
         :returns: A List of the Direct Memory Access ports.
 
-        :rtype: List[Port]
         """
         raise NotImplementedError
 
     def get_io_bus(self) -> IOXBar:
-        """
-        Get the board's IO Bus.
+        """Get the board's IO Bus.
+        This abstract method must be implemented within the subclasses if they
+        support DMA and/or full system simulation.
 
-        This abstract method must be implemented within a subclass.
+        The I/O bus is a non-coherent bus (in the classic caches). On the CPU
+        side, it accepts requests meant for I/O devices. On the memory side, it
+        forwards these requests to the devices (e.g., the interrupt
+        controllers on each core).
 
-        :returns: The IO Bus
-
-        :rtype: IOXBar
+        :returns: The I/O Bus
         """
         raise NotImplementedError
 
@@ -126,20 +124,22 @@ class AbstractBoard(System):
 
     @abstractmethod
     def connect_things(self) -> None:
-        """
-        Connects all the components to the board.
+        """Connects all the components to the board.
+
+        This should be called after the constructor.
+
+        When implementing this function, derived boards should use this to
+        hook up the memory, process, and cache hierarchy as a *second* stage.
+        You should use this function to connect things together when you need
+        to know that everything has already been constructed.
         """
         raise NotImplementedError
 
     def get_runtime_isa(self) -> ISA:
-        """
-        Gets the target ISA.
-
+        """Gets the target ISA.
         This can be inferred at runtime.
 
         :returns: The target ISA.
-
-        :rtype: ISA
         """
         isa_map = {
             "sparc": ISA.SPARC,
@@ -160,14 +160,10 @@ class AbstractBoard(System):
         return isa_map[isa_str]
 
     def get_runtime_coherence_protocol(self) -> CoherenceProtocol:
-        """
-        Gets the cache coherence protocol.
-
+        """Gets the cache coherence protocol.
         This can be inferred at runtime.
 
         :returns: The cache coherence protocol.
-
-        :rtype: CoherenceProtocol
         """
         protocol_map = {
             "mi_example": CoherenceProtocol.MI_EXAMPLE,

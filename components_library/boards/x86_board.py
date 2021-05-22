@@ -57,13 +57,17 @@ from ..processors.abstract_processor import AbstractProcessor
 from ..memory.abstract_memory_system import AbstractMemorySystem
 from ..cachehierarchies.abstract_cache_hierarchy import AbstractCacheHierarchy
 
-
+import os
 from typing import Optional, Sequence, Tuple
 
 
 class X86Board(SimpleBoard):
     """
-    A motherboard capable of full system simulation for X86.
+    A board capable of full system simulation for X86.
+
+    **Limitations**
+    * Currently, this board's memory is hardcoded to 3GB
+    * Much of the I/O subsystem is hard coded
     """
 
     def __init__(
@@ -72,7 +76,6 @@ class X86Board(SimpleBoard):
         processor: AbstractProcessor,
         memory: AbstractMemorySystem,
         cache_hierarchy: AbstractCacheHierarchy,
-        xbar_width: Optional[int] = 64,
         exit_on_work_items: bool = False,
     ) -> None:
         super(X86Board, self).__init__(
@@ -84,7 +87,7 @@ class X86Board(SimpleBoard):
 
         if self.get_runtime_isa() != ISA.X86:
             raise EnvironmentError(
-                "X86Motherboard will only work with the" " X86 ISA."
+                "X86Motherboard will only work with the X86 ISA."
             )
 
         self.exit_on_work_items = exit_on_work_items
@@ -209,7 +212,26 @@ class X86Board(SimpleBoard):
     def connect_things(self) -> None:
         super().connect_things()
 
-    def set_workload(self, kernel: str, disk_image: str, command: str):
+    def set_workload(
+        self, kernel: str, disk_image: str, command: Optional[str] = None
+    ):
+        """Setup the full system files
+
+        See <url> for the currently tested kernels and OSes.
+
+        The command is an optional string to execute once the OS is fully
+        booted, assuming the disk image is setup to run `m5 readfile` after
+        booting.
+
+        **Limitations**
+        * Only supports a Linux kernel
+        * Disk must be configured correctly to use the command option
+
+        :param kernel: The compiled kernel binary
+        :param disk_image: A disk image containing the OS data. The first
+            partition should be the root partition.
+        :param command: The command(s) to run with bash once the OS is booted
+        """
 
         # Set the Linux kernel to use.
         self.workload.object_file = kernel
@@ -237,13 +259,14 @@ class X86Board(SimpleBoard):
 
         # Set the script to be passed to the simulated system to execute after
         # boot.
-        file_name = "{}/run".format(m5.options.outdir)
-        bench_file = open(file_name, "w+")
-        bench_file.write(command)
-        bench_file.close()
+        if command:
+            file_name = os.path.join(m5.options.outdir, "run")
+            bench_file = open(file_name, "w+")
+            bench_file.write(command)
+            bench_file.close()
 
-        # Set to the system readfile
-        self.readfile = file_name
+            # Set to the system readfile
+            self.readfile = file_name
 
     def get_io_bus(self) -> BaseXBar:
         return self.iobus

@@ -36,12 +36,8 @@ from m5.objects import AddrRange, Port, SubSystem, MemCtrl
 class AbstractMemorySystem(SubSystem):
     __metaclass__ = ABCMeta
 
-    def __init__(self, size: str) -> None:
+    def __init__(self) -> None:
         super(AbstractMemorySystem, self).__init__()
-        self._size = size
-
-    def get_size_str(self) -> str:
-        return self._size
 
     @abstractmethod
     def incorporate_memory(self, board: AbstractBoard) -> None:
@@ -53,4 +49,9 @@ class AbstractMemorySystem(SubSystem):
 
     @abstractmethod
     def get_memory_controllers(self) -> List[MemCtrl]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_memory_ranges(self) -> List[AddrRange]:
+        """All of the memory ranges that this memory system responds to."""
         raise NotImplementedError

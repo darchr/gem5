@@ -54,7 +54,8 @@ class SimpleProcessor(AbstractProcessor):
     def __init__(self, cpu_type: CPUTypes, num_cores: int) -> None:
         super(SimpleProcessor, self).__init__(
             cores=self._create_cores(
-                cpu_type=cpu_type, num_cores=num_cores,
+                cpu_type=cpu_type,
+                num_cores=num_cores,
             )
         )
 
@@ -69,17 +70,17 @@ class SimpleProcessor(AbstractProcessor):
                 core.get_simobject().eventq_index = i + 1
 
     def _create_cores(self, cpu_type: CPUTypes, num_cores: int):
-        return [SimpleCore(cpu_type=cpu_type, core_id=i)
-                for i in range(num_cores)]
+        return [
+            SimpleCore(cpu_type=cpu_type, core_id=i) for i in range(num_cores)
+        ]
 
     def incorporate_processor(self, board: AbstractBoard) -> None:
         if self._cpu_type == CPUTypes.KVM:
             board.kvm_vm = self.kvm_vm
 
         # Set the memory mode.
-        if (
-            self._cpu_type == CPUTypes.TIMING or self._cpu_type == CPUTypes.O3
-        ):
+        # TODO: The CPU has a method for this.
+        if self._cpu_type == CPUTypes.TIMING or self._cpu_type == CPUTypes.O3:
             board.mem_mode = "timing"
         elif self._cpu_type == CPUTypes.KVM:
             board.mem_mode = "atomic_noncaching"

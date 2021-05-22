@@ -31,7 +31,7 @@ from components_library.boards.simple_board import SimpleBoard
 from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
     import PrivateL1PrivateL2CacheHierarchy
 from components_library.cachehierarchies.no_cache import NoCache
-from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
+from components_library.memory.single_channel import SingleChannelDDR3_1600
 from components_library.processors.simple_processor import SimpleProcessor
 from components_library.processors.cpu_types import CPUTypes
 
@@ -39,7 +39,7 @@ import os
 
 cache_hierarchy = NoCache()
 
-memory = DDR3_1600_8x8(size="512MiB")
+memory = SingleChannelDDR3_1600()
 
 processor = SimpleProcessor(cpu_type = CPUTypes.ATOMIC, num_cores=1)
 

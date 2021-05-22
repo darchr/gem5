@@ -84,7 +84,6 @@ class AbstractCacheHierarchy(SubSystem):
     #      """
     # raise NotImplementedError
 
-
     #
     # @abstractmethod
     #   def get_membus(self) -> BaseXBar:

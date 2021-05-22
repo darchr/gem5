@@ -92,10 +92,11 @@ class AbstractPrefetchCache(Cache):
         self.writeback_clean = writeback_clean
         self.prefetcher = StridePrefetcher()
 
-  #  @abstractmethod
-  #  def get_bus_side(self):
-  #      raise NotImplementedError
 
- #   @abstractmethod
- #   def connect_cpu_side(self):
- #       raise NotImplementedError
+#  @abstractmethod
+#  def get_bus_side(self):
+#      raise NotImplementedError
+
+#   @abstractmethod
+#   def connect_cpu_side(self):
+#       raise NotImplementedError

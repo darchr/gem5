@@ -29,24 +29,29 @@ from components_library.processors.abstract_core import AbstractCore
 from .cpu_types import CPUTypes
 from ..utils.override import overrides
 
-from m5.objects import Port, AtomicSimpleCPU, DerivO3CPU, TimingSimpleCPU, \
-    X86KvmCPU, BaseCPU, Process
+from m5.objects import (
+    Port,
+    AtomicSimpleCPU,
+    DerivO3CPU,
+    TimingSimpleCPU,
+    X86KvmCPU,
+    BaseCPU,
+    Process,
+)
+
 
 class SimpleCore(AbstractCore):
-
-    def __init__(self, cpu_type: CPUTypes,
-                 core_id: int
-                ):
+    def __init__(self, cpu_type: CPUTypes, core_id: int):
         super(SimpleCore, self).__init__(cpu_type=cpu_type)
 
         if cpu_type == CPUTypes.ATOMIC:
-            self.core = AtomicSimpleCPU(cpu_id = core_id)
+            self.core = AtomicSimpleCPU(cpu_id=core_id)
         elif cpu_type == CPUTypes.O3:
-            self.core = DerivO3CPU(cpu_id = core_id)
+            self.core = DerivO3CPU(cpu_id=core_id)
         elif cpu_type == CPUTypes.TIMING:
-            self.core =TimingSimpleCPU(cpu_id = core_id)
+            self.core = TimingSimpleCPU(cpu_id=core_id)
         elif cpu_type == CPUTypes.KVM:
-            self.core = X86KvmCPU(cpu_id = core_id)
+            self.core = X86KvmCPU(cpu_id=core_id)
         else:
             raise NotImplementedError
 
@@ -72,6 +77,7 @@ class SimpleCore(AbstractCore):
         self.core.workload = process
 
     @overrides(AbstractCore)
+<<<<<<< HEAD
     def set_switched_out(self, value: bool) -> None:
         self.core.switched_out = value
 
@@ -79,6 +85,10 @@ class SimpleCore(AbstractCore):
     def connect_interrupt(self,
         interrupt_requestor: Port,
         interrupt_responce: Port
+=======
+    def connect_interrupt(
+        self, interrupt_requestor: Port, interrupt_responce: Port
+>>>>>>> e73fdc8b8030b9e75488ccd120219f982ff418c7
     ) -> None:
 
         # TODO: This model assumes that we will only create an interrupt
