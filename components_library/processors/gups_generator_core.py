@@ -24,47 +24,24 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from abc import abstractmethod
-from m5.objects import Port, PyTrafficGen
+from components_library.processors.cpu_types import CPUTypes
+from m5.objects import Port, GUPSGen
 
-from .cpu_types import CPUTypes
-from .abstract_core import AbstractCore
+from .abstract_generator_core import AbstractGeneratorCore
 
 
-class AbstractGeneratorCore(AbstractCore):
-    def __init__(self, cpu_type: CPUTypes):
-        super(AbstractGeneratorCore, self).__init__(cpu_type)
-        self.setup_dummy_generator()
+class GUPSGeneratorCore(AbstractGeneratorCore):
+    def __init__(self, start_addr=0, mem_size=0x100000, update_limit=0):
+        super(GUPSGeneratorCore, self).__init__(cpu_type=CPUTypes.GUPSGen)
+        self.main_generator = GUPSGen(
+            start_addr=start_addr, mem_size=mem_size, update_limit=update_limit
+        )
 
-    def connect_icache(self, port: Port) -> None:
-        self.dummy_generator.port = port
-
-    @abstractmethod
     def connect_dcache(self, port: Port) -> None:
-        raise NotImplementedError
+        self.main_generator.port = port
 
-    def connect_walker_ports(self, port1: Port, port2: Port) -> None:
+    def set_traffic(self):
         pass
 
-    def set_workload(self, process: "Process") -> None:
-        pass
-
-    def connect_interrupt(
-        self, interrupt_requestor: Port, interrupt_responce: Port
-    ) -> None:
-        pass
-
-    def create_idle_traffic(self):
-        yield self.dummy_generator.createIdle(0)
-
-    def setup_dummy_generator(self):
-        self.dummy_generator = PyTrafficGen()
-        self._dummy_traffic = self.create_idle_traffic()
-
-    @abstractmethod
-    def set_traffic(self, mode, rate):
-        raise NotImplementedError
-
-    @abstractmethod
     def start_traffic(self):
-        raise NotImplementedError
+        pass

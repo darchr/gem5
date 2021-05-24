@@ -24,47 +24,48 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from abc import abstractmethod
-from m5.objects import Port, PyTrafficGen
 
-from .cpu_types import CPUTypes
-from .abstract_core import AbstractCore
+from m5.util.convert import toMemorySize
+
+from .gups_generator_core import GUPSGeneratorCore
+
+from .abstract_processor import AbstractProcessor
+from ..boards.abstract_board import AbstractBoard
+
+from typing import List
 
 
-class AbstractGeneratorCore(AbstractCore):
-    def __init__(self, cpu_type: CPUTypes):
-        super(AbstractGeneratorCore, self).__init__(cpu_type)
-        self.setup_dummy_generator()
+class GUPSGenerator(AbstractProcessor):
+    def __init__(
+        self,
+        num_cores=1,
+        mode="ep",
+        start_addr=0,
+        mem_size="32MB",
+        update_limit=0,
+    ):
+        super(GUPSGenerator, self).__init__(
+            cores=self._create_cores(
+                num_cores, mode, start_addr, mem_size, update_limit
+            )
+        )
 
-    def connect_icache(self, port: Port) -> None:
-        self.dummy_generator.port = port
-
-    @abstractmethod
-    def connect_dcache(self, port: Port) -> None:
-        raise NotImplementedError
-
-    def connect_walker_ports(self, port1: Port, port2: Port) -> None:
-        pass
-
-    def set_workload(self, process: "Process") -> None:
-        pass
-
-    def connect_interrupt(
-        self, interrupt_requestor: Port, interrupt_responce: Port
-    ) -> None:
-        pass
-
-    def create_idle_traffic(self):
-        yield self.dummy_generator.createIdle(0)
-
-    def setup_dummy_generator(self):
-        self.dummy_generator = PyTrafficGen()
-        self._dummy_traffic = self.create_idle_traffic()
-
-    @abstractmethod
-    def set_traffic(self, mode, rate):
-        raise NotImplementedError
-
-    @abstractmethod
-    def start_traffic(self):
-        raise NotImplementedError
+    def _create_cores(
+        self, num_cores, mode, start_addr, mem_size, update_limit
+    ):
+        self._mem_size = toMemorySize(mem_size)
+        self._table_size = mem_size / num_cores
+        self._start_addr = start_addr
+        if mode == "ep":
+            return [
+                GUPSGeneratorCore(
+                    start_addr=self._start_addr + i * self._table_size,
+                    mem_size=self._table_size,
+                    update_limit=update_limit,
+                )
+                for i in range(num_cores)
+            ]
+        elif mode == 'par':
+            raise NotImplementedError('This mode is currently not supported')
+        else:
+            raise ValueError('No such mode for GUPSGen')
