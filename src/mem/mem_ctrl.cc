@@ -1022,12 +1022,14 @@ MemCtrl::processRespondEvent()
             //MARYAM: should dram_miss = true or false?
             dram_miss = true;
             handleCleanMiss(mem_pkt);
+            stats.dramCacheMiss++;
         }
 
         // DRAM CACHE HIT
         else if (tagStoreDC[index].tag == currTag &&
                  tagStoreDC[index].valid_line) {
             handleHit(mem_pkt);
+            stats.dramCacheHit++;
         }
 
         // DRAM CACHE MISS, CLEAN
@@ -1036,6 +1038,7 @@ MemCtrl::processRespondEvent()
                  !(tagStoreDC[index].dirty_line)) {
             dram_miss = true;
             handleCleanMiss(mem_pkt);
+            stats.dramCacheMiss++;
         }
 
         // DRAM CACHE MISS, Dirty
@@ -1044,6 +1047,7 @@ MemCtrl::processRespondEvent()
                  tagStoreDC[index].dirty_line) {
             dram_miss = true;
             handleDirtyMiss(mem_pkt);
+            stats.dramCacheMiss++;
         }
     }
 
@@ -2040,6 +2044,8 @@ MemCtrl::CtrlStats::CtrlStats(MemCtrl &_ctrl)
     : Stats::Group(&_ctrl),
     ctrl(_ctrl),
 
+    ADD_STAT(dramCacheHit, UNIT_COUNT, "Number of hits in DRAM Cache"),
+    ADD_STAT(dramCacheMiss, UNIT_COUNT, "Number of misses in DRAM Cache"),
     ADD_STAT(readReqs, UNIT_COUNT, "Number of read requests accepted"),
     ADD_STAT(writeReqs, UNIT_COUNT, "Number of write requests accepted"),
 

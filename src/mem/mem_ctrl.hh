@@ -701,6 +701,9 @@ class MemCtrl : public QoS::MemCtrl
 
         MemCtrl &ctrl;
 
+        // DRAM Cache Stats
+        Stats::Scalar dramCacheHit;
+        Stats::Scalar dramCacheMiss;
         // All statistics that the model needs to capture
         Stats::Scalar readReqs;
         Stats::Scalar writeReqs;

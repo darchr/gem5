@@ -10,8 +10,7 @@ system.mem_mode = 'timing'
 system.generator = PyTrafficGen()
 
 system.mem_ctrl = MemCtrl()
-system.mem_ctrl.dram = DDR3_1600_8x8(range=
-AddrRange('100MiB'), in_addr_map=False)
+system.mem_ctrl.dram = DDR3_1600_8x8(range=AddrRange('1GB'), in_addr_map=False)
 system.mem_ctrl.nvm = NVM_2400_1x64(range=AddrRange('1GB'))
 
 system.mem_ranges = [AddrRange('1GB')]
@@ -19,13 +18,14 @@ system.mem_ranges = [AddrRange('1GB')]
 system.generator.port = system.mem_ctrl.port
 
 def createLinearTraffic(tgen):
-    yield tgen.createLinear(1000000,
-                            0,
-                            10240,
-                            64,
-                            1000,
-                            1000,
-                            90, 0)
+    yield tgen.createLinear(1000000,    # duration
+                            0,          # min_addr
+                            1024,       # max_adr
+                            64,         # block_size
+                            1000,       # min_period
+                            1000,       # max_period
+                            100,         # rd_perc
+                            0)          # data_limit
     yield tgen.createExit(0)
 
 
