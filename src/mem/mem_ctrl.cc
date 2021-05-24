@@ -292,10 +292,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
             }
         }
 
-        // ************************//
-
         // Also check in dramFillQueue, nvmWriteQueue
-
         bool foundInDRAMFillQ = false;
 
         for (const auto& vec : dramFillQueue) {
@@ -1584,9 +1581,7 @@ MemCtrl::processNextReqEvent()
     if (busState == READ) {
         // track if we should switch or not
         bool switch_to_writes = false;
-        if (readQueue.size() == 0 && nvmReadQueue.size() == 0 &&
-            nvmWriteQueue.size() == 0 && dramFillQueue.size() == 0 &&
-            writeQueue.size() != 0) {
+        if (readQueue.size() == 0 && nvmReadQueue.size() == 0) {
             // In the case there is no read request to go next,
             // trigger writes if we have passed the low threshold (or
             // if we are draining)
@@ -1764,8 +1759,9 @@ MemCtrl::processNextReqEvent()
         }
         // checking for write packets in the writeQueue which
         // needs a read first, to check tag and metadata.
-        if (nvmWriteQueue.size()==0 &&
-        dramFillQueue.size()==0 && writeQueue.size()!=0){
+        if (readQueue.size() == 0 && nvmReadQueue.size() == 0 &&
+            nvmWriteQueue.size()==0 && dramFillQueue.size()==0 &&
+            writeQueue.size()!=0) {
             bool write_found = false;
             MemPacketQueue::iterator to_write;
             uint8_t prio = numPriorities();
