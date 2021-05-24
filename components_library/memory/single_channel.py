@@ -90,6 +90,9 @@ class SingleChannelMemory(AbstractMemorySystem):
 
 
 from .dram_interfaces.ddr3 import DDR3_1600_8x8, DDR3_2133_8x8
+from .dram_interfaces.ddr4 import DDR4_2400_8x8
+from .dram_interfaces.lpddr3 import LPDDR3_1600_1x32
+from .dram_interfaces.hbm import HBM_1000_4H_1x128
 
 # Enumerate all of the different DDR memory systems we support
 def SingleChannelDDR3_1600(size: Optional[str] = None) -> AbstractMemorySystem:
@@ -104,3 +107,71 @@ def SingleChannelDDR3_2133(size: Optional[str] = None) -> AbstractMemorySystem:
     A single channel memory system using a single DDR3_2133_8x8 based DIMM
     """
     return SingleChannelMemory(DDR3_2133_8x8, size)
+
+
+def SingleChannelDDR4_2400(size: Optional[str] = None) -> AbstractMemorySystem:
+    """
+    A single channel memory system using a single DDR4_2400_8x8 based DIMM
+    """
+    return SingleChannelMemory(DDR4_2400_8x8, size)
+
+
+def SingleChannelLPDDR3_1600(
+    size: Optional[str] = None,
+) -> AbstractMemorySystem:
+    return SingleChannelMemory(LPDDR3_1600_1x32, size)
+
+
+def SingleChannelHBM(size: Optional[str] = None) -> AbstractMemorySystem:
+    return SingleChannelMemory(HBM_1000_4H_1x128, size)
+
+
+from .DS3.DS3Ctrl import DS3MemCtrl
+
+
+class DS3SingleChannel(AbstractMemorySystem):
+    def __init__(self, mem_type: str, size: Optional[str]):
+        super(DS3SingleChannel, self).__init__()
+        self.mem_ctrl = DS3MemCtrl(mem_type, 1)
+        if size:
+            self.mem_ctrl.range = AddrRange(size)
+        else:
+            raise NotImplementedError("Currently not supporting default size!")
+
+    @overrides(AbstractMemorySystem)
+    def incorporate_memory(self, board: AbstractBoard) -> None:
+        pass
+
+    @overrides(AbstractMemorySystem)
+    def get_mem_ports(self) -> Tuple[Sequence[AddrRange], Port]:
+        return [(self.mem_ctrl.range, self.mem_ctrl.port)]
+
+    @overrides(AbstractMemorySystem)
+    def get_memory_controllers(self) -> List[MemCtrl]:
+        return [self.mem_ctrl]
+
+    @overrides(AbstractMemorySystem)
+    def get_memory_ranges(self):
+        return [self.mem_ctrl.range]
+
+
+def SingleChannelDS3DDR3_1600(
+    size: Optional[str] = None,
+) -> AbstractMemorySystem:
+    return DS3SingleChannel("DDR3_8Gb_x8_1600", "2048MB")
+
+
+def SingleChannelDS3DDR4_2400(
+    size: Optional[str] = None,
+) -> AbstractMemorySystem:
+    return DS3SingleChannel("DDR4_4Gb_x8_2400", "1024MB")
+
+
+def SingleChannelDS3LPDDR3_1600(
+    size: Optional[str] = None,
+) -> AbstractMemorySystem:
+    return DS3SingleChannel("LPDDR3_8Gb_x32_1600", "256MB")
+
+
+def SingleChannelDS3HBM(size: Optional[str] = None) -> AbstractMemorySystem:
+    return DS3SingleChannel("HBM1_4Gb_x128", "64MB")
