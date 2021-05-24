@@ -617,8 +617,8 @@ MemCtrl::addToNVMReadQueue(const MemPacket* mem_pkt)
 void
 MemCtrl::addToNVMWriteQueue(const MemPacket* mem_pkt)
 {
-    assert(mem_pkt->isWrite());
-    assert(nvmWriteQueueFull(1));
+    //assert(mem_pkt->isWrite());
+    assert(!nvmWriteQueueFull(1));
 
     // COMMENT: Should overwrite the mem_pkt?
     // COMMENT: Currently, we are assuming that

@@ -21,7 +21,7 @@ system.generator.port = system.mem_ctrl.port
 def createLinearTraffic(tgen):
     yield tgen.createLinear(1000000,
                             0,
-                            1024,
+                            10240,
                             64,
                             1000,
                             1000,
