@@ -87,7 +87,10 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
 {
     DPRINTF(MemCtrl, "Setting up controller\n");
     readQueue.resize(p.qos_priorities);
+    nvmReadQueue.resize(p.qos_priorities);
     writeQueue.resize(p.qos_priorities);
+    nvmWriteQueue.resize(p.qos_priorities);
+    dramFillQueue.resize(p.qos_priorities);
 
     // Hook up interfaces to the controller
     if (dram)
@@ -574,7 +577,6 @@ MemCtrl::addToDRAMFillQueue(const MemPacket *mem_pkt)
 void
 MemCtrl::addToNVMReadQueue(const MemPacket* mem_pkt)
 {
-
     // return true if this request can succeed
     // false otherwise
 
