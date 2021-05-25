@@ -25,6 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+from components_library.boards.mem_mode import MEM_MODE
 from components_library.processors.simple_core import SimpleCore
 from m5.objects import (
     AtomicSimpleCPU,
@@ -81,8 +82,9 @@ class SimpleProcessor(AbstractProcessor):
         # Set the memory mode.
         # TODO: The CPU has a method for this.
         if self._cpu_type == CPUTypes.TIMING or self._cpu_type == CPUTypes.O3:
-            board.mem_mode = "timing"
+            board.set_mem_mode(MEM_MODE.TIMING)
         elif self._cpu_type == CPUTypes.KVM:
+            board.set_mem_mode(MEM_MODE.ATOMIC_NONCACHING)
             board.mem_mode = "atomic_noncaching"
         elif self._cpu_type == CPUTypes.ATOMIC:
             if is_ruby(board.get_runtime_coherence_protocol()):
@@ -91,6 +93,7 @@ class SimpleProcessor(AbstractProcessor):
                      "completely.")
                 board.mem_mode = "atomic_noncaching"
             else:
+                oard.set_mem_mode(MEM_MODE.ATOMIC)
                 board.mem_mode = "atomic"
         else:
             raise NotImplementedError

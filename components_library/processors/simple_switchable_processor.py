@@ -24,6 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from components_library.boards.mem_mode import MEM_MODE
 from components_library.boards.abstract_board import AbstractBoard
 from components_library.processors.simple_core import SimpleCore
 from components_library.processors.cpu_types import CPUTypes
@@ -63,11 +64,11 @@ class SimpleSwitchableProcessor(SwitchableProcessor):
             switch_core_type)
 
         if starting_core_type in (CPUTypes.TIMING, CPUTypes.O3):
-            self._mem_mode = "timing"
+            self._mem_mode = MEM_MODE.TIMING
         elif starting_core_type == CPUTypes.KVM:
-            self._mem_mode = "atomic_noncaching"
+            self._mem_mode = MEM_MODE.ATOMIC_NONCACHING
         elif starting_core_type == CPUTypes.ATOMIC:
-            self._mem_mode = "atomic"
+            self._mem_mode = MEM_MODE.ATOMIC
         else:
             raise NotImplementedError
 
@@ -95,7 +96,7 @@ class SimpleSwitchableProcessor(SwitchableProcessor):
 
             board.kvm_vm = KvmVM()
 
-        board.mem_mode = self._mem_mode
+        board.set_mem_mode(self._mem_mode)
 
         # print(bla)
 

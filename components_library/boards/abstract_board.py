@@ -25,6 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from abc import ABCMeta, abstractmethod
+from .mem_mode import MEM_MODE
 
 from m5.defines import buildEnv
 from m5.objects import System, Port, IOXBar, ClockDomain
@@ -121,6 +122,15 @@ class AbstractBoard(System):
 
     @abstractmethod
     def connect_system_port(self, port: Port) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_mem_mode(self, mem_mode: MEM_MODE) -> None:
+        """
+        Set the memory mode of the board.
+
+        :param mem_mode: The memory mode the board is to be set to.
+        """
         raise NotImplementedError
 
     @abstractmethod
