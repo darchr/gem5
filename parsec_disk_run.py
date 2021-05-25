@@ -42,8 +42,8 @@ from m5.objects import Root
 from components_library.boards.x86_board import X86Board
 from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
     import PrivateL1PrivateL2CacheHierarchy
-from components_library.cachehierarchies.mesi_two_level_cache_hierarchy \
-    import MESITwoLevelCacheHierarchy
+#from components_library.cachehierarchies.mesi_two_level_cache_hierarchy \
+ #   import MESITwoLevelCacheHierarchy
 from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
 from components_library.processors.simple_switchable_processor import \
    SimpleSwitchableProcessor
