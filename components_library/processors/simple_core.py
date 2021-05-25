@@ -77,18 +77,8 @@ class SimpleCore(AbstractCore):
         self.core.workload = process
 
     @overrides(AbstractCore)
-<<<<<<< HEAD
-    def set_switched_out(self, value: bool) -> None:
-        self.core.switched_out = value
-
-    @overrides(AbstractCore)
-    def connect_interrupt(self,
-        interrupt_requestor: Port,
-        interrupt_responce: Port
-=======
     def connect_interrupt(
         self, interrupt_requestor: Port, interrupt_responce: Port
->>>>>>> e73fdc8b8030b9e75488ccd120219f982ff418c7
     ) -> None:
 
         # TODO: This model assumes that we will only create an interrupt
