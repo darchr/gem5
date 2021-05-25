@@ -115,6 +115,7 @@ class AbstractBoard(System):
         """
         raise NotImplementedError
 
+    @abstractmethod
     def get_clock_domain(self) -> ClockDomain:
         raise NotImplementedError
 
