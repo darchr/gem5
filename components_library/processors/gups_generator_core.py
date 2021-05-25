@@ -32,7 +32,7 @@ from .abstract_generator_core import AbstractGeneratorCore
 
 class GUPSGeneratorCore(AbstractGeneratorCore):
     def __init__(self, start_addr=0, mem_size=0x100000, update_limit=0):
-        super(GUPSGeneratorCore, self).__init__(cpu_type=CPUTypes.GUPSGen)
+        super(GUPSGeneratorCore, self).__init__(cpu_type=CPUTypes.GUPSGEN)
         self.main_generator = GUPSGen(
             start_addr=start_addr, mem_size=mem_size, update_limit=update_limit
         )

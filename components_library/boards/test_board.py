@@ -24,35 +24,33 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from typing import Optional
 
-from .abstract_l1cache import AbstractL1Cache
-from ..utils.override import *
+from ..processors.abstract_processor import AbstractProcessor
+from ..memory.abstract_memory_system import AbstractMemorySystem
+from ..cachehierarchies.abstract_cache_hierarchy import AbstractCacheHierarchy
+from .simple_board import SimpleBoard
 
 
-class L1ICache(AbstractL1Cache):
-    """
-    A simple L1 instruction cache with default values.
-    """
-
+class TestBoard(SimpleBoard):
     def __init__(
         self,
-        size: str,
-        assoc: Optional[int] = 8,
-        tag_latency: Optional[int] = 1,
-        data_latency: Optional[int] = 1,
-        response_latency: Optional[int] = 1,
-        mshrs: Optional[int] = 16,
-        tgts_per_mshr: Optional[int] = 20,
-        writeback_clean: Optional[bool] = True,
+        clk_freq: str,
+        processor: AbstractProcessor,
+        memory: AbstractMemorySystem,
+        cache_hierarchy: AbstractCacheHierarchy,
     ):
-        super(L1ICache, self).__init__(
-            size=size,
-            assoc=assoc,
-            tag_latency=tag_latency,
-            data_latency=data_latency,
-            response_latency=response_latency,
-            mshrs=mshrs,
-            tgts_per_mshr=tgts_per_mshr,
-            writeback_clean=writeback_clean,
+        super(TestBoard, self).__init__(
+            clk_freq=clk_freq,
+            processor=processor,
+            memory=memory,
+            cache_hierarchy=cache_hierarchy,
         )
+
+    def connect_bridge(self, port):
+        pass
+
+    def connect_apicbridge(self, port):
+        pass
+
+    def connect_iocache(self, port):
+        pass

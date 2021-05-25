@@ -27,7 +27,7 @@
 from abc import ABCMeta, abstractmethod
 from .cpu_types import CPUTypes
 
-from m5.objects import Port, SubSystem, Process
+from m5.objects import Port, SubSystem#, Process
 
 
 class AbstractCore(SubSystem):
@@ -53,7 +53,7 @@ class AbstractCore(SubSystem):
         raise NotImplementedError
 
     @abstractmethod
-    def set_workload(self, process: Process) -> None:
+    def set_workload(self, process: "Process") -> None:
         raise NotImplementedError
 
     @abstractmethod

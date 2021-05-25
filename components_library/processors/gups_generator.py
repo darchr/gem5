@@ -54,7 +54,7 @@ class GUPSGenerator(AbstractProcessor):
         self, num_cores, mode, start_addr, mem_size, update_limit
     ):
         self._mem_size = toMemorySize(mem_size)
-        self._table_size = mem_size / num_cores
+        self._table_size = int(self._mem_size / num_cores)
         self._start_addr = start_addr
         if mode == "ep":
             return [
@@ -69,3 +69,10 @@ class GUPSGenerator(AbstractProcessor):
             raise NotImplementedError('This mode is currently not supported')
         else:
             raise ValueError('No such mode for GUPSGen')
+
+    def incorporate_processor(self, board: AbstractBoard) -> None:
+        # TODO: Shouldn't we do this with a setter function?
+        board.mem_mode = "timing"
+
+    def start_traffic(self):
+        pass

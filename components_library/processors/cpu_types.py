@@ -35,4 +35,4 @@ class CPUTypes(Enum):
     LINGEN = 5
     RNDGEN = 6
     CMXGEN = 7
-    GUPSGEN = 9
+    GUPSGEN = 8

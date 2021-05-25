@@ -28,7 +28,7 @@ from abc import ABCMeta, abstractmethod
 from components_library.processors.abstract_core import AbstractCore
 from components_library.processors.cpu_types import CPUTypes
 
-from m5.objects import BaseCPU, SubSystem
+from m5.objects import SubSystem#, BaseCPU
 
 from ..boards.abstract_board import AbstractBoard
 

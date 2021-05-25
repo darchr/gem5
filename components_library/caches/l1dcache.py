@@ -24,14 +24,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from .abstract_prefetch_cache import AbstractPrefetchCache
 from .abstract_l1cache import AbstractL1Cache
 from ..utils.override import *
 
-from m5.objects import BaseXBar, BaseCPU
-
-from typing import Optional, Union
-
+from typing import Optional
 
 class L1DCache(AbstractL1Cache):
     """

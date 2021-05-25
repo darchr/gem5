@@ -35,7 +35,6 @@ from ..boards.isas import ISA
 
 from m5.objects import (
     L2XBar,
-    BaseCPU,
     BaseXBar,
     SystemXBar,
     BadAddr,
@@ -45,12 +44,9 @@ from m5.objects import (
     Cache,
 )
 
-from m5.params import Port
-
-from typing import Optional, Tuple
-
 from ..utils.override import *
 
+from typing import Optional
 
 class PrivateL1PrivateL2CacheHierarchy(
     AbstractClassicCacheHierarchy, AbstractTwoLevelCacheHierarchy
@@ -124,6 +120,9 @@ class PrivateL1PrivateL2CacheHierarchy(
         #######################################################################
         # TODO: I'm really unsure about all this. Specialized to X86
 
+
+        board.connect_bridge(self.membus.mem_side_ports)
+        '''
         board.bridge = Bridge(delay="50ns")
         board.bridge.mem_side_port = board.get_io_bus().cpu_side_ports
         board.bridge.cpu_side_port = self.membus.mem_side_ports
@@ -141,7 +140,10 @@ class PrivateL1PrivateL2CacheHierarchy(
             ),
             AddrRange(pci_config_address_space_base, Addr.max),
         ]
+        '''
 
+        board.connect_apicbridge(self.membus.cpu_side_ports)
+        '''
         board.apicbridge = Bridge(delay="50ns")
         board.apicbridge.cpu_side_port = board.get_io_bus().mem_side_ports
         board.apicbridge.mem_side_port = self.membus.cpu_side_ports
@@ -153,7 +155,10 @@ class PrivateL1PrivateL2CacheHierarchy(
                 - 1,
             )
         ]
+        '''
 
+        # board.connect_iocache(self.iocache.cpu_side)
+        '''
         # connect the io bus
         # TODO: This interface needs fixed. The PC should not be accessed in
         # This way.
@@ -174,6 +179,7 @@ class PrivateL1PrivateL2CacheHierarchy(
 
         self.iocache.cpu_side = board.get_io_bus().mem_side_ports
         self.iocache.mem_side = self.membus.cpu_side_ports
+        '''
 
         for cntr in board.get_memory().get_memory_controllers():
             cntr.port = self.membus.mem_side_ports

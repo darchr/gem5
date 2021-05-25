@@ -24,14 +24,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from components_library.processors.cpu_types import CPUTypes
-
 from m5.objects import (
-    AddrRange,
     SrcClockDomain,
     VoltageDomain,
-    Addr,
-    Process,
+    # Process,
     SEWorkload,
     IOXBar,
     Port,
@@ -110,19 +106,28 @@ class SimpleBoard(AbstractBoard):
     def get_dma_ports(self) -> List[Port]:
         raise NotImplementedError("SimpleBoard does not have DMA Ports.")
 
-    def set_workload(self, binary: str) -> None:
-        """Set up the system to run a specific binary.
+    def connect_bridge(self, port):
+        raise NotImplementedError("SimpleBoard does not have a bridge")
 
-        **Limitations**
-        * Only supports single threaded applications
-        * Dynamically linked executables are partially supported when the host
-          ISA and the simulated ISA are the same.
+    def connect_apicbridge(self, port):
+        raise NotImplementedError("SimpleBoard does not have an apicbridge")
 
-        :param binary: The path on the *host* to the binary to run in gem5.
-        """
+    def connect_iocache(self, port):
+        raise NotImplementedError("SimpleBoard does not have an iocache")
 
-        self.workload = SEWorkload.init_compatible(binary)
+    # def set_workload(self, binary: str) -> None:
+    #     """Set up the system to run a specific binary.
 
-        process = Process()
-        process.cmd = [binary]
-        self.get_processor().get_cores()[0].set_workload(process)
+#     **Limitations**
+#     * Only supports single threaded applications
+#     * Dynamically linked executables are partially supported when the host
+#       ISA and the simulated ISA are the same.
+
+    #     :param binary: The path on the *host* to the binary to run in gem5.
+    #     """
+
+    #     self.workload = SEWorkload.init_compatible(binary)
+
+    #     process = Process()
+    #     process.cmd = [binary]
+    #     self.get_processor().get_cores()[0].set_workload(process)

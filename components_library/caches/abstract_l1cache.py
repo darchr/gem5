@@ -27,9 +27,6 @@
 from .abstract_prefetch_cache import AbstractPrefetchCache
 from ..utils.override import *
 
-from m5.objects import BaseXBar
-
-
 class AbstractL1Cache(AbstractPrefetchCache):
     """
     Classes which inherit from AbstractL1Cache are L1 caches. This abstract
