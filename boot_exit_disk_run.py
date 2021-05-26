@@ -28,8 +28,8 @@ import m5
 from m5.objects import Root
 
 from components_library.boards.x86_board import X86Board
-from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
-    import PrivateL1PrivateL2CacheHierarchy
+from components_library.cachehierarchies.mesi_two_level_cache_hierarchy \
+    import MESITwoLevelCacheHierarchy
 from components_library.cachehierarchies.no_cache import NoCache
 from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
 from components_library.processors.simple_processor import SimpleProcessor
@@ -41,14 +41,19 @@ import gzip
 import shutil
 
 
-cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size = "32kB",
-                                                   l1i_size = "32kB",
-                                                   l2_size = "256kB",
-                                                  )
+
+cache_hierarchy = MESITwoLevelCacheHierarchy(l1d_size = "32kB",
+                                             l1d_assoc = 8,
+                                             l1i_size = "32kB",
+                                             l1i_assoc = 8,
+                                             l2_size = "256kB",
+                                             l2_assoc = 16,
+                                             num_l2_banks = 1,
+                                            )
 
 memory = DDR3_1600_8x8(size="3GB")
 
-processor = SimpleProcessor(cpu_type = CPUTypes.ATOMIC, num_cores=1)
+processor = SimpleProcessor(cpu_type = CPUTypes.TIMING, num_cores=1)
 
 motherboard = X86Board(clk_freq="3GHz",
                        processor=processor,
