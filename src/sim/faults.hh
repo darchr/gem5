@@ -134,23 +134,4 @@ class GenericAlignmentFault : public FaultBase
     Addr getFaultVAddr() const { return vaddr; }
 };
 
-class GenericHtmFailureFault : public FaultBase
-{
-  protected:
-    uint64_t htmUid; // unique identifier used for debugging
-    HtmFailureFaultCause cause;
-
-  public:
-    GenericHtmFailureFault(uint64_t htm_uid, HtmFailureFaultCause _cause)
-      : htmUid(htm_uid), cause(_cause)
-    {}
-
-    FaultName name() const override { return "Generic HTM failure fault"; }
-
-    uint64_t getHtmUid() const { return htmUid; }
-    HtmFailureFaultCause getHtmFailureFaultCause() const { return cause; }
-    void invoke(ThreadContext *tc, const StaticInstPtr &inst =
-                nullStaticInstPtr) override;
-};
-
 #endif // __FAULTS_HH__

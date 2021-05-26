@@ -36,19 +36,22 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.SimObject import SimObject
-from m5.params import *
+from m5.params import Enum
 
-class OpDesc(SimObject):
-    type = 'OpDesc'
-    cxx_header = "cpu/func_unit.hh"
-    opClass = Param.OpClass("type of operation")
-    opLat = Param.Cycles(1, "cycles until result is available")
-    pipelined = Param.Bool(True, "set to true when the functional unit for"
-        "this op is fully pipelined. False means not pipelined at all.")
-
-class FUDesc(SimObject):
-    type = 'FUDesc'
-    cxx_header = "cpu/func_unit.hh"
-    count = Param.Int("number of these FU's available")
-    opList = VectorParam.OpDesc("operation classes for this FU type")
+class OpClass(Enum):
+    vals = ['No_OpClass', 'IntAlu', 'IntMult', 'IntDiv', 'FloatAdd',
+            'FloatCmp', 'FloatCvt', 'FloatMult', 'FloatMultAcc', 'FloatDiv',
+            'FloatMisc', 'FloatSqrt',
+            'SimdAdd', 'SimdAddAcc', 'SimdAlu', 'SimdCmp', 'SimdCvt',
+            'SimdMisc', 'SimdMult', 'SimdMultAcc', 'SimdShift', 'SimdShiftAcc',
+            'SimdDiv', 'SimdSqrt', 'SimdFloatAdd', 'SimdFloatAlu',
+            'SimdFloatCmp', 'SimdFloatCvt', 'SimdFloatDiv', 'SimdFloatMisc',
+            'SimdFloatMult', 'SimdFloatMultAcc', 'SimdFloatSqrt',
+            'SimdReduceAdd', 'SimdReduceAlu', 'SimdReduceCmp',
+            'SimdFloatReduceAdd', 'SimdFloatReduceCmp',
+            'SimdAes', 'SimdAesMix', 'SimdSha1Hash', 'SimdSha1Hash2',
+            'SimdSha256Hash', 'SimdSha256Hash2', 'SimdShaSigma2',
+            'SimdShaSigma3',
+            'SimdPredAlu',
+            'MemRead', 'MemWrite', 'FloatMemRead', 'FloatMemWrite',
+            'IprAccess', 'InstPrefetch']

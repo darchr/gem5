@@ -38,71 +38,32 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "sim/faults.hh"
+#ifndef __SIM_HTM_FAILURE_FAULT_HH__
+#define __SIM_HTM_FAILURE_FAULT_HH__
 
-#include <csignal>
+#include "base/types.hh"
+#include "cpu/null_static_inst.hh"
+#include "cpu/static_inst.hh"
+#include "mem/htm.hh"
+#include "sim/stats.hh"
 
-#include "base/logging.hh"
-#include "cpu/thread_context.hh"
-#include "debug/Fault.hh"
-#include "mem/page_table.hh"
-#include "sim/full_system.hh"
-#include "sim/process.hh"
-#include "sim/system.hh"
-
-void
-FaultBase::invoke(ThreadContext *tc, const StaticInstPtr &inst)
+class GenericHtmFailureFault : public FaultBase
 {
-    panic_if(!FullSystem, "fault (%s) detected @ PC %s",
-             name(), tc->pcState());
-    DPRINTF(Fault, "Fault %s at PC: %s\n", name(), tc->pcState());
-}
+  protected:
+    uint64_t htmUid; // unique identifier used for debugging
+    HtmFailureFaultCause cause;
 
-void
-UnimpFault::invoke(ThreadContext *tc, const StaticInstPtr &inst)
-{
-    panic("Unimpfault: %s", panicStr.c_str());
-}
+  public:
+    GenericHtmFailureFault(uint64_t htm_uid, HtmFailureFaultCause _cause)
+      : htmUid(htm_uid), cause(_cause)
+    {}
 
-void
-SESyscallFault::invoke(ThreadContext *tc, const StaticInstPtr &inst)
-{
-    tc->getSystemPtr()->workload->syscall(tc);
-    // Move the PC forward since that doesn't happen automatically.
-    TheISA::PCState pc = tc->pcState();
-    inst->advancePC(pc);
-    tc->pcState(pc);
-}
+    FaultName name() const override { return "Generic HTM failure fault"; }
 
-void
-ReExec::invoke(ThreadContext *tc, const StaticInstPtr &inst)
-{
-    tc->pcState(tc->pcState());
-}
+    uint64_t getHtmUid() const { return htmUid; }
+    HtmFailureFaultCause getHtmFailureFaultCause() const { return cause; }
+    void invoke(ThreadContext *tc, const StaticInstPtr &inst =
+                nullStaticInstPtr) override;
+};
 
-void
-SyscallRetryFault::invoke(ThreadContext *tc, const StaticInstPtr &inst)
-{
-    tc->pcState(tc->pcState());
-}
-
-void
-GenericPageTableFault::invoke(ThreadContext *tc, const StaticInstPtr &inst)
-{
-    bool handled = false;
-    if (!FullSystem) {
-        Process *p = tc->getProcessPtr();
-        handled = p->fixupFault(vaddr);
-    }
-    panic_if(!handled &&
-                 !tc->getSystemPtr()->trapToGdb(SIGSEGV, tc->contextId()),
-             "Page table fault when accessing virtual address %#x\n", vaddr);
-}
-
-void
-GenericAlignmentFault::invoke(ThreadContext *tc, const StaticInstPtr &inst)
-{
-    panic_if(!tc->getSystemPtr()->trapToGdb(SIGSEGV, tc->contextId()),
-             "Alignment fault when accessing virtual address %#x\n", vaddr);
-}
-
+# endif // __SIM_HTM_FAILURE_FAULT_HH__

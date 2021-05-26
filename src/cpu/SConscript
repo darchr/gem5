@@ -81,6 +81,9 @@ CompoundFlag('ExecNoTicks', [ 'Exec', 'FmtTicksOff' ])
 
 Source('pc_event.cc')
 
+SimObject('OpClass.py')
+SimObject('StaticInstFlags.py')
+
 if env['TARGET_ISA'] == 'null':
     Return()
 
@@ -113,6 +116,5 @@ Source('thread_state.cc')
 Source('timing_expr.cc')
 
 SimObject('DummyChecker.py')
-SimObject('StaticInstFlags.py')
 Source('checker/cpu.cc')
 DebugFlag('Checker')
