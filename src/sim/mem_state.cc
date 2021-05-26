@@ -34,7 +34,6 @@
 #include "debug/Vma.hh"
 #include "mem/se_translating_port_proxy.hh"
 #include "sim/process.hh"
-#include "sim/syscall_debug_macros.hh"
 #include "sim/system.hh"
 #include "sim/vma.hh"
 

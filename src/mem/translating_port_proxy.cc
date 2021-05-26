@@ -47,7 +47,6 @@
 
 #include "arch/generic/mmu.hh"
 #include "base/chunk_generator.hh"
-#include "cpu/base.hh"
 #include "cpu/thread_context.hh"
 #include "sim/system.hh"
 
