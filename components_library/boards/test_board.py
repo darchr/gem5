@@ -24,33 +24,58 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from m5.objects import SrcClockDomain, ClockDomain, VoltageDomain, Port
 
+from .abstract_board import AbstractBoard
 from ..processors.abstract_processor import AbstractProcessor
 from ..memory.abstract_memory_system import AbstractMemorySystem
 from ..cachehierarchies.abstract_cache_hierarchy import AbstractCacheHierarchy
-from .simple_board import SimpleBoard
+
+from typing import List
 
 
-class TestBoard(SimpleBoard):
+class TestBoard(AbstractBoard):
     def __init__(
         self,
         clk_freq: str,
         processor: AbstractProcessor,
         memory: AbstractMemorySystem,
         cache_hierarchy: AbstractCacheHierarchy,
+        cache_line_size: int = 64,
     ):
         super(TestBoard, self).__init__(
-            clk_freq=clk_freq,
             processor=processor,
             memory=memory,
             cache_hierarchy=cache_hierarchy,
+            cache_line_size=cache_line_size,
+        )
+        self.clk_domain = SrcClockDomain(
+            clock=clk_freq, voltage_domain=VoltageDomain()
         )
 
-    def connect_bridge(self, port):
+        self.mem_ranges = memory.get_memory_ranges()
+
+    def connect_bridge(self, port: Port):
         pass
 
-    def connect_apicbridge(self, port):
+    def connect_apicbridge(self, port: Port):
         pass
 
-    def connect_iocache(self, port):
+    def connect_iocache(self, port: Port):
         pass
+
+    def connect_system_port(self, port: Port) -> None:
+        self.system_port = port
+
+    def connect_things(self) -> None:
+        self.get_cache_hierarchy().incorporate_cache(self)
+
+        self.get_processor().incorporate_processor(self)
+
+        self.get_memory().incorporate_memory(self)
+
+    def get_clock_domain(self) -> ClockDomain:
+        return self.clk_domain
+
+    def get_dma_ports(self) -> List[Port]:
+        return []

@@ -27,7 +27,7 @@
 from m5.objects import (
     SrcClockDomain,
     VoltageDomain,
-    # Process,
+    Process,
     SEWorkload,
     IOXBar,
     Port,
@@ -107,27 +107,27 @@ class SimpleBoard(AbstractBoard):
         raise NotImplementedError("SimpleBoard does not have DMA Ports.")
 
     def connect_bridge(self, port):
-        raise NotImplementedError("SimpleBoard does not have a bridge")
+        pass
 
     def connect_apicbridge(self, port):
-        raise NotImplementedError("SimpleBoard does not have an apicbridge")
+        pass
 
     def connect_iocache(self, port):
-        raise NotImplementedError("SimpleBoard does not have an iocache")
+        pass
 
-    # def set_workload(self, binary: str) -> None:
-    #     """Set up the system to run a specific binary.
+    def set_workload(self, binary: str) -> None:
+        """Set up the system to run a specific binary.
 
-#     **Limitations**
-#     * Only supports single threaded applications
-#     * Dynamically linked executables are partially supported when the host
-#       ISA and the simulated ISA are the same.
+        **Limitations**
+        * Only supports single threaded applications
+        * Dynamically linked executables are partially supported when the host
+          ISA and the simulated ISA are the same.
 
-    #     :param binary: The path on the *host* to the binary to run in gem5.
-    #     """
+        :param binary: The path on the *host* to the binary to run in gem5.
+        """
 
-    #     self.workload = SEWorkload.init_compatible(binary)
+        self.workload = SEWorkload.init_compatible(binary)
 
-    #     process = Process()
-    #     process.cmd = [binary]
-    #     self.get_processor().get_cores()[0].set_workload(process)
+        process = Process()
+        process.cmd = [binary]
+        self.get_processor().get_cores()[0].set_workload(process)

@@ -28,16 +28,16 @@ import m5
 
 from m5.objects import Root
 
-from components_library.boards.simple_board import SimpleBoard
+from components_library.boards.test_board import TestBoard
 from components_library.cachehierarchies.no_cache import NoCache
-from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
+from components_library.memory.single_channel import SingleChannelDDR3_1600
 from components_library.processors.linear_generator import LinearGenerator
 from components_library.processors.random_generator import RandomGenerator
 from components_library.processors.complex_generator import ComplexGenerator
 
 cache_hierarchy = NoCache()
 
-memory = DDR3_1600_8x8(size="512MiB")
+memory = SingleChannelDDR3_1600(size="512MiB")
 
 lingen = LinearGenerator(num_cores=1, rate="100GB/s")
 rndgen = RandomGenerator(num_cores=2, block_size = 32, rate = "50")
@@ -46,7 +46,7 @@ cmxgen = ComplexGenerator(num_cores=1)
 cmxgen.add_linear(rate="100GB/s")
 cmxgen.add_random(block_size = 32, rate = "50MB/s")
 
-motherboard = SimpleBoard(
+motherboard = TestBoard(
     clk_freq="3GHz",
     processor=cmxgen,
     memory=memory,

@@ -45,4 +45,5 @@ class PyGeneratorCore(AbstractGeneratorCore):
         raise NotImplementedError
 
     def start_traffic(self):
+        print('starting traffic')
         self.main_generator.start(self._main_traffic)

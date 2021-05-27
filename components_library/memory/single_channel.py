@@ -32,7 +32,6 @@ from .abstract_memory_system import AbstractMemorySystem
 from ..utils.override import overrides
 
 from m5.objects import AddrRange, DRAMInterface, MemCtrl, Port
-from m5.util.convert import toMemorySize
 
 from typing import List, Sequence, Tuple, Type, Optional
 
@@ -153,7 +152,6 @@ class DS3SingleChannel(AbstractMemorySystem):
     @overrides(AbstractMemorySystem)
     def get_memory_ranges(self):
         return [self.mem_ctrl.range]
-
 
 def SingleChannelDS3DDR3_1600(
     size: Optional[str] = None,
