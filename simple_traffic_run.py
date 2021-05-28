@@ -40,11 +40,12 @@ cache_hierarchy = NoCache()
 memory = SingleChannelDDR3_1600(size="512MiB")
 
 lingen = LinearGenerator(num_cores=1, rate="100GB/s")
-rndgen = RandomGenerator(num_cores=2, block_size = 32, rate = "50")
+rndgen = RandomGenerator(num_cores=2, block_size=32, rate="50GB/s")
 
 cmxgen = ComplexGenerator(num_cores=1)
 cmxgen.add_linear(rate="100GB/s")
-cmxgen.add_random(block_size = 32, rate = "50MB/s")
+cmxgen.add_random(block_size=32, rate="50MB/s")
+
 
 motherboard = TestBoard(
     clk_freq="3GHz",
@@ -53,10 +54,12 @@ motherboard = TestBoard(
     cache_hierarchy=cache_hierarchy,
 )
 
+
 motherboard.connect_things()
 
 
 root = Root(full_system=False, system=motherboard)
+
 
 m5.instantiate()
 

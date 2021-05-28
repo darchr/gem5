@@ -40,10 +40,10 @@ class ComplexGenerator(AbstractProcessor):
         super(ComplexGenerator, self).__init__(
             cores=[ComplexGeneratorCore() for i in range(num_cores)]
         )
-        """The complext generator
+        """The complex generator
 
         This class defines an external interface to create a list of complex
-        generator cores that could replace the processing cores in a board. All
+        generator cores that could replace the processing cores in a board.
 
         :param num_cores: The number of complex generator cores to create.
         """
@@ -62,13 +62,28 @@ class ComplexGenerator(AbstractProcessor):
         rd_perc: int = 100,
         data_limit: int = 0,
     ) -> None:
-        duration = fromSeconds(toLatency(duration))
-        rate = toMemoryBandwidth(rate)
-        period = fromSeconds(block_size / rate)
+        """
+        This function will add a linear traffic to all the cores in the
+        generator with the params specified.
+
+        :param duration: The number of ticks for the generator core to generate
+        traffic.
+        :param rate: The rate at which the synthetic data is read/written.
+        :param block_size: The number of bytes to be read/written with each
+        request.
+        :param min_addr: The lower bound of the address range the generator
+        will read/write from/to.
+        :param max_addr: The upper bound of the address range the generator
+        will read/write from/to.
+        :param rd_perc: The percentage of read requests among all the generated
+        requests. The write percentage would be equal to 100 - rd_perc.
+        :param data_limit: The amount of data in bytes to read/write by the
+        generator before stopping generation.
+        """
         for core in self.cores:
             core.add_linear(
                 duration,
-                period,
+                rate,
                 block_size,
                 min_addr,
                 max_addr,
@@ -86,13 +101,28 @@ class ComplexGenerator(AbstractProcessor):
         rd_perc: int = 100,
         data_limit: int = 0,
     ) -> None:
-        duration = fromSeconds(toLatency(duration))
-        rate = toMemoryBandwidth(rate)
-        period = fromSeconds(block_size / rate)
+        """
+        This function will add a random traffic to all the cores in the
+        generator with the params specified.
+
+        :param duration: The number of ticks for the generator core to generate
+        traffic.
+        :param rate: The rate at which the synthetic data is read/written.
+        :param block_size: The number of bytes to be read/written with each
+        request.
+        :param min_addr: The lower bound of the address range the generator
+        will read/write from/to.
+        :param max_addr: The upper bound of the address range the generator
+        will read/write from/to.
+        :param rd_perc: The percentage of read requests among all the generated
+        requests. The write percentage would be equal to 100 - rd_perc.
+        :param data_limit: The amount of data in bytes to read/write by the
+        generator before stopping generation.
+        """
         for core in self.cores:
             core.add_random(
                 duration,
-                period,
+                rate,
                 block_size,
                 min_addr,
                 max_addr,
@@ -101,5 +131,10 @@ class ComplexGenerator(AbstractProcessor):
             )
 
     def start_traffic(self) -> None:
+        """
+        This function will start the traffic at the top of the traffic list. It
+        will also pop the first element so that the generator will start a
+        new traffic everytime this is called.
+        """
         for core in self.cores:
             core.start_traffic()

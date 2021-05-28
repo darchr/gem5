@@ -25,36 +25,37 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.ticks import fromSeconds
-from m5.objects import PyTrafficGen, Port
+from m5.util.convert import toLatency, toMemoryBandwidth
+from m5.objects import PyTrafficGen, Port, BaseTrafficGen
 
 from .abstract_core import AbstractCore
 from .abstract_generator_core import AbstractGeneratorCore
 
 from ..utils.override import overrides
 
+from typing import Iterator
 
 class RandomGeneratorCore(AbstractGeneratorCore):
     def __init__(
         self,
-        duration: int,
-        period: int,
+        duration: str,
+        rate: str,
         block_size: int,
         min_addr: int,
         max_addr: int,
         rd_perc: int,
         data_limit: int,
-    ):
+    ) -> None:
         super(RandomGeneratorCore, self).__init__()
-        """ The linear generator core interface.
+        """ The random generator core interface.
 
         This class defines the interface for a generator core that will create
-        a random traffic specific to the parameters below. This core
-        uses PyTrafficGen to create and inject the synthetic traffic.
+        a random traffic specific to the parameters below. This core uses
+        PyTrafficGen to create and inject the synthetic traffic.
 
         :param duration: The number of ticks for the generator core to generate
         traffic.
-        :param period: The number of ticks that separates two consecutive
-        requests.
+        :param rate: The rate at which the synthetic data is read/written.
         :param block_size: The number of bytes to be read/written with each
         request.
         :param min_addr: The lower bound of the address range the generator
@@ -68,13 +69,12 @@ class RandomGeneratorCore(AbstractGeneratorCore):
         """
         self.generator = PyTrafficGen()
         self._duration = duration
-        self._period = period
+        self._rate = rate
         self._block_size = block_size
         self._min_addr = min_addr
         self._max_addr = max_addr
         self._rd_perc = rd_perc
         self._data_limit = data_limit
-        self._set_traffic()
 
     @overrides(AbstractCore)
     def connect_dcache(self, port: Port) -> None:
@@ -86,23 +86,26 @@ class RandomGeneratorCore(AbstractGeneratorCore):
         """
         self._traffic = self._create_traffic()
 
-    def _create_traffic(self):
+    def _create_traffic(self) -> Iterator[BaseTrafficGen]:
         """
         A python generator that yields (creates) a random traffic with the
         specified params in the generator core and then yields (creates) an
         exit traffic.
 
-        :rtype: ???
+        :rtype: Iterator[BaseTrafficGen]
         """
-        self._min_period = self._period
-        self._max_period = self._period
+        duration = fromSeconds(toLatency(self._duration))
+        rate = toMemoryBandwidth(self._rate)
+        period = fromSeconds(self._block_size / rate)
+        min_period = period
+        max_period = period
         yield self.generator.createRandom(
-            self._duration,
+            duration,
             self._min_addr,
             self._max_addr,
             self._block_size,
-            self._min_period,
-            self._max_period,
+            min_period,
+            max_period,
             self._rd_perc,
             self._data_limit,
         )
@@ -111,7 +114,7 @@ class RandomGeneratorCore(AbstractGeneratorCore):
     def start_traffic(self) -> None:
         """
         A call to this function will start generating the traffic, this call
-        should happen before m5.simulate()
+        should happen before m5.simulate() and after m5.instantiate().
         """
-        print("rtype: ", type(self._traffic))
+        self._set_traffic()
         self.generator.start(self._traffic)

@@ -24,9 +24,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.ticks import fromSeconds
-from m5.util.convert import toLatency, toMemoryBandwidth
-
 from ..utils.override import overrides
 from ..boards.mem_mode import MEM_MODE
 from .linear_generator_core import LinearGeneratorCore
@@ -61,7 +58,26 @@ class LinearGenerator(AbstractProcessor):
                 data_limit=data_limit,
             )
         )
-        self._set_traffic()
+        """The linear generator
+
+        This class defines an external interface to create a list of linear
+        generator cores that could replace the processing cores in a board.
+
+        :param num_cores: The number of linear generator cores to create.
+        :param duration: The number of ticks for the generator to generate
+        traffic.
+        :param rate: The rate at which the synthetic data is read/written.
+        :param block_size: The number of bytes to be read/written with each
+        request.
+        :param min_addr: The lower bound of the address range the generator
+        will read/write from/to.
+        :param max_addr: The upper bound of the address range the generator
+        will read/write from/to.
+        :param rd_perc: The percentage of read requests among all the generated
+        requests. The write percentage would be equal to 100 - rd_perc.
+        :param data_limit: The amount of data in bytes to read/write by the
+        generator before stopping generation.
+        """
 
     def _create_cores(
         self,
@@ -74,13 +90,14 @@ class LinearGenerator(AbstractProcessor):
         rd_perc,
         data_limit,
     ) -> List[LinearGeneratorCore]:
-        duration = fromSeconds(toLatency(duration))
-        rate = toMemoryBandwidth(rate)
-        period = fromSeconds(block_size / rate)
+        """
+        The helper function to create the cores for the generator, it will use
+        the same inputs as the constructor function.
+        """
         return [
             LinearGeneratorCore(
                 duration=duration,
-                period = period,
+                rate=rate,
                 block_size=block_size,
                 min_addr=min_addr,
                 max_addr=max_addr,
@@ -94,10 +111,9 @@ class LinearGenerator(AbstractProcessor):
     def incorporate_processor(self, board: AbstractBoard) -> None:
         board.set_mem_mode(MEM_MODE.TIMING)
 
-    def _set_traffic(self) -> None:
-        for core in self.cores:
-            core._set_traffic()
-
     def start_traffic(self) -> None:
+        """
+        This function will start the assigned traffic to this generator.
+        """
         for core in self.cores:
             core.start_traffic()

@@ -43,10 +43,12 @@ class AbstractGeneratorCore(AbstractCore):
     """
 
     def __init__(self):
-        super(AbstractGeneratorCore, self).__init__(CPUTypes.TIMING)
         """
         Create an AbstractCore with the CPUType of Timing.
         """
+        # TODO: Remove the CPU Type parameter
+        super(AbstractGeneratorCore, self).__init__(CPUTypes.TIMING)
+
 
     @overrides(AbstractCore)
     def connect_icache(self, port: Port) -> None:
