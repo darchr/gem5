@@ -41,7 +41,7 @@ class LinearGeneratorCore(AbstractGeneratorCore):
         max_addr: int,
         rd_perc: int,
         data_limit: int,
-    ):
+    ) -> None:
         super(LinearGeneratorCore, self).__init__()
         self.main_generator = PyTrafficGen()
         self._duration = int(toLatency(duration) * 1e12)
@@ -74,9 +74,9 @@ class LinearGeneratorCore(AbstractGeneratorCore):
         yield self.main_generator.createExit(0)
 
     @overrides(AbstractGeneratorCore)
-    def _set_traffic(self):
+    def _set_traffic(self) -> None:
         self._main_traffic = self._create_traffic()
 
     @overrides(AbstractGeneratorCore)
-    def start_traffic(self):
+    def start_traffic(self) -> None:
         self.main_generator.start(self._main_traffic)

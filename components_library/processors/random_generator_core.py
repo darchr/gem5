@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.objects import PyTrafficGen
+from m5.objects import PyTrafficGen, Port
 
 from m5.util.convert import toLatency, toMemoryBandwidth
 
@@ -75,9 +75,9 @@ class RandomGeneratorCore(AbstractGeneratorCore):
         yield self.main_generator.createExit(0)
 
     @overrides(AbstractGeneratorCore)
-    def _set_traffic(self):
+    def _set_traffic(self) -> None:
         self._main_traffic = self.create_traffic()
 
     @overrides(AbstractGeneratorCore)
-    def start_traffic(self):
+    def start_traffic(self) -> None:
         self.main_generator.start(self._main_traffic)

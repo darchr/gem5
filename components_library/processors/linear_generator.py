@@ -24,11 +24,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from gem5.components_library.utils.override import overrides
 from gem5.components_library.boards.mem_mode import MEM_MODE
 from .linear_generator_core import LinearGeneratorCore
 
 from .abstract_processor import AbstractProcessor
 from ..boards.abstract_board import AbstractBoard
+
+from typing import List
 
 
 class LinearGenerator(AbstractProcessor):
@@ -67,7 +70,7 @@ class LinearGenerator(AbstractProcessor):
         max_addr,
         rd_perc,
         data_limit,
-    ):
+    ) -> List[LinearGeneratorCore]:
         return [
             LinearGeneratorCore(
                 duration=duration,
@@ -81,13 +84,14 @@ class LinearGenerator(AbstractProcessor):
             for i in range(num_cores)
         ]
 
+    @overrides(AbstractProcessor)
     def incorporate_processor(self, board: AbstractBoard) -> None:
         board.set_mem_mode(MEM_MODE.TIMING)
 
-    def _set_traffic(self):
+    def _set_traffic(self) -> None:
         for core in self.cores:
             core.set_traffic()
 
-    def start_traffic(self):
+    def start_traffic(self) -> None:
         for core in self.cores:
             core.start_traffic()

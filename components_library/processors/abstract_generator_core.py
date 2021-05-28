@@ -56,14 +56,14 @@ class AbstractGeneratorCore(AbstractCore):
     def _create_idle_traffic(self):
         yield self.dummy_generator.createIdle(0)
 
-    def _setup_dummy_generator(self):
+    def _setup_dummy_generator(self) -> None:
         self.dummy_generator = PyTrafficGen()
         self._dummy_traffic = self._create_idle_traffic()
 
     @abstractmethod
-    def _set_traffic(self, mode, rate):
+    def _set_traffic(self, mode, rate) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def start_traffic(self):
+    def start_traffic(self) -> None:
         raise NotImplementedError

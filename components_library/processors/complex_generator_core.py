@@ -26,7 +26,7 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
         max_addr: int,
         rd_perc: int,
         data_limit: int,
-    ):
+    ) -> None:
         duration = int(toLatency(duration) * 1e12)
         rate = toMemoryBandwidth(rate)
         self._main_traffic.append(
@@ -50,7 +50,7 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
         max_addr: int,
         rd_perc: int,
         data_limit: int,
-    ):
+    ) -> None:
         duration = int(toLatency(duration) * 1e12)
         rate = toMemoryBandwidth(rate)
         self._main_traffic.append(
@@ -116,5 +116,5 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
         yield self.main_generator.createExit(0)
 
     @overrides(AbstractGeneratorCore)
-    def start_traffic(self):
+    def start_traffic(self) -> None:
         self.main_generator.start(self._main_traffic.pop(0))

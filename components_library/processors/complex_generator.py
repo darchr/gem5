@@ -24,6 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from ..utils.override import overrides
 from ..boards.mem_mode import MEM_MODE
 from .complex_generator_core import ComplexGeneratorCore
 
@@ -34,12 +35,10 @@ from ..boards.abstract_board import AbstractBoard
 class ComplexGenerator(AbstractProcessor):
     def __init__(self, num_cores: int = 1) -> None:
         super(ComplexGenerator, self).__init__(
-            cores=self._create_cores(num_cores=num_cores)
+            cores=[ComplexGeneratorCore() for i in range(num_cores)]
         )
 
-    def _create_cores(self, num_cores):
-        return [ComplexGeneratorCore() for i in range(num_cores)]
-
+    @overrides(AbstractProcessor)
     def incorporate_processor(self, board: AbstractBoard) -> None:
         board.set_mem_mode(MEM_MODE.TIMING)
 
@@ -52,7 +51,7 @@ class ComplexGenerator(AbstractProcessor):
         max_addr: int = 32768,
         rd_perc: int = 100,
         data_limit: int = 0,
-    ):
+    ) -> None:
         for core in self.cores:
             core.add_linear(
                 duration,
@@ -73,7 +72,7 @@ class ComplexGenerator(AbstractProcessor):
         max_addr: int = 32768,
         rd_perc: int = 100,
         data_limit: int = 0,
-    ):
+    ) -> None:
         for core in self.cores:
             core.add_random(
                 duration,
@@ -85,6 +84,6 @@ class ComplexGenerator(AbstractProcessor):
                 data_limit,
             )
 
-    def start_traffic(self):
+    def start_traffic(self) -> None:
         for core in self.cores:
             core.start_traffic()

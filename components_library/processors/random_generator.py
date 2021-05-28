@@ -69,7 +69,7 @@ class RandomGenerator(AbstractProcessor):
         max_addr,
         rd_perc,
         data_limit,
-    ):
+    ) -> List[RandomGeneratorCore]:
         return [
             RandomGeneratorCore(
                 duration=duration,
@@ -83,6 +83,7 @@ class RandomGenerator(AbstractProcessor):
             for i in range(num_cores)
         ]
 
+    @overrides(AbstractProcessor)
     def incorporate_processor(self, board: AbstractBoard) -> None:
         board.set_mem_mode(MEM_MODE.TIMING)
 
