@@ -24,6 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from m5.ticks import fromSeconds
+from m5.util.convert import toLatency, toMemoryBandwidth
+
 from ..utils.override import overrides
 from ..boards.mem_mode import MEM_MODE
 from .linear_generator_core import LinearGeneratorCore
@@ -71,10 +74,13 @@ class LinearGenerator(AbstractProcessor):
         rd_perc,
         data_limit,
     ) -> List[LinearGeneratorCore]:
+        duration = fromSeconds(toLatency(duration))
+        rate = toMemoryBandwidth(rate)
+        period = fromSeconds(block_size / rate)
         return [
             LinearGeneratorCore(
                 duration=duration,
-                rate=rate,
+                period = period,
                 block_size=block_size,
                 min_addr=min_addr,
                 max_addr=max_addr,

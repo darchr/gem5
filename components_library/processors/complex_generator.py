@@ -24,6 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from m5.ticks import fromSeconds
+from m5.util.convert import toLatency, toMemoryBandwidth
+
 from ..utils.override import overrides
 from ..boards.mem_mode import MEM_MODE
 from .complex_generator_core import ComplexGeneratorCore
@@ -37,6 +40,13 @@ class ComplexGenerator(AbstractProcessor):
         super(ComplexGenerator, self).__init__(
             cores=[ComplexGeneratorCore() for i in range(num_cores)]
         )
+        """The complext generator
+
+        This class defines an external interface to create a list of complex
+        generator cores that could replace the processing cores in a board. All
+
+        :param num_cores: The number of complex generator cores to create.
+        """
 
     @overrides(AbstractProcessor)
     def incorporate_processor(self, board: AbstractBoard) -> None:
@@ -52,10 +62,13 @@ class ComplexGenerator(AbstractProcessor):
         rd_perc: int = 100,
         data_limit: int = 0,
     ) -> None:
+        duration = fromSeconds(toLatency(duration))
+        rate = toMemoryBandwidth(rate)
+        period = fromSeconds(block_size / rate)
         for core in self.cores:
             core.add_linear(
                 duration,
-                rate,
+                period,
                 block_size,
                 min_addr,
                 max_addr,
@@ -73,10 +86,13 @@ class ComplexGenerator(AbstractProcessor):
         rd_perc: int = 100,
         data_limit: int = 0,
     ) -> None:
+        duration = fromSeconds(toLatency(duration))
+        rate = toMemoryBandwidth(rate)
+        period = fromSeconds(block_size / rate)
         for core in self.cores:
             core.add_random(
                 duration,
-                rate,
+                period,
                 block_size,
                 min_addr,
                 max_addr,

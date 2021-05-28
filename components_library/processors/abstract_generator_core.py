@@ -24,46 +24,64 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from abc import abstractmethod
-from m5.objects import Port, PyTrafficGen
+
+from m5.objects import Port
+from ..utils.override import overrides
 
 from .cpu_types import CPUTypes
 from .abstract_core import AbstractCore
 
+
 class AbstractGeneratorCore(AbstractCore):
+    """The abstract generator core
+
+    Generator cores are cores that can replace the processing cores to allow
+    for testing computer systems in gem5. The abstract class
+    AbstractGeneratorCore defines the external interface that every generator
+    core must implement. Certain generator cores might need to extend this
+    interface to fit their requirements.
+    """
+
     def __init__(self):
         super(AbstractGeneratorCore, self).__init__(CPUTypes.TIMING)
-        self._setup_dummy_generator()
+        """
+        Create an AbstractCore with the CPUType of Timing.
+        """
 
+    @overrides(AbstractCore)
     def connect_icache(self, port: Port) -> None:
-        self.dummy_generator.port = port
+        """
+        Generator cores only have one request port which we will connect to
+        the data cache not the icache. Just pass here.
+        """
+        pass
 
-    @abstractmethod
-    def connect_dcache(self, port: Port) -> None:
-        raise NotImplementedError
-
+    @overrides(AbstractCore)
     def connect_walker_ports(self, port1: Port, port2: Port) -> None:
+        """
+        Since generator cores are not used in full system mode, no need to
+        connect them to walker ports. Just pass here.
+        """
         pass
 
+    @overrides(AbstractCore)
     def set_workload(self, process: "Process") -> None:
+        """
+        Generator cores do not need any workload assigned to them, as they
+        generate their own synthetic workload (synthetic traffic). Just pass
+        here.
+
+        :param process: The process to execute during simulation.
+        """
         pass
 
+    @overrides(AbstractCore)
     def connect_interrupt(
         self, interrupt_requestor: Port, interrupt_responce: Port
     ) -> None:
+        """
+        Since generator cores are not used in full system mode, no need to
+        connect them to walker ports. Just pass here.
+        """
         pass
 
-    def _create_idle_traffic(self):
-        yield self.dummy_generator.createIdle(0)
-
-    def _setup_dummy_generator(self) -> None:
-        self.dummy_generator = PyTrafficGen()
-        self._dummy_traffic = self._create_idle_traffic()
-
-    @abstractmethod
-    def _set_traffic(self, mode, rate) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def start_traffic(self) -> None:
-        raise NotImplementedError

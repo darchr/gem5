@@ -42,14 +42,33 @@ class AbstractCore(SubSystem):
 
     @abstractmethod
     def connect_icache(self, port: Port) -> None:
+        """
+        This function should connect the response port from the instruction
+        cache to the right request port on the core.
+
+        :param port: The response port from the icache to connect to.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def connect_dcache(self, port: Port) -> None:
+        """
+        This function should connect the response port from the data cache to
+        the right request port on the core.
+
+        :param port: The response port from the icache to connect to.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def connect_walker_ports(self, port1: Port, port2: Port) -> None:
+        """
+        Connect the response port from itb and dtb to their respective request
+        ports in the core.
+
+        :param port1: The response port from itb walker to connect to.
+        :param port2: The response port from dtb walker to connect to.
+        """
         raise NotImplementedError
 
     @abstractmethod

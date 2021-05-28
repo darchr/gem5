@@ -24,15 +24,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from m5.ticks import fromSeconds
+from m5.util.convert import toLatency, toMemoryBandwidth
+
+from ..utils.override import overrides
 from ..boards.mem_mode import MEM_MODE
 from .random_generator_core import RandomGeneratorCore
 
 from .abstract_processor import AbstractProcessor
 from ..boards.abstract_board import AbstractBoard
 
-from ..utils.override import overrides
-
 from typing import List
+
 
 class RandomGenerator(AbstractProcessor):
     def __init__(
@@ -71,10 +74,13 @@ class RandomGenerator(AbstractProcessor):
         rd_perc,
         data_limit,
     ) -> List[RandomGeneratorCore]:
+        duration = fromSeconds(toLatency(duration))
+        rate = toMemoryBandwidth(rate)
+        period = fromSeconds(block_size / rate)
         return [
             RandomGeneratorCore(
                 duration=duration,
-                rate=rate,
+                period=period,
                 block_size=block_size,
                 min_addr=min_addr,
                 max_addr=max_addr,
