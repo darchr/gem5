@@ -28,10 +28,7 @@ from abc import ABCMeta, abstractmethod
 
 from ..boards.abstract_board import AbstractBoard
 
-from m5.objects import SubSystem#, BaseCPU, BaseXBar
-from m5.params import Port
-
-from typing import Tuple
+from m5.objects import SubSystem
 
 
 class AbstractCacheHierarchy(SubSystem):

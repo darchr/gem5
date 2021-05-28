@@ -27,7 +27,7 @@
 from abc import ABCMeta, abstractmethod
 from .cpu_types import CPUTypes
 
-from m5.objects import Port, SubSystem#, Process
+from m5.objects import Port, SubSystem
 
 
 class AbstractCore(SubSystem):

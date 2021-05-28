@@ -26,14 +26,12 @@
 
 from abc import ABCMeta, abstractmethod
 from components_library.processors.abstract_core import AbstractCore
-from components_library.processors.cpu_types import CPUTypes
 
-from m5.objects import SubSystem#, BaseCPU
+from m5.objects import SubSystem
 
 from ..boards.abstract_board import AbstractBoard
 
 from typing import List
-
 
 class AbstractProcessor(SubSystem):
     __metaclass__ = ABCMeta

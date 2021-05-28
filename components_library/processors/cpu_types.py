@@ -32,7 +32,3 @@ class CPUTypes(Enum):
     KVM = 2
     O3 = 3
     TIMING = 4
-    LINGEN = 5
-    RNDGEN = 6
-    CMXGEN = 7
-    GUPSGEN = 8

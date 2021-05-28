@@ -24,29 +24,26 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from gem5.components_library.boards.mem_mode import MEM_MODE
 from .random_generator_core import RandomGeneratorCore
 
 from .abstract_processor import AbstractProcessor
 from ..boards.abstract_board import AbstractBoard
 
-from typing import List
+from ..utils.override import overrides
 
 
 class RandomGenerator(AbstractProcessor):
-    """
-    A SimpeProcessor contains a number of cores of a a single CPUType.
-    """
-
     def __init__(
         self,
-        num_cores: int,
-        duration="1ms",
-        rate="100GB/s",
-        block_size=64,
-        min_addr=0,
-        max_addr=32768,
-        rd_perc=100,
-        data_limit=0,
+        num_cores: int = 1,
+        duration: str = "1ms",
+        rate: str = "100GB/s",
+        block_size: int = 64,
+        min_addr: int = 0,
+        max_addr: int = 32768,
+        rd_perc: int = 100,
+        data_limit: int = 0,
     ) -> None:
         super(RandomGenerator, self).__init__(
             cores=self._create_cores(
@@ -60,7 +57,7 @@ class RandomGenerator(AbstractProcessor):
                 data_limit,
             )
         )
-        self.set_traffic()
+        self._set_traffic()
 
     def _create_cores(
         self,
@@ -87,10 +84,9 @@ class RandomGenerator(AbstractProcessor):
         ]
 
     def incorporate_processor(self, board: AbstractBoard) -> None:
-        # TODO: Shouldn't we do this with a setter function?
-        board.mem_mode = "timing"
+        board.set_mem_mode(MEM_MODE.TIMING)
 
-    def set_traffic(self):
+    def _set_traffic(self):
         for core in self.cores:
             core.set_traffic()
 

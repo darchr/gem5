@@ -26,10 +26,13 @@
 
 from m5.objects import SrcClockDomain, ClockDomain, VoltageDomain, Port
 
+from .mem_mode import MEM_MODE, mem_mode_to_string
+from ..utils.override import overrides
 from .abstract_board import AbstractBoard
 from ..processors.abstract_processor import AbstractProcessor
 from ..memory.abstract_memory_system import AbstractMemorySystem
 from ..cachehierarchies.abstract_cache_hierarchy import AbstractCacheHierarchy
+
 
 from typing import List
 
@@ -41,28 +44,17 @@ class TestBoard(AbstractBoard):
         processor: AbstractProcessor,
         memory: AbstractMemorySystem,
         cache_hierarchy: AbstractCacheHierarchy,
-        cache_line_size: int = 64,
     ):
         super(TestBoard, self).__init__(
             processor=processor,
             memory=memory,
             cache_hierarchy=cache_hierarchy,
-            cache_line_size=cache_line_size,
         )
         self.clk_domain = SrcClockDomain(
             clock=clk_freq, voltage_domain=VoltageDomain()
         )
 
         self.mem_ranges = memory.get_memory_ranges()
-
-    def connect_bridge(self, port: Port):
-        pass
-
-    def connect_apicbridge(self, port: Port):
-        pass
-
-    def connect_iocache(self, port: Port):
-        pass
 
     def connect_system_port(self, port: Port) -> None:
         self.system_port = port
@@ -79,3 +71,7 @@ class TestBoard(AbstractBoard):
 
     def get_dma_ports(self) -> List[Port]:
         return []
+
+    @overrides(AbstractBoard)
+    def set_mem_mode(self, mem_mode: MEM_MODE) -> None:
+        self.mem_mode = mem_mode_to_string(mem_mode=mem_mode)

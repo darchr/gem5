@@ -111,10 +111,6 @@ class MESITwoLevelCacheHierarchy(
         self.ruby_system.network = SimplePt2Pt(self.ruby_system)
         self.ruby_system.network.number_of_virtual_networks = 5
 
-        """
-        iobus = motherboard.get_io_bus()
-        """
-
         self._l1_controllers = []
         for i, core in enumerate(motherboard.get_processor().get_cores()):
             cache = L1Cache(
@@ -130,17 +126,13 @@ class MESITwoLevelCacheHierarchy(
                 motherboard.get_clock_domain(),
             )
             cache.sequencer = RubySequencer(
-                version=i, dcache=cache.L1Dcache, clk_domain=cache.clk_domain
+                version=i,
+                dcache=cache.L1Dcache,
+                clk_domain=cache.clk_domain,
+                # pio_request_port=motherboard.get_io_bus().cpu_side_ports,
+                # mem_request_port=motherboard.get_io_bus().cpu_side_ports,
+                # pio_response_port=motherboard.get_io_bus().mem_side_ports,
             )
-            """
-            pio_request_port=motherboard.get_io_bus().cpu_side_ports,
-            mem_request_port=motherboard.get_io_bus().cpu_side_ports,
-            pio_response_port=motherboard.get_io_bus().mem_side_ports,
-            """
-
-            motherboard.connect_iocache(cache.sequencer.pio_request_port)
-            motherboard.connect_iocache(cache.sequencer.mem_request_port)
-            motherboard.connect_iocache(cache.sequencer.pio_response_port)
 
             cache.ruby_system = self.ruby_system
 
@@ -216,12 +208,10 @@ class MESITwoLevelCacheHierarchy(
         motherboard.connect_system_port(
             self.ruby_system.sys_port_proxy.in_ports
         )
-        """
-        self.ruby_system.sys_port_proxy.pio_request_port = iobus.cpu_side_ports
-        """
-        motherboard.connect_iocache(
-            self.ruby_system.sys_port_proxy.pio_request_port
-        )
+
+        # self.ruby_system.sys_port_proxy.pio_request_port = \
+        # iobus.cpu_side_ports
+
         # connect the io bus
         # TODO: This interface needs fixed. The PC should not be accessed in
         # This way

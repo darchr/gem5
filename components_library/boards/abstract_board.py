@@ -59,7 +59,6 @@ class AbstractBoard(System):
         processor: "AbstractProcessor",
         memory: "AbstractMemory",
         cache_hierarchy: "AbstractCacheHierarchy",
-        cache_line_size: int,
     ) -> None:
         super(AbstractBoard, self).__init__()
         """
@@ -71,7 +70,6 @@ class AbstractBoard(System):
         self.processor = processor
         self.memory = memory
         self.cache_hierarchy = cache_hierarchy
-        self.cache_line_size = cache_line_size
 
     def get_processor(self) -> "AbstractProcessor":
         """Get the processor connected to the board.
@@ -116,15 +114,6 @@ class AbstractBoard(System):
 
         :returns: The I/O Bus
         """
-        raise NotImplementedError
-
-    def connect_bridge(self, port):
-        raise NotImplementedError
-
-    def connect_apicbridge(self, port):
-        raise NotImplementedError
-
-    def connect_iocache(self, port):
         raise NotImplementedError
 
     @abstractmethod

@@ -106,15 +106,6 @@ class SimpleBoard(AbstractBoard):
     def get_dma_ports(self) -> List[Port]:
         raise NotImplementedError("SimpleBoard does not have DMA Ports.")
 
-    def connect_bridge(self, port):
-        pass
-
-    def connect_apicbridge(self, port):
-        pass
-
-    def connect_iocache(self, port):
-        pass
-
     def set_workload(self, binary: str) -> None:
         """Set up the system to run a specific binary.
 

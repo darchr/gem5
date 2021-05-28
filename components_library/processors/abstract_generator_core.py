@@ -30,11 +30,10 @@ from m5.objects import Port, PyTrafficGen
 from .cpu_types import CPUTypes
 from .abstract_core import AbstractCore
 
-
 class AbstractGeneratorCore(AbstractCore):
-    def __init__(self, cpu_type: CPUTypes):
-        super(AbstractGeneratorCore, self).__init__(cpu_type)
-        self.setup_dummy_generator()
+    def __init__(self):
+        super(AbstractGeneratorCore, self).__init__(CPUTypes.TIMING)
+        self._setup_dummy_generator()
 
     def connect_icache(self, port: Port) -> None:
         self.dummy_generator.port = port
@@ -54,15 +53,15 @@ class AbstractGeneratorCore(AbstractCore):
     ) -> None:
         pass
 
-    def create_idle_traffic(self):
+    def _create_idle_traffic(self):
         yield self.dummy_generator.createIdle(0)
 
-    def setup_dummy_generator(self):
+    def _setup_dummy_generator(self):
         self.dummy_generator = PyTrafficGen()
-        self._dummy_traffic = self.create_idle_traffic()
+        self._dummy_traffic = self._create_idle_traffic()
 
     @abstractmethod
-    def set_traffic(self, mode, rate):
+    def _set_traffic(self, mode, rate):
         raise NotImplementedError
 
     @abstractmethod

@@ -1,33 +1,36 @@
+from m5.objects import PyTrafficGen, Port
+
 from m5.util.convert import toLatency, toMemoryBandwidth
 
-from components_library.processors.cpu_types import CPUTypes
-from components_library.processors.py_generator_core import PyGeneratorCore
+from .abstract_generator_core import AbstractGeneratorCore
+
+from ..utils.override import overrides
 
 
-from .py_generator_core import PyGeneratorCore
-
-
-class ComplexGeneratorCore(PyGeneratorCore):
-    def __init__(
-        self,
-    ):
-        super(ComplexGeneratorCore, self).__init__(CPUTypes.CMXGEN)
+class ComplexGeneratorCore(AbstractGeneratorCore):
+    def __init__(self):
+        super(ComplexGeneratorCore, self).__init__()
+        self.main_generator = PyTrafficGen()
         self._main_traffic = []
+
+    @overrides(AbstractGeneratorCore)
+    def connect_dcache(self, port: Port) -> None:
+        self.main_generator.port = port
 
     def add_linear(
         self,
-        duration="1ms",
-        rate="100GB/s",
-        block_size=64,
-        min_addr=0,
-        max_addr=32768,
-        rd_perc=100,
-        data_limit=0,
+        duration: str,
+        rate: str,
+        block_size: int,
+        min_addr: int,
+        max_addr: int,
+        rd_perc: int,
+        data_limit: int,
     ):
         duration = int(toLatency(duration) * 1e12)
         rate = toMemoryBandwidth(rate)
         self._main_traffic.append(
-            self.create_linear_traffic(
+            self._create_linear_traffic(
                 duration,
                 rate,
                 block_size,
@@ -40,18 +43,18 @@ class ComplexGeneratorCore(PyGeneratorCore):
 
     def add_random(
         self,
-        duration="1ms",
-        rate="100GB/s",
-        block_size=64,
-        min_addr=0,
-        max_addr=32768,
-        rd_perc=100,
-        data_limit=0,
+        duration: str,
+        rate: str,
+        block_size: int,
+        min_addr: int,
+        max_addr: int,
+        rd_perc: int,
+        data_limit: int,
     ):
         duration = int(toLatency(duration) * 1e12)
         rate = toMemoryBandwidth(rate)
         self._main_traffic.append(
-            self.create_random_traffic(
+            self._create_random_traffic(
                 duration,
                 rate,
                 block_size,
@@ -62,15 +65,15 @@ class ComplexGeneratorCore(PyGeneratorCore):
             )
         )
 
-    def create_linear_traffic(
+    def _create_linear_traffic(
         self,
-        duration,
-        rate,
-        block_size,
-        min_addr,
-        max_addr,
-        rd_perc,
-        data_limit,
+        duration: int,
+        rate: int,
+        block_size: int,
+        min_addr: int,
+        max_addr: int,
+        rd_perc: int,
+        data_limit: int,
     ):
         period = int(float(block_size * 1e12) / rate)
         min_period = period
@@ -87,15 +90,15 @@ class ComplexGeneratorCore(PyGeneratorCore):
         )
         yield self.main_generator.createExit(0)
 
-    def create_random_traffic(
+    def _create_random_traffic(
         self,
-        duration,
-        rate,
-        block_size,
-        min_addr,
-        max_addr,
-        rd_perc,
-        data_limit,
+        duration: int,
+        rate: int,
+        block_size: int,
+        min_addr: int,
+        max_addr: int,
+        rd_perc: int,
+        data_limit: int,
     ):
         period = int(float(block_size * 1e12) / rate)
         min_period = period
@@ -112,5 +115,6 @@ class ComplexGeneratorCore(PyGeneratorCore):
         )
         yield self.main_generator.createExit(0)
 
+    @overrides(AbstractGeneratorCore)
     def start_traffic(self):
         self.main_generator.start(self._main_traffic.pop(0))
