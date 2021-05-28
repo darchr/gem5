@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from gem5.components_library.boards.mem_mode import MEM_MODE
+from ..boards.mem_mode import MEM_MODE
 from .random_generator_core import RandomGeneratorCore
 
 from .abstract_processor import AbstractProcessor
@@ -32,6 +32,7 @@ from ..boards.abstract_board import AbstractBoard
 
 from ..utils.override import overrides
 
+from typing import List
 
 class RandomGenerator(AbstractProcessor):
     def __init__(
@@ -89,7 +90,7 @@ class RandomGenerator(AbstractProcessor):
 
     def _set_traffic(self):
         for core in self.cores:
-            core.set_traffic()
+            core._set_traffic()
 
     def start_traffic(self):
         for core in self.cores:

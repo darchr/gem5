@@ -24,8 +24,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from gem5.components_library.utils.override import overrides
-from gem5.components_library.boards.mem_mode import MEM_MODE
+from ..utils.override import overrides
+from ..boards.mem_mode import MEM_MODE
 from .linear_generator_core import LinearGeneratorCore
 
 from .abstract_processor import AbstractProcessor
@@ -90,7 +90,7 @@ class LinearGenerator(AbstractProcessor):
 
     def _set_traffic(self) -> None:
         for core in self.cores:
-            core.set_traffic()
+            core._set_traffic()
 
     def start_traffic(self) -> None:
         for core in self.cores:

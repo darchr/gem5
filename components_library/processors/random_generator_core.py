@@ -76,7 +76,7 @@ class RandomGeneratorCore(AbstractGeneratorCore):
 
     @overrides(AbstractGeneratorCore)
     def _set_traffic(self) -> None:
-        self._main_traffic = self.create_traffic()
+        self._main_traffic = self._create_traffic()
 
     @overrides(AbstractGeneratorCore)
     def start_traffic(self) -> None:
