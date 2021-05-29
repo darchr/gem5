@@ -37,9 +37,10 @@ from enum import Enum
 
 
 class TrafficModes(Enum):
-    """ The traffic mode class
+    """The traffic mode class
     This class is an enum to store traffic mode in a more meaningful way
     """
+
     linear = 0
     random = 1
 
@@ -56,7 +57,7 @@ class ComplexTrafficParams:
         rd_perc: int,
         data_limit: int,
     ):
-        """ The complex traffic params class
+        """The complex traffic params class
         This class is a container for parameters to create either a linear or
         random traffic. The complex generator core stores a list of complex
         traffic params for resolution after m5.instantiate is called.
@@ -73,7 +74,7 @@ class ComplexTrafficParams:
 
 class ComplexGeneratorCore(AbstractGeneratorCore):
     def __init__(self):
-        """ The complex generator core interface.
+        """The complex generator core interface.
 
         This class defines the interface for a generator core that will create
         a series of different types of traffic. This core uses PyTrafficGen to
@@ -192,7 +193,7 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
         if not self._traffic_set:
             self._set_traffic()
         if self._traffic:
-            self.generator.start(self._traffic.pop(0))
+            self.generatostatr.start(self._traffic.pop(0))
         else:
             print("No phases left to generate!")
 
