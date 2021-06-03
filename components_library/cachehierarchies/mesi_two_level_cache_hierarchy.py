@@ -91,11 +91,15 @@ class MESITwoLevelCacheHierarchy(
         # l2_bank_size = toMemorySize(l2_size) // num_l2_banks
 
     def incorporate_cache(self, motherboard: AbstractBoard) -> None:
-        if motherboard.get_runtime_coherence_protocol() != \
-            CoherenceProtocol.MESI_TWO_LEVEL:
-            raise EnvironmentError("The MESITwoLevelCacheHierarchy must be "
-                                   "used with with the MESI_Two_Level "
-                                   "coherence protocol.")
+        if (
+            motherboard.get_runtime_coherence_protocol()
+            != CoherenceProtocol.MESI_TWO_LEVEL
+        ):
+            raise EnvironmentError(
+                "The MESITwoLevelCacheHierarchy must be "
+                "used with with the MESI_Two_Level "
+                "coherence protocol."
+            )
 
         cache_line_size = motherboard.cache_line_size
 
@@ -106,8 +110,6 @@ class MESITwoLevelCacheHierarchy(
 
         self.ruby_system.network = SimplePt2Pt(self.ruby_system)
         self.ruby_system.network.number_of_virtual_networks = 5
-
-        iobus = motherboard.get_io_bus()
 
         self._l1_controllers = []
         for i, core in enumerate(motherboard.get_processor().get_cores()):
@@ -127,17 +129,19 @@ class MESITwoLevelCacheHierarchy(
                 version=i,
                 dcache=cache.L1Dcache,
                 clk_domain=cache.clk_domain,
-                pio_request_port=motherboard.get_io_bus().cpu_side_ports,
-                mem_request_port=motherboard.get_io_bus().cpu_side_ports,
-                pio_response_port=motherboard.get_io_bus().mem_side_ports,
+                # pio_request_port=motherboard.get_io_bus().cpu_side_ports,
+                # mem_request_port=motherboard.get_io_bus().cpu_side_ports,
+                # pio_response_port=motherboard.get_io_bus().mem_side_ports,
             )
+
             cache.ruby_system = self.ruby_system
 
             core.connect_icache(cache.sequencer.in_ports)
             core.connect_dcache(cache.sequencer.in_ports)
 
             core.connect_walker_ports(
-                cache.sequencer.in_ports, cache.sequencer.in_ports)
+                cache.sequencer.in_ports, cache.sequencer.in_ports
+            )
 
             # Connect the interrupt ports
             if motherboard.get_runtime_isa() == ISA.X86:
@@ -185,7 +189,9 @@ class MESITwoLevelCacheHierarchy(
         self.ruby_system.l1_controllers = self._l1_controllers
         self.ruby_system.l2_controllers = self._l2_controllers
         self.ruby_system.directory_controllers = self._directory_controllers
-        self.ruby_system.dma_controllers = self._dma_controllers
+
+        if len(self._dma_controllers) != 0:
+            self.ruby_system.dma_controllers = self._dma_controllers
 
         # Create the network and connect the controllers.
         self.ruby_system.network.connectControllers(
@@ -200,12 +206,15 @@ class MESITwoLevelCacheHierarchy(
         # other functional-only things.
         self.ruby_system.sys_port_proxy = RubyPortProxy()
         motherboard.connect_system_port(
-            self.ruby_system.sys_port_proxy.in_ports)
-        self.ruby_system.sys_port_proxy.pio_request_port = iobus.cpu_side_ports
+            self.ruby_system.sys_port_proxy.in_ports
+        )
+
+        # self.ruby_system.sys_port_proxy.pio_request_port = \
+        # iobus.cpu_side_ports
 
         # connect the io bus
         # TODO: This interface needs fixed. The PC should not be accessed in
         # This way
-        motherboard.pc.attachIO(
-            motherboard.get_io_bus(), [motherboard.pc.south_bridge.ide.dma]
-        )
+        # motherboard.pc.attachIO(
+        # motherboard.get_io_bus(), [motherboard.pc.south_bridge.ide.dma]
+        # )

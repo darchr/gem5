@@ -24,35 +24,51 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from typing import Optional
+import m5
 
-from .abstract_l1cache import AbstractL1Cache
-from ..utils.override import *
+from m5.objects import Root
+
+from components_library.boards.test_board import TestBoard
+from components_library.cachehierarchies.no_cache import NoCache
+from components_library.memory.single_channel import SingleChannelDDR3_1600
+from components_library.processors.linear_generator import LinearGenerator
+from components_library.processors.random_generator import RandomGenerator
+from components_library.processors.complex_generator import ComplexGenerator
+
+cache_hierarchy = NoCache()
+
+memory = SingleChannelDDR3_1600(size="512MiB")
+
+lingen = LinearGenerator(num_cores=1, rate="100GB/s")
+rndgen = RandomGenerator(num_cores=2, block_size=32, rate="50GB/s")
+
+cmxgen = ComplexGenerator(num_cores=1)
+cmxgen.add_linear(rate="100GB/s")
+cmxgen.add_random(block_size=32, rate="50MB/s")
 
 
-class L1ICache(AbstractL1Cache):
-    """
-    A simple L1 instruction cache with default values.
-    """
+motherboard = TestBoard(
+    clk_freq="3GHz",
+    processor=cmxgen,
+    memory=memory,
+    cache_hierarchy=cache_hierarchy,
+)
 
-    def __init__(
-        self,
-        size: str,
-        assoc: Optional[int] = 8,
-        tag_latency: Optional[int] = 1,
-        data_latency: Optional[int] = 1,
-        response_latency: Optional[int] = 1,
-        mshrs: Optional[int] = 16,
-        tgts_per_mshr: Optional[int] = 20,
-        writeback_clean: Optional[bool] = True,
-    ):
-        super(L1ICache, self).__init__(
-            size=size,
-            assoc=assoc,
-            tag_latency=tag_latency,
-            data_latency=data_latency,
-            response_latency=response_latency,
-            mshrs=mshrs,
-            tgts_per_mshr=tgts_per_mshr,
-            writeback_clean=writeback_clean,
-        )
+
+motherboard.connect_things()
+
+
+root = Root(full_system=False, system=motherboard)
+
+
+m5.instantiate()
+
+
+cmxgen.start_traffic()
+print("Beginning simulation!")
+exit_event = m5.simulate()
+print("Exiting @ tick %i because %s" % (m5.curTick(), exit_event.getCause()))
+cmxgen.start_traffic()
+print("Resuming simulation!")
+exit_event = m5.simulate()
+print("Exiting @ tick %i because %s" % (m5.curTick(), exit_event.getCause()))

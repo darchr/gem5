@@ -25,10 +25,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from .abstract_prefetch_cache import AbstractPrefetchCache
-from m5.objects import BaseXBar, BaseCPU
 from ..utils.override import *
 
-from typing import Optional, Union
+from typing import Optional
 
 
 class L2Cache(AbstractPrefetchCache):

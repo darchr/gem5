@@ -24,35 +24,54 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from typing import Optional
+from m5.objects import SrcClockDomain, ClockDomain, VoltageDomain, Port
 
-from .abstract_l1cache import AbstractL1Cache
-from ..utils.override import *
+from .mem_mode import MEM_MODE, mem_mode_to_string
+from ..utils.override import overrides
+from .abstract_board import AbstractBoard
+from ..processors.abstract_processor import AbstractProcessor
+from ..memory.abstract_memory_system import AbstractMemorySystem
+from ..cachehierarchies.abstract_cache_hierarchy import AbstractCacheHierarchy
 
 
-class L1ICache(AbstractL1Cache):
-    """
-    A simple L1 instruction cache with default values.
-    """
+from typing import List
 
+
+class TestBoard(AbstractBoard):
     def __init__(
         self,
-        size: str,
-        assoc: Optional[int] = 8,
-        tag_latency: Optional[int] = 1,
-        data_latency: Optional[int] = 1,
-        response_latency: Optional[int] = 1,
-        mshrs: Optional[int] = 16,
-        tgts_per_mshr: Optional[int] = 20,
-        writeback_clean: Optional[bool] = True,
+        clk_freq: str,
+        processor: AbstractProcessor,
+        memory: AbstractMemorySystem,
+        cache_hierarchy: AbstractCacheHierarchy,
     ):
-        super(L1ICache, self).__init__(
-            size=size,
-            assoc=assoc,
-            tag_latency=tag_latency,
-            data_latency=data_latency,
-            response_latency=response_latency,
-            mshrs=mshrs,
-            tgts_per_mshr=tgts_per_mshr,
-            writeback_clean=writeback_clean,
+        super(TestBoard, self).__init__(
+            processor=processor,
+            memory=memory,
+            cache_hierarchy=cache_hierarchy,
         )
+        self.clk_domain = SrcClockDomain(
+            clock=clk_freq, voltage_domain=VoltageDomain()
+        )
+
+        self.mem_ranges = memory.get_memory_ranges()
+
+    def connect_system_port(self, port: Port) -> None:
+        self.system_port = port
+
+    def connect_things(self) -> None:
+        self.get_cache_hierarchy().incorporate_cache(self)
+
+        self.get_processor().incorporate_processor(self)
+
+        self.get_memory().incorporate_memory(self)
+
+    def get_clock_domain(self) -> ClockDomain:
+        return self.clk_domain
+
+    def get_dma_ports(self) -> List[Port]:
+        return []
+
+    @overrides(AbstractBoard)
+    def set_mem_mode(self, mem_mode: MEM_MODE) -> None:
+        self.mem_mode = mem_mode_to_string(mem_mode=mem_mode)

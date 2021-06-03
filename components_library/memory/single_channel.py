@@ -32,7 +32,6 @@ from .abstract_memory_system import AbstractMemorySystem
 from ..utils.override import overrides
 
 from m5.objects import AddrRange, DRAMInterface, MemCtrl, Port
-from m5.util.convert import toMemorySize
 
 from typing import List, Sequence, Tuple, Type, Optional
 
@@ -90,6 +89,9 @@ class SingleChannelMemory(AbstractMemorySystem):
 
 
 from .dram_interfaces.ddr3 import DDR3_1600_8x8, DDR3_2133_8x8
+from .dram_interfaces.ddr4 import DDR4_2400_8x8
+from .dram_interfaces.lpddr3 import LPDDR3_1600_1x32
+from .dram_interfaces.hbm import HBM_1000_4H_1x128
 
 # Enumerate all of the different DDR memory systems we support
 def SingleChannelDDR3_1600(size: Optional[str] = None) -> AbstractMemorySystem:
@@ -104,3 +106,20 @@ def SingleChannelDDR3_2133(size: Optional[str] = None) -> AbstractMemorySystem:
     A single channel memory system using a single DDR3_2133_8x8 based DIMM
     """
     return SingleChannelMemory(DDR3_2133_8x8, size)
+
+
+def SingleChannelDDR4_2400(size: Optional[str] = None) -> AbstractMemorySystem:
+    """
+    A single channel memory system using a single DDR4_2400_8x8 based DIMM
+    """
+    return SingleChannelMemory(DDR4_2400_8x8, size)
+
+
+def SingleChannelLPDDR3_1600(
+    size: Optional[str] = None,
+) -> AbstractMemorySystem:
+    return SingleChannelMemory(LPDDR3_1600_1x32, size)
+
+
+def SingleChannelHBM(size: Optional[str] = None) -> AbstractMemorySystem:
+    return SingleChannelMemory(HBM_1000_4H_1x128, size)

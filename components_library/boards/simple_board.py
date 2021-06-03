@@ -24,13 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from components_library.processors.cpu_types import CPUTypes
-
 from m5.objects import (
-    AddrRange,
     SrcClockDomain,
     VoltageDomain,
-    Addr,
     Process,
     SEWorkload,
     IOXBar,

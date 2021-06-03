@@ -28,10 +28,9 @@ from .abstract_cache_hierarchy import AbstractCacheHierarchy
 from ..boards.abstract_board import AbstractBoard
 from ..boards.isas import ISA
 
-from m5.objects import BaseCPU, BaseXBar, SystemXBar, BadAddr
-from m5.params import Port
+from m5.objects import BaseXBar, SystemXBar, BadAddr
 
-from typing import Tuple, Optional
+from typing import Optional
 
 from ..utils.override import *
 
