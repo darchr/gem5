@@ -193,7 +193,7 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
         if not self._traffic_set:
             self._set_traffic()
         if self._traffic:
-            self.generatostatr.start(self._traffic.pop(0))
+            self.generator.start(self._traffic.pop(0))
         else:
             print("No phases left to generate!")
 

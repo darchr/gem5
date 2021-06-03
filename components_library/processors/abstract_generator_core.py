@@ -25,7 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-from m5.objects import Port
+from m5.objects import Port, PyTrafficGen
 from ..utils.override import overrides
 
 from .cpu_types import CPUTypes
@@ -44,19 +44,21 @@ class AbstractGeneratorCore(AbstractCore):
 
     def __init__(self):
         """
-        Create an AbstractCore with the CPUType of Timing.
+        Create an AbstractCore with the CPUType of Timing. Also, setup a
+        dummy generator object to connect to icache
         """
         # TODO: Remove the CPU Type parameter
         super(AbstractGeneratorCore, self).__init__(CPUTypes.TIMING)
-
+        self.dummy_generator = PyTrafficGen()
 
     @overrides(AbstractCore)
     def connect_icache(self, port: Port) -> None:
         """
         Generator cores only have one request port which we will connect to
-        the data cache not the icache. Just pass here.
+        the data cache not the icache. Just connect the icache to the dummy
+        generator here.
         """
-        pass
+        self.dummy_generator.port = port
 
     @overrides(AbstractCore)
     def connect_walker_ports(self, port1: Port, port2: Port) -> None:
