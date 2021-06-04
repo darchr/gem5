@@ -435,6 +435,19 @@ class MemCtrl : public QoS::MemCtrl
     void addToDRAMFillQueue(const MemPacket *mem_pkt);
 
     /**
+     * returns true if a corresponding packet for mem_pkt exist in the
+     * DRAM fill queue, false otherwise.
+     * @param mem_pkt The mem pkt to search for in the dram fill queue.
+     */
+    bool findInDRAMFillQueue(const MemPacket *mem_pkt);
+
+    /**
+     *
+     * @param mem_pkt The mem pkt to be updated in the dram fill queue
+     */
+    void updatePktInDRAMFillQueue(const MemPacket *mem_pkt);
+
+    /**
      *
      * @param mem_pkt The mem pkt to to be handled for 'Hit' case
      */
@@ -704,6 +717,7 @@ class MemCtrl : public QoS::MemCtrl
         // DRAM Cache Stats
         Stats::Scalar dramCacheHit;
         Stats::Scalar dramCacheMiss;
+        Stats::Scalar dramCacheRdFw;
         // All statistics that the model needs to capture
         Stats::Scalar readReqs;
         Stats::Scalar writeReqs;

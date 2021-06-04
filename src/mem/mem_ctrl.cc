@@ -574,6 +574,62 @@ MemCtrl::addToDRAMFillQueue(const MemPacket *mem_pkt)
     }
 }
 
+bool
+MemCtrl::findInDRAMFillQueue(const MemPacket *mem_pkt)
+{
+    return false;
+}
+
+void
+MemCtrl::updatePktInDRAMFillQueue(const MemPacket *mem_pkt)
+{
+    // In case of a miss in dram cache, we reserve a packet
+    // in the DRAM fill queue and once the read from NVM is
+    // completed, will update that reserved packet in the
+    // dram fill queue.
+    // The mem_pkt is the packet that came from NVM Read queue.
+
+    // Assert to check if the corrsponding packet exists
+    // in dram fill queue and we haven't lost it already.
+    assert(findInDRAMFillQueue(mem_pkt));
+
+    // COMMENT: Should overwrite the mem_pkt?
+    // COMMENT: Currently, we are assuming that
+    // a pkt will be decomposed in only one mem_pkt
+    // which probably is not a reasonable assumption
+    MemPacket* fill_pkt = dram->decodePacket(mem_pkt->pkt,
+    mem_pkt->pkt->getAddr(),
+                            mem_pkt->pkt->getSize(), false, true);
+    dram->setupRank(fill_pkt->rank, false);
+    fill_pkt->readyTime = MaxTick;
+
+    // the mem_pkt needs to become a write request
+    // now
+    dramFillQueue[fill_pkt->qosValue()].push_back(fill_pkt);
+
+    dramFillQueueSize++;
+
+    // update the DRAM tags as well
+
+    int index = bits(fill_pkt->pkt->getAddr(),
+            ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
+
+    tagStoreDC[index].tag = returnTag(fill_pkt->pkt->getAddr());
+
+    // make sure that the block is set to be valid and clean
+    // MARYAM: only valid bit is set here. How about dirty bit?
+    tagStoreDC[index].valid_line = true;
+
+    //isInWriteQueue.insert(burstAlign(addr, is_dram));
+
+    if (!nextReqEvent.scheduled()) {
+        // We might need to add tag check latency
+        // because the NVM response might check tags
+        // to see if dram miss was clean or dirty
+        schedule(nextReqEvent, curTick());
+    }
+}
+
 void
 MemCtrl::addToNVMReadQueue(const MemPacket* mem_pkt)
 {
@@ -930,8 +986,9 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     // needs to be evicted from DRAM cache.
 
     unsigned size = pkt->getSize();
-    uint32_t burst_size = is_dram ? dram->bytesPerBurst() :
-                                    nvm->bytesPerBurst();
+    //uint32_t burst_size = is_dram ? dram->bytesPerBurst() :
+    //                                nvm->bytesPerBurst();
+    uint32_t burst_size = dram->bytesPerBurst();
     unsigned offset = pkt->getAddr() & (burst_size - 1);
     unsigned int pkt_count = divCeil(offset + size, burst_size);
 
@@ -1547,7 +1604,7 @@ MemCtrl::processNextReqEvent()
 
     // COMMENT: Not sure what is happening here!
     //MARYAM: I guess we should remove this nvm check.
-    if (nvm) {
+    /*if (nvm) {
         for (auto queue = readQueue.rbegin();
              queue != readQueue.rend(); ++queue) {
              // select non-deterministic NVM read to issue
@@ -1558,7 +1615,7 @@ MemCtrl::processNextReqEvent()
                  nvm->chooseRead(*queue);
              }
         }
-    }
+    }*/
 
     // check ranks for refresh/wakeup - uses busStateNext, so done after
     // turnaround decisions
@@ -2046,6 +2103,7 @@ MemCtrl::CtrlStats::CtrlStats(MemCtrl &_ctrl)
 
     ADD_STAT(dramCacheHit, UNIT_COUNT, "Number of hits in DRAM Cache"),
     ADD_STAT(dramCacheMiss, UNIT_COUNT, "Number of misses in DRAM Cache"),
+    ADD_STAT(dramCacheRdFw, UNIT_COUNT, "Number of misses in DRAM Cache"),
     ADD_STAT(readReqs, UNIT_COUNT, "Number of read requests accepted"),
     ADD_STAT(writeReqs, UNIT_COUNT, "Number of write requests accepted"),
 

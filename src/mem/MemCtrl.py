@@ -61,15 +61,20 @@ class MemCtrl(QoSMemCtrl):
     dram_cache_size = Param.MemorySize('1024MiB', "DRAM cache size")
 
     #false='no allocate on write' and True='allocate on write'
-    write_allocate_policy = Param.Bool(False, "DRAM cache allocation policy on "
-                                                             "writes. False means no write allocate, True "
-                                                             "means allocate on writes.")
-    
-    max_read_queue_size = Param.Unsigned('32', "Maximum number of entries in readQueue")
-    max_write_queue_size = Param.Unsigned('64', "Maximum number of entries in writeQueue")
-    max_nvm_read_queue_size = Param.Unsigned('32', "Maximum number of entries in nvmReadQueue")
-    max_nvm_write_queue_size = Param.Unsigned('64', "Maximum number of entries in nvmWriteQueue")
-    max_dram_fill_queue_size = Param.Unsigned('64', "Maximum number of entries in dramFillQueue")
+    write_allocate_policy = Param.Bool(True, "DRAM cache allocation policy on "
+                                             "writes. False means no write "
+                                             "allocate, True means allocate"
+                                             " on writes.")
+    max_read_queue_size = Param.Unsigned('32', "Maximum number of entries in "
+                                               "readQueue")
+    max_write_queue_size = Param.Unsigned('64', "Maximum number of entries in "
+                                                "writeQueue")
+    max_nvm_read_queue_size = Param.Unsigned('32', "Maximum number of entries "
+                                                   "in nvmReadQueue")
+    max_nvm_write_queue_size = Param.Unsigned('64', "Maximum number of entries"
+                                                    " in nvmWriteQueue")
+    max_dram_fill_queue_size = Param.Unsigned('64', "Maximum number of entries"
+                                                    " in dramFillQueue")
     # Interface to volatile, DRAM media
     dram = Param.DRAMInterface(NULL, "DRAM interface")
 
