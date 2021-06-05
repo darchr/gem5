@@ -2,12 +2,14 @@ import m5
 import os
 import configparser
 
-from m5.objects import DRAMsim3, AddrRange
+from m5.objects import DRAMsim3, AddrRange, Port, MemCtrl
 
+from ..utils.override import overrides
 from ..boards.abstract_board import AbstractBoard
 from .abstract_memory_system import AbstractMemorySystem
 
-from typing import Optional, Tuple
+
+from typing import Optional, Tuple, Sequence, List
 
 """
 This function creates a config file that will be used to create a memory
