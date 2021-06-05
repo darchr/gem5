@@ -273,7 +273,7 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
         period = fromSeconds(block_size / rate)
         min_period = period
         max_period = period
-        yield self.generator.createRandom(
+        yield self.generator.createLinear(
             duration,
             min_addr,
             max_addr,
