@@ -41,7 +41,7 @@ class GUPSGeneratorCore(AbstractGeneratorCore):
         """
         Create a GUPSGeneratorCore as the main generator.
         """
-        super(GUPSGeneratorCore, self).__init__(cpu_type=CPUTypes.TIMING)
+        super(GUPSGeneratorCore, self).__init__()
         self.main_generator = GUPSGen(
             start_addr=start_addr, mem_size=mem_size, update_limit=update_limit
         )
