@@ -42,11 +42,6 @@ DOCKER_IMAGE_ALL_DEP=gcr.io/gem5-test/ubuntu-20.04_all-dependencies
 DOCKER_IMAGE_CLANG_COMPILE=gcr.io/gem5-test/clang-version-9
 PRESUBMIT_STAGE2=tests/jenkins/presubmit-stage2.sh
 
-# Move the docker base directory to tempfs.
-sudo /etc/init.d/docker stop
-sudo mv /var/lib/docker /tmpfs/
-sudo ln -s /tmpfs/docker /var/lib/docker
-sudo /etc/init.d/docker start
 
 # This is a conservative step to ensure the docker service is fully running
 # prior to executing the tests.
@@ -55,9 +50,6 @@ sleep 2
 # Pull the docker images we require
 docker pull "${DOCKER_IMAGE_ALL_DEP}"
 docker pull "${DOCKER_IMAGE_CLANG_COMPILE}"
-
-# Move the CWD to the gem5 checkout.
-cd git/jenkins-gem5-prod/
 
 #  Using a docker image with all the dependencies, we run the presubmit tests.
 docker run -u $UID:$GID --volume $(pwd):$(pwd) -w $(pwd) --rm \
