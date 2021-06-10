@@ -71,4 +71,4 @@ docker run -u $UID:$GID --volume $(pwd):$(pwd) -w $(pwd) --rm \
 rm -rf build
 docker run -u $UID:$GID --volume $(pwd):$(pwd) -w $(pwd) --rm \
     "${DOCKER_IMAGE_CLANG_COMPILE}" /usr/bin/env python3 /usr/bin/scons \
-    build/X86/gem5.fast -j4 --no-compress-debug
+    build/X86/gem5.fast -j12 --no-compress-debug
