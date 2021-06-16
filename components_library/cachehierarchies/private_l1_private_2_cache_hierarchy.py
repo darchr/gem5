@@ -33,7 +33,7 @@ from ..caches.l2cache import L2Cache
 from ..boards.abstract_board import AbstractBoard
 from ..boards.isas import ISA
 
-from m5.objects import L2XBar, BaseXBar, SystemXBar, BadAddr
+from m5.objects import L2XBar, BaseXBar, SystemXBar, BadAddr, Port
 
 from ..utils.override import *
 
@@ -102,6 +102,16 @@ class PrivateL1PrivateL2CacheHierarchy(
         )
 
         self.membus = membus
+
+    # TODO: Instead of returning a port, we should have
+    # "connect_to_mem_side(..)".
+    @overrides(AbstractClassicCacheHierarchy)
+    def get_mem_side_port(self) -> Port:
+        return self.membus.mem_side_ports
+
+    @overrides(AbstractClassicCacheHierarchy)
+    def get_cpu_side_port(self) -> Port:
+        return self.membus.cpu_side_ports
 
     @overrides(AbstractCacheHierarchy)
     def incorporate_cache(self, board: AbstractBoard) -> None:

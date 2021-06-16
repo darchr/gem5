@@ -24,7 +24,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from abc import abstractmethod
+from components_library.utils.override import overrides
 from .abstract_cache_hierarchy import AbstractCacheHierarchy
+from m5.objects import Port
 
 
 class AbstractClassicCacheHierarchy(AbstractCacheHierarchy):
@@ -36,3 +39,19 @@ class AbstractClassicCacheHierarchy(AbstractCacheHierarchy):
 
     def __init__(self):
         super(AbstractClassicCacheHierarchy, self).__init__()
+
+    @overrides(AbstractCacheHierarchy)
+    def is_ruby(self) -> bool:
+        return False
+
+    @overrides(AbstractCacheHierarchy)
+    def is_classic(self) -> bool:
+        return True
+
+    @abstractmethod
+    def get_mem_side_port(self) -> Port:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_cpu_side_port(self) -> Port:
+        raise NotImplementedError

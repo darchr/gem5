@@ -66,6 +66,25 @@ class AbstractCacheHierarchy(SubSystem):
 
         raise NotImplementedError
 
+    @abstractmethod
+    def is_ruby(self) -> bool:
+        """
+        Specifies whether this cache hierarchy is using the Ruby memory system
+        or not.
+
+        :returns: True if the cache hierarchy is ruby. Otherwise False.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_classic(self) -> bool:
+        """
+        Specifies whether this cache hierarchy is the classic memory system
+        or not.
+
+        :returns: True if the cache hierarchy is classic. otherwise False.
+        """
+        raise NotImplementedError
     #  @abstractmethod
     #  def get_interrupt_ports(self, cpu: BaseCPU) -> Tuple[Port, Port]:
     #      """

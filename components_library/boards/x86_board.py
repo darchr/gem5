@@ -112,6 +112,61 @@ class X86Board(SimpleBoard):
         # North Bridge
         self.iobus = IOXBar()
 
+        # Setup memory system specific settings.
+        if self.get_cache_hierarchy().is_classic():
+            self.bridge = Bridge(delay="50ns")
+            self.bridge.mem_side_port = self.get_io_bus().cpu_side_ports
+            self.bridge.cpu_side_port = self.get_cache_hierarchy()\
+                .get_mem_side_port()
+
+            # # Constants similar to x86_traits.hh
+            IO_address_space_base = 0x8000000000000000
+            pci_config_address_space_base = 0xC000000000000000
+            interrupts_address_space_base = 0xA000000000000000
+            APIC_range_size = 1 << 12
+
+            self.bridge.ranges = [
+                AddrRange(0xC0000000, 0xFFFF0000),
+                AddrRange(
+                    IO_address_space_base, interrupts_address_space_base - 1
+                ),
+                AddrRange(pci_config_address_space_base, Addr.max),
+            ]
+
+            self.apicbridge = Bridge(delay="50ns")
+            self.apicbridge.cpu_side_port = self.get_io_bus().mem_side_ports
+            self.apicbridge.mem_side_port = self.get_cache_hierarchy()\
+                .get_cpu_side_port()
+            self.apicbridge.ranges = [
+                AddrRange(
+                    interrupts_address_space_base,
+                    interrupts_address_space_base
+                    + self.get_processor().get_num_cores() * APIC_range_size
+                    - 1,
+                )
+            ]
+            self.pc.attachIO(self.get_io_bus())
+
+            self.iocache = Cache(
+                assoc=8,
+                tag_latency=50,
+                data_latency=50,
+                response_latency=50,
+                mshrs=20,
+                size="1kB",
+                tgts_per_mshr=12,
+                addr_ranges=self.mem_ranges,
+           )
+
+            self.iocache.cpu_side = self.get_io_bus().mem_side_ports
+            self.iocache.mem_side = self.get_cache_hierarchy()\
+                .get_cpu_side_port()
+
+        elif self.get_cache_hierarchy().is_ruby():
+            self.pc.attachIO(
+                self.get_io_bus(), [self.pc.south_bridge.ide.dma]
+            )
+
         # Add in a Bios information structure.
         self.workload.smbios_table.structures = [X86SMBiosBiosInformation()]
 

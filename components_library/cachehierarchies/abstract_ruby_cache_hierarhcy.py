@@ -24,6 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from components_library.utils.override import overrides
 from .abstract_cache_hierarchy import AbstractCacheHierarchy
 
 
@@ -35,3 +36,11 @@ class AbstractRubyCacheHierarchy(AbstractCacheHierarchy):
 
     def __init__(self):
         super(AbstractRubyCacheHierarchy, self).__init__()
+
+    @overrides(AbstractCacheHierarchy)
+    def is_ruby(self) -> bool:
+        return True
+
+    @overrides(AbstractCacheHierarchy)
+    def is_classic(self) -> bool:
+        return False
