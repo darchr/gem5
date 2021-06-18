@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.objects import SrcClockDomain, ClockDomain, VoltageDomain, Port
+from m5.objects import SrcClockDomain, ClockDomain, VoltageDomain, Port, IOXBar
 
 from .mem_mode import MEM_MODE, mem_mode_to_string
 from ..utils.override import overrides
@@ -69,8 +69,23 @@ class TestBoard(AbstractBoard):
     def get_clock_domain(self) -> ClockDomain:
         return self.clk_domain
 
+    @overrides(AbstractBoard)
+    def has_io_bus(self) -> bool:
+        return False
+
+    @overrides(AbstractBoard)
+    def get_io_bus(self) -> IOXBar:
+        raise NotImplementedError("The TestBoard does not have an IO Bus. "
+                                  "Use `has_io_bus()` to check this.")
+
+    @overrides(AbstractBoard)
     def get_dma_ports(self) -> List[Port]:
-        return []
+        return False
+
+    @overrides(AbstractBoard)
+    def get_dma_ports(self) -> List[Port]:
+        raise NotImplementedError("The TestBoard does not have DMA Ports. "
+                                  "Use `has_dma_ports()` to check this.")
 
     @overrides(AbstractBoard)
     def set_mem_mode(self, mem_mode: MEM_MODE) -> None:

@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from components_library.boards.isas import ISA
+from components_library.isas import ISA
 from components_library.processors.cpu_types import CPUTypes
 
 from m5.objects import (

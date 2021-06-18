@@ -24,29 +24,28 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from .abstract_prefetch_cache import AbstractPrefetchCache
-from ..utils.override import *
+from .abstract_l1cache import AbstractL1Cache
+from ....utils.override import *
 
 from typing import Optional
 
-
-class L2Cache(AbstractPrefetchCache):
+class L1DCache(AbstractL1Cache):
     """
-    A simple L2 Cache with default values.
+    A simple L1 data cache with default values.
     """
 
     def __init__(
         self,
         size: str,
-        assoc: Optional[int] = 16,
-        tag_latency: Optional[int] = 10,
-        data_latency: Optional[int] = 10,
+        assoc: Optional[int] = 8,
+        tag_latency: Optional[int] = 1,
+        data_latency: Optional[int] = 1,
         response_latency: Optional[int] = 1,
-        mshrs: Optional[int] = 20,
-        tgts_per_mshr: Optional[int] = 12,
+        mshrs: Optional[int] = 16,
+        tgts_per_mshr: Optional[int] = 20,
         writeback_clean: Optional[bool] = True,
     ):
-        super(L2Cache, self).__init__(
+        super(L1DCache, self).__init__(
             size=size,
             assoc=assoc,
             tag_latency=tag_latency,

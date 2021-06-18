@@ -41,8 +41,7 @@ from m5.util import warn
 from .abstract_processor import AbstractProcessor
 from .cpu_types import CPUTypes
 from ..boards.abstract_board import AbstractBoard
-from ..boards.isas import ISA
-from ..boards.coherence_protocol import is_ruby
+from ..coherence_protocol import is_ruby
 
 from typing import List
 

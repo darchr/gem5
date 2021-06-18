@@ -24,23 +24,36 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from components_library.utils.override import overrides
-from .abstract_cache_hierarchy import AbstractCacheHierarchy
+
+from .abstract_prefetch_cache import AbstractPrefetchCache
+from ....utils.override import *
+
+from typing import Optional
 
 
-class AbstractRubyCacheHierarchy(AbstractCacheHierarchy):
+class MMUCache(AbstractPrefetchCache):
     """
-    All Ruby-based cache hierarchies inherit from this class. This class
-    provides the shared infrastructure that all Ruby protocols need.
+    A simple Memory Management Unit (MMU) cache with default values.
     """
 
-    def __init__(self):
-        super(AbstractRubyCacheHierarchy, self).__init__()
-
-    @overrides(AbstractCacheHierarchy)
-    def is_ruby(self) -> bool:
-        return True
-
-    @overrides(AbstractCacheHierarchy)
-    def is_classic(self) -> bool:
-        return False
+    def __init__(
+        self,
+        size: str,
+        assoc: Optional[int] = 4,
+        tag_latency: Optional[int] = 1,
+        data_latency: Optional[int] = 1,
+        response_latency: Optional[int] = 1,
+        mshrs: Optional[int] = 20,
+        tgts_per_mshr: Optional[int] = 12,
+        writeback_clean: Optional[bool] = True,
+    ):
+        super(MMUCache, self).__init__(
+            size=size,
+            assoc=assoc,
+            tag_latency=tag_latency,
+            data_latency=data_latency,
+            response_latency=response_latency,
+            mshrs=mshrs,
+            tgts_per_mshr=tgts_per_mshr,
+            writeback_clean=writeback_clean,
+        )

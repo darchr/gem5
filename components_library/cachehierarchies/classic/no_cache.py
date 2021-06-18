@@ -24,15 +24,15 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from .abstract_cache_hierarchy import AbstractCacheHierarchy
-from ..boards.abstract_board import AbstractBoard
-from ..boards.isas import ISA
+from ..abstract_cache_hierarchy import AbstractCacheHierarchy
+from ...boards.abstract_board import AbstractBoard
+from ...isas import ISA
 
 from m5.objects import BaseXBar, SystemXBar, BadAddr
 
 from typing import Optional
 
-from ..utils.override import *
+from ...utils.override import *
 
 
 class NoCache(AbstractCacheHierarchy):

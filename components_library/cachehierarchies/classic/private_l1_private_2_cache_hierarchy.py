@@ -24,18 +24,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from .abstract_cache_hierarchy import AbstractCacheHierarchy
+from ..abstract_cache_hierarchy import AbstractCacheHierarchy
 from .abstract_classic_cache_hierarchy import AbstractClassicCacheHierarchy
-from .abstract_two_level_cache_hierarchy import AbstractTwoLevelCacheHierarchy
-from ..caches.l1dcache import L1DCache
-from ..caches.l1icache import L1ICache
-from ..caches.l2cache import L2Cache
-from ..boards.abstract_board import AbstractBoard
-from ..boards.isas import ISA
+from ..abstract_two_level_cache_hierarchy import AbstractTwoLevelCacheHierarchy
+from .caches.l1dcache import L1DCache
+from .caches.l1icache import L1ICache
+from .caches.l2cache import L2Cache
+from ...boards.abstract_board import AbstractBoard
+from ...isas import ISA
 
 from m5.objects import L2XBar, BaseXBar, SystemXBar, BadAddr, Port
 
-from ..utils.override import *
+from ...utils.override import *
 
 from typing import Optional
 
@@ -119,60 +119,6 @@ class PrivateL1PrivateL2CacheHierarchy(
         # Set up the system port for functional access from the simulator.
         board.connect_system_port(self.membus.cpu_side_ports)
 
-        #######################################################################
-        # TODO: I'm really unsure about all this. Specialized to X86
-
-        # board.bridge = Bridge(delay="50ns")
-        # board.bridge.mem_side_port = board.get_io_bus().cpu_side_ports
-        # board.bridge.cpu_side_port = self.membus.mem_side_ports
-
-        # # Constants similar to x86_traits.hh
-        # IO_address_space_base = 0x8000000000000000
-        # pci_config_address_space_base = 0xC000000000000000
-        # interrupts_address_space_base = 0xA000000000000000
-        # APIC_range_size = 1 << 12
-
-        # board.bridge.ranges = [
-        #     AddrRange(0xC0000000, 0xFFFF0000),
-        #     AddrRange(
-        #         IO_address_space_base, interrupts_address_space_base - 1
-        #     ),
-        #     AddrRange(pci_config_address_space_base, Addr.max),
-        # ]
-
-        # board.apicbridge = Bridge(delay="50ns")
-        # board.apicbridge.cpu_side_port = board.get_io_bus().mem_side_ports
-        # board.apicbridge.mem_side_port = self.membus.cpu_side_ports
-        # board.apicbridge.ranges = [
-        #     AddrRange(
-        #         interrupts_address_space_base,
-        #         interrupts_address_space_base
-        #         + board.get_processor().get_num_cores() * APIC_range_size
-        #         - 1,
-        #     )
-        # ]
-
-        # # connect the io bus
-        # # TODO: This interface needs fixed. The PC should not be accessed in
-        # # This way.
-        # board.pc.attachIO(board.get_io_bus())
-
-        # # Add a tiny cache to the IO bus.
-        # # This cache is required for the classic memory model for coherence
-        # self.iocache = Cache(
-        #     assoc=8,
-        #     tag_latency=50,
-        #     data_latency=50,
-        #     response_latency=50,
-        #     mshrs=20,
-        #     size="1kB",
-        #     tgts_per_mshr=12,
-        #     addr_ranges=board.mem_ranges,
-        # )
-
-        # self.iocache.cpu_side = board.get_io_bus().mem_side_ports
-        # self.iocache.mem_side = self.membus.cpu_side_ports
-
         for cntr in board.get_memory().get_memory_controllers():
             cntr.port = self.membus.mem_side_ports
 
@@ -191,8 +137,6 @@ class PrivateL1PrivateL2CacheHierarchy(
             L2Cache(size=self.get_l2_size())
             for i in range(board.get_processor().get_num_cores())
         ]
-
-        ######################################################################
 
         for i, cpu in enumerate(board.get_processor().get_cores()):
 

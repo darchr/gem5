@@ -25,7 +25,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-from components_library.boards.isas import ISA
+from components_library.utils.override import overrides
+from components_library.boards.abstract_board import AbstractBoard
+from components_library.isas import ISA
+
 import m5
 from m5.objects import (
     Cache,
@@ -56,6 +59,7 @@ from .simple_board import SimpleBoard
 from ..processors.abstract_processor import AbstractProcessor
 from ..memory.abstract_memory_system import AbstractMemorySystem
 from ..cachehierarchies.abstract_cache_hierarchy import AbstractCacheHierarchy
+from ..runtime import get_runtime_isa
 
 import os
 from typing import Optional, Sequence, Tuple
@@ -83,14 +87,13 @@ class X86Board(SimpleBoard):
             processor=processor,
             memory=memory,
             cache_hierarchy=cache_hierarchy,
+            exit_on_work_items = exit_on_work_items,
         )
 
-        if self.get_runtime_isa() != ISA.X86:
+        if get_runtime_isa() != ISA.X86:
             raise EnvironmentError(
                 "X86Motherboard will only work with the X86 ISA."
             )
-
-        self.exit_on_work_items = exit_on_work_items
 
         # Add the address range for the IO
         # TODO: This should definitely NOT be hardcoded to 3GB
@@ -323,8 +326,18 @@ class X86Board(SimpleBoard):
             # Set to the system readfile
             self.readfile = file_name
 
+    @overrides(AbstractBoard)
+    def has_io_bus(self) -> bool:
+        return True
+
+    @overrides(AbstractBoard)
     def get_io_bus(self) -> BaseXBar:
         return self.iobus
 
+    @overrides(AbstractBoard)
+    def has_dma_ports(self) -> bool:
+        return True
+
+    @overrides(AbstractBoard)
     def get_dma_ports(self) -> Sequence[Port]:
         return [self.pc.south_bridge.ide.dma, self.iobus.mem_side_ports]

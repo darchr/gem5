@@ -24,38 +24,35 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from .abstract_prefetch_cache import AbstractPrefetchCache
-from ..utils.override import *
+from abc import abstractmethod
+from ...utils.override import overrides
+from ..abstract_cache_hierarchy import AbstractCacheHierarchy
 
-class AbstractL1Cache(AbstractPrefetchCache):
+from m5.objects import Port
+
+
+class AbstractClassicCacheHierarchy(AbstractCacheHierarchy):
     """
-    Classes which inherit from AbstractL1Cache are L1 caches. This abstract
-    class handles common properties and methods for all prefetch caches.
+    All classic cache hierarchies inherit from this class. This class
+    provides the shared infrastructure that all classic memory system
+    implementations need.
     """
 
-    def __init__(
-        self,
-        size: str,
-        assoc: int,
-        tag_latency: int,
-        data_latency: int,
-        response_latency: int,
-        mshrs: int,
-        tgts_per_mshr: int,
-        writeback_clean: bool,
-    ):
-        super(AbstractL1Cache, self).__init__(
-            size=size,
-            assoc=assoc,
-            tag_latency=tag_latency,
-            data_latency=data_latency,
-            response_latency=response_latency,
-            mshrs=mshrs,
-            tgts_per_mshr=tgts_per_mshr,
-            writeback_clean=writeback_clean,
-        )
+    def __init__(self):
+        super(AbstractClassicCacheHierarchy, self).__init__()
 
+    @overrides(AbstractCacheHierarchy)
+    def is_ruby(self) -> bool:
+        return False
 
-#   @overrides(AbstractPrefetchCache)
-#    def get_bus_side(self):
-#        return self.mem_side
+    @overrides(AbstractCacheHierarchy)
+    def is_classic(self) -> bool:
+        return True
+
+    @abstractmethod
+    def get_mem_side_port(self) -> Port:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_cpu_side_port(self) -> Port:
+        raise NotImplementedError

@@ -24,17 +24,16 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from components_library.boards.coherence_protocol import CoherenceProtocol
-import enum
-from sys import version
+
 
 from .abstract_ruby_cache_hierarhcy import AbstractRubyCacheHierarchy
-from ..boards.isas import ISA
-from ..boards.abstract_board import AbstractBoard
+from ...coherence_protocol import CoherenceProtocol
+from ...isas import ISA
+from ...boards.abstract_board import AbstractBoard
+from ...runtime import get_runtime_coherence_protocol, get_runtime_isa
 
-from .ruby.topologies.pt2pt import SimplePt2Pt
-
-from .ruby.MESI_Two_Level import L1Cache, L2Cache, Directory, DMAController
+from .topologies.pt2pt import SimplePt2Pt
+from .caches.MESI_Two_Level import L1Cache, L2Cache, Directory, DMAController
 
 from m5.objects import (
     RubySystem,
@@ -42,11 +41,6 @@ from m5.objects import (
     DMASequencer,
     RubyPortProxy,
 )
-
-from m5.params import Port
-from m5.util.convert import toMemorySize
-
-from typing import Tuple
 
 
 class MESITwoLevelCacheHierarchy(
@@ -92,7 +86,7 @@ class MESITwoLevelCacheHierarchy(
 
     def incorporate_cache(self, motherboard: AbstractBoard) -> None:
         if (
-            motherboard.get_runtime_coherence_protocol()
+            get_runtime_coherence_protocol()
             != CoherenceProtocol.MESI_TWO_LEVEL
         ):
             raise EnvironmentError(
@@ -122,17 +116,25 @@ class MESITwoLevelCacheHierarchy(
                 core,
                 self._num_l2_banks,
                 cache_line_size,
-                motherboard.get_runtime_isa(),
+                get_runtime_isa(),
                 motherboard.get_clock_domain(),
             )
-            cache.sequencer = RubySequencer(
-                version=i,
-                dcache=cache.L1Dcache,
-                clk_domain=cache.clk_domain,
-                # pio_request_port=motherboard.get_io_bus().cpu_side_ports,
-                # mem_request_port=motherboard.get_io_bus().cpu_side_ports,
-                # pio_response_port=motherboard.get_io_bus().mem_side_ports,
-            )
+
+            if motherboard.has_io_bus():
+                    cache.sequencer = RubySequencer(
+                    version=i,
+                    dcache=cache.L1Dcache,
+                    clk_domain=cache.clk_domain,
+                    pio_request_port=motherboard.get_io_bus().cpu_side_ports,
+                    mem_request_port=motherboard.get_io_bus().cpu_side_ports,
+                    pio_response_port=motherboard.get_io_bus().mem_side_ports,
+                )
+            else:
+                cache.sequencer = RubySequencer(
+                    version=i,
+                    dcache=cache.L1Dcache,
+                    clk_domain=cache.clk_domain,
+                )
 
             cache.ruby_system = self.ruby_system
 
@@ -144,7 +146,7 @@ class MESITwoLevelCacheHierarchy(
             )
 
             # Connect the interrupt ports
-            if motherboard.get_runtime_isa() == ISA.X86:
+            if get_runtime_isa() == ISA.X86:
                 int_req_port = cache.sequencer.interrupt_out_port
                 int_resp_port = cache.sequencer.in_ports
                 core.connect_interrupt(int_req_port, int_resp_port)
@@ -208,13 +210,3 @@ class MESITwoLevelCacheHierarchy(
         motherboard.connect_system_port(
             self.ruby_system.sys_port_proxy.in_ports
         )
-
-        # self.ruby_system.sys_port_proxy.pio_request_port = \
-        # iobus.cpu_side_ports
-
-        # connect the io bus
-        # TODO: This interface needs fixed. The PC should not be accessed in
-        # This way
-        # motherboard.pc.attachIO(
-        # motherboard.get_io_bus(), [motherboard.pc.south_bridge.ide.dma]
-        # )

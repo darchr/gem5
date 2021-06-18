@@ -61,6 +61,7 @@ class SimpleBoard(AbstractBoard):
         processor: AbstractProcessor,
         memory: AbstractMemorySystem,
         cache_hierarchy: AbstractCacheHierarchy,
+        exit_on_work_items: bool = False,
     ) -> None:
         super(SimpleBoard, self).__init__(
             processor=processor,
@@ -74,6 +75,8 @@ class SimpleBoard(AbstractBoard):
         self.clk_domain.voltage_domain = VoltageDomain()
 
         self.mem_ranges = memory.get_memory_ranges()
+
+        self.exit_on_work_items = exit_on_work_items
 
     @overrides(AbstractBoard)
     def get_clock_domain(self) -> ClockDomain:
@@ -99,12 +102,22 @@ class SimpleBoard(AbstractBoard):
         self.get_memory().incorporate_memory(self)
 
     @overrides(AbstractBoard)
+    def has_io_bus(self) -> bool:
+        return False
+
+    @overrides(AbstractBoard)
     def get_io_bus(self) -> IOXBar:
-        raise NotImplementedError("SimpleBoard does not have an IO Bus.")
+        raise NotImplementedError("SimpleBoard does not have an IO Bus. "
+                                  "Use `has_io_bus()` to check this.")
+
+    @overrides(AbstractBoard)
+    def has_dma_ports(self) -> bool:
+        return False
 
     @overrides(AbstractBoard)
     def get_dma_ports(self) -> List[Port]:
-        raise NotImplementedError("SimpleBoard does not have DMA Ports.")
+        raise NotImplementedError("SimpleBoard does not have DMA Ports. "
+                                  "Use `has_dma_ports()` to check this.")
 
     def set_workload(self, binary: str) -> None:
         """Set up the system to run a specific binary.

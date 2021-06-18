@@ -24,34 +24,23 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from .abstract_l1cache import AbstractL1Cache
-from ..utils.override import *
+from components_library.utils.override import overrides
+from ..abstract_cache_hierarchy import AbstractCacheHierarchy
 
-from typing import Optional
 
-class L1DCache(AbstractL1Cache):
+class AbstractRubyCacheHierarchy(AbstractCacheHierarchy):
     """
-    A simple L1 data cache with default values.
+    All Ruby-based cache hierarchies inherit from this class. This class
+    provides the shared infrastructure that all Ruby protocols need.
     """
 
-    def __init__(
-        self,
-        size: str,
-        assoc: Optional[int] = 8,
-        tag_latency: Optional[int] = 1,
-        data_latency: Optional[int] = 1,
-        response_latency: Optional[int] = 1,
-        mshrs: Optional[int] = 16,
-        tgts_per_mshr: Optional[int] = 20,
-        writeback_clean: Optional[bool] = True,
-    ):
-        super(L1DCache, self).__init__(
-            size=size,
-            assoc=assoc,
-            tag_latency=tag_latency,
-            data_latency=data_latency,
-            response_latency=response_latency,
-            mshrs=mshrs,
-            tgts_per_mshr=tgts_per_mshr,
-            writeback_clean=writeback_clean,
-        )
+    def __init__(self):
+        super(AbstractRubyCacheHierarchy, self).__init__()
+
+    @overrides(AbstractCacheHierarchy)
+    def is_ruby(self) -> bool:
+        return True
+
+    @overrides(AbstractCacheHierarchy)
+    def is_classic(self) -> bool:
+        return False
