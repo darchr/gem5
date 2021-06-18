@@ -94,11 +94,11 @@ class PrivateL1PrivateL2CacheHierarchy(
         AbstractTwoLevelCacheHierarchy.__init__(
             self,
             l1i_size=l1i_size,
-            l1i_assoc=1,  # TODO: Is this correct? I'm a Cache Hierarchy noob.
+            l1i_assoc=8,  # TODO: Is this correct? I'm a Cache Hierarchy noob.
             l1d_size=l1d_size,
-            l1d_assoc=1,  # TODO: Same as above.
+            l1d_assoc=8,  # TODO: Same as above.
             l2_size=l2_size,
-            l2_assoc=1,  # TODO: Same as above.
+            l2_assoc=4,  # TODO: Same as above.
         )
 
         self.membus = membus

@@ -27,20 +27,28 @@
 import m5
 from m5.objects import Root
 
+from components_library.runtime import get_runtime_coherence_protocol,\
+                                       get_runtime_isa
 from components_library.boards.x86_board import X86Board
-from components_library.cachehierarchies.mesi_two_level_cache_hierarchy \
-    import MESITwoLevelCacheHierarchy
-from components_library.cachehierarchies.no_cache import NoCache
 from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
 from components_library.processors.simple_processor import SimpleProcessor
 from components_library.processors.cpu_types import CPUTypes
+from components_library.isas import ISA
+from components_library.coherence_protocol import CoherenceProtocol
 
 import os
 import subprocess
 import gzip
 import shutil
 
+if get_runtime_coherence_protocol() != CoherenceProtocol.MESI_TWO_LEVEL or \
+    get_runtime_isa() != ISA.X86:
+    raise EnvironmentError(
+        "The boot-exit-disk_run.py should be run with X86_MESI_Two_Level")
 
+
+from components_library.cachehierarchies.mesi_two_level_cache_hierarchy \
+    import MESITwoLevelCacheHierarchy
 
 cache_hierarchy = MESITwoLevelCacheHierarchy(l1d_size = "32kB",
                                              l1d_assoc = 8,
@@ -59,6 +67,7 @@ motherboard = X86Board(clk_freq="3GHz",
                        processor=processor,
                        memory=memory,
                        cache_hierarchy=cache_hierarchy,
+                       exit_on_work_items=True,
                       )
 
 motherboard.connect_things()
@@ -88,9 +97,8 @@ command =  "m5 exit \n"
 motherboard.set_workload(kernel = kernel_path, disk_image = boot_img_path,
                          command = command)
 
-print("Running with ISA: " + motherboard.get_runtime_isa().name)
-print("Running with protocol: " +
-    motherboard.get_runtime_coherence_protocol().name)
+print("Running with ISA: " + get_runtime_isa().name)
+print("Running with protocol: " + get_runtime_coherence_protocol().name)
 print()
 
 root = Root(full_system = True, system = motherboard)
