@@ -1,5 +1,5 @@
 # Copyright (c) 2021 The Regents of the University of California
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -24,42 +24,49 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from .abstract_l2_cache import AbstractL2Cache
+import m5
+from m5.objects import Root
 
-from m5.objects import MessageBuffer, RubyCache
+from components_library.boards.simple_board import SimpleBoard
+from components_library.cachehierarchies.classic.no_cache import NoCache
+from components_library.memory.single_channel import SingleChannelDDR3_1600
+from components_library.processors.simple_processor import SimpleProcessor
+from components_library.processors.cpu_types import CPUTypes
+from components_library.runtime import get_runtime_coherence_protocol, \
+                                        get_runtime_isa
 
-import math
+import os
 
-class L2Cache(AbstractL2Cache):
-    def __init__(
-        self, l2_size, l2_assoc, network, num_l2Caches, cache_line_size
-    ):
-        super(L2Cache, self).__init__(network, cache_line_size)
+cache_hierarchy = NoCache()
 
-        # This is the cache memory object that stores the cache data and tags
-        self.L2cache = RubyCache(
-            size=l2_size,
-            assoc=l2_assoc,
-            start_index_bit=self.getIndexBit(num_l2Caches),
-        )
+memory = SingleChannelDDR3_1600()
 
-        self.transitions_per_cycle = "4"
+processor = SimpleProcessor(cpu_type = CPUTypes.ATOMIC, num_cores=1)
 
-    def getIndexBit(self, num_l2caches):
-        l2_bits = int(math.log(num_l2caches, 2))
-        bits = int(math.log(self._cache_line_size, 2)) + l2_bits
-        return bits
+motherboard = SimpleBoard(clk_freq="3GHz",
+                          processor=processor,
+                          memory=memory,
+                          cache_hierarchy=cache_hierarchy,
+                         )
 
-    def connectQueues(self, network):
-        self.DirRequestFromL2Cache = MessageBuffer()
-        self.DirRequestFromL2Cache.out_port = network.in_port
-        self.L1RequestFromL2Cache = MessageBuffer()
-        self.L1RequestFromL2Cache.out_port = network.in_port
-        self.responseFromL2Cache = MessageBuffer()
-        self.responseFromL2Cache.out_port = network.in_port
-        self.unblockToL2Cache = MessageBuffer()
-        self.unblockToL2Cache.in_port = network.out_port
-        self.L1RequestToL2Cache = MessageBuffer()
-        self.L1RequestToL2Cache.in_port = network.out_port
-        self.responseToL2Cache = MessageBuffer()
-        self.responseToL2Cache.in_port = network.out_port
+motherboard.connect_things()
+
+thispath = os.path.dirname(os.path.realpath(__file__))
+binary = os.path.join(thispath, 'tests/test-progs/hello/bin/x86/linux/hello')
+
+motherboard.set_workload(binary)
+
+
+
+print("Running with ISA: " + get_runtime_isa().name)
+print("Running with protocol: " +
+    get_runtime_coherence_protocol().name)
+print()
+
+root = Root(full_system = False, system = motherboard)
+
+m5.instantiate()
+
+print("Beginning simulation!")
+exit_event = m5.simulate()
+print('Exiting @ tick %i because %s' % (m5.curTick(), exit_event.getCause()))

@@ -1,5 +1,5 @@
 # Copyright (c) 2021 The Regents of the University of California
-# All rights reserved.
+# All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -24,49 +24,27 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import m5
-from m5.objects import Root
+from abc import abstractmethod
 
-from components_library.boards.simple_board import SimpleBoard
-from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
-    import PrivateL1PrivateL2CacheHierarchy
-from components_library.cachehierarchies.no_cache import NoCache
-from components_library.memory.single_channel import SingleChannelDDR3_1600
-from components_library.processors.simple_processor import SimpleProcessor
-from components_library.processors.cpu_types import CPUTypes
+from m5.objects import L2Cache_Controller
 
-import os
+class AbstractL2Cache(L2Cache_Controller):
 
-cache_hierarchy = NoCache()
+    _version = 0
 
-memory = SingleChannelDDR3_1600()
+    @classmethod
+    def versionCount(cls):
+        cls._version += 1  # Use count for this particular type
+        return cls._version - 1
 
-processor = SimpleProcessor(cpu_type = CPUTypes.ATOMIC, num_cores=1)
+    def __init__(self, network, cache_line_size):
+        super(AbstractL2Cache, self).__init__()
 
-motherboard = SimpleBoard(clk_freq="3GHz",
-                          processor=processor,
-                          memory=memory,
-                          cache_hierarchy=cache_hierarchy,
-                         )
+        self.version = self.versionCount()
+        self._cache_line_size = cache_line_size
+        self.connectQueues(network)
 
-motherboard.connect_things()
-
-thispath = os.path.dirname(os.path.realpath(__file__))
-binary = os.path.join(thispath, 'tests/test-progs/hello/bin/x86/linux/hello')
-
-motherboard.set_workload(binary)
-
-
-
-print("Running with ISA: " + motherboard.get_runtime_isa().name)
-print("Running with protocol: " +
-    motherboard.get_runtime_coherence_protocol().name)
-print()
-
-root = Root(full_system = False, system = motherboard)
-
-m5.instantiate()
-
-print("Beginning simulation!")
-exit_event = m5.simulate()
-print('Exiting @ tick %i because %s' % (m5.curTick(), exit_event.getCause()))
+    @abstractmethod
+    def connectQueues(self, network):
+        """Connect all of the queues for this controller."""
+        pass

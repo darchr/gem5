@@ -49,6 +49,7 @@ class CoherenceProtocol(Enum):
 def is_classic(protocol: CoherenceProtocol) -> bool:
     classic = (
         CoherenceProtocol.CHI,
+        CoherenceProtocol.MI_EXAMPLE,
     )
 
     return protocol in classic
@@ -64,7 +65,6 @@ def is_ruby(protocol: CoherenceProtocol) -> bool:
         CoherenceProtocol.MOESI_CMP_DIRECTORY,
         CoherenceProtocol.MOESI_CMP_TOKEN,
         CoherenceProtocol.MOESI_AMD_BASE,
-        CoherenceProtocol.MI_EXAMPLE,
         CoherenceProtocol.GPU_VIPER,
     )
 

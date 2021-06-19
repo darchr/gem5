@@ -24,42 +24,27 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from .abstract_l2_cache import AbstractL2Cache
+from abc import abstractmethod
 
-from m5.objects import MessageBuffer, RubyCache
+from m5.objects import Directory_Controller
 
-import math
+class AbstractDirectory(Directory_Controller):
 
-class L2Cache(AbstractL2Cache):
-    def __init__(
-        self, l2_size, l2_assoc, network, num_l2Caches, cache_line_size
-    ):
-        super(L2Cache, self).__init__(network, cache_line_size)
+    _version = 0
 
-        # This is the cache memory object that stores the cache data and tags
-        self.L2cache = RubyCache(
-            size=l2_size,
-            assoc=l2_assoc,
-            start_index_bit=self.getIndexBit(num_l2Caches),
-        )
+    @classmethod
+    def versionCount(cls):
+        cls._version += 1  # Use count for this particular type
+        return cls._version - 1
 
-        self.transitions_per_cycle = "4"
+    def __init__(self, network, cache_line_size):
+        """ """
+        super(AbstractDirectory, self).__init__()
+        self.version = self.versionCount()
+        self._cache_line_size = cache_line_size
+        self.connectQueues(network)
 
-    def getIndexBit(self, num_l2caches):
-        l2_bits = int(math.log(num_l2caches, 2))
-        bits = int(math.log(self._cache_line_size, 2)) + l2_bits
-        return bits
-
+    @abstractmethod
     def connectQueues(self, network):
-        self.DirRequestFromL2Cache = MessageBuffer()
-        self.DirRequestFromL2Cache.out_port = network.in_port
-        self.L1RequestFromL2Cache = MessageBuffer()
-        self.L1RequestFromL2Cache.out_port = network.in_port
-        self.responseFromL2Cache = MessageBuffer()
-        self.responseFromL2Cache.out_port = network.in_port
-        self.unblockToL2Cache = MessageBuffer()
-        self.unblockToL2Cache.in_port = network.out_port
-        self.L1RequestToL2Cache = MessageBuffer()
-        self.L1RequestToL2Cache.in_port = network.out_port
-        self.responseToL2Cache = MessageBuffer()
-        self.responseToL2Cache.in_port = network.out_port
+        """Connect all of the queues for this controller."""
+        pass

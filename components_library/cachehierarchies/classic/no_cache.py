@@ -24,18 +24,22 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from components_library.cachehierarchies.\
+    classic.abstract_classic_cache_hierarchy \
+        import AbstractClassicCacheHierarchy
 from ..abstract_cache_hierarchy import AbstractCacheHierarchy
 from ...boards.abstract_board import AbstractBoard
 from ...isas import ISA
+from ...runtime import get_runtime_isa
 
-from m5.objects import BaseXBar, SystemXBar, BadAddr
+from m5.objects import BaseXBar, SystemXBar, BadAddr, Port
 
 from typing import Optional
 
 from ...utils.override import *
 
 
-class NoCache(AbstractCacheHierarchy):
+class NoCache(AbstractClassicCacheHierarchy):
     """
     No cache hierarchy. The CPUs are connected straight to the memory bus.
 
@@ -85,6 +89,14 @@ class NoCache(AbstractCacheHierarchy):
         super(NoCache, self).__init__()
         self.membus = membus
 
+    @overrides(AbstractClassicCacheHierarchy)
+    def get_mem_side_port(self) -> Port:
+        return self.membus.mem_side_ports
+
+    @overrides(AbstractClassicCacheHierarchy)
+    def get_cpu_side_port(self) -> Port:
+        return self.membus.cpu_side_ports
+
     @overrides(AbstractCacheHierarchy)
     def incorporate_cache(self, board: AbstractBoard) -> None:
 
@@ -96,7 +108,7 @@ class NoCache(AbstractCacheHierarchy):
                 self.membus.cpu_side_ports, self.membus.cpu_side_ports
             )
 
-            if board.get_runtime_isa() == ISA.X86:
+            if get_runtime_isa() == ISA.X86:
                 int_req_port = self.membus.mem_side_ports
                 int_resp_port = self.membus.cpu_side_ports
                 core.connect_interrupt(int_req_port, int_resp_port)

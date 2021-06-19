@@ -32,6 +32,7 @@ from .caches.l1icache import L1ICache
 from .caches.l2cache import L2Cache
 from ...boards.abstract_board import AbstractBoard
 from ...isas import ISA
+from ...runtime import get_runtime_isa
 
 from m5.objects import L2XBar, BaseXBar, SystemXBar, BadAddr, Port
 
@@ -123,18 +124,18 @@ class PrivateL1PrivateL2CacheHierarchy(
             cntr.port = self.membus.mem_side_ports
 
         self.l1icaches = [
-            L1ICache(size=self.get_l1i_size())
+            L1ICache(size=self.l1i_size)
             for i in range(board.get_processor().get_num_cores())
         ]
         self.l1dcaches = [
-            L1DCache(size=self.get_l1i_size())
+            L1DCache(size=self.l1i_size)
             for i in range(board.get_processor().get_num_cores())
         ]
         self.l2buses = [
             L2XBar() for i in range(board.get_processor().get_num_cores())
         ]
         self.l2caches = [
-            L2Cache(size=self.get_l2_size())
+            L2Cache(size=self.l2_size)
             for i in range(board.get_processor().get_num_cores())
         ]
 
@@ -154,7 +155,7 @@ class PrivateL1PrivateL2CacheHierarchy(
                 self.membus.cpu_side_ports, self.membus.cpu_side_ports
             )
 
-            if board.get_runtime_isa() == ISA.X86:
+            if get_runtime_isa() == ISA.X86:
                 int_req_port = self.membus.mem_side_ports
                 int_resp_port = self.membus.cpu_side_ports
                 cpu.connect_interrupt(int_req_port, int_resp_port)

@@ -47,7 +47,7 @@ if get_runtime_coherence_protocol() != CoherenceProtocol.MESI_TWO_LEVEL or \
         "The boot-exit-disk_run.py should be run with X86_MESI_Two_Level")
 
 
-from components_library.cachehierarchies.mesi_two_level_cache_hierarchy \
+from components_library.cachehierarchies.ruby.mesi_two_level_cache_hierarchy \
     import MESITwoLevelCacheHierarchy
 
 cache_hierarchy = MESITwoLevelCacheHierarchy(l1d_size = "32kB",

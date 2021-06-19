@@ -27,13 +27,17 @@
 
 
 from .abstract_ruby_cache_hierarhcy import AbstractRubyCacheHierarchy
+from ..abstract_two_level_cache_hierarchy import AbstractTwoLevelCacheHierarchy
 from ...coherence_protocol import CoherenceProtocol
 from ...isas import ISA
 from ...boards.abstract_board import AbstractBoard
 from ...runtime import get_runtime_coherence_protocol, get_runtime_isa
 
-from .topologies.pt2pt import SimplePt2Pt
-from .caches.MESI_Two_Level import L1Cache, L2Cache, Directory, DMAController
+from .topologies.simple_pt2pt import SimplePt2Pt
+from .caches.l1_cache import L1Cache
+from .caches.l2_cache import L2Cache
+from .caches.directory import Directory
+from .caches.dma_controller import DMAController
 
 from m5.objects import (
     RubySystem,
@@ -43,9 +47,8 @@ from m5.objects import (
 )
 
 
-class MESITwoLevelCacheHierarchy(
-    AbstractRubyCacheHierarchy
-):  # , AbstractTwoLevelHierarchy
+class MESITwoLevelCacheHierarchy(AbstractRubyCacheHierarchy,
+                                 AbstractTwoLevelCacheHierarchy):
     """A two level private L1 shared L2 MESI hierarchy.
 
     In addition to the normal two level parameters, you can also change the
@@ -64,27 +67,20 @@ class MESITwoLevelCacheHierarchy(
         l2_assoc: str,
         num_l2_banks: int,
     ):
-        super().__init__(
-            # l1i_size,
-            #  l1i_assoc,
-            #  l1d_size,
-            # l1d_assoc,
-            # str(l2_bank_size)+'B',
-            #  l2_assoc,
+        AbstractRubyCacheHierarchy.__init__(self=self)
+        AbstractTwoLevelCacheHierarchy.__init__(
+            self,
+            l1i_size = l1i_size,
+            l1i_assoc = l1i_assoc,
+            l1d_size = l1d_size,
+            l1d_assoc = l1d_assoc,
+            l2_size = l2_size,
+            l2_assoc = l2_assoc,
         )
 
-        self._l1i_size = l1i_size
-        self._l1i_assoc = l1i_assoc
-        self._l1d_size = l1d_size
-        self._l1d_assoc = l1d_assoc
-        self._l2_size = l2_size
-        self._l2_assoc = l2_assoc
         self._num_l2_banks = num_l2_banks
-        # TODO: check to be sure that the size of the cache is divisible
-        # by the number of banks
-        # l2_bank_size = toMemorySize(l2_size) // num_l2_banks
 
-    def incorporate_cache(self, motherboard: AbstractBoard) -> None:
+    def incorporate_cache(self, board: AbstractBoard) -> None:
         if (
             get_runtime_coherence_protocol()
             != CoherenceProtocol.MESI_TWO_LEVEL
@@ -95,7 +91,7 @@ class MESITwoLevelCacheHierarchy(
                 "coherence protocol."
             )
 
-        cache_line_size = motherboard.cache_line_size
+        cache_line_size = board.get_cache_line_size()
 
         self.ruby_system = RubySystem()
 
@@ -106,28 +102,28 @@ class MESITwoLevelCacheHierarchy(
         self.ruby_system.network.number_of_virtual_networks = 5
 
         self._l1_controllers = []
-        for i, core in enumerate(motherboard.get_processor().get_cores()):
+        for i, core in enumerate(board.get_processor().get_cores()):
             cache = L1Cache(
-                self._l1i_size,
-                self._l1i_assoc,
-                self._l1d_size,
-                self._l1d_assoc,
+                self.l1i_size,
+                self.l1i_assoc,
+                self.l1d_size,
+                self.l1d_assoc,
                 self.ruby_system.network,
                 core,
                 self._num_l2_banks,
                 cache_line_size,
                 get_runtime_isa(),
-                motherboard.get_clock_domain(),
+                board.get_clock_domain(),
             )
 
-            if motherboard.has_io_bus():
+            if board.has_io_bus():
                     cache.sequencer = RubySequencer(
                     version=i,
                     dcache=cache.L1Dcache,
                     clk_domain=cache.clk_domain,
-                    pio_request_port=motherboard.get_io_bus().cpu_side_ports,
-                    mem_request_port=motherboard.get_io_bus().cpu_side_ports,
-                    pio_response_port=motherboard.get_io_bus().mem_side_ports,
+                    pio_request_port=board.get_io_bus().cpu_side_ports,
+                    mem_request_port=board.get_io_bus().cpu_side_ports,
+                    pio_response_port=board.get_io_bus().mem_side_ports,
                 )
             else:
                 cache.sequencer = RubySequencer(
@@ -170,14 +166,14 @@ class MESITwoLevelCacheHierarchy(
 
         self._directory_controllers = [
             Directory(self.ruby_system.network, cache_line_size, range, port)
-            for range, port in motherboard.get_memory().get_mem_ports()
+            for range, port in board.get_memory().get_mem_ports()
         ]
         # TODO: Make this prettier: The problem is not being able to proxy
         # the ruby system correctly
         for dir in self._directory_controllers:
             dir.ruby_system = self.ruby_system
 
-        dma_ports = motherboard.get_dma_ports()
+        dma_ports = board.get_dma_ports()
         self._dma_controllers = []
         for i, port in enumerate(dma_ports):
             ctrl = DMAController(self.ruby_system.network, cache_line_size)
@@ -207,6 +203,6 @@ class MESITwoLevelCacheHierarchy(
         # Set up a proxy port for the system_port. Used for load binaries and
         # other functional-only things.
         self.ruby_system.sys_port_proxy = RubyPortProxy()
-        motherboard.connect_system_port(
+        board.connect_system_port(
             self.ruby_system.sys_port_proxy.in_ports
         )

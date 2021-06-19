@@ -40,12 +40,15 @@ import m5.ticks
 from m5.objects import Root
 
 from components_library.boards.x86_board import X86Board
-from components_library.cachehierarchies.private_l1_private_2_cache_hierarchy \
-    import PrivateL1PrivateL2CacheHierarchy
+from components_library.cachehierarchies.classic\
+    .private_l1_private_l2_cache_hierarchy import \
+        PrivateL1PrivateL2CacheHierarchy
 from components_library.memory.ddr3_1600_8x8 import DDR3_1600_8x8
 from components_library.processors.simple_switchable_processor import \
    SimpleSwitchableProcessor
 from components_library.processors.cpu_types import CPUTypes
+from components_library.runtime import get_runtime_isa, \
+    get_runtime_coherence_protocol
 
 import os
 import subprocess
@@ -61,16 +64,6 @@ cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size="32kB",
                                                  l2_size="256kB",
                                                   )
 
-#cache_hierarchy = MESITwoLevelCacheHierarchy(l1d_size = "32kB",
- #                                            l1d_assoc = 8,
-  #                                           l1i_size = "32kB",
-   #                                          l1i_assoc = 8,
-    #                                         l2_size = "256kB",
-     #                                        l2_assoc = 16,
-      #                                       num_l2_banks = 1,
-       #                                     )
-
-
 # Setup the memory system.
 # Warning!!! This must be kept at 3GB for now. X86Motherboard does not support
 # anything else right now!
@@ -81,6 +74,7 @@ memory = DDR3_1600_8x8(size="3GB")
 # allows us to switch between different SimpleProcessors. In this case we start
 # with an atomic CPU and change to Timing later in the simulation
 
+# TODO:
 processor = SimpleSwitchableProcessor(starting_core_type=CPUTypes.ATOMIC ,
                                       switch_core_type=CPUTypes.TIMING,
                                       num_cores=4)
@@ -135,10 +129,10 @@ motherboard.set_workload(
     kernel=kernel_path, disk_image=parsec_img_path, command=command
 )
 
-print("Running with ISA: " + motherboard.get_runtime_isa().name)
+print("Running with ISA: " + get_runtime_isa().name)
 print(
     "Running with protocol: "
-    + motherboard.get_runtime_coherence_protocol().name
+    + get_runtime_coherence_protocol().name
 )
 print()
 

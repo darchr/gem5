@@ -92,6 +92,9 @@ class AbstractBoard(System):
         """
         return self.cache_hierarchy
 
+    def get_cache_line_size(self) -> int:
+        return self.cache_line_size
+
     # TODO: Technically `get_dma_ports` returns a list. This list could be
     # empty to indicate the presense of dma ports. Though I quite like having
     # this boolean to quickly check a board.

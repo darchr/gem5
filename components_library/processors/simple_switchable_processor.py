@@ -32,11 +32,8 @@ from .switchable_processor import SwitchableProcessor
 
 from ..utils.override import *
 
-from m5.util import warn
-
 from m5.objects import KvmVM
 
-from ..boards.coherence_protocol import is_ruby
 
 
 class SimpleSwitchableProcessor(SwitchableProcessor):

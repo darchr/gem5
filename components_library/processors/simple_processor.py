@@ -27,14 +27,7 @@
 
 from components_library.boards.mem_mode import MEM_MODE
 from components_library.processors.simple_core import SimpleCore
-from m5.objects import (
-    AtomicSimpleCPU,
-    DerivO3CPU,
-    TimingSimpleCPU,
-    BaseCPU,
-    X86KvmCPU,
-    KvmVM,
-)
+from m5.objects import KvmVM
 
 from m5.util import warn
 
@@ -42,6 +35,7 @@ from .abstract_processor import AbstractProcessor
 from .cpu_types import CPUTypes
 from ..boards.abstract_board import AbstractBoard
 from ..coherence_protocol import is_ruby
+from ..runtime import get_runtime_coherence_protocol
 
 from typing import List
 
@@ -86,13 +80,13 @@ class SimpleProcessor(AbstractProcessor):
             board.set_mem_mode(MEM_MODE.ATOMIC_NONCACHING)
             board.mem_mode = "atomic_noncaching"
         elif self._cpu_type == CPUTypes.ATOMIC:
-            if is_ruby(board.get_runtime_coherence_protocol()):
+            if is_ruby(get_runtime_coherence_protocol()):
                 warn("Using an atomic core with Ruby will result in "
                      "'atomic_noncaching' memory mode. This will skip caching "
                      "completely.")
                 board.mem_mode = "atomic_noncaching"
             else:
-                oard.set_mem_mode(MEM_MODE.ATOMIC)
+                board.set_mem_mode(MEM_MODE.ATOMIC)
                 board.mem_mode = "atomic"
         else:
             raise NotImplementedError

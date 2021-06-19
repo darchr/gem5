@@ -67,69 +67,9 @@ class AbstractTwoLevelCacheHierarchy:
 
         :type l2_assoc: int
         """
-        self._l1i_size = l1i_size
-        self._l1i_assoc = l1i_assoc
-        self._l1d_size = l1d_size
-        self._l1d_assoc = l1d_assoc
-        self._l2_size = l2_size
-        self._l2_assoc = l2_assoc
-
-    def get_l1i_size(self) -> str:
-        """
-        Gets the L1 instruction cache size.
-
-        :returns: The L1 instruction cache size.
-
-        :rtype: str
-        """
-        return self._l1i_size
-
-    def get_l1i_assoc(self) -> int:
-        """
-        Gets the L1 instruction cache associativity.
-
-        :returns: The L1 instruction cache associativity.
-
-        :rtype: int
-        """
-        return self._l1i_assoc
-
-    def get_l1d_size(self) -> str:
-        """
-        Gets the L1 data cache size.
-
-        :returns: The L1 data cache size.
-
-        :rtype: str
-        """
-        return self._l1d_size
-
-    def get_l1d_assoc(self) -> int:
-        """
-        Gets the L1 data cache associativity.
-
-        :returns: The L1 data cache associativity.
-
-        :rtype: int
-        """
-        return self._l1d_assoc
-
-    def get_l2_size(self) -> str:
-        """
-        Gets the L2 cache size.
-
-        :returns: The L2 cache size.
-
-        :rtype: str
-        """
-        return self._l2_size
-
-    def get_l2_assoc(self) -> int:
-        """
-        Gets the L2 cache associativity.
-
-        :returns: The L2 cache associativity.
-
-        :rtype: int
-        """
-        return self._l2_assoc
+        self.l1i_size = l1i_size
+        self.l1i_assoc = l1i_assoc
+        self.l1d_size = l1d_size
+        self.l1d_assoc = l1d_assoc
+        self.l2_size = l2_size
+        self.l2_assoc = l2_assoc

@@ -27,7 +27,7 @@
 from typing import Optional
 
 from .abstract_l1cache import AbstractL1Cache
-from ..utils.override import *
+from ....utils.override import *
 
 
 class L1ICache(AbstractL1Cache):
