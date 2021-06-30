@@ -208,7 +208,7 @@ MemCtrl::writeQueueFull(unsigned int neededEntries) const
 bool
 MemCtrl::nvmWriteQueueFull(unsigned int neededEntries) const
 {
-    int size = (nvmWriteQueue.size() + neededEntries);
+    int size = (nvmWriteQueueSize + neededEntries);
     // random size to compare with for now
     //return  size_new > 64;
     return  size > maxNvmWriteQueueSize;
@@ -218,7 +218,7 @@ MemCtrl::nvmWriteQueueFull(unsigned int neededEntries) const
 bool
 MemCtrl::nvmReadQueueFull(unsigned int neededEntries) const
 {
-    auto size = (nvmReadQueue.size() + neededEntries);
+    auto size = (nvmReadQueueSize + neededEntries);
     // random size to compare with for now
     //return  size_new > 64;
     return  size > maxNvmReadQueueSize;
@@ -295,7 +295,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
             }
         }
 
-        // Also check in dramFillQueue, nvmWriteQueue
+        // Also check in dramFillQueue
         bool foundInDRAMFillQ = false;
 
         for (const auto& vec : dramFillQueue) {
@@ -308,17 +308,19 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
                     foundInDRAMFillQ = true;
                     //stats.servicedByWrQ++;
                     pktsServicedByDRAMFillQ++;
-                    //DPRINTF(MemCtrl,
-                    //        "Read to addr %lld with size %d serviced by "
-                    //        "write queue\n",
-                    //        addr, size);
+                    DPRINTF(MemCtrl,
+                            "Read to addr %lld with size %d serviced by "
+                            "dram fill queue\n",
+                            addr, size);
+                    //revisit stats
                     //stats.bytesReadWrQ += burst_size;
                     break;
                 }
             }
         }
-        bool foundInNVMWriteQ = false;
 
+        // Also check in NVMWriteQ
+        bool foundInNVMWriteQ = false;
         for (const auto& vec : nvmWriteQueue) {
             for (const auto& p : vec) {
                 // check if the read is subsumed in the write queue
@@ -329,10 +331,12 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
                     foundInNVMWriteQ = true;
                     //stats.servicedByWrQ++;
                     pktsServicedByNVMWrQ++;
-                    //DPRINTF(MemCtrl,
-                    //        "Read to addr %lld with size %d serviced by "
-                    //        "write queue\n",
-                    //        addr, size);
+                    DPRINTF(MemCtrl,
+                            "Read to addr %lld with size %d serviced by "
+                            "nvm write queue\n",
+                            addr, size);
+
+                    //revisit stats
                     //stats.bytesReadWrQ += burst_size;
                     break;
                 }
@@ -342,7 +346,10 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
         // If not found in the write q, make a memory packet and
         // push it onto the read queue
         if (!foundInWrQ && !foundInDRAMFillQ && !foundInNVMWriteQ) {
-
+            DPRINTF(MemCtrl,
+                            "Read to addr %lld with size %d was not "
+                            "serviced by Forwarding checks!\n",
+                            addr, size);
             // Make the burst helper for split packets
             if (pkt_count > 1 && burst_helper == NULL) {
                 DPRINTF(MemCtrl, "Read to addr %lld translates to %d "
@@ -454,6 +461,7 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
             if (is_dram) {
                 // This condition will always be true in the current design
                 // Probably no need to check for it.
+
                 // Every write packet received by write request queue,
                 // will initiate a read to check tag and metadata. Thus,
                 // we create a read packet and set 'read_before_write' flag
@@ -967,6 +975,7 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     } else if (nvm && nvm->getAddrRange().contains(pkt->getAddr())) {
         is_dram = false;
     } else {
+
         panic("Can't handle address range for packet %s\n",
               pkt->print());
     }
@@ -1014,7 +1023,7 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
             stats.writeReqs++;
             stats.bytesWrittenSys += size;
         }
-    } else {
+    } else { //read
         assert(pkt->isRead());
         assert(size != 0);
         if (readQueueFull(pkt_count)) {
@@ -1067,7 +1076,6 @@ MemCtrl::processRespondEvent()
 
     //DRAM ACCESS, check tag and metadata
     if (mem_pkt->isDram()) {
-
         dram_miss = false;
         int index = bits(mem_pkt->pkt->getAddr(),
                         ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
@@ -1644,14 +1652,15 @@ MemCtrl::processNextReqEvent()
     if (busState == READ) {
         // track if we should switch or not
         bool switch_to_writes = false;
-        if (readQueue.size() == 0 && nvmReadQueue.size() == 0) {
+        if (totalReadQueueSize == 0 && nvmReadQueueSize == 0) {
             // In the case there is no read request to go next,
             // trigger writes if we have passed the low threshold (or
             // if we are draining)
             if ((totalWriteQueueSize != 0 || nvmWriteQueueSize != 0
-                   || dramFillQueueSize != 0)&&
+                   || dramFillQueueSize != 0) &&
                 (drainState() == DrainState::Draining ||
-                 totalWriteQueueSize > writeLowThreshold)) {
+                 (totalWriteQueueSize + nvmWriteQueueSize + dramFillQueueSize)
+                 > writeLowThreshold)) {
 
                 DPRINTF(MemCtrl,
                         "Switching to writes due to read queue empty\n");
@@ -1675,30 +1684,37 @@ MemCtrl::processNextReqEvent()
         } else {
             // COMMENT: we have something in read queue
             bool read_found = false;
+            bool nvm_read_found = false;
             MemPacketQueue::iterator to_read;
             uint8_t prio = numPriorities();
 
-            // this is used to track
-            // if the read request is found
-            // in nvm read queue
-            bool nvm_q_read = false;
-
             // First check NVM Read Queue
-            // Question: which queues should be prioritized
-            if (nvmReadQueue.size() != 0) {
-                auto queue = nvmReadQueue.rbegin();
+            for (auto queue = nvmReadQueue.rbegin();
+                 queue != nvmReadQueue.rend(); ++queue) {
+
+                prio--;
+
+                DPRINTF(QOS,
+                        "Checking NVM READ queue [%d]
+                        priority [%d elements]\n",
+                        prio, queue->size());
+
+                // Figure out which nvm read request goes next
+                // If we are changing command type, incorporate the minimum
+                // bus turnaround delay which will be rank to rank delay
                 to_read = chooseNext((*queue), switched_cmd_type ?
-                                            minWriteToReadDataGap() : 0);
+                                               minWriteToReadDataGap() : 0);
 
                 if (to_read != queue->end()) {
                     // candidate read found
-                    read_found = true;
-                    nvm_q_read = true;
+                    nvm_read_found = true;
+                    break;
                 }
             }
-            // If we already have not found a read in
+
+            // If we did not find a read mem packet in
             // the nvm read queue, go to the other queues
-            if (!read_found && readQueue.size() != 0) {
+            if (!nvm_read_found) {
                 for (auto queue = readQueue.rbegin();
                     queue != readQueue.rend(); ++queue) {
 
@@ -1734,7 +1750,7 @@ MemCtrl::processNextReqEvent()
             // which are above the required threshold. However, to
             // avoid adding more complexity to the code, return and wait
             // for a refresh event to kick things into action again.
-            if (!read_found) {
+            if (!read_found && !nvm_read_found) {
                 DPRINTF(MemCtrl, "No Reads Found - exiting\n");
                 return;
             }
@@ -1768,10 +1784,8 @@ MemCtrl::processNextReqEvent()
                 assert(!respondEvent.scheduled());
                 schedule(respondEvent, mem_pkt->readyTime);
             } else {
-
-                // How to check the last element of a priority queue,
-                // using its size?
-                //assert(respQueue.back()->readyTime <= mem_pkt->readyTime);
+                // assert(respQueue.top().second->readyTime
+                // <= mem_pkt->readyTime);
                 assert(respondEvent.scheduled());
             }
 
@@ -1780,7 +1794,8 @@ MemCtrl::processNextReqEvent()
             // we have so many writes that we have to transition
             // don't transition if the writeRespQueue is full and
             // there are no other writes that can issue
-            if ((totalWriteQueueSize > writeHighThreshold) &&
+            if ((totalWriteQueueSize + nvmWriteQueueSize + dramFillQueueSize
+                > writeHighThreshold) &&
                !(nvm && all_writes_nvm && nvm->writeRespQueueFull())) {
                 switch_to_writes = true;
             }
@@ -1797,7 +1812,7 @@ MemCtrl::processNextReqEvent()
 
             // erase the packet depending on which
             // queue is it taken from
-            if (nvm_q_read) {
+            if (nvm_read_found) {
                 nvmReadQueue[mem_pkt->qosValue()].erase(to_read);
 
                 if (retryNVMRdReq){
@@ -1822,9 +1837,9 @@ MemCtrl::processNextReqEvent()
         }
         // checking for write packets in the writeQueue which
         // needs a read first, to check tag and metadata.
-        if (readQueue.size() == 0 && nvmReadQueue.size() == 0 &&
-            nvmWriteQueue.size()==0 && dramFillQueue.size()==0 &&
-            writeQueue.size()!=0) {
+        if (totalReadQueueSize == 0 && nvmReadQueueSize == 0 &&
+            nvmWriteQueueSize == 0 && dramFillQueueSize == 0 &&
+            totalWriteQueueSize != 0) {
             bool write_found = false;
             MemPacketQueue::iterator to_write;
             uint8_t prio = numPriorities();
