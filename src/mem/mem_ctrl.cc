@@ -1610,20 +1610,20 @@ MemCtrl::processNextReqEvent()
     // updates current state
     busState = busStateNext;
 
-    // COMMENT: Not sure what is happening here!
-    //MARYAM: I guess we should remove this nvm check.
-    /*if (nvm) {
-        for (auto queue = readQueue.rbegin();
-             queue != readQueue.rend(); ++queue) {
-             // select non-deterministic NVM read to issue
-             // assume that we have the command bandwidth to issue this along
-             // with additional RD/WR burst with needed bank operations
-             if (nvm->readsWaitingToIssue()) {
-                 // select non-deterministic NVM read to issue
-                 nvm->chooseRead(*queue);
-             }
-        }
-    }*/
+    // MARYAM: checks for previous (not done yet) reads on NVM.
+    // if (nvm) {
+    //     for (auto queue = nvmReadQueue.rbegin();
+    //          queue != nvmReadQueue.rend(); ++queue) {
+    //          // select non-deterministic NVM read to issue
+    //          // assume that we have the command bandwidth to issue this
+    //          // along with additional RD/WR burst with needed bank
+    //          // operations
+    //          if (nvm->readsWaitingToIssue()) {
+    //              // select non-deterministic NVM read to issue
+    //              nvm->chooseRead(*queue);
+    //          }
+    //     }
+    // }
 
     // check ranks for refresh/wakeup - uses busStateNext, so done after
     // turnaround decisions
@@ -1633,8 +1633,8 @@ MemCtrl::processNextReqEvent()
     bool nvm_busy = true;
     bool all_writes_nvm = false;
     if (nvm) {
-        all_writes_nvm = nvm->numWritesQueued == totalWriteQueueSize;
-        bool read_queue_empty = totalReadQueueSize == 0;
+        all_writes_nvm = nvm->numWritesQueued == nvmWriteQueueSize;
+        bool read_queue_empty = nvmReadQueueSize == 0;
         nvm_busy = nvm->isBusy(read_queue_empty, all_writes_nvm);
     }
     // Default state of unused interface is 'true'
@@ -1822,19 +1822,12 @@ MemCtrl::processNextReqEvent()
                     schedule(respondEvent, curTick()+1);
                 }
             }
-            else {
+            else if (read_found) {
                 readQueue[mem_pkt->qosValue()].erase(to_read);
             }
 
         }
 
-        // switching to writes, either because the read queue is empty
-        // and the writes have passed the low threshold (or we are
-        // draining), or because the writes hit the hight threshold
-        if (switch_to_writes) {
-            // transition to writing
-            busStateNext = WRITE;
-        }
         // checking for write packets in the writeQueue which
         // needs a read first, to check tag and metadata.
         if (totalReadQueueSize == 0 && nvmReadQueueSize == 0 &&
@@ -1906,6 +1899,7 @@ MemCtrl::processNextReqEvent()
             int index = bits(mem_pkt->pkt->getAddr(),
                             ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
             // setting the dirty bit here
+            // FIX NEEDED: what if the entry's already occupied and dirty?
             tagStoreDC[index].dirty_line = true;
 
             // remove the request from the queue
@@ -1938,40 +1932,60 @@ MemCtrl::processNextReqEvent()
                 // nothing to do
             }
         }
+        // switching to writes, either because the read queue is empty
+        // and the writes have passed the low threshold (or we are
+        // draining), or because the writes hit the hight threshold
+        if (switch_to_writes) {
+            // transition to writing
+            busStateNext = WRITE;
+        }
     } else { // write
-
-        bool write_found = false;
+        bool nvm_write_found = false;
+        bool dfill_write_found = false;
         MemPacketQueue::iterator to_write;
+        uint8_t prio = numPriorities();
 
-        // this is used to track
-        // if the write request is found
-        // in nvm write queue
-        bool nvm_q_write = false;
-        // or dram fill queue
-        bool dfill_q_write = false;
         // First check NVM Write Queue
 
-        // Question: which queues should be prioritized
+        for (auto queue = dramFillQueue.rbegin();
+            queue != dramFillQueue.rend(); ++queue) {
+            prio--;
 
-        auto queue = dramFillQueue.rbegin();
-        to_write = chooseNext((*queue), switched_cmd_type ?
-                                    minReadToWriteDataGap() : 0);
+            DPRINTF(QOS,
+                    "Checking dram fill queue [%d] priority [%d elements]\n",
+                    prio, queue->size());
 
-        if (to_write != queue->end()) {
-                // candidate write found in dramfillqueue
-                write_found = true;
-                dfill_q_write = true;
-        }
-
-        if (!write_found) { // next check in nvm write queue
-            auto queue = nvmWriteQueue.rbegin();
-            to_write = chooseNext((*queue), switched_cmd_type ?
-                                    minReadToWriteDataGap() : 0);
+            // If we are changing command type, incorporate the minimum
+            // bus turnaround delay
+            to_write = chooseNext((*queue),
+                     switched_cmd_type ? minReadToWriteDataGap() : 0);
 
             if (to_write != queue->end()) {
-                // candidate write found in nvm write queue
-                write_found = true;
-                nvm_q_write = true;
+                dfill_write_found = true;
+                break;
+            }
+        }
+
+        if (!dfill_write_found) {
+            // next check in nvm write queue
+            for (auto queue = nvmWriteQueue.rbegin();
+                queue != nvmWriteQueue.rend(); ++queue) {
+                prio--;
+
+                DPRINTF(QOS,
+                        "Checking nvm write queue [%d] "
+                        "priority [%d elements]\n",
+                        prio, queue->size());
+
+                // If we are changing command type, incorporate the minimum
+                // bus turnaround delay
+                to_write = chooseNext((*queue),
+                        switched_cmd_type ? minReadToWriteDataGap() : 0);
+
+                if (to_write != queue->end()) {
+                    nvm_write_found = true;
+                    break;
+                }
             }
         }
 
@@ -1980,8 +1994,9 @@ MemCtrl::processNextReqEvent()
         // return. There could be reads to the available ranks. However, to
         // avoid adding more complexity to the code, return at this point and
         // wait for a refresh event to kick things into action again.
-        if (!write_found) {
-            DPRINTF(MemCtrl, "No Writes Found - exiting\n");
+        if (!dfill_write_found && !nvm_write_found) {
+            DPRINTF(MemCtrl, "No writes found in nvm and "
+            "dfill queues- exiting\n");
             return;
         }
 
@@ -2013,7 +2028,7 @@ MemCtrl::processNextReqEvent()
         tagStoreDC[index].dirty_line = true;
 
         // remove the request from the queue - the iterator is no longer valid
-        if (dfill_q_write) {
+        if (dfill_found_write) {
             dramFillQueue[mem_pkt->qosValue()].erase(to_write);
             if (retryDRAMFillReq) {
                 // retry processing respond event if we
@@ -2024,7 +2039,7 @@ MemCtrl::processNextReqEvent()
                 schedule(respondEvent, curTick()+1);
             }
         }
-        else if (nvm_q_write) {
+        else if (nvm_found_write) {
             nvmWriteQueue[mem_pkt->qosValue()].erase(to_write);
              if (retryNVMWrReq) {
                 // retry processing respond event if we could
