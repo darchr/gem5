@@ -1695,8 +1695,8 @@ MemCtrl::processNextReqEvent()
                 prio--;
 
                 DPRINTF(QOS,
-                        "Checking NVM READ queue [%d]
-                        priority [%d elements]\n",
+                        "Checking NVM READ queue [%d]"
+                        "priority [%d elements]\n",
                         prio, queue->size());
 
                 // Figure out which nvm read request goes next
@@ -1713,28 +1713,21 @@ MemCtrl::processNextReqEvent()
             }
 
             // If we did not find a read mem packet in
-            // the nvm read queue, go to the other queues
+            // the nvm read queue, go to the read Queue
             if (!nvm_read_found) {
                 for (auto queue = readQueue.rbegin();
-                    queue != readQueue.rend(); ++queue) {
+                 queue != readQueue.rend(); ++queue) {
 
                     prio--;
 
                     DPRINTF(QOS,
-                            "Checking READ queue [%d] priority"
-                            "[%d] elements \n",
+                            "Checking READ queue [%d] "
+                            "priority [%d elements]\n",
                             prio, queue->size());
 
                     // Figure out which read request goes next
                     // If we are changing command type, incorporate the minimum
                     // bus turnaround delay which will be rank to rank delay
-
-                    //COMMENT: why do we need to choose a request?
-                    //COMMENT: is this not a queue
-                    //COMMENT: actually the arbitration b/w different
-                    //memory requests happen here
-
-                    // COMMENT: check a busy bit available in the metadata
                     to_read = chooseNext((*queue), switched_cmd_type ?
                                                 minWriteToReadDataGap() : 0);
 
@@ -1814,10 +1807,9 @@ MemCtrl::processNextReqEvent()
             // queue is it taken from
             if (nvm_read_found) {
                 nvmReadQueue[mem_pkt->qosValue()].erase(to_read);
-
                 if (retryNVMRdReq){
                     // if we could not process a response because
-                    // NVMRd queue was full, let's schedule it now
+                    // NVM READ queue was full, let's schedule it now
                     retryNVMRdReq = false;
                     schedule(respondEvent, curTick()+1);
                 }
@@ -2028,7 +2020,7 @@ MemCtrl::processNextReqEvent()
         tagStoreDC[index].dirty_line = true;
 
         // remove the request from the queue - the iterator is no longer valid
-        if (dfill_found_write) {
+        if (dfill_write_found) {
             dramFillQueue[mem_pkt->qosValue()].erase(to_write);
             if (retryDRAMFillReq) {
                 // retry processing respond event if we
@@ -2039,7 +2031,7 @@ MemCtrl::processNextReqEvent()
                 schedule(respondEvent, curTick()+1);
             }
         }
-        else if (nvm_found_write) {
+        else if (nvm_write_found) {
             nvmWriteQueue[mem_pkt->qosValue()].erase(to_write);
              if (retryNVMWrReq) {
                 // retry processing respond event if we could

@@ -20,7 +20,7 @@ system.generator.port = system.mem_ctrl.port
 def createLinearTraffic(tgen):
     yield tgen.createLinear(1000000,    # duration
                             0,          # min_addr
-                            1000000,      # max_adr
+                            100,      # max_adr
                             64,         # block_size
                             1000,       # min_period
                             10000,       # max_period
@@ -32,9 +32,5 @@ def createLinearTraffic(tgen):
 root = Root(full_system=False, system=system)
 
 m5.instantiate()
-print("35 35 35 35")
 system.generator.start(createLinearTraffic(system.generator))
-print("37 37 37 37")
 exit_event = m5.simulate()
-print("39 39 39 39")
-print('maryam: ', exit_event.getCause())
