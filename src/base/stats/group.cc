@@ -93,11 +93,13 @@ Group::resetStats()
 void
 Group::preDumpStats()
 {
+    std::cout << "preDumpStats 11111111111 \n";
     for (auto &g : mergedStatGroups)
         g->preDumpStats();
-
+    std::cout << "preDumpStats 2222222222 \n";
     for (auto &g : statGroups)
         g.second->preDumpStats();
+    std::cout << "preDumpStats 33333333333 \n";
 }
 
 void

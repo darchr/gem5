@@ -326,8 +326,8 @@ class MemCtrl : public QoS::MemCtrl
     bool retryWrReq;
 
     /**
-     * Remember if we have to retry because NVMRd queue or DRAM
-     * Fill queue were full
+     * Remember if we have to retry because NVMRd queue or NVMWr
+     * queue or DRAM Fill queue were full.
      */
     bool retryNVMRdReq;
     bool retryNVMWrReq;
@@ -520,6 +520,9 @@ class MemCtrl : public QoS::MemCtrl
     MemPacketQueue::iterator chooseNext(MemPacketQueue& queue,
                                         Tick extra_col_delay);
 
+    MemPacketQueue::iterator chooseNextDC(MemPacketQueue& queue,
+                                        Tick extra_col_delay, bool is_dram);
+
     /**
      * For FR-FCFS policy reorder the read/write queue depending on row buffer
      * hits and earliest bursts available in memory
@@ -530,6 +533,9 @@ class MemCtrl : public QoS::MemCtrl
      */
     MemPacketQueue::iterator chooseNextFRFCFS(MemPacketQueue& queue,
                                               Tick extra_col_delay);
+
+    MemPacketQueue::iterator chooseNextFRFCFSDC(MemPacketQueue& queue,
+    Tick extra_col_delay, bool is_dram);
 
     /**
      * Calculate burst window aligned tick
@@ -573,6 +579,12 @@ class MemCtrl : public QoS::MemCtrl
      *
      */
     std::vector<MemPacketQueue> dramFillQueue;
+
+    /**
+     * helper functions for debugging
+     */
+    void printQueues(int i);
+    void printDramCache();
 
     /**
      * To avoid iterating over the write queue to check for

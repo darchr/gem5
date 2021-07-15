@@ -2090,6 +2090,7 @@ NVMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
 
         // select optimal NVM packet in Q
         if (!pkt->isDram()) {
+            std::cout << "!pkt->isDram()\n";
             const Bank& bank = ranks[pkt->rank]->banks[pkt->bank];
             const Tick col_allowed_at = pkt->isRead() ? bank.rdAllowedAt :
                                                         bank.wrAllowedAt;
@@ -2097,11 +2098,13 @@ NVMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
             // check if rank is not doing a refresh and thus is available,
             // if not, jump to the next packet
             if (burstReady(pkt)) {
+                std::cout << "burstReady(pkt)\n";
                 DPRINTF(NVM, "%s bank %d - Rank %d available\n", __func__,
                         pkt->bank, pkt->rank);
 
                 // no additional rank-to-rank or media delays
                 if (col_allowed_at <= min_col_at) {
+                    std::cout << "col_allowed_at <= min_col_at\n";
                     // FCFS within entries that can issue without
                     // additional delay, such as same rank accesses
                     // or media delay requirements
@@ -2111,6 +2114,7 @@ NVMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
                     DPRINTF(NVM, "%s Seamless buffer hit\n", __func__);
                     break;
                 } else if (!found_prepped_pkt) {
+                    std::cout << "!found_prepped_pkt\n";
                     // packet is to prepped region but cannnot issue
                     // seamlessly; remember this one and continue
                     selected_pkt_it = i;
@@ -2121,12 +2125,14 @@ NVMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
             } else {
                 DPRINTF(NVM, "%s bank %d - Rank %d not available\n", __func__,
                         pkt->bank, pkt->rank);
+                        std::cout << "%s bank %d - Rank %d not available\n";
             }
         }
     }
 
     if (selected_pkt_it == queue.end()) {
         DPRINTF(NVM, "%s no available NVM ranks found\n", __func__);
+        std::cout << " no available NVM ranks found\n";
     }
 
     return std::make_pair(selected_pkt_it, selected_col_at);
