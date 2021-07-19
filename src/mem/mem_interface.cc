@@ -2098,13 +2098,13 @@ NVMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
             // check if rank is not doing a refresh and thus is available,
             // if not, jump to the next packet
             if (burstReady(pkt)) {
-                std::cout << "burstReady(pkt)\n";
+                std::cout << "NVM burstReady(pkt)\n";
                 DPRINTF(NVM, "%s bank %d - Rank %d available\n", __func__,
                         pkt->bank, pkt->rank);
 
                 // no additional rank-to-rank or media delays
                 if (col_allowed_at <= min_col_at) {
-                    std::cout << "col_allowed_at <= min_col_at\n";
+                    std::cout << "NVM col_allowed_at <= min_col_at\n";
                     // FCFS within entries that can issue without
                     // additional delay, such as same rank accesses
                     // or media delay requirements
@@ -2114,7 +2114,7 @@ NVMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
                     DPRINTF(NVM, "%s Seamless buffer hit\n", __func__);
                     break;
                 } else if (!found_prepped_pkt) {
-                    std::cout << "!found_prepped_pkt\n";
+                    std::cout << "NVM !found_prepped_pkt\n";
                     // packet is to prepped region but cannnot issue
                     // seamlessly; remember this one and continue
                     selected_pkt_it = i;
@@ -2125,7 +2125,8 @@ NVMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
             } else {
                 DPRINTF(NVM, "%s bank %d - Rank %d not available\n", __func__,
                         pkt->bank, pkt->rank);
-                        std::cout << "%s bank %d - Rank %d not available\n";
+                        std::cout << "NVM %s bank %d - "
+                        "Rank %d not available\n";
             }
         }
     }
@@ -2141,6 +2142,7 @@ NVMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
 void
 NVMInterface::chooseRead(MemPacketQueue& queue)
 {
+    std::cout << "In chooseRead()\n";
     Tick cmd_at = std::max(curTick(), nextReadAt);
 
     // This method does the arbitration between non-deterministic read
@@ -2153,11 +2155,14 @@ NVMInterface::chooseRead(MemPacketQueue& queue)
     assert(numReadsToIssue > 0);
     numReadsToIssue--;
     // For simplicity, issue non-deterministic reads in order (fcfs)
+    std::cout << "chooseread befor For loop\n";
     for (auto i = queue.begin(); i != queue.end() ; ++i) {
         MemPacket* pkt = *i;
 
         // Find 1st NVM read packet that hasn't issued read command
         if (pkt->readyTime == MaxTick && !pkt->isDram() && pkt->isRead()) {
+            std::cout << "pkt->readyTime == MaxTick &&"
+            " !pkt->isDram() && pkt->isRead()\n";
            // get the bank
            Bank& bank_ref = ranks[pkt->rank]->banks[pkt->bank];
 
@@ -2175,9 +2180,12 @@ NVMInterface::chooseRead(MemPacketQueue& queue)
             if (twoCycleRdWr) {
                 cmd_at = ctrl->verifyMultiCmd(cmd_at,
                                               maxCommandsPerWindow, tCK);
+                std::cout << "twoCycleRdWr\n";
             } else {
+
                 cmd_at = ctrl->verifySingleCmd(cmd_at,
                                                maxCommandsPerWindow);
+                std::cout << "ELSE twoCycleRdWr\n";
             }
 
             // Update delay to next read
@@ -2204,11 +2212,13 @@ NVMInterface::chooseRead(MemPacketQueue& queue)
                 // in a bank
                 bank_ref.actAllowedAt = std::max(cmd_at,
                                         bank_ref.actAllowedAt) + tREAD;
+                std::cout << "End of bank_ref.openRow != pkt->row\n";
             }
             // update per packet readyTime to holdoff burst read operation
             // overloading readyTime, which will be updated again when the
             // burst is issued
             pkt->readyTime = std::max(cmd_at, bank_ref.actAllowedAt);
+            std::cout << "after pkt->readyTime " << pkt->readyTime <<"\n";
 
             DPRINTF(NVM, "Issuing NVM Read to bank %d at tick %d. "
                          "Data ready at %d\n",
@@ -2219,18 +2229,22 @@ NVMInterface::chooseRead(MemPacketQueue& queue)
             if (readReadyQueue.empty()) {
                 assert(!readReadyEvent.scheduled());
                 schedule(readReadyEvent, pkt->readyTime);
+                std::cout << "readReadyQueue.empty()\n";
             } else if (readReadyEvent.when() > pkt->readyTime) {
                 // move it sooner in time, to the first read with data
                 reschedule(readReadyEvent, pkt->readyTime);
+                std::cout << "readReadyEvent.when() > pkt->readyTime\n";
             } else {
                 assert(readReadyEvent.scheduled());
+                std::cout << "eeeelsssseeeee\n";
             }
             readReadyQueue.push_back(pkt->readyTime);
-
+            std::cout << "after readReadyQueue.push_back\n";
             // found an NVM read to issue - break out
             break;
         }
     }
+    std::cout << "finished chooseread()\n";
 }
 
 void

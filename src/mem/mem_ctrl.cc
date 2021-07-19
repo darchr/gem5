@@ -654,6 +654,9 @@ MemCtrl::addToDRAMFillQueue(const MemPacket *mem_pkt)
     // the mem_pkt needs to become a write request
     // now
     dramFillQueue[fill_pkt->qosValue()].push_back(fill_pkt);
+    logRequest(MemCtrl::WRITE, mem_pkt->pkt->requestorId(),
+    mem_pkt->pkt->qosValue(),
+                       mem_pkt->addr, 1);
 
     dramFillQueueSize++;
 
@@ -710,6 +713,9 @@ MemCtrl::updatePktInDRAMFillQueue(const MemPacket *mem_pkt)
     // the mem_pkt needs to become a write request
     // now
     dramFillQueue[fill_pkt->qosValue()].push_back(fill_pkt);
+    logRequest(MemCtrl::WRITE, mem_pkt->pkt->requestorId(),
+    mem_pkt->pkt->qosValue(),
+                       mem_pkt->addr, 1);
 
     dramFillQueueSize++;
 
@@ -760,7 +766,9 @@ MemCtrl::addToNVMReadQueue(const MemPacket* mem_pkt)
     nvm->setupRank(nvm_pkt->rank, true);
     nvm_pkt->readyTime = MaxTick;
     nvmReadQueue[nvm_pkt->qosValue()].push_back(nvm_pkt);
-
+    logRequest(MemCtrl::READ, mem_pkt->pkt->requestorId(),
+    mem_pkt->pkt->qosValue(),
+                       mem_pkt->addr, 1);
     nvmReadQueueSize++;
 
     if (!nextReqEvent.scheduled()) {
@@ -791,7 +799,9 @@ MemCtrl::addToNVMWriteQueue(const MemPacket* mem_pkt)
     nvm_pkt->readyTime = MaxTick;
 
     nvmWriteQueue[nvm_pkt->qosValue()].push_back(nvm_pkt);
-
+    logRequest(MemCtrl::WRITE, mem_pkt->pkt->requestorId()
+    , mem_pkt->pkt->qosValue(),
+                       mem_pkt->addr, 1);
     nvmWriteQueueSize++;
 
     if (!nextReqEvent.scheduled()) {
@@ -1828,20 +1838,20 @@ MemCtrl::processNextReqEvent()
     // updates current state
     busState = busStateNext;
 
-    // MARYAM: checks for previous (not done yet) reads on NVM.
-    // if (nvm) {
-    //     for (auto queue = nvmReadQueue.rbegin();
-    //          queue != nvmReadQueue.rend(); ++queue) {
-    //          // select non-deterministic NVM read to issue
-    //          // assume that we have the command bandwidth to issue this
-    //          // along with additional RD/WR burst with needed bank
-    //          // operations
-    //          if (nvm->readsWaitingToIssue()) {
-    //              // select non-deterministic NVM read to issue
-    //              nvm->chooseRead(*queue);
-    //          }
-    //     }
-    // }
+    if (nvm) {
+        for (auto queue = nvmReadQueue.rbegin();
+             queue != nvmReadQueue.rend(); ++queue) {
+             // select non-deterministic NVM read to issue
+             // assume that we have the command bandwidth to issue this
+             // along with additional RD/WR burst with needed bank
+             // operations
+             if (nvm->readsWaitingToIssue()) {
+                 std::cout << "nvm->readsWaitingToIssue()\n";
+                 // select non-deterministic NVM read to issue
+                 nvm->chooseRead(*queue);
+             }
+        }
+    }
 
     // check ranks for refresh/wakeup - uses busStateNext, so done after
     // turnaround decisions
@@ -1994,17 +2004,21 @@ MemCtrl::processNextReqEvent()
             auto mem_pkt = *to_read;
 
             doBurstAccess(mem_pkt);
-
+            std::cout << "After doBurstAccess(mem_pkt) "
+            << mem_pkt->readyTime  << "\n";
             // sanity check
             assert(mem_pkt->size <= (mem_pkt->isDram() ?
                                       dram->bytesPerBurst() :
                                       nvm->bytesPerBurst()) );
+            std::cout << "After assert1 \n";
             assert(mem_pkt->readyTime >= curTick());
+            std::cout << "After assert2 \n";
 
             // log the response
             logResponse(MemCtrl::READ, (*to_read)->requestorId(),
                         mem_pkt->qosValue(), mem_pkt->getAddr(), 1,
                         mem_pkt->readyTime - mem_pkt->entryTime);
+            std::cout << "After logResponse1 \n";
 
             // COMMENT: This is where we are writing the
             // responses in the response queue
@@ -2019,16 +2033,17 @@ MemCtrl::processNextReqEvent()
             if (respQueue.empty()) {
                 assert(!respondEvent.scheduled());
                 schedule(respondEvent, mem_pkt->readyTime);
+                std::cout << "respQueue.empty() if\n";
                 // std::cout << "respQueue.empty() if\n";
             } else {
-                // std::cout << "respQueue.empty() else\n";
                 // assert(respQueue.top().second->readyTime
                 // <= mem_pkt->readyTime);
                 assert(respondEvent.scheduled());
+                std::cout << "respQueue.empty() else\n";
             }
 
             respQueue.push(std::make_pair(mem_pkt->readyTime, mem_pkt));
-
+            std::cout << "After respQueue.pushhhh\n";
             // we have so many writes that we have to transition
             // don't transition if the writeRespQueue is full and
             // there are no other writes that can issue
@@ -2036,6 +2051,7 @@ MemCtrl::processNextReqEvent()
                 > writeHighThreshold) &&
                !(nvm && all_writes_nvm && nvm->writeRespQueueFull())) {
                 switch_to_writes = true;
+                std::cout << "After respQueue.push switch_to_writes = true\n";
             }
 
             // we can probably give priority to dramfill queueu
