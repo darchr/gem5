@@ -186,7 +186,7 @@ MemSinkCtrl::recvTimingReq(PacketPtr pkt)
                    pkt->req->requestorId(),
                    pkt->qosValue(),
                    pkt->getAddr(),
-                   required_entries);
+                   required_entries, pkt->isRead()? 0 : 1);
     }
 
     // Check if we have to process next request event
@@ -291,7 +291,7 @@ MemSinkCtrl::processNextReqEvent()
                 pkt->req->requestorId(),
                 pkt->qosValue(),
                 pkt->getAddr(),
-                removed_entries, responseLatency);
+                removed_entries, responseLatency, pkt->isRead()? 0 : 1);
 
     // Schedule the response
     port.schedTimingResp(pkt, curTick() + responseLatency);

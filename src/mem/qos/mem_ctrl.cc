@@ -79,24 +79,24 @@ MemCtrl::~MemCtrl()
 
 void
 MemCtrl::logRequest(BusState dir, RequestorID id, uint8_t qos,
-                    Addr addr, uint64_t entries)
+                    Addr addr, uint64_t entries, int qIndex)
 {
     // If needed, initialize all counters and statistics
     // for this requestor
     addRequestor(id);
 
-    DPRINTF(QOS,
-            "QoSMemCtrl::logRequest REQUESTOR %s [id %d] address %d"
-            " prio %d this requestor q packets %d"
-            " - queue size %d - requested entries %d\n",
-            requestors[id], id, addr, qos, packetPriorities[id][qos],
-            (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos],
-            entries);
+    // DPRINTF(QOS,
+    //         "QoSMemCtrl::logRequest REQUESTOR %s [id %d] address %d"
+    //         " prio %d this requestor q packets %d"
+    //         " - queue size %d - requested entries %d\n",
+    //         requestors[id], id, addr, qos, packetPriorities[id][qos],
+    //         (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos],
+    //         entries);
 
-    if (dir == READ) {
+    if (dir == READ && qIndex==0) {
         readQueueSizes[qos] += entries;
         totalReadQueueSize += entries;
-    } else if (dir == WRITE) {
+    } else if (dir == WRITE && qIndex==1) {
         writeQueueSizes[qos] += entries;
         totalWriteQueueSize += entries;
     }
@@ -126,33 +126,33 @@ MemCtrl::logRequest(BusState dir, RequestorID id, uint8_t qos,
         }
     }
 
-    DPRINTF(QOS,
-            "QoSMemCtrl::logRequest REQUESTOR %s [id %d] prio %d "
-            "this requestor q packets %d - new queue size %d\n",
-            requestors[id], id, qos, packetPriorities[id][qos],
-            (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos]);
+    // DPRINTF(QOS,
+    //         "QoSMemCtrl::logRequest REQUESTOR %s [id %d] prio %d "
+    //         "this requestor q packets %d - new queue size %d\n",
+    //         requestors[id], id, qos, packetPriorities[id][qos],
+    //         (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos]);
 
 }
 
 void
 MemCtrl::logResponse(BusState dir, RequestorID id, uint8_t qos,
-                     Addr addr, uint64_t entries, double delay)
+                     Addr addr, uint64_t entries, double delay, int qIndex)
 {
     panic_if(!hasRequestor(id),
         "Logging response with invalid requestor\n");
 
-    DPRINTF(QOS,
-            "QoSMemCtrl::logResponse REQUESTOR %s [id %d] address %d prio"
-            " %d this requestor q packets %d"
-            " - queue size %d - requested entries %d\n",
-            requestors[id], id, addr, qos, packetPriorities[id][qos],
-            (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos],
-            entries);
+    // DPRINTF(QOS,
+    //         "QoSMemCtrl::logResponse REQUESTOR %s [id %d] address %d prio"
+    //         " %d this requestor q packets %d"
+    //         " - queue size %d - requested entries %d\n",
+    //         requestors[id], id, addr, qos, packetPriorities[id][qos],
+    //         (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos],
+    //         entries);
 
-    if (dir == READ) {
+    if (dir == READ && qIndex==0) {
         readQueueSizes[qos] -= entries;
         totalReadQueueSize -= entries;
-    } else if (dir == WRITE) {
+    } else if (dir == WRITE && qIndex==1) {
         writeQueueSizes[qos] -= entries;
         totalWriteQueueSize -= entries;
     }
@@ -196,11 +196,11 @@ MemCtrl::logResponse(BusState dir, RequestorID id, uint8_t qos,
         }
     }
 
-    DPRINTF(QOS,
-            "QoSMemCtrl::logResponse REQUESTOR %s [id %d] prio %d "
-            "this requestor q packets %d - new queue size %d\n",
-            requestors[id], id, qos, packetPriorities[id][qos],
-            (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos]);
+    // DPRINTF(QOS,
+    //         "QoSMemCtrl::logResponse REQUESTOR %s [id %d] prio %d "
+    //         "this requestor q packets %d - new queue size %d\n",
+    //         requestors[id], id, qos, packetPriorities[id][qos],
+    //         (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos]);
 }
 
 uint8_t
