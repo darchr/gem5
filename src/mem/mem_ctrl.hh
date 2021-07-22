@@ -489,7 +489,7 @@ class MemCtrl : public QoS::MemCtrl
      * @param pkt The packet from the outside world
      * @param static_latency Static latency to add before sending the packet
      */
-    void accessAndRespond(PacketPtr pkt, Tick static_latency);
+    void accessAndRespond(PacketPtr pkt, Tick static_latency, bool inDRAM);
 
     /**
      * Determine if there is a packet that can issue.

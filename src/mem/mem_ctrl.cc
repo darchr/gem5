@@ -141,88 +141,88 @@ MemCtrl::startup()
 void
 MemCtrl::printQueues(int i){
     if (i==0){
-        //std::cout << "readQueue: " << readQueue[0].size() << "\n";
+        std::cout << "readQueue: " << readQueue[0].size() << "\n";
         for (auto queue = readQueue.rbegin();
         queue != readQueue.rend(); ++queue) {
             for (int j=0; j< queue->size(); j++){
-                //std::cout << queue->at(j)->addr << ", ";
+                std::cout << queue->at(j)->addr << ", ";
             }
-            //std::cout << "\n";
+            std::cout << "\n";
 
         }
         return;
     }
     else if (i==1){
-        //std::cout << "writeQueue: " << writeQueue[0].size() << "\n";
+        std::cout << "writeQueue: " << writeQueue[0].size() << "\n";
         for (auto queue = writeQueue.rbegin();
         queue != writeQueue.rend(); ++queue) {
             for (int j=0; j< queue->size(); j++){
-                //std::cout << queue->at(j)->addr << ", ";
+                std::cout << queue->at(j)->addr << ", ";
             }
-                //std::cout << "\n";
+                std::cout << "\n";
 
         }
         return;
     }
     else if (i==2){
-        //std::cout << "nvmReadQueue: " << nvmReadQueue[0].size() << "\n";
+        std::cout << "nvmReadQueue: " << nvmReadQueue[0].size() << "\n";
         for (auto queue = nvmReadQueue.rbegin();
         queue != nvmReadQueue.rend(); ++queue) {
             for (int j=0; j< queue->size(); j++){
-                //std::cout << queue->at(j)->addr << ", ";
+                std::cout << queue->at(j)->addr << ", ";
             }
-                //std::cout << "\n";
+                std::cout << "\n";
 
         }
         return;
     }
     else if (i==3){
-        //std::cout << "nvmWriteQueue: " << nvmWriteQueue[0].size() << "\n";
+        std::cout << "nvmWriteQueue: " << nvmWriteQueue[0].size() << "\n";
         for (auto queue = nvmWriteQueue.rbegin();
         queue != nvmWriteQueue.rend(); ++queue) {
             for (int j=0; j< queue->size(); j++){
-                //std::cout << queue->at(j)->addr << ", ";
+                std::cout << queue->at(j)->addr << ", ";
             }
-                //std::cout << "\n";
+                std::cout << "\n";
 
         }
         return;
     }
     else if (i==4){
-        //std::cout << "dramFillQueue: " << dramFillQueue[0].size() << "\n";
+        std::cout << "dramFillQueue: " << dramFillQueue[0].size() << "\n";
         for (auto queue = dramFillQueue.rbegin();
         queue != dramFillQueue.rend(); ++queue) {
             for (int j=0; j< queue->size(); j++){
-                //std::cout << queue->at(j)->addr << ", ";
+                std::cout << queue->at(j)->addr << ", ";
             }
-                //std::cout << "\n";
+                std::cout << "\n";
 
         }
         return;
     }
     else if (i==5){
-        //std::cout << "respQueue: " << respQueue.size() << "\n";
+        std::cout << "respQueue: " << respQueue.size() << "\n";
         if (!respQueue.empty()) {
             std::priority_queue<entry, std::vector<entry>,
                             std::greater<entry> > temp = respQueue;
             while (!temp.empty()){
-                //std::cout << temp.top().second->addr << ", ";
+                std::cout << temp.top().second->addr << ", ";
                 temp.pop();
             }
         }
-        //std::cout << "\n\n";
+        std::cout << "\n\n";
         return;
     }
 }
 
 void
 MemCtrl::printDramCache(){
-    //std::cout << "Dram Cache Content:\n";
+    std::cout << "Dram Cache Content:\n";
     for (int i=0; i<tagStoreDC.size(); i++) {
-        //std::cout << i << ": " << tagStoreDC[i].index <<
-        //", " << tagStoreDC[i].tag << ", "
-        //<<  tagStoreDC[i].valid_line << ", " <<
-        //tagStoreDC[i].dirty_line << "\n";
+        std::cout << i << ": " << tagStoreDC[i].index <<
+        ", " << tagStoreDC[i].tag << ", "
+        <<  tagStoreDC[i].valid_line << ", " <<
+        tagStoreDC[i].dirty_line << "\n";
     }
 }
 
@@ -352,6 +352,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
 
     uint32_t burst_size = is_dram ? dram->bytesPerBurst() :
                                     nvm->bytesPerBurst();
+    bool foundInDRAM = false;
     for (int cnt = 0; cnt < pkt_count; ++cnt) {
         unsigned size = std::min((addr | (burst_size - 1)) + 1,
                         base_addr + pkt->getSize()) - addr;
@@ -372,7 +373,9 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
                     // check if the read is subsumed in the write queue
                     // packet we are looking at
                     if (p->addr <= addr &&
-                       ((addr + size) <= (p->addr + p->size))) {
+                       ((addr + size) <= (p->addr + p->size)) &&
+                          !p->is_waiting_for_nvm_read) {
+                        foundInDRAM = false;
                         foundInWrQ = true;
                         stats.servicedByWrQ++;
                         pktsServicedByWrQ++;
@@ -395,7 +398,9 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
                 // check if the read is subsumed in the write queue
                 // packet we are looking at
                 if (p->addr <= addr &&
-                    ((addr + size) <= (p->addr + p->size))) {
+                    ((addr + size) <= (p->addr + p->size)) &&
+                       !p->is_waiting_for_nvm_read) {
+                    foundInDRAM = true;
                     foundInDRAMFillQ = true;
                     //stats.servicedByWrQ++;
                     pktsServicedByDRAMFillQ++;
@@ -417,7 +422,9 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
                 // check if the read is subsumed in the write queue
                 // packet we are looking at
                 if (p->addr <= addr &&
-                    ((addr + size) <= (p->addr + p->size))) {
+                    ((addr + size) <= (p->addr + p->size)) &&
+                       !p->is_waiting_for_nvm_read) {
+                    foundInDRAM = false;
                     foundInNVMWriteQ = true;
                     //stats.servicedByWrQ++;
                     pktsServicedByNVMWrQ++;
@@ -448,18 +455,12 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
             }
 
             MemPacket* mem_pkt;
-            if (is_dram) { // COMMENT: this is basically converting
-                           // physical address to device address
-                mem_pkt = dram->decodePacket(pkt, addr, size, true, true);
-                // increment read entries of the rank
-                dram->setupRank(mem_pkt->rank, true);
-            } else {
-                mem_pkt = nvm->decodePacket(pkt, addr, size, true, false);
-                // Increment count to trigger issue of non-deterministic read
-                nvm->setupRank(mem_pkt->rank, true);
-                // Default readyTime to Max; will be reset once read is issued
-                mem_pkt->readyTime = MaxTick;
-            }
+            assert(is_dram && dram);
+
+            mem_pkt = dram->decodePacket(pkt, addr, size, true, true);
+            // increment read entries of the rank
+            dram->setupRank(mem_pkt->rank, true);
+
             mem_pkt->burstHelper = burst_helper;
 
             assert(!readQueueFull(1));
@@ -487,7 +488,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
             || pktsServicedByNVMWrQ == pkt_count) {
 
         // COMMENT: should the tagcheckLatency be added here
-        accessAndRespond(pkt, frontendLatency);
+        accessAndRespond(pkt, frontendLatency + tagCheckLatency, foundInDRAM);
         return;
     }
 
@@ -610,10 +611,10 @@ MemCtrl::addToWriteQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram)
     // outer world
 
     // TODO: what should be the tag check latency
-    //accessAndRespond(pkt, frontendLatency + tagcheckLatency);
+    //accessAndRespond(pkt, frontendLatency + tagCheckLatency);
     // no tag check before we get response from
     // dram
-    accessAndRespond(pkt, frontendLatency);
+    accessAndRespond(pkt, frontendLatency + tagCheckLatency, false);
 
     // COMMENT: Done till this point
 
@@ -1029,7 +1030,7 @@ MemCtrl::returnTag(Addr request_addr)
 bool
 MemCtrl::recvTimingReq(PacketPtr pkt)
 {
-    //std::cout << "11111111111111 " << curTick() << "\n";
+    std::cout << "11111111111111 " << curTick() << "\n";
     printQueues(0);
     printQueues(1);
     printQueues(2);
@@ -1037,7 +1038,7 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
     printQueues(4);
     printQueues(5);
     printDramCache();
-    //std::cout << "11111111111111\n";
+    std::cout << "11111111111111\n";
     // This is where we enter from the outside world
     DPRINTF(MemCtrl, "recvTimingReq: request %s addr %lld size %d\n",
             pkt->cmdString(), pkt->getAddr(), pkt->getSize());
@@ -1074,19 +1075,6 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
 
     // just validate that pkt's address maps to the nvm
     assert(nvm && nvm->getAddrRange().contains(pkt->getAddr()));
-
-    // TODO remove this
-    /*
-    if (dram && dram->getAddrRange().contains(pkt->getAddr())) {
-        is_dram = true;
-    } else if (nvm && nvm->getAddrRange().contains(pkt->getAddr())) {
-        is_dram = false;
-    } else {
-
-        panic("Can't handle address range for packet %s\n",
-              pkt->print());
-    }
-    */
 
     // Find out how many memory packets a pkt translates to
     // If the burst size is equal or larger than the pkt size, then a pkt
@@ -1154,7 +1142,7 @@ MemCtrl::recvTimingReq(PacketPtr pkt)
 void
 MemCtrl::processRespondEvent()
 {
-    //std::cout << "3333333333333 " << curTick() << "\n";
+    std::cout << "3333333333333 " << curTick() << "\n";
     printQueues(0);
     printQueues(1);
     printQueues(2);
@@ -1162,7 +1150,7 @@ MemCtrl::processRespondEvent()
     printQueues(4);
     printQueues(5);
     printDramCache();
-    //std::cout << "3333333333333\n";
+    std::cout << "3333333333333\n";
     // COMMENT: It is only scheduled for Reads
     // COMMENT: When are these events scheduled.
     // COMMENT: This is scheduled insdie processReqEvent...
@@ -1193,7 +1181,6 @@ MemCtrl::processRespondEvent()
 
     //DRAM ACCESS, check tag and metadata
     if (mem_pkt->isDram()) {
-        //std::cout << "in procresp isDram\n";
         dram_miss = false;
         int index = bits(mem_pkt->pkt->getAddr(),
                         ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
@@ -1204,7 +1191,6 @@ MemCtrl::processRespondEvent()
             dram_miss = true;
             handleCleanMiss(mem_pkt);
             stats.dramCacheMiss++;
-            //std::cout << "INVALID, POPULATE\n";
         }
 
         // DRAM CACHE HIT
@@ -1212,7 +1198,6 @@ MemCtrl::processRespondEvent()
                  tagStoreDC[index].valid_line) {
             handleHit(mem_pkt);
             stats.dramCacheHit++;
-            //std::cout << "DRAM CACHE HIT\n";
         }
 
         // DRAM CACHE MISS, CLEAN
@@ -1222,7 +1207,6 @@ MemCtrl::processRespondEvent()
             dram_miss = true;
             handleCleanMiss(mem_pkt);
             stats.dramCacheMiss++;
-            //std::cout << "DRAM CACHE MISS, CLEAN\n";
         }
 
         // DRAM CACHE MISS, Dirty
@@ -1232,15 +1216,12 @@ MemCtrl::processRespondEvent()
             dram_miss = true;
             handleDirtyMiss(mem_pkt);
             stats.dramCacheMiss++;
-            //std::cout << "DRAM CACHE MISS, Dirty\n";
         }
     }
 
     //NVM ACCESS, no need to check tag and metadata
     else {
-        //std::cout << "in procresp isNVM\n";
         if (mem_pkt->isRead()) {
-            //std::cout << "in procresp isNVM READ\n";
             updateMemPktInDRAMFillQueue(mem_pkt);
             // No need to check tags here.
             // We are here, becuase in the first place
@@ -1272,14 +1253,13 @@ MemCtrl::processRespondEvent()
             //     // other events already scheduled for resp queue
             // }
         } else { //write packet
-            //std::cout << "in procresp isNVM WRITE\n";
             // Nothing is required to do
         }
     }
 
     //-------------------------------------------------------------------//
 
-    if (mem_pkt->isDram()) {
+    if (mem_pkt->isDram() && !dram_miss) {
         // media specific checks and functions when read response is complete
         dram->respondEvent(mem_pkt->rank);
     }
@@ -1295,17 +1275,26 @@ MemCtrl::processRespondEvent()
             // so we can now respond to the requestor
             // @todo we probably want to have a different front end and back
             // end latency for split packets
-            accessAndRespond(mem_pkt->pkt, frontendLatency + backendLatency);
-            delete mem_pkt->burstHelper;
-            mem_pkt->burstHelper = NULL;
+            if ((mem_pkt->isDram() && !dram_miss) || (!mem_pkt->isDram())) {
+                accessAndRespond(mem_pkt->pkt,
+                frontendLatency + backendLatency,
+                mem_pkt->isDram());
+                delete mem_pkt->burstHelper;
+                mem_pkt->burstHelper = NULL;
+            }
+
         }
     } else {
         // it is not a split packet
         // COMMENT: only called for reads
         // COMMENT: if it was a miss do we need to send any response
         //
-        if (!dram_miss)
-            accessAndRespond(mem_pkt->pkt, frontendLatency + backendLatency);
+        if ((mem_pkt->isDram() && !dram_miss) || (!mem_pkt->isDram())) {
+                accessAndRespond(mem_pkt->pkt,
+                frontendLatency + backendLatency,
+                mem_pkt->isDram());
+
+        }
     }
 
     // COMMENT: if it was a dram miss do you still
@@ -1491,7 +1480,7 @@ MemCtrl::chooseNextFRFCFSDC(MemPacketQueue& queue,
 }
 
 void
-MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency)
+MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency, bool inDRAM)
 {
     DPRINTF(MemCtrl, "Responding to Address %lld.. \n",pkt->getAddr());
 
@@ -1511,25 +1500,22 @@ MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency)
     // converting a req packet to a response packet (if our original request)
     // needed a response
 
-    if (dram && dram->getAddrRange().contains(pkt->getAddr())) {
+    if (inDRAM && dram && dram->getAddrRange().contains(pkt->getAddr())) {
         dram->access(pkt);
-        std::cout << "dram->getAddrRange().contains\n";
         //COMMENT: access is from the abstract memory. does it mean
         // device is not accessed here?
         //COMMENT: It seems like this will access the memory instantly
 
-    } else if (nvm && nvm->getAddrRange().contains(pkt->getAddr())) {
+    } else if (!inDRAM && nvm &&
+                nvm->getAddrRange().contains(pkt->getAddr())) {
         nvm->access(pkt);
-        std::cout << "nvm->getAddrRange().contains\n";
     } else {
         panic("Can't handle address range for packet %s\n",
               pkt->print());
-              std::cout << "Can't handle address range for packet\n";
     }
 
     // turn packet around to go back to requestor if response expected
     if (needsResponse) {
-        std::cout << "needsResponse\n";
         // access already turned the packet into a response
         assert(pkt->isResponse());
         // response_time consumes the static latency and is charged also
@@ -1550,7 +1536,6 @@ MemCtrl::accessAndRespond(PacketPtr pkt, Tick static_latency)
         // @todo the packet is going to be deleted, and the MemPacket
         // is still having a pointer to it
         pendingDelete.reset(pkt);
-        std::cout << "NOT needsResponse\n";
     }
 
     DPRINTF(MemCtrl, "Done\n");
@@ -1755,7 +1740,7 @@ MemCtrl::doBurstAccess(MemPacket* mem_pkt)
 void
 MemCtrl::processNextReqEvent()
 {
-    //std::cout << "222222222222 " << curTick() << "\n";
+    std::cout << "222222222222 " << curTick() << "\n";
     printQueues(0);
     printQueues(1);
     printQueues(2);
@@ -1763,7 +1748,7 @@ MemCtrl::processNextReqEvent()
     printQueues(4);
     printQueues(5);
     printDramCache();
-    //std::cout << "222222222222\n";
+    std::cout << "222222222222\n";
 
     //COMMENT: This is scheduled inside AddToWriteQueue and
     // AddToReadQueue function
@@ -2037,35 +2022,34 @@ MemCtrl::processNextReqEvent()
         if (totalReadQueueSize == 0 && nvmReadQueueSize == 0 &&
             nvmWriteQueueSize == 0 && dramFillQueueSize == 0 &&
             totalWriteQueueSize != 0 && switch_to_writes) {
+
             switch_to_writes = false;
             bool write_found = false;
             MemPacketQueue::iterator to_write;
             uint8_t prio = numPriorities();
 
-            if (!write_found) {
-                for (auto queue = writeQueue.rbegin();
-                    queue != writeQueue.rend(); ++queue) {
+            for (auto queue = writeQueue.rbegin();
+                queue != writeQueue.rend(); ++queue) {
 
-                    prio--;
+                prio--;
 
-                    DPRINTF(QOS,
-                            "Checking WRITE queue [%d]"
-                            "priority [%d elements]\n",
-                            prio, queue->size());
+                DPRINTF(QOS,
+                        "Checking WRITE queue [%d]"
+                        "priority [%d elements]\n",
+                        prio, queue->size());
 
-                    // If we are changing command type, incorporate the minimum
-                    // bus turnaround delay
-                    // TODO: how to choose next when we have
-                    // DRAM cache and nvm packets
-                    // in the queue
-                    to_write = chooseNextDC((*queue),
-                            switched_cmd_type ? minReadToWriteDataGap()
-                            : 0, true);
+                // If we are changing command type, incorporate the minimum
+                // bus turnaround delay
+                // TODO: how to choose next when we have
+                // DRAM cache and nvm packets
+                // in the queue
+                to_write = chooseNextDC((*queue),
+                        switched_cmd_type ? minReadToWriteDataGap()
+                        : 0, true);
 
-                    if (to_write != queue->end()) {
-                        write_found = true;
-                        break;
-                    }
+                if (to_write != queue->end()) {
+                    write_found = true;
+                    break;
                 }
             }
             // if there are no writes to a rank that is available to service
@@ -2082,12 +2066,14 @@ MemCtrl::processNextReqEvent()
 
             auto mem_pkt = *to_write;
 
-            // sanity check
-            assert(mem_pkt->size <= (mem_pkt->isDram() ?
-                                    dram->bytesPerBurst() :
-                                    nvm->bytesPerBurst()) );
             doBurstAccess(mem_pkt);
 
+            // sanity check
+            assert(mem_pkt->size <= (mem_pkt->isDram() ?
+                                      dram->bytesPerBurst() :
+                                      nvm->bytesPerBurst()) );
+
+            assert(mem_pkt->readyTime >= curTick());
             //COMMENT: In comparison to reads, nothing is written to
             // response queue
 
@@ -2235,13 +2221,6 @@ MemCtrl::processNextReqEvent()
                     mem_pkt->qosValue(), mem_pkt->getAddr(), 1,
                     mem_pkt->readyTime - mem_pkt->entryTime, 4);
         }
-
-        // We should update the dirty bits right before deleting
-        // the packet.
-        int index = bits(mem_pkt->getAddr(),
-                        ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
-        // setting the dirty bit here
-        tagStoreDC[index].dirty_line = true;
 
         // remove the request from the queue - the iterator is no longer valid
         if (dfill_write_found) {
