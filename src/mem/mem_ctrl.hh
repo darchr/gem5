@@ -117,6 +117,8 @@ class MemPacket
      * will turn back to write packet.*/
     bool read_before_write;
 
+    bool is_waiting_for_nvm_read;
+
     /** Does this packet access DRAM?*/
     const bool dram;
 
@@ -216,8 +218,9 @@ class MemPacket
               unsigned int _size)
         : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
           _requestorId(pkt->requestorId()),
-          read(is_read), read_before_write(false), dram(is_dram),
-          rank(_rank), bank(_bank), row(_row),
+          read(is_read), read_before_write(false),
+          is_waiting_for_nvm_read(false),
+          dram(is_dram), rank(_rank), bank(_bank), row(_row),
           bankId(bank_id), addr(_addr), size(_size), burstHelper(NULL),
           _qosValue(_pkt->qosValue())
           {
@@ -296,6 +299,7 @@ class MemCtrl : public QoS::MemCtrl
         bool valid_line = 0;
         //constant to indicate that the cache line is dirty
         bool dirty_line = 0;
+        Addr nvmAddr = 0;
     };
 
     // DC refers to Dram Cache
@@ -432,7 +436,8 @@ class MemCtrl : public QoS::MemCtrl
      *
      * @param mem_pkt The mem pkt to add to the dram fill queue
      */
-    void addToDRAMFillQueue(const MemPacket *mem_pkt);
+    void addToDRAMFillQueue(const MemPacket *mem_pkt,
+                            bool is_waiting_for_nvm_read);
 
     /**
      * returns true if a corresponding packet for mem_pkt exist in the
@@ -445,7 +450,7 @@ class MemCtrl : public QoS::MemCtrl
      *
      * @param mem_pkt The mem pkt to be updated in the dram fill queue
      */
-    void updatePktInDRAMFillQueue(const MemPacket *mem_pkt);
+    void updateMemPktInDRAMFillQueue(const MemPacket *mem_pkt);
 
     /**
      *
@@ -459,12 +464,13 @@ class MemCtrl : public QoS::MemCtrl
      */
     void handleCleanMiss(MemPacket* mem_pkt);
 
+    MemPacket* createVictimMemPkt(MemPacket* mem_pkt);
+
     /**
      *
      * @param mem_pkt The mem pkt to to be handled for 'Dirty Miss' case
      */
     void handleDirtyMiss(MemPacket* mem_pkt);
-
 
     /**
      * Actually do the burst based on media specific access function.

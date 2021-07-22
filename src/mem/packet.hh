@@ -340,7 +340,6 @@ class Packet : public Printable
     /// A pointer to the original request.
     RequestPtr req;
 
-  private:
    /**
     * A pointer to the data being transferred. It can be different
     * sizes at each level of the hierarchy so it belongs to the
@@ -349,6 +348,8 @@ class Packet : public Printable
     * be allocated.
     */
     PacketDataPtr data;
+
+    private:
 
     /// The address of the request.  This address could be virtual or
     /// physical, depending on the system configuration.
