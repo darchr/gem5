@@ -672,9 +672,8 @@ bool is_waiting_for_nvm_read)
     tagStoreDC[index].nvmAddr = fill_pkt->pkt->getAddr();
 
     // make sure that the block is set to be valid and clean
-    // MARYAM: only valid bit is set here. How about dirty bit?
     tagStoreDC[index].valid_line = true;
-
+    tagStoreDC[index].dirty_line = true;
     //isInWriteQueue.insert(burstAlign(addr, is_dram));
 
     if (!nextReqEvent.scheduled()) {
@@ -2085,19 +2084,40 @@ MemCtrl::processNextReqEvent()
                         mem_pkt->qosValue(), mem_pkt->getAddr(), 1,
                         mem_pkt->readyTime - mem_pkt->entryTime, 1);
 
+
+            if (respQueue.empty()) {
+                assert(!respondEvent.scheduled());
+                schedule(respondEvent, mem_pkt->readyTime);
+            } else {
+                // assert(respQueue.top().second->readyTime
+                //  <= mem_pkt->readyTime);
+                assert(respondEvent.scheduled());
+            }
+
+            respQueue.push(std::make_pair(mem_pkt->readyTime, mem_pkt));
+
+            // we have so many writes that we have to transition
+            // don't transition if the writeRespQueue is full and
+            // there are no other writes that can issue
+            if ((totalWriteQueueSize + nvmWriteQueueSize + dramFillQueueSize
+                > writeHighThreshold) &&
+               !(nvm && all_writes_nvm && nvm->writeRespQueueFull())) {
+                switch_to_writes = true;
+            }
+
             // We should update the dirty bits right before deleting
             // the packet.
-            int index = bits(mem_pkt->getAddr(),
-                            ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
-            // setting the dirty bit here
-            // FIX NEEDED: what if the entry's already occupied and dirty?
-            tagStoreDC[index].dirty_line = true;
+            // int index = bits(mem_pkt->getAddr(),
+            // ceilLog2(64)+ceilLog2(numEntries), ceilLog2(64));
+            // // setting the dirty bit here
+            // // FIX NEEDED: what if the entry's already occupied and dirty?
+            // tagStoreDC[index].dirty_line = true;
 
             // remove the request from the queue
             // - the iterator is no longer valid
             writeQueue[mem_pkt->qosValue()].erase(to_write);
 
-            delete mem_pkt;
+            // delete mem_pkt;
 
             // If we emptied the write queue, or got sufficiently below the
             // threshold (using the minWritesPerSwitch as the hysteresis) and
@@ -2264,7 +2284,6 @@ MemCtrl::processNextReqEvent()
             (totalReadQueueSize && writesThisTime >= minWritesPerSwitch) ||
             (totalReadQueueSize && nvm && nvm->writeRespQueueFull() &&
              all_writes_nvm)) {
-
             // turn the bus back around for reads again
             busStateNext = MemCtrl::READ;
 
