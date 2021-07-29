@@ -336,6 +336,9 @@ class MemCtrl : public QoS::MemCtrl
     bool retryNVMRdReq;
     bool retryNVMWrReq;
     bool retryDRAMFillReq;
+    bool retryRespEvent;
+
+    bool dramHit;
 
     /**
      * Bunch of things requires to setup "events" in gem5
@@ -438,13 +441,6 @@ class MemCtrl : public QoS::MemCtrl
      */
     void addToDRAMFillQueue(const MemPacket *mem_pkt,
                             bool is_waiting_for_nvm_read);
-
-    /**
-     * returns true if a corresponding packet for mem_pkt exist in the
-     * DRAM fill queue, false otherwise.
-     * @param mem_pkt The mem pkt to search for in the dram fill queue.
-     */
-    bool findInDRAMFillQueue(const MemPacket *mem_pkt);
 
     /**
      *

@@ -24,8 +24,8 @@ def createLinearTraffic(tgen):
                             64,         # block_size
                             1000,       # min_period
                             1000,       # max_period
-                            100,        # rd_perc
-                            6272)          # data_limit
+                            50,        # rd_perc
+                            10000)          # data_limit
     yield tgen.createExit(0)
 
 
