@@ -31,6 +31,7 @@ Import('*')
 if env['TARGET_ISA'] == 'riscv':
 
     SimObject('HiFive.py')
+    SimObject('LupV.py')
     SimObject('Clint.py')
     SimObject('PlicDevice.py')
     SimObject('Plic.py')
@@ -42,6 +43,7 @@ if env['TARGET_ISA'] == 'riscv':
     DebugFlag('VirtIOMMIO')
 
     Source('hifive.cc')
+    Source('lupv.cc')
     Source('clint.cc')
     Source('plic_device.cc')
     Source('plic.cc')
