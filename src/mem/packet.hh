@@ -349,12 +349,12 @@ class Packet : public Printable
     */
     PacketDataPtr data;
 
-    private:
+
 
     /// The address of the request.  This address could be virtual or
     /// physical, depending on the system configuration.
     Addr addr;
-
+private:
     /// True if the request targets the secure memory space.
     bool _isSecure;
 

@@ -58,7 +58,7 @@ class MemCtrl(QoSMemCtrl):
     # bus in front of the controller for multiple ports
     port = ResponsePort("This port responds to memory requests")
 
-    dram_cache_size = Param.MemorySize('1024MiB', "DRAM cache size")
+    dram_cache_size = Param.MemorySize('128MiB', "DRAM cache size")
 
     #false='no allocate on write' and True='allocate on write'
     write_allocate_policy = Param.Bool(True, "DRAM cache allocation policy on "
@@ -90,7 +90,7 @@ class MemCtrl(QoSMemCtrl):
 
     # threshold in percentage for when to start writes if the read
     # queue is empty
-    write_low_thresh_perc = Param.Percent(12.5, "Threshold to start writes")
+    write_low_thresh_perc = Param.Percent(5, "Threshold to start writes")
 
     # minimum write bursts to schedule before switching back to reads
     min_writes_per_switch = Param.Unsigned(16, "Minimum write bursts before "

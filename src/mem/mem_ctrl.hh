@@ -99,7 +99,7 @@ class MemPacket
     Tick readyTime;
 
     /** This comes from the outside world */
-    const PacketPtr pkt;
+    const PacketPtr origRequestorPkt;
 
     /** RequestorID associated with the packet */
     const RequestorID _requestorId;
@@ -213,17 +213,21 @@ class MemPacket
 
     inline bool isDram() const { return dram; }
 
-    MemPacket(PacketPtr _pkt, bool is_read, bool is_dram, uint8_t _rank,
-              uint8_t _bank, uint32_t _row, uint16_t bank_id, Addr _addr,
-              unsigned int _size)
-        : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
-          _requestorId(pkt->requestorId()),
+    MemPacket(PacketPtr _origRequestorPkt, bool is_read, bool is_dram,
+              uint8_t _rank, uint8_t _bank, uint32_t _row, uint16_t bank_id,
+              Addr _addr, unsigned int _size)
+        : entryTime(curTick()), readyTime(curTick()),
+          origRequestorPkt(_origRequestorPkt),
+          _requestorId(_origRequestorPkt->requestorId()),
           read(is_read), read_before_write(false),
           is_waiting_for_nvm_read(false),
           dram(is_dram), rank(_rank), bank(_bank), row(_row),
           bankId(bank_id), addr(_addr), size(_size), burstHelper(NULL),
-          _qosValue(_pkt->qosValue())
+          _qosValue(_origRequestorPkt->qosValue())
           {
+            // std::cout << "*** " << _origRequestorPkt->getAddr() << " "
+            // << _origRequestorPkt->requestorId() << "\n";
+
           }
 
 };
@@ -270,11 +274,11 @@ class MemCtrl : public QoS::MemCtrl
       MemoryPort(const std::string &name, MemCtrl &_ctrl);
 
     protected:
-      Tick recvAtomic(PacketPtr pkt) override;
+      Tick recvAtomic(PacketPtr origRequestorPkt) override;
       Tick recvAtomicBackdoor(
-          PacketPtr pkt, MemBackdoorPtr &backdoor) override;
+          PacketPtr origRequestorPkt, MemBackdoorPtr &backdoor) override;
 
-      void recvFunctional(PacketPtr pkt) override;
+      void recvFunctional(PacketPtr origRequestorPkt) override;
 
       bool recvTimingReq(PacketPtr) override;
 
@@ -401,27 +405,29 @@ class MemCtrl : public QoS::MemCtrl
      * read request in the system, schedule an event to start
      * servicing it.
      *
-     * @param pkt The request packet from the outside world
-     * @param pkt_count The number of memory bursts the pkt
+     * @param origRequestorPkt The request packet from the outside world
+     * @param pkt_count The number of memory bursts the origRequestorPkt
      * @param is_dram Does this packet access DRAM?
-     * translate to. If pkt size is larger then one full burst,
+     * translate to. If origRequestorPkt size is larger then one full burst,
      * then pkt_count is greater than one.
      */
-    void addToReadQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram);
+    void addToReadQueue(PacketPtr origRequestorPkt,
+                        unsigned int pkt_count, bool is_dram);
 
     /**
-     * Decode the incoming pkt, create a mem_pkt and push to the
+     * Decode the incoming origRequestorPkt, create a mem_pkt and push to the
      * back of the write queue. \If the write q length is more than
      * the threshold specified by the user, ie the queue is beginning
      * to get full, stop reads, and start draining writes.
      *
-     * @param pkt The request packet from the outside world
-     * @param pkt_count The number of memory bursts the pkt
+     * @param origRequestorPkt The request packet from the outside world
+     * @param pkt_count The number of memory bursts the origRequestorPkt
      * @param is_dram Does this packet access DRAM?
-     * translate to. If pkt size is larger then one full burst,
+     * translate to. If origRequestorPkt size is larger then one full burst,
      * then pkt_count is greater than one.
      */
-    void addToWriteQueue(PacketPtr pkt, unsigned int pkt_count, bool is_dram);
+    void addToWriteQueue(PacketPtr origRequestorPkt,
+                        unsigned int pkt_count, bool is_dram);
 
     /**
      *
@@ -482,10 +488,11 @@ class MemCtrl : public QoS::MemCtrl
      * create the response packet, and send it back to the outside
      * world requestor.
      *
-     * @param pkt The packet from the outside world
+     * @param origRequestorPkt The packet from the outside world
      * @param static_latency Static latency to add before sending the packet
      */
-    void accessAndRespond(PacketPtr pkt, Tick static_latency, bool inDRAM);
+    void accessAndRespond(PacketPtr origRequestorPkt,
+                          Tick static_latency, bool inDRAM);
 
     /**
      * Determine if there is a packet that can issue.
@@ -900,10 +907,12 @@ class MemCtrl : public QoS::MemCtrl
     virtual void drainResume() override;
 
   protected:
-    Tick recvAtomic(PacketPtr pkt);
-    Tick recvAtomicBackdoor(PacketPtr pkt, MemBackdoorPtr &backdoor);
-    void recvFunctional(PacketPtr pkt);
-    bool recvTimingReq(PacketPtr pkt);
+    Tick recvAtomic(PacketPtr
+                    origRequestorPkt);
+    Tick recvAtomicBackdoor(PacketPtr origRequestorPkt,
+                            MemBackdoorPtr &backdoor);
+    void recvFunctional(PacketPtr origRequestorPkt);
+    bool recvTimingReq(PacketPtr origRequestorPkt);
 };
 
 #endif //__MEM_CTRL_HH__
