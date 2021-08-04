@@ -995,7 +995,7 @@ MemCtrl::recvTimingReq(PacketPtr origRequestorPkt)
     //printQueues(4);
     //printQueues(5);
     //printDramCache();
-    //std::cout << "Finished recvTimingReq\n";
+    //std::cout << "Finished printing queues in recvTimingReq\n";
 
     // This is where we enter from the outside world
     DPRINTF(MemCtrl, "recvTimingReq: request %s addr %lld size %d\n",
@@ -1110,7 +1110,7 @@ MemCtrl::processRespondEvent()
     //printQueues(4);
     //printQueues(5);
     //printDramCache();
-    //std::cout << "Finished processRespondEvent\n";
+    //std::cout << "Finished printing queues in processRespondEvent\n";
 
     DPRINTF(MemCtrl,
             "processRespondEvent(): Some req has reached its readyTime\n");
@@ -1180,8 +1180,6 @@ MemCtrl::processRespondEvent()
         if (!nextReqEvent.scheduled()) {
                 schedule(nextReqEvent, curTick());
         }
-        // FIX: I don't know if schedule for respEvent
-        // is also needed or not
         retryRespEvent = false;
         dramHit = false;
         return;
@@ -1672,7 +1670,7 @@ MemCtrl::doBurstAccess(MemPacket* mem_pkt)
 void
 MemCtrl::processNextReqEvent()
 {
-    //std::cout << "In processNextReqEvent" << curTick() << "\n";
+    //std::cout << "In processNextReqEvent: " << curTick() << "\n";
     //printQueues(0);
     //printQueues(1);
     //printQueues(2);
@@ -1680,7 +1678,7 @@ MemCtrl::processNextReqEvent()
     //printQueues(4);
     //printQueues(5);
     //printDramCache();
-    //std::cout << "Finished processNextReqEvent\n";
+    //std::cout << "Finished printing queues in processNextReqEvent\n";
 
     // transition is handled by QoS algorithm if enabled
     if (turnPolicy) {
@@ -1934,7 +1932,6 @@ MemCtrl::processNextReqEvent()
         if (totalReadQueueSize == 0 && nvmReadQueueSize == 0 &&
             nvmWriteQueueSize == 0 && dramFillQueueSize == 0 &&
             totalWriteQueueSize != 0 && switch_to_writes) {
-
             switch_to_writes = false;
             bool write_found = false;
             MemPacketQueue::iterator to_write;
