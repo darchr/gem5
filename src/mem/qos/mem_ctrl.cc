@@ -85,13 +85,13 @@ MemCtrl::logRequest(BusState dir, RequestorID id, uint8_t qos,
     // for this requestor
     addRequestor(id);
 
-    // DPRINTF(QOS,
-    //         "QoSMemCtrl::logRequest REQUESTOR %s [id %d] address %d"
-    //         " prio %d this requestor q packets %d"
-    //         " - queue size %d - requested entries %d\n",
-    //         requestors[id], id, addr, qos, packetPriorities[id][qos],
-    //         (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos],
-    //         entries);
+    DPRINTF(QOS,
+            "QoSMemCtrl::logRequest REQUESTOR %s [id %d] address %d"
+            " prio %d this requestor q packets %d"
+            " - queue size %d - requested entries %d\n",
+            requestors[id], id, addr, qos, packetPriorities[id][qos],
+            (dir == READ) ? readQueueSizes[qos]: writeQueueSizes[qos],
+            entries);
 
     if (dir == READ && qIndex==0) {
         readQueueSizes[qos] += entries;

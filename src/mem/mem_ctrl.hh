@@ -669,6 +669,8 @@ class MemCtrl : public QoS::MemCtrl
     uint64_t nvmWriteQueueSize;
     uint64_t dramFillQueueSize;
 
+    long unsigned totalReceivedPkts;
+
     /**
      * Memory controller configuration initialized based on parameter
      * values.

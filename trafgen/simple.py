@@ -31,11 +31,11 @@ def createRandomTraffic(tgen):
 def createLinearTraffic(tgen):
     yield tgen.createLinear(1000000,    # duration
                             0,          # min_addr
-                            100000,       # max_adr
+                            100000000,       # max_adr
                             64,         # block_size
                             1000,       # min_period
                             1000,       # max_period
-                            100,        # rd_perc
+                            0,        # rd_perc
                             0)          # data_limit
     yield tgen.createExit(0)
 

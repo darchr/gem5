@@ -74,6 +74,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     nvmReadQueueSize(0),
     nvmWriteQueueSize(0),
     dramFillQueueSize(0),
+    totalReceivedPkts(0),
     memSchedPolicy(p.mem_sched_policy),
     frontendLatency(p.static_frontend_latency),
     backendLatency(p.static_backend_latency),
@@ -209,7 +210,7 @@ MemCtrl::printQueues(int i){
                             std::greater<entry> > temp = respQueue;
             while (!temp.empty()){
                 std::cout << temp.top().second->origRequestorPkt->addr
-                << "|" << temp.top().second->origRequestorPkt->requestorId()<<
+                << "|" << temp.top().second->readyTime <<
                 ", ";
                 temp.pop();
             }
@@ -673,9 +674,6 @@ bool is_waiting_for_nvm_read)
     //isInWriteQueue.insert(burstAlign(addr, is_dram));
 
     if (!nextReqEvent.scheduled()) {
-        // We might need to add tag check latency
-        // because the NVM response might check tags
-        // to see if dram miss was clean or dirty
         schedule(nextReqEvent, curTick());
     }
 }
@@ -686,7 +684,7 @@ MemCtrl::updateMemPktInDRAMFillQueue(const MemPacket *mem_pkt)
     bool found = false;
     for (auto queue = dramFillQueue.rbegin();
         queue != dramFillQueue.rend(); ++queue) {
-            assert(queue->size()!=0);
+            assert(queue->size() != 0);
             // If we are changing command type, incorporate the minimum
             // bus turnaround delay
             for (int i=0; i< queue->size(); i++) {
@@ -735,19 +733,13 @@ MemCtrl::addToNVMReadQueue(const MemPacket* mem_pkt)
     nvm_pkt->readyTime = MaxTick;
     nvmReadQueue[nvm_pkt->qosValue()].push_back(nvm_pkt);
     logRequest(MemCtrl::READ, nvm_pkt->requestorId(),
-    nvm_pkt->qosValue(),
-                       nvm_pkt->addr, 1, 2);
+                nvm_pkt->qosValue(),
+                nvm_pkt->addr, 1, 2);
     nvmReadQueueSize++;
 
     if (!nextReqEvent.scheduled()) {
-    // COMEMNT: scheduling a request if it has not been
-    // previously scheduled.
-    // If something else has scheduled nextReqEvent, how would
-    // we add tagCheckLatency. And does it even matter to add that
-    schedule(nextReqEvent, curTick());
-    //COMMENT: tags will be checked on the way back
+        schedule(nextReqEvent, curTick());
     }
-
 }
 
 void
@@ -761,8 +753,8 @@ MemCtrl::addToNVMWriteQueue(const MemPacket* mem_pkt)
     // a origRequestorPkt will be decomposed in only one mem_pkt
     // which probably is not a reasonable assumption
     MemPacket* nvm_pkt = nvm->decodePacket(mem_pkt->origRequestorPkt,
-    mem_pkt->getAddr(),
-                            mem_pkt->getSize(), false, false);
+                                            mem_pkt->getAddr(),
+                                            mem_pkt->getSize(), false, false);
     nvm->setupRank(nvm_pkt->rank, true);
     nvm_pkt->readyTime = MaxTick;
 
@@ -773,12 +765,7 @@ MemCtrl::addToNVMWriteQueue(const MemPacket* mem_pkt)
     nvmWriteQueueSize++;
 
     if (!nextReqEvent.scheduled()) {
-    // COMEMNT: scheduling a request if it has not been
-    // previously scheduled.
-    // If something else has scheduled nextReqEvent, how would
-    // we add tagCheckLatency. And does it even matter to add that
-    schedule(nextReqEvent, curTick());
-    //COMMENT: tags will be checked on the way back
+        schedule(nextReqEvent, curTick());
     }
 
 }
@@ -987,15 +974,15 @@ MemCtrl::returnTag(Addr request_addr)
 bool
 MemCtrl::recvTimingReq(PacketPtr origRequestorPkt)
 {
-    //std::cout << "In recvTimingReq: " << curTick() << "\n";
-    //printQueues(0);
-    //printQueues(1);
-    //printQueues(2);
-    //printQueues(3);
-    //printQueues(4);
-    //printQueues(5);
-    //printDramCache();
-    //std::cout << "Finished printing queues in recvTimingReq\n";
+    // std::cout << "In recvTimingReq-> tick: " << curTick() << " addr: "
+    // << origRequestorPkt->getAddr() << "\n";
+    // printQueues(0);
+    // printQueues(1);
+    // printQueues(2);
+    // printQueues(3);
+    // printQueues(4);
+    // printQueues(5);
+    // std::cout << "Finished printing queues in recvTimingReq\n";
 
     // This is where we enter from the outside world
     DPRINTF(MemCtrl, "recvTimingReq: request %s addr %lld size %d\n",
@@ -1075,6 +1062,7 @@ MemCtrl::recvTimingReq(PacketPtr origRequestorPkt)
             return false;
         } else {
             addToWriteQueue(origRequestorPkt, pkt_count, is_dram);
+            totalReceivedPkts = totalReceivedPkts + pkt_count;
             stats.writeReqs++;
             stats.bytesWrittenSys += size;
         }
@@ -1089,12 +1077,14 @@ MemCtrl::recvTimingReq(PacketPtr origRequestorPkt)
             return false;
         } else {
             addToReadQueue(origRequestorPkt, pkt_count, is_dram);
-
+            totalReceivedPkts = totalReceivedPkts + pkt_count;
             // COMMENT: revisit stats
             stats.readReqs++;
             stats.bytesReadSys += size;
         }
     }
+
+    // std::cout << "_____________________________________________________\n";
 
     return true;
 }
@@ -1102,15 +1092,25 @@ MemCtrl::recvTimingReq(PacketPtr origRequestorPkt)
 void
 MemCtrl::processRespondEvent()
 {
-    //std::cout << "In processRespondEvent: " << curTick() << "\n";
-    //printQueues(0);
-    //printQueues(1);
-    //printQueues(2);
-    //printQueues(3);
-    //printQueues(4);
-    //printQueues(5);
-    //printDramCache();
-    //std::cout << "Finished printing queues in processRespondEvent\n";
+    //if (!(totalReceivedPkts%10000))
+    //std::cout
+    //<< totalReceivedPkts << " // "
+    //<< readQueue[0].size() << " // "
+    //<< writeQueue[0].size() << " // "
+    //<< nvmReadQueue[0].size() << " // "
+    //<< nvmWriteQueue[0].size() << " // "
+    //<< dramFillQueue[0].size() << " // "
+    //<< respQueue.size() << "\n";
+
+    // std::cout << "In processRespondEvent: " << curTick() << "\n";
+    // printQueues(0);
+    // printQueues(1);
+    // printQueues(2);
+    // printQueues(3);
+    // printQueues(4);
+    // printQueues(5);
+    // std::cout << "Finished printing queues in processRespondEvent\n";
+
 
     DPRINTF(MemCtrl,
             "processRespondEvent(): Some req has reached its readyTime\n");
@@ -1165,6 +1165,7 @@ MemCtrl::processRespondEvent()
 
     //NVM ACCESS, no need to check tag and metadata
     else {
+        assert(mem_pkt->isRead());
         updateMemPktInDRAMFillQueue(mem_pkt);
         if (mem_pkt->origRequestorPkt->isWrite()) {
             // jump to pop respQ and afterwards
@@ -1255,6 +1256,7 @@ MemCtrl::processRespondEvent()
         port.sendRetryReq();
     }
     dramHit = false;
+    // std::cout << "_____________________________________________________\n";
 }
 
 MemPacketQueue::iterator
@@ -1355,9 +1357,12 @@ MemCtrl::chooseNextDC(MemPacketQueue& queue,
             // available rank corresponds to state refresh idle
             MemPacket* mem_pkt = *(queue.begin());
             if (packetReady(mem_pkt)) {
+                //std::cout << "14141414\n";
                 ret = queue.begin();
                 DPRINTF(MemCtrl, "Single request, going to a free rank\n");
             } else {
+                //std::cout << "--------- " << mem_pkt->readyTime << "\n";
+                //std::cout << "15151515\n";
                 DPRINTF(MemCtrl, "Single request, going to a busy rank\n");
             }
         } else if (memSchedPolicy == Enums::fcfs) {
@@ -1670,15 +1675,15 @@ MemCtrl::doBurstAccess(MemPacket* mem_pkt)
 void
 MemCtrl::processNextReqEvent()
 {
-    //std::cout << "In processNextReqEvent: " << curTick() << "\n";
-    //printQueues(0);
-    //printQueues(1);
-    //printQueues(2);
-    //printQueues(3);
-    //printQueues(4);
-    //printQueues(5);
-    //printDramCache();
-    //std::cout << "Finished printing queues in processNextReqEvent\n";
+    // std::cout << "In processNextReqEvent: " << curTick() << "\n";
+    // printQueues(0);
+    // printQueues(1);
+    // printQueues(2);
+    // printQueues(3);
+    // printQueues(4);
+    // printQueues(5);
+    // std::cout << "Finished printing queues in processNextReqEvent\n";
+
 
     // transition is handled by QoS algorithm if enabled
     if (turnPolicy) {
@@ -1696,6 +1701,7 @@ MemCtrl::processNextReqEvent()
             switched_cmd_type?"[turnaround triggered]":"");
 
     if (switched_cmd_type) {
+        //std::cout << "1111111111\n";
         if (busState == MemCtrl::READ) {
             DPRINTF(MemCtrl,
                     "Switching to writes after %d reads with %d reads "
@@ -1715,6 +1721,7 @@ MemCtrl::processNextReqEvent()
     busState = busStateNext;
 
     if (nvm) {
+
         for (auto queue = nvmReadQueue.rbegin();
              queue != nvmReadQueue.rend(); ++queue) {
              // select non-deterministic NVM read to issue
@@ -1724,6 +1731,7 @@ MemCtrl::processNextReqEvent()
              if (nvm->readsWaitingToIssue()) {
                  // select non-deterministic NVM read to issue
                  nvm->chooseRead(*queue);
+                 //std::cout << "2222222222\n";
              }
         }
     }
@@ -1742,6 +1750,7 @@ MemCtrl::processNextReqEvent()
     // Default state of unused interface is 'true'
     // Simply AND the busy signals to determine if system is busy
     if (dram_busy && nvm_busy) {
+        //std::cout << "333333333333\n";
         // if all ranks are refreshing wait for them to finish
         // and stall this state machine without taking any further
         // action, and do not schedule a new nextReqEvent
@@ -1750,6 +1759,7 @@ MemCtrl::processNextReqEvent()
 
     // when we get here it is either a read or a write
     if (busState == READ) {
+        //std::cout << "444444444\n";
         // track if we should switch or not
         bool switch_to_writes = false;
         if (totalReadQueueSize == 0 && nvmReadQueueSize == 0) {
@@ -1764,11 +1774,8 @@ MemCtrl::processNextReqEvent()
                  > writeLowThreshold)) {
                     DPRINTF(MemCtrl,
                             "Switching to writes due to read queue empty\n");
-                    if (totalWriteQueueSize != 0 ||
-                        nvmWriteQueueSize != 0 ||
-                        dramFillQueueSize !=0) {
-                            switch_to_writes = true;
-                    }
+                    switch_to_writes = true;
+
             } else {
                 // check if we are drained
                 // not done draining until in PWR_IDLE state
@@ -1780,13 +1787,14 @@ MemCtrl::processNextReqEvent()
                     DPRINTF(Drain, "MemCtrl controller done draining\n");
                     signalDrainDone();
                 }
-
+                //std::cout <<"I'm right here\n";
                 // nothing to do, not even any point in scheduling an
                 // event for the next request
                 return;
             }
 
         } else {
+            //std::cout<< "88888888\n";
             // COMMENT: we have something in read queue
             bool read_found = false;
             bool nvm_read_found = false;
@@ -1796,6 +1804,7 @@ MemCtrl::processNextReqEvent()
             // First check NVM Read Queue
             for (auto queue = nvmReadQueue.rbegin();
                  queue != nvmReadQueue.rend(); ++queue) {
+                     //std::cout << "11 11 11\n";
                 if (!queue->size()) {
                     break;
                 }
@@ -1813,6 +1822,7 @@ MemCtrl::processNextReqEvent()
                 minWriteToReadDataGap() : 0, false);
                 if (to_read != queue->end()) {
                     // candidate read found
+                    //std::cout << "1212121212\n";
                     nvm_read_found = true;
                     break;
                 }
@@ -1820,9 +1830,11 @@ MemCtrl::processNextReqEvent()
             // If we did not find a read mem packet in
             // the nvm read queue, go to the read Queue
             if (!nvm_read_found) {
+                //std::cout << "1313131313\n";
                 for (auto queue = readQueue.rbegin();
                  queue != readQueue.rend(); ++queue) {
                     if (!queue->size()) {
+                        //std::cout << "24242424\n";
                         break;
                     }
                     prio--;
@@ -1839,6 +1851,7 @@ MemCtrl::processNextReqEvent()
                     minWriteToReadDataGap() : 0, true);
 
                     if (to_read != queue->end()) {
+                        //std::cout << "2323232323\n";
                         // candidate read found
                         read_found = true;
                         break;
@@ -1852,6 +1865,7 @@ MemCtrl::processNextReqEvent()
             // for a refresh event to kick things into action again.
             if (!read_found && !nvm_read_found) {
                 DPRINTF(MemCtrl, "No Reads Found - exiting\n");
+                //std::cout<< "10101010\n";
                 return;
             }
 
@@ -1868,6 +1882,7 @@ MemCtrl::processNextReqEvent()
 
             // log the response
             if (read_found) {
+                //std::cout<< "999999\n";
                 logResponse(MemCtrl::READ, mem_pkt->requestorId(),
                         mem_pkt->qosValue(), mem_pkt->getAddr(), 1,
                         mem_pkt->readyTime - mem_pkt->entryTime, 0);
@@ -1932,6 +1947,7 @@ MemCtrl::processNextReqEvent()
         if (totalReadQueueSize == 0 && nvmReadQueueSize == 0 &&
             nvmWriteQueueSize == 0 && dramFillQueueSize == 0 &&
             totalWriteQueueSize != 0 && switch_to_writes) {
+            //std::cout << "77777777777\n";
             switch_to_writes = false;
             bool write_found = false;
             MemPacketQueue::iterator to_write;
@@ -2046,7 +2062,6 @@ MemCtrl::processNextReqEvent()
                 (totalReadQueueSize && writesThisTime >= minWritesPerSwitch) ||
                 (totalReadQueueSize && nvm && nvm->writeRespQueueFull() &&
                 all_writes_nvm)) {
-
                 // turn the bus back around for reads again
                 busStateNext = MemCtrl::READ;
 
@@ -2065,6 +2080,7 @@ MemCtrl::processNextReqEvent()
         }
     } // end of busState == READ
     else { // write
+    //std::cout << "00000000\n";
         bool nvm_write_found = false;
         bool dfill_write_found = false;
         MemPacketQueue::iterator to_write;
@@ -2143,10 +2159,6 @@ MemCtrl::processNextReqEvent()
                                   dram->bytesPerBurst() :
                                   nvm->bytesPerBurst()) );
         doBurstAccess(mem_pkt);
-        //COMMENT: In comparison to reads, nothing is written to
-        // response queue
-
-        isInWriteQueue.erase(burstAlign(mem_pkt->addr, mem_pkt->isDram()));
 
         // log the response
         if (nvm_write_found) {
@@ -2215,6 +2227,7 @@ MemCtrl::processNextReqEvent()
     // It is possible that a refresh to another rank kicks things back into
     // action before reaching this point.
     if (!nextReqEvent.scheduled()) {
+        //std::cout << "5555555555555\n";
         schedule(nextReqEvent, std::max(nextReqTime, curTick()));
     }
 
@@ -2227,9 +2240,11 @@ MemCtrl::processNextReqEvent()
     // processing section
     if (retryWrReq && (totalWriteQueueSize + nvmWriteQueueSize
     + dramFillQueueSize) < writeBufferSize) {
+        //std::cout << "66666666666\n";
         retryWrReq = false;
         port.sendRetryReq();
     }
+    //std::cout << "_____________________________________________________\n";
 }
 
 bool
@@ -2495,12 +2510,13 @@ MemCtrl::drain()
 {
     // if there is anything in any of our internal queues, keep track
     // of that as well
-    if (!(!totalWriteQueueSize && !totalReadQueueSize &&
+    if (!(!totalWriteQueueSize &&
+            !totalReadQueueSize &&
             !nvmReadQueueSize &&
             !nvmWriteQueueSize &&
             !dramFillQueueSize &&
             respQueue.empty() &&
-          allIntfDrained())) {
+            allIntfDrained())) {
 
         DPRINTF(Drain, "Memory controller not drained, write: %d, read: %d,"
                 " resp: %d\n", totalWriteQueueSize, totalReadQueueSize,
@@ -2508,9 +2524,9 @@ MemCtrl::drain()
 
         // the only queue that is not drained automatically over time
         // is the write queue, thus kick things into action if needed
-        if (!totalWriteQueueSize &&
-            !nvmWriteQueueSize &&
-            !dramFillQueueSize &&
+        if ((!totalWriteQueueSize ||
+            !nvmWriteQueueSize ||
+            !dramFillQueueSize) &&
             !nextReqEvent.scheduled()) {
             schedule(nextReqEvent, curTick());
         }

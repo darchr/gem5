@@ -58,7 +58,7 @@ class MemCtrl(QoSMemCtrl):
     # bus in front of the controller for multiple ports
     port = ResponsePort("This port responds to memory requests")
 
-    dram_cache_size = Param.MemorySize('128MiB', "DRAM cache size")
+    dram_cache_size = Param.MemorySize('1024MiB', "DRAM cache size")
 
     #false='no allocate on write' and True='allocate on write'
     write_allocate_policy = Param.Bool(True, "DRAM cache allocation policy on "
