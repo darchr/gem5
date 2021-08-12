@@ -57,10 +57,9 @@ class Clint(BasicPioDevice):
         node = self.generateBasicPioDeviceNode(state, "clint", self.pio_addr,
                                                self.pio_size)
 
-        cpus = self.system.unproxy(self).cpu
         int_extended = list()
-        for cpu in cpus:
-            phandle = state.phandle(cpu)
+        for cpu in range(state.cpu_cells):
+            phandle = state.phandle(f"cpu{cpu}")
             int_extended.append(phandle)
             int_extended.append(0x3)
             int_extended.append(phandle)

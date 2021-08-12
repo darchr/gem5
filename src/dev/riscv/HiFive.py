@@ -178,7 +178,8 @@ class HiFive(Platform):
         yield cpus_node
 
         node = FdtNode("soc")
-        local_state = FdtState(addr_cells=2, size_cells=2)
+        local_state = FdtState(addr_cells=2, size_cells=2,
+                               cpu_cells=state.cpu_cells)
         node.append(local_state.addrCellsProperty())
         node.append(local_state.sizeCellsProperty())
         node.append(FdtProperty("ranges"))
@@ -201,8 +202,7 @@ class HiFive(Platform):
         int_node.append(FdtProperty("interrupt-controller"))
         int_node.appendCompatible("riscv,cpu-intc")
 
-        cpus = self.system.unproxy(self).cpu
-        phandle = int_state.phandle(cpus[self.cpu_count])
+        phandle = int_state.phandle(f"cpu{self.cpu_count}")
         self.cpu_count += 1
         int_node.append(FdtPropertyWords("phandle", [phandle]))
 

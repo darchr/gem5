@@ -64,10 +64,9 @@ class Plic(BasicPioDevice):
         node.append(FdtPropertyWords("phandle", [phandle]))
         node.append(FdtPropertyWords("riscv,ndev", [self.n_src - 1]))
 
-        cpus = self.system.unproxy(self).cpu
         int_extended = list()
-        for cpu in cpus:
-            phandle = int_state.phandle(cpu)
+        for cpu in range(state.cpu_cells):
+            phandle = int_state.phandle(f'cpu{cpu}')
             int_extended.append(phandle)
             int_extended.append(0xb)
             int_extended.append(phandle)
