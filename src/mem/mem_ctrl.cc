@@ -171,7 +171,8 @@ MemCtrl::printQueues(int i){
         for (auto queue = nvmReadQueue.rbegin();
         queue != nvmReadQueue.rend(); ++queue) {
             for (int j=0; j< queue->size(); j++){
-                std::cout << queue->at(j)->addr << ", ";
+                std::cout << queue->at(j)->addr << "|" <<
+                queue->at(j)->readyTime << ", ";
             }
                 std::cout << "\n";
 
@@ -886,7 +887,7 @@ MemCtrl::handleDirtyMiss(MemPacket* mem_pkt)
                 retryNVMRdReq = true;
             }
             if (nvmWriteQueueFull(1)) {
-                retryNVMRdReq = true;
+                retryNVMWrReq = true;
             }
             if (dramFillQueueFull(1)) {
                 retryDRAMFillReq = true;
@@ -917,7 +918,7 @@ MemCtrl::handleDirtyMiss(MemPacket* mem_pkt)
                     retryNVMRdReq = true;
                 }
                 if (nvmWriteQueueFull(1)) {
-                    retryNVMRdReq = true;
+                    retryNVMWrReq = true;
                 }
                 if (dramFillQueueFull(1)) {
                     retryDRAMFillReq = true;
@@ -974,15 +975,15 @@ MemCtrl::returnTag(Addr request_addr)
 bool
 MemCtrl::recvTimingReq(PacketPtr origRequestorPkt)
 {
-    std::cout << "In recvTimingReq-> tick: " << curTick() << " addr: "
-    << origRequestorPkt->getAddr() << " // " << totalReceivedPkts << "\n";
-    printQueues(0);
-    printQueues(1);
-    printQueues(2);
-    printQueues(3);
-    printQueues(4);
-    printQueues(5);
-    std::cout << "Finished printing queues in recvTimingReq\n\n";
+    // std::cout << "In recvTimingReq-> tick: " << curTick() << " addr: "
+    // << origRequestorPkt->getAddr() << " // " << totalReceivedPkts << "\n";
+    // printQueues(0);
+    // printQueues(1);
+    // printQueues(2);
+    // printQueues(3);
+    // printQueues(4);
+    // printQueues(5);
+    // std::cout << "Finished printing queues in recvTimingReq\n\n";
 
     // This is where we enter from the outside world
     DPRINTF(MemCtrl, "recvTimingReq: request %s addr %lld size %d\n",
@@ -1084,7 +1085,7 @@ MemCtrl::recvTimingReq(PacketPtr origRequestorPkt)
         }
     }
 
-    std::cout << "_____________________________________________________\n";
+    // std::cout << "_____________________________________________________\n";
 
     return true;
 }
@@ -1092,14 +1093,14 @@ MemCtrl::recvTimingReq(PacketPtr origRequestorPkt)
 void
 MemCtrl::processRespondEvent()
 {
-    std::cout << "In processRespondEvent: " << curTick() << "\n";
-    printQueues(0);
-    printQueues(1);
-    printQueues(2);
-    printQueues(3);
-    printQueues(4);
-    printQueues(5);
-    std::cout << "Finished printing queues in processRespondEvent\n\n";
+    // std::cout << "In processRespondEvent: " << curTick() << "\n";
+    // printQueues(0);
+    // printQueues(1);
+    // printQueues(2);
+    // printQueues(3);
+    // printQueues(4);
+    // printQueues(5);
+    // std::cout << "Finished printing queues in processRespondEvent\n\n";
 
 
     DPRINTF(MemCtrl,
@@ -1215,6 +1216,25 @@ MemCtrl::processRespondEvent()
     }
     //-------------------------------------------------------------------//
 
+    //update the ready_time of all the packets in the resp Q
+    // if needed
+    if (curTick() > respQueue.top().second->readyTime) {
+
+        int delay = curTick() - respQueue.top().second->readyTime;
+
+        std::priority_queue<entry, std::vector<entry>,
+                        std::greater<entry> > temp;
+        while (!respQueue.empty()) {
+            respQueue.top().second->readyTime += delay;
+            temp.push(respQueue.top());
+            respQueue.pop();
+        }
+        while (!temp.empty()) {
+            respQueue.push(temp.top());
+            temp.pop();
+        }
+    }
+
     // delete the mem origRequestorPkt from resp queue
     delete respQueue.top().second;
     respQueue.pop();
@@ -1246,7 +1266,7 @@ MemCtrl::processRespondEvent()
         port.sendRetryReq();
     }
     dramHit = false;
-    std::cout << "_____________________________________________________\n";
+    // std::cout << "_____________________________________________________\n";
 }
 
 MemPacketQueue::iterator
@@ -1662,14 +1682,14 @@ MemCtrl::doBurstAccess(MemPacket* mem_pkt)
 void
 MemCtrl::processNextReqEvent()
 {
-    std::cout << "In processNextReqEvent: " << curTick() << "\n";
-    printQueues(0);
-    printQueues(1);
-    printQueues(2);
-    printQueues(3);
-    printQueues(4);
-    printQueues(5);
-    std::cout << "Finished printing queues in processNextReqEvent\n\n";
+    // std::cout << "In processNextReqEvent: " << curTick() << "\n";
+    // printQueues(0);
+    // printQueues(1);
+    // printQueues(2);
+    // printQueues(3);
+    // printQueues(4);
+    // printQueues(5);
+    // std::cout << "Finished printing queues in processNextReqEvent\n\n";
 
 
     // transition is handled by QoS algorithm if enabled
@@ -1874,7 +1894,10 @@ MemCtrl::processNextReqEvent()
             } else {
                 assert(respQueue.top().second->readyTime
                         <= mem_pkt->readyTime);
-                assert(respondEvent.scheduled());
+                if (!respondEvent.scheduled()){
+                    schedule(respondEvent,
+                    std::max(respQueue.top().second->readyTime, curTick()));
+                }
             }
             respQueue.push(std::make_pair(mem_pkt->readyTime, mem_pkt));
 
@@ -1906,7 +1929,8 @@ MemCtrl::processNextReqEvent()
                     // if we could not process a response because
                     // NVM READ queue was full, let's schedule it now
                     retryNVMRdReq = false;
-                    schedule(respondEvent, curTick());
+                    if (!respondEvent.scheduled())
+                        schedule(respondEvent, curTick());
                 }
             }
             else if (read_found) {
@@ -2159,7 +2183,8 @@ MemCtrl::processNextReqEvent()
                 // could not do it before becasue dram fill
                 // queue was full
                 retryDRAMFillReq = false;
-                schedule(respondEvent, curTick());
+                if (!respondEvent.scheduled())
+                    schedule(respondEvent, curTick());
             }
         }
         else if (nvm_write_found) {
@@ -2169,7 +2194,8 @@ MemCtrl::processNextReqEvent()
                 // retry processing respond event if we could
                 // not do it before becasue NVMWriteQueue was full
                 retryNVMWrReq = false;
-                schedule(respondEvent, curTick());
+                if (!respondEvent.scheduled())
+                    schedule(respondEvent, curTick());
             }
         }
 
@@ -2219,7 +2245,7 @@ MemCtrl::processNextReqEvent()
         retryWrReq = false;
         port.sendRetryReq();
     }
-    std::cout << "_____________________________________________________\n";
+    // std::cout << "_____________________________________________________\n";
 }
 
 bool
