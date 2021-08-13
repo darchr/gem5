@@ -69,12 +69,12 @@ class MemCtrl(QoSMemCtrl):
                                                "readQueue")
     max_write_queue_size = Param.Unsigned('64', "Maximum number of entries in "
                                                 "writeQueue")
-    max_nvm_read_queue_size = Param.Unsigned('32', "Maximum number of entries "
-                                                   "in nvmReadQueue")
-    max_nvm_write_queue_size = Param.Unsigned('64', "Maximum number of entries"
-                                                    " in nvmWriteQueue")
-    max_dram_fill_queue_size = Param.Unsigned('64', "Maximum number of entries"
-                                                    " in dramFillQueue")
+    max_nvm_read_queue_size = Param.Unsigned('128', "Maximum number of "
+                                                    "entries in nvmReadQueue")
+    max_nvm_write_queue_size = Param.Unsigned('128', "Maximum number of "
+                                              "entries in nvmWriteQueue")
+    max_dram_fill_queue_size = Param.Unsigned('128', "Maximum number of "
+                                              "entries in dramFillQueue")
     # Interface to volatile, DRAM media
     dram = Param.DRAMInterface(NULL, "DRAM interface")
 

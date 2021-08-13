@@ -147,7 +147,8 @@ MemCtrl::printQueues(int i){
         for (auto queue = readQueue.rbegin();
         queue != readQueue.rend(); ++queue) {
             for (int j=0; j< queue->size(); j++){
-                std::cout << queue->at(j)->addr << ", ";
+                std::cout << queue->at(j)->addr << "|"<<
+                queue->at(j)->readyTime << ", ";
             }
             std::cout << "\n";
 
@@ -159,7 +160,8 @@ MemCtrl::printQueues(int i){
         for (auto queue = writeQueue.rbegin();
         queue != writeQueue.rend(); ++queue) {
             for (int j=0; j< queue->size(); j++){
-                std::cout << queue->at(j)->addr << ", ";
+                std::cout << queue->at(j)->addr << "|"<<
+                queue->at(j)->readyTime << ", ";
             }
                 std::cout << "\n";
 
@@ -184,7 +186,8 @@ MemCtrl::printQueues(int i){
         for (auto queue = nvmWriteQueue.rbegin();
         queue != nvmWriteQueue.rend(); ++queue) {
             for (int j=0; j< queue->size(); j++){
-                std::cout << queue->at(j)->addr << ", ";
+                std::cout << queue->at(j)->addr << "|"<<
+                queue->at(j)->readyTime << ", ";
             }
                 std::cout << "\n";
 
@@ -196,8 +199,8 @@ MemCtrl::printQueues(int i){
         for (auto queue = dramFillQueue.rbegin();
         queue != dramFillQueue.rend(); ++queue) {
             for (int j=0; j< queue->size(); j++){
-                std::cout << queue->at(j)->addr << "|" <<
-                queue->at(j)->is_waiting_for_nvm_read <<" , ";
+                std::cout << queue->at(j)->addr << "|"<<
+                queue->at(j)->readyTime << ", ";
             }
                 std::cout << "\n";
 
@@ -509,7 +512,7 @@ MemCtrl::addToReadQueue(PacketPtr origRequestorPkt,
         pktsServicedByDRAMFillQ == pkt_count ||
         pktsServicedByNVMWrQ == pkt_count) {
         accessAndRespond(origRequestorPkt,
-                        frontendLatency + tagCheckLatency,
+                        frontendLatency,
                         foundInDRAM);
         return;
     }
@@ -1218,22 +1221,20 @@ MemCtrl::processRespondEvent()
 
     //update the ready_time of all the packets in the resp Q
     // if needed
-    if (curTick() > respQueue.top().second->readyTime) {
-
-        int delay = curTick() - respQueue.top().second->readyTime;
-
-        std::priority_queue<entry, std::vector<entry>,
-                        std::greater<entry> > temp;
-        while (!respQueue.empty()) {
-            respQueue.top().second->readyTime += delay;
-            temp.push(respQueue.top());
-            respQueue.pop();
-        }
-        while (!temp.empty()) {
-            respQueue.push(temp.top());
-            temp.pop();
-        }
-    }
+    // if (curTick() > respQueue.top().second->readyTime) {
+    //     int delay = curTick() - respQueue.top().second->readyTime;
+    //     std::priority_queue<entry, std::vector<entry>,
+    //                     std::greater<entry> > temp;
+    //     while (!respQueue.empty()) {
+    //         respQueue.top().second->readyTime += delay;
+    //         temp.push(respQueue.top());
+    //         respQueue.pop();
+    //     }
+    //     while (!temp.empty()) {
+    //         respQueue.push(temp.top());
+    //         temp.pop();
+    //     }
+    // }
 
     // delete the mem origRequestorPkt from resp queue
     delete respQueue.top().second;
