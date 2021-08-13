@@ -253,36 +253,125 @@ class RiscvBoard(SimpleBoard):
             )
             root.append(node)
 
-        sections = self.get_processor().get_cores() + [self.platform]
+        # See Documentation/devicetree/bindings/riscv/cpus.txt for details.
+        cpus_node = FdtNode("cpus")
+        cpus_state = FdtState(addr_cells=1, size_cells=0)
+        cpus_node.append(cpus_state.addrCellsProperty())
+        cpus_node.append(cpus_state.sizeCellsProperty())
+        # Used by the CLINT driver to set the timer frequency. Value taken from
+        # RISC-V kernel docs (Note: freedom-u540 is actually 1MHz)
+        cpus_node.append(FdtPropertyWords("timebase-frequency", [10000000]))
 
-        for section in sections:
-            for node in section.generateDeviceTree(state):
-                if node.get_name() == root.get_name():
-                    root.merge(node)
-                else:
-                    root.append(node)
+        for i, core in enumerate(self.get_processor().get_cores()):
+            node = FdtNode(f"cpu@{i}")
+            node.append(FdtPropertyStrings("device_type", "cpu"))
+            node.append(FdtPropertyWords("reg", state.CPUAddrCells(i)))
+            node.append(FdtPropertyStrings("mmu-type", "riscv,sv48"))
+            node.append(FdtPropertyStrings("status", "okay"))
+            node.append(FdtPropertyStrings("riscv,isa", "rv64imafdc"))
+            # TODO: Should probably get this from the core.
+            freq = self.clk_domain.clock[0].frequency
+            node.append(FdtPropertyWords("clock-frequency", freq))
+            node.appendCompatible(["riscv"])
+            int_phandle = state.phandle(f"cpu@{i}.int_state")
+            node.appendPhandle(f"cpu@{i}")
+
+            int_node = FdtNode("interrupt-controller")
+            int_state = FdtState(interrupt_cells=1)
+            int_phandle = int_state.phandle(f"cpu@{i}.int_state")
+            int_node.append(int_state.interruptCellsProperty())
+            int_node.append(FdtProperty("interrupt-controller"))
+            int_node.appendCompatible("riscv,cpu-intc")
+            int_node.append(FdtPropertyWords("phandle", [int_phandle]))
+
+            node.append(int_node)
+            cpus_node.append(node)
+
+        root.append(cpus_node)
+
+        soc_node = FdtNode("soc")
+        soc_state = FdtState(addr_cells=2, size_cells=2)
+        soc_node.append(soc_state.addrCellsProperty())
+        soc_node.append(soc_state.sizeCellsProperty())
+        soc_node.append(FdtProperty("ranges"))
+        soc_node.appendCompatible(["simple-bus"])
+
+        # CLINT node
+        clint = self.platform.clint
+        clint_node = clint.generateBasicPioDeviceNode(
+            soc_state, "clint", clint.pio_addr, clint.pio_size
+        )
+        int_extended = list()
+        for i, core in enumerate(self.get_processor().get_cores()):
+            phandle = soc_state.phandle(f"cpu@{i}.int_state")
+            int_extended.append(phandle)
+            int_extended.append(0x3)
+            int_extended.append(phandle)
+            int_extended.append(0x7)
+        clint_node.append(
+            FdtPropertyWords("interrupts-extended", int_extended)
+        )
+        clint_node.appendCompatible(["riscv,clint0"])
+        soc_node.append(clint_node)
+
+        # PLIC node
+        plic = self.platform.plic
+        plic_node = plic.generateBasicPioDeviceNode(
+            soc_state, "plic", plic.pio_addr, plic.pio_size
+        )
+
+        int_state = FdtState(addr_cells=0, interrupt_cells=1)
+        plic_node.append(int_state.addrCellsProperty())
+        plic_node.append(int_state.interruptCellsProperty())
+
+        phandle = int_state.phandle(plic)
+        plic_node.append(FdtPropertyWords("phandle", [phandle]))
+        plic_node.append(FdtPropertyWords("riscv,ndev", [plic.n_src - 1]))
+
+        int_extended = list()
+        for cpu in range(state.cpu_cells):
+            phandle = state.phandle(f"cpu@{i}.int_state")
+            int_extended.append(phandle)
+            int_extended.append(0xB)
+            int_extended.append(phandle)
+            int_extended.append(0x9)
+
+        plic_node.append(FdtPropertyWords("interrupts-extended", int_extended))
+        plic_node.append(FdtProperty("interrupt-controller"))
+        plic_node.appendCompatible(["riscv,plic0"])
+
+        soc_node.append(plic_node)
+
+        # UART node
+        uart = self.platform.uart
+        uart_node = uart.generateBasicPioDeviceNode(
+            soc_state, "uart", uart.pio_addr, uart.pio_size
+        )
+        uart_node.append(
+            FdtPropertyWords("interrupts", [self.platform.uart_int_id])
+        )
+        uart_node.append(FdtPropertyWords("clock-frequency", [0x384000]))
+        uart_node.append(
+            FdtPropertyWords("interrupt-parent", soc_state.phandle(plic))
+        )
+        uart_node.appendCompatible(["ns8250"])
+        soc_node.append(uart_node)
+
+        # VirtIO MMIO disk node
+        disk = self.platform.disk
+        disk_node = disk.generateBasicPioDeviceNode(
+            soc_state, "virtio_mmio", disk.pio_addr, disk.pio_size
+        )
+        disk_node.append(FdtPropertyWords("interrupts", [disk.interrupt_id]))
+        disk_node.append(
+            FdtPropertyWords("interrupt-parent", soc_state.phandle(plic))
+        )
+        disk_node.appendCompatible(["virtio,mmio"])
+        soc_node.append(disk_node)
+
+        root.append(soc_node)
 
         fdt = Fdt()
         fdt.add_rootnode(root)
         fdt.writeDtsFile(os.path.join(outdir, "device.dts"))
         fdt.writeDtbFile(os.path.join(outdir, "device.dtb"))
-
-    # TODO: Finish implementing this.
-    def generateDeviceTree(self, state):
-        cpus_node = FdtNode("cpus")
-        cpus_node.append(FdtPropertyWords("timebase-frequency", [10000000]))
-        yield cpus_node
-
-        node = FdtNode("soc")
-        local_state = FdtState(
-            addr_cells=2, size_cells=2, cpu_cells=state.cpu_cells
-        )
-        node.append(local_state.addrCellsProperty())
-        node.append(local_state.sizeCellsProperty())
-        node.append(FdtProperty("ranges"))
-        node.appendCompatible(["simple-bus"])
-
-        for subnode in self.recurseDeviceTree(local_state):
-            node.append(subnode)
-
-        yield node
