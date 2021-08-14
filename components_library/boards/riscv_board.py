@@ -101,9 +101,6 @@ class RiscvBoard(SimpleBoard):
         self.platform.attachPlic()
         self.platform.clint.num_threads = self.processor.get_num_cores()
 
-        # TODO: Make the mem size not hardcoded
-        self.mem_ranges = [AddrRange(start=0x80000000, size="512MB")]
-
         # Add the RTC
         # TODO: Why 100MHz? Does something else need to change when this does?
         self.platform.rtc = RiscvRTC(frequency=Frequency("100MHz"))
@@ -169,6 +166,13 @@ class RiscvBoard(SimpleBoard):
     @overrides(AbstractBoard)
     def get_io_bus(self) -> IOXBar:
         return self.iobus
+
+    @overrides(AbstractBoard)
+    def setup_memory_ranges(self):
+        memory = self.get_memory()
+        mem_size = memory.get_size()
+        self.mem_ranges = [AddrRange(start=0x80000000, size=mem_size)]
+        memory.set_memory_range(self.mem_ranges)
 
     def set_workload(
         self, bootloader: str, disk_image: str, command: Optional[str] = None
