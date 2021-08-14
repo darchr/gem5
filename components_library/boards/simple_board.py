@@ -25,6 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.objects import (
+    AddrRange,
     SrcClockDomain,
     VoltageDomain,
     Process,
@@ -74,8 +75,6 @@ class SimpleBoard(AbstractBoard):
         self.clk_domain.clock = clk_freq
         self.clk_domain.voltage_domain = VoltageDomain()
 
-        self.mem_ranges = memory.get_memory_ranges()
-
         self.exit_on_work_items = exit_on_work_items
 
     @overrides(AbstractBoard)
@@ -92,6 +91,9 @@ class SimpleBoard(AbstractBoard):
 
     @overrides(AbstractBoard)
     def connect_things(self) -> None:
+        # Before incorporating the memory, set up the memory ranges
+        self.setup_memory_ranges()
+
         # Incorporate the cache hierarchy for the motherboard.
         self.get_cache_hierarchy().incorporate_cache(self)
 
