@@ -28,6 +28,7 @@
 
 #include "dev/riscv/lupv.hh"
 
+#include "dev/lupio/lupio_rng.hh"
 #include "dev/lupio/lupio_rtc.hh"
 #include "dev/riscv/clint.hh"
 #include "dev/riscv/plic.hh"
@@ -43,6 +44,7 @@ LupV::LupV(const Params &params) :
     clint(params.clint),
     lupioRTC(params.lupio_rtc),
     plic(params.plic),
+    lupioRNGIntID(params.lupio_rng_int_id),
     uartIntID(params.uart_int_id)
 {
 }
