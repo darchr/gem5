@@ -25,6 +25,7 @@
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.objects.Clint import Clint
+from m5.objects.LupioRNG import LupioRNG
 from m5.objects.LupioRTC import LupioRTC
 from m5.objects.Platform import Platform
 from m5.objects.Plic import Plic
@@ -32,7 +33,13 @@ from m5.objects.Terminal import Terminal
 from m5.objects.Uart import Uart8250
 from m5.params import Param
 from m5.params import AddrRange
-from m5.util.fdthelper import *
+from m5.util.fdthelper import (
+    FdtNode,
+    FdtProperty,
+    FdtPropertyStrings,
+    FdtPropertyWords,
+    FdtState
+)
 
 class LupV(Platform):
     """LupV Platform copied from dev/riscv/HiFive.py
@@ -96,6 +103,11 @@ class LupV(Platform):
     # PLIC
     plic = Param.Plic(Plic(pio_addr=0xc000000), "PLIC")
 
+    # LUPIO RNG
+    lupio_rng = LupioRNG(pio_addr=0x20005000)
+    # Interrupt ID for PLIC
+    lupio_rng_int_id = Param.Int(lupio_rng.lupio_rng_int_id,
+                        "PLIC LupioRNG interrupt ID")
     # LUPIO RTC
     lupio_rtc = Param.LupioRTC(LupioRTC(pio_addr=0x20004000), "LupioRTC")
 
@@ -122,7 +134,8 @@ class LupV(Platform):
         """
         devices = [
             self.uart,
-            self.lupio_rtc
+            self.lupio_rtc,
+            self.lupio_rng
         ]
 
         if hasattr(self, "disk"):
@@ -150,7 +163,7 @@ class LupV(Platform):
     def attachPlic(self):
         """Count number of PLIC interrupt sources
         """
-        plic_srcs = [self.uart_int_id]
+        plic_srcs = [self.uart_int_id, self.lupio_rng_int_id]
         for device in self._off_chip_devices():
             if hasattr(device, "interrupt_id"):
                 plic_srcs.append(device.interrupt_id)

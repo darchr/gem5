@@ -29,6 +29,7 @@
 #ifndef __DEV_RISCV_LUPV_HH__
 #define __DEV_RISCV_LUPV_HH__
 
+#include "dev/lupio/lupio_rng.hh"
 #include "dev/lupio/lupio_rtc.hh"
 #include "dev/platform.hh"
 #include "dev/riscv/clint.hh"
@@ -46,6 +47,7 @@ class LupV : public Platform
     Clint *clint;
     LupioRTC *lupioRTC;
     Plic *plic;
+    int lupioRNGIntID;
     int uartIntID;
 
   public:
