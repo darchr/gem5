@@ -24,13 +24,19 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+from m5.objects.Device import BasicPioDevice
+from m5.params import Param
+from m5.proxy import Parent
+from m5.defines import buildEnv
+from m5.util.fdthelper import FdtPropertyWords
 
-SimObject('LupioRNG.py')
-SimObject('LupioRTC.py')
+class LupioRNG(BasicPioDevice):
 
-DebugFlag('LupioRNG')
-DebugFlag('LupioRTC')
-
-Source('lupio_rng.cc')
-Source('lupio_rtc.cc')
+    type = 'LupioRNG'
+    cxx_class='gem5::LupioRNG'
+    cxx_header = 'dev/lupio/lupio_rng.hh'
+    pio_size = Param.Addr(0x1000, "PIO Size")
+    seed = Param.Int(0, "Initial seed for the random number generator")
+    if buildEnv['TARGET_ISA'] == 'riscv':
+        plic = Param.Plic(Parent.any, "PLIC")
+        lupio_rng_int_id = Param.Int(3, "Interrupt ID for the RNG")
