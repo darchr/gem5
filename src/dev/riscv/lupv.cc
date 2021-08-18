@@ -30,6 +30,7 @@
 
 #include "dev/lupio/lupio_rng.hh"
 #include "dev/lupio/lupio_rtc.hh"
+#include "dev/lupio/lupio_tty.hh"
 #include "dev/riscv/clint.hh"
 #include "dev/riscv/plic.hh"
 #include "params/LupV.hh"
@@ -43,34 +44,34 @@ LupV::LupV(const Params &params) :
     Platform(params),
     clint(params.clint),
     lupioRTC(params.lupio_rtc),
-    plic(params.plic),
     lupioRNGIntID(params.lupio_rng_int_id),
-    uartIntID(params.uart_int_id)
+    lupioTTYIntID(params.lupio_tty_int_id),
+    pic(params.pic)
 {
 }
 
 void
 LupV::postConsoleInt()
 {
-    plic->post(uartIntID);
+    pic->post(lupioTTYIntID);
 }
 
 void
 LupV::clearConsoleInt()
 {
-    plic->clear(uartIntID);
+    pic->clear(lupioTTYIntID);
 }
 
 void
 LupV::postPciInt(int line)
 {
-    plic->post(line);
+    pic->post(line);
 }
 
 void
 LupV::clearPciInt(int line)
 {
-    plic->clear(line);
+    pic->clear(line);
 }
 
 Addr
