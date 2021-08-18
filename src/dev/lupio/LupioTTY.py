@@ -24,16 +24,31 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+from m5.params import Param
+from m5.proxy import *
+from m5.util.fdthelper import *
 
-SimObject('LupioRNG.py')
-SimObject('LupioRTC.py')
-SimObject('LupioTTY.py')
+from m5.objects.Device import BasicPioDevice
+from m5.objects.Serial import SerialDevice
 
-DebugFlag('LupioRNG')
-DebugFlag('LupioRTC')
-DebugFlag('LupioTTY')
+class LupioTTY(BasicPioDevice):
+    type = 'LupioTTY'
+    cxx_class = 'gem5::LupioTTY'
+    cxx_header = "dev/lupio/lupio_tty.hh"
+    terminal = Param.SerialDevice(Parent.any, "The terminal")
+    pio_size = Param.Addr(0x1000, "PIO size")
+    platform = Param.Platform(Parent.any,
+                              "Platform this device is part of.")
 
-Source('lupio_rng.cc')
-Source('lupio_rtc.cc')
-Source('lupio_tty.cc')
+    def generateDeviceTree(self, state):
+        node = self.generateBasicPioDeviceNode(state, "lupio-tty",
+                                               self.pio_addr,
+                                               self.pio_size)
+        platform = self.platform.unproxy(self)
+        pic = platform.pic
+        node.append(
+            FdtPropertyWords("interrupts", [platform.lupio_tty_int_id]))
+        node.append(
+                FdtPropertyWords("interrupt-parent", state.phandle(pic)))
+        node.appendCompatible(["lupio,tty"])
+        yield node
