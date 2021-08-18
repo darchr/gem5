@@ -27,10 +27,10 @@
 from m5.objects.Clint import Clint
 from m5.objects.LupioRNG import LupioRNG
 from m5.objects.LupioRTC import LupioRTC
+from m5.objects.LupioTTY import LupioTTY
 from m5.objects.Platform import Platform
 from m5.objects.Plic import Plic
 from m5.objects.Terminal import Terminal
-from m5.objects.Uart import Uart8250
 from m5.params import Param
 from m5.params import AddrRange
 from m5.util.fdthelper import (
@@ -77,9 +77,9 @@ class LupV(Platform):
         The LupioRTC is a real time clock that supplies
         the current date and time.
 
-    Uart:
-        The LupV platform also has an uart_int_id.
-        This is because Uart8250 uses postConsoleInt
+    LupioTTY:
+        The LupV platform also has an lupio_tty_int_id.
+        This is because LupioTTY uses postConsoleInt
         instead of postPciInt. In the future if a Uart
         that inherits PlicIntDevice is implemented,
         this can be removed.
@@ -101,7 +101,7 @@ class LupV(Platform):
     clint = Param.Clint(Clint(pio_addr=0x2000000), "CLINT")
 
     # PLIC
-    plic = Param.Plic(Plic(pio_addr=0xc000000), "PLIC")
+    pic = Param.Plic(Plic(pio_addr=0xc000000), "PLIC")
 
     # LUPIO RNG
     lupio_rng = LupioRNG(pio_addr=0x20005000)
@@ -111,11 +111,11 @@ class LupV(Platform):
     # LUPIO RTC
     lupio_rtc = Param.LupioRTC(LupioRTC(pio_addr=0x20004000), "LupioRTC")
 
-    # Uart
-    uart = Uart8250(pio_addr=0x10000000)
+    # LUPIO TTY
+    lupio_tty = LupioTTY(pio_addr=0x20007000)
+
     # Int source ID to redirect console interrupts to
-    # Set to 0 if using a pci interrupt for Uart instead
-    uart_int_id = Param.Int(0xa, "PLIC Uart interrupt ID")
+    lupio_tty_int_id = Param.Int(0xa, "PLIC LupioTTY interrupt ID")
     terminal = Terminal()
 
     # Dummy param for generating devicetree
@@ -126,16 +126,16 @@ class LupV(Platform):
         """
         return [
             self.clint,
-            self.plic
+            self.pic
         ]
 
     def _off_chip_devices(self):
         """Returns a list of off-chip peripherals
         """
         devices = [
-            self.uart,
             self.lupio_rtc,
-            self.lupio_rng
+            self.lupio_rng,
+            self.lupio_tty
         ]
 
         if hasattr(self, "disk"):
@@ -163,11 +163,11 @@ class LupV(Platform):
     def attachPlic(self):
         """Count number of PLIC interrupt sources
         """
-        plic_srcs = [self.uart_int_id, self.lupio_rng_int_id]
+        pic_srcs = [self.lupio_tty_int_id, self.lupio_rng_int_id]
         for device in self._off_chip_devices():
             if hasattr(device, "interrupt_id"):
-                plic_srcs.append(device.interrupt_id)
-        self.plic.n_src = max(plic_srcs) + 1
+                pic_srcs.append(device.interrupt_id)
+        self.pic.n_src = max(pic_srcs) + 1
 
     def attachOnChipIO(self, bus):
         """Attach on-chip IO devices, needs modification
@@ -187,6 +187,11 @@ class LupV(Platform):
         cpus_node = FdtNode("cpus")
         cpus_node.append(FdtPropertyWords("timebase-frequency", [10000000]))
         yield cpus_node
+
+        chosen_node = FdtNode("chosen")
+        chosen_node.append(FdtPropertyStrings("stdout-path",
+                            "/soc/lupio-tty@20007000"))
+        yield chosen_node
 
         node = FdtNode("soc")
         local_state = FdtState(addr_cells=2, size_cells=2)
