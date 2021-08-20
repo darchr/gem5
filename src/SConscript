@@ -372,6 +372,8 @@ class PySource(SourceFile):
             path = []
 
         modpath = path[:]
+        type_path = '/'.join(modpath + [ modname ])
+
         if modname != '__init__':
             modpath += [ modname ]
         modpath = '.'.join(modpath)
@@ -388,6 +390,8 @@ class PySource(SourceFile):
         self.abspath = abspath
         self.compiled = File(self.filename + 'c')
         self.cpp = File(self.filename + '.cc')
+        self.stubfile = f'{pytypes_path}/{type_path}.pyi'
+
         self.symname = PySource.invalid_sym_char.sub('_', modpath)
 
         PySource.modules[modpath] = self
@@ -1243,6 +1247,27 @@ EmbeddedPython embedded_${sym}(
 ''')
     code.write(str(target[0]))
 
+def stubgenPyFile(target, source, env):
+    """ Generate a stubfile (.pyi) for the python source
+    """
+    import subprocess
+    import pathlib
+
+    py_path = pathlib.Path(str(source[0]))
+
+    # The python modules in the m5 directory are correctly grouped into
+    # packages so we can use the base output path. However, the "special"
+    # modules that are outside of the src/python directory (e.g., SimObjects)
+    # should use their module name as the output directory.
+    if 'python/m5' in str(source[0]):
+        output_dir = env['BUILDDIR'] + '/' + pytypes_path
+    else:
+        output_dir = pathlib.Path(str(target[0])).parent
+
+    subprocess.check_call(['stubgen', py_path,
+        '--search-path', py_path.parent, '--output', output_dir],
+        stdout=subprocess.DEVNULL)
+
 if main['USE_PYTHON']:
     # Build a small helper that marshals the Python code using the same
     # version of Python as gem5. This is in an unorthodox location to
@@ -1253,6 +1278,11 @@ if main['USE_PYTHON']:
         marshal_env.Command(source.cpp, [ py_marshal, source.tnode ],
                         MakeAction(embedPyFile, Transform("EMBED PY")))
         Source(source.cpp, tags=source.tags, add_tags='python')
+
+        # Generate the stubfiles
+        if stubgen_path:
+            env.Command(source.stubfile, source.tnode,
+                        MakeAction(stubgenPyFile, Transform("STUBGEN PY")))
 
 ########################################################################
 #

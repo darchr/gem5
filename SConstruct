@@ -246,6 +246,9 @@ global_vars.AddVariables(
     ('PYTHON_CONFIG', 'Python config binary to use',
      [ 'python3-config', 'python-config']
     ),
+    ('PYTYPES_PATH', 'Path to output the python types stubfiles relative to '
+     'the build directory', 'py_types'),
+    ('PYTHON_STUBGEN', 'Path to the stubgen utility', 'stubgen'),
     ('PROTOC', 'protoc tool', environ.get('PROTOC', 'protoc')),
     ('BATCH', 'Use batch pool for build and tests', False),
     ('BATCH_CMD', 'Batch pool submission command name', 'qdo'),
@@ -490,6 +493,18 @@ if main['USE_PYTHON']:
     with gem5_scons.Configure(main) as conf:
         if conf.TryAction('@%s --embed' % python_config)[0]:
             cmd.append('--embed')
+
+    # Check for stubgen to generate stubfiles
+    pytypes_path = main['PYTYPES_PATH']
+    python_stubgen = main.Detect(main['PYTHON_STUBGEN'])
+    if not python_stubgen:
+        warning("Can't find python's stubgen. Install mypy to generate python "
+                "stubfiles for type annoations.")
+        stubgen_path = None
+    else:
+        stubgen_path = main['PYTHON_STUBGEN']
+    Export('pytypes_path')
+    Export('stubgen_path')
 
     def flag_filter(env, cmd_output):
         flags = cmd_output.split()
