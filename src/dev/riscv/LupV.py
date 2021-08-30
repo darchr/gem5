@@ -1,30 +1,31 @@
- # Copyright (c) 2021 The Regents of the University of California
- # All rights reserved.
- #
- # Redistribution and use in source and binary forms, with or without
- # modification, are permitted provided that the following conditions are
- # met: redistributions of source code must retain the above copyright
- # notice, this list of conditions and the following disclaimer;
- # redistributions in binary form must reproduce the above copyright
- # notice, this list of conditions and the following disclaimer in the
- # documentation and/or other materials provided with the distribution;
- # neither the name of the copyright holders nor the names of its
- # contributors may be used to endorse or promote products derived from
- # this software without specific prior written permission.
- #
- # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- # A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- # OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- # SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- # LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- # DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# Copyright (c) 2021 The Regents of the University of California
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met: redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer;
+# redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution;
+# neither the name of the copyright holders nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.objects.Clint import Clint
+from m5.objects.LupioBLK import LupioBLK
 from m5.objects.LupioRNG import LupioRNG
 from m5.objects.LupioRTC import LupioRTC
 from m5.objects.LupioTTY import LupioTTY
@@ -118,6 +119,12 @@ class LupV(Platform):
     lupio_tty_int_id = Param.Int(0xa, "PLIC LupioTTY interrupt ID")
     terminal = Terminal()
 
+    # LUPIO BLK
+    lupio_blk = LupioBLK(pio_addr=0x20000000)
+
+    # Int source ID to redirect interrupts to
+    lupio_blk_int_id = Param.Int(0xb, "PLIC LupioBLK interrupt ID")
+
     # Dummy param for generating devicetree
     cpu_count = Param.Int(0, "dummy")
 
@@ -133,13 +140,12 @@ class LupV(Platform):
         """Returns a list of off-chip peripherals
         """
         devices = [
+            self.lupio_blk,
             self.lupio_rtc,
             self.lupio_rng,
             self.lupio_tty
         ]
 
-        if hasattr(self, "disk"):
-            devices.append(self.disk)
         return devices
 
     def _on_chip_ranges(self):
@@ -163,7 +169,8 @@ class LupV(Platform):
     def attachPlic(self):
         """Count number of PLIC interrupt sources
         """
-        pic_srcs = [self.lupio_tty_int_id, self.lupio_rng_int_id]
+        pic_srcs = [self.lupio_blk_int_id, self.lupio_tty_int_id, 
+                    self.lupio_rng_int_id]
         for device in self._off_chip_devices():
             if hasattr(device, "interrupt_id"):
                 pic_srcs.append(device.interrupt_id)
@@ -182,6 +189,7 @@ class LupV(Platform):
         """
         for device in self._off_chip_devices():
             device.pio = bus.mem_side_ports
+        self.lupio_blk.dma = bus.cpu_side_ports
 
     def generateDeviceTree(self, state):
         cpus_node = FdtNode("cpus")

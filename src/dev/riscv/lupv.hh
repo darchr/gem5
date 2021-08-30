@@ -29,6 +29,7 @@
 #ifndef __DEV_RISCV_LUPV_HH__
 #define __DEV_RISCV_LUPV_HH__
 
+#include "dev/lupio/lupio_blk.hh"
 #include "dev/lupio/lupio_rng.hh"
 #include "dev/lupio/lupio_rtc.hh"
 #include "dev/lupio/lupio_tty.hh"
