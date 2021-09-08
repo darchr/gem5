@@ -39,16 +39,3 @@ class LupioTTY(BasicPioDevice):
     pio_size = Param.Addr(0x1000, "PIO size")
     platform = Param.Platform(Parent.any,
                               "Platform this device is part of.")
-
-    def generateDeviceTree(self, state):
-        node = self.generateBasicPioDeviceNode(state, "lupio-tty",
-                                               self.pio_addr,
-                                               self.pio_size)
-        platform = self.platform.unproxy(self)
-        pic = platform.pic
-        node.append(
-            FdtPropertyWords("interrupts", [platform.lupio_tty_int_id]))
-        node.append(
-                FdtPropertyWords("interrupt-parent", state.phandle(pic)))
-        node.appendCompatible(["lupio,tty"])
-        yield node

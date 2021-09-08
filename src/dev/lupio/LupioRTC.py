@@ -33,10 +33,3 @@ class LupioRTC(BasicPioDevice):
     cxx_header = 'dev/lupio/lupio_rtc.hh'
     time = Param.Time('01/01/2020', "System time to use")
     pio_size = Param.Addr(0x1000, "PIO Size")
-
-    def generateDeviceTree(self, state):
-        node = self.generateBasicPioDeviceNode(state, "lupio-rtc",
-                                               self.pio_addr,
-                                               self.pio_size)
-        node.appendCompatible(["lupio,rtc"])
-        yield node

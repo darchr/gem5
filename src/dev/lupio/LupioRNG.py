@@ -40,19 +40,3 @@ class LupioRNG(BasicPioDevice):
     if buildEnv['TARGET_ISA'] == 'riscv':
         plic = Param.Plic(Parent.any, "PLIC")
         lupio_rng_int_id = Param.Int(3, "Interrupt ID for the RNG")
-
-    def generateDeviceTree(self, state):
-
-        if buildEnv['TARGET_ISA'] != 'riscv':
-            return
-
-        node = self.generateBasicPioDeviceNode(state, "lupio-rng",
-                                               self.pio_addr,
-                                               self.pio_size)
-        plic = self.plic
-        node.append(
-                FdtPropertyWords("interrupts", [self.lupio_rng_int_id]))
-        node.append(
-                FdtPropertyWords("interrupt-parent", state.phandle(plic)))
-        node.appendCompatible(["lupio,rng"])
-        yield node
