@@ -44,20 +44,3 @@ class LupioBLK(DmaDevice):
     platform = Param.Platform(Parent.any,
                               "Platform this device is part of.")
     int_id = Param.Int(0xb, "Interrupt ID");
-
-    def generateDeviceTree(self, state):
-
-        if buildEnv['TARGET_ISA'] != 'riscv':
-            return
-        node = self.generateBasicPioDeviceNode(state, "lupio-blk",
-                                               self.pio_addr,
-                                               self.pio_size)
-        platform = self.platform.unproxy(self)
-        pic = platform.pic
-        node.append(
-                FdtPropertyWords("interrupts", [platform.lupio_blk_int_id]))
-        node.append(
-                FdtPropertyWords("interrupt-parent", state.phandle(pic)))
-        node.appendCompatible(["lupio,blk"])
-        yield node
-
