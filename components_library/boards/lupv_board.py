@@ -41,7 +41,14 @@ from m5.objects import (
     AddrRange,
     IOXBar,
     RiscvRTC,
-    LupV,
+    Clint,
+    LupioBLK,
+    LupioRNG,
+    LupioRTC,
+    LupioTTY,
+    Plic,
+    Terminal,
+    AddrRange,
     CowDiskImage,
     RawDiskImage,
     Frequency,
@@ -55,14 +62,16 @@ from m5.util.fdthelper import (
     FdtPropertyWords,
     FdtState,
 )
+
 class LupvBoard(SimpleBoard):
     """
     A board capable of full system simulation for RISC-V
-    At a high-level, this is based on the HiFive Unmatched board from SiFive.
+    This board uses a set of LupIO education-friendly devices.
     This board assumes that you will be booting Linux.
     **Limitations**
     * Only works with classic caches
     """
+
     def __init__(
         self,
         clk_freq: str,
@@ -79,33 +88,61 @@ class LupvBoard(SimpleBoard):
         if cache_hierarchy.is_ruby():
             raise EnvironmentError("RiscvBoard is not compatible with Ruby")
         self.workload = RiscvLinux()
-        # Contains a CLINT, PLIC, UART, and some functions for the dtb, etc.
-        self.platform = LupV()
+
+        # CLINT
+        self.clint = Clint(pio_addr=0x2000000)
+
+        # PLIC
+        self.pic = Plic(pio_addr=0xc000000)
+
+        # LUPIO RNG
+        self.lupio_rng = LupioRNG(pio_addr=0x20005000)
+
+        # LUPIO RTC
+        self.lupio_rtc = LupioRTC(pio_addr=0x20004000)
+
+        # LUPIO TTY
+        self.lupio_tty = LupioTTY(pio_addr=0x20007000, pic = self.pic)
+        self.terminal = Terminal()
+
+        # LUPIO BLK
+        self.lupio_blk = LupioBLK(pio_addr=0x20000000, pic = self.pic)
+
         # Note: This only works with single threaded cores.
-        self.platform.pic.n_contexts = self.processor.get_num_cores() * 2
-        self.platform.attachPlic()
-        self.platform.clint.num_threads = self.processor.get_num_cores()
+        self.pic.n_contexts = self.processor.get_num_cores() * 2
+        # Interrupt IDs for LupIO devices
+        pic_srcs = [
+            self.lupio_tty.int_id,
+            self.lupio_blk.int_id,
+            self.lupio_rng.int_id
+        ]
+        self.pic.n_src = max(pic_srcs) + 1
+
+        self.clint.num_threads = self.processor.get_num_cores()
         # Add the RTC
         # TODO: Why 100MHz? Does something else need to change when this does?
-        self.platform.rtc = RiscvRTC(frequency=Frequency("100MHz"))
-        self.platform.clint.int_pin = self.platform.rtc.int_pin
+        self.rtc = RiscvRTC(frequency=Frequency("100MHz"))
+        self.clint.int_pin = self.rtc.int_pin
+
         # Incoherent I/O bus
         self.iobus = IOXBar()
+
         # Note: This overrides the platform's code because the platform isn't
         # general enough.
-        self._on_chip_devices = [self.platform.clint, self.platform.pic]
+        self._on_chip_devices = [self.clint, self.pic]
         self._off_chip_devices = [
-            self.platform.lupio_blk,
-            self.platform.lupio_rtc,
-            self.platform.lupio_rng,
-            self.platform.lupio_tty
+            self.lupio_blk,
+            self.lupio_rtc,
+            self.lupio_rng,
+            self.lupio_tty
         ]
+
     def _setup_io_devices(self) -> None:
         """Connect the I/O devices to the I/O bus"""
         for device in self._off_chip_devices:
-            if device == self.platform.lupio_blk:
-                self.platform.lupio_blk.dma = self.iobus.cpu_side_ports
             device.pio = self.iobus.mem_side_ports
+        self.lupio_blk.dma = self.iobus.cpu_side_ports
+
         for device in self._on_chip_devices:
             device.pio = self.get_cache_hierarchy().get_mem_side_port()
         self.bridge = Bridge(delay="10ns")
@@ -117,6 +154,7 @@ class LupvBoard(SimpleBoard):
             AddrRange(dev.pio_addr, size=dev.pio_size)
             for dev in self._off_chip_devices
         ]
+
     def _setup_pma(self) -> None:
         """Set the PMA devices on each core"""
         uncacheable_range = [
@@ -128,6 +166,7 @@ class LupvBoard(SimpleBoard):
             cpu.get_mmu().pma_checker = PMAChecker(
                 uncacheable=uncacheable_range
             )
+
     @overrides(AbstractBoard)
     def has_io_bus(self) -> bool:
         return True
@@ -148,28 +187,24 @@ class LupvBoard(SimpleBoard):
         self, bootloader: str, disk_image: str, command: Optional[str] = None
     ):
         """Setup the full system files
-        See http://resources.gem5.org/resources/riscv-fs for the currently
-        tested kernels and OSes.
-        The command is an optional string to execute once the OS is fully
-        booted, assuming the disk image is setup to run `m5 readfile` after
-        booting.
-        After the workload is set up, this functino will generate the device
+        See https://github.com/darchr/lupio-gem5/blob/lupio/README.md
+        for running the full system, and downloading the right files to do so.
+        The command passes in a boot loader and disk image, as well as the
+        script to start the simulaiton.
+        After the workload is set up, this function will generate the device
         tree file and output it to the output directory.
         **Limitations**
         * Only supports a Linux kernel
-        * Disk must be configured correctly to use the command option
-        * This board doesn't support the command option
-        :param bootloader: The compiled bootloader with the kernel as a payload
-        :param disk_image: A disk image containing the OS data. The first
-            partition should be the root partition.
-        :param command: The command(s) to run with bash once the OS is booted
+        * Must use the provided bootloader and disk image as denoted in the
+        README above.
         """
         self.workload.object_file = bootloader
         image = CowDiskImage(
             child=RawDiskImage(read_only=True), read_only=False
         )
         image.child.image_file = disk_image
-        self.platform.lupio_blk.image = image
+        self.lupio_blk.image = image
+
         # Linux boot command flags
         kernel_cmd = [
             "earlycon console=ttyLIO0",
@@ -177,6 +212,7 @@ class LupvBoard(SimpleBoard):
             "ro"
         ]
         self.workload.command_line = " ".join(kernel_cmd)
+
         # Note: This must be called after set_workload because it looks for an
         # attribute named "disk" and connects
         self._setup_io_devices()
@@ -190,6 +226,7 @@ class LupvBoard(SimpleBoard):
         self.workload.dtb_filename = os.path.join(
             m5.options.outdir, "device.dtb"
         )
+
     def generate_device_tree(self, outdir: str) -> None:
         """Creates the dtb and dts files.
         Creates two files in the outdir: 'device.dtb' and 'device.dts'
@@ -211,6 +248,7 @@ class LupvBoard(SimpleBoard):
                 )
             )
             root.append(node)
+
         # See Documentation/devicetree/bindings/riscv/cpus.txt for details.
         cpus_node = FdtNode("cpus")
         cpus_state = FdtState(addr_cells=1, size_cells=0)
@@ -218,7 +256,7 @@ class LupvBoard(SimpleBoard):
         cpus_node.append(cpus_state.sizeCellsProperty())
         # Used by the CLINT driver to set the timer frequency. Value taken from
         # RISC-V kernel docs (Note: freedom-u540 is actually 1MHz)
-        cpus_node.append(FdtPropertyWords("timebase-frequency", [10000000]))
+        cpus_node.append(FdtPropertyWords("timebase-frequency", [100000000]))
         for i, core in enumerate(self.get_processor().get_cores()):
             node = FdtNode(f"cpu@{i}")
             node.append(FdtPropertyStrings("device_type", "cpu"))
@@ -242,19 +280,22 @@ class LupvBoard(SimpleBoard):
             node.append(int_node)
             cpus_node.append(node)
         root.append(cpus_node)
+
         # Chosen node for LupIO-TTY
         chosen_node = FdtNode("chosen")
         chosen_node.append(FdtPropertyStrings("stdout-path",
                             "/soc/lupio-tty@20007000"))
         root.append(chosen_node)
+
         soc_node = FdtNode("soc")
         soc_state = FdtState(addr_cells=2, size_cells=2)
         soc_node.append(soc_state.addrCellsProperty())
         soc_node.append(soc_state.sizeCellsProperty())
         soc_node.append(FdtProperty("ranges"))
         soc_node.appendCompatible(["simple-bus"])
+
         # CLINT node
-        clint = self.platform.clint
+        clint = self.clint
         clint_node = clint.generateBasicPioDeviceNode(
             soc_state, "clint", clint.pio_addr, clint.pio_size
         )
@@ -270,8 +311,9 @@ class LupvBoard(SimpleBoard):
         )
         clint_node.appendCompatible(["riscv,clint0"])
         soc_node.append(clint_node)
+
         # PLIC node
-        plic = self.platform.pic
+        plic = self.pic
         plic_node = plic.generateBasicPioDeviceNode(
             soc_state, "plic", plic.pio_addr, plic.pio_size
         )
@@ -280,7 +322,7 @@ class LupvBoard(SimpleBoard):
         plic_node.append(int_state.interruptCellsProperty())
         phandle = int_state.phandle(plic)
         plic_node.append(FdtPropertyWords("phandle", [phandle]))
-        plic_node.append(FdtPropertyWords("riscv,ndev", [plic.n_src - 1]))
+        plic_node.append(FdtPropertyWords("riscv,ndev", [self.pic.n_src - 1]))
         int_extended = list()
         for i, core in enumerate(self.get_processor().get_cores()):
             phandle = state.phandle(f"cpu@{i}.int_state")
@@ -292,49 +334,54 @@ class LupvBoard(SimpleBoard):
         plic_node.append(FdtProperty("interrupt-controller"))
         plic_node.appendCompatible(["riscv,plic0"])
         soc_node.append(plic_node)
+
         # LupioBLK Device
-        lupio_blk = self.platform.lupio_blk
+        lupio_blk = self.lupio_blk
         lupio_blk_node = lupio_blk.generateBasicPioDeviceNode(soc_state,
                             "lupio-blk", lupio_blk.pio_addr,
                             lupio_blk.pio_size)
         lupio_blk_node.appendCompatible(["lupio,blk"])
         lupio_blk_node.append(
                 FdtPropertyWords("interrupts",
-                [self.platform.lupio_blk_int_id]))
+                [self.lupio_blk.int_id]))
         lupio_blk_node.append(
                 FdtPropertyWords("interrupt-parent",
-                state.phandle(self.platform.pic)))
+                state.phandle(self.pic)))
         soc_node.append(lupio_blk_node)
+
         # LupioRNG Device
-        lupio_rng = self.platform.lupio_rng
+        lupio_rng = self.lupio_rng
         lupio_rng_node = lupio_rng.generateBasicPioDeviceNode(soc_state,
                             "lupio-rng", lupio_rng.pio_addr,lupio_rng.pio_size)
         lupio_rng_node.appendCompatible(["lupio,rng"])
         lupio_rng_node.append(
                 FdtPropertyWords("interrupts",
-                [self.platform.lupio_rng_int_id]))
+                [self.lupio_rng.int_id]))
         lupio_rng_node.append(
                 FdtPropertyWords("interrupt-parent",
-                state.phandle(self.platform.pic)))
+                state.phandle(self.pic)))
         soc_node.append(lupio_rng_node)
+
         # LupioRTC Device
-        lupio_rtc = self.platform.lupio_rtc
+        lupio_rtc = self.lupio_rtc
         lupio_rtc_node = lupio_rtc.generateBasicPioDeviceNode(soc_state,
                         "lupio-rtc", lupio_rtc.pio_addr, lupio_rtc.pio_size)
         lupio_rtc_node.appendCompatible(["lupio,rtc"])
         soc_node.append(lupio_rtc_node)
+
         # LupioTTY Device
-        lupio_tty = self.platform.lupio_tty
+        lupio_tty = self.lupio_tty
         lupio_tty_node = lupio_tty.generateBasicPioDeviceNode(soc_state,
                         "lupio-tty", lupio_tty.pio_addr, lupio_tty.pio_size)
         lupio_tty_node.appendCompatible(["lupio,tty"])
         lupio_tty_node.append(
                 FdtPropertyWords("interrupts",
-                [self.platform.lupio_tty_int_id]))
+                [self.lupio_tty.int_id]))
         lupio_tty_node.append(
                 FdtPropertyWords("interrupt-parent",
-                state.phandle(self.platform.pic)))
+                state.phandle(self.pic)))
         soc_node.append(lupio_tty_node)
+
         root.append(soc_node)
         fdt = Fdt()
         fdt.add_rootnode(root)
