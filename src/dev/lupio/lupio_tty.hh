@@ -30,7 +30,7 @@
 #define __LUPIO_TTY_HH__
 
 #include "dev/io_device.hh"
-#include "dev/riscv/plic.hh"
+#include "dev/lupio/lupio_pic.hh"
 #include "dev/serial/serial.hh"
 #include "params/LupioTTY.hh"
 
@@ -38,7 +38,7 @@ namespace gem5
 {
 
 class Terminal;
-class Plic;
+class LupioPIC;
 
 class LupioTTY : public BasicPioDevice
 {
@@ -71,7 +71,7 @@ class LupioTTY : public BasicPioDevice
   protected:
     SerialDevice *terminal;
     const ByteOrder byteOrder = ByteOrder::little;
-    Plic *pic;
+    LupioPIC *pic;
     int lupioTTYIntID;
 
   public:
