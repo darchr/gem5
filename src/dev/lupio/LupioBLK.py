@@ -41,5 +41,5 @@ class LupioBLK(DmaDevice):
     image = Param.DiskImage("Disk image")
     pio_addr = Param.Addr("Device Address")
     latency = Param.Latency('0ns', "DMA Device Latency")
-    pic = Param.Plic("PLIC")
+    pic = Param.LupioPIC("PIC")
     int_id = Param.Int(0xb, "Interrupt ID")
