@@ -24,23 +24,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+from m5.objects.Device import BasicPioDevice
+from m5.params import Param
 
-SimObject('LupioBLK.py')
-SimObject('LupioRNG.py')
-SimObject('LupioRTC.py')
-SimObject('LupioTMR.py')
-SimObject('LupioTTY.py')
-
-DebugFlag('LupioBLK')
-DebugFlag('LupioRNG')
-DebugFlag('LupioRTC')
-DebugFlag('LupioTMR')
-DebugFlag('LupioTTY')
-
-Source('lupio_blk.cc')
-Source('lupio_rng.cc')
-Source('lupio_rtc.cc')
-Source('lupio_tmr.cc')
-Source('lupio_tty.cc')
-
+class LupioTMR(BasicPioDevice):
+    type = 'LupioTMR'
+    cxx_class='gem5::LupioTMR'
+    cxx_header = 'dev/lupio/lupio_tmr.hh'
+    pio_size = Param.Addr(0x1000, "PIO Size")
+    num_threads = Param.Int("Number of threads in the system.")
+    int_type = Param.Int("Type of interrupt.")
