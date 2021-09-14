@@ -32,6 +32,7 @@
 #include "debug/LupioBLK.hh"
 #include "dev/dma_device.hh"
 #include "dev/io_device.hh"
+#include "dev/lupio/lupio_pic.hh"
 #include "dev/platform.hh"
 #include "dev/storage/disk_image.hh"
 #include "params/LupioBLK.hh"
@@ -44,13 +45,12 @@ namespace gem5
  * LupioBLK:
  * A virtual block device
  */
-class Platform;
-
+class LupioPIC;
 class LupioBLK : public DmaDevice
 {
   protected:
     const ByteOrder byteOrder = ByteOrder::little;
-    Platform &platform;
+    Platform *platform;
     EventFunctionWrapper dmaEvent;
     Addr pioAddr;
     Tick pioDelay;
@@ -115,4 +115,3 @@ class LupioBLK : public DmaDevice
 } // namespace gem5
 
 #endif // __DEV_LUPIO_LUPIO_BLK_HH_
-

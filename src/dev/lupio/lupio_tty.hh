@@ -31,6 +31,7 @@
 
 #include "dev/io_device.hh"
 #include "dev/platform.hh"
+#include "dev/lupio/lupio_pic.hh"
 #include "dev/serial/serial.hh"
 #include "params/LupioTTY.hh"
 
@@ -38,7 +39,7 @@ namespace gem5
 {
 
 class Terminal;
-class Platform;
+class LupioPIC;
 
 class LupioTTY : public BasicPioDevice
 {
@@ -72,6 +73,7 @@ class LupioTTY : public BasicPioDevice
     SerialDevice *terminal;
     const ByteOrder byteOrder = ByteOrder::little;
     Platform *platform;
+    LupioPIC *pic;
     int lupioTTYIntID;
 
   public:

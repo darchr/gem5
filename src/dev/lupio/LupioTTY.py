@@ -37,5 +37,6 @@ class LupioTTY(BasicPioDevice):
     cxx_header = "dev/lupio/lupio_tty.hh"
     terminal = Param.SerialDevice(Parent.any, "The terminal")
     pio_size = Param.Addr(0x1000, "PIO size")
-    platform = Param.Platform("Platform this device is part of")
-    int_id = Param.Int("Interrupt ID for the TTY")
+    platform = Param.Platform(Parent.any,
+                              "Platform this device is part of.")
+    int_id = Param.Int(0xa, "Interrupt ID for the TTY")

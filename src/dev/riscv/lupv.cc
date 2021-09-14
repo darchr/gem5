@@ -28,7 +28,7 @@
 
 #include "dev/riscv/lupv.hh"
 
-#include "dev/riscv/plic.hh"
+#include "dev/lupio/lupio_pic.hh"
 #include "params/LupV.hh"
 
 namespace gem5
@@ -38,7 +38,7 @@ using namespace RiscvISA;
 
 LupV::LupV(const Params &params) :
     Platform(params),
-    plic(params.pic),
+    lupioPIC(params.pic),
     UartIntID(params.uart_int_id)
 {
 }
@@ -46,25 +46,25 @@ LupV::LupV(const Params &params) :
 void
 LupV::postConsoleInt()
 {
-    plic->post(UartIntID);
+    lupioPIC->post(UartIntID);
 }
 
 void
 LupV::clearConsoleInt()
 {
-    plic->clear(UartIntID);
+    lupioPIC->clear(UartIntID);
 }
 
 void
 LupV::postPciInt(int line)
 {
-    plic->post(line);
+    lupioPIC->post(line);
 }
 
 void
 LupV::clearPciInt(int line)
 {
-    plic->clear(line);
+    lupioPIC->clear(line);
 }
 
 Addr
