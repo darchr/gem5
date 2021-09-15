@@ -46,7 +46,7 @@ namespace gem5
 LupioTTY::LupioTTY(const Params &params)
     : BasicPioDevice(params, params.pio_size),
     writChar(-1), readChar(-1), writIntrEn(false), readIntrEn(false),
-    terminal(params.terminal), pic(params.pic),
+    terminal(params.terminal), platform(params.platform),
     lupioTTYIntID(params.int_id)
 {
     // setup serial device callbacks
@@ -63,10 +63,10 @@ LupioTTY::lupioTTYUpdateIRQ()
 
     if (irq) {
         DPRINTF(LupioTTY, "LupioTTY InterEvent, interrupting\n");
-        pic->post(lupioTTYIntID);
+        platform->postPciInt(lupioTTYIntID);
     } else {
         DPRINTF(LupioTTY, "LupioTTY InterEvent, not interrupting\n");
-        pic->clear(lupioTTYIntID);
+        platform->clearPciInt(lupioTTYIntID);
     }
 }
 
