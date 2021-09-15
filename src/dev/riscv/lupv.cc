@@ -26,70 +26,61 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __LUPIO_TTY_HH__
-#define __LUPIO_TTY_HH__
+#include "dev/riscv/lupv.hh"
 
-#include "dev/io_device.hh"
-#include "dev/platform.hh"
-#include "dev/serial/serial.hh"
-#include "params/LupioTTY.hh"
+#include "dev/lupio/lupio_pic.hh"
+#include "params/LupV.hh"
 
 namespace gem5
 {
 
-class Terminal;
-class Platform;
+using namespace RiscvISA;
 
-class LupioTTY : public BasicPioDevice
+LupV::LupV(const Params &params) :
+    Platform(params),
+    lupioPIC(params.pic),
+    lupioTTYIntID(params.lupio_tty_int_id)
 {
-  private:
-    // Register map
-    enum
-    {
-        LUPIO_TTY_WRIT,
-        LUPIO_TTY_READ,
-        LUPIO_TTY_CTRL,
-        LUPIO_TTY_STAT,
+}
 
-        // Max offset
-        LUPIO_TTY_MAX,
-    };
+void
+LupV::postConsoleInt()
+{
+    lupioPIC->post(lupioTTYIntID);
+}
 
-    // Internal registers
-    int8_t writChar;
-    int8_t readChar;
-    bool writIntrEn;
-    bool readIntrEn;
+void
+LupV::clearConsoleInt()
+{
+    lupioPIC->clear(lupioTTYIntID);
+}
 
-    uint64_t lupioTTYRead(const uint8_t addr);
-    void lupioTTYWrite(const uint8_t addr, uint64_t c);
-   /**
-    * IRQ management
-    */
-    void lupioTTYUpdateIRQ();
+void
+LupV::postPciInt(int line)
+{
+    lupioPIC->post(line);
+}
 
-  protected:
-    SerialDevice *terminal;
-    const ByteOrder byteOrder = ByteOrder::little;
-    Platform *platform;
-    int lupioTTYIntID;
+void
+LupV::clearPciInt(int line)
+{
+    lupioPIC->clear(line);
+}
 
-  public:
-    PARAMS(LupioTTY);
-    LupioTTY(const Params &p);
+Addr
+LupV::pciToDma(Addr pciAddr) const
+{
+    panic("LupV::pciToDma() has not been implemented.");
+}
 
-    /**
-     * Inform the LupIO-TTY there is data available
-     */
-    void dataAvailable();
+void
+LupV::serialize(CheckpointOut &cp) const
+{
+}
 
-    /**
-     * Implement BasicPioDevice virtual functions
-     */
-    Tick read(PacketPtr pkt) override;
-    Tick write(PacketPtr pkt) override;
-};
+void
+LupV::unserialize(CheckpointIn &cp)
+{
+}
 
-} //namespace gem5
-
-#endif // __LUPIO_TTY_HH__
+} // namespace gem5

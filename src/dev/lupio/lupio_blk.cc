@@ -51,7 +51,7 @@ namespace gem5
 
 LupioBLK::LupioBLK(const Params &params) :
     DmaDevice(params),
-    pic(params.pic),
+    platform(params.platform),
     dmaEvent([this]{ dmaEventDone(); }, name()),
     pioAddr(params.pio_addr),
     pioDelay(params.latency),
@@ -82,7 +82,7 @@ LupioBLK::dmaEventDone()
     delete[] reqData;
     busy = false;
     DPRINTF(LupioBLK, "Done with DMA event\n");
-    pic->post(lupioBLKIntID);
+    platform->postPciInt(lupioBLKIntID);
 }
 
 uint64_t
@@ -120,7 +120,7 @@ LupioBLK::lupioBLKRead(const uint8_t addr)
             DPRINTF(LupioBLK, "Read LUPIO_BLK_STAT: %d\n", r);
 
             // Acknowledge IRQ 
-            pic->clear(lupioBLKIntID);
+            platform->clearPciInt(lupioBLKIntID);
             break;
 
         default:
