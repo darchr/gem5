@@ -35,6 +35,8 @@
 #include "sim/system.hh"
 
 #define LUPIO_PIC_NSRC      32
+#define LUPIO_PIC_NCPU      32
+
 
 namespace gem5
 {
@@ -48,6 +50,12 @@ LupioPIC::LupioPIC(const Params &params) :
     nThread(params.num_threads),
     intType(params.int_type)
 {
+    for (int cpu = 0; cpu < nThread; cpu++) {
+        enable[cpu] = 0;
+        mask[cpu] = 0;
+    }
+
+    enable[0] = ~0;
     DPRINTF(LupioPIC, "LupioPIC initalized\n");
 }
 
@@ -74,15 +82,27 @@ LupioPIC::clear(int src_id)
 void
 LupioPIC::lupioPicUpdateIRQ()
 {
-    if (nThread > 1 ) {
-        panic("This device currently does not have SMP support\n");
-    }
+    int cpu;
 
-    auto tc = system->threads[0];
-    if (pending & mask) {
-        tc->getCpuPtr()->postInterrupt(tc->threadId(), intType, 0);
-    } else {
-        tc->getCpuPtr()->clearInterrupt(tc->threadId(), intType, 0);
+    for (cpu = 0; cpu < nThread; cpu++) {
+
+        auto tc = system->threads[cpu];
+
+        if (enable[cpu] & mask[cpu] & pending) {
+            DPRINTF(LupioPIC, "posting an interrupt to cpu %d\n", cpu);
+            tc->getCpuPtr()->postInterrupt(tc->threadId(), intType, 0);
+          //  if (cpu == 0)
+                //tc->getCpuPtr()->postInterrupt(tc->threadId(), 9, 0);
+          //  else {
+                //tc->getCpuPtr()->postInterrupt(tc->threadId(), 11, 0);
+          //  }
+        } else {
+            tc->getCpuPtr()->clearInterrupt(tc->threadId(), intType, 0);
+           // if (cpu == 0)
+           //     tc->getCpuPtr()->clearInterrupt(tc->threadId(), 9, 0);
+           //  else
+           //     tc->getCpuPtr()->clearInterrupt(tc->threadId(), 11, 0);
+        }
     }
 }
 
@@ -90,20 +110,27 @@ uint64_t
 LupioPIC::lupioPicRead(uint8_t addr)
 {
     uint32_t r = 0;
-    
-    switch (addr >> 2) {
+    int cpu, reg;
+
+    cpu = addr >> LUPIO_PIC_MAX;
+    reg = (addr >> 2) & (LUPIO_PIC_MAX - 1);
+
+    switch (reg) {
         case LUPIO_PIC_PRIO:
             // Value will be 32 if there is no unmasked pending IRQ
-            r = ctz32(pending & mask);
+            r = ctz32(pending & mask[cpu] & enable[cpu]);
             DPRINTF(LupioPIC, "Read PIC_PRIO: %d\n", r);
             break;
         case LUPIO_PIC_MASK:
-            r = mask;
+            r = mask[cpu];
             DPRINTF(LupioPIC, "Read PIC_MASK: %d\n", r);
             break;
         case LUPIO_PIC_PEND:
-			r = pending;
+                        r = (enable[cpu] & pending);
             DPRINTF(LupioPIC, "Read PIC_PEND: %d\n", r);
+            break;
+        case LUPIO_PIC_ENAB:
+            r = enable[cpu];
             break;
 
         default:
@@ -118,14 +145,22 @@ void
 LupioPIC::lupioPicWrite(uint8_t addr, uint64_t val64)
 {
     uint32_t val = val64;
+    int cpu, reg;
 
-    switch (addr >> 2) {
+    cpu = addr >> LUPIO_PIC_MAX;
+    reg = (addr >> 2) & (LUPIO_PIC_MAX - 1);
+
+    switch (reg) {
         case LUPIO_PIC_MASK:
-            mask = val;
-            DPRINTF(LupioPIC, "Write PIC_MASK: %d\n", mask);            
+            mask[cpu] = val;
+            DPRINTF(LupioPIC, "Write PIC_MASK: %d\n", val);
             lupioPicUpdateIRQ();
             break;
-
+        case LUPIO_PIC_ENAB:
+            enable[cpu] = val;
+            DPRINTF(LupioPIC, "Write PIC_ENAB: %d\n", val);
+            lupioPicUpdateIRQ();
+            break;
         default:
             panic("Unexpected write to the LupioPIC device at address %#llx!",
                     addr);

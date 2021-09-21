@@ -35,6 +35,10 @@
 #include "params/LupioPIC.hh"
 #include "sim/system.hh"
 
+
+#define LUPIO_PIC_NSRC      32
+#define LUPIO_PIC_NCPU      32
+
 namespace gem5
 {
 
@@ -51,6 +55,7 @@ class LupioPIC : public BasicPioDevice
     int nThread;
     // Type of interrupt
     int intType;
+    int ncpus;
 
     const ByteOrder byteOrder = ByteOrder::little;
 
@@ -61,13 +66,15 @@ class LupioPIC : public BasicPioDevice
         LUPIO_PIC_PRIO,
         LUPIO_PIC_MASK,
         LUPIO_PIC_PEND,
+        LUPIO_PIC_ENAB,
 
         // Max offset
         LUPIO_PIC_MAX,
     };
 
     uint32_t pending = 0;
-    uint32_t mask = 0;
+    uint32_t mask[LUPIO_PIC_NCPU];
+    uint32_t enable[LUPIO_PIC_NCPU];
 
   protected:
     /**
