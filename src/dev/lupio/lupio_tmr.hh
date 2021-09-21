@@ -35,6 +35,8 @@
 #include "dev/lupio/lupio_pic.hh"
 #include "params/LupioTMR.hh"
 
+#define LUPIO_TMR_NCPU      32
+
 namespace gem5
 {
 
@@ -49,7 +51,8 @@ class LupioTMR : public BasicPioDevice
   private:
     const ByteOrder byteOrder = ByteOrder::little;
     System *system;
-    int nThread;
+    int intType;
+    int nCPUs;
     EventFunctionWrapper tmrEvent;
 
     Tick start = 0; 
@@ -71,10 +74,8 @@ class LupioTMR : public BasicPioDevice
         LUPIO_TMR_MAX,
     };
 
-    // Internal oscillator frequency
-    uint32_t freq = 0;
+    int cpu = 0;
 
-    // Timer registers
     uint64_t reload = 0;
 
     // Control

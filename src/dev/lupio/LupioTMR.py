@@ -32,4 +32,6 @@ class LupioTMR(BasicPioDevice):
     cxx_class='gem5::LupioTMR'
     cxx_header = 'dev/lupio/lupio_tmr.hh'
     pio_size = Param.Addr(0x1000, "PIO Size")
-    num_threads = Param.Int("Number of threads in the system.")
+    int_type = Param.Int("Type of interrupt")
+    num_cores = Param.Int("Number of cores")
+

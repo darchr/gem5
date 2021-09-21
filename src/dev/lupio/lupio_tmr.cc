@@ -34,11 +34,11 @@
 #include "params/LupioTMR.hh"
 
 // Specific fields for CTRL
-#define LUPIO_TMR_IE    0x1
-#define LUPIO_TMR_PD    0x2
+#define LUPIO_TMR_IRQE    0x1
+#define LUPIO_TMR_PRDC    0x2
 
 // Specific fields for STAT
-#define LUPIO_TMR_EX    0x1
+#define LUPIO_TMR_EXPD    0x1
 
 namespace gem5
 {
@@ -48,7 +48,8 @@ using namespace RiscvISA;
 LupioTMR::LupioTMR(const Params &params) :
     BasicPioDevice(params, params.pio_size),
     system(params.system),
-    nThread(params.num_threads),
+    intType(params.int_type),
+    nCPUs(params.num_cores),
     tmrEvent([this]{ lupioTMRCallback(); }, name()),
     startCycle(0)
 {
@@ -65,20 +66,14 @@ LupioTMR::startup()
 void
 LupioTMR::updateIRQ(int level)
 {
-    if (nThread > 1) {
-        panic("This device currently does not offer SMP support\n");
-    }
-
-    auto tc = system->threads[0];
+    auto tc = system->threads[cpu];
     // post an interrupt
     if (level) {
-        tc->getCpuPtr()->postInterrupt(tc->threadId(),
-        ExceptionCode::INT_TIMER_MACHINE, 0);
+        tc->getCpuPtr()->postInterrupt(tc->threadId(), intType, 0);
     }
     // clear the interrupt
     else {
-        tc->getCpuPtr()->clearInterrupt(tc->threadId(),
-        ExceptionCode::INT_TIMER_MACHINE, 0);
+        tc->getCpuPtr()->clearInterrupt(tc->threadId(), intType, 0);
     }
 }
 
@@ -114,8 +109,12 @@ uint64_t
 LupioTMR::lupioTMRRead(uint8_t addr, int size)
 {
     uint64_t r = 0;
-    
-    switch (addr >> 2) {
+    int reg;
+
+    cpu = addr >> LUPIO_TMR_MAX;
+    reg = (addr >> 2) & (LUPIO_TMR_MAX - 1);
+
+    switch (reg) {
         case LUPIO_TMR_TIME:
             r = lupioTMRCurrentTime();
             DPRINTF(LupioTMR, "Read LUPIO_TMR_TME: %d\n", r);
@@ -126,7 +125,7 @@ LupioTMR::lupioTMRRead(uint8_t addr, int size)
             break;
         case LUPIO_TMR_STAT:
             if (expired) {
-                r |= LUPIO_TMR_EX;
+                r |= LUPIO_TMR_EXPD;
             }
 
             // Acknowledge expiration
@@ -147,16 +146,20 @@ void
 LupioTMR::lupioTMRWrite(uint8_t addr, uint64_t val64, int size)
 {
     uint32_t val = val64;
+    int reg;
 
-    switch (addr >> 2) {
+    cpu = addr >> LUPIO_TMR_MAX;
+    reg = (addr >> 2) & (LUPIO_TMR_MAX - 1);
+    DPRINTF(LupioTMR, "accsessing cpu %d\n", cpu);
+    switch (reg) {
         case LUPIO_TMR_LOAD:
             reload = val;
             DPRINTF(LupioTMR, "Write LUPIO_TMR_LOAD: %d\n", reload);
             break;
 
         case LUPIO_TMR_CTRL:
-			ie = val & LUPIO_TMR_IE;
-			pd = val & LUPIO_TMR_PD;
+                        ie = val & LUPIO_TMR_IRQE;
+                        pd = val & LUPIO_TMR_PRDC;
             DPRINTF(LupioTMR, "Write LUPIO_TMR_CTRL\n");
 
             // Stop current timer if any
