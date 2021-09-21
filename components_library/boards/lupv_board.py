@@ -43,6 +43,7 @@ from m5.objects import (
     RiscvRTC,
     Clint,
     LupioBLK,
+    LupioIPI,
     LupioPIC,
     LupioRNG,
     LupioRTC,
@@ -92,7 +93,8 @@ class LupvBoard(SimpleBoard):
             raise EnvironmentError("RiscvBoard is not compatible with Ruby")
         self.workload = RiscvLinux()
 
-        excep_code = {'INT_EXT_SUPER': 9, 'INT_EXT_MACHINE': 10}
+        excep_code = { 'INT_TIMER_MACHINE': 7, 'INT_EXT_SUPER': 9,
+                        'INT_EXT_MACHINE': 11}
 
         # CLINT
         self.clint = Clint(pio_addr=0x2000000)
@@ -100,13 +102,17 @@ class LupvBoard(SimpleBoard):
         # PLIC
         self.pic = Plic(pio_addr=0xc000000)
 
+        # LUPIO IPI
+        self.lupio_ipi = LupioIPI(pio_addr=0x20001000,
+                                    int_type = excep_code['INT_EXT_SUPER'],
+                                    num_cores = self.processor.get_num_cores())
+
         # LUPIO PIC
-        # The interrupt type is INT_EXT_SUPER
         self.lupio_pic = LupioPIC(pio_addr=0x20002000,
                                     int_type = excep_code['INT_EXT_SUPER'])
 
         # Interrupt IDs for PIC
-        int_ids = { 'TTY': 0, 'BLK': 1, 'RNG': 2}
+        int_ids = { 'TTY': 10, 'BLK': 11, 'RNG': 12}
 
         #LupV Platform
         self.lupv = LupV(pic = self.lupio_pic,
@@ -120,7 +126,9 @@ class LupvBoard(SimpleBoard):
         self.lupio_rtc = LupioRTC(pio_addr=0x20004000)
 
         # LUPIO TMR
-        self.lupio_tmr = LupioTMR(pio_addr=0x20006000)
+        self.lupio_tmr = LupioTMR(pio_addr=0x20006000,
+                                    int_type = excep_code['INT_TIMER_MACHINE'],
+                                    num_cores = self.processor.get_num_cores())
 
         # LUPIO TTY
         self.lupio_tty = LupioTTY(pio_addr=0x20007000, platform = self.lupv,
@@ -147,9 +155,8 @@ class LupvBoard(SimpleBoard):
 
         self.lupio_pic.num_threads = self.processor.get_num_cores()
 
-        self.lupio_tmr.num_threads = self.processor.get_num_cores()
-
-        self.clint.num_threads = self.processor.get_num_cores()
+#        self.clint.num_threads = self.processor.get_num_cores()
+        self.clint.num_threads = 0
 
         # Add the RTC
         # TODO: Why 100MHz? Does something else need to change when this does?
@@ -162,9 +169,10 @@ class LupvBoard(SimpleBoard):
         # Note: This overrides the platform's code because the platform isn't
         # general enough.
         self._on_chip_devices = [
-            self.clint, 
-            self.pic, 
-            self.lupio_pic, 
+            self.clint,
+            self.pic,
+            self.lupio_ipi,
+            self.lupio_pic,
             self.lupio_tmr
         ]
         self._off_chip_devices = [
@@ -203,6 +211,7 @@ class LupvBoard(SimpleBoard):
             cpu.get_mmu().pma_checker = PMAChecker(
                 uncacheable=uncacheable_range
             )
+        print("pma set up\n")
 
     @overrides(AbstractBoard)
     def has_io_bus(self) -> bool:
@@ -361,7 +370,7 @@ class LupvBoard(SimpleBoard):
         lupio_tmr_node = lupio_tmr.generateBasicPioDeviceNode(soc_state,
                             "lupio-tmr", lupio_tmr.pio_addr,
                             lupio_tmr.pio_size)
-        int_state = FdtState(addr_cells=0, interrupt_cells=1)
+        #int_state = FdtState(addr_cells=0, interrupt_cells=1)
         lupio_tmr_node.append(FdtPropertyWords("clocks", [clk_phandle]))
         int_extended = list()
         for i, core in enumerate(self.get_processor().get_cores()):
@@ -413,6 +422,22 @@ class LupvBoard(SimpleBoard):
         lupio_pic_node.append(FdtProperty("interrupt-controller"))
         lupio_pic_node.appendCompatible(["lupio,pic"])
         soc_node.append(lupio_pic_node)
+
+        # LupioIPI Device
+        lupio_ipi = self.lupio_ipi
+        lupio_ipi_node = lupio_ipi.generateBasicPioDeviceNode(soc_state,
+                                "lupio-ipi", lupio_ipi.pio_addr,
+                                lupio_ipi.pio_size)
+        int_extended = list()
+        for i, core in enumerate(self.get_processor().get_cores()):
+            phandle = state.phandle(f"cpu@{i}.int_state")
+            int_extended.append(phandle)
+            int_extended.append(0x1)    #IRQ_S_SOFT
+        lupio_ipi_node.append(
+            FdtPropertyWords("interrupts-extended", int_extended))
+        lupio_ipi_node.append(FdtProperty("interrupt-controller"))
+        lupio_ipi_node.appendCompatible(["lupio,ipi"])
+        soc_node.append(lupio_ipi_node)
 
         # LupioBLK Device
         lupio_blk = self.lupio_blk
