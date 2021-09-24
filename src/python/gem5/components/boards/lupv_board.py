@@ -25,14 +25,14 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import os
 from typing import Optional
-from ..utils.override import overrides
+from ...utils.override import overrides
 from .simple_board import SimpleBoard
 from .abstract_board import AbstractBoard
 from ..processors.abstract_processor import AbstractProcessor
 from ..memory.abstract_memory_system import AbstractMemorySystem
 from ..cachehierarchies.abstract_cache_hierarchy import AbstractCacheHierarchy
-from ..isas import ISA
-from ..runtime import get_runtime_isa
+from ...isas import ISA
+from ...runtime import get_runtime_isa
 import m5
 from m5.objects import (
     Bridge,
@@ -162,9 +162,9 @@ class LupvBoard(SimpleBoard):
         # Note: This overrides the platform's code because the platform isn't
         # general enough.
         self._on_chip_devices = [
-            self.clint, 
-            self.pic, 
-            self.lupio_pic, 
+            self.clint,
+            self.pic,
+            self.lupio_pic,
             self.lupio_tmr
         ]
         self._off_chip_devices = [
