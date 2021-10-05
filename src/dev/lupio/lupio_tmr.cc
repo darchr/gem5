@@ -148,8 +148,8 @@ LupioTMR::lupioTMRWrite(uint8_t addr, uint64_t val64, int size)
             break;
 
         case LUPIO_TMR_CTRL:
-			ie = val & LUPIO_TMR_IE;
-			pd = val & LUPIO_TMR_PD;
+		    ie = val & LUPIO_TMR_IE;
+		    pd = val & LUPIO_TMR_PD;
             DPRINTF(LupioTMR, "Write LUPIO_TMR_CTRL\n");
 
             // Stop current timer if any
@@ -181,7 +181,6 @@ LupioTMR::read(PacketPtr pkt)
 
     uint64_t read_val = lupioTMRRead(pic_addr, pkt->getSize());
     DPRINTF(LupioTMR, "Packet Read: %#x\n", read_val);
-    DPRINTF(LupioTMR, "Packet Read: %d\n", read_val);
     pkt->setUintX(read_val, byteOrder);
     pkt->makeResponse();
 

@@ -69,9 +69,6 @@ class LupioTMR : public BasicPioDevice
         LUPIO_TMR_MAX,
     };
 
-    // Internal oscillator frequency
-    uint32_t freq = 0;
-
     // Timer registers
     uint64_t reload = 0;
 
