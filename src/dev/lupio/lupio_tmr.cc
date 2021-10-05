@@ -50,8 +50,6 @@ LupioTMR::LupioTMR(const Params &params) :
     system(params.system),
     nThread(params.num_threads),
     tmrEvent([this]{ lupioTMRCallback(); }, name()),
-    startCycle(0)
-
 {
     DPRINTF(LupioTMR, "LupioTMR initalized\n");
 }
@@ -85,8 +83,10 @@ LupioTMR::lupioTMRCurrentTime()
 void
 LupioTMR::lupioTMRSet()
 {
-    startCycle = curCycle(); 
-    schedule(tmrEvent, Cycles(reload + curTick())); 
+    startTime = curTick();
+    if (!tmrEvent.scheduled()) {
+        schedule(tmrEvent, (reload * sim_clock::as_int::ns) + curTick());
+    }
 }
 
 void
@@ -154,7 +154,8 @@ LupioTMR::lupioTMRWrite(uint8_t addr, uint64_t val64, int size)
             DPRINTF(LupioTMR, "Write LUPIO_TMR_CTRL\n");
 
             // Stop current timer if any
-            if (curCycle() < startCycle + reload) {
+            if (curTick() < startTime + (reload * sim_clock::as_int::ns)
+                && tmrEvent.scheduled()) {
                 deschedule(tmrEvent);
             }
 

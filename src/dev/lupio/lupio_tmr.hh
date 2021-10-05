@@ -54,7 +54,7 @@ class LupioTMR : public BasicPioDevice
 
     Tick start = 0; 
     Tick next = 0; 
-    Cycles startCycle;
+    Tick startTime = 0;
 
     // Register map
     enum
