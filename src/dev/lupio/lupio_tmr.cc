@@ -51,15 +51,9 @@ LupioTMR::LupioTMR(const Params &params) :
     nThread(params.num_threads),
     tmrEvent([this]{ lupioTMRCallback(); }, name()),
     startCycle(0)
-{
-    start = curTick(); 
-    DPRINTF(LupioTMR, "LupioTMR initalized\n");
-}
 
-void
-LupioTMR::startup()
 {
-    startCycle = curCycle();
+    DPRINTF(LupioTMR, "LupioTMR initalized\n");
 }
 
 void
@@ -85,7 +79,7 @@ LupioTMR::updateIRQ(int level)
 uint64_t
 LupioTMR::lupioTMRCurrentTime()
 {
-    return (curTick() - start) / sim_clock::as_int::ns; 
+    return curTick() / sim_clock::as_int::ns;
 }
 
 void
