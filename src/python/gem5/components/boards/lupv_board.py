@@ -104,18 +104,18 @@ class LupvBoard(SimpleBoard):
 
         # LUPIO PIC
         self.lupio_pic = LupioPIC(pio_addr=0x20002000,
-                                    int_type = self._excep_code['INT_EXT_SUPER'])
+                                  int_type = self._excep_code['INT_EXT_SUPER'])
 
         # Interrupt IDs for PIC
         int_ids = { 'TTY': 0, 'BLK': 1, 'RNG': 2}
 
         #LupV Platform
         self.lupv = LupV(pic = self.lupio_pic,
-                        uart_int_id = int_ids['TTY'])
+                         uart_int_id = int_ids['TTY'])
 
         # LUPIO RNG
         self.lupio_rng = LupioRNG(pio_addr=0x20005000, platform = self.lupv,
-                                    int_id = int_ids['RNG'])
+                                  int_id = int_ids['RNG'])
 
         # LUPIO RTC
         self.lupio_rtc = LupioRTC(pio_addr=0x20004000)
@@ -126,12 +126,12 @@ class LupvBoard(SimpleBoard):
 
         # LUPIO TTY
         self.lupio_tty = LupioTTY(pio_addr=0x20007000, platform = self.lupv,
-                                    int_id = int_ids['TTY'])
+                                  int_id = int_ids['TTY'])
         self.terminal = Terminal()
 
         # LUPIO BLK
         self.lupio_blk = LupioBLK(pio_addr=0x20000000, platform = self.lupv,
-                                    int_id = int_ids['BLK'])
+                                  int_id = int_ids['BLK'])
 
         # Note: This only works with single threaded cores.
         self.pic.n_contexts = self.processor.get_num_cores()
