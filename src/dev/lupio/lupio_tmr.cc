@@ -50,6 +50,7 @@ LupioTMR::LupioTMR(const Params &params) :
     system(params.system),
     nThread(params.num_threads),
     tmrEvent([this]{ lupioTMRCallback(); }, name()),
+    intType(params.int_type)
 {
     DPRINTF(LupioTMR, "LupioTMR initalized\n");
 }
@@ -64,13 +65,11 @@ LupioTMR::updateIRQ(int level)
     auto tc = system->threads[0];
     // post an interrupt
     if (level) {
-        tc->getCpuPtr()->postInterrupt(tc->threadId(),
-        ExceptionCode::INT_TIMER_MACHINE, 0);
+        tc->getCpuPtr()->postInterrupt(tc->threadId(), intType, 0);
     }
     // clear the interrupt
     else {
-        tc->getCpuPtr()->clearInterrupt(tc->threadId(),
-        ExceptionCode::INT_TIMER_MACHINE, 0);
+        tc->getCpuPtr()->clearInterrupt(tc->threadId(), intType, 0);
     }
 }
 

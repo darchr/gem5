@@ -51,6 +51,7 @@ class LupioTMR : public BasicPioDevice
     System *system;
     int nThread;
     EventFunctionWrapper tmrEvent;
+    int intType;
 
     Tick start = 0; 
     Tick next = 0; 
