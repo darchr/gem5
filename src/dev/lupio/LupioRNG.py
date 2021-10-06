@@ -37,6 +37,5 @@ class LupioRNG(BasicPioDevice):
     cxx_header = 'dev/lupio/lupio_rng.hh'
     pio_size = Param.Addr(0x1000, "PIO Size")
     seed = Param.Int(0, "Initial seed for the random number generator")
-    if buildEnv['TARGET_ISA'] == 'riscv':
-        plic = Param.Plic(Parent.any, "PLIC")
-        lupio_rng_int_id = Param.Int(3, "Interrupt ID for the RNG")
+    plic = Param.Plic(Parent.any, "PLIC")
+    int_id = Param.Int(2, "Interrupt ID for the RNG")

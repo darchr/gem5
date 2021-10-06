@@ -48,6 +48,7 @@ from m5.objects import (
     IOXBar,
     RiscvRTC,
     HiFive,
+    LupioRNG,
     LupioRTC,
     CowDiskImage,
     RawDiskImage,
@@ -119,6 +120,16 @@ class LupvBoard(SimpleBoard):
             pio_addr=0x10008000,
         )
 
+        # Interrupt IDs for PIC
+        int_ids = {'RNG': 2}
+
+        #LUPIO RNG
+        self.lupio_rng = LupioRNG(
+            pio_addr=0x20005000,
+            int_id = int_ids['RNG'],
+            plic = self.platform.plic
+        )
+
         # LUPIO RTC
         self.lupio_rtc = LupioRTC(pio_addr=0x20004000)
 
@@ -131,6 +142,7 @@ class LupvBoard(SimpleBoard):
         self._off_chip_devices = [
             self.platform.uart,
             self.disk,
+            self.lupio_rng,
             self.lupio_rtc
         ]
 
@@ -381,6 +393,21 @@ class LupvBoard(SimpleBoard):
         )
         disk_node.appendCompatible(["virtio,mmio"])
         soc_node.append(disk_node)
+
+        # LupioRNG Device
+        lupio_rng = self.lupio_rng
+        lupio_rng_node = lupio_rng.generateBasicPioDeviceNode(
+            soc_state, "lupio-rng", lupio_rng.pio_addr,lupio_rng.pio_size)
+        lupio_rng_node.appendCompatible(["lupio,rng"])
+
+        lupio_rng_node.append(
+                FdtPropertyWords("interrupts",
+                [self.lupio_rng.int_id]))
+
+        lupio_rng_node.append(
+                FdtPropertyWords("interrupt-parent",
+                state.phandle(self.platform.plic)))
+        soc_node.append(lupio_rng_node)
 
         # LupioRTC Device
         lupio_rtc = self.lupio_rtc
