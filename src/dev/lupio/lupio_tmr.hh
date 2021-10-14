@@ -53,8 +53,6 @@ class LupioTMR : public BasicPioDevice
     EventFunctionWrapper tmrEvent;
     int intType;
 
-    Tick start = 0; 
-    Tick next = 0; 
     Tick startTime = 0;
 
     // Register map
