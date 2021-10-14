@@ -92,7 +92,9 @@ class LupvBoard(SimpleBoard):
             raise EnvironmentError("RiscvBoard is not compatible with Ruby")
         self.workload = RiscvLinux()
 
-        excep_code = {'INT_EXT_SUPER': 9, 'INT_EXT_MACHINE': 10}
+        self._excep_code = { 'INT_SOFT_SUPER': 1, 'INT_TIMER_SUPER': 5,
+                             'INT_TIMER_MACHINE': 7, 'INT_EXT_SUPER': 9,
+                             'INT_EXT_MACHINE': 10 }
 
         # CLINT
         self.clint = Clint(pio_addr=0x2000000)
@@ -101,35 +103,35 @@ class LupvBoard(SimpleBoard):
         self.pic = Plic(pio_addr=0xc000000)
 
         # LUPIO PIC
-        # The interrupt type is INT_EXT_SUPER
         self.lupio_pic = LupioPIC(pio_addr=0x20002000,
-                                    int_type = excep_code['INT_EXT_SUPER'])
+                                  int_type = self._excep_code['INT_EXT_SUPER'])
 
         # Interrupt IDs for PIC
         int_ids = { 'TTY': 0, 'BLK': 1, 'RNG': 2}
 
         #LupV Platform
         self.lupv = LupV(pic = self.lupio_pic,
-                        uart_int_id = int_ids['TTY'])
+                         uart_int_id = int_ids['TTY'])
 
         # LUPIO RNG
         self.lupio_rng = LupioRNG(pio_addr=0x20005000, platform = self.lupv,
-                                    int_id = int_ids['RNG'])
+                                  int_id = int_ids['RNG'])
 
         # LUPIO RTC
         self.lupio_rtc = LupioRTC(pio_addr=0x20004000)
 
         # LUPIO TMR
-        self.lupio_tmr = LupioTMR(pio_addr=0x20006000)
+        self.lupio_tmr = LupioTMR(pio_addr=0x20006000,
+                                  int_type = self._excep_code['INT_TIMER_SUPER'])
 
         # LUPIO TTY
         self.lupio_tty = LupioTTY(pio_addr=0x20007000, platform = self.lupv,
-                                    int_id = int_ids['TTY'])
+                                  int_id = int_ids['TTY'])
         self.terminal = Terminal()
 
         # LUPIO BLK
         self.lupio_blk = LupioBLK(pio_addr=0x20000000, platform = self.lupv,
-                                    int_id = int_ids['BLK'])
+                                  int_id = int_ids['BLK'])
 
         # Note: This only works with single threaded cores.
         self.pic.n_contexts = self.processor.get_num_cores()
@@ -269,6 +271,7 @@ class LupvBoard(SimpleBoard):
         Creates two files in the outdir: 'device.dtb' and 'device.dts'
         :param outdir: Directory to output the files
         """
+
         state = FdtState(addr_cells=2, size_cells=2, cpu_cells=1)
         root = FdtNode("/")
         root.append(state.addrCellsProperty())
@@ -367,7 +370,7 @@ class LupvBoard(SimpleBoard):
         for i, core in enumerate(self.get_processor().get_cores()):
             phandle = state.phandle(f"cpu@{i}.int_state")
             int_extended.append(phandle)
-            int_extended.append(0x5)    #IRQ_S_TIMER
+            int_extended.append(self._excep_code['INT_TIMER_SUPER'])
         lupio_tmr_node.append(
             FdtPropertyWords("interrupts-extended", int_extended))
         lupio_tmr_node.appendCompatible(["lupio,tmr"])
@@ -388,7 +391,7 @@ class LupvBoard(SimpleBoard):
         for i, core in enumerate(self.get_processor().get_cores()):
             phandle = state.phandle(f"cpu@{i}.int_state")
             int_extended.append(phandle)
-            int_extended.append(0xB)    #IRQ_M_EXT
+            int_extended.append(self._excep_code['INT_EXT_MACHINE'])
         plic_node.append(FdtPropertyWords("interrupts-extended", int_extended))
         plic_node.append(FdtProperty("interrupt-controller"))
         plic_node.appendCompatible(["riscv,plic0"])
@@ -407,7 +410,7 @@ class LupvBoard(SimpleBoard):
         for i, core in enumerate(self.get_processor().get_cores()):
             phandle = state.phandle(f"cpu@{i}.int_state")
             int_extended.append(phandle)
-            int_extended.append(0x9)    #IRQ_S_EXT
+            int_extended.append(self._excep_code['INT_EXT_SUPER'])
         lupio_pic_node.append(
             FdtPropertyWords("interrupts-extended", int_extended))
         lupio_pic_node.append(FdtProperty("interrupt-controller"))
@@ -466,3 +469,4 @@ class LupvBoard(SimpleBoard):
         fdt.add_rootnode(root)
         fdt.writeDtsFile(os.path.join(outdir, "device.dts"))
         fdt.writeDtbFile(os.path.join(outdir, "device.dtb"))
+

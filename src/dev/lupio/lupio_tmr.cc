@@ -50,16 +50,9 @@ LupioTMR::LupioTMR(const Params &params) :
     system(params.system),
     nThread(params.num_threads),
     tmrEvent([this]{ lupioTMRCallback(); }, name()),
-    startCycle(0)
+    intType(params.int_type)
 {
-    start = curTick(); 
     DPRINTF(LupioTMR, "LupioTMR initalized\n");
-}
-
-void
-LupioTMR::startup()
-{
-    startCycle = curCycle();
 }
 
 void
@@ -72,27 +65,27 @@ LupioTMR::updateIRQ(int level)
     auto tc = system->threads[0];
     // post an interrupt
     if (level) {
-        tc->getCpuPtr()->postInterrupt(tc->threadId(),
-        ExceptionCode::INT_TIMER_MACHINE, 0);
+        tc->getCpuPtr()->postInterrupt(tc->threadId(), intType, 0);
     }
     // clear the interrupt
     else {
-        tc->getCpuPtr()->clearInterrupt(tc->threadId(),
-        ExceptionCode::INT_TIMER_MACHINE, 0);
+        tc->getCpuPtr()->clearInterrupt(tc->threadId(), intType, 0);
     }
 }
 
 uint64_t
 LupioTMR::lupioTMRCurrentTime()
 {
-    return (curTick() - start) / sim_clock::as_int::ns; 
+    return curTick() / sim_clock::as_int::ns;
 }
 
 void
 LupioTMR::lupioTMRSet()
 {
-    startCycle = curCycle(); 
-    schedule(tmrEvent, Cycles(reload + curTick())); 
+    startTime = curTick();
+    if (!tmrEvent.scheduled()) {
+        schedule(tmrEvent, (reload * sim_clock::as_int::ns) + curTick());
+    }
 }
 
 void
@@ -155,12 +148,13 @@ LupioTMR::lupioTMRWrite(uint8_t addr, uint64_t val64, int size)
             break;
 
         case LUPIO_TMR_CTRL:
-			ie = val & LUPIO_TMR_IE;
-			pd = val & LUPIO_TMR_PD;
+		    ie = val & LUPIO_TMR_IE;
+		    pd = val & LUPIO_TMR_PD;
             DPRINTF(LupioTMR, "Write LUPIO_TMR_CTRL\n");
 
             // Stop current timer if any
-            if (curCycle() < startCycle + reload) {
+            if (curTick() < startTime + (reload * sim_clock::as_int::ns)
+                && tmrEvent.scheduled()) {
                 deschedule(tmrEvent);
             }
 
@@ -187,7 +181,6 @@ LupioTMR::read(PacketPtr pkt)
 
     uint64_t read_val = lupioTMRRead(pic_addr, pkt->getSize());
     DPRINTF(LupioTMR, "Packet Read: %#x\n", read_val);
-    DPRINTF(LupioTMR, "Packet Read: %d\n", read_val);
     pkt->setUintX(read_val, byteOrder);
     pkt->makeResponse();
 

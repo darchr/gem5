@@ -51,13 +51,9 @@ class LupioTMR : public BasicPioDevice
     System *system;
     int nThread;
     EventFunctionWrapper tmrEvent;
+    int intType;
 
-    Tick start = 0; 
-    Tick next = 0; 
-    Cycles startCycle;
-
-    // Start ticking
-    virtual void startup();
+    Tick startTime = 0;
 
     // Register map
     enum
@@ -70,9 +66,6 @@ class LupioTMR : public BasicPioDevice
         // Max offset 
         LUPIO_TMR_MAX,
     };
-
-    // Internal oscillator frequency
-    uint32_t freq = 0;
 
     // Timer registers
     uint64_t reload = 0;
