@@ -43,4 +43,4 @@ class LupioBLK(DmaDevice):
     latency = Param.Latency('0ns', "DMA Device Latency")
     platform = Param.Platform(Parent.any,
                               "Platform this device is part of.")
-    int_id = Param.Int(0xb, "Interrupt ID");
+    int_id = Param.Int("Interrupt ID")
