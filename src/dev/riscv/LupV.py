@@ -24,18 +24,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from m5.objects.Platform import Platform
 from m5.params import Param
-from m5.proxy import *
-from m5.util.fdthelper import *
 
-from m5.objects.Device import BasicPioDevice
-from m5.objects.Serial import SerialDevice
-
-class LupioTTY(BasicPioDevice):
-    type = 'LupioTTY'
-    cxx_class = 'gem5::LupioTTY'
-    cxx_header = "dev/lupio/lupio_tty.hh"
-    terminal = Param.SerialDevice(Parent.any, "The terminal")
-    pio_size = Param.Addr(0x1000, "PIO size")
-    platform = Param.Platform("Platform this device is part of")
-    int_id = Param.Int("Interrupt ID for the TTY")
+class LupV(Platform):
+    type = 'LupV'
+    cxx_header = "dev/riscv/lupv.hh"
+    cxx_class = 'gem5::LupV'
+    pic = Param.Plic("PIC")
+    uart_int_id = Param.Int("PLIC LupioTTY interrupt ID")
