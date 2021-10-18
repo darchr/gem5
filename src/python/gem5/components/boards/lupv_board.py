@@ -47,9 +47,13 @@ from m5.objects import (
     AddrRange,
     IOXBar,
     RiscvRTC,
-    HiFive,
+    Clint,
+    Plic,
     LupioRNG,
     LupioRTC,
+    LupioTTY,
+    LupV,
+    Terminal,
     CowDiskImage,
     RawDiskImage,
     MmioVirtIO,
@@ -98,16 +102,29 @@ class LupvBoard(SimpleBoard):
 
 
         # Contains a CLINT, PLIC, UART, and some functions for the dtb, etc.
-        self.platform = HiFive()
+        # self.platform = HiFive()
+        # CLINT
+        self.clint = Clint(pio_addr=0x2000000)
+
+        # PLIC
+        self.plic = Plic(pio_addr=0xc000000)
+
         # Note: This only works with single threaded cores.
-        self.platform.plic.n_contexts = self.processor.get_num_cores() * 2
-        self.platform.attachPlic()
-        self.platform.clint.num_threads = self.processor.get_num_cores()
+        self.plic.n_contexts = self.processor.get_num_cores() * 2
+        # self.attachPlic()
+
+        self.clint.num_threads = self.processor.get_num_cores()
+
+        # Interrupt IDs for PIC
+        int_ids = {'TTY': 1,'RNG': 2, 'DISK': 3}
+
+        self.platform = LupV(pic = self.plic,
+                uart_int_id = int_ids['TTY'])
 
         # Add the RTC
         # TODO: Why 100MHz? Does something else need to change when this does?
-        self.platform.rtc = RiscvRTC(frequency=Frequency("100MHz"))
-        self.platform.clint.int_pin = self.platform.rtc.int_pin
+        self.rtc = RiscvRTC(frequency=Frequency("100MHz"))
+        self.clint.int_pin = self.rtc.int_pin
 
         # Incoherent I/O bus
         self.iobus = IOXBar()
@@ -115,32 +132,40 @@ class LupvBoard(SimpleBoard):
         # The virtio disk
         self.disk = MmioVirtIO(
             vio=VirtIOBlock(),
-            interrupt_id=0x8,
+            interrupt_id=int_ids['DISK'],
             pio_size=4096,
             pio_addr=0x10008000,
         )
-
-        # Interrupt IDs for PIC
-        int_ids = {'RNG': 2}
 
         #LUPIO RNG
         self.lupio_rng = LupioRNG(
             pio_addr=0x20005000,
             int_id = int_ids['RNG'],
-            plic = self.platform.plic
+            plic = self.plic
         )
 
         # LUPIO RTC
         self.lupio_rtc = LupioRTC(pio_addr=0x20004000)
 
+        # LUPIO TTY
+        self.lupio_tty = LupioTTY(
+            pio_addr=0x20007000,
+            int_id = int_ids['TTY'],
+            platform = self.platform
+        )
+        self.terminal = Terminal()
+
+        plic_srcs = [self.lupio_tty.int_id, self.lupio_rng.int_id]
+        self.plic.n_src = max(plic_srcs) + 2
+
         # Note: This overrides the platform's code because the platform isn't
         # general enough.
         self._on_chip_devices = [
-            self.platform.clint,
-            self.platform.plic
+            self.clint,
+            self.plic
         ]
         self._off_chip_devices = [
-            self.platform.uart,
+            self.lupio_tty,
             self.disk,
             self.lupio_rng,
             self.lupio_rtc
@@ -229,7 +254,7 @@ class LupvBoard(SimpleBoard):
 
         # Linux boot command flags
         kernel_cmd = [
-            "console=ttyS0",
+            "console=ttyLIO0",
             "root=/dev/vda1",
             "ro"
         ]
@@ -322,7 +347,7 @@ class LupvBoard(SimpleBoard):
         soc_node.appendCompatible(["simple-bus"])
 
         # CLINT node
-        clint = self.platform.clint
+        clint = self.clint
         clint_node = clint.generateBasicPioDeviceNode(
             soc_state, "clint", clint.pio_addr, clint.pio_size
         )
@@ -340,7 +365,7 @@ class LupvBoard(SimpleBoard):
         soc_node.append(clint_node)
 
         # PLIC node
-        plic = self.platform.plic
+        plic = self.plic
         plic_node = plic.generateBasicPioDeviceNode(
             soc_state, "plic", plic.pio_addr, plic.pio_size
         )
@@ -367,21 +392,6 @@ class LupvBoard(SimpleBoard):
 
         soc_node.append(plic_node)
 
-        # UART node
-        uart = self.platform.uart
-        uart_node = uart.generateBasicPioDeviceNode(
-            soc_state, "uart", uart.pio_addr, uart.pio_size
-        )
-        uart_node.append(
-            FdtPropertyWords("interrupts", [self.platform.uart_int_id])
-        )
-        uart_node.append(FdtPropertyWords("clock-frequency", [0x384000]))
-        uart_node.append(
-            FdtPropertyWords("interrupt-parent", soc_state.phandle(plic))
-        )
-        uart_node.appendCompatible(["ns8250"])
-        soc_node.append(uart_node)
-
         # VirtIO MMIO disk node
         disk = self.disk
         disk_node = disk.generateBasicPioDeviceNode(
@@ -389,7 +399,7 @@ class LupvBoard(SimpleBoard):
         )
         disk_node.append(FdtPropertyWords("interrupts", [disk.interrupt_id]))
         disk_node.append(
-            FdtPropertyWords("interrupt-parent", soc_state.phandle(plic))
+            FdtPropertyWords("interrupt-parent", state.phandle(self.plic))
         )
         disk_node.appendCompatible(["virtio,mmio"])
         soc_node.append(disk_node)
@@ -406,7 +416,7 @@ class LupvBoard(SimpleBoard):
 
         lupio_rng_node.append(
                 FdtPropertyWords("interrupt-parent",
-                state.phandle(self.platform.plic)))
+                state.phandle(self.plic)))
         soc_node.append(lupio_rng_node)
 
         # LupioRTC Device
@@ -416,6 +426,21 @@ class LupvBoard(SimpleBoard):
         )
         lupio_rtc_node.appendCompatible(["lupio,rtc"])
         soc_node.append(lupio_rtc_node)
+
+        # LupioTTY Device
+        lupio_tty = self.lupio_tty
+        lupio_tty_node = lupio_tty.generateBasicPioDeviceNode(
+            soc_state, "lupio-tty", lupio_tty.pio_addr, lupio_tty.pio_size)
+        lupio_tty_node.appendCompatible(["lupio,tty"])
+
+        lupio_tty_node.append(
+                FdtPropertyWords("interrupts",
+                [self.lupio_tty.int_id]))
+
+        lupio_tty_node.append(
+                FdtPropertyWords("interrupt-parent",
+                state.phandle(self.plic)))
+        soc_node.append(lupio_tty_node)
 
         root.append(soc_node)
 
