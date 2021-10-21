@@ -188,11 +188,15 @@ class PrivateL1CacheHierarchy(AbstractRubyCacheHierarchy):
                     board.get_cache_line_size(),
                     board.get_clock_domain(),
                 )
-                ctrl.dma_sequencer = DMASequencer(version=i, in_ports=port)
-                ctrl.dma_sequencer.dcache = NULL
+                version = len(board.get_processor().get_cores()) + i
+                ctrl.sequencer = RubySequencer(
+                    version=version,
+                    in_ports=port
+                )
+                ctrl.sequencer.dcache = NULL
 
                 ctrl.ruby_system = self.ruby_system
-                ctrl.dma_sequencer.ruby_system = self.ruby_system
+                ctrl.sequencer.ruby_system = self.ruby_system
 
                 self._dma_controllers.append(ctrl)
 
