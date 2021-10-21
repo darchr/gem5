@@ -1,0 +1,95 @@
+# Copyright (c) 2021 The Regents of the University of California
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met: redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer;
+# redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution;
+# neither the name of the copyright holders nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+"""
+This example runs a simple linux boot.
+
+Characteristics
+---------------
+
+* Runs exclusively on the RISC-V ISA with the classic caches
+* Assumes that the kernel is compiled into the bootloader
+* Automatically generates the DTB file
+* Will boot but requires a user to login using `m5term` (username: `root`,
+  password: `root`)
+"""
+
+import m5
+from m5.objects import Root
+
+from gem5.runtime import get_runtime_isa
+from gem5.components.boards.riscv_board import RiscvBoard
+from gem5.components.memory.single_channel import SingleChannelDDR3_1600
+from gem5.components.processors.simple_processor import SimpleProcessor
+from gem5.components.processors.cpu_types import CPUTypes
+from gem5.isas import ISA
+from gem5.utils.requires import requires
+from gem5.resources.resource import Resource
+
+# Run a check to ensure the right version of gem5 is being used.
+requires(isa_required=ISA.RISCV)
+
+from chi.chi import PrivateL1CacheHierarchy
+
+# Setup the cache hierarchy. PrivateL1PrivateL2 and NoCache have been tested.
+cache_hierarchy = PrivateL1CacheHierarchy(
+    '32KiB',
+    8
+)
+
+# Setup the system memory.
+memory = SingleChannelDDR3_1600(size='512MiB')
+
+# Setup a single core Processor.
+processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, num_cores=4)
+
+# Setup the board.
+board = RiscvBoard(
+    clk_freq="1GHz",
+    processor=processor,
+    memory=memory,
+    cache_hierarchy=cache_hierarchy,
+)
+
+board.connect_things()
+
+# Set the Full System workload.
+board.set_workload(disk_image=Resource("riscv-disk-img"),
+                   bootloader=Resource("riscv-bootloader-vmlinux-5.10"))
+
+root = Root(full_system=True, system=board)
+
+m5.instantiate()
+
+print("Beginning simulation!")
+# Note: This simulation will never stop. You can access the terminal upon boot
+# using m5term (`./util/term`): `./m5term localhost <port>`. Note the `<port>`
+# value is obtained from the gem5 terminal stdout. Look out for
+# "system.platform.terminal: Listening for connections on port <port>".
+exit_event = m5.simulate()
+print(
+    "Exiting @ tick {} because {}.".format(m5.curTick(), exit_event.getCause())
+)
