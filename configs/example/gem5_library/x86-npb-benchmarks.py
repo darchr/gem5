@@ -1,5 +1,6 @@
 # Copyright (c) 2021 The Regents of the University of California.
 # All rights reserved.
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met: redistributions of source code must retain the above copyright
@@ -22,30 +23,25 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# Authors: Jason Lowe-Power, Ayaz Akram
 
-""" Script to run NAS parallel benchmarks with gem5.
-    The script expects kernel, diskimage, mem_sys,
-    cpu (kvm, atomic, or timing), benchmark to run
-    and number of cpus as arguments.
+""" 
+Script to run NAS parallel benchmarks with gem5. The script expects the
+benchmark program to run. The input is in the format
+<benchmark_prog>.<class>.x .The system is fixed with 2 CPU cores, MESI
+Two Level system cache and 3 GB DDR4 memory. It uses the x86 board.
 
-    If your application has ROI annotations, this script will count the total
-    number of instructions executed in the ROI. It also tracks how much
-    wallclock and simulated time.
+This script will count the total number of instructions executed
+in the ROI. It also tracks how much wallclock and simulated time.
 
-    The original implmentation is modified. It is now translated to use the 
-    gem5 components library.
-
-    1. Place this file in configs/example/gem5_library/
-    2. Clone and build gem5 (develop) with:
-        a. X86 ISA
-        b. MESI_Two_Level cache
-    3. kvm is required
-    4. Use the following to run:
-        $  M5_OVERRIDE_PY_SOURCE=true build/X86_MESI_Two_Level/gem5.opt
-            configs/example/gem5_library/x86-npb-benchmarks.py
-            <benchmark_name>
+Usage:
+------
+    
+```
+scons build/X86_MESI_Two_Level/gem5.opt
+./build/X86_MESI_Two_Level/gem5.opt \
+    configs/example/gem5_library/x86-npb-benchmarks.py \
+    <benchmark>
+```
 """
 
 import argparse
@@ -56,8 +52,7 @@ from m5.objects import Root
 from gem5.utils.requires import requires
 from gem5.components.boards.x86_board import X86Board
 from gem5.components.memory.single_channel import SingleChannelDDR4_2400
-#from gem5.components.memory.multi_channel import MultiChannelMemory
-from gem5.components.processors.simple_switchable_processor import (
+from gem5.components.processors.simple_switchable_processor import(
     SimpleSwitchableProcessor,
 )
 from gem5.components.processors.cpu_types import CPUTypes
@@ -67,7 +62,7 @@ from gem5.resources.resource import Resource
 
 from m5.stats.gem5stats import get_simstat
 
-import os
+import os, json
 
 requires(
     isa_required = ISA.X86,
@@ -92,8 +87,24 @@ benchmark_choices = ['bt.A.x', 'cg.A.x', 'ep.A.x', 'ft.A.x',
 # Setting up all the fixed system parameters here
 # Caches: MESI Two Level Cache Hierarchy
 
+
+parser = argparse.ArgumentParser(
+    description="An example configuration script to run the npb benchmarks."
+)
+
+# The only positional argument accepted is the benchmark name in this script.
+ 
+parser.add_argument(
+    "benchmark",
+    type = str,
+    help = "Input the benchmark program to execute.",
+    choices = benchmark_choices,
+)
+
+args = parser.parse_args()
+
 from gem5.components.cachehierarchies.ruby.\
-    mesi_two_level_cache_hierarchy import (
+    mesi_two_level_cache_hierarchy import(
     MESITwoLevelCacheHierarchy,
 )
 
@@ -135,21 +146,6 @@ board = X86Board(
 
 board.connect_things()
 
-parser = argparse.ArgumentParser(
-    description="An example configuration script to run the npb benchmarks."
-)
-
-# The only positional argument accepted is the benchmark name in this script.
- 
-parser.add_argument(
-    "benchmark",
-    type = str,
-    help = "Input the benchmark program to execute.",
-    choices = benchmark_choices,
-)
-
-args = parser.parse_args ()
-
 # Here we set the FS workload, i.e., npb benchmark program
 command = "/home/gem5/NPB3.3-OMP/bin/{} \n".format(args.benchmark) + ";" \
     + "sleep 5;" \
@@ -161,36 +157,12 @@ board.set_workload(
     # npb benchamarks was tested with kernel version 4.19.83
     kernel=Resource(
         "x86-linux-kernel-4.19.83",
-        resource_directory=os.path.join(
-            os.path.dirname(
-                os.path.dirname(
-                    os.path.dirname(
-                        os.path.dirname(os.path.realpath(__file__))
-                    )
-                )
-            ),
-            "tests",
-            "gem5",
-            "resources",
-        ),
         override=True,
     ),
-    # The x86 ubuntu image will be automatically downloaded to the
+    # The x86-npb image will be automatically downloaded to the
     # `tests/gem5/resources` directory if not already present.
     disk_image=Resource(
         "x86-npb",
-        resource_directory=os.path.join(
-            os.path.dirname(
-                os.path.dirname(
-                    os.path.dirname(
-                        os.path.dirname(os.path.realpath(__file__))
-                    )
-                )
-            ),
-            "tests",
-            "gem5",
-            "resources",
-        ),
         override=True,
     ),
     command=command,
@@ -203,44 +175,39 @@ m5.instantiate()
 
 # We maintain the wall clock time.
 
-globalStart = time.time ()
+globalStart = time.time()
 
 print("Running the simulation")
 print("Using KVM cpu")
 
 exit_event = m5.simulate()
 
-print (exit_event.getCause ())
-
-if exit_event.getCause () == "m5_exit instruction encountered":
+if exit_event.getCause() == "m5_exit instruction encountered":
     
     # We have completed booting the OS
 
-    print ("Done booting Linux")
-    print ("Resetting stats at the start of ROI!")
-    m5.stats.reset ()
-    start_tick = m5.curTick ()
+    print("Done booting Linux")
+    print("Resetting stats at the start of ROI!")
+    m5.stats.reset()
+    start_tick = m5.curTick()
 
     # We switch to timing cpu for detailed simulation.
 
-    processor.switch ()
+    processor.switch()
 else:
-    print ("Unexpected termination of simulation !")
-    exit ()
+    print("Unexpected termination of simulation !")
+    exit(-1)
 
 # Simulate the ROI
-exit_event = m5.simulate ()
+exit_event = m5.simulate()
 
 # Reached the end of ROI
 # Finished executing the benchmark
 # We dump the stats here
 
-print ("Dump stats at the end of the ROI!")
-m5.stats.dump ()
-end_tick = m5.curTick ()
-
-# total
-#end_insts = processor.cpu.totalInsts ()
+print("Dump stats at the end of the ROI!")
+m5.stats.dump()
+end_tick = m5.curTick()
 
 # We dump the stats to a json file to get the simInsts in the ROI
 # We then output simInsts in the final print statement.
@@ -256,7 +223,7 @@ with open(os.path.join(m5.options.outdir, "stats.json"), "w") as json_out:
 # We iterate over the json file to get the number of committed instructions
 # by the timing cores (2, 3). We sum and print them at the end.
 
-roi_insts = float (\
+roi_insts = float(\
     json.load(open(os.path.join\
     (m5.options.outdir, "stats.json",)))\
     ["system"]["processor"]["cores2"]["core"]["exec_context.thread_0"]\
@@ -278,3 +245,4 @@ print("Instructions executed in ROI: %d" % ((roi_insts)))
 print("Ran a total of", m5.curTick()/1e12, "simulated seconds")
 print("Total wallclock time: %.2fs, %.2f min" % \
             (time.time()-globalStart, (time.time()-globalStart)/60))
+exit ()
