@@ -119,7 +119,9 @@ cache_hierarchy = MESITwoLevelCacheHierarchy(
 )
 # Memory: Single Channel DDR4 2400 DRAM device.
 # The X86 board only supports 3 GB of main memory.
-# TODO: Need to replace single channel memory with MultiChannelMemory
+# We will replace single channel memory in the future.
+# Right now, multichannel memories does not work properly
+# with the x86 I/O hole.
 
 memory = SingleChannelDDR4_2400(size = "3GB")
 
@@ -218,7 +220,6 @@ gem5stats = get_simstat(root)
 with open(os.path.join(m5.options.outdir, "stats.json"), "w") as json_out:
     gem5stats.dump(json_out, indent = 2)
 
-# TODO: Need to write this in a proper manner.
 # TODO: Also, need to verify this.
 # We iterate over the json file to get the number of committed instructions
 # by the timing cores (2, 3). We sum and print them at the end.
