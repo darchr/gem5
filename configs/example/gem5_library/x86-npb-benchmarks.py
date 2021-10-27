@@ -35,7 +35,7 @@ in the ROI. It also tracks how much wallclock and simulated time.
 
 Usage:
 ------
-    
+
 ```
 scons build/X86_MESI_Two_Level/gem5.opt
 ./build/X86_MESI_Two_Level/gem5.opt \
@@ -138,7 +138,8 @@ processor = SimpleSwitchableProcessor(
     num_cores=2,
 )
 
-# Here we setup the board. The X86Board allows for Full-System X86 simulations.
+# Here we setup the board. The X86Board allows for Full-System X86 simulations
+
 board = X86Board(
     clk_freq="3GHz",
     processor=processor,
@@ -149,6 +150,12 @@ board = X86Board(
 board.connect_things()
 
 # Here we set the FS workload, i.e., npb benchmark program
+# After simulation has ended you may inspect
+# `m5out/system.pc.com_1.device` to the output, if any.
+
+# Also, we sleep the system for some time so that the output is
+# printed properly.
+
 command = "/home/gem5/NPB3.3-OMP/bin/{};".format(args.benchmark)\
     + "sleep 5;" \
     + "m5 exit;"
@@ -171,7 +178,10 @@ board.set_workload(
 )
 
 root = Root(full_system = True, system = board)
-root.sim_quantum = int(1e9)  # sim_quantum must be st if KVM cores are used.
+
+# sim_quantum must be set when KVM cores are used.
+
+root.sim_quantum = int(1e9)
 
 m5.instantiate()
 
@@ -185,11 +195,11 @@ print("Using KVM cpu")
 exit_event = m5.simulate()
 
 if exit_event.getCause() == "m5_exit instruction encountered":
-    
-    # We have completed booting the OS
+    # We have completed booting the OS using KVM cpu
 
     print("Done booting Linux")
     print("Resetting stats at the start of ROI!")
+
     m5.stats.reset()
     start_tick = m5.curTick()
 
@@ -201,39 +211,38 @@ else:
     exit(-1)
 
 # Simulate the ROI
+
 exit_event = m5.simulate()
 
-# Reached the end of ROI
-# Finished executing the benchmark
-# We dump the stats here
+# Reached the end of ROI.
+# Finished executing the benchmark.
+# We dump the stats here.
 
 print("Dump stats at the end of the ROI!")
+
 m5.stats.dump()
 end_tick = m5.curTick()
 
-# We dump the stats to a json file to get the simInsts in the ROI
-# We then output simInsts in the final print statement.
+# We get simInsts using get_simstat and output it in the final
+# print statement.
 
 gem5stats = get_simstat(root)
 
-# Stats are printed into "stats.json" file in the output directory
-with open(os.path.join(m5.options.outdir, "stats.json"), "w") as json_out:
-    gem5stats.dump(json_out, indent = 2)
+try:
+    # We get the number of committed instructions from the timing
+    # cores (2, 3). We then sum and print them at the end.
 
-# TODO: Also, need to verify this.
-# We iterate over the json file to get the number of committed instructions
-# by the timing cores (2, 3). We sum and print them at the end.
-
-roi_insts = float(\
-    json.load(open(os.path.join\
-    (m5.options.outdir, "stats.json",)))\
-    ["system"]["processor"]["cores2"]["core"]["exec_context.thread_0"]\
-    ["numInsts"]["value"]) + float(\
-    json.load(open(os.path.join\
-    (m5.options.outdir, "stats.json",)))\
-    ["system"]["processor"]["cores3"]["core"]["exec_context.thread_0"]\
-    ["numInsts"]["value"]\
+    roi_insts = float(\
+        json.loads(gem5stats.dumps())\
+        ["system"]["processor"]["cores2"]["core"]["exec_context.thread_0"]\
+        ["numInsts"]["value"]) + float(\
+        json.loads(gem5stats.dumps())\
+        ["system"]["processor"]["cores3"]["core"]["exec_context.thread_0"]\
+        ["numInsts"]["value"]\
 )
+except KeyError:
+    roi_insts = 0
+    print ("warn: ignoring simInsts as a detailed CPU was not used")
 
 # Simulation is over at this point.
 
@@ -246,4 +255,5 @@ print("Instructions executed in ROI: %d" % ((roi_insts)))
 print("Ran a total of", m5.curTick()/1e12, "simulated seconds")
 print("Total wallclock time: %.2fs, %.2f min" % \
             (time.time()-globalStart, (time.time()-globalStart)/60))
-exit ()
+exit(0)
+
