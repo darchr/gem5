@@ -46,6 +46,9 @@ scons build/X86_MESI_Two_Level/gem5.opt
 
 import argparse
 import time
+import os
+import json
+
 import m5
 from m5.objects import Root
 
@@ -61,8 +64,6 @@ from gem5.coherence_protocol import CoherenceProtocol
 from gem5.resources.resource import Resource
 
 from m5.stats.gem5stats import get_simstat
-
-import os, json
 
 requires(
     isa_required = ISA.X86,
@@ -84,10 +85,6 @@ benchmark_choices = ['bt.A.x', 'cg.A.x', 'ep.A.x', 'ft.A.x',
                      'bt.F.x', 'cg.F.x', 'ep.F.x', 'ft.F.x',
                      'is.F.x', 'lu.F.x', 'mg.F.x', 'sp.F.x']
 
-# Setting up all the fixed system parameters here
-# Caches: MESI Two Level Cache Hierarchy
-
-
 parser = argparse.ArgumentParser(
     description="An example configuration script to run the npb benchmarks."
 )
@@ -102,6 +99,9 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
+
+# Setting up all the fixed system parameters here
+# Caches: MESI Two Level Cache Hierarchy
 
 from gem5.components.cachehierarchies.ruby.\
     mesi_two_level_cache_hierarchy import(
@@ -149,20 +149,20 @@ board = X86Board(
 board.connect_things()
 
 # Here we set the FS workload, i.e., npb benchmark program
-command = "/home/gem5/NPB3.3-OMP/bin/{} \n".format(args.benchmark) + ";" \
+command = "/home/gem5/NPB3.3-OMP/bin/{};".format(args.benchmark)\
     + "sleep 5;" \
     + "m5 exit;"
 
 board.set_workload(
     # The x86 linux kernel will be automatically downloaded to the
-    # `tests/gem5/resources` directory if not already present.
+    # `~/.cache/gem5` directory if not already present.
     # npb benchamarks was tested with kernel version 4.19.83
     kernel=Resource(
         "x86-linux-kernel-4.19.83",
         override=True,
     ),
     # The x86-npb image will be automatically downloaded to the
-    # `tests/gem5/resources` directory if not already present.
+    # `~/.cache/gem5` directory if not already present.
     disk_image=Resource(
         "x86-npb",
         override=True,
