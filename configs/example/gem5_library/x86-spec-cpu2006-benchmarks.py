@@ -24,13 +24,25 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-""" Script to run SPEC CPU2006 parallel benchmarks with gem5.
-    The script expects a benchmark program name and the simulation
-    size. The system is fixed with 2 CPU cores, MESI Two Level system
-    cache and 3 GB DDR4 memory. It uses the x86 board.
+""" 
+Script to run SPEC CPU2006 benchmarks with gem5.
+The script expects a benchmark program name and the simulation
+size. The system is fixed with 2 CPU cores, MESI Two Level system
+cache and 3 GB DDR4 memory. It uses the x86 board.
 
-    This script will count the total number of instructions executed
-    in the ROI. It also tracks how much wallclock and simulated time.
+This script will count the total number of instructions executed
+in the ROI. It also tracks how much wallclock and simulated time.
+
+Usage:
+------
+
+```
+scons build/X86_MESI_Two_Level/gem5.opt
+./build/X86_MESI_Two_Level/gem5.opt \
+    configs/example/gem5_library/x86-spec-cpu2006-benchmarks.py \
+    <benchmark> <simulation_szie>
+```
+
 """
 
 import argparse
