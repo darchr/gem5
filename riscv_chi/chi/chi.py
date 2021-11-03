@@ -198,6 +198,8 @@ class PrivateL1CacheHierarchy(AbstractRubyCacheHierarchy):
                 ctrl.ruby_system = self.ruby_system
                 ctrl.sequencer.ruby_system = self.ruby_system
 
+                ctrl.downstream_destinations = [self.directory]
+
                 self._dma_controllers.append(ctrl)
 
         self.ruby_system.num_of_sequencers = len(self.core_clusters) * 2 + len(
