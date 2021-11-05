@@ -30,13 +30,8 @@ from m5.objects import (
     ClockDomain,
     NULL,
     RubyCache,
+    RubyNetwork,
 )
-
-class DummyCache(RubyCache):
-    dataAccessLatency = 0
-    tagAccessLatency = 1
-    size = "128"
-    assoc = 1
 
 class SimpleDirectory(AbstractNode):
     """A directory or home node (HNF)
@@ -46,13 +41,19 @@ class SimpleDirectory(AbstractNode):
     """
     def __init__(
         self,
-        network,
-        cache_line_size,
+        network: RubyNetwork,
+        cache_line_size: int,
         clk_domain: ClockDomain,
     ):
         super().__init__(network, cache_line_size)
 
-        self.cache = DummyCache()
+        # Dummy cache
+        self.cache = RubyCache(
+            dataAccessLatency = 0,
+            tagAccessLatency = 1,
+            size = "128",
+            assoc = 1
+        )
 
         self.clk_domain = clk_domain
 

@@ -24,10 +24,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from typing import List
+
 from m5.objects import (
-    ClockDomain,
+    AddrRange,
     Memory_Controller,
     MessageBuffer,
+    Port,
+    RubyNetwork,
 )
 
 from .abstract_node import TriggerMessageBuffer
@@ -42,7 +46,12 @@ class MemoryController(Memory_Controller):
         cls._version += 1  # Use count for this particular type
         return cls._version - 1
 
-    def __init__(self, network, ranges, port):
+    def __init__(
+        self,
+        network: RubyNetwork,
+        ranges: List[AddrRange],
+        port: Port
+    ):
         super().__init__()
 
         self.version = self.versionCount()

@@ -30,17 +30,18 @@ from gem5.isas import ISA
 from .abstract_node import AbstractNode
 
 from m5.objects import (
-    RubyCache,
     ClockDomain,
+    RubyCache,
+    RubyNetwork,
 )
 
 
-class L1Cache(AbstractNode):
+class PrivateL1MOESICache(AbstractNode):
     def __init__(
         self,
         size: str,
         assoc: int,
-        network,
+        network: RubyNetwork,
         core: AbstractCore,
         cache_line_size,
         target_isa: ISA,

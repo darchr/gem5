@@ -30,15 +30,9 @@ from gem5.isas import ISA
 from .abstract_node import AbstractNode
 
 from m5.objects import (
-    RubyCache,
     ClockDomain,
+    RubyCache,
 )
-
-class DummyCache(RubyCache):
-    dataAccessLatency = 0
-    tagAccessLatency = 1
-    size = "128"
-    assoc = 1
 
 class DMARequestor(AbstractNode):
     def __init__(
@@ -49,7 +43,13 @@ class DMARequestor(AbstractNode):
     ):
         super().__init__(network, cache_line_size)
 
-        self.cache = DummyCache()
+        # Dummy cache
+        self.cache = RubyCache(
+            dataAccessLatency = 0,
+            tagAccessLatency = 1,
+            size = "128",
+            assoc = 1
+        )
 
         self.clk_domain = clk_domain
 

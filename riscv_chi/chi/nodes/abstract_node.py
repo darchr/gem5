@@ -29,7 +29,7 @@ from gem5.isas import ISA
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.components.processors.abstract_core import AbstractCore
 
-from m5.objects import Cache_Controller, MessageBuffer
+from m5.objects import Cache_Controller, MessageBuffer, RubyNetwork
 
 import math
 
@@ -56,8 +56,7 @@ class AbstractNode(Cache_Controller):
 
     # TODO: I don't love that we have to pass in the cache line size.
     # However, we need some way to set the index bits
-    def __init__(self, network, cache_line_size):
-        """ """
+    def __init__(self, network: RubyNetwork, cache_line_size: int):
         super(AbstractNode, self).__init__()
 
         # Note: Need to call versionCount method on *this* class, not the
@@ -87,7 +86,7 @@ class AbstractNode(Cache_Controller):
 
     def sendEvicts(self, core: AbstractCore, target_isa: ISA):
         """True if the CPU model or ISA requires sending evictions from caches
-        to the CPU. Two scenarios warrant forwarding evictions to the CPU:
+        to the CPU. Scenarios warrant forwarding evictions to the CPU:
         1. The O3 model must keep the LSQ coherent with the caches
         2. The x86 mwait instruction is built on top of coherence
         3. The local exclusive monitor in ARM systems
@@ -97,7 +96,7 @@ class AbstractNode(Cache_Controller):
         return False
 
     @abstractmethod
-    def connectQueues(self, network):
+    def connectQueues(self, network: RubyNetwork):
         """Connect all of the queues for this controller.
         This may be extended in subclasses.
         """
