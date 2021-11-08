@@ -45,7 +45,6 @@ scons build/X86_MESI_Two_Level/gem5.opt
 """
 import argparse
 import time
-import os
 import json
 
 import m5
@@ -149,6 +148,10 @@ board = X86Board(
     processor=processor,
     memory=memory,
     cache_hierarchy=cache_hierarchy,
+
+    # We need to exit from the simulation at ROI begin and end annotations via
+    # m5 calls. The system exits from guest on workbegin/workend.
+    exit_on_work_items=True,
 )
 
 board.connect_things()
@@ -157,8 +160,14 @@ board.connect_things()
 # After simulation has ended you may inspect
 # `m5out/system.pc.com_1.device` to the output, if any.
 
-# Also, we sleep the system for some time so that the output is
-# printed properly.
+# After the system starts, we execute the benchmark program and wait till the
+# ROI `workbegin` annotation is reached (m5_work_begin()). We start collecting
+# the number of committed instructions till ROI ends (marked by `workend`).
+# We then finish executing the rest of the benchmark. 
+
+# Also, we sleep the system for some time so that the output is printed
+# properly.
+
 
 command = "cd /home/gem5/parsec-benchmark;".format(args.benchmark) \
     + "source env.sh;" \
@@ -184,6 +193,9 @@ board.set_workload(
     command=command,
 )
 
+# We need this for long running processes.
+m5.disableAllListeners()
+
 root = Root(full_system = True, system = board)
 
 # sim_quantum must be set if KVM cores are used.
@@ -203,11 +215,15 @@ start_tick = m5.curTick()
 end_tick = m5.curTick()
 m5.stats.reset()
 
+# We start the simulation
+
 exit_event = m5.simulate()
 
-if exit_event.getCause() == "m5_exit instruction encountered":
-    # We have completed booting the OS using KVM cpu
-    # Reached the start of ROI
+# The first exit_event ends with a `workbegin` cause. This means that the
+# system started successfully and the execution on the program started. The
+# ROI begin is encountered (via m5_work_begin()).
+
+if exit_event.getCause() == "workbegin":
 
     print("Done booting Linux")
     print("Resetting stats at the start of ROI!")
@@ -215,12 +231,14 @@ if exit_event.getCause() == "m5_exit instruction encountered":
     m5.stats.reset()
     start_tick = m5.curTick()
 
-    # We switch to timing cpu for detailed simulation.
+    # We have completed up to this step using KVM cpu. Now we switch to timing
+    # cpu for detailed simulation.
 
     processor.switch()
 else:
-    print("Unexpected termination of simulation!")
-    print()
+    # `workbegin` call was never encountered.
+
+    print("Unexpected termination of simulation before ROI was reached!")
 
     m5.stats.dump()
     end_tick = m5.curTick()
@@ -238,11 +256,22 @@ else:
             json.loads(gem5stats.dumps())\
             ["system"]["processor"]["cores3"]["core"]["exec_context.thread_0"]\
             ["numInsts"]["value"]\
-    )
+        )
     except KeyError:
+        roi_insts = float(\
+            json.loads(gem5stats.dumps())\
+            ["system"]["processor"]["cores2"]["core"]["committedInsts"]\
+            ["value"]\
+        ) + float(\
+            json.loads(gem5stats.dumps())\
+            ["system"]["processor"]["cores3"]["core"]["committedInsts"]\
+            ["value"]\
+        )
+    except:
         roi_insts = 0
-        print ("warn: ignoring simInsts as a detailed CPU was not used")
-    
+        print("warn: Unable to retriveve the total number of committed \
+        instructions")
+
     m5.stats.reset()
     print("Performance statistics:")
 
@@ -253,8 +282,72 @@ else:
                 (time.time()-globalStart, (time.time()-globalStart)/60))
     exit(-1)
 
-# Simulate the ROI
+# The next exit_event is to simulate the ROI. It should be exited with a cause
+# marked by `workend`.
+
 exit_event = m5.simulate()
+
+# Reached the end of ROI.
+# We dump the stats here.
+
+# We exepect that ROI ends with `workend`. Otherwise the simulation ended
+# unexpectedly.
+if exit_event.getCause() == "workend":
+    print("Dump stats at the end of the ROI!")
+
+    m5.stats.dump()
+    end_tick = m5.curTick()
+else:
+    print("Unexpected termination of simulation while ROI was being executed!")
+
+    m5.stats.dump()
+    end_tick = m5.curTick()
+
+    gem5stats = get_simstat(root)
+
+    try:
+        # We get the number of committed instructions from the timing
+        # cores. We then sum and print them at the end.
+
+        roi_insts = float(\
+            json.loads(gem5stats.dumps())\
+            ["system"]["processor"]["cores2"]["core"]["exec_context.thread_0"]\
+            ["numInsts"]["value"]) + float(\
+            json.loads(gem5stats.dumps())\
+            ["system"]["processor"]["cores3"]["core"]["exec_context.thread_0"]\
+            ["numInsts"]["value"]\
+        )
+    except KeyError:
+        roi_insts = float(\
+            json.loads(gem5stats.dumps())\
+            ["system"]["processor"]["cores2"]["core"]["committedInsts"]\
+            ["value"]\
+        ) + float(\
+            json.loads(gem5stats.dumps())\
+            ["system"]["processor"]["cores3"]["core"]["committedInsts"]\
+            ["value"]\
+        )
+    except:
+        roi_insts = 0
+        print("warn: Unable to retriveve the total number of committed \
+        instructions")
+
+    m5.stats.reset()
+    print("Performance statistics:")
+
+    print("Simulated time: %.2fs" % ((end_tick-start_tick)/1e12))
+    print("Instructions executed: %d" % ((roi_insts)))
+    print("Ran a total of", m5.curTick()/1e12, "simulated seconds")
+    print("Total wallclock time: %.2fs, %.2f min" % \
+                (time.time()-globalStart, (time.time()-globalStart)/60))
+    exit(-1)
+
+# We need to note that the benchmark is not executed completely till this
+# point, but, the ROI has. We collect the essential statistics here before
+# resuming the simulation again.
+
+# We get simInsts using get_simstat and output it in the final
+# print statement.
 
 gem5stats = get_simstat(root)
 
@@ -271,19 +364,32 @@ try:
         ["numInsts"]["value"]\
 )
 except KeyError:
+    roi_insts = float(\
+        json.loads(gem5stats.dumps())\
+        ["system"]["processor"]["cores2"]["core"]["committedInsts"]["value"]\
+    ) + float(\
+        json.loads(gem5stats.dumps())\
+        ["system"]["processor"]["cores3"]["core"]["committedInsts"]["value"]\
+    )
+except:
     roi_insts = 0
-    print ("warn: ignoring simInsts as a detailed CPU was not used")
+    print("warn: Unable to retriveve the total number of committed \
+    instructions")
 
-# Reached the end of ROI
+# We need to end the execution of the program. Ideally, we want to switch back
+# from a timing cpu to a KVM cpu. However, we cannot maintain the `MESI Two
+# Level` cache states. Therefore, we continue executing the benchmark with
+# the timing cpu.
+
+exit_event = m5.simulate()
+
+# Simulation is over at this point. But we need to verify the instruction that
+# we encountered. Since there is an `m5 exit` instruction, we should receive
+# a `m5_exit instruction encountered` as the exit_event's cause.
 
 if exit_event.getCause() == "m5_exit instruction encountered":
-    # Reached the end of ROI
-
-    print("Dump stats at the end of the ROI!")
-    
-    m5.stats.dump()
-    end_tick = m5.curTick()
-    m5.stats.reset()
+    # We acknowledge that all the simulation events were successful.
+    print("All simulation events were successful.")
 
 else:
     print("Unexpected termination of simulation!")
@@ -300,6 +406,9 @@ else:
     print("Total wallclock time: %.2fs, %.2f min" % \
                 (time.time()-globalStart, (time.time()-globalStart)/60))
     exit(-1)
+
+
+# We print the final simulation statistics.
 
 print("Done with the simulation")
 print()
