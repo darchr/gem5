@@ -24,25 +24,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-""" 
-Script to run SPEC CPU2006 benchmarks with gem5.
-The script expects a benchmark program name and the simulation
-size. The system is fixed with 2 CPU cores, MESI Two Level system
-cache and 3 GB DDR4 memory. It uses the x86 board.
+""" Script to run SPEC CPU2017 benchmarks with gem5.
+    The script expects a benchmark program name and the simulation
+    size. The system is fixed with 2 CPU cores, MESI Two Level system
+    cache and 3 GB DDR4 memory. It uses the x86 board.
 
-This script will count the total number of instructions executed
-in the ROI. It also tracks how much wallclock and simulated time.
-
-Usage:
-------
-
-```
-scons build/X86_MESI_Two_Level/gem5.opt
-./build/X86_MESI_Two_Level/gem5.opt \
-    configs/example/gem5_library/x86-spec-cpu2006-benchmarks.py \
-    <benchmark> <simulation_szie>
-```
-
+    This script will count the total number of instructions executed
+    in the ROI. It also tracks how much wallclock and simulated time.
 """
 
 import argparse
@@ -74,28 +62,36 @@ requires(
     kvm_required=True,
 )
 
-# We now check for the spec-2006 disk image, which should be placed
+# We now check for the spec-2017 disk image, which should be placed
 # in ~/.cache/gem5 directory
 
 if not os.path.exists(\
-    os.path.join(os.path.expanduser('~'),".cache/gem5/spec-2006")
+    os.path.join(os.path.expanduser('~'),".cache/gem5/spec-2017")
 ):
     print("fatal: The spec-disk image should be placed in ~/.cache/gem5/")
     exit(-1)
 
-# Following are the list of benchmark programs for SPEC CPU2006.
-# Note that 400.perlbench, 447.dealII, 450.soplex and 483.xalancbmk
-# have build errors, and, therefore cannot be executed. More information is
-# available at: https://www.gem5.org/documentation/benchmark_status/gem5-20
+# Following are the list of benchmark programs for SPEC CPU2017.
+# More information is available at:
+# https://www.gem5.org/documentation/benchmark_status/gem5-20
 
-benchmark_choices = ['400.perlbench', '401.bzip2', '403.gcc', '410.bwaves',
-                    '416.gamess', '429.mcf', '433.milc', '435.gromacs',
-                    '436.cactusADM', '437.leslie3d', '444.namd', '445.gobmk',
-                    '447.dealII', '450.soplex', '453.povray', '454.calculix',
-                    '456.hmmer', '458.sjeng', '459.GemsFDTD',
-                    '462.libquantum', '464.h264ref', '465.tonto', '470.lbm',
-                    '471.omnetpp', '473.astar', '481.wrf', '482.sphinx3',
-                    '483.xalancbmk', '998.specrand', '999.specrand']
+benchmark_choices =["500.perlbench_r", "502.gcc_r", "503.bwaves_r",
+                    "505.mcf_r", "507.cactusBSSN_r", "508.namd_r",
+                    "510.parest_r", "511.povray_r", "519.lbm_r",
+                    "520.omnetpp_r", "521.wrf_r", "523.xalancbmk_r",
+                    "525.x264_r", "527.cam4_r", "531.deepsjeng_r",
+                    "538.imagick_r", "541.leela_r", "544.nab_r",
+                    "448.exchange2_r", "449.fotonik3d_r", "454.roms_r",
+                    "557.xz_r", "600.perlbench_s", "602.gcc_s",
+                    "603.bwaves_s", "605.mcf_s", "607.cactusBSSN_s",
+                    "608.namd_s", "610.parest_s", "611.povray_s",
+                    "619.lbm_s", "620.omnetpp_s", "621.wrf_s",
+                    "623.xalancbmk_s", "625.x264_s", "627.cam4_s",
+                    "631.deepsjeng_s", "638.imagick_s", "641.leela_s",
+                    "644.nab_s", "648.exchange2_s", "649.fotonik3d_s",
+                    "654.roms_s", "996.specrand_fs", "997.specrand_fr",
+                    "998.specrand_is", "999.specrand_ir"
+]
 
 # Following are the input size.
 
@@ -103,7 +99,7 @@ size_choices = ["test", "train", "ref"]
 
 parser = argparse.ArgumentParser(
     description="An example configuration script to run the \
-        SPEC CPU2006 benchmarks."
+        SPEC CPU2017 benchmarks."
 )
 
 # The arguments accepted are: a. benchmark name, and, b. simulation size
@@ -144,7 +140,7 @@ cache_hierarchy = MESITwoLevelCacheHierarchy(
 # Memory: Single Channel DDR4 2400 DRAM device.
 # The X86 board only supports 3 GB of main memory.
 # We will replace single channel memory in the future.
-# Right now, multichannel memories does not work properly
+# Right now, multichannel memory does not work properly
 # with the x86 I/O hole.
 
 memory = SingleChannelDDR4_2400(size = "3GB")
@@ -173,7 +169,8 @@ board = X86Board(
 
 board.connect_things()
 
-# SPEC CPU2006 benchmarks output placed in /home/gem5/spec2006/results
+
+# SPEC CPU2017 benchmarks output placed in /home/gem5/spec2017/results
 # directory on the disk-image. The following folder is created in the
 # m5.options.outdir and the output from the disk-image folder is copied to
 # this folder.
@@ -186,8 +183,7 @@ try:
     os.makedirs(os.path.join(m5.options.outdir, output_dir))
 except FileExistsError:
     print("warn: output directory already exists!")
-
-# Here we set the FS workload, i.e., SPEC CPU2006 benchmark
+# Here we set the FS workload, i.e., SPEC CPU2017 benchmark
 # After simulation has ended you may inspect
 # `m5out/system.pc.com_1.device` to the output, if any.
 
@@ -195,28 +191,28 @@ except FileExistsError:
 # `m5_exit instruction encountered` is encountered. We start collecting
 # the number of committed instructions till ROI ends (marked by another
 # `m5_exit instruction encountered`). We then start copying the output logs,
-# present in the /home/gem5/spec2006/results directory to the `output_dir`.
+# present in the /home/gem5/spec2017/results directory to the `output_dir`.
 
 # The runscript.sh file places `m5 exit` before and after the following command
 # Therefore, we only pass this command without m5 exit.
-
+ 
 command = "{} {} {}".format(args.benchmark, args.size, output_dir)
 
 board.set_workload(
     # The x86 linux kernel will be automatically downloaded to the
     # `~/.cache/gem5` directory if not already present.
-    # SPEC CPU2006 benchamarks were tested with kernel version 4.19.83
+    # SPEC CPU2017 benchamarks were tested with kernel version 4.19.83
     kernel=Resource(
         "x86-linux-kernel-4.19.83",
         override=True,
     ),
-    # The x86 SPEC CPU 2006 disk image is expected to be present in the
-    # `~/.cache/gem5` directory.
+    # The x86 SPEC CPU 2017 image has to be placed in ~/.cache/gem5 directory
     disk_image=CustomResource(
-        os.path.join(os.path.expanduser('~'),".cache/gem5/spec-2006")
-    ),
+        os.path.join(os.path.expanduser('~'),".cache/gem5/spec-2017")
+        ),
     command=command,
 )
+
 # We need this for long running processes.
 m5.disableAllListeners()
 
@@ -250,7 +246,7 @@ if exit_event.getCause() == "m5_exit instruction encountered":
 
     m5.stats.reset()
     start_tick = m5.curTick()
-
+    
     # We switch to timing cpu for detailed simulation.
 
     processor.switch()
@@ -302,13 +298,12 @@ else:
 # Simulate the ROI
 exit_event = m5.simulate()
 
-
 # Reached the end of ROI
 gem5stats = get_simstat(root)
 
 try:
     # We get the number of committed instructions from the timing
-    # cores (2, 3). We then sum and print them at the end.
+    # cores. We then sum and print them at the end.
 
     roi_insts = float(\
         json.loads(gem5stats.dumps())\
@@ -319,13 +314,15 @@ try:
         ["numInsts"]["value"]\
 )
 except KeyError:
-    roi_insts = float(\
-        json.loads(gem5stats.dumps())\
-        ["system"]["processor"]["cores2"]["core"]["committedInsts"]["value"]\
-    ) + float(\
-        json.loads(gem5stats.dumps())\
-        ["system"]["processor"]["cores3"]["core"]["committedInsts"]["value"]\
-    )
+        roi_insts = float(\
+            json.loads(gem5stats.dumps())\
+            ["system"]["processor"]["cores2"]["core"]["committedInsts"]\
+            ["value"]\
+        ) + float(\
+            json.loads(gem5stats.dumps())\
+            ["system"]["processor"]["cores3"]["core"]["committedInsts"]\
+            ["value"]\
+        )
 except:
     roi_insts = 0
     print("warn: Unable to retriveve the total number of committed \
@@ -364,13 +361,12 @@ else:
     print("Unexpected termination of simulation while copying speclogs!")
     exit(-1)
 
-m5.stats.dump()
-end_tick = m5.curTick()
-m5.stats.reset()
+print("Done with the simulation")
+print()
 print("Performance statistics:")
 
-print("Simulated time: %.2fs" % ((end_tick-start_tick)/1e12))
-print("Instructions executed: %d" % ((roi_insts)))
+print("Simulated time in ROI: %.2fs" % ((end_tick-start_tick)/1e12))
+#print("Instructions executed in ROI: %d" % ((roi_insts)))
 print("Ran a total of", m5.curTick()/1e12, "simulated seconds")
 print("Total wallclock time: %.2fs, %.2f min" % \
             (time.time()-globalStart, (time.time()-globalStart)/60))
