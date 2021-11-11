@@ -105,14 +105,14 @@ parser = argparse.ArgumentParser(
 # The arguments accepted are: a. benchmark name, and, b. simulation size
 
 parser.add_argument(
-    "benchmark",
+    "--benchmark",
     type = str,
     help = "Input the benchmark program to execute.",
     choices=benchmark_choices,
 )
 
 parser.add_argument(
-    "size",
+    "--size",
     type = str,
     help = "Sumulation size the benchmark program.",
     choices = size_choices,

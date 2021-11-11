@@ -91,7 +91,7 @@ parser = argparse.ArgumentParser(
 # The only positional argument accepted is the benchmark name in this script.
  
 parser.add_argument(
-    "benchmark",
+    "--benchmark",
     type = str,
     help = "Input the benchmark program to execute.",
     choices = benchmark_choices,
