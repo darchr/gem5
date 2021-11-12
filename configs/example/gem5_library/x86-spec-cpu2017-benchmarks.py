@@ -24,13 +24,24 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-""" Script to run SPEC CPU2017 benchmarks with gem5.
-    The script expects a benchmark program name and the simulation
-    size. The system is fixed with 2 CPU cores, MESI Two Level system
-    cache and 3 GB DDR4 memory. It uses the x86 board.
+"""
+Script to run SPEC CPU2017 benchmarks with gem5.
+The script expects a benchmark program name and the simulation
+size. The system is fixed with 2 CPU cores, MESI Two Level system
+cache and 3 GB DDR4 memory. It uses the x86 board.
 
-    This script will count the total number of instructions executed
-    in the ROI. It also tracks how much wallclock and simulated time.
+This script will count the total number of instructions executed
+in the ROI. It also tracks how much wallclock and simulated time.
+
+Usage:
+------
+```
+scons build/X86_MESI_Two_Level/gem5.opt
+./build/X86_MESI_Two_Level/gem5.opt \
+    configs/example/gem5_library/x86-spec-cpu2017-benchmarks.py \
+    --benchmark <benchmark_name> \
+    --size <simulation_size>
+```
 """
 
 import argparse
@@ -195,7 +206,7 @@ except FileExistsError:
 
 # The runscript.sh file places `m5 exit` before and after the following command
 # Therefore, we only pass this command without m5 exit.
- 
+
 command = "{} {} {}".format(args.benchmark, args.size, output_dir)
 
 board.set_workload(
@@ -246,7 +257,7 @@ if exit_event.getCause() == "m5_exit instruction encountered":
 
     m5.stats.reset()
     start_tick = m5.curTick()
-    
+
     # We switch to timing cpu for detailed simulation.
 
     processor.switch()
@@ -286,7 +297,7 @@ else:
         instructions")
 
     m5.stats.reset()
-    
+
     print("Performance statistics:")
     print("Simulated time: %.2fs" % ((end_tick-start_tick)/1e12))
     print("Instructions executed: %d" % ((roi_insts)))
@@ -371,4 +382,3 @@ print("Ran a total of", m5.curTick()/1e12, "simulated seconds")
 print("Total wallclock time: %.2fs, %.2f min" % \
             (time.time()-globalStart, (time.time()-globalStart)/60))
 exit(0)
-

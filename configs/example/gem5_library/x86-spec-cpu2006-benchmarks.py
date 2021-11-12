@@ -40,7 +40,8 @@ Usage:
 scons build/X86_MESI_Two_Level/gem5.opt
 ./build/X86_MESI_Two_Level/gem5.opt \
     configs/example/gem5_library/x86-spec-cpu2006-benchmarks.py \
-    <benchmark> <simulation_szie>
+    --benchmark <benchmark_name> \
+    --size <simulation_size>
 ```
 
 """

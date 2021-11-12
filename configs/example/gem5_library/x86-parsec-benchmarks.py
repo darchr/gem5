@@ -40,7 +40,8 @@ Usage:
 scons build/X86_MESI_Two_Level/gem5.opt
 ./build/X86_MESI_Two_Level/gem5.opt \
     configs/example/gem5_library/x86-parsec-benchmarks.py \
-    <benchmark> <simulation size>
+    --benchmark <benchmark_name> \
+    --size <simulation_size>
 ```
 """
 import argparse

@@ -40,7 +40,7 @@ Usage:
 scons build/X86_MESI_Two_Level/gem5.opt
 ./build/X86_MESI_Two_Level/gem5.opt \
     configs/example/gem5_library/x86-npb-benchmarks.py \
-    <benchmark>
+    --benchmark <benchmark_name.class.x>
 ```
 """
 
