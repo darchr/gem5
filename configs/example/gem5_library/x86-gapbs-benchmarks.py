@@ -79,7 +79,8 @@ benchmark_choices = ["cc", "bc", "tc", "pr", "bfs"]
 
 synthetic_choices = ["0", "1"]
 
-size_choices = ["0", "1", "USA-road-d.NY.gr"]
+size_choices = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
+                "13", "14", "15", "16", "USA-road-d.NY.gr"]
 
 parser = argparse.ArgumentParser(
     description="An example configuration script to run the gapbs benchmarks."
