@@ -84,6 +84,7 @@ class LLM(DRAMInterface):
     #  64Byte (atom size) / 32Gbps (datarate of wavelength) = 16ns
     tBURST = '16ns'
 
+    tWA = '3ns'
     # value for 2Gb device from JEDEC spec
     tRFC = '160ns'
 
@@ -119,3 +120,5 @@ class LLM(DRAMInterface):
     tXS = '168ns'
 
     addr_mapping = 'RoCoRaBaCh'
+
+    salp_enable = True

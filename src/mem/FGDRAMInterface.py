@@ -28,10 +28,10 @@ from m5.objects.DRAMInterface import PageManage, DRAMInterface
 
 class FGDRAM(DRAMInterface):
 
-    device_bus_width = 32
+    device_bus_width = 64
 
     # HBM supports BL4 and BL2 (legacy mode only)
-    burst_length = 16
+    burst_length = 4
 
     # size of channel in bytes, 4H stack of 2Gb dies is 1GB per stack;
     # with 8 channels, 128MB per channel
@@ -57,7 +57,7 @@ class FGDRAM(DRAMInterface):
     bank_groups_per_rank = 0
 
     # 500 MHz for 1Gbps DDR data rate
-    tCK = '1ns'
+    tCK = '2ns'
 
     # use values from IDD measurement in JEDEC spec
     # use tRP value for tRCD and tCL similar to other classes

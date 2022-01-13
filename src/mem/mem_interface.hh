@@ -89,6 +89,8 @@ class MemInterface : public AbstractMemory
         uint8_t bank;
         uint8_t bankgr;
 
+        bool isRead;
+
         Tick rdAllowedAt;
         Tick wrAllowedAt;
         Tick preAllowedAt;
@@ -98,7 +100,7 @@ class MemInterface : public AbstractMemory
         uint32_t bytesAccessed;
 
         Bank() :
-            openRow(NO_ROW), bank(0), bankgr(0),
+            openRow(NO_ROW), bank(0), bankgr(0), isRead(true),
             rdAllowedAt(0), wrAllowedAt(0), preAllowedAt(0), actAllowedAt(0),
             rowAccesses(0), bytesAccessed(0)
         { }
@@ -135,6 +137,7 @@ class MemInterface : public AbstractMemory
     const uint32_t burstsPerStripe;
     const uint32_t ranksPerChannel;
     const uint32_t banksPerRank;
+    const uint32_t subarrayPerBank;
     uint32_t rowsPerBank;
 
     /**
@@ -732,6 +735,7 @@ class DRAMInterface : public MemInterface
     const Tick tRP;
     const Tick tRAS;
     const Tick tWR;
+    const Tick tWA;
     const Tick tRTP;
     const Tick tRFC;
     const Tick tREFI;
@@ -752,6 +756,7 @@ class DRAMInterface : public MemInterface
 
 
     Enums::PageManage pageMgmt;
+    bool salp_en;
     /**
      * Max column accesses (read and write) per row, before forefully
      * closing it.
@@ -796,8 +801,8 @@ class DRAMInterface : public MemInterface
      * @param trace Is this an auto precharge then do not add to trace
      */
     void prechargeBank(Rank& rank_ref, Bank& bank_ref,
-                       Tick pre_tick, bool auto_or_preall = false,
-                       bool trace = true);
+                      Tick pre_tick, bool hit_subaaray = true,
+                      bool auto_or_preall = false, bool trace = true);
 
     struct DRAMStats : public Stats::Group
     {

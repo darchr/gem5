@@ -52,10 +52,11 @@ class DRAMInterface(MemInterface):
 
     # scheduler page policy
     page_policy = Param.PageManage('open_adaptive', "Page management policy")
+    salp_enable = Param.Bool(False, "Enabling subarray-level parallelism")
 
     # enforce a limit on the number of accesses per row
     max_accesses_per_row = Param.Unsigned(16, "Max accesses per row before "
-                                          "closing");
+                                          "closing")
 
     # default to 0 bank groups per rank, indicating bank group architecture
     # is not used
@@ -92,6 +93,7 @@ class DRAMInterface(MemInterface):
 
     # minimum time between a write data transfer and a precharge
     tWR = Param.Latency("Write recovery time")
+    tWA = Param.Latency("0ns", "Write to activate time")
 
     # minimum time between a read and precharge command
     tRTP = Param.Latency("Read to precharge")

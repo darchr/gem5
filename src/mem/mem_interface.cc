@@ -64,7 +64,8 @@ MemInterface::MemInterface(const MemInterfaceParams &_p)
       burstsPerStripe(range.interleaved() ?
                       range.granularity() / burstSize : 1),
       ranksPerChannel(_p.ranks_per_channel),
-      banksPerRank(_p.banks_per_rank), rowsPerBank(0),
+      banksPerRank(_p.banks_per_rank),
+      subarrayPerBank(_p.subarray_per_bank), rowsPerBank(0),
       tCK(_p.tCK), tCS(_p.tCS), tBURST(_p.tBURST),
       tRTW(_p.tRTW),
       tWTR(_p.tWTR),
@@ -91,6 +92,7 @@ MemInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr,
     // use a 64-bit unsigned during the computations as the row is
     // always the top bits, and check before creating the packet
     uint64_t row;
+    uint32_t subarray = 0;
 
     // Get packed address, starting at 0
     Addr addr = getCtrlAddr(pkt_addr);
@@ -118,6 +120,9 @@ MemInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr,
 
         // lastly, get the row bits, no need to remove them from addr
         row = addr % rowsPerBank;
+        if (subarrayPerBank != 0){
+            subarray = row / subarrayPerBank;
+        }
     } else if (addrMapping == Enums::RoCoRaBaCh) {
         // with emerging technologies, could have small page size with
         // interleaving granularity greater than row buffer
@@ -145,6 +150,9 @@ MemInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr,
 
         // lastly, get the row bits, no need to remove them from addr
         row = addr % rowsPerBank;
+        if (subarrayPerBank != 0){
+            subarray = row / subarrayPerBank;
+        }
     } else
         panic("Unknown address mapping policy chosen!");
 
@@ -161,8 +169,8 @@ MemInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr,
     // later
     uint16_t bank_id = banksPerRank * rank + bank;
 
-    return new MemPacket(pkt, is_read, is_dram, rank, bank, row, bank_id,
-                   pkt_addr, size);
+    return new MemPacket(pkt, is_read, is_dram, rank, bank, row, subarray,
+                    bank_id, pkt_addr, size);
 }
 
 std::pair<MemPacketQueue::iterator, Tick>
@@ -357,15 +365,6 @@ DRAMInterface::activateBank(Rank& rank_ref, Bank& bank_ref,
     // next, we deal with tXAW, if the activation limit is disabled
     // then we directly schedule an activate power event
     if (!rank_ref.actTicks.empty()) {
-        // sanity check
-        if (rank_ref.actTicks.back() &&
-           (act_at - rank_ref.actTicks.back()) < tXAW) {
-            panic("Got %d activates in window %d (%llu - %llu) which "
-                  "is smaller than %llu\n", activationLimit, act_at -
-                  rank_ref.actTicks.back(), act_at,
-                  rank_ref.actTicks.back(), tXAW);
-        }
-
         // shift the times used for the book keeping, the last element
         // (highest index) is the oldest one and hence the lowest value
         rank_ref.actTicks.pop_back();
@@ -400,7 +399,8 @@ DRAMInterface::activateBank(Rank& rank_ref, Bank& bank_ref,
 
 void
 DRAMInterface::prechargeBank(Rank& rank_ref, Bank& bank, Tick pre_tick,
-                             bool auto_or_preall, bool trace)
+                            bool hit_subaray, bool auto_or_preall,
+                            bool trace)
 {
     // make sure the bank has an open row
     assert(bank.openRow != Bank::NO_ROW);
@@ -430,7 +430,13 @@ DRAMInterface::prechargeBank(Rank& rank_ref, Bank& bank, Tick pre_tick,
 
     Tick pre_done_at = pre_at + tRP;
 
-    bank.actAllowedAt = std::max(bank.actAllowedAt, pre_done_at);
+    if (!hit_subaray && salp_en && bank.isRead) {
+        bank.actAllowedAt = std::max(pre_at, curTick());
+    } else if (!hit_subaray && salp_en && !bank.isRead) {
+        bank.actAllowedAt = std::max(pre_at - tWR + tWA , curTick());
+    } else {
+        bank.actAllowedAt = std::max(bank.actAllowedAt, pre_done_at);
+    }
 
     assert(rank_ref.numBanksActive != 0);
     --rank_ref.numBanksActive;
@@ -466,8 +472,9 @@ std::pair<Tick, Tick>
 DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                              const std::vector<MemPacketQueue>& queue)
 {
-    DPRINTF(DRAM, "Timing access to addr %lld, rank/bank/row %d %d %d\n",
-            mem_pkt->addr, mem_pkt->rank, mem_pkt->bank, mem_pkt->row);
+    DPRINTF(DRAM, "Timing access to addr %lld, rank/bank/row/subarray "
+            "%d %d %d %d\n", mem_pkt->addr, mem_pkt->rank, mem_pkt->bank,
+            mem_pkt->row, mem_pkt->subarray);
 
     // get the rank
     Rank& rank_ref = *ranks[mem_pkt->rank];
@@ -496,10 +503,18 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
 
         // If there is a page open, precharge it.
         if (bank_ref.openRow != Bank::NO_ROW) {
-            prechargeBank(rank_ref, bank_ref, std::max(bank_ref.preAllowedAt,
-                                                   curTick()));
+            if(subarrayPerBank != 0){
+                prechargeBank(rank_ref, bank_ref, std::max(bank_ref.preAllowedAt,
+                        curTick()),
+                        bank_ref.openRow/subarrayPerBank == mem_pkt->subarray);
+            }
+            else{
+                prechargeBank(rank_ref, bank_ref, std::max(bank_ref.preAllowedAt,
+                        curTick()),  false);
+            }
         }
 
+        bank_ref.isRead = mem_pkt->isRead();
         // next we need to account for the delay in activating the page
         Tick act_tick = std::max(bank_ref.actAllowedAt, curTick());
 
@@ -679,7 +694,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         // if auto-precharge push a PRE command at the correct tick to the
         // list used by DRAMPower library to calculate power
         prechargeBank(rank_ref, bank_ref, std::max(curTick(),
-                      bank_ref.preAllowedAt), true);
+                      bank_ref.preAllowedAt), true, true);
 
         DPRINTF(DRAM, "Auto-precharged bank: %d\n", mem_pkt->bankId);
     }
@@ -757,7 +772,7 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
       tCL(_p.tCL),
       tBURST_MIN(_p.tBURST_MIN), tBURST_MAX(_p.tBURST_MAX),
       tCCD_L_WR(_p.tCCD_L_WR), tCCD_L(_p.tCCD_L), tRCD(_p.tRCD),
-      tRP(_p.tRP), tRAS(_p.tRAS), tWR(_p.tWR), tRTP(_p.tRTP),
+      tRP(_p.tRP), tRAS(_p.tRAS), tWR(_p.tWR), tWA(_p.tWA), tRTP(_p.tRTP),
       tRFC(_p.tRFC), tREFI(_p.tREFI), tRRD(_p.tRRD), tRRD_L(_p.tRRD_L),
       tPPD(_p.tPPD), tAAD(_p.tAAD),
       tXAW(_p.tXAW), tXP(_p.tXP), tXS(_p.tXS),
@@ -769,6 +784,7 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
       wrToRdDlySameBG(tCL + _p.tBURST_MAX + _p.tWTR_L),
       rdToWrDlySameBG(_p.tRTW + _p.tBURST_MAX),
       pageMgmt(_p.page_policy),
+      salp_en(_p.salp_enable),
       maxAccessesPerRow(_p.max_accesses_per_row),
       timeStampOffset(0), activeRank(0),
       enableDRAMPowerdown(_p.enable_dram_powerdown),
@@ -831,20 +847,6 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
                   "groups per rank (%d) for equal banks per bank group\n",
                   banksPerRank, bankGroupsPerRank);
         }
-        // tCCD_L should be greater than minimal, back-to-back burst delay
-        if (tCCD_L <= tBURST) {
-            fatal("tCCD_L (%d) should be larger than the minimum bus delay "
-                  "(%d) when bank groups per rank (%d) is greater than 1\n",
-                  tCCD_L, tBURST, bankGroupsPerRank);
-        }
-        // tCCD_L_WR should be greater than minimal, back-to-back burst delay
-        if (tCCD_L_WR <= tBURST) {
-            fatal("tCCD_L_WR (%d) should be larger than the minimum bus delay "
-                  " (%d) when bank groups per rank (%d) is greater than 1\n",
-                  tCCD_L_WR, tBURST, bankGroupsPerRank);
-        }
-        // tRRD_L is greater than minimal, same bank group ACT-to-ACT delay
-        // some datasheets might specify it equal to tRRD
         if (tRRD_L < tRRD) {
             fatal("tRRD_L (%d) should be larger than tRRD (%d) when "
                   "bank groups per rank (%d) is greater than 1\n",
@@ -1380,7 +1382,7 @@ DRAMInterface::Rank::processRefreshEvent()
 
             for (auto &b : banks) {
                 if (b.openRow != Bank::NO_ROW) {
-                    dram.prechargeBank(*this, b, pre_at, true, false);
+                    dram.prechargeBank(*this, b, pre_at, true, true, false);
                 } else {
                     b.actAllowedAt = std::max(b.actAllowedAt, act_allowed_at);
                     b.preAllowedAt = std::max(b.preAllowedAt, pre_at);
