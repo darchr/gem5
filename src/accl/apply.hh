@@ -61,7 +61,7 @@ class Apply : public ClockedObject
     class ApplyReqPort : public RequestPort
     {
       private:
-        APPLY *owner;
+        Apply *owner;
         bool _blocked;
         PacketPtr blockedPacket;
 
@@ -124,9 +124,11 @@ class Apply : public ClockedObject
        Write edgelist loc in buffer
     */
 
-    ApplyQueue applyQueue;
+    ApplyQueue applyReadQueue;
+    ApplyQueue applyWriteQueue;
     ApplyMemPort memPort;
-   public(const ApplyParams &apply);
+    std::pair<Addr, int>
+   public(const ApplyParams &apply);  //fix this
 };
 
 #endif // __ACCL_APPLY_HH__
