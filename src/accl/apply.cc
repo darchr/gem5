@@ -46,7 +46,7 @@ Apply::Apply(const ApplyParams &params):
 
 bool Apply::ApplyRespPort::recvTimingReq(PacketPtr pkt)
 {
-    if (!owner->handleWL(pkt)){
+    if (!this->handleWL(pkt)){
         return false;
     }
     return true;
@@ -73,7 +73,9 @@ void Apply::processNextApplyCheckEvent(){
     while(!queue.empty()){
         auto pkt = queue.pop()
         /// conver to ReadReq
-        bool ret = memPort->sendPacket(pkt);
+        RequestPtr req = std::make_shared<Request>(pkt->getAddr(), 64, 0 ,0);
+        PacketPtr memPkt = new Packet(req, MemCmd::ReadReq);
+        bool ret = memPort->sendPacket(memPkt);
         // handel responsehere
         if (!ret)
             break;
@@ -84,27 +86,24 @@ void Apply::processNextApplyCheckEvent(){
 virtual bool
 Apply::MPUMemPort::recvTimingResp(PacketPtr pkt)
 {
-    return owner->handleMemResp(pkt);
+    return this->handleMemResp(pkt);
 }
 
 bool
 Apply::handleMemResp(PacktPtr pkt)
 {
     auto queue = applyWriteQueue;
-    //check pkt (temp_prop != prop)
-    if (temp_prop != prop){
-        //update prop with temp_prop
+
         if (queue->blocked()){
             sendPktRetry = true;
             return false;
         } else
-            queue->push(pkt);
+            queue->push(writePkt);
 
         if(!nextApplyEvent.scheduled()){
             schedule(nextApplyEvent, nextCycle());
         }
         return true;
-    }
     return true;
 }
 
@@ -117,12 +116,21 @@ Apply::processNextApplyEvent(){
     pushPort = ApplyReqPort;
     while(!queue.empty()){
         auto pkt = queue.pop()
-        /// conver to ReadReq
-        bool ret = memPort->sendPacket(pkt);
-        bool push = pushPort->sendPacket(pkt);
-        // handel responsehere
-        if (!ret || !push)
-            break;
+        uint64_t* data = pkt->getPtr<uint64_t>();
+        uint32_t* prop = data;
+        uint32_t* temp_prop = prop + 1;
+        if (*temp_prop != *prop){
+            //update prop with temp_prop
+            *prop = min(*prop , *temp_prop);
+            RequestPtr req = std::make_shared<Request>(pkt->getAddr(), 64, 0 ,0);
+            PacketPtr writePkt = new Packet(req, MemCmd::WriteReq);
+            writePkt->setData(data);
+            bool ret = memPort->sendPacket(pkt);
+            bool push = pushPort->sendPacket(pkt);
+            // handel response here
+            if (!ret || !push)
+                break;
+        }
 
     }
 
