@@ -96,7 +96,7 @@ WLEngine::ApplyMemPort::sendPacket(PacketPtr pkt)
 void
 Apply::ApplyMemPort::trySendRetry()
 {
-    sendRetryReq();
+    sendRetryResp();
 }
 
 void
@@ -108,7 +108,7 @@ Apply::ApplyMemPort::recvReqRetry()
 }
 
 void
-WLEngine::ApplyRequestPort::sendPacket(PacketPtr pkt)
+WLEngine::ApplyReqPort::sendPacket(PacketPtr pkt)
 {
     if (!sendTimingReq(pkt)) {
         blockedPacket = pkt;
@@ -117,7 +117,7 @@ WLEngine::ApplyRequestPort::sendPacket(PacketPtr pkt)
 }
 
 void
-Apply::ApplyRequestPort::recvReqRetry()
+Apply::ApplyReqtPort::recvReqRetry()
 {
     _blocked = false;
     sendPacket(blockedPacket);
@@ -158,7 +158,7 @@ void Apply::processNextApplyCheckEvent(){
             memPort->sendPacket(memPkt);
         }
         else
-            return;
+            break;
     }
 }
 
