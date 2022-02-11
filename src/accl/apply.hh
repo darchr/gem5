@@ -43,11 +43,29 @@ class Apply : public ClockedObject
 {
   private:
 
+    struct ApplyQueue{
+      std::queue<PacketPtr> applyQueue;
+      const uint_32 queueSize;
+      bool sendPktRetry;
+
+      bool blocked(){
+        return applyQueue.size() == queueSize;
+      }
+      bool empty(){
+        return applyQueue.empty();
+      }
+      void push(PacketPtr pkt){
+        applyQueue.push(pkt);
+      }
+
+      ApplyQueue(uint32_t qSize):
+        queueSize(qSize){}
+    };
+
     class ApplyRespPort : public ResponsePort
     {
       private:
         Apply *owner;
-        bool _blocked;
         PacketPtr blockedPacket;
 
       public:
@@ -55,9 +73,11 @@ class Apply : public ClockedObject
               PortID id=InvalidPortID);
 
         virtual AddrRangeList getAddrRanges();
-        virtual bool recvTimingReq(PacketPtr pkt);
         void trySendRetry();
-    }
+
+      protected:
+        virtual bool recvTimingReq(PacketPtr pkt);
+    };
 
     class ApplyReqPort : public RequestPort
     {
@@ -65,24 +85,6 @@ class Apply : public ClockedObject
         Apply *owner;
         bool _blocked;
         PacketPtr blockedPacket;
-        struct ApplyQueue{
-          std::queue<PacketPtr> applyQueue;
-          const uint_32 queueSize;
-          bool sendPktRetry;
-
-          bool blocked(){
-            return applyQueue.size() == queueSize;
-          }
-          bool empty(){
-            return applyQueue.empty();
-          }
-          void push(PacketPtr pkt){
-            applyQueue.push(pkt);
-          }
-
-          ApplyQueue(uint32_t qSize):
-            queueSize(qSize){}
-        };
 
       public:
         ApplyReqPort(const std::string& name, SimObject* _owner,
