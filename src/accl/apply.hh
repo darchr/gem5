@@ -56,6 +56,7 @@ class Apply : public ClockedObject
 
         virtual AddrRangeList getAddrRanges();
         virtual bool recvTimingReq(PacketPtr pkt);
+        void trySendRetry();
     }
 
     class ApplyReqPort : public RequestPort
@@ -64,7 +65,6 @@ class Apply : public ClockedObject
         Apply *owner;
         bool _blocked;
         PacketPtr blockedPacket;
-
         struct ApplyQueue{
           std::queue<PacketPtr> applyQueue;
           const uint_32 queueSize;
@@ -83,12 +83,19 @@ class Apply : public ClockedObject
           ApplyQueue(uint32_t qSize):
             queueSize(qSize){}
         };
+
       public:
         ApplyReqPort(const std::string& name, SimObject* _owner,
               PortID id=InvalidPortID);
+        void sendPacket(PacketPtr pkt);
+        bool blocked(){
+          return _blocked;
+        }
 
+      protected:
+        void recvReqRetry() override;
         virtual bool recvTimingResp(PacketPtr pkt);
-    }
+    };
 
     class ApplyMemPort : public RequestPort
     {
@@ -96,20 +103,27 @@ class Apply : public ClockedObject
         Apply *owner;
         bool _blocked;
         PacketPtr blockedPacket;
+
       public:
         ApplyReqPort(const std::string& name, SimObject* _owner,
               PortID id=InvalidPortID);
-        bool sendPacket(PacktPtr pkt);
-        virtual bool recvTimingResp(PacketPtr pkt);
+        void sendPacket(PacketPtr pkt);
+        void trySendRetry();
+        bool blocked(){
+          return _blocked;
+        }
 
-    }
+      protected:
+        virtual bool recvTimingResp(PacketPtr pkt);
+        void recvReqRetry() override;
+    };
+
     bool handleWL(PacketPtr pkt);
     bool sendPacket();
     //one queue for write and one for read a priotizes write over read
     void readApplyBuffer();
     bool handleMemResp(PacktPtr resp);
     void writePushBuffer();
-
 
     //Events
     void processNextApplyCheckEvent();
@@ -124,11 +138,25 @@ class Apply : public ClockedObject
        Write edgelist loc in buffer
     */
 
+    void processNextApplyEvent();
+    EventFunctionWrapper nextApplyEvent;
+
+    void processNextApplyCheckEvent();
+    EventFunctionWrapper nextApplyCheckEvent;
+
+    AddrRangeList getAddrRanges() const;
+
     ApplyQueue applyReadQueue;
     ApplyQueue applyWriteQueue;
+
     ApplyMemPort memPort;
-    std::pair<Addr, int>
-   public(const ApplyParams &apply);  //fix this
+    ApplyRespPort respPort;
+    ApplyRequestPort reqPort;
+
+  public:
+    Apply(const ApplyParams &apply);
+    Port &getPort(const std::string &if_name,
+                  PortID idx=InvalidPortID) override;
 };
 
 #endif // __ACCL_APPLY_HH__
