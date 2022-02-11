@@ -66,7 +66,6 @@ class WLEngine : public ClockedObject
     {
       private:
         WLEngine *owner;
-        bool _blocked;
         PacketPtr blockedPacket;
 
       public:
@@ -74,11 +73,11 @@ class WLEngine : public ClockedObject
               PortID id=InvalidPortID);
 
         virtual AddrRangeList getAddrRanges();
+        void trySendRetry();
+
+      protected:
         virtual bool recvTimingReq(PacketPtr pkt);
-        bool blocked(){
-          return _blocked;
-        }
-    }
+    };
 
     class WLReqPort : public RequestPort //To Apply Engine
     {
@@ -86,15 +85,19 @@ class WLEngine : public ClockedObject
         WLEngine *owner;
         bool _blocked;
         PacketPtr blockedPacket;
+
       public:
         WLReqPort(const std::string& name, SimObject* _owner,
               PortID id=InvalidPortID);
-        void trySendRetry();
-        virtual bool recvTimingResp(PacketPtr pkt);
+        void sendPacket(PacketPtr pkt);
         bool blocked(){
           return _blocked;
         }
-    }
+
+      protected:
+        void recvReqRetry() override;
+        virtual bool recvTimingResp(PacketPtr pkt);
+    };
 
     class WLMemPort : public RequestPort
     {
@@ -102,16 +105,21 @@ class WLEngine : public ClockedObject
         WLEngine *owner;
         bool _blocked;
         PacketPtr blockedPacket;
+
       public:
         WLMemPort(const std::string& name, SimObject* _owner,
               PortID id=InvalidPortID);
         void sendPacket(PacktPtr pkt);
-        virtual bool recvTimingResp(PacketPtr pkt);
         void trySendRetry();
         bool blocked(){
           return _blocked;
         }
-    }
+
+    protected:
+      virtual bool recvTimingResp(PacketPtr pkt);
+      void recvReqRetry() override;
+    };
+
     bool handleWLU(PacketPtr pkt);
     bool sendPacket();
     //one queue for write and one for read a priotizes write over read
@@ -131,13 +139,27 @@ class WLEngine : public ClockedObject
        read + write
        Write edgelist loc in buffer
     */
+    void processNextWLReadEvent();
+    EventFunctionWrapper nextWLReadEvent;
+
+    void processNextWLReduceEvent();
+    EventFunctionWrapper nextWLReduceEvent;
+
+    AddrRangeList getAddrRanges() const;
 
     WLQueue wlReadQueue;
     WLQueue wlWriteQueue;
     WLMemPort memPort;
-    std::pair<Addr, int>
+
+    WLMemPort memPort;
+    WLRespPort respPort;
+    WLRequestPort reqPort;
+
    public:
-   WLEngine(const WLEngineParams &params);  //fix this
+
+    WLEngine(const WLEngineParams &params);
+    Port &getPort(const std::string &if_name,
+                  PortID idx=InvalidPortID) override;
 };
 
 #endif // __ACCL_WLE_HH__
