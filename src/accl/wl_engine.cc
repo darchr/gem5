@@ -162,7 +162,6 @@ void WLEngine::processNextWLReadEvent(){
             break;
         }
     }
-
 }
 
 bool
@@ -188,12 +187,8 @@ WLEngine::processNextWLReduceEvent(){
     auto updateQ = wlReadQueue;
     applyPort = reqPort;
     while(!queue.empty()){
-        auto update = updateQ.pop()
-        if (!updateQ->blocked() & updateQ->sendPktRetry){
-            respPort->trySendRetry();
-            updateQ->sendPktRetry = false;
-        }
-        auto pkt = queue.front()
+        auto update = updateQ.front();
+        auto pkt = queue.front();
         uint64_t* updatePtr = pkt->getPtr<uint64_t>();
         uint64_t* data = pkt->getPtr<uint64_t>();
         uint32_t* value = updatePtr;
@@ -213,6 +208,11 @@ WLEngine::processNextWLReduceEvent(){
                     memPort->trySendRetry();
                     queue->sendPktRetry = false;
                 }
+                updateQ.pop();
+                if (!updateQ->blocked() & updateQ->sendPktRetry){
+                    respPort->trySendRetry();
+                    updateQ->sendPktRetry = false;
+                }
             }
             else
                 break;
@@ -222,6 +222,11 @@ WLEngine::processNextWLReduceEvent(){
             if (!queue->blocked() && queue->sendPktRetry){
                 memPort->trySendRetry();
                 queue->sendPktRetry = false;
+            }
+            updateQ.pop()
+            if (!updateQ->blocked() & updateQ->sendPktRetry){
+                respPort->trySendRetry();
+                updateQ->sendPktRetry = false;
             }
 
         }
