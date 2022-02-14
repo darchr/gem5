@@ -26,14 +26,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.params import *
-from m5.SimObject import SimObject
+from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
 
 class PushEngine(ClockedObject):
-    type = 'PushEngine'
+    type = 'WLEngine'
     cxx_header = "accl/push_engine.hh"
     cxx_class = 'gem5::PushEngine'
 
-    respPort = ResponsePort("Receives requests from WorkList")
-    reqPort  = RequestPort("Sends requests to Push")
-    memPort  = RequestPort("Memory side port, sends requests")
+    system = Param.System(Parent.any, "The system object this push engine is a part of")
+    respPort = ResponsePort("Port to Receive updates from outside")
+    reqPort  = RequestPort("Port to send updates to the outside")
+    memPort  = RequestPort("Port to communicate with the memory")
