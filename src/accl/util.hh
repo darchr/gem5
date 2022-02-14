@@ -26,7 +26,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "base/addr_range_map.hh"
 #include "base/types.hh"
 #include "mem/packet.hh"
 
@@ -50,5 +49,9 @@ uint8_t* workListToMemory(WorkListItem wl);
 Edge& memoryToEdge(uint8_t* data);
 uint8_t* edgeToMemory(Edge e);
 
-PacketPtr& getReadPacket(Addr addr, unsigned int size, RequestorID requestorId);
+PacketPtr& getReadPacket(Addr addr, unsigned int size,
+                            RequestorID requestorId);
+PacketPtr&
+getWritePacket(Addr addr, unsigned int size,
+                uint8_t* data, RequestorID requestorId);
 PacketPtr& getUpdatePacket(Addr addr, unsigned int size, uint8_t *data);
