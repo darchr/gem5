@@ -39,11 +39,10 @@ WLEngine::WLEngine(const WLEngineParams &params):
     respPort(name() + ".respPort", this),
     memPort(name() + ".memPort", this),
     nextWLReadEvent([this]{processNextWLReadEvent; }, name()),
-    nextWLReduceEvent([this]{processNextWLReduceEvent; }, name()),
-    queueSize(params.wlQueueSize) //add this to .py
+    nextWLReduceEvent([this]{processNextWLReduceEvent; }, name())
 {
-    updateQueue(queueSize);
-    responseQueue(queueSize);
+    updateQueue(params.wlQueueSize);
+    responseQueue(params.wlQueueSize);
 }
 
 Port &
@@ -138,11 +137,11 @@ WLEngine::getAddrRanges() const
 
 bool WLEngine::handleWLUpdate(PacketPtr pkt){
     auto queue = updateQueue;
-    if (queue->blocked()){
-        queue->sendPktRetry = true;
+    if (queue.blocked()){
+        queue.sendPktRetry = true;
         return false;
     } else
-        queue->push(pkt);
+        queue.push(pkt);
 
     if(!nextWLReadEvent.scheduled()){
         schedule(nextWLReadEvent, nextCycle());
@@ -152,19 +151,19 @@ bool WLEngine::handleWLUpdate(PacketPtr pkt){
 
 void WLEngine::processNextWLReadEvent(){
     auto queue = updateQueue;
-    memPort = WLMemPort
-    while(!queue.empty()){ //create a map instead of front
+    auto memPort = WLMemPort;
+    while (!queue.empty()){ //create a map instead of front
         auto pkt = queue.front()
         /// conver to ReadReq
         Addr req_addr = (pkt->getAddr() / 64) * 64;
         int req_offset = (pkt->getAddr()) % 64;
-        RequestPtr req =
+        RequestPtr request =
             std::make_shared<Request>(req_addr, 64, 0 ,0);
         PacketPtr memPkt = new Packet(req, MemCmd::ReadReq);
-        requestOffset[req] = req_offset;
-        if (!memPort->blocked()){
+        requestOffset[request] = req_offset;
+        if (!memPort.blocked()){
             queue.pop()
-            memPort->sendPacket(memPkt);
+            memPort.sendPacket(memPkt);
             break;
         }
     }
@@ -177,11 +176,11 @@ bool
 WLEngine::handleMemResp(PacktPtr pkt)
 {
     auto queue = responseQueue;
-        if (queue->blocked()){
+        if (queue.blocked()){
             sendPktRetry = true;
             return false;
         } else
-            queue->push(writePkt);
+            queue.push(writePkt);
 
         if(!nextWLReduceEvent.scheduled()){
             schedule(nextWLReduceEvent, nextCycle());
@@ -199,49 +198,47 @@ WLEngine::processNextWLReduceEvent(){
     auto value = update->getPtr<uint8_t>();
     auto pkt = queue.front();
     uint8_t* data = pkt->getPtr<uint8_t>();
-    RequestPtr req = pkt->req;
-    int request_offset = requestOffset[req];
+    RequestPtr request = pkt->req;
+    int request_offset = requestOffset[request];
     WorkListItem wl =  memoryToWorkList(data + request_offset)
     uint32_t temp_prop = wl.temp_prop;
     if (temp_prop != *value){
         //update prop with temp_prop
-        temp_prop = min(value , temp_prop);
-        if (!memPort->blocked() && !applyPort->blocked()){
+        temp_prop = std::min(value , temp_prop);
+        if (!memPort.blocked() && !applyPort.blocked()){
             wl.temp_prop = temp_prop;
-            unit8_t* wlItem = workListToMemory(wl);
+            uint8_t* wlItem = workListToMemory(wl);
             memcpy(data + request_offset, wlItem, sizeof(WorkListItem));
             PacketPtr writePkt  =
             getWritePacket(pkt->getAddr(), 64, data, requestorId);
-            memPort->sendPacket(writePkt);
-            applyPort->sendPacket(writePkt);
+            memPort.sendPacket(writePkt);
+            applyPort.sendPacket(writePkt);
             queue.pop();
-            if (!queue->blocked() && queue->sendPktRetry){
-                memPort->trySendRetry();
-                queue->sendPktRetry = false;
+            if (!queue.blocked() && queue.sendPktRetry){
+                memPort.trySendRetry();
+                queue.sendPktRetry = false;
             }
             updateQ.pop();
-            if (!updateQ->blocked() & updateQ->sendPktRetry){
-                respPort->trySendRetry();
-                updateQ->sendPktRetry = false;
+            if (!updateQ.blocked() & updateQ.sendPktRetry){
+                respPort.trySendRetry();
+                updateQ.sendPktRetry = false;
             }
         }
-        else
-            break;
     }
     else{
         queue.pop();
-        if (!queue->blocked() && queue->sendPktRetry){
-            memPort->trySendRetry();
-            queue->sendPktRetry = false;
+        if (!queue.blocked() && queue.sendPktRetry){
+            memPort.trySendRetry();
+            queue.sendPktRetry = false;
         }
         updateQ.pop()
-        if (!updateQ->blocked() & updateQ->sendPktRetry){
-            respPort->trySendRetry();
-            updateQ->sendPktRetry = false;
+        if (!updateQ.blocked() & updateQ.sendPktRetry){
+            respPort.trySendRetry();
+            updateQ.sendPktRetry = false;
         }
 
     }
-    if(!queue && !nextWLReduceEvent.scheduled()){
+    if (!queue.empty() && !nextWLReduceEvent.scheduled()){
             schedule(nextWLReduceEvent, nextCycle());
     }
 }

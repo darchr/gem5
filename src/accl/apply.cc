@@ -38,11 +38,10 @@ Apply::Apply(const ApplyParams &params):
     respPort(name() + ".respPort", this),
     memPort(name() + ".memPort", this),
     nextApplyEvent([this]{processNextApplyEvent; }, name()),
-    nextApplyCheckEvent([this]{processNextApplyCheckEvent; }, name()),
-    queueSize(params.applyQueueSize) //add this to .py
+    nextApplyCheckEvent([this]{processNextApplyCheckEvent; }, name())
 {
-    applyReadQueue(queueSize);
-    applyWriteQueue(queueSize);
+    applyReadQueue(params.applyQueueSize);
+    applyWriteQueue(params.applyQueueSize);
 }
 
 Port &
@@ -110,7 +109,7 @@ Apply::ApplyMemPort::recvReqRetry()
 }
 
 void
-WLEngine::ApplyReqPort::sendPacket(PacketPtr pkt)
+Apply::ApplyReqPort::sendPacket(PacketPtr pkt)
 {
     if (!sendTimingReq(pkt)) {
         blockedPacket = pkt;
@@ -119,7 +118,7 @@ WLEngine::ApplyReqPort::sendPacket(PacketPtr pkt)
 }
 
 void
-Apply::ApplyReqtPort::recvReqRetry()
+Apply::ApplyReqPort::recvReqRetry()
 {
     _blocked = false;
     sendPacket(blockedPacket);
@@ -134,12 +133,13 @@ Apply::getAddrRanges() const
 
 bool Apply::handleWL(PacketPtr pkt){
     auto queue = applyReadQueue;
-    if (queue->blocked()){
+    if (queue.blocked()){
         sendPktRetry = true;
         return false;
-    } else
-        queue->push(pkt);
-    if(!nextApplyCheckEvent.scheduled()){
+    } else{
+        queue.push(pkt);
+    }
+    if (!nextApplyCheckEvent.scheduled()){
         schedule(nextApplyCheckEvent, nextCycle());
     }
     return true;
@@ -147,22 +147,19 @@ bool Apply::handleWL(PacketPtr pkt){
 
 void Apply::processNextApplyCheckEvent(){
     auto queue = applyReadQueue;
-    if(!memPort->blocked()){
+    if (!memPort.blocked()){
         auto pkt = queue.pop();
-        if(queue->sendPktRetry && !queue->blocked()){
-                respPort->trySendRetry();
-                queue->sendPktRetry = false;
+        if (queue.sendPktRetry && !queue.blocked()){
+                respPort.trySendRetry();
+                queue.sendPktRetry = false;
         }
         // conver to ReadReq
         Addr req_addr = (pkt->getAddr() / 64) * 64;
         int req_offset = (pkt->getAddr()) % 64;
-        RequestPtr req = std::make_shared<Request>(req_addr, 64, 0 ,0);
-        PacketPtr memPkt = new Packet(req, MemCmd::ReadReq);
-        requestOffset[req] = req_offset;
-        memPort->sendPacket(memPkt);
-    }
-    else{
-        break;
+        RequestPtr request = std::make_shared<Request>(req_addr, 64, 0 ,0);
+        PacketPtr memPkt = new Packet(request, MemCmd::ReadReq);
+        requestOffset[request] = req_offset;
+        memPort.sendPacket(memPkt);
     }
     if (!queue.empty() &&  !nextApplyCheckEvent.scheduled()){
         schedule(nextApplyCheckEvent, nextCycle());
@@ -174,11 +171,11 @@ Apply::handleMemResp(PacktPtr pkt)
 {
     auto queue = applyWriteQueue;
 
-        if (queue->blocked()){
+        if (queue.blocked()){
             sendPktRetry = true;
             return false;
         } else
-            queue->push(writePkt);
+            queue.push(pkt);
 
         if(!nextApplyEvent.scheduled()){
             schedule(nextApplyEvent, nextCycle());
@@ -193,38 +190,35 @@ Apply::processNextApplyEvent(){
         auto pkt = queue.front();
         uint8_t* data = pkt->getPtr<uint8_t>();
 
-        RequestPtr req = pkt->req;
-        int request_offset = requestOffset[req];
+        RequestPtr request = pkt->req;
+        int request_offset = requestOffset[request];
         WorkListItem wl = memoryToWorkList(data + request_offset);
         uint32_t prop = wl.prop;
         uint32_t temp_prop = wl.temp_prop;
 
         if (temp_prop != prop){
-            if (!memPort->blocked() && !reqPort->blocked()){
+            if (!memPort.blocked() && !reqPort.blocked()){
                 //update prop with temp_prop
-                wl.prop = min(prop , temp_prop);
+                wl.prop = std::min(prop , temp_prop);
                 //write back the new worklist item to  memory
                 uint8_t* wList = workListToMemory(wl);
                 memcpy(data + request_offset, wList, sizeof(WorkListItem));
                 //Create memory write requests.
                 PacketPtr writePkt  =
                 getWritePacket(pkt->getAddr(), 64, data, requestorId);
-                memPort->sendPacket(writePkt);
-                applyReqPort->sendPacket(writePkt);
+                memPort.sendPacket(writePkt);
+                applyReqPort.sendPacket(writePkt);
                 queue.pop();
-                if(queue->sendPktRetry && !queue->blocked()){
-                    memPort->trySendRetry();
-                    queue->sendPktRetry = false;
+                if (queue.sendPktRetry && !queue.blocked()){
+                    memPort.trySendRetry();
+                    queue.sendPktRetry = false;
                 }
             }
-            else
-                break;
-        }
-        else{
+        }else{
             queue.pop();
-            if(queue->sendPktRetry && !queue->blocked()){
-                memPort->trySendRetry();
-                queue->sendPktRetry = false;
+            if (queue.sendPktRetry && !queue.blocked()){
+                memPort.trySendRetry();
+                queue.sendPktRetry = false;
             }
         }
     if(!queue.empty() && !nextApplyEvent.scheduled()){
