@@ -39,13 +39,15 @@ struct WorkListItem
 
 struct Edge
 {
-    uint32_t weight;
+    uint64_t weight;
     Addr neighbor;
 }
 
 WorkListItem& memoryToWorkList(uint8_t* data);
 unit8_t* workListToMemory(WorkListItem wl);
+
 Edge& memoryToEdge(uint8_t* data);
+uint8_t* edgeToMemory(Edge e);
 
 PacketPtr& getReadPacket(Addr addr, unsigned int size, RequestorID requestorId);
-PacketPtr getWritePacket(Addr addr, unsigned int size, uint8_t* data, RequestorID requestorId);
+PacketPtr& getUpdatePacket(Addr addr, unsigned int size, uint8_t *data);
