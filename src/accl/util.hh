@@ -26,6 +26,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "base/addr_range_map.hh"
 #include "base/types.hh"
 #include "mem/packet.hh"
 
@@ -35,7 +36,7 @@ struct WorkListItem
     uint32_t prop;
     uint32_t degree;
     uint32_t edgeIndex;
-}
+};
 
 struct Edge
 {
@@ -44,7 +45,7 @@ struct Edge
 }
 
 WorkListItem& memoryToWorkList(uint8_t* data);
-unit8_t* workListToMemory(WorkListItem wl);
+uint8_t* workListToMemory(WorkListItem wl);
 
 Edge& memoryToEdge(uint8_t* data);
 uint8_t* edgeToMemory(Edge e);

@@ -28,6 +28,8 @@
 
 #include "accl/util.hh"
 
+#include "base/types.hh"
+#include "mem/packet.hh"
 
 // Edge: (weight: 64 bits, neighbor: 64 bits)
 Edge&
