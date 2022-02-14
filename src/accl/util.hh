@@ -28,6 +28,10 @@
 
 #include "base/types.hh"
 #include "mem/packet.hh"
+#include "mem/request.hh"
+
+namespace gem5
+{
 
 struct WorkListItem
 {
@@ -41,16 +45,18 @@ struct Edge
 {
     uint64_t weight;
     Addr neighbor;
-}
+};
 
-WorkListItem& memoryToWorkList(uint8_t* data);
+WorkListItem memoryToWorkList(uint8_t* data);
 uint8_t* workListToMemory(WorkListItem wl);
 
-Edge& memoryToEdge(uint8_t* data);
+Edge memoryToEdge(uint8_t* data);
 uint8_t* edgeToMemory(Edge e);
 
-PacketPtr& getReadPacket(Addr addr, unsigned int size,
+PacketPtr getReadPacket(Addr addr, unsigned int size,
                             RequestorID requestorId);
-PacketPtr& getWritePacket(Addr addr, unsigned int size,
+PacketPtr getWritePacket(Addr addr, unsigned int size,
                 uint8_t* data, RequestorID requestorId);
-PacketPtr& getUpdatePacket(Addr addr, unsigned int size, uint8_t *data);
+PacketPtr getUpdatePacket(Addr addr, unsigned int size, uint8_t *data);
+
+}
