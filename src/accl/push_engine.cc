@@ -28,7 +28,9 @@
 
 #include "accl/util.hh"
 #include "accl/push_engine.hh"
-// #include "debug/PushEngine.hh"
+
+namespace gem5
+{
 
 PushEngine::PushEngine(const PushEngineParams &params) : ClockedObject(params),
     system(params.system),
@@ -242,4 +244,6 @@ void PushEngine::processNextSendEvent()
     if (!nextSendEvent.scheduled() && !updateQueue.empty()) {
         schedule(nextSendEvent, nextCycle());
     }
+}
+
 }
