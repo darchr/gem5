@@ -37,9 +37,9 @@
 #include "base/statistics.hh"
 #include "mem/port.hh"
 #include "mem/packet.hh"
-#include "params/MPU.hh"
+#include "params/WLEngine.hh"
 #include "sim/clocked_object.hh"
-
+#include "sim/port.hh"
 
 class WLEngine : public ClockedObject
 {
@@ -47,20 +47,26 @@ class WLEngine : public ClockedObject
 
     struct WLQueue{
       std::queue<PacketPtr> wlQueue;
-      const uint_32 queueSize;
+      const uint32_t queueSize;
       bool sendPktRetry;
 
       bool blocked(){
-        return wlQueue.size() == queueSize;
+        return (wlQueue.size() == queueSize);
       }
       bool empty(){
-        return wlQueue.empty();
+        return wlQueue->empty();
       }
       void push(PacketPtr pkt){
-        wlQueue.push(pkt);
+        wlQueue->push(pkt);
+      }
+      void pop(){
+        wlQueue->pop();
+      }
+      void front(){
+        wlQueue.front());
       }
 
-      WLReqPort(uint32_t qSize):
+      WLQueue(uint32_t qSize):
         queueSize(qSize){}
     };
 

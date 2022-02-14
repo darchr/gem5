@@ -35,10 +35,12 @@
 #include "accl/util.hh"
 #include "base/addr_range_map.hh"
 #include "base/statistics.hh"
-#include "mem/port.hh"
+#include "base/types.hh"
 #include "mem/packet.hh"
-#include "params/MPU.hh"
+#include "mem/port.hh"
+#include "params/Apply.hh"
 #include "sim/clocked_object.hh"
+#include "sim/port.hh"
 
 class Apply : public ClockedObject
 {
@@ -46,17 +48,25 @@ class Apply : public ClockedObject
 
     struct ApplyQueue{
       std::queue<PacketPtr> applyQueue;
-      const uint_32 queueSize;
+      const uint32_t queueSize;
       bool sendPktRetry;
 
       bool blocked(){
-        return applyQueue.size() == queueSize;
+        return (applyQueue.size() == queueSize);
       }
       bool empty(){
-        return applyQueue.empty();
+        return applyQueue->empty();
       }
       void push(PacketPtr pkt){
-        applyQueue.push(pkt);
+        applyQueue->push(pkt);
+      }
+
+      void pop(){
+        applyQueue->pop();
+      }
+
+      void front(){
+        applyQueue->front();
       }
 
       ApplyQueue(uint32_t qSize):
