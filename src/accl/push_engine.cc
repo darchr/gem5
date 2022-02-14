@@ -106,7 +106,7 @@ bool PushEngine::PushRespPort::recvTimingReq(PacketPtr pkt)
 AddrRangeList
 PushEngine::PushRespPort::getAddrRanges()
 {
-    owner->memPort->getAddrRanges();
+    owner->getAddrRanges();
 }
 
 bool PushEngine::handleUpdate(PacketPtr pkt)
@@ -262,6 +262,12 @@ PushEngine::PushReqPort::sendPacket(PacketPtr pkt)
         blockedPacket = pkt;
         _blocked = true;
     }
+}
+
+AddrRangeList
+PushEngine::getAddrRanges()
+{
+    return memPort.getAddrRanges();
 }
 
 }
