@@ -31,8 +31,7 @@
 
 #include <queue>
 
-#include "base/addr_range_map.hh"
-#include "base/statistics.hh"
+#include "base/addr_range.hh"
 #include "mem/port.hh"
 #include "mem/packet.hh"
 #include "params/PushEngine.hh"
@@ -60,7 +59,7 @@ class PushEngine : public ClockedObject
         {}
         virtual AddrRangeList getAddrRanges();
         virtual bool recvTimingReq(PacketPtr pkt);
-    }
+    };
 
     class PushReqPort : public RequestPort
     {
@@ -77,12 +76,12 @@ class PushEngine : public ClockedObject
         void sendPacket(PacketPtr pkt);
         bool blocked() { return _blocked; }
         virtual bool recvTimingResp(PacketPtr pkt);
-    }
+    };
 
     class PushMemPort : public RequestPort
     {
       private:
-        PushEngine* owner
+        PushEngine* owner;
         bool _blocked;
         PacketPtr blockedPacket;
 
@@ -92,10 +91,10 @@ class PushEngine : public ClockedObject
           _blocked(false), blockedPacket(nullptr)
         {}
 
-        void sendPacket(PacktPtr pkt);
+        void sendPacket(PacketPtr pkt);
         bool blocked() { return _blocked; }
         virtual bool recvTimingResp(PacketPtr pkt);
-    }
+    };
 
     virtual void startup() override;
 
@@ -134,11 +133,13 @@ class PushEngine : public ClockedObject
 
     bool handleMemResp(PacketPtr pkt);
 
+    AddrRangeList getAddrRanges();
+
   public:
 
     PushEngine(const PushEngineParams &params);
 
-    Port &getPort(const std::string &if_name,
+    Port& getPort(const std::string &if_name,
                 PortID idx=InvalidPortID) override;
 
 };

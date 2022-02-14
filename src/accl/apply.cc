@@ -62,14 +62,14 @@ Apply::getPort(const std::string &if_name, PortID idx)
 }
 
 AddrRangeList
-Apply::ApplyRespPort::getAddrRanges() const
+Apply::ApplyRespPort::getAddrRanges()
 {
     return owner->getAddrRanges();
 }
 
 bool Apply::ApplyRespPort::recvTimingReq(PacketPtr pkt)
 {
-    if (!this->handleWL(pkt)){
+    if (!owner->handleWL(pkt)){
         return false;
     }
     return true;
@@ -82,15 +82,17 @@ Apply::ApplyRespPort::trySendRetry()
 }
 
 
-virtual bool
+bool
 Apply::ApplyMemPort::recvTimingResp(PacketPtr pkt)
 {
-    return this->handleMemResp(pkt);
+    return owner->handleMemResp(pkt);
 }
 
 void
-WLEngine::ApplyMemPort::sendPacket(PacketPtr pkt)
+Apply::ApplyMemPort::sendPacket(PacketPtr pkt)
 {
+    panic_if(_blocked, "Should never try to send if blocked MemSide!");
+
     if (!sendTimingReq(pkt)) {
         blockedPacket = pkt;
         _blocked = true;
