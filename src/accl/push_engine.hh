@@ -54,10 +54,10 @@ class PushEngine : public ClockedObject
         PacketPtr blockedPacket;
 
       public:
-        //TODO: Implement this;
-        PushRespPort(const std::string& name, SimObject* _owner,
-              PortID id=InvalidPortID);
-
+        PushRespPort(const std::string& name, PushEngine* owner):
+          ResponsePort(name, owner), owner(owner),
+          _blocked(false), blockedPacket(nullptr)
+        {}
         virtual AddrRangeList getAddrRanges();
         virtual bool recvTimingReq(PacketPtr pkt);
     }
@@ -65,27 +65,32 @@ class PushEngine : public ClockedObject
     class PushReqPort : public RequestPort
     {
       private:
+        PushEngine* owner;
         bool _blocked;
         PacketPtr blockedPacket;
 
       public:
-        // TODO: Implement this;
-        PushReqPort(const std::string& name, SimObject* _owner,
-              PortID id=InvalidPortID);
-
+        PushReqPort(const std::string& name, PushEngine* owner):
+          RequestPort(name, owner), owner(owner),
+          _blocked(false), blockedPacket(nullptr)
+        {}
+        void sendPacket(PacketPtr pkt);
+        bool blocked() { return _blocked; }
         virtual bool recvTimingResp(PacketPtr pkt);
     }
 
     class PushMemPort : public RequestPort
     {
       private:
+        PushEngine* owner
         bool _blocked;
         PacketPtr blockedPacket;
 
       public:
-        // TODO: Implement this;
-        PushMemPort(const std::string& name, SimObject* _owner,
-              PortID id=InvalidPortID);
+        PushMemPort(const std::string& name, PushEngine* owner):
+          RequestPort(name, owner), owner(owner),
+          _blocked(false), blockedPacket(nullptr)
+        {}
 
         void sendPacket(PacktPtr pkt);
         bool blocked() { return _blocked; }
@@ -106,9 +111,9 @@ class PushEngine : public ClockedObject
     // int vertexQueueSize;
     // int vertexQueueLen;
 
-    std::unordered_map<req, Addr> reqOffsetMap;
-    std::unordered_map<req, int> reqNumEdgeMap;
-    std::unordered_map<req, uint32_t> reqValueMap;
+    std::unordered_map<RequestPtr, Addr> reqOffsetMap;
+    std::unordered_map<RequestPtr, int> reqNumEdgeMap;
+    std::unordered_map<RequestPtr, uint32_t> reqValueMap;
 
     std::queue<PacketPtr> memReqQueue; // Infinite queueing?
 
@@ -126,6 +131,8 @@ class PushEngine : public ClockedObject
     void processNextSendEvent();
 
     bool handleUpdate(PacketPtr pkt);
+
+    bool handleMemResp(PacketPtr pkt);
 
   public:
 

@@ -65,6 +65,8 @@ PushEngine::getPort(const std::string &if_name, PortID idx)
 void
 PushEngine::startup()
 {
+    //FIXME: This is the current version of our initializer.
+    // This should be updated in the future.
     WorkListItem vertices [5] = {
                                 {0, 0, 3, 0}, // Addr: 0
                                 {0, 0, 1, 3}, // Addr: 16
@@ -109,6 +111,7 @@ PushEngine::PushRespPort::getAddrRanges()
 
 bool PushEngine::handleUpdate(PacketPtr pkt)
 {
+    //FIXME: There should be a check if the queues are full.
     // if (vertexQueueLen < vertexQueueSize) {
     //     vertexQueue.push(pkt)
     //         vertexQueueLen++;
@@ -192,20 +195,19 @@ bool PushEngine::PushMemPort::recvTimingResp(PacketPtr pkt)
     return owner->handleMemResp(pkt);
 }
 
-void PushEngine::PushMemPort::sendPacket(PacketPtr pkt)
+void
+PushEngine::PushMemPort::sendPacket(PacketPtr pkt)
 {
     panic_if(_blocked, "Should never try to send if blocked MemSide!");
     // If we can't send the packet across the port, store it for later.
     if (!sendTimingReq(pkt))
     {
         blockedPacket = pkt;
-        DPRINTF(MemScheduler, "Setting blocked to true on port %s\n",
-                this->name());
         _blocked = true;
     }
 }
 
-void PushEngine::handleMemResp(PacketPtr pkt)
+bool PushEngine::handleMemResp(PacketPtr pkt)
 {
     RequestPtr req = pkt->req;
     uint8_t *data = pkt->getPtr<uint8_t>();
@@ -230,8 +232,12 @@ void PushEngine::handleMemResp(PacketPtr pkt)
     if (!nextSendEvent.scheduled() && !updateQueue.empty()) {
         schedule(nextSendEvent, nextCycle());
     }
-}
 
+    //TODO: Should we always return true? It's the response from the memory
+    // so maybe yes. We assume the receiving bandwidth of the PushEngine is
+    // higher than its demand bandwidth
+    return true;
+}
 
 void PushEngine::processNextSendEvent()
 {
@@ -243,6 +249,18 @@ void PushEngine::processNextSendEvent()
 
     if (!nextSendEvent.scheduled() && !updateQueue.empty()) {
         schedule(nextSendEvent, nextCycle());
+    }
+}
+
+void
+PushEngine::PushReqPort::sendPacket(PacketPtr pkt)
+{
+    panic_if(_blocked, "Should never try to send if blocked MemSide!");
+    // If we can't send the packet across the port, store it for later.
+    if (!sendTimingReq(pkt))
+    {
+        blockedPacket = pkt;
+        _blocked = true;
     }
 }
 

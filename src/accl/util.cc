@@ -28,18 +28,20 @@
 
 #include "accl/util.hh"
 
-WorkListItem&
+namespace gem5
+{
+
+WorkListItem
 memoryToWorkList(uint8_t* data){
     WorkListItem wl;
-    uint32_t temp_prop = *((uint32_t*) data));
 
+    uint32_t temp_prop = *((uint32_t*) data);
     uint32_t prop = *((uint32_t*) (data + 4));
-
     uint32_t degree = *((uint32_t*) (data + 8));
-
     uint32_t addr = *((uint32_t*) (data + 12));
 
-    retrun wl  = {temp_prop, prop, degree, addr};
+    wl  = {temp_prop, prop, degree, addr};
+    return wl;
 }
 
 uint8_t*
@@ -63,7 +65,7 @@ workListToMemory(WorkListItem wl){
 }
 
 // Edge: (weight: 64 bits, neighbor: 64 bits)
-Edge&
+Edge
 memoryToEdge(uint8_t *data)
 {
     uint64_t weight = *((uint64_t*) data);
@@ -89,7 +91,7 @@ edgeToMemory(Edge e)
     return data;
 }
 
-PacketPtr&
+PacketPtr
 getReadPacket(Addr addr, unsigned int size, RequestorID requestorId)
 {
     RequestPtr req = std::make_shared<Request>(addr, size, 0, requestorId);
@@ -104,7 +106,7 @@ getReadPacket(Addr addr, unsigned int size, RequestorID requestorId)
     return pkt;
 }
 
-PacketPtr&
+PacketPtr
 getWritePacket(Addr addr, unsigned int size,
             uint8_t* data, RequestorID requestorId)
 {
@@ -121,8 +123,9 @@ getWritePacket(Addr addr, unsigned int size,
     return pkt;
 }
 
-PacketPtr&
-getUpdatePacket(Addr addr, unsigned int size, uint8_t *data)
+PacketPtr
+getUpdatePacket(Addr addr, unsigned int size,
+            uint8_t *data, RequestorID requestorId)
 {
     RequestPtr req = std::make_shared<Request>(addr, size, 0,
                                                requestorId);
@@ -138,3 +141,4 @@ getUpdatePacket(Addr addr, unsigned int size, uint8_t *data)
     return pkt;
 }
 
+}
