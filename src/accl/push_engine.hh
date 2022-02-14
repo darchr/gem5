@@ -39,7 +39,9 @@
 #include "sim/clocked_object.hh"
 #include "sim/system.hh"
 
-//FIXME: Add gem5 namespace here
+namespace gem5
+{
+
 class PushEngine : public ClockedObject
 {
   private:
@@ -134,4 +136,5 @@ class PushEngine : public ClockedObject
 
 };
 
+}
 #endif // __ACCL_PUSH_ENGINE_HH__

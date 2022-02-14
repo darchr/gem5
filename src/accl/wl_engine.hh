@@ -41,6 +41,9 @@
 #include "sim/clocked_object.hh"
 #include "sim/port.hh"
 
+namespace gem5
+{
+
 class WLEngine : public ClockedObject
 {
   private:
@@ -117,7 +120,7 @@ class WLEngine : public ClockedObject
       public:
         WLMemPort(const std::string& name, SimObject* _owner,
               PortID id=InvalidPortID);
-        void sendPacket(PacktPtr pkt);
+        void sendPacket(PacketPtr pkt);
         void trySendRetry();
         bool blocked(){
           return _blocked;
@@ -132,7 +135,7 @@ class WLEngine : public ClockedObject
     bool sendPacket();
     //one queue for write and one for read a priotizes write over read
     void readWLBuffer();
-    bool handleMemResp(PacktPtr resp);
+    bool handleMemResp(PacketPtr resp);
 
 
     //Events
@@ -173,5 +176,7 @@ class WLEngine : public ClockedObject
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 };
+
+}
 
 #endif // __ACCL_WLE_HH__

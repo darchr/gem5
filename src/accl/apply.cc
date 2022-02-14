@@ -30,6 +30,9 @@
 
 #include <string>
 
+namespace gem5
+{
+
 Apply::Apply(const ApplyParams &params):
     ClockedObject(params),
     system(params.system),
@@ -224,4 +227,6 @@ Apply::processNextApplyEvent(){
     if(!queue.empty() && !nextApplyEvent.scheduled()){
         schedule(nextApplyEvent, nextCycle());
     }
+}
+
 }
