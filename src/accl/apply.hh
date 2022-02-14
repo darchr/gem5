@@ -42,6 +42,9 @@
 #include "sim/clocked_object.hh"
 #include "sim/port.hh"
 
+namespace gem5
+{
+
 class Apply : public ClockedObject
 {
   private:
@@ -176,5 +179,7 @@ class Apply : public ClockedObject
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 };
+
+}
 
 #endif // __ACCL_APPLY_HH__
