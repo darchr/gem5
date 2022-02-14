@@ -28,6 +28,34 @@
 
 #include "accl/util.hh"
 
+
+// Edge: (weight: 64 bits, neighbor: 64 bits)
+Edge&
+memoryToEdge(uint8_t *data)
+{
+    uint64_t weight = *((uint64_t*) data);
+    Addr neighbor = *((Addr*) (data + 8)); // data + 8 because weight: 8 bytes
+    Edge e = {weight, neighbor};
+    return e;
+}
+
+// Edge: (weight: 64 bits, neighbor: 64 bits)
+uint8_t*
+edgeToMemory(Edge e)
+{
+    int data_size = (int) ((sizeof(Edge)) / (sizeof(uint8_t)));
+
+    uint8_t* data = new uint8_t [data_size];
+
+    uint64_t* weightPtr = (uint64_t*) data;
+    *weightPtr = e.weight;
+
+    Addr* neighborPtr = (Addr*) (data + 8); // data + 8 because weight: 8 bytes
+    *neighborPtr = e.neighbor;
+
+    return data;
+}
+
 PacketPtr
 getReadPacket(Addr addr, unsigned int size, RequestorID requestorId)
 {
@@ -43,6 +71,7 @@ getReadPacket(Addr addr, unsigned int size, RequestorID requestorId)
     return pkt;
 }
 
+
 PacketPtr getWritePacket(Addr addr,
                unsigned int size,
                uint8_t* data,
@@ -53,6 +82,18 @@ PacketPtr getWritePacket(Addr addr,
     req->setPC(((Addr)requestorId) << 2);
 
     PacketPtr pkt = new Packet(req, MemCmd::WriteReq);
+
+PacketPtr
+getUpdatePacket(Addr addr, unsigned int size, uint8_t *data)
+{
+    RequestPtr req = std::make_shared<Request>(addr, size, 0,
+                                               requestorId);
+    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
+    // bits
+    req->setPC(((Addr)requestorId) << 2);
+
+    PacketPtr pkt = new Packet(req, MemCmd::UpdateWL);
+
     pkt->allocate();
     pkt->setData(data);
 

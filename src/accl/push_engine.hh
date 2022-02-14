@@ -51,6 +51,7 @@ class PushEngine : public ClockedObject
         PacketPtr blockedPacket;
 
       public:
+        //TODO: Implement this;
         PushRespPort(const std::string& name, SimObject* _owner,
               PortID id=InvalidPortID);
 
@@ -65,6 +66,7 @@ class PushEngine : public ClockedObject
         PacketPtr blockedPacket;
 
       public:
+        // TODO: Implement this;
         PushReqPort(const std::string& name, SimObject* _owner,
               PortID id=InvalidPortID);
 
@@ -78,9 +80,12 @@ class PushEngine : public ClockedObject
         PacketPtr blockedPacket;
 
       public:
+        // TODO: Implement this;
         PushMemPort(const std::string& name, SimObject* _owner,
               PortID id=InvalidPortID);
-        bool sendPacket(PacktPtr pkt);
+
+        void sendPacket(PacktPtr pkt);
+        bool blocked() { return _blocked; }
         virtual bool recvTimingResp(PacketPtr pkt);
     }
 
@@ -93,21 +98,24 @@ class PushEngine : public ClockedObject
     PushMemPort memPort;
 
     std::queue<PacketPtr> vertexQueue;
-    int vertexQueueSize;
-    int vertexQueueLen;
+    // int vertexQueueSize;
+    // int vertexQueueLen;
+
+    std::unordered_map<req, Addr> reqOffsetMap;
+    std::unordered_map<req, int> reqNumEdgeMap;
+    std::unordered_map<req, uint32_t> reqValueMap;
+
+    std::queue<PacketPtr> memReqQueue; // Infinite queueing?
 
     std::queue<PacketPtr> updateQueue;
-    int updateQueueSize;
-    int updateQueueLen;
+    // int updateQueueSize;
+    // int updateQueueLen;
 
     EventFunctionWrapper nextReceiveEvent;
     void processNextReceiveEvent();
 
     EventFunctionWrapper nextReadEvent;
     void processNextReadEvent();
-
-    EventFunctionWrapper nextCreateEvent;
-    void processNextCreateEvent();
 
     EventFunctionWrapper nextSendEvent;
     void processNextSendEvent();
