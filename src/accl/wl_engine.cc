@@ -33,6 +33,8 @@
 
 WLEngine::WLEngine(const WLEngineParams &params):
     ClockedObject(params),
+    system(params.system),
+    requestorId(system->getRequestorId(this)),
     reqPort(name() + ".reqPort", this),
     respPort(name() + ".respPort", this),
     memPort(name() + ".memPort", this),
@@ -40,8 +42,8 @@ WLEngine::WLEngine(const WLEngineParams &params):
     nextWLReduceEvent([this]{processNextWLReduceEvent; }, name()),
     queueSize(params.wlQueueSize) //add this to .py
 {
-    wlReadQueue(queueSize);
-    wlWriteQueue(queueSize);
+    updateQueue(queueSize);
+    responseQueue(queueSize);
 }
 
 Port &
@@ -135,7 +137,7 @@ WLEngine::getAddrRanges() const
 }
 
 bool WLEngine::handleWLUpdate(PacketPtr pkt){
-    auto queue = wlReadQueue;
+    auto queue = updateQueue;
     if (queue->blocked()){
         queue->sendPktRetry = true;
         return false;
@@ -149,25 +151,32 @@ bool WLEngine::handleWLUpdate(PacketPtr pkt){
 }
 
 void WLEngine::processNextWLReadEvent(){
-    auto queue = wlReadQueue;
+    auto queue = updateQueue;
     memPort = WLMemPort
     while(!queue.empty()){ //create a map instead of front
         auto pkt = queue.front()
         /// conver to ReadReq
+        Addr req_addr = (pkt->getAddr() / 64) * 64;
+        int req_offset = (pkt->getAddr()) % 64;
         RequestPtr req =
-            std::make_shared<Request>(pkt->getAddr(), 64, 0 ,0);
+            std::make_shared<Request>(req_addr, 64, 0 ,0);
         PacketPtr memPkt = new Packet(req, MemCmd::ReadReq);
+        requestOffset[req] = req_offset;
         if (!memPort->blocked()){
+            queue.pop()
             memPort->sendPacket(memPkt);
             break;
         }
+    }
+    if(!queue.empty() && !nextWLReadEvent.scheduled()){
+        schedule(nextWLReadEvent, nextCycle());
     }
 }
 
 bool
 WLEngine::handleMemResp(PacktPtr pkt)
 {
-    auto queue = wlWriteQueue;
+    auto queue = responseQueue;
         if (queue->blocked()){
             sendPktRetry = true;
             return false;
@@ -183,54 +192,56 @@ WLEngine::handleMemResp(PacktPtr pkt)
 
 void
 WLEngine::processNextWLReduceEvent(){
-    auto queue = wlWriteQueue;
-    auto updateQ = wlReadQueue;
+    auto queue = responseQueue;
+    auto updateQ = updateQueue;
     applyPort = reqPort;
-    while(!queue.empty()){
-        auto update = updateQ.front();
-        auto pkt = queue.front();
-        uint64_t* updatePtr = pkt->getPtr<uint64_t>();
-        uint64_t* data = pkt->getPtr<uint64_t>();
-        uint32_t* value = updatePtr;
-        uint32_t* temp_prop = prop + 1;
-        if (*value != *prop){
-            //update prop with temp_prop
-            *temp_prop = min(*value , *temp_prop);
-            RequestPtr req =
-                std::make_shared<Request>(pkt->getAddr(), 64, 0 ,0);
-            PacketPtr writePkt = new Packet(req, MemCmd::WriteReq);
-            writePkt->setData(data);
-            if (!memPort->blocked() && !applyPort->blocked()){
-                memPort->sendPacket(pkt);
-                applyPort->sendPacket(pkt);
-                queue.pop();
-                if (!queue->blocked() && queue->sendPktRetry){
-                    memPort->trySendRetry();
-                    queue->sendPktRetry = false;
-                }
-                updateQ.pop();
-                if (!updateQ->blocked() & updateQ->sendPktRetry){
-                    respPort->trySendRetry();
-                    updateQ->sendPktRetry = false;
-                }
-            }
-            else
-                break;
-        }
-        else{
+    auto update = updateQ.front();
+    auto value = update->getPtr<uint8_t>();
+    auto pkt = queue.front();
+    uint8_t* data = pkt->getPtr<uint8_t>();
+    RequestPtr req = pkt->req;
+    int request_offset = requestOffset[req];
+    WorkListItem wl =  memoryToWorkList(data + request_offset)
+    uint32_t temp_prop = wl.temp_prop;
+    if (temp_prop != *value){
+        //update prop with temp_prop
+        temp_prop = min(value , temp_prop);
+        if (!memPort->blocked() && !applyPort->blocked()){
+            wl.temp_prop = temp_prop;
+            unit8_t* wlItem = workListToMemory(wl);
+            memcpy(data + request_offset, wlItem, sizeof(WorkListItem));
+            PacketPtr writePkt  =
+            getWritePacket(pkt->getAddr(), 64, data, requestorId);
+            memPort->sendPacket(writePkt);
+            applyPort->sendPacket(writePkt);
             queue.pop();
             if (!queue->blocked() && queue->sendPktRetry){
                 memPort->trySendRetry();
                 queue->sendPktRetry = false;
             }
-            updateQ.pop()
+            updateQ.pop();
             if (!updateQ->blocked() & updateQ->sendPktRetry){
                 respPort->trySendRetry();
                 updateQ->sendPktRetry = false;
             }
-
+        }
+        else
+            break;
+    }
+    else{
+        queue.pop();
+        if (!queue->blocked() && queue->sendPktRetry){
+            memPort->trySendRetry();
+            queue->sendPktRetry = false;
+        }
+        updateQ.pop()
+        if (!updateQ->blocked() & updateQ->sendPktRetry){
+            respPort->trySendRetry();
+            updateQ->sendPktRetry = false;
         }
 
     }
-
+    if(!queue && !nextWLReduceEvent.scheduled()){
+            schedule(nextWLReduceEvent, nextCycle());
+    }
 }

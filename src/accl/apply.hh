@@ -32,6 +32,7 @@
 #include <queue>
 #include <unordered_map>
 
+#include "accl/util.hh"
 #include "base/addr_range_map.hh"
 #include "base/statistics.hh"
 #include "mem/port.hh"
@@ -146,6 +147,9 @@ class Apply : public ClockedObject
     void processNextApplyCheckEvent();
     EventFunctionWrapper nextApplyCheckEvent;
 
+    System* const system;
+    const RequestorID requestorId;
+
     AddrRangeList getAddrRanges() const;
 
     ApplyQueue applyReadQueue;
@@ -154,6 +158,8 @@ class Apply : public ClockedObject
     ApplyMemPort memPort;
     ApplyRespPort respPort;
     ApplyRequestPort reqPort;
+
+    std::unordered_map<RequestPtr, int> requestOffset;
 
   public:
     Apply(const ApplyParams &apply);
