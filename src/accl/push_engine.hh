@@ -39,6 +39,7 @@
 #include "sim/clocked_object.hh"
 #include "sim/system.hh"
 
+//FIXME: Add gem5 namespace here
 class PushEngine : public ClockedObject
 {
   private:
@@ -88,6 +89,8 @@ class PushEngine : public ClockedObject
         bool blocked() { return _blocked; }
         virtual bool recvTimingResp(PacketPtr pkt);
     }
+
+    virtual void startup() override;
 
     System* const system;
     const RequestorID requestorId;
