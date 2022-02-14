@@ -30,6 +30,8 @@
 
 #include <string>
 
+namespace gem5
+{
 
 WLEngine::WLEngine(const WLEngineParams &params):
     ClockedObject(params),
@@ -241,4 +243,6 @@ WLEngine::processNextWLReduceEvent(){
     if (!queue.empty() && !nextWLReduceEvent.scheduled()){
             schedule(nextWLReduceEvent, nextCycle());
     }
+}
+
 }
