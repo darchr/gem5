@@ -28,8 +28,39 @@
 
 #include "accl/util.hh"
 
-#include "base/types.hh"
-#include "mem/packet.hh"
+WorkListItem&
+memoryToWorkList(uint8_t* data){
+    WorkListItem wl;
+    uint32_t temp_prop = *((uint32_t*) data));
+
+    uint32_t prop = *((uint32_t*) (data + 4));
+
+    uint32_t degree = *((uint32_t*) (data + 8));
+
+    uint32_t addr = *((uint32_t*) (data + 12));
+
+    retrun wl  = {temp_prop, prop, degree, addr};
+}
+
+uint8_t*
+workListToMemory(WorkListItem wl){
+    int  data_size = sizeof(WorkListItem) / sizeof(uint8_t);
+    uint8_t* data = new uint8_t [data_size];
+
+    uint32_t* tempPtr = (uint32_t*) data;
+    *tempPtr = wl.temp_prop;
+
+    uint32_t* propPtr = (uint32_t*) (data + 4);
+    *propPtr = wl.prop;
+
+    uint32_t* degreePtr = (uint32_t*) (data + 8);
+    *degreePtr = wl.degree;
+
+    uint32_t* edgePtr = (uint32_t*) (data + 12);
+    *edgePtr = wl.edgeIndex;
+
+    return data;
+}
 
 // Edge: (weight: 64 bits, neighbor: 64 bits)
 Edge&
@@ -58,7 +89,7 @@ edgeToMemory(Edge e)
     return data;
 }
 
-PacketPtr
+PacketPtr&
 getReadPacket(Addr addr, unsigned int size, RequestorID requestorId)
 {
     RequestPtr req = std::make_shared<Request>(addr, size, 0, requestorId);
@@ -73,19 +104,24 @@ getReadPacket(Addr addr, unsigned int size, RequestorID requestorId)
     return pkt;
 }
 
-
-PacketPtr getWritePacket(Addr addr,
-               unsigned int size,
-               uint8_t* data,
-               RequestorID requestorId)
+PacketPtr&
+getWritePacket(Addr addr, unsigned int size,
+            uint8_t* data, RequestorID requestorId)
 {
-    equestPtr req = std::make_shared<Request>(addr, size, 0,
+    RequestPtr req = std::make_shared<Request>(addr, size, 0,
                                                requestorId);
+    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
+    // bits
     req->setPC(((Addr)requestorId) << 2);
 
     PacketPtr pkt = new Packet(req, MemCmd::WriteReq);
+    pkt->allocate();
+    pkt->setData(data);
 
-PacketPtr
+    return pkt;
+}
+
+PacketPtr&
 getUpdatePacket(Addr addr, unsigned int size, uint8_t *data)
 {
     RequestPtr req = std::make_shared<Request>(addr, size, 0,
@@ -102,29 +138,3 @@ getUpdatePacket(Addr addr, unsigned int size, uint8_t *data)
     return pkt;
 }
 
-WorkListItem&
-memoryToWorkList(uint8_t* data){
-    WorkListItem wl;
-    uint32_t temp_prop = *((uint32_t*) data));
-
-    uint32_t prop = *((uint32_t*) (data + 4));
-
-    uint32_t degree = *((uint32_t*) (data + 8));
-
-    uint32_t addr = *((uint32_t*) (data + 12));
-
-    retrun wl  = {temp_prop, prop, degree, addr};
-}
-
-unit8_t*
-workListToMemory(WorkListItem wl){
-    int  data_size = sizeof(WorkListItem)/sizeof(uint_8)
-    uint_8* data = new uint8_t [data_size];
-    uint_32* wList = (uint_32*)data;
-    *wList = wl.prop;
-    *wList + 1 = wl.temp_prop;
-    *wList + 2 = wl.degree;
-    *wList + 3 = wl.edgeIndex;
-
-    return data;
-}
