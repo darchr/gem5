@@ -33,14 +33,13 @@
 #include <unordered_map>
 
 #include "accl/util.hh"
-#include "base/addr_range_map.hh"
-#include "base/statistics.hh"
-#include "base/types.hh"
+#include "base/addr_range.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
 #include "params/Apply.hh"
 #include "sim/clocked_object.hh"
 #include "sim/port.hh"
+#include "sim/system.hh"
 
 namespace gem5
 {
@@ -58,18 +57,18 @@ class Apply : public ClockedObject
         return (applyQueue.size() == queueSize);
       }
       bool empty(){
-        return applyQueue->empty();
+        return applyQueue.empty();
       }
       void push(PacketPtr pkt){
-        applyQueue->push(pkt);
+        applyQueue.push(pkt);
       }
 
       void pop(){
-        applyQueue->pop();
+        applyQueue.pop();
       }
 
       void front(){
-        applyQueue->front();
+        applyQueue.front();
       }
 
       ApplyQueue(uint32_t qSize):
@@ -80,16 +79,17 @@ class Apply : public ClockedObject
     {
       private:
         Apply *owner;
+        bool _blocked;
         PacketPtr blockedPacket;
 
       public:
-        ApplyRespPort(const std::string& name, SimObject* _owner,
-              PortID id=InvalidPortID);
+        ApplyRespPort(const std::string& name, Apply* owner):
+          ResponsePort(name, owner), owner(owner),
+          _blocked(false), blockedPacket(nullptr)
+        {}
 
-        virtual AddrRangeList getAddrRanges();
         void trySendRetry();
-
-      protected:
+        virtual AddrRangeList getAddrRanges();
         virtual bool recvTimingReq(PacketPtr pkt);
     };
 
@@ -101,12 +101,13 @@ class Apply : public ClockedObject
         PacketPtr blockedPacket;
 
       public:
-        ApplyReqPort(const std::string& name, SimObject* _owner,
-              PortID id=InvalidPortID);
+        ApplyReqPort(const std::string& name, Apply* owner):
+          RequestPort(name, owner), owner(owner),
+          _blocked(false), blockedPacket(nullptr)
+        {}
+
         void sendPacket(PacketPtr pkt);
-        bool blocked(){
-          return _blocked;
-        }
+        bool blocked() { return _blocked; }
 
       protected:
         void recvReqRetry() override;
@@ -121,13 +122,14 @@ class Apply : public ClockedObject
         PacketPtr blockedPacket;
 
       public:
-        ApplyReqPort(const std::string& name, SimObject* _owner,
-              PortID id=InvalidPortID);
+        ApplyMemPort(const std::string& name, Apply* owner):
+          RequestPort(name, owner), owner(owner),
+          _blocked(false), blockedPacket(nullptr)
+        {}
+
         void sendPacket(PacketPtr pkt);
         void trySendRetry();
-        bool blocked(){
-          return _blocked;
-        }
+        bool blocked(){ return _blocked;}
 
       protected:
         virtual bool recvTimingResp(PacketPtr pkt);
@@ -138,27 +140,23 @@ class Apply : public ClockedObject
     bool sendPacket();
     //one queue for write and one for read a priotizes write over read
     void readApplyBuffer();
-    bool handleMemResp(PacktPtr resp);
+    bool handleMemResp(PacketPtr resp);
     void writePushBuffer();
 
     //Events
     void processNextApplyCheckEvent();
+    EventFunctionWrapper nextApplyCheckEvent;
     /* Syncronously checked
        If there are any active vertecies:
        create memory read packets + MPU::MPU::MemPortsendTimingReq
     */
     void processNextApplyEvent();
+    EventFunctionWrapper nextApplyEvent;
     /* Activated by MPU::MPUMemPort::recvTimingResp and handleMemResp
        Perform apply and send the write request and read edgeList
        read + write
        Write edgelist loc in buffer
     */
-
-    void processNextApplyEvent();
-    EventFunctionWrapper nextApplyEvent;
-
-    void processNextApplyCheckEvent();
-    EventFunctionWrapper nextApplyCheckEvent;
 
     System* const system;
     const RequestorID requestorId;
@@ -170,13 +168,14 @@ class Apply : public ClockedObject
 
     ApplyMemPort memPort;
     ApplyRespPort respPort;
-    ApplyRequestPort reqPort;
+    ApplyReqPort reqPort;
 
     std::unordered_map<RequestPtr, int> requestOffset;
 
   public:
     Apply(const ApplyParams &apply);
-    Port &getPort(const std::string &if_name,
+
+    Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 };
 

@@ -33,13 +33,13 @@
 #include <unordered_map>
 
 #include "accl/util.hh"
-#include "base/addr_range_map.hh"
-#include "base/statistics.hh"
+#include "base/addr_range.hh"
 #include "mem/port.hh"
 #include "mem/packet.hh"
 #include "params/WLEngine.hh"
 #include "sim/clocked_object.hh"
 #include "sim/port.hh"
+#include "sim/system.hh"
 
 namespace gem5
 {
@@ -140,40 +140,37 @@ class WLEngine : public ClockedObject
 
     //Events
     void processNextWLReadEvent();
+    EventFunctionWrapper nextWLReadEvent;
     /* Syncronously checked
        If there are any active vertecies:
        create memory read packets + MPU::MPU::MemPortsendTimingReq
     */
     void processNextWLReduceEvent();
+    EventFunctionWrapper nextWLReduceEvent;
     /* Activated by MPU::MPUMemPort::recvTimingResp and handleMemResp
        Perform apply and send the write request and read edgeList
        read + write
        Write edgelist loc in buffer
     */
-    void processNextWLReadEvent();
-    EventFunctionWrapper nextWLReadEvent;
-
-    void processNextWLReduceEvent();
-    EventFunctionWrapper nextWLReduceEvent;
 
     System* const system;
     const RequestorID requestorId;
+
     std::unordered_map<RequestPtr, int> requestOffset;
 
     AddrRangeList getAddrRanges() const;
 
     WLQueue updateQueue;
     WLQueue responseQueue;
-    WLMemPort memPort;
 
     WLMemPort memPort;
     WLRespPort respPort;
-    WLRequestPort reqPort;
+    WLReqPort reqPort;
 
    public:
 
     WLEngine(const WLEngineParams &params);
-    Port &getPort(const std::string &if_name,
+    Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 };
 
