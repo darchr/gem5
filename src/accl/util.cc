@@ -42,3 +42,46 @@ getReadPacket(Addr addr, unsigned int size, RequestorID requestorId)
 
     return pkt;
 }
+
+PacketPtr getWritePacket(Addr addr,
+               unsigned int size,
+               uint8_t* data,
+               RequestorID requestorId)
+{
+    equestPtr req = std::make_shared<Request>(addr, size, 0,
+                                               requestorId);
+    req->setPC(((Addr)requestorId) << 2);
+
+    PacketPtr pkt = new Packet(req, MemCmd::WriteReq);
+    pkt->allocate();
+    pkt->setData(data);
+
+    return pkt;
+}
+
+WorkListItem&
+memoryToWorkList(uint8_t* data){
+    WorkListItem wl;
+    uint32_t temp_prop = *((uint32_t*) data));
+
+    uint32_t prop = *((uint32_t*) (data + 4));
+
+    uint32_t degree = *((uint32_t*) (data + 8));
+
+    uint32_t addr = *((uint32_t*) (data + 12));
+
+    retrun wl  = {temp_prop, prop, degree, addr};
+}
+
+unit8_t*
+workListToMemory(WorkListItem wl){
+    int  data_size = sizeof(WorkListItem)/sizeof(uint_8)
+    uint_8* data = new uint8_t [data_size];
+    uint_32* wList = (uint_32*)data;
+    *wList = wl.prop;
+    *wList + 1 = wl.temp_prop;
+    *wList + 2 = wl.degree;
+    *wList + 3 = wl.edgeIndex;
+
+    return data;
+}

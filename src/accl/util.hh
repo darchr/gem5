@@ -34,7 +34,7 @@ struct WorkListItem
     uint32_t temp_prop;
     uint32_t prop;
     uint32_t degree;
-    Addr edgeList;
+    uint32_t edgeIndex;
 }
 
 struct Edge
@@ -44,6 +44,7 @@ struct Edge
 }
 
 WorkListItem& memoryToWorkList(uint8_t* data);
+unit8_t* workListToMemory(WorkListItem wl);
 Edge& memoryToEdge(uint8_t* data);
 
 PacketPtr& getReadPacket(Addr addr, unsigned int size, RequestorID requestorId);

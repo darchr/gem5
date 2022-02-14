@@ -32,12 +32,14 @@
 #include <queue>
 #include <unordered_map>
 
+#include "accl/util.hh"
 #include "base/addr_range_map.hh"
 #include "base/statistics.hh"
 #include "mem/port.hh"
 #include "mem/packet.hh"
 #include "params/MPU.hh"
 #include "sim/clocked_object.hh"
+
 
 class WLEngine : public ClockedObject
 {
@@ -145,10 +147,14 @@ class WLEngine : public ClockedObject
     void processNextWLReduceEvent();
     EventFunctionWrapper nextWLReduceEvent;
 
+    System* const system;
+    const RequestorID requestorId;
+    std::unordered_map<RequestPtr, int> requestOffset;
+
     AddrRangeList getAddrRanges() const;
 
-    WLQueue wlReadQueue;
-    WLQueue wlWriteQueue;
+    WLQueue updateQueue;
+    WLQueue responseQueue;
     WLMemPort memPort;
 
     WLMemPort memPort;
