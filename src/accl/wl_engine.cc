@@ -81,6 +81,24 @@ WLEngine::WLRespPort::trySendRetry()
     sendRetryReq();
 }
 
+virtual void
+WLEngine::WLRespPort::recvFunctional(PacketPtr pkt)
+{
+    owner->recvFunctional(pkt);
+}
+
+virtual Tick
+WLEngine::WLRespPort::recvAtomic(PacketPtr pkt)
+{
+    panic("recvAtomic unimpl.");
+}
+
+virtual void
+WLEngine::WLRespPort::recvRespRetry()
+{
+    panic("recvRespRetry from response port is called.");
+}
+
 void
 WLEngine::WLMemPort::sendPacket(PacketPtr pkt)
 {
@@ -137,6 +155,12 @@ WLEngine::getAddrRanges() const
     return memPort.getAddrRanges();
 }
 
+void
+WLEngine::recvFunctional(PacketPtr pkt)
+{
+    memPort.recvFunctional(pkt);
+}
+
 bool WLEngine::handleWLUpdate(PacketPtr pkt){
     auto queue = updateQueue;
     if (queue.blocked()){
@@ -164,7 +188,7 @@ void WLEngine::processNextWLReadEvent(){
         PacketPtr memPkt = new Packet(req, MemCmd::ReadReq);
         requestOffset[request] = req_offset;
         if (!memPort.blocked()){
-            queue.pop()
+            queue.pop();
             memPort.sendPacket(memPkt);
             break;
         }

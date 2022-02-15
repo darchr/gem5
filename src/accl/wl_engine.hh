@@ -88,6 +88,9 @@ class WLEngine : public ClockedObject
 
       protected:
         virtual bool recvTimingReq(PacketPtr pkt);
+        virtual Tick recvAtomic(PacketPtr pkt);
+        virtual void recvFunctional(PacketPtr pkt);
+        virtual void recvRespRetry();
     };
 
     class WLReqPort : public RequestPort //To Apply Engine
@@ -159,6 +162,7 @@ class WLEngine : public ClockedObject
     std::unordered_map<RequestPtr, int> requestOffset;
 
     AddrRangeList getAddrRanges() const;
+    void recvFunctional(PacketPtr pkt);
 
     WLQueue updateQueue;
     WLQueue responseQueue;
