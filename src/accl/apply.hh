@@ -63,12 +63,12 @@ class Apply : public ClockedObject
         applyQueue.push(pkt);
       }
 
-      void pop(){
-        applyQueue.pop();
+      PacketPtr pop(){
+        return applyQueue->pop();
       }
 
-      void front(){
-        applyQueue.front();
+      PacketPtr front(){
+        return applyQueue.front();
       }
 
       ApplyQueue(uint32_t qSize):
@@ -83,15 +83,18 @@ class Apply : public ClockedObject
         PacketPtr blockedPacket;
 
       public:
+        void trySendRetry();
+        virtual AddrRangeList getAddrRanges();
         ApplyRespPort(const std::string& name, Apply* owner):
           ResponsePort(name, owner), owner(owner),
           _blocked(false), blockedPacket(nullptr)
         {}
 
       protected:
-        void trySendRetry();
-        virtual AddrRangeList getAddrRanges();
         virtual bool recvTimingReq(PacketPtr pkt);
+        virtual Tick recvAtomic(PacketPtr pkt);
+        virtual void recvFunctional(PacketPtr pkt);
+        virtual void recvRespRetry();
     };
 
     class ApplyReqPort : public RequestPort
@@ -137,6 +140,10 @@ class Apply : public ClockedObject
         void recvReqRetry() override;
     };
 
+    ApplyMemPort memPort;
+    ApplyRespPort respPort;
+    ApplyReqPort reqPort;
+
     bool handleWL(PacketPtr pkt);
     bool sendPacket();
     //one queue for write and one for read a priotizes write over read
@@ -166,10 +173,6 @@ class Apply : public ClockedObject
 
     ApplyQueue applyReadQueue;
     ApplyQueue applyWriteQueue;
-
-    ApplyMemPort memPort;
-    ApplyRespPort respPort;
-    ApplyReqPort reqPort;
 
     std::unordered_map<RequestPtr, int> requestOffset;
 

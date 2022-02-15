@@ -36,6 +36,7 @@ namespace gem5
 WLEngine::WLEngine(const WLEngineParams &params):
     ClockedObject(params),
     system(params.system),
+    queueSize(params.wlQueueSize),
     requestorId(system->getRequestorId(this)),
     reqPort(name() + ".reqPort", this),
     respPort(name() + ".respPort", this),
@@ -43,8 +44,8 @@ WLEngine::WLEngine(const WLEngineParams &params):
     nextWLReadEvent([this]{processNextWLReadEvent; }, name()),
     nextWLReduceEvent([this]{processNextWLReduceEvent; }, name())
 {
-    updateQueue(params.wlQueueSize);
-    responseQueue(params.wlQueueSize);
+    updateQueue.resize(queueSize);
+    responseQueue.resize(queueSize);
 }
 
 Port &
@@ -69,7 +70,7 @@ WLEngine::WLRespPort::getAddrRanges() const
 
 bool WLEngine::WLRespPort::recvTimingReq(PacketPtr pkt)
 {
-    if (!this->handleWLUpdate(pkt)){
+    if (!owner->handleWLUpdate(pkt)){
         return false;
     }
     return true;
@@ -81,19 +82,19 @@ WLEngine::WLRespPort::trySendRetry()
     sendRetryReq();
 }
 
-virtual void
+void
 WLEngine::WLRespPort::recvFunctional(PacketPtr pkt)
 {
     owner->recvFunctional(pkt);
 }
 
-virtual Tick
+Tick
 WLEngine::WLRespPort::recvAtomic(PacketPtr pkt)
 {
     panic("recvAtomic unimpl.");
 }
 
-virtual void
+void
 WLEngine::WLRespPort::recvRespRetry()
 {
     panic("recvRespRetry from response port is called.");
@@ -118,10 +119,10 @@ WLEngine::WLMemPort::recvReqRetry()
     blockedPacket = nullptr;
 }
 
-virtual bool
+bool
 WLEngine::WLMemPort::recvTimingResp(PacketPtr pkt)
 {
-    return this->handleMemResp(pkt);
+    return owner->handleMemResp(pkt);
 }
 
 void
@@ -177,15 +178,14 @@ bool WLEngine::handleWLUpdate(PacketPtr pkt){
 
 void WLEngine::processNextWLReadEvent(){
     auto queue = updateQueue;
-    auto memPort = WLMemPort;
     while (!queue.empty()){ //create a map instead of front
-        auto pkt = queue.front()
+        PacketPtr pkt = queue.front();
         /// conver to ReadReq
         Addr req_addr = (pkt->getAddr() / 64) * 64;
         int req_offset = (pkt->getAddr()) % 64;
         RequestPtr request =
             std::make_shared<Request>(req_addr, 64, 0 ,0);
-        PacketPtr memPkt = new Packet(req, MemCmd::ReadReq);
+        PacketPtr memPkt = new Packet(request, MemCmd::ReadReq);
         requestOffset[request] = req_offset;
         if (!memPort.blocked()){
             queue.pop();
@@ -199,15 +199,15 @@ void WLEngine::processNextWLReadEvent(){
 }
 
 bool
-WLEngine::handleMemResp(PacktPtr pkt)
+WLEngine::handleMemResp(PacketPtr pkt)
 {
     auto queue = responseQueue;
         if (queue.blocked()){
-            sendPktRetry = true;
+            queue.sendPktRetry = true;
             return false;
-        } else
-            queue.push(writePkt);
-
+        } else{
+            queue.push(pkt);
+        }
         if(!nextWLReduceEvent.scheduled()){
             schedule(nextWLReduceEvent, nextCycle());
         }
@@ -219,18 +219,20 @@ void
 WLEngine::processNextWLReduceEvent(){
     auto queue = responseQueue;
     auto updateQ = updateQueue;
-    applyPort = reqPort;
-    auto update = updateQ.front();
-    auto value = update->getPtr<uint8_t>();
-    auto pkt = queue.front();
+    auto applyPort = reqPort;
+    PacketPtr update = updateQ.front();
+    uint8_t* value = update->getPtr<uint8_t>();
+    PacketPtr pkt = queue.front();
     uint8_t* data = pkt->getPtr<uint8_t>();
     RequestPtr request = pkt->req;
     int request_offset = requestOffset[request];
-    WorkListItem wl =  memoryToWorkList(data + request_offset)
+    WorkListItem wl =  memoryToWorkList(data + request_offset);
     uint32_t temp_prop = wl.temp_prop;
     if (temp_prop != *value){
         //update prop with temp_prop
-        temp_prop = std::min(value , temp_prop);
+        if(*value < temp_prop){
+            temp_prop = *value;
+        }
         if (!memPort.blocked() && !applyPort.blocked()){
             wl.temp_prop = temp_prop;
             uint8_t* wlItem = workListToMemory(wl);
@@ -257,7 +259,7 @@ WLEngine::processNextWLReduceEvent(){
             memPort.trySendRetry();
             queue.sendPktRetry = false;
         }
-        updateQ.pop()
+        updateQ.pop();
         if (!updateQ.blocked() & updateQ.sendPktRetry){
             respPort.trySendRetry();
             updateQ.sendPktRetry = false;
