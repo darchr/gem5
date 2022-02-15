@@ -131,22 +131,19 @@ class PushEngine : public ClockedObject
     // int updateQueueSize;
     // int updateQueueLen;
 
+    AddrRangeList getAddrRanges();
+    void recvFunctional(PacketPtr pkt);
+
+    bool handleUpdate(PacketPtr pkt);
     EventFunctionWrapper nextReceiveEvent;
     void processNextReceiveEvent();
 
     EventFunctionWrapper nextReadEvent;
     void processNextReadEvent();
 
+    bool handleMemResp(PacketPtr pkt);
     EventFunctionWrapper nextSendEvent;
     void processNextSendEvent();
-
-    bool handleUpdate(PacketPtr pkt);
-
-    bool handleMemResp(PacketPtr pkt);
-
-    AddrRangeList getAddrRanges();
-
-    void recvFunctional(PacketPtr pkt);
 
   public:
 
