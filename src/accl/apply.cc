@@ -81,6 +81,23 @@ Apply::ApplyRespPort::trySendRetry()
     sendRetryReq();
 }
 
+void
+Apply::ApplyRespPort::recvFunctional(PacketPtr pkt)
+{
+    panic("Not implemented");
+}
+
+Tick
+Apply::ApplyRespPort::recvAtomic(PacketPtr pkt)
+{
+    panic("recvAtomic unimpl.");
+}
+
+void
+Apply::ApplyRespPort::recvRespRetry()
+{
+    panic("recvRespRetry from response port is called.");
+}
 
 bool
 Apply::ApplyMemPort::recvTimingResp(PacketPtr pkt)
@@ -139,7 +156,7 @@ Apply::getAddrRanges() const
 bool Apply::handleWL(PacketPtr pkt){
     auto queue = applyReadQueue;
     if (queue.blocked()){
-        sendPktRetry = true;
+        queue.sendPktRetry = true;
         return false;
     } else{
         queue.push(pkt);
@@ -177,7 +194,7 @@ Apply::handleMemResp(PacketPtr pkt)
     auto queue = applyWriteQueue;
 
         if (queue.blocked()){
-            sendPktRetry = true;
+            queue.sendPktRetry = true;
             return false;
         } else
             queue.push(pkt);
@@ -192,7 +209,7 @@ Apply::handleMemResp(PacketPtr pkt)
 void
 Apply::processNextApplyEvent(){
     auto queue = applyWriteQueue;
-        auto pkt = queue.front();
+        PacketPtr pkt = queue.front();
         uint8_t* data = pkt->getPtr<uint8_t>();
 
         RequestPtr request = pkt->req;
@@ -204,7 +221,11 @@ Apply::processNextApplyEvent(){
         if (temp_prop != prop){
             if (!memPort.blocked() && !reqPort.blocked()){
                 //update prop with temp_prop
-                wl.prop = std::min(prop , temp_prop);
+                if(prop < temp_prop){
+                    wl.prop = prop;
+                }else{
+                    wl.prop = temp_prop;
+                }
                 //write back the new worklist item to  memory
                 uint8_t* wList = workListToMemory(wl);
                 memcpy(data + request_offset, wList, sizeof(WorkListItem));
@@ -212,7 +233,7 @@ Apply::processNextApplyEvent(){
                 PacketPtr writePkt  =
                 getWritePacket(pkt->getAddr(), 64, data, requestorId);
                 memPort.sendPacket(writePkt);
-                applyReqPort.sendPacket(writePkt);
+                reqPort.sendPacket(writePkt);
                 queue.pop();
                 if (queue.sendPktRetry && !queue.blocked()){
                     memPort.trySendRetry();
