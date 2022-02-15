@@ -262,7 +262,7 @@ WLEngine::processNextWLReduceEvent(){
         }
         updateQ.pop();
         if (!updateQ.blocked() & updateQ.sendPktRetry){
-            // respPort.trySendRetry();
+            respPort.trySendRetry();
             updateQ.sendPktRetry = false;
         }
 
