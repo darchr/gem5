@@ -50,27 +50,32 @@ class WLEngine : public ClockedObject
 
     struct WLQueue{
       std::queue<PacketPtr> wlQueue;
-      const uint32_t queueSize;
+      uint32_t queueSize;
       bool sendPktRetry;
+
+      void resize(uint32_t size){
+        queueSize = size;
+      }
 
       bool blocked(){
         return (wlQueue.size() == queueSize);
       }
       bool empty(){
-        return wlQueue->empty();
+        return wlQueue.empty();
       }
       void push(PacketPtr pkt){
-        wlQueue->push(pkt);
+        wlQueue.push(pkt);
       }
       void pop(){
-        wlQueue->pop();
+        wlQueue.pop();
       }
-      void front(){
-        wlQueue.front());
+      PacketPtr front(){
+        return wlQueue.front();
       }
 
       WLQueue(uint32_t qSize):
-        queueSize(qSize){}
+        queueSize(qSize),
+        sendPktRetry(false){}
     };
 
     class WLRespPort : public ResponsePort //From Push engine
@@ -83,7 +88,7 @@ class WLEngine : public ClockedObject
         WLRespPort(const std::string& name, SimObject* _owner,
               PortID id=InvalidPortID);
 
-        virtual AddrRangeList getAddrRanges();
+        virtual AddrRangeList getAddrRanges() const override;
         void trySendRetry();
 
       protected:
@@ -129,50 +134,52 @@ class WLEngine : public ClockedObject
           return _blocked;
         }
 
-    protected:
-      virtual bool recvTimingResp(PacketPtr pkt);
-      void recvReqRetry() override;
+      protected:
+        virtual bool recvTimingResp(PacketPtr pkt);
+        void recvReqRetry() override;
     };
+
+    System* const system;
+    const uint32_t queueSize;
+    const RequestorID requestorId;
+
+    WLReqPort reqPort;
+    WLRespPort respPort;
+    WLMemPort memPort;
 
     bool handleWLU(PacketPtr pkt);
     bool sendPacket();
     //one queue for write and one for read a priotizes write over read
     void readWLBuffer();
-    bool handleMemResp(PacketPtr resp);
 
 
     //Events
-    void processNextWLReadEvent();
     EventFunctionWrapper nextWLReadEvent;
+    void processNextWLReadEvent();
     /* Syncronously checked
        If there are any active vertecies:
        create memory read packets + MPU::MPU::MemPortsendTimingReq
     */
-    void processNextWLReduceEvent();
     EventFunctionWrapper nextWLReduceEvent;
+    void processNextWLReduceEvent();
     /* Activated by MPU::MPUMemPort::recvTimingResp and handleMemResp
        Perform apply and send the write request and read edgeList
        read + write
        Write edgelist loc in buffer
     */
 
-    System* const system;
-    const RequestorID requestorId;
-
     std::unordered_map<RequestPtr, int> requestOffset;
-
-    AddrRangeList getAddrRanges() const;
-    void recvFunctional(PacketPtr pkt);
 
     WLQueue updateQueue;
     WLQueue responseQueue;
 
-    WLMemPort memPort;
-    WLRespPort respPort;
-    WLReqPort reqPort;
+
 
    public:
-
+    AddrRangeList getAddrRanges() const;
+    bool handleWLUpdate(PacketPtr pkt);
+    bool handleMemResp(PacketPtr resp);
+    void recvFunctional(PacketPtr pkt);
     WLEngine(const WLEngineParams &params);
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
