@@ -88,6 +88,7 @@ class Apply : public ClockedObject
           _blocked(false), blockedPacket(nullptr)
         {}
 
+      protected:
         void trySendRetry();
         virtual AddrRangeList getAddrRanges();
         virtual bool recvTimingReq(PacketPtr pkt);
