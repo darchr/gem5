@@ -49,13 +49,10 @@ class PushEngine : public ClockedObject
     {
       private:
         PushEngine* owner;
-        bool _blocked;
-        PacketPtr blockedPacket;
 
       public:
         PushRespPort(const std::string& name, PushEngine* owner):
-          ResponsePort(name, owner), owner(owner),
-          _blocked(false), blockedPacket(nullptr)
+          ResponsePort(name, owner), owner(owner)
         {}
         virtual AddrRangeList getAddrRanges();
 
