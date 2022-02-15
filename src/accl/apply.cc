@@ -76,12 +76,6 @@ bool Apply::ApplyRespPort::recvTimingReq(PacketPtr pkt)
 }
 
 void
-Apply::ApplyRespPort::trySendRetry()
-{
-    sendRetryReq();
-}
-
-void
 Apply::ApplyRespPort::recvFunctional(PacketPtr pkt)
 {
     panic("Not implemented");
@@ -114,12 +108,6 @@ Apply::ApplyMemPort::sendPacket(PacketPtr pkt)
         blockedPacket = pkt;
         _blocked = true;
     }
-}
-
-void
-Apply::ApplyMemPort::trySendRetry()
-{
-    sendRetryResp();
 }
 
 void

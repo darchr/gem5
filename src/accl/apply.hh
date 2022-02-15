@@ -64,7 +64,7 @@ class Apply : public ClockedObject
       }
 
       PacketPtr pop(){
-        return applyQueue->pop();
+        return applyQueue.pop();
       }
 
       PacketPtr front(){
@@ -79,16 +79,12 @@ class Apply : public ClockedObject
     {
       private:
         Apply *owner;
-        bool _blocked;
-        PacketPtr blockedPacket;
 
       public:
-        void trySendRetry();
-        virtual AddrRangeList getAddrRanges();
         ApplyRespPort(const std::string& name, Apply* owner):
-          ResponsePort(name, owner), owner(owner),
-          _blocked(false), blockedPacket(nullptr)
+          ResponsePort(name, owner), owner(owner)
         {}
+        virtual AddrRangeList getAddrRanges() const;
 
       protected:
         virtual bool recvTimingReq(PacketPtr pkt);
@@ -140,16 +136,24 @@ class Apply : public ClockedObject
         void recvReqRetry() override;
     };
 
+    System* const system;
+    const RequestorID requestorId;
+
     ApplyMemPort memPort;
     ApplyRespPort respPort;
     ApplyReqPort reqPort;
 
+    ApplyQueue applyReadQueue;
+    ApplyQueue applyWriteQueue;
+
+    std::unordered_map<RequestPtr, int> requestOffset;
+
     bool handleWL(PacketPtr pkt);
-    bool sendPacket();
-    //one queue for write and one for read a priotizes write over read
-    void readApplyBuffer();
+    // bool sendPacket();
+    // //one queue for write and one for read a priotizes write over read
+    // void readApplyBuffer();
     bool handleMemResp(PacketPtr resp);
-    void writePushBuffer();
+    // void writePushBuffer();
 
     //Events
     void processNextApplyCheckEvent();
@@ -166,15 +170,7 @@ class Apply : public ClockedObject
        Write edgelist loc in buffer
     */
 
-    System* const system;
-    const RequestorID requestorId;
-
     AddrRangeList getAddrRanges() const;
-
-    ApplyQueue applyReadQueue;
-    ApplyQueue applyWriteQueue;
-
-    std::unordered_map<RequestPtr, int> requestOffset;
 
   public:
     Apply(const ApplyParams &apply);
