@@ -172,14 +172,14 @@ class WLEngine : public ClockedObject
     WLQueue updateQueue;
     WLQueue responseQueue;
 
-
-
-   public:
     AddrRangeList getAddrRanges() const;
     bool handleWLUpdate(PacketPtr pkt);
     bool handleMemResp(PacketPtr resp);
     void recvFunctional(PacketPtr pkt);
+
+   public:
     WLEngine(const WLEngineParams &params);
+
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 };

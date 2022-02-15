@@ -41,11 +41,11 @@ WLEngine::WLEngine(const WLEngineParams &params):
     reqPort(name() + ".reqPort", this),
     respPort(name() + ".respPort", this),
     memPort(name() + ".memPort", this),
-    nextWLReadEvent([this]{processNextWLReadEvent; }, name()),
-    nextWLReduceEvent([this]{processNextWLReduceEvent; }, name())
+    nextWLReadEvent([this]{ processNextWLReadEvent(); }, name()),
+    nextWLReduceEvent([this]{ processNextWLReduceEvent(); }, name()),
+    updateQueue(queueSize),
+    responseQueue(queueSize)
 {
-    updateQueue.resize(queueSize);
-    responseQueue.resize(queueSize);
 }
 
 Port &
@@ -86,6 +86,12 @@ Tick
 WLEngine::WLRespPort::recvAtomic(PacketPtr pkt)
 {
     panic("recvAtomic unimpl.");
+}
+
+void
+WLEngine::WLRespPort::recvFunctional(PacketPtr pkt)
+{
+    owner->recvFunctional(pkt);
 }
 
 void
@@ -256,7 +262,7 @@ WLEngine::processNextWLReduceEvent(){
         }
         updateQ.pop();
         if (!updateQ.blocked() & updateQ.sendPktRetry){
-            respPort.trySendRetry();
+            // respPort.trySendRetry();
             updateQ.sendPktRetry = false;
         }
 
