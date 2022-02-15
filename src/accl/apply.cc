@@ -40,8 +40,8 @@ Apply::Apply(const ApplyParams &params):
     reqPort(name() + ".reqPort", this),
     respPort(name() + ".respPort", this),
     memPort(name() + ".memPort", this),
-    nextApplyEvent([this]{processNextApplyEvent; }, name()),
-    nextApplyCheckEvent([this]{processNextApplyCheckEvent; }, name())
+    nextApplyEvent([this]{ processNextApplyEvent(); }, name()),
+    nextApplyCheckEvent([this]{ processNextApplyCheckEvent(); }, name())
 {
     applyReadQueue(params.applyQueueSize);
     applyWriteQueue(params.applyQueueSize);
@@ -172,7 +172,7 @@ void Apply::processNextApplyCheckEvent(){
 }
 
 bool
-Apply::handleMemResp(PacktPtr pkt)
+Apply::handleMemResp(PacketPtr pkt)
 {
     auto queue = applyWriteQueue;
 
