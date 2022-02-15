@@ -122,6 +122,24 @@ PushEngine::PushRespPort::recvFunctional(PacketPtr pkt)
     owner->recvFunctional(pkt);
 }
 
+void
+PushEngine::PushRespPort::recvRespRetry()
+{
+    panic("recvRespRetry from response port is called.");
+}
+
+AddrRangeList
+PushEngine::getAddrRanges()
+{
+    return memPort.getAddrRanges();
+}
+
+void
+PushEngine::recvFunctional(PacketPtr pkt)
+{
+    memPort.sendFunctional(pkt);
+}
+
 bool
 PushEngine::handleUpdate(PacketPtr pkt)
 {
@@ -291,12 +309,6 @@ PushEngine::PushReqPort::recvReqRetry()
     if (!blocked()) {
         blockedPacket = nullptr;
     }
-}
-
-AddrRangeList
-PushEngine::getAddrRanges()
-{
-    return memPort.getAddrRanges();
 }
 
 void
