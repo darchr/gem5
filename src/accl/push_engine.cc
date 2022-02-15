@@ -99,7 +99,7 @@ PushEngine::startup()
 }
 
 AddrRangeList
-PushEngine::PushRespPort::getAddrRanges()
+PushEngine::PushRespPort::getAddrRanges() const
 {
     return owner->getAddrRanges();
 }

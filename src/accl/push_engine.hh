@@ -54,7 +54,7 @@ class PushEngine : public ClockedObject
         PushRespPort(const std::string& name, PushEngine* owner):
           ResponsePort(name, owner), owner(owner)
         {}
-        virtual AddrRangeList getAddrRanges();
+        virtual AddrRangeList getAddrRanges() const;
 
       protected:
         virtual bool recvTimingReq(PacketPtr pkt);
