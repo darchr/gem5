@@ -77,12 +77,6 @@ bool WLEngine::WLRespPort::recvTimingReq(PacketPtr pkt)
 }
 
 void
-WLEngine::WLRespPort::trySendRetry()
-{
-    sendRetryReq();
-}
-
-void
 WLEngine::WLRespPort::recvFunctional(PacketPtr pkt)
 {
     owner->recvFunctional(pkt);
@@ -162,7 +156,8 @@ WLEngine::recvFunctional(PacketPtr pkt)
     memPort.recvFunctional(pkt);
 }
 
-bool WLEngine::handleWLUpdate(PacketPtr pkt){
+bool
+WLEngine::handleWLUpdate(PacketPtr pkt){
     auto queue = updateQueue;
     if (queue.blocked()){
         queue.sendPktRetry = true;

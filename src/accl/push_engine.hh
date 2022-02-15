@@ -58,8 +58,12 @@ class PushEngine : public ClockedObject
           _blocked(false), blockedPacket(nullptr)
         {}
         virtual AddrRangeList getAddrRanges();
-        virtual bool recvTimingReq(PacketPtr pkt);
 
+      protected:
+        virtual bool recvTimingReq(PacketPtr pkt);
+        virtual Tick recvAtomic(PacketPtr pkt);
+        virtual void recvFunctional(PacketPtr pkt);
+        virtual void recvRespRetry();
     };
 
     class PushReqPort : public RequestPort
@@ -76,6 +80,8 @@ class PushEngine : public ClockedObject
         {}
         void sendPacket(PacketPtr pkt);
         bool blocked() { return _blocked; }
+
+      protected:
         virtual bool recvTimingResp(PacketPtr pkt);
         virtual void recvReqRetry();
     };
@@ -95,6 +101,8 @@ class PushEngine : public ClockedObject
 
         void sendPacket(PacketPtr pkt);
         bool blocked() { return _blocked; }
+
+      protected:
         virtual bool recvTimingResp(PacketPtr pkt);
         virtual void recvReqRetry();
     };
@@ -138,6 +146,8 @@ class PushEngine : public ClockedObject
 
     AddrRangeList getAddrRanges();
 
+    void recvFunctional(PacketPtr pkt);
+
   public:
 
     PushEngine(const PushEngineParams &params);
@@ -148,4 +158,5 @@ class PushEngine : public ClockedObject
 };
 
 }
+
 #endif // __ACCL_PUSH_ENGINE_HH__

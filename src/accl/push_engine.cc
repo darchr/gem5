@@ -98,18 +98,32 @@ PushEngine::startup()
 
 }
 
-bool PushEngine::PushRespPort::recvTimingReq(PacketPtr pkt)
-{
-    return owner->handleUpdate(pkt);
-}
-
 AddrRangeList
 PushEngine::PushRespPort::getAddrRanges()
 {
     return owner->getAddrRanges();
 }
 
-bool PushEngine::handleUpdate(PacketPtr pkt)
+bool
+PushEngine::PushRespPort::recvTimingReq(PacketPtr pkt)
+{
+    return owner->handleUpdate(pkt);
+}
+
+Tick
+PushEngine::PushRespPort::recvAtomic(PacketPtr pkt)
+{
+    panic("recvAtomic unimpl.");
+}
+
+void
+PushEngine::PushRespPort::recvFunctional(PacketPtr pkt)
+{
+    owner->recvFunctional(pkt);
+}
+
+bool
+PushEngine::handleUpdate(PacketPtr pkt)
 {
     //FIXME: There should be a check if the queues are full.
     // if (vertexQueueLen < vertexQueueSize) {
@@ -131,7 +145,7 @@ bool PushEngine::handleUpdate(PacketPtr pkt)
 void PushEngine::processNextReceiveEvent()
 {
     PacketPtr updatePkt = vertexQueue.front();
-    uint8_t *data = updatePkt->getPtr<uint8_t>();
+    uint8_t* data = updatePkt->getPtr<uint8_t>();
 
     // data: (edge_index: 32 bits, degree: 32 bits, value: 32 bits)
     uint32_t edge_index = *((uint32_t *)data);
