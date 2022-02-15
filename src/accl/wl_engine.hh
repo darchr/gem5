@@ -82,12 +82,11 @@ class WLEngine : public ClockedObject
     {
       private:
         WLEngine *owner;
-        PacketPtr blockedPacket;
 
       public:
-        WLRespPort(const std::string& name, SimObject* _owner,
-              PortID id=InvalidPortID);
-
+        WLRespPort(const std::string& name, WLEngine* owner):
+          ResponsePort(name, owner), owner(owner)
+        {}
         virtual AddrRangeList getAddrRanges();
 
       protected:
@@ -105,12 +104,12 @@ class WLEngine : public ClockedObject
         PacketPtr blockedPacket;
 
       public:
-        WLReqPort(const std::string& name, SimObject* _owner,
-              PortID id=InvalidPortID);
+        WLReqPort(const std::string& name, WLEngine* owner):
+          RequestPort(name, owner), owner(owner),
+          _blocked(false), blockedPacket(nullptr)
+        {}
         void sendPacket(PacketPtr pkt);
-        bool blocked(){
-          return _blocked;
-        }
+        bool blocked() { return _blocked; }
 
       protected:
         void recvReqRetry() override;
@@ -125,13 +124,12 @@ class WLEngine : public ClockedObject
         PacketPtr blockedPacket;
 
       public:
-        WLMemPort(const std::string& name, SimObject* _owner,
-              PortID id=InvalidPortID);
+        WLMemPort(const std::string& name, WLEngine* owner):
+          RequestPort(name, owner), owner(owner),
+          _blocked(false), blockedPacket(nullptr)
+        {}
         void sendPacket(PacketPtr pkt);
-        void trySendRetry();
-        bool blocked(){
-          return _blocked;
-        }
+        bool blocked() { return _blocked; }
 
       protected:
         virtual bool recvTimingResp(PacketPtr pkt);
