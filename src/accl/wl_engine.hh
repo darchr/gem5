@@ -88,8 +88,7 @@ class WLEngine : public ClockedObject
         WLRespPort(const std::string& name, SimObject* _owner,
               PortID id=InvalidPortID);
 
-        virtual AddrRangeList getAddrRanges() const override;
-        void trySendRetry();
+        virtual AddrRangeList getAddrRanges();
 
       protected:
         virtual bool recvTimingReq(PacketPtr pkt);
