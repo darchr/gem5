@@ -106,7 +106,7 @@ bool PushEngine::PushRespPort::recvTimingReq(PacketPtr pkt)
 AddrRangeList
 PushEngine::PushRespPort::getAddrRanges()
 {
-    owner->getAddrRanges();
+    return owner->getAddrRanges();
 }
 
 bool PushEngine::handleUpdate(PacketPtr pkt)
@@ -121,7 +121,7 @@ bool PushEngine::handleUpdate(PacketPtr pkt)
     //     return true;
     // }
     // return false;
-    vertexQueue.push(pkt)
+    vertexQueue.push(pkt);
     if (!nextReceiveEvent.scheduled()) {
         schedule(nextReceiveEvent, nextCycle());
     }
@@ -130,8 +130,8 @@ bool PushEngine::handleUpdate(PacketPtr pkt)
 
 void PushEngine::processNextReceiveEvent()
 {
-    PacketPtr updatePkt = vertexQueue.pop();
-    uint8_t *data = updatePkt->getData<uint8_t>();
+    PacketPtr updatePkt = vertexQueue.front();
+    uint8_t *data = updatePkt->getPtr<uint8_t>();
 
     // data: (edge_index: 32 bits, degree: 32 bits, value: 32 bits)
     uint32_t edge_index = *((uint32_t *)data);
@@ -152,25 +152,27 @@ void PushEngine::processNextReceiveEvent()
                 num_edge_queue.back()++;
             }
             else {
-                addr_queue.push(req_addr);
-                offset_queue.push(req_offset);
-                num_edge_queue.push(1);
+                addr_queue.push_back(req_addr);
+                offset_queue.push_back(req_offset);
+                num_edge_queue.push_back(1);
             }
         }
         else {
-            addr_queue.push(req_addr);
-            offset_queue.push(req_offset);
-            num_edge_queue.push(1);
+            addr_queue.push_back(req_addr);
+            offset_queue.push_back(req_offset);
+            num_edge_queue.push_back(1);
         }
     }
 
-    for (int index = 0; index < addr_queue.size(); inedx++) {
+    for (int index = 0; index < addr_queue.size(); index++) {
         PacketPtr pkt = getReadPacket(addr_queue[index], 64, requestorId);
         memReqQueue.push(pkt);
         reqOffsetMap[pkt->req] = offset_queue[index];
         reqNumEdgeMap[pkt->req] = num_edge_queue[index];
         reqValueMap[pkt->req] = value;
     }
+
+    vertexQueue.pop();
 
     if (!nextReadEvent.scheduled() && !memReqQueue.empty()) {
         schedule(nextReadEvent, nextCycle());
@@ -264,10 +266,36 @@ PushEngine::PushReqPort::sendPacket(PacketPtr pkt)
     }
 }
 
+void
+PushEngine::PushReqPort::recvReqRetry()
+{
+    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
+
+    _blocked = false;
+    sendPacket(blockedPacket);
+
+    if (!blocked()) {
+        blockedPacket = nullptr;
+    }
+}
+
 AddrRangeList
 PushEngine::getAddrRanges()
 {
     return memPort.getAddrRanges();
+}
+
+void
+PushEngine::PushMemPort::recvReqRetry()
+{
+    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
+
+    _blocked = false;
+    sendPacket(blockedPacket);
+
+    if (!blocked()) {
+        blockedPacket = nullptr;
+    }
 }
 
 }
