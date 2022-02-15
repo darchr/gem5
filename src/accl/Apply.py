@@ -38,3 +38,4 @@ class Apply(ClockedObject):
     respPort = ResponsePort("Receives requests from WorkList")
     reqPort  = RequestPort("Sends requests to Push")
     memPort  = RequestPort("Memory side port, sends requests")
+    applyQueueSize = Param.Unsigned(32, "Size of write queue")
