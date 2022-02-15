@@ -59,6 +59,7 @@ class PushEngine : public ClockedObject
         {}
         virtual AddrRangeList getAddrRanges();
         virtual bool recvTimingReq(PacketPtr pkt);
+
     };
 
     class PushReqPort : public RequestPort
@@ -76,6 +77,7 @@ class PushEngine : public ClockedObject
         void sendPacket(PacketPtr pkt);
         bool blocked() { return _blocked; }
         virtual bool recvTimingResp(PacketPtr pkt);
+        virtual void recvReqRetry();
     };
 
     class PushMemPort : public RequestPort
@@ -94,6 +96,7 @@ class PushEngine : public ClockedObject
         void sendPacket(PacketPtr pkt);
         bool blocked() { return _blocked; }
         virtual bool recvTimingResp(PacketPtr pkt);
+        virtual void recvReqRetry();
     };
 
     virtual void startup() override;
