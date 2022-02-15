@@ -153,7 +153,7 @@ WLEngine::getAddrRanges() const
 void
 WLEngine::recvFunctional(PacketPtr pkt)
 {
-    memPort.recvFunctional(pkt);
+    memPort.sendFunctional(pkt);
 }
 
 bool
