@@ -63,8 +63,8 @@ class Apply : public ClockedObject
         applyQueue.push(pkt);
       }
 
-      PacketPtr pop(){
-        return applyQueue.pop();
+      void pop(){
+        applyQueue.pop();
       }
 
       PacketPtr front(){
@@ -72,20 +72,20 @@ class Apply : public ClockedObject
       }
 
       ApplyQueue(uint32_t qSize):
-        queueSize(qSize){}
+        queueSize(qSize),
+        sendPktRetry(false){}
     };
 
     class ApplyRespPort : public ResponsePort
     {
       private:
         Apply *owner;
-
       public:
         ApplyRespPort(const std::string& name, Apply* owner):
           ResponsePort(name, owner), owner(owner)
         {}
         virtual AddrRangeList getAddrRanges() const;
-
+        void trySendRetry();
       protected:
         virtual bool recvTimingReq(PacketPtr pkt);
         virtual Tick recvAtomic(PacketPtr pkt);
@@ -105,7 +105,6 @@ class Apply : public ClockedObject
           RequestPort(name, owner), owner(owner),
           _blocked(false), blockedPacket(nullptr)
         {}
-
         void sendPacket(PacketPtr pkt);
         bool blocked() { return _blocked; }
 
@@ -139,9 +138,24 @@ class Apply : public ClockedObject
     System* const system;
     const RequestorID requestorId;
 
-    ApplyMemPort memPort;
-    ApplyRespPort respPort;
     ApplyReqPort reqPort;
+    ApplyRespPort respPort;
+    ApplyMemPort memPort;
+
+    EventFunctionWrapper nextApplyEvent;
+    void processNextApplyEvent();
+    /* Activated by MPU::MPUMemPort::recvTimingResp and handleMemResp
+       Perform apply and send the write request and read edgeList
+       read + write
+       Write edgelist loc in buffer
+    */
+
+    EventFunctionWrapper nextApplyCheckEvent;
+    void processNextApplyCheckEvent();
+    /* Syncronously checked
+       If there are any active vertecies:
+       create memory read packets + MPU::MPU::MemPortsendTimingReq
+    */
 
     ApplyQueue applyReadQueue;
     ApplyQueue applyWriteQueue;
@@ -154,21 +168,6 @@ class Apply : public ClockedObject
     // void readApplyBuffer();
     bool handleMemResp(PacketPtr resp);
     // void writePushBuffer();
-
-    //Events
-    void processNextApplyCheckEvent();
-    EventFunctionWrapper nextApplyCheckEvent;
-    /* Syncronously checked
-       If there are any active vertecies:
-       create memory read packets + MPU::MPU::MemPortsendTimingReq
-    */
-    void processNextApplyEvent();
-    EventFunctionWrapper nextApplyEvent;
-    /* Activated by MPU::MPUMemPort::recvTimingResp and handleMemResp
-       Perform apply and send the write request and read edgeList
-       read + write
-       Write edgelist loc in buffer
-    */
 
     AddrRangeList getAddrRanges() const;
 
