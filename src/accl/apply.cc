@@ -41,10 +41,12 @@ Apply::Apply(const ApplyParams &params):
     respPort(name() + ".respPort", this),
     memPort(name() + ".memPort", this),
     nextApplyEvent([this]{ processNextApplyEvent(); }, name()),
-    nextApplyCheckEvent([this]{ processNextApplyCheckEvent(); }, name())
+    nextApplyCheckEvent([this]{ processNextApplyCheckEvent(); }, name()),
+    applyReadQueue(params.applyQueueSize),
+    applyWriteQueue(params.applyQueueSize)
 {
-    applyReadQueue(params.applyQueueSize);
-    applyWriteQueue(params.applyQueueSize);
+    // applyReadQueue(params.applyQueueSize);
+    // applyWriteQueue(params.applyQueueSize);
 }
 
 Port &
@@ -62,7 +64,7 @@ Apply::getPort(const std::string &if_name, PortID idx)
 }
 
 AddrRangeList
-Apply::ApplyRespPort::getAddrRanges()
+Apply::ApplyRespPort::getAddrRanges() const
 {
     return owner->getAddrRanges();
 }
@@ -93,6 +95,12 @@ Apply::ApplyRespPort::recvRespRetry()
     panic("recvRespRetry from response port is called.");
 }
 
+void
+Apply::ApplyRespPort::trySendRetry()
+{
+    sendRetryReq();
+}
+
 bool
 Apply::ApplyMemPort::recvTimingResp(PacketPtr pkt)
 {
@@ -119,6 +127,12 @@ Apply::ApplyMemPort::recvReqRetry()
 }
 
 void
+Apply::ApplyMemPort::trySendRetry()
+{
+    sendRetryResp();
+}
+
+void
 Apply::ApplyReqPort::sendPacket(PacketPtr pkt)
 {
     if (!sendTimingReq(pkt)) {
@@ -133,6 +147,12 @@ Apply::ApplyReqPort::recvReqRetry()
     _blocked = false;
     sendPacket(blockedPacket);
     blockedPacket = nullptr;
+}
+
+bool
+Apply::ApplyReqPort::recvTimingResp(PacketPtr pkt)
+{
+    panic("recvRespRetry from response port is called.");
 }
 
 AddrRangeList
@@ -158,7 +178,8 @@ bool Apply::handleWL(PacketPtr pkt){
 void Apply::processNextApplyCheckEvent(){
     auto queue = applyReadQueue;
     if (!memPort.blocked()){
-        auto pkt = queue.pop();
+        PacketPtr pkt = queue.front();
+        queue.pop();
         if (queue.sendPktRetry && !queue.blocked()){
                 respPort.trySendRetry();
                 queue.sendPktRetry = false;
@@ -229,7 +250,7 @@ Apply::processNextApplyEvent(){
                 }
             }
         }else{
-            queue.pop();
+            queue.applyQueue.pop();
             if (queue.sendPktRetry && !queue.blocked()){
                 memPort.trySendRetry();
                 queue.sendPktRetry = false;
