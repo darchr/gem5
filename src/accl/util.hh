@@ -71,6 +71,7 @@ PacketPtr getReadPacket(Addr addr, unsigned int size,
                             RequestorID requestorId);
 PacketPtr getWritePacket(Addr addr, unsigned int size,
                 uint8_t* data, RequestorID requestorId);
-PacketPtr getUpdatePacket(Addr addr, unsigned int size, uint8_t *data);
+PacketPtr getUpdatePacket(Addr addr, unsigned int size,
+                uint8_t *data, RequestorID requestorId);
 
 }

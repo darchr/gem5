@@ -38,17 +38,15 @@ namespace gem5
 WLEngine::WLEngine(const WLEngineParams &params):
     ClockedObject(params),
     system(params.system),
-    queueSize(params.wlQueueSize),
     requestorId(system->getRequestorId(this)),
-    reqPort(name() + ".reqPort", this),
     respPort(name() + ".respPort", this),
+    reqPort(name() + ".reqPort", this),
     memPort(name() + ".memPort", this),
+    updateQueue(params.wlQueueSize),
+    responseQueue(params.wlQueueSize),
     nextWLReadEvent([this]{ processNextWLReadEvent(); }, name()),
-    nextWLReduceEvent([this]{ processNextWLReduceEvent(); }, name()),
-    updateQueue(queueSize),
-    responseQueue(queueSize)
-{
-}
+    nextWLReduceEvent([this]{ processNextWLReduceEvent(); }, name())
+{}
 
 Port &
 WLEngine::getPort(const std::string &if_name, PortID idx)

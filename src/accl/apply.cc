@@ -131,12 +131,6 @@ Apply::ApplyMemPort::recvReqRetry()
     blockedPacket = nullptr;
 }
 
-bool
-Apply::ApplyReqPort::recvTimingResp(PacketPtr pkt)
-{
-    panic("recvRespRetry from response port is called.");
-}
-
 AddrRangeList
 Apply::getAddrRanges() const
 {
@@ -171,7 +165,7 @@ void Apply::processNextApplyCheckEvent(){
         RequestPtr request = std::make_shared<Request>(req_addr, 64, 0 ,0);
         PacketPtr memPkt = new Packet(request, MemCmd::ReadReq);
         requestOffset[request] = req_offset;
-        memPort.sendPacke:(memPkt);
+        memPort.sendPacket(memPkt);
         queue.pop();
     }
     if (!queue.empty() &&  !nextApplyCheckEvent.scheduled()){

@@ -136,26 +136,26 @@ class WLEngine : public ClockedObject
     };
 
     System* const system;
-    const uint32_t queueSize;
     const RequestorID requestorId;
 
     WLRespPort respPort;
     WLReqPort reqPort;
     WLMemPort memPort;
 
-    bool handleWLU(PacketPtr pkt);
-    bool sendPacket();
-    //one queue for write and one for read a priotizes write over read
-    void readWLBuffer();
+    WLQueue updateQueue;
+    WLQueue responseQueue;
 
+    std::unordered_map<RequestPtr, int> requestOffset;
 
     //Events
+    bool handleWLUpdate(PacketPtr pkt);
     EventFunctionWrapper nextWLReadEvent;
     void processNextWLReadEvent();
     /* Syncronously checked
        If there are any active vertecies:
        create memory read packets + MPU::MPU::MemPortsendTimingReq
     */
+    bool handleMemResp(PacketPtr resp);
     EventFunctionWrapper nextWLReduceEvent;
     void processNextWLReduceEvent();
     /* Activated by MPU::MPUMemPort::recvTimingResp and handleMemResp
@@ -164,14 +164,8 @@ class WLEngine : public ClockedObject
        Write edgelist loc in buffer
     */
 
-    std::unordered_map<RequestPtr, int> requestOffset;
-
-    WLQueue updateQueue;
-    WLQueue responseQueue;
-
     AddrRangeList getAddrRanges() const;
-    bool handleWLUpdate(PacketPtr pkt);
-    bool handleMemResp(PacketPtr resp);
+
     void recvFunctional(PacketPtr pkt);
 
    public:
