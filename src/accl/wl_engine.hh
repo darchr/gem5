@@ -32,7 +32,6 @@
 #include <queue>
 #include <unordered_map>
 
-#include "accl/util.hh"
 #include "base/addr_range.hh"
 #include "mem/port.hh"
 #include "mem/packet.hh"
@@ -140,8 +139,8 @@ class WLEngine : public ClockedObject
     const uint32_t queueSize;
     const RequestorID requestorId;
 
-    WLReqPort reqPort;
     WLRespPort respPort;
+    WLReqPort reqPort;
     WLMemPort memPort;
 
     bool handleWLU(PacketPtr pkt);
