@@ -30,6 +30,8 @@
 
 #include <string>
 
+#include "accl/util.hh"
+
 namespace gem5
 {
 
@@ -37,17 +39,14 @@ Apply::Apply(const ApplyParams &params):
     ClockedObject(params),
     system(params.system),
     requestorId(system->getRequestorId(this)),
-    reqPort(name() + ".reqPort", this),
     respPort(name() + ".respPort", this),
+    reqPort(name() + ".reqPort", this),
     memPort(name() + ".memPort", this),
-    nextApplyEvent([this]{ processNextApplyEvent(); }, name()),
-    nextApplyCheckEvent([this]{ processNextApplyCheckEvent(); }, name()),
     applyReadQueue(params.applyQueueSize),
-    applyWriteQueue(params.applyQueueSize)
-{
-    // applyReadQueue(params.applyQueueSize);
-    // applyWriteQueue(params.applyQueueSize);
-}
+    applyWriteQueue(params.applyQueueSize),
+    nextApplyCheckEvent([this]{ processNextApplyCheckEvent(); }, name()),
+    nextApplyEvent([this]{ processNextApplyEvent(); }, name())
+{}
 
 Port &
 Apply::getPort(const std::string &if_name, PortID idx)
@@ -96,43 +95,6 @@ Apply::ApplyRespPort::recvRespRetry()
 }
 
 void
-Apply::ApplyRespPort::trySendRetry()
-{
-    sendRetryReq();
-}
-
-bool
-Apply::ApplyMemPort::recvTimingResp(PacketPtr pkt)
-{
-    return owner->handleMemResp(pkt);
-}
-
-void
-Apply::ApplyMemPort::sendPacket(PacketPtr pkt)
-{
-    panic_if(_blocked, "Should never try to send if blocked MemSide!");
-
-    if (!sendTimingReq(pkt)) {
-        blockedPacket = pkt;
-        _blocked = true;
-    }
-}
-
-void
-Apply::ApplyMemPort::recvReqRetry()
-{
-    _blocked = false;
-    sendPacket(blockedPacket);
-    blockedPacket = nullptr;
-}
-
-void
-Apply::ApplyMemPort::trySendRetry()
-{
-    sendRetryResp();
-}
-
-void
 Apply::ApplyReqPort::sendPacket(PacketPtr pkt)
 {
     if (!sendTimingReq(pkt)) {
@@ -143,6 +105,26 @@ Apply::ApplyReqPort::sendPacket(PacketPtr pkt)
 
 void
 Apply::ApplyReqPort::recvReqRetry()
+{
+    _blocked = false;
+    sendPacket(blockedPacket);
+    blockedPacket = nullptr;
+}
+
+bool
+Apply::ApplyReqPort::recvTimingResp(PacketPtr pkt)
+{
+    panic("recvTimingResp called on reqPort.");
+}
+
+bool
+Apply::ApplyMemPort::recvTimingResp(PacketPtr pkt)
+{
+    return owner->handleMemResp(pkt);
+}
+
+void
+Apply::ApplyMemPort::recvReqRetry()
 {
     _blocked = false;
     sendPacket(blockedPacket);
@@ -179,9 +161,8 @@ void Apply::processNextApplyCheckEvent(){
     auto queue = applyReadQueue;
     if (!memPort.blocked()){
         PacketPtr pkt = queue.front();
-        queue.pop();
         if (queue.sendPktRetry && !queue.blocked()){
-                respPort.trySendRetry();
+                // respPort.trySendRetry();
                 queue.sendPktRetry = false;
         }
         // conver to ReadReq
@@ -190,7 +171,8 @@ void Apply::processNextApplyCheckEvent(){
         RequestPtr request = std::make_shared<Request>(req_addr, 64, 0 ,0);
         PacketPtr memPkt = new Packet(request, MemCmd::ReadReq);
         requestOffset[request] = req_offset;
-        memPort.sendPacket(memPkt);
+        memPort.sendPacke:(memPkt);
+        queue.pop();
     }
     if (!queue.empty() &&  !nextApplyCheckEvent.scheduled()){
         schedule(nextApplyCheckEvent, nextCycle());
@@ -245,14 +227,14 @@ Apply::processNextApplyEvent(){
                 reqPort.sendPacket(writePkt);
                 queue.pop();
                 if (queue.sendPktRetry && !queue.blocked()){
-                    memPort.trySendRetry();
+                    // memPort.trySendRetry();
                     queue.sendPktRetry = false;
                 }
             }
         }else{
             queue.applyQueue.pop();
             if (queue.sendPktRetry && !queue.blocked()){
-                memPort.trySendRetry();
+                // memPort.trySendRetry();
                 queue.sendPktRetry = false;
             }
         }
