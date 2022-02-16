@@ -32,7 +32,6 @@
 #include <queue>
 #include <unordered_map>
 
-#include "accl/util.hh"
 #include "base/addr_range.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
@@ -49,31 +48,31 @@ class Apply : public ClockedObject
   private:
 
     struct ApplyQueue{
-      std::queue<PacketPtr> applyQueue;
-      const uint32_t queueSize;
-      bool sendPktRetry;
+        std::queue<PacketPtr> applyQueue;
+        const uint32_t queueSize;
+        bool sendPktRetry;
 
-      bool blocked(){
-        return (applyQueue.size() == queueSize);
-      }
-      bool empty(){
-        return applyQueue.empty();
-      }
-      void push(PacketPtr pkt){
-        applyQueue.push(pkt);
-      }
+        bool blocked(){
+            return (applyQueue.size() == queueSize);
+        }
+        bool empty(){
+            return applyQueue.empty();
+        }
+        void push(PacketPtr pkt){
+            applyQueue.push(pkt);
+        }
 
-      void pop(){
-        applyQueue.pop();
-      }
+        void pop(){
+            applyQueue.pop();
+        }
 
-      PacketPtr front(){
-        return applyQueue.front();
-      }
+        PacketPtr front(){
+            return applyQueue.front();
+        }
 
-      ApplyQueue(uint32_t qSize):
-        queueSize(qSize),
-        sendPktRetry(false){}
+        ApplyQueue(uint32_t qSize):
+          queueSize(qSize)
+        {}
     };
 
     class ApplyRespPort : public ResponsePort
@@ -109,8 +108,8 @@ class Apply : public ClockedObject
         bool blocked() { return _blocked; }
 
       protected:
-        void recvReqRetry() override;
         virtual bool recvTimingResp(PacketPtr pkt);
+        void recvReqRetry() override;
     };
 
     class ApplyMemPort : public RequestPort
@@ -127,7 +126,7 @@ class Apply : public ClockedObject
         {}
 
         void sendPacket(PacketPtr pkt);
-        void trySendRetry();
+        // void trySendRetry();
         bool blocked(){ return _blocked;}
 
       protected:
@@ -138,24 +137,9 @@ class Apply : public ClockedObject
     System* const system;
     const RequestorID requestorId;
 
-    ApplyReqPort reqPort;
     ApplyRespPort respPort;
+    ApplyReqPort reqPort;
     ApplyMemPort memPort;
-
-    EventFunctionWrapper nextApplyEvent;
-    void processNextApplyEvent();
-    /* Activated by MPU::MPUMemPort::recvTimingResp and handleMemResp
-       Perform apply and send the write request and read edgeList
-       read + write
-       Write edgelist loc in buffer
-    */
-
-    EventFunctionWrapper nextApplyCheckEvent;
-    void processNextApplyCheckEvent();
-    /* Syncronously checked
-       If there are any active vertecies:
-       create memory read packets + MPU::MPU::MemPortsendTimingReq
-    */
 
     ApplyQueue applyReadQueue;
     ApplyQueue applyWriteQueue;
@@ -168,6 +152,21 @@ class Apply : public ClockedObject
     // void readApplyBuffer();
     bool handleMemResp(PacketPtr resp);
     // void writePushBuffer();
+
+    //Events
+    EventFunctionWrapper nextApplyCheckEvent;
+    void processNextApplyCheckEvent();
+    /* Syncronously checked
+       If there are any active vertecies:
+       create memory read packets + MPU::MPU::MemPortsendTimingReq
+    */
+    EventFunctionWrapper nextApplyEvent;
+    void processNextApplyEvent();
+    /* Activated by MPU::MPUMemPort::recvTimingResp and handleMemResp
+       Perform apply and send the write request and read edgeList
+       read + write
+       Write edgelist loc in buffer
+    */
 
     AddrRangeList getAddrRanges() const;
 

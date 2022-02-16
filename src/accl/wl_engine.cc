@@ -30,6 +30,8 @@
 
 #include <string>
 
+#include "accl/util.hh"
+
 namespace gem5
 {
 
@@ -76,12 +78,6 @@ bool WLEngine::WLRespPort::recvTimingReq(PacketPtr pkt)
     return true;
 }
 
-void
-WLEngine::WLRespPort::recvFunctional(PacketPtr pkt)
-{
-    owner->recvFunctional(pkt);
-}
-
 Tick
 WLEngine::WLRespPort::recvAtomic(PacketPtr pkt)
 {
@@ -123,12 +119,6 @@ bool
 WLEngine::WLMemPort::recvTimingResp(PacketPtr pkt)
 {
     return owner->handleMemResp(pkt);
-}
-
-void
-WLEngine::WLMemPort::trySendRetry()
-{
-    sendRetryResp();
 }
 
 void
@@ -244,12 +234,12 @@ WLEngine::processNextWLReduceEvent(){
             applyPort.sendPacket(writePkt);
             queue.pop();
             if (!queue.blocked() && queue.sendPktRetry){
-                memPort.trySendRetry();
+                // memPort.trySendRetry();
                 queue.sendPktRetry = false;
             }
             updateQ.pop();
             if (!updateQ.blocked() & updateQ.sendPktRetry){
-                respPort.trySendRetry();
+                // respPort.trySendRetry();
                 updateQ.sendPktRetry = false;
             }
         }
@@ -257,12 +247,12 @@ WLEngine::processNextWLReduceEvent(){
     else{
         queue.pop();
         if (!queue.blocked() && queue.sendPktRetry){
-            memPort.trySendRetry();
+            // memPort.trySendRetry();
             queue.sendPktRetry = false;
         }
         updateQ.pop();
         if (!updateQ.blocked() & updateQ.sendPktRetry){
-            respPort.trySendRetry();
+            // respPort.trySendRetry();
             updateQ.sendPktRetry = false;
         }
 
