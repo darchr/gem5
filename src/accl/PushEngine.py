@@ -30,7 +30,7 @@ from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
 
 class PushEngine(ClockedObject):
-    type = 'WLEngine'
+    type = 'PushEngine'
     cxx_header = "accl/push_engine.hh"
     cxx_class = 'gem5::PushEngine'
 
