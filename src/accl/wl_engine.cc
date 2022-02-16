@@ -94,6 +94,31 @@ WLEngine::WLRespPort::recvRespRetry()
     panic("recvRespRetry from response port is called.");
 }
 
+bool
+WLEngine::WLReqPort::recvTimingResp(PacketPtr)
+{
+    panic("recvTimingResp called on the request port.");
+}
+
+void
+WLEngine::WLReqPort::recvReqRetry()
+{
+    // We should have a blocked packet if this function is called.
+    assert(_blocked && blockedPacket != nullptr);
+    _blocked = false;
+    sendPacket(blockedPacket);
+    blockedPacket = nullptr;
+}
+
+void
+WLEngine::WLReqPort::sendPacket(PacketPtr pkt)
+{
+    if (!sendTimingReq(pkt)) {
+        blockedPacket = pkt;
+        _blocked = true;
+    }
+}
+
 void
 WLEngine::WLMemPort::sendPacket(PacketPtr pkt)
 {
@@ -117,25 +142,6 @@ bool
 WLEngine::WLMemPort::recvTimingResp(PacketPtr pkt)
 {
     return owner->handleMemResp(pkt);
-}
-
-void
-WLEngine::WLReqPort::recvReqRetry()
-{
-    // We should have a blocked packet if this function is called.
-    assert(_blocked && blockedPacket != nullptr);
-    _blocked = false;
-    sendPacket(blockedPacket);
-    blockedPacket = nullptr;
-}
-
-void
-WLEngine::WLReqPort::sendPacket(PacketPtr pkt)
-{
-    if (!sendTimingReq(pkt)) {
-        blockedPacket = pkt;
-        _blocked = true;
-    }
 }
 
 AddrRangeList
