@@ -117,6 +117,15 @@ Apply::ApplyReqPort::recvTimingResp(PacketPtr pkt)
     panic("recvTimingResp called on reqPort.");
 }
 
+void
+Apply::ApplyMemPort::sendPacket(PacketPtr pkt)
+{
+    if (!sendTimingReq(pkt)) {
+        blockedPacket = pkt;
+        _blocked = true;
+    }
+}
+
 bool
 Apply::ApplyMemPort::recvTimingResp(PacketPtr pkt)
 {
