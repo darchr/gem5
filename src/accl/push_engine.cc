@@ -26,8 +26,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "accl/util.hh"
 #include "accl/push_engine.hh"
+
+#include "accl/util.hh"
 
 namespace gem5
 {
@@ -128,6 +129,68 @@ PushEngine::PushRespPort::recvRespRetry()
     panic("recvRespRetry from response port is called.");
 }
 
+void
+PushEngine::PushReqPort::sendPacket(PacketPtr pkt)
+{
+    panic_if(_blocked, "Should never try to send if blocked MemSide!");
+    // If we can't send the packet across the port, store it for later.
+    if (!sendTimingReq(pkt))
+    {
+        blockedPacket = pkt;
+        _blocked = true;
+    }
+}
+
+bool
+PushEngine::PushReqPort::recvTimingResp(PacketPtr pkt)
+{
+    panic("recvTimingResp called on the request port.");
+}
+
+void
+PushEngine::PushReqPort::recvReqRetry()
+{
+    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
+
+    _blocked = false;
+    sendPacket(blockedPacket);
+
+    if (!blocked()) {
+        blockedPacket = nullptr;
+    }
+}
+
+bool
+PushEngine::PushMemPort::recvTimingResp(PacketPtr pkt)
+{
+    return owner->handleMemResp(pkt);
+}
+
+void
+PushEngine::PushMemPort::sendPacket(PacketPtr pkt)
+{
+    panic_if(_blocked, "Should never try to send if blocked MemSide!");
+    // If we can't send the packet across the port, store it for later.
+    if (!sendTimingReq(pkt))
+    {
+        blockedPacket = pkt;
+        _blocked = true;
+    }
+}
+
+void
+PushEngine::PushMemPort::recvReqRetry()
+{
+    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
+
+    _blocked = false;
+    sendPacket(blockedPacket);
+
+    if (!blocked()) {
+        blockedPacket = nullptr;
+    }
+}
+
 AddrRangeList
 PushEngine::getAddrRanges()
 {
@@ -224,24 +287,8 @@ void PushEngine::processNextReadEvent()
     }
 }
 
-bool PushEngine::PushMemPort::recvTimingResp(PacketPtr pkt)
-{
-    return owner->handleMemResp(pkt);
-}
-
-void
-PushEngine::PushMemPort::sendPacket(PacketPtr pkt)
-{
-    panic_if(_blocked, "Should never try to send if blocked MemSide!");
-    // If we can't send the packet across the port, store it for later.
-    if (!sendTimingReq(pkt))
-    {
-        blockedPacket = pkt;
-        _blocked = true;
-    }
-}
-
-bool PushEngine::handleMemResp(PacketPtr pkt)
+bool
+PushEngine::handleMemResp(PacketPtr pkt)
 {
     RequestPtr req = pkt->req;
     uint8_t *data = pkt->getPtr<uint8_t>();
@@ -259,7 +306,8 @@ bool PushEngine::handleMemResp(PacketPtr pkt)
         // TODO: Implement propagate function here
         *update_data = value + 1;
         PacketPtr update = getUpdatePacket(e.neighbor,
-            sizeof(uint32_t) / sizeof(uint8_t), (uint8_t*) update_data);
+            sizeof(uint32_t) / sizeof(uint8_t), (uint8_t*) update_data,
+            requestorId);
         updateQueue.push(update);
     }
 
@@ -283,44 +331,6 @@ void PushEngine::processNextSendEvent()
 
     if (!nextSendEvent.scheduled() && !updateQueue.empty()) {
         schedule(nextSendEvent, nextCycle());
-    }
-}
-
-void
-PushEngine::PushReqPort::sendPacket(PacketPtr pkt)
-{
-    panic_if(_blocked, "Should never try to send if blocked MemSide!");
-    // If we can't send the packet across the port, store it for later.
-    if (!sendTimingReq(pkt))
-    {
-        blockedPacket = pkt;
-        _blocked = true;
-    }
-}
-
-void
-PushEngine::PushReqPort::recvReqRetry()
-{
-    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
-
-    _blocked = false;
-    sendPacket(blockedPacket);
-
-    if (!blocked()) {
-        blockedPacket = nullptr;
-    }
-}
-
-void
-PushEngine::PushMemPort::recvReqRetry()
-{
-    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
-
-    _blocked = false;
-    sendPacket(blockedPacket);
-
-    if (!blocked()) {
-        blockedPacket = nullptr;
     }
 }
 

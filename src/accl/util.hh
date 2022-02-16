@@ -26,6 +26,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "base/cprintf.hh"
 #include "base/types.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
@@ -39,12 +40,25 @@ struct WorkListItem
     uint32_t prop;
     uint32_t degree;
     uint32_t edgeIndex;
+
+    std::string to_string()
+    {
+        return csprintf(
+        "WorkListItem{temp_prop: %u, prop: %u, degree: %u, edgeIndex: %u}",
+        temp_prop, prop, degree, edgeIndex);
+    }
+
 };
 
 struct Edge
 {
     uint64_t weight;
     Addr neighbor;
+
+    std::string to_string()
+    {
+        return csprintf("Edge{weight: %lu, neighbor: %lu}", weight, neighbor);
+    }
 };
 
 WorkListItem memoryToWorkList(uint8_t* data);
