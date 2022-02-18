@@ -26,16 +26,16 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_APPLY_HH__
-#define __ACCL_APPLY_HH__
+#ifndef __ACCL_WLE_HH__
+#define __ACCL_WLE_HH__
 
 #include <queue>
 #include <unordered_map>
 
 #include "base/addr_range.hh"
-#include "mem/packet.hh"
 #include "mem/port.hh"
-#include "params/Apply.hh"
+#include "mem/packet.hh"
+#include "params/WLEngine.hh"
 #include "sim/clocked_object.hh"
 #include "sim/port.hh"
 #include "sim/system.hh"
@@ -43,64 +43,49 @@
 namespace gem5
 {
 
-class Apply : public ClockedObject
+class WLEngine : public ClockedObject
 {
   private:
+    //FIXME: Change this
+    struct WLQueue{
+      std::queue<PacketPtr> wlQueue;
+      uint32_t queueSize;
+      bool sendPktRetry;
 
-    struct ApplyQueue{
-        std::queue<PacketPtr> applyQueue;
-        const uint32_t queueSize;
-        bool sendPktRetry;
+      void resize(uint32_t size){
+        queueSize = size;
+      }
 
-        bool blocked(){
-            return (applyQueue.size() == queueSize);
-        }
-        bool empty(){
-            return applyQueue.empty();
-        }
-        void push(PacketPtr pkt){
-            applyQueue.push(pkt);
-        }
+      bool blocked(){
+        return (wlQueue.size() == queueSize);
+      }
+      bool empty(){
+        return wlQueue.empty();
+      }
+      void push(PacketPtr pkt){
+        wlQueue.push(pkt);
+      }
+      void pop(){
+        wlQueue.pop();
+      }
+      PacketPtr front(){
+        return wlQueue.front();
+      }
 
-        void pop(){
-            applyQueue.pop();
-        }
-
-        PacketPtr front(){
-            return applyQueue.front();
-        }
-
-        ApplyQueue(uint32_t qSize):
-          queueSize(qSize)
-        {}
+      WLQueue(uint32_t qSize):
+        queueSize(qSize),
+        sendPktRetry(false){}
     };
 
-    class ApplyRespPort : public ResponsePort
+    class WLMemPort : public RequestPort
     {
       private:
-        Apply *owner;
-      public:
-        ApplyRespPort(const std::string& name, Apply* owner):
-          ResponsePort(name, owner), owner(owner)
-        {}
-        virtual AddrRangeList getAddrRanges() const;
-        void trySendRetry();
-      protected:
-        virtual bool recvTimingReq(PacketPtr pkt);
-        virtual Tick recvAtomic(PacketPtr pkt);
-        virtual void recvFunctional(PacketPtr pkt);
-        virtual void recvRespRetry();
-    };
-
-    class ApplyReqPort : public RequestPort
-    {
-      private:
-        Apply *owner;
+        WLEngine *owner;
         bool _blocked;
         PacketPtr blockedPacket;
 
       public:
-        ApplyReqPort(const std::string& name, Apply* owner):
+        WLMemPort(const std::string& name, WLEngine* owner):
           RequestPort(name, owner), owner(owner),
           _blocked(false), blockedPacket(nullptr)
         {}
@@ -112,66 +97,32 @@ class Apply : public ClockedObject
         void recvReqRetry() override;
     };
 
-    class ApplyMemPort : public RequestPort
-    {
-      private:
-        Apply *owner;
-        bool _blocked;
-        PacketPtr blockedPacket;
+    WLMemPort memPort;
 
-      public:
-        ApplyMemPort(const std::string& name, Apply* owner):
-          RequestPort(name, owner), owner(owner),
-          _blocked(false), blockedPacket(nullptr)
-        {}
-
-        void sendPacket(PacketPtr pkt);
-        // void trySendRetry();
-        bool blocked(){ return _blocked;}
-
-      protected:
-        virtual bool recvTimingResp(PacketPtr pkt);
-        void recvReqRetry() override;
-    };
-
-    System* const system;
-    const RequestorID requestorId;
-
-    ApplyRespPort respPort;
-    ApplyReqPort reqPort;
-    ApplyMemPort memPort;
-
-    ApplyQueue applyReadQueue;
-    ApplyQueue applyWriteQueue;
+    WLQueue updateQueue;
+    WLQueue responseQueue;
 
     std::unordered_map<RequestPtr, int> requestOffset;
 
-    bool handleWL(PacketPtr pkt);
-    // bool sendPacket();
-    // //one queue for write and one for read a priotizes write over read
-    // void readApplyBuffer();
-    bool handleMemResp(PacketPtr resp);
-    // void writePushBuffer();
-
     //Events
-    EventFunctionWrapper nextApplyCheckEvent;
-    void processNextApplyCheckEvent();
+    bool handleWLUpdate(PacketPtr pkt);
+    EventFunctionWrapper nextWLReadEvent;
+    void processNextWLReadEvent();
     /* Syncronously checked
        If there are any active vertecies:
        create memory read packets + MPU::MPU::MemPortsendTimingReq
     */
-    EventFunctionWrapper nextApplyEvent;
-    void processNextApplyEvent();
+    bool handleMemResp(PacketPtr resp);
+    EventFunctionWrapper nextWLReduceEvent;
+    void processNextWLReduceEvent();
     /* Activated by MPU::MPUMemPort::recvTimingResp and handleMemResp
        Perform apply and send the write request and read edgeList
        read + write
        Write edgelist loc in buffer
     */
 
-    AddrRangeList getAddrRanges() const;
-
-  public:
-    Apply(const ApplyParams &apply);
+   public:
+    WLEngine(const WLEngineParams &params);
 
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
@@ -179,4 +130,4 @@ class Apply : public ClockedObject
 
 }
 
-#endif // __ACCL_APPLY_HH__
+#endif // __ACCL_WLE_HH__
