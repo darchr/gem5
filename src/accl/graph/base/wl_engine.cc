@@ -26,21 +26,17 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "accl/wl_engine.hh"
+#include "accl/graph/base/wl_engine.hh"
 
 #include <string>
 
-#include "accl/util.hh"
+#include "accl/graph/base/util.hh"
 
 namespace gem5
 {
 
 WLEngine::WLEngine(const WLEngineParams &params):
     ClockedObject(params),
-    system(params.system),
-    requestorId(system->getRequestorId(this)),
-    respPort(name() + ".respPort", this),
-    reqPort(name() + ".reqPort", this),
     memPort(name() + ".memPort", this),
     updateQueue(params.wlQueueSize),
     responseQueue(params.wlQueueSize),
@@ -51,71 +47,10 @@ WLEngine::WLEngine(const WLEngineParams &params):
 Port &
 WLEngine::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "reqPort") {
-        return reqPort;
-    } else if (if_name == "respPort") {
-        return respPort;
-    } else if (if_name == "memPort") {
+    if (if_name == "memPort") {
         return memPort;
     } else {
         return SimObject::getPort(if_name, idx);
-    }
-}
-
-AddrRangeList
-WLEngine::WLRespPort::getAddrRanges() const
-{
-    return owner->getAddrRanges();
-}
-
-bool WLEngine::WLRespPort::recvTimingReq(PacketPtr pkt)
-{
-    if (!owner->handleWLUpdate(pkt)){
-        return false;
-    }
-    return true;
-}
-
-Tick
-WLEngine::WLRespPort::recvAtomic(PacketPtr pkt)
-{
-    panic("recvAtomic unimpl.");
-}
-
-void
-WLEngine::WLRespPort::recvFunctional(PacketPtr pkt)
-{
-    owner->recvFunctional(pkt);
-}
-
-void
-WLEngine::WLRespPort::recvRespRetry()
-{
-    panic("recvRespRetry from response port is called.");
-}
-
-bool
-WLEngine::WLReqPort::recvTimingResp(PacketPtr)
-{
-    panic("recvTimingResp called on the request port.");
-}
-
-void
-WLEngine::WLReqPort::recvReqRetry()
-{
-    // We should have a blocked packet if this function is called.
-    assert(_blocked && blockedPacket != nullptr);
-    _blocked = false;
-    sendPacket(blockedPacket);
-    blockedPacket = nullptr;
-}
-
-void
-WLEngine::WLReqPort::sendPacket(PacketPtr pkt)
-{
-    if (!sendTimingReq(pkt)) {
-        blockedPacket = pkt;
-        _blocked = true;
     }
 }
 
@@ -142,18 +77,6 @@ bool
 WLEngine::WLMemPort::recvTimingResp(PacketPtr pkt)
 {
     return owner->handleMemResp(pkt);
-}
-
-AddrRangeList
-WLEngine::getAddrRanges() const
-{
-    return memPort.getAddrRanges();
-}
-
-void
-WLEngine::recvFunctional(PacketPtr pkt)
-{
-    memPort.sendFunctional(pkt);
 }
 
 bool
