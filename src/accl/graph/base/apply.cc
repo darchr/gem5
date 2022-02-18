@@ -30,17 +30,13 @@
 
 #include <string>
 
-#include "accl/util.hh"
+#include "accl/graph/base/util.hh"
 
 namespace gem5
 {
 
 Apply::Apply(const ApplyParams &params):
     ClockedObject(params),
-    system(params.system),
-    requestorId(system->getRequestorId(this)),
-    respPort(name() + ".respPort", this),
-    reqPort(name() + ".reqPort", this),
     memPort(name() + ".memPort", this),
     applyReadQueue(params.applyQueueSize),
     applyWriteQueue(params.applyQueueSize),
@@ -51,70 +47,11 @@ Apply::Apply(const ApplyParams &params):
 Port &
 Apply::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "reqPort") {
-        return reqPort;
-    } else if (if_name == "respPort") {
-        return respPort;
-    } else if (if_name == "memPort") {
+    if (if_name == "memPort") {
         return memPort;
     } else {
         return SimObject::getPort(if_name, idx);
     }
-}
-
-AddrRangeList
-Apply::ApplyRespPort::getAddrRanges() const
-{
-    return owner->getAddrRanges();
-}
-
-bool Apply::ApplyRespPort::recvTimingReq(PacketPtr pkt)
-{
-    if (!owner->handleWL(pkt)){
-        return false;
-    }
-    return true;
-}
-
-void
-Apply::ApplyRespPort::recvFunctional(PacketPtr pkt)
-{
-    panic("Not implemented");
-}
-
-Tick
-Apply::ApplyRespPort::recvAtomic(PacketPtr pkt)
-{
-    panic("recvAtomic unimpl.");
-}
-
-void
-Apply::ApplyRespPort::recvRespRetry()
-{
-    panic("recvRespRetry from response port is called.");
-}
-
-void
-Apply::ApplyReqPort::sendPacket(PacketPtr pkt)
-{
-    if (!sendTimingReq(pkt)) {
-        blockedPacket = pkt;
-        _blocked = true;
-    }
-}
-
-void
-Apply::ApplyReqPort::recvReqRetry()
-{
-    _blocked = false;
-    sendPacket(blockedPacket);
-    blockedPacket = nullptr;
-}
-
-bool
-Apply::ApplyReqPort::recvTimingResp(PacketPtr pkt)
-{
-    panic("recvTimingResp called on reqPort.");
 }
 
 void
@@ -138,12 +75,6 @@ Apply::ApplyMemPort::recvReqRetry()
     _blocked = false;
     sendPacket(blockedPacket);
     blockedPacket = nullptr;
-}
-
-AddrRangeList
-Apply::getAddrRanges() const
-{
-    return memPort.getAddrRanges();
 }
 
 bool Apply::handleWL(PacketPtr pkt){
