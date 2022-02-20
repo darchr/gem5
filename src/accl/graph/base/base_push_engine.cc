@@ -26,18 +26,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "accl/push_engine.hh"
+#include "accl/graph/base/base_push_engine.hh"
 
-#include "accl/util.hh"
+#include "accl/graph/base/util.hh"
 
 namespace gem5
 {
 
-PushEngine::PushEngine(const PushEngineParams &params) : ClockedObject(params),
-    system(params.system),
-    requestorId(system->getRequestorId(this)),
-    reqPort(name() + ".reqPort", this),
-    respPort(name() + ".respPort", this),
+BasePushEngine::BasePushEngine(const BasePushEngine &params) : ClockedObject(params),
+    requestorId(0),
     memPort(name() + ".memPort", this),
     // vertexQueueSize(params.vertex_queue_size),
     // vertexQueueLen(0),
@@ -50,21 +47,29 @@ PushEngine::PushEngine(const PushEngineParams &params) : ClockedObject(params),
 }
 
 Port &
-PushEngine::getPort(const std::string &if_name, PortID idx)
+BasePushEngine::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "reqPort") {
-        return reqPort;
-    } else if (if_name == "respPort") {
-        return respPort;
-    } else if (if_name == "memPort") {
+    if (if_name == "memPort") {
         return memPort;
     } else {
         return SimObject::getPort(if_name, idx);
     }
 }
 
+RequestorID
+BasePushEngine::getRequestorId()
+{
+    return requestorId;
+}
+
 void
-PushEngine::startup()
+BasePushEngine::setRequestorId(RequestorID requestorId)
+{
+    this->requestorId = requestorId;
+}
+
+void
+BasePushEngine::startup()
 {
     //FIXME: This is the current version of our initializer.
     // This should be updated in the future.
@@ -99,75 +104,14 @@ PushEngine::startup()
 
 }
 
-AddrRangeList
-PushEngine::PushRespPort::getAddrRanges() const
-{
-    return owner->getAddrRanges();
-}
-
 bool
-PushEngine::PushRespPort::recvTimingReq(PacketPtr pkt)
-{
-    return owner->handleUpdate(pkt);
-}
-
-Tick
-PushEngine::PushRespPort::recvAtomic(PacketPtr pkt)
-{
-    panic("recvAtomic unimpl.");
-}
-
-void
-PushEngine::PushRespPort::recvFunctional(PacketPtr pkt)
-{
-    owner->recvFunctional(pkt);
-}
-
-void
-PushEngine::PushRespPort::recvRespRetry()
-{
-    panic("recvRespRetry from response port is called.");
-}
-
-void
-PushEngine::PushReqPort::sendPacket(PacketPtr pkt)
-{
-    panic_if(_blocked, "Should never try to send if blocked MemSide!");
-    // If we can't send the packet across the port, store it for later.
-    if (!sendTimingReq(pkt))
-    {
-        blockedPacket = pkt;
-        _blocked = true;
-    }
-}
-
-bool
-PushEngine::PushReqPort::recvTimingResp(PacketPtr pkt)
-{
-    panic("recvTimingResp called on the request port.");
-}
-
-void
-PushEngine::PushReqPort::recvReqRetry()
-{
-    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
-
-    _blocked = false;
-    sendPacket(blockedPacket);
-
-    if (!blocked()) {
-        blockedPacket = nullptr;
-    }
-}
-
-bool
-PushEngine::PushMemPort::recvTimingResp(PacketPtr pkt)
+BasePushEngine::MemPort::recvTimingResp(PacketPtr pkt)
 {
     return owner->handleMemResp(pkt);
 }
 
 void
-PushEngine::PushMemPort::sendPacket(PacketPtr pkt)
+BasePushEngine::MemPort::sendPacket(PacketPtr pkt)
 {
     panic_if(_blocked, "Should never try to send if blocked MemSide!");
     // If we can't send the packet across the port, store it for later.
@@ -179,7 +123,7 @@ PushEngine::PushMemPort::sendPacket(PacketPtr pkt)
 }
 
 void
-PushEngine::PushMemPort::recvReqRetry()
+BasePushEngine::MemPort::recvReqRetry()
 {
     panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
 
@@ -191,20 +135,8 @@ PushEngine::PushMemPort::recvReqRetry()
     }
 }
 
-AddrRangeList
-PushEngine::getAddrRanges()
-{
-    return memPort.getAddrRanges();
-}
-
-void
-PushEngine::recvFunctional(PacketPtr pkt)
-{
-    memPort.sendFunctional(pkt);
-}
-
 bool
-PushEngine::handleUpdate(PacketPtr pkt)
+BasePushEngine::handleUpdate(PacketPtr pkt)
 {
     //FIXME: There should be a check if the queues are full.
     // if (vertexQueueLen < vertexQueueSize) {
@@ -223,7 +155,8 @@ PushEngine::handleUpdate(PacketPtr pkt)
     return true;
 }
 
-void PushEngine::processNextReceiveEvent()
+void
+BasePushEngine::processNextReceiveEvent()
 {
     PacketPtr updatePkt = vertexQueue.front();
     uint8_t* data = updatePkt->getPtr<uint8_t>();
@@ -274,7 +207,8 @@ void PushEngine::processNextReceiveEvent()
     }
 }
 
-void PushEngine::processNextReadEvent()
+void
+BasePushEngine::processNextReadEvent()
 {
     PacketPtr pkt = memReqQueue.front();
     if (!memPort.blocked()) {
@@ -288,7 +222,7 @@ void PushEngine::processNextReadEvent()
 }
 
 bool
-PushEngine::handleMemResp(PacketPtr pkt)
+BasePushEngine::handleMemResp(PacketPtr pkt)
 {
     RequestPtr req = pkt->req;
     uint8_t *data = pkt->getPtr<uint8_t>();
@@ -321,7 +255,8 @@ PushEngine::handleMemResp(PacketPtr pkt)
     return true;
 }
 
-void PushEngine::processNextSendEvent()
+void
+BasePushEngine::processNextSendEvent()
 {
     PacketPtr pkt = updateQueue.front();
     if (!reqPort.blocked()) {
