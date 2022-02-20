@@ -34,8 +34,5 @@ class Apply(ClockedObject):
     cxx_header = "accl/apply.hh"
     cxx_class = 'gem5::Apply'
 
-    system = Param.System(Parent.any, "The system object this apply engine is a part of")
-    respPort = ResponsePort("Receives requests from WorkList")
-    reqPort  = RequestPort("Sends requests to Push")
-    memPort  = RequestPort("Memory side port, sends requests")
     applyQueueSize = Param.Unsigned(32, "Size of write queue")
+    memPort  = RequestPort("Memory side port, sends requests")
