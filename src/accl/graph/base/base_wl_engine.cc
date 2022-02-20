@@ -26,7 +26,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "accl/graph/base/wl_engine.hh"
+#include "accl/graph/base/base_wl_engine.hh"
 
 #include <string>
 
@@ -35,7 +35,7 @@
 namespace gem5
 {
 
-WLEngine::WLEngine(const WLEngineParams &params):
+BaseWLEngine::BaseWLEngine(const BaseWLEngineParams &params):
     ClockedObject(params),
     memPort(name() + ".memPort", this),
     updateQueue(params.wlQueueSize),
@@ -45,7 +45,7 @@ WLEngine::WLEngine(const WLEngineParams &params):
 {}
 
 Port &
-WLEngine::getPort(const std::string &if_name, PortID idx)
+BaseWLEngine::getPort(const std::string &if_name, PortID idx)
 {
     if (if_name == "memPort") {
         return memPort;
@@ -55,7 +55,7 @@ WLEngine::getPort(const std::string &if_name, PortID idx)
 }
 
 void
-WLEngine::WLMemPort::sendPacket(PacketPtr pkt)
+BaseWLEngine::WLMemPort::sendPacket(PacketPtr pkt)
 {
     if (!sendTimingReq(pkt)) {
         blockedPacket = pkt;
@@ -64,7 +64,7 @@ WLEngine::WLMemPort::sendPacket(PacketPtr pkt)
 }
 
 void
-WLEngine::WLMemPort::recvReqRetry()
+BaseWLEngine::WLMemPort::recvReqRetry()
 {
     // We should have a blocked packet if this function is called.
     assert(_blocked && blockedPacket != nullptr);
@@ -74,13 +74,13 @@ WLEngine::WLMemPort::recvReqRetry()
 }
 
 bool
-WLEngine::WLMemPort::recvTimingResp(PacketPtr pkt)
+BaseWLEngine::WLMemPort::recvTimingResp(PacketPtr pkt)
 {
     return owner->handleMemResp(pkt);
 }
 
 bool
-WLEngine::handleWLUpdate(PacketPtr pkt){
+BaseWLEngine::handleWLUpdate(PacketPtr pkt){
     auto queue = updateQueue;
     if (queue.blocked()){
         queue.sendPktRetry = true;
@@ -94,7 +94,7 @@ WLEngine::handleWLUpdate(PacketPtr pkt){
     return true;
 }
 
-void WLEngine::processNextWLReadEvent(){
+void BaseWLEngine::processNextWLReadEvent(){
     auto queue = updateQueue;
     while (!queue.empty()){ //create a map instead of front
         PacketPtr pkt = queue.front();
@@ -117,7 +117,7 @@ void WLEngine::processNextWLReadEvent(){
 }
 
 bool
-WLEngine::handleMemResp(PacketPtr pkt)
+BaseWLEngine::handleMemResp(PacketPtr pkt)
 {
     auto queue = responseQueue;
         if (queue.blocked()){
@@ -134,7 +134,7 @@ WLEngine::handleMemResp(PacketPtr pkt)
 }
 
 void
-WLEngine::processNextWLReduceEvent(){
+BaseWLEngine::processNextWLReduceEvent(){
     auto queue = responseQueue;
     auto updateQ = updateQueue;
     auto applyPort = reqPort;

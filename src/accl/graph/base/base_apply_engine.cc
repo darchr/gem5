@@ -26,7 +26,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "accl/apply.hh"
+#include "accl/base_apply_engine.hh"
 
 #include <string>
 
@@ -35,7 +35,7 @@
 namespace gem5
 {
 
-Apply::Apply(const ApplyParams &params):
+BaseApplyEngine::BaseApplyEngine(const BaseApplyEngineParams &params):
     ClockedObject(params),
     memPort(name() + ".memPort", this),
     applyReadQueue(params.applyQueueSize),
@@ -45,7 +45,7 @@ Apply::Apply(const ApplyParams &params):
 {}
 
 Port &
-Apply::getPort(const std::string &if_name, PortID idx)
+BaseApplyEngine::getPort(const std::string &if_name, PortID idx)
 {
     if (if_name == "memPort") {
         return memPort;
@@ -55,7 +55,7 @@ Apply::getPort(const std::string &if_name, PortID idx)
 }
 
 void
-Apply::ApplyMemPort::sendPacket(PacketPtr pkt)
+BaseApplyEngine::ApplyMemPort::sendPacket(PacketPtr pkt)
 {
     if (!sendTimingReq(pkt)) {
         blockedPacket = pkt;
@@ -64,20 +64,20 @@ Apply::ApplyMemPort::sendPacket(PacketPtr pkt)
 }
 
 bool
-Apply::ApplyMemPort::recvTimingResp(PacketPtr pkt)
+BaseApplyEngine::ApplyMemPort::recvTimingResp(PacketPtr pkt)
 {
     return owner->handleMemResp(pkt);
 }
 
 void
-Apply::ApplyMemPort::recvReqRetry()
+BaseApplyEngine::ApplyMemPort::recvReqRetry()
 {
     _blocked = false;
     sendPacket(blockedPacket);
     blockedPacket = nullptr;
 }
 
-bool Apply::handleWL(PacketPtr pkt){
+bool BaseApplyEngine::handleWL(PacketPtr pkt){
     auto queue = applyReadQueue;
     if (queue.blocked()){
         queue.sendPktRetry = true;
@@ -91,7 +91,7 @@ bool Apply::handleWL(PacketPtr pkt){
     return true;
 }
 
-void Apply::processNextApplyCheckEvent(){
+void BaseApplyEngine::processNextApplyCheckEvent(){
     auto queue = applyReadQueue;
     if (!memPort.blocked()){
         PacketPtr pkt = queue.front();
@@ -114,7 +114,7 @@ void Apply::processNextApplyCheckEvent(){
 }
 
 bool
-Apply::handleMemResp(PacketPtr pkt)
+BaseApplyEngine::handleMemResp(PacketPtr pkt)
 {
     auto queue = applyWriteQueue;
 
@@ -132,7 +132,7 @@ Apply::handleMemResp(PacketPtr pkt)
 }
 
 void
-Apply::processNextApplyEvent(){
+BaseApplyEngine::processNextApplyEvent(){
     auto queue = applyWriteQueue;
         PacketPtr pkt = queue.front();
         uint8_t* data = pkt->getPtr<uint8_t>();
