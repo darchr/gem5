@@ -28,10 +28,19 @@
 from m5.params import *
 from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
+# FIXME: update these to correct files
+from m5.objects.WLEngine import WLEngine
+from m5.objects.PushEngine import PushEngine
+from m5.objects.ApplyEngine import ApplyEngine
 
-class PushEngine(ClockedObject):
-    type = 'PushEngine'
-    cxx_header = "accl/push_engine.hh"
-    cxx_class = 'gem5::PushEngine'
+class MPU(ClockedObject):
+    type = 'MPU'
+    cxx_header = "accl/graph/sega/mpu.hh"
+    cxx_class = 'gem5::MPU'
 
-    memPort  = RequestPort("Port to communicate with the memory")
+    workListEngine = Param.WLEngine("WLEngine object to connect to "
+                    "This MPU")
+    applyEngine = Param.ApplyEngine("ApplyEngine object to connect to "
+                    "This MPU")
+    pushEngine = Param.PushEngine("PushEngine object to connect to "
+                    "This MPU")
