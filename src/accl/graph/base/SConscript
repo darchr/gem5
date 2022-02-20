@@ -28,10 +28,10 @@
 Import('*')
 
 SimObject('Apply.py')
-SimObject('PushEngine.py')
+SimObject('BasePushEngine.py')
 SimObject('WLEngine.py')
 
 Source('apply.cc')
-Source('push_engine.cc')
+Source('base_push_engine.cc')
 Source('wl_engine.cc')
 Source('util.cc')

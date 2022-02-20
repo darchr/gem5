@@ -38,9 +38,4 @@ class MPU(ClockedObject):
     cxx_header = "accl/graph/sega/mpu.hh"
     cxx_class = 'gem5::MPU'
 
-    workListEngine = Param.WLEngine("WLEngine object to connect to "
-                    "This MPU")
-    applyEngine = Param.ApplyEngine("ApplyEngine object to connect to "
-                    "This MPU")
-    pushEngine = Param.PushEngine("PushEngine object to connect to "
-                    "This MPU")
+    mpu = Param.MPU(Parent, "The MPU object than owns this PushEngine.")
