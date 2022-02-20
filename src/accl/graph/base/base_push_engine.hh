@@ -42,33 +42,9 @@ namespace gem5
 class BasePushEngine : public ClockedObject
 {
   private:
-
-    class MemPort : public RequestPort
-    {
-      private:
-        BasePushEngine* owner;
-        bool _blocked;
-        PacketPtr blockedPacket;
-
-      public:
-        MemPort(const std::string& name, PushEngine* owner):
-          RequestPort(name, owner), owner(owner),
-          _blocked(false), blockedPacket(nullptr)
-        {}
-
-        void sendPacket(PacketPtr pkt);
-        bool blocked() { return _blocked; }
-
-      protected:
-        virtual bool recvTimingResp(PacketPtr pkt);
-        virtual void recvReqRetry();
-    };
-
     virtual void startup() override;
 
     RequestorID requestorId;
-
-    MemPort memPort;
 
     std::queue<PacketPtr> vertexQueue;
     // int vertexQueueSize;
