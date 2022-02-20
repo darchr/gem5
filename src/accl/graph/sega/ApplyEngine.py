@@ -25,14 +25,16 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from build.NULL.python.m5.proxy import Parent
 from m5.params import *
 from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
+# FIXME: update these to correct files
+from m5.objects.BaseApplyEngine import BaseApplyEngine
 
-class WLEngine(ClockedObject):
-    type = 'WLEngine'
-    cxx_header = "accl/wl_engine.hh"
-    cxx_class = 'gem5::WLEngine'
+class ApplyEngine(BaseApplyEngine):
+    type = 'ApplyEngine'
+    cxx_header = "accl/graph/sega/apply_engine.hh"
+    cxx_class = 'gem5::MPU'
 
-    wlQueueSize = Param.Unsigned(32, "Size of write queue")
-    memPort  = RequestPort("Memory side port, sends requests")
+    mpu = Param.MPU(Parent, "MPU object that owns this ApplyEngine")

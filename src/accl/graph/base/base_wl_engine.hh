@@ -35,7 +35,7 @@
 #include "base/addr_range.hh"
 #include "mem/port.hh"
 #include "mem/packet.hh"
-#include "params/WLEngine.hh"
+#include "params/BaseWLEngine.hh"
 #include "sim/clocked_object.hh"
 #include "sim/port.hh"
 #include "sim/system.hh"
@@ -43,7 +43,7 @@
 namespace gem5
 {
 
-class WLEngine : public ClockedObject
+class BaseWLEngine : public ClockedObject
 {
   private:
     //FIXME: Change this
@@ -77,7 +77,7 @@ class WLEngine : public ClockedObject
         sendPktRetry(false){}
     };
 
-    class WLMemPort : public RequestPort
+    class MemPort : public RequestPort
     {
       private:
         WLEngine *owner;
@@ -85,7 +85,7 @@ class WLEngine : public ClockedObject
         PacketPtr blockedPacket;
 
       public:
-        WLMemPort(const std::string& name, WLEngine* owner):
+        MemPort(const std::string& name, WLEngine* owner):
           RequestPort(name, owner), owner(owner),
           _blocked(false), blockedPacket(nullptr)
         {}
@@ -97,8 +97,7 @@ class WLEngine : public ClockedObject
         void recvReqRetry() override;
     };
 
-    WLMemPort memPort;
-
+    MemPort memPort;
     WLQueue updateQueue;
     WLQueue responseQueue;
 
@@ -122,7 +121,7 @@ class WLEngine : public ClockedObject
     */
 
    public:
-    WLEngine(const WLEngineParams &params);
+    BaseWLEngine(const BaseWLEngineParams &params);
 
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
