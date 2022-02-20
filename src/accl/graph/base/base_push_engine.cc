@@ -49,11 +49,7 @@ BasePushEngine::BasePushEngine(const BasePushEngine &params) : ClockedObject(par
 Port &
 BasePushEngine::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "memPort") {
-        return memPort;
-    } else {
-        return SimObject::getPort(if_name, idx);
-    }
+    return SimObject::getPort(if_name, idx);
 }
 
 RequestorID
@@ -104,36 +100,7 @@ BasePushEngine::startup()
 
 }
 
-bool
-BasePushEngine::MemPort::recvTimingResp(PacketPtr pkt)
-{
-    return owner->handleMemResp(pkt);
-}
 
-void
-BasePushEngine::MemPort::sendPacket(PacketPtr pkt)
-{
-    panic_if(_blocked, "Should never try to send if blocked MemSide!");
-    // If we can't send the packet across the port, store it for later.
-    if (!sendTimingReq(pkt))
-    {
-        blockedPacket = pkt;
-        _blocked = true;
-    }
-}
-
-void
-BasePushEngine::MemPort::recvReqRetry()
-{
-    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
-
-    _blocked = false;
-    sendPacket(blockedPacket);
-
-    if (!blocked()) {
-        blockedPacket = nullptr;
-    }
-}
 
 bool
 BasePushEngine::handleUpdate(PacketPtr pkt)
