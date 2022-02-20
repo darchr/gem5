@@ -116,6 +116,9 @@ class BaseApplyEngine : public ClockedObject
 
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
+
+    RequestorID getRequestorId();
+    void setRequestorId(RequestorId requestorId);
 };
 
 }

@@ -37,6 +37,7 @@ namespace gem5
 
 BaseWLEngine::BaseWLEngine(const BaseWLEngineParams &params):
     ClockedObject(params),
+    requestorId(0),
     memPort(name() + ".memPort", this),
     updateQueue(params.wlQueueSize),
     responseQueue(params.wlQueueSize),
@@ -52,6 +53,18 @@ BaseWLEngine::getPort(const std::string &if_name, PortID idx)
     } else {
         return SimObject::getPort(if_name, idx);
     }
+}
+
+RequestorID
+BaseWLEngine::getRequestorId()
+{
+    return requestorId;
+}
+
+void
+BaseWLEngine::setRequestorId(RequestorID requestorId)
+{
+    this->requestorId = requestorId;
 }
 
 void
