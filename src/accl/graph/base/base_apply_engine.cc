@@ -37,6 +37,7 @@ namespace gem5
 
 BaseApplyEngine::BaseApplyEngine(const BaseApplyEngineParams &params):
     ClockedObject(params),
+    requestorId(0),
     memPort(name() + ".memPort", this),
     applyReadQueue(params.applyQueueSize),
     applyWriteQueue(params.applyQueueSize),
@@ -52,6 +53,18 @@ BaseApplyEngine::getPort(const std::string &if_name, PortID idx)
     } else {
         return SimObject::getPort(if_name, idx);
     }
+}
+
+RequestorID
+BaseApplyEngine::getRequestorId()
+{
+    return requestorId;
+}
+
+void
+BaseApplyEngine::setRequestorId(RequestorID requestorId)
+{
+    this->requestorId = requestorId;
 }
 
 void
