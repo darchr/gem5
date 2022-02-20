@@ -77,26 +77,6 @@ class BaseWLEngine : public ClockedObject
         sendPktRetry(false){}
     };
 
-    class MemPort : public RequestPort
-    {
-      private:
-        WLEngine *owner;
-        bool _blocked;
-        PacketPtr blockedPacket;
-
-      public:
-        MemPort(const std::string& name, WLEngine* owner):
-          RequestPort(name, owner), owner(owner),
-          _blocked(false), blockedPacket(nullptr)
-        {}
-        void sendPacket(PacketPtr pkt);
-        bool blocked() { return _blocked; }
-
-      protected:
-        virtual bool recvTimingResp(PacketPtr pkt);
-        void recvReqRetry() override;
-    };
-
     RequestorID requestorId;
     MemPort memPort;
     WLQueue updateQueue;
@@ -113,6 +93,7 @@ class BaseWLEngine : public ClockedObject
        If there are any active vertecies:
        create memory read packets + MPU::MPU::MemPortsendTimingReq
     */
+   //FIXME: make void
     bool handleMemResp(PacketPtr resp);
     EventFunctionWrapper nextWLReduceEvent;
     void processNextWLReduceEvent();
@@ -121,8 +102,11 @@ class BaseWLEngine : public ClockedObject
        read + write
        Write edgelist loc in buffer
     */
+  protected:
+    virtual void sendMemReq(PacketPtr pkt) = 0;
+    virtual void sendApplyReq(WorkListItem wl) = 0;
 
-   public:
+  public:
     BaseWLEngine(const BaseWLEngineParams &params);
 
     Port& getPort(const std::string &if_name,
