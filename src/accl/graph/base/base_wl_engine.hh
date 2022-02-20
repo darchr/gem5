@@ -97,6 +97,7 @@ class BaseWLEngine : public ClockedObject
         void recvReqRetry() override;
     };
 
+    RequestorID requestorId;
     MemPort memPort;
     WLQueue updateQueue;
     WLQueue responseQueue;
@@ -125,6 +126,9 @@ class BaseWLEngine : public ClockedObject
 
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
+
+    RequestorID getRequestorId();
+    void setRequestorId(RequestorId requestorId);
 };
 
 }
