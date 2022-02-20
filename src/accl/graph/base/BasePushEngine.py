@@ -29,9 +29,9 @@ from m5.params import *
 from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
 
-class PushEngine(ClockedObject):
-    type = 'PushEngine'
-    cxx_header = "accl/push_engine.hh"
-    cxx_class = 'gem5::PushEngine'
+class BasePushEngine(ClockedObject):
+    type = 'BasePushEngine'
+    cxx_header = "accl/graph/base/base_push_engine.hh"
+    cxx_class = 'gem5::BasePushEngine'
 
     memPort  = RequestPort("Port to communicate with the memory")

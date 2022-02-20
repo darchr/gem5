@@ -31,67 +31,27 @@
 
 #include <queue>
 
-#include "base/addr_range.hh"
 #include "mem/port.hh"
 #include "mem/packet.hh"
-#include "params/PushEngine.hh"
+#include "params/BasePushEngine.hh"
 #include "sim/clocked_object.hh"
-#include "sim/system.hh"
 
 namespace gem5
 {
 
-class PushEngine : public ClockedObject
+class BasePushEngine : public ClockedObject
 {
   private:
 
-    class PushRespPort : public ResponsePort
+    class MemPort : public RequestPort
     {
       private:
-        PushEngine* owner;
-
-      public:
-        PushRespPort(const std::string& name, PushEngine* owner):
-          ResponsePort(name, owner), owner(owner)
-        {}
-        virtual AddrRangeList getAddrRanges() const;
-
-      protected:
-        virtual bool recvTimingReq(PacketPtr pkt);
-        virtual Tick recvAtomic(PacketPtr pkt);
-        virtual void recvFunctional(PacketPtr pkt);
-        virtual void recvRespRetry();
-    };
-
-    class PushReqPort : public RequestPort
-    {
-      private:
-        PushEngine* owner;
+        BasePushEngine* owner;
         bool _blocked;
         PacketPtr blockedPacket;
 
       public:
-        PushReqPort(const std::string& name, PushEngine* owner):
-          RequestPort(name, owner), owner(owner),
-          _blocked(false), blockedPacket(nullptr)
-        {}
-        void sendPacket(PacketPtr pkt);
-        bool blocked() { return _blocked; }
-
-      protected:
-        virtual bool recvTimingResp(PacketPtr pkt);
-        virtual void recvReqRetry();
-    };
-
-    class PushMemPort : public RequestPort
-    {
-      private:
-        PushEngine* owner;
-        bool _blocked;
-        PacketPtr blockedPacket;
-
-      public:
-        PushMemPort(const std::string& name, PushEngine* owner):
+        MemPort(const std::string& name, PushEngine* owner):
           RequestPort(name, owner), owner(owner),
           _blocked(false), blockedPacket(nullptr)
         {}
@@ -106,13 +66,9 @@ class PushEngine : public ClockedObject
 
     virtual void startup() override;
 
-    System* const system;
-    const RequestorID requestorId;
+    RequestorID requestorId;
 
-    PushReqPort reqPort;
-    PushRespPort respPort;
-
-    PushMemPort memPort;
+    MemPort memPort;
 
     std::queue<PacketPtr> vertexQueue;
     // int vertexQueueSize;
@@ -128,9 +84,6 @@ class PushEngine : public ClockedObject
     // int updateQueueSize;
     // int updateQueueLen;
 
-    AddrRangeList getAddrRanges();
-    void recvFunctional(PacketPtr pkt);
-
     bool handleUpdate(PacketPtr pkt);
     EventFunctionWrapper nextReceiveEvent;
     void processNextReceiveEvent();
@@ -144,10 +97,13 @@ class PushEngine : public ClockedObject
 
   public:
 
-    PushEngine(const PushEngineParams &params);
+    BasePushEngine(const PushEngineParams &params);
 
     Port& getPort(const std::string &if_name,
                 PortID idx=InvalidPortID) override;
+
+    RequestorID getRequestorId();
+    void setRequestorId(RequestorId requestorId);
 
 };
 
