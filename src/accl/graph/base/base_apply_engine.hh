@@ -73,30 +73,7 @@ class BaseApplyEngine : public ClockedObject
         {}
     };
 
-    class MemPort : public RequestPort
-    {
-      private:
-        BaseApplyEngine *owner;
-        bool _blocked;
-        PacketPtr blockedPacket;
-
-      public:
-        MemPort(const std::string& name, BaseApplyEngine* owner):
-          RequestPort(name, owner), owner(owner),
-          _blocked(false), blockedPacket(nullptr)
-        {}
-
-        void sendPacket(PacketPtr pkt);
-        bool blocked(){ return _blocked;}
-
-      protected:
-        virtual bool recvTimingResp(PacketPtr pkt);
-        void recvReqRetry() override;
-    };
-
     const RequestorID requestorId;
-
-    MemPort memPort;
 
     ApplyQueue applyReadQueue;
     ApplyQueue applyWriteQueue;
@@ -106,10 +83,13 @@ class BaseApplyEngine : public ClockedObject
     bool handleWL(PacketPtr pkt);
     EventFunctionWrapper nextApplyCheckEvent;
     void processNextApplyCheckEvent();
-
+    //FIXME: make void
     bool handleMemResp(PacketPtr resp);
     EventFunctionWrapper nextApplyEvent;
     void processNextApplyEvent();
+
+  protected:
+    virtual void sendMemReq(PacketPtr pkt) = 0;
 
   public:
     BaseApplyEngine(const ApplyParams &apply);
