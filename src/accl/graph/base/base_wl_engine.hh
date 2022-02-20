@@ -105,6 +105,7 @@ class BaseWLEngine : public ClockedObject
     std::unordered_map<RequestPtr, int> requestOffset;
 
     //Events
+    //FIXME: make handleWLUpdate public
     bool handleWLUpdate(PacketPtr pkt);
     EventFunctionWrapper nextWLReadEvent;
     void processNextWLReadEvent();
