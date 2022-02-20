@@ -32,18 +32,16 @@
 #include <queue>
 #include <unordered_map>
 
-#include "base/addr_range.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
-#include "params/Apply.hh"
+#include "params/BaseApplyEngine.hh"
 #include "sim/clocked_object.hh"
 #include "sim/port.hh"
-#include "sim/system.hh"
 
 namespace gem5
 {
 
-class Apply : public ClockedObject
+class BaseApplyEngine : public ClockedObject
 {
   private:
     //FIXME: Remove queue defenition from here.
@@ -75,21 +73,20 @@ class Apply : public ClockedObject
         {}
     };
 
-    class ApplyMemPort : public RequestPort
+    class MemPort : public RequestPort
     {
       private:
-        Apply *owner;
+        BaseApplyEngine *owner;
         bool _blocked;
         PacketPtr blockedPacket;
 
       public:
-        ApplyMemPort(const std::string& name, Apply* owner):
+        MemPort(const std::string& name, BaseApplyEngine* owner):
           RequestPort(name, owner), owner(owner),
           _blocked(false), blockedPacket(nullptr)
         {}
 
         void sendPacket(PacketPtr pkt);
-        // void trySendRetry();
         bool blocked(){ return _blocked;}
 
       protected:
@@ -99,7 +96,7 @@ class Apply : public ClockedObject
 
     const RequestorID requestorId;
 
-    ApplyMemPort memPort;
+    MemPort memPort;
 
     ApplyQueue applyReadQueue;
     ApplyQueue applyWriteQueue;
@@ -107,29 +104,15 @@ class Apply : public ClockedObject
     std::unordered_map<RequestPtr, int> requestOffset;
 
     bool handleWL(PacketPtr pkt);
-    // bool sendPacket();
-    // //one queue for write and one for read a priotizes write over read
-    // void readApplyBuffer();
-    bool handleMemResp(PacketPtr resp);
-    // void writePushBuffer();
-
-    //Events
     EventFunctionWrapper nextApplyCheckEvent;
     void processNextApplyCheckEvent();
-    /* Syncronously checked
-       If there are any active vertecies:
-       create memory read packets + MPU::MPU::MemPortsendTimingReq
-    */
+
+    bool handleMemResp(PacketPtr resp);
     EventFunctionWrapper nextApplyEvent;
     void processNextApplyEvent();
-    /* Activated by MPU::MPUMemPort::recvTimingResp and handleMemResp
-       Perform apply and send the write request and read edgeList
-       read + write
-       Write edgelist loc in buffer
-    */
 
   public:
-    Apply(const ApplyParams &apply);
+    BaseApplyEngine(const ApplyParams &apply);
 
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
