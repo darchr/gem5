@@ -54,8 +54,6 @@ class BasePushEngine : public ClockedObject
         {}
     };
 
-    virtual void startup() override;
-
     RequestorID requestorId;
 
     std::queue<ApplyNotif> notifQueue;
@@ -72,24 +70,22 @@ class BasePushEngine : public ClockedObject
     // int updateQueueSize;
     // int updateQueueLen;
 
-    bool recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edge_index);
     EventFunctionWrapper nextReceiveEvent;
     void processNextReceiveEvent();
 
     EventFunctionWrapper nextReadEvent;
     void processNextReadEvent();
 
-    bool handleMemResp(PacketPtr pkt);
     EventFunctionWrapper nextSendEvent;
     void processNextSendEvent();
 
   protected:
-    virtual bool sendMemRequest(PacketPtr pkt) = 0;
+    virtual bool sendMemReq(PacketPtr pkt) = 0;
     virtual bool sendPushUpdate(PacketPtr pkt) = 0;
 
   public:
 
-    BasePushEngine(const PushEngineParams &params);
+    BasePushEngine(const BasePushEngineParams &params);
 
     Port& getPort(const std::string &if_name,
                 PortID idx=InvalidPortID) override;
@@ -97,6 +93,8 @@ class BasePushEngine : public ClockedObject
     RequestorID getRequestorId();
     void setRequestorId(RequestorID requestorId);
 
+    bool recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edge_index);
+    bool handleMemResp(PacketPtr pkt);
 };
 
 }

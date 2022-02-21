@@ -27,11 +27,13 @@
  */
 
 #include "accl/graph/sega/apply_engine.hh"
+#include "accl/graph/sega/mpu.hh"
 
 namespace gem5{
 
-ApplyEngine::ApplyEngine(const BaseApplyEngine &params):
-    BaseApplyEngine(params)
+ApplyEngine::ApplyEngine(const ApplyEngineParams &params) :
+    BaseApplyEngine(params),
+    mpu(params.mpu)
 {}
 
 bool
@@ -40,9 +42,9 @@ ApplyEngine::sendMemReq(PacketPtr pkt){
 }
 
 bool
-ApplyEngine::recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex){
+ApplyEngine::sendApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex){
     mpu->recvApplyNotif(prop, degree, edgeIndex);
-
+    return true;
 }
 
 }

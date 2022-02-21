@@ -29,7 +29,6 @@
 #ifndef __ACCL_GRAPH_SEGA_MPU_HH__
 #define __ACCL_GRAPH_SEGA_MPU_HH__
 
-#include "accl/graph/base/util.hh"
 #include "accl/graph/sega/apply_engine.hh"
 #include "accl/graph/sega/push_engine.hh"
 #include "accl/graph/sega/wl_engine.hh"
@@ -91,7 +90,7 @@ class MPU : public ClockedObject
         PacketPtr blockedPacket;
 
       public:
-        MemPort(const std::string& name, MPU* owner):
+        MPUMemPort(const std::string& name, MPU* owner):
           RequestPort(name, owner), owner(owner),
           _blocked(false), blockedPacket(nullptr)
         {}
@@ -119,19 +118,20 @@ class MPU : public ClockedObject
     AddrRangeList getAddrRanges();
     void recvFunctional(PacketPtr pkt);
 
-    bool handleMemReq(PacketPtr pkt);
-    void handleMemResp(PacketPtr pkt);
-
-    bool recvWLNotif(WorkListItem wl);
-    bool recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edge_index);
-    bool recvPushUpdate(PacketPtr pkt);
-
   public:
 
     MPU(const MPUParams &params);
 
     Port& getPort(const std::string &if_name,
                 PortID idx=InvalidPortID) override;
+
+    bool handleMemReq(PacketPtr pkt);
+    void handleMemResp(PacketPtr pkt);
+
+    bool handleWLUpdate(PacketPtr pkt);
+    bool recvWLNotif(Addr addr);
+    bool recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edge_index);
+    bool recvPushUpdate(PacketPtr pkt);
 };
 
 }

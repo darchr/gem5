@@ -31,6 +31,31 @@
 namespace gem5
 {
 
+MPU::MPU(const MPUParams &params):
+    ClockedObject(params),
+    nextRequestorId(0),
+    respPort(name() + ".respPort", this),
+    reqPort(name() + ".reqPort", this),
+    memPort(name() + ".memPort", this),
+    applyEngine(params.apply_engine),
+    pushEngine(params.push_engine),
+    wlEngine(params.work_list_engine)
+{}
+
+Port&
+MPU::getPort(const std::string &if_name, PortID idx)
+{
+    if (if_name == "respPort") {
+        return respPort;
+    } else if (if_name == "reqPort") {
+        return reqPort;
+    } else if (if_name == "memPort") {
+        return memPort;
+    } else {
+        return SimObject::getPort(if_name, idx);
+    }
+}
+
 void
 MPU::startup()
 {
@@ -43,6 +68,37 @@ MPU::startup()
     if (((int16_t) wlEngine->getRequestorId()) == -1) {
         wlEngine->setRequestorId(nextRequestorId++);
     }
+
+    //FIXME: This is the current version of our initializer.
+    // This should be updated in the future.
+    WorkListItem vertices [5] = {
+                                {0, 0, 3, 0}, // Addr: 0
+                                {0, 0, 1, 3}, // Addr: 16
+                                {0, 0, 1, 4}, // Addr: 32
+                                {0, 0, 0, 5}, // Addr: 48
+                                {0, 0, 0, 5}  // Addr: 64
+                                };
+    Edge edges [6] = {
+                    {0, 16}, // Addr: 1048576
+                    {0, 32}, // Addr: 1048592
+                    {0, 48}, // Addr: 1048608
+                    {0, 32}, // Addr: 1048624
+                    {0, 64}  // Addr: 1048640
+                    };
+
+    for (int i = 0; i < 5; i++) {
+        uint8_t* data = workListToMemory(vertices[i]);
+        PacketPtr pkt = getWritePacket(0 + i * sizeof(WorkListItem),
+                                        16, data, 0);
+        memPort.sendFunctional(pkt);
+    }
+
+    for (int i = 0; i < 6; i++) {
+        uint8_t* data = edgeToMemory(edges[i]);
+        PacketPtr pkt = getWritePacket(1048576 + i * sizeof(Edge),
+                                        16, data, 0);
+        memPort.sendFunctional(pkt);
+    }
 }
 
 AddrRangeList
@@ -54,7 +110,7 @@ MPU::MPURespPort::getAddrRanges() const
 bool
 MPU::MPURespPort::recvTimingReq(PacketPtr pkt)
 {
-    return wlEngine->handleWLUpdate(pkt);
+    return owner->handleWLUpdate(pkt);
 }
 
 Tick
@@ -106,12 +162,6 @@ MPU::MPUReqPort::recvReqRetry()
     }
 }
 
-bool
-MPU::MPUMemPort::recvTimingResp(PacketPtr pkt)
-{
-    return owner->handleMemResp(pkt);
-}
-
 void
 MPU::MPUMemPort::sendPacket(PacketPtr pkt)
 {
@@ -122,6 +172,14 @@ MPU::MPUMemPort::sendPacket(PacketPtr pkt)
         blockedPacket = pkt;
         _blocked = true;
     }
+}
+
+bool
+MPU::MPUMemPort::recvTimingResp(PacketPtr pkt)
+{
+    //TODO: Investigate sending true all the time
+    owner->handleMemResp(pkt);
+    return true;
 }
 
 void
@@ -146,19 +204,21 @@ MPU::getAddrRanges()
 void
 MPU::recvFunctional(PacketPtr pkt)
 {
-    if (pkt->isUpdateWL()) {
-        panic("Functional requests should not be made to WL.")
+    if (pkt->cmd == MemCmd::UpdateWL) {
+        panic("Functional requests should not be made to WL.");
         //TODO: Might be a good idea to implement later.
         // wlEngine->recvFunctional(pkt);
     } else {
-        memPort.recvFuctional(pkt);
+        memPort.sendFunctional(pkt);
     }
 }
 
 bool
 MPU::handleMemReq(PacketPtr pkt)
 {
-    return memPort.recvTimingReq(pkt);
+    //TODO: Investigate sending true all the time
+    memPort.sendPacket(pkt);
+    return true;
 }
 
 void
@@ -177,33 +237,42 @@ MPU::handleMemResp(PacketPtr pkt)
 }
 
 bool
-MPU::recvWLNotif(WorkListItem wl)
+MPU::handleWLUpdate(PacketPtr pkt)
 {
-    return applyEngine->recvWLUpdate(wl);
+    return wlEngine->handleWLUpdate(pkt);
 }
 
 bool
-MPU::recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex)
+MPU::recvWLNotif(Addr addr)
 {
-    return pushEngine->recvApplyUpdate(prop, degree, edge_index);
+    return applyEngine->recvWLNotif(addr);
+}
+
+bool
+MPU::recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edge_index)
+{
+    return pushEngine->recvApplyNotif(prop, degree, edge_index);
 }
 
 bool
 MPU::recvPushUpdate(PacketPtr pkt)
 {
     Addr addr = pkt->getAddr();
-    for (auto addr_range: memPort.getAddrRangeList()) {
+    for (auto addr_range: memPort.getAddrRanges()) {
         if (addr_range.contains(addr)) {
-            if (!memPort.sendPacket(pkt)) {
+            if (memPort.blocked()) {
                 return false;
+            } else {
+                memPort.sendPacket(pkt);
+                return true;
             }
-            return true;
         }
     }
 
-    if (!reqPort.sendPacket(pkt)) {
+    if (reqPort.blocked()) {
         return false;
     }
+    reqPort.sendPacket(pkt);
     return true;
 
 }

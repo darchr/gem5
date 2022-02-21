@@ -27,24 +27,25 @@
  */
 
 #include "accl/graph/sega/wl_engine.hh"
-
-#include <string>
-
+#include "accl/graph/sega/mpu.hh"
 namespace gem5
 {
 
 WLEngine::WLEngine(const WLEngineParams &params):
-    BaseWLEngine(params)
+    BaseWLEngine(params),
+    mpu(params.mpu)
 {}
 
-virtual bool
+bool
 WLEngine::sendMemReq(PacketPtr pkt){
     return mpu->handleMemReq(pkt);
 }
 
 // FIXME: handle the case where Apply queue is full
-virtual bool
-WLEngine::sendWLNotif(WorkListItem wl){
-    mpu->recvWLNotif(wl);
+bool
+WLEngine::sendWLNotif(Addr addr){
+    mpu->recvWLNotif(addr);
     return true;
+}
+
 }
