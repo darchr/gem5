@@ -26,8 +26,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_WLE_HH__
-#define __ACCL_WLE_HH__
+#ifndef __ACCL_BASEWLENGINE_HH__
+#define __ACCL_BASEWLENGINE_HH__
 
 #include <queue>
 #include <unordered_map>
@@ -78,23 +78,19 @@ class BaseWLEngine : public ClockedObject
     };
 
     RequestorID requestorId;
-    MemPort memPort;
     WLQueue updateQueue;
     WLQueue responseQueue;
 
     std::unordered_map<RequestPtr, int> requestOffset;
 
     //Events
-    //FIXME: make handleWLUpdate public
-    bool handleWLUpdate(PacketPtr pkt);
     EventFunctionWrapper nextWLReadEvent;
     void processNextWLReadEvent();
     /* Syncronously checked
        If there are any active vertecies:
        create memory read packets + MPU::MPU::MemPortsendTimingReq
     */
-   //FIXME: make void
-    bool handleMemResp(PacketPtr resp);
+    void handleMemResp(PacketPtr resp);
     EventFunctionWrapper nextWLReduceEvent;
     void processNextWLReduceEvent();
     /* Activated by MPU::MPUMemPort::recvTimingResp and handleMemResp
@@ -103,8 +99,8 @@ class BaseWLEngine : public ClockedObject
        Write edgelist loc in buffer
     */
   protected:
-    virtual void sendMemReq(PacketPtr pkt) = 0;
-    virtual void sendApplyReq(WorkListItem wl) = 0;
+    virtual bool sendMemReq(PacketPtr pkt) = 0;
+    virtual bool sendWLNotif(WorkListItem wl) = 0;
 
   public:
     BaseWLEngine(const BaseWLEngineParams &params);
@@ -114,8 +110,9 @@ class BaseWLEngine : public ClockedObject
 
     RequestorID getRequestorId();
     void setRequestorId(RequestorId requestorId);
+    bool handleWLUpdate(PacketPtr pkt);
 };
 
 }
 
-#endif // __ACCL_WLE_HH__
+#endif // __ACCL_BASEWLENGINE_HH__

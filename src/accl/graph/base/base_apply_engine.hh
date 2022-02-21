@@ -26,8 +26,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_APPLY_HH__
-#define __ACCL_APPLY_HH__
+#ifndef __ACCL_BASEAPPLY_HH__
+#define __ACCL_BASEAPPLY_HH__
 
 #include <queue>
 #include <unordered_map>
@@ -83,13 +83,14 @@ class BaseApplyEngine : public ClockedObject
     bool handleWL(PacketPtr pkt);
     EventFunctionWrapper nextApplyCheckEvent;
     void processNextApplyCheckEvent();
-    //FIXME: make void
-    bool handleMemResp(PacketPtr resp);
+
+    void handleMemResp(PacketPtr resp);
     EventFunctionWrapper nextApplyEvent;
     void processNextApplyEvent();
 
   protected:
-    virtual void sendMemReq(PacketPtr pkt) = 0;
+    virtual bool sendMemReq(PacketPtr pkt) = 0;
+    virtual bool recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex) = 0;
 
   public:
     BaseApplyEngine(const ApplyParams &apply);
@@ -103,4 +104,4 @@ class BaseApplyEngine : public ClockedObject
 
 }
 
-#endif // __ACCL_APPLY_HH__
+#endif // __BASEACCL_APPLY_HH__
