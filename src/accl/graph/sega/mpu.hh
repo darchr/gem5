@@ -120,7 +120,7 @@ class MPU : public ClockedObject
     void handleMemResp(PacketPtr pkt);
 
     bool recvWLNotif(WorkListItem wl);
-    bool recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex);
+    bool recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edge_index);
     bool recvPushUpdate(PacketPtr pkt);
 
   public:

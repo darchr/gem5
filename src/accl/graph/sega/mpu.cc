@@ -161,7 +161,16 @@ MPU::handleMemReq(PacketPtr pkt)
 void
 MPU::handleMemResp(PacketPtr pkt)
 {
-    //TODO: Implement this;
+    RequestorID requestorId = pkt->requestorId();
+    if (applyEngine->getRequestorId() == requestorId) {
+        applyEngine->handleMemResp(pkt);
+    } else if (pushEngine->getRequestorId() == requestorId) {
+        pushEngine->handleMemResp(pkt);
+    } else if (wlEngine->getRequestorId() == requestorId) {
+        wlEngine->handleMemResp(pkt);
+    } else {
+        panic("Received a response with an unknown requestorId.");
+    }
 }
 
 bool
@@ -173,11 +182,25 @@ MPU::recvWLNotif(WorkListItem wl)
 bool
 MPU::recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex)
 {
-    return pushEngine->recvApplyUpdate(prop, degree, edgeIndex);
+    return pushEngine->recvApplyUpdate(prop, degree, edge_index);
 }
 
 bool
 MPU::recvPushUpdate(PacketPtr pkt)
 {
-    // TODO: Implement this Mahyar
+    Addr addr = pkt->getAddr();
+    for (auto addr_range: memPort.getAddrRangeList()) {
+        if (addr_range.contains(addr)) {
+            if (!memPort.sendPacket(pkt)) {
+                return false;
+            }
+            return true;
+        }
+    }
+
+    if (!reqPort.sendPacket(pkt)) {
+        return false;
+    }
+    return true;
+
 }
