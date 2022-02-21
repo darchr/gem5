@@ -85,6 +85,8 @@ class BasePushEngine : public ClockedObject
 
   public:
 
+    PARAMS(BasePushEngine);
+
     BasePushEngine(const BasePushEngineParams &params);
 
     Port& getPort(const std::string &if_name,

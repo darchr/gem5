@@ -59,7 +59,7 @@ class WLEngine : public BaseWLEngine
     virtual bool sendWLNotif(Addr addr);
 
   public:
-
+    PARAMS(WLEngine);
     WLEngine(const WLEngineParams &params);
 };
 

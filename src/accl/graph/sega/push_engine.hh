@@ -47,6 +47,7 @@ class PushEngine : public BasePushEngine
     virtual bool sendPushUpdate(PacketPtr pkt);
 
   public:
+    PARAMS(PushEngine);
     PushEngine(const PushEngineParams &params);
 
     Port& getPort(const std::string &if_name,
