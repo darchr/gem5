@@ -26,8 +26,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_APPLY_HH__
-#define __ACCL_APPLY_HH__
+#ifndef __ACCL_GRAPH_SEGA_APPLY_ENGINE_HH__
+#define __ACCL_GRAPH_SEGA_APPLY_ENGINE_HH__
 
 #include <queue>
 #include <unordered_map>
@@ -45,10 +45,14 @@ namespace gem5
 class ApplyEngine : public BaseApplyEngine
 {
   private:
-    MPU mpu;
+    MPU* mpu;
   protected:
     virtual bool sendMemReq(PacketPtr pkt);
     virtual bool recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex);
   public:
     ApplyEngine(const ApplyEngineParams &params);
+};
+
 }
+
+#endif // __ACCL_GRAPH_SEGA_APPLY_ENGINE_HH__

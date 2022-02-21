@@ -25,16 +25,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from build.NULL.python.m5.proxy import Parent
 from m5.params import *
 from m5.proxy import *
-from m5.objects.ClockedObject import ClockedObject
-# FIXME: update these to correct files
 from m5.objects.BaseWLEngine import BaseWLEngine
 
 class WLEngine(BaseWLEngine):
     type = 'WLEngine'
     cxx_header = "accl/graph/sega/wl_engine.hh"
-    cxx_class = 'gem5::MPU'
+    cxx_class = 'gem5::WLEngine'
 
-    mpu = Param.MPU(Parent, "MPU object that owns this WLEngine")
+    mpu = Param.MPU(Parent.any, "MPU object that owns this WLEngine")

@@ -30,16 +30,16 @@
 
 namespace gem5{
 
-ApplyEngine:ApplyEngine(const BaseApplyEngine &params):
+ApplyEngine::ApplyEngine(const BaseApplyEngine &params):
     BaseApplyEngine(params)
 {}
 
-virtual bool
+bool
 ApplyEngine::sendMemReq(PacketPtr pkt){
     return mpu->handleMemReq(pkt);
 }
 
-virtual bool
+bool
 ApplyEngine::recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex){
     mpu->recvApplyNotif(prop, degree, edgeIndex);
 

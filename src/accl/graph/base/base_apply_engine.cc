@@ -26,7 +26,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "accl/base_apply_engine.hh"
+#include "accl/graph/base/base_apply_engine.hh"
 
 #include <string>
 
@@ -90,7 +90,7 @@ void BaseApplyEngine::processNextApplyCheckEvent(){
     RequestPtr request = std::make_shared<Request>(req_addr, 64, 0 ,0);
     PacketPtr memPkt = new Packet(request, MemCmd::ReadReq);
     requestOffset[request] = req_offset;
-    if (parent.sendMemReq(memPkt)){
+    if (sendMemReq(memPkt)){
         queue.pop();
     }
     if (!queue.empty() &&  !nextApplyCheckEvent.scheduled()){
@@ -98,22 +98,13 @@ void BaseApplyEngine::processNextApplyCheckEvent(){
     }
 }
 
-bool
+void
 BaseApplyEngine::handleMemResp(PacketPtr pkt)
 {
-    auto queue = applyWriteQueue;
-
-        if (queue.blocked()){
-            queue.sendPktRetry = true;
-            return false;
-        } else
-            queue.push(pkt);
-
-        if(!nextApplyEvent.scheduled()){
-            schedule(nextApplyEvent, nextCycle());
-        }
-        return true;
-    return true;
+    // FIXME: change the event, remove the retry parts
+    if(!nextApplyEvent.scheduled()){
+        schedule(nextApplyEvent, nextCycle());
+    }
 }
 
 void
@@ -142,10 +133,10 @@ BaseApplyEngine::processNextApplyEvent(){
             //Create memory write requests.
             PacketPtr writePkt  =
             getWritePacket(pkt->getAddr(), 64, data, requestorId);
-            if (parent.sendMemReq(writePkt) &&
-                parent.recvApplyNotif(WorkListItem.prop,
-                                      WorkListItem.degree,
-                                      WorkListItem.edgeIndex)){
+            if (sendMemReq(writePkt) &&
+                recvApplyNotif(wl.prop,
+                                wl.degree,
+                                wl.edgeIndex)){
                 queue.pop();
                 // memPort.trySendRetry();
                 // queue.sendPktRetry = false;

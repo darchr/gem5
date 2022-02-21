@@ -39,6 +39,9 @@
 #include "params/MPU.hh"
 #include "sim/clocked_object.hh"
 
+namespace gem5
+{
+
 class MPU : public ClockedObject
 {
   private:
@@ -129,6 +132,8 @@ class MPU : public ClockedObject
 
     Port& getPort(const std::string &if_name,
                 PortID idx=InvalidPortID) override;
+};
+
 }
 
 #endif // __ACCL_GRAPH_SEGA_MPU_HH__
