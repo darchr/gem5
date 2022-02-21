@@ -30,6 +30,7 @@ from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
 
 class BasePushEngine(ClockedObject):
+    abstract = True
     type = 'BasePushEngine'
     cxx_header = "accl/graph/base/base_push_engine.hh"
     cxx_class = 'gem5::BasePushEngine'

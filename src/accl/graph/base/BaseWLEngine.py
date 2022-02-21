@@ -30,6 +30,7 @@ from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
 
 class BaseWLEngine(ClockedObject):
+    abstract = True
     type = 'BaseWLEngine'
     cxx_header = "accl/graph/base/base_wl_engine.hh"
     cxx_class = 'gem5::BaseWLEngine'

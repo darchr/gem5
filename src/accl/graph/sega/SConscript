@@ -27,10 +27,10 @@
 
 Import('*')
 
-SimObject('ApplyEngine.py', sim_objects=["ApplyEngine"])
-SimObject('MPU.py', sim_objects=["MPU"])
-SimObject('PushEngine.py', sim_objects=["PushEngine"])
-SimObject('WLEngine.py', sim_objects=["WLEngine"])
+SimObject('ApplyEngine.py')
+SimObject('MPU.py')
+SimObject('PushEngine.py')
+SimObject('WLEngine.py')
 
 Source('apply_engine.cc')
 Source('mpu.cc')
