@@ -27,9 +27,9 @@
 
 Import('*')
 
-SimObject('BaseApplyEngine.py', sim_objects=["BaseApplyEngine"])
-SimObject('BasePushEngine.py', sim_objects=["BasePushEngine"])
-SimObject('BaseWLEngine.py', sim_objects=["BaseWLEngine"])
+SimObject('BaseApplyEngine.py')
+SimObject('BasePushEngine.py')
+SimObject('BaseWLEngine.py')
 
 Source('base_apply_engine.cc')
 Source('base_push_engine.cc')
