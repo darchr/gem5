@@ -45,53 +45,24 @@ namespace gem5
 class BaseApplyEngine : public ClockedObject
 {
   private:
-    //FIXME: Remove queue defenition from here.
-    struct ApplyQueue{
-        std::queue<PacketPtr> applyQueue;
-        const uint32_t queueSize;
-        bool sendPktRetry;
-
-        bool blocked(){
-            return (applyQueue.size() == queueSize);
-        }
-        bool empty(){
-            return applyQueue.empty();
-        }
-        void push(PacketPtr pkt){
-            applyQueue.push(pkt);
-        }
-
-        void pop(){
-            applyQueue.pop();
-        }
-
-        PacketPtr front(){
-            return applyQueue.front();
-        }
-
-        ApplyQueue(uint32_t qSize):
-          queueSize(qSize)
-        {}
-    };
 
     RequestorID requestorId;
 
-    ApplyQueue applyReadQueue;
-    ApplyQueue applyWriteQueue;
+    std::queue<Addr> applyReadQueue;
+    std::queue<PacketPtr> applyWriteQueue;
+    int queueSize;
 
     std::unordered_map<RequestPtr, int> requestOffset;
 
-    bool handleWL(PacketPtr pkt);
     EventFunctionWrapper nextApplyCheckEvent;
     void processNextApplyCheckEvent();
 
-    void handleMemResp(PacketPtr resp);
     EventFunctionWrapper nextApplyEvent;
     void processNextApplyEvent();
 
   protected:
     virtual bool sendMemReq(PacketPtr pkt) = 0;
-    virtual bool recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex) = 0;
+    virtual bool sendApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex) = 0;
 
   public:
     BaseApplyEngine(const BaseApplyEngineParams &apply);
@@ -101,6 +72,9 @@ class BaseApplyEngine : public ClockedObject
 
     RequestorID getRequestorId();
     void setRequestorId(RequestorID requestorId);
+
+    bool recvWLNotif(Addr addr);
+    bool handleMemResp(PacketPtr resp);
 };
 
 }

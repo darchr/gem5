@@ -30,8 +30,6 @@
 
 #include <string>
 
-#include "accl/graph/base/util.hh"
-
 namespace gem5
 {
 
@@ -87,7 +85,7 @@ void BaseWLEngine::processNextWLReadEvent(){
         std::make_shared<Request>(req_addr, 64, 0 ,0);
     PacketPtr memPkt = new Packet(request, MemCmd::ReadReq);
     requestOffset[request] = req_offset;
-    if (sendMemReq()){
+    if (sendMemReq(memPkt)){
         queue.pop();
     }
     if(!queue.empty() && !nextWLReadEvent.scheduled()){
@@ -136,7 +134,7 @@ BaseWLEngine::processNextWLReduceEvent(){
         PacketPtr writePkt  =
         getWritePacket(pkt->getAddr(), 64, data, requestorId);
         if (sendMemReq(writePkt) &&
-            sendWLNotif(writePkt)) {
+            sendWLNotif(writePkt->getAddr())) {
             queue.pop();
             if (!queue.blocked() && queue.sendPktRetry){
                 queue.sendPktRetry = false;
