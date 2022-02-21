@@ -30,6 +30,7 @@ from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
 
 class BaseApplyEngine(ClockedObject):
+    abstract = True
     type = 'BaseApplyEngine'
     cxx_header = 'accl/graph/base/base_apply_engine.hh'
     cxx_class = 'gem5::BaseApplyEngine'
