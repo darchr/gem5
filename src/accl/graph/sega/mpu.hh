@@ -119,7 +119,7 @@ class MPU : public ClockedObject
     void recvFunctional(PacketPtr pkt);
 
   public:
-
+    PARAMS(MPU);
     MPU(const MPUParams &params);
 
     Port& getPort(const std::string &if_name,

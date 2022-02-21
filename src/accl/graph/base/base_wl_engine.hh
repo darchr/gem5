@@ -104,6 +104,9 @@ class BaseWLEngine : public ClockedObject
     virtual bool sendWLNotif(Addr addr) = 0;
 
   public:
+
+    PARAMS(BaseWLEngine);
+
     BaseWLEngine(const BaseWLEngineParams &params);
 
     Port& getPort(const std::string &if_name,
