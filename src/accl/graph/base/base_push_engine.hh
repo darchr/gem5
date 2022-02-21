@@ -42,11 +42,22 @@ namespace gem5
 class BasePushEngine : public ClockedObject
 {
   private:
+
+    struct ApplyNotif {
+        uint32_t prop;
+        uint32_t degree;
+        uint32_t edgeIndex;
+
+        ApplyNotif(uint32_t prop, uint32_t degree, uint32_t edge_index):
+        prop(prop), degree(degree), edgeIndex(edge_index)
+        {}
+    };
+
     virtual void startup() override;
 
     RequestorID requestorId;
 
-    std::queue<PacketPtr> vertexQueue;
+    std::queue<ApplyNotif> notifQueue;
     // int vertexQueueSize;
     // int vertexQueueLen;
 
@@ -60,7 +71,7 @@ class BasePushEngine : public ClockedObject
     // int updateQueueSize;
     // int updateQueueLen;
 
-    bool handleUpdate(PacketPtr pkt);
+    bool recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edge_index);
     EventFunctionWrapper nextReceiveEvent;
     void processNextReceiveEvent();
 
@@ -70,6 +81,10 @@ class BasePushEngine : public ClockedObject
     bool handleMemResp(PacketPtr pkt);
     EventFunctionWrapper nextSendEvent;
     void processNextSendEvent();
+
+  protected:
+    virtual bool sendMemRequest(PacketPtr pkt) = 0;
+    virtual bool sendPushUpdate(PacketPtr pkt) = 0;
 
   public:
 
