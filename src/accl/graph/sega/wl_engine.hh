@@ -26,8 +26,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_WLENGINE_HH__
-#define __ACCL_WLENGINE_HH__
+#ifndef __ACCL_GRAPH_SEGA_WL_ENGINE_HH__
+#define __ACCL_GRAPH_SEGA_WL_ENGINE_HH__
 
 #include <queue>
 #include <unordered_map>
@@ -54,4 +54,7 @@ class WLEngine : public BaseWorkListEngine
     virtual bool sendWLNotif(WorkListItem wl);
   public:
     WLEngine(const WLEngineParams &params);
+};
+
 }
+#endif // __ACCL_GRAPH_SEGA_WL_ENGINE_HH__

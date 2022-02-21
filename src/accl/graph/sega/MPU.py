@@ -29,9 +29,9 @@ from m5.params import *
 from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
 
-from m5.objects.WLEngine import WLEngine
-from m5.objects.PushEngine import PushEngine
-from m5.objects.ApplyEngine import ApplyEngine
+# from m5.objects.WLEngine import WLEngine
+# from m5.objects.PushEngine import PushEngine
+# from m5.objects.ApplyEngine import ApplyEngine
 
 class MPU(ClockedObject):
     type = 'MPU'

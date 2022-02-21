@@ -26,14 +26,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_BASEAPPLY_HH__
-#define __ACCL_BASEAPPLY_HH__
+#ifndef __ACCL_GRAPH_BASE_BASE_APPLY_ENGINE_HH__
+#define __ACCL_GRAPH_BASE_BASE_APPLY_ENGINE_HH__
 
 #include <queue>
 #include <unordered_map>
 
 #include "mem/packet.hh"
 #include "mem/port.hh"
+#include "mem/request.hh"
 #include "params/BaseApplyEngine.hh"
 #include "sim/clocked_object.hh"
 #include "sim/port.hh"
@@ -73,7 +74,7 @@ class BaseApplyEngine : public ClockedObject
         {}
     };
 
-    const RequestorID requestorId;
+    RequestorID requestorId;
 
     ApplyQueue applyReadQueue;
     ApplyQueue applyWriteQueue;
@@ -93,15 +94,15 @@ class BaseApplyEngine : public ClockedObject
     virtual bool recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex) = 0;
 
   public:
-    BaseApplyEngine(const ApplyParams &apply);
+    BaseApplyEngine(const BaseApplyEngineParams &apply);
 
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 
     RequestorID getRequestorId();
-    void setRequestorId(RequestorId requestorId);
+    void setRequestorId(RequestorID requestorId);
 };
 
 }
 
-#endif // __BASEACCL_APPLY_HH__
+#endif // __ACCL_GRAPH_BASE_BASE_APPLY_ENGINE_HH__

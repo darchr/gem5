@@ -87,7 +87,7 @@ void BaseWLEngine::processNextWLReadEvent(){
         std::make_shared<Request>(req_addr, 64, 0 ,0);
     PacketPtr memPkt = new Packet(request, MemCmd::ReadReq);
     requestOffset[request] = req_offset;
-    if (parent.sendMemReq()){
+    if (sendMemReq()){
         queue.pop();
     }
     if(!queue.empty() && !nextWLReadEvent.scheduled()){
@@ -135,8 +135,8 @@ BaseWLEngine::processNextWLReduceEvent(){
         memcpy(data + request_offset, wlItem, sizeof(WorkListItem));
         PacketPtr writePkt  =
         getWritePacket(pkt->getAddr(), 64, data, requestorId);
-        if (parent.sendMemReq(writePkt) &&
-            parent.sendWLNotif(writePkt)) {
+        if (sendMemReq(writePkt) &&
+            sendWLNotif(writePkt)) {
             queue.pop();
             if (!queue.blocked() && queue.sendPktRetry){
                 queue.sendPktRetry = false;

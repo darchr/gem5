@@ -28,16 +28,19 @@
 
 #include "accl/graph/sega/mpu.hh"
 
+namespace gem5
+{
+
 void
 MPU::startup()
 {
-    if (((int16_t) applyEngine->getRequestorId) == -1) {
+    if (((int16_t) applyEngine->getRequestorId()) == -1) {
         applyEngine->setRequestorId(nextRequestorId++);
     }
-    if (((int16_t) pushEngine->getRequestorId) == -1) {
+    if (((int16_t) pushEngine->getRequestorId()) == -1) {
         pushEngine->setRequestorId(nextRequestorId++);
     }
-    if (((int16_t) wlEngine->getRequestorId) == -1) {
+    if (((int16_t) wlEngine->getRequestorId()) == -1) {
         wlEngine->setRequestorId(nextRequestorId++);
     }
 }
@@ -202,5 +205,7 @@ MPU::recvPushUpdate(PacketPtr pkt)
         return false;
     }
     return true;
+
+}
 
 }
