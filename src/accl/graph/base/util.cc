@@ -26,7 +26,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "accl/util.hh"
+#include "accl/graph/base/util.hh"
 
 namespace gem5
 {
