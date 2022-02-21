@@ -33,7 +33,8 @@
 namespace gem5
 {
 
-BasePushEngine::BasePushEngine(const BasePushEngine &params) : ClockedObject(params),
+BasePushEngine::BasePushEngine(const BasePushEngine &params) :
+    ClockedObject(params),
     requestorId(0),
     memPort(name() + ".memPort", this),
     // vertexQueueSize(params.vertex_queue_size),
@@ -103,7 +104,8 @@ BasePushEngine::startup()
 
 
 bool
-BasePushEngine::handleUpdate(PacketPtr pkt)
+BasePushEngine::recvApplyNotif(uint32_t prop,
+        uint32_t degree, uint32_t edge_index)
 {
     //FIXME: There should be a check if the queues are full.
     // if (vertexQueueLen < vertexQueueSize) {
@@ -115,7 +117,7 @@ BasePushEngine::handleUpdate(PacketPtr pkt)
     //     return true;
     // }
     // return false;
-    vertexQueue.push(pkt);
+    notifQueue.emplace(prop, degree, edge_index);
     if (!nextReceiveEvent.scheduled()) {
         schedule(nextReceiveEvent, nextCycle());
     }
@@ -125,21 +127,15 @@ BasePushEngine::handleUpdate(PacketPtr pkt)
 void
 BasePushEngine::processNextReceiveEvent()
 {
-    PacketPtr updatePkt = vertexQueue.front();
-    uint8_t* data = updatePkt->getPtr<uint8_t>();
-
-    // data: (edge_index: 32 bits, degree: 32 bits, value: 32 bits)
-    uint32_t edge_index = *((uint32_t *)data);
-    uint32_t degree = *((uint32_t *)(data + 4));
-    uint32_t value = *((uint32_t *)(data + 8));
+    ApplyNotif notif = notifQueue.front();
 
     std::vector<Addr> addr_queue;
     std::vector<Addr> offset_queue;
     std::vector<int> num_edge_queue;
 
-    for (uint32_t index = 0; index < degree; index++) {
+    for (uint32_t index = 0; index < notif.degree; index++) {
         // FIXME: For now the base edge address is 1048576
-        Addr edge_addr = 1048576 + (edge_index + index) * sizeof(Edge);
+        Addr edge_addr = 1048576 + (notif.edge_index + index) * sizeof(Edge);
         Addr req_addr = (edge_addr / 64) * 64;
         Addr req_offset = edge_addr % 64;
         if (addr_queue.size()) {
@@ -164,10 +160,10 @@ BasePushEngine::processNextReceiveEvent()
         memReqQueue.push(pkt);
         reqOffsetMap[pkt->req] = offset_queue[index];
         reqNumEdgeMap[pkt->req] = num_edge_queue[index];
-        reqValueMap[pkt->req] = value;
+        reqValueMap[pkt->req] = notif.prop;
     }
 
-    vertexQueue.pop();
+    notifQueue.pop();
 
     if (!nextReadEvent.scheduled() && !memReqQueue.empty()) {
         schedule(nextReadEvent, nextCycle());
@@ -178,8 +174,7 @@ void
 BasePushEngine::processNextReadEvent()
 {
     PacketPtr pkt = memReqQueue.front();
-    if (!memPort.blocked()) {
-        memPort.sendPacket(pkt);
+    if (!sendMemReq(pkt)) {
         memReqQueue.pop();
     }
 
@@ -226,8 +221,7 @@ void
 BasePushEngine::processNextSendEvent()
 {
     PacketPtr pkt = updateQueue.front();
-    if (!reqPort.blocked()) {
-        reqPort.sendPacket(pkt);
+    if (!sendPushUpdate(pkt)) {
         updateQueue.pop();
     }
 
