@@ -33,4 +33,3 @@ class BasePushEngine(ClockedObject):
     type = 'BasePushEngine'
     cxx_header = "accl/graph/base/base_push_engine.hh"
     cxx_class = 'gem5::BasePushEngine'
-
