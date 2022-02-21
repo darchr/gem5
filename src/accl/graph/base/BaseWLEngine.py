@@ -35,4 +35,3 @@ class BaseWLEngine(ClockedObject):
     cxx_class = 'gem5::BaseWLEngine'
 
     wlQueueSize = Param.Unsigned(32, "Size of write queue")
-
