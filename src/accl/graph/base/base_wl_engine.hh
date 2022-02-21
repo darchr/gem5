@@ -26,12 +26,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_BASEWLENGINE_HH__
-#define __ACCL_BASEWLENGINE_HH__
+#ifndef __ACCL_GRAPH_BASE_BASE_WL_ENGINE_HH__
+#define __ACCL_GRAPH_BASE_BASE_WL_ENGINE_HH__
 
 #include <queue>
 #include <unordered_map>
 
+#include "accl/graph/base/util.hh"
 #include "base/addr_range.hh"
 #include "mem/port.hh"
 #include "mem/packet.hh"
@@ -109,10 +110,10 @@ class BaseWLEngine : public ClockedObject
                   PortID idx=InvalidPortID) override;
 
     RequestorID getRequestorId();
-    void setRequestorId(RequestorId requestorId);
+    void setRequestorId(RequestorID requestorId);
     bool handleWLUpdate(PacketPtr pkt);
 };
 
 }
 
-#endif // __ACCL_BASEWLENGINE_HH__
+#endif // __ACCL_GRAPH_BASE_BASE_WL_ENGINE_HH__

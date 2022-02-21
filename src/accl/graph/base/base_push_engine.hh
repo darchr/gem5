@@ -26,12 +26,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_PUSH_ENGINE_HH__
-#define __ACCL_PUSH_ENGINE_HH__
+#ifndef __ACCL_GRAPH_BASE_BASE_PUSH_ENGINE_HH__
+#define __ACCL_GRAPH_BASE_BASE_PUSH_ENGINE_HH__
 
 #include <queue>
 
 #include "mem/port.hh"
+#include "mem/request.hh"
 #include "mem/packet.hh"
 #include "params/BasePushEngine.hh"
 #include "sim/clocked_object.hh"
@@ -94,10 +95,10 @@ class BasePushEngine : public ClockedObject
                 PortID idx=InvalidPortID) override;
 
     RequestorID getRequestorId();
-    void setRequestorId(RequestorId requestorId);
+    void setRequestorId(RequestorID requestorId);
 
 };
 
 }
 
-#endif // __ACCL_PUSH_ENGINE_HH__
+#endif // __ACCL_GRAPH_BASE_BASE_PUSH_ENGINE_HH__

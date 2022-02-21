@@ -27,15 +27,11 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.objects.ClockedObject import ClockedObject
+from m5.objects.BasePushEngine import BasePushEngine
 
-from m5.objects.WLEngine import WLEngine
-from m5.objects.PushEngine import PushEngine
-from m5.objects.ApplyEngine import ApplyEngine
+class PushEngine(BasePushEngine):
+    type = 'PushEngine'
+    cxx_header = "accl/graph/sega/push_engine.hh"
+    cxx_class = 'gem5::PushEngine'
 
-class MPU(ClockedObject):
-    type = 'MPU'
-    cxx_header = "accl/graph/sega/mpu.hh"
-    cxx_class = 'gem5::MPU'
-
-    mpu = Param.MPU(Parent, "The MPU object than owns this PushEngine.")
+    mpu = Param.MPU(Parent.any, "MPU object that owns this PushEngine")
