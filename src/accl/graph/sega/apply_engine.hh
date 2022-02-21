@@ -56,7 +56,7 @@ class ApplyEngine : public BaseApplyEngine
     virtual bool sendApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex);
 
   public:
-
+    PARAMS(ApplyEngine);
     ApplyEngine(const ApplyEngineParams &params);
 };
 
