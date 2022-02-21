@@ -31,7 +31,7 @@ from m5.objects.ClockedObject import ClockedObject
 
 class BaseApplyEngine(ClockedObject):
     type = 'BaseApplyEngine'
-    cxx_header = "accl/base_apply_engine.hh"
+    cxx_header = "accl/graph/base/base_apply_engine.hh"
     cxx_class = 'gem5::BaseApplyEngine'
 
     applyQueueSize = Param.Unsigned(32, "Size of write queue")

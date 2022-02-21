@@ -91,7 +91,7 @@ class BaseWLEngine : public ClockedObject
        If there are any active vertecies:
        create memory read packets + MPU::MPU::MemPortsendTimingReq
     */
-    void handleMemResp(PacketPtr resp);
+
     EventFunctionWrapper nextWLReduceEvent;
     void processNextWLReduceEvent();
     /* Activated by MPU::MPUMemPort::recvTimingResp and handleMemResp
@@ -101,7 +101,7 @@ class BaseWLEngine : public ClockedObject
     */
   protected:
     virtual bool sendMemReq(PacketPtr pkt) = 0;
-    virtual bool sendWLNotif(WorkListItem wl) = 0;
+    virtual bool sendWLNotif(Addr addr) = 0;
 
   public:
     BaseWLEngine(const BaseWLEngineParams &params);
@@ -111,7 +111,9 @@ class BaseWLEngine : public ClockedObject
 
     RequestorID getRequestorId();
     void setRequestorId(RequestorID requestorId);
+
     bool handleWLUpdate(PacketPtr pkt);
+    bool handleMemResp(PacketPtr resp);
 };
 
 }

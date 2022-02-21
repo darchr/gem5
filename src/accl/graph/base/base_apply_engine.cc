@@ -38,8 +38,7 @@ namespace gem5
 BaseApplyEngine::BaseApplyEngine(const BaseApplyEngineParams &params):
     ClockedObject(params),
     requestorId(-1),
-    applyReadQueue(params.applyQueueSize),
-    applyWriteQueue(params.applyQueueSize),
+    queueSize(params.applyQueueSize),
     nextApplyCheckEvent([this]{ processNextApplyCheckEvent(); }, name()),
     nextApplyEvent([this]{ processNextApplyEvent(); }, name())
 {}
@@ -62,14 +61,14 @@ BaseApplyEngine::setRequestorId(RequestorID requestorId)
     this->requestorId = requestorId;
 }
 
-bool BaseApplyEngine::handleWL(PacketPtr pkt){
-    auto queue = applyReadQueue;
-    if (queue.blocked()){
-        queue.sendPktRetry = true;
-        return false;
-    } else{
-        queue.push(pkt);
-    }
+bool BaseApplyEngine::recvWLNotif(Addr addr){
+    // TODO: Investigate the situation where the queue is full.
+    // if (applyReadQueue.size() == queueSize){
+    //     //  applyReadQueue.sendPktRetry = true;
+    //     return true;
+    // } else{
+    applyReadQueue.push(addr);
+    // }
     if (!nextApplyCheckEvent.scheduled()){
         schedule(nextApplyCheckEvent, nextCycle());
     }
@@ -77,78 +76,64 @@ bool BaseApplyEngine::handleWL(PacketPtr pkt){
 }
 
 void BaseApplyEngine::processNextApplyCheckEvent(){
-    auto queue = applyReadQueue;
-    // if (!memPort.blocked()){
-    PacketPtr pkt = queue.front();
-    // if (queue.sendPktRetry && !queue.blocked()){
-    //         // respPort.trySendRetry();
-    //         queue.sendPktRetry = false;
-    // }
-    // conver to ReadReq
-    Addr req_addr = (pkt->getAddr() / 64) * 64;
-    int req_offset = (pkt->getAddr()) % 64;
+    Addr addr = applyReadQueue.front();
+    Addr req_addr = (addr / 64) * 64;
+    int req_offset = (addr % 64);
     RequestPtr request = std::make_shared<Request>(req_addr, 64, 0 ,0);
     PacketPtr memPkt = new Packet(request, MemCmd::ReadReq);
     requestOffset[request] = req_offset;
     if (sendMemReq(memPkt)){
-        queue.pop();
+        applyReadQueue.pop();
     }
-    if (!queue.empty() &&  !nextApplyCheckEvent.scheduled()){
+    if (!applyReadQueue.empty() &&  !nextApplyCheckEvent.scheduled()){
         schedule(nextApplyCheckEvent, nextCycle());
     }
 }
 
-void
+bool
 BaseApplyEngine::handleMemResp(PacketPtr pkt)
 {
     // FIXME: change the event, remove the retry parts
+    applyWriteQueue.push(pkt);
     if(!nextApplyEvent.scheduled()){
         schedule(nextApplyEvent, nextCycle());
     }
+    return true;
 }
 
 void
 BaseApplyEngine::processNextApplyEvent(){
-    auto queue = applyWriteQueue;
-        PacketPtr pkt = queue.front();
-        uint8_t* data = pkt->getPtr<uint8_t>();
+    PacketPtr pkt = applyWriteQueue.front();
+    uint8_t* data = pkt->getPtr<uint8_t>();
 
-        RequestPtr request = pkt->req;
-        int request_offset = requestOffset[request];
-        WorkListItem wl = memoryToWorkList(data + request_offset);
-        uint32_t prop = wl.prop;
-        uint32_t temp_prop = wl.temp_prop;
+    RequestPtr request = pkt->req;
+    int request_offset = requestOffset[request];
+    WorkListItem wl = memoryToWorkList(data + request_offset);
+    uint32_t prop = wl.prop;
+    uint32_t temp_prop = wl.temp_prop;
 
-        if (temp_prop != prop){
-            // if (!memPort.blocked() && !reqPort.blocked()){
-            //update prop with temp_prop
-            if(prop < temp_prop){
-                wl.prop = prop;
-            }else{
-                wl.prop = temp_prop;
-            }
-            //write back the new worklist item to  memory
-            uint8_t* wList = workListToMemory(wl);
-            memcpy(data + request_offset, wList, sizeof(WorkListItem));
-            //Create memory write requests.
-            PacketPtr writePkt  =
-            getWritePacket(pkt->getAddr(), 64, data, requestorId);
-            if (sendMemReq(writePkt) &&
-                recvApplyNotif(wl.prop,
-                                wl.degree,
-                                wl.edgeIndex)){
-                queue.pop();
-                // memPort.trySendRetry();
-                // queue.sendPktRetry = false;
-            }
-        }else{
-            queue.applyQueue.pop();
-            if (queue.sendPktRetry && !queue.blocked()){
-                // memPort.trySendRetry();
-                queue.sendPktRetry = false;
-            }
+    if (temp_prop != prop) {
+        // TODO: instead of min add a Reduce function.
+        //update prop with temp_prop
+        if(prop < temp_prop) {
+            wl.prop = prop;
+        }else {
+            wl.prop = temp_prop;
         }
-    if(!queue.empty() && !nextApplyEvent.scheduled()){
+        //write back the new worklist item to  memory
+        uint8_t* wList = workListToMemory(wl);
+        memcpy(data + request_offset, wList, sizeof(WorkListItem));
+        //Create memory write requests.
+        PacketPtr writePkt  =
+        getWritePacket(pkt->getAddr(), 64, data, requestorId);
+        if (sendMemReq(writePkt) &&
+            sendApplyNotif(wl.prop, wl.degree, wl.edgeIndex)) {
+            applyWriteQueue.pop();
+        }
+    }else {
+        applyWriteQueue.pop();
+    }
+    if(!applyWriteQueue.empty() && !nextApplyEvent.scheduled()){
         schedule(nextApplyEvent, nextCycle());
     }
 }
