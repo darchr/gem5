@@ -169,7 +169,6 @@ class MemCmd
         IsPrint,        //!< Print state matching address (for debugging)
         IsFlush,        //!< Flush the address from caches
         FromCache,      //!< Request originated from a caching agent
-        UpdateWL,       // MPU Accelerator
         NUM_COMMAND_ATTRIBUTES
     };
 
@@ -257,8 +256,6 @@ class MemCmd
                 cmd == WriteLineReq || cmd == ReadExReq ||
                 cmd == ReadCleanReq || cmd == ReadSharedReq);
     }
-
-    bool isUpdateWL() const     {return testCmdAttrib(updateWL);}
 
     Command
     responseCommand() const

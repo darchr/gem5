@@ -42,14 +42,21 @@
 namespace gem5
 {
 
+class MPU;
+
 class ApplyEngine : public BaseApplyEngine
 {
   private:
+
     MPU* mpu;
+
   protected:
+
     virtual bool sendMemReq(PacketPtr pkt);
-    virtual bool recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex);
+    virtual bool sendApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex);
+
   public:
+
     ApplyEngine(const ApplyEngineParams &params);
 };
 

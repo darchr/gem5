@@ -45,14 +45,21 @@
 namespace gem5
 {
 
-class WLEngine : public BaseWorkListEngine
+// class MPU;
+
+class WLEngine : public BaseWLEngine
 {
   private:
+
     MPU* mpu;
+
   protected:
+
     virtual bool sendMemReq(PacketPtr pkt);
-    virtual bool sendWLNotif(WorkListItem wl);
+    virtual bool sendWLNotif(Addr addr);
+
   public:
+
     WLEngine(const WLEngineParams &params);
 };
 

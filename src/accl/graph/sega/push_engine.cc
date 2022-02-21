@@ -27,13 +27,14 @@
  */
 
 #include "accl/graph/sega/push_engine.hh"
+#include "accl/graph/sega/mpu.hh"
 
 namespace gem5
 {
 
-PushEngine::PushEngine(const PushEngine &params) :
+PushEngine::PushEngine(const PushEngineParams &params) :
     BasePushEngine(params),
-    owner(params.mpu)
+    mpu(params.mpu)
 {
 }
 
@@ -44,15 +45,15 @@ PushEngine::getPort(const std::string &if_name, PortID idx)
 }
 
 bool
-PushEngine::sendMemReq(PacketPtr)
+PushEngine::sendMemReq(PacketPtr pkt)
 {
-    return owner->handleMemReq(pkt);
+    return mpu->handleMemReq(pkt);
 }
 
 bool
 PushEngine::sendPushUpdate(PacketPtr pkt)
 {
-    return owner->recvPushUpdate(pkt);
+    return mpu->recvPushUpdate(pkt);
 }
 
 }
