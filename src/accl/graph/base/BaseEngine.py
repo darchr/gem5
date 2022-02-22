@@ -27,11 +27,12 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.objects.BaseApplyEngine import BaseApplyEngine
+from m5.objects.ClockedObject import ClockedObject
 
-class ApplyEngine(BaseApplyEngine):
-    type = 'ApplyEngine'
-    cxx_header = "accl/graph/sega/apply_engine.hh"
-    cxx_class = 'gem5::ApplyEngine'
+class BaseEngine(ClockedObject):
+    abstract = True
+    type = 'BaseEngine'
+    cxx_header = "accl/graph/base/base_engine.hh"
+    cxx_class = 'gem5::BaseEngine'
 
-    push_engine = Param.PushEngine(Parent.any, "MPU object that owns this ApplyEngine")
+    memPort  = RequestPort("Port to communicate with the memory")

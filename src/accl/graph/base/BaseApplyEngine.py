@@ -27,9 +27,9 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.objects.ClockedObject import ClockedObject
+from m5.objects.BaseEngine import BaseEngine
 
-class BaseApplyEngine(ClockedObject):
+class BaseApplyEngine(BaseEngine):
     abstract = True
     type = 'BaseApplyEngine'
     cxx_header = 'accl/graph/base/base_apply_engine.hh'
