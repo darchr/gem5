@@ -36,30 +36,11 @@ namespace gem5
 {
 
 BaseApplyEngine::BaseApplyEngine(const BaseApplyEngineParams &params):
-    ClockedObject(params),
-    requestorId(-1),
+    BaseEngine(params),
     queueSize(params.applyQueueSize),
     nextApplyCheckEvent([this]{ processNextApplyCheckEvent(); }, name()),
     nextApplyEvent([this]{ processNextApplyEvent(); }, name())
 {}
-
-Port &
-BaseApplyEngine::getPort(const std::string &if_name, PortID idx)
-{
-        return SimObject::getPort(if_name, idx);
-}
-
-RequestorID
-BaseApplyEngine::getRequestorId()
-{
-    return requestorId;
-}
-
-void
-BaseApplyEngine::setRequestorId(RequestorID requestorId)
-{
-    this->requestorId = requestorId;
-}
 
 bool BaseApplyEngine::recvWLNotif(Addr addr){
     // TODO: Investigate the situation where the queue is full.
@@ -82,6 +63,7 @@ void BaseApplyEngine::processNextApplyCheckEvent(){
     RequestPtr request = std::make_shared<Request>(req_addr, 64, 0 ,0);
     PacketPtr memPkt = new Packet(request, MemCmd::ReadReq);
     requestOffset[request] = req_offset;
+    // FIXME: sendMemReq returns void, use memPortBlocked to check instead.
     if (sendMemReq(memPkt)){
         applyReadQueue.pop();
     }
