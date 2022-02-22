@@ -26,54 +26,50 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_BASE_BASE_APPLY_ENGINE_HH__
-#define __ACCL_GRAPH_BASE_BASE_APPLY_ENGINE_HH__
-
-#include <queue>
-#include <unordered_map>
-
 #include "accl/graph/base/base_engine.hh"
-#include "mem/packet.hh"
-#include "mem/port.hh"
-#include "mem/request.hh"
-#include "params/BaseApplyEngine.hh"
-#include "sim/clocked_object.hh"
-#include "sim/port.hh"
 
 namespace gem5
 {
 
-class BaseApplyEngine : public BaseEngine
+BaseEngine::BaseEngine(const BaseEngineParams &params) :
+    ClockedObject(params),
+    system(params.system),
+    requestorId(system->getRequestorId()),
+    memPort(name() + ".memPort", this)
+{}
+
+
+void
+BaseEngine::MemPort::sendPacket(PacketPtr pkt)
 {
-  private:
+    panic_if(_blocked, "Should never try to send if blocked MemSide!");
+    // If we can't send the packet across the port, store it for later.
+    if (!sendTimingReq(pkt))
+    {
+        blockedPacket = pkt;
+        _blocked = true;
+    }
+}
 
-    std::queue<Addr> applyReadQueue;
-    std::queue<PacketPtr> applyWriteQueue;
-    int queueSize;
-
-    std::unordered_map<RequestPtr, int> requestOffset;
-
-    EventFunctionWrapper nextApplyCheckEvent;
-    void processNextApplyCheckEvent();
-
-    EventFunctionWrapper nextApplyEvent;
-    void processNextApplyEvent();
-
-  protected:
-    virtual bool sendApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex) = 0;
-
-  public:
-    PARAMS(BaseApplyEngine);
-
-    BaseApplyEngine(const BaseApplyEngineParams &apply);
-
-    Port& getPort(const std::string &if_name,
-                  PortID idx=InvalidPortID) override;
-
-    bool recvWLNotif(Addr addr);
-    bool handleMemResp(PacketPtr resp);
-};
+bool
+BaseEngine::MemPort::recvTimingResp(PacketPtr pkt)
+{
+    //TODO: Investigate sending true all the time
+    return owner->handleMemResp(pkt);
 
 }
 
-#endif // __ACCL_GRAPH_BASE_BASE_APPLY_ENGINE_HH__
+void
+BaseEngine::MemPort::recvReqRetry()
+{
+    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
+
+    _blocked = false;
+    sendPacket(blockedPacket);
+
+    if (!blocked()) {
+        blockedPacket = nullptr;
+    }
+}
+
+}

@@ -26,52 +26,63 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_BASE_BASE_APPLY_ENGINE_HH__
-#define __ACCL_GRAPH_BASE_BASE_APPLY_ENGINE_HH__
+#ifndef __ACCL_GRAPH_BASE_BASE_ENGINE_HH__
+#define __ACCL_GRAPH_BASE_BASE_ENGINE_HH__
 
 #include <queue>
 #include <unordered_map>
 
-#include "accl/graph/base/base_engine.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
 #include "mem/request.hh"
-#include "params/BaseApplyEngine.hh"
+#include "params/BaseEngine.hh"
 #include "sim/clocked_object.hh"
 #include "sim/port.hh"
+#include "sim/system.hh"
 
 namespace gem5
 {
 
-class BaseApplyEngine : public BaseEngine
+class BaseEngine : public ClockedObject
 {
   private:
+    class MemPort : public RequestPort
+    {
+      private:
+        BaseEngine* owner;
+        bool _blocked;
+        PacketPtr blockedPacket;
 
-    std::queue<Addr> applyReadQueue;
-    std::queue<PacketPtr> applyWriteQueue;
-    int queueSize;
+        public:
+        MemPort(const std::string& name, BaseEngine* owner):
+            RequestPort(name, owner), owner(owner),
+            _blocked(false), blockedPacket(nullptr)
+        {}
 
-    std::unordered_map<RequestPtr, int> requestOffset;
+        void sendPacket(PacketPtr pkt);
+        bool blocked() { return _blocked; }
 
-    EventFunctionWrapper nextApplyCheckEvent;
-    void processNextApplyCheckEvent();
-
-    EventFunctionWrapper nextApplyEvent;
-    void processNextApplyEvent();
+        protected:
+        virtual bool recvTimingResp(PacketPtr pkt);
+        virtual void recvReqRetry();
+    };
+    System* system;
+    const RequestorID requestorId;
+    MemPort memPort;
 
   protected:
-    virtual bool sendApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex) = 0;
+    bool memPortBlocked() { return memPort.blocked(); }
+    void sendMemReq(PacketPtr pkt) {memPort.sendPacket(pkt); }
+    virtual bool handleMemResp(PacketPtr resp) = 0;
 
   public:
-    PARAMS(BaseApplyEngine);
+    PARAMS(BaseEngine);
 
-    BaseApplyEngine(const BaseApplyEngineParams &apply);
+    BaseEngine(const BaseEngineParams &params);
 
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 
-    bool recvWLNotif(Addr addr);
-    bool handleMemResp(PacketPtr resp);
 };
 
 }
