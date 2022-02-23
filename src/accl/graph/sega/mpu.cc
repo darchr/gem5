@@ -33,12 +33,9 @@ namespace gem5
 
 MPU::MPU(const MPUParams &params):
     ClockedObject(params),
-    nextRequestorId(0),
     respPort(name() + ".respPort", this),
     reqPort(name() + ".reqPort", this),
     memPort(name() + ".memPort", this),
-    applyEngine(params.apply_engine),
-    pushEngine(params.push_engine),
     wlEngine(params.work_list_engine)
 {}
 
@@ -59,16 +56,6 @@ MPU::getPort(const std::string &if_name, PortID idx)
 void
 MPU::startup()
 {
-    if (((int16_t) applyEngine->getRequestorId()) == -1) {
-        applyEngine->setRequestorId(nextRequestorId++);
-    }
-    if (((int16_t) pushEngine->getRequestorId()) == -1) {
-        pushEngine->setRequestorId(nextRequestorId++);
-    }
-    if (((int16_t) wlEngine->getRequestorId()) == -1) {
-        wlEngine->setRequestorId(nextRequestorId++);
-    }
-
     //FIXME: This is the current version of our initializer.
     // This should be updated in the future.
     WorkListItem vertices [5] = {
@@ -177,9 +164,7 @@ MPU::MPUMemPort::sendPacket(PacketPtr pkt)
 bool
 MPU::MPUMemPort::recvTimingResp(PacketPtr pkt)
 {
-    //TODO: Investigate sending true all the time
-    owner->handleMemResp(pkt);
-    return true;
+    panic("recvTimingResp called on MPU::MPUMemPort memPort.");
 }
 
 void
@@ -224,16 +209,7 @@ MPU::handleMemReq(PacketPtr pkt)
 void
 MPU::handleMemResp(PacketPtr pkt)
 {
-    RequestorID requestorId = pkt->requestorId();
-    if (applyEngine->getRequestorId() == requestorId) {
-        applyEngine->handleMemResp(pkt);
-    } else if (pushEngine->getRequestorId() == requestorId) {
-        pushEngine->handleMemResp(pkt);
-    } else if (wlEngine->getRequestorId() == requestorId) {
-        wlEngine->handleMemResp(pkt);
-    } else {
-        panic("Received a response with an unknown requestorId.");
-    }
+    panic("MPU::handleMemResp called!");
 }
 
 bool
@@ -243,38 +219,19 @@ MPU::handleWLUpdate(PacketPtr pkt)
 }
 
 bool
-MPU::recvWLNotif(Addr addr)
-{
-    return applyEngine->recvWLNotif(addr);
-}
-
-bool
-MPU::recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edge_index)
-{
-    return pushEngine->recvApplyNotif(prop, degree, edge_index);
-}
-
-bool
 MPU::recvPushUpdate(PacketPtr pkt)
 {
     Addr addr = pkt->getAddr();
     for (auto addr_range: memPort.getAddrRanges()) {
         if (addr_range.contains(addr)) {
-            if (memPort.blocked()) {
-                return false;
-            } else {
-                memPort.sendPacket(pkt);
-                return true;
-            }
+            return handleWLUpdate(pkt);
         }
     }
-
-    if (reqPort.blocked()) {
-        return false;
+    if (!reqPort.blocked()) {
+        reqPort.sendPacket(pkt);
+        return true;
     }
-    reqPort.sendPacket(pkt);
     return true;
-
 }
 
 }
