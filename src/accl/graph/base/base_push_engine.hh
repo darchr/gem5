@@ -32,9 +32,7 @@
 #include <queue>
 
 #include "accl/graph/base/base_engine.hh"
-#include "mem/port.hh"
 #include "mem/request.hh"
-#include "mem/packet.hh"
 #include "params/BasePushEngine.hh"
 
 namespace gem5
@@ -54,7 +52,7 @@ class BasePushEngine : public BaseEngine
     };
 
     std::queue<ApplyNotif> notifQueue;
-    // int vertexQueueSize;
+    // int notifQueueSize;
 
     std::unordered_map<RequestPtr, Addr> reqOffsetMap;
     std::unordered_map<RequestPtr, int> reqNumEdgeMap;
