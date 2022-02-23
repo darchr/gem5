@@ -34,12 +34,7 @@
 
 #include "accl/graph/base/base_engine.hh"
 #include "accl/graph/base/util.hh"
-#include "base/addr_range.hh"
-#include "mem/port.hh"
-#include "mem/packet.hh"
 #include "params/BaseWLEngine.hh"
-#include "sim/port.hh"
-#include "sim/system.hh"
 
 namespace gem5
 {
@@ -77,9 +72,6 @@ class BaseWLEngine : public BaseEngine
     PARAMS(BaseWLEngine);
 
     BaseWLEngine(const BaseWLEngineParams &params);
-
-    Port& getPort(const std::string &if_name,
-                  PortID idx=InvalidPortID) override;
 
     bool handleWLUpdate(PacketPtr pkt);
 };
