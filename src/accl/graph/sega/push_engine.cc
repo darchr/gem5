@@ -35,20 +35,7 @@ namespace gem5
 PushEngine::PushEngine(const PushEngineParams &params) :
     BasePushEngine(params),
     mpu(params.mpu)
-{
-}
-
-Port &
-PushEngine::getPort(const std::string &if_name, PortID idx)
-{
-    return SimObject::getPort(if_name, idx);
-}
-
-bool
-PushEngine::sendMemReq(PacketPtr pkt)
-{
-    return mpu->handleMemReq(pkt);
-}
+{}
 
 bool
 PushEngine::sendPushUpdate(PacketPtr pkt)

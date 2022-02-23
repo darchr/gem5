@@ -38,11 +38,7 @@ class MPU(ClockedObject):
     cxx_header = "accl/graph/sega/mpu.hh"
     cxx_class = 'gem5::MPU'
 
-    apply_engine = Param.ApplyEngine(NULL, "ApplyEngine object to connect to "
-                    "This MPU")
     push_engine = Param.PushEngine(NULL, "PushEngine object to connect to "
-                    "This MPU")
-    work_list_engine = Param.WLEngine(NULL, "WLEngine object to connect to "
                     "This MPU")
 
     respPort = ResponsePort("Port to Receive updates from outside")
