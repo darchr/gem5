@@ -45,17 +45,14 @@
 namespace gem5
 {
 
-// class MPU;
+class ApplyEngine;
 
 class WLEngine : public BaseWLEngine
 {
   private:
-
-    MPU* mpu;
+    ApplyEngine* applyEngine;
 
   protected:
-
-    virtual bool sendMemReq(PacketPtr pkt);
     virtual bool sendWLNotif(Addr addr);
 
   public:

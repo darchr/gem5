@@ -103,18 +103,13 @@ class MPU : public ClockedObject
         virtual void recvReqRetry();
     };
 
-    virtual void startup();
-
-    RequestorID nextRequestorId;
-
     MPURespPort respPort;
     MPUReqPort reqPort;
     MPUMemPort memPort;
 
-    ApplyEngine* applyEngine;
-    PushEngine* pushEngine;
     WLEngine* wlEngine;
 
+    virtual void startup();
     AddrRangeList getAddrRanges();
     void recvFunctional(PacketPtr pkt);
 
@@ -124,9 +119,6 @@ class MPU : public ClockedObject
 
     Port& getPort(const std::string &if_name,
                 PortID idx=InvalidPortID) override;
-
-    bool handleMemReq(PacketPtr pkt);
-    void handleMemResp(PacketPtr pkt);
 
     bool handleWLUpdate(PacketPtr pkt);
     bool recvPushUpdate(PacketPtr pkt);

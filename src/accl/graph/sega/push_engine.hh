@@ -43,16 +43,11 @@ class PushEngine : public BasePushEngine
     MPU* mpu;
 
   protected:
-    virtual bool sendMemReq(PacketPtr pkt);
     virtual bool sendPushUpdate(PacketPtr pkt);
 
   public:
     PARAMS(PushEngine);
     PushEngine(const PushEngineParams &params);
-
-    Port& getPort(const std::string &if_name,
-                PortID idx=InvalidPortID) override;
-
 };
 
 }
