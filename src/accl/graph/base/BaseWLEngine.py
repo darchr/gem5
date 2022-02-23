@@ -27,13 +27,10 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.objects.ClockedObject import ClockedObject
+from m5.objects.BaseEngine import BaseEngine
 
-class BaseWLEngine(ClockedObject):
+class BaseWLEngine(BaseEngine):
     abstract = True
     type = 'BaseWLEngine'
     cxx_header = "accl/graph/base/base_wl_engine.hh"
     cxx_class = 'gem5::BaseWLEngine'
-
-    wlQueueSize = Param.Unsigned(32, "Size of write queue")
-    memPort  = RequestPort("Port to communicate with the memory")
