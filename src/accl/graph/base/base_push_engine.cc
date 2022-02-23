@@ -35,7 +35,6 @@ namespace gem5
 
 BasePushEngine::BasePushEngine(const BasePushEngineParams &params) :
     ClockedObject(params),
-    requestorId(-1),
     // vertexQueueSize(params.vertex_queue_size),
     // vertexQueueLen(0),
     // updateQueue(params.update_queue_size),
@@ -44,24 +43,6 @@ BasePushEngine::BasePushEngine(const BasePushEngineParams &params) :
     nextReadEvent([this] { processNextReadEvent(); }, name()),
     nextSendEvent([this] { processNextSendEvent(); }, name())
 {
-}
-
-Port &
-BasePushEngine::getPort(const std::string &if_name, PortID idx)
-{
-    return SimObject::getPort(if_name, idx);
-}
-
-RequestorID
-BasePushEngine::getRequestorId()
-{
-    return requestorId;
-}
-
-void
-BasePushEngine::setRequestorId(RequestorID requestorId)
-{
-    this->requestorId = requestorId;
 }
 
 bool
