@@ -48,7 +48,6 @@ class BaseApplyEngine : public BaseEngine
 
     std::queue<Addr> applyReadQueue;
     std::queue<PacketPtr> applyWriteQueue;
-    int queueSize;
 
     std::unordered_map<RequestPtr, int> requestOffset;
 

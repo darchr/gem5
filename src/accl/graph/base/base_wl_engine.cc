@@ -52,13 +52,15 @@ BaseWLEngine::handleWLUpdate(PacketPtr pkt)
 void BaseWLEngine::processNextWLReadEvent()
 {
     PacketPtr pkt = updateQueue.front();
+    uint32_t data = *(pkt->getPtr<uint32_t>());
 
     Addr addr = pkt->getAddr();
     Addr req_addr = (addr / 64) * 64;
     Addr req_offset = addr % 64;
 
     PacketPtr memPkt = getReadPacket(req_addr, 64, requestorId);
-    requestOffsetMap[request] = req_offset;
+    requestOffsetMap[memPkt->req] = req_offset;
+    requestValueMap[memPkt->req] = value;
 
     if (memPortBlocked()) {
         sendMemReq(memPkt)
@@ -80,51 +82,35 @@ BaseWLEngine::handleMemResp(PacketPtr pkt)
 }
 
 void
-BaseWLEngine::processNextWLReduceEvent(){
-    PacketPtr update = updateQ.front();
-    uint8_t* value = update->getPtr<uint8_t>();
-    PacketPtr pkt = queue.front();
-    uint8_t* data = pkt->getPtr<uint8_t>();
-    RequestPtr request = pkt->req;
-    int request_offset = requestOffset[request];
+BaseWLEngine::processNextWLReduceEvent()
+{
+    PacketPtr resp = responseQueue.front();
+    uint8_t* respData = resp->getPtr<uint8_t>();
+    Addr request_offset = requestOffsetMap[resp->req];
+    uint32_t value = requestValueMap[resp->req];
     WorkListItem wl =  memoryToWorkList(data + request_offset);
-    uint32_t temp_prop = wl.temp_prop;
-    if (temp_prop != *value){
-        //update prop with temp_prop
-        if(*value < temp_prop){
-            temp_prop = *value;
-        }
-        // if (!memPort.blocked() && !applyPort.blocked()){
-        wl.temp_prop = temp_prop;
-        uint8_t* wlItem = workListToMemory(wl);
-        memcpy(data + request_offset, wlItem, sizeof(WorkListItem));
-        PacketPtr writePkt  =
-        getWritePacket(pkt->getAddr(), 64, data, requestorId);
-        if (sendMemReq(writePkt) &&
-            sendWLNotif(writePkt->getAddr())) {
-            queue.pop();
-            if (!queue.blocked() && queue.sendPktRetry){
-                queue.sendPktRetry = false;
-            }
-            updateQ.pop();
-            if (!updateQ.blocked() & updateQ.sendPktRetry){
-                // respPort.trySendRetry();
-                updateQ.sendPktRetry = false;
-            }
-        }
-    }
-    else{
-        queue.pop();
-        if (!queue.blocked() && queue.sendPktRetry){
-            queue.sendPktRetry = false;
-        }
-        updateQ.pop();
-        if (!updateQ.blocked() & updateQ.sendPktRetry){
-            updateQ.sendPktRetry = false;
-        }
 
+    if (value < wl.temp_prop){
+        //update prop with temp_prop
+        wl.temp_prop = value;
+
+        uint8_t* wlData = workListToMemory(wl);
+        memcpy(respData + request_offset, wlData, sizeof(WorkListItem));
+        PacketPtr writePkt  =
+        getWritePacket(pkt->getAddr(), 64, respData, requestorId);
+
+        if (!memPortBlocked()) {
+            if (sendWLNotif(pkt->getAddr() + request_offset)) {
+                sendMemReq(writePkt);
+                responseQueue.pop();
+                // TODO: Erase map entries, delete wlData;
+            }
+        }
     }
-    if (!queue.empty() && !nextWLReduceEvent.scheduled()){
+    else {
+        responseQueue.pop();
+    }
+    if (!responseQueue.empty() && !nextWLReduceEvent.scheduled()){
             schedule(nextWLReduceEvent, nextCycle());
     }
 }

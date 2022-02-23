@@ -31,16 +31,16 @@
 
 #include <queue>
 
+#include "accl/graph/base/base_engine.hh"
 #include "mem/port.hh"
 #include "mem/request.hh"
 #include "mem/packet.hh"
 #include "params/BasePushEngine.hh"
-#include "sim/clocked_object.hh"
 
 namespace gem5
 {
 
-class BasePushEngine : public ClockedObject
+class BasePushEngine : public BaseEngine
 {
   private:
 
@@ -53,9 +53,6 @@ class BasePushEngine : public ClockedObject
         prop(prop), degree(degree), edgeIndex(edge_index)
         {}
     };
-
-    RequestorID requestorId;
-
     std::queue<ApplyNotif> notifQueue;
     // int vertexQueueSize;
     // int vertexQueueLen;
@@ -63,8 +60,6 @@ class BasePushEngine : public ClockedObject
     std::unordered_map<RequestPtr, Addr> reqOffsetMap;
     std::unordered_map<RequestPtr, int> reqNumEdgeMap;
     std::unordered_map<RequestPtr, uint32_t> reqValueMap;
-
-    std::queue<PacketPtr> memReqQueue; // Infinite queueing?
 
     std::queue<PacketPtr> updateQueue;
     // int updateQueueSize;
@@ -80,8 +75,8 @@ class BasePushEngine : public ClockedObject
     void processNextSendEvent();
 
   protected:
-    virtual bool sendMemReq(PacketPtr pkt) = 0;
     virtual bool sendPushUpdate(PacketPtr pkt) = 0;
+    virtual bool handleMemResp(PacketPtr pkt);
 
   public:
 
@@ -89,14 +84,8 @@ class BasePushEngine : public ClockedObject
 
     BasePushEngine(const BasePushEngineParams &params);
 
-    Port& getPort(const std::string &if_name,
-                PortID idx=InvalidPortID) override;
-
-    RequestorID getRequestorId();
-    void setRequestorId(RequestorID requestorId);
-
     bool recvApplyNotif(uint32_t prop, uint32_t degree, uint32_t edge_index);
-    bool handleMemResp(PacketPtr pkt);
+
 };
 
 }
