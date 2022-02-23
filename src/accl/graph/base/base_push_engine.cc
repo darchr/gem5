@@ -35,7 +35,8 @@ namespace gem5
 
 BasePushEngine::BasePushEngine(const BasePushEngineParams &params) :
     BaseEngine(params),
-    nextReadEvent([this] { processNextReadEvent(); }, name())
+    nextReadEvent([this] { processNextReadEvent(); }, name()),
+    nextPushEvent([this] { processNextPushEvent(); }, name())
 {}
 
 bool
@@ -97,7 +98,7 @@ BasePushEngine::processNextReadEvent()
 }
 
 void
-BasePushEngine::processNextMemRespEvent()
+BasePushEngine::processNextPushEvent()
 {
     PacketPtr pkt = memRespQueue.front();
     RequestPtr req = pkt->req;
@@ -124,8 +125,16 @@ BasePushEngine::processNextMemRespEvent()
         }
     }
 
-    if (!nextMemRespEvent.scheduled() && !memRespQueue.empty()) {
-        schedule(nextMemRespEvent, nextCycle());
+    if (!nextPushEvent.scheduled() && !memRespQueue.empty()) {
+        schedule(nextPushEvent, nextCycle());
+    }
+}
+
+void
+BasePushEngine::scheduleMainEvent()
+{
+    if (!memRespQueue.empty() && !nextPushEvent.scheduled()) {
+        schedule(nextPushEvent, nextCycle());
     }
 }
 
