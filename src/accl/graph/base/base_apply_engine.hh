@@ -37,7 +37,6 @@
 #include "mem/port.hh"
 #include "mem/request.hh"
 #include "params/BaseApplyEngine.hh"
-#include "sim/clocked_object.hh"
 #include "sim/port.hh"
 
 namespace gem5
@@ -60,6 +59,7 @@ class BaseApplyEngine : public BaseEngine
     void processNextApplyEvent();
 
   protected:
+    virtual bool handleMemResp(PacketPtr pkt);
     virtual bool sendApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex) = 0;
 
   public:
@@ -71,7 +71,7 @@ class BaseApplyEngine : public BaseEngine
                   PortID idx=InvalidPortID) override;
 
     bool recvWLNotif(Addr addr);
-    bool handleMemResp(PacketPtr resp);
+
 };
 
 }

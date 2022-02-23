@@ -34,61 +34,37 @@ namespace gem5
 {
 
 BaseWLEngine::BaseWLEngine(const BaseWLEngineParams &params):
-    ClockedObject(params),
-    requestorId(-1),
-    updateQueue(params.wlQueueSize),
-    responseQueue(params.wlQueueSize),
+    BaseEngine(params),
     nextWLReadEvent([this]{ processNextWLReadEvent(); }, name()),
     nextWLReduceEvent([this]{ processNextWLReduceEvent(); }, name())
 {}
 
-Port &
-BaseWLEngine::getPort(const std::string &if_name, PortID idx)
-{
-    return SimObject::getPort(if_name, idx);
-}
-
-RequestorID
-BaseWLEngine::getRequestorId()
-{
-    return requestorId;
-}
-
-void
-BaseWLEngine::setRequestorId(RequestorID requestorId)
-{
-    this->requestorId = requestorId;
-}
-
 bool
-BaseWLEngine::handleWLUpdate(PacketPtr pkt){
-    auto queue = updateQueue;
-    if (queue.blocked()){
-        queue.sendPktRetry = true;
-        return false;
-    } else
-        queue.push(pkt);
-
-    if(!nextWLReadEvent.scheduled()){
+BaseWLEngine::handleWLUpdate(PacketPtr pkt)
+{
+    updateQueue.push(pkt);
+    if(!nextWLReadEvent.scheduled()) {
         schedule(nextWLReadEvent, nextCycle());
     }
     return true;
 }
 
-void BaseWLEngine::processNextWLReadEvent(){
-    auto queue = updateQueue;
-    PacketPtr pkt = queue.front();
-    /// conver to ReadReq
-    Addr req_addr = (pkt->getAddr() / 64) * 64;
-    int req_offset = (pkt->getAddr()) % 64;
-    RequestPtr request =
-        std::make_shared<Request>(req_addr, 64, 0 ,0);
-    PacketPtr memPkt = new Packet(request, MemCmd::ReadReq);
-    requestOffset[request] = req_offset;
-    if (sendMemReq(memPkt)){
-        queue.pop();
+void BaseWLEngine::processNextWLReadEvent()
+{
+    PacketPtr pkt = updateQueue.front();
+
+    Addr addr = pkt->getAddr();
+    Addr req_addr = (addr / 64) * 64;
+    Addr req_offset = addr % 64;
+
+    PacketPtr memPkt = getReadPacket(req_addr, 64, requestorId);
+    requestOffsetMap[request] = req_offset;
+
+    if (memPortBlocked()) {
+        sendMemReq(memPkt)
+        updateQueue.pop();
     }
-    if(!queue.empty() && !nextWLReadEvent.scheduled()){
+    if (!queue.empty() && !nextWLReadEvent.scheduled()) {
         schedule(nextWLReadEvent, nextCycle());
     }
 }
@@ -96,24 +72,15 @@ void BaseWLEngine::processNextWLReadEvent(){
 bool
 BaseWLEngine::handleMemResp(PacketPtr pkt)
 {
-    auto queue = responseQueue;
-        if (queue.blocked()){
-            queue.sendPktRetry = true;
-            return false;
-        } else{
-            queue.push(pkt);
-        }
-        if(!nextWLReduceEvent.scheduled()){
-            schedule(nextWLReduceEvent, nextCycle());
-        }
-        return true;
+    responseQueue.push(pkt);
+    if(!nextWLReduceEvent.scheduled()){
+        schedule(nextWLReduceEvent, nextCycle());
+    }
     return true;
 }
 
 void
 BaseWLEngine::processNextWLReduceEvent(){
-    auto queue = responseQueue;
-    auto updateQ = updateQueue;
     PacketPtr update = updateQ.front();
     uint8_t* value = update->getPtr<uint8_t>();
     PacketPtr pkt = queue.front();

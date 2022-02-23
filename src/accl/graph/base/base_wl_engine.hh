@@ -32,57 +32,26 @@
 #include <queue>
 #include <unordered_map>
 
+#include "accl/graph/base/base_engine.hh"
 #include "accl/graph/base/util.hh"
 #include "base/addr_range.hh"
 #include "mem/port.hh"
 #include "mem/packet.hh"
 #include "params/BaseWLEngine.hh"
-#include "sim/clocked_object.hh"
 #include "sim/port.hh"
 #include "sim/system.hh"
 
 namespace gem5
 {
 
-class BaseWLEngine : public ClockedObject
+class BaseWLEngine : public BaseEngine
 {
   private:
-    //FIXME: Change this
-    struct WLQueue{
-      std::queue<PacketPtr> wlQueue;
-      uint32_t queueSize;
-      bool sendPktRetry;
+    std::queue<PacketPtr> updateQueue;
+    std::queue<PacketPtr> responseQueue;
 
-      void resize(uint32_t size){
-        queueSize = size;
-      }
-
-      bool blocked(){
-        return (wlQueue.size() == queueSize);
-      }
-      bool empty(){
-        return wlQueue.empty();
-      }
-      void push(PacketPtr pkt){
-        wlQueue.push(pkt);
-      }
-      void pop(){
-        wlQueue.pop();
-      }
-      PacketPtr front(){
-        return wlQueue.front();
-      }
-
-      WLQueue(uint32_t qSize):
-        queueSize(qSize),
-        sendPktRetry(false){}
-    };
-
-    RequestorID requestorId;
-    WLQueue updateQueue;
-    WLQueue responseQueue;
-
-    std::unordered_map<RequestPtr, int> requestOffset;
+    std::unordered_map<RequestPtr, Addr> requestOffsetMap;
+    std::unordered_map<RequestPtr, uint32_t> requestValueMap;
 
     //Events
     EventFunctionWrapper nextWLReadEvent;
@@ -100,7 +69,7 @@ class BaseWLEngine : public ClockedObject
        Write edgelist loc in buffer
     */
   protected:
-    virtual bool sendMemReq(PacketPtr pkt) = 0;
+    virtual bool handleMemResp(PacketPtr resp);
     virtual bool sendWLNotif(Addr addr) = 0;
 
   public:
@@ -112,11 +81,8 @@ class BaseWLEngine : public ClockedObject
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 
-    RequestorID getRequestorId();
-    void setRequestorId(RequestorID requestorId);
-
     bool handleWLUpdate(PacketPtr pkt);
-    bool handleMemResp(PacketPtr resp);
+
 };
 
 }
