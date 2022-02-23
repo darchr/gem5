@@ -37,8 +37,7 @@ namespace gem5
 
 BaseApplyEngine::BaseApplyEngine(const BaseApplyEngineParams &params):
     BaseEngine(params),
-    nextApplyCheckEvent([this]{ processNextApplyCheckEvent(); }, name()),
-    nextApplyEvent([this]{ processNextApplyEvent(); }, name())
+    nextApplyCheckEvent([this]{ processNextApplyCheckEvent(); }, name())
 {}
 
 bool

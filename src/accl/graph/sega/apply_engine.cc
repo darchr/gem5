@@ -27,7 +27,6 @@
  */
 
 #include "accl/graph/sega/apply_engine.hh"
-#include "accl/graph/sega/push_engine.hh"
 
 namespace gem5{
 
@@ -39,7 +38,7 @@ ApplyEngine::ApplyEngine(const ApplyEngineParams &params) :
 bool
 ApplyEngine::sendApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex)
 {
-    return push_engine->recvApplyNotif(prop, degree, edgeIndex);
+    return pushEngine->recvApplyNotif(prop, degree, edgeIndex);
 
 }
 

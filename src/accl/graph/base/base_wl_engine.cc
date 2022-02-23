@@ -52,7 +52,7 @@ BaseWLEngine::handleWLUpdate(PacketPtr pkt)
 void BaseWLEngine::processNextWLReadEvent()
 {
     PacketPtr pkt = updateQueue.front();
-    uint32_t data = *(pkt->getPtr<uint32_t>());
+    uint32_t value = *(pkt->getPtr<uint32_t>());
 
     Addr addr = pkt->getAddr();
     Addr req_addr = (addr / 64) * 64;
@@ -66,7 +66,7 @@ void BaseWLEngine::processNextWLReadEvent()
         sendMemReq(memPkt);
         updateQueue.pop();
     }
-    if (!queue.empty() && !nextWLReadEvent.scheduled()) {
+    if (!nextWLReadEvent.scheduled() && !updateQueue.empty()) {
         schedule(nextWLReadEvent, nextCycle());
     }
 }
@@ -78,7 +78,7 @@ BaseWLEngine::processNextMemRespEvent()
     uint8_t* respData = resp->getPtr<uint8_t>();
     Addr request_offset = requestOffsetMap[resp->req];
     uint32_t value = requestValueMap[resp->req];
-    WorkListItem wl =  memoryToWorkList(data + request_offset);
+    WorkListItem wl =  memoryToWorkList(respData + request_offset);
 
     if (value < wl.temp_prop){
         //update prop with temp_prop
@@ -87,10 +87,10 @@ BaseWLEngine::processNextMemRespEvent()
         uint8_t* wlData = workListToMemory(wl);
         memcpy(respData + request_offset, wlData, sizeof(WorkListItem));
         PacketPtr writePkt  =
-        getWritePacket(pkt->getAddr(), 64, respData, requestorId);
+        getWritePacket(resp->getAddr(), 64, respData, requestorId);
 
         if (!memPortBlocked()) {
-            if (sendWLNotif(pkt->getAddr() + request_offset)) {
+            if (sendWLNotif(resp->getAddr() + request_offset)) {
                 sendMemReq(writePkt);
                 memRespQueue.pop();
                 // TODO: Erase map entries, delete wlData;

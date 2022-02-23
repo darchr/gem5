@@ -199,20 +199,6 @@ MPU::recvFunctional(PacketPtr pkt)
 }
 
 bool
-MPU::handleMemReq(PacketPtr pkt)
-{
-    //TODO: Investigate sending true all the time
-    memPort.sendPacket(pkt);
-    return true;
-}
-
-void
-MPU::handleMemResp(PacketPtr pkt)
-{
-    panic("MPU::handleMemResp called!");
-}
-
-bool
 MPU::handleWLUpdate(PacketPtr pkt)
 {
     return wlEngine->handleWLUpdate(pkt);
