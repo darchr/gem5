@@ -49,10 +49,14 @@ class BaseApplyEngine : public BaseEngine
     EventFunctionWrapper nextApplyCheckEvent;
     void processNextApplyCheckEvent();
 
+    EventFunctionWrapper nextApplyEvent;
+    void processNextApplyEvent();
+
   protected:
     virtual bool sendApplyNotif(uint32_t prop,
             uint32_t degree, uint32_t edgeIndex) = 0;
-    virtual void processNextMemRespEvent();
+
+    virtual void scheduleMainEvent();
 
   public:
     PARAMS(BaseApplyEngine);

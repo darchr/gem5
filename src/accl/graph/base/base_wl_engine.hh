@@ -65,7 +65,7 @@ class BaseWLEngine : public BaseEngine
     */
   protected:
     virtual bool sendWLNotif(Addr addr) = 0;
-    virtual void processNextMemRespEvent();
+    virtual void scheduleMainEvent();
 
   public:
 
