@@ -72,7 +72,7 @@ void BaseWLEngine::processNextWLReadEvent()
 }
 
 void
-BaseWLEngine::processNextMemRespEvent()
+BaseWLEngine::processNextWLReduceEvent()
 {
     PacketPtr resp = memRespQueue.front();
     uint8_t* respData = resp->getPtr<uint8_t>();
@@ -100,9 +100,18 @@ BaseWLEngine::processNextMemRespEvent()
     else {
         memRespQueue.pop();
     }
-    if (!nextMemRespEvent.scheduled() && !memRespQueue.empty()){
+    if (!nextWLReduceEvent.scheduled() && !memRespQueue.empty()){
             schedule(nextWLReduceEvent, nextCycle());
     }
 }
+
+void
+BaseWLEngine::scheduleMainEvent()
+{
+    if (!memRespQueue.empty() && !nextWLReduceEvent.scheduled()) {
+        schedule(nextWLReduceEvent, nextCycle());
+    }
+}
+
 
 }

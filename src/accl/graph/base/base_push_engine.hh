@@ -61,9 +61,12 @@ class BasePushEngine : public BaseEngine
     EventFunctionWrapper nextReadEvent;
     void processNextReadEvent();
 
+    EventFunctionWrapper nextPushEvent;
+    void processNextPushEvent();
+
   protected:
     virtual bool sendPushUpdate(PacketPtr pkt) = 0;
-    virtual void processNextMemRespEvent();
+    virtual void scheduleMainEvent();
 
   public:
 

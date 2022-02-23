@@ -79,13 +79,7 @@ class BaseEngine : public ClockedObject
     bool memPortBlocked() { return memPort.blocked(); }
     void sendMemReq(PacketPtr pkt) { memPort.sendPacket(pkt); }
 
-    /* All the classes inheriting from this class will
-    do their main processing in this function. For
-    example, BaseWLEngine reduces the temp_pro with
-    the value of update in this function.
-    */
-    EventFunctionWrapper nextMemRespEvent;
-    virtual void processNextMemRespEvent() = 0;
+    virtual void scheduleMainEvent() = 0;
 
   public:
     PARAMS(BaseEngine);

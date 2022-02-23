@@ -37,7 +37,8 @@ namespace gem5
 
 BaseApplyEngine::BaseApplyEngine(const BaseApplyEngineParams &params):
     BaseEngine(params),
-    nextApplyCheckEvent([this]{ processNextApplyCheckEvent(); }, name())
+    nextApplyCheckEvent([this]{ processNextApplyCheckEvent(); }, name()),
+    nextApplyEvent([this]{ processNextApplyEvent(); }, name())
 {}
 
 bool
@@ -73,7 +74,7 @@ BaseApplyEngine::processNextApplyCheckEvent()
 }
 
 void
-BaseApplyEngine::processNextMemRespEvent()
+BaseApplyEngine::processNextApplyEvent()
 {
     PacketPtr pkt = memRespQueue.front();
     uint8_t* data = pkt->getPtr<uint8_t>();
@@ -105,8 +106,16 @@ BaseApplyEngine::processNextMemRespEvent()
     } else {
         memRespQueue.pop();
     }
-    if (!nextMemRespEvent.scheduled() && !memRespQueue.empty()){
-        schedule(nextMemRespEvent, nextCycle());
+    if (!nextApplyEvent.scheduled() && !memRespQueue.empty()){
+        schedule(nextApplyEvent, nextCycle());
+    }
+}
+
+void
+BaseApplyEngine::scheduleMainEvent()
+{
+    if (!memRespQueue.empty() && !nextApplyEvent.scheduled()) {
+        schedule(nextApplyEvent, nextCycle());
     }
 }
 
