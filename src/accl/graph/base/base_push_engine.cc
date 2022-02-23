@@ -34,23 +34,17 @@ namespace gem5
 {
 
 BasePushEngine::BasePushEngine(const BasePushEngineParams &params) :
-    ClockedObject(params),
-    // vertexQueueSize(params.vertex_queue_size),
-    // vertexQueueLen(0),
-    // updateQueue(params.update_queue_size),
-    // updateQueueLen(0),
-    nextReceiveEvent([this] { processNextReceiveEvent(); }, name()),
-    nextSendEvent([this] { processNextSendEvent(); }, name())
-{
-}
+    BaseEngine(params),
+    nextReadEvent([this] { processNextReadEvent(); }, name())
+{}
 
 bool
 BasePushEngine::recvApplyNotif(uint32_t prop,
         uint32_t degree, uint32_t edge_index)
 {
     notifQueue.emplace(prop, degree, edge_index);
-    if (!nextReceiveEvent.scheduled()) {
-        schedule(nextReceiveEvent, nextCycle());
+    if (!nextReadEvent.scheduled()) {
+        schedule(nextReadEvent, nextCycle());
     }
     return true;
 }

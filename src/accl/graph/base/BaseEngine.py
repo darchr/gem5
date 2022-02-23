@@ -35,4 +35,5 @@ class BaseEngine(ClockedObject):
     cxx_header = "accl/graph/base/base_engine.hh"
     cxx_class = 'gem5::BaseEngine'
 
+    system = Param.System(Parent.any, 'System this Engine is a part of')
     memPort  = RequestPort("Port to communicate with the memory")

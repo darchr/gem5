@@ -33,6 +33,7 @@
 #include <unordered_map>
 
 #include "accl/graph/base/base_apply_engine.hh"
+#include "accl/graph/sega/push_engine.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
 #include "params/ApplyEngine.hh"
@@ -42,7 +43,6 @@
 namespace gem5
 {
 
-class PushEngine;
 
 class ApplyEngine : public BaseApplyEngine
 {

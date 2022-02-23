@@ -68,25 +68,25 @@ class BaseEngine : public ClockedObject
     };
 
     System* system;
-    const RequestorID requestorId;
     MemPort memPort;
 
     bool handleMemResp(PacketPtr resp);
-    EventFunctionWrapper nextMemRespEvent;
 
   protected:
-    bool memPortBlocked() { return memPort.blocked(); }
-    void sendMemReq(PacketPtr pkt) {memPort.sendPacket(pkt); }
-
+    const RequestorID requestorId;
     // TODO: Add this later, maybe?
     // int memRespQueueSize;
     std::queue<PacketPtr> memRespQueue;
-    /* Respective function for nextMemRespEvent.
-    All the classes inheriting from this class will
+
+    bool memPortBlocked() { return memPort.blocked(); }
+    void sendMemReq(PacketPtr pkt) {memPort.sendPacket(pkt); }
+
+    /* All the classes inheriting from this class will
     do their main processing in this function. For
     example, BaseWLEngine reduces the temp_pro with
     the value of update in this function.
     */
+    EventFunctionWrapper nextMemRespEvent;
     virtual void processNextMemRespEvent() = 0;
 
   public:

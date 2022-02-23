@@ -27,7 +27,6 @@
  */
 
 #include "accl/graph/sega/push_engine.hh"
-#include "accl/graph/sega/mpu.hh"
 
 namespace gem5
 {

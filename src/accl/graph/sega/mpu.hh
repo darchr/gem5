@@ -29,8 +29,6 @@
 #ifndef __ACCL_GRAPH_SEGA_MPU_HH__
 #define __ACCL_GRAPH_SEGA_MPU_HH__
 
-#include "accl/graph/sega/apply_engine.hh"
-#include "accl/graph/sega/push_engine.hh"
 #include "accl/graph/sega/wl_engine.hh"
 #include "base/addr_range.hh"
 #include "mem/port.hh"

@@ -30,6 +30,7 @@
 #define __ACCL_GRAPH_SEGA_PUSH_ENGINE_HH__
 
 #include "accl/graph/base/base_push_engine.hh"
+#include "accl/graph/sega/mpu.hh"
 #include "params/PushEngine.hh"
 
 namespace gem5

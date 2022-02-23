@@ -34,8 +34,8 @@ namespace gem5
 BaseEngine::BaseEngine(const BaseEngineParams &params) :
     ClockedObject(params),
     system(params.system),
-    requestorId(system->getRequestorId()),
     memPort(name() + ".memPort", this),
+    requestorId(system->getRequestorId(this)),
     nextMemRespEvent([this] { processNextMemRespEvent(); }, name())
 {}
 
@@ -77,8 +77,8 @@ bool
 BaseEngine::handleMemResp(PacketPtr pkt)
 {
     memRespQueue.push(pkt);
-    if (!nextMemResponseEvent.scheduled() && !memRespQueue.empty()) {
-        schedule(nextMemResponseEvent, nextCycle());
+    if (!nextMemRespEvent.scheduled() && !memRespQueue.empty()) {
+        schedule(nextMemRespEvent, nextCycle());
     }
     return true;
 }
