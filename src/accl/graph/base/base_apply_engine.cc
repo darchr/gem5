@@ -59,7 +59,7 @@ BaseApplyEngine::processNextApplyCheckEvent()
     // or change the clock domain for this simobject.
     Addr addr = applyReadQueue.front();
     Addr req_addr = (addr / 64) * 64;
-    int req_offset = (addr % 64);
+    Addr req_offset = (addr % 64);
     RequestPtr request = std::make_shared<Request>(req_addr, 64, 0 ,0);
     PacketPtr memPkt = new Packet(request, MemCmd::ReadReq);
     requestOffset[request] = req_offset;
@@ -79,7 +79,7 @@ BaseApplyEngine::processNextMemRespEvent()
     uint8_t* data = pkt->getPtr<uint8_t>();
 
     RequestPtr request = pkt->req;
-    int request_offset = requestOffset[request];
+    Addr request_offset = requestOffset[request];
 
     WorkListItem wl = memoryToWorkList(data + request_offset);
     // FIXME: Not so much of a fixme. However, why do we fwd a worklistitem
