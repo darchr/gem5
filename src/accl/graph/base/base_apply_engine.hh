@@ -33,11 +33,8 @@
 #include <unordered_map>
 
 #include "accl/graph/base/base_engine.hh"
-#include "mem/packet.hh"
-#include "mem/port.hh"
 #include "mem/request.hh"
 #include "params/BaseApplyEngine.hh"
-#include "sim/port.hh"
 
 namespace gem5
 {
@@ -47,7 +44,7 @@ class BaseApplyEngine : public BaseEngine
   private:
     std::queue<Addr> applyReadQueue;
 
-    std::unordered_map<RequestPtr, int> requestOffset;
+    std::unordered_map<RequestPtr, Addr> requestOffset;
 
     EventFunctionWrapper nextApplyCheckEvent;
     void processNextApplyCheckEvent();

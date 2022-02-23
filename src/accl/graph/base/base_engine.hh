@@ -34,10 +34,8 @@
 
 #include "mem/packet.hh"
 #include "mem/port.hh"
-#include "mem/request.hh"
 #include "params/BaseEngine.hh"
 #include "sim/clocked_object.hh"
-#include "sim/port.hh"
 #include "sim/system.hh"
 
 namespace gem5
@@ -79,7 +77,7 @@ class BaseEngine : public ClockedObject
     std::queue<PacketPtr> memRespQueue;
 
     bool memPortBlocked() { return memPort.blocked(); }
-    void sendMemReq(PacketPtr pkt) {memPort.sendPacket(pkt); }
+    void sendMemReq(PacketPtr pkt) { memPort.sendPacket(pkt); }
 
     /* All the classes inheriting from this class will
     do their main processing in this function. For
