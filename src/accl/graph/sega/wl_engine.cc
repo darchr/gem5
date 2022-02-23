@@ -27,7 +27,6 @@
  */
 
 #include "accl/graph/sega/wl_engine.hh"
-#include "accl/graph/sega/apply_engine.hh"
 
 namespace gem5
 {
@@ -39,7 +38,7 @@ WLEngine::WLEngine(const WLEngineParams &params):
 
 bool
 WLEngine::sendWLNotif(Addr addr){
-    apply_engine->recvWLNotif(addr);
+    return applyEngine->recvWLNotif(addr);
 }
 
 }

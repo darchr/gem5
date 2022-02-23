@@ -33,6 +33,7 @@
 #include <unordered_map>
 
 #include "accl/graph/base/base_wl_engine.hh"
+#include "accl/graph/sega/apply_engine.hh"
 #include "base/addr_range.hh"
 #include "mem/port.hh"
 #include "mem/packet.hh"

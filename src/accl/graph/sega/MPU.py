@@ -28,18 +28,14 @@
 from m5.params import *
 from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
-
-# from m5.objects.WLEngine import WLEngine
-# from m5.objects.PushEngine import PushEngine
-# from m5.objects.ApplyEngine import ApplyEngine
+from m5.objects.WLEngine import WLEngine
 
 class MPU(ClockedObject):
     type = 'MPU'
     cxx_header = "accl/graph/sega/mpu.hh"
     cxx_class = 'gem5::MPU'
 
-    push_engine = Param.PushEngine(NULL, "PushEngine object to connect to "
-                    "This MPU")
+    work_list_engine = Param.WLEngine(NULL, "WLEngine to connect to this MPU")
 
     respPort = ResponsePort("Port to Receive updates from outside")
     reqPort  = RequestPort("Port to send updates to the outside")
