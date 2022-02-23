@@ -37,34 +37,35 @@ namespace gem5
 
 BaseApplyEngine::BaseApplyEngine(const BaseApplyEngineParams &params):
     BaseEngine(params),
-    queueSize(params.applyQueueSize),
     nextApplyCheckEvent([this]{ processNextApplyCheckEvent(); }, name()),
     nextApplyEvent([this]{ processNextApplyEvent(); }, name())
 {}
 
-bool BaseApplyEngine::recvWLNotif(Addr addr){
+bool
+BaseApplyEngine::recvWLNotif(Addr addr)
+{
     // TODO: Investigate the situation where the queue is full.
-    // if (applyReadQueue.size() == queueSize){
-    //     //  applyReadQueue.sendPktRetry = true;
-    //     return true;
-    // } else{
     applyReadQueue.push(addr);
-    // }
     if (!nextApplyCheckEvent.scheduled()){
         schedule(nextApplyCheckEvent, nextCycle());
     }
     return true;
 }
 
-void BaseApplyEngine::processNextApplyCheckEvent(){
+void
+BaseApplyEngine::processNextApplyCheckEvent()
+{
+    // TODO: We might want to change the way this function
+    // pops items off queue, maybe we should pop every n cycles
+    // or change the clock domain for this simobject.
     Addr addr = applyReadQueue.front();
     Addr req_addr = (addr / 64) * 64;
     int req_offset = (addr % 64);
     RequestPtr request = std::make_shared<Request>(req_addr, 64, 0 ,0);
     PacketPtr memPkt = new Packet(request, MemCmd::ReadReq);
     requestOffset[request] = req_offset;
-    // FIXME: sendMemReq returns void, use memPortBlocked to check instead.
-    if (sendMemReq(memPkt)){
+    if (!memPortBlocked()) {
+        sendMemReq(memPkt);
         applyReadQueue.pop();
     }
     if (!applyReadQueue.empty() &&  !nextApplyCheckEvent.scheduled()){
@@ -75,7 +76,6 @@ void BaseApplyEngine::processNextApplyCheckEvent(){
 bool
 BaseApplyEngine::handleMemResp(PacketPtr pkt)
 {
-    // FIXME: change the event, remove the retry parts
     applyWriteQueue.push(pkt);
     if(!nextApplyEvent.scheduled()){
         schedule(nextApplyEvent, nextCycle());
@@ -84,38 +84,39 @@ BaseApplyEngine::handleMemResp(PacketPtr pkt)
 }
 
 void
-BaseApplyEngine::processNextApplyEvent(){
+BaseApplyEngine::processNextApplyEvent()
+{
     PacketPtr pkt = applyWriteQueue.front();
     uint8_t* data = pkt->getPtr<uint8_t>();
 
     RequestPtr request = pkt->req;
     int request_offset = requestOffset[request];
-    WorkListItem wl = memoryToWorkList(data + request_offset);
-    uint32_t prop = wl.prop;
-    uint32_t temp_prop = wl.temp_prop;
 
-    if (temp_prop != prop) {
+    WorkListItem wl = memoryToWorkList(data + request_offset);
+    // FIXME: Not so much of a fixme. However, why do we fwd a worklistitem
+    // to applyengine if temp_prop < prop. If temp_prop has not changed, why
+    // fwd it to applyengine?
+    if (wl.temp_prop < wl.prop) {
         // TODO: instead of min add a Reduce function.
         //update prop with temp_prop
-        if(prop < temp_prop) {
-            wl.prop = prop;
-        }else {
-            wl.prop = temp_prop;
-        }
+        wl.prop = wl.temp_prop;
         //write back the new worklist item to  memory
         uint8_t* wList = workListToMemory(wl);
         memcpy(data + request_offset, wList, sizeof(WorkListItem));
         //Create memory write requests.
         PacketPtr writePkt  =
         getWritePacket(pkt->getAddr(), 64, data, requestorId);
-        if (sendMemReq(writePkt) &&
-            sendApplyNotif(wl.prop, wl.degree, wl.edgeIndex)) {
-            applyWriteQueue.pop();
+
+        if (!memPortBlocked()) {
+            if (sendApplyNotif(wl.prop, wl.degree, wl.edgeIndex)) {
+                sendMemReq(writePkt);
+                applyWriteQueue.pop();
+            }
         }
-    }else {
+    } else {
         applyWriteQueue.pop();
     }
-    if(!applyWriteQueue.empty() && !nextApplyEvent.scheduled()){
+    if (!applyWriteQueue.empty() && !nextApplyEvent.scheduled()){
         schedule(nextApplyEvent, nextCycle());
     }
 }

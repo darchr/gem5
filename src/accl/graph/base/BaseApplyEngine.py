@@ -34,5 +34,3 @@ class BaseApplyEngine(BaseEngine):
     type = 'BaseApplyEngine'
     cxx_header = 'accl/graph/base/base_apply_engine.hh'
     cxx_class = 'gem5::BaseApplyEngine'
-
-    applyQueueSize = Param.Unsigned(32, "Size of write queue")
