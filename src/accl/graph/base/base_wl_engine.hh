@@ -69,8 +69,8 @@ class BaseWLEngine : public BaseEngine
        Write edgelist loc in buffer
     */
   protected:
-    virtual bool handleMemResp(PacketPtr resp);
     virtual bool sendWLNotif(Addr addr) = 0;
+    virtual void processNextMemRespEvent();
 
   public:
 
@@ -82,7 +82,6 @@ class BaseWLEngine : public BaseEngine
                   PortID idx=InvalidPortID) override;
 
     bool handleWLUpdate(PacketPtr pkt);
-
 };
 
 }
