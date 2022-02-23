@@ -45,21 +45,17 @@ namespace gem5
 class BaseApplyEngine : public BaseEngine
 {
   private:
-
     std::queue<Addr> applyReadQueue;
-    std::queue<PacketPtr> applyWriteQueue;
 
     std::unordered_map<RequestPtr, int> requestOffset;
 
     EventFunctionWrapper nextApplyCheckEvent;
     void processNextApplyCheckEvent();
 
-    EventFunctionWrapper nextApplyEvent;
-    void processNextApplyEvent();
-
   protected:
-    virtual bool handleMemResp(PacketPtr pkt);
-    virtual bool sendApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex) = 0;
+    virtual bool sendApplyNotif(uint32_t prop,
+            uint32_t degree, uint32_t edgeIndex) = 0;
+    virtual void processNextMemRespEvent();
 
   public:
     PARAMS(BaseApplyEngine);
@@ -70,7 +66,6 @@ class BaseApplyEngine : public BaseEngine
                   PortID idx=InvalidPortID) override;
 
     bool recvWLNotif(Addr addr);
-
 };
 
 }

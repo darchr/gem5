@@ -40,7 +40,6 @@ BasePushEngine::BasePushEngine(const BasePushEngineParams &params) :
     // updateQueue(params.update_queue_size),
     // updateQueueLen(0),
     nextReceiveEvent([this] { processNextReceiveEvent(); }, name()),
-    nextReadEvent([this] { processNextReadEvent(); }, name()),
     nextSendEvent([this] { processNextSendEvent(); }, name())
 {
 }
@@ -49,16 +48,6 @@ bool
 BasePushEngine::recvApplyNotif(uint32_t prop,
         uint32_t degree, uint32_t edge_index)
 {
-    //FIXME: There should be a check if the queues are full.
-    // if (vertexQueueLen < vertexQueueSize) {
-    //     vertexQueue.push(pkt)
-    //         vertexQueueLen++;
-    //     if (!nextReceiveEvent.scheduled()) {
-    //         schedule(nextReceiveEvent, nextCycle());
-    //     }
-    //     return true;
-    // }
-    // return false;
     notifQueue.emplace(prop, degree, edge_index);
     if (!nextReceiveEvent.scheduled()) {
         schedule(nextReceiveEvent, nextCycle());
@@ -67,7 +56,7 @@ BasePushEngine::recvApplyNotif(uint32_t prop,
 }
 
 void
-BasePushEngine::processNextReceiveEvent()
+BasePushEngine::processNextReadEvent()
 {
     ApplyNotif notif = notifQueue.front();
 
@@ -95,39 +84,28 @@ BasePushEngine::processNextReceiveEvent()
             offset_queue.push_back(req_offset);
             num_edge_queue.push_back(1);
         }
-    }
+    };
 
     for (int index = 0; index < addr_queue.size(); index++) {
-        PacketPtr pkt = getReadPacket(addr_queue[index], 64, requestorId);
-        memReqQueue.push(pkt);
-        reqOffsetMap[pkt->req] = offset_queue[index];
-        reqNumEdgeMap[pkt->req] = num_edge_queue[index];
-        reqValueMap[pkt->req] = notif.prop;
+        if (!memPortBlocked()) {
+            PacketPtr pkt = getReadPacket(addr_queue[index], 64, requestorId);
+            reqOffsetMap[pkt->req] = offset_queue[index];
+            reqNumEdgeMap[pkt->req] = num_edge_queue[index];
+            reqValueMap[pkt->req] = notif.prop;
+            sendMemReq(pkt);
+            notifQueue.pop();
+        }
     }
 
-    notifQueue.pop();
-
-    if (!nextReadEvent.scheduled() && !memReqQueue.empty()) {
+    if (!nextReadEvent.scheduled() && !notifQueue.empty()) {
         schedule(nextReadEvent, nextCycle());
     }
 }
 
 void
-BasePushEngine::processNextReadEvent()
+BasePushEngine::processNextMemRespEvent()
 {
-    PacketPtr pkt = memReqQueue.front();
-    if (!sendMemReq(pkt)) {
-        memReqQueue.pop();
-    }
-
-    if (!nextReadEvent.scheduled() && !memReqQueue.empty()) {
-        schedule(nextReadEvent, nextCycle());
-    }
-}
-
-bool
-BasePushEngine::handleMemResp(PacketPtr pkt)
-{
+    PacketPtr pkt = memRespQueue.front();
     RequestPtr req = pkt->req;
     uint8_t *data = pkt->getPtr<uint8_t>();
 
@@ -137,7 +115,7 @@ BasePushEngine::handleMemResp(PacketPtr pkt)
 
     int edge_in_bytes = sizeof(Edge) / sizeof(uint8_t);
     for (int i = 0; i < num_edges; i++) {
-        uint8_t *curr_edge_data = data + offset + i * edge_in_bytes;
+        uint8_t *curr_edge_data = data + offset + (i * edge_in_bytes);
         Edge e = memoryToEdge(curr_edge_data);
         uint32_t *update_data = new uint32_t;
 
@@ -146,29 +124,14 @@ BasePushEngine::handleMemResp(PacketPtr pkt)
         PacketPtr update = getUpdatePacket(e.neighbor,
             sizeof(uint32_t) / sizeof(uint8_t), (uint8_t*) update_data,
             requestorId);
-        updateQueue.push(update);
+        if (sendPushUpdate(update)) {
+            memRespQueue.pop();
+            // TODO: Erase map entries here.
+        }
     }
 
-    if (!nextSendEvent.scheduled() && !updateQueue.empty()) {
-        schedule(nextSendEvent, nextCycle());
-    }
-
-    //TODO: Should we always return true? It's the response from the memory
-    // so maybe yes. We assume the receiving bandwidth of the PushEngine is
-    // higher than its demand bandwidth
-    return true;
-}
-
-void
-BasePushEngine::processNextSendEvent()
-{
-    PacketPtr pkt = updateQueue.front();
-    if (!sendPushUpdate(pkt)) {
-        updateQueue.pop();
-    }
-
-    if (!nextSendEvent.scheduled() && !updateQueue.empty()) {
-        schedule(nextSendEvent, nextCycle());
+    if (!nextMemRespEvent.scheduled() && !memRespQueue.empty()) {
+        schedule(nextMemRespEvent, nextCycle());
     }
 }
 
