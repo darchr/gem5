@@ -63,7 +63,7 @@ void BaseWLEngine::processNextWLReadEvent()
     requestValueMap[memPkt->req] = value;
 
     if (memPortBlocked()) {
-        sendMemReq(memPkt)
+        sendMemReq(memPkt);
         updateQueue.pop();
     }
     if (!queue.empty() && !nextWLReadEvent.scheduled()) {
@@ -71,20 +71,10 @@ void BaseWLEngine::processNextWLReadEvent()
     }
 }
 
-bool
-BaseWLEngine::handleMemResp(PacketPtr pkt)
-{
-    responseQueue.push(pkt);
-    if(!nextWLReduceEvent.scheduled()){
-        schedule(nextWLReduceEvent, nextCycle());
-    }
-    return true;
-}
-
 void
-BaseWLEngine::processNextWLReduceEvent()
+BaseWLEngine::processNextMemRespEvent()
 {
-    PacketPtr resp = responseQueue.front();
+    PacketPtr resp = memRespQueue.front();
     uint8_t* respData = resp->getPtr<uint8_t>();
     Addr request_offset = requestOffsetMap[resp->req];
     uint32_t value = requestValueMap[resp->req];
@@ -102,15 +92,15 @@ BaseWLEngine::processNextWLReduceEvent()
         if (!memPortBlocked()) {
             if (sendWLNotif(pkt->getAddr() + request_offset)) {
                 sendMemReq(writePkt);
-                responseQueue.pop();
+                memRespQueue.pop();
                 // TODO: Erase map entries, delete wlData;
             }
         }
     }
     else {
-        responseQueue.pop();
+        memRespQueue.pop();
     }
-    if (!responseQueue.empty() && !nextWLReduceEvent.scheduled()){
+    if (!nextMemRespEvent.scheduled() && !memRespQueue.empty()){
             schedule(nextWLReduceEvent, nextCycle());
     }
 }

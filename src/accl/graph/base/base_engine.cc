@@ -35,7 +35,8 @@ BaseEngine::BaseEngine(const BaseEngineParams &params) :
     ClockedObject(params),
     system(params.system),
     requestorId(system->getRequestorId()),
-    memPort(name() + ".memPort", this)
+    memPort(name() + ".memPort", this),
+    nextMemRespEvent([this] { processNextMemRespEvent(); }, name())
 {}
 
 
@@ -70,6 +71,16 @@ BaseEngine::MemPort::recvReqRetry()
     if (!blocked()) {
         blockedPacket = nullptr;
     }
+}
+
+bool
+BaseEngine::handleMemResp(PacketPtr pkt)
+{
+    memRespQueue.push(pkt);
+    if (!nextMemResponseEvent.scheduled() && !memRespQueue.empty()) {
+        schedule(nextMemResponseEvent, nextCycle());
+    }
+    return true;
 }
 
 }

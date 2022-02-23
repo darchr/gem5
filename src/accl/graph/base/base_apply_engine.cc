@@ -73,20 +73,10 @@ BaseApplyEngine::processNextApplyCheckEvent()
     }
 }
 
-bool
-BaseApplyEngine::handleMemResp(PacketPtr pkt)
-{
-    applyWriteQueue.push(pkt);
-    if(!nextApplyEvent.scheduled()){
-        schedule(nextApplyEvent, nextCycle());
-    }
-    return true;
-}
-
 void
-BaseApplyEngine::processNextApplyEvent()
+BaseApplyEngine::processNextMemRespEvent()
 {
-    PacketPtr pkt = applyWriteQueue.front();
+    PacketPtr pkt = memRespQueue.front();
     uint8_t* data = pkt->getPtr<uint8_t>();
 
     RequestPtr request = pkt->req;
@@ -110,14 +100,14 @@ BaseApplyEngine::processNextApplyEvent()
         if (!memPortBlocked()) {
             if (sendApplyNotif(wl.prop, wl.degree, wl.edgeIndex)) {
                 sendMemReq(writePkt);
-                applyWriteQueue.pop();
+                memRespQueue.pop();
             }
         }
     } else {
-        applyWriteQueue.pop();
+        memRespQueue.pop();
     }
-    if (!applyWriteQueue.empty() && !nextApplyEvent.scheduled()){
-        schedule(nextApplyEvent, nextCycle());
+    if (!nextMemRespEvent.scheduled() && !memRespQueue.empty()){
+        schedule(nextMemRespEvent, nextCycle());
     }
 }
 
