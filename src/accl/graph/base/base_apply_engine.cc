@@ -61,9 +61,9 @@ BaseApplyEngine::processNextApplyCheckEvent()
     Addr addr = applyReadQueue.front();
     Addr req_addr = (addr / 64) * 64;
     Addr req_offset = (addr % 64);
-    RequestPtr request = std::make_shared<Request>(req_addr, 64, 0 ,0);
-    PacketPtr memPkt = new Packet(request, MemCmd::ReadReq);
-    requestOffset[request] = req_offset;
+
+    PacketPtr memPkt = getReadPacket(req_addr, 64, requestorId);
+    requestOffset[memPkt->req] = req_offset;
     if (!memPortBlocked()) {
         sendMemReq(memPkt);
         applyReadQueue.pop();

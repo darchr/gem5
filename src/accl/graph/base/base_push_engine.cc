@@ -112,7 +112,8 @@ BasePushEngine::processNextPushEvent()
     for (int i = 0; i < num_edges; i++) {
         uint8_t *curr_edge_data = data + offset + (i * edge_in_bytes);
         Edge e = memoryToEdge(curr_edge_data);
-        uint32_t *update_data = new uint32_t;
+        int data_size = sizeof(uint32_t) / sizeof(uint8_t);
+        uint32_t* update_data = (uint32_t*) (new uint8_t [data_size]);
 
         // TODO: Implement propagate function here
         *update_data = value + 1;
