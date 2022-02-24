@@ -150,7 +150,7 @@ class MemCmd
         // Tlb shootdown
         TlbiExtSync,
         // MPU Accelerator
-        UpdateWL,
+        // UpdateWL,
         NUM_MEM_CMDS
     };
 
