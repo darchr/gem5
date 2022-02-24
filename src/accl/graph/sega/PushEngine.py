@@ -34,4 +34,4 @@ class PushEngine(BasePushEngine):
     cxx_header = "accl/graph/sega/push_engine.hh"
     cxx_class = 'gem5::PushEngine'
 
-    mpu = Param.MPU(Parent.any, "MPU object that owns this PushEngine")
+    req_port  = RequestPort("Port to send updates to the outside")

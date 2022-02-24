@@ -34,14 +34,7 @@
 
 #include "accl/graph/base/base_wl_engine.hh"
 #include "accl/graph/sega/apply_engine.hh"
-#include "base/addr_range.hh"
-#include "mem/port.hh"
-#include "mem/packet.hh"
 #include "params/WLEngine.hh"
-#include "sim/clocked_object.hh"
-#include "sim/port.hh"
-#include "sim/system.hh"
-
 
 namespace gem5
 {
@@ -51,14 +44,39 @@ class ApplyEngine;
 class WLEngine : public BaseWLEngine
 {
   private:
+    class RespPort : public ResponsePort
+    {
+      private:
+        WLEngine* owner;
+
+      public:
+        RespPort(const std::string& name, WLEngine* owner):
+          ResponsePort(name, owner), owner(owner)
+        {}
+        virtual AddrRangeList getAddrRanges() const;
+
+      protected:
+        virtual bool recvTimingReq(PacketPtr pkt);
+        virtual Tick recvAtomic(PacketPtr pkt);
+        virtual void recvFunctional(PacketPtr pkt);
+        virtual void recvRespRetry();
+    };
+
+    RespPort respPort;
     ApplyEngine* applyEngine;
 
+
+    virtual void startup();
+    void recvFunctional(PacketPtr pkt);
+
   protected:
-    virtual bool sendWLNotif(Addr addr);
+    virtual bool sendWLNotif(Addr addr) override;
 
   public:
     PARAMS(WLEngine);
     WLEngine(const WLEngineParams &params);
+    Port& getPort(const std::string &if_name,
+                  PortID idx=InvalidPortID) override;
 };
 
 }

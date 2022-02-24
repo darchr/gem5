@@ -28,11 +28,9 @@
 Import('*')
 
 SimObject('ApplyEngine.py')
-SimObject('MPU.py')
 SimObject('PushEngine.py')
 SimObject('WLEngine.py')
 
 Source('apply_engine.cc')
-Source('mpu.cc')
 Source('push_engine.cc')
 Source('wl_engine.cc')

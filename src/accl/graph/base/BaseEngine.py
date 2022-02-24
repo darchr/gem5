@@ -36,4 +36,4 @@ class BaseEngine(ClockedObject):
     cxx_class = 'gem5::BaseEngine'
 
     system = Param.System(Parent.any, 'System this Engine is a part of')
-    memPort  = RequestPort("Port to communicate with the memory")
+    mem_port  = RequestPort("Port to communicate with the memory")

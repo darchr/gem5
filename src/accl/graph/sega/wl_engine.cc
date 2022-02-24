@@ -33,12 +33,100 @@ namespace gem5
 
 WLEngine::WLEngine(const WLEngineParams &params):
     BaseWLEngine(params),
+    respPort(name() + ".respPort", this),
     applyEngine(params.apply_engine)
 {}
+
+Port&
+WLEngine::getPort(const std::string &if_name, PortID idx)
+{
+    if (if_name == "resp_port") {
+        return respPort;
+    } else {
+        return BaseWLEngine::getPort(if_name, idx);
+    }
+}
+
+void
+WLEngine::startup()
+{
+    //FIXME: This is the current version of our initializer.
+    // This should be updated in the future.
+    WorkListItem vertices [5] = {
+                                {0, 0, 3, 0}, // Addr: 0
+                                {0, 0, 1, 3}, // Addr: 16
+                                {0, 0, 1, 4}, // Addr: 32
+                                {0, 0, 0, 5}, // Addr: 48
+                                {0, 0, 0, 5}  // Addr: 64
+                                };
+    Edge edges [6] = {
+                    {0, 16}, // Addr: 1048576
+                    {0, 32}, // Addr: 1048592
+                    {0, 48}, // Addr: 1048608
+                    {0, 32}, // Addr: 1048624
+                    {0, 64}  // Addr: 1048640
+                    };
+
+    for (int i = 0; i < 5; i++) {
+        uint8_t* data = workListToMemory(vertices[i]);
+        PacketPtr pkt = getWritePacket(0 + i * sizeof(WorkListItem),
+                                        16, data, 0);
+        sendMemFunctional(pkt);
+    }
+
+    for (int i = 0; i < 6; i++) {
+        uint8_t* data = edgeToMemory(edges[i]);
+        PacketPtr pkt = getWritePacket(1048576 + i * sizeof(Edge),
+                                        16, data, 0);
+        sendMemFunctional(pkt);
+    }
+}
 
 bool
 WLEngine::sendWLNotif(Addr addr){
     return applyEngine->recvWLNotif(addr);
+}
+
+AddrRangeList
+WLEngine::RespPort::getAddrRanges() const
+{
+    return owner->getAddrRanges();
+}
+
+bool
+WLEngine::RespPort::recvTimingReq(PacketPtr pkt)
+{
+    return owner->handleWLUpdate(pkt);
+}
+
+Tick
+WLEngine::RespPort::recvAtomic(PacketPtr pkt)
+{
+    panic("recvAtomic unimpl.");
+}
+
+void
+WLEngine::RespPort::recvFunctional(PacketPtr pkt)
+{
+    owner->recvFunctional(pkt);
+}
+
+void
+WLEngine::RespPort::recvRespRetry()
+{
+    panic("recvRespRetry from response port is called.");
+}
+
+void
+WLEngine::recvFunctional(PacketPtr pkt)
+{
+    if (pkt->cmd == MemCmd::UpdateWL) {
+        panic("Functional requests should not be made to WL.");
+        //TODO: Might be a good idea to implement later.
+        // wlEngine->recvFunctional(pkt);
+    } else {
+        sendMemFunctional(pkt);
+    }
 }
 
 }

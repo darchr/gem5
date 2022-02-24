@@ -56,15 +56,12 @@ class BaseApplyEngine : public BaseEngine
     virtual bool sendApplyNotif(uint32_t prop,
             uint32_t degree, uint32_t edgeIndex) = 0;
 
-    virtual void scheduleMainEvent();
+    virtual void scheduleMainEvent() override;
 
   public:
     PARAMS(BaseApplyEngine);
 
     BaseApplyEngine(const BaseApplyEngineParams &apply);
-
-    Port& getPort(const std::string &if_name,
-                  PortID idx=InvalidPortID) override;
 
     bool recvWLNotif(Addr addr);
 };

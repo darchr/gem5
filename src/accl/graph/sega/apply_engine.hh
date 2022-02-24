@@ -50,7 +50,8 @@ class ApplyEngine : public BaseApplyEngine
     PushEngine* pushEngine;
 
   protected:
-    virtual bool sendApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex);
+    virtual bool sendApplyNotif(uint32_t prop,
+        uint32_t degree, uint32_t edgeIndex) override;
 
   public:
     PARAMS(ApplyEngine);
