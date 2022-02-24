@@ -32,6 +32,7 @@
 #include <queue>
 #include <unordered_map>
 
+#include "base/addr_range.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
 #include "params/BaseEngine.hh"
@@ -78,6 +79,8 @@ class BaseEngine : public ClockedObject
 
     bool memPortBlocked() { return memPort.blocked(); }
     void sendMemReq(PacketPtr pkt) { memPort.sendPacket(pkt); }
+    void sendMemFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }
+    AddrRangeList getAddrRanges() {return memPort.getAddrRanges(); }
 
     virtual void scheduleMainEvent() = 0;
 
@@ -85,7 +88,7 @@ class BaseEngine : public ClockedObject
     PARAMS(BaseEngine);
 
     BaseEngine(const BaseEngineParams &params);
-
+    ~BaseEngine();
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 };

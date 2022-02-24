@@ -66,7 +66,7 @@ class BasePushEngine : public BaseEngine
 
   protected:
     virtual bool sendPushUpdate(PacketPtr pkt) = 0;
-    virtual void scheduleMainEvent();
+    virtual void scheduleMainEvent() override;
 
   public:
 

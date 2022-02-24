@@ -34,5 +34,6 @@ class WLEngine(BaseWLEngine):
     cxx_header = "accl/graph/sega/wl_engine.hh"
     cxx_class = 'gem5::WLEngine'
 
+    resp_port = ResponsePort("Port to Receive updates from outside")
     apply_engine = Param.ApplyEngine(Parent.any,
             "MPU object that owns this WLEngine")
