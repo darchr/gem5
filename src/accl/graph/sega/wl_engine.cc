@@ -120,13 +120,14 @@ WLEngine::RespPort::recvRespRetry()
 void
 WLEngine::recvFunctional(PacketPtr pkt)
 {
-    if (pkt->cmd == MemCmd::UpdateWL) {
-        panic("Functional requests should not be made to WL.");
-        //TODO: Might be a good idea to implement later.
-        // wlEngine->recvFunctional(pkt);
-    } else {
+    // FIXME: This needs to be fixed
+    // if (pkt->cmd == MemCmd::UpdateWL) {
+    //     panic("Functional requests should not be made to WL.");
+    //     //TODO: Might be a good idea to implement later.
+    //     // wlEngine->recvFunctional(pkt);
+    // } else {
         sendMemFunctional(pkt);
-    }
+    // }
 }
 
 }
