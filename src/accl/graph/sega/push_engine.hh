@@ -30,7 +30,6 @@
 #define __ACCL_GRAPH_SEGA_PUSH_ENGINE_HH__
 
 #include "accl/graph/base/base_push_engine.hh"
-#include "accl/graph/sega/mpu.hh"
 #include "params/PushEngine.hh"
 
 namespace gem5
@@ -41,14 +40,36 @@ class MPU;
 class PushEngine : public BasePushEngine
 {
   private:
-    MPU* mpu;
+    class ReqPort : public RequestPort
+    {
+      private:
+        PushEngine* owner;
+        bool _blocked;
+        PacketPtr blockedPacket;
+
+      public:
+        ReqPort(const std::string& name, PushEngine* owner) :
+          RequestPort(name, owner), owner(owner),
+          _blocked(false), blockedPacket(nullptr)
+        {}
+        void sendPacket(PacketPtr pkt);
+        bool blocked() { return _blocked; }
+
+      protected:
+        virtual bool recvTimingResp(PacketPtr pkt);
+        virtual void recvReqRetry();
+    };
+
+    ReqPort reqPort;
 
   protected:
-    virtual bool sendPushUpdate(PacketPtr pkt);
+    virtual bool sendPushUpdate(PacketPtr pkt) override;
 
   public:
     PARAMS(PushEngine);
     PushEngine(const PushEngineParams &params);
+    Port& getPort(const std::string &if_name,
+                PortID idx=InvalidPortID) override;
 };
 
 }
