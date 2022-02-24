@@ -133,7 +133,8 @@ getUpdatePacket(Addr addr, unsigned int size,
     // bits
     req->setPC(((Addr)requestorId) << 2);
 
-    PacketPtr pkt = new Packet(req, MemCmd::UpdateWL);
+    // FIXME: MemCmd::UpdateWL
+    PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
 
     pkt->allocate();
     pkt->setData(data);
