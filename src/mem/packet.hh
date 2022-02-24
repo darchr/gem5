@@ -141,7 +141,7 @@ class MemCmd
         HTMReqResp,
         HTMAbort,
         // MPU Accelerator
-        UpdateWL,
+        // UpdateWL,
         NUM_MEM_CMDS
     };
 
