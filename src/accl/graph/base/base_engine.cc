@@ -38,6 +38,18 @@ BaseEngine::BaseEngine(const BaseEngineParams &params) :
     requestorId(system->getRequestorId(this))
 {}
 
+BaseEngine::~BaseEngine()
+{}
+
+Port&
+BaseEngine::getPort(const std::string &if_name, PortID idx)
+{
+    if (if_name == "mem_port") {
+        return memPort;
+    } else {
+        return SimObject::getPort(if_name, idx);
+    }
+}
 
 void
 BaseEngine::MemPort::sendPacket(PacketPtr pkt)

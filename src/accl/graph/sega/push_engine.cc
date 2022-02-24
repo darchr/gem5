@@ -33,13 +33,58 @@ namespace gem5
 
 PushEngine::PushEngine(const PushEngineParams &params) :
     BasePushEngine(params),
-    mpu(params.mpu)
+    reqPort(name() + "reqPort", this)
 {}
+
+Port&
+PushEngine::getPort(const std::string &if_name, PortID idx)
+{
+    if (if_name == "req_port") {
+        return reqPort;
+    } else {
+        return BasePushEngine::getPort(if_name, idx);
+    }
+}
+
+void
+PushEngine::ReqPort::sendPacket(PacketPtr pkt)
+{
+    panic_if(_blocked, "Should never try to send if blocked MemSide!");
+    // If we can't send the packet across the port, store it for later.
+    if (!sendTimingReq(pkt))
+    {
+        blockedPacket = pkt;
+        _blocked = true;
+    }
+}
+
+bool
+PushEngine::ReqPort::recvTimingResp(PacketPtr pkt)
+{
+    panic("recvTimingResp called on the request port.");
+}
+
+void
+PushEngine::ReqPort::recvReqRetry()
+{
+    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
+
+    _blocked = false;
+    sendPacket(blockedPacket);
+
+    if (!blocked()) {
+        blockedPacket = nullptr;
+    }
+}
 
 bool
 PushEngine::sendPushUpdate(PacketPtr pkt)
 {
-    return mpu->recvPushUpdate(pkt);
+    if (!reqPort.blocked()) {
+        reqPort.sendPacket(pkt);
+        return true;
+    }
+    return false;
 }
 
 }
