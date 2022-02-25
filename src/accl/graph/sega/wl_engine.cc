@@ -80,6 +80,15 @@ WLEngine::startup()
                                         16, data, 0);
         sendMemFunctional(pkt);
     }
+
+    uint8_t* first_update_data = new uint8_t [4];
+    uint32_t* tempPtr = (uint32_t*) first_update_data;
+    *tempPtr = 0;
+
+    PacketPtr first_update = getUpdatePacket(
+        0, 4, first_update_data, requestorId);
+
+    handleWLUpdate(first_update);
 }
 
 bool
