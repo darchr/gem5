@@ -27,6 +27,7 @@
  */
 
 #include "accl/graph/base/base_wl_engine.hh"
+#include "debug/MPU.hh"
 
 #include <string>
 
@@ -80,6 +81,8 @@ BaseWLEngine::processNextWLReduceEvent()
     uint32_t value = requestValueMap[resp->req];
     WorkListItem wl =  memoryToWorkList(respData + request_offset);
 
+    DPRINTF(MPU, "%s: The WLE is reading WorkList item: %s\n"
+                , __func__, wl.to_string());
     if (value < wl.temp_prop){
         //update prop with temp_prop
         wl.temp_prop = value;
@@ -89,10 +92,13 @@ BaseWLEngine::processNextWLReduceEvent()
         PacketPtr writePkt  =
         getWritePacket(resp->getAddr(), 64, respData, requestorId);
 
+
         if (!memPortBlocked()) {
             if (sendWLNotif(resp->getAddr() + request_offset)) {
                 sendMemReq(writePkt);
                 memRespQueue.pop();
+                DPRINTF(MPU, "%s: The WLE is chanching to: %s\n"
+                , __func__, wl.to_string());
                 // TODO: Erase map entries, delete wlData;
             }
         }

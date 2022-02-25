@@ -27,7 +27,7 @@
  */
 
 #include "accl/graph/sega/wl_engine.hh"
-
+#include "debug/MPU.hh"
 namespace gem5
 {
 
