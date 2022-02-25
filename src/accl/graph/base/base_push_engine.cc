@@ -29,6 +29,7 @@
 #include "accl/graph/base/base_push_engine.hh"
 
 #include "accl/graph/base/util.hh"
+#include "debug/MPU.hh"
 
 namespace gem5
 {
@@ -47,6 +48,7 @@ BasePushEngine::recvApplyNotif(uint32_t prop,
     if (!nextReadEvent.scheduled()) {
         schedule(nextReadEvent, nextCycle());
     }
+    DPRINTF(MPU, "%s: Reading %d edges.", __func__, degree);
     return true;
 }
 
@@ -114,7 +116,6 @@ BasePushEngine::processNextPushEvent()
         Edge e = memoryToEdge(curr_edge_data);
         int data_size = sizeof(uint32_t) / sizeof(uint8_t);
         uint32_t* update_data = (uint32_t*) (new uint8_t [data_size]);
-
         // TODO: Implement propagate function here
         *update_data = value + 1;
         PacketPtr update = getUpdatePacket(e.neighbor,
@@ -122,6 +123,8 @@ BasePushEngine::processNextPushEvent()
             requestorId);
         if (sendPushUpdate(update)) {
             memRespQueue.pop();
+            DPRINTF(MPU, "%s: Reading  %s, updating with %d\n"
+                , __func__, e.to_string(), *update_data);
             // TODO: Erase map entries here.
         }
     }
