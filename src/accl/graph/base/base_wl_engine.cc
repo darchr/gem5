@@ -62,7 +62,7 @@ void BaseWLEngine::processNextWLReadEvent()
     requestOffsetMap[memPkt->req] = req_offset;
     requestValueMap[memPkt->req] = value;
 
-    if (memPortBlocked()) {
+    if (!memPortBlocked()) {
         sendMemReq(memPkt);
         updateQueue.pop();
     }
