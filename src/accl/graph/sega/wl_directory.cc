@@ -26,84 +26,50 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "accl/graph/base/base_engine.hh"
-#include "debug/MPU.hh"
+#include "accl/graph/sega/wl_directory.hh"
 
 namespace gem5
 {
-
-BaseEngine::BaseEngine(const BaseEngineParams &params) :
+WLDirectory::WLDirectory(const WLDirectoryParams &params) :
     ClockedObject(params),
-    system(params.system),
-    memPort(name() + ".memPort", this),
-    requestorId(system->getRequestorId(this))
-{}
-
-BaseEngine::~BaseEngine()
+    worklistPort(name() + ".worklist_port", this, 0),
+    applyPort(name() + ".apply_port", this, 1),
+    memPort(name() + ".mem_port", this)
 {}
 
 Port&
-BaseEngine::getPort(const std::string &if_name, PortID idx)
+WLDirectory::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "mem_port") {
+    if (if_name == "worklist_port") {
+        return worklistPort;
+    } else if (if_name == "apply_port") {
+        return applyPort;
+    } else if (if_name == "mem_port") {
         return memPort;
     } else {
         return SimObject::getPort(if_name, idx);
     }
 }
 
-void
-BaseEngine::MemPort::sendPacket(PacketPtr pkt)
+
+
+        virtual Tick recvAtomic(PacketPtr pkt);
+        virtual void recvFunctional(PacketPtr pkt);
+        virtual void recvRespRetry();
+
+AddrRangeList
+WLDirectory::RespPort::getAddrRanges() const
 {
-    panic_if(_blocked, "Should never try to send if blocked MemSide!");
-    // If we can't send the packet across the port, store it for later.
-    if (!sendTimingReq(pkt))
-    {
-        blockedPacket = pkt;
-        _blocked = true;
-    }
+    return owner->getAddrRanges();
 }
 
 bool
-BaseEngine::MemPort::recvTimingResp(PacketPtr pkt)
+WLDirectory::RespPort::recvTimingReq(PacketPtr pkt)
 {
-    //TODO: Investigate sending true all the time
-    return owner->handleMemResp(pkt);
+    return owner->handleRequest(PacketPtr pkt);
 
 }
 
-void
-BaseEngine::MemPort::recvReqRetry()
-{
-    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
-
-    _blocked = false;
-    sendPacket(blockedPacket);
-
-    if (!blocked()) {
-        blockedPacket = nullptr;
-    }
-}
-
-bool
-BaseEngine::handleMemResp(PacketPtr pkt)
-{
-    if (pkt->isResponse() && pkt->isWrite()) {
-        return true;
-        free(pkt);
-    }
-    memRespQueue.push(pkt);
-    scheduleMainEvent();
-    return true;
-}
-
-void
-BaseEngine::sendMemReq(PacketPtr pkt)
-{
-    DPRINTF(MPU, "%s: Sending a pkt with this info. "
-                "pkt->addr: %lu, pkt->size: %lu\n",
-                __func__, pkt->getAddr(), pkt->getSize());
-    memPort.sendPacket(pkt);
-}
-
+Tick
+WLDirectory
 }

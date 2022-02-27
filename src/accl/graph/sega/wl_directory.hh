@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 The Regents of the University of California.
+ * Copyright (c) 2021 The Regents of the University of California.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,8 +26,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_BASE_BASE_ENGINE_HH__
-#define __ACCL_GRAPH_BASE_BASE_ENGINE_HH__
+#ifndef __ACCL_GRAPH_SEGA_WL_DIRECTORY_HH__
+#define __ACCL_GRAPH_SEGA_WL_DIRECTORY_HH__
 
 #include <queue>
 #include <unordered_map>
@@ -37,23 +37,42 @@
 #include "mem/port.hh"
 #include "params/BaseEngine.hh"
 #include "sim/clocked_object.hh"
-#include "sim/system.hh"
 
 namespace gem5
 {
 
-class BaseEngine : public ClockedObject
+class WLDirectory : public ClockedObject
 {
   private:
+    class RespPort : public ResponsePort
+    {
+      private:
+        WLDirectory* owner;
+        PortID _id;
+
+      public:
+        RespPort(const std::string& name, WLDirectory* owner, PortID id):
+          ResponsePort(name, owner), owner(owner), _id(id)
+        {}
+        virtual AddrRangeList getAddrRanges() const;
+        PortID Id() { return _id; }
+
+      protected:
+        virtual bool recvTimingReq(PacketPtr pkt);
+        virtual Tick recvAtomic(PacketPtr pkt);
+        virtual void recvFunctional(PacketPtr pkt);
+        virtual void recvRespRetry();
+    };
+
     class MemPort : public RequestPort
     {
       private:
-        BaseEngine* owner;
+        WLDirectory* owner;
         bool _blocked;
         PacketPtr blockedPacket;
 
         public:
-        MemPort(const std::string& name, BaseEngine* owner):
+        MemPort(const std::string& name, WLDirectory* owner):
             RequestPort(name, owner), owner(owner),
             _blocked(false), blockedPacket(nullptr)
         {}
@@ -66,33 +85,29 @@ class BaseEngine : public ClockedObject
         virtual void recvReqRetry();
     };
 
-    System* system;
+    RespPort worklistPort;
+    RespPort applyPort;
     MemPort memPort;
 
-    bool handleMemResp(PacketPtr resp);
+    std::unordered_map<Addr, PortID> addrResidenceMap;
+    std::unordered_map<RequestPtr, PortID> routeBackMap;
 
-  protected:
-    const RequestorID requestorId;
-    // TODO: Add this later, maybe?
-    // int memRespQueueSize;
-    std::queue<PacketPtr> memRespQueue;
+    std::queue<PacketPtr> pendingReads;
+    std::queue<PacketPtr> pendingReadPorts;
 
-    bool memPortBlocked() { return memPort.blocked(); }
-    void sendMemReq(PacketPtr pkt);
-    void sendMemFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }
-    AddrRangeList getAddrRanges() {return memPort.getAddrRanges(); }
+    AddrRangeList getAddrRanges();
 
-    virtual void scheduleMainEvent() = 0;
+    bool handleRequest(PacketPtr pkt);
 
   public:
-    PARAMS(BaseEngine);
+    PARAMS(WLDirectory);
 
-    BaseEngine(const BaseEngineParams &params);
-    ~BaseEngine();
+    WLDirectory(const WLDirectoryParams &params);
+
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 };
 
 }
 
-#endif // __ACCL_GRAPH_BASE_BASE_APPLY_ENGINE_HH__
+#endif

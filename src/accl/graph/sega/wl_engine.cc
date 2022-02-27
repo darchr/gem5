@@ -53,11 +53,11 @@ WLEngine::startup()
     //FIXME: This is the current version of our initializer.
     // This should be updated in the future.
     WorkListItem vertices [5] = {
-                                {0, 0, 3, 0}, // Addr: 0
-                                {0, 0, 1, 3}, // Addr: 16
-                                {0, 0, 1, 4}, // Addr: 32
-                                {0, 0, 0, 5}, // Addr: 48
-                                {0, 0, 0, 5}  // Addr: 64
+                                {1000, 1000, 3, 0}, // Addr: 0
+                                {1000, 1000, 1, 3}, // Addr: 16
+                                {1000, 1000, 1, 4}, // Addr: 32
+                                {1000, 1000, 0, 5}, // Addr: 48
+                                {1000, 1000, 0, 5}  // Addr: 64
                                 };
     Edge edges [6] = {
                     {0, 16}, // Addr: 1048576
@@ -76,8 +76,8 @@ WLEngine::startup()
 
     for (int i = 0; i < 6; i++) {
         uint8_t* data = edgeToMemory(edges[i]);
-        PacketPtr pkt = getWritePacket(1048576 + i * sizeof(Edge),
-                                        16, data, 0);
+        Addr addr = 1048576 + i * sizeof(Edge);
+        PacketPtr pkt = getWritePacket(addr, 16, data, 0);
         sendMemFunctional(pkt);
     }
 
@@ -105,6 +105,7 @@ WLEngine::RespPort::getAddrRanges() const
 bool
 WLEngine::RespPort::recvTimingReq(PacketPtr pkt)
 {
+    DPRINTF(MPU, "%s: recvTimingRequest called!\n", __func__);
     return owner->handleWLUpdate(pkt);
 }
 

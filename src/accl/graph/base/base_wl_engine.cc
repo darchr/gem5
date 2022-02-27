@@ -59,7 +59,11 @@ void BaseWLEngine::processNextWLReadEvent()
     Addr req_addr = (addr / 64) * 64;
     Addr req_offset = addr % 64;
 
+    DPRINTF(MPU, "%s: Reading WorkListItem at addr: %lu, "
+                "req_addr: %lu, req_offset: %lu.\n",
+                __func__, addr, req_addr, req_offset);
     PacketPtr memPkt = getReadPacket(req_addr, 64, requestorId);
+
     requestOffsetMap[memPkt->req] = req_offset;
     requestValueMap[memPkt->req] = value;
 
@@ -79,26 +83,27 @@ BaseWLEngine::processNextWLReduceEvent()
     uint8_t* respData = resp->getPtr<uint8_t>();
     Addr request_offset = requestOffsetMap[resp->req];
     uint32_t value = requestValueMap[resp->req];
-    WorkListItem wl =  memoryToWorkList(respData + request_offset);
+    // WorkListItem wl =  memoryToWorkList(respData + request_offset);
+    WorkListItem wl =  memoryToWorkList(respData);
 
-    DPRINTF(MPU, "%s: The WLE is reading WorkList item: %s\n"
-                , __func__, wl.to_string());
+    DPRINTF(MPU, "%s: The WLE is reading WorkList item[%lu]: %s\n"
+                , __func__, resp->getAddr() + request_offset, wl.to_string());
+
     if (value < wl.temp_prop){
         //update prop with temp_prop
         wl.temp_prop = value;
 
         uint8_t* wlData = workListToMemory(wl);
         memcpy(respData + request_offset, wlData, sizeof(WorkListItem));
+
         PacketPtr writePkt  =
         getWritePacket(resp->getAddr(), 64, respData, requestorId);
 
-
+        DPRINTF(MPU, "%s: %s", __func__, writePkt->printData());
         if (!memPortBlocked()) {
             if (sendWLNotif(resp->getAddr() + request_offset)) {
                 sendMemReq(writePkt);
                 memRespQueue.pop();
-                DPRINTF(MPU, "%s: The WLE is chanching to: %s\n"
-                , __func__, wl.to_string());
                 // TODO: Erase map entries, delete wlData;
             }
         }
@@ -107,7 +112,9 @@ BaseWLEngine::processNextWLReduceEvent()
         memRespQueue.pop();
     }
     if (!nextWLReduceEvent.scheduled() && !memRespQueue.empty()){
-            schedule(nextWLReduceEvent, nextCycle());
+        DPRINTF(MPU, "%s: memRespQueue.size: %d\n"
+                , __func__, memRespQueue.size());
+        schedule(nextWLReduceEvent, nextCycle());
     }
 }
 

@@ -27,13 +27,14 @@
  */
 
 #include "accl/graph/sega/push_engine.hh"
+#include "debug/MPU.hh"
 
 namespace gem5
 {
 
 PushEngine::PushEngine(const PushEngineParams &params) :
     BasePushEngine(params),
-    reqPort(name() + "reqPort", this)
+    reqPort(name() + ".reqPort", this)
 {}
 
 Port&
@@ -55,7 +56,9 @@ PushEngine::ReqPort::sendPacket(PacketPtr pkt)
     {
         blockedPacket = pkt;
         _blocked = true;
+        return;
     }
+    DPRINTF(MPU, "%s: Packet sent!\n", __func__);
 }
 
 bool

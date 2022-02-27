@@ -537,4 +537,43 @@ Packet::getHtmTransactionUid() const
     return htmTransactionUid;
 }
 
+std::string
+Packet::printData()
+{
+    char ret[1024];
+    if (isWrite()) {
+        uint8_t* data = getPtr<uint8_t>();
+        std::sprintf(ret,
+                        "V[%lu] temp_prop: %u, prop: %u, "
+                        "degree: %u, edgeIndex: %u.\n",
+                        // "V[%lu] temp_prop: %u, prop: %u, "
+                        // "degree: %u, edgeIndex: %u.\n"
+                        // "V[%lu] temp_prop: %u, prop: %u, "
+                        // "degree: %u, edgeIndex: %u.\n"
+                        // "V[%lu] temp_prop: %u, prop: %u, "
+                        // "degree: %u, edgeIndex: %u.\n",
+                        getAddr(),
+                        *((uint32_t*) data),
+                        *((uint32_t*) (data + 4)),
+                        *((uint32_t*) (data + 8)),
+                        *((uint32_t*) (data + 12)));
+                        // getAddr() + 16,
+                        // *((uint32_t*) (data + 16)),
+                        // *((uint32_t*) (data + 20)),
+                        // *((uint32_t*) (data + 24)),
+                        // *((uint32_t*) (data + 28)),
+                        // getAddr() + 32,
+                        // *((uint32_t*) (data + 32)),
+                        // *((uint32_t*) (data + 36)),
+                        // *((uint32_t*) (data + 40)),
+                        // *((uint32_t*) (data + 44)),
+                        // getAddr() + 48,
+                        // *((uint32_t*) (data + 48)),
+                        // *((uint32_t*) (data + 52)),
+                        // *((uint32_t*) (data + 56)),
+                        // *((uint32_t*) (data + 60)));
+    }
+    return ret;
+}
+
 } // namespace gem5

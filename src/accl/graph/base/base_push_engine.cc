@@ -48,15 +48,24 @@ BasePushEngine::recvApplyNotif(uint32_t prop,
     if (!nextReadEvent.scheduled()) {
         schedule(nextReadEvent, nextCycle());
     }
-    DPRINTF(MPU, "%s: Reading %d edges.", __func__, degree);
+
     return true;
 }
 
 void
 BasePushEngine::processNextReadEvent()
 {
+    // FIXME: THIS IS VERY BAD, FIX PLEASE.
+    // THIS IS BECOMING A FIX UPON FIX.
+    // IDIOT.
     ApplyNotif notif = notifQueue.front();
 
+    if (notif.degree == 0) {
+        notifQueue.pop();
+        return;
+    }
+
+    DPRINTF(MPU, "%s: Reading %d edges.\n", __func__, notif.degree);
     std::vector<Addr> addr_queue;
     std::vector<Addr> offset_queue;
     std::vector<int> num_edge_queue;
@@ -89,10 +98,18 @@ BasePushEngine::processNextReadEvent()
             reqOffsetMap[pkt->req] = offset_queue[index];
             reqNumEdgeMap[pkt->req] = num_edge_queue[index];
             reqValueMap[pkt->req] = notif.prop;
+            DPRINTF(MPU, "%s: Sending a read request to memory to read edges. "
+                "pkt->addr: %lu, request_offset: %lu, "
+                "pkt->size: %lu, pkt->requestorId: %lu.\n",
+                __func__, pkt->getAddr(), offset_queue[index], pkt->getSize(),
+                pkt->requestorId());
             sendMemReq(pkt);
             notifQueue.pop();
         }
     }
+    addr_queue.clear();
+    offset_queue.clear();
+    num_edge_queue.clear();
 
     if (!nextReadEvent.scheduled() && !notifQueue.empty()) {
         schedule(nextReadEvent, nextCycle());
@@ -121,10 +138,10 @@ BasePushEngine::processNextPushEvent()
         PacketPtr update = getUpdatePacket(e.neighbor,
             sizeof(uint32_t) / sizeof(uint8_t), (uint8_t*) update_data,
             requestorId);
-        if (sendPushUpdate(update)) {
+        DPRINTF(MPU, "%s: Reading  %s, updating with %d\n"
+            , __func__, e.to_string(), *update_data);
+        if (sendPushUpdate(update) && (i == num_edges - 1)) {
             memRespQueue.pop();
-            DPRINTF(MPU, "%s: Reading  %s, updating with %d\n"
-                , __func__, e.to_string(), *update_data);
             // TODO: Erase map entries here.
         }
     }

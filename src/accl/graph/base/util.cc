@@ -100,7 +100,7 @@ getReadPacket(Addr addr, unsigned int size, RequestorID requestorId)
     req->setPC(((Addr)requestorId) << 2);
 
     // Embed it in a packet
-    PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
+    PacketPtr pkt = Packet::createRead(req);
     pkt->allocate();
 
     return pkt;
