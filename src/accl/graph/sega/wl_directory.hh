@@ -93,11 +93,12 @@ class WLDirectory : public ClockedObject
     std::unordered_map<RequestPtr, PortID> routeBackMap;
 
     std::queue<PacketPtr> pendingReads;
-    std::queue<PacketPtr> pendingReadPorts;
+    std::queue<PortID> pendingReadPorts;
 
     AddrRangeList getAddrRanges();
 
-    bool handleRequest(PacketPtr pkt);
+    bool handleMemReq(PacketPtr pkt, PortID port_id);
+    bool handleMemResp(PacketPtr pkt);
 
   public:
     PARAMS(WLDirectory);

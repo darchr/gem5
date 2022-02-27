@@ -51,12 +51,6 @@ WLDirectory::getPort(const std::string &if_name, PortID idx)
     }
 }
 
-
-
-        virtual Tick recvAtomic(PacketPtr pkt);
-        virtual void recvFunctional(PacketPtr pkt);
-        virtual void recvRespRetry();
-
 AddrRangeList
 WLDirectory::RespPort::getAddrRanges() const
 {
@@ -66,10 +60,58 @@ WLDirectory::RespPort::getAddrRanges() const
 bool
 WLDirectory::RespPort::recvTimingReq(PacketPtr pkt)
 {
-    return owner->handleRequest(PacketPtr pkt);
+    return owner->handleMemReq(PacketPtr pkt, _id);
 
 }
 
 Tick
-WLDirectory
+WLDirectory::RespPort::recvAtomic(PacketPtr)
+{
+    panic("recvAtomic called!");
+}
+
+void
+WLDirectory::RespPort::recvFunctional(PacketPtr pkt)
+{
+    memPort.sendFunctional(pkt);
+}
+
+void
+WLDirectory::RespPort::recvRespRetry()
+{
+    panic("recvRespRetry called!");
+}
+
+void
+WLDirectory::MemPort::sendPacket(PacketPtr pkt)
+{
+    panic_if(_blocked, "Should never try to send if blocked MemSide!");
+    // If we can't send the packet across the port, store it for later.
+    if (!sendTimingReq(pkt))
+    {
+        blockedPacket = pkt;
+        _blocked = true;
+    }
+}
+
+bool
+WLDirectory::MemPort::recvTimingResp(PacketPtr pkt)
+{
+    return owner->handleMemResp(pkt);
+
+}
+
+void
+WLDirectory::MemPort::recvReqRetry()
+{
+    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
+
+    _blocked = false;
+    sendPacket(blockedPacket);
+
+    if (!blocked()) {
+        blockedPacket = nullptr;
+    }
+}
+
 }
