@@ -65,8 +65,10 @@ BaseApplyEngine::processNextApplyCheckEvent()
     Addr req_offset = (addr % 64);
 
     PacketPtr memPkt = getReadPacket(req_addr, 64, requestorId);
-
     requestOffset[memPkt->req] = req_offset;
+
+    DPRINTF(MPU, "%s: ApplyEngine is sending a read req to WorkListItem[%lu]\n"
+                        , __func__, memPkt->getAddr() + req_offset);
     if (!memPortBlocked()) {
         sendMemReq(memPkt);
         applyReadQueue.pop();
@@ -87,7 +89,7 @@ BaseApplyEngine::processNextApplyEvent()
 
     WorkListItem wl = memoryToWorkList(data + request_offset);
 
-    DPRINTF(MPU, "%s: Apply Engine is reading WorkList Item[%lu]: %s\n"
+    DPRINTF(MPU, "%s: Apply Engine received WorkList Item[%lu]: %s\n"
                 , __func__, pkt->getAddr() + request_offset, wl.to_string());
     // FIXME: Not so much of a fixme. However, why do we fwd a worklistitem
     // to applyengine if temp_prop < prop. If temp_prop has not changed, why
@@ -99,13 +101,16 @@ BaseApplyEngine::processNextApplyEvent()
         //write back the new worklist item to  memory
         uint8_t* wList = workListToMemory(wl);
 
-        // memcpy(data + request_offset, wList, sizeof(WorkListItem));
-        memcpy(data, wList, sizeof(WorkListItem));
+        memcpy(data + request_offset, wList, sizeof(WorkListItem));
+
         //Create memory write requests.
         PacketPtr writePkt  =
         getWritePacket(pkt->getAddr(), 64, data, requestorId);
 
-        DPRINTF(MPU, "%s: %s", __func__, writePkt->printData());
+        DPRINTF(MPU, "%s: Sending a pkt with this info. "
+                "pkt->addr: %lu, pkt->size: %lu\npkt->data: %s\n",
+                __func__, writePkt->getAddr(),
+                writePkt->getSize(), writePkt->printData());
         if (!memPortBlocked()) {
             if (sendApplyNotif(wl.prop, wl.degree, wl.edgeIndex)) {
                 sendMemReq(writePkt);

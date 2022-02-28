@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2016 Jason Lowe-Power
+# Copyright (c) 2017 Jason Lowe-Power
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,14 +25,15 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+from m5.params import *
+from m5.proxy import *
+from m5.objects.ClockedObject import ClockedObject
 
-SimObject('ApplyEngine.py')
-SimObject('PushEngine.py')
-SimObject('WLDirectory.py')
-SimObject('WLEngine.py')
+class WLDirectory(ClockedObject):
+    type = 'WLDirectory'
+    cxx_header = "accl/graph/sega/wl_directory.hh"
+    cxx_class = 'gem5::WLDirectory'
 
-Source('apply_engine.cc')
-Source('push_engine.cc')
-Source('wl_directory.cc')
-Source('wl_engine.cc')
+    worklist_port = ResponsePort("Port to Receive updates from WLEngine")
+    apply_port = ResponsePort("Port to Receive updates from ApplyEngine")
+    mem_port  = RequestPort("Port to communicate with the memory")

@@ -8,18 +8,13 @@ class MPU(SubSystem):
         self.push_engine = PushEngine()
         self.apply_engine = ApplyEngine(push_engine = self.push_engine)
         self.wl_engine = WLEngine(apply_engine = self.apply_engine)
+        self.wl_dir = WLDirectory()
         self.interconnect = SystemXBar()
-        self.cache = Cache(tag_latency = 0,
-                            data_latency = 0,
-                            response_latency = 0,
-                            size = "32KiB",
-                            assoc = 8,
-                            mshrs = 16,
-                            tgts_per_mshr = 24)
-        self.interconnect.cpu_side_ports = self.wl_engine.mem_port
-        self.interconnect.cpu_side_ports = self.apply_engine.mem_port
+
+        self.wl_dir.worklist_port = self.wl_engine.mem_port
+        self.wl_dir.apply_port = self.apply_engine.mem_port
+        self.interconnect.cpu_side_ports = self.wl_dir.mem_port
         self.interconnect.cpu_side_ports = self.push_engine.mem_port
-        self.interconnect.mem_side_ports = self.cache.cpu_side
 
     def getRespPort(self):
         return self.wl_engine.resp_port
@@ -32,9 +27,9 @@ class MPU(SubSystem):
         self.push_engine.req_port = port
 
     def getMemPort(self):
-        return self.cache.mem_side
+        return self.interconnect.mem_side_ports
     def setMemPort(self, port):
-        self.cache.mem_side = port
+        self.interconnect.mem_side_ports = port
 
 class SEGA(System):
     def __init__(self):

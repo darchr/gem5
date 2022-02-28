@@ -35,7 +35,7 @@
 #include "base/addr_range.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
-#include "params/BaseEngine.hh"
+#include "params/WLDirectory.hh"
 #include "sim/clocked_object.hh"
 
 namespace gem5
@@ -92,13 +92,18 @@ class WLDirectory : public ClockedObject
     std::unordered_map<Addr, PortID> addrResidenceMap;
     std::unordered_map<RequestPtr, PortID> routeBackMap;
 
-    std::queue<PacketPtr> pendingReads;
-    std::queue<PortID> pendingReadPorts;
+    // std::deque<std::pair<PacketPtr, PortID>> pendingReads;
+    std::vector<PacketPtr> pendingReads;
+    std::vector<PortID> pendingReadPorts;
 
     AddrRangeList getAddrRanges();
+    void recvFunctional(PacketPtr pkt);
 
     bool handleMemReq(PacketPtr pkt, PortID port_id);
     bool handleMemResp(PacketPtr pkt);
+
+    EventFunctionWrapper nextPendingReadEvent;
+    void processNextPendingReadEvent();
 
   public:
     PARAMS(WLDirectory);

@@ -59,9 +59,8 @@ void BaseWLEngine::processNextWLReadEvent()
     Addr req_addr = (addr / 64) * 64;
     Addr req_offset = addr % 64;
 
-    DPRINTF(MPU, "%s: Reading WorkListItem at addr: %lu, "
-                "req_addr: %lu, req_offset: %lu.\n",
-                __func__, addr, req_addr, req_offset);
+    DPRINTF(MPU, "%s: WorkListEngine is sending a read req to WorkList Item[%lu].\n"
+                , __func__, pkt->getAddr() + req_offset);
     PacketPtr memPkt = getReadPacket(req_addr, 64, requestorId);
 
     requestOffsetMap[memPkt->req] = req_offset;
@@ -83,12 +82,11 @@ BaseWLEngine::processNextWLReduceEvent()
     uint8_t* respData = resp->getPtr<uint8_t>();
     Addr request_offset = requestOffsetMap[resp->req];
     uint32_t value = requestValueMap[resp->req];
-    // WorkListItem wl =  memoryToWorkList(respData + request_offset);
-    WorkListItem wl =  memoryToWorkList(respData);
 
-    DPRINTF(MPU, "%s: The WLE is reading WorkList item[%lu]: %s\n"
+    WorkListItem wl =  memoryToWorkList(respData + request_offset);
+
+    DPRINTF(MPU, "%s: WorkListEngine received WorkList Item[%lu]: %s\n"
                 , __func__, resp->getAddr() + request_offset, wl.to_string());
-
     if (value < wl.temp_prop){
         //update prop with temp_prop
         wl.temp_prop = value;
@@ -99,7 +97,10 @@ BaseWLEngine::processNextWLReduceEvent()
         PacketPtr writePkt  =
         getWritePacket(resp->getAddr(), 64, respData, requestorId);
 
-        DPRINTF(MPU, "%s: %s", __func__, writePkt->printData());
+        DPRINTF(MPU, "%s: Sending a pkt with this info. "
+                "pkt->addr: %lu, pkt->size: %lu\npkt->data: %s\n",
+                __func__, writePkt->getAddr(),
+                writePkt->getSize(), writePkt->printData());
         if (!memPortBlocked()) {
             if (sendWLNotif(resp->getAddr() + request_offset)) {
                 sendMemReq(writePkt);

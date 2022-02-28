@@ -34,7 +34,8 @@ WLDirectory::WLDirectory(const WLDirectoryParams &params) :
     ClockedObject(params),
     worklistPort(name() + ".worklist_port", this, 0),
     applyPort(name() + ".apply_port", this, 1),
-    memPort(name() + ".mem_port", this)
+    memPort(name() + ".mem_port", this),
+    nextPendingReadEvent([this] { processNextPendingReadEvent(); }, name())
 {}
 
 Port&
@@ -60,7 +61,7 @@ WLDirectory::RespPort::getAddrRanges() const
 bool
 WLDirectory::RespPort::recvTimingReq(PacketPtr pkt)
 {
-    return owner->handleMemReq(PacketPtr pkt, _id);
+    return owner->handleMemReq(pkt, _id);
 
 }
 
@@ -73,7 +74,7 @@ WLDirectory::RespPort::recvAtomic(PacketPtr)
 void
 WLDirectory::RespPort::recvFunctional(PacketPtr pkt)
 {
-    memPort.sendFunctional(pkt);
+    owner->recvFunctional(pkt);
 }
 
 void
@@ -112,6 +113,106 @@ WLDirectory::MemPort::recvReqRetry()
     if (!blocked()) {
         blockedPacket = nullptr;
     }
+}
+
+
+AddrRangeList
+WLDirectory::getAddrRanges()
+{
+    return memPort.getAddrRanges();
+}
+
+void
+WLDirectory::recvFunctional(PacketPtr pkt)
+{
+    memPort.sendFunctional(pkt);
+}
+
+bool
+WLDirectory::handleMemReq(PacketPtr pkt, PortID port_id)
+{
+    // TODO: Add the functionality to send retries.
+    Addr addr = pkt->getAddr();
+    if (pkt->isRead()) {
+        // if (addrResidenceMap.find(addr) == addrResidenceMap.end()) {
+        //     if (!memPort.blocked()) {
+        //         addrResidenceMap[addr] = port_id;
+        //         routeBackMap[pkt->req] = port_id;
+        //         pendingR
+        //         return true;
+        //     } else {
+        //         return false;
+        //     }
+        // } else {
+        pendingReads.push_back(std::make_pair(pkt, port_id));
+        if (!nextPendingReadEvent.scheduled() && !pendingReads.empty()) {
+            schedule(nextPendingReadEvent, nextCycle());
+        }
+        return true;
+        // }
+    } else if (pkt->isWrite()) {
+        if (addrResidenceMap.find(addr) == addrResidenceMap.end()) {
+            panic("Should not write an address that has not be acquired.");
+        } else {
+            if (!memPort.blocked()) {
+                addrResidenceMap.erase(addr);
+                routeBackMap[pkt->req] = port_id;
+                memPort.sendPacket(pkt);
+                return true;
+            } else {
+                return false;
+            }
+        }
+    } else {
+        if (!memPort.blocked()) {
+            memPort.sendPacket(pkt);
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
+bool
+WLDirectory::handleMemResp(PacketPtr pkt) {
+    if (pkt->isWrite()) {
+        routeBackMap.erase(pkt->req);
+        return true;
+    }
+    PortID dest_port_id = routeBackMap[pkt->req];
+    if (worklistPort.Id() == dest_port_id) {
+        routeBackMap.erase(pkt->req);
+        worklistPort.sendTimingResp(pkt);
+    } else if (applyPort.Id() == dest_port_id) {
+        routeBackMap.erase(pkt->req);
+        applyPort.sendTimingResp(pkt);
+    } else {
+        panic("Received a response for a port other than wl/apply!");
+    }
+    return true;
+}
+
+void
+WLDirectory::processNextPendingReadEvent()
+{
+    for (std::deque<std::pair<PacketPtr, PortID>>::iterator
+        it = pendingReads.begin(); it != pendingReads.end(); it++) {
+        PacketPtr pkt = it->first;
+        Addr addr = pkt->getAddr();
+        if ((addrResidenceMap.find(addr) == addrResidenceMap.end()) &&
+            (!memPort.blocked())) {
+            PacketPtr read_req = it->first;
+            PortID new_port_id = it->second;
+            addrResidenceMap[addr] = new_port_id;
+            memPort.sendPacket(read_req);
+            it = pendingReads.erase(it);
+        }
+    }
+
+    if (!nextPendingReadEvent.scheduled() && !pendingReads.empty()) {
+        schedule(nextPendingReadEvent, nextCycle());
+    }
+
 }
 
 }

@@ -100,9 +100,6 @@ BaseEngine::handleMemResp(PacketPtr pkt)
 void
 BaseEngine::sendMemReq(PacketPtr pkt)
 {
-    DPRINTF(MPU, "%s: Sending a pkt with this info. "
-                "pkt->addr: %lu, pkt->size: %lu\n",
-                __func__, pkt->getAddr(), pkt->getSize());
     memPort.sendPacket(pkt);
 }
 
