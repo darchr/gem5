@@ -54,11 +54,11 @@ WLEngine::startup()
     //FIXME: This is the current version of our initializer.
     // This should be updated in the future.
     WorkListItem vertices [5] = {
-                                {0, 0, 3, 0}, // Addr: 0
-                                {0, 0, 1, 3}, // Addr: 16
-                                {0, 0, 1, 4}, // Addr: 32
-                                {0, 0, 0, 5}, // Addr: 48
-                                {0, 0, 0, 5}  // Addr: 64
+                                {1000, 1000, 3, 0}, // Addr: 0
+                                {1000, 1000, 1, 3}, // Addr: 16
+                                {1000, 1000, 1, 4}, // Addr: 32
+                                {10000, 1000, 0, 5}, // Addr: 48
+                                {10000, 10000, 0, 5}  // Addr: 64
                                 };
     Edge edges [6] = {
                     {0, 16}, // Addr: 1048576
