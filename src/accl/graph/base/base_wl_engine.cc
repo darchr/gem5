@@ -59,8 +59,8 @@ void BaseWLEngine::processNextWLReadEvent()
     Addr req_addr = (addr / 64) * 64;
     Addr req_offset = addr % 64;
 
-    DPRINTF(MPU, "%s: WorkListEngine is sending a read req to WorkList Item[%lu].\n"
-                , __func__, pkt->getAddr() + req_offset);
+    DPRINTF(MPU, "%s: WorkListEngine is sending a read req to WorkList Item[%lu] with value: %d.\n"
+                , __func__, req_addr + req_offset, value);
     PacketPtr memPkt = getReadPacket(req_addr, 64, requestorId);
 
     requestOffsetMap[memPkt->req] = req_offset;

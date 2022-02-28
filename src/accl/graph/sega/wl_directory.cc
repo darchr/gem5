@@ -28,6 +28,8 @@
 
 #include "accl/graph/sega/wl_directory.hh"
 
+#include <string>
+
 namespace gem5
 {
 WLDirectory::WLDirectory(const WLDirectoryParams &params) :
@@ -144,7 +146,11 @@ WLDirectory::handleMemReq(PacketPtr pkt, PortID port_id)
         //         return false;
         //     }
         // } else {
-        pendingReads.push_back(std::make_pair(pkt, port_id));
+        // std::pair<PacketPtr, PortID> temp =
+        //     std::pair<PacketPtr, PortID>(pkt, port_id);
+        routeBackMap[pkt->req] = port_id;
+        pendingReads.push_back(pkt);
+        pendingReadPorts.push_back(port_id);
         if (!nextPendingReadEvent.scheduled() && !pendingReads.empty()) {
             schedule(nextPendingReadEvent, nextCycle());
         }
@@ -195,20 +201,21 @@ WLDirectory::handleMemResp(PacketPtr pkt) {
 void
 WLDirectory::processNextPendingReadEvent()
 {
-    for (std::deque<std::pair<PacketPtr, PortID>>::iterator
-        it = pendingReads.begin(); it != pendingReads.end(); it++) {
-        PacketPtr pkt = it->first;
+    for (int it = 0; it < pendingReads.size(); it++) {
+        PacketPtr pkt = pendingReads[it];
         Addr addr = pkt->getAddr();
         if ((addrResidenceMap.find(addr) == addrResidenceMap.end()) &&
             (!memPort.blocked())) {
-            PacketPtr read_req = it->first;
-            PortID new_port_id = it->second;
+            PacketPtr read_req = pkt;
+            PortID new_port_id = pendingReadPorts[it];
             addrResidenceMap[addr] = new_port_id;
             memPort.sendPacket(read_req);
-            it = pendingReads.erase(it);
+            // i = addrResidenceMap.begin();
+            pendingReads.erase(std::next(pendingReads.begin(), it));
+            pendingReadPorts.erase(std::next(pendingReadPorts.begin(), it));
         }
     }
-
+    // std::cout<<pendingReads.size()<<std::endl;
     if (!nextPendingReadEvent.scheduled() && !pendingReads.empty()) {
         schedule(nextPendingReadEvent, nextCycle());
     }
