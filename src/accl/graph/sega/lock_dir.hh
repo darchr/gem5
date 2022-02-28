@@ -42,7 +42,7 @@ class LockDirectory: public SimObject
 {
   private:
     std::unordered_map<Addr, RequestorID> lockOwnerMap;
-    std::unordered_map<Addr, int> lockDegreeMap;
+    // std::unordered_map<Addr, int> lockDegreeMap;
 
   public:
     PARAMS(LockDirectory);
