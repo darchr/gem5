@@ -34,6 +34,7 @@
 
 #include "accl/graph/base/base_wl_engine.hh"
 #include "accl/graph/sega/apply_engine.hh"
+#include "accl/graph/sega/lock_dir.hh"
 #include "params/WLEngine.hh"
 
 namespace gem5
@@ -64,13 +65,15 @@ class WLEngine : public BaseWLEngine
 
     RespPort respPort;
     ApplyEngine* applyEngine;
-
+    LockDirectory* lockDir;
 
     virtual void startup();
     void recvFunctional(PacketPtr pkt);
 
   protected:
     virtual bool sendWLNotif(Addr addr) override;
+    virtual bool acquireAddress(Addr addr) override;
+    virtual bool releaseAddress(Addr addr) override;
 
   public:
     PARAMS(WLEngine);

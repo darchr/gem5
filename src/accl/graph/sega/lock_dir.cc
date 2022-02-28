@@ -26,58 +26,46 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_BASE_BASE_WL_ENGINE_HH__
-#define __ACCL_GRAPH_BASE_BASE_WL_ENGINE_HH__
-
-#include <queue>
-#include <unordered_map>
-
-#include "accl/graph/base/base_engine.hh"
-#include "accl/graph/base/util.hh"
-#include "params/BaseWLEngine.hh"
+#include "accl/graph/sega/lock_dir.hh"
 
 namespace gem5
 {
 
-class BaseWLEngine : public BaseEngine
+LockDirectory::LockDirectory(const LockDirectoryParams &params) :
+    SimObject(params)
+{}
+
+bool
+LockDirectory::acquire(Addr addr, RequestorID requestorId)
 {
-  private:
-    std::queue<PacketPtr> updateQueue;
-    std::queue<PacketPtr> responseQueue;
-
-    std::unordered_map<RequestPtr, Addr> requestOffsetMap;
-    std::unordered_map<RequestPtr, uint32_t> requestValueMap;
-
-    //Events
-    EventFunctionWrapper nextWLReadEvent;
-    void processNextWLReadEvent();
-    /* Syncronously checked
-       If there are any active vertecies:
-       create memory read packets + MPU::MPU::MemPortsendTimingReq
-    */
-
-    EventFunctionWrapper nextWLReduceEvent;
-    void processNextWLReduceEvent();
-    /* Activated by MPU::MPUMemPort::recvTimingResp and handleMemResp
-       Perform apply and send the write request and read edgeList
-       read + write
-       Write edgelist loc in buffer
-    */
-  protected:
-    virtual bool sendWLNotif(Addr addr) = 0;
-    virtual bool acquireAddress(Addr addr) = 0;
-    virtual bool releaseAddress(Addr addr) = 0;
-    virtual void scheduleMainEvent() override;
-
-  public:
-
-    PARAMS(BaseWLEngine);
-
-    BaseWLEngine(const BaseWLEngineParams &params);
-
-    bool handleWLUpdate(PacketPtr pkt);
-};
-
+    if (lockOwnerMap.find(addr) == lockOwnerMap.end()) {
+        lockOwnerMap[addr] = requestorId;
+        lockDegreeMap[addr] = 1;
+        return true;
+    } else if (lockOwnerMap[addr] == requestorId) {
+        lockDegreeMap[addr] = lockDegreeMap[addr] + 1;
+        return true;
+    } else {
+        return false;
+    }
 }
 
-#endif // __ACCL_GRAPH_BASE_BASE_WL_ENGINE_HH__
+bool
+LockDirectory::release(Addr addr, RequestorID requestorId)
+{
+    if (lockOwnerMap.find(addr) == lockOwnerMap.end()) {
+        panic("Should not relase an address before acquiring");
+    } else if (lockOwnerMap[addr] != requestorId) {
+        panic("Should not release and address you don't own");
+    } else {
+        lockDegreeMap[addr] = lockDegreeMap[addr] - 1;
+        if (lockDegreeMap[addr] == 0) {
+            lockDegreeMap.erase(addr);
+            lockOwnerMap.erase(addr);
+            return true;
+        }
+    }
+    return false;
+}
+
+}

@@ -26,58 +26,32 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_BASE_BASE_WL_ENGINE_HH__
-#define __ACCL_GRAPH_BASE_BASE_WL_ENGINE_HH__
+#ifndef __ACCL_GRAPH_SEGA_LOCK_DIR_HH__
+#define __ACCL_GRAPH_SEGA_LOCK_DIR_HH__
 
-#include <queue>
 #include <unordered_map>
 
-#include "accl/graph/base/base_engine.hh"
-#include "accl/graph/base/util.hh"
-#include "params/BaseWLEngine.hh"
+#include "mem/packet.hh"
+#include "params/LockDirectory.hh"
+#include "sim/sim_object.hh"
 
 namespace gem5
 {
 
-class BaseWLEngine : public BaseEngine
+class LockDirectory: public SimObject
 {
   private:
-    std::queue<PacketPtr> updateQueue;
-    std::queue<PacketPtr> responseQueue;
-
-    std::unordered_map<RequestPtr, Addr> requestOffsetMap;
-    std::unordered_map<RequestPtr, uint32_t> requestValueMap;
-
-    //Events
-    EventFunctionWrapper nextWLReadEvent;
-    void processNextWLReadEvent();
-    /* Syncronously checked
-       If there are any active vertecies:
-       create memory read packets + MPU::MPU::MemPortsendTimingReq
-    */
-
-    EventFunctionWrapper nextWLReduceEvent;
-    void processNextWLReduceEvent();
-    /* Activated by MPU::MPUMemPort::recvTimingResp and handleMemResp
-       Perform apply and send the write request and read edgeList
-       read + write
-       Write edgelist loc in buffer
-    */
-  protected:
-    virtual bool sendWLNotif(Addr addr) = 0;
-    virtual bool acquireAddress(Addr addr) = 0;
-    virtual bool releaseAddress(Addr addr) = 0;
-    virtual void scheduleMainEvent() override;
+    std::unordered_map<Addr, RequestorID> lockOwnerMap;
+    std::unordered_map<Addr, int> lockDegreeMap;
 
   public:
+    PARAMS(LockDirectory);
+    LockDirectory(const LockDirectoryParams &params);
 
-    PARAMS(BaseWLEngine);
-
-    BaseWLEngine(const BaseWLEngineParams &params);
-
-    bool handleWLUpdate(PacketPtr pkt);
+    bool acquire(Addr addr, RequestorID requestorId);
+    bool release(Addr addr, RequestorID requestorId);
 };
 
 }
 
-#endif // __ACCL_GRAPH_BASE_BASE_WL_ENGINE_HH__
+#endif
