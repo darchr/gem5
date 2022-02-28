@@ -83,8 +83,8 @@ BaseWLEngine::processNextWLReduceEvent()
     uint32_t value = requestValueMap[resp->req];
     WorkListItem wl =  memoryToWorkList(respData + request_offset);
 
-    DPRINTF(MPU, "%s: The WLE is reading WorkList item: %s\n"
-                , __func__, wl.to_string());
+    DPRINTF(MPU, "%s: The WLE is reading WorkList item: %s %d\n"
+                , __func__, wl.to_string(), value);
     if (value < wl.temp_prop){
         //update prop with temp_prop
         wl.temp_prop = value;
@@ -110,7 +110,7 @@ BaseWLEngine::processNextWLReduceEvent()
     if (!releaseAddress(resp->getAddr())) {
         panic("Could not release an address");
     }
-    std::cout << "success" << std::endl;
+    std::cout << "success "<<  memRespQueue.size() << std::endl;
     if (!nextWLReduceEvent.scheduled() && !memRespQueue.empty()){
             schedule(nextWLReduceEvent, nextCycle());
     }
