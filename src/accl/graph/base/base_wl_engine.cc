@@ -56,16 +56,18 @@ void BaseWLEngine::processNextWLReadEvent()
     uint32_t value = *(pkt->getPtr<uint32_t>());
 
     Addr addr = pkt->getAddr();
-    Addr req_addr = (addr / 64) * 64;
-    Addr req_offset = addr % 64;
+    if (acquireAddress(addr)) {
+        Addr req_addr = (addr / 64) * 64;
+        Addr req_offset = addr % 64;
 
-    PacketPtr memPkt = getReadPacket(req_addr, 64, requestorId);
-    requestOffsetMap[memPkt->req] = req_offset;
-    requestValueMap[memPkt->req] = value;
+        PacketPtr memPkt = getReadPacket(req_addr, 64, requestorId);
+        requestOffsetMap[memPkt->req] = req_offset;
+        requestValueMap[memPkt->req] = value;
 
-    if (!memPortBlocked()) {
-        sendMemReq(memPkt);
-        updateQueue.pop();
+        if (!memPortBlocked()) {
+            sendMemReq(memPkt);
+            updateQueue.pop();
+        }
     }
     if (!nextWLReadEvent.scheduled() && !updateQueue.empty()) {
         schedule(nextWLReadEvent, nextCycle());
@@ -92,7 +94,6 @@ BaseWLEngine::processNextWLReduceEvent()
         PacketPtr writePkt  =
         getWritePacket(resp->getAddr(), 64, respData, requestorId);
 
-
         if (!memPortBlocked()) {
             if (sendWLNotif(resp->getAddr() + request_offset)) {
                 sendMemReq(writePkt);
@@ -106,6 +107,10 @@ BaseWLEngine::processNextWLReduceEvent()
     else {
         memRespQueue.pop();
     }
+    if (!releaseAddress(resp->getAddr())) {
+        panic("Could not release an address");
+    }
+    std::cout << "success" << std::endl;
     if (!nextWLReduceEvent.scheduled() && !memRespQueue.empty()){
             schedule(nextWLReduceEvent, nextCycle());
     }

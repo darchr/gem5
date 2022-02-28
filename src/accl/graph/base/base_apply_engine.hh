@@ -55,7 +55,8 @@ class BaseApplyEngine : public BaseEngine
   protected:
     virtual bool sendApplyNotif(uint32_t prop,
             uint32_t degree, uint32_t edgeIndex) = 0;
-
+    virtual bool acquireAddress(Addr addr) = 0;
+    virtual bool releaseAddress(Addr addr) = 0;
     virtual void scheduleMainEvent() override;
 
   public:

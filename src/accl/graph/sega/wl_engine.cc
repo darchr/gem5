@@ -34,7 +34,8 @@ namespace gem5
 WLEngine::WLEngine(const WLEngineParams &params):
     BaseWLEngine(params),
     respPort(name() + ".respPort", this),
-    applyEngine(params.apply_engine)
+    applyEngine(params.apply_engine),
+    lockDir(params.lock_dir)
 {}
 
 Port&
@@ -137,6 +138,18 @@ WLEngine::recvFunctional(PacketPtr pkt)
     // } else {
         sendMemFunctional(pkt);
     // }
+}
+
+bool
+WLEngine::acquireAddress(Addr addr)
+{
+    return lockDir->acquire(addr, requestorId);
+}
+
+bool
+WLEngine::releaseAddress(Addr addr)
+{
+    return lockDir->release(addr, requestorId);
 }
 
 }
