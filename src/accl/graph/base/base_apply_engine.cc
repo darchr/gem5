@@ -61,14 +61,16 @@ BaseApplyEngine::processNextApplyCheckEvent()
     // pops items off queue, maybe we should pop every n cycles
     // or change the clock domain for this simobject.
     Addr addr = applyReadQueue.front();
-    Addr req_addr = (addr / 64) * 64;
-    Addr req_offset = (addr % 64);
+    if (acquireAddress(addr)) {
+        Addr req_addr = (addr / 64) * 64;
+        Addr req_offset = (addr % 64);
 
-    PacketPtr memPkt = getReadPacket(req_addr, 64, requestorId);
-    requestOffset[memPkt->req] = req_offset;
-    if (!memPortBlocked()) {
-        sendMemReq(memPkt);
-        applyReadQueue.pop();
+        PacketPtr memPkt = getReadPacket(req_addr, 64, requestorId);
+        requestOffset[memPkt->req] = req_offset;
+        if (!memPortBlocked()) {
+            sendMemReq(memPkt);
+            applyReadQueue.pop();
+        }
     }
     if (!applyReadQueue.empty() &&  !nextApplyCheckEvent.scheduled()){
         schedule(nextApplyCheckEvent, nextCycle());
@@ -112,6 +114,9 @@ BaseApplyEngine::processNextApplyEvent()
         }
     } else {
         memRespQueue.pop();
+    }
+    if (!releaseAddress(pkt->getAddr())) {
+        panic("Could not release an address");
     }
     if (!nextApplyEvent.scheduled() && !memRespQueue.empty()){
         schedule(nextApplyEvent, nextCycle());

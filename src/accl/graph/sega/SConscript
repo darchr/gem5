@@ -28,9 +28,11 @@
 Import('*')
 
 SimObject('ApplyEngine.py')
+SimObject('LockDir.py')
 SimObject('PushEngine.py')
 SimObject('WLEngine.py')
 
 Source('apply_engine.cc')
+Source('lock_dir.cc')
 Source('push_engine.cc')
 Source('wl_engine.cc')

@@ -4,10 +4,12 @@ from m5.objects import *
 class MPU(SubSystem):
     def __init__(self):
         super(MPU, self).__init__()
+        self.lock_dir = LockDirectory()
         self.push_engine = PushEngine()
-        self.apply_engine = ApplyEngine(push_engine = self.push_engine)
-        self.wl_engine = WLEngine(apply_engine = self.apply_engine)
+        self.apply_engine = ApplyEngine(push_engine = self.push_engine, lock_dir = self.lock_dir)
+        self.wl_engine = WLEngine(apply_engine = self.apply_engine, lock_dir = self.lock_dir)
         self.interconnect = SystemXBar()
+
 
         self.interconnect.cpu_side_ports = self.wl_engine.mem_port
         self.interconnect.cpu_side_ports = self.apply_engine.mem_port

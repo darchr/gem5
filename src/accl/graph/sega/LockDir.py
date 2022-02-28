@@ -1,5 +1,16 @@
-# -*- coding: utf-8 -*-
-# Copyright (c) 2017 Jason Lowe-Power
+# Copyright (c) 2012-2014, 2017-2018 ARM Limited
+# All rights reserved.
+#
+# The license below extends only to copyright in the software and shall
+# not be construed as granting a license to any other intellectual
+# property including but not limited to intellectual property relating
+# to a hardware implementation of the functionality of the software
+# licensed hereunder.  You may use the software subject to the license
+# terms below provided that you ensure that this notice is replicated
+# unmodified and in its entirety in all distributions of the software,
+# modified or unmodified, in source code or in binary form.
+#
+# Copyright (c) 2007 The Regents of The University of Michigan
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,12 +38,9 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.objects.BaseApplyEngine import BaseApplyEngine
+from m5.SimObject import SimObject
 
-class ApplyEngine(BaseApplyEngine):
-    type = 'ApplyEngine'
-    cxx_header = "accl/graph/sega/apply_engine.hh"
-    cxx_class = 'gem5::ApplyEngine'
-
-    push_engine = Param.PushEngine(Parent.any, "MPU object that owns this ApplyEngine")
-    lock_dir = Param.LockDirectory(NULL, "The lock directory to acquire locks from")
+class LockDirectory(SimObject):
+    type = 'LockDirectory'
+    cxx_header = 'accl/graph/sega/lock_dir.hh'
+    cxx_class = 'gem5::LockDirectory'

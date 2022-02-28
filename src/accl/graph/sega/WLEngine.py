@@ -37,3 +37,4 @@ class WLEngine(BaseWLEngine):
     resp_port = ResponsePort("Port to Receive updates from outside")
     apply_engine = Param.ApplyEngine(Parent.any,
             "MPU object that owns this WLEngine")
+    lock_dir = Param.LockDirectory(NULL, "The lock directory to acquire locks from")
