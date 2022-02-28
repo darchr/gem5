@@ -87,6 +87,9 @@ BaseEngine::MemPort::recvReqRetry()
 bool
 BaseEngine::handleMemResp(PacketPtr pkt)
 {
+    if (pkt->isResponse() && pkt->isWrite()) {
+        return true;
+    }
     memRespQueue.push(pkt);
     scheduleMainEvent();
     return true;
