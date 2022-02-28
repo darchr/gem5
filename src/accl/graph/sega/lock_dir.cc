@@ -40,10 +40,6 @@ LockDirectory::acquire(Addr addr, RequestorID requestorId)
 {
     if (lockOwnerMap.find(addr) == lockOwnerMap.end()) {
         lockOwnerMap[addr] = requestorId;
-        lockDegreeMap[addr] = 1;
-        return true;
-    } else if (lockOwnerMap[addr] == requestorId) {
-        lockDegreeMap[addr] = lockDegreeMap[addr] + 1;
         return true;
     } else {
         return false;
@@ -58,12 +54,8 @@ LockDirectory::release(Addr addr, RequestorID requestorId)
     } else if (lockOwnerMap[addr] != requestorId) {
         panic("Should not release and address you don't own");
     } else {
-        lockDegreeMap[addr] = lockDegreeMap[addr] - 1;
-        if (lockDegreeMap[addr] == 0) {
-            lockDegreeMap.erase(addr);
-            lockOwnerMap.erase(addr);
-            return true;
-        }
+        lockOwnerMap.erase(addr);
+        return true;
     }
     return false;
 }

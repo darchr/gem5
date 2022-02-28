@@ -39,7 +39,8 @@ class SEGA(System):
         self.clk_domain.voltage_domain = VoltageDomain()
 
         self.mpu = MPU()
-        self.mem_ctrl = MemCtrl(dram = DDR4_2400_8x8(range=AddrRange("4GiB")))
+        self.mem_ctrl = SimpleMemory(range=AddrRange("4GiB"), bandwidth="1000GB/s", latency = "30ns")
+        # self.mem_ctrl = MemCtrl(dram = DDR4_2400_8x8(range=AddrRange("4GiB")))
 
         self.mpu.setReqPort(self.mpu.getRespPort())
         self.mpu.setMemPort(self.mem_ctrl.port)
