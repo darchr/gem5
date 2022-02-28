@@ -33,6 +33,7 @@
 #include <unordered_map>
 
 #include "accl/graph/base/base_apply_engine.hh"
+#include "accl/graph/sega/lock_dir.hh"
 #include "accl/graph/sega/push_engine.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
@@ -48,10 +49,13 @@ class ApplyEngine : public BaseApplyEngine
 {
   private:
     PushEngine* pushEngine;
+    LockDirectory* lockDir;
 
   protected:
     virtual bool sendApplyNotif(uint32_t prop,
         uint32_t degree, uint32_t edgeIndex) override;
+    virtual bool acquireAddress(Addr addr) override;
+    virtual bool releaseAddress(Addr addr) override;
 
   public:
     PARAMS(ApplyEngine);

@@ -32,7 +32,8 @@ namespace gem5{
 
 ApplyEngine::ApplyEngine(const ApplyEngineParams &params) :
     BaseApplyEngine(params),
-    pushEngine(params.push_engine)
+    pushEngine(params.push_engine),
+    lockDir(params.lock_dir)
 {}
 
 bool
@@ -40,6 +41,18 @@ ApplyEngine::sendApplyNotif(uint32_t prop, uint32_t degree, uint32_t edgeIndex)
 {
     return pushEngine->recvApplyNotif(prop, degree, edgeIndex);
 
+}
+
+bool
+ApplyEngine::acquireAddress(Addr addr)
+{
+    return lockDir->acquire(addr, requestorId);
+}
+
+bool
+ApplyEngine::releaseAddress(Addr addr)
+{
+    return lockDir->release(addr, requestorId);
 }
 
 }
