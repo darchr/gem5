@@ -1,3 +1,5 @@
 TARGET_ISA = 'riscv'
 CPU_MODELS = 'AtomicSimpleCPU,TimingSimpleCPU,MinorCPU,O3CPU'
 PROTOCOL = 'MI_example'
+RISCV_VLEN = '32768'
+RISCV_ELEN = '1024'

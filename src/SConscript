@@ -508,6 +508,27 @@ def makeTheISA(source, target, env):
 env.Command('config/the_isa.hh', [],
             MakeAction(makeTheISA, Transform("CFG ISA", 0)))
 
+def makeTheVectorHeaders(source, target, env):
+    # FIXME: This doesn't currently pick up the values from
+    # the config file. We have to set them in the environment.
+    riscv_vlen = env['RISCV_VLEN']
+    riscv_elen = env['RISCV_ELEN']
+
+    code = code_formatter()
+    code('''\
+#ifndef __ARCH_RISCV_VEC_PARAMS_HH__
+#define __ARCH_RISCV_VEC_PARAMS_HH__
+
+#define RISCV_VLEN $riscv_vlen
+#define RISCV_ELEN $riscv_elen
+
+#endif // __ARCH_RISCV_VEC_PARAMS_HH__''')
+
+    code.write(str(target[0]))
+
+env.Command('arch/riscv/vec_params.hh', [],
+            MakeAction(makeTheVectorHeaders, Transform("Vector Headers", 0)))
+
 def makeTheGPUISA(source, target, env):
     gpu_isa = env['TARGET_GPU_ISA']
 
