@@ -121,7 +121,7 @@ BasePushEngine::processNextPushEvent()
         PacketPtr update = getUpdatePacket(e.neighbor,
             sizeof(uint32_t) / sizeof(uint8_t), (uint8_t*) update_data,
             requestorId);
-        if (sendPushUpdate(update)) {
+        if (sendPushUpdate(update) && (i == num_edges - 1)) {
             memRespQueue.pop();
             DPRINTF(MPU, "%s: Reading  %s, updating with %d\n"
                 , __func__, e.to_string(), *update_data);

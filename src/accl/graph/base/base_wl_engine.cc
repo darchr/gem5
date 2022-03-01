@@ -56,10 +56,9 @@ void BaseWLEngine::processNextWLReadEvent()
     uint32_t value = *(pkt->getPtr<uint32_t>());
 
     Addr addr = pkt->getAddr();
-    if (acquireAddress(addr)) {
-        Addr req_addr = (addr / 64) * 64;
-        Addr req_offset = addr % 64;
-
+    Addr req_addr = (addr / 64) * 64;
+    Addr req_offset = addr % 64;
+    if (acquireAddress(req_addr)) {
         PacketPtr memPkt = getReadPacket(req_addr, 64, requestorId);
         requestOffsetMap[memPkt->req] = req_offset;
         requestValueMap[memPkt->req] = value;
@@ -98,7 +97,7 @@ BaseWLEngine::processNextWLReduceEvent()
             if (sendWLNotif(resp->getAddr() + request_offset)) {
                 sendMemReq(writePkt);
                 memRespQueue.pop();
-                DPRINTF(MPU, "%s: The WLE is chanching to: %s\n"
+                DPRINTF(MPU, "%s: The WLE is changing to: %s\n"
                 , __func__, wl.to_string());
                 // TODO: Erase map entries, delete wlData;
             }
@@ -110,7 +109,6 @@ BaseWLEngine::processNextWLReduceEvent()
     if (!releaseAddress(resp->getAddr())) {
         panic("Could not release an address");
     }
-    std::cout << "success "<<  memRespQueue.size() << std::endl;
     if (!nextWLReduceEvent.scheduled() && !memRespQueue.empty()){
             schedule(nextWLReduceEvent, nextCycle());
     }
