@@ -187,6 +187,15 @@ enum MiscRegIndex
     MISCREG_FFLAGS,
     MISCREG_FRM,
 
+    // Vector spec registers.
+    MISCREG_VSTART,
+    MISCREG_VXSAT,
+    MISCREG_VXRM,
+    MISCREG_VCSR,
+    MISCREG_VL,
+    MISCREG_VTYPE,
+    MISCREG_VLENB,
+
     // These registers are not in the standard, hence does not exist in the
     // CSRData map. These are mainly used to provide a minimal implementation
     // for non-maskable-interrupt in our simple cpu.
@@ -364,7 +373,16 @@ enum CSRIndex
     CSR_TDATA3 = 0x7A3,
     CSR_DCSR = 0x7B0,
     CSR_DPC = 0x7B1,
-    CSR_DSCRATCH = 0x7B2
+    CSR_DSCRATCH = 0x7B2,
+
+    // CSR for risc-v vector extension
+    CSR_VSTART       = 0x008,
+    CSR_VXSAT        = 0x009,
+    CSR_VXRM         = 0x00A,
+    CSR_VCSR         = 0x00F,
+    CSR_VL           = 0xC20,
+    CSR_VTYPE        = 0xC21,
+    CSR_VLENB        = 0xC22
 };
 
 struct CSRMetadata
@@ -534,7 +552,15 @@ const std::map<int, CSRMetadata> CSRData = {
     {CSR_TDATA3, {"tdata3", MISCREG_TDATA3}},
     {CSR_DCSR, {"dcsr", MISCREG_DCSR}},
     {CSR_DPC, {"dpc", MISCREG_DPC}},
-    {CSR_DSCRATCH, {"dscratch", MISCREG_DSCRATCH}}
+    {CSR_DSCRATCH, {"dscratch", MISCREG_DSCRATCH}},
+
+    {CSR_VSTART,       {"vstart", MISCREG_VSTART}},
+    {CSR_VXSAT,        {"vxsat" , MISCREG_VXSAT}},
+    {CSR_VXRM,         {"vxrm"  , MISCREG_VXRM}},
+    {CSR_VCSR,         {"vcsr"  , MISCREG_VCSR}},
+    {CSR_VL,           {"vl"    , MISCREG_VL}},
+    {CSR_VTYPE,        {"vtype" , MISCREG_VTYPE}},
+    {CSR_VLENB,        {"vlenb" , MISCREG_VLENB}}
 };
 
 /**
