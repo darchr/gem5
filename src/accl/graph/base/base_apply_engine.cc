@@ -86,8 +86,8 @@ BaseApplyEngine::processNextApplyEvent()
     Addr request_offset = requestOffset[request];
 
     WorkListItem wl = memoryToWorkList(data + request_offset);
-    DPRINTF(MPU, "%s: Apply Engine is reading WorkList Item: %s\n"
-                , __func__, wl.to_string());
+    DPRINTF(MPU, "%s: Apply Engine is reading WorkList Item[%lu]: %s\n"
+                , __func__, pkt->getAddr() + request_offset, wl.to_string());
     // FIXME: Not so much of a fixme. However, why do we fwd a worklistitem
     // to applyengine if temp_prop < prop. If temp_prop has not changed, why
     // fwd it to applyengine?
@@ -102,13 +102,17 @@ BaseApplyEngine::processNextApplyEvent()
         PacketPtr writePkt  =
         getWritePacket(pkt->getAddr(), 64, data, requestorId);
 
+        DPRINTF(MPU, "%s: Sending a pkt with this info. "
+                "pkt->addr: %lu, pkt->size: %lu\npkt->data: %s\n",
+                __func__, writePkt->getAddr(),
+                writePkt->getSize(), writePkt->printData());
+
         if (!memPortBlocked()) {
             if (sendApplyNotif(wl.prop, wl.degree, wl.edgeIndex)) {
                 sendMemReq(writePkt);
                 memRespQueue.pop();
-                DPRINTF(MPU, "%s: The Apply Engine is applying the new value",
-                              "into WorkList Item: %s\n"
-                              , __func__, wl.to_string());
+                DPRINTF(MPU, "%s: The Apply Engine is applying the new value into WorkList Item[%lu]: %s\n"
+                              , __func__, pkt->getAddr() + request_offset, wl.to_string());
             }
         }
     } else {
