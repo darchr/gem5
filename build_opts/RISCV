@@ -1,2 +1,4 @@
 TARGET_ISA = 'riscv'
 PROTOCOL = 'MI_example'
+RISCV_VLEN = '32768'
+RISCV_ELEN = '1024'
