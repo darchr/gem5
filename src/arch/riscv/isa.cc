@@ -189,6 +189,14 @@ namespace RiscvISA
     [MISCREG_FFLAGS]        = "FFLAGS",
     [MISCREG_FRM]           = "FRM",
 
+    [MISCREG_VSTART]        = "VSTART",
+    [MISCREG_VXSAT]         = "VXSAT",
+    [MISCREG_VXRM]          = "VXRM",
+    [MISCREG_VCSR]          = "VCSR",
+    [MISCREG_VL]            = "VL",
+    [MISCREG_VTYPE]         = "VTYPE",
+    [MISCREG_VLENB]         = "VLENB",
+
     [MISCREG_NMIVEC]        = "NMIVEC",
     [MISCREG_NMIE]          = "NMIE",
     [MISCREG_NMIP]          = "NMIP",
@@ -246,6 +254,8 @@ void ISA::clear()
     miscRegFile[MISCREG_TSELECT] = 1;
     // NMI is always enabled.
     miscRegFile[MISCREG_NMIE] = 1;
+
+    miscRegFile[MISCREG_VLENB] = RISCV_VLEN/8;
 }
 
 bool
