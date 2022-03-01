@@ -54,18 +54,19 @@ WLEngine::startup()
     //FIXME: This is the current version of our initializer.
     // This should be updated in the future.
     WorkListItem vertices [5] = {
-                                {1000, 1000, 3, 0}, // Addr: 0
-                                {1000, 1000, 1, 3}, // Addr: 16
-                                {1000, 1000, 1, 4}, // Addr: 32
-                                {10000, 1000, 0, 5}, // Addr: 48
-                                {10000, 10000, 0, 5}  // Addr: 64
+                                {10000, 10000, 3, 0}, // Addr: 0
+                                {10000, 10000, 1, 3}, // Addr: 16
+                                {10000, 10000, 1, 4}, // Addr: 32
+                                {10000, 10000, 1, 5}, // Addr: 48
+                                {10000, 10000, 0, 6}  // Addr: 64
                                 };
-    Edge edges [6] = {
+    Edge edges [7] = {
                     {0, 16}, // Addr: 1048576
                     {0, 32}, // Addr: 1048592
                     {0, 48}, // Addr: 1048608
                     {0, 32}, // Addr: 1048624
-                    {0, 64}  // Addr: 1048640
+                    {0, 64},  // Addr: 1048640
+                    {0, 32}
                     };
 
     for (int i = 0; i < 5; i++) {
@@ -75,7 +76,7 @@ WLEngine::startup()
         sendMemFunctional(pkt);
     }
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 7; i++) {
         uint8_t* data = edgeToMemory(edges[i]);
         PacketPtr pkt = getWritePacket(1048576 + i * sizeof(Edge),
                                         16, data, 0);

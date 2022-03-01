@@ -1387,6 +1387,8 @@ class Packet : public Printable, public Extensible<Packet>
     template <typename T>
     void setRaw(T v);
 
+    std::string printData();
+
   public:
     /**
      * Check a functional request against a memory value stored in
