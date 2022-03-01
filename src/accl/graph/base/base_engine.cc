@@ -27,7 +27,7 @@
  */
 
 #include "accl/graph/base/base_engine.hh"
-
+#include "debug/MPU.hh"
 namespace gem5
 {
 
@@ -36,7 +36,9 @@ BaseEngine::BaseEngine(const BaseEngineParams &params) :
     system(params.system),
     memPort(name() + ".memPort", this),
     requestorId(system->getRequestorId(this))
-{}
+{
+    DPRINTF(MPU, "%s: My requestorId is %u,\n", __func__, requestorId);
+}
 
 BaseEngine::~BaseEngine()
 {}

@@ -50,6 +50,6 @@ root = Root(full_system = False, system = system)
 
 m5.instantiate()
 
-exit_event = m5.simulate()
+exit_event = m5.simulate(1000000)
 print("Simulation finished!")
 exit()
