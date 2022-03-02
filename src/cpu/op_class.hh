@@ -105,6 +105,25 @@ static const OpClass FloatMemReadOp = enums::FloatMemRead;
 static const OpClass FloatMemWriteOp = enums::FloatMemWrite;
 static const OpClass IprAccessOp = enums::IprAccess;
 static const OpClass InstPrefetchOp = enums::InstPrefetch;
+
+static const OpClass VectorCfgOpClass = enums::VectorCfg;
+static const OpClass VectorUnitStrideMemLoadOpClass = enums::VectorUnitStrideMemLoad;
+static const OpClass VectorStridedMemLoadOpClass = enums::VectorStridedMemLoad;
+static const OpClass VectorStridedMemStoreOpClass = enums::VectorStridedMemStore;
+static const OpClass VectorIndexedMemLoadOpClass = enums::VectorIndexedMemLoad;
+static const OpClass VectorIndexedMemStoreOpClass = enums::VectorIndexedMemStore;
+static const OpClass VectorUnitStrideMemStoreOpClass = enums::VectorUnitStrideMemStore;
+static const OpClass VectorOPIVIOpClass = enums::VectorOPIVI;
+static const OpClass VectorVFUNARY0OpClass = enums::VectorVFUNARY0;
+static const OpClass VectorVMUNARY0OpClass = enums::VectorVMUNARY0;
+static const OpClass VectorVRFUNARY0OpClass = enums::VectorVRFUNARY0;
+static const OpClass VectorVRXUNARY0OpClass = enums::VectorVRXUNARY0;
+static const OpClass VectorVWXUNARY0OpClass = enums::VectorVWXUNARY0;
+static const OpClass VectorVdVs2Fs1OpClass = enums::VectorVdVs2Fs1;
+static const OpClass VectorVdVs2Rs1OpClass = enums::VectorVdVs2Rs1;
+static const OpClass VectorVdVs2Vs1OpClass = enums::VectorVdVs2Vs1Op;
+static const OpClass VectorWideningVdVs2OpClass = enums::VectorWideningVdVs2;
+
 static const OpClass Num_OpClasses = enums::Num_OpClass;
 
 } // namespace gem5
