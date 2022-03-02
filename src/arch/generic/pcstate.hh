@@ -60,6 +60,9 @@ class PCStateBase : public Serializable
     Addr _pc = 0;
     MicroPC _upc = 0;
 
+    uint32_t _vtype;
+    uint32_t _vl;
+
     PCStateBase(const PCStateBase &other) : _pc(other._pc), _upc(other._upc) {}
     PCStateBase &operator=(const PCStateBase &other) = default;
     PCStateBase() {}
@@ -141,6 +144,20 @@ class PCStateBase : public Serializable
     {
         UNSERIALIZE_SCALAR(_pc);
         UNSERIALIZE_SCALAR(_upc);
+    }
+
+    void set_vtype(uint32_t vtype) {
+        _vtype = vtype;
+    }
+    uint32_t get_vtype() {
+        return _vtype;
+    }
+
+    void set_vl(uint32_t vl) {
+        _vl = vl;
+    }
+    uint32_t get_vl() {
+        return _vl;
     }
 };
 

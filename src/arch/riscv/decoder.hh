@@ -58,12 +58,20 @@ class Decoder : public InstDecoder
     ExtMachInst emi;
     uint32_t machInst;
 
-    StaticInstPtr decodeInst(ExtMachInst mach_inst);
+    StaticInstPtr decodeInst(ExtMachInst mach_inst,
+                             RiscvISA::VTYPE mach_vtype,
+                             uint32_t mach_vl);
 
     /// Decode a machine instruction.
     /// @param mach_inst The binary instruction to decode.
+    /// @param mach_vtype The current VTYPE CSR value.
+    /// @param mach_vl The current VL CSR value
     /// @retval A pointer to the corresponding StaticInst object.
-    StaticInstPtr decode(ExtMachInst mach_inst, Addr addr);
+    StaticInstPtr decode(ExtMachInst mach_inst, Addr addr,
+                         RiscvISA::VTYPE mach_vtype,
+                         uint32_t mach_vl);
+
+    StaticInstPtr decode(PCStateBase &nextPC) override;
 
   public:
     Decoder(const RiscvDecoderParams &p) : InstDecoder(p, &machInst)
@@ -78,8 +86,6 @@ class Decoder : public InstDecoder
     //Use this to give data to the decoder. This should be used
     //when there is control flow.
     void moreBytes(const PCStateBase &pc, Addr fetchPC) override;
-
-    StaticInstPtr decode(PCStateBase &nextPC) override;
 };
 
 } // namespace RiscvISA
