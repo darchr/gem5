@@ -80,7 +80,7 @@ SimpleThread::SimpleThread(BaseCPU *_cpu, int _thread_num, System *_sys,
     const auto &regClasses = isa->regClasses();
     intRegs.resize(regClasses.at(IntRegClass).size());
     floatRegs.resize(regClasses.at(FloatRegClass).size());
-    vecRegs.resize(regClasses.at(VecRegClass).size());
+    vecRegs.resize(RiscvISA::NumVecRegs);
     vecElemRegs.resize(regClasses.at(VecElemClass).size());
     vecPredRegs.resize(regClasses.at(VecPredRegClass).size());
     ccRegs.resize(regClasses.at(CCRegClass).size());
