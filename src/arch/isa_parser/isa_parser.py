@@ -403,6 +403,7 @@ class InstObjParams(object):
         header += '\n\t_numSrcRegs = 0;'
         header += '\n\t_numDestRegs = 0;'
         header += '\n\t_numFPDestRegs = 0;'
+        header += '\n\t_numVecSrcRegs = 0;'
         header += '\n\t_numVecDestRegs = 0;'
         header += '\n\t_numVecElemDestRegs = 0;'
         header += '\n\t_numVecPredDestRegs = 0;'

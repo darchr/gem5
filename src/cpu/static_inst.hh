@@ -120,6 +120,7 @@ class StaticInst : public RefCounted, public StaticInstFlags
 
     /** To use in architectures with vector register file. */
     /** @{ */
+    int8_t _numVecSrcRegs = 0;
     int8_t _numVecDestRegs = 0;
     int8_t _numVecElemDestRegs = 0;
     int8_t _numVecPredDestRegs = 0;
@@ -142,6 +143,8 @@ class StaticInst : public RefCounted, public StaticInstFlags
     int8_t numFPDestRegs()  const { return _numFPDestRegs; }
     /// Number of integer destination regs.
     int8_t numIntDestRegs() const { return _numIntDestRegs; }
+    /// Number of vector source regs.
+    int8_t numVecSrcRegs() const { return _numVecSrcRegs; }
     /// Number of vector destination regs.
     int8_t numVecDestRegs() const { return _numVecDestRegs; }
     /// Number of vector element destination regs.
