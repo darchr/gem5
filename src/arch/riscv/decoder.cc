@@ -80,14 +80,18 @@ Decoder::moreBytes(const PCStateBase &pc, Addr fetchPC)
 }
 
 StaticInstPtr
-Decoder::decode(ExtMachInst mach_inst, Addr addr)
+Decoder::decode(ExtMachInst mach_inst,
+                Addr addr,
+                RiscvISA::VTYPE mach_vtype,
+                uint32_t mach_vl)
 {
     DPRINTF(Decode, "Decoding instruction 0x%08x at address %#x\n",
             mach_inst, addr);
 
     StaticInstPtr &si = instMap[mach_inst];
-    if (!si)
-        si = decodeInst(mach_inst);
+    if (!si || si->isVector()) {
+        si = decodeInst(mach_inst, mach_vtype, mach_vl);
+    }
 
     DPRINTF(Decode, "Decode: Decoded %s instruction: %#x\n",
             si->getName(), mach_inst);
@@ -111,7 +115,7 @@ Decoder::decode(PCStateBase &_next_pc)
         next_pc.compressed(false);
     }
 
-    return decode(emi, next_pc.instAddr());
+    return decode(emi, _next_pc.instAddr(), _next_pc.get_vtype(), _next_pc.get_vl());
 }
 
 } // namespace RiscvISA
