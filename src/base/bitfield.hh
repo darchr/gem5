@@ -150,6 +150,108 @@ szext(uint64_t val)
 }
 
 /**
+ * Generate a 128-bit mask with N-bits set.
+ *
+ * @ingroup api_bitfield
+ */
+
+constexpr __uint128_t
+mask128(unsigned nbits)
+{
+    return (nbits >= 128) ? (__uint128_t)__int128_t(-1) : (__uint128_t(1) << nbits) - 1;
+}
+
+/**
+ * Sign-extend an N-bit value to 128 bits.
+ *
+ * @ingroup api_bitfield
+ */
+constexpr __uint128_t
+sext(__uint128_t val, int N)
+{
+    bool sign_bit = bits(val, N - 1);
+    if (sign_bit)
+        val |= ~mask128(N);
+    return val;
+}
+
+/**
+ * @ingroup api_bitfield
+ */
+constexpr int64_t
+sadd64(int64_t a, int64_t b, bool &sat) {
+    sat = false;
+    if (a > 0) {
+        if (b > INT64_MAX - a) {
+            sat = true;
+            return INT64_MAX;
+        }
+    } else if (b < INT64_MIN - a) {
+            sat = true;
+            return INT64_MIN;
+    }
+
+    return a + b;
+}
+
+/**
+ * @ingroup api_bitfield
+ */
+constexpr int32_t
+sadd32(int32_t a, int32_t b, bool &sat) {
+    sat = false;
+    if (a > 0) {
+        if (b > INT32_MAX - a) {
+            sat = true;
+            return INT32_MAX;
+        }
+    } else if (b < INT32_MIN - a) {
+            sat = true;
+            return INT32_MIN;
+    }
+
+    return a + b;
+}
+
+/**
+ * @ingroup api_bitfield
+ */
+constexpr int16_t
+sadd16(int16_t a, int16_t b, bool &sat) {
+    sat = false;
+    if (a > 0) {
+        if (b > INT16_MAX - a) {
+            sat = true;
+            return INT16_MAX;
+        }
+    } else if (b < INT16_MIN - a) {
+            sat = true;
+            return INT16_MIN;
+    }
+
+    return a + b;
+}
+
+/**
+ * @ingroup api_bitfield
+ */
+constexpr int8_t
+sadd8(int8_t a, int8_t b, bool &sat) {
+    sat = false;
+    if (a > 0) {
+        if (b > INT8_MAX - a) {
+            sat = true;
+            return INT8_MAX;
+        }
+    } else if (b < INT8_MIN - a) {
+            sat = true;
+            return INT8_MIN;
+    }
+
+    return a + b;
+}
+
+/**
  * Returns val with bits first to last set to the LSBs of bit_val
  *
  * E.g.:
