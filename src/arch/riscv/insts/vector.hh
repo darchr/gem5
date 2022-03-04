@@ -154,6 +154,43 @@ class VectorVdVs2Vs1Op : public VectorInsn
             const loader::SymbolTable *symtab) const;
     };
 
+class VectorNarrowingVIOp : public VectorInsn
+    {
+      public:
+        VectorNarrowingVIOp(const char *mnem, ExtMachInst _machInst,
+            OpClass __opClass) :
+            VectorInsn(mnem, _machInst, __opClass)
+        {}
+
+        std::string generateDisassembly(Addr pc,
+            const loader::SymbolTable *symtab) const;
+    };
+
+class VectorNarrowingVVOp : public VectorInsn
+    {
+      public:
+        VectorNarrowingVVOp(const char *mnem, ExtMachInst _machInst,
+            OpClass __opClass) :
+            VectorInsn(mnem, _machInst, __opClass)
+        {}
+
+        std::string generateDisassembly(Addr pc,
+            const loader::SymbolTable *symtab) const;
+    };
+
+class VectorNarrowingVXOp : public VectorInsn
+    {
+      public:
+        VectorNarrowingVXOp(const char *mnem, ExtMachInst _machInst,
+            OpClass __opClass) :
+            VectorInsn(mnem, _machInst, __opClass)
+        {}
+
+        std::string generateDisassembly(Addr pc,
+            const loader::SymbolTable *symtab) const;
+    };
+
+
 class VectorUnitStrideMemLoadOp : public VectorMemInst
     {
       public:
