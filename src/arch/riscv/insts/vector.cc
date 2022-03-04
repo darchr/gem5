@@ -164,6 +164,50 @@ VectorVdVs2Vs1Op::generateDisassembly(Addr pc,
     }
     return ss.str();
 }
+string
+VectorNarrowingVIOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << VectorRegNames[vd()] << ", ";
+    ss << VectorRegNames[vs2()] << ", ";
+    ss << csprintf("%d", uimm5());
+    if (vm()==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+string
+VectorNarrowingVVOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << VectorRegNames[vd()] << ", ";
+    ss << VectorRegNames[vs2()] << ", ";
+    ss << VectorRegNames[vs1()];
+    if (vm()==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+string
+VectorNarrowingVXOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << VectorRegNames[vd()] << ", ";
+    ss << VectorRegNames[vs2()] << ", ";
+    ss << VectorRegNames[rs1()];
+    if (vm()==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
 
 string
 VectorUnitStrideMemLoadOp::generateDisassembly(Addr pc,
