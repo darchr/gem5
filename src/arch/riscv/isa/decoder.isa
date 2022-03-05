@@ -2929,6 +2929,52 @@ decode QUADRANT default Unknown::unknown() {
                 }});
             }
             0x3: decode VFUNC_6 { // OPIVI
+                0x0: VectorOPIVIOp::vadd_vi({{
+                    __int128_t simm = sext<5>(UIMM5);
+                    Vd_vc[regElemID] = Vs2_vc[regElemID] + simm;
+                }});
+                0x18: VectorIntegerCompareVIOp::vmseq_vi({{
+                    uint8_t result = Vs2_vc[regElemID] == UIMM5;
+                }});
+                0x1d: VectorIntegerCompareVIOp::vmsle_vi({{
+                    int64_t src1 = sext<5>(UIMM5);
+                    int64_t src2 = sext(Vs2_vc[regElemID], sewb * 8);
+                    uint8_t result = src2 <= src1;
+                }});
+                0x19: VectorIntegerCompareVIOp::vmsne_vi({{
+                    uint8_t result = Vs2_vc[regElemID] != UIMM5;
+                }});
+                0x0c: VectorOPIVIOp::vrgather_vi({{
+                    uint32_t vlmax = getVlmax(vtype, xc->readMiscReg(MISCREG_VLENB) * 8);
+                    Vd_vc[regElemID] =
+                        (UIMM5 >= vlmax) ? 0 : Vs2_vc[UIMM5];
+                }});
+                0x03: VectorOPIVIOp::vrsub_vi({{
+                    __int128_t simm = sext<5>(UIMM5);
+                    Vd_vc[regElemID] = simm - Vs2_vc[regElemID];
+                }});
+                0x25: VectorOPIVIOp::vsll_vi({{
+                    Vd_vc[regElemID] =
+                        Vs2_vc[regElemID] << (UIMM5 & ((sewb * 8) - 1));
+                }});
+                0x29: VectorOPIVIOp::vsra_vi({{
+                    Vd_vc[regElemID] = Vs2_vc[regElemID] >> (UIMM5 & ((sewb * 8) - 1));
+                }});
+                0x28: VectorOPIVIOp::vsrl_vi({{
+                    Vd_vc[regElemID] = Vs2_vc[regElemID] >> (UIMM5 & ((sewb * 8) - 1));
+                }});
+                0x2a: VectorOPIVIOp::vssrl_vi({{
+                    int sh = UIMM5 & ((sewb * 8) - 1);
+                    __uint128_t val = Vs2_vc[regElemID];
+
+                    roundUnsignedInteger(val, xc->readMiscReg(MISCREG_VXRM), sh);
+                    Vd_vc[regElemID] = val >> sh;
+                }});
+                0x0b: VectorOPIVIOp::vxor_vi({{
+                    __int128_t simm = sext<5>(UIMM5);
+                    Vd_vc[regElemID] = Vs2_vc[regElemID] ^ simm;
+                }});
+
                 0x0e: VectorOPIVIOp::vslideup_vi({{
                     // We can't handle more than 1 destination vector reg yet.
                     assert(_numVecDestRegs == 1);
