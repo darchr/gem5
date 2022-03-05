@@ -69,6 +69,7 @@ class OpClass(Enum):
             'VectorNarrowingVV',
             'VectorNarrowingVI',
             'VectorNarrowingVX',
+            'VectorWideningVX',
             'VectorVdVs2Vs1Op',
             'VectorVRXUNARY0',
             'VectorVRFUNARY0',
