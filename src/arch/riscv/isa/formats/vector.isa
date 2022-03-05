@@ -240,7 +240,7 @@ def template VectorVdMaskVs2Rs1Constructor {{
     }
 }};
 
-def template VectorWideningVdVs2Rs1Constructor {{
+def template VectorWideningVXConstructor {{
     %(class_name)s::%(class_name)s(MachInst machInst, RiscvISA::VTYPE machVtype, uint32_t machVl)
         : %(base_class)s("%(mnemonic)s", machInst, VectorVdVs2Rs1OpClass)
     {
@@ -1851,7 +1851,7 @@ def template VectorVdMaskVs2Rs1Execute {{
     }
 }};
 
-def template VectorWideningVdVs2Rs1Execute {{
+def template VectorWideningVXExecute {{
     Fault
     %(class_name)s::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
@@ -4264,6 +4264,30 @@ def template VectorNarrowingVXDeclare {{
     };
 }};
 
+def template VectorWideningVXDeclare {{
+    //
+    // Static instruction class for "%(mnemonic)s".
+    //
+    class %(class_name)s : public %(base_class)s
+    {
+      private:
+        // Example:
+        // vwsub.vx       31..26=0x33 vm vs2 rs1 14..12=0x6 vd 6..0=0x57
+        // Sources: up to 8 vector regs starting at Vs2 and
+        //          Rs1 and
+        //          1 mask register.
+        RegId srcRegIdxArr[8 + 1 + 1];
+        // Destinations: up to 8 vector regs starting at Vd
+        RegId destRegIdxArr[8];
+
+      public:
+        /// Constructor.
+        %(class_name)s(MachInst machInst, RiscvISA::VTYPE vtype, uint32_t vl);
+        Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        using %(base_class)s::generateDisassembly;
+    };
+}};
+
 def template VectorNarrowingVVDeclare {{
     //
     // Static instruction class for "%(mnemonic)s".
@@ -4513,12 +4537,12 @@ def format VectorVdMaskVs2Rs1Op(code, *opt_flags) {{
     exec_output = VectorVdMaskVs2Rs1Execute.subst(iop)
 }};
 
-def format VectorWideningVdVs2Rs1Op(code, *opt_flags) {{
-    iop = InstObjParams(name, Name, 'VectorVdVs2Rs1Op', code, opt_flags)
-    header_output = VectorVdVs2Rs1Declare.subst(iop)
-    decoder_output = VectorWideningVdVs2Rs1Constructor.subst(iop)
+def format VectorWideningVXOp(code, *opt_flags) {{
+    iop = InstObjParams(name, Name, 'VectorWideningVXOp', code, opt_flags)
+    header_output = VectorWideningVXDeclare.subst(iop)
+    decoder_output = VectorWideningVXConstructor.subst(iop)
     decode_block = VectorDecode.subst(iop)
-    exec_output = VectorWideningVdVs2Rs1Execute.subst(iop)
+    exec_output = VectorWideningVXExecute.subst(iop)
 }};
 
 def format VectorWideningFPReductionOp(code, *opt_flags) {{

@@ -3474,41 +3474,41 @@ decode QUADRANT default Unknown::unknown() {
                     Vd_vc[regElemID] = Rs1_ud * Vs2[regElemID] + Vd_vc[regElemID];
                 }});
     //            0x2f: VectorVdVs2Rs1Op::vnmsac_vx();
-                0x30: VectorWideningVdVs2Rs1Op::vwaddu_vx({{
+                0x30: VectorWideningVXOp::vwaddu_vx({{
                     Vd_vc[destRegElemID] = Rs1_ud + Vs2_vc[srcRegElemID];
                 }});
-    //            0x31: VectorWideningVdVs2Rs1Op::vwadd_vx();
-                0x32: VectorWideningVdVs2Rs1Op::vwsubu_vx({{
+    //            0x31: VectorWideningVXOp::vwadd_vx();
+                0x32: VectorWideningVXOp::vwsubu_vx({{
                     Vd_vc[destRegElemID] = Vs2_vc[srcRegElemID] - Rs1_ud;
                 }});
-    //            0x33: VectorWideningVdVs2Rs1Op::vwsub_vx();
-    //            0x34: VectorWideningVdVs2Rs1Op::vwaddu.wx();
-    //            0x35: VectorWideningVdVs2Rs1Op::vwadd.wx();
-    //            0x36: VectorWideningVdVs2Rs1Op::vwsubu.wx();
-    //            0x37: VectorWideningVdVs2Rs1Op::vwsub.wx();
-                0x38: VectorWideningVdVs2Rs1Op::vwmulu_vx({{
+    //            0x33: VectorWideningVXOp::vwsub_vx();
+    //            0x34: VectorWideningVXOp::vwaddu.wx();
+    //            0x35: VectorWideningVXOp::vwadd.wx();
+    //            0x36: VectorWideningVXOp::vwsubu.wx();
+    //            0x37: VectorWideningVXOp::vwsub.wx();
+                0x38: VectorWideningVXOp::vwmulu_vx({{
                     Vd_vc[destRegElemID] = Rs1_ud * Vs2[srcRegElemID];
                 }});
-                0x3a: VectorWideningVdVs2Rs1Op::vwmulsu_vx({{
+                0x3a: VectorWideningVXOp::vwmulsu_vx({{
                     __int128_t src1 = sext(Vs2[srcRegElemID], sewb * 8);
                     Vd_vc[destRegElemID] = Rs1_ud * src1;
                 }});
-                0x3b: VectorWideningVdVs2Rs1Op::vwmul_vx({{
+                0x3b: VectorWideningVXOp::vwmul_vx({{
                     __int128_t src1 = sext(Vs2[srcRegElemID], sewb * 8);
                     __int128_t src2 = sext(Rs1_ud, sewb * 8);
                     Vd_vc[destRegElemID] = src2 * src1;
                 }});
-                0x3c: VectorWideningVdVs2Rs1Op::vwmaccu_vx({{
+                0x3c: VectorWideningVXOp::vwmaccu_vx({{
                     Vd_vc[destRegElemID] = Rs1_ud * Vs2[srcRegElemID] + Vd_vc[destRegElemID];
                 }});
-                0x3d: VectorWideningVdVs2Rs1Op::vwmacc_vx({{
+                0x3d: VectorWideningVXOp::vwmacc_vx({{
                     __int128_t src1 = sext(Vs2[srcRegElemID], sewb * 8);
                     __int128_t src2 = sext(Rs1_ud, sewb * 8);
                     __int128_t dst = sext(Vd_vc[destRegElemID], sewb * 8 * 2);
                     Vd_vc[destRegElemID] = (__int128_t) src2 * src1 + dst;
                 }});
-    //            0x3e: VectorWideningVdVs2Rs1Op::vwmaccus_vx();
-    //            0x3f: VectorWideningVdVs2Rs1Op::vwmaccsu_vx();
+    //            0x3e: VectorWideningVXOp::vwmaccus_vx();
+    //            0x3f: VectorWideningVXOp::vwmaccsu_vx();
             }
             0x7: decode BIT31 { // Configuration-Setting
                 0x0: VectorCfgOp::vsetvli({{
