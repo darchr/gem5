@@ -190,6 +190,18 @@ class VectorNarrowingVXOp : public VectorInsn
             const loader::SymbolTable *symtab) const;
     };
 
+class VectorIntegerExtensionOp : public VectorInsn
+    {
+      public:
+        VectorIntegerExtensionOp(const char *mnem, ExtMachInst _machInst,
+            OpClass __opClass) :
+            VectorInsn(mnem, _machInst, __opClass)
+        {}
+
+        std::string generateDisassembly(Addr pc,
+            const Loader::SymbolTable *symtab) const;
+    };
+
 class VectorWideningVXOp : public VectorInsn
     {
       public:
