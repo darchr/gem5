@@ -127,6 +127,7 @@ static const OpClass VectorNarrowingVVOpClass = enums::VectorNarrowingVV;
 static const OpClass VectorNarrowingVIOpClass = enums::VectorNarrowingVI;
 static const OpClass VectorNarrowingVXOpClass = enums::VectorNarrowingVX;
 static const OpClass VectorWideningVXOpClass = enums::VectorWideningVX;
+static const OpClass VectorIntegerExtensionOpClass = enums::VectorIntegerExtension;
 
 static const OpClass Num_OpClasses = enums::Num_OpClass;
 

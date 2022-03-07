@@ -76,6 +76,7 @@ class OpClass(Enum):
             'VectorVFUNARY0',
             'VectorVWXUNARY0',
             'VectorVMUNARY0',
+            'VectorIntegerExtension',
             'VectorCfg']
 
 class OpDesc(SimObject):

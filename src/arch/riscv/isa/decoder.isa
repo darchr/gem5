@@ -2914,6 +2914,26 @@ decode QUADRANT default Unknown::unknown() {
                 0x10: VectorVWXUNARY0Op::vmv_xs({{
                     Rd_ud = Vs2_vc[0];
                 }});
+                0x12: decode RS1 {
+                    0x2: VectorIntegerExtensionOp::vzext_vf8({{
+                        Vd[VdElemID] = Vs2[Vs2ElemID];
+                    }});
+                    0x3: VectorIntegerExtensionOp::vsext_vf8({{
+                        Vd[VdElemID] = sext(Vs2[Vs2ElemID], eewb * 8);
+                    }});
+                    0x4: VectorIntegerExtensionOp::vzext_vf4({{
+                        Vd[VdElemID] = Vs2[Vs2ElemID];
+                    }});
+                    0x5: VectorIntegerExtensionOp::vsext_vf4({{
+                        Vd[VdElemID] = sext(Vs2[Vs2ElemID], eewb * 8);
+                    }});
+                    0x6: VectorIntegerExtensionOp::vzext_vf2({{
+                        Vd[VdElemID] = Vs2[Vs2ElemID];
+                    }});
+                    0x7: VectorIntegerExtensionOp::vsext_vf2({{
+                        Vd[VdElemID] = sext(Vs2[Vs2ElemID], eewb * 8);
+                    }});
+                }
                 0x14: VectorVMUNARY0Op::vid_v({{
                     Vd_vc[regElemIdx] = elemIdx;
                 }});

@@ -228,6 +228,73 @@ def template VectorVdVs2Fs1Constructor {{
     }
 }};
 
+def template VectorIntegerExtensionConstructor {{
+    %(class_name)s::%(class_name)s(MachInst machInst, RiscvISA::VTYPE machVtype, uint32_t machVl)
+        : %(base_class)s("%(mnemonic)s", machInst, VectorIntegerExtensionOpClass)
+    {
+        %(set_reg_idx_arr)s;
+
+        _numSrcRegs = 0;
+        _numDestRegs = 0;
+        _numFPDestRegs = 0;
+        _numVecSrcRegs = 0;
+        _numVecDestRegs = 0;
+        _numVecElemDestRegs = 0;
+        _numVecPredDestRegs = 0;
+        _numIntDestRegs = 0;
+        _numCCDestRegs = 0;
+
+        // Example:
+        // vzext.vf8      31..26=0x12 vm vs2 19..15=2 14..12=0x2 vd 6..0=0x57
+        uint32_t sewb = getSew(machVtype.vsew) / 8;
+
+        // EEW = SEW for Vd
+        _numVecDestRegs =
+            ceil((float) machVl / (VecRegSizeBytes / sewb));
+        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+
+        for (int i = 0; i < _numVecDestRegs; ++i) {
+            setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
+        }
+
+        uint32_t divisor = 0;
+        switch(RS1) {
+            case 2:
+            case 3:
+                divisor = 8;
+                break;
+            case 4:
+            case 5:
+                divisor = 4;
+                break;
+            case 6:
+            case 7:
+                divisor = 2;
+                break;
+        }
+
+        assert(sewb / divisor);
+
+        // EEW = SEW/divisor for Vs2
+        uint32_t numVs2Regs =
+            ceil((float) machVl / (VecRegSizeBytes / (sewb / divisor)));
+        assert((VS2 % alignToPowerOfTwo(numVs2Regs)) == 0);
+
+        for (int i = 0; i < numVs2Regs; ++i) {
+            setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS2 + i));
+        }
+
+        if (VM == 0) {
+            // Masked instruction.
+            setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, 0));
+            ++_numVecSrcRegs;
+        }
+
+        flags[IsInteger] = true;
+        flags[IsVector] = true;;
+    }
+}};
+
 def template VectorVdMaskVs2Rs1Constructor {{
     %(class_name)s::%(class_name)s(MachInst machInst, RiscvISA::VTYPE machVtype, uint32_t machVl)
         : %(base_class)s("%(mnemonic)s", machInst, VectorVdVs2Rs1OpClass)
@@ -2670,6 +2737,175 @@ def template VectorNarrowingVXExecute {{
     }
 }};
 
+def template VectorIntegerExtensionExecute {{
+    Fault
+    %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+
+        uint32_t vl = xc->readMiscReg(MISCREG_VL);
+        VTYPE vtype = xc->readMiscReg(MISCREG_VTYPE);
+        size_t sewb = getSew(vtype.vsew) / 8;
+
+        if (VM == 0) {
+            if (VD == 0 || VS2 == 0) {
+                std::string error =
+                    csprintf("Masked VectorIntegerExtensionOp using v0 as src/dst register\n");
+                return std::make_shared<IllegalInstFault>(error, machInst);
+            }
+        }
+
+        uint32_t divisor = 0;
+        switch(RS1) {
+            case 2:
+            case 3:
+                divisor = 8;
+                break;
+            case 4:
+            case 5:
+                divisor = 4;
+                break;
+            case 6:
+            case 7:
+                divisor = 2;
+                break;
+        }
+
+        uint32_t eewb = sewb / divisor;
+        assert(eewb > 0);
+
+        uint32_t Vs2RegID = 0;
+        uint32_t VdRegID = 0;
+
+        uint32_t VdElemID = 0;
+
+        while (vl > 0) {
+            uint32_t vmask = UINT32_MAX;
+            const TheISA::VecRegContainer& Vmask_container =
+                xc->readVecRegOperand(this, _numSrcRegs - 1);
+
+            if (VM == 0) {
+                switch(eewb) {
+                    case 1:
+                        vmask = Vmask_container.as<uint32_t>()[Vs2RegID];
+                        break;
+                    case 2:
+                        vmask = Vmask_container.as<uint16_t>()[Vs2RegID];
+                        break;
+                    case 4:
+                        vmask = Vmask_container.as<uint8_t>()[Vs2RegID];
+                        break;
+                }
+            }
+
+            uint32_t num_elements_in_Vd =
+                (VecRegSizeBytes/sewb) > vl ? vl : (VecRegSizeBytes/sewb);
+            uint32_t num_elements_in_Vs2 =
+                (VecRegSizeBytes/eewb) > vl ? vl : (VecRegSizeBytes/eewb);
+
+            TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, VdRegID);
+            const TheISA::VecRegContainer& Vs2_container = xc->readVecRegOperand(this, Vs2RegID);
+
+            if (sewb == 8) {
+                if (eewb == 4) {
+                    auto Vd = Vd_container.as<uint64_t>();
+                    auto Vs2 = Vs2_container.as<uint32_t>();
+
+                    for (uint32_t Vs2ElemID = 0; Vs2ElemID < num_elements_in_Vs2; ++Vs2ElemID) {
+                        if (bits(vmask, VdElemID, VdElemID) == 1) {
+                            %(code)s;
+                        }
+
+                        ++VdElemID;
+                    }
+                } else if (eewb == 2) {
+                    auto Vd = Vd_container.as<uint64_t>();
+                    auto Vs2 = Vs2_container.as<uint16_t>();
+
+                    for (uint32_t Vs2ElemID = 0; Vs2ElemID < num_elements_in_Vs2; ++Vs2ElemID) {
+                        if (bits(vmask, VdElemID, VdElemID) == 1) {
+                            %(code)s;
+                        }
+
+                        ++VdElemID;
+                    }
+                } else if (eewb == 1) {
+                    auto Vd = Vd_container.as<uint64_t>();
+                    auto Vs2 = Vs2_container.as<uint8_t>();
+
+                    for (uint32_t Vs2ElemID = 0; Vs2ElemID < num_elements_in_Vs2; ++Vs2ElemID) {
+                        if (bits(vmask, VdElemID, VdElemID) == 1) {
+                            %(code)s;
+                        }
+
+                        ++VdElemID;
+                    }
+                }
+            } else if (sewb == 4) {
+                if (eewb == 2) {
+                    auto Vd = Vd_container.as<uint32_t>();
+                    auto Vs2 = Vs2_container.as<uint16_t>();
+
+                    for (uint32_t Vs2ElemID = 0; Vs2ElemID < num_elements_in_Vs2; ++Vs2ElemID) {
+                        if (bits(vmask, VdElemID, VdElemID) == 1) {
+                            %(code)s;
+                        }
+
+                        ++VdElemID;
+                    }
+                } else if (eewb == 1) {
+                    auto Vd = Vd_container.as<uint32_t>();
+                    auto Vs2 = Vs2_container.as<uint8_t>();
+
+                    for (uint32_t Vs2ElemID = 0; Vs2ElemID < num_elements_in_Vs2; ++Vs2ElemID) {
+                        if (bits(vmask, VdElemID, VdElemID) == 1) {
+                            %(code)s;
+                        }
+
+                        ++VdElemID;
+                    }
+                }
+            } else if (sewb == 2) {
+                if (eewb == 1) {
+                    auto Vd = Vd_container.as<uint16_t>();
+                    auto Vs2 = Vs2_container.as<uint8_t>();
+
+                    for (uint32_t Vs2ElemID = 0; Vs2ElemID < num_elements_in_Vs2; ++Vs2ElemID) {
+                        if (bits(vmask, VdElemID, VdElemID) == 1) {
+                            %(code)s;
+                        }
+
+                        ++VdElemID;
+                    }
+                }
+            } else {
+                std::string error = csprintf(
+                    "Illegal vsewb value in VTYPE: 0x%x\n", vtype.vsew);
+                return std::make_shared<IllegalInstFault>(error, machInst);
+            }
+
+            ++Vs2RegID;
+
+            vl = vl - num_elements_in_Vs2;
+
+            if (VdElemID == num_elements_in_Vd) {
+                // On to the next Vd reg.
+                VdElemID = 0;
+                ++VdRegID;
+            }
+
+            if (fault == NoFault) {
+                if (traceData) {
+                    traceData->setData(Vd_container);
+                }
+            }
+        }
+
+        return fault;
+    }
+}};
+
 def template VectorVdVs2Vs1OpExecute {{
     Fault
     %(class_name)s::execute(ExecContext *xc,
@@ -4428,6 +4664,29 @@ def template VectorVdVs2Rs1Declare {{
     };
 }};
 
+def template VectorIntegerExtensionDeclare {{
+    //
+    // Static instruction class for "%(mnemonic)s".
+    //
+    class %(class_name)s : public %(base_class)s
+    {
+      private:
+        // Example:
+        // vzext.vf8      31..26=0x12 vm vs2 19..15=2 14..12=0x2 vd 6..0=0x57
+        // Sources: up to 8 vector regs starting at Vs2 and
+        //          1 mask register.
+        RegId srcRegIdxArr[8 + 1];
+        // Destinations: up to 8 vector regs starting at Vd
+        RegId destRegIdxArr[8];
+
+      public:
+        /// Constructor.
+        %(class_name)s(MachInst machInst, RiscvISA::VTYPE vtype, uint32_t vl);
+        Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        using %(base_class)s::generateDisassembly;
+    };
+}};
+
 def template VectorVFUNARY0Declare {{
     //
     // Static instruction class for "%(mnemonic)s".
@@ -4994,3 +5253,10 @@ def format VectorVdVs2Fs1Op(code, *opt_flags) {{
     exec_output = VectorVdVs2Fs1Execute.subst(iop)
 }};
 
+def format VectorIntegerExtensionOp(code, *opt_flags) {{
+    iop = InstObjParams(name, Name, 'VectorIntegerExtensionOp', code, opt_flags)
+    header_output = VectorIntegerExtensionDeclare.subst(iop)
+    decoder_output = VectorIntegerExtensionConstructor.subst(iop)
+    decode_block = VectorDecode.subst(iop)
+    exec_output = VectorIntegerExtensionExecute.subst(iop)
+}};
