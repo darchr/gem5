@@ -2853,7 +2853,13 @@ decode QUADRANT default Unknown::unknown() {
                 0x09: VectorVdVs2Rs1Op::vand_vx({{
                     Vd_vc[regElemID] = Vs2_vc[regElemID] & Rs1_ud;
                 }});
-//                0x11: VectorVdVs2Rs1Op::vmadc_vx();
+                0x10: VectorOPIVXCarryOp::vadc_vxm({{
+                    Vd_vc[regElemID] =
+                        (__uint128_t)((Rs1_ud) + (Vs2_vc[regElemID]) + bits(vmask, regElemID, regElemID));
+                }});
+                0x17: VectorOPIVXCarryOp::vmerge_vxm({{
+                    Vd_vc[regElemID] = bits(vmask, regElemID, regElemID) ? Rs1_ud : Vs2_vc[regElemID];
+                }});
                 0x07: VectorVdVs2Rs1Op::vmax_vx({{
                     int64_t src1 = sext(Rs1_ud, sewb * 8);
                     int64_t src2 = sext(Vs2_vc[regElemID], sewb * 8);
@@ -2975,35 +2981,39 @@ decode QUADRANT default Unknown::unknown() {
                 0x0b: VectorVdVs2Rs1Op::vxor_vx({{
                     Vd_vc[regElemID] = Vs2_vc[regElemID] ^ Rs1_ud;
                 }});
-                0x18: VectorIntegerCompareVXOp::vmseq_vx({{
+                0x18: VectorOPIVXMaskOp::vmseq_vx({{
                     uint8_t result = Vs2_vc[regElemID] == Rs1_ud;
                 }});
-                0x1d: VectorIntegerCompareVXOp::vmsle_vx({{
+                0x1d: VectorOPIVXMaskOp::vmsle_vx({{
                     int64_t src1 = sext(Rs1_ud, sewb * 8);
                     int64_t src2 = sext(Vs2_vc[regElemID], sewb * 8);
                     uint8_t result = src2 <= src1;
                 }});
-                0x1c: VectorIntegerCompareVXOp::vmsleu_vx({{
+                0x1c: VectorOPIVXMaskOp::vmsleu_vx({{
                     uint8_t result = Vs2_vc[regElemID] <= Rs1_ud;
                 }});
-                0x1b: VectorIntegerCompareVXOp::vmslt_vx({{
+                0x1b: VectorOPIVXMaskOp::vmslt_vx({{
                     int64_t src1 = sext(Rs1_ud, sewb * 8);
                     int64_t src2 = sext(Vs2_vc[regElemID], sewb * 8);
                     uint8_t result = src2 < src1;
                 }});
-                0x1f: VectorIntegerCompareVXOp::vmsgt_vx({{
+                0x1f: VectorOPIVXMaskOp::vmsgt_vx({{
                     int64_t src1 = sext(Rs1_ud, sewb * 8);
                     int64_t src2 = sext(Vs2_vc[regElemID], sewb * 8);
                     uint8_t result = src2 > src1;
                 }});
-                0x1a: VectorIntegerCompareVXOp::vmsltu_vx({{
+                0x1a: VectorOPIVXMaskOp::vmsltu_vx({{
                     uint8_t result = Vs2_vc[regElemID] < Rs1_ud;
                 }});
-                0x1e: VectorIntegerCompareVXOp::vmsgtu_vx({{
+                0x1e: VectorOPIVXMaskOp::vmsgtu_vx({{
                     uint8_t result = Vs2_vc[regElemID] > Rs1_ud;
                 }});
-                0x19: VectorIntegerCompareVXOp::vmsne_vx({{
+                0x19: VectorOPIVXMaskOp::vmsne_vx({{
                     uint8_t result = Vs2_vc[regElemID] != Rs1_ud;
+                }});
+                0x11: VectorOPIVXMaskCarryOp::vmadc_vxm({{
+                    __uint128_t result =
+                        (((__uint128_t) Rs1_ud + Vs2_vc[regElemID] + bits(vmask, regElemID, regElemID)) >> (sewb * 8)) & 0x1;
                 }});
             }
             0x5: decode VFUNC_6 { // OPFVF
