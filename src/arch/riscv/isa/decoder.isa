@@ -2404,7 +2404,19 @@ decode QUADRANT default Unknown::unknown() {
                         Vd_vc[regElemID] = Vs2_vc[regElemID];
                     }
                 }});
+                0x12: VectorOPIVVCarryOp::vsbc_vvm({{
+                    Vd_vc[regElemID] =
+                        ((__uint128_t)Vs2_vc[regElemID] - Vs1_vc[regElemID] - bits(vmask, regElemID, regElemID));
+                }});
 //                0x13: VectorVdVs2Vs1Op::vmsbc_vv()
+                0x17: decode RL {
+                    0x0: VectorOPIVVCarryOp::vmerge_vvm({{
+                        Vd_vc[regElemID] = bits(vmask, regElemID, regElemID) ? Vs1_vc[regElemID] : Vs2_vc[regElemID];
+                    }});
+                    0x1: VectorVdVs2Vs1Op::vmv_vv({{
+                        Vd_vc[regElemID] = Vs1_vc[regElemID] + (0 * Vs2_vc[regElemID]);
+                    }});
+                }
                 0x18: VectorIntegerCompareVVOp::vmseq_vv({{
                     uint8_t result = Vs2_vc[regElemID] == Vs1_vc[regElemID];
                 }});
@@ -2716,7 +2728,26 @@ decode QUADRANT default Unknown::unknown() {
                     Vd0[0] = fd.v;
                 }});
             }
-            0x2: decode VFUNC_6 {
+            0x2: decode VFUNC_6 { // OPMVV
+                0x0: VectorIntegerReductionOp::vredsum_vs({{
+                    if (srcVecRegID == 0 && srcRegElemID == 0) {
+                        Vd0[0] = Vs1_0[0] + Vs2_vc[0];
+                    } else {
+                        Vd0[0] += Vs2_vc[srcRegElemID];
+                    }
+                }});
+                0x08: VectorVdVs2Vs1Op::vaaddu_vv({{
+                    __uint128_t result = (__uint128_t) Vs1[regElemID] + Vs2[regElemID];
+                    roundUnsignedInteger(result, xc->readMiscReg(MISCREG_VXRM), 1);
+                    Vd_vc[regElemID] = result >> 1;
+                }});
+                0x09: VectorVdVs2Vs1Op::vaadd_vv({{
+                    __int128_t src1 = sext(Vs1_vc[regElemID], sewb * 8);
+                    __int128_t src2 = sext(Vs2_vc[regElemID], sewb * 8);
+                    __uint128_t result = src1 + src2;
+                    roundUnsignedInteger(result, xc->readMiscReg(MISCREG_VXRM), 1);
+                    Vd_vc[regElemID] = result >> 1;
+                }});
                 0x10: VectorVWXUNARY0Op::vmv_xs({{
                     Rd_ud = Vs2_vc[0];
                 }});
@@ -2759,6 +2790,16 @@ decode QUADRANT default Unknown::unknown() {
                     __int128_t simm = sext<5>(UIMM5);
                     Vd_vc[regElemID] = Vs2_vc[regElemID] + simm;
                 }});
+                0x17: decode RL {
+                    0x0: VectorOPIVICarryOp::vmerge_vim({{
+                        __int128_t simm = sext<5>(UIMM5);
+                        Vd_vc[regElemID] = bits(vmask, regElemID, regElemID) ? simm : Vs2_vc[regElemID];
+                    }});
+                    0x1: VectorOPIVIOp::vmv_vi ({{
+                        __int128_t simm = sext<5>(UIMM5);
+                        Vd_vc[regElemID] = simm + (0 * Vs2_vc[regElemID]);
+                    }});
+                }
                 0x18: VectorIntegerCompareVIOp::vmseq_vi({{
                     uint8_t result = Vs2_vc[regElemID] == UIMM5;
                 }});
@@ -2857,9 +2898,14 @@ decode QUADRANT default Unknown::unknown() {
                     Vd_vc[regElemID] =
                         (__uint128_t)((Rs1_ud) + (Vs2_vc[regElemID]) + bits(vmask, regElemID, regElemID));
                 }});
-                0x17: VectorOPIVXCarryOp::vmerge_vxm({{
-                    Vd_vc[regElemID] = bits(vmask, regElemID, regElemID) ? Rs1_ud : Vs2_vc[regElemID];
-                }});
+                0x17: decode RL {
+                    0x0: VectorOPIVXCarryOp::vmerge_vxm({{
+                        Vd_vc[regElemID] = bits(vmask, regElemID, regElemID) ? Rs1_ud : Vs2_vc[regElemID];
+                    }});
+                    0x1: VectorVdVs2Rs1Op::vmv_vx({{
+                        Vd_vc[regElemID] = Rs1_ud + (0 * Vs2_vc[regElemID]);
+                    }});
+                }
                 0x07: VectorVdVs2Rs1Op::vmax_vx({{
                     int64_t src1 = sext(Rs1_ud, sewb * 8);
                     int64_t src2 = sext(Vs2_vc[regElemID], sewb * 8);
@@ -3243,8 +3289,23 @@ decode QUADRANT default Unknown::unknown() {
 
                     Vd_vc[regElemID] = fd.v;
                 }});
+                0x36: VectorWideningVdFs1Vs2Op::vfwsub_wf({{
+                    assert(sewb == 4);
+
+                    auto Vs2_unboxed = Vs2_container.as<uint64_t>();
+
+                    uint64_t Vs2_boxed_element =
+                        boxF(Vs2_unboxed[srcRegElemID], 2 * sewb);
+
+                    freg_t fd = freg(f64_sub(f64(freg(Vs2_boxed_element)),
+                                        f32_to_f64(f32(freg(Fs1_bits_ud)))));
+
+                    Vd_vc[destRegElemID] = fd.v;
+                }});
                 0x3e: VectorWideningVdFs1Vs2Op::vfwmsac_vf({{
                     assert(sewb == 4);
+
+                    auto Vs2_unboxed = Vs2_container.as<uint32_t>();
 
                     uint64_t Vs2_boxed_element =
                         boxF(Vs2_unboxed[srcRegElemID], sewb);

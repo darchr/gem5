@@ -199,7 +199,7 @@ class VectorIntegerExtensionOp : public VectorInsn
         {}
 
         std::string generateDisassembly(Addr pc,
-            const Loader::SymbolTable *symtab) const;
+            const loader::SymbolTable *symtab) const;
     };
 
 class VectorWideningVXOp : public VectorInsn
