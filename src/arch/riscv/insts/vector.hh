@@ -202,6 +202,31 @@ class VectorIntegerExtensionOp : public VectorInsn
             const loader::SymbolTable *symtab) const;
     };
 
+class VectorMaskRegisterOp : public VectorInsn
+    {
+      public:
+        VectorMaskRegisterOp(const char *mnem, ExtMachInst _machInst,
+            OpClass __opClass) :
+            VectorInsn(mnem, _machInst, __opClass)
+        {}
+
+        std::string generateDisassembly(Addr pc,
+            const loader::SymbolTable *symtab) const;
+    };
+
+class VectorWholeRegisterMoveOp : public VectorInsn
+    {
+      public:
+        VectorWholeRegisterMoveOp(const char *mnem, ExtMachInst _machInst,
+            OpClass __opClass) :
+            VectorInsn(mnem, _machInst, __opClass)
+        {}
+
+        std::string generateDisassembly(Addr pc,
+            const loader::SymbolTable *symtab) const;
+    };
+
+
 class VectorWideningVXOp : public VectorInsn
     {
       public:

@@ -2968,6 +2968,9 @@ decode QUADRANT default Unknown::unknown() {
                 0x14: VectorVMUNARY0Op::vid_v({{
                     Vd_vc[regElemIdx] = elemIdx;
                 }});
+                0x1f: VectorMaskRegisterOp::vmxnor_mm({{
+                    uint8_t result = Vs2_mask_bit == Vs1_mask_bit;
+                }});
                 0x25: VectorVdVs2Vs1Op::vmul_vv({{
                     Vd_vc[regElemID] = Vs2[regElemID] * Vs1[regElemID];
                 }});
@@ -3017,6 +3020,9 @@ decode QUADRANT default Unknown::unknown() {
                 0x25: VectorOPIVIOp::vsll_vi({{
                     Vd_vc[regElemID] =
                         Vs2_vc[regElemID] << (UIMM5 & ((sewb * 8) - 1));
+                }});
+                0x27: VectorWholeRegisterMoveOp::vmv1r_v({{
+                    Vd[regElemID] = Vs2[regElemID];
                 }});
                 0x29: VectorOPIVIOp::vsra_vi({{
                     Vd_vc[regElemID] = Vs2_vc[regElemID] >> (UIMM5 & ((sewb * 8) - 1));
