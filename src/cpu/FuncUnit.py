@@ -77,6 +77,8 @@ class OpClass(Enum):
             'VectorVWXUNARY0',
             'VectorVMUNARY0',
             'VectorIntegerExtension',
+            'VectorMaskRegister',
+            'VectorWholeRegisterMove',
             'VectorCfg']
 
 class OpDesc(SimObject):
