@@ -195,14 +195,14 @@ VectorNarrowingVVOp::generateDisassembly(Addr pc,
 }
 
 string
-VectorNarrowingVXOp::generateDisassembly(Addr pc,
+VectorNarrowingWXOp::generateDisassembly(Addr pc,
     const loader::SymbolTable *symtab) const
 {
     stringstream ss;
     ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
     ss << VectorRegNames[vd()] << ", ";
     ss << VectorRegNames[vs2()] << ", ";
-    ss << VectorRegNames[rs1()];
+    ss << IntRegNames[rs1()];
     if (vm()==0) {
         ss << ", " << "v0";
     }
@@ -261,6 +261,36 @@ VectorWideningVXOp::generateDisassembly(Addr pc,
     ss << VectorRegNames[vd()] << ", ";
     ss << VectorRegNames[vs2()] << ", ";
     ss << VectorRegNames[rs1()];
+    if (vm()==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+string
+VectorWideningWVOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << VectorRegNames[vd()] << ", ";
+    ss << VectorRegNames[vs2()] << ", ";
+    ss << VectorRegNames[rs1()];
+    if (vm()==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+string
+VectorWideningVVOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << VectorRegNames[vd()] << ", ";
+    ss << VectorRegNames[vs2()] << ", ";
+    ss << VectorRegNames[vs1()];
     if (vm()==0) {
         ss << ", " << "v0";
     }
