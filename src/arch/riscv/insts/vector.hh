@@ -178,10 +178,10 @@ class VectorNarrowingVVOp : public VectorInsn
             const loader::SymbolTable *symtab) const;
     };
 
-class VectorNarrowingVXOp : public VectorInsn
+class VectorNarrowingWXOp : public VectorInsn
     {
       public:
-        VectorNarrowingVXOp(const char *mnem, ExtMachInst _machInst,
+        VectorNarrowingWXOp(const char *mnem, ExtMachInst _machInst,
             OpClass __opClass) :
             VectorInsn(mnem, _machInst, __opClass)
         {}
@@ -231,6 +231,30 @@ class VectorWideningVXOp : public VectorInsn
     {
       public:
         VectorWideningVXOp(const char *mnem, ExtMachInst _machInst,
+            OpClass __opClass) :
+            VectorInsn(mnem, _machInst, __opClass)
+        {}
+
+        std::string generateDisassembly(Addr pc,
+            const loader::SymbolTable *symtab) const;
+    };
+
+class VectorWideningWVOp : public VectorInsn
+    {
+      public:
+        VectorWideningWVOp(const char *mnem, ExtMachInst _machInst,
+            OpClass __opClass) :
+            VectorInsn(mnem, _machInst, __opClass)
+        {}
+
+        std::string generateDisassembly(Addr pc,
+            const loader::SymbolTable *symtab) const;
+    };
+
+class VectorWideningVVOp : public VectorInsn
+    {
+      public:
+        VectorWideningVVOp(const char *mnem, ExtMachInst _machInst,
             OpClass __opClass) :
             VectorInsn(mnem, _machInst, __opClass)
         {}

@@ -413,12 +413,11 @@ decode QUADRANT default Unknown::unknown() {
                             readMemAtomicLE(xc,
                                             traceData,
                                             target_address,
-                                            Mem_ub,
+                                            Vd_vc[regElemID],
                                             memAccessFlags);
                         if (fault != NoFault) {
                             return fault;
                         }
-                        Vd_vc[regElemID] = Mem_ub;
                     }});
                     0x8: decode NF {
                         0x0: VectorUnitStrideMemLoadOp::vl1re8_v({{
@@ -433,12 +432,11 @@ decode QUADRANT default Unknown::unknown() {
                                 readMemAtomicLE(xc,
                                                 traceData,
                                                 target_address,
-                                                Mem_ub,
+                                                Vd_vc[regElemID],
                                                 memAccessFlags);
                             if (fault != NoFault) {
                                 return fault;
                             }
-                            Vd_vc[regElemID] = Mem_ub;
                         }});
                         0x1: VectorUnitStrideMemLoadOp::vl2re8_v({{
                             uint64_t target_address = Rs1_ud + offset;
@@ -452,12 +450,11 @@ decode QUADRANT default Unknown::unknown() {
                                 readMemAtomicLE(xc,
                                                 traceData,
                                                 target_address,
-                                                Mem_ub,
+                                                Vd_vc[regElemID],
                                                 memAccessFlags);
                             if (fault != NoFault) {
                                 return fault;
                             }
-                            Vd_vc[regElemID] = Mem_ub;
                         }});
                         0x3: VectorUnitStrideMemLoadOp::vl4re8_v({{
                             uint64_t target_address = Rs1_ud + offset;
@@ -471,12 +468,11 @@ decode QUADRANT default Unknown::unknown() {
                                 readMemAtomicLE(xc,
                                                 traceData,
                                                 target_address,
-                                                Mem_ub,
+                                                Vd_vc[regElemID],
                                                 memAccessFlags);
                             if (fault != NoFault) {
                                 return fault;
                             }
-                            Vd_vc[regElemID] = Mem_ub;
                         }});
                         0x4: VectorUnitStrideMemLoadOp::vl8re8_v({{
                             uint64_t target_address = Rs1_ud + offset;
@@ -490,12 +486,11 @@ decode QUADRANT default Unknown::unknown() {
                                 readMemAtomicLE(xc,
                                                 traceData,
                                                 target_address,
-                                                Mem_ub,
+                                                Vd_vc[regElemID],
                                                 memAccessFlags);
                             if (fault != NoFault) {
                                 return fault;
                             }
-                            Vd_vc[regElemID] = Mem_ub;
                         }});
                     }
                     0x10: VectorUnitStrideMemLoadOp::vle8ff_v({{
@@ -510,31 +505,14 @@ decode QUADRANT default Unknown::unknown() {
                             readMemAtomicLE(xc,
                                             traceData,
                                             target_address,
-                                            Mem_ub,
+                                            Vd_vc[regElemID],
                                             memAccessFlags);
                         if (fault != NoFault) {
                             return fault;
                         }
-                        Vd_vc[regElemID] = Mem_ub;
                     }});
                 }
                 0x1: VectorIndexedMemLoadOp::vluxei8_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[srcVecRegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[srcVecRegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[srcVecRegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[srcVecRegElemID];
-                            break;
-                    }
-
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
@@ -546,12 +524,12 @@ decode QUADRANT default Unknown::unknown() {
                         readMemAtomicLE(xc,
                                         traceData,
                                         target_address,
-                                        Mem_ud,
+                                        load_value,
                                         memAccessFlags);
                     if (fault != NoFault) {
                         return fault;
                     }
-                    Vd_vc[regElemID] = Mem_ud;
+                    Vd_vc[regElemID] = load_value;
                 }});
                 0x2: VectorStridedMemLoadOp::vlse8_v({{
                     uint64_t offset =
@@ -569,30 +547,13 @@ decode QUADRANT default Unknown::unknown() {
                         readMemAtomicLE(xc,
                                         traceData,
                                         target_address,
-                                        Mem_ub,
+                                        Vd_vc[regElemID],
                                         memAccessFlags);
                     if (fault != NoFault) {
                         return fault;
                     }
-                    Vd_vc[regElemID] = Mem_ub;
                 }});
                 0x3: VectorIndexedMemLoadOp::vloxei8_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[srcVecRegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[srcVecRegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[srcVecRegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[srcVecRegElemID];
-                            break;
-                    }
-
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
@@ -604,12 +565,12 @@ decode QUADRANT default Unknown::unknown() {
                         readMemAtomicLE(xc,
                                         traceData,
                                         target_address,
-                                        Mem_ud,
+                                        load_value,
                                         memAccessFlags);
                     if (fault != NoFault) {
                         return fault;
                     }
-                    Vd_vc[regElemID] = Mem_ud;
+                    Vd_vc[regElemID] = load_value;
                 }});
             }
             0x5: decode MOP {
@@ -626,43 +587,32 @@ decode QUADRANT default Unknown::unknown() {
                             readMemAtomicLE(xc,
                                             traceData,
                                             target_address,
-                                            Mem_uh,
+                                            Vd_vc[regElemID],
                                             memAccessFlags);
                         if (fault != NoFault) {
                             return fault;
                         }
-                        Vd_vc[regElemID] = Mem_uh;
                     }});
                     0x10: VectorUnitStrideMemLoadOp::vle16ff_v({{
+                        uint64_t target_address = Rs1_ud + offset;
+                        if (target_address % eewb) {
+                            // Alignment fault.
+                            return std::make_shared<AddressFault>(target_address,
+                                                                ExceptionCode::LOAD_ADDR_MISALIGNED);
+                        }
+
                         fault =
                             readMemAtomicLE(xc,
                                             traceData,
-                                            Rs1_ud + offset,
-                                            Mem_uh,
+                                            target_address,
+                                            Vd_vc[regElemID],
                                             memAccessFlags);
                         if (fault != NoFault) {
                             return fault;
                         }
-                        Vd_vc[regElemID] = Mem_uh;
                     }});
                 }
                 0x1: VectorIndexedMemLoadOp::vluxei16_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[srcVecRegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[srcVecRegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[srcVecRegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[srcVecRegElemID];
-                            break;
-                    }
-
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
@@ -674,12 +624,12 @@ decode QUADRANT default Unknown::unknown() {
                         readMemAtomicLE(xc,
                                         traceData,
                                         target_address,
-                                        Mem_ud,
+                                        load_value,
                                         memAccessFlags);
                     if (fault != NoFault) {
                         return fault;
                     }
-                    Vd_vc[regElemID] = Mem_ud;
+                    Vd_vc[regElemID] = load_value;
                 }});
                 0x2: VectorStridedMemLoadOp::vlse16_v({{
                     uint64_t offset =
@@ -697,30 +647,13 @@ decode QUADRANT default Unknown::unknown() {
                         readMemAtomicLE(xc,
                                         traceData,
                                         target_address,
-                                        Mem_uh,
+                                        Vd_vc[regElemID],
                                         memAccessFlags);
                     if (fault != NoFault) {
                         return fault;
                     }
-                    Vd_vc[regElemID] = Mem_uh;
                 }});
                 0x3: VectorIndexedMemLoadOp::vloxei16_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[srcVecRegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[srcVecRegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[srcVecRegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[srcVecRegElemID];
-                            break;
-                    }
-
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
@@ -732,12 +665,12 @@ decode QUADRANT default Unknown::unknown() {
                         readMemAtomicLE(xc,
                                         traceData,
                                         target_address,
-                                        Mem_ud,
+                                        load_value,
                                         memAccessFlags);
                     if (fault != NoFault) {
                         return fault;
                     }
-                    Vd_vc[regElemID] = Mem_ud;
+                    Vd_vc[regElemID] = load_value;
                 }});
             }
             0x6: decode MOP {
@@ -754,12 +687,11 @@ decode QUADRANT default Unknown::unknown() {
                             readMemAtomicLE(xc,
                                             traceData,
                                             target_address,
-                                            Mem_uw,
+                                            Vd_vc[regElemID],
                                             memAccessFlags);
                         if (fault != NoFault) {
                             return fault;
                         }
-                        Vd_vc[regElemID] = Mem_uw;
                     }});
                     0x8: VectorUnitStrideMemLoadOp::vl1re32_v({{
                         uint64_t target_address = Rs1_ud + offset;
@@ -773,12 +705,11 @@ decode QUADRANT default Unknown::unknown() {
                             readMemAtomicLE(xc,
                                             traceData,
                                             target_address,
-                                            Mem_uw,
+                                            Vd_vc[regElemID],
                                             memAccessFlags);
                         if (fault != NoFault) {
                             return fault;
                         }
-                        Vd_vc[regElemID] = Mem_uw;
                     }});
                     0x10: VectorUnitStrideMemLoadOp::vle32ff_v({{
                         uint64_t target_address = Rs1_ud + offset;
@@ -792,31 +723,14 @@ decode QUADRANT default Unknown::unknown() {
                             readMemAtomicLE(xc,
                                             traceData,
                                             target_address,
-                                            Mem_uw,
+                                            Vd_vc[regElemID],
                                             memAccessFlags);
                         if (fault != NoFault) {
                             return fault;
                         }
-                        Vd_vc[regElemID] = Mem_uw;
                     }});
                 }
                 0x1: VectorIndexedMemLoadOp::vluxei32_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[srcVecRegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[srcVecRegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[srcVecRegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[srcVecRegElemID];
-                            break;
-                    }
-
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
@@ -828,12 +742,12 @@ decode QUADRANT default Unknown::unknown() {
                         readMemAtomicLE(xc,
                                         traceData,
                                         target_address,
-                                        Mem_ud,
+                                        load_value,
                                         memAccessFlags);
                     if (fault != NoFault) {
                         return fault;
                     }
-                    Vd_vc[regElemID] = Mem_ud;
+                    Vd_vc[regElemID] = load_value;
                 }});
                 0x2: VectorStridedMemLoadOp::vlse32_v({{
                     uint64_t offset =
@@ -851,30 +765,13 @@ decode QUADRANT default Unknown::unknown() {
                         readMemAtomicLE(xc,
                                         traceData,
                                         target_address,
-                                        Mem_uw,
+                                        Vd_vc[regElemID],
                                         memAccessFlags);
                     if (fault != NoFault) {
                         return fault;
                     }
-                    Vd_vc[regElemID] = Mem_uw;
                 }});
                 0x3: VectorIndexedMemLoadOp::vloxei32_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[srcVecRegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[srcVecRegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[srcVecRegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[srcVecRegElemID];
-                            break;
-                    }
-
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
@@ -886,12 +783,12 @@ decode QUADRANT default Unknown::unknown() {
                         readMemAtomicLE(xc,
                                         traceData,
                                         target_address,
-                                        Mem_ud,
+                                        load_value,
                                         memAccessFlags);
                     if (fault != NoFault) {
                         return fault;
                     }
-                    Vd_vc[regElemID] = Mem_ud;
+                    Vd_vc[regElemID] = load_value;
                 }});
             }
             0x7: decode MOP {
@@ -908,12 +805,11 @@ decode QUADRANT default Unknown::unknown() {
                             readMemAtomicLE(xc,
                                             traceData,
                                             target_address,
-                                            Mem_ud,
+                                            Vd_vc[regElemID],
                                             memAccessFlags);
                         if (fault != NoFault) {
                             return fault;
                         }
-                        Vd_vc[regElemID] = Mem_ud;
                     }});
                     0x10: VectorUnitStrideMemLoadOp::vle64ff_v({{
                         uint64_t target_address = Rs1_ud + offset;
@@ -927,31 +823,14 @@ decode QUADRANT default Unknown::unknown() {
                             readMemAtomicLE(xc,
                                             traceData,
                                             target_address,
-                                            Mem_ud,
+                                            Vd_vc[regElemID],
                                             memAccessFlags);
                         if (fault != NoFault) {
                             return fault;
                         }
-                        Vd_vc[regElemID] = Mem_ud;
                     }});
                 }
                 0x1: VectorIndexedMemLoadOp::vluxei64_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[srcVecRegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[srcVecRegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[srcVecRegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[srcVecRegElemID];
-                            break;
-                    }
-
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
@@ -963,12 +842,12 @@ decode QUADRANT default Unknown::unknown() {
                         readMemAtomicLE(xc,
                                         traceData,
                                         target_address,
-                                        Mem_ud,
+                                        load_value,
                                         memAccessFlags);
                     if (fault != NoFault) {
                         return fault;
                     }
-                    Vd_vc[regElemID] = Mem_ud;
+                    Vd_vc[regElemID] = load_value;
                 }});
                 0x2: VectorStridedMemLoadOp::vlse64_v({{
                     uint64_t offset =
@@ -986,30 +865,13 @@ decode QUADRANT default Unknown::unknown() {
                         readMemAtomicLE(xc,
                                         traceData,
                                         target_address,
-                                        Mem_ud,
+                                        Vd_vc[regElemID],
                                         memAccessFlags);
                     if (fault != NoFault) {
                         return fault;
                     }
-                    Vd_vc[regElemID] = Mem_ud;
                 }});
                 0x3: VectorIndexedMemLoadOp::vloxei64_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[srcVecRegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[srcVecRegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[srcVecRegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[srcVecRegElemID];
-                            break;
-                    }
-
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
@@ -1021,12 +883,12 @@ decode QUADRANT default Unknown::unknown() {
                         readMemAtomicLE(xc,
                                         traceData,
                                         target_address,
-                                        Mem_ud,
+                                        load_value,
                                         memAccessFlags);
                     if (fault != NoFault) {
                         return fault;
                     }
-                    Vd_vc[regElemID] = Mem_ud;
+                    Vd_vc[regElemID] = load_value;
                 }});
             }
             format Load {
@@ -1156,10 +1018,9 @@ decode QUADRANT default Unknown::unknown() {
             0x0: decode MOP {
                 0x0: decode SUMOP {
                     0x0: VectorUnitStrideMemStoreOp::vse8_v({{
-                        Mem_ub = Vs3_vc[regElemID];
                         fault = writeMemTimingLE(xc,
                                                     traceData,
-                                                    Mem_ub,
+                                                    Vs3_vc[regElemID],
                                                     Rs1_ud + offset,
                                                     memAccessFlags, nullptr);
                         if (fault != NoFault) {
@@ -1168,10 +1029,9 @@ decode QUADRANT default Unknown::unknown() {
                     }});
                     0x8: decode NF {
                         0x0: VectorUnitStrideMemStoreOp::vs1r_v({{
-                            Mem_ub = Vs3_vc[regElemID];
                             fault = writeMemTimingLE(xc,
                                                         traceData,
-                                                        Mem_ub,
+                                                        Vs3_vc[regElemID],
                                                         Rs1_ud + offset,
                                                         memAccessFlags, nullptr);
                             if (fault != NoFault) {
@@ -1179,10 +1039,9 @@ decode QUADRANT default Unknown::unknown() {
                             }
                         }});
                         0x1: VectorUnitStrideMemStoreOp::vs2r_v({{
-                            Mem_ub = Vs3_vc[regElemID];
                             fault = writeMemTimingLE(xc,
                                                         traceData,
-                                                        Mem_ub,
+                                                        Vs3_vc[regElemID],
                                                         Rs1_ud + offset,
                                                         memAccessFlags, nullptr);
                             if (fault != NoFault) {
@@ -1192,35 +1051,20 @@ decode QUADRANT default Unknown::unknown() {
                     }
                 }
                 0x1: VectorIndexedMemStoreOp::vsuxei8_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[vs2RegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[vs2RegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[vs2RegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[vs2RegElemID];
-                            break;
-                    }
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
                         return std::make_shared<AddressFault>(target_address,
-                                                              ExceptionCode::LOAD_ADDR_MISALIGNED);
+                                                            ExceptionCode::LOAD_ADDR_MISALIGNED);
                     }
 
-                    Mem_ub = Vd_vc[regElemID];
                     fault =
                         writeMemAtomicLE(xc,
                                         traceData,
-                                        Mem_ub,
+                                        Vd_vc[regElemID],
                                         target_address,
                                         memAccessFlags, nullptr);
+
                     if (fault != NoFault) {
                         return fault;
                     }
@@ -1237,10 +1081,9 @@ decode QUADRANT default Unknown::unknown() {
                                                               ExceptionCode::LOAD_ADDR_MISALIGNED);
                     }
 
-                    Mem_ub = Vs3_vc[regElemID];
                     fault = writeMemTimingLE(xc,
                                                 traceData,
-                                                Mem_ub,
+                                                Vs3_vc[regElemID],
                                                 target_address,
                                                 memAccessFlags, nullptr);
                     if (fault != NoFault) {
@@ -1248,35 +1091,20 @@ decode QUADRANT default Unknown::unknown() {
                     }
                 }});
                 0x3: VectorIndexedMemStoreOp::vsoxei8_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[vs2RegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[vs2RegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[vs2RegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[vs2RegElemID];
-                            break;
-                    }
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
                         return std::make_shared<AddressFault>(target_address,
-                                                              ExceptionCode::LOAD_ADDR_MISALIGNED);
+                                                            ExceptionCode::LOAD_ADDR_MISALIGNED);
                     }
 
-                    Mem_ub = Vd_vc[regElemID];
                     fault =
                         writeMemAtomicLE(xc,
                                         traceData,
-                                        Mem_ub,
+                                        Vd_vc[regElemID],
                                         target_address,
                                         memAccessFlags, nullptr);
+
                     if (fault != NoFault) {
                         return fault;
                     }
@@ -1285,10 +1113,9 @@ decode QUADRANT default Unknown::unknown() {
             0x5: decode MOP {
                 0x0: decode SUMOP {
                     0x0: VectorUnitStrideMemStoreOp::vse16_v({{
-                        Mem_uh = Vs3_vc[regElemID];
                         fault = writeMemTimingLE(xc,
                                                     traceData,
-                                                    Mem_uh,
+                                                    Vs3_vc[regElemID],
                                                     Rs1_ud + offset,
                                                     memAccessFlags, nullptr);
                         if (fault != NoFault) {
@@ -1297,35 +1124,20 @@ decode QUADRANT default Unknown::unknown() {
                     }});
                 }
                 0x1: VectorIndexedMemStoreOp::vsuxei16_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[vs2RegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[vs2RegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[vs2RegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[vs2RegElemID];
-                            break;
-                    }
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
                         return std::make_shared<AddressFault>(target_address,
-                                                              ExceptionCode::LOAD_ADDR_MISALIGNED);
+                                                            ExceptionCode::LOAD_ADDR_MISALIGNED);
                     }
 
-                    Mem_uh = Vd_vc[regElemID];
                     fault =
                         writeMemAtomicLE(xc,
                                         traceData,
-                                        Mem_uh,
+                                        Vd_vc[regElemID],
                                         target_address,
                                         memAccessFlags, nullptr);
+
                     if (fault != NoFault) {
                         return fault;
                     }
@@ -1342,10 +1154,9 @@ decode QUADRANT default Unknown::unknown() {
                                                               ExceptionCode::LOAD_ADDR_MISALIGNED);
                     }
 
-                    Mem_ub = Vs3_vc[regElemID];
                     fault = writeMemTimingLE(xc,
                                                 traceData,
-                                                Mem_ub,
+                                                Vs3_vc[regElemID],
                                                 target_address,
                                                 memAccessFlags, nullptr);
                     if (fault != NoFault) {
@@ -1353,35 +1164,20 @@ decode QUADRANT default Unknown::unknown() {
                     }
                 }});
                 0x3: VectorIndexedMemStoreOp::vsoxei16_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[vs2RegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[vs2RegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[vs2RegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[vs2RegElemID];
-                            break;
-                    }
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
                         return std::make_shared<AddressFault>(target_address,
-                                                              ExceptionCode::LOAD_ADDR_MISALIGNED);
+                                                            ExceptionCode::LOAD_ADDR_MISALIGNED);
                     }
 
-                    Mem_uh = Vd_vc[regElemID];
                     fault =
                         writeMemAtomicLE(xc,
                                         traceData,
-                                        Mem_uh,
+                                        Vd_vc[regElemID],
                                         target_address,
                                         memAccessFlags, nullptr);
+
                     if (fault != NoFault) {
                         return fault;
                     }
@@ -1390,10 +1186,9 @@ decode QUADRANT default Unknown::unknown() {
             0x6: decode MOP {
                 0x0: decode SUMOP {
                     0x0: VectorUnitStrideMemStoreOp::vse32_v({{
-                        Mem_uw = Vs3_vc[regElemID];
                         fault = writeMemTimingLE(xc,
                                                     traceData,
-                                                    Mem_uw,
+                                                    Vs3_vc[regElemID],
                                                     Rs1_ud + offset,
                                                     memAccessFlags, nullptr);
                         if (fault != NoFault) {
@@ -1402,35 +1197,20 @@ decode QUADRANT default Unknown::unknown() {
                     }});
                 }
                 0x1: VectorIndexedMemStoreOp::vsuxei32_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[vs2RegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[vs2RegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[vs2RegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[vs2RegElemID];
-                            break;
-                    }
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
                         return std::make_shared<AddressFault>(target_address,
-                                                              ExceptionCode::LOAD_ADDR_MISALIGNED);
+                                                            ExceptionCode::LOAD_ADDR_MISALIGNED);
                     }
 
-                    Mem_uw = Vd_vc[regElemID];
                     fault =
                         writeMemAtomicLE(xc,
                                         traceData,
-                                        Mem_uw,
+                                        Vd_vc[regElemID],
                                         target_address,
                                         memAccessFlags, nullptr);
+
                     if (fault != NoFault) {
                         return fault;
                     }
@@ -1447,10 +1227,9 @@ decode QUADRANT default Unknown::unknown() {
                                                               ExceptionCode::LOAD_ADDR_MISALIGNED);
                     }
 
-                    Mem_uw = Vs3_vc[regElemID];
                     fault = writeMemTimingLE(xc,
                                                 traceData,
-                                                Mem_uw,
+                                                Vs3_vc[regElemID],
                                                 target_address,
                                                 memAccessFlags, nullptr);
                     if (fault != NoFault) {
@@ -1458,35 +1237,20 @@ decode QUADRANT default Unknown::unknown() {
                     }
                 }});
                 0x3: VectorIndexedMemStoreOp::vsoxei32_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[vs2RegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[vs2RegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[vs2RegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[vs2RegElemID];
-                            break;
-                    }
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
                         return std::make_shared<AddressFault>(target_address,
-                                                              ExceptionCode::LOAD_ADDR_MISALIGNED);
+                                                            ExceptionCode::LOAD_ADDR_MISALIGNED);
                     }
 
-                    Mem_uw = Vd_vc[regElemID];
                     fault =
                         writeMemAtomicLE(xc,
                                         traceData,
-                                        Mem_uw,
+                                        Vd_vc[regElemID],
                                         target_address,
                                         memAccessFlags, nullptr);
+
                     if (fault != NoFault) {
                         return fault;
                     }
@@ -1495,47 +1259,31 @@ decode QUADRANT default Unknown::unknown() {
             0x7: decode MOP {
                 0x0: decode SUMOP {
                     0x0: VectorUnitStrideMemStoreOp::vse64_v({{
-                        Mem_ud = Vs3_vc[regElemID];
                         fault = writeMemTimingLE(xc,
-                                                 traceData,
-                                                 Mem_ud,
-                                                 Rs1_ud + offset,
-                                                 memAccessFlags, nullptr);
+                                                    traceData,
+                                                    Vs3_vc[regElemID],
+                                                    Rs1_ud + offset,
+                                                    memAccessFlags, nullptr);
                         if (fault != NoFault) {
                             return fault;
                         }
                     }});
                 }
                 0x1: VectorIndexedMemStoreOp::vsuxei64_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[vs2RegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[vs2RegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[vs2RegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[vs2RegElemID];
-                            break;
-                    }
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
                         return std::make_shared<AddressFault>(target_address,
-                                                              ExceptionCode::LOAD_ADDR_MISALIGNED);
+                                                            ExceptionCode::LOAD_ADDR_MISALIGNED);
                     }
 
-                    Mem_ud = Vd_vc[regElemID];
                     fault =
                         writeMemAtomicLE(xc,
                                         traceData,
-                                        Mem_ud,
+                                        Vd_vc[regElemID],
                                         target_address,
                                         memAccessFlags, nullptr);
+
                     if (fault != NoFault) {
                         return fault;
                     }
@@ -1552,10 +1300,9 @@ decode QUADRANT default Unknown::unknown() {
                                                               ExceptionCode::LOAD_ADDR_MISALIGNED);
                     }
 
-                    Mem_ub = Vs3_vc[regElemID];
                     fault = writeMemTimingLE(xc,
                                                 traceData,
-                                                Mem_ub,
+                                                Vs3_vc[regElemID],
                                                 target_address,
                                                 memAccessFlags, nullptr);
                     if (fault != NoFault) {
@@ -1563,35 +1310,20 @@ decode QUADRANT default Unknown::unknown() {
                     }
                 }});
                 0x3: VectorIndexedMemStoreOp::vsoxei64_v({{
-                    uint64_t offset = 0;
-                    switch (eewb) {
-                        case 1:
-                            offset = Vs2_container.as<uint8_t>()[vs2RegElemID];
-                            break;
-                        case 2:
-                            offset = Vs2_container.as<uint16_t>()[vs2RegElemID];
-                            break;
-                        case 4:
-                            offset = Vs2_container.as<uint32_t>()[vs2RegElemID];
-                            break;
-                        case 8:
-                            offset = Vs2_container.as<uint64_t>()[vs2RegElemID];
-                            break;
-                    }
                     uint64_t target_address = Rs1_ud + offset;
                     if (target_address % sewb) {
                         // Alignment fault.
                         return std::make_shared<AddressFault>(target_address,
-                                                              ExceptionCode::LOAD_ADDR_MISALIGNED);
+                                                            ExceptionCode::LOAD_ADDR_MISALIGNED);
                     }
 
-                    Mem_ud = Vd_vc[regElemID];
                     fault =
                         writeMemAtomicLE(xc,
                                         traceData,
-                                        Mem_ud,
+                                        Vd_vc[regElemID],
                                         target_address,
                                         memAccessFlags, nullptr);
+
                     if (fault != NoFault) {
                         return fault;
                     }
@@ -2442,15 +2174,34 @@ decode QUADRANT default Unknown::unknown() {
                 0x0a: VectorVdVs2Vs1Op::vor_vv({{
                     Vd_vc[regElemID] = Vs2_vc[regElemID] | Vs1_vc[regElemID];
                 }});
-                0x0c: VectorVdVs2Vs1Op::vrgather_vv({{
+                0x0c: VectorVRGatherVVOp::vrgather_vv({{
                     uint32_t vlmax = getVlmax(vtype, xc->readMiscReg(MISCREG_VLENB) * 8);
-                    Vd_vc[regElemID] =
-                        (Vs1_vc[regElemID] >= vlmax) ? 0 : Vs2_vc[Vs1_vc[regElemID]];
-                }});
-                0x0e: VectorVrgatherei16VVOp::vrgatherei16_vv({{
-                    // Special case OPIVV op
-                    Vd_vc[regElemID] =
-                        (Vs1_vc[regElemID] >= vlmax) ? 0 : Vs2_vc[Vs1_vc[regElemID]];
+                    if (Vs1_vc[regElemID] >= vlmax) {
+                        Vd_vc[regElemID] = 0;
+                    } else {
+                        // Vd_vc[regElemID] = Vs2_vc[Vs1_vc[regElemID]]
+                        uint32_t num_elements_per_vs2_reg = (xc->readMiscReg(MISCREG_VLENB) / sewb);
+                        uint32_t vs2VecRegID = (Vs1_vc[regElemID] / num_elements_per_vs2_reg);
+                        const TheISA::VecRegContainer& Vs2_gather_container = xc->readVecRegOperand(this, vs2VecRegID);
+
+                        if (sewb == 1) {
+                            Vd_vc[regElemID] =
+                                Vs2_gather_container.as<uint8_t>()[Vs1_vc[regElemID] % num_elements_per_vs2_reg];
+                        } else if (sewb == 2) {
+                            Vd_vc[regElemID] =
+                                Vs2_gather_container.as<uint16_t>()[Vs1_vc[regElemID] % num_elements_per_vs2_reg];
+                        } else if (sewb == 4) {
+                            Vd_vc[regElemID] =
+                                Vs2_gather_container.as<uint32_t>()[Vs1_vc[regElemID] % num_elements_per_vs2_reg];
+                        } else if (sewb == 8) {
+                            Vd_vc[regElemID] =
+                                Vs2_gather_container.as<uint64_t>()[Vs1_vc[regElemID] % num_elements_per_vs2_reg];
+                        } else {
+                            std::string error = csprintf(
+                                "Illegal vsewb value in VTYPE: 0x%x\n", vtype.vsew);
+                            return std::make_shared<IllegalInstFault>(error, machInst);
+                        }
+                    }
                 }});
                 0x21: VectorVdVs2Vs1Op::vsadd_vv({{
                     bool sat = false;
@@ -2486,7 +2237,7 @@ decode QUADRANT default Unknown::unknown() {
                 }});
 //                0x27: VectorVdVs2Vs1Op::vsmul_vv();
                 0x29: VectorVdVs2Vs1Op::vsra_vv({{
-                    Vd_vc[regElemID] = Vs2_vc[regElemID] >> (Vs1_vc[regElemID] & ((sewb * 8) - 1));
+                    Vd_vc[regElemID] = (__int128_t) sext(Vs2_vc[regElemID], sewb * 8) >> (Vs1_vc[regElemID] & ((sewb * 8) - 1));
                 }});
                 0x28: VectorVdVs2Vs1Op::vsrl_vv({{
                     Vd_vc[regElemID] = Vs2_vc[regElemID] >> (Vs1_vc[regElemID] & ((sewb * 8) - 1));
@@ -2729,11 +2480,20 @@ decode QUADRANT default Unknown::unknown() {
                 }});
             }
             0x2: decode VFUNC_6 { // OPMVV
-                0x0: VectorIntegerReductionOp::vredsum_vs({{
-                    if (srcVecRegID == 0 && srcRegElemID == 0) {
+                0x0: VectorSingleWidthIntegerReductionOp::vredsum_vs({{
+                    if (vs2RegID == 0 && vs2RegElemID == 0) {
                         Vd0[0] = Vs1_0[0] + Vs2_vc[0];
                     } else {
-                        Vd0[0] += Vs2_vc[srcRegElemID];
+                        Vd0[0] += Vs2_vc[vs2RegElemID];
+                    }
+                }});
+                0x05: VectorSingleWidthIntegerReductionOp::vredmin_vs({{
+                    if (vs2RegID == 0 && vs2RegElemID == 0) {
+                        Vd0[0] = Vs1_0[0];
+                    } else {
+                        __int128_t src1 = sext(Vd0[0], sewb * 8);
+                        __int128_t src2 = sext(Vs2_vc[vs2RegElemID], sewb * 8);
+                        Vd0[0] = (src1 <= src2) ? src1 : src2;
                     }
                 }});
                 0x08: VectorVdVs2Vs1Op::vaaddu_vv({{
@@ -2787,6 +2547,30 @@ decode QUADRANT default Unknown::unknown() {
                     Vd_vc[regElemID] =
                         Vs1[regElemID] * Vs2[regElemID] + Vd_vc[regElemID];
                 }});
+                0x30: VectorWideningVVOp::vwaddu_vv({{
+                    Vd_vc[destRegElemID] =
+                        (__uint128_t) Vs2_vc[srcRegElemID] + Vs1_vc[srcRegElemID];
+                }});
+                0x31: VectorWideningVVOp::vwadd_vv({{
+                    __int128_t src1 = sext(Vs1_vc[srcRegElemID], sewb * 8);
+                    __int128_t src2 = sext(Vs2_vc[srcRegElemID], sewb * 8);
+                    Vd_vc[destRegElemID] = (__int128_t) src1 + src2;
+                }});
+                0x32: VectorWideningVVOp::vwsubu_vv({{
+                    Vd_vc[destRegElemID] =
+                        (__uint128_t) Vs2_vc[srcRegElemID] - Vs1_vc[srcRegElemID];
+                }});
+                0x34: VectorWideningWVOp::vwaddu_wv({{
+                    Vd_vc[vs2VdRegElemID] = Vs1_vc[vs1RegElemID] + Vs2_vc[vs2VdRegElemID];
+                }});
+                0x35: VectorWideningWVOp::vwadd_wv({{
+                    __int128_t src1 = sext(Vs1_vc[vs1RegElemID], sewb * 8);
+                    __int128_t src2 = sext(Vs2_vc[vs2VdRegElemID], 2 * sewb * 8);
+                    Vd_vc[vs2VdRegElemID] = (__int128_t) src1 + src2;
+                }});
+                0x36: VectorWideningWVOp::vwsubu_wv({{
+                    Vd_vc[vs2VdRegElemID] = Vs2_vc[vs2VdRegElemID] - Vs1_vc[vs1RegElemID];
+                }});
             }
             0x3: decode VFUNC_6 { // OPIVI
                 0x0: VectorOPIVIOp::vadd_vi({{
@@ -2811,13 +2595,16 @@ decode QUADRANT default Unknown::unknown() {
                     int64_t src2 = sext(Vs2_vc[regElemID], sewb * 8);
                     uint8_t result = src2 <= src1;
                 }});
+                0x1f: VectorIntegerCompareVIOp::vmsgt_vi({{
+                    int64_t src1 = sext<5>(UIMM5);
+                    int64_t src2 = sext(Vs2_vc[regElemID], sewb * 8);
+                    uint8_t result = src2 > src1;
+                }});
                 0x19: VectorIntegerCompareVIOp::vmsne_vi({{
                     uint8_t result = Vs2_vc[regElemID] != UIMM5;
                 }});
-                0x0c: VectorOPIVIOp::vrgather_vi({{
-                    uint32_t vlmax = getVlmax(vtype, xc->readMiscReg(MISCREG_VLENB) * 8);
-                    Vd_vc[regElemID] =
-                        (UIMM5 >= vlmax) ? 0 : Vs2_vc[UIMM5];
+                0x0c: VectorVRGatherVIOp::vrgather_vi({{
+                    Vd_vc[regElemID] = result;
                 }});
                 0x03: VectorOPIVIOp::vrsub_vi({{
                     __int128_t simm = sext<5>(UIMM5);
@@ -2827,11 +2614,22 @@ decode QUADRANT default Unknown::unknown() {
                     Vd_vc[regElemID] =
                         Vs2_vc[regElemID] << (UIMM5 & ((sewb * 8) - 1));
                 }});
-                0x27: VectorWholeRegisterMoveOp::vmv1r_v({{
-                    Vd[regElemID] = Vs2[regElemID];
-                }});
+                0x27: decode RS1 {
+                    0x0: VectorWholeRegisterMoveOp::vmv1r_v({{
+                        Vd[regElemID] = Vs2[regElemID];
+                    }});
+                    0x1: VectorWholeRegisterMoveOp::vmv2r_v({{
+                        Vd[regElemID] = Vs2[regElemID];
+                    }});
+                    0x3: VectorWholeRegisterMoveOp::vmv4r_v({{
+                        Vd[regElemID] = Vs2[regElemID];
+                    }});
+                    0x7: VectorWholeRegisterMoveOp::vmv8r_v({{
+                        Vd[regElemID] = Vs2[regElemID];
+                    }});
+                }
                 0x29: VectorOPIVIOp::vsra_vi({{
-                    Vd_vc[regElemID] = Vs2_vc[regElemID] >> (UIMM5 & ((sewb * 8) - 1));
+                    Vd_vc[regElemID] = (__int128_t) sext(Vs2_vc[regElemID], sewb * 8) >> (UIMM5 & ((sewb * 8) - 1));
                 }});
                 0x28: VectorOPIVIOp::vsrl_vi({{
                     Vd_vc[regElemID] = Vs2_vc[regElemID] >> (UIMM5 & ((sewb * 8) - 1));
@@ -2953,10 +2751,8 @@ decode QUADRANT default Unknown::unknown() {
                 0x0a: VectorVdVs2Rs1Op::vor_vx({{
                     Vd_vc[regElemID] = Vs2_vc[regElemID] | Rs1_ud;
                 }});
-                0x0c: VectorVdVs2Rs1Op::vrgather_vx({{
-                    uint32_t vlmax = getVlmax(vtype, xc->readMiscReg(MISCREG_VLENB) * 8);
-                    Vd_vc[regElemID] =
-                        (Rs1_ud >= vlmax) ? 0 : Vs2_vc[Rs1_ud];
+                0x0c: VectorVRGatherVXOp::vrgather_vx({{
+                    Vd_vc[regElemID] = result + (Rs1_ud * 0);
                 }});
                 0x21: VectorVdVs2Rs1Op::vsadd_vx({{
                     bool sat = false;
@@ -2992,7 +2788,7 @@ decode QUADRANT default Unknown::unknown() {
                 }});
 //                0x27: VectorVdVs2Rs1Op::vsmul_vx();
                 0x29: VectorVdVs2Rs1Op::vsra_vx({{
-                    Vd_vc[regElemID] = Vs2_vc[regElemID] >> (Rs1_ud & ((sewb * 8) - 1));
+                    Vd_vc[regElemID] = (__int128_t) sext(Vs2_vc[regElemID], sewb * 8) >> (Rs1_ud & ((sewb * 8) - 1));
                 }});
                 0x28: VectorVdVs2Rs1Op::vsrl_vx({{
                     Vd_vc[regElemID] = Vs2_vc[regElemID] >> (Rs1_ud & ((sewb * 8) - 1));
@@ -3012,7 +2808,10 @@ decode QUADRANT default Unknown::unknown() {
                     Vd_vc[regElemID] = val >> sh;
                 }});
 //                0x23: VectorVdVs2Rs1Op::vssub_vx();
-                0x2d: VectorNarrowingVXOp::vnsra_wx({{
+                0x2c: VectorNarrowingWXOp::vnsrl_wx({{
+                    Vd_vc[VdElemID] = Vs2_vc[Vs2ElemID] >> (Rs1_ud & (sewb * 8 * 2 - 1) & 0x1f);
+                }});
+                0x2d: VectorNarrowingWXOp::vnsra_wx({{
                     __int128_t vs2 = sext(Vs2_vc[Vs2ElemID], sewb * 8 * 2);
                     Vd_vc[VdElemID] = vs2 >> (Rs1_ud & (sewb * 8 * 2 - 1) & 0x1f);
                 }});
