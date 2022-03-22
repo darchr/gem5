@@ -26,76 +26,42 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_SEGA_WL_ENGINE_HH__
-#define __ACCL_GRAPH_SEGA_WL_ENGINE_HH__
+#ifndef __ACCL_GRAPH_BASE_REDUCE_ENGINE_HH__
+#define __ACCL_GRAPH_BASE_REDUCE_ENGINE_HH__
 
-#include <queue>
-#include <unordered_map>
 
-#include "accl/graph/base/base_reduce_engine.hh"
-#include "accl/graph/sega/coalesce_engine.hh"
-#include "params/WLEngine.hh"
+#include "accl/base/util.hh"
+#include "params/BaseReduceEngine.hh"
+#include "sim/clocked_object.hh"
+#include "sim/system.hh"
 
 namespace gem5
 {
 
-class WLEngine : public BaseReduceEngine
+class BaseReduceEngine : public ClockedObject
 {
   private:
-    class RespPort : public ResponsePort
-    {
-      private:
-        WLEngine* owner;
+    System* system;
 
-      public:
-        RespPort(const std::string& name, WLEngine* owner):
-          ResponsePort(name, owner), owner(owner)
-        {}
-        virtual AddrRangeList getAddrRanges() const;
-
-      protected:
-        virtual bool recvTimingReq(PacketPtr pkt);
-        virtual Tick recvAtomic(PacketPtr pkt);
-        virtual void recvFunctional(PacketPtr pkt);
-        virtual void recvRespRetry();
-    };
-
-    RespPort respPort;
-
-    bool blockedByCoalescer;
-    CoalesceEngine* coaleseEngine;
-
-    int updateQueueSize;
-    std::queue<PacketPtr> updateQueue;
-
-    int onTheFlyUpdateMapSize;
-    std::unordered_map<Addr, uint32_t> onTheFlyUpdateMap;
-
-    virtual void startup();
-
-    void recvFunctional(PacketPtr pkt);
-
-    AddrRangeList getAddrRanges() const;
-
-    EventFunctionWrapper nextReadEvent;
-    void processNextReadEvent();
-
-    EventFunctionWrapper nextReduceEvent;
-    void processNextReduceEvent();
+    bool handleIncomingWL(Addr addr, WorkListItem wl);
 
   protected:
+    Addr currentWorkListAddress;
+    WorkListItem currentWorkList;
+
+    const RequestorID _requestorId;
+
     virtual void scheduleReduceEvent() = 0;
 
   public:
-    PARAMS(WLEngine);
+    PARAMS(BaseReduceEngine);
 
-    WLEngine(const WLEngineParams &params);
+    BaseReduceEngine(const BaseReduceEngineParams &params);
+    ~BaseReduceEngine();
 
-    Port& getPort(const std::string &if_name,
-                  PortID idx=InvalidPortID) override;
-
-    bool handleIncomingUpdate(PacketPtr pkt);
+    RequestorID requestorId() { return _requestorId; }
 };
 
 }
-#endif // __ACCL_GRAPH_SEGA_WL_ENGINE_HH__
+
+#endif // __ACCL_GRAPH_BASE_BASE_REDUCE_ENGINE_HH__
