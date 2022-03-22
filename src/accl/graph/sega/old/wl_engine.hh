@@ -32,14 +32,17 @@
 #include <queue>
 #include <unordered_map>
 
-#include "accl/graph/base/base_reduce_engine.hh"
-#include "accl/graph/sega/coalesce_engine.hh"
+#include "accl/graph/base/base_wl_engine.hh"
+#include "accl/graph/sega/apply_engine.hh"
+#include "accl/graph/sega/lock_dir.hh"
 #include "params/WLEngine.hh"
 
 namespace gem5
 {
 
-class WLEngine : public BaseReduceEngine
+class ApplyEngine;
+
+class WLEngine : public BaseWLEngine
 {
   private:
     class RespPort : public ResponsePort
@@ -61,40 +64,22 @@ class WLEngine : public BaseReduceEngine
     };
 
     RespPort respPort;
-
-    bool blockedByCoalescer;
-    CoalesceEngine* coaleseEngine;
-
-    int updateQueueSize;
-    std::queue<PacketPtr> updateQueue;
-
-    int onTheFlyUpdateMapSize;
-    std::unordered_map<Addr, uint32_t> onTheFlyUpdateMap;
+    ApplyEngine* applyEngine;
+    LockDirectory* lockDir;
 
     virtual void startup();
-
     void recvFunctional(PacketPtr pkt);
 
-    AddrRangeList getAddrRanges() const;
-
-    EventFunctionWrapper nextReadEvent;
-    void processNextReadEvent();
-
-    EventFunctionWrapper nextReduceEvent;
-    void processNextReduceEvent();
-
   protected:
-    virtual void scheduleReduceEvent() = 0;
+    virtual bool sendWLNotif(Addr addr) override;
+    virtual bool acquireAddress(Addr addr) override;
+    virtual bool releaseAddress(Addr addr) override;
 
   public:
     PARAMS(WLEngine);
-
     WLEngine(const WLEngineParams &params);
-
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
-
-    bool handleIncomingUpdate(PacketPtr pkt);
 };
 
 }
