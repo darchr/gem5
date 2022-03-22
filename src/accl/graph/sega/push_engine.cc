@@ -31,9 +31,16 @@
 namespace gem5
 {
 
-PushEngine::PushEngine(const PushEngineParams &params) :
-    BasePushEngine(params),
-    reqPort(name() + "reqPort", this)
+PushEngine::PushEngine(const PushEngineParams &params):
+    BaseReadEngine(params),
+    reqPort(name() + ".req_port", this),
+    baseEdgeAddr(params.base_edge_addr),
+    memRespQueueSize(params.mem_resp_queue_size),
+    pushReqQueueSize(params.push_req_queue_size),
+    onTheFlyReadReqs(0),
+    nextAddrGenEvent([this] { processNextAddrGenEvent(); }, name()),
+    nextReadEvent([this] { processNextReadEvent(); }, name()),
+    nextPushEvent([this] { processNextPushEvent(); }, name())
 {}
 
 Port&
@@ -41,8 +48,10 @@ PushEngine::getPort(const std::string &if_name, PortID idx)
 {
     if (if_name == "req_port") {
         return reqPort;
+    } else if (if_name == "mem_port") {
+        return BaseReadEngine::getPort(if_name, idx);
     } else {
-        return BasePushEngine::getPort(if_name, idx);
+        return SimObject::getPort(if_name, idx);
     }
 }
 
@@ -78,13 +87,130 @@ PushEngine::ReqPort::recvReqRetry()
 }
 
 bool
-PushEngine::sendPushUpdate(PacketPtr pkt)
+PushEngine::recvWLItem(WorkListItem wl);
 {
-    if (!reqPort.blocked()) {
-        reqPort.sendPacket(pkt);
-        return true;
+    assert(pushReqQueue.size() <= pushReqQueueSize);
+    if ((pushReqQueueSize != 0) && (pushReqQueue.size() == pushReqQueueSize)) {
+        return false;
     }
-    return false;
+    pushReqQueue.push(wl);
+
+    if ((!nextAddrGenEvent.scheduled()) &&
+        (!pushReqQueue.empty())) {
+        schedule(nextAddrGenEvent, nextCycle());
+    }
+    return true;
+}
+
+void
+PushEngine::processNextAddrGenEvent()
+{
+    WorkListItem wl = pushReqQueue.front();
+
+    std::vector<Addr> addr_queue;
+    std::vector<Addr> offset_queue;
+    std::vector<int> num_edge_queue;
+
+    for (uint32_t index = 0; index < wl.degree; index++) {
+        Addr edge_addr = baseEdgeAddr + (wl.edgeIndex + index) * sizeof(Edge);
+        Addr req_addr = (edge_addr / 64) * 64;
+        Addr req_offset = edge_addr % 64;
+        if (addr_queue.size()) {
+            if (addr_queue.back() == req_addr) {
+                num_edge_queue.back()++;
+            }
+            else {
+                addr_queue.push_back(req_addr);
+                offset_queue.push_back(req_offset);
+                num_edge_queue.push_back(1);
+            }
+        }
+        else {
+            addr_queue.push_back(req_addr);
+            offset_queue.push_back(req_offset);
+            num_edge_queue.push_back(1);
+        }
+    };
+
+    for (int index = 0; index < addr_queue.size(); index++) {
+        PacketPtr pkt = getReadPacket(addr_queue[index], 64, requestorId);
+        reqOffsetMap[pkt->req] = offset_queue[index];
+        reqNumEdgeMap[pkt->req] = num_edge_queue[index];
+        reqValueMap[pkt->req] = wl.prop;
+        pendingReadReqs.push(pkt);
+    }
+
+    pushReadReqs.pop();
+
+    if ((!nextAddrGenEvent.scheduled()) && (!pushReqQueue.empty())) {
+        schedule(nextAddrGenEvent, nextCycle());
+    }
+
+    if ((!nextReadEvent.scheduled()) && (!pendingReadReqs.empty())) {
+        schedule(nextReadEvent, nextCycle());
+    }
+}
+
+void
+PushEngine::processNextReadEvent()
+{
+    if (((memRespQueue.size() + onTheFlyReadReqs) <= memRespQueueSize) &&
+        (!memPortBlocked())) {
+        PacketPtr pkt = pendingReadReqs.front();
+        sendMemReq(pkt);
+        onTheFlyReadReqs++;
+        pendingReadReqs.pop();
+    }
+
+    if ((!nextReadEvent.scheduled()) && (!pendingReadReqs.empty())) {
+        schedule(nextReadEvent, nextCycle());
+    }
+}
+
+bool
+PushEngine::handleMemResp(PacketPtr pkt)
+{
+    onTheFlyReadReqs--;
+    memRespQueue.push(pkt);
+
+    if ((!nextPushEvent.scheduled()) && (!memRespQueue.empty())) {
+        schedule(nextPushEvent, nextCycle());
+    }
+}
+
+void
+PushEngine::processNextPushEvent()
+{
+    PacketPtr pkt = memRespQueue.front();
+    RequestPtr req = pkt->req;
+    uint8_t *data = pkt->getPtr<uint8_t>();
+
+    Addr offset = reqOffsetMap[req];
+    int num_edges = reqNumEdgeMap[req];
+    uint32_t value = reqValueMap[req];
+
+    int edge_in_bytes = sizeof(Edge) / sizeof(uint8_t);
+    for (int i = 0; i < num_edges; i++) {
+        uint8_t *curr_edge_data = data + offset + (i * edge_in_bytes);
+        Edge e = memoryToEdge(curr_edge_data);
+        int data_size = sizeof(uint32_t) / sizeof(uint8_t);
+        uint32_t* update_data = (uint32_t*) (new uint8_t [data_size]);
+        // TODO: Implement propagate function here
+        *update_data = value + 1;
+        PacketPtr update = getUpdatePacket(e.neighbor,
+            sizeof(uint32_t) / sizeof(uint8_t), (uint8_t*) update_data,
+            requestorId);
+        if (sendPushUpdate(update) && (i == num_edges - 1)) {
+            memRespQueue.pop();
+            DPRINTF(MPU, "%s: Reading  %s, updating with %d\n"
+                , __func__, e.to_string(), *update_data);
+            // TODO: Erase map entries here.
+        }
+    }
+
+    if (!nextPushEvent.scheduled() && !memRespQueue.empty()) {
+        schedule(nextPushEvent, nextCycle());
+    }
 }
 
 }

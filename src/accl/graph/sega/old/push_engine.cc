@@ -26,74 +26,65 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_SEGA_PUSH_ENGINE_HH__
-#define __ACCL_GRAPH_SEGA_PUSH_ENGINE_HH__
-
-#include "accl/graph/base/base_read_engine.hh"
-#include "params/PushEngine.hh"
+#include "accl/graph/sega/push_engine.hh"
 
 namespace gem5
 {
 
-class PushEngine : public BaseReadEngine
+PushEngine::PushEngine(const PushEngineParams &params) :
+    BasePushEngine(params),
+    reqPort(name() + "reqPort", this)
+{}
+
+Port&
+PushEngine::getPort(const std::string &if_name, PortID idx)
 {
-  private:
-    class ReqPort : public RequestPort
-    {
-      private:
-        PushEngine* owner;
-        bool _blocked;
-        PacketPtr blockedPacket;
-
-      public:
-        ReqPort(const std::string& name, PushEngine* owner) :
-          RequestPort(name, owner), owner(owner),
-          _blocked(false), blockedPacket(nullptr)
-        {}
-        void sendPacket(PacketPtr pkt);
-        bool blocked() { return _blocked; }
-
-      protected:
-        virtual bool recvTimingResp(PacketPtr pkt);
-        virtual void recvReqRetry();
-    };
-
-    ReqPort reqPort;
-
-    Addr baseEdgeAddr;
-
-    int pushReqQueueSize;
-    std::queue<WorkListItem> pushReqQueue;
-
-    // TODO: Possibility of infinite queueing
-    std::queue<PacketPtr> pendingReadReqs;
-
-    int memRespQueueSize;
-    int onTheFlyReadReqs;
-    std::queue<PacketPtr> memRespQueue;
-
-    EventFunctionWrapper nextAddrGenEvent;
-    void processNextAddrGenEvent();
-
-    EventFunctionWrapper nextReadEvent;
-    void processNextReadEvent();
-
-    EventFunctionWrapper nextPushEvent;
-    void processNextPushEvent();
-
-  protected:
-    virtual bool handleMemResp(PacketPtr pkt);
-
-  public:
-    PARAMS(PushEngine);
-    PushEngine(const PushEngineParams &params);
-
-    Port& getPort(const std::string &if_name,
-                PortID idx=InvalidPortID) override;
-
-    bool recvWLItem(WorkListItem wl);
-};
-
+    if (if_name == "req_port") {
+        return reqPort;
+    } else {
+        return BasePushEngine::getPort(if_name, idx);
+    }
 }
 
-#endif // __ACCL_GRAPH_SEGA_PUSH_ENGINE_HH__
+void
+PushEngine::ReqPort::sendPacket(PacketPtr pkt)
+{
+    panic_if(_blocked, "Should never try to send if blocked MemSide!");
+    // If we can't send the packet across the port, store it for later.
+    if (!sendTimingReq(pkt))
+    {
+        blockedPacket = pkt;
+        _blocked = true;
+    }
+}
+
+bool
+PushEngine::ReqPort::recvTimingResp(PacketPtr pkt)
+{
+    panic("recvTimingResp called on the request port.");
+}
+
+void
+PushEngine::ReqPort::recvReqRetry()
+{
+    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
+
+    _blocked = false;
+    sendPacket(blockedPacket);
+
+    if (!blocked()) {
+        blockedPacket = nullptr;
+    }
+}
+
+bool
+PushEngine::sendPushUpdate(PacketPtr pkt)
+{
+    if (!reqPort.blocked()) {
+        reqPort.sendPacket(pkt);
+        return true;
+    }
+    return false;
+}
+
+}

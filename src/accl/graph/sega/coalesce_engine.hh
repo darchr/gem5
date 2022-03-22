@@ -26,76 +26,63 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_SEGA_WL_ENGINE_HH__
-#define __ACCL_GRAPH_SEGA_WL_ENGINE_HH__
+#ifndef __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__
+#define __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__
 
-#include <queue>
-#include <unordered_map>
-
-#include "accl/graph/base/base_reduce_engine.hh"
-#include "accl/graph/sega/coalesce_engine.hh"
-#include "params/WLEngine.hh"
+#include "accl/base/base_read_engine.hh"
 
 namespace gem5
 {
 
-class WLEngine : public BaseReduceEngine
+class WLEngine;
+
+class CoalesceEngine : public BaseReadEngine
 {
   private:
-    class RespPort : public ResponsePort
+    struct Block
     {
-      private:
-        WLEngine* owner;
-
-      public:
-        RespPort(const std::string& name, WLEngine* owner):
-          ResponsePort(name, owner), owner(owner)
-        {}
-        virtual AddrRangeList getAddrRanges() const;
-
-      protected:
-        virtual bool recvTimingReq(PacketPtr pkt);
-        virtual Tick recvAtomic(PacketPtr pkt);
-        virtual void recvFunctional(PacketPtr pkt);
-        virtual void recvRespRetry();
+        WorkListItem items[4];
+        Addr addr;
+        int numConflicts;
+        bool pending[4];
+        bool taken[4];
+        bool valid;
+        bool allocated;
     };
 
-    RespPort respPort;
+    WLEngine* peerWLEngine;
 
-    bool blockedByCoalescer;
-    CoalesceEngine* coaleseEngine;
+    Block cacheBlocks[256];
 
-    int updateQueueSize;
-    std::queue<PacketPtr> updateQueue;
+    int reqQueueSize;
+    std::queue<Addr> reqQueue;
 
-    int onTheFlyUpdateMapSize;
-    std::unordered_map<Addr, uint32_t> onTheFlyUpdateMap;
+    int conflictAddrQueueSize;
+    std::queue<Addr> conflictAddrQueue;
 
-    virtual void startup();
+    EventFunctionWrapper nextRespondEvent;
+    void processNextRespondEvent();
+
+    EventFunctionWrapper nextApplyAndCommitEvent;
+    void processNextApplyAndCommitEvent();
+
+  protected:
+    virtual bool handleMemResp(PacketPtr pkt);
+
+  public:
+    PARAMS(CoalesceEngine);
+
+    CoalesceEngine(const CoalesceEngineParams &params);
+    ~CoalesceEngine();
 
     void recvFunctional(PacketPtr pkt);
 
-    AddrRangeList getAddrRanges() const;
+    bool recvReadAddr(Addr addr);
+    void recvWLWrite(Addr addr, WorkListItem wl);
 
-    EventFunctionWrapper nextReadEvent;
-    void processNextReadEvent();
-
-    EventFunctionWrapper nextReduceEvent;
-    void processNextReduceEvent();
-
-  protected:
-    virtual void scheduleReduceEvent() = 0;
-
-  public:
-    PARAMS(WLEngine);
-
-    WLEngine(const WLEngineParams &params);
-
-    Port& getPort(const std::string &if_name,
-                  PortID idx=InvalidPortID) override;
-
-    bool handleIncomingUpdate(PacketPtr pkt);
-};
+    void registerWLEngine(WLEngine* wl_engine);
+}
 
 }
-#endif // __ACCL_GRAPH_SEGA_WL_ENGINE_HH__
+
+#endif // __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__

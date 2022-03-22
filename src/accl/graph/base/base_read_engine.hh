@@ -26,76 +26,76 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_SEGA_WL_ENGINE_HH__
-#define __ACCL_GRAPH_SEGA_WL_ENGINE_HH__
+#ifndef __ACCL_GRAPH_BASE_READ_ENGINE_HH__
+#define __ACCL_GRAPH_BASE_READ_ENGINE_HH__
 
 #include <queue>
 #include <unordered_map>
 
-#include "accl/graph/base/base_reduce_engine.hh"
-#include "accl/graph/sega/coalesce_engine.hh"
-#include "params/WLEngine.hh"
+#include "base/addr_range.hh"
+#include "mem/packet.hh"
+#include "mem/port.hh"
+#include "params/BaseEngine.hh"
+#include "sim/clocked_object.hh"
+#include "sim/system.hh"
 
 namespace gem5
 {
 
-class WLEngine : public BaseReduceEngine
+class BaseReadEngine : public ClockedObject
 {
   private:
-    class RespPort : public ResponsePort
+    class MemPort : public RequestPort
     {
       private:
-        WLEngine* owner;
+        BaseReadEngine* owner;
+        bool _blocked;
+        PacketPtr blockedPacket;
 
-      public:
-        RespPort(const std::string& name, WLEngine* owner):
-          ResponsePort(name, owner), owner(owner)
+        public:
+        MemPort(const std::string& name, BaseEngine* owner):
+            RequestPort(name, owner), owner(owner),
+            _blocked(false), blockedPacket(nullptr)
         {}
-        virtual AddrRangeList getAddrRanges() const;
 
-      protected:
-        virtual bool recvTimingReq(PacketPtr pkt);
-        virtual Tick recvAtomic(PacketPtr pkt);
-        virtual void recvFunctional(PacketPtr pkt);
-        virtual void recvRespRetry();
+        void sendPacket(PacketPtr pkt);
+        bool blocked() { return _blocked; }
+
+        protected:
+        virtual bool recvTimingResp(PacketPtr pkt);
+        virtual void recvReqRetry();
     };
 
-    RespPort respPort;
+    System* system;
+    MemPort memPort;
 
-    bool blockedByCoalescer;
-    CoalesceEngine* coaleseEngine;
-
-    int updateQueueSize;
-    std::queue<PacketPtr> updateQueue;
-
-    int onTheFlyUpdateMapSize;
-    std::unordered_map<Addr, uint32_t> onTheFlyUpdateMap;
-
-    virtual void startup();
-
-    void recvFunctional(PacketPtr pkt);
-
-    AddrRangeList getAddrRanges() const;
-
-    EventFunctionWrapper nextReadEvent;
-    void processNextReadEvent();
-
-    EventFunctionWrapper nextReduceEvent;
-    void processNextReduceEvent();
+    bool handleMemResp(PacketPtr resp);
 
   protected:
-    virtual void scheduleReduceEvent() = 0;
+    const RequestorID _requestorId;
+
+    bool memPortBlocked() { return memPort.blocked(); }
+    void sendMemReq(PacketPtr pkt) { memPort.sendPacket(pkt); }
+    void sendMemFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }
+
+    virtual bool handleMemResp(PacketPtr pkt) = 0;
 
   public:
-    PARAMS(WLEngine);
+    PARAMS(BaseReadEngine);
 
-    WLEngine(const WLEngineParams &params);
-
+    BaseReadEngine(const BaseReadEngineParams &params);
+    ~BaseReadEngine();
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 
-    bool handleIncomingUpdate(PacketPtr pkt);
+    RequestorID requestorId() { return _requestorId; }
+
+    AddrRangeList getAddrRanges() {return memPort.getAddrRanges(); }
+
+    void recvFunctional(PacketPtr pkt);
+
 };
 
 }
-#endif // __ACCL_GRAPH_SEGA_WL_ENGINE_HH__
+
+#endif // __ACCL_GRAPH_BASE_BASE_APPLY_ENGINE_HH__
