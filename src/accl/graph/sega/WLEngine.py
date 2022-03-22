@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2016 Jason Lowe-Power
+# Copyright (c) 2017 Jason Lowe-Power
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,14 +25,16 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+from m5.params import *
+from m5.proxy import *
+from m5.objects.BaseReduceEngine import BaseReduceEngine
 
-SimObject('CoalesceEngine.py')
-SimObject('PushEngine.py')
-SimObject('WLEngine.py')
+class WLEngine(BaseReduceEngine):
+    type = 'WLEngine'
+    cxx_header = "accl/graph/sega/wl_engine.hh"
+    cxx_class = 'gem5::WLEngine'
 
-Source('coalesce_engine.cc')
-Source('push_engine.cc')
-Source('wl_engine.cc')
-
-DebugFlag('MPU')
+    resp_port = ResponsePort("Port to Receive updates from outside")
+    coalesce_engine = Param.CoaleseEngine(NULL, "")
+    update_queue_size = Param.Int(0, "")
+    on_the_fly_update_map_size = Param.Int(4, "") # 4 is arbitrary

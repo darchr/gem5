@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2016 Jason Lowe-Power
+# Copyright (c) 2017 Jason Lowe-Power
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,14 +25,16 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+from m5.params import *
+from m5.proxy import *
+from m5.objects.BaseReadEngine import BaseReadEngine
 
-SimObject('CoalesceEngine.py')
-SimObject('PushEngine.py')
-SimObject('WLEngine.py')
-
-Source('coalesce_engine.cc')
-Source('push_engine.cc')
-Source('wl_engine.cc')
-
-DebugFlag('MPU')
+class CoalesceEngine(BaseReadEngine):
+    type = 'CoalesceEngine'
+    cxx_header = "accl/graph/sega/coalesce_engine.hh"
+    cxx_class = 'gem5::CoalesceEngine'
+    
+    peer_push_engine = Param.PushEngine(NULL, "")
+    num_mshr_entry = Param.Int(4, "")
+    num_tgts_per_mshr = Param.Int(20, "")
+    outstanding_mem_req_queue_size = Param.Int(20, "")
