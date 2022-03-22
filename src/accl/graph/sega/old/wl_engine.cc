@@ -28,22 +28,15 @@
 
 #include "accl/graph/sega/wl_engine.hh"
 #include "debug/MPU.hh"
-
 namespace gem5
 {
 
 WLEngine::WLEngine(const WLEngineParams &params):
-    BaseReduceEngine(params),
-    respPort(name() + ".resp_port", this),
-    blockedByCoalescer(false),
-    coaleseEngine(params.coalesce_engine),
-    updateQueueSize(params.update_queue_size),
-    onTheFlyUpdateMapSize(params.on_the_fly_update_map_size),
-    nextReadEvent([this]{ processNextReadEvent(); }, name()),
-    nextReduceEvent([this]{ processNextReduceEvent(); }, name())
-{
-    coaleseEngine->registerWLEngine(this);
-}
+    BaseWLEngine(params),
+    respPort(name() + ".respPort", this),
+    applyEngine(params.apply_engine),
+    lockDir(params.lock_dir)
+{}
 
 Port&
 WLEngine::getPort(const std::string &if_name, PortID idx)
@@ -51,7 +44,7 @@ WLEngine::getPort(const std::string &if_name, PortID idx)
     if (if_name == "resp_port") {
         return respPort;
     } else {
-        return BaseReduceEngine::getPort(if_name, idx);
+        return BaseWLEngine::getPort(if_name, idx);
     }
 }
 
@@ -60,8 +53,6 @@ WLEngine::startup()
 {
     //FIXME: This is the current version of our initializer.
     // This should be updated in the future.
-    //FIXME: The WLEngine no longer has a MemPort. Update this to
-    // work with the CoalesceEngine instead.
     WorkListItem vertices [5] = {
                                 {10000, 10000, 3, 0}, // Addr: 0
                                 {10000, 10000, 1, 3}, // Addr: 16
@@ -102,6 +93,11 @@ WLEngine::startup()
     handleWLUpdate(first_update);
 }
 
+bool
+WLEngine::sendWLNotif(Addr addr){
+    return applyEngine->recvWLNotif(addr);
+}
+
 AddrRangeList
 WLEngine::RespPort::getAddrRanges() const
 {
@@ -111,7 +107,7 @@ WLEngine::RespPort::getAddrRanges() const
 bool
 WLEngine::RespPort::recvTimingReq(PacketPtr pkt)
 {
-    return owner->handleIncomingUpdate(pkt);
+    return owner->handleWLUpdate(pkt);
 }
 
 Tick
@@ -135,81 +131,26 @@ WLEngine::RespPort::recvRespRetry()
 void
 WLEngine::recvFunctional(PacketPtr pkt)
 {
-    coaleseEngine->recvFunctional(pkt);
-}
-
-AddrRangeList
-WLEngine::getAddrRanges()
-{
-    return coaleseEngine->getAddrRanges();
-}
-
-void
-WLEngine::processNextReadEvent()
-{
-    PacketPtr update = updateQueue.front();
-    Addr update_addr = update->getAddr();
-    uint32_t update_value = update->getPtr<uint32_t>();
-
-    if ((onTheFlyUpdateMap.find(update_addr) == onTheFlyUpdateMap.end()) &&
-        (onTheFlyUpdateMap.size() < onTheFlyUpdateMapSize)) {
-        if (coalesceEngine->recvReadAddr(update_addr)) {
-            onTheFlyUpdateMap[update_addr] = update_value
-            updateQueue.pop();
-        }
-    } else {
-        // TODO: Generalize this to reduce function rather than just min
-        onTheFlyUpdateMap[update_addr] =
-                min(update_addr, onTheFlyUpdateMap[update_addr]);
-        updateQueue.pop();
-        // TODO: Add a stat to count the number of coalescions
-    }
-
-    if ((!nextReadEvent.scheduled()) &&
-        ((!updateQueue.empty()) ||
-        (onTheFlyUpdateMap.size() < onTheFlyUpdateMapSize))) {
-        schedule(nextReadEvent, nextCycle());
-    }
-}
-
-void
-WLEngine::processNextReduceEvent()
-{
-    // TODO: Generalize this to reduce function rather than just min
-    currentWorkList.temp_prop = min(onTheFlyUpdateMap[currentWorkListAddress],
-                                    currentWorkList.temp_prop);
-    // TODO: Add a delay here
-    coalesceEngine->recvWLWrite(currentWorkListAddress, currentWorkList);
-
-    onTheFlyUpdateMap.erase(currentWorkListAddress);
-    currentWorkListAddress = 0;
-    currentWorkList = {0, 0, 0, 0};
-}
-
-void
-WLEngine::scheduleReduceEvent()
-{
-    // TODO: Add checks to see if scheduling is necessary or correct.
-    if (!nextReduceEvent.scheduled()) {
-        schedule(nextReduceEvent, nextCycle());
-    }
+    // FIXME: This needs to be fixed
+    // if (pkt->cmd == MemCmd::UpdateWL) {
+    //     panic("Functional requests should not be made to WL.");
+    //     //TODO: Might be a good idea to implement later.
+    //     // wlEngine->recvFunctional(pkt);
+    // } else {
+        sendMemFunctional(pkt);
+    // }
 }
 
 bool
-WLEngine::handleIncomingUpdate(PacketPtr pkt)
+WLEngine::acquireAddress(Addr addr)
 {
-    // TODO: Coalesce updates here too
-    assert(updateQueue.size() <= updateQueueSize);
-    if ((updateQueueSize != 0) && (updateQueue.size() == updateQueueSize)) {
-        return false;
-    }
+    return lockDir->acquire(addr, requestorId);
+}
 
-    updateQueue.push(pkt);
-    if ((!nextReadEvent.scheduled()) &&
-        (!updateQueue.empty())) {
-        schedule(nextReadEvent, nextCycle());
-    }
-    return true;
+bool
+WLEngine::releaseAddress(Addr addr)
+{
+    return lockDir->release(addr, requestorId);
 }
 
 }
