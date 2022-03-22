@@ -30,6 +30,7 @@
 #define __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__
 
 #include "accl/base/base_read_engine.hh"
+#include "accl/sega/push_engine.hh"
 
 namespace gem5
 {
@@ -43,22 +44,33 @@ class CoalesceEngine : public BaseReadEngine
     {
         WorkListItem items[4];
         Addr addr;
-        int numConflicts;
-        bool pending[4];
-        bool taken[4];
-        bool valid;
+        uint8_t takenMask;
         bool allocated;
+        bool valid;
+        bool hasConflict;
+        // TODO: This might be useful in the future
+        // Tick lastWLWriteTick;
     };
 
     WLEngine* peerWLEngine;
-
+    PushEngine* peerPushEngine;
+    
     Block cacheBlocks[256];
 
-    int reqQueueSize;
-    std::queue<Addr> reqQueue;
+    int numMSHREntry;
+    int numTgtsPerMSHR;
+    std::unordered_map<int, std::vector<Addr>> MSHRMap;
 
-    int conflictAddrQueueSize;
-    std::queue<Addr> conflictAddrQueue;
+    int outstandingMemReqQueueSize;
+    std::queue<PacketPtr> outstandingMemReqQueue;
+
+    std::queue<Addr> addrResponseQueue;
+    std::queue<WorkListItem> worklistResponseQueue;
+
+    std::queue<int> evictQueue;
+
+    EventFunctionWrapper nextMemReqEvent;
+    void processNextMemReqEvent();
 
     EventFunctionWrapper nextRespondEvent;
     void processNextRespondEvent();
