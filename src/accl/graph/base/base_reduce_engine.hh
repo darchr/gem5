@@ -50,8 +50,6 @@ class BaseReduceEngine : public ClockedObject
 
     const RequestorID _requestorId;
 
-    virtual void scheduleReduceEvent() = 0;
-
   public:
     PARAMS(BaseReduceEngine);
 
@@ -60,7 +58,7 @@ class BaseReduceEngine : public ClockedObject
 
     RequestorID requestorId() { return _requestorId; }
 
-    void handleIncomingWL(Addr addr, WorkListItem wl);
+    virtual void handleIncomingWL(Addr addr, WorkListItem wl) = 0;
 };
 
 }

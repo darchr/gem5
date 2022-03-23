@@ -56,7 +56,7 @@ class CoalesceEngine : public BaseReadEngine
 
     WLEngine* peerWLEngine;
     PushEngine* peerPushEngine;
-    
+
     Block cacheBlocks[256];
 
     int numMSHREntry;
@@ -70,6 +70,8 @@ class CoalesceEngine : public BaseReadEngine
     std::queue<WorkListItem> worklistResponseQueue;
 
     std::queue<int> evictQueue;
+
+    virtual void startup();
 
     EventFunctionWrapper nextMemReqEvent;
     void processNextMemReqEvent();
