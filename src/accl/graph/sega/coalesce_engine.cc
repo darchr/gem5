@@ -42,7 +42,8 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     outstandingMemReqQueueSize(params.outstanding_mem_req_queue_size),
     nextMemReqEvent([this] { processNextMemReqEvent(); }, name()),
     nextRespondEvent([this] { processNextRespondEvent(); }, name()),
-    nextApplyAndCommitEvent([this] { processNextApplyAndCommitEvent(); }, name())
+    nextApplyAndCommitEvent([this] { processNextApplyAndCommitEvent(); }, name()),
+    stats(*this)
 {}
 
 void
@@ -86,6 +87,8 @@ CoalesceEngine::recvReadAddr(Addr addr)
         addrResponseQueue.push(addr);
         worklistResponseQueue.push(cacheBlocks[block_index].items[wl_offset]);
         cacheBlocks[block_index].takenMask |= (1 << wl_offset);
+        stats.readHits++;
+        stats.numVertexReads++;
         if ((!nextRespondEvent.scheduled()) &&
             (!worklistResponseQueue.empty()) &&
             (!addrResponseQueue.empty())) {
@@ -138,6 +141,7 @@ CoalesceEngine::recvReadAddr(Addr addr)
 
                     if ((!nextMemReqEvent.scheduled()) &&
                         (!outstandingMemReqQueue.empty())) {
+                        stats.numVertexBlockReads++;
                         schedule(nextMemReqEvent, nextCycle());
                     }
                     return true;
@@ -221,6 +225,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             worklistResponseQueue.push(
                 cacheBlocks[block_index].items[wl_offset]);
             cacheBlocks[block_index].takenMask |= (1 << wl_offset);
+            stats.numVertexReads++;
             servicedIndices.push_back(i);
         }
     }
@@ -262,6 +267,7 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
             (1 << wl_offset));
     cacheBlocks[block_index].items[wl_offset] = wl;
     cacheBlocks[block_index].takenMask &= ~(1 << wl_offset);
+    stats.numVertexWrites++;
 
     // TODO: Make this more general and programmable.
     // && (cacheBlocks[block_index].hasConflict)
@@ -376,6 +382,7 @@ CoalesceEngine::processNextApplyAndCommitEvent()
 
     if ((!nextMemReqEvent.scheduled()) &&
         (!outstandingMemReqQueue.empty())) {
+        stats.numVertexBlockWrites++;
         schedule(nextMemReqEvent, nextCycle());
     }
 
@@ -383,6 +390,29 @@ CoalesceEngine::processNextApplyAndCommitEvent()
         (!evictQueue.empty())) {
         schedule(nextApplyAndCommitEvent, nextCycle());
     }
+}
+
+CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
+    : statistics::Group(&_coalesce),
+    coalesce(_coalesce),
+
+    ADD_STAT(numVertexBlockReads, statistics::units::Count::get(),
+             "Number of memory blocks read for vertecies"),
+    ADD_STAT(numVertexBlockWrites, statistics::units::Count::get(),
+             "Number of memory blocks writes for vertecies"),
+    ADD_STAT(numVertexReads, statistics::units::Count::get(),
+             "Number of memory vertecies read from cache."),
+    ADD_STAT(numVertexWrites, statistics::units::Count::get(),
+             "Number of memory vertecies written to cache."),
+    ADD_STAT(readHits, statistics::units::Count::get(),
+             "Number of cache hits.")
+{
+}
+
+void
+CoalesceEngine::CoalesceStats::regStats()
+{
+    using namespace statistics;
 }
 
 }

@@ -40,7 +40,8 @@ WLEngine::WLEngine(const WLEngineParams &params):
     updateQueueSize(params.update_queue_size),
     onTheFlyUpdateMapSize(params.on_the_fly_update_map_size),
     nextReadEvent([this]{ processNextReadEvent(); }, name()),
-    nextReduceEvent([this]{ processNextReduceEvent(); }, name())
+    nextReduceEvent([this]{ processNextReduceEvent(); }, name()),
+    stats(*this)
 {
     coalesceEngine->registerWLEngine(this);
 }
@@ -171,6 +172,7 @@ WLEngine::processNextReadEvent()
                             onTheFlyUpdateMap[update_addr]);
         onTheFlyUpdateMap[update_addr] =
                 std::min(*update_value, onTheFlyUpdateMap[update_addr]);
+        stats.onTheFlyCoalesce++;
         updateQueue.pop();
         DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
         // TODO: Add a stat to count the number of coalescions
@@ -209,6 +211,7 @@ WLEngine::processNextReduceEvent()
                     "%d, with new update: %d.\n", __func__, addr, wl.temp_prop,
                     onTheFlyUpdateMap[addr]);
         // TODO: Generalize this to reduce function rather than just min
+        stats.numReduce++;
         wl.temp_prop = std::min(update_value, wl.temp_prop);
         coalesceEngine->recvWLWrite(addr, wl);
         servicedAddresses.push_back(addr);
@@ -237,6 +240,23 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
         schedule(nextReadEvent, nextCycle());
     }
     return true;
+}
+
+WLEngine::WorkListStats::WorkListStats(WLEngine &_wl)
+    : statistics::Group(&_wl),
+    wl(_wl),
+
+    ADD_STAT(numReduce, statistics::units::Count::get(),
+             "Number of memory blocks read for vertecies"),
+    ADD_STAT(onTheFlyCoalesce, statistics::units::Count::get(),
+             "Number of memory blocks read for vertecies")
+{
+}
+
+void
+WLEngine::WorkListStats::regStats()
+{
+    using namespace statistics;
 }
 
 }
