@@ -26,7 +26,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "accl/base/base_read_engine.hh"
+#include "accl/graph/base/base_read_engine.hh"
 
 namespace gem5
 {
@@ -35,7 +35,7 @@ BaseReadEngine::BaseReadEngine(const BaseReadEngineParams &params):
     ClockedObject(params),
     system(params.system),
     memPort(name() + ".mem_port", this),
-    _requestorId(system.getRequestorId(this)),
+    _requestorId(system->getRequestorId(this))
 {}
 
 BaseReadEngine::~BaseReadEngine()

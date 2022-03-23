@@ -29,8 +29,10 @@
 #ifndef __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__
 #define __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__
 
-#include "accl/base/base_read_engine.hh"
-#include "accl/sega/push_engine.hh"
+#include "accl/graph/base/base_read_engine.hh"
+#include "accl/graph/base/util.hh"
+#include "accl/graph/sega/push_engine.hh"
+#include "params/CoalesceEngine.hh"
 
 namespace gem5
 {
@@ -85,7 +87,7 @@ class CoalesceEngine : public BaseReadEngine
     PARAMS(CoalesceEngine);
 
     CoalesceEngine(const CoalesceEngineParams &params);
-    ~CoalesceEngine();
+    // ~CoalesceEngine();
 
     void recvFunctional(PacketPtr pkt);
 
@@ -93,7 +95,7 @@ class CoalesceEngine : public BaseReadEngine
     void recvWLWrite(Addr addr, WorkListItem wl);
 
     void registerWLEngine(WLEngine* wl_engine);
-}
+};
 
 }
 

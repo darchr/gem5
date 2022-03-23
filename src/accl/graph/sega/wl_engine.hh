@@ -63,7 +63,7 @@ class WLEngine : public BaseReduceEngine
     RespPort respPort;
 
     bool blockedByCoalescer;
-    CoalesceEngine* coaleseEngine;
+    CoalesceEngine* coalesceEngine;
 
     int updateQueueSize;
     std::queue<PacketPtr> updateQueue;
@@ -84,7 +84,7 @@ class WLEngine : public BaseReduceEngine
     void processNextReduceEvent();
 
   protected:
-    virtual void scheduleReduceEvent() = 0;
+    virtual void scheduleReduceEvent();
 
   public:
     PARAMS(WLEngine);

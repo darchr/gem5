@@ -26,7 +26,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "accl/base/base_reduce_engine.hh"
+#include "accl/graph/base/base_reduce_engine.hh"
 
 namespace gem5
 {

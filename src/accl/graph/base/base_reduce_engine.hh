@@ -26,11 +26,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_BASE_REDUCE_ENGINE_HH__
-#define __ACCL_GRAPH_BASE_REDUCE_ENGINE_HH__
+#ifndef __ACCL_GRAPH_BASE_BASE_REDUCE_ENGINE_HH__
+#define __ACCL_GRAPH_BASE_BASE_REDUCE_ENGINE_HH__
 
 
-#include "accl/base/util.hh"
+#include "accl/graph/base/util.hh"
 #include "params/BaseReduceEngine.hh"
 #include "sim/clocked_object.hh"
 #include "sim/system.hh"
@@ -43,7 +43,6 @@ class BaseReduceEngine : public ClockedObject
   private:
     System* system;
 
-    bool handleIncomingWL(Addr addr, WorkListItem wl);
 
   protected:
     Addr currentWorkListAddress;
@@ -60,6 +59,8 @@ class BaseReduceEngine : public ClockedObject
     ~BaseReduceEngine();
 
     RequestorID requestorId() { return _requestorId; }
+
+    void handleIncomingWL(Addr addr, WorkListItem wl);
 };
 
 }

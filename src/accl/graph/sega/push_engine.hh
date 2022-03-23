@@ -30,6 +30,7 @@
 #define __ACCL_GRAPH_SEGA_PUSH_ENGINE_HH__
 
 #include "accl/graph/base/base_read_engine.hh"
+#include "accl/graph/base/util.hh"
 #include "params/PushEngine.hh"
 
 namespace gem5
@@ -65,12 +66,18 @@ class PushEngine : public BaseReadEngine
     int pushReqQueueSize;
     std::queue<WorkListItem> pushReqQueue;
 
+    std::unordered_map<RequestPtr, Addr> reqOffsetMap;
+    std::unordered_map<RequestPtr, int> reqNumEdgeMap;
+    std::unordered_map<RequestPtr, uint32_t> reqValueMap;
+
     // TODO: Possibility of infinite queueing
     std::queue<PacketPtr> pendingReadReqs;
 
     int memRespQueueSize;
     int onTheFlyReadReqs;
     std::queue<PacketPtr> memRespQueue;
+
+    bool sendPushUpdate(PacketPtr pkt);
 
     EventFunctionWrapper nextAddrGenEvent;
     void processNextAddrGenEvent();
