@@ -265,8 +265,19 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 
     // TODO: Make this more general and programmable.
     // && (cacheBlocks[block_index].hasConflict)
+    bool found = false;
     if ((cacheBlocks[block_index].takenMask == 0)) {
-        evictQueue.push(block_index);
+        for (auto index : evictQueue) {
+            if (block_index == index) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            evictQueue.push_back(block_index);
+        }
+        DPRINTF(MPU, "%s: evictQueue.size: %u.\n",
+                __func__, evictQueue.size());
     }
 
     if ((!nextApplyAndCommitEvent.scheduled()) &&
@@ -329,7 +340,9 @@ CoalesceEngine::processNextApplyAndCommitEvent()
             cacheBlocks[block_index].allocated = true;
             cacheBlocks[block_index].valid = false;
             cacheBlocks[block_index].hasConflict = true;
-            evictQueue.pop();
+            evictQueue.pop_front();
+            DPRINTF(MPU, "%s: evictQueue.size: %u.\n",
+                __func__, evictQueue.size());
         } else if ((!cacheBlocks[block_index].hasConflict) &&
             (outstandingMemReqQueue.size() < outstandingMemReqQueueSize)) {
             outstandingMemReqQueue.push(write_pkt);
@@ -350,11 +363,15 @@ CoalesceEngine::processNextApplyAndCommitEvent()
             cacheBlocks[block_index].allocated = false;
             cacheBlocks[block_index].valid = false;
             cacheBlocks[block_index].hasConflict = false;
-            evictQueue.pop();
+            evictQueue.pop_front();
+            DPRINTF(MPU, "%s: evictQueue.size: %u.\n",
+                __func__, evictQueue.size());
         } else {
             DPRINTF(MPU, "%s: Commit failed due to full reqQueue.\n" ,
                 __func__);
         }
+    } else {
+        evictQueue.pop_front();
     }
 
     if ((!nextMemReqEvent.scheduled()) &&
