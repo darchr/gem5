@@ -246,7 +246,7 @@ from m5.objects.Controller import RubyController
 class $py_ident(RubyController):
     type = '$py_ident'
     cxx_header = 'mem/ruby/protocol/${c_ident}.hh'
-    cxx_class = 'gem5::ruby::$py_ident'
+    cxx_class = 'gem5::ruby::$protocol::$py_ident'
 ''')
         code.indent()
         for param in self.config_parameters:
@@ -304,6 +304,9 @@ namespace gem5
 {
 
 namespace ruby
+{
+
+namespace ${protocol}
 {
 
 extern std::stringstream ${ident}_transitionComment;
@@ -463,6 +466,7 @@ void unset_tbe(${{self.TBEType.c_ident}}*& m_tbe_ptr);
         code('''
 };
 
+} // namespace ${protocol}
 } // namespace ruby
 } // namespace gem5
 
@@ -548,6 +552,9 @@ namespace gem5
 {
 
 namespace ruby
+{
+
+namespace ${protocol}
 {
 
 int $c_ident::m_num_controllers = 0;
@@ -827,7 +834,7 @@ $c_ident::regStats()
     AbstractController::regStats();
 
     // For each type of controllers, one controller of that type is picked
-    // to aggregate stats of all controllers of that type. 
+    // to aggregate stats of all controllers of that type.
     if (m_version == 0) {
 
         Profiler *profiler = params().ruby_system->getProfiler();
@@ -1221,6 +1228,7 @@ $c_ident::functionalReadBuffers(PacketPtr& pkt, WriteMask &mask)
     return read;
 }
 
+} // namespace ${protocol}
 } // namespace ruby
 } // namespace gem5
 ''')
@@ -1280,6 +1288,9 @@ namespace gem5
 {
 
 namespace ruby
+{
+
+namespace ${protocol}
 {
 
 void
@@ -1357,6 +1368,7 @@ ${ident}_Controller::wakeup()
     }
 }
 
+} // namespace ${protocol}
 } // namespace ruby
 } // namespace gem5
 ''')
@@ -1393,6 +1405,9 @@ namespace gem5
 {
 
 namespace ruby
+{
+
+namespace ${protocol}
 {
 
 TransitionResult
@@ -1623,6 +1638,7 @@ if (!checkResourceAvailable(%s_RequestType_%s, addr)) {
     return TransitionResult_Valid;
 }
 
+} // namespace ${protocol}
 } // namespace ruby
 } // namespace gem5
 ''')
