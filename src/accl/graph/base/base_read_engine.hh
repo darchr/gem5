@@ -26,8 +26,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_BASE_READ_ENGINE_HH__
-#define __ACCL_GRAPH_BASE_READ_ENGINE_HH__
+#ifndef __ACCL_GRAPH_BASE_BASE_READ_ENGINE_HH__
+#define __ACCL_GRAPH_BASE_BASE_READ_ENGINE_HH__
 
 #include <queue>
 #include <unordered_map>
@@ -35,7 +35,7 @@
 #include "base/addr_range.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
-#include "params/BaseEngine.hh"
+#include "params/BaseReadEngine.hh"
 #include "sim/clocked_object.hh"
 #include "sim/system.hh"
 
@@ -53,7 +53,7 @@ class BaseReadEngine : public ClockedObject
         PacketPtr blockedPacket;
 
         public:
-        MemPort(const std::string& name, BaseEngine* owner):
+        MemPort(const std::string& name, BaseReadEngine* owner):
             RequestPort(name, owner), owner(owner),
             _blocked(false), blockedPacket(nullptr)
         {}
@@ -69,8 +69,6 @@ class BaseReadEngine : public ClockedObject
     System* system;
     MemPort memPort;
 
-    bool handleMemResp(PacketPtr resp);
-
   protected:
     const RequestorID _requestorId;
 
@@ -85,6 +83,7 @@ class BaseReadEngine : public ClockedObject
 
     BaseReadEngine(const BaseReadEngineParams &params);
     ~BaseReadEngine();
+    
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 

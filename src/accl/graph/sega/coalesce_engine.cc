@@ -26,9 +26,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "accl/sega/coalesce_engine.hh"
+#include "accl/graph/sega/coalesce_engine.hh"
 
-#include "accl/sega/wl_engine.hh"
+#include "accl/graph/sega/wl_engine.hh"
 #include "debug/MPU.hh"
 
 namespace gem5
@@ -40,12 +40,13 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     numMSHREntry(params.num_mshr_entry),
     numTgtsPerMSHR(params.num_tgts_per_mshr),
     outstandingMemReqQueueSize(params.outstanding_mem_req_queue_size),
-    nextWorkListSendEvent([this] { processNextWorkListSendEvent(); }, name()),
+    nextMemReqEvent([this] { processNextMemReqEvent(); }, name()),
+    nextRespondEvent([this] { processNextRespondEvent(); }, name()),
     nextApplyAndCommitEvent([this] { processNextApplyAndCommitEvent(); }, name())
 {}
 
-CoalesceEngine::~CoalesceEngine()
-{}
+// CoalesceEngine::~CoalesceEngine()
+// {}
 
 void
 CoalesceEngine::recvFunctional(PacketPtr pkt)
@@ -86,8 +87,8 @@ CoalesceEngine::recvReadAddr(Addr addr)
                 // Out of MSHR entries
                 return false;
             } else {
-                if (cacheBlock[block_index].allocated) {
-                    assert(MSHRMap[block_index].size() <= numTgtsPerMSHR)
+                if (cacheBlocks[block_index].allocated) {
+                    assert(MSHRMap[block_index].size() <= numTgtsPerMSHR);
                     if (MSHRMap[block_index].size() == numTgtsPerMSHR) {
                         return false;
                     }
@@ -122,6 +123,10 @@ CoalesceEngine::recvReadAddr(Addr addr)
                     return true;
                 }
             }
+        } else {
+            assert(cacheBlocks[block_index].hasConflict);
+            MSHRMap[block_index].push_back(addr);
+            return true;
         }
     }   
 }
@@ -167,12 +172,12 @@ CoalesceEngine::processNextRespondEvent()
 bool
 CoalesceEngine::handleMemResp(PacketPtr pkt)
 {
-    if (pkt->isResp() && pkt->isWrite()) {
+    if (pkt->isResponse() && pkt->isWrite()) {
         return true;
     }
 
     Addr addr = pkt->getAddr();
-    uint8_t data = pkt->getPtr<uint8_t>();
+    uint8_t* data = pkt->getPtr<uint8_t>();
     int block_index = addr % 256;
 
     assert((cacheBlocks[block_index].allocated) && // allocated cache block
@@ -218,6 +223,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         (!addrResponseQueue.empty())) {
         schedule(nextRespondEvent, nextCycle());
     }
+
+    return true;
 }
 
 void
@@ -229,7 +236,7 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 
     assert((cacheBlocks[block_index].takenMask & (1 << wl_offset)) == 
             (1 << wl_offset));
-    cacheBlocks[block_index].item[wl_offset] = wl;
+    cacheBlocks[block_index].items[wl_offset] = wl;
     cacheBlocks[block_index].takenMask &= ~(1 << wl_offset);
     
     // TODO: Make this more general and programmable.
@@ -261,10 +268,10 @@ CoalesceEngine::processNextApplyAndCommitEvent()
             changedMask |= (1 << i);
         }
         uint8_t* wl_data = workListToMemory(cacheBlocks[block_index].items[i]);
-        std::memcpy(data[i * 16], wl_data, sizeof(WorkListItem));
+        std::memcpy(data + (i * 16), wl_data, sizeof(WorkListItem));
     }
 
-    if (changed) {
+    if (changedMask) {
         assert(outstandingMemReqQueue.size() <= outstandingMemReqQueueSize);
         PacketPtr write_pkt = getWritePacket(
             cacheBlocks[block_index].addr, 64, data, _requestorId);
