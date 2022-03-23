@@ -52,7 +52,7 @@ class StateDeclAST(DeclAST):
         ident = str(self.type_ast)
 
         # Make the new type
-        t = Type(self.symtab, ident, self.location, self.pairs,
+        t = Type(self.symtab, ident, self.location, self.pairs, self.shared,
                  self.state_machine)
         self.symtab.newSymbol(t)
 

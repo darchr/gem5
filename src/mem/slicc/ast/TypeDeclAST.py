@@ -54,7 +54,7 @@ class TypeDeclAST(DeclAST):
 
         # Make the new type
         new_type = Type(self.symtab, ident, self.location, self.pairs,
-                        self.state_machine)
+                        self.shared, self.state_machine)
 
         if machine:
             machine.addType(new_type)

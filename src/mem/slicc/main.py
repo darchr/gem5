@@ -30,7 +30,7 @@ import sys
 
 from slicc.parser import SLICC
 
-usage="%prog [options] <slicc file> ... "
+usage="%prog [options] <slicc files> ... "
 version="%prog v0.4"
 brief_copyright='''
 Copyright (c) 1999-2008 Mark D. Hill and David A. Wood
@@ -73,15 +73,11 @@ def main(args=None):
                       help="don't print messages")
     opts,files = parser.parse_args(args=args)
 
-    if len(files) != 1:
-        parser.print_help()
-        sys.exit(2)
-
-    slicc_file = files[0]
-    if not slicc_file.endswith('.slicc'):
-        print("Must specify a .slicc file with a list of state machine files")
-        parser.print_help()
-        sys.exit(2)
+    for slicc_file in files:
+        if not slicc_file.endswith('.slicc'):
+            print("Must specify a .slicc file")
+            parser.print_help()
+            sys.exit(2)
 
     output = nprint if opts.quiet else eprint
 
@@ -90,23 +86,31 @@ def main(args=None):
 
     protocol_base = os.path.join(os.path.dirname(__file__),
                                  '..', 'ruby', 'protocol')
-    slicc = SLICC(slicc_file, protocol_base, verbose=True, debug=opts.debug,
-                  traceback=opts.tb)
+
+    for slicc_file in files:
+        output(f"Working on {slicc_file}")
+        slicc = SLICC(
+            slicc_file,
+            [os.path.join(protocol_base, 'RubySlicc_interfaces.slicc')],
+            protocol_base,
+            verbose=True, debug=opts.debug,
+            traceback=opts.tb
+        )
 
 
-    if opts.print_files:
-        for i in sorted(slicc.files()):
-            print('    %s' % i)
-    else:
-        output("Processing AST...")
-        slicc.process()
+        if opts.print_files:
+            for i in sorted(slicc.files()):
+                print('    %s' % i)
+        else:
+            output("Processing AST...")
+            slicc.process()
 
-        if opts.html_path:
-            output("Writing HTML files...")
-            slicc.writeHTMLFiles(opts.html_path)
+            if opts.html_path:
+                output("Writing HTML files...")
+                slicc.writeHTMLFiles(opts.html_path)
 
-        output("Writing C++ files...")
-        slicc.writeCodeFiles(opts.code_path, [])
+            output("Writing C++ files...")
+            slicc.writeCodeFiles(opts.code_path, [])
 
 
     output("SLICC is Done.")
