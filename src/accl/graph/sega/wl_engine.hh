@@ -34,6 +34,7 @@
 
 #include "accl/graph/base/base_reduce_engine.hh"
 #include "accl/graph/sega/coalesce_engine.hh"
+#include "base/statistics.hh"
 #include "params/WLEngine.hh"
 
 namespace gem5
@@ -83,6 +84,20 @@ class WLEngine : public BaseReduceEngine
 
     EventFunctionWrapper nextReduceEvent;
     void processNextReduceEvent();
+
+    struct WorkListStats : public statistics::Group
+    {
+      WorkListStats(WLEngine &worklist);
+
+      void regStats() override;
+
+      WLEngine &wl;
+
+      statistics::Scalar numReduce;
+      statistics::Scalar onTheFlyCoalesce;
+    };
+
+    WorkListStats stats;
 
   public:
     PARAMS(WLEngine);

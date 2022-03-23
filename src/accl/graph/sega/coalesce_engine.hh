@@ -32,6 +32,7 @@
 #include "accl/graph/base/base_read_engine.hh"
 #include "accl/graph/base/util.hh"
 #include "accl/graph/sega/push_engine.hh"
+#include "base/statistics.hh"
 #include "params/CoalesceEngine.hh"
 
 namespace gem5
@@ -81,6 +82,23 @@ class CoalesceEngine : public BaseReadEngine
 
     EventFunctionWrapper nextApplyAndCommitEvent;
     void processNextApplyAndCommitEvent();
+
+    struct CoalesceStats : public statistics::Group
+    {
+      CoalesceStats(CoalesceEngine &coalesce);
+
+      void regStats() override;
+
+      CoalesceEngine &coalesce;
+
+      statistics::Scalar numVertexBlockReads;
+      statistics::Scalar numVertexBlockWrites;
+      statistics::Scalar numVertexReads;
+      statistics::Scalar numVertexWrites;
+      statistics::Scalar readHits;
+    };
+
+    CoalesceStats stats;
 
   protected:
     virtual bool handleMemResp(PacketPtr pkt);
