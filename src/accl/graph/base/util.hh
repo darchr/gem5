@@ -26,6 +26,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef __ACCL_GRAPH_BASE_UTIL_HH__
+#define __ACCL_GRAPH_BASE_UTIL_HH__
+
 #include "base/cprintf.hh"
 #include "base/types.hh"
 #include "mem/packet.hh"
@@ -75,3 +78,5 @@ PacketPtr getUpdatePacket(Addr addr, unsigned int size,
                 uint8_t *data, RequestorID requestorId);
 
 }
+
+#endif // __ACCL_GRAPH_BASE_UTIL_HH__

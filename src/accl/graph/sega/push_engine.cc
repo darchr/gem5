@@ -28,6 +28,8 @@
 
 #include "accl/graph/sega/push_engine.hh"
 
+#include "debug/MPU.hh"
+
 namespace gem5
 {
 
@@ -35,8 +37,8 @@ PushEngine::PushEngine(const PushEngineParams &params):
     BaseReadEngine(params),
     reqPort(name() + ".req_port", this),
     baseEdgeAddr(params.base_edge_addr),
-    memRespQueueSize(params.mem_resp_queue_size),
     pushReqQueueSize(params.push_req_queue_size),
+    memRespQueueSize(params.mem_resp_queue_size),
     onTheFlyReadReqs(0),
     nextAddrGenEvent([this] { processNextAddrGenEvent(); }, name()),
     nextReadEvent([this] { processNextReadEvent(); }, name()),
@@ -87,7 +89,7 @@ PushEngine::ReqPort::recvReqRetry()
 }
 
 bool
-PushEngine::recvWLItem(WorkListItem wl);
+PushEngine::recvWLItem(WorkListItem wl)
 {
     assert(pushReqQueue.size() <= pushReqQueueSize);
     if ((pushReqQueueSize != 0) && (pushReqQueue.size() == pushReqQueueSize)) {
@@ -133,14 +135,14 @@ PushEngine::processNextAddrGenEvent()
     };
 
     for (int index = 0; index < addr_queue.size(); index++) {
-        PacketPtr pkt = getReadPacket(addr_queue[index], 64, requestorId);
+        PacketPtr pkt = getReadPacket(addr_queue[index], 64, _requestorId);
         reqOffsetMap[pkt->req] = offset_queue[index];
         reqNumEdgeMap[pkt->req] = num_edge_queue[index];
         reqValueMap[pkt->req] = wl.prop;
         pendingReadReqs.push(pkt);
     }
 
-    pushReadReqs.pop();
+    pushReqQueue.pop();
 
     if ((!nextAddrGenEvent.scheduled()) && (!pushReqQueue.empty())) {
         schedule(nextAddrGenEvent, nextCycle());
@@ -176,6 +178,7 @@ PushEngine::handleMemResp(PacketPtr pkt)
     if ((!nextPushEvent.scheduled()) && (!memRespQueue.empty())) {
         schedule(nextPushEvent, nextCycle());
     }
+    return true;
 }
 
 void
@@ -199,7 +202,8 @@ PushEngine::processNextPushEvent()
         *update_data = value + 1;
         PacketPtr update = getUpdatePacket(e.neighbor,
             sizeof(uint32_t) / sizeof(uint8_t), (uint8_t*) update_data,
-            requestorId);
+            _requestorId);
+
         if (sendPushUpdate(update) && (i == num_edges - 1)) {
             memRespQueue.pop();
             DPRINTF(MPU, "%s: Reading  %s, updating with %d\n"
@@ -211,6 +215,16 @@ PushEngine::processNextPushEvent()
     if (!nextPushEvent.scheduled() && !memRespQueue.empty()) {
         schedule(nextPushEvent, nextCycle());
     }
+}
+
+bool
+PushEngine::sendPushUpdate(PacketPtr pkt)
+{
+    if (!reqPort.blocked()) {
+        reqPort.sendPacket(pkt);
+        return true;
+    }
+    return false;
 }
 
 }

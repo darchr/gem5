@@ -36,13 +36,13 @@ WLEngine::WLEngine(const WLEngineParams &params):
     BaseReduceEngine(params),
     respPort(name() + ".resp_port", this),
     blockedByCoalescer(false),
-    coaleseEngine(params.coalesce_engine),
+    coalesceEngine(params.coalesce_engine),
     updateQueueSize(params.update_queue_size),
     onTheFlyUpdateMapSize(params.on_the_fly_update_map_size),
     nextReadEvent([this]{ processNextReadEvent(); }, name()),
     nextReduceEvent([this]{ processNextReduceEvent(); }, name())
 {
-    coaleseEngine->registerWLEngine(this);
+    coalesceEngine->registerWLEngine(this);
 }
 
 Port&
@@ -82,14 +82,14 @@ WLEngine::startup()
         uint8_t* data = workListToMemory(vertices[i]);
         PacketPtr pkt = getWritePacket(0 + i * sizeof(WorkListItem),
                                         16, data, 0);
-        sendMemFunctional(pkt);
+        coalesceEngine->recvFunctional(pkt);
     }
 
     for (int i = 0; i < 7; i++) {
         uint8_t* data = edgeToMemory(edges[i]);
         PacketPtr pkt = getWritePacket(1048576 + i * sizeof(Edge),
                                         16, data, 0);
-        sendMemFunctional(pkt);
+        coalesceEngine->recvFunctional(pkt);
     }
 
     uint8_t* first_update_data = new uint8_t [4];
@@ -97,9 +97,9 @@ WLEngine::startup()
     *tempPtr = 0;
 
     PacketPtr first_update = getUpdatePacket(
-        0, 4, first_update_data, requestorId);
+        0, 4, first_update_data, _requestorId);
 
-    handleWLUpdate(first_update);
+    handleIncomingUpdate(first_update);
 }
 
 AddrRangeList
@@ -135,13 +135,13 @@ WLEngine::RespPort::recvRespRetry()
 void
 WLEngine::recvFunctional(PacketPtr pkt)
 {
-    coaleseEngine->recvFunctional(pkt);
+    coalesceEngine->recvFunctional(pkt);
 }
 
 AddrRangeList
-WLEngine::getAddrRanges()
+WLEngine::getAddrRanges() const
 {
-    return coaleseEngine->getAddrRanges();
+    return coalesceEngine->getAddrRanges();
 }
 
 void
@@ -149,18 +149,18 @@ WLEngine::processNextReadEvent()
 {
     PacketPtr update = updateQueue.front();
     Addr update_addr = update->getAddr();
-    uint32_t update_value = update->getPtr<uint32_t>();
+    uint32_t* update_value = update->getPtr<uint32_t>();
 
     if ((onTheFlyUpdateMap.find(update_addr) == onTheFlyUpdateMap.end()) &&
         (onTheFlyUpdateMap.size() < onTheFlyUpdateMapSize)) {
         if (coalesceEngine->recvReadAddr(update_addr)) {
-            onTheFlyUpdateMap[update_addr] = update_value
+            onTheFlyUpdateMap[update_addr] = *update_value;
             updateQueue.pop();
         }
     } else {
         // TODO: Generalize this to reduce function rather than just min
         onTheFlyUpdateMap[update_addr] =
-                min(update_addr, onTheFlyUpdateMap[update_addr]);
+                std::min(*update_value, onTheFlyUpdateMap[update_addr]);
         updateQueue.pop();
         // TODO: Add a stat to count the number of coalescions
     }
@@ -176,8 +176,9 @@ void
 WLEngine::processNextReduceEvent()
 {
     // TODO: Generalize this to reduce function rather than just min
-    currentWorkList.temp_prop = min(onTheFlyUpdateMap[currentWorkListAddress],
-                                    currentWorkList.temp_prop);
+    currentWorkList.temp_prop = std::min(
+                                onTheFlyUpdateMap[currentWorkListAddress],
+                                currentWorkList.temp_prop);
     // TODO: Add a delay here
     coalesceEngine->recvWLWrite(currentWorkListAddress, currentWorkList);
 
