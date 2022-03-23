@@ -154,45 +154,70 @@ WLEngine::processNextReadEvent()
     if ((onTheFlyUpdateMap.find(update_addr) == onTheFlyUpdateMap.end()) &&
         (onTheFlyUpdateMap.size() < onTheFlyUpdateMapSize)) {
         if (coalesceEngine->recvReadAddr(update_addr)) {
+            DPRINTF(MPU, "%s: Received an update and it's not been pulled in. "
+                            "update_addr: %lu, update_value: %u.\n",
+                            __func__, update_addr, *update_value);
             onTheFlyUpdateMap[update_addr] = *update_value;
+            DPRINTF(MPU, "%s: onTheFlyUpdateMap[%lu] = %d.\n",
+                __func__, update_addr, onTheFlyUpdateMap[update_addr]);
             updateQueue.pop();
+            DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
         }
     } else {
         // TODO: Generalize this to reduce function rather than just min
+        DPRINTF(MPU, "%s: Hitting in the onTheFlyUpdateMap."
+                            "update_addr: %lu, update_value: %u, old_value: %u.\n",
+                            __func__, update_addr, *update_value,
+                            onTheFlyUpdateMap[update_addr]);
         onTheFlyUpdateMap[update_addr] =
                 std::min(*update_value, onTheFlyUpdateMap[update_addr]);
         updateQueue.pop();
+        DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
         // TODO: Add a stat to count the number of coalescions
     }
 
     if ((!nextReadEvent.scheduled()) &&
-        ((!updateQueue.empty()) ||
-        (onTheFlyUpdateMap.size() < onTheFlyUpdateMapSize))) {
+        (!updateQueue.empty())) {
         schedule(nextReadEvent, nextCycle());
+    }
+}
+
+void
+WLEngine::handleIncomingWL(Addr addr, WorkListItem wl)
+{
+    assert(addrWorkListMap.size() <= onTheFlyUpdateMapSize);
+    addrWorkListMap[addr] = wl;
+    // TODO: Add checks to see if scheduling is necessary or correct.
+    if ((!nextReduceEvent.scheduled()) && (!addrWorkListMap.empty())) {
+        schedule(nextReduceEvent, nextCycle());
     }
 }
 
 void
 WLEngine::processNextReduceEvent()
 {
-    // TODO: Generalize this to reduce function rather than just min
-    currentWorkList.temp_prop = std::min(
-                                onTheFlyUpdateMap[currentWorkListAddress],
-                                currentWorkList.temp_prop);
-    // TODO: Add a delay here
-    coalesceEngine->recvWLWrite(currentWorkListAddress, currentWorkList);
 
-    onTheFlyUpdateMap.erase(currentWorkListAddress);
-    currentWorkListAddress = 0;
-    currentWorkList = {0, 0, 0, 0};
-}
+    std::unordered_map<Addr, WorkListItem>::iterator it =
+                    addrWorkListMap.begin();
 
-void
-WLEngine::scheduleReduceEvent()
-{
-    // TODO: Add checks to see if scheduling is necessary or correct.
-    if (!nextReduceEvent.scheduled()) {
-        schedule(nextReduceEvent, nextCycle());
+    std::vector<Addr> servicedAddresses;
+    while (it != addrWorkListMap.end()) {
+        Addr addr = it->first;
+        WorkListItem wl = it->second;
+        uint32_t update_value = onTheFlyUpdateMap[addr];
+        DPRINTF(MPU, "%s: updating WorkList[%lu] with the current temp_prop: "
+                    "%d, with new update: %d.\n", __func__, addr, wl.temp_prop,
+                    onTheFlyUpdateMap[addr]);
+        // TODO: Generalize this to reduce function rather than just min
+        wl.temp_prop = std::min(update_value, wl.temp_prop);
+        coalesceEngine->recvWLWrite(addr, wl);
+        servicedAddresses.push_back(addr);
+        it++;
+    }
+
+    addrWorkListMap.clear();
+    for (int i = 0; i < servicedAddresses.size(); i++) {
+        onTheFlyUpdateMap.erase(servicedAddresses[i]);
     }
 }
 
@@ -206,6 +231,7 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
     }
 
     updateQueue.push(pkt);
+    DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
     if ((!nextReadEvent.scheduled()) &&
         (!updateQueue.empty())) {
         schedule(nextReadEvent, nextCycle());

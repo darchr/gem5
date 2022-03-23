@@ -40,12 +40,4 @@ BaseReduceEngine::BaseReduceEngine(const BaseReduceEngineParams &params):
 BaseReduceEngine::~BaseReduceEngine()
 {}
 
-void
-BaseReduceEngine::handleIncomingWL(Addr addr, WorkListItem wl)
-{
-    currentWorkListAddress = addr;
-    currentWorkList = wl;
-    scheduleReduceEvent();
-}
-
 }
