@@ -69,7 +69,7 @@ class CoalesceEngine : public BaseReadEngine
     std::queue<Addr> addrResponseQueue;
     std::queue<WorkListItem> worklistResponseQueue;
 
-    std::queue<int> evictQueue;
+    std::deque<int> evictQueue;
 
     virtual void startup();
 
