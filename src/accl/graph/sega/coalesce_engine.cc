@@ -45,8 +45,16 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     nextApplyAndCommitEvent([this] { processNextApplyAndCommitEvent(); }, name())
 {}
 
-// CoalesceEngine::~CoalesceEngine()
-// {}
+void
+CoalesceEngine::startup()
+{
+    for (int i = 0; i < 256; i++) {
+        cacheBlocks[i].takenMask = 0;
+        cacheBlocks[i].allocated = false;
+        cacheBlocks[i].valid = false;
+        cacheBlocks[i].hasConflict = false;
+    }
+}
 
 void
 CoalesceEngine::recvFunctional(PacketPtr pkt)
@@ -64,6 +72,8 @@ bool
 CoalesceEngine::recvReadAddr(Addr addr)
 {
     assert(MSHRMap.size() <= numMSHREntry);
+    DPRINTF(MPU, "%s: Received a read request for address: %lu.\n",
+                                                    __func__, addr);
     Addr alligned_addr = (addr / 64) * 64;
     int block_index = alligned_addr % 256;
     int wl_offset = (addr - alligned_addr) / 16;
@@ -71,11 +81,13 @@ CoalesceEngine::recvReadAddr(Addr addr)
     if ((cacheBlocks[block_index].addr == alligned_addr) &&
         (cacheBlocks[block_index].valid)) {
         // Hit
+        DPRINTF(MPU, "%s: Read request with addr: %lu hit in the cache.\n"
+                        , __func__, addr);
         addrResponseQueue.push(addr);
         worklistResponseQueue.push(cacheBlocks[block_index].items[wl_offset]);
         cacheBlocks[block_index].takenMask |= (1 << wl_offset);
         if ((!nextRespondEvent.scheduled()) &&
-            (!worklistResponseQueue.empty()) && 
+            (!worklistResponseQueue.empty()) &&
             (!addrResponseQueue.empty())) {
             schedule(nextRespondEvent, nextCycle());
         }
@@ -93,18 +105,26 @@ CoalesceEngine::recvReadAddr(Addr addr)
                         return false;
                     }
                     // MSHR available but conflict
+                    DPRINTF(MPU, "%s: Read request with addr: %lu missed with "
+                                "conflict. Making a request for "
+                                "alligned_addr: %lu.\n",
+                                __func__, addr, alligned_addr);
                     cacheBlocks[block_index].hasConflict = true;
                     MSHRMap[block_index].push_back(addr);
                     return true;
                 } else {
                     // MSHR available and no conflict
                     assert(
-                        outstandingMemReqQueue.size() <= 
+                        outstandingMemReqQueue.size() <=
                         outstandingMemReqQueueSize);
-                    if (outstandingMemReqQueue.size() == 
+                    if (outstandingMemReqQueue.size() ==
                         outstandingMemReqQueueSize) {
                         return false;
                     }
+                    DPRINTF(MPU, "%s: Read request with addr: "
+                                "%lu missed with no conflict. "
+                                "Making a request for alligned_addr: %lu.\n"
+                                , __func__, addr, alligned_addr);
                     cacheBlocks[block_index].addr = alligned_addr;
                     cacheBlocks[block_index].takenMask = 0;
                     cacheBlocks[block_index].allocated = true;
@@ -112,7 +132,7 @@ CoalesceEngine::recvReadAddr(Addr addr)
                     cacheBlocks[block_index].hasConflict = false;
 
                     MSHRMap[block_index].push_back(addr);
-                    PacketPtr pkt = getReadPacket(alligned_addr, 
+                    PacketPtr pkt = getReadPacket(alligned_addr,
                                                 64, _requestorId);
                     outstandingMemReqQueue.push(pkt);
 
@@ -124,11 +144,15 @@ CoalesceEngine::recvReadAddr(Addr addr)
                 }
             }
         } else {
-            assert(cacheBlocks[block_index].hasConflict);
+            if ((!cacheBlocks[block_index].hasConflict) &&
+                ((addr < cacheBlocks[block_index].addr) ||
+                (addr >= (cacheBlocks[block_index].addr + 64)))) {
+                cacheBlocks[block_index].hasConflict = true;
+            }
             MSHRMap[block_index].push_back(addr);
             return true;
         }
-    }   
+    }
 }
 
 void
@@ -143,7 +167,7 @@ CoalesceEngine::processNextMemReqEvent()
 
     if ((!nextMemReqEvent.scheduled()) &&
         (!outstandingMemReqQueue.empty())) {
-        schedule(nextMemReqEvent, nextCycle()); 
+        schedule(nextMemReqEvent, nextCycle());
     }
 }
 
@@ -152,22 +176,18 @@ CoalesceEngine::processNextRespondEvent()
 {
     Addr addr_response = addrResponseQueue.front();
     WorkListItem worklist_response = worklistResponseQueue.front();
-    
+
     peerWLEngine->handleIncomingWL(addr_response, worklist_response);
 
     addrResponseQueue.pop();
     worklistResponseQueue.pop();
 
     if ((!nextRespondEvent.scheduled()) &&
-        (!worklistResponseQueue.empty()) && 
+        (!worklistResponseQueue.empty()) &&
         (!addrResponseQueue.empty())) {
         schedule(nextRespondEvent, nextCycle());
     }
 }
-
-/*
-    void recvWLWrite(Addr addr, WorkListItem wl);
-*/
 
 bool
 CoalesceEngine::handleMemResp(PacketPtr pkt)
@@ -183,11 +203,11 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
     assert((cacheBlocks[block_index].allocated) && // allocated cache block
             (!cacheBlocks[block_index].valid) &&    // valid is false
             (!(MSHRMap.find(block_index) == MSHRMap.end()))); // allocated MSHR
-    cacheBlocks[block_index].valid = true;
 
     for (int i = 0; i < 4; i++) {
         cacheBlocks[block_index].items[i] = memoryToWorkList(data + (i * 16));
     }
+    cacheBlocks[block_index].valid = true;
 
     int bias = 0;
     std::vector<int> servicedIndices;
@@ -201,12 +221,12 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             worklistResponseQueue.push(
                 cacheBlocks[block_index].items[wl_offset]);
             cacheBlocks[block_index].takenMask |= (1 << wl_offset);
-            servicedIndices.push_back(i);    
+            servicedIndices.push_back(i);
         }
     }
     // TODO: We Can use taken instead of this
     for (int i = 0; i < servicedIndices.size(); i++) {
-        MSHRMap[block_index].erase(MSHRMap[block_index].begin() + 
+        MSHRMap[block_index].erase(MSHRMap[block_index].begin() +
                                     servicedIndices[i] - bias);
         bias++;
     }
@@ -219,7 +239,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
     }
 
     if ((!nextRespondEvent.scheduled()) &&
-        (!worklistResponseQueue.empty()) && 
+        (!worklistResponseQueue.empty()) &&
         (!addrResponseQueue.empty())) {
         schedule(nextRespondEvent, nextCycle());
     }
@@ -233,12 +253,16 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     Addr alligned_addr = (addr / 64) * 64;
     int block_index = alligned_addr % 256;
     int wl_offset = (addr - alligned_addr) / 16;
-
-    assert((cacheBlocks[block_index].takenMask & (1 << wl_offset)) == 
+    DPRINTF(MPU, "%s: Recieved a WorkList write. addr: %lu, wl: %s.\n",
+                                    __func__, addr, wl.to_string());
+    DPRINTF(MPU, "%s: alligned_addr: %lu, block_index: %d, wl_offset: %d, "
+            "takenMask: %u.\n", __func__, alligned_addr,
+            block_index, wl_offset, cacheBlocks[block_index].takenMask);
+    assert((cacheBlocks[block_index].takenMask & (1 << wl_offset)) ==
             (1 << wl_offset));
     cacheBlocks[block_index].items[wl_offset] = wl;
     cacheBlocks[block_index].takenMask &= ~(1 << wl_offset);
-    
+
     // TODO: Make this more general and programmable.
     // && (cacheBlocks[block_index].hasConflict)
     if ((cacheBlocks[block_index].takenMask == 0)) {
@@ -267,6 +291,9 @@ CoalesceEngine::processNextApplyAndCommitEvent()
         if (old_prop != cacheBlocks[block_index].items[i].prop) {
             changedMask |= (1 << i);
         }
+        DPRINTF(MPU, "%s: Writing WorkListItem[%lu[%d]] to memory. "
+                    "WLItem: %s.\n", __func__, cacheBlocks[block_index].addr,
+                    i, cacheBlocks[block_index].items[i].to_string());
         uint8_t* wl_data = workListToMemory(cacheBlocks[block_index].items[i]);
         std::memcpy(data + (i * 16), wl_data, sizeof(WorkListItem));
     }
@@ -275,7 +302,7 @@ CoalesceEngine::processNextApplyAndCommitEvent()
         assert(outstandingMemReqQueue.size() <= outstandingMemReqQueueSize);
         PacketPtr write_pkt = getWritePacket(
             cacheBlocks[block_index].addr, 64, data, _requestorId);
-        
+
         if ((cacheBlocks[block_index].hasConflict) &&
             (outstandingMemReqQueue.size() < outstandingMemReqQueueSize - 1)){
             Addr miss_addr = MSHRMap[block_index][0];
@@ -304,7 +331,7 @@ CoalesceEngine::processNextApplyAndCommitEvent()
             cacheBlocks[block_index].hasConflict = true;
             evictQueue.pop();
         } else if ((!cacheBlocks[block_index].hasConflict) &&
-            (outstandingMemReqQueue.size() < outstandingMemReqQueueSize)) { 
+            (outstandingMemReqQueue.size() < outstandingMemReqQueueSize)) {
             outstandingMemReqQueue.push(write_pkt);
             // TODO: This should be improved
             if ((changedMask & (1)) == 1) {
@@ -325,16 +352,16 @@ CoalesceEngine::processNextApplyAndCommitEvent()
             cacheBlocks[block_index].hasConflict = false;
             evictQueue.pop();
         } else {
-            DPRINTF(MPU, "%s: Commit failed due to full reqQueue.\n" , 
+            DPRINTF(MPU, "%s: Commit failed due to full reqQueue.\n" ,
                 __func__);
         }
     }
-    
+
     if ((!nextMemReqEvent.scheduled()) &&
         (!outstandingMemReqQueue.empty())) {
-        schedule(nextMemReqEvent, nextCycle()); 
+        schedule(nextMemReqEvent, nextCycle());
     }
-    
+
     if ((!nextApplyAndCommitEvent.scheduled()) &&
         (!evictQueue.empty())) {
         schedule(nextApplyAndCommitEvent, nextCycle());

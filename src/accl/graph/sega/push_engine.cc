@@ -95,6 +95,7 @@ PushEngine::recvWLItem(WorkListItem wl)
     if ((pushReqQueueSize != 0) && (pushReqQueue.size() == pushReqQueueSize)) {
         return false;
     }
+
     pushReqQueue.push(wl);
 
     if ((!nextAddrGenEvent.scheduled()) &&
@@ -204,10 +205,10 @@ PushEngine::processNextPushEvent()
             sizeof(uint32_t) / sizeof(uint8_t), (uint8_t*) update_data,
             _requestorId);
 
+        DPRINTF(MPU, "%s: Reading  %s, updating with %d\n"
+                , __func__, e.to_string(), *update_data);
         if (sendPushUpdate(update) && (i == num_edges - 1)) {
             memRespQueue.pop();
-            DPRINTF(MPU, "%s: Reading  %s, updating with %d\n"
-                , __func__, e.to_string(), *update_data);
             // TODO: Erase map entries here.
         }
     }

@@ -4,15 +4,12 @@ from m5.objects import *
 class MPU(SubSystem):
     def __init__(self):
         super(MPU, self).__init__()
-        self.lock_dir = LockDirectory()
-        self.push_engine = PushEngine()
-        self.apply_engine = ApplyEngine(push_engine = self.push_engine, lock_dir = self.lock_dir)
-        self.wl_engine = WLEngine(apply_engine = self.apply_engine, lock_dir = self.lock_dir)
+        self.push_engine = PushEngine(base_edge_addr=0x100000, push_req_queue_size = 16)
+        self.coalesce_engine = CoalesceEngine(peer_push_engine=self.push_engine)
+        self.wl_engine = WLEngine(coalesce_engine=self.coalesce_engine, update_queue_size = 16, on_the_fly_update_map_size=8)
         self.interconnect = SystemXBar()
 
-
-        self.interconnect.cpu_side_ports = self.wl_engine.mem_port
-        self.interconnect.cpu_side_ports = self.apply_engine.mem_port
+        self.interconnect.cpu_side_ports = self.coalesce_engine.mem_port
         self.interconnect.cpu_side_ports = self.push_engine.mem_port
 
     def getRespPort(self):
@@ -30,6 +27,16 @@ class MPU(SubSystem):
     def setMemPort(self, port):
         self.interconnect.mem_side_ports = port
 
+    def getVertexMemPort(self):
+        return self.coalesce_engine.mem_port
+    def setVertexMemPort(self, port):
+        self.coalesce_engine.mem_port = port
+
+    def getEdgeMemPort(self):
+        return self.push_engine.mem_port
+    def setEdgeMemPort(self, port):
+        self.push_engine.mem_port = port
+
 class SEGA(System):
     def __init__(self):
         super(SEGA, self).__init__()
@@ -40,8 +47,9 @@ class SEGA(System):
 
         self.mpu = MPU()
         self.mem_ctrl = SimpleMemory(range=AddrRange("4GiB"), bandwidth="1000GB/s", latency = "30ns")
-        # self.mem_ctrl = MemCtrl(dram = DDR4_2400_8x8(range=AddrRange("4GiB")))
-
+        # self.mem_ctrl = MemCtrl()
+        # self.mem_ctrl.dram = DDR4_2400_8x8(range=AddrRange(start=0x000000, size="1MiB"))
+        # self.mem_ctrl.nvm = NVM_2400_1x64(range=AddrRange(start=0x100000, size="1MiB"))
         self.mpu.setReqPort(self.mpu.getRespPort())
         self.mpu.setMemPort(self.mem_ctrl.port)
 
@@ -50,6 +58,6 @@ root = Root(full_system = False, system = system)
 
 m5.instantiate()
 
-exit_event = m5.simulate(1000000)
+exit_event = m5.simulate()
 print("Simulation finished!")
 exit()

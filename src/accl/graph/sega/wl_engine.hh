@@ -71,6 +71,7 @@ class WLEngine : public BaseReduceEngine
     int onTheFlyUpdateMapSize;
     std::unordered_map<Addr, uint32_t> onTheFlyUpdateMap;
 
+    std::unordered_map<Addr, WorkListItem> addrWorkListMap;
     virtual void startup();
 
     void recvFunctional(PacketPtr pkt);
@@ -83,9 +84,6 @@ class WLEngine : public BaseReduceEngine
     EventFunctionWrapper nextReduceEvent;
     void processNextReduceEvent();
 
-  protected:
-    virtual void scheduleReduceEvent();
-
   public:
     PARAMS(WLEngine);
 
@@ -95,6 +93,8 @@ class WLEngine : public BaseReduceEngine
                   PortID idx=InvalidPortID) override;
 
     bool handleIncomingUpdate(PacketPtr pkt);
+
+    virtual void handleIncomingWL(Addr addr, WorkListItem wl);
 };
 
 }
