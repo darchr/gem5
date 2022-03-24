@@ -124,7 +124,7 @@ for f in nodes:
     elif s.endswith('.py'):
         filename = os.path.basename(s)
         # We currently only expect ${ident}_Controller.py to be generated, and
-        # for it to contain a single SimObject with the same name.
+        # for it to contain a single SimObject with the same name + protocol.
         assert(filename.endswith('_Controller.py'))
-        SimObject(f, sim_objects=[os.path.splitext(filename)[0]])
+        SimObject(f, sim_objects=[protocol+'_'+os.path.splitext(filename)[0]])
 

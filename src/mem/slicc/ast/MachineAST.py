@@ -43,9 +43,15 @@ class MachineAST(DeclAST):
     def files(self, parent=None):
         import os
         file_prefix = os.path.join(self.slicc.protocol, self.ident)
+        # Can't have multiple python simobject files with the same name
+        # So, we have to prepend the protocol name to the .py file
+        py_prefix = os.path.join(
+            self.slicc.protocol,
+            self.slicc.protocol + '_' + self.ident
+        )
         s = set(('%s_Controller.cc' % file_prefix,
                  '%s_Controller.hh' % file_prefix,
-                 '%s_Controller.py' % file_prefix,
+                 '%s_Controller.py' % py_prefix,
                  '%s_Transitions.cc' % file_prefix,
                  '%s_Wakeup.cc' % file_prefix))
 
