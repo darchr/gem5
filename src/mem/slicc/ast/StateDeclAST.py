@@ -45,6 +45,8 @@ class StateDeclAST(DeclAST):
             ident = "%s_%s" % (parent, self.type_ast.ident)
         else:
             ident = self.type_ast.ident
+        if not self.shared:
+            ident = f"{self.slicc.protocol}/{ident}"
         s = set(("%s.hh" % ident, "%s.cc" % ident))
         return s
 

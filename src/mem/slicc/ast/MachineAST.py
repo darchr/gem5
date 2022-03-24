@@ -41,11 +41,13 @@ class MachineAST(DeclAST):
         return "[Machine: %r]" % self.ident
 
     def files(self, parent=None):
-        s = set(('%s_Controller.cc' % self.ident,
-                 '%s_Controller.hh' % self.ident,
-                 '%s_Controller.py' % self.ident,
-                 '%s_Transitions.cc' % self.ident,
-                 '%s_Wakeup.cc' % self.ident))
+        import os
+        file_prefix = os.path.join(self.slicc.protocol, self.ident)
+        s = set(('%s_Controller.cc' % file_prefix,
+                 '%s_Controller.hh' % file_prefix,
+                 '%s_Controller.py' % file_prefix,
+                 '%s_Transitions.cc' % file_prefix,
+                 '%s_Wakeup.cc' % file_prefix))
 
         s |= self.decls.files(self.ident)
         return s
