@@ -49,8 +49,8 @@ import slicc.util as util
 from slicc.symbols import SymbolTable
 
 class SLICC(Grammar):
-    def __init__(self, protocol, includes, base_dir, verbose=False,
-                 traceback=False, **kwargs):
+    def __init__(self, protocol, includes, base_dir, shared_only,
+                 verbose=False, traceback=False, **kwargs):
         """Entrypoint for SLICC parsing
         protocol: The protocol `.slicc` file to parse
         includes: list of `.slicc` files that are shared between all protocols
@@ -60,6 +60,9 @@ class SLICC(Grammar):
         self.verbose = verbose
         self.symtab = SymbolTable(self)
         self.base_dir = base_dir
+        # If true, only emit the shared files. Otherwise, only emit the
+        # protocol-specific files
+        self.shared_only = shared_only
 
         if not includes:
             # raise error
@@ -72,7 +75,8 @@ class SLICC(Grammar):
             # set all of the types parsed so far as shared
             self.decl_list.setShared()
 
-            self.decl_list += self.parse_file(protocol, **kwargs)
+            if not shared_only:
+                self.decl_list += self.parse_file(protocol, **kwargs)
         except ParseError as e:
             if not self.traceback:
                 sys.exit(str(e))
@@ -91,15 +95,18 @@ class SLICC(Grammar):
         self.decl_list.generate()
 
     def writeCodeFiles(self, code_path, includes):
-        self.symtab.writeCodeFiles(code_path, includes)
+        self.symtab.writeCodeFiles(code_path, includes, self.shared_only)
 
     def writeHTMLFiles(self, html_path):
         self.symtab.writeHTMLFiles(html_path)
 
     def files(self):
-        f = set([os.path.join(self.protocol, 'Types.hh')])
+        if self.shared_only:
+            f = set()
+        else:
+            f = set([os.path.join(self.protocol, 'Types.hh')])
 
-        f |= self.decl_list.files()
+        f |= self.decl_list.files(shared=self.shared_only)
 
         return f
 

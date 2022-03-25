@@ -38,9 +38,10 @@ class DeclListAST(AST):
     def __repr__(self):
         return "[DeclListAST: %s]" % (', '.join(repr(d) for d in self.decls))
 
-    def files(self, parent=None):
+    def files(self, parent=None, shared=True):
         s = set()
         for decl in self.decls:
+            if not shared and decl.shared: continue
             s |= decl.files(parent)
         return s
 
