@@ -614,9 +614,9 @@ def makeDefinesPyFile(target, source, env):
     code.write(target[0].abspath)
 
 # Generate a file with all of the compile options in it
-env.Command('python/m5/defines.py', ToValue(dict(build_env)),
+env.Command('python/m5/_defines.py', ToValue(dict(build_env)),
             MakeAction(makeDefinesPyFile, Transform("DEFINES", 0)))
-PySource('m5', 'python/m5/defines.py')
+PySource('m5', 'python/m5/_defines.py')
 
 # Generate a file that wraps the basic top level files
 gem5py_env.Command('python/m5/info.py',
