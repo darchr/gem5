@@ -83,4 +83,19 @@ BaseReadEngine::MemPort::recvReqRetry()
     }
 }
 
+PacketPtr
+BaseReadEngine::createReadPacket(Addr addr, unsigned int size)
+{
+    RequestPtr req = std::make_shared<Request>(addr, size, 0, _requestorId);
+    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
+    // bits
+    req->setPC(((Addr) _requestorId) << 2);
+
+    // Embed it in a packet
+    PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
+    pkt->allocate();
+
+    return pkt;
+}
+
 }

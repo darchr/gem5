@@ -56,53 +56,6 @@ WLEngine::getPort(const std::string &if_name, PortID idx)
     }
 }
 
-void
-WLEngine::startup()
-{
-    //FIXME: This is the current version of our initializer.
-    // This should be updated in the future.
-    //FIXME: The WLEngine no longer has a MemPort. Update this to
-    // work with the CoalesceEngine instead.
-    WorkListItem vertices [5] = {
-                                {10000, 10000, 3, 0}, // Addr: 0
-                                {10000, 10000, 1, 3}, // Addr: 16
-                                {10000, 10000, 1, 4}, // Addr: 32
-                                {10000, 10000, 1, 5}, // Addr: 48
-                                {10000, 10000, 0, 6}  // Addr: 64
-                                };
-    Edge edges [7] = {
-                    {0, 16}, // Addr: 1048576
-                    {0, 32}, // Addr: 1048592
-                    {0, 48}, // Addr: 1048608
-                    {0, 32}, // Addr: 1048624
-                    {0, 64},  // Addr: 1048640
-                    {0, 32}
-                    };
-
-    for (int i = 0; i < 5; i++) {
-        uint8_t* data = workListToMemory(vertices[i]);
-        PacketPtr pkt = getWritePacket(0 + i * sizeof(WorkListItem),
-                                        16, data, 0);
-        coalesceEngine->recvFunctional(pkt);
-    }
-
-    for (int i = 0; i < 7; i++) {
-        uint8_t* data = edgeToMemory(edges[i]);
-        PacketPtr pkt = getWritePacket(1048576 + i * sizeof(Edge),
-                                        16, data, 0);
-        coalesceEngine->recvFunctional(pkt);
-    }
-
-    uint8_t* first_update_data = new uint8_t [4];
-    uint32_t* tempPtr = (uint32_t*) first_update_data;
-    *tempPtr = 0;
-
-    PacketPtr first_update = getUpdatePacket(
-        0, 4, first_update_data, _requestorId);
-
-    handleIncomingUpdate(first_update);
-}
-
 AddrRangeList
 WLEngine::RespPort::getAddrRanges() const
 {
@@ -152,6 +105,7 @@ WLEngine::processNextReadEvent()
     Addr update_addr = update->getAddr();
     uint32_t* update_value = update->getPtr<uint32_t>();
 
+    // FIXME: else logic is wrong
     if ((onTheFlyUpdateMap.find(update_addr) == onTheFlyUpdateMap.end()) &&
         (onTheFlyUpdateMap.size() < onTheFlyUpdateMapSize)) {
         if (coalesceEngine->recvReadAddr(update_addr)) {
@@ -178,6 +132,7 @@ WLEngine::processNextReadEvent()
         // TODO: Add a stat to count the number of coalescions
     }
 
+    // TODO: Only schedule nextReadEvent only when it has to be scheduled
     if ((!nextReadEvent.scheduled()) &&
         (!updateQueue.empty())) {
         schedule(nextReadEvent, nextCycle());
@@ -208,11 +163,12 @@ WLEngine::processNextReduceEvent()
         WorkListItem wl = it->second;
         uint32_t update_value = onTheFlyUpdateMap[addr];
         DPRINTF(MPU, "%s: updating WorkList[%lu] with the current temp_prop: "
-                    "%d, with new update: %d.\n", __func__, addr, wl.temp_prop,
+                    "%d, with new update: %d.\n", __func__, addr, wl.tempProp,
                     onTheFlyUpdateMap[addr]);
         // TODO: Generalize this to reduce function rather than just min
+        wl.tempProp = std::min(update_value, wl.tempProp);
         stats.numReduce++;
-        wl.temp_prop = std::min(update_value, wl.temp_prop);
+
         coalesceEngine->recvWLWrite(addr, wl);
         servicedAddresses.push_back(addr);
         it++;
@@ -227,16 +183,15 @@ WLEngine::processNextReduceEvent()
 bool
 WLEngine::handleIncomingUpdate(PacketPtr pkt)
 {
-    // TODO: Coalesce updates here too
     assert(updateQueue.size() <= updateQueueSize);
     if ((updateQueueSize != 0) && (updateQueue.size() == updateQueueSize)) {
         return false;
     }
 
     updateQueue.push(pkt);
+    assert(!updateQueue.empty());
     DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
-    if ((!nextReadEvent.scheduled()) &&
-        (!updateQueue.empty())) {
+    if (!nextReadEvent.scheduled()) {
         schedule(nextReadEvent, nextCycle());
     }
     return true;
