@@ -78,12 +78,14 @@ class BaseReadEngine : public ClockedObject
 
     virtual bool handleMemResp(PacketPtr pkt) = 0;
 
+    PacketPtr createReadPacket(Addr addr, unsigned int size);
+
   public:
     PARAMS(BaseReadEngine);
 
     BaseReadEngine(const BaseReadEngineParams &params);
     ~BaseReadEngine();
-    
+
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
 

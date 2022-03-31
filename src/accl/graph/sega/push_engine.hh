@@ -77,6 +77,10 @@ class PushEngine : public BaseReadEngine
     int onTheFlyReadReqs;
     std::queue<PacketPtr> memRespQueue;
 
+    virtual void startup();
+
+    PacketPtr createUpdatePacket(Addr addr, unsigned int size, uint8_t *data);
+
     bool sendPushUpdate(PacketPtr pkt);
 
     EventFunctionWrapper nextAddrGenEvent;
