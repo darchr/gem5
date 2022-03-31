@@ -35,6 +35,7 @@
 #ifndef __MEM_RUBY_SYSTEM_RUBYSYSTEM_HH__
 #define __MEM_RUBY_SYSTEM_RUBYSYSTEM_HH__
 
+#include <string>
 #include <unordered_map>
 
 #include "base/callback.hh"
@@ -104,7 +105,7 @@ class RubySystem : public ClockedObject
     bool functionalWrite(Packet *ptr);
 
     void registerNetwork(Network*);
-    void registerAbstractController(AbstractController*);
+    void registerAbstractController(AbstractController*, std::string);
     void registerMachineID(const MachineID& mach_id, Network* network);
     void registerRequestorIDs();
 
@@ -144,6 +145,8 @@ class RubySystem : public ClockedObject
     static bool m_cooldown_enabled;
     memory::SimpleMemory *m_phys_mem;
     const bool m_access_backing_store;
+
+    std::string m_protocol_str;
 
     //std::vector<Network *> m_networks;
     std::vector<std::unique_ptr<Network>> m_networks;
