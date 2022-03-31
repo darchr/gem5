@@ -104,8 +104,19 @@ RubySystem::registerNetwork(Network* network_ptr)
 }
 
 void
-RubySystem::registerAbstractController(AbstractController* cntrl)
+RubySystem::registerAbstractController(AbstractController* cntrl,
+                                       std::string protocol_str)
 {
+    // Check and enforce that controllers can only come from one protocol
+    if (m_protocol_str.empty()) {
+        m_protocol_str = protocol_str;
+    } else {
+        fatal_if(protocol_str != m_protocol_str,
+                 "Ruby only supports using machines from a single protocol. "
+                 "The current machine %s is part of the protocol %s. Other "
+                 "controllers instantiated were part of protocol %s.",
+                 cntrl->name(), protocol_str, m_protocol_str);
+    }
     m_abs_cntrl_vec.push_back(cntrl);
 
     MachineID id = cntrl->getMachineID();
