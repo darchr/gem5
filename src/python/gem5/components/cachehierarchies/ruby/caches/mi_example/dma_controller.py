@@ -27,19 +27,27 @@
 from ..abstract_dma_controller import AbstractDMAController
 from ......utils.override import overrides
 
-from m5.objects import MessageBuffer
+from m5.objects import MessageBuffer, MI_example_DMA_Controller
 
 
-class DMAController(AbstractDMAController):
+class DMAController(MI_example_DMA_Controller):
     """
     A DMA Controller for use in the MI_Example cache hierarchy setup.
     """
 
-    class DMAController(AbstractDMAController):
-        def __init__(self, network, cache_line_size):
-            super().__init__(network, cache_line_size)
+    _version = 0
 
-    @overrides(AbstractDMAController)
+    @classmethod
+    def versionCount(cls):
+        cls._version += 1  # Use count for this particular type
+        return cls._version - 1
+
+    def __init__(self, network, cache_line_size):
+        super().__init__()
+        self.version = self.versionCount()
+        self._cache_line_size = cache_line_size
+        self.connectQueues(network)
+
     def connectQueues(self, network):
         self.mandatoryQueue = MessageBuffer()
         self.requestToDir = MessageBuffer()

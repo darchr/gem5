@@ -25,11 +25,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from .....processors.abstract_core import AbstractCore
+from .....processors.cpu_types import CPUTypes
 from ......isas import ISA
-from ..abstract_l1_cache import AbstractL1Cache
-from ......utils.override import *
 
 from m5.objects import (
+    MESI_Two_Level_L1Cache_Controller,
     MessageBuffer,
     RubyPrefetcher,
     RubyCache,
@@ -39,7 +39,15 @@ from m5.objects import (
 import math
 
 
-class L1Cache(AbstractL1Cache):
+class L1Cache(MESI_Two_Level_L1Cache_Controller):
+
+    _version = 0
+
+    @classmethod
+    def versionCount(cls):
+        cls._version += 1  # Use count for this particular type
+        return cls._version - 1
+
     def __init__(
         self,
         l1i_size,
@@ -56,7 +64,11 @@ class L1Cache(AbstractL1Cache):
         """Creating L1 cache controller. Consist of both instruction
         and data cache.
         """
-        super().__init__(network, cache_line_size)
+        super().__init__()
+
+        self.version = self.versionCount()
+        self._cache_line_size = cache_line_size
+        self.connectQueues(network)
 
         # This is the cache memory object that stores the cache data and tags
         self.L1Icache = RubyCache(
@@ -78,7 +90,23 @@ class L1Cache(AbstractL1Cache):
         self.transitions_per_cycle = 4
         self.enable_prefetch = False
 
-    @overrides(AbstractL1Cache)
+    def getBlockSizeBits(self):
+        bits = int(math.log(self._cache_line_size, 2))
+        if 2 ** bits != self._cache_line_size.value:
+            raise Exception("Cache line size not a power of 2!")
+        return bits
+
+    def sendEvicts(self, core: AbstractCore, target_isa: ISA):
+        """True if the CPU model or ISA requires sending evictions from caches
+        to the CPU. Two scenarios warrant forwarding evictions to the CPU:
+        1. The O3 model must keep the LSQ coherent with the caches
+        2. The x86 mwait instruction is built on top of coherence
+        3. The local exclusive monitor in ARM systems
+        """
+        if core.get_type() is CPUTypes.O3 or target_isa in (ISA.X86, ISA.ARM):
+            return True
+        return False
+
     def connectQueues(self, network):
         self.mandatoryQueue = MessageBuffer()
         self.requestFromL1Cache = MessageBuffer()
