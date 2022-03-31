@@ -30,7 +30,7 @@
 
 import m5
 from m5.objects import *
-from m5.defines import buildEnv
+from m5.defines import getRubyProtocol
 from m5.util import addToPath
 import os, argparse, sys, math, glob
 
@@ -187,7 +187,7 @@ shader = Shader(n_wf = args.wfs_per_simd,
 # the acquire/release operation depending on this impl_kern_boundary_sync
 # flag. This flag=true means pipeline initiates a acquire/release operation
 # at kernel boundary.
-if buildEnv['PROTOCOL'] == 'GPU_RfO':
+if getRubyProtocol() == 'GPU_RfO':
     shader.impl_kern_boundary_sync = False
 else:
     shader.impl_kern_boundary_sync = True

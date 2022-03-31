@@ -30,7 +30,7 @@
 
 import m5
 from m5.objects import *
-from m5.defines import buildEnv
+from m5.defines import getRubyProtocol
 from m5.util import addToPath
 import os, argparse, sys
 
@@ -76,7 +76,7 @@ args.num_sqc=2
 
 # Check to for the GPU_RfO protocol.  Other GPU protocols are non-SC and will
 # not work with the Ruby random tester.
-assert(buildEnv['PROTOCOL'] == 'GPU_RfO')
+assert(getRubyProtocol() == 'GPU_RfO')
 
 #
 # create the tester and system, including ruby

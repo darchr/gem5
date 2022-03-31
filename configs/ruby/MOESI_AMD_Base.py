@@ -30,7 +30,7 @@
 import math
 import m5
 from m5.objects import *
-from m5.defines import buildEnv
+from m5.defines import getRubyProtocol
 from m5.util import addToPath
 from .Ruby import create_topology
 from .Ruby import send_evicts
@@ -206,7 +206,7 @@ def define_options(parser):
 
 def create_system(options, full_system, system, dma_devices, bootmem,
                   ruby_system):
-    if buildEnv['PROTOCOL'] != 'MOESI_AMD_Base':
+    if getRubyProtocol() != 'MOESI_AMD_Base':
         panic("This script requires the MOESI_AMD_Base protocol.")
 
     cpu_sequencers = []

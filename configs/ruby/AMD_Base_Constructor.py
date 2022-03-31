@@ -30,7 +30,7 @@
 import math
 import m5
 from m5.objects import *
-from m5.defines import buildEnv
+from m5.defines import getRubyProtocol
 from m5.util import addToPath, convert
 from .CntrlBase import *
 
@@ -100,7 +100,7 @@ def define_options(parser):
     parser.add_argument("--cpu-to-dir-latency", type=int, default=15)
 
 def construct(options, system, ruby_system):
-    if buildEnv['PROTOCOL'] != 'GPU_VIPER':
+    if getRubyProtocol() != 'GPU_VIPER':
         panic("This script requires VIPER based protocols \
         to be built.")
     cpu_sequencers = []
