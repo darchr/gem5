@@ -27,7 +27,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-from m5.defines import buildEnv
+from m5.defines import getRubyProtocol
 from m5.objects import *
 from m5.util import fatal
 
@@ -45,7 +45,7 @@ class DummySystem():
 
 class Disjoint_VIPER(RubySystem):
     def __init__(self):
-        if buildEnv['PROTOCOL'] != "GPU_VIPER":
+        if getRubyProtocol() != "GPU_VIPER":
             fatal("This ruby config only supports the GPU_VIPER protocol")
 
         super(Disjoint_VIPER, self).__init__()

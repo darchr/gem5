@@ -39,7 +39,7 @@ IMPORTANT: If you modify this file, it's likely that the Learning gem5 book
 
 import math
 
-from m5.defines import buildEnv
+from m5.defines import buildEnv, getRubyProtocol
 from m5.util import fatal, panic
 
 from m5.objects import *
@@ -47,7 +47,7 @@ from m5.objects import *
 class MyCacheSystem(RubySystem):
 
     def __init__(self):
-        if buildEnv['PROTOCOL'] != 'MI_example':
+        if getRubyProtocol() != 'MI_example':
             fatal("This system assumes MI_example!")
 
         super(MyCacheSystem, self).__init__()

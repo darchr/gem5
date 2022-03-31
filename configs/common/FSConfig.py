@@ -41,6 +41,7 @@
 import m5
 from m5.objects import *
 from m5.util import *
+from m5.defines import *
 from common.Benchmarks import *
 from common import ObjectList
 
@@ -339,7 +340,7 @@ def makeArmSystem(mem_mode, machine_type, num_cpus=1, mdesc=None,
         self.system_port = self.membus.cpu_side_ports
 
     if ruby:
-        if buildEnv['PROTOCOL'] == 'MI_example' and num_cpus > 1:
+        if getRubyProtocol() == 'MI_example' and num_cpus > 1:
             fatal("The MI_example protocol cannot implement Load/Store "
                   "Exclusive operations. Multicore ARM systems configured "
                   "with the MI_example protocol will not work properly.")

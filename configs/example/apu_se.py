@@ -34,6 +34,7 @@ import inspect
 
 import m5
 from m5.objects import *
+from m5.defines import buildEnv, getRubyProtocol
 from m5.util import addToPath
 
 addToPath('../')
@@ -211,7 +212,7 @@ else:
 ########################## Sanity Check ########################
 
 # Currently the gpu model requires ruby
-if buildEnv['PROTOCOL'] == 'None':
+if getRubyProtocol() == 'None':
     fatal("GPU model requires ruby")
 
 # Currently the gpu model requires only timing or detailed CPU
@@ -252,7 +253,7 @@ shader = Shader(n_wf = args.wfs_per_simd,
 # means pipeline initiates a acquire/release operation at kernel launch/end.
 # VIPER protocol is write-through based, and thus only impl_kern_launch_acq
 # needs to set.
-if (buildEnv['PROTOCOL'] == 'GPU_VIPER'):
+if (getRubyProtocol() == 'GPU_VIPER'):
     shader.impl_kern_launch_acq = True
     shader.impl_kern_end_rel = False
 else:

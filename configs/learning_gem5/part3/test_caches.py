@@ -35,7 +35,7 @@ IMPORTANT: If you modify this file, it's likely that the Learning gem5 book
 
 """
 
-from m5.defines import buildEnv
+from m5.defines import getRubyProtocol
 from m5.util import fatal
 
 from m5.objects import *
@@ -45,7 +45,7 @@ from msi_caches import L1Cache, DirController, MyNetwork
 class TestCacheSystem(RubySystem):
 
     def __init__(self):
-        if buildEnv['PROTOCOL'] != 'MSI':
+        if getRubyProtocol() != 'MSI':
             fatal("This system assumes MSI from learning gem5!")
 
         super(TestCacheSystem, self).__init__()

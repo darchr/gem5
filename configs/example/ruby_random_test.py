@@ -27,7 +27,7 @@
 
 import m5
 from m5.objects import *
-from m5.defines import buildEnv
+from m5.defines import getRubyProtocol
 from m5.util import addToPath
 import os, argparse, sys
 
@@ -79,7 +79,7 @@ args.l3_assoc=2
 
 # Check the protocol
 check_flush = False
-if buildEnv['PROTOCOL'] == 'MOESI_hammer':
+if getRubyProtocol() == 'MOESI_hammer':
     check_flush = True
 
 tester = RubyTester(check_flush = check_flush,

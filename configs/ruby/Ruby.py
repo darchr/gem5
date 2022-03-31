@@ -40,7 +40,7 @@
 import math
 import m5
 from m5.objects import *
-from m5.defines import buildEnv
+from m5.defines import buildEnv, getRubyProtocol
 from m5.util import addToPath, fatal
 
 addToPath('../')
@@ -94,7 +94,7 @@ def define_options(parser):
         "--recycle-latency", type=int, default=10,
         help="Recycle latency for ruby controller input buffers")
 
-    protocol = buildEnv['PROTOCOL']
+    protocol = getRubyProtocol()
     exec("from . import %s" % protocol)
     eval("%s.define_options(parser)" % protocol)
     Network.define_options(parser)
@@ -195,7 +195,7 @@ def create_system(options, full_system, system, piobus = None, dma_ports = [],
     if cpus is None:
         cpus = system.cpu
 
-    protocol = buildEnv['PROTOCOL']
+    protocol = getRubyProtocol()
     exec("from . import %s" % protocol)
     try:
         (cpu_sequencers, dir_cntrls, topology) = \

@@ -28,7 +28,7 @@
 This file contains functions to extract gem5 runtime information.
 """
 
-from m5.defines import buildEnv
+from m5.defines import buildEnv, getRubyProtocol
 from m5.util import warn
 import os
 
@@ -130,10 +130,10 @@ def get_runtime_coherence_protocol() -> CoherenceProtocol:
         "chi": CoherenceProtocol.CHI,
     }
 
-    protocol_str = str(buildEnv["PROTOCOL"]).lower()
+    protocol_str = str(getRubyProtocol()).lower()
     if protocol_str not in protocol_map.keys():
         raise NotImplementedError(
-            "Protocol '" + buildEnv["PROTOCOL"] + "' not recognized."
+            "Protocol '" + getRubyProtocol() + "' not recognized."
         )
 
     return protocol_map[protocol_str]

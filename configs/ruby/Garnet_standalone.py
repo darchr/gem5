@@ -27,7 +27,7 @@
 
 import m5
 from m5.objects import *
-from m5.defines import buildEnv
+from m5.defines import getRubyProtocol
 from m5.util import addToPath
 from .Ruby import create_topology, create_directories
 
@@ -41,7 +41,7 @@ def define_options(parser):
 
 def create_system(options, full_system, system, dma_ports, bootmem,
                   ruby_system, cpus):
-    if buildEnv['PROTOCOL'] != 'Garnet_standalone':
+    if getRubyProtocol() != 'Garnet_standalone':
         panic("This script requires Garnet_standalone protocol to be built.")
 
     cpu_sequencers = []
