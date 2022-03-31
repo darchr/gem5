@@ -85,7 +85,7 @@ class L2Cache(RubyCache):
         self.assoc = assoc
         self.replacement_policy = TreePLRURP()
 
-class CPCntrl(CorePair_Controller, CntrlBase):
+class CPCntrl(GPU_VIPER_CorePair_Controller, CntrlBase):
 
     def create(self, options, ruby_system, system):
         self.version = self.versionCount()
@@ -134,7 +134,7 @@ class TCPCache(RubyCache):
         self.resourceStalls = options.no_tcc_resource_stalls
         self.replacement_policy = TreePLRURP()
 
-class TCPCntrl(TCP_Controller, CntrlBase):
+class TCPCntrl(GPU_VIPER_TCP_Controller, CntrlBase):
 
     def create(self, options, ruby_system, system):
         self.version = self.versionCount()
@@ -264,7 +264,7 @@ class TCC(RubyCache):
         self.replacement_policy = TreePLRURP()
 
 
-class TCCCntrl(TCC_Controller, CntrlBase):
+class TCCCntrl(GPU_VIPER_TCC_Controller, CntrlBase):
     def create(self, options, ruby_system, system):
         self.version = self.versionCount()
         self.L2cache = TCC()
@@ -293,7 +293,7 @@ class L3Cache(RubyCache):
         self.resourceStalls = False
         self.replacement_policy = TreePLRURP()
 
-class L3Cntrl(L3Cache_Controller, CntrlBase):
+class L3Cntrl(GPU_VIPER_L3Cache_Controller, CntrlBase):
     def create(self, options, ruby_system, system):
         self.version = self.versionCount()
         self.L3cache = L3Cache()
@@ -314,7 +314,7 @@ class L3Cntrl(L3Cache_Controller, CntrlBase):
         self.probeToL3 = probe_to_l3
         self.respToL3 = resp_to_l3
 
-class DirCntrl(Directory_Controller, CntrlBase):
+class DirCntrl(GPU_VIPER_Directory_Controller, CntrlBase):
     def create(self, options, dir_ranges, ruby_system, system):
         self.version = self.versionCount()
 

@@ -83,7 +83,7 @@ class L2Cache(RubyCache):
         self.assoc = options.l2_assoc
         self.replacement_policy = TreePLRURP()
 
-class CPCntrl(CorePair_Controller, CntrlBase):
+class CPCntrl(MOESI_AMD_Base_CorePair_Controller, CntrlBase):
 
     def create(self, options, ruby_system, system):
         self.version = self.versionCount()
@@ -139,7 +139,7 @@ class L3Cache(RubyCache):
         self.resourceStalls = options.no_resource_stalls
         self.replacement_policy = TreePLRURP()
 
-class L3Cntrl(L3Cache_Controller, CntrlBase):
+class L3Cntrl(MOESI_AMD_Base_L3Cache_Controller, CntrlBase):
     def create(self, options, ruby_system, system):
         self.version = self.versionCount()
         self.L3cache = L3Cache()
@@ -161,7 +161,7 @@ class L3Cntrl(L3Cache_Controller, CntrlBase):
         self.probeToL3 = probe_to_l3
         self.respToL3 = resp_to_l3
 
-class DirCntrl(Directory_Controller, CntrlBase):
+class DirCntrl(MOESI_AMD_Base_Directory_Controller, CntrlBase):
     def create(self, options, dir_ranges, ruby_system, system):
         self.version = self.versionCount()
 
