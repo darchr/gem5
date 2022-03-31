@@ -45,8 +45,6 @@ class BaseReduceEngine : public ClockedObject
 
 
   protected:
-    Addr currentWorkListAddress;
-    WorkListItem currentWorkList;
 
     const RequestorID _requestorId;
 

@@ -73,7 +73,6 @@ class WLEngine : public BaseReduceEngine
     std::unordered_map<Addr, uint32_t> onTheFlyUpdateMap;
 
     std::unordered_map<Addr, WorkListItem> addrWorkListMap;
-    virtual void startup();
 
     void recvFunctional(PacketPtr pkt);
 

@@ -30,52 +30,56 @@
 #define __ACCL_GRAPH_BASE_UTIL_HH__
 
 #include "base/cprintf.hh"
-#include "base/types.hh"
-#include "mem/packet.hh"
-#include "mem/request.hh"
 
 namespace gem5
 {
 
-struct WorkListItem
+struct __attribute__ ((packed)) WorkListItem
 {
-    uint32_t temp_prop;
-    uint32_t prop;
-    uint32_t degree;
-    uint32_t edgeIndex;
+    uint32_t tempProp : 32;
+    uint32_t prop : 32;
+    uint32_t degree : 32;
+    uint32_t edgeIndex : 32;
 
     std::string to_string()
     {
         return csprintf(
         "WorkListItem{temp_prop: %u, prop: %u, degree: %u, edgeIndex: %u}",
-        temp_prop, prop, degree, edgeIndex);
+        tempProp, prop, degree, edgeIndex);
     }
+
+    WorkListItem():
+        tempProp(0),
+        prop(0),
+        degree(0),
+        edgeIndex(0)
+    {}
+
+    WorkListItem(uint32_t temp_prop, uint32_t prop,
+                uint32_t degree, uint32_t edge_index):
+        tempProp(temp_prop),
+        prop(prop),
+        degree(degree),
+        edgeIndex(edge_index)
+    {}
 
 };
 
-struct Edge
+struct __attribute__ ((packed)) Edge
 {
-    uint64_t weight;
-    Addr neighbor;
+    uint16_t weight : 16;
+    uint64_t neighbor : 48;
 
     std::string to_string()
     {
         return csprintf("Edge{weight: %lu, neighbor: %lu}", weight, neighbor);
     }
+
+    Edge(uint16_t weight, uint64_t neighbor):
+        weight(weight),
+        neighbor(neighbor)
+    {}
 };
-
-WorkListItem memoryToWorkList(uint8_t* data);
-uint8_t* workListToMemory(WorkListItem wl);
-
-Edge memoryToEdge(uint8_t* data);
-uint8_t* edgeToMemory(Edge e);
-
-PacketPtr getReadPacket(Addr addr, unsigned int size,
-                            RequestorID requestorId);
-PacketPtr getWritePacket(Addr addr, unsigned int size,
-                uint8_t* data, RequestorID requestorId);
-PacketPtr getUpdatePacket(Addr addr, unsigned int size,
-                uint8_t *data, RequestorID requestorId);
 
 }
 

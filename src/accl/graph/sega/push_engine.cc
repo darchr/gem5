@@ -58,6 +58,19 @@ PushEngine::getPort(const std::string &if_name, PortID idx)
 }
 
 void
+PushEngine::startup()
+{
+    uint8_t* first_update_data = new uint8_t [4];
+    uint32_t* tempPtr = (uint32_t*) first_update_data;
+    *tempPtr = 0;
+
+    PacketPtr first_update = createUpdatePacket(0, 4, first_update_data);
+
+    sendPushUpdate(first_update);
+}
+
+
+void
 PushEngine::ReqPort::sendPacket(PacketPtr pkt)
 {
     panic_if(_blocked, "Should never try to send if blocked MemSide!");
@@ -136,7 +149,7 @@ PushEngine::processNextAddrGenEvent()
     };
 
     for (int index = 0; index < addr_queue.size(); index++) {
-        PacketPtr pkt = getReadPacket(addr_queue[index], 64, _requestorId);
+        PacketPtr pkt = createReadPacket(addr_queue[index], 64);
         reqOffsetMap[pkt->req] = offset_queue[index];
         reqNumEdgeMap[pkt->req] = num_edge_queue[index];
         reqValueMap[pkt->req] = wl.prop;
@@ -182,6 +195,7 @@ PushEngine::handleMemResp(PacketPtr pkt)
     return true;
 }
 
+// FIXME: FIX THIS FUNCTION FOR TIMING AND FUNCTIONAL ACCURACY.
 void
 PushEngine::processNextPushEvent()
 {
@@ -196,17 +210,16 @@ PushEngine::processNextPushEvent()
     int edge_in_bytes = sizeof(Edge) / sizeof(uint8_t);
     for (int i = 0; i < num_edges; i++) {
         uint8_t *curr_edge_data = data + offset + (i * edge_in_bytes);
-        Edge e = memoryToEdge(curr_edge_data);
+        Edge* e = (Edge*) (curr_edge_data);
         int data_size = sizeof(uint32_t) / sizeof(uint8_t);
         uint32_t* update_data = (uint32_t*) (new uint8_t [data_size]);
         // TODO: Implement propagate function here
         *update_data = value + 1;
-        PacketPtr update = getUpdatePacket(e.neighbor,
-            sizeof(uint32_t) / sizeof(uint8_t), (uint8_t*) update_data,
-            _requestorId);
+        PacketPtr update = createUpdatePacket(e->neighbor,
+            sizeof(uint32_t) / sizeof(uint8_t), (uint8_t*) update_data);
 
         DPRINTF(MPU, "%s: Reading  %s, updating with %d\n"
-                , __func__, e.to_string(), *update_data);
+                , __func__, e->to_string(), *update_data);
         if (sendPushUpdate(update) && (i == num_edges - 1)) {
             memRespQueue.pop();
             // TODO: Erase map entries here.
@@ -216,6 +229,23 @@ PushEngine::processNextPushEvent()
     if (!nextPushEvent.scheduled() && !memRespQueue.empty()) {
         schedule(nextPushEvent, nextCycle());
     }
+}
+
+PacketPtr
+PushEngine::createUpdatePacket(Addr addr, unsigned int size, uint8_t *data)
+{
+    RequestPtr req = std::make_shared<Request>(addr, size, 0, _requestorId);
+    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
+    // bits
+    req->setPC(((Addr) _requestorId) << 2);
+
+    // FIXME: MemCmd::UpdateWL
+    PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
+
+    pkt->allocate();
+    pkt->setData(data);
+
+    return pkt;
 }
 
 bool

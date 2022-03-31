@@ -35,6 +35,8 @@
 #include "base/statistics.hh"
 #include "params/CoalesceEngine.hh"
 
+// TODO: Add parameters for size, memory atom size, type size,
+// length of items in the blocks.
 namespace gem5
 {
 
@@ -53,6 +55,13 @@ class CoalesceEngine : public BaseReadEngine
         bool hasConflict;
         // TODO: This might be useful in the future
         // Tick lastWLWriteTick;
+        Block():
+          addr(0),
+          takenMask(0),
+          allocated(false),
+          valid(false),
+          hasConflict(false)
+        {}
     };
 
     WLEngine* peerWLEngine;
@@ -73,6 +82,8 @@ class CoalesceEngine : public BaseReadEngine
     std::deque<int> evictQueue;
 
     virtual void startup();
+
+    PacketPtr createWritePacket(Addr addr, unsigned int size, uint8_t* data);
 
     EventFunctionWrapper nextMemReqEvent;
     void processNextMemReqEvent();
@@ -107,7 +118,6 @@ class CoalesceEngine : public BaseReadEngine
     PARAMS(CoalesceEngine);
 
     CoalesceEngine(const CoalesceEngineParams &params);
-    // ~CoalesceEngine();
 
     void recvFunctional(PacketPtr pkt);
 
