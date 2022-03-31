@@ -268,20 +268,26 @@ class $py_ident(RubyController):
 
         code.dedent()
 
-        # Needed for backwards compatibility while there is only one protocol
-        # compiled. When moving to multiple protocols in the gem5 binary, this
-        # will need to change.
+        # Needed for backwards compatibility. This redefines the function in
+        # the same way for every protocol, but it uses the `getRubyProtocol`
+        # function to dynamically select the machine to use. Having multiple
+        # copies of this function is not ideal, but generating a separate .py
+        # for MachineType was not feasible.
+        # This will be removed in a later version of gem5.
         code('''
 
-from m5.defines import buildEnv
+from m5.defines import getRubyProtocol
+from m5 import objects
 from m5.util import warn
 
-if getRubyProtocol() == "${protocol}":
+def ${c_ident}(**args):
     warn(
-        "${c_indent} is deprecated. Use %s_${c_indent} instead",
+        "${c_ident} is deprecated. Use %s_${c_ident} instead",
         getRubyProtocol()
     )
-    ${c_ident} = ${py_ident}
+    full_name = getRubyProtocol() + "_${c_ident}"
+    cls = getattr(objects, full_name)
+    return cls(**args)
 ''')
 
         code.write(path, '%s.py' % gen_filename)
