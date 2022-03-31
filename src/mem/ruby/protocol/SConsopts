@@ -31,7 +31,6 @@ import os
 Import('*')
 
 main.Append(ALL_PROTOCOLS=[
-    'GPU_VIPER',
     'MOESI_AMD_Base',
     'MESI_Two_Level',
     'MESI_Three_Level',

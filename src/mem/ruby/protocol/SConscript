@@ -116,7 +116,10 @@ slicc_builder = Builder(action=MakeAction(slicc_action, Transform("SLICC")),
 
 env.Append(BUILDERS={'SLICC' : slicc_builder})
 
-for protocol in [env['CONF']['PROTOCOL']]:
+if env['CONF']['BUILD_GPU']:
+    env['ALL_PROTOCOLS'].append('GPU_VIPER')
+
+for protocol in env['ALL_PROTOCOLS']:
     if protocol == "None":
         continue
     protocol_dir = None
