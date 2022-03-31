@@ -173,7 +173,7 @@ class TriggerMessageBuffer(MessageBuffer):
 class OrderedTriggerMessageBuffer(TriggerMessageBuffer):
     ordered = True
 
-class CHI_Cache_Controller(Cache_Controller):
+class Base_CHI_Cache_Controller(CHI_Cache_Controller):
     '''
     Default parameters for a Cache controller
     The Cache_Controller can also be used as a DMA requester or as
@@ -181,8 +181,8 @@ class CHI_Cache_Controller(Cache_Controller):
     '''
 
     def __init__(self, ruby_system):
-        super(CHI_Cache_Controller, self).__init__(
-            version = Versions.getVersion(Cache_Controller),
+        super(Base_CHI_Cache_Controller, self).__init__(
+            version = Versions.getVersion(CHI_Cache_Controller),
             ruby_system = ruby_system,
             mandatoryQueue = MessageBuffer(),
             prefetchQueue = MessageBuffer(),
@@ -200,7 +200,7 @@ class CHI_Cache_Controller(Cache_Controller):
         # timeouts on unique lines when a store conditional fails
         self.sc_lock_enabled = False
 
-class CHI_L1Controller(CHI_Cache_Controller):
+class CHI_L1Controller(Base_CHI_Cache_Controller):
     '''
     Default parameters for a L1 Cache controller
     '''
@@ -232,7 +232,7 @@ class CHI_L1Controller(CHI_Cache_Controller):
         self.number_of_snoop_TBEs = 4
         self.unify_repl_TBEs = False
 
-class CHI_L2Controller(CHI_Cache_Controller):
+class CHI_L2Controller(Base_CHI_Cache_Controller):
     '''
     Default parameters for a L2 Cache controller
     '''
@@ -264,7 +264,7 @@ class CHI_L2Controller(CHI_Cache_Controller):
         self.number_of_snoop_TBEs = 16
         self.unify_repl_TBEs = False
 
-class CHI_HNFController(CHI_Cache_Controller):
+class CHI_HNFController(Base_CHI_Cache_Controller):
     '''
     Default parameters for a coherent home node (HNF) cache controller
     '''
@@ -297,7 +297,7 @@ class CHI_HNFController(CHI_Cache_Controller):
         self.number_of_snoop_TBEs = 1 # should not receive any snoop
         self.unify_repl_TBEs = False
 
-class CHI_DMAController(CHI_Cache_Controller):
+class CHI_DMAController(Base_CHI_Cache_Controller):
     '''
     Default parameters for a DMA controller
     '''
@@ -545,8 +545,8 @@ class CHI_SNF_Base(CHI_Node):
     def __init__(self, ruby_system, parent):
         super(CHI_SNF_Base, self).__init__(ruby_system)
 
-        self._cntrl = Memory_Controller(
-                          version = Versions.getVersion(Memory_Controller),
+        self._cntrl = CHI_Memory_Controller(
+                          version = Versions.getVersion(CHI_Memory_Controller),
                           ruby_system = ruby_system,
                           triggerQueue = TriggerMessageBuffer(),
                           responseFromMemory = MessageBuffer(),
