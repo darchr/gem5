@@ -102,7 +102,7 @@ class MyCacheSystem(RubySystem):
         for i,cpu in enumerate(cpus):
             self.sequencers[i].connectCpuPorts(cpu)
 
-class L1Cache(L1Cache_Controller):
+class L1Cache(MI_example_L1Cache_Controller):
 
     _version = 0
     @classmethod
@@ -157,7 +157,7 @@ class L1Cache(L1Cache_Controller):
         self.responseToCache = MessageBuffer(ordered = True)
         self.responseToCache.in_port = ruby_system.network.out_port
 
-class DirController(Directory_Controller):
+class DirController(MI_example_Directory_Controller):
 
     _version = 0
     @classmethod
