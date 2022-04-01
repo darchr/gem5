@@ -106,17 +106,18 @@ WLEngine::processNextReadEvent()
     uint32_t* update_value = update->getPtr<uint32_t>();
 
     // FIXME: else logic is wrong
-    if ((onTheFlyUpdateMap.find(update_addr) == onTheFlyUpdateMap.end()) &&
-        (onTheFlyUpdateMap.size() < onTheFlyUpdateMapSize)) {
-        if (coalesceEngine->recvReadAddr(update_addr)) {
-            DPRINTF(MPU, "%s: Received an update and it's not been pulled in. "
-                            "update_addr: %lu, update_value: %u.\n",
-                            __func__, update_addr, *update_value);
-            onTheFlyUpdateMap[update_addr] = *update_value;
-            DPRINTF(MPU, "%s: onTheFlyUpdateMap[%lu] = %d.\n",
-                __func__, update_addr, onTheFlyUpdateMap[update_addr]);
-            updateQueue.pop_front();
-            DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
+    if ((onTheFlyUpdateMap.find(update_addr) == onTheFlyUpdateMap.end())) {
+        if (onTheFlyUpdateMap.size() < onTheFlyUpdateMapSize) {
+            if (coalesceEngine->recvReadAddr(update_addr)) {
+                DPRINTF(MPU, "%s: Received an update and it's not been pulled in. "
+                                "update_addr: %lu, update_value: %u.\n",
+                                __func__, update_addr, *update_value);
+                onTheFlyUpdateMap[update_addr] = *update_value;
+                DPRINTF(MPU, "%s: onTheFlyUpdateMap[%lu] = %d.\n",
+                    __func__, update_addr, onTheFlyUpdateMap[update_addr]);
+                updateQueue.pop_front();
+                DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
+            }
         }
     } else {
         // TODO: Generalize this to reduce function rather than just min

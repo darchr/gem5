@@ -65,6 +65,7 @@ PushEngine::startup()
     *tempPtr = 0;
 
     PacketPtr first_update = createUpdatePacket(0, 4, first_update_data);
+    // PacketPtr first_update = createUpdatePacket(0, 4, (uint32_t) 0);
 
     sendPushUpdate(first_update);
 }
@@ -109,7 +110,11 @@ PushEngine::recvWLItem(WorkListItem wl)
         return false;
     }
 
-    pushReqQueue.push_back(wl);
+    Addr start_addr = baseEdgeAddr + (wl.edgeIndex * sizeof(Edge));
+    Addr end_addr = start_addr + (wl.degree * sizeof(Edge));
+    uint32_t update_value = wl.prop;
+    pushReqQueue.push_back(
+        std::make_pair(std::make_pair(start_addr, end_addr), update_value));
 
     if ((!nextAddrGenEvent.scheduled()) &&
         (!pushReqQueue.empty())) {
@@ -121,42 +126,35 @@ PushEngine::recvWLItem(WorkListItem wl)
 void
 PushEngine::processNextAddrGenEvent()
 {
-    WorkListItem wl = pushReqQueue.front();
+    Addr start_addr, end_addr;
+    uint32_t update_value;
 
-    std::vector<Addr> addr_queue;
-    std::vector<Addr> offset_queue;
-    std::vector<int> num_edge_queue;
+    std::pair<std::pair<Addr, Addr>, uint32_t> front = pushReqQueue.front();
+    std::tie(start_addr, end_addr) = front.first;
+    update_value = front.second;
 
-    for (uint32_t index = 0; index < wl.degree; index++) {
-        Addr edge_addr = baseEdgeAddr + (wl.edgeIndex + index) * sizeof(Edge);
-        Addr req_addr = (edge_addr / 64) * 64;
-        Addr req_offset = edge_addr % 64;
-        if (addr_queue.size()) {
-            if (addr_queue.back() == req_addr) {
-                num_edge_queue.back()++;
-            }
-            else {
-                addr_queue.push_back(req_addr);
-                offset_queue.push_back(req_offset);
-                num_edge_queue.push_back(1);
-            }
-        }
-        else {
-            addr_queue.push_back(req_addr);
-            offset_queue.push_back(req_offset);
-            num_edge_queue.push_back(1);
-        }
-    };
+    Addr req_addr = (start_addr / 64) * 64;
+    Addr req_offset = start_addr % 64;
+    int num_edges = 0;
 
-    for (int index = 0; index < addr_queue.size(); index++) {
-        PacketPtr pkt = createReadPacket(addr_queue[index], 64);
-        reqOffsetMap[pkt->req] = offset_queue[index];
-        reqNumEdgeMap[pkt->req] = num_edge_queue[index];
-        reqValueMap[pkt->req] = wl.prop;
-        pendingReadReqs.push_back(pkt);
+    if (end_addr > req_addr + 64) {
+        num_edges = (req_addr + 64 - start_addr) / sizeof(Edge);
+    } else {
+        num_edges = (end_addr - start_addr) / sizeof(Edge);
     }
+    PacketPtr pkt = createReadPacket(req_addr, 64);
+    reqOffsetMap[pkt->req] = req_offset;
+    reqNumEdgeMap[pkt->req] = num_edges;
+    reqValueMap[pkt->req] = update_value;
+    pendingReadReqs.push_back(pkt);
 
     pushReqQueue.pop_front();
+
+    if (req_addr + 64 < end_addr) {
+        pushReqQueue.push_front(
+        std::make_pair(std::make_pair(req_addr + 64, end_addr), update_value)
+        );
+    }
 
     if ((!nextAddrGenEvent.scheduled()) && (!pushReqQueue.empty())) {
         schedule(nextAddrGenEvent, nextCycle());
@@ -207,26 +205,30 @@ PushEngine::processNextPushEvent()
             __func__, pkt->getAddr());
 
     Addr offset = reqOffsetMap[req];
-    int num_edges = reqNumEdgeMap[req];
     uint32_t value = reqValueMap[req];
 
-    for (int i = 0; i < num_edges; i++) {
-        uint8_t *curr_edge_data = data + offset + (i * sizeof(Edge));
-        Edge* e = (Edge*) (curr_edge_data);
-        DPRINTF(MPU, "%s: Read %s\n", __func__, e->to_string());
-        int data_size = sizeof(uint32_t) / sizeof(uint8_t);
-        uint32_t* update_data = (uint32_t*) (new uint8_t [data_size]);
-        // TODO: Implement propagate function here
-        *update_data = value + 1;
-        DPRINTF(MPU, "%s: Sending an update to %lu with value: %d.\n",
-                __func__, e->neighbor, *update_data);
-        PacketPtr update = createUpdatePacket(e->neighbor,
-            sizeof(uint32_t) / sizeof(uint8_t), (uint8_t*) update_data);
+    Edge* e = (Edge*) (data + offset);
+    DPRINTF(MPU, "%s: Read %s\n", __func__, e->to_string());
+    int data_size = sizeof(uint32_t) / sizeof(uint8_t);
+    uint32_t* update_data = (uint32_t*) (new uint8_t [data_size]);
+    // TODO: Implement propagate function here
+    *update_data = value + 1;
+    // uint32_t update_value = value + 1;
+    DPRINTF(MPU, "%s: Sending an update to %lu with value: %d.\n",
+            __func__, e->neighbor, *update_data);
+    PacketPtr update = createUpdatePacket(e->neighbor,
+                        sizeof(uint32_t), (uint8_t*) update_data);
 
-        if (sendPushUpdate(update) && (i == num_edges - 1)) {
-            memRespQueue.pop_front();
-            // TODO: Erase map entries here.
-        }
+    if (sendPushUpdate(update)) {
+        reqOffsetMap[req] = reqOffsetMap[req] + sizeof(Edge);
+        reqNumEdgeMap[req]--;
+    }
+
+    if (reqNumEdgeMap[req] == 0) {
+        memRespQueue.pop_front();
+        reqOffsetMap.erase(req);
+        reqNumEdgeMap.erase(req);
+        reqValueMap.erase(req);
     }
 
     if (!nextPushEvent.scheduled() && !memRespQueue.empty()) {
@@ -235,7 +237,8 @@ PushEngine::processNextPushEvent()
 }
 
 PacketPtr
-PushEngine::createUpdatePacket(Addr addr, unsigned int size, uint8_t *data)
+PushEngine::createUpdatePacket(Addr addr, unsigned int size, uint8_t* data)
+// PushEngine::createUpdatePacket(Addr addr, unsigned int size, uint32_t value)
 {
     RequestPtr req = std::make_shared<Request>(addr, size, 0, _requestorId);
     // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
@@ -247,6 +250,7 @@ PushEngine::createUpdatePacket(Addr addr, unsigned int size, uint8_t *data)
 
     pkt->allocate();
     pkt->setData(data);
+    // pkt->setLE<uint32_t>(value);
 
     return pkt;
 }
