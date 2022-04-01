@@ -109,7 +109,7 @@ PushEngine::recvWLItem(WorkListItem wl)
         return false;
     }
 
-    pushReqQueue.push(wl);
+    pushReqQueue.push_back(wl);
 
     if ((!nextAddrGenEvent.scheduled()) &&
         (!pushReqQueue.empty())) {
@@ -153,10 +153,10 @@ PushEngine::processNextAddrGenEvent()
         reqOffsetMap[pkt->req] = offset_queue[index];
         reqNumEdgeMap[pkt->req] = num_edge_queue[index];
         reqValueMap[pkt->req] = wl.prop;
-        pendingReadReqs.push(pkt);
+        pendingReadReqs.push_back(pkt);
     }
 
-    pushReqQueue.pop();
+    pushReqQueue.pop_front();
 
     if ((!nextAddrGenEvent.scheduled()) && (!pushReqQueue.empty())) {
         schedule(nextAddrGenEvent, nextCycle());
@@ -175,7 +175,7 @@ PushEngine::processNextReadEvent()
         PacketPtr pkt = pendingReadReqs.front();
         sendMemReq(pkt);
         onTheFlyReadReqs++;
-        pendingReadReqs.pop();
+        pendingReadReqs.pop_front();
     }
 
     if ((!nextReadEvent.scheduled()) && (!pendingReadReqs.empty())) {
@@ -187,7 +187,7 @@ bool
 PushEngine::handleMemResp(PacketPtr pkt)
 {
     onTheFlyReadReqs--;
-    memRespQueue.push(pkt);
+    memRespQueue.push_back(pkt);
 
     if ((!nextPushEvent.scheduled()) && (!memRespQueue.empty())) {
         schedule(nextPushEvent, nextCycle());
@@ -224,7 +224,7 @@ PushEngine::processNextPushEvent()
             sizeof(uint32_t) / sizeof(uint8_t), (uint8_t*) update_data);
 
         if (sendPushUpdate(update) && (i == num_edges - 1)) {
-            memRespQueue.pop();
+            memRespQueue.pop_front();
             // TODO: Erase map entries here.
         }
     }

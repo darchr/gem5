@@ -115,7 +115,7 @@ WLEngine::processNextReadEvent()
             onTheFlyUpdateMap[update_addr] = *update_value;
             DPRINTF(MPU, "%s: onTheFlyUpdateMap[%lu] = %d.\n",
                 __func__, update_addr, onTheFlyUpdateMap[update_addr]);
-            updateQueue.pop();
+            updateQueue.pop_front();
             DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
         }
     } else {
@@ -127,7 +127,7 @@ WLEngine::processNextReadEvent()
         onTheFlyUpdateMap[update_addr] =
                 std::min(*update_value, onTheFlyUpdateMap[update_addr]);
         stats.onTheFlyCoalesce++;
-        updateQueue.pop();
+        updateQueue.pop_front();
         DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
         // TODO: Add a stat to count the number of coalescions
     }
@@ -188,7 +188,7 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
         return false;
     }
 
-    updateQueue.push(pkt);
+    updateQueue.push_back(pkt);
     assert(!updateQueue.empty());
     DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
     if (!nextReadEvent.scheduled()) {
