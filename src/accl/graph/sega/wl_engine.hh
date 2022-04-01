@@ -33,6 +33,7 @@
 #include <unordered_map>
 
 #include "accl/graph/base/base_reduce_engine.hh"
+#include "accl/graph/base/data_structs.hh"
 #include "accl/graph/sega/coalesce_engine.hh"
 #include "base/statistics.hh"
 #include "params/WLEngine.hh"
@@ -108,7 +109,7 @@ class WLEngine : public BaseReduceEngine
 
     bool handleIncomingUpdate(PacketPtr pkt);
 
-    virtual void handleIncomingWL(Addr addr, WorkListItem wl);
+    void handleIncomingWL(Addr addr, WorkListItem wl);
 };
 
 }
