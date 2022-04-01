@@ -64,18 +64,18 @@ class PushEngine : public BaseReadEngine
     Addr baseEdgeAddr;
 
     int pushReqQueueSize;
-    std::queue<WorkListItem> pushReqQueue;
+    std::deque<WorkListItem> pushReqQueue;
 
     std::unordered_map<RequestPtr, Addr> reqOffsetMap;
     std::unordered_map<RequestPtr, int> reqNumEdgeMap;
     std::unordered_map<RequestPtr, uint32_t> reqValueMap;
 
     // TODO: Possibility of infinite queueing
-    std::queue<PacketPtr> pendingReadReqs;
+    std::deque<PacketPtr> pendingReadReqs;
 
     int memRespQueueSize;
     int onTheFlyReadReqs;
-    std::queue<PacketPtr> memRespQueue;
+    std::deque<PacketPtr> memRespQueue;
 
     virtual void startup();
 

@@ -74,10 +74,10 @@ class CoalesceEngine : public BaseReadEngine
     std::unordered_map<int, std::vector<Addr>> MSHRMap;
 
     int outstandingMemReqQueueSize;
-    std::queue<PacketPtr> outstandingMemReqQueue;
+    std::deque<PacketPtr> outstandingMemReqQueue;
 
-    std::queue<Addr> addrResponseQueue;
-    std::queue<WorkListItem> worklistResponseQueue;
+    std::deque<Addr> addrResponseQueue;
+    std::deque<WorkListItem> worklistResponseQueue;
 
     std::deque<int> evictQueue;
 
