@@ -30,7 +30,7 @@
 #define __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__
 
 #include "accl/graph/base/base_read_engine.hh"
-#include "accl/graph/base/util.hh"
+#include "accl/graph/base/data_structs.hh"
 #include "accl/graph/sega/push_engine.hh"
 #include "base/statistics.hh"
 #include "params/CoalesceEngine.hh"
