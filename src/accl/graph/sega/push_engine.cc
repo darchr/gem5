@@ -203,23 +203,26 @@ PushEngine::processNextPushEvent()
     RequestPtr req = pkt->req;
     uint8_t *data = pkt->getPtr<uint8_t>();
 
+    DPRINTF(MPU, "%s: Looking at the front of the queue. pkt->Addr: %lu.\n",
+            __func__, pkt->getAddr());
+
     Addr offset = reqOffsetMap[req];
     int num_edges = reqNumEdgeMap[req];
     uint32_t value = reqValueMap[req];
 
-    int edge_in_bytes = sizeof(Edge) / sizeof(uint8_t);
     for (int i = 0; i < num_edges; i++) {
-        uint8_t *curr_edge_data = data + offset + (i * edge_in_bytes);
+        uint8_t *curr_edge_data = data + offset + (i * sizeof(Edge));
         Edge* e = (Edge*) (curr_edge_data);
+        DPRINTF(MPU, "%s: Read %s\n", __func__, e->to_string());
         int data_size = sizeof(uint32_t) / sizeof(uint8_t);
         uint32_t* update_data = (uint32_t*) (new uint8_t [data_size]);
         // TODO: Implement propagate function here
         *update_data = value + 1;
+        DPRINTF(MPU, "%s: Sending an update to %lu with value: %d.\n",
+                __func__, e->neighbor, *update_data);
         PacketPtr update = createUpdatePacket(e->neighbor,
             sizeof(uint32_t) / sizeof(uint8_t), (uint8_t*) update_data);
 
-        DPRINTF(MPU, "%s: Reading  %s, updating with %d\n"
-                , __func__, e->to_string(), *update_data);
         if (sendPushUpdate(update) && (i == num_edges - 1)) {
             memRespQueue.pop();
             // TODO: Erase map entries here.

@@ -4,7 +4,7 @@ from m5.objects import *
 class MPU(SubSystem):
     def __init__(self):
         super(MPU, self).__init__()
-        self.push_engine = PushEngine(base_edge_addr=0x100000,
+        self.push_engine = PushEngine(base_edge_addr=0x80000000,
                                     push_req_queue_size = 16)
         self.coalesce_engine = CoalesceEngine(
                                     peer_push_engine=self.push_engine)
@@ -60,9 +60,9 @@ class SEGA(System):
         self.mpu = MPU()
         self.mem_ctrl = MPUMemory(
             vertex_range=AddrRange(start=0x000000, size="2GiB"),
-            vertex_binary="live-journal/graph_binaries/vertices",
+            vertex_binary="epinions/graph_binaries/vertices",
             edge_range=AddrRange(start=0x80000000, size="2GiB"),
-            edge_binary="live-journal/graph_binaries/edgelist_0")
+            edge_binary="epinions/graph_binaries/edgelist_0")
 
         self.mpu.setReqPort(self.mpu.getRespPort())
         self.mpu.setMemPort(self.mem_ctrl.getPort())
