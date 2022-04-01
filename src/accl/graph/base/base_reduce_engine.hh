@@ -29,8 +29,6 @@
 #ifndef __ACCL_GRAPH_BASE_BASE_REDUCE_ENGINE_HH__
 #define __ACCL_GRAPH_BASE_BASE_REDUCE_ENGINE_HH__
 
-
-#include "accl/graph/base/util.hh"
 #include "params/BaseReduceEngine.hh"
 #include "sim/clocked_object.hh"
 #include "sim/system.hh"
@@ -43,7 +41,6 @@ class BaseReduceEngine : public ClockedObject
   private:
     System* system;
 
-
   protected:
 
     const RequestorID _requestorId;
@@ -55,8 +52,6 @@ class BaseReduceEngine : public ClockedObject
     ~BaseReduceEngine();
 
     RequestorID requestorId() { return _requestorId; }
-
-    virtual void handleIncomingWL(Addr addr, WorkListItem wl) = 0;
 };
 
 }
