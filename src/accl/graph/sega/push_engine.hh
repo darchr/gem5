@@ -64,8 +64,9 @@ class PushEngine : public BaseReadEngine
     Addr baseEdgeAddr;
 
     int pushReqQueueSize;
-    std::deque<WorkListItem> pushReqQueue;
+    std::deque<std::pair<std::pair<Addr, Addr>, uint32_t>> pushReqQueue;
 
+    // TODO: Add size one size for all these maps
     std::unordered_map<RequestPtr, Addr> reqOffsetMap;
     std::unordered_map<RequestPtr, int> reqNumEdgeMap;
     std::unordered_map<RequestPtr, uint32_t> reqValueMap;
@@ -79,7 +80,8 @@ class PushEngine : public BaseReadEngine
 
     virtual void startup();
 
-    PacketPtr createUpdatePacket(Addr addr, unsigned int size, uint8_t *data);
+    PacketPtr createUpdatePacket(Addr addr, unsigned int size, uint8_t* data);
+    // PacketPtr createUpdatePacket(Addr addr, unsigned int size, uint32_t value);
 
     bool sendPushUpdate(PacketPtr pkt);
 
