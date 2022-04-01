@@ -5,11 +5,12 @@ class MPU(SubSystem):
     def __init__(self):
         super(MPU, self).__init__()
         self.push_engine = PushEngine(base_edge_addr=0x80000000,
-                                    push_req_queue_size = 16)
+                                    push_req_queue_size=16,
+                                    mem_resp_queue_size=8)
         self.coalesce_engine = CoalesceEngine(
                                     peer_push_engine=self.push_engine)
         self.wl_engine = WLEngine(coalesce_engine=self.coalesce_engine,
-                                    update_queue_size = 16,
+                                    update_queue_size=16,
                                     on_the_fly_update_map_size=8)
         self.interconnect = SystemXBar()
 
@@ -60,9 +61,9 @@ class SEGA(System):
         self.mpu = MPU()
         self.mem_ctrl = MPUMemory(
             vertex_range=AddrRange(start=0x000000, size="2GiB"),
-            vertex_binary="epinions/graph_binaries/vertices",
+            vertex_binary="facebook/graph_binaries/vertices",
             edge_range=AddrRange(start=0x80000000, size="2GiB"),
-            edge_binary="epinions/graph_binaries/edgelist_0")
+            edge_binary="facebook/graph_binaries/edgelist_0")
 
         self.mpu.setReqPort(self.mpu.getRespPort())
         self.mpu.setMemPort(self.mem_ctrl.getPort())
