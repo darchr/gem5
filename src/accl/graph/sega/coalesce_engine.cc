@@ -85,8 +85,8 @@ CoalesceEngine::recvReadAddr(Addr addr)
         DPRINTF(MPU, "%s: Read request with addr: %lu hit in the cache.\n"
                         , __func__, addr);
         // TODO: Make addrQueue and wlQueue into one std::pair<Addr, WL>
-        addrResponseQueue.push(addr);
-        worklistResponseQueue.push(cacheBlocks[block_index].items[wl_offset]);
+        addrResponseQueue.push_back(addr);
+        worklistResponseQueue.push_back(cacheBlocks[block_index].items[wl_offset]);
         // TODO: Use a bitset instead of unsigned int for takenMask
         cacheBlocks[block_index].takenMask |= (1 << wl_offset);
 
@@ -143,7 +143,7 @@ CoalesceEngine::recvReadAddr(Addr addr)
                     MSHRMap[block_index].push_back(addr);
                     // TODO: Parameterize 64 to memory atom size
                     PacketPtr pkt = createReadPacket(aligned_addr, 64);
-                    outstandingMemReqQueue.push(pkt);
+                    outstandingMemReqQueue.push_back(pkt);
 
                     stats.numVertexBlockReads++;
 
@@ -175,7 +175,7 @@ CoalesceEngine::processNextMemReqEvent()
 
     if (!memPortBlocked()) {
         sendMemReq(pkt);
-        outstandingMemReqQueue.pop();
+        outstandingMemReqQueue.pop_front();
     }
 
     if ((!nextMemReqEvent.scheduled()) &&
@@ -192,8 +192,8 @@ CoalesceEngine::processNextRespondEvent()
 
     peerWLEngine->handleIncomingWL(addr_response, worklist_response);
 
-    addrResponseQueue.pop();
-    worklistResponseQueue.pop();
+    addrResponseQueue.pop_front();
+    worklistResponseQueue.pop_front();
 
     if ((!nextRespondEvent.scheduled()) &&
         (!worklistResponseQueue.empty()) &&
@@ -234,8 +234,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
 
         if (alligned_miss_addr == addr) {
             int wl_offset = (miss_addr - alligned_miss_addr) / 16;
-            addrResponseQueue.push(miss_addr);
-            worklistResponseQueue.push(
+            addrResponseQueue.push_back(miss_addr);
+            worklistResponseQueue.push_back(
                 cacheBlocks[block_index].items[wl_offset]);
             cacheBlocks[block_index].takenMask |= (1 << wl_offset);
             stats.numVertexReads++;
@@ -357,8 +357,8 @@ CoalesceEngine::processNextApplyAndCommitEvent()
             // TODO: Make sure this trick works;
             Addr alligned_miss_addr = (miss_addr / 64) * 64;
             PacketPtr read_pkt = createReadPacket(alligned_miss_addr, 64);
-            outstandingMemReqQueue.push(write_pkt);
-            outstandingMemReqQueue.push(read_pkt);
+            outstandingMemReqQueue.push_back(write_pkt);
+            outstandingMemReqQueue.push_back(read_pkt);
             // TODO: This should be improved
             if ((changedMask & (1)) == 1) {
                 peerPushEngine->recvWLItem(cacheBlocks[block_index].items[0]);
@@ -381,7 +381,7 @@ CoalesceEngine::processNextApplyAndCommitEvent()
                 __func__, evictQueue.size());
         } else if ((!cacheBlocks[block_index].hasConflict) &&
             (outstandingMemReqQueue.size() < outstandingMemReqQueueSize)) {
-            outstandingMemReqQueue.push(write_pkt);
+            outstandingMemReqQueue.push_back(write_pkt);
             // TODO: This should be improved
             if ((changedMask & (1)) == 1) {
                 peerPushEngine->recvWLItem(cacheBlocks[block_index].items[0]);
