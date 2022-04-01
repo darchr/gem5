@@ -32,4 +32,3 @@ SimObject('BaseReduceEngine.py')
 
 Source('base_read_engine.cc')
 Source('base_reduce_engine.cc')
-Source('util.cc')
