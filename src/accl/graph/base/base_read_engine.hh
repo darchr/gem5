@@ -29,7 +29,6 @@
 #ifndef __ACCL_GRAPH_BASE_BASE_READ_ENGINE_HH__
 #define __ACCL_GRAPH_BASE_BASE_READ_ENGINE_HH__
 
-#include <queue>
 #include <unordered_map>
 
 #include "base/addr_range.hh"
