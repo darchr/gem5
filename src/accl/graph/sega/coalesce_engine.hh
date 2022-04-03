@@ -84,6 +84,7 @@ class CoalesceEngine : public BaseReadEngine
     virtual void startup();
 
     PacketPtr createWritePacket(Addr addr, unsigned int size, uint8_t* data);
+    // PacketPtr createWritePacket(Addr addr, unsigned int size, WorkListItem wl);
 
     EventFunctionWrapper nextMemReqEvent;
     void processNextMemReqEvent();
