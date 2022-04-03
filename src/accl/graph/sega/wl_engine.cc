@@ -27,7 +27,9 @@
  */
 
 #include "accl/graph/sega/wl_engine.hh"
+
 #include "debug/MPU.hh"
+#include "mem/packet_access.hh"
 
 namespace gem5
 {
@@ -103,7 +105,7 @@ WLEngine::processNextReadEvent()
 {
     PacketPtr update = updateQueue.front();
     Addr update_addr = update->getAddr();
-    uint32_t* update_value = update->getPtr<uint32_t>();
+    uint32_t update_value = update->getLE<uint32_t>();
 
     // FIXME: else logic is wrong
     if ((onTheFlyUpdateMap.find(update_addr) == onTheFlyUpdateMap.end())) {
@@ -111,8 +113,8 @@ WLEngine::processNextReadEvent()
             if (coalesceEngine->recvReadAddr(update_addr)) {
                 DPRINTF(MPU, "%s: Received an update and it's not been pulled in. "
                                 "update_addr: %lu, update_value: %u.\n",
-                                __func__, update_addr, *update_value);
-                onTheFlyUpdateMap[update_addr] = *update_value;
+                                __func__, update_addr, update_value);
+                onTheFlyUpdateMap[update_addr] = update_value;
                 DPRINTF(MPU, "%s: onTheFlyUpdateMap[%lu] = %d.\n",
                     __func__, update_addr, onTheFlyUpdateMap[update_addr]);
                 updateQueue.pop_front();
@@ -123,10 +125,10 @@ WLEngine::processNextReadEvent()
         // TODO: Generalize this to reduce function rather than just min
         DPRINTF(MPU, "%s: Hitting in the onTheFlyUpdateMap."
                             "update_addr: %lu, update_value: %u, old_value: %u.\n",
-                            __func__, update_addr, *update_value,
+                            __func__, update_addr, update_value,
                             onTheFlyUpdateMap[update_addr]);
         onTheFlyUpdateMap[update_addr] =
-                std::min(*update_value, onTheFlyUpdateMap[update_addr]);
+                std::min(update_value, onTheFlyUpdateMap[update_addr]);
         stats.onTheFlyCoalesce++;
         updateQueue.pop_front();
         DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
@@ -154,7 +156,6 @@ WLEngine::handleIncomingWL(Addr addr, WorkListItem wl)
 void
 WLEngine::processNextReduceEvent()
 {
-
     std::unordered_map<Addr, WorkListItem>::iterator it =
                     addrWorkListMap.begin();
 
@@ -190,6 +191,7 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
     }
 
     updateQueue.push_back(pkt);
+
     assert(!updateQueue.empty());
     DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
     if (!nextReadEvent.scheduled()) {

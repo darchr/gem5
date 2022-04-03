@@ -30,6 +30,7 @@
 
 #include "accl/graph/sega/wl_engine.hh"
 #include "debug/MPU.hh"
+#include "mem/packet_access.hh"
 
 namespace gem5
 {
@@ -300,19 +301,8 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 
     // TODO: Make this more general and programmable.
     // && (cacheBlocks[block_index].hasConflict)
-    bool found = false;
     if ((cacheBlocks[block_index].takenMask == 0)) {
-        for (auto index : evictQueue) {
-            if (block_index == index) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            evictQueue.push_back(block_index);
-        }
-        DPRINTF(MPU, "%s: evictQueue.size: %u.\n",
-                __func__, evictQueue.size());
+        evictQueue.push_back(block_index);
     }
 
     if ((!nextApplyAndCommitEvent.scheduled()) &&
@@ -328,6 +318,7 @@ CoalesceEngine::processNextApplyAndCommitEvent()
     int block_index = evictQueue.front();
     uint8_t changedMask = 0;
     // TODO: parameterize 64 to memory atom size
+    uint8_t* wl_data;
     uint8_t data[64];
 
     for (int i = 0; i < 4; i++) {
@@ -341,7 +332,7 @@ CoalesceEngine::processNextApplyAndCommitEvent()
         DPRINTF(MPU, "%s: Writing WorkListItem[%lu[%d]] to memory. "
                     "WLItem: %s.\n", __func__, cacheBlocks[block_index].addr,
                     i, cacheBlocks[block_index].items[i].to_string());
-        uint8_t* wl_data = (uint8_t*) (cacheBlocks[block_index].items + i);
+        wl_data = (uint8_t*) (cacheBlocks[block_index].items + i);
         std::memcpy(data + (i * sizeof(WorkListItem)),
                     wl_data, sizeof(WorkListItem));
     }

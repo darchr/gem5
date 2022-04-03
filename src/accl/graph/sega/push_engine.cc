@@ -29,6 +29,7 @@
 #include "accl/graph/sega/push_engine.hh"
 
 #include "debug/MPU.hh"
+#include "mem/packet_access.hh"
 
 namespace gem5
 {
@@ -64,8 +65,8 @@ PushEngine::startup()
     uint32_t* tempPtr = (uint32_t*) first_update_data;
     *tempPtr = 0;
 
-    PacketPtr first_update = createUpdatePacket(0, 4, first_update_data);
-    // PacketPtr first_update = createUpdatePacket(0, 4, (uint32_t) 0);
+    // PacketPtr first_update = createUpdatePacket(0, 4, first_update_data);
+    PacketPtr first_update = createUpdatePacket(0, 4, (uint32_t) 0);
 
     sendPushUpdate(first_update);
 }
@@ -193,7 +194,7 @@ PushEngine::handleMemResp(PacketPtr pkt)
     return true;
 }
 
-// FIXME: FIX THIS FUNCTION FOR TIMING AND FUNCTIONAL ACCURACY.
+// TODO: Add a parameter to allow for doing multiple pushes at the same time.
 void
 PushEngine::processNextPushEvent()
 {
@@ -209,15 +210,14 @@ PushEngine::processNextPushEvent()
 
     Edge* e = (Edge*) (data + offset);
     DPRINTF(MPU, "%s: Read %s\n", __func__, e->to_string());
-    int data_size = sizeof(uint32_t) / sizeof(uint8_t);
-    uint32_t* update_data = (uint32_t*) (new uint8_t [data_size]);
+
     // TODO: Implement propagate function here
-    *update_data = value + 1;
-    // uint32_t update_value = value + 1;
+    uint32_t update_value = value + 1;
     DPRINTF(MPU, "%s: Sending an update to %lu with value: %d.\n",
-            __func__, e->neighbor, *update_data);
+            __func__, e->neighbor, update_value);
+
     PacketPtr update = createUpdatePacket(e->neighbor,
-                        sizeof(uint32_t), (uint8_t*) update_data);
+                        sizeof(uint32_t), update_value);
 
     if (sendPushUpdate(update)) {
         reqOffsetMap[req] = reqOffsetMap[req] + sizeof(Edge);
@@ -237,8 +237,8 @@ PushEngine::processNextPushEvent()
 }
 
 PacketPtr
-PushEngine::createUpdatePacket(Addr addr, unsigned int size, uint8_t* data)
-// PushEngine::createUpdatePacket(Addr addr, unsigned int size, uint32_t value)
+// PushEngine::createUpdatePacket(Addr addr, unsigned int size, uint8_t* data)
+PushEngine::createUpdatePacket(Addr addr, unsigned int size, uint32_t value)
 {
     RequestPtr req = std::make_shared<Request>(addr, size, 0, _requestorId);
     // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
@@ -249,8 +249,8 @@ PushEngine::createUpdatePacket(Addr addr, unsigned int size, uint8_t* data)
     PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
 
     pkt->allocate();
-    pkt->setData(data);
-    // pkt->setLE<uint32_t>(value);
+    // pkt->setData(data);
+    pkt->setLE<uint32_t>(value);
 
     return pkt;
 }
