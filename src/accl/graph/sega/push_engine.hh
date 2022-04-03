@@ -80,8 +80,8 @@ class PushEngine : public BaseReadEngine
 
     virtual void startup();
 
-    PacketPtr createUpdatePacket(Addr addr, unsigned int size, uint8_t* data);
-    // PacketPtr createUpdatePacket(Addr addr, unsigned int size, uint32_t value);
+    // PacketPtr createUpdatePacket(Addr addr, unsigned int size, uint8_t* data);
+    PacketPtr createUpdatePacket(Addr addr, unsigned int size, uint32_t value);
 
     bool sendPushUpdate(PacketPtr pkt);
 
