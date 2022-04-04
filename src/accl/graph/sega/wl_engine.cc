@@ -64,10 +64,25 @@ WLEngine::RespPort::getAddrRanges() const
     return owner->getAddrRanges();
 }
 
+void
+WLEngine::RespPort::checkRetryReq()
+{
+    if (needSendRetryReq) {
+        DPRINTF(MPU, "%s: Sending a reqRetry.\n", __func__);
+        sendRetryReq();
+        needSendRetryReq = false;
+    }
+}
+
 bool
 WLEngine::RespPort::recvTimingReq(PacketPtr pkt)
 {
-    return owner->handleIncomingUpdate(pkt);
+    if (!owner->handleIncomingUpdate(pkt)) {
+        needSendRetryReq = true;
+        return false;
+    }
+
+    return true;
 }
 
 Tick
@@ -107,7 +122,6 @@ WLEngine::processNextReadEvent()
     Addr update_addr = update->getAddr();
     uint32_t update_value = update->getLE<uint32_t>();
 
-    // FIXME: else logic is wrong
     if ((onTheFlyUpdateMap.find(update_addr) == onTheFlyUpdateMap.end())) {
         if (onTheFlyUpdateMap.size() < onTheFlyUpdateMapSize) {
             if (coalesceEngine->recvReadAddr(update_addr)) {
@@ -118,7 +132,11 @@ WLEngine::processNextReadEvent()
                 DPRINTF(MPU, "%s: onTheFlyUpdateMap[%lu] = %d.\n",
                     __func__, update_addr, onTheFlyUpdateMap[update_addr]);
                 updateQueue.pop_front();
-                DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
+                DPRINTF(MPU, "%s: 0: updateQueue.size: %d.\n", __func__, updateQueue.size());
+                if (updateQueue.size() == updateQueueSize - 1) {
+                    respPort.checkRetryReq();
+                }
+
             }
         }
     } else {
@@ -131,8 +149,10 @@ WLEngine::processNextReadEvent()
                 std::min(update_value, onTheFlyUpdateMap[update_addr]);
         stats.onTheFlyCoalesce++;
         updateQueue.pop_front();
-        DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
-        // TODO: Add a stat to count the number of coalescions
+        DPRINTF(MPU, "%s: 1: updateQueue.size: %d.\n", __func__, updateQueue.size());
+        if (updateQueue.size() == updateQueueSize - 1) {
+            respPort.checkRetryReq();
+        }
     }
 
     // TODO: Only schedule nextReadEvent only when it has to be scheduled
@@ -180,6 +200,7 @@ WLEngine::processNextReduceEvent()
     for (int i = 0; i < servicedAddresses.size(); i++) {
         onTheFlyUpdateMap.erase(servicedAddresses[i]);
     }
+    DPRINTF(MPU, "%s: onTheFlyUpdateMap.size(): %u, servicedAddresses.size(): %u.\n", __func__, onTheFlyUpdateMap.size(), servicedAddresses.size());
 }
 
 bool

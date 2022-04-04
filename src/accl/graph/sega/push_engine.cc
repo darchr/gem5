@@ -95,10 +95,12 @@ PushEngine::ReqPort::recvReqRetry()
 {
     panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
 
+    DPRINTF(MPU, "%s: Received a reqRetry.\n", __func__);
+
     _blocked = false;
     sendPacket(blockedPacket);
 
-    if (!blocked()) {
+    if (!_blocked) {
         blockedPacket = nullptr;
     }
 }
@@ -202,11 +204,12 @@ PushEngine::processNextPushEvent()
     RequestPtr req = pkt->req;
     uint8_t *data = pkt->getPtr<uint8_t>();
 
-    DPRINTF(MPU, "%s: Looking at the front of the queue. pkt->Addr: %lu.\n",
-            __func__, pkt->getAddr());
-
     Addr offset = reqOffsetMap[req];
     uint32_t value = reqValueMap[req];
+
+    DPRINTF(MPU, "%s: Looking at the front of the queue. pkt->Addr: %lu, "
+                "offset: %lu\n",
+            __func__, pkt->getAddr(), offset);
 
     Edge* e = (Edge*) (data + offset);
     DPRINTF(MPU, "%s: Read %s\n", __func__, e->to_string());
@@ -220,6 +223,8 @@ PushEngine::processNextPushEvent()
                         sizeof(uint32_t), update_value);
 
     if (sendPushUpdate(update)) {
+        DPRINTF(MPU, "%s: Send a push update to addr: %lu with value: %d.\n",
+                    __func__, e->neighbor, update_value);
         reqOffsetMap[req] = reqOffsetMap[req] + sizeof(Edge);
         reqNumEdgeMap[req]--;
     }
