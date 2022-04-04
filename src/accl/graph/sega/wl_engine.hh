@@ -48,12 +48,15 @@ class WLEngine : public BaseReduceEngine
     {
       private:
         WLEngine* owner;
+        bool needSendRetryReq;
 
       public:
         RespPort(const std::string& name, WLEngine* owner):
           ResponsePort(name, owner), owner(owner)
         {}
         virtual AddrRangeList getAddrRanges() const;
+
+        void checkRetryReq();
 
       protected:
         virtual bool recvTimingReq(PacketPtr pkt);
