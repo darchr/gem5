@@ -68,7 +68,7 @@ void
 WLEngine::RespPort::checkRetryReq()
 {
     if (needSendRetryReq) {
-        DPRINTF(MPU, "%s: Sending a reqRetry.\n", __func__);
+        DPRINTF(MPU, "%s: Sending a RetryReq.\n", __func__);
         sendRetryReq();
         needSendRetryReq = false;
     }
@@ -121,43 +121,49 @@ WLEngine::processNextReadEvent()
     PacketPtr update = updateQueue.front();
     Addr update_addr = update->getAddr();
     uint32_t update_value = update->getLE<uint32_t>();
+    DPRINTF(MPU, "%s: Looking at the front of the updateQueue. Addr: %lu, "
+                "value: %u.\n", __func__, update_addr, update_value);
 
     if ((onTheFlyUpdateMap.find(update_addr) == onTheFlyUpdateMap.end())) {
+        DPRINTF(MPU, "%s: Did not find the addr: %lu in onTheFlyUpdateMap.\n",
+                    __func__, update_addr);
         if (onTheFlyUpdateMap.size() < onTheFlyUpdateMapSize) {
             if (coalesceEngine->recvReadAddr(update_addr)) {
-                DPRINTF(MPU, "%s: Received an update and it's not been pulled in. "
-                                "update_addr: %lu, update_value: %u.\n",
-                                __func__, update_addr, update_value);
                 onTheFlyUpdateMap[update_addr] = update_value;
-                DPRINTF(MPU, "%s: onTheFlyUpdateMap[%lu] = %d.\n",
-                    __func__, update_addr, onTheFlyUpdateMap[update_addr]);
+                DPRINTF(MPU, "%s: Added a new item to onTheFlyUpdateMap. "
+                            "onTheFlyUpdateMap[%lu] = %u.\n", __func__,
+                            update_addr, onTheFlyUpdateMap[update_addr]);
                 updateQueue.pop_front();
-                DPRINTF(MPU, "%s: 0: updateQueue.size: %d.\n", __func__, updateQueue.size());
+                DPRINTF(MPU, "%s: Popped an item from the front of updateQueue"
+                            ". updateQueue.size = %u.\n",
+                            __func__, updateQueue.size());
                 if (updateQueue.size() == updateQueueSize - 1) {
                     respPort.checkRetryReq();
                 }
-
             }
         }
     } else {
         // TODO: Generalize this to reduce function rather than just min
-        DPRINTF(MPU, "%s: Hitting in the onTheFlyUpdateMap."
-                            "update_addr: %lu, update_value: %u, old_value: %u.\n",
-                            __func__, update_addr, update_value,
-                            onTheFlyUpdateMap[update_addr]);
+        DPRINTF(MPU, "%s: Found the addr: %lu in onTheFlyUpdateMap. "
+                    "onTheFlyUpdateMap[%lu] = %u.", __func__, update_addr,
+                    update_addr, onTheFlyUpdateMap[update_addr]);
         onTheFlyUpdateMap[update_addr] =
                 std::min(update_value, onTheFlyUpdateMap[update_addr]);
+        DPRINTF(MPU, "%s: Reduced the update_value with the entry in "
+                    "onTheFlyUpdateMap. onTheFlyUpdateMap[%lu] = %u.\n",
+                    __func__, update_addr, onTheFlyUpdateMap[update_addr]);
         stats.onTheFlyCoalesce++;
         updateQueue.pop_front();
-        DPRINTF(MPU, "%s: 1: updateQueue.size: %d.\n", __func__, updateQueue.size());
+        DPRINTF(MPU, "%s: Popped an item from the front of updateQueue"
+                                        ". updateQueue.size = %u.\n",
+                                        __func__, updateQueue.size());
         if (updateQueue.size() == updateQueueSize - 1) {
             respPort.checkRetryReq();
         }
     }
 
     // TODO: Only schedule nextReadEvent only when it has to be scheduled
-    if ((!nextReadEvent.scheduled()) &&
-        (!updateQueue.empty())) {
+    if ((!nextReadEvent.scheduled()) && (!updateQueue.empty())) {
         schedule(nextReadEvent, nextCycle());
     }
 }
@@ -166,9 +172,14 @@ void
 WLEngine::handleIncomingWL(Addr addr, WorkListItem wl)
 {
     assert(addrWorkListMap.size() <= onTheFlyUpdateMapSize);
+
     addrWorkListMap[addr] = wl;
-    // TODO: Add checks to see if scheduling is necessary or correct.
-    if ((!nextReduceEvent.scheduled()) && (!addrWorkListMap.empty())) {
+    DPRINTF(MPU, "%s: Received a WorkListItem from the coalesceEngine. Adding"
+                " it to the addrWorkListMap. addrWorkListMap[%lu] = %s.\n",
+                __func__, addr, wl.to_string());
+
+    assert(!addrWorkListMap.empty());
+    if (!nextReduceEvent.scheduled()) {
         schedule(nextReduceEvent, nextCycle());
     }
 }
@@ -182,25 +193,32 @@ WLEngine::processNextReduceEvent()
     std::vector<Addr> servicedAddresses;
     while (it != addrWorkListMap.end()) {
         Addr addr = it->first;
-        WorkListItem wl = it->second;
         uint32_t update_value = onTheFlyUpdateMap[addr];
-        DPRINTF(MPU, "%s: updating WorkList[%lu] with the current temp_prop: "
-                    "%d, with new update: %d.\n", __func__, addr, wl.tempProp,
-                    onTheFlyUpdateMap[addr]);
+        DPRINTF(MPU, "%s: Reducing between onTheFlyUpdateMap and "
+                    "addrWorkListMap values. onTheFlyUpdateMap[%lu] = %u, "
+                    "addrWorkListMap[%lu] = %s.\n", __func__,
+                                addr, onTheFlyUpdateMap[addr],
+                                addr, addrWorkListMap[addr].to_string());
         // TODO: Generalize this to reduce function rather than just min
-        wl.tempProp = std::min(update_value, wl.tempProp);
+        addrWorkListMap[addr].tempProp =
+                    std::min(update_value, addrWorkListMap[addr].tempProp);
+        DPRINTF(MPU, "%s: Reduction done. addrWorkListMap[%lu] = %s.\n",
+                    __func__, addr, addrWorkListMap[addr].to_string());
         stats.numReduce++;
 
-        coalesceEngine->recvWLWrite(addr, wl);
+        coalesceEngine->recvWLWrite(addr, addrWorkListMap[addr]);
         servicedAddresses.push_back(addr);
+        DPRINTF(MPU, "%s: Added addr: %lu to servicedAdresses.\n",
+                    __func__, addr);
         it++;
     }
 
     addrWorkListMap.clear();
     for (int i = 0; i < servicedAddresses.size(); i++) {
         onTheFlyUpdateMap.erase(servicedAddresses[i]);
+        DPRINTF(MPU, "%s: Erased addr: %lu from onTheFlyUpdateMap.\n",
+                    __func__, servicedAddresses[i]);
     }
-    DPRINTF(MPU, "%s: onTheFlyUpdateMap.size(): %u, servicedAddresses.size(): %u.\n", __func__, onTheFlyUpdateMap.size(), servicedAddresses.size());
 }
 
 bool
@@ -212,9 +230,10 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
     }
 
     updateQueue.push_back(pkt);
-
+    DPRINTF(MPU, "%s: Pushed an item to the front of updateQueue"
+                                        ". updateQueue.size = %u.\n",
+                                        __func__, updateQueue.size());
     assert(!updateQueue.empty());
-    DPRINTF(MPU, "%s: updateQueue.size: %d.\n", __func__, updateQueue.size());
     if (!nextReadEvent.scheduled()) {
         schedule(nextReadEvent, nextCycle());
     }
