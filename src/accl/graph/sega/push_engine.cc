@@ -212,7 +212,7 @@ PushEngine::processNextPushEvent()
             __func__, pkt->getAddr(), offset);
 
     Edge* e = (Edge*) (data + offset);
-    DPRINTF(MPU, "%s: Read %s\n", __func__, e->to_string());
+    // DPRINTF(MPU, "%s: Read %s\n", __func__, e->to_string());
 
     // TODO: Implement propagate function here
     uint32_t update_value = value + 1;
