@@ -70,10 +70,10 @@ struct __attribute__ ((packed)) Edge
     uint16_t weight : 16;
     uint64_t neighbor : 48;
 
-    std::string to_string()
-    {
-        return csprintf("Edge{weight: %lu, neighbor: %lu}", weight, neighbor);
-    }
+    // std::string to_string()
+    // {
+    //     return csprintf("Edge{weight: %u, neighbor: %lu}", weight, neighbor);
+    // }
 
     Edge(uint16_t weight, uint64_t neighbor):
         weight(weight),

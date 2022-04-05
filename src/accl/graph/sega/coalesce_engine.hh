@@ -74,6 +74,8 @@ class CoalesceEngine : public BaseReadEngine
     std::unordered_map<int, std::vector<Addr>> MSHRMap;
 
     int outstandingMemReqQueueSize;
+    bool alarmRequested;
+    int spaceRequested;
     std::deque<PacketPtr> outstandingMemReqQueue;
 
     std::deque<Addr> addrResponseQueue;
