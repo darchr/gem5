@@ -28,6 +28,7 @@
 
 #include "accl/graph/base/base_read_engine.hh"
 
+#include "debug/MPU.hh"
 namespace gem5
 {
 
@@ -35,6 +36,10 @@ BaseReadEngine::BaseReadEngine(const BaseReadEngineParams &params):
     ClockedObject(params),
     system(params.system),
     memPort(name() + ".mem_port", this),
+    outstandingMemReqQueueSize(params.outstanding_mem_req_queue_size),
+    alarmRequested(false),
+    spaceRequested(0),
+    nextMemReqEvent([this] { processNextMemReqEvent(); }, name()),
     _requestorId(system->getRequestorId(this))
 {}
 
@@ -83,6 +88,31 @@ BaseReadEngine::MemPort::recvReqRetry()
     }
 }
 
+void
+BaseReadEngine::processNextMemReqEvent()
+{
+    if (memPort.blocked()) {
+        return;
+    }
+
+    // TODO: Maybe add a DPRINTF here.
+    PacketPtr pkt = outstandingMemReqQueue.front();
+    memPort.sendPacket(pkt);
+    outstandingMemReqQueue.pop_front();
+
+    if (alarmRequested &&
+        (outstandingMemReqQueue.size() <=
+        (outstandingMemReqQueueSize - spaceRequested))) {
+        alarmRequested = false;
+        spaceRequested = 0;
+        respondToAlarm();
+    }
+
+    if ((!outstandingMemReqQueue.empty()) && (!nextMemReqEvent.scheduled())) {
+        schedule(nextMemReqEvent, nextCycle());
+    }
+}
+
 PacketPtr
 BaseReadEngine::createReadPacket(Addr addr, unsigned int size)
 {
@@ -96,6 +126,59 @@ BaseReadEngine::createReadPacket(Addr addr, unsigned int size)
     pkt->allocate();
 
     return pkt;
+}
+
+PacketPtr
+BaseReadEngine::createWritePacket(Addr addr, unsigned int size, uint8_t* data)
+{
+    RequestPtr req = std::make_shared<Request>(addr, size, 0, _requestorId);
+
+    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
+    // bits
+    req->setPC(((Addr) _requestorId) << 2);
+
+    PacketPtr pkt = new Packet(req, MemCmd::WriteReq);
+    pkt->allocate();
+    pkt->setData(data);
+
+    return pkt;
+}
+
+bool
+BaseReadEngine::memReqQueueHasSpace(int space)
+{
+    assert(outstandingMemReqQueue.size() <= outstandingMemReqQueueSize);
+    return (
+        outstandingMemReqQueue.size() <= (outstandingMemReqQueueSize - space)
+        );
+}
+
+bool
+BaseReadEngine::memReqQueueFull()
+{
+    assert(outstandingMemReqQueue.size() <= outstandingMemReqQueueSize);
+    return (outstandingMemReqQueue.size() == outstandingMemReqQueueSize);
+}
+
+void
+BaseReadEngine::enqueueMemReq(PacketPtr pkt)
+{
+    panic_if(memReqQueueFull(), "Should not enqueue if queue full.\n");
+    outstandingMemReqQueue.push_back(pkt);
+
+    assert(!outstandingMemReqQueue.empty());
+    if (!nextMemReqEvent.scheduled()) {
+        schedule(nextMemReqEvent, nextCycle());
+    }
+}
+
+void
+BaseReadEngine::requestAlarm(int space) {
+    panic_if((alarmRequested == true) || (spaceRequested != 0),
+            "You should not request another alarm without the first one being"
+            "responded to.\n");
+    alarmRequested = true;
+    spaceRequested = space;
 }
 
 }

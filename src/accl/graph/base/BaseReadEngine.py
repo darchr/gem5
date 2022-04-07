@@ -37,3 +37,6 @@ class BaseReadEngine(ClockedObject):
 
     system = Param.System(Parent.any, 'System this Engine is a part of')
     mem_port  = RequestPort("Port to communicate with the memory")
+
+    outstanding_mem_req_queue_size = Param.Int(16, "Capacity of queue in "
+                                    "which memory requests are queued.")

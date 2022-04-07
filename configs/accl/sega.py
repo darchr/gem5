@@ -2,9 +2,9 @@ import m5
 from m5.objects import *
 
 class MPU(SubSystem):
-    def __init__(self):
+    def __init__(self, base_edge_addr):
         super(MPU, self).__init__()
-        self.push_engine = PushEngine(base_edge_addr=0x80000000,
+        self.push_engine = PushEngine(base_edge_addr=base_edge_addr,
                                     push_req_queue_size=16,
                                     mem_resp_queue_size=8)
         self.coalesce_engine = CoalesceEngine(
@@ -58,7 +58,7 @@ class SEGA(System):
         self.clk_domain.clock = '1GHz'
         self.clk_domain.voltage_domain = VoltageDomain()
 
-        self.mpu = MPU()
+        self.mpu = MPU(base_edge_addr=0x80000000)
         self.mem_ctrl = MPUMemory(
             vertex_range=AddrRange(start=0x000000, size="2GiB"),
             vertex_binary="facebook/graph_binaries/vertices",
