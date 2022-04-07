@@ -67,6 +67,10 @@ enum FPUStatus
 
 class ISA : public BaseISA
 {
+  private:
+    int vlen;
+    int elen;
+
   protected:
     std::vector<RegVal> miscRegFile;
 

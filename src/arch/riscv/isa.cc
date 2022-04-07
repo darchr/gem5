@@ -196,13 +196,14 @@ namespace RiscvISA
     [MISCREG_VL]            = "VL",
     [MISCREG_VTYPE]         = "VTYPE",
     [MISCREG_VLENB]         = "VLENB",
+    [MISCREG_ELEN]          = "ELEN",
 
     [MISCREG_NMIVEC]        = "NMIVEC",
     [MISCREG_NMIE]          = "NMIE",
     [MISCREG_NMIP]          = "NMIP",
 }};
 
-ISA::ISA(const Params &p) : BaseISA(p)
+ISA::ISA(const Params &p) : BaseISA(p), vlen(p.vlen), elen(p.elen)
 {
     _regClasses.emplace_back(NumIntRegs, debug::IntRegs, 0);
     _regClasses.emplace_back(NumFloatRegs, debug::FloatRegs);
@@ -214,6 +215,15 @@ ISA::ISA(const Params &p) : BaseISA(p)
 
     miscRegFile.resize(NUM_MISCREGS);
     clear();
+
+    fatal_if(vlen > MaxVlenInBits, "RISC-V VLEN greater than %d not supported."
+        " Found VLEN of %d.",
+        MaxVlenInBits, vlen);
+    fatal_if(elen > vlen, "ELEN (%d) must be less than or equal to VLEN (%d)",
+        elen, vlen);
+    fatal_if(!isPowerOf2(vlen), "VLEN (%d) must be a power of 2", vlen);
+    fatal_if(!isPowerOf2(elen), "ELEN (%d) must be a power of 2", elen);
+
 }
 
 bool ISA::inUserMode() const
@@ -255,7 +265,8 @@ void ISA::clear()
     // NMI is always enabled.
     miscRegFile[MISCREG_NMIE] = 1;
 
-    miscRegFile[MISCREG_VLENB] = RISCV_VLEN/8;
+    miscRegFile[MISCREG_VLENB] = vlen/8;
+    miscRegFile[MISCREG_ELEN]  = elen;
 }
 
 bool

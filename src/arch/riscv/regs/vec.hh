@@ -8,7 +8,6 @@
 #include "arch/generic/vec_pred_reg.hh"
 #include "arch/generic/vec_reg.hh"
 #include "arch/riscv/types.hh"
-#include "arch/riscv/vec_params.hh"
 #include "base/bitunion.hh"
 
 namespace gem5
@@ -17,12 +16,11 @@ namespace gem5
 namespace RiscvISA
 {
 
-constexpr uint32_t VLENB = RISCV_VLEN / 8;
-constexpr uint32_t ELEN = RISCV_ELEN;
+constexpr uint32_t MaxVlenInBits = 4096;
 
-constexpr size_t VecRegSizeBytes = VLENB;
+constexpr size_t VecRegSizeBytes = MaxVlenInBits / 8;
 using VecElem = uint8_t;
-constexpr unsigned NumVecElemPerVecReg = VLENB / sizeof(VecElem);
+constexpr unsigned NumVecElemPerVecReg = VecRegSizeBytes / sizeof(VecElem);
 
 using VecRegContainer =
     gem5::VecRegContainer<NumVecElemPerVecReg * sizeof(VecElem)>;

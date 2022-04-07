@@ -93,6 +93,7 @@ setVsetvlCSR(ExecContext *xc,
   VTYPE new_vtype = requested_vtype;
 
   uint32_t vlen = xc->readMiscReg(MISCREG_VLENB) * 8;
+  uint32_t elen = xc->readMiscReg(MISCREG_ELEN);
 
   uint32_t vlmax = getVlmax(xc->readMiscReg(MISCREG_VTYPE), vlen);
 
@@ -105,7 +106,7 @@ setVsetvlCSR(ExecContext *xc,
 
     uint32_t new_vill =
       !(vflmul >= 0.125 && vflmul <= 8) ||
-        sew > std::min(vflmul, 1.0f) * ELEN ||
+        sew > std::min(vflmul, 1.0f) * elen ||
         bits(requested_vtype, 30, 8) != 0;
     if (new_vill) {
       vlmax = 0;
