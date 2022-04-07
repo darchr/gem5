@@ -33,8 +33,7 @@ class CoalesceEngine(BaseReadEngine):
     type = 'CoalesceEngine'
     cxx_header = "accl/graph/sega/coalesce_engine.hh"
     cxx_class = 'gem5::CoalesceEngine'
-    
+
     peer_push_engine = Param.PushEngine(NULL, "")
     num_mshr_entry = Param.Int(4, "")
     num_tgts_per_mshr = Param.Int(20, "")
-    outstanding_mem_req_queue_size = Param.Int(20, "")

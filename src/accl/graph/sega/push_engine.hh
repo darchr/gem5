@@ -39,6 +39,42 @@ namespace gem5
 class PushEngine : public BaseReadEngine
 {
   private:
+    class PushPacketInfoGen {
+      private:
+        Addr _start;
+        Addr _end;
+        size_t _step;
+        size_t _atom;
+        uint32_t _value;
+
+      public:
+        PushPacketInfoGen(Addr start, Addr end, size_t step,
+                            size_t atom, uint32_t value):
+                        _start(start), _end(end), _step(step),
+                        _atom(atom), _value(value)
+        {}
+
+        std::tuple<Addr, Addr, int> nextReadPacketInfo()
+        {
+            panic_if(done(), "Should not call nextPacketInfo when done.\n");
+            Addr aligned_addr = std::floor(_start / _atom) * _atom;
+            Addr offset = _start - aligned_addr;
+            int num_items = 0;
+
+            if (_end > (_start + _atom)) {
+                num_items = (_atom - offset) / _step;
+            } else {
+                num_items = (_end - _start) / _step;
+            }
+            _start = aligned_addr + _atom;
+
+            return std::make_tuple(aligned_addr, offset, num_items);
+        }
+
+        uint32_t value() { return _value; }
+        bool done() { return (_start >= _end); }
+    };
+
     class ReqPort : public RequestPort
     {
       private:
@@ -64,37 +100,30 @@ class PushEngine : public BaseReadEngine
     Addr baseEdgeAddr;
 
     int pushReqQueueSize;
-    std::deque<std::pair<std::pair<Addr, Addr>, uint32_t>> pushReqQueue;
+    std::deque<PushPacketInfoGen> pushReqQueue;
 
     // TODO: Add size one size for all these maps
     std::unordered_map<RequestPtr, Addr> reqOffsetMap;
     std::unordered_map<RequestPtr, int> reqNumEdgeMap;
     std::unordered_map<RequestPtr, uint32_t> reqValueMap;
 
-    // TODO: Possibility of infinite queueing
-    std::deque<PacketPtr> pendingReadReqs;
-
-    int memRespQueueSize;
-    int onTheFlyReadReqs;
+    // Since the push engine can process incoming packets faster than
+    // memory can send those packets, the size of this queue will
+    // always be limited by the b/w of the memory.
     std::deque<PacketPtr> memRespQueue;
 
     virtual void startup();
 
-    // PacketPtr createUpdatePacket(Addr addr, unsigned int size, uint8_t* data);
-    PacketPtr createUpdatePacket(Addr addr, unsigned int size, uint32_t value);
-
-    bool sendPushUpdate(PacketPtr pkt);
+    template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
 
     EventFunctionWrapper nextAddrGenEvent;
     void processNextAddrGenEvent();
-
-    EventFunctionWrapper nextReadEvent;
-    void processNextReadEvent();
 
     EventFunctionWrapper nextPushEvent;
     void processNextPushEvent();
 
   protected:
+    virtual void respondToAlarm();
     virtual bool handleMemResp(PacketPtr pkt);
 
   public:

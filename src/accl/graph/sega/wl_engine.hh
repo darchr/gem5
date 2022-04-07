@@ -71,7 +71,7 @@ class WLEngine : public BaseReduceEngine
     CoalesceEngine* coalesceEngine;
 
     int updateQueueSize;
-    std::deque<PacketPtr> updateQueue;
+    std::deque<std::tuple<Addr, uint32_t>> updateQueue;
 
     int onTheFlyUpdateMapSize;
     std::unordered_map<Addr, uint32_t> onTheFlyUpdateMap;
