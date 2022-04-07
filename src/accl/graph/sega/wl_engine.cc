@@ -118,9 +118,10 @@ WLEngine::getAddrRanges() const
 void
 WLEngine::processNextReadEvent()
 {
-    PacketPtr update = updateQueue.front();
-    Addr update_addr = update->getAddr();
-    uint32_t update_value = update->getLE<uint32_t>();
+    Addr update_addr;
+    uint32_t update_value;
+    std::tie(update_addr, update_value) = updateQueue.front();
+
     DPRINTF(MPU, "%s: Looking at the front of the updateQueue. Addr: %lu, "
                 "value: %u.\n", __func__, update_addr, update_value);
 
@@ -229,10 +230,11 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
         return false;
     }
 
-    updateQueue.push_back(pkt);
+    updateQueue.emplace_back(pkt->getAddr(), pkt->getLE<uint32_t>());
     DPRINTF(MPU, "%s: Pushed an item to the front of updateQueue"
                                         ". updateQueue.size = %u.\n",
                                         __func__, updateQueue.size());
+    delete pkt;
     assert(!updateQueue.empty());
     if (!nextReadEvent.scheduled()) {
         schedule(nextReadEvent, nextCycle());

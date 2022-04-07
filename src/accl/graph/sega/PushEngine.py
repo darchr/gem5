@@ -36,5 +36,4 @@ class PushEngine(BaseReadEngine):
 
     req_port  = RequestPort("Port to send updates to the outside")
     base_edge_addr = Param.Addr("")
-    mem_resp_queue_size = Param.Int(0, "")
     push_req_queue_size = Param.Int(0, "")

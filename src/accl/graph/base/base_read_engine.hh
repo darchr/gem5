@@ -68,16 +68,30 @@ class BaseReadEngine : public ClockedObject
     System* system;
     MemPort memPort;
 
+    int outstandingMemReqQueueSize;
+    bool alarmRequested;
+    int spaceRequested;
+    std::deque<PacketPtr> outstandingMemReqQueue;
+
+    EventFunctionWrapper nextMemReqEvent;
+    void processNextMemReqEvent();
+
   protected:
     const RequestorID _requestorId;
 
-    bool memPortBlocked() { return memPort.blocked(); }
-    void sendMemReq(PacketPtr pkt) { memPort.sendPacket(pkt); }
     void sendMemFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }
 
+    bool memReqQueueHasSpace(int space);
+    bool memReqQueueFull();
+    void enqueueMemReq(PacketPtr pkt);
+    bool pendingAlarm() { return alarmRequested; }
+    void requestAlarm(int space);
+
+    virtual void respondToAlarm() = 0;
     virtual bool handleMemResp(PacketPtr pkt) = 0;
 
     PacketPtr createReadPacket(Addr addr, unsigned int size);
+    PacketPtr createWritePacket(Addr addr, unsigned int size, uint8_t* data);
 
   public:
     PARAMS(BaseReadEngine);
