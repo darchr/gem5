@@ -53,6 +53,7 @@ class CoalesceEngine : public BaseReadEngine
         bool allocated;
         bool valid;
         bool hasConflict;
+        bool hasChange;
         // TODO: This might be useful in the future
         // Tick lastWLWriteTick;
         Block():
@@ -60,7 +61,8 @@ class CoalesceEngine : public BaseReadEngine
           takenMask(0),
           allocated(false),
           valid(false),
-          hasConflict(false)
+          hasConflict(false),
+          hasChange(false)
         {}
     };
 
@@ -73,13 +75,7 @@ class CoalesceEngine : public BaseReadEngine
     int numTgtsPerMSHR;
     std::unordered_map<int, std::vector<Addr>> MSHRMap;
 
-    int outstandingMemReqQueueSize;
-    bool alarmRequested;
-    int spaceRequested;
-    std::deque<PacketPtr> outstandingMemReqQueue;
-
-    std::deque<Addr> addrResponseQueue;
-    std::deque<WorkListItem> worklistResponseQueue;
+    std::deque<std::tuple<Addr, WorkListItem>> responseQueue;
 
     std::deque<int> evictQueue;
 
@@ -87,9 +83,6 @@ class CoalesceEngine : public BaseReadEngine
 
     PacketPtr createWritePacket(Addr addr, unsigned int size, uint8_t* data);
     // PacketPtr createWritePacket(Addr addr, unsigned int size, WorkListItem wl);
-
-    EventFunctionWrapper nextMemReqEvent;
-    void processNextMemReqEvent();
 
     EventFunctionWrapper nextRespondEvent;
     void processNextRespondEvent();
@@ -115,6 +108,7 @@ class CoalesceEngine : public BaseReadEngine
     CoalesceStats stats;
 
   protected:
+    virtual void respondToAlarm();
     virtual bool handleMemResp(PacketPtr pkt);
 
   public:
