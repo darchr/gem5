@@ -195,6 +195,7 @@ enum MiscRegIndex
     MISCREG_VL,
     MISCREG_VTYPE,
     MISCREG_VLENB,
+    MISCREG_ELEN, // Note, this is not exposed in the ISA
 
     // These registers are not in the standard, hence does not exist in the
     // CSRData map. These are mainly used to provide a minimal implementation
