@@ -202,13 +202,13 @@ namespace RiscvISA
 
 ISA::ISA(const Params &p) : BaseISA(p), vlen(p.vlen), elen(p.elen)
 {
-    _regClasses.emplace_back(NumIntRegs, 0);
-    _regClasses.emplace_back(NumFloatRegs);
-    _regClasses.emplace_back(1); // Not applicable to RISCV
-    _regClasses.emplace_back(2); // Not applicable to RISCV
-    _regClasses.emplace_back(1); // Not applicable to RISCV
-    _regClasses.emplace_back(0); // Not applicable to RISCV
-    _regClasses.emplace_back(NUM_MISCREGS);
+    _regClasses.emplace_back(NumIntRegs, 0); // IntRegClass
+    _regClasses.emplace_back(NumFloatRegs);  // FloatRegClass
+    _regClasses.emplace_back(NumVecRegs);    // VecRegClass
+    _regClasses.emplace_back(2); // VecElemClass: Not applicable to RISCV
+    _regClasses.emplace_back(1); // VecPredRegClass: Not applicable to RISCV
+    _regClasses.emplace_back(0); // CCRegClass: Not applicable to RISCV
+    _regClasses.emplace_back(NUM_MISCREGS);  // MiscRegClass
 
     miscRegFile.resize(NUM_MISCREGS);
     clear();
