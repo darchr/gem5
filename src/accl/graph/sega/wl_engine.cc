@@ -146,7 +146,7 @@ WLEngine::processNextReadEvent()
     } else {
         // TODO: Generalize this to reduce function rather than just min
         DPRINTF(MPU, "%s: Found the addr: %lu in onTheFlyUpdateMap. "
-                    "onTheFlyUpdateMap[%lu] = %u.", __func__, update_addr,
+                    "onTheFlyUpdateMap[%lu] = %u.\n", __func__, update_addr,
                     update_addr, onTheFlyUpdateMap[update_addr]);
         onTheFlyUpdateMap[update_addr] =
                 std::min(update_value, onTheFlyUpdateMap[update_addr]);
@@ -231,7 +231,7 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
     }
 
     updateQueue.emplace_back(pkt->getAddr(), pkt->getLE<uint32_t>());
-    DPRINTF(MPU, "%s: Pushed an item to the front of updateQueue"
+    DPRINTF(MPU, "%s: Pushed an item to the back of updateQueue"
                                         ". updateQueue.size = %u.\n",
                                         __func__, updateQueue.size());
     delete pkt;
