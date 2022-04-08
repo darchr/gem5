@@ -202,8 +202,8 @@ CoalesceEngine::processNextRespondEvent()
                 __func__, worklist_response.to_string(), addr_response);
 
     responseQueue.pop_front();
-    DPRINTF(MPU, "%s: Popped a response from worklistResponseQueue. "
-                "worklistResponseQueue.size = %d.\n", __func__,
+    DPRINTF(MPU, "%s: Popped a response from responseQueue. "
+                "responseQueue.size = %d.\n", __func__,
                 responseQueue.size());
 
     if ((!nextRespondEvent.scheduled()) &&
@@ -338,7 +338,7 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     cacheBlocks[block_index].items[wl_offset] = wl;
     cacheBlocks[block_index].takenMask &= ~(1 << wl_offset);
     stats.numVertexWrites++;
-    DPRINTF(MPU, "%s: Wrote to cache line[%d] = %s.\n", __func__,
+    DPRINTF(MPU, "%s: Wrote to cache line[%d] = %s.\n", __func__, block_index,
                 cacheBlocks[block_index].items[wl_offset].to_string());
 
     // TODO: Make this more general and programmable.
@@ -355,7 +355,7 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 
     if ((!nextApplyAndCommitEvent.scheduled()) &&
         (!evictQueue.empty()) &&
-        (pendingAlarm())) {
+        (!pendingAlarm())) {
         schedule(nextApplyAndCommitEvent, nextCycle());
     }
 

@@ -108,6 +108,8 @@ class BaseReadEngine : public ClockedObject
 
     void recvFunctional(PacketPtr pkt);
 
+    void wakeUp();
+
 };
 
 }

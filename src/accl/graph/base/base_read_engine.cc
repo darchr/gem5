@@ -86,6 +86,8 @@ BaseReadEngine::MemPort::recvReqRetry()
     if (!blocked()) {
         blockedPacket = nullptr;
     }
+
+    owner->wakeUp();
 }
 
 void
@@ -177,8 +179,18 @@ BaseReadEngine::requestAlarm(int space) {
     panic_if((alarmRequested == true) || (spaceRequested != 0),
             "You should not request another alarm without the first one being"
             "responded to.\n");
+    DPRINTF(MPU, "%s: Alarm requested with space = %d.\n", __func__, space);
     alarmRequested = true;
     spaceRequested = space;
+}
+
+void
+BaseReadEngine::wakeUp()
+{
+    if ((!nextMemReqEvent.scheduled()) &&
+        (!outstandingMemReqQueue.empty())) {
+        schedule(nextMemReqEvent, nextCycle());
+    }
 }
 
 }
