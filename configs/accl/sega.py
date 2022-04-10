@@ -11,7 +11,7 @@ class MPU(SubSystem):
         self.wl_engine = WLEngine(coalesce_engine=self.coalesce_engine,
                                 update_queue_size=16,
                                 on_the_fly_update_map_size=8)
-        self.interconnect = SystemXBar()
+        self.interconnect = SystemXBar(max_routing_table_size=16384)
 
         self.interconnect.cpu_side_ports = self.coalesce_engine.mem_port
         self.interconnect.cpu_side_ports = self.push_engine.mem_port
@@ -40,7 +40,7 @@ class MPUMemory(SubSystem):
         self.edge_mem_ctrl = SimpleMemory(
             range=edge_range, bandwidth="25GB/s",
             latency="30ns", image_file=edge_binary)
-        self.interconnect = SystemXBar()
+        self.interconnect = SystemXBar(max_routing_table_size=16384)
 
         self.interconnect.mem_side_ports = self.vertex_mem_ctrl.port
         self.interconnect.mem_side_ports = self.edge_mem_ctrl.port
