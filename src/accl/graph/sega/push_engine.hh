@@ -61,7 +61,7 @@ class PushEngine : public BaseReadEngine
             Addr offset = _start - aligned_addr;
             int num_items = 0;
 
-            if (_end > (_start + _atom)) {
+            if (_end > (aligned_addr + _atom)) {
                 num_items = (_atom - offset) / _step;
             } else {
                 num_items = (_end - _start) / _step;
