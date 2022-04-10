@@ -106,6 +106,14 @@ PushEngine::ReqPort::recvReqRetry()
 bool
 PushEngine::recvWLItem(WorkListItem wl)
 {
+    // If there are no outdoing edges, no need to generate and push
+    // updates. Therefore, we only need to return true.
+    if (wl.degree == 0) {
+        DPRINTF(MPU, "%s: Received a leaf. Respective information: %s.\n",
+                    __func__, wl.to_string());
+        return true;
+    }
+
     assert((pushReqQueueSize == 0) ||
         (pushReqQueue.size() <= pushReqQueueSize));
     if ((pushReqQueueSize != 0) && (pushReqQueue.size() == pushReqQueueSize)) {
