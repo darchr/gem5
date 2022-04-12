@@ -11,10 +11,6 @@ class MPU(SubSystem):
         self.wl_engine = WLEngine(coalesce_engine=self.coalesce_engine,
                                 update_queue_size=16,
                                 on_the_fly_update_map_size=8)
-        self.interconnect = SystemXBar(max_routing_table_size=16384)
-
-        self.interconnect.cpu_side_ports = self.coalesce_engine.mem_port
-        self.interconnect.cpu_side_ports = self.push_engine.mem_port
 
     def getRespPort(self):
         return self.wl_engine.resp_port
@@ -26,10 +22,15 @@ class MPU(SubSystem):
     def setReqPort(self, port):
         self.push_engine.req_port = port
 
-    def getMemPort(self):
-        return self.interconnect.mem_side_ports
-    def setMemPort(self, port):
-        self.interconnect.mem_side_ports = port
+    def getVertexMemPort(self):
+        return self.coalesce_engine.mem_port
+    def setVertexMemPort(self, port):
+        self.coalesce_engine.mem_port = port
+
+    def getEdgeMemPort(self):
+        return self.push_engine.mem_port
+    def setEdgeMemPort(self, port):
+        self.push_engine.mem_port = port
 
 class MPUMemory(SubSystem):
     def __init__(self, vertex_range, vertex_binary, edge_range, edge_binary):
@@ -40,15 +41,16 @@ class MPUMemory(SubSystem):
         self.edge_mem_ctrl = SimpleMemory(
             range=edge_range, bandwidth="25GB/s",
             latency="30ns", image_file=edge_binary)
-        self.interconnect = SystemXBar(max_routing_table_size=16384)
 
-        self.interconnect.mem_side_ports = self.vertex_mem_ctrl.port
-        self.interconnect.mem_side_ports = self.edge_mem_ctrl.port
+    def getVertexPort(self):
+        return self.vertex_mem_ctrl.port
+    def setVertexPort(self, port):
+        self.vertex_mem_ctrl.port = port
 
-    def getPort(self):
-        return self.interconnect.cpu_side_ports
-    def setPort(self, port):
-        self.interconnect.cpu_side_ports = port
+    def getEdgePort(self):
+        return self.edge_mem_ctrl.port
+    def setEdgePort(self, port):
+        self.edge_mem_ctrl.port = port
 
 class SEGA(System):
     def __init__(self):
@@ -65,7 +67,8 @@ class SEGA(System):
             edge_binary="facebook/graph_binaries/edgelist_0")
 
         self.mpu.setReqPort(self.mpu.getRespPort())
-        self.mpu.setMemPort(self.mem_ctrl.getPort())
+        self.mpu.setVertexMemPort(self.mem_ctrl.getVertexPort())
+        self.mpu.setEdgeMemPort(self.mem_ctrl.getEdgePort())
 
 system = SEGA()
 root = Root(full_system = False, system = system)
