@@ -36,7 +36,7 @@ namespace gem5
 {
 
 CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
-    BaseReadEngine(params),
+    BaseMemEngine(params),
     peerPushEngine(params.peer_push_engine),
     numLines((int) (params.cache_size / peerMemoryAtomSize)),
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
@@ -83,12 +83,8 @@ CoalesceEngine::recvReadAddr(Addr addr)
             "to responseQueue. responseQueue.size = %d.\n",
             __func__, addr, block_index, wl_offset, responseQueue.size(),
             cacheBlocks[block_index].items[wl_offset].to_string());
-        // TODO: Use a bitset instead of unsigned int for takenMask
-        DPRINTF(MPU, "%s: takenMask[%d] before: %u.\n", __func__, block_index,
-                                        cacheBlocks[block_index].takenMask);
+
         cacheBlocks[block_index].takenMask |= (1 << wl_offset);
-        DPRINTF(MPU, "%s: takenMask[%d] after: %u.\n", __func__, block_index,
-                                        cacheBlocks[block_index].takenMask);
 
         stats.readHits++;
         stats.numVertexReads++;
@@ -144,11 +140,7 @@ CoalesceEngine::recvReadAddr(Addr addr)
                         return false;
                     }
                     cacheBlocks[block_index].addr = aligned_addr;
-                    DPRINTF(MPU, "%s: takenMask[%d] before: %u.\n", __func__, block_index,
-                                        cacheBlocks[block_index].takenMask);
                     cacheBlocks[block_index].takenMask = 0;
-                    DPRINTF(MPU, "%s: takenMask[%d] after: %u.\n", __func__, block_index,
-                                        cacheBlocks[block_index].takenMask);
                     cacheBlocks[block_index].allocated = true;
                     cacheBlocks[block_index].valid = false;
                     cacheBlocks[block_index].hasConflict = false;
@@ -271,11 +263,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                     "responseQueue. responseQueue.size = %u.\n"
                     , __func__, block_index, wl_offset,
                     responseQueue.size());
-            DPRINTF(MPU, "%s: takenMask[%d] before: %u.\n", __func__, block_index,
-                                        cacheBlocks[block_index].takenMask);
             cacheBlocks[block_index].takenMask |= (1 << wl_offset);
-            DPRINTF(MPU, "%s: takenMask[%d] after: %u.\n", __func__, block_index,
-                                        cacheBlocks[block_index].takenMask);
             stats.numVertexReads++;
             servicedIndices.push_back(i);
             DPRINTF(MPU, "%s: Added index: %d of MSHR for cache line[%d] for "
@@ -342,11 +330,7 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     }
 
     cacheBlocks[block_index].items[wl_offset] = wl;
-    DPRINTF(MPU, "%s: takenMask[%d] before: %u.\n", __func__, block_index,
-                                        cacheBlocks[block_index].takenMask);
     cacheBlocks[block_index].takenMask &= ~(1 << wl_offset);
-    DPRINTF(MPU, "%s: takenMask[%d] after: %u.\n", __func__, block_index,
-                                        cacheBlocks[block_index].takenMask);
     stats.numVertexWrites++;
     DPRINTF(MPU, "%s: Wrote to cache line[%d] = %s.\n", __func__, block_index,
                 cacheBlocks[block_index].items[wl_offset].to_string());
@@ -413,7 +397,7 @@ CoalesceEngine::processNextApplyAndCommitEvent()
         }
 
         // Reducing between tempProp and prop for each item in the cache line.
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < numElementsPerLine; i++) {
             uint32_t old_prop = cacheBlocks[block_index].items[i].prop;
             cacheBlocks[block_index].items[i].prop = std::min(
                 cacheBlocks[block_index].items[i].prop,
@@ -471,11 +455,7 @@ CoalesceEngine::processNextApplyAndCommitEvent()
                 }
 
                 cacheBlocks[block_index].addr = aligned_miss_addr;
-                DPRINTF(MPU, "%s: takenMask[%d] before: %u.\n", __func__, block_index,
-                                            cacheBlocks[block_index].takenMask);
                 cacheBlocks[block_index].takenMask = 0;
-                DPRINTF(MPU, "%s: takenMask[%d] after: %u.\n", __func__, block_index,
-                                            cacheBlocks[block_index].takenMask);
                 cacheBlocks[block_index].allocated = true;
                 cacheBlocks[block_index].valid = false;
                 cacheBlocks[block_index].hasConflict = true;
@@ -500,11 +480,8 @@ CoalesceEngine::processNextApplyAndCommitEvent()
                 }
 
                 // Since allocated is false, does not matter what the address is.
-                DPRINTF(MPU, "%s: takenMask[%d] before: %u.\n", __func__, block_index,
-                                            cacheBlocks[block_index].takenMask);
+
                 cacheBlocks[block_index].takenMask = 0;
-                DPRINTF(MPU, "%s: takenMask[%d] after: %u.\n", __func__, block_index,
-                                            cacheBlocks[block_index].takenMask);
                 cacheBlocks[block_index].allocated = false;
                 cacheBlocks[block_index].valid = false;
                 cacheBlocks[block_index].hasConflict = false;
@@ -535,11 +512,7 @@ CoalesceEngine::processNextApplyAndCommitEvent()
                 enqueueMemReq(read_pkt);
 
                 cacheBlocks[block_index].addr = aligned_miss_addr;
-                DPRINTF(MPU, "%s: takenMask[%d] before: %u.\n", __func__, block_index,
-                                            cacheBlocks[block_index].takenMask);
                 cacheBlocks[block_index].takenMask = 0;
-                DPRINTF(MPU, "%s: takenMask[%d] after: %u.\n", __func__, block_index,
-                                            cacheBlocks[block_index].takenMask);
                 cacheBlocks[block_index].allocated = true;
                 cacheBlocks[block_index].valid = false;
                 cacheBlocks[block_index].hasConflict = true;
@@ -548,11 +521,7 @@ CoalesceEngine::processNextApplyAndCommitEvent()
                 DPRINTF(MPU, "%s: No conflict exists for cache line[%d]. Just "
                             "deallocating the line.\n", __func__, block_index);
 
-                DPRINTF(MPU, "%s: takenMask[%d] before: %u.\n", __func__, block_index,
-                                            cacheBlocks[block_index].takenMask);
                 cacheBlocks[block_index].takenMask = 0;
-                DPRINTF(MPU, "%s: takenMask[%d] after: %u.\n", __func__, block_index,
-                                            cacheBlocks[block_index].takenMask);
                 cacheBlocks[block_index].allocated = false;
                 cacheBlocks[block_index].valid = false;
                 cacheBlocks[block_index].hasConflict = false;

@@ -26,8 +26,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_BASE_UTIL_HH__
-#define __ACCL_GRAPH_BASE_UTIL_HH__
+#ifndef __ACCL_GRAPH_BASE_DATA_STRUCTS_HH__
+#define __ACCL_GRAPH_BASE_DATA_STRUCTS_HH__
 
 #include "base/cprintf.hh"
 
@@ -83,4 +83,4 @@ struct __attribute__ ((packed)) Edge
 
 }
 
-#endif // __ACCL_GRAPH_BASE_UTIL_HH__
+#endif // __ACCL_GRAPH_BASE_DATA_STRUCTS_HH__

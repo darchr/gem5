@@ -29,14 +29,14 @@
 #ifndef __ACCL_GRAPH_SEGA_PUSH_ENGINE_HH__
 #define __ACCL_GRAPH_SEGA_PUSH_ENGINE_HH__
 
-#include "accl/graph/base/base_read_engine.hh"
+#include "accl/graph/base/base_mem_engine.hh"
 #include "accl/graph/base/data_structs.hh"
 #include "params/PushEngine.hh"
 
 namespace gem5
 {
 
-class PushEngine : public BaseReadEngine
+class PushEngine : public BaseMemEngine
 {
   private:
     class PushPacketInfoGen {

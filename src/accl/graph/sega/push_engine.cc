@@ -35,7 +35,7 @@ namespace gem5
 {
 
 PushEngine::PushEngine(const PushEngineParams &params):
-    BaseReadEngine(params),
+    BaseMemEngine(params),
     reqPort(name() + ".req_port", this),
     baseEdgeAddr(params.base_edge_addr),
     pushReqQueueSize(params.push_req_queue_size),
@@ -49,7 +49,7 @@ PushEngine::getPort(const std::string &if_name, PortID idx)
     if (if_name == "req_port") {
         return reqPort;
     } else if (if_name == "mem_port") {
-        return BaseReadEngine::getPort(if_name, idx);
+        return BaseMemEngine::getPort(if_name, idx);
     } else {
         return SimObject::getPort(if_name, idx);
     }
