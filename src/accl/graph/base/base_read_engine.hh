@@ -68,6 +68,8 @@ class BaseReadEngine : public ClockedObject
     System* system;
     MemPort memPort;
 
+    int peerMemoryAtomSize;
+
     int outstandingMemReqQueueSize;
     bool alarmRequested;
     int spaceRequested;
