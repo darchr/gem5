@@ -64,9 +64,9 @@ class SEGA(System):
         self.mpu = MPU(base_edge_addr=0x80000000)
         self.mem_ctrl = MPUMemory(
             vertex_range=AddrRange(start=0x000000, size="2GiB"),
-            vertex_binary="facebook/graph_binaries/vertices",
+            vertex_binary="graphs/facebook/graph_binaries/vertices",
             edge_range=AddrRange(start=0x80000000, size="2GiB"),
-            edge_binary="facebook/graph_binaries/edgelist_0")
+            edge_binary="graphs/facebook/graph_binaries/edgelist_0")
 
         self.mpu.setReqPort(self.mpu.getRespPort())
         self.mpu.setVertexMemPort(self.mem_ctrl.getVertexPort())
