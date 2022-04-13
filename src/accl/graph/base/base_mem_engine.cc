@@ -26,13 +26,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "accl/graph/base/base_read_engine.hh"
+#include "accl/graph/base/base_mem_engine.hh"
 
 #include "debug/MPU.hh"
 namespace gem5
 {
 
-BaseReadEngine::BaseReadEngine(const BaseReadEngineParams &params):
+BaseMemEngine::BaseMemEngine(const BaseMemEngineParams &params):
     ClockedObject(params),
     system(params.system),
     memPort(name() + ".mem_port", this),
@@ -44,11 +44,11 @@ BaseReadEngine::BaseReadEngine(const BaseReadEngineParams &params):
     peerMemoryAtomSize(params.attached_memory_atom_size)
 {}
 
-BaseReadEngine::~BaseReadEngine()
+BaseMemEngine::~BaseMemEngine()
 {}
 
 Port&
-BaseReadEngine::getPort(const std::string &if_name, PortID idx)
+BaseMemEngine::getPort(const std::string &if_name, PortID idx)
 {
     if (if_name == "mem_port") {
         return memPort;
@@ -58,7 +58,7 @@ BaseReadEngine::getPort(const std::string &if_name, PortID idx)
 }
 
 void
-BaseReadEngine::MemPort::sendPacket(PacketPtr pkt)
+BaseMemEngine::MemPort::sendPacket(PacketPtr pkt)
 {
     panic_if(_blocked, "Should never try to send if blocked MemSide!");
     // If we can't send the packet across the port, store it for later.
@@ -70,14 +70,14 @@ BaseReadEngine::MemPort::sendPacket(PacketPtr pkt)
 }
 
 bool
-BaseReadEngine::MemPort::recvTimingResp(PacketPtr pkt)
+BaseMemEngine::MemPort::recvTimingResp(PacketPtr pkt)
 {
     //TODO: Investigate sending true all the time
     return owner->handleMemResp(pkt);
 }
 
 void
-BaseReadEngine::MemPort::recvReqRetry()
+BaseMemEngine::MemPort::recvReqRetry()
 {
     panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
 
@@ -92,7 +92,7 @@ BaseReadEngine::MemPort::recvReqRetry()
 }
 
 void
-BaseReadEngine::processNextMemReqEvent()
+BaseMemEngine::processNextMemReqEvent()
 {
     if (memPort.blocked()) {
         return;
@@ -120,7 +120,7 @@ BaseReadEngine::processNextMemReqEvent()
 }
 
 PacketPtr
-BaseReadEngine::createReadPacket(Addr addr, unsigned int size)
+BaseMemEngine::createReadPacket(Addr addr, unsigned int size)
 {
     RequestPtr req = std::make_shared<Request>(addr, size, 0, _requestorId);
     // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
@@ -135,7 +135,7 @@ BaseReadEngine::createReadPacket(Addr addr, unsigned int size)
 }
 
 PacketPtr
-BaseReadEngine::createWritePacket(Addr addr, unsigned int size, uint8_t* data)
+BaseMemEngine::createWritePacket(Addr addr, unsigned int size, uint8_t* data)
 {
     RequestPtr req = std::make_shared<Request>(addr, size, 0, _requestorId);
 
@@ -151,7 +151,7 @@ BaseReadEngine::createWritePacket(Addr addr, unsigned int size, uint8_t* data)
 }
 
 bool
-BaseReadEngine::memReqQueueHasSpace(int space)
+BaseMemEngine::memReqQueueHasSpace(int space)
 {
     assert(outstandingMemReqQueue.size() <= outstandingMemReqQueueSize);
     return (
@@ -160,14 +160,14 @@ BaseReadEngine::memReqQueueHasSpace(int space)
 }
 
 bool
-BaseReadEngine::memReqQueueFull()
+BaseMemEngine::memReqQueueFull()
 {
     assert(outstandingMemReqQueue.size() <= outstandingMemReqQueueSize);
     return (outstandingMemReqQueue.size() == outstandingMemReqQueueSize);
 }
 
 void
-BaseReadEngine::enqueueMemReq(PacketPtr pkt)
+BaseMemEngine::enqueueMemReq(PacketPtr pkt)
 {
     panic_if(memReqQueueFull(), "Should not enqueue if queue full.\n");
     outstandingMemReqQueue.push_back(pkt);
@@ -179,7 +179,7 @@ BaseReadEngine::enqueueMemReq(PacketPtr pkt)
 }
 
 void
-BaseReadEngine::requestAlarm(int space) {
+BaseMemEngine::requestAlarm(int space) {
     panic_if((alarmRequested == true) || (spaceRequested != 0),
             "You should not request another alarm without the first one being"
             "responded to.\n");
@@ -189,7 +189,7 @@ BaseReadEngine::requestAlarm(int space) {
 }
 
 void
-BaseReadEngine::wakeUp()
+BaseMemEngine::wakeUp()
 {
     if ((!nextMemReqEvent.scheduled()) &&
         (!outstandingMemReqQueue.empty())) {
