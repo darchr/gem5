@@ -38,21 +38,17 @@ namespace gem5
 CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     BaseReadEngine(params),
     peerPushEngine(params.peer_push_engine),
+    numLines((int) (params.cache_size / peerMemoryAtomSize)),
+    numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
     numMSHREntry(params.num_mshr_entry),
     numTgtsPerMSHR(params.num_tgts_per_mshr),
     nextRespondEvent([this] { processNextRespondEvent(); }, name()),
     nextApplyAndCommitEvent([this] { processNextApplyAndCommitEvent(); }, name()),
     stats(*this)
-{}
-
-void
-CoalesceEngine::startup()
 {
-    for (int i = 0; i < 256; i++) {
-        cacheBlocks[i].takenMask = 0;
-        cacheBlocks[i].allocated = false;
-        cacheBlocks[i].valid = false;
-        cacheBlocks[i].hasConflict = false;
+    cacheBlocks = new Block [numLines];
+    for (int i = 0; i < numLines; i++) {
+        cacheBlocks[i] = Block(numElementsPerLine);
     }
 }
 
@@ -74,8 +70,8 @@ CoalesceEngine::recvReadAddr(Addr addr)
     assert(MSHRMap.size() <= numMSHREntry);
     DPRINTF(MPU, "%s: Received a read request for address: %lu.\n",
                                                     __func__, addr);
-    Addr aligned_addr = (addr / 64) * 64;
-    int block_index = (aligned_addr / 64) % 256;
+    Addr aligned_addr = (addr / peerMemoryAtomSize) * peerMemoryAtomSize;
+    int block_index = (aligned_addr / peerMemoryAtomSize) % numLines;
     int wl_offset = (addr - aligned_addr) / sizeof(WorkListItem);
 
     if ((cacheBlocks[block_index].addr == aligned_addr) &&
@@ -162,11 +158,11 @@ CoalesceEngine::recvReadAddr(Addr addr)
                     MSHRMap[block_index].push_back(addr);
                     DPRINTF(MPU, "%s: Added Addr: %lu to targets for cache "
                                 "line[%d].\n", __func__, addr, block_index);
-                    // TODO: Parameterize 64 to memory atom size
-                    PacketPtr pkt = createReadPacket(aligned_addr, 64);
+
+                    PacketPtr pkt = createReadPacket(aligned_addr, peerMemoryAtomSize);
                     DPRINTF(MPU, "%s: Created a read packet for Addr: %lu."
-                                " req addr (aligned_addr) = %lu, size = 64.\n",
-                                __func__, addr, aligned_addr);
+                                " req addr (aligned_addr) = %lu, size = %d.\n",
+                                __func__, addr, aligned_addr, peerMemoryAtomSize);
                     enqueueMemReq(pkt);
                     DPRINTF(MPU, "%s: Pushed pkt to outstandingMemReqQueue.\n",
                                                                     __func__);
@@ -240,10 +236,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
 
     Addr addr = pkt->getAddr();
     uint8_t* data = pkt->getPtr<uint8_t>();
-    // TODO: After parameterizing the cache size
-    // this 256 number should change to the cache
-    // size parameter.
-    int block_index = (addr / 64) % 256;
+
+    int block_index = (addr / peerMemoryAtomSize) % numLines;
 
     DPRINTF(MPU, "%s: Received a read resposne for Addr: %lu.\n",
                 __func__, pkt->getAddr());
@@ -264,10 +258,10 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
     std::vector<int> servicedIndices;
     for (int i = 0; i < MSHRMap[block_index].size(); i++) {
         Addr miss_addr = MSHRMap[block_index][i];
-        Addr aligned_miss_addr = std::floor(miss_addr / 64) * 64;
+        Addr aligned_miss_addr = std::floor(miss_addr / peerMemoryAtomSize) * peerMemoryAtomSize;
 
         if (aligned_miss_addr == addr) {
-            int wl_offset = (miss_addr - aligned_miss_addr) / 16;
+            int wl_offset = (miss_addr - aligned_miss_addr) / sizeof(WorkListItem);
             DPRINTF(MPU, "%s: Addr: %lu in the MSHR for cache line[%d] could "
                         "be serviced with the received packet.\n",
                         __func__, miss_addr, block_index);
@@ -334,9 +328,9 @@ void
 CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 {
     // TODO: Parameterize all the numbers here.
-    Addr aligned_addr = std::floor(addr / 64) * 64;
-    int block_index = (aligned_addr / 64) % 256;
-    int wl_offset = (addr - aligned_addr) / 16;
+    Addr aligned_addr = std::floor(addr / peerMemoryAtomSize) * peerMemoryAtomSize;
+    int block_index = (aligned_addr / peerMemoryAtomSize) % numLines;
+    int wl_offset = (addr - aligned_addr) / sizeof(WorkListItem);
 
     DPRINTF(MPU, "%s: Received a write for WorkListItem: %s with Addr: %lu.\n",
                 __func__, wl.to_string(), addr);
@@ -437,12 +431,12 @@ CoalesceEngine::processNextApplyAndCommitEvent()
         if (cacheBlocks[block_index].hasChange) {
             DPRINTF(MPU, "%s: At least one item from cache line[%d] has changed.\n"
                         , __func__, block_index);
-            // TODO: Parameterize this 64 to memory atom size
+
             PacketPtr write_pkt = createWritePacket(
-                cacheBlocks[block_index].addr, 64,
+                cacheBlocks[block_index].addr, peerMemoryAtomSize,
                 (uint8_t*) cacheBlocks[block_index].items);
-            DPRINTF(MPU, "%s: Created a write packet to Addr: %lu, size = 64.\n",
-                        __func__, write_pkt->getAddr());
+            DPRINTF(MPU, "%s: Created a write packet to Addr: %lu, size = %d.\n",
+                        __func__, write_pkt->getAddr(), peerMemoryAtomSize);
             if (cacheBlocks[block_index].hasConflict) {
                 DPRINTF(MPU, "%s: A conflict exists for cache line[%d]. There is "
                             "enough space in outstandingMemReqQueue for the write "
@@ -451,12 +445,15 @@ CoalesceEngine::processNextApplyAndCommitEvent()
                 Addr miss_addr = MSHRMap[block_index][0];
                 DPRINTF(MPU, "%s: First conflicting address for cache line[%d] is"
                             " Addr: %lu.\n", __func__, block_index, miss_addr);
-                // TODO: parameterize 64
-                Addr aligned_miss_addr = std::floor(miss_addr / 64) * 64;
-                PacketPtr read_pkt = createReadPacket(aligned_miss_addr, 64);
+
+                Addr aligned_miss_addr =
+                    std::floor(miss_addr / peerMemoryAtomSize) *
+                    peerMemoryAtomSize;
+                PacketPtr read_pkt = createReadPacket(
+                    aligned_miss_addr, peerMemoryAtomSize);
                 DPRINTF(MPU, "%s: Created a read packet for Addr: %lu."
-                            " req addr (aligned_addr) = %lu, size = 64.\n",
-                            __func__, miss_addr, aligned_miss_addr);
+                            " req addr (aligned_addr) = %lu, size = %d.\n",
+                            __func__, miss_addr, aligned_miss_addr, peerMemoryAtomSize);
 
                 enqueueMemReq(write_pkt);
                 stats.numVertexBlockWrites++;
@@ -465,28 +462,13 @@ CoalesceEngine::processNextApplyAndCommitEvent()
                             "its subsequent read packet (to service the conflicts)"
                             " to outstandingMemReqQueue.\n" , __func__);
 
-                // TODO: This should be improved
-                if ((changedMask & (1)) == 1) {
-                    peerPushEngine->recvWLItem(cacheBlocks[block_index].items[0]);
-                    DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
-                                __func__, block_index, 0);
+                for (int i = 0; i < numElementsPerLine; i++) {
+                    if ((changedMask & (1 << i)) == (1 << i)) {
+                        peerPushEngine->recvWLItem(cacheBlocks[block_index].items[i]);
+                        DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
+                                    __func__, block_index, i);
+                    }
                 }
-                if ((changedMask & (2)) == 2) {
-                    peerPushEngine->recvWLItem(cacheBlocks[block_index].items[1]);
-                    DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
-                                __func__, block_index, 1);
-                }
-                if ((changedMask & (4)) == 4) {
-                    peerPushEngine->recvWLItem(cacheBlocks[block_index].items[2]);
-                    DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
-                                __func__, block_index, 2);
-                }
-                if ((changedMask & (8)) == 8) {
-                    peerPushEngine->recvWLItem(cacheBlocks[block_index].items[3]);
-                    DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
-                                __func__, block_index, 3);
-                }
-                // TODO: This should be improved
 
                 cacheBlocks[block_index].addr = aligned_miss_addr;
                 DPRINTF(MPU, "%s: takenMask[%d] before: %u.\n", __func__, block_index,
@@ -509,26 +491,12 @@ CoalesceEngine::processNextApplyAndCommitEvent()
                 DPRINTF(MPU, "%s: Added the write back packet to "
                             "outstandingMemReqQueue.\n", __func__);
 
-                // TODO: This should be improved
-                if ((changedMask & (1)) == 1) {
-                    peerPushEngine->recvWLItem(cacheBlocks[block_index].items[0]);
-                    DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
-                                __func__, block_index, 0);
-                }
-                if ((changedMask & (2)) == 2) {
-                    peerPushEngine->recvWLItem(cacheBlocks[block_index].items[1]);
-                    DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
-                                __func__, block_index, 1);
-                }
-                if ((changedMask & (4)) == 4) {
-                    peerPushEngine->recvWLItem(cacheBlocks[block_index].items[2]);
-                    DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
-                                __func__, block_index, 2);
-                }
-                if ((changedMask & (8)) == 8) {
-                    peerPushEngine->recvWLItem(cacheBlocks[block_index].items[3]);
-                    DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
-                                __func__, block_index, 3);
+                for (int i = 0; i < numElementsPerLine; i++) {
+                    if ((changedMask & (1 << i)) == (1 << i)) {
+                        peerPushEngine->recvWLItem(cacheBlocks[block_index].items[i]);
+                        DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
+                                    __func__, block_index, i);
+                    }
                 }
 
                 // Since allocated is false, does not matter what the address is.
@@ -555,11 +523,14 @@ CoalesceEngine::processNextApplyAndCommitEvent()
                 Addr miss_addr = MSHRMap[block_index][0];
                 DPRINTF(MPU, "%s: First conflicting address for cache line[%d] is"
                             " Addr: %lu.\n", __func__, block_index, miss_addr);
-                // TODO: parameterize 64
-                Addr aligned_miss_addr = std::floor(miss_addr / 64) * 64;
-                PacketPtr read_pkt = createReadPacket(aligned_miss_addr, 64);
+
+                Addr aligned_miss_addr =
+                    std::floor(miss_addr / peerMemoryAtomSize) *
+                    peerMemoryAtomSize;
+                PacketPtr read_pkt = createReadPacket(
+                        aligned_miss_addr, peerMemoryAtomSize);
                 DPRINTF(MPU, "%s: Created a read packet for Addr: %lu."
-                            " req addr (aligned_addr) = %lu, size = 64.\n",
+                            " req addr (aligned_addr) = %lu, size = %d.\n",
                             __func__, miss_addr, aligned_miss_addr);
                 enqueueMemReq(read_pkt);
 

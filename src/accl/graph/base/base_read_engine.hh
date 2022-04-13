@@ -68,8 +68,6 @@ class BaseReadEngine : public ClockedObject
     System* system;
     MemPort memPort;
 
-    int peerMemoryAtomSize;
-
     int outstandingMemReqQueueSize;
     bool alarmRequested;
     int spaceRequested;
@@ -80,6 +78,8 @@ class BaseReadEngine : public ClockedObject
 
   protected:
     const RequestorID _requestorId;
+
+    size_t peerMemoryAtomSize;
 
     void sendMemFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }
 

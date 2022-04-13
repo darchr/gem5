@@ -124,8 +124,7 @@ PushEngine::recvWLItem(WorkListItem wl)
     Addr end_addr = start_addr + (wl.degree * sizeof(Edge));
     uint32_t value = wl.prop;
 
-    // TODO: parameterize 64 to memory atom size
-    pushReqQueue.emplace_back(start_addr, end_addr, sizeof(Edge), 64, value);
+    pushReqQueue.emplace_back(start_addr, end_addr, sizeof(Edge), peerMemoryAtomSize, value);
 
     assert(!pushReqQueue.empty());
     if ((!nextAddrGenEvent.scheduled()) &&
@@ -148,7 +147,7 @@ PushEngine::processNextAddrGenEvent()
                 "PushPacketInfoGen. aligned_addr: %lu, offset: %lu, "
                 "num_edges: %d.\n", __func__, aligned_addr, offset, num_edges);
 
-    PacketPtr pkt = createReadPacket(aligned_addr, 64);
+    PacketPtr pkt = createReadPacket(aligned_addr, peerMemoryAtomSize);
     reqOffsetMap[pkt->req] = offset;
     reqNumEdgeMap[pkt->req] = num_edges;
     reqValueMap[pkt->req] = curr_info.value();
@@ -202,7 +201,7 @@ PushEngine::processNextPushEvent()
     uint8_t* data = pkt->getPtr<uint8_t>();
 
     Addr offset = reqOffsetMap[pkt->req];
-    assert(offset < 64);
+    assert(offset < peerMemoryAtomSize);
     uint32_t value = reqValueMap[pkt->req];
 
     DPRINTF(MPU, "%s: Looking at the front of the queue. pkt->Addr: %lu, "
@@ -224,7 +223,7 @@ PushEngine::processNextPushEvent()
         DPRINTF(MPU, "%s: Sent a push update to addr: %lu with value: %d.\n",
                                 __func__, curr_edge->neighbor, update_value);
         reqOffsetMap[pkt->req] = reqOffsetMap[pkt->req] + sizeof(Edge);
-        assert(reqOffsetMap[pkt->req] <= 64);
+        assert(reqOffsetMap[pkt->req] <= peerMemoryAtomSize);
         reqNumEdgeMap[pkt->req]--;
         assert(reqNumEdgeMap[pkt->req] >= 0);
     }
