@@ -37,3 +37,5 @@ class CoalesceEngine(BaseReadEngine):
     peer_push_engine = Param.PushEngine(NULL, "")
     num_mshr_entry = Param.Int(4, "")
     num_tgts_per_mshr = Param.Int(20, "")
+
+    cache_size = Param.MemorySize("16KiB", "Size of the internal cache.")

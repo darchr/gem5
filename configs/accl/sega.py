@@ -36,10 +36,10 @@ class MPUMemory(SubSystem):
     def __init__(self, vertex_range, vertex_binary, edge_range, edge_binary):
         super(MPUMemory, self).__init__()
         self.vertex_mem_ctrl = SimpleMemory(
-            range=vertex_range, bandwidth="25GB/s",
+            range=vertex_range, bandwidth="19.2GB/s",
             latency="30ns", image_file=vertex_binary)
         self.edge_mem_ctrl = SimpleMemory(
-            range=edge_range, bandwidth="25GB/s",
+            range=edge_range, bandwidth="19.2GB/s",
             latency="30ns", image_file=edge_binary)
 
     def getVertexPort(self):
