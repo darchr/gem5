@@ -27,9 +27,9 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.objects.BaseReadEngine import BaseReadEngine
+from m5.objects.BaseMemEngine import BaseMemEngine
 
-class CoalesceEngine(BaseReadEngine):
+class CoalesceEngine(BaseMemEngine):
     type = 'CoalesceEngine'
     cxx_header = "accl/graph/sega/coalesce_engine.hh"
     cxx_class = 'gem5::CoalesceEngine'

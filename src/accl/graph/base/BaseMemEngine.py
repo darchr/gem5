@@ -29,11 +29,11 @@ from m5.params import *
 from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
 
-class BaseReadEngine(ClockedObject):
+class BaseMemEngine(ClockedObject):
     abstract = True
-    type = 'BaseReadEngine'
-    cxx_header = "accl/graph/base/base_read_engine.hh"
-    cxx_class = 'gem5::BaseReadEngine'
+    type = 'BaseMemEngine'
+    cxx_header = "accl/graph/base/base_mem_engine.hh"
+    cxx_class = 'gem5::BaseMemEngine'
 
     system = Param.System(Parent.any, 'System this Engine is a part of')
     mem_port  = RequestPort("Port to communicate with the memory")

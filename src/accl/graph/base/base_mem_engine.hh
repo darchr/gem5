@@ -26,33 +26,33 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_BASE_BASE_READ_ENGINE_HH__
-#define __ACCL_GRAPH_BASE_BASE_READ_ENGINE_HH__
+#ifndef __ACCL_GRAPH_BASE_BASE_MEM_ENGINE_HH__
+#define __ACCL_GRAPH_BASE_BASE_MEM_ENGINE_HH__
 
 #include <unordered_map>
 
 #include "base/addr_range.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
-#include "params/BaseReadEngine.hh"
+#include "params/BaseMemEngine.hh"
 #include "sim/clocked_object.hh"
 #include "sim/system.hh"
 
 namespace gem5
 {
 
-class BaseReadEngine : public ClockedObject
+class BaseMemEngine : public ClockedObject
 {
   private:
     class MemPort : public RequestPort
     {
       private:
-        BaseReadEngine* owner;
+        BaseMemEngine* owner;
         bool _blocked;
         PacketPtr blockedPacket;
 
         public:
-        MemPort(const std::string& name, BaseReadEngine* owner):
+        MemPort(const std::string& name, BaseMemEngine* owner):
             RequestPort(name, owner), owner(owner),
             _blocked(false), blockedPacket(nullptr)
         {}
@@ -96,10 +96,10 @@ class BaseReadEngine : public ClockedObject
     PacketPtr createWritePacket(Addr addr, unsigned int size, uint8_t* data);
 
   public:
-    PARAMS(BaseReadEngine);
+    PARAMS(BaseMemEngine);
 
-    BaseReadEngine(const BaseReadEngineParams &params);
-    ~BaseReadEngine();
+    BaseMemEngine(const BaseMemEngineParams &params);
+    ~BaseMemEngine();
 
     Port& getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
@@ -116,4 +116,4 @@ class BaseReadEngine : public ClockedObject
 
 }
 
-#endif // __ACCL_GRAPH_BASE_BASE_APPLY_ENGINE_HH__
+#endif // __ACCL_GRAPH_BASE_BASE_MEM_ENGINE_HH__
