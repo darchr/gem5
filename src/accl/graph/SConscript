@@ -27,12 +27,4 @@
 
 Import('*')
 
-SimObject('CoalesceEngine.py')
-SimObject('PushEngine.py')
-SimObject('WLEngine.py')
-
-Source('coalesce_engine.cc')
-Source('push_engine.cc')
-Source('wl_engine.cc')
-
-DebugFlag('WLWrites')
+DebugFlag('MPU')
