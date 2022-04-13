@@ -29,7 +29,7 @@
 #ifndef __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__
 #define __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__
 
-#include "accl/graph/base/base_read_engine.hh"
+#include "accl/graph/base/base_mem_engine.hh"
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/sega/push_engine.hh"
 #include "base/statistics.hh"
@@ -42,7 +42,7 @@ namespace gem5
 
 class WLEngine;
 
-class CoalesceEngine : public BaseReadEngine
+class CoalesceEngine : public BaseMemEngine
 {
   private:
     struct Block
