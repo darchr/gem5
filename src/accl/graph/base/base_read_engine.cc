@@ -36,6 +36,7 @@ BaseReadEngine::BaseReadEngine(const BaseReadEngineParams &params):
     ClockedObject(params),
     system(params.system),
     memPort(name() + ".mem_port", this),
+    peerMemoryAtomSize(params.attached_memory_atom_size),
     outstandingMemReqQueueSize(params.outstanding_mem_req_queue_size),
     alarmRequested(false),
     spaceRequested(0),
