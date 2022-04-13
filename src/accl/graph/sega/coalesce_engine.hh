@@ -102,11 +102,11 @@ class CoalesceEngine : public BaseMemEngine
 
       CoalesceEngine &coalesce;
 
-      statistics::Scalar numVertexBlockReads;
-      statistics::Scalar numVertexBlockWrites;
       statistics::Scalar numVertexReads;
       statistics::Scalar numVertexWrites;
       statistics::Scalar readHits;
+      statistics::Scalar readMisses;
+      statistics::Scalar readRejections;
     };
 
     CoalesceStats stats;

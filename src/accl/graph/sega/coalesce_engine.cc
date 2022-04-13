@@ -29,6 +29,7 @@
 #include "accl/graph/sega/coalesce_engine.hh"
 
 #include "accl/graph/sega/wl_engine.hh"
+#include "debug/ApplyUpdates.hh"
 #include "debug/MPU.hh"
 #include "mem/packet_access.hh"
 
@@ -83,16 +84,14 @@ CoalesceEngine::recvReadAddr(Addr addr)
             "to responseQueue. responseQueue.size = %d.\n",
             __func__, addr, block_index, wl_offset, responseQueue.size(),
             cacheBlocks[block_index].items[wl_offset].to_string());
-
         cacheBlocks[block_index].takenMask |= (1 << wl_offset);
-
         stats.readHits++;
-        stats.numVertexReads++;
 
         assert(!responseQueue.empty());
         if (!nextRespondEvent.scheduled()) {
             schedule(nextRespondEvent, nextCycle());
         }
+        stats.numVertexReads++;
         return true;
     } else {
         // miss
@@ -105,6 +104,7 @@ CoalesceEngine::recvReadAddr(Addr addr)
                 // Out of MSHR entries
                 DPRINTF(MPU, "%s: Out of MSHR entries. "
                             "Rejecting request.\n", __func__);
+                stats.readRejections++;
                 return false;
             } else {
                 DPRINTF(MPU, "%s: MSHR entries available.\n", __func__);
@@ -117,12 +117,15 @@ CoalesceEngine::recvReadAddr(Addr addr)
                         DPRINTF(MPU, "%s: Out of targets for cache line[%d]. "
                                     "Rejecting request.\n",
                                     __func__, block_index);
+                        stats.readRejections++;
                         return false;
                     }
                     cacheBlocks[block_index].hasConflict = true;
                     MSHRMap[block_index].push_back(addr);
                     DPRINTF(MPU, "%s: Added Addr: %lu to targets for cache "
                                 "line[%d]", __func__, addr, block_index);
+                    stats.readMisses++;
+                    stats.numVertexReads++;
                     return true;
                 } else {
                     assert(!cacheBlocks[block_index].valid);
@@ -137,6 +140,7 @@ CoalesceEngine::recvReadAddr(Addr addr)
                     if (memReqQueueFull()) {
                         DPRINTF(MPU, "%s: No space in outstandingMemReqQueue. "
                                     "Rejecting  request.\n", __func__);
+                        stats.readRejections++;
                         return false;
                     }
                     cacheBlocks[block_index].addr = aligned_addr;
@@ -158,7 +162,8 @@ CoalesceEngine::recvReadAddr(Addr addr)
                     enqueueMemReq(pkt);
                     DPRINTF(MPU, "%s: Pushed pkt to outstandingMemReqQueue.\n",
                                                                     __func__);
-                    stats.numVertexBlockReads++;
+                    stats.readMisses++;
+                    stats.numVertexReads++;
                     return true;
                 }
             }
@@ -169,6 +174,7 @@ CoalesceEngine::recvReadAddr(Addr addr)
                 DPRINTF(MPU, "%s: Out of targets for cache line[%d]. "
                             "Rejecting request.\n",
                             __func__, block_index);
+                stats.readRejections++;
                 return false;
             }
             if ((!cacheBlocks[block_index].hasConflict) &&
@@ -178,9 +184,17 @@ CoalesceEngine::recvReadAddr(Addr addr)
                             cacheBlocks[block_index].addr);
                 cacheBlocks[block_index].hasConflict = true;
             }
+
+            if (aligned_addr != cacheBlocks[block_index].addr) {
+                stats.readMisses++;
+            } else {
+                stats.readHits++;
+            }
+
             MSHRMap[block_index].push_back(addr);
             DPRINTF(MPU, "%s: Added Addr: %lu to targets for cache "
                             "line[%d].\n", __func__, addr, block_index);
+            stats.numVertexReads++;
             return true;
         }
     }
@@ -264,7 +278,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                     , __func__, block_index, wl_offset,
                     responseQueue.size());
             cacheBlocks[block_index].takenMask |= (1 << wl_offset);
-            stats.numVertexReads++;
+
             servicedIndices.push_back(i);
             DPRINTF(MPU, "%s: Added index: %d of MSHR for cache line[%d] for "
                         "removal.\n", __func__, i, block_index);
@@ -334,7 +348,6 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     stats.numVertexWrites++;
     DPRINTF(MPU, "%s: Wrote to cache line[%d] = %s.\n", __func__, block_index,
                 cacheBlocks[block_index].items[wl_offset].to_string());
-
     // TODO: Make this more general and programmable.
     // TODO: Later on check (cacheBlocks[block_index].hasConflict) to add
     // to evictQueue.
@@ -440,7 +453,6 @@ CoalesceEngine::processNextApplyAndCommitEvent()
                             __func__, miss_addr, aligned_miss_addr, peerMemoryAtomSize);
 
                 enqueueMemReq(write_pkt);
-                stats.numVertexBlockWrites++;
                 enqueueMemReq(read_pkt);
                 DPRINTF(MPU, "%s: Added the evicting write back packet along with "
                             "its subsequent read packet (to service the conflicts)"
@@ -448,6 +460,9 @@ CoalesceEngine::processNextApplyAndCommitEvent()
 
                 for (int i = 0; i < numElementsPerLine; i++) {
                     if ((changedMask & (1 << i)) == (1 << i)) {
+                        DPRINTF(ApplyUpdates, "%s: WorkListItem[%lu] = %s.\n", __func__,
+                        cacheBlocks[block_index].addr + (i * sizeof(WorkListItem)),
+                        cacheBlocks[block_index].items[i].to_string());
                         peerPushEngine->recvWLItem(cacheBlocks[block_index].items[i]);
                         DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
                                     __func__, block_index, i);
@@ -467,12 +482,14 @@ CoalesceEngine::processNextApplyAndCommitEvent()
                         "enough space in outstandingMemReqQueue for the write back"
                         " packet.\n", __func__, block_index);
                 enqueueMemReq(write_pkt);
-                stats.numVertexBlockWrites++;
                 DPRINTF(MPU, "%s: Added the write back packet to "
                             "outstandingMemReqQueue.\n", __func__);
 
                 for (int i = 0; i < numElementsPerLine; i++) {
                     if ((changedMask & (1 << i)) == (1 << i)) {
+                        DPRINTF(ApplyUpdates, "%s: WorkListItem[%lu] = %s.\n", __func__,
+                        cacheBlocks[block_index].addr + (i * sizeof(WorkListItem)),
+                        cacheBlocks[block_index].items[i].to_string());
                         peerPushEngine->recvWLItem(cacheBlocks[block_index].items[i]);
                         DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
                                     __func__, block_index, i);
@@ -548,16 +565,16 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
     : statistics::Group(&_coalesce),
     coalesce(_coalesce),
 
-    ADD_STAT(numVertexBlockReads, statistics::units::Count::get(),
-             "Number of memory blocks read for vertecies"),
-    ADD_STAT(numVertexBlockWrites, statistics::units::Count::get(),
-             "Number of memory blocks writes for vertecies"),
     ADD_STAT(numVertexReads, statistics::units::Count::get(),
              "Number of memory vertecies read from cache."),
     ADD_STAT(numVertexWrites, statistics::units::Count::get(),
              "Number of memory vertecies written to cache."),
     ADD_STAT(readHits, statistics::units::Count::get(),
-             "Number of cache hits.")
+             "Number of cache hits."),
+    ADD_STAT(readMisses, statistics::units::Count::get(),
+             "Number of cache misses."),
+    ADD_STAT(readRejections, statistics::units::Count::get(),
+             "Number of cache rejections.")
 {
 }
 
