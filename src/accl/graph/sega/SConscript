@@ -35,4 +35,4 @@ Source('coalesce_engine.cc')
 Source('push_engine.cc')
 Source('wl_engine.cc')
 
-DebugFlag('WLWrites')
+DebugFlag('ApplyUpdates')
