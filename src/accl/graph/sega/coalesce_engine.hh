@@ -47,7 +47,7 @@ class CoalesceEngine : public BaseReadEngine
   private:
     struct Block
     {
-        WorkListItem items[4];
+        WorkListItem* items;
         Addr addr;
         uint8_t takenMask;
         bool allocated;
@@ -56,20 +56,26 @@ class CoalesceEngine : public BaseReadEngine
         bool hasChange;
         // TODO: This might be useful in the future
         // Tick lastWLWriteTick;
-        Block():
+        Block() {}
+        Block(int num_elements):
           addr(0),
           takenMask(0),
           allocated(false),
           valid(false),
           hasConflict(false),
           hasChange(false)
-        {}
+        {
+          items = new WorkListItem [num_elements];
+        }
     };
 
     WLEngine* peerWLEngine;
     PushEngine* peerPushEngine;
 
-    Block cacheBlocks[256];
+    Block* cacheBlocks;
+
+    int numLines;
+    int numElementsPerLine;
 
     int numMSHREntry;
     int numTgtsPerMSHR;
@@ -78,8 +84,6 @@ class CoalesceEngine : public BaseReadEngine
     std::deque<std::tuple<Addr, WorkListItem>> responseQueue;
 
     std::deque<int> evictQueue;
-
-    virtual void startup();
 
     PacketPtr createWritePacket(Addr addr, unsigned int size, uint8_t* data);
     // PacketPtr createWritePacket(Addr addr, unsigned int size, WorkListItem wl);
