@@ -36,12 +36,12 @@ BaseReadEngine::BaseReadEngine(const BaseReadEngineParams &params):
     ClockedObject(params),
     system(params.system),
     memPort(name() + ".mem_port", this),
-    peerMemoryAtomSize(params.attached_memory_atom_size),
     outstandingMemReqQueueSize(params.outstanding_mem_req_queue_size),
     alarmRequested(false),
     spaceRequested(0),
     nextMemReqEvent([this] { processNextMemReqEvent(); }, name()),
-    _requestorId(system->getRequestorId(this))
+    _requestorId(system->getRequestorId(this)),
+    peerMemoryAtomSize(params.attached_memory_atom_size)
 {}
 
 BaseReadEngine::~BaseReadEngine()
@@ -101,6 +101,9 @@ BaseReadEngine::processNextMemReqEvent()
     // TODO: Maybe add a DPRINTF here.
     PacketPtr pkt = outstandingMemReqQueue.front();
     memPort.sendPacket(pkt);
+    DPRINTF(MPU, "%s: Sent a packet to memory with the following info. "
+                "pkt->addr: %lu, pkt->size: %lu.\n",
+                __func__, pkt->getAddr(), pkt->getSize());
     outstandingMemReqQueue.pop_front();
 
     if (alarmRequested &&
