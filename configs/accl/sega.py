@@ -9,7 +9,7 @@ class MPU(SubSystem):
                                     attached_memory_atom_size=64)
         self.coalesce_engine = CoalesceEngine(
                                     peer_push_engine=self.push_engine,
-                                    attached_memory_atom_size=64)
+                                    attached_memory_atom_size=32)
         self.wl_engine = WLEngine(coalesce_engine=self.coalesce_engine,
                                 update_queue_size=16,
                                 on_the_fly_update_map_size=8)
