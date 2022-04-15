@@ -185,6 +185,8 @@ PushEngine::respondToAlarm()
 bool
 PushEngine::handleMemResp(PacketPtr pkt)
 {
+    // TODO: in case we need to edit edges, get rid of second statement.
+    assert(pkt->isResponse() && (!pkt->isWrite()));
     memRespQueue.push_back(pkt);
 
     if ((!nextPushEvent.scheduled()) && (!memRespQueue.empty())) {

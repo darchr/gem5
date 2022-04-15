@@ -251,7 +251,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             (!cacheBlocks[block_index].valid) &&    // valid is false
             (!(MSHRMap.find(block_index) == MSHRMap.end()))); // allocated MSHR
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < numElementsPerLine; i++) {
         cacheBlocks[block_index].items[i] = *((WorkListItem*) (
                                 data + (i * sizeof(WorkListItem))));
         DPRINTF(MPU, "%s: Wrote cacheBlocks[%d][%d] = %s.\n", __func__,
