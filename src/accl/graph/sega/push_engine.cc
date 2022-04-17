@@ -58,11 +58,6 @@ PushEngine::getPort(const std::string &if_name, PortID idx)
 void
 PushEngine::startup()
 {
-    uint8_t* first_update_data = new uint8_t [4];
-    uint32_t* tempPtr = (uint32_t*) first_update_data;
-    *tempPtr = 0;
-
-    // PacketPtr first_update = createUpdatePacket(0, 4, first_update_data);
     PacketPtr first_update = createUpdatePacket<uint32_t>(0, (uint32_t) 0);
 
     if (!reqPort.blocked()) {
