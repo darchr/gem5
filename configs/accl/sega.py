@@ -61,14 +61,18 @@ class SEGA(System):
         self.clk_domain.clock = '1GHz'
         self.clk_domain.voltage_domain = VoltageDomain()
 
+        self.ctrl = CenteralController(addr=0, value=0)
         self.mpu = MPU(base_edge_addr=0x80000000)
         self.mem_ctrl = MPUMemory(
             vertex_range=AddrRange(start=0x000000, size="2GiB"),
-            vertex_binary="graphs/test-graph/graph_binaries/vertices_0",
+            vertex_binary="graphs/test/vertices_0",
             edge_range=AddrRange(start=0x80000000, size="2GiB"),
-            edge_binary="graphs/test-graph/graph_binaries/edgelist_0")
+            edge_binary="graphs/test/edgelist_0")
+        self.interconnect = SystemXBar()
 
-        self.mpu.setReqPort(self.mpu.getRespPort())
+        self.ctrl.req_port = self.interconnect.cpu_side_ports
+        self.mpu.setReqPort(self.interconnect.cpu_side_ports)
+        self.mpu.setRespPort(self.interconnect.mem_side_ports)
         self.mpu.setVertexMemPort(self.mem_ctrl.getVertexPort())
         self.mpu.setEdgeMemPort(self.mem_ctrl.getEdgePort())
 
