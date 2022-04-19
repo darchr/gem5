@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2016 Jason Lowe-Power
+# Copyright (c) 2017 Jason Lowe-Power
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,16 +25,15 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+from m5.params import *
+from m5.proxy import *
+from m5.objects.ClockedObject import ClockedObject
 
-SimObject('CenteralController.py')
-SimObject('CoalesceEngine.py')
-SimObject('PushEngine.py')
-SimObject('WLEngine.py')
+class CenteralController(ClockedObject):
+    type = 'CenteralController'
+    cxx_header = "accl/graph/sega/centeral_controller.hh"
+    cxx_class = 'gem5::CenteralController'
 
-Source('centeral_controller.cc')
-Source('coalesce_engine.cc')
-Source('push_engine.cc')
-Source('wl_engine.cc')
-
-DebugFlag('ApplyUpdates')
+    req_port  = RequestPort("Port to send updates to the outside")
+    addr = Param.Addr("")
+    value = Param.Int(0, "")
