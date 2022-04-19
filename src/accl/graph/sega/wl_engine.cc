@@ -58,6 +58,12 @@ WLEngine::getPort(const std::string &if_name, PortID idx)
     }
 }
 
+void
+WLEngine::init()
+{
+    respPort.sendRangeChange();
+}
+
 AddrRangeList
 WLEngine::RespPort::getAddrRanges() const
 {

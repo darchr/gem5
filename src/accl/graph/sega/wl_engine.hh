@@ -65,6 +65,8 @@ class WLEngine : public BaseReduceEngine
         virtual void recvRespRetry();
     };
 
+    virtual void init();
+
     RespPort respPort;
 
     bool blockedByCoalescer;
