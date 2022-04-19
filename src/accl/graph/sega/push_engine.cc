@@ -56,16 +56,6 @@ PushEngine::getPort(const std::string &if_name, PortID idx)
 }
 
 void
-PushEngine::startup()
-{
-    PacketPtr first_update = createUpdatePacket<uint32_t>(0, (uint32_t) 0);
-
-    if (!reqPort.blocked()) {
-        reqPort.sendPacket(first_update);
-    }
-}
-
-void
 PushEngine::ReqPort::sendPacket(PacketPtr pkt)
 {
     panic_if(_blocked, "Should never try to send if blocked MemSide!");

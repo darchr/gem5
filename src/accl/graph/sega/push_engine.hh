@@ -112,8 +112,6 @@ class PushEngine : public BaseMemEngine
     // always be limited by the b/w of the memory.
     std::deque<PacketPtr> memRespQueue;
 
-    virtual void startup();
-
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
 
     EventFunctionWrapper nextAddrGenEvent;
