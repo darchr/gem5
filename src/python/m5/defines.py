@@ -26,7 +26,33 @@
 
 from ._defines import buildEnv
 
-def getRubyProtocol() -> str:
-    return buildEnv["PROTOCOL"]
+from . import options
+from .util import warn
+
+from m5.objects.RubyProtocols import RubyProtocols
+
+def getRubyProtocol() -> RubyProtocols:
+    """Returns the protocol that this simulation is using.
+
+    If only only protocol is built, this will default to that one protocol.
+    Otherwise, it uses the protocol given by the gem5 command line parameter
+    --main-ruby-protocol.
+    """
+
+    # Try and get the command line option. This will not be available at build
+    # time, but it's safe to ignore it then.
+    if not hasattr(options, 'main_ruby_protocol'):
+        return RubyProtocols(buildEnv["PROTOCOL"][0])
+
+    if options.main_ruby_protocol is None:
+        # For backwards compatibility with configs/ruby/Ruby.py
+        if len(buildEnv["PROTOCOL"]) != 1:
+            warn(f"Defaulting to the first build protocol: "
+                 f"{buildEnv['PROTOCOL'][0]}. Use `--main-ruby-protocol to "
+                 f"specify the protocol to use.")
+        protocol = buildEnv["PROTOCOL"][0]
+    else:
+        protocol = options.main_ruby_protocol
+    return RubyProtocols(protocol)
 
 __all__ = ["buildEnv", "getRubyProtocol"]

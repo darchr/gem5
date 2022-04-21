@@ -62,6 +62,7 @@ def _stats_help(option, opt, value, parser):
 
 def parse_options():
     from .options import OptionParser
+    from .defines import buildEnv
 
     options = OptionParser(usage=usage, description=brief_copyright)
     option = options.add_option
@@ -113,6 +114,13 @@ def parse_options():
           'ISAs are compiled into the gem5 binary. Note: This functionality '
           'is deprecated. The `gem5.runtime.get_runtime_isa()` function will '
           'be removed in future releases of gem5.')
+    option('--main-ruby-protocol', action='store', default=None,
+          choices=buildEnv["PROTOCOL"],
+          help='Select the main ruby protocol to use in the simulation. This '
+          'dictates what the m5.defines.getRubyProtocol() function returns '
+          'when multiple protocols are built into the gem5 binary. Note: this '
+          'functionality is for backwards compatibility and may be removed in '
+          'future gem5 releases.')
 
     # Statistics options
     group("Statistics Options")
