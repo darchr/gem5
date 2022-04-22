@@ -54,8 +54,7 @@ CenteralController::getPort(const std::string &if_name, PortID idx)
 void
 CenteralController::startup()
 {
-    PacketPtr first_update = 
-                createUpdatePacket<uint32_t>(addr, value);
+    PacketPtr first_update = createUpdatePacket<uint32_t>(addr, value);
 
     if (!reqPort.blocked()) {
         reqPort.sendPacket(first_update);
@@ -71,8 +70,7 @@ CenteralController::createUpdatePacket(Addr addr, T value)
     // bits
     req->setPC(((Addr) value) << 2);
 
-    // FIXME: MemCmd::UpdateWL
-    PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
+    PacketPtr pkt = new Packet(req, MemCmd::UpdateWL);
 
     pkt->allocate();
     // pkt->setData(data);
@@ -80,14 +78,6 @@ CenteralController::createUpdatePacket(Addr addr, T value)
 
     return pkt;
 }
-
-// AddrRangeList
-// CenteralController::ReqPort::getAddrRanges() const
-// {
-//     AddrRangeList ret;
-//     ret.clear();
-//     return ret;
-// }
 
 void
 CenteralController::ReqPort::sendPacket(PacketPtr pkt)
