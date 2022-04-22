@@ -149,7 +149,7 @@ class MemCmd
         // Tlb shootdown
         TlbiExtSync,
         // MPU Accelerator
-        // UpdateWL,
+        UpdateWL,
         NUM_MEM_CMDS
     };
 
@@ -1373,8 +1373,6 @@ class Packet : public Printable
     /** Set the value in the data pointer to v without byte swapping. */
     template <typename T>
     void setRaw(T v);
-
-    std::string printData();
 
   public:
     /**
