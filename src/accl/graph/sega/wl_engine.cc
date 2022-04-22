@@ -121,6 +121,8 @@ WLEngine::getAddrRanges() const
     return coalesceEngine->getAddrRanges();
 }
 
+// TODO: Parameterize the number of pops WLEngine can do at a time.
+// TODO: Add a histogram stats of the size of the updateQueue. Sample here.
 void
 WLEngine::processNextReadEvent()
 {
@@ -144,9 +146,7 @@ WLEngine::processNextReadEvent()
                 DPRINTF(MPU, "%s: Popped an item from the front of updateQueue"
                             ". updateQueue.size = %u.\n",
                             __func__, updateQueue.size());
-                if (updateQueue.size() == updateQueueSize - 1) {
-                    respPort.checkRetryReq();
-                }
+                respPort.checkRetryReq();
             }
         }
     } else {
@@ -164,9 +164,7 @@ WLEngine::processNextReadEvent()
         DPRINTF(MPU, "%s: Popped an item from the front of updateQueue"
                                         ". updateQueue.size = %u.\n",
                                         __func__, updateQueue.size());
-        if (updateQueue.size() == updateQueueSize - 1) {
-            respPort.checkRetryReq();
-        }
+        respPort.checkRetryReq();
     }
 
     // TODO: Only schedule nextReadEvent only when it has to be scheduled
@@ -194,12 +192,9 @@ WLEngine::handleIncomingWL(Addr addr, WorkListItem wl)
 void
 WLEngine::processNextReduceEvent()
 {
-    std::unordered_map<Addr, WorkListItem>::iterator it =
-                    addrWorkListMap.begin();
-
-    std::vector<Addr> servicedAddresses;
-    while (it != addrWorkListMap.end()) {
-        Addr addr = it->first;
+    for (auto &it : addrWorkListMap) {
+        Addr addr = it.first;
+        assert(onTheFlyUpdateMap.find(addr) != onTheFlyUpdateMap.end());
         uint32_t update_value = onTheFlyUpdateMap[addr];
         DPRINTF(MPU, "%s: Reducing between onTheFlyUpdateMap and "
                     "addrWorkListMap values. onTheFlyUpdateMap[%lu] = %u, "
@@ -214,17 +209,9 @@ WLEngine::processNextReduceEvent()
         stats.numReduce++;
 
         coalesceEngine->recvWLWrite(addr, addrWorkListMap[addr]);
-        servicedAddresses.push_back(addr);
-        DPRINTF(MPU, "%s: Added addr: %lu to servicedAdresses.\n",
-                    __func__, addr);
-        it++;
-    }
-
-    addrWorkListMap.clear();
-    for (int i = 0; i < servicedAddresses.size(); i++) {
-        onTheFlyUpdateMap.erase(servicedAddresses[i]);
+        onTheFlyUpdateMap.erase(addr);
         DPRINTF(MPU, "%s: Erased addr: %lu from onTheFlyUpdateMap.\n",
-                    __func__, servicedAddresses[i]);
+                    __func__, addr);
     }
 }
 

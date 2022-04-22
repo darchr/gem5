@@ -30,6 +30,7 @@
 #define __ACCL_GRAPH_BASE_DATA_STRUCTS_HH__
 
 #include "base/cprintf.hh"
+#include "base/intmath.hh"
 
 namespace gem5
 {
@@ -80,6 +81,8 @@ struct __attribute__ ((packed)) Edge
         neighbor(neighbor)
     {}
 };
+
+static_assert(isPowerOf2(sizeof(WorkListItem)));
 
 }
 
