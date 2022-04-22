@@ -29,6 +29,7 @@
 #include "accl/graph/sega/coalesce_engine.hh"
 
 #include "accl/graph/sega/wl_engine.hh"
+#include "base/intmath.hh"
 #include "debug/ApplyUpdates.hh"
 #include "debug/MPU.hh"
 #include "mem/packet_access.hh"
@@ -47,6 +48,7 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     nextApplyAndCommitEvent([this] { processNextApplyAndCommitEvent(); }, name()),
     stats(*this)
 {
+    assert(isPowerOf2(numLines) && isPowerOf2(numElementsPerLine));
     cacheBlocks = new Block [numLines];
     for (int i = 0; i < numLines; i++) {
         cacheBlocks[i] = Block(numElementsPerLine);
@@ -72,18 +74,25 @@ CoalesceEngine::recvReadAddr(Addr addr)
     DPRINTF(MPU, "%s: Received a read request for address: %lu.\n",
                                                     __func__, addr);
     Addr aligned_addr = (addr / peerMemoryAtomSize) * peerMemoryAtomSize;
+    assert(aligned_addr % peerMemoryAtomSize == 0);
     int block_index = (aligned_addr / peerMemoryAtomSize) % numLines;
+    assert(block_index < numLines);
     int wl_offset = (addr - aligned_addr) / sizeof(WorkListItem);
+    assert(wl_offset < numElementsPerLine);
 
     if ((cacheBlocks[block_index].addr == aligned_addr) &&
         (cacheBlocks[block_index].valid)) {
         // Hit
+        // TODO: Add a hit latency as a param for this object.
+        // Can't just schedule the nextRespondEvent for latency cycles in
+        // the future.
         responseQueue.push_back(std::make_tuple(addr,
                     cacheBlocks[block_index].items[wl_offset]));
         DPRINTF(MPU, "%s: Addr: %lu is a hit. Pushed cacheBlocks[%d][%d]: %s "
             "to responseQueue. responseQueue.size = %d.\n",
             __func__, addr, block_index, wl_offset, responseQueue.size(),
             cacheBlocks[block_index].items[wl_offset].to_string());
+        // TODO: Add a stat to count the number of WLItems that have been touched.
         cacheBlocks[block_index].takenMask |= (1 << wl_offset);
         stats.readHits++;
 
@@ -104,6 +113,8 @@ CoalesceEngine::recvReadAddr(Addr addr)
                 // Out of MSHR entries
                 DPRINTF(MPU, "%s: Out of MSHR entries. "
                             "Rejecting request.\n", __func__);
+                // TODO: Break out read rejections into more than one stat
+                // based on the cause of the rejection
                 stats.readRejections++;
                 return false;
             } else {
@@ -200,6 +211,7 @@ CoalesceEngine::recvReadAddr(Addr addr)
     }
 }
 
+// TODO: For loop to empty the entire responseQueue.
 void
 CoalesceEngine::processNextRespondEvent()
 {
@@ -241,8 +253,6 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
     }
 
     Addr addr = pkt->getAddr();
-    uint8_t* data = pkt->getPtr<uint8_t>();
-
     int block_index = (addr / peerMemoryAtomSize) % numLines;
 
     DPRINTF(MPU, "%s: Received a read resposne for Addr: %lu.\n",
@@ -250,17 +260,17 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
     assert((cacheBlocks[block_index].allocated) && // allocated cache block
             (!cacheBlocks[block_index].valid) &&    // valid is false
             (!(MSHRMap.find(block_index) == MSHRMap.end()))); // allocated MSHR
+    pkt->writeDataToBlock((uint8_t*) cacheBlocks[block_index].items,
+                                                peerMemoryAtomSize);
 
     for (int i = 0; i < numElementsPerLine; i++) {
-        cacheBlocks[block_index].items[i] = *((WorkListItem*) (
-                                data + (i * sizeof(WorkListItem))));
         DPRINTF(MPU, "%s: Wrote cacheBlocks[%d][%d] = %s.\n", __func__,
                 block_index, i, cacheBlocks[block_index].items[i].to_string());
     }
     cacheBlocks[block_index].valid = true;
     delete pkt;
 
-    int bias = 0;
+    // FIXME: Get rid of servicedIndices (maybe use an iterator)
     std::vector<int> servicedIndices;
     for (int i = 0; i < MSHRMap[block_index].size(); i++) {
         Addr miss_addr = MSHRMap[block_index][i];
@@ -271,20 +281,26 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             DPRINTF(MPU, "%s: Addr: %lu in the MSHR for cache line[%d] could "
                         "be serviced with the received packet.\n",
                         __func__, miss_addr, block_index);
+            // TODO: Make this block of code into a function
             responseQueue.push_back(std::make_tuple(miss_addr,
                     cacheBlocks[block_index].items[wl_offset]));
             DPRINTF(MPU, "%s: Pushed cache line[%d][%d] to "
                     "responseQueue. responseQueue.size = %u.\n"
                     , __func__, block_index, wl_offset,
                     responseQueue.size());
+            // TODO: Add a stat to count the number of WLItems that have been touched.
             cacheBlocks[block_index].takenMask |= (1 << wl_offset);
+            // End of the said block
 
             servicedIndices.push_back(i);
             DPRINTF(MPU, "%s: Added index: %d of MSHR for cache line[%d] for "
                         "removal.\n", __func__, i, block_index);
         }
     }
+
     // TODO: We Can use taken instead of this
+    // TODO: Change the MSHRMap from map<Addr, vector> to map<Addr, list>
+    int bias = 0;
     for (int i = 0; i < servicedIndices.size(); i++) {
         Addr print_addr = MSHRMap[block_index][i - bias];
         MSHRMap[block_index].erase(MSHRMap[block_index].begin() +
@@ -298,8 +314,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         MSHRMap.erase(block_index);
         cacheBlocks[block_index].hasConflict = false;
     } else {
-        // TODO: I think this is unnecessary.
-        cacheBlocks[block_index].hasConflict = true;
+        assert(cacheBlocks[block_index].hasConflict);
     }
 
     if ((!nextRespondEvent.scheduled()) &&
@@ -341,11 +356,11 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 
     if (cacheBlocks[block_index].items[wl_offset].tempProp != wl.tempProp) {
         cacheBlocks[block_index].hasChange = true;
+        stats.numVertexWrites++;
     }
 
     cacheBlocks[block_index].items[wl_offset] = wl;
     cacheBlocks[block_index].takenMask &= ~(1 << wl_offset);
-    stats.numVertexWrites++;
     DPRINTF(MPU, "%s: Wrote to cache line[%d] = %s.\n", __func__, block_index,
                 cacheBlocks[block_index].items[wl_offset].to_string());
     // TODO: Make this more general and programmable.
@@ -380,8 +395,9 @@ CoalesceEngine::processNextApplyAndCommitEvent()
                 __func__, block_index);
     DPRINTF(MPU, "%s: Checking to see if cache line[%d] could be applied and "
                 "then commited.\n", __func__, block_index);
+
     if (cacheBlocks[block_index].takenMask == 0) {
-        if ((cacheBlocks[block_index].hasChange)&&
+        if ((cacheBlocks[block_index].hasChange) &&
             (cacheBlocks[block_index].hasConflict) &&
             (memReqQueueHasSpace(2))) {
             DPRINTF(MPU, "%s: ApplyAndCommit could be done on cache line[%d].\n",
@@ -420,6 +436,7 @@ CoalesceEngine::processNextApplyAndCommitEvent()
                         cacheBlocks[block_index].items[i].to_string());
             if (old_prop != cacheBlocks[block_index].items[i].prop) {
                 changedMask |= (1 << i);
+                // TODO: Add a stat to count the number of changed props.
                 DPRINTF(MPU, "%s: Change observed in cache line[%d][%d].\n",
                             __func__, block_index, i);
             }
@@ -434,117 +451,65 @@ CoalesceEngine::processNextApplyAndCommitEvent()
                 (uint8_t*) cacheBlocks[block_index].items);
             DPRINTF(MPU, "%s: Created a write packet to Addr: %lu, size = %d.\n",
                         __func__, write_pkt->getAddr(), peerMemoryAtomSize);
-            if (cacheBlocks[block_index].hasConflict) {
-                DPRINTF(MPU, "%s: A conflict exists for cache line[%d]. There is "
-                            "enough space in outstandingMemReqQueue for the write "
-                            "back packet and its subsequent read packet.\n",
-                            __func__, block_index);
-                Addr miss_addr = MSHRMap[block_index][0];
-                DPRINTF(MPU, "%s: First conflicting address for cache line[%d] is"
-                            " Addr: %lu.\n", __func__, block_index, miss_addr);
+            enqueueMemReq(write_pkt);
+            DPRINTF(MPU, "%s: Added the evicting write back packet to "
+                        "outstandingMemReqQueue.\n" , __func__);
 
-                Addr aligned_miss_addr =
-                    std::floor(miss_addr / peerMemoryAtomSize) *
-                    peerMemoryAtomSize;
-                PacketPtr read_pkt = createReadPacket(
-                    aligned_miss_addr, peerMemoryAtomSize);
-                DPRINTF(MPU, "%s: Created a read packet for Addr: %lu."
-                            " req addr (aligned_addr) = %lu, size = %d.\n",
-                            __func__, miss_addr, aligned_miss_addr, peerMemoryAtomSize);
-
-                enqueueMemReq(write_pkt);
-                enqueueMemReq(read_pkt);
-                DPRINTF(MPU, "%s: Added the evicting write back packet along with "
-                            "its subsequent read packet (to service the conflicts)"
-                            " to outstandingMemReqQueue.\n" , __func__);
-
-                for (int i = 0; i < numElementsPerLine; i++) {
-                    if ((changedMask & (1 << i)) == (1 << i)) {
-                        DPRINTF(ApplyUpdates, "%s: WorkListItem[%lu] = %s.\n", __func__,
-                        cacheBlocks[block_index].addr + (i * sizeof(WorkListItem)),
-                        cacheBlocks[block_index].items[i].to_string());
-                        peerPushEngine->recvWLItem(cacheBlocks[block_index].items[i]);
-                        DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
-                                    __func__, block_index, i);
-                    }
+            for (int i = 0; i < numElementsPerLine; i++) {
+                if ((changedMask & (1 << i)) == (1 << i)) {
+                    DPRINTF(ApplyUpdates, "%s: WorkListItem[%lu] = %s.\n",
+                    __func__, cacheBlocks[block_index].addr + (i * sizeof(WorkListItem)),
+                    cacheBlocks[block_index].items[i].to_string());
+                    peerPushEngine->recvWLItem(cacheBlocks[block_index].items[i]);
+                    DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
+                                                        __func__, block_index, i);
                 }
-
-                cacheBlocks[block_index].addr = aligned_miss_addr;
-                cacheBlocks[block_index].takenMask = 0;
-                cacheBlocks[block_index].allocated = true;
-                cacheBlocks[block_index].valid = false;
-                cacheBlocks[block_index].hasConflict = true;
-                cacheBlocks[block_index].hasChange = false;
-                DPRINTF(MPU, "%s: Popped an item from evictQueue. evictQueue.size "
-                            " = %u.\n", __func__, evictQueue.size());
-            } else {
-                DPRINTF(MPU, "%s: No conflict exists for cache line[%d]. There is "
-                        "enough space in outstandingMemReqQueue for the write back"
-                        " packet.\n", __func__, block_index);
-                enqueueMemReq(write_pkt);
-                DPRINTF(MPU, "%s: Added the write back packet to "
-                            "outstandingMemReqQueue.\n", __func__);
-
-                for (int i = 0; i < numElementsPerLine; i++) {
-                    if ((changedMask & (1 << i)) == (1 << i)) {
-                        DPRINTF(ApplyUpdates, "%s: WorkListItem[%lu] = %s.\n", __func__,
-                        cacheBlocks[block_index].addr + (i * sizeof(WorkListItem)),
-                        cacheBlocks[block_index].items[i].to_string());
-                        peerPushEngine->recvWLItem(cacheBlocks[block_index].items[i]);
-                        DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
-                                    __func__, block_index, i);
-                    }
-                }
-
-                // Since allocated is false, does not matter what the address is.
-
-                cacheBlocks[block_index].takenMask = 0;
-                cacheBlocks[block_index].allocated = false;
-                cacheBlocks[block_index].valid = false;
-                cacheBlocks[block_index].hasConflict = false;
-                cacheBlocks[block_index].hasChange = false;
-                DPRINTF(MPU, "%s: Popped an item from evictQueue. evictQueue.size "
-                            " = %u.\n", __func__, evictQueue.size());
-            }
-        } else {
-            DPRINTF(MPU, "%s: No item from cache line[%d] has changed. No write "
-                        "backs are necessary.\n", __func__, block_index);
-            if (cacheBlocks[block_index].hasConflict) {
-                DPRINTF(MPU, "%s: A conflict exists for cache line[%d]. There is "
-                            "enough space in outstandingMemReqQueue for the write "
-                            "back packet and its subsequent read packet.\n",
-                            __func__, block_index);
-                Addr miss_addr = MSHRMap[block_index][0];
-                DPRINTF(MPU, "%s: First conflicting address for cache line[%d] is"
-                            " Addr: %lu.\n", __func__, block_index, miss_addr);
-
-                Addr aligned_miss_addr =
-                    std::floor(miss_addr / peerMemoryAtomSize) *
-                    peerMemoryAtomSize;
-                PacketPtr read_pkt = createReadPacket(
-                        aligned_miss_addr, peerMemoryAtomSize);
-                DPRINTF(MPU, "%s: Created a read packet for Addr: %lu."
-                            " req addr (aligned_addr) = %lu, size = %d.\n",
-                            __func__, miss_addr, aligned_miss_addr);
-                enqueueMemReq(read_pkt);
-
-                cacheBlocks[block_index].addr = aligned_miss_addr;
-                cacheBlocks[block_index].takenMask = 0;
-                cacheBlocks[block_index].allocated = true;
-                cacheBlocks[block_index].valid = false;
-                cacheBlocks[block_index].hasConflict = true;
-                cacheBlocks[block_index].hasChange = false;
-            } else {
-                DPRINTF(MPU, "%s: No conflict exists for cache line[%d]. Just "
-                            "deallocating the line.\n", __func__, block_index);
-
-                cacheBlocks[block_index].takenMask = 0;
-                cacheBlocks[block_index].allocated = false;
-                cacheBlocks[block_index].valid = false;
-                cacheBlocks[block_index].hasConflict = false;
-                cacheBlocks[block_index].hasChange = false;
             }
         }
+
+        if (cacheBlocks[block_index].hasConflict) {
+            assert(!MSHRMap[block_index].empty());
+            DPRINTF(MPU, "%s: A conflict exists for cache line[%d]. There is "
+                        "enough space in outstandingMemReqQueue for a read "
+                        "packet.\n", __func__, block_index);
+            Addr miss_addr = MSHRMap[block_index][0];
+            DPRINTF(MPU, "%s: First conflicting address for cache line[%d] is"
+                        " Addr: %lu.\n", __func__, block_index, miss_addr);
+
+            Addr aligned_miss_addr =
+                std::floor(miss_addr / peerMemoryAtomSize) *
+                    peerMemoryAtomSize;
+            PacketPtr read_pkt = createReadPacket(aligned_miss_addr,
+                                                    peerMemoryAtomSize);
+            DPRINTF(MPU, "%s: Created a read packet for Addr: %lu."
+                        " req addr (aligned_addr) = %lu, size = %d.\n",
+                        __func__, miss_addr, aligned_miss_addr, peerMemoryAtomSize);
+            enqueueMemReq(read_pkt);
+            DPRINTF(MPU, "%s: Added the evicting write back packet along with "
+                        "its subsequent read packet (to service the conflicts)"
+                        " to outstandingMemReqQueue.\n" , __func__);
+
+            cacheBlocks[block_index].addr = aligned_miss_addr;
+            cacheBlocks[block_index].takenMask = 0;
+            cacheBlocks[block_index].allocated = true;
+            cacheBlocks[block_index].valid = false;
+            cacheBlocks[block_index].hasConflict = true;
+            cacheBlocks[block_index].hasChange = false;
+        } else {
+            DPRINTF(MPU, "%s: No conflict exists for cache line[%d]. There is "
+                    "enough space in outstandingMemReqQueue for the write back"
+                    " packet.\n", __func__, block_index);
+            DPRINTF(MPU, "%s: Added the write back packet to "
+                        "outstandingMemReqQueue.\n", __func__);
+
+            // Since allocated is false, does not matter what the address is.
+            cacheBlocks[block_index].takenMask = 0;
+            cacheBlocks[block_index].allocated = false;
+            cacheBlocks[block_index].valid = false;
+            cacheBlocks[block_index].hasConflict = false;
+            cacheBlocks[block_index].hasChange = false;
+        }
+
     } else {
         DPRINTF(MPU, "%s: cache line[%d] has been read since being scheduled "
                     "for eviction. Therefore, ignoring the evict schedule.\n",
