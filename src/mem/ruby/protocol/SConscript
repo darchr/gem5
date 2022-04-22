@@ -32,6 +32,7 @@ import sys
 
 from SCons.Scanner import Classic
 
+from code_formatter import code_formatter
 from gem5_scons import Transform
 
 Import('*')
@@ -160,3 +161,31 @@ for f in nodes:
     s = str(f)
     if s.endswith('.cc'):
         Source(f, append=append)
+
+
+# Make an enum that lists all of the possible ruby protocols. This can then
+# be used by SimObjects and the C++ source for tracking which protocol is in
+# use
+def makeProtocolEnum(source, target, env):
+    all_protocols = sorted(set(env.Split('${ALL_PROTOCOLS}')))
+
+    code = code_formatter()
+    code('''
+from m5.params import Enum
+
+class RubyProtocols(Enum):
+''')
+
+    code.indent()
+    code('vals = [')
+    code.indent()
+    for protocol in all_protocols:
+        code('"${{protocol}}",')
+    code.dedent()
+    code(']')
+    code.dedent()
+
+    code.write(str(target[0]))
+
+env.Command('RubyProtocols.py', [], MakeAction(makeProtocolEnum))
+SimObject('RubyProtocols.py', sim_objects=[], enums=['RubyProtocols'])

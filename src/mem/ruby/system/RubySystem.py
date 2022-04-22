@@ -29,10 +29,17 @@ from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
 from m5.objects.SimpleMemory import *
 
+from m5.defines import getRubyProtocol
+
 class RubySystem(ClockedObject):
     type = 'RubySystem'
     cxx_header = "mem/ruby/system/RubySystem.hh"
     cxx_class = 'gem5::ruby::RubySystem'
+
+    protocol = Param.RubyProtocols(
+        getRubyProtocol(),
+        "The protocol used in this RubySystem"
+    )
 
     randomization = Param.Bool(False,
         "insert random delays on message enqueue times (if True, all message \
