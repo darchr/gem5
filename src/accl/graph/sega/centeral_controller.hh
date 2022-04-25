@@ -61,15 +61,19 @@ class CenteralController : public ClockedObject
         virtual void recvReqRetry();
     };
 
+    System* system;
     ReqPort reqPort;
 
     Addr addr;
     uint32_t value;
 
-    template<typename T> PacketPtr 
+    template<typename T> PacketPtr
                               createUpdatePacket(Addr addr, T value);
 
+    virtual void initState();
     virtual void startup();
+
+    void functionalAccess(PacketPtr pkt);
 
   public:
     PARAMS(CenteralController);

@@ -66,8 +66,7 @@ class MPUMemory(SubSystem):
             vertex_mem_ctrl.append(
                 SimpleMemory(range=self._vertex_ranges[i],
                             bandwidth="19.2GB/s",
-                            latency="30ns",
-                            image_file=f"{graph_path}/vertices_{i}")
+                            latency="30ns")
             )
             edge_mem_ctrl.append(
                 SimpleMemory(range=self._edge_ranges[i],
@@ -108,21 +107,28 @@ class MPUMemory(SubSystem):
         self.edge_mem_ctrl[i].port = port
 
 class SEGA(System):
-    def __init__(self, num_mpus, graph_path):
+    def __init__(self, num_mpus, vertex_cache_line_size, graph_path):
         super(SEGA, self).__init__()
         self.clk_domain = SrcClockDomain()
         self.clk_domain.clock = '1GHz'
         self.clk_domain.voltage_domain = VoltageDomain()
+        self.cache_line_size = vertex_cache_line_size
 
         self.interconnect = NoncoherentXBar(frontend_latency=1,
                                             forward_latency=1,
                                             response_latency=1,
                                             width=64)
 
-        self.ctrl = CenteralController(addr=0, value=0)
+        self.ctrl = CenteralController(addr=0, value=0,
+                                    image_file=f"{graph_path}/vertices")
         self.ctrl.req_port = self.interconnect.cpu_side_ports
 
-        self.mem_ctrl = MPUMemory(num_mpus, 32, "2GiB", "2GiB", graph_path)
+        self.mem_ctrl = MPUMemory(
+                            num_mpus,
+                            self.cache_line_size,
+                            "2GiB",
+                            "2GiB",
+                            graph_path)
 
         mpus = []
         for i in range(num_mpus):
@@ -136,14 +142,15 @@ class SEGA(System):
 def get_inputs():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("num_mpus", type=int)
+    argparser.add_argument("vertex_cache_line_size", type=int)
     argparser.add_argument("graph_path", type=str)
     args = argparser.parse_args()
-    return args.num_mpus, args.graph_path
+    return args.num_mpus, args.vertex_cache_line_size, args.graph_path
 
 if __name__ == "__m5_main__":
-    num_mpus, graph_path = get_inputs()
+    num_mpus, vertex_cache_line_size, graph_path = get_inputs()
     print(f"Creating a system with {num_mpus} mpu(s) and graph {graph_path}")
-    system = SEGA(num_mpus, graph_path)
+    system = SEGA(num_mpus, vertex_cache_line_size, graph_path)
     root = Root(full_system = False, system = system)
 
     m5.instantiate()
