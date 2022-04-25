@@ -28,6 +28,9 @@
 
 #include "accl/graph/sega/centeral_controller.hh"
 
+#include "base/loader/memory_image.hh"
+#include "base/loader/object_file.hh"
+#include "debug/MPU.hh"
 #include "mem/packet_access.hh"
 
 namespace gem5
@@ -36,6 +39,7 @@ namespace gem5
 CenteralController::CenteralController
                     (const CenteralControllerParams &params):
     ClockedObject(params),
+    system(params.system),
     reqPort(name() + ".req_port", this),
     addr(params.addr),
     value(params.value)
@@ -49,6 +53,26 @@ CenteralController::getPort(const std::string &if_name, PortID idx)
     } else {
         return SimObject::getPort(if_name, idx);
     }
+}
+
+void
+CenteralController::initState()
+{
+    ClockedObject::initState();
+
+    const auto &file = params().image_file;
+    if (file == "")
+        return;
+
+    auto *object = loader::createObjectFile(file, true);
+    fatal_if(!object, "%s: Could not load %s.", name(), file);
+
+    loader::debugSymbolTable.insert(*object->symtab().globals());
+    loader::MemoryImage image = object->buildImage();
+    PortProxy proxy([this](PacketPtr pkt) { functionalAccess(pkt); },
+                    system->cacheLineSize());
+
+    panic_if(!image.write(proxy), "%s: Unable to write image.");
 }
 
 void
@@ -108,6 +132,14 @@ CenteralController::ReqPort::recvReqRetry()
     if (!_blocked) {
         blockedPacket = nullptr;
     }
+}
+
+void
+CenteralController::functionalAccess(PacketPtr pkt)
+{
+    DPRINTF(MPU, "%s: Functional access for pkt->addr: %lu, pkt->size: %lu.\n",
+                __func__, pkt->getAddr(), pkt->getSize());
+    reqPort.sendFunctional(pkt);
 }
 
 }

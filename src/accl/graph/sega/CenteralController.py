@@ -34,6 +34,9 @@ class CenteralController(ClockedObject):
     cxx_header = "accl/graph/sega/centeral_controller.hh"
     cxx_class = 'gem5::CenteralController'
 
+    system = Param.System(Parent.any, "System this Engine is a part of")
     req_port  = RequestPort("Port to send updates to the outside")
     addr = Param.Addr("")
     value = Param.Int(0, "")
+
+    image_file = Param.String("Path to the global memory image.")
