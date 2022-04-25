@@ -213,6 +213,7 @@ WLEngine::processNextReduceEvent()
         DPRINTF(MPU, "%s: Erased addr: %lu from onTheFlyUpdateMap.\n",
                     __func__, addr);
     }
+    addrWorkListMap.clear();
 }
 
 bool

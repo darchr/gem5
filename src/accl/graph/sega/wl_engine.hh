@@ -52,7 +52,7 @@ class WLEngine : public BaseReduceEngine
 
       public:
         RespPort(const std::string& name, WLEngine* owner):
-          ResponsePort(name, owner), owner(owner)
+          ResponsePort(name, owner), owner(owner), needSendRetryReq(false)
         {}
         virtual AddrRangeList getAddrRanges() const;
 
