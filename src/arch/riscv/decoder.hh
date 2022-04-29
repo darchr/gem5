@@ -32,6 +32,7 @@
 
 #include "arch/generic/decode_cache.hh"
 #include "arch/generic/decoder.hh"
+#include "arch/riscv/regs/vec.hh"
 #include "arch/riscv/types.hh"
 #include "base/logging.hh"
 #include "base/types.hh"

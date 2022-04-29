@@ -249,53 +249,6 @@ if not isdir(build_root):
     mkdir(build_root)
 main['BUILDROOT'] = build_root
 
-<<<<<<< HEAD
-=======
-main.SConsignFile(os.path.join(build_root, "sconsign"))
-
-
-########################################################################
-#
-# Set up global sticky variables... these are common to an entire build
-# tree (not specific to a particular build like X86)
-#
-########################################################################
-
-global_vars_file = os.path.join(build_root, 'variables.global')
-
-global_vars = Variables(global_vars_file, args=ARGUMENTS)
-
-global_vars.AddVariables(
-    ('CC', 'C compiler', environ.get('CC', main['CC'])),
-    ('CXX', 'C++ compiler', environ.get('CXX', main['CXX'])),
-    ('CCFLAGS_EXTRA', 'Extra C and C++ compiler flags', ''),
-    ('GEM5PY_CCFLAGS_EXTRA', 'Extra C and C++ gem5py compiler flags', ''),
-    ('GEM5PY_LINKFLAGS_EXTRA', 'Extra marshal gem5py flags', ''),
-    ('LINKFLAGS_EXTRA', 'Extra linker flags', ''),
-    ('PYTHON_CONFIG', 'Python config binary to use',
-     [ 'python3-config', 'python-config']
-    ),
-    ('PROTOC', 'protoc tool', environ.get('PROTOC', 'protoc')),
-    ('BATCH', 'Use batch pool for build and tests', False),
-    ('BATCH_CMD', 'Batch pool submission command name', 'qdo'),
-    ('M5_BUILD_CACHE', 'Cache built objects in this directory', False),
-    ('EXTRAS', 'Add extra directories to the compilation', ''),
-    ('RISCV_VLEN', "VLEN for RVV", environ.get('RISCV_VLEN', '1024')),
-    ('RISCV_ELEN', "ELEN for RVV", environ.get('RISCV_ELEN', '128')),
-    )
-
-# Update main environment with values from ARGUMENTS & global_vars_file
-global_vars.Update(main)
-Help('''
-Global build variables:
-{help}
-'''.format(help=global_vars.GenerateHelpText(main)), append=True)
-
-# Save sticky variable settings back to current variables file
-global_vars.Save(global_vars_file, main)
-
->>>>>>> 6fc2d233c0... wip - rivos: Adding RISCV_VLEN/ELEN as a SCons variable
-
 ########################################################################
 #
 # Set up various paths.
