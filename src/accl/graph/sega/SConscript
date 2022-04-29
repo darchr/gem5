@@ -38,3 +38,4 @@ Source('push_engine.cc')
 Source('wl_engine.cc')
 
 DebugFlag('ApplyUpdates')
+DebugFlag('CenteralController')

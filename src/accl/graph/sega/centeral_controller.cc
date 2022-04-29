@@ -30,7 +30,7 @@
 
 #include "base/loader/memory_image.hh"
 #include "base/loader/object_file.hh"
-#include "debug/MPU.hh"
+#include "debug/CenteralController.hh"
 #include "mem/packet_access.hh"
 
 namespace gem5
@@ -137,7 +137,8 @@ CenteralController::ReqPort::recvReqRetry()
 void
 CenteralController::functionalAccess(PacketPtr pkt)
 {
-    DPRINTF(MPU, "%s: Functional access for pkt->addr: %lu, pkt->size: %lu.\n",
+    DPRINTF(CenteralController,
+                "%s: Functional access for pkt->addr: %lu, pkt->size: %lu.\n",
                 __func__, pkt->getAddr(), pkt->getSize());
     reqPort.sendFunctional(pkt);
 }
