@@ -108,6 +108,9 @@ class StaticInst : public RefCounted, public StaticInstFlags
     /// See numSrcRegs().
     uint8_t _numSrcRegs = 0;
 
+    /// Number of vector source registers
+    uint8_t _numVecSrcRegs = 0;
+
     /// See numDestRegs().
     uint8_t _numDestRegs = 0;
 
