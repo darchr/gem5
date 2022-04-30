@@ -8,25 +8,15 @@ def template VectorVMUNARY0Constructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vid.v          31..26=0x14 vm 24..20=0 19..15=0x11 14..12=0x2 vd 6..0=0x57
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
-        _numVecDestRegs =
+        _numTypedDestRegs[VecRegClass] =
             ceil((float) machVl / (VecRegSizeBytes / sewb));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
         }
 
@@ -67,26 +57,16 @@ def template VectorVFUNARY0Constructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vfcvt.rtz.xu.f.v 31..26=0x12 vm vs2 19..15=0x06 14..12=0x1 vd 6..0=0x57
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
-        _numVecDestRegs =
+        _numTypedDestRegs[VecRegClass] =
             ceil((float) machVl / (VecRegSizeBytes / sewb));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
-        assert((VS2 % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
+        assert((VS2 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS2 + i));
         }
@@ -108,26 +88,17 @@ def template VectorOPIVIConstructor {{
         : %(base_class)s("%(mnemonic)s", machInst, VectorOPIVIOpClass)
     {
         %(set_reg_idx_arr)s;
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
 
         // Example:
         // vadd.vi        31..26=0x00 vm vs2 simm5 14..12=0x3 vd 6..0=0x57
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
-        _numVecSrcRegs = _numVecDestRegs =
+        _numVecSrcRegs = _numTypedDestRegs[VecRegClass] =
             ceil((float) machVl / (VecRegSizeBytes / sewb));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
-        assert((VS2 % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
+        assert((VS2 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS2 + i));
         }
@@ -149,27 +120,17 @@ def template VectorVdVs2Rs1Constructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example: vadd.vx        31..26=0x00 vm vs2 rs1 14..12=0x4 vd 6..0=0x57
         setSrcRegIdx(_numSrcRegs++, RegId(IntRegClass, RS1));
 
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
-        _numVecSrcRegs = _numVecDestRegs =
+        _numVecSrcRegs = _numTypedDestRegs[VecRegClass] =
             ceil((float) machVl / (VecRegSizeBytes / sewb));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
-        assert((VS2 % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
+        assert((VS2 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS2 + i));
         }
@@ -191,28 +152,18 @@ def template VectorVdVs2Fs1Constructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vfadd.vf        31..26=0x00 vm vs2 rs1 14..12=0x5 vd 6..0=0x57
         setSrcRegIdx(_numSrcRegs++, RegId(FloatRegClass, RS1));
 
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
-        _numVecSrcRegs = _numVecDestRegs =
+        _numVecSrcRegs = _numTypedDestRegs[VecRegClass] =
             ceil((float) machVl / (VecRegSizeBytes / sewb));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
-        assert((VS2 % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
+        assert((VS2 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS2 + i));
         }
@@ -234,26 +185,16 @@ def template VectorIntegerExtensionConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vzext.vf8      31..26=0x12 vm vs2 19..15=2 14..12=0x2 vd 6..0=0x57
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
         // EEW = SEW for Vd
-        _numVecDestRegs =
+        _numTypedDestRegs[VecRegClass] =
             ceil((float) machVl / (VecRegSizeBytes / sewb));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
         }
 
@@ -301,28 +242,18 @@ def template VectorMaskRegisterConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vmxnor.mm      31..26=0x1f vm vs2 vs1 14..12=0x2 vd 6..0=0x57
         // these instructions all operate on single vector registers regardless
         // of the setting of the vlmul field in vtype.
-        _numVecDestRegs = 1;
+        _numTypedDestRegs[VecRegClass] = 1;
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS2 + i));
         }
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS1 + i));
         }
 
@@ -342,24 +273,14 @@ def template VectorWholeRegisterMoveConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vmv1r.v        31..26=0x27 25=1 vs2 19..15=0 14..12=0x3 vd 6..0=0x57
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
         // <19:15> which is also Rs1 indicates the number of regs to move.
-        _numVecSrcRegs = _numVecDestRegs = RS1 + 1;
+        _numVecSrcRegs = _numTypedDestRegs[VecRegClass] = RS1 + 1;
 
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
         assert((VS2 % alignToPowerOfTwo(_numVecSrcRegs)) == 0);
 
         for (int i = 0; i < _numVecSrcRegs; ++i) {
@@ -378,16 +299,6 @@ def template VectorVdMaskVs2Rs1Constructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example: vadd.vx        31..26=0x00 vm vs2 rs1 14..12=0x4 vd 6..0=0x57
         setSrcRegIdx(_numSrcRegs++, RegId(IntRegClass, RS1));
 
@@ -402,7 +313,7 @@ def template VectorVdMaskVs2Rs1Constructor {{
         }
 
         setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD));
-        ++_numVecDestRegs;
+        ++_numTypedDestRegs[VecRegClass];
 
         if (VM == 0) {
             // Masked instruction.
@@ -421,31 +332,21 @@ def template VectorWideningVXConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example: vadd.vx        31..26=0x00 vm vs2 rs1 14..12=0x4 vd 6..0=0x57
         setSrcRegIdx(_numSrcRegs++, RegId(IntRegClass, RS1));
 
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
         _numVecSrcRegs = ceil((float) machVl / (VecRegSizeBytes / sewb));
-        _numVecDestRegs = ceil((float) machVl / (VecRegSizeBytes / (sewb * 2)));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        _numTypedDestRegs[VecRegClass] = ceil((float) machVl / (VecRegSizeBytes / (sewb * 2)));
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
         assert((VS2 % alignToPowerOfTwo(_numVecSrcRegs)) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
         }
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS2 + i));
         }
 
@@ -466,28 +367,18 @@ def template VectorWideningWVConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vwadd.wv       31..26=0x35 vm vs2 vs1 14..12=0x2 vd 6..0=0x57
         // 2*SEW = 2*SEW +/- SEW
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
         uint32_t numVs1Regs = ceil((float) machVl / (VecRegSizeBytes / sewb));
-        _numVecDestRegs = ceil((float) machVl / (VecRegSizeBytes / (2 * sewb)));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
-        assert((VS2 % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        _numTypedDestRegs[VecRegClass] = ceil((float) machVl / (VecRegSizeBytes / (2 * sewb)));
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
+        assert((VS2 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
         assert((VS1 % alignToPowerOfTwo(numVs1Regs)) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
         }
 
@@ -495,7 +386,7 @@ def template VectorWideningWVConstructor {{
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS1 + i));
         }
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS2 + i));
         }
 
@@ -516,27 +407,17 @@ def template VectorWideningVVConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vwsubu.vv      31..26=0x32 vm vs2 vs1 14..12=0x2 vd 6..0=0x57
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
         uint32_t numVs2Regs = ceil((float) machVl / (VecRegSizeBytes / sewb));
-        _numVecDestRegs = ceil((float) machVl / (VecRegSizeBytes / (sewb*2)));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        _numTypedDestRegs[VecRegClass] = ceil((float) machVl / (VecRegSizeBytes / (sewb*2)));
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
         assert((VS2 % alignToPowerOfTwo(numVs2Regs)) == 0);
         assert((VS1 % alignToPowerOfTwo(numVs2Regs)) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
         }
 
@@ -565,16 +446,6 @@ def template VectorWideningFPReductionConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vfwredosum.vs vd, vs2, vs1, vm
         uint32_t sewb = getSew(machVtype.vsew) / 8;
@@ -582,13 +453,13 @@ def template VectorWideningFPReductionConstructor {{
         _numVecSrcRegs = ceil((float) machVl / (VecRegSizeBytes / sewb));
         assert((VS2 % alignToPowerOfTwo(_numVecSrcRegs)) == 0);
 
-        _numVecDestRegs = 1;
+        _numTypedDestRegs[VecRegClass] = 1;
 
         setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD));
 
         setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS1));
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS2 + i));
         }
 
@@ -609,16 +480,6 @@ def template VectorSingleWidthIntegerReductionConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vredsum.vs     31..26=0x00 vm vs2 vs1 14..12=0x2 vd 6..0=0x57
         uint32_t sewb = getSew(machVtype.vsew) / 8;
@@ -626,7 +487,7 @@ def template VectorSingleWidthIntegerReductionConstructor {{
         uint32_t numVs2Regs = ceil((float) machVl / (VecRegSizeBytes / sewb));
         assert((VS2 % alignToPowerOfTwo(numVs2Regs)) == 0);
 
-        _numVecDestRegs = 1;
+        _numTypedDestRegs[VecRegClass] = 1;
 
         setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD));
 
@@ -653,30 +514,20 @@ def template VectorWideningVdVs2Constructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vfwcvt.f.f.v      31..26=0x12 vm vs2 19..15=0x0C 14..12=0x1 vd 6..0=0x57
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
         _numVecSrcRegs = ceil((float) machVl / (VecRegSizeBytes / sewb));
-        _numVecDestRegs = ceil((float) machVl / (VecRegSizeBytes / (sewb*2)));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
-        assert((VS2 % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        _numTypedDestRegs[VecRegClass] = ceil((float) machVl / (VecRegSizeBytes / (sewb*2)));
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
+        assert((VS2 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
         }
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS2 + i));
         }
 
@@ -697,16 +548,6 @@ def template VectorWideningVdFs1Vs2Constructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vfwmsac.vf     31..26=0x3e vm vs2 rs1 14..12=0x5 vd 6..0=0x57
         setSrcRegIdx(_numSrcRegs++, RegId(FloatRegClass, RS1));
@@ -714,15 +555,15 @@ def template VectorWideningVdFs1Vs2Constructor {{
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
         _numVecSrcRegs = ceil((float) machVl / (VecRegSizeBytes / sewb));
-        _numVecDestRegs = ceil((float) machVl / (VecRegSizeBytes / (sewb*2)));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
-        assert((VS2 % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        _numTypedDestRegs[VecRegClass] = ceil((float) machVl / (VecRegSizeBytes / (sewb*2)));
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
+        assert((VS2 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
         }
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS2 + i));
         }
 
@@ -743,16 +584,6 @@ def template VectorNarrowingVVConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vnclipu.wv     31..26=0x2e vm vs2 vs1 14..12=0x0 vd 6..0=0x57
         uint32_t sewb = getSew(machVtype.vsew) / 8;
@@ -762,10 +593,10 @@ def template VectorNarrowingVVConstructor {{
             ceil((float) machVl / (VecRegSizeBytes / sewb));
         assert((VS1 % alignToPowerOfTwo(numVs1Regs)) == 0);
 
-        _numVecDestRegs = numVs1Regs;
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        _numTypedDestRegs[VecRegClass] = numVs1Regs;
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS1 + i));
         }
@@ -796,26 +627,16 @@ def template VectorNarrowingWXConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vnclipu.wx     31..26=0x2e vm vs2 rs1 14..12=0x4 vd 6..0=0x57
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
         // EEW = SEW for Vd
-        _numVecDestRegs =
+        _numTypedDestRegs[VecRegClass] =
             ceil((float) machVl / (VecRegSizeBytes / sewb));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
         }
 
@@ -847,26 +668,16 @@ def template VectorNarrowingVIConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vnclipu.wv     31..26=0x2e vm vs2 vs1 14..12=0x0 vd 6..0=0x57
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
         // EEW = SEW for Vd
-        _numVecDestRegs =
+        _numTypedDestRegs[VecRegClass] =
             ceil((float) machVl / (VecRegSizeBytes / sewb));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
         }
 
@@ -896,16 +707,6 @@ def template VectorOPIVXMaskConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vmseq.vx       31..26=0x18 vm vs2 rs1 14..12=0x4 vd 6..0=0x57
         // Vd is a mask
@@ -922,7 +723,7 @@ def template VectorOPIVXMaskConstructor {{
         }
 
         setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD));
-        ++_numVecDestRegs;
+        ++_numTypedDestRegs[VecRegClass];
 
         if (VM == 0) {
             // Masked instruction.
@@ -941,16 +742,6 @@ def template VectorIntegerCompareVIConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vmseq.vi       31..26=0x18 vm vs2 simm5 14..12=0x3 vd 6..0=0x57
         // Vd is a mask
@@ -965,7 +756,7 @@ def template VectorIntegerCompareVIConstructor {{
         }
 
         setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD));
-        ++_numVecDestRegs;
+        ++_numTypedDestRegs[VecRegClass];
 
         if (VM == 0) {
             // Masked instruction.
@@ -984,16 +775,6 @@ def template VectorFloatCompareVFConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vmfeq.vf       31..26=0x18 vm vs2 rs1 14..12=0x5 vd 6..0=0x57
         // Vd is a mask
@@ -1010,7 +791,7 @@ def template VectorFloatCompareVFConstructor {{
         }
 
         setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD));
-        ++_numVecDestRegs;
+        ++_numTypedDestRegs[VecRegClass];
 
         if (VM == 0) {
             // Masked instruction.
@@ -1029,16 +810,6 @@ def template VectorFloatCompareVVConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vmflt.vv       31..26=0x1b vm vs2 vs1 14..12=0x1 vd 6..0=0x57
         // Vd is a mask
@@ -1054,7 +825,7 @@ def template VectorFloatCompareVVConstructor {{
         }
 
         setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD));
-        ++_numVecDestRegs;
+        ++_numTypedDestRegs[VecRegClass];
 
         if (VM == 0) {
             // Masked instruction.
@@ -1073,32 +844,22 @@ def template VectorVdVs2Vs1OpConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vadd.vv         31..26=0x00 vm vs2 vs1 14..12=0x0 vd 6..0=0x57
         uint32_t sewb = getSew(machVtype.vsew) / 8;
 
-        _numVecDestRegs =
+        _numTypedDestRegs[VecRegClass] =
             ceil((float) machVl / (VecRegSizeBytes / sewb));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
-        assert((VS1 % alignToPowerOfTwo(_numVecDestRegs)) == 0);
-        assert((VS2 % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
+        assert((VS1 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
+        assert((VS2 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS2 + i));
         }
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, VS1 + i));
         }
 
@@ -1120,16 +881,6 @@ def template VectorIntegerCompareVVConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         // Example:
         // vmseq.vv       31..26=0x18 vm vs2 vs1 14..12=0x0 vd 6..0=0x57
         uint32_t sewb = getSew(machVtype.vsew) / 8;
@@ -1145,7 +896,7 @@ def template VectorIntegerCompareVVConstructor {{
         }
 
         setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD));
-        ++_numVecDestRegs;
+        ++_numTypedDestRegs[VecRegClass];
 
         if (VM == 0) {
             // Masked instruction.
@@ -1163,16 +914,6 @@ def template VectorUnitStrideMemLoadConstructor {{
         : %(base_class)s("%(mnemonic)s", machInst, VectorUnitStrideMemLoadOpClass)
     {
         %(set_reg_idx_arr)s;
-
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
 
         setSrcRegIdx(_numSrcRegs++, RegId(IntRegClass, RS1));
 
@@ -1195,20 +936,20 @@ def template VectorUnitStrideMemLoadConstructor {{
         if (LUMOP == 0 || LUMOP == 0x10) {
             // vle32.v        nf 28=0 27..26=0 vm 24..20=0 rs1 14..12=0x6  vd 6..0=0x07
             // vle32ff.v        nf 28=0 27..26=0 vm 24..20=0x10 rs1 14..12=0x6  vd 6..0=0x07
-            _numVecDestRegs = ceil((float) machVl / (VecRegSizeBytes/eewb));
+            _numTypedDestRegs[VecRegClass] = ceil((float) machVl / (VecRegSizeBytes/eewb));
         } else if (LUMOP == 0x8) {
             // vl1re16.v      31..29=0 28=0 27..26=0 25=1 24..20=0x08 rs1 14..12=0x5 vd  6..0=0x07
             // vl2re16.v      31..29=1 28=0 27..26=0 25=1 24..20=0x08 rs1 14..12=0x5 vd  6..0=0x07
             // vl4re16.v      31..29=3 28=0 27..26=0 25=1 24..20=0x08 rs1 14..12=0x5 vd  6..0=0x07
             // vl8re16.v      31..29=7 28=0 27..26=0 25=1 24..20=0x08 rs1 14..12=0x5 vd  6..0=0x07
-            _numVecDestRegs = NF + 1;
+            _numTypedDestRegs[VecRegClass] = NF + 1;
         } else {
             printf("ERROR: Unknown LUMOP value 0x%x for load\n", LUMOP);
         }
 
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
         }
 
@@ -1228,16 +969,6 @@ def template VectorStridedMemLoadConstructor {{
         : %(base_class)s("%(mnemonic)s", machInst, VectorStridedMemLoadOpClass)
     {
         %(set_reg_idx_arr)s;
-
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
 
         // Example:
         // vlse64.v        nf 28=0 27..26=2 vm rs2 rs1 14..12=0x7  vd 6..0=0x07
@@ -1260,10 +991,10 @@ def template VectorStridedMemLoadConstructor {{
                 break;
         }
 
-        _numVecDestRegs = ceil((float) machVl / (VecRegSizeBytes/eewb));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        _numTypedDestRegs[VecRegClass] = ceil((float) machVl / (VecRegSizeBytes/eewb));
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
         }
 
@@ -1283,16 +1014,6 @@ def template VectorIndexedMemLoadConstructor {{
         : %(base_class)s("%(mnemonic)s", machInst, VectorIndexedMemLoadOpClass)
     {
         %(set_reg_idx_arr)s;
-
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
 
         // Example:
         // vluxei32.v     nf 28=0 27..26=1 vm vs2 rs1 14..12=0x6  vd 6..0=0x07
@@ -1322,11 +1043,11 @@ def template VectorIndexedMemLoadConstructor {{
         assert((VS2 % alignToPowerOfTwo(_numVecSrcRegs)) == 0);
 
         uint32_t sewb = getSew(machVtype.vsew) / 8;
-        _numVecDestRegs =
+        _numTypedDestRegs[VecRegClass] =
             ceil((float) machVl / (VecRegSizeBytes/sewb));
-        assert((VD % alignToPowerOfTwo(_numVecDestRegs)) == 0);
+        assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
-        for (int i = 0; i < _numVecDestRegs; ++i) {
+        for (int i = 0; i < _numTypedDestRegs[VecRegClass]; ++i) {
             setDestRegIdx(_numDestRegs++, RegId(VecRegClass, VD + i));
         }
 
@@ -1350,16 +1071,6 @@ def template  VectorIndexedMemStoreConstructor {{
         : %(base_class)s("%(mnemonic)s", machInst, VectorIndexedMemStoreOpClass)
     {
         %(set_reg_idx_arr)s;
-
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
 
         // Example:
         // vsuxei32.v     nf 28=0 27..26=1 vm vs2 rs1 14..12=0x6 vs3 6..0=0x27
@@ -1420,16 +1131,6 @@ def template VectorUnitStrideMemStoreConstructor {{
     {
         %(set_reg_idx_arr)s;
 
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
-
         uint32_t eewb = 0;
         switch (FUNCT3) {
             case 0:
@@ -1485,16 +1186,6 @@ def template VectorStridedMemStoreConstructor {{
         : %(base_class)s("%(mnemonic)s", machInst, VectorStridedMemStoreOpClass)
     {
         %(set_reg_idx_arr)s;
-
-        _numSrcRegs = 0;
-        _numDestRegs = 0;
-        _numFPDestRegs = 0;
-        _numVecSrcRegs = 0;
-        _numVecDestRegs = 0;
-        _numVecElemDestRegs = 0;
-        _numVecPredDestRegs = 0;
-        _numIntDestRegs = 0;
-        _numCCDestRegs = 0;
 
         uint32_t eewb = 0;
         switch (FUNCT3) {
@@ -1556,7 +1247,7 @@ def template VectorVMUNARY0Execute {{
         VTYPE vtype = xc->readMiscReg(MISCREG_VTYPE);
         size_t sewb = getSew(vtype.vsew) / 8;
 
-        for (uint32_t destVecRegID = 0; destVecRegID < _numVecDestRegs; ++destVecRegID) {
+        for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
             TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, destVecRegID);
 
             size_t num_target_elements_in_reg =
@@ -1754,7 +1445,7 @@ def template VectorVFUNARY0Execute {{
              }
         }
 
-        for (uint32_t destVecRegID = 0; destVecRegID < _numVecDestRegs; ++destVecRegID) {
+        for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
             TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, destVecRegID);
             const TheISA::VecRegContainer& Vs2_container = xc->readVecRegOperand(this, destVecRegID);
 
@@ -1835,7 +1526,7 @@ def template VectorOPIVIExecute {{
              }
         }
 
-        for (uint32_t vecRegID = 0; vecRegID < _numVecDestRegs; ++vecRegID) {
+        for (uint32_t vecRegID = 0; vecRegID < _numTypedDestRegs[VecRegClass]; ++vecRegID) {
             TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, vecRegID);
             const TheISA::VecRegContainer& Vs2_container = xc->readVecRegOperand(this, vecRegID);
 
@@ -1960,7 +1651,7 @@ def template VectorVRGatherVIExecute {{
             }
         }
 
-        for (uint32_t vecRegID = 0; vecRegID < _numVecDestRegs; ++vecRegID) {
+        for (uint32_t vecRegID = 0; vecRegID < _numTypedDestRegs[VecRegClass]; ++vecRegID) {
             TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, vecRegID);
 
             uint32_t vmask = UINT32_MAX;
@@ -2053,7 +1744,7 @@ def template VectorOPIVICarryExecute {{
 
         assert(VM == 0);
 
-        for (uint32_t vecRegID = 0; vecRegID < _numVecDestRegs; ++vecRegID) {
+        for (uint32_t vecRegID = 0; vecRegID < _numTypedDestRegs[VecRegClass]; ++vecRegID) {
             TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, vecRegID);
             const TheISA::VecRegContainer& Vs2_container = xc->readVecRegOperand(this, vecRegID);
 
@@ -2147,7 +1838,7 @@ def template VectorVdVs2Rs1Execute {{
         uint64_t Rs1 =
           xc->readIntRegOperand(this, 0) & mask(sewb * 8);
 
-        for (uint32_t destVecRegID = 0; destVecRegID < _numVecDestRegs; ++destVecRegID) {
+        for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
             TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, destVecRegID);
             const TheISA::VecRegContainer& Vs2_container = xc->readVecRegOperand(this, destVecRegID + 1);
 
@@ -2275,7 +1966,7 @@ def template VectorVRGatherVXExecute {{
             }
         }
 
-        for (uint32_t destVecRegID = 0; destVecRegID < _numVecDestRegs; ++destVecRegID) {
+        for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
             TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, destVecRegID);
 
             uint32_t vmask = UINT32_MAX;
@@ -2380,7 +2071,7 @@ def template VectorOPIVXCarryExecute {{
         uint64_t Rs1 =
           xc->readIntRegOperand(this, 0) & mask(sewb * 8);
 
-        for (uint32_t destVecRegID = 0; destVecRegID < _numVecDestRegs; ++destVecRegID) {
+        for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
             TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, destVecRegID);
             const TheISA::VecRegContainer& Vs2_container = xc->readVecRegOperand(this, destVecRegID + 1);
 
@@ -2481,7 +2172,7 @@ def template VectorVdVs2Fs1Execute {{
 
         uint64_t Fs1_bits = xc->readFloatRegOperandBits(this, 0);
 
-        for (uint32_t destVecRegID = 0; destVecRegID < _numVecDestRegs; ++destVecRegID) {
+        for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
             TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, destVecRegID);
             const TheISA::VecRegContainer& Vs2_container = xc->readVecRegOperand(this, destVecRegID + 1);
 
@@ -2575,7 +2266,7 @@ def template VectorVdMaskVs2Rs1Execute {{
         TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, 0);
         auto Vd_mask = Vd_container.as<VecElem>();
 
-        for (uint32_t destVecRegID = 0; destVecRegID < _numVecDestRegs; ++destVecRegID) {
+        for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
             const TheISA::VecRegContainer& Vs2_container = xc->readVecRegOperand(this, destVecRegID + 1);
 
             uint32_t vmask = UINT32_MAX;
@@ -3431,7 +3122,7 @@ def template VectorNarrowingVVExecute {{
 
         uint32_t VdVs1ElemID = 0;
 
-        uint32_t numVs1Regs = _numVecDestRegs;
+        uint32_t numVs1Regs = _numTypedDestRegs[VecRegClass];
 
         while (vl > 0) {
             uint32_t vmask = UINT32_MAX;
@@ -4009,7 +3700,7 @@ def template VectorWholeRegisterMoveExecute {{
 
         size_t num_64_bit_elements_in_reg = (VecRegSizeBytes / (sizeof(uint64_t)));
 
-        for (uint32_t regID = 0; regID < _numVecDestRegs; ++regID) {
+        for (uint32_t regID = 0; regID < _numTypedDestRegs[VecRegClass]; ++regID) {
             TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, regID);
             auto Vd = Vd_container.as<uint64_t>();
 
@@ -4051,10 +3742,10 @@ def template VectorVdVs2Vs1OpExecute {{
              }
         }
 
-        for (uint32_t destVecRegID = 0; destVecRegID < _numVecDestRegs; ++destVecRegID) {
+        for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
             TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, destVecRegID);
             const TheISA::VecRegContainer& Vs2_container = xc->readVecRegOperand(this, destVecRegID);
-            const TheISA::VecRegContainer& Vs1_container = xc->readVecRegOperand(this, _numVecDestRegs + destVecRegID);
+            const TheISA::VecRegContainer& Vs1_container = xc->readVecRegOperand(this, _numTypedDestRegs[VecRegClass] + destVecRegID);
 
             uint32_t vmask = UINT32_MAX;
             if (VM == 0) {
@@ -4161,9 +3852,9 @@ def template VectorVRGatherVVOpExecute {{
              }
         }
 
-        for (uint32_t destVecRegID = 0; destVecRegID < _numVecDestRegs; ++destVecRegID) {
+        for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
             TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, destVecRegID);
-            const TheISA::VecRegContainer& Vs1_container = xc->readVecRegOperand(this, _numVecDestRegs + destVecRegID);
+            const TheISA::VecRegContainer& Vs1_container = xc->readVecRegOperand(this, _numTypedDestRegs[VecRegClass] + destVecRegID);
 
             uint32_t vmask = UINT32_MAX;
             if (VM == 0) {
@@ -4259,10 +3950,10 @@ def template VectorOPIVVCarryExecute {{
 
         assert(VM == 0);
 
-        for (uint32_t destVecRegID = 0; destVecRegID < _numVecDestRegs; ++destVecRegID) {
+        for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
             TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, destVecRegID);
             const TheISA::VecRegContainer& Vs2_container = xc->readVecRegOperand(this, destVecRegID);
-            const TheISA::VecRegContainer& Vs1_container = xc->readVecRegOperand(this, _numVecDestRegs + destVecRegID);
+            const TheISA::VecRegContainer& Vs1_container = xc->readVecRegOperand(this, _numTypedDestRegs[VecRegClass] + destVecRegID);
 
             uint32_t vmask = UINT32_MAX;
             const TheISA::VecRegContainer& Vmask_container =
@@ -4358,7 +4049,7 @@ def template VectorIntegerCompareVVExecute {{
         TheISA::VecRegContainer& Vd_container = xc->getWritableVecRegOperand(this, 0);
         auto Vd_mask = Vd_container.as<VecElem>();
 
-        for (uint32_t destVecRegID = 0; destVecRegID < _numVecDestRegs; ++destVecRegID) {
+        for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
             const TheISA::VecRegContainer& Vs2_container = xc->readVecRegOperand(this, destVecRegID);
             const TheISA::VecRegContainer& Vs1_container = xc->readVecRegOperand(this, destVecRegID + 1);
 
@@ -5122,7 +4813,7 @@ def template VectorUnitStrideMemLoadExecute {{
 
         Rs1 = xc->readIntRegOperand(this, 0);
 
-        for (uint32_t destVecRegID = 0; destVecRegID < _numVecDestRegs; ++destVecRegID) {
+        for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
             TheISA::VecRegContainer& Vd_container =
                 xc->getWritableVecRegOperand(this, destVecRegID);
 
@@ -5273,7 +4964,7 @@ def template VectorStridedMemLoadExecute {{
         Rs1 = xc->readIntRegOperand(this, 0);
         Rs2 = xc->readIntRegOperand(this, 1);
 
-        for (uint32_t destVecRegID = 0; destVecRegID < _numVecDestRegs; ++destVecRegID) {
+        for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
             TheISA::VecRegContainer& Vd_container =
                 xc->getWritableVecRegOperand(this, destVecRegID);
 
@@ -5407,7 +5098,7 @@ def template VectorIndexedMemLoadExecute {{
         uint32_t srcVecRegID = 0;
         uint32_t srcVecRegElemID = 0;
 
-        for (uint32_t destVecRegID = 0; destVecRegID < _numVecDestRegs; ++destVecRegID) {
+        for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
             TheISA::VecRegContainer& Vd_container =
                 xc->getWritableVecRegOperand(this, destVecRegID);
 

@@ -2376,7 +2376,8 @@ decode QUADRANT default Unknown::unknown() {
                         // Vd_vc[regElemID] = Vs2_vc[Vs1_vc[regElemID]]
                         uint32_t num_elements_per_vs2_reg = (xc->readMiscReg(MISCREG_VLENB) / sewb);
                         uint32_t vs2VecRegID = (Vs1_vc[regElemID] / num_elements_per_vs2_reg);
-                        const TheISA::VecRegContainer& Vs2_gather_container = xc->readVecRegOperand(this, vs2VecRegID);
+                        TheISA::VecRegContainer Vs2_gather_container;
+                        xc->getRegOperand(this, vs2VecRegID, &Vs2_gather_container);
 
                         if (sewb == 1) {
                             Vd_vc[regElemID] =
@@ -2842,7 +2843,7 @@ decode QUADRANT default Unknown::unknown() {
 
                 0x0e: VectorOPIVIOp::vslideup_vi({{
                     // We can't handle more than 1 destination vector reg yet.
-                    assert(_numVecDestRegs == 1);
+                    assert(_numTypedDestRegs[VecRegClass] == 1);
 
                     for (size_t regElemID = 0; (regElemID + UIMM5) < num_target_elements_in_reg; ++regElemID) {
                         Vd_vc[regElemID + UIMM5] = Vs2_vc[regElemID];
@@ -2850,7 +2851,7 @@ decode QUADRANT default Unknown::unknown() {
                 }});
                 0x0f: VectorOPIVIOp::vslidedown_vi({{
                     // We can't handle more than 1 destination vector reg yet.
-                    assert(_numVecDestRegs == 1);
+                    assert(_numTypedDestRegs[VecRegClass] == 1);
 
                     for (size_t regElemID = 0; regElemID < num_target_elements_in_reg; ++regElemID) {
                         if ((regElemID + UIMM5) < num_target_elements_in_reg) {
@@ -3085,7 +3086,7 @@ decode QUADRANT default Unknown::unknown() {
                 }});
                 0x0e: VectorVdVs2Fs1Op::vfslide1up_vf({{
                     // We can't handle more than 1 destination vector reg yet.
-                    assert(_numVecDestRegs == 1);
+                    assert(_numTypedDestRegs[VecRegClass] == 1);
 
                     // vd[0]=f[rs1], vd[i+1] = vs2[i]
                     if (destVecRegID == 0 && regElemID == 0) {
@@ -3111,10 +3112,10 @@ decode QUADRANT default Unknown::unknown() {
                 }});
                 0x0f: VectorVdVs2Fs1Op::vfslide1down_vf({{
                     // We can't handle more than 1 destination vector reg yet.
-                    assert(_numVecDestRegs == 1);
+                    assert(_numTypedDestRegs[VecRegClass] == 1);
 
                     // vd[i] = vs2[i+1], vd[vl-1]=f[rs1]
-                    if (destVecRegID == (_numVecDestRegs - 1) &&
+                    if (destVecRegID == (_numTypedDestRegs[VecRegClass] - 1) &&
                             regElemID == (num_target_elements_in_reg - 1)) {
                         freg_t fd;
 
@@ -3346,7 +3347,7 @@ decode QUADRANT default Unknown::unknown() {
                 }});
                 0x0e: VectorVdVs2Rs1Op::vslide1up_vx({{
                     // We can't handle more than 1 destination vector reg yet.
-                    assert(_numVecDestRegs == 1);
+                    assert(_numTypedDestRegs[VecRegClass] == 1);
 
                     // vd[0]=x[rs1], vd[i+1] = vs2[i]
                     if (destVecRegID == 0 && regElemID == 0) {
@@ -3360,10 +3361,10 @@ decode QUADRANT default Unknown::unknown() {
                 }});
                 0x0f: VectorVdVs2Rs1Op::vslide1down_vx({{
                     // We can't handle more than 1 destination vector reg yet.
-                    assert(_numVecDestRegs == 1);
+                    assert(_numTypedDestRegs[VecRegClass] == 1);
 
                     // vd[i] = vs2[i+1], vd[vl-1]=x[rs1]
-                    if (destVecRegID == (_numVecDestRegs - 1) &&
+                    if (destVecRegID == (_numTypedDestRegs[VecRegClass] - 1) &&
                             regElemID == (num_target_elements_in_reg - 1)) {
                         Vd_vc[regElemID] = Rs1_ud & mask(sewb * 8);
                     } else if (regElemID == (num_target_elements_in_reg - 1)) {
