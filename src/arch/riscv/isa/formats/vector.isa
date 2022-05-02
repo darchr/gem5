@@ -2207,7 +2207,7 @@ def template VectorVdVs2Fs1Execute {{
 
             if (sewb == 4) {
                 auto Vd = Vd_container.as<uint32_t>();
-                auto Vs2_unboxed = Vs2_container.as<uint32_t>();
+                [[maybe_unused]] auto Vs2_unboxed = Vs2_container.as<uint32_t>();
                 for (size_t regElemID = 0; regElemID < num_target_elements_in_reg; ++regElemID) {
                     if (bits(vmask, regElemID, regElemID) == 0) {
                         continue;
@@ -2217,7 +2217,7 @@ def template VectorVdVs2Fs1Execute {{
                 }
             } else if (sewb == 8) {
                 auto Vd = Vd_container.as<uint64_t>();
-                auto Vs2_unboxed = Vs2_container.as<uint64_t>();
+                [[maybe_unused]] auto Vs2_unboxed = Vs2_container.as<uint64_t>();
                 for (size_t regElemID = 0; regElemID < num_target_elements_in_reg; ++regElemID) {
                     if (bits(vmask, regElemID, regElemID) == 0) {
                         continue;
