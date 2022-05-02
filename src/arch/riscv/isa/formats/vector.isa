@@ -275,7 +275,6 @@ def template VectorWholeRegisterMoveConstructor {{
 
         // Example:
         // vmv1r.v        31..26=0x27 25=1 vs2 19..15=0 14..12=0x3 vd 6..0=0x57
-        uint32_t sewb = getSew(machVtype.vsew) / 8;
 
         // <19:15> which is also Rs1 indicates the number of regs to move.
         _numVecSrcRegs = _numTypedDestRegs[VecRegClass] = RS1 + 1;
@@ -2784,9 +2783,6 @@ def template VectorWideningFPReductionExecute {{
             }
         }
 
-        uint32_t srcVecRegID = 0;
-        uint32_t srcRegElemID = 0;
-
         // The reduction instructions operate on Vd[0], Vs1[0] and all of Vs2.
         TheISA::VecRegContainer& Vd_0_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
         auto Vd0 = Vd_0_container.as<uint64_t>();
@@ -2851,8 +2847,6 @@ def template VectorSingleWidthIntegerReductionExecute {{
         }
 
         uint32_t numVs2Regs = ceil((float) vl / (VecRegSizeBytes / sewb));
-
-        uint32_t vs2RegID = 0;
 
         // The reduction instructions operate on Vd[0], Vs1[0] and all of Vs2.
         TheISA::VecRegContainer& Vd_0_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
@@ -3723,8 +3717,6 @@ def template VectorWholeRegisterMoveExecute {{
         Trace::InstRecord *traceData) const
     {
         Fault fault = NoFault;
-
-        uint32_t vl = xc->readMiscReg(MISCREG_VL);
 
         size_t num_64_bit_elements_in_reg = (VecRegSizeBytes / (sizeof(uint64_t)));
 
