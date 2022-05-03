@@ -9,13 +9,15 @@ class MPU(SubSystem):
     def __init__(self, base_edge_addr):
         super(MPU, self).__init__()
         self.push_engine = PushEngine(base_edge_addr=base_edge_addr,
-                                    push_req_queue_size=16,
+                                    push_req_queue_size=0,
                                     attached_memory_atom_size=64)
         self.coalesce_engine = CoalesceEngine(
                                     peer_push_engine=self.push_engine,
-                                    attached_memory_atom_size=32)
+                                    attached_memory_atom_size=32,
+                                    cache_size="1MiB",
+                                    num_mshr_entry=16)
         self.wl_engine = WLEngine(coalesce_engine=self.coalesce_engine,
-                                update_queue_size=16,
+                                update_queue_size=32,
                                 on_the_fly_update_map_size=8)
 
     def getRespPort(self):
@@ -113,6 +115,7 @@ class SEGA(System):
         self.clk_domain.clock = '1GHz'
         self.clk_domain.voltage_domain = VoltageDomain()
         self.cache_line_size = vertex_cache_line_size
+        self.mem_mode = "timing"
 
         self.interconnect = NoncoherentXBar(frontend_latency=1,
                                             forward_latency=1,
