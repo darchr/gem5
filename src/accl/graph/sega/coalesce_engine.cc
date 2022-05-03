@@ -199,7 +199,7 @@ CoalesceEngine::recvReadAddr(Addr addr)
             if (aligned_addr != cacheBlocks[block_index].addr) {
                 stats.readMisses++;
             } else {
-                stats.readHits++;
+                stats.readHitUnderMisses++;
             }
 
             MSHRMap[block_index].push_back(addr);
@@ -538,6 +538,8 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Number of cache hits."),
     ADD_STAT(readMisses, statistics::units::Count::get(),
              "Number of cache misses."),
+    ADD_STAT(readHitUnderMisses, statistics::units::Count::get(),
+             "Number of cache hit under misses."),
     ADD_STAT(readRejections, statistics::units::Count::get(),
              "Number of cache rejections.")
 {

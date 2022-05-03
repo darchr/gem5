@@ -106,6 +106,7 @@ class CoalesceEngine : public BaseMemEngine
       statistics::Scalar numVertexWrites;
       statistics::Scalar readHits;
       statistics::Scalar readMisses;
+      statistics::Scalar readHitUnderMisses;
       statistics::Scalar readRejections;
     };
 
