@@ -120,6 +120,19 @@ class PushEngine : public BaseMemEngine
     EventFunctionWrapper nextPushEvent;
     void processNextPushEvent();
 
+    struct PushStats : public statistics::Group
+    {
+      PushStats(PushEngine &push);
+
+      void regStats() override;
+
+      PushEngine &push;
+
+      statistics::Scalar numUpdates;
+    };
+
+    PushStats stats;
+
   protected:
     virtual void respondToAlarm();
     virtual bool handleMemResp(PacketPtr pkt);

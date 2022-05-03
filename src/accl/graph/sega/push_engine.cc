@@ -40,7 +40,8 @@ PushEngine::PushEngine(const PushEngineParams &params):
     baseEdgeAddr(params.base_edge_addr),
     pushReqQueueSize(params.push_req_queue_size),
     nextAddrGenEvent([this] { processNextAddrGenEvent(); }, name()),
-    nextPushEvent([this] { processNextPushEvent(); }, name())
+    nextPushEvent([this] { processNextPushEvent(); }, name()),
+    stats(*this)
 {}
 
 Port&
@@ -207,6 +208,7 @@ PushEngine::processNextPushEvent()
 
     if (!reqPort.blocked()) {
         reqPort.sendPacket(update);
+        stats.numUpdates++;
         DPRINTF(MPU, "%s: Sent a push update to addr: %lu with value: %d.\n",
                                 __func__, curr_edge->neighbor, update_value);
         reqOffsetMap[pkt->req] = reqOffsetMap[pkt->req] + sizeof(Edge);
@@ -245,6 +247,21 @@ PushEngine::createUpdatePacket(Addr addr, T value)
     pkt->setLE<T>(value);
 
     return pkt;
+}
+
+PushEngine::PushStats::PushStats(PushEngine &_push)
+    : statistics::Group(&_push),
+    push(_push),
+
+    ADD_STAT(numUpdates, statistics::units::Count::get(),
+             "Number of sent updates.")
+{
+}
+
+void
+PushEngine::PushStats::regStats()
+{
+    using namespace statistics;
 }
 
 }
