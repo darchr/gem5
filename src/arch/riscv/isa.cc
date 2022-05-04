@@ -208,7 +208,7 @@ ISA::ISA(const Params &p) : BaseISA(p), vlen(p.vlen), elen(p.elen)
 {
     _regClasses.emplace_back(NumIntRegs, debug::IntRegs, 0); // IntRegClass
     _regClasses.emplace_back(NumFloatRegs, debug::FloatRegs); // FloatRegClass
-    _regClasses.emplace_back(NumVecRegs, debug::VecRegs);    // VecRegClass
+    _regClasses.emplace_back(NumVecRegs, debug::VecRegs, -1, vlen/8);    // VecRegClass
     _regClasses.emplace_back(2, debug::IntRegs); // VecElemClass, not in RISCV
     _regClasses.emplace_back(1, debug::IntRegs); // VecPredRegClass
     _regClasses.emplace_back(0, debug::IntRegs); // CCRegClass
