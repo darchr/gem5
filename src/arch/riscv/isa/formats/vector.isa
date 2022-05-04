@@ -1247,7 +1247,7 @@ def template VectorVMUNARY0Execute {{
         size_t sewb = getSew(vtype.vsew) / 8;
 
         for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
 
             size_t num_target_elements_in_reg =
                 (VecRegSizeBytes/sewb) > vl ? vl : (VecRegSizeBytes/sewb);
@@ -1357,7 +1357,7 @@ def template VectorVRXUNARY0Execute {{
         size_t sewb = getSew(vtype.vsew) / 8;
 
         uint64_t Rs1 = xc->getRegOperand(this, 0);
-        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
 
         if (fault == NoFault) {
             Rs1 &= mask(sewb * 8);
@@ -1400,7 +1400,7 @@ def template VectorVRFUNARY0Execute {{
         size_t sewb = getSew(vtype.vsew) / 8;
 
         uint64_t Fs1_bits = xc->getRegOperand(this, 0);
-        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
 
         if (fault == NoFault) {
             if (sewb == 4) {
@@ -1446,7 +1446,7 @@ def template VectorVFUNARY0Execute {{
         }
 
         for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, destVecRegID, &Vs2_container);
 
@@ -1528,7 +1528,7 @@ def template VectorOPIVIExecute {{
         }
 
         for (uint32_t vecRegID = 0; vecRegID < _numTypedDestRegs[VecRegClass]; ++vecRegID) {
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, vecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, vecRegID);
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, vecRegID, &Vs2_container);
 
@@ -1655,7 +1655,7 @@ def template VectorVRGatherVIExecute {{
         }
 
         for (uint32_t vecRegID = 0; vecRegID < _numTypedDestRegs[VecRegClass]; ++vecRegID) {
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, vecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, vecRegID);
 
             uint32_t vmask = UINT32_MAX;
             if (VM == 0) {
@@ -1748,7 +1748,7 @@ def template VectorOPIVICarryExecute {{
         assert(VM == 0);
 
         for (uint32_t vecRegID = 0; vecRegID < _numTypedDestRegs[VecRegClass]; ++vecRegID) {
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, vecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, vecRegID);
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, vecRegID, &Vs2_container);
 
@@ -1843,7 +1843,7 @@ def template VectorVdVs2Rs1Execute {{
           xc->getRegOperand(this, 0) & mask(sewb * 8);
 
         for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, destVecRegID + 1, &Vs2_container);
 
@@ -1973,7 +1973,7 @@ def template VectorVRGatherVXExecute {{
         }
 
         for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
 
             uint32_t vmask = UINT32_MAX;
             if (VM == 0) {
@@ -2078,7 +2078,7 @@ def template VectorOPIVXCarryExecute {{
           xc->getRegOperand(this, 0) & mask(sewb * 8);
 
         for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, destVecRegID + 1, &Vs2_container);
 
@@ -2180,7 +2180,7 @@ def template VectorVdVs2Fs1Execute {{
         uint64_t Fs1_bits = xc->getRegOperand(this, 0);
 
         for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, destVecRegID + 1, &Vs2_container);
 
@@ -2271,7 +2271,7 @@ def template VectorVdMaskVs2Rs1Execute {{
         uint64_t Rs1 =
           xc->getRegOperand(this, 0) & mask(sewb * 8);
 
-        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
         auto Vd_mask = Vd_container.as<VecElem>();
 
         for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
@@ -2442,7 +2442,7 @@ def template VectorWideningVXExecute {{
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, srcVecRegID + 1, &Vs2_container);
 
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
 
             if (sewb == 1) {
                 auto Vd = Vd_container.as<uint16_t>();
@@ -2565,7 +2565,7 @@ def template VectorWideningWVExecute {{
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, numVs1Regs + vs2VdRegID, &Vs2_container);
 
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, vs2VdRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, vs2VdRegID);
 
             if (sewb == 1) {
                 auto Vd = Vd_container.as<uint16_t>();
@@ -2691,7 +2691,7 @@ def template VectorWideningVVExecute {{
             TheISA::VecRegContainer Vs1_container;
             xc->getRegOperand(this, numVs2Regs + srcVecRegID, &Vs1_container);
 
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
 
             if (sewb == 1) {
                 auto Vd = Vd_container.as<uint16_t>();
@@ -2784,7 +2784,7 @@ def template VectorWideningFPReductionExecute {{
         }
 
         // The reduction instructions operate on Vd[0], Vs1[0] and all of Vs2.
-        TheISA::VecRegContainer& Vd_0_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+        auto &Vd_0_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
         auto Vd0 = Vd_0_container.as<uint64_t>();
 
         TheISA::VecRegContainer Vs1_0_container;
@@ -2849,7 +2849,7 @@ def template VectorSingleWidthIntegerReductionExecute {{
         uint32_t numVs2Regs = ceil((float) vl / (VecRegSizeBytes / sewb));
 
         // The reduction instructions operate on Vd[0], Vs1[0] and all of Vs2.
-        TheISA::VecRegContainer& Vd_0_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+        auto &Vd_0_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
         TheISA::VecRegContainer Vs1_0_container;
         xc->getRegOperand(this, 0, &Vs1_0_container);
 
@@ -2990,7 +2990,7 @@ def template VectorWideningVdVs2Execute {{
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, srcVecRegID, &Vs2_container);
 
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
 
             auto Vd = Vd_container.as<uint64_t>();
             auto Vs2 = Vs2_container.as<uint32_t>();
@@ -3071,7 +3071,7 @@ def template VectorWideningVdFs1Vs2Execute {{
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, srcVecRegID + 1, &Vs2_container);
 
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
 
             auto Vd = Vd_container.as<uint64_t>();
 
@@ -3167,7 +3167,7 @@ def template VectorNarrowingVVExecute {{
             xc->getRegOperand(this, VdV1RegID, &Vs1_container);
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, Vs2RegID + numVs1Regs, &Vs2_container);
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdV1RegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdV1RegID);
 
             if (sewb == 1) {
                 auto Vd = Vd_container.as<uint8_t>();
@@ -3280,7 +3280,7 @@ def template VectorNarrowingVIExecute {{
             uint32_t num_elements_in_Vs2 =
                 (VecRegSizeBytes/(sewb*2)) > vl ? vl : (VecRegSizeBytes/(sewb*2));
 
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, Vs2RegID, &Vs2_container);
 
@@ -3395,7 +3395,7 @@ def template VectorNarrowingWXExecute {{
             uint32_t num_elements_in_Vs2 =
                 (VecRegSizeBytes/(sewb*2)) > vl ? vl : (VecRegSizeBytes/(sewb*2));
 
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, Vs2RegID + 1, &Vs2_container);
 
@@ -3526,7 +3526,7 @@ def template VectorIntegerExtensionExecute {{
             uint32_t num_elements_in_Vs2 =
                 (VecRegSizeBytes/eewb) > vl ? vl : (VecRegSizeBytes/eewb);
 
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, Vs2RegID, &Vs2_container);
 
@@ -3535,7 +3535,7 @@ def template VectorIntegerExtensionExecute {{
                     auto Vs2 = Vs2_container.as<uint32_t>();
 
                     for (uint32_t Vs2ElemID = 0; Vs2ElemID < num_elements_in_Vs2; ++Vs2ElemID) {
-                        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
+                        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
                         auto Vd = Vd_container.as<uint64_t>();
                         if (bits(vmask, VdElemID, VdElemID) == 1) {
                             %(code)s;
@@ -3552,7 +3552,7 @@ def template VectorIntegerExtensionExecute {{
                     auto Vs2 = Vs2_container.as<uint16_t>();
 
                     for (uint32_t Vs2ElemID = 0; Vs2ElemID < num_elements_in_Vs2; ++Vs2ElemID) {
-                        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
+                        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
                         auto Vd = Vd_container.as<uint64_t>();
                         if (bits(vmask, VdElemID, VdElemID) == 1) {
                             %(code)s;
@@ -3569,7 +3569,7 @@ def template VectorIntegerExtensionExecute {{
                     auto Vs2 = Vs2_container.as<uint8_t>();
 
                     for (uint32_t Vs2ElemID = 0; Vs2ElemID < num_elements_in_Vs2; ++Vs2ElemID) {
-                        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
+                        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
                         auto Vd = Vd_container.as<uint64_t>();
 
                         if (bits(vmask, VdElemID, VdElemID) == 1) {
@@ -3589,7 +3589,7 @@ def template VectorIntegerExtensionExecute {{
                     auto Vs2 = Vs2_container.as<uint16_t>();
 
                     for (uint32_t Vs2ElemID = 0; Vs2ElemID < num_elements_in_Vs2; ++Vs2ElemID) {
-                        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
+                        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
                         auto Vd = Vd_container.as<uint32_t>();
 
                         if (bits(vmask, VdElemID, VdElemID) == 1) {
@@ -3607,7 +3607,7 @@ def template VectorIntegerExtensionExecute {{
                     auto Vs2 = Vs2_container.as<uint8_t>();
 
                     for (uint32_t Vs2ElemID = 0; Vs2ElemID < num_elements_in_Vs2; ++Vs2ElemID) {
-                        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
+                        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
                         auto Vd = Vd_container.as<uint32_t>();
 
                         if (bits(vmask, VdElemID, VdElemID) == 1) {
@@ -3627,7 +3627,7 @@ def template VectorIntegerExtensionExecute {{
                     auto Vs2 = Vs2_container.as<uint8_t>();
 
                     for (uint32_t Vs2ElemID = 0; Vs2ElemID < num_elements_in_Vs2; ++Vs2ElemID) {
-                        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
+                        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, VdRegID);
                         auto Vd = Vd_container.as<uint16_t>();
 
                         if (bits(vmask, VdElemID, VdElemID) == 1) {
@@ -3670,7 +3670,7 @@ def template VectorMaskRegisterExecute {{
 
         uint32_t vl = xc->readMiscReg(MISCREG_VL);
 
-        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
         TheISA::VecRegContainer Vs2_container;
         xc->getRegOperand(this, 0, &Vs2_container);
         TheISA::VecRegContainer Vs1_container;
@@ -3721,7 +3721,7 @@ def template VectorWholeRegisterMoveExecute {{
         size_t num_64_bit_elements_in_reg = (VecRegSizeBytes / (sizeof(uint64_t)));
 
         for (uint32_t regID = 0; regID < _numTypedDestRegs[VecRegClass]; ++regID) {
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, regID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, regID);
             auto Vd = Vd_container.as<uint64_t>();
 
             TheISA::VecRegContainer Vs2_container;
@@ -3764,7 +3764,7 @@ def template VectorVdVs2Vs1OpExecute {{
         }
 
         for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, destVecRegID, &Vs2_container);
             TheISA::VecRegContainer Vs1_container;
@@ -3876,7 +3876,7 @@ def template VectorVRGatherVVOpExecute {{
         }
 
         for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
             TheISA::VecRegContainer Vs1_container;
             xc->getRegOperand(this, _numTypedDestRegs[VecRegClass] + destVecRegID, &Vs1_container);
 
@@ -3975,7 +3975,7 @@ def template VectorOPIVVCarryExecute {{
         assert(VM == 0);
 
         for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
-            TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
             TheISA::VecRegContainer Vs2_container;
             xc->getRegOperand(this, destVecRegID, &Vs2_container);
             TheISA::VecRegContainer Vs1_container;
@@ -4072,7 +4072,7 @@ def template VectorIntegerCompareVVExecute {{
              }
         }
 
-        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
         auto Vd_mask = Vd_container.as<VecElem>();
 
         for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
@@ -4217,7 +4217,7 @@ def template VectorOPIVXMaskExecute {{
         uint64_t Rs1 =
           xc->getRegOperand(this, 0) & mask(sewb * 8);
 
-        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
         auto Vd_mask = Vd_container.as<VecElem>();
 
         for (uint32_t srcVecRegID = 0; srcVecRegID < _numVecSrcRegs; ++srcVecRegID) {
@@ -4349,7 +4349,7 @@ def template VectorOPIVXMaskCarryExecute {{
         uint64_t Rs1 =
           xc->getRegOperand(this, 0) & mask(sewb * 8);
 
-        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
         auto Vd_mask = Vd_container.as<VecElem>();
 
         for (uint32_t srcVecRegID = 0; srcVecRegID < _numVecSrcRegs; ++srcVecRegID) {
@@ -4471,7 +4471,7 @@ def template VectorIntegerCompareVIExecute {{
              }
         }
 
-        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
         auto Vd_mask = Vd_container.as<VecElem>();
 
         for (uint32_t srcVecRegID = 0; srcVecRegID < _numVecSrcRegs; ++srcVecRegID) {
@@ -4609,7 +4609,7 @@ def template VectorFloatCompareVFExecute {{
 
         uint64_t Fs1_bits = xc->getRegOperand(this, 0);
 
-        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
         auto Vd_mask = Vd_container.as<VecElem>();
 
         for (uint32_t srcVecRegID = 0; srcVecRegID < _numVecSrcRegs; ++srcVecRegID) {
@@ -4714,7 +4714,7 @@ def template VectorFloatCompareVVExecute {{
              }
         }
 
-        TheISA::VecRegContainer& Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
         auto Vd_mask = Vd_container.as<VecElem>();
 
         for (uint32_t srcVecRegID = 0; srcVecRegID < _numVecSrcRegs; ++srcVecRegID) {
@@ -4848,8 +4848,7 @@ def template VectorUnitStrideMemLoadExecute {{
         Rs1 = xc->getRegOperand(this, 0);
 
         for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
-            TheISA::VecRegContainer& Vd_container =
-                *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
 
             uint32_t vmask = UINT32_MAX;
             if (VM == 0) {
@@ -4999,8 +4998,7 @@ def template VectorStridedMemLoadExecute {{
         Rs2 = xc->getRegOperand(this, 1);
 
         for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
-            TheISA::VecRegContainer& Vd_container =
-                *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
 
             uint32_t vmask = UINT32_MAX;
             if (VM == 0) {
@@ -5133,8 +5131,7 @@ def template VectorIndexedMemLoadExecute {{
         uint32_t srcVecRegElemID = 0;
 
         for (uint32_t destVecRegID = 0; destVecRegID < _numTypedDestRegs[VecRegClass]; ++destVecRegID) {
-            TheISA::VecRegContainer& Vd_container =
-                *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
+            auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, destVecRegID);
 
             uint32_t vmask = UINT32_MAX;
             if (VM == 0) {
