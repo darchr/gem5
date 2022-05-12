@@ -59,325 +59,94 @@ setVsetvlCSR(ExecContext *xc,
             uint32_t new_vtype);
 
 class VectorVRXUNARY0Op : public VectorInsn
-    {
-      public:
-        VectorVRXUNARY0Op(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
+{
+  public:
+    VectorVRXUNARY0Op(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass) :
+        VectorInsn(mnem, _machInst, __opClass)
+    {}
 
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorVRFUNARY0Op : public VectorInsn
-    {
-      public:
-        VectorVRFUNARY0Op(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorVFUNARY0Op : public VectorInsn
-    {
-      public:
-        VectorVFUNARY0Op(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorVMUNARY0Op : public VectorInsn
-    {
-      public:
-        VectorVMUNARY0Op(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
 
 class VectorVWXUNARY0Op : public VectorInsn
-    {
-      public:
-        VectorVWXUNARY0Op(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
+{
+  public:
+    VectorVWXUNARY0Op(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass) :
+        VectorInsn(mnem, _machInst, __opClass)
+    {}
 
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
 
 class VectorOPIVIOp : public VectorInsn
-    {
-      public:
-        VectorOPIVIOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
+{
+  public:
+    VectorOPIVIOp(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass) :
+        VectorInsn(mnem, _machInst, __opClass)
+    {}
 
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorVdVs2Rs1Op : public VectorInsn
-    {
-      public:
-        VectorVdVs2Rs1Op(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
 
 class VectorVdVs2Vs1Op : public VectorInsn
-    {
-      public:
-        VectorVdVs2Vs1Op(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
+{
+  public:
+    VectorVdVs2Vs1Op(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass) :
+        VectorInsn(mnem, _machInst, __opClass)
+    {}
 
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorNarrowingVIOp : public VectorInsn
-    {
-      public:
-        VectorNarrowingVIOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorNarrowingVVOp : public VectorInsn
-    {
-      public:
-        VectorNarrowingVVOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorNarrowingWXOp : public VectorInsn
-    {
-      public:
-        VectorNarrowingWXOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorIntegerExtensionOp : public VectorInsn
-    {
-      public:
-        VectorIntegerExtensionOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorMaskRegisterOp : public VectorInsn
-    {
-      public:
-        VectorMaskRegisterOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorWholeRegisterMoveOp : public VectorInsn
-    {
-      public:
-        VectorWholeRegisterMoveOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-
-class VectorWideningVXOp : public VectorInsn
-    {
-      public:
-        VectorWideningVXOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorWideningWVOp : public VectorInsn
-    {
-      public:
-        VectorWideningWVOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorWideningVVOp : public VectorInsn
-    {
-      public:
-        VectorWideningVVOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
 
 class VectorUnitStrideMemLoadOp : public VectorMemInst
-    {
-      public:
-        VectorUnitStrideMemLoadOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorMemInst(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorStridedMemLoadOp : public VectorMemInst
-    {
-      public:
-        VectorStridedMemLoadOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorMemInst(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorIndexedMemLoadOp : public VectorMemInst
-    {
-      public:
-        VectorIndexedMemLoadOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorMemInst(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorIndexedMemStoreOp : public VectorMemInst
-    {
-      public:
-        VectorIndexedMemStoreOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorMemInst(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
+{
+  public:
+    VectorUnitStrideMemLoadOp(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass) :
+        VectorMemInst(mnem, _machInst, __opClass)
+    {}
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
 
 class VectorUnitStrideMemStoreOp : public VectorMemInst
-    {
-      public:
-        VectorUnitStrideMemStoreOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorMemInst(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorStridedMemStoreOp : public VectorMemInst
-    {
-      public:
-        VectorStridedMemStoreOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorMemInst(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
+{
+  public:
+    VectorUnitStrideMemStoreOp(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass) :
+        VectorMemInst(mnem, _machInst, __opClass)
+    {}
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
 
 /*
  * Vector Configuration Instructions
  */
 class VectorCfgOp : public VectorInsn
-    {
-      protected:
-        uint32_t imm;
-        uint32_t rs1_bits;
-        uint32_t rd_bits;
+{
+  protected:
+    uint32_t imm;
+    uint32_t rs1_bits;
+    uint32_t rd_bits;
 
-        VectorCfgOp(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass),
-                imm(0), rs1_bits(0), rd_bits(0)
-        {}
+    VectorCfgOp(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass) :
+        VectorInsn(mnem, _machInst, __opClass),
+            imm(0), rs1_bits(0), rd_bits(0)
+    {}
 
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorVdVs2Fs1Op : public VectorInsn
-    {
-      public:
-        VectorVdVs2Fs1Op(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
-
-class VectorWideningVdVs2Op : public VectorInsn
-    {
-      public:
-        VectorWideningVdVs2Op(const char *mnem, ExtMachInst _machInst,
-            OpClass __opClass) :
-            VectorInsn(mnem, _machInst, __opClass)
-        {}
-
-        std::string generateDisassembly(Addr pc,
-            const loader::SymbolTable *symtab) const;
-    };
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
 
 }
 
