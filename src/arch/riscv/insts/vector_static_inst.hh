@@ -43,6 +43,43 @@ namespace gem5
 namespace RiscvISA
 {
 
+class VectorMicroInst: public RiscvMicroInst
+{
+  private:
+    uint64_t num_elements_per_regs;
+    uint64_t num_non_tail_elements;
+    uint64_t mask_policy;
+    uint64_t tail_policy;
+  public:
+    VectorMicroInst(const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+      uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+      uint64_t mask_policy, uint64_t tail_policy)
+      : RiscvMicroInst(mnem, _machInst, __opClass)
+    {
+        this->num_elements_per_regs = num_elements_per_regs;
+        this->num_non_tail_elements = num_non_tail_elements;
+        this->mask_policy = mask_policy;
+        this->tail_policy = tail_policy;
+    }
+};
+
+class VectorSameWidthMicroInst: public VectorMicroInst
+{
+  private:
+    uint64_t sew;
+  public:
+    VectorSameWidthMicroInst(
+      const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+      uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+      uint64_t sew, uint64_t mask_policy, uint64_t tail_policy)
+      : VectorMicroInst(mnem, _machInst, __opClass,
+          num_elements_per_regs, num_non_tail_elements, mask_policy,
+          tail_policy)
+    {
+        this->sew = sew;
+    }
+};
+
 /* VectorStaticInst holds the info of all vector instructions */
 class VectorStaticInst : public StaticInst
 {

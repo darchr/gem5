@@ -148,6 +148,28 @@ class VectorCfgOp : public VectorInsn
         const loader::SymbolTable *symtab) const;
 };
 
+class VectorVdVs2Vs1MicroOp: public VectorSameWidthMicroInst
+{
+  private:
+    uint64_t vdRegID;
+    uint64_t vs1RegID;
+    uint64_t vs2RegID;
+  public:
+    VectorVdVs2Vs1MicroOp(
+      const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+      uint64_t vdRegID, uint64_t vs1RegID, uint64_t vs2RegID,
+      uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+      uint64_t sew, uint64_t mask_policy, uint64_t tail_policy)
+        : VectorSameWidthMicroInst(mnem, _machInst, __opClass,
+            num_elements_per_regs, num_non_tail_elements, sew, mask_policy,
+            tail_policy)
+    {
+        this->vdRegID = vdRegID;
+        this->vs1RegID = vs1RegID;
+        this->vs2RegID = vs2RegID;
+    }
+};
+
 }
 
 }
