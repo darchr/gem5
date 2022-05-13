@@ -43,6 +43,7 @@
 #define __ARCH_RISCV_PCSTATE_HH__
 
 #include "arch/generic/pcstate.hh"
+#include "arch/riscv/regs/vec.hh"
 
 namespace gem5
 {
@@ -55,6 +56,8 @@ class PCState : public GenericISA::UPCState<4>
   private:
     bool _compressed = false;
     bool _rv32 = false;
+    uint32_t _vl = 0;
+    uint32_t _vtype;
 
   public:
     using GenericISA::UPCState<4>::UPCState;
@@ -65,9 +68,11 @@ class PCState : public GenericISA::UPCState<4>
     update(const PCStateBase &other) override
     {
         Base::update(other);
-        auto &pcstate = other.as<PCState>();
+        auto &pcstate = other.as<RiscvISA::PCState>();
         _compressed = pcstate._compressed;
         _rv32 = pcstate._rv32;
+        _vl = pcstate._vl;
+        _vtype = pcstate._vtype;
     }
 
     void compressed(bool c) { _compressed = c; }
@@ -75,6 +80,12 @@ class PCState : public GenericISA::UPCState<4>
 
     void rv32(bool val) { _rv32 = val; }
     bool rv32() const { return _rv32; }
+
+    void vl(uint32_t val) { _vl = val; }
+    uint32_t vl() const { return _vl; }
+
+    void vtype(uint32_t val) { _vtype = val; }
+    uint32_t vtype() const { return _vtype; }
 
     bool
     branching() const override
@@ -85,6 +96,17 @@ class PCState : public GenericISA::UPCState<4>
             return npc() != pc() + 4 || nupc() != upc() + 1;
         }
     }
+
+    bool
+    equals(const PCStateBase &_other) const override
+    {
+        auto &other = _other.as<RiscvISA::PCState>();
+        return _pc == other._pc \
+            && _upc == other._upc \
+            && _vl == other._vl \
+            && _vtype == other._vtype;
+    }
+
 };
 
 } // namespace RiscvISA
