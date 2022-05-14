@@ -1553,14 +1553,14 @@ decode QUADRANT default Unknown::unknown() {
             0x7: decode BIT31 { // Configuration-Setting
                 0x0: VectorCfgOp::vsetvli({{
                     Rd = setVsetvlCSR(xc, RD, RS1, Rs1_ud, ZIMM11);
-                }});
+                }}, IsDirectControl, IsCondControl);
                 0x1: decode BIT30 {
                     0x0: VectorCfgOp::vsetvl({{
                       Rd = setVsetvlCSR(xc, RD, RS1, Rs1_ud, Rs2_ud);
-                    }});
+                    }}, IsDirectControl, IsCondControl);
                     0x1: VectorCfgOp::vsetivli({{
                       Rd = setVsetvlCSR(xc, RD, -1, UIMM5, ZIMM10);
-                    }});
+                    }}); // we can determine vl and vtype at decode time so there'll be no control here
                 }
             }
         }
