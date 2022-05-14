@@ -51,6 +51,22 @@ inline uint32_t getSew(uint32_t vsew) {
 uint32_t
 getVlmax(VTYPE vtype, uint32_t vlen);
 
+inline uint32_t
+vlmulToNumRegs(uint32_t vlmul)
+{
+  /*
+    if (vlmul == VlmulEncoding::VLMUL_M2)
+      return 2;
+    if (vlmul == VlmulEncoding::VLMUL_M4)
+      return 4;
+    if (vlmul == VlmulEncoding::VLMUL_M8)
+      return 8;
+    return 1;
+  */
+    // LOL
+    return ((1 ^ ((vlmul & 0b100) >> 2)) << (vlmul & 0b011)) | ((vlmul & 0b100) >> 2);
+}
+
 uint32_t
 setVsetvlCSR(ExecContext *xc,
             uint32_t rd_bits,
@@ -157,7 +173,8 @@ class VectorVdVs2Vs1MicroOp: public VectorSameWidthMicroInst
   public:
     VectorVdVs2Vs1MicroOp(
       const char *mnem, ExtMachInst _machInst, OpClass __opClass,
-      uint64_t vdRegID, uint64_t vs1RegID, uint64_t vs2RegID,
+      uint64_t vdRegID, uint64_t vs1RegID, uint64_t vs2RegID, uint64_t vmRegID,
+      uint64_t mask_offset,
       uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
       uint64_t sew, uint64_t mask_policy, uint64_t tail_policy)
         : VectorSameWidthMicroInst(mnem, _machInst, __opClass,
@@ -168,6 +185,18 @@ class VectorVdVs2Vs1MicroOp: public VectorSameWidthMicroInst
         this->vs1RegID = vs1RegID;
         this->vs2RegID = vs2RegID;
     }
+};
+
+class VectorVdVs2Vs1MacroOp: public VectorMacroInst
+{
+  public:
+    VectorVdVs2Vs1MacroOp(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass, uint32_t vtype, uint32_t vl)
+        : VectorMacroInst(mnem, _machInst, __opClass, vtype, vl)
+    {}
+
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
 };
 
 }
