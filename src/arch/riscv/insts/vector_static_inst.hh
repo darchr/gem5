@@ -43,7 +43,39 @@ namespace gem5
 namespace RiscvISA
 {
 
-class VectorMicroInst: public RiscvMicroInst
+class VectorInstFormat
+{
+  public:
+    VectorInstFormat(const char *mnem, RiscvISA::ExtMachInst _machInst) :
+        vecMachInst(_machInst), vecMnemo(mnem)
+    {}
+    ~VectorInstFormat() {}
+
+    std::string getName() const { return vecMnemo; }
+
+    std::string regName(RegIndex reg) const;
+
+    RegIndex rs1()             const { return (RegIndex)bits(vecMachInst, 19, 15); }
+    RegIndex rs2()             const { return (RegIndex)bits(vecMachInst, 24, 20); }
+    RegIndex rd()              const { return (RegIndex)bits(vecMachInst, 11,  7); }
+
+    RegIndex vs1()             const { return (RegIndex)bits(vecMachInst, 19, 15); }
+    RegIndex vs2()             const { return (RegIndex)bits(vecMachInst, 24, 20); }
+    RegIndex vs3()             const { return (RegIndex)bits(vecMachInst, 11, 7); }
+    RegIndex vd()              const { return (RegIndex)bits(vecMachInst, 11, 7); }
+
+    bool vm()                  const { return bits(vecMachInst, 25, 25); }
+
+    uint32_t vtypei()          const { return (bits(vecMachInst, 31, 31) == 0) ? bits(vecMachInst, 30, 20) : bits(vecMachInst, 29, 20); }
+
+    uint8_t uimm5()            const { return bits(vecMachInst, 19, 15); }
+
+  private:
+    const RiscvISA::ExtMachInst vecMachInst;
+    const char *vecMnemo;
+};
+
+class VectorMicroInst: public RiscvMicroInst, public VectorInstFormat
 {
   private:
     uint64_t num_elements_per_regs;
@@ -53,8 +85,9 @@ class VectorMicroInst: public RiscvMicroInst
   public:
     VectorMicroInst(const char *mnem, ExtMachInst _machInst, OpClass __opClass,
       uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
-      uint64_t mask_policy, uint64_t tail_policy)
-      : RiscvMicroInst(mnem, _machInst, __opClass)
+      uint64_t mask_policy, uint64_t tail_policy) :
+          RiscvMicroInst(mnem, _machInst, __opClass),
+          VectorInstFormat(mnem, _machInst)
     {
         this->num_elements_per_regs = num_elements_per_regs;
         this->num_non_tail_elements = num_non_tail_elements;
@@ -71,12 +104,28 @@ class VectorSameWidthMicroInst: public VectorMicroInst
     VectorSameWidthMicroInst(
       const char *mnem, ExtMachInst _machInst, OpClass __opClass,
       uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
-      uint64_t sew, uint64_t mask_policy, uint64_t tail_policy)
-      : VectorMicroInst(mnem, _machInst, __opClass,
-          num_elements_per_regs, num_non_tail_elements, mask_policy,
-          tail_policy)
+      uint64_t sew, uint64_t mask_policy, uint64_t tail_policy):
+          VectorMicroInst(mnem, _machInst, __opClass,
+              num_elements_per_regs, num_non_tail_elements, mask_policy,
+              tail_policy)
     {
         this->sew = sew;
+    }
+};
+
+class VectorMacroInst: public RiscvMacroInst, public VectorInstFormat
+{
+  private:
+    uint32_t vtype;
+    uint32_t vl;
+  public:
+    VectorMacroInst(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass, uint32_t vtype, uint32_t vl)
+        : RiscvMacroInst(mnem, _machInst, __opClass),
+          VectorInstFormat(mnem, _machInst)
+    {
+        this->vtype = vtype;
+        this->vl = vl;
     }
 };
 
