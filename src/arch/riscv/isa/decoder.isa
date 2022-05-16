@@ -755,6 +755,25 @@ decode QUADRANT default Unknown::unknown() {
                 }}, mem_flags=ATOMIC_RETURN_OP);
             }
         }
+        0x1d: decode FUNCT3 {
+            format ROp {
+                0x0: decode FUNCT7 {
+                    0x20: add16({{
+                        uint16_t Rd_16 = (uint16_t)(Rs1_uh + Rs2_uh);
+                        uint16_t Rd_32 = (uint16_t)(Rs1 >> 16) +
+                                            (uint16_t)(Rs2 >> 16);
+                        uint16_t Rd_48 = (uint16_t)(Rs1 >> 32) +
+                                            (uint16_t)(Rs2 >> 32);
+                        uint16_t Rd_64 = (uint16_t)(Rs1 >> 48) +
+                                            (uint16_t)(Rs2 >> 48);
+
+                        Rd = Rd_16 | (Rd_32 << 16) | (Rd_48 << 16) |
+                                            (Rd_64 << 16);
+                    }}, IntAluOp);
+                }
+            }
+        }
+
         0x0c: decode FUNCT3 {
             format ROp {
                 0x0: decode FUNCT7 {
