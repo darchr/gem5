@@ -325,22 +325,6 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
     return true;
 }
 
-PacketPtr
-CoalesceEngine::createWritePacket(Addr addr, unsigned int size, uint8_t* data)
-{
-    RequestPtr req = std::make_shared<Request>(addr, size, 0, _requestorId);
-
-    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
-    // bits
-    req->setPC(((Addr) _requestorId) << 2);
-
-    PacketPtr pkt = new Packet(req, MemCmd::WriteReq);
-    pkt->allocate();
-    pkt->setData(data);
-
-    return pkt;
-}
-
 void
 CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 {
@@ -370,7 +354,16 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
         DPRINTF(MPU, "%s: Received all the expected writes for cache line[%d]."
                     " It does not have any taken items anymore.\n",
                     __func__, block_index);
-        evictQueue.push_back(block_index);
+        // TODO: Fix this hack
+        bool found = false;
+        for (auto i : evictQueue) {
+            if (i == block_index) {
+                found = true;
+            }
+        }
+        if (!found) {
+            evictQueue.push_back(block_index);
+        }
         DPRINTF(MPU, "%s: Added %d to evictQueue. evictQueue.size = %u.\n",
                     __func__, block_index, evictQueue.size());
     }

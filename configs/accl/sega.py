@@ -122,7 +122,7 @@ class SEGA(System):
                                             response_latency=1,
                                             width=64)
 
-        self.ctrl = CenteralController(addr=0, value=0,
+        self.ctrl = CenteralController(addr=192, value=0,
                                     image_file=f"{graph_path}/vertices")
         self.ctrl.req_port = self.interconnect.cpu_side_ports
 
@@ -130,7 +130,7 @@ class SEGA(System):
                             num_mpus,
                             self.cache_line_size,
                             "2GiB",
-                            "2GiB",
+                            "14GiB",
                             graph_path)
 
         mpus = []
@@ -158,6 +158,6 @@ if __name__ == "__m5_main__":
 
     m5.instantiate()
 
-    exit_event = m5.simulate()
+    exit_event = m5.simulate(1000000000000)
     print("Simulation finished!")
     exit()
