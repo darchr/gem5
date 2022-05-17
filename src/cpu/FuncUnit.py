@@ -73,6 +73,7 @@ class OpClass(Enum):
             'VectorWideningWV',
             'VectorWideningVV',
             'VectorVdVs2Vs1Op',
+            'VectorVdVs2Vs1MacroOp',
             'VectorVRXUNARY0',
             'VectorVRFUNARY0',
             'VectorVFUNARY0',

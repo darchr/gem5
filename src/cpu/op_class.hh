@@ -133,6 +133,9 @@ static const OpClass VectorIntegerExtensionOpClass = enums::VectorIntegerExtensi
 static const OpClass VectorMaskRegisterOpClass = enums::VectorMaskRegister;
 static const OpClass VectorWholeRegisterMoveOpClass = enums::VectorWholeRegisterMove;
 
+
+static const OpClass VectorVdVs2Vs1MacroOpClass = enums::VectorVdVs2Vs1MacroOp;
+
 static const OpClass Num_OpClasses = enums::Num_OpClass;
 
 } // namespace gem5

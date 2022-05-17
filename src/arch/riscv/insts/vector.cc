@@ -24,7 +24,7 @@ getVflmul(uint32_t vlmul_encoding) {
 }
 
 uint32_t
-getVlmax(VTYPE vtype, uint32_t vlen) {
+getVlmax(VTYPE vtype, int vlen) {
   uint32_t sew = getSew(vtype.vsew);
   uint32_t vlmax = (vlen/sew) * getVflmul(vtype.vlmul);
   return vlmax;
@@ -92,7 +92,7 @@ setVsetvlCSR(ExecContext *xc,
              uint32_t requested_vtype) {
   VTYPE new_vtype = requested_vtype;
 
-  uint32_t vlen = xc->readMiscReg(MISCREG_VLENB) * 8;
+  int vlen = xc->readMiscReg(MISCREG_VLENB) * 8;
   uint32_t elen = xc->readMiscReg(MISCREG_ELEN);
 
   uint32_t vlmax = getVlmax(xc->readMiscReg(MISCREG_VTYPE), vlen);
@@ -137,6 +137,36 @@ setVsetvlCSR(ExecContext *xc,
 
 string
 VectorVdVs2Vs1Op::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << VectorRegNames[vd()] << ", ";
+    ss << VectorRegNames[vs2()] << ", ";
+    ss << VectorRegNames[vs1()];
+    if (vm()==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+string
+VectorVdVs2Vs1MacroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << VectorRegNames[vd()] << ", ";
+    ss << VectorRegNames[vs2()] << ", ";
+    ss << VectorRegNames[vs1()];
+    if (vm()==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+string
+VectorVdVs2Vs1MicroOp::generateDisassembly(Addr pc,
     const loader::SymbolTable *symtab) const
 {
     stringstream ss;

@@ -1166,7 +1166,7 @@ del wrap
             codeObj.wrap_decode_block('''
     using namespace gem5;
     StaticInstPtr
-    %(isa_name)s::Decoder::decodeInst(%(isa_name)s::ExtMachInst machInst, RiscvISA::VTYPE machVtype, uint32_t machVl)
+    %(isa_name)s::Decoder::decodeInst(%(isa_name)s::ExtMachInst machInst, RiscvISA::VTYPE machVtype, uint32_t machVl, int vlen)
     {
         using namespace %(namespace)s;
     ''' % self, '}')

@@ -77,7 +77,7 @@ class VectorInstFormat
 
 class VectorMicroInst: public RiscvMicroInst, public VectorInstFormat
 {
-  private:
+  protected:
     uint64_t num_elements_per_regs;
     uint64_t num_non_tail_elements;
     uint64_t mask_policy;
@@ -98,7 +98,7 @@ class VectorMicroInst: public RiscvMicroInst, public VectorInstFormat
 
 class VectorSameWidthMicroInst: public VectorMicroInst
 {
-  private:
+  protected:
     uint64_t sew;
   public:
     VectorSameWidthMicroInst(
@@ -115,12 +115,13 @@ class VectorSameWidthMicroInst: public VectorMicroInst
 
 class VectorMacroInst: public RiscvMacroInst, public VectorInstFormat
 {
-  private:
-    uint32_t vtype;
+  protected:
+    RiscvISA::VTYPE vtype;
     uint32_t vl;
+    int vlen;
   public:
     VectorMacroInst(const char *mnem, ExtMachInst _machInst,
-        OpClass __opClass, uint32_t vtype, uint32_t vl)
+        OpClass __opClass, RiscvISA::VTYPE vtype, uint32_t vl, int vlen)
         : RiscvMacroInst(mnem, _machInst, __opClass),
           VectorInstFormat(mnem, _machInst)
     {
@@ -161,6 +162,39 @@ public:
   ~VectorInsn() {}
 
   std::string getName() const  override { return mnemo; }
+
+  std::string regName(RegIndex reg) const;
+
+  RegIndex rs1()             const { return (RegIndex)bits(machInst, 19, 15); }
+  RegIndex rs2()             const { return (RegIndex)bits(machInst, 24, 20); }
+  RegIndex rd()              const { return (RegIndex)bits(machInst, 11,  7); }
+
+  RegIndex vs1()             const { return (RegIndex)bits(machInst, 19, 15); }
+  RegIndex vs2()             const { return (RegIndex)bits(machInst, 24, 20); }
+  RegIndex vs3()             const { return (RegIndex)bits(machInst, 11, 7); }
+  RegIndex vd()              const { return (RegIndex)bits(machInst, 11, 7); }
+
+  bool vm()                  const { return bits(machInst, 25, 25); }
+
+  uint32_t vtypei()          const { return (bits(machInst, 31, 31) == 0) ? bits(machInst, 30, 20) : bits(machInst, 29, 20); }
+
+  uint8_t uimm5()            const { return bits(machInst, 19, 15); }
+
+  const RiscvISA::ExtMachInst machInst;
+
+private:
+  const char *mnemo;
+};
+
+class VectorInstPrinter
+{
+public:
+  VectorInstPrinter(const char *mnem, MachInst _machInst, OpClass __opClass):
+      machInst(_machInst),
+      mnemo(mnem){}
+  ~VectorInstPrinter() {}
+
+  std::string getName() const { return mnemo; }
 
   std::string regName(RegIndex reg) const;
 

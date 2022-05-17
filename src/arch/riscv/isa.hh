@@ -102,6 +102,9 @@ class ISA : public BaseISA
     int flattenCCIndex(int reg) const { return reg; }
     int flattenMiscIndex(int reg) const { return reg; }
 
+    int getVlen() const { return vlen; }
+    int getElen() const { return elen; }
+
     bool inUserMode() const override;
     void copyRegsFrom(ThreadContext *src) override;
 

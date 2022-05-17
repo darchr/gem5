@@ -53,6 +53,7 @@ class Decoder : public InstDecoder
     decode_cache::InstMap<ExtMachInst> instMap;
     bool aligned;
     bool mid;
+    ISA *isa;
 
   protected:
     //The extended machine instruction being generated
@@ -61,7 +62,8 @@ class Decoder : public InstDecoder
 
     StaticInstPtr decodeInst(ExtMachInst mach_inst,
                              RiscvISA::VTYPE mach_vtype,
-                             uint32_t mach_vl);
+                             uint32_t mach_vl,
+                             int vlen);
 
     /// Decode a machine instruction.
     /// @param mach_inst The binary instruction to decode.
@@ -70,13 +72,16 @@ class Decoder : public InstDecoder
     /// @retval A pointer to the corresponding StaticInst object.
     StaticInstPtr decode(ExtMachInst mach_inst, Addr addr,
                          RiscvISA::VTYPE mach_vtype,
-                         uint32_t mach_vl);
+                         uint32_t mach_vl,
+                         int vlen);
 
     StaticInstPtr decode(PCStateBase &nextPC) override;
 
   public:
-    Decoder(const RiscvDecoderParams &p) : InstDecoder(p, &machInst)
+    Decoder(const RiscvDecoderParams &p) :
+        InstDecoder(p, &machInst)
     {
+        isa = reinterpret_cast<ISA*>(p.isa);
         reset();
     }
 

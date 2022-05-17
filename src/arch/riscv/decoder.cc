@@ -28,6 +28,7 @@
  */
 
 #include "arch/riscv/decoder.hh"
+#include "arch/riscv/isa.hh"
 #include "arch/riscv/types.hh"
 #include "base/bitfield.hh"
 #include "debug/Decode.hh"
@@ -83,14 +84,15 @@ StaticInstPtr
 Decoder::decode(ExtMachInst mach_inst,
                 Addr addr,
                 RiscvISA::VTYPE mach_vtype,
-                uint32_t mach_vl)
+                uint32_t mach_vl,
+                int vlen)
 {
     DPRINTF(Decode, "Decoding instruction 0x%08x at address %#x\n",
             mach_inst, addr);
 
     StaticInstPtr &si = instMap[mach_inst];
     if (!si || si->isVector()) {
-        si = decodeInst(mach_inst, mach_vtype, mach_vl);
+        si = decodeInst(mach_inst, mach_vtype, mach_vl, vlen);
     }
 
     DPRINTF(Decode, "Decode: Decoded %s instruction: %#x\n",
@@ -115,7 +117,7 @@ Decoder::decode(PCStateBase &_next_pc)
         next_pc.compressed(false);
     }
 
-    return decode(emi, _next_pc.instAddr(), _next_pc.get_vtype(), _next_pc.get_vl());
+    return decode(emi, _next_pc.instAddr(), _next_pc.get_vtype(), _next_pc.get_vl(), isa->getVlen());
 }
 
 } // namespace RiscvISA

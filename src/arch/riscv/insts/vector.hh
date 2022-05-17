@@ -49,7 +49,7 @@ inline uint32_t getSew(uint32_t vsew) {
 }
 
 uint32_t
-getVlmax(VTYPE vtype, uint32_t vlen);
+getVlmax(VTYPE vtype, int vlen);
 
 inline uint32_t
 vlmulToNumRegs(uint32_t vlmul)
@@ -122,6 +122,18 @@ class VectorVdVs2Vs1Op : public VectorInsn
         const loader::SymbolTable *symtab) const;
 };
 
+class VectorVdVs2Vs1MacroOp : public VectorMacroInst
+{
+  public:
+    VectorVdVs2Vs1MacroOp(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass) :
+        VectorMacroInst(mnem, _machInst, __opClass, 0, 0, 0)
+    {}
+
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
+
 class VectorUnitStrideMemLoadOp : public VectorMemInst
 {
   public:
@@ -166,10 +178,12 @@ class VectorCfgOp : public VectorInsn
 
 class VectorVdVs2Vs1MicroOp: public VectorSameWidthMicroInst
 {
-  private:
+  protected:
     uint64_t vdRegID;
     uint64_t vs1RegID;
     uint64_t vs2RegID;
+    uint64_t vmRegID;
+    uint64_t mask_offset;
   public:
     VectorVdVs2Vs1MicroOp(
       const char *mnem, ExtMachInst _machInst, OpClass __opClass,
@@ -184,13 +198,18 @@ class VectorVdVs2Vs1MicroOp: public VectorSameWidthMicroInst
         this->vdRegID = vdRegID;
         this->vs1RegID = vs1RegID;
         this->vs2RegID = vs2RegID;
+        this->vmRegID = vmRegID;
+        this->mask_offset = mask_offset;
     }
+    std::string generateDisassembly(
+        Addr pc, const loader::SymbolTable *symtab) const override;
 };
 
-class VectorVdVs2Vs1MacroOp: public VectorMacroInst
+/*
+class VectorVdVs2Vs1MacroOp2: public VectorMacroInst
 {
   public:
-    VectorVdVs2Vs1MacroOp(const char *mnem, ExtMachInst _machInst,
+    VectorVdVs2Vs1MacroOp2(const char *mnem, ExtMachInst _machInst,
         OpClass __opClass, uint32_t vtype, uint32_t vl)
         : VectorMacroInst(mnem, _machInst, __opClass, vtype, vl)
     {}
@@ -198,6 +217,7 @@ class VectorVdVs2Vs1MacroOp: public VectorMacroInst
     std::string generateDisassembly(Addr pc,
         const loader::SymbolTable *symtab) const;
 };
+*/
 
 }
 
