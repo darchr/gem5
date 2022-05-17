@@ -85,9 +85,6 @@ class CoalesceEngine : public BaseMemEngine
 
     std::deque<int> evictQueue;
 
-    PacketPtr createWritePacket(Addr addr, unsigned int size, uint8_t* data);
-    // PacketPtr createWritePacket(Addr addr, unsigned int size, WorkListItem wl);
-
     EventFunctionWrapper nextRespondEvent;
     void processNextRespondEvent();
 
