@@ -122,7 +122,7 @@ class SEGA(System):
                                             response_latency=1,
                                             width=64)
 
-        self.ctrl = CenteralController(addr=192, value=0,
+        self.ctrl = CenteralController(addr=0, value=0,
                                     image_file=f"{graph_path}/vertices")
         self.ctrl.req_port = self.interconnect.cpu_side_ports
 
