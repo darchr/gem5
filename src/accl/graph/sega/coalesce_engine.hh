@@ -83,13 +83,18 @@ class CoalesceEngine : public BaseMemEngine
 
     std::deque<std::tuple<Addr, WorkListItem>> responseQueue;
 
+    std::deque<int> applyQueue;
+
     std::deque<int> evictQueue;
 
     EventFunctionWrapper nextRespondEvent;
     void processNextRespondEvent();
 
-    EventFunctionWrapper nextApplyAndCommitEvent;
-    void processNextApplyAndCommitEvent();
+    EventFunctionWrapper nextApplyEvent;
+    void processNextApplyEvent();
+
+    EventFunctionWrapper nextEvictEvent;
+    void processNextEvictEvent();
 
     struct CoalesceStats : public statistics::Group
     {
@@ -105,6 +110,8 @@ class CoalesceEngine : public BaseMemEngine
       statistics::Scalar readMisses;
       statistics::Scalar readHitUnderMisses;
       statistics::Scalar readRejections;
+      statistics::Scalar falseApplySchedules;
+      statistics::Scalar falseEvictSchedules;
     };
 
     CoalesceStats stats;
