@@ -45,7 +45,8 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     numMSHREntry(params.num_mshr_entry),
     numTgtsPerMSHR(params.num_tgts_per_mshr),
     nextRespondEvent([this] { processNextRespondEvent(); }, name()),
-    nextApplyAndCommitEvent([this] { processNextApplyAndCommitEvent(); }, name()),
+    nextApplyEvent([this] { processNextApplyEvent(); }, name()),
+    nextEvictEvent([this] { processNextEvictEvent(); }, name()),
     stats(*this)
 {
     assert(isPowerOf2(numLines) && isPowerOf2(numElementsPerLine));
@@ -237,8 +238,8 @@ CoalesceEngine::processNextRespondEvent()
 void
 CoalesceEngine::respondToAlarm()
 {
-    assert(!nextApplyAndCommitEvent.scheduled());
-    schedule(nextApplyAndCommitEvent, nextCycle());
+    assert(pendingAlarm() && (!nextEvictEvent.scheduled()));
+    schedule(nextEvictEvent, nextCycle());
 }
 
 bool
@@ -362,16 +363,15 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
             }
         }
         if (!found) {
-            evictQueue.push_back(block_index);
+            applyQueue.push_back(block_index);
         }
         DPRINTF(MPU, "%s: Added %d to evictQueue. evictQueue.size = %u.\n",
                     __func__, block_index, evictQueue.size());
     }
 
-    if ((!nextApplyAndCommitEvent.scheduled()) &&
-        (!evictQueue.empty()) &&
-        (!pendingAlarm())) {
-        schedule(nextApplyAndCommitEvent, nextCycle());
+    if ((!applyQueue.empty()) &&
+        (!nextApplyEvent.scheduled())) {
+        schedule(nextApplyEvent, nextCycle());
     }
 
 }
@@ -442,150 +442,74 @@ CoalesceEngine::processNextEvictEvent()
                     __func__, block_index);
         stats.falseEvictSchedules++;
     } else {
-        int space_needed = cacheBlocks
-    }
-}
-
-void
-CoalesceEngine::processNextApplyAndCommitEvent()
-{
-    // FIXME: Refactor the line below to work with the new inheritance.
-    // assert((!alarmRequested) && (spaceRequested == 0));
-    int block_index = evictQueue.front();
-    uint8_t changedMask = 0;
-
-    DPRINTF(MPU, "%s: Received nextApplyAndCommitEvent for cache line[%d].\n",
-                __func__, block_index);
-    DPRINTF(MPU, "%s: Checking to see if cache line[%d] could be applied and "
-                "then commited.\n", __func__, block_index);
-
-    if (cacheBlocks[block_index].takenMask == 0) {
-        if ((cacheBlocks[block_index].hasChange) &&
-            (cacheBlocks[block_index].hasConflict) &&
-            (memReqQueueHasSpace(2))) {
-            DPRINTF(MPU, "%s: ApplyAndCommit could be done on cache line[%d].\n",
-                        __func__, block_index);
-        } else if ((cacheBlocks[block_index].hasChange) &&
-                    (!cacheBlocks[block_index].hasConflict) &&
-                    (memReqQueueHasSpace(1))) {
-            DPRINTF(MPU, "%s: ApplyAndCommit could be done on cache line[%d].\n",
-                        __func__, block_index);
-        } else if ((!cacheBlocks[block_index].hasChange) &&
-                    (cacheBlocks[block_index].hasConflict) &&
-                    (memReqQueueHasSpace(1))) {
-            DPRINTF(MPU, "%s: ApplyAndCommit could be done on cache line[%d].\n",
-                        __func__, block_index);
-        } else if ((!cacheBlocks[block_index].hasChange) &&
-                    (!cacheBlocks[block_index].hasConflict)) {
-            DPRINTF(MPU, "%s: No ApplyAndCommit needed for cache line[%d].\n",
-                        __func__, block_index);
-        } else {
-            int spaceNeeded = cacheBlocks[block_index].hasConflict ? 2 : 1;
-            requestAlarm(spaceNeeded);
-            DPRINTF(MPU, "%s: Not enough space in outstandingMemReqQueue. Set "
-            "an alarm for nextApplyAndCommitEvent when there is %d space.\n",
-            __func__, spaceNeeded);
+        int space_needed = cacheBlocks[block_index].hasChange ?
+                        (cacheBlocks[block_index].hasConflict ? 2 : 1) :
+                        (cacheBlocks[block_index].hasConflict ? 1 : 0);
+        if (!memReqQueueHasSpace(space_needed)) {
+            DPRINTF(MPU, "%s: There is not enough space in memReqQueue to "
+                    "procees the eviction of cache line [%d]. hasChange: %d, "
+                    "hasConflict: %d.\n", __func__, block_index,
+                    cacheBlocks[block_index].hasChange,
+                    cacheBlocks[block_index].hasConflict);
+            requestAlarm(space_needed);
             return;
-        }
-
-        // Reducing between tempProp and prop for each item in the cache line.
-        for (int i = 0; i < numElementsPerLine; i++) {
-            uint32_t old_prop = cacheBlocks[block_index].items[i].prop;
-            cacheBlocks[block_index].items[i].prop = std::min(
-                cacheBlocks[block_index].items[i].prop,
-                cacheBlocks[block_index].items[i].tempProp);
-            DPRINTF(MPU, "%s: Applied cache line[%d][%d] = %s.\n", __func__,
-                        block_index, i,
-                        cacheBlocks[block_index].items[i].to_string());
-            if (old_prop != cacheBlocks[block_index].items[i].prop) {
-                changedMask |= (1 << i);
-                // TODO: Add a stat to count the number of changed props.
-                DPRINTF(MPU, "%s: Change observed in cache line[%d][%d].\n",
-                            __func__, block_index, i);
-            }
-        }
-
-        if (cacheBlocks[block_index].hasChange) {
-            DPRINTF(MPU, "%s: At least one item from cache line[%d] has changed.\n"
-                        , __func__, block_index);
-
-            PacketPtr write_pkt = createWritePacket(
-                cacheBlocks[block_index].addr, peerMemoryAtomSize,
-                (uint8_t*) cacheBlocks[block_index].items);
-            DPRINTF(MPU, "%s: Created a write packet to Addr: %lu, size = %d.\n",
-                        __func__, write_pkt->getAddr(), peerMemoryAtomSize);
-            enqueueMemReq(write_pkt);
-            DPRINTF(MPU, "%s: Added the evicting write back packet to "
-                        "outstandingMemReqQueue.\n" , __func__);
-
-            for (int i = 0; i < numElementsPerLine; i++) {
-                if ((changedMask & (1 << i)) == (1 << i)) {
-                    DPRINTF(ApplyUpdates, "%s: WorkListItem[%lu] = %s.\n",
-                    __func__, cacheBlocks[block_index].addr + (i * sizeof(WorkListItem)),
-                    cacheBlocks[block_index].items[i].to_string());
-                    peerPushEngine->recvWLItem(cacheBlocks[block_index].items[i]);
-                    DPRINTF(MPU, "%s: Sent cache line[%d][%d] to PushEngine.\n",
-                                                        __func__, block_index, i);
-                }
-            }
-        }
-
-        if (cacheBlocks[block_index].hasConflict) {
-            assert(!MSHRMap[block_index].empty());
-            DPRINTF(MPU, "%s: A conflict exists for cache line[%d]. There is "
-                        "enough space in outstandingMemReqQueue for a read "
-                        "packet.\n", __func__, block_index);
-            Addr miss_addr = MSHRMap[block_index][0];
-            DPRINTF(MPU, "%s: First conflicting address for cache line[%d] is"
-                        " Addr: %lu.\n", __func__, block_index, miss_addr);
-
-            Addr aligned_miss_addr =
-                std::floor(miss_addr / peerMemoryAtomSize) *
-                    peerMemoryAtomSize;
-            PacketPtr read_pkt = createReadPacket(aligned_miss_addr,
-                                                    peerMemoryAtomSize);
-            DPRINTF(MPU, "%s: Created a read packet for Addr: %lu."
-                        " req addr (aligned_addr) = %lu, size = %d.\n",
-                        __func__, miss_addr, aligned_miss_addr, peerMemoryAtomSize);
-            enqueueMemReq(read_pkt);
-            DPRINTF(MPU, "%s: Added the evicting write back packet along with "
-                        "its subsequent read packet (to service the conflicts)"
-                        " to outstandingMemReqQueue.\n" , __func__);
-
-            cacheBlocks[block_index].addr = aligned_miss_addr;
-            cacheBlocks[block_index].takenMask = 0;
-            cacheBlocks[block_index].allocated = true;
-            cacheBlocks[block_index].valid = false;
-            cacheBlocks[block_index].hasConflict = true;
-            cacheBlocks[block_index].hasChange = false;
         } else {
-            DPRINTF(MPU, "%s: No conflict exists for cache line[%d]. There is "
-                    "enough space in outstandingMemReqQueue for the write back"
-                    " packet.\n", __func__, block_index);
-            DPRINTF(MPU, "%s: Added the write back packet to "
-                        "outstandingMemReqQueue.\n", __func__);
+            if (cacheBlocks[block_index].hasChange) {
+                DPRINTF(MPU, "%s: Change observed on cache line [%d].\n",
+                            __func__, block_index);
+                PacketPtr write_pkt = createWritePacket(
+                    cacheBlocks[block_index].addr, peerMemoryAtomSize,
+                    (uint8_t*) cacheBlocks[block_index].items);
+                DPRINTF(MPU, "%s: Created a write packet to Addr: %lu, "
+                            "size = %d.\n", __func__,
+                            write_pkt->getAddr(), write_pkt->getSize());
+                enqueueMemReq(write_pkt);
+            }
 
-            // Since allocated is false, does not matter what the address is.
-            cacheBlocks[block_index].takenMask = 0;
-            cacheBlocks[block_index].allocated = false;
-            cacheBlocks[block_index].valid = false;
-            cacheBlocks[block_index].hasConflict = false;
-            cacheBlocks[block_index].hasChange = false;
+            if (cacheBlocks[block_index].hasConflict) {
+                assert(!MSHRMap[block_index].empty());
+                Addr miss_addr = MSHRMap[block_index].front();
+                DPRINTF(MPU, "%s: First conflicting address for cache line[%d]"
+                        " is Addr: %lu.\n", __func__, block_index, miss_addr);
+
+                Addr aligned_miss_addr =
+                    std::floor(miss_addr / peerMemoryAtomSize) *
+                    peerMemoryAtomSize;
+                PacketPtr read_pkt = createReadPacket(aligned_miss_addr,
+                                                        peerMemoryAtomSize);
+                DPRINTF(MPU, "%s: Created a read packet for Addr: %lu."
+                            " req addr (aligned_addr) = %lu, size = %d.\n",
+                            __func__, miss_addr,
+                            read_pkt->getAddr(), read_pkt->getSize());
+                enqueueMemReq(read_pkt);
+
+                cacheBlocks[block_index].addr = aligned_miss_addr;
+                cacheBlocks[block_index].takenMask = 0;
+                cacheBlocks[block_index].allocated = true;
+                cacheBlocks[block_index].valid = false;
+                cacheBlocks[block_index].hasConflict = true;
+                cacheBlocks[block_index].hasChange = false;
+                DPRINTF(MPU, "%s: Allocated cache line [%d] for Addr: %lu.\n",
+                            __func__, block_index, aligned_miss_addr);
+            } else {
+
+                // Since allocated is false, does not matter what the address is.
+                cacheBlocks[block_index].takenMask = 0;
+                cacheBlocks[block_index].allocated = false;
+                cacheBlocks[block_index].valid = false;
+                cacheBlocks[block_index].hasConflict = false;
+                cacheBlocks[block_index].hasChange = false;
+                DPRINTF(MPU, "%s: Deallocated cache line [%d].\n",
+                            __func__, block_index);
+            }
         }
-
-    } else {
-        DPRINTF(MPU, "%s: cache line[%d] has been read since being scheduled "
-                    "for eviction. Therefore, ignoring the evict schedule.\n",
-                    __func__, block_index);
     }
 
     evictQueue.pop_front();
-    DPRINTF(MPU, "%s: Popped an item from evictQueue. evictQueue.size "
-                        " = %u.\n", __func__, evictQueue.size());
 
-    if ((!nextApplyAndCommitEvent.scheduled()) &&
-        (!evictQueue.empty())) {
-        schedule(nextApplyAndCommitEvent, nextCycle());
+    if ((!evictQueue.empty()) &&
+        (!nextEvictEvent.scheduled())) {
+        schedule(nextEvictEvent, nextCycle());
     }
 }
 
@@ -604,7 +528,11 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
     ADD_STAT(readHitUnderMisses, statistics::units::Count::get(),
              "Number of cache hit under misses."),
     ADD_STAT(readRejections, statistics::units::Count::get(),
-             "Number of cache rejections.")
+             "Number of cache rejections."),
+    ADD_STAT(falseApplySchedules, statistics::units::Count::get(),
+             "Number of failed apply schedules."),
+    ADD_STAT(falseEvictSchedules, statistics::units::Count::get(),
+             "Number of failed evict schedules.")
 {
 }
 
