@@ -347,9 +347,8 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     cacheBlocks[block_index].takenMask &= ~(1 << wl_offset);
     DPRINTF(MPU, "%s: Wrote to cache line[%d] = %s.\n", __func__, block_index,
                 cacheBlocks[block_index].items[wl_offset].to_string());
+
     // TODO: Make this more general and programmable.
-    // TODO: Later on check (cacheBlocks[block_index].hasConflict) to add
-    // to evictQueue.
     if ((cacheBlocks[block_index].takenMask == 0)) {
         DPRINTF(MPU, "%s: Received all the expected writes for cache line[%d]."
                     " It does not have any taken items anymore.\n",
@@ -359,6 +358,7 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
         for (auto i : evictQueue) {
             if (i == block_index) {
                 found = true;
+                break;
             }
         }
         if (!found) {
@@ -374,6 +374,76 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
         schedule(nextApplyAndCommitEvent, nextCycle());
     }
 
+}
+
+void
+CoalesceEngine::processNextApplyEvent()
+{
+    int block_index = applyQueue.front();
+
+    if (cacheBlocks[block_index].takenMask) {
+        DPRINTF(MPU, "%s: cache line [%d] has been taken amid apply process. "
+                    "Therefore, ignoring the apply schedule.\n",
+                    __func__, block_index);
+        stats.falseApplySchedules++;
+    } else if (!cacheBlocks[block_index].hasChange) {
+        DPRINTF(MPU, "%s: cache line [%d] has no change. Therefore, no apply "
+                    "needed. Adding the cache line to evict schedule.\n",
+                    __func__, block_index);
+        evictQueue.push_back(block_index);
+    } else {
+        for (int i = 0; i < numElementsPerLine; i++) {
+            uint32_t old_prop = cacheBlocks[block_index].items[i].prop;
+            cacheBlocks[block_index].items[i].prop = std::min(
+                                cacheBlocks[block_index].items[i].prop,
+                                cacheBlocks[block_index].items[i].tempProp);
+            // TODO: Is this correct?
+            cacheBlocks[block_index].items[i].tempProp = cacheBlocks[block_index].items[i].prop;
+
+            if (cacheBlocks[block_index].items[i].prop != old_prop) {
+                if (peerPushEngine->recvWLItem(
+                    cacheBlocks[block_index].items[i])) {
+                    DPRINTF(MPU, "%s: Sent WorkListItem [%d] to PushEngine.\n",
+                    __func__,
+                    cacheBlocks[block_index].addr + i * sizeof(WorkListItem));
+                } else {
+                    // peerPushEngine->setPushAlarm();
+                    // pendingPushAlarm = true;
+                    return;
+                }
+            }
+        }
+        // TODO: This is where eviction policy goes
+        evictQueue.push_back(block_index);
+    }
+
+    applyQueue.pop_front();
+
+    if ((!evictQueue.empty()) &&
+        (!pendingAlarm()) &&
+        (!nextEvictEvent.scheduled())) {
+        schedule(nextEvictEvent, nextCycle());
+    }
+
+    if ((!applyQueue.empty()) &&
+        (!nextApplyEvent.scheduled())) {
+        schedule(nextApplyEvent, nextCycle());
+    }
+}
+
+void
+CoalesceEngine::processNextEvictEvent()
+{
+    int block_index = evictQueue.front();
+
+    if (cacheBlocks[block_index].takenMask) {
+        DPRINTF(MPU, "%s: cache line [%d] has been taken amid evict process. "
+                    "Therefore, ignoring the apply schedule.\n",
+                    __func__, block_index);
+        stats.falseEvictSchedules++;
+    } else {
+        int space_needed = cacheBlocks
+    }
 }
 
 void
