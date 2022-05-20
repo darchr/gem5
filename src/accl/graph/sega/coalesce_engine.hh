@@ -49,21 +49,21 @@ class CoalesceEngine : public BaseMemEngine
     {
         WorkListItem* items;
         Addr addr;
-        uint8_t takenMask;
+        uint8_t busyMask;
         bool allocated;
         bool valid;
         bool hasConflict;
-        bool hasChange;
+        bool dirty;
         // TODO: This might be useful in the future
         // Tick lastWLWriteTick;
         Block() {}
         Block(int num_elements):
           addr(0),
-          takenMask(0),
+          busyMask(0),
           allocated(false),
           valid(false),
           hasConflict(false),
-          hasChange(false)
+          dirty(false)
         {
           items = new WorkListItem [num_elements];
         }
@@ -83,6 +83,7 @@ class CoalesceEngine : public BaseMemEngine
 
     std::deque<std::tuple<Addr, WorkListItem>> responseQueue;
 
+    bool pendingPushAlarm;
     std::deque<int> applyQueue;
 
     std::deque<int> evictQueue;
@@ -117,7 +118,7 @@ class CoalesceEngine : public BaseMemEngine
     CoalesceStats stats;
 
   protected:
-    virtual void respondToAlarm();
+    virtual void respondToMemAlarm();
     virtual bool handleMemResp(PacketPtr pkt);
 
   public:
@@ -131,6 +132,8 @@ class CoalesceEngine : public BaseMemEngine
     void recvWLWrite(Addr addr, WorkListItem wl);
 
     void registerWLEngine(WLEngine* wl_engine);
+
+    void respondToPushAlarm();
 };
 
 }

@@ -28,6 +28,7 @@
 
 #include "accl/graph/sega/push_engine.hh"
 
+#include "accl/graph/sega/coalesce_engine.hh"
 #include "debug/MPU.hh"
 #include "mem/packet_access.hh"
 
@@ -36,6 +37,7 @@ namespace gem5
 
 PushEngine::PushEngine(const PushEngineParams &params):
     BaseMemEngine(params),
+    pushAlarmSet(false),
     reqPort(name() + ".req_port", this),
     baseEdgeAddr(params.base_edge_addr),
     pushReqQueueSize(params.push_req_queue_size),
@@ -54,6 +56,12 @@ PushEngine::getPort(const std::string &if_name, PortID idx)
     } else {
         return SimObject::getPort(if_name, idx);
     }
+}
+
+void
+PushEngine::registerCoalesceEngine(CoalesceEngine* coalesce_engine)
+{
+    peerCoalesceEngine = coalesce_engine;
 }
 
 void
@@ -146,11 +154,15 @@ PushEngine::processNextAddrGenEvent()
         DPRINTF(MPU, "%s: Popped curr_info from pushReqQueue. "
                     "pushReqQueue.size() = %u.\n",
                     __func__, pushReqQueue.size());
+        if (pushAlarmSet && (pushReqQueue.size() == pushReqQueueSize - 1)) {
+            pushAlarmSet = false;
+            peerCoalesceEngine->respondToPushAlarm();
+        }
     }
 
     if (memReqQueueFull()) {
         if (!pushReqQueue.empty()) {
-            requestAlarm(1);
+            requestMemAlarm(1);
         }
         return;
     }
@@ -161,7 +173,7 @@ PushEngine::processNextAddrGenEvent()
 }
 
 void
-PushEngine::respondToAlarm()
+PushEngine::respondToMemAlarm()
 {
     assert(!nextAddrGenEvent.scheduled());
     schedule(nextAddrGenEvent, nextCycle());
@@ -200,9 +212,6 @@ PushEngine::processNextPushEvent()
 
     // TODO: Implement propagate function here
     uint32_t update_value = value + 1;
-    DPRINTF(MPU, "%s: Sending an update to %lu with value: %d.\n",
-            __func__, curr_edge->neighbor, update_value);
-
     PacketPtr update = createUpdatePacket<uint32_t>(
                             curr_edge->neighbor, update_value);
 
@@ -247,6 +256,13 @@ PushEngine::createUpdatePacket(Addr addr, T value)
     pkt->setLE<T>(value);
 
     return pkt;
+}
+
+void
+PushEngine::setPushAlarm()
+{
+    assert(!pushAlarmSet);
+    pushAlarmSet = true;
 }
 
 PushEngine::PushStats::PushStats(PushEngine &_push)
