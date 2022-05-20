@@ -37,7 +37,6 @@ namespace gem5
 WLEngine::WLEngine(const WLEngineParams &params):
     BaseReduceEngine(params),
     respPort(name() + ".resp_port", this),
-    blockedByCoalescer(false),
     coalesceEngine(params.coalesce_engine),
     updateQueueSize(params.update_queue_size),
     onTheFlyUpdateMapSize(params.on_the_fly_update_map_size),

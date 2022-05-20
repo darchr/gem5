@@ -69,8 +69,8 @@ class BaseMemEngine : public ClockedObject
     MemPort memPort;
 
     int outstandingMemReqQueueSize;
-    bool alarmRequested;
-    int spaceRequested;
+    bool memAlarmRequested;
+    int memSpaceRequested;
     std::deque<PacketPtr> outstandingMemReqQueue;
 
     EventFunctionWrapper nextMemReqEvent;
@@ -81,15 +81,16 @@ class BaseMemEngine : public ClockedObject
 
     size_t peerMemoryAtomSize;
 
-    void sendMemFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }
-
-    bool memReqQueueHasSpace(int space);
+    bool allocateMemReqSpace(int space);
     bool memReqQueueFull();
-    void enqueueMemReq(PacketPtr pkt);
-    bool pendingAlarm() { return alarmRequested; }
-    void requestAlarm(int space);
 
-    virtual void respondToAlarm() = 0;
+    bool pendingMemAlarm() { return memAlarmRequested; }
+    void requestMemAlarm(int space);
+
+    void sendMemFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }
+    void enqueueMemReq(PacketPtr pkt);
+
+    virtual void respondToMemAlarm() = 0;
     virtual bool handleMemResp(PacketPtr pkt) = 0;
 
     PacketPtr createReadPacket(Addr addr, unsigned int size);
