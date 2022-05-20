@@ -1526,12 +1526,9 @@ decode QUADRANT default Unknown::unknown() {
                 }});
             }
             0x2: decode VFUNC_6 { // OPMVV
-                0x0: VectorSingleWidthIntegerReductionOp::vredsum_vs({{
-                    if (vs2RegID == 0 && vs2RegElemID == 0) {
-                        Vd0[0] = Vs1_0[0] + Vs2_vc[0];
-                    } else {
-                        Vd0[0] += Vs2_vc[vs2RegElemID];
-                    }
+                0x0: VectorSameElementWidthIntegerReductionMacroOp::vredsum_vs({{
+                    [[maybe_unused]] bool something = Vs1_vc[0] == 0; // make isa_parser happy
+                    Vd_vc[0] += Vs2_vc[regElemID];
                 }});
                 0x10: VectorVWXUNARY0Op::vmv_xs({{
                     Rd_ud = Vs2_vc[0];

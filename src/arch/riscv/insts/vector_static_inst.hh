@@ -96,12 +96,12 @@ class VectorMicroInst: public RiscvMicroInst, public VectorInstFormat
     }
 };
 
-class VectorSameWidthMicroInst: public VectorMicroInst
+class VectorSameElementWidthMicroInst: public VectorMicroInst
 {
   protected:
     uint64_t sew;
   public:
-    VectorSameWidthMicroInst(
+    VectorSameElementWidthMicroInst(
       const char *mnem, ExtMachInst _machInst, OpClass __opClass,
       uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
       uint64_t sew, uint64_t mask_policy, uint64_t tail_policy):
@@ -120,6 +120,7 @@ class VectorMacroInst: public RiscvMacroInst, public VectorInstFormat
     uint32_t vl;
     int vlen;
   public:
+    //using RiscvMacroInst::RiscvMacroInst;
     VectorMacroInst(const char *mnem, ExtMachInst _machInst,
         OpClass __opClass, RiscvISA::VTYPE vtype, uint32_t vl, int vlen)
         : RiscvMacroInst(mnem, _machInst, __opClass),
@@ -162,39 +163,6 @@ public:
   ~VectorInsn() {}
 
   std::string getName() const  override { return mnemo; }
-
-  std::string regName(RegIndex reg) const;
-
-  RegIndex rs1()             const { return (RegIndex)bits(machInst, 19, 15); }
-  RegIndex rs2()             const { return (RegIndex)bits(machInst, 24, 20); }
-  RegIndex rd()              const { return (RegIndex)bits(machInst, 11,  7); }
-
-  RegIndex vs1()             const { return (RegIndex)bits(machInst, 19, 15); }
-  RegIndex vs2()             const { return (RegIndex)bits(machInst, 24, 20); }
-  RegIndex vs3()             const { return (RegIndex)bits(machInst, 11, 7); }
-  RegIndex vd()              const { return (RegIndex)bits(machInst, 11, 7); }
-
-  bool vm()                  const { return bits(machInst, 25, 25); }
-
-  uint32_t vtypei()          const { return (bits(machInst, 31, 31) == 0) ? bits(machInst, 30, 20) : bits(machInst, 29, 20); }
-
-  uint8_t uimm5()            const { return bits(machInst, 19, 15); }
-
-  const RiscvISA::ExtMachInst machInst;
-
-private:
-  const char *mnemo;
-};
-
-class VectorInstPrinter
-{
-public:
-  VectorInstPrinter(const char *mnem, MachInst _machInst, OpClass __opClass):
-      machInst(_machInst),
-      mnemo(mnem){}
-  ~VectorInstPrinter() {}
-
-  std::string getName() const { return mnemo; }
 
   std::string regName(RegIndex reg) const;
 
