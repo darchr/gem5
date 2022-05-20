@@ -69,7 +69,6 @@ class WLEngine : public BaseReduceEngine
 
     RespPort respPort;
 
-    bool blockedByCoalescer;
     CoalesceEngine* coalesceEngine;
 
     int updateQueueSize;

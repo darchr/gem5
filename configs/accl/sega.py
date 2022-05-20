@@ -9,7 +9,7 @@ class MPU(SubSystem):
     def __init__(self, base_edge_addr):
         super(MPU, self).__init__()
         self.push_engine = PushEngine(base_edge_addr=base_edge_addr,
-                                    push_req_queue_size=0,
+                                    push_req_queue_size=16,
                                     attached_memory_atom_size=64)
         self.coalesce_engine = CoalesceEngine(
                                     peer_push_engine=self.push_engine,

@@ -36,6 +36,8 @@
 namespace gem5
 {
 
+class CoalesceEngine;
+
 class PushEngine : public BaseMemEngine
 {
   private:
@@ -95,6 +97,9 @@ class PushEngine : public BaseMemEngine
         virtual void recvReqRetry();
     };
 
+    bool pushAlarmSet;
+    CoalesceEngine* peerCoalesceEngine;
+
     ReqPort reqPort;
 
     Addr baseEdgeAddr;
@@ -134,7 +139,7 @@ class PushEngine : public BaseMemEngine
     PushStats stats;
 
   protected:
-    virtual void respondToAlarm();
+    virtual void respondToMemAlarm();
     virtual bool handleMemResp(PacketPtr pkt);
 
   public:
@@ -145,6 +150,10 @@ class PushEngine : public BaseMemEngine
                 PortID idx=InvalidPortID) override;
 
     bool recvWLItem(WorkListItem wl);
+
+    void registerCoalesceEngine(CoalesceEngine* coalesce_engine);
+
+    void setPushAlarm();
 };
 
 }

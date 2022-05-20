@@ -37,8 +37,8 @@ BaseMemEngine::BaseMemEngine(const BaseMemEngineParams &params):
     system(params.system),
     memPort(name() + ".mem_port", this),
     outstandingMemReqQueueSize(params.outstanding_mem_req_queue_size),
-    alarmRequested(false),
-    spaceRequested(0),
+    memAlarmRequested(false),
+    memSpaceRequested(0),
     nextMemReqEvent([this] { processNextMemReqEvent(); }, name()),
     _requestorId(system->getRequestorId(this)),
     peerMemoryAtomSize(params.attached_memory_atom_size)
@@ -106,12 +106,12 @@ BaseMemEngine::processNextMemReqEvent()
                 __func__, pkt->getAddr(), pkt->getSize());
     outstandingMemReqQueue.pop_front();
 
-    if (alarmRequested &&
+    if (memAlarmRequested &&
         (outstandingMemReqQueue.size() <=
-        (outstandingMemReqQueueSize - spaceRequested))) {
-        alarmRequested = false;
-        spaceRequested = 0;
-        respondToAlarm();
+        (outstandingMemReqQueueSize - memSpaceRequested))) {
+        memAlarmRequested = false;
+        memSpaceRequested = 0;
+        respondToMemAlarm();
     }
 
     if ((!outstandingMemReqQueue.empty()) && (!nextMemReqEvent.scheduled())) {
@@ -151,7 +151,7 @@ BaseMemEngine::createWritePacket(Addr addr, unsigned int size, uint8_t* data)
 }
 
 bool
-BaseMemEngine::memReqQueueHasSpace(int space)
+BaseMemEngine::allocateMemReqSpace(int space)
 {
     assert(outstandingMemReqQueue.size() <= outstandingMemReqQueueSize);
     return (
@@ -179,13 +179,13 @@ BaseMemEngine::enqueueMemReq(PacketPtr pkt)
 }
 
 void
-BaseMemEngine::requestAlarm(int space) {
-    panic_if((alarmRequested == true) || (spaceRequested != 0),
+BaseMemEngine::requestMemAlarm(int space) {
+    panic_if((memAlarmRequested == true) || (memSpaceRequested != 0),
             "You should not request another alarm without the first one being"
             "responded to.\n");
     DPRINTF(MPU, "%s: Alarm requested with space = %d.\n", __func__, space);
-    alarmRequested = true;
-    spaceRequested = space;
+    memAlarmRequested = true;
+    memSpaceRequested = space;
 }
 
 void
