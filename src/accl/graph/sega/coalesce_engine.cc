@@ -44,6 +44,7 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
     numMSHREntry(params.num_mshr_entry),
     numTgtsPerMSHR(params.num_tgts_per_mshr),
+    pendingPushAlarm(false),
     nextRespondEvent([this] { processNextRespondEvent(); }, name()),
     nextApplyEvent([this] { processNextApplyEvent(); }, name()),
     nextEvictEvent([this] { processNextEvictEvent(); }, name()),
@@ -54,6 +55,7 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     for (int i = 0; i < numLines; i++) {
         cacheBlocks[i] = Block(numElementsPerLine);
     }
+    peerPushEngine->registerCoalesceEngine(this);
 }
 
 void
@@ -91,10 +93,11 @@ CoalesceEngine::recvReadAddr(Addr addr)
                     cacheBlocks[block_index].items[wl_offset]));
         DPRINTF(MPU, "%s: Addr: %lu is a hit. Pushed cacheBlocks[%d][%d]: %s "
             "to responseQueue. responseQueue.size = %d.\n",
-            __func__, addr, block_index, wl_offset, responseQueue.size(),
-            cacheBlocks[block_index].items[wl_offset].to_string());
+            __func__, addr, block_index, wl_offset,
+            cacheBlocks[block_index].items[wl_offset].to_string(),
+            responseQueue.size());
         // TODO: Add a stat to count the number of WLItems that have been touched.
-        cacheBlocks[block_index].takenMask |= (1 << wl_offset);
+        cacheBlocks[block_index].busyMask |= (1 << wl_offset);
         stats.readHits++;
 
         assert(!responseQueue.empty());
@@ -156,7 +159,7 @@ CoalesceEngine::recvReadAddr(Addr addr)
                         return false;
                     }
                     cacheBlocks[block_index].addr = aligned_addr;
-                    cacheBlocks[block_index].takenMask = 0;
+                    cacheBlocks[block_index].busyMask = 0;
                     cacheBlocks[block_index].allocated = true;
                     cacheBlocks[block_index].valid = false;
                     cacheBlocks[block_index].hasConflict = false;
@@ -236,9 +239,9 @@ CoalesceEngine::processNextRespondEvent()
 }
 
 void
-CoalesceEngine::respondToAlarm()
+CoalesceEngine::respondToMemAlarm()
 {
-    assert(pendingAlarm() && (!nextEvictEvent.scheduled()));
+    assert(pendingMemAlarm() && (!nextEvictEvent.scheduled()));
     schedule(nextEvictEvent, nextCycle());
 }
 
@@ -290,7 +293,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                     , __func__, block_index, wl_offset,
                     responseQueue.size());
             // TODO: Add a stat to count the number of WLItems that have been touched.
-            cacheBlocks[block_index].takenMask |= (1 << wl_offset);
+            cacheBlocks[block_index].busyMask |= (1 << wl_offset);
             // End of the said block
 
             servicedIndices.push_back(i);
@@ -336,27 +339,27 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 
     DPRINTF(MPU, "%s: Received a write for WorkListItem: %s with Addr: %lu.\n",
                 __func__, wl.to_string(), addr);
-    assert((cacheBlocks[block_index].takenMask & (1 << wl_offset)) ==
+    assert((cacheBlocks[block_index].busyMask & (1 << wl_offset)) ==
             (1 << wl_offset));
 
     if (cacheBlocks[block_index].items[wl_offset].tempProp != wl.tempProp) {
-        cacheBlocks[block_index].hasChange = true;
+        cacheBlocks[block_index].dirty = true;
         stats.numVertexWrites++;
     }
 
     cacheBlocks[block_index].items[wl_offset] = wl;
-    cacheBlocks[block_index].takenMask &= ~(1 << wl_offset);
+    cacheBlocks[block_index].busyMask &= ~(1 << wl_offset);
     DPRINTF(MPU, "%s: Wrote to cache line[%d] = %s.\n", __func__, block_index,
                 cacheBlocks[block_index].items[wl_offset].to_string());
 
     // TODO: Make this more general and programmable.
-    if ((cacheBlocks[block_index].takenMask == 0)) {
+    if ((cacheBlocks[block_index].busyMask == 0)) {
         DPRINTF(MPU, "%s: Received all the expected writes for cache line[%d]."
                     " It does not have any taken items anymore.\n",
                     __func__, block_index);
         // TODO: Fix this hack
         bool found = false;
-        for (auto i : evictQueue) {
+        for (auto i : applyQueue) {
             if (i == block_index) {
                 found = true;
                 break;
@@ -364,12 +367,13 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
         }
         if (!found) {
             applyQueue.push_back(block_index);
+            DPRINTF(MPU, "%s: Added %d to applyQueue. applyQueue.size = %u.\n",
+                    __func__, block_index, applyQueue.size());
         }
-        DPRINTF(MPU, "%s: Added %d to evictQueue. evictQueue.size = %u.\n",
-                    __func__, block_index, evictQueue.size());
     }
 
     if ((!applyQueue.empty()) &&
+        (!pendingPushAlarm) &&
         (!nextApplyEvent.scheduled())) {
         schedule(nextApplyEvent, nextCycle());
     }
@@ -381,16 +385,27 @@ CoalesceEngine::processNextApplyEvent()
 {
     int block_index = applyQueue.front();
 
-    if (cacheBlocks[block_index].takenMask) {
+    if (cacheBlocks[block_index].busyMask) {
         DPRINTF(MPU, "%s: cache line [%d] has been taken amid apply process. "
                     "Therefore, ignoring the apply schedule.\n",
                     __func__, block_index);
         stats.falseApplySchedules++;
-    } else if (!cacheBlocks[block_index].hasChange) {
+    } else if (!cacheBlocks[block_index].dirty) {
         DPRINTF(MPU, "%s: cache line [%d] has no change. Therefore, no apply "
                     "needed. Adding the cache line to evict schedule.\n",
                     __func__, block_index);
-        evictQueue.push_back(block_index);
+        bool found = false;
+        for (auto i : evictQueue) {
+            if (i == block_index) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            evictQueue.push_back(block_index);
+            DPRINTF(MPU, "%s: Added %d to evictQueue. evictQueue.size = %u.\n",
+                    __func__, block_index, evictQueue.size());
+        }
     } else {
         for (int i = 0; i < numElementsPerLine; i++) {
             uint32_t old_prop = cacheBlocks[block_index].items[i].prop;
@@ -407,20 +422,32 @@ CoalesceEngine::processNextApplyEvent()
                     __func__,
                     cacheBlocks[block_index].addr + i * sizeof(WorkListItem));
                 } else {
-                    // peerPushEngine->setPushAlarm();
-                    // pendingPushAlarm = true;
+                    peerPushEngine->setPushAlarm();
+                    pendingPushAlarm = true;
                     return;
                 }
             }
         }
         // TODO: This is where eviction policy goes
-        evictQueue.push_back(block_index);
+        // TODO: Fix this hack.
+        bool found = false;
+        for (auto i : evictQueue) {
+            if (i == block_index) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            evictQueue.push_back(block_index);
+            DPRINTF(MPU, "%s: Added %d to evictQueue. evictQueue.size = %u.\n",
+                    __func__, block_index, evictQueue.size());
+        }
     }
 
     applyQueue.pop_front();
 
     if ((!evictQueue.empty()) &&
-        (!pendingAlarm()) &&
+        (!pendingMemAlarm()) &&
         (!nextEvictEvent.scheduled())) {
         schedule(nextEvictEvent, nextCycle());
     }
@@ -436,25 +463,33 @@ CoalesceEngine::processNextEvictEvent()
 {
     int block_index = evictQueue.front();
 
-    if (cacheBlocks[block_index].takenMask) {
+    bool found_in_apply_queue = false;
+    for (auto i : applyQueue) {
+        if (i == block_index) {
+            found_in_apply_queue = true;
+            break;
+        }
+    }
+    if ((cacheBlocks[block_index].busyMask) ||
+        (found_in_apply_queue)) {
         DPRINTF(MPU, "%s: cache line [%d] has been taken amid evict process. "
                     "Therefore, ignoring the apply schedule.\n",
                     __func__, block_index);
         stats.falseEvictSchedules++;
     } else {
-        int space_needed = cacheBlocks[block_index].hasChange ?
+        int space_needed = cacheBlocks[block_index].dirty ?
                         (cacheBlocks[block_index].hasConflict ? 2 : 1) :
                         (cacheBlocks[block_index].hasConflict ? 1 : 0);
-        if (!memReqQueueHasSpace(space_needed)) {
+        if (!allocateMemReqSpace(space_needed)) {
             DPRINTF(MPU, "%s: There is not enough space in memReqQueue to "
-                    "procees the eviction of cache line [%d]. hasChange: %d, "
+                    "procees the eviction of cache line [%d]. dirty: %d, "
                     "hasConflict: %d.\n", __func__, block_index,
-                    cacheBlocks[block_index].hasChange,
+                    cacheBlocks[block_index].dirty,
                     cacheBlocks[block_index].hasConflict);
-            requestAlarm(space_needed);
+            requestMemAlarm(space_needed);
             return;
         } else {
-            if (cacheBlocks[block_index].hasChange) {
+            if (cacheBlocks[block_index].dirty) {
                 DPRINTF(MPU, "%s: Change observed on cache line [%d].\n",
                             __func__, block_index);
                 PacketPtr write_pkt = createWritePacket(
@@ -484,21 +519,21 @@ CoalesceEngine::processNextEvictEvent()
                 enqueueMemReq(read_pkt);
 
                 cacheBlocks[block_index].addr = aligned_miss_addr;
-                cacheBlocks[block_index].takenMask = 0;
+                cacheBlocks[block_index].busyMask = 0;
                 cacheBlocks[block_index].allocated = true;
                 cacheBlocks[block_index].valid = false;
                 cacheBlocks[block_index].hasConflict = true;
-                cacheBlocks[block_index].hasChange = false;
+                cacheBlocks[block_index].dirty = false;
                 DPRINTF(MPU, "%s: Allocated cache line [%d] for Addr: %lu.\n",
                             __func__, block_index, aligned_miss_addr);
             } else {
 
                 // Since allocated is false, does not matter what the address is.
-                cacheBlocks[block_index].takenMask = 0;
+                cacheBlocks[block_index].busyMask = 0;
                 cacheBlocks[block_index].allocated = false;
                 cacheBlocks[block_index].valid = false;
                 cacheBlocks[block_index].hasConflict = false;
-                cacheBlocks[block_index].hasChange = false;
+                cacheBlocks[block_index].dirty = false;
                 DPRINTF(MPU, "%s: Deallocated cache line [%d].\n",
                             __func__, block_index);
             }
@@ -511,6 +546,14 @@ CoalesceEngine::processNextEvictEvent()
         (!nextEvictEvent.scheduled())) {
         schedule(nextEvictEvent, nextCycle());
     }
+}
+
+void
+CoalesceEngine::respondToPushAlarm()
+{
+    assert(pendingPushAlarm && (!nextApplyEvent.scheduled()));
+    pendingPushAlarm = false;
+    schedule(nextApplyEvent, nextCycle());
 }
 
 CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
