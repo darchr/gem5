@@ -97,7 +97,7 @@ PushEngine::ReqPort::recvReqRetry()
     }
 }
 
-bool
+void
 PushEngine::recvWLItem(WorkListItem wl)
 {
     // If there are no outdoing edges, no need to generate and push
@@ -105,14 +105,14 @@ PushEngine::recvWLItem(WorkListItem wl)
     if (wl.degree == 0) {
         DPRINTF(MPU, "%s: Received a leaf. Respective information: %s.\n",
                     __func__, wl.to_string());
-        return true;
+        return;
     }
 
     assert((pushReqQueueSize == 0) ||
-        (pushReqQueue.size() <= pushReqQueueSize));
-    if ((pushReqQueueSize != 0) && (pushReqQueue.size() == pushReqQueueSize)) {
-        return false;
-    }
+        (pushReqQueue.size() < pushReqQueueSize));
+    panic_if(pushReqQueue.size() == pushReqQueueSize, "You should call this "
+                "method after checking if there is enough push space. Use "
+                "allocatePushSpace.\n");
 
     Addr start_addr = baseEdgeAddr + (wl.edgeIndex * sizeof(Edge));
     Addr end_addr = start_addr + (wl.degree * sizeof(Edge));
@@ -125,7 +125,6 @@ PushEngine::recvWLItem(WorkListItem wl)
         (!memReqQueueFull())) {
         schedule(nextAddrGenEvent, nextCycle());
     }
-    return true;
 }
 
 void

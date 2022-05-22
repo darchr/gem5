@@ -149,7 +149,8 @@ class PushEngine : public BaseMemEngine
     Port& getPort(const std::string &if_name,
                 PortID idx=InvalidPortID) override;
 
-    bool recvWLItem(WorkListItem wl);
+    bool allocatePushSpace() { return pushReqQueue.size() < pushReqQueueSize; }
+    void recvWLItem(WorkListItem wl);
 
     void registerCoalesceEngine(CoalesceEngine* coalesce_engine);
 
