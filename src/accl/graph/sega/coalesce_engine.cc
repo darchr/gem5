@@ -349,7 +349,8 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 
     cacheBlocks[block_index].items[wl_offset] = wl;
     cacheBlocks[block_index].busyMask &= ~(1 << wl_offset);
-    DPRINTF(MPU, "%s: Wrote to cache line[%d] = %s.\n", __func__, block_index,
+    DPRINTF(MPU, "%s: Wrote to cache line[%d][%d] = %s.\n",
+                __func__, block_index, wl_offset,
                 cacheBlocks[block_index].items[wl_offset].to_string());
 
     // TODO: Make this more general and programmable.
@@ -409,15 +410,20 @@ CoalesceEngine::processNextApplyEvent()
     } else {
         for (int i = 0; i < numElementsPerLine; i++) {
             uint32_t old_prop = cacheBlocks[block_index].items[i].prop;
-            cacheBlocks[block_index].items[i].prop = std::min(
+            uint32_t new_prop = std::min(
                                 cacheBlocks[block_index].items[i].prop,
                                 cacheBlocks[block_index].items[i].tempProp);
-            // TODO: Is this correct?
-            cacheBlocks[block_index].items[i].tempProp = cacheBlocks[block_index].items[i].prop;
 
-            if (cacheBlocks[block_index].items[i].prop != old_prop) {
-                if (peerPushEngine->recvWLItem(
-                    cacheBlocks[block_index].items[i])) {
+            if (new_prop != old_prop) {
+                if (peerPushEngine->allocatePushSpace()) {
+                    cacheBlocks[block_index].items[i].tempProp = new_prop;
+                    cacheBlocks[block_index].items[i].prop = new_prop;
+                    DPRINTF(ApplyUpdates, "%s: WorkListItem[%lu]: %s.\n",
+                    __func__,
+                    cacheBlocks[block_index].addr + (i  * sizeof(WorkListItem)),
+                    cacheBlocks[block_index].items[i].to_string());
+                    peerPushEngine->recvWLItem(
+                                        cacheBlocks[block_index].items[i]);
                     DPRINTF(MPU, "%s: Sent WorkListItem [%d] to PushEngine.\n",
                     __func__,
                     cacheBlocks[block_index].addr + i * sizeof(WorkListItem));
