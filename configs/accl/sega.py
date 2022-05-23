@@ -9,7 +9,7 @@ class MPU(SubSystem):
     def __init__(self, base_edge_addr):
         super(MPU, self).__init__()
         self.push_engine = PushEngine(base_edge_addr=base_edge_addr,
-                                    push_req_queue_size=16,
+                                    push_req_queue_size=64,
                                     attached_memory_atom_size=64)
         self.coalesce_engine = CoalesceEngine(
                                     peer_push_engine=self.push_engine,
@@ -109,7 +109,12 @@ class MPUMemory(SubSystem):
         self.edge_mem_ctrl[i].port = port
 
 class SEGA(System):
-    def __init__(self, num_mpus, vertex_cache_line_size, graph_path):
+    def __init__(self,
+                num_mpus,
+                vertex_cache_line_size,
+                graph_path,
+                first_addr,
+                first_value):
         super(SEGA, self).__init__()
         self.clk_domain = SrcClockDomain()
         self.clk_domain.clock = '1GHz'
@@ -122,7 +127,7 @@ class SEGA(System):
                                             response_latency=1,
                                             width=64)
 
-        self.ctrl = CenteralController(addr=0, value=0,
+        self.ctrl = CenteralController(addr=first_addr, value=first_value,
                                     image_file=f"{graph_path}/vertices")
         self.ctrl.req_port = self.interconnect.cpu_side_ports
 
@@ -147,13 +152,19 @@ def get_inputs():
     argparser.add_argument("num_mpus", type=int)
     argparser.add_argument("vertex_cache_line_size", type=int)
     argparser.add_argument("graph_path", type=str)
+    argparser.add_argument("init_addr", type=int)
+    argparser.add_argument("init_value", type=int)
     args = argparser.parse_args()
-    return args.num_mpus, args.vertex_cache_line_size, args.graph_path
+    return args.num_mpus, args.vertex_cache_line_size, \
+            args.graph_path, args.init_addr, args.init_value
 
 if __name__ == "__m5_main__":
-    num_mpus, vertex_cache_line_size, graph_path = get_inputs()
+    num_mpus, vertex_cache_line_size, \
+        graph_path, first_addr, first_value = get_inputs()
+
     print(f"Creating a system with {num_mpus} mpu(s) and graph {graph_path}")
-    system = SEGA(num_mpus, vertex_cache_line_size, graph_path)
+    system = SEGA(num_mpus, vertex_cache_line_size, \
+                graph_path, first_addr, first_value)
     root = Root(full_system = False, system = system)
 
     m5.instantiate()

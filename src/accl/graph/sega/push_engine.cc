@@ -176,7 +176,6 @@ PushEngine::respondToMemAlarm()
 {
     assert(!nextAddrGenEvent.scheduled());
     schedule(nextAddrGenEvent, nextCycle());
-    DPRINTF(MPU, "%s: Responded to an alarm.\n", __func__);
 }
 
 bool
