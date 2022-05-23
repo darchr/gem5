@@ -241,7 +241,7 @@ CoalesceEngine::processNextRespondEvent()
 void
 CoalesceEngine::respondToMemAlarm()
 {
-    assert(pendingMemAlarm() && (!nextEvictEvent.scheduled()));
+    assert(!nextEvictEvent.scheduled());
     schedule(nextEvictEvent, nextCycle());
 }
 
