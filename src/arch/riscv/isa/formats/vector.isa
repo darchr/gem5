@@ -1580,6 +1580,214 @@ def format VectorOPIVIOp(code, *opt_flags) {{
 
 // --- End of OPIVI
 
+// --- Start of OPIVI
+
+def template VectorOPIVIMacroOpConstructor {{
+    %(class_name)s::%(class_name)s(MachInst machInst, RiscvISA::VTYPE machVtype, uint32_t machVl, int vlen)
+        : %(base_class)s("%(mnemonic)s", machInst, VectorOPIVIMacroClass, machVtype, machVl, vlen)
+    {
+        // Example:
+        // vadd.vi        31..26=0x00 vm vs2 simm5 14..12=0x3 vd 6..0=0x57
+        
+        //_numVecSrcRegs = _numTypedDestRegs[VecRegClass] =
+        //    ceil((float) machVl / (VecRegSizeBytes / sewb));
+        //assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
+        //assert((VS2 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
+
+        auto sew = getSew(machVtype.vsew);
+        uint32_t num_elements_per_regs = vlen / sew;
+        uint32_t element_count = machVl;
+
+        auto num_vregs = vlmulToNumRegs(machVtype.vlmul);
+
+        for (uint32_t reg_id_offset = 0; reg_id_offset < num_vregs; reg_id_offset++)
+        {
+            StaticInstPtr uop = new %(class_name)sMicro(machInst, machVtype, machVl,
+                VD+reg_id_offset, VS2+reg_id_offset, VM, reg_id_offset*num_elements_per_regs, num_elements_per_regs,
+                (element_count < num_elements_per_regs) ? element_count : num_elements_per_regs,
+                sew, (uint64_t)machVtype.vma, (uint64_t)machVtype.vta);
+            element_count = (element_count >= num_elements_per_regs) ? (element_count - num_elements_per_regs) : 0;
+            microops.push_back(std::move(uop));
+        }
+
+        microops.front()->setFlag(IsFirstMicroop);
+        microops.back()->setFlag(IsLastMicroop);
+
+        flags[IsVector] = true;
+    }
+}};
+
+def template VectorOPIVIMicroOpConstructor {{
+    %(class_name)s::%(class_name)sMicro::%(class_name)sMicro(MachInst machInst,
+        RiscvISA::VTYPE machVtype, uint32_t machVl,
+        uint64_t vdRegID, uint64_t vs2RegID,
+        uint64_t vmRegID, uint64_t mask_offset,
+        uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+        uint64_t sew, uint64_t mask_policy, uint64_t tail_policy)
+        : %(base_class)s("%(mnemonic)s", machInst, VectorVdVs2Vs1OpClass,
+            vdRegID, vs2RegID, vmRegID, mask_offset,
+            num_elements_per_regs, num_non_tail_elements,
+            sew, mask_policy, tail_policy)
+    {
+        %(set_reg_idx_arr)s;
+
+        // Example:
+        // vadd.vv         31..26=0x00 vm vs2 vs1 14..12=0x0 vd 6..0=0x57
+        // vreg[vdRegID] = vreg[vs1RegID] + vreg[vs2RegID]
+
+        // Set register dependencies
+        setDestRegIdx(_numDestRegs++, RegId(VecRegClass, vdRegID));
+        setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, vs2RegID));
+        if (vmRegID == 0) { // The mask register is always v0
+            // Masked instruction.
+            setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, 0));
+        }
+
+        _numVecSrcRegs = _numSrcRegs;
+
+        flags[IsInteger] = false;
+        flags[IsVector] = true;
+        flags[IsMicroop] = true;
+    }
+}};
+
+def template VectorOPIVIMicroExecute {{
+    Fault
+    %(class_name)s::%(class_name)sMicro::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+
+        //uint32_t vl = xc->readMiscReg(MISCREG_VL);
+        //VTYPE vtype = xc->readMiscReg(MISCREG_VTYPE);
+        //size_t sewb = getSew(vtype.vsew) / 8;
+
+        if (VM == 0) {
+             if (VD == 0 || VS2 == 0) {
+                std::string error =
+                    csprintf("Masked VectorOPIVI using v0 "
+                             "as src/dst register\n");
+                return std::make_shared<IllegalInstFault>(error, machInst);
+             }
+        }
+
+        auto empty_vmask = std::vector<uint8_t>((num_non_tail_elements + 7)/8, 0xFF);
+        uint8_t* vmask = empty_vmask.data();
+        // Figure out if we need masks
+        if (vmRegID == 0) {
+            TheISA::VecRegContainer Vmask_container;
+            xc->getRegOperand(this, 2, &Vmask_container);
+            vmask = Vmask_container.as<uint8_t>();
+        }
+
+        bool utilize_mask = vmRegID == 0;
+
+        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+        TheISA::VecRegContainer Vs2_container;
+        xc->getRegOperand(this, 0, &Vs2_container);
+
+        if (fault == NoFault) {
+            if (sew == 8) {
+                auto Vd = Vd_container.as<uint8_t>();
+                auto Vs2 = Vs2_container.as<uint8_t>();
+                for (size_t regElemID = 0; regElemID < num_elements_per_regs; ++regElemID) {
+                    uint32_t maskElemID = mask_offset + regElemID;
+                    if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
+                        continue;
+                    }
+                    %(code)s;
+                }
+            } else if (sew == 16) {
+                auto Vd = Vd_container.as<uint16_t>();
+                auto Vs2 = Vs2_container.as<uint16_t>();
+                for (size_t regElemID = 0; regElemID < num_elements_per_regs; ++regElemID) {
+                    uint32_t maskElemID = mask_offset + regElemID;
+                    if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
+                        continue;
+                    }
+                    %(code)s;
+                }
+            } else if (sew == 32) {
+                auto Vd = Vd_container.as<uint32_t>();
+                auto Vs2 = Vs2_container.as<uint32_t>();
+                for (size_t regElemID = 0; regElemID < num_elements_per_regs; ++regElemID) {
+                    uint32_t maskElemID = mask_offset + regElemID;
+                    if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
+                        continue;
+                    }
+                    %(code)s;
+                }
+            } else if (sew == 64) {
+                auto Vd = Vd_container.as<uint64_t>();
+                auto Vs2 = Vs2_container.as<uint64_t>();
+                for (size_t regElemID = 0; regElemID < num_elements_per_regs; ++regElemID) {
+                    uint32_t maskElemID = mask_offset + regElemID;
+                    if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
+                        continue;
+                    }
+                    %(code)s;
+                }
+            } else {
+                std::string error = csprintf(
+                    "Illegal vsewb value in VTYPE: 0x%x\n", sew);
+                fault = std::make_shared<IllegalInstFault>(error, machInst);
+            }
+            if (fault == NoFault) {
+                if (traceData) {
+                    traceData->setData(Vd_container);
+                }
+            }
+        }
+
+        return fault;
+    }
+}};
+
+def template VectorOPIVIMicroDeclare {{
+    //
+    // Static instruction class for "%(mnemonic)s".
+    //
+    class %(class_name)s::%(class_name)sMicro : public %(base_class)s
+    {
+      private:
+        // Example:
+        // vadd.vi        31..26=0x00 vm vs2 simm5 14..12=0x3 vd 6..0=0x57
+        // Sources: up to 8 vector regs starting at Vs2 and
+        //          1 mask register.
+        RegId srcRegIdxArr[8 + 1];
+        // Destinations: up to 8 vector regs starting at Vd
+        RegId destRegIdxArr[8];
+
+      public:
+        /// Constructor.
+        %(class_name)sMicro(MachInst machInst,
+        RiscvISA::VTYPE machVtype, uint32_t machVl,
+        uint64_t vdRegID, uint64_t vs2RegID,
+        uint64_t vmRegID, uint64_t mask_offset,
+        uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+        uint64_t sew, uint64_t mask_policy, uint64_t tail_policy);
+        Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        using %(base_class)s::generateDisassembly;
+    };
+}};
+
+def format VectorOPIVIMacroOp(code, *opt_flags) {{
+    macro_iop = InstObjParams(name, Name, 'VectorOPIVIMacroOp', code, opt_flags)
+    header_output = VectorMacroDeclare.subst(macro_iop)
+    decoder_output = VectorOPIVIMacroOpConstructor.subst(macro_iop)
+    decode_block = VectorMacroDecode.subst(macro_iop)
+    exec_output = VectorMacroExecute.subst(macro_iop)
+
+
+    uop_iop = InstObjParams(name, Name, 'VectorOPIVIMicroOp', code, opt_flags)
+    header_output += VectorOPIVIMicroDeclare.subst(uop_iop)
+    decoder_output += VectorOPIVIMicroOpConstructor.subst(uop_iop)
+    decode_block += VectorMicroDecode.subst(uop_iop)
+    exec_output += VectorOPIVIMicroExecute.subst(uop_iop)
+}};
+
+// --- End of OPIVI
+
 // Start of VectorVRXUNARY0
 
 def template VectorVRXUNARY0Constructor {{
@@ -1754,9 +1962,7 @@ def template VectorMacroExecute {{
     %(class_name)s::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
     {
-        //Fault fault = NoFault;
-        std::string error = csprintf(
-            "Executing Macro Inst\n");
+        std::string error = csprintf("Executing Macro Inst\n");
         return std::make_shared<IllegalInstFault>(error, machInst);
     }
 }};

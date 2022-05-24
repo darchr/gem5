@@ -136,6 +136,8 @@ static const OpClass VectorWholeRegisterMoveOpClass = enums::VectorWholeRegister
 
 static const OpClass VectorVdVs2Vs1MacroOpClass = enums::VectorVdVs2Vs1MacroOp;
 static const OpClass VectorVdVs2Vs1MicroOpClass = enums::VectorVdVs2Vs1MicroOp;
+static const OpClass VectorOPIVIMacroClass = enums::VectorOPIVIMacroOp;
+static const OpClass VectorOPIVIMicroClass = enums::VectorOPIVIMicroOp;
 
 static const OpClass Num_OpClasses = enums::Num_OpClass;
 

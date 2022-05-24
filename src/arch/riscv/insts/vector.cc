@@ -224,6 +224,36 @@ VectorOPIVIOp::generateDisassembly(Addr pc,
     return ss.str();
 }
 
+string
+VectorOPIVIMacroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << VectorRegNames[vd()] << ", ";
+    ss << VectorRegNames[vs1()] << ", ";
+    ss << csprintf("%d", uimm5());
+    if (vm()==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+string
+VectorOPIVIMicroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << VectorRegNames[vd()] << ", ";
+    ss << VectorRegNames[vs1()] << ", ";
+    ss << csprintf("%d", uimm5());
+    if (vm()==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
 // vd[0] = rs1
 string
 VectorVRXUNARY0Op::generateDisassembly(Addr pc,

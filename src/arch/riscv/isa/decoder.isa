@@ -1536,9 +1536,10 @@ decode QUADRANT default Unknown::unknown() {
             }
             0x3: decode VFUNC_6 { // OPIVI
                 0x17: decode RL {
-                    0x1: VectorOPIVIOp::vmv_vi ({{
+                    0x1: VectorOPIVIMacroOp::vmv_vi ({{
+                        [[maybe_unused]] bool something = Vs2_vc[0] == 0; // keep isa_parser happy
                         __int128_t simm = sext<5>(UIMM5);
-                        Vd_vc[regElemID] = simm + (0 * Vs2_vc[regElemID]);
+                        Vd_vc[regElemID] = simm;
                     }});
                 }
             }
