@@ -629,7 +629,8 @@ decode QUADRANT default Unknown::unknown() {
             }
             0x7: decode MOP {
                 0x0: decode SUMOP {
-                    0x0: VectorUnitStrideMemStoreOp::vse64_v({{
+                    0x0: VectorUnitStrideMemStoreMacroOp::vse64_v({{
+                        [[maybe_unused]] bool something = Mem == 0; // keep isa_parser happy
                         fault = writeMemTimingLE(xc,
                                                     traceData,
                                                     Vs3_vc[regElemID],

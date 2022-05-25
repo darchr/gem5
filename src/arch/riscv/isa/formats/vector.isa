@@ -230,7 +230,6 @@ def template VectorUnitStrideMemLoadDeclare {{
     };
 }};
 
-
 def format VectorUnitStrideMemLoadOp(code, *opt_flags) {{
     iop = InstObjParams(name, Name, 'VectorUnitStrideMemLoadOp', code, opt_flags)
     header_output = VectorUnitStrideMemLoadDeclare.subst(iop)
@@ -243,7 +242,7 @@ def format VectorUnitStrideMemLoadOp(code, *opt_flags) {{
 
 // --- Start of VectorUnitStrideMemLoad
 
-def template VectorUnitStrideMemLoadMacroConstructor {{
+def template VectorUnitStrideMemLoadStoreMacroConstructor {{
     %(class_name)s::%(class_name)s(MachInst machInst, RiscvISA::VTYPE machVtype, uint32_t machVl, int vlen)
         : %(base_class)s("%(mnemonic)s", machInst, VectorUnitStrideMemLoadMacroOpClass, machVtype, machVl, vlen)
     {
@@ -324,8 +323,8 @@ def template VectorUnitStrideMemLoadMicroDeclare {{
         // vle32.v        nf 28=0 27..26=0 vm 24..20=0 rs1 14..12=0x6  vd 6..0=0x07
         // Sources: Rs1 + 1 mask register.
         RegId srcRegIdxArr[1 + 1];
-        // Destinations: up to 8 vector regs starting at Vd
-        RegId destRegIdxArr[8];
+        // Destinations: write to one element in one Vd
+        RegId destRegIdxArr[1];
 
       public:
         /// Constructor.
@@ -570,10 +569,9 @@ def template VectorUnitStrideMemLoadMicroCompleteAcc {{
 def format VectorUnitStrideMemLoadMacroOp(code, *opt_flags) {{
     macro_iop = InstObjParams(name, Name, 'VectorUnitStrideMemLoadMacroOp', code, opt_flags)
     header_output = VectorMacroDeclare.subst(macro_iop)
-    decoder_output = VectorUnitStrideMemLoadMacroConstructor.subst(macro_iop)
+    decoder_output = VectorUnitStrideMemLoadStoreMacroConstructor.subst(macro_iop)
     decode_block = VectorMacroDecode.subst(macro_iop)
     exec_output = VectorMacroExecute.subst(macro_iop)
-
 
     uop_iop = InstObjParams(name, Name, 'VectorUnitStrideMemLoadMicroOp', code, opt_flags)
     header_output += VectorUnitStrideMemLoadMicroDeclare.subst(uop_iop)
@@ -825,6 +823,180 @@ def format VectorUnitStrideMemStoreOp(code, *opt_flags) {{
 
 // --- End of VectorUnitStrideMemStore
 
+// --- Start of VectorUnitStrideMemStor
+
+def template VectorUnitStrideMemStoreMicroDeclare {{
+    //
+    // Static instruction class for "%(mnemonic)s".
+    //
+    class %(class_name)s::%(class_name)sMicro : public %(base_class)s
+    {
+      private:
+        // Example:
+        // vse32.v        nf 28=0 27..26=0 vm 24..20=0 rs1 14..12=0x6 vs3 6..0=0x27
+        // Sources: Rs1 + one Vs3 + 1 mask register.
+        RegId srcRegIdxArr[1 + 1 + 1];
+
+        // Need a dummy destRegIdxArr even though we have no destination regs
+        RegId destRegIdxArr[0];
+
+      public:
+        /// Constructor.
+        %(class_name)sMicro(MachInst machInst, RiscvISA::VTYPE vtype, uint32_t vl,
+            uint64_t vdRegID, uint64_t vmRegID, uint64_t mask_offset,
+            uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
+            uint64_t eew, uint64_t mask_policy, uint64_t tail_policy);
+        Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        Fault initiateAcc(ExecContext *, Trace::InstRecord *) const override;
+        Fault completeAcc(Packet *, ExecContext *, Trace::InstRecord *) const override;
+        using %(base_class)s::generateDisassembly;
+    };
+}};
+
+def template VectorUnitStrideMemStoreMicroConstructor {{
+    %(class_name)s::%(class_name)sMicro::%(class_name)sMicro(MachInst machInst,
+        RiscvISA::VTYPE machVtype, uint32_t machVl,
+        uint64_t vs3RegID, uint64_t vmRegID, uint64_t mask_offset,
+        uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
+        uint64_t eew, uint64_t mask_policy, uint64_t tail_policy)
+        : %(base_class)s("%(mnemonic)s", machInst, VectorUnitStrideMemLoadMicroOpClass,
+            vs3RegID, vmRegID, mask_offset,
+            num_elements_per_reg, num_non_tail_elements,
+            eew, mask_policy, tail_policy)
+    {
+        %(set_reg_idx_arr)s;
+
+        setSrcRegIdx(_numSrcRegs++, RegId(IntRegClass, RS1));
+
+        // Set register dependencies
+        setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, vs3RegID));
+        if (vmRegID == 0) { // The mask register is always v0
+            // Masked instruction.
+            setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, 0));
+        }
+
+        _numVecSrcRegs = _numSrcRegs;
+
+        flags[IsInteger] = false;
+        flags[IsStore] = true;
+        flags[IsVector] = true;
+        flags[IsMicroop] = true;
+    }
+}};
+
+
+def template VectorUnitStrideMemStoreMicroExecute {{
+    Fault
+    %(class_name)s::%(class_name)sMicro::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+
+        // Getting the source / destination registers
+        %(op_decl)s;
+        Rs1 = xc->getRegOperand(this, 0);
+        TheISA::VecRegContainer Vs3_container;
+        xc->getRegOperand(this, 1, &Vs3_container);
+
+        bool masked_off = false; // masked_off == true -> do not compute the element; otherwise compute the element if it is not a tail element
+
+        // Figure out if we need masks
+        if (vmRegID == 0) {
+            TheISA::VecRegContainer Vmask_container;
+            xc->getRegOperand(this, 1, &Vmask_container);
+            auto vmask = Vmask_container.as<uint8_t>();
+            masked_off = (bits(vmask[mask_offset / 8], mask_offset % 8, mask_offset % 8) == 0);
+        }
+
+        bool utilize_mask = vmRegID == 0;
+        uint32_t regElemID = mask_offset % num_elements_per_reg;
+        bool is_tail_element = regElemID >= num_non_tail_elements;
+
+        if (fault == NoFault && (!utilize_mask || !masked_off)) {
+            if (eew == 8) {
+                if (!is_tail_element)
+                {
+                    auto Vs3 = Vs3_container.as<uint8_t>();
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint8_t);
+                    %(code)s;
+                }
+                // TODO: apply tail policy to tail elements
+            } else if (eew == 16) {
+                if (!is_tail_element)
+                {
+                    auto Vs3 = Vs3_container.as<uint16_t>();
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint16_t);
+                    %(code)s;
+                }
+                // TODO: apply tail policy to tail elements
+            } else if (eew == 32) {
+                if (!is_tail_element)
+                {
+                    auto Vs3 = Vs3_container.as<uint32_t>();
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint32_t);
+                    %(code)s;
+                }
+                // TODO: apply tail policy to tail elements
+            } else if (eew == 64) {
+                if (!is_tail_element)
+                {
+                    auto Vs3 = Vs3_container.as<uint64_t>();
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint64_t);
+                    %(code)s;
+                }
+                // TODO: apply tail policy to tail elements
+            } else {
+                std::string error = csprintf("Illegal value for eew: 0x%x\n", eew);
+                return std::make_shared<IllegalInstFault>(error, machInst);
+            }
+        }
+
+        return fault;
+    }
+}};
+
+def template VectorUnitStrideMemStoreMicroInitiateAcc {{
+    Fault
+    %(class_name)s::%(class_name)sMicro::initiateAcc(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+
+        return NoFault;
+    }
+}};
+
+def template VectorUnitStrideMemStoreMicroCompleteAcc {{
+    Fault
+    %(class_name)s::%(class_name)sMicro::completeAcc(Packet *pkt,
+        ExecContext *xc, Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+        return fault;
+    }
+}};
+
+def format VectorUnitStrideMemStoreMacroOp(code, *opt_flags) {{
+    macro_iop = InstObjParams(name, Name, 'VectorUnitStrideMemStoreMacroOp', code, opt_flags)
+    header_output = VectorMacroDeclare.subst(macro_iop)
+    decoder_output = VectorUnitStrideMemLoadStoreMacroConstructor.subst(macro_iop)
+    decode_block = VectorMacroDecode.subst(macro_iop)
+    exec_output = VectorMacroExecute.subst(macro_iop)
+
+    uop_iop = InstObjParams(name, Name, 'VectorUnitStrideMemStoreMicroOp', code, opt_flags)
+    header_output += VectorUnitStrideMemStoreMicroDeclare.subst(uop_iop)
+    decoder_output += VectorUnitStrideMemStoreMicroConstructor.subst(uop_iop)
+    decode_block += VectorDecode.subst(uop_iop)
+    exec_output += VectorUnitStrideMemStoreMicroExecute.subst(uop_iop)
+    exec_output += VectorUnitStrideMemStoreMicroInitiateAcc.subst(uop_iop)
+    exec_output += VectorUnitStrideMemStoreMicroCompleteAcc.subst(uop_iop)
+}};
+
+// --- End of VectorUnitStrideMemStore
 
 // --- Start of VectorVdVs2Vs1
 
