@@ -190,10 +190,10 @@ class VectorVdVs2Vs1MicroOp: public VectorSameElementWidthMicroInst
       const char *mnem, ExtMachInst _machInst, OpClass __opClass,
       uint64_t vdRegID, uint64_t vs1RegID, uint64_t vs2RegID, uint64_t vmRegID,
       uint64_t mask_offset,
-      uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+      uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
       uint64_t sew, uint64_t mask_policy, uint64_t tail_policy)
         : VectorSameElementWidthMicroInst(mnem, _machInst, __opClass,
-            num_elements_per_regs, num_non_tail_elements, sew, mask_policy,
+            num_elements_per_reg, num_non_tail_elements, sew, mask_policy,
             tail_policy)
     {
         this->vdRegID = vdRegID;
@@ -229,10 +229,10 @@ class VectorOPIVIMicroOp: public VectorSameElementWidthMicroInst
     VectorOPIVIMicroOp(
       const char *mnem, ExtMachInst _machInst, OpClass __opClass,
       uint64_t vdRegID, uint64_t vs2RegID, uint64_t vmRegID, uint64_t mask_offset,
-      uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+      uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
       uint64_t sew, uint64_t mask_policy, uint64_t tail_policy)
         : VectorSameElementWidthMicroInst(mnem, _machInst, __opClass,
-            num_elements_per_regs, num_non_tail_elements, sew, mask_policy,
+            num_elements_per_reg, num_non_tail_elements, sew, mask_policy,
             tail_policy)
     {
         this->vdRegID = vdRegID;
@@ -265,10 +265,10 @@ class VectorUnitStrideMemLoadMicroOp : public VectorMemMicroInst
     VectorUnitStrideMemLoadMicroOp(
       const char *mnem, ExtMachInst _machInst, OpClass __opClass,
       uint64_t vdRegID, uint64_t vmRegID, uint64_t mask_offset,
-      uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+      uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
       uint64_t eew, uint64_t mask_policy, uint64_t tail_policy) :
         VectorMemMicroInst(mnem, _machInst, __opClass,
-            num_elements_per_regs, num_non_tail_elements,
+            num_elements_per_reg, num_non_tail_elements,
             eew, mask_policy, tail_policy)
     {
         this->vdRegID = vdRegID;

@@ -78,18 +78,18 @@ class VectorInstFormat
 class VectorMicroInst: public RiscvMicroInst, public VectorInstFormat
 {
   protected:
-    uint64_t num_elements_per_regs;
+    uint64_t num_elements_per_reg;
     uint64_t num_non_tail_elements;
     uint64_t mask_policy;
     uint64_t tail_policy;
   public:
     VectorMicroInst(const char *mnem, ExtMachInst _machInst, OpClass __opClass,
-      uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+      uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
       uint64_t mask_policy, uint64_t tail_policy) :
           RiscvMicroInst(mnem, _machInst, __opClass),
           VectorInstFormat(mnem, _machInst)
     {
-        this->num_elements_per_regs = num_elements_per_regs;
+        this->num_elements_per_reg = num_elements_per_reg;
         this->num_non_tail_elements = num_non_tail_elements;
         this->mask_policy = mask_policy;
         this->tail_policy = tail_policy;
@@ -103,10 +103,10 @@ class VectorSameElementWidthMicroInst: public VectorMicroInst
   public:
     VectorSameElementWidthMicroInst(
       const char *mnem, ExtMachInst _machInst, OpClass __opClass,
-      uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+      uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
       uint64_t sew, uint64_t mask_policy, uint64_t tail_policy):
           VectorMicroInst(mnem, _machInst, __opClass,
-              num_elements_per_regs, num_non_tail_elements, mask_policy,
+              num_elements_per_reg, num_non_tail_elements, mask_policy,
               tail_policy)
     {
         this->sew = sew;
@@ -205,10 +205,10 @@ class VectorMemMicroInst: public VectorMicroInst
   public:
     VectorMemMicroInst(
       const char *mnem, ExtMachInst _machInst, OpClass __opClass,
-      uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+      uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
       uint64_t eew, uint64_t mask_policy, uint64_t tail_policy):
           VectorMicroInst(mnem, _machInst, __opClass,
-              num_elements_per_regs, num_non_tail_elements, mask_policy,
+              num_elements_per_reg, num_non_tail_elements, mask_policy,
               tail_policy)
     {
         this->eew = eew;

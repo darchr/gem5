@@ -285,7 +285,7 @@ def template VectorUnitStrideMemLoadMacroConstructor {{
         // }
 
         auto sew = getSew(machVtype.vsew);
-        uint32_t num_elements_per_regs = vlen / eew;
+        uint32_t num_elements_per_reg = vlen / eew;
         uint32_t element_count = machVl;
 
         auto num_vregs = eew / sew * vlmulToNumRegs(machVtype.vlmul); // i.e. EMUL
@@ -293,12 +293,15 @@ def template VectorUnitStrideMemLoadMacroConstructor {{
 
         for (uint32_t reg_id_offset = 0; reg_id_offset < num_vregs; reg_id_offset++)
         {
-            StaticInstPtr uop = new %(class_name)sMicro(machInst, machVtype, machVl,
-                VD+reg_id_offset, VM, reg_id_offset*num_elements_per_regs, num_elements_per_regs,
-                (element_count < num_elements_per_regs) ? element_count : num_elements_per_regs,
-                eew, (uint64_t)machVtype.vma, (uint64_t)machVtype.vta);
-            element_count = (element_count >= num_elements_per_regs) ? (element_count - num_elements_per_regs) : 0;
-            microops.push_back(std::move(uop));
+            for (uint32_t element_index = 0; element_index < num_elements_per_reg; element_index++) // element_index is the index of an element within its vector register
+            {
+                StaticInstPtr uop = new %(class_name)sMicro(machInst, machVtype, machVl,
+                    VD+reg_id_offset, VM, reg_id_offset*num_elements_per_reg+element_index, num_elements_per_reg,
+                    (element_count < num_elements_per_reg) ? element_count : num_elements_per_reg,
+                    eew, (uint64_t)machVtype.vma, (uint64_t)machVtype.vta);
+                microops.push_back(std::move(uop));
+            }
+            element_count = (element_count >= num_elements_per_reg) ? (element_count - num_elements_per_reg) : 0; // TODO: refactor this
         }
 
         microops.front()->setFlag(IsFirstMicroop);
@@ -326,7 +329,7 @@ def template VectorUnitStrideMemLoadMicroDeclare {{
         /// Constructor.
         %(class_name)sMicro(MachInst machInst, RiscvISA::VTYPE vtype, uint32_t vl,
             uint64_t vdRegID, uint64_t vmRegID, uint64_t mask_offset,
-            uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+            uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
             uint64_t eew, uint64_t mask_policy, uint64_t tail_policy);
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
         Fault initiateAcc(ExecContext *, Trace::InstRecord *) const override;
@@ -339,11 +342,11 @@ def template VectorUnitStrideMemLoadMicroConstructor {{
     %(class_name)s::%(class_name)sMicro::%(class_name)sMicro(MachInst machInst,
         RiscvISA::VTYPE machVtype, uint32_t machVl,
         uint64_t vdRegID, uint64_t vmRegID, uint64_t mask_offset,
-        uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+        uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
         uint64_t eew, uint64_t mask_policy, uint64_t tail_policy)
         : %(base_class)s("%(mnemonic)s", machInst, VectorUnitStrideMemLoadMicroOpClass,
             vdRegID, vmRegID, mask_offset,
-            num_elements_per_regs, num_non_tail_elements,
+            num_elements_per_reg, num_non_tail_elements,
             eew, mask_policy, tail_policy)
     {
         %(set_reg_idx_arr)s;
@@ -381,66 +384,57 @@ def template VectorUnitStrideMemLoadMicroExecute {{
         // We only have one destination reg per micro op, so it's safe to say that the Vd is the first writable reg
         auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
 
-        auto empty_vmask = std::vector<uint8_t>((num_non_tail_elements + 7)/8, 0xFF);
-        uint8_t* vmask = empty_vmask.data();
+        bool masked_off = false; // masked_off == true -> do not compute the element; otherwise compute the element if it is not a tail element
+
         // Figure out if we need masks
         if (vmRegID == 0) {
             TheISA::VecRegContainer Vmask_container;
             xc->getRegOperand(this, 1, &Vmask_container);
-            vmask = Vmask_container.as<uint8_t>();
+            auto vmask = Vmask_container.as<uint8_t>();
+            masked_off = (bits(vmask[mask_offset / 8], mask_offset % 8, mask_offset % 8) == 0);
         }
 
         bool utilize_mask = vmRegID == 0;
+        uint32_t regElemID = mask_offset % num_elements_per_reg;
+        bool is_tail_element = regElemID >= num_non_tail_elements;
 
         %(op_decl)s;
         Rs1 = xc->getRegOperand(this, 0);
 
-        if (fault == NoFault) {
+        if (fault == NoFault && (!utilize_mask || !masked_off)) {
             if (eew == 8) {
-                auto Vd = Vd_container.as<uint8_t>();
-                // process non-tail elements
-                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_regs, num_non_tail_elements); ++regElemID) {
-                    uint32_t maskElemID = mask_offset + regElemID;
-                    if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
-                        continue;
-                    }
-                    Addr offset = (mask_offset + regElemID) * sizeof(uint8_t);
+                if (!is_tail_element)
+                {
+                    auto Vd = Vd_container.as<uint8_t>();
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint8_t);
                     %(code)s;
                 }
                 // TODO: apply tail policy to tail elements
             } else if (eew == 16) {
-                auto Vd = Vd_container.as<uint16_t>();
-                // process non-tail elements
-                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_regs, num_non_tail_elements); ++regElemID) {
-                    uint32_t maskElemID = mask_offset + regElemID;
-                    if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
-                        continue;
-                    }
-                    Addr offset = (mask_offset + regElemID) * sizeof(uint16_t);
+                if (!is_tail_element)
+                {
+                    auto Vd = Vd_container.as<uint16_t>();
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint16_t);
                     %(code)s;
                 }
                 // TODO: apply tail policy to tail elements
             } else if (eew == 32) {
-                auto Vd = Vd_container.as<uint32_t>();
-                // process non-tail elements
-                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_regs, num_non_tail_elements); ++regElemID) {
-                    uint32_t maskElemID = mask_offset + regElemID;
-                    if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) { // "mask undisturbed" policy
-                        continue;
-                    }
-                    Addr offset = (mask_offset + regElemID) * sizeof(uint32_t);
+                if (!is_tail_element)
+                {
+                    auto Vd = Vd_container.as<uint32_t>();
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint32_t);
                     %(code)s;
                 }
                 // TODO: apply tail policy to tail elements
             } else if (eew == 64) {
-                auto Vd = Vd_container.as<uint64_t>();
-                // process non-tail elements
-                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_regs, num_non_tail_elements); ++regElemID) {
-                    uint32_t maskElemID = mask_offset + regElemID;
-                    if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) { // "mask undisturbed" policy
-                        continue;
-                    }
-                    Addr offset = (mask_offset + regElemID) * sizeof(uint64_t);
+                if (!is_tail_element)
+                {
+                    auto Vd = Vd_container.as<uint64_t>();
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint64_t);
                     %(code)s;
                 }
                 // TODO: apply tail policy to tail elements
@@ -960,7 +954,7 @@ def template VectorVdVs2Vs1MacroOpConstructor {{
         //assert((VS2 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
         auto sew = getSew(machVtype.vsew);
-        uint32_t num_elements_per_regs = vlen / sew;
+        uint32_t num_elements_per_reg = vlen / sew;
         uint32_t element_count = machVl;
 
         auto num_vregs = vlmulToNumRegs(machVtype.vlmul);
@@ -970,10 +964,10 @@ def template VectorVdVs2Vs1MacroOpConstructor {{
         {
             StaticInstPtr uop = new %(class_name)sMicro(machInst, machVtype, machVl,
                 VD+reg_id_offset, VS1+reg_id_offset, VS2+reg_id_offset,
-                VM, reg_id_offset*num_elements_per_regs, num_elements_per_regs,
-                (element_count < num_elements_per_regs) ? element_count : num_elements_per_regs,
+                VM, reg_id_offset*num_elements_per_reg, num_elements_per_reg,
+                (element_count < num_elements_per_reg) ? element_count : num_elements_per_reg,
                 sew, (uint64_t)machVtype.vma, (uint64_t)machVtype.vta);
-            element_count = (element_count >= num_elements_per_regs) ? (element_count - num_elements_per_regs) : 0;
+            element_count = (element_count >= num_elements_per_reg) ? (element_count - num_elements_per_reg) : 0;
             microops.push_back(std::move(uop));
         }
 
@@ -989,11 +983,11 @@ def template VectorVdVs2Vs1MicroConstructor {{
         RiscvISA::VTYPE machVtype, uint32_t machVl,
         uint64_t vdRegID, uint64_t vs1RegID, uint64_t vs2RegID,
         uint64_t vmRegID, uint64_t mask_offset,
-        uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+        uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
         uint64_t sew, uint64_t mask_policy, uint64_t tail_policy)
         : %(base_class)s("%(mnemonic)s", machInst, VectorVdVs2Vs1OpClass,
             vdRegID, vs1RegID, vs2RegID, vmRegID, mask_offset,
-            num_elements_per_regs, num_non_tail_elements,
+            num_elements_per_reg, num_non_tail_elements,
             sew, mask_policy, tail_policy)
     {
         %(set_reg_idx_arr)s;
@@ -1051,7 +1045,7 @@ def template VectorVdVs2Vs1OpMicroExecute {{
                 auto Vs2 = Vs2_container.as<uint8_t>();
                 auto Vs1 = Vs1_container.as<uint8_t>();
                 // process non-tail elements
-                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_regs, num_non_tail_elements); ++regElemID) {
+                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_reg, num_non_tail_elements); ++regElemID) {
                     uint32_t maskElemID = mask_offset + regElemID;
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
                         continue;
@@ -1064,7 +1058,7 @@ def template VectorVdVs2Vs1OpMicroExecute {{
                 auto Vs2 = Vs2_container.as<uint16_t>();
                 auto Vs1 = Vs1_container.as<uint16_t>();
                 // process non-tail elements
-                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_regs, num_non_tail_elements); ++regElemID) {
+                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_reg, num_non_tail_elements); ++regElemID) {
                     uint32_t maskElemID = mask_offset + regElemID;
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
                         continue;
@@ -1077,7 +1071,7 @@ def template VectorVdVs2Vs1OpMicroExecute {{
                 auto Vs2 = Vs2_container.as<uint32_t>();
                 auto Vs1 = Vs1_container.as<uint32_t>();
                 // process non-tail elements
-                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_regs, num_non_tail_elements); ++regElemID) {
+                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_reg, num_non_tail_elements); ++regElemID) {
                     uint32_t maskElemID = mask_offset + regElemID;
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) { // "mask undisturbed" policy
                         continue;
@@ -1090,7 +1084,7 @@ def template VectorVdVs2Vs1OpMicroExecute {{
                 auto Vs2 = Vs2_container.as<uint64_t>();
                 auto Vs1 = Vs1_container.as<uint64_t>();
                 // process non-tail elements
-                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_regs, num_non_tail_elements); ++regElemID) {
+                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_reg, num_non_tail_elements); ++regElemID) {
                     uint32_t maskElemID = mask_offset + regElemID;
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) { // "mask undisturbed" policy
                         continue;
@@ -1136,7 +1130,7 @@ def template VectorVdVs2Vs1MicroDeclare {{
         %(class_name)sMicro(MachInst machInst, RiscvISA::VTYPE machVtype,
         uint32_t machVl, uint64_t vdRegID, uint64_t vs1RegID,
         uint64_t vs2RegID, uint64_t vmRegID, uint64_t mask_offset,
-        uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+        uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
         uint64_t sew, uint64_t mask_policy, uint64_t tail_policy);
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
         using %(base_class)s::generateDisassembly;
@@ -1176,7 +1170,7 @@ def template VectorSameElementWidthIntegerReductionMacroConstructor {{
         //assert((VS2 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
         auto sew = getSew(machVtype.vsew);
-        uint32_t num_elements_per_regs = vlen / sew;
+        uint32_t num_elements_per_reg = vlen / sew;
         uint32_t element_count = machVl;
 
         auto num_regs = vlmulToNumRegs(machVtype.vlmul);
@@ -1187,10 +1181,10 @@ def template VectorSameElementWidthIntegerReductionMacroConstructor {{
             bool use_VS1 = reg_id_offset == 0;
             StaticInstPtr uop = new %(class_name)sMicro(machInst, machVtype, machVl,
                 VD, VS1, VS2+reg_id_offset, // Keep VS1 to create the read dependency on VS1
-                VM, reg_id_offset*num_elements_per_regs, num_elements_per_regs,
-                (element_count < num_elements_per_regs) ? element_count : num_elements_per_regs,
+                VM, reg_id_offset*num_elements_per_reg, num_elements_per_reg,
+                (element_count < num_elements_per_reg) ? element_count : num_elements_per_reg,
                 sew, (uint64_t)machVtype.vma, (uint64_t)machVtype.vta, use_VS1);
-            element_count = (element_count >= num_elements_per_regs) ? (element_count - num_elements_per_regs) : 0;
+            element_count = (element_count >= num_elements_per_reg) ? (element_count - num_elements_per_reg) : 0;
             microops.push_back(std::move(uop));
         }
 
@@ -1223,7 +1217,7 @@ def template VectorSameElementWidthIntegerReductionMicroDeclare {{
         %(class_name)sMicro(MachInst machInst, RiscvISA::VTYPE machVtype,
         uint32_t machVl, uint64_t vdRegID, uint64_t vs1RegID,
         uint64_t vs2RegID, uint64_t vmRegID, uint64_t mask_offset,
-        uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+        uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
         uint64_t sew, uint64_t mask_policy, uint64_t tail_policy,
         bool use_VS1);
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
@@ -1236,11 +1230,11 @@ def template VectorSameElementWidthIntegerReductionMicroConstructor {{
         RiscvISA::VTYPE machVtype, uint32_t machVl,
         uint64_t vdRegID, uint64_t vs1RegID, uint64_t vs2RegID,
         uint64_t vmRegID, uint64_t mask_offset,
-        uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+        uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
         uint64_t sew, uint64_t mask_policy, uint64_t tail_policy, bool use_VS1)
         : %(base_class)s("%(mnemonic)s", machInst, VectorVdVs2Vs1OpClass,
             vdRegID, vs1RegID, vs2RegID, vmRegID, mask_offset,
-            num_elements_per_regs, num_non_tail_elements,
+            num_elements_per_reg, num_non_tail_elements,
             sew, mask_policy, tail_policy)
     {
         %(set_reg_idx_arr)s;
@@ -1302,7 +1296,7 @@ def template VectorSameElementWidthIntegerReductionMicroExecute {{
                 if (this->use_VS1)
                     Vd[0] = Vs1[0];
                 // process non-tail elements
-                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_regs, num_non_tail_elements); ++regElemID) {
+                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_reg, num_non_tail_elements); ++regElemID) {
                     uint32_t maskElemID = mask_offset + regElemID;
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
                         continue;
@@ -1317,7 +1311,7 @@ def template VectorSameElementWidthIntegerReductionMicroExecute {{
                 if (this->use_VS1)
                     Vd[0] = Vs1[0];
                 // process non-tail elements
-                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_regs, num_non_tail_elements); ++regElemID) {
+                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_reg, num_non_tail_elements); ++regElemID) {
                     uint32_t maskElemID = mask_offset + regElemID;
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
                         continue;
@@ -1332,7 +1326,7 @@ def template VectorSameElementWidthIntegerReductionMicroExecute {{
                 if (this->use_VS1)
                     Vd[0] = Vs1[0];
                 // process non-tail elements
-                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_regs, num_non_tail_elements); ++regElemID) {
+                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_reg, num_non_tail_elements); ++regElemID) {
                     uint32_t maskElemID = mask_offset + regElemID;
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) { // "mask undisturbed" policy
                         continue;
@@ -1347,7 +1341,7 @@ def template VectorSameElementWidthIntegerReductionMicroExecute {{
                 if (this->use_VS1)
                     Vd[0] = Vs1[0];
                 // process non-tail elements
-                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_regs, num_non_tail_elements); ++regElemID) {
+                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_reg, num_non_tail_elements); ++regElemID) {
                     uint32_t maskElemID = mask_offset + regElemID;
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) { // "mask undisturbed" policy
                         continue;
@@ -1855,7 +1849,7 @@ def template VectorOPIVIMacroOpConstructor {{
         //assert((VS2 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
 
         auto sew = getSew(machVtype.vsew);
-        uint32_t num_elements_per_regs = vlen / sew;
+        uint32_t num_elements_per_reg = vlen / sew;
         uint32_t element_count = machVl;
 
         auto num_vregs = vlmulToNumRegs(machVtype.vlmul);
@@ -1863,10 +1857,10 @@ def template VectorOPIVIMacroOpConstructor {{
         for (uint32_t reg_id_offset = 0; reg_id_offset < num_vregs; reg_id_offset++)
         {
             StaticInstPtr uop = new %(class_name)sMicro(machInst, machVtype, machVl,
-                VD+reg_id_offset, VS2+reg_id_offset, VM, reg_id_offset*num_elements_per_regs, num_elements_per_regs,
-                (element_count < num_elements_per_regs) ? element_count : num_elements_per_regs,
+                VD+reg_id_offset, VS2+reg_id_offset, VM, reg_id_offset*num_elements_per_reg, num_elements_per_reg,
+                (element_count < num_elements_per_reg) ? element_count : num_elements_per_reg,
                 sew, (uint64_t)machVtype.vma, (uint64_t)machVtype.vta);
-            element_count = (element_count >= num_elements_per_regs) ? (element_count - num_elements_per_regs) : 0;
+            element_count = (element_count >= num_elements_per_reg) ? (element_count - num_elements_per_reg) : 0;
             microops.push_back(std::move(uop));
         }
 
@@ -1882,11 +1876,11 @@ def template VectorOPIVIMicroOpConstructor {{
         RiscvISA::VTYPE machVtype, uint32_t machVl,
         uint64_t vdRegID, uint64_t vs2RegID,
         uint64_t vmRegID, uint64_t mask_offset,
-        uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+        uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
         uint64_t sew, uint64_t mask_policy, uint64_t tail_policy)
         : %(base_class)s("%(mnemonic)s", machInst, VectorVdVs2Vs1OpClass,
             vdRegID, vs2RegID, vmRegID, mask_offset,
-            num_elements_per_regs, num_non_tail_elements,
+            num_elements_per_reg, num_non_tail_elements,
             sew, mask_policy, tail_policy)
     {
         %(set_reg_idx_arr)s;
@@ -1950,7 +1944,7 @@ def template VectorOPIVIMicroExecute {{
             if (sew == 8) {
                 auto Vd = Vd_container.as<uint8_t>();
                 auto Vs2 = Vs2_container.as<uint8_t>();
-                for (size_t regElemID = 0; regElemID < num_elements_per_regs; ++regElemID) {
+                for (size_t regElemID = 0; regElemID < num_elements_per_reg; ++regElemID) {
                     uint32_t maskElemID = mask_offset + regElemID;
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
                         continue;
@@ -1960,7 +1954,7 @@ def template VectorOPIVIMicroExecute {{
             } else if (sew == 16) {
                 auto Vd = Vd_container.as<uint16_t>();
                 auto Vs2 = Vs2_container.as<uint16_t>();
-                for (size_t regElemID = 0; regElemID < num_elements_per_regs; ++regElemID) {
+                for (size_t regElemID = 0; regElemID < num_elements_per_reg; ++regElemID) {
                     uint32_t maskElemID = mask_offset + regElemID;
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
                         continue;
@@ -1970,7 +1964,7 @@ def template VectorOPIVIMicroExecute {{
             } else if (sew == 32) {
                 auto Vd = Vd_container.as<uint32_t>();
                 auto Vs2 = Vs2_container.as<uint32_t>();
-                for (size_t regElemID = 0; regElemID < num_elements_per_regs; ++regElemID) {
+                for (size_t regElemID = 0; regElemID < num_elements_per_reg; ++regElemID) {
                     uint32_t maskElemID = mask_offset + regElemID;
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
                         continue;
@@ -1980,7 +1974,7 @@ def template VectorOPIVIMicroExecute {{
             } else if (sew == 64) {
                 auto Vd = Vd_container.as<uint64_t>();
                 auto Vs2 = Vs2_container.as<uint64_t>();
-                for (size_t regElemID = 0; regElemID < num_elements_per_regs; ++regElemID) {
+                for (size_t regElemID = 0; regElemID < num_elements_per_reg; ++regElemID) {
                     uint32_t maskElemID = mask_offset + regElemID;
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
                         continue;
@@ -2024,7 +2018,7 @@ def template VectorOPIVIMicroDeclare {{
         RiscvISA::VTYPE machVtype, uint32_t machVl,
         uint64_t vdRegID, uint64_t vs2RegID,
         uint64_t vmRegID, uint64_t mask_offset,
-        uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+        uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
         uint64_t sew, uint64_t mask_policy, uint64_t tail_policy);
         Fault execute(ExecContext *, Trace::InstRecord *) const override;
         using %(base_class)s::generateDisassembly;
