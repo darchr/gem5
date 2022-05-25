@@ -404,7 +404,7 @@ def template VectorUnitStrideMemLoadMicroExecute {{
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
                         continue;
                     }
-                    uint64_t offset = (mask_offset + regElemID) * sizeof(uint8_t);
+                    Addr offset = (mask_offset + regElemID) * sizeof(uint8_t);
                     %(code)s;
                 }
                 // TODO: apply tail policy to tail elements
@@ -416,7 +416,7 @@ def template VectorUnitStrideMemLoadMicroExecute {{
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
                         continue;
                     }
-                    uint64_t offset = (mask_offset + regElemID) * sizeof(uint16_t);
+                    Addr offset = (mask_offset + regElemID) * sizeof(uint16_t);
                     %(code)s;
                 }
                 // TODO: apply tail policy to tail elements
@@ -428,7 +428,7 @@ def template VectorUnitStrideMemLoadMicroExecute {{
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) { // "mask undisturbed" policy
                         continue;
                     }
-                    uint64_t offset = (mask_offset + regElemID) * sizeof(uint32_t);
+                    Addr offset = (mask_offset + regElemID) * sizeof(uint32_t);
                     %(code)s;
                 }
                 // TODO: apply tail policy to tail elements
@@ -440,7 +440,7 @@ def template VectorUnitStrideMemLoadMicroExecute {{
                     if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) { // "mask undisturbed" policy
                         continue;
                     }
-                    uint64_t offset = (mask_offset + regElemID) * sizeof(uint64_t);
+                    Addr offset = (mask_offset + regElemID) * sizeof(uint64_t);
                     %(code)s;
                 }
                 // TODO: apply tail policy to tail elements

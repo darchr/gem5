@@ -402,7 +402,7 @@ decode QUADRANT default Unknown::unknown() {
             0x7: decode MOP {
                 0x0: decode LUMOP {
                     0x0: VectorUnitStrideMemLoadMacroOp::vle64_v({{
-                        uint64_t target_address = Rs1_ud + offset;
+                        Addr target_address = Rs1_ud + offset;
                         if (target_address % (eew/8)) {
                             // Alignment fault.
                             return std::make_shared<AddressFault>(target_address,
