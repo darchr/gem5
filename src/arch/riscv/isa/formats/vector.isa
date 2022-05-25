@@ -465,6 +465,7 @@ def template VectorUnitStrideMemLoadMicroInitiateAcc {{
 
         Addr EA = 0;
         uint64_t Rs1 = 0;
+        Rs1 = xc->getRegOperand(this, 0);
         
         // Getting the source / destination registers
         bool masked_off = false; // masked_off == true -> do not compute the element; otherwise compute the element if it is not a tail element
@@ -823,7 +824,7 @@ def format VectorUnitStrideMemStoreOp(code, *opt_flags) {{
 
 // --- End of VectorUnitStrideMemStore
 
-// --- Start of VectorUnitStrideMemStor
+// --- Start of VectorUnitStrideMemStore
 
 def template VectorUnitStrideMemStoreMicroDeclare {{
     //
@@ -965,6 +966,77 @@ def template VectorUnitStrideMemStoreMicroInitiateAcc {{
         Trace::InstRecord *traceData) const
     {
         Fault fault = NoFault;
+
+        // Getting the source / destination registers
+        uint64_t Rs1 = 0;
+        Rs1 = xc->getRegOperand(this, 0);
+        TheISA::VecRegContainer Vs3_container;
+        xc->getRegOperand(this, 1, &Vs3_container);
+
+        bool masked_off = false; // masked_off == true -> do not compute the element; otherwise compute the element if it is not a tail element
+
+        // Figure out if we need masks
+        if (vmRegID == 0) {
+            TheISA::VecRegContainer Vmask_container;
+            xc->getRegOperand(this, 1, &Vmask_container);
+            auto vmask = Vmask_container.as<uint8_t>();
+            masked_off = (bits(vmask[mask_offset / 8], mask_offset % 8, mask_offset % 8) == 0);
+        }
+
+        bool utilize_mask = vmRegID == 0;
+        uint32_t regElemID = mask_offset % num_elements_per_reg;
+        bool is_tail_element = regElemID >= num_non_tail_elements;
+
+        if (fault == NoFault && (!utilize_mask || !masked_off)) {
+            if (eew == 8) {
+                if (!is_tail_element)
+                {
+                    auto Vs3 = Vs3_container.as<uint8_t>();
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint8_t);
+                    Addr effective_address = Rs1 + offset;
+                    uint8_t Mem = Vs3[regElemID];
+                    fault = writeMemTimingLE(xc, traceData, Mem, effective_address, memAccessFlags, nullptr);
+                }
+                // TODO: apply tail policy to tail elements
+            } else if (eew == 16) {
+                if (!is_tail_element)
+                {
+                    auto Vs3 = Vs3_container.as<uint16_t>();
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint16_t);
+                    Addr effective_address = Rs1 + offset;
+                    uint16_t Mem = Vs3[regElemID];
+                    fault = writeMemTimingLE(xc, traceData, Mem, effective_address, memAccessFlags, nullptr);
+                }
+                // TODO: apply tail policy to tail elements
+            } else if (eew == 32) {
+                if (!is_tail_element)
+                {
+                    auto Vs3 = Vs3_container.as<uint32_t>();
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint32_t);
+                    Addr effective_address = Rs1 + offset;
+                    uint32_t Mem = Vs3[regElemID];
+                    fault = writeMemTimingLE(xc, traceData, Mem, effective_address, memAccessFlags, nullptr);
+                }
+                // TODO: apply tail policy to tail elements
+            } else if (eew == 64) {
+                if (!is_tail_element)
+                {
+                    auto Vs3 = Vs3_container.as<uint64_t>();
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint64_t);
+                    Addr effective_address = Rs1 + offset;
+                    uint64_t Mem = Vs3[regElemID];
+                    fault = writeMemTimingLE(xc, traceData, Mem, effective_address, memAccessFlags, nullptr);
+                }
+                // TODO: apply tail policy to tail elements
+            } else {
+                std::string error = csprintf("Illegal value for eew: 0x%x\n", eew);
+                return std::make_shared<IllegalInstFault>(error, machInst);
+            }
+        }
 
         return NoFault;
     }
