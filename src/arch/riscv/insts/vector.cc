@@ -195,6 +195,35 @@ VectorUnitStrideMemLoadOp::generateDisassembly(Addr pc,
 }
 
 string
+VectorUnitStrideMemLoadMacroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << VectorRegNames[vd()] << ", ";
+    ss << csprintf("(%s)", IntRegNames[rs1()]);
+    if (vm()==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+string
+VectorUnitStrideMemLoadMicroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << VectorRegNames[vd()] << ", ";
+    ss << csprintf("(%s)", IntRegNames[rs1()]);
+    if (vm()==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+
+string
 VectorUnitStrideMemStoreOp::generateDisassembly(Addr pc,
     const loader::SymbolTable *symtab) const
 {

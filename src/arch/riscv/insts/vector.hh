@@ -244,6 +244,45 @@ class VectorOPIVIMicroOp: public VectorSameElementWidthMicroInst
         Addr pc, const loader::SymbolTable *symtab) const override;
 };
 
+class VectorUnitStrideMemLoadMacroOp : public VectorMacroInst
+{
+  public:
+    VectorUnitStrideMemLoadMacroOp(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass, RiscvISA::VTYPE vtype, uint32_t vl, int vlen) :
+        VectorMacroInst(mnem, _machInst, __opClass, vtype, vl, vlen)
+    {}
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
+
+class VectorUnitStrideMemLoadMicroOp : public VectorMemMicroInst
+{
+  protected:
+    uint64_t vdRegID;
+    uint64_t vmRegID;
+    uint64_t mask_offset;
+  public:
+    VectorUnitStrideMemLoadMicroOp(
+      const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+      uint64_t vdRegID, uint64_t vmRegID, uint64_t mask_offset,
+      uint64_t num_elements_per_regs, uint64_t num_non_tail_elements,
+      uint64_t eew, uint64_t mask_policy, uint64_t tail_policy) :
+        VectorMemMicroInst(mnem, _machInst, __opClass,
+            num_elements_per_regs, num_non_tail_elements,
+            eew, mask_policy, tail_policy)
+    {
+        this->vdRegID = vdRegID;
+        this->vmRegID = vmRegID;
+        this->mask_offset = mask_offset;
+    }
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+
+    virtual Fault execute(ExecContext *, Trace::InstRecord *) const = 0;
+    virtual Fault initiateAcc(ExecContext *, Trace::InstRecord *) const = 0;
+    virtual Fault completeAcc(Packet *, ExecContext *, Trace::InstRecord *) const = 0;
+};
+
 }
 
 }

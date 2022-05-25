@@ -61,6 +61,8 @@ class OpClass(Enum):
             'VectorStridedMemLoad',
             'VectorStridedMemStore',
             'VectorUnitStrideMemLoad',
+            'VectorUnitStrideMemLoadMacroOp',
+            'VectorUnitStrideMemLoadMicroOp',
             'VectorUnitStrideMemStore',
             'VectorOPIVI',
             'VectorOPIVIMacroOp',
