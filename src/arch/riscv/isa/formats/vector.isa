@@ -261,6 +261,8 @@ def template VectorUnitStrideMemLoadMacroConstructor {{
             case 7:
                 eew = 64;
                 break;
+            default:
+                eew = 0;
         }
 
         //if (LUMOP == 0 || LUMOP == 0x10) {
@@ -462,7 +464,71 @@ def template VectorUnitStrideMemLoadMicroInitiateAcc {{
     {
         Fault fault = NoFault;
 
-        return fault;
+        Addr EA = 0;
+        uint64_t Rs1 = 0;
+        
+        // Getting the source / destination registers
+        bool masked_off = false; // masked_off == true -> do not compute the element; otherwise compute the element if it is not a tail element
+
+        // Figure out if we need masks
+        if (vmRegID == 0) {
+            TheISA::VecRegContainer Vmask_container;
+            xc->getRegOperand(this, 1, &Vmask_container);
+            auto vmask = Vmask_container.as<uint8_t>();
+            masked_off = (bits(vmask[mask_offset / 8], mask_offset % 8, mask_offset % 8) == 0);
+        }
+
+        bool utilize_mask = vmRegID == 0;
+        uint32_t regElemID = mask_offset % num_elements_per_reg;
+        bool is_tail_element = regElemID >= num_non_tail_elements;
+
+        if (fault == NoFault && (!utilize_mask || !masked_off)) {
+            if (eew == 8) {
+                if (!is_tail_element)
+                {
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint8_t);
+                    EA = Rs1 + offset;
+                    uint8_t Mem = {}; // the type of this variable is used for determining how many bytes this mem access returns
+                    return initiateMemRead(xc, traceData, EA, Mem, memAccessFlags);
+                }
+                // TODO: apply tail policy to tail elements
+            } else if (eew == 16) {
+                if (!is_tail_element)
+                {
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint16_t);
+                    EA = Rs1 + offset;
+                    uint16_t Mem = {}; // the type of this variable is used for determining how many bytes this mem access returns
+                    return initiateMemRead(xc, traceData, EA, Mem, memAccessFlags);
+                }
+                // TODO: apply tail policy to tail elements
+            } else if (eew == 32) {
+                if (!is_tail_element)
+                {
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint32_t);
+                    EA = Rs1 + offset;
+                    uint32_t Mem = {}; // the type of this variable is used for determining how many bytes this mem access returns
+                    return initiateMemRead(xc, traceData, EA, Mem, memAccessFlags);
+                }
+                // TODO: apply tail policy to tail elements
+            } else if (eew == 64) {
+                if (!is_tail_element)
+                {
+                    // process non-tail elements
+                    Addr offset = mask_offset * sizeof(uint64_t);
+                    EA = Rs1 + offset;
+                    uint64_t Mem = {}; // the type of this variable is used for determining how many bytes this mem access returns
+                    return initiateMemRead(xc, traceData, EA, Mem, memAccessFlags);
+                }
+                // TODO: apply tail policy to tail elements
+            } else {
+                std::string error = csprintf("Illegal value for eew: 0x%x\n", eew);
+                return std::make_shared<IllegalInstFault>(error, machInst);
+            }
+        }
+        return NoFault;
     }
 }};
 
@@ -473,6 +539,30 @@ def template VectorUnitStrideMemLoadMicroCompleteAcc {{
     {
         Fault fault = NoFault;
 
+        uint32_t regElemID = mask_offset % num_elements_per_reg;
+        auto &Vd_container = *(TheISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+
+        if (eew == 8) {
+            uint8_t Mem = {};
+            getMemLE(pkt, Mem, traceData);
+            auto Vd = Vd_container.as<uint8_t>();
+            Vd[regElemID] = Mem;
+        } else if (eew == 16) {
+            uint16_t Mem = {};
+            getMemLE(pkt, Mem, traceData);
+            auto Vd = Vd_container.as<uint16_t>();
+            Vd[regElemID] = Mem;
+        } else if (eew == 32) {
+            uint32_t Mem = {};
+            getMemLE(pkt, Mem, traceData);
+            auto Vd = Vd_container.as<uint32_t>();
+            Vd[regElemID] = Mem;
+        } else if (eew == 64) {
+            uint64_t Mem = {};
+            getMemLE(pkt, Mem, traceData);
+            auto Vd = Vd_container.as<uint64_t>();
+            Vd[regElemID] = Mem;
+        }
         return fault;
     }
 }};

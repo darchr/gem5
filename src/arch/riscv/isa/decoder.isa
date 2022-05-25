@@ -402,6 +402,7 @@ decode QUADRANT default Unknown::unknown() {
             0x7: decode MOP {
                 0x0: decode LUMOP {
                     0x0: VectorUnitStrideMemLoadMacroOp::vle64_v({{
+                        [[maybe_unused]] bool something = Mem == 0; //  keep isa_parser happy
                         Addr target_address = Rs1_ud + offset;
                         if (target_address % (eew/8)) {
                             // Alignment fault.
