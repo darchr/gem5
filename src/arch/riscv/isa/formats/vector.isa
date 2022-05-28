@@ -296,13 +296,23 @@ def template VectorUnitStrideMemLoadStoreMacroConstructor {{
         {
             for (uint32_t element_index = 0; element_index < num_elements_per_reg; element_index++) // element_index is the index of an element within its vector register
             {
-                StaticInstPtr uop = new %(class_name)sMicro(machInst, machVtype, machVl,
-                    VD+reg_id_offset, VM, reg_id_offset*num_elements_per_reg+element_index, num_elements_per_reg,
-                    (element_count < num_elements_per_reg) ? element_count : num_elements_per_reg,
-                    eew, (uint64_t)machVtype.vma, (uint64_t)machVtype.vta);
-                microops.push_back(std::move(uop));
+                bool is_tail_element = reg_id_offset*num_elements_per_reg+element_index >= element_count;
+                if (!is_tail_element)
+                {
+                    StaticInstPtr uop = new %(class_name)sMicro(machInst, machVtype, machVl,
+                        VD+reg_id_offset, VM, reg_id_offset*num_elements_per_reg+element_index, num_elements_per_reg,
+                        (element_count < num_elements_per_reg) ? element_count : num_elements_per_reg,
+                        eew, (uint64_t)machVtype.vma, (uint64_t)machVtype.vta);
+                    microops.push_back(std::move(uop));
+                }
             }
             element_count = (element_count >= num_elements_per_reg) ? (element_count - num_elements_per_reg) : 0; // TODO: refactor this
+        }
+
+        if (microops.size() == 0)
+        {
+            StaticInstPtr uop = new Addi(0x13);
+            microops.push_back(uop);
         }
 
         microops.front()->setFlag(IsFirstMicroop);
@@ -2471,6 +2481,7 @@ def template VectorCfgConstructor {{
     {
         %(set_reg_idx_arr)s;
         %(constructor)s;
+        flags[IsVector] = true;
     }
 }};
 
@@ -2480,6 +2491,8 @@ def template VectorConfigExecute {{
         Trace::InstRecord *traceData) const
     {
         Fault fault = NoFault;
+
+        RiscvISA::VTYPE new_vtype = 0xFFFFFFFF; // will have an illegal [30:8]
 
         %(op_decl)s;
         %(op_rd)s;
@@ -2496,20 +2509,37 @@ def template VectorConfigExecute {{
         //NPC = NPC;
         RiscvISA::PCState newPCState;
         set(newPCState, xc->pcState());
-        newPCState.vtype(xc->readMiscReg(MISCREG_VTYPE));
-        newPCState.vl(xc->readMiscReg(MISCREG_VL));
+        newPCState.vtype(new_vtype);
+        newPCState.vl(Rd); // the new vl is returned in Rd
         xc->pcState(newPCState);
+
+        xc->tcBase()->pcState(newPCState);
 
         return fault;
     }
 }};
 
-def format VectorCfgOp(code, *opt_flags) {{
-    iop = InstObjParams(name, Name, 'VectorCfgOp', code, opt_flags)
-    header_output = VectorDeclare.subst(iop)
+def template VectorConfigBranchTarget {{
+    std::unique_ptr<PCStateBase>
+    %(class_name)s::branchTarget(ThreadContext *tc) const
+    {
+        RiscvISA::VTYPE new_vtype = 0xFFFFFFFF;
+        uint32_t new_vl = 0;
+        %(branch_target_code)s
+        PCStateBase *pc_ptr = tc->pcState().clone();
+        pc_ptr->as<RiscvISA::PCState>().vtype(new_vtype);
+        pc_ptr->as<RiscvISA::PCState>().vl(new_vl);
+        return std::unique_ptr<PCStateBase>{pc_ptr};
+    }
+}};
+
+def format VectorCfgOp(execute_code, branch_target_code, *opt_flags) {{
+    iop = InstObjParams(name, Name, 'VectorCfgOp', {'code': execute_code, 'branch_target_code': branch_target_code}, opt_flags)
+    header_output = VectorCfgDeclare.subst(iop)
     decoder_output = VectorCfgConstructor.subst(iop)
     decode_block = VectorDecode.subst(iop)
     exec_output = VectorConfigExecute.subst(iop)
+    exec_output += VectorConfigBranchTarget.subst(iop)
 }};
 
 // --- End of VectorCfg
@@ -2553,4 +2583,19 @@ def template VectorMacroExecute {{
         std::string error = csprintf("Executing Macro Inst\n");
         return std::make_shared<IllegalInstFault>(error, machInst);
     }
+}};
+
+def template VectorCfgDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      private:
+        %(reg_idx_arr_decl)s;
+
+      public:
+        /// Constructor.
+        %(class_name)s(MachInst machInst, RiscvISA::VTYPE vtype, uint32_t vl, int vlen);
+        Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        virtual std::unique_ptr<PCStateBase> branchTarget(ThreadContext *) const override;
+        using %(base_class)s::generateDisassembly;
+    };
 }};

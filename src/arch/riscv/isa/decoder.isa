@@ -1551,14 +1551,21 @@ decode QUADRANT default Unknown::unknown() {
             }
             0x7: decode BIT31 { // Configuration-Setting
                 0x0: VectorCfgOp::vsetvli({{
-                    Rd = setVsetvlCSR(xc, RD, RS1, Rs1_ud, ZIMM11);
-                }}, IsDirectControl, IsCondControl);
+                    Rd = setVsetvlCSR(xc, RD, RS1, Rs1_ud, ZIMM11, new_vtype);
+                }}, {{
+                    new_vl = getVsetvlCSR(tc, rd_bits, rs1_bits, tc->readIntReg(rs1_bits), ZIMM11, new_vtype);
+                }},
+                IsControl, IsIndirectControl, IsUncondControl); // mimic jalr, the next PCState is unknown until the inst's execute stage
                 0x1: decode BIT30 {
                     0x0: VectorCfgOp::vsetvl({{
-                      Rd = setVsetvlCSR(xc, RD, RS1, Rs1_ud, Rs2_ud);
-                    }}, IsDirectControl, IsCondControl);
+                      Rd = setVsetvlCSR(xc, RD, RS1, Rs1_ud, Rs2_ud, new_vtype);
+                    }}, {{
+                        new_vl = getVsetvlCSR(tc, rd_bits, rs1_bits, tc->readIntReg(rs1_bits), ZIMM11, new_vtype);
+                    }},
+                    IsControl, IsIndirectControl, IsUncondControl); // mimic jalr, the next PCState is unknown until the inst's execute stage
                     0x1: VectorCfgOp::vsetivli({{
-                      Rd = setVsetvlCSR(xc, RD, -1, UIMM5, ZIMM10);
+                      Rd = setVsetvlCSR(xc, RD, -1, UIMM5, ZIMM10, new_vtype);
+                    }}, {{
                     }}); // we can determine vl and vtype at decode time so there'll be no control here
                 }
             }
