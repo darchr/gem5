@@ -44,6 +44,7 @@
 
 #include "arch/generic/pcstate.hh"
 #include "arch/riscv/regs/vec.hh"
+#include "base/bitunion.hh"
 
 namespace gem5
 {
@@ -51,16 +52,22 @@ namespace gem5
 namespace RiscvISA
 {
 
-class PCState : public GenericISA::UPCState<4>
+BitUnion32(VTYPE)
+    Bitfield<31> vill;
+    Bitfield<7> vma;
+    Bitfield<6> vta;
+    Bitfield<5, 3> vsew;
+    Bitfield<2, 0> vlmul;
+EndBitUnion(VTYPE)
+
+class PCState : public GenericISA::UPCState<16>
 {
   private:
     bool _compressed = false;
     bool _rv32 = false;
-    uint32_t _vl = 0;
-    uint32_t _vtype;
 
   public:
-    using GenericISA::UPCState<4>::UPCState;
+    using GenericISA::UPCState<16>::UPCState;
 
     PCStateBase *clone() const override { return new PCState(*this); }
 
@@ -71,8 +78,6 @@ class PCState : public GenericISA::UPCState<4>
         auto &pcstate = other.as<RiscvISA::PCState>();
         _compressed = pcstate._compressed;
         _rv32 = pcstate._rv32;
-        _vl = pcstate._vl;
-        _vtype = pcstate._vtype;
     }
 
     void compressed(bool c) { _compressed = c; }
@@ -84,8 +89,8 @@ class PCState : public GenericISA::UPCState<4>
     void vl(uint32_t val) { _vl = val; }
     uint32_t vl() const { return _vl; }
 
-    void vtype(uint32_t val) { _vtype = val; }
-    uint32_t vtype() const { return _vtype; }
+    void vtype(RiscvISA::VTYPE val) { _vtype = val; }
+    RiscvISA::VTYPE vtype() const { return _vtype; }
 
     bool
     branching() const override

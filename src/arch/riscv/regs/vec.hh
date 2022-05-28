@@ -40,13 +40,13 @@ const std::vector<std::string> VectorRegNames ={
 /**
  * These fields are specified in the RISC-V Vector Extension Manual.
  */
-BitUnion32(VTYPE)
-    Bitfield<31> vill;
-    Bitfield<7> vma;
-    Bitfield<6> vta;
-    Bitfield<5, 3> vsew;
-    Bitfield<2, 0> vlmul;
-EndBitUnion(VTYPE)
+//BitUnion32(VTYPE)
+//    Bitfield<31> vill;
+//    Bitfield<7> vma;
+//    Bitfield<6> vta;
+//    Bitfield<5, 3> vsew;
+//    Bitfield<2, 0> vlmul;
+//EndBitUnion(VTYPE)
 
 } // namespace RiscvISA
 } // namespace gem5
