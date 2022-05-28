@@ -334,9 +334,6 @@ BaseSimpleCPU::preExecute()
 
         decoder->moreBytes(pc_state, fetch_pc);
 
-        pc_state.set_vl(thread->readMiscReg(RiscvISA::MISCREG_VL));
-        pc_state.set_vtype(thread->readMiscReg(RiscvISA::MISCREG_VTYPE));
-
         //Decode an instruction if one is ready. Otherwise, we'll have to
         //fetch beyond the MachInst at the current pc.
         instPtr = decoder->decode(pc_state);
