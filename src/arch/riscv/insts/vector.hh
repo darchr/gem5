@@ -12,6 +12,7 @@
 #include "arch/riscv/vecregs.hh"
 #include "cpu/exec_context.hh"
 #include "cpu/static_inst.hh"
+#include "debug/Vsetvl.hh"
 
 namespace gem5
 {
@@ -69,10 +70,19 @@ vlmulToNumRegs(uint32_t vlmul)
 
 uint32_t
 setVsetvlCSR(ExecContext *xc,
-            uint32_t rd_bits,
-            uint32_t rs1_bits,
-            uint32_t requested_vl,
-            uint32_t new_vtype);
+             uint32_t rd_bits,
+             uint32_t rs1_bits,
+             uint32_t requested_vl,
+             uint32_t requested_vtype,
+             VTYPE& new_vtype);
+
+uint32_t
+getVsetvlCSR(ThreadContext *tc,
+             uint32_t rd_bits,
+             uint32_t rs1_bits,
+             uint32_t requested_vl,
+             uint32_t requested_vtype,
+             VTYPE& new_vtype);
 
 class VectorVRXUNARY0Op : public VectorInsn
 {
@@ -171,7 +181,9 @@ class VectorVdVs2Vs1MacroOp : public VectorMacroInst
     VectorVdVs2Vs1MacroOp(const char *mnem, ExtMachInst _machInst,
         OpClass __opClass, uint32_t machVtype, uint32_t machVl, int vlen) :
         VectorMacroInst(mnem, _machInst, __opClass, machVtype, machVl, vlen)
-    {}
+    {
+        DPRINTF(Vsetvl, "Decoding VectorVdVs2Vs1MacroOp with vl=%d, vtype=%d\n", machVl, (uint64_t)machVtype);
+    }
 
     std::string generateDisassembly(Addr pc,
         const loader::SymbolTable *symtab) const;
@@ -212,7 +224,9 @@ class VectorOPIVIMacroOp : public VectorMacroInst
     VectorOPIVIMacroOp(const char *mnem, ExtMachInst _machInst,
         OpClass __opClass, uint32_t machVtype, uint32_t machVl, int vlen) :
         VectorMacroInst(mnem, _machInst, __opClass, machVtype, machVl, vlen)
-    {}
+    {
+        DPRINTF(Vsetvl, "Decoding VectorOPIVIMacroOp with vl=%d, vtype=%d\n", machVl, (uint64_t)machVtype);
+    }
 
     std::string generateDisassembly(Addr pc,
         const loader::SymbolTable *symtab) const;
@@ -250,7 +264,9 @@ class VectorUnitStrideMemLoadMacroOp : public VectorMacroInst
     VectorUnitStrideMemLoadMacroOp(const char *mnem, ExtMachInst _machInst,
         OpClass __opClass, RiscvISA::VTYPE vtype, uint32_t vl, int vlen) :
         VectorMacroInst(mnem, _machInst, __opClass, vtype, vl, vlen)
-    {}
+    {
+        DPRINTF(Vsetvl, "Decoding VectorUnitStrideMemLoadMacroOp with vl=%d, vtype=%d\n", vl, (uint64_t)vtype);
+    }
     std::string generateDisassembly(Addr pc,
         const loader::SymbolTable *symtab) const;
 };
@@ -289,7 +305,9 @@ class VectorUnitStrideMemStoreMacroOp : public VectorMacroInst
     VectorUnitStrideMemStoreMacroOp(const char *mnem, ExtMachInst _machInst,
         OpClass __opClass, RiscvISA::VTYPE vtype, uint32_t vl, int vlen) :
         VectorMacroInst(mnem, _machInst, __opClass, vtype, vl, vlen)
-    {}
+    {
+        DPRINTF(Vsetvl, "Decoding VectorUnitStrideMemStoreMacroOp with vl=%d, vtype=%d\n", vl, (uint64_t)vtype);
+    }
     std::string generateDisassembly(Addr pc,
         const loader::SymbolTable *symtab) const;
 };

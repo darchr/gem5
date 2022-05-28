@@ -7,6 +7,7 @@
 #include "arch/riscv/insts/vector.hh"
 #include "arch/riscv/regs/misc.hh"
 #include "arch/riscv/utility.hh"
+#include "debug/Vsetvl.hh"
 
 using namespace std;
 
@@ -89,8 +90,9 @@ setVsetvlCSR(ExecContext *xc,
              uint32_t rd_bits,
              uint32_t rs1_bits,
              uint32_t requested_vl,
-             uint32_t requested_vtype) {
-  VTYPE new_vtype = requested_vtype;
+             uint32_t requested_vtype,
+             VTYPE& new_vtype) {
+  new_vtype = requested_vtype;
 
   int vlen = xc->readMiscReg(MISCREG_VLENB) * 8;
   uint32_t elen = xc->readMiscReg(MISCREG_ELEN);
@@ -131,6 +133,59 @@ setVsetvlCSR(ExecContext *xc,
   }
 
   xc->setMiscReg(MISCREG_VL, vl);
+
+  DPRINTF(Vsetvl, "Setting vl=%d, vtype=%d\n", (uint64_t)vl, (uint64_t)new_vtype);
+  DPRINTF(Vsetvl, "Misc vl=%d, vtype=%d\n", (uint64_t)xc->readMiscReg(MISCREG_VL), (uint64_t)xc->readMiscReg(MISCREG_VTYPE));
+
+  return vl;
+}
+
+uint32_t
+getVsetvlCSR(ThreadContext *tc,
+             uint32_t rd_bits,
+             uint32_t rs1_bits,
+             uint32_t requested_vl,
+             uint32_t requested_vtype,
+             VTYPE& new_vtype) {
+  new_vtype = requested_vtype;
+
+  int vlen = tc->readMiscReg(MISCREG_VLENB) * 8;
+  uint32_t elen = tc->readMiscReg(MISCREG_ELEN);
+
+  uint32_t vlmax = getVlmax(tc->readMiscReg(MISCREG_VTYPE), vlen);
+
+  if (tc->readMiscReg(MISCREG_VTYPE) != new_vtype) {
+    vlmax = getVlmax(new_vtype, vlen);
+
+    float vflmul = getVflmul(new_vtype.vlmul);
+
+    uint32_t sew = getSew(new_vtype.vsew);
+
+    uint32_t new_vill =
+      !(vflmul >= 0.125 && vflmul <= 8) ||
+        sew > std::min(vflmul, 1.0f) * elen ||
+        bits(requested_vtype, 30, 8) != 0;
+    if (new_vill) {
+      vlmax = 0;
+      new_vtype = 0;
+      new_vtype.vill = 1;
+    }
+  }
+
+  // Set vl
+  uint32_t current_vl = tc->readMiscReg(MISCREG_VL);
+  uint32_t vl = 0;
+  if (vlmax == 0) {
+    vl = 0;
+  } else if (rd_bits == 0 && rs1_bits == 0) {
+    vl = current_vl > vlmax ? vlmax : current_vl;
+  } else if (rd_bits != 0 && rs1_bits == 0) {
+    vl = vlmax;
+  } else if (rs1_bits != 0) {
+    vl = requested_vl > vlmax ? vlmax : requested_vl;
+  }
+
+  DPRINTF(Vsetvl, "Getting vl=%d, vtype=%d\n", (uint64_t)vl, (uint64_t)new_vtype);
 
   return vl;
 }
