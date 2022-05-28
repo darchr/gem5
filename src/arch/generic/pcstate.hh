@@ -60,10 +60,10 @@ class PCStateBase : public Serializable
     Addr _pc = 0;
     MicroPC _upc = 0;
 
-    uint32_t _vtype;
-    uint32_t _vl;
+    uint32_t _vtype = 0;
+    uint32_t _vl = 0;
 
-    PCStateBase(const PCStateBase &other) : _pc(other._pc), _upc(other._upc) {}
+    PCStateBase(const PCStateBase &other) : _pc(other._pc), _upc(other._upc), _vtype(other._vtype), _vl(other._vl) {}
     PCStateBase &operator=(const PCStateBase &other) = default;
     PCStateBase() {}
 
@@ -90,6 +90,8 @@ class PCStateBase : public Serializable
     {
         _pc = other._pc;
         _upc = other._upc;
+        _vl = other._vl;
+        _vtype = other._vtype;
     }
     void update(const PCStateBase *ptr) { update(*ptr); }
 
@@ -98,7 +100,7 @@ class PCStateBase : public Serializable
     virtual bool
     equals(const PCStateBase &other) const
     {
-        return _pc == other._pc && _upc == other._upc;
+        return _pc == other._pc && _upc == other._upc && _vl == other._vl && _vtype == other._vtype;
     }
 
     /**
@@ -137,6 +139,8 @@ class PCStateBase : public Serializable
     {
         SERIALIZE_SCALAR(_pc);
         SERIALIZE_SCALAR(_upc);
+        SERIALIZE_SCALAR(_vl);
+        SERIALIZE_SCALAR(_vtype);
     }
 
     void
@@ -144,6 +148,8 @@ class PCStateBase : public Serializable
     {
         UNSERIALIZE_SCALAR(_pc);
         UNSERIALIZE_SCALAR(_upc);
+        UNSERIALIZE_SCALAR(_vl);
+        UNSERIALIZE_SCALAR(_vtype);
     }
 
     void set_vtype(uint32_t vtype) {
