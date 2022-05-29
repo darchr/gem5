@@ -198,7 +198,11 @@ def template BranchExecute {{
     %(class_name)s::branchTarget(const PCStateBase &branch_pc) const
     {
         auto &rpc = branch_pc.as<RiscvISA::PCState>();
-        return std::make_unique<PCState>(rpc.pc() + imm);
+        //return std::make_unique<PCState>(rpc.pc() + imm);
+        auto new_pc = std::make_unique<RiscvISA::PCState>(rpc.pc() + imm);
+        new_pc->vtype(rpc.vtype());
+        new_pc->vl(rpc.vl());
+        return new_pc;
     }
 
     std::string
