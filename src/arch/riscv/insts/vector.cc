@@ -191,21 +191,6 @@ getVsetvlCSR(ThreadContext *tc,
 }
 
 string
-VectorVdVs2Vs1Op::generateDisassembly(Addr pc,
-    const loader::SymbolTable *symtab) const
-{
-    stringstream ss;
-    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
-    ss << VectorRegNames[vd()] << ", ";
-    ss << VectorRegNames[vs2()] << ", ";
-    ss << VectorRegNames[vs1()];
-    if (vm()==0) {
-        ss << ", " << "v0";
-    }
-    return ss.str();
-}
-
-string
 VectorVdVs2Vs1MacroOp::generateDisassembly(Addr pc,
     const loader::SymbolTable *symtab) const
 {
@@ -236,20 +221,6 @@ VectorVdVs2Vs1MicroOp::generateDisassembly(Addr pc,
 }
 
 string
-VectorUnitStrideMemLoadOp::generateDisassembly(Addr pc,
-    const loader::SymbolTable *symtab) const
-{
-    stringstream ss;
-    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
-    ss << VectorRegNames[vd()] << ", ";
-    ss << csprintf("(%s)", IntRegNames[rs1()]);
-    if (vm()==0) {
-        ss << ", " << "v0";
-    }
-    return ss.str();
-}
-
-string
 VectorUnitStrideMemLoadMacroOp::generateDisassembly(Addr pc,
     const loader::SymbolTable *symtab) const
 {
@@ -265,21 +236,6 @@ VectorUnitStrideMemLoadMacroOp::generateDisassembly(Addr pc,
 
 string
 VectorUnitStrideMemLoadMicroOp::generateDisassembly(Addr pc,
-    const loader::SymbolTable *symtab) const
-{
-    stringstream ss;
-    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
-    ss << VectorRegNames[vd()] << ", ";
-    ss << csprintf("(%s)", IntRegNames[rs1()]);
-    if (vm()==0) {
-        ss << ", " << "v0";
-    }
-    return ss.str();
-}
-
-
-string
-VectorUnitStrideMemStoreOp::generateDisassembly(Addr pc,
     const loader::SymbolTable *symtab) const
 {
     stringstream ss;
@@ -321,21 +277,6 @@ VectorUnitStrideMemStoreMicroOp::generateDisassembly(Addr pc,
 }
 
 // op vd, vs2, uimm
-string
-VectorOPIVIOp::generateDisassembly(Addr pc,
-    const loader::SymbolTable *symtab) const
-{
-    stringstream ss;
-    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
-    ss << VectorRegNames[vd()] << ", ";
-    ss << VectorRegNames[vs1()] << ", ";
-    ss << csprintf("%d", uimm5());
-    if (vm()==0) {
-        ss << ", " << "v0";
-    }
-    return ss.str();
-}
-
 string
 VectorOPIVIMacroOp::generateDisassembly(Addr pc,
     const loader::SymbolTable *symtab) const

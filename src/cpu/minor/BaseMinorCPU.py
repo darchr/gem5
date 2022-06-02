@@ -179,14 +179,13 @@ class MinorDefaultMiscFU(MinorFU):
 class MinorDefaultVecFU(MinorFU):
     opClasses = minorMakeOpClassSet([
         'VectorIndexedMemLoad','VectorIndexedMemStore','VectorStridedMemLoad',
-        'VectorStridedMemStore','VectorUnitStrideMemLoad',
-        'VectorUnitStrideMemLoadMacroOp','VectorUnitStrideMemLoadMicroOp',
-        'VectorUnitStrideMemStore','VectorUnitStrideMemStoreMacroOp',
+        'VectorStridedMemStore', 'VectorUnitStrideMemLoadMacroOp',
+        'VectorUnitStrideMemLoadMicroOp', 'VectorUnitStrideMemStoreMacroOp',
         'VectorUnitStrideMemStoreMicroOp','VectorOPIVIMacroOp',
         'VectorOPIVIMicroOp','VectorVdVs2Rs1','VectorVdVs2Fs1',
         'VectorWideningVdVs2','VectorNarrowingVV','VectorNarrowingVI',
         'VectorNarrowingWX','VectorWideningVX','VectorWideningWV',
-        'VectorWideningVV','VectorVdVs2Vs1Op','VectorVdVs2Vs1MacroOp',
+        'VectorWideningVV','VectorVdVs2Vs1MacroOp',
         'VectorVdVs2Vs1MicroOp','VectorVRXUNARY0','VectorVRFUNARY0',
         'VectorVFUNARY0','VectorVWXUNARY0','VectorVMUNARY0',
         'VectorIntegerExtension','VectorMaskRegister',

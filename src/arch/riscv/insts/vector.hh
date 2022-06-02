@@ -108,30 +108,6 @@ class VectorVWXUNARY0Op : public VectorInsn
         const loader::SymbolTable *symtab) const;
 };
 
-class VectorOPIVIOp : public VectorInsn
-{
-  public:
-    VectorOPIVIOp(const char *mnem, ExtMachInst _machInst,
-        OpClass __opClass) :
-        VectorInsn(mnem, _machInst, __opClass)
-    {}
-
-    std::string generateDisassembly(Addr pc,
-        const loader::SymbolTable *symtab) const;
-};
-
-class VectorVdVs2Vs1Op : public VectorInsn
-{
-  public:
-    VectorVdVs2Vs1Op(const char *mnem, ExtMachInst _machInst,
-        OpClass __opClass) :
-        VectorInsn(mnem, _machInst, __opClass)
-    {}
-
-    std::string generateDisassembly(Addr pc,
-        const loader::SymbolTable *symtab) const;
-};
-
 class VectorUnitStrideMemLoadOp : public VectorMemInst
 {
   public:
