@@ -580,15 +580,6 @@ def template VectorUnitStrideMemLoadMicroCompleteAcc {{
             getMemLE(pkt, Mem, traceData);
             auto Vd = Vd_container.as<uint64_t>();
             Vd[regElemID] = Mem;
-            DPRINTF(Vsetvl, "Vd=[");
-            for (uint32_t t = 0; t < num_elements_per_reg; t++)
-            {
-                if (t == regElemID)
-                    DPRINTF(Vsetvl, "Vd[*%d] = %d\n", t, Vd[t]);
-                else
-                    DPRINTF(Vsetvl, "Vd[%d] = %d\n", t, Vd[t]);
-            }
-            DPRINTF(Vsetvl, "]\n");
         }
         return fault;
     }
@@ -1470,12 +1461,6 @@ def template VectorVdVs2Vs1OpMicroExecute {{
                         Vd[regElemID] = old_Vd[regElemID];
                     }
                 }
-                DPRINTF(Vsetvl, "Vd=[");
-                for (uint32_t t = 0; t < num_elements_per_reg; t++)
-                {
-                    DPRINTF(Vsetvl, "Vd[%d] = %d\n", t, Vd[t]);
-                }
-                DPRINTF(Vsetvl, "]\n");
             } else {
                 std::string error = csprintf(
                     "Illegal vsewb value in VTYPE: 0x%x\n", sew);
