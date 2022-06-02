@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "arch/riscv/insts/standard.hh"
 #include "arch/riscv/insts/static_inst.hh"
 #include "arch/riscv/insts/vector_static_inst.hh"
 #include "arch/riscv/vecregs.hh"
@@ -314,6 +315,25 @@ class VectorUnitStrideMemStoreMicroOp : public VectorMemMicroInst
     virtual Fault execute(ExecContext *, Trace::InstRecord *) const = 0;
     virtual Fault initiateAcc(ExecContext *, Trace::InstRecord *) const = 0;
     virtual Fault completeAcc(Packet *, ExecContext *, Trace::InstRecord *) const = 0;
+};
+
+class MicroNop : public ImmOp<int64_t>
+{
+  public:
+    MicroNop()
+      : ImmOp<int64_t>("MicroNop", 0x13, IntAluOp)
+    {
+        flags[IsMicroop] = true;
+    }
+
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+
+    Fault
+    execute(ExecContext *xc, Trace::InstRecord *traceData) const override
+    {
+        return NoFault;
+    }
 };
 
 }

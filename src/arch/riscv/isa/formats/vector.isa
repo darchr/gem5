@@ -99,7 +99,7 @@ def template VectorUnitStrideMemLoadStoreMacroConstructor {{
 
         if (microops.size() == 0)
         {
-            StaticInstPtr uop = new Addi(0x13);
+            StaticInstPtr uop = new MicroNop();
             microops.push_back(uop);
         }
 

@@ -397,6 +397,15 @@ VectorCfgOp::generateDisassembly(Addr pc,
     return ss.str();
 }
 
+string
+MicroNop::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    stringstream ss;
+    ss << mnemonic;
+    return ss.str();
+}
+
 }
 
 }
