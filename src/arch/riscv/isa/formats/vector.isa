@@ -2,6 +2,32 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
+// Copyright (c) 2022 The Regents of the University of California
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met: redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer;
+// redistributions in binary form must reproduce the above copyright
+// notice, this list of conditions and the following disclaimer in the
+// documentation and/or other materials provided with the distribution;
+// neither the name of the copyright holders nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 // --- Start of VectorUnitStrideMemLoad
 
 def template VectorUnitStrideMemLoadConstructor {{
@@ -903,7 +929,6 @@ def template VectorUnitStrideMemStoreMicroConstructor {{
     }
 }};
 
-
 def template VectorUnitStrideMemStoreMicroExecute {{
     Fault
     %(class_name)s::%(class_name)sMicro::execute(ExecContext *xc,
@@ -1414,7 +1439,12 @@ def template VectorVdVs2Vs1OpMicroExecute {{
                     }
                     %(code)s;
                 }
-                // TODO: apply tail policy to tail elements
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint8_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID)
+                        Vd[regElemID] = old_Vd[regElemID];
+                }
             } else if (sew == 16) {
                 auto Vd = Vd_container.as<uint16_t>();
                 auto Vs2 = Vs2_container.as<uint16_t>();
@@ -1427,7 +1457,12 @@ def template VectorVdVs2Vs1OpMicroExecute {{
                     }
                     %(code)s;
                 }
-                // TODO: apply tail policy to tail elements
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint16_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID)
+                        Vd[regElemID] = old_Vd[regElemID];
+                }
             } else if (sew == 32) {
                 auto Vd = Vd_container.as<uint32_t>();
                 auto Vs2 = Vs2_container.as<uint32_t>();
@@ -1440,7 +1475,12 @@ def template VectorVdVs2Vs1OpMicroExecute {{
                     }
                     %(code)s;
                 }
-                // TODO: apply tail policy to tail elements
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint32_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID)
+                        Vd[regElemID] = old_Vd[regElemID];
+                }
             } else if (sew == 64) {
                 auto Vd = Vd_container.as<uint64_t>();
                 auto Vs2 = Vs2_container.as<uint64_t>();
@@ -1453,13 +1493,11 @@ def template VectorVdVs2Vs1OpMicroExecute {{
                     }
                     %(code)s;
                 }
-                // TODO: apply tail policy to tail elements
                 if (has_to_copy_tail_elements)
                 {
                     auto old_Vd = old_Vd_container.as<uint64_t>();
-                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID) {
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID)
                         Vd[regElemID] = old_Vd[regElemID];
-                    }
                 }
             } else {
                 std::string error = csprintf(
@@ -1491,9 +1529,9 @@ def template VectorVdVs2Vs1MicroDeclare {{
         //          up to 8 vector regs starting at Vs1 and
         //          1 mask register and
         //          up to 1 dest register.
-        RegId srcRegIdxArr[8 + 8 + 1 + 1];
+        RegId srcRegIdxArr[1 + 1 + 1 + 1];
         // Destinations: up to 8 vector regs starting at Vd
-        RegId destRegIdxArr[8];
+        RegId destRegIdxArr[1];
 
       public:
         /// Constructor.
@@ -1574,10 +1612,11 @@ def template VectorSameElementWidthIntegerReductionMicroDeclare {{
       private:
         // Example:
         // vadd.vv         31..26=0x00 vm vs2 vs1 14..12=0x0 vd 6..0=0x57
-        // Sources: up to 8 vector regs starting at Vs2 and
+        // Sources: up to 1 vector regs starting at Vs2 and
         //          one scalar in Vs1 and
-        //          1 mask register.
-        RegId srcRegIdxArr[8 + 1 + 1];
+        //          1 mask register and
+        //          1 dest register
+        RegId srcRegIdxArr[1 + 1 + 1 + 1];
         // Destinations: One vector containing a scalar
         RegId destRegIdxArr[1];
         bool use_VS1;
@@ -1621,6 +1660,8 @@ def template VectorSameElementWidthIntegerReductionMicroConstructor {{
             // Masked instruction.
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, 0));
         }
+        if (num_non_tail_elements < num_elements_per_reg)
+            setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, vdRegID));
 
         this->use_VS1 = use_VS1;
 
@@ -1647,6 +1688,8 @@ def template VectorSameElementWidthIntegerReductionMicroExecute {{
         TheISA::VecRegContainer Vs2_container;
         xc->getRegOperand(this, 1, &Vs2_container);
 
+        bool has_to_copy_tail_elements = num_non_tail_elements < num_elements_per_reg;
+
         auto empty_vmask = std::vector<uint8_t>((num_non_tail_elements + 7)/8, 0xFF);
         uint8_t* vmask = empty_vmask.data();
         // Figure out if we need masks
@@ -1655,6 +1698,11 @@ def template VectorSameElementWidthIntegerReductionMicroExecute {{
             xc->getRegOperand(this, 2, &Vmask_container);
             vmask = Vmask_container.as<uint8_t>();
         }
+
+        uint32_t tail_reg_idx = (vmRegID == 0) ? 3 : 2;
+        TheISA::VecRegContainer old_Vd_container;
+        if (has_to_copy_tail_elements)
+            xc->getRegOperand(this, tail_reg_idx, &old_Vd_container);       
 
         bool utilize_mask = vmRegID == 0;
 
@@ -1673,7 +1721,13 @@ def template VectorSameElementWidthIntegerReductionMicroExecute {{
                     }
                     %(code)s;
                 }
-                // TODO: apply tail policy to tail elements
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint8_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID) {
+                        Vd[regElemID] = old_Vd[regElemID];
+                    }
+                }
             } else if (sew == 16) {
                 auto Vd = Vd_container.as<uint16_t>();
                 auto Vs2 = Vs2_container.as<uint16_t>();
@@ -1688,7 +1742,13 @@ def template VectorSameElementWidthIntegerReductionMicroExecute {{
                     }
                     %(code)s;
                 }
-                // TODO: apply tail policy to tail elements
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint16_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID) {
+                        Vd[regElemID] = old_Vd[regElemID];
+                    }
+                }
             } else if (sew == 32) {
                 auto Vd = Vd_container.as<uint32_t>();
                 auto Vs2 = Vs2_container.as<uint32_t>();
@@ -1703,7 +1763,13 @@ def template VectorSameElementWidthIntegerReductionMicroExecute {{
                     }
                     %(code)s;
                 }
-                // TODO: apply tail policy to tail elements
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint32_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID) {
+                        Vd[regElemID] = old_Vd[regElemID];
+                    }
+                }
             } else if (sew == 64) {
                 auto Vd = Vd_container.as<uint64_t>();
                 auto Vs2 = Vs2_container.as<uint64_t>();
@@ -1718,7 +1784,13 @@ def template VectorSameElementWidthIntegerReductionMicroExecute {{
                     }
                     %(code)s;
                 }
-                // TODO: apply tail policy to tail elements
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint64_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID) {
+                        Vd[regElemID] = old_Vd[regElemID];
+                    }
+                }
             } else {
                 std::string error = csprintf(
                     "Illegal vsewb value in VTYPE: 0x%x\n", sew);
@@ -2267,6 +2339,10 @@ def template VectorOPIVIMicroOpConstructor {{
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, 0));
         }
 
+        //if (tail_policy == 0) // undisturbed
+        if (num_non_tail_elements < num_elements_per_reg)
+            setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, vdRegID));
+
         _numVecSrcRegs = _numSrcRegs;
 
         flags[IsInteger] = true;
@@ -2295,6 +2371,8 @@ def template VectorOPIVIMicroExecute {{
              }
         }
 
+        bool has_to_copy_tail_elements = num_non_tail_elements < num_elements_per_reg;
+
         auto empty_vmask = std::vector<uint8_t>((num_non_tail_elements + 7)/8, 0xFF);
         uint8_t* vmask = empty_vmask.data();
         // Figure out if we need masks
@@ -2303,6 +2381,11 @@ def template VectorOPIVIMicroExecute {{
             xc->getRegOperand(this, 2, &Vmask_container);
             vmask = Vmask_container.as<uint8_t>();
         }
+
+        uint32_t tail_reg_idx = (vmRegID == 0) ? 2 : 1;
+        TheISA::VecRegContainer old_Vd_container;
+        if (has_to_copy_tail_elements)
+            xc->getRegOperand(this, tail_reg_idx, &old_Vd_container);        
 
         bool utilize_mask = vmRegID == 0;
 
@@ -2321,6 +2404,13 @@ def template VectorOPIVIMicroExecute {{
                     }
                     %(code)s;
                 }
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint8_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID) {
+                        Vd[regElemID] = old_Vd[regElemID];
+                    }
+                }
             } else if (sew == 16) {
                 auto Vd = Vd_container.as<uint16_t>();
                 auto Vs2 = Vs2_container.as<uint16_t>();
@@ -2330,6 +2420,13 @@ def template VectorOPIVIMicroExecute {{
                         continue;
                     }
                     %(code)s;
+                }
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint16_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID) {
+                        Vd[regElemID] = old_Vd[regElemID];
+                    }
                 }
             } else if (sew == 32) {
                 auto Vd = Vd_container.as<uint32_t>();
@@ -2341,6 +2438,13 @@ def template VectorOPIVIMicroExecute {{
                     }
                     %(code)s;
                 }
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint32_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID) {
+                        Vd[regElemID] = old_Vd[regElemID];
+                    }
+                }
             } else if (sew == 64) {
                 auto Vd = Vd_container.as<uint64_t>();
                 auto Vs2 = Vs2_container.as<uint64_t>();
@@ -2350,6 +2454,13 @@ def template VectorOPIVIMicroExecute {{
                         continue;
                     }
                     %(code)s;
+                }
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint64_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID) {
+                        Vd[regElemID] = old_Vd[regElemID];
+                    }
                 }
             } else {
                 std::string error = csprintf(
@@ -2376,11 +2487,12 @@ def template VectorOPIVIMicroDeclare {{
       private:
         // Example:
         // vadd.vi        31..26=0x00 vm vs2 simm5 14..12=0x3 vd 6..0=0x57
-        // Sources: up to 8 vector regs starting at Vs2 and
-        //          1 mask register.
-        RegId srcRegIdxArr[8 + 1];
+        // Sources: up to 1 vector regs starting at Vs2 and
+        //          1 mask register and
+        //          1 destination register.
+        RegId srcRegIdxArr[1 + 1 + 1];
         // Destinations: up to 8 vector regs starting at Vd
-        RegId destRegIdxArr[8];
+        RegId destRegIdxArr[1];
 
       public:
         /// Constructor.
