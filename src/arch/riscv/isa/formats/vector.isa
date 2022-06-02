@@ -1365,6 +1365,9 @@ def template VectorVdVs2Vs1MicroConstructor {{
             // Masked instruction.
             setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, 0));
         }
+        //if (tail_policy == 0) // undisturbed
+        if (num_non_tail_elements < num_elements_per_reg)
+            setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, vdRegID));
 
         _numVecSrcRegs = _numSrcRegs;
 
@@ -1389,6 +1392,9 @@ def template VectorVdVs2Vs1OpMicroExecute {{
         TheISA::VecRegContainer Vs2_container;
         xc->getRegOperand(this, 1, &Vs2_container);
 
+        //bool has_to_copy_tail_elements = (tail_policy == 0) && (num_non_tail_elements < num_elements_per_reg);
+        bool has_to_copy_tail_elements = num_non_tail_elements < num_elements_per_reg;
+
         auto empty_vmask = std::vector<uint8_t>((num_non_tail_elements + 7)/8, 0xFF);
         uint8_t* vmask = empty_vmask.data();
         // Figure out if we need masks
@@ -1397,6 +1403,10 @@ def template VectorVdVs2Vs1OpMicroExecute {{
             xc->getRegOperand(this, 2, &Vmask_container);
             vmask = Vmask_container.as<uint8_t>();
         }
+        uint32_t tail_reg_idx = (vmRegID == 0) ? 3 : 2;
+        TheISA::VecRegContainer old_Vd_container;
+        if (has_to_copy_tail_elements)
+            xc->getRegOperand(this, tail_reg_idx, &old_Vd_container);
 
         bool utilize_mask = vmRegID == 0;
 
@@ -1453,10 +1463,13 @@ def template VectorVdVs2Vs1OpMicroExecute {{
                     %(code)s;
                 }
                 // TODO: apply tail policy to tail elements
-                // This is the undisturbed policy
-                //for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg); ++regElemID) {
-                //    Vd[regElemID] = Vs2[]
-                //}
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint64_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID) {
+                        Vd[regElemID] = old_Vd[regElemID];
+                    }
+                }
                 DPRINTF(Vsetvl, "Vd=[");
                 for (uint32_t t = 0; t < num_elements_per_reg; t++)
                 {
@@ -1491,8 +1504,9 @@ def template VectorVdVs2Vs1MicroDeclare {{
         // vadd.vv         31..26=0x00 vm vs2 vs1 14..12=0x0 vd 6..0=0x57
         // Sources: up to 8 vector regs starting at Vs2 and
         //          up to 8 vector regs starting at Vs1 and
-        //          1 mask register.
-        RegId srcRegIdxArr[8 + 8 + 1];
+        //          1 mask register and
+        //          up to 1 dest register.
+        RegId srcRegIdxArr[8 + 8 + 1 + 1];
         // Destinations: up to 8 vector regs starting at Vd
         RegId destRegIdxArr[8];
 
