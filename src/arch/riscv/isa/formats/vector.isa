@@ -377,7 +377,15 @@ def template VectorUnitStrideMemLoadMicroConstructor {{
 
         _numVecSrcRegs = _numSrcRegs;
 
-        flags[IsInteger] = false;
+        if (mask_offset % num_elements_per_reg == 0 && num_non_tail_elements != 0)
+        {
+            // pining the destination like SveGatherLoadVIMicroop
+            auto dest_reg = destRegIdx(0);
+            dest_reg.setNumPinnedWrites(num_non_tail_elements - 1);
+            setDestRegIdx(0, dest_reg);
+        }
+
+        flags[IsInteger] = true;
         flags[IsLoad] = true;
         flags[IsVector] = true;
         flags[IsMicroop] = true;
@@ -572,6 +580,15 @@ def template VectorUnitStrideMemLoadMicroCompleteAcc {{
             getMemLE(pkt, Mem, traceData);
             auto Vd = Vd_container.as<uint64_t>();
             Vd[regElemID] = Mem;
+            DPRINTF(Vsetvl, "Vd=[");
+            for (uint32_t t = 0; t < num_elements_per_reg; t++)
+            {
+                if (t == regElemID)
+                    DPRINTF(Vsetvl, "Vd[*%d] = %d\n", t, Vd[t]);
+                else
+                    DPRINTF(Vsetvl, "Vd[%d] = %d\n", t, Vd[t]);
+            }
+            DPRINTF(Vsetvl, "]\n");
         }
         return fault;
     }
@@ -888,7 +905,7 @@ def template VectorUnitStrideMemStoreMicroConstructor {{
 
         _numVecSrcRegs = _numSrcRegs;
 
-        flags[IsInteger] = false;
+        flags[IsInteger] = true;
         flags[IsStore] = true;
         flags[IsVector] = true;
         flags[IsMicroop] = true;
@@ -1114,8 +1131,8 @@ def template VectorVdVs2Vs1OpConstructor {{
 
         _numVecSrcRegs = _numSrcRegs;
 
-        flags[IsInteger] = false;
-        flags[IsVector] = true;;
+        flags[IsInteger] = true;
+        flags[IsVector] = true;
     }
 }};
 
@@ -1351,7 +1368,7 @@ def template VectorVdVs2Vs1MicroConstructor {{
 
         _numVecSrcRegs = _numSrcRegs;
 
-        flags[IsInteger] = false;
+        flags[IsInteger] = true;
         flags[IsVector] = true;
         flags[IsMicroop] = true;
     }
@@ -1436,6 +1453,16 @@ def template VectorVdVs2Vs1OpMicroExecute {{
                     %(code)s;
                 }
                 // TODO: apply tail policy to tail elements
+                // This is the undisturbed policy
+                //for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg); ++regElemID) {
+                //    Vd[regElemID] = Vs2[]
+                //}
+                DPRINTF(Vsetvl, "Vd=[");
+                for (uint32_t t = 0; t < num_elements_per_reg; t++)
+                {
+                    DPRINTF(Vsetvl, "Vd[%d] = %d\n", t, Vd[t]);
+                }
+                DPRINTF(Vsetvl, "]\n");
             } else {
                 std::string error = csprintf(
                     "Illegal vsewb value in VTYPE: 0x%x\n", sew);
@@ -1600,7 +1627,7 @@ def template VectorSameElementWidthIntegerReductionMicroConstructor {{
 
         _numVecSrcRegs = _numSrcRegs;
 
-        flags[IsInteger] = false;
+        flags[IsInteger] = true;
         flags[IsVector] = true;
         flags[IsMicroop] = true;
     }
@@ -1759,7 +1786,7 @@ def template VectorSingleWidthIntegerReductionConstructor {{
         }
 
         flags[IsInteger] = true;
-        flags[IsVector] = true;;
+        flags[IsVector] = true;
     }
 }};
 
@@ -2035,7 +2062,7 @@ def template VectorOPIVIConstructor {{
         }
 
         flags[IsInteger] = true;
-        flags[IsVector] = true;;
+        flags[IsVector] = true;
     }
 }};
 
@@ -2243,7 +2270,7 @@ def template VectorOPIVIMicroOpConstructor {{
 
         _numVecSrcRegs = _numSrcRegs;
 
-        flags[IsInteger] = false;
+        flags[IsInteger] = true;
         flags[IsVector] = true;
         flags[IsMicroop] = true;
     }
