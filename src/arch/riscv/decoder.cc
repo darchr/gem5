@@ -95,8 +95,8 @@ Decoder::decode(ExtMachInst mach_inst,
         si = decodeInst(mach_inst, mach_vtype, mach_vl, vlen);
     }
 
-    DPRINTF(Decode, "Decode: Decoded %s instruction: %#x\n",
-            si->getName(), mach_inst);
+    DPRINTF(Decode, "Decode: Decoded %s instruction: %#x, vl = %d, vtype = %d\n",
+            si->getName(), mach_inst, mach_vl, mach_vtype);
     return si;
 }
 
