@@ -31,6 +31,7 @@
 
 #include "accl/graph/base/base_mem_engine.hh"
 #include "accl/graph/base/data_structs.hh"
+#include "base/intmath.hh"
 #include "params/PushEngine.hh"
 
 namespace gem5
@@ -59,7 +60,7 @@ class PushEngine : public BaseMemEngine
         std::tuple<Addr, Addr, int> nextReadPacketInfo()
         {
             panic_if(done(), "Should not call nextPacketInfo when done.\n");
-            Addr aligned_addr = std::floor(_start / _atom) * _atom;
+            Addr aligned_addr = roundDown<Addr, Addr>(_start, _atom);
             Addr offset = _start - aligned_addr;
             int num_items = 0;
 

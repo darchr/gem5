@@ -32,6 +32,9 @@
 #include "base/cprintf.hh"
 #include "base/intmath.hh"
 
+#include <unordered_set>
+#include <queue>
+
 namespace gem5
 {
 
@@ -83,6 +86,53 @@ struct __attribute__ ((packed)) Edge
 };
 
 static_assert(isPowerOf2(sizeof(WorkListItem)));
+static_assert(isPowerOf2(sizeof(Edge)));
+
+template<typename T>
+class FIFOSet
+{
+    private:
+        std::queue<T> fifo;
+        std::unordered_set<T> set;
+
+    public:
+        FIFOSet(int cap)
+        {
+            set.reserve(cap);
+        }
+
+        void push_back(T item)
+        {
+            if (set.find(item) == set.end()) {
+                set.insert(item);
+                fifo.push(item);
+            }
+        }
+
+        void pop_front()
+        {
+            T front = fifo.front();
+            set.erase(front);
+            fifo.pop();
+        }
+
+        T& front()
+        {
+            return fifo.front();
+        }
+
+        size_t size() {
+            return fifo.size();
+        }
+
+        bool empty() {
+            return fifo.empty();
+        }
+
+        bool find(T item) {
+            return (set.find(item) != set.end());
+        }
+};
 
 }
 

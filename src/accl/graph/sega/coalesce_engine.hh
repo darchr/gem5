@@ -84,9 +84,9 @@ class CoalesceEngine : public BaseMemEngine
     std::deque<std::tuple<Addr, WorkListItem>> responseQueue;
 
     bool pendingPushAlarm;
-    std::deque<int> applyQueue;
+    FIFOSet<int> applyQueue;
 
-    std::deque<int> evictQueue;
+    FIFOSet<int> evictQueue;
 
     EventFunctionWrapper nextRespondEvent;
     void processNextRespondEvent();
