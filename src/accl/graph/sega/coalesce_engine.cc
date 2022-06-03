@@ -45,6 +45,8 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     numMSHREntry(params.num_mshr_entry),
     numTgtsPerMSHR(params.num_tgts_per_mshr),
     pendingPushAlarm(false),
+    applyQueue(numLines),
+    evictQueue(numLines),
     nextRespondEvent([this] { processNextRespondEvent(); }, name()),
     nextApplyEvent([this] { processNextApplyEvent(); }, name()),
     nextEvictEvent([this] { processNextEvictEvent(); }, name()),
@@ -55,6 +57,7 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     for (int i = 0; i < numLines; i++) {
         cacheBlocks[i] = Block(numElementsPerLine);
     }
+
     peerPushEngine->registerCoalesceEngine(this);
 }
 
@@ -141,14 +144,18 @@ CoalesceEngine::recvReadAddr(Addr addr)
                                 "line[%d]", __func__, addr, block_index);
                     stats.readMisses++;
                     stats.numVertexReads++;
+                    if (!cacheBlocks[block_index].busyMask) {
+                        applyQueue.push_back(block_index);
+                        assert(!applyQueue.empty());
+                        if ((!nextApplyEvent.scheduled()) &&
+                            (!pendingPushAlarm)) {
+                            schedule(nextApplyEvent, nextCycle());
+                        }
+                    }
                     return true;
                 } else {
                     assert(!cacheBlocks[block_index].valid);
                     // MSHR available and no conflict
-                    //TODO: Fix this to work with new inheritance.
-                    // assert(
-                    //     outstandingMemReqQueue.size() <=
-                    //     outstandingMemReqQueueSize);
                     DPRINTF(MPU, "%s: Addr: %lu has no conflict. Trying to "
                                 "allocate a cache line for it.\n",
                                 __func__, addr);
@@ -278,8 +285,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
     std::vector<int> servicedIndices;
     for (int i = 0; i < MSHRMap[block_index].size(); i++) {
         Addr miss_addr = MSHRMap[block_index][i];
-        Addr aligned_miss_addr = std::floor(miss_addr / peerMemoryAtomSize) * peerMemoryAtomSize;
-
+        Addr aligned_miss_addr = roundDown<Addr, Addr>(miss_addr, peerMemoryAtomSize);
         if (aligned_miss_addr == addr) {
             int wl_offset = (miss_addr - aligned_miss_addr) / sizeof(WorkListItem);
             DPRINTF(MPU, "%s: Addr: %lu in the MSHR for cache line[%d] could "
@@ -333,7 +339,7 @@ void
 CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 {
     // TODO: Parameterize all the numbers here.
-    Addr aligned_addr = std::floor(addr / peerMemoryAtomSize) * peerMemoryAtomSize;
+    Addr aligned_addr = roundDown<Addr, Addr>(addr, peerMemoryAtomSize);
     int block_index = (aligned_addr / peerMemoryAtomSize) % numLines;
     int wl_offset = (addr - aligned_addr) / sizeof(WorkListItem);
 
@@ -359,18 +365,9 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
                     " It does not have any taken items anymore.\n",
                     __func__, block_index);
         // TODO: Fix this hack
-        bool found = false;
-        for (auto i : applyQueue) {
-            if (i == block_index) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            applyQueue.push_back(block_index);
-            DPRINTF(MPU, "%s: Added %d to applyQueue. applyQueue.size = %u.\n",
-                    __func__, block_index, applyQueue.size());
-        }
+        applyQueue.push_back(block_index);
+        DPRINTF(MPU, "%s: Added %d to applyQueue. applyQueue.size = %u.\n",
+                __func__, block_index, applyQueue.size());
     }
 
     if ((!applyQueue.empty()) &&
@@ -395,15 +392,9 @@ CoalesceEngine::processNextApplyEvent()
         DPRINTF(MPU, "%s: cache line [%d] has no change. Therefore, no apply "
                     "needed. Adding the cache line to evict schedule.\n",
                     __func__, block_index);
-        bool found = false;
-        for (auto i : evictQueue) {
-            if (i == block_index) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
+        if (cacheBlocks[block_index].hasConflict) {
             evictQueue.push_back(block_index);
+            assert(!evictQueue.empty());
             DPRINTF(MPU, "%s: Added %d to evictQueue. evictQueue.size = %u.\n",
                     __func__, block_index, evictQueue.size());
         }
@@ -435,15 +426,7 @@ CoalesceEngine::processNextApplyEvent()
             }
         }
         // TODO: This is where eviction policy goes
-        // TODO: Fix this hack.
-        bool found = false;
-        for (auto i : evictQueue) {
-            if (i == block_index) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
+        if (cacheBlocks[block_index].hasConflict){
             evictQueue.push_back(block_index);
             DPRINTF(MPU, "%s: Added %d to evictQueue. evictQueue.size = %u.\n",
                     __func__, block_index, evictQueue.size());
@@ -469,15 +452,8 @@ CoalesceEngine::processNextEvictEvent()
 {
     int block_index = evictQueue.front();
 
-    bool found_in_apply_queue = false;
-    for (auto i : applyQueue) {
-        if (i == block_index) {
-            found_in_apply_queue = true;
-            break;
-        }
-    }
     if ((cacheBlocks[block_index].busyMask) ||
-        (found_in_apply_queue)) {
+        (applyQueue.find(block_index))) {
         DPRINTF(MPU, "%s: cache line [%d] has been taken amid evict process. "
                     "Therefore, ignoring the apply schedule.\n",
                     __func__, block_index);
@@ -514,8 +490,8 @@ CoalesceEngine::processNextEvictEvent()
                         " is Addr: %lu.\n", __func__, block_index, miss_addr);
 
                 Addr aligned_miss_addr =
-                    std::floor(miss_addr / peerMemoryAtomSize) *
-                    peerMemoryAtomSize;
+                    roundDown<Addr, Addr>(miss_addr, peerMemoryAtomSize);
+
                 PacketPtr read_pkt = createReadPacket(aligned_miss_addr,
                                                         peerMemoryAtomSize);
                 DPRINTF(MPU, "%s: Created a read packet for Addr: %lu."
