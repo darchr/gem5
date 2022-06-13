@@ -228,8 +228,8 @@ PushEngine::processNextPushEvent()
         reqOffsetMap.erase(pkt->req);
         reqNumEdgeMap.erase(pkt->req);
         reqValueMap.erase(pkt->req);
-        delete pkt;
         memRespQueue.pop_front();
+        delete pkt;
     }
 
     if (!nextPushEvent.scheduled() && !memRespQueue.empty()) {
