@@ -141,11 +141,14 @@ CoalesceEngine::recvReadAddr(Addr addr)
                     cacheBlocks[block_index].hasConflict = true;
                     MSHRMap[block_index].push_back(addr);
                     DPRINTF(MPU, "%s: Added Addr: %lu to targets for cache "
-                                "line[%d]", __func__, addr, block_index);
+                                "line[%d].\n", __func__, addr, block_index);
                     stats.readMisses++;
                     stats.numVertexReads++;
                     if (!cacheBlocks[block_index].busyMask) {
                         applyQueue.push_back(block_index);
+                        DPRINTF(MPU, "%s: Added %d to applyQueue. "
+                                    "applyQueue.size = %u.\n", __func__,
+                                    block_index, applyQueue.size());
                         assert(!applyQueue.empty());
                         if ((!nextApplyEvent.scheduled()) &&
                             (!pendingPushAlarm)) {

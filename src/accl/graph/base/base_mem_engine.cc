@@ -29,6 +29,8 @@
 #include "accl/graph/base/base_mem_engine.hh"
 
 #include "debug/MPU.hh"
+#include "debug/SEGAQSize.hh"
+
 namespace gem5
 {
 
@@ -37,6 +39,8 @@ BaseMemEngine::BaseMemEngine(const BaseMemEngineParams &params):
     system(params.system),
     memPort(name() + ".mem_port", this),
     outstandingMemReqQueueSize(params.outstanding_mem_req_queue_size),
+    onTheFlyReqs(0),
+    respQueueSize(params.resp_queue_size),
     memAlarmRequested(false),
     memSpaceRequested(0),
     nextMemReqEvent([this] { processNextMemReqEvent(); }, name()),
@@ -73,7 +77,7 @@ bool
 BaseMemEngine::MemPort::recvTimingResp(PacketPtr pkt)
 {
     //TODO: Investigate sending true all the time
-    return owner->handleMemResp(pkt);
+    return owner->recvTimingResp(pkt);
 }
 
 void
@@ -98,20 +102,25 @@ BaseMemEngine::processNextMemReqEvent()
         return;
     }
 
-    // TODO: Maybe add a DPRINTF here.
-    PacketPtr pkt = outstandingMemReqQueue.front();
-    memPort.sendPacket(pkt);
-    DPRINTF(MPU, "%s: Sent a packet to memory with the following info. "
-                "pkt->addr: %lu, pkt->size: %lu.\n",
-                __func__, pkt->getAddr(), pkt->getSize());
-    outstandingMemReqQueue.pop_front();
+    if ((respBuffSize() == -1) ||
+        ((respBuffSize() + onTheFlyReqs) < respQueueSize)) {
+        PacketPtr pkt = outstandingMemReqQueue.front();
+        memPort.sendPacket(pkt);
+        onTheFlyReqs++;
+        DPRINTF(MPU, "%s: Sent a packet to memory with the following info. "
+                    "pkt->addr: %lu, pkt->size: %lu.\n",
+                    __func__, pkt->getAddr(), pkt->getSize());
+        outstandingMemReqQueue.pop_front();
+        DPRINTF(SEGAQSize, "%s: outstandingMemReqQueue.size: %lu.\n",
+                    __func__, outstandingMemReqQueue.size());
 
-    if (memAlarmRequested &&
-        (outstandingMemReqQueue.size() <=
-        (outstandingMemReqQueueSize - memSpaceRequested))) {
-        memAlarmRequested = false;
-        memSpaceRequested = 0;
-        respondToMemAlarm();
+        if (memAlarmRequested &&
+            (outstandingMemReqQueue.size() <=
+            (outstandingMemReqQueueSize - memSpaceRequested))) {
+            memAlarmRequested = false;
+            memSpaceRequested = 0;
+            respondToMemAlarm();
+        }
     }
 
     if ((!outstandingMemReqQueue.empty()) && (!nextMemReqEvent.scheduled())) {
@@ -171,7 +180,8 @@ BaseMemEngine::enqueueMemReq(PacketPtr pkt)
 {
     panic_if(memReqQueueFull(), "Should not enqueue if queue full.\n");
     outstandingMemReqQueue.push_back(pkt);
-
+    DPRINTF(SEGAQSize, "%s: outstandingMemReqQueue.size: %lu.\n",
+                    __func__, outstandingMemReqQueue.size());
     assert(!outstandingMemReqQueue.empty());
     if (!nextMemReqEvent.scheduled()) {
         schedule(nextMemReqEvent, nextCycle());
@@ -195,6 +205,13 @@ BaseMemEngine::wakeUp()
         (!outstandingMemReqQueue.empty())) {
         schedule(nextMemReqEvent, nextCycle());
     }
+}
+
+bool
+BaseMemEngine::recvTimingResp(PacketPtr pkt)
+{
+    onTheFlyReqs--;
+    return handleMemResp(pkt);
 }
 
 }

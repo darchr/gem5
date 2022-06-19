@@ -43,3 +43,5 @@ class BaseMemEngine(ClockedObject):
 
     attached_memory_atom_size = Param.Int(64, "The atom size of the attached "
                                     "memory.")
+
+    resp_queue_size = Param.Int(64, "blah")

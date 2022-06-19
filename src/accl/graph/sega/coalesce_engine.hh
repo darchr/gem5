@@ -118,6 +118,7 @@ class CoalesceEngine : public BaseMemEngine
     CoalesceStats stats;
 
   protected:
+    virtual int respBuffSize() { return -1; }
     virtual void respondToMemAlarm();
     virtual bool handleMemResp(PacketPtr pkt);
 
