@@ -136,6 +136,9 @@ WLEngine::processNextReadEvent()
         DPRINTF(MPU, "%s: Did not find the addr: %lu in onTheFlyUpdateMap.\n",
                     __func__, update_addr);
         if (onTheFlyUpdateMap.size() < onTheFlyUpdateMapSize) {
+            DPRINTF(MPU, "%s: Entry available in onTheFlyUpdateMap. "
+                        "onTheFlyUpdateMap.size: %lu.\n",
+                        __func__, onTheFlyUpdateMap.size());
             if (coalesceEngine->recvReadAddr(update_addr)) {
                 onTheFlyUpdateMap[update_addr] = update_value;
                 DPRINTF(MPU, "%s: Added a new item to onTheFlyUpdateMap. "
@@ -147,6 +150,10 @@ WLEngine::processNextReadEvent()
                             __func__, updateQueue.size());
                 respPort.checkRetryReq();
             }
+        } else {
+            DPRINTF(MPU, "%s: No entries available in onTheFlyUpdateMap. "
+                        "onTheFlyUpdateMap.size: %lu.\n", __func__,
+                        onTheFlyUpdateMap.size());
         }
     } else {
         // TODO: Generalize this to reduce function rather than just min
@@ -209,8 +216,9 @@ WLEngine::processNextReduceEvent()
 
         coalesceEngine->recvWLWrite(addr, addrWorkListMap[addr]);
         onTheFlyUpdateMap.erase(addr);
-        DPRINTF(MPU, "%s: Erased addr: %lu from onTheFlyUpdateMap.\n",
-                    __func__, addr);
+        DPRINTF(MPU, "%s: Erased addr: %lu from onTheFlyUpdateMap. "
+                    "onTheFlyUpdateMap.size: %lu.\n",
+                    __func__, addr, onTheFlyUpdateMap.size());
     }
     addrWorkListMap.clear();
 }
