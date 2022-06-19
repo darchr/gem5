@@ -69,6 +69,8 @@ class BaseMemEngine : public ClockedObject
     MemPort memPort;
 
     int outstandingMemReqQueueSize;
+    int onTheFlyReqs;
+    int respQueueSize;
     bool memAlarmRequested;
     int memSpaceRequested;
     std::deque<PacketPtr> outstandingMemReqQueue;
@@ -90,6 +92,7 @@ class BaseMemEngine : public ClockedObject
     void sendMemFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }
     void enqueueMemReq(PacketPtr pkt);
 
+    virtual int respBuffSize() = 0;
     virtual void respondToMemAlarm() = 0;
     virtual bool handleMemResp(PacketPtr pkt) = 0;
 
@@ -109,6 +112,7 @@ class BaseMemEngine : public ClockedObject
 
     AddrRangeList getAddrRanges() {return memPort.getAddrRanges(); }
 
+    bool recvTimingResp(PacketPtr pkt);
     void recvFunctional(PacketPtr pkt);
 
     void wakeUp();

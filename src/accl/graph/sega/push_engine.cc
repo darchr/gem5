@@ -93,6 +93,11 @@ PushEngine::ReqPort::recvReqRetry()
     sendPacket(blockedPacket);
 
     if (!_blocked) {
+        DPRINTF(MPU, "%s: Sent the blockedPacket. "
+                    "_blocked: %s, (blockedPacket == nullptr): %s.\n",
+                    __func__, _blocked ? "true" : "false",
+                    (blockedPacket == nullptr) ? "true" : "false");
+
         blockedPacket = nullptr;
     }
 }
