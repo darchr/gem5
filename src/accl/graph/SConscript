@@ -28,3 +28,4 @@
 Import('*')
 
 DebugFlag('MPU')
+DebugFlag('SEGAQSize')
