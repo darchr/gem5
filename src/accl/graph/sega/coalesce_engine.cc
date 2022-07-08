@@ -44,7 +44,6 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
     numMSHREntry(params.num_mshr_entry),
     numTgtsPerMSHR(params.num_tgts_per_mshr),
-    pendingPushAlarm(false),
     applyQueue(numLines),
     evictQueue(numLines),
     nextRespondEvent([this] { processNextRespondEvent(); }, name()),
@@ -58,13 +57,47 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
         cacheBlocks[i] = Block(numElementsPerLine);
     }
 
-    peerPushEngine->registerCoalesceEngine(this);
+    peerPushEngine->registerCoalesceEngine(this, numElementsPerLine);
+
+    needsApply.reset();
 }
 
 void
 CoalesceEngine::recvFunctional(PacketPtr pkt)
 {
     sendMemFunctional(pkt);
+}
+
+void
+CoalesceEngine::startup()
+{
+    AddrRangeList vertex_ranges = getAddrRanges();
+
+    bool found = false;
+    Addr first_match_addr = 0;
+    while(!found) {
+        for (auto range: vertex_ranges) {
+            if (range.contains(first_match_addr)) {
+                found = true;
+                break;
+            }
+        }
+        first_match_addr += peerMemoryAtomSize;
+    }
+
+    found = false;
+    Addr second_match_addr = first_match_addr + peerMemoryAtomSize;
+    while(!found) {
+        for (auto range: vertex_ranges) {
+            if (range.contains(second_match_addr)) {
+                found = true;
+                break;
+            }
+        }
+        second_match_addr += peerMemoryAtomSize;
+    }
+
+    nmpu = (int) ((second_match_addr - first_match_addr) / peerMemoryAtomSize);
 }
 
 void
@@ -150,8 +183,7 @@ CoalesceEngine::recvReadAddr(Addr addr)
                                     "applyQueue.size = %u.\n", __func__,
                                     block_index, applyQueue.size());
                         assert(!applyQueue.empty());
-                        if ((!nextApplyEvent.scheduled()) &&
-                            (!pendingPushAlarm)) {
+                        if ((!nextApplyEvent.scheduled())) {
                             schedule(nextApplyEvent, nextCycle());
                         }
                     }
@@ -363,18 +395,16 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
                 cacheBlocks[block_index].items[wl_offset].to_string());
 
     // TODO: Make this more general and programmable.
-    if ((cacheBlocks[block_index].busyMask == 0)) {
+    if ((cacheBlocks[block_index].busyMask == 0)) {(aligned_addr / peerMemoryAtomSize) % numLines;
         DPRINTF(MPU, "%s: Received all the expected writes for cache line[%d]."
                     " It does not have any taken items anymore.\n",
                     __func__, block_index);
-        // TODO: Fix this hack
         applyQueue.push_back(block_index);
         DPRINTF(MPU, "%s: Added %d to applyQueue. applyQueue.size = %u.\n",
                 __func__, block_index, applyQueue.size());
     }
 
     if ((!applyQueue.empty()) &&
-        (!pendingPushAlarm) &&
         (!nextApplyEvent.scheduled())) {
         schedule(nextApplyEvent, nextCycle());
     }
@@ -393,14 +423,7 @@ CoalesceEngine::processNextApplyEvent()
         stats.falseApplySchedules++;
     } else if (!cacheBlocks[block_index].dirty) {
         DPRINTF(MPU, "%s: cache line [%d] has no change. Therefore, no apply "
-                    "needed. Adding the cache line to evict schedule.\n",
-                    __func__, block_index);
-        if (cacheBlocks[block_index].hasConflict) {
-            evictQueue.push_back(block_index);
-            assert(!evictQueue.empty());
-            DPRINTF(MPU, "%s: Added %d to evictQueue. evictQueue.size = %u.\n",
-                    __func__, block_index, evictQueue.size());
-        }
+                    "needed.\n", __func__, block_index);
     } else {
         for (int i = 0; i < numElementsPerLine; i++) {
             uint32_t old_prop = cacheBlocks[block_index].items[i].prop;
@@ -409,31 +432,38 @@ CoalesceEngine::processNextApplyEvent()
                                 cacheBlocks[block_index].items[i].tempProp);
 
             if (new_prop != old_prop) {
-                if (peerPushEngine->allocatePushSpace()) {
-                    cacheBlocks[block_index].items[i].tempProp = new_prop;
-                    cacheBlocks[block_index].items[i].prop = new_prop;
-                    DPRINTF(ApplyUpdates, "%s: WorkListItem[%lu]: %s.\n",
-                    __func__,
+                cacheBlocks[block_index].items[i].tempProp = new_prop;
+                cacheBlocks[block_index].items[i].prop = new_prop;
+                DPRINTF(ApplyUpdates, "%s: WorkListItem[%lu]: %s.\n", __func__,
                     cacheBlocks[block_index].addr + (i  * sizeof(WorkListItem)),
                     cacheBlocks[block_index].items[i].to_string());
-                    peerPushEngine->recvWLItem(
-                                        cacheBlocks[block_index].items[i]);
-                    DPRINTF(MPU, "%s: Sent WorkListItem [%d] to PushEngine.\n",
-                    __func__,
-                    cacheBlocks[block_index].addr + i * sizeof(WorkListItem));
+
+                Addr block_addr = cacheBlocks[block_index].addr;
+                int atom_index = (int) (block_addr / (peerMemoryAtomSize * nmpu));
+                int block_bits = (int) (peerMemoryAtomSize / sizeof(WorkListItem));
+                int bit_index = atom_index * block_bits + i;
+
+                if (needsApply[bit_index] == 1) {
+                    DPRINTF(MPU, "%s: WorkListItem[%lu] already set in bit-vector."
+                                " Not doing anything further.\n", __func__,
+                                block_addr + (i * sizeof(WorkListItem)));
                 } else {
-                    peerPushEngine->setPushAlarm();
-                    pendingPushAlarm = true;
-                    return;
+                    if (peerPushEngine->allocatePushSpace()) {
+                        peerPushEngine->recvWLItem(
+                            cacheBlocks[block_index].items[i]);
+                    } else {
+                        needsApply[bit_index] = 1;
+                    }
                 }
             }
         }
-        // TODO: This is where eviction policy goes
-        if (cacheBlocks[block_index].hasConflict){
-            evictQueue.push_back(block_index);
-            DPRINTF(MPU, "%s: Added %d to evictQueue. evictQueue.size = %u.\n",
-                    __func__, block_index, evictQueue.size());
-        }
+    }
+
+    // TODO: This is where eviction policy goes
+    if (cacheBlocks[block_index].hasConflict){
+        evictQueue.push_back(block_index);
+        DPRINTF(MPU, "%s: Added %d to evictQueue. evictQueue.size = %u.\n",
+                __func__, block_index, evictQueue.size());
     }
 
     applyQueue.pop_front();
@@ -536,9 +566,42 @@ CoalesceEngine::processNextEvictEvent()
 void
 CoalesceEngine::respondToPushAlarm()
 {
-    assert(pendingPushAlarm && (!nextApplyEvent.scheduled()));
-    pendingPushAlarm = false;
-    schedule(nextApplyEvent, nextCycle());
+    DPRINTF(MPU, "%s: Received a Push alarm.\n", __func__);
+    int it;
+    for (it = 0; it < MAX_BITVECTOR_SIZE; it += numElementsPerLine) {
+        uint32_t slice = 0;
+        for (int i = 0; i < numElementsPerLine; i++) {
+            slice <<= 1;
+            slice |= needsApply[it + i];
+        }
+        if (slice) {
+            break;
+        }
+    }
+    DPRINTF(MPU, "%s: Found slice %u at %d position in needsApply.\n",
+                __func__, slice, it);
+
+    Addr block_addr = (nmpu * peerMemoryAtomSize) *
+                ((int)(it / (peerMemoryAtomSize / sizeof(WorkListItem))));
+    int block_index = ((int) (block_addr / peerMemoryAtomSize)) % numLines;
+
+    if ((cacheBlocks[block_index].addr == block_addr) &&
+        (cacheBlocks[block_index].valid)) {
+        // hit in cache
+        bool do_push = cacheBlocks[block_index].busyMask == 0 ? true : false;
+        for (int i = 0; i < numElementsPerLine; i++) {
+            peerPushEngine->recvWLItemRetry(
+                        cacheBlocks[block_index].items[i], do_push);
+        }
+
+        // TODO: Should we add block_index to evict_queue?
+        if (do_push && cacheBlocks[block_index].hasConflict) {
+            evictQueue.push_back(block_index);
+        }
+    } else {
+        PacketPtr pkt = createReadPacket(block_addr, peerMemoryAtomSize);
+
+    }
 }
 
 CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
