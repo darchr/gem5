@@ -32,8 +32,9 @@
 #include "base/cprintf.hh"
 #include "base/intmath.hh"
 
-#include <unordered_set>
+#include <bitset>
 #include <queue>
+#include <unordered_set>
 
 namespace gem5
 {
@@ -91,48 +92,63 @@ static_assert(isPowerOf2(sizeof(Edge)));
 template<typename T>
 class FIFOSet
 {
-    private:
-        std::queue<T> fifo;
-        std::unordered_set<T> set;
+  private:
+    std::queue<T> fifo;
+    std::unordered_set<T> set;
 
-    public:
-        FIFOSet(int cap)
-        {
-            set.reserve(cap);
-        }
+  public:
+    FIFOSet(int cap)
+    {
+        set.reserve(cap);
+    }
 
-        void push_back(T item)
-        {
-            if (set.find(item) == set.end()) {
-                set.insert(item);
-                fifo.push(item);
-            }
+    void push_back(T item)
+    {
+        if (set.find(item) == set.end()) {
+            set.insert(item);
+            fifo.push(item);
         }
+    }
 
-        void pop_front()
-        {
-            T front = fifo.front();
-            set.erase(front);
-            fifo.pop();
-        }
+    void pop_front()
+    {
+        T front = fifo.front();
+        set.erase(front);
+        fifo.pop();
+    }
 
-        T& front()
-        {
-            return fifo.front();
-        }
+    T& front()
+    {
+        return fifo.front();
+    }
 
-        size_t size() {
-            return fifo.size();
-        }
+    size_t size() {
+        return fifo.size();
+    }
 
-        bool empty() {
-            return fifo.empty();
-        }
+    bool empty() {
+        return fifo.empty();
+    }
 
-        bool find(T item) {
-            return (set.find(item) != set.end());
-        }
+    bool find(T item) {
+        return (set.find(item) != set.end());
+    }
 };
+
+// template<int SIZE>
+// class BitVector
+// {
+//   private:
+//     int it;
+//     std::bitset<SIZE> bitStore;
+
+//   public:
+//     BitVector(): it(0) { bitStore.reset(); }
+
+//     uint32_t next() {
+
+//     }
+// };
 
 }
 

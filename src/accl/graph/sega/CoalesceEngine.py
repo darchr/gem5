@@ -41,4 +41,7 @@ class CoalesceEngine(BaseMemEngine):
     num_mshr_entry = Param.Int(4, "")
     num_tgts_per_mshr = Param.Int(20, "")
 
+    # Don't change. If changed. It will break functionality of coalesce.
+    resp_queue_size = 0
+
 
