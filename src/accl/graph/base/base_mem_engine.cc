@@ -29,7 +29,6 @@
 #include "accl/graph/base/base_mem_engine.hh"
 
 #include "debug/MPU.hh"
-#include "debug/SEGAQSize.hh"
 
 namespace gem5
 {
@@ -102,8 +101,8 @@ BaseMemEngine::processNextMemReqEvent()
         return;
     }
 
-    if ((respBuffSize() == -1) ||
-        ((respBuffSize() + onTheFlyReqs) < respQueueSize)) {
+    if (((respBuffSize() + onTheFlyReqs) < respQueueSize) ||
+        (respQueueSize == 0)) {
         PacketPtr pkt = outstandingMemReqQueue.front();
         memPort.sendPacket(pkt);
         onTheFlyReqs++;
@@ -111,8 +110,6 @@ BaseMemEngine::processNextMemReqEvent()
                     "pkt->addr: %lu, pkt->size: %lu.\n",
                     __func__, pkt->getAddr(), pkt->getSize());
         outstandingMemReqQueue.pop_front();
-        DPRINTF(SEGAQSize, "%s: outstandingMemReqQueue.size: %lu.\n",
-                    __func__, outstandingMemReqQueue.size());
 
         if (memAlarmRequested &&
             (outstandingMemReqQueue.size() <=
@@ -180,8 +177,7 @@ BaseMemEngine::enqueueMemReq(PacketPtr pkt)
 {
     panic_if(memReqQueueFull(), "Should not enqueue if queue full.\n");
     outstandingMemReqQueue.push_back(pkt);
-    DPRINTF(SEGAQSize, "%s: outstandingMemReqQueue.size: %lu.\n",
-                    __func__, outstandingMemReqQueue.size());
+
     assert(!outstandingMemReqQueue.empty());
     if (!nextMemReqEvent.scheduled()) {
         schedule(nextMemReqEvent, nextCycle());

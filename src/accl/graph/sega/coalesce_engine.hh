@@ -29,11 +29,15 @@
 #ifndef __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__
 #define __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__
 
+#include <bitset>
+
 #include "accl/graph/base/base_mem_engine.hh"
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/sega/push_engine.hh"
 #include "base/statistics.hh"
 #include "params/CoalesceEngine.hh"
+
+#define MAX_BITVECTOR_SIZE (1 << 30)
 
 // TODO: Add parameters for size, memory atom size, type size,
 // length of items in the blocks.
@@ -68,6 +72,7 @@ class CoalesceEngine : public BaseMemEngine
           items = new WorkListItem [num_elements];
         }
     };
+    int nmpu;
 
     WLEngine* peerWLEngine;
     PushEngine* peerPushEngine;
@@ -83,8 +88,9 @@ class CoalesceEngine : public BaseMemEngine
 
     std::deque<std::tuple<Addr, WorkListItem>> responseQueue;
 
-    bool pendingPushAlarm;
     FIFOSet<int> applyQueue;
+    int needsApplyFirstPointer;
+    std::bitset<MAX_BITVECTOR_SIZE> needsApply;
 
     FIFOSet<int> evictQueue;
 
@@ -127,14 +133,16 @@ class CoalesceEngine : public BaseMemEngine
 
     CoalesceEngine(const CoalesceEngineParams &params);
 
-    void recvFunctional(PacketPtr pkt);
-
     bool recvReadAddr(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);
 
     void registerWLEngine(WLEngine* wl_engine);
 
     void respondToPushAlarm();
+
+    void recvFunctional(PacketPtr pkt);
+
+    virtual void startup();
 };
 
 }

@@ -98,13 +98,15 @@ class PushEngine : public BaseMemEngine
         virtual void recvReqRetry();
     };
 
-    bool pushAlarmSet;
+    int numElementsPerLine;
+    int retrySpaceAllocated;
     CoalesceEngine* peerCoalesceEngine;
 
     ReqPort reqPort;
 
     Addr baseEdgeAddr;
 
+    int numRetries;
     int pushReqQueueSize;
     std::deque<PushPacketInfoGen> pushReqQueue;
 
@@ -151,12 +153,14 @@ class PushEngine : public BaseMemEngine
     Port& getPort(const std::string &if_name,
                 PortID idx=InvalidPortID) override;
 
-    bool allocatePushSpace() { return pushReqQueue.size() < pushReqQueueSize; }
+    bool allocatePushSpace();
+
     void recvWLItem(WorkListItem wl);
 
-    void registerCoalesceEngine(CoalesceEngine* coalesce_engine);
+    void recvWLItemRetry(WorkListItem wl, bool do_push);
 
-    void setPushAlarm();
+    void registerCoalesceEngine(CoalesceEngine* coalesce_engine,
+                                          int elements_per_line);
 };
 
 }
