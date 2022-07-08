@@ -30,6 +30,7 @@
 
 #include "accl/graph/sega/coalesce_engine.hh"
 #include "debug/MPU.hh"
+#include "debug/SEGAQSize.hh"
 #include "mem/packet_access.hh"
 
 namespace gem5
@@ -37,9 +38,10 @@ namespace gem5
 
 PushEngine::PushEngine(const PushEngineParams &params):
     BaseMemEngine(params),
-    pushAlarmSet(false),
+    retrySpaceAllocated(0),
     reqPort(name() + ".req_port", this),
     baseEdgeAddr(params.base_edge_addr),
+    numRetries(0),
     pushReqQueueSize(params.push_req_queue_size),
     nextAddrGenEvent([this] { processNextAddrGenEvent(); }, name()),
     nextPushEvent([this] { processNextPushEvent(); }, name()),
@@ -59,9 +61,11 @@ PushEngine::getPort(const std::string &if_name, PortID idx)
 }
 
 void
-PushEngine::registerCoalesceEngine(CoalesceEngine* coalesce_engine)
+PushEngine::registerCoalesceEngine(CoalesceEngine* coalesce_engine,
+                                    int elements_per_line)
 {
     peerCoalesceEngine = coalesce_engine;
+    numElementsPerLine = elements_per_line;
 }
 
 void
@@ -115,17 +119,42 @@ PushEngine::recvWLItem(WorkListItem wl)
 
     assert((pushReqQueueSize == 0) ||
         (pushReqQueue.size() < pushReqQueueSize));
-    panic_if(pushReqQueue.size() == pushReqQueueSize, "You should call this "
-                "method after checking if there is enough push space. Use "
-                "allocatePushSpace.\n");
+    panic_if((pushReqQueue.size() == pushReqQueueSize) &&
+            (pushReqQueueSize != 0), "You should call this method after "
+            "checking if there is enough push space. Use allocatePushSpace.\n");
 
     Addr start_addr = baseEdgeAddr + (wl.edgeIndex * sizeof(Edge));
     Addr end_addr = start_addr + (wl.degree * sizeof(Edge));
     uint32_t value = wl.prop;
 
-    pushReqQueue.emplace_back(start_addr, end_addr, sizeof(Edge), peerMemoryAtomSize, value);
+    pushReqQueue.emplace_back(start_addr, end_addr, sizeof(Edge),
+                                    peerMemoryAtomSize, value);
+
+    if (curTick() % 50000 == 0) {
+        DPRINTF(SEGAQSize, "%s: pushReqQueue.size: %lu.\n",
+                                __func__, pushReqQueue.size());
+    }
 
     assert(!pushReqQueue.empty());
+    if ((!nextAddrGenEvent.scheduled()) &&
+        (!memReqQueueFull())) {
+        schedule(nextAddrGenEvent, nextCycle());
+    }
+}
+
+void
+PushEngine::recvWLItemRetry(WorkListItem wl, bool do_push)
+{
+    if (do_push) {
+        Addr start_addr = baseEdgeAddr + (wl.edgeIndex * sizeof(Edge));
+        Addr end_addr = start_addr + (wl.degree * sizeof(Edge));
+        uint32_t value = wl.prop;
+
+        pushReqQueue.emplace_back(start_addr, end_addr, sizeof(Edge),
+                                        peerMemoryAtomSize, value);
+        numRetries--;
+    }
+    retrySpaceAllocated--;
     if ((!nextAddrGenEvent.scheduled()) &&
         (!memReqQueueFull())) {
         schedule(nextAddrGenEvent, nextCycle());
@@ -158,8 +187,10 @@ PushEngine::processNextAddrGenEvent()
         DPRINTF(MPU, "%s: Popped curr_info from pushReqQueue. "
                     "pushReqQueue.size() = %u.\n",
                     __func__, pushReqQueue.size());
-        if (pushAlarmSet && (pushReqQueue.size() == pushReqQueueSize - 1)) {
-            pushAlarmSet = false;
+        if (numRetries > 0) {
+            retrySpaceAllocated++;
+        }
+        if ((retrySpaceAllocated % numElementsPerLine) == 0) {
             peerCoalesceEngine->respondToPushAlarm();
         }
     }
@@ -261,17 +292,20 @@ PushEngine::createUpdatePacket(Addr addr, T value)
     return pkt;
 }
 
-void
-PushEngine::setPushAlarm()
-{
-    assert(!pushAlarmSet);
-    pushAlarmSet = true;
+bool
+PushEngine::allocatePushSpace() {
+    if ((pushReqQueueSize == 0) ||
+        ((pushReqQueue.size() + retrySpaceAllocated) < pushReqQueueSize)) {
+        return true;
+    } else {
+        numRetries++;
+        return false;
+    }
 }
 
 PushEngine::PushStats::PushStats(PushEngine &_push)
     : statistics::Group(&_push),
     push(_push),
-
     ADD_STAT(numUpdates, statistics::units::Count::get(),
              "Number of sent updates.")
 {
