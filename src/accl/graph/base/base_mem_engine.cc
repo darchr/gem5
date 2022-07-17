@@ -159,17 +159,22 @@ BaseMemEngine::createWritePacket(Addr addr, unsigned int size, uint8_t* data)
 bool
 BaseMemEngine::allocateMemReqSpace(int space)
 {
-    assert(outstandingMemReqQueue.size() <= outstandingMemReqQueueSize);
+    assert((outstandingMemReqQueueSize == 0) ||
+        (outstandingMemReqQueue.size() <= outstandingMemReqQueueSize));
     return (
-        outstandingMemReqQueue.size() <= (outstandingMemReqQueueSize - space)
+        (outstandingMemReqQueueSize == 0) ||
+        (outstandingMemReqQueue.size() <= (outstandingMemReqQueueSize - space))
         );
 }
 
 bool
 BaseMemEngine::memReqQueueFull()
 {
-    assert(outstandingMemReqQueue.size() <= outstandingMemReqQueueSize);
-    return (outstandingMemReqQueue.size() == outstandingMemReqQueueSize);
+    assert((outstandingMemReqQueueSize == 0) ||
+        (outstandingMemReqQueue.size() <= outstandingMemReqQueueSize));
+    return (
+        (outstandingMemReqQueueSize != 0) &&
+        (outstandingMemReqQueue.size() == outstandingMemReqQueueSize));
 }
 
 void

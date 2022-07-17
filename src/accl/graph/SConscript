@@ -29,3 +29,4 @@ Import('*')
 
 DebugFlag('MPU')
 DebugFlag('SEGAQSize')
+DebugFlag('MahyarMath')
