@@ -72,7 +72,15 @@ class CoalesceEngine : public BaseMemEngine
           items = new WorkListItem [num_elements];
         }
     };
+
+    struct SenderState : public Packet::SenderState
+    {
+      bool isRetry;
+      SenderState(bool is_retry): isRetry(is_retry) {}
+    };
+
     int nmpu;
+    Addr memoryAddressOffset;
 
     WLEngine* peerWLEngine;
     PushEngine* peerPushEngine;
@@ -93,6 +101,10 @@ class CoalesceEngine : public BaseMemEngine
     std::bitset<MAX_BITVECTOR_SIZE> needsApply;
 
     FIFOSet<int> evictQueue;
+
+    int getBlockIndex(Addr addr);
+    int getBitIndexBase(Addr addr);
+    Addr getBlockAddrFromBitIndex(int index);
 
     EventFunctionWrapper nextRespondEvent;
     void processNextRespondEvent();

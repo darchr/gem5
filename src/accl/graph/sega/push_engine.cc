@@ -149,9 +149,13 @@ PushEngine::recvWLItemRetry(WorkListItem wl, bool do_push)
         Addr start_addr = baseEdgeAddr + (wl.edgeIndex * sizeof(Edge));
         Addr end_addr = start_addr + (wl.degree * sizeof(Edge));
         uint32_t value = wl.prop;
-
-        pushReqQueue.emplace_back(start_addr, end_addr, sizeof(Edge),
-                                        peerMemoryAtomSize, value);
+        if (wl.degree != 0) {
+            pushReqQueue.emplace_back(start_addr, end_addr, sizeof(Edge),
+                                            peerMemoryAtomSize, value);
+        } else {
+            DPRINTF(MPU, "%s: Received a leaf. Respective information: %s.\n",
+                    __func__, wl.to_string());
+        }
         numRetries--;
     }
     retrySpaceAllocated--;
@@ -164,7 +168,6 @@ PushEngine::recvWLItemRetry(WorkListItem wl, bool do_push)
 void
 PushEngine::processNextAddrGenEvent()
 {
-
     Addr aligned_addr, offset;
     int num_edges;
 

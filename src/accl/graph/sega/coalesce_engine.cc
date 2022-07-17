@@ -31,6 +31,7 @@
 #include "accl/graph/sega/wl_engine.hh"
 #include "base/intmath.hh"
 #include "debug/ApplyUpdates.hh"
+#include "debug/MahyarMath.hh"
 #include "debug/MPU.hh"
 #include "mem/packet_access.hh"
 
@@ -75,35 +76,79 @@ CoalesceEngine::startup()
 
     bool found = false;
     Addr first_match_addr = 0;
-    while(!found) {
+    while(true) {
         for (auto range: vertex_ranges) {
             if (range.contains(first_match_addr)) {
                 found = true;
                 break;
             }
         }
+        if (found) {
+            break;
+        }
         first_match_addr += peerMemoryAtomSize;
     }
 
     found = false;
     Addr second_match_addr = first_match_addr + peerMemoryAtomSize;
-    while(!found) {
+    while(true) {
         for (auto range: vertex_ranges) {
             if (range.contains(second_match_addr)) {
                 found = true;
                 break;
             }
         }
+        if (found) {
+            break;
+        }
         second_match_addr += peerMemoryAtomSize;
     }
 
     nmpu = (int) ((second_match_addr - first_match_addr) / peerMemoryAtomSize);
+    memoryAddressOffset = first_match_addr;
+    DPRINTF(MahyarMath, "%s: Initialized address translation information."
+                        " nmpu: %d, memoryAddressOffset: %lu.\n",
+                        __func__, nmpu, memoryAddressOffset);
 }
 
 void
 CoalesceEngine::registerWLEngine(WLEngine* wl_engine)
 {
     peerWLEngine = wl_engine;
+}
+
+// addr should be aligned to peerMemoryAtomSize
+int
+CoalesceEngine::getBlockIndex(Addr addr)
+{
+    return ((int) (addr / peerMemoryAtomSize)) % numLines;
+}
+
+// addr should be aligned to peerMemoryAtomSize
+int
+CoalesceEngine::getBitIndexBase(Addr addr)
+{
+    DPRINTF(MahyarMath, "%s: Calculating BitIndexBase for addr %lu.\n",
+                        __func__, addr);
+    int atom_index = (int) (addr / (peerMemoryAtomSize * nmpu));
+    int block_bits = (int) (peerMemoryAtomSize / sizeof(WorkListItem));
+    int bit_index = atom_index * block_bits;
+    DPRINTF(MahyarMath, "%s: BitIndexBase for addr %lu is %d.\n",
+                        __func__, addr, bit_index);
+    return bit_index;
+}
+
+// index should be aligned to (peerMemoryAtomSize / sizeof(WorkListItem))
+Addr
+CoalesceEngine::getBlockAddrFromBitIndex(int index)
+{
+    DPRINTF(MahyarMath, "%s: Calculating BlockAddr for index %d.\n",
+                        __func__, index);
+    Addr block_addr = (nmpu * peerMemoryAtomSize) *
+        ((int)(index / (peerMemoryAtomSize / sizeof(WorkListItem))));
+    DPRINTF(MahyarMath, "%s: BlockAddr for index %d is %lu.\n",
+                        __func__, index, (block_addr + memoryAddressOffset));
+    return (block_addr + memoryAddressOffset);
 }
 
 bool
@@ -298,6 +343,31 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         return true;
     }
 
+    if (pkt->findNextSenderState<SenderState>()) {
+        Addr addr = pkt->getAddr();
+        int it = getBitIndexBase(addr);
+        int block_index = getBlockIndex(addr);
+        bool found_in_cache = (cacheBlocks[block_index].addr == addr);
+
+        // We have to send the items regardless of them being found in the
+        // cache. However, if they are found in the cache, two things should
+        // happen. First, do_push should be set to false and the bit vector
+        // value for the items should not change. To future Mahyar and Marjan,
+        // If this is confusing, please look at where each item is pushed to
+        // the apply queue. Hint: Think about updates that might not be sent
+        // out if you reset the bit regardless of the line being found in the
+        // cache.
+        WorkListItem* items = pkt->getPtr<WorkListItem>();
+        for (int i = 0; i < numElementsPerLine; i++) {
+            needsApply[it + i] =
+                (needsApply[it + i] == 1) && found_in_cache ? 1 : 0;
+
+            peerPushEngine->recvWLItemRetry(items[i],
+                ((!found_in_cache) && needsApply[it + i]));
+        }
+        return true;
+    }
+
     Addr addr = pkt->getAddr();
     int block_index = (addr / peerMemoryAtomSize) % numLines;
 
@@ -395,11 +465,15 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
                 cacheBlocks[block_index].items[wl_offset].to_string());
 
     // TODO: Make this more general and programmable.
-    if ((cacheBlocks[block_index].busyMask == 0)) {(aligned_addr / peerMemoryAtomSize) % numLines;
+    if ((cacheBlocks[block_index].busyMask == 0)) {
         DPRINTF(MPU, "%s: Received all the expected writes for cache line[%d]."
                     " It does not have any taken items anymore.\n",
                     __func__, block_index);
         applyQueue.push_back(block_index);
+        int bit_index = getBitIndexBase(cacheBlocks[block_index].addr);
+        for (int i = 0; i < numElementsPerLine; i++) {
+            needsApply[bit_index + i] = 0;
+        }
         DPRINTF(MPU, "%s: Added %d to applyQueue. applyQueue.size = %u.\n",
                 __func__, block_index, applyQueue.size());
     }
@@ -438,22 +512,15 @@ CoalesceEngine::processNextApplyEvent()
                     cacheBlocks[block_index].addr + (i  * sizeof(WorkListItem)),
                     cacheBlocks[block_index].items[i].to_string());
 
-                Addr block_addr = cacheBlocks[block_index].addr;
-                int atom_index = (int) (block_addr / (peerMemoryAtomSize * nmpu));
-                int block_bits = (int) (peerMemoryAtomSize / sizeof(WorkListItem));
-                int bit_index = atom_index * block_bits + i;
+                int bit_index =
+                        getBitIndexBase(cacheBlocks[block_index].addr) + i;
 
-                if (needsApply[bit_index] == 1) {
-                    DPRINTF(MPU, "%s: WorkListItem[%lu] already set in bit-vector."
-                                " Not doing anything further.\n", __func__,
-                                block_addr + (i * sizeof(WorkListItem)));
+                assert(needsApply[bit_index] == 0);
+                if (peerPushEngine->allocatePushSpace()) {
+                    peerPushEngine->recvWLItem(
+                        cacheBlocks[block_index].items[i]);
                 } else {
-                    if (peerPushEngine->allocatePushSpace()) {
-                        peerPushEngine->recvWLItem(
-                            cacheBlocks[block_index].items[i]);
-                    } else {
-                        needsApply[bit_index] = 1;
-                    }
+                    needsApply[bit_index] = 1;
                 }
             }
         }
@@ -567,40 +634,56 @@ void
 CoalesceEngine::respondToPushAlarm()
 {
     DPRINTF(MPU, "%s: Received a Push alarm.\n", __func__);
-    int it;
+    Addr block_addr = 0;
+    int block_index = 0;
+    int it = 0;
+    uint32_t slice = 0;
+    bool hit_in_cache = false;
     for (it = 0; it < MAX_BITVECTOR_SIZE; it += numElementsPerLine) {
-        uint32_t slice = 0;
         for (int i = 0; i < numElementsPerLine; i++) {
             slice <<= 1;
             slice |= needsApply[it + i];
         }
         if (slice) {
-            break;
+            block_addr = getBlockAddrFromBitIndex(it);
+            block_index = ((int) (block_addr / peerMemoryAtomSize)) % numLines;
+            if ((cacheBlocks[block_index].addr == block_addr) &&
+                (cacheBlocks[block_index].valid)) {
+                if (cacheBlocks[block_index].busyMask == 0) {
+                    hit_in_cache = true;
+                    break;
+                }
+            } else {
+                hit_in_cache = false;
+                break;
+            }
         }
     }
+
+    assert(it < MAX_BITVECTOR_SIZE);
+
     DPRINTF(MPU, "%s: Found slice %u at %d position in needsApply.\n",
                 __func__, slice, it);
 
-    Addr block_addr = (nmpu * peerMemoryAtomSize) *
-                ((int)(it / (peerMemoryAtomSize / sizeof(WorkListItem))));
-    int block_index = ((int) (block_addr / peerMemoryAtomSize)) % numLines;
-
-    if ((cacheBlocks[block_index].addr == block_addr) &&
-        (cacheBlocks[block_index].valid)) {
-        // hit in cache
-        bool do_push = cacheBlocks[block_index].busyMask == 0 ? true : false;
+    if (hit_in_cache) {
         for (int i = 0; i < numElementsPerLine; i++) {
-            peerPushEngine->recvWLItemRetry(
-                        cacheBlocks[block_index].items[i], do_push);
-        }
-
-        // TODO: Should we add block_index to evict_queue?
-        if (do_push && cacheBlocks[block_index].hasConflict) {
-            evictQueue.push_back(block_index);
+            peerPushEngine->recvWLItemRetry(cacheBlocks[block_index].items[i],
+                                                    (needsApply[it + i] == 1));
+            needsApply[it + i] = 0;
         }
     } else {
+        // FIXME: Fix the retry mechanism between memory and cache to
+        // handle memory retries correctly. This probably requires scheduling
+        // an event for sending the retry. For now we're enabling infinite
+        // queueing in the outstandingMemReqQueue.
         PacketPtr pkt = createReadPacket(block_addr, peerMemoryAtomSize);
-
+        SenderState* sender_state = new SenderState(true);
+        pkt->pushSenderState(sender_state);
+        if (allocateMemReqSpace(1)) {
+            enqueueMemReq(pkt);
+        } else {
+            requestMemAlarm(1);
+        }
     }
 }
 

@@ -93,6 +93,7 @@ template<typename T>
 class FIFOSet
 {
   private:
+    // int numInvalids;
     std::queue<T> fifo;
     std::unordered_set<T> set;
 
@@ -127,7 +128,7 @@ class FIFOSet
     }
 
     bool empty() {
-        return fifo.empty();
+        return (size() == 0);
     }
 
     bool find(T item) {
