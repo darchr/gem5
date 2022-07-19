@@ -28,5 +28,4 @@
 Import('*')
 
 DebugFlag('MPU')
-DebugFlag('SEGAQSize')
-DebugFlag('MahyarMath')
+# CompoundFlag('MPU', ['CoalesceEngine', 'PushEngine', 'WLEngine'])

@@ -31,7 +31,6 @@
 #include "accl/graph/sega/wl_engine.hh"
 #include "base/intmath.hh"
 #include "debug/ApplyUpdates.hh"
-#include "debug/MahyarMath.hh"
 #include "debug/MPU.hh"
 #include "mem/packet_access.hh"
 
@@ -60,7 +59,7 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
 
     peerPushEngine->registerCoalesceEngine(this, numElementsPerLine);
 
-    needsApply.reset();
+    needsPush.reset();
 }
 
 void
@@ -106,9 +105,6 @@ CoalesceEngine::startup()
 
     nmpu = (int) ((second_match_addr - first_match_addr) / peerMemoryAtomSize);
     memoryAddressOffset = first_match_addr;
-    DPRINTF(MahyarMath, "%s: Initialized address translation information."
-                        " nmpu: %d, memoryAddressOffset: %lu.\n",
-                        __func__, nmpu, memoryAddressOffset);
 }
 
 void
@@ -128,13 +124,9 @@ CoalesceEngine::getBlockIndex(Addr addr)
 int
 CoalesceEngine::getBitIndexBase(Addr addr)
 {
-    DPRINTF(MahyarMath, "%s: Calculating BitIndexBase for addr %lu.\n",
-                        __func__, addr);
     int atom_index = (int) (addr / (peerMemoryAtomSize * nmpu));
     int block_bits = (int) (peerMemoryAtomSize / sizeof(WorkListItem));
     int bit_index = atom_index * block_bits;
-    DPRINTF(MahyarMath, "%s: BitIndexBase for addr %lu is %d.\n",
-                        __func__, addr, bit_index);
     return bit_index;
 }
 
@@ -142,17 +134,13 @@ CoalesceEngine::getBitIndexBase(Addr addr)
 Addr
 CoalesceEngine::getBlockAddrFromBitIndex(int index)
 {
-    DPRINTF(MahyarMath, "%s: Calculating BlockAddr for index %d.\n",
-                        __func__, index);
     Addr block_addr = (nmpu * peerMemoryAtomSize) *
         ((int)(index / (peerMemoryAtomSize / sizeof(WorkListItem))));
-    DPRINTF(MahyarMath, "%s: BlockAddr for index %d is %lu.\n",
-                        __func__, index, (block_addr + memoryAddressOffset));
     return (block_addr + memoryAddressOffset);
 }
 
 bool
-CoalesceEngine::recvReadAddr(Addr addr)
+CoalesceEngine::recvWLRead(Addr addr)
 {
     assert(MSHRMap.size() <= numMSHREntry);
     DPRINTF(MPU, "%s: Received a read request for address: %lu.\n",
@@ -239,7 +227,7 @@ CoalesceEngine::recvReadAddr(Addr addr)
                     DPRINTF(MPU, "%s: Addr: %lu has no conflict. Trying to "
                                 "allocate a cache line for it.\n",
                                 __func__, addr);
-                    if (memReqQueueFull()) {
+                    if (memQueueFull()) {
                         DPRINTF(MPU, "%s: No space in outstandingMemReqQueue. "
                                     "Rejecting  request.\n", __func__);
                         stats.readRejections++;
@@ -326,7 +314,7 @@ CoalesceEngine::processNextRespondEvent()
 }
 
 void
-CoalesceEngine::respondToMemAlarm()
+CoalesceEngine::recvMemRetry()
 {
     assert(!nextEvictEvent.scheduled());
     schedule(nextEvictEvent, nextCycle());
@@ -347,8 +335,16 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         Addr addr = pkt->getAddr();
         int it = getBitIndexBase(addr);
         int block_index = getBlockIndex(addr);
-        bool found_in_cache = (cacheBlocks[block_index].addr == addr);
 
+        bool line_do_push = false;
+        if (cacheBlocks[block_index].addr == addr) {
+            if (cacheBlocks[block_index].busyMask == 0) {
+                assert(applyQueue.find(block_index));
+                line_do_push = true;
+            } else {
+                line_do_push = false;
+            }
+        }
         // We have to send the items regardless of them being found in the
         // cache. However, if they are found in the cache, two things should
         // happen. First, do_push should be set to false and the bit vector
@@ -359,11 +355,19 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         // cache.
         WorkListItem* items = pkt->getPtr<WorkListItem>();
         for (int i = 0; i < numElementsPerLine; i++) {
-            needsApply[it + i] =
-                (needsApply[it + i] == 1) && found_in_cache ? 1 : 0;
-
+            assert(!((needsPush[it + i] == 1) && (items[i].degree == 0)));
+            // TODO: Make this more programmable
+            uint32_t new_prop = std::min(
+                                cacheBlocks[block_index].items[i].prop,
+                                cacheBlocks[block_index].items[i].tempProp);
+            cacheBlocks[block_index].items[i].tempProp = new_prop;
+            cacheBlocks[block_index].items[i].prop = new_prop;
             peerPushEngine->recvWLItemRetry(items[i],
-                ((!found_in_cache) && needsApply[it + i]));
+                (line_do_push && needsPush[it + i]));
+        }
+
+        if (applyQueue.find(block_index)) {
+            applyQueue.erase(block_index);
         }
         return true;
     }
@@ -470,10 +474,6 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
                     " It does not have any taken items anymore.\n",
                     __func__, block_index);
         applyQueue.push_back(block_index);
-        int bit_index = getBitIndexBase(cacheBlocks[block_index].addr);
-        for (int i = 0; i < numElementsPerLine; i++) {
-            needsApply[bit_index + i] = 0;
-        }
         DPRINTF(MPU, "%s: Added %d to applyQueue. applyQueue.size = %u.\n",
                 __func__, block_index, applyQueue.size());
     }
@@ -488,6 +488,10 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 void
 CoalesceEngine::processNextApplyEvent()
 {
+    if (applyQueue.empty()) {
+        return;
+    }
+
     int block_index = applyQueue.front();
 
     if (cacheBlocks[block_index].busyMask) {
@@ -514,13 +518,13 @@ CoalesceEngine::processNextApplyEvent()
 
                 int bit_index =
                         getBitIndexBase(cacheBlocks[block_index].addr) + i;
-
-                assert(needsApply[bit_index] == 0);
-                if (peerPushEngine->allocatePushSpace()) {
-                    peerPushEngine->recvWLItem(
-                        cacheBlocks[block_index].items[i]);
-                } else {
-                    needsApply[bit_index] = 1;
+                if (cacheBlocks[block_index].items[i].degree != 0) {
+                    if (peerPushEngine->allocatePushSpace()) {
+                        peerPushEngine->recvWLItem(
+                            cacheBlocks[block_index].items[i]);
+                    } else {
+                        needsPush[bit_index] = 1;
+                    }
                 }
             }
         }
@@ -536,7 +540,7 @@ CoalesceEngine::processNextApplyEvent()
     applyQueue.pop_front();
 
     if ((!evictQueue.empty()) &&
-        (!pendingMemAlarm()) &&
+        (!pendingMemRetry()) &&
         (!nextEvictEvent.scheduled())) {
         schedule(nextEvictEvent, nextCycle());
     }
@@ -562,13 +566,13 @@ CoalesceEngine::processNextEvictEvent()
         int space_needed = cacheBlocks[block_index].dirty ?
                         (cacheBlocks[block_index].hasConflict ? 2 : 1) :
                         (cacheBlocks[block_index].hasConflict ? 1 : 0);
-        if (!allocateMemReqSpace(space_needed)) {
+        if (!allocateMemQueueSpace(space_needed)) {
             DPRINTF(MPU, "%s: There is not enough space in memReqQueue to "
                     "procees the eviction of cache line [%d]. dirty: %d, "
                     "hasConflict: %d.\n", __func__, block_index,
                     cacheBlocks[block_index].dirty,
                     cacheBlocks[block_index].hasConflict);
-            requestMemAlarm(space_needed);
+            requestMemRetry(space_needed);
             return;
         } else {
             if (cacheBlocks[block_index].dirty) {
@@ -631,7 +635,7 @@ CoalesceEngine::processNextEvictEvent()
 }
 
 void
-CoalesceEngine::respondToPushAlarm()
+CoalesceEngine::recvPushRetry()
 {
     DPRINTF(MPU, "%s: Received a Push alarm.\n", __func__);
     Addr block_addr = 0;
@@ -639,14 +643,15 @@ CoalesceEngine::respondToPushAlarm()
     int it = 0;
     uint32_t slice = 0;
     bool hit_in_cache = false;
+
     for (it = 0; it < MAX_BITVECTOR_SIZE; it += numElementsPerLine) {
         for (int i = 0; i < numElementsPerLine; i++) {
             slice <<= 1;
-            slice |= needsApply[it + i];
+            slice |= needsPush[it + i];
         }
         if (slice) {
             block_addr = getBlockAddrFromBitIndex(it);
-            block_index = ((int) (block_addr / peerMemoryAtomSize)) % numLines;
+            block_index = getBlockIndex(block_addr);
             if ((cacheBlocks[block_index].addr == block_addr) &&
                 (cacheBlocks[block_index].valid)) {
                 if (cacheBlocks[block_index].busyMask == 0) {
@@ -662,14 +667,23 @@ CoalesceEngine::respondToPushAlarm()
 
     assert(it < MAX_BITVECTOR_SIZE);
 
-    DPRINTF(MPU, "%s: Found slice %u at %d position in needsApply.\n",
+    DPRINTF(MPU, "%s: Found slice %u at %d position in needsPush.\n",
                 __func__, slice, it);
 
     if (hit_in_cache) {
         for (int i = 0; i < numElementsPerLine; i++) {
+            // TODO: Make this more programmable
+            uint32_t new_prop = std::min(
+                                cacheBlocks[block_index].items[i].prop,
+                                cacheBlocks[block_index].items[i].tempProp);
+            cacheBlocks[block_index].items[i].tempProp = new_prop;
+            cacheBlocks[block_index].items[i].prop = new_prop;
             peerPushEngine->recvWLItemRetry(cacheBlocks[block_index].items[i],
-                                                    (needsApply[it + i] == 1));
-            needsApply[it + i] = 0;
+                                                    (needsPush[it + i] == 1));
+            needsPush[it + i] = 0;
+        }
+        if (applyQueue.find(block_index)) {
+            applyQueue.erase(block_index);
         }
     } else {
         // FIXME: Fix the retry mechanism between memory and cache to
@@ -679,10 +693,10 @@ CoalesceEngine::respondToPushAlarm()
         PacketPtr pkt = createReadPacket(block_addr, peerMemoryAtomSize);
         SenderState* sender_state = new SenderState(true);
         pkt->pushSenderState(sender_state);
-        if (allocateMemReqSpace(1)) {
+        if (allocateMemQueueSpace(1)) {
             enqueueMemReq(pkt);
         } else {
-            requestMemAlarm(1);
+            requestMemRetry(1);
         }
     }
 }

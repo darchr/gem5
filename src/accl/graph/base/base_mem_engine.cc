@@ -40,7 +40,7 @@ BaseMemEngine::BaseMemEngine(const BaseMemEngineParams &params):
     outstandingMemReqQueueSize(params.outstanding_mem_req_queue_size),
     onTheFlyReqs(0),
     respQueueSize(params.resp_queue_size),
-    memAlarmRequested(false),
+    memRetryRequested(false),
     memSpaceRequested(0),
     nextMemReqEvent([this] { processNextMemReqEvent(); }, name()),
     _requestorId(system->getRequestorId(this)),
@@ -111,12 +111,12 @@ BaseMemEngine::processNextMemReqEvent()
                     __func__, pkt->getAddr(), pkt->getSize());
         outstandingMemReqQueue.pop_front();
 
-        if (memAlarmRequested &&
+        if (memRetryRequested &&
             (outstandingMemReqQueue.size() <=
             (outstandingMemReqQueueSize - memSpaceRequested))) {
-            memAlarmRequested = false;
+            memRetryRequested = false;
             memSpaceRequested = 0;
-            respondToMemAlarm();
+            recvMemRetry();
         }
     }
 
@@ -157,7 +157,7 @@ BaseMemEngine::createWritePacket(Addr addr, unsigned int size, uint8_t* data)
 }
 
 bool
-BaseMemEngine::allocateMemReqSpace(int space)
+BaseMemEngine::allocateMemQueueSpace(int space)
 {
     assert((outstandingMemReqQueueSize == 0) ||
         (outstandingMemReqQueue.size() <= outstandingMemReqQueueSize));
@@ -168,7 +168,7 @@ BaseMemEngine::allocateMemReqSpace(int space)
 }
 
 bool
-BaseMemEngine::memReqQueueFull()
+BaseMemEngine::memQueueFull()
 {
     assert((outstandingMemReqQueueSize == 0) ||
         (outstandingMemReqQueue.size() <= outstandingMemReqQueueSize));
@@ -180,7 +180,7 @@ BaseMemEngine::memReqQueueFull()
 void
 BaseMemEngine::enqueueMemReq(PacketPtr pkt)
 {
-    panic_if(memReqQueueFull(), "Should not enqueue if queue full.\n");
+    panic_if(memQueueFull(), "Should not enqueue if queue full.\n");
     outstandingMemReqQueue.push_back(pkt);
 
     assert(!outstandingMemReqQueue.empty());
@@ -190,12 +190,12 @@ BaseMemEngine::enqueueMemReq(PacketPtr pkt)
 }
 
 void
-BaseMemEngine::requestMemAlarm(int space) {
-    panic_if((memAlarmRequested == true) || (memSpaceRequested != 0),
+BaseMemEngine::requestMemRetry(int space) {
+    panic_if((memRetryRequested == true) || (memSpaceRequested != 0),
             "You should not request another alarm without the first one being"
             "responded to.\n");
     DPRINTF(MPU, "%s: Alarm requested with space = %d.\n", __func__, space);
-    memAlarmRequested = true;
+    memRetryRequested = true;
     memSpaceRequested = space;
 }
 
