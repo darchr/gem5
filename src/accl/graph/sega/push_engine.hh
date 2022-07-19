@@ -143,7 +143,7 @@ class PushEngine : public BaseMemEngine
 
   protected:
     virtual int respBuffSize() { return memRespQueue.size(); }
-    virtual void respondToMemAlarm();
+    virtual void recvMemRetry();
     virtual bool handleMemResp(PacketPtr pkt);
 
   public:

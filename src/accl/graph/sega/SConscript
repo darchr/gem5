@@ -39,3 +39,6 @@ Source('wl_engine.cc')
 
 DebugFlag('ApplyUpdates')
 DebugFlag('CenteralController')
+DebugFlag('CoalesceEngine')
+DebugFlag('PushEngine')
+DebugFlag('WLEngine')

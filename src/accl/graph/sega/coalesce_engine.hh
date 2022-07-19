@@ -97,8 +97,7 @@ class CoalesceEngine : public BaseMemEngine
     std::deque<std::tuple<Addr, WorkListItem>> responseQueue;
 
     FIFOSet<int> applyQueue;
-    int needsApplyFirstPointer;
-    std::bitset<MAX_BITVECTOR_SIZE> needsApply;
+    std::bitset<MAX_BITVECTOR_SIZE> needsPush;
 
     FIFOSet<int> evictQueue;
 
@@ -137,7 +136,7 @@ class CoalesceEngine : public BaseMemEngine
 
   protected:
     virtual int respBuffSize() { return -1; }
-    virtual void respondToMemAlarm();
+    virtual void recvMemRetry();
     virtual bool handleMemResp(PacketPtr pkt);
 
   public:
@@ -145,12 +144,12 @@ class CoalesceEngine : public BaseMemEngine
 
     CoalesceEngine(const CoalesceEngineParams &params);
 
-    bool recvReadAddr(Addr addr);
+    bool recvWLRead(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);
 
     void registerWLEngine(WLEngine* wl_engine);
 
-    void respondToPushAlarm();
+    void recvPushRetry();
 
     void recvFunctional(PacketPtr pkt);
 
