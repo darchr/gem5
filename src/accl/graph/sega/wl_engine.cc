@@ -139,7 +139,7 @@ WLEngine::processNextReadEvent()
             DPRINTF(MPU, "%s: Entry available in onTheFlyUpdateMap. "
                         "onTheFlyUpdateMap.size: %lu.\n",
                         __func__, onTheFlyUpdateMap.size());
-            if (coalesceEngine->recvReadAddr(update_addr)) {
+            if (coalesceEngine->recvWLRead(update_addr)) {
                 onTheFlyUpdateMap[update_addr] = update_value;
                 DPRINTF(MPU, "%s: Added a new item to onTheFlyUpdateMap. "
                             "onTheFlyUpdateMap[%lu] = %u.\n", __func__,

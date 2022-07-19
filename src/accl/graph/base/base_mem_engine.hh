@@ -71,7 +71,7 @@ class BaseMemEngine : public ClockedObject
     int outstandingMemReqQueueSize;
     int onTheFlyReqs;
     int respQueueSize;
-    bool memAlarmRequested;
+    bool memRetryRequested;
     int memSpaceRequested;
     std::deque<PacketPtr> outstandingMemReqQueue;
 
@@ -83,17 +83,17 @@ class BaseMemEngine : public ClockedObject
 
     size_t peerMemoryAtomSize;
 
-    bool allocateMemReqSpace(int space);
-    bool memReqQueueFull();
+    bool allocateMemQueueSpace(int space);
+    bool memQueueFull();
 
-    bool pendingMemAlarm() { return memAlarmRequested; }
-    void requestMemAlarm(int space);
+    bool pendingMemRetry() { return memRetryRequested; }
+    void requestMemRetry(int space);
 
     void sendMemFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }
     void enqueueMemReq(PacketPtr pkt);
 
     virtual int respBuffSize() = 0;
-    virtual void respondToMemAlarm() = 0;
+    virtual void recvMemRetry() = 0;
     virtual bool handleMemResp(PacketPtr pkt) = 0;
 
     PacketPtr createReadPacket(Addr addr, unsigned int size);

@@ -93,8 +93,6 @@ template<typename T>
 class FIFOSet
 {
   private:
-    // int numInvalids;
-    std::queue<T> fifo;
     std::unordered_set<T> set;
 
   public:
@@ -107,24 +105,22 @@ class FIFOSet
     {
         if (set.find(item) == set.end()) {
             set.insert(item);
-            fifo.push(item);
         }
     }
 
     void pop_front()
     {
-        T front = fifo.front();
-        set.erase(front);
-        fifo.pop();
+        assert(set.begin() != set.end());
+        set.erase(set.begin());
     }
 
-    T& front()
+    T front()
     {
-        return fifo.front();
+        return *(set.begin());
     }
 
     size_t size() {
-        return fifo.size();
+        return set.size();
     }
 
     bool empty() {
@@ -134,22 +130,11 @@ class FIFOSet
     bool find(T item) {
         return (set.find(item) != set.end());
     }
+
+    void erase(T item) {
+        set.erase(item);
+    }
 };
-
-// template<int SIZE>
-// class BitVector
-// {
-//   private:
-//     int it;
-//     std::bitset<SIZE> bitStore;
-
-//   public:
-//     BitVector(): it(0) { bitStore.reset(); }
-
-//     uint32_t next() {
-
-//     }
-// };
 
 }
 
