@@ -117,6 +117,7 @@ CoalesceEngine::registerWLEngine(WLEngine* wl_engine)
 int
 CoalesceEngine::getBlockIndex(Addr addr)
 {
+    assert((addr % peerMemoryAtomSize) == 0);
     return ((int) (addr / peerMemoryAtomSize)) % numLines;
 }
 
@@ -124,6 +125,7 @@ CoalesceEngine::getBlockIndex(Addr addr)
 int
 CoalesceEngine::getBitIndexBase(Addr addr)
 {
+    assert((addr % peerMemoryAtomSize) == 0);
     int atom_index = (int) (addr / (peerMemoryAtomSize * nmpu));
     int block_bits = (int) (peerMemoryAtomSize / sizeof(WorkListItem));
     int bit_index = atom_index * block_bits;
@@ -134,6 +136,7 @@ CoalesceEngine::getBitIndexBase(Addr addr)
 Addr
 CoalesceEngine::getBlockAddrFromBitIndex(int index)
 {
+    assert((index % ((int) (peerMemoryAtomSize / sizeof(WorkListItem)))) == 0);
     Addr block_addr = (nmpu * peerMemoryAtomSize) *
         ((int)(index / (peerMemoryAtomSize / sizeof(WorkListItem))));
     return (block_addr + memoryAddressOffset);
@@ -336,39 +339,62 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         int it = getBitIndexBase(addr);
         int block_index = getBlockIndex(addr);
 
-        bool line_do_push = false;
-        if (cacheBlocks[block_index].addr == addr) {
+        if ((cacheBlocks[block_index].addr == addr) &&
+            (cacheBlocks[block_index].valid)) {
+            // We read the address to send the wl but it is put in cache before
+            // the read response arrives.
             if (cacheBlocks[block_index].busyMask == 0) {
-                assert(applyQueue.find(block_index));
-                line_do_push = true;
+                // It is not busy anymore, we have to send the wl from cache.
+                for (int i = 0; i < numElementsPerLine; i++) {
+                    assert(!((needsPush[it + i] == 1) &&
+                            (cacheBlocks[block_index].items[i].degree == 0)));
+                    // TODO: Make this more programmable
+                    uint32_t new_prop = std::min(
+                                        cacheBlocks[block_index].items[i].prop,
+                                        cacheBlocks[block_index].items[i].tempProp);
+                    cacheBlocks[block_index].items[i].tempProp = new_prop;
+                    cacheBlocks[block_index].items[i].prop = new_prop;
+                    peerPushEngine->recvWLItemRetry(
+                        cacheBlocks[block_index].items[i], needsPush[it + i]);
+                    needsPush[it + i] = 0;
+                }
+                // Since we have just applied the line, we can take it out of
+                // the applyQueue if it's in there. No need to do the same
+                // thing for evictQueue.
+                if (applyQueue.find(block_index)) {
+                    applyQueue.erase(block_index);
+                    if (applyQueue.empty() && nextApplyEvent.scheduled()) {
+                        deschedule(nextApplyEvent);
+                    }
+                }
             } else {
-                line_do_push = false;
+                // The line is busy. Therefore, we have to disregard the data
+                // we received from the memory and also tell the push engine to
+                // deallocate the space it allocated for this retry. However,
+                // we still have to rememeber that these items need a retry.
+                // i.e. don't change needsPush, call recvWLItemRetry with
+                // do_push = false
+                for (int i = 0; i < numElementsPerLine; i++) {
+                    assert(!((needsPush[it + i] == 1) &&
+                            (cacheBlocks[block_index].items[i].degree == 0)));
+                    peerPushEngine->recvWLItemRetry(
+                                    cacheBlocks[block_index].items[i], false);
+                }
+            }
+        } else {
+            // We have read the address to send the wl and it is not in the
+            // cache. Simply send the items to the PushEngine.
+            WorkListItem* items = pkt->getPtr<WorkListItem>();
+            // No applying of the line needed.
+            for (int i = 0; i < numElementsPerLine; i++) {
+                assert(!((needsPush[it + i] == 1) &&
+                                (items[i].degree == 0)));
+                peerPushEngine->recvWLItemRetry(items[i], needsPush[it + i]);
+                needsPush[it + i] = 0;
             }
         }
-        // We have to send the items regardless of them being found in the
-        // cache. However, if they are found in the cache, two things should
-        // happen. First, do_push should be set to false and the bit vector
-        // value for the items should not change. To future Mahyar and Marjan,
-        // If this is confusing, please look at where each item is pushed to
-        // the apply queue. Hint: Think about updates that might not be sent
-        // out if you reset the bit regardless of the line being found in the
-        // cache.
-        WorkListItem* items = pkt->getPtr<WorkListItem>();
-        for (int i = 0; i < numElementsPerLine; i++) {
-            assert(!((needsPush[it + i] == 1) && (items[i].degree == 0)));
-            // TODO: Make this more programmable
-            uint32_t new_prop = std::min(
-                                cacheBlocks[block_index].items[i].prop,
-                                cacheBlocks[block_index].items[i].tempProp);
-            cacheBlocks[block_index].items[i].tempProp = new_prop;
-            cacheBlocks[block_index].items[i].prop = new_prop;
-            peerPushEngine->recvWLItemRetry(items[i],
-                (line_do_push && needsPush[it + i]));
-        }
 
-        if (applyQueue.find(block_index)) {
-            applyQueue.erase(block_index);
-        }
+        delete pkt;
         return true;
     }
 
@@ -488,9 +514,9 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 void
 CoalesceEngine::processNextApplyEvent()
 {
-    if (applyQueue.empty()) {
-        return;
-    }
+    // if (applyQueue.empty()) {
+    //     return;
+    // }
 
     int block_index = applyQueue.front();
 
@@ -515,10 +541,12 @@ CoalesceEngine::processNextApplyEvent()
                 DPRINTF(ApplyUpdates, "%s: WorkListItem[%lu]: %s.\n", __func__,
                     cacheBlocks[block_index].addr + (i  * sizeof(WorkListItem)),
                     cacheBlocks[block_index].items[i].to_string());
-
                 int bit_index =
                         getBitIndexBase(cacheBlocks[block_index].addr) + i;
-                if (cacheBlocks[block_index].items[i].degree != 0) {
+                if ((cacheBlocks[block_index].items[i].degree != 0) &&
+                    (needsPush[bit_index] == 0)) {
+                    // If the respective bit in the bit vector is set
+                    // there is no need to try and resend it.
                     if (peerPushEngine->allocatePushSpace()) {
                         peerPushEngine->recvWLItem(
                             cacheBlocks[block_index].items[i]);
@@ -684,6 +712,9 @@ CoalesceEngine::recvPushRetry()
         }
         if (applyQueue.find(block_index)) {
             applyQueue.erase(block_index);
+            if (applyQueue.empty() && nextApplyEvent.scheduled()) {
+                deschedule(nextApplyEvent);
+            }
         }
     } else {
         // FIXME: Fix the retry mechanism between memory and cache to
