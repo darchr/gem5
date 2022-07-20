@@ -223,10 +223,6 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
         return false;
     }
 
-    if (curTick() == ) {
-        std
-    }
-
     updateQueue.emplace_back(pkt->getAddr(), pkt->getLE<uint32_t>());
     DPRINTF(WLEngine,  "%s: Pushed an item to the back of updateQueue"
                                         ". updateQueue.size = %u.\n",
