@@ -28,7 +28,7 @@
 
 #include "accl/graph/sega/wl_engine.hh"
 
-#include "debug/MPU.hh"
+#include "debug/WLEngine.hh"
 #include "mem/packet_access.hh"
 
 namespace gem5
@@ -73,7 +73,7 @@ void
 WLEngine::RespPort::checkRetryReq()
 {
     if (needSendRetryReq) {
-        DPRINTF(MPU, "%s: Sending a RetryReq.\n", __func__);
+        DPRINTF(WLEngine,  "%s: Sending a RetryReq.\n", __func__);
         sendRetryReq();
         needSendRetryReq = false;
     }
@@ -129,45 +129,38 @@ WLEngine::processNextReadEvent()
     uint32_t update_value;
     std::tie(update_addr, update_value) = updateQueue.front();
 
-    DPRINTF(MPU, "%s: Looking at the front of the updateQueue. Addr: %lu, "
+    DPRINTF(WLEngine,  "%s: Looking at the front of the updateQueue. Addr: %lu, "
                 "value: %u.\n", __func__, update_addr, update_value);
 
     if ((onTheFlyUpdateMap.find(update_addr) == onTheFlyUpdateMap.end())) {
-        DPRINTF(MPU, "%s: Did not find the addr: %lu in onTheFlyUpdateMap.\n",
+        DPRINTF(WLEngine,  "%s: Did not find the addr: %lu in onTheFlyUpdateMap.\n",
                     __func__, update_addr);
         if (onTheFlyUpdateMap.size() < onTheFlyUpdateMapSize) {
-            DPRINTF(MPU, "%s: Entry available in onTheFlyUpdateMap. "
-                        "onTheFlyUpdateMap.size: %lu.\n",
-                        __func__, onTheFlyUpdateMap.size());
-            if (coalesceEngine->recvWLRead(update_addr)) {
+            if (coalesceEngine->recvReadAddr(update_addr)) {
                 onTheFlyUpdateMap[update_addr] = update_value;
-                DPRINTF(MPU, "%s: Added a new item to onTheFlyUpdateMap. "
+                DPRINTF(WLEngine,  "%s: Added a new item to onTheFlyUpdateMap. "
                             "onTheFlyUpdateMap[%lu] = %u.\n", __func__,
                             update_addr, onTheFlyUpdateMap[update_addr]);
                 updateQueue.pop_front();
-                DPRINTF(MPU, "%s: Popped an item from the front of updateQueue"
+                DPRINTF(WLEngine,  "%s: Popped an item from the front of updateQueue"
                             ". updateQueue.size = %u.\n",
                             __func__, updateQueue.size());
                 respPort.checkRetryReq();
             }
-        } else {
-            DPRINTF(MPU, "%s: No entries available in onTheFlyUpdateMap. "
-                        "onTheFlyUpdateMap.size: %lu.\n", __func__,
-                        onTheFlyUpdateMap.size());
         }
     } else {
         // TODO: Generalize this to reduce function rather than just min
-        DPRINTF(MPU, "%s: Found the addr: %lu in onTheFlyUpdateMap. "
+        DPRINTF(WLEngine,  "%s: Found the addr: %lu in onTheFlyUpdateMap. "
                     "onTheFlyUpdateMap[%lu] = %u.\n", __func__, update_addr,
                     update_addr, onTheFlyUpdateMap[update_addr]);
         onTheFlyUpdateMap[update_addr] =
                 std::min(update_value, onTheFlyUpdateMap[update_addr]);
-        DPRINTF(MPU, "%s: Reduced the update_value with the entry in "
+        DPRINTF(WLEngine,  "%s: Reduced the update_value with the entry in "
                     "onTheFlyUpdateMap. onTheFlyUpdateMap[%lu] = %u.\n",
                     __func__, update_addr, onTheFlyUpdateMap[update_addr]);
         stats.onTheFlyCoalesce++;
         updateQueue.pop_front();
-        DPRINTF(MPU, "%s: Popped an item from the front of updateQueue"
+        DPRINTF(WLEngine,  "%s: Popped an item from the front of updateQueue"
                                         ". updateQueue.size = %u.\n",
                                         __func__, updateQueue.size());
         respPort.checkRetryReq();
@@ -185,7 +178,7 @@ WLEngine::handleIncomingWL(Addr addr, WorkListItem wl)
     assert(addrWorkListMap.size() <= onTheFlyUpdateMapSize);
 
     addrWorkListMap[addr] = wl;
-    DPRINTF(MPU, "%s: Received a WorkListItem from the coalesceEngine. Adding"
+    DPRINTF(WLEngine,  "%s: Received a WorkListItem from the coalesceEngine. Adding"
                 " it to the addrWorkListMap. addrWorkListMap[%lu] = %s.\n",
                 __func__, addr, wl.to_string());
 
@@ -202,7 +195,7 @@ WLEngine::processNextReduceEvent()
         Addr addr = it.first;
         assert(onTheFlyUpdateMap.find(addr) != onTheFlyUpdateMap.end());
         uint32_t update_value = onTheFlyUpdateMap[addr];
-        DPRINTF(MPU, "%s: Reducing between onTheFlyUpdateMap and "
+        DPRINTF(WLEngine,  "%s: Reducing between onTheFlyUpdateMap and "
                     "addrWorkListMap values. onTheFlyUpdateMap[%lu] = %u, "
                     "addrWorkListMap[%lu] = %s.\n", __func__,
                                 addr, onTheFlyUpdateMap[addr],
@@ -210,15 +203,14 @@ WLEngine::processNextReduceEvent()
         // TODO: Generalize this to reduce function rather than just min
         addrWorkListMap[addr].tempProp =
                     std::min(update_value, addrWorkListMap[addr].tempProp);
-        DPRINTF(MPU, "%s: Reduction done. addrWorkListMap[%lu] = %s.\n",
+        DPRINTF(WLEngine,  "%s: Reduction done. addrWorkListMap[%lu] = %s.\n",
                     __func__, addr, addrWorkListMap[addr].to_string());
         stats.numReduce++;
 
         coalesceEngine->recvWLWrite(addr, addrWorkListMap[addr]);
         onTheFlyUpdateMap.erase(addr);
-        DPRINTF(MPU, "%s: Erased addr: %lu from onTheFlyUpdateMap. "
-                    "onTheFlyUpdateMap.size: %lu.\n",
-                    __func__, addr, onTheFlyUpdateMap.size());
+        DPRINTF(WLEngine,  "%s: Erased addr: %lu from onTheFlyUpdateMap.\n",
+                    __func__, addr);
     }
     addrWorkListMap.clear();
 }
@@ -231,8 +223,12 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
         return false;
     }
 
+    if (curTick() == ) {
+        std
+    }
+
     updateQueue.emplace_back(pkt->getAddr(), pkt->getLE<uint32_t>());
-    DPRINTF(MPU, "%s: Pushed an item to the back of updateQueue"
+    DPRINTF(WLEngine,  "%s: Pushed an item to the back of updateQueue"
                                         ". updateQueue.size = %u.\n",
                                         __func__, updateQueue.size());
     delete pkt;

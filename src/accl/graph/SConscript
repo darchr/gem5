@@ -27,5 +27,5 @@
 
 Import('*')
 
-DebugFlag('MPU')
-# CompoundFlag('MPU', ['CoalesceEngine', 'PushEngine', 'WLEngine'])
+
+CompoundFlag('MPU', ['CoalesceEngine', 'PushEngine', 'WLEngine', 'BaseMemEngine'])
