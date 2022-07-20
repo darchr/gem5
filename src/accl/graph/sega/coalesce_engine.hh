@@ -96,6 +96,8 @@ class CoalesceEngine : public BaseMemEngine
 
     std::deque<std::tuple<Addr, WorkListItem>> responseQueue;
 
+    int currentBitSliceIndex;
+    int numRetriesReceived;
     FIFOSet<int> applyQueue;
     std::bitset<MAX_BITVECTOR_SIZE> needsPush;
 
@@ -113,6 +115,9 @@ class CoalesceEngine : public BaseMemEngine
 
     EventFunctionWrapper nextEvictEvent;
     void processNextEvictEvent();
+
+    EventFunctionWrapper nextSendRetryEvent;
+    void processNextSendRetryEvent();
 
     struct CoalesceStats : public statistics::Group
     {
