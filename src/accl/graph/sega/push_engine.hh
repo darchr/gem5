@@ -155,9 +155,11 @@ class PushEngine : public BaseMemEngine
 
     bool allocatePushSpace();
 
+    void deallocatePushSpace(int space);
+
     void recvWLItem(WorkListItem wl);
 
-    void recvWLItemRetry(WorkListItem wl, bool do_push);
+    void recvWLItemRetry(WorkListItem wl);
 
     void registerCoalesceEngine(CoalesceEngine* coalesce_engine,
                                           int elements_per_line);
