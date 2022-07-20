@@ -31,6 +31,7 @@
 #include "accl/graph/sega/wl_engine.hh"
 #include "base/intmath.hh"
 #include "debug/ApplyUpdates.hh"
+#include "debug/CoalesceEngine.hh"
 #include "debug/MPU.hh"
 #include "mem/packet_access.hh"
 
@@ -44,11 +45,14 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
     numMSHREntry(params.num_mshr_entry),
     numTgtsPerMSHR(params.num_tgts_per_mshr),
+    currentBitSliceIndex(0),
+    numRetriesReceived(0),
     applyQueue(numLines),
     evictQueue(numLines),
     nextRespondEvent([this] { processNextRespondEvent(); }, name()),
     nextApplyEvent([this] { processNextApplyEvent(); }, name()),
     nextEvictEvent([this] { processNextEvictEvent(); }, name()),
+    nextSendRetryEvent([this] { processNextSendRetryEvent(); }, name()),
     stats(*this)
 {
     assert(isPowerOf2(numLines) && isPowerOf2(numElementsPerLine));
@@ -344,6 +348,10 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             // We read the address to send the wl but it is put in cache before
             // the read response arrives.
             if (cacheBlocks[block_index].busyMask == 0) {
+                DPRINTF(CoalesceEngine, "%s: Received read response for retry "
+                        "for addr %lu. It was found in the cache as idle.\n",
+                        __func__, addr);
+                int push_needed = 0;
                 // It is not busy anymore, we have to send the wl from cache.
                 for (int i = 0; i < numElementsPerLine; i++) {
                     assert(!((needsPush[it + i] == 1) &&
@@ -354,10 +362,15 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                                         cacheBlocks[block_index].items[i].tempProp);
                     cacheBlocks[block_index].items[i].tempProp = new_prop;
                     cacheBlocks[block_index].items[i].prop = new_prop;
-                    peerPushEngine->recvWLItemRetry(
-                        cacheBlocks[block_index].items[i], needsPush[it + i]);
+                    if (needsPush[it + i] == 1) {
+                        peerPushEngine->recvWLItemRetry(
+                            cacheBlocks[block_index].items[i]);
+                    }
+                    push_needed += needsPush[it + i];
                     needsPush[it + i] = 0;
                 }
+                peerPushEngine->deallocatePushSpace(
+                                        numElementsPerLine - push_needed);
                 // Since we have just applied the line, we can take it out of
                 // the applyQueue if it's in there. No need to do the same
                 // thing for evictQueue.
@@ -365,6 +378,13 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                     applyQueue.erase(block_index);
                     if (applyQueue.empty() && nextApplyEvent.scheduled()) {
                         deschedule(nextApplyEvent);
+                    }
+                    if (cacheBlocks[block_index].hasConflict) {
+                        evictQueue.push_back(block_index);
+                        if ((!nextEvictEvent.scheduled()) &&
+                            (!pendingMemRetry())) {
+                            schedule(nextEvictEvent, nextCycle());
+                        }
                     }
                 }
             } else {
@@ -374,24 +394,31 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                 // we still have to rememeber that these items need a retry.
                 // i.e. don't change needsPush, call recvWLItemRetry with
                 // do_push = false
-                for (int i = 0; i < numElementsPerLine; i++) {
-                    assert(!((needsPush[it + i] == 1) &&
-                            (cacheBlocks[block_index].items[i].degree == 0)));
-                    peerPushEngine->recvWLItemRetry(
-                                    cacheBlocks[block_index].items[i], false);
-                }
+                DPRINTF(CoalesceEngine, "%s: Received read response for retry "
+                        "for addr %lu. It was found in the cache as busy.\n",
+                        __func__, addr);
+                peerPushEngine->deallocatePushSpace(numElementsPerLine);
             }
         } else {
             // We have read the address to send the wl and it is not in the
             // cache. Simply send the items to the PushEngine.
+            DPRINTF(CoalesceEngine, "%s: Received read response for retry "
+                        "for addr %lu. It was not found in the cache.\n",
+                        __func__, addr);
             WorkListItem* items = pkt->getPtr<WorkListItem>();
+            int push_needed = 0;
             // No applying of the line needed.
             for (int i = 0; i < numElementsPerLine; i++) {
                 assert(!((needsPush[it + i] == 1) &&
                                 (items[i].degree == 0)));
-                peerPushEngine->recvWLItemRetry(items[i], needsPush[it + i]);
+                if (needsPush[it + i] == 1) {
+                    peerPushEngine->recvWLItemRetry(items[i]);
+                }
+                push_needed += needsPush[it + i];
                 needsPush[it + i] = 0;
             }
+            peerPushEngine->deallocatePushSpace(
+                                    numElementsPerLine - push_needed);
         }
 
         delete pkt;
@@ -514,10 +541,6 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 void
 CoalesceEngine::processNextApplyEvent()
 {
-    // if (applyQueue.empty()) {
-    //     return;
-    // }
-
     int block_index = applyQueue.front();
 
     if (cacheBlocks[block_index].busyMask) {
@@ -665,14 +688,23 @@ CoalesceEngine::processNextEvictEvent()
 void
 CoalesceEngine::recvPushRetry()
 {
-    DPRINTF(MPU, "%s: Received a Push alarm.\n", __func__);
+    numRetriesReceived++;
+    if (!nextSendRetryEvent.scheduled()) {
+        schedule(nextSendRetryEvent, nextCycle());
+    }
+}
+
+void
+CoalesceEngine::processNextSendRetryEvent()
+{
+    DPRINTF(MPU, "%s: Received a push retry.\n", __func__);
     Addr block_addr = 0;
     int block_index = 0;
     int it = 0;
     uint32_t slice = 0;
     bool hit_in_cache = false;
 
-    for (it = 0; it < MAX_BITVECTOR_SIZE; it += numElementsPerLine) {
+    for (it = currentBitSliceIndex; it < MAX_BITVECTOR_SIZE; it += numElementsPerLine) {
         for (int i = 0; i < numElementsPerLine; i++) {
             slice <<= 1;
             slice |= needsPush[it + i];
@@ -691,14 +723,23 @@ CoalesceEngine::recvPushRetry()
                 break;
             }
         }
+        if (it == (MAX_BITVECTOR_SIZE - numElementsPerLine)) {
+            it = 0;
+        }
     }
 
     assert(it < MAX_BITVECTOR_SIZE);
+    if ((it + numElementsPerLine) > MAX_BITVECTOR_SIZE) {
+        currentBitSliceIndex = 0;
+    } else {
+        currentBitSliceIndex = it + numElementsPerLine;
+    }
 
-    DPRINTF(MPU, "%s: Found slice %u at %d position in needsPush.\n",
-                __func__, slice, it);
+    DPRINTF(CoalesceEngine, "%s: Found slice with value %d at position %d "
+                        "in needsPush.\n", __func__, slice, it);
 
     if (hit_in_cache) {
+        int push_needed = 0;
         for (int i = 0; i < numElementsPerLine; i++) {
             // TODO: Make this more programmable
             uint32_t new_prop = std::min(
@@ -706,14 +747,25 @@ CoalesceEngine::recvPushRetry()
                                 cacheBlocks[block_index].items[i].tempProp);
             cacheBlocks[block_index].items[i].tempProp = new_prop;
             cacheBlocks[block_index].items[i].prop = new_prop;
-            peerPushEngine->recvWLItemRetry(cacheBlocks[block_index].items[i],
-                                                    (needsPush[it + i] == 1));
+            if (needsPush[it + i] == 1) {
+                peerPushEngine->recvWLItemRetry(
+                    cacheBlocks[block_index].items[i]);
+            }
+            push_needed +=  needsPush[it + i];
             needsPush[it + i] = 0;
         }
+        peerPushEngine->deallocatePushSpace(numElementsPerLine - push_needed);
         if (applyQueue.find(block_index)) {
             applyQueue.erase(block_index);
             if (applyQueue.empty() && nextApplyEvent.scheduled()) {
                 deschedule(nextApplyEvent);
+            }
+            if (cacheBlocks[block_index].hasConflict) {
+                evictQueue.push_back(block_index);
+                if ((!nextEvictEvent.scheduled()) &&
+                    (!pendingMemRetry())) {
+                    schedule(nextEvictEvent, nextCycle());
+                }
             }
         }
     } else {
@@ -729,6 +781,11 @@ CoalesceEngine::recvPushRetry()
         } else {
             requestMemRetry(1);
         }
+    }
+
+    numRetriesReceived--;
+    if ((numRetriesReceived > 0) && (!nextSendRetryEvent.scheduled())) {
+        schedule(nextSendRetryEvent, nextCycle());
     }
 }
 
