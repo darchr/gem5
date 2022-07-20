@@ -353,6 +353,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                         __func__, addr);
                 int push_needed = 0;
                 // It is not busy anymore, we have to send the wl from cache.
+                DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
+                                __func__, needsPush.count());
                 for (int i = 0; i < numElementsPerLine; i++) {
                     assert(!((needsPush[it + i] == 1) &&
                             (cacheBlocks[block_index].items[i].degree == 0)));
@@ -369,6 +371,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                     push_needed += needsPush[it + i];
                     needsPush[it + i] = 0;
                 }
+                DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
+                                __func__, needsPush.count());
                 peerPushEngine->deallocatePushSpace(
                                         numElementsPerLine - push_needed);
                 // Since we have just applied the line, we can take it out of
@@ -397,7 +401,11 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                 DPRINTF(CoalesceEngine, "%s: Received read response for retry "
                         "for addr %lu. It was found in the cache as busy.\n",
                         __func__, addr);
+                DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
+                                __func__, needsPush.count());
                 peerPushEngine->deallocatePushSpace(numElementsPerLine);
+                DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
+                                __func__, needsPush.count());
             }
         } else {
             // We have read the address to send the wl and it is not in the
@@ -408,6 +416,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             WorkListItem* items = pkt->getPtr<WorkListItem>();
             int push_needed = 0;
             // No applying of the line needed.
+            DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
+                                __func__, needsPush.count());
             for (int i = 0; i < numElementsPerLine; i++) {
                 assert(!((needsPush[it + i] == 1) &&
                                 (items[i].degree == 0)));
@@ -417,6 +427,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                 push_needed += needsPush[it + i];
                 needsPush[it + i] = 0;
             }
+            DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
+                                __func__, needsPush.count());
             peerPushEngine->deallocatePushSpace(
                                     numElementsPerLine - push_needed);
         }
@@ -740,6 +752,8 @@ CoalesceEngine::processNextSendRetryEvent()
 
     if (hit_in_cache) {
         int push_needed = 0;
+        DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
+                                __func__, needsPush.count());
         for (int i = 0; i < numElementsPerLine; i++) {
             // TODO: Make this more programmable
             uint32_t new_prop = std::min(
@@ -754,6 +768,8 @@ CoalesceEngine::processNextSendRetryEvent()
             push_needed +=  needsPush[it + i];
             needsPush[it + i] = 0;
         }
+        DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
+                                __func__, needsPush.count());
         peerPushEngine->deallocatePushSpace(numElementsPerLine - push_needed);
         if (applyQueue.find(block_index)) {
             applyQueue.erase(block_index);
