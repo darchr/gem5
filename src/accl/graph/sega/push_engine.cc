@@ -106,6 +106,35 @@ PushEngine::ReqPort::recvReqRetry()
 }
 
 void
+PushEngine::deallocatePushSpace(int space)
+{
+    retrySpaceAllocated -= space;
+    DPRINTF(PushEngine, "%s: Deallocated %d spaces. numRetries = %d, "
+            "nextAddrGenEvent.scheduled() = %s, pendingMemRetry() = %s, "
+            "pushReqQueue.size() = %d, retrySpaceAllocated = %d.\n",
+            __func__, space, numRetries,
+            nextAddrGenEvent.scheduled() ? "true" : "false",
+            pendingMemRetry() ? "true" : "false",
+            pushReqQueue.size(), retrySpaceAllocated);
+    /// DISCUSS: Might have to check whether the addrGenEvent is scheduled
+    // and or the pushReqQueue is empty. If so we might need to
+    // send retries.
+    if ((numRetries > 0)  &&
+        ((pushReqQueue.size() + retrySpaceAllocated) == 0)) {
+        assert((!pendingMemRetry()) && (!nextAddrGenEvent.scheduled()));
+        int free_space =
+            pushReqQueueSize - (pushReqQueue.size() + retrySpaceAllocated);
+        if (free_space > numElementsPerLine) {
+            DPRINTF(PushEngine, "%s: Found %d free spaces. "
+                    "retrySpaceAllocated = %d.\n", __func__, free_space,
+                    retrySpaceAllocated);
+            retrySpaceAllocated += numElementsPerLine;
+            peerCoalesceEngine->recvPushRetry();
+        }
+    }
+}
+
+void
 PushEngine::recvWLItem(WorkListItem wl)
 {
     assert(wl.degree != 0);
@@ -124,32 +153,41 @@ PushEngine::recvWLItem(WorkListItem wl)
     pushReqQueue.emplace_back(start_addr, end_addr, sizeof(Edge),
                                     peerMemoryAtomSize, value);
 
-    assert(!pushReqQueue.empty());
-    if ((!nextAddrGenEvent.scheduled()) &&
-        (!memQueueFull())) {
-        schedule(nextAddrGenEvent, nextCycle());
+    if ((!nextAddrGenEvent.scheduled())) {
+        if (memQueueFull()) {
+            if (!pendingMemRetry()) {
+                requestMemRetry(1);
+            }
+        } else {
+            schedule(nextAddrGenEvent, nextCycle());
+        }
     }
 }
 
 void
-PushEngine::recvWLItemRetry(WorkListItem wl, bool do_push)
+PushEngine::recvWLItemRetry(WorkListItem wl)
 {
-    DPRINTF(PushEngine, "%s: Received %s with do_push = %s.\n",
-                __func__, wl.to_string(), do_push ? "true" : "false");
-    if (do_push) {
-        Addr start_addr = baseEdgeAddr + (wl.edgeIndex * sizeof(Edge));
-        Addr end_addr = start_addr + (wl.degree * sizeof(Edge));
-        uint32_t value = wl.prop;
-        assert(wl.degree != 0);
-        pushReqQueue.emplace_back(start_addr, end_addr, sizeof(Edge),
-                                        peerMemoryAtomSize, value);
-        numRetries--;
-        if ((!nextAddrGenEvent.scheduled()) &&
-            (!memQueueFull())) {
+    assert(wl.degree != 0);
+    DPRINTF(PushEngine, "%s: Received %s with retry.\n",
+                                __func__, wl.to_string());
+
+    Addr start_addr = baseEdgeAddr + (wl.edgeIndex * sizeof(Edge));
+    Addr end_addr = start_addr + (wl.degree * sizeof(Edge));
+    uint32_t value = wl.prop;
+
+    pushReqQueue.emplace_back(start_addr, end_addr, sizeof(Edge),
+                                    peerMemoryAtomSize, value);
+    numRetries--;
+    retrySpaceAllocated--;
+    if ((!nextAddrGenEvent.scheduled())) {
+        if (memQueueFull()) {
+            if (!pendingMemRetry()) {
+                requestMemRetry(1);
+            }
+        } else {
             schedule(nextAddrGenEvent, nextCycle());
         }
     }
-    retrySpaceAllocated--;
 }
 
 void
@@ -177,11 +215,27 @@ PushEngine::processNextAddrGenEvent()
         DPRINTF(PushEngine, "%s: Popped curr_info from pushReqQueue. "
                     "pushReqQueue.size() = %u.\n",
                     __func__, pushReqQueue.size());
+        // if ((numRetries > 0) &&
+        //     ((pushReqQueue.size() + retrySpaceAllocated) < pushReqQueueSize)) {
+        //     retrySpaceAllocated++;
+        //     DPRINTF(PushEngine, "%s: Allocated 1 space for retry. "
+        //                     "retrySpaceAllocated = %d.\n",
+        //                     __func__, retrySpaceAllocated);
+        //     if ((retrySpaceAllocated % numElementsPerLine) == 0) {
+        //         peerCoalesceEngine->recvPushRetry();
+        //     }
+        // }
         if (numRetries > 0) {
-            retrySpaceAllocated++;
-        }
-        if ((retrySpaceAllocated % numElementsPerLine) == 0) {
-            peerCoalesceEngine->recvPushRetry();
+            int free_space = pushReqQueueSize - (pushReqQueue.size() + retrySpaceAllocated);
+            DPRINTF(PushEngine, "%s: Found %d free spaces in "
+                            "the pushReqQueue.\n", __func__, free_space);
+            if (free_space > numElementsPerLine) {
+                retrySpaceAllocated += numElementsPerLine;
+                DPRINTF(PushEngine, "%s: Allocated %d spaces for retry. "
+                        "retrySpaceAllocated = %d.\n", __func__, free_space,
+                        retrySpaceAllocated);
+                peerCoalesceEngine->recvPushRetry();
+            }
         }
     }
 
@@ -201,7 +255,7 @@ void
 PushEngine::recvMemRetry()
 {
     assert(!nextAddrGenEvent.scheduled());
-    DPRINTF(PushEngine, "%s: Responding to a memory alarm.\n", __func__);
+    DPRINTF(PushEngine, "%s: Received a memory retry.\n", __func__);
     schedule(nextAddrGenEvent, nextCycle());
 }
 
@@ -285,6 +339,7 @@ PushEngine::createUpdatePacket(Addr addr, T value)
 
 bool
 PushEngine::allocatePushSpace() {
+    assert(retrySpaceAllocated >= 0);
     if ((pushReqQueueSize == 0) ||
         ((pushReqQueue.size() + retrySpaceAllocated) < pushReqQueueSize)) {
         return true;

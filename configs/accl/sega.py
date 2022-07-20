@@ -174,5 +174,5 @@ if __name__ == "__m5_main__":
     m5.instantiate()
 
     exit_event = m5.simulate()
-    print("Simulation finished!")
+    print(f"Exited simulation because {exit_event.getCause()}")
     exit()

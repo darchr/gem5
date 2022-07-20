@@ -97,12 +97,8 @@ BaseMemEngine::MemPort::recvReqRetry()
 void
 BaseMemEngine::processNextMemReqEvent()
 {
-    if (memPort.blocked()) {
-        return;
-    }
-
-    if (((respBuffSize() + onTheFlyReqs) < respQueueSize) ||
-        (respQueueSize == 0)) {
+    if ((respQueueSize == 0) ||
+        ((respBuffSize() + onTheFlyReqs) < respQueueSize)) {
         PacketPtr pkt = outstandingMemReqQueue.front();
         memPort.sendPacket(pkt);
         onTheFlyReqs++;
@@ -120,7 +116,8 @@ BaseMemEngine::processNextMemReqEvent()
         }
     }
 
-    if ((!outstandingMemReqQueue.empty()) && (!nextMemReqEvent.scheduled())) {
+    if ((!memPort.blocked()) &&
+        (!outstandingMemReqQueue.empty()) && (!nextMemReqEvent.scheduled())) {
         schedule(nextMemReqEvent, nextCycle());
     }
 }
@@ -183,8 +180,7 @@ BaseMemEngine::enqueueMemReq(PacketPtr pkt)
     panic_if(memQueueFull(), "Should not enqueue if queue full.\n");
     outstandingMemReqQueue.push_back(pkt);
 
-    assert(!outstandingMemReqQueue.empty());
-    if (!nextMemReqEvent.scheduled()) {
+    if ((!nextMemReqEvent.scheduled()) && (!memPort.blocked())) {
         schedule(nextMemReqEvent, nextCycle());
     }
 }
@@ -202,8 +198,8 @@ BaseMemEngine::requestMemRetry(int space) {
 void
 BaseMemEngine::wakeUp()
 {
-    if ((!nextMemReqEvent.scheduled()) &&
-        (!outstandingMemReqQueue.empty())) {
+    assert(!nextMemReqEvent.scheduled());
+    if (!outstandingMemReqQueue.empty()) {
         schedule(nextMemReqEvent, nextCycle());
     }
 }
