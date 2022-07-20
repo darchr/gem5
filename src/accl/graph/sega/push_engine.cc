@@ -215,16 +215,6 @@ PushEngine::processNextAddrGenEvent()
         DPRINTF(PushEngine, "%s: Popped curr_info from pushReqQueue. "
                     "pushReqQueue.size() = %u.\n",
                     __func__, pushReqQueue.size());
-        // if ((numRetries > 0) &&
-        //     ((pushReqQueue.size() + retrySpaceAllocated) < pushReqQueueSize)) {
-        //     retrySpaceAllocated++;
-        //     DPRINTF(PushEngine, "%s: Allocated 1 space for retry. "
-        //                     "retrySpaceAllocated = %d.\n",
-        //                     __func__, retrySpaceAllocated);
-        //     if ((retrySpaceAllocated % numElementsPerLine) == 0) {
-        //         peerCoalesceEngine->recvPushRetry();
-        //     }
-        // }
         if (numRetries > 0) {
             int free_space = pushReqQueueSize - (pushReqQueue.size() + retrySpaceAllocated);
             DPRINTF(PushEngine, "%s: Found %d free spaces in "
@@ -232,8 +222,8 @@ PushEngine::processNextAddrGenEvent()
             if (free_space > numElementsPerLine) {
                 retrySpaceAllocated += numElementsPerLine;
                 DPRINTF(PushEngine, "%s: Allocated %d spaces for retry. "
-                        "retrySpaceAllocated = %d.\n", __func__, free_space,
-                        retrySpaceAllocated);
+                        "retrySpaceAllocated = %d.\n", __func__,
+                        numElementsPerLine, retrySpaceAllocated);
                 peerCoalesceEngine->recvPushRetry();
             }
         }
