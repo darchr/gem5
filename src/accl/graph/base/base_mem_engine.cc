@@ -28,7 +28,7 @@
 
 #include "accl/graph/base/base_mem_engine.hh"
 
-#include "debug/MPU.hh"
+#include "debug/BaseMemEngine.hh"
 
 namespace gem5
 {
@@ -102,7 +102,7 @@ BaseMemEngine::processNextMemReqEvent()
         PacketPtr pkt = outstandingMemReqQueue.front();
         memPort.sendPacket(pkt);
         onTheFlyReqs++;
-        DPRINTF(MPU, "%s: Sent a packet to memory with the following info. "
+        DPRINTF(BaseMemEngine, "%s: Sent a packet to memory with the following info. "
                     "pkt->addr: %lu, pkt->size: %lu.\n",
                     __func__, pkt->getAddr(), pkt->getSize());
         outstandingMemReqQueue.pop_front();
@@ -190,7 +190,7 @@ BaseMemEngine::requestMemRetry(int space) {
     panic_if((memRetryRequested == true) || (memSpaceRequested != 0),
             "You should not request another alarm without the first one being"
             "responded to.\n");
-    DPRINTF(MPU, "%s: Alarm requested with space = %d.\n", __func__, space);
+    DPRINTF(BaseMemEngine, "%s: Alarm requested with space = %d.\n", __func__, space);
     memRetryRequested = true;
     memSpaceRequested = space;
 }

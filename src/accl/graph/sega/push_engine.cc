@@ -29,7 +29,6 @@
 #include "accl/graph/sega/push_engine.hh"
 
 #include "accl/graph/sega/coalesce_engine.hh"
-#include "debug/MPU.hh"
 #include "debug/PushEngine.hh"
 #include "mem/packet_access.hh"
 
@@ -91,14 +90,14 @@ PushEngine::ReqPort::recvReqRetry()
 {
     panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
 
-    DPRINTF(MPU, "%s: Received a reqRetry.\n", __func__);
+    DPRINTF(PushEngine, "%s: Received a reqRetry.\n", __func__);
 
     _blocked = false;
     sendPacket(blockedPacket);
 
     if (!_blocked) {
         blockedPacket = nullptr;
-        DPRINTF(MPU, "%s: Sent the blockedPacket. "
+        DPRINTF(PushEngine, "%s: Sent the blockedPacket. "
                     "_blocked: %s, (blockedPacket == nullptr): %s.\n",
                     __func__, _blocked ? "true" : "false",
                     (blockedPacket == nullptr) ? "true" : "false");
@@ -273,7 +272,7 @@ PushEngine::processNextPushEvent()
     assert(offset < peerMemoryAtomSize);
     uint32_t value = reqValueMap[pkt->req];
 
-    DPRINTF(MPU, "%s: Looking at the front of the queue. pkt->Addr: %lu, "
+    DPRINTF(PushEngine, "%s: Looking at the front of the queue. pkt->Addr: %lu, "
                 "offset: %lu\n",
             __func__, pkt->getAddr(), offset);
 
@@ -287,7 +286,7 @@ PushEngine::processNextPushEvent()
     if (!reqPort.blocked()) {
         reqPort.sendPacket(update);
         stats.numUpdates++;
-        DPRINTF(MPU, "%s: Sent a push update to addr: %lu with value: %d.\n",
+        DPRINTF(PushEngine, "%s: Sent a push update to addr: %lu with value: %d.\n",
                                 __func__, curr_edge->neighbor, update_value);
         reqOffsetMap[pkt->req] = reqOffsetMap[pkt->req] + sizeof(Edge);
         assert(reqOffsetMap[pkt->req] <= peerMemoryAtomSize);
