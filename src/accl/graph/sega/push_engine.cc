@@ -37,11 +37,10 @@ namespace gem5
 
 PushEngine::PushEngine(const PushEngineParams &params):
     BaseMemEngine(params),
-    retrySpaceAllocated(0),
     reqPort(name() + ".req_port", this),
     baseEdgeAddr(params.base_edge_addr),
-    numRetries(0),
     pushReqQueueSize(params.push_req_queue_size),
+    numRetries(0), retrySpaceAllocated(0), spacesAllocatedBetweenRetries(0),
     nextAddrGenEvent([this] { processNextAddrGenEvent(); }, name()),
     nextPushEvent([this] { processNextPushEvent(); }, name()),
     stats(*this)
@@ -118,16 +117,28 @@ PushEngine::deallocatePushSpace(int space)
     /// DISCUSS: Might have to check whether the addrGenEvent is scheduled
     // and or the pushReqQueue is empty. If so we might need to
     // send retries.
-    if ((numRetries > 0)  &&
-        ((pushReqQueue.size() + retrySpaceAllocated) == 0)) {
-        assert((!pendingMemRetry()) && (!nextAddrGenEvent.scheduled()));
+    // if ((numRetries > 0)  &&
+    //     ((pushReqQueue.size() + retrySpaceAllocated) == 0)) {
+    //     assert((!pendingMemRetry()) && (!nextAddrGenEvent.scheduled()));
+    //     int free_space =
+    //         pushReqQueueSize - (pushReqQueue.size() + retrySpaceAllocated);
+    //     if (free_space > numElementsPerLine) {
+    //         DPRINTF(PushEngine, "%s: Found %d free spaces. "
+    //                 "retrySpaceAllocated = %d.\n", __func__, free_space,
+    //                 retrySpaceAllocated);
+    //         retrySpaceAllocated += numElementsPerLine;
+    //         peerCoalesceEngine->recvPushRetry();
+    //     }
+    // }
+
+    if (numRetries > 0) {
         int free_space =
             pushReqQueueSize - (pushReqQueue.size() + retrySpaceAllocated);
-        if (free_space > numElementsPerLine) {
-            DPRINTF(PushEngine, "%s: Found %d free spaces. "
-                    "retrySpaceAllocated = %d.\n", __func__, free_space,
-                    retrySpaceAllocated);
-            retrySpaceAllocated += numElementsPerLine;
+        assert(free_space <= numElementsPerLine);
+        retrySpaceAllocated += free_space;
+        spacesAllocatedBetweenRetries += free_space;
+        if (spacesAllocatedBetweenRetries >= numElementsPerLine) {
+            spacesAllocatedBetweenRetries %= numElementsPerLine;
             peerCoalesceEngine->recvPushRetry();
         }
     }
@@ -214,15 +225,26 @@ PushEngine::processNextAddrGenEvent()
         DPRINTF(PushEngine, "%s: Popped curr_info from pushReqQueue. "
                     "pushReqQueue.size() = %u.\n",
                     __func__, pushReqQueue.size());
+        // if (numRetries > 0) {
+        //     int free_space = pushReqQueueSize - (pushReqQueue.size() + retrySpaceAllocated);
+        //     DPRINTF(PushEngine, "%s: Found %d free spaces in "
+        //                     "the pushReqQueue.\n", __func__, free_space);
+        //     if (free_space > numElementsPerLine) {
+        //         retrySpaceAllocated += numElementsPerLine;
+        //         DPRINTF(PushEngine, "%s: Allocated %d spaces for retry. "
+        //                 "retrySpaceAllocated = %d.\n", __func__,
+        //                 numElementsPerLine, retrySpaceAllocated);
+        //         peerCoalesceEngine->recvPushRetry();
+        //     }
+        // }
+
         if (numRetries > 0) {
-            int free_space = pushReqQueueSize - (pushReqQueue.size() + retrySpaceAllocated);
-            DPRINTF(PushEngine, "%s: Found %d free spaces in "
-                            "the pushReqQueue.\n", __func__, free_space);
-            if (free_space > numElementsPerLine) {
-                retrySpaceAllocated += numElementsPerLine;
-                DPRINTF(PushEngine, "%s: Allocated %d spaces for retry. "
-                        "retrySpaceAllocated = %d.\n", __func__,
-                        numElementsPerLine, retrySpaceAllocated);
+            retrySpaceAllocated++;
+            DPRINTF(PushEngine, "%s: Allocated one space for retry. "
+                "retrySpaceAllocated = %d.\n", __func__, retrySpaceAllocated);
+            spacesAllocatedBetweenRetries++;
+            if (spacesAllocatedBetweenRetries == numElementsPerLine) {
+                spacesAllocatedBetweenRetries = 0;
                 peerCoalesceEngine->recvPushRetry();
             }
         }
@@ -331,6 +353,7 @@ PushEngine::allocatePushSpace() {
     assert(retrySpaceAllocated >= 0);
     if ((pushReqQueueSize == 0) ||
         ((pushReqQueue.size() + retrySpaceAllocated) < pushReqQueueSize)) {
+        assert(numRetries == 0);
         return true;
     } else {
         numRetries++;

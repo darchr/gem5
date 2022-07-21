@@ -99,15 +99,16 @@ class PushEngine : public BaseMemEngine
     };
 
     int numElementsPerLine;
-    int retrySpaceAllocated;
     CoalesceEngine* peerCoalesceEngine;
 
     ReqPort reqPort;
 
     Addr baseEdgeAddr;
 
-    int numRetries;
     int pushReqQueueSize;
+    int numRetries;
+    int retrySpaceAllocated;
+    int spacesAllocatedBetweenRetries;
     std::deque<PushPacketInfoGen> pushReqQueue;
 
     // TODO: Add size one size for all these maps
