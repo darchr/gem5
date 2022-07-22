@@ -354,6 +354,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                 // It is not busy anymore, we have to send the wl from cache.
                 DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
                                 __func__, needsPush.count());
+                assert(peerPushEngine->getNumRetries() == needsPush.count());
                 for (int i = 0; i < numElementsPerLine; i++) {
                     assert(!((needsPush[it + i] == 1) &&
                             (cacheBlocks[block_index].items[i].degree == 0)));
@@ -374,6 +375,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                                 __func__, needsPush.count());
                 peerPushEngine->deallocatePushSpace(
                                         numElementsPerLine - push_needed);
+                assert(peerPushEngine->getNumRetries() == needsPush.count());
                 // Since we have just applied the line, we can take it out of
                 // the applyQueue if it's in there. No need to do the same
                 // thing for evictQueue.
@@ -402,7 +404,9 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                         __func__, addr);
                 DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
                                 __func__, needsPush.count());
+                assert(peerPushEngine->getNumRetries() == needsPush.count());
                 peerPushEngine->deallocatePushSpace(numElementsPerLine);
+                assert(peerPushEngine->getNumRetries() == needsPush.count());
                 DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
                                 __func__, needsPush.count());
             }
@@ -417,6 +421,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             // No applying of the line needed.
             DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
                                 __func__, needsPush.count());
+            assert(peerPushEngine->getNumRetries() == needsPush.count());
             for (int i = 0; i < numElementsPerLine; i++) {
                 assert(!((needsPush[it + i] == 1) &&
                                 (items[i].degree == 0)));
@@ -430,6 +435,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                                 __func__, needsPush.count());
             peerPushEngine->deallocatePushSpace(
                                     numElementsPerLine - push_needed);
+            assert(peerPushEngine->getNumRetries() == needsPush.count());
         }
 
         delete pkt;
@@ -708,6 +714,13 @@ CoalesceEngine::recvPushRetry()
 void
 CoalesceEngine::processNextSendRetryEvent()
 {
+    if (needsPush.count() == 0) {
+        DPRINTF(CoalesceEngine, "%s: Received a retry while there are no set "
+                        "bit in needsPush. Rejecting the retry.\n", __func__);
+        peerPushEngine->recvRetryReject();
+        return;
+    }
+
     DPRINTF(CoalesceEngine,  "%s: Received a push retry.\n", __func__);
     Addr block_addr = 0;
     int block_index = 0;
@@ -715,7 +728,8 @@ CoalesceEngine::processNextSendRetryEvent()
     uint32_t slice = 0;
     bool hit_in_cache = false;
 
-    for (it = currentBitSliceIndex; it < MAX_BITVECTOR_SIZE; it += numElementsPerLine) {
+    for (it = currentBitSliceIndex; it < MAX_BITVECTOR_SIZE;
+        it = (it + numElementsPerLine) % MAX_BITVECTOR_SIZE) {
         for (int i = 0; i < numElementsPerLine; i++) {
             slice <<= 1;
             slice |= needsPush[it + i];
@@ -734,9 +748,6 @@ CoalesceEngine::processNextSendRetryEvent()
                 break;
             }
         }
-        if (it == (MAX_BITVECTOR_SIZE - numElementsPerLine)) {
-            it = 0;
-        }
     }
 
     assert(it < MAX_BITVECTOR_SIZE);
@@ -753,6 +764,7 @@ CoalesceEngine::processNextSendRetryEvent()
         int push_needed = 0;
         DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
                                 __func__, needsPush.count());
+        assert(peerPushEngine->getNumRetries() == needsPush.count());
         for (int i = 0; i < numElementsPerLine; i++) {
             // TODO: Make this more programmable
             uint32_t new_prop = std::min(
@@ -770,6 +782,7 @@ CoalesceEngine::processNextSendRetryEvent()
         DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
                                 __func__, needsPush.count());
         peerPushEngine->deallocatePushSpace(numElementsPerLine - push_needed);
+        assert(peerPushEngine->getNumRetries() == needsPush.count());
         if (applyQueue.find(block_index)) {
             applyQueue.erase(block_index);
             if (applyQueue.empty() && nextApplyEvent.scheduled()) {
