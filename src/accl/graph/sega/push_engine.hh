@@ -106,9 +106,8 @@ class PushEngine : public BaseMemEngine
     Addr baseEdgeAddr;
 
     int pushReqQueueSize;
-    int numRetries;
-    int retrySpaceAllocated;
-    int spacesAllocatedBetweenRetries;
+    int numTotalRetries;
+    int numPendingRetries;
     std::deque<PushPacketInfoGen> pushReqQueue;
 
     // TODO: Add size one size for all these maps
@@ -164,6 +163,10 @@ class PushEngine : public BaseMemEngine
 
     void registerCoalesceEngine(CoalesceEngine* coalesce_engine,
                                           int elements_per_line);
+
+    int getNumRetries() { return numTotalRetries; }
+
+    void recvRetryReject() { numPendingRetries--; }
 };
 
 }
