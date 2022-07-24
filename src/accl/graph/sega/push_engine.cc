@@ -43,6 +43,7 @@ PushEngine::PushEngine(const PushEngineParams &params):
     numTotalRetries(0), numPendingRetries(0),
     nextAddrGenEvent([this] { processNextAddrGenEvent(); }, name()),
     nextPushEvent([this] { processNextPushEvent(); }, name()),
+    nextSendRetryEvent([this] { processNextSendRetryEvent(); }, name()),
     stats(*this)
 {}
 
@@ -121,8 +122,8 @@ PushEngine::deallocatePushSpace(int space)
             (numPendingRetries == 0)) {
             DPRINTF(PushEngine, "%s: Sent a push retry to "
                             "peerCoalesceEngine.\n", __func__);
-            numPendingRetries++;
-            peerCoalesceEngine->recvPushRetry();
+            assert(!nextSendRetryEvent.scheduled());
+            schedule(nextSendRetryEvent, nextCycle());
         }
     }
 }
@@ -221,8 +222,8 @@ PushEngine::processNextAddrGenEvent()
                 (numPendingRetries == 0)) {
                 DPRINTF(PushEngine, "%s: Sent a push retry to "
                             "peerCoalesceEngine.\n", __func__);
-                numPendingRetries++;
-                peerCoalesceEngine->recvPushRetry();
+                assert(!nextSendRetryEvent.scheduled());
+                schedule(nextSendRetryEvent, nextCycle());
             }
         }
     }
@@ -237,6 +238,14 @@ PushEngine::processNextAddrGenEvent()
     if ((!nextAddrGenEvent.scheduled()) && (!pushReqQueue.empty())) {
         schedule(nextAddrGenEvent, nextCycle());
     }
+}
+
+void
+PushEngine::processNextSendRetryEvent()
+{
+    assert(numPendingRetries == 0);
+    numPendingRetries++;
+    peerCoalesceEngine->recvPushRetry();
 }
 
 void

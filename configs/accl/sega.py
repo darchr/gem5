@@ -19,7 +19,7 @@ class MPU(SubSystem):
                                     cache_size="1MiB",
                                     num_mshr_entry=1,
                                     num_tgts_per_mshr=1,
-                                    outstanding_mem_req_queue_size=0)
+                                    outstanding_mem_req_queue_size=1)
         self.wl_engine = WLEngine(coalesce_engine=self.coalesce_engine,
                                 update_queue_size=1,
                                 on_the_fly_update_map_size=1)
