@@ -117,7 +117,7 @@ PushEngine::deallocatePushSpace(int space)
             (pushReqQueue.size() + (numPendingRetries * numElementsPerLine));
         DPRINTF(PushEngine, "%s: pushReqQueue has at least %d "
                             "free spaces.\n", __func__, free_space);
-        if ((free_space > numElementsPerLine) &&
+        if ((free_space >= numElementsPerLine) &&
             (numPendingRetries == 0)) {
             DPRINTF(PushEngine, "%s: Sent a push retry to "
                             "peerCoalesceEngine.\n", __func__);
@@ -217,7 +217,7 @@ PushEngine::processNextAddrGenEvent()
             (pushReqQueue.size() + (numPendingRetries * numElementsPerLine));
             DPRINTF(PushEngine, "%s: pushReqQueue has at least %d"
                         "free spaces.\n", __func__, free_space);
-            if ((free_space > numElementsPerLine) &&
+            if ((free_space >= numElementsPerLine) &&
                 (numPendingRetries == 0)) {
                 DPRINTF(PushEngine, "%s: Sent a push retry to "
                             "peerCoalesceEngine.\n", __func__);

@@ -90,13 +90,13 @@ static_assert(isPowerOf2(sizeof(WorkListItem)));
 static_assert(isPowerOf2(sizeof(Edge)));
 
 template<typename T>
-class FIFOSet
+class InOutSet
 {
   private:
     std::unordered_set<T> set;
 
   public:
-    FIFOSet(int cap)
+    InOutSet(int cap)
     {
         set.reserve(cap);
     }
