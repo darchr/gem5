@@ -300,10 +300,16 @@ CoalesceEngine::recvWLRead(Addr addr)
 void
 CoalesceEngine::processNextMemoryReadEvent()
 {
+    assert(!nextMemoryReadEvent.pending());
     if (memQueueFull()) {
-        nextMemoryReadEvent.sleep();
         // TODO: Implement interface where events of the CoalesceEngine are
         // pushed to a fifo to be scheduled later.
+        nextMemoryReadEvent.sleep();
+        if (!pendingMemRetry()) {
+            assert(pendingEventQueue.empty());
+            requestMemRetry(1);
+        }
+        pendingEventQueue.push_back("nextMemoryReadEvent");
         return;
     }
 
@@ -351,8 +357,33 @@ CoalesceEngine::processNextRespondEvent()
 void
 CoalesceEngine::recvMemRetry()
 {
-    // assert(!nextEvictEvent.scheduled());
-    // schedule(nextEvictEvent, nextCycle());
+    assert(!pendingEventQueue.empty());
+    std::string front = pendingEventQueue.front();
+
+    if (front == "nextMemoryReadEvent") {
+        assert(!nextMemoryReadEvent.scheduled());
+        assert(nextMemoryReadEvent.pending());
+        schedule(nextMemoryReadEvent, nextCycle());
+        nextMemoryReadEvent.wake();
+    } else if (front == "nextWriteBackEvent") {
+        assert(!nextWriteBackEvent.scheduled());
+        assert(nextWriteBackEvent.pending());
+        schedule(nextWriteBackEvent, nextCycle());
+        nextWriteBackEvent.wake();
+    } else if (front == "nextSendRetryEvent") {
+        assert(!nextSendRetryEvent.scheduled());
+        assert(nextSendRetryEvent.pending());
+        breakPointFunction();
+        schedule(nextSendRetryEvent, nextCycle());
+        nextSendRetryEvent.wake();
+    } else {
+        panic("EVENT IS NOT RECOGNIZED.\n");
+    }
+
+    pendingEventQueue.pop_front();
+    if (!pendingEventQueue.empty()) {
+        requestMemRetry(1);
+    }
     return;
 }
 
@@ -652,10 +683,16 @@ CoalesceEngine::processNextApplyEvent()
 void
 CoalesceEngine::processNextWriteBackEvent()
 {
+    assert(!nextWriteBackEvent.pending());
     if (memQueueFull()) {
         nextWriteBackEvent.sleep();
         // TODO: Implement interface where events of the CoalesceEngine are
         // pushed to a fifo to be scheduled later.
+        if (!pendingMemRetry()) {
+            assert(pendingEventQueue.empty());
+            requestMemRetry(1);
+        }
+        pendingEventQueue.push_back("nextWriteBackEvent");
         return;
     }
 
@@ -715,20 +752,25 @@ void
 CoalesceEngine::recvPushRetry()
 {
     numRetriesReceived++;
-    if (!nextSendRetryEvent.scheduled()) {
-        schedule(nextSendRetryEvent, nextCycle());
-    }
+    // For now since we do only one retry at a time, we should not receive
+    // a retry while this nextSendingRetryEvent is scheduled or is pending.
+    assert(!nextSendRetryEvent.pending());
+    assert(!nextSendRetryEvent.scheduled());
+    assert(numRetriesReceived == 1);
+    schedule(nextSendRetryEvent, nextCycle());
 }
 
 void
 CoalesceEngine::processNextSendRetryEvent()
 {
-    if (needsPush.count() == 0) {
-        DPRINTF(CoalesceEngine, "%s: Received a retry while there are no set "
-                        "bit in needsPush. Rejecting the retry.\n", __func__);
-        peerPushEngine->recvRetryReject();
-        return;
-    }
+    assert(!nextSendRetryEvent.pending());
+    assert(needsPush.count() != 0);
+    // if (needsPush.count() == 0) {
+    //     DPRINTF(CoalesceEngine, "%s: Received a retry while there are no set "
+    //                     "bit in needsPush. Rejecting the retry.\n", __func__);
+    //     peerPushEngine->recvRetryReject();
+    //     return;
+    // }
 
     DPRINTF(CoalesceEngine,  "%s: Received a push retry.\n", __func__);
     Addr block_addr = 0;
@@ -807,6 +849,16 @@ CoalesceEngine::processNextSendRetryEvent()
             }
         }
     } else {
+        if (memQueueFull()) {
+            nextSendRetryEvent.sleep();
+            if (!pendingMemRetry()) {
+                assert(pendingEventQueue.empty());
+                requestMemRetry(1);
+            }
+            pendingEventQueue.push_back("nextSendRetryEvent");
+            return;
+        }
+
         // FIXME: Fix the retry mechanism between memory and cache to
         // handle memory retries correctly. This probably requires scheduling
         // an event for sending the retry. For now we're enabling infinite
@@ -816,17 +868,12 @@ CoalesceEngine::processNextSendRetryEvent()
         PacketPtr pkt = createReadPacket(block_addr, peerMemoryAtomSize);
         SenderState* sender_state = new SenderState(true);
         pkt->pushSenderState(sender_state);
-        if (allocateMemQueueSpace(1)) {
-            enqueueMemReq(pkt);
-        } else {
-            requestMemRetry(1);
-        }
+        enqueueMemReq(pkt);
     }
 
     numRetriesReceived--;
-    if ((numRetriesReceived > 0) && (!nextSendRetryEvent.scheduled())) {
-        schedule(nextSendRetryEvent, nextCycle());
-    }
+    assert(numRetriesReceived == 0);
+    assert(!nextSendRetryEvent.scheduled());
 }
 
 CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
