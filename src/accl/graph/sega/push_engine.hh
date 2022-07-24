@@ -128,6 +128,9 @@ class PushEngine : public BaseMemEngine
     EventFunctionWrapper nextPushEvent;
     void processNextPushEvent();
 
+    EventFunctionWrapper nextSendRetryEvent;
+    void processNextSendRetryEvent();
+
     struct PushStats : public statistics::Group
     {
       PushStats(PushEngine &push);

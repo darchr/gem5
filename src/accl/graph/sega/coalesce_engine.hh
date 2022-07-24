@@ -124,6 +124,8 @@ class CoalesceEngine : public BaseMemEngine
     int getBitIndexBase(Addr addr);
     Addr getBlockAddrFromBitIndex(int index);
 
+    std::deque<std::string> pendingEventQueue;
+
     MemoryEvent nextMemoryReadEvent;
     void processNextMemoryReadEvent();
 
@@ -136,7 +138,7 @@ class CoalesceEngine : public BaseMemEngine
     MemoryEvent nextWriteBackEvent;
     void processNextWriteBackEvent();
 
-    EventFunctionWrapper nextSendRetryEvent;
+    MemoryEvent nextSendRetryEvent;
     void processNextSendRetryEvent();
 
     struct CoalesceStats : public statistics::Group
@@ -159,6 +161,7 @@ class CoalesceEngine : public BaseMemEngine
 
     CoalesceStats stats;
 
+    void breakPointFunction() { std::cout << "Salaam." << std::endl; }
   protected:
     virtual int respBuffSize() { return -1; }
     virtual void recvMemRetry();
