@@ -104,25 +104,28 @@ class CoalesceEngine : public BaseMemEngine
     int numLines;
     int numElementsPerLine;
 
-    int numMSHREntry;
+    int numMSHREntries;
     int numTgtsPerMSHR;
-    std::unordered_map<int, std::vector<Addr>> MSHRMap;
-    std::deque<PacketPtr> lineFillBuffer;
+    std::unordered_map<int, std::vector<Addr>> MSHR;
+
+    std::deque<int> fillQueue;
+
     std::deque<std::tuple<Addr, WorkListItem>> responseQueue;
 
     int currentBitSliceIndex;
     int numRetriesReceived;
-    FIFOSet<int> applyQueue;
+    InOutSet<int> applyQueue;
     std::bitset<MAX_BITVECTOR_SIZE> needsPush;
 
-    FIFOSet<int> evictQueue;
+    InOutSet<int> writeBackQueue;
+    InOutSet<int> replaceQueue;
 
     int getBlockIndex(Addr addr);
     int getBitIndexBase(Addr addr);
     Addr getBlockAddrFromBitIndex(int index);
 
-    MemoryEvent nextReadOnMissEvent;
-    void processNextReadOnMissEvent();
+    MemoryEvent nextMemoryReadEvent;
+    void processNextMemoryReadEvent();
 
     EventFunctionWrapper nextRespondEvent;
     void processNextRespondEvent();
@@ -130,8 +133,8 @@ class CoalesceEngine : public BaseMemEngine
     EventFunctionWrapper nextApplyEvent;
     void processNextApplyEvent();
 
-    MemoryEvent nextEvictEvent;
-    void processNextEvictEvent();
+    MemoryEvent nextWriteBackEvent;
+    void processNextWriteBackEvent();
 
     EventFunctionWrapper nextSendRetryEvent;
     void processNextSendRetryEvent();
