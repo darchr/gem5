@@ -48,6 +48,7 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     numRetriesReceived(0),
     applyQueue(numLines),
     evictQueue(numLines),
+    nextReadOnMissEvent([this] { processNextReadOnMissEvent(); }, name()),
     nextRespondEvent([this] { processNextRespondEvent(); }, name()),
     nextApplyEvent([this] { processNextApplyEvent(); }, name()),
     nextEvictEvent([this] { processNextEvictEvent(); }, name()),
@@ -175,7 +176,6 @@ CoalesceEngine::recvWLRead(Addr addr)
         cacheBlocks[block_index].busyMask |= (1 << wl_offset);
         stats.readHits++;
 
-        assert(!responseQueue.empty());
         if (!nextRespondEvent.scheduled()) {
             schedule(nextRespondEvent, nextCycle());
         }
@@ -233,9 +233,9 @@ CoalesceEngine::recvWLRead(Addr addr)
                     DPRINTF(CoalesceEngine,  "%s: Addr: %lu has no conflict. Trying to "
                                 "allocate a cache line for it.\n",
                                 __func__, addr);
-                    if (memQueueFull()) {
-                        DPRINTF(CoalesceEngine,  "%s: No space in outstandingMemReqQueue. "
-                                    "Rejecting  request.\n", __func__);
+                    if (lineFillBuffer.size() == numMSHREntry) {
+                        DPRINTF(CoalesceEngine,  "%s: No space left in "
+                            "lineFillBuffer. Rejecting  request.\n", __func__);
                         stats.readRejections++;
                         return false;
                     }
@@ -255,9 +255,15 @@ CoalesceEngine::recvWLRead(Addr addr)
                     DPRINTF(CoalesceEngine,  "%s: Created a read packet for Addr: %lu."
                                 " req addr (aligned_addr) = %lu, size = %d.\n",
                                 __func__, addr, aligned_addr, peerMemoryAtomSize);
-                    enqueueMemReq(pkt);
-                    DPRINTF(CoalesceEngine,  "%s: Pushed pkt to outstandingMemReqQueue.\n",
-                                                                    __func__);
+                    // enqueueMemReq(pkt);
+                    lineFillBuffer.push_back(pkt);
+                    DPRINTF(CoalesceEngine,  "%s: Pushed pkt to "
+                            "lineFillBuffer. lineFillBuffer.size = %d.\n",
+                            __func__, lineFillBuffer.size());
+                    if ((!nextReadOnMissEvent.pending()) &&
+                        (!nextReadOnMissEvent.scheduled())) {
+                        schedule(nextReadOnMissEvent, nextCycle());
+                    }
                     stats.readMisses++;
                     stats.numVertexReads++;
                     return true;
@@ -293,6 +299,28 @@ CoalesceEngine::recvWLRead(Addr addr)
             stats.numVertexReads++;
             return true;
         }
+    }
+}
+
+void
+CoalesceEngine::processNextReadOnMissEvent()
+{
+    if (memQueueFull()) {
+        nextReadOnMissEvent.sleep();
+        // TODO: Implement interface where events of the CoalesceEngine are
+        // pushed to a fifo to be scheduled later.
+        return;
+    }
+
+    PacketPtr pkt = lineFillBuffer.front();
+    enqueueMemReq(pkt);
+
+    lineFillBuffer.pop_front();
+
+    if (!lineFillBuffer.empty()) {
+        assert(!nextReadOnMissEvent.scheduled());
+        assert(!nextReadOnMissEvent.pending());
+        schedule(nextReadOnMissEvent, nextCycle());
     }
 }
 
