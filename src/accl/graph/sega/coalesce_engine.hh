@@ -49,6 +49,20 @@ class WLEngine;
 class CoalesceEngine : public BaseMemEngine
 {
   private:
+    class MemoryEvent : public EventFunctionWrapper
+    {
+      private:
+        bool _pending;
+      public:
+        MemoryEvent(const std::function<void(void)> &callback,
+                    const std::string &name):
+            EventFunctionWrapper(callback, name), _pending(false)
+        {}
+        bool pending() { return _pending; }
+        void sleep() { _pending = true; }
+        void wake() { _pending = false; }
+    };
+
     struct Block
     {
         WorkListItem* items;
@@ -93,7 +107,7 @@ class CoalesceEngine : public BaseMemEngine
     int numMSHREntry;
     int numTgtsPerMSHR;
     std::unordered_map<int, std::vector<Addr>> MSHRMap;
-
+    std::deque<PacketPtr> lineFillBuffer;
     std::deque<std::tuple<Addr, WorkListItem>> responseQueue;
 
     int currentBitSliceIndex;
@@ -107,13 +121,16 @@ class CoalesceEngine : public BaseMemEngine
     int getBitIndexBase(Addr addr);
     Addr getBlockAddrFromBitIndex(int index);
 
+    MemoryEvent nextReadOnMissEvent;
+    void processNextReadOnMissEvent();
+
     EventFunctionWrapper nextRespondEvent;
     void processNextRespondEvent();
 
     EventFunctionWrapper nextApplyEvent;
     void processNextApplyEvent();
 
-    EventFunctionWrapper nextEvictEvent;
+    MemoryEvent nextEvictEvent;
     void processNextEvictEvent();
 
     EventFunctionWrapper nextSendRetryEvent;
