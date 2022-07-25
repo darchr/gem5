@@ -173,6 +173,7 @@ PushEngine::recvWLItemRetry(WorkListItem wl)
 
     pushReqQueue.emplace_back(start_addr, end_addr, sizeof(Edge),
                                     peerMemoryAtomSize, value);
+    assert(pushReqQueue.size() <= pushReqQueueSize);
     DPRINTF(PushEngine, "%s: pushReqQueue.size() = %d.\n",
                             __func__, pushReqQueue.size());
 
@@ -263,6 +264,7 @@ PushEngine::handleMemResp(PacketPtr pkt)
     // TODO: in case we need to edit edges, get rid of second statement.
     assert(pkt->isResponse() && (!pkt->isWrite()));
     memRespQueue.push_back(pkt);
+    assert(memRespQueue.size() <= respQueueSize);
 
     if ((!nextPushEvent.scheduled()) && (!memRespQueue.empty())) {
         schedule(nextPushEvent, nextCycle());

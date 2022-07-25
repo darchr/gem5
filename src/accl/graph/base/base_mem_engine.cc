@@ -40,10 +40,10 @@ BaseMemEngine::BaseMemEngine(const BaseMemEngineParams &params):
     memPort(name() + ".mem_port", this),
     memQueueSize(params.outstanding_mem_req_queue_size),
     onTheFlyReqs(0),
-    respQueueSize(params.resp_queue_size),
     memRetryRequested(false),
     memSpaceRequested(0),
     nextMemReqEvent([this] { processNextMemReqEvent(); }, name()),
+    respQueueSize(params.resp_queue_size),
     _requestorId(system->getRequestorId(this)),
     peerMemoryAtomSize(params.attached_memory_atom_size)
 {}
