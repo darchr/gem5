@@ -28,4 +28,5 @@
 Import('*')
 
 DebugFlag('SEGAStructureSize')
-CompoundFlag('MPU', ['CoalesceEngine', 'PushEngine', 'WLEngine', 'BaseMemEngine'])
+CompoundFlag('MPU', ['CoalesceEngine', 'PushEngine', 'WLEngine',
+                    'BaseMemEngine', 'BaseMemoryEngine'])

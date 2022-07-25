@@ -91,8 +91,8 @@ class CoalesceEngine : public BaseMemoryEngine
       SenderState(bool is_retry): isRetry(is_retry) {}
     };
 
-    int nmpu;
-    Addr memoryAddressOffset;
+    // int nmpu;
+    // Addr memoryAddressOffset;
 
     WLEngine* peerWLEngine;
     PushEngine* peerPushEngine;
@@ -174,7 +174,7 @@ class CoalesceEngine : public BaseMemoryEngine
 
     void recvPushRetry();
 
-    virtual void startup() override;
+    // virtual void startup() override;
 };
 
 }

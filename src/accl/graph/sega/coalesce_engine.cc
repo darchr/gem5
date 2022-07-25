@@ -67,44 +67,48 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     needsPush.reset();
 }
 
-void
-CoalesceEngine::startup()
-{
-    AddrRangeList vertex_ranges = getAddrRanges();
+// void
+// CoalesceEngine::startup()
+// {
+//     return;
+    // std::cout << "Hello" << std::endl;
+    // DPRINTF(CoalesceEngine, "%s: Range attached to this engine is %s.\n",
+    //                                 __func__, peerMemoryRange.to_string());
+    // AddrRangeList vertex_ranges = getAddrRanges();
 
-    bool found = false;
-    Addr first_match_addr = 0;
-    while(true) {
-        for (auto range: vertex_ranges) {
-            if (range.contains(first_match_addr)) {
-                found = true;
-                break;
-            }
-        }
-        if (found) {
-            break;
-        }
-        first_match_addr += peerMemoryAtomSize;
-    }
+    // bool found = false;
+    // Addr first_match_addr = 0;
+    // while(true) {
+    //     for (auto range: vertex_ranges) {
+    //         if (range.contains(first_match_addr)) {
+    //             found = true;
+    //             break;
+    //         }
+    //     }
+    //     if (found) {
+    //         break;
+    //     }
+    //     first_match_addr += peerMemoryAtomSize;
+    // }
 
-    found = false;
-    Addr second_match_addr = first_match_addr + peerMemoryAtomSize;
-    while(true) {
-        for (auto range: vertex_ranges) {
-            if (range.contains(second_match_addr)) {
-                found = true;
-                break;
-            }
-        }
-        if (found) {
-            break;
-        }
-        second_match_addr += peerMemoryAtomSize;
-    }
+    // found = false;
+    // Addr second_match_addr = first_match_addr + peerMemoryAtomSize;
+    // while(true) {
+    //     for (auto range: vertex_ranges) {
+    //         if (range.contains(second_match_addr)) {
+    //             found = true;
+    //             break;
+    //         }
+    //     }
+    //     if (found) {
+    //         break;
+    //     }
+    //     second_match_addr += peerMemoryAtomSize;
+    // }
 
-    nmpu = (int) ((second_match_addr - first_match_addr) / peerMemoryAtomSize);
-    memoryAddressOffset = first_match_addr;
-}
+    // nmpu = (int) ((second_match_addr - first_match_addr) / peerMemoryAtomSize);
+    // memoryAddressOffset = first_match_addr;
+// }
 
 void
 CoalesceEngine::registerWLEngine(WLEngine* wl_engine)
@@ -117,7 +121,10 @@ int
 CoalesceEngine::getBlockIndex(Addr addr)
 {
     assert((addr % peerMemoryAtomSize) == 0);
-    return ((int) (addr / peerMemoryAtomSize)) % numLines;
+    Addr trimmed_addr = peerMemoryRange.removeIntlvBits(addr);
+    DPRINTF(CoalesceEngine, "%s: Trimming addr: %lu to %lu.\n",
+                                __func__, addr, trimmed_addr);
+    return ((int) (trimmed_addr / peerMemoryAtomSize)) % numLines;
 }
 
 // addr should be aligned to peerMemoryAtomSize
@@ -125,10 +132,10 @@ int
 CoalesceEngine::getBitIndexBase(Addr addr)
 {
     assert((addr % peerMemoryAtomSize) == 0);
-    int atom_index = (int) (addr / (peerMemoryAtomSize * nmpu));
+    Addr trimmed_addr = peerMemoryRange.removeIntlvBits(addr);
+    int atom_index = (int) (trimmed_addr / peerMemoryAtomSize);
     int block_bits = (int) (peerMemoryAtomSize / sizeof(WorkListItem));
-    int bit_index = atom_index * block_bits;
-    return bit_index;
+    return atom_index * block_bits;
 }
 
 // index should be aligned to (peerMemoryAtomSize / sizeof(WorkListItem))
@@ -136,9 +143,8 @@ Addr
 CoalesceEngine::getBlockAddrFromBitIndex(int index)
 {
     assert((index % ((int) (peerMemoryAtomSize / sizeof(WorkListItem)))) == 0);
-    Addr block_addr = (nmpu * peerMemoryAtomSize) *
-        ((int)(index / (peerMemoryAtomSize / sizeof(WorkListItem))));
-    return (block_addr + memoryAddressOffset);
+    Addr trimmed_addr = index * sizeof(WorkListItem);
+    return peerMemoryRange.addIntlvBits(trimmed_addr);
 }
 
 bool
@@ -149,7 +155,8 @@ CoalesceEngine::recvWLRead(Addr addr)
                                                     __func__, addr);
     Addr aligned_addr = (addr / peerMemoryAtomSize) * peerMemoryAtomSize;
     assert(aligned_addr % peerMemoryAtomSize == 0);
-    int block_index = (aligned_addr / peerMemoryAtomSize) % numLines;
+    // int block_index = (aligned_addr / peerMemoryAtomSize) % numLines;
+    int block_index = getBlockIndex(aligned_addr);
     assert(block_index < numLines);
     int wl_offset = (addr - aligned_addr) / sizeof(WorkListItem);
     assert(wl_offset < numElementsPerLine);
@@ -507,7 +514,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
     }
 
     Addr addr = pkt->getAddr();
-    int block_index = (addr / peerMemoryAtomSize) % numLines;
+    // int block_index = (addr / peerMemoryAtomSize) % numLines;
+    int block_index = getBlockIndex(addr);
 
     DPRINTF(CoalesceEngine,  "%s: Received a read resposne for Addr: %lu.\n",
                 __func__, pkt->getAddr());
@@ -591,7 +599,8 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 {
     // TODO: Parameterize all the numbers here.
     Addr aligned_addr = roundDown<Addr, Addr>(addr, peerMemoryAtomSize);
-    int block_index = (aligned_addr / peerMemoryAtomSize) % numLines;
+    // int block_index = (aligned_addr / peerMemoryAtomSize) % numLines;
+    int block_index = getBlockIndex(aligned_addr);
     int wl_offset = (addr - aligned_addr) / sizeof(WorkListItem);
 
     DPRINTF(CoalesceEngine,  "%s: Received a write for WorkListItem: %s with Addr: %lu.\n",
