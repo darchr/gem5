@@ -29,6 +29,7 @@
 #include "accl/graph/base/base_mem_engine.hh"
 
 #include "debug/BaseMemEngine.hh"
+#include "debug/SEGAStructureSize.hh"
 
 namespace gem5
 {
@@ -37,7 +38,7 @@ BaseMemEngine::BaseMemEngine(const BaseMemEngineParams &params):
     ClockedObject(params),
     system(params.system),
     memPort(name() + ".mem_port", this),
-    outstandingMemReqQueueSize(params.outstanding_mem_req_queue_size),
+    memQueueSize(params.outstanding_mem_req_queue_size),
     onTheFlyReqs(0),
     respQueueSize(params.resp_queue_size),
     memRetryRequested(false),
@@ -99,17 +100,22 @@ BaseMemEngine::processNextMemReqEvent()
 {
     if ((respQueueSize == 0) ||
         ((respBuffSize() + onTheFlyReqs) < respQueueSize)) {
-        PacketPtr pkt = outstandingMemReqQueue.front();
+        PacketPtr pkt = memQueue.front();
         memPort.sendPacket(pkt);
         onTheFlyReqs++;
         DPRINTF(BaseMemEngine, "%s: Sent a packet to memory with the following info. "
                     "pkt->addr: %lu, pkt->size: %lu.\n",
                     __func__, pkt->getAddr(), pkt->getSize());
-        outstandingMemReqQueue.pop_front();
-
+        memQueue.pop_front();
+        DPRINTF(SEGAStructureSize, "%s: Popped pkt: %s from "
+                "memQueue. memQueue.size = %d, memQueueSize = %d.\n",
+                __func__, pkt->print(), memQueue.size(), memQueueSize);
+        DPRINTF(BaseMemEngine, "%s: Popped pkt: %s from "
+                "memQueue. memQueue.size = %d, memQueueSize = %d.\n",
+                __func__, pkt->print(), memQueue.size(), memQueueSize);
         if (memRetryRequested &&
-            (outstandingMemReqQueue.size() <=
-            (outstandingMemReqQueueSize - memSpaceRequested))) {
+            (memQueue.size() <=
+            (memQueueSize - memSpaceRequested))) {
             memRetryRequested = false;
             memSpaceRequested = 0;
             recvMemRetry();
@@ -117,7 +123,7 @@ BaseMemEngine::processNextMemReqEvent()
     }
 
     if ((!memPort.blocked()) &&
-        (!outstandingMemReqQueue.empty()) && (!nextMemReqEvent.scheduled())) {
+        (!memQueue.empty()) && (!nextMemReqEvent.scheduled())) {
         schedule(nextMemReqEvent, nextCycle());
     }
 }
@@ -156,30 +162,35 @@ BaseMemEngine::createWritePacket(Addr addr, unsigned int size, uint8_t* data)
 bool
 BaseMemEngine::allocateMemQueueSpace(int space)
 {
-    assert((outstandingMemReqQueueSize == 0) ||
-        (outstandingMemReqQueue.size() <= outstandingMemReqQueueSize));
+    assert((memQueueSize == 0) ||
+        (memQueue.size() <= memQueueSize));
     return (
-        (outstandingMemReqQueueSize == 0) ||
-        (outstandingMemReqQueue.size() <= (outstandingMemReqQueueSize - space))
+        (memQueueSize == 0) ||
+        (memQueue.size() <= (memQueueSize - space))
         );
 }
 
 bool
 BaseMemEngine::memQueueFull()
 {
-    assert((outstandingMemReqQueueSize == 0) ||
-        (outstandingMemReqQueue.size() <= outstandingMemReqQueueSize));
+    assert((memQueueSize == 0) ||
+        (memQueue.size() <= memQueueSize));
     return (
-        (outstandingMemReqQueueSize != 0) &&
-        (outstandingMemReqQueue.size() == outstandingMemReqQueueSize));
+        (memQueueSize != 0) &&
+        (memQueue.size() == memQueueSize));
 }
 
 void
 BaseMemEngine::enqueueMemReq(PacketPtr pkt)
 {
     panic_if(memQueueFull(), "Should not enqueue if queue full.\n");
-    outstandingMemReqQueue.push_back(pkt);
-
+    memQueue.push_back(pkt);
+    DPRINTF(SEGAStructureSize, "%s: Pushed pkt: %s to memQueue. "
+                "memQueue.size = %d, memQueueSize = %d.\n", __func__,
+                pkt->print(), memQueue.size(), memQueueSize);
+    DPRINTF(BaseMemEngine, "%s: Pushed pkt: %s to memQueue. "
+                "memQueue.size = %d, memQueueSize = %d.\n", __func__,
+                pkt->print(), memQueue.size(), memQueueSize);
     if ((!nextMemReqEvent.scheduled()) && (!memPort.blocked())) {
         schedule(nextMemReqEvent, nextCycle());
     }
@@ -199,7 +210,7 @@ void
 BaseMemEngine::wakeUp()
 {
     assert(!nextMemReqEvent.scheduled());
-    if (!outstandingMemReqQueue.empty()) {
+    if (!memQueue.empty()) {
         schedule(nextMemReqEvent, nextCycle());
     }
 }
