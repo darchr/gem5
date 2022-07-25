@@ -68,12 +68,12 @@ class BaseMemEngine : public ClockedObject
     System* system;
     MemPort memPort;
 
-    int outstandingMemReqQueueSize;
+    int memQueueSize;
     int onTheFlyReqs;
     int respQueueSize;
     bool memRetryRequested;
     int memSpaceRequested;
-    std::deque<PacketPtr> outstandingMemReqQueue;
+    std::deque<PacketPtr> memQueue;
 
     EventFunctionWrapper nextMemReqEvent;
     void processNextMemReqEvent();

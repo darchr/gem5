@@ -74,10 +74,10 @@ class WLEngine : public BaseReduceEngine
     int updateQueueSize;
     std::deque<std::tuple<Addr, uint32_t>> updateQueue;
 
-    int onTheFlyUpdateMapSize;
-    std::unordered_map<Addr, uint32_t> onTheFlyUpdateMap;
+    int registerFileSize;
+    std::unordered_map<Addr, uint32_t> registerFile;
 
-    std::unordered_map<Addr, WorkListItem> addrWorkListMap;
+    std::unordered_map<Addr, WorkListItem> workListFile;
 
     void recvFunctional(PacketPtr pkt);
 
@@ -98,7 +98,7 @@ class WLEngine : public BaseReduceEngine
       WLEngine &wl;
 
       statistics::Scalar numReduce;
-      statistics::Scalar onTheFlyCoalesce;
+      statistics::Scalar registerFileCoalesce;
     };
 
     WorkListStats stats;
