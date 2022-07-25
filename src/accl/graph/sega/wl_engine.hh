@@ -114,6 +114,8 @@ class WLEngine : public BaseReduceEngine
     bool handleIncomingUpdate(PacketPtr pkt);
 
     void handleIncomingWL(Addr addr, WorkListItem wl);
+
+    int getRegisterFileSize() { return registerFileSize; }
 };
 
 }
