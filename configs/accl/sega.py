@@ -9,20 +9,20 @@ class MPU(SubSystem):
     def __init__(self, base_edge_addr):
         super(MPU, self).__init__()
         self.push_engine = PushEngine(base_edge_addr=base_edge_addr,
-                                    push_req_queue_size=4,
+                                    push_req_queue_size=16,
                                     attached_memory_atom_size=64,
-                                    outstanding_mem_req_queue_size=1,
-                                    resp_queue_size=1)
+                                    outstanding_mem_req_queue_size=4,
+                                    resp_queue_size=8)
         self.coalesce_engine = CoalesceEngine(
                                     peer_push_engine=self.push_engine,
                                     attached_memory_atom_size=32,
                                     cache_size="1MiB",
-                                    num_mshr_entry=1,
-                                    num_tgts_per_mshr=1,
-                                    outstanding_mem_req_queue_size=1)
+                                    num_mshr_entry=8,
+                                    num_tgts_per_mshr=8,
+                                    outstanding_mem_req_queue_size=8)
         self.wl_engine = WLEngine(coalesce_engine=self.coalesce_engine,
-                                update_queue_size=1,
-                                on_the_fly_update_map_size=1)
+                                update_queue_size=16,
+                                on_the_fly_update_map_size=8)
 
     def getRespPort(self):
         return self.wl_engine.resp_port
