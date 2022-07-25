@@ -32,6 +32,7 @@
 #include "base/intmath.hh"
 #include "debug/ApplyUpdates.hh"
 #include "debug/CoalesceEngine.hh"
+#include "debug/SEGAStructureSize.hh"
 #include "mem/packet_access.hh"
 
 namespace gem5
@@ -168,11 +169,18 @@ CoalesceEngine::recvWLRead(Addr addr)
         // the future.
         responseQueue.push_back(std::make_tuple(addr,
                     cacheBlocks[block_index].items[wl_offset]));
-        DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a hit. Pushed cacheBlocks[%d][%d]: %s "
-            "to responseQueue. responseQueue.size = %d.\n",
-            __func__, addr, block_index, wl_offset,
-            cacheBlocks[block_index].items[wl_offset].to_string(),
-            responseQueue.size());
+        DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
+                        "to responseQueue. responseQueue.size = %d, "
+                        "responseQueueSize = %d.\n", __func__, addr,
+                        cacheBlocks[block_index].items[wl_offset].to_string(), 
+                        responseQueue.size(),
+                        peerWLEngine->getRegisterFileSize());
+        DPRINTF(CoalesceEngine, "%s: Added (addr: %lu, wl: %s) "
+                        "to responseQueue. responseQueue.size = %d, "
+                        "responseQueueSize = %d.\n", __func__, addr,
+                        cacheBlocks[block_index].items[wl_offset].to_string(), 
+                        responseQueue.size(),
+                        peerWLEngine->getRegisterFileSize());
         // TODO: Add a stat to count the number of WLItems that have been touched.
         cacheBlocks[block_index].busyMask |= (1 << wl_offset);
         stats.readHits++;
@@ -345,9 +353,12 @@ CoalesceEngine::processNextRespondEvent()
                 __func__, worklist_response.to_string(), addr_response);
 
     responseQueue.pop_front();
+    DPRINTF(SEGAStructureSize,  "%s: Popped a response from responseQueue. "
+                "responseQueue.size = %d, responseQueueSize = %d.\n", __func__,
+                responseQueue.size(), peerWLEngine->getRegisterFileSize());
     DPRINTF(CoalesceEngine,  "%s: Popped a response from responseQueue. "
-                "responseQueue.size = %d.\n", __func__,
-                responseQueue.size());
+                "responseQueue.size = %d, responseQueueSize = %d.\n", __func__,
+                responseQueue.size(), peerWLEngine->getRegisterFileSize());
 
     if ((!nextRespondEvent.scheduled()) &&
         (!responseQueue.empty())) {
@@ -536,10 +547,18 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             // TODO: Make this block of code into a function
             responseQueue.push_back(std::make_tuple(miss_addr,
                     cacheBlocks[block_index].items[wl_offset]));
-            DPRINTF(CoalesceEngine,  "%s: Pushed cacheBlocks[%d][%d] to "
-                    "responseQueue. responseQueue.size = %u.\n"
-                    , __func__, block_index, wl_offset,
-                    responseQueue.size());
+            DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
+                        "to responseQueue. responseQueue.size = %d, "
+                        "responseQueueSize = %d.\n", __func__, miss_addr,
+                        cacheBlocks[block_index].items[wl_offset].to_string(), 
+                        responseQueue.size(), 
+                        peerWLEngine->getRegisterFileSize());
+            DPRINTF(CoalesceEngine, "%s: Added (addr: %lu, wl: %s) "
+                        "to responseQueue. responseQueue.size = %d, "
+                        "responseQueueSize = %d.\n", __func__, addr,
+                        cacheBlocks[block_index].items[wl_offset].to_string(), 
+                        responseQueue.size(),
+                        peerWLEngine->getRegisterFileSize());
             // TODO: Add a stat to count the number of WLItems that have been touched.
             cacheBlocks[block_index].busyMask |= (1 << wl_offset);
             // End of the said block
