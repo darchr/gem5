@@ -49,7 +49,6 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     numRetriesReceived(0),
     applyQueue(numLines),
     writeBackQueue(numLines),
-    replaceQueue(numLines),
     nextMemoryReadEvent([this] { processNextMemoryReadEvent(); }, name()),
     nextRespondEvent([this] { processNextRespondEvent(); }, name()),
     nextApplyEvent([this] { processNextApplyEvent(); }, name()),
@@ -320,6 +319,8 @@ CoalesceEngine::processNextMemoryReadEvent()
             requestMemRetry(1);
         }
         pendingEventQueue.push_back("nextMemoryReadEvent");
+        // Maximum three MemoryEvent.
+        assert(pendingEventQueue.size() <= 3);
         return;
     }
 
@@ -460,6 +461,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                     }
                     if (cacheBlocks[block_index].hasConflict) {
                         writeBackQueue.push_back(block_index);
+                        assert(writeBackQueue.size() <= numLines);
                         if ((!nextWriteBackEvent.pending()) &&
                             (!nextWriteBackEvent.scheduled())) {
                             schedule(nextWriteBackEvent, nextCycle());
@@ -683,6 +685,7 @@ CoalesceEngine::processNextApplyEvent()
     // TODO: This is where eviction policy goes
     if (cacheBlocks[block_index].hasConflict){
         writeBackQueue.push_back(block_index);
+        assert(writeBackQueue.size() <= numLines);
         DPRINTF(CoalesceEngine,  "%s: Added %d to writeBackQueue. writeBackQueue.size = %u.\n",
                 __func__, block_index, writeBackQueue.size());
     }
@@ -714,6 +717,8 @@ CoalesceEngine::processNextWriteBackEvent()
             requestMemRetry(1);
         }
         pendingEventQueue.push_back("nextWriteBackEvent");
+        // Maximum three MemoryEvent.
+        assert(pendingEventQueue.size() <= 3);
         return;
     }
 
@@ -863,6 +868,7 @@ CoalesceEngine::processNextSendRetryEvent()
             }
             if (cacheBlocks[block_index].hasConflict) {
                 writeBackQueue.push_back(block_index);
+                assert(writeBackQueue.size() <= numLines);
                 if ((!writeBackQueue.empty()) &&
                     (!nextWriteBackEvent.pending()) &&
                     (!nextWriteBackEvent.scheduled())) {
@@ -878,6 +884,8 @@ CoalesceEngine::processNextSendRetryEvent()
                 requestMemRetry(1);
             }
             pendingEventQueue.push_back("nextSendRetryEvent");
+            // Maximum three MemoryEvent.
+            assert(pendingEventQueue.size() <= 3);
             return;
         }
 

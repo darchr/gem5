@@ -118,7 +118,6 @@ class CoalesceEngine : public BaseMemEngine
     std::bitset<MAX_BITVECTOR_SIZE> needsPush;
 
     InOutSet<int> writeBackQueue;
-    InOutSet<int> replaceQueue;
 
     int getBlockIndex(Addr addr);
     int getBitIndexBase(Addr addr);
