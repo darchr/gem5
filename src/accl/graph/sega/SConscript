@@ -27,16 +27,19 @@
 
 Import('*')
 
+SimObject('BaseMemoryEngine.py')
 SimObject('CenteralController.py')
 SimObject('CoalesceEngine.py')
 SimObject('PushEngine.py')
 SimObject('WLEngine.py')
 
+Source('base_memory_engine.cc')
 Source('centeral_controller.cc')
 Source('coalesce_engine.cc')
 Source('push_engine.cc')
 Source('wl_engine.cc')
 
+DebugFlag('BaseMemoryEngine')
 DebugFlag('ApplyUpdates')
 DebugFlag('CenteralController')
 DebugFlag('CoalesceEngine')

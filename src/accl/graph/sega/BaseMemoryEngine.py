@@ -27,16 +27,16 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.objects.BaseMemoryEngine import BaseMemoryEngine
+from m5.objects.ClockedObject import ClockedObject
 
-class CoalesceEngine(BaseMemoryEngine):
-    type = 'CoalesceEngine'
-    cxx_header = "accl/graph/sega/coalesce_engine.hh"
-    cxx_class = 'gem5::CoalesceEngine'
+class BaseMemoryEngine(ClockedObject):
+    abstract = True
+    type = 'BaseMemoryEngine'
+    cxx_header = "accl/graph/sega/base_memory_engine.hh"
+    cxx_class = 'gem5::BaseMemoryEngine'
 
-    peer_push_engine = Param.PushEngine(NULL, "PushEngine in the same GPT.")
+    system = Param.System(Parent.any, 'System this Engine is a part of')
+    mem_port  = RequestPort("Port to communicate with the memory")
 
-    cache_size = Param.MemorySize("16KiB", "Size of the internal SRAM array.")
-
-    num_mshr_entry = Param.Int(4, "Number of MSHR entries.")
-    num_tgts_per_mshr = Param.Int(20, "Number of Targets Per MSHR.")
+    attached_memory_atom_size = Param.Int(64, "The atom size of the attached "
+                                    "memory.")

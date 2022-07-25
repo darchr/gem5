@@ -38,8 +38,8 @@
 namespace gem5
 {
 
-CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
-    BaseMemEngine(params),
+CoalesceEngine::CoalesceEngine(const Params &params):
+    BaseMemoryEngine(params),
     peerPushEngine(params.peer_push_engine),
     numLines((int) (params.cache_size / peerMemoryAtomSize)),
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
@@ -65,12 +65,6 @@ CoalesceEngine::CoalesceEngine(const CoalesceEngineParams &params):
     peerPushEngine->registerCoalesceEngine(this, numElementsPerLine);
 
     needsPush.reset();
-}
-
-void
-CoalesceEngine::recvFunctional(PacketPtr pkt)
-{
-    sendMemFunctional(pkt);
 }
 
 void
@@ -171,13 +165,13 @@ CoalesceEngine::recvWLRead(Addr addr)
         DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
                         "to responseQueue. responseQueue.size = %d, "
                         "responseQueueSize = %d.\n", __func__, addr,
-                        cacheBlocks[block_index].items[wl_offset].to_string(), 
+                        cacheBlocks[block_index].items[wl_offset].to_string(),
                         responseQueue.size(),
                         peerWLEngine->getRegisterFileSize());
         DPRINTF(CoalesceEngine, "%s: Added (addr: %lu, wl: %s) "
                         "to responseQueue. responseQueue.size = %d, "
                         "responseQueueSize = %d.\n", __func__, addr,
-                        cacheBlocks[block_index].items[wl_offset].to_string(), 
+                        cacheBlocks[block_index].items[wl_offset].to_string(),
                         responseQueue.size(),
                         peerWLEngine->getRegisterFileSize());
         // TODO: Add a stat to count the number of WLItems that have been touched.
@@ -257,7 +251,6 @@ CoalesceEngine::recvWLRead(Addr addr)
                     DPRINTF(CoalesceEngine,  "%s: Added Addr: %lu to targets "
                         "for cacheBlocks[%d].\n", __func__, addr, block_index);
 
-                    // enqueueMemReq(pkt);
                     fillQueue.push_back(block_index);
                     assert(fillQueue.size() <= numLines);
                     // FIXME: Fix this DPRINTF
@@ -310,16 +303,12 @@ void
 CoalesceEngine::processNextMemoryReadEvent()
 {
     assert(!nextMemoryReadEvent.pending());
-    if (memQueueFull()) {
+    if (memPort.blocked()) {
         // TODO: Implement interface where events of the CoalesceEngine are
         // pushed to a fifo to be scheduled later.
         nextMemoryReadEvent.sleep();
-        if (!pendingMemRetry()) {
-            assert(pendingEventQueue.empty());
-            requestMemRetry(1);
-        }
         pendingEventQueue.push_back("nextMemoryReadEvent");
-        // Maximum three MemoryEvent.
+        // Maximum three MemoryEvents.
         assert(pendingEventQueue.size() <= 3);
         return;
     }
@@ -330,7 +319,7 @@ CoalesceEngine::processNextMemoryReadEvent()
     DPRINTF(CoalesceEngine,  "%s: Created a read packet. addr = %lu, "
             "size = %d.\n", __func__, pkt->getAddr(), pkt->getSize());
 
-    enqueueMemReq(pkt);
+    memPort.sendPacket(pkt);
 
     fillQueue.pop_front();
 
@@ -367,11 +356,13 @@ CoalesceEngine::processNextRespondEvent()
     }
 }
 
-// FIXME: Update this for implementing event retry interaction.
 void
 CoalesceEngine::recvMemRetry()
 {
-    assert(!pendingEventQueue.empty());
+    if (pendingEventQueue.empty()) {
+        return;
+    }
+
     std::string front = pendingEventQueue.front();
 
     if (front == "nextMemoryReadEvent") {
@@ -387,7 +378,6 @@ CoalesceEngine::recvMemRetry()
     } else if (front == "nextSendRetryEvent") {
         assert(!nextSendRetryEvent.scheduled());
         assert(nextSendRetryEvent.pending());
-        breakPointFunction();
         schedule(nextSendRetryEvent, nextCycle());
         nextSendRetryEvent.wake();
     } else {
@@ -395,12 +385,10 @@ CoalesceEngine::recvMemRetry()
     }
 
     pendingEventQueue.pop_front();
-    if (!pendingEventQueue.empty()) {
-        requestMemRetry(1);
-    }
     return;
 }
 
+// FIXME: Fix this function.
 bool
 CoalesceEngine::handleMemResp(PacketPtr pkt)
 {
@@ -552,13 +540,13 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
                         "to responseQueue. responseQueue.size = %d, "
                         "responseQueueSize = %d.\n", __func__, miss_addr,
-                        cacheBlocks[block_index].items[wl_offset].to_string(), 
-                        responseQueue.size(), 
+                        cacheBlocks[block_index].items[wl_offset].to_string(),
+                        responseQueue.size(),
                         peerWLEngine->getRegisterFileSize());
             DPRINTF(CoalesceEngine, "%s: Added (addr: %lu, wl: %s) "
                         "to responseQueue. responseQueue.size = %d, "
                         "responseQueueSize = %d.\n", __func__, addr,
-                        cacheBlocks[block_index].items[wl_offset].to_string(), 
+                        cacheBlocks[block_index].items[wl_offset].to_string(),
                         responseQueue.size(),
                         peerWLEngine->getRegisterFileSize());
             // TODO: Add a stat to count the number of WLItems that have been touched.
@@ -708,14 +696,8 @@ void
 CoalesceEngine::processNextWriteBackEvent()
 {
     assert(!nextWriteBackEvent.pending());
-    if (memQueueFull()) {
+    if (memPort.blocked()) {
         nextWriteBackEvent.sleep();
-        // TODO: Implement interface where events of the CoalesceEngine are
-        // pushed to a fifo to be scheduled later.
-        if (!pendingMemRetry()) {
-            assert(pendingEventQueue.empty());
-            requestMemRetry(1);
-        }
         pendingEventQueue.push_back("nextWriteBackEvent");
         // Maximum three MemoryEvent.
         assert(pendingEventQueue.size() <= 3);
@@ -744,7 +726,7 @@ CoalesceEngine::processNextWriteBackEvent()
             DPRINTF(CoalesceEngine,  "%s: Created a write packet to "
                         "Addr: %lu, size = %d.\n", __func__,
                         write_pkt->getAddr(), write_pkt->getSize());
-            enqueueMemReq(write_pkt);
+            memPort.sendPacket(write_pkt);
         }
         assert(!MSHR[block_index].empty());
         Addr miss_addr = MSHR[block_index].front();
@@ -764,6 +746,10 @@ CoalesceEngine::processNextWriteBackEvent()
                 "Addr: %lu.\n", __func__, block_index, aligned_miss_addr);
         fillQueue.push_back(block_index);
         assert(fillQueue.size() <= numLines);
+        if ((!nextMemoryReadEvent.pending()) &&
+            (!nextMemoryReadEvent.scheduled())){
+            schedule(nextMemoryReadEvent, nextCycle());
+        }
     }
 
     writeBackQueue.pop_front();
@@ -792,12 +778,6 @@ CoalesceEngine::processNextSendRetryEvent()
 {
     assert(!nextSendRetryEvent.pending());
     assert(needsPush.count() != 0);
-    // if (needsPush.count() == 0) {
-    //     DPRINTF(CoalesceEngine, "%s: Received a retry while there are no set "
-    //                     "bit in needsPush. Rejecting the retry.\n", __func__);
-    //     peerPushEngine->recvRetryReject();
-    //     return;
-    // }
 
     DPRINTF(CoalesceEngine,  "%s: Received a push retry.\n", __func__);
     Addr block_addr = 0;
@@ -877,12 +857,8 @@ CoalesceEngine::processNextSendRetryEvent()
             }
         }
     } else {
-        if (memQueueFull()) {
+        if (memPort.blocked()) {
             nextSendRetryEvent.sleep();
-            if (!pendingMemRetry()) {
-                assert(pendingEventQueue.empty());
-                requestMemRetry(1);
-            }
             pendingEventQueue.push_back("nextSendRetryEvent");
             // Maximum three MemoryEvent.
             assert(pendingEventQueue.size() <= 3);
@@ -898,7 +874,7 @@ CoalesceEngine::processNextSendRetryEvent()
         PacketPtr pkt = createReadPacket(block_addr, peerMemoryAtomSize);
         SenderState* sender_state = new SenderState(true);
         pkt->pushSenderState(sender_state);
-        enqueueMemReq(pkt);
+        memPort.sendPacket(pkt);
     }
 
     numRetriesReceived--;
