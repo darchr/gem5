@@ -31,7 +31,7 @@
 
 #include <bitset>
 
-#include "accl/graph/base/base_mem_engine.hh"
+#include "accl/graph/sega/base_memory_engine.hh"
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/sega/push_engine.hh"
 #include "base/statistics.hh"
@@ -39,14 +39,12 @@
 
 #define MAX_BITVECTOR_SIZE (1 << 30)
 
-// TODO: Add parameters for size, memory atom size, type size,
-// length of items in the blocks.
 namespace gem5
 {
 
 class WLEngine;
 
-class CoalesceEngine : public BaseMemEngine
+class CoalesceEngine : public BaseMemoryEngine
 {
   private:
     class MemoryEvent : public EventFunctionWrapper
@@ -160,16 +158,14 @@ class CoalesceEngine : public BaseMemEngine
 
     CoalesceStats stats;
 
-    void breakPointFunction() { std::cout << "Salaam." << std::endl; }
   protected:
-    virtual int respBuffSize() { return -1; }
     virtual void recvMemRetry();
     virtual bool handleMemResp(PacketPtr pkt);
 
   public:
     PARAMS(CoalesceEngine);
 
-    CoalesceEngine(const CoalesceEngineParams &params);
+    CoalesceEngine(const Params &params);
 
     bool recvWLRead(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);
@@ -178,9 +174,7 @@ class CoalesceEngine : public BaseMemEngine
 
     void recvPushRetry();
 
-    void recvFunctional(PacketPtr pkt);
-
-    virtual void startup();
+    virtual void startup() override;
 };
 
 }
