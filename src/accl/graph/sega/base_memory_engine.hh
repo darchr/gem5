@@ -69,6 +69,7 @@ class BaseMemoryEngine : public ClockedObject
     System* system;
     const RequestorID _requestorId;
 
+    AddrRange peerMemoryRange;
     MemPort memPort;
 
     size_t peerMemoryAtomSize;
@@ -92,6 +93,7 @@ class BaseMemoryEngine : public ClockedObject
 
     void recvFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }
 
+    virtual void init() override;
 };
 
 }
