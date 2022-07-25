@@ -16,13 +16,13 @@ class MPU(SubSystem):
         self.coalesce_engine = CoalesceEngine(
                                     peer_push_engine=self.push_engine,
                                     attached_memory_atom_size=32,
-                                    cache_size="1MiB",
-                                    num_mshr_entry=8,
-                                    num_tgts_per_mshr=8,
-                                    outstanding_mem_req_queue_size=8)
+                                    cache_size="128B",
+                                    num_mshr_entry=1,
+                                    num_tgts_per_mshr=1,
+                                    outstanding_mem_req_queue_size=0)
         self.wl_engine = WLEngine(coalesce_engine=self.coalesce_engine,
-                                update_queue_size=16,
-                                on_the_fly_update_map_size=8)
+                                update_queue_size=1,
+                                on_the_fly_update_map_size=4)
 
     def getRespPort(self):
         return self.wl_engine.resp_port
