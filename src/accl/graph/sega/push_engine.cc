@@ -222,8 +222,9 @@ PushEngine::processNextAddrGenEvent()
                 (numPendingRetries == 0)) {
                 DPRINTF(PushEngine, "%s: Sent a push retry to "
                             "peerCoalesceEngine.\n", __func__);
-                assert(!nextSendRetryEvent.scheduled());
-                schedule(nextSendRetryEvent, nextCycle());
+                if (!nextSendRetryEvent.scheduled()) {
+                    schedule(nextSendRetryEvent, nextCycle());
+                }
             }
         }
     }
