@@ -56,6 +56,20 @@ BaseMemoryEngine::getPort(const std::string &if_name, PortID idx)
 }
 
 void
+BaseMemoryEngine::init()
+{
+    AddrRangeList memory_ranges = memPort.getAddrRanges();
+    // BaseMemoryEngine only supports one memory.
+    assert(memory_ranges.size() == 1);
+
+    peerMemoryRange = memory_ranges.front();
+    DPRINTF(BaseMemoryEngine, "%s: The range attached to this engine is %s. "
+                            "The range is %s interleaved.\n", __func__,
+                            peerMemoryRange.to_string(),
+                            peerMemoryRange.interleaved() ? "" : "not");
+}
+
+void
 BaseMemoryEngine::MemPort::sendPacket(PacketPtr pkt)
 {
     panic_if(_blocked, "Should never try to send if blocked MemSide!");
