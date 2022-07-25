@@ -862,7 +862,7 @@ CoalesceEngine::processNextSendRetryEvent()
         // FIXME: Fix the retry mechanism between memory and cache to
         // handle memory retries correctly. This probably requires scheduling
         // an event for sending the retry. For now we're enabling infinite
-        // queueing in the outstandingMemReqQueue.
+        // queueing in the memQueue.
         // FIXME: Also do not send requests for cache lines that are already
         // read but await data. Just set a flag or sth.
         PacketPtr pkt = createReadPacket(block_addr, peerMemoryAtomSize);
