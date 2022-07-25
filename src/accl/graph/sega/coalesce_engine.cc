@@ -232,6 +232,7 @@ CoalesceEngine::recvWLRead(Addr addr)
                     return true;
                 } else {
                     assert(!cacheBlocks[block_index].valid);
+                    assert(MSHR[block_index].size() == 0);
                     // MSHR available and no conflict
                     DPRINTF(CoalesceEngine,  "%s: Addr: %lu has no conflict. "
                                             "Allocating a cache line for it.\n"
@@ -251,6 +252,7 @@ CoalesceEngine::recvWLRead(Addr addr)
 
                     // enqueueMemReq(pkt);
                     fillQueue.push_back(block_index);
+                    assert(fillQueue.size() <= numLines);
                     // FIXME: Fix this DPRINTF
                     // DPRINTF(CoalesceEngine,  "%s: Pushed pkt index  "
                     //         "lineFillBuffer. lineFillBuffer.size = %d.\n",
@@ -737,6 +739,7 @@ CoalesceEngine::processNextWriteBackEvent()
         DPRINTF(CoalesceEngine,  "%s: Allocated cacheBlocks[%d] for "
                 "Addr: %lu.\n", __func__, block_index, aligned_miss_addr);
         fillQueue.push_back(block_index);
+        assert(fillQueue.size() <= numLines);
     }
 
     writeBackQueue.pop_front();
