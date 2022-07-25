@@ -70,7 +70,6 @@ class BaseMemEngine : public ClockedObject
 
     int memQueueSize;
     int onTheFlyReqs;
-    int respQueueSize;
     bool memRetryRequested;
     int memSpaceRequested;
     std::deque<PacketPtr> memQueue;
@@ -79,6 +78,8 @@ class BaseMemEngine : public ClockedObject
     void processNextMemReqEvent();
 
   protected:
+
+    int respQueueSize;
     const RequestorID _requestorId;
 
     size_t peerMemoryAtomSize;
