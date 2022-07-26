@@ -106,6 +106,7 @@ class CoalesceEngine : public BaseMemoryEngine
     int getBlockIndex(Addr addr);
     int getBitIndexBase(Addr addr);
     Addr getBlockAddrFromBitIndex(int index);
+    std::tuple<bool, int> getOptimalBitVectorSlice();
 
     std::deque<std::string> pendingEventQueue;
 
@@ -121,8 +122,8 @@ class CoalesceEngine : public BaseMemoryEngine
     MemoryEvent nextWriteBackEvent;
     void processNextWriteBackEvent();
 
-    MemoryEvent nextSendRetryEvent;
-    void processNextSendRetryEvent();
+    MemoryEvent nextRecvPushRetryEvent;
+    void processNextRecvPushRetryEvent();
 
     struct CoalesceStats : public statistics::Group
     {
@@ -145,8 +146,8 @@ class CoalesceEngine : public BaseMemoryEngine
     CoalesceStats stats;
 
   protected:
-    virtual void recvMemRetry();
-    virtual bool handleMemResp(PacketPtr pkt);
+    virtual void recvMemRetry() override;
+    virtual bool handleMemResp(PacketPtr pkt) override;
 
   public:
     PARAMS(CoalesceEngine);
