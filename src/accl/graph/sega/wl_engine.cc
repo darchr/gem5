@@ -40,7 +40,7 @@ WLEngine::WLEngine(const WLEngineParams &params):
     respPort(name() + ".resp_port", this),
     coalesceEngine(params.coalesce_engine),
     updateQueueSize(params.update_queue_size),
-    registerFileSize(params.on_the_fly_update_map_size),
+    registerFileSize(params.register_file_size),
     nextReadEvent([this]{ processNextReadEvent(); }, name()),
     nextReduceEvent([this]{ processNextReduceEvent(); }, name()),
     stats(*this)

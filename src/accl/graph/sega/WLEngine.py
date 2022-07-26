@@ -35,6 +35,11 @@ class WLEngine(BaseReduceEngine):
     cxx_class = 'gem5::WLEngine'
 
     resp_port = ResponsePort("Port to Receive updates from outside")
-    coalesce_engine = Param.CoalesceEngine(NULL, "")
-    update_queue_size = Param.Int(0, "")
-    on_the_fly_update_map_size = Param.Int(4, "") # 4 is arbitrary
+    coalesce_engine = Param.CoalesceEngine(NULL, "The CoalesceEngine "
+                                    "this WLEngine is connected to.")
+    update_queue_size = Param.Int("Size of the queue WLEngine stores "
+                                        "the incoming updates")
+    register_file_size = Param.Int("Number of internal registers the "
+                                    "WLEngine has. It can service as "
+                                    "many updates as this queueu has "
+                                    "entries at the same time.") # 4 is arbitrary
