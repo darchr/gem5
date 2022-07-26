@@ -914,9 +914,10 @@ CoalesceEngine::getOptimalBitVectorSlice()
     int slice_base = -1;
 
     int score = 0;
-    uint32_t current_popcount = 0;
+    int max_score_possible = 3 * numElementsPerLine;
     for (int it = 0; it < MAX_BITVECTOR_SIZE; it += numElementsPerLine) {
         int current_score = 0;
+        uint32_t current_popcount = 0;
         for (int i = 0; i < numElementsPerLine; i++) {
             current_popcount += needsPush[it + i];
         }
@@ -934,6 +935,9 @@ CoalesceEngine::getOptimalBitVectorSlice()
                 score = current_score;
                 slice_base = it;
                 hit_in_cache = true;
+                if (score == max_score_possible) {
+                    break;
+                }
             }
         } else if (!((cacheBlocks[block_index].addr == addr) &&
                     (cacheBlocks[block_index].allocated))) {
@@ -942,6 +946,7 @@ CoalesceEngine::getOptimalBitVectorSlice()
                 score = current_score;
                 slice_base = it;
                 hit_in_cache = false;
+                assert(score < max_score_possible);
             }
         }
     }
