@@ -36,7 +36,7 @@ class CoalesceEngine(BaseMemoryEngine):
 
     peer_push_engine = Param.PushEngine(NULL, "PushEngine in the same GPT.")
 
-    cache_size = Param.MemorySize("16KiB", "Size of the internal SRAM array.")
+    cache_size = Param.MemorySize("Size of the internal SRAM array.")
 
-    num_mshr_entry = Param.Int(4, "Number of MSHR entries.")
-    num_tgts_per_mshr = Param.Int(20, "Number of Targets Per MSHR.")
+    num_mshr_entry = Param.Int("Number of MSHR entries.")
+    num_tgts_per_mshr = Param.Int("Number of Targets Per MSHR.")

@@ -29,7 +29,7 @@
 #ifndef __ACCL_GRAPH_SEGA_PUSH_ENGINE_HH__
 #define __ACCL_GRAPH_SEGA_PUSH_ENGINE_HH__
 
-#include "accl/graph/base/base_mem_engine.hh"
+#include "accl/graph/sega/base_memory_engine.hh"
 #include "accl/graph/base/data_structs.hh"
 #include "base/intmath.hh"
 #include "params/PushEngine.hh"
@@ -39,7 +39,7 @@ namespace gem5
 
 class CoalesceEngine;
 
-class PushEngine : public BaseMemEngine
+class PushEngine : public BaseMemoryEngine
 {
   private:
     class PushPacketInfoGen {
@@ -115,15 +115,14 @@ class PushEngine : public BaseMemEngine
     std::unordered_map<RequestPtr, int> reqNumEdgeMap;
     std::unordered_map<RequestPtr, uint32_t> reqValueMap;
 
-    // Since the push engine can process incoming packets faster than
-    // memory can send those packets, the size of this queue will
-    // always be limited by the b/w of the memory.
+    int onTheFlyMemReqs;
+    int memRespQueueSize;
     std::deque<PacketPtr> memRespQueue;
 
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
 
-    EventFunctionWrapper nextAddrGenEvent;
-    void processNextAddrGenEvent();
+    MemoryEvent nextMemoryReadEvent;
+    void processNextMemoryReadEvent();
 
     EventFunctionWrapper nextPushEvent;
     void processNextPushEvent();
@@ -145,13 +144,12 @@ class PushEngine : public BaseMemEngine
     PushStats stats;
 
   protected:
-    virtual int respBuffSize() { return memRespQueue.size(); }
     virtual void recvMemRetry();
     virtual bool handleMemResp(PacketPtr pkt);
 
   public:
     PARAMS(PushEngine);
-    PushEngine(const PushEngineParams &params);
+    PushEngine(const Params &params);
 
     Port& getPort(const std::string &if_name,
                 PortID idx=InvalidPortID) override;
@@ -169,7 +167,6 @@ class PushEngine : public BaseMemEngine
 
     int getNumRetries() { return numTotalRetries; }
 
-    void recvRetryReject() { numPendingRetries--; }
 };
 
 }

@@ -47,20 +47,6 @@ class WLEngine;
 class CoalesceEngine : public BaseMemoryEngine
 {
   private:
-    class MemoryEvent : public EventFunctionWrapper
-    {
-      private:
-        bool _pending;
-      public:
-        MemoryEvent(const std::function<void(void)> &callback,
-                    const std::string &name):
-            EventFunctionWrapper(callback, name), _pending(false)
-        {}
-        bool pending() { return _pending; }
-        void sleep() { _pending = true; }
-        void wake() { _pending = false; }
-    };
-
     struct Block
     {
         WorkListItem* items;
