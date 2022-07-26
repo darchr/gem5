@@ -48,14 +48,19 @@ class BaseMemoryEngine : public ClockedObject
     {
       private:
         bool _pending;
+        int _prevState;
+
       public:
         MemoryEvent(const std::function<void(void)> &callback,
                     const std::string &name):
-            EventFunctionWrapper(callback, name), _pending(false)
+            EventFunctionWrapper(callback, name),
+            _pending(false), _prevState(0)
         {}
         bool pending() { return _pending; }
         void sleep() { _pending = true; }
         void wake() { _pending = false; }
+        void setPrevState(int state) { _prevState = state; }
+        int getPrevState() { return _prevState; }
     };
 
     class MemPort : public RequestPort

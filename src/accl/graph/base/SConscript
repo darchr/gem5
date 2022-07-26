@@ -27,9 +27,6 @@
 
 Import('*')
 
-SimObject('BaseMemEngine.py')
 SimObject('BaseReduceEngine.py')
 
-Source('base_mem_engine.cc')
 Source('base_reduce_engine.cc')
-DebugFlag('BaseMemEngine')

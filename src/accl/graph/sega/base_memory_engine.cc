@@ -77,7 +77,11 @@ BaseMemoryEngine::MemPort::sendPacket(PacketPtr pkt)
     {
         blockedPacket = pkt;
         _blocked = true;
+        DPRINTF(BaseMemoryEngine, "%s: MemPort blocked. blockedPacket %s.\n",
+                                            __func__, blockedPacket->print());
     } else {
+        DPRINTF(BaseMemoryEngine, "%s: Packet %s sent successfully.\n",
+                                                __func__, pkt->print());
         owner->recvMemRetry();
     }
 }
