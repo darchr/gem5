@@ -43,7 +43,21 @@ namespace gem5
 
 class BaseMemoryEngine : public ClockedObject
 {
-  private:
+  protected:
+    class MemoryEvent : public EventFunctionWrapper
+    {
+      private:
+        bool _pending;
+      public:
+        MemoryEvent(const std::function<void(void)> &callback,
+                    const std::string &name):
+            EventFunctionWrapper(callback, name), _pending(false)
+        {}
+        bool pending() { return _pending; }
+        void sleep() { _pending = true; }
+        void wake() { _pending = false; }
+    };
+
     class MemPort : public RequestPort
     {
       private:
@@ -65,13 +79,11 @@ class BaseMemoryEngine : public ClockedObject
         virtual void recvReqRetry();
     };
 
-  protected:
     System* system;
     const RequestorID _requestorId;
 
-    AddrRange peerMemoryRange;
     MemPort memPort;
-
+    AddrRange peerMemoryRange;
     size_t peerMemoryAtomSize;
 
     virtual void recvMemRetry() = 0;
