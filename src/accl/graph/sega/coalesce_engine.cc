@@ -45,17 +45,15 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     peerPushEngine(params.peer_push_engine),
     numLines((int) (params.cache_size / peerMemoryAtomSize)),
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
-    numMSHREntries(params.num_mshr_entry),
-    numTgtsPerMSHR(params.num_tgts_per_mshr),
-    currentBitSliceIndex(0),
-    numRetriesReceived(0),
-    applyQueue(numLines),
-    writeBackQueue(numLines),
-    nextMemoryReadEvent([this] { processNextMemoryReadEvent(); }, name()),
+    numMSHREntries(params.num_mshr_entry), numTgtsPerMSHR(params.num_tgts_per_mshr),
+    numRetriesReceived(0), applyQueue(numLines),
+    // writeBackQueue(numLines),
+    nextMemoryEvent([this] { processNextMemoryEvent(); }, name()),
+    // nextMemoryReadEvent([this] { processNextMemoryReadEvent(); }, name()),
     nextRespondEvent([this] { processNextRespondEvent(); }, name()),
     nextApplyEvent([this] { processNextApplyEvent(); }, name()),
-    nextWriteBackEvent([this] { processNextWriteBackEvent(); }, name()),
-    nextRecvPushRetryEvent([this] { processNextRecvPushRetryEvent(); }, name()),
+    // nextWriteBackEvent([this] { processNextWriteBackEvent(); }, name()),
+    // nextRecvPushRetryEvent([this] { processNextRecvPushRetryEvent(); }, name()),
     stats(*this)
 {
     assert(isPowerOf2(numLines) && isPowerOf2(numElementsPerLine));
@@ -68,49 +66,6 @@ CoalesceEngine::CoalesceEngine(const Params &params):
 
     needsPush.reset();
 }
-
-// void
-// CoalesceEngine::startup()
-// {
-//     return;
-    // std::cout << "Hello" << std::endl;
-    // DPRINTF(CoalesceEngine, "%s: Range attached to this engine is %s.\n",
-    //                                 __func__, peerMemoryRange.to_string());
-    // AddrRangeList vertex_ranges = getAddrRanges();
-
-    // bool found = false;
-    // Addr first_match_addr = 0;
-    // while(true) {
-    //     for (auto range: vertex_ranges) {
-    //         if (range.contains(first_match_addr)) {
-    //             found = true;
-    //             break;
-    //         }
-    //     }
-    //     if (found) {
-    //         break;
-    //     }
-    //     first_match_addr += peerMemoryAtomSize;
-    // }
-
-    // found = false;
-    // Addr second_match_addr = first_match_addr + peerMemoryAtomSize;
-    // while(true) {
-    //     for (auto range: vertex_ranges) {
-    //         if (range.contains(second_match_addr)) {
-    //             found = true;
-    //             break;
-    //         }
-    //     }
-    //     if (found) {
-    //         break;
-    //     }
-    //     second_match_addr += peerMemoryAtomSize;
-    // }
-
-    // nmpu = (int) ((second_match_addr - first_match_addr) / peerMemoryAtomSize);
-    // memoryAddressOffset = first_match_addr;
-// }
 
 void
 CoalesceEngine::registerWLEngine(WLEngine* wl_engine)
@@ -260,15 +215,20 @@ CoalesceEngine::recvWLRead(Addr addr)
                     DPRINTF(CoalesceEngine,  "%s: Added Addr: %lu to targets "
                         "for cacheBlocks[%d].\n", __func__, addr, block_index);
 
-                    fillQueue.push_back(block_index);
-                    assert(fillQueue.size() <= numLines);
+                    // fillQueue.push_back(block_index);
+                    // assert(fillQueue.size() <= numLines);
+                    memoryFunctionQueue.emplace_back([this] (int block_index) { processNextMemoryReadEvent(block_index); }, block_index);
                     // FIXME: Fix this DPRINTF
                     // DPRINTF(CoalesceEngine,  "%s: Pushed pkt index  "
                     //         "lineFillBuffer. lineFillBuffer.size = %d.\n",
                     //         __func__, fillQueue.size());
-                    if ((!nextMemoryReadEvent.pending()) &&
-                        (!nextMemoryReadEvent.scheduled())) {
-                        schedule(nextMemoryReadEvent, nextCycle());
+                    // if ((!nextMemoryReadEvent.pending()) &&
+                    //     (!nextMemoryReadEvent.scheduled())) {
+                    //     schedule(nextMemoryReadEvent, nextCycle());
+                    // }
+                    if ((!nextMemoryEvent.pending()) &&
+                        (!nextMemoryEvent.scheduled())) {
+                        schedule(nextMemoryEvent, nextCycle());
                     }
                     stats.readMisses++;
                     stats.numVertexReads++;
@@ -309,24 +269,24 @@ CoalesceEngine::recvWLRead(Addr addr)
 }
 
 void
-CoalesceEngine::processNextMemoryReadEvent()
+CoalesceEngine::processNextMemoryReadEvent(int block_index)
 {
-    assert(!nextMemoryReadEvent.pending());
-    if (memPort.blocked()) {
-        // TODO: Implement interface where events of the CoalesceEngine are
-        // pushed to a fifo to be scheduled later.
-        nextMemoryReadEvent.sleep();
-        pendingEventQueue.push_back("nextMemoryReadEvent");
-        // Maximum three MemoryEvents.
-        assert(pendingEventQueue.size() <= 3);
-        DPRINTF(CoalesceEngine, "%s: nextMemoryReadEvent is asleep now and "
-                                    "has been pushed to pendingEventQueue. "
-                                    "pendingEventQueue.size = %d.\n",
-                                    __func__, pendingEventQueue.size());
-        return;
-    }
+    // assert(!nextMemoryReadEvent.pending());
+    // if (memPort.blocked()) {
+    //     // TODO: Implement interface where events of the CoalesceEngine are
+    //     // pushed to a fifo to be scheduled later.
+    //     nextMemoryReadEvent.sleep();
+    //     pendingEventQueue.push_back("nextMemoryReadEvent");
+    //     // Maximum three MemoryEvents.
+    //     assert(pendingEventQueue.size() <= 3);
+    //     DPRINTF(CoalesceEngine, "%s: nextMemoryReadEvent is asleep now and "
+    //                                 "has been pushed to pendingEventQueue. "
+    //                                 "pendingEventQueue.size = %d.\n",
+    //                                 __func__, pendingEventQueue.size());
+    //     return;
+    // }
 
-    int block_index = fillQueue.front();
+    // int block_index = fillQueue.front();
     PacketPtr pkt = createReadPacket(cacheBlocks[block_index].addr,
                                     peerMemoryAtomSize);
     DPRINTF(CoalesceEngine,  "%s: Created a read packet. addr = %lu, "
@@ -334,13 +294,11 @@ CoalesceEngine::processNextMemoryReadEvent()
 
     memPort.sendPacket(pkt);
 
-    fillQueue.pop_front();
+    // fillQueue.pop_front();
 
-    if (!fillQueue.empty()) {
-        assert(!nextMemoryReadEvent.scheduled());
-        assert(!nextMemoryReadEvent.pending());
-        schedule(nextMemoryReadEvent, nextCycle());
-    }
+    // if (!fillQueue.empty()) {
+    //     memoryFunctionQueue.push_back([this] { processNextMemoryReadEvent(); });
+    // }
 }
 
 // TODO: For loop to empty the entire responseQueue.
@@ -370,38 +328,70 @@ CoalesceEngine::processNextRespondEvent()
 }
 
 void
-CoalesceEngine::recvMemRetry()
+CoalesceEngine::processNextMemoryEvent()
 {
-    DPRINTF(CoalesceEngine, "%s: Received a MemRetry.\n", __func__);
-    if (pendingEventQueue.empty()) {
-        DPRINTF(CoalesceEngine, "%s: No events pending.\n", __func__);
+    if (memPort.blocked()) {
+        nextMemoryEvent.sleep();
         return;
     }
 
-    std::string front = pendingEventQueue.front();
-    DPRINTF(CoalesceEngine, "%s: %s is pending MemRetry.\n", __func__, front);
+    std::function<void(int)> next_memory_function;
+    int next_memory_function_input;
+    std::tie(next_memory_function, next_memory_function_input) = memoryFunctionQueue.front();
+    next_memory_function(next_memory_function_input);
+    memoryFunctionQueue.pop_front();
+    DPRINTF(CoalesceEngine, "%s: Popped a function from memoryFunctionQueue. "
+                                "memoryFunctionQueue.size = %d.\n", __func__,
+                                memoryFunctionQueue.size());
 
-    if (front == "nextMemoryReadEvent") {
-        assert(!nextMemoryReadEvent.scheduled());
-        assert(nextMemoryReadEvent.pending());
-        schedule(nextMemoryReadEvent, nextCycle());
-        nextMemoryReadEvent.wake();
-    } else if (front == "nextWriteBackEvent") {
-        assert(!nextWriteBackEvent.scheduled());
-        assert(nextWriteBackEvent.pending());
-        schedule(nextWriteBackEvent, nextCycle());
-        nextWriteBackEvent.wake();
-    } else if (front == "nextRecvPushRetryEvent") {
-        assert(!nextRecvPushRetryEvent.scheduled());
-        assert(nextRecvPushRetryEvent.pending());
-        schedule(nextRecvPushRetryEvent, nextCycle());
-        nextRecvPushRetryEvent.wake();
-    } else {
-        panic("EVENT IS NOT RECOGNIZED.\n");
+    assert(!nextMemoryEvent.pending());
+    assert(!nextMemoryEvent.scheduled());
+    if ((!memoryFunctionQueue.empty())) {
+        schedule(nextMemoryEvent, nextCycle());
     }
+}
 
-    pendingEventQueue.pop_front();
-    return;
+void
+CoalesceEngine::recvMemRetry()
+{
+    DPRINTF(CoalesceEngine, "%s: Received a MemRetry.\n", __func__);
+    // if (pendingEventQueue.empty()) {
+    //     DPRINTF(CoalesceEngine, "%s: Not pending MemRerty.\n", __func__);
+    //     return;
+    // }
+
+    // std::string front = pendingEventQueue.front();
+    // DPRINTF(CoalesceEngine, "%s: %s is pending MemRetry.\n", __func__, front);
+
+    // if (front == "nextMemoryReadEvent") {
+    //     assert(!nextMemoryReadEvent.scheduled());
+    //     assert(nextMemoryReadEvent.pending());
+    //     schedule(nextMemoryReadEvent, nextCycle());
+    //     nextMemoryReadEvent.wake();
+    // } else if (front == "nextWriteBackEvent") {
+    //     assert(!nextWriteBackEvent.scheduled());
+    //     assert(nextWriteBackEvent.pending());
+    //     schedule(nextWriteBackEvent, nextCycle());
+    //     nextWriteBackEvent.wake();
+    // } else if (front == "nextRecvPushRetryEvent") {
+    //     assert(!nextRecvPushRetryEvent.scheduled());
+    //     assert(nextRecvPushRetryEvent.pending());
+    //     schedule(nextRecvPushRetryEvent, nextCycle());
+    //     nextRecvPushRetryEvent.wake();
+    // } else {
+    //     panic("EVENT IS NOT RECOGNIZED.\n");
+    // }
+
+    // pendingEventQueue.pop_front();
+    // return;
+
+    if (!nextMemoryEvent.pending()) {
+        DPRINTF(CoalesceEngine, "%s: Not pending MemRerty.\n", __func__);
+        return;
+    }
+    assert(!nextMemoryEvent.scheduled());
+    nextMemoryEvent.wake();
+    schedule(nextMemoryEvent, nextCycle());
 }
 
 // FIXME: Fix this function.
@@ -464,12 +454,17 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                         deschedule(nextApplyEvent);
                     }
                     if (cacheBlocks[block_index].hasConflict) {
-                        writeBackQueue.push_back(block_index);
-                        assert(writeBackQueue.size() <= numLines);
-                        if ((!nextWriteBackEvent.pending()) &&
-                            (!nextWriteBackEvent.scheduled())) {
-                            schedule(nextWriteBackEvent, nextCycle());
-                        }
+                        // writeBackQueue.push_back(block_index);
+                        // assert(writeBackQueue.size() <= numLines);
+                        memoryFunctionQueue.emplace_back([this] (int block_index) { processNextWriteBackEvent(block_index); }, block_index);
+                        // if ((!nextWriteBackEvent.pending()) &&
+                        //     (!nextWriteBackEvent.scheduled())) {
+                        //     schedule(nextWriteBackEvent, nextCycle());
+                        // }
+                        // if ((!nextMemoryEvent.pending()) &&
+                        //     (!nextMemoryEvent.scheduled())) {
+                        //     schedule(nextMemoryEvent, nextCycle());
+                        // }
                     }
                 }
             } else {
@@ -528,9 +523,12 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
 
     DPRINTF(CoalesceEngine,  "%s: Received a read resposne for Addr: %lu.\n",
                 __func__, pkt->getAddr());
-    assert((cacheBlocks[block_index].allocated) && // allocated cache block
-            (!cacheBlocks[block_index].valid) &&    // valid is false
-            (!(MSHR.find(block_index) == MSHR.end()))); // allocated MSHR
+    // assert((cacheBlocks[block_index].allocated) && // allocated cache block
+    //         (!cacheBlocks[block_index].valid) &&    // valid is false
+    //         (!(MSHR.find(block_index) == MSHR.end()))); // allocated MSHR
+    assert(cacheBlocks[block_index].allocated);
+    assert(!cacheBlocks[block_index].valid);
+    assert(MSHR.find(block_index) != MSHR.end());
     pkt->writeDataToBlock((uint8_t*) cacheBlocks[block_index].items,
                                                 peerMemoryAtomSize);
 
@@ -691,22 +689,21 @@ CoalesceEngine::processNextApplyEvent()
     }
 
     // TODO: This is where eviction policy goes
-    if (cacheBlocks[block_index].hasConflict){
-        writeBackQueue.push_back(block_index);
-        assert(writeBackQueue.size() <= numLines);
-        DPRINTF(CoalesceEngine,  "%s: Added %d to writeBackQueue. "
-                            "writeBackQueue.size = %u.\n", __func__,
-                                block_index, writeBackQueue.size());
+    if ((cacheBlocks[block_index].hasConflict) &&
+        (cacheBlocks[block_index].busyMask == 0)) {
+        // writeBackQueue.push_back(block_index);
+        // assert(writeBackQueue.size() <= numLines);
+        memoryFunctionQueue.emplace_back([this] (int block_index) { processNextWriteBackEvent(block_index); }, block_index);
+        // DPRINTF(CoalesceEngine,  "%s: Added %d to writeBackQueue. "
+        //                     "writeBackQueue.size = %u.\n", __func__,
+        //                         block_index, writeBackQueue.size());
+        if ((!nextMemoryEvent.pending()) &&
+            (!nextMemoryEvent.scheduled())) {
+            schedule(nextMemoryEvent, nextCycle());
+        }
     }
 
     applyQueue.pop_front();
-
-    if ((!writeBackQueue.empty()) &&
-        (!nextWriteBackEvent.pending()) &&
-        (!nextWriteBackEvent.scheduled())) {
-        schedule(nextWriteBackEvent, nextCycle());
-    }
-
     if ((!applyQueue.empty()) &&
         (!nextApplyEvent.scheduled())) {
         schedule(nextApplyEvent, nextCycle());
@@ -714,22 +711,22 @@ CoalesceEngine::processNextApplyEvent()
 }
 
 void
-CoalesceEngine::processNextWriteBackEvent()
+CoalesceEngine::processNextWriteBackEvent(int block_index)
 {
-    assert(!nextWriteBackEvent.pending());
-    if (memPort.blocked()) {
-        nextWriteBackEvent.sleep();
-        pendingEventQueue.push_back("nextWriteBackEvent");
-        // Maximum three MemoryEvent.
-        assert(pendingEventQueue.size() <= 3);
-        DPRINTF(CoalesceEngine, "%s: nextWriteBackEvent is asleep now and "
-                                    "has been pushed to pendingEventQueue. "
-                                    "pendingEventQueue.size = %d.\n",
-                                    __func__, pendingEventQueue.size());
-        return;
-    }
+    // assert(!nextWriteBackEvent.pending());
+    // if (memPort.blocked()) {
+    //     nextWriteBackEvent.sleep();
+    //     pendingEventQueue.push_back("nextWriteBackEvent");
+    //     // Maximum three MemoryEvent.
+    //     assert(pendingEventQueue.size() <= 3);
+    //     DPRINTF(CoalesceEngine, "%s: nextWriteBackEvent is asleep now and "
+    //                                 "has been pushed to pendingEventQueue. "
+    //                                 "pendingEventQueue.size = %d.\n",
+    //                                 __func__, pendingEventQueue.size());
+    //     return;
+    // }
 
-    int block_index = writeBackQueue.front();
+    // int block_index = writeBackQueue.front();
 
     // Why would we write it back if it does not have a conflict?
     assert(cacheBlocks[block_index].hasConflict);
@@ -769,21 +766,35 @@ CoalesceEngine::processNextWriteBackEvent()
         cacheBlocks[block_index].dirty = false;
         DPRINTF(CoalesceEngine,  "%s: Allocated cacheBlocks[%d] for "
                 "Addr: %lu.\n", __func__, block_index, aligned_miss_addr);
-        fillQueue.push_back(block_index);
-        assert(fillQueue.size() <= numLines);
-        if ((!nextMemoryReadEvent.pending()) &&
-            (!nextMemoryReadEvent.scheduled())){
-            schedule(nextMemoryReadEvent, nextCycle());
-        }
+        // fillQueue.push_back(block_index);
+        // assert(fillQueue.size() <= numLines);
+        memoryFunctionQueue.emplace_back([this] (int block_index) { processNextMemoryReadEvent(block_index); }, block_index);
+        // if ((!nextMemoryReadEvent.pending()) &&
+        //     (!nextMemoryReadEvent.scheduled())){
+        //     schedule(nextMemoryReadEvent, nextCycle());
+        // }
+        // if ((!nextMemoryEvent.pending()) &&
+        //     (!nextMemoryEvent.scheduled())) {
+        //     schedule(nextMemoryEvent, nextCycle());
+        // }
     }
 
-    writeBackQueue.pop_front();
+    // writeBackQueue.pop_front();
+    // assert(writeBackQueue.size() <= numLines);
+    // DPRINTF(CoalesceEngine, "%s: Popped %d from writeBackQueue. "
+    //                 "writeBackQueue.size = %d, writeBackQueueSize = %d.\n",
+    //                 __func__, block_index, writeBackQueue.size(), numLines);
 
-    if (!writeBackQueue.empty()) {
-        assert(!nextWriteBackEvent.pending());
-        assert(!nextWriteBackEvent.scheduled());
-        schedule(nextWriteBackEvent, nextCycle());
-    }
+    // if (!writeBackQueue.empty()) {
+        // assert(!nextWriteBackEvent.pending());
+        // assert(!nextWriteBackEvent.scheduled());
+        // schedule(nextWriteBackEvent, nextCycle());
+        // memoryFunctionQueue.push_back([this] { processNextWriteBackEvent(); });
+        // if ((!nextMemoryEvent.pending()) &&
+        //     (!nextMemoryEvent.scheduled())) {
+        //     schedule(nextMemoryEvent, nextCycle());
+        // }
+    // }
 }
 
 void
@@ -793,130 +804,28 @@ CoalesceEngine::recvPushRetry()
     DPRINTF(CoalesceEngine,  "%s: Received a push retry.\n", __func__);
     // For now since we do only one retry at a time, we should not receive
     // a retry while this nextSendingRetryEvent is scheduled or is pending.
-    assert(!nextRecvPushRetryEvent.pending());
-    assert(!nextRecvPushRetryEvent.scheduled());
+    // assert(!nextRecvPushRetryEvent.pending());
+    // assert(!nextRecvPushRetryEvent.scheduled());
     assert(numRetriesReceived == 1);
-    schedule(nextRecvPushRetryEvent, nextCycle());
+    // schedule(nextRecvPushRetryEvent, nextCycle());
+    // TODO: Pass slice_base to getOptimalBitVectorSlice
+    memoryFunctionQueue.emplace_back([this] (int slice_base) { processNextRecvPushRetryEvent(slice_base); }, 0);
+    if ((!nextMemoryEvent.pending()) &&
+        (!nextMemoryEvent.scheduled())) {
+        schedule(nextMemoryEvent, nextCycle());
+    }
 }
-
-// void
-// CoalesceEngine::processNextRecvPushRetryEvent()
-// {
-//     assert(!nextRecvPushRetryEvent.pending());
-//     assert(needsPush.count() != 0);
-
-//     Addr block_addr = 0;
-//     int block_index = 0;
-//     int it = 0;
-//     uint32_t slice = 0;
-//     bool hit_in_cache = false;
-
-//     for (it = currentBitSliceIndex; it < MAX_BITVECTOR_SIZE;
-//         it = (it + numElementsPerLine) % MAX_BITVECTOR_SIZE) {
-//         for (int i = 0; i < numElementsPerLine; i++) {
-//             slice <<= 1;
-//             slice |= needsPush[it + i];
-//         }
-//         if (slice) {
-//             block_addr = getBlockAddrFromBitIndex(it);
-//             block_index = getBlockIndex(block_addr);
-//             if ((cacheBlocks[block_index].addr == block_addr) &&
-//                 (cacheBlocks[block_index].valid)) {
-//                 if (cacheBlocks[block_index].busyMask == 0) {
-//                     hit_in_cache = true;
-//                     break;
-//                 }
-//             } else {
-//                 hit_in_cache = false;
-//                 break;
-//             }
-//         }
-//     }
-
-//     assert(it < MAX_BITVECTOR_SIZE);
-//     if ((it + numElementsPerLine) > MAX_BITVECTOR_SIZE) {
-//         currentBitSliceIndex = 0;
-//     } else {
-//         currentBitSliceIndex = it + numElementsPerLine;
-//     }
-
-//     DPRINTF(CoalesceEngine, "%s: Found slice with value %d at position %d "
-//                         "in needsPush.\n", __func__, slice, it);
-
-//     if (hit_in_cache) {
-//         int push_needed = 0;
-//         DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
-//                                 __func__, needsPush.count());
-//         assert(peerPushEngine->getNumRetries() == needsPush.count());
-//         for (int i = 0; i < numElementsPerLine; i++) {
-//             // TODO: Make this more programmable
-//             uint32_t new_prop = std::min(
-//                                 cacheBlocks[block_index].items[i].prop,
-//                                 cacheBlocks[block_index].items[i].tempProp);
-//             cacheBlocks[block_index].items[i].tempProp = new_prop;
-//             cacheBlocks[block_index].items[i].prop = new_prop;
-//             if (needsPush[it + i] == 1) {
-//                 peerPushEngine->recvWLItemRetry(
-//                     cacheBlocks[block_index].items[i]);
-//             }
-//             push_needed +=  needsPush[it + i];
-//             needsPush[it + i] = 0;
-//         }
-//         DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
-//                                 __func__, needsPush.count());
-//         peerPushEngine->deallocatePushSpace(numElementsPerLine - push_needed);
-//         assert(peerPushEngine->getNumRetries() == needsPush.count());
-//         if (applyQueue.find(block_index)) {
-//             applyQueue.erase(block_index);
-//             if (applyQueue.empty() && nextApplyEvent.scheduled()) {
-//                 deschedule(nextApplyEvent);
-//             }
-//             if (cacheBlocks[block_index].hasConflict) {
-//                 writeBackQueue.push_back(block_index);
-//                 assert(writeBackQueue.size() <= numLines);
-//                 if ((!writeBackQueue.empty()) &&
-//                     (!nextWriteBackEvent.pending()) &&
-//                     (!nextWriteBackEvent.scheduled())) {
-//                     schedule(nextWriteBackEvent, nextCycle());
-//                 }
-//             }
-//         }
-//     } else {
-//         if (memPort.blocked()) {
-//             nextRecvPushRetryEvent.sleep();
-//             pendingEventQueue.push_back("nextRecvPushRetryEvent");
-//             // Maximum three MemoryEvent.
-//             assert(pendingEventQueue.size() <= 3);
-//             return;
-//         }
-
-//         // FIXME: Fix the retry mechanism between memory and cache to
-//         // handle memory retries correctly. This probably requires scheduling
-//         // an event for sending the retry. For now we're enabling infinite
-//         // queueing in the memQueue.
-//         // FIXME: Also do not send requests for cache lines that are already
-//         // read but await data. Just set a flag or sth.
-//         PacketPtr pkt = createReadPacket(block_addr, peerMemoryAtomSize);
-//         SenderState* sender_state = new SenderState(true);
-//         pkt->pushSenderState(sender_state);
-//         memPort.sendPacket(pkt);
-//     }
-
-//     numRetriesReceived--;
-//     assert(numRetriesReceived == 0);
-//     assert(!nextRecvPushRetryEvent.scheduled());
-// }
 
 std::tuple<bool, int>
 CoalesceEngine::getOptimalBitVectorSlice()
 {
-    bool hit_in_cache;
+    bool hit_in_cache = false;
     int slice_base = -1;
 
-    int score = 0;
-    int max_score_possible = 3 * numElementsPerLine;
+    // int score = 0;
+    // int max_score_possible = 3 * numElementsPerLine;
     for (int it = 0; it < MAX_BITVECTOR_SIZE; it += numElementsPerLine) {
-        int current_score = 0;
+        // int current_score = 0;
         uint32_t current_popcount = 0;
         for (int i = 0; i < numElementsPerLine; i++) {
             current_popcount += needsPush[it + i];
@@ -924,30 +833,32 @@ CoalesceEngine::getOptimalBitVectorSlice()
         if (current_popcount == 0) {
             continue;
         }
-        current_score += current_popcount;
+        // current_score += current_popcount;
         Addr addr = getBlockAddrFromBitIndex(it);
         int block_index = getBlockIndex(addr);
         if ((cacheBlocks[block_index].valid) &&
             (cacheBlocks[block_index].addr == addr) &&
             (cacheBlocks[block_index].busyMask == 0)) {
-            current_score += numElementsPerLine * 2;
-            if (current_score > score) {
-                score = current_score;
-                slice_base = it;
-                hit_in_cache = true;
-                if (score == max_score_possible) {
-                    break;
-                }
-            }
+            // current_score += numElementsPerLine * 2;
+            // if (current_score > score) {
+            //     score = current_score;
+            //     slice_base = it;
+            //     hit_in_cache = true;
+            //     if (score == max_score_possible) {
+            //         break;
+            //     }
+            // }
+            return std::make_tuple(true, it);
         } else if (!((cacheBlocks[block_index].addr == addr) &&
                     (cacheBlocks[block_index].allocated))) {
-            score += numElementsPerLine;
-            if (current_score > score) {
-                score = current_score;
-                slice_base = it;
-                hit_in_cache = false;
-                assert(score < max_score_possible);
-            }
+            // score += numElementsPerLine;
+            // if (current_score > score) {
+            //     score = current_score;
+            //     slice_base = it;
+            //     hit_in_cache = false;
+            //     assert(score < max_score_possible);
+            // }
+            return std::make_tuple(false, it);
         }
     }
 
@@ -955,11 +866,11 @@ CoalesceEngine::getOptimalBitVectorSlice()
 }
 
 void
-CoalesceEngine::processNextRecvPushRetryEvent()
+CoalesceEngine::processNextRecvPushRetryEvent(int slice_base_2)
 {
     bool hit_in_cache;
     int slice_base;
-    std::tie(hit_in_cache, slice_base)= getOptimalBitVectorSlice();
+    std::tie(hit_in_cache, slice_base) = getOptimalBitVectorSlice();
 
     if (slice_base != -1) {
         Addr addr = getBlockAddrFromBitIndex(slice_base);
@@ -969,12 +880,12 @@ CoalesceEngine::processNextRecvPushRetryEvent()
             assert(cacheBlocks[block_index].busyMask == 0);
 
             // if nextRecvPushRetryEvent has been blocked by memory before
-            if (nextRecvPushRetryEvent.getPrevState() == -1) {
-                DPRINTF(CoalesceEngine, "%s: nextRecvPushRetry passing "
-                                        "its MemRetry.\n", __func__);
-                recvMemRetry();
-                nextRecvPushRetryEvent.setPrevState(0);
-            }
+            // if (nextRecvPushRetryEvent.getPrevState() == -1) {
+            //     DPRINTF(CoalesceEngine, "%s: nextRecvPushRetry passing "
+            //                             "its MemRetry.\n", __func__);
+            //     recvMemRetry();
+            //     nextRecvPushRetryEvent.setPrevState(0);
+            // }
 
             int push_needed = 0;
             DPRINTF(CoalesceEngine, "%s: needsPush.count: %d.\n",
@@ -1005,33 +916,38 @@ CoalesceEngine::processNextRecvPushRetryEvent()
                     deschedule(nextApplyEvent);
                 }
                 if (cacheBlocks[block_index].hasConflict) {
-                    writeBackQueue.push_back(block_index);
-                    assert(writeBackQueue.size() <= numLines);
-                    if ((!nextWriteBackEvent.pending()) &&
-                        (!nextWriteBackEvent.scheduled())) {
-                        schedule(nextWriteBackEvent, nextCycle());
-                    }
+                    // writeBackQueue.push_back(block_index);
+                    // assert(writeBackQueue.size() <= numLines);
+                    // if ((!nextWriteBackEvent.pending()) &&
+                    //     (!nextWriteBackEvent.scheduled())) {
+                    //     schedule(nextWriteBackEvent, nextCycle());
+                    // }
+                    memoryFunctionQueue.emplace_back([this] (int block_index) { processNextWriteBackEvent(block_index); }, block_index);
+                    // if ((!nextMemoryEvent.pending()) &&
+                    //     (!nextMemoryEvent.scheduled())) {
+                    //     schedule(nextMemoryEvent, nextCycle());
+                    // }
                 }
             }
         } else {
-            if (memPort.blocked()) {
-                assert(nextRecvPushRetryEvent.getPrevState() != -1);
-                nextRecvPushRetryEvent.setPrevState(-1);
-                nextRecvPushRetryEvent.sleep();
-                pendingEventQueue.push_back("nextRecvPushRetryEvent");
-                assert(pendingEventQueue.size() <= 3);
-                DPRINTF(CoalesceEngine, "%s: nextRecvPushRetryEvent is asleep now "
-                                        "and has been pushed to pendingEventQueue."
-                                        " pendingEventQueue.size = %d.\n",
-                                        __func__, pendingEventQueue.size());
-                return;
-            }
+            // if (memPort.blocked()) {
+            //     // assert(nextRecvPushRetryEvent.getPrevState() != -1);
+            //     nextRecvPushRetryEvent.setPrevState(-1);
+            //     nextRecvPushRetryEvent.sleep();
+            //     pendingEventQueue.push_back("nextRecvPushRetryEvent");
+            //     assert(pendingEventQueue.size() <= 3);
+            //     DPRINTF(CoalesceEngine, "%s: nextRecvPushRetryEvent is asleep now "
+            //                             "and has been pushed to pendingEventQueue."
+            //                             " pendingEventQueue.size = %d.\n",
+            //                             __func__, pendingEventQueue.size());
+            //     return;
+            // }
             // if nextRecvPushRetryEvent has been blocked by memory before
-            if (nextRecvPushRetryEvent.getPrevState() == -1) {
-                DPRINTF(CoalesceEngine, "%s: nextRecvPushRetryEvent is "
-                    "unblocked by memPort. Setting prevState to 0.\n", __func__);
-                nextRecvPushRetryEvent.setPrevState(0);
-            }
+            // if (nextRecvPushRetryEvent.getPrevState() == -1) {
+            //     DPRINTF(CoalesceEngine, "%s: nextRecvPushRetryEvent is "
+            //         "unblocked by memPort. Setting prevState to 0.\n", __func__);
+            //     nextRecvPushRetryEvent.setPrevState(0);
+            // }
 
             PacketPtr pkt = createReadPacket(addr, peerMemoryAtomSize);
             SenderState* sender_state = new SenderState(true);
@@ -1045,8 +961,15 @@ CoalesceEngine::processNextRecvPushRetryEvent()
         numRetriesReceived--;
         assert(numRetriesReceived == 0);
     }
+    // if (numRetriesReceived > 0) {
+    //     schedule(nextRecvPushRetryEvent, nextCycle());
+    // }
     if (numRetriesReceived > 0) {
-        schedule(nextRecvPushRetryEvent, nextCycle());
+        memoryFunctionQueue.emplace_back([this] (int slice_base) { processNextRecvPushRetryEvent(slice_base); }, 0);
+        // if ((!nextMemoryEvent.pending()) &&
+        //     (!nextMemoryEvent.scheduled())) {
+        //     schedule(nextMemoryEvent, nextCycle());
+        // }
     }
 }
 

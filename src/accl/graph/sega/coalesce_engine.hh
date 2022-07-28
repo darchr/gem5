@@ -92,26 +92,30 @@ class CoalesceEngine : public BaseMemoryEngine
     int numTgtsPerMSHR;
     std::unordered_map<int, std::vector<Addr>> MSHR;
 
-    std::deque<int> fillQueue;
+    // std::deque<int> fillQueue;
 
     std::deque<std::tuple<Addr, WorkListItem>> responseQueue;
 
-    int currentBitSliceIndex;
     int numRetriesReceived;
     InOutSet<int> applyQueue;
     std::bitset<MAX_BITVECTOR_SIZE> needsPush;
 
-    InOutSet<int> writeBackQueue;
+    // InOutSet<int> writeBackQueue;
+
 
     int getBlockIndex(Addr addr);
     int getBitIndexBase(Addr addr);
     Addr getBlockAddrFromBitIndex(int index);
     std::tuple<bool, int> getOptimalBitVectorSlice();
 
-    std::deque<std::string> pendingEventQueue;
+    // std::deque<std::string> pendingEventQueue;
 
-    MemoryEvent nextMemoryReadEvent;
-    void processNextMemoryReadEvent();
+    std::deque<std::tuple<std::function<void(int)>, int>> memoryFunctionQueue;
+    MemoryEvent nextMemoryEvent;
+    void processNextMemoryEvent();
+
+    // MemoryEvent nextMemoryReadEvent;
+    void processNextMemoryReadEvent(int block_index);
 
     EventFunctionWrapper nextRespondEvent;
     void processNextRespondEvent();
@@ -119,11 +123,11 @@ class CoalesceEngine : public BaseMemoryEngine
     EventFunctionWrapper nextApplyEvent;
     void processNextApplyEvent();
 
-    MemoryEvent nextWriteBackEvent;
-    void processNextWriteBackEvent();
+    // MemoryEvent nextWriteBackEvent;
+    void processNextWriteBackEvent(int block_index);
 
-    MemoryEvent nextRecvPushRetryEvent;
-    void processNextRecvPushRetryEvent();
+    // MemoryEvent nextRecvPushRetryEvent;
+    void processNextRecvPushRetryEvent(int slice_base);
 
     struct CoalesceStats : public statistics::Group
     {
