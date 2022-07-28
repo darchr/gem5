@@ -82,7 +82,6 @@ class PushEngine : public BaseMemoryEngine
         Addr src() { return _src; }
         uint32_t value() { return _value; }
     };
-
     struct PushInfo {
         Addr src;
         uint32_t value;
@@ -103,6 +102,8 @@ class PushEngine : public BaseMemoryEngine
     int edgeQueueSize;
     std::deque<std::deque<CompleteEdge>> edgeQueue;
 
+    std::string workload;
+    uint32_t propagate(uint32_t value, uint32_t weight);
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
 
     bool vertexSpace();
