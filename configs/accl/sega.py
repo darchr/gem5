@@ -1,5 +1,8 @@
 import m5
 import argparse
+import subprocess
+import shlex
+import os
 
 from math import log
 from m5.objects import *
@@ -154,20 +157,50 @@ def get_inputs():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("num_mpus", type=int)
     argparser.add_argument("vertex_cache_line_size", type=int)
+    argparser.add_argument("synthetic", type=bool)
+    argparser.add_argument("scale/graph", type=int)
     argparser.add_argument("graph_path", type=str)
     argparser.add_argument("init_addr", type=int)
     argparser.add_argument("init_value", type=int)
     args = argparser.parse_args()
-    return args.num_mpus, args.vertex_cache_line_size, \
-            args.graph_path, args.init_addr, args.init_value
+    return args.num_mpus, args.vertex_cache_line_size, args.synthetic, \
+            args.scale, args.graph_path, args.init_addr, args.init_value
 
 if __name__ == "__m5_main__":
-    num_mpus, vertex_cache_line_size, \
+    num_mpus, vertex_cache_line_size, synthetic, scale, \
         graph_path, first_addr, first_value = get_inputs()
-
-    print(f"Creating a system with {num_mpus} mpu(s) and graph {graph_path}")
+    
+    
+    if (synthetic == False):
+        graph_dir = graph_path
+        print(graph_dir)
+        if len(os.listdir(graph_dir) ) == 0:
+            print("Directory is empty")
+        else:
+            if len(os.listdir(graph_dir+"/binaries/mpu_"+str(num_mpus)) ) == 0:
+                subprocess.run(['./sega-utils/GraphReader/loader', \
+                                graph_dir+"/"+scale, 'uw', '32', \
+                                graph_dir+"/binaries/mpu_"+str(num_mpus),  \
+                                str(num_mpus)])
+    else:
+        graph_dir = graph_path+"/scale_"+str(scale)
+        subprocess.run(["mkdir", "-p", graph_dir])
+        if len(os.listdir(graph_dir) ) == 0:
+            print(f"Creating a system with {num_mpus} mpu(s) and graph {graph_path}")
+            subprocess.run(["mkdir", "-p", graph_dir+"/binaries/mpu_"+str(num_mpus)])
+            subprocess.run(["./GraphGen/graphGen", str(scale), "2", graph_dir+"/graph.txt"])
+            subprocess.run(['./sega-utils/GraphReader/loader', graph_dir+"/graph.txt"\
+                    , 'uw', '32', graph_dir+"/binaries/mpu_"+str(num_mpus), str(num_mpus)])
+        else:
+            if len(os.listdir(graph_dir+"/binaries/mpu_"+str(num_mpus)) ) == 0:
+                subprocess.run(["./GraphGen/graphGen", str(scale), \
+                                "2", graph_dir+"/graph.txt"])
+                subprocess.run(['./sega-utils/GraphReader/loader', \
+                                graph_dir+"/graph.txt", 'uw', '32', \
+                                graph_dir+"/binaries/mpu_"+str(num_mpus),  \
+                                str(num_mpus)])
     system = SEGA(num_mpus, vertex_cache_line_size, \
-                graph_path, first_addr, first_value)
+                graph_dir+"/binaries/"+"mpu_"+str(num_mpus), first_addr, first_value)
     root = Root(full_system = False, system = system)
 
     m5.instantiate()
