@@ -31,7 +31,6 @@ from m5.objects import SEWorkload, Process
 
 from typing import Optional, List
 
-
 class SEBinaryWorkload:
     """
     This class is used to enable simple Syscall-Execution (SE) mode execution
@@ -52,6 +51,8 @@ class SEBinaryWorkload:
         exit_on_work_items: bool = True,
         stdin_file: Optional[AbstractResource] = None,
         arguments: List[str] = [],
+        simpoint_starts: Optional[List[int]] = None,
+        simpoint_interval: Optional[int] = None,
     ) -> None:
         """Set up the system to run a specific binary.
 
@@ -86,6 +87,17 @@ class SEBinaryWorkload:
 
         for core in self.get_processor().get_cores():
             core.set_workload(process)
+
+        # simpoint part start
+        if simpoint_starts is not None:
+          simpoint_begin_inst = []
+          simpoint_end_inst = []
+          for point in simpoint_starts:
+            simpoint_begin_inst.append(point * simpoint_interval)
+            simpoint_end_inst.append((point+1)*simpoint_interval - 1)
+          self.get_processor().get_cores()[0].set_simpoint(simpoint_begin_inst,
+            simpoint_end_inst)
+        # simpoint part end
 
         # Set whether to exit on work items for the se_workload
         self.exit_on_work_items = exit_on_work_items

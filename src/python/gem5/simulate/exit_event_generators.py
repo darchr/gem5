@@ -28,6 +28,8 @@ import m5.stats
 from ..components.processors.abstract_processor import AbstractProcessor
 from ..components.processors.switchable_processor import SwitchableProcessor
 from m5.util import warn
+from os.path import join as joinpath
+import os
 
 """
 In this package we store generators for simulation exit events.
@@ -102,4 +104,26 @@ def default_workend_generator():
     )
     while True:
         m5.stats.dump()
+        yield False
+
+
+def default_simpoint_found(counter: int, take_checkpoint: bool):
+    while True:
+        print("hello, this is simpoint found")
+        if take_checkpoint:
+            if not os.path.exists("testing_simpoint_checkpoint"):
+                os.mkdir("testing_simpoint_checkpoint")
+            m5.checkpoint(joinpath("testing_simpoint_checkpoint",f"cpt.simpoint_checkpoint{counter}"))
+            counter += 1
+        else:
+            m5.stats.dump()
+            m5.stats.reset()
+        yield False
+
+
+def default_simpoint_end():
+    while True:
+        print("bye, this is simpoint end")
+        m5.stats.dump()
+        m5.stats.reset()
         yield False

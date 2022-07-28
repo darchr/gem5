@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from typing import Optional
+from typing import Optional, List
 from ...utils.requires import requires
 from .base_cpu_core import BaseCPUCore
 from .cpu_types import CPUTypes
@@ -134,6 +134,19 @@ class SimpleCore(BaseCPUCore):
             cpu_class_str = (
                 f"{_isa_string_map[isa]}" f"{_cpu_types_string_map[cpu_type]}"
             )
+
+    @overrides(AbstractCore)
+    def set_simpoint(
+        self, 
+        simpoint_starts: List[int], 
+        simpoint_ends: List[int]
+    ) -> None:
+        self.core.simpoint_start_insts = simpoint_starts
+        self.core.simpoint_end_insts = simpoint_ends
+
+    @overrides(AbstractCore)
+    def set_switched_out(self, value: bool) -> None:
+        self.core.switched_out = value
 
         try:
             to_return_cls = getattr(
