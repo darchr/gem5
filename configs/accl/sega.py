@@ -215,7 +215,7 @@ if __name__ == "__m5_main__":
                             f"{input_args.vertex_cache_line_size}",
                             f"{graph_path}/binaries/gpts_{input_args.num_gpts}"])
             print(f"Created the graph binaries in "
-                    f"{graph_path}/binaries/n{input_args.num_gpts}")
+                    f"{graph_path}/binaries/gpts_{input_args.num_gpts}")
         image_path = f"{graph_path}/binaries/gpts_{input_args.num_gpts}"
     else:
         image_path = input_args.graph
