@@ -42,6 +42,7 @@ PushEngine::PushEngine(const Params& params):
     _running(false),
     numPendingPulls(0), edgePointerQueueSize(params.push_req_queue_size),
     onTheFlyMemReqs(0), edgeQueueSize(params.resp_queue_size),
+    workload(params.workload),
     nextVertexPullEvent([this] { processNextVertexPullEvent(); }, name()),
     nextMemoryReadEvent([this] { processNextMemoryReadEvent(); }, name()),
     nextPushEvent([this] { processNextPushEvent(); }, name()),
@@ -83,6 +84,20 @@ PushEngine::done()
     return edgeQueue.empty() &&
             (onTheFlyMemReqs == 0) &&
             edgePointerQueue.empty();
+}
+
+
+uint32_t
+PushEngine::propagate(uint32_t value, uint32_t weight)
+{
+    uint32_t update;
+    if (workload == "BFS")  {
+        update = value + 1;
+    }
+    else{
+        panic("The workload %s is not supported", workload);
+    }
+    return update;
 }
 
 void
@@ -239,7 +254,7 @@ PushEngine::processNextPushEvent()
                     __func__, curr_edge.to_string());
 
     // TODO: Implement propagate function here
-    uint32_t update_value = curr_edge.value + 1;
+    uint32_t update_value = propagate(value, 1);
     PacketPtr update = createUpdatePacket<uint32_t>(
                             curr_edge.dst, update_value);
 

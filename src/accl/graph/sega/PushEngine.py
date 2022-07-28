@@ -41,3 +41,5 @@ class PushEngine(BaseMemoryEngine):
     resp_queue_size = Param.Int("Size of the response queue in the "
                                     "push engine where it stores the "
                                     "edges read from memory")
+
+    workload = Param.String("BFS", "Name of the workload")

@@ -47,6 +47,8 @@ class WLEngine : public BaseReduceEngine
   private:
     MPU* owner;
 
+
+
     int updateQueueSize;
     std::deque<std::tuple<Addr, uint32_t>> updateQueue;
 
@@ -54,6 +56,9 @@ class WLEngine : public BaseReduceEngine
     std::unordered_map<Addr, uint32_t> registerFile;
 
     std::unordered_map<Addr, WorkListItem> workListFile;
+
+    std::string workload;
+    uint32_t reduce(uint32_t update, uint32_t value);
 
     EventFunctionWrapper nextReadEvent;
     void processNextReadEvent();
