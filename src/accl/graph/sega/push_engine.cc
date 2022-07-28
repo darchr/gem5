@@ -43,6 +43,7 @@ PushEngine::PushEngine(const Params &params):
     numTotalRetries(0), numPendingRetries(0),
     onTheFlyMemReqs(0),
     memRespQueueSize(params.resp_queue_size),
+    workload(params.workload),
     nextMemoryReadEvent([this] { processNextMemoryReadEvent(); }, name()),
     nextPushEvent([this] { processNextPushEvent(); }, name()),
     nextSendRetryEvent([this] { processNextSendRetryEvent(); }, name()),
@@ -102,6 +103,20 @@ PushEngine::ReqPort::recvReqRetry()
                 __func__, _blocked ? "true" : "false",
                 (blockedPacket == nullptr) ? "true" : "false");
     }
+}
+
+
+uint32_t
+PushEngine::propagate(uint32_t value, uint32_t weight)
+{
+    uint32_t update;
+    if (workload == "BFS")  {
+            update = value + 1;
+    }
+    else{
+        panic("The workload %s is not supported", workload);
+    }
+    return update;
 }
 
 void
@@ -289,7 +304,7 @@ PushEngine::processNextPushEvent()
     Edge* curr_edge = (Edge*) (data + offset);
 
     // TODO: Implement propagate function here
-    uint32_t update_value = value + 1;
+    uint32_t update_value = propagate(value, 1);
     PacketPtr update = createUpdatePacket<uint32_t>(
                             curr_edge->neighbor, update_value);
 

@@ -71,6 +71,8 @@ class WLEngine : public BaseReduceEngine
 
     CoalesceEngine* coalesceEngine;
 
+    std::string workload;
+
     int updateQueueSize;
     std::deque<std::tuple<Addr, uint32_t>> updateQueue;
 
@@ -79,6 +81,8 @@ class WLEngine : public BaseReduceEngine
 
     std::unordered_map<Addr, WorkListItem> workListFile;
 
+    uint32_t reduce(uint32_t update, uint32_t value);
+    
     void recvFunctional(PacketPtr pkt);
 
     AddrRangeList getAddrRanges() const;

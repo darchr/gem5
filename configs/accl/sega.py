@@ -14,7 +14,6 @@ class MPU(SubSystem):
         self.push_engine = PushEngine(base_edge_addr=base_edge_addr,
                                     push_req_queue_size=2,
                                     attached_memory_atom_size=64,
-                                    outstanding_mem_req_queue_size=1,
                                     resp_queue_size=1)
         self.coalesce_engine = CoalesceEngine(
                                     peer_push_engine=self.push_engine,
@@ -24,7 +23,7 @@ class MPU(SubSystem):
                                     num_tgts_per_mshr=1)
         self.wl_engine = WLEngine(coalesce_engine=self.coalesce_engine,
                                 update_queue_size=1,
-                                on_the_fly_update_map_size=1)
+                                register_file_size=1)
 
     def getRespPort(self):
         return self.wl_engine.resp_port
@@ -158,13 +157,13 @@ def get_inputs():
     argparser.add_argument("num_mpus", type=int)
     argparser.add_argument("vertex_cache_line_size", type=int)
     argparser.add_argument("synthetic", type=bool)
-    argparser.add_argument("scale/graph", type=int)
+    argparser.add_argument("scale_graph", type=int)
     argparser.add_argument("graph_path", type=str)
     argparser.add_argument("init_addr", type=int)
     argparser.add_argument("init_value", type=int)
     args = argparser.parse_args()
     return args.num_mpus, args.vertex_cache_line_size, args.synthetic, \
-            args.scale, args.graph_path, args.init_addr, args.init_value
+            args.scale_graph, args.graph_path, args.init_addr, args.init_value
 
 if __name__ == "__m5_main__":
     num_mpus, vertex_cache_line_size, synthetic, scale, \
@@ -186,10 +185,12 @@ if __name__ == "__m5_main__":
         graph_dir = graph_path+"/scale_"+str(scale)
         subprocess.run(["mkdir", "-p", graph_dir])
         if len(os.listdir(graph_dir) ) == 0:
-            print(f"Creating a system with {num_mpus} mpu(s) and graph {graph_path}")
+            print(f"*****Creating a system with {num_mpus} mpu(s) and graph {graph_path}")
             subprocess.run(["mkdir", "-p", graph_dir+"/binaries/mpu_"+str(num_mpus)])
             subprocess.run(["./GraphGen/graphGen", str(scale), "2", graph_dir+"/graph.txt"])
-            subprocess.run(['./sega-utils/GraphReader/loader', graph_dir+"/graph.txt"\
+            subprocess.run(['python', 'sega-utils/GraphReader/graph_sorter.py', \
+                            graph_dir+"/graph.txt", graph_dir+"/graph_sorted.txt"])
+            subprocess.run(['./sega-utils/GraphReader/loader', graph_dir+"/graph_sorted.txt"\
                     , 'uw', '32', graph_dir+"/binaries/mpu_"+str(num_mpus), str(num_mpus)])
         else:
             if len(os.listdir(graph_dir+"/binaries/mpu_"+str(num_mpus)) ) == 0:

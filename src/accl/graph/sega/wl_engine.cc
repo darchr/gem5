@@ -39,6 +39,7 @@ WLEngine::WLEngine(const WLEngineParams &params):
     BaseReduceEngine(params),
     respPort(name() + ".resp_port", this),
     coalesceEngine(params.coalesce_engine),
+    workload(params.workload),
     updateQueueSize(params.update_queue_size),
     registerFileSize(params.register_file_size),
     nextReadEvent([this]{ processNextReadEvent(); }, name()),
@@ -109,6 +110,18 @@ WLEngine::RespPort::recvRespRetry()
     panic("recvRespRetry from response port is called.");
 }
 
+uint32_t
+WLEngine::reduce(uint32_t update, uint32_t value)
+{
+    uint32_t new_value;
+    if(workload == "BFS"){
+        new_value = std::min(update, value);
+    } else{
+        panic("Workload not implemented\n");
+    }
+    return new_value;
+}
+
 void
 WLEngine::recvFunctional(PacketPtr pkt)
 {
@@ -173,8 +186,9 @@ WLEngine::processNextReadEvent()
         DPRINTF(WLEngine,  "%s: A register has already been allocated for "
                     "addr: %lu in registerFile. registerFile[%lu] = %u.\n",
                 __func__, update_addr, update_addr, registerFile[update_addr]);
-        registerFile[update_addr] =
-                std::min(update_value, registerFile[update_addr]);
+        registerFile[update_addr] = 
+                    reduce(update_value, registerFile[update_addr]);
+                // std::min(update_value, registerFile[update_addr]);
         DPRINTF(WLEngine,  "%s: Reduced the update_value: %u with the entry in"
                     " registerFile. registerFile[%lu] = %u.\n", __func__,
                     update_value, update_addr, registerFile[update_addr]);
@@ -227,7 +241,8 @@ WLEngine::processNextReduceEvent()
                                         addr, workListFile[addr].to_string());
         // TODO: Generalize this to reduce function rather than just min
         workListFile[addr].tempProp =
-                    std::min(update_value, workListFile[addr].tempProp);
+                    reduce(update_value, workListFile[addr].tempProp);
+                    // std::min(update_value, workListFile[addr].tempProp);
         DPRINTF(WLEngine,  "%s: Reduction done. workListFile[%lu] = %s.\n",
                             __func__, addr, workListFile[addr].to_string());
         stats.numReduce++;

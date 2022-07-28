@@ -117,6 +117,7 @@ class PushEngine : public BaseMemoryEngine
 
     int onTheFlyMemReqs;
     int memRespQueueSize;
+    std::string workload;
     std::deque<PacketPtr> memRespQueue;
 
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
@@ -155,6 +156,8 @@ class PushEngine : public BaseMemoryEngine
                 PortID idx=InvalidPortID) override;
 
     bool allocatePushSpace();
+
+    uint32_t propagate(uint32_t value, uint32_t weight);
 
     void deallocatePushSpace(int space);
 
