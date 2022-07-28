@@ -25,7 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from abc import ABCMeta, abstractmethod
-from typing import Optional
+from typing import Optional, List
 
 from ...isas import ISA
 
@@ -94,6 +94,14 @@ class AbstractCore(SubSystem):
 
     @abstractmethod
     def set_workload(self, process: "Process") -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_simpoint(
+        self, 
+        simpoint_starts: List[int], 
+        simpoint_ends: List[int]
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod

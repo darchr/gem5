@@ -46,6 +46,8 @@ class ExitEvent(Enum):
     USER_INTERRUPT = (  # An exit due to a user interrupt (e.g., cntr + c)
         "user interupt"
     )
+    SIMPOINT_BEGIN = "simpoint begin"
+    SIMPOINT_END = "simpoint end"
 
     @classmethod
     def translate_exit_status(cls, exit_string: str) -> "ExitEvent":
@@ -81,6 +83,10 @@ class ExitEvent(Enum):
             return ExitEvent.CHECKPOINT
         elif exit_string == "user interrupt received":
             return ExitEvent.USER_INTERRUPT
+        elif exit_string == "simpoint starting point found":
+            return ExitEvent.SIMPOINT_BEGIN
+        elif exit_string == "simpoint ending point found":
+            return ExitEvent.SIMPOINT_END
         raise NotImplementedError(
             "Exit event '{}' not implemented".format(exit_string)
         )

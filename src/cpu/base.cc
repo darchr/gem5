@@ -285,9 +285,12 @@ BaseCPU::init()
     // Simulation.py is responsible to take the necessary actions upon
     // exitting the simulation loop.
     if (!params().simpoint_start_insts.empty()) {
-        const char *cause = "simpoint starting point found";
-        for (size_t i = 0; i < params().simpoint_start_insts.size(); ++i)
-            scheduleInstStop(0, params().simpoint_start_insts[i], cause);
+        const char *cause1 = "simpoint starting point found";
+        const char *cause2 = "simpoint ending point found";
+        for (size_t i = 0; i < params().simpoint_start_insts.size(); ++i) {
+            scheduleInstStop(0, params().simpoint_start_insts[i], cause1);
+            scheduleInstStop(0, params().simpoint_end_insts[i], cause2);
+        }
     }
 
     if (params().max_insts_all_threads != 0) {
