@@ -32,9 +32,7 @@
 #include "base/cprintf.hh"
 #include "base/intmath.hh"
 
-#include <bitset>
-#include <queue>
-#include <unordered_set>
+#include <list>
 
 namespace gem5
 {
@@ -90,49 +88,51 @@ static_assert(isPowerOf2(sizeof(WorkListItem)));
 static_assert(isPowerOf2(sizeof(Edge)));
 
 template<typename T>
-class InOutSet
+class UniqueFIFO
 {
   private:
-    std::unordered_set<T> set;
+    std::list<T> fifo;
 
   public:
-    InOutSet(int cap)
-    {
-        set.reserve(cap);
-    }
+    UniqueFIFO() {}
 
     void push_back(T item)
     {
-        if (set.find(item) == set.end()) {
-            set.insert(item);
+        if (!find(item)) {
+            fifo.push_back(item);
         }
     }
 
     void pop_front()
     {
-        assert(set.begin() != set.end());
-        set.erase(set.begin());
+        assert(!fifo.empty());
+        fifo.pop_front();
     }
 
     T front()
     {
-        return *(set.begin());
+        return fifo.front();
     }
 
     size_t size() {
-        return set.size();
+        return fifo.size();
     }
 
     bool empty() {
-        return (size() == 0);
+        return fifo.empty();
     }
 
     bool find(T item) {
-        return (set.find(item) != set.end());
+        // std::list<T>::iterator it = std::find(fifo.begin(), fifo.end(), item);
+        auto it = std::find(fifo.begin(), fifo.end(), item);
+        return (it != fifo.end());
     }
 
     void erase(T item) {
-        set.erase(item);
+        // std::list<T>::iterator it = std::find(fifo.begin(), fifo.end(), item);
+        auto it = std::find(fifo.begin(), fifo.end(), item);
+        assert(it != fifo.end());
+        fifo.erase(it);
     }
 };
 
