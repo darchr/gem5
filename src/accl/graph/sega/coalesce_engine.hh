@@ -34,6 +34,7 @@
 #include "accl/graph/sega/base_memory_engine.hh"
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/sega/push_engine.hh"
+#include "base/cprintf.hh"
 #include "base/statistics.hh"
 #include "params/CoalesceEngine.hh"
 
@@ -51,23 +52,41 @@ class CoalesceEngine : public BaseMemoryEngine
     {
         WorkListItem* items;
         Addr addr;
-        uint8_t busyMask;
-        bool allocated;
+        uint64_t busyMask;
         bool valid;
+        bool needsApply;
+        bool needsWB;
+        bool pendingData;
+        bool pendingApply;
+        bool pendingWB;
+
+        bool allocated;
         bool hasConflict;
-        bool dirty;
         // TODO: This might be useful in the future
         // Tick lastWLWriteTick;
         Block() {}
         Block(int num_elements):
           addr(0),
           busyMask(0),
-          allocated(false),
           valid(false),
-          hasConflict(false),
-          dirty(false)
+          needsApply(false),
+          needsWB(false),
+          pendingData(false),
+          pendingApply(false),
+          pendingWB(false),
+          allocated(false),
+          hasConflict(false)
         {
           items = new WorkListItem [num_elements];
+        }
+
+        std::string to_string() {
+            return csprintf("CacheBlock{addr: %lu, busyMask: %lu, valid: %s, "
+                "needsApply: %s, needsWB: %s, pendingData: %s, "
+                "pendingApply: %s, pendingWB: %s}", addr, busyMask,
+                valid ? "true" : "false", needsApply ? "true" : "false",
+                needsWB ? "true" : "false", pendingData ? "true" : "false",
+                pendingApply ? "true" : "false", pendingWB ? "true" : "false");
         }
     };
 
