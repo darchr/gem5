@@ -73,15 +73,15 @@ void
 BaseMemoryEngine::MemPort::sendPacket(PacketPtr pkt)
 {
     panic_if(_blocked, "Should never try to send if blocked MemSide!");
+    DPRINTF(BaseMemoryEngine, "%s: Sending pakcet: %s to "
+                "the memory.\n", __func__, pkt->print());
     if (!sendTimingReq(pkt))
     {
         blockedPacket = pkt;
         _blocked = true;
-        DPRINTF(BaseMemoryEngine, "%s: MemPort blocked. blockedPacket %s.\n",
-                                            __func__, blockedPacket->print());
+        DPRINTF(BaseMemoryEngine, "%s: MemPort blocked.\n", __func__);
     } else {
-        DPRINTF(BaseMemoryEngine, "%s: Packet %s sent successfully.\n",
-                                                __func__, pkt->print());
+        DPRINTF(BaseMemoryEngine, "%s: Packet sent successfully.\n", __func__);
         owner->recvMemRetry();
     }
 }
