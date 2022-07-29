@@ -77,57 +77,39 @@ class CoalesceEngine : public BaseMemoryEngine
       SenderState(bool is_retry): isRetry(is_retry) {}
     };
 
-    // int nmpu;
-    // Addr memoryAddressOffset;
-
     WLEngine* peerWLEngine;
     PushEngine* peerPushEngine;
 
-    Block* cacheBlocks;
-
     int numLines;
     int numElementsPerLine;
+    Block* cacheBlocks;
 
     int numMSHREntries;
     int numTgtsPerMSHR;
     std::unordered_map<int, std::vector<Addr>> MSHR;
-
-    // std::deque<int> fillQueue;
-
     std::deque<std::tuple<Addr, WorkListItem>> responseQueue;
 
     int numRetriesReceived;
-    InOutSet<int> applyQueue;
+    UniqueFIFO<int> applyQueue;
     std::bitset<MAX_BITVECTOR_SIZE> needsPush;
-
-    // InOutSet<int> writeBackQueue;
-
 
     int getBlockIndex(Addr addr);
     int getBitIndexBase(Addr addr);
     Addr getBlockAddrFromBitIndex(int index);
     std::tuple<bool, int> getOptimalBitVectorSlice();
 
-    // std::deque<std::string> pendingEventQueue;
-
-    std::deque<std::tuple<std::function<void(int)>, int>> memoryFunctionQueue;
     MemoryEvent nextMemoryEvent;
     void processNextMemoryEvent();
+    void processNextRead(int block_index);
+    void processNextWriteBack(int block_index);
+    void processNextPushRetry(int slice_base);
+    std::deque<std::tuple<std::function<void(int)>, int>> memoryFunctionQueue;
 
-    // MemoryEvent nextMemoryReadEvent;
-    void processNextMemoryReadEvent(int block_index);
-
-    EventFunctionWrapper nextRespondEvent;
-    void processNextRespondEvent();
+    EventFunctionWrapper nextResponseEvent;
+    void processNextResponseEvent();
 
     EventFunctionWrapper nextApplyEvent;
     void processNextApplyEvent();
-
-    // MemoryEvent nextWriteBackEvent;
-    void processNextWriteBackEvent(int block_index);
-
-    // MemoryEvent nextRecvPushRetryEvent;
-    void processNextRecvPushRetryEvent(int slice_base);
 
     struct CoalesceStats : public statistics::Group
     {
@@ -164,8 +146,6 @@ class CoalesceEngine : public BaseMemoryEngine
     void registerWLEngine(WLEngine* wl_engine);
 
     void recvPushRetry();
-
-    // virtual void startup() override;
 };
 
 }
