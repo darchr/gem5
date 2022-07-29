@@ -43,6 +43,8 @@ namespace gem5
 CoalesceEngine::CoalesceEngine(const Params &params):
     BaseMemoryEngine(params),
     peerPushEngine(params.peer_push_engine),
+    workload(params.workload),
+    thereshold(params.thereshold),
     numLines((int) (params.cache_size / peerMemoryAtomSize)),
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
     numMSHREntries(params.num_mshr_entry),
@@ -129,6 +131,19 @@ CoalesceEngine::getBlockIndex(Addr addr)
     return ((int) (trimmed_addr / peerMemoryAtomSize)) % numLines;
 }
 
+bool
+CoalesceEngine::applyCondition(uint32_t update, uint32_t value)
+{
+    if(workload == "BFS"){
+        return update != value;
+    } else if (workload == "SSSP"){
+        return  update < value;
+    } else if (workload == "PR"){
+        return  thereshold <= abs(update - value);
+    } else{
+        panic("The workload is not recognize");
+    }
+}
 // addr should be aligned to peerMemoryAtomSize
 int
 CoalesceEngine::getBitIndexBase(Addr addr)
@@ -617,7 +632,9 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     assert((cacheBlocks[block_index].busyMask & (1 << wl_offset)) ==
             (1 << wl_offset));
 
-    if (cacheBlocks[block_index].items[wl_offset].tempProp != wl.tempProp) {
+    if (applyCondition(cacheBlocks[block_index].items[wl_offset].tempProp, 
+                        wl.tempProp))
+    {
         cacheBlocks[block_index].dirty = true;
         stats.numVertexWrites++;
     }
@@ -667,7 +684,7 @@ CoalesceEngine::processNextApplyEvent()
                                 cacheBlocks[block_index].items[i].prop,
                                 cacheBlocks[block_index].items[i].tempProp);
 
-            if (new_prop != old_prop) {
+            if (applyCondition(new_prop, old_prop)) {
                 cacheBlocks[block_index].items[i].tempProp = new_prop;
                 cacheBlocks[block_index].items[i].prop = new_prop;
                 DPRINTF(ApplyUpdates, "%s: WorkListItem[%lu]: %s.\n", __func__,

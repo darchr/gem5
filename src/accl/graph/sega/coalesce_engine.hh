@@ -85,6 +85,8 @@ class CoalesceEngine : public BaseMemoryEngine
 
     Block* cacheBlocks;
 
+    std::string workload;
+    float thereshold;
     int numLines;
     int numElementsPerLine;
 
@@ -104,6 +106,7 @@ class CoalesceEngine : public BaseMemoryEngine
     InOutSet<int> writeBackQueue;
 
     int getBlockIndex(Addr addr);
+    bool applyCondition(uint32_t value, uint32_t update);
     int getBitIndexBase(Addr addr);
     Addr getBlockAddrFromBitIndex(int index);
     std::tuple<bool, int> getOptimalBitVectorSlice();

@@ -46,3 +46,4 @@ class PushEngine(BaseMemoryEngine):
                                     "edges read from memory")
     
     workload = Param.String('BFS',"Name of the workload")
+    alpha = Param.Float('0.8', "This parameter is specific to pagerank")

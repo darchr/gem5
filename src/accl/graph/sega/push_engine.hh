@@ -103,6 +103,8 @@ class PushEngine : public BaseMemoryEngine
 
     ReqPort reqPort;
 
+    float alpha;
+
     Addr baseEdgeAddr;
 
     int pushReqQueueSize;
@@ -113,6 +115,7 @@ class PushEngine : public BaseMemoryEngine
     // TODO: Add size one size for all these maps
     std::unordered_map<RequestPtr, Addr> reqOffsetMap;
     std::unordered_map<RequestPtr, int> reqNumEdgeMap;
+    std::unordered_map<RequestPtr, int> reqOutDegreeMap;
     std::unordered_map<RequestPtr, uint32_t> reqValueMap;
 
     int onTheFlyMemReqs;
@@ -155,9 +158,10 @@ class PushEngine : public BaseMemoryEngine
     Port& getPort(const std::string &if_name,
                 PortID idx=InvalidPortID) override;
 
+
     bool allocatePushSpace();
 
-    uint32_t propagate(uint32_t value, uint32_t weight);
+    uint32_t propagate(uint32_t value, uint32_t weight, uint32_t degree);
 
     void deallocatePushSpace(int space);
 

@@ -38,6 +38,7 @@ namespace gem5
 PushEngine::PushEngine(const Params &params):
     BaseMemoryEngine(params),
     reqPort(name() + ".req_port", this),
+    alpha(params.alpha),
     baseEdgeAddr(params.base_edge_addr),
     pushReqQueueSize(params.push_req_queue_size),
     numTotalRetries(0), numPendingRetries(0),
@@ -107,13 +108,16 @@ PushEngine::ReqPort::recvReqRetry()
 
 
 uint32_t
-PushEngine::propagate(uint32_t value, uint32_t weight)
+PushEngine::propagate(uint32_t delta, uint32_t weight, uint32_t out_degree)
 {
     uint32_t update;
     if (workload == "BFS")  {
-            update = value + 1;
-    }
-    else{
+        update = delta + 1;
+    } else if (workload == "SSSP")  {
+        update = delta + weight;
+    } else if (workload == "PR")  {
+        update = delta * weight * alpha/out_degree;
+    } else{
         panic("The workload %s is not supported", workload);
     }
     return update;
@@ -215,6 +219,7 @@ PushEngine::processNextMemoryReadEvent()
         PacketPtr pkt = createReadPacket(aligned_addr, peerMemoryAtomSize);
         reqOffsetMap[pkt->req] = offset;
         reqNumEdgeMap[pkt->req] = num_edges;
+        reqOutDegreeMap[pkt->req] = num_edges;
         reqValueMap[pkt->req] = curr_info.value();
 
         memPort.sendPacket(pkt);
@@ -296,6 +301,7 @@ PushEngine::processNextPushEvent()
     Addr offset = reqOffsetMap[pkt->req];
     assert(offset < peerMemoryAtomSize);
     uint32_t value = reqValueMap[pkt->req];
+    uint32_t out_degree = reqOutDegreeMap[pkt->req];
 
     DPRINTF(PushEngine, "%s: Looking at the front of the queue. pkt->Addr: %lu, "
                 "offset: %lu\n",
@@ -304,7 +310,7 @@ PushEngine::processNextPushEvent()
     Edge* curr_edge = (Edge*) (data + offset);
 
     // TODO: Implement propagate function here
-    uint32_t update_value = propagate(value, 1);
+    uint32_t update_value = propagate(value, curr_edge->weight, out_degree);
     PacketPtr update = createUpdatePacket<uint32_t>(
                             curr_edge->neighbor, update_value);
 
@@ -322,6 +328,7 @@ PushEngine::processNextPushEvent()
     if (reqNumEdgeMap[pkt->req] == 0) {
         reqOffsetMap.erase(pkt->req);
         reqNumEdgeMap.erase(pkt->req);
+        reqOutDegreeMap.erase(pkt->req);
         reqValueMap.erase(pkt->req);
         memRespQueue.pop_front();
         delete pkt;

@@ -116,6 +116,10 @@ WLEngine::reduce(uint32_t update, uint32_t value)
     uint32_t new_value;
     if(workload == "BFS"){
         new_value = std::min(update, value);
+    } else if(workload == "PR"){
+        new_value = update + value;
+    } else if(workload == "SSSP"){
+        new_value = std::min(update, value);
     } else{
         panic("Workload not implemented\n");
     }

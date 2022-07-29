@@ -40,3 +40,7 @@ class CoalesceEngine(BaseMemoryEngine):
 
     num_mshr_entry = Param.Int("Number of MSHR entries.")
     num_tgts_per_mshr = Param.Int("Number of Targets Per MSHR.")
+
+    workload = Param.String('BFS', "Name of the algorithm")
+
+    thereshold = Param.Float('0.0001', "Score threshold for Pagerank")
