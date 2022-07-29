@@ -34,6 +34,7 @@
 #include "base/intmath.hh"
 #include "debug/ApplyUpdates.hh"
 #include "debug/CoalesceEngine.hh"
+#include "debug/CacheBlockState.hh"
 #include "debug/SEGAStructureSize.hh"
 #include "mem/packet_access.hh"
 
@@ -104,11 +105,180 @@ CoalesceEngine::getBlockAddrFromBitIndex(int index)
     return peerMemoryRange.addIntlvBits(trimmed_addr);
 }
 
+// TODO: Prev implementaton of recvWLRead. Remove
+// bool
+// CoalesceEngine::recvWLRead(Addr addr)
+// {
+//     assert(MSHR.size() <= numMSHREntries);
+
+//     Addr aligned_addr = roundDown<Addr, size_t>(addr, peerMemoryAtomSize);
+//     assert(aligned_addr % peerMemoryAtomSize == 0);
+//     int block_index = getBlockIndex(aligned_addr);
+//     assert(block_index < numLines);
+//     int wl_offset = (addr - aligned_addr) / sizeof(WorkListItem);
+//     assert(wl_offset < numElementsPerLine);
+//     DPRINTF(CoalesceEngine,  "%s: Received a read request for addr: %lu. "
+//                         "This request maps to cacheBlocks[%d], aligned_addr: "
+//                         "%lu, and wl_offset: %d.\n", __func__, addr,
+//                         block_index, aligned_addr, wl_offset);
+
+//     if ((cacheBlocks[block_index].addr == aligned_addr) &&
+//         (cacheBlocks[block_index].valid)) {
+//         assert(cacheBlocks[block_index].allocated);
+//         DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a hit.\n", __func__, addr);
+//         // Hit
+//         // TODO: Add a hit latency as a param for this object.
+//         // Can't just schedule the nextResponseEvent for latency cycles in
+//         // the future.
+//         responseQueue.push_back(std::make_tuple(addr,
+//                     cacheBlocks[block_index].items[wl_offset]));
+//         DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
+//                         "to responseQueue. responseQueue.size = %d, "
+//                         "responseQueueSize = %d.\n", __func__, addr,
+//                         cacheBlocks[block_index].items[wl_offset].to_string(),
+//                         responseQueue.size(),
+//                         peerWLEngine->getRegisterFileSize());
+//         DPRINTF(CoalesceEngine, "%s: Added (addr: %lu, wl: %s) "
+//                         "to responseQueue. responseQueue.size = %d, "
+//                         "responseQueueSize = %d.\n", __func__, addr,
+//                         cacheBlocks[block_index].items[wl_offset].to_string(),
+//                         responseQueue.size(),
+//                         peerWLEngine->getRegisterFileSize());
+//         // TODO: Stat to count the number of WLItems that have been touched.
+//         cacheBlocks[block_index].busyMask |= (1 << wl_offset);
+//         stats.readHits++;
+
+//         if (!nextResponseEvent.scheduled()) {
+//             schedule(nextResponseEvent, nextCycle());
+//         }
+//         stats.numVertexReads++;
+//         return true;
+//     } else {
+//         // miss
+//         DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a miss.\n", __func__, addr);
+//         if (MSHR.find(block_index) == MSHR.end()) {
+//             DPRINTF(CoalesceEngine,  "%s: Respective cacheBlocks[%d] for Addr:"
+//                     " %lu not found in MSHRs.\n", __func__, block_index, addr);
+//             assert(MSHR.size() <= numMSHREntries);
+//             if (MSHR.size() == numMSHREntries) {
+//                 // Out of MSHR entries
+//                 DPRINTF(CoalesceEngine,  "%s: Out of MSHR entries. "
+//                                 "Rejecting request.\n", __func__);
+//                 // TODO: Break out read rejections into more than one stat
+//                 // based on the cause of the rejection
+//                 stats.readRejections++;
+//                 return false;
+//             } else {
+//                 DPRINTF(CoalesceEngine,  "%s: MSHR "
+//                     "entries available.\n", __func__);
+//                 if (cacheBlocks[block_index].allocated) {
+//                     assert(MSHR[block_index].size() <= numTgtsPerMSHR);
+//                     DPRINTF(CoalesceEngine,  "%s: Addr: %lu has a conflict "
+//                                 "with Addr: %lu.\n", __func__, addr,
+//                                 cacheBlocks[block_index].addr);
+//                     if (MSHR[block_index].size() == numTgtsPerMSHR) {
+//                         DPRINTF(CoalesceEngine,  "%s: Out of targets for "
+//                                     "cacheBlocks[%d]. Rejecting request.\n",
+//                                     __func__, block_index);
+//                         stats.readRejections++;
+//                         return false;
+//                     }
+//                     cacheBlocks[block_index].hasConflict = true;
+//                     MSHR[block_index].push_back(addr);
+//                     DPRINTF(CoalesceEngine,  "%s: Added Addr: %lu to targets "
+//                         "for cacheBlocks[%d].\n", __func__, addr, block_index);
+//                     stats.readMisses++;
+//                     stats.numVertexReads++;
+//                     if ((cacheBlocks[block_index].busyMask == 0) &&
+//                         (cacheBlocks[block_index].valid)) {
+//                         DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] is not "
+//                                             "busy. It %s in the applyQueue.\n",
+//                                             __func__, block_index,
+//                             applyQueue.find(block_index) ? "is" : "is not");
+//                         if (!applyQueue.find(block_index)) {
+//                             applyQueue.push_back(block_index);
+//                             DPRINTF(CoalesceEngine,  "%s: Added %d to "
+//                                         "applyQueue. applyQueue.size = %u.\n",
+//                                     __func__, block_index, applyQueue.size());
+//                         }
+//                         assert(!applyQueue.empty());
+//                         if ((!nextApplyEvent.scheduled())) {
+//                             schedule(nextApplyEvent, nextCycle());
+//                         }
+//                     }
+//                     return true;
+//                 } else {
+//                     assert(!cacheBlocks[block_index].valid);
+//                     assert(MSHR[block_index].size() == 0);
+//                     // MSHR available and no conflict
+//                     DPRINTF(CoalesceEngine,  "%s: Addr: %lu has no conflict. "
+//                                             "Allocating a cache line for it.\n"
+//                                                             , __func__, addr);
+
+//                     cacheBlocks[block_index].addr = aligned_addr;
+//                     cacheBlocks[block_index].busyMask = 0;
+//                     cacheBlocks[block_index].allocated = true;
+//                     cacheBlocks[block_index].valid = false;
+//                     cacheBlocks[block_index].hasConflict = false;
+//                     DPRINTF(CoalesceEngine, "%s: Allocated cacheBlocks[%d] for"
+//                                 " Addr: %lu.\n", __func__, block_index, addr);
+//                     MSHR[block_index].push_back(addr);
+//                     DPRINTF(CoalesceEngine, "%s: Added Addr: %lu to targets "
+//                         "for cacheBlocks[%d].\n", __func__, addr, block_index);
+//                     memoryFunctionQueue.emplace_back(
+//                         [this] (int block_index) {
+//                             processNextRead(block_index);
+//                         }, block_index);
+//                     DPRINTF(CoalesceEngine, "%s: Pushed processNextRead for "
+//                                         "input %d to memoryFunctionQueue.\n",
+//                                                     __func__, block_index);
+//                     if ((!nextMemoryEvent.pending()) &&
+//                         (!nextMemoryEvent.scheduled())) {
+//                         schedule(nextMemoryEvent, nextCycle());
+//                     }
+//                     stats.readMisses++;
+//                     stats.numVertexReads++;
+//                     return true;
+//                 }
+//             }
+//         } else {
+//             DPRINTF(CoalesceEngine,  "%s: Respective cacheBlocks[%d] for "
+//                 "Addr: %lu already in MSHRs.\n", __func__, block_index, addr);
+//             if (MSHR[block_index].size() == numTgtsPerMSHR) {
+//                 DPRINTF(CoalesceEngine,  "%s: Out of targets for "
+//                             "cacheBlocks[%d]. Rejecting request.\n",
+//                                             __func__, block_index);
+//                 stats.readRejections++;
+//                 return false;
+//             }
+//             if ((aligned_addr != cacheBlocks[block_index].addr)) {
+//                 DPRINTF(CoalesceEngine,  "%s: Addr: %lu has a conflict "
+//                             "with Addr: %lu.\n", __func__, addr,
+//                             cacheBlocks[block_index].addr);
+//                 cacheBlocks[block_index].hasConflict = true;
+//             } else {
+//                 DPRINTF(CoalesceEngine, "%s: There is room for another target "
+//                             "for cacheBlocks[%d].\n", __func__, block_index);
+//             }
+
+//             if (aligned_addr != cacheBlocks[block_index].addr) {
+//                 stats.readMisses++;
+//             } else {
+//                 stats.readHitUnderMisses++;
+//             }
+
+//             MSHR[block_index].push_back(addr);
+//             DPRINTF(CoalesceEngine,  "%s: Added Addr: %lu to targets for "
+//                             "cacheBlocks[%d].\n", __func__, addr, block_index);
+//             stats.numVertexReads++;
+//             return true;
+//         }
+//     }
+// }
+
 bool
 CoalesceEngine::recvWLRead(Addr addr)
 {
-    assert(MSHR.size() <= numMSHREntries);
-
     Addr aligned_addr = roundDown<Addr, size_t>(addr, peerMemoryAtomSize);
     assert(aligned_addr % peerMemoryAtomSize == 0);
     int block_index = getBlockIndex(aligned_addr);
@@ -119,11 +289,18 @@ CoalesceEngine::recvWLRead(Addr addr)
                         "This request maps to cacheBlocks[%d], aligned_addr: "
                         "%lu, and wl_offset: %d.\n", __func__, addr,
                         block_index, aligned_addr, wl_offset);
+    DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
+                block_index, cacheBlocks[block_index].to_string());
 
     if ((cacheBlocks[block_index].addr == aligned_addr) &&
         (cacheBlocks[block_index].valid)) {
-        assert(cacheBlocks[block_index].allocated);
         DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a hit.\n", __func__, addr);
+        stats.readHits++;
+        assert(!cacheBlocks[block_index].pendingData);
+        // No cache block could be in pendingApply and pendingWB at the
+        // same time.
+        assert(!(cacheBlocks[block_index].pendingApply &&
+                cacheBlocks[block_index].pendingWB));
         // Hit
         // TODO: Add a hit latency as a param for this object.
         // Can't just schedule the nextResponseEvent for latency cycles in
@@ -144,20 +321,60 @@ CoalesceEngine::recvWLRead(Addr addr)
                         peerWLEngine->getRegisterFileSize());
         // TODO: Stat to count the number of WLItems that have been touched.
         cacheBlocks[block_index].busyMask |= (1 << wl_offset);
-        stats.readHits++;
+        // If they are scheduled for apply and WB those schedules should be
+        // discarded. Since there is no easy way to take items out of the
+        // function queue. Those functions check for their respective bits
+        // and skip the process if the respective bit is set to false.
+        cacheBlocks[block_index].pendingApply = false;
+        cacheBlocks[block_index].pendingWB = false;
+        DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
+                    block_index, cacheBlocks[block_index].to_string());
 
         if (!nextResponseEvent.scheduled()) {
             schedule(nextResponseEvent, nextCycle());
         }
         stats.numVertexReads++;
         return true;
+    } else if ((cacheBlocks[block_index].addr == aligned_addr) &&
+                (cacheBlocks[block_index].pendingData)) {
+        // Hit under miss
+        DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a hit under miss.\n",
+                                                        __func__, addr);
+        stats.readHitUnderMisses++;
+        assert(!cacheBlocks[block_index].valid);
+        assert(cacheBlocks[block_index].busyMask == 0);
+        assert(!cacheBlocks[block_index].needsWB);
+        assert(!cacheBlocks[block_index].needsApply);
+        assert(!cacheBlocks[block_index].pendingApply);
+        assert(!cacheBlocks[block_index].pendingWB);
+
+        assert(MSHR.size() <= numMSHREntries);
+        assert(MSHR.find(block_index) != MSHR.end());
+        assert(MSHR[block_index].size() <= numTgtsPerMSHR);
+        if (MSHR[block_index].size() == numTgtsPerMSHR) {
+            DPRINTF(CoalesceEngine,  "%s: Out of targets for "
+                        "cacheBlocks[%d]. Rejecting request.\n",
+                                        __func__, block_index);
+            stats.readRejections++;
+            return false;
+        } else {
+            DPRINTF(CoalesceEngine,  "%s: MSHR entries are available for "
+                            "cacheBlocks[%d].\n", __func__, block_index);
+        }
+        MSHR[block_index].push_back(addr);
+        DPRINTF(CoalesceEngine,  "%s: Added Addr: %lu to targets "
+                "for cacheBlocks[%d].\n", __func__, addr, block_index);
+        DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
+                    block_index, cacheBlocks[block_index].to_string());
+        return true;
     } else {
         // miss
+        assert(cacheBlocks[block_index].addr != aligned_addr);
+        assert(MSHR.size() <= numMSHREntries);
         DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a miss.\n", __func__, addr);
         if (MSHR.find(block_index) == MSHR.end()) {
             DPRINTF(CoalesceEngine,  "%s: Respective cacheBlocks[%d] for Addr:"
                     " %lu not found in MSHRs.\n", __func__, block_index, addr);
-            assert(MSHR.size() <= numMSHREntries);
             if (MSHR.size() == numMSHREntries) {
                 // Out of MSHR entries
                 DPRINTF(CoalesceEngine,  "%s: Out of MSHR entries. "
@@ -169,11 +386,12 @@ CoalesceEngine::recvWLRead(Addr addr)
             } else {
                 DPRINTF(CoalesceEngine,  "%s: MSHR "
                     "entries available.\n", __func__);
-                if (cacheBlocks[block_index].allocated) {
-                    assert(MSHR[block_index].size() <= numTgtsPerMSHR);
+                if ((cacheBlocks[block_index].valid) ||
+                    (cacheBlocks[block_index].pendingData)) {
                     DPRINTF(CoalesceEngine,  "%s: Addr: %lu has a conflict "
                                 "with Addr: %lu.\n", __func__, addr,
                                 cacheBlocks[block_index].addr);
+                    assert(MSHR[block_index].size() <= numTgtsPerMSHR);
                     if (MSHR[block_index].size() == numTgtsPerMSHR) {
                         DPRINTF(CoalesceEngine,  "%s: Out of targets for "
                                     "cacheBlocks[%d]. Rejecting request.\n",
@@ -181,43 +399,116 @@ CoalesceEngine::recvWLRead(Addr addr)
                         stats.readRejections++;
                         return false;
                     }
-                    cacheBlocks[block_index].hasConflict = true;
+                    if ((cacheBlocks[block_index].valid) &&
+                        (cacheBlocks[block_index].busyMask == 0) &&
+                        (!cacheBlocks[block_index].pendingApply) &&
+                        (!cacheBlocks[block_index].pendingWB)) {
+                        DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] is in "
+                                    "idle state.\n", __func__, block_index);
+                        // We're in idle state
+                        // Idle: valid && !pendingApply && !pendingWB;
+                        // Note 0: needsApply has to be false. Because
+                        // A cache line enters the idle state from two
+                        // other states. First a busy state that does not
+                        // need apply (needsApply is already false) or
+                        // from pendingApplyState after being applied which
+                        // clears the needsApply bit. needsApply is useful
+                        // when a cache block has transitioned from
+                        // pendingApply to busy without the apply happening.
+                        // Note 1: pendingData does not have to be evaluated
+                        // becuase pendingData is cleared when data
+                        // arrives from the memory and valid does not
+                        // denote cleanliness of the line. Rather it
+                        // is used to differentiate between empty blocks
+                        // and the blocks that have data from memory.
+                        // pendingData denotes the transient state between
+                        // getting a miss and getting the data for that miss.
+                        // valid basically means that the data in the cache
+                        // could be used to respond to read/write requests.
+                        assert(!cacheBlocks[block_index].needsApply);
+                        assert(!cacheBlocks[block_index].pendingData);
+                        // There are no conflicts in idle state.
+                        assert(MSHR.find(block_index) == MSHR.end());
+                        if (cacheBlocks[block_index].needsWB) {
+                            DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] needs"
+                            "to be written back.\n", __func__, block_index);
+                            cacheBlocks[block_index].pendingWB = true;
+                            memoryFunctionQueue.emplace_back(
+                                [this] (int block_index) {
+                                    processNextWriteBack(block_index);
+                                }, block_index);
+                            DPRINTF(CoalesceEngine, "%s: Pushed "
+                                        "processNextWriteBack for input "
+                                        "%d to memoryFunctionQueue.\n",
+                                        __func__, block_index);
+                            if ((!nextMemoryEvent.pending()) &&
+                                (!nextMemoryEvent.scheduled())) {
+                                schedule(nextMemoryEvent, nextCycle());
+                            }
+                            DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: "
+                                    "%s.\n", __func__, block_index,
+                                    cacheBlocks[block_index].to_string());
+                        } else {
+                            DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] does"
+                                            "not need to be written back.\n",
+                                                        __func__, block_index);
+                            cacheBlocks[block_index].addr = aligned_addr;
+                            cacheBlocks[block_index].valid = false;
+                            cacheBlocks[block_index].busyMask = 0;
+                            cacheBlocks[block_index].needsWB = false;
+                            cacheBlocks[block_index].needsApply = false;
+                            cacheBlocks[block_index].pendingData = true;
+                            cacheBlocks[block_index].pendingApply = false;
+                            cacheBlocks[block_index].pendingWB = true;
+                            memoryFunctionQueue.emplace_back(
+                                [this] (int block_index) {
+                                    processNextRead(block_index);
+                                }, block_index);
+                            DPRINTF(CoalesceEngine, "%s: Pushed "
+                                        "processNextRead for input "
+                                        "%d to memoryFunctionQueue.\n",
+                                        __func__, block_index);
+                            if ((!nextMemoryEvent.pending()) &&
+                                (!nextMemoryEvent.scheduled())) {
+                                schedule(nextMemoryEvent, nextCycle());
+                            }
+                            DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: "
+                                    "%s.\n", __func__, block_index,
+                                    cacheBlocks[block_index].to_string());
+                        }
+                    }
+                    // cacheBlocks[block_index].hasConflict = true;
                     MSHR[block_index].push_back(addr);
                     DPRINTF(CoalesceEngine,  "%s: Added Addr: %lu to targets "
                         "for cacheBlocks[%d].\n", __func__, addr, block_index);
                     stats.readMisses++;
+                    // TODO: Add readConflicts here.
                     stats.numVertexReads++;
-                    if ((cacheBlocks[block_index].busyMask == 0) &&
-                        (cacheBlocks[block_index].valid)) {
-                        DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] is not "
-                                            "busy. It %s in the applyQueue.\n",
-                                            __func__, block_index,
-                            applyQueue.find(block_index) ? "is" : "is not");
-                        if (!applyQueue.find(block_index)) {
-                            applyQueue.push_back(block_index);
-                            DPRINTF(CoalesceEngine,  "%s: Added %d to "
-                                        "applyQueue. applyQueue.size = %u.\n",
-                                    __func__, block_index, applyQueue.size());
-                        }
-                        assert(!applyQueue.empty());
-                        if ((!nextApplyEvent.scheduled())) {
-                            schedule(nextApplyEvent, nextCycle());
-                        }
-                    }
                     return true;
                 } else {
-                    assert(!cacheBlocks[block_index].valid);
-                    assert(MSHR[block_index].size() == 0);
                     // MSHR available and no conflict
                     DPRINTF(CoalesceEngine,  "%s: Addr: %lu has no conflict. "
                                             "Allocating a cache line for it.\n"
                                                             , __func__, addr);
+                    assert(!cacheBlocks[block_index].valid);
+                    assert(cacheBlocks[block_index].busyMask == 0);
+                    assert(!cacheBlocks[block_index].needsWB);
+                    assert(!cacheBlocks[block_index].needsApply);
+                    assert(!cacheBlocks[blokc_index].pendingData);
+                    assert(!cacheBlocks[block_index].pendingApply);
+                    assert(!cacheBlocks[block_index].pendingWB);
+                    assert(MSHR[block_index].size() == 0);
 
                     cacheBlocks[block_index].addr = aligned_addr;
                     cacheBlocks[block_index].busyMask = 0;
-                    cacheBlocks[block_index].allocated = true;
                     cacheBlocks[block_index].valid = false;
-                    cacheBlocks[block_index].hasConflict = false;
+                    cacheBlocks[block_index].needsWB = false;
+                    cacheBlocks[block_index].needsApply = false;
+                    cacheBlocks[block_index].pendingData = true;
+                    cacheBlocks[block_index].pendingApply = false;
+                    cacheBlocks[block_index].pendingWB = false;
+                    // cacheBlocks[block_index].allocated = true;
+                    // cacheBlocks[block_index].hasConflict = false;
                     DPRINTF(CoalesceEngine, "%s: Allocated cacheBlocks[%d] for"
                                 " Addr: %lu.\n", __func__, block_index, addr);
                     MSHR[block_index].push_back(addr);
@@ -234,6 +525,9 @@ CoalesceEngine::recvWLRead(Addr addr)
                         (!nextMemoryEvent.scheduled())) {
                         schedule(nextMemoryEvent, nextCycle());
                     }
+                    DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n",
+                                    __func__, block_index,
+                                    cacheBlocks[block_index].to_string());
                     stats.readMisses++;
                     stats.numVertexReads++;
                     return true;
@@ -241,7 +535,11 @@ CoalesceEngine::recvWLRead(Addr addr)
             }
         } else {
             DPRINTF(CoalesceEngine,  "%s: Respective cacheBlocks[%d] for "
-                "Addr: %lu already in MSHRs.\n", __func__, block_index, addr);
+                "Addr: %lu already in MSHRs. It has a conflict "
+                "with addr: %lu.\n", __func__, block_index, addr,
+                                cacheBlocks[block_index].addr);
+            assert(MSHR[block_index].size() <= numTgtsPerMSHR);
+            assert(MSHR[block_index].size() > 0);
             if (MSHR[block_index].size() == numTgtsPerMSHR) {
                 DPRINTF(CoalesceEngine,  "%s: Out of targets for "
                             "cacheBlocks[%d]. Rejecting request.\n",
@@ -249,21 +547,12 @@ CoalesceEngine::recvWLRead(Addr addr)
                 stats.readRejections++;
                 return false;
             }
-            if ((aligned_addr != cacheBlocks[block_index].addr)) {
-                DPRINTF(CoalesceEngine,  "%s: Addr: %lu has a conflict "
-                            "with Addr: %lu.\n", __func__, addr,
-                            cacheBlocks[block_index].addr);
-                cacheBlocks[block_index].hasConflict = true;
-            } else {
-                DPRINTF(CoalesceEngine, "%s: There is room for another target "
+            DPRINTF(CoalesceEngine, "%s: There is room for another target "
                             "for cacheBlocks[%d].\n", __func__, block_index);
-            }
 
-            if (aligned_addr != cacheBlocks[block_index].addr) {
-                stats.readMisses++;
-            } else {
-                stats.readHitUnderMisses++;
-            }
+            // cacheBlocks[block_index].hasConflict = true;
+            // TODO: Might want to differentiate between different misses.
+            stats.readMisses++;
 
             MSHR[block_index].push_back(addr);
             DPRINTF(CoalesceEngine,  "%s: Added Addr: %lu to targets for "
@@ -324,8 +613,15 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
     }
 
     if (cacheBlocks[block_index].addr == addr) {
-        assert(cacheBlocks[block_index].allocated);
+        DPRINTF(CoalesceEngine, "%s: Received read response to "
+                "fill cacheBlocks[%d].\n", __func__, block_index);
         assert(!cacheBlocks[block_index].valid);
+        assert(cacheBlocks[block_index].busyMask == 0);
+        assert(!cacheBlocks[block_index].needsWB);
+        assert(!cacheBlocks[block_index].needsApply);
+        assert(cacheBlocks[block_index].pendingData);
+        assert(!cacheBlocks[block_index].pendingApply);
+        assert(!cacheBlocks[block_index].pendingWB);
         assert(MSHR.find(block_index) != MSHR.end());
         pkt->writeDataToBlock((uint8_t*) cacheBlocks[block_index].items,
                                                 peerMemoryAtomSize);
@@ -335,6 +631,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                             cacheBlocks[block_index].items[i].to_string());
         }
         cacheBlocks[block_index].valid = true;
+        cacheBlocks[block_index].pendingData = false;
         delete pkt;
     }
 
