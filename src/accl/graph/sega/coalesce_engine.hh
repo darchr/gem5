@@ -59,9 +59,6 @@ class CoalesceEngine : public BaseMemoryEngine
         bool pendingData;
         bool pendingApply;
         bool pendingWB;
-
-        bool allocated;
-        bool hasConflict;
         // TODO: This might be useful in the future
         // Tick lastWLWriteTick;
         Block() {}
@@ -73,9 +70,7 @@ class CoalesceEngine : public BaseMemoryEngine
           needsWB(false),
           pendingData(false),
           pendingApply(false),
-          pendingWB(false),
-          allocated(false),
-          hasConflict(false)
+          pendingWB(false)
         {
           items = new WorkListItem [num_elements];
         }
