@@ -198,7 +198,11 @@ CoalesceEngine::recvWLRead(Addr addr)
         return true;
     } else {
         // miss
-        assert(cacheBlocks[block_index].addr != aligned_addr);
+        // FIXME: Kake this assert work. It will break if the cache block
+        // is cold and addr or aligned_addr is 0. It fails because cache block
+        // addr field is initialized to 0. Unfortunately Addr type is unsigned.
+        // So you can not initialized addr to -1.
+        // assert(cacheBlocks[block_index].addr != aligned_addr);
         assert(MSHR.size() <= numMSHREntries);
         DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a miss.\n", __func__, addr);
         if (MSHR.find(block_index) == MSHR.end()) {
@@ -220,14 +224,6 @@ CoalesceEngine::recvWLRead(Addr addr)
                     DPRINTF(CoalesceEngine,  "%s: Addr: %lu has a conflict "
                                 "with Addr: %lu.\n", __func__, addr,
                                 cacheBlocks[block_index].addr);
-                    assert(MSHR[block_index].size() <= numTgtsPerMSHR);
-                    if (MSHR[block_index].size() == numTgtsPerMSHR) {
-                        DPRINTF(CoalesceEngine,  "%s: Out of targets for "
-                                    "cacheBlocks[%d]. Rejecting request.\n",
-                                    __func__, block_index);
-                        stats.readRejections++;
-                        return false;
-                    }
                     if ((cacheBlocks[block_index].valid) &&
                         (cacheBlocks[block_index].busyMask == 0) &&
                         (!cacheBlocks[block_index].pendingApply) &&
@@ -288,7 +284,7 @@ CoalesceEngine::recvWLRead(Addr addr)
                             cacheBlocks[block_index].needsApply = false;
                             cacheBlocks[block_index].pendingData = true;
                             cacheBlocks[block_index].pendingApply = false;
-                            cacheBlocks[block_index].pendingWB = true;
+                            cacheBlocks[block_index].pendingWB = false;
                             memoryFunctionQueue.emplace_back(
                                 [this] (int block_index) {
                                     processNextRead(block_index);
@@ -323,7 +319,7 @@ CoalesceEngine::recvWLRead(Addr addr)
                     assert(cacheBlocks[block_index].busyMask == 0);
                     assert(!cacheBlocks[block_index].needsWB);
                     assert(!cacheBlocks[block_index].needsApply);
-                    assert(!cacheBlocks[blokc_index].pendingData);
+                    assert(!cacheBlocks[block_index].pendingData);
                     assert(!cacheBlocks[block_index].pendingApply);
                     assert(!cacheBlocks[block_index].pendingWB);
                     assert(MSHR[block_index].size() == 0);
@@ -607,6 +603,10 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
             applyQueue.push_back(block_index);
             DPRINTF(CoalesceEngine, "%s: Added cacheBlocks[%d] to "
                             "applyQueue.\n", __func__, block_index);
+            if ((!applyQueue.empty()) &&
+                (!nextApplyEvent.scheduled())) {
+                schedule(nextApplyEvent, nextCycle());
+            }
         } else {
             assert(MSHR.size() <= numMSHREntries);
             // cache line has conflict.
@@ -666,70 +666,71 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                 block_index, cacheBlocks[block_index].to_string());
 
-    if ((!applyQueue.empty()) &&
-        (!nextApplyEvent.scheduled())) {
-        schedule(nextApplyEvent, nextCycle());
-    }
-
 }
 
 void
 CoalesceEngine::processNextApplyEvent()
 {
     int block_index = applyQueue.front();
+    DPRINTF(CoalesceEngine, "%s: Looking at the front of the applyQueue. "
+                "cacheBlock[%d] to be applied.\n", __func__, block_index);
+    DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n",
+            __func__, cacheBlocks[block_index].to_string());
+    assert(cacheBlocks[block_index].valid);
+    assert(cacheBlocks[block_index].needsApply);
+    assert(!cacheBlocks[block_index].pendingData);
+    assert(!cacheBlocks[block_index].pendingWB);
 
-    if (cacheBlocks[block_index].busyMask != 0) {
-        DPRINTF(CoalesceEngine,  "%s: cacheBlocks[%d] has been taken amid "
-                    "apply process. Therefore, ignoring the apply schedule.\n",
-                    __func__, block_index);
-        stats.falseApplySchedules++;
-    } else if (!cacheBlocks[block_index].dirty) {
-        DPRINTF(CoalesceEngine,  "%s: cacheBlocks[%d] has no change. "
-                    "Therefore, no apply needed.\n", __func__, block_index);
-    } else {
-        DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] could be applied.\n",
-                                                    __func__, block_index);
-        for (int i = 0; i < numElementsPerLine; i++) {
-            uint32_t old_prop = cacheBlocks[block_index].items[i].prop;
-            uint32_t new_prop = std::min(
-                                cacheBlocks[block_index].items[i].prop,
-                                cacheBlocks[block_index].items[i].tempProp);
+    if (cacheBlocks[block_index].pendingApply) {
+        assert(cacheBlocks[block_index].busyMask == 0);
+        for (int index = 0; index < numElementsPerLine; index++) {
+            uint32_t current_prop = cacheBlocks[block_index].items[index].prop;
+            uint32_t new_prop = std::min(current_prop,
+                            cacheBlocks[block_index].items[index].tempProp);
+            if (new_prop != current_prop) {
+                cacheBlocks[block_index].items[index].tempProp = new_prop;
+                cacheBlocks[block_index].items[index].prop = new_prop;
+                DPRINTF(ApplyUpdates, "%s: WorkListItem[%lu][%d]: %s.\n",
+                    __func__, cacheBlocks[block_index].addr, index,
+                    cacheBlocks[block_index].items[index].to_string());
 
-            if (new_prop != old_prop) {
-                cacheBlocks[block_index].items[i].tempProp = new_prop;
-                cacheBlocks[block_index].items[i].prop = new_prop;
-                DPRINTF(ApplyUpdates, "%s: WorkListItem[%lu]: %s.\n", __func__,
-                    cacheBlocks[block_index].addr + (i  * sizeof(WorkListItem)),
-                    cacheBlocks[block_index].items[i].to_string());
-                int bit_index =
-                        getBitIndexBase(cacheBlocks[block_index].addr) + i;
-                if ((cacheBlocks[block_index].items[i].degree != 0) &&
-                    (needsPush[bit_index] == 0)) {
-                    // If the respective bit in the bit vector is set
-                    // there is no need to try and resend it.
+                int bit_index_base =
+                            getBitIndexBase(cacheBlocks[block_index].addr);
+                if ((needsPush[bit_index_base + index] == 0) &&
+                    (cacheBlocks[block_index].items[index].degree != 0)) {
                     if (peerPushEngine->allocatePushSpace()) {
                         peerPushEngine->recvWLItem(
-                            cacheBlocks[block_index].items[i]);
+                            cacheBlocks[block_index].items[index]);
                     } else {
-                        needsPush[bit_index] = 1;
+                        needsPush[bit_index_base + index] = 1;
                     }
                 }
             }
         }
-    }
+        cacheBlocks[block_index].needsWB = true;
+        cacheBlocks[block_index].needsApply = false;
+        cacheBlocks[block_index].pendingApply = false;
 
-    // TODO: This is where eviction policy goes
-    if ((cacheBlocks[block_index].hasConflict) &&
-        (cacheBlocks[block_index].busyMask == 0)) {
-        memoryFunctionQueue.emplace_back([this] (int block_index) {
+        assert(MSHR.size() < numMSHREntries);
+        if (MSHR.find(block_index) != MSHR.end()) {
+            DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] has pending "
+                                "conflicts.\n", __func__, block_index);
+            cacheBlocks[block_index].pendingWB = true;
+            memoryFunctionQueue.emplace_back([this] (int block_index) {
                 processNextWriteBack(block_index);
             }, block_index);
-        DPRINTF(CoalesceEngine, "%s: Pushed processNextWriteBack for input %d "
-                        "to memoryFunctionQueue.\n", __func__, block_index);
-        if ((!nextMemoryEvent.pending()) &&
-            (!nextMemoryEvent.scheduled())) {
-            schedule(nextMemoryEvent, nextCycle());
+            DPRINTF(CoalesceEngine, "%s: Pushed processNextWriteBack for input"
+                    " %d to memoryFunctionQueue.\n", __func__, block_index);
+            if ((!nextMemoryEvent.pending()) &&
+                (!nextMemoryEvent.scheduled())) {
+                schedule(nextMemoryEvent, nextCycle());
+            }
+        } else {
+            DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] is in "
+                    "idle state now.\n", __func__, block_index);
         }
+        DPRINTF(CacheBlockState, "%s: cacheBlock[%d]: %s.\n", __func__,
+                    block_index, cacheBlocks[block_index].to_string());
     }
 
     applyQueue.pop_front();
@@ -770,6 +771,17 @@ CoalesceEngine::processNextMemoryEvent()
 void
 CoalesceEngine::processNextRead(int block_index)
 {
+    DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] to be filled.\n",
+                                            __func__, block_index);
+    DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n",
+        __func__, block_index, cacheBlocks[block_index].to_string());
+    assert(!cacheBlocks[block_index].valid);
+    assert(cacheBlocks[block_index].busyMask == 0);
+    assert(!cacheBlocks[block_index].needsWB);
+    assert(!cacheBlocks[block_index].needsApply);
+    assert(cacheBlocks[block_index].pendingData);
+    assert(!cacheBlocks[block_index].pendingApply);
+    assert(!cacheBlocks[block_index].pendingWB);
     PacketPtr pkt = createReadPacket(cacheBlocks[block_index].addr,
                                     peerMemoryAtomSize);
     DPRINTF(CoalesceEngine,  "%s: Created a read packet. addr = %lu, "
@@ -781,54 +793,53 @@ CoalesceEngine::processNextRead(int block_index)
 void
 CoalesceEngine::processNextWriteBack(int block_index)
 {
-    // Why would we write it back if it does not have a conflict?
-    assert(cacheBlocks[block_index].hasConflict);
+    DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] to be written back.\n",
+                                                __func__, block_index);
+    DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
+                block_index, cacheBlocks[block_index].to_string());
+    assert(cacheBlocks[block_index].valid);
+    assert(cacheBlocks[block_index].needsWB);
+    assert(!cacheBlocks[block_index].pendingData);
+    assert(!cacheBlocks[block_index].pendingApply);
 
-    if ((cacheBlocks[block_index].busyMask != 0) ||
-        (applyQueue.find(block_index))) {
-        DPRINTF(CoalesceEngine,  "%s: cacheBlocks[%d] has been taken amid "
-                "writeback process. Therefore, ignoring the apply schedule.\n",
-                    __func__, block_index);
-        // FIXME: Fix the name of this stat.
-        stats.falseEvictSchedules++;
-    } else {
-        if (cacheBlocks[block_index].dirty) {
-            DPRINTF(CoalesceEngine,  "%s: Change observed on "
-                    "cacheBlocks[%d].\n", __func__, block_index);
-            PacketPtr write_pkt = createWritePacket(
+    // Why would we write it back if it does not have a conflict.
+    assert(MSHR.size() <= numMSHREntries);
+    assert(MSHR.find(block_index) != MSHR.end());
+    if (cacheBlocks[block_index].pendingWB) {
+        assert(cacheBlocks[block_index].busyMask == 0);
+        assert(!cacheBlocks[block_index].needsApply);
+        PacketPtr pkt = createWritePacket(
                 cacheBlocks[block_index].addr, peerMemoryAtomSize,
                 (uint8_t*) cacheBlocks[block_index].items);
-            DPRINTF(CoalesceEngine,  "%s: Created a write packet to "
+        DPRINTF(CoalesceEngine,  "%s: Created a write packet to "
                         "Addr: %lu, size = %d.\n", __func__,
-                        write_pkt->getAddr(), write_pkt->getSize());
-            memPort.sendPacket(write_pkt);
-        } else {
-            DPRINTF(CoalesceEngine, "%s: No change observed on "
-                            "cacheBlocks[%d]. No write back needed.\n",
-                                            __func__, block_index);
-        }
-        assert(!MSHR[block_index].empty());
+                        pkt->getAddr(), pkt->getSize());
+        memPort.sendPacket(pkt);
+        cacheBlocks[block_index].needsWB = false;
+        cacheBlocks[block_index].pendingWB = false;
+
         Addr miss_addr = MSHR[block_index].front();
-        DPRINTF(CoalesceEngine,  "%s: First conflicting address for "
-                                    "cacheBlocks[%d] is Addr: %lu.\n",
-                                    __func__, block_index, miss_addr);
         Addr aligned_miss_addr =
-            roundDown<Addr, size_t>(miss_addr, peerMemoryAtomSize);
+                        roundDown<Addr, size_t>(miss_addr, peerMemoryAtomSize);
+        DPRINTF(CoalesceEngine, "%s: First conflicting address for"
+                    " cacheBlocks[%d] is addr: %lu, aligned_addr: %lu.\n",
+                    __func__, block_index, miss_addr, aligned_miss_addr);
 
         cacheBlocks[block_index].addr = aligned_miss_addr;
-        cacheBlocks[block_index].busyMask = 0;
-        cacheBlocks[block_index].allocated = true;
         cacheBlocks[block_index].valid = false;
-        cacheBlocks[block_index].hasConflict = true;
-        cacheBlocks[block_index].dirty = false;
-        DPRINTF(CoalesceEngine,  "%s: Allocated cacheBlocks[%d] for "
-                "Addr: %lu.\n", __func__, block_index, aligned_miss_addr);
-
+        cacheBlocks[block_index].busyMask = 0;
+        cacheBlocks[block_index].needsWB = false;
+        cacheBlocks[block_index].needsApply = false;
+        cacheBlocks[block_index].pendingData = true;
+        cacheBlocks[block_index].pendingApply = false;
+        cacheBlocks[block_index].pendingWB = false;
         memoryFunctionQueue.emplace_back([this] (int block_index) {
-                processNextRead(block_index);
-            }, block_index);
-        DPRINTF(CoalesceEngine, "%s: Pushed processNextRead for input %d to "
-                            "memoryFunctionQueue.\n", __func__, block_index);
+            processNextRead(block_index);
+        }, block_index);
+        DPRINTF(CoalesceEngine, "%s: Pushed processNextRead for input"
+                " %d to memoryFunctionQueue.\n", __func__, block_index);
+        DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
+                    block_index, cacheBlocks[block_index].to_string());
     }
 }
 
@@ -866,7 +877,7 @@ CoalesceEngine::getOptimalBitVectorSlice()
             // }
             return std::make_tuple(true, it);
         } else if (!((cacheBlocks[block_index].addr == addr) &&
-                    (cacheBlocks[block_index].allocated))) {
+                    (cacheBlocks[block_index].pendingData))) {
             // score += numElementsPerLine;
             // if (current_score > score) {
             //     score = current_score;
