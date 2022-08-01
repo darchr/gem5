@@ -284,13 +284,10 @@ BaseCPU::init()
     // Typically, there are more than one action points.
     // Simulation.py is responsible to take the necessary actions upon
     // exitting the simulation loop.
-    if (!params().simpoint_start_insts.empty()) {
-        const char *cause1 = "simpoint starting point found";
-        const char *cause2 = "simpoint ending point found";
-        for (size_t i = 0; i < params().simpoint_start_insts.size(); ++i) {
-            scheduleInstStop(0, params().simpoint_start_insts[i], cause1);
-            scheduleInstStop(0, params().simpoint_end_insts[i], cause2);
-        }
+    if (!params().simpoint_start_insts.empty() && params().schedule_at_init) {
+
+        scheduleSimpoint(0);
+
     }
 
     if (params().max_insts_all_threads != 0) {
@@ -730,6 +727,28 @@ BaseCPU::traceFunctionsInternal(Addr pc)
     }
 }
 
+void
+BaseCPU::scheduleSimpoint(Counter end_point)
+{
+    const char *cause1 = "simpoint starting point found";
+    const char *cause2 = "simpoint ending point found";
+    if (end_point == 0)
+    {
+        for (size_t i = 0; i < params().simpoint_start_insts.size(); ++i) {
+            scheduleInstStop(0, params().simpoint_start_insts[i], cause1);
+            scheduleInstStop(
+                0,
+                ((params().simpoint_start_insts[i] + \
+                params().simpoint_interval) -1) ,
+                cause2
+            );
+        }
+    }
+    else {
+        scheduleInstStop(0, end_point-1, cause2);
+    }
+
+}
 
 BaseCPU::GlobalStats::GlobalStats(statistics::Group *parent)
     : statistics::Group(parent),

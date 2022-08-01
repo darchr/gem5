@@ -91,12 +91,12 @@ class SEBinaryWorkload:
         # simpoint part start
         if simpoint_starts is not None:
           simpoint_begin_inst = []
-          simpoint_end_inst = []
           for point in simpoint_starts:
             simpoint_begin_inst.append(point * simpoint_interval)
-            simpoint_end_inst.append((point+1)*simpoint_interval - 1)
-          self.get_processor().get_cores()[0].set_simpoint(simpoint_begin_inst,
-            simpoint_end_inst)
+          self.get_processor().get_cores()[0].set_simpoint(
+              simpoint_begin_inst,
+              simpoint_interval
+            )
         # simpoint part end
 
         # Set whether to exit on work items for the se_workload

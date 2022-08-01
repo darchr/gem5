@@ -40,8 +40,7 @@ from .exit_event_generators import (
     default_switch_generator,
     default_workbegin_generator,
     default_workend_generator,
-    default_simpoint_found,
-    default_simpoint_end,
+    default_simpoint_generator,
 )
 from .exit_event import ExitEvent
 from ..components.boards.abstract_board import AbstractBoard
@@ -80,7 +79,6 @@ class Simulator:
         ] = None,
         expected_execution_order: Optional[List[ExitEvent]] = None,
         checkpoint_path: Optional[Path] = None,
-        simpoint_take_checkpoint: Optional[bool]=False
     ) -> None:
         """
         :param board: The board to be simulated.
@@ -158,8 +156,6 @@ class Simulator:
 
         # We specify a dictionary here outlining the default behavior for each
         # exit event. Each exit event is mapped to a generator.
-        self._simpoint_checkpoints_counter = 0
-        self._take_checkpoint = simpoint_take_checkpoint
         self._default_on_exit_dict = {
             ExitEvent.EXIT: default_exit_generator(),
             # TODO: Something else should be done here for CHECKPOINT
@@ -172,11 +168,8 @@ class Simulator:
             ExitEvent.WORKEND: default_workend_generator(),
             ExitEvent.USER_INTERRUPT: default_exit_generator(),
             ExitEvent.MAX_TICK: default_exit_generator(),
-            ExitEvent.SIMPOINT_BEGIN: default_simpoint_found(
-                counter= self._simpoint_checkpoints_counter,
-                take_checkpoint= self._take_checkpoint
-            ),
-            ExitEvent.SIMPOINT_END: default_simpoint_end(),
+            ExitEvent.SIMPOINT_BEGIN: default_simpoint_generator(),
+            ExitEvent.SIMPOINT_END: default_simpoint_generator(),
         }
 
         if on_exit_event:

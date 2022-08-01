@@ -139,10 +139,12 @@ class SimpleCore(BaseCPUCore):
     def set_simpoint(
         self, 
         simpoint_starts: List[int], 
-        simpoint_ends: List[int]
+        simpoint_interval: int,
+        schedule_at_init: bool = True
     ) -> None:
         self.core.simpoint_start_insts = simpoint_starts
-        self.core.simpoint_end_insts = simpoint_ends
+        self.core.simpoint_interval = simpoint_interval
+        self.core.schedule_at_init = schedule_at_init
 
     @overrides(AbstractCore)
     def set_switched_out(self, value: bool) -> None:
@@ -160,3 +162,4 @@ class SimpleCore(BaseCPUCore):
             )
 
         return to_return_cls(cpu_id=core_id)
+
