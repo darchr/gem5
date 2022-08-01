@@ -140,6 +140,8 @@ class KernelDiskWorkload:
         readfile_contents: Optional[str] = None,
         kernel_args: Optional[List[str]] = None,
         exit_on_work_items: bool = True,
+        simpoint_starts: Optional[List[int]] = None,
+        simpoint_interval: Optional[int] = None,
     ) -> None:
         """
         This function allows the setting of a full-system run with a Kernel
@@ -201,4 +203,17 @@ class KernelDiskWorkload:
         self._add_disk_to_board(disk_image=disk_image)
 
         # Set whether to exit on work items.
+
+        #simpoint begin
+        if simpoint_starts is not None:
+          simpoint_begin_inst = []
+          for point in simpoint_starts:
+            simpoint_begin_inst.append(point * simpoint_interval)
+          self.get_processor().get_cores()[0].set_simpoint(
+              simpoint_begin_inst,
+              simpoint_interval,
+              False
+            )
+        #simpoint end
+
         self.exit_on_work_items = exit_on_work_items
