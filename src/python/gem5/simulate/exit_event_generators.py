@@ -107,23 +107,6 @@ def default_workend_generator():
         yield False
 
 
-def default_simpoint_found(counter: int, take_checkpoint: bool):
+def default_simpoint_generator():
     while True:
-        print("hello, this is simpoint found")
-        if take_checkpoint:
-            if not os.path.exists("testing_simpoint_checkpoint"):
-                os.mkdir("testing_simpoint_checkpoint")
-            m5.checkpoint(joinpath("testing_simpoint_checkpoint",f"cpt.simpoint_checkpoint{counter}"))
-            counter += 1
-        else:
-            m5.stats.dump()
-            m5.stats.reset()
-        yield False
-
-
-def default_simpoint_end():
-    while True:
-        print("bye, this is simpoint end")
-        m5.stats.dump()
-        m5.stats.reset()
         yield False

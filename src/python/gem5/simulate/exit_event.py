@@ -46,8 +46,8 @@ class ExitEvent(Enum):
     USER_INTERRUPT = (  # An exit due to a user interrupt (e.g., cntr + c)
         "user interupt"
     )
-    SIMPOINT_BEGIN = "simpoint begin"
-    SIMPOINT_END = "simpoint end"
+    SIMPOINT_BEGIN = "simpoint begins"
+    SIMPOINT_END = "simpoint ends"
 
     @classmethod
     def translate_exit_status(cls, exit_string: str) -> "ExitEvent":

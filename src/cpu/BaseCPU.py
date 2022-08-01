@@ -71,6 +71,7 @@ class BaseCPU(ClockedObject):
         PyBindMethod("totalInsts"),
         PyBindMethod("scheduleInstStop"),
         PyBindMethod("getCurrentInstCount"),
+        PyBindMethod("scheduleSimpoint")
     ]
 
     @classmethod
@@ -132,24 +133,22 @@ class BaseCPU(ClockedObject):
     isa = VectorParam.BaseISA([], "ISA instance")
     decoder = VectorParam.InstDecoder([], "Decoder instance")
 
-    max_insts_all_threads = Param.Counter(
-        0, "terminate when all threads have reached this inst count"
-    )
-    max_insts_any_thread = Param.Counter(
-        0, "terminate when any thread reaches this inst count"
-    )
-    simpoint_start_insts = VectorParam.Counter(
-        [], "starting instruction counts of simpoints"
-    )
-    progress_interval = Param.Frequency(
-        "0Hz", "frequency to print out the progress message"
-    )
+    max_insts_all_threads = Param.Counter(0,
+        "terminate when all threads have reached this inst count")
+    max_insts_any_thread = Param.Counter(0,
+        "terminate when any thread reaches this inst count")
+    simpoint_start_insts = VectorParam.Counter([],
+        "starting instruction counts of simpoints")
+    simpoint_interval = Param.Counter(0,
+        "interval length of simpoints")
+    schedule_at_init = Param.Bool(True,"if the simpoint should be scheduled"
+        "at the init stage")
+    progress_interval = Param.Frequency('0Hz',
+        "frequency to print out the progress message")
 
-    switched_out = Param.Bool(
-        False,
-        "Leave the CPU switched out after startup (used when switching "
-        "between CPU models)",
-    )
+    switched_out = Param.Bool(False,
+        "Leave the CPU switched out after startup (used when switching " \
+        "between CPU models)")
 
     tracer = Param.InstTracer(default_tracer, "Instruction tracer")
 
