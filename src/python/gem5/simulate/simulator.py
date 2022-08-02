@@ -188,6 +188,13 @@ class Simulator:
 
         self._checkpoint_path = checkpoint_path
 
+    def schedule_simpoint(self, simpoint_end_inst: int = 0):
+        self._board.get_processor().get_cores()[0].\
+                        fs_set_simpoint(simpoint_end_inst)
+
+    def schedule_simpoint_restore_stop(self, simpoint_interval: int):
+        self._board.get_processor().get_cores()[0].\
+                        set_simpoint([0],simpoint_interval)
 
     def get_stats(self) -> Dict:
         """
