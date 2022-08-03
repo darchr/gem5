@@ -39,10 +39,15 @@ Source('coalesce_engine.cc')
 Source('push_engine.cc')
 Source('wl_engine.cc')
 
-DebugFlag('BaseMemoryEngine')
 DebugFlag('ApplyUpdates')
+DebugFlag('BaseMemoryEngine')
+DebugFlag('BitVector')
 DebugFlag('CenteralController')
-DebugFlag('CoalesceEngine')
 DebugFlag('CacheBlockState')
+DebugFlag('CoalesceEngine')
 DebugFlag('PushEngine')
+DebugFlag('SEGAStructureSize')
 DebugFlag('WLEngine')
+
+CompoundFlag('MPU', ['CoalesceEngine', 'PushEngine',
+                    'WLEngine', 'BaseMemoryEngine'])
