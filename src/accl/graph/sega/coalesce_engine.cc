@@ -728,7 +728,7 @@ CoalesceEngine::processNextApplyEvent()
         cacheBlocks[block_index].pendingApply = false;
         cacheBlocks[block_index].lastChangedTick = curTick();
 
-        assert(MSHR.size() < numMSHREntries);
+        assert(MSHR.size() <= numMSHREntries);
         if (MSHR.find(block_index) != MSHR.end()) {
             DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] has pending "
                                 "conflicts.\n", __func__, block_index);
