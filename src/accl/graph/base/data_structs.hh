@@ -47,7 +47,7 @@ struct __attribute__ ((packed)) WorkListItem
     std::string to_string()
     {
         return csprintf(
-        "WorkListItem{temp_prop: %u, prop: %u, degree: %u, edgeIndex: %u}",
+        "WorkListItem{tempProp: %u, prop: %u, degree: %u, edgeIndex: %u}",
         tempProp, prop, degree, edgeIndex);
     }
 
