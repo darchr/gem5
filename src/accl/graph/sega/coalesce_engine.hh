@@ -59,6 +59,7 @@ class CoalesceEngine : public BaseMemoryEngine
         bool pendingData;
         bool pendingApply;
         bool pendingWB;
+        Tick lastChangedTick;
         // TODO: This might be useful in the future
         // Tick lastWLWriteTick;
         Block() {}
@@ -70,7 +71,8 @@ class CoalesceEngine : public BaseMemoryEngine
           needsWB(false),
           pendingData(false),
           pendingApply(false),
-          pendingWB(false)
+          pendingWB(false),
+          lastChangedTick(0)
         {
           items = new WorkListItem [num_elements];
         }
@@ -78,10 +80,11 @@ class CoalesceEngine : public BaseMemoryEngine
         std::string to_string() {
             return csprintf("CacheBlock{addr: %lu, busyMask: %lu, valid: %s, "
                 "needsApply: %s, needsWB: %s, pendingData: %s, "
-                "pendingApply: %s, pendingWB: %s}", addr, busyMask,
-                valid ? "true" : "false", needsApply ? "true" : "false",
-                needsWB ? "true" : "false", pendingData ? "true" : "false",
-                pendingApply ? "true" : "false", pendingWB ? "true" : "false");
+                "pendingApply: %s, pendingWB: %s, lastChangedTick: %lu}",
+                addr, busyMask, valid ? "true" : "false",
+                needsApply ? "true" : "false", needsWB ? "true" : "false",
+                pendingData ? "true" : "false", pendingApply ? "true" : "false",
+                pendingWB ? "true" : "false", lastChangedTick);
         }
     };
 
@@ -114,10 +117,10 @@ class CoalesceEngine : public BaseMemoryEngine
 
     MemoryEvent nextMemoryEvent;
     void processNextMemoryEvent();
-    void processNextRead(int block_index);
-    void processNextWriteBack(int block_index);
-    void processNextPushRetry(int slice_base);
-    std::deque<std::tuple<std::function<void(int)>, int>> memoryFunctionQueue;
+    void processNextRead(int block_index, Tick schedule_tick);
+    void processNextWriteBack(int block_index, Tick schedule_tick);
+    void processNextPushRetry(int slice_base, Tick schedule_tick);
+    std::deque<std::tuple<std::function<void(int, Tick)>, int, Tick>> memoryFunctionQueue;
 
     EventFunctionWrapper nextResponseEvent;
     void processNextResponseEvent();
@@ -151,12 +154,11 @@ class CoalesceEngine : public BaseMemoryEngine
 
   public:
     PARAMS(CoalesceEngine);
-
     CoalesceEngine(const Params &params);
+    virtual DrainState drain() override;
 
     bool recvWLRead(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);
-
     void registerWLEngine(WLEngine* wl_engine);
 
     void recvPushRetry();
