@@ -284,9 +284,9 @@ BaseCPU::init()
     // Typically, there are more than one action points.
     // Simulation.py is responsible to take the necessary actions upon
     // exitting the simulation loop.
-    if (!params().simpoint_start_insts.empty() && params().schedule_at_init) {
+    if (!params().simpoint_start_insts.empty()) {
 
-        scheduleSimpoint(0);
+        scheduleSimpoint(0,params().simpoint_start_insts);
 
     }
 
@@ -728,24 +728,24 @@ BaseCPU::traceFunctionsInternal(Addr pc)
 }
 
 void
-BaseCPU::scheduleSimpoint(Counter end_point)
+BaseCPU::scheduleSimpoint(
+    Counter end_point,
+    std::vector<Counter> starting_points
+    )
 {
     const char *cause1 = "simpoint starting point found";
     const char *cause2 = "simpoint ending point found";
-    if (end_point == 0)
+    if (!starting_points.empty())
     {
-        for (size_t i = 0; i < params().simpoint_start_insts.size(); ++i) {
-            scheduleInstStop(0, params().simpoint_start_insts[i], cause1);
-            scheduleInstStop(
-                0,
-                ((params().simpoint_start_insts[i] + \
-                params().simpoint_interval) -1) ,
-                cause2
-            );
+        for (size_t i = 0; i < starting_points.size(); ++i) {
+                scheduleInstStop(0, starting_points[i], cause1);
         }
     }
     else {
         scheduleInstStop(0, end_point-1, cause2);
+        // problem might occur when starting point = [0,1], because for inst 0,
+        // the event are scheduled at inst 1, and when inst 1 schedule an end
+        // point, the end point event will get scheduled at 1*interval length
     }
 
 }

@@ -139,10 +139,6 @@ class BaseCPU(ClockedObject):
         "terminate when any thread reaches this inst count")
     simpoint_start_insts = VectorParam.Counter([],
         "starting instruction counts of simpoints")
-    simpoint_interval = Param.Counter(0,
-        "interval length of simpoints")
-    schedule_at_init = Param.Bool(True,"if the simpoint should be scheduled"
-        "at the init stage")
     progress_interval = Param.Frequency('0Hz',
         "frequency to print out the progress message")
 

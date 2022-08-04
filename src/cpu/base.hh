@@ -171,7 +171,10 @@ class BaseCPU : public ClockedObject
      */
     virtual Port &getDataPort() = 0;
 
-    void scheduleSimpoint(Counter  end_point);
+    void scheduleSimpoint(
+      Counter end_point,
+      std::vector<Counter> starting_points
+    );
     /**
      * Purely virtual method that returns a reference to the instruction
      * port. All subclasses must implement this method.
