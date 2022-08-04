@@ -201,5 +201,4 @@ class KernelDiskWorkload:
         self._add_disk_to_board(disk_image=disk_image)
 
         # Set whether to exit on work items.
-
         self.exit_on_work_items = exit_on_work_items
