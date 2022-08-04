@@ -286,7 +286,7 @@ BaseCPU::init()
     // exitting the simulation loop.
     if (!params().simpoint_start_insts.empty()) {
 
-        scheduleSimpoint(0,params().simpoint_start_insts);
+        scheduleSimpoint(0, params().simpoint_start_insts);
 
     }
 
