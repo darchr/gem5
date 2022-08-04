@@ -41,6 +41,8 @@ from .exit_event_generators import (
     default_workbegin_generator,
     default_workend_generator,
     default_simpoint_generator,
+    simpoint_dump_reset_generator,
+    simpoint_save_checkpoint_generator,
 )
 from .exit_event import ExitEvent
 from ..components.boards.abstract_board import AbstractBoard
@@ -188,13 +190,17 @@ class Simulator:
 
         self._checkpoint_path = checkpoint_path
 
-    def schedule_simpoint(self, simpoint_end_inst: int = 0):
+    def schedule_simpoint(
+        self,
+        simpoint_end_inst: int = 0,
+        simpoint_start_insts: List[int] = []
+        ):
         self._board.get_processor().get_cores()[0].\
-                        fs_set_simpoint(simpoint_end_inst)
+                        set_simpoint(simpoint_end_inst,simpoint_start_insts)
 
     def schedule_simpoint_restore_stop(self, simpoint_interval: int):
         self._board.get_processor().get_cores()[0].\
-                        set_simpoint([0],simpoint_interval)
+                        init_simpoint([simpoint_interval])
 
     def get_stats(self) -> Dict:
         """

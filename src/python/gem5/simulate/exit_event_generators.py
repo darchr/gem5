@@ -29,6 +29,7 @@ from ..components.processors.abstract_processor import AbstractProcessor
 from ..components.processors.switchable_processor import SwitchableProcessor
 from m5.util import warn
 from os.path import join as joinpath
+from pathlib import Path
 import os
 
 """
@@ -108,5 +109,26 @@ def default_workend_generator():
 
 
 def default_simpoint_generator():
+    """
+    A default generator for simpoints. It will do nothing.
+    """
+    defaultBehaviorWarning(
+        "default_simpoint_generator",
+        "A default generator for simpoints. It will do nothing.")
     while True:
+        yield False
+
+def simpoint_dump_reset_generator():
+    while True:
+        # only print for testing purpose
+        print("got to the simpoint_dump_reset_gnereator\n")
+        m5.stats.dump()
+        m5.stats.reset()
+        yield False
+
+def simpoint_save_checkpoint_generator(checkpoint_dir: Path):
+    while True:
+        # only print for testing purpose
+        print("got to the simpoint_save_checkpoint_generator\n")
+        m5.checkpoint(joinpath(checkpoint_dir,f"cpt.{str(m5.curTick())}"))
         yield False

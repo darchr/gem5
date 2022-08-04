@@ -26,6 +26,7 @@
 
 from .abstract_board import AbstractBoard
 from ...resources.resource import AbstractResource
+from gem5.components.processors.simpoint import Simpoint
 
 from m5.objects import SEWorkload, Process
 
@@ -51,8 +52,7 @@ class SEBinaryWorkload:
         exit_on_work_items: bool = True,
         stdin_file: Optional[AbstractResource] = None,
         arguments: List[str] = [],
-        simpoint_starts: Optional[List[int]] = None,
-        simpoint_interval: Optional[int] = None,
+        simpoint: Simpoint = None
     ) -> None:
         """Set up the system to run a specific binary.
 
@@ -89,13 +89,9 @@ class SEBinaryWorkload:
             core.set_workload(process)
 
         # simpoint part start
-        if simpoint_starts is not None:
-          simpoint_begin_inst = []
-          for point in simpoint_starts:
-            simpoint_begin_inst.append(point * simpoint_interval)
-          self.get_processor().get_cores()[0].set_simpoint(
-              simpoint_begin_inst,
-              simpoint_interval
+        if simpoint is not None:
+          self.get_processor().get_cores()[0].init_simpoint(
+              simpoint.get_simpoint_start_insts()
             )
         # simpoint part end
 

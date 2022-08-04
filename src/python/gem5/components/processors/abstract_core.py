@@ -97,15 +97,6 @@ class AbstractCore(SubSystem):
         raise NotImplementedError
 
     @abstractmethod
-    def set_simpoint(
-        self, 
-        simpoint_starts: List[int], 
-        simpoint_interval: int,
-        schedule_at_init: bool = True
-    ) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
     def set_switched_out(self, value: bool) -> None:
         raise NotImplementedError
 
@@ -129,4 +120,3 @@ class AbstractCore(SubSystem):
         This is used in the board to setup system-specific MMU settings.
         """
         raise NotImplementedError
-
