@@ -67,6 +67,10 @@ enum FPUStatus
 
 class ISA : public BaseISA
 {
+  private:
+    int vlen;
+    int elen;
+
   protected:
     std::vector<RegVal> miscRegFile;
 
@@ -88,6 +92,9 @@ class ISA : public BaseISA
     RegVal readMiscReg(RegIndex idx) override;
     void setMiscRegNoEffect(RegIndex idx, RegVal val) override;
     void setMiscReg(RegIndex idx, RegVal val) override;
+
+    int getVlen() const { return vlen; }
+    int getElen() const { return elen; }
 
     bool inUserMode() const override;
     void copyRegsFrom(ThreadContext *src) override;
