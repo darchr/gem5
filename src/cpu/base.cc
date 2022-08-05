@@ -106,7 +106,7 @@ CPUProgressEvent::process()
 #ifndef NDEBUG
     double ipc = double(temp - lastNumInst) / (_interval / cpu->clockPeriod());
 
-    DPRINTFN("%s progress event, total committed:%i, progress insts committed:"
+    DPRINTFN("%s progress event, total committed:%i, progress insts committed: "
              "%lli, IPC: %0.8d\n", cpu->name(), temp, temp - lastNumInst,
              ipc);
     ipc = 0.0;
