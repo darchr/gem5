@@ -78,14 +78,33 @@ struct __attribute__ ((packed)) Edge
         return csprintf("Edge{weight: %u, neighbor: %lu}", weight, neighbor);
     }
 
+    Edge(): weight(0), neighbor(0) {}
+
     Edge(uint16_t weight, uint64_t neighbor):
         weight(weight),
         neighbor(neighbor)
     {}
+
 };
 
 static_assert(isPowerOf2(sizeof(WorkListItem)));
 static_assert(isPowerOf2(sizeof(Edge)));
+
+struct CompleteEdge {
+    uint64_t src;
+    uint64_t dst;
+    uint32_t weight;
+
+    CompleteEdge(uint64_t src, uint64_t dst, uint32_t weight):
+        src(src), dst(dst), weight(weight)
+    {}
+
+    std::string to_string()
+    {
+        return csprintf("CompleteEdge{src: %lu, dst:%lu, weight: %u}",
+                                                    src, dst, weight);
+    }
+};
 
 template<typename T>
 class UniqueFIFO

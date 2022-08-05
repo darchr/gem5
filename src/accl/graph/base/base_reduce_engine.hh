@@ -47,8 +47,7 @@ class BaseReduceEngine : public ClockedObject
 
   public:
     PARAMS(BaseReduceEngine);
-
-    BaseReduceEngine(const BaseReduceEngineParams &params);
+    BaseReduceEngine(const Params &params);
     ~BaseReduceEngine();
 
     RequestorID requestorId() { return _requestorId; }
