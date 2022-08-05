@@ -26,7 +26,7 @@
 
 from .abstract_board import AbstractBoard
 from ...resources.resource import AbstractResource
-from gem5.components.processors.simpoint import Simpoint
+from gem5.components.processors.simpoint import SimPoint
 
 from m5.objects import SEWorkload, Process
 
@@ -52,7 +52,7 @@ class SEBinaryWorkload:
         exit_on_work_items: bool = True,
         stdin_file: Optional[AbstractResource] = None,
         arguments: List[str] = [],
-        simpoint: Simpoint = None
+        simpoint: SimPoint = None
     ) -> None:
         """Set up the system to run a specific binary.
 
@@ -66,6 +66,8 @@ class SEBinaryWorkload:
         items. True by default.
         :param stdin_file: The input file for the binary
         :param arguments: The input arguments for the binary
+        :param simpoint: The SimPoint object that contains the list of simpoint
+        starting instructions, the list of weights, and the simpoint interval
         """
 
         # We assume this this is in a multiple-inheritance setup with an
@@ -88,12 +90,10 @@ class SEBinaryWorkload:
         for core in self.get_processor().get_cores():
             core.set_workload(process)
 
-        # simpoint part start
         if simpoint is not None:
-          self.get_processor().get_cores()[0].init_simpoint(
+          self.get_processor().get_cores()[0].set_simpoint(
               simpoint.get_simpoint_start_insts()
             )
-        # simpoint part end
 
         # Set whether to exit on work items for the se_workload
         self.exit_on_work_items = exit_on_work_items

@@ -153,3 +153,30 @@ class SimpleCore(BaseCPUCore):
         return to_return_cls(cpu_id=core_id)
 
 
+
+    @overrides(AbstractCore)
+    def get_mmu(self) -> BaseMMU:
+        return self.core.mmu
+
+    @overrides(AbstractCore)
+    def set_simpoint(
+        self,
+        inst_starts: List[int] = [],
+        init: bool = True
+    ) -> None:
+        if init:
+            self.core.simpoint_start_insts = inst_starts
+        else:
+            self.core.scheduleSimpoint(inst_starts)
+
+    @overrides(AbstractCore)
+    def set_one_max_insts(
+        self,
+        inst: int = 0,
+        init: bool = True
+    ) -> None:
+        if init:
+            self.core.max_insts_any_thread = inst
+        else:
+            self.core.scheduleOneMaxInsts(inst)
+

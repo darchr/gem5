@@ -106,7 +106,7 @@ CPUProgressEvent::process()
 #ifndef NDEBUG
     double ipc = double(temp - lastNumInst) / (_interval / cpu->clockPeriod());
 
-    DPRINTFN("%s progress event, total committed:%i, progress insts committed: "
+    DPRINTFN("%s progress event, total committed:%i, progress insts committed:"
              "%lli, IPC: %0.8d\n", cpu->name(), temp, temp - lastNumInst,
              ipc);
     ipc = 0.0;
@@ -275,9 +275,7 @@ BaseCPU::init()
     // Set up instruction-count-based termination events, if any. This needs
     // to happen after threadContexts has been constructed.
     if (params().max_insts_any_thread != 0) {
-        const char *cause = "a thread reached the max instruction count";
-        for (ThreadID tid = 0; tid < numThreads; ++tid)
-            scheduleInstStop(tid, params().max_insts_any_thread, cause);
+        scheduleOneMaxInsts(params().max_insts_any_thread);
     }
 
     // Set up instruction-count-based termination events for SimPoints
@@ -285,13 +283,11 @@ BaseCPU::init()
     // Simulation.py is responsible to take the necessary actions upon
     // exitting the simulation loop.
     if (!params().simpoint_start_insts.empty()) {
-
-        scheduleSimpoint(0, params().simpoint_start_insts);
-
+        scheduleSimpoint(params().simpoint_start_insts);
     }
 
     if (params().max_insts_all_threads != 0) {
-        const char *cause = "all threads reached the max instruction count";
+        std::string cause = "all threads reached the max instruction count";
 
         // allocate & initialize shared downcounter: each event will
         // decrement this when triggered; simulation will terminate
@@ -661,7 +657,7 @@ BaseCPU::unserialize(CheckpointIn &cp)
 }
 
 void
-BaseCPU::scheduleInstStop(ThreadID tid, Counter insts, const char *cause)
+BaseCPU::scheduleInstStop(ThreadID tid, Counter insts, std::string cause)
 {
     const Tick now(getCurrentInstCount(tid));
     Event *event(new LocalSimLoopExitEvent(cause, 0));
@@ -728,26 +724,19 @@ BaseCPU::traceFunctionsInternal(Addr pc)
 }
 
 void
-BaseCPU::scheduleSimpoint(
-    Counter end_point,
-    std::vector<Counter> starting_points
-    )
+BaseCPU::scheduleSimpoint(std::vector<Counter> inst_starts)
 {
-    const char *cause1 = "simpoint starting point found";
-    const char *cause2 = "simpoint ending point found";
-    if (!starting_points.empty())
-    {
-        for (size_t i = 0; i < starting_points.size(); ++i) {
-                scheduleInstStop(0, starting_points[i], cause1);
-        }
-    }
-    else {
-        scheduleInstStop(0, end_point-1, cause2);
-        // problem might occur when starting point = [0,1], because for inst 0,
-        // the event are scheduled at inst 1, and when inst 1 schedule an end
-        // point, the end point event will get scheduled at 1*interval length
-    }
+    std::string cause = "simpoint starting point found";
+    for (size_t i = 0; i < inst_starts.size(); ++i)
+        scheduleInstStop(0, inst_starts[i], cause);
+}
 
+void
+BaseCPU::scheduleOneMaxInsts(Counter max_insts)
+{
+    std::string cause = "a thread reached the max instruction count";
+    for (ThreadID tid = 0; tid < numThreads; ++tid)
+        scheduleInstStop(tid, max_insts, cause);
 }
 
 BaseCPU::GlobalStats::GlobalStats(statistics::Group *parent)

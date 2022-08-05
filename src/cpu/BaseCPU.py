@@ -71,7 +71,8 @@ class BaseCPU(ClockedObject):
         PyBindMethod("totalInsts"),
         PyBindMethod("scheduleInstStop"),
         PyBindMethod("getCurrentInstCount"),
-        PyBindMethod("scheduleSimpoint")
+        PyBindMethod("scheduleSimpoint"),
+        PyBindMethod("scheduleOneMaxInsts")
     ]
 
     @classmethod
