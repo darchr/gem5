@@ -42,19 +42,21 @@ class CoalesceEngine;
 class PushEngine : public BaseMemoryEngine
 {
   private:
-    class PushPacketInfoGen {
+    class EdgeReadInfoGen {
       private:
         Addr _start;
         Addr _end;
         size_t _step;
         size_t _atom;
+
         uint32_t _value;
+        Addr _src;
 
       public:
-        PushPacketInfoGen(Addr start, Addr end, size_t step,
-                            size_t atom, uint32_t value):
-                        _start(start), _end(end), _step(step),
-                        _atom(atom), _value(value)
+        EdgeReadInfoGen(Addr start, Addr end, size_t step,
+                            size_t atom, uint32_t value, Addr src):
+                            _start(start), _end(end), _step(step),
+                            _atom(atom), _value(value), _src(src)
         {}
 
         std::tuple<Addr, Addr, int> nextReadPacketInfo()
@@ -74,8 +76,17 @@ class PushEngine : public BaseMemoryEngine
             return std::make_tuple(aligned_addr, offset, num_items);
         }
 
-        uint32_t value() { return _value; }
         bool done() { return (_start >= _end); }
+
+        Addr src() { return _src; }
+        uint32_t value() { return _value; }
+    };
+
+    struct PushInfo {
+        Addr src;
+        uint32_t value;
+        Addr offset;
+        int numElements;
     };
 
     class ReqPort : public RequestPort
@@ -98,26 +109,27 @@ class PushEngine : public BaseMemoryEngine
         virtual void recvReqRetry();
     };
 
+    bool _running;
     int numElementsPerLine;
     CoalesceEngine* peerCoalesceEngine;
 
     ReqPort reqPort;
 
-    Addr baseEdgeAddr;
-
     int pushReqQueueSize;
     int numTotalRetries;
     int numPendingRetries;
-    std::deque<PushPacketInfoGen> pushReqQueue;
+    std::deque<EdgeReadInfoGen> pushReqQueue;
 
     // TODO: Add size one size for all these maps
     std::unordered_map<RequestPtr, Addr> reqOffsetMap;
     std::unordered_map<RequestPtr, int> reqNumEdgeMap;
     std::unordered_map<RequestPtr, uint32_t> reqValueMap;
+    std::unordered_map<RequestPtr, PushInfo> reqInfoMap;
 
     int onTheFlyMemReqs;
     int memRespQueueSize;
     std::deque<PacketPtr> memRespQueue;
+    std::deque<std::vector<CompleteEdge>> edgeQueue;
 
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
 
@@ -166,6 +178,11 @@ class PushEngine : public BaseMemoryEngine
                                           int elements_per_line);
 
     int getNumRetries() { return numTotalRetries; }
+
+    void start(); // CoalesceEngine announcing work
+    void stop(); // CoalesceEngine announcing no work
+    bool running() { return _running; }
+    void recvWLItem2(Addr addr, WorkListItem wl);
 
 };
 
