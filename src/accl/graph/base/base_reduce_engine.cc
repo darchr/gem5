@@ -31,7 +31,7 @@
 namespace gem5
 {
 
-BaseReduceEngine::BaseReduceEngine(const BaseReduceEngineParams &params):
+BaseReduceEngine::BaseReduceEngine(const Params &params):
     ClockedObject(params),
     system(params.system),
     _requestorId(system->getRequestorId(this))

@@ -35,8 +35,7 @@ class PushEngine(BaseMemoryEngine):
     cxx_class = 'gem5::PushEngine'
 
     req_port  = RequestPort("Port to send updates to the outside")
-    base_edge_addr = Param.Addr("The base address for the "
-                                    "attached edge memory")
+
     push_req_queue_size = Param.Int("Size of the queue to "
                                     "queue push requests.")
     # resp_queue_size should probably be
