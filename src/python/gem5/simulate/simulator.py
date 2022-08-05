@@ -171,7 +171,7 @@ class Simulator:
             ExitEvent.USER_INTERRUPT: default_exit_generator(),
             ExitEvent.MAX_TICK: default_exit_generator(),
             ExitEvent.SIMPOINT_BEGIN: default_simpoint_generator(),
-            ExitEvent.SIMPOINT_END: default_simpoint_generator(),
+            ExitEvent.MAX_INSTS: default_simpoint_generator(),
         }
 
         if on_exit_event:
@@ -192,15 +192,35 @@ class Simulator:
 
     def schedule_simpoint(
         self,
-        simpoint_end_inst: int = 0,
-        simpoint_start_insts: List[int] = []
-        ):
-        self._board.get_processor().get_cores()[0].\
-                        set_simpoint(simpoint_end_inst,simpoint_start_insts)
+        simpoint_start_insts: List[int] = [],
+        schedule_at_init: bool = False
+        )-> None:
+        """
+        Schedule SIMPOINT_BEGIN exit events
 
-    def schedule_simpoint_restore_stop(self, simpoint_interval: int):
+        :param simpoint_start_insts: a list of number of instructions
+        indicating the starting point of the simpoints
+        :param schedule_at_init: if it is True, schedule the events in the init
+        stage of the core, else, schedule the events during the simulation
+        """
         self._board.get_processor().get_cores()[0].\
-                        init_simpoint([simpoint_interval])
+                        set_simpoint(simpoint_start_insts,schedule_at_init)
+
+    def schedule_max_insts(
+        self,
+        inst: int = 0,
+        schedule_at_init: bool = False
+        )->None:
+        """
+        Schedule a MAX_INSTS exit event when any thread in the current core
+        reaches the given number of instructions
+
+        :param insts: a number of instructions
+        :param schedule_at_init: if it is True, schedule the event in the init
+        stage of the core, else, schedule the event during the simulation
+        """
+        self._board.get_processor().get_cores()[0].\
+                        set_one_max_insts(inst,schedule_at_init)
 
     def get_stats(self) -> Dict:
         """
