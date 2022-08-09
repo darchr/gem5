@@ -62,7 +62,7 @@ class SEBinaryWorkload:
         * Dynamically linked executables are partially supported when the host
           ISA and the simulated ISA are the same.
 
-        **Warning:** SimPoints only work with one core
+        **Warning:** SimPoints only works with one core
 
         :param binary: The resource encapsulating the binary to be run.
         :param exit_on_work_items: Whether the simulation should exit on work
@@ -70,7 +70,7 @@ class SEBinaryWorkload:
         :param stdin_file: The input file for the binary
         :param arguments: The input arguments for the binary
         :param simpoint: The SimPoint object that contains the list of
-        simpoints starting instructions, the list of weights, and the simpoint
+        SimPoints starting instructions, the list of weights, and the SimPoints
         interval
         """
 
@@ -96,7 +96,7 @@ class SEBinaryWorkload:
 
         if simpoint is not None:
           if self.get_processor().get_num_cores() > 1:
-            warn("SimPoints only work with one core")
+            warn("SimPoints only works with one core")
           self.get_processor().get_cores()[0].set_simpoint(
               simpoint.get_simpoint_start_insts()
             )
