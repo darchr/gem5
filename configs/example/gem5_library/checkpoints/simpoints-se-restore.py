@@ -52,8 +52,7 @@ simpoint = SimPoint(
 
 board.set_se_binary_workload(
     binary = Resource('x86-print-this'),
-    arguments = ['print this', 15000],
-    simpoint = simpoint
+    arguments = ['print this', 15000]
 )
 
 dir = Path("se_checkpoint_folder/cpt.3856914558").as_posix()
