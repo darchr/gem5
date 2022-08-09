@@ -31,6 +31,7 @@ from gem5.components.processors.simpoint import SimPoint
 from m5.objects import SEWorkload, Process
 
 from typing import Optional, List
+from m5.util import warn
 
 class SEBinaryWorkload:
     """
@@ -61,13 +62,16 @@ class SEBinaryWorkload:
         * Dynamically linked executables are partially supported when the host
           ISA and the simulated ISA are the same.
 
+        **Warning:** SimPoints only work with one core
+
         :param binary: The resource encapsulating the binary to be run.
         :param exit_on_work_items: Whether the simulation should exit on work
         items. True by default.
         :param stdin_file: The input file for the binary
         :param arguments: The input arguments for the binary
-        :param simpoint: The SimPoint object that contains the list of simpoint
-        starting instructions, the list of weights, and the simpoint interval
+        :param simpoint: The SimPoint object that contains the list of
+        simpoints starting instructions, the list of weights, and the simpoint
+        interval
         """
 
         # We assume this this is in a multiple-inheritance setup with an
@@ -91,6 +95,8 @@ class SEBinaryWorkload:
             core.set_workload(process)
 
         if simpoint is not None:
+          if self.get_processor().get_num_cores() > 1:
+            warn("SimPoints only work with one core")
           self.get_processor().get_cores()[0].set_simpoint(
               simpoint.get_simpoint_start_insts()
             )
