@@ -44,14 +44,9 @@ command= "/home/gem5/NPB3.3-OMP/bin/bt.A.x;"\
     + "m5 exit;"
 
 board.set_kernel_disk_workload(
-    # The x86 linux kernel will be automatically downloaded to the
-    # `~/.cache/gem5` directory if not already present.
-    # npb benchamarks was tested with kernel version 4.19.83
     kernel=Resource(
         "x86-linux-kernel-4.19.83",
     ),
-    # The x86-npb image will be automatically downloaded to the
-    # `~/.cache/gem5` directory if not already present.
     disk_image=Resource(
         "x86-npb",
     ),
