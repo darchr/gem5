@@ -85,7 +85,7 @@ class SimPoint:
         self,
         simpoint_path:Path,
         weight_path:Path,
-        )-> Tuple[List[int],List[int]]:
+        )-> Tuple[List[int], List[int]]:
         """
         This function takes in file paths and outputs a list of SimPoints
         instruction starts and a list of weights
@@ -97,13 +97,13 @@ class SimPoint:
                 line = simpoint_file.readline()
                 if not line:
                     break
-                interval = int(line.split(" ",1)[0])
+                interval = int(line.split(" ", 1)[0])
                 line = weight_file.readline()
                 if not line:
                     fatal("not engough weights")
-                weight = float(line.split(" ",1)[0])
-                simpoint.append((interval,weight))
-        simpoint.sort(key=lambda obj: obj[0])
+                weight = float(line.split(" ", 1)[0])
+                simpoint.append((interval, weight))
+        simpoint.sort(key = lambda obj: obj[0])
         # use simpoint to sort
         simpoint_start_insts = []
         weight_list = []
