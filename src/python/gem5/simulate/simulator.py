@@ -41,8 +41,6 @@ from .exit_event_generators import (
     default_workbegin_generator,
     default_workend_generator,
     default_simpoint_generator,
-    simpoint_dump_reset_generator,
-    simpoint_save_checkpoint_generator,
 )
 from .exit_event import ExitEvent
 from ..components.boards.abstract_board import AbstractBoard
@@ -198,13 +196,17 @@ class Simulator:
         """
         Schedule SIMPOINT_BEGIN exit events
 
+        **Warning:** SimPoints only work with one core
+
         :param simpoint_start_insts: a list of number of instructions
         indicating the starting point of the simpoints
         :param schedule_at_init: if it is True, schedule the events in the init
         stage of the core, else, schedule the events during the simulation
         """
+        if self._board.get_processor().get_num_cores() > 1:
+            warn("SimPoints only work with one core")
         self._board.get_processor().get_cores()[0].\
-                        set_simpoint(simpoint_start_insts,schedule_at_init)
+                        set_simpoint(simpoint_start_insts, schedule_at_init)
 
     def schedule_max_insts(
         self,
@@ -220,7 +222,7 @@ class Simulator:
         stage of the core, else, schedule the event during the simulation
         """
         self._board.get_processor().get_cores()[0].\
-                        set_one_max_insts(inst,schedule_at_init)
+                        set_inst_stop_any_thread(inst, schedule_at_init)
 
     def get_stats(self) -> Dict:
         """

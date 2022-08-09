@@ -131,11 +131,16 @@ class AbstractCore(SubSystem):
 
         This is used to raise SIMPOINT_BEGIN exit events in the gem5 standard
         library.
+
+        :param inst_starts: a list of SimPoints starting instructions
+        :param init: if it is True, the starting instructions will be scheduled
+        at the init stage of the core, else, the starting insructions will be
+        scheduled during the simulation
         """
         raise NotImplementedError
 
     @abstractmethod
-    def set_one_max_insts(
+    def set_inst_stop_any_thread(
         self,
         inst: int = 0,
         init: bool = True
@@ -144,6 +149,11 @@ class AbstractCore(SubSystem):
         given number of instructions.
 
         This is used to raise MAX_INSTS exit event in the gem5 standard library
+
+        :param inst: a number of instructions
+        :param init: if it is True, the exit event will be scheduled at the
+        init stage of the core, else, it will be scheduled during the
+        simulation
         """
         raise NotImplementedError
 

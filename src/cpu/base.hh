@@ -447,7 +447,7 @@ class BaseCPU : public ClockedObject
      * @param inst_starts A vector of number of instructions to start simpoints
      */
 
-    void scheduleSimpoint(std::vector<Counter> inst_starts);
+    void scheduleSimpointsInstStop(std::vector<Counter> inst_starts);
 
     /**
      * Schedule an exit event when any threads in the core reach the max_insts
@@ -457,7 +457,7 @@ class BaseCPU : public ClockedObject
      *
      * @param max_insts Number of instructions into the future.
      */
-    void scheduleOneMaxInsts(Counter max_insts);
+    void scheduleInstStopAnyThread(Counter max_insts);
 
     /**
      * Get the number of instructions executed by the specified thread

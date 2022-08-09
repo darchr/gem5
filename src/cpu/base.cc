@@ -275,7 +275,7 @@ BaseCPU::init()
     // Set up instruction-count-based termination events, if any. This needs
     // to happen after threadContexts has been constructed.
     if (params().max_insts_any_thread != 0) {
-        scheduleOneMaxInsts(params().max_insts_any_thread);
+        scheduleInstStopAnyThread(params().max_insts_any_thread);
     }
 
     // Set up instruction-count-based termination events for SimPoints
@@ -283,7 +283,7 @@ BaseCPU::init()
     // Simulation.py is responsible to take the necessary actions upon
     // exitting the simulation loop.
     if (!params().simpoint_start_insts.empty()) {
-        scheduleSimpoint(params().simpoint_start_insts);
+        scheduleSimpointsInstStop(params().simpoint_start_insts);
     }
 
     if (params().max_insts_all_threads != 0) {
@@ -724,19 +724,25 @@ BaseCPU::traceFunctionsInternal(Addr pc)
 }
 
 void
-BaseCPU::scheduleSimpoint(std::vector<Counter> inst_starts)
+BaseCPU::scheduleSimpointsInstStop(std::vector<Counter> inst_starts)
 {
     std::string cause = "simpoint starting point found";
-    for (size_t i = 0; i < inst_starts.size(); ++i)
+    for (size_t i = 0; i < inst_starts.size(); ++i){
+
         scheduleInstStop(0, inst_starts[i], cause);
+
+    }
 }
 
 void
-BaseCPU::scheduleOneMaxInsts(Counter max_insts)
+BaseCPU::scheduleInstStopAnyThread(Counter max_insts)
 {
     std::string cause = "a thread reached the max instruction count";
-    for (ThreadID tid = 0; tid < numThreads; ++tid)
+    for (ThreadID tid = 0; tid < numThreads; ++tid){
+
         scheduleInstStop(tid, max_insts, cause);
+
+    }
 }
 
 BaseCPU::GlobalStats::GlobalStats(statistics::Group *parent)
