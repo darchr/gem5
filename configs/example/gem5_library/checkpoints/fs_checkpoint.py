@@ -68,6 +68,8 @@ dir.mkdir(exist_ok=True)
 
 def workbegin():
     while True:
+        # schedule SimPoints during the simulation when it gets a WORKBEGIN
+        # exit event
         simulator.schedule_simpoint(simpoint.get_simpoint_start_insts())
         yield False
 
@@ -76,6 +78,8 @@ simulator = Simulator(
     board=board,
     on_exit_event={
         ExitEvent.WORKBEGIN: workbegin(),
+        # using the SimPoints event generator in the standard library to take
+        # checkpoints
         ExitEvent.SIMPOINT_BEGIN: simpoint_save_checkpoint_generator(dir)
     }
 )

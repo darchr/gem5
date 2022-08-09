@@ -60,7 +60,8 @@ simpoint = SimPoint(
     # simpoint_file_path=Path("path/to/simpoints"),
     # weight_file_path=Path("path/to/weights"),
 )
-
+# When taking checkpoints with the KVM CPU, the simulation Ticks for the
+# checkpoints can be different, so please change the path to cpt.[correct Tick]
 dir = Path("fs_checkpoint_folder/cpt.14868753779251/").as_posix()
 
 def exit():
@@ -76,6 +77,6 @@ simulator = Simulator(
         ExitEvent.MAX_INSTS: exit()
     }
 )
-
+# schedule a MAX_INSTS exit event before the simulation begins
 simulator.schedule_max_insts(simpoint.get_simpoint_interval(), True)
 simulator.run()
