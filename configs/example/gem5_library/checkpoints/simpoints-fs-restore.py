@@ -5,12 +5,11 @@ from gem5.components.cachehierarchies.classic.\
     private_l1_private_l2_cache_hierarchy import(
     PrivateL1PrivateL2CacheHierarchy
 )
-from gem5.components.boards.x86_board import X86Board
+from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.memory import DualChannelDDR4_2400
 from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
-from gem5.coherence_protocol import CoherenceProtocol
 from gem5.resources.resource import Resource
 
 from gem5.components.processors.simpoint import SimPoint
@@ -32,7 +31,7 @@ processor = SimpleProcessor(
     num_cores=1,
 )
 
-board = X86Board(
+board = SimpleBoard(
     clk_freq="3GHz",
     processor=processor,
     memory=memory,
@@ -43,26 +42,21 @@ command= "/home/gem5/NPB3.3-OMP/bin/bt.A.x;"\
     + "sleep 5;" \
     + "m5 exit;"
 
-board.set_kernel_disk_workload(
-    kernel=Resource(
-        "x86-linux-kernel-4.19.83",
-    ),
-    disk_image=Resource(
-        "x86-npb",
-    ),
-    readfile_contents=command,
-)
-
 simpoint = SimPoint(
     simpoint_list = [3,5,15],
     weight_list =[0.1,0.5,0.4],
-    simpoint_interval = 100000000,
+    simpoint_interval = 1000000,
     # simpoint_file_path=Path("path/to/simpoints"),
     # weight_file_path=Path("path/to/weights"),
 )
-# When taking checkpoints with the KVM CPU, the simulation Ticks for the
-# checkpoints can be different, so please change the path to cpt.[correct Tick]
-dir = Path("fs_checkpoint_folder/cpt.14868753779251/").as_posix()
+
+board.set_se_binary_workload(
+    binary = Resource('x86-print-this'),
+    arguments = ['print this', 15000],
+    simpoint = simpoint
+)
+
+dir = Path("se_checkpoint_folder/cpt.3856914558").as_posix()
 
 def exit():
     while True:
@@ -70,7 +64,6 @@ def exit():
         yield True
 
 simulator = Simulator(
-    full_system=True,
     board=board,
     checkpoint_path=dir,
     on_exit_event={

@@ -31,7 +31,7 @@ from typing import List, Tuple
 
 class SimPoint:
     """
-    This Simpoint class is used to manage the information needed for simpoint
+    This SimPoint class is used to manage the information needed for SimPoints
     in workload
 
     """
@@ -54,7 +54,7 @@ class SimPoint:
         by Simpoint3.2 or gem5
 
         :param simpoint_list: a list of SimPoints starting instructions
-        :param weight_list: a list of weights
+        :param weight_list: a list of SimPoints weights
 
         usage note
         -----------
@@ -87,7 +87,7 @@ class SimPoint:
         weight_path:Path,
         )-> Tuple[List[int],List[int]]:
         """
-        This function takes in file paths and outputs a list of simpoint
+        This function takes in file paths and outputs a list of SimPoints
         instruction starts and a list of weights
         """
         simpoint = []
