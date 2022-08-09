@@ -41,10 +41,6 @@ board = SimpleBoard(
     cache_hierarchy=cache_hierarchy,
 )
 
-command= "/home/gem5/NPB3.3-OMP/bin/bt.A.x;"\
-    + "sleep 5;" \
-    + "m5 exit;"
-
 simpoint = SimPoint(
     simpoint_list = [3,5,15],
     weight_list = [0.1,0.5,0.4],
