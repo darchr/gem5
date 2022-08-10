@@ -727,10 +727,9 @@ void
 BaseCPU::scheduleSimpointsInstStop(std::vector<Counter> inst_starts)
 {
     std::string cause = "simpoint starting point found";
-    for (size_t i = 0; i < inst_starts.size(); ++i){
+    for (size_t i = 0; i < inst_starts.size(); ++i) {
 
         scheduleInstStop(0, inst_starts[i], cause);
-
     }
 }
 
@@ -738,10 +737,9 @@ void
 BaseCPU::scheduleInstStopAnyThread(Counter max_insts)
 {
     std::string cause = "a thread reached the max instruction count";
-    for (ThreadID tid = 0; tid < numThreads; ++tid){
+    for (ThreadID tid = 0; tid < numThreads; ++tid) {
 
         scheduleInstStop(tid, max_insts, cause);
-
     }
 }
 

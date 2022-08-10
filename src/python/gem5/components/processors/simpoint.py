@@ -43,6 +43,7 @@ class SimPoint:
         weight_file_path: Path = None,
         simpoint_list: List[int] = None,
         weight_list: List[int] = None,
+        warmup_interval: int = 0
         # bbv_file_path: Path = None, will take in bbv and generate simpoints
         # with it in the future
     ) -> None:
@@ -55,12 +56,18 @@ class SimPoint:
 
         :param simpoint_list: a list of SimPoints starting instructions
         :param weight_list: a list of SimPoints weights
+        :param warmup_interval: a number of instructions for warming up before
+        restoring a SimPoints checkpoint
 
         usage note
         -----------
         Need to pass in the paths or the lists for the SimPoints and their
         weights. If the paths are passed in, no actions will be done to the
         list.
+
+        When passing in simpoint_list and weight_list, passing in sorted lists
+        (sorted by SimPoints in ascending order) is strongly suggested.
+        The warmup_list only works correctly with sorted simpoint_list.
         """
         self._simpoint_interval = simpoint_interval
 
@@ -80,6 +87,13 @@ class SimPoint:
                     simpoint_file_path,
                     weight_file_path
                     )
+
+        if warmup_interval != 0:
+            self._warmup_list = self.set_warmup_intervals(warmup_interval)
+        else:
+            self._warmup_list = \
+                [0 for _ in range(len(self._simpoint_start_insts))]
+
 
     def get_weights_and_simpoints_from_file(
         self,
@@ -112,6 +126,33 @@ class SimPoint:
             weight_list.append(weight)
         return simpoint_start_insts, weight_list
 
+    def set_warmup_intervals(self, warmup_interval: int)->List[int]:
+        """
+        This function takes the warmup_interval, fits it into the
+        _simpoint_start_insts, and outputs a list of warmup instruction lengths
+        for each SimPoint.
+
+        The warmup instruction length is calculated using the starting
+        instruction of a SimPoint to minus the warmup_interval and the ending
+        instruction of the last SimPoint. If it is less than 0, then the warmup
+        instruction length is the gap between the starting instruction of a
+        SimPoint and the ending instruction of the last SimPoint.
+        """
+        last = 0
+        warmup_list = []
+        for index, inst_start in enumerate(self._simpoint_start_insts):
+            warmup_inst = inst_start - warmup_interval - last
+            if warmup_inst < 0:
+                warmup_inst = inst_start - last
+            else:
+                warmup_inst = warmup_interval
+            warmup_list.append(warmup_inst)
+            last = inst_start + self._simpoint_interval
+            # change the starting instruction of a SimPoint to include the
+            # warmup instruction length
+            self._simpoint_start_insts[index] = inst_start - warmup_inst
+        return warmup_list
+
     def get_simpoint_start_insts(self)->List[int]:
         return self._simpoint_start_insts
 
@@ -120,3 +161,6 @@ class SimPoint:
 
     def get_simpoint_interval(self)->int:
         return self._simpoint_interval
+
+    def get_warmup_list(self)->List[int]:
+        return self._warmup_list
