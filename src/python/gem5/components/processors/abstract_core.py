@@ -29,7 +29,7 @@ from typing import Optional
 import importlib
 import platform
 
-from .cpu_types import CPUTypes
+from .cpu_types import CPUTypes, CustomCPUTypes
 from ...isas import ISA
 from ...utils.requires import requires
 
@@ -138,6 +138,7 @@ class AbstractCore(SubSystem):
             CPUTypes.TIMING : "TimingSimpleCPU",
             CPUTypes.KVM : "KvmCPU",
             CPUTypes.MINOR : "MinorCPU",
+            CustomCPUTypes.U74: "U74CPU"
         }
 
         if isa not in _isa_string_map:
