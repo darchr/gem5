@@ -81,23 +81,9 @@ class U74BP(TournamentBP):
     indirectBranchPred = SimpleIndirectPredictor()
     indirectBranchPred.indirectSets = 8
 
-
-# create U74 from SimpleProcessor parent for stdlib compatibility
-class U74Processor(SimpleProcessor):
-    def __init__(
-        self,
-        cpu_type,
-        num_cores,
-    ) -> None:
-        super().__init__(
-            cpu_type=cpu_type,
-            num_cores=num_cores,
-            isa=ISA.RISCV,
-        )
-
-
-# RiscvCPU base class and RiscvMMU() are in src/arch/riscv/RiscvCPU.py
-class RiscvU74CPU(BaseMinorCPU, RiscvCPU):
+# this will serve as the parent class to RiscvU74CPU
+# in src/arch/riscv/RiscvCPU.py
+class U74CPU(BaseMinorCPU):
     fetch1FetchLimit = 2
     fetch1ToFetch2BackwardDelay = 0
     fetch2InputBufferSize = 1
@@ -106,4 +92,3 @@ class RiscvU74CPU(BaseMinorCPU, RiscvCPU):
     decodeToExecuteForwardDelay = 2
     executeFuncUnits = U74FUPool()
     branchPred = U74BP()
-    mmu = RiscvMMU()
