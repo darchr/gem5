@@ -1,7 +1,7 @@
 import argparse
 from gem5.resources.resource import Resource, CustomResource
 from gem5.simulate.simulator import Simulator
-from python.gem5.prebuilt.hifiveunmatched.hifive_board import HiFiveUnmatchedBoard
+from hifive_board import HiFiveUnmatchedBoard
 from typing import List
 
 # collect optional CLI arg for RISCV binary to run
