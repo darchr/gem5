@@ -46,7 +46,6 @@ class U74Processor(AbstractProcessor):
 
     def __init__(
         self,
-        isa: Optional[ISA] = None,
     ) -> None:
         """
         param cpu_type: The CPU type for each type in the processor.
@@ -60,14 +59,11 @@ class U74Processor(AbstractProcessor):
         """
         self._cpu_type = CPUTypes.MINOR
         super().__init__(
-            cores=self._create_cores(
-                isa = isa,
-            )
+            cores=self._create_cores()
         )
 
     def _create_cores(
         self,
-        isa: Optional[ISA]
     ):
         return U74Core()
         

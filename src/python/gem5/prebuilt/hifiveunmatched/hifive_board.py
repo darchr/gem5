@@ -21,7 +21,7 @@ class HiFiveUnmatchedBoard(SimpleBoard):
         memory.set_memory_range(
             [AddrRange(start=0x80000000, size=memory.get_size())])
 
-        processor = U74Processor(isa=ISA.RISCV)
+        processor = U74Processor()
 
         super().__init__(
             clk_freq="1.2GHz", # real system is 1.0 to 1.5 GHz

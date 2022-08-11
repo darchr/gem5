@@ -108,14 +108,10 @@ class U74CPU(RiscvMinorCPU):
 class U74Core(AbstractCore):
     def __init__(
         self,
-        isa: Optional[ISA]= None
     ):
         super().__init__(cpu_type=CPUTypes.MINOR)
-        if isa:
-            requires(isa_required=isa)
-            self._isa = isa
-        else:
-            self._isa = get_runtime_isa()
+        self._isa = ISA.RISCV
+        requires(isa_required=self._isa)
         self.core = RiscvMinorCPU(fetch1FetchLimit = 2,
             fetch1ToFetch2BackwardDelay = 0,
             fetch2InputBufferSize = 1,
