@@ -6,6 +6,7 @@ from gem5.isas import ISA
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.processors.cpu_types import CPUTypes, CustomCPUTypes
 from hifive_cache import HiFiveCacheHierarchy
+from hifive_proc import U74Processor
 from m5.objects import AddrRange
 
 class HiFiveUnmatchedBoard(SimpleBoard):
@@ -20,7 +21,7 @@ class HiFiveUnmatchedBoard(SimpleBoard):
         memory.set_memory_range(
             [AddrRange(start=0x80000000, size=memory.get_size())])
 
-        processor = SimpleProcessor(cpu_type=CustomCPUTypes.U74, num_cores=1)
+        processor = U74Processor(isa=ISA.RISCV)
 
         super().__init__(
             clk_freq="1.2GHz", # real system is 1.0 to 1.5 GHz

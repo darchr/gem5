@@ -34,7 +34,7 @@ from gem5.components.processors.abstract_processor import AbstractProcessor
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
 from gem5.components.boards.abstract_board import AbstractBoard
-from gem5.prebuilt.hifiveunmatched.hifive_core import U74Core
+from hifive_core import U74Core
 
 from typing import Optional
 
@@ -58,6 +58,7 @@ class U74Processor(AbstractProcessor):
         recommended you explicitly set your ISA via SimpleProcessor
         construction.
         """
+        self._cpu_type = CPUTypes.MINOR
         super().__init__(
             cores=self._create_cores(
                 isa = isa,

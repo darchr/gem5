@@ -30,6 +30,7 @@ from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
 from gem5.runtime import get_runtime_isa
 from gem5.utils.override import overrides
+from m5.objects.RiscvCPU import RiscvMinorCPU
 from m5.objects import (
     BaseMMU,
     Port,
@@ -92,7 +93,7 @@ class U74BP(TournamentBP):
 
 # this will serve as the parent class to RiscvU74CPU
 # in src/arch/riscv/RiscvCPU.py
-class U74CPU(BaseMinorCPU):
+class U74CPU(RiscvMinorCPU):
     fetch1FetchLimit = 2
     fetch1ToFetch2BackwardDelay = 0
     fetch2InputBufferSize = 1
@@ -115,7 +116,7 @@ class U74Core(AbstractCore):
             self._isa = isa
         else:
             self._isa = get_runtime_isa()
-        self.core = AbstractCore.MinorCPU(fetch1FetchLimit = 2,
+        self.core = RiscvMinorCPU(fetch1FetchLimit = 2,
             fetch1ToFetch2BackwardDelay = 0,
             fetch2InputBufferSize = 1,
             decodeInputBufferSize = 1,
