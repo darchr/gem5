@@ -24,12 +24,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from typing import Optional
-from ...utils.requires import requires
+from gem5.utils.requires import requires
 from gem5.components.processors.abstract_core import AbstractCore
 from gem5.components.processors.cpu_types import CPUTypes
-from ...isas import ISA
-from ...runtime import get_runtime_isa
-from ...utils.override import overrides
+from gem5.isas import ISA
+from gem5.runtime import get_runtime_isa
+from gem5.utils.override import overrides
 from m5.objects import (
     BaseMMU,
     Port,
