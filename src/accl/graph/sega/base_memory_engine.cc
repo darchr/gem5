@@ -99,11 +99,9 @@ BaseMemoryEngine::MemPort::recvReqRetry()
             "Received retry without a blockedPacket");
 
     _blocked = false;
-    sendPacket(blockedPacket);
-
-    if (!blocked()) {
-        blockedPacket = nullptr;
-    }
+    PacketPtr pkt = blockedPacket;
+    blockedPacket = nullptr;
+    sendPacket(pkt);
 }
 
 PacketPtr
