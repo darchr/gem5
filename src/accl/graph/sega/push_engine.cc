@@ -30,6 +30,7 @@
 
 #include "accl/graph/sega/coalesce_engine.hh"
 #include "debug/PushEngine.hh"
+#include "debug/TempFlag.hh"
 #include "mem/packet_access.hh"
 
 namespace gem5
@@ -38,13 +39,12 @@ namespace gem5
 PushEngine::PushEngine(const Params &params):
     BaseMemoryEngine(params),
     reqPort(name() + ".req_port", this),
-    pushReqQueueSize(params.push_req_queue_size),
-    numTotalRetries(0), numPendingRetries(0),
-    onTheFlyMemReqs(0),
-    memRespQueueSize(params.resp_queue_size),
+    _running(false),
+    numPendingPulls(0), edgePointerQueueSize(params.push_req_queue_size),
+    onTheFlyMemReqs(0), edgeQueueSize(params.resp_queue_size),
+    nextVertexPullEvent([this] { processNextVertexPullEvent(); }, name()),
     nextMemoryReadEvent([this] { processNextMemoryReadEvent(); }, name()),
     nextPushEvent([this] { processNextPushEvent(); }, name()),
-    nextSendRetryEvent([this] { processNextSendRetryEvent(); }, name()),
     stats(*this)
 {}
 
@@ -67,14 +67,30 @@ PushEngine::registerCoalesceEngine(CoalesceEngine* coalesce_engine,
 }
 
 void
+PushEngine::recvReqRetry()
+{
+    DPRINTF(PushEngine, "%s: Received a req retry.\n", __func__);
+    if (nextPushEvent.pending()) {
+        nextPushEvent.wake();
+        schedule(nextPushEvent, nextCycle());
+    }
+}
+
+void
 PushEngine::ReqPort::sendPacket(PacketPtr pkt)
 {
     panic_if(_blocked, "Should never try to send if blocked MemSide!");
     // If we can't send the packet across the port, store it for later.
+    DPRINTF(PushEngine, "%s: Sending pakcet: %s to "
+                "the network.\n", __func__, pkt->print());
     if (!sendTimingReq(pkt))
     {
         blockedPacket = pkt;
         _blocked = true;
+        DPRINTF(PushEngine, "%s: MemPort blocked.\n", __func__);
+    } else {
+        DPRINTF(PushEngine, "%s: Packet sent successfully.\n", __func__);
+        owner->recvReqRetry();
     }
 }
 
@@ -92,86 +108,73 @@ PushEngine::ReqPort::recvReqRetry()
     DPRINTF(PushEngine, "%s: Received a reqRetry.\n", __func__);
 
     _blocked = false;
-    sendPacket(blockedPacket);
+    PacketPtr pkt = blockedPacket;
+    blockedPacket = nullptr;
+    sendPacket(pkt);
+}
 
-    if (!_blocked) {
-        blockedPacket = nullptr;
-        DPRINTF(PushEngine, "%s: Sent the blockedPacket. "
-                "_blocked: %s, (blockedPacket == nullptr): %s.\n",
-                __func__, _blocked ? "true" : "false",
-                (blockedPacket == nullptr) ? "true" : "false");
+bool
+PushEngine::vertexSpace()
+{
+    return (edgePointerQueueSize == 0) ||
+        ((edgePointerQueue.size() + numPendingPulls) < edgePointerQueueSize);
+}
+
+bool
+PushEngine::workLeft()
+{
+    return ((peerCoalesceEngine->workCount() - numPendingPulls) > 0);
+}
+
+void
+PushEngine::start()
+{
+    assert(!_running);
+    assert(!nextVertexPullEvent.scheduled());
+
+    _running = true;
+    // NOTE: We might have to check for size availability here.
+    assert(workLeft());
+    if (vertexSpace()) {
+        schedule(nextVertexPullEvent, nextCycle());
     }
 }
 
 void
-PushEngine::deallocatePushSpace(int space)
+PushEngine::processNextVertexPullEvent()
 {
-    /// DISCUSS: Might have to check whether the addrGenEvent is scheduled
-    // and or the pushReqQueue is empty. If so we might need to
-    // send retries.
-    DPRINTF(PushEngine, "%s: Received reported %d free spaces.\n",
-                                                __func__, space);
-    numPendingRetries--;
-    if (numTotalRetries > 0) {
-        int free_space = pushReqQueueSize -
-            (pushReqQueue.size() + (numPendingRetries * numElementsPerLine));
-        DPRINTF(PushEngine, "%s: pushReqQueue has at least %d "
-                            "free spaces.\n", __func__, free_space);
-        if ((free_space >= numElementsPerLine) &&
-            (numPendingRetries == 0)) {
-            DPRINTF(PushEngine, "%s: Sent a push retry to "
-                            "peerCoalesceEngine.\n", __func__);
-            assert(!nextSendRetryEvent.scheduled());
-            schedule(nextSendRetryEvent, nextCycle());
-        }
+    // TODO: change edgePointerQueueSize
+    numPendingPulls++;
+    peerCoalesceEngine->recvVertexPull();
+
+    if (!workLeft()) {
+        _running = false;
+    }
+
+    if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
+        schedule(nextVertexPullEvent, nextCycle());
     }
 }
 
 void
-PushEngine::recvWLItem(WorkListItem wl)
+PushEngine::recvVertexPush(Addr addr, WorkListItem wl)
 {
-    assert(wl.degree != 0);
-
-    assert((pushReqQueueSize == 0) ||
-        (pushReqQueue.size() < pushReqQueueSize));
-    panic_if((pushReqQueue.size() == pushReqQueueSize) &&
-            (pushReqQueueSize != 0), "You should call this method after "
-            "checking if there is enough push space. Use allocatePushSpace.\n");
-
-    DPRINTF(PushEngine, "%s: Received %s.\n", __func__, wl.to_string());
-    Addr start_addr = wl.edgeIndex * sizeof(Edge);
-    Addr end_addr = start_addr + (wl.degree * sizeof(Edge));
-    uint32_t value = wl.prop;
-
-    pushReqQueue.emplace_back(start_addr, end_addr, sizeof(Edge),
-                                    peerMemoryAtomSize, value, 0);
-    DPRINTF(PushEngine, "%s: pushReqQueue.size() = %d.\n",
-                            __func__, pushReqQueue.size());
-
-    if ((!nextMemoryReadEvent.pending()) &&
-        (!nextMemoryReadEvent.scheduled())) {
-        schedule(nextMemoryReadEvent, nextCycle());
-    }
-}
-
-void
-PushEngine::recvWLItemRetry(WorkListItem wl)
-{
-    assert(wl.degree != 0);
-    DPRINTF(PushEngine, "%s: Received %s with retry.\n",
-                                __func__, wl.to_string());
+    assert(wl.degree > 0);
+    assert((edgePointerQueueSize == 0) ||
+            ((edgePointerQueue.size() + numPendingPulls) <= edgePointerQueueSize));
 
     Addr start_addr = wl.edgeIndex * sizeof(Edge);
     Addr end_addr = start_addr + (wl.degree * sizeof(Edge));
-    uint32_t value = wl.prop;
 
-    pushReqQueue.emplace_back(start_addr, end_addr, sizeof(Edge),
-                                    peerMemoryAtomSize, value, 0);
-    assert(pushReqQueue.size() <= pushReqQueueSize);
-    DPRINTF(PushEngine, "%s: pushReqQueue.size() = %d.\n",
-                            __func__, pushReqQueue.size());
+    edgePointerQueue.emplace_back(start_addr, end_addr, sizeof(Edge),
+                        peerMemoryAtomSize, addr, (uint32_t) wl.prop);
+    numPendingPulls--;
+    DPRINTF(TempFlag, "%s: Received {addr: %lu, wl: %s}.\n",
+                            __func__, addr, wl.to_string());
+    if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
+        schedule(nextVertexPullEvent, nextCycle());
+    }
 
-    numTotalRetries--;
     if ((!nextMemoryReadEvent.pending()) &&
         (!nextMemoryReadEvent.scheduled())) {
         schedule(nextMemoryReadEvent, nextCycle());
@@ -186,20 +189,17 @@ PushEngine::processNextMemoryReadEvent()
         return;
     }
 
-    if (memRespQueue.size() < (memRespQueueSize - onTheFlyMemReqs)) {
+    if (edgeQueue.size() < (edgeQueueSize - onTheFlyMemReqs)) {
         Addr aligned_addr, offset;
         int num_edges;
 
-        EdgeReadInfoGen &curr_info = pushReqQueue.front();
+        EdgeReadInfoGen &curr_info = edgePointerQueue.front();
         std::tie(aligned_addr, offset, num_edges) = curr_info.nextReadPacketInfo();
         DPRINTF(PushEngine, "%s: Current packet information generated by "
                     "EdgeReadInfoGen. aligned_addr: %lu, offset: %lu, "
                     "num_edges: %d.\n", __func__, aligned_addr, offset, num_edges);
 
         PacketPtr pkt = createReadPacket(aligned_addr, peerMemoryAtomSize);
-        reqOffsetMap[pkt->req] = offset;
-        reqNumEdgeMap[pkt->req] = num_edges;
-        reqValueMap[pkt->req] = curr_info.value();
         PushInfo push_info = {curr_info.src(), curr_info.value(), offset, num_edges};
         reqInfoMap[pkt->req] = push_info;
 
@@ -208,40 +208,21 @@ PushEngine::processNextMemoryReadEvent()
 
         if (curr_info.done()) {
             DPRINTF(PushEngine, "%s: Current EdgeReadInfoGen is done.\n", __func__);
-            pushReqQueue.pop_front();
-            DPRINTF(PushEngine, "%s: Popped curr_info from pushReqQueue. "
-                        "pushReqQueue.size() = %u.\n",
-                        __func__, pushReqQueue.size());
-            if (numTotalRetries > 0) {
-                int free_space = pushReqQueueSize -
-                (pushReqQueue.size() + (numPendingRetries * numElementsPerLine));
-                DPRINTF(PushEngine, "%s: pushReqQueue has at least %d"
-                            " free spaces.\n", __func__, free_space);
-                if ((free_space >= numElementsPerLine) &&
-                    (numPendingRetries == 0)) {
-                    DPRINTF(PushEngine, "%s: Sent a push retry to "
-                                "peerCoalesceEngine.\n", __func__);
-                    if (!nextSendRetryEvent.scheduled()) {
-                        schedule(nextSendRetryEvent, nextCycle());
-                    }
-                }
-            }
+            edgePointerQueue.pop_front();
+            DPRINTF(PushEngine, "%s: Popped curr_info from edgePointerQueue. "
+            "edgePointerQueue.size() = %u.\n", __func__, edgePointerQueue.size());
         }
     }
 
-    if (!pushReqQueue.empty()) {
+    if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
+        schedule(nextVertexPullEvent, nextCycle());
+    }
+
+    if (!edgePointerQueue.empty()) {
         assert(!nextMemoryReadEvent.pending());
         assert(!nextMemoryReadEvent.scheduled());
         schedule(nextMemoryReadEvent, nextCycle());
     }
-}
-
-void
-PushEngine::processNextSendRetryEvent()
-{
-    assert(numPendingRetries == 0);
-    numPendingRetries++;
-    peerCoalesceEngine->recvPushRetry();
 }
 
 void
@@ -259,25 +240,27 @@ PushEngine::handleMemResp(PacketPtr pkt)
 {
     // TODO: in case we need to edit edges, get rid of second statement.
     assert(pkt->isResponse() && (!pkt->isWrite()));
-    memRespQueue.push_back(pkt);
-    onTheFlyMemReqs--;
-    assert(memRespQueue.size() <= memRespQueueSize);
 
     uint8_t* pkt_data = new uint8_t [peerMemoryAtomSize];
     PushInfo push_info = reqInfoMap[pkt->req];
     pkt->writeDataToBlock(pkt_data, peerMemoryAtomSize);
 
-    std::vector<CompleteEdge> edges;
+    std::deque<CompleteEdge> edges;
     for (int i = 0; i < push_info.numElements; i++) {
         Edge* edge = (Edge*) (pkt_data + push_info.offset + i * sizeof(Edge));
         Addr edge_dst = edge->neighbor;
         uint32_t edge_weight = edge->weight;
-        edges.emplace_back(push_info.src, edge_dst, edge_weight);
+        edges.emplace_back(push_info.src, edge_dst,
+                    edge_weight, push_info.value);
     }
     edgeQueue.push_back(edges);
+    onTheFlyMemReqs--;
+    reqInfoMap.erase(pkt->req);
     delete pkt_data;
+    delete pkt;
 
-    if ((!nextPushEvent.scheduled()) && (!memRespQueue.empty())) {
+    if ((!nextPushEvent.pending()) &&
+        (!nextPushEvent.scheduled())) {
         schedule(nextPushEvent, nextCycle());
     }
     return true;
@@ -287,50 +270,37 @@ PushEngine::handleMemResp(PacketPtr pkt)
 void
 PushEngine::processNextPushEvent()
 {
-    PacketPtr pkt = memRespQueue.front();
-    uint8_t* data = pkt->getPtr<uint8_t>();
-
-    Addr offset = reqOffsetMap[pkt->req];
-    assert(offset < peerMemoryAtomSize);
-    uint32_t value = reqValueMap[pkt->req];
-
-    DPRINTF(PushEngine, "%s: Looking at the front of the queue. pkt->Addr: %lu, "
-                "offset: %lu\n",
-            __func__, pkt->getAddr(), offset);
-
-    Edge* curr_edge = (Edge*) (data + offset);
-
-    std::vector<CompleteEdge>& current_edges = edgeQueue.front();
-    while(!current_edges.empty()) {
-        CompleteEdge curr_edge = current_edges.back();
-        DPRINTF(PushEngine, "%s: %s.\n", __func__, curr_edge.to_string());
-        current_edges.pop_back();
+    if (reqPort.blocked()) {
+        nextPushEvent.sleep();
+        return;
     }
+
+    std::deque<CompleteEdge>& edge_list = edgeQueue.front();
+    CompleteEdge curr_edge = edge_list.front();
+
+    DPRINTF(PushEngine, "%s: The edge to process is %s.\n",
+                    __func__, curr_edge.to_string());
+
     // TODO: Implement propagate function here
-    uint32_t update_value = value + 1;
+    uint32_t update_value = curr_edge.value + 1;
     PacketPtr update = createUpdatePacket<uint32_t>(
-                            curr_edge->neighbor, update_value);
+                            curr_edge.dst, update_value);
 
-    if (!reqPort.blocked()) {
-        reqPort.sendPacket(update);
-        stats.numUpdates++;
-        DPRINTF(PushEngine, "%s: Sent a push update to addr: %lu with value: %d.\n",
-                                __func__, curr_edge->neighbor, update_value);
-        reqOffsetMap[pkt->req] = reqOffsetMap[pkt->req] + sizeof(Edge);
-        assert(reqOffsetMap[pkt->req] <= peerMemoryAtomSize);
-        reqNumEdgeMap[pkt->req]--;
-        assert(reqNumEdgeMap[pkt->req] >= 0);
+    reqPort.sendPacket(update);
+    stats.numUpdates++;
+    DPRINTF(PushEngine, "%s: Sent a push update from addr: %lu to addr: %lu "
+                        "with value: %d.\n", __func__, curr_edge.src,
+                        curr_edge.dst, update_value);
+
+
+    edge_list.pop_front();
+    if (edge_list.empty()) {
+        edgeQueue.pop_front();
     }
 
-    if (reqNumEdgeMap[pkt->req] == 0) {
-        reqOffsetMap.erase(pkt->req);
-        reqNumEdgeMap.erase(pkt->req);
-        reqValueMap.erase(pkt->req);
-        memRespQueue.pop_front();
-        delete pkt;
-    }
-
-    if (!nextPushEvent.scheduled() && !memRespQueue.empty()) {
+    assert(!nextPushEvent.pending());
+    assert(!nextPushEvent.scheduled());
+    if (!edgeQueue.empty()) {
         schedule(nextPushEvent, nextCycle());
     }
 }
@@ -352,17 +322,6 @@ PushEngine::createUpdatePacket(Addr addr, T value)
     pkt->setLE<T>(value);
 
     return pkt;
-}
-
-bool
-PushEngine::allocatePushSpace() {
-    if ((pushReqQueueSize == 0) ||
-        ((pushReqQueue.size() < pushReqQueueSize) && (numTotalRetries == 0))) {
-        return true;
-    } else {
-        numTotalRetries++;
-        return false;
-    }
 }
 
 PushEngine::PushStats::PushStats(PushEngine &_push)

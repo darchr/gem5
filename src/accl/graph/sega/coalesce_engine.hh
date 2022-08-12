@@ -106,7 +106,8 @@ class CoalesceEngine : public BaseMemoryEngine
     std::unordered_map<int, std::vector<Addr>> MSHR;
     std::deque<std::tuple<Addr, WorkListItem>> responseQueue;
 
-    int numRetriesReceived;
+    int _workCount;
+    int numPullsReceived;
     UniqueFIFO<int> applyQueue;
     std::bitset<MAX_BITVECTOR_SIZE> needsPush;
 
@@ -161,7 +162,8 @@ class CoalesceEngine : public BaseMemoryEngine
     void recvWLWrite(Addr addr, WorkListItem wl);
     void registerWLEngine(WLEngine* wl_engine);
 
-    void recvPushRetry();
+    int workCount() { return _workCount; }
+    void recvVertexPull();
 };
 
 }

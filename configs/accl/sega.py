@@ -6,10 +6,9 @@ from m5.objects import *
 from m5.util.convert import toMemorySize
 
 class MPU(SubSystem):
-    def __init__(self, base_edge_addr):
+    def __init__(self):
         super(MPU, self).__init__()
-        self.push_engine = PushEngine(base_edge_addr=0,
-                                    push_req_queue_size=32,
+        self.push_engine = PushEngine(push_req_queue_size=32,
                                     attached_memory_atom_size=64,
                                     resp_queue_size=64)
         # self.push_engine = PushEngine(base_edge_addr=base_edge_addr,
@@ -151,7 +150,7 @@ class SEGA(System):
 
         mpus = []
         for i in range(num_mpus):
-            mpus.append(MPU(base_edge_addr=self.mem_ctrl.getEdgeBaseAddr(i)))
+            mpus.append(MPU())
             mpus[i].setReqPort(self.interconnect.cpu_side_ports)
             mpus[i].setRespPort(self.interconnect.mem_side_ports)
             mpus[i].setVertexMemPort(self.mem_ctrl.getVertexPort(i))

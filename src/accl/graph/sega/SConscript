@@ -47,6 +47,7 @@ DebugFlag('CacheBlockState')
 DebugFlag('CoalesceEngine')
 DebugFlag('PushEngine')
 DebugFlag('SEGAStructureSize')
+DebugFlag('TempFlag')
 DebugFlag('WLEngine')
 
 CompoundFlag('MPU', ['CoalesceEngine', 'PushEngine',
