@@ -49,14 +49,14 @@ class PushEngine : public BaseMemoryEngine
         size_t _step;
         size_t _atom;
 
-        uint32_t _value;
         Addr _src;
+        uint32_t _value;
 
       public:
         EdgeReadInfoGen(Addr start, Addr end, size_t step,
-                            size_t atom, uint32_t value, Addr src):
+                            size_t atom, Addr src, uint32_t value):
                             _start(start), _end(end), _step(step),
-                            _atom(atom), _value(value), _src(src)
+                            _atom(atom), _src(src), _value(value)
         {}
 
         std::tuple<Addr, Addr, int> nextReadPacketInfo()
@@ -109,38 +109,34 @@ class PushEngine : public BaseMemoryEngine
         virtual void recvReqRetry();
     };
 
+    ReqPort reqPort;
+
     bool _running;
     int numElementsPerLine;
     CoalesceEngine* peerCoalesceEngine;
 
-    ReqPort reqPort;
-
-    int pushReqQueueSize;
-    int numTotalRetries;
-    int numPendingRetries;
-    std::deque<EdgeReadInfoGen> pushReqQueue;
-
-    // TODO: Add size one size for all these maps
-    std::unordered_map<RequestPtr, Addr> reqOffsetMap;
-    std::unordered_map<RequestPtr, int> reqNumEdgeMap;
-    std::unordered_map<RequestPtr, uint32_t> reqValueMap;
+    int numPendingPulls;
+    int edgePointerQueueSize;
+    std::deque<EdgeReadInfoGen> edgePointerQueue;
     std::unordered_map<RequestPtr, PushInfo> reqInfoMap;
 
     int onTheFlyMemReqs;
-    int memRespQueueSize;
-    std::deque<PacketPtr> memRespQueue;
-    std::deque<std::vector<CompleteEdge>> edgeQueue;
+    int edgeQueueSize;
+    std::deque<std::deque<CompleteEdge>> edgeQueue;
 
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
+
+    EventFunctionWrapper nextVertexPullEvent;
+    void processNextVertexPullEvent();
 
     MemoryEvent nextMemoryReadEvent;
     void processNextMemoryReadEvent();
 
-    EventFunctionWrapper nextPushEvent;
+    MemoryEvent nextPushEvent;
     void processNextPushEvent();
 
-    EventFunctionWrapper nextSendRetryEvent;
-    void processNextSendRetryEvent();
+    bool vertexSpace();
+    bool workLeft();
 
     struct PushStats : public statistics::Group
     {
@@ -166,24 +162,14 @@ class PushEngine : public BaseMemoryEngine
     Port& getPort(const std::string &if_name,
                 PortID idx=InvalidPortID) override;
 
-    bool allocatePushSpace();
-
-    void deallocatePushSpace(int space);
-
-    void recvWLItem(WorkListItem wl);
-
-    void recvWLItemRetry(WorkListItem wl);
-
     void registerCoalesceEngine(CoalesceEngine* coalesce_engine,
                                           int elements_per_line);
 
-    int getNumRetries() { return numTotalRetries; }
+    void recvReqRetry();
 
-    void start(); // CoalesceEngine announcing work
-    void stop(); // CoalesceEngine announcing no work
+    void start();
     bool running() { return _running; }
-    void recvWLItem2(Addr addr, WorkListItem wl);
-
+    void recvVertexPush(Addr addr, WorkListItem wl);
 };
 
 }
