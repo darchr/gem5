@@ -47,8 +47,9 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     peerPushEngine(params.peer_push_engine),
     numLines((int) (params.cache_size / peerMemoryAtomSize)),
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
-    numMSHREntries(params.num_mshr_entry), numTgtsPerMSHR(params.num_tgts_per_mshr),
-    numRetriesReceived(0),
+    numMSHREntries(params.num_mshr_entry),
+    numTgtsPerMSHR(params.num_tgts_per_mshr),
+    _workCount(0), numPullsReceived(0),
     nextMemoryEvent([this] {
         processNextMemoryEvent();
         }, name() + ".nextMemoryEvent"),
@@ -423,26 +424,20 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                     "for addr %lu. It was not found in the cache.\n",
                     __func__, addr);
         WorkListItem* items = pkt->getPtr<WorkListItem>();
-        int push_needed = 0;
         // No applying of the line needed.
         DPRINTF(BitVector, "%s: needsPush.count: %d.\n",
                             __func__, needsPush.count());
-        assert(peerPushEngine->getNumRetries() == needsPush.count());
         for (int i = 0; i < numElementsPerLine; i++) {
-            assert(!((needsPush[it + i] == 1) &&
-                            (items[i].degree == 0)));
+            Addr vertex_addr = addr + i * sizeof(WorkListItem);
             if (needsPush[it + i] == 1) {
-                peerPushEngine->recvWLItemRetry(items[i]);
+                _workCount--;
+                needsPush[it + i] = 0;
+                peerPushEngine->recvVertexPush(vertex_addr, items[i]);
+                break;
             }
-            push_needed += needsPush[it + i];
-            needsPush[it + i] = 0;
         }
         DPRINTF(BitVector, "%s: needsPush.count: %d.\n",
                             __func__, needsPush.count());
-        peerPushEngine->deallocatePushSpace(
-                                numElementsPerLine - push_needed);
-        assert(peerPushEngine->getNumRetries() == needsPush.count());
-        // }
         delete pkt;
         return true;
     }
@@ -691,7 +686,7 @@ CoalesceEngine::processNextApplyEvent()
     DPRINTF(CoalesceEngine, "%s: Looking at the front of the applyQueue. "
                 "cacheBlock[%d] to be applied.\n", __func__, block_index);
     DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n",
-            __func__, cacheBlocks[block_index].to_string());
+            __func__, block_index, cacheBlocks[block_index].to_string());
     assert(cacheBlocks[block_index].valid);
     assert(cacheBlocks[block_index].needsApply);
     assert(!cacheBlocks[block_index].pendingData);
@@ -712,13 +707,14 @@ CoalesceEngine::processNextApplyEvent()
 
                 int bit_index_base =
                             getBitIndexBase(cacheBlocks[block_index].addr);
-                if ((needsPush[bit_index_base + index] == 0) &&
-                    (cacheBlocks[block_index].items[index].degree != 0)) {
-                    if (peerPushEngine->allocatePushSpace()) {
-                        peerPushEngine->recvWLItem(
-                            cacheBlocks[block_index].items[index]);
-                    } else {
+
+                if (cacheBlocks[block_index].items[index].degree > 0) {
+                    if (needsPush[bit_index_base + index] == 0) {
+                        _workCount++;
                         needsPush[bit_index_base + index] = 1;
+                    }
+                    if (!peerPushEngine->running()) {
+                        peerPushEngine->start();
                     }
                 }
             }
@@ -945,24 +941,20 @@ CoalesceEngine::processNextPushRetry(int prev_slice_base, Tick schedule_tick)
             assert(cacheBlocks[block_index].valid);
             assert(cacheBlocks[block_index].busyMask == 0);
 
-            int push_needed = 0;
             DPRINTF(BitVector, "%s: needsPush.count: %d.\n",
                                     __func__, needsPush.count());
-            assert(peerPushEngine->getNumRetries() == needsPush.count());
-
             for (int i = 0; i < numElementsPerLine; i++) {
+                Addr vertex_addr = addr + i * sizeof(WorkListItem);
                 if (needsPush[slice_base + i] == 1) {
-                    peerPushEngine->recvWLItemRetry(
-                        cacheBlocks[block_index].items[i]);
+                    _workCount--;
+                    needsPush[slice_base + i] = 0;
+                    peerPushEngine->recvVertexPush(vertex_addr,
+                                            cacheBlocks[block_index].items[i]);
+                    break;
                 }
-                push_needed +=  needsPush[slice_base + i];
-                needsPush[slice_base + i] = 0;
             }
             DPRINTF(BitVector, "%s: needsPush.count: %d.\n",
                                     __func__, needsPush.count());
-            peerPushEngine->deallocatePushSpace(
-                                            numElementsPerLine - push_needed);
-            assert(peerPushEngine->getNumRetries() == needsPush.count());
         } else {
             PacketPtr pkt = createReadPacket(addr, peerMemoryAtomSize);
             SenderState* sender_state = new SenderState(true);
@@ -973,11 +965,10 @@ CoalesceEngine::processNextPushRetry(int prev_slice_base, Tick schedule_tick)
             // a flag to true (maybe not even needed just look if the cache has a
             // line allocated for it in the cacheBlocks).
         }
-        numRetriesReceived--;
-        assert(numRetriesReceived == 0);
+        numPullsReceived--;
     }
 
-    if (numRetriesReceived > 0) {
+    if (numPullsReceived > 0) {
         memoryFunctionQueue.emplace_back(
             [this] (int slice_base, Tick schedule_tick) {
             processNextPushRetry(slice_base, schedule_tick);
@@ -1002,28 +993,18 @@ CoalesceEngine::recvMemRetry()
 }
 
 void
-CoalesceEngine::recvPushRetry()
+CoalesceEngine::recvVertexPull()
 {
-    numRetriesReceived++;
-    DPRINTF(CoalesceEngine,  "%s: Received a push retry.\n", __func__);
-    // For now since we do only one retry at a time, we should not receive
-    // a retry while this nextSendingRetryEvent is scheduled or is pending.
-    assert(numRetriesReceived == 1);
-
-    // TODO: Pass slice_base to getOptimalBitVectorSlice
+    numPullsReceived++;
     memoryFunctionQueue.emplace_back(
         [this] (int slice_base, Tick schedule_tick) {
         processNextPushRetry(slice_base, schedule_tick);
     }, 0, curTick());
-    DPRINTF(CoalesceEngine, "%s: Pushed processNextPushRetry with input 0 to "
-                                        "memoryFunctionQueue.\n", __func__);
     if ((!nextMemoryEvent.pending()) &&
         (!nextMemoryEvent.scheduled())) {
         schedule(nextMemoryEvent, nextCycle());
     }
 }
-
-
 
 CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
     : statistics::Group(&_coalesce),
