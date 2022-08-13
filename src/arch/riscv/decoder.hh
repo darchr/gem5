@@ -32,6 +32,8 @@
 
 #include "arch/generic/decode_cache.hh"
 #include "arch/generic/decoder.hh"
+#include "arch/riscv/isa.hh"
+#include "arch/riscv/regs/vec.hh"
 #include "arch/riscv/types.hh"
 #include "base/logging.hh"
 #include "base/types.hh"
@@ -53,22 +55,35 @@ class Decoder : public InstDecoder
     decode_cache::InstMap<ExtMachInst> instMap;
     bool aligned;
     bool mid;
+    ISA *isa;
 
   protected:
     //The extended machine instruction being generated
     ExtMachInst emi;
     uint32_t machInst;
 
-    StaticInstPtr decodeInst(ExtMachInst mach_inst);
+    StaticInstPtr decodeInst(ExtMachInst mach_inst,
+                             RiscvISA::VTYPE mach_vtype,
+                             uint32_t mach_vl,
+                             int vlen);
 
     /// Decode a machine instruction.
     /// @param mach_inst The binary instruction to decode.
+    /// @param add The address of the instruction.
+    /// @param mach_vtype VTYPE register's value predicted by the decoder.
+    /// @param mach_vl VL value predicted by the decoder.
+    /// @param vlen The VLEN value, a parameter of RVV implementation.
     /// @retval A pointer to the corresponding StaticInst object.
-    StaticInstPtr decode(ExtMachInst mach_inst, Addr addr);
+    StaticInstPtr decode(ExtMachInst mach_inst,
+                         Addr addr,
+                         RiscvISA::VTYPE mach_vtype,
+                         uint32_t mach_vl,
+                         int vlen);
 
   public:
     Decoder(const RiscvDecoderParams &p) : InstDecoder(p, &machInst)
     {
+        isa = reinterpret_cast<ISA*>(p.isa);
         reset();
     }
 

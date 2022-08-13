@@ -1227,8 +1227,22 @@ del wrap
     def p_top_level_decode_block(self, t):
         "top_level_decode_block : decode_block"
         codeObj = t[1]
-        codeObj.wrap_decode_block(
-            """
+        if self.isa_name == "RiscvISA":
+            codeObj.wrap_decode_block(
+                """
+using namespace gem5;
+StaticInstPtr
+%(isa_name)s::Decoder::decodeInst(%(isa_name)s::ExtMachInst machInst,
+    RiscvISA::VTYPE machVtype, uint32_t machVl, int vlen)
+{
+    using namespace %(namespace)s;
+"""
+            % self,
+            "}",
+            )
+        else:
+            codeObj.wrap_decode_block(
+                """
 using namespace gem5;
 StaticInstPtr
 %(isa_name)s::Decoder::decodeInst(%(isa_name)s::ExtMachInst machInst)
@@ -1237,7 +1251,7 @@ StaticInstPtr
 """
             % self,
             "}",
-        )
+            )
 
         codeObj.emit()
 
