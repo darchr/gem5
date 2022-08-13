@@ -52,7 +52,7 @@ class RiscvISA(BaseISA):
         "which must be a power of 2, and must be no greater than 65536."
     )
     elen = Param.Int(
-        128,
+        64,
         "ELEN: The maximum size in bits of a vector element that any operation"
         " can produce or consume, ELEN>=8, which must be a power of 2."
     )

@@ -41,6 +41,7 @@
 #include "arch/riscv/regs/float.hh"
 #include "arch/riscv/regs/int.hh"
 #include "arch/riscv/regs/misc.hh"
+#include "arch/riscv/regs/vec.hh"
 #include "base/bitfield.hh"
 #include "base/compiler.hh"
 #include "base/logging.hh"
@@ -195,7 +196,6 @@ namespace
 {
 
 /* Not applicable to RISCV */
-RegClass vecRegClass(VecRegClass, VecRegClassName, 1, debug::IntRegs);
 RegClass vecElemClass(VecElemClass, VecElemClassName, 2, debug::IntRegs);
 RegClass vecPredRegClass(VecPredRegClass, VecPredRegClassName, 1,
         debug::IntRegs);
@@ -215,6 +215,15 @@ ISA::ISA(const Params &p) : BaseISA(p), vlen(p.vlen), elen(p.elen)
 
     miscRegFile.resize(NUM_MISCREGS);
     clear();
+
+    fatal_if(vlen > MaxVlenInBits, "RISC-V VLEN greater than %d not supported."
+        " Found VLEN of %d.",
+        MaxVlenInBits, vlen);
+    fatal_if(elen > vlen, "ELEN (%d) must be less than or equal to VLEN (%d).",
+        elen, vlen);
+    fatal_if(!isPowerOf2(vlen), "VLEN (%d) must be a power of 2.", vlen);
+    fatal_if(!isPowerOf2(elen), "ELEN (%d) must be a power of 2.", elen);
+    fatal_if(elen > 64, "ELEN > 64 is not supported.");
 }
 
 bool ISA::inUserMode() const
