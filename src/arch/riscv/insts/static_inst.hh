@@ -51,6 +51,10 @@ namespace RiscvISA
 class RiscvStaticInst : public StaticInst
 {
   protected:
+
+    /// Number of vector source registers
+    uint8_t _numVecSrcRegs = 0;
+
     RiscvStaticInst(const char *_mnemonic, ExtMachInst _machInst,
             OpClass __opClass) :
         StaticInst(_mnemonic, __opClass), machInst(_machInst)
