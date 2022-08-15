@@ -35,9 +35,6 @@ class CPUTypes(Enum):
     TIMING = "timing"
     MINOR = "minor"
 
-class CustomCPUTypes(Enum):
-    U74 = "u74"
-
 def get_cpu_types_str_set() -> Set[CPUTypes]:
     """
     Returns a set of all the CPU types as strings.

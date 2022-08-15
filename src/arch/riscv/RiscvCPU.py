@@ -32,7 +32,6 @@ from m5.objects.RiscvDecoder import RiscvDecoder
 from m5.objects.RiscvMMU import RiscvMMU
 from m5.objects.RiscvInterrupts import RiscvInterrupts
 from m5.objects.RiscvISA import RiscvISA
-from m5.objects.hifive_cpu import U74CPU
 
 class RiscvCPU:
     ArchDecoder = RiscvDecoder
@@ -53,8 +52,4 @@ class RiscvO3CPU(BaseO3CPU, RiscvCPU):
     mmu = RiscvMMU()
 
 class RiscvMinorCPU(BaseMinorCPU, RiscvCPU):
-    mmu = RiscvMMU()
-
-# RiscvCPU base class and RiscvMMU() are in src/arch/riscv/RiscvCPU.py
-class RiscvU74CPU(U74CPU, RiscvCPU):
     mmu = RiscvMMU()

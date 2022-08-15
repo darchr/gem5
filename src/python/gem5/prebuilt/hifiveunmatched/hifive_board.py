@@ -30,7 +30,6 @@ from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.utils.requires import requires
 from gem5.isas import ISA
 from gem5.components.boards.simple_board import SimpleBoard
-from gem5.components.processors.cpu_types import CPUTypes, CustomCPUTypes
 from hifive_cache import HiFiveCacheHierarchy
 from hifive_proc import U74Processor
 from m5.objects import AddrRange
