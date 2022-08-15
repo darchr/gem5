@@ -34,7 +34,7 @@ from gem5.components.processors.abstract_processor import AbstractProcessor
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
 from gem5.components.boards.abstract_board import AbstractBoard
-from hifive_core import U74Core
+from python.gem5.prebuilt.hifiveunmatched.hifive_core import U74Core
 
 from typing import Optional
 
