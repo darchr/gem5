@@ -38,15 +38,15 @@ board in gem5, do the following:
 
 2. Run the board's hello world SE mode simulation script.
     ```sh
-    ./build/RISCV/gem5.opt src/python/gem5/prebuilt/hifiveunmatched/hifive-run.py
+    ./build/RISCV/gem5.opt configs/example/gem5_library/hifive-run.py
     ```
     This should run a successful simulation and print "Hello world!".
     You can also run a custom RISCV binary by passing in the path
     to the binary via the command line. Here is an example:
     ```sh
-    ./build/RISCV/gem5.opt src/python/gem5/prebuilt/hifiveunmatched/hifive-run.py --riscv_binary=microbench/CCa.RISCV
+    ./build/RISCV/gem5.opt configs/example/gem5_library/hifive-run.py --riscv_binary=microbench/CCa.RISCV
     ```
     You can add one optional argument to the binary. Here is an example:
     ```sh
-    ./build/RISCV/gem5.opt src/python/gem5/prebuilt/hifiveunmatched/hifive-run.py --riscv_binary=microbenchmarks/control_complex.RISCV --argv=10
+    ./build/RISCV/gem5.opt configs/example/gem5_library/hifive-run.py --riscv_binary=microbenchmarks/control_complex.RISCV --argv=10
     ```
