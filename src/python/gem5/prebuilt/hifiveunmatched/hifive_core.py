@@ -121,26 +121,34 @@ class U74Core(AbstractCore):
             executeFuncUnits = U74FUPool(),
             branchPred = U74BP())
         self.core.createThreads()
+    
     def get_simobject(self) -> BaseCPU:
         return self.core
+    
     @overrides(AbstractCore)
     def get_isa(self) -> ISA:
         return self._isa
+   
     @overrides(AbstractCore)
     def connect_icache(self, port: Port) -> None:
         self.core.icache_port = port
+    
     @overrides(AbstractCore)
     def connect_dcache(self, port: Port) -> None:
         self.core.dcache_port = port
+    
     @overrides(AbstractCore)
     def connect_walker_ports(self, port1: Port, port2: Port) -> None:
         self.core.mmu.connectWalkerPorts(port1, port2)
+    
     @overrides(AbstractCore)
     def set_workload(self, process: Process) -> None:
         self.core.workload = process
+    
     @overrides(AbstractCore)
     def set_switched_out(self, value: bool) -> None:
         self.core.switched_out = value
+    
     @overrides(AbstractCore)
     def connect_interrupt(
         self, interrupt_requestor: Optional[Port] = None,
@@ -149,6 +157,7 @@ class U74Core(AbstractCore):
         # TODO: This model assumes that we will only create an interrupt
         # controller as we require it. Not sure how true this is in all cases.
         self.core.createInterruptController()
+    
     @overrides(AbstractCore)
     def get_mmu(self) -> BaseMMU:
         return self.core.mmu

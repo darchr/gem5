@@ -52,9 +52,7 @@ class U74Processor(AbstractProcessor):
             cores=self._create_cores()
         )
 
-    def _create_cores(
-        self,
-    ):
+    def _create_cores(self):
         return U74Core()
         
 
