@@ -52,7 +52,7 @@ if args.riscv_binary == "riscv-hello":
 else:
     board.set_se_binary_workload(
         CustomResource(args.riscv_binary),
-        arguments=[args.argv]
+        arguments=args.argv.split(" ")
     )
 
 simulator = Simulator(board=board)
