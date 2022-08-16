@@ -48,13 +48,10 @@ class U74Processor(AbstractProcessor):
         self,
     ) -> None:
         self._cpu_type = CPUTypes.MINOR
-        super().__init__(
-            cores=self._create_cores()
-        )
+        super().__init__(cores=self._create_cores())
 
     def _create_cores(self):
         return U74Core()
-        
 
     @overrides(AbstractProcessor)
     def incorporate_processor(self, board: AbstractBoard) -> None:

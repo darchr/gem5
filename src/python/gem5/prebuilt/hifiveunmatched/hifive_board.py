@@ -30,8 +30,9 @@ from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.utils.requires import requires
 from gem5.isas import ISA
 from gem5.components.boards.simple_board import SimpleBoard
-from python.gem5.prebuilt.hifiveunmatched.hifive_cache import \
-    HiFiveCacheHierarchy
+from python.gem5.prebuilt.hifiveunmatched.hifive_cache import (
+    HiFiveCacheHierarchy,
+)
 from python.gem5.prebuilt.hifiveunmatched.hifive_proc import U74Processor
 from m5.objects import AddrRange
 
@@ -45,12 +46,13 @@ class HiFiveUnmatchedBoard(SimpleBoard):
 
         memory = ChanneledMemory(DDR4_2400_8x8, 1, 64, "16GB")
         memory.set_memory_range(
-            [AddrRange(start=0x80000000, size=memory.get_size())])
+            [AddrRange(start=0x80000000, size=memory.get_size())]
+        )
 
         processor = U74Processor()
 
         super().__init__(
-            clk_freq="1.2GHz", # real system is 1.0 to 1.5 GHz
+            clk_freq="1.2GHz",  # real system is 1.0 to 1.5 GHz
             processor=processor,
             memory=memory,
             cache_hierarchy=cache_hierarchy,
