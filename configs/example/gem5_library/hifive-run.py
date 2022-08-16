@@ -34,8 +34,7 @@ from typing import List
 # collect optional CLI arg for RISCV binary to run
 parser = argparse.ArgumentParser(description="Binary to run on system")
 parser.add_argument(
-    "--riscv_binary", type=str, help="The RISCV binary to execute on the CPU",
-    default="riscv-hello",
+    "riscv_binary", type=str, help="The RISCV binary to execute on the CPU"
 )
 parser.add_argument(
     "--argv", type=str, help="CLI argument to the binary",
