@@ -71,6 +71,9 @@ class HiFiveCacheHierarchy(
         l1d_size: str,
         l1i_size: str,
         l2_size: str,
+        l1d_assoc: int,
+        l1i_assoc: int,
+        l2_assoc: int,
         membus: BaseXBar = _get_default_membus.__func__(),
     ) -> None:
         """
@@ -89,11 +92,11 @@ class HiFiveCacheHierarchy(
         AbstractTwoLevelCacheHierarchy.__init__(
             self,
             l1i_size=l1i_size,
-            l1i_assoc=4,
+            l1i_assoc=l1i_assoc,
             l1d_size=l1d_size,
-            l1d_assoc=8,
+            l1d_assoc=l1d_assoc,
             l2_size=l2_size,
-            l2_assoc=16,
+            l2_assoc=l2_assoc,
         )
 
         self.membus = membus

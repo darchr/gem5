@@ -41,7 +41,8 @@ class HiFiveUnmatchedBoard(SimpleBoard):
         requires(isa_required=ISA.RISCV)
 
         cache_hierarchy = HiFiveCacheHierarchy(
-            l1d_size="32kB", l1i_size="32kB", l2_size="2MB"
+            l1d_size="32kB", l1i_size="32kB", l2_size="2MB",
+            l1d_assoc = 8, l1i_assoc = 4, l2_assoc = 16,
         )
 
         memory = ChanneledMemory(DDR4_2400_8x8, 1, 64, "16GB")
