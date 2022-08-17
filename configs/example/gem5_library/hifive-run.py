@@ -44,16 +44,10 @@ args = parser.parse_args()
 
 board = HiFiveUnmatchedBoard()
 
-# run default binary if no binary provided, otherwise run CLI provided resource
-if args.riscv_binary == "riscv-hello":
-    board.set_se_binary_workload(
-        Resource(args.riscv_binary)
-    )
-else:
-    board.set_se_binary_workload(
-        CustomResource(args.riscv_binary),
-        arguments=args.argv.split(" ")
-    )
+board.set_se_binary_workload(
+    CustomResource(args.riscv_binary),
+    arguments=args.argv.split(" "),
+)
 
 simulator = Simulator(board=board)
 simulator.run()
