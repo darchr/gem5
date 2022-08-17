@@ -32,3 +32,6 @@ Source('compressed.cc', tags='riscv isa')
 Source('mem.cc', tags='riscv isa')
 Source('standard.cc', tags='riscv isa')
 Source('static_inst.cc', tags='riscv isa')
+Source('vector.cc', tags='riscv isa')
+
+DebugFlag('Vsetvl', tags='riscv isa')

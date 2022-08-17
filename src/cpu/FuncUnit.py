@@ -94,6 +94,7 @@ class OpClass(Enum):
         "FloatMemRead",
         "FloatMemWrite",
         "IprAccess",
+        'VectorCfg',
         "InstPrefetch",
     ]
 

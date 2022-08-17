@@ -1,0 +1,140 @@
+// SPDX-FileCopyrightText: Copyright © 2022 by Rivos Inc.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
+// Copyright (c) 2022 The Regents of the University of California
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met: redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer;
+// redistributions in binary form must reproduce the above copyright
+// notice, this list of conditions and the following disclaimer in the
+// documentation and/or other materials provided with the distribution;
+// neither the name of the copyright holders nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+// --- Start of VectorCfg
+
+def template VectorCfgConstructor {{
+    %(class_name)s::%(class_name)s(MachInst machInst, RiscvISA::VTYPE machVtype, uint32_t machVl, int vlen)
+        : %(base_class)s("%(mnemonic)s", machInst, VectorCfgOpClass, machVtype, machVl, vlen)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+        flags[IsVector] = true;
+    }
+}};
+
+def template VectorConfigExecute {{
+    Fault
+    %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+
+        RiscvISA::VTYPE new_vtype = 0xFFFFFFFF; // will have an illegal [30:8]
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        if (fault == NoFault) {
+
+            %(code)s;
+
+            if (fault == NoFault) {
+                %(op_wb)s;
+            }
+        }
+
+        //NPC = NPC;
+        RiscvISA::PCState newPCState;
+        set(newPCState, xc->pcState());
+        newPCState.vtype(new_vtype);
+        newPCState.vl(Rd); // the new vl is returned in Rd
+        xc->pcState(newPCState);
+
+        xc->tcBase()->pcState(newPCState);
+
+        return fault;
+    }
+}};
+
+def format VectorCfgOp(execute_code, branch_target_code, *opt_flags) {{
+    iop = InstObjParams(name, Name, 'VectorCfgOp', {'code': execute_code}, opt_flags)
+    header_output = VectorCfgDeclare.subst(iop)
+    decoder_output = VectorCfgConstructor.subst(iop)
+    decode_block = VectorDecode.subst(iop)
+    exec_output = VectorConfigExecute.subst(iop)
+}};
+
+// --- End of VectorCfg
+
+// Others
+def template VectorDecode {{
+    return new %(class_name)s(machInst, machVtype, machVl, vlen);
+}};
+
+def template VectorMicroDecode {{
+    return new %(class_name)s(machInst, machVtype, machVl, vlen);
+}};
+
+
+def template VectorDeclare {{
+    //
+    // Static instruction class for "%(mnemonic)s".
+    //
+    class %(class_name)s : public %(base_class)s
+    {
+      private:
+        %(reg_idx_arr_decl)s;
+
+      public:
+        /// Constructor.
+        %(class_name)s(MachInst machInst, RiscvISA::VTYPE vtype, uint32_t vl, int vlen);
+        Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        using %(base_class)s::generateDisassembly;
+    };
+}};
+
+def template VectorMacroDecode {{
+    return new %(class_name)s(machInst, machVtype, machVl, vlen);
+}};
+
+def template VectorMacroExecute {{
+    Fault
+    %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        std::string error = csprintf("Executing Macro Inst\n");
+        return std::make_shared<IllegalInstFault>(error, machInst);
+    }
+}};
+
+def template VectorCfgDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      private:
+        %(reg_idx_arr_decl)s;
+
+      public:
+        /// Constructor.
+        %(class_name)s(MachInst machInst, RiscvISA::VTYPE vtype, uint32_t vl, int vlen);
+        Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        using %(base_class)s::generateDisassembly;
+    };
+}};
