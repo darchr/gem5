@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from typing import Optional, List
+from typing import Optional
 from ...utils.requires import requires
 from .base_cpu_core import BaseCPUCore
 from .cpu_types import CPUTypes
@@ -71,7 +71,6 @@ class SimpleCore(BaseCPUCore):
         A factory used to return the SimObject core object given the cpu type,
         and ISA target. An exception will be thrown if there is an
         incompatibility.
-
         :param cpu_type: The target CPU type.
         :param isa: The target ISA.
         :param core_id: The id of the core to be returned.
@@ -135,10 +134,6 @@ class SimpleCore(BaseCPUCore):
                 f"{_isa_string_map[isa]}" f"{_cpu_types_string_map[cpu_type]}"
             )
 
-    @overrides(AbstractCore)
-    def set_switched_out(self, value: bool) -> None:
-        self.core.switched_out = value
-
         try:
             to_return_cls = getattr(
                 importlib.import_module(module_str), cpu_class_str
@@ -151,32 +146,3 @@ class SimpleCore(BaseCPUCore):
             )
 
         return to_return_cls(cpu_id=core_id)
-
-
-
-    @overrides(AbstractCore)
-    def get_mmu(self) -> BaseMMU:
-        return self.core.mmu
-
-    @overrides(AbstractCore)
-    def set_simpoint(
-        self,
-        inst_starts: List[int] = [],
-        init: bool = True
-    ) -> None:
-        if init:
-            self.core.simpoint_start_insts = inst_starts
-        else:
-            self.core.scheduleSimpointsInstStop(inst_starts)
-
-    @overrides(AbstractCore)
-    def set_inst_stop_any_thread(
-        self,
-        inst: int = 0,
-        init: bool = True
-    ) -> None:
-        if init:
-            self.core.max_insts_any_thread = inst
-        else:
-            self.core.scheduleInstStopAnyThread(inst)
-
