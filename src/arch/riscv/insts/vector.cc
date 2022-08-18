@@ -164,6 +164,37 @@ VectorCfgOp::generateDisassembly(Addr pc,
     return ss.str();
 }
 
+// op vd, vs2, uimm
+std::string
+VectorOPIVIMacroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << vec_reg::VectorRegNames[VD] << ", ";
+    ss << vec_reg::VectorRegNames[VS1] << ", ";
+    ss << csprintf("%d", UIMM5);
+    if (VM==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+std::string
+VectorOPIVIMicroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << vec_reg::VectorRegNames[VD] << ", ";
+    ss << vec_reg::VectorRegNames[VS1] << ", ";
+    ss << csprintf("%d", UIMM5);
+    if (VM==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
 }
 
 }

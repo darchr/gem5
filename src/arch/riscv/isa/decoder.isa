@@ -1797,6 +1797,16 @@ decode QUADRANT default Unknown::unknown() {
         }
 
         0x15: decode FUNCT3 {
+            0x3: decode VFUNC_6 { // OPIVI
+                0x17: decode RL {
+                    0x1: VectorOPIVIMacroOp::vmv_vi ({{
+                        [[maybe_unused]] bool something = Vs2_vc[0] == 0; // keep isa_parser happy
+                        __int128_t simm = sext<5>(UIMM5);
+                        Vd_vc[regElemID] = simm;
+                    }});
+                }
+            }
+
             0x7: decode BIT31 { // Configuration-Setting
                 0x0: VectorCfgOp::vsetvli({{
                     Rd = setVsetvlCSR(xc, RD, RS1, Rs1_ud, ZIMM11, new_vtype);
