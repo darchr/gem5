@@ -84,5 +84,6 @@ simulator = Simulator(
 )
 
 # schedule a MAX_INSTS exit event before the simulation begins
+# the schedule_max_insts function only schedule event when the instruction length is greater than 0
 simulator.schedule_max_insts(simpoint.get_warmup_list()[3], True)
 simulator.run()
