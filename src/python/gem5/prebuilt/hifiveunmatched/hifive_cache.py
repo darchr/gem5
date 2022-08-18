@@ -52,24 +52,9 @@ class HiFiveCacheHierarchy(
     and a private L2 cache.
     """
 
-    @staticmethod
-    def _get_default_membus() -> SystemXBar:
-        """
-        A method used to obtain the default memory bus of 64 bit in width for
-        the PrivateL1PrivateL2 CacheHierarchy.
-        :returns: The default memory bus for the PrivateL1PrivateL2
-        CacheHierarchy.
-        :rtype: SystemXBar
-        """
-        membus = SystemXBar(width=64)
-        membus.badaddr_responder = BadAddr()
-        membus.default = membus.badaddr_responder.pio
-        return membus
-
     def __init__(
         self,
         l2_size: str,
-        membus: BaseXBar = _get_default_membus.__func__(),
     ) -> None:
         """
         :param l2_size: The size of the L2 Cache (e.g., "256kB").
@@ -86,7 +71,9 @@ class HiFiveCacheHierarchy(
             l2_assoc=16,
         )
 
-        self.membus = membus
+        self.membus = SystemXBar(width=64)
+        self.membus.badaddr_responder = BadAddr()
+        self.membus.default = self.membus.badaddr_responder.pio
 
     @overrides(AbstractClassicCacheHierarchy)
     def get_mem_side_port(self) -> Port:
