@@ -118,9 +118,7 @@ class AbstractCore(SubSystem):
 
     @abstractmethod
     def set_simpoint(
-        self,
-        inst_starts: List[int] = [],
-        init: bool = True
+        self, inst_starts: List[int] = [], init: bool = True
     ) -> None:
         """Schedule simpoint exit events for the core.
 
@@ -136,9 +134,7 @@ class AbstractCore(SubSystem):
 
     @abstractmethod
     def set_inst_stop_any_thread(
-        self,
-        inst: int = 0,
-        init: bool = True
+        self, inst: int = 0, init: bool = True
     ) -> None:
         """Schedule an exit event when any thread in this core reaches the
         given number of instructions.
