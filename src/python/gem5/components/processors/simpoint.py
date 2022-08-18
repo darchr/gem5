@@ -73,40 +73,45 @@ class SimPoint:
 
         if simpoint_file_path is None or weight_file_path is None:
             if simpoint_list is None or weight_list is None:
-                fatal("Please pass in file paths or lists for both simpoints "
-                    "and weights.")
+                fatal(
+                    "Please pass in file paths or lists for both simpoints "
+                    "and weights."
+                )
             else:
-                self._simpoint_start_insts = \
-                    list(inst * simpoint_interval for inst in simpoint_list)
+                self._simpoint_start_insts = list(
+                    inst * simpoint_interval for inst in simpoint_list
+                )
                 self._weight_list = weight_list
         else:
             # if passing in file paths then it calls the function to generate
             # simpoint_start_insts and weight list from the files
-            self._simpoint_start_insts, self._weight_list  = \
-                self.get_weights_and_simpoints_from_file(
-                    simpoint_file_path,
-                    weight_file_path
-                    )
+            (
+                self._simpoint_start_insts,
+                self._weight_list,
+            ) = self.get_weights_and_simpoints_from_file(
+                simpoint_file_path, weight_file_path
+            )
 
         if warmup_interval != 0:
             self._warmup_list = self.set_warmup_intervals(warmup_interval)
         else:
-            self._warmup_list = \
-                [0 for _ in range(len(self._simpoint_start_insts))]
-
+            self._warmup_list = [
+                0 for _ in range(len(self._simpoint_start_insts))
+            ]
 
     def get_weights_and_simpoints_from_file(
         self,
-        simpoint_path:Path,
-        weight_path:Path,
-        )-> Tuple[List[int], List[int]]:
+        simpoint_path: Path,
+        weight_path: Path,
+    ) -> Tuple[List[int], List[int]]:
         """
         This function takes in file paths and outputs a list of SimPoints
         instruction starts and a list of weights
         """
         simpoint = []
-        with open(simpoint_path) as simpoint_file, \
-            open(weight_path) as weight_file:
+        with open(simpoint_path) as simpoint_file, open(
+            weight_path
+        ) as weight_file:
             while True:
                 line = simpoint_file.readline()
                 if not line:
@@ -117,7 +122,7 @@ class SimPoint:
                     fatal("not engough weights")
                 weight = float(line.split(" ", 1)[0])
                 simpoint.append((interval, weight))
-        simpoint.sort(key = lambda obj: obj[0])
+        simpoint.sort(key=lambda obj: obj[0])
         # use simpoint to sort
         simpoint_start_insts = []
         weight_list = []
@@ -126,7 +131,7 @@ class SimPoint:
             weight_list.append(weight)
         return simpoint_start_insts, weight_list
 
-    def set_warmup_intervals(self, warmup_interval: int)->List[int]:
+    def set_warmup_intervals(self, warmup_interval: int) -> List[int]:
         """
         This function takes the warmup_interval, fits it into the
         _simpoint_start_insts, and outputs a list of warmup instruction lengths
@@ -140,27 +145,27 @@ class SimPoint:
         """
         last = 0
         warmup_list = []
-        for index, inst_start in enumerate(self._simpoint_start_insts):
-            warmup_inst = inst_start - warmup_interval - last
+        for index, start_inst in enumerate(self._simpoint_start_insts):
+            warmup_inst = start_inst - warmup_interval - last
             if warmup_inst < 0:
-                warmup_inst = inst_start - last
+                warmup_inst = start_inst - last
             else:
                 warmup_inst = warmup_interval
             warmup_list.append(warmup_inst)
-            last = inst_start + self._simpoint_interval
+            last = start_inst + self._simpoint_interval
             # change the starting instruction of a SimPoint to include the
             # warmup instruction length
-            self._simpoint_start_insts[index] = inst_start - warmup_inst
+            self._simpoint_start_insts[index] = start_inst - warmup_inst
         return warmup_list
 
-    def get_simpoint_start_insts(self)->List[int]:
+    def get_simpoint_start_insts(self) -> List[int]:
         return self._simpoint_start_insts
 
-    def get_weight_list(self)->List[float]:
+    def get_weight_list(self) -> List[float]:
         return self._weight_list
 
-    def get_simpoint_interval(self)->int:
+    def get_simpoint_interval(self) -> int:
         return self._simpoint_interval
 
-    def get_warmup_list(self)->List[int]:
+    def get_warmup_list(self) -> List[int]:
         return self._warmup_list
