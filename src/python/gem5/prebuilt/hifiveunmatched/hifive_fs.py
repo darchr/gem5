@@ -114,7 +114,7 @@ class HiFiveUnmatchedBoardFS(AbstractSystemBoard, KernelDiskWorkload):
 
         # Add the RTC
         # TODO: Why 100MHz? Does something else need to change when this does?
-        self.platform.rtc = RiscvRTC(frequency=Frequency("100MHz"))
+        self.platform.rtc = RiscvRTC(frequency=Frequency("1MHz")) # page 77, section 7.1 of datasheet
         self.platform.clint.int_pin = self.platform.rtc.int_pin
 
         # Incoherent I/O bus
