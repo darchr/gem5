@@ -71,7 +71,7 @@ from m5.util.fdthelper import (
 )
 
 
-class RiscvBoard(AbstractSystemBoard, KernelDiskWorkload):
+class HiFiveUnmatchedBoardFS(AbstractSystemBoard, KernelDiskWorkload):
     """
     A board capable of full system simulation for RISC-V
 
@@ -83,15 +83,19 @@ class RiscvBoard(AbstractSystemBoard, KernelDiskWorkload):
     * Only works with classic caches
     """
 
-    def __init__(
-        self,
-        clk_freq: str,
-        processor: U74Processor,
-        memory: U74Memory,
-        cache_hierarchy: HiFiveCacheHierarchy,
-    ) -> None:
-        super().__init__(clk_freq, processor, memory, cache_hierarchy)
+    def __init__(self) -> None:
+        cache_hierarchy = HiFiveCacheHierarchy(l2_size="2MB")
 
+        memory = U74Memory()
+
+        processor = U74Processor()
+
+        super().__init__(
+            clk_freq="1.2GHz",  # real system is 1.0 to 1.5 GHz
+            processor=processor,
+            memory=memory,
+            cache_hierarchy=cache_hierarchy,
+        )
         if processor.get_isa() != ISA.RISCV:
             raise Exception("The RISCVBoard requires a processor using the"
                 "RISCV ISA. Current processor ISA: "
