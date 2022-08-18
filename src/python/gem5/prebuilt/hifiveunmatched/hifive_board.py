@@ -36,6 +36,13 @@ from python.gem5.prebuilt.hifiveunmatched.hifive_cache import (
 from python.gem5.prebuilt.hifiveunmatched.hifive_proc import U74Processor
 from m5.objects import AddrRange
 
+def U74Memory():
+    memory = ChanneledMemory(DDR4_2400_8x8, 1, 64, "16GB")
+    memory.set_memory_range(
+            [AddrRange(start=0x80000000, size=memory.get_size())]
+        )
+    return memory
+
 class HiFiveUnmatchedBoard(SimpleBoard):
     def __init__(self) -> None:
         requires(isa_required=ISA.RISCV)
@@ -44,10 +51,7 @@ class HiFiveUnmatchedBoard(SimpleBoard):
             l2_size="2MB"
         )
 
-        memory = ChanneledMemory(DDR4_2400_8x8, 1, 64, "16GB")
-        memory.set_memory_range(
-            [AddrRange(start=0x80000000, size=memory.get_size())]
-        )
+        memory = U74Memory()
 
         processor = U74Processor()
 

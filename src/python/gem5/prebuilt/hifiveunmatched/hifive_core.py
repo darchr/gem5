@@ -163,3 +163,4 @@ class U74Core(AbstractCore):
     @overrides(AbstractCore)
     def get_mmu(self) -> BaseMMU:
         return self.core.mmu
+    
