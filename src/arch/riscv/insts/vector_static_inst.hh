@@ -114,6 +114,24 @@ class VectorStaticInst: public RiscvStaticInst
     }
 };
 
+class VectorMemMicroInst: public VectorMicroInst
+{
+  protected:
+    uint64_t eew;
+    Request::Flags memAccessFlags;
+  public:
+    VectorMemMicroInst(
+      const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+      uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
+      uint64_t eew, uint64_t mask_policy, uint64_t tail_policy):
+          VectorMicroInst(mnem, _machInst, __opClass,
+              num_elements_per_reg, num_non_tail_elements, mask_policy,
+              tail_policy)
+    {
+        this->eew = eew;
+    }
+};
+
 }
 
 }

@@ -97,7 +97,9 @@ class OpClass(Enum):
         "InstPrefetch",
         'VectorCfg',
         'VectorOPIVIMacroOp',
-        'VectorOPIVIMicroOp'
+        'VectorOPIVIMicroOp',
+        'VectorUnitStrideMemLoadMacroOp',
+        'VectorUnitStrideMemLoadMicroOp'
     ]
 
 

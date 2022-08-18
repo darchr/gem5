@@ -7,10 +7,12 @@
 
 #include <string>
 
+#include "arch/riscv/insts/standard.hh"
 #include "arch/riscv/insts/static_inst.hh"
 #include "arch/riscv/insts/vector_static_inst.hh"
 #include "cpu/exec_context.hh"
 #include "cpu/static_inst.hh"
+#include "debug/Vsetvl.hh"
 
 namespace gem5
 {
@@ -124,6 +126,69 @@ class VectorOPIVIMicroOp: public VectorSameElementWidthMicroInst
     }
     std::string generateDisassembly(
         Addr pc, const loader::SymbolTable *symtab) const override;
+};
+
+class VectorUnitStrideMemLoadMacroOp : public VectorMacroInst
+{
+  public:
+    VectorUnitStrideMemLoadMacroOp(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass, RiscvISA::VTYPE vtype, uint32_t vl, int vlen) :
+        VectorMacroInst(mnem, _machInst, __opClass, vtype, vl, vlen)
+    {
+        DPRINTF(Vsetvl,
+            "Decoding VectorUnitStrideMemLoadMacroOp with vl=%d, vtype=%d\n",
+            vl, (uint64_t)vtype);
+    }
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
+
+class VectorUnitStrideMemLoadMicroOp : public VectorMemMicroInst
+{
+  protected:
+    uint64_t vdRegID;
+    uint64_t vmRegID;
+    uint64_t mask_offset;
+  public:
+    VectorUnitStrideMemLoadMicroOp(
+      const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+      uint64_t vdRegID, uint64_t vmRegID, uint64_t mask_offset,
+      uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
+      uint64_t eew, uint64_t mask_policy, uint64_t tail_policy) :
+        VectorMemMicroInst(mnem, _machInst, __opClass,
+            num_elements_per_reg, num_non_tail_elements,
+            eew, mask_policy, tail_policy)
+    {
+        this->vdRegID = vdRegID;
+        this->vmRegID = vmRegID;
+        this->mask_offset = mask_offset;
+    }
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+
+    virtual Fault execute(ExecContext *, Trace::InstRecord *) const = 0;
+    virtual Fault initiateAcc(ExecContext *, Trace::InstRecord *) const = 0;
+    virtual Fault completeAcc(Packet *, ExecContext *, Trace::InstRecord *)
+        const = 0;
+};
+
+class MicroNop : public ImmOp<int64_t>
+{
+  public:
+    MicroNop()
+      : ImmOp<int64_t>("MicroNop", 0x13, IntAluOp)
+    {
+        flags[IsMicroop] = true;
+    }
+
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+
+    Fault
+    execute(ExecContext *xc, Trace::InstRecord *traceData) const override
+    {
+        return NoFault;
+    }
 };
 
 }
