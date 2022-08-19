@@ -1833,7 +1833,11 @@ decode QUADRANT default Unknown::unknown() {
                     }});
                 }
             }
-
+            0x6: decode VFUNC_6 { // OPMVX
+                0x10: VectorVRXUNARY0Op::vmv_sx({{ // Special case of OPMVX
+                    Vd_vc[0] = Rs1_ud;
+                }});
+            }
             0x7: decode BIT31 { // Configuration-Setting
                 0x0: VectorCfgOp::vsetvli({{
                     Rd = setVsetvlCSR(xc, RD, RS1, Rs1_ud, ZIMM11, new_vtype);
