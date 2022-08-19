@@ -98,6 +98,8 @@ class OpClass(Enum):
         'VectorCfg',
         'VectorOPIVIMacroOp',
         'VectorOPIVIMicroOp',
+        'VectorVdVs2Vs1MacroOp',
+        'VectorVdVs2Vs1MicroOp',
         'VectorUnitStrideMemLoadMacroOp',
         'VectorUnitStrideMemLoadMicroOp'
     ]

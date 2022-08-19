@@ -128,6 +128,52 @@ class VectorOPIVIMicroOp: public VectorSameElementWidthMicroInst
         Addr pc, const loader::SymbolTable *symtab) const override;
 };
 
+class VectorVdVs2Vs1MacroOp : public VectorMacroInst
+{
+  public:
+    //using VectorMacroInst::VectorMacroInst;
+    VectorVdVs2Vs1MacroOp(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass, uint32_t machVtype, uint32_t machVl, int vlen) :
+        VectorMacroInst(mnem, _machInst, __opClass, machVtype, machVl, vlen)
+    {
+        DPRINTF(Vsetvl,
+                "Decoding VectorVdVs2Vs1MacroOp with vl=%d, vtype=%d\n",
+                machVl, (uint64_t)machVtype);
+    }
+
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
+
+class VectorVdVs2Vs1MicroOp: public VectorSameElementWidthMicroInst
+{
+  protected:
+    uint64_t vdRegID;
+    uint64_t vs1RegID;
+    uint64_t vs2RegID;
+    uint64_t vmRegID;
+    uint64_t mask_offset;
+  public:
+    VectorVdVs2Vs1MicroOp(
+      const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+      uint64_t vdRegID, uint64_t vs1RegID, uint64_t vs2RegID, uint64_t vmRegID,
+      uint64_t mask_offset,
+      uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
+      uint64_t sew, uint64_t mask_policy, uint64_t tail_policy)
+        : VectorSameElementWidthMicroInst(mnem, _machInst, __opClass,
+            num_elements_per_reg, num_non_tail_elements, sew, mask_policy,
+            tail_policy)
+    {
+        this->vdRegID = vdRegID;
+        this->vs1RegID = vs1RegID;
+        this->vs2RegID = vs2RegID;
+        this->vmRegID = vmRegID;
+        this->mask_offset = mask_offset;
+    }
+    std::string generateDisassembly(
+        Addr pc, const loader::SymbolTable *symtab) const override;
+};
+
 class VectorUnitStrideMemLoadMacroOp : public VectorMacroInst
 {
   public:

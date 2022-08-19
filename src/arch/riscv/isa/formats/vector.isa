@@ -337,6 +337,260 @@ def format VectorOPIVIMacroOp(code, *opt_flags) {{
 
 // --- End of OPIVI
 
+// --- Start of VectorVdVs2Vs1
+
+def template VectorVdVs2Vs1MacroOpConstructor {{
+    %(class_name)s::%(class_name)s(MachInst machInst, RiscvISA::VTYPE machVtype, uint32_t machVl, int vlen)
+        : %(base_class)s("%(mnemonic)s", machInst, VectorVdVs2Vs1MacroOpClass, machVtype, machVl, vlen)
+    {
+        // Example:
+        // vadd.vv         31..26=0x00 vm vs2 vs1 14..12=0x0 vd 6..0=0x57
+
+        //_numTypedDestRegs[VecRegClass] =
+        //    ceil((float) machVl / (VecRegSizeBytes / sewb));
+        //assert((VD % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
+        //assert((VS1 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
+        //assert((VS2 % alignToPowerOfTwo(_numTypedDestRegs[VecRegClass])) == 0);
+
+        auto sew = getSew(machVtype.vsew);
+        uint32_t num_elements_per_reg = vlen / sew;
+        uint32_t element_count = machVl;
+
+        auto num_vregs = vlmulToNumRegs(machVtype.vlmul);
+        microops = std::vector<StaticInstPtr>();
+
+        for (uint32_t reg_id_offset = 0; reg_id_offset < num_vregs; reg_id_offset++)
+        {
+            StaticInstPtr uop = new %(class_name)sMicro(machInst, machVtype, machVl,
+                VD+reg_id_offset, VS1+reg_id_offset, VS2+reg_id_offset,
+                VM, reg_id_offset*num_elements_per_reg, num_elements_per_reg,
+                (element_count < num_elements_per_reg) ? element_count : num_elements_per_reg,
+                sew, (uint64_t)machVtype.vma, (uint64_t)machVtype.vta);
+            element_count = (element_count >= num_elements_per_reg) ? (element_count - num_elements_per_reg) : 0;
+            microops.push_back(std::move(uop));
+        }
+
+        microops.front()->setFlag(IsFirstMicroop);
+        microops.back()->setFlag(IsLastMicroop);
+
+        flags[IsVector] = true;
+    }
+}};
+
+def template VectorVdVs2Vs1MicroConstructor {{
+    %(class_name)s::%(class_name)sMicro::%(class_name)sMicro(MachInst machInst,
+        RiscvISA::VTYPE machVtype, uint32_t machVl,
+        uint64_t vdRegID, uint64_t vs1RegID, uint64_t vs2RegID,
+        uint64_t vmRegID, uint64_t mask_offset,
+        uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
+        uint64_t sew, uint64_t mask_policy, uint64_t tail_policy)
+        : %(base_class)s("%(mnemonic)s", machInst, VectorVdVs2Vs1MicroOpClass,
+            vdRegID, vs1RegID, vs2RegID, vmRegID, mask_offset,
+            num_elements_per_reg, num_non_tail_elements,
+            sew, mask_policy, tail_policy)
+    {
+        %(set_reg_idx_arr)s;
+
+        // Example:
+        // vadd.vv         31..26=0x00 vm vs2 vs1 14..12=0x0 vd 6..0=0x57
+        // vreg[vdRegID] = vreg[vs1RegID] + vreg[vs2RegID]
+
+        // Set register dependencies
+        //setDestRegIdx(_numDestRegs++, RegId(VecRegClass, vdRegID));
+        setDestRegIdx(_numDestRegs++, vecRegClass[vdRegID]);
+        //setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, vs1RegID));
+        setSrcRegIdx(_numSrcRegs++, vecRegClass[vs1RegID]);
+        //setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, vs2RegID));
+        setSrcRegIdx(_numSrcRegs++, vecRegClass[vs2RegID]);
+        if (vmRegID == 0) { // The mask register is always v0
+            // Masked instruction.
+            //setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, 0));
+            setSrcRegIdx(_numSrcRegs++, vecRegClass[0]);
+        }
+        //if (tail_policy == 0) // undisturbed
+        if (num_non_tail_elements < num_elements_per_reg)
+        {
+            //setSrcRegIdx(_numSrcRegs++, RegId(VecRegClass, vdRegID));
+            setSrcRegIdx(_numSrcRegs++, vecRegClass[vdRegID]);
+        }
+
+        _numVecSrcRegs = _numSrcRegs;
+
+        flags[IsInteger] = true;
+        flags[IsVector] = true;
+        flags[IsMicroop] = true;
+    }
+}};
+
+def template VectorVdVs2Vs1OpMicroExecute {{
+    Fault
+    %(class_name)s::%(class_name)sMicro::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+
+        // Getting the source / destination registers
+        // We only have one destination reg per micro op, so it's safe to say that the Vd is the first writable reg
+        auto &Vd_container = *(RiscvISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+        RiscvISA::VecRegContainer Vs1_container;
+        xc->getRegOperand(this, 0, &Vs1_container);
+        RiscvISA::VecRegContainer Vs2_container;
+        xc->getRegOperand(this, 1, &Vs2_container);
+
+        //bool has_to_copy_tail_elements = (tail_policy == 0) && (num_non_tail_elements < num_elements_per_reg);
+        bool has_to_copy_tail_elements = num_non_tail_elements < num_elements_per_reg;
+
+        auto empty_vmask = std::vector<uint8_t>((num_non_tail_elements + 7)/8, 0xFF);
+        uint8_t* vmask = empty_vmask.data();
+        // Figure out if we need masks
+        if (vmRegID == 0) {
+            RiscvISA::VecRegContainer Vmask_container;
+            xc->getRegOperand(this, 2, &Vmask_container);
+            vmask = Vmask_container.as<uint8_t>();
+        }
+        uint32_t tail_reg_idx = (vmRegID == 0) ? 3 : 2;
+        RiscvISA::VecRegContainer old_Vd_container;
+        if (has_to_copy_tail_elements)
+            xc->getRegOperand(this, tail_reg_idx, &old_Vd_container);
+
+        bool utilize_mask = vmRegID == 0;
+
+        if (fault == NoFault) {
+            if (sew == 8) {
+                auto Vd = Vd_container.as<uint8_t>();
+                auto Vs2 = Vs2_container.as<uint8_t>();
+                auto Vs1 = Vs1_container.as<uint8_t>();
+                // process non-tail elements
+                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_reg, num_non_tail_elements); ++regElemID) {
+                    uint32_t maskElemID = mask_offset + regElemID;
+                    if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
+                        continue;
+                    }
+                    %(code)s;
+                }
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint8_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID)
+                        Vd[regElemID] = old_Vd[regElemID];
+                }
+            } else if (sew == 16) {
+                auto Vd = Vd_container.as<uint16_t>();
+                auto Vs2 = Vs2_container.as<uint16_t>();
+                auto Vs1 = Vs1_container.as<uint16_t>();
+                // process non-tail elements
+                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_reg, num_non_tail_elements); ++regElemID) {
+                    uint32_t maskElemID = mask_offset + regElemID;
+                    if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) {  // "mask undisturbed" policy
+                        continue;
+                    }
+                    %(code)s;
+                }
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint16_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID)
+                        Vd[regElemID] = old_Vd[regElemID];
+                }
+            } else if (sew == 32) {
+                auto Vd = Vd_container.as<uint32_t>();
+                auto Vs2 = Vs2_container.as<uint32_t>();
+                auto Vs1 = Vs1_container.as<uint32_t>();
+                // process non-tail elements
+                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_reg, num_non_tail_elements); ++regElemID) {
+                    uint32_t maskElemID = mask_offset + regElemID;
+                    if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) { // "mask undisturbed" policy
+                        continue;
+                    }
+                    %(code)s;
+                }
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint32_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID)
+                        Vd[regElemID] = old_Vd[regElemID];
+                }
+            } else if (sew == 64) {
+                auto Vd = Vd_container.as<uint64_t>();
+                auto Vs2 = Vs2_container.as<uint64_t>();
+                auto Vs1 = Vs1_container.as<uint64_t>();
+                // process non-tail elements
+                for (uint32_t regElemID = 0; regElemID < std::min(num_elements_per_reg, num_non_tail_elements); ++regElemID) {
+                    uint32_t maskElemID = mask_offset + regElemID;
+                    if (utilize_mask && (bits(vmask[maskElemID / 8], maskElemID % 8, maskElemID % 8) == 0)) { // "mask undisturbed" policy
+                        continue;
+                    }
+                    %(code)s;
+                }
+                if (has_to_copy_tail_elements)
+                {
+                    auto old_Vd = old_Vd_container.as<uint64_t>();
+                    for (uint32_t regElemID = num_non_tail_elements; regElemID < num_elements_per_reg; ++regElemID)
+                        Vd[regElemID] = old_Vd[regElemID];
+                }
+            } else {
+                std::string error = csprintf(
+                    "Illegal vsewb value in VTYPE: 0x%x\n", sew);
+                return std::make_shared<IllegalInstFault>(error, machInst);
+            }
+
+            if (fault == NoFault) {
+                if (traceData) {
+                    traceData->setData(vecRegClass, &Vd_container);
+                }
+            }
+        }
+
+        return fault;
+    }
+}};
+
+def template VectorVdVs2Vs1MicroDeclare {{
+    //
+    // Static instruction class for "%(mnemonic)s".
+    //
+    class %(class_name)s::%(class_name)sMicro : public %(base_class)s
+    {
+      private:
+        // Example:
+        // vadd.vv         31..26=0x00 vm vs2 vs1 14..12=0x0 vd 6..0=0x57
+        // Sources: up to 8 vector regs starting at Vs2 and
+        //          up to 8 vector regs starting at Vs1 and
+        //          1 mask register and
+        //          up to 1 dest register.
+        RegId srcRegIdxArr[1 + 1 + 1 + 1];
+        // Destinations: up to 8 vector regs starting at Vd
+        RegId destRegIdxArr[1];
+
+      public:
+        /// Constructor.
+        %(class_name)sMicro(MachInst machInst, RiscvISA::VTYPE machVtype,
+        uint32_t machVl, uint64_t vdRegID, uint64_t vs1RegID,
+        uint64_t vs2RegID, uint64_t vmRegID, uint64_t mask_offset,
+        uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
+        uint64_t sew, uint64_t mask_policy, uint64_t tail_policy);
+        Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        using %(base_class)s::generateDisassembly;
+    };
+}};
+
+def format VectorVdVs2Vs1MacroOp(code, *opt_flags) {{
+    macro_iop = InstObjParams(name, Name, 'VectorVdVs2Vs1MacroOp', code, opt_flags)
+    header_output = VectorMacroDeclare.subst(macro_iop)
+    decoder_output = VectorVdVs2Vs1MacroOpConstructor.subst(macro_iop)
+    decode_block = VectorMacroDecode.subst(macro_iop)
+    exec_output = VectorMacroExecute.subst(macro_iop)
+
+
+    uop_iop = InstObjParams(name, Name, 'VectorVdVs2Vs1MicroOp', code, opt_flags)
+    header_output += VectorVdVs2Vs1MicroDeclare.subst(uop_iop)
+    decoder_output += VectorVdVs2Vs1MicroConstructor.subst(uop_iop)
+    decode_block += VectorDecode.subst(uop_iop)
+    exec_output += VectorVdVs2Vs1OpMicroExecute.subst(uop_iop)
+}};
+
+// --- End of VectorVdVs2Vs1
+
 // --- Start of VectorUnitStrideMemLoad
 
 def template VectorUnitStrideMemLoadStoreMacroConstructor {{

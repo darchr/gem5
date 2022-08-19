@@ -1819,6 +1819,11 @@ decode QUADRANT default Unknown::unknown() {
         }
 
         0x15: decode FUNCT3 {
+            0x0: decode VFUNC_6 { // OPIVV
+                0x00: VectorVdVs2Vs1MacroOp::vadd_vv({{
+                    Vd_vc[regElemID] = Vs2_vc[regElemID] + Vs1_vc[regElemID];
+                }});
+            }
             0x3: decode VFUNC_6 { // OPIVI
                 0x17: decode RL {
                     0x1: VectorOPIVIMacroOp::vmv_vi ({{
