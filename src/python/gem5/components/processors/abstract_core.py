@@ -151,4 +151,4 @@ class AbstractCore(SubSystem):
         init stage of the core, else, it will be scheduled during the
         simulation
         """
-        raise NotImplementedError("This core type does not support simpoints")
+        raise NotImplementedError("This core type does not support MAX_INSTS")
