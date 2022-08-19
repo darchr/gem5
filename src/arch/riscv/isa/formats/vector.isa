@@ -940,6 +940,94 @@ def format VectorSameElementWidthIntegerReductionMacroOp(code, *opt_flags) {{
 
 // --- End of VectorSameElementWidthIntegerReductionOpMacro
 
+// --- Start of VectorVWXUNARY0
+
+def template VectorVWXUNARY0Constructor {{
+    %(class_name)s::%(class_name)s(MachInst machInst, RiscvISA::VTYPE machVtype, uint32_t machVl, int vlen)
+        : %(base_class)s("%(mnemonic)s", machInst, VectorVWXUNARY0OpClass, machVtype, machVl, vlen)
+    {
+        %(set_reg_idx_arr)s;
+        %(constructor)s;
+    }
+}};
+
+def template VectorVWXUNARY0Execute {{
+    Fault
+    %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+
+        VTYPE vtype = xc->readMiscReg(MISCREG_VTYPE);
+        size_t sewb = getSew(vtype.vsew) / 8;
+
+        uint64_t Rd = 0;
+        RiscvISA::VecRegContainer Vs2_container;
+        xc->getRegOperand(this, 0, &Vs2_container);
+
+        if (fault == NoFault) {
+            if (sewb == 1) {
+                auto Vs2 = Vs2_container.as<uint8_t>();
+                %(code)s;
+                Rd = sext<8>(Rd);
+            } else if (sewb == 2) {
+                auto Vs2 = Vs2_container.as<uint16_t>();
+                %(code)s;
+                Rd = sext<16>(Rd);
+            } else if (sewb == 4) {
+                auto Vs2 = Vs2_container.as<uint32_t>();
+                %(code)s;
+                Rd = sext<32>(Rd);
+            } else if (sewb == 8) {
+                auto Vs2 = Vs2_container.as<uint64_t>();
+                %(code)s;
+                Rd = sext<64>(Rd);
+            } else {
+                std::string error = csprintf(
+                    "Illegal vsewb value in VTYPE: 0x%x\n", vtype.vsew);
+                fault = std::make_shared<IllegalInstFault>(error, machInst);
+            }
+
+            if (fault == NoFault) {
+                %(op_wb)s;
+            }
+        }
+        return fault;
+    }
+}};
+
+def template VectorVWXUNARY0Declare {{
+    //
+    // Static instruction class for "%(mnemonic)s".
+    //
+    class %(class_name)s : public %(base_class)s
+    {
+      private:
+        // Example:
+        // vmv.x.s        31..26=0x10 25=1 vs2 19..15=0 14..12=0x2 rd 6..0=0x57
+        RegId srcRegIdxArr[8];
+
+        // Rd
+        RegId destRegIdxArr[1];
+
+      public:
+        /// Constructor.
+        %(class_name)s(MachInst machInst, RiscvISA::VTYPE vtype, uint32_t vl, int vlen);
+        Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        using %(base_class)s::generateDisassembly;
+    };
+}};
+
+def format VectorVWXUNARY0Op(code, *opt_flags) {{
+    iop = InstObjParams(name, Name, 'VectorVWXUNARY0Op', code, opt_flags)
+    header_output = VectorVWXUNARY0Declare.subst(iop)
+    decoder_output = VectorVWXUNARY0Constructor.subst(iop)
+    decode_block = VectorDecode.subst(iop)
+    exec_output = VectorVWXUNARY0Execute.subst(iop)
+}};
+
+// --- End of VectorVWXUNARY0
+
 // --- Start of VectorUnitStrideMemLoad
 
 def template VectorUnitStrideMemLoadStoreMacroConstructor {{

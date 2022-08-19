@@ -190,6 +190,22 @@ class VectorVRXUNARY0Op : public VectorStaticInst
         const loader::SymbolTable *symtab) const;
 };
 
+class VectorVWXUNARY0Op : public VectorStaticInst
+{
+  public:
+    VectorVWXUNARY0Op(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass, RiscvISA::VTYPE vtype, uint32_t vl, int vlen) :
+        VectorStaticInst(mnem, _machInst, __opClass, vtype, vl, vlen)
+    {
+        DPRINTF(Vsetvl,
+            "Decoding VectorVWXUNARY0Op with vl=%d, vtype=%d\n",
+            vl, (uint64_t)vtype);
+    }
+
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
+
 class VectorUnitStrideMemLoadMacroOp : public VectorMacroInst
 {
   public:

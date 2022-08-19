@@ -112,6 +112,7 @@ static const OpClass VectorOPIVIMicroClass = enums::VectorOPIVIMicroOp;
 static const OpClass VectorVdVs2Vs1MacroOpClass = enums::VectorVdVs2Vs1MacroOp;
 static const OpClass VectorVdVs2Vs1MicroOpClass = enums::VectorVdVs2Vs1MicroOp;
 static const OpClass VectorVRXUNARY0OpClass = enums::VectorVRXUNARY0Op;
+static const OpClass VectorVWXUNARY0OpClass = enums::VectorVWXUNARY0Op;
 static const OpClass VectorReductionMacroOpClass = \
     enums::VectorReductionMacroOp;
 static const OpClass VectorReductionMicroOpClass = \

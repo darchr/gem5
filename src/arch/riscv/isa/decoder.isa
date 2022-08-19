@@ -1829,6 +1829,9 @@ decode QUADRANT default Unknown::unknown() {
                     [[maybe_unused]] bool something = Vs1_vc[0] == 0; // make isa_parser happy
                     Vd_vc[0] += Vs2_vc[regElemID];
                 }});
+                0x10: VectorVWXUNARY0Op::vmv_xs({{
+                    Rd_ud = Vs2_vc[0];
+                }});
             }
             0x3: decode VFUNC_6 { // OPIVI
                 0x17: decode RL {

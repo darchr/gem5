@@ -253,6 +253,21 @@ VectorVRXUNARY0Op::generateDisassembly(Addr pc,
     return ss.str();
 }
 
+// rd = vs2[0]
+std::string
+VectorVWXUNARY0Op::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << int_reg::RegNames[RD] << ", ";
+    ss << vec_reg::VectorRegNames[VS2] << ", ";
+    if (VM==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
 std::string
 VectorUnitStrideMemLoadMicroOp::generateDisassembly(Addr pc,
     const loader::SymbolTable *symtab) const
