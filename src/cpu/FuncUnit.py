@@ -101,6 +101,8 @@ class OpClass(Enum):
         'VectorVdVs2Vs1MacroOp',
         'VectorVdVs2Vs1MicroOp',
         'VectorVRXUNARY0Op',
+        'VectorReductionMacroOp',
+        'VectorReductionMicroOp',
         'VectorUnitStrideMemLoadMacroOp',
         'VectorUnitStrideMemLoadMicroOp'
     ]

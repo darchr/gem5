@@ -1824,6 +1824,12 @@ decode QUADRANT default Unknown::unknown() {
                     Vd_vc[regElemID] = Vs2_vc[regElemID] + Vs1_vc[regElemID];
                 }});
             }
+            0x2: decode VFUNC_6 { // OPMVV
+                0x0: VectorSameElementWidthIntegerReductionMacroOp::vredsum_vs({{
+                    [[maybe_unused]] bool something = Vs1_vc[0] == 0; // make isa_parser happy
+                    Vd_vc[0] += Vs2_vc[regElemID];
+                }});
+            }
             0x3: decode VFUNC_6 { // OPIVI
                 0x17: decode RL {
                     0x1: VectorOPIVIMacroOp::vmv_vi ({{
