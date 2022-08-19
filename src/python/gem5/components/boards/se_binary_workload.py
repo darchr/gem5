@@ -26,7 +26,7 @@
 
 from .abstract_board import AbstractBoard
 from ...resources.resource import AbstractResource
-from gem5.components.processors.simpoint import SimPoint
+from gem5.utils.simpoint import SimPoint
 
 from m5.objects import SEWorkload, Process
 

@@ -66,6 +66,7 @@ class AbstractCore(SubSystem):
         """
         This function should connect the response port from the instruction
         cache to the right request port on the core.
+
         :param port: The response port from the icache to connect to.
         """
         raise NotImplementedError
@@ -75,6 +76,7 @@ class AbstractCore(SubSystem):
         """
         This function should connect the response port from the data cache to
         the right request port on the core.
+
         :param port: The response port from the icache to connect to.
         """
         raise NotImplementedError
@@ -84,6 +86,7 @@ class AbstractCore(SubSystem):
         """
         Connect the response port from itb and dtb to their respective request
         ports in the core.
+
         :param port1: The response port from itb walker to connect to.
         :param port2: The response port from dtb walker to connect to.
         """
@@ -104,6 +107,7 @@ class AbstractCore(SubSystem):
         interrupt_responce: Optional[Port] = None,
     ) -> None:
         """Connect the core interrupts to the interrupt controller
+
         This function is usually called from the cache hierarchy since the
         optional ports can be implemented as cache ports.
         """
@@ -112,6 +116,7 @@ class AbstractCore(SubSystem):
     @abstractmethod
     def get_mmu(self) -> BaseMMU:
         """Return the MMU for this core.
+
         This is used in the board to setup system-specific MMU settings.
         """
         raise NotImplementedError
@@ -130,7 +135,7 @@ class AbstractCore(SubSystem):
         at the init stage of the core, else, the starting insructions will be
         scheduled during the simulation
         """
-        raise NotImplementedError
+        raise NotImplementedError("This core type does not support simpoints")
 
     @abstractmethod
     def set_inst_stop_any_thread(
@@ -146,4 +151,4 @@ class AbstractCore(SubSystem):
         init stage of the core, else, it will be scheduled during the
         simulation
         """
-        raise NotImplementedError
+        raise NotImplementedError("This core type does not support simpoints")
