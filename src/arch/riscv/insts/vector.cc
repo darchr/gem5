@@ -269,6 +269,32 @@ VectorVWXUNARY0Op::generateDisassembly(Addr pc,
 }
 
 std::string
+VectorVMUNARY0MacroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << vec_reg::VectorRegNames[VD];
+    if (VM==0) {
+        ss << ", " << vec_reg::VectorRegNames[0];
+    }
+    return ss.str();
+}
+
+std::string
+VectorVMUNARY0MicroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << vec_reg::VectorRegNames[VD];
+    if (VM==0) {
+        ss << ", " << vec_reg::VectorRegNames[0];
+    }
+    return ss.str();
+}
+
+std::string
 VectorUnitStrideMemLoadMicroOp::generateDisassembly(Addr pc,
     const loader::SymbolTable *symtab) const
 {

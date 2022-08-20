@@ -206,6 +206,46 @@ class VectorVWXUNARY0Op : public VectorStaticInst
         const loader::SymbolTable *symtab) const;
 };
 
+class VectorVMUNARY0MacroOp : public VectorMacroInst
+{
+  public:
+    VectorVMUNARY0MacroOp(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass, uint32_t machVtype, uint32_t machVl, int vlen) :
+        VectorMacroInst(mnem, _machInst, __opClass, machVtype, machVl, vlen)
+    {
+        DPRINTF(Vsetvl,
+            "Decoding VectorVMUNARY0Op with vl=%d, vtype=%d\n",
+            vl, (uint64_t)vtype);
+    }
+
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
+
+class VectorVMUNARY0MicroOp: public VectorSameElementWidthMicroInst
+{
+  protected:
+    uint64_t vdRegID;
+    uint64_t vmRegID;
+    uint64_t mask_offset;
+  public:
+    VectorVMUNARY0MicroOp(
+      const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+      uint64_t vdRegID, uint64_t vmRegID, uint64_t mask_offset,
+      uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
+      uint64_t sew, uint64_t mask_policy, uint64_t tail_policy)
+        : VectorSameElementWidthMicroInst(mnem, _machInst, __opClass,
+            num_elements_per_reg, num_non_tail_elements, sew, mask_policy,
+            tail_policy)
+    {
+        this->vdRegID = vdRegID;
+        this->vmRegID = vmRegID;
+        this->mask_offset = mask_offset;
+    }
+    std::string generateDisassembly(
+        Addr pc, const loader::SymbolTable *symtab) const override;
+};
+
 class VectorUnitStrideMemLoadMacroOp : public VectorMacroInst
 {
   public:

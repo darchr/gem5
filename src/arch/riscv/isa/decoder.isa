@@ -1832,6 +1832,11 @@ decode QUADRANT default Unknown::unknown() {
                 0x10: VectorVWXUNARY0Op::vmv_xs({{
                     Rd_ud = Vs2_vc[0];
                 }});
+                0x14: decode RS1 { // VMUNARY0Op
+                    0x11: VectorVMUNARY0MacroOp::vid_v({{
+                        Vd_vc[regElemID] = maskElemID;
+                    }});
+                }
             }
             0x3: decode VFUNC_6 { // OPIVI
                 0x17: decode RL {
