@@ -1866,6 +1866,11 @@ decode QUADRANT default Unknown::unknown() {
                     }});
                 }
             }
+            0x4: decode VFUNC_6 { // OPIVX
+                0x00: VectorVdVs2Rs1MacroOp::vadd_vx({{
+                    Vd_vc[regElemID] = Vs2_vc[regElemID] + Rs1_ud;
+                }});
+            }
             0x6: decode VFUNC_6 { // OPMVX
                 0x10: VectorVRXUNARY0Op::vmv_sx({{ // Special case of OPMVX
                     Vd_vc[0] = Rs1_ud;
