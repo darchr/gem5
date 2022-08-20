@@ -119,6 +119,10 @@ static const OpClass VectorReductionMacroOpClass = \
     enums::VectorReductionMacroOp;
 static const OpClass VectorReductionMicroOpClass = \
     enums::VectorReductionMicroOp;
+static const OpClass VectorWholeRegisterMoveMacroOpClass = \
+    enums::VectorWholeRegisterMoveMacroOp;
+static const OpClass VectorWholeRegisterMoveMicroOpClass = \
+    enums::VectorWholeRegisterMoveMicroOp;
 static const OpClass VectorUnitStrideMemLoadMacroOpClass = \
     enums::VectorUnitStrideMemLoadMacroOp;
 static const OpClass VectorUnitStrideMemLoadMicroOpClass = \

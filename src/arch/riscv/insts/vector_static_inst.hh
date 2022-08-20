@@ -62,6 +62,25 @@ class VectorMicroInst: public RiscvMicroInst
     }
 };
 
+// This is reserved for instructions that is VL and VTYPE agnostic.
+class VectorVlVtypeIndenpendentMacroInst: public RiscvMacroInst
+{
+  public:
+    VectorVlVtypeIndenpendentMacroInst(
+      const char *mnem, ExtMachInst _machInst, OpClass __opClass):
+          RiscvMacroInst(mnem, _machInst, __opClass)
+    {}
+};
+
+class VectorVlVtypeIndenpendentMicroInst: public RiscvMicroInst
+{
+  public:
+    VectorVlVtypeIndenpendentMicroInst(
+      const char *mnem, ExtMachInst _machInst, OpClass __opClass):
+          RiscvMicroInst(mnem, _machInst, __opClass)
+    {}
+};
+
 class VectorSameElementWidthMicroInst: public VectorMicroInst
 {
   protected:

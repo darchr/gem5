@@ -246,6 +246,39 @@ class VectorVMUNARY0MicroOp: public VectorSameElementWidthMicroInst
         Addr pc, const loader::SymbolTable *symtab) const override;
 };
 
+class VectorWholeRegisterMoveMacroOp: public VectorVlVtypeIndenpendentMacroInst
+{
+  public:
+    VectorWholeRegisterMoveMacroOp(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass) :
+        VectorVlVtypeIndenpendentMacroInst(mnem, _machInst, __opClass)
+    {
+        DPRINTF(Vsetvl,
+            "Decoding VectorWholeRegisterMoveMacroOp\n");
+    }
+
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
+
+class VectorWholeRegisterMoveMicroOp: public VectorVlVtypeIndenpendentMicroInst
+{
+  protected:
+    uint64_t vdRegID;
+    uint64_t vs2RegID;
+  public:
+    VectorWholeRegisterMoveMicroOp(
+      const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+      uint64_t vdRegID, uint64_t vs2RegID)
+        : VectorVlVtypeIndenpendentMicroInst(mnem, _machInst, __opClass)
+    {
+        this->vdRegID = vdRegID;
+        this->vs2RegID = vs2RegID;
+    }
+    std::string generateDisassembly(
+        Addr pc, const loader::SymbolTable *symtab) const override;
+};
+
 class VectorUnitStrideMemLoadMacroOp : public VectorMacroInst
 {
   public:

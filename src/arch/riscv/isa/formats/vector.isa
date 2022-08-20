@@ -1259,6 +1259,123 @@ def format VectorVMUNARY0MacroOp(code, *opt_flags) {{
 
 // --- End of VectorVMUNARY0
 
+// --- Start of VectorWholeRegisterMove
+
+def template VectorWholeRegisterMoveMacroOpConstructor {{
+    %(class_name)s::%(class_name)s(MachInst machInst, RiscvISA::VTYPE machVtype, uint32_t machVl, int vlen)
+        : %(base_class)s("%(mnemonic)s", machInst, VectorWholeRegisterMoveMacroOpClass)
+    {
+        // Example:
+        // vmv1r v1, v2
+
+        uint32_t nregs = 0;
+        %(code)s;
+
+        auto num_vregs = nregs;
+        microops = std::vector<StaticInstPtr>();
+
+        for (uint32_t reg_id_offset = 0; reg_id_offset < num_vregs; reg_id_offset++)
+        {
+            StaticInstPtr uop = new %(class_name)sMicro(machInst, VD+reg_id_offset, VS2+reg_id_offset);
+            microops.push_back(std::move(uop));
+        }
+
+        microops.front()->setFlag(IsFirstMicroop);
+        microops.back()->setFlag(IsLastMicroop);
+
+        flags[IsVector] = true;
+    }
+}};
+
+def template VectorWholeRegisterMoveMicroConstructor {{
+    %(class_name)s::%(class_name)sMicro::%(class_name)sMicro(MachInst machInst,
+        uint64_t vdRegID, uint64_t vs2RegID)
+        : %(base_class)s("%(mnemonic)s", machInst, VectorWholeRegisterMoveMicroOpClass,
+            vdRegID, vs2RegID)
+    {
+        %(set_reg_idx_arr)s;
+
+        // Example:
+        // vmv1r v1, v2
+        // vd[elemID] = vs2[elemID] for all i
+
+        // Set register dependencies
+        setDestRegIdx(_numDestRegs++, vecRegClass[vdRegID]);
+        setSrcRegIdx(_numSrcRegs++, vecRegClass[vs2RegID]);
+
+        _numVecSrcRegs = _numSrcRegs;
+
+        flags[IsInteger] = true;
+        flags[IsVector] = true;
+        flags[IsMicroop] = true;
+    }
+}};
+
+def template VectorWholeRegisterMoveOpMicroExecute {{
+    Fault
+    %(class_name)s::%(class_name)sMicro::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+
+        // Getting the source / destination registers
+        // We only have one destination reg per micro op, so it's safe to say that the Vd is the first writable reg
+        auto &Vd_container = *(RiscvISA::VecRegContainer *)xc->getWritableRegOperand(this, 0);
+
+        RiscvISA::VecRegContainer Vs2_container;
+        xc->getRegOperand(this, 0, &Vs2_container);
+
+        Vd_container = Vs2_container;
+
+        if (fault == NoFault) {
+            if (traceData) {
+                traceData->setData(vecRegClass, &Vd_container);
+            }
+        }
+
+        return fault;
+    }
+}};
+
+def template VectorWholeRegisterMoveMicroDeclare {{
+    //
+    // Static instruction class for "%(mnemonic)s".
+    //
+    class %(class_name)s::%(class_name)sMicro : public %(base_class)s
+    {
+      private:
+        // Example:
+        // vmv1r v1, v2
+        // Source: exactly 1 source register.
+        RegId srcRegIdxArr[1];
+        // Destination: exactly 1 destination register.
+        RegId destRegIdxArr[1];
+
+      public:
+        /// Constructor.
+        %(class_name)sMicro(MachInst machInst, uint64_t vdRegID, uint64_t vs2RegID);
+        Fault execute(ExecContext *, Trace::InstRecord *) const override;
+        using %(base_class)s::generateDisassembly;
+    };
+}};
+
+def format VectorWholeRegisterMoveMacroOp(code, *opt_flags) {{
+    macro_iop = InstObjParams(name, Name, 'VectorWholeRegisterMoveMacroOp', code, opt_flags)
+    header_output = VectorMacroDeclare.subst(macro_iop)
+    decoder_output = VectorWholeRegisterMoveMacroOpConstructor.subst(macro_iop)
+    decode_block = VectorMacroDecode.subst(macro_iop)
+    exec_output = VectorMacroExecute.subst(macro_iop)
+
+
+    uop_iop = InstObjParams(name, Name, 'VectorWholeRegisterMoveMicroOp', code, opt_flags)
+    header_output += VectorWholeRegisterMoveMicroDeclare.subst(uop_iop)
+    decoder_output += VectorWholeRegisterMoveMicroConstructor.subst(uop_iop)
+    decode_block += VectorDecode.subst(uop_iop)
+    exec_output += VectorWholeRegisterMoveOpMicroExecute.subst(uop_iop)
+}};
+
+// --- End of VectorWholeRegisterMove
+
 // --- Start of VectorUnitStrideMemLoad
 
 def template VectorUnitStrideMemLoadStoreMacroConstructor {{

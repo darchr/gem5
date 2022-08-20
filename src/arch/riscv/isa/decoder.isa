@@ -1851,6 +1851,20 @@ decode QUADRANT default Unknown::unknown() {
                     //    Vs2_vc[regElemID] << (UIMM5 & ((sewb * 8) - 1));
                     Vd_vc[regElemID] = Vs2_vc[regElemID] << (UIMM5 & 0x1FULL);
                 }});
+                0x27: decode RS1 {
+                    0x0: VectorWholeRegisterMoveMacroOp::vmv1r_v({{
+                        nregs = 1;
+                    }});
+                    0x1: VectorWholeRegisterMoveMacroOp::vmv2r_v({{
+                        nregs = 2;
+                    }});
+                    0x3: VectorWholeRegisterMoveMacroOp::vmv4r_v({{
+                        nregs = 4;
+                    }});
+                    0x7: VectorWholeRegisterMoveMacroOp::vmv8r_v({{
+                        nregs = 8;
+                    }});
+                }
             }
             0x6: decode VFUNC_6 { // OPMVX
                 0x10: VectorVRXUNARY0Op::vmv_sx({{ // Special case of OPMVX

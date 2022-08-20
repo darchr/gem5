@@ -106,6 +106,8 @@ class OpClass(Enum):
         'VectorReductionMicroOp',
         'VectorVMUNARY0MacroOp',
         'VectorVMUNARY0MicroOp',
+        'VectorWholeRegisterMoveMacroOp',
+        'VectorWholeRegisterMoveMicroOp',
         'VectorUnitStrideMemLoadMacroOp',
         'VectorUnitStrideMemLoadMicroOp'
     ]
