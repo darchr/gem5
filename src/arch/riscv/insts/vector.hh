@@ -342,12 +342,14 @@ class VectorUnitStrideMemLoadMicroOp : public VectorMemMicroInst
 {
   protected:
     uint64_t vdRegID;
+    uint64_t rs1RegID;
     uint64_t vmRegID;
     uint64_t mask_offset;
   public:
     VectorUnitStrideMemLoadMicroOp(
       const char *mnem, ExtMachInst _machInst, OpClass __opClass,
-      uint64_t vdRegID, uint64_t vmRegID, uint64_t mask_offset,
+      uint64_t vdRegID, uint64_t rs1RegID, uint64_t vmRegID,
+      uint64_t mask_offset,
       uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
       uint64_t eew, uint64_t mask_policy, uint64_t tail_policy) :
         VectorMemMicroInst(mnem, _machInst, __opClass,
@@ -355,6 +357,7 @@ class VectorUnitStrideMemLoadMicroOp : public VectorMemMicroInst
             eew, mask_policy, tail_policy)
     {
         this->vdRegID = vdRegID;
+        this->rs1RegID = rs1RegID;
         this->vmRegID = vmRegID;
         this->mask_offset = mask_offset;
     }
@@ -365,6 +368,102 @@ class VectorUnitStrideMemLoadMicroOp : public VectorMemMicroInst
     virtual Fault initiateAcc(ExecContext *, Trace::InstRecord *) const = 0;
     virtual Fault completeAcc(Packet *, ExecContext *, Trace::InstRecord *)
         const = 0;
+};
+
+class VectorIndexedMemLoadMacroOp: public VectorMacroInst
+{
+  public:
+    VectorIndexedMemLoadMacroOp(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass, RiscvISA::VTYPE vtype, uint32_t vl, int vlen) :
+        VectorMacroInst(mnem, _machInst, __opClass, vtype, vl, vlen)
+    {
+        DPRINTF(Vsetvl,
+                "Decoding VectorIndexedMemLoadMacroOp with vl=%d, vtype=%d\n",
+                vl, (uint64_t)vtype);
+    }
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
+
+class VectorIndexedMemLoadMicroOp : public VectorIndexedMemMicroInst
+{
+  protected:
+    uint64_t vdRegID;
+    uint64_t rs1RegID;
+    uint64_t vs2RegID;
+    uint64_t vmRegID;
+    uint64_t mask_offset;
+  public:
+    VectorIndexedMemLoadMicroOp(
+      const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+      uint64_t vdRegID, uint64_t rs1RegID, uint64_t vs2RegID,
+      uint64_t vmRegID, uint64_t mask_offset,
+      uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
+      uint64_t eew, uint64_t sew, uint64_t mask_policy, uint64_t tail_policy) :
+        VectorIndexedMemMicroInst(mnem, _machInst, __opClass,
+            num_elements_per_reg, num_non_tail_elements,
+            eew, sew, mask_policy, tail_policy)
+    {
+        this->vdRegID = vdRegID;
+        this->rs1RegID = rs1RegID;
+        this->vs2RegID = vs2RegID;
+        this->vmRegID = vmRegID;
+        this->mask_offset = mask_offset;
+    }
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+
+    virtual Fault execute(ExecContext *, Trace::InstRecord *) const = 0;
+    virtual Fault initiateAcc(ExecContext *, Trace::InstRecord *) const = 0;
+    virtual Fault completeAcc(Packet *, ExecContext *, Trace::InstRecord *)
+        const = 0;
+};
+
+class VectorUnitStrideMemStoreMacroOp : public VectorMacroInst
+{
+  public:
+    VectorUnitStrideMemStoreMacroOp(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass, RiscvISA::VTYPE vtype, uint32_t vl, int vlen) :
+        VectorMacroInst(mnem, _machInst, __opClass, vtype, vl, vlen)
+    {
+        DPRINTF(Vsetvl,
+          "Decoding VectorUnitStrideMemStoreMacroOp with vl=%d, vtype=%d\n",
+          vl, (uint64_t)vtype);
+    }
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
+
+class VectorUnitStrideMemStoreMicroOp : public VectorMemMicroInst
+{
+  protected:
+    uint64_t rs1RegID;
+    uint64_t vs3RegID;
+    uint64_t vmRegID;
+    uint64_t mask_offset;
+  public:
+    VectorUnitStrideMemStoreMicroOp(
+      const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+      uint64_t rs1RegID, uint64_t vs3RegID, uint64_t vmRegID,
+      uint64_t mask_offset,
+      uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
+      uint64_t eew, uint64_t mask_policy, uint64_t tail_policy) :
+        VectorMemMicroInst(mnem, _machInst, __opClass,
+            num_elements_per_reg, num_non_tail_elements,
+            eew, mask_policy, tail_policy)
+    {
+        this->rs1RegID = rs1RegID;
+        this->vs3RegID = vs3RegID;
+        this->vmRegID = vmRegID;
+        this->mask_offset = mask_offset;
+    }
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+
+    virtual Fault execute(ExecContext *, Trace::InstRecord *) const = 0;
+    virtual Fault initiateAcc(ExecContext *, Trace::InstRecord *) const = 0;
+    virtual Fault completeAcc(Packet *, ExecContext *, Trace::InstRecord *) \
+      const = 0;
 };
 
 class MicroNop : public ImmOp<int64_t>

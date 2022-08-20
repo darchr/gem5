@@ -196,20 +196,6 @@ VectorOPIVIMicroOp::generateDisassembly(Addr pc,
 }
 
 std::string
-VectorUnitStrideMemLoadMacroOp::generateDisassembly(Addr pc,
-    const loader::SymbolTable *symtab) const
-{
-    std::stringstream ss;
-    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
-    ss << vec_reg::VectorRegNames[VD] << ", ";
-    ss << csprintf("(%s)", int_reg::RegNames[RS1]);
-    if (VM==0) {
-        ss << ", " << "v0";
-    }
-    return ss.str();
-}
-
-std::string
 VectorVdVs2Vs1MacroOp::generateDisassembly(Addr pc,
     const loader::SymbolTable *symtab) const
 {
@@ -349,7 +335,79 @@ VectorVdVs2Rs1MicroOp::generateDisassembly(Addr pc,
 }
 
 std::string
+VectorUnitStrideMemLoadMacroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << vec_reg::VectorRegNames[VD] << ", ";
+    ss << csprintf("(%s)", int_reg::RegNames[RS1]);
+    if (VM==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+std::string
 VectorUnitStrideMemLoadMicroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << vec_reg::VectorRegNames[VD] << ", ";
+    ss << csprintf("(%s)", int_reg::RegNames[RS1]);
+    if (VM==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+std::string
+VectorIndexedMemLoadMacroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << vec_reg::VectorRegNames[VD] << ", ";
+    ss << csprintf("(%s), ", int_reg::RegNames[RS1]);
+    ss << vec_reg::VectorRegNames[VS2];
+    if (VM==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+std::string
+VectorIndexedMemLoadMicroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << vec_reg::VectorRegNames[VD] << ", ";
+    ss << csprintf("(%s), ", int_reg::RegNames[RS1]);
+    ss << vec_reg::VectorRegNames[VS2];
+    if (VM==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+std::string
+VectorUnitStrideMemStoreMacroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << vec_reg::VectorRegNames[VD] << ", ";
+    ss << csprintf("(%s)", int_reg::RegNames[RS1]);
+    if (VM==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+std::string
+VectorUnitStrideMemStoreMicroOp::generateDisassembly(Addr pc,
     const loader::SymbolTable *symtab) const
 {
     std::stringstream ss;

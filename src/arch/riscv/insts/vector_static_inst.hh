@@ -151,6 +151,23 @@ class VectorMemMicroInst: public VectorMicroInst
     }
 };
 
+class VectorIndexedMemMicroInst: public VectorMemMicroInst
+{
+  protected:
+    uint64_t sew;
+  public:
+    VectorIndexedMemMicroInst(
+      const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+      uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
+      uint64_t eew, uint64_t sew, uint64_t mask_policy, uint64_t tail_policy):
+          VectorMemMicroInst(mnem, _machInst, __opClass,
+              num_elements_per_reg, num_non_tail_elements,
+              eew, mask_policy, tail_policy)
+    {
+        this->sew = sew;
+    }
+};
+
 }
 
 }
