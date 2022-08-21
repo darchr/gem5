@@ -415,7 +415,7 @@ class VectorIndexedMemLoadMicroOp : public VectorIndexedMemMicroInst
 
     virtual Fault execute(ExecContext *, Trace::InstRecord *) const = 0;
     virtual Fault initiateAcc(ExecContext *, Trace::InstRecord *) const = 0;
-    virtual Fault completeAcc(Packet *, ExecContext *, Trace::InstRecord *)
+    virtual Fault completeAcc(Packet *, ExecContext *, Trace::InstRecord *) \
         const = 0;
 };
 
@@ -464,6 +464,55 @@ class VectorUnitStrideMemStoreMicroOp : public VectorMemMicroInst
     virtual Fault initiateAcc(ExecContext *, Trace::InstRecord *) const = 0;
     virtual Fault completeAcc(Packet *, ExecContext *, Trace::InstRecord *) \
       const = 0;
+};
+
+class VectorIndexedMemStoreMacroOp: public VectorMacroInst
+{
+  public:
+    VectorIndexedMemStoreMacroOp(const char *mnem, ExtMachInst _machInst,
+        OpClass __opClass, RiscvISA::VTYPE vtype, uint32_t vl, int vlen) :
+        VectorMacroInst(mnem, _machInst, __opClass, vtype, vl, vlen)
+    {
+        DPRINTF(Vsetvl,
+                "Decoding VectorIndexedMemStoreMacroOp with vl=%d, vtype=%d\n",
+                vl, (uint64_t)vtype);
+    }
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+};
+
+class VectorIndexedMemStoreMicroOp : public VectorIndexedMemMicroInst
+{
+  protected:
+    uint64_t vs3RegID;
+    uint64_t rs1RegID;
+    uint64_t vs2RegID;
+    uint64_t vmRegID;
+    uint64_t mask_offset;
+  public:
+    VectorIndexedMemStoreMicroOp(
+      const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+      uint64_t vs3RegID, uint64_t rs1RegID, uint64_t vs2RegID,
+      uint64_t vmRegID, uint64_t mask_offset,
+      uint64_t num_elements_per_reg, uint64_t num_non_tail_elements,
+      uint64_t eew, uint64_t sew, uint64_t mask_policy, uint64_t tail_policy) :
+        VectorIndexedMemMicroInst(mnem, _machInst, __opClass,
+            num_elements_per_reg, num_non_tail_elements,
+            eew, sew, mask_policy, tail_policy)
+    {
+        this->vs3RegID = vs3RegID;
+        this->rs1RegID = rs1RegID;
+        this->vs2RegID = vs2RegID;
+        this->vmRegID = vmRegID;
+        this->mask_offset = mask_offset;
+    }
+    std::string generateDisassembly(Addr pc,
+        const loader::SymbolTable *symtab) const;
+
+    virtual Fault execute(ExecContext *, Trace::InstRecord *) const = 0;
+    virtual Fault initiateAcc(ExecContext *, Trace::InstRecord *) const = 0;
+    virtual Fault completeAcc(Packet *, ExecContext *, Trace::InstRecord *) \
+        const = 0;
 };
 
 class MicroNop : public ImmOp<int64_t>

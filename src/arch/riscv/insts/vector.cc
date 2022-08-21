@@ -421,6 +421,36 @@ VectorUnitStrideMemStoreMicroOp::generateDisassembly(Addr pc,
 }
 
 std::string
+VectorIndexedMemStoreMacroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << vec_reg::VectorRegNames[VS3] << ", ";
+    ss << csprintf("(%s), ", int_reg::RegNames[RS1]);
+    ss << vec_reg::VectorRegNames[VS2];
+    if (VM==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+std::string
+VectorIndexedMemStoreMicroOp::generateDisassembly(Addr pc,
+    const loader::SymbolTable *symtab) const
+{
+    std::stringstream ss;
+    ss << csprintf("0x%08x", machInst) << " " << mnemonic << " ";
+    ss << vec_reg::VectorRegNames[VS3] << ", ";
+    ss << csprintf("(%s), ", int_reg::RegNames[RS1]);
+    ss << vec_reg::VectorRegNames[VS2];
+    if (VM==0) {
+        ss << ", " << "v0";
+    }
+    return ss.str();
+}
+
+std::string
 MicroNop::generateDisassembly(Addr pc,
     const loader::SymbolTable *symtab) const
 {

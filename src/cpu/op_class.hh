@@ -137,6 +137,10 @@ static const OpClass VectorUnitStrideMemStoreMacroOpClass = \
     enums::VectorUnitStrideMemStoreMacroOp;
 static const OpClass VectorUnitStrideMemStoreMicroOpClass = \
     enums::VectorUnitStrideMemStoreMicroOp;
+static const OpClass VectorIndexedMemStoreMacroOpClass = \
+    enums::VectorIndexedMemStoreMacroOp;
+static const OpClass VectorIndexedMemStoreMicroOpClass = \
+    enums::VectorIndexedMemStoreMicroOp;
 
 static const OpClass Num_OpClasses = enums::Num_OpClass;
 

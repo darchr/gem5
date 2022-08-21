@@ -717,6 +717,26 @@ decode QUADRANT default Unknown::unknown() {
                         }
                     }});
                 }
+                0x1: VectorIndexedMemStoreMacroOp::vsuxei64_v({{
+                    [[maybe_unused]] bool something = Mem == 0; // keep isa_parser happy
+                    uint64_t target_address = Rs1_ud + offset;
+                    if (target_address % (eew/8)) {
+                        // Alignment fault.
+                        return std::make_shared<AddressFault>(target_address,
+                                                            ExceptionCode::LOAD_ADDR_MISALIGNED);
+                    }
+
+                    fault =
+                        writeMemAtomicLE(xc,
+                                        traceData,
+                                        Vs3_vc[regElemID],
+                                        target_address,
+                                        memAccessFlags, nullptr);
+
+                    if (fault != NoFault) {
+                        return fault;
+                    }
+                }});
             }
         }
 
