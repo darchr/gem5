@@ -205,8 +205,8 @@ namespace
 {
 
 /* Not applicable to RISCV */
-RegClass vecElemClass(VecElemClass, VecElemClassName, 2, debug::IntRegs);
-RegClass vecPredRegClass(VecPredRegClass, VecPredRegClassName, 1,
+RegClass vecElemClass(VecElemClass, VecElemClassName, 0, debug::IntRegs);
+RegClass vecPredRegClass(VecPredRegClass, VecPredRegClassName, 0,
         debug::IntRegs);
 RegClass ccRegClass(CCRegClass, CCRegClassName, 0, debug::IntRegs);
 
