@@ -48,8 +48,19 @@ class HiFiveCacheHierarchy(
     AbstractClassicCacheHierarchy, AbstractTwoLevelCacheHierarchy
 ):
     """
+
     A cache setup where each core has a private L1 Data and Instruction Cache,
     and a private L2 cache.
+    The HiFive board has a partially inclusive cache hierarchy, hence this hierarchy is chosen.
+    The details of the cache hierarchy are in Table 7, page 36 of the datasheet.
+    
+    - L1 Instruction Cache:
+        - 32 KiB 4-way set associative
+    - L1 Data Cache
+        - 32 KiB 8-way set associative
+    - L2 Cache 
+        - 2 MiB 16-way set associative
+
     """
 
     def __init__(

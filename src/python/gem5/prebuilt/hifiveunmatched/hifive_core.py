@@ -105,6 +105,21 @@ class U74CPU(RiscvMinorCPU):
 
 
 class U74Core(AbstractCore):
+    """
+        U74Core models the core of the HiFive Unmatched board.
+        The core has a single thread.
+        The latencies of the functional units are set to values found in Table 8 on page 40.
+          - IntFU: 1 cycle
+          - IntMulFU: 3 cycles
+          - IntDivFU: 6 cycles (NOTE: latency is variable, but is set to 6 cycles)
+          - MemFU: 3 cycles
+        The branch predictor is a TournamentBP, based on Section 4.2.5 on page 38.
+          - BTBEntries: 16 entries
+          - RASSize: 6 entries
+          - IndirectSets: 8 sets
+          - localHistoryTableSize: 4096 B 
+        NOTE: The BHT of the HiFive Board is 3.6KiB but gem5 requires a power of 2, so the BHT is 4096B.
+    """
     def __init__(
         self,
     ):
@@ -156,8 +171,6 @@ class U74Core(AbstractCore):
         interrupt_requestor: Optional[Port] = None,
         interrupt_responce: Optional[Port] = None,
     ) -> None:
-        # TODO: This model assumes that we will only create an interrupt
-        # controller as we require it. Not sure how true this is in all cases.
         self.core.createInterruptController()
 
     @overrides(AbstractCore)
