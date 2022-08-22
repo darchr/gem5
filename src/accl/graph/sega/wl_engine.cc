@@ -121,6 +121,12 @@ WLEngine::getAddrRanges() const
     return coalesceEngine->getAddrRanges();
 }
 
+bool
+WLEngine::done()
+{
+    return registerFile.empty() && updateQueue.empty();
+}
+
 // TODO: Parameterize the number of pops WLEngine can do at a time.
 // TODO: Add a histogram stats of the size of the updateQueue. Sample here.
 void

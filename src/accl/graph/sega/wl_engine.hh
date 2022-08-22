@@ -80,7 +80,6 @@ class WLEngine : public BaseReduceEngine
     std::unordered_map<Addr, WorkListItem> workListFile;
 
     void recvFunctional(PacketPtr pkt);
-
     AddrRangeList getAddrRanges() const;
 
     EventFunctionWrapper nextReadEvent;
@@ -116,6 +115,8 @@ class WLEngine : public BaseReduceEngine
     void handleIncomingWL(Addr addr, WorkListItem wl);
 
     int getRegisterFileSize() { return registerFileSize; }
+
+    bool done();
 };
 
 }
