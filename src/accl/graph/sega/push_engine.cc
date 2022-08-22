@@ -32,6 +32,7 @@
 #include "debug/PushEngine.hh"
 #include "debug/TempFlag.hh"
 #include "mem/packet_access.hh"
+#include "sim/sim_exit.hh"
 
 namespace gem5
 {
@@ -126,6 +127,12 @@ PushEngine::workLeft()
     return ((peerCoalesceEngine->workCount() - numPendingPulls) > 0);
 }
 
+bool
+PushEngine::done()
+{
+    return edgeQueue.empty() &&
+        edgePointerQueue.empty() && peerCoalesceEngine->done();
+}
 void
 PushEngine::start()
 {
@@ -296,6 +303,10 @@ PushEngine::processNextPushEvent()
     edge_list.pop_front();
     if (edge_list.empty()) {
         edgeQueue.pop_front();
+    }
+
+    if (done()) {
+        exitSimLoopNow(name() + " is done.");
     }
 
     assert(!nextPushEvent.pending());

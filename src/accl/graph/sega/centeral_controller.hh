@@ -52,7 +52,7 @@ class CenteralController : public ClockedObject
           RequestPort(name, owner), owner(owner),
           _blocked(false), blockedPacket(nullptr)
         {}
-        // virtual AddrRangeList getAddrRanges() const;
+
         void sendPacket(PacketPtr pkt);
         bool blocked() { return _blocked; }
 
