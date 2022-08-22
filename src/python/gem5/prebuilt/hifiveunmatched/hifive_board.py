@@ -34,16 +34,11 @@ from gem5.utils.override import overrides
 from gem5.components.boards.abstract_system_board import AbstractSystemBoard
 from gem5.components.boards.kernel_disk_workload import KernelDiskWorkload
 from gem5.components.boards.se_binary_workload import SEBinaryWorkload
-from gem5.components.processors.abstract_processor import AbstractProcessor
-from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
-from gem5.components.cachehierarchies.abstract_cache_hierarchy import AbstractCacheHierarchy
 from gem5.resources.resource import AbstractResource
 from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
 from gem5.components.memory.memory import ChanneledMemory
-from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.utils.requires import requires
 from gem5.isas import ISA
-from gem5.components.boards.simple_board import SimpleBoard
 from python.gem5.prebuilt.hifiveunmatched.hifive_cache import (
     HiFiveCacheHierarchy,
 )
@@ -62,7 +57,6 @@ from m5.objects import (
     IOXBar,
     RiscvRTC,
     HiFive,
-    GenericRiscvPciHost,
     IGbE_e1000,
     CowDiskImage,
     RawDiskImage,
