@@ -28,7 +28,7 @@ import argparse
 from gem5.resources.resource import Resource, CustomResource
 from gem5.simulate.simulator import Simulator
 from python.gem5.prebuilt.hifiveunmatched.hifive_board import \
-    HiFiveUnmatchedBoard
+    HiFiveBoard
 from typing import List
 
 # collect optional CLI arg for RISCV binary to run
@@ -40,14 +40,30 @@ parser.add_argument(
     "--argv", type=str, help="CLI argument to the binary",
     default=""
 )
+parser.add_argument(
+    "--fullsystem", type=bool, help="Set the board to FS mode",
+    default=False
+)
 args = parser.parse_args()
 
-board = HiFiveUnmatchedBoard()
+board = HiFiveBoard(clk_freq="1.2GHz", l2_size="2MB", is_fs=args.fullsystem)
 
-board.set_se_binary_workload(
-    CustomResource(args.riscv_binary),
-    arguments=args.argv.split(" "),
-)
+# Set FS or SE mode workload depending on user input
+if args.fullsystem:
+    command = "echo 'This is running on U74 CPU core.';" \
+        + "sleep 1;" \
+        + "m5 exit;"
+
+    board.set_kernel_disk_workload(
+        kernel=Resource("riscv-bootloader-vmlinux-5.10"),
+        disk_image=Resource("riscv-ubuntu-20.04-img"),
+        readfile_contents=command,
+    )
+else:
+    board.set_se_binary_workload(
+        CustomResource(args.riscv_binary),
+        arguments=args.argv.split(" "),
+    )
 
 simulator = Simulator(board=board)
 simulator.run()

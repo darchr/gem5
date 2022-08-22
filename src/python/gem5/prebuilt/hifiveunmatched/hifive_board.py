@@ -44,7 +44,6 @@ from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.utils.requires import requires
 from gem5.isas import ISA
 from gem5.components.boards.simple_board import SimpleBoard
-from python.gem5.prebuilt.hifiveunmatched.hifive_board import U74Memory
 from python.gem5.prebuilt.hifiveunmatched.hifive_cache import (
     HiFiveCacheHierarchy,
 )
@@ -82,6 +81,13 @@ from m5.util.fdthelper import (
     FdtPropertyWords,
     FdtState,
 )
+
+def U74Memory():
+    memory = ChanneledMemory(DDR4_2400_8x8, 1, 64, "16GB")
+    memory.set_memory_range(
+            [AddrRange(start=0x80000000, size=memory.get_size())]
+        )
+    return memory
 
 class HiFiveBoard(AbstractSystemBoard, KernelDiskWorkload, SEBinaryWorkload):
     """
