@@ -164,6 +164,8 @@ class CoalesceEngine : public BaseMemoryEngine
 
     int workCount() { return _workCount; }
     void recvVertexPull();
+
+    bool done();
 };
 
 }
