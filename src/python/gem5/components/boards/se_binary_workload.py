@@ -23,18 +23,25 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 from .abstract_board import AbstractBoard
 from ...resources.resource import AbstractResource
+
 from m5.objects import SEWorkload, Process
+
 from typing import Optional, List
+
+
 class SEBinaryWorkload:
     """
     This class is used to enable simple Syscall-Execution (SE) mode execution
     of a binary.
+
     For this to function correctly the SEBinaryWorkload class should be added
     as a superclass to a board (i.e., something that inherits from
     AbstractBoard).
     """
+
     def set_se_binary_workload(
         self,
         binary: AbstractResource,
@@ -43,29 +50,37 @@ class SEBinaryWorkload:
         arguments: List[str] = [],
     ) -> None:
         """Set up the system to run a specific binary.
+
         **Limitations**
         * Only supports single threaded applications
         * Dynamically linked executables are partially supported when the host
           ISA and the simulated ISA are the same.
+
         :param binary: The resource encapsulating the binary to be run.
         :param exit_on_work_items: Whether the simulation should exit on work
         items. True by default.
         :param stdin_file: The input file for the binary
         :param arguments: The input arguments for the binary
         """
+
         # We assume this this is in a multiple-inheritance setup with an
         # Abstract board. This function will not work otherwise.
         assert isinstance(self, AbstractBoard)
+
         # If we are setting a workload of this type, we need to run as a
         # SE-mode simulation.
         self._set_fullsystem(False)
+
         binary_path = binary.get_local_path()
         self.workload = SEWorkload.init_compatible(binary_path)
+
         process = Process()
         process.executable = binary_path
         process.cmd = [binary_path] + arguments
         if stdin_file is not None:
             process.input = stdin_file.get_local_path()
+
         self.get_processor().get_cores()[0].set_workload(process)
+
         # Set whether to exit on work items for the se_workload
         self.exit_on_work_items = exit_on_work_items
