@@ -122,7 +122,7 @@ class U74CPU(RiscvMinorCPU):
     executeLSQTransfersQueueSize = 2
     executeLSQStoreBufferSize = 5
     executeBranchDelay = 1
-    exeuteSetTraceTimeOnCommit = True
+    executeSetTraceTimeOnCommit = True
     executeSetTraceTimeOnIssue = False
     executeAllowEarlyMemoryIssue = True
     enableIdling = True
@@ -149,11 +149,12 @@ class U74Core(AbstractCore):
     """
     def __init__(
         self,
+        core_id,
     ):
         super().__init__(cpu_type=CPUTypes.MINOR)
         self._isa = ISA.RISCV
         requires(isa_required=self._isa)
-        self.core = U74CPU()
+        self.core = U74CPU(cpu_id=core_id)
         self.core.createThreads()
 
     def get_simobject(self) -> BaseCPU:

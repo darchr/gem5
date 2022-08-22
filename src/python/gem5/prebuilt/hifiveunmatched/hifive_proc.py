@@ -42,12 +42,17 @@ class U74Processor(AbstractProcessor):
 
     def __init__(
         self,
+        is_fs: bool,
     ) -> None:
         self._cpu_type = CPUTypes.MINOR
-        super().__init__(cores=self._create_cores())
+        super().__init__(cores=self._create_cores(is_fs))
 
-    def _create_cores(self):
-        return U74Core()
+    def _create_cores(self, is_fs: bool):
+        if is_fs:
+            num_cores = 1
+        else:
+            num_cores = 1
+        return [U74Core(core_id=i) for i in range(num_cores)]
 
     @overrides(AbstractProcessor)
     def incorporate_processor(self, board: AbstractBoard) -> None:

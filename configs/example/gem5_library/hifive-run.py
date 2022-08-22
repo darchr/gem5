@@ -56,7 +56,7 @@ if args.fullsystem:
 
     board.set_kernel_disk_workload(
         kernel=Resource("riscv-bootloader-vmlinux-5.10"),
-        disk_image=Resource("riscv-ubuntu-20.04-img"),
+        disk_image=Resource("riscv-disk-img"),
         readfile_contents=command,
     )
 else:
