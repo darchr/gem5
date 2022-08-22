@@ -35,8 +35,7 @@ from gem5.components.boards.abstract_system_board import AbstractSystemBoard
 from gem5.components.boards.kernel_disk_workload import KernelDiskWorkload
 from gem5.components.boards.se_binary_workload import SEBinaryWorkload
 from gem5.resources.resource import AbstractResource
-from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
-from gem5.components.memory.memory import ChanneledMemory
+from gem5.components.memory import SingleChannelDDR4_2400
 from gem5.utils.requires import requires
 from gem5.isas import ISA
 from python.gem5.prebuilt.hifiveunmatched.hifive_cache import (
@@ -85,7 +84,7 @@ def U74Memory():
     
     return: ChanneledMemory
     """
-    memory = ChanneledMemory(DDR4_2400_8x8, 1, 64, "16GB")
+    memory = SingleChannelDDR4_2400("16GB")
     memory.set_memory_range(
             [AddrRange(start=0x80000000, size=memory.get_size())]
         )
