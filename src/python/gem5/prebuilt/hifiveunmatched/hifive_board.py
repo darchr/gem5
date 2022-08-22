@@ -83,6 +83,14 @@ from m5.util.fdthelper import (
 )
 
 def U74Memory():
+    """
+    Memory for the U74 board.
+    DDR4 Subsystem with 16GB of memory.
+    Starts at 0x80000000.
+    Details at: Section 23, page 195 of the datasheet.
+    
+    return: ChanneledMemory
+    """
     memory = ChanneledMemory(DDR4_2400_8x8, 1, 64, "16GB")
     memory.set_memory_range(
             [AddrRange(start=0x80000000, size=memory.get_size())]
