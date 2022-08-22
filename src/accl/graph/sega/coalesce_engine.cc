@@ -85,6 +85,13 @@ CoalesceEngine::drain()
     return DrainState::Drained;
 }
 
+bool
+CoalesceEngine::done()
+{
+    return needsPush.none() &&
+        memoryFunctionQueue.empty() && peerWLEngine->done();
+}
+
 // addr should be aligned to peerMemoryAtomSize
 int
 CoalesceEngine::getBlockIndex(Addr addr)

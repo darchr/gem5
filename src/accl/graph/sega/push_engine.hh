@@ -126,6 +126,9 @@ class PushEngine : public BaseMemoryEngine
 
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
 
+    bool vertexSpace();
+    bool workLeft();
+
     EventFunctionWrapper nextVertexPullEvent;
     void processNextVertexPullEvent();
 
@@ -134,9 +137,6 @@ class PushEngine : public BaseMemoryEngine
 
     MemoryEvent nextPushEvent;
     void processNextPushEvent();
-
-    bool vertexSpace();
-    bool workLeft();
 
     struct PushStats : public statistics::Group
     {
@@ -170,6 +170,8 @@ class PushEngine : public BaseMemoryEngine
     void start();
     bool running() { return _running; }
     void recvVertexPush(Addr addr, WorkListItem wl);
+
+    bool done();
 };
 
 }
