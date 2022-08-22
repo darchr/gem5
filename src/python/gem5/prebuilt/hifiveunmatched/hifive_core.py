@@ -93,12 +93,40 @@ class U74BP(TournamentBP):
 # this will serve as the parent class to RiscvU74CPU
 # in src/arch/riscv/RiscvCPU.py
 class U74CPU(RiscvMinorCPU):
-    fetch1FetchLimit = 2
-    fetch1ToFetch2BackwardDelay = 0
-    fetch2InputBufferSize = 1
-    decodeInputBufferSize = 1
-    executeInputBufferSize = 1
-    decodeToExecuteForwardDelay = 2
+
+    fetch1LineSnapWidth = 0
+    fetch1LineWidth = 0
+    fetch1FetchLimit = 1
+    fetch1ToFetch2ForwardDelay = 1
+    fetch1ToFetch2BackwardDelay = 1
+
+    fetch2InputBufferSize = 2
+    fetch2ToDecodeForwardDelay = 1
+    fetch2CycleInput = True
+
+    decodeInputBufferSize = 3
+    decodeToExecuteForwardDelay = 1
+    decodeInputWidth = 2
+    decodeCycleInput = True
+
+    executeInputWidth = 2
+    executeCycleInput = True
+    executeIssueLimit = 2
+    executeMemoryIssueLimit = 1
+    executeCommitLimit = 2
+    executeMemoryCommitLimit = 1
+    executeInputBufferSize = 7
+    executeMaxAccessesInMemory = 2
+    executeLSQMaxStoreBufferStoresPerCycle = 2
+    executeLSQRequestsQueueSize = 1
+    executeLSQTransfersQueueSize = 2
+    executeLSQStoreBufferSize = 5
+    executeBranchDelay = 1
+    exeuteSetTraceTimeOnCommit = True
+    executeSetTraceTimeOnIssue = False
+    executeAllowEarlyMemoryIssue = True
+    enableIdling = True
+    
     executeFuncUnits = U74FUPool()
     branchPred = U74BP()
 
@@ -125,16 +153,7 @@ class U74Core(AbstractCore):
         super().__init__(cpu_type=CPUTypes.MINOR)
         self._isa = ISA.RISCV
         requires(isa_required=self._isa)
-        self.core = RiscvMinorCPU(
-            fetch1FetchLimit=2,
-            fetch1ToFetch2BackwardDelay=0,
-            fetch2InputBufferSize=1,
-            decodeInputBufferSize=1,
-            executeInputBufferSize=1,
-            decodeToExecuteForwardDelay=2,
-            executeFuncUnits=U74FUPool(),
-            branchPred=U74BP(),
-        )
+        self.core = U74CPU()
         self.core.createThreads()
 
     def get_simobject(self) -> BaseCPU:
