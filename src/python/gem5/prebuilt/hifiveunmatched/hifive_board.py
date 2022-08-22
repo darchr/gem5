@@ -123,7 +123,7 @@ class HiFiveBoard(AbstractSystemBoard, KernelDiskWorkload, SEBinaryWorkload):
 
         memory = U74Memory()
 
-        processor = U74Processor()
+        processor = U74Processor(is_fs=is_fs)
         super().__init__(
             clk_freq=clk_freq,  # real system is 1.0 to 1.5 GHz
             processor=processor,
