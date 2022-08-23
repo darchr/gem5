@@ -49,7 +49,7 @@ class U74Processor(AbstractProcessor):
 
     def _create_cores(self, is_fs: bool):
         if is_fs:
-            num_cores = 1
+            num_cores = 4
         else:
             num_cores = 1
         return [U74Core(core_id=i) for i in range(num_cores)]
