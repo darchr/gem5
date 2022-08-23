@@ -96,16 +96,16 @@ class U74CPU(RiscvMinorCPU):
 
     fetch1LineSnapWidth = 0
     fetch1LineWidth = 0
-    fetch1FetchLimit = 1
+    fetch1FetchLimit = 2
     fetch1ToFetch2ForwardDelay = 1
-    fetch1ToFetch2BackwardDelay = 1
+    fetch1ToFetch2BackwardDelay = 0
 
-    fetch2InputBufferSize = 2
+    fetch2InputBufferSize = 1
     fetch2ToDecodeForwardDelay = 1
     fetch2CycleInput = True
 
-    decodeInputBufferSize = 3
-    decodeToExecuteForwardDelay = 1
+    decodeInputBufferSize = 1
+    decodeToExecuteForwardDelay = 2
     decodeInputWidth = 2
     decodeCycleInput = True
 
@@ -115,7 +115,7 @@ class U74CPU(RiscvMinorCPU):
     executeMemoryIssueLimit = 1
     executeCommitLimit = 2
     executeMemoryCommitLimit = 1
-    executeInputBufferSize = 7
+    executeInputBufferSize = 1
     executeMaxAccessesInMemory = 2
     executeLSQMaxStoreBufferStoresPerCycle = 2
     executeLSQRequestsQueueSize = 1
