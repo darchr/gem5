@@ -98,6 +98,9 @@ class HiFiveBoard(AbstractSystemBoard, KernelDiskWorkload, SEBinaryWorkload):
 
     This board assumes that you will be booting Linux for fullsystem emulation.
 
+    The frequency of the RTC for the system is set to 1MHz. 
+    Details can be found on page 77, section 7.1 of the datasheet.
+
     Datasheet for inbuilt params can be found here: https://sifive.cdn.prismic.io/sifive/1a82e600-1f93-4f41-b2d8-86ed8b16acba_fu740-c000-manual-v1p6.pdf
     """
 
@@ -144,11 +147,6 @@ class HiFiveBoard(AbstractSystemBoard, KernelDiskWorkload, SEBinaryWorkload):
             self.platform.clint.num_threads = self.processor.get_num_cores()
 
             # Add the RTC
-            """
-            The frequency of the RTC for the system is set to 1MHz. 
-            Details can be found on page 77, section 7.1 of the datasheet.
-
-            """
             self.platform.rtc = RiscvRTC(frequency=Frequency("1MHz")) # page 77, section 7.1
             self.platform.clint.int_pin = self.platform.rtc.int_pin
 
