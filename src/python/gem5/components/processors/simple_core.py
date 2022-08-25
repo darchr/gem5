@@ -71,6 +71,7 @@ class SimpleCore(BaseCPUCore):
         A factory used to return the SimObject core object given the cpu type,
         and ISA target. An exception will be thrown if there is an
         incompatibility.
+
         :param cpu_type: The target CPU type.
         :param isa: The target ISA.
         :param core_id: The id of the core to be returned.
