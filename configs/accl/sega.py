@@ -2,6 +2,7 @@ import m5
 import argparse
 
 from math import log
+import math
 from m5.objects import *
 from m5.util.convert import toMemorySize
 
@@ -18,7 +19,7 @@ class MPU(SubSystem):
         self.coalesce_engine = CoalesceEngine(
                                     peer_push_engine=self.push_engine,
                                     attached_memory_atom_size=32,
-                                    cache_size="8MiB",
+                                    cache_size="16MiB",
                                     num_mshr_entry=32,
                                     num_tgts_per_mshr=16)
         self.wl_engine = WLEngine(coalesce_engine=self.coalesce_engine,
@@ -61,7 +62,7 @@ class MPUMemory(SubSystem):
 
         self._edge_chunk_size = int(\
                                 toMemorySize(edge_memory_size)/num_channels)
-        self._edge_ranges = [AddrRange(\
+        self._edge_ranges = [AddrRange(
                             start=toMemorySize(vertex_memory_size)+\
                             self._edge_chunk_size*i,\
                             size=self._edge_chunk_size)\
@@ -69,23 +70,39 @@ class MPUMemory(SubSystem):
 
         vertex_mem_ctrl = []
         edge_mem_ctrl = []
+        # vertex_mem_ranges = self._vertex_ranges
+        
+
         for i in range(num_channels):
+            # vertex_addr_range = vertex_mem_ranges[i]
+            vertex_interface = DDR4_2400_8x8()
+            vertex_interface.range = self._vertex_ranges[i]
+            ctrl = MemCtrl()
+            ctrl.dram = vertex_interface
             vertex_mem_ctrl.append(
-                SimpleMemory(range=self._vertex_ranges[i],
-                            bandwidth="19.2GB/s",
-                            latency="30ns")
+                ctrl
             )
+
+            edge_interface = DDR4_2400_8x8(
+                image_file = f"{graph_path}/edgelist_{i}", in_addr_map=False)
+            edge_interface.range = AddrRange(self._edge_chunk_size)
+            #                 start=toMemorySize(vertex_memory_size)+\
+            #                 self._edge_chunk_size*i,\
+            #                 size=self._edge_chunk_size)
+            # edge_addr_range = edge_mem_range[0]
+            # edge_interface.range = self._edge_chunk_size
+            edge_ctrl = MemCtrl()
+            edge_ctrl.dram = edge_interface
             edge_mem_ctrl.append(
-                # SimpleMemory(range=self._edge_ranges[i],
-                #             bandwidth="4.8GB/s",
-                #             latency="30ns",
-                #             image_file=f"{graph_path}/edgelist_{i}")
-                SimpleMemory(range=AddrRange(self._edge_chunk_size),
-                            bandwidth="4.8GB/s",
-                            latency="30ns",
-                            image_file=f"{graph_path}/edgelist_{i}",
-                            in_addr_map=False)
+                edge_ctrl
             )
+            # edge_mem_ctrl.append(
+            #     SimpleMemory(range=AddrRange(self._edge_chunk_size),
+            #                 bandwidth="4.8GB/s",
+            #                 latency="30ns",
+            #                 image_file=f"{graph_path}/edgelist_{i}",
+            #                 in_addr_map=False)
+            # )
         self.vertex_mem_ctrl = vertex_mem_ctrl
         self.edge_mem_ctrl = edge_mem_ctrl
 
