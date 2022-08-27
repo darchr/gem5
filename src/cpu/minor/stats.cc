@@ -65,7 +65,10 @@ MinorStats::MinorStats(BaseCPU *base_cpu)
                 statistics::units::Count, statistics::units::Cycle>::get(),
              "IPC: instructions per cycle"),
     ADD_STAT(committedInstType, statistics::units::Count::get(),
-             "Class of committed instruction")
+             "Class of committed instruction"),
+    ADD_STAT(commitedControl, statistics::units::Count::get(),
+             "Class of control type instructions committed"),
+    
 {
     quiesceCycles.prereq(quiesceCycles);
 
@@ -80,8 +83,10 @@ MinorStats::MinorStats(BaseCPU *base_cpu)
         .flags(statistics::total | statistics::pdf | statistics::dist);
     committedInstType.ysubnames(enums::OpClassStrings);
 
-    commitedBranch
-        .init(base_cpu->numThreads, )
+    commitedControl
+        .init(base_cpu->numThreads, enums::ControlInst)
+        .flags(statistics::total | statistics::pdf | statistics::dist);
+    commitedControl.ysubnames(enums::ControlInst);
 }
 
 } // namespace minor

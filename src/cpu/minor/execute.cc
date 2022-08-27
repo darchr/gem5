@@ -884,12 +884,7 @@ Execute::doInstCommitAccounting(MinorDynInstPtr inst)
     cpu.stats.committedInstType[inst->id.threadId]
                                [inst->staticInst->opClass()]++;
 
-    /** bool is_load = inst->staticInst->isLoad();
-    bool is_store = inst->staticInst->isStore();
-    bool is_atomic = inst->staticInst->isAtomic();
-    bool is_prefetch = inst->staticInst->isDataPrefetch();*/
-
-    bool is_control = inst->staticInst->isControl();
+    /** Add a count for every control instruction */
 
     if (inst->staticInst->isControl())
     {
@@ -924,6 +919,8 @@ Execute::doInstCommitAccounting(MinorDynInstPtr inst)
                                         [gem5::enums::UncondCtrl]++;
 
         }
+        cpu.stats.commitedControl[inst->id.threadId]
+                                        [gem5::enums::Control]++;
     }
 
 

@@ -62,6 +62,7 @@ namespace enums{
         IndirectCtrl = 3,
         CondCtrl = 4,
         UncondCtrl = 5,
+        Control = 6,
     };
 };
 
