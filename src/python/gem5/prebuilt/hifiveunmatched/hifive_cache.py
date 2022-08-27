@@ -104,18 +104,18 @@ class HiFiveCacheHierarchy(
             cntr.port = self.membus.mem_side_ports
 
         self.l1icaches = [
-            L1ICache(size=self._l1i_size)
+            L1ICache(size=self._l1i_size, assoc=self._l1i_assoc)
             for i in range(board.get_processor().get_num_cores())
         ]
         self.l1dcaches = [
-            L1DCache(size=self._l1d_size)
+            L1DCache(size=self._l1d_size, assoc=self._l1d_assoc)
             for i in range(board.get_processor().get_num_cores())
         ]
         self.l2buses = [
             L2XBar() for i in range(board.get_processor().get_num_cores())
         ]
         self.l2caches = [
-            L2Cache(size=self._l2_size)
+            L2Cache(size=self._l2_size, assoc=self._l2_assoc)
             for i in range(board.get_processor().get_num_cores())
         ]
         # ITLB Page walk caches
