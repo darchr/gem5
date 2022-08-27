@@ -79,6 +79,9 @@ MinorStats::MinorStats(BaseCPU *base_cpu)
         .init(base_cpu->numThreads, enums::Num_OpClass)
         .flags(statistics::total | statistics::pdf | statistics::dist);
     committedInstType.ysubnames(enums::OpClassStrings);
+
+    commitedBranch
+        .init(base_cpu->numThreads, )
 }
 
 } // namespace minor

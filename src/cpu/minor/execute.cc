@@ -884,6 +884,50 @@ Execute::doInstCommitAccounting(MinorDynInstPtr inst)
     cpu.stats.committedInstType[inst->id.threadId]
                                [inst->staticInst->opClass()]++;
 
+    /** bool is_load = inst->staticInst->isLoad();
+    bool is_store = inst->staticInst->isStore();
+    bool is_atomic = inst->staticInst->isAtomic();
+    bool is_prefetch = inst->staticInst->isDataPrefetch();*/
+
+    bool is_control = inst->staticInst->isControl();
+
+    if (inst->staticInst->isControl())
+    {
+        if (inst->staticInst->isReturn())
+        {
+            cpu.stats.commitedControl[inst->id.threadId]
+                                        [gem5::enums::Return]++;
+        }
+        if (inst->staticInst->isCall())
+        {
+            cpu.stats.commitedControl[inst->id.threadId]
+                                  [gem5::enums::Call]++;
+        }
+        if (inst->staticInst->isDirectCtrl())
+        {
+            cpu.stats.commitedControl[inst->id.threadId]
+                                        [gem5::enums::DirectCtrl]++;
+        }
+        if (inst->staticInst->isIndirectCtrl())
+        {
+            cpu.stats.commitedControl[inst->id.threadId]
+                                        [gem5::enums::IndirectCtrl]++;
+        }
+        if (inst->staticInst->isCondCtrl())
+        {
+            cpu.stats.commitedControl[inst->id.threadId]
+                                        [gem5::enums::CondCtrl]++;
+        }
+        if (inst->staticInst->isUncondCtrl())
+        {
+            cpu.stats.commitedControl[inst->id.threadId]
+                                        [gem5::enums::UncondCtrl]++;
+
+        }
+    }
+
+
+
     /* Set the CP SeqNum to the numOps commit number */
     if (inst->traceData)
         inst->traceData->setCPSeq(thread->numOp);
