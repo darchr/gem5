@@ -36,7 +36,9 @@ class CenteralController(ClockedObject):
 
     system = Param.System(Parent.any, "System this Engine is a part of")
     req_port  = RequestPort("Port to send updates to the outside")
-    addr = Param.Addr("")
-    value = Param.Int(0, "")
 
+    mpu_vector = VectorParam.MPU("All mpus in the system.")
+
+    addr = Param.Addr("The addr for the initial update")
+    value = Param.Int("The value for the initial update")
     image_file = Param.String("Path to the global memory image.")

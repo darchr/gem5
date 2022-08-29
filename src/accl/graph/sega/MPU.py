@@ -27,13 +27,21 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.objects.BaseMemoryEngine import BaseMemoryEngine
+from m5.SimObject import SimObject
 
-class CoalesceEngine(BaseMemoryEngine):
-    type = 'CoalesceEngine'
-    cxx_header = "accl/graph/sega/coalesce_engine.hh"
-    cxx_class = 'gem5::CoalesceEngine'
+class MPU(SimObject):
+    type = "MPU"
+    cxx_header = "accl/graph/sega/mpu.hh"
+    cxx_class = "gem5::MPU"
 
-    cache_size = Param.MemorySize("Size of the internal SRAM array.")
-    num_mshr_entry = Param.Int("Number of MSHR entries.")
-    num_tgts_per_mshr = Param.Int("Number of Targets Per MSHR.")
+    system = Param.System(Parent.any, "System this MPU is a part of")
+
+    in_port = ResponsePort("Port to receive updates from outside")
+    out_port  = RequestPort("Port to send updates to the outside")
+
+    wl_engine = Param.WLEngine(NULL, "Internal WLEngine for each instance of "
+                                "MPU object.")
+    coalesce_engine = Param.CoalesceEngine(NULL, "Internal CoalesceEngine for "
+                                "each instance of MPU object.")
+    push_engine = Param.PushEngine(NULL, "Internal PushEngine for each "
+                                "instance of MPU object.")
