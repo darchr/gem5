@@ -29,6 +29,7 @@
 #include "accl/graph/sega/push_engine.hh"
 
 #include "accl/graph/sega/coalesce_engine.hh"
+#include "accl/graph/sega/mpu.hh"
 #include "debug/PushEngine.hh"
 #include "debug/TempFlag.hh"
 #include "mem/packet_access.hh"
@@ -37,9 +38,8 @@
 namespace gem5
 {
 
-PushEngine::PushEngine(const Params &params):
+PushEngine::PushEngine(const Params& params):
     BaseMemoryEngine(params),
-    reqPort(name() + ".req_port", this),
     _running(false),
     numPendingPulls(0), edgePointerQueueSize(params.push_req_queue_size),
     onTheFlyMemReqs(0), edgeQueueSize(params.resp_queue_size),
@@ -49,22 +49,10 @@ PushEngine::PushEngine(const Params &params):
     stats(*this)
 {}
 
-Port&
-PushEngine::getPort(const std::string &if_name, PortID idx)
-{
-    if (if_name == "req_port") {
-        return reqPort;
-    } else {
-        return BaseMemoryEngine::getPort(if_name, idx);
-    }
-}
-
 void
-PushEngine::registerCoalesceEngine(CoalesceEngine* coalesce_engine,
-                                    int elements_per_line)
+PushEngine::registerMPU(MPU* mpu)
 {
-    peerCoalesceEngine = coalesce_engine;
-    numElementsPerLine = elements_per_line;
+    owner = mpu;
 }
 
 void
@@ -77,43 +65,6 @@ PushEngine::recvReqRetry()
     }
 }
 
-void
-PushEngine::ReqPort::sendPacket(PacketPtr pkt)
-{
-    panic_if(_blocked, "Should never try to send if blocked MemSide!");
-    // If we can't send the packet across the port, store it for later.
-    DPRINTF(PushEngine, "%s: Sending pakcet: %s to "
-                "the network.\n", __func__, pkt->print());
-    if (!sendTimingReq(pkt))
-    {
-        blockedPacket = pkt;
-        _blocked = true;
-        DPRINTF(PushEngine, "%s: MemPort blocked.\n", __func__);
-    } else {
-        DPRINTF(PushEngine, "%s: Packet sent successfully.\n", __func__);
-        owner->recvReqRetry();
-    }
-}
-
-bool
-PushEngine::ReqPort::recvTimingResp(PacketPtr pkt)
-{
-    panic("recvTimingResp called on the request port.");
-}
-
-void
-PushEngine::ReqPort::recvReqRetry()
-{
-    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
-
-    DPRINTF(PushEngine, "%s: Received a reqRetry.\n", __func__);
-
-    _blocked = false;
-    PacketPtr pkt = blockedPacket;
-    blockedPacket = nullptr;
-    sendPacket(pkt);
-}
-
 bool
 PushEngine::vertexSpace()
 {
@@ -124,15 +75,17 @@ PushEngine::vertexSpace()
 bool
 PushEngine::workLeft()
 {
-    return ((peerCoalesceEngine->workCount() - numPendingPulls) > 0);
+    return ((owner->workCount() - numPendingPulls) > 0);
 }
 
 bool
 PushEngine::done()
 {
     return edgeQueue.empty() &&
-        edgePointerQueue.empty() && peerCoalesceEngine->done();
+            (onTheFlyMemReqs == 0) &&
+            edgePointerQueue.empty();
 }
+
 void
 PushEngine::start()
 {
@@ -152,7 +105,7 @@ PushEngine::processNextVertexPullEvent()
 {
     // TODO: change edgePointerQueueSize
     numPendingPulls++;
-    peerCoalesceEngine->recvVertexPull();
+    owner->recvVertexPull();
 
     if (!workLeft()) {
         _running = false;
@@ -277,7 +230,7 @@ PushEngine::handleMemResp(PacketPtr pkt)
 void
 PushEngine::processNextPushEvent()
 {
-    if (reqPort.blocked()) {
+    if (owner->blocked()) {
         nextPushEvent.sleep();
         return;
     }
@@ -293,7 +246,7 @@ PushEngine::processNextPushEvent()
     PacketPtr update = createUpdatePacket<uint32_t>(
                             curr_edge.dst, update_value);
 
-    reqPort.sendPacket(update);
+    owner->sendPacket(update);
     stats.numUpdates++;
     DPRINTF(PushEngine, "%s: Sent a push update from addr: %lu to addr: %lu "
                         "with value: %d.\n", __func__, curr_edge.src,
@@ -303,10 +256,6 @@ PushEngine::processNextPushEvent()
     edge_list.pop_front();
     if (edge_list.empty()) {
         edgeQueue.pop_front();
-    }
-
-    if (done()) {
-        exitSimLoopNow(name() + " is done.");
     }
 
     assert(!nextPushEvent.pending());

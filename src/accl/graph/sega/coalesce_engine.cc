@@ -30,7 +30,7 @@
 
 #include <bitset>
 
-#include "accl/graph/sega/wl_engine.hh"
+#include "accl/graph/sega/mpu.hh"
 #include "base/intmath.hh"
 #include "debug/ApplyUpdates.hh"
 #include "debug/BitVector.hh"
@@ -38,16 +38,16 @@
 #include "debug/CoalesceEngine.hh"
 #include "debug/SEGAStructureSize.hh"
 #include "mem/packet_access.hh"
+#include "sim/sim_exit.hh"
 
 namespace gem5
 {
 
 CoalesceEngine::CoalesceEngine(const Params &params):
     BaseMemoryEngine(params),
-    peerPushEngine(params.peer_push_engine),
     numLines((int) (params.cache_size / peerMemoryAtomSize)),
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
-    numMSHREntries(params.num_mshr_entry),
+    onTheFlyReqs(0), numMSHREntries(params.num_mshr_entry),
     numTgtsPerMSHR(params.num_tgts_per_mshr),
     _workCount(0), numPullsReceived(0),
     nextMemoryEvent([this] {
@@ -66,30 +66,20 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     for (int i = 0; i < numLines; i++) {
         cacheBlocks[i] = Block(numElementsPerLine);
     }
-
-    peerPushEngine->registerCoalesceEngine(this, numElementsPerLine);
-
     needsPush.reset();
 }
 
 void
-CoalesceEngine::registerWLEngine(WLEngine* wl_engine)
+CoalesceEngine::registerMPU(MPU* mpu)
 {
-    peerWLEngine = wl_engine;
-}
-
-DrainState
-CoalesceEngine::drain()
-{
-    DPRINTF(CoalesceEngine, "%s: drain called.\n");
-    return DrainState::Drained;
+    owner = mpu;
 }
 
 bool
 CoalesceEngine::done()
 {
-    return needsPush.none() &&
-        memoryFunctionQueue.empty() && peerWLEngine->done();
+    return applyQueue.empty() && needsPush.none() &&
+        memoryFunctionQueue.empty() && (onTheFlyReqs == 0);
 }
 
 // addr should be aligned to peerMemoryAtomSize
@@ -153,17 +143,15 @@ CoalesceEngine::recvWLRead(Addr addr)
         responseQueue.push_back(std::make_tuple(addr,
                     cacheBlocks[block_index].items[wl_offset]));
         DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
-                        "to responseQueue. responseQueue.size = %d, "
-                        "responseQueueSize = %d.\n", __func__, addr,
+                        "to responseQueue. responseQueue.size = %d.\n",
+                        __func__, addr,
                         cacheBlocks[block_index].items[wl_offset].to_string(),
-                        responseQueue.size(),
-                        peerWLEngine->getRegisterFileSize());
+                        responseQueue.size());
         DPRINTF(CoalesceEngine, "%s: Added (addr: %lu, wl: %s) "
-                        "to responseQueue. responseQueue.size = %d, "
-                        "responseQueueSize = %d.\n", __func__, addr,
+                        "to responseQueue. responseQueue.size = %d.\n",
+                        __func__, addr,
                         cacheBlocks[block_index].items[wl_offset].to_string(),
-                        responseQueue.size(),
-                        peerWLEngine->getRegisterFileSize());
+                        responseQueue.size());
         // TODO: Stat to count the number of WLItems that have been touched.
         cacheBlocks[block_index].busyMask |= (1 << wl_offset);
         // If they are scheduled for apply and WB those schedules should be
@@ -418,6 +406,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         return true;
     }
 
+    onTheFlyReqs--;
     Addr addr = pkt->getAddr();
     int block_index = getBlockIndex(addr);
 
@@ -439,7 +428,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             if (needsPush[it + i] == 1) {
                 _workCount--;
                 needsPush[it + i] = 0;
-                peerPushEngine->recvVertexPush(vertex_addr, items[i]);
+                owner->recvVertexPush(vertex_addr, items[i]);
                 break;
             }
         }
@@ -492,17 +481,15 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             responseQueue.push_back(std::make_tuple(miss_addr,
                     cacheBlocks[block_index].items[wl_offset]));
             DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
-                        "to responseQueue. responseQueue.size = %d, "
-                        "responseQueueSize = %d.\n", __func__, miss_addr,
+                        "to responseQueue. responseQueue.size = %d.\n",
+                        __func__, miss_addr,
                         cacheBlocks[block_index].items[wl_offset].to_string(),
-                        responseQueue.size(),
-                        peerWLEngine->getRegisterFileSize());
+                        responseQueue.size());
             DPRINTF(CoalesceEngine, "%s: Added (addr: %lu, wl: %s) "
-                        "to responseQueue. responseQueue.size = %d, "
-                        "responseQueueSize = %d.\n", __func__, addr,
+                        "to responseQueue. responseQueue.size = %d.\n",
+                        __func__, addr,
                         cacheBlocks[block_index].items[wl_offset].to_string(),
-                        responseQueue.size(),
-                        peerWLEngine->getRegisterFileSize());
+                        responseQueue.size());
             // TODO: Add a stat to count the number of WLItems that have been touched.
             cacheBlocks[block_index].busyMask |= (1 << wl_offset);
             cacheBlocks[block_index].lastChangedTick = curTick();
@@ -548,18 +535,18 @@ CoalesceEngine::processNextResponseEvent()
     WorkListItem worklist_response;
 
     std::tie(addr_response, worklist_response) = responseQueue.front();
-    peerWLEngine->handleIncomingWL(addr_response, worklist_response);
+    owner->handleIncomingWL(addr_response, worklist_response);
     DPRINTF(CoalesceEngine,
                 "%s: Sent WorkListItem: %s with addr: %lu to WLEngine.\n",
                 __func__, worklist_response.to_string(), addr_response);
 
     responseQueue.pop_front();
     DPRINTF(SEGAStructureSize,  "%s: Popped a response from responseQueue. "
-                "responseQueue.size = %d, responseQueueSize = %d.\n", __func__,
-                responseQueue.size(), peerWLEngine->getRegisterFileSize());
+                "responseQueue.size = %d.\n", __func__,
+                responseQueue.size());
     DPRINTF(CoalesceEngine,  "%s: Popped a response from responseQueue. "
-                "responseQueue.size = %d, responseQueueSize = %d.\n", __func__,
-                responseQueue.size(), peerWLEngine->getRegisterFileSize());
+                "responseQueue.size = %d.\n", __func__,
+                responseQueue.size());
 
     if ((!nextResponseEvent.scheduled()) &&
         (!responseQueue.empty())) {
@@ -720,8 +707,8 @@ CoalesceEngine::processNextApplyEvent()
                         _workCount++;
                         needsPush[bit_index_base + index] = 1;
                     }
-                    if (!peerPushEngine->running()) {
-                        peerPushEngine->start();
+                    if (!owner->running()) {
+                        owner->start();
                     }
                 }
             }
@@ -759,6 +746,10 @@ CoalesceEngine::processNextApplyEvent()
     if ((!applyQueue.empty()) &&
         (!nextApplyEvent.scheduled())) {
         schedule(nextApplyEvent, nextCycle());
+    }
+
+    if (done()) {
+        owner->recvDoneSignal();
     }
 }
 
@@ -816,6 +807,7 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
             "size = %d.\n", __func__, pkt->getAddr(), pkt->getSize());
 
     memPort.sendPacket(pkt);
+    onTheFlyReqs++;
 }
 
 void
@@ -845,6 +837,7 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
                         "Addr: %lu, size = %d.\n", __func__,
                         pkt->getAddr(), pkt->getSize());
         memPort.sendPacket(pkt);
+        // onTheFlyReqs++;
         cacheBlocks[block_index].needsWB = false;
         cacheBlocks[block_index].pendingWB = false;
 
@@ -955,7 +948,7 @@ CoalesceEngine::processNextPushRetry(int prev_slice_base, Tick schedule_tick)
                 if (needsPush[slice_base + i] == 1) {
                     _workCount--;
                     needsPush[slice_base + i] = 0;
-                    peerPushEngine->recvVertexPush(vertex_addr,
+                    owner->recvVertexPush(vertex_addr,
                                             cacheBlocks[block_index].items[i]);
                     break;
                 }
@@ -967,6 +960,7 @@ CoalesceEngine::processNextPushRetry(int prev_slice_base, Tick schedule_tick)
             SenderState* sender_state = new SenderState(true);
             pkt->pushSenderState(sender_state);
             memPort.sendPacket(pkt);
+            onTheFlyReqs++;
             // TODO: Set a tracking structure so that nextMemoryReadEvent knows
             // It does not have to read this address anymore. It can simply set
             // a flag to true (maybe not even needed just look if the cache has a

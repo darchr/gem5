@@ -28,10 +28,13 @@
 
 #include "accl/graph/sega/centeral_controller.hh"
 
+#include <iostream>
+
 #include "base/loader/memory_image.hh"
 #include "base/loader/object_file.hh"
 #include "debug/CenteralController.hh"
 #include "mem/packet_access.hh"
+#include "sim/sim_exit.hh"
 
 namespace gem5
 {
@@ -43,7 +46,12 @@ CenteralController::CenteralController
     reqPort(name() + ".req_port", this),
     addr(params.addr),
     value(params.value)
-{}
+{
+    for (auto mpu : params.mpu_vector) {
+        mpuVector.push_back(mpu);
+        mpu->registerCenteralController(this);
+    }
+}
 
 Port&
 CenteralController::getPort(const std::string &if_name, PortID idx)
@@ -141,6 +149,19 @@ CenteralController::functionalAccess(PacketPtr pkt)
                 "%s: Functional access for pkt->addr: %lu, pkt->size: %lu.\n",
                 __func__, pkt->getAddr(), pkt->getSize());
     reqPort.sendFunctional(pkt);
+}
+
+void
+CenteralController::recvDoneSignal()
+{
+    bool done = true;
+    for (auto mpu : mpuVector) {
+        done &= mpu->done();
+    }
+
+    if (done) {
+        exitSimLoopNow("no update left to process.");
+    }
 }
 
 }
