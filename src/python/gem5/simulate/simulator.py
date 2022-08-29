@@ -189,10 +189,8 @@ class Simulator:
         self._checkpoint_path = checkpoint_path
 
     def schedule_simpoint(
-        self,
-        simpoint_start_insts: List[int] = [],
-        schedule_at_init: bool = False
-        )-> None:
+        self, simpoint_start_insts, schedule_at_init: bool = False
+    ) -> None:
         """
         Schedule SIMPOINT_BEGIN exit events
 
@@ -205,14 +203,11 @@ class Simulator:
         """
         if self._board.get_processor().get_num_cores() > 1:
             warn("SimPoints only work with one core")
-        self._board.get_processor().get_cores()[0].\
-                        set_simpoint(simpoint_start_insts, schedule_at_init)
+        self._board.get_processor().get_cores()[0].set_simpoint(
+            simpoint_start_insts, schedule_at_init
+        )
 
-    def schedule_max_insts(
-        self,
-        inst: int = 0,
-        schedule_at_init: bool = False
-        )->None:
+    def schedule_max_insts(self, inst, schedule_at_init: bool = False) -> None:
         """
         Schedule a MAX_INSTS exit event when any thread in the current core
         reaches the given number of instructions
@@ -221,8 +216,9 @@ class Simulator:
         :param schedule_at_init: if it is True, schedule the event in the init
         stage of the core, else, schedule the event during the simulation
         """
-        self._board.get_processor().get_cores()[0].\
-                        set_inst_stop_any_thread(inst, schedule_at_init)
+        self._board.get_processor().get_cores()[0].set_inst_stop_any_thread(
+            inst, schedule_at_init
+        )
 
     def get_stats(self) -> Dict:
         """

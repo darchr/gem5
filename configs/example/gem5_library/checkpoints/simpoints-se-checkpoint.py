@@ -65,7 +65,7 @@ from pathlib import Path
 from gem5.components.cachehierarchies.classic.no_cache import NoCache
 from gem5.utils.simpoint import SimPoint
 from gem5.simulate.exit_event_generators import (
-    simpoint_save_checkpoint_generator,
+    save_checkpoint_generator,
 )
 
 requires(isa_required=ISA.X86)
@@ -80,7 +80,7 @@ cache_hierarchy = NoCache()
 # Using simple memory to take checkpoints might slightly imporve the
 # performance in atomic mode. The memory structure can be changed when
 # restoring from a checkpoint, but the size of the memory must be maintained.
-memory = SingleChannelDDR3_1600(size = "2GB")
+memory = SingleChannelDDR3_1600(size="2GB")
 
 processor = SimpleProcessor(
     cpu_type=CPUTypes.ATOMIC,
@@ -97,18 +97,18 @@ board = SimpleBoard(
 )
 
 simpoint = SimPoint(
-    simpoint_list = [2, 3, 5, 15],
-    weight_list = [0.1, 0.2, 0.4, 0.3],
-    simpoint_interval = 1000000,
-    warmup_interval = 1000000
+    simpoint_list=[2, 3, 5, 15],
+    weight_list=[0.1, 0.2, 0.4, 0.3],
+    simpoint_interval=1000000,
+    warmup_interval=1000000
     # simpoint_file_path=Path("path/to/simpoints"),
     # weight_file_path=Path("path/to/weights"),
 )
 
 board.set_se_binary_workload(
-    binary = Resource('x86-print-this'),
-    arguments = ['print this', 15000],
-    simpoint = simpoint
+    binary=Resource("x86-print-this"),
+    arguments=["print this", 15000],
+    simpoint=simpoint,
 )
 
 dir = Path("se_checkpoint_folder/")
@@ -119,8 +119,8 @@ simulator = Simulator(
     on_exit_event={
         # using the SimPoints event generator in the standard library to take
         # checkpoints
-        ExitEvent.SIMPOINT_BEGIN: simpoint_save_checkpoint_generator(dir)
-    }
+        ExitEvent.SIMPOINT_BEGIN: save_checkpoint_generator(dir)
+    },
 )
 
 simulator.run()
