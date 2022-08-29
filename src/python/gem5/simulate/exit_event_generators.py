@@ -112,25 +112,28 @@ def default_simpoint_generator():
     """
     defaultBehaviorWarning(
         "default_simpoint_generator",
-        "A default generator for SimPoints. It will do nothing.")
+        "A default generator for SimPoints. It will do nothing.",
+    )
     while True:
         yield False
 
-def simpoint_dump_reset_generator():
+
+def dump_reset_generator():
+    """
+    A generator for doing statstic dump and reset. It will reset the simulation
+    statistics and then dump simulation statistics.
+    """
     while True:
-        """
-            A generator for SimPoints. It will reset the simulation statistics
-            and then dump simulation statistics.
-        """
         m5.stats.dump()
         m5.stats.reset()
         yield False
 
-def simpoint_save_checkpoint_generator(checkpoint_dir: Path):
+
+def save_checkpoint_generator(checkpoint_dir: Path):
+    """
+    A generator for taking a checkpoint. It will take a checkpoint with the
+    input path and the current simulation Ticks.
+    """
     while True:
-        """
-            A generator for SimPoints. It will take a checkpoint with the input
-            path and the current simulation Ticks.
-        """
         m5.checkpoint((checkpoint_dir / f"cpt.{str(m5.curTick())}").as_posix())
         yield False

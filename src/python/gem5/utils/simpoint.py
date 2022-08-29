@@ -43,9 +43,7 @@ class SimPoint:
         weight_file_path: Path = None,
         simpoint_list: List[int] = None,
         weight_list: List[int] = None,
-        warmup_interval: int = 0
-        # bbv_file_path: Path = None, will take in bbv and generate simpoints
-        # with it in the future
+        warmup_interval: int = 0,
     ) -> None:
         """
         :param simpoint_interval: the length of each SimPoints interval
@@ -95,9 +93,7 @@ class SimPoint:
         if warmup_interval != 0:
             self._warmup_list = self.set_warmup_intervals(warmup_interval)
         else:
-            self._warmup_list = [
-                0 for _ in range(len(self._simpoint_start_insts))
-            ]
+            self._warmup_list = [0] * len(self._simpoint_start_insts)
 
     def get_weights_and_simpoints_from_file(
         self,
