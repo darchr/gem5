@@ -53,19 +53,6 @@ namespace gem5
 using enums::OpClass;
 using enums::No_OpClass;
 
-namespace enums{
-    enum ControlInst
-    {
-        Call = 0,
-        Return = 1,
-        DirectCtrl = 2,
-        IndirectCtrl = 3,
-        CondCtrl = 4,
-        UncondCtrl = 5,
-        Control = 6,
-    };
-};
-
 static const OpClass IntAluOp = enums::IntAlu;
 static const OpClass IntMultOp = enums::IntMult;
 static const OpClass IntDivOp = enums::IntDiv;

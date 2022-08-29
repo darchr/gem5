@@ -39,6 +39,19 @@
 
 namespace gem5
 {
+namespace enums
+{
+const char *ControlInstStrings[NumControlInstTypes] =
+{
+    "Call",
+    "Return",
+    "DirectCtrl",
+    "IndirectCtrl",
+    "CondCtrl",
+    "UncondCtrl",
+    "Control",
+};
+}
 
 GEM5_DEPRECATED_NAMESPACE(Minor, minor);
 namespace minor
@@ -67,8 +80,8 @@ MinorStats::MinorStats(BaseCPU *base_cpu)
     ADD_STAT(committedInstType, statistics::units::Count::get(),
              "Class of committed instruction"),
     ADD_STAT(commitedControl, statistics::units::Count::get(),
-             "Class of control type instructions committed"),
-    
+             "Class of control type instructions committed")
+
 {
     quiesceCycles.prereq(quiesceCycles);
 
@@ -84,9 +97,8 @@ MinorStats::MinorStats(BaseCPU *base_cpu)
     committedInstType.ysubnames(enums::OpClassStrings);
 
     commitedControl
-        .init(base_cpu->numThreads, enums::ControlInst)
-        .flags(statistics::total | statistics::pdf | statistics::dist);
-    commitedControl.ysubnames(enums::ControlInst);
+        .init(base_cpu->numThreads, enums::ControlInst::NumControlInstTypes);
+    commitedControl.ysubnames(enums::ControlInstStrings);
 }
 
 } // namespace minor

@@ -51,6 +51,20 @@
 namespace gem5
 {
 
+namespace enums{
+    enum ControlInst
+    {
+        Call = 0,
+        Return = 1,
+        DirectCtrl = 2,
+        IndirectCtrl = 3,
+        CondCtrl = 4,
+        UncondCtrl = 5,
+        Control = 6,
+        NumControlInstTypes = 7,
+    };
+};
+
 GEM5_DEPRECATED_NAMESPACE(Minor, minor);
 namespace minor
 {
