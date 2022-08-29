@@ -34,9 +34,6 @@ class WLEngine(BaseReduceEngine):
     cxx_header = "accl/graph/sega/wl_engine.hh"
     cxx_class = 'gem5::WLEngine'
 
-    resp_port = ResponsePort("Port to Receive updates from outside")
-    coalesce_engine = Param.CoalesceEngine(NULL, "The CoalesceEngine "
-                                    "this WLEngine is connected to.")
     update_queue_size = Param.Int("Size of the queue WLEngine stores "
                                         "the incoming updates")
     register_file_size = Param.Int("Number of internal registers the "

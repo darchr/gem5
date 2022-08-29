@@ -33,7 +33,6 @@
 
 #include "accl/graph/sega/base_memory_engine.hh"
 #include "accl/graph/base/data_structs.hh"
-#include "accl/graph/sega/push_engine.hh"
 #include "base/cprintf.hh"
 #include "base/statistics.hh"
 #include "params/CoalesceEngine.hh"
@@ -43,7 +42,7 @@
 namespace gem5
 {
 
-class WLEngine;
+class MPU;
 
 class CoalesceEngine : public BaseMemoryEngine
 {
@@ -93,14 +92,13 @@ class CoalesceEngine : public BaseMemoryEngine
       bool isRetry;
       SenderState(bool is_retry): isRetry(is_retry) {}
     };
-
-    WLEngine* peerWLEngine;
-    PushEngine* peerPushEngine;
+    MPU* owner;
 
     int numLines;
     int numElementsPerLine;
     Block* cacheBlocks;
 
+    int onTheFlyReqs;
     int numMSHREntries;
     int numTgtsPerMSHR;
     std::unordered_map<int, std::vector<Addr>> MSHR;
@@ -156,11 +154,10 @@ class CoalesceEngine : public BaseMemoryEngine
   public:
     PARAMS(CoalesceEngine);
     CoalesceEngine(const Params &params);
-    virtual DrainState drain() override;
+    void registerMPU(MPU* mpu);
 
     bool recvWLRead(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);
-    void registerWLEngine(WLEngine* wl_engine);
 
     int workCount() { return _workCount; }
     void recvVertexPull();

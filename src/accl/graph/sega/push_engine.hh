@@ -38,6 +38,7 @@ namespace gem5
 {
 
 class CoalesceEngine;
+class MPU;
 
 class PushEngine : public BaseMemoryEngine
 {
@@ -89,31 +90,9 @@ class PushEngine : public BaseMemoryEngine
         int numElements;
     };
 
-    class ReqPort : public RequestPort
-    {
-      private:
-        PushEngine* owner;
-        bool _blocked;
-        PacketPtr blockedPacket;
-
-      public:
-        ReqPort(const std::string& name, PushEngine* owner) :
-          RequestPort(name, owner), owner(owner),
-          _blocked(false), blockedPacket(nullptr)
-        {}
-        void sendPacket(PacketPtr pkt);
-        bool blocked() { return _blocked; }
-
-      protected:
-        virtual bool recvTimingResp(PacketPtr pkt);
-        virtual void recvReqRetry();
-    };
-
-    ReqPort reqPort;
-
     bool _running;
     int numElementsPerLine;
-    CoalesceEngine* peerCoalesceEngine;
+    MPU* owner;
 
     int numPendingPulls;
     int edgePointerQueueSize;
@@ -157,19 +136,14 @@ class PushEngine : public BaseMemoryEngine
 
   public:
     PARAMS(PushEngine);
-    PushEngine(const Params &params);
-
-    Port& getPort(const std::string &if_name,
-                PortID idx=InvalidPortID) override;
-
-    void registerCoalesceEngine(CoalesceEngine* coalesce_engine,
-                                          int elements_per_line);
-
-    void recvReqRetry();
+    PushEngine(const Params& params);
+    void registerMPU(MPU* mpu);
 
     void start();
     bool running() { return _running; }
     void recvVertexPush(Addr addr, WorkListItem wl);
+
+    void recvReqRetry();
 
     bool done();
 };

@@ -34,8 +34,6 @@ class PushEngine(BaseMemoryEngine):
     cxx_header = "accl/graph/sega/push_engine.hh"
     cxx_class = 'gem5::PushEngine'
 
-    req_port  = RequestPort("Port to send updates to the outside")
-
     push_req_queue_size = Param.Int("Size of the queue to "
                                     "queue push requests.")
     # resp_queue_size should probably be

@@ -34,42 +34,18 @@
 
 #include "accl/graph/base/base_reduce_engine.hh"
 #include "accl/graph/base/data_structs.hh"
-#include "accl/graph/sega/coalesce_engine.hh"
 #include "base/statistics.hh"
 #include "params/WLEngine.hh"
 
 namespace gem5
 {
 
+class MPU;
+
 class WLEngine : public BaseReduceEngine
 {
   private:
-    class RespPort : public ResponsePort
-    {
-      private:
-        WLEngine* owner;
-        bool needSendRetryReq;
-
-      public:
-        RespPort(const std::string& name, WLEngine* owner):
-          ResponsePort(name, owner), owner(owner), needSendRetryReq(false)
-        {}
-        virtual AddrRangeList getAddrRanges() const;
-
-        void checkRetryReq();
-
-      protected:
-        virtual bool recvTimingReq(PacketPtr pkt);
-        virtual Tick recvAtomic(PacketPtr pkt);
-        virtual void recvFunctional(PacketPtr pkt);
-        virtual void recvRespRetry();
-    };
-
-    virtual void init();
-
-    RespPort respPort;
-
-    CoalesceEngine* coalesceEngine;
+    MPU* owner;
 
     int updateQueueSize;
     std::deque<std::tuple<Addr, uint32_t>> updateQueue;
@@ -78,9 +54,6 @@ class WLEngine : public BaseReduceEngine
     std::unordered_map<Addr, uint32_t> registerFile;
 
     std::unordered_map<Addr, WorkListItem> workListFile;
-
-    void recvFunctional(PacketPtr pkt);
-    AddrRangeList getAddrRanges() const;
 
     EventFunctionWrapper nextReadEvent;
     void processNextReadEvent();
@@ -104,17 +77,11 @@ class WLEngine : public BaseReduceEngine
 
   public:
     PARAMS(WLEngine);
-
-    WLEngine(const WLEngineParams &params);
-
-    Port& getPort(const std::string &if_name,
-                  PortID idx=InvalidPortID) override;
+    WLEngine(const Params& params);
+    void registerMPU(MPU* mpu);
 
     bool handleIncomingUpdate(PacketPtr pkt);
-
     void handleIncomingWL(Addr addr, WorkListItem wl);
-
-    int getRegisterFileSize() { return registerFileSize; }
 
     bool done();
 };

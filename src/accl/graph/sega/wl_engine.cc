@@ -28,103 +28,61 @@
 
 #include "accl/graph/sega/wl_engine.hh"
 
+#include "accl/graph/sega/mpu.hh"
 #include "debug/SEGAStructureSize.hh"
 #include "debug/WLEngine.hh"
 #include "mem/packet_access.hh"
+#include "sim/sim_exit.hh"
 
 namespace gem5
 {
 
-WLEngine::WLEngine(const WLEngineParams &params):
+WLEngine::WLEngine(const WLEngineParams& params):
     BaseReduceEngine(params),
-    respPort(name() + ".resp_port", this),
-    coalesceEngine(params.coalesce_engine),
     updateQueueSize(params.update_queue_size),
     registerFileSize(params.register_file_size),
     nextReadEvent([this]{ processNextReadEvent(); }, name()),
     nextReduceEvent([this]{ processNextReduceEvent(); }, name()),
     stats(*this)
-{
-    coalesceEngine->registerWLEngine(this);
-}
-
-Port&
-WLEngine::getPort(const std::string &if_name, PortID idx)
-{
-    if (if_name == "resp_port") {
-        return respPort;
-    } else {
-        return BaseReduceEngine::getPort(if_name, idx);
-    }
-}
+{}
 
 void
-WLEngine::init()
+WLEngine::registerMPU(MPU* mpu)
 {
-    respPort.sendRangeChange();
-}
-
-AddrRangeList
-WLEngine::RespPort::getAddrRanges() const
-{
-    return owner->getAddrRanges();
-}
-
-void
-WLEngine::RespPort::checkRetryReq()
-{
-    if (needSendRetryReq) {
-        DPRINTF(WLEngine,  "%s: Sending a RetryReq.\n", __func__);
-        sendRetryReq();
-        needSendRetryReq = false;
-    }
-}
-
-bool
-WLEngine::RespPort::recvTimingReq(PacketPtr pkt)
-{
-    if (!owner->handleIncomingUpdate(pkt)) {
-        needSendRetryReq = true;
-        return false;
-    }
-
-    return true;
-}
-
-Tick
-WLEngine::RespPort::recvAtomic(PacketPtr pkt)
-{
-    panic("recvAtomic unimpl.");
-}
-
-void
-WLEngine::RespPort::recvFunctional(PacketPtr pkt)
-{
-    owner->recvFunctional(pkt);
-}
-
-void
-WLEngine::RespPort::recvRespRetry()
-{
-    panic("recvRespRetry from response port is called.");
-}
-
-void
-WLEngine::recvFunctional(PacketPtr pkt)
-{
-    coalesceEngine->recvFunctional(pkt);
-}
-
-AddrRangeList
-WLEngine::getAddrRanges() const
-{
-    return coalesceEngine->getAddrRanges();
+    owner = mpu;
 }
 
 bool
 WLEngine::done()
 {
     return registerFile.empty() && updateQueue.empty();
+}
+
+bool
+WLEngine::handleIncomingUpdate(PacketPtr pkt)
+{
+    assert(updateQueue.size() <= updateQueueSize);
+    if ((updateQueueSize != 0) && (updateQueue.size() == updateQueueSize)) {
+        return false;
+    }
+
+    updateQueue.emplace_back(pkt->getAddr(), pkt->getLE<uint32_t>());
+    DPRINTF(SEGAStructureSize, "%s: Emplaced (addr: %lu, value: %u) in the "
+                "updateQueue. updateQueue.size = %d, updateQueueSize = %d.\n",
+                __func__, pkt->getAddr(), pkt->getLE<uint32_t>(),
+                updateQueue.size(), updateQueueSize);
+    DPRINTF(WLEngine, "%s: Emplaced (addr: %lu, value: %u) in the "
+                "updateQueue. updateQueue.size = %d, updateQueueSize = %d.\n",
+                __func__, pkt->getAddr(), pkt->getLE<uint32_t>(),
+                updateQueue.size(), updateQueueSize);
+
+    // delete the packet since it's not needed anymore.
+    delete pkt;
+
+    if (!nextReadEvent.scheduled()) {
+        schedule(nextReadEvent, nextCycle());
+    }
+    return true;
 }
 
 // TODO: Parameterize the number of pops WLEngine can do at a time.
@@ -150,7 +108,7 @@ WLEngine::processNextReadEvent()
             // return a boolean value. It should return an integer/enum
             // to tell WLEngine why it rejected the read request. Their might
             // be things that WLEngine can do to fix head of the line blocking.
-            if (coalesceEngine->recvWLRead(update_addr)) {
+            if (owner->recvWLRead(update_addr)) {
                 DPRINTF(WLEngine, "%s: CoalesceEngine returned true for read "
                             "request to addr: %lu.\n", __func__, update_addr);
                 registerFile[update_addr] = update_value;
@@ -171,7 +129,7 @@ WLEngine::processNextReadEvent()
                             "from updateQueue. updateQueue.size = %d. "
                             "updateQueueSize = %d.\n", __func__, update_addr,
                             update_value, updateQueue.size(), updateQueueSize);
-                respPort.checkRetryReq();
+                owner->checkRetryReq();
             }
         }
     } else {
@@ -194,7 +152,7 @@ WLEngine::processNextReadEvent()
                     "from updateQueue. updateQueue.size = %d. "
                     "updateQueueSize = %d.\n", __func__, update_addr,
                     update_value, updateQueue.size(), updateQueueSize);
-        respPort.checkRetryReq();
+        owner->checkRetryReq();
     }
 
     if (!updateQueue.empty() && (!nextReadEvent.scheduled())) {
@@ -238,7 +196,7 @@ WLEngine::processNextReduceEvent()
                             __func__, addr, workListFile[addr].to_string());
         stats.numReduce++;
 
-        coalesceEngine->recvWLWrite(addr, workListFile[addr]);
+        owner->recvWLWrite(addr, workListFile[addr]);
         registerFile.erase(addr);
         DPRINTF(SEGAStructureSize, "%s: Removed addr: %lu from registerFile. "
                     "registerFile.size = %d, registerFileSize = %d\n",
@@ -248,40 +206,15 @@ WLEngine::processNextReduceEvent()
                     __func__, addr, registerFile.size(), registerFileSize);
     }
     workListFile.clear();
-}
 
-bool
-WLEngine::handleIncomingUpdate(PacketPtr pkt)
-{
-    assert(updateQueue.size() <= updateQueueSize);
-    if ((updateQueueSize != 0) && (updateQueue.size() == updateQueueSize)) {
-        return false;
+    if (done()) {
+        owner->recvDoneSignal();
     }
-
-    updateQueue.emplace_back(pkt->getAddr(), pkt->getLE<uint32_t>());
-    DPRINTF(SEGAStructureSize, "%s: Emplaced (addr: %lu, value: %u) in the "
-                "updateQueue. updateQueue.size = %d, updateQueueSize = %d.\n",
-                __func__, pkt->getAddr(), pkt->getLE<uint32_t>(),
-                updateQueue.size(), updateQueueSize);
-    DPRINTF(WLEngine, "%s: Emplaced (addr: %lu, value: %u) in the "
-                "updateQueue. updateQueue.size = %d, updateQueueSize = %d.\n",
-                __func__, pkt->getAddr(), pkt->getLE<uint32_t>(),
-                updateQueue.size(), updateQueueSize);
-
-
-    // delete the packet since it's not needed anymore.
-    delete pkt;
-
-    if (!nextReadEvent.scheduled()) {
-        schedule(nextReadEvent, nextCycle());
-    }
-    return true;
 }
 
 WLEngine::WorkListStats::WorkListStats(WLEngine &_wl)
     : statistics::Group(&_wl),
     wl(_wl),
-
     ADD_STAT(numReduce, statistics::units::Count::get(),
              "Number of memory blocks read for vertecies"),
     ADD_STAT(registerFileCoalesce, statistics::units::Count::get(),

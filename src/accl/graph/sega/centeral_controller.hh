@@ -29,7 +29,10 @@
 #ifndef __ACCL_GRAPH_SEGA_CENTERAL_CONTROLLER_HH__
 #define __ACCL_GRAPH_SEGA_CENTERAL_CONTROLLER_HH__
 
+#include <vector>
+
 #include "accl/graph/base/data_structs.hh"
+#include "accl/graph/sega/mpu.hh"
 #include "params/CenteralController.hh"
 #include "sim/clocked_object.hh"
 #include "sim/system.hh"
@@ -67,20 +70,20 @@ class CenteralController : public ClockedObject
     Addr addr;
     uint32_t value;
 
+    std::vector<MPU*> mpuVector;
     template<typename T> PacketPtr
                               createUpdatePacket(Addr addr, T value);
-
-    virtual void initState();
-    virtual void startup();
-
     void functionalAccess(PacketPtr pkt);
 
   public:
     PARAMS(CenteralController);
     CenteralController(const CenteralControllerParams &params);
-
     Port& getPort(const std::string &if_name,
                 PortID idx=InvalidPortID) override;
+    virtual void initState();
+    virtual void startup();
+
+    void recvDoneSignal();
 };
 
 }
