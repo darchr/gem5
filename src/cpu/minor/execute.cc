@@ -886,10 +886,8 @@ Execute::doInstCommitAccounting(MinorDynInstPtr inst)
 
     /** Add a count for every control instruction */
 
-    if (inst->staticInst->isControl())
-    {
-        if (inst->staticInst->isReturn())
-        {
+    if (inst->staticInst->isControl()) {
+        if (inst->staticInst->isReturn()) {
             cpu.stats.commitedControl[inst->id.threadId]
                                         [gem5::enums::ControlInst::Return]++;
         }
