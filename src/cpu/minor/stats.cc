@@ -97,7 +97,8 @@ MinorStats::MinorStats(BaseCPU *base_cpu)
     committedInstType.ysubnames(enums::OpClassStrings);
 
     committedControl
-        .init(base_cpu->numThreads, enums::ControlInst::NumControlInstTypes);
+        .init(base_cpu->numThreads, enums::ControlInst::NumControlInstTypes)
+        .flags(statistics:nozero);
     committedControl.ysubnames(enums::ControlInstStrings);
 }
 
