@@ -39,19 +39,6 @@
 
 namespace gem5
 {
-namespace enums
-{
-const char *ControlInstStrings[NumControlInstTypes] =
-{
-    "Call",
-    "Return",
-    "DirectCtrl",
-    "IndirectCtrl",
-    "CondCtrl",
-    "UncondCtrl",
-    "Control",
-};
-}
 
 GEM5_DEPRECATED_NAMESPACE(Minor, minor);
 namespace minor
@@ -97,9 +84,9 @@ MinorStats::MinorStats(BaseCPU *base_cpu)
     committedInstType.ysubnames(enums::OpClassStrings);
 
     committedControl
-        .init(base_cpu->numThreads, enums::ControlInst::NumControlInstTypes)
-        .flags(statistics:nozero);
-    committedControl.ysubnames(enums::ControlInstStrings);
+        .init(base_cpu->numThreads, StaticInstFlags::Flags::Num_Flags)
+        .flags(statistics::nozero);
+    committedControl.ysubnames(StaticInstFlags::FlagsStrings);
 }
 
 } // namespace minor

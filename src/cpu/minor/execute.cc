@@ -889,36 +889,36 @@ Execute::doInstCommitAccounting(MinorDynInstPtr inst)
     if (inst->staticInst->isControl()) {
         if (inst->staticInst->isReturn()) {
             cpu.stats.committedControl[inst->id.threadId]
-                                        [gem5::enums::ControlInst::Return]++;
+                        [gem5::StaticInstFlags::Flags::IsReturn]++;
         }
         if (inst->staticInst->isCall())
         {
             cpu.stats.committedControl[inst->id.threadId]
-                                  [gem5::enums::ControlInst::Call]++;
+                        [gem5::StaticInstFlags::Flags::IsCall]++;
         }
         if (inst->staticInst->isDirectCtrl())
         {
             cpu.stats.committedControl[inst->id.threadId]
-                                    [gem5::enums::ControlInst::DirectCtrl]++;
+                        [gem5::StaticInstFlags::Flags::IsDirectControl]++;
         }
         if (inst->staticInst->isIndirectCtrl())
         {
             cpu.stats.committedControl[inst->id.threadId]
-                                    [gem5::enums::ControlInst::IndirectCtrl]++;
+                        [gem5::StaticInstFlags::Flags::IsIndirectControl]++;
         }
         if (inst->staticInst->isCondCtrl())
         {
             cpu.stats.committedControl[inst->id.threadId]
-                                    [gem5::enums::ControlInst::CondCtrl]++;
+                        [gem5::StaticInstFlags::Flags::IsCondControl]++;
         }
         if (inst->staticInst->isUncondCtrl())
         {
             cpu.stats.committedControl[inst->id.threadId]
-                                    [gem5::enums::ControlInst::UncondCtrl]++;
+                        [gem5::StaticInstFlags::Flags::IsUncondControl]++;
 
         }
         cpu.stats.committedControl[inst->id.threadId]
-                                    [gem5::enums::ControlInst::Control]++;
+                        [gem5::StaticInstFlags::Flags::IsControl]++;
     }
 
 
