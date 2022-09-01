@@ -97,7 +97,7 @@ struct MinorStats : public statistics::Group
     statistics::Vector2d committedInstType;
 
     /** Number of branches commited */
-    statistics::Vector2d commitedControl;
+    statistics::Vector2d committedControl;
 
 };
 
