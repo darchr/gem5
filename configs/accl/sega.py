@@ -20,7 +20,7 @@ def interleave_addresses(plain_range, num_channels, cache_line_size):
         return ret
 
 class GPT(SubSystem):
-    def __init__(self, edge_memory_size, cache_size: str, i):
+    def __init__(self, edge_memory_size, cache_size: str):
         super().__init__()
         self.wl_engine = WLEngine(update_queue_size=64,
                                 register_file_size=32)
@@ -31,18 +31,14 @@ class GPT(SubSystem):
         self.push_engine = PushEngine(push_req_queue_size=32,
                                     attached_memory_atom_size=64,
                                     resp_queue_size=64)
-        
-        vertex_interface = HBM_1000_4H_1x128()
-        # vertex_interface.range = self._vertex_ranges[i]
+
+        vertex_interface = HBM_1000_4H_1x128(burst_length=2)
         ctrl = MemCtrl()
         ctrl.dram = vertex_interface
         self.vertex_mem_ctrl = ctrl
-        # self.vertex_mem_ctrl = SimpleMemory(latency="30ns",
-        #                                     latency_var="0ns",
-        #                                     bandwidth="19.2GiB/s")
+
         edge_interface = DDR4_2400_8x8(
-                device_size = edge_memory_size, 
-                image_file = f"{graph_path}/edgelist_{i}", 
+                device_size = edge_memory_size,
                 in_addr_map=False)
         edge_ctrl = MemCtrl()
         edge_ctrl.dram = edge_interface
@@ -74,7 +70,6 @@ class GPT(SubSystem):
 class SEGA(System):
     def __init__(self,
                 num_mpus,
-                vertex_cache_line_size,
                 cache_size,
                 graph_path,
                 first_addr,
@@ -83,7 +78,7 @@ class SEGA(System):
         self.clk_domain = SrcClockDomain()
         self.clk_domain.clock = '1GHz'
         self.clk_domain.voltage_domain = VoltageDomain()
-        self.cache_line_size = vertex_cache_line_size
+        self.cache_line_size = 32
         self.mem_mode = "timing"
 
         self.interconnect = NoncoherentXBar(frontend_latency=1,
@@ -95,15 +90,14 @@ class SEGA(System):
                                     image_file=f"{graph_path}/vertices")
         self.ctrl.req_port = self.interconnect.cpu_side_ports
 
-        # vertex_ranges = interleave_addresses(AddrRange("4GiB"), num_mpus, vertex_cache_line_size)
         vertex_ranges = interleave_addresses(
-                                AddrRange(start=0, size="4GiB"),\
-                                num_mpus,\
-                                vertex_cache_line_size)
+                            AddrRange(start=0, size="4GiB"),
+                            num_mpus,
+                            32)
 
         gpts = []
         for i in range(num_mpus):
-            gpt = GPT("8GiB", cache_size, i)
+            gpt = GPT("8GiB", cache_size)
             gpt.set_vertex_range(vertex_ranges[i])
             gpt.set_edge_image(f"{graph_path}/edgelist_{i}")
             gpt.setReqPort(self.interconnect.cpu_side_ports)
@@ -116,23 +110,20 @@ class SEGA(System):
 def get_inputs():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("num_mpus", type=int)
-    argparser.add_argument("vertex_cache_line_size", type=int)
     argparser.add_argument("cache_size", type=str)
     argparser.add_argument("graph_path", type=str)
     argparser.add_argument("init_addr", type=int)
     argparser.add_argument("init_value", type=int)
     args = argparser.parse_args()
-    print("******* ", args.cache_size)
-    return args.num_mpus, args.vertex_cache_line_size, args.cache_size, \
+
+    return args.num_mpus, args.cache_size, \
             args.graph_path, args.init_addr, args.init_value
 
 if __name__ == "__m5_main__":
-    num_mpus, vertex_cache_line_size, cache_size, \
-        graph_path, first_addr, first_value = get_inputs()
+    num_mpus, cache_size, graph_path, first_addr, first_value = get_inputs()
 
     print(f"Creating a system with {num_mpus} mpu(s) and graph {graph_path}")
-    system = SEGA(num_mpus, vertex_cache_line_size, cache_size, \
-                graph_path, first_addr, first_value)
+    system = SEGA(num_mpus, cache_size, graph_path, first_addr, first_value)
     root = Root(full_system = False, system = system)
 
     m5.instantiate()
