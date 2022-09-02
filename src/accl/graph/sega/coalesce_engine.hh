@@ -102,7 +102,8 @@ class CoalesceEngine : public BaseMemoryEngine
     int numMSHREntries;
     int numTgtsPerMSHR;
     std::unordered_map<int, std::vector<Addr>> MSHR;
-    std::deque<std::tuple<Addr, WorkListItem>> responseQueue;
+    int maxRespPerCycle;
+    std::deque<std::tuple<Addr, WorkListItem, Tick>> responseQueue;
 
     int _workCount;
     int numPullsReceived;
@@ -144,8 +145,9 @@ class CoalesceEngine : public BaseMemoryEngine
       statistics::Scalar readMisses;
       statistics::Scalar readHitUnderMisses;
       statistics::Scalar readRejections;
-      statistics::Scalar falseApplySchedules;
-      statistics::Scalar falseEvictSchedules;
+
+      statistics::Formula hitRate;
+      statistics::Histogram mshrEntryLength;
     };
 
     CoalesceStats stats;

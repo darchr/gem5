@@ -27,7 +27,8 @@ class GPT(SubSystem):
         self.coalesce_engine = CoalesceEngine(attached_memory_atom_size=32,
                                             cache_size=cache_size,
                                             num_mshr_entry=32,
-                                            num_tgts_per_mshr=32)
+                                            num_tgts_per_mshr=32,
+                                            max_resp_per_cycle=4)
         self.push_engine = PushEngine(push_req_queue_size=32,
                                     attached_memory_atom_size=64,
                                     resp_queue_size=64)
