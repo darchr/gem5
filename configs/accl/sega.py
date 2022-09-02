@@ -22,27 +22,21 @@ def interleave_addresses(plain_range, num_channels, cache_line_size):
 class GPT(SubSystem):
     def __init__(self, edge_memory_size, cache_size: str):
         super().__init__()
-        self.wl_engine = WLEngine(update_queue_size=64,
+        self.wl_engine = WLEngine(update_queue_size=32,
                                 register_file_size=32)
         self.coalesce_engine = CoalesceEngine(attached_memory_atom_size=32,
                                             cache_size=cache_size,
                                             num_mshr_entry=32,
-                                            num_tgts_per_mshr=16)
+                                            num_tgts_per_mshr=32)
         self.push_engine = PushEngine(push_req_queue_size=32,
                                     attached_memory_atom_size=64,
                                     resp_queue_size=64)
 
-        vertex_interface = HBM_1000_4H_1x128(burst_length=2)
-        ctrl = MemCtrl()
-        ctrl.dram = vertex_interface
-        self.vertex_mem_ctrl = ctrl
+        self.vertex_mem_ctrl = MemCtrl(dram=HBM_1000_4H_1x128(burst_length=2))
 
-        edge_interface = DDR4_2400_8x8(
-                device_size = edge_memory_size,
-                in_addr_map=False)
-        edge_ctrl = MemCtrl()
-        edge_ctrl.dram = edge_interface
-        self.edge_mem_ctrl = edge_ctrl
+        self.edge_mem_ctrl = MemCtrl(dram=DDR4_2400_8x8(
+                                            range=AddrRange(edge_memory_size),
+                                            in_addr_map=False))
 
         self.coalesce_engine.mem_port = self.vertex_mem_ctrl.port
         self.push_engine.mem_port = self.edge_mem_ctrl.port
@@ -62,7 +56,6 @@ class GPT(SubSystem):
         self.mpu.out_port = port
 
     def set_vertex_range(self, vertex_range):
-        # self.vertex_mem_ctrl.range = vertex_range
         self.vertex_mem_ctrl.dram.range = vertex_range
     def set_edge_image(self, edge_image):
         self.edge_mem_ctrl.dram.image_file = edge_image
