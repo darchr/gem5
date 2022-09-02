@@ -20,7 +20,7 @@ def interleave_addresses(plain_range, num_channels, cache_line_size):
         return ret
 
 class GPT(SubSystem):
-    def __init__(self, edge_memory_size, cache_size: str):
+    def __init__(self, edge_memory_size, cache_size: str, i):
         super().__init__()
         self.wl_engine = WLEngine(update_queue_size=64,
                                 register_file_size=32)
@@ -40,11 +40,13 @@ class GPT(SubSystem):
         # self.vertex_mem_ctrl = SimpleMemory(latency="30ns",
         #                                     latency_var="0ns",
         #                                     bandwidth="19.2GiB/s")
-        self.edge_mem_ctrl = SimpleMemory(latency="30ns",
-                                        latency_var="0ns",
-                                        bandwidth="19.2GiB/s",
-                                        range=AddrRange(edge_memory_size),
-                                        in_addr_map=False)
+        edge_interface = DDR4_2400_8x8(
+                device_size = edge_memory_size, 
+                image_file = f"{graph_path}/edgelist_{i}", 
+                in_addr_map=False)
+        edge_ctrl = MemCtrl()
+        edge_ctrl.dram = edge_interface
+        self.edge_mem_ctrl = edge_ctrl
 
         self.coalesce_engine.mem_port = self.vertex_mem_ctrl.port
         self.push_engine.mem_port = self.edge_mem_ctrl.port
@@ -67,7 +69,7 @@ class GPT(SubSystem):
         # self.vertex_mem_ctrl.range = vertex_range
         self.vertex_mem_ctrl.dram.range = vertex_range
     def set_edge_image(self, edge_image):
-        self.edge_mem_ctrl.image_file = edge_image
+        self.edge_mem_ctrl.dram.image_file = edge_image
 
 class SEGA(System):
     def __init__(self,
@@ -101,7 +103,7 @@ class SEGA(System):
 
         gpts = []
         for i in range(num_mpus):
-            gpt = GPT("8GiB", cache_size)
+            gpt = GPT("8GiB", cache_size, i)
             gpt.set_vertex_range(vertex_ranges[i])
             gpt.set_edge_image(f"{graph_path}/edgelist_{i}")
             gpt.setReqPort(self.interconnect.cpu_side_ports)
