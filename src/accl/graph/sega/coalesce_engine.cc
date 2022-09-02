@@ -140,8 +140,9 @@ CoalesceEngine::recvWLRead(Addr addr)
         // TODO: Add a hit latency as a param for this object.
         // Can't just schedule the nextResponseEvent for latency cycles in
         // the future.
-        responseQueue.push_back(std::make_tuple(addr,
-                    cacheBlocks[block_index].items[wl_offset]));
+        responseQueue.push_back(std::make_tuple(
+            addr, cacheBlocks[block_index].items[wl_offset]));
+
         DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
                         "to responseQueue. responseQueue.size = %d.\n",
                         __func__, addr,
@@ -434,6 +435,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         }
         DPRINTF(BitVector, "%s: needsPush.count: %d.\n",
                             __func__, needsPush.count());
+
+        pendingVertexPullReads.erase(addr);
         delete pkt;
         return true;
     }
@@ -466,12 +469,11 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         delete pkt;
     }
 
-    // FIXME: Get rid of servicedIndices (maybe use an iterator)
-    std::vector<int> servicedIndices;
-    for (int i = 0; i < MSHR[block_index].size(); i++) {
-        Addr miss_addr = MSHR[block_index][i];
+    for (auto it = MSHR[block_index].begin(); it != MSHR[block_index].end();) {
+        Addr miss_addr = *it;
         Addr aligned_miss_addr =
             roundDown<Addr, size_t>(miss_addr, peerMemoryAtomSize);
+
         if (aligned_miss_addr == addr) {
             int wl_offset = (miss_addr - aligned_miss_addr) / sizeof(WorkListItem);
             DPRINTF(CoalesceEngine,  "%s: Addr: %lu in the MSHR for "
@@ -495,28 +497,14 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             cacheBlocks[block_index].lastChangedTick = curTick();
             DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                         block_index, cacheBlocks[block_index].to_string());
-            // End of the said block
-            servicedIndices.push_back(i);
-            // DPRINTF(CoalesceEngine,  "%s: Added index: %d of MSHR for cacheBlocks[%d] for "
-            //             "removal.\n", __func__, i, block_index);
+            it = MSHR[block_index].erase(it);
+        } else {
+            it++;
         }
-    }
-
-    // TODO: We Can use taken instead of this
-    // TODO: Change the MSHR from map<Addr, vector> to map<Addr, list>
-    int bias = 0;
-    for (int i = 0; i < servicedIndices.size(); i++) {
-        Addr print_addr = MSHR[block_index][i - bias];
-        MSHR[block_index].erase(MSHR[block_index].begin() +
-                                    servicedIndices[i] - bias);
-        bias++;
-        DPRINTF(CoalesceEngine,  "%s: Addr: %lu has been serviced "
-                        "and is removed.\n", __func__, print_addr);
     }
 
     if (MSHR[block_index].empty()) {
         MSHR.erase(block_index);
-        // cacheBlocks[block_index].hasConflict = false;
     }
 
     if ((!nextResponseEvent.scheduled()) &&
@@ -902,24 +890,8 @@ CoalesceEngine::getOptimalBitVectorSlice()
             (!cacheBlocks[block_index].pendingWB)) {
             assert(!cacheBlocks[block_index].needsApply);
             assert(!cacheBlocks[block_index].pendingData);
-            // current_score += numElementsPerLine * 2;
-            // if (current_score > score) {
-            //     score = current_score;
-            //     slice_base = it;
-            //     hit_in_cache = true;
-            //     if (score == max_score_possible) {
-            //         break;
-            //     }
-            // }
             return std::make_tuple(true, it);
         } else if (cacheBlocks[block_index].addr != addr) {
-            // score += numElementsPerLine;
-            // if (current_score > score) {
-            //     score = current_score;
-            //     slice_base = it;
-            //     hit_in_cache = false;
-            //     assert(score < max_score_possible);
-            // }
             return std::make_tuple(false, it);
         }
     }
@@ -928,7 +900,7 @@ CoalesceEngine::getOptimalBitVectorSlice()
 }
 
 void
-CoalesceEngine::processNextPushRetry(int prev_slice_base, Tick schedule_tick)
+CoalesceEngine::processNextVertexPull(int prev_slice_base, Tick schedule_tick)
 {
     bool hit_in_cache;
     int slice_base;
@@ -961,6 +933,8 @@ CoalesceEngine::processNextPushRetry(int prev_slice_base, Tick schedule_tick)
             pkt->pushSenderState(sender_state);
             memPort.sendPacket(pkt);
             onTheFlyReqs++;
+
+            pendingVertexPullReads.insert(addr);
             // TODO: Set a tracking structure so that nextMemoryReadEvent knows
             // It does not have to read this address anymore. It can simply set
             // a flag to true (maybe not even needed just look if the cache has a
@@ -972,9 +946,9 @@ CoalesceEngine::processNextPushRetry(int prev_slice_base, Tick schedule_tick)
     if (numPullsReceived > 0) {
         memoryFunctionQueue.emplace_back(
             [this] (int slice_base, Tick schedule_tick) {
-            processNextPushRetry(slice_base, schedule_tick);
+            processNextVertexPull(slice_base, schedule_tick);
         }, 0, curTick());
-        DPRINTF(CoalesceEngine, "%s: Pushed processNextPushRetry with input "
+        DPRINTF(CoalesceEngine, "%s: Pushed processNextVertexPull with input "
                                     "0 to memoryFunctionQueue.\n", __func__);
     }
 }
@@ -999,7 +973,7 @@ CoalesceEngine::recvVertexPull()
     numPullsReceived++;
     memoryFunctionQueue.emplace_back(
         [this] (int slice_base, Tick schedule_tick) {
-        processNextPushRetry(slice_base, schedule_tick);
+        processNextVertexPull(slice_base, schedule_tick);
     }, 0, curTick());
     if ((!nextMemoryEvent.pending()) &&
         (!nextMemoryEvent.scheduled())) {
