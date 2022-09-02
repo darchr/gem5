@@ -20,20 +20,26 @@ def interleave_addresses(plain_range, num_channels, cache_line_size):
         return ret
 
 class GPT(SubSystem):
-    def __init__(self, edge_memory_size: str):
+    def __init__(self, edge_memory_size, cache_size: str):
         super().__init__()
         self.wl_engine = WLEngine(update_queue_size=64,
                                 register_file_size=32)
         self.coalesce_engine = CoalesceEngine(attached_memory_atom_size=32,
-                                            cache_size="8MiB",
+                                            cache_size=cache_size,
                                             num_mshr_entry=32,
                                             num_tgts_per_mshr=16)
         self.push_engine = PushEngine(push_req_queue_size=32,
                                     attached_memory_atom_size=64,
                                     resp_queue_size=64)
-        self.vertex_mem_ctrl = SimpleMemory(latency="30ns",
-                                            latency_var="0ns",
-                                            bandwidth="19.2GiB/s")
+        
+        vertex_interface = HBM_1000_4H_1x128()
+        # vertex_interface.range = self._vertex_ranges[i]
+        ctrl = MemCtrl()
+        ctrl.dram = vertex_interface
+        self.vertex_mem_ctrl = ctrl
+        # self.vertex_mem_ctrl = SimpleMemory(latency="30ns",
+        #                                     latency_var="0ns",
+        #                                     bandwidth="19.2GiB/s")
         self.edge_mem_ctrl = SimpleMemory(latency="30ns",
                                         latency_var="0ns",
                                         bandwidth="19.2GiB/s",
@@ -58,7 +64,8 @@ class GPT(SubSystem):
         self.mpu.out_port = port
 
     def set_vertex_range(self, vertex_range):
-        self.vertex_mem_ctrl.range = vertex_range
+        # self.vertex_mem_ctrl.range = vertex_range
+        self.vertex_mem_ctrl.dram.range = vertex_range
     def set_edge_image(self, edge_image):
         self.edge_mem_ctrl.image_file = edge_image
 
@@ -66,6 +73,7 @@ class SEGA(System):
     def __init__(self,
                 num_mpus,
                 vertex_cache_line_size,
+                cache_size,
                 graph_path,
                 first_addr,
                 first_value):
@@ -85,11 +93,15 @@ class SEGA(System):
                                     image_file=f"{graph_path}/vertices")
         self.ctrl.req_port = self.interconnect.cpu_side_ports
 
-        vertex_ranges = interleave_addresses(AddrRange("4GiB"), num_mpus, vertex_cache_line_size)
+        # vertex_ranges = interleave_addresses(AddrRange("4GiB"), num_mpus, vertex_cache_line_size)
+        vertex_ranges = interleave_addresses(
+                                AddrRange(start=0, size="4GiB"),\
+                                num_mpus,\
+                                vertex_cache_line_size)
 
         gpts = []
         for i in range(num_mpus):
-            gpt = GPT("8GiB")
+            gpt = GPT("8GiB", cache_size)
             gpt.set_vertex_range(vertex_ranges[i])
             gpt.set_edge_image(f"{graph_path}/edgelist_{i}")
             gpt.setReqPort(self.interconnect.cpu_side_ports)
@@ -103,19 +115,21 @@ def get_inputs():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("num_mpus", type=int)
     argparser.add_argument("vertex_cache_line_size", type=int)
+    argparser.add_argument("cache_size", type=str)
     argparser.add_argument("graph_path", type=str)
     argparser.add_argument("init_addr", type=int)
     argparser.add_argument("init_value", type=int)
     args = argparser.parse_args()
-    return args.num_mpus, args.vertex_cache_line_size, \
+    print("******* ", args.cache_size)
+    return args.num_mpus, args.vertex_cache_line_size, args.cache_size, \
             args.graph_path, args.init_addr, args.init_value
 
 if __name__ == "__m5_main__":
-    num_mpus, vertex_cache_line_size, \
+    num_mpus, vertex_cache_line_size, cache_size, \
         graph_path, first_addr, first_value = get_inputs()
 
     print(f"Creating a system with {num_mpus} mpu(s) and graph {graph_path}")
-    system = SEGA(num_mpus, vertex_cache_line_size, \
+    system = SEGA(num_mpus, vertex_cache_line_size, cache_size, \
                 graph_path, first_addr, first_value)
     root = Root(full_system = False, system = system)
 
