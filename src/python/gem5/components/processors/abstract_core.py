@@ -25,7 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from abc import ABCMeta, abstractmethod
-from typing import Optional
+from typing import Optional, List
 
 from ...isas import ISA
 
@@ -122,7 +122,7 @@ class AbstractCore(SubSystem):
         raise NotImplementedError
 
     @abstractmethod
-    def set_simpoint(self, inst_starts, init: bool) -> None:
+    def set_simpoint(self, inst_starts: List[int], init: bool) -> None:
         """Schedule simpoint exit events for the core.
 
         This is used to raise SIMPOINT_BEGIN exit events in the gem5 standard
@@ -136,7 +136,7 @@ class AbstractCore(SubSystem):
         raise NotImplementedError("This core type does not support simpoints")
 
     @abstractmethod
-    def set_inst_stop_any_thread(self, inst, init: bool) -> None:
+    def set_inst_stop_any_thread(self, inst: int, init: bool) -> None:
         """Schedule an exit event when any thread in this core reaches the
         given number of instructions.
 

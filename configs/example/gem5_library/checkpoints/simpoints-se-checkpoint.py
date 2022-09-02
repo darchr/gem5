@@ -100,9 +100,7 @@ simpoint = SimPoint(
     simpoint_list=[2, 3, 5, 15],
     weight_list=[0.1, 0.2, 0.4, 0.3],
     simpoint_interval=1000000,
-    warmup_interval=1000000
-    # simpoint_file_path=Path("path/to/simpoints"),
-    # weight_file_path=Path("path/to/weights"),
+    warmup_interval=1000000,
 )
 
 board.set_se_binary_workload(

@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from typing import Optional
+from typing import Optional, List
 from ...utils.requires import requires
 from .abstract_core import AbstractCore
 
@@ -153,14 +153,14 @@ class BaseCPUCore(AbstractCore):
         return self.core.mmu
 
     @overrides(AbstractCore)
-    def set_simpoint(self, inst_starts, init: bool) -> None:
+    def set_simpoint(self, inst_starts: List[int], init: bool) -> None:
         if init:
             self.core.simpoint_start_insts = inst_starts
         else:
             self.core.scheduleSimpointsInstStop(inst_starts)
 
     @overrides(AbstractCore)
-    def set_inst_stop_any_thread(self, inst, init: bool) -> None:
+    def set_inst_stop_any_thread(self, inst: int, init: bool) -> None:
         if init:
             self.core.max_insts_any_thread = inst
         else:
