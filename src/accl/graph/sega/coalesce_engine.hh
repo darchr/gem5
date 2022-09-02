@@ -114,12 +114,15 @@ class CoalesceEngine : public BaseMemoryEngine
     Addr getBlockAddrFromBitIndex(int index);
     std::tuple<bool, int> getOptimalBitVectorSlice();
 
+    std::unordered_set<Addr> pendingVertexPullReads;
+
     MemoryEvent nextMemoryEvent;
     void processNextMemoryEvent();
     void processNextRead(int block_index, Tick schedule_tick);
     void processNextWriteBack(int block_index, Tick schedule_tick);
-    void processNextPushRetry(int slice_base, Tick schedule_tick);
-    std::deque<std::tuple<std::function<void(int, Tick)>, int, Tick>> memoryFunctionQueue;
+    void processNextVertexPull(int slice_base, Tick schedule_tick);
+    std::deque<std::tuple<
+        std::function<void(int, Tick)>, int, Tick>> memoryFunctionQueue;
 
     EventFunctionWrapper nextResponseEvent;
     void processNextResponseEvent();
