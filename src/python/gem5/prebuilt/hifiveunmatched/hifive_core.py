@@ -93,22 +93,29 @@ class U74BP(TournamentBP):
 # this will serve as the parent class to RiscvU74CPU
 # in src/arch/riscv/RiscvCPU.py
 class U74CPU(RiscvMinorCPU):
+    # The fetch, decode, and execute stage parameters from the ARM HPI CPU
+    # This information about the CPU can be found on page 15 of
+    # gem5_rsk_gem5-21.2.pdf at https://github.com/arm-university/arm-gem5-rsk
 
+    # Fetch1 stage
     fetch1LineSnapWidth = 0
     fetch1LineWidth = 0
     fetch1FetchLimit = 1
     fetch1ToFetch2ForwardDelay = 1
     fetch1ToFetch2BackwardDelay = 1
 
+    # Fetch2 stage
     fetch2InputBufferSize = 2
     fetch2ToDecodeForwardDelay = 1
     fetch2CycleInput = True
 
+    # Decode stage
     decodeInputBufferSize = 3
     decodeToExecuteForwardDelay = 2
     decodeInputWidth = 2
     decodeCycleInput = True
 
+    # Execute stage
     executeInputWidth = 2
     executeCycleInput = True
     executeIssueLimit = 2
@@ -126,7 +133,8 @@ class U74CPU(RiscvMinorCPU):
     executeSetTraceTimeOnIssue = False
     executeAllowEarlyMemoryIssue = True
     enableIdling = True
-    
+
+    # Functional Units and Branch Prediction
     executeFuncUnits = U74FUPool()
     branchPred = U74BP()
 
