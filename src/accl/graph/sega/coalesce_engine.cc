@@ -49,6 +49,7 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
     onTheFlyReqs(0), numMSHREntries(params.num_mshr_entry),
     numTgtsPerMSHR(params.num_tgts_per_mshr),
+    maxRespPerCycle(params.max_resp_per_cycle),
     _workCount(0), numPullsReceived(0),
     nextMemoryEvent([this] {
         processNextMemoryEvent();
@@ -141,7 +142,7 @@ CoalesceEngine::recvWLRead(Addr addr)
         // Can't just schedule the nextResponseEvent for latency cycles in
         // the future.
         responseQueue.push_back(std::make_tuple(
-            addr, cacheBlocks[block_index].items[wl_offset]));
+            addr, cacheBlocks[block_index].items[wl_offset], curTick()));
 
         DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
                         "to responseQueue. responseQueue.size = %d.\n",
@@ -197,6 +198,7 @@ CoalesceEngine::recvWLRead(Addr addr)
                             "cacheBlocks[%d].\n", __func__, block_index);
         }
         MSHR[block_index].push_back(addr);
+        stats.mshrEntryLength.sample(MSHR[block_index].size());
         DPRINTF(CoalesceEngine,  "%s: Added Addr: %lu to targets "
                 "for cacheBlocks[%d].\n", __func__, addr, block_index);
         DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
@@ -312,6 +314,7 @@ CoalesceEngine::recvWLRead(Addr addr)
                     }
                     // cacheBlocks[block_index].hasConflict = true;
                     MSHR[block_index].push_back(addr);
+                    stats.mshrEntryLength.sample(MSHR[block_index].size());
                     DPRINTF(CoalesceEngine,  "%s: Added Addr: %lu to targets "
                         "for cacheBlocks[%d].\n", __func__, addr, block_index);
                     stats.readMisses++;
@@ -344,6 +347,7 @@ CoalesceEngine::recvWLRead(Addr addr)
                     DPRINTF(CoalesceEngine, "%s: Allocated cacheBlocks[%d] for"
                                 " Addr: %lu.\n", __func__, block_index, addr);
                     MSHR[block_index].push_back(addr);
+                    stats.mshrEntryLength.sample(MSHR[block_index].size());
                     DPRINTF(CoalesceEngine, "%s: Added Addr: %lu to targets "
                         "for cacheBlocks[%d].\n", __func__, addr, block_index);
                     memoryFunctionQueue.emplace_back(
@@ -382,11 +386,11 @@ CoalesceEngine::recvWLRead(Addr addr)
             DPRINTF(CoalesceEngine, "%s: There is room for another target "
                             "for cacheBlocks[%d].\n", __func__, block_index);
 
-            // cacheBlocks[block_index].hasConflict = true;
             // TODO: Might want to differentiate between different misses.
             stats.readMisses++;
 
             MSHR[block_index].push_back(addr);
+            stats.mshrEntryLength.sample(MSHR[block_index].size());
             DPRINTF(CoalesceEngine,  "%s: Added Addr: %lu to targets for "
                             "cacheBlocks[%d].\n", __func__, addr, block_index);
             stats.numVertexReads++;
@@ -481,7 +485,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                         "packet.\n",__func__, miss_addr, block_index);
             // TODO: Make this block of code into a function
             responseQueue.push_back(std::make_tuple(miss_addr,
-                    cacheBlocks[block_index].items[wl_offset]));
+                    cacheBlocks[block_index].items[wl_offset], curTick()));
             DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
                         "to responseQueue. responseQueue.size = %d.\n",
                         __func__, miss_addr,
@@ -519,22 +523,36 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
 void
 CoalesceEngine::processNextResponseEvent()
 {
+    int num_responses_sent = 0;
+
     Addr addr_response;
     WorkListItem worklist_response;
+    Tick response_queueing_tick;
+    while(true) {
+        std::tie(addr_response, worklist_response, response_queueing_tick) =
+                                                        responseQueue.front();
+        Tick waiting_ticks = curTick() - response_queueing_tick;
+        if (ticksToCycles(waiting_ticks) < 1) {
+            break;
+        }
+        owner->handleIncomingWL(addr_response, worklist_response);
+        num_responses_sent++;
+        DPRINTF(CoalesceEngine,
+                    "%s: Sent WorkListItem: %s with addr: %lu to WLEngine.\n",
+                    __func__, worklist_response.to_string(), addr_response);
 
-    std::tie(addr_response, worklist_response) = responseQueue.front();
-    owner->handleIncomingWL(addr_response, worklist_response);
-    DPRINTF(CoalesceEngine,
-                "%s: Sent WorkListItem: %s with addr: %lu to WLEngine.\n",
-                __func__, worklist_response.to_string(), addr_response);
-
-    responseQueue.pop_front();
-    DPRINTF(SEGAStructureSize,  "%s: Popped a response from responseQueue. "
-                "responseQueue.size = %d.\n", __func__,
-                responseQueue.size());
-    DPRINTF(CoalesceEngine,  "%s: Popped a response from responseQueue. "
-                "responseQueue.size = %d.\n", __func__,
-                responseQueue.size());
+        responseQueue.pop_front();
+        DPRINTF(SEGAStructureSize,  "%s: Popped a response from responseQueue. "
+                    "responseQueue.size = %d.\n", __func__,
+                    responseQueue.size());
+        DPRINTF(CoalesceEngine,  "%s: Popped a response from responseQueue. "
+                    "responseQueue.size = %d.\n", __func__,
+                    responseQueue.size());
+        if ((num_responses_sent >= maxRespPerCycle) ||
+            (responseQueue.empty())) {
+                break;
+        }
+    }
 
     if ((!nextResponseEvent.scheduled()) &&
         (!responseQueue.empty())) {
@@ -694,9 +712,9 @@ CoalesceEngine::processNextApplyEvent()
                     if (needsPush[bit_index_base + index] == 0) {
                         _workCount++;
                         needsPush[bit_index_base + index] = 1;
-                    }
-                    if (!owner->running()) {
-                        owner->start();
+                        if (!owner->running()) {
+                            owner->start();
+                        }
                     }
                 }
             }
@@ -997,10 +1015,10 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Number of cache hit under misses."),
     ADD_STAT(readRejections, statistics::units::Count::get(),
              "Number of cache rejections."),
-    ADD_STAT(falseApplySchedules, statistics::units::Count::get(),
-             "Number of failed apply schedules."),
-    ADD_STAT(falseEvictSchedules, statistics::units::Count::get(),
-             "Number of failed evict schedules.")
+    ADD_STAT(hitRate, statistics::units::Ratio::get(),
+             "Hit rate in the cache."),
+    ADD_STAT(mshrEntryLength, statistics::units::Count::get(),
+             "Histogram on the length of the mshr entries.")
 {
 }
 
@@ -1008,6 +1026,11 @@ void
 CoalesceEngine::CoalesceStats::regStats()
 {
     using namespace statistics;
+
+    mshrEntryLength.init(64);
+
+    hitRate = (readHits + readHitUnderMisses) /
+                (readHits + readHitUnderMisses + readMisses);
 }
 
 }
