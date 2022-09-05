@@ -194,7 +194,9 @@ MPU::sendPacket(PacketPtr pkt)
 void
 MPU::recvDoneSignal()
 {
-    centeralController->recvDoneSignal();
+    if (done()) {
+        centeralController->recvDoneSignal();
+    }
 }
 
 bool
