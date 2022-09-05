@@ -162,7 +162,12 @@ CoalesceEngine::recvWLRead(Addr addr)
         // and skip the process if the respective bit is set to false.
         cacheBlocks[block_index].pendingApply = false;
         cacheBlocks[block_index].pendingWB = false;
-        cacheBlocks[block_index].lastChangedTick = curTick();
+        // HACK: If a read happens on the same cycle as another operation such
+        // apply setLastChangedTick to half a cycle later so that operations
+        // scheduled by the original operation (apply in this example) are
+        // invalidated. For more details refer to "accl/graph/sega/busyMaskErr"
+        cacheBlocks[block_index].lastChangedTick =
+                                    curTick() + (Tick) (clockPeriod() / 2);
         DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                     block_index, cacheBlocks[block_index].to_string());
 
