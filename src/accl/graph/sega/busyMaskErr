@@ -1,0 +1,16 @@
+gem5/build/NULL/gem5.opt -re --outdir=debug --debug-flags=CacheBlockState gem5/configs/accl/sega.py 1 1KiB /home/fariborz/SEGA/graphs/test/scale_21/binaries/mpu_1/ 0 0
+
+32964143000: system.gpts.coalesce_engine: handleMemResp: cacheBlocks[2]: CacheBlock{addr: 469056, busyMask: 0, valid: true, needsApply: false, needsWB: false, pendingData: false, pendingApply: false, pendingWB: false, lastChangedTick: 32964143000}.
+32964143000: system.gpts.coalesce_engine: handleMemResp: cacheBlocks[2]: CacheBlock{addr: 469056, busyMask: 2, valid: true, needsApply: false, needsWB: false, pendingData: false, pendingApply: false, pendingWB: false, lastChangedTick: 32964143000}.
+32964145000: system.gpts.coalesce_engine: recvWLWrite: cacheBlocks[2]: CacheBlock{addr: 469056, busyMask: 2, valid: true, needsApply: false, needsWB: false, pendingData: false, pendingApply: false, pendingWB: false, lastChangedTick: 32964143000}.
+32964145000: system.gpts.coalesce_engine: recvWLWrite: cacheBlocks[2]: CacheBlock{addr: 469056, busyMask: 0, valid: true, needsApply: true, needsWB: false, pendingData: false, pendingApply: false, pendingWB: false, lastChangedTick: 32964145000}.
+32964145000: system.gpts.coalesce_engine: recvWLWrite: cacheBlocks[2]: CacheBlock{addr: 469056, busyMask: 0, valid: true, needsApply: true, needsWB: false, pendingData: false, pendingApply: true, pendingWB: false, lastChangedTick: 32964145000}.
+32964146000: system.gpts.coalesce_engine: processNextApplyEvent: cacheBlocks[2]: CacheBlock{addr: 469056, busyMask: 0, valid: true, needsApply: true, needsWB: false, pendingData: false, pendingApply: true, pendingWB: false, lastChangedTick: 32964145000}.
+32964146000: system.gpts.coalesce_engine: processNextApplyEvent: cacheBlock[2]: CacheBlock{addr: 469056, busyMask: 0, valid: true, needsApply: false, needsWB: true, pendingData: false, pendingApply: false, pendingWB: true, lastChangedTick: 32964146000}.
+32964146000: system.gpts.coalesce_engine: recvWLRead: cacheBlocks[2]: CacheBlock{addr: 469056, busyMask: 0, valid: true, needsApply: false, needsWB: true, pendingData: false, pendingApply: false, pendingWB: true, lastChangedTick: 32964146000}.
+32964146000: system.gpts.coalesce_engine: recvWLRead: cacheBlocks[2]: CacheBlock{addr: 469056, busyMask: 1, valid: true, needsApply: false, needsWB: true, pendingData: false, pendingApply: false, pendingWB: false, lastChangedTick: 32964146000}.
+32964147000: system.gpts.coalesce_engine: processNextWriteBack: cacheBlocks[2]: CacheBlock{addr: 469056, busyMask: 1, valid: true, needsApply: false, needsWB: true, pendingData: false, pendingApply: false, pendingWB: false, lastChangedTick: 32964146000}.
+
+// This assertion would be hit although it should not.
+// It is fixed by a hack in recvWLRead when hit in the cache.
+assert(cacheBlocks[block_index].busyMask == 0);

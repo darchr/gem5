@@ -20,7 +20,7 @@ def interleave_addresses(plain_range, num_channels, cache_line_size):
         return ret
 
 class GPT(SubSystem):
-    def __init__(self, edge_memory_size, cache_size: str):
+    def __init__(self, edge_memory_size: str, cache_size: str):
         super().__init__()
         self.wl_engine = WLEngine(update_queue_size=32,
                                 register_file_size=32)
