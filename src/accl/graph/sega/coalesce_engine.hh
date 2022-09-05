@@ -107,13 +107,14 @@ class CoalesceEngine : public BaseMemoryEngine
 
     int _workCount;
     int numPullsReceived;
+    int startSearchIndex;
     UniqueFIFO<int> applyQueue;
     std::bitset<MAX_BITVECTOR_SIZE> needsPush;
 
     int getBlockIndex(Addr addr);
     int getBitIndexBase(Addr addr);
     Addr getBlockAddrFromBitIndex(int index);
-    std::tuple<bool, int> getOptimalBitVectorSlice();
+    std::tuple<bool, int, Addr> getOptimalPullAddr();
 
     std::unordered_set<Addr> pendingVertexPullReads;
 
