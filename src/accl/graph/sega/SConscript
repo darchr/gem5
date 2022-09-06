@@ -43,13 +43,11 @@ Source('wl_engine.cc')
 
 DebugFlag('ApplyUpdates')
 DebugFlag('BaseMemoryEngine')
-DebugFlag('BitVector')
 DebugFlag('CenteralController')
 DebugFlag('CacheBlockState')
 DebugFlag('CoalesceEngine')
 DebugFlag('PushEngine')
 DebugFlag('SEGAStructureSize')
-DebugFlag('TempFlag')
 DebugFlag('WLEngine')
 
 CompoundFlag('MPU', ['CoalesceEngine', 'PushEngine',
