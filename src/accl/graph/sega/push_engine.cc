@@ -31,7 +31,6 @@
 #include "accl/graph/sega/coalesce_engine.hh"
 #include "accl/graph/sega/mpu.hh"
 #include "debug/PushEngine.hh"
-#include "debug/TempFlag.hh"
 #include "mem/packet_access.hh"
 #include "sim/sim_exit.hh"
 
@@ -129,8 +128,6 @@ PushEngine::recvVertexPush(Addr addr, WorkListItem wl)
     edgePointerQueue.emplace_back(start_addr, end_addr, sizeof(Edge),
                         peerMemoryAtomSize, addr, (uint32_t) wl.prop);
     numPendingPulls--;
-    DPRINTF(TempFlag, "%s: Received {addr: %lu, wl: %s}.\n",
-                            __func__, addr, wl.to_string());
     if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
         schedule(nextVertexPullEvent, nextCycle());
     }
