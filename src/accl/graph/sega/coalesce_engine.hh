@@ -42,6 +42,14 @@
 namespace gem5
 {
 
+enum BitStatus
+{
+    PENDING_READ,
+    IN_CACHE,
+    IN_MEMORY,
+    GARBAGE
+};
+
 class MPU;
 
 class CoalesceEngine : public BaseMemoryEngine
@@ -107,22 +115,26 @@ class CoalesceEngine : public BaseMemoryEngine
 
     int _workCount;
     int numPullsReceived;
+    // CLEAN: Replace with slice_base_queue
     int startSearchIndex;
     UniqueFIFO<int> applyQueue;
     std::bitset<MAX_BITVECTOR_SIZE> needsPush;
+    std::deque<int> activeBits;
 
     int getBlockIndex(Addr addr);
     int getBitIndexBase(Addr addr);
     Addr getBlockAddrFromBitIndex(int index);
-    std::tuple<bool, int, Addr> getOptimalPullAddr();
+    std::tuple<BitStatus, Addr, int> getOptimalPullAddr();
 
-    std::unordered_set<Addr> pendingVertexPullReads;
+    // A map from addr to sendMask. sendMask determines which bytes to
+    // send for push when getting the read response from memory.
+    std::unordered_map<Addr, uint64_t> pendingVertexPullReads;
 
     MemoryEvent nextMemoryEvent;
     void processNextMemoryEvent();
     void processNextRead(int block_index, Tick schedule_tick);
     void processNextWriteBack(int block_index, Tick schedule_tick);
-    void processNextVertexPull(int slice_base, Tick schedule_tick);
+    void processNextVertexPull(int ignore, Tick schedule_tick);
     std::deque<std::tuple<
         std::function<void(int, Tick)>, int, Tick>> memoryFunctionQueue;
 
