@@ -33,7 +33,6 @@
 #include "accl/graph/sega/mpu.hh"
 #include "base/intmath.hh"
 #include "debug/ApplyUpdates.hh"
-#include "debug/BitVector.hh"
 #include "debug/CacheBlockState.hh"
 #include "debug/CoalesceEngine.hh"
 #include "debug/SEGAStructureSize.hh"
@@ -80,7 +79,7 @@ bool
 CoalesceEngine::done()
 {
     bool push_none = needsPush.none();
-    DPRINTF(CoalesceEngine, "%s: needsPush.none: %s.\n", 
+    DPRINTF(CoalesceEngine, "%s: needsPush.none: %s.\n",
                     __func__, push_none ? "true" : "false");
     return applyQueue.empty() && needsPush.none() &&
         memoryFunctionQueue.empty() && (onTheFlyReqs == 0);
@@ -428,26 +427,23 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                 (cacheBlocks[block_index].valid)));
         // We have read the address to send the wl and it is not in the
         // cache. Simply send the items to the PushEngine.
+
+        DPRINTF(CoalesceEngine, "%s: Received read response for pull read "
+                                "for addr %lu.\n", __func__, addr);
         int it = getBitIndexBase(addr);
-        DPRINTF(CoalesceEngine, "%s: Received read response for retry "
-                    "for addr %lu. It was not found in the cache.\n",
-                    __func__, addr);
+        uint64_t send_mask = pendingVertexPullReads[addr];
         WorkListItem* items = pkt->getPtr<WorkListItem>();
         // No applying of the line needed.
-        DPRINTF(BitVector, "%s: needsPush.count: %d.\n",
-                            __func__, needsPush.count());
         for (int i = 0; i < numElementsPerLine; i++) {
             Addr vertex_addr = addr + i * sizeof(WorkListItem);
-            if (needsPush[it + i] == 1) {
-                _workCount--;
+            uint64_t vertex_send_mask = send_mask & (1 << i);
+            if (vertex_send_mask != 0) {
+                assert(needsPush[it + i] == 1);
                 needsPush[it + i] = 0;
+                _workCount--;
                 owner->recvVertexPush(vertex_addr, items[i]);
-                break;
             }
         }
-        DPRINTF(BitVector, "%s: needsPush.count: %d.\n",
-                            __func__, needsPush.count());
-
         pendingVertexPullReads.erase(addr);
         delete pkt;
         return true;
@@ -720,6 +716,7 @@ CoalesceEngine::processNextApplyEvent()
                     if (needsPush[bit_index_base + index] == 0) {
                         _workCount++;
                         needsPush[bit_index_base + index] = 1;
+                        activeBits.push_back(bit_index_base + index);
                         if (!owner->running()) {
                             owner->start();
                         }
@@ -888,19 +885,78 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
     }
 }
 
-std::tuple<bool, int, Addr>
+// std::tuple<bool, int, Addr>
+// CoalesceEngine::getOptimalPullAddr()
+// {
+//     int it = startSearchIndex;
+//     int initial_search_index = startSearchIndex;
+//     while (true) {
+//         uint32_t current_popcount = 0;
+//         for (int i = 0; i < numElementsPerLine; i++) {
+//             current_popcount += needsPush[it + i];
+//         }
+//         if (current_popcount != 0) {
+//             Addr addr = getBlockAddrFromBitIndex(it);
+//             int block_index = getBlockIndex(addr);
+//             // Only if it is in cache and it is in idle state.
+//             if ((cacheBlocks[block_index].addr == addr) &&
+//                 (cacheBlocks[block_index].valid) &&
+//                 (cacheBlocks[block_index].busyMask == 0) &&
+//                 (!cacheBlocks[block_index].pendingApply) &&
+//                 (!cacheBlocks[block_index].pendingWB)) {
+//                 assert(!cacheBlocks[block_index].needsApply);
+//                 assert(!cacheBlocks[block_index].pendingData);
+//                 startSearchIndex = (it + numElementsPerLine) % MAX_BITVECTOR_SIZE;
+//                 return std::make_tuple(true, it, addr);
+//             // Otherwise if it is in memory
+//             } else if (cacheBlocks[block_index].addr != addr) {
+//                 if (pendingVertexPullReads.find(addr) !=
+//                             pendingVertexPullReads.end()) {
+//                     startSearchIndex =
+//                                 (it + numElementsPerLine) % MAX_BITVECTOR_SIZE;
+//                     return std::make_tuple(true, it, addr);
+//                 }
+//             }
+//         }
+//         it = (it + numElementsPerLine) % MAX_BITVECTOR_SIZE;
+//         if (it == initial_search_index) {
+//             break;
+//         }
+//     }
+//     // return garbage
+//     return std::make_tuple(false, -1, 0);
+// }
+
+std::tuple<BitStatus, Addr, int>
 CoalesceEngine::getOptimalPullAddr()
 {
-    int it = startSearchIndex;
-    int initial_search_index = startSearchIndex;
-    while (true) {
-        uint32_t current_popcount = 0;
-        for (int i = 0; i < numElementsPerLine; i++) {
-            current_popcount += needsPush[it + i];
-        }
-        if (current_popcount != 0) {
-            Addr addr = getBlockAddrFromBitIndex(it);
-            int block_index = getBlockIndex(addr);
+    int visited_bits = 0;
+    int num_intial_active_bits = activeBits.size();
+    while (visited_bits < num_intial_active_bits) {
+        int index = activeBits.front();
+        int base_index = roundDown<int, int>(index, numElementsPerLine);
+        int index_offset = index - base_index;
+        assert(needsPush[index] == 1);
+        assert(index_offset < numElementsPerLine);
+
+        Addr addr = getBlockAddrFromBitIndex(base_index);
+        int block_index = getBlockIndex(addr);
+        if (pendingVertexPullReads.find(addr) != pendingVertexPullReads.end())
+        {
+            uint64_t send_mask = pendingVertexPullReads[addr];
+            uint64_t vertex_send_mask = send_mask & (1 << index_offset);
+            assert(vertex_send_mask == 0);
+            activeBits.pop_front();
+            return std::make_tuple(
+                                BitStatus::PENDING_READ, addr, index_offset);
+            /*
+            uint64_t send_mask = pendingVertexPullReads[addr];
+            uint64_t vertex_send_mask = send_mask & (1 << index_offset);
+            assert(vertex_send_mask = 0);
+            send_mask |= (1 << index_offset);
+            pendingVertexPullReads[addr] = send_mask;
+            */
+        } else {
             // Only if it is in cache and it is in idle state.
             if ((cacheBlocks[block_index].addr == addr) &&
                 (cacheBlocks[block_index].valid) &&
@@ -909,67 +965,122 @@ CoalesceEngine::getOptimalPullAddr()
                 (!cacheBlocks[block_index].pendingWB)) {
                 assert(!cacheBlocks[block_index].needsApply);
                 assert(!cacheBlocks[block_index].pendingData);
-                startSearchIndex = (it + numElementsPerLine) % MAX_BITVECTOR_SIZE;
-                return std::make_tuple(true, it, addr);
+                activeBits.pop_front();
+                return std::make_tuple(
+                            BitStatus::IN_CACHE, block_index, index_offset);
             // Otherwise if it is in memory
             } else if (cacheBlocks[block_index].addr != addr) {
-                if (pendingVertexPullReads.find(addr) != 
-                                                pendingVertexPullReads.end()) {
-                    startSearchIndex = 
-                                    (it + numElementsPerLine) % MAX_BITVECTOR_SIZE;
-                    return std::make_tuple(true, it, addr);
-                }
+                activeBits.pop_front();
+                return std::make_tuple(
+                            BitStatus::IN_MEMORY, addr, index_offset);
             }
         }
-        it = (it + numElementsPerLine) % MAX_BITVECTOR_SIZE;
-        if (it == initial_search_index) {
-            break;
-        }
+        activeBits.pop_front();
+        activeBits.push_back(index);
+        visited_bits++;
     }
-    // return garbage
-    return std::make_tuple(false, -1, 0); 
+
+    return std::make_tuple(BitStatus::GARBAGE, 0, 0);
 }
 
+// void
+// CoalesceEngine::processNextVertexPull(int prev_slice_base, Tick schedule_tick)
+// {
+//     bool hit_in_cache;
+//     int slice_base;
+//     Addr addr;
+
+//     std::tie(hit_in_cache, slice_base, addr) = getOptimalPullAddr();
+//     if (slice_base != -1) {
+//         int block_index = getBlockIndex(addr);
+//         if (hit_in_cache) {
+//             assert(cacheBlocks[block_index].valid);
+//             assert(cacheBlocks[block_index].busyMask == 0);
+
+//             DPRINTF(BitVector, "%s: needsPush.count: %d.\n",
+//                                     __func__, needsPush.count());
+//             for (int i = 0; i < numElementsPerLine; i++) {
+//                 Addr vertex_addr = addr + i * sizeof(WorkListItem);
+//                 if (needsPush[slice_base + i] == 1) {
+//                     _workCount--;
+//                     needsPush[slice_base + i] = 0;
+//                     owner->recvVertexPush(vertex_addr,
+//                                             cacheBlocks[block_index].items[i]);
+//                     break;
+//                 }
+//             }
+//             DPRINTF(BitVector, "%s: needsPush.count: %d.\n",
+//                                     __func__, needsPush.count());
+//         } else {
+//             PacketPtr pkt = createReadPacket(addr, peerMemoryAtomSize);
+//             SenderState* sender_state = new SenderState(true);
+//             pkt->pushSenderState(sender_state);
+//             memPort.sendPacket(pkt);
+//             onTheFlyReqs++;
+//             pendingVertexPullReads.insert(addr);
+//         }
+//         numPullsReceived--;
+//     }
+
+//     if (numPullsReceived > 0) {
+//         memoryFunctionQueue.emplace_back(
+//             [this] (int slice_base, Tick schedule_tick) {
+//             processNextVertexPull(slice_base, schedule_tick);
+//         }, 0, curTick());
+//         DPRINTF(CoalesceEngine, "%s: Pushed processNextVertexPull with input "
+//                                     "0 to memoryFunctionQueue.\n", __func__);
+//     }
+// }
+
 void
-CoalesceEngine::processNextVertexPull(int prev_slice_base, Tick schedule_tick)
+CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
 {
-    bool hit_in_cache;
-    int slice_base;
-    Addr addr;
+    BitStatus bit_status;
+    Addr location;
+    int offset;
 
-    std::tie(hit_in_cache, slice_base, addr) = getOptimalPullAddr();
-    if (slice_base != -1) {
-        int block_index = getBlockIndex(addr);
-        if (hit_in_cache) {
-            assert(cacheBlocks[block_index].valid);
-            assert(cacheBlocks[block_index].busyMask == 0);
+    std::tie(bit_status, location, offset) = getOptimalPullAddr();
 
-            DPRINTF(BitVector, "%s: needsPush.count: %d.\n",
-                                    __func__, needsPush.count());
-            for (int i = 0; i < numElementsPerLine; i++) {
-                Addr vertex_addr = addr + i * sizeof(WorkListItem);
-                if (needsPush[slice_base + i] == 1) {
-                    _workCount--;
-                    needsPush[slice_base + i] = 0;
-                    owner->recvVertexPush(vertex_addr,
-                                            cacheBlocks[block_index].items[i]);
-                    break;
-                }
-            }
-            DPRINTF(BitVector, "%s: needsPush.count: %d.\n",
-                                    __func__, needsPush.count());
-        } else {
+    if (bit_status != BitStatus::GARBAGE) {
+        if (bit_status == BitStatus::PENDING_READ) {
+            // renaming the outputs to thier local names.
+            Addr addr = location;
+            int index_offset = offset;
+
+            uint64_t send_mask = pendingVertexPullReads[addr];
+            uint64_t vertex_send_mask = send_mask & (1 << index_offset);
+            assert(vertex_send_mask == 0);
+            send_mask |= (1 << index_offset);
+            pendingVertexPullReads[addr] = send_mask;
+        }
+        if (bit_status == BitStatus::IN_CACHE) {
+            // renaming the outputs to their local names.
+            int block_index = (int) location;
+            int wl_offset = offset;
+
+            Addr addr = cacheBlocks[block_index].addr;
+            Addr vertex_addr = addr + (wl_offset * sizeof(WorkListItem));
+            int slice_base_index = getBitIndexBase(addr);
+
+            needsPush[slice_base_index + wl_offset] = 0;
+            _workCount--;
+            owner->recvVertexPush(
+                    vertex_addr, cacheBlocks[block_index].items[wl_offset]);
+        }
+        if (bit_status == BitStatus::IN_MEMORY) {
+            Addr addr = location;
+            int index_offset = offset;
+            uint64_t send_mask = (1 << index_offset);
+            assert(pendingVertexPullReads.find(addr) == pendingVertexPullReads.end());
             PacketPtr pkt = createReadPacket(addr, peerMemoryAtomSize);
             SenderState* sender_state = new SenderState(true);
             pkt->pushSenderState(sender_state);
             memPort.sendPacket(pkt);
             onTheFlyReqs++;
-
-            pendingVertexPullReads.insert(addr);
+            pendingVertexPullReads[addr] = send_mask;
         }
         numPullsReceived--;
     }
-
     if (numPullsReceived > 0) {
         memoryFunctionQueue.emplace_back(
             [this] (int slice_base, Tick schedule_tick) {
