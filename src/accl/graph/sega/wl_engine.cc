@@ -152,7 +152,6 @@ WLEngine::processNextReadEvent()
                 __func__, update_addr, update_addr, registerFile[update_addr]);
         registerFile[update_addr] =
                     reduce(update_value, registerFile[update_addr]);
-                // std::min(update_value, registerFile[update_addr]);
         DPRINTF(WLEngine,  "%s: Reduced the update_value: %u with the entry in"
                     " registerFile. registerFile[%lu] = %u.\n", __func__,
                     update_value, update_addr, registerFile[update_addr]);
@@ -206,7 +205,6 @@ WLEngine::processNextReduceEvent()
         // TODO: Generalize this to reduce function rather than just min
         workListFile[addr].tempProp =
                     reduce(update_value, workListFile[addr].tempProp);
-                    // std::min(update_value, workListFile[addr].tempProp);
         DPRINTF(WLEngine,  "%s: Reduction done. workListFile[%lu] = %s.\n",
                             __func__, addr, workListFile[addr].to_string());
         stats.numReduce++;
