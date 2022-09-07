@@ -49,7 +49,7 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     onTheFlyReqs(0), numMSHREntries(params.num_mshr_entry),
     numTgtsPerMSHR(params.num_tgts_per_mshr),
     maxRespPerCycle(params.max_resp_per_cycle),
-    _workCount(0), numPullsReceived(0),  startSearchIndex(0),
+    _workCount(0), numPullsReceived(0), workload(params.workload),
     nextMemoryEvent([this] {
         processNextMemoryEvent();
         }, name() + ".nextMemoryEvent"),
@@ -83,6 +83,18 @@ CoalesceEngine::done()
                     __func__, push_none ? "true" : "false");
     return applyQueue.empty() && needsPush.none() &&
         memoryFunctionQueue.empty() && (onTheFlyReqs == 0);
+}
+
+uint32_t
+CoalesceEngine::reduce(uint32_t update, uint32_t value)
+{
+    uint32_t new_value;
+    if(workload == "BFS"){
+        new_value = std::min(update, value);
+    } else{
+        panic("Workload not implemented\n");
+    }
+    return new_value;
 }
 
 // addr should be aligned to peerMemoryAtomSize
@@ -700,8 +712,12 @@ CoalesceEngine::processNextApplyEvent()
         assert(cacheBlocks[block_index].busyMask == 0);
         for (int index = 0; index < numElementsPerLine; index++) {
             uint32_t current_prop = cacheBlocks[block_index].items[index].prop;
-            uint32_t new_prop = std::min(current_prop,
-                            cacheBlocks[block_index].items[index].tempProp);
+            // NOTE: It might be the case that for workloads other than BFS,
+            // the reduce function here should be different to the reduce
+            // function defined in WLEngine. Think about the case of PR in
+            // detail.
+            uint32_t new_prop = reduce(
+                cacheBlocks[block_index].items[index].tempProp, current_prop);
             if (new_prop != current_prop) {
                 cacheBlocks[block_index].items[index].tempProp = new_prop;
                 cacheBlocks[block_index].items[index].prop = new_prop;
@@ -885,48 +901,6 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
     }
 }
 
-// std::tuple<bool, int, Addr>
-// CoalesceEngine::getOptimalPullAddr()
-// {
-//     int it = startSearchIndex;
-//     int initial_search_index = startSearchIndex;
-//     while (true) {
-//         uint32_t current_popcount = 0;
-//         for (int i = 0; i < numElementsPerLine; i++) {
-//             current_popcount += needsPush[it + i];
-//         }
-//         if (current_popcount != 0) {
-//             Addr addr = getBlockAddrFromBitIndex(it);
-//             int block_index = getBlockIndex(addr);
-//             // Only if it is in cache and it is in idle state.
-//             if ((cacheBlocks[block_index].addr == addr) &&
-//                 (cacheBlocks[block_index].valid) &&
-//                 (cacheBlocks[block_index].busyMask == 0) &&
-//                 (!cacheBlocks[block_index].pendingApply) &&
-//                 (!cacheBlocks[block_index].pendingWB)) {
-//                 assert(!cacheBlocks[block_index].needsApply);
-//                 assert(!cacheBlocks[block_index].pendingData);
-//                 startSearchIndex = (it + numElementsPerLine) % MAX_BITVECTOR_SIZE;
-//                 return std::make_tuple(true, it, addr);
-//             // Otherwise if it is in memory
-//             } else if (cacheBlocks[block_index].addr != addr) {
-//                 if (pendingVertexPullReads.find(addr) !=
-//                             pendingVertexPullReads.end()) {
-//                     startSearchIndex =
-//                                 (it + numElementsPerLine) % MAX_BITVECTOR_SIZE;
-//                     return std::make_tuple(true, it, addr);
-//                 }
-//             }
-//         }
-//         it = (it + numElementsPerLine) % MAX_BITVECTOR_SIZE;
-//         if (it == initial_search_index) {
-//             break;
-//         }
-//     }
-//     // return garbage
-//     return std::make_tuple(false, -1, 0);
-// }
-
 std::tuple<BitStatus, Addr, int>
 CoalesceEngine::getOptimalPullAddr()
 {
@@ -949,13 +923,6 @@ CoalesceEngine::getOptimalPullAddr()
             activeBits.pop_front();
             return std::make_tuple(
                                 BitStatus::PENDING_READ, addr, index_offset);
-            /*
-            uint64_t send_mask = pendingVertexPullReads[addr];
-            uint64_t vertex_send_mask = send_mask & (1 << index_offset);
-            assert(vertex_send_mask = 0);
-            send_mask |= (1 << index_offset);
-            pendingVertexPullReads[addr] = send_mask;
-            */
         } else {
             // Only if it is in cache and it is in idle state.
             if ((cacheBlocks[block_index].addr == addr) &&
@@ -982,55 +949,6 @@ CoalesceEngine::getOptimalPullAddr()
 
     return std::make_tuple(BitStatus::GARBAGE, 0, 0);
 }
-
-// void
-// CoalesceEngine::processNextVertexPull(int prev_slice_base, Tick schedule_tick)
-// {
-//     bool hit_in_cache;
-//     int slice_base;
-//     Addr addr;
-
-//     std::tie(hit_in_cache, slice_base, addr) = getOptimalPullAddr();
-//     if (slice_base != -1) {
-//         int block_index = getBlockIndex(addr);
-//         if (hit_in_cache) {
-//             assert(cacheBlocks[block_index].valid);
-//             assert(cacheBlocks[block_index].busyMask == 0);
-
-//             DPRINTF(BitVector, "%s: needsPush.count: %d.\n",
-//                                     __func__, needsPush.count());
-//             for (int i = 0; i < numElementsPerLine; i++) {
-//                 Addr vertex_addr = addr + i * sizeof(WorkListItem);
-//                 if (needsPush[slice_base + i] == 1) {
-//                     _workCount--;
-//                     needsPush[slice_base + i] = 0;
-//                     owner->recvVertexPush(vertex_addr,
-//                                             cacheBlocks[block_index].items[i]);
-//                     break;
-//                 }
-//             }
-//             DPRINTF(BitVector, "%s: needsPush.count: %d.\n",
-//                                     __func__, needsPush.count());
-//         } else {
-//             PacketPtr pkt = createReadPacket(addr, peerMemoryAtomSize);
-//             SenderState* sender_state = new SenderState(true);
-//             pkt->pushSenderState(sender_state);
-//             memPort.sendPacket(pkt);
-//             onTheFlyReqs++;
-//             pendingVertexPullReads.insert(addr);
-//         }
-//         numPullsReceived--;
-//     }
-
-//     if (numPullsReceived > 0) {
-//         memoryFunctionQueue.emplace_back(
-//             [this] (int slice_base, Tick schedule_tick) {
-//             processNextVertexPull(slice_base, schedule_tick);
-//         }, 0, curTick());
-//         DPRINTF(CoalesceEngine, "%s: Pushed processNextVertexPull with input "
-//                                     "0 to memoryFunctionQueue.\n", __func__);
-//     }
-// }
 
 void
 CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)

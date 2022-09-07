@@ -35,7 +35,12 @@ class CoalesceEngine(BaseMemoryEngine):
     cxx_class = 'gem5::CoalesceEngine'
 
     cache_size = Param.MemorySize("Size of the internal SRAM array.")
+
     num_mshr_entry = Param.Int("Number of MSHR entries.")
+
     num_tgts_per_mshr = Param.Int("Number of Targets Per MSHR.")
+
     max_resp_per_cycle = Param.Int("Maximum number of vertices to send to "
                                 "requestor in each cycle. Used to limit b/w.")
+
+    workload = Param.String("BFS", "Name of the workload")

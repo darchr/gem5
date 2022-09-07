@@ -254,7 +254,7 @@ PushEngine::processNextPushEvent()
                     __func__, curr_edge.to_string());
 
     // TODO: Implement propagate function here
-    uint32_t update_value = propagate(value, 1);
+    uint32_t update_value = propagate(curr_edge.value, curr_edge.weight);
     PacketPtr update = createUpdatePacket<uint32_t>(
                             curr_edge.dst, update_value);
 
