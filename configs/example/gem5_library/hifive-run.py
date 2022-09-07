@@ -27,14 +27,12 @@
 import argparse
 from gem5.resources.resource import Resource, CustomResource
 from gem5.simulate.simulator import Simulator
-from python.gem5.prebuilt.hifiveunmatched.hifive_board import \
-    HiFiveBoard
-from typing import List
+from python.gem5.prebuilt.hifiveunmatched.hifive_board import HiFiveBoard
 
 # collect optional CLI arg for RISCV binary to run
 parser = argparse.ArgumentParser(description="Binary to run on system")
 parser.add_argument(
-    "riscv_binary", type=str, help="The RISCV binary to execute on the CPU"
+    "workload", type=str, help="The disk image or RV binary to execute"
 )
 parser.add_argument(
     "--argv", type=str, help="CLI argument to the binary",
@@ -53,15 +51,21 @@ if args.fullsystem:
     command = "echo 'This is running on U74 CPU core.';" \
         + "sleep 1;" \
         + "m5 exit;"
-
-    board.set_kernel_disk_workload(
-        kernel=Resource("riscv-bootloader-vmlinux-5.10"),
-        disk_image=Resource("riscv-disk-img"),
-        readfile_contents=command,
-    )
+    if args.workload in ["riscv-disk-img", "riscv-ubuntu-20.04-img"]:
+        board.set_kernel_disk_workload(
+            kernel=Resource("riscv-bootloader-vmlinux-5.10"),
+            disk_image=Resource(args.workload),
+            readfile_contents=command,
+        )
+    else:
+        board.set_kernel_disk_workload(
+            kernel=CustomResource("riscv-bootloader-vmlinux-5.10"),
+            disk_image=CustomResource(args.workload),
+            readfile_contents=command,
+        )
 else:
     board.set_se_binary_workload(
-        CustomResource(args.riscv_binary),
+        CustomResource(args.workload),
         arguments=args.argv.split(" "),
     )
 
