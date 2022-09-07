@@ -115,8 +115,6 @@ class CoalesceEngine : public BaseMemoryEngine
 
     int _workCount;
     int numPullsReceived;
-    // CLEAN: Replace with slice_base_queue
-    int startSearchIndex;
     UniqueFIFO<int> applyQueue;
     std::bitset<MAX_BITVECTOR_SIZE> needsPush;
     std::deque<int> activeBits;
@@ -129,6 +127,9 @@ class CoalesceEngine : public BaseMemoryEngine
     // A map from addr to sendMask. sendMask determines which bytes to
     // send for push when getting the read response from memory.
     std::unordered_map<Addr, uint64_t> pendingVertexPullReads;
+
+    std::string workload;
+    uint32_t reduce(uint32_t update, uint32_t value);
 
     MemoryEvent nextMemoryEvent;
     void processNextMemoryEvent();
