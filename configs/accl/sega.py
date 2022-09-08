@@ -159,7 +159,7 @@ if __name__ == "__m5_main__":
     image_path = None
     if input_args.synthetic:
         base_dir = os.environ.get("GRAPH_DIR", default="/tmp")
-        graph_gen = os.path.abspath(os.environ.get("GRAPH_GEN"))
+        graph_gen = os.environ.get("GRAPH_GEN")
         graph_reader = os.environ.get("GRAPH_READER")
         graph_sorter = os.environ.get("GRAPH_SORTER")
         if graph_gen is None:

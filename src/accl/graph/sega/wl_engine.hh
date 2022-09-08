@@ -76,6 +76,7 @@ class WLEngine : public BaseReduceEngine
 
       statistics::Scalar numReduce;
       statistics::Scalar registerFileCoalesce;
+      statistics::Scalar registerShortage;
     };
 
     WorkListStats stats;
