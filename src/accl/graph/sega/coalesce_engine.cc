@@ -210,7 +210,7 @@ CoalesceEngine::recvWLRead(Addr addr)
             DPRINTF(CoalesceEngine,  "%s: Out of targets for "
                         "cacheBlocks[%d]. Rejecting request.\n",
                                         __func__, block_index);
-            stats.readRejections++;
+            stats.mshrTargetShortage++;
             return false;
         } else {
             DPRINTF(CoalesceEngine,  "%s: MSHR entries are available for "
@@ -241,7 +241,7 @@ CoalesceEngine::recvWLRead(Addr addr)
                                 "Rejecting request.\n", __func__);
                 // TODO: Break out read rejections into more than one stat
                 // based on the cause of the rejection
-                stats.readRejections++;
+                stats.mshrEntryShortage++;
                 return false;
             } else {
                 DPRINTF(CoalesceEngine,  "%s: MSHR "
@@ -399,7 +399,7 @@ CoalesceEngine::recvWLRead(Addr addr)
                 DPRINTF(CoalesceEngine,  "%s: Out of targets for "
                             "cacheBlocks[%d]. Rejecting request.\n",
                                             __func__, block_index);
-                stats.readRejections++;
+                stats.mshrTargetShortage++;
                 return false;
             }
             DPRINTF(CoalesceEngine, "%s: There is room for another target "
@@ -740,6 +740,8 @@ CoalesceEngine::processNextApplyEvent()
                 }
             }
         }
+        stats.bitvectorLength.sample(needsPush.count());
+
         cacheBlocks[block_index].needsWB = true;
         cacheBlocks[block_index].needsApply = false;
         cacheBlocks[block_index].pendingApply = false;
@@ -1055,12 +1057,16 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Number of cache misses."),
     ADD_STAT(readHitUnderMisses, statistics::units::Count::get(),
              "Number of cache hit under misses."),
-    ADD_STAT(readRejections, statistics::units::Count::get(),
-             "Number of cache rejections."),
+    ADD_STAT(mshrEntryShortage, statistics::units::Count::get(),
+             "Number of cache rejections caused by entry shortage."),
+    ADD_STAT(mshrTargetShortage, statistics::units::Count::get(),
+             "Number of cache rejections caused by target shortage."),
     ADD_STAT(hitRate, statistics::units::Ratio::get(),
              "Hit rate in the cache."),
     ADD_STAT(mshrEntryLength, statistics::units::Count::get(),
-             "Histogram on the length of the mshr entries.")
+             "Histogram on the length of the mshr entries."),
+    ADD_STAT(bitvectorLength, statistics::units::Count::get(),
+             "Histogram of the length of the bitvector")
 {
 }
 
@@ -1069,7 +1075,8 @@ CoalesceEngine::CoalesceStats::regStats()
 {
     using namespace statistics;
 
-    mshrEntryLength.init(64);
+    mshrEntryLength.init(coalesce.params().num_tgts_per_mshr);
+    bitvectorLength.init(64);
 
     hitRate = (readHits + readHitUnderMisses) /
                 (readHits + readHitUnderMisses + readMisses);

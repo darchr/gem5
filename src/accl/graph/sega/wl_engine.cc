@@ -144,6 +144,10 @@ WLEngine::processNextReadEvent()
                             update_value, updateQueue.size(), updateQueueSize);
                 owner->checkRetryReq();
             }
+        } else {
+            DPRINTF(WLEngine, "%s: There are no free registers "
+                    "available in the registerFile.\n", __func__);
+            stats.registerShortage++;
         }
     } else {
         // TODO: Generalize this to reduce function rather than just min
@@ -231,7 +235,10 @@ WLEngine::WorkListStats::WorkListStats(WLEngine &_wl)
     ADD_STAT(numReduce, statistics::units::Count::get(),
              "Number of memory blocks read for vertecies"),
     ADD_STAT(registerFileCoalesce, statistics::units::Count::get(),
-             "Number of memory blocks read for vertecies")
+             "Number of memory blocks read for vertecies"),
+    ADD_STAT(registerShortage, statistics::units::Count::get(),
+             "Number of times updates were "
+             "stalled because of register shortage")
 {
 }
 
