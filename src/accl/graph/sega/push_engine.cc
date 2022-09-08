@@ -300,7 +300,10 @@ PushEngine::PushStats::PushStats(PushEngine &_push)
     : statistics::Group(&_push),
     push(_push),
     ADD_STAT(numUpdates, statistics::units::Count::get(),
-             "Number of sent updates.")
+             "Number of sent updates."),
+    ADD_STAT(TEPS, statistics::units::Rate<statistics::units::Count,
+                                    statistics::units::Second>::get(),
+             "Traversed Edges Per Second.")
 {
 }
 
@@ -308,6 +311,8 @@ void
 PushEngine::PushStats::regStats()
 {
     using namespace statistics;
+
+    TEPS = numUpdates / simSeconds;
 }
 
 }

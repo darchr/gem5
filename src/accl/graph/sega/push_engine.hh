@@ -127,6 +127,8 @@ class PushEngine : public BaseMemoryEngine
       PushEngine &push;
 
       statistics::Scalar numUpdates;
+
+      statistics::Formula TEPS;
     };
 
     PushStats stats;
