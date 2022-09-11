@@ -25,9 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import m5
-import os
 import argparse
-import subprocess
 
 from math import log
 from m5.objects import *
@@ -49,7 +47,7 @@ def interleave_addresses(plain_range, num_channels, cache_line_size):
 class GPT(SubSystem):
     def __init__(self, edge_memory_size: str, cache_size: str):
         super().__init__()
-        self.wl_engine = WLEngine(update_queue_size=32,
+        self.wl_engine = WLEngine(update_queue_size=64,
                                 register_file_size=32)
         self.coalesce_engine = CoalesceEngine(attached_memory_atom_size=32,
                                             cache_size=cache_size,
@@ -132,99 +130,19 @@ def get_inputs():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("num_gpts", type=int)
     argparser.add_argument("cache_size", type=str)
-    argparser.add_argument("vertex_cache_line_size", type=int)
-    argparser.add_argument("synthetic", type=bool)
-    argparser.add_argument("--scale", type=int)
-    argparser.add_argument("--deg", type=int)
-    argparser.add_argument("--graph", type=str)
+    argparser.add_argument("graph", type=str)
     argparser.add_argument("init_addr", type=int)
     argparser.add_argument("init_value", type=int)
 
     args = argparser.parse_args()
 
-    if args.synthetic:
-        if (args.scale is None) or (args.deg is None):
-            raise ValueError("If synthetic is true, you should specify the"
-                        "scale of the graph by --scale [scale] and the average"
-                        "degree of the graph by --deg [average degree].")
-    else:
-        if args.graph is None:
-            raise ValueError("If synthetic is false, you should specify the "
-                        "path to graph binaries by --graph [path to graph].")
-    return args
+    return args.num_gpts, args.cache_size, \
+        args.graph, args.init_addr, args.init_value
 
 if __name__ == "__m5_main__":
-    input_args = get_inputs()
+    num_gpts, cache_size, graph, init_addr, init_value = get_inputs()
 
-    image_path = None
-    if input_args.synthetic:
-        base_dir = os.environ.get("GRAPH_DIR", default="/tmp")
-        graph_gen = os.environ.get("GRAPH_GEN")
-        graph_reader = os.environ.get("GRAPH_READER")
-        graph_sorter = os.environ.get("GRAPH_SORTER")
-        if graph_gen is None:
-            raise ValueError(f"No value for $GRAPH_GEN.")
-        if graph_reader is None:
-            raise ValueError(f"No value for $GRAPH_READER.")
-        if graph_sorter is None:
-            raise ValueError(f"No value for $GRAPH_SORTER")
-
-        graph_path = os.path.join(base_dir, f"graph_{input_args.scale}_{input_args.deg}")
-        if not os.path.exists(graph_path):
-            print(f"{graph_path} does not exist already.")
-            os.mkdir(graph_path)
-            print(f"Created {graph_path}")
-
-        if not "graph.txt" in os.listdir(graph_path):
-            print(f"graph.txt not found in {graph_path}")
-            subprocess.run([f"{graph_gen}",
-                            f"{input_args.scale}",
-                            f"{input_args.deg}",
-                            f"{graph_path}/graph_unordered.txt"])
-            print(f"Generated a graph with scale "
-                f"{input_args.scale} and deg {input_args.deg}")
-            subprocess.run(["python",
-                            f"{graph_sorter}",
-                            f"{graph_path}/graph_unordered.txt",
-                            f"{graph_path}/graph.txt"])
-            print(f"Sorted the graph here {graph_path}/graph_unordered.txt"
-                                    f" and saved in {graph_path}/graph.txt")
-            subprocess.run(["rm", f"{graph_path}/graph_unordered.txt"])
-            print(f"Deleted {graph_path}/graph_unordered.txt")
-
-        if not "binaries" in os.listdir(graph_path):
-            print(f"binaries directory not found in {graph_path}")
-            os.mkdir(f"{graph_path}/binaries")
-            print(f"Created {graph_path}/binaries")
-
-        if not f"gpts_{input_args.num_gpts}" in os.listdir(f"{graph_path}/binaries"):
-            print(f"gpts_{input_args.num_gpts} not found in {graph_path}/binaries")
-            os.mkdir(f"{graph_path}/binaries/gpts_{input_args.num_gpts}")
-            print(f"Created {graph_path}/binaries/gpts_{input_args.num_gpts}")
-
-        expected_bins = ["vertices"] + [f"edgelist_{i}" for i in range(input_args.num_gpts)]
-        if not all([binary in os.listdir(f"{graph_path}/binaries/gpts_{input_args.num_gpts}") for binary in expected_bins]):
-            print(f"Not all expected binaries found in {graph_path}/binaries/gpts_{input_args.num_gpts}")
-            for delete in os.scandir(f"{graph_path}/binaries/gpts_{input_args.num_gpts}"):
-                os.remove(delete.path)
-            print(f"Deleted all the files in {graph_path}/binaries/gpts_{input_args.num_gpts}")
-            subprocess.run([f"{graph_reader}" ,
-                            f"{graph_path}/graph.txt",
-                            "false",
-                            f"{input_args.num_gpts}",
-                            f"{input_args.vertex_cache_line_size}",
-                            f"{graph_path}/binaries/gpts_{input_args.num_gpts}"])
-            print(f"Created the graph binaries in "
-                    f"{graph_path}/binaries/gpts_{input_args.num_gpts}")
-        image_path = f"{graph_path}/binaries/gpts_{input_args.num_gpts}"
-    else:
-        image_path = input_args.graph
-
-    system = SEGA(input_args.num_gpts,
-                input_args.cache_size,
-                image_path,
-                input_args.init_addr,
-                input_args.init_value)
+    system = SEGA(num_gpts, cache_size, graph, init_addr, init_value)
     root = Root(full_system = False, system = system)
 
     m5.instantiate()
