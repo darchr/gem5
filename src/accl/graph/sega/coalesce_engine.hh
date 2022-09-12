@@ -160,6 +160,8 @@ class CoalesceEngine : public BaseMemoryEngine
       statistics::Scalar readHitUnderMisses;
       statistics::Scalar mshrEntryShortage;
       statistics::Scalar mshrTargetShortage;
+      statistics::Scalar workSearchFails;
+      statistics::Scalar numDoubleMemReads;
 
       statistics::Formula hitRate;
       statistics::Histogram mshrEntryLength;
