@@ -834,9 +834,13 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
                                     peerMemoryAtomSize);
     DPRINTF(CoalesceEngine,  "%s: Created a read packet. addr = %lu, "
             "size = %d.\n", __func__, pkt->getAddr(), pkt->getSize());
-
     memPort.sendPacket(pkt);
     onTheFlyReqs++;
+
+    if (pendingVertexPullReads.find(pkt->getAddr()) !=
+        pendingVertexPullReads.end()) {
+        stats.numDoubleMemReads++;
+    }
 }
 
 void
@@ -1000,6 +1004,8 @@ CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
             pendingVertexPullReads[addr] = send_mask;
         }
         numPullsReceived--;
+    } else {
+        stats.workSearchFails++;
     }
     if (numPullsReceived > 0) {
         memoryFunctionQueue.emplace_back(
@@ -1061,6 +1067,11 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Number of cache rejections caused by entry shortage."),
     ADD_STAT(mshrTargetShortage, statistics::units::Count::get(),
              "Number of cache rejections caused by target shortage."),
+    ADD_STAT(workSearchFails, statistics::units::Count::get(),
+             "Number of times coalesce engine fails to find work to push."),
+    ADD_STAT(numDoubleMemReads, statistics::units::Count::get(),
+             "Number of times a memory block has been read twice. "
+             "Once for push and once to populate the cache."),
     ADD_STAT(hitRate, statistics::units::Ratio::get(),
              "Hit rate in the cache."),
     ADD_STAT(mshrEntryLength, statistics::units::Count::get(),
