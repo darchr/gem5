@@ -6,9 +6,8 @@ namespace gem5
 LoopPoint::LoopPoint(const LoopPointParams &p)
     : ProbeListenerObject(p),
     targetPC(p.target_pc),
-    targetCount(p.target_count),
     cpuptr(p.core),
-    counter(0)
+    lpmanager(p.LPmanager)
 {
 }
 
@@ -32,8 +31,7 @@ LoopPoint::check_pc(const Addr& pc)
 {
     if (pc==targetPC)
     {
-        counter += 1;
-        if (counter == targetCount)
+        if (lpmanager->check_count())
             cpuptr->scheduleInstStop(0,1,"simpoint starting point found");
     }
 }

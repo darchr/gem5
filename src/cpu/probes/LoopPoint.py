@@ -9,5 +9,5 @@ class LoopPoint(ProbeListenerObject):
     cxx_class = "gem5::LoopPoint"
 
     target_pc = Param.UInt64(0, "the target PC")
-    target_count = Param.Int(0, "the target PC ccount")
     core = Param.BaseCPU(NULL, "the connected cpu")
+    LPmanager = Param.LoopPointManager(NULL, "the looppoint manager")

@@ -318,9 +318,9 @@ class BaseCPU(ClockedObject):
                 + ["interrupts[0].int_requestor"]
             )
 
-    def addLoopPointProbe(self, targetpc, targetcount):
+    def addLoopPointProbe(self, targetpc, manager):
         looppoint = LoopPoint()
         looppoint.target_pc = targetpc
-        looppoint.target_count = targetcount
         looppoint.core = self
+        looppoint.LPmanager = manager
         self.probeListener = looppoint

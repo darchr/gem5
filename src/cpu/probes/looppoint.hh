@@ -2,6 +2,7 @@
 #define __CPU_PROBES_LOOPPOINT_HH__
 
 #include "cpu/base.hh"
+#include "cpu/probes/looppointmanager.hh"
 #include "params/LoopPoint.hh"
 #include "sim/probe/probe.hh"
 
@@ -19,9 +20,8 @@ class LoopPoint : public ProbeListenerObject
 
     private:
         const Addr targetPC;
-        const int targetCount;
         BaseCPU *cpuptr;
-        int counter;
+        LoopPointManager *lpmanager;
 
 };
 
