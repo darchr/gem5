@@ -3,7 +3,7 @@ layout: documentation
 title: gem5 Simpoints
 parent: gem5-standard-library
 doc: gem5 documentation
-permalink: /documentation/gem5-stdlib/gem5-simpoints
+permalink: gem5/configs/example/README.md
 author: Georgy Zaets
 ---
 
@@ -53,7 +53,7 @@ board.set_se_binary_workload(
 ```
 
 
-The Probe for SimPoints looks for occurences of entrance and exit points within the machine code of the executed program. In other words, this probe finds and generates the `basic blocks` that later get inserted into the approriate `basic block vectors.` If the entry point of the code block has already appreared in current or previous vetor, then the frequency of the `basic block` gets increased by 1.
+The Probe for SimPoints looks for occurences of entrance and exit points within the machine code of the executed program. In other words, this probe finds and generates the `basic blocks` that later get inserted into the appropriate `basic block vectors.` If the entry point of the code block has already appeared in the current or previous vetor, then the frequency of the `basic block` gets increased by 1.
 
 
 The output .bb / .bbz file will appear in the following format in the m5out directory:
@@ -106,7 +106,7 @@ Sample weights output file data is provided below:
 
 The weight output file has a similar format except the interval number changes to a weight number. The weights sum up to 1 and each weight tells you how important this `Simpoint` is. The `SimPoints` are used with their according weights to compute the weighted average for a given metric.
 
-After getting `SimPoint` file and the Weights file, the next step is to use those files to take checkpoints using `gem5’s` checkpointing function. Input the `SimPoint` files paths for the `SimPoint` config file. Refer to the format of the `SimPoints` class when providing SimPoints and their weights in the config file:
+After getting the `SimPoint` file and the Weights file, the next step is to use those files to take checkpoints using `gem5’s` checkpointing function. Input the `SimPoint` files paths for the `SimPoint` config file. Refer to the format of the `SimPoints` class when providing SimPoints and their weights in the config file:
 
 
 ```sh
@@ -165,4 +165,12 @@ simulator = Simulator(
 ```
 
 
-The exit event generator takes checkpoints whenever the `SimPoint` is found. Remember, make sure that the ISA of this config file is the same ISA as the program that you are generated `SimPoints` for!
+The exit event generator takes checkpoints whenever the `SimPoint` is found. To learn more about taking checkpoints and restoring them within gem5, refer to the Checkpoint gem5 documentation located here:
+
+
+```sh
+/documentation/general_docs/checkpoints/
+```
+
+
+Remember, make sure that the ISA of this config file is the same ISA as the program that you are generating `SimPoints` for!
