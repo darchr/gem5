@@ -25,8 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+Import("*")
 
-SimObject('BaseReduceEngine.py')
+SimObject("BaseReduceEngine.py", sim_objects=["BaseReduceEngine"])
 
-Source('base_reduce_engine.cc')
+Source("base_reduce_engine.cc")
