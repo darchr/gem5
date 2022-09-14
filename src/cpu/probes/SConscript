@@ -1,0 +1,5 @@
+Import('*')
+
+if not env['CONF']['USE_NULL_ISA']:
+    SimObject('LoopPoint.py', sim_objects=['LoopPoint'])
+    Source('looppoint.cc')
