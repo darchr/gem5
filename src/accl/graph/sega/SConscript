@@ -25,30 +25,30 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+Import("*")
 
-SimObject('BaseMemoryEngine.py')
-SimObject('CenteralController.py')
-SimObject('CoalesceEngine.py')
-SimObject("MPU.py")
-SimObject('PushEngine.py')
-SimObject('WLEngine.py')
+SimObject("BaseMemoryEngine.py", sim_objects=["BaseMemoryEngine"])
+SimObject("CenteralController.py", sim_objects=["CenteralController"])
+SimObject("CoalesceEngine.py", sim_objects=["CoalesceEngine"])
+SimObject("MPU.py", sim_objects=["MPU"])
+SimObject("PushEngine.py", sim_objects=["PushEngine"])
+SimObject("WLEngine.py", sim_objects=["WLEngine"])
 
-Source('base_memory_engine.cc')
-Source('centeral_controller.cc')
-Source('coalesce_engine.cc')
+Source("base_memory_engine.cc")
+Source("centeral_controller.cc")
+Source("coalesce_engine.cc")
 Source("mpu.cc")
-Source('push_engine.cc')
-Source('wl_engine.cc')
+Source("push_engine.cc")
+Source("wl_engine.cc")
 
-DebugFlag('ApplyUpdates')
-DebugFlag('BaseMemoryEngine')
-DebugFlag('CenteralController')
-DebugFlag('CacheBlockState')
-DebugFlag('CoalesceEngine')
-DebugFlag('PushEngine')
-DebugFlag('SEGAStructureSize')
-DebugFlag('WLEngine')
+DebugFlag("ApplyUpdates")
+DebugFlag("BaseMemoryEngine")
+DebugFlag("CenteralController")
+DebugFlag("CacheBlockState")
+DebugFlag("CoalesceEngine")
+DebugFlag("PushEngine")
+DebugFlag("SEGAStructureSize")
+DebugFlag("WLEngine")
 
-CompoundFlag('MPU', ['CoalesceEngine', 'PushEngine',
-                    'WLEngine', 'BaseMemoryEngine'])
+CompoundFlag("MPU", ["CoalesceEngine", "PushEngine",
+                    "WLEngine", "BaseMemoryEngine"])
