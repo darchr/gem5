@@ -61,8 +61,8 @@ class GPT(SubSystem):
         self.vertex_mem_ctrl = MemCtrl(dram=HBM_1000_4H_1x128(burst_length=2))
 
         self.edge_mem_ctrl = MemCtrl(dram=DDR4_2400_8x8(
-                                            range=AddrRange(edge_memory_size),
-                                            in_addr_map=False))
+                                    range=AddrRange(edge_memory_size),
+                                    in_addr_map=False))
 
         self.coalesce_engine.mem_port = self.vertex_mem_ctrl.port
         self.push_engine.mem_port = self.edge_mem_ctrl.port
@@ -92,7 +92,8 @@ class SEGA(System):
                 cache_size,
                 graph_path,
                 first_addr,
-                first_value):
+                first_value
+                ):
         super(SEGA, self).__init__()
         self.clk_domain = SrcClockDomain()
         self.clk_domain.clock = '1GHz'
@@ -103,16 +104,20 @@ class SEGA(System):
         self.interconnect = NoncoherentXBar(frontend_latency=1,
                                             forward_latency=1,
                                             response_latency=1,
-                                            width=64)
+                                            width=64
+                                            )
 
         self.ctrl = CenteralController(addr=first_addr, value=first_value,
-                                    image_file=f"{graph_path}/vertices")
+                                       image_file=f"{graph_path}/vertices"
+                                        )
+
         self.ctrl.req_port = self.interconnect.cpu_side_ports
 
         vertex_ranges = interleave_addresses(
-                            AddrRange(start=0, size="4GiB"),
-                            num_mpus,
-                            32)
+                                            AddrRange(start=0, size="4GiB"),
+                                            num_mpus,
+                                            32
+                                            )
 
         gpts = []
         for i in range(num_mpus):
