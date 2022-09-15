@@ -19,9 +19,10 @@ class LoopPoint : public ProbeListenerObject
         void check_pc(const Addr&);
 
     private:
-        const Addr targetPC;
+        const std::vector<Addr> targetPC;
         BaseCPU *cpuptr;
         LoopPointManager *lpmanager;
+        int cpuID;
 
 };
 

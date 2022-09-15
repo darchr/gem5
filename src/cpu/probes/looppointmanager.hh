@@ -14,11 +14,11 @@ class LoopPointManager : public SimObject
         LoopPointManager(const LoopPointManagerParams &params);
         virtual ~LoopPointManager();
         virtual void init();
-        bool check_count();
+        bool check_count(int);
 
     private:
-        const int targetCount;
-        int counter;
+        const std::vector<int> targetCount;
+        std::vector<int> counter;
 };
 
 }
