@@ -39,6 +39,7 @@ A configuration script is required in order to generate a `BBV` file. A sample c
 
  In order to generate `basic blocks` and their appropriate `basic block vectors,` the config script is required to have the following format:
 
+
 ```python
 processor = SimpleProcessor(
     cpu_type=CPUTypes.ATOMIC,

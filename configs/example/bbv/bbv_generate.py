@@ -35,7 +35,7 @@ processor.cores[0].core.addSimPointProbe(1000000)
 board = SimpleBoard(
     clk_freq="3GHz",
     processor=processor,
-    memory=memory,
+    memory=memory, 
     cache_hierarchy=cache_hierarchy,
 )
 
