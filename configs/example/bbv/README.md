@@ -114,6 +114,7 @@ Sample weights output file data is provided below:
 
 The weight output file has a similar format except the interval number changes to a weight number. The weights sum up to 1 and each weight tells you how important this `Simpoint` is. The `SimPoints` are used with their according weights to compute the weighted average for a given metric.
 
+
 After getting the `SimPoint` file and the Weights file, the next step is to use those files to take checkpoints using `gem5’s` checkpointing function. Input the `SimPoint` files paths for the `SimPoint` config file. Refer to the format of the `SimPoints` class when providing SimPoints and their weights in the config file:
 
 
