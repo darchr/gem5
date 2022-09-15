@@ -13,7 +13,7 @@ from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierar
     PrivateL1PrivateL2CacheHierarchy
 )
 
-requires(isa_required=ISA.ARM)
+requires(isa_required=ISA.RISCV) #Change ISA Here
 
 
 cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
@@ -26,7 +26,7 @@ memory = DualChannelDDR4_2400(size = "3GB")
 
 processor = SimpleProcessor(
     cpu_type= CPUTypes.ATOMIC,
-    isa = ISA.ARM,
+    isa = ISA.RISCV,   #Change ISA Here
     num_cores= 1
 )
 
