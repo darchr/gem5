@@ -147,25 +147,36 @@ class CoalesceEngine : public BaseMemoryEngine
 
     struct CoalesceStats : public statistics::Group
     {
-      CoalesceStats(CoalesceEngine &coalesce);
+        CoalesceStats(CoalesceEngine &coalesce);
 
-      void regStats() override;
+        virtual void regStats() override;
 
-      CoalesceEngine &coalesce;
+        virtual void resetStats() override;
 
-      statistics::Scalar numVertexReads;
-      statistics::Scalar numVertexWrites;
-      statistics::Scalar readHits;
-      statistics::Scalar readMisses;
-      statistics::Scalar readHitUnderMisses;
-      statistics::Scalar mshrEntryShortage;
-      statistics::Scalar mshrTargetShortage;
-      statistics::Scalar workSearchFails;
-      statistics::Scalar numDoubleMemReads;
+        CoalesceEngine &coalesce;
 
-      statistics::Formula hitRate;
-      statistics::Histogram mshrEntryLength;
-      statistics::Histogram bitvectorLength;
+        Tick lastResetTick;
+
+        statistics::Scalar numVertexReads;
+        statistics::Scalar numVertexWrites;
+        statistics::Scalar readHits;
+        statistics::Scalar readMisses;
+        statistics::Scalar readHitUnderMisses;
+        statistics::Scalar mshrEntryShortage;
+        statistics::Scalar mshrTargetShortage;
+        statistics::Scalar workSearchFails;
+        statistics::Scalar numDoubleMemReads;
+        statistics::Scalar verticesPulled;
+        statistics::Scalar verticesPushed;
+        statistics::Scalar lastVertexPullTime;
+        statistics::Scalar lastVertexPushTime;
+
+        statistics::Formula hitRate;
+        statistics::Formula vertexPullBW;
+        statistics::Formula vertexPushBW;
+
+        statistics::Histogram mshrEntryLength;
+        statistics::Histogram bitvectorLength;
     };
 
     CoalesceStats stats;
