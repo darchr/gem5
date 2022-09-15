@@ -454,6 +454,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                 needsPush[it + i] = 0;
                 _workCount--;
                 owner->recvVertexPush(vertex_addr, items[i]);
+                stats.verticesPushed++;
+                stats.lastVertexPushTime = curTick() - stats.lastResetTick;
             }
         }
         pendingVertexPullReads.erase(addr);
@@ -990,6 +992,8 @@ CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
             _workCount--;
             owner->recvVertexPush(
                     vertex_addr, cacheBlocks[block_index].items[wl_offset]);
+            stats.verticesPushed++;
+            stats.lastVertexPushTime = curTick() - stats.lastResetTick;
         }
         if (bit_status == BitStatus::IN_MEMORY) {
             Addr addr = location;
@@ -1037,6 +1041,8 @@ CoalesceEngine::recvVertexPull()
     bool should_schedule = (numPullsReceived == 0);
     numPullsReceived++;
 
+    stats.verticesPulled++;
+    stats.lastVertexPullTime = curTick() - stats.lastResetTick;
     if (should_schedule) {
         memoryFunctionQueue.emplace_back(
             [this] (int slice_base, Tick schedule_tick) {
@@ -1052,7 +1058,7 @@ CoalesceEngine::recvVertexPull()
 CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
     : statistics::Group(&_coalesce),
     coalesce(_coalesce),
-
+    lastResetTick(0),
     ADD_STAT(numVertexReads, statistics::units::Count::get(),
              "Number of memory vertecies read from cache."),
     ADD_STAT(numVertexWrites, statistics::units::Count::get(),
@@ -1072,8 +1078,22 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
     ADD_STAT(numDoubleMemReads, statistics::units::Count::get(),
              "Number of times a memory block has been read twice. "
              "Once for push and once to populate the cache."),
+    ADD_STAT(verticesPulled, statistics::units::Count::get(),
+             "Number of times a pull request has been sent by PushEngine."),
+    ADD_STAT(verticesPushed, statistics::units::Count::get(),
+             "Number of times a vertex has been pushed to the PushEngine"),
+    ADD_STAT(lastVertexPullTime, statistics::units::Tick::get(),
+             "Time of the last pull request. (Relative to reset_stats)"),
+    ADD_STAT(lastVertexPushTime, statistics::units::Tick::get(),
+             "Time of the last vertex push. (Relative to reset_stats)"),
     ADD_STAT(hitRate, statistics::units::Ratio::get(),
              "Hit rate in the cache."),
+    ADD_STAT(vertexPullBW, statistics::units::Rate<statistics::units::Count,
+                                            statistics::units::Second>::get(),
+             "Rate at which pull requests arrive."),
+    ADD_STAT(vertexPushBW, statistics::units::Rate<statistics::units::Count,
+                                            statistics::units::Second>::get(),
+             "Rate at which vertices are pushed."),
     ADD_STAT(mshrEntryLength, statistics::units::Count::get(),
              "Histogram on the length of the mshr entries."),
     ADD_STAT(bitvectorLength, statistics::units::Count::get(),
@@ -1091,6 +1111,18 @@ CoalesceEngine::CoalesceStats::regStats()
 
     hitRate = (readHits + readHitUnderMisses) /
                 (readHits + readHitUnderMisses + readMisses);
+
+    vertexPullBW = (verticesPulled * getClockFrequency()) / lastVertexPullTime;
+
+    vertexPushBW = (verticesPushed * getClockFrequency()) / lastVertexPushTime;
+}
+
+void
+CoalesceEngine::CoalesceStats::resetStats()
+{
+    statistics::Group::resetStats();
+
+    lastResetTick = curTick();
 }
 
 }
