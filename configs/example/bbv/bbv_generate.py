@@ -40,8 +40,8 @@ board = SimpleBoard(
 )
 
 board.set_se_binary_workload(
-    binary = CustomResource("/home/gzaets69/AZACCA/mibench/automotive/basicmath/basicmath_largeARM"),
-    #arguments=[100000]
+    binary = CustomResource("Enter_File_Path_Here"),
+    #arguments=[]
 )
 
 simulator = Simulator(
