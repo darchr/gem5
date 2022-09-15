@@ -26,7 +26,7 @@ Using `SimPoints` allows us to accelerate architectural simulations by only runn
 The interval sizes used to create `SimPoints` are passed in the program in a form of basic block vectors, usually 10 and 100 million execution instructions in length.  Each simulation point is provided as the number of the intervals since the beginning of the execution. A basic block is a linear section of code with one entry and one exit point. A `basic block vector`, also known as a `BBV`, is a list of basic blocks entered during program execution, and a count of how many times each basic block was run. Basic blocks contain the information `SimPoints` needs to do the necessary analysis and clustering.
 
 
-`Gem5’s` integrated `BBV` generator is a tool that produces basic block vectors for use with the `SimPoints` analysis tool. A user-defined `BBV` config script creates frequency vectors for each basic block of execution in the program. Choosing the interval length for the profile is important, since this is assumed to be the length of a single simulation point in the rest of the analysis below. For example, if you set the interval length 10 million, then each simulation point is calculated assuming you will simulate each point for 10 million instructions. MAKE SURE THAT THE `BBV` FILE WAS GENERATED IN THE SAME ISA BUILD AS THE ISA OF THE COMPILED EXECUTABLE BENCHMARK FILE!!! 
+`gem5’s` integrated `BBV` generator is a tool that produces basic block vectors for use with the `SimPoints` analysis tool. A user-defined `BBV` config script creates frequency vectors for each basic block of execution in the program. Choosing the interval length for the profile is important, since this is assumed to be the length of a single simulation point in the rest of the analysis below. For example, if you set the interval length 10 million, then each simulation point is calculated assuming you will simulate each point for 10 million instructions. MAKE SURE THAT THE `BBV` FILE WAS GENERATED IN THE SAME ISA BUILD AS THE ISA OF THE COMPILED EXECUTABLE BENCHMARK FILE!!! 
 
 
 A configuration script is required in order to generate a `BBV` file. A sample configuration file has been provided. In order to generate `basic blocks` and their appropriate `basic block vectors,` the config script is required to have the following format:
@@ -69,16 +69,16 @@ T:78:449515 :88:326920 :265:816820 :273:27248
 Each new interval/basic block vector starts with an identifying letter ‘T.’ The vectors consist of basic block identifiers and frequency pairs, with a single pair for a unique basic block that was entered and exited during program’s execution. The `format for each basic block` is as follows: a basic block identifier, colon, and the frequency of access of that basic block (entry amount multiplied by the number of instructions in the block). The frequency count is multiplied by the number of instructions that are in the basic block, in order to weigh the count so that instructions in small basic blocks aren't counted as more important than instructions in large basic blocks. The pairs are separated from each other by a space.
 
 
-The `SimPoints` program only processes lines that start with a "T". All other lines are ignored. Traditionally comments are indicated by starting a line with a "#" character. Some other `BBV` generation tools, such as PinPoints, generate lines beginning with letters other than "T" to indicate more information about the program being run. We do not generate these, as the `SimPoints` utility ignores them.
+The `SimPoints` 3.2 program only processes lines that start with a "T". All other lines are ignored. Traditionally comments are indicated by starting a line with a "#" character. Some other `BBV` generation tools, such as PinPoints, generate lines beginning with letters other than "T" to indicate more information about the program being run. We do not generate these, as the `SimPoints` utility ignores them.
 
 
 After you have the basic block vector file, you will pass it to the `SimPoints` generator (currently, `gem5` works with SimPoint 3.2). This will perform the clustering analysis and choose the minimal number of simulation points to best represent the full execution of the program. You will need to provide the `BBV` file which contains multiple basic block vectors and the maximum number of simulation points you wish to extract. 
 
 
-The generated files are stored under names results.simpts and results.weights. Once a set of `SimPoints` and their respective weights have been collected, they can be used to quickly simulate parts of a program to represent the entire execution. 
+The generator produces two files: resulting `SimPoints` and their weights. Once a set of `SimPoints` and their respective weights have been collected, they can be used to quickly simulate parts of a program to represent the entire execution. 
 
 
-The final step in using `SimPoints` is to combine the simulation results to estimate the full execution. To combine the `SimPoints,` each point first needs to be weighted by its corresponding weight in the .weights file.  Each weight in the .weights file contains a weight for every simulation point. The weight represents the percent of overall executed instructions each simulation point represents. The weight for a simulation point is the total instructions executed by all of the intervals in that simulation point's cluster divided by the total number of instructions executed for the input pair.
+The final step in using `SimPoints` is to combine the simulation results to estimate the full execution. To combine the `SimPoints`, each point first needs to be weighted by its corresponding weight in the .weights file.  Each weight in the .weights file contains a weight for every simulation point. The weight represents the percent of overall executed instructions each simulation point represents. The weight for a simulation point is the total instructions executed by all of the intervals in that simulation point's cluster divided by the total number of instructions executed for the input pair.
 
 
 After getting all the files, the simpint output file looks like this:
@@ -91,7 +91,7 @@ After getting all the files, the simpint output file looks like this:
 ```
 
 
-Each line represents a `SimPoint` taken. Within each line, the number on the left means the interval number of this `simpoint`, the number on the right is the `Simpoint` index. For example, `Simpoint` 0 corresponds to 3rd interval and if each vector consists of 10,000,000 instructions, then the instruction is at 3 * 10,000,000.
+Each line represents a `SimPoint` taken. Within each line, the number on the left means the cluster number of this `SimPoint`, the number on the right is the `SimPoint` index. For example, `Simpoint` 0 corresponds to 3rd interval and if each vector consists of 10,000,000 instructions, then the instruction is at 3 * 10,000,000.
 
 
 Sample weights output file data is provided below:
