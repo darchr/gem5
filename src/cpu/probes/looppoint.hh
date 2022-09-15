@@ -22,7 +22,6 @@ class LoopPoint : public ProbeListenerObject
         const std::vector<Addr> targetPC;
         BaseCPU *cpuptr;
         LoopPointManager *lpmanager;
-        int cpuID;
 
 };
 

@@ -7,8 +7,7 @@ LoopPoint::LoopPoint(const LoopPointParams &p)
     : ProbeListenerObject(p),
     targetPC(p.target_pc),
     cpuptr(p.core),
-    lpmanager(p.LPmanager),
-    cpuID(p.core->cpuId())
+    lpmanager(p.LPmanager)
 {
 }
 
@@ -30,10 +29,13 @@ LoopPoint::regProbeListeners()
 void
 LoopPoint::check_pc(const Addr& pc)
 {
-    if (pc==targetPC[0])
+    for (int i =0; i<targetPC.size();i++)
     {
-        if (lpmanager->check_count(cpuID))
-            cpuptr->scheduleInstStop(0,1,"simpoint starting point found");
+        if(pc == targetPC[i])
+        {
+            if (lpmanager->check_count(i))
+                cpuptr->scheduleInstStop(0,1,"simpoint starting point found");
+        }
     }
 }
 
