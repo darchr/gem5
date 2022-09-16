@@ -33,7 +33,7 @@ LoopPoint::check_pc(const Addr& pc)
     {
         if(pc == targetPC[i])
         {
-            if (lpmanager->check_count(i))
+            if (lpmanager->check_count(pc))
                 cpuptr->scheduleInstStop(0,1,"simpoint starting point found");
         }
     }
