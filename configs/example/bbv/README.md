@@ -62,7 +62,7 @@ board.set_se_binary_workload(
 ```
 
 
-We use Atomic CPU when generating BBVs. SimPoint BBV generation is only implimented in Atomic CPU. Atmoic CPU is the only CPU within gem5 that has an add SimPoint probe function.
+We use Atomic CPU when generating BBVs. SimPoint BBV generation is only implimented in Atomic CPU. Atmoic CPU is the only CPU within gem5 that has an addSimPointProbe function.
 
 
 The interval size, also known as granularity in this example is set to 10,000,000 instructions. The interval size determines the size of the instruction set the program should be divided into. It determines the length of simulation that will be required for any simulation point used. Smaller sized granularity means more SimPoints might be required for simulation, causing the overall speed up to be lower. Larger sized granularity would result in less SimPoints and less precision when it comes to program simulation.
