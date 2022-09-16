@@ -142,6 +142,8 @@ class PushEngine : public BaseMemoryEngine
     PushEngine(const Params& params);
     void registerMPU(MPU* mpu);
 
+    virtual void recvFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }
+
     void start();
     bool running() { return _running; }
     void recvVertexPush(Addr addr, WorkListItem wl);
