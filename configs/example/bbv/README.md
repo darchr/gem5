@@ -122,7 +122,7 @@ Sample weights output file data is provided below:
 The weight output file has a similar format except the interval number changes to a weight number. The weights sum up to 1 and each weight tells you how important this Simpoint is. The SimPoints are used with their according weights to compute the weighted average for a given metric.
 
 
-After getting the SimPoint file and the Weights file, the next step is to use those files to take checkpoints using gem5’s checkpointing function. Input the SimPoint files paths for the SimPoint config file. Refer to the format of the SimPoints class when providing SimPoints and their weights in the config file:
+After getting the SimPoint file and the Weights file, the next step is to run those SimPoints by taking checkpoints using gem5’s checkpointing function. Checkpoints will be taken at the start of each SimPoint. Input the SimPoint files paths for the SimPoint config file. Refer to the format of the SimPoints class when providing SimPoints and their weights in the config file:
 
 
 ```sh
@@ -139,6 +139,7 @@ gem5/configs/example/gem5_library/checkpoints/simpoints-se-checkpoint.py
 
 
 You can manually fill in the SimPoints and their appropriate weights, by identifying simpoint_list and weight_list or you can enter in the direct file paths to them. You must change the paths for the simpoint_file_path and weight_file_path in the format of the SimPoint Class Constructor:
+
 
 ```python
 def __init__(
