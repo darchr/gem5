@@ -62,7 +62,10 @@ board.set_se_binary_workload(
 ```
 
 
-The interval size, also known as granularity in this example is set to 10,000,000 instructions. The interval size determines the size of the instruction set the program should be divided into. It determines the length of simulation that will be required for any simulation point used.
+We use Atomic CPU when generating BBVs. SimPoint BBV generation is only implimented in Atomic CPU. Atmoic CPU is the only CPU within gem5 that has an add SimPoint probe function.
+
+
+The interval size, also known as granularity in this example is set to 10,000,000 instructions. The interval size determines the size of the instruction set the program should be divided into. It determines the length of simulation that will be required for any simulation point used. Smaller sized granularity means more SimPoints might be required for simulation, causing the overall speed up to be lower. Larger sized granularity would result in less SimPoints and less precision when it comes to program simulation.
 
 
 The Probe for SimPoints looks for occurences of entrance and exit points within the machine code of the executed program. In other words, this probe finds and generates the basic blocks that later get inserted into the appropriate basic block vectors. If the entry point of the code block has already appeared in the current or previous vetor, then the frequency of the basic block gets increased by 1.
@@ -90,7 +93,7 @@ After you have the basic block vector file, you will pass it to the SimPoints ge
 The generator produces two files: resulting SimPoints and their weights. Once a set of SimPoints and their respective weights have been collected, they can be used to quickly simulate parts of a program to represent the entire execution. 
 
 
-The final step in using SimPoints is to combine the simulation results to estimate the full execution. To combine the SimPoints, each point first needs to be weighted by its corresponding weight in the .weights file.  Each weight in the .weights file contains a weight for every simulation point. The weight represents the percent of overall executed instructions each simulation point represents. The weight for a simulation point is the total instructions executed by all of the intervals in that simulation point's cluster divided by the total number of instructions executed for the input pair.
+To combine the SimPoints, each point first needs to be weighted by its corresponding weight in the .weights file.  Each weight in the .weights file contains a weight for every simulation point. The weight represents the percent of overall executed instructions each simulation point represents. The weight for a simulation point is the total instructions executed by all of the intervals in that simulation point's cluster divided by the total number of instructions executed for the input pair.
 
 
 After getting all the files, the simpint output file looks like this:
