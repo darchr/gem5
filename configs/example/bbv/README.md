@@ -1,20 +1,17 @@
 ---
 layout: documentation
-title: gem5 Simpoints
+title: Understanding SimPoints and Basic Block Vectors within gem5
 parent: gem5-standard-library
 doc: gem5 documentation
 permalink: gem5/configs/example/bbv/README.md
 author: Georgy Zaets
 ---
 
-## `Understanding SimPoints and Basic Block Vectors within gem5`
-
-_______________________________________________________________________________________
 
 Generation of Basic Block Vectors and SimPoints within gem5 for simulator acceleration
 
 
-A more complete description of the SimPoints method can be found in the papers [“Basic Block Distribution Analysis to Find Periodic Behavior and Simulation Points in Applications”](https://ieeexplore.ieee.org/document/953283) and ["Automatically Characterizing Large Scale Program Behavior"](https://dl.acm.org/doi/10.1145/605432.605403) by T. Sherwood, E. Perelman, G. Hamerly, and B. Calder.
+A more complete description of the SimPoints method can be found in the papers ["Basic Block Distribution Analysis to Find Periodic Behavior and Simulation Points in Applications"](https://ieeexplore.ieee.org/document/953283) and ["Automatically Characterizing Large Scale Program Behavior"](https://dl.acm.org/doi/10.1145/605432.605403) by T. Sherwood, E. Perelman, G. Hamerly, and B. Calder.
 
 
 In computer architecture research, running a benchmark on a cycle-level simulator can drastically slow down a program's runtime compared to a native hardware system, making it take days, weeks, or even longer to run full benchmarks. By utilizing SimPoints this can be reduced significantly, while still retaining reasonable accuracy.
@@ -26,7 +23,7 @@ Using SimPoints allows us to accelerate architectural simulations by only runnin
 The interval sizes used to create SimPoints are passed in the program in a form of basic block vectors, usually 10 and 100 million execution instructions in length.  Each simulation point is provided as the number of the intervals since the beginning of the execution. A basic block is a linear section of code with one entry and one exit point. A basic block vector, also known as a BBV, is a list of basic blocks entered during program execution, and a count of how many times each basic block was run. Basic blocks contain the information SimPoints needs to do the necessary analysis and clustering.
 
 
-gem5’s integrated BBV generator is a tool that produces basic block vectors for use with the SimPoints analysis tool. A user-defined BBV config script creates frequency vectors for each basic block of execution in the program. Choosing the interval length for the profile is important, since this is assumed to be the length of a single simulation point in the rest of the analysis below. For example, if you set the interval length 10 million, then each simulation point is calculated assuming you will simulate each point for 10 million instructions (make sure that the BBV file was generated in the same ISA build as the ISA of the compiled executable benchmark file).  
+gem5's integrated BBV generator is a tool that produces basic block vectors for use with the SimPoints analysis tool. A user-defined BBV config script creates frequency vectors for each basic block of execution in the program. Choosing the interval length for the profile is important, since this is assumed to be the length of a single simulation point in the rest of the analysis below. For example, if you set the interval length 10 million, then each simulation point is calculated assuming you will simulate each point for 10 million instructions (make sure that the BBV file was generated in the same ISA build as the ISA of the compiled executable benchmark file).  
 
 
 A configuration script is required in order to generate a BBV file. A sample configuration file has been provided. You can find it here:
@@ -81,7 +78,7 @@ T:78:449515 :88:326920 :265:816820 :273:27248
 ```
 
 
-Each new interval/basic block vector starts with an identifying letter ‘T.’ The vectors consist of basic block identifiers and frequency pairs, with a single pair for a unique basic block that was entered and exited during program’s execution. The format for each basic block is as follows: a basic block identifier, colon, and the frequency of access of that basic block (entry amount multiplied by the number of instructions in the block). The frequency count is multiplied by the number of instructions that are in the basic block, in order to weigh the count so that instructions in small basic blocks aren't counted as more important than instructions in large basic blocks. The pairs are separated from each other by a space.
+Each new interval/basic block vector starts with an identifying letter 'T.' The vectors consist of basic block identifiers and frequency pairs, with a single pair for a unique basic block that was entered and exited during program’s execution. The format for each basic block is as follows: a basic block identifier, colon, and the frequency of access of that basic block (entry amount multiplied by the number of instructions in the block). The frequency count is multiplied by the number of instructions that are in the basic block, in order to weigh the count so that instructions in small basic blocks aren't counted as more important than instructions in large basic blocks. The pairs are separated from each other by a space.
 
 
 The [SimPoints 3.2](https://cseweb.ucsd.edu/~calder/simpoint/) program only processes lines that start with a "T". All other lines are ignored. Traditionally comments are indicated by starting a line with a "#" character. Some other BBV generation tools, such as PinPoints, generate lines beginning with letters other than "T" to indicate more information about the program being run. We do not generate these, as the SimPoints utility ignores them.
@@ -190,4 +187,4 @@ The exit event generator takes checkpoints whenever the SimPoint is found. To le
 ```
 
 
-Remember, make sure that the ISA of this config file is the same ISA as the program that you are generating SimPoints for!
+Remember, make sure that the ISA of this config file is the same ISA as the program that you are generating SimPoints for.
