@@ -28,8 +28,6 @@
 
 #include "accl/graph/sega/centeral_controller.hh"
 
-#include <iostream>
-
 #include "base/loader/memory_image.hh"
 #include "base/loader/object_file.hh"
 #include "debug/CenteralController.hh"
@@ -44,8 +42,7 @@ CenteralController::CenteralController
     ClockedObject(params),
     system(params.system),
     reqPort(name() + ".req_port", this),
-    addr(params.addr),
-    value(params.value)
+    maxVertexAddr(0)
 {
     for (auto mpu : params.mpu_vector) {
         mpuVector.push_back(mpu);
@@ -66,9 +63,9 @@ CenteralController::getPort(const std::string &if_name, PortID idx)
 void
 CenteralController::initState()
 {
-    ClockedObject::initState();
+    // ClockedObject::initState();
 
-    const auto &file = params().image_file;
+    const auto& file = params().image_file;
     if (file == "")
         return;
 
@@ -77,6 +74,7 @@ CenteralController::initState()
 
     loader::debugSymbolTable.insert(*object->symtab().globals());
     loader::MemoryImage image = object->buildImage();
+    maxVertexAddr = image.maxAddr();
     PortProxy proxy([this](PacketPtr pkt) { functionalAccess(pkt); },
                     system->cacheLineSize());
 
@@ -86,7 +84,10 @@ CenteralController::initState()
 void
 CenteralController::startup()
 {
-    PacketPtr first_update = createUpdatePacket<uint32_t>(addr, value);
+    Addr initial_addr = params().init_addr;
+    uint32_t initial_value = params().init_value;
+    PacketPtr first_update =
+                createUpdatePacket<uint32_t>(initial_addr, initial_value);
 
     if (!reqPort.blocked()) {
         reqPort.sendPacket(first_update);
@@ -107,6 +108,21 @@ CenteralController::createUpdatePacket(Addr addr, T value)
     pkt->allocate();
     // pkt->setData(data);
     pkt->setLE<T>(value);
+
+    return pkt;
+}
+
+PacketPtr
+CenteralController::createReadPacket(Addr addr, unsigned int size)
+{
+    RequestPtr req = std::make_shared<Request>(addr, size, 0, 0);
+    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
+    // bits
+    req->setPC((Addr) 0);
+
+    // Embed it in a packet
+    PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
+    pkt->allocate();
 
     return pkt;
 }
@@ -160,6 +176,19 @@ CenteralController::recvDoneSignal()
     }
 
     if (done) {
+        for (Addr addr = 0; addr < maxVertexAddr; addr += system->cacheLineSize()) {
+            PacketPtr pkt = createReadPacket(addr, system->cacheLineSize());
+            reqPort.sendFunctional(pkt);
+
+            int num_items = system->cacheLineSize() / sizeof(WorkListItem);
+            WorkListItem items[num_items];
+            pkt->writeDataToBlock((uint8_t*) items, system->cacheLineSize());
+
+            for (int i = 0; i < num_items; i++) {
+                DPRINTF(FinalAnswer, "%s: WorkListItem[%lu][%d]: %s.\n",
+                                __func__, addr, i, items[i].to_string());
+            }
+        }
         exitSimLoopNow("no update left to process.");
     }
 }

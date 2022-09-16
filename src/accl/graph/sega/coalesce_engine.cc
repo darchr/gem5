@@ -32,7 +32,6 @@
 
 #include "accl/graph/sega/mpu.hh"
 #include "base/intmath.hh"
-#include "debug/ApplyUpdates.hh"
 #include "debug/CacheBlockState.hh"
 #include "debug/CoalesceEngine.hh"
 #include "debug/SEGAStructureSize.hh"
@@ -75,12 +74,38 @@ CoalesceEngine::registerMPU(MPU* mpu)
     owner = mpu;
 }
 
+void
+CoalesceEngine::recvFunctional(PacketPtr pkt)
+{
+    if (pkt->isRead()) {
+        assert(pkt->getSize() == peerMemoryAtomSize);
+        Addr addr = pkt->getAddr();
+        int block_index = getBlockIndex(addr);
+
+        if ((cacheBlocks[block_index].addr == addr) &&
+            (cacheBlocks[block_index].valid)) {
+            assert(cacheBlocks[block_index].busyMask == 0);
+            assert(!cacheBlocks[block_index].needsApply);
+            // NOTE: No need to check needsWB because there might be entries
+            // that have been updated and not written back in the cache.
+            // assert(!cacheBlocks[block_index].needsWB);
+            assert(!cacheBlocks[block_index].pendingApply);
+            assert(!cacheBlocks[block_index].pendingWB);
+
+            pkt->makeResponse();
+            pkt->setDataFromBlock(
+                (uint8_t*) cacheBlocks[block_index].items, peerMemoryAtomSize);
+        } else {
+            memPort.sendFunctional(pkt);
+        }
+    } else {
+        memPort.sendFunctional(pkt);
+    }
+}
+
 bool
 CoalesceEngine::done()
 {
-    bool push_none = needsPush.none();
-    DPRINTF(CoalesceEngine, "%s: needsPush.none: %s.\n",
-                    __func__, push_none ? "true" : "false");
     return applyQueue.empty() && needsPush.none() &&
         memoryFunctionQueue.empty() && (onTheFlyReqs == 0);
 }
@@ -723,9 +748,6 @@ CoalesceEngine::processNextApplyEvent()
             if (new_prop != current_prop) {
                 cacheBlocks[block_index].items[index].tempProp = new_prop;
                 cacheBlocks[block_index].items[index].prop = new_prop;
-                DPRINTF(ApplyUpdates, "%s: WorkListItem[%lu][%d]: %s.\n",
-                    __func__, cacheBlocks[block_index].addr, index,
-                    cacheBlocks[block_index].items[index].to_string());
 
                 int bit_index_base =
                             getBitIndexBase(cacheBlocks[block_index].addr);
