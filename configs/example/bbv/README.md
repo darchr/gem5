@@ -14,7 +14,7 @@ ________________________________________________________________________________
 Generation of Basic Block Vectors and SimPoints within gem5 for simulator acceleration
 
 
-A more complete description of the SimPoints method can be found in the papers “Basic Block Distribution Analysis to Find Periodic Behavior and Simulation Points in Applications” and "Automatically Characterizing Large Scale Program Behavior" by T. Sherwood, E. Perelman, G. Hamerly, and B. Calder.
+A more complete description of the SimPoints method can be found in the papers [“Basic Block Distribution Analysis to Find Periodic Behavior and Simulation Points in Applications”](https://ieeexplore.ieee.org/document/953283) and ["Automatically Characterizing Large Scale Program Behavior"](https://dl.acm.org/doi/10.1145/605432.605403) by T. Sherwood, E. Perelman, G. Hamerly, and B. Calder.
 
 
 In computer architecture research, running a benchmark on a cycle-level simulator can drastically slow down a program's runtime compared to a native hardware system, making it take days, weeks, or even longer to run full benchmarks. By utilizing SimPoints this can be reduced significantly, while still retaining reasonable accuracy.
@@ -81,10 +81,10 @@ T:78:449515 :88:326920 :265:816820 :273:27248
 Each new interval/basic block vector starts with an identifying letter ‘T.’ The vectors consist of basic block identifiers and frequency pairs, with a single pair for a unique basic block that was entered and exited during program’s execution. The format for each basic block is as follows: a basic block identifier, colon, and the frequency of access of that basic block (entry amount multiplied by the number of instructions in the block). The frequency count is multiplied by the number of instructions that are in the basic block, in order to weigh the count so that instructions in small basic blocks aren't counted as more important than instructions in large basic blocks. The pairs are separated from each other by a space.
 
 
-The SimPoints 3.2 program only processes lines that start with a "T". All other lines are ignored. Traditionally comments are indicated by starting a line with a "#" character. Some other BBV generation tools, such as PinPoints, generate lines beginning with letters other than "T" to indicate more information about the program being run. We do not generate these, as the SimPoints utility ignores them.
+The [SimPoints 3.2](https://cseweb.ucsd.edu/~calder/simpoint/) program only processes lines that start with a "T". All other lines are ignored. Traditionally comments are indicated by starting a line with a "#" character. Some other BBV generation tools, such as PinPoints, generate lines beginning with letters other than "T" to indicate more information about the program being run. We do not generate these, as the SimPoints utility ignores them.
 
 
-After you have the basic block vector file, you will pass it to the SimPoints generator (currently, gem5 works with SimPoint 3.2). This will perform the clustering analysis and choose the minimal number of simulation points to best represent the full execution of the program. You will need to provide the BBV file which contains multiple basic block vectors and the maximum number of simulation points you wish to extract. 
+After you have the basic block vector file, you will pass it to the SimPoints generator (currently, gem5 works with [SimPoint 3.2](https://cseweb.ucsd.edu/~calder/simpoint/)). This will perform the clustering analysis and choose the minimal number of simulation points to best represent the full execution of the program. You will need to provide the BBV file which contains multiple basic block vectors and the maximum number of simulation points you wish to extract. 
 
 
 The generator produces two files: resulting SimPoints and their weights. Once a set of SimPoints and their respective weights have been collected, they can be used to quickly simulate parts of a program to represent the entire execution. 
@@ -178,7 +178,7 @@ simulator = Simulator(
 ```
 
 
-The exit event generator takes checkpoints whenever the SimPoint is found. To learn more about taking checkpoints and restoring them within gem5, refer to the Checkpoint gem5 documentation located here:
+The exit event generator takes checkpoints whenever the SimPoint is found. To learn more about taking checkpoints and restoring them within gem5, refer to the [Checkpoint gem5 documentation](https://www.gem5.org/documentation/general_docs/checkpoints/) located here:
 
 
 ```sh
