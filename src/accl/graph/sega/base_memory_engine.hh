@@ -108,7 +108,7 @@ class BaseMemoryEngine : public ClockedObject
 
     AddrRangeList getAddrRanges() { return memPort.getAddrRanges(); }
 
-    void recvFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }
+    virtual void recvFunctional(PacketPtr pkt) = 0;
 
     virtual void init() override;
 };

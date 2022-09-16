@@ -33,6 +33,7 @@
 
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/sega/mpu.hh"
+#include "debug/FinalAnswer.hh"
 #include "params/CenteralController.hh"
 #include "sim/clocked_object.hh"
 #include "sim/system.hh"
@@ -67,12 +68,12 @@ class CenteralController : public ClockedObject
     System* system;
     ReqPort reqPort;
 
-    Addr addr;
-    uint32_t value;
-
+    Addr maxVertexAddr;
     std::vector<MPU*> mpuVector;
+
     template<typename T> PacketPtr
                               createUpdatePacket(Addr addr, T value);
+    PacketPtr createReadPacket(Addr addr, unsigned int size);
     void functionalAccess(PacketPtr pkt);
 
   public:

@@ -39,6 +39,6 @@ class CenteralController(ClockedObject):
 
     mpu_vector = VectorParam.MPU("All mpus in the system.")
 
-    addr = Param.Addr("The addr for the initial update")
-    value = Param.Int("The value for the initial update")
+    init_addr = Param.Addr("The addr for the initial update")
+    init_value = Param.Int("The value for the initial update")
     image_file = Param.String("Path to the global memory image.")

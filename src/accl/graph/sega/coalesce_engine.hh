@@ -190,6 +190,8 @@ class CoalesceEngine : public BaseMemoryEngine
     CoalesceEngine(const Params &params);
     void registerMPU(MPU* mpu);
 
+    virtual void recvFunctional(PacketPtr pkt);
+
     bool recvWLRead(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);
 
