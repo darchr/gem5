@@ -7,7 +7,7 @@ LoopPoint::LoopPoint(const LoopPointParams &p)
     : ProbeListenerObject(p),
     targetPC(p.target_pc),
     cpuptr(p.core),
-    lpmanager(p.LPmanager)
+    manager(p.lpmanager)
 {
 }
 
@@ -33,7 +33,7 @@ LoopPoint::check_pc(const Addr& pc)
     {
         if(pc == targetPC[i])
         {
-            if (lpmanager->check_count(pc))
+            if (manager->check_count(pc))
                 cpuptr->scheduleInstStop(0,1,"simpoint starting point found");
         }
     }

@@ -10,4 +10,4 @@ class LoopPoint(ProbeListenerObject):
 
     target_pc = VectorParam.UInt64(0, "the target PC")
     core = Param.BaseCPU(NULL, "the connected cpu")
-    LPmanager = Param.LoopPointManager(NULL, "the looppoint manager")
+    lpmanager = Param.LoopPointManager(NULL, "the looppoint manager")

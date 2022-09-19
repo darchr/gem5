@@ -54,8 +54,6 @@ from m5.objects.SubSystem import SubSystem
 from m5.objects.ClockDomain import *
 from m5.objects.Platform import Platform
 
-from m5.objects.LoopPoint import LoopPoint
-
 default_tracer = ExeTracer()
 
 
@@ -317,10 +315,3 @@ class BaseCPU(ClockedObject):
                 self._uncached_interrupt_request_ports
                 + ["interrupts[0].int_requestor"]
             )
-
-    def addLoopPointProbe(self, targetpc, manager):
-        looppoint = LoopPoint()
-        looppoint.target_pc = targetpc
-        looppoint.core = self
-        looppoint.LPmanager = manager
-        self.probeListener = looppoint

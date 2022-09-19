@@ -148,3 +148,8 @@ class AbstractCore(SubSystem):
         simulation
         """
         raise NotImplementedError("This core type does not support MAX_INSTS")
+    
+    
+    @abstractmethod
+    def addLoopPointProbe(self, targetpc, manager):
+        raise NotImplementedError

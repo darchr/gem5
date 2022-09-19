@@ -13,4 +13,4 @@ class LoopPointManager(SimObject):
 
     def setup(self, cpulist):
         for core in cpulist:
-            core.core.addLoopPointProbe(self.target_pc, self)
+            core.addLoopPointProbe(self.target_pc, self)
