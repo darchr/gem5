@@ -165,6 +165,7 @@ class CoalesceEngine : public BaseMemoryEngine
         statistics::Scalar mshrEntryShortage;
         statistics::Scalar mshrTargetShortage;
         statistics::Scalar workSearchFails;
+        statistics::Scalar numMemoryBlocks;
         statistics::Scalar numDoubleMemReads;
         statistics::Scalar verticesPulled;
         statistics::Scalar verticesPushed;

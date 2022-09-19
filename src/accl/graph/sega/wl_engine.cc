@@ -143,6 +143,7 @@ WLEngine::processNextReadEvent()
                             "updateQueueSize = %d.\n", __func__, update_addr,
                             update_value, updateQueue.size(), updateQueueSize);
                 owner->checkRetryReq();
+                vertexReadTime[update_addr] = curTick();
             }
         } else {
             DPRINTF(WLEngine, "%s: There are no free registers "
@@ -189,6 +190,11 @@ WLEngine::handleIncomingWL(Addr addr, WorkListItem wl)
     DPRINTF(WLEngine, "%s: Added (addr: %lu, wl: %s) to "
                 "workListFile. workListFile.size = %d.\n", __func__, addr,
                                     wl.to_string(), workListFile.size());
+
+    stats.vertexReadLatency.sample(
+        (curTick() - vertexReadTime[addr]) / getClockFrequency());
+    vertexReadTime.erase(addr);
+
     assert(!workListFile.empty());
     if (!nextReduceEvent.scheduled()) {
         schedule(nextReduceEvent, nextCycle());
@@ -238,7 +244,9 @@ WLEngine::WorkListStats::WorkListStats(WLEngine &_wl)
              "Number of memory blocks read for vertecies"),
     ADD_STAT(registerShortage, statistics::units::Count::get(),
              "Number of times updates were "
-             "stalled because of register shortage")
+             "stalled because of register shortage"),
+    ADD_STAT(vertexReadLatency, statistics::units::Second::get(),
+             "Histogram of the latency of reading a vertex.")
 {
 }
 
@@ -246,6 +254,8 @@ void
 WLEngine::WorkListStats::regStats()
 {
     using namespace statistics;
+
+    vertexReadLatency.init(64);
 }
 
-}
+} // namespace gem5
