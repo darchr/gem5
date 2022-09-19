@@ -47,13 +47,12 @@ class WLEngine : public BaseReduceEngine
   private:
     MPU* owner;
 
-
-
     int updateQueueSize;
     std::deque<std::tuple<Addr, uint32_t>> updateQueue;
 
     int registerFileSize;
     std::unordered_map<Addr, uint32_t> registerFile;
+    std::unordered_map<Addr, Tick> vertexReadTime;
 
     std::unordered_map<Addr, WorkListItem> workListFile;
 
@@ -77,6 +76,8 @@ class WLEngine : public BaseReduceEngine
       statistics::Scalar numReduce;
       statistics::Scalar registerFileCoalesce;
       statistics::Scalar registerShortage;
+
+      statistics::Histogram vertexReadLatency;
     };
 
     WorkListStats stats;

@@ -810,6 +810,7 @@ void
 CoalesceEngine::processNextMemoryEvent()
 {
     if (memPort.blocked()) {
+        stats.numMemoryBlocks++;
         nextMemoryEvent.sleep();
         return;
     }
@@ -1097,6 +1098,8 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Number of cache rejections caused by target shortage."),
     ADD_STAT(workSearchFails, statistics::units::Count::get(),
              "Number of times coalesce engine fails to find work to push."),
+    ADD_STAT(numMemoryBlocks, statistics::units::Count::get(),
+             "Number of times memory bandwidth was not available."),
     ADD_STAT(numDoubleMemReads, statistics::units::Count::get(),
              "Number of times a memory block has been read twice. "
              "Once for push and once to populate the cache."),
@@ -1147,4 +1150,4 @@ CoalesceEngine::CoalesceStats::resetStats()
     lastResetTick = curTick();
 }
 
-}
+} // namespace gem5
