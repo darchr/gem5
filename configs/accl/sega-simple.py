@@ -64,13 +64,19 @@ class GPT(SubSystem):
                                     resp_queue_size=64
                                     )
 
-        self.vertex_mem_ctrl = MemCtrl(dram=HBM_1000_4H_1x128(burst_length=2))
+        self.vertex_mem_ctrl = SimpleMemory(
+                                        latency="75ns",
+                                        latency_var="0ns",
+                                        bandwidth="19.2GB/s"
+                                        )
 
-        self.edge_mem_ctrl = MemCtrl(dram=DDR4_2400_8x8(
-                                            range=AddrRange(edge_memory_size),
-                                            in_addr_map=False
-                                                    )
-                                    )
+        self.edge_mem_ctrl = SimpleMemory(
+                                        latency="75ns",
+                                        latency_var="0ns",
+                                        bandwidth="19.2GB/s",
+                                        range=AddrRange(edge_memory_size),
+                                        in_addr_map=False
+                                        )
 
         self.coalesce_engine.mem_port = self.vertex_mem_ctrl.port
         self.push_engine.mem_port = self.edge_mem_ctrl.port
@@ -92,9 +98,9 @@ class GPT(SubSystem):
         self.mpu.out_port = port
 
     def set_vertex_range(self, vertex_range):
-        self.vertex_mem_ctrl.dram.range = vertex_range
+        self.vertex_mem_ctrl.range = vertex_range
     def set_edge_image(self, edge_image):
-        self.edge_mem_ctrl.dram.image_file = edge_image
+        self.edge_mem_ctrl.image_file = edge_image
 
 class SEGA(System):
     def __init__(
@@ -120,16 +126,18 @@ class SEGA(System):
                                             )
 
         self.ctrl = CenteralController(
-                                    addr=first_addr, value=first_value,
+                                    init_addr=first_addr,
+                                    init_value=first_value,
                                     image_file=f"{graph_path}/vertices"
                                     )
+
         self.ctrl.req_port = self.interconnect.cpu_side_ports
 
         vertex_ranges = interleave_addresses(
-                                        AddrRange(start=0, size="4GiB"),
-                                        num_mpus,
-                                        32
-                                        )
+                                            AddrRange(start=0, size="4GiB"),
+                                            num_mpus,
+                                            32
+                                            )
 
         gpts = []
         for i in range(num_mpus):
@@ -165,4 +173,5 @@ if __name__ == "__m5_main__":
     m5.instantiate()
 
     exit_event = m5.simulate()
-    print(f"Exited simulation at tick {m5.curTick()} because {exit_event.getCause()}")
+    print(f"Exited simulation at tick {m5.curTick()} " + \
+            f"because {exit_event.getCause()}")
