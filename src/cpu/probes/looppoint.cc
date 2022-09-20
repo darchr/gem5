@@ -36,6 +36,9 @@ LoopPoint::LoopPoint(const LoopPointParams &p)
     cpuptr(p.core),
     manager(p.lpmanager)
 {
+    if (!cpuptr || !manager) {
+        fatal("%s is NULL", !cpuptr ? "CPU":"LoopPointManager");
+    }
     for (int i = 0; i< p.target_pc.size(); i++) {
         if(targetPC.find(p.target_pc[i]) == targetPC.end()) {
             targetPC.insert(p.target_pc[i]);
