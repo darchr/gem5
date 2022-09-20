@@ -33,8 +33,8 @@ class LoopPointManager(SimObject):
     cxx_header = "cpu/probes/looppointmanager.hh"
     cxx_class = "gem5::LoopPointManager"
 
-    target_count = VectorParam.Int([],"the target PC count")
-    target_pc = VectorParam.UInt64([],"the target PC")
+    target_count = VectorParam.Int("the target PC count")
+    target_pc = VectorParam.UInt64("the target PC")
 
     def setup(self, cpulist):
         """This function takes in a list of AbstractCore and connect a 
