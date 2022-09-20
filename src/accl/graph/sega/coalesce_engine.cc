@@ -1031,9 +1031,10 @@ CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
             pendingVertexPullReads[addr] = send_mask;
         }
         numPullsReceived--;
-    } else {
-        stats.workSearchFails++;
     }
+
+    stats.bitvectorSearchStatus[bit_status]++;
+
     if (numPullsReceived > 0) {
         memoryFunctionQueue.emplace_back(
             [this] (int slice_base, Tick schedule_tick) {
@@ -1096,8 +1097,6 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Number of cache rejections caused by entry shortage."),
     ADD_STAT(mshrTargetShortage, statistics::units::Count::get(),
              "Number of cache rejections caused by target shortage."),
-    ADD_STAT(workSearchFails, statistics::units::Count::get(),
-             "Number of times coalesce engine fails to find work to push."),
     ADD_STAT(numMemoryBlocks, statistics::units::Count::get(),
              "Number of times memory bandwidth was not available."),
     ADD_STAT(numDoubleMemReads, statistics::units::Count::get(),
@@ -1111,6 +1110,8 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Time of the last pull request. (Relative to reset_stats)"),
     ADD_STAT(lastVertexPushTime, statistics::units::Tick::get(),
              "Time of the last vertex push. (Relative to reset_stats)"),
+    ADD_STAT(bitvectorSearchStatus, statistics::units::Count::get(),
+             "Distribution for the location of vertex searches."),
     ADD_STAT(hitRate, statistics::units::Ratio::get(),
              "Hit rate in the cache."),
     ADD_STAT(vertexPullBW, statistics::units::Rate<statistics::units::Count,
@@ -1122,7 +1123,7 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
     ADD_STAT(mshrEntryLength, statistics::units::Count::get(),
              "Histogram on the length of the mshr entries."),
     ADD_STAT(bitvectorLength, statistics::units::Count::get(),
-             "Histogram of the length of the bitvector")
+             "Histogram of the length of the bitvector.")
 {
 }
 
@@ -1133,6 +1134,7 @@ CoalesceEngine::CoalesceStats::regStats()
 
     mshrEntryLength.init(coalesce.params().num_tgts_per_mshr);
     bitvectorLength.init(64);
+    bitvectorSearchStatus.init(4);
 
     hitRate = (readHits + readHitUnderMisses) /
                 (readHits + readHitUnderMisses + readMisses);

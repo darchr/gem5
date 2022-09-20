@@ -192,7 +192,7 @@ WLEngine::handleIncomingWL(Addr addr, WorkListItem wl)
                                     wl.to_string(), workListFile.size());
 
     stats.vertexReadLatency.sample(
-        (curTick() - vertexReadTime[addr]) / getClockFrequency());
+        ((curTick() - vertexReadTime[addr]) * 1e9) / getClockFrequency());
     vertexReadTime.erase(addr);
 
     assert(!workListFile.empty());
