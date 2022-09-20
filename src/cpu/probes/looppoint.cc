@@ -39,6 +39,8 @@ LoopPoint::LoopPoint(const LoopPointParams &p)
     if (!cpuptr || !manager) {
         fatal("%s is NULL", !cpuptr ? "CPU":"LoopPointManager");
     }
+    // It loops through the target_pc vector param to construct the targetPC 
+    // set. Only the unseen PC will be inserted in the targetPC set.
     for (int i = 0; i< p.target_pc.size(); i++) {
         if(targetPC.find(p.target_pc[i]) == targetPC.end()) {
             targetPC.insert(p.target_pc[i]);

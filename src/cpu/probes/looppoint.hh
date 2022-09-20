@@ -45,12 +45,28 @@ class LoopPoint : public ProbeListenerObject
     LoopPoint(const LoopPointParams &params);
     virtual ~LoopPoint();
     virtual void init();
+    /**
+     * @brief This connects a ProbeListener to the "RetiredInstsPC" ProbePoint 
+     * from the corresponding core. 
+     */
     virtual void regProbeListeners();
+    /**
+     * @brief When the "RetiredInstsPC" ProbePoint notifys the ProbeListener,
+     * this function is called. This function will check if the committed PC
+     * matches the target PC. If it does, then it will call the check_count()
+     * in its LoopPointManager.
+     */
     void check_pc(const Addr&);
 
   private:
+    /** This stores the targetPC.
+     */
     std::unordered_set<Addr> targetPC;
+    /** The pointer to the connected core.
+     */
     BaseCPU *cpuptr;
+    /** The pointer to its LoopPointManager.
+     */
     LoopPointManager *manager;
 
 };

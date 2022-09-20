@@ -33,6 +33,14 @@ namespace gem5
 LoopPointManager::LoopPointManager(const LoopPointManagerParams &p)
     : SimObject(p)
 {
+    // This loops through the target_pc vector param to construct the counter
+    // map and the targetCount map. If the PC is unseen in the maps, then the
+    // counter inserts a new item with the PC as the key and an integer 0 as 
+    // the value. The targetCount inserts a new item with the PC as the key and
+    //  a new vector that contains the PC's target count (target_count[i]) as 
+    // the value. If the PC is in the maps, then the targetCount push_back the
+    // new target count (target_count[i]) for that PC in its corresponding 
+    // vector.
     for (int i = 0; i< p.target_pc.size(); i++) {
         auto map_itr = targetCount.find(p.target_pc[i]);
         if (map_itr == targetCount.end()) {
@@ -63,13 +71,15 @@ LoopPointManager::init()
 void
 LoopPointManager::check_count(Addr pc)
 {
-    auto count_itr = counter.find(pc);
-    int& count = count_itr-> second;
+    int& count = counter.find(pc) -> second;
+    // increase the count for the target PC
     count += 1;
-    auto target_itr = targetCount.find(pc);
-    std::vector<int>& targetcount = target_itr->second;
+    std::vector<int>& targetcount = targetCount.find(pc) -> second;
+    // loop through its target count vector to check for the matching count
     for (std::vector<int>::iterator iter = targetcount.begin();
                                             iter < targetcount.end(); iter++) {
+        // if matching count found, then erase the target count from the 
+        // vector, record the infomation, and raise an exit event
         if(*iter==count) {
             targetcount.erase(iter);
             *info->stream() << curTick() << " : " << pc << " : " << count;

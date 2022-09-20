@@ -46,11 +46,26 @@ class LoopPointManager : public SimObject
     LoopPointManager(const LoopPointManagerParams &params);
     virtual ~LoopPointManager();
     virtual void init();
+    /**
+     * @brief This function checks if the current count for the input PC 
+     * matches the target count of the PC. If they match, then it raises an
+     * exit event to exit the Simulation loop.
+     * 
+     * @param pc The target PC of LoopPoint
+     */
     void check_count(Addr pc);
 
   private:
+    /** This output a file thats has [currTick : PC : Count] for each exit event
+    * raised.
+    */
     OutputStream *info;
+    /** This stores the target counts for each target PC.
+     * ex. PC 0x4069d0 has target count [211076617, 219060252, 407294228]
+     */
     std::unordered_map<Addr, std::vector<int>> targetCount;
+    /** This stores the current count for each target PC.
+     */
     std::unordered_map<Addr, int> counter;
 };
 
