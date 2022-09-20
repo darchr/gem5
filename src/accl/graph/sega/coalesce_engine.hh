@@ -164,13 +164,14 @@ class CoalesceEngine : public BaseMemoryEngine
         statistics::Scalar readHitUnderMisses;
         statistics::Scalar mshrEntryShortage;
         statistics::Scalar mshrTargetShortage;
-        statistics::Scalar workSearchFails;
         statistics::Scalar numMemoryBlocks;
         statistics::Scalar numDoubleMemReads;
         statistics::Scalar verticesPulled;
         statistics::Scalar verticesPushed;
         statistics::Scalar lastVertexPullTime;
         statistics::Scalar lastVertexPushTime;
+
+        statistics::Vector bitvectorSearchStatus;
 
         statistics::Formula hitRate;
         statistics::Formula vertexPullBW;

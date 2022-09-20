@@ -243,6 +243,7 @@ void
 PushEngine::processNextPushEvent()
 {
     if (owner->blocked()) {
+        stats.numNetBlocks++;
         nextPushEvent.sleep();
         return;
     }
@@ -301,6 +302,8 @@ PushEngine::PushStats::PushStats(PushEngine &_push)
     push(_push),
     ADD_STAT(numUpdates, statistics::units::Count::get(),
              "Number of sent updates."),
+    ADD_STAT(numNetBlocks, statistics::units::Count::get(),
+             "Number of updates blocked by network."),
     ADD_STAT(TEPS, statistics::units::Rate<statistics::units::Count,
                                     statistics::units::Second>::get(),
              "Traversed Edges Per Second.")
