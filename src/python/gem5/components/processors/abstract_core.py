@@ -27,9 +27,13 @@
 from abc import ABCMeta, abstractmethod
 from typing import Optional, List
 
+from m5.params import UInt64
+
 from ...isas import ISA
 
 from m5.objects import BaseMMU, Port, SubSystem
+from m5.objects.LoopPointManager import LoopPointManager
+
 
 
 class AbstractCore(SubSystem):
@@ -151,5 +155,13 @@ class AbstractCore(SubSystem):
     
     
     @abstractmethod
-    def addLoopPointProbe(self, targetpc, manager):
+    def addLoopPointProbe(
+        self, 
+        targetpc,
+        manager: LoopPointManager
+    ) -> None:
+        """Add a LoopPoint to the core
+        :param targetpc: a list of target PC for the LoopPoint
+        :param manager: the LoopPointManager object
+        """
         raise NotImplementedError

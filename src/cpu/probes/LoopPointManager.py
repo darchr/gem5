@@ -27,7 +27,6 @@
 from m5.params import *
 from m5.objects import SimObject
 
-
 class LoopPointManager(SimObject):
 
     type = "LoopPointManager"
@@ -38,5 +37,10 @@ class LoopPointManager(SimObject):
     target_pc = VectorParam.UInt64([],"the target PC")
 
     def setup(self, cpulist):
+        """This function takes in a list of AbstractCore and connect a 
+        LoopPoint to each of them.
+        
+        :param cpulist : a list of AbstractCore
+        """
         for core in cpulist:
             core.addLoopPointProbe(self.target_pc, self)
