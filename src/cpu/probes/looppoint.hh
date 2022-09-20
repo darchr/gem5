@@ -29,6 +29,8 @@
 #ifndef __CPU_PROBES_LOOPPOINT_HH__
 #define __CPU_PROBES_LOOPPOINT_HH__
 
+#include <unordered_set>
+
 #include "cpu/base.hh"
 #include "cpu/probes/looppointmanager.hh"
 #include "params/LoopPoint.hh"
@@ -39,17 +41,17 @@ namespace gem5
 
 class LoopPoint : public ProbeListenerObject
 {
-    public:
-        LoopPoint(const LoopPointParams &params);
-        virtual ~LoopPoint();
-        virtual void init();
-        virtual void regProbeListeners();
-        void check_pc(const Addr&);
+  public:
+    LoopPoint(const LoopPointParams &params);
+    virtual ~LoopPoint();
+    virtual void init();
+    virtual void regProbeListeners();
+    void check_pc(const Addr&);
 
-    private:
-        const std::vector<Addr> targetPC;
-        BaseCPU *cpuptr;
-        LoopPointManager *manager;
+  private:
+    std::unordered_set<Addr> targetPC;
+    BaseCPU *cpuptr;
+    LoopPointManager *manager;
 
 };
 

@@ -33,10 +33,14 @@ namespace gem5
 
 LoopPoint::LoopPoint(const LoopPointParams &p)
     : ProbeListenerObject(p),
-    targetPC(p.target_pc),
     cpuptr(p.core),
     manager(p.lpmanager)
 {
+    for (int i = 0; i< p.target_pc.size(); i++) {
+        if(targetPC.find(p.target_pc[i]) == targetPC.end()) {
+            targetPC.insert(p.target_pc[i]);
+        }
+    }
 }
 
 LoopPoint::~LoopPoint()
@@ -57,13 +61,9 @@ LoopPoint::regProbeListeners()
 void
 LoopPoint::check_pc(const Addr& pc)
 {
-    for (int i =0; i<targetPC.size();i++)
-    {
-        if(pc == targetPC[i])
-        {
-            if (manager->check_count(pc))
-                cpuptr->scheduleInstStop(0,1,"simpoint starting point found");
-        }
+    if(targetPC.find(pc) != targetPC.end()) {
+        if (manager->check_count(pc))
+            cpuptr->scheduleInstStop(0,1,"simpoint starting point found");
     }
 }
 

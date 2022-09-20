@@ -41,18 +41,16 @@ namespace gem5
 
 class LoopPointManager : public SimObject
 {
-    public:
-        LoopPointManager(const LoopPointManagerParams &params);
-        virtual ~LoopPointManager();
-        virtual void init();
-        bool check_count(uint64_t);
+  public:
+    LoopPointManager(const LoopPointManagerParams &params);
+    virtual ~LoopPointManager();
+    virtual void init();
+    bool check_count(uint64_t);
 
-    private:
-        // const std::vector<int> targetCount;
-        // std::vector<int> counter;
-        OutputStream *info;
-        std::unordered_map<uint64_t, std::vector<int>> targetCount;
-        std::unordered_map<uint64_t,int> counter;
+  private:
+    OutputStream *info;
+    std::unordered_map<uint64_t, std::vector<int>> targetCount;
+    std::unordered_map<uint64_t,int> counter;
 };
 
 }
