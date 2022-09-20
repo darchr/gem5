@@ -60,8 +60,8 @@ void
 LoopPointManager::init()
 {}
 
-bool
-LoopPointManager::check_count(uint64_t pc)
+void
+LoopPointManager::check_count(Addr pc)
 {
     auto count_itr = counter.find(pc);
     int& count = count_itr-> second;
@@ -73,12 +73,11 @@ LoopPointManager::check_count(uint64_t pc)
         if(*iter==count)
         {
             targetcount.erase(iter);
-            *info->stream() << curTick() << " : " << pc << " : " << count << " \n "; 
-            return true;
+            *info->stream() << curTick() << " : " << pc << " : " << count;
+            *info->stream() << " \n "; 
+            exitSimLoopNow("simpoint starting point found");
         }
     }
-    
-    return false;
 }
 
 

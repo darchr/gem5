@@ -35,6 +35,7 @@
 #include "params/LoopPointManager.hh"
 #include "sim/probe/probe.hh"
 #include "base/output.hh"
+#include "sim/sim_exit.hh"
 
 namespace gem5
 {
@@ -45,12 +46,12 @@ class LoopPointManager : public SimObject
     LoopPointManager(const LoopPointManagerParams &params);
     virtual ~LoopPointManager();
     virtual void init();
-    bool check_count(uint64_t);
+    void check_count(Addr pc);
 
   private:
     OutputStream *info;
-    std::unordered_map<uint64_t, std::vector<int>> targetCount;
-    std::unordered_map<uint64_t,int> counter;
+    std::unordered_map<Addr, std::vector<int>> targetCount;
+    std::unordered_map<Addr, int> counter;
 };
 
 }
