@@ -28,7 +28,6 @@
 
 #include "accl/graph/sega/push_engine.hh"
 
-#include "accl/graph/sega/coalesce_engine.hh"
 #include "accl/graph/sega/mpu.hh"
 #include "debug/PushEngine.hh"
 #include "mem/packet_access.hh"
@@ -40,6 +39,7 @@ namespace gem5
 PushEngine::PushEngine(const Params& params):
     BaseMemoryEngine(params),
     _running(false),
+    lastIdleEntranceTick(0),
     numPendingPulls(0), edgePointerQueueSize(params.push_req_queue_size),
     onTheFlyMemReqs(0), edgeQueueSize(params.resp_queue_size),
     workload(params.workload),
@@ -107,6 +107,7 @@ PushEngine::start()
     assert(!nextVertexPullEvent.scheduled());
 
     _running = true;
+    stats.numIdleCycles += ticksToCycles(curTick() - lastIdleEntranceTick);
     // NOTE: We might have to check for size availability here.
     assert(workLeft());
     if (vertexSpace()) {
@@ -123,6 +124,7 @@ PushEngine::processNextVertexPullEvent()
 
     if (!workLeft()) {
         _running = false;
+        lastIdleEntranceTick = curTick();
     }
 
     if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
@@ -304,6 +306,8 @@ PushEngine::PushStats::PushStats(PushEngine &_push)
              "Number of sent updates."),
     ADD_STAT(numNetBlocks, statistics::units::Count::get(),
              "Number of updates blocked by network."),
+    ADD_STAT(numIdleCycles, statistics::units::Count::get(),
+             "Number of cycles PushEngine has been idle."),
     ADD_STAT(TEPS, statistics::units::Rate<statistics::units::Count,
                                     statistics::units::Second>::get(),
              "Traversed Edges Per Second.")

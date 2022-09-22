@@ -37,7 +37,6 @@
 namespace gem5
 {
 
-class CoalesceEngine;
 class MPU;
 
 class PushEngine : public BaseMemoryEngine
@@ -88,10 +87,10 @@ class PushEngine : public BaseMemoryEngine
         Addr offset;
         int numElements;
     };
+    MPU* owner;
 
     bool _running;
-    int numElementsPerLine;
-    MPU* owner;
+    Tick lastIdleEntranceTick;
 
     int numPendingPulls;
     int edgePointerQueueSize;
@@ -128,6 +127,7 @@ class PushEngine : public BaseMemoryEngine
 
       statistics::Scalar numUpdates;
       statistics::Scalar numNetBlocks;
+      statistics::Scalar numIdleCycles;
 
       statistics::Formula TEPS;
     };
