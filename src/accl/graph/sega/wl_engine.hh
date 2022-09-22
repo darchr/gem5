@@ -77,6 +77,7 @@ class WLEngine : public BaseReduceEngine
       statistics::Scalar registerFileCoalesce;
       statistics::Scalar registerShortage;
 
+
       statistics::Histogram vertexReadLatency;
     };
 
