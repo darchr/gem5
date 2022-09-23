@@ -46,8 +46,6 @@ class A72IntFU(IntALU):
 class A72IntMulDivFU(IntMultDiv):
     opList[0].opLat = 1
 
-
-
 class A72FloatMulDivFU(FP_MultDiv):
     pass
 
