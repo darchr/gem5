@@ -826,6 +826,8 @@ CoalesceEngine::processNextMemoryEvent()
         next_memory_function_tick) = memoryFunctionQueue.front();
     next_memory_function(next_memory_function_input, next_memory_function_tick);
     memoryFunctionQueue.pop_front();
+    stats.memoryFunctionLatency.sample((curTick() - next_memory_function_tick)
+                                                * 1e9 / getClockFrequency());
     DPRINTF(CoalesceEngine, "%s: Popped a function from memoryFunctionQueue. "
                                 "memoryFunctionQueue.size = %d.\n", __func__,
                                 memoryFunctionQueue.size());
@@ -929,6 +931,7 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
                             "the current write back scheduled at tick %lu for "
                             "the right function scheduled later.\n",
                             __func__, block_index, schedule_tick);
+        stats.numInvalidMemFunctions++;
     }
 }
 
@@ -1110,6 +1113,8 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Time of the last pull request. (Relative to reset_stats)"),
     ADD_STAT(lastVertexPushTime, statistics::units::Tick::get(),
              "Time of the last vertex push. (Relative to reset_stats)"),
+    ADD_STAT(numInvalidMemFunctions, statistics::units::Count::get(),
+             "Number of times a scheduled memory function has been invalid."),
     ADD_STAT(bitvectorSearchStatus, statistics::units::Count::get(),
              "Distribution for the location of vertex searches."),
     ADD_STAT(hitRate, statistics::units::Ratio::get(),
@@ -1123,7 +1128,9 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
     ADD_STAT(mshrEntryLength, statistics::units::Count::get(),
              "Histogram on the length of the mshr entries."),
     ADD_STAT(bitvectorLength, statistics::units::Count::get(),
-             "Histogram of the length of the bitvector.")
+             "Histogram of the length of the bitvector."),
+    ADD_STAT(memoryFunctionLatency, statistics::units::Second::get(),
+             "Histogram of the latency of processing a memory function.")
 {
 }
 
@@ -1134,7 +1141,11 @@ CoalesceEngine::CoalesceStats::regStats()
 
     mshrEntryLength.init(coalesce.params().num_tgts_per_mshr);
     bitvectorLength.init(64);
-    bitvectorSearchStatus.init(4);
+    bitvectorSearchStatus.init(NUM_STATUS);
+    bitvectorSearchStatus.subname(0, "PENDING_READ");
+    bitvectorSearchStatus.subname(1, "IN_CACHE");
+    bitvectorSearchStatus.subname(2, "IN_MEMORY");
+    bitvectorSearchStatus.subname(3, "GARBAGE");
 
     hitRate = (readHits + readHitUnderMisses) /
                 (readHits + readHitUnderMisses + readMisses);
@@ -1142,6 +1153,8 @@ CoalesceEngine::CoalesceStats::regStats()
     vertexPullBW = (verticesPulled * getClockFrequency()) / lastVertexPullTime;
 
     vertexPushBW = (verticesPushed * getClockFrequency()) / lastVertexPushTime;
+
+    memoryFunctionLatency.init(64);
 }
 
 void

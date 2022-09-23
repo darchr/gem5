@@ -142,8 +142,10 @@ PushEngine::recvVertexPush(Addr addr, WorkListItem wl)
     Addr start_addr = wl.edgeIndex * sizeof(Edge);
     Addr end_addr = start_addr + (wl.degree * sizeof(Edge));
 
-    edgePointerQueue.emplace_back(start_addr, end_addr, sizeof(Edge),
-                        peerMemoryAtomSize, addr, (uint32_t) wl.prop);
+    edgePointerQueue.emplace_back(
+                            start_addr, end_addr, sizeof(Edge),
+                            peerMemoryAtomSize, addr,
+                            (uint32_t) wl.prop, curTick());
     numPendingPulls--;
     if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
         schedule(nextVertexPullEvent, nextCycle());
@@ -182,6 +184,9 @@ PushEngine::processNextMemoryReadEvent()
 
         if (curr_info.done()) {
             DPRINTF(PushEngine, "%s: Current EdgeReadInfoGen is done.\n", __func__);
+            stats.edgePointerQueueLatency.sample(
+                                (curTick() - curr_info.entrance()) *
+                                1e9 / getClockFrequency());
             edgePointerQueue.pop_front();
             DPRINTF(PushEngine, "%s: Popped curr_info from edgePointerQueue. "
             "edgePointerQueue.size() = %u.\n", __func__, edgePointerQueue.size());
@@ -224,8 +229,8 @@ PushEngine::handleMemResp(PacketPtr pkt)
         Edge* edge = (Edge*) (pkt_data + push_info.offset + i * sizeof(Edge));
         Addr edge_dst = edge->neighbor;
         uint32_t edge_weight = edge->weight;
-        edges.emplace_back(push_info.src, edge_dst,
-                    edge_weight, push_info.value);
+        edges.emplace_back(
+            push_info.src, edge_dst, edge_weight, push_info.value, curTick());
     }
     edgeQueue.push_back(edges);
     onTheFlyMemReqs--;
@@ -267,7 +272,8 @@ PushEngine::processNextPushEvent()
                         "with value: %d.\n", __func__, curr_edge.src,
                         curr_edge.dst, update_value);
 
-
+    stats.edgeQueueLatency.sample(
+        (curTick() - curr_edge.entrance) * 1e9 / getClockFrequency());
     edge_list.pop_front();
     if (edge_list.empty()) {
         edgeQueue.pop_front();
@@ -310,7 +316,11 @@ PushEngine::PushStats::PushStats(PushEngine &_push)
              "Number of cycles PushEngine has been idle."),
     ADD_STAT(TEPS, statistics::units::Rate<statistics::units::Count,
                                     statistics::units::Second>::get(),
-             "Traversed Edges Per Second.")
+             "Traversed Edges Per Second."),
+    ADD_STAT(edgePointerQueueLatency, statistics::units::Second::get(),
+             "Histogram of the latency of the edgePointerQueue."),
+    ADD_STAT(edgeQueueLatency, statistics::units::Second::get(),
+             "Histogram of the latency of the edgeQueue.")
 {
 }
 
@@ -320,6 +330,9 @@ PushEngine::PushStats::regStats()
     using namespace statistics;
 
     TEPS = numUpdates / simSeconds;
+
+    edgePointerQueueLatency.init(64);
+    edgeQueueLatency.init(64);
 }
 
 }

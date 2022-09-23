@@ -47,7 +47,8 @@ enum BitStatus
     PENDING_READ,
     IN_CACHE,
     IN_MEMORY,
-    GARBAGE
+    GARBAGE,
+    NUM_STATUS
 };
 
 class MPU;
@@ -170,6 +171,7 @@ class CoalesceEngine : public BaseMemoryEngine
         statistics::Scalar verticesPushed;
         statistics::Scalar lastVertexPullTime;
         statistics::Scalar lastVertexPushTime;
+        statistics::Scalar numInvalidMemFunctions;
 
         statistics::Vector bitvectorSearchStatus;
 
@@ -179,6 +181,7 @@ class CoalesceEngine : public BaseMemoryEngine
 
         statistics::Histogram mshrEntryLength;
         statistics::Histogram bitvectorLength;
+        statistics::Histogram memoryFunctionLatency;
     };
 
     CoalesceStats stats;

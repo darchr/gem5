@@ -96,8 +96,10 @@ struct CompleteEdge {
     uint32_t weight;
     uint32_t value;
 
-    CompleteEdge(uint64_t src, uint64_t dst, uint32_t weight, uint32_t value):
-        src(src), dst(dst), weight(weight), value(value)
+    uint64_t entrance;
+
+    CompleteEdge(uint64_t src, uint64_t dst, uint32_t weight, uint32_t value, uint64_t entrance):
+        src(src), dst(dst), weight(weight), value(value), entrance(entrance)
     {}
 
     std::string to_string()
