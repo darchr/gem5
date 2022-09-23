@@ -120,7 +120,8 @@ class SEGA(System):
                                             )
 
         self.ctrl = CenteralController(
-                                    addr=first_addr, value=first_value,
+                                    init_addr=first_addr,
+                                    init_value=first_value,
                                     image_file=f"{graph_path}/vertices"
                                     )
         self.ctrl.req_port = self.interconnect.cpu_side_ports
