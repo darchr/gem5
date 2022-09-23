@@ -79,7 +79,7 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
         return false;
     }
 
-    updateQueue.emplace_back(pkt->getAddr(), pkt->getLE<uint32_t>());
+    updateQueue.emplace_back(pkt->getAddr(), pkt->getLE<uint32_t>(), curTick());
     DPRINTF(SEGAStructureSize, "%s: Emplaced (addr: %lu, value: %u) in the "
                 "updateQueue. updateQueue.size = %d, updateQueueSize = %d.\n",
                 __func__, pkt->getAddr(), pkt->getLE<uint32_t>(),
@@ -105,7 +105,8 @@ WLEngine::processNextReadEvent()
 {
     Addr update_addr;
     uint32_t update_value;
-    std::tie(update_addr, update_value) = updateQueue.front();
+    Tick enter_tick;
+    std::tie(update_addr, update_value, enter_tick) = updateQueue.front();
 
     DPRINTF(WLEngine,  "%s: Looking at the front of the updateQueue. "
             "(addr: %lu, value: %u).\n", __func__, update_addr, update_value);
@@ -134,6 +135,7 @@ WLEngine::processNextReadEvent()
                         "registerFileSize = %d.\n", __func__, update_addr,
                         update_value, registerFile.size(), registerFileSize);
                 updateQueue.pop_front();
+                stats.updateQueueLatency.sample((curTick() - enter_tick) * 1e9 / getClockFrequency());
                 DPRINTF(SEGAStructureSize, "%s: Popped (addr: %lu, value: %u) "
                             "from updateQueue. updateQueue.size = %d. "
                             "updateQueueSize = %d.\n", __func__, update_addr,
@@ -162,6 +164,7 @@ WLEngine::processNextReadEvent()
                     update_value, update_addr, registerFile[update_addr]);
         stats.registerFileCoalesce++;
         updateQueue.pop_front();
+        stats.updateQueueLatency.sample((curTick() - enter_tick) * 1e9 / getClockFrequency());
         DPRINTF(SEGAStructureSize, "%s: Popped (addr: %lu, value: %u) "
                             "from updateQueue. updateQueue.size = %d. "
                             "updateQueueSize = %d.\n", __func__, update_addr,
@@ -246,7 +249,9 @@ WLEngine::WorkListStats::WorkListStats(WLEngine &_wl)
              "Number of times updates were "
              "stalled because of register shortage"),
     ADD_STAT(vertexReadLatency, statistics::units::Second::get(),
-             "Histogram of the latency of reading a vertex.")
+             "Histogram of the latency of reading a vertex (ns)."),
+    ADD_STAT(updateQueueLatency, statistics::units::Second::get(),
+             "Histogram of the latency of dequeuing an update (ns).")
 {
 }
 
@@ -256,6 +261,7 @@ WLEngine::WorkListStats::regStats()
     using namespace statistics;
 
     vertexReadLatency.init(64);
+    updateQueueLatency.init(64);
 }
 
 } // namespace gem5
