@@ -28,6 +28,7 @@ from m5.params import UInt64
 from m5.util import fatal
 from pathlib import Path
 from typing import List, Tuple
+from m5.objects.LoopPointManager import LoopPointManager
 import csv
 
 class LoopPoints:
@@ -38,8 +39,8 @@ class LoopPoints:
         checkpoint_info_file_path: Path = None
     ) -> None:
         
-        self.simulation = dict()
-        self.warmup = dict()
+        self.simulationRegion = dict()
+        self.warmupRegion = dict()
         self.relativePC = []
         self.relativeCount = []
         self.checkpointPC = []
@@ -53,32 +54,32 @@ class LoopPoints:
                 if(len(row)>1) and ('#' not in row[0]):
                     if row[0]=="cluster":
                         line = row[4].split(",")
-                        self.simulation[line[2]] = [(line[3], line[6]), (line[7],line[10])]
+                        self.simulationRegion[line[2]] = [(line[3], line[6]), (line[7],line[10])]
                         if(self.max_regionid<int(line[2])):
                             self.max_regionid = int(line[2])
                     elif row[0]=="Warmup":
                         line = row[3].split(",")
-                        self.warmup[line[0]] = [(line[3], line[6]), (line[7],line[10])]
+                        self.warmupRegion[line[0]] = [(line[3], line[6]), (line[7],line[10])]
                         
-        for id in self.max_regionid:
-            if str(id) in self.simulation:
-                if str(id) in self.warmup:
-                    self.checkpointPC.append(self.warmup[str(id)][0][0])
-                    self.checkpointCount.append(self.warmup[str(id)][0][1])
-                    self.relativePC.append(self.simulation[str[id]][0][0])
-                    self.relativePC.append(self.simulation[str[id]][1][0])
+        for id in range(1,self.max_regionid+1):
+            if str(id) in self.simulationRegion:
+                if str(id) in self.warmupRegion:
+                    self.checkpointPC.append(self.warmupRegion[str(id)][0][0])
+                    self.checkpointCount.append(self.warmupRegion[str(id)][0][1])
+                    self.relativePC.append(self.simulationRegion[str(id)][0][0])
+                    self.relativePC.append(self.simulationRegion[str(id)][1][0])
                 else:
-                    self.checkpointPC.append(self.simulation[str(id)][0][0])
-                    self.checkpointCount.append(self.simulation[str(id)][0][1])
-                    self.relativePC.append(self.simulation[str[id]][1][0])
+                    self.checkpointPC.append(self.simulationRegion[str(id)][0][0])
+                    self.checkpointCount.append(self.simulationRegion[str(id)][0][1])
+                    self.relativePC.append(self.simulationRegion[str(id)][1][0])
                     self.relativePC.append(0)
                        
 
-    def get_simulation_dict(self):
-        return self.simulation
+    def get_simulationRegion_dict(self):
+        return self.simulationRegion
     
-    def get_warmup_dict(self):
-        return self.warmup
+    def get_warmupRegion_dict(self):
+        return self.warmupRegion
     
     def get_max_regionid(self):
         return self.max_regionid
@@ -91,3 +92,11 @@ class LoopPoints:
     
     def get_relativePC(self):
         return self.relativePC
+    
+    def setup_checkpoints(self, cpuList):
+        self.looppointManager = LoopPointManager()
+        self.looppointManager.target_count = self.checkpointCount
+        self.looppointManager.target_pc = self.checkpointPC
+        self.looppointManager.relative_pc = self.relativePC
+        self.looppointManager.setup(cpuList)
+        

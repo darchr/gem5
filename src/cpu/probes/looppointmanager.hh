@@ -67,6 +67,17 @@ class LoopPointManager : public SimObject
     /** This stores the current count for each target PC.
      */
     std::unordered_map<Addr, int> counter;
+
+    struct pair_hash {
+      std::size_t operator () (const std::pair<Addr,int> &p) const {
+        auto h1 = std::hash<Addr>{}(p.first);
+        auto h2 = std::hash<int>{}(p.second);
+        return h1 ^ h2;  
+    }
+    };
+
+    std::unordered_map<std::pair<Addr,int>, std::vector<Addr>, pair_hash> relativePC;
+    bool if_inputRelative;
 };
 
 }

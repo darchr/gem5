@@ -41,6 +41,12 @@ LoopPointManager::LoopPointManager(const LoopPointManagerParams &p)
     // the value. If the PC is in the maps, then the targetCount push_back the
     // new target count (target_count[i]) for that PC in its corresponding 
     // vector.
+    if_inputRelative = true;
+    if(p.relative_pc.empty()) {
+        if_inputRelative = false;
+    }
+    int rPCcounter = 0;
+
     for (int i = 0; i< p.target_pc.size(); i++) {
         auto map_itr = targetCount.find(p.target_pc[i]);
         if (map_itr == targetCount.end()) {
@@ -50,6 +56,18 @@ LoopPointManager::LoopPointManager(const LoopPointManagerParams &p)
         } else {
             std::vector<int>& pcCount = map_itr->second;
             pcCount.push_back(p.target_count[i]);
+        }
+        if (if_inputRelative) {
+            std::vector<Addr> rPC;
+            for (int j = 0; j < 2; j++)
+            {
+                if(counter.find(p.relative_pc[rPCcounter])==counter.end()) {
+                    counter.insert(std::make_pair(p.relative_pc[rPCcounter],0));
+                }
+                rPC.push_back(p.relative_pc[rPCcounter]);
+                rPCcounter ++;
+            }
+            relativePC.insert(std::make_pair(std::make_pair(p.target_pc[i],p.target_count[i]),rPC));
         }
     }
     info = simout.create("LoopPointInfo.txt", false);
@@ -74,19 +92,30 @@ LoopPointManager::check_count(Addr pc)
     int& count = counter.find(pc) -> second;
     // increase the count for the target PC
     count += 1;
-    std::vector<int>& targetcount = targetCount.find(pc) -> second;
-    // loop through its target count vector to check for the matching count
-    for (std::vector<int>::iterator iter = targetcount.begin();
-                                            iter < targetcount.end(); iter++) {
-        // if matching count found, then erase the target count from the 
-        // vector, record the infomation, and raise an exit event
-        if(*iter==count) {
-            targetcount.erase(iter);
-            *info->stream() << curTick() << " : " << pc << " : " << count;
-            *info->stream() << " \n "; 
-            exitSimLoopNow("simpoint starting point found");
+
+    auto map_itr = targetCount.find(pc);
+    if (map_itr != targetCount.end()) {
+        std::vector<int>& targetcount = map_itr -> second;
+        // loop through its target count vector to check for the matching count
+        for (std::vector<int>::iterator iter = targetcount.begin();
+                                                iter < targetcount.end(); iter++) {
+            // if matching count found, then erase the target count from the 
+            // vector, record the infomation, and raise an exit event
+            if(*iter==count) {
+                targetcount.erase(iter);
+                *info->stream() << curTick() << ":" << pc << ":" << count;
+                if (if_inputRelative) {
+                    std::vector<Addr>& rPC = relativePC.find(std::make_pair(pc,count)) -> second; 
+                    for (int i = 0; i< 2; i++) {
+                        *info->stream() << ":" << rPC[i] << ":" << counter.find(rPC[i]) -> second; 
+                    }
+                }
+                *info->stream() << " \n "; 
+                exitSimLoopNow("simpoint starting point found");
+            }
         }
     }
+    
 }
 
 
