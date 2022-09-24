@@ -61,10 +61,12 @@ LoopPointManager::LoopPointManager(const LoopPointManagerParams &p)
             std::vector<Addr> rPC;
             for (int j = 0; j < 2; j++)
             {
-                if(counter.find(p.relative_pc[rPCcounter])==counter.end()) {
-                    counter.insert(std::make_pair(p.relative_pc[rPCcounter],0));
+                if(p.relative_pc[rPCcounter] != 0) {
+                    if(counter.find(p.relative_pc[rPCcounter])==counter.end()) {
+                        counter.insert(std::make_pair(p.relative_pc[rPCcounter],0));
+                    }
+                    rPC.push_back(p.relative_pc[rPCcounter]);
                 }
-                rPC.push_back(p.relative_pc[rPCcounter]);
                 rPCcounter ++;
             }
             relativePC.insert(std::make_pair(std::make_pair(p.target_pc[i],p.target_count[i]),rPC));
@@ -106,7 +108,7 @@ LoopPointManager::check_count(Addr pc)
                 *info->stream() << curTick() << ":" << pc << ":" << count;
                 if (if_inputRelative) {
                     std::vector<Addr>& rPC = relativePC.find(std::make_pair(pc,count)) -> second; 
-                    for (int i = 0; i< 2; i++) {
+                    for (int i = 0; i< rPC.size(); i++) {
                         *info->stream() << ":" << rPC[i] << ":" << counter.find(rPC[i]) -> second; 
                     }
                 }

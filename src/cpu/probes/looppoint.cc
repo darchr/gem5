@@ -42,7 +42,7 @@ LoopPoint::LoopPoint(const LoopPointParams &p)
     // It loops through the target_pc vector param to construct the targetPC 
     // set. Only the unseen PC will be inserted in the targetPC set.
     for (int i = 0; i< p.target_pc.size(); i++) {
-        if(targetPC.find(p.target_pc[i]) == targetPC.end()) {
+        if(p.target_pc[i]!= 0 && targetPC.find(p.target_pc[i]) == targetPC.end()) {
             targetPC.insert(p.target_pc[i]);
         }
     }
