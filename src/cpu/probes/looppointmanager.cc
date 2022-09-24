@@ -69,7 +69,7 @@ LoopPointManager::LoopPointManager(const LoopPointManagerParams &p)
                 }
                 rPCcounter ++;
             }
-            relativePC.insert(std::make_pair(std::make_pair(p.target_pc[i],p.target_count[i]),std::make_pair(rPC,i)));
+            relativePC.insert(std::make_pair(std::make_pair(p.target_pc[i],p.target_count[i]),rPC));
         }
     }
     info = simout.create("LoopPointInfo.txt", false);
@@ -107,15 +107,19 @@ LoopPointManager::check_count(Addr pc)
                 targetcount.erase(iter);
                 *info->stream() << curTick() << ":" << pc << ":" << count;
                 if (if_inputRelative) {
-                    auto rela_itr = relativePC.find(std::make_pair(pc,count));
-                    std::vector<Addr>& rPC = rela_itr->second.first; 
-                    int& regionid = rela_itr->second.second;
+                    std::vector<Addr>& rPC = relativePC.find(std::make_pair(pc,count))->second;
                     for (int i = 0; i< rPC.size(); i++) {
                         *info->stream() << ":" << rPC[i] << ":" << counter.find(rPC[i]) -> second; 
                     }
-                    *info -> stream() << ":" << (regionid+1);
                 }
                 *info->stream() << " \n "; 
+
+                if(targetcount.size()==0) {
+                    targetCount.erase(pc);
+                    if (targetCount.size()==0) {
+                        exitSimLoopNow("exiting with last active thread context");
+                    }
+                }
                 exitSimLoopNow("simpoint starting point found");
             }
         }

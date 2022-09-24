@@ -76,7 +76,7 @@ class LoopPointManager : public SimObject
     }
     };
 
-    std::unordered_map<std::pair<Addr,int>, std::pair<std::vector<Addr>,int>, pair_hash> relativePC;
+    std::unordered_map<std::pair<Addr,int>, std::vector<Addr>, pair_hash> relativePC;
     bool if_inputRelative;
 };
 
