@@ -59,6 +59,7 @@ LoopPointManager::LoopPointManager(const LoopPointManagerParams &p)
         }
         if (if_inputRelative) {
             std::vector<Addr> rPC;
+            std::vector<int> rPCcount;
             for (int j = 0; j < 2; j++)
             {
                 if(p.relative_pc[rPCcounter] != 0) {
@@ -66,10 +67,11 @@ LoopPointManager::LoopPointManager(const LoopPointManagerParams &p)
                         counter.insert(std::make_pair(p.relative_pc[rPCcounter],0));
                     }
                     rPC.push_back(p.relative_pc[rPCcounter]);
+                    rPCcount.push_back(p.relative_count[rPCcounter]);
                 }
                 rPCcounter ++;
             }
-            relativePC.insert(std::make_pair(std::make_pair(p.target_pc[i],p.target_count[i]),rPC));
+            relativePC.insert(std::make_pair(std::make_pair(p.target_pc[i],p.target_count[i]),std::make_pair(rPC,rPCcount)));
         }
     }
     info = simout.create("LoopPointInfo.txt", false);
@@ -107,12 +109,16 @@ LoopPointManager::check_count(Addr pc)
                 targetcount.erase(iter);
                 *info->stream() << curTick() << ":" << pc << ":" << count;
                 if (if_inputRelative) {
-                    std::vector<Addr>& rPC = relativePC.find(std::make_pair(pc,count))->second;
+                    auto rela_itr = relativePC.find(std::make_pair(pc,count));
+                    std::vector<Addr>& rPC = rela_itr->second.first;
+                    std::vector<int>& rPCcount = rela_itr->second.second;
+                    int rela_count = 0;
                     for (int i = 0; i< rPC.size(); i++) {
-                        *info->stream() << ":" << rPC[i] << ":" << counter.find(rPC[i]) -> second; 
+                        rela_count = rPCcount[i] - counter.find(rPC[i])->second;
+                        *info->stream() << ":" << rPC[i] << ":" << rela_count ; 
                     }
                 }
-                *info->stream() << " \n "; 
+                *info->stream() <<":"<< "\n"; 
 
                 if(targetcount.size()==0) {
                     targetCount.erase(pc);
