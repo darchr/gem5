@@ -128,6 +128,7 @@ class LoopPoints:
                     self.looppointManager.target_count = targetCount
                     self.looppointManager.target_pc = targetPC
                     self.looppointManager.setup(cpuList)
+                    break
         
     def testing(self,cpuList,checkpc,checkpccount,rpc,rpccount):
         self.looppointManager = LoopPointManager()
