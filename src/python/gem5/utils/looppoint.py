@@ -36,7 +36,6 @@ class LoopPoints:
     
     def __init__(
         self,
-        looppoint_file_path: Path = NULL
     ) -> None:
         
         self.simulationRegion = dict()
@@ -47,9 +46,6 @@ class LoopPoints:
         self.checkpointCount = []
         
         self.max_regionid = 0   
-        
-        if(looppoint_file_path):
-            self.profile_looppoints_checkpoints(looppoint_file_path)
 
     def get_simulationRegion_dict(self):
         return self.simulationRegion
@@ -100,7 +96,8 @@ class LoopPoints:
                     self.relativePC.append(0)
                     self.relativeCount.append(-1)
     
-    def setup_checkpoints(self, cpuList):
+    def setup_checkpoints(self, cpuList,looppoint_file_path:Path):
+        self.profile_looppoints_checkpoints(looppoint_file_path)
         self.looppointManager = LoopPointManager()
         self.looppointManager.target_count = self.checkpointCount
         self.looppointManager.target_pc = self.checkpointPC
@@ -132,3 +129,10 @@ class LoopPoints:
                     self.looppointManager.target_pc = targetPC
                     self.looppointManager.setup(cpuList)
         
+    def testing(self,cpuList,checkpc,checkpccount,rpc,rpccount):
+        self.looppointManager = LoopPointManager()
+        self.looppointManager.target_count = checkpccount
+        self.looppointManager.target_pc = checkpc
+        self.looppointManager.relative_pc = rpc
+        self.looppointManager.relative_count = rpccount
+        self.looppointManager.setup(cpuList)

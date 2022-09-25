@@ -119,14 +119,14 @@ LoopPointManager::check_count(Addr pc)
                     }
                 }
                 *info->stream() <<":"<< "\n"; 
-
+                exitSimLoopNow("simpoint starting point found");
                 if(targetcount.size()==0) {
                     targetCount.erase(pc);
                     if (targetCount.size()==0) {
-                        exitSimLoopNow("exiting with last active thread context");
+                        printf("\nall targets are encountered\n");
+                        exitSimLoop("m5_exit instruction encountered");
                     }
                 }
-                exitSimLoopNow("simpoint starting point found");
             }
         }
     }
