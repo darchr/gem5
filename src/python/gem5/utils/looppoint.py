@@ -108,23 +108,27 @@ class LoopPoints:
     
     def setup_restore(self, cpuList, checkpoint_file_path:Path, checkpoint_dir:Path):
         regex = re.compile(r"cpt.([0-9]+)")
-        tick = regex.findall(checkpoint_dir.as_posix())
+        tick = regex.findall(checkpoint_dir.as_posix())[0]
+        print(f"looking for tick {tick}\n")
         self.looppointManager = LoopPointManager()
         with open(checkpoint_file_path) as file:
             while True:
                 line = file.readline()
                 if not line:
                     fatal("checkpoint tick not found in checkpoint file")
-                tick = regex.findall(line)
+                line = line.split(":")
+                print(f"split:{line}\n")
                 if line[0] == tick:
                     targetPC = list()
                     targetCount = list()
-                    if(line.size()>5):
+                    if(len(line)>5):
                         targetPC.append(line[3])
                         targetCount.append(line[4])
-                    if(line.size()>7):
+                    if(len(line)>7):
                         targetPC.append(line[5])
                         targetCount.append(line[6])
+                    print(f"get target PC {targetPC}\n")
+                    print(f"get target PC count {targetCount}\n")
                     self.looppointManager.target_count = targetCount
                     self.looppointManager.target_pc = targetPC
                     self.looppointManager.setup(cpuList)

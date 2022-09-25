@@ -36,7 +36,7 @@ class LoopPointManager(SimObject):
     target_count = VectorParam.Int("the target PC count")
     target_pc = VectorParam.UInt64("the target PC")
     relative_pc = VectorParam.UInt64([], "the relative PC of the target PC")
-    relative_count = VectorParam.Int("the relative PC count of the target PC")
+    relative_count = VectorParam.Int([],"the relative PC count of the target PC")
 
     def setup(self, cpulist):
         """This function takes in a list of AbstractCore and connect a 
