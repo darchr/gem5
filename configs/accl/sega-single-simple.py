@@ -65,7 +65,7 @@ class GPT(SubSystem):
                                     )
 
         self.vertex_mem_ctrl = SimpleMemory(
-                                        latency="0ns",
+                                        latency="30ns",
                                         latency_var="0ns",
                                         bandwidth="0GB/s"
                                         )
@@ -99,61 +99,35 @@ class GPT(SubSystem):
 
     def set_vertex_range(self, vertex_range):
         self.vertex_mem_ctrl.range = vertex_range
+
+    def set_vertex_image(self, vertex_image):
+        self.vertex_mem_ctrl.image_file = vertex_image
     def set_edge_image(self, edge_image):
         self.edge_mem_ctrl.image_file = edge_image
 
 class SEGA(System):
-    def __init__(
-                self,
-                num_mpus,
-                cache_size,
-                graph_path,
-                first_addr,
-                first_value
-                ):
+    def __init__(self, cache_size, graph_path):
         super(SEGA, self).__init__()
         self.clk_domain = SrcClockDomain()
-        self.clk_domain.clock = '1GHz'
+        self.clk_domain.clock = '2GHz'
         self.clk_domain.voltage_domain = VoltageDomain()
         self.cache_line_size = 32
         self.mem_mode = "timing"
 
-        self.interconnect = NoncoherentXBar(
-                                            frontend_latency=1,
-                                            forward_latency=1,
-                                            response_latency=1,
-                                            width=64
-                                            )
-
-        self.ctrl = CenteralController(
-                                    init_addr=first_addr,
-                                    init_value=first_value,
-                                    image_file=f"{graph_path}/vertices"
-                                    )
-
-        self.ctrl.req_port = self.interconnect.cpu_side_ports
-
-        vertex_ranges = interleave_addresses(
-                                            AddrRange(start=0, size="4GiB"),
-                                            num_mpus,
-                                            32
-                                            )
-
-        gpts = []
-        for i in range(num_mpus):
-            gpt = GPT("8GiB", cache_size)
-            gpt.set_vertex_range(vertex_ranges[i])
-            gpt.set_edge_image(f"{graph_path}/edgelist_{i}")
-            gpt.setReqPort(self.interconnect.cpu_side_ports)
-            gpt.setRespPort(self.interconnect.mem_side_ports)
-            gpts.append(gpt)
+        gpts = [GPT("8GiB", cache_size)]
+        gpts[0].set_vertex_range(AddrRange("4GiB"))
+        gpts[0].set_edge_image(f"{graph_path}/edgelist_0")
+        gpts[0].setReqPort(gpts[0].getRespPort())
         self.gpts = gpts
 
+        self.ctrl = CenteralController(image_file=f"{graph_path}/vertices")
         self.ctrl.mpu_vector = [gpt.mpu for gpt in self.gpts]
+
+    def create_initial_bfs_update(self, init_addr, init_value):
+        self.ctrl.createInitialBFSUpdate(init_addr, init_value)
 
 def get_inputs():
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("num_gpts", type=int)
     argparser.add_argument("cache_size", type=str)
     argparser.add_argument("graph", type=str)
     argparser.add_argument("init_addr", type=int)
@@ -161,17 +135,17 @@ def get_inputs():
 
     args = argparser.parse_args()
 
-    return args.num_gpts, args.cache_size, \
-        args.graph, args.init_addr, args.init_value
+    return args.cache_size, args.graph, args.init_addr, args.init_value
 
 if __name__ == "__m5_main__":
-    num_gpts, cache_size, graph, init_addr, init_value = get_inputs()
+    cache_size, graph, init_addr, init_value = get_inputs()
 
-    system = SEGA(num_gpts, cache_size, graph, init_addr, init_value)
+    system = SEGA(cache_size, graph)
     root = Root(full_system = False, system = system)
 
     m5.instantiate()
 
+    system.create_initial_bfs_update(init_addr, init_value)
     exit_event = m5.simulate()
     print(f"Exited simulation at tick {m5.curTick()} " + \
             f"because {exit_event.getCause()}")
