@@ -113,7 +113,7 @@ class SEGA(System):
                 ):
         super(SEGA, self).__init__()
         self.clk_domain = SrcClockDomain()
-        self.clk_domain.clock = '1GHz'
+        self.clk_domain.clock = '4GHz'
         self.clk_domain.voltage_domain = VoltageDomain()
         self.cache_line_size = 32
         self.mem_mode = "timing"

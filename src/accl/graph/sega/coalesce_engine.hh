@@ -165,6 +165,7 @@ class CoalesceEngine : public BaseMemoryEngine
         statistics::Scalar readHitUnderMisses;
         statistics::Scalar mshrEntryShortage;
         statistics::Scalar mshrTargetShortage;
+        statistics::Scalar responsePortShortage;
         statistics::Scalar numMemoryBlocks;
         statistics::Scalar numDoubleMemReads;
         statistics::Scalar verticesPulled;
@@ -181,6 +182,7 @@ class CoalesceEngine : public BaseMemoryEngine
 
         statistics::Histogram mshrEntryLength;
         statistics::Histogram bitvectorLength;
+        statistics::Histogram responseQueueLatency;
         statistics::Histogram memoryFunctionLatency;
     };
 

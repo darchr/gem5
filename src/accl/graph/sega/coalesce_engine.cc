@@ -274,6 +274,7 @@ CoalesceEngine::recvWLRead(Addr addr)
                 "for cacheBlocks[%d].\n", __func__, addr, block_index);
         DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                     block_index, cacheBlocks[block_index].to_string());
+        stats.numVertexReads++;
         return true;
     } else {
         // miss
@@ -618,9 +619,16 @@ CoalesceEngine::processNextResponseEvent()
         DPRINTF(CoalesceEngine,  "%s: Popped a response from responseQueue. "
                     "responseQueue.size = %d.\n", __func__,
                     responseQueue.size());
-        if ((num_responses_sent >= maxRespPerCycle) ||
-            (responseQueue.empty())) {
-                break;
+        stats.responseQueueLatency.sample(
+                                    waiting_ticks * 1e9 / getClockFrequency());
+        if (num_responses_sent >= maxRespPerCycle) {
+            if (!responseQueue.empty()) {
+                stats.responsePortShortage++;
+            }
+            break;
+        }
+        if (responseQueue.empty()) {
+            break;
         }
     }
 
@@ -1127,6 +1135,9 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Number of cache rejections caused by entry shortage."),
     ADD_STAT(mshrTargetShortage, statistics::units::Count::get(),
              "Number of cache rejections caused by target shortage."),
+    ADD_STAT(responsePortShortage, statistics::units::Count::get(),
+             "Number of times a response has been "
+             "delayed because of port shortage. "),
     ADD_STAT(numMemoryBlocks, statistics::units::Count::get(),
              "Number of times memory bandwidth was not available."),
     ADD_STAT(numDoubleMemReads, statistics::units::Count::get(),
@@ -1156,6 +1167,8 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Histogram on the length of the mshr entries."),
     ADD_STAT(bitvectorLength, statistics::units::Count::get(),
              "Histogram of the length of the bitvector."),
+    ADD_STAT(responseQueueLatency, statistics::units::Second::get(),
+             "Histogram of the response latency to WLEngine. (ns)"),
     ADD_STAT(memoryFunctionLatency, statistics::units::Second::get(),
              "Histogram of the latency of processing a memory function.")
 {
@@ -1166,8 +1179,6 @@ CoalesceEngine::CoalesceStats::regStats()
 {
     using namespace statistics;
 
-    mshrEntryLength.init(coalesce.params().num_tgts_per_mshr);
-    bitvectorLength.init(64);
     bitvectorSearchStatus.init(NUM_STATUS);
     bitvectorSearchStatus.subname(0, "PENDING_READ");
     bitvectorSearchStatus.subname(1, "IN_CACHE");
@@ -1181,6 +1192,9 @@ CoalesceEngine::CoalesceStats::regStats()
 
     vertexPushBW = (verticesPushed * getClockFrequency()) / lastVertexPushTime;
 
+    mshrEntryLength.init(coalesce.params().num_tgts_per_mshr);
+    bitvectorLength.init(64);
+    responseQueueLatency.init(64);
     memoryFunctionLatency.init(64);
 }
 
