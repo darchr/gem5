@@ -127,6 +127,15 @@ int
 CoalesceEngine::getBlockIndex(Addr addr)
 {
     assert((addr % peerMemoryAtomSize) == 0);
+    // bool found = false;
+    // Addr trimmed_addr;
+    // for (auto range: peerMemoryRanges) {
+    //     if (range.contains(addr)) {
+    //         trimmed_addr = range.removeIntlvBits(addr);
+    //         found = true;
+    //     }
+    // }
+    // assert(found);
     Addr trimmed_addr = peerMemoryRange.removeIntlvBits(addr);
     return ((int) (trimmed_addr / peerMemoryAtomSize)) % numLines;
 }
@@ -136,6 +145,15 @@ int
 CoalesceEngine::getBitIndexBase(Addr addr)
 {
     assert((addr % peerMemoryAtomSize) == 0);
+    // bool found = false;
+    // Addr trimmed_addr;
+    // for (auto range: peerMemoryRanges) {
+    //     if (range.contains(addr)) {
+    //         trimmed_addr = range.removeIntlvBits(addr);
+    //         found = true;
+    //     }
+    // }
+    // assert(found);
     Addr trimmed_addr = peerMemoryRange.removeIntlvBits(addr);
     int atom_index = (int) (trimmed_addr / peerMemoryAtomSize);
     int block_bits = (int) (peerMemoryAtomSize / sizeof(WorkListItem));
@@ -147,7 +165,16 @@ Addr
 CoalesceEngine::getBlockAddrFromBitIndex(int index)
 {
     assert((index % ((int) (peerMemoryAtomSize / sizeof(WorkListItem)))) == 0);
+    // bool found = false;
     Addr trimmed_addr = index * sizeof(WorkListItem);
+    // Addr upgraded_addr;
+    // for (auto range: peerMemoryRanges) {
+    //     if (range.contains(trimmed_addr)) {
+    //         upgraded_addr = range.addIntlvBits(trimmed_addr);
+    //         found = true;
+    //     }
+    // }
+    // assert(found);
     return peerMemoryRange.addIntlvBits(trimmed_addr);
 }
 

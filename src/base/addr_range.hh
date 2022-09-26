@@ -48,6 +48,7 @@
 
 #include "base/bitfield.hh"
 #include "base/cprintf.hh"
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "base/types.hh"
 
@@ -731,6 +732,36 @@ class AddrRange
     operator!=(const AddrRange& r) const
     {
         return !(*this == r);
+    }
+
+    friend AddrRange
+    merge(const AddrRange& left, const AddrRange& right)
+    {
+        assert(left.interleaved());
+        assert(right.interleaved());
+        assert(left.mergesWith(right));
+
+        int bits_org = left.masks.size();
+        int bits_new = bits_org - 1;
+
+        int left_match = left.intlvMatch;
+        int right_match = right.intlvMatch;
+        assert(std::abs(left_match - right_match) == (1 << bits_new));
+
+        Addr last_mask = left.masks[left.masks.size() - 1];
+        int xor_high_bit_org = 0;
+        int xor_high_bit_new = 0;
+        if (!isPowerOf2(last_mask)) {
+            xor_high_bit_org = ceilLog2<Addr>(last_mask);
+            xor_high_bit_new = xor_high_bit_org - 2;
+        }
+        int intlv_high_bit_org =
+                        ceilLog2<Addr>(last_mask ^ (1 << xor_high_bit_org));
+        int intlv_high_bit_new = intlv_high_bit_org - 2;
+
+        int match = std::min(left_match, right_match);
+        return AddrRange(left._start, left._end, intlv_high_bit_new,
+                            xor_high_bit_new, bits_new, match);
     }
 };
 
