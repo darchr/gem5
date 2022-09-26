@@ -33,6 +33,7 @@
 
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/sega/mpu.hh"
+#include "base/addr_range.hh"
 #include "debug/FinalAnswer.hh"
 #include "params/CenteralController.hh"
 #include "sim/clocked_object.hh"
@@ -44,46 +45,24 @@ namespace gem5
 class CenteralController : public ClockedObject
 {
   private:
-    class ReqPort : public RequestPort
-    {
-      private:
-        CenteralController* owner;
-        bool _blocked;
-        PacketPtr blockedPacket;
-
-      public:
-        ReqPort(const std::string& name, CenteralController* owner) :
-          RequestPort(name, owner), owner(owner),
-          _blocked(false), blockedPacket(nullptr)
-        {}
-
-        void sendPacket(PacketPtr pkt);
-        bool blocked() { return _blocked; }
-
-      protected:
-        virtual bool recvTimingResp(PacketPtr pkt);
-        virtual void recvReqRetry();
-    };
-
     System* system;
-    ReqPort reqPort;
 
     Addr maxVertexAddr;
-    std::vector<MPU*> mpuVector;
+    std::deque<PacketPtr> initialUpdates;
 
-    template<typename T> PacketPtr
-                              createUpdatePacket(Addr addr, T value);
-    PacketPtr createReadPacket(Addr addr, unsigned int size);
-    void functionalAccess(PacketPtr pkt);
+    std::vector<MPU*> mpuVector;
+    std::unordered_map<MPU*, AddrRangeList> addrRangeListMap;
+
+    template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
 
   public:
     PARAMS(CenteralController);
     CenteralController(const CenteralControllerParams &params);
-    Port& getPort(const std::string &if_name,
-                PortID idx=InvalidPortID) override;
-    virtual void initState();
-    virtual void startup();
 
+    virtual void initState() override;
+    virtual void startup() override;
+
+    void createInitialBFSUpdate(Addr init_addr, uint32_t init_value);
     void recvDoneSignal();
 };
 

@@ -37,12 +37,9 @@
 namespace gem5
 {
 
-CenteralController::CenteralController
-                    (const CenteralControllerParams &params):
+CenteralController::CenteralController(const Params& params):
     ClockedObject(params),
-    system(params.system),
-    reqPort(name() + ".req_port", this),
-    maxVertexAddr(0)
+    system(params.system)
 {
     for (auto mpu : params.mpu_vector) {
         mpuVector.push_back(mpu);
@@ -50,33 +47,35 @@ CenteralController::CenteralController
     }
 }
 
-Port&
-CenteralController::getPort(const std::string &if_name, PortID idx)
-{
-    if (if_name == "req_port") {
-        return reqPort;
-    } else {
-        return SimObject::getPort(if_name, idx);
-    }
-}
-
 void
 CenteralController::initState()
 {
-    // ClockedObject::initState();
-
+    for (auto mpu: mpuVector) {
+        addrRangeListMap[mpu] = mpu->getAddrRanges();
+    }
     const auto& file = params().image_file;
     if (file == "")
         return;
 
-    auto *object = loader::createObjectFile(file, true);
+    auto* object = loader::createObjectFile(file, true);
     fatal_if(!object, "%s: Could not load %s.", name(), file);
 
     loader::debugSymbolTable.insert(*object->symtab().globals());
     loader::MemoryImage image = object->buildImage();
-    maxVertexAddr = image.maxAddr();
-    PortProxy proxy([this](PacketPtr pkt) { functionalAccess(pkt); },
-                    system->cacheLineSize());
+    Addr maxVertexAddr = image.maxAddr();
+
+    PortProxy proxy(
+    [this](PacketPtr pkt) {
+        for (auto mpu: mpuVector) {
+            AddrRangeList range_list = addrRangeListMap[mpu];
+            for (auto range: range_list) {
+                if (range.contains(pkt->getAddr())) {
+                    mpu->recvFunctional(pkt);
+                    break;
+                }
+            }
+        }
+    }, system->cacheLineSize());
 
     panic_if(!image.write(proxy), "%s: Unable to write image.");
 }
@@ -84,21 +83,24 @@ CenteralController::initState()
 void
 CenteralController::startup()
 {
-    Addr initial_addr = params().init_addr;
-    uint32_t initial_value = params().init_value;
-    PacketPtr first_update =
-                createUpdatePacket<uint32_t>(initial_addr, initial_value);
-
-    if (!reqPort.blocked()) {
-        reqPort.sendPacket(first_update);
+    while(!initialUpdates.empty()) {
+        PacketPtr front = initialUpdates.front();
+        for (auto mpu: mpuVector) {
+            AddrRangeList range_list = addrRangeListMap[mpu];
+            for (auto range: range_list) {
+                if (range.contains(front->getAddr())) {
+                    mpu->handleIncomingUpdate(front);
+                }
+            }
+        }
+        initialUpdates.pop_front();
     }
 }
 
 template<typename T> PacketPtr
 CenteralController::createUpdatePacket(Addr addr, T value)
 {
-    RequestPtr req = std::make_shared<Request>(
-                addr, sizeof(T), addr, value);
+    RequestPtr req = std::make_shared<Request>(addr, sizeof(T), addr, value);
     // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
     // bits
     req->setPC(((Addr) value) << 2);
@@ -106,65 +108,17 @@ CenteralController::createUpdatePacket(Addr addr, T value)
     PacketPtr pkt = new Packet(req, MemCmd::UpdateWL);
 
     pkt->allocate();
-    // pkt->setData(data);
+
     pkt->setLE<T>(value);
 
     return pkt;
 }
 
-PacketPtr
-CenteralController::createReadPacket(Addr addr, unsigned int size)
-{
-    RequestPtr req = std::make_shared<Request>(addr, size, 0, 0);
-    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
-    // bits
-    req->setPC((Addr) 0);
-
-    // Embed it in a packet
-    PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
-    pkt->allocate();
-
-    return pkt;
-}
-
 void
-CenteralController::ReqPort::sendPacket(PacketPtr pkt)
+CenteralController::createInitialBFSUpdate(Addr init_addr, uint32_t init_value)
 {
-    panic_if(_blocked, "Should never try to send if blocked MemSide!");
-    // If we can't send the packet across the port, store it for later.
-    if (!sendTimingReq(pkt))
-    {
-        blockedPacket = pkt;
-        _blocked = true;
-    }
-}
-
-bool
-CenteralController::ReqPort::recvTimingResp(PacketPtr pkt)
-{
-    panic("recvTimingResp called on the request port.");
-}
-
-void
-CenteralController::ReqPort::recvReqRetry()
-{
-    panic_if(!(_blocked && blockedPacket), "Received retry without a blockedPacket");
-
-    _blocked = false;
-    sendPacket(blockedPacket);
-
-    if (!_blocked) {
-        blockedPacket = nullptr;
-    }
-}
-
-void
-CenteralController::functionalAccess(PacketPtr pkt)
-{
-    DPRINTF(CenteralController,
-                "%s: Functional access for pkt->addr: %lu, pkt->size: %lu.\n",
-                __func__, pkt->getAddr(), pkt->getSize());
-    reqPort.sendFunctional(pkt);
+    PacketPtr update = createUpdatePacket<uint32_t>(init_addr, init_value);
+    initialUpdates.push_back(update);
 }
 
 void
@@ -176,19 +130,6 @@ CenteralController::recvDoneSignal()
     }
 
     if (done) {
-        for (Addr addr = 0; addr < maxVertexAddr; addr += system->cacheLineSize()) {
-            PacketPtr pkt = createReadPacket(addr, system->cacheLineSize());
-            reqPort.sendFunctional(pkt);
-
-            int num_items = system->cacheLineSize() / sizeof(WorkListItem);
-            WorkListItem items[num_items];
-            pkt->writeDataToBlock((uint8_t*) items, system->cacheLineSize());
-
-            for (int i = 0; i < num_items; i++) {
-                DPRINTF(FinalAnswer, "%s: WorkListItem[%lu][%d]: %s.\n",
-                                __func__, addr, i, items[i].to_string());
-            }
-        }
         exitSimLoopNow("no update left to process.");
     }
 }

@@ -27,6 +27,7 @@
 
 from m5.params import *
 from m5.proxy import *
+from m5.util.pybind import PyBindMethod
 from m5.objects.ClockedObject import ClockedObject
 
 class CenteralController(ClockedObject):
@@ -35,10 +36,9 @@ class CenteralController(ClockedObject):
     cxx_class = 'gem5::CenteralController'
 
     system = Param.System(Parent.any, "System this Engine is a part of")
-    req_port  = RequestPort("Port to send updates to the outside")
+
+    image_file = Param.String("Path to the vertex image file.")
 
     mpu_vector = VectorParam.MPU("All mpus in the system.")
 
-    init_addr = Param.Addr("The addr for the initial update")
-    init_value = Param.Int("The value for the initial update")
-    image_file = Param.String("Path to the global memory image.")
+    cxx_exports = [PyBindMethod("createInitialBFSUpdate")]

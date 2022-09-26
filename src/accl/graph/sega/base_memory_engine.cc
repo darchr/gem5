@@ -59,14 +59,18 @@ void
 BaseMemoryEngine::init()
 {
     AddrRangeList memory_ranges = memPort.getAddrRanges();
-    // BaseMemoryEngine only supports one memory.
-    assert(memory_ranges.size() == 1);
 
-    peerMemoryRange = memory_ranges.front();
-    DPRINTF(BaseMemoryEngine, "%s: The range attached to this engine is %s. "
-                            "The range is %s interleaved.\n", __func__,
-                            peerMemoryRange.to_string(),
-                            peerMemoryRange.interleaved() ? "" : "not");
+    if (memory_ranges.size() == 2) {
+        peerMemoryRange = merge(memory_ranges.front(), memory_ranges.back());
+    } else if (memory_ranges.size() == 1) {
+        peerMemoryRange = memory_ranges.front();
+    } else {
+        panic("Received an unacceptable number of ranges from memory.");
+    }
+    DPRINTF(BaseMemoryEngine, "%s: The range attached to this engine is "
+            "%s. The range is %s interleaved.\n", __func__,
+            peerMemoryRange.to_string(),
+            peerMemoryRange.interleaved() ? "" : "not");
 }
 
 void
