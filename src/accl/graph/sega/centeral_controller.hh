@@ -135,6 +135,10 @@ class CenteralController : public BaseMemoryEngine
     void createPRWorkload(int num_nodes, float alpha);
     void createBCWorkload(Addr init_addr, uint32_t init_value);
 
+    virtual void initState() override;
+    virtual void startup() override;
+
+    void createInitialBFSUpdate(Addr init_addr, uint32_t init_value);
     void recvDoneSignal();
 
     int workCount();
