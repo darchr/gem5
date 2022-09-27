@@ -172,7 +172,8 @@ class CoalesceEngine : public BaseMemoryEngine
         statistics::Scalar verticesPushed;
         statistics::Scalar lastVertexPullTime;
         statistics::Scalar lastVertexPushTime;
-        statistics::Scalar numInvalidMemFunctions;
+        statistics::Scalar numInvalidApplies;
+        statistics::Scalar numInvalidWriteBacks;
 
         statistics::Vector bitvectorSearchStatus;
 
