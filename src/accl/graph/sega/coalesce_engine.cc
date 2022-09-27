@@ -828,6 +828,8 @@ CoalesceEngine::processNextApplyEvent()
         }
         DPRINTF(CacheBlockState, "%s: cacheBlock[%d]: %s.\n", __func__,
                     block_index, cacheBlocks[block_index].to_string());
+    } else {
+        stats.numInvalidApplies++;
     }
 
     applyQueue.pop_front();
@@ -966,7 +968,7 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
                             "the current write back scheduled at tick %lu for "
                             "the right function scheduled later.\n",
                             __func__, block_index, schedule_tick);
-        stats.numInvalidMemFunctions++;
+        stats.numInvalidWriteBacks++;
     }
 }
 
@@ -1151,7 +1153,10 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Time of the last pull request. (Relative to reset_stats)"),
     ADD_STAT(lastVertexPushTime, statistics::units::Tick::get(),
              "Time of the last vertex push. (Relative to reset_stats)"),
-    ADD_STAT(numInvalidMemFunctions, statistics::units::Count::get(),
+    ADD_STAT(numInvalidApplies, statistics::units::Count::get(),
+             "Number of times a line has become busy"
+             " while waiting to be applied."),
+    ADD_STAT(numInvalidWriteBacks, statistics::units::Count::get(),
              "Number of times a scheduled memory function has been invalid."),
     ADD_STAT(bitvectorSearchStatus, statistics::units::Count::get(),
              "Distribution for the location of vertex searches."),
