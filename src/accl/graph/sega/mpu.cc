@@ -29,23 +29,32 @@
 #include "accl/graph/sega/mpu.hh"
 
 #include "accl/graph/sega/centeral_controller.hh"
+#include "mem/packet_access.hh"
 #include "sim/sim_exit.hh"
 
 namespace gem5
 {
 
 MPU::MPU(const Params& params):
-    SimObject(params),
+    ClockedObject(params),
     system(params.system),
     wlEngine(params.wl_engine),
     coalesceEngine(params.coalesce_engine),
     pushEngine(params.push_engine),
     inPort(name() + ".inPort", this),
-    outPort(name() + ".outPort", this)
+    outPort(name() + ".outPort", this),
+    updateQueueSize(params.update_queue_size),
+    nextUpdatePushEvent([this] { processNextUpdatePushEvent(); }, name())
 {
     wlEngine->registerMPU(this);
     coalesceEngine->registerMPU(this);
     pushEngine->registerMPU(this);
+
+
+    for (int i = 0; i < params.port_out_ports_connection_count; ++i) {
+
+        outports.emplace_back(name() + ".out_ports" + std::to_string(i), this);
+    }
 }
 
 Port&
@@ -55,8 +64,10 @@ MPU::getPort(const std::string& if_name, PortID idx)
         return inPort;
     } else if (if_name == "out_port") {
         return outPort;
+    } else if (if_name == "outPorts") {
+        return outports[idx];
     } else {
-        return SimObject::getPort(if_name, idx);
+        return ClockedObject::getPort(if_name, idx);
     }
 }
 
@@ -164,6 +175,79 @@ void
 MPU::recvWLWrite(Addr addr, WorkListItem wl)
 {
     coalesceEngine->recvWLWrite(addr, wl);
+}
+
+bool
+MPU::enqueueUpdate(Update update)
+{
+    // Creating the packet
+    Addr dst_addr = update.dst;
+    bool found_locally = false;
+    for (auto range : localAddrRange) {
+        found_locally |= range.contains(dst_addr);
+    }
+
+    for (int i = 0; i < outports.size(); i++) {
+        AddrRangeList addrList = outports[i].getAddrRanges();
+        for (auto range : addrList) {
+            if (range.contains(dst_addr)) {
+                if (updateQueues[i].size() < updateQueueSize) {
+                    updateQueues[i].emplace_back(update, curTick());
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        }
+    }
+
+    panic("The update created does not match to any outport.");
+}
+
+template<typename T> PacketPtr
+MPU::createUpdatePacket(Addr addr, T value)
+{
+    RequestPtr req = std::make_shared<Request>(addr, sizeof(T), 0, 0);
+    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
+    // bits
+    req->setPC(((Addr) 1) << 2);
+
+    // FIXME: MemCmd::UpdateWL
+    PacketPtr pkt = new Packet(req, MemCmd::UpdateWL);
+
+    pkt->allocate();
+    // pkt->setData(data);
+    pkt->setLE<T>(value);
+
+    return pkt;
+}
+
+void
+MPU::processNextUpdatePushEvent()
+{
+    int next_time_send = 0;
+
+    for (int i = 0; i < updateQueues.size(); i++) {
+        Update update;
+        Tick entrance_tick;
+        std::tie(update, entrance_tick) = updateQueues[i].front();
+        if (outports[i].blocked()) {
+            continue;
+        }
+        PacketPtr pkt = createUpdatePacket<uint32_t>(update.dst, update.value);
+        outports[i].sendPacket(pkt);
+        updateQueues[i].pop_front();
+        if (updateQueues[i].size() > 0) {
+            next_time_send += 1;
+        }
+    }
+
+    assert(!nextUpdatePushEvent.scheduled());
+    if (next_time_send > 0) {
+        schedule(nextUpdatePushEvent, nextCycle());
+    }
+
+
 }
 
 void
