@@ -42,10 +42,11 @@ PushEngine::PushEngine(const Params& params):
     lastIdleEntranceTick(0),
     numPendingPulls(0), edgePointerQueueSize(params.push_req_queue_size),
     onTheFlyMemReqs(0), edgeQueueSize(params.resp_queue_size),
+    maxPropagatesPerCycle(params.max_propagates_per_cycle),
     workload(params.workload),
     nextVertexPullEvent([this] { processNextVertexPullEvent(); }, name()),
     nextMemoryReadEvent([this] { processNextMemoryReadEvent(); }, name()),
-    nextPushEvent([this] { processNextPushEvent(); }, name()),
+    nextPropagateEvent([this] { processNextPropagateEvent(); }, name()),
     stats(*this)
 {}
 
@@ -53,16 +54,6 @@ void
 PushEngine::registerMPU(MPU* mpu)
 {
     owner = mpu;
-}
-
-void
-PushEngine::recvReqRetry()
-{
-    DPRINTF(PushEngine, "%s: Received a req retry.\n", __func__);
-    if (nextPushEvent.pending()) {
-        nextPushEvent.wake();
-        schedule(nextPushEvent, nextCycle());
-    }
 }
 
 bool
@@ -238,57 +229,52 @@ PushEngine::handleMemResp(PacketPtr pkt)
     delete pkt_data;
     delete pkt;
 
-    if ((!nextPushEvent.pending()) &&
-        (!nextPushEvent.scheduled())) {
-        schedule(nextPushEvent, nextCycle());
+    if (!nextPropagateEvent.scheduled()) {
+        schedule(nextPropagateEvent, nextCycle());
     }
     return true;
 }
 
 // TODO: Add a parameter to allow for doing multiple pushes at the same time.
 void
-PushEngine::processNextPushEvent()
+PushEngine::processNextPropagateEvent()
 {
-    if (owner->blocked()) {
-        stats.numNetBlocks++;
-        nextPushEvent.sleep();
-        return;
-    }
+    int num_propagates = 0;
+    while(true) {
+        std::deque<MetaEdge>& edge_list = edgeQueue.front();
+        MetaEdge curr_edge = edge_list.front();
 
-    std::deque<MetaEdge>& edge_list = edgeQueue.front();
-    MetaEdge curr_edge = edge_list.front();
+        DPRINTF(PushEngine, "%s: The edge to process is %s.\n",
+                        __func__, curr_edge.to_string());
 
-    DPRINTF(PushEngine, "%s: The edge to process is %s.\n",
-                    __func__, curr_edge.to_string());
+        uint32_t update_value = propagate(curr_edge.value, curr_edge.weight);
 
-    // TODO: Implement propagate function here
-    uint32_t update_value = propagate(curr_edge.value, curr_edge.weight);
-    PacketPtr update = createUpdatePacket<uint32_t>(
-                            curr_edge.dst, update_value);
-
-    owner->sendPacket(update);
-
-    Update update_2(curr_edge.src, curr_edge.dst, update_value);
-    (!owner->enqueueUpdate(update_2)) {
-        // edge_list.pop_front();
-        // edge_list.push_back(curr_edge);
-    }
-    stats.numUpdates++;
-    DPRINTF(PushEngine, "%s: Sent a push update from addr: %lu to addr: %lu "
-                        "with value: %d.\n", __func__, curr_edge.src,
+        Update update(curr_edge.src, curr_edge.dst, update_value);
+        edge_list.pop_front();
+        if (owner->enqueueUpdate(update)) {
+            DPRINTF(PushEngine, "%s: Sent a push update from addr: %lu to "
+                        "addr: %lu with value: %d.\n", __func__, curr_edge.src,
                         curr_edge.dst, update_value);
+            stats.numUpdates++;
+            stats.edgeQueueLatency.sample(
+            (curTick() - curr_edge.entrance) * 1e9 / getClockFrequency());
+        } else {
+            edge_list.push_back(curr_edge);
+        }
 
-    stats.edgeQueueLatency.sample(
-        (curTick() - curr_edge.entrance) * 1e9 / getClockFrequency());
-    edge_list.pop_front();
-    if (edge_list.empty()) {
-        edgeQueue.pop_front();
+        num_propagates++;
+        if (num_propagates >= maxPropagatesPerCycle) {
+            break;
+        }
+
+        if (edge_list.empty()) {
+            edgeQueue.pop_front();
+        }
     }
 
-    assert(!nextPushEvent.pending());
-    assert(!nextPushEvent.scheduled());
+    assert(!nextPropagateEvent.scheduled());
     if (!edgeQueue.empty()) {
-        schedule(nextPushEvent, nextCycle());
+        schedule(nextPropagateEvent, nextCycle());
     }
 }
 
