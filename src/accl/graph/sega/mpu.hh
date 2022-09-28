@@ -36,7 +36,7 @@
 #include "base/addr_range.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
-#include "sim/sim_object.hh"
+#include "sim/clocked_object.hh"
 #include "sim/system.hh"
 #include "params/MPU.hh"
 
@@ -45,7 +45,7 @@ namespace gem5
 
 class CenteralController;
 
-class MPU : public SimObject
+class MPU : public ClockedObject
 {
   private:
     class RespPort : public ResponsePort
@@ -99,6 +99,16 @@ class MPU : public SimObject
 
     AddrRangeList localAddrRange;
 
+    uint32_t updateQueueSize;
+
+    std::vector<ReqPort> outports;
+    std::vector<std::deque<std::tuple<Update, Tick>>> updateQueues;
+
+    template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
+
+    EventFunctionWrapper nextUpdatePushEvent;
+    void processNextUpdatePushEvent();
+
   public:
     PARAMS(MPU);
     MPU(const Params& params);
@@ -115,6 +125,7 @@ class MPU : public SimObject
     void handleIncomingWL(Addr addr, WorkListItem wl);
     bool recvWLRead(Addr addr) { return coalesceEngine->recvWLRead(addr); }
     void recvWLWrite(Addr addr, WorkListItem wl);
+    bool enqueueUpdate(Update update);
 
     int workCount() { return coalesceEngine->workCount(); }
     void recvVertexPull() { return coalesceEngine->recvVertexPull(); }
