@@ -102,6 +102,7 @@ class PushEngine : public BaseMemoryEngine
 
     int onTheFlyMemReqs;
     int edgeQueueSize;
+    int maxPropagatesPerCycle;
     std::deque<std::deque<MetaEdge>> edgeQueue;
 
     std::string workload;
@@ -117,8 +118,8 @@ class PushEngine : public BaseMemoryEngine
     MemoryEvent nextMemoryReadEvent;
     void processNextMemoryReadEvent();
 
-    MemoryEvent nextPushEvent;
-    void processNextPushEvent();
+    EventFunctionWrapper nextPropagateEvent;
+    void processNextPropagateEvent();
 
     struct PushStats : public statistics::Group
     {
