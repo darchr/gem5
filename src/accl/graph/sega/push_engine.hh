@@ -102,7 +102,7 @@ class PushEngine : public BaseMemoryEngine
 
     int onTheFlyMemReqs;
     int edgeQueueSize;
-    std::deque<std::deque<CompleteEdge>> edgeQueue;
+    std::deque<std::deque<MetaEdge>> edgeQueue;
 
     std::string workload;
     uint32_t propagate(uint32_t value, uint32_t weight);

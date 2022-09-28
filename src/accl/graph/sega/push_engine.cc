@@ -224,7 +224,7 @@ PushEngine::handleMemResp(PacketPtr pkt)
     PushInfo push_info = reqInfoMap[pkt->req];
     pkt->writeDataToBlock(pkt_data, peerMemoryAtomSize);
 
-    std::deque<CompleteEdge> edges;
+    std::deque<MetaEdge> edges;
     for (int i = 0; i < push_info.numElements; i++) {
         Edge* edge = (Edge*) (pkt_data + push_info.offset + i * sizeof(Edge));
         Addr edge_dst = edge->neighbor;
@@ -255,8 +255,8 @@ PushEngine::processNextPushEvent()
         return;
     }
 
-    std::deque<CompleteEdge>& edge_list = edgeQueue.front();
-    CompleteEdge curr_edge = edge_list.front();
+    std::deque<MetaEdge>& edge_list = edgeQueue.front();
+    MetaEdge curr_edge = edge_list.front();
 
     DPRINTF(PushEngine, "%s: The edge to process is %s.\n",
                     __func__, curr_edge.to_string());
@@ -267,6 +267,12 @@ PushEngine::processNextPushEvent()
                             curr_edge.dst, update_value);
 
     owner->sendPacket(update);
+
+    Update update_2(curr_edge.src, curr_edge.dst, update_value);
+    (!owner->enqueueUpdate(update_2)) {
+        // edge_list.pop_front();
+        // edge_list.push_back(curr_edge);
+    }
     stats.numUpdates++;
     DPRINTF(PushEngine, "%s: Sent a push update from addr: %lu to addr: %lu "
                         "with value: %d.\n", __func__, curr_edge.src,

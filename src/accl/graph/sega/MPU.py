@@ -27,9 +27,9 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.SimObject import SimObject
+from m5.objects.ClockedObject import ClockedObject
 
-class MPU(SimObject):
+class MPU(ClockedObject):
     type = "MPU"
     cxx_header = "accl/graph/sega/mpu.hh"
     cxx_class = "gem5::MPU"
@@ -39,6 +39,8 @@ class MPU(SimObject):
     in_port = ResponsePort("Port to receive updates from outside")
     out_port  = RequestPort("Port to send updates to the outside")
 
+    out_ports = VectorRequestPort("Ports to remote MPUs ")
+
     wl_engine = Param.WLEngine(NULL, "Internal WLEngine for each instance of "
                                 "MPU object.")
     coalesce_engine = Param.CoalesceEngine(NULL, "Internal CoalesceEngine for "
@@ -46,3 +48,5 @@ class MPU(SimObject):
     push_engine = Param.PushEngine(NULL, "Internal PushEngine for each "
                                 "instance of MPU object.")
 
+    update_queue_size = Param.Int(16, "Maximum number of entries "
+                                    "for each update queue.")
