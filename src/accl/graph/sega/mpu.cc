@@ -29,6 +29,7 @@
 #include "accl/graph/sega/mpu.hh"
 
 #include "accl/graph/sega/centeral_controller.hh"
+#include "debug/MPU.hh"
 #include "mem/packet_access.hh"
 #include "sim/sim_exit.hh"
 
@@ -42,7 +43,6 @@ MPU::MPU(const Params& params):
     coalesceEngine(params.coalesce_engine),
     pushEngine(params.push_engine),
     inPort(name() + ".inPort", this),
-    outPort(name() + ".outPort", this),
     updateQueueSize(params.update_queue_size),
     nextUpdatePushEvent([this] { processNextUpdatePushEvent(); }, name())
 {
@@ -52,8 +52,9 @@ MPU::MPU(const Params& params):
 
 
     for (int i = 0; i < params.port_out_ports_connection_count; ++i) {
-
-        outports.emplace_back(name() + ".out_ports" + std::to_string(i), this);
+        outPorts.emplace_back(
+                            name() + ".outPorts" + std::to_string(i), this, i);
+        updateQueues.emplace_back();
     }
 }
 
@@ -62,10 +63,8 @@ MPU::getPort(const std::string& if_name, PortID idx)
 {
     if (if_name == "in_port") {
         return inPort;
-    } else if (if_name == "out_port") {
-        return outPort;
-    } else if (if_name == "outPorts") {
-        return outports[idx];
+    } else if (if_name == "out_ports") {
+        return outPorts[idx];
     } else {
         return ClockedObject::getPort(if_name, idx);
     }
@@ -76,6 +75,9 @@ MPU::init()
 {
     localAddrRange = getAddrRanges();
     inPort.sendRangeChange();
+    for (int i = 0; i < outPorts.size(); i++){
+        portAddrMap[outPorts[i].id()] = getAddrRanges();
+    }
 }
 
 void
@@ -137,8 +139,6 @@ MPU::ReqPort::sendPacket(PacketPtr pkt)
     if (!sendTimingReq(pkt))
     {
         blockedPacket = pkt;
-    } else {
-        owner->recvReqRetry();
     }
 }
 
@@ -157,6 +157,17 @@ MPU::ReqPort::recvReqRetry()
     PacketPtr pkt = blockedPacket;
     blockedPacket = nullptr;
     sendPacket(pkt);
+    if (blockedPacket == nullptr) {
+        owner->recvReqRetry();
+    }
+}
+
+void
+MPU::recvReqRetry()
+{
+    if (!nextUpdatePushEvent.scheduled()) {
+        schedule(nextUpdatePushEvent, nextCycle());
+    }
 }
 
 bool
@@ -180,28 +191,34 @@ MPU::recvWLWrite(Addr addr, WorkListItem wl)
 bool
 MPU::enqueueUpdate(Update update)
 {
-    // Creating the packet
     Addr dst_addr = update.dst;
     bool found_locally = false;
+    bool accepted = false;
     for (auto range : localAddrRange) {
         found_locally |= range.contains(dst_addr);
     }
-
-    for (int i = 0; i < outports.size(); i++) {
-        AddrRangeList addrList = outports[i].getAddrRanges();
-        for (auto range : addrList) {
+    DPRINTF(MPU, "%s: TESSSSTSSSS %d, %d, %llu.\n",
+                    __func__, outPorts.size(), updateQueues[0].size(), dst_addr);
+    for (int i = 0; i < outPorts.size(); i++) {
+        AddrRangeList addr_range_list = portAddrMap[outPorts[i].id()];
+        for (auto range : addr_range_list) {
             if (range.contains(dst_addr)) {
                 if (updateQueues[i].size() < updateQueueSize) {
+                    DPRINTF(MPU, "%s: Queue %d received an update.\n",
+                                        __func__, i);
                     updateQueues[i].emplace_back(update, curTick());
-                    return true;
-                } else {
-                    return false;
+                    accepted = true;
+                    break;
                 }
             }
         }
     }
 
-    panic("The update created does not match to any outport.");
+    if (accepted && (!nextUpdatePushEvent.scheduled())) {
+        schedule(nextUpdatePushEvent, nextCycle());
+    }
+
+    return accepted;
 }
 
 template<typename T> PacketPtr
@@ -228,14 +245,19 @@ MPU::processNextUpdatePushEvent()
     int next_time_send = 0;
 
     for (int i = 0; i < updateQueues.size(); i++) {
+        if (updateQueues[i].empty()) {
+            continue;
+        }
+        if (outPorts[i].blocked()) {
+            continue;
+        }
         Update update;
         Tick entrance_tick;
         std::tie(update, entrance_tick) = updateQueues[i].front();
-        if (outports[i].blocked()) {
-            continue;
-        }
         PacketPtr pkt = createUpdatePacket<uint32_t>(update.dst, update.value);
-        outports[i].sendPacket(pkt);
+        outPorts[i].sendPacket(pkt);
+        DPRINTF(MPU, "%s: Sent update from addr: %lu to addr: %lu with value: "
+                    "%d.\n", __func__, update.src, update.dst, update.value);
         updateQueues[i].pop_front();
         if (updateQueues[i].size() > 0) {
             next_time_send += 1;
@@ -254,25 +276,6 @@ void
 MPU::recvVertexPush(Addr addr, WorkListItem wl)
 {
     pushEngine->recvVertexPush(addr, wl);
-}
-
-void
-MPU::sendPacket(PacketPtr pkt)
-{
-    bool found_locally = false;
-    for (auto range : localAddrRange) {
-        found_locally |= range.contains(pkt->getAddr());
-    }
-
-    if (found_locally) {
-        // TODO: count number of local updates
-
-    } else {
-        // TOOD: count number of remote updates
-
-    }
-
-    outPort.sendPacket(pkt);
 }
 
 void

@@ -215,15 +215,18 @@ PushEngine::handleMemResp(PacketPtr pkt)
     PushInfo push_info = reqInfoMap[pkt->req];
     pkt->writeDataToBlock(pkt_data, peerMemoryAtomSize);
 
-    std::deque<MetaEdge> edges;
+    std::deque<std::tuple<MetaEdge, Tick>> edges;
     for (int i = 0; i < push_info.numElements; i++) {
         Edge* edge = (Edge*) (pkt_data + push_info.offset + i * sizeof(Edge));
         Addr edge_dst = edge->neighbor;
         uint32_t edge_weight = edge->weight;
-        edges.emplace_back(
-            push_info.src, edge_dst, edge_weight, push_info.value, curTick());
+        MetaEdge meta_edge(
+                    push_info.src, edge_dst, edge_weight, push_info.value);
+        edges.emplace_back(meta_edge, curTick());
     }
+    assert(!edges.empty());
     edgeQueue.push_back(edges);
+
     onTheFlyMemReqs--;
     reqInfoMap.erase(pkt->req);
     delete pkt_data;
@@ -235,40 +238,44 @@ PushEngine::handleMemResp(PacketPtr pkt)
     return true;
 }
 
-// TODO: Add a parameter to allow for doing multiple pushes at the same time.
 void
 PushEngine::processNextPropagateEvent()
 {
     int num_propagates = 0;
     while(true) {
-        std::deque<MetaEdge>& edge_list = edgeQueue.front();
-        MetaEdge curr_edge = edge_list.front();
+        std::deque<std::tuple<MetaEdge, Tick>>& edge_list = edgeQueue.front();
+        MetaEdge meta_edge;
+        Tick entrance_tick;
+        std::tie(meta_edge, entrance_tick) = edge_list.front();
 
         DPRINTF(PushEngine, "%s: The edge to process is %s.\n",
-                        __func__, curr_edge.to_string());
+                                __func__, meta_edge.to_string());
 
-        uint32_t update_value = propagate(curr_edge.value, curr_edge.weight);
-
-        Update update(curr_edge.src, curr_edge.dst, update_value);
+        uint32_t update_value = propagate(meta_edge.value, meta_edge.weight);
+        Update update(meta_edge.src, meta_edge.dst, update_value);
         edge_list.pop_front();
+
         if (owner->enqueueUpdate(update)) {
-            DPRINTF(PushEngine, "%s: Sent a push update from addr: %lu to "
-                        "addr: %lu with value: %d.\n", __func__, curr_edge.src,
-                        curr_edge.dst, update_value);
+            DPRINTF(PushEngine, "%s: Sending %s to port queues.\n",
+                                            __func__, meta_edge.to_string());
             stats.numUpdates++;
             stats.edgeQueueLatency.sample(
-            (curTick() - curr_edge.entrance) * 1e9 / getClockFrequency());
+                    (curTick() - entrance_tick) * 1e9 / getClockFrequency());
         } else {
-            edge_list.push_back(curr_edge);
+            edge_list.emplace_back(meta_edge, entrance_tick);
+        }
+
+        if (edge_list.empty()) {
+            edgeQueue.pop_front();
+        }
+
+        if (edgeQueue.empty()) {
+            break;
         }
 
         num_propagates++;
         if (num_propagates >= maxPropagatesPerCycle) {
             break;
-        }
-
-        if (edge_list.empty()) {
-            edgeQueue.pop_front();
         }
     }
 
@@ -276,25 +283,6 @@ PushEngine::processNextPropagateEvent()
     if (!edgeQueue.empty()) {
         schedule(nextPropagateEvent, nextCycle());
     }
-}
-
-template<typename T> PacketPtr
-PushEngine::createUpdatePacket(Addr addr, T value)
-{
-    RequestPtr req = std::make_shared<Request>(
-                addr, sizeof(T), 0, _requestorId);
-    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
-    // bits
-    req->setPC(((Addr) _requestorId) << 2);
-
-    // FIXME: MemCmd::UpdateWL
-    PacketPtr pkt = new Packet(req, MemCmd::UpdateWL);
-
-    pkt->allocate();
-    // pkt->setData(data);
-    pkt->setLE<T>(value);
-
-    return pkt;
 }
 
 PushEngine::PushStats::PushStats(PushEngine &_push)

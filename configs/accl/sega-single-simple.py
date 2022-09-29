@@ -92,10 +92,10 @@ class GPT(SubSystem):
     def setRespPort(self, port):
         self.mpu.in_port = port
 
-    def getReqPort(self):
-        return self.mpu.out_port
     def setReqPort(self, port):
-        self.mpu.out_port = port
+        self.mpu.out_ports = port
+    def getReqPort(self):
+        return self.mpu.out_ports
 
     def set_vertex_range(self, vertex_range):
         self.vertex_mem_ctrl.range = vertex_range
