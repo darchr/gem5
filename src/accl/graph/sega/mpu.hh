@@ -29,6 +29,9 @@
 #ifndef __ACCL_GRAPH_SEGA_MPU_HH__
 #define __ACCL_GRAPH_SEGA_MPU_HH__
 
+#include <unordered_map>
+#include <vector>
+
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/sega/coalesce_engine.hh"
 #include "accl/graph/sega/push_engine.hh"
@@ -74,13 +77,16 @@ class MPU : public ClockedObject
       private:
         MPU* owner;
         PacketPtr blockedPacket;
+        PortID _id;
 
       public:
-        ReqPort(const std::string& name, MPU* owner) :
-          RequestPort(name, owner), owner(owner), blockedPacket(nullptr)
+        ReqPort(const std::string& name, MPU* owner, PortID id) :
+          RequestPort(name, owner), 
+          owner(owner), blockedPacket(nullptr), _id(id)
         {}
         void sendPacket(PacketPtr pkt);
         bool blocked() { return (blockedPacket != nullptr); }
+        PortID id() { return _id; }
 
       protected:
         virtual bool recvTimingResp(PacketPtr pkt);
@@ -95,14 +101,16 @@ class MPU : public ClockedObject
     PushEngine* pushEngine;
 
     RespPort inPort;
-    ReqPort outPort;
 
     AddrRangeList localAddrRange;
 
     uint32_t updateQueueSize;
 
-    std::vector<ReqPort> outports;
+    std::unordered_map<PortID, AddrRangeList> portAddrMap;
+
+    std::vector<ReqPort> outPorts;
     std::vector<std::deque<std::tuple<Update, Tick>>> updateQueues;
+
 
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
 
@@ -133,9 +141,7 @@ class MPU : public ClockedObject
     void start() { return pushEngine->start(); }
     void recvVertexPush(Addr addr, WorkListItem wl);
 
-    bool blocked() { return outPort.blocked(); }
-    void sendPacket(PacketPtr pkt);
-    void recvReqRetry() { pushEngine->recvReqRetry(); }
+    void recvReqRetry();
 
     void recvDoneSignal();
     bool done();

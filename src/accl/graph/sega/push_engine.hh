@@ -103,11 +103,10 @@ class PushEngine : public BaseMemoryEngine
     int onTheFlyMemReqs;
     int edgeQueueSize;
     int maxPropagatesPerCycle;
-    std::deque<std::deque<MetaEdge>> edgeQueue;
+    std::deque<std::deque<std::tuple<MetaEdge, Tick>>> edgeQueue;
 
     std::string workload;
     uint32_t propagate(uint32_t value, uint32_t weight);
-    template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
 
     bool vertexSpace();
     bool workLeft();
