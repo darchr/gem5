@@ -335,4 +335,4 @@ PushEngine::PushStats::regStats()
     edgeQueueLatency.init(64);
 }
 
-}
+} // namespace gem5
