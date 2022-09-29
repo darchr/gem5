@@ -96,10 +96,10 @@ struct MetaEdge {
     uint32_t weight;
     uint32_t value;
 
-    uint64_t entrance;
-
-    MetaEdge(uint64_t src, uint64_t dst, uint32_t weight, uint32_t value, uint64_t entrance):
-        src(src), dst(dst), weight(weight), value(value), entrance(entrance)
+    MetaEdge(): src(0), dst(0), weight(0), value(0) 
+    {}
+    MetaEdge(uint64_t src, uint64_t dst, uint32_t weight, uint32_t value):
+        src(src), dst(dst), weight(weight), value(value)
     {}
 
     std::string to_string()
