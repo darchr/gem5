@@ -78,18 +78,19 @@ class GPT(SubSystem):
         self.mpu = MPU(
                     wl_engine=self.wl_engine,
                     coalesce_engine=self.coalesce_engine,
-                    push_engine=self.push_engine
+                    push_engine=self.push_engine,
+                    update_queue_size=16
                     )
 
     def getRespPort(self):
-        return self.mpu.in_port
+        return self.mpu.in_ports
     def setRespPort(self, port):
-        self.mpu.in_port = port
+        self.mpu.in_ports = port
 
     def getReqPort(self):
-        return self.mpu.out_port
+        return self.mpu.out_ports
     def setReqPort(self, port):
-        self.mpu.out_port = port
+        self.mpu.out_ports = port
 
     def set_vertex_range(self, vertex_range):
         self.vertex_mem_ctrl.dram.range = vertex_range
@@ -97,14 +98,7 @@ class GPT(SubSystem):
         self.edge_mem_ctrl.dram.image_file = edge_image
 
 class SEGA(System):
-    def __init__(
-                self,
-                num_mpus,
-                cache_size,
-                graph_path,
-                first_addr,
-                first_value
-                ):
+    def __init__(self, num_mpus, cache_size, graph_path):
         super(SEGA, self).__init__()
         self.clk_domain = SrcClockDomain()
         self.clk_domain.clock = '1GHz'
@@ -112,19 +106,7 @@ class SEGA(System):
         self.cache_line_size = 32
         self.mem_mode = "timing"
 
-        self.interconnect = NoncoherentXBar(
-                                            frontend_latency=1,
-                                            forward_latency=1,
-                                            response_latency=1,
-                                            width=64
-                                            )
-
-        self.ctrl = CenteralController(
-                                    init_addr=first_addr,
-                                    init_value=first_value,
-                                    image_file=f"{graph_path}/vertices"
-                                    )
-        self.ctrl.req_port = self.interconnect.cpu_side_ports
+        self.ctrl = CenteralController(image_file=f"{graph_path}/vertices")
 
         vertex_ranges = interleave_addresses(
                                         AddrRange(start=0, size="4GiB"),
@@ -137,12 +119,17 @@ class SEGA(System):
             gpt = GPT("8GiB", cache_size)
             gpt.set_vertex_range(vertex_ranges[i])
             gpt.set_edge_image(f"{graph_path}/edgelist_{i}")
-            gpt.setReqPort(self.interconnect.cpu_side_ports)
-            gpt.setRespPort(self.interconnect.mem_side_ports)
             gpts.append(gpt)
+        # Creating the interconnect among mpus
+        for gpt_0 in gpts:
+            for gpt_1 in gpts:
+                gpt_0.setReqPort(gpt_1.getRespPort())
         self.gpts = gpts
 
         self.ctrl.mpu_vector = [gpt.mpu for gpt in self.gpts]
+
+    def create_initial_bfs_update(self, init_addr, init_value):
+        self.ctrl.createInitialBFSUpdate(init_addr, init_value)
 
 def get_inputs():
     argparser = argparse.ArgumentParser()
@@ -160,10 +147,12 @@ def get_inputs():
 if __name__ == "__m5_main__":
     num_gpts, cache_size, graph, init_addr, init_value = get_inputs()
 
-    system = SEGA(num_gpts, cache_size, graph, init_addr, init_value)
+    system = SEGA(num_gpts, cache_size, graph)
     root = Root(full_system = False, system = system)
 
     m5.instantiate()
 
+    system.create_initial_bfs_update(init_addr, init_value)
     exit_event = m5.simulate()
-    print(f"Exited simulation at tick {m5.curTick()} because {exit_event.getCause()}")
+    print(f"Exited simulation at tick {m5.curTick()} " + \
+            f"because {exit_event.getCause()}")

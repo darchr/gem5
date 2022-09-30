@@ -36,7 +36,8 @@ class MPU(ClockedObject):
 
     system = Param.System(Parent.any, "System this MPU is a part of")
 
-    in_port = ResponsePort("Port to receive updates from outside")
+    in_ports = VectorResponsePort("Incoming Ports to receive updates from "
+                                                "remote outside")
 
     out_ports = VectorRequestPort("Outgoing ports to all MPUs")
 
@@ -47,5 +48,5 @@ class MPU(ClockedObject):
     push_engine = Param.PushEngine(NULL, "Internal PushEngine for each "
                                 "instance of MPU object.")
 
-    update_queue_size = Param.Int(16, "Maximum number of entries "
+    update_queue_size = Param.Int("Maximum number of entries "
                                     "for each update queue.")
