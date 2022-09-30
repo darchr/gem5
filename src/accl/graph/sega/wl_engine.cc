@@ -74,7 +74,7 @@ WLEngine::reduce(uint32_t update, uint32_t value)
 bool
 WLEngine::handleIncomingUpdate(PacketPtr pkt)
 {
-    assert(updateQueue.size() <= updateQueueSize);
+    assert((updateQueueSize == 0) || (updateQueue.size() <= updateQueueSize));
     if ((updateQueueSize != 0) && (updateQueue.size() == updateQueueSize)) {
         return false;
     }
