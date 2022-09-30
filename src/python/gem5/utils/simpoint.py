@@ -94,6 +94,11 @@ class SimPoint:
             self._warmup_list = self.set_warmup_intervals(warmup_interval)
         else:
             self._warmup_list = [0] * len(self._simpoint_start_insts)
+        
+        if (0 in self._simpoint_start_insts):
+            for index in range(len(self._simpoint_start_insts)):
+                if(self._simpoint_start_insts[index]==0):
+                    self._simpoint_start_insts[index]=1
 
     def get_weights_and_simpoints_from_file(
         self,
