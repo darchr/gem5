@@ -28,6 +28,7 @@ from typing import Generator, Optional
 import m5.stats
 from ..components.processors.abstract_processor import AbstractProcessor
 from ..components.processors.switchable_processor import SwitchableProcessor
+from ..utils.simpoint import SimPoint
 from m5.util import warn
 from pathlib import Path
 
@@ -130,3 +131,24 @@ def skip_generator():
     """
     while True:
         yield False
+
+def simpoints_save_checkpoint_generator(
+    checkpoint_dir: Path,
+    simpoint: SimPoint
+    ):
+    simpoint_list = simpoint.get_simpoint_start_insts()
+    count = 0
+    last_start = -1
+    while True:
+        m5.checkpoint((checkpoint_dir / f"cpt.SimPoint{count}").as_posix())
+        last_start = simpoint_list[count]
+        count += 1
+        while(count < len(simpoint_list) and 
+              last_start == simpoint_list[count]):
+            m5.checkpoint((checkpoint_dir / f"cpt.SimPoint{count}").as_posix())
+            last_start = simpoint_list[count]
+            count += 1
+        if(count < len(simpoint_list)):
+            yield False
+        else:
+            yield True
