@@ -56,13 +56,16 @@ class MPU : public ClockedObject
       private:
         MPU* owner;
         bool needSendRetryReq;
+        PortID _id;
 
       public:
-        RespPort(const std::string& name, MPU* owner):
-          ResponsePort(name, owner), owner(owner), needSendRetryReq(false)
+        RespPort(const std::string& name, MPU* owner, PortID id):
+          ResponsePort(name, owner), 
+          owner(owner), needSendRetryReq(false), _id(id)
         {}
         virtual AddrRangeList getAddrRanges() const;
 
+        PortID id() { return _id; }
         void checkRetryReq();
 
       protected:
@@ -100,17 +103,15 @@ class MPU : public ClockedObject
     CoalesceEngine* coalesceEngine;
     PushEngine* pushEngine;
 
-    RespPort inPort;
-
     AddrRangeList localAddrRange;
 
     uint32_t updateQueueSize;
 
     std::unordered_map<PortID, AddrRangeList> portAddrMap;
 
+    std::vector<RespPort> inPorts;
     std::vector<ReqPort> outPorts;
     std::vector<std::deque<std::tuple<Update, Tick>>> updateQueues;
-
 
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
 
@@ -129,7 +130,6 @@ class MPU : public ClockedObject
     void recvFunctional(PacketPtr pkt) { coalesceEngine->recvFunctional(pkt); }
 
     bool handleIncomingUpdate(PacketPtr pkt);
-    void checkRetryReq() { inPort.checkRetryReq(); }
     void handleIncomingWL(Addr addr, WorkListItem wl);
     bool recvWLRead(Addr addr) { return coalesceEngine->recvWLRead(addr); }
     void recvWLWrite(Addr addr, WorkListItem wl);
@@ -142,6 +142,7 @@ class MPU : public ClockedObject
     void recvVertexPush(Addr addr, WorkListItem wl);
 
     void recvReqRetry();
+    void checkRetryReq();
 
     void recvDoneSignal();
     bool done();

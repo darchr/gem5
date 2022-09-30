@@ -42,7 +42,6 @@ MPU::MPU(const Params& params):
     wlEngine(params.wl_engine),
     coalesceEngine(params.coalesce_engine),
     pushEngine(params.push_engine),
-    inPort(name() + ".inPort", this),
     updateQueueSize(params.update_queue_size),
     nextUpdatePushEvent([this] { processNextUpdatePushEvent(); }, name())
 {
@@ -53,16 +52,21 @@ MPU::MPU(const Params& params):
 
     for (int i = 0; i < params.port_out_ports_connection_count; ++i) {
         outPorts.emplace_back(
-                            name() + ".outPorts" + std::to_string(i), this, i);
+                            name() + ".out_ports" + std::to_string(i), this, i);
         updateQueues.emplace_back();
+    }
+
+    for (int i = 0; i < params.port_in_ports_connection_count; ++i) {
+        inPorts.emplace_back(
+                            name() + ".in_ports" + std::to_string(i), this, i);
     }
 }
 
 Port&
 MPU::getPort(const std::string& if_name, PortID idx)
 {
-    if (if_name == "in_port") {
-        return inPort;
+    if (if_name == "in_ports") {
+        return inPorts[idx];
     } else if (if_name == "out_ports") {
         return outPorts[idx];
     } else {
@@ -74,9 +78,11 @@ void
 MPU::init()
 {
     localAddrRange = getAddrRanges();
-    inPort.sendRangeChange();
+    for (int i = 0; i < inPorts.size(); i++){
+        inPorts[i].sendRangeChange();
+    }
     for (int i = 0; i < outPorts.size(); i++){
-        portAddrMap[outPorts[i].id()] = getAddrRanges();
+        portAddrMap[outPorts[i].id()] = outPorts[i].getAddrRanges();
     }
 }
 
@@ -98,6 +104,14 @@ MPU::RespPort::checkRetryReq()
     if (needSendRetryReq) {
         sendRetryReq();
         needSendRetryReq = false;
+    }
+}
+
+void
+MPU::checkRetryReq()
+{
+    for (int i = 0; i < inPorts.size(); ++i) {
+        inPorts[i].checkRetryReq();
     }
 }
 
@@ -197,16 +211,13 @@ MPU::enqueueUpdate(Update update)
     for (auto range : localAddrRange) {
         found_locally |= range.contains(dst_addr);
     }
-    DPRINTF(MPU, "%s: TESSSSTSSSS %d, %d, %llu.\n",
-                    __func__, outPorts.size(), updateQueues[0].size(), dst_addr);
     for (int i = 0; i < outPorts.size(); i++) {
         AddrRangeList addr_range_list = portAddrMap[outPorts[i].id()];
         for (auto range : addr_range_list) {
             if (range.contains(dst_addr)) {
-                if (updateQueues[i].size() < updateQueueSize) {
-                    DPRINTF(MPU, "%s: Queue %d received an update.\n",
-                                        __func__, i);
-                    updateQueues[i].emplace_back(update, curTick());
+                if (updateQueues[outPorts[i].id()].size() < updateQueueSize) {
+                    DPRINTF(MPU, "%s: Queue %d received an update.\n", __func__, i);
+                    updateQueues[outPorts[i].id()].emplace_back(update, curTick());
                     accepted = true;
                     break;
                 }
@@ -268,8 +279,6 @@ MPU::processNextUpdatePushEvent()
     if (next_time_send > 0) {
         schedule(nextUpdatePushEvent, nextCycle());
     }
-
-
 }
 
 void
