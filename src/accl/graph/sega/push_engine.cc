@@ -109,10 +109,12 @@ PushEngine::ReqPort::recvReqRetry()
     panic_if(blockedPacket == nullptr,
             "Received retry without a blockedPacket.");
 
+    DPRINTF(PushEngine, "%s: ReqPort %d received a reqRetry. blockedPacket: %s.\n", __func__, _id, blockedPacket->print());
     PacketPtr pkt = blockedPacket;
     blockedPacket = nullptr;
     sendPacket(pkt);
     if (blockedPacket == nullptr) {
+        DPRINTF(PushEngine, "%s: blockedPacket sent successfully.\n", __func__);
         owner->recvReqRetry();
     }
 }
@@ -120,6 +122,7 @@ PushEngine::ReqPort::recvReqRetry()
 void
 PushEngine::recvReqRetry()
 {
+    DPRINTF(PushEngine, "%s: Received a reqRetry.\n", __func__);
     if (!nextUpdatePushEvent.scheduled()) {
         schedule(nextUpdatePushEvent, nextCycle());
     }
@@ -325,7 +328,7 @@ PushEngine::processNextPropagateEvent()
         edge_list.pop_front();
 
         if (enqueueUpdate(update)) {
-            DPRINTF(PushEngine, "%s: Sending %s to port queues.\n",
+            DPRINTF(PushEngine, "%s: Sent %s to port queues.\n",
                                             __func__, meta_edge.to_string());
             stats.numUpdates++;
             stats.edgeQueueLatency.sample(
@@ -363,14 +366,17 @@ PushEngine::enqueueUpdate(Update update)
     for (auto range : localAddrRange) {
         found_locally |= range.contains(dst_addr);
     }
+    DPRINTF(PushEngine, "%s: Received update: %s.\n", __func__, update.to_string());
     for (int i = 0; i < outPorts.size(); i++) {
         AddrRangeList addr_range_list = portAddrMap[outPorts[i].id()];
         for (auto range : addr_range_list) {
             if (range.contains(dst_addr)) {
+                DPRINTF(PushEngine, "%s: Update: %s belongs to port %d.\n", __func__, update.to_string(), outPorts[i].id());
+                DPRINTF(PushEngine, "%s: There are %d updates already in queue for port %d.\n", __func__, updateQueues[outPorts[i].id()].size(), outPorts[i].id());
                 if (updateQueues[outPorts[i].id()].size() < updateQueueSize) {
-                    DPRINTF(PushEngine, "%s: Queue %d received an update.\n", __func__, i);
+                    DPRINTF(PushEngine, "%s: There is a free entry available in queue %d.\n", __func__, outPorts[i].id());
                     updateQueues[outPorts[i].id()].emplace_back(update, curTick());
-                    DPRINTF(PushEngine, "%s: Size of queue %d is %d.\n", __func__, i, updateQueues[outPorts[i].id()].size());
+                    DPRINTF(PushEngine, "%s: Emplaced the update at the back of queue for port %d is. Size of queue for port %d is %d.\n", __func__, outPorts[i].id(), outPorts[i].id(), updateQueues[outPorts[i].id()].size());
                     accepted = true;
                     break;
                 }
@@ -408,23 +414,47 @@ PushEngine::processNextUpdatePushEvent()
 {
     int next_time_send = 0;
 
-    for (int i = 0; i < updateQueues.size(); i++) {
-        if (updateQueues[i].empty()) {
-            continue;
-        }
+    // for (int i = 0; i < updateQueues.size(); i++) {
+    //     if (updateQueues[i].empty()) {
+    //         continue;
+    //     }
+    //     if (outPorts[i].blocked()) {
+    //         continue;
+    //     }
+    //     Update update;
+    //     Tick entrance_tick;
+    //     std::tie(update, entrance_tick) = updateQueues[i].front();
+    //     PacketPtr pkt = createUpdatePacket<uint32_t>(update.dst, update.value);
+    //     outPorts[i].sendPacket(pkt);
+    //     DPRINTF(PushEngine, "%s: Sent update from addr: %lu to addr: %lu with value: "
+    //                 "%d.\n", __func__, update.src, update.dst, update.value);
+    //     updateQueues[i].pop_front();
+    //     DPRINTF(PushEngine, "%s: Size of queue %d is %d.\n", __func__, i, updateQueues[outPorts[i].id()].size());
+    //     if (updateQueues[i].size() > 0) {
+    //         next_time_send += 1;
+    //     }
+    // }
+
+    for (int i = 0; i < outPorts.size(); i++) {
         if (outPorts[i].blocked()) {
+            DPRINTF(PushEngine, "%s: Port %d blocked.\n", __func__, outPorts[i].id());
             continue;
         }
+        DPRINTF(PushEngine, "%s: Port %d available.\n", __func__, outPorts[i].id());
+        if (updateQueues[outPorts[i].id()].empty()) {
+            DPRINTF(PushEngine, "%s: Respective queue for port %d is empty.\n", __func__, outPorts[i].id());
+            continue;
+        }
+        DPRINTF(PushEngine, "%s: Respective queue for port %d not empty.\n", __func__, outPorts[i].id());
         Update update;
         Tick entrance_tick;
         std::tie(update, entrance_tick) = updateQueues[i].front();
         PacketPtr pkt = createUpdatePacket<uint32_t>(update.dst, update.value);
         outPorts[i].sendPacket(pkt);
-        DPRINTF(PushEngine, "%s: Sent update from addr: %lu to addr: %lu with value: "
-                    "%d.\n", __func__, update.src, update.dst, update.value);
-        updateQueues[i].pop_front();
+        DPRINTF(PushEngine, "%s: Sent update: %s from queue %d to port %d.\n", __func__, outPorts[i].id(), outPorts[i].id());
+        updateQueues[outPorts[i].id()].pop_front();
         DPRINTF(PushEngine, "%s: Size of queue %d is %d.\n", __func__, i, updateQueues[outPorts[i].id()].size());
-        if (updateQueues[i].size() > 0) {
+        if (updateQueues[outPorts[i].id()].size() > 0) {
             next_time_send += 1;
         }
     }
