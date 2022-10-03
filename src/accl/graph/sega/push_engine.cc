@@ -44,16 +44,85 @@ PushEngine::PushEngine(const Params& params):
     onTheFlyMemReqs(0), edgeQueueSize(params.resp_queue_size),
     maxPropagatesPerCycle(params.max_propagates_per_cycle),
     workload(params.workload),
+    updateQueueSize(params.update_queue_size),
     nextVertexPullEvent([this] { processNextVertexPullEvent(); }, name()),
     nextMemoryReadEvent([this] { processNextMemoryReadEvent(); }, name()),
     nextPropagateEvent([this] { processNextPropagateEvent(); }, name()),
+    nextUpdatePushEvent([this] { processNextUpdatePushEvent(); }, name()),
     stats(*this)
-{}
+{
+    for (int i = 0; i < params.port_out_ports_connection_count; ++i) {
+        outPorts.emplace_back(
+                            name() + ".out_ports" + std::to_string(i), this, i);
+        updateQueues.emplace_back();
+    }
+}
+
+Port&
+PushEngine::getPort(const std::string& if_name, PortID idx)
+{
+    if (if_name == "out_ports") {
+        return outPorts[idx];
+    } else if (if_name == "mem_port") {
+        return BaseMemoryEngine::getPort(if_name, idx);
+    } else {
+        return ClockedObject::getPort(if_name, idx);
+    }
+}
+
+void
+PushEngine::init()
+{
+    localAddrRange = owner->getAddrRanges();
+    for (int i = 0; i < outPorts.size(); i++){
+        portAddrMap[outPorts[i].id()] = outPorts[i].getAddrRanges();
+    }
+}
 
 void
 PushEngine::registerMPU(MPU* mpu)
 {
     owner = mpu;
+}
+
+void
+PushEngine::ReqPort::sendPacket(PacketPtr pkt)
+{
+    panic_if(blockedPacket != nullptr,
+            "Should never try to send if blocked!");
+    // If we can't send the packet across the port, store it for later.
+    if (!sendTimingReq(pkt))
+    {
+        blockedPacket = pkt;
+    }
+}
+
+bool
+PushEngine::ReqPort::recvTimingResp(PacketPtr pkt)
+{
+    panic("recvTimingResp called on the request port.");
+}
+
+void
+PushEngine::ReqPort::recvReqRetry()
+{
+    panic_if(blockedPacket == nullptr,
+            "Received retry without a blockedPacket.");
+
+    PacketPtr pkt = blockedPacket;
+    blockedPacket = nullptr;
+    sendPacket(pkt);
+    if (blockedPacket == nullptr) {
+        owner->recvReqRetry();
+    }
+}
+
+void
+PushEngine::recvReqRetry()
+{
+    if (!nextUpdatePushEvent.scheduled()) {
+        schedule(nextUpdatePushEvent, nextCycle());
+    }
 }
 
 bool
@@ -255,7 +324,7 @@ PushEngine::processNextPropagateEvent()
         Update update(meta_edge.src, meta_edge.dst, update_value);
         edge_list.pop_front();
 
-        if (owner->enqueueUpdate(update)) {
+        if (enqueueUpdate(update)) {
             DPRINTF(PushEngine, "%s: Sending %s to port queues.\n",
                                             __func__, meta_edge.to_string());
             stats.numUpdates++;
@@ -282,6 +351,87 @@ PushEngine::processNextPropagateEvent()
     assert(!nextPropagateEvent.scheduled());
     if (!edgeQueue.empty()) {
         schedule(nextPropagateEvent, nextCycle());
+    }
+}
+
+bool
+PushEngine::enqueueUpdate(Update update)
+{
+    Addr dst_addr = update.dst;
+    bool found_locally = false;
+    bool accepted = false;
+    for (auto range : localAddrRange) {
+        found_locally |= range.contains(dst_addr);
+    }
+    for (int i = 0; i < outPorts.size(); i++) {
+        AddrRangeList addr_range_list = portAddrMap[outPorts[i].id()];
+        for (auto range : addr_range_list) {
+            if (range.contains(dst_addr)) {
+                if (updateQueues[outPorts[i].id()].size() < updateQueueSize) {
+                    DPRINTF(PushEngine, "%s: Queue %d received an update.\n", __func__, i);
+                    updateQueues[outPorts[i].id()].emplace_back(update, curTick());
+                    DPRINTF(PushEngine, "%s: Size of queue %d is %d.\n", __func__, i, updateQueues[outPorts[i].id()].size());
+                    accepted = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (accepted && (!nextUpdatePushEvent.scheduled())) {
+        schedule(nextUpdatePushEvent, nextCycle());
+    }
+
+    return accepted;
+}
+
+template<typename T> PacketPtr
+PushEngine::createUpdatePacket(Addr addr, T value)
+{
+    RequestPtr req = std::make_shared<Request>(addr, sizeof(T), 0, 0);
+    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
+    // bits
+    req->setPC(((Addr) 1) << 2);
+
+    // FIXME: MemCmd::UpdateWL
+    PacketPtr pkt = new Packet(req, MemCmd::UpdateWL);
+
+    pkt->allocate();
+    // pkt->setData(data);
+    pkt->setLE<T>(value);
+
+    return pkt;
+}
+
+void
+PushEngine::processNextUpdatePushEvent()
+{
+    int next_time_send = 0;
+
+    for (int i = 0; i < updateQueues.size(); i++) {
+        if (updateQueues[i].empty()) {
+            continue;
+        }
+        if (outPorts[i].blocked()) {
+            continue;
+        }
+        Update update;
+        Tick entrance_tick;
+        std::tie(update, entrance_tick) = updateQueues[i].front();
+        PacketPtr pkt = createUpdatePacket<uint32_t>(update.dst, update.value);
+        outPorts[i].sendPacket(pkt);
+        DPRINTF(PushEngine, "%s: Sent update from addr: %lu to addr: %lu with value: "
+                    "%d.\n", __func__, update.src, update.dst, update.value);
+        updateQueues[i].pop_front();
+        DPRINTF(PushEngine, "%s: Size of queue %d is %d.\n", __func__, i, updateQueues[outPorts[i].id()].size());
+        if (updateQueues[i].size() > 0) {
+            next_time_send += 1;
+        }
+    }
+
+    assert(!nextUpdatePushEvent.scheduled());
+    if (next_time_send > 0) {
+        schedule(nextUpdatePushEvent, nextCycle());
     }
 }
 
