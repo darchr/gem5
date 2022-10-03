@@ -29,7 +29,6 @@
 #include "accl/graph/sega/mpu.hh"
 
 #include "accl/graph/sega/centeral_controller.hh"
-#include "debug/MPU.hh"
 #include "mem/packet_access.hh"
 #include "sim/sim_exit.hh"
 
@@ -37,7 +36,7 @@ namespace gem5
 {
 
 MPU::MPU(const Params& params):
-    ClockedObject(params),
+    SimObject(params),
     system(params.system),
     wlEngine(params.wl_engine),
     coalesceEngine(params.coalesce_engine),
@@ -46,87 +45,15 @@ MPU::MPU(const Params& params):
     wlEngine->registerMPU(this);
     coalesceEngine->registerMPU(this);
     pushEngine->registerMPU(this);
-
-    for (int i = 0; i < params.port_in_ports_connection_count; ++i) {
-        inPorts.emplace_back(
-                            name() + ".in_ports" + std::to_string(i), this, i);
-    }
 }
 
-Port&
-MPU::getPort(const std::string& if_name, PortID idx)
-{
-    if (if_name == "in_ports") {
-        return inPorts[idx];
-    } else {
-        return ClockedObject::getPort(if_name, idx);
-    }
-}
-
-void
-MPU::init()
-{
-    for (int i = 0; i < inPorts.size(); i++){
-        inPorts[i].sendRangeChange();
-    }
-}
+MPU::~MPU()
+{}
 
 void
 MPU::registerCenteralController(CenteralController* centeral_controller)
 {
     centeralController = centeral_controller;
-}
-
-AddrRangeList
-MPU::RespPort::getAddrRanges() const
-{
-    return owner->getAddrRanges();
-}
-
-void
-MPU::RespPort::checkRetryReq()
-{
-    if (needSendRetryReq) {
-        sendRetryReq();
-        needSendRetryReq = false;
-    }
-}
-
-void
-MPU::checkRetryReq()
-{
-    for (int i = 0; i < inPorts.size(); ++i) {
-        inPorts[i].checkRetryReq();
-    }
-}
-
-bool
-MPU::RespPort::recvTimingReq(PacketPtr pkt)
-{
-    if (!owner->handleIncomingUpdate(pkt)) {
-        needSendRetryReq = true;
-        return false;
-    }
-
-    return true;
-}
-
-Tick
-MPU::RespPort::recvAtomic(PacketPtr pkt)
-{
-    panic("recvAtomic unimpl.");
-}
-
-void
-MPU::RespPort::recvFunctional(PacketPtr pkt)
-{
-    owner->recvFunctional(pkt);
-}
-
-void
-MPU::RespPort::recvRespRetry()
-{
-    panic("recvRespRetry from response port is called.");
 }
 
 bool

@@ -34,11 +34,15 @@ class WLEngine(BaseReduceEngine):
     cxx_header = "accl/graph/sega/wl_engine.hh"
     cxx_class = 'gem5::WLEngine'
 
+    in_ports = VectorResponsePort("Incoming Ports to receive updates from "
+                                                "remote outside")
+
     update_queue_size = Param.Int("Size of the queue WLEngine stores "
                                         "the incoming updates")
+
     register_file_size = Param.Int("Number of internal registers the "
                                     "WLEngine has. It can service as "
                                     "many updates as this queueu has "
-                                    "entries at the same time.") # 4 is arbitrary
+                                    "entries at the same time.")
 
     workload = Param.String('BFS',"Name of the workload")

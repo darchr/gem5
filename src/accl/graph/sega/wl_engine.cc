@@ -45,12 +45,99 @@ WLEngine::WLEngine(const WLEngineParams& params):
     nextReadEvent([this]{ processNextReadEvent(); }, name()),
     nextReduceEvent([this]{ processNextReduceEvent(); }, name()),
     stats(*this)
-{}
+{
+    for (int i = 0; i < params.port_in_ports_connection_count; ++i) {
+        inPorts.emplace_back(
+                            name() + ".in_ports" + std::to_string(i), this, i);
+    }
+}
+
+Port&
+WLEngine::getPort(const std::string& if_name, PortID idx)
+{
+    if (if_name == "in_ports") {
+        return inPorts[idx];
+    } else {
+        return ClockedObject::getPort(if_name, idx);
+    }
+}
+
+void
+WLEngine::init()
+{
+    for (int i = 0; i < inPorts.size(); i++){
+        inPorts[i].sendRangeChange();
+    }
+}
 
 void
 WLEngine::registerMPU(MPU* mpu)
 {
     owner = mpu;
+}
+
+AddrRangeList 
+WLEngine::getAddrRanges()
+{ 
+    return owner->getAddrRanges(); 
+}
+
+void 
+WLEngine::recvFunctional(PacketPtr pkt)
+{ 
+    owner->recvFunctional(pkt); 
+}
+
+AddrRangeList
+WLEngine::RespPort::getAddrRanges() const
+{
+    return owner->getAddrRanges();
+}
+
+void
+WLEngine::RespPort::checkRetryReq()
+{
+    if (needSendRetryReq) {
+        sendRetryReq();
+        needSendRetryReq = false;
+    }
+}
+
+bool
+WLEngine::RespPort::recvTimingReq(PacketPtr pkt)
+{
+    if (!owner->handleIncomingUpdate(pkt)) {
+        needSendRetryReq = true;
+        return false;
+    }
+
+    return true;
+}
+
+Tick
+WLEngine::RespPort::recvAtomic(PacketPtr pkt)
+{
+    panic("recvAtomic unimpl.");
+}
+
+void
+WLEngine::RespPort::recvFunctional(PacketPtr pkt)
+{
+    owner->recvFunctional(pkt);
+}
+
+void
+WLEngine::RespPort::recvRespRetry()
+{
+    panic("recvRespRetry from response port is called.");
+}
+
+void
+WLEngine::checkRetryReq()
+{
+    for (int i = 0; i < inPorts.size(); ++i) {
+        inPorts[i].checkRetryReq();
+    }
 }
 
 bool
@@ -144,7 +231,7 @@ WLEngine::processNextReadEvent()
                             "from updateQueue. updateQueue.size = %d. "
                             "updateQueueSize = %d.\n", __func__, update_addr,
                             update_value, updateQueue.size(), updateQueueSize);
-                owner->checkRetryReq();
+                checkRetryReq();
                 vertexReadTime[update_addr] = curTick();
             }
         } else {
@@ -173,7 +260,7 @@ WLEngine::processNextReadEvent()
                     "from updateQueue. updateQueue.size = %d. "
                     "updateQueueSize = %d.\n", __func__, update_addr,
                     update_value, updateQueue.size(), updateQueueSize);
-        owner->checkRetryReq();
+        checkRetryReq();
     }
 
     if (!updateQueue.empty() && (!nextReadEvent.scheduled())) {
