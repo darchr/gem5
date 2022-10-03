@@ -61,7 +61,8 @@ class GPT(SubSystem):
         self.push_engine = PushEngine(
                                     push_req_queue_size=32,
                                     attached_memory_atom_size=64,
-                                    resp_queue_size=64
+                                    resp_queue_size=64,
+                                    update_queue_size=16
                                     )
 
         self.vertex_mem_ctrl = MemCtrl(dram=HBM_1000_4H_1x128(burst_length=2))
@@ -78,8 +79,7 @@ class GPT(SubSystem):
         self.mpu = MPU(
                     wl_engine=self.wl_engine,
                     coalesce_engine=self.coalesce_engine,
-                    push_engine=self.push_engine,
-                    update_queue_size=16
+                    push_engine=self.push_engine
                     )
 
     def getRespPort(self):
@@ -88,9 +88,9 @@ class GPT(SubSystem):
         self.mpu.in_ports = port
 
     def getReqPort(self):
-        return self.mpu.out_ports
+        return self.push_engine.out_ports
     def setReqPort(self, port):
-        self.mpu.out_ports = port
+        self.push_engine.out_ports = port
 
     def set_vertex_range(self, vertex_range):
         self.vertex_mem_ctrl.dram.range = vertex_range

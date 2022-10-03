@@ -75,27 +75,6 @@ class MPU : public ClockedObject
         virtual void recvRespRetry();
     };
 
-    class ReqPort : public RequestPort
-    {
-      private:
-        MPU* owner;
-        PacketPtr blockedPacket;
-        PortID _id;
-
-      public:
-        ReqPort(const std::string& name, MPU* owner, PortID id) :
-          RequestPort(name, owner), 
-          owner(owner), blockedPacket(nullptr), _id(id)
-        {}
-        void sendPacket(PacketPtr pkt);
-        bool blocked() { return (blockedPacket != nullptr); }
-        PortID id() { return _id; }
-
-      protected:
-        virtual bool recvTimingResp(PacketPtr pkt);
-        virtual void recvReqRetry();
-    };
-
     System* system;
     CenteralController* centeralController;
 
@@ -103,20 +82,7 @@ class MPU : public ClockedObject
     CoalesceEngine* coalesceEngine;
     PushEngine* pushEngine;
 
-    AddrRangeList localAddrRange;
-
-    uint32_t updateQueueSize;
-
-    std::unordered_map<PortID, AddrRangeList> portAddrMap;
-
     std::vector<RespPort> inPorts;
-    std::vector<ReqPort> outPorts;
-    std::vector<std::deque<std::tuple<Update, Tick>>> updateQueues;
-
-    template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
-
-    EventFunctionWrapper nextUpdatePushEvent;
-    void processNextUpdatePushEvent();
 
   public:
     PARAMS(MPU);
@@ -133,7 +99,6 @@ class MPU : public ClockedObject
     void handleIncomingWL(Addr addr, WorkListItem wl);
     bool recvWLRead(Addr addr) { return coalesceEngine->recvWLRead(addr); }
     void recvWLWrite(Addr addr, WorkListItem wl);
-    bool enqueueUpdate(Update update);
 
     int workCount() { return coalesceEngine->workCount(); }
     void recvVertexPull() { return coalesceEngine->recvVertexPull(); }
@@ -141,7 +106,6 @@ class MPU : public ClockedObject
     void start() { return pushEngine->start(); }
     void recvVertexPush(Addr addr, WorkListItem wl);
 
-    void recvReqRetry();
     void checkRetryReq();
 
     void recvDoneSignal();

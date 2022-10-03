@@ -41,20 +41,11 @@ MPU::MPU(const Params& params):
     system(params.system),
     wlEngine(params.wl_engine),
     coalesceEngine(params.coalesce_engine),
-    pushEngine(params.push_engine),
-    updateQueueSize(params.update_queue_size),
-    nextUpdatePushEvent([this] { processNextUpdatePushEvent(); }, name())
+    pushEngine(params.push_engine)
 {
     wlEngine->registerMPU(this);
     coalesceEngine->registerMPU(this);
     pushEngine->registerMPU(this);
-
-
-    for (int i = 0; i < params.port_out_ports_connection_count; ++i) {
-        outPorts.emplace_back(
-                            name() + ".out_ports" + std::to_string(i), this, i);
-        updateQueues.emplace_back();
-    }
 
     for (int i = 0; i < params.port_in_ports_connection_count; ++i) {
         inPorts.emplace_back(
@@ -67,8 +58,6 @@ MPU::getPort(const std::string& if_name, PortID idx)
 {
     if (if_name == "in_ports") {
         return inPorts[idx];
-    } else if (if_name == "out_ports") {
-        return outPorts[idx];
     } else {
         return ClockedObject::getPort(if_name, idx);
     }
@@ -77,12 +66,8 @@ MPU::getPort(const std::string& if_name, PortID idx)
 void
 MPU::init()
 {
-    localAddrRange = getAddrRanges();
     for (int i = 0; i < inPorts.size(); i++){
         inPorts[i].sendRangeChange();
-    }
-    for (int i = 0; i < outPorts.size(); i++){
-        portAddrMap[outPorts[i].id()] = outPorts[i].getAddrRanges();
     }
 }
 
@@ -144,46 +129,6 @@ MPU::RespPort::recvRespRetry()
     panic("recvRespRetry from response port is called.");
 }
 
-void
-MPU::ReqPort::sendPacket(PacketPtr pkt)
-{
-    panic_if(blockedPacket != nullptr,
-            "Should never try to send if blocked!");
-    // If we can't send the packet across the port, store it for later.
-    if (!sendTimingReq(pkt))
-    {
-        blockedPacket = pkt;
-    }
-}
-
-bool
-MPU::ReqPort::recvTimingResp(PacketPtr pkt)
-{
-    panic("recvTimingResp called on the request port.");
-}
-
-void
-MPU::ReqPort::recvReqRetry()
-{
-    panic_if(blockedPacket == nullptr,
-            "Received retry without a blockedPacket.");
-
-    PacketPtr pkt = blockedPacket;
-    blockedPacket = nullptr;
-    sendPacket(pkt);
-    if (blockedPacket == nullptr) {
-        owner->recvReqRetry();
-    }
-}
-
-void
-MPU::recvReqRetry()
-{
-    if (!nextUpdatePushEvent.scheduled()) {
-        schedule(nextUpdatePushEvent, nextCycle());
-    }
-}
-
 bool
 MPU::handleIncomingUpdate(PacketPtr pkt)
 {
@@ -200,85 +145,6 @@ void
 MPU::recvWLWrite(Addr addr, WorkListItem wl)
 {
     coalesceEngine->recvWLWrite(addr, wl);
-}
-
-bool
-MPU::enqueueUpdate(Update update)
-{
-    Addr dst_addr = update.dst;
-    bool found_locally = false;
-    bool accepted = false;
-    for (auto range : localAddrRange) {
-        found_locally |= range.contains(dst_addr);
-    }
-    for (int i = 0; i < outPorts.size(); i++) {
-        AddrRangeList addr_range_list = portAddrMap[outPorts[i].id()];
-        for (auto range : addr_range_list) {
-            if (range.contains(dst_addr)) {
-                if (updateQueues[outPorts[i].id()].size() < updateQueueSize) {
-                    DPRINTF(MPU, "%s: Queue %d received an update.\n", __func__, i);
-                    updateQueues[outPorts[i].id()].emplace_back(update, curTick());
-                    accepted = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    if (accepted && (!nextUpdatePushEvent.scheduled())) {
-        schedule(nextUpdatePushEvent, nextCycle());
-    }
-
-    return accepted;
-}
-
-template<typename T> PacketPtr
-MPU::createUpdatePacket(Addr addr, T value)
-{
-    RequestPtr req = std::make_shared<Request>(addr, sizeof(T), 0, 0);
-    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
-    // bits
-    req->setPC(((Addr) 1) << 2);
-
-    // FIXME: MemCmd::UpdateWL
-    PacketPtr pkt = new Packet(req, MemCmd::UpdateWL);
-
-    pkt->allocate();
-    // pkt->setData(data);
-    pkt->setLE<T>(value);
-
-    return pkt;
-}
-
-void
-MPU::processNextUpdatePushEvent()
-{
-    int next_time_send = 0;
-
-    for (int i = 0; i < updateQueues.size(); i++) {
-        if (updateQueues[i].empty()) {
-            continue;
-        }
-        if (outPorts[i].blocked()) {
-            continue;
-        }
-        Update update;
-        Tick entrance_tick;
-        std::tie(update, entrance_tick) = updateQueues[i].front();
-        PacketPtr pkt = createUpdatePacket<uint32_t>(update.dst, update.value);
-        outPorts[i].sendPacket(pkt);
-        DPRINTF(MPU, "%s: Sent update from addr: %lu to addr: %lu with value: "
-                    "%d.\n", __func__, update.src, update.dst, update.value);
-        updateQueues[i].pop_front();
-        if (updateQueues[i].size() > 0) {
-            next_time_send += 1;
-        }
-    }
-
-    assert(!nextUpdatePushEvent.scheduled());
-    if (next_time_send > 0) {
-        schedule(nextUpdatePushEvent, nextCycle());
-    }
 }
 
 void
