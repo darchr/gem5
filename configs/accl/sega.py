@@ -83,9 +83,9 @@ class GPT(SubSystem):
                     )
 
     def getRespPort(self):
-        return self.mpu.in_ports
+        return self.wl_engine.in_ports
     def setRespPort(self, port):
-        self.mpu.in_ports = port
+        self.wl_engine.in_ports = port
 
     def getReqPort(self):
         return self.push_engine.out_ports

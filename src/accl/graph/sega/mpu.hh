@@ -38,8 +38,7 @@
 #include "accl/graph/sega/wl_engine.hh"
 #include "base/addr_range.hh"
 #include "mem/packet.hh"
-#include "mem/port.hh"
-#include "sim/clocked_object.hh"
+#include "sim/sim_object.hh"
 #include "sim/system.hh"
 #include "params/MPU.hh"
 
@@ -48,33 +47,9 @@ namespace gem5
 
 class CenteralController;
 
-class MPU : public ClockedObject
+class MPU : public SimObject
 {
   private:
-    class RespPort : public ResponsePort
-    {
-      private:
-        MPU* owner;
-        bool needSendRetryReq;
-        PortID _id;
-
-      public:
-        RespPort(const std::string& name, MPU* owner, PortID id):
-          ResponsePort(name, owner), 
-          owner(owner), needSendRetryReq(false), _id(id)
-        {}
-        virtual AddrRangeList getAddrRanges() const;
-
-        PortID id() { return _id; }
-        void checkRetryReq();
-
-      protected:
-        virtual bool recvTimingReq(PacketPtr pkt);
-        virtual Tick recvAtomic(PacketPtr pkt);
-        virtual void recvFunctional(PacketPtr pkt);
-        virtual void recvRespRetry();
-    };
-
     System* system;
     CenteralController* centeralController;
 
@@ -82,20 +57,16 @@ class MPU : public ClockedObject
     CoalesceEngine* coalesceEngine;
     PushEngine* pushEngine;
 
-    std::vector<RespPort> inPorts;
-
   public:
     PARAMS(MPU);
     MPU(const Params& params);
-    Port& getPort(const std::string& if_name,
-                PortID idx = InvalidPortID) override;
-    virtual void init() override;
+    ~MPU();
     void registerCenteralController(CenteralController* centeral_controller);
 
     AddrRangeList getAddrRanges() { return coalesceEngine->getAddrRanges(); }
     void recvFunctional(PacketPtr pkt) { coalesceEngine->recvFunctional(pkt); }
-
     bool handleIncomingUpdate(PacketPtr pkt);
+
     void handleIncomingWL(Addr addr, WorkListItem wl);
     bool recvWLRead(Addr addr) { return coalesceEngine->recvWLRead(addr); }
     void recvWLWrite(Addr addr, WorkListItem wl);
@@ -105,8 +76,6 @@ class MPU : public ClockedObject
     bool running() { return pushEngine->running(); }
     void start() { return pushEngine->start(); }
     void recvVertexPush(Addr addr, WorkListItem wl);
-
-    void checkRetryReq();
 
     void recvDoneSignal();
     bool done();
