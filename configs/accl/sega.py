@@ -48,8 +48,8 @@ class GPT(SubSystem):
     def __init__(self, edge_memory_size: str, cache_size: str):
         super().__init__()
         self.wl_engine = WLEngine(
-                                update_queue_size=64,
-                                register_file_size=32
+                                update_queue_size=2,
+                                register_file_size=2
                                 )
         self.coalesce_engine = CoalesceEngine(
                                             attached_memory_atom_size=32,
@@ -62,7 +62,7 @@ class GPT(SubSystem):
                                     push_req_queue_size=32,
                                     attached_memory_atom_size=64,
                                     resp_queue_size=64,
-                                    update_queue_size=16
+                                    update_queue_size=2
                                     )
 
         self.vertex_mem_ctrl = MemCtrl(dram=HBM_1000_4H_1x128(burst_length=2))

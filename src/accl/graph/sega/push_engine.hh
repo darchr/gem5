@@ -132,10 +132,11 @@ class PushEngine : public BaseMemoryEngine
     uint32_t propagate(uint32_t value, uint32_t weight);
 
     int updateQueueSize;
-    std::vector<std::deque<std::tuple<Update, Tick>>> updateQueues;
+    // std::vector<std::deque<std::tuple<Update, Tick>>> updateQueues;
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
     bool enqueueUpdate(Update update);
     std::unordered_map<PortID, AddrRangeList> portAddrMap;
+    std::unordered_map<PortID, std::deque<std::tuple<Update, Tick>>> updateQueues;
     std::vector<ReqPort> outPorts;
 
     bool vertexSpace();
