@@ -98,8 +98,8 @@ void
 WLEngine::RespPort::checkRetryReq()
 {
     if (needSendRetryReq) {
-        sendRetryReq();
         needSendRetryReq = false;
+        sendRetryReq();
     }
 }
 
