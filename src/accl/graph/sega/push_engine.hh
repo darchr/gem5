@@ -51,7 +51,7 @@ class PushEngine : public BaseMemoryEngine
 
       public:
         ReqPort(const std::string& name, PushEngine* owner, PortID id) :
-          RequestPort(name, owner), 
+          RequestPort(name, owner),
           owner(owner), blockedPacket(nullptr), _id(id)
         {}
         void sendPacket(PacketPtr pkt);
@@ -132,7 +132,6 @@ class PushEngine : public BaseMemoryEngine
     uint32_t propagate(uint32_t value, uint32_t weight);
 
     int updateQueueSize;
-    // std::vector<std::deque<std::tuple<Update, Tick>>> updateQueues;
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
     bool enqueueUpdate(Update update);
     std::unordered_map<PortID, AddrRangeList> portAddrMap;
@@ -170,6 +169,7 @@ class PushEngine : public BaseMemoryEngine
 
       statistics::Histogram edgePointerQueueLatency;
       statistics::Histogram edgeQueueLatency;
+      statistics::Histogram updateQueueLength;
     };
 
     PushStats stats;
