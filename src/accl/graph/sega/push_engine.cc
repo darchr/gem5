@@ -54,7 +54,6 @@ PushEngine::PushEngine(const Params& params):
     for (int i = 0; i < params.port_out_ports_connection_count; ++i) {
         outPorts.emplace_back(
                             name() + ".out_ports" + std::to_string(i), this, i);
-        updateQueues.emplace_back();
     }
 }
 
@@ -93,6 +92,7 @@ PushEngine::ReqPort::sendPacket(PacketPtr pkt)
     // If we can't send the packet across the port, store it for later.
     if (!sendTimingReq(pkt))
     {
+        DPRINTF(PushEngine, "%s: Packet is blocked.\n", __func__);
         blockedPacket = pkt;
     }
 }
@@ -386,7 +386,7 @@ PushEngine::enqueueUpdate(Update update)
 
     if (accepted && (!nextUpdatePushEvent.scheduled())) {
         schedule(nextUpdatePushEvent, nextCycle());
-    }
+    } 
 
     return accepted;
 }
@@ -448,10 +448,10 @@ PushEngine::processNextUpdatePushEvent()
         DPRINTF(PushEngine, "%s: Respective queue for port %d not empty.\n", __func__, outPorts[i].id());
         Update update;
         Tick entrance_tick;
-        std::tie(update, entrance_tick) = updateQueues[i].front();
+        std::tie(update, entrance_tick) = updateQueues[outPorts[i].id()].front();
         PacketPtr pkt = createUpdatePacket<uint32_t>(update.dst, update.value);
         outPorts[i].sendPacket(pkt);
-        DPRINTF(PushEngine, "%s: Sent update: %s from queue %d to port %d.\n", __func__, outPorts[i].id(), outPorts[i].id());
+        DPRINTF(PushEngine, "%s: Sent update: %s from queue %d to port %d the queue size is %d.\n", __func__, update.to_string(), outPorts[i].id(), outPorts[i].id(), updateQueues[outPorts[i].id()].size());
         updateQueues[outPorts[i].id()].pop_front();
         DPRINTF(PushEngine, "%s: Size of queue %d is %d.\n", __func__, i, updateQueues[outPorts[i].id()].size());
         if (updateQueues[outPorts[i].id()].size() > 0) {
