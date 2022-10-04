@@ -47,9 +47,6 @@ MPU::MPU(const Params& params):
     pushEngine->registerMPU(this);
 }
 
-MPU::~MPU()
-{}
-
 void
 MPU::registerCenteralController(CenteralController* centeral_controller)
 {
