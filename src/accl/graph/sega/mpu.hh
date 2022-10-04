@@ -60,7 +60,6 @@ class MPU : public SimObject
   public:
     PARAMS(MPU);
     MPU(const Params& params);
-    ~MPU();
     void registerCenteralController(CenteralController* centeral_controller);
 
     AddrRangeList getAddrRanges() { return coalesceEngine->getAddrRanges(); }

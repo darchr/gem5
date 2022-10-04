@@ -48,21 +48,21 @@ class GPT(SubSystem):
     def __init__(self, edge_memory_size: str, cache_size: str):
         super().__init__()
         self.wl_engine = WLEngine(
-                                update_queue_size=2,
-                                register_file_size=2
+                                update_queue_size=128,
+                                register_file_size=64
                                 )
         self.coalesce_engine = CoalesceEngine(
                                             attached_memory_atom_size=32,
                                             cache_size=cache_size,
-                                            num_mshr_entry=32,
-                                            num_tgts_per_mshr=32,
-                                            max_resp_per_cycle=4
+                                            num_mshr_entry=64,
+                                            num_tgts_per_mshr=64,
+                                            max_resp_per_cycle=8
                                             )
         self.push_engine = PushEngine(
                                     push_req_queue_size=32,
                                     attached_memory_atom_size=64,
                                     resp_queue_size=64,
-                                    update_queue_size=2
+                                    update_queue_size=16
                                     )
 
         self.vertex_mem_ctrl = MemCtrl(dram=HBM_1000_4H_1x128(burst_length=2))
@@ -101,7 +101,7 @@ class SEGA(System):
     def __init__(self, num_mpus, cache_size, graph_path):
         super(SEGA, self).__init__()
         self.clk_domain = SrcClockDomain()
-        self.clk_domain.clock = '1GHz'
+        self.clk_domain.clock = '2GHz'
         self.clk_domain.voltage_domain = VoltageDomain()
         self.cache_line_size = 32
         self.mem_mode = "timing"
