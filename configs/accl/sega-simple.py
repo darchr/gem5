@@ -31,18 +31,18 @@ from math import log
 from m5.objects import *
 
 def interleave_addresses(plain_range, num_channels, cache_line_size):
-        intlv_low_bit = log(cache_line_size, 2)
-        intlv_bits = log(num_channels, 2)
-        ret = []
-        for i in range(num_channels):
-            ret.append(AddrRange(
-                start=plain_range.start,
-                size=plain_range.size(),
-                intlvHighBit=intlv_low_bit + intlv_bits - 1,
-                xorHighBit=0,
-                intlvBits=intlv_bits,
-                intlvMatch=i))
-        return ret
+    intlv_low_bit = log(cache_line_size, 2)
+    intlv_bits = log(num_channels, 2)
+    ret = []
+    for i in range(num_channels):
+        ret.append(AddrRange(
+            start=plain_range.start,
+            size=plain_range.size(),
+            intlvHighBit=intlv_low_bit + intlv_bits - 1,
+            xorHighBit=0,
+            intlvBits=intlv_bits,
+            intlvMatch=i))
+    return ret
 
 class GPT(SubSystem):
     def __init__(self, edge_memory_size: str, cache_size: str):
