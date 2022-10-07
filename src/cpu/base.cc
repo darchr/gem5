@@ -727,12 +727,8 @@ void
 BaseCPU::scheduleSimpointsInstStop(std::vector<Counter> inst_starts)
 {
     std::string cause = "simpoint starting point found";
-    Counter last = -1;
     for (size_t i = 0; i < inst_starts.size(); ++i) {
-        if (last != inst_starts[i]) {
-            scheduleInstStop(0, inst_starts[i], cause);
-            last = inst_starts[i];
-        }
+        scheduleInstStop(0, inst_starts[i], cause);
     }
 }
 
