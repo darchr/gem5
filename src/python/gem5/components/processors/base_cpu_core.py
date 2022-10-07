@@ -154,11 +154,10 @@ class BaseCPUCore(AbstractCore):
 
     @overrides(AbstractCore)
     def set_simpoint(self, inst_starts: List[int], init: bool) -> None:
-        schedule_insts = [*set(inst_starts)]
         if init:
-            self.core.simpoint_start_insts = schedule_insts
+            self.core.simpoint_start_insts = [*set(inst_starts)]
         else:
-            self.core.scheduleSimpointsInstStop(schedule_insts)
+            self.core.scheduleSimpointsInstStop([*set(inst_starts)])
 
     @overrides(AbstractCore)
     def set_inst_stop_any_thread(self, inst: int, init: bool) -> None:
