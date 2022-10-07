@@ -735,33 +735,37 @@ class AddrRange
     }
 
     friend AddrRange
-    merge(const AddrRange& left, const AddrRange& right)
+    mergePseudoChannelRanges(AddrRange left, AddrRange right, int pch_bit)
     {
         assert(left.interleaved());
         assert(right.interleaved());
         assert(left.mergesWith(right));
 
-        int bits_org = left.masks.size();
-        int bits_new = bits_org - 1;
+        uint8_t old_left_match = left.intlvMatch;
+        uint8_t new_left_match = 0;
+        uint8_t old_right_match = right.intlvMatch;
+        uint8_t new_right_match = 0;
+        int new_bits = left.masks.size() - 1;
 
-        int left_match = left.intlvMatch;
-        int right_match = right.intlvMatch;
-        assert(std::abs(left_match - right_match) == (1 << bits_new));
-
-        Addr last_mask = left.masks[left.masks.size() - 1];
-        int xor_high_bit_org = 0;
-        int xor_high_bit_new = 0;
-        if (!isPowerOf2(last_mask)) {
-            xor_high_bit_org = ceilLog2<Addr>(last_mask);
-            xor_high_bit_new = xor_high_bit_org - 2;
+        // assumption: masks is sorted in ascending order
+        std::vector<Addr> new_masks;
+        for (auto mask: left.masks) {
+            uint64_t lsb_mask = (mask ^ (mask - 1)) + 1;
+            if ((lsb_mask >> 1) != (1 << pch_bit)) {
+                new_masks.push_back(mask);
+                new_left_match |= ((old_left_match & 1) << new_bits);
+                new_left_match >>= 1;
+                new_right_match |= ((old_right_match & 1) << new_bits);
+                new_right_match >>= 1;
+            }
+            old_left_match >>= 1;
+            old_right_match >>= 1;
         }
-        int intlv_high_bit_org =
-                        ceilLog2<Addr>(last_mask ^ (1 << xor_high_bit_org));
-        int intlv_high_bit_new = intlv_high_bit_org - 2;
+        panic_if(new_left_match != new_right_match,
+                    "The two ranges can not be a pseudo channel pair "
+                    "given the pseudochannel bit position of params.pch_bit.");
 
-        int match = std::min(left_match, right_match);
-        return AddrRange(left._start, left._end, intlv_high_bit_new,
-                            xor_high_bit_new, bits_new, match);
+        return AddrRange(left._start, left._end, new_masks, new_left_match);
     }
 };
 

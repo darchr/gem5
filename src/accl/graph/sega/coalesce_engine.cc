@@ -227,9 +227,15 @@ CoalesceEngine::enoughSpace()
 bool
 CoalesceEngine::pullCondition()
 {
+<<<<<<< HEAD
     bool enough_space = enoughSpace();
     bool schedule_limit = numScheduledPulls < pendingPullLimit;
     return enough_space && schedule_limit;
+=======
+    assert((addr % peerMemoryAtomSize) == 0);
+    Addr trimmed_addr = peerMemoryRange.removeIntlvBits(addr);
+    return ((int) (trimmed_addr / peerMemoryAtomSize)) % numLines;
+>>>>>>> Fixed HBM range issue.
 }
 
 // addr should be aligned to peerMemoryAtomSize
@@ -237,15 +243,6 @@ int
 CoalesceEngine::getBlockIndex(Addr addr)
 {
     assert((addr % peerMemoryAtomSize) == 0);
-    // bool found = false;
-    // Addr trimmed_addr;
-    // for (auto range: peerMemoryRanges) {
-    //     if (range.contains(addr)) {
-    //         trimmed_addr = range.removeIntlvBits(addr);
-    //         found = true;
-    //     }
-    // }
-    // assert(found);
     Addr trimmed_addr = peerMemoryRange.removeIntlvBits(addr);
     return ((int) (trimmed_addr / peerMemoryAtomSize)) % numLines;
 }
