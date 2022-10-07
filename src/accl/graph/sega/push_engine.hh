@@ -93,9 +93,15 @@ class PushEngine : public BaseMemoryEngine
             } else {
                 num_items = (_end - _start) / _step;
             }
-            _start = aligned_addr + _atom;
 
             return std::make_tuple(aligned_addr, offset, num_items);
+        }
+
+        void iterate()
+        {
+            panic_if(done(), "Should not call iterate when done.\n");
+            Addr aligned_addr = roundDown<Addr, Addr>(_start, _atom);
+            _start = aligned_addr + _atom;
         }
 
         bool done() { return (_start >= _end); }
@@ -126,7 +132,7 @@ class PushEngine : public BaseMemoryEngine
     int onTheFlyMemReqs;
     int edgeQueueSize;
     int maxPropagatesPerCycle;
-    std::deque<std::deque<std::tuple<MetaEdge, Tick>>> edgeQueue;
+    std::deque<std::tuple<MetaEdge, Tick>> metaEdgeQueue;
 
     std::string workload;
     uint32_t propagate(uint32_t value, uint32_t weight);
