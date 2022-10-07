@@ -57,6 +57,7 @@ LoopPointManager::LoopPointManager(const LoopPointManagerParams &p)
             std::vector<int>& pcCount = map_itr->second;
             pcCount.push_back(p.target_count[i]);
         }
+        regionId.insert(std::make_pair(std::make_pair(p.target_pc[i],p.target_count[i]),p.region_id[i]));
         if (if_inputRelative) {
             std::vector<Addr> rPC;
             std::vector<int> rPCcount;
@@ -107,7 +108,9 @@ LoopPointManager::check_count(Addr pc)
             // vector, record the infomation, and raise an exit event
             if(*iter==count) {
                 targetcount.erase(iter);
-                *info->stream() << curTick() << ":" << pc << ":" << count;
+                *info->stream() << curTick() << ":" <<
+                                regionId.find(std::make_pair(pc,count))->second
+                                                << ":" << pc << ":" << count;
                 if (if_inputRelative) {
                     auto rela_itr = relativePC.find(std::make_pair(pc,count));
                     std::vector<Addr>& rPC = rela_itr->second.first;

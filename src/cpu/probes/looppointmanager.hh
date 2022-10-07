@@ -77,6 +77,7 @@ class LoopPointManager : public SimObject
     };
 
     std::unordered_map<std::pair<Addr,int>, std::pair<std::vector<Addr>,std::vector<int>>, pair_hash> relativePC;
+    std::unordered_map<std::pair<Addr,int>, int, pair_hash> regionId; 
     bool if_inputRelative;
 };
 

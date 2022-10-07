@@ -44,6 +44,7 @@ class LoopPoints:
         self.relativeCount = []
         self.checkpointPC = []
         self.checkpointCount = []
+        self.regionID = []
         
         self.max_regionid = 0   
 
@@ -81,6 +82,7 @@ class LoopPoints:
                         
         for id in range(1,self.max_regionid+1):
             if str(id) in self.simulationRegion:
+                self.regionID.append(id)
                 if str(id) in self.warmupRegion:
                     self.checkpointPC.append(self.warmupRegion[str(id)][0][0])
                     self.checkpointCount.append(self.warmupRegion[str(id)][0][1])
@@ -101,6 +103,7 @@ class LoopPoints:
         self.looppointManager = LoopPointManager()
         self.looppointManager.target_count = self.checkpointCount
         self.looppointManager.target_pc = self.checkpointPC
+        self.looppointManager.region_id = self.regionID
         self.looppointManager.relative_pc = self.relativePC
         self.looppointManager.relative_count = self.relativeCount
         self.looppointManager.setup(cpuList)
@@ -121,23 +124,25 @@ class LoopPoints:
                 if line[0] == tick:
                     targetPC = list()
                     targetCount = list()
-                    if(len(line)>5):
-                        targetPC.append(line[3])
-                        targetCount.append(line[4])
-                    if(len(line)>7):
-                        targetPC.append(line[5])
-                        targetCount.append(line[6])
+                    if(len(line)>6):
+                        targetPC.append(line[4])
+                        targetCount.append(line[5])
+                    if(len(line)>8):
+                        targetPC.append(line[6])
+                        targetCount.append(line[7])
                     print(f"get target PC {targetPC}\n")
                     print(f"get target PC count {targetCount}\n")
+                    self.looppointManager.region_id = [line[1]]
                     self.looppointManager.target_count = targetCount
                     self.looppointManager.target_pc = targetPC
                     self.looppointManager.setup(cpuList)
                     break
         
-    def testing(self,cpuList,checkpc,checkpccount,rpc,rpccount):
+    def testing(self,cpuList,checkpc,checkpccount,id,rpc,rpccount):
         self.looppointManager = LoopPointManager()
         self.looppointManager.target_count = checkpccount
         self.looppointManager.target_pc = checkpc
+        self.looppointManager.region_id = id
         self.looppointManager.relative_pc = rpc
         self.looppointManager.relative_count = rpccount
         self.looppointManager.setup(cpuList)
