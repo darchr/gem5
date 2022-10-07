@@ -42,6 +42,27 @@ class MPU;
 class PushEngine : public BaseMemoryEngine
 {
   private:
+    class ReqPort : public RequestPort
+    {
+      private:
+        PushEngine* owner;
+        PacketPtr blockedPacket;
+        PortID _id;
+
+      public:
+        ReqPort(const std::string& name, PushEngine* owner, PortID id) :
+          RequestPort(name, owner),
+          owner(owner), blockedPacket(nullptr), _id(id)
+        {}
+        void sendPacket(PacketPtr pkt);
+        bool blocked() { return (blockedPacket != nullptr); }
+        PortID id() { return _id; }
+
+      protected:
+        virtual bool recvTimingResp(PacketPtr pkt);
+        virtual void recvReqRetry();
+    };
+
     class EdgeReadInfoGen {
       private:
         Addr _start;
@@ -95,6 +116,8 @@ class PushEngine : public BaseMemoryEngine
     bool _running;
     Tick lastIdleEntranceTick;
 
+    AddrRangeList localAddrRange;
+
     int numPendingPulls;
     int edgePointerQueueSize;
     std::deque<EdgeReadInfoGen> edgePointerQueue;
@@ -102,11 +125,18 @@ class PushEngine : public BaseMemoryEngine
 
     int onTheFlyMemReqs;
     int edgeQueueSize;
-    std::deque<std::deque<CompleteEdge>> edgeQueue;
+    int maxPropagatesPerCycle;
+    std::deque<std::deque<std::tuple<MetaEdge, Tick>>> edgeQueue;
 
     std::string workload;
     uint32_t propagate(uint32_t value, uint32_t weight);
+
+    int updateQueueSize;
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
+    bool enqueueUpdate(Update update);
+    std::unordered_map<PortID, AddrRangeList> portAddrMap;
+    std::unordered_map<PortID, std::deque<std::tuple<Update, Tick>>> updateQueues;
+    std::vector<ReqPort> outPorts;
 
     bool vertexSpace();
     bool workLeft();
@@ -117,8 +147,11 @@ class PushEngine : public BaseMemoryEngine
     MemoryEvent nextMemoryReadEvent;
     void processNextMemoryReadEvent();
 
-    MemoryEvent nextPushEvent;
-    void processNextPushEvent();
+    EventFunctionWrapper nextPropagateEvent;
+    void processNextPropagateEvent();
+
+    EventFunctionWrapper nextUpdatePushEvent;
+    void processNextUpdatePushEvent();
 
     struct PushStats : public statistics::Group
     {
@@ -136,6 +169,7 @@ class PushEngine : public BaseMemoryEngine
 
       statistics::Histogram edgePointerQueueLatency;
       statistics::Histogram edgeQueueLatency;
+      statistics::Histogram updateQueueLength;
     };
 
     PushStats stats;
@@ -147,6 +181,9 @@ class PushEngine : public BaseMemoryEngine
   public:
     PARAMS(PushEngine);
     PushEngine(const Params& params);
+    Port& getPort(const std::string& if_name,
+                PortID idx = InvalidPortID) override;
+    virtual void init() override;
     void registerMPU(MPU* mpu);
 
     virtual void recvFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }

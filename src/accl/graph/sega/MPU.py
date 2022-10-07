@@ -36,9 +36,6 @@ class MPU(SimObject):
 
     system = Param.System(Parent.any, "System this MPU is a part of")
 
-    in_port = ResponsePort("Port to receive updates from outside")
-    out_port  = RequestPort("Port to send updates to the outside")
-
     wl_engine = Param.WLEngine(NULL, "Internal WLEngine for each instance of "
                                 "MPU object.")
     coalesce_engine = Param.CoalesceEngine(NULL, "Internal CoalesceEngine for "

@@ -29,6 +29,7 @@
 #include "accl/graph/sega/mpu.hh"
 
 #include "accl/graph/sega/centeral_controller.hh"
+#include "mem/packet_access.hh"
 #include "sim/sim_exit.hh"
 
 namespace gem5
@@ -39,113 +40,17 @@ MPU::MPU(const Params& params):
     system(params.system),
     wlEngine(params.wl_engine),
     coalesceEngine(params.coalesce_engine),
-    pushEngine(params.push_engine),
-    inPort(name() + ".inPort", this),
-    outPort(name() + ".outPort", this)
+    pushEngine(params.push_engine)
 {
     wlEngine->registerMPU(this);
     coalesceEngine->registerMPU(this);
     pushEngine->registerMPU(this);
 }
 
-Port&
-MPU::getPort(const std::string& if_name, PortID idx)
-{
-    if (if_name == "in_port") {
-        return inPort;
-    } else if (if_name == "out_port") {
-        return outPort;
-    } else {
-        return SimObject::getPort(if_name, idx);
-    }
-}
-
-void
-MPU::init()
-{
-    localAddrRange = getAddrRanges();
-    inPort.sendRangeChange();
-}
-
 void
 MPU::registerCenteralController(CenteralController* centeral_controller)
 {
     centeralController = centeral_controller;
-}
-
-AddrRangeList
-MPU::RespPort::getAddrRanges() const
-{
-    return owner->getAddrRanges();
-}
-
-void
-MPU::RespPort::checkRetryReq()
-{
-    if (needSendRetryReq) {
-        sendRetryReq();
-        needSendRetryReq = false;
-    }
-}
-
-bool
-MPU::RespPort::recvTimingReq(PacketPtr pkt)
-{
-    if (!owner->handleIncomingUpdate(pkt)) {
-        needSendRetryReq = true;
-        return false;
-    }
-
-    return true;
-}
-
-Tick
-MPU::RespPort::recvAtomic(PacketPtr pkt)
-{
-    panic("recvAtomic unimpl.");
-}
-
-void
-MPU::RespPort::recvFunctional(PacketPtr pkt)
-{
-    owner->recvFunctional(pkt);
-}
-
-void
-MPU::RespPort::recvRespRetry()
-{
-    panic("recvRespRetry from response port is called.");
-}
-
-void
-MPU::ReqPort::sendPacket(PacketPtr pkt)
-{
-    panic_if(blockedPacket != nullptr,
-            "Should never try to send if blocked!");
-    // If we can't send the packet across the port, store it for later.
-    if (!sendTimingReq(pkt))
-    {
-        blockedPacket = pkt;
-    } else {
-        owner->recvReqRetry();
-    }
-}
-
-bool
-MPU::ReqPort::recvTimingResp(PacketPtr pkt)
-{
-    panic("recvTimingResp called on the request port.");
-}
-
-void
-MPU::ReqPort::recvReqRetry()
-{
-    panic_if(blockedPacket == nullptr,
-            "Received retry without a blockedPacket.");
-
-    PacketPtr pkt = blockedPacket;
-    blockedPacket = nullptr;
-    sendPacket(pkt);
 }
 
 bool
@@ -170,25 +75,6 @@ void
 MPU::recvVertexPush(Addr addr, WorkListItem wl)
 {
     pushEngine->recvVertexPush(addr, wl);
-}
-
-void
-MPU::sendPacket(PacketPtr pkt)
-{
-    bool found_locally = false;
-    for (auto range : localAddrRange) {
-        found_locally |= range.contains(pkt->getAddr());
-    }
-
-    if (found_locally) {
-        // TODO: count number of local updates
-
-    } else {
-        // TOOD: count number of remote updates
-
-    }
-
-    outPort.sendPacket(pkt);
 }
 
 void

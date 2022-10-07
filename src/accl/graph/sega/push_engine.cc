@@ -42,12 +42,41 @@ PushEngine::PushEngine(const Params& params):
     lastIdleEntranceTick(0),
     numPendingPulls(0), edgePointerQueueSize(params.push_req_queue_size),
     onTheFlyMemReqs(0), edgeQueueSize(params.resp_queue_size),
+    maxPropagatesPerCycle(params.max_propagates_per_cycle),
     workload(params.workload),
+    updateQueueSize(params.update_queue_size),
     nextVertexPullEvent([this] { processNextVertexPullEvent(); }, name()),
     nextMemoryReadEvent([this] { processNextMemoryReadEvent(); }, name()),
-    nextPushEvent([this] { processNextPushEvent(); }, name()),
+    nextPropagateEvent([this] { processNextPropagateEvent(); }, name()),
+    nextUpdatePushEvent([this] { processNextUpdatePushEvent(); }, name()),
     stats(*this)
-{}
+{
+    for (int i = 0; i < params.port_out_ports_connection_count; ++i) {
+        outPorts.emplace_back(
+                        name() + ".out_ports" + std::to_string(i), this, i);
+    }
+}
+
+Port&
+PushEngine::getPort(const std::string& if_name, PortID idx)
+{
+    if (if_name == "out_ports") {
+        return outPorts[idx];
+    } else if (if_name == "mem_port") {
+        return BaseMemoryEngine::getPort(if_name, idx);
+    } else {
+        return ClockedObject::getPort(if_name, idx);
+    }
+}
+
+void
+PushEngine::init()
+{
+    localAddrRange = owner->getAddrRanges();
+    for (int i = 0; i < outPorts.size(); i++){
+        portAddrMap[outPorts[i].id()] = outPorts[i].getAddrRanges();
+    }
+}
 
 void
 PushEngine::registerMPU(MPU* mpu)
@@ -56,12 +85,46 @@ PushEngine::registerMPU(MPU* mpu)
 }
 
 void
+PushEngine::ReqPort::sendPacket(PacketPtr pkt)
+{
+    panic_if(blockedPacket != nullptr,
+            "Should never try to send if blocked!");
+    // If we can't send the packet across the port, store it for later.
+    if (!sendTimingReq(pkt))
+    {
+        DPRINTF(PushEngine, "%s: Packet is blocked.\n", __func__);
+        blockedPacket = pkt;
+    }
+}
+
+bool
+PushEngine::ReqPort::recvTimingResp(PacketPtr pkt)
+{
+    panic("recvTimingResp called on the request port.");
+}
+
+void
+PushEngine::ReqPort::recvReqRetry()
+{
+    panic_if(blockedPacket == nullptr,
+            "Received retry without a blockedPacket.");
+
+    DPRINTF(PushEngine, "%s: ReqPort %d received a reqRetry. blockedPacket: %s.\n", __func__, _id, blockedPacket->print());
+    PacketPtr pkt = blockedPacket;
+    blockedPacket = nullptr;
+    sendPacket(pkt);
+    if (blockedPacket == nullptr) {
+        DPRINTF(PushEngine, "%s: blockedPacket sent successfully.\n", __func__);
+        owner->recvReqRetry();
+    }
+}
+
+void
 PushEngine::recvReqRetry()
 {
-    DPRINTF(PushEngine, "%s: Received a req retry.\n", __func__);
-    if (nextPushEvent.pending()) {
-        nextPushEvent.wake();
-        schedule(nextPushEvent, nextCycle());
+    DPRINTF(PushEngine, "%s: Received a reqRetry.\n", __func__);
+    if (!nextUpdatePushEvent.scheduled()) {
+        schedule(nextUpdatePushEvent, nextCycle());
     }
 }
 
@@ -81,9 +144,12 @@ PushEngine::workLeft()
 bool
 PushEngine::done()
 {
-    return edgeQueue.empty() &&
-            (onTheFlyMemReqs == 0) &&
-            edgePointerQueue.empty();
+    bool empty_update_queues = true;
+    for (int i = 0; i < outPorts.size(); i++) {
+        empty_update_queues &= updateQueues[outPorts[i].id()].empty();
+    }
+    return empty_update_queues && edgeQueue.empty() &&
+        (onTheFlyMemReqs == 0) && edgePointerQueue.empty();
 }
 
 
@@ -224,76 +290,135 @@ PushEngine::handleMemResp(PacketPtr pkt)
     PushInfo push_info = reqInfoMap[pkt->req];
     pkt->writeDataToBlock(pkt_data, peerMemoryAtomSize);
 
-    std::deque<CompleteEdge> edges;
+    std::deque<std::tuple<MetaEdge, Tick>> edges;
     for (int i = 0; i < push_info.numElements; i++) {
         Edge* edge = (Edge*) (pkt_data + push_info.offset + i * sizeof(Edge));
         Addr edge_dst = edge->neighbor;
         uint32_t edge_weight = edge->weight;
-        edges.emplace_back(
-            push_info.src, edge_dst, edge_weight, push_info.value, curTick());
+        MetaEdge meta_edge(
+                    push_info.src, edge_dst, edge_weight, push_info.value);
+        edges.emplace_back(meta_edge, curTick());
     }
+    assert(!edges.empty());
     edgeQueue.push_back(edges);
+
     onTheFlyMemReqs--;
     reqInfoMap.erase(pkt->req);
     delete pkt_data;
     delete pkt;
 
-    if ((!nextPushEvent.pending()) &&
-        (!nextPushEvent.scheduled())) {
-        schedule(nextPushEvent, nextCycle());
+    if (!nextPropagateEvent.scheduled()) {
+        schedule(nextPropagateEvent, nextCycle());
     }
     return true;
 }
 
-// TODO: Add a parameter to allow for doing multiple pushes at the same time.
 void
-PushEngine::processNextPushEvent()
+PushEngine::processNextPropagateEvent()
 {
-    if (owner->blocked()) {
-        stats.numNetBlocks++;
-        nextPushEvent.sleep();
-        return;
+    int num_propagates = 0;
+    while(true) {
+        std::deque<std::tuple<MetaEdge, Tick>>& edge_list = edgeQueue.front();
+        MetaEdge meta_edge;
+        Tick entrance_tick;
+        std::tie(meta_edge, entrance_tick) = edge_list.front();
+
+        DPRINTF(PushEngine, "%s: The edge to process is %s.\n",
+                                __func__, meta_edge.to_string());
+
+        uint32_t update_value = propagate(meta_edge.value, meta_edge.weight);
+        Update update(meta_edge.src, meta_edge.dst, update_value);
+        edge_list.pop_front();
+
+        if (enqueueUpdate(update)) {
+            DPRINTF(PushEngine, "%s: Sent %s to port queues.\n",
+                                            __func__, meta_edge.to_string());
+            stats.numUpdates++;
+            stats.edgeQueueLatency.sample(
+                    (curTick() - entrance_tick) * 1e9 / getClockFrequency());
+        } else {
+            edge_list.emplace_back(meta_edge, entrance_tick);
+        }
+
+        if (edge_list.empty()) {
+            edgeQueue.pop_front();
+        }
+
+        if (edgeQueue.empty()) {
+            break;
+        }
+
+        num_propagates++;
+        if (num_propagates >= maxPropagatesPerCycle) {
+            break;
+        }
     }
 
-    std::deque<CompleteEdge>& edge_list = edgeQueue.front();
-    CompleteEdge curr_edge = edge_list.front();
-
-    DPRINTF(PushEngine, "%s: The edge to process is %s.\n",
-                    __func__, curr_edge.to_string());
-
-    // TODO: Implement propagate function here
-    uint32_t update_value = propagate(curr_edge.value, curr_edge.weight);
-    PacketPtr update = createUpdatePacket<uint32_t>(
-                            curr_edge.dst, update_value);
-
-    owner->sendPacket(update);
-    stats.numUpdates++;
-    DPRINTF(PushEngine, "%s: Sent a push update from addr: %lu to addr: %lu "
-                        "with value: %d.\n", __func__, curr_edge.src,
-                        curr_edge.dst, update_value);
-
-    stats.edgeQueueLatency.sample(
-        (curTick() - curr_edge.entrance) * 1e9 / getClockFrequency());
-    edge_list.pop_front();
-    if (edge_list.empty()) {
-        edgeQueue.pop_front();
-    }
-
-    assert(!nextPushEvent.pending());
-    assert(!nextPushEvent.scheduled());
+    assert(!nextPropagateEvent.scheduled());
     if (!edgeQueue.empty()) {
-        schedule(nextPushEvent, nextCycle());
+        schedule(nextPropagateEvent, nextCycle());
     }
+}
+
+bool
+contains(AddrRangeList range_list, Addr addr)
+{
+    bool found = false;
+    for (auto range: range_list) {
+        found |= range.contains(addr);
+    }
+    return found;
+}
+
+bool
+PushEngine::enqueueUpdate(Update update)
+{
+    Addr dst_addr = update.dst;
+    bool found_locally = false;
+    bool accepted = false;
+    for (auto range : localAddrRange) {
+        found_locally |= range.contains(dst_addr);
+    }
+    DPRINTF(PushEngine, "%s: Received update: %s.\n", __func__, update.to_string());
+    for (int i = 0; i < outPorts.size(); i++) {
+        AddrRangeList addr_range_list = portAddrMap[outPorts[i].id()];
+        if (contains(addr_range_list, dst_addr)) {
+            DPRINTF(PushEngine, "%s: Update: %s belongs to port %d.\n",
+                        __func__, update.to_string(), outPorts[i].id());
+            DPRINTF(PushEngine, "%s: There are %d updates already "
+                        "in queue for port %d.\n", __func__,
+                        updateQueues[outPorts[i].id()].size(),
+                        outPorts[i].id());
+            if (updateQueues[outPorts[i].id()].size() < updateQueueSize) {
+                DPRINTF(PushEngine, "%s: There is a free entry available "
+                            "in queue %d.\n", __func__, outPorts[i].id());
+                updateQueues[outPorts[i].id()].emplace_back(update, curTick());
+                DPRINTF(PushEngine, "%s: Emplaced the update at the back "
+                            "of queue for port %d is. Size of queue "
+                            "for port %d is %d.\n", __func__,
+                            outPorts[i].id(), outPorts[i].id(),
+                            updateQueues[outPorts[i].id()].size());
+                accepted = true;
+                stats.updateQueueLength.sample(
+                                        updateQueues[outPorts[i].id()].size());
+            }
+        }
+    }
+
+    if (accepted && (!nextUpdatePushEvent.scheduled())) {
+        schedule(nextUpdatePushEvent, nextCycle());
+    }
+
+    return accepted;
 }
 
 template<typename T> PacketPtr
 PushEngine::createUpdatePacket(Addr addr, T value)
 {
-    RequestPtr req = std::make_shared<Request>(
-                addr, sizeof(T), 0, _requestorId);
+    RequestPtr req = std::make_shared<Request>(addr, sizeof(T), 0, 0);
     // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
     // bits
-    req->setPC(((Addr) _requestorId) << 2);
+    req->setPC(((Addr) 1) << 2);
 
     // FIXME: MemCmd::UpdateWL
     PacketPtr pkt = new Packet(req, MemCmd::UpdateWL);
@@ -303,6 +428,47 @@ PushEngine::createUpdatePacket(Addr addr, T value)
     pkt->setLE<T>(value);
 
     return pkt;
+}
+
+void
+PushEngine::processNextUpdatePushEvent()
+{
+    int next_time_send = 0;
+
+    for (int i = 0; i < outPorts.size(); i++) {
+        if (outPorts[i].blocked()) {
+            DPRINTF(PushEngine, "%s: Port %d blocked.\n",
+                                __func__, outPorts[i].id());
+            continue;
+        }
+        DPRINTF(PushEngine, "%s: Port %d available.\n",
+                                __func__, outPorts[i].id());
+        if (updateQueues[outPorts[i].id()].empty()) {
+            DPRINTF(PushEngine, "%s: Respective queue for port "
+                        "%d is empty.\n", __func__, outPorts[i].id());
+            continue;
+        }
+        DPRINTF(PushEngine, "%s: Respective queue for port "
+                        "%d not empty.\n", __func__, outPorts[i].id());
+        Update update;
+        Tick entrance_tick;
+        std::tie(update, entrance_tick) = updateQueues[outPorts[i].id()].front();
+        PacketPtr pkt = createUpdatePacket<uint32_t>(update.dst, update.value);
+        outPorts[i].sendPacket(pkt);
+        DPRINTF(PushEngine, "%s: Sent update: %s to port %d. "
+                    "Respective queue size is %d.\n", __func__,
+                    update.to_string(), outPorts[i].id(),
+                    updateQueues[outPorts[i].id()].size());
+        updateQueues[outPorts[i].id()].pop_front();
+        if (updateQueues[outPorts[i].id()].size() > 0) {
+            next_time_send += 1;
+        }
+    }
+
+    assert(!nextUpdatePushEvent.scheduled());
+    if (next_time_send > 0) {
+        schedule(nextUpdatePushEvent, nextCycle());
+    }
 }
 
 PushEngine::PushStats::PushStats(PushEngine &_push)
@@ -320,7 +486,9 @@ PushEngine::PushStats::PushStats(PushEngine &_push)
     ADD_STAT(edgePointerQueueLatency, statistics::units::Second::get(),
              "Histogram of the latency of the edgePointerQueue."),
     ADD_STAT(edgeQueueLatency, statistics::units::Second::get(),
-             "Histogram of the latency of the edgeQueue.")
+             "Histogram of the latency of the edgeQueue."),
+    ADD_STAT(updateQueueLength, statistics::units::Count::get(),
+             "Histogram of the length of updateQueues.")
 {
 }
 
@@ -333,6 +501,7 @@ PushEngine::PushStats::regStats()
 
     edgePointerQueueLatency.init(64);
     edgeQueueLatency.init(64);
+    updateQueueLength.init(64);
 }
 
 } // namespace gem5

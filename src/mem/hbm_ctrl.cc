@@ -45,6 +45,7 @@ namespace memory
 
 HBMCtrl::HBMCtrl(const HBMCtrlParams &p) :
     MemCtrl(p),
+    pchBit(p.pch_bit),
     retryRdReqPC1(false), retryWrReqPC1(false),
     nextReqEventPC1([this] {processNextReqEvent(pc1Int, respQueuePC1,
                          respondEventPC1, nextReqEventPC1, retryWrReqPC1);},
@@ -233,7 +234,7 @@ HBMCtrl::recvTimingReq(PacketPtr pkt)
     bool is_pc0;
 
     // TODO: make the interleaving bit across pseudo channels a parameter
-    if (bits(pkt->getAddr(), 6) == 0) {
+    if (bits(pkt->getAddr(), pchBit) == 0) {
         is_pc0 = true;
     } else {
         is_pc0 = false;
@@ -492,8 +493,11 @@ AddrRangeList
 HBMCtrl::getAddrRanges()
 {
     AddrRangeList ranges;
-    ranges.push_back(pc0Int->getAddrRange());
-    ranges.push_back(pc1Int->getAddrRange());
+    AddrRange pc0Int_range = pc0Int->getAddrRange();
+    AddrRange pc1Int_range = pc1Int->getAddrRange();
+    ranges.push_back(
+                mergePseudoChannelRanges(pc0Int_range, pc1Int_range, pchBit)
+                    );
     return ranges;
 }
 

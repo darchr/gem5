@@ -34,12 +34,20 @@ class PushEngine(BaseMemoryEngine):
     cxx_header = "accl/graph/sega/push_engine.hh"
     cxx_class = 'gem5::PushEngine'
 
+    workload = Param.String("BFS", "Name of the workload.")
+
     push_req_queue_size = Param.Int("Size of the queue to "
                                     "queue push requests.")
     # resp_queue_size should probably be
     # significantly bigger than push_req_queue_size
     resp_queue_size = Param.Int("Size of the response queue in the "
                                     "push engine where it stores the "
-                                    "edges read from memory")
+                                    "edges read from memory.")
+    
+    max_propagates_per_cycle = Param.Int(4, "Maximum number of propagates "
+                                            "done per cycle.")
 
-    workload = Param.String("BFS", "Name of the workload")
+    update_queue_size = Param.Int("Maximum number of entries "
+                                    "for each update queue.")
+
+    out_ports = VectorRequestPort("Outgoing ports to all MPUs")

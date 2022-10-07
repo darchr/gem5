@@ -45,7 +45,33 @@ class MPU;
 class WLEngine : public BaseReduceEngine
 {
   private:
+    class RespPort : public ResponsePort
+    {
+      private:
+        WLEngine* owner;
+        bool needSendRetryReq;
+        PortID _id;
+
+      public:
+        RespPort(const std::string& name, WLEngine* owner, PortID id):
+          ResponsePort(name, owner), 
+          owner(owner), needSendRetryReq(false), _id(id)
+        {}
+        virtual AddrRangeList getAddrRanges() const;
+
+        PortID id() { return _id; }
+        void checkRetryReq();
+
+      protected:
+        virtual bool recvTimingReq(PacketPtr pkt);
+        virtual Tick recvAtomic(PacketPtr pkt);
+        virtual void recvFunctional(PacketPtr pkt);
+        virtual void recvRespRetry();
+    };
+
     MPU* owner;
+
+    std::vector<RespPort> inPorts;
 
     int updateQueueSize;
     std::deque<std::tuple<Addr, uint32_t, Tick>> updateQueue;
@@ -86,10 +112,18 @@ class WLEngine : public BaseReduceEngine
   public:
     PARAMS(WLEngine);
     WLEngine(const Params& params);
+    Port& getPort(const std::string& if_name,
+                PortID idx = InvalidPortID) override;
+    virtual void init() override;
     void registerMPU(MPU* mpu);
+
+    AddrRangeList getAddrRanges();
+    void recvFunctional(PacketPtr pkt);
 
     bool handleIncomingUpdate(PacketPtr pkt);
     void handleIncomingWL(Addr addr, WorkListItem wl);
+
+    void checkRetryReq();
 
     bool done();
 };

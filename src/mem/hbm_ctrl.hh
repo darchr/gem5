@@ -72,7 +72,8 @@ class HBMCtrl : public MemCtrl
     }
 
   private:
-
+    // Position of the pseudochannel bit in addresses.
+    int pchBit;
     /**
      * Remember if we have to retry a request for second pseudo channel.
      */

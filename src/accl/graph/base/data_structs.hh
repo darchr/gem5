@@ -90,22 +90,40 @@ struct __attribute__ ((packed)) Edge
 static_assert(isPowerOf2(sizeof(WorkListItem)));
 static_assert(isPowerOf2(sizeof(Edge)));
 
-struct CompleteEdge {
+struct MetaEdge {
     uint64_t src;
     uint64_t dst;
     uint32_t weight;
     uint32_t value;
 
-    uint64_t entrance;
-
-    CompleteEdge(uint64_t src, uint64_t dst, uint32_t weight, uint32_t value, uint64_t entrance):
-        src(src), dst(dst), weight(weight), value(value), entrance(entrance)
+    MetaEdge(): src(0), dst(0), weight(0), value(0) 
+    {}
+    MetaEdge(uint64_t src, uint64_t dst, uint32_t weight, uint32_t value):
+        src(src), dst(dst), weight(weight), value(value)
     {}
 
     std::string to_string()
     {
-        return csprintf("CompleteEdge{src: %lu, dst:%lu, weight: %u}",
+        return csprintf("MetaEdge{src: %lu, dst:%lu, weight: %u}",
                                                     src, dst, weight);
+    }
+};
+
+struct Update {
+    uint64_t src;
+    uint64_t dst;
+    uint32_t value;
+
+    Update(): src(0), dst(0), value(0)
+    {}
+    Update(uint64_t src, uint64_t dst, uint32_t value):
+        src(src), dst(dst), value(value)
+    {}
+
+    std::string to_string()
+    {
+        return csprintf("Update{src: %lu, dst:%lu, value: %u}",
+                                                src, dst, value);
     }
 };
 

@@ -29,13 +29,15 @@
 #ifndef __ACCL_GRAPH_SEGA_MPU_HH__
 #define __ACCL_GRAPH_SEGA_MPU_HH__
 
+#include <unordered_map>
+#include <vector>
+
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/sega/coalesce_engine.hh"
 #include "accl/graph/sega/push_engine.hh"
 #include "accl/graph/sega/wl_engine.hh"
 #include "base/addr_range.hh"
 #include "mem/packet.hh"
-#include "mem/port.hh"
 #include "sim/sim_object.hh"
 #include "sim/system.hh"
 #include "params/MPU.hh"
@@ -48,45 +50,6 @@ class CenteralController;
 class MPU : public SimObject
 {
   private:
-    class RespPort : public ResponsePort
-    {
-      private:
-        MPU* owner;
-        bool needSendRetryReq;
-
-      public:
-        RespPort(const std::string& name, MPU* owner):
-          ResponsePort(name, owner), owner(owner), needSendRetryReq(false)
-        {}
-        virtual AddrRangeList getAddrRanges() const;
-
-        void checkRetryReq();
-
-      protected:
-        virtual bool recvTimingReq(PacketPtr pkt);
-        virtual Tick recvAtomic(PacketPtr pkt);
-        virtual void recvFunctional(PacketPtr pkt);
-        virtual void recvRespRetry();
-    };
-
-    class ReqPort : public RequestPort
-    {
-      private:
-        MPU* owner;
-        PacketPtr blockedPacket;
-
-      public:
-        ReqPort(const std::string& name, MPU* owner) :
-          RequestPort(name, owner), owner(owner), blockedPacket(nullptr)
-        {}
-        void sendPacket(PacketPtr pkt);
-        bool blocked() { return (blockedPacket != nullptr); }
-
-      protected:
-        virtual bool recvTimingResp(PacketPtr pkt);
-        virtual void recvReqRetry();
-    };
-
     System* system;
     CenteralController* centeralController;
 
@@ -94,24 +57,15 @@ class MPU : public SimObject
     CoalesceEngine* coalesceEngine;
     PushEngine* pushEngine;
 
-    RespPort inPort;
-    ReqPort outPort;
-
-    AddrRangeList localAddrRange;
-
   public:
     PARAMS(MPU);
     MPU(const Params& params);
-    Port& getPort(const std::string& if_name,
-                PortID idx = InvalidPortID) override;
-    virtual void init() override;
     void registerCenteralController(CenteralController* centeral_controller);
 
     AddrRangeList getAddrRanges() { return coalesceEngine->getAddrRanges(); }
     void recvFunctional(PacketPtr pkt) { coalesceEngine->recvFunctional(pkt); }
-
     bool handleIncomingUpdate(PacketPtr pkt);
-    void checkRetryReq() { inPort.checkRetryReq(); }
+
     void handleIncomingWL(Addr addr, WorkListItem wl);
     bool recvWLRead(Addr addr) { return coalesceEngine->recvWLRead(addr); }
     void recvWLWrite(Addr addr, WorkListItem wl);
@@ -121,10 +75,6 @@ class MPU : public SimObject
     bool running() { return pushEngine->running(); }
     void start() { return pushEngine->start(); }
     void recvVertexPush(Addr addr, WorkListItem wl);
-
-    bool blocked() { return outPort.blocked(); }
-    void sendPacket(PacketPtr pkt);
-    void recvReqRetry() { pushEngine->recvReqRetry(); }
 
     void recvDoneSignal();
     bool done();
