@@ -42,6 +42,8 @@ class HBMCtrl(MemCtrl):
     # HBMCtrl has been tested with two HBM_2000_4H_1x64 interfaces
     dram_2 = Param.DRAMInterface("DRAM memory interface")
 
+    pch_bit = Param.Int("Position of PseudoChannel bit in addresses.")
+
     # For mixed traffic, HBMCtrl with HBM_2000_4H_1x64 interfaaces
     # gives the best results with following min_r/w_per_switch
     min_reads_per_switch = 64
