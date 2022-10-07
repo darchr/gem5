@@ -336,16 +336,17 @@ PushEngine::processNextPropagateEvent()
         } else {
             metaEdgeQueue.emplace_back(meta_edge, entrance_tick);
         }
+        num_propagates++;
 
         if (metaEdgeQueue.empty()) {
             break;
         }
-
-        num_propagates++;
         if (num_propagates >= maxPropagatesPerCycle) {
             break;
         }
     }
+
+    stats.numPropagates.sample(num_propagates);
 
     assert(!nextPropagateEvent.scheduled());
     if (!metaEdgeQueue.empty()) {
@@ -481,7 +482,9 @@ PushEngine::PushStats::PushStats(PushEngine &_push)
     ADD_STAT(edgeQueueLatency, statistics::units::Second::get(),
              "Histogram of the latency of the metaEdgeQueue."),
     ADD_STAT(updateQueueLength, statistics::units::Count::get(),
-             "Histogram of the length of updateQueues.")
+             "Histogram of the length of updateQueues."),
+    ADD_STAT(numPropagates, statistics::units::Count::get(),
+             "Histogram of number of propagates sent.")
 {
 }
 
@@ -495,6 +498,7 @@ PushEngine::PushStats::regStats()
     edgePointerQueueLatency.init(64);
     edgeQueueLatency.init(64);
     updateQueueLength.init(64);
+    numPropagates.init(push.params().max_propagates_per_cycle);
 }
 
 } // namespace gem5
