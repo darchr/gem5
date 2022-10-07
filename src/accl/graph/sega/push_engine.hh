@@ -176,6 +176,7 @@ class PushEngine : public BaseMemoryEngine
       statistics::Histogram edgePointerQueueLatency;
       statistics::Histogram edgeQueueLatency;
       statistics::Histogram updateQueueLength;
+      statistics::Histogram numPropagates;
     };
 
     PushStats stats;
