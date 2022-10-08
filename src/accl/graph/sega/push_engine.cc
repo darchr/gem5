@@ -368,6 +368,7 @@ bool
 PushEngine::enqueueUpdate(Update update)
 {
     Addr dst_addr = update.dst;
+    bool fount_coalescing = false;
     bool found_locally = false;
     bool accepted = false;
     for (auto range : localAddrRange) {
@@ -383,7 +384,26 @@ PushEngine::enqueueUpdate(Update update)
                         "in queue for port %d.\n", __func__,
                         updateQueues[outPorts[i].id()].size(),
                         outPorts[i].id());
-            if (updateQueues[outPorts[i].id()].size() < updateQueueSize) {
+            for (auto itr = updateQueues[outPorts[i].id()].begin(); 
+                      itr != updateQueues[outPorts[i].id()].end();
+                      itr++){
+                std::tuple curr_update = *itr;
+                if (std::get<0>(curr_update).dst == update.dst){
+                    uint32_t value = 
+                        std::min(std::get<0>(curr_update).value, update.value);
+                    DPRINTF(PushEngine, "%s: found a coalescing opportunity "
+                            "for destination %d new value: %d by comparing %d "
+                            "and %d. \n", __func__, update.dst, value,
+                            std::get<0>(curr_update).value, update.value);
+                    fount_coalescing = true;
+                    update.value = value;
+                    updateQueues[outPorts[i].id()].erase(itr);
+                    updateQueues[outPorts[i].id()].emplace_back(update, curTick());
+                    break;
+                }
+            }
+            if ((fount_coalescing == false) && 
+                (updateQueues[outPorts[i].id()].size() < updateQueueSize)) {
                 DPRINTF(PushEngine, "%s: There is a free entry available "
                             "in queue %d.\n", __func__, outPorts[i].id());
                 updateQueues[outPorts[i].id()].emplace_back(update, curTick());
@@ -398,6 +418,7 @@ PushEngine::enqueueUpdate(Update update)
             }
         }
     }
+    fount_coalescing = false;
 
     if (accepted && (!nextUpdatePushEvent.scheduled())) {
         schedule(nextUpdatePushEvent, nextCycle());
