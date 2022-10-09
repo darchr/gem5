@@ -62,7 +62,7 @@ class GPT(SubSystem):
                                     push_req_queue_size=32,
                                     attached_memory_atom_size=64,
                                     resp_queue_size=64,
-                                    update_queue_size=16,
+                                    update_queue_size=32,
                                     )
 
         self.vertex_mem_ctrl = SimpleMemory(

@@ -852,6 +852,16 @@ RangeSize(Addr start, Addr size)
     return AddrRange(start, start + size);
 }
 
+inline bool
+contains(AddrRangeList range_list, Addr addr)
+{
+    bool ret = false;
+    for (auto range: range_list) {
+        ret |= range.contains(addr);
+    }
+    return ret;
+}
+
 } // namespace gem5
 
 #endif // __BASE_ADDR_RANGE_HH__

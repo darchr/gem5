@@ -28,6 +28,9 @@
 
 #include "accl/graph/sega/centeral_controller.hh"
 
+#include <iostream>
+
+#include "base/cprintf.hh"
 #include "base/loader/memory_image.hh"
 #include "base/loader/object_file.hh"
 #include "debug/CenteralController.hh"
@@ -62,7 +65,7 @@ CenteralController::initState()
 
     loader::debugSymbolTable.insert(*object->symtab().globals());
     loader::MemoryImage image = object->buildImage();
-    Addr maxVertexAddr = image.maxAddr();
+    maxVertexAddr = image.maxAddr();
 
     PortProxy proxy(
     [this](PacketPtr pkt) {
@@ -95,6 +98,21 @@ CenteralController::startup()
         }
         initialUpdates.pop_front();
     }
+}
+
+PacketPtr
+CenteralController::createReadPacket(Addr addr, unsigned int size)
+{
+    RequestPtr req = std::make_shared<Request>(addr, size, 0, 0);
+    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
+    // bits
+    req->setPC(((Addr) 0) << 2);
+
+    // Embed it in a packet
+    PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
+    pkt->allocate();
+
+    return pkt;
 }
 
 template<typename T> PacketPtr
@@ -131,6 +149,30 @@ CenteralController::recvDoneSignal()
 
     if (done) {
         exitSimLoopNow("no update left to process.");
+    }
+}
+
+void
+CenteralController::printAnswerToHostSimout()
+{
+    int num_items = system->cacheLineSize() / sizeof(WorkListItem);
+    WorkListItem items[num_items];
+    for (Addr addr = 0; addr < maxVertexAddr; addr += system->cacheLineSize())
+    {
+        PacketPtr pkt = createReadPacket(addr, system->cacheLineSize());
+        for (auto mpu: mpuVector) {
+            AddrRangeList range_list = addrRangeListMap[mpu];
+            if (contains(range_list, addr)) {
+                mpu->recvFunctional(pkt);
+            }
+        }
+        pkt->writeDataToBlock((uint8_t*) items, system->cacheLineSize());
+        for (int i = 0; i < num_items; i++) {
+            std::string print = csprintf("WorklistItem[%lu][%d]: %s.",
+                                        addr, i, items[i].to_string());
+
+            std::cout << print << std::endl;
+        }
     }
 }
 
