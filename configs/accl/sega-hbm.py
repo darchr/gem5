@@ -61,8 +61,8 @@ class GPT(SubSystem):
         self.push_engine = PushEngine(
                                     push_req_queue_size=32,
                                     attached_memory_atom_size=64,
-                                    resp_queue_size=64,
-                                    update_queue_size=16
+                                    resp_queue_size=512,
+                                    update_queue_size=32
                                     )
 
         self.vertex_mem_ctrl = HBMCtrl(dram=HBM_2000_4H_1x64(),
@@ -136,6 +136,9 @@ class SEGA(System):
     def create_initial_bfs_update(self, init_addr, init_value):
         self.ctrl.createInitialBFSUpdate(init_addr, init_value)
 
+    def print_answer(self):
+        self.ctrl.printAnswerToHostSimout()
+
 def get_inputs():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("num_gpts", type=int)
@@ -143,14 +146,19 @@ def get_inputs():
     argparser.add_argument("graph", type=str)
     argparser.add_argument("init_addr", type=int)
     argparser.add_argument("init_value", type=int)
+    argparser.add_argument("--verify", type=bool, help="Print final answer")
 
     args = argparser.parse_args()
 
+    verify = False
+    if not args.verify is None:
+        verify = args.verify
+
     return args.num_gpts, args.cache_size, \
-        args.graph, args.init_addr, args.init_value
+        args.graph, args.init_addr, args.init_value, verify
 
 if __name__ == "__m5_main__":
-    num_gpts, cache_size, graph, init_addr, init_value = get_inputs()
+    num_gpts, cache_size, graph, init_addr, init_value, verify = get_inputs()
 
     system = SEGA(num_gpts, cache_size, graph)
     root = Root(full_system = False, system = system)
@@ -161,3 +169,5 @@ if __name__ == "__m5_main__":
     exit_event = m5.simulate()
     print(f"Exited simulation at tick {m5.curTick()} " + \
             f"because {exit_event.getCause()}")
+    if verify:
+        system.print_answer()

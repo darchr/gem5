@@ -53,6 +53,7 @@ class CenteralController : public ClockedObject
     std::vector<MPU*> mpuVector;
     std::unordered_map<MPU*, AddrRangeList> addrRangeListMap;
 
+    PacketPtr createReadPacket(Addr addr, unsigned int size);
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
 
   public:
@@ -64,6 +65,8 @@ class CenteralController : public ClockedObject
 
     void createInitialBFSUpdate(Addr init_addr, uint32_t init_value);
     void recvDoneSignal();
+
+    void printAnswerToHostSimout();
 };
 
 }
