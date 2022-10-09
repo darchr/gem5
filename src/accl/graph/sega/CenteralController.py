@@ -41,4 +41,7 @@ class CenteralController(ClockedObject):
 
     mpu_vector = VectorParam.MPU("All mpus in the system.")
 
-    cxx_exports = [PyBindMethod("createInitialBFSUpdate")]
+    cxx_exports = [
+                    PyBindMethod("createInitialBFSUpdate"),
+                    PyBindMethod("printAnswerToHostSimout")
+                ]

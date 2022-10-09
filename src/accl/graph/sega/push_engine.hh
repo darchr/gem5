@@ -134,7 +134,7 @@ class PushEngine : public BaseMemoryEngine
     int maxPropagatesPerCycle;
     std::deque<std::tuple<MetaEdge, Tick>> metaEdgeQueue;
 
-    std::string workload;
+    uint32_t reduce(uint32_t update, uint32_t value);
     uint32_t propagate(uint32_t value, uint32_t weight);
 
     int updateQueueSize;
@@ -167,16 +167,19 @@ class PushEngine : public BaseMemoryEngine
 
       PushEngine &push;
 
-      statistics::Scalar numUpdates;
+      statistics::Scalar numPropagates;
       statistics::Scalar numNetBlocks;
       statistics::Scalar numIdleCycles;
+      statistics::Scalar updateQueueCoalescions;
+      statistics::Scalar numUpdates;
+      statistics::Scalar numWastefulEdgesRead;
 
       statistics::Formula TEPS;
 
       statistics::Histogram edgePointerQueueLatency;
       statistics::Histogram edgeQueueLatency;
       statistics::Histogram updateQueueLength;
-      statistics::Histogram numPropagates;
+      statistics::Histogram numPropagatesHist;
     };
 
     PushStats stats;
