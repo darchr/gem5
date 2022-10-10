@@ -71,6 +71,7 @@ class CenteralController : public ClockedObject
 
     void enableDrain();
     void disableDrain();
+    void resumeAfterDrain();
 };
 
 }

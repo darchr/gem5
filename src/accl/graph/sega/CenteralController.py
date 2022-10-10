@@ -45,5 +45,6 @@ class CenteralController(ClockedObject):
                     PyBindMethod("createInitialBFSUpdate"),
                     PyBindMethod("printAnswerToHostSimout"),
                     PyBindMethod("enableDrain"),
-                    PyBindMethod("disableDrain")
+                    PyBindMethod("disableDrain"),
+                    PyBindMethod("resumeAfterDrain")
                 ]

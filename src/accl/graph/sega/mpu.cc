@@ -131,4 +131,10 @@ MPU::disableDrain()
     pushEngine->disableDrain();
 }
 
+void
+MPU::resumeAfterDrain()
+{
+    pushEngine->resumeAfterDrain();
+}
+
 } // namespace gem5

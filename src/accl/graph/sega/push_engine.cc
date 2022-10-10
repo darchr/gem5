@@ -158,6 +158,14 @@ PushEngine::doneDrain()
     return done();
 }
 
+void
+PushEngine::resumeAfterDrain()
+{
+    if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
+        schedule(nextVertexPullEvent, nextCycle());
+    }
+}
+
 uint32_t
 PushEngine::reduce(uint32_t update, uint32_t value)
 {

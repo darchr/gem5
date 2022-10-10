@@ -212,6 +212,7 @@ class PushEngine : public BaseMemoryEngine
     bool getDraining() { return draining; }
     void enableDrain() { draining = true; }
     void disableDrain() { draining = false; }
+    void resumeAfterDrain();
 };
 
 }

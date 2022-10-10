@@ -85,6 +85,8 @@ class MPU : public SimObject
     bool getDraining();
     void enableDrain();
     void disableDrain();
+
+    void resumeAfterDrain();
 };
 
 } // namespace gem5

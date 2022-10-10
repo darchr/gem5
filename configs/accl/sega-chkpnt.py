@@ -141,8 +141,9 @@ class SEGA(System):
 
     def enable_drain(self):
         self.ctrl.enableDrain()
-    def disable_drain(self):
+    def resume_after_drain(self):
         self.ctrl.disableDrain()
+        self.ctrl.resumeAfterDrain()
 
 def get_inputs():
     argparser = argparse.ArgumentParser()
@@ -172,9 +173,13 @@ if __name__ == "__m5_main__":
 
     system.create_initial_bfs_update(init_addr, init_value)
     exit_event = m5.simulate(100000)
-    print("calling function to disable processing of new updates.")
+    print(f"Exited simulation at tick {m5.curTick()} " + \
+            f"because {exit_event.getCause()}")
     system.enable_drain()
-    print("called system.disable_process_new_updates.")
+    exit_event = m5.simulate()
+    print(f"Exited simulation at tick {m5.curTick()} " + \
+            f"because {exit_event.getCause()}")
+    system.resume_after_drain()
     exit_event = m5.simulate()
     print(f"Exited simulation at tick {m5.curTick()} " + \
             f"because {exit_event.getCause()}")

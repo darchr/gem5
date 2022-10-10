@@ -216,4 +216,19 @@ CenteralController::disableDrain()
         mpu->disableDrain();
     }
 }
+
+void
+CenteralController::resumeAfterDrain()
+{
+    bool all_draining = false;
+    for (auto mpu: mpuVector) {
+        all_draining |= mpu->getDraining();
+    }
+    assert(!all_draining);
+
+    for (auto mpu: mpuVector) {
+        mpu->resumeAfterDrain();
+    }
+}
+
 }
