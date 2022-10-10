@@ -83,6 +83,12 @@ MPU::recvFunctionalWLWrite(Addr addr, WorkListItem wl)
     coalesceEngine->recvFunctionalWLWrite(addr, wl);
 }
 
+std::tuple<Addr, WorkListItem>
+MPU::recvFunctionalVertexPull()
+{
+    return coalesceEngine->recvFunctionalVertexPull();
+}
+
 void
 MPU::recvVertexPush(Addr addr, WorkListItem wl)
 {

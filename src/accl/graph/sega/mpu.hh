@@ -74,6 +74,7 @@ class MPU : public SimObject
 
     int workCount() { return coalesceEngine->workCount(); }
     void recvVertexPull() { return coalesceEngine->recvVertexPull(); }
+    std::tuple<Addr, WorkListItem> recvFunctionalVertexPull();
     bool running() { return pushEngine->running(); }
     void start() { return pushEngine->start(); }
     void recvVertexPush(Addr addr, WorkListItem wl);

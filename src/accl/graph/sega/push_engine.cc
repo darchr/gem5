@@ -49,6 +49,7 @@ PushEngine::PushEngine(const Params& params):
     nextMemoryReadEvent([this] { processNextMemoryReadEvent(); }, name()),
     nextPropagateEvent([this] { processNextPropagateEvent(); }, name()),
     nextUpdatePushEvent([this] { processNextUpdatePushEvent(); }, name()),
+    nextFastEvent([this] { processNextFastEvent(); }, name()),
     stats(*this)
 {
     for (int i = 0; i < params.port_out_ports_connection_count; ++i) {
@@ -161,8 +162,16 @@ PushEngine::doneDrain()
 void
 PushEngine::resumeAfterDrain()
 {
-    if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
-        schedule(nextVertexPullEvent, nextCycle());
+    if (workLeft() && vertexSpace()) {
+        if (fastMode) {
+            if (!nextFastEvent.scheduled()) {
+                schedule(nextFastEvent, nextCycle());
+            }
+        } else {
+            if (!nextVertexPullEvent.scheduled()) {
+                schedule(nextVertexPullEvent, nextCycle());
+            }
+        }
     }
 }
 
@@ -204,7 +213,11 @@ PushEngine::start()
     // NOTE: We might have to check for size availability here.
     assert(workLeft());
     if (vertexSpace()) {
-        schedule(nextVertexPullEvent, nextCycle());
+        if (fastMode) {
+            schedule(nextFastEvent, nextCycle());
+        } else {
+            schedule(nextVertexPullEvent, nextCycle());
+        }
     }
 }
 
@@ -500,6 +513,53 @@ PushEngine::processNextUpdatePushEvent()
     assert(!nextUpdatePushEvent.scheduled());
     if (next_time_send > 0) {
         schedule(nextUpdatePushEvent, nextCycle());
+    }
+}
+
+void
+PushEngine::processNextFastEvent()
+{
+    if (atomicInfo.done()) {
+        std::tie(atomicAddr, atomicWl) = owner->recvFunctionalVertexPull();
+        Addr start_addr = atomicWl.edgeIndex * sizeof(Edge);
+        Addr end_addr = start_addr + (atomicWl.degree * sizeof(Edge));
+        atomicInfo = EdgeReadInfoGen(start_addr, end_addr, sizeof(Edge),
+                                peerMemoryAtomSize, atomicAddr, atomicWl.prop, curTick());
+    }
+
+    while(true) {
+        Addr aligned_addr, offset;
+        int num_edges;
+        std::tie(aligned_addr, offset, num_edges) =
+                                            atomicInfo.nextReadPacketInfo();
+        if (metaEdgeQueue.size() >=
+            (edgeQueueSize - (onTheFlyMemReqs + num_edges))) {
+            break;
+        }
+        PacketPtr pkt = createReadPacket(aligned_addr, peerMemoryAtomSize);
+        memPort.sendFunctional(pkt);
+        uint8_t* pkt_data = new uint8_t [peerMemoryAtomSize];
+        for (int i = 0; i < num_edges; i++) {
+            Edge* edge = (Edge*) (pkt_data + offset + i * sizeof(Edge));
+            Addr edge_dst = edge->neighbor;
+            uint32_t edge_weight = edge->weight;
+            MetaEdge meta_edge(
+                            atomicAddr, edge_dst, edge_weight, atomicWl.prop);
+            metaEdgeQueue.emplace_back(meta_edge, curTick());
+        }
+        atomicInfo.iterate();
+        if (atomicInfo.done()) {
+            break;
+        }
+    }
+
+    if (!metaEdgeQueue.empty() && !nextPropagateEvent.scheduled()) {
+        schedule(nextPropagateEvent, nextCycle());
+    }
+    if (workLeft() || !atomicInfo.done()) {
+        schedule(nextFastEvent, nextCycle());
+    } else {
+        _running = false;
     }
 }
 

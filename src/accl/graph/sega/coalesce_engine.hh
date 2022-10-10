@@ -211,6 +211,7 @@ class CoalesceEngine : public BaseMemoryEngine
 
     int workCount() { return _workCount; }
     void recvVertexPull();
+    std::tuple<Addr, WorkListItem> recvFunctionalVertexPull();
 
     bool done();
     bool doneDrain();

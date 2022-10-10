@@ -75,6 +75,9 @@ class PushEngine : public BaseMemoryEngine
 
         Tick _entrance;
       public:
+        EdgeReadInfoGen(): _start(0), _end(0), _step(0),
+            _atom(0), _src(0), _value(0), _entrance(0)
+        {}
         EdgeReadInfoGen(Addr start, Addr end, size_t step,
                         size_t atom, Addr src, uint32_t value, Tick entrance):
                         _start(start), _end(end), _step(step), _atom(atom),
@@ -147,6 +150,10 @@ class PushEngine : public BaseMemoryEngine
     std::unordered_map<PortID, std::deque<std::tuple<Update, Tick>>> updateQueues;
     std::vector<ReqPort> outPorts;
 
+    Addr atomicAddr;
+    WorkListItem atomicWl;
+    EdgeReadInfoGen atomicInfo;
+
     bool vertexSpace();
     bool workLeft();
 
@@ -161,6 +168,9 @@ class PushEngine : public BaseMemoryEngine
 
     EventFunctionWrapper nextUpdatePushEvent;
     void processNextUpdatePushEvent();
+
+    EventFunctionWrapper nextFastEvent;
+    void processNextFastEvent();
 
     struct PushStats : public statistics::Group
     {

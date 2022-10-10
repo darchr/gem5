@@ -1198,6 +1198,46 @@ CoalesceEngine::recvVertexPull()
     }
 }
 
+std::tuple<Addr, WorkListItem>
+CoalesceEngine::recvFunctionalVertexPull()
+{
+    BitStatus bit_status;
+    Addr location;
+    int offset;
+
+    std::tie(bit_status, location, offset) = getOptimalPullAddr();
+
+    if (bit_status == BitStatus::GARBAGE) {
+        panic("getOptimalPullAddr gave GARBAGE to recvFunctionalVertexPull.");
+    }
+    if (bit_status == BitStatus::PENDING_READ) {
+        panic("getOptimalPullAddr gave PENDING_READ to recvFunctionalVertexPull.");
+    }
+    if (bit_status == BitStatus::IN_CACHE) {
+        // renaming the outputs to their local names.
+        int block_index = (int) location;
+        int wl_offset = offset;
+
+        Addr addr = cacheBlocks[block_index].addr;
+        Addr vertex_addr = addr + (wl_offset * sizeof(WorkListItem));
+        int slice_base_index = getBitIndexBase(addr);
+
+        needsPush[slice_base_index + wl_offset] = 0;
+        _workCount--;
+        return std::make_tuple(vertex_addr, cacheBlocks[block_index].items[wl_offset]);
+    } else {
+        Addr addr = location;
+        int wl_offset = offset;
+        Addr vertex_addr = addr + (wl_offset * sizeof(WorkListItem));
+        WorkListItem items[numElementsPerLine];
+        PacketPtr pkt = createReadPacket(addr, peerMemoryAtomSize);
+        memPort.sendFunctional(pkt);
+        pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
+        delete pkt;
+        return std::make_tuple(vertex_addr, items[wl_offset]);
+    }
+}
+
 CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
     : statistics::Group(&_coalesce),
     coalesce(_coalesce),
