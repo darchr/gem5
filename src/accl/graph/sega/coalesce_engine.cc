@@ -110,6 +110,13 @@ CoalesceEngine::done()
         memoryFunctionQueue.empty() && (onTheFlyReqs == 0);
 }
 
+bool
+CoalesceEngine::doneDrain()
+{
+    return applyQueue.empty() &&
+        memoryFunctionQueue.empty() && (onTheFlyReqs == 0);
+}
+
 uint32_t
 CoalesceEngine::reduce(uint32_t update, uint32_t value)
 {
@@ -813,6 +820,10 @@ CoalesceEngine::processNextApplyEvent()
 
     if (done()) {
         owner->recvDoneSignal();
+    }
+
+    if (draining && doneDrain()) {
+        owner->recvDoneDrainSignal();
     }
 }
 

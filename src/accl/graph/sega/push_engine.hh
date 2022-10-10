@@ -119,6 +119,8 @@ class PushEngine : public BaseMemoryEngine
     };
     MPU* owner;
 
+    bool draining;
+
     bool _running;
     Tick lastIdleEntranceTick;
 
@@ -205,6 +207,11 @@ class PushEngine : public BaseMemoryEngine
     void recvReqRetry();
 
     bool done();
+    bool doneDrain();
+
+    bool getDraining() { return draining; }
+    void enableDrain() { draining = true; }
+    void disableDrain() { draining = false; }
 };
 
 }

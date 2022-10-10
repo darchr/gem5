@@ -39,6 +39,7 @@ namespace gem5
 
 WLEngine::WLEngine(const WLEngineParams& params):
     BaseReduceEngine(params),
+    draining(false),
     updateQueueSize(params.update_queue_size),
     registerFileSize(params.register_file_size),
     workload(params.workload),
@@ -144,6 +145,12 @@ bool
 WLEngine::done()
 {
     return registerFile.empty() && updateQueue.empty();
+}
+
+bool
+WLEngine::doneDrain()
+{
+    return done();
 }
 
 uint32_t
@@ -322,6 +329,10 @@ WLEngine::processNextReduceEvent()
 
     if (done()) {
         owner->recvDoneSignal();
+    }
+
+    if (draining && doneDrain()) {
+        owner->recvDoneDrainSignal();
     }
 }
 

@@ -103,6 +103,8 @@ class CoalesceEngine : public BaseMemoryEngine
     };
     MPU* owner;
 
+    bool draining;
+
     int numLines;
     int numElementsPerLine;
     Block* cacheBlocks;
@@ -207,6 +209,11 @@ class CoalesceEngine : public BaseMemoryEngine
     void recvVertexPull();
 
     bool done();
+    bool doneDrain();
+
+    bool getDraining() { return draining; }
+    void enableDrain() { draining = true; }
+    void disableDrain() { draining = false; }
 };
 
 }

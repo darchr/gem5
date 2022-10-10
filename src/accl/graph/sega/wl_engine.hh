@@ -68,11 +68,13 @@ class WLEngine : public BaseReduceEngine
         virtual void recvFunctional(PacketPtr pkt);
         virtual void recvRespRetry();
     };
-
     MPU* owner;
+
+    bool draining;
 
     std::vector<RespPort> inPorts;
 
+    bool processNewUpdates;
     int updateQueueSize;
     std::deque<std::tuple<Addr, uint32_t, Tick>> updateQueue;
 
@@ -126,6 +128,11 @@ class WLEngine : public BaseReduceEngine
     void checkRetryReq();
 
     bool done();
+    bool doneDrain();
+
+    bool getDraining() { return draining; }
+    void enableDrain() { draining = true; }
+    void disableDrain() { draining = false; }
 };
 
 }

@@ -78,6 +78,13 @@ class MPU : public SimObject
 
     void recvDoneSignal();
     bool done();
+
+    void recvDoneDrainSignal();
+    bool doneDrain();
+
+    bool getDraining();
+    void enableDrain();
+    void disableDrain();
 };
 
 } // namespace gem5

@@ -91,4 +91,44 @@ MPU::done()
     return wlEngine->done() && coalesceEngine->done() && pushEngine->done();
 }
 
+void
+MPU::recvDoneDrainSignal()
+{
+    if (doneDrain()) {
+        centeralController->recvDoneDrainSignal();
+    }
+}
+
+bool
+MPU::doneDrain()
+{
+    return wlEngine->doneDrain() &&
+        coalesceEngine->doneDrain() && pushEngine->doneDrain();
+}
+
+bool
+MPU::getDraining()
+{
+    assert((wlEngine->getDraining() && coalesceEngine->getDraining() && pushEngine->getDraining()) ||
+            (!wlEngine->getDraining() && !coalesceEngine->getDraining() && !pushEngine->getDraining()));
+    return wlEngine->getDraining() &&
+        coalesceEngine->getDraining() && pushEngine->getDraining();
+}
+
+void
+MPU::enableDrain()
+{
+    wlEngine->enableDrain();
+    coalesceEngine->enableDrain();
+    pushEngine->enableDrain();
+}
+
+void
+MPU::disableDrain()
+{
+    wlEngine->disableDrain();
+    coalesceEngine->disableDrain();
+    pushEngine->disableDrain();
+}
+
 } // namespace gem5

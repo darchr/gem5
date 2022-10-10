@@ -153,6 +153,19 @@ CenteralController::recvDoneSignal()
 }
 
 void
+CenteralController::recvDoneDrainSignal()
+{
+    bool done_drain = true;
+    for (auto mpu: mpuVector) {
+        done_drain &= mpu->doneDrain();
+    }
+
+    if (done_drain) {
+        exitSimLoopNow("done draining.");
+    }
+}
+
+void
 CenteralController::printAnswerToHostSimout()
 {
     int num_items = system->cacheLineSize() / sizeof(WorkListItem);
@@ -176,4 +189,31 @@ CenteralController::printAnswerToHostSimout()
     }
 }
 
+void
+CenteralController::enableDrain()
+{
+    bool all_draining = false;
+    for (auto mpu: mpuVector) {
+        all_draining |= mpu->getDraining();
+    }
+    assert(!all_draining);
+
+    for (auto mpu: mpuVector) {
+        mpu->enableDrain();
+    }
+}
+
+void
+CenteralController::disableDrain()
+{
+    bool all_draining = true;
+    for (auto mpu: mpuVector) {
+        all_draining &= mpu->getDraining();
+    }
+    assert(all_draining);
+
+    for (auto mpu: mpuVector) {
+        mpu->disableDrain();
+    }
+}
 }

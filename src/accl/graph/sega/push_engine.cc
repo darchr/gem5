@@ -38,6 +38,7 @@ namespace gem5
 
 PushEngine::PushEngine(const Params& params):
     BaseMemoryEngine(params),
+    draining(false),
     _running(false),
     lastIdleEntranceTick(0),
     numPendingPulls(0), edgePointerQueueSize(params.push_req_queue_size),
@@ -151,6 +152,12 @@ PushEngine::done()
         (onTheFlyMemReqs == 0) && edgePointerQueue.empty();
 }
 
+bool
+PushEngine::doneDrain()
+{
+    return done();
+}
+
 uint32_t
 PushEngine::reduce(uint32_t update, uint32_t value)
 {
@@ -196,7 +203,9 @@ PushEngine::start()
 void
 PushEngine::processNextVertexPullEvent()
 {
-    // TODO: change edgePointerQueueSize
+    if (draining) {
+        return;
+    }
     numPendingPulls++;
     owner->recvVertexPull();
 

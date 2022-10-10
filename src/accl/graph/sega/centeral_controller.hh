@@ -65,8 +65,12 @@ class CenteralController : public ClockedObject
 
     void createInitialBFSUpdate(Addr init_addr, uint32_t init_value);
     void recvDoneSignal();
+    void recvDoneDrainSignal();
 
     void printAnswerToHostSimout();
+
+    void enableDrain();
+    void disableDrain();
 };
 
 }
