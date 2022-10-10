@@ -65,10 +65,22 @@ MPU::handleIncomingWL(Addr addr, WorkListItem wl)
     wlEngine->handleIncomingWL(addr, wl);
 }
 
+WorkListItem
+MPU::recvFunctionalWLRead(Addr addr)
+{
+    return coalesceEngine->recvFunctionalWLRead(addr);
+}
+
 void
 MPU::recvWLWrite(Addr addr, WorkListItem wl)
 {
     coalesceEngine->recvWLWrite(addr, wl);
+}
+
+void
+MPU::recvFunctionalWLWrite(Addr addr, WorkListItem wl)
+{
+    coalesceEngine->recvFunctionalWLWrite(addr, wl);
 }
 
 void
@@ -129,6 +141,31 @@ MPU::disableDrain()
     wlEngine->disableDrain();
     coalesceEngine->disableDrain();
     pushEngine->disableDrain();
+}
+
+bool
+MPU::getFastMode()
+{
+    assert((wlEngine->getFastMode() && coalesceEngine->getFastMode() && pushEngine->getFastMode()) ||
+            (!wlEngine->getFastMode() && !coalesceEngine->getFastMode() && !pushEngine->getFastMode()));
+    return wlEngine->getFastMode() &&
+        coalesceEngine->getFastMode() && pushEngine->getFastMode();
+}
+
+void
+MPU::enableFastMode()
+{
+    wlEngine->enableFastMode();
+    coalesceEngine->enableFastMode();
+    pushEngine->enableFastMode();
+}
+
+void
+MPU::disableFastMode()
+{
+    wlEngine->disableFastMode();
+    coalesceEngine->disableFastMode();
+    pushEngine->disableFastMode();
 }
 
 void

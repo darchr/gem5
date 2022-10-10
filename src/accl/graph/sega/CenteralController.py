@@ -46,5 +46,7 @@ class CenteralController(ClockedObject):
                     PyBindMethod("printAnswerToHostSimout"),
                     PyBindMethod("enableDrain"),
                     PyBindMethod("disableDrain"),
+                    PyBindMethod("enableFastMode"),
+                    PyBindMethod("disableFastMode"),
                     PyBindMethod("resumeAfterDrain")
                 ]

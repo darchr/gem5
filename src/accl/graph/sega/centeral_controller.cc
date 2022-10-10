@@ -218,6 +218,34 @@ CenteralController::disableDrain()
 }
 
 void
+CenteralController::enableFastMode()
+{
+    bool all_fast = false;
+    for (auto mpu: mpuVector) {
+        all_fast |= mpu->getFastMode();
+    }
+    assert(!all_fast);
+
+    for (auto mpu: mpuVector) {
+        mpu->enableFastMode();
+    }
+}
+
+void
+CenteralController::disableFastMode()
+{
+    bool all_fast = true;
+    for (auto mpu: mpuVector) {
+        all_fast &= mpu->getFastMode();
+    }
+    assert(all_fast);
+
+    for (auto mpu: mpuVector) {
+        mpu->disableFastMode();
+    }
+}
+
+void
 CenteralController::resumeAfterDrain()
 {
     bool all_draining = false;

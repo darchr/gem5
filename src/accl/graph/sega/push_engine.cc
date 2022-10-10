@@ -38,7 +38,7 @@ namespace gem5
 
 PushEngine::PushEngine(const Params& params):
     BaseMemoryEngine(params),
-    draining(false),
+    draining(false), fastMode(false),
     _running(false),
     lastIdleEntranceTick(0),
     numPendingPulls(0), edgePointerQueueSize(params.push_req_queue_size),

@@ -120,6 +120,7 @@ class PushEngine : public BaseMemoryEngine
     MPU* owner;
 
     bool draining;
+    bool fastMode;
 
     bool _running;
     Tick lastIdleEntranceTick;
@@ -212,6 +213,9 @@ class PushEngine : public BaseMemoryEngine
     bool getDraining() { return draining; }
     void enableDrain() { draining = true; }
     void disableDrain() { draining = false; }
+    bool getFastMode() { return fastMode; }
+    void enableFastMode() { fastMode = true; }
+    void disableFastMode() { fastMode = false; }
     void resumeAfterDrain();
 };
 

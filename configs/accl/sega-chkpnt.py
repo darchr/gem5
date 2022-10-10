@@ -141,8 +141,13 @@ class SEGA(System):
 
     def enable_drain(self):
         self.ctrl.enableDrain()
-    def resume_after_drain(self):
+    def disable_drain(self):
         self.ctrl.disableDrain()
+    def enable_fast_mode(self):
+        self.ctrl.enableFastMode()
+    def disable_fast_mode(self):
+        self.ctrl.disableFastMode()
+    def resume_after_drain(self):
         self.ctrl.resumeAfterDrain()
 
 def get_inputs():
@@ -179,6 +184,8 @@ if __name__ == "__m5_main__":
     exit_event = m5.simulate()
     print(f"Exited simulation at tick {m5.curTick()} " + \
             f"because {exit_event.getCause()}")
+    system.disable_drain()
+    system.enable_fast_mode()
     system.resume_after_drain()
     exit_event = m5.simulate()
     print(f"Exited simulation at tick {m5.curTick()} " + \

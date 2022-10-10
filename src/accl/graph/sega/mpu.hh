@@ -68,7 +68,9 @@ class MPU : public SimObject
 
     void handleIncomingWL(Addr addr, WorkListItem wl);
     bool recvWLRead(Addr addr) { return coalesceEngine->recvWLRead(addr); }
+    WorkListItem recvFunctionalWLRead(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);
+    void recvFunctionalWLWrite(Addr addr, WorkListItem wl);
 
     int workCount() { return coalesceEngine->workCount(); }
     void recvVertexPull() { return coalesceEngine->recvVertexPull(); }
@@ -85,7 +87,9 @@ class MPU : public SimObject
     bool getDraining();
     void enableDrain();
     void disableDrain();
-
+    bool getFastMode();
+    void enableFastMode();
+    void disableFastMode();
     void resumeAfterDrain();
 };
 

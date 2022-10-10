@@ -71,6 +71,7 @@ class WLEngine : public BaseReduceEngine
     MPU* owner;
 
     bool draining;
+    bool fastMode;
 
     std::vector<RespPort> inPorts;
 
@@ -92,6 +93,9 @@ class WLEngine : public BaseReduceEngine
 
     EventFunctionWrapper nextReduceEvent;
     void processNextReduceEvent();
+
+    EventFunctionWrapper nextFastEvent;
+    void processNextFastEvent();
 
     struct WorkListStats : public statistics::Group
     {
@@ -133,6 +137,9 @@ class WLEngine : public BaseReduceEngine
     bool getDraining() { return draining; }
     void enableDrain() { draining = true; }
     void disableDrain() { draining = false; }
+    bool getFastMode() { return fastMode; }
+    void enableFastMode() { fastMode = true; }
+    void disableFastMode() { fastMode = false; }
 };
 
 }

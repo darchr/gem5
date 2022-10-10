@@ -104,6 +104,7 @@ class CoalesceEngine : public BaseMemoryEngine
     MPU* owner;
 
     bool draining;
+    bool fastMode;
 
     int numLines;
     int numElementsPerLine;
@@ -205,6 +206,9 @@ class CoalesceEngine : public BaseMemoryEngine
     bool recvWLRead(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);
 
+    WorkListItem recvFunctionalWLRead(Addr addr);
+    void recvFunctionalWLWrite(Addr addr, WorkListItem wl);
+
     int workCount() { return _workCount; }
     void recvVertexPull();
 
@@ -214,6 +218,9 @@ class CoalesceEngine : public BaseMemoryEngine
     bool getDraining() { return draining; }
     void enableDrain() { draining = true; }
     void disableDrain() { draining = false; }
+    bool getFastMode() { return fastMode; }
+    void enableFastMode() { fastMode = true; }
+    void disableFastMode() { fastMode = false; }
 };
 
 }

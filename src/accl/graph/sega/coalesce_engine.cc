@@ -43,6 +43,7 @@ namespace gem5
 
 CoalesceEngine::CoalesceEngine(const Params &params):
     BaseMemoryEngine(params),
+    draining(false), fastMode(false),
     numLines((int) (params.cache_size / peerMemoryAtomSize)),
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
     onTheFlyReqs(0), numMSHREntries(params.num_mshr_entry),
@@ -451,6 +452,54 @@ CoalesceEngine::recvWLRead(Addr addr)
     }
 }
 
+WorkListItem
+CoalesceEngine::recvFunctionalWLRead(Addr addr)
+{
+    Addr aligned_addr = roundDown<Addr, size_t>(addr, peerMemoryAtomSize);
+    assert(aligned_addr % peerMemoryAtomSize == 0);
+    int block_index = getBlockIndex(aligned_addr);
+    assert(block_index < numLines);
+    int wl_offset = (addr - aligned_addr) / sizeof(WorkListItem);
+    assert(wl_offset < numElementsPerLine);
+
+    assert(cacheBlocks[block_index].busyMask == 0);
+    assert(!cacheBlocks[block_index].needsApply);
+    assert(!cacheBlocks[block_index].pendingData);
+    assert(!cacheBlocks[block_index].pendingApply);
+    assert(!cacheBlocks[block_index].pendingWB);
+
+    if ((cacheBlocks[block_index].addr == addr) &&
+        (cacheBlocks[block_index].valid)) {
+        cacheBlocks[block_index].lastChangedTick = curTick();
+        return cacheBlocks[block_index].items[wl_offset];
+    } else {
+        if (cacheBlocks[block_index].valid) {
+            PacketPtr write_pkt = createWritePacket(
+                        cacheBlocks[block_index].addr, peerMemoryAtomSize,
+                        (uint8_t*) cacheBlocks[block_index].items);
+            memPort.sendFunctional(write_pkt);
+            delete write_pkt;
+            PacketPtr read_pkt = createReadPacket(aligned_addr, peerMemoryAtomSize);
+            memPort.sendFunctional(read_pkt);
+            read_pkt->writeDataToBlock(
+                (uint8_t*) cacheBlocks[block_index].items, peerMemoryAtomSize);
+            delete read_pkt;
+            cacheBlocks[block_index].addr = aligned_addr;
+            cacheBlocks[block_index].lastChangedTick = curTick();
+            return cacheBlocks[block_index].items[wl_offset];
+        } else {
+            PacketPtr read_pkt = createReadPacket(aligned_addr, peerMemoryAtomSize);
+            memPort.sendFunctional(read_pkt);
+            read_pkt->writeDataToBlock(
+                (uint8_t*) cacheBlocks[block_index].items, peerMemoryAtomSize);
+            delete read_pkt;
+            cacheBlocks[block_index].addr = aligned_addr;
+            cacheBlocks[block_index].lastChangedTick = curTick();
+            return cacheBlocks[block_index].items[wl_offset];
+        }
+    }
+}
+
 bool
 CoalesceEngine::handleMemResp(PacketPtr pkt)
 {
@@ -735,6 +784,48 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                 block_index, cacheBlocks[block_index].to_string());
 
+}
+
+void
+CoalesceEngine::recvFunctionalWLWrite(Addr addr, WorkListItem wl)
+{
+    Addr aligned_addr = roundDown<Addr, size_t>(addr, peerMemoryAtomSize);
+    assert(aligned_addr % peerMemoryAtomSize == 0);
+    int block_index = getBlockIndex(aligned_addr);
+    assert(block_index < numLines);
+    int wl_offset = (addr - aligned_addr) / sizeof(WorkListItem);
+    assert(wl_offset < numElementsPerLine);
+
+    assert(cacheBlocks[block_index].busyMask == 0);
+    assert(!cacheBlocks[block_index].needsApply);
+    assert(!cacheBlocks[block_index].pendingData);
+    assert(!cacheBlocks[block_index].pendingApply);
+    assert(!cacheBlocks[block_index].pendingWB);
+
+    cacheBlocks[block_index].items[wl_offset] = wl;
+    for (int index = 0; index < numElementsPerLine; index++) {
+        uint32_t current_prop = cacheBlocks[block_index].items[index].prop;
+        uint32_t new_prop = reduce(
+            cacheBlocks[block_index].items[index].tempProp, current_prop);
+        if (new_prop != current_prop) {
+            cacheBlocks[block_index].items[index].tempProp = new_prop;
+            cacheBlocks[block_index].items[index].prop = new_prop;
+
+            int bit_index_base =
+                        getBitIndexBase(cacheBlocks[block_index].addr);
+
+            if (cacheBlocks[block_index].items[index].degree > 0) {
+                if (needsPush[bit_index_base + index] == 0) {
+                    _workCount++;
+                    needsPush[bit_index_base + index] = 1;
+                    activeBits.push_back(bit_index_base + index);
+                    if (!owner->running()) {
+                        owner->start();
+                    }
+                }
+            }
+        }
+    }
 }
 
 void

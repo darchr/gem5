@@ -39,12 +39,13 @@ namespace gem5
 
 WLEngine::WLEngine(const WLEngineParams& params):
     BaseReduceEngine(params),
-    draining(false),
+    draining(false), fastMode(false),
     updateQueueSize(params.update_queue_size),
     registerFileSize(params.register_file_size),
     workload(params.workload),
     nextReadEvent([this]{ processNextReadEvent(); }, name()),
     nextReduceEvent([this]{ processNextReduceEvent(); }, name()),
+    nextFastEvent([this] { processNextFastEvent(); }, name()),
     stats(*this)
 {
     for (int i = 0; i < params.port_in_ports_connection_count; ++i) {
@@ -185,9 +186,14 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
 
     // delete the packet since it's not needed anymore.
     delete pkt;
-
-    if (!nextReadEvent.scheduled()) {
-        schedule(nextReadEvent, nextCycle());
+    if (fastMode) {
+        if (!nextFastEvent.scheduled()) {
+            schedule(nextFastEvent, nextCycle());
+        }
+    } else {
+        if (!nextReadEvent.scheduled()) {
+            schedule(nextReadEvent, nextCycle());
+        }
     }
     return true;
 }
@@ -333,6 +339,28 @@ WLEngine::processNextReduceEvent()
 
     if (draining && doneDrain()) {
         owner->recvDoneDrainSignal();
+    }
+}
+
+void
+WLEngine::processNextFastEvent()
+{
+    Addr update_addr;
+    uint32_t update_value;
+    Tick entrance_tick;
+    std::tie(update_addr, update_value, entrance_tick) = updateQueue.front();
+
+    WorkListItem wl = owner->recvFunctionalWLRead(update_addr);
+    wl.tempProp = reduce(update_value, wl.tempProp);
+    owner->recvFunctionalWLWrite(update_addr, wl);
+
+    updateQueue.pop_front();
+
+    if (done()) {
+        owner->recvDoneSignal();
+    }
+    if (!updateQueue.empty()) {
+        schedule(nextFastEvent, nextCycle());
     }
 }
 
