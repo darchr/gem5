@@ -76,16 +76,16 @@ WLEngine::registerMPU(MPU* mpu)
     owner = mpu;
 }
 
-AddrRangeList 
+AddrRangeList
 WLEngine::getAddrRanges()
-{ 
-    return owner->getAddrRanges(); 
+{
+    return owner->getAddrRanges();
 }
 
-void 
+void
 WLEngine::recvFunctional(PacketPtr pkt)
-{ 
-    owner->recvFunctional(pkt); 
+{
+    owner->recvFunctional(pkt);
 }
 
 AddrRangeList

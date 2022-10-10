@@ -42,7 +42,7 @@ def interleave_addresses(plain_range, num_channels, cache_line_size):
                 xorHighBit=0,
                 intlvBits=intlv_bits,
                 intlvMatch=i))
-        return ret
+        return ret, intlv_low_bit + intlv_bits - 1
 
 class GPT(SubSystem):
     def __init__(self, edge_memory_size: str, cache_size: str):
@@ -112,17 +112,17 @@ class SEGA(System):
 
         self.ctrl = CenteralController(image_file=f"{graph_path}/vertices")
 
-        vertex_ranges = interleave_addresses(
-                                        AddrRange(start=0, size="4GiB"),
-                                        2*num_mpus,
-                                        32
-                                        )
+        vertex_ranges, pch_bit = interleave_addresses(
+                                            AddrRange(start=0, size="4GiB"),
+                                            2*num_mpus,
+                                            32
+                                            )
 
         gpts = []
         for i in range(num_mpus):
             gpt = GPT("2GiB", cache_size)
             gpt.set_vertex_range([vertex_ranges[i], vertex_ranges[i+num_mpus]])
-            gpt.set_vertex_pch_bit(8)
+            gpt.set_vertex_pch_bit(pch_bit)
             gpt.set_edge_image(f"{graph_path}/edgelist_{i}")
             gpts.append(gpt)
         # Creating the interconnect among mpus
