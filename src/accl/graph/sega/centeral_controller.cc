@@ -192,11 +192,11 @@ CenteralController::printAnswerToHostSimout()
 void
 CenteralController::enableDrain()
 {
-    bool all_draining = false;
+    bool neither_draining = true;
     for (auto mpu: mpuVector) {
-        all_draining |= mpu->getDraining();
+        neither_draining &= !mpu->getDraining();
     }
-    assert(!all_draining);
+    assert(neither_draining);
 
     for (auto mpu: mpuVector) {
         mpu->enableDrain();
@@ -220,11 +220,11 @@ CenteralController::disableDrain()
 void
 CenteralController::enableFastMode()
 {
-    bool all_fast = false;
+    bool neither_fast = true;
     for (auto mpu: mpuVector) {
-        all_fast |= mpu->getFastMode();
+        neither_fast &= !mpu->getFastMode();
     }
-    assert(!all_fast);
+    assert(neither_fast);
 
     for (auto mpu: mpuVector) {
         mpu->enableFastMode();
@@ -248,11 +248,11 @@ CenteralController::disableFastMode()
 void
 CenteralController::resumeAfterDrain()
 {
-    bool all_draining = false;
+    bool neither_draining = true;
     for (auto mpu: mpuVector) {
-        all_draining |= mpu->getDraining();
+        neither_draining &= !mpu->getDraining();
     }
-    assert(!all_draining);
+    assert(neither_draining);
 
     for (auto mpu: mpuVector) {
         mpu->resumeAfterDrain();

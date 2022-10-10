@@ -29,6 +29,7 @@ import argparse
 
 from math import log
 from m5.objects import *
+from m5.debug import flags
 
 def interleave_addresses(plain_range, num_channels, cache_line_size):
         intlv_low_bit = log(cache_line_size, 2)
@@ -187,6 +188,7 @@ if __name__ == "__m5_main__":
     system.disable_drain()
     system.enable_fast_mode()
     system.resume_after_drain()
+    flags["MPU"].enable()
     exit_event = m5.simulate()
     print(f"Exited simulation at tick {m5.curTick()} " + \
             f"because {exit_event.getCause()}")

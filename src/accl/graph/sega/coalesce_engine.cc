@@ -474,12 +474,15 @@ CoalesceEngine::recvFunctionalWLRead(Addr addr)
         return cacheBlocks[block_index].items[wl_offset];
     } else {
         if (cacheBlocks[block_index].valid) {
-            PacketPtr write_pkt = createWritePacket(
-                        cacheBlocks[block_index].addr, peerMemoryAtomSize,
-                        (uint8_t*) cacheBlocks[block_index].items);
-            memPort.sendFunctional(write_pkt);
-            delete write_pkt;
-            PacketPtr read_pkt = createReadPacket(aligned_addr, peerMemoryAtomSize);
+            if (cacheBlocks[block_index].needsWB) {
+                PacketPtr write_pkt = createWritePacket(
+                            cacheBlocks[block_index].addr, peerMemoryAtomSize,
+                            (uint8_t*) cacheBlocks[block_index].items);
+                memPort.sendFunctional(write_pkt);
+                delete write_pkt;
+            }
+            PacketPtr read_pkt = createReadPacket(
+                                            aligned_addr, peerMemoryAtomSize);
             memPort.sendFunctional(read_pkt);
             read_pkt->writeDataToBlock(
                 (uint8_t*) cacheBlocks[block_index].items, peerMemoryAtomSize);
@@ -488,7 +491,8 @@ CoalesceEngine::recvFunctionalWLRead(Addr addr)
             cacheBlocks[block_index].lastChangedTick = curTick();
             return cacheBlocks[block_index].items[wl_offset];
         } else {
-            PacketPtr read_pkt = createReadPacket(aligned_addr, peerMemoryAtomSize);
+            PacketPtr read_pkt = createReadPacket(
+                                            aligned_addr, peerMemoryAtomSize);
             memPort.sendFunctional(read_pkt);
             read_pkt->writeDataToBlock(
                 (uint8_t*) cacheBlocks[block_index].items, peerMemoryAtomSize);
@@ -802,29 +806,29 @@ CoalesceEngine::recvFunctionalWLWrite(Addr addr, WorkListItem wl)
     assert(!cacheBlocks[block_index].pendingApply);
     assert(!cacheBlocks[block_index].pendingWB);
 
-    cacheBlocks[block_index].items[wl_offset] = wl;
-    for (int index = 0; index < numElementsPerLine; index++) {
-        uint32_t current_prop = cacheBlocks[block_index].items[index].prop;
+    if (cacheBlocks[block_index].items[wl_offset].tempProp != wl.tempProp) {
+        uint32_t current_prop = cacheBlocks[block_index].items[wl_offset].prop;
         uint32_t new_prop = reduce(
-            cacheBlocks[block_index].items[index].tempProp, current_prop);
+            cacheBlocks[block_index].items[wl_offset].tempProp, current_prop);
         if (new_prop != current_prop) {
-            cacheBlocks[block_index].items[index].tempProp = new_prop;
-            cacheBlocks[block_index].items[index].prop = new_prop;
+            cacheBlocks[block_index].items[wl_offset].tempProp = new_prop;
+            cacheBlocks[block_index].items[wl_offset].prop = new_prop;
 
             int bit_index_base =
                         getBitIndexBase(cacheBlocks[block_index].addr);
 
-            if (cacheBlocks[block_index].items[index].degree > 0) {
-                if (needsPush[bit_index_base + index] == 0) {
+            if (cacheBlocks[block_index].items[wl_offset].degree > 0) {
+                if (needsPush[bit_index_base + wl_offset] == 0) {
                     _workCount++;
-                    needsPush[bit_index_base + index] = 1;
-                    activeBits.push_back(bit_index_base + index);
+                    needsPush[bit_index_base + wl_offset] = 1;
+                    activeBits.push_back(bit_index_base + wl_offset);
                     if (!owner->running()) {
                         owner->start();
                     }
                 }
             }
         }
+        cacheBlocks[block_index].needsWB = true;
     }
 }
 
