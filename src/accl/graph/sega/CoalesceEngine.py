@@ -44,3 +44,5 @@ class CoalesceEngine(BaseMemoryEngine):
                                 "requestor in each cycle. Used to limit b/w.")
 
     workload = Param.String("BFS", "Name of the workload")
+
+    thereshold = Param.Float('0.0001', "Score threshold for Pagerank")

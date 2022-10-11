@@ -51,3 +51,6 @@ class PushEngine(BaseMemoryEngine):
                                     "for each update queue.")
 
     out_ports = VectorRequestPort("Outgoing ports to all MPUs")
+
+    alpha = Param.Float(0.8, "This parameter is specific to pagerank")
+    

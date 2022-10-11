@@ -158,6 +158,10 @@ PushEngine::reduce(uint32_t update, uint32_t value)
     uint32_t new_value;
     if(workload == "BFS"){
         new_value = std::min(update, value);
+    } else if(workload == "PR"){
+        new_value = update + value;
+    } else if(workload == "SSSP"){
+        new_value = std::min(update, value);
     } else{
         panic("Workload not implemented\n");
     }
@@ -165,17 +169,40 @@ PushEngine::reduce(uint32_t update, uint32_t value)
 }
 
 uint32_t
-PushEngine::propagate(uint32_t value, uint32_t weight)
+PushEngine::propagate(uint32_t delta, uint32_t weight)
 {
     std::string workload = params().workload;
     uint32_t update;
     if (workload == "BFS")  {
-        update = value + 1;
-    }
-    else{
+        update = delta + 1;
+    } else if (workload == "SSSP")  {
+        update = delta + weight;
+    } else if (workload == "PR")  {
+        float float_form = writeToFloat<uint32_t>(delta);
+        float float_update = float_form * weight * params().alpha;
+        update = readFromFloat<uint32_t>(float_update);
+    } else{
         panic("The workload %s is not supported", workload);
     }
     return update;
+}
+
+uint32_t
+PushEngine::calculateValue(WorkListItem wl)
+{
+    std::string workload = params().workload;
+    uint32_t delta;
+    if (workload == "PR")  {
+        float property = writeToFloat<uint32_t>(wl.prop) / wl.degree;
+        delta = readFromFloat<uint32_t>(property);
+    } else if (workload == "BFS") {
+        delta = wl.prop;
+    } else if (workload == "SSSP") {
+        delta = wl.prop;
+    } else {
+        panic("Workload not supported.");
+    }
+    return delta;
 }
 
 void
@@ -220,9 +247,11 @@ PushEngine::recvVertexPush(Addr addr, WorkListItem wl)
     Addr start_addr = wl.edgeIndex * sizeof(Edge);
     Addr end_addr = start_addr + (wl.degree * sizeof(Edge));
 
+    uint32_t value = calculateValue(wl);
     EdgeReadInfoGen info_gen(start_addr, end_addr, sizeof(Edge),
-                            peerMemoryAtomSize, addr, (uint32_t) wl.prop);
+                            peerMemoryAtomSize, addr, value);
     edgePointerQueue.emplace_back(info_gen, curTick());
+    
     numPendingPulls--;
     if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
         schedule(nextVertexPullEvent, nextCycle());
@@ -256,7 +285,6 @@ PushEngine::processNextMemoryReadEvent()
         PacketPtr pkt = createReadPacket(aligned_addr, peerMemoryAtomSize);
         PushInfo push_info = {curr_info.src(), curr_info.value(), offset, num_edges};
         reqInfoMap[pkt->req] = push_info;
-
         memPort.sendPacket(pkt);
         onTheFlyMemReqs += num_edges;
 
