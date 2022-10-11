@@ -48,7 +48,8 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     onTheFlyReqs(0), numMSHREntries(params.num_mshr_entry),
     numTgtsPerMSHR(params.num_tgts_per_mshr),
     maxRespPerCycle(params.max_resp_per_cycle),
-    _workCount(0), numPullsReceived(0), workload(params.workload),
+    _workCount(0), numPullsReceived(0), 
+    workload(params.workload),
     nextMemoryEvent([this] {
         processNextMemoryEvent();
         }, name() + ".nextMemoryEvent"),
@@ -110,16 +111,20 @@ CoalesceEngine::done()
         memoryFunctionQueue.empty() && (onTheFlyReqs == 0);
 }
 
-uint32_t
-CoalesceEngine::reduce(uint32_t update, uint32_t value)
+bool
+CoalesceEngine::applyCondition(uint32_t update, uint32_t value)
 {
-    uint32_t new_value;
     if(workload == "BFS"){
-        new_value = std::min(update, value);
+        return update != value;
+    } else if (workload == "SSSP"){
+        return  update < value;
+    } else if (workload == "PR"){
+        float float_value = writeToFloat<uint32_t>(value);
+        float float_update = writeToFloat<uint32_t>(update);
+        return  params().thereshold <= abs(float_update - float_value);
     } else{
-        panic("Workload not implemented\n");
+        panic("The workload is not recognize");
     }
-    return new_value;
 }
 
 // addr should be aligned to peerMemoryAtomSize
@@ -639,7 +644,8 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     assert((cacheBlocks[block_index].busyMask & (1 << wl_offset)) ==
             (1 << wl_offset));
 
-    if (cacheBlocks[block_index].items[wl_offset].tempProp != wl.tempProp) {
+    if (applyCondition(
+            wl.tempProp, cacheBlocks[block_index].items[wl_offset].tempProp)) {
         cacheBlocks[block_index].items[wl_offset] = wl;
         cacheBlocks[block_index].needsApply |= true;
         // NOTE: We don't set needsWB and rely on processNextApplyEvent to
@@ -747,12 +753,7 @@ CoalesceEngine::processNextApplyEvent()
         assert(cacheBlocks[block_index].busyMask == 0);
         for (int index = 0; index < numElementsPerLine; index++) {
             uint32_t current_prop = cacheBlocks[block_index].items[index].prop;
-            // NOTE: It might be the case that for workloads other than BFS,
-            // the reduce function here should be different to the reduce
-            // function defined in WLEngine. Think about the case of PR in
-            // detail.
-            uint32_t new_prop = reduce(
-                cacheBlocks[block_index].items[index].tempProp, current_prop);
+            uint32_t new_prop = cacheBlocks[block_index].items[index].tempProp;
             if (new_prop != current_prop) {
                 cacheBlocks[block_index].items[index].tempProp = new_prop;
                 cacheBlocks[block_index].items[index].prop = new_prop;
