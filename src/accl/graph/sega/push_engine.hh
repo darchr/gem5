@@ -133,6 +133,7 @@ class PushEngine : public BaseMemoryEngine
 
     uint32_t reduce(uint32_t update, uint32_t value);
     uint32_t propagate(uint32_t value, uint32_t weight);
+    uint32_t calculateValue(WorkListItem wl);
 
     int updateQueueSize;
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);

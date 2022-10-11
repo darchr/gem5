@@ -131,6 +131,7 @@ class CoalesceEngine : public BaseMemoryEngine
 
     std::string workload;
     uint32_t reduce(uint32_t update, uint32_t value);
+    bool applyCondition(uint32_t update, uint32_t value);
 
     MemoryEvent nextMemoryEvent;
     void processNextMemoryEvent();
