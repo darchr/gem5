@@ -73,12 +73,11 @@ class PushEngine : public BaseMemoryEngine
         Addr _src;
         uint32_t _value;
 
-        Tick _entrance;
       public:
         EdgeReadInfoGen(Addr start, Addr end, size_t step,
-                        size_t atom, Addr src, uint32_t value, Tick entrance):
-                        _start(start), _end(end), _step(step), _atom(atom),
-                        _src(src), _value(value), _entrance(entrance)
+                        size_t atom, Addr src, uint32_t value):
+                        _start(start), _end(end), _step(step),
+                        _atom(atom), _src(src), _value(value)
         {}
 
         std::tuple<Addr, Addr, int> nextReadPacketInfo()
@@ -108,8 +107,6 @@ class PushEngine : public BaseMemoryEngine
 
         Addr src() { return _src; }
         uint32_t value() { return _value; }
-
-        Tick entrance() { return _entrance; }
     };
     struct PushInfo {
         Addr src;
@@ -126,7 +123,7 @@ class PushEngine : public BaseMemoryEngine
 
     int numPendingPulls;
     int edgePointerQueueSize;
-    std::deque<EdgeReadInfoGen> edgePointerQueue;
+    std::deque<std::tuple<EdgeReadInfoGen, Tick>> edgePointerQueue;
     std::unordered_map<RequestPtr, PushInfo> reqInfoMap;
 
     int onTheFlyMemReqs;
