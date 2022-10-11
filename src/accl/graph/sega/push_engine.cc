@@ -220,10 +220,9 @@ PushEngine::recvVertexPush(Addr addr, WorkListItem wl)
     Addr start_addr = wl.edgeIndex * sizeof(Edge);
     Addr end_addr = start_addr + (wl.degree * sizeof(Edge));
 
-    edgePointerQueue.emplace_back(
-                            start_addr, end_addr, sizeof(Edge),
-                            peerMemoryAtomSize, addr,
-                            (uint32_t) wl.prop, curTick());
+    EdgeReadInfoGen info_gen(start_addr, end_addr, sizeof(Edge),
+                            peerMemoryAtomSize, addr, (uint32_t) wl.prop);
+    edgePointerQueue.emplace_back(info_gen, curTick());
     numPendingPulls--;
     if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
         schedule(nextVertexPullEvent, nextCycle());
@@ -245,7 +244,8 @@ PushEngine::processNextMemoryReadEvent()
     Addr aligned_addr, offset;
     int num_edges;
 
-    EdgeReadInfoGen& curr_info = edgePointerQueue.front();
+    EdgeReadInfoGen& curr_info = std::get<0>(edgePointerQueue.front());
+    Tick entrance_tick = std::get<1>(edgePointerQueue.front());
     std::tie(aligned_addr, offset, num_edges) = curr_info.nextReadPacketInfo();
     if (metaEdgeQueue.size() < (edgeQueueSize - (onTheFlyMemReqs + num_edges)))
     {
@@ -264,8 +264,7 @@ PushEngine::processNextMemoryReadEvent()
         if (curr_info.done()) {
             DPRINTF(PushEngine, "%s: Current EdgeReadInfoGen is done.\n", __func__);
             stats.edgePointerQueueLatency.sample(
-                                (curTick() - curr_info.entrance()) *
-                                1e9 / getClockFrequency());
+                    (curTick() - entrance_tick) * 1e9 / getClockFrequency());
             edgePointerQueue.pop_front();
             DPRINTF(PushEngine, "%s: Popped curr_info from edgePointerQueue. "
             "edgePointerQueue.size() = %u.\n", __func__, edgePointerQueue.size());

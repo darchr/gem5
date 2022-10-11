@@ -33,6 +33,8 @@
 #include "base/intmath.hh"
 
 #include <list>
+#include <cassert>
+#include <cstring>
 
 namespace gem5
 {
@@ -96,7 +98,7 @@ struct MetaEdge {
     uint32_t weight;
     uint32_t value;
 
-    MetaEdge(): src(0), dst(0), weight(0), value(0) 
+    MetaEdge(): src(0), dst(0), weight(0), value(0)
     {}
     MetaEdge(uint64_t src, uint64_t dst, uint32_t weight, uint32_t value):
         src(src), dst(dst), weight(weight), value(value)
@@ -175,6 +177,26 @@ class UniqueFIFO
         fifo.erase(it);
     }
 };
+
+template<typename T>
+float
+writeToFloat(T value)
+{
+    assert(sizeof(T) == sizeof(float));
+    float float_form;
+    std::memcpy(&float_form, &value, sizeof(float));
+    return float_form;
+}
+
+template<typename T>
+T
+readFromFloat(float value)
+{
+    assert(sizeof(T) == sizeof(float));
+    T float_bits;
+    std::memcpy(&float_bits, &value, sizeof(float));
+    return float_bits;
+}
 
 }
 
