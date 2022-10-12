@@ -43,6 +43,11 @@ class CoalesceEngine(BaseMemoryEngine):
     max_resp_per_cycle = Param.Int("Maximum number of vertices to send to "
                                 "requestor in each cycle. Used to limit b/w.")
 
+    post_apply_wb_queue_size = Param.Int("Maximum number of pending wb after "
+                                "apply process for applications that require "
+                                "the apply process to happen exactly before "
+                                "pushing the edgePointer to the PushEngine.")
+
     workload = Param.String("BFS", "Name of the workload")
 
-    thereshold = Param.Float('0.0001', "Score threshold for Pagerank")
+    threshold = Param.Float(0.0001, "Score threshold for Pagerank")
