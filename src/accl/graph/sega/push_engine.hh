@@ -199,6 +199,8 @@ class PushEngine : public BaseMemoryEngine
     void start();
     bool running() { return _running; }
     void recvVertexPush(Addr addr, WorkListItem wl);
+    void recvVertexPush2(Addr addr, uint32_t delta,
+                        uint32_t edge_index, uint32_t degree);
 
     void recvReqRetry();
 
