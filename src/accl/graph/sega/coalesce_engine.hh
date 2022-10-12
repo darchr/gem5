@@ -130,7 +130,7 @@ class CoalesceEngine : public BaseMemoryEngine
     std::unordered_map<Addr, uint64_t> pendingVertexPullReads;
 
     std::string workload;
-    uint32_t reduce(uint32_t update, uint32_t value);
+    void algoInit(PacketPtr pkt);
     bool applyCondition(uint32_t update, uint32_t value);
 
     MemoryEvent nextMemoryEvent;
