@@ -64,6 +64,7 @@ class CenteralController : public ClockedObject
     virtual void startup() override;
 
     void createInitialBFSUpdate(Addr init_addr, uint32_t init_value);
+    void createInitialPRUpdate();
     void recvDoneSignal();
 
     void printAnswerToHostSimout();

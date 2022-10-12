@@ -71,11 +71,8 @@ CenteralController::initState()
     [this](PacketPtr pkt) {
         for (auto mpu: mpuVector) {
             AddrRangeList range_list = addrRangeListMap[mpu];
-            for (auto range: range_list) {
-                if (range.contains(pkt->getAddr())) {
-                    mpu->recvFunctional(pkt);
-                    break;
-                }
+            if (contains(range_list, pkt->getAddr())) {
+                mpu->recvFunctional(pkt);
             }
         }
     }, system->cacheLineSize());
@@ -137,6 +134,16 @@ CenteralController::createInitialBFSUpdate(Addr init_addr, uint32_t init_value)
 {
     PacketPtr update = createUpdatePacket<uint32_t>(init_addr, init_value);
     initialUpdates.push_back(update);
+}
+
+void
+CenteralController::createInitialPRUpdate()
+{
+    for (auto mpu: mpuVector) {
+        if (!mpu->running() && (mpu->workCount() > 0)) {
+            mpu->start();
+        }
+    }
 }
 
 void

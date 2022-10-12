@@ -76,6 +76,40 @@ CoalesceEngine::registerMPU(MPU* mpu)
 }
 
 void
+CoalesceEngine::algoInit(PacketPtr pkt)
+{
+    WorkListItem items[numElementsPerLine];
+    pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
+    if(workload == "PR") {
+        //TODO: Add Alpha
+        int bit_index_base = getBitIndexBase(pkt->getAddr());
+        for (int i = 0; i < numElementsPerLine; i++) {
+            items[i].tempProp = readFromFloat<uint32_t>(1 - 0.2);
+            items[i].prop = readFromFloat<uint32_t>(1 - 0.2);
+            needsPush[bit_index_base + i] = 1;
+            activeBits.push_back(bit_index_base + i);
+        }
+    }
+    pkt->setDataFromBlock((uint8_t*) items, peerMemoryAtomSize);
+}
+
+bool
+CoalesceEngine::applyCondition(uint32_t update, uint32_t value)
+{
+    if(workload == "BFS"){
+        return update != value;
+    } else if (workload == "SSSP"){
+        return  update < value;
+    } else if (workload == "PR"){
+        float float_value = writeToFloat<uint32_t>(value);
+        float float_update = writeToFloat<uint32_t>(update);
+        return  params().thereshold <= abs(float_update - float_value);
+    } else{
+        panic("The workload is not recognize");
+    }
+}
+
+void
 CoalesceEngine::recvFunctional(PacketPtr pkt)
 {
     if (pkt->isRead()) {
@@ -100,6 +134,7 @@ CoalesceEngine::recvFunctional(PacketPtr pkt)
             memPort.sendFunctional(pkt);
         }
     } else {
+        algoInit(pkt);
         memPort.sendFunctional(pkt);
     }
 }
@@ -109,22 +144,6 @@ CoalesceEngine::done()
 {
     return applyQueue.empty() && needsPush.none() &&
         memoryFunctionQueue.empty() && (onTheFlyReqs == 0);
-}
-
-bool
-CoalesceEngine::applyCondition(uint32_t update, uint32_t value)
-{
-    if(workload == "BFS"){
-        return update != value;
-    } else if (workload == "SSSP"){
-        return  update < value;
-    } else if (workload == "PR"){
-        float float_value = writeToFloat<uint32_t>(value);
-        float float_update = writeToFloat<uint32_t>(update);
-        return  params().thereshold <= abs(float_update - float_value);
-    } else{
-        panic("The workload is not recognize");
-    }
 }
 
 // addr should be aligned to peerMemoryAtomSize
