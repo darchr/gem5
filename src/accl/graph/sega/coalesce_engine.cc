@@ -48,7 +48,8 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     onTheFlyReqs(0), numMSHREntries(params.num_mshr_entry),
     numTgtsPerMSHR(params.num_tgts_per_mshr),
     maxRespPerCycle(params.max_resp_per_cycle),
-    _workCount(0), numPullsReceived(0), 
+    _workCount(0), numPullsReceived(0),
+    postApplyWBQueueSize(params.post_apply_wb_queue_size),
     workload(params.workload),
     nextMemoryEvent([this] {
         processNextMemoryEvent();
@@ -67,6 +68,16 @@ CoalesceEngine::CoalesceEngine(const Params &params):
         cacheBlocks[i] = Block(numElementsPerLine);
     }
     needsPush.reset();
+
+    // TODO: Get rid of these booleans.
+    // applyBeforeWB = true;
+    // if (workload == "PR") {
+    //     applyBeforeWB = false;
+    // }
+    // applyBeforePush = false;
+    // if (workload == "PR") {
+    //     applyBeforePush = true;
+    // }
 }
 
 void
@@ -84,7 +95,7 @@ CoalesceEngine::algoInit(PacketPtr pkt)
         //TODO: Add Alpha
         int bit_index_base = getBitIndexBase(pkt->getAddr());
         for (int i = 0; i < numElementsPerLine; i++) {
-            items[i].tempProp = readFromFloat<uint32_t>(1 - 0.2);
+            items[i].tempProp = readFromFloat<uint32_t>(0);
             items[i].prop = readFromFloat<uint32_t>(1 - 0.2);
             needsPush[bit_index_base + i] = 1;
             activeBits.push_back(bit_index_base + i);
@@ -96,15 +107,15 @@ CoalesceEngine::algoInit(PacketPtr pkt)
 bool
 CoalesceEngine::applyCondition(uint32_t update, uint32_t value)
 {
-    if(workload == "BFS"){
+    if(workload == "BFS") {
         return update != value;
-    } else if (workload == "SSSP"){
+    } else if (workload == "SSSP") {
         return  update < value;
-    } else if (workload == "PR"){
+    } else if (workload == "PR") {
         float float_value = writeToFloat<uint32_t>(value);
         float float_update = writeToFloat<uint32_t>(update);
-        return  params().thereshold <= abs(float_update - float_value);
-    } else{
+        return  params().threshold <= abs(float_update - float_value);
+    } else {
         panic("The workload is not recognize");
     }
 }
@@ -663,14 +674,15 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     assert((cacheBlocks[block_index].busyMask & (1 << wl_offset)) ==
             (1 << wl_offset));
 
-    if (applyCondition(
-            wl.tempProp, cacheBlocks[block_index].items[wl_offset].tempProp)) {
-        cacheBlocks[block_index].items[wl_offset] = wl;
-        cacheBlocks[block_index].needsApply |= true;
-        // NOTE: We don't set needsWB and rely on processNextApplyEvent to
-        // set that bit.
+    if (wl.tempProp != cacheBlocks[block_index].items[wl_offset].tempProp) {
+        cacheBlocks[block_index].needsWB |= true;
         stats.numVertexWrites++;
     }
+    if (applyCondition(wl.tempProp,
+                        cacheBlocks[block_index].items[wl_offset].prop)) {
+        cacheBlocks[block_index].needsApply |= true;
+    }
+    cacheBlocks[block_index].items[wl_offset] = wl;
 
     cacheBlocks[block_index].busyMask &= ~(1 << wl_offset);
     cacheBlocks[block_index].lastChangedTick = curTick();
@@ -773,10 +785,13 @@ CoalesceEngine::processNextApplyEvent()
         for (int index = 0; index < numElementsPerLine; index++) {
             uint32_t current_prop = cacheBlocks[block_index].items[index].prop;
             uint32_t new_prop = cacheBlocks[block_index].items[index].tempProp;
-            if (new_prop != current_prop) {
-                cacheBlocks[block_index].items[index].tempProp = new_prop;
-                cacheBlocks[block_index].items[index].prop = new_prop;
-
+            if (applyCondition(new_prop, current_prop)) {
+                if (applyBeforeWB) {
+                    cacheBlocks[block_index].items[index].tempProp = new_prop;
+                    cacheBlocks[block_index].items[index].prop = new_prop;
+                }
+                // TODO: Implement this function
+                // bool do_push =  preWBApply(cacheBlocks[block_index].items[index]);
                 int bit_index_base =
                             getBitIndexBase(cacheBlocks[block_index].addr);
 
@@ -1046,6 +1061,18 @@ CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
 
             needsPush[slice_base_index + wl_offset] = 0;
             _workCount--;
+
+            // TODO: Implement a function like this.
+            // uint32_t delta, bool do_wb = prePushApply(cacheBlocks[block_index].items[wl_offset]);
+            // TODO: After implementing the above function get rid of this bool
+            // if (applyBeforePush) {
+            //     cacheBlocks[block_index].items[wl_offset].prop =
+            //         cacheBlocks[block_index].items[wl_offset].tempProp;
+            // }
+            // TODO: Implement recvVertexPush2 in PushEngine.
+            // owner->recvVertexPush2(vertex_addr, delta,
+            //             cacheBlocks[block_index].items[wl_offset].edgeIndex,
+            //             cacheBlocks[block_index].items[wl_offset].degree);
             owner->recvVertexPush(
                     vertex_addr, cacheBlocks[block_index].items[wl_offset]);
             stats.verticesPushed++;

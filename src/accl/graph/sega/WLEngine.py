@@ -45,4 +45,4 @@ class WLEngine(BaseReduceEngine):
                                     "many updates as this queueu has "
                                     "entries at the same time.")
 
-    workload = Param.String('BFS',"Name of the workload")
+    workload = Param.String("BFS","Name of the workload")
