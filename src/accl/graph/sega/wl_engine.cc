@@ -41,7 +41,6 @@ WLEngine::WLEngine(const WLEngineParams& params):
     BaseReduceEngine(params),
     updateQueueSize(params.update_queue_size),
     registerFileSize(params.register_file_size),
-    workload(params.workload),
     nextReadEvent([this]{ processNextReadEvent(); }, name()),
     nextReduceEvent([this]{ processNextReduceEvent(); }, name()),
     stats(*this)
@@ -146,23 +145,23 @@ WLEngine::done()
     return registerFile.empty() && updateQueue.empty();
 }
 
-uint32_t
-WLEngine::reduce(uint32_t update, uint32_t value)
-{
-    uint32_t new_value;
-    if(workload == "BFS"){
-        new_value = std::min(update, value);
-   } else if(workload == "PR"){
-        float float_value = writeToFloat<uint32_t>(value);
-        float float_update = writeToFloat<uint32_t>(update);
-        new_value = readFromFloat<uint32_t>(float_update + float_value);
-    } else if(workload == "SSSP"){
-        new_value = std::min(update, value);
-    } else{
-        panic("Workload not implemented.");
-    }
-    return new_value;
-}
+// uint32_t
+// WLEngine::reduce(uint32_t update, uint32_t value)
+// {
+//     uint32_t new_value;
+//     if(workload == "BFS"){
+//         new_value = std::min(update, value);
+//    } else if(workload == "PR"){
+//         float float_value = writeToFloat<uint32_t>(value);
+//         float float_update = writeToFloat<uint32_t>(update);
+//         new_value = readFromFloat<uint32_t>(float_update + float_value);
+//     } else if(workload == "SSSP"){
+//         new_value = std::min(update, value);
+//     } else{
+//         panic("Workload not implemented.");
+//     }
+//     return new_value;
+// }
 
 bool
 WLEngine::handleIncomingUpdate(PacketPtr pkt)
@@ -251,7 +250,7 @@ WLEngine::processNextReadEvent()
                     "addr: %lu in registerFile. registerFile[%lu] = %u.\n",
                 __func__, update_addr, update_addr, registerFile[update_addr]);
         registerFile[update_addr] =
-                    reduce(update_value, registerFile[update_addr]);
+                graphWorkload->reduce(update_value, registerFile[update_addr]);
         DPRINTF(WLEngine,  "%s: Reduced the update_value: %u with the entry in"
                     " registerFile. registerFile[%lu] = %u.\n", __func__,
                     update_value, update_addr, registerFile[update_addr]);
@@ -310,7 +309,7 @@ WLEngine::processNextReduceEvent()
                                         addr, workListFile[addr].to_string());
         // TODO: Generalize this to reduce function rather than just min
         workListFile[addr].tempProp =
-                    reduce(update_value, workListFile[addr].tempProp);
+            graphWorkload->reduce(update_value, workListFile[addr].tempProp);
         DPRINTF(WLEngine,  "%s: Reduction done. workListFile[%lu] = %s.\n",
                             __func__, addr, workListFile[addr].to_string());
         stats.numReduce++;

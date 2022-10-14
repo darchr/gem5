@@ -31,8 +31,9 @@
 
 #include <bitset>
 
-#include "accl/graph/sega/base_memory_engine.hh"
 #include "accl/graph/base/data_structs.hh"
+#include "accl/graph/base/graph_workload.hh"
+#include "accl/graph/sega/base_memory_engine.hh"
 #include "base/cprintf.hh"
 #include "base/statistics.hh"
 #include "params/CoalesceEngine.hh"
@@ -134,8 +135,11 @@ class CoalesceEngine : public BaseMemoryEngine
     std::unordered_map<Addr, uint64_t> pendingVertexPullReads;
 
     std::string workload;
+    GraphWorkload* graphWorkload;
+
     void algoInit(PacketPtr pkt);
-    bool applyCondition(uint32_t update, uint32_t value);
+    bool applyCondition(WorkListItem wl);
+    bool preWBApply(WorkListItem& wl);
 
     MemoryEvent nextMemoryEvent;
     void processNextMemoryEvent();
@@ -203,6 +207,7 @@ class CoalesceEngine : public BaseMemoryEngine
     CoalesceEngine(const Params &params);
     void registerMPU(MPU* mpu);
 
+    void recvWorkload(GraphWorkload* workload) { graphWorkload = workload; }
     virtual void recvFunctional(PacketPtr pkt);
 
     bool recvWLRead(Addr addr);

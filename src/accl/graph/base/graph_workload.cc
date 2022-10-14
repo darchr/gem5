@@ -26,54 +26,41 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_SEGA_CENTERAL_CONTROLLER_HH__
-#define __ACCL_GRAPH_SEGA_CENTERAL_CONTROLLER_HH__
-
-#include <vector>
-
-#include "accl/graph/base/data_structs.hh"
 #include "accl/graph/base/graph_workload.hh"
-#include "accl/graph/sega/mpu.hh"
-#include "base/addr_range.hh"
-#include "debug/FinalAnswer.hh"
-#include "params/CenteralController.hh"
-#include "sim/clocked_object.hh"
-#include "sim/system.hh"
 
-namespace gem5
+namespace gem5 
 {
 
-class CenteralController : public ClockedObject
+uint32_t 
+BFSWorkload::reduce(uint32_t update, uint32_t value)
 {
-  private:
-    System* system;
-
-    GraphWorkload* workload;
-
-    Addr maxVertexAddr;
-    std::deque<PacketPtr> initialUpdates;
-
-    std::vector<MPU*> mpuVector;
-    std::unordered_map<MPU*, AddrRangeList> addrRangeListMap;
-
-    PacketPtr createReadPacket(Addr addr, unsigned int size);
-    template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
-
-  public:
-    PARAMS(CenteralController);
-    CenteralController(const CenteralControllerParams &params);
-
-    virtual void initState() override;
-    virtual void startup() override;
-
-    void createInitialBFSUpdate(Addr init_addr, uint32_t init_value);
-    void createBFSWorkload(Addr init_addr, uint32_t init_value);
-    void createInitialPRUpdate();
-    void recvDoneSignal();
-
-    void printAnswerToHostSimout();
-};
-
+    return std::min(update, value);
 }
 
-#endif // __ACCL_GRAPH_SEGA_CENTERAL_CONTROLLER_HH__
+uint32_t
+BFSWorkload::propagate(uint32_t value, uint32_t weight)
+{
+    return value + 1;
+}
+
+bool 
+BFSWorkload::applyCondition(WorkListItem wl)
+{
+    return wl.tempProp < wl.prop;
+}
+
+bool
+BFSWorkload::preWBApply(WorkListItem& wl)
+{
+    wl.prop = wl.tempProp;
+    return wl.degree > 0;
+}
+
+std::tuple<uint32_t, bool> 
+BFSWorkload::prePushApply(WorkListItem& wl)
+{
+    uint32_t value = wl.prop;
+    return std::make_tuple(value, false);
+}
+
+} // namespace gem5

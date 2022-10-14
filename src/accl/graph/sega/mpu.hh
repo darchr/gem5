@@ -69,6 +69,7 @@ class MPU : public SimObject
     void handleIncomingWL(Addr addr, WorkListItem wl);
     bool recvWLRead(Addr addr) { return coalesceEngine->recvWLRead(addr); }
     void recvWLWrite(Addr addr, WorkListItem wl);
+    void recvWorkload(GraphWorkload* Workload);
 
     int workCount() { return coalesceEngine->workCount(); }
     void recvVertexPull() { return coalesceEngine->recvVertexPull(); }

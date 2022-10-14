@@ -83,6 +83,10 @@ CenteralController::initState()
 void
 CenteralController::startup()
 {
+    for (auto mpu: mpuVector) {
+        mpu->recvWorkload(workload);
+    }
+
     while(!initialUpdates.empty()) {
         PacketPtr front = initialUpdates.front();
         for (auto mpu: mpuVector) {
@@ -134,6 +138,12 @@ CenteralController::createInitialBFSUpdate(Addr init_addr, uint32_t init_value)
 {
     PacketPtr update = createUpdatePacket<uint32_t>(init_addr, init_value);
     initialUpdates.push_back(update);
+}
+
+void
+CenteralController::createBFSWorkload(Addr init_addr, uint32_t init_value)
+{
+    workload = new BFSWorkload(init_addr, init_value);
 }
 
 void
