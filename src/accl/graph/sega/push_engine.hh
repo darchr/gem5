@@ -29,8 +29,9 @@
 #ifndef __ACCL_GRAPH_SEGA_PUSH_ENGINE_HH__
 #define __ACCL_GRAPH_SEGA_PUSH_ENGINE_HH__
 
-#include "accl/graph/sega/base_memory_engine.hh"
 #include "accl/graph/base/data_structs.hh"
+#include "accl/graph/base/graph_workload.hh"
+#include "accl/graph/sega/base_memory_engine.hh"
 #include "base/intmath.hh"
 #include "params/PushEngine.hh"
 
@@ -115,6 +116,7 @@ class PushEngine : public BaseMemoryEngine
         int numElements;
     };
     MPU* owner;
+    GraphWorkload* graphWorkload;
 
     bool _running;
     Tick lastIdleEntranceTick;
@@ -194,6 +196,7 @@ class PushEngine : public BaseMemoryEngine
     virtual void init() override;
     void registerMPU(MPU* mpu);
 
+    void recvWorkload(GraphWorkload* workload) { graphWorkload = workload; }
     virtual void recvFunctional(PacketPtr pkt) { memPort.sendFunctional(pkt); }
 
     void start();

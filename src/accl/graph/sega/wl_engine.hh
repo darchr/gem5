@@ -33,6 +33,7 @@
 #include <unordered_map>
 
 #include "accl/graph/base/base_reduce_engine.hh"
+#include "accl/graph/base/graph_workload.hh"
 #include "accl/graph/base/data_structs.hh"
 #include "base/statistics.hh"
 #include "params/WLEngine.hh"
@@ -70,7 +71,8 @@ class WLEngine : public BaseReduceEngine
     };
 
     MPU* owner;
-
+    GraphWorkload* graphWorkload;
+    
     std::vector<RespPort> inPorts;
 
     int updateQueueSize;
@@ -118,6 +120,7 @@ class WLEngine : public BaseReduceEngine
     void registerMPU(MPU* mpu);
 
     AddrRangeList getAddrRanges();
+    void recvWorkload(GraphWorkload* workload) { graphWorkload = workload; }
     void recvFunctional(PacketPtr pkt);
 
     bool handleIncomingUpdate(PacketPtr pkt);

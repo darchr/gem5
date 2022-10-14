@@ -72,6 +72,14 @@ MPU::recvWLWrite(Addr addr, WorkListItem wl)
 }
 
 void
+MPU::recvWorkload(GraphWorkload* workload)
+{
+    coalesceEngine->recvWorkload(workload);
+    pushEngine->recvWorkload(workload);
+    wlEngine->recvWorkload(workload);
+}
+
+void
 MPU::recvVertexPush(Addr addr, WorkListItem wl)
 {
     pushEngine->recvVertexPush(addr, wl);

@@ -56,7 +56,8 @@ class GPT(SubSystem):
                                             cache_size=cache_size,
                                             num_mshr_entry=64,
                                             num_tgts_per_mshr=64,
-                                            max_resp_per_cycle=8
+                                            max_resp_per_cycle=8,
+                                            post_apply_wb_queue_size=64
                                             )
         self.push_engine = PushEngine(
                                     push_req_queue_size=32,
@@ -135,6 +136,9 @@ class SEGA(System):
 
     def create_initial_bfs_update(self, init_addr, init_value):
         self.ctrl.createInitialBFSUpdate(init_addr, init_value)
+        
+    def create_bfs_workload(self, init_addr, init_value):
+        self.ctrl.createBFSWorkload(init_addr, init_value)
 
     def print_answer(self):
         self.ctrl.printAnswerToHostSimout()
@@ -166,6 +170,7 @@ if __name__ == "__m5_main__":
     m5.instantiate()
 
     system.create_initial_bfs_update(init_addr, init_value)
+    system.create_bfs_workload(init_addr, init_value)
     exit_event = m5.simulate()
     print(f"Exited simulation at tick {m5.curTick()} " + \
             f"because {exit_event.getCause()}")
