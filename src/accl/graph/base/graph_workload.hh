@@ -26,54 +26,49 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_SEGA_CENTERAL_CONTROLLER_HH__
-#define __ACCL_GRAPH_SEGA_CENTERAL_CONTROLLER_HH__
+#ifndef __ACCL_GRAPH_BASE_GRAPH_WORKLOAD_HH__
+#define  __ACCL_GRAPH_BASE_GRAPH_WORKLOAD_HH__
 
-#include <vector>
+#include <tuple>
 
 #include "accl/graph/base/data_structs.hh"
-#include "accl/graph/base/graph_workload.hh"
-#include "accl/graph/sega/mpu.hh"
-#include "base/addr_range.hh"
-#include "debug/FinalAnswer.hh"
-#include "params/CenteralController.hh"
-#include "sim/clocked_object.hh"
-#include "sim/system.hh"
+
 
 namespace gem5
 {
 
-class CenteralController : public ClockedObject
+class GraphWorkload
+{
+  public:
+    GraphWorkload() {}
+    ~GraphWorkload() {}
+    virtual uint32_t reduce(uint32_t update, uint32_t value) = 0;
+    virtual uint32_t propagate(uint32_t value, uint32_t weight) = 0;
+    virtual bool applyCondition(WorkListItem wl) = 0;
+    virtual bool preWBApply(WorkListItem& wl) = 0;
+    virtual std::tuple<uint32_t, bool> prePushApply(WorkListItem& wl) = 0;
+};
+
+class BFSWorkload : public GraphWorkload
 {
   private:
-    System* system;
-
-    GraphWorkload* workload;
-
-    Addr maxVertexAddr;
-    std::deque<PacketPtr> initialUpdates;
-
-    std::vector<MPU*> mpuVector;
-    std::unordered_map<MPU*, AddrRangeList> addrRangeListMap;
-
-    PacketPtr createReadPacket(Addr addr, unsigned int size);
-    template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
-
+    uint64_t initAddr;
+    uint32_t initValue;
   public:
-    PARAMS(CenteralController);
-    CenteralController(const CenteralControllerParams &params);
+    BFSWorkload(uint64_t init_addr, uint32_t init_value):
+        GraphWorkload(), 
+        initAddr(init_addr), initValue(init_value)
+    {}
 
-    virtual void initState() override;
-    virtual void startup() override;
+    ~BFSWorkload() {}
 
-    void createInitialBFSUpdate(Addr init_addr, uint32_t init_value);
-    void createBFSWorkload(Addr init_addr, uint32_t init_value);
-    void createInitialPRUpdate();
-    void recvDoneSignal();
-
-    void printAnswerToHostSimout();
+    virtual uint32_t reduce(uint32_t update, uint32_t value);
+    virtual uint32_t propagate(uint32_t value, uint32_t weight);
+    virtual bool applyCondition(WorkListItem wl);
+    virtual bool preWBApply(WorkListItem& wl);
+    virtual std::tuple<uint32_t, bool> prePushApply(WorkListItem& wl);
 };
 
 }
 
-#endif // __ACCL_GRAPH_SEGA_CENTERAL_CONTROLLER_HH__
+#endif // __ACCL_GRAPH_BASE_GRAPH_WORKLOAD_HH__

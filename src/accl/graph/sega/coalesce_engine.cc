@@ -68,16 +68,6 @@ CoalesceEngine::CoalesceEngine(const Params &params):
         cacheBlocks[i] = Block(numElementsPerLine);
     }
     needsPush.reset();
-
-    // TODO: Get rid of these booleans.
-    // applyBeforeWB = true;
-    // if (workload == "PR") {
-    //     applyBeforeWB = false;
-    // }
-    // applyBeforePush = false;
-    // if (workload == "PR") {
-    //     applyBeforePush = true;
-    // }
 }
 
 void
@@ -90,9 +80,10 @@ void
 CoalesceEngine::algoInit(PacketPtr pkt)
 {
     WorkListItem items[numElementsPerLine];
-    pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
+    
     if(workload == "PR") {
         //TODO: Add Alpha
+        pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
         int bit_index_base = getBitIndexBase(pkt->getAddr());
         for (int i = 0; i < numElementsPerLine; i++) {
             items[i].tempProp = readFromFloat<uint32_t>(0);
@@ -100,25 +91,39 @@ CoalesceEngine::algoInit(PacketPtr pkt)
             needsPush[bit_index_base + i] = 1;
             activeBits.push_back(bit_index_base + i);
         }
+        pkt->setDataFromBlock((uint8_t*) items, peerMemoryAtomSize);
     }
-    pkt->setDataFromBlock((uint8_t*) items, peerMemoryAtomSize);
+    
 }
 
-bool
-CoalesceEngine::applyCondition(uint32_t update, uint32_t value)
-{
-    if(workload == "BFS") {
-        return update != value;
-    } else if (workload == "SSSP") {
-        return  update < value;
-    } else if (workload == "PR") {
-        float float_value = writeToFloat<uint32_t>(value);
-        float float_update = writeToFloat<uint32_t>(update);
-        return  params().threshold <= abs(float_update - float_value);
-    } else {
-        panic("The workload is not recognize");
-    }
-}
+// bool
+// CoalesceEngine::applyCondition(WorkListItem wl)
+// {
+//     if (workload == "BFS") {
+//         return wl.tempProp != wl.prop;
+//     } else if (workload == "SSSP") {
+//         return  wl.tempProp < wl.prop;
+//     } else if (workload == "PR") {
+//         float float_temp = writeToFloat<uint32_t>(wl.tempProp);
+//         float float_prop = writeToFloat<uint32_t>(wl.prop);
+//         return  params().threshold <= abs(float_prop - float_temp);
+//     } else {
+//         panic("The workload is not recognized.");
+//     }
+// }
+
+// bool
+// CoalesceEngine::preWBApply(WorkListItem& wl)
+// {
+//     if (workload == "BFS") {
+//         uint32_t new_prop = std::min(wl.tempProp, wl.prop);
+//         wl.tempProp = new_prop;
+//         wl.prop = new_prop;
+//         return wl.degree > 0;  
+//     } else {
+//         panic("The workload is not recognized.");
+//     }
+// }
 
 void
 CoalesceEngine::recvFunctional(PacketPtr pkt)
@@ -678,11 +683,10 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
         cacheBlocks[block_index].needsWB |= true;
         stats.numVertexWrites++;
     }
-    if (applyCondition(wl.tempProp,
-                        cacheBlocks[block_index].items[wl_offset].prop)) {
+    cacheBlocks[block_index].items[wl_offset] = wl;
+    if (graphWorkload->applyCondition(cacheBlocks[block_index].items[wl_offset])) {
         cacheBlocks[block_index].needsApply |= true;
     }
-    cacheBlocks[block_index].items[wl_offset] = wl;
 
     cacheBlocks[block_index].busyMask &= ~(1 << wl_offset);
     cacheBlocks[block_index].lastChangedTick = curTick();
@@ -783,19 +787,13 @@ CoalesceEngine::processNextApplyEvent()
     if (cacheBlocks[block_index].pendingApply) {
         assert(cacheBlocks[block_index].busyMask == 0);
         for (int index = 0; index < numElementsPerLine; index++) {
-            uint32_t current_prop = cacheBlocks[block_index].items[index].prop;
-            uint32_t new_prop = cacheBlocks[block_index].items[index].tempProp;
-            if (applyCondition(new_prop, current_prop)) {
-                if (applyBeforeWB) {
-                    cacheBlocks[block_index].items[index].tempProp = new_prop;
-                    cacheBlocks[block_index].items[index].prop = new_prop;
-                }
+            if (graphWorkload->applyCondition(cacheBlocks[block_index].items[index])) {
                 // TODO: Implement this function
-                // bool do_push =  preWBApply(cacheBlocks[block_index].items[index]);
+                bool do_push =  graphWorkload->preWBApply(cacheBlocks[block_index].items[index]);
                 int bit_index_base =
                             getBitIndexBase(cacheBlocks[block_index].addr);
 
-                if (cacheBlocks[block_index].items[index].degree > 0) {
+                if (do_push) {
                     if (needsPush[bit_index_base + index] == 0) {
                         _workCount++;
                         needsPush[bit_index_base + index] = 1;

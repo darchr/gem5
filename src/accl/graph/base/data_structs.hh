@@ -32,9 +32,10 @@
 #include "base/cprintf.hh"
 #include "base/intmath.hh"
 
-#include <list>
+#include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <list>
 
 namespace gem5
 {
