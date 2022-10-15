@@ -72,7 +72,7 @@ class WLEngine : public BaseReduceEngine
 
     MPU* owner;
     GraphWorkload* graphWorkload;
-    
+
     std::vector<RespPort> inPorts;
 
     int updateQueueSize;
@@ -81,11 +81,7 @@ class WLEngine : public BaseReduceEngine
     int registerFileSize;
     std::unordered_map<Addr, uint32_t> registerFile;
     std::unordered_map<Addr, Tick> vertexReadTime;
-
     std::unordered_map<Addr, WorkListItem> workListFile;
-
-    std::string workload;
-    uint32_t reduce(uint32_t update, uint32_t value);
 
     EventFunctionWrapper nextReadEvent;
     void processNextReadEvent();

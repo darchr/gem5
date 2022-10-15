@@ -103,6 +103,7 @@ class CoalesceEngine : public BaseMemoryEngine
       SenderState(bool is_retry): isRetry(is_retry) {}
     };
     MPU* owner;
+    GraphWorkload* graphWorkload;
 
     int numLines;
     int numElementsPerLine;
@@ -133,13 +134,6 @@ class CoalesceEngine : public BaseMemoryEngine
     // A map from addr to sendMask. sendMask determines which bytes to
     // send for push when getting the read response from memory.
     std::unordered_map<Addr, uint64_t> pendingVertexPullReads;
-
-    std::string workload;
-    GraphWorkload* graphWorkload;
-
-    void algoInit(PacketPtr pkt);
-    bool applyCondition(WorkListItem wl);
-    bool preWBApply(WorkListItem& wl);
 
     MemoryEvent nextMemoryEvent;
     void processNextMemoryEvent();
