@@ -55,6 +55,7 @@ CenteralController::initState()
 {
     for (auto mpu: mpuVector) {
         addrRangeListMap[mpu] = mpu->getAddrRanges();
+        mpu->recvWorkload(workload);
     }
     const auto& file = params().image_file;
     if (file == "")
@@ -83,10 +84,6 @@ CenteralController::initState()
 void
 CenteralController::startup()
 {
-    for (auto mpu: mpuVector) {
-        mpu->recvWorkload(workload);
-    }
-
     while(!initialUpdates.empty()) {
         PacketPtr front = initialUpdates.front();
         for (auto mpu: mpuVector) {
