@@ -48,6 +48,3 @@ class CoalesceEngine(BaseMemoryEngine):
                                 "the apply process to happen exactly before "
                                 "pushing the edgePointer to the PushEngine.")
 
-    workload = Param.String("BFS", "Name of the workload")
-
-    threshold = Param.Float(0.0001, "Score threshold for Pagerank")

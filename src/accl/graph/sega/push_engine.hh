@@ -133,10 +133,6 @@ class PushEngine : public BaseMemoryEngine
     int maxPropagatesPerCycle;
     std::deque<std::tuple<MetaEdge, Tick>> metaEdgeQueue;
 
-    uint32_t reduce(uint32_t update, uint32_t value);
-    uint32_t propagate(uint32_t value, uint32_t weight);
-    uint32_t calculateValue(WorkListItem wl);
-
     int updateQueueSize;
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
     bool enqueueUpdate(Update update);

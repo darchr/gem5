@@ -50,7 +50,6 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     maxRespPerCycle(params.max_resp_per_cycle),
     _workCount(0), numPullsReceived(0),
     postApplyWBQueueSize(params.post_apply_wb_queue_size),
-    workload(params.workload),
     nextMemoryEvent([this] {
         processNextMemoryEvent();
         }, name() + ".nextMemoryEvent"),
@@ -76,52 +75,22 @@ CoalesceEngine::registerMPU(MPU* mpu)
     owner = mpu;
 }
 
-void
-CoalesceEngine::algoInit(PacketPtr pkt)
-{
-    WorkListItem items[numElementsPerLine];
-    
-    if(workload == "PR") {
-        //TODO: Add Alpha
-        pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
-        int bit_index_base = getBitIndexBase(pkt->getAddr());
-        for (int i = 0; i < numElementsPerLine; i++) {
-            items[i].tempProp = readFromFloat<uint32_t>(0);
-            items[i].prop = readFromFloat<uint32_t>(1 - 0.2);
-            needsPush[bit_index_base + i] = 1;
-            activeBits.push_back(bit_index_base + i);
-        }
-        pkt->setDataFromBlock((uint8_t*) items, peerMemoryAtomSize);
-    }
-    
-}
-
-// bool
-// CoalesceEngine::applyCondition(WorkListItem wl)
+// void
+// CoalesceEngine::algoInit(PacketPtr pkt)
 // {
-//     if (workload == "BFS") {
-//         return wl.tempProp != wl.prop;
-//     } else if (workload == "SSSP") {
-//         return  wl.tempProp < wl.prop;
-//     } else if (workload == "PR") {
-//         float float_temp = writeToFloat<uint32_t>(wl.tempProp);
-//         float float_prop = writeToFloat<uint32_t>(wl.prop);
-//         return  params().threshold <= abs(float_prop - float_temp);
-//     } else {
-//         panic("The workload is not recognized.");
-//     }
-// }
+//     WorkListItem items[numElementsPerLine];
 
-// bool
-// CoalesceEngine::preWBApply(WorkListItem& wl)
-// {
-//     if (workload == "BFS") {
-//         uint32_t new_prop = std::min(wl.tempProp, wl.prop);
-//         wl.tempProp = new_prop;
-//         wl.prop = new_prop;
-//         return wl.degree > 0;  
-//     } else {
-//         panic("The workload is not recognized.");
+//     if(workload == "PR") {
+//         //TODO: Add Alpha
+//         pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
+//         int bit_index_base = getBitIndexBase(pkt->getAddr());
+//         for (int i = 0; i < numElementsPerLine; i++) {
+//             items[i].tempProp = readFromFloat<uint32_t>(0);
+//             items[i].prop = readFromFloat<uint32_t>(1 - 0.2);
+//             needsPush[bit_index_base + i] = 1;
+//             activeBits.push_back(bit_index_base + i);
+//         }
+//         pkt->setDataFromBlock((uint8_t*) items, peerMemoryAtomSize);
 //     }
 // }
 
@@ -150,7 +119,8 @@ CoalesceEngine::recvFunctional(PacketPtr pkt)
             memPort.sendFunctional(pkt);
         }
     } else {
-        algoInit(pkt);
+        // TODO: Add and implement init function for GraphWorkload.
+        // graphWorkload->init(pkt);
         memPort.sendFunctional(pkt);
     }
 }

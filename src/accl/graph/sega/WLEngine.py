@@ -44,5 +44,3 @@ class WLEngine(BaseReduceEngine):
                                     "WLEngine has. It can service as "
                                     "many updates as this queueu has "
                                     "entries at the same time.")
-
-    workload = Param.String("BFS","Name of the workload")
