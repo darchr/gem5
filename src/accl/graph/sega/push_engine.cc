@@ -207,7 +207,16 @@ PushEngine::recvVertexPush(Addr addr, uint32_t delta,
         (!nextMemoryReadEvent.scheduled())) {
         schedule(nextMemoryReadEvent, nextCycle());
     }
+}
 
+void
+PushEngine::recvPrevPullCorrection()
+{
+    assert(numPendingPulls > 0);
+    numPendingPulls--;
+    if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
+        schedule(nextVertexPullEvent, nextCycle());
+    }
 }
 
 void

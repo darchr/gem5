@@ -90,7 +90,7 @@ MPU::recvVertexPush(Addr addr, uint32_t delta,
 void
 MPU::recvPrevPullCorrection()
 {
-    DPRINTF(MPU, "%s: Fuck!\n", __func__);
+    pushEngine->recvPrevPullCorrection();
 }
 
 void

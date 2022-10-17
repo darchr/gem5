@@ -501,9 +501,9 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                     owner->recvVertexPush(vertex_addr, delta,
                                         items[i].edgeIndex, items[i].degree);
                 } else {
+                    // TODO: Add a stat to count this.
                     owner->recvPrevPullCorrection();
                 }
-
                 stats.verticesPushed++;
                 stats.lastVertexPushTime = curTick() - stats.lastResetTick;
             }
@@ -548,7 +548,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             schedule(nextMemoryEvent, nextCycle());
         }
     } else {
-        DPRINTF(CoalesceEngine, "%s: Fuck 2.\n", __func__);
+        // TODO: Add a stat to count this.
+        DPRINTF(CoalesceEngine, "%s: Totally wasteful read.\n", __func__);
     }
 
     for (auto it = MSHR[block_index].begin(); it != MSHR[block_index].end();) {
