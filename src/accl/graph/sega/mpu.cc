@@ -29,6 +29,7 @@
 #include "accl/graph/sega/mpu.hh"
 
 #include "accl/graph/sega/centeral_controller.hh"
+#include "debug/MPU.hh"
 #include "mem/packet_access.hh"
 #include "sim/sim_exit.hh"
 
@@ -80,9 +81,16 @@ MPU::recvWorkload(GraphWorkload* workload)
 }
 
 void
-MPU::recvVertexPush(Addr addr, WorkListItem wl)
+MPU::recvVertexPush(Addr addr, uint32_t delta,
+                    uint32_t edge_index, uint32_t degree)
 {
-    pushEngine->recvVertexPush(addr, wl);
+    pushEngine->recvVertexPush(addr, delta, edge_index, degree);
+}
+
+void
+MPU::recvPrevPullCorrection()
+{
+    DPRINTF(MPU, "%s: Fuck!\n", __func__);
 }
 
 void

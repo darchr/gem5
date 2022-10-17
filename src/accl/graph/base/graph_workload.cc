@@ -28,10 +28,10 @@
 
 #include "accl/graph/base/graph_workload.hh"
 
-namespace gem5 
+namespace gem5
 {
 
-uint32_t 
+uint32_t
 BFSWorkload::reduce(uint32_t update, uint32_t value)
 {
     return std::min(update, value);
@@ -43,7 +43,7 @@ BFSWorkload::propagate(uint32_t value, uint32_t weight)
     return value + 1;
 }
 
-bool 
+bool
 BFSWorkload::applyCondition(WorkListItem wl)
 {
     return wl.tempProp < wl.prop;
@@ -52,15 +52,20 @@ BFSWorkload::applyCondition(WorkListItem wl)
 bool
 BFSWorkload::preWBApply(WorkListItem& wl)
 {
-    wl.prop = wl.tempProp;
-    return wl.degree > 0;
+    if (applyCondition(wl)) {
+        wl.prop = wl.tempProp;
+        if (wl.degree > 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
-std::tuple<uint32_t, bool> 
+std::tuple<uint32_t, bool, bool>
 BFSWorkload::prePushApply(WorkListItem& wl)
 {
     uint32_t value = wl.prop;
-    return std::make_tuple(value, false);
+    return std::make_tuple(value, true, false);
 }
 
 } // namespace gem5

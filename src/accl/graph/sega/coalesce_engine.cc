@@ -49,16 +49,17 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     numTgtsPerMSHR(params.num_tgts_per_mshr),
     maxRespPerCycle(params.max_resp_per_cycle),
     _workCount(0), numPullsReceived(0),
-    postApplyWBQueueSize(params.post_apply_wb_queue_size),
+    postPushWBQueueSize(params.post_push_wb_queue_size),
+    maxPotentialPostPushWB(0),
     nextMemoryEvent([this] {
         processNextMemoryEvent();
         }, name() + ".nextMemoryEvent"),
     nextResponseEvent([this] {
         processNextResponseEvent();
         }, name() + ".nextResponseEvent"),
-    nextApplyEvent([this] {
-        processNextApplyEvent();
-        }, name() + ".nextApplyEvent"),
+    nextPreWBApplyEvent([this] {
+        processNextPreWBApplyEvent();
+        }, name() + ".nextPreWBApplyEvent"),
     stats(*this)
 {
     assert(isPowerOf2(numLines) && isPowerOf2(numElementsPerLine));
@@ -469,7 +470,9 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
     onTheFlyReqs--;
     Addr addr = pkt->getAddr();
     int block_index = getBlockIndex(addr);
+    WorkListItem* items = pkt->getPtr<WorkListItem>();
 
+    bool do_wb = false;
     if (pkt->findNextSenderState<SenderState>()) {
         assert(!((cacheBlocks[block_index].addr == addr) &&
                 (cacheBlocks[block_index].valid)));
@@ -480,7 +483,6 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                                 "for addr %lu.\n", __func__, addr);
         int it = getBitIndexBase(addr);
         uint64_t send_mask = pendingVertexPullReads[addr];
-        WorkListItem* items = pkt->getPtr<WorkListItem>();
         // No applying of the line needed.
         for (int i = 0; i < numElementsPerLine; i++) {
             Addr vertex_addr = addr + i * sizeof(WorkListItem);
@@ -489,19 +491,30 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                 assert(needsPush[it + i] == 1);
                 needsPush[it + i] = 0;
                 _workCount--;
-                owner->recvVertexPush(vertex_addr, items[i]);
+
+                uint32_t delta;
+                bool do_push, do_wb_v;
+                std::tie(delta, do_push, do_wb_v) =
+                                        graphWorkload->prePushApply(items[i]);
+                do_wb |= do_wb_v;
+                if (do_push) {
+                    owner->recvVertexPush(vertex_addr, delta,
+                                        items[i].edgeIndex, items[i].degree);
+                } else {
+                    owner->recvPrevPullCorrection();
+                }
+
                 stats.verticesPushed++;
                 stats.lastVertexPushTime = curTick() - stats.lastResetTick;
             }
         }
         pendingVertexPullReads.erase(addr);
-        delete pkt;
-        return true;
+        maxPotentialPostPushWB--;
     }
 
     if (cacheBlocks[block_index].addr == addr) {
         DPRINTF(CoalesceEngine, "%s: Received read response to "
-                "fill cacheBlocks[%d].\n", __func__, block_index);
+                        "fill cacheBlocks[%d].\n", __func__, block_index);
         DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                         block_index, cacheBlocks[block_index].to_string());
         assert(!cacheBlocks[block_index].valid);
@@ -512,19 +525,30 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         assert(!cacheBlocks[block_index].pendingApply);
         assert(!cacheBlocks[block_index].pendingWB);
         assert(MSHR.find(block_index) != MSHR.end());
-        pkt->writeDataToBlock((uint8_t*) cacheBlocks[block_index].items,
-                                                peerMemoryAtomSize);
+        std::memcpy(cacheBlocks[block_index].items, items, peerMemoryAtomSize);
         for (int i = 0; i < numElementsPerLine; i++) {
-        DPRINTF(CoalesceEngine,  "%s: Wrote cacheBlocks[%d][%d] = %s.\n",
-                            __func__, block_index, i,
-                            cacheBlocks[block_index].items[i].to_string());
+            DPRINTF(CoalesceEngine,  "%s: Wrote cacheBlocks[%d][%d] = %s.\n",
+                                __func__, block_index, i,
+                                cacheBlocks[block_index].items[i].to_string());
         }
         cacheBlocks[block_index].valid = true;
+        cacheBlocks[block_index].needsWB |= do_wb;
         cacheBlocks[block_index].pendingData = false;
         cacheBlocks[block_index].lastChangedTick = curTick();
-        DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
-                        block_index, cacheBlocks[block_index].to_string());
-        delete pkt;
+    } else if (do_wb) {
+        PacketPtr wb_pkt = createWritePacket(
+                                addr, peerMemoryAtomSize, (uint8_t*) items);
+        postPushWBQueue.emplace_back(wb_pkt, curTick());
+        memoryFunctionQueue.emplace_back(
+            [this] (int ignore, Tick schedule_tick) {
+                processNextPostPushWB(ignore, schedule_tick);
+            }, 0, curTick());
+        if ((!nextMemoryEvent.pending()) &&
+            (!nextMemoryEvent.scheduled())) {
+            schedule(nextMemoryEvent, nextCycle());
+        }
+    } else {
+        DPRINTF(CoalesceEngine, "%s: Fuck 2.\n", __func__);
     }
 
     for (auto it = MSHR[block_index].begin(); it != MSHR[block_index].end();) {
@@ -570,6 +594,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         schedule(nextResponseEvent, nextCycle());
     }
 
+    delete pkt;
     return true;
 }
 
@@ -675,8 +700,8 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
             DPRINTF(CoalesceEngine, "%s: Added cacheBlocks[%d] to "
                             "applyQueue.\n", __func__, block_index);
             if ((!applyQueue.empty()) &&
-                (!nextApplyEvent.scheduled())) {
-                schedule(nextApplyEvent, nextCycle());
+                (!nextPreWBApplyEvent.scheduled())) {
+                schedule(nextPreWBApplyEvent, nextCycle());
             }
         } else {
             assert(MSHR.size() <= numMSHREntries);
@@ -742,7 +767,7 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 }
 
 void
-CoalesceEngine::processNextApplyEvent()
+CoalesceEngine::processNextPreWBApplyEvent()
 {
     int block_index = applyQueue.front();
     DPRINTF(CoalesceEngine, "%s: Looking at the front of the applyQueue. "
@@ -757,27 +782,22 @@ CoalesceEngine::processNextApplyEvent()
     if (cacheBlocks[block_index].pendingApply) {
         assert(cacheBlocks[block_index].busyMask == 0);
         for (int index = 0; index < numElementsPerLine; index++) {
-            if (graphWorkload->applyCondition(cacheBlocks[block_index].items[index])) {
-                // TODO: Implement this function
-                bool do_push =  graphWorkload->preWBApply(cacheBlocks[block_index].items[index]);
-                int bit_index_base =
-                            getBitIndexBase(cacheBlocks[block_index].addr);
-
-                if (do_push) {
-                    if (needsPush[bit_index_base + index] == 0) {
-                        _workCount++;
-                        needsPush[bit_index_base + index] = 1;
-                        activeBits.push_back(bit_index_base + index);
-                        if (!owner->running()) {
-                            owner->start();
-                        }
+            bool do_push = graphWorkload->preWBApply(cacheBlocks[block_index].items[index]);
+            if (do_push) {
+                int bit_index_base = getBitIndexBase(cacheBlocks[block_index].addr);
+                if (needsPush[bit_index_base + index] == 0) {
+                    _workCount++;
+                    needsPush[bit_index_base + index] = 1;
+                    activeBits.push_back(bit_index_base + index);
+                    if (!owner->running()) {
+                        owner->start();
                     }
                 }
             }
         }
         stats.bitvectorLength.sample(needsPush.count());
 
-        cacheBlocks[block_index].needsWB = true;
+        assert(cacheBlocks[block_index].needsWB);
         cacheBlocks[block_index].needsApply = false;
         cacheBlocks[block_index].pendingApply = false;
         cacheBlocks[block_index].lastChangedTick = curTick();
@@ -810,8 +830,8 @@ CoalesceEngine::processNextApplyEvent()
 
     applyQueue.pop_front();
     if ((!applyQueue.empty()) &&
-        (!nextApplyEvent.scheduled())) {
-        schedule(nextApplyEvent, nextCycle());
+        (!nextPreWBApplyEvent.scheduled())) {
+        schedule(nextPreWBApplyEvent, nextCycle());
     }
 
     if (done()) {
@@ -870,16 +890,78 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
     assert(cacheBlocks[block_index].pendingData);
     assert(!cacheBlocks[block_index].pendingApply);
     assert(!cacheBlocks[block_index].pendingWB);
-    PacketPtr pkt = createReadPacket(cacheBlocks[block_index].addr,
-                                    peerMemoryAtomSize);
-    DPRINTF(CoalesceEngine,  "%s: Created a read packet. addr = %lu, "
-            "size = %d.\n", __func__, pkt->getAddr(), pkt->getSize());
-    memPort.sendPacket(pkt);
-    onTheFlyReqs++;
 
-    if (pendingVertexPullReads.find(pkt->getAddr()) !=
+    bool need_send_pkt = true;
+    for (auto wb = postPushWBQueue.begin(); wb != postPushWBQueue.end(); wb++)
+    {
+        PacketPtr wb_pkt = std::get<0>(*wb);
+        if (cacheBlocks[block_index].addr == wb_pkt->getAddr()) {
+            wb_pkt->writeDataToBlock(
+                (uint8_t*) cacheBlocks[block_index].items, peerMemoryAtomSize);
+            cacheBlocks[block_index].needsWB = true;
+            for (auto it = MSHR[block_index].begin(); it != MSHR[block_index].end();) {
+                Addr miss_addr = *it;
+                Addr aligned_miss_addr =
+                    roundDown<Addr, size_t>(miss_addr, peerMemoryAtomSize);
+
+                if (aligned_miss_addr == cacheBlocks[block_index].addr) {
+                    int wl_offset = (miss_addr - aligned_miss_addr) / sizeof(WorkListItem);
+                    DPRINTF(CoalesceEngine,  "%s: Addr: %lu in the MSHR for "
+                                "cacheBlocks[%d] can be serviced with the received "
+                                "packet.\n",__func__, miss_addr, block_index);
+                    // TODO: Make this block of code into a function
+                    responseQueue.push_back(std::make_tuple(miss_addr,
+                            cacheBlocks[block_index].items[wl_offset], curTick()));
+                    DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
+                                "to responseQueue. responseQueue.size = %d.\n",
+                                __func__, miss_addr,
+                                cacheBlocks[block_index].items[wl_offset].to_string(),
+                                responseQueue.size());
+                    DPRINTF(CoalesceEngine, "%s: Added (addr: %lu, wl: %s) "
+                                "to responseQueue. responseQueue.size = %d.\n",
+                                __func__, miss_addr,
+                                cacheBlocks[block_index].items[wl_offset].to_string(),
+                                responseQueue.size());
+                    // TODO: Add a stat to count the number of WLItems that have been touched.
+                    cacheBlocks[block_index].busyMask |= (1 << wl_offset);
+                    cacheBlocks[block_index].lastChangedTick = curTick();
+                    DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
+                                block_index, cacheBlocks[block_index].to_string());
+                    it = MSHR[block_index].erase(it);
+                } else {
+                    it++;
+                }
+            }
+            if (MSHR[block_index].empty()) {
+                MSHR.erase(block_index);
+            }
+
+            if ((!nextResponseEvent.scheduled()) &&
+                (!responseQueue.empty())) {
+                schedule(nextResponseEvent, nextCycle());
+            }
+            postPushWBQueue.erase(wb);
+            need_send_pkt = false;
+        }
+    }
+
+    if (pendingVertexPullReads.find(cacheBlocks[block_index].addr) !=
         pendingVertexPullReads.end()) {
-        stats.numDoubleMemReads++;
+        need_send_pkt = false;
+    }
+
+    if (need_send_pkt) {
+        PacketPtr pkt = createReadPacket(cacheBlocks[block_index].addr,
+                                        peerMemoryAtomSize);
+        DPRINTF(CoalesceEngine,  "%s: Created a read packet. addr = %lu, "
+                "size = %d.\n", __func__, pkt->getAddr(), pkt->getSize());
+        memPort.sendPacket(pkt);
+        onTheFlyReqs++;
+
+        if (pendingVertexPullReads.find(pkt->getAddr()) !=
+            pendingVertexPullReads.end()) {
+            stats.numDoubleMemReads++;
+        }
     }
 }
 
@@ -945,6 +1027,18 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
                             "the right function scheduled later.\n",
                             __func__, block_index, schedule_tick);
         stats.numInvalidWriteBacks++;
+    }
+}
+
+void
+CoalesceEngine::processNextPostPushWB(int ignore, Tick schedule_tick)
+{
+    PacketPtr wb_pkt;
+    Tick pkt_tick;
+    std::tie(wb_pkt, pkt_tick) = postPushWBQueue.front();
+    if (schedule_tick == pkt_tick) {
+        memPort.sendPacket(wb_pkt);
+        postPushWBQueue.pop_front();
     }
 }
 
@@ -1017,6 +1111,7 @@ CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
             assert(vertex_send_mask == 0);
             send_mask |= (1 << index_offset);
             pendingVertexPullReads[addr] = send_mask;
+            numPullsReceived--;
         }
         if (bit_status == BitStatus::IN_CACHE) {
             // renaming the outputs to their local names.
@@ -1030,35 +1125,39 @@ CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
             needsPush[slice_base_index + wl_offset] = 0;
             _workCount--;
 
-            // TODO: Implement a function like this.
-            // uint32_t delta, bool do_wb = prePushApply(cacheBlocks[block_index].items[wl_offset]);
-            // TODO: After implementing the above function get rid of this bool
-            // if (applyBeforePush) {
-            //     cacheBlocks[block_index].items[wl_offset].prop =
-            //         cacheBlocks[block_index].items[wl_offset].tempProp;
-            // }
-            // TODO: Implement recvVertexPush2 in PushEngine.
-            // owner->recvVertexPush2(vertex_addr, delta,
-            //             cacheBlocks[block_index].items[wl_offset].edgeIndex,
-            //             cacheBlocks[block_index].items[wl_offset].degree);
-            owner->recvVertexPush(
-                    vertex_addr, cacheBlocks[block_index].items[wl_offset]);
+            uint32_t delta;
+            bool do_push, do_wb;
+            std::tie(delta, do_push, do_wb) = graphWorkload->prePushApply(
+                                    cacheBlocks[block_index].items[wl_offset]);
+            cacheBlocks[block_index].needsWB |= do_wb;
+            if (do_push) {
+                owner->recvVertexPush(vertex_addr, delta,
+                        cacheBlocks[block_index].items[wl_offset].edgeIndex,
+                        cacheBlocks[block_index].items[wl_offset].degree);
+            } else {
+                DPRINTF(CoalesceEngine, "%s: Fuck!.\n", __func__);
+                owner->recvPrevPullCorrection();
+            }
             stats.verticesPushed++;
             stats.lastVertexPushTime = curTick() - stats.lastResetTick;
+            numPullsReceived--;
         }
         if (bit_status == BitStatus::IN_MEMORY) {
-            Addr addr = location;
-            int index_offset = offset;
-            uint64_t send_mask = (1 << index_offset);
-            assert(pendingVertexPullReads.find(addr) == pendingVertexPullReads.end());
-            PacketPtr pkt = createReadPacket(addr, peerMemoryAtomSize);
-            SenderState* sender_state = new SenderState(true);
-            pkt->pushSenderState(sender_state);
-            memPort.sendPacket(pkt);
-            onTheFlyReqs++;
-            pendingVertexPullReads[addr] = send_mask;
+            if (postPushWBQueue.size() < (postPushWBQueueSize - maxPotentialPostPushWB)) {
+                Addr addr = location;
+                int index_offset = offset;
+                uint64_t send_mask = (1 << index_offset);
+                assert(pendingVertexPullReads.find(addr) == pendingVertexPullReads.end());
+                PacketPtr pkt = createReadPacket(addr, peerMemoryAtomSize);
+                SenderState* sender_state = new SenderState(true);
+                pkt->pushSenderState(sender_state);
+                memPort.sendPacket(pkt);
+                onTheFlyReqs++;
+                maxPotentialPostPushWB++;
+                pendingVertexPullReads[addr] = send_mask;
+                numPullsReceived--;
+            }
         }
-        numPullsReceived--;
     }
 
     stats.bitvectorSearchStatus[bit_status]++;
