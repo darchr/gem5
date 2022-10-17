@@ -43,7 +43,7 @@ class CoalesceEngine(BaseMemoryEngine):
     max_resp_per_cycle = Param.Int("Maximum number of vertices to send to "
                                 "requestor in each cycle. Used to limit b/w.")
 
-    post_apply_wb_queue_size = Param.Int("Maximum number of pending wb after "
+    post_push_wb_queue_size = Param.Int("Maximum number of pending wb after "
                                 "apply process for applications that require "
                                 "the apply process to happen exactly before "
                                 "pushing the edgePointer to the PushEngine.")
