@@ -75,9 +75,9 @@ class MPU : public SimObject
     void recvVertexPull() { return coalesceEngine->recvVertexPull(); }
     bool running() { return pushEngine->running(); }
     void start() { return pushEngine->start(); }
-    void recvVertexPush(Addr addr, WorkListItem wl);
-    void recvVertexPush2(Addr addr, uint32_t delta,
+    void recvVertexPush(Addr addr, uint32_t delta,
                         uint32_t edge_index, uint32_t degree);
+    void recvPrevPullCorrection();
 
     void recvDoneSignal();
     bool done();

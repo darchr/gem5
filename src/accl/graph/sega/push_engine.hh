@@ -66,20 +66,23 @@ class PushEngine : public BaseMemoryEngine
 
     class EdgeReadInfoGen {
       private:
+        Addr _src;
+        uint32_t _delta;
+
         Addr _start;
         Addr _end;
         size_t _step;
         size_t _atom;
 
-        Addr _src;
-        uint32_t _value;
-
       public:
-        EdgeReadInfoGen(Addr start, Addr end, size_t step,
-                        size_t atom, Addr src, uint32_t value):
-                        _start(start), _end(end), _step(step),
-                        _atom(atom), _src(src), _value(value)
+        EdgeReadInfoGen(Addr src, uint32_t delta, Addr start,
+                        Addr end, size_t step, size_t atom):
+                        _src(src), _delta(delta), _start(start),
+                        _end(end), _step(step), _atom(atom)
         {}
+
+        Addr src() { return _src; }
+        uint32_t delta() { return _delta; }
 
         std::tuple<Addr, Addr, int> nextReadPacketInfo()
         {
@@ -105,9 +108,6 @@ class PushEngine : public BaseMemoryEngine
         }
 
         bool done() { return (_start >= _end); }
-
-        Addr src() { return _src; }
-        uint32_t value() { return _value; }
     };
     struct PushInfo {
         Addr src;
@@ -197,8 +197,7 @@ class PushEngine : public BaseMemoryEngine
 
     void start();
     bool running() { return _running; }
-    void recvVertexPush(Addr addr, WorkListItem wl);
-    void recvVertexPush2(Addr addr, uint32_t delta,
+    void recvVertexPush(Addr addr, uint32_t delta,
                         uint32_t edge_index, uint32_t degree);
 
     void recvReqRetry();

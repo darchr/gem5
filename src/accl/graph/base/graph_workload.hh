@@ -46,7 +46,7 @@ class GraphWorkload
     virtual uint32_t propagate(uint32_t value, uint32_t weight) = 0;
     virtual bool applyCondition(WorkListItem wl) = 0;
     virtual bool preWBApply(WorkListItem& wl) = 0;
-    virtual std::tuple<uint32_t, bool> prePushApply(WorkListItem& wl) = 0;
+    virtual std::tuple<uint32_t, bool, bool> prePushApply(WorkListItem& wl) = 0;
 };
 
 class BFSWorkload : public GraphWorkload
@@ -56,7 +56,7 @@ class BFSWorkload : public GraphWorkload
     uint32_t initValue;
   public:
     BFSWorkload(uint64_t init_addr, uint32_t init_value):
-        GraphWorkload(), 
+        GraphWorkload(),
         initAddr(init_addr), initValue(init_value)
     {}
 
@@ -66,7 +66,7 @@ class BFSWorkload : public GraphWorkload
     virtual uint32_t propagate(uint32_t value, uint32_t weight);
     virtual bool applyCondition(WorkListItem wl);
     virtual bool preWBApply(WorkListItem& wl);
-    virtual std::tuple<uint32_t, bool> prePushApply(WorkListItem& wl);
+    virtual std::tuple<uint32_t, bool, bool> prePushApply(WorkListItem& wl);
 };
 
 }

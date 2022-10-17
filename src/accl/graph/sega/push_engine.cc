@@ -184,18 +184,18 @@ PushEngine::processNextVertexPullEvent()
 }
 
 void
-PushEngine::recvVertexPush(Addr addr, WorkListItem wl)
+PushEngine::recvVertexPush(Addr addr, uint32_t delta,
+                            uint32_t edge_index, uint32_t degree)
 {
-    assert(wl.degree > 0);
+    assert(degree > 0);
     assert((edgePointerQueueSize == 0) ||
             ((edgePointerQueue.size() + numPendingPulls) <= edgePointerQueueSize));
 
-    Addr start_addr = wl.edgeIndex * sizeof(Edge);
-    Addr end_addr = start_addr + (wl.degree * sizeof(Edge));
+    Addr start_addr = edge_index * sizeof(Edge);
+    Addr end_addr = start_addr + (degree * sizeof(Edge));
+    EdgeReadInfoGen info_gen(addr, delta, start_addr, end_addr,
+                            sizeof(Edge), peerMemoryAtomSize);
 
-    // uint32_t value = calculateValue(wl);
-    EdgeReadInfoGen info_gen(start_addr, end_addr, sizeof(Edge),
-                            peerMemoryAtomSize, addr, wl.prop);
     edgePointerQueue.emplace_back(info_gen, curTick());
 
     numPendingPulls--;
@@ -207,6 +207,7 @@ PushEngine::recvVertexPush(Addr addr, WorkListItem wl)
         (!nextMemoryReadEvent.scheduled())) {
         schedule(nextMemoryReadEvent, nextCycle());
     }
+
 }
 
 void
@@ -229,7 +230,7 @@ PushEngine::processNextMemoryReadEvent()
                     "num_edges: %d.\n", __func__, aligned_addr, offset, num_edges);
 
         PacketPtr pkt = createReadPacket(aligned_addr, peerMemoryAtomSize);
-        PushInfo push_info = {curr_info.src(), curr_info.value(), offset, num_edges};
+        PushInfo push_info = {curr_info.src(), curr_info.delta(), offset, num_edges};
         reqInfoMap[pkt->req] = push_info;
         memPort.sendPacket(pkt);
         onTheFlyMemReqs += num_edges;

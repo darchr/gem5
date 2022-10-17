@@ -123,14 +123,15 @@ class CoalesceEngine : public BaseMemoryEngine
     UniqueFIFO<int> applyQueue;
     std::bitset<MAX_BITVECTOR_SIZE> needsPush;
     std::deque<int> activeBits;
-    int postApplyWBQueueSize;
-    std::deque<WorkListItem> postApplyWBQueue;
+    int postPushWBQueueSize;
+    std::deque<std::tuple<PacketPtr, Tick>> postPushWBQueue;
 
     int getBlockIndex(Addr addr);
     int getBitIndexBase(Addr addr);
     Addr getBlockAddrFromBitIndex(int index);
     std::tuple<BitStatus, Addr, int> getOptimalPullAddr();
 
+    int maxPotentialPostPushWB;
     // A map from addr to sendMask. sendMask determines which bytes to
     // send for push when getting the read response from memory.
     std::unordered_map<Addr, uint64_t> pendingVertexPullReads;
@@ -140,14 +141,15 @@ class CoalesceEngine : public BaseMemoryEngine
     void processNextRead(int block_index, Tick schedule_tick);
     void processNextWriteBack(int block_index, Tick schedule_tick);
     void processNextVertexPull(int ignore, Tick schedule_tick);
+    void processNextPostPushWB(int ignore, Tick schedule_tick);
     std::deque<std::tuple<
         std::function<void(int, Tick)>, int, Tick>> memoryFunctionQueue;
 
     EventFunctionWrapper nextResponseEvent;
     void processNextResponseEvent();
 
-    EventFunctionWrapper nextApplyEvent;
-    void processNextApplyEvent();
+    EventFunctionWrapper nextPreWBApplyEvent;
+    void processNextPreWBApplyEvent();
 
     struct CoalesceStats : public statistics::Group
     {
