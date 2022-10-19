@@ -31,6 +31,37 @@
 namespace gem5
 {
 
+BFSWorkload::BFSWorkload(uint64_t init_addr, uint32_t init_value, int atom_size):
+    GraphWorkload(), initValue(init_value), atomSize(atom_size)
+{
+    initAddrBase = roundDown<uint64_t, int>(init_addr, atomSize);
+    initIndex = (init_addr - initAddrBase) / atomSize;
+    numElementsPerLine = atomSize / sizeof(WorkListItem);
+}
+
+
+void
+BFSWorkload::init(PacketPtr pkt, int bit_index_base,
+                std::bitset<MAX_BITVECTOR_SIZE>& needsPush, 
+                std::deque<int>& activeBits)
+{
+    if (pkt->getAddr() == initAddrBase) {
+        WorkListItem items[numElementsPerLine];
+
+        pkt->writeDataToBlock((uint8_t*) items, atomSize);
+
+        items[initIndex].tempProp = initValue;
+        items[initIndex].prop = initValue;
+        needsPush[bit_index_base + initIndex] = 1;
+        activeBits.push_back(bit_index_base + initIndex);
+
+        pkt->deleteData();
+        pkt->allocate();
+        pkt->setDataFromBlock((uint8_t*) items, atomSize);
+    }
+
+}
+
 uint32_t
 BFSWorkload::reduce(uint32_t update, uint32_t value)
 {
@@ -66,6 +97,47 @@ BFSWorkload::prePushApply(WorkListItem& wl)
 {
     uint32_t value = wl.prop;
     return std::make_tuple(value, true, false);
+}
+
+
+uint32_t
+PRWorkload::reduce(uint32_t update, uint32_t value)
+{
+    return update+value;
+}
+
+uint32_t
+PRWorkload::propagate(uint32_t value, uint32_t weight)
+{
+    return (alpha*value*weight);
+}
+
+bool
+PRWorkload::applyCondition(WorkListItem wl)
+{
+    return wl.tempProp != wl.prop;
+}
+
+bool
+PRWorkload::preWBApply(WorkListItem& wl)
+{
+    if (applyCondition(wl)) {
+        if (wl.degree > 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::tuple<uint32_t, bool, bool>
+PRWorkload::prePushApply(WorkListItem& wl)
+{
+    uint32_t delta = abs(wl.prop - wl.tempProp)/wl.degree;
+    if (delta > threshold) {
+        return std::make_tuple(delta, true, true);
+    }
+    uint32_t value = wl.tempProp;
+    return std::make_tuple(value, false, false);
 }
 
 } // namespace gem5

@@ -29,9 +29,13 @@
 #ifndef __ACCL_GRAPH_BASE_GRAPH_WORKLOAD_HH__
 #define  __ACCL_GRAPH_BASE_GRAPH_WORKLOAD_HH__
 
+#include <bitset>
+#include <deque>
 #include <tuple>
 
 #include "accl/graph/base/data_structs.hh"
+#include "base/intmath.hh"
+#include "mem/packet.hh"
 
 
 namespace gem5
@@ -42,6 +46,10 @@ class GraphWorkload
   public:
     GraphWorkload() {}
     ~GraphWorkload() {}
+
+    virtual void init(PacketPtr pkt, int bit_index_base,
+                    std::bitset<MAX_BITVECTOR_SIZE>& needsPush, 
+                    std::deque<int>& activeBits) = 0;
     virtual uint32_t reduce(uint32_t update, uint32_t value) = 0;
     virtual uint32_t propagate(uint32_t value, uint32_t weight) = 0;
     virtual bool applyCondition(WorkListItem wl) = 0;
@@ -52,16 +60,42 @@ class GraphWorkload
 class BFSWorkload : public GraphWorkload
 {
   private:
-    uint64_t initAddr;
+    uint64_t initAddrBase;
+    int initIndex;
     uint32_t initValue;
+    int numElementsPerLine;
+    int atomSize;
   public:
-    BFSWorkload(uint64_t init_addr, uint32_t init_value):
-        GraphWorkload(),
-        initAddr(init_addr), initValue(init_value)
-    {}
+    BFSWorkload(uint64_t init_addr, uint32_t init_value, int atom_size);
 
     ~BFSWorkload() {}
 
+    virtual void init(PacketPtr pkt, int bit_index_base,
+                    std::bitset<MAX_BITVECTOR_SIZE>& needsPush, 
+                    std::deque<int>& activeBits);
+    virtual uint32_t reduce(uint32_t update, uint32_t value);
+    virtual uint32_t propagate(uint32_t value, uint32_t weight);
+    virtual bool applyCondition(WorkListItem wl);
+    virtual bool preWBApply(WorkListItem& wl);
+    virtual std::tuple<uint32_t, bool, bool> prePushApply(WorkListItem& wl);
+};
+
+
+class PRWorkload : public GraphWorkload
+{
+  private:
+    float alpha;
+    float threshold;
+  public:
+    PRWorkload(float alpha, float threshold):
+        GraphWorkload(), alpha(alpha), threshold(threshold)
+    {}
+
+    ~PRWorkload() {}
+
+    virtual void init(PacketPtr pkt, int bit_index_base,
+                    std::bitset<MAX_BITVECTOR_SIZE>& needsPush, 
+                    std::deque<int>& activeBits);
     virtual uint32_t reduce(uint32_t update, uint32_t value);
     virtual uint32_t propagate(uint32_t value, uint32_t weight);
     virtual bool applyCondition(WorkListItem wl);

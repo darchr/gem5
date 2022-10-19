@@ -48,8 +48,6 @@ class CenteralController : public ClockedObject
   private:
     System* system;
 
-    GraphWorkload* workload;
-
     Addr maxVertexAddr;
     std::deque<PacketPtr> initialUpdates;
 
@@ -60,10 +58,13 @@ class CenteralController : public ClockedObject
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
 
   public:
+
+    GraphWorkload* workload;
+
     PARAMS(CenteralController);
     CenteralController(const CenteralControllerParams &params);
 
-    virtual void initState() override;
+    // virtual void initState() override;
     virtual void startup() override;
 
     void createInitialBFSUpdate(Addr init_addr, uint32_t init_value);

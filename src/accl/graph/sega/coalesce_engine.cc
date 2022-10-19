@@ -121,7 +121,8 @@ CoalesceEngine::recvFunctional(PacketPtr pkt)
         }
     } else {
         // TODO: Add and implement init function for GraphWorkload.
-        // graphWorkload->init(pkt);
+        int bit_index_base = getBitIndexBase(pkt->getAddr());
+        graphWorkload->init(pkt, bit_index_base, needsPush, activeBits);
         memPort.sendFunctional(pkt);
     }
 }
