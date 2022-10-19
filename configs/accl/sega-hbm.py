@@ -57,7 +57,7 @@ class GPT(SubSystem):
                                             num_mshr_entry=64,
                                             num_tgts_per_mshr=64,
                                             max_resp_per_cycle=8,
-                                            post_apply_wb_queue_size=64
+                                            post_push_wb_queue_size=64
                                             )
         self.push_engine = PushEngine(
                                     push_req_queue_size=32,
@@ -136,7 +136,7 @@ class SEGA(System):
 
     def create_initial_bfs_update(self, init_addr, init_value):
         self.ctrl.createInitialBFSUpdate(init_addr, init_value)
-        
+
     def create_bfs_workload(self, init_addr, init_value):
         self.ctrl.createBFSWorkload(init_addr, init_value)
 

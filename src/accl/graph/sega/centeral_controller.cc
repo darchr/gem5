@@ -51,12 +51,13 @@ CenteralController::CenteralController(const Params& params):
 }
 
 void
-CenteralController::initState()
+CenteralController::startup()
 {
     for (auto mpu: mpuVector) {
         addrRangeListMap[mpu] = mpu->getAddrRanges();
         mpu->recvWorkload(workload);
     }
+
     const auto& file = params().image_file;
     if (file == "")
         return;
@@ -79,22 +80,11 @@ CenteralController::initState()
     }, system->cacheLineSize());
 
     panic_if(!image.write(proxy), "%s: Unable to write image.");
-}
 
-void
-CenteralController::startup()
-{
-    while(!initialUpdates.empty()) {
-        PacketPtr front = initialUpdates.front();
-        for (auto mpu: mpuVector) {
-            AddrRangeList range_list = addrRangeListMap[mpu];
-            for (auto range: range_list) {
-                if (range.contains(front->getAddr())) {
-                    mpu->handleIncomingUpdate(front);
-                }
-            }
+    for (auto mpu: mpuVector) {
+        if (!mpu->running() && (mpu->workCount ()> 0)) {
+            mpu->start();
         }
-        initialUpdates.pop_front();
     }
 }
 
@@ -140,7 +130,7 @@ CenteralController::createInitialBFSUpdate(Addr init_addr, uint32_t init_value)
 void
 CenteralController::createBFSWorkload(Addr init_addr, uint32_t init_value)
 {
-    workload = new BFSWorkload(init_addr, init_value);
+    workload = new BFSWorkload(init_addr, init_value, system->cacheLineSize());
 }
 
 void

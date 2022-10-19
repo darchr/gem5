@@ -38,7 +38,7 @@
 #include "base/statistics.hh"
 #include "params/CoalesceEngine.hh"
 
-#define MAX_BITVECTOR_SIZE (1 << 28)
+
 
 namespace gem5
 {
