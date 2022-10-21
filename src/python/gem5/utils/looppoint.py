@@ -31,9 +31,12 @@ from gem5.components.processors.abstract_core import AbstractCore
 from m5.objects.LoopPointManager import LoopPointManager
 import csv
 import re
+from abc import ABCMeta
         
         
 class BaseLoopPoints:
+    
+    __metaclass__ = ABCMeta
     
     def __init__(
         self,
@@ -44,37 +47,37 @@ class BaseLoopPoints:
         regionID: List[int]
     ) -> None:
         
-        self.checkpointPC = checkpointPC
-        self.checkpointCount = checkpointCount
-        self.relativePC = relativePC
-        self.relativeCount = relativeCount
-        self.regionID = regionID
+        self._checkpointPC = checkpointPC
+        self._checkpointCount = checkpointCount
+        self._relativePC = relativePC
+        self._relativeCount = relativeCount
+        self._regionID = regionID
         
-        self.looppointManager = LoopPointManager()
+        self._looppointManager = LoopPointManager()
     
     def setup_cpu(
         self, 
         cpuList: List[AbstractCore], 
         ) -> None:
-        self.looppointManager.target_count = self.checkpointCount
-        self.looppointManager.target_pc = self.checkpointPC
-        self.looppointManager.region_id = self.regionID
-        self.looppointManager.relative_pc = self.relativePC
-        self.looppointManager.relative_count = self.relativeCount
-        self.looppointManager.setup(cpuList)
+        self._looppointManager.target_count = self._checkpointCount
+        self._looppointManager.target_pc = self._checkpointPC
+        self._looppointManager.region_id = self._regionID
+        self._looppointManager.relative_pc = self._relativePC
+        self._looppointManager.relative_count = self._relativeCount
+        self._looppointManager.setup(cpuList)
     
     
     def get_checkpointPC(self):
-        return self.checkpointPC
+        return self._checkpointPC
     
     def get_checkpointCount(self):
-        return self.checkpointCount
+        return self._checkpointCount
     
     def get_relativePC(self):
-        return self.relativePC
+        return self._relativePC
     
     def get_relativeCount(self):
-        return self.relativeCount
+        return self._relativeCount
         
 
 class LoopPointsCheckPoint(BaseLoopPoints):
@@ -84,24 +87,39 @@ class LoopPointsCheckPoint(BaseLoopPoints):
         LoopPointFilePath: Path
     ) -> None:
         
-        self.checkpointPC = []
-        self.checkpointCount = []
-        self.relativePC = []
-        self.relativeCount = []
-        self.regionID = []
+        _checkpointPC = []
+        _checkpointCount = []
+        _relativePC = []
+        _relativeCount = []
+        _regionID = []
         self.simulationRegion = dict()
         self.warmupRegion = dict()
         self.max_regionid = 0
-        self.profile_checkpoints(LoopPointFilePath)
+        self.profile_checkpoints(
+            LoopPointFilePath,
+            checkpointPC = _checkpointPC,
+            checkpointCount = _checkpointCount,
+            relativePC = _relativePC,
+            relativeCount = _relativeCount,
+            regionID = _regionID
+        )
         super().__init__(
-            checkpointPC=self.checkpointPC ,
-            checkpointCount=self.checkpointCount ,
-            relativePC = self.relativePC,
-            relativeCount = self.relativeCount,
-            regionID = self.regionID
+            checkpointPC=_checkpointPC ,
+            checkpointCount=_checkpointCount ,
+            relativePC = _relativePC,
+            relativeCount = _relativeCount,
+            regionID = _regionID
         )
         
-    def profile_checkpoints(self, looppoint_file_path:Path):
+    def profile_checkpoints(
+        self,
+        looppoint_file_path:Path,
+        checkpointPC: List[int],
+        checkpointCount: List[int],
+        relativePC: List[int],
+        relativeCount: List[int],
+        regionID: List[int]
+        ) -> None:
         with open(looppoint_file_path, newline='') as csvfile:
             spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
             for row in spamreader:
@@ -117,21 +135,21 @@ class LoopPointsCheckPoint(BaseLoopPoints):
                         
         for id in range(1,self.max_regionid+1):
             if str(id) in self.simulationRegion:
-                self.regionID.append(id)
+                regionID.append(id)
                 if str(id) in self.warmupRegion:
-                    self.checkpointPC.append(self.warmupRegion[str(id)][0][0])
-                    self.checkpointCount.append(self.warmupRegion[str(id)][0][1])
-                    self.relativePC.append(self.simulationRegion[str(id)][0][0])
-                    self.relativeCount.append(self.simulationRegion[str(id)][0][1])
-                    self.relativePC.append(self.simulationRegion[str(id)][1][0])
-                    self.relativeCount.append(self.simulationRegion[str(id)][1][1])
+                    checkpointPC.append(self.warmupRegion[str(id)][0][0])
+                    checkpointCount.append(self.warmupRegion[str(id)][0][1])
+                    relativePC.append(self.simulationRegion[str(id)][0][0])
+                    relativeCount.append(self.simulationRegion[str(id)][0][1])
+                    relativePC.append(self.simulationRegion[str(id)][1][0])
+                    relativeCount.append(self.simulationRegion[str(id)][1][1])
                 else:
-                    self.checkpointPC.append(self.simulationRegion[str(id)][0][0])
-                    self.checkpointCount.append(self.simulationRegion[str(id)][0][1])
-                    self.relativePC.append(self.simulationRegion[str(id)][1][0])
-                    self.relativeCount.append(self.simulationRegion[str(id)][1][1])
-                    self.relativePC.append(0)
-                    self.relativeCount.append(-1)
+                    checkpointPC.append(self.simulationRegion[str(id)][0][0])
+                    checkpointCount.append(self.simulationRegion[str(id)][0][1])
+                    relativePC.append(self.simulationRegion[str(id)][1][0])
+                    relativeCount.append(self.simulationRegion[str(id)][1][1])
+                    relativePC.append(0)
+                    relativeCount.append(-1)
                     
     def get_simulationRegion_dict(self):
         return self.simulationRegion
@@ -151,21 +169,32 @@ class LoopPointsRestore(BaseLoopPoints):
         CheckPointDir: Path
     ) -> None:
         
-        self.checkpointPC = []
-        self.checkpointCount = []
-        self.relativePC = []
-        self.relativeCount = []
-        self.regionID = []
-        self.profile_restore(LoopPointOutputFilePath, CheckPointDir)
+        _checkpointPC = []
+        _checkpointCount = []
+        _regionID = []
+        self.profile_restore(
+            LoopPointOutputFilePath, 
+            CheckPointDir,
+            checkpointPC = _checkpointPC,
+            checkpointCount = _checkpointCount,
+            regionID = _regionID
+        )
         super().__init__(
-            checkpointPC=self.checkpointPC ,
-            checkpointCount=self.checkpointCount ,
-            relativePC = self.relativePC,
-            relativeCount = self.relativeCount,
-            regionID = self.regionID
+            checkpointPC=_checkpointPC ,
+            checkpointCount=_checkpointCount ,
+            relativePC = [],
+            relativeCount = [],
+            regionID = _regionID
         )
     
-    def profile_restore(self, checkpoint_file_path:Path, checkpoint_dir:Path):
+    def profile_restore(
+        self, 
+        checkpoint_file_path:Path, 
+        checkpoint_dir:Path,
+        checkpointPC: List[int],
+        checkpointCount: List[int],
+        regionID: List[int]
+        ) -> None:
         regex = re.compile(r"cpt.([0-9]+)")
         tick = regex.findall(checkpoint_dir.as_posix())[0]
         print(f"looking for tick {tick}\n")
@@ -177,14 +206,14 @@ class LoopPointsRestore(BaseLoopPoints):
                 line = line.split(":")
                 print(f"split:{line}\n")
                 if line[0] == tick:
-                    self.regionID.append(line[1])
+                    regionID.append(line[1])
                     if(len(line)>6):
-                        self.checkpointPC.append(line[4])
-                        self.checkpointCount.append(line[5])
+                        checkpointPC.append(line[4])
+                        checkpointCount.append(line[5])
                     if(len(line)>8):
-                        self.checkpointPC.append(line[6])
-                        self.checkpointCount.append(line[7])
-                    print(f"get target PC {self.checkpointPC}\n")
-                    print(f"get target PC count {self.checkpointCount}\n")
+                        checkpointPC.append(line[6])
+                        checkpointCount.append(line[7])
+                    print(f"get target PC {checkpointPC}\n")
+                    print(f"get target PC count {checkpointCount}\n")
                     break
                 

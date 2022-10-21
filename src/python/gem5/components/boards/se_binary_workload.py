@@ -27,6 +27,7 @@
 from .abstract_board import AbstractBoard
 from ...resources.resource import AbstractResource
 from gem5.utils.simpoint import SimPoint
+from gem5.utils.looppoint import BaseLoopPoints
 
 from m5.objects import SEWorkload, Process
 
@@ -111,3 +112,37 @@ class SEBinaryWorkload:
 
         # Set whether to exit on work items for the se_workload
         self.exit_on_work_items = exit_on_work_items
+
+    def set_se_looppoint_workload(
+        self,
+        binary: AbstractResource,
+        looppoint: BaseLoopPoints,
+        arguments: List[str] = []
+    ) -> None:
+        """Set up the system to run a LoopPoint workload.
+
+        **Limitations**
+        * Dynamically linked executables are partially supported when the host
+          ISA and the simulated ISA are the same.
+
+        :param binary: The resource encapsulating the binary to be run.
+        :param simpoint: The LoopPoint object that contain all the information
+        gather from the LoopPoint files and a LoopPointManager that will raise
+        exit events for LoopPoints
+        :param arguments: The input arguments for the binary
+        """
+        self._looppoint_object = looppoint
+        self._looppoint_object.setup_cpu(self.processor.get_cores())
+        self.set_se_binary_workload(
+                binary=binary,
+                arguments=arguments,
+        )
+        
+    def get_looppoint(self) -> BaseLoopPoints:
+        """
+        Returns the LoopPoint object set. If no LoopPoint object has been set 
+        an exception is thrown.
+        """
+        if getattr(self, "_looppoint_object", None):
+            return self._looppoint_object
+        raise Exception("This board does not have a looppoint set.")
