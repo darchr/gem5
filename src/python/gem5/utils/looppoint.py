@@ -24,38 +24,45 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.params import NULL, UInt64
 from m5.util import fatal
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
+from gem5.components.processors.abstract_core import AbstractCore
 from m5.objects.LoopPointManager import LoopPointManager
 import csv
 import re
-
-class LoopPoints:
+        
+        
+class BaseLoopPoints:
     
     def __init__(
         self,
+        checkpointPC,
+        checkpointCount,
+        relativePC,
+        relativeCount,
+        regionID
     ) -> None:
         
-        self.simulationRegion = dict()
-        self.warmupRegion = dict()
-        self.relativePC = []
-        self.relativeCount = []
-        self.checkpointPC = []
-        self.checkpointCount = []
-        self.regionID = []
+        self.checkpointPC = checkpointPC
+        self.checkpointCount = checkpointCount
+        self.relativePC = relativePC
+        self.relativeCount = relativeCount
+        self.regionID = regionID
         
-        self.max_regionid = 0   
-
-    def get_simulationRegion_dict(self):
-        return self.simulationRegion
+        self.looppointManager = LoopPointManager()
     
-    def get_warmupRegion_dict(self):
-        return self.warmupRegion
+    def setup_cpu(
+        self, 
+        cpuList: List[AbstractCore], 
+        ) -> None:
+        self.looppointManager.target_count = self.checkpointCount
+        self.looppointManager.target_pc = self.checkpointPC
+        self.looppointManager.region_id = self.regionID
+        self.looppointManager.relative_pc = self.relativePC
+        self.looppointManager.relative_count = self.relativeCount
+        self.looppointManager.setup(cpuList)
     
-    def get_max_regionid(self):
-        return self.max_regionid
     
     def get_checkpointPC(self):
         return self.checkpointPC
@@ -66,7 +73,35 @@ class LoopPoints:
     def get_relativePC(self):
         return self.relativePC
     
-    def profile_looppoints_checkpoints(self, looppoint_file_path:Path):
+    def get_relativeCount(self):
+        return self.relativeCount
+        
+
+class LoopPointsCheckPoint(BaseLoopPoints):
+    
+    def __init__(
+        self,
+        LoopPointFilePath: Path
+    ) -> None:
+        
+        self.checkpointPC = []
+        self.checkpointCount = []
+        self.relativePC = []
+        self.relativeCount = []
+        self.regionID = []
+        self.simulationRegion = dict()
+        self.warmupRegion = dict()
+        self.max_regionid = 0
+        self.profile_checkpoints(LoopPointFilePath)
+        super().__init__(
+            checkpointPC=self.checkpointPC ,
+            checkpointCount=self.checkpointCount ,
+            relativePC = self.relativePC,
+            relativeCount = self.relativeCount,
+            regionID = self.regionID
+        )
+        
+    def profile_checkpoints(self, looppoint_file_path:Path):
         with open(looppoint_file_path, newline='') as csvfile:
             spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
             for row in spamreader:
@@ -97,23 +132,43 @@ class LoopPoints:
                     self.relativeCount.append(self.simulationRegion[str(id)][1][1])
                     self.relativePC.append(0)
                     self.relativeCount.append(-1)
+                    
+    def get_simulationRegion_dict(self):
+        return self.simulationRegion
     
-    def setup_checkpoints(self, cpuList,looppoint_file_path:Path):
-        self.profile_looppoints_checkpoints(looppoint_file_path)
-        self.looppointManager = LoopPointManager()
-        self.looppointManager.target_count = self.checkpointCount
-        self.looppointManager.target_pc = self.checkpointPC
-        self.looppointManager.region_id = self.regionID
-        self.looppointManager.relative_pc = self.relativePC
-        self.looppointManager.relative_count = self.relativeCount
-        self.looppointManager.setup(cpuList)
+    def get_warmupRegion_dict(self):
+        return self.warmupRegion
+    
+    def get_max_regionid(self):
+        return self.max_regionid
         
     
-    def setup_restore(self, cpuList, checkpoint_file_path:Path, checkpoint_dir:Path):
+class LoopPointsRestore(BaseLoopPoints):
+    
+    def __init__(
+        self,
+        LoopPointOutputFilePath: Path,
+        CheckPointDir: Path
+    ) -> None:
+        
+        self.checkpointPC = []
+        self.checkpointCount = []
+        self.relativePC = []
+        self.relativeCount = []
+        self.regionID = []
+        self.profile_restore(LoopPointOutputFilePath, CheckPointDir)
+        super().__init__(
+            checkpointPC=self.checkpointPC ,
+            checkpointCount=self.checkpointCount ,
+            relativePC = self.relativePC,
+            relativeCount = self.relativeCount,
+            regionID = self.regionID
+        )
+    
+    def profile_restore(self, checkpoint_file_path:Path, checkpoint_dir:Path):
         regex = re.compile(r"cpt.([0-9]+)")
         tick = regex.findall(checkpoint_dir.as_posix())[0]
         print(f"looking for tick {tick}\n")
-        self.looppointManager = LoopPointManager()
         with open(checkpoint_file_path) as file:
             while True:
                 line = file.readline()
@@ -122,27 +177,14 @@ class LoopPoints:
                 line = line.split(":")
                 print(f"split:{line}\n")
                 if line[0] == tick:
-                    targetPC = list()
-                    targetCount = list()
+                    self.regionID.append(line[1])
                     if(len(line)>6):
-                        targetPC.append(line[4])
-                        targetCount.append(line[5])
+                        self.checkpointPC.append(line[4])
+                        self.checkpointCount.append(line[5])
                     if(len(line)>8):
-                        targetPC.append(line[6])
-                        targetCount.append(line[7])
-                    print(f"get target PC {targetPC}\n")
-                    print(f"get target PC count {targetCount}\n")
-                    self.looppointManager.region_id = [line[1]]
-                    self.looppointManager.target_count = targetCount
-                    self.looppointManager.target_pc = targetPC
-                    self.looppointManager.setup(cpuList)
+                        self.checkpointPC.append(line[6])
+                        self.checkpointCount.append(line[7])
+                    print(f"get target PC {self.checkpointPC}\n")
+                    print(f"get target PC count {self.checkpointCount}\n")
                     break
-        
-    def testing(self,cpuList,checkpc,checkpccount,id,rpc,rpccount):
-        self.looppointManager = LoopPointManager()
-        self.looppointManager.target_count = checkpccount
-        self.looppointManager.target_pc = checkpc
-        self.looppointManager.region_id = id
-        self.looppointManager.relative_pc = rpc
-        self.looppointManager.relative_count = rpccount
-        self.looppointManager.setup(cpuList)
+                

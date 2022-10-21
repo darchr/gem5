@@ -174,7 +174,7 @@ class BaseCPUCore(AbstractCore):
     @overrides(AbstractCore)
     def addLoopPointProbe(
         self, 
-        targetpc,
+        targetpc: List[AbstractCore],
         manager: LoopPointManager
     ) -> None:
         looppoint = LoopPoint()
