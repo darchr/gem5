@@ -37,11 +37,11 @@ class BaseLoopPoints:
     
     def __init__(
         self,
-        checkpointPC,
-        checkpointCount,
-        relativePC,
-        relativeCount,
-        regionID
+        checkpointPC: List[int],
+        checkpointCount: List[int],
+        relativePC: List[int],
+        relativeCount: List[int],
+        regionID: List[int]
     ) -> None:
         
         self.checkpointPC = checkpointPC
