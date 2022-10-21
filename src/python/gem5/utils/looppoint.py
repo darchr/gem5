@@ -34,7 +34,11 @@ import re
 from abc import ABCMeta
         
         
-class BaseLoopPoints:
+class BaseLoopPoint:
+    """
+    A stdlib LoopPoint object that contains the information gather from the
+    input files and use a LoopPointManager to connect them with the cores.
+    """
     
     __metaclass__ = ABCMeta
     
@@ -46,6 +50,20 @@ class BaseLoopPoints:
         relativeCount: List[int],
         regionID: List[int]
     ) -> None:
+        """ Stores the LoopPoint related information
+        
+        :param checkpointPC: A list of PC numbers that will raise an exit
+        event at.
+        :param checkpointCount: A list of targeting counts that will raise an
+        exit event at.
+        :param relativePC: A list of PC numbers that are related to the
+        checkpoint PC and needed for outputting relative PC counts for
+        restoring the LoopPoint checkpoints.
+        :param relativeCount: A list of targeting counts for the relativePC. It
+        is needed for outputing relative PC counts for restoring the LoopPoint
+        checkpoints.
+        :param reginID: The ID of the targeting region.
+        """
         
         self._checkpointPC = checkpointPC
         self._checkpointCount = checkpointCount
@@ -59,6 +77,9 @@ class BaseLoopPoints:
         self, 
         cpuList: List[AbstractCore], 
         ) -> None:
+        """ Setup LoopPointManager and connect LoopPoint probes with the cores
+        :param cpuList: A list of cores that will be used in the simulation
+        """
         self._looppointManager.target_count = self._checkpointCount
         self._looppointManager.target_pc = self._checkpointPC
         self._looppointManager.region_id = self._regionID
@@ -80,12 +101,16 @@ class BaseLoopPoints:
         return self._relativeCount
         
 
-class LoopPointsCheckPoint(BaseLoopPoints):
+class LoopPointsCheckpoint(BaseLoopPoint):
     
     def __init__(
         self,
         LoopPointFilePath: Path
     ) -> None:
+        """ A subclass of BaseLoopPoint for profiling LoopPoint checkpoints
+        :param LoopPointFilePath: The path to the LoopPoint file that contains
+        all the LoopPoint region information
+        """
         
         _checkpointPC = []
         _checkpointCount = []
@@ -120,6 +145,11 @@ class LoopPointsCheckPoint(BaseLoopPoints):
         relativeCount: List[int],
         regionID: List[int]
         ) -> None:
+        """ 
+        Profile LoopPoint checkpoint information from the input file
+        """
+        
+        # read information from the file
         with open(looppoint_file_path, newline='') as csvfile:
             spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
             for row in spamreader:
@@ -132,11 +162,20 @@ class LoopPointsCheckPoint(BaseLoopPoints):
                     elif row[0]=="Warmup":
                         line = row[3].split(",")
                         self.warmupRegion[line[0]] = [(line[3], line[6]), (line[7],line[10])]
-                        
+        
+        # Assign PC and its targeting counts to the corresponding lists
         for id in range(1,self.max_regionid+1):
+            # The LoopPoint region id might not be continuous, so it needs to 
+            # check if the region id was recorded in the simulationRegion or
+            # not. If it was not, it means this region id is not valid. 
             if str(id) in self.simulationRegion:
                 regionID.append(id)
                 if str(id) in self.warmupRegion:
+                    # Check if this simulation region has a warmup region.
+                    # If it does, use the PC and the starting count of the warm
+                    # up region as the checkpoint. The PC, starting
+                    # count, and ending count of the simulation region will be
+                    # the relatives to the checkpoint.
                     checkpointPC.append(self.warmupRegion[str(id)][0][0])
                     checkpointCount.append(self.warmupRegion[str(id)][0][1])
                     relativePC.append(self.simulationRegion[str(id)][0][0])
@@ -144,6 +183,11 @@ class LoopPointsCheckPoint(BaseLoopPoints):
                     relativePC.append(self.simulationRegion[str(id)][1][0])
                     relativeCount.append(self.simulationRegion[str(id)][1][1])
                 else:
+                    # If the simulation region doesn't have a warmup region,
+                    # then the PC and starting count of the simulation region 
+                    # will be the checkpoint. The PC and the ending count of
+                    # this simulation region will be the relatives of the
+                    # checkpoint.
                     checkpointPC.append(self.simulationRegion[str(id)][0][0])
                     checkpointCount.append(self.simulationRegion[str(id)][0][1])
                     relativePC.append(self.simulationRegion[str(id)][1][0])
@@ -161,13 +205,19 @@ class LoopPointsCheckPoint(BaseLoopPoints):
         return self.max_regionid
         
     
-class LoopPointsRestore(BaseLoopPoints):
+class LoopPointsRestore(BaseLoopPoint):
     
     def __init__(
         self,
         LoopPointOutputFilePath: Path,
         CheckPointDir: Path
     ) -> None:
+        """ A subclass of BaseLoopPoint for profiling LoopPoint restoring point
+        :param LoopPointOutputFilePath: The path to the LoopPoint file
+        outputted from the checkpoint simulation that contains all the
+        information needed to restore a LoopPoint checkpoint.
+        :param CheckPointDir: The path to the checkpoint directory.
+        """
         
         _checkpointPC = []
         _checkpointCount = []
@@ -195,18 +245,29 @@ class LoopPointsRestore(BaseLoopPoints):
         checkpointCount: List[int],
         regionID: List[int]
         ) -> None:
+        """ 
+        Profile LoopPoint checkpoint information from the input file
+        """
         regex = re.compile(r"cpt.([0-9]+)")
+        # The checkpoint directory is named by the simulation Tick it was at
+        # when the checkpoint was taken, so we can get the Tick number from the
+        # checkpoint directory name.
         tick = regex.findall(checkpoint_dir.as_posix())[0]
-        print(f"looking for tick {tick}\n")
         with open(checkpoint_file_path) as file:
             while True:
                 line = file.readline()
                 if not line:
+                    # If the Tick number can't find a match in the output file
+                    # it means the checkpoint and the output file doesn't match
                     fatal("checkpoint tick not found in checkpoint file")
                 line = line.split(":")
                 print(f"split:{line}\n")
                 if line[0] == tick:
+                    # If the Tick number is found, we can read the information
+                    # needed to setup the restoring point and ending point
                     regionID.append(line[1])
+                    # Because the simulation region might or might not have a 
+                    # warmup region, there might only be one targeting point.
                     if(len(line)>6):
                         checkpointPC.append(line[4])
                         checkpointCount.append(line[5])

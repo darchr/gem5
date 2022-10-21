@@ -57,22 +57,36 @@ LoopPointManager::LoopPointManager(const LoopPointManagerParams &p)
             std::vector<int>& pcCount = map_itr->second;
             pcCount.push_back(p.target_count[i]);
         }
-        regionId.insert(std::make_pair(std::make_pair(p.target_pc[i],p.target_count[i]),p.region_id[i]));
+        regionId.insert(
+            std::make_pair(
+                std::make_pair(p.target_pc[i],p.target_count[i]),
+                p.region_id[i]
+            )
+        );
         if (if_inputRelative) {
             std::vector<Addr> rPC;
             std::vector<int> rPCcount;
             for (int j = 0; j < 2; j++)
             {
                 if(p.relative_pc[rPCcounter] != 0) {
-                    if(counter.find(p.relative_pc[rPCcounter])==counter.end()) {
-                        counter.insert(std::make_pair(p.relative_pc[rPCcounter],0));
+                    if(
+                        counter.find(p.relative_pc[rPCcounter])==counter.end()
+                    ) {
+                        counter.insert(
+                            std::make_pair(p.relative_pc[rPCcounter],0)
+                        );
                     }
                     rPC.push_back(p.relative_pc[rPCcounter]);
                     rPCcount.push_back(p.relative_count[rPCcounter]);
                 }
                 rPCcounter ++;
             }
-            relativePC.insert(std::make_pair(std::make_pair(p.target_pc[i],p.target_count[i]),std::make_pair(rPC,rPCcount)));
+            relativePC.insert(
+                std::make_pair(
+                    std::make_pair(p.target_pc[i],p.target_count[i]),
+                    std::make_pair(rPC,rPCcount)
+                )
+            );
         }
     }
     info = simout.create("LoopPointInfo.txt", false);
@@ -103,7 +117,7 @@ LoopPointManager::check_count(Addr pc)
         std::vector<int>& targetcount = map_itr -> second;
         // loop through its target count vector to check for the matching count
         for (std::vector<int>::iterator iter = targetcount.begin();
-                                                iter < targetcount.end(); iter++) {
+                                            iter < targetcount.end(); iter++) {
             // if matching count found, then erase the target count from the 
             // vector, record the infomation, and raise an exit event
             if(*iter==count) {
@@ -117,8 +131,8 @@ LoopPointManager::check_count(Addr pc)
                     std::vector<int>& rPCcount = rela_itr->second.second;
                     int rela_count = 0;
                     for (int i = 0; i< rPC.size(); i++) {
-                        rela_count = rPCcount[i] - counter.find(rPC[i])->second;
-                        *info->stream() << ":" << rPC[i] << ":" << rela_count ; 
+                        rela_count = rPCcount[i]-counter.find(rPC[i])->second;
+                        *info->stream() << ":" << rPC[i] << ":" << rela_count; 
                     }
                 }
                 *info->stream() <<":"<< "\n"; 

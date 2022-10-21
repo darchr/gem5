@@ -27,7 +27,7 @@
 from .abstract_board import AbstractBoard
 from ...resources.resource import AbstractResource
 from gem5.utils.simpoint import SimPoint
-from gem5.utils.looppoint import BaseLoopPoints
+from gem5.utils.looppoint import BaseLoopPoint
 
 from m5.objects import SEWorkload, Process
 
@@ -116,7 +116,7 @@ class SEBinaryWorkload:
     def set_se_looppoint_workload(
         self,
         binary: AbstractResource,
-        looppoint: BaseLoopPoints,
+        looppoint: BaseLoopPoint,
         arguments: List[str] = []
     ) -> None:
         """Set up the system to run a LoopPoint workload.
@@ -138,7 +138,7 @@ class SEBinaryWorkload:
                 arguments=arguments,
         )
         
-    def get_looppoint(self) -> BaseLoopPoints:
+    def get_looppoint(self) -> BaseLoopPoint:
         """
         Returns the LoopPoint object set. If no LoopPoint object has been set 
         an exception is thrown.
