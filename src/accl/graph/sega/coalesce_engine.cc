@@ -1079,7 +1079,7 @@ CoalesceEngine::getOptimalPullAddr()
                 return std::make_tuple(
                             BitStatus::IN_CACHE, block_index, index_offset);
             // Otherwise if it is in memory
-            } else if (cacheBlocks[block_index].addr != addr) {
+            } else if ((!cacheBlocks[block_index].valid) || (cacheBlocks[block_index].addr != addr)) {
                 activeBits.pop_front();
                 return std::make_tuple(
                             BitStatus::IN_MEMORY, addr, index_offset);
