@@ -31,7 +31,7 @@ from gem5.utils.looppoint import BaseLoopPoint
 
 from m5.objects import SEWorkload, Process
 
-from typing import Optional, List
+from typing import Optional, List, Union
 from m5.util import warn
 from pathlib import Path
 
@@ -116,8 +116,8 @@ class SEBinaryWorkload:
     def set_se_looppoint_workload(
         self,
         binary: AbstractResource,
-        looppoint: BaseLoopPoint,
-        arguments: List[str] = []
+        arguments: List[str] = [],
+        looppoint: Union[AbstractResource, BaseLoopPoint] = None,
     ) -> None:
         """Set up the system to run a LoopPoint workload.
 
@@ -131,11 +131,19 @@ class SEBinaryWorkload:
         exit events for LoopPoints
         :param arguments: The input arguments for the binary
         """
-        self._looppoint_object = looppoint
-        self._looppoint_object.setup_cpu(self.processor.get_cores())
+        
+        if isinstance(looppoint, AbstractResource):
+            self._looppoint_object = BaseLoopPoint(looppoint)
+        else:
+            assert isinstance(looppoint, BaseLoopPoint)
+            self._looppoint_object = looppoint
+
+        self._looppoint_object.setup_processor(self.get_processor())
+
+        # Call set_se_binary_workload after SimPoint setup is complete
         self.set_se_binary_workload(
-                binary=binary,
-                arguments=arguments,
+            binary=binary,
+            arguments=arguments,
         )
         
     def get_looppoint(self) -> BaseLoopPoint:

@@ -27,7 +27,7 @@
 from m5.util import fatal
 from pathlib import Path
 from typing import List
-from gem5.components.processors.abstract_core import AbstractCore
+from gem5.components.processors.abstract_processor import AbstractProcessor
 from m5.objects.LoopPoint import LoopPointManager
 import csv
 import re
@@ -70,9 +70,9 @@ class BaseLoopPoint:
         
         self._looppointManager = LoopPointManager()
     
-    def setup_cpu(
+    def setup_processor(
         self, 
-        cpuList: List[AbstractCore], 
+        processor: AbstractProcessor, 
         ) -> None:
         """ Setup LoopPointManager and connect LoopPoint probes with the cores
         :param cpuList: A list of cores that will be used in the simulation
@@ -82,12 +82,11 @@ class BaseLoopPoint:
         self._looppointManager.region_id = self._regionID
         self._looppointManager.relative_pc = self._relativePC
         self._looppointManager.relative_count = self._relativeCount
-        for core in cpuList:
+        for core in processor.get_cores():
             core.addLoopPointProbe(
                 self._checkpointPC + self._relativePC, 
                 self._looppointManager
             )
-    
     
     def get_checkpointPC(self):
         return self._checkpointPC

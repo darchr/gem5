@@ -26,7 +26,6 @@
 
 from typing import Optional, List
 
-from m5.params import UInt64
 from ...utils.requires import requires
 from .abstract_core import AbstractCore
 
