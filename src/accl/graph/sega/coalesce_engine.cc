@@ -267,7 +267,7 @@ CoalesceEngine::recvWLRead(Addr addr)
         // is cold and addr or aligned_addr is 0. It fails because cache block
         // addr field is initialized to 0. Unfortunately Addr type is unsigned.
         // So you can not initialized addr to -1.
-        // assert(cacheBlocks[block_index].addr != aligned_addr);
+        assert(cacheBlocks[block_index].addr != aligned_addr);
         assert(MSHR.size() <= numMSHREntries);
         DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a miss.\n", __func__, addr);
         if (MSHR.find(block_index) == MSHR.end()) {

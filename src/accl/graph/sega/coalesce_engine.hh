@@ -73,7 +73,7 @@ class CoalesceEngine : public BaseMemoryEngine
         // Tick lastWLWriteTick;
         Block() {}
         Block(int num_elements):
-          addr(0),
+          addr(-1),
           busyMask(0),
           valid(false),
           needsApply(false),
