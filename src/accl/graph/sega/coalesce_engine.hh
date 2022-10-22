@@ -209,7 +209,7 @@ class CoalesceEngine : public BaseMemoryEngine
     bool recvWLRead(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);
 
-    int workCount() { return _workCount; }
+    int workCount() { return needsPush.count(); }
     void recvVertexPull();
 
     bool done();

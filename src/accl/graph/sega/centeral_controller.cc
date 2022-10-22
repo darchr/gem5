@@ -82,7 +82,7 @@ CenteralController::startup()
     panic_if(!image.write(proxy), "%s: Unable to write image.");
 
     for (auto mpu: mpuVector) {
-        if (!mpu->running() && (mpu->workCount ()> 0)) {
+        if (!mpu->running() && (mpu->workCount()> 0)) {
             mpu->start();
         }
     }
