@@ -28,10 +28,9 @@ from m5.util import fatal
 from pathlib import Path
 from typing import List
 from gem5.components.processors.abstract_core import AbstractCore
-from m5.objects.LoopPointManager import LoopPointManager
+from m5.objects.LoopPoint import LoopPointManager
 import csv
 import re
-from abc import ABCMeta
         
         
 class BaseLoopPoint:
@@ -39,8 +38,6 @@ class BaseLoopPoint:
     A stdlib LoopPoint object that contains the information gather from the
     input files and use a LoopPointManager to connect them with the cores.
     """
-    
-    __metaclass__ = ABCMeta
     
     def __init__(
         self,
@@ -85,7 +82,11 @@ class BaseLoopPoint:
         self._looppointManager.region_id = self._regionID
         self._looppointManager.relative_pc = self._relativePC
         self._looppointManager.relative_count = self._relativeCount
-        self._looppointManager.setup(cpuList)
+        for core in cpuList:
+            core.addLoopPointProbe(
+                self._checkpointPC + self._relativePC, 
+                self._looppointManager
+            )
     
     
     def get_checkpointPC(self):
@@ -101,7 +102,7 @@ class BaseLoopPoint:
         return self._relativeCount
         
 
-class LoopPointsCheckpoint(BaseLoopPoint):
+class LoopPointCheckpoint(BaseLoopPoint):
     
     def __init__(
         self,
@@ -205,7 +206,7 @@ class LoopPointsCheckpoint(BaseLoopPoint):
         return self.max_regionid
         
     
-class LoopPointsRestore(BaseLoopPoint):
+class LoopPointRestore(BaseLoopPoint):
     
     def __init__(
         self,

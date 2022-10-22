@@ -49,13 +49,6 @@ LoopPoint::LoopPoint(const LoopPointParams &p)
     }
 }
 
-LoopPoint::~LoopPoint()
-{}
-
-void
-LoopPoint::init()
-{}
-
 void
 LoopPoint::regProbeListeners()
 {

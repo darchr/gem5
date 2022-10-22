@@ -102,10 +102,6 @@ LoopPointManager::~LoopPointManager()
 }
 
 void
-LoopPointManager::init()
-{}
-
-void
 LoopPointManager::check_count(Addr pc)
 {
     int& count = counter.find(pc) -> second;

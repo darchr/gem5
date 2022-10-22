@@ -27,8 +27,6 @@
 Import('*')
 
 if not env['CONF']['USE_NULL_ISA']:
-    SimObject('LoopPoint.py', sim_objects=['LoopPoint'])
+    SimObject('LoopPoint.py', sim_objects=['LoopPoint','LoopPointManager'])
     Source('looppoint.cc')
-
-    SimObject('LoopPointManager.py', sim_objects=['LoopPointManager'])
     Source('looppointmanager.cc')

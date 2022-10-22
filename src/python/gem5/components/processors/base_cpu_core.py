@@ -37,8 +37,10 @@ from ...utils.requires import requires
 
 from m5.objects import BaseMMU, Port, BaseCPU, Process
 
-from m5.objects.LoopPointManager import LoopPointManager
-from m5.objects.LoopPoint import LoopPoint
+from m5.objects.LoopPoint import (
+    LoopPoint,
+    LoopPointManager
+)
 
 
 class BaseCPUCore(AbstractCore):
@@ -174,7 +176,7 @@ class BaseCPUCore(AbstractCore):
     @overrides(AbstractCore)
     def addLoopPointProbe(
         self, 
-        targetpc: List[AbstractCore],
+        targetpc: List[int],
         manager: LoopPointManager
     ) -> None:
         looppoint = LoopPoint()

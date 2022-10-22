@@ -45,7 +45,7 @@ class LoopPointManager : public SimObject
   public:
     LoopPointManager(const LoopPointManagerParams &params);
     virtual ~LoopPointManager();
-    virtual void init();
+    
     /**
      * @brief This function checks if the current count for the input PC 
      * matches the target count of the PC. If they match, then it raises an

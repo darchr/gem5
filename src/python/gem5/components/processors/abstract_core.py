@@ -32,7 +32,9 @@ from m5.params import UInt64
 from ...isas import ISA
 
 from m5.objects import BaseMMU, Port, SubSystem
-from m5.objects.LoopPointManager import LoopPointManager
+from m5.objects.LoopPoint import (
+    LoopPointManager
+)
 
 
 
@@ -157,7 +159,7 @@ class AbstractCore(SubSystem):
     @abstractmethod
     def addLoopPointProbe(
         self, 
-        targetpc,
+        targetpc: List[int],
         manager: LoopPointManager
     ) -> None:
         """Add a LoopPoint to the core
