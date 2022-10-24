@@ -49,13 +49,11 @@ class CenteralController : public ClockedObject
     System* system;
 
     Addr maxVertexAddr;
-    std::deque<PacketPtr> initialUpdates;
 
     std::vector<MPU*> mpuVector;
     std::unordered_map<MPU*, AddrRangeList> addrRangeListMap;
 
     PacketPtr createReadPacket(Addr addr, unsigned int size);
-    template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
 
   public:
 
@@ -63,13 +61,11 @@ class CenteralController : public ClockedObject
 
     PARAMS(CenteralController);
     CenteralController(const CenteralControllerParams &params);
-
-    // virtual void initState() override;
     virtual void startup() override;
 
-    void createInitialBFSUpdate(Addr init_addr, uint32_t init_value);
     void createBFSWorkload(Addr init_addr, uint32_t init_value);
-    void createInitialPRUpdate();
+    void createPRWorkload(float alpha, float threshold);
+
     void recvDoneSignal();
 
     void printAnswerToHostSimout();
