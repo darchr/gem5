@@ -28,8 +28,10 @@ jobs:
       #     # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
       #     flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Run build script
-        run: python ${{ github.workspace }}/tests/main.py run
+        run: python ${{ github.workspace }}/tests/gem5/learning_gem5/part1_test.py run
       - run: echo "🍏 This job's status is ${{ job.status }}."
+
+# gem5/tests/gem5/learning_gem5/part1_test.py
 
 # jobs:
 #   Explore-GitHub-Actions:
