@@ -103,30 +103,6 @@ CenteralController::createReadPacket(Addr addr, unsigned int size)
     return pkt;
 }
 
-template<typename T> PacketPtr
-CenteralController::createUpdatePacket(Addr addr, T value)
-{
-    RequestPtr req = std::make_shared<Request>(addr, sizeof(T), addr, value);
-    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
-    // bits
-    req->setPC(((Addr) value) << 2);
-
-    PacketPtr pkt = new Packet(req, MemCmd::UpdateWL);
-
-    pkt->allocate();
-
-    pkt->setLE<T>(value);
-
-    return pkt;
-}
-
-void
-CenteralController::createInitialBFSUpdate(Addr init_addr, uint32_t init_value)
-{
-    PacketPtr update = createUpdatePacket<uint32_t>(init_addr, init_value);
-    initialUpdates.push_back(update);
-}
-
 void
 CenteralController::createBFSWorkload(Addr init_addr, uint32_t init_value)
 {
@@ -134,13 +110,9 @@ CenteralController::createBFSWorkload(Addr init_addr, uint32_t init_value)
 }
 
 void
-CenteralController::createInitialPRUpdate()
+CenteralController::createPRWorkload(float alpha, float threshold)
 {
-    for (auto mpu: mpuVector) {
-        if (!mpu->running() && (mpu->workCount() > 0)) {
-            mpu->start();
-        }
-    }
+    workload = new PRWorkload(alpha, threshold, system->cacheLineSize());
 }
 
 void

@@ -48,7 +48,7 @@ class GraphWorkload
     ~GraphWorkload() {}
 
     virtual void init(PacketPtr pkt, int bit_index_base,
-                    std::bitset<MAX_BITVECTOR_SIZE>& needsPush, 
+                    std::bitset<MAX_BITVECTOR_SIZE>& needsPush,
                     std::deque<int>& activeBits) = 0;
     virtual uint32_t reduce(uint32_t update, uint32_t value) = 0;
     virtual uint32_t propagate(uint32_t value, uint32_t weight) = 0;
@@ -65,13 +65,14 @@ class BFSWorkload : public GraphWorkload
     uint32_t initValue;
     int numElementsPerLine;
     int atomSize;
+
   public:
     BFSWorkload(uint64_t init_addr, uint32_t init_value, int atom_size);
 
     ~BFSWorkload() {}
 
     virtual void init(PacketPtr pkt, int bit_index_base,
-                    std::bitset<MAX_BITVECTOR_SIZE>& needsPush, 
+                    std::bitset<MAX_BITVECTOR_SIZE>& needsPush,
                     std::deque<int>& activeBits);
     virtual uint32_t reduce(uint32_t update, uint32_t value);
     virtual uint32_t propagate(uint32_t value, uint32_t weight);
@@ -86,15 +87,17 @@ class PRWorkload : public GraphWorkload
   private:
     float alpha;
     float threshold;
+
+    int numElementsPerLine;
+    int atomSize;
+
   public:
-    PRWorkload(float alpha, float threshold):
-        GraphWorkload(), alpha(alpha), threshold(threshold)
-    {}
+    PRWorkload(float alpha, float threshold, int atom_size);
 
     ~PRWorkload() {}
 
     virtual void init(PacketPtr pkt, int bit_index_base,
-                    std::bitset<MAX_BITVECTOR_SIZE>& needsPush, 
+                    std::bitset<MAX_BITVECTOR_SIZE>& needsPush,
                     std::deque<int>& activeBits);
     virtual uint32_t reduce(uint32_t update, uint32_t value);
     virtual uint32_t propagate(uint32_t value, uint32_t weight);

@@ -116,9 +116,6 @@ class CoalesceEngine : public BaseMemoryEngine
     int maxRespPerCycle;
     std::deque<std::tuple<Addr, WorkListItem, Tick>> responseQueue;
 
-    bool applyBeforeWB;
-    bool applyBeforePush;
-    int _workCount;
     int numPullsReceived;
     UniqueFIFO<int> applyQueue;
     std::bitset<MAX_BITVECTOR_SIZE> needsPush;
