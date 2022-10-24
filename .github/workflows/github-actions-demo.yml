@@ -15,4 +15,12 @@ jobs:
       - name: List files in the repository
         run: |
           ls ${{ github.workspace }}
+      - run: echo "trying to run files"
+      - name: Run build script
+        run: cd /gem/tests
+        run: python main.py run
       - run: echo "🍏 This job's status is ${{ job.status }}."
+
+
+      #  on push, we want to run main.py, and assign reviewers
+      # if main.py is a success AND we have votes, we can submit
