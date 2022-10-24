@@ -48,8 +48,7 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     onTheFlyReqs(0), numMSHREntries(params.num_mshr_entry),
     numTgtsPerMSHR(params.num_tgts_per_mshr),
     maxRespPerCycle(params.max_resp_per_cycle),
-    _workCount(0), numPullsReceived(0),
-    postPushWBQueueSize(params.post_push_wb_queue_size),
+    numPullsReceived(0), postPushWBQueueSize(params.post_push_wb_queue_size),
     maxPotentialPostPushWB(0),
     nextMemoryEvent([this] {
         processNextMemoryEvent();
@@ -75,25 +74,6 @@ CoalesceEngine::registerMPU(MPU* mpu)
 {
     owner = mpu;
 }
-
-// void
-// CoalesceEngine::algoInit(PacketPtr pkt)
-// {
-//     WorkListItem items[numElementsPerLine];
-
-//     if(workload == "PR") {
-//         //TODO: Add Alpha
-//         pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
-//         int bit_index_base = getBitIndexBase(pkt->getAddr());
-//         for (int i = 0; i < numElementsPerLine; i++) {
-//             items[i].tempProp = readFromFloat<uint32_t>(0);
-//             items[i].prop = readFromFloat<uint32_t>(1 - 0.2);
-//             needsPush[bit_index_base + i] = 1;
-//             activeBits.push_back(bit_index_base + i);
-//         }
-//         pkt->setDataFromBlock((uint8_t*) items, peerMemoryAtomSize);
-//     }
-// }
 
 void
 CoalesceEngine::recvFunctional(PacketPtr pkt)
@@ -491,7 +471,6 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             if (vertex_send_mask != 0) {
                 assert(needsPush[it + i] == 1);
                 needsPush[it + i] = 0;
-                _workCount--;
 
                 uint32_t delta;
                 bool do_push, do_wb_v;
@@ -550,6 +529,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         }
     } else {
         // TODO: Add a stat to count this.
+        // FIXME: This is not a totally wasteful read. e.g. all reads
+        // for pull in BFS are like this.
         DPRINTF(CoalesceEngine, "%s: Totally wasteful read.\n", __func__);
     }
 
@@ -788,7 +769,6 @@ CoalesceEngine::processNextPreWBApplyEvent()
             if (do_push) {
                 int bit_index_base = getBitIndexBase(cacheBlocks[block_index].addr);
                 if (needsPush[bit_index_base + index] == 0) {
-                    _workCount++;
                     needsPush[bit_index_base + index] = 1;
                     activeBits.push_back(bit_index_base + index);
                     if (!owner->running()) {
@@ -1125,7 +1105,6 @@ CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
             int slice_base_index = getBitIndexBase(addr);
 
             needsPush[slice_base_index + wl_offset] = 0;
-            _workCount--;
 
             uint32_t delta;
             bool do_push, do_wb;
