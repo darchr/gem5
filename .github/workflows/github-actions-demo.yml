@@ -17,8 +17,7 @@ jobs:
           ls ${{ github.workspace }}
       - run: echo "trying to run files"
       - name: Run build script
-        run: cd /gem/tests
-        run: python main.py run
+        run: python /gem5/tests/main.py run
       - run: echo "🍏 This job's status is ${{ job.status }}."
 
 
