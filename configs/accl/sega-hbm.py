@@ -134,11 +134,11 @@ class SEGA(System):
 
         self.ctrl.mpu_vector = [gpt.mpu for gpt in self.gpts]
 
-    def create_initial_bfs_update(self, init_addr, init_value):
-        self.ctrl.createInitialBFSUpdate(init_addr, init_value)
-
     def create_bfs_workload(self, init_addr, init_value):
         self.ctrl.createBFSWorkload(init_addr, init_value)
+
+    def create_pr_workload(self, alpha, threshold):
+        self.ctrl.createPRWorkload(alpha, threshold)
 
     def print_answer(self):
         self.ctrl.printAnswerToHostSimout()
@@ -169,8 +169,8 @@ if __name__ == "__m5_main__":
 
     m5.instantiate()
 
-    system.create_initial_bfs_update(init_addr, init_value)
-    system.create_bfs_workload(init_addr, init_value)
+    # system.create_bfs_workload(init_addr, init_value)
+    system.create_pr_workload(0.2, 0.0000001)
     exit_event = m5.simulate()
     print(f"Exited simulation at tick {m5.curTick()} " + \
             f"because {exit_event.getCause()}")
