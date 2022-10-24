@@ -577,6 +577,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         schedule(nextResponseEvent, nextCycle());
     }
 
+
+    // TODO: Probably check for done here too.
     delete pkt;
     return true;
 }
