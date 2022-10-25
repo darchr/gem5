@@ -126,10 +126,10 @@ class SEBinaryWorkload:
           ISA and the simulated ISA are the same.
 
         :param binary: The resource encapsulating the binary to be run.
-        :param simpoint: The LoopPoint object that contain all the information
+        :param arguments: The input arguments for the binary
+        :param looppoint: The LoopPoint object that contain all the information
         gather from the LoopPoint files and a LoopPointManager that will raise
         exit events for LoopPoints
-        :param arguments: The input arguments for the binary
         """
 
         if isinstance(looppoint, AbstractResource):
@@ -140,7 +140,7 @@ class SEBinaryWorkload:
 
         self._looppoint_object.setup_processor(self.get_processor())
 
-        # Call set_se_binary_workload after SimPoint setup is complete
+        # Call set_se_binary_workload after LoopPoint setup is complete
         self.set_se_binary_workload(
             binary=binary,
             arguments=arguments,

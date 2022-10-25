@@ -93,7 +93,6 @@ LoopPointManager::LoopPointManager(const LoopPointManagerParams &p)
     if (!info) {
         fatal("unable to open LoopPoint info txt");
     }
-
 }
 
 LoopPointManager::~LoopPointManager()
@@ -143,8 +142,7 @@ LoopPointManager::check_count(Addr pc)
             }
         }
     }
+}
 
 }
 
-
-}
