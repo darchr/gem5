@@ -75,7 +75,12 @@ class BaseLoopPoint:
         processor: AbstractProcessor,
     ) -> None:
         """Setup LoopPointManager and connect LoopPoint probes with the cores
+<<<<<<< HEAD
         :param cpuList: A list of cores that will be used in the simulation
+=======
+        :param processor: The processor of the simulation that stores all the
+        cores.
+>>>>>>> 9ee9e30f5560cb711764e11ae0743f9c22e651a3
         """
         self._looppointManager.target_count = self._checkpointCount
         self._looppointManager.target_pc = self._checkpointPC
@@ -99,6 +104,12 @@ class BaseLoopPoint:
     def get_relativeCount(self):
         return self._relativeCount
 
+<<<<<<< HEAD
+=======
+    def get_regionID(self):
+        return self._regionID
+
+>>>>>>> 9ee9e30f5560cb711764e11ae0743f9c22e651a3
 
 class LoopPointCheckpoint(BaseLoopPoint):
     def __init__(self, LoopPointFilePath: Path) -> None:
@@ -261,7 +272,10 @@ class LoopPointRestore(BaseLoopPoint):
                     # it means the checkpoint and the output file doesn't match
                     fatal("checkpoint tick not found in checkpoint file")
                 line = line.split(":")
+<<<<<<< HEAD
                 print(f"split:{line}\n")
+=======
+>>>>>>> 9ee9e30f5560cb711764e11ae0743f9c22e651a3
                 if line[0] == tick:
                     # If the Tick number is found, we can read the information
                     # needed to setup the restoring point and ending point
@@ -274,6 +288,9 @@ class LoopPointRestore(BaseLoopPoint):
                     if len(line) > 8:
                         checkpointPC.append(line[6])
                         checkpointCount.append(line[7])
+<<<<<<< HEAD
                     print(f"get target PC {checkpointPC}\n")
                     print(f"get target PC count {checkpointCount}\n")
+=======
+>>>>>>> 9ee9e30f5560cb711764e11ae0743f9c22e651a3
                     break

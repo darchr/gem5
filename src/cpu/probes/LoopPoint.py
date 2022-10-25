@@ -26,6 +26,10 @@
 
 from m5.params import *
 from m5.objects.Probe import ProbeListenerObject
+<<<<<<< HEAD
+=======
+
+>>>>>>> 9ee9e30f5560cb711764e11ae0743f9c22e651a3
 from m5.objects import SimObject
 
 
