@@ -34,7 +34,6 @@
 #include <tuple>
 
 #include "accl/graph/base/data_structs.hh"
-#include "base/intmath.hh"
 #include "mem/packet.hh"
 
 
@@ -55,6 +54,7 @@ class GraphWorkload
     virtual bool applyCondition(WorkListItem wl) = 0;
     virtual bool preWBApply(WorkListItem& wl) = 0;
     virtual std::tuple<uint32_t, bool, bool> prePushApply(WorkListItem& wl) = 0;
+    virtual std::string printWorkListItem(const WorkListItem wl) = 0;
 };
 
 class BFSWorkload : public GraphWorkload
@@ -79,6 +79,7 @@ class BFSWorkload : public GraphWorkload
     virtual bool applyCondition(WorkListItem wl);
     virtual bool preWBApply(WorkListItem& wl);
     virtual std::tuple<uint32_t, bool, bool> prePushApply(WorkListItem& wl);
+    virtual std::string printWorkListItem(const WorkListItem wl);
 };
 
 
@@ -104,6 +105,7 @@ class PRWorkload : public GraphWorkload
     virtual bool applyCondition(WorkListItem wl);
     virtual bool preWBApply(WorkListItem& wl);
     virtual std::tuple<uint32_t, bool, bool> prePushApply(WorkListItem& wl);
+    virtual std::string printWorkListItem(const WorkListItem wl);
 };
 
 }
