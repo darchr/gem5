@@ -103,6 +103,9 @@ class BaseLoopPoint:
     def get_regionID(self):
         return self._regionID
 
+    def get_regionID(self):
+        return self._regionID
+
 class LoopPointCheckpoint(BaseLoopPoint):
     def __init__(self, LoopPointFilePath: Path) -> None:
         """A subclass of BaseLoopPoint for profiling LoopPoint checkpoints
