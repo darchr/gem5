@@ -23,7 +23,7 @@ jobs:
           python -m pip install scons
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Build gem5
-        run: scons build/ALL/gem5.opt -j 24
+        run: scons build/X86/gem5.opt -j 24
       # - name: Lint with flake8
       #   run: |
       #     # stop the build if there are Python syntax errors or undefined names
