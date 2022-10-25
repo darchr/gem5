@@ -21,6 +21,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install flake8 pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      -name: Build gem5
+        run: scons build/ALL/gem5.opt -j 24
       # - name: Lint with flake8
       #   run: |
       #     # stop the build if there are Python syntax errors or undefined names
@@ -28,7 +30,9 @@ jobs:
       #     # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
       #     flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Run build script
-        run: python ${{ github.workspace }}/tests/gem5/learning_gem5/part1_test.py run
+        run: |
+          cd ${{ github.workspace }}/tests
+          ./main.py run gem5/learning_gem5
       - run: echo "🍏 This job's status is ${{ job.status }}."
 
 # gem5/tests/gem5/learning_gem5/part1_test.py
