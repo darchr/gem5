@@ -263,10 +263,10 @@ WLEngine::handleIncomingWL(Addr addr, WorkListItem wl)
     workListFile[addr] = wl;
     DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) to "
                 "workListFile. workListFile.size = %d.\n", __func__, addr,
-                                    wl.to_string(), workListFile.size());
+                graphWorkload->printWorkListItem(wl), workListFile.size());
     DPRINTF(WLEngine, "%s: Added (addr: %lu, wl: %s) to "
                 "workListFile. workListFile.size = %d.\n", __func__, addr,
-                                    wl.to_string(), workListFile.size());
+                graphWorkload->printWorkListItem(wl), workListFile.size());
 
     stats.vertexReadLatency.sample(
         ((curTick() - vertexReadTime[addr]) * 1e9) / getClockFrequency());
@@ -287,13 +287,13 @@ WLEngine::processNextReduceEvent()
         uint32_t update_value = registerFile[addr];
         DPRINTF(WLEngine,  "%s: Reducing between registerFile and workListFile"
                     ". registerFile[%lu] = %u, workListFile[%lu] = %s.\n",
-                                        __func__, addr, registerFile[addr],
-                                        addr, workListFile[addr].to_string());
+                    __func__, addr, registerFile[addr], addr,
+                    graphWorkload->printWorkListItem(workListFile[addr]));
         // TODO: Generalize this to reduce function rather than just min
         workListFile[addr].tempProp =
             graphWorkload->reduce(update_value, workListFile[addr].tempProp);
         DPRINTF(WLEngine,  "%s: Reduction done. workListFile[%lu] = %s.\n",
-                            __func__, addr, workListFile[addr].to_string());
+        __func__, addr, graphWorkload->printWorkListItem(workListFile[addr]));
         stats.numReduce++;
 
         owner->recvWLWrite(addr, workListFile[addr]);
