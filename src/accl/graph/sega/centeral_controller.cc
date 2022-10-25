@@ -144,8 +144,8 @@ CenteralController::printAnswerToHostSimout()
         }
         pkt->writeDataToBlock((uint8_t*) items, system->cacheLineSize());
         for (int i = 0; i < num_items; i++) {
-            std::string print = csprintf("WorkListItem[%lu][%d]: %s.",
-                                        addr, i, items[i].to_string());
+            std::string print = csprintf("WorkListItem[%lu][%d]: %s.", addr, i,
+                                        workload->printWorkListItem(items[i]));
 
             std::cout << print << std::endl;
         }

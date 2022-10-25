@@ -28,8 +28,33 @@
 
 #include "accl/graph/base/graph_workload.hh"
 
+#include <cstring>
+
+#include "base/cprintf.hh"
+#include "base/intmath.hh"
+
 namespace gem5
 {
+
+template<typename T>
+float
+writeToFloat(T value)
+{
+    assert(sizeof(T) == sizeof(float));
+    float float_form;
+    std::memcpy(&float_form, &value, sizeof(float));
+    return float_form;
+}
+
+template<typename T>
+T
+readFromFloat(float value)
+{
+    assert(sizeof(T) == sizeof(float));
+    T float_bits;
+    std::memcpy(&float_bits, &value, sizeof(float));
+    return float_bits;
+}
 
 BFSWorkload::BFSWorkload(uint64_t init_addr, uint32_t init_value, int atom_size):
     GraphWorkload(), initValue(init_value), atomSize(atom_size)
@@ -97,6 +122,15 @@ BFSWorkload::prePushApply(WorkListItem& wl)
 {
     uint32_t value = wl.prop;
     return std::make_tuple(value, true, false);
+}
+
+std::string
+BFSWorkload::printWorkListItem(const WorkListItem wl)
+{
+    return csprintf(
+            "WorkListItem{tempProp: %u, prop: %u, degree: %u, edgeIndex: %u}",
+            wl.tempProp, wl.prop, wl.degree, wl.edgeIndex
+            );
 }
 
 PRWorkload::PRWorkload(float alpha, float threshold, int atom_size):
@@ -170,6 +204,16 @@ PRWorkload::prePushApply(WorkListItem& wl)
         return std::make_tuple(delta, true, true);
     }
     return std::make_tuple(0, false, false);
+}
+
+std::string
+PRWorkload::printWorkListItem(const WorkListItem wl)
+{
+    float temp_float = writeToFloat<uint32_t>(wl.tempProp);
+    return csprintf(
+            "WorkListItem{tempProp: %f, prop: %u, degree: %u, edgeIndex: %u}",
+            temp_float, temp_float, wl.degree, wl.edgeIndex
+            );
 }
 
 } // namespace gem5
