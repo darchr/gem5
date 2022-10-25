@@ -32,10 +32,7 @@ from m5.params import UInt64
 from ...isas import ISA
 
 from m5.objects import BaseMMU, Port, SubSystem
-from m5.objects.LoopPoint import (
-    LoopPointManager
-)
-
+from m5.objects.LoopPoint import LoopPointManager
 
 
 class AbstractCore(SubSystem):
@@ -154,13 +151,10 @@ class AbstractCore(SubSystem):
         simulation
         """
         raise NotImplementedError("This core type does not support MAX_INSTS")
-    
-    
+
     @abstractmethod
     def addLoopPointProbe(
-        self, 
-        targetpc: List[int],
-        manager: LoopPointManager
+        self, targetpc: List[int], manager: LoopPointManager
     ) -> None:
         """Add a LoopPoint to the core
         :param targetpc: a list of target PC for the LoopPoint

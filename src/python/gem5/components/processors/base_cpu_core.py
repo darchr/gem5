@@ -36,10 +36,7 @@ from ...utils.requires import requires
 
 from m5.objects import BaseMMU, Port, BaseCPU, Process
 
-from m5.objects.LoopPoint import (
-    LoopPoint,
-    LoopPointManager
-)
+from m5.objects.LoopPoint import LoopPoint, LoopPointManager
 
 
 class BaseCPUCore(AbstractCore):
@@ -171,12 +168,10 @@ class BaseCPUCore(AbstractCore):
             self.core.max_insts_any_thread = inst
         else:
             self.core.scheduleInstStopAnyThread(inst)
-            
+
     @overrides(AbstractCore)
     def addLoopPointProbe(
-        self, 
-        targetpc: List[int],
-        manager: LoopPointManager
+        self, targetpc: List[int], manager: LoopPointManager
     ) -> None:
         looppoint = LoopPoint()
         looppoint.target_pc = targetpc

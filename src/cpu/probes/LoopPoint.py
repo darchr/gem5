@@ -28,6 +28,7 @@ from m5.params import *
 from m5.objects.Probe import ProbeListenerObject
 from m5.objects import SimObject
 
+
 class LoopPointManager(SimObject):
 
     type = "LoopPointManager"
@@ -39,6 +40,7 @@ class LoopPointManager(SimObject):
     region_id = VectorParam.Int("the simulation region id")
     relative_pc = VectorParam.Addr("the relative PC of the target PC")
     relative_count = VectorParam.Int("the relative PC count of the target PC")
+
 
 class LoopPoint(ProbeListenerObject):
 

@@ -131,7 +131,7 @@ class SEBinaryWorkload:
         exit events for LoopPoints
         :param arguments: The input arguments for the binary
         """
-        
+
         if isinstance(looppoint, AbstractResource):
             self._looppoint_object = BaseLoopPoint(looppoint)
         else:
@@ -145,10 +145,10 @@ class SEBinaryWorkload:
             binary=binary,
             arguments=arguments,
         )
-        
+
     def get_looppoint(self) -> BaseLoopPoint:
         """
-        Returns the LoopPoint object set. If no LoopPoint object has been set 
+        Returns the LoopPoint object set. If no LoopPoint object has been set
         an exception is thrown.
         """
         if getattr(self, "_looppoint_object", None):

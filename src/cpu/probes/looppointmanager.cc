@@ -35,11 +35,11 @@ LoopPointManager::LoopPointManager(const LoopPointManagerParams &p)
 {
     // This loops through the target_pc vector param to construct the counter
     // map and the targetCount map. If the PC is unseen in the maps, then the
-    // counter inserts a new item with the PC as the key and an integer 0 as 
+    // counter inserts a new item with the PC as the key and an integer 0 as
     // the value. The targetCount inserts a new item with the PC as the key and
-    //  a new vector that contains the PC's target count (target_count[i]) as 
+    //  a new vector that contains the PC's target count (target_count[i]) as
     // the value. If the PC is in the maps, then the targetCount push_back the
-    // new target count (target_count[i]) for that PC in its corresponding 
+    // new target count (target_count[i]) for that PC in its corresponding
     // vector.
     if_inputRelative = true;
     if(p.relative_pc.empty()) {
@@ -93,7 +93,7 @@ LoopPointManager::LoopPointManager(const LoopPointManagerParams &p)
     if (!info) {
         fatal("unable to open LoopPoint info txt");
     }
-    
+
 }
 
 LoopPointManager::~LoopPointManager()
@@ -114,7 +114,7 @@ LoopPointManager::check_count(Addr pc)
         // loop through its target count vector to check for the matching count
         for (std::vector<int>::iterator iter = targetcount.begin();
                                             iter < targetcount.end(); iter++) {
-            // if matching count found, then erase the target count from the 
+            // if matching count found, then erase the target count from the
             // vector, record the infomation, and raise an exit event
             if(*iter==count) {
                 targetcount.erase(iter);
@@ -128,10 +128,10 @@ LoopPointManager::check_count(Addr pc)
                     int rela_count = 0;
                     for (int i = 0; i< rPC.size(); i++) {
                         rela_count = rPCcount[i]-counter.find(rPC[i])->second;
-                        *info->stream() << ":" << rPC[i] << ":" << rela_count; 
+                        *info->stream() << ":" << rPC[i] << ":" << rela_count;
                     }
                 }
-                *info->stream() <<":"<< "\n"; 
+                *info->stream() <<":"<< "\n";
                 exitSimLoopNow("simpoint starting point found");
                 if(targetcount.size()==0) {
                     targetCount.erase(pc);
@@ -143,7 +143,7 @@ LoopPointManager::check_count(Addr pc)
             }
         }
     }
-    
+
 }
 
 

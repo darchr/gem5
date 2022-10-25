@@ -44,8 +44,8 @@ class LoopPoint : public ProbeListenerObject
   public:
     LoopPoint(const LoopPointParams &params);
     /**
-     * @brief This connects a ProbeListener to the "RetiredInstsPC" ProbePoint 
-     * from the corresponding core. 
+     * @brief This connects a ProbeListener to the "RetiredInstsPC" ProbePoint
+     * from the corresponding core.
      */
     virtual void regProbeListeners();
     /**

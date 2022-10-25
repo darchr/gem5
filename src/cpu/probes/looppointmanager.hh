@@ -45,12 +45,12 @@ class LoopPointManager : public SimObject
   public:
     LoopPointManager(const LoopPointManagerParams &params);
     virtual ~LoopPointManager();
-    
+
     /**
-     * @brief This function checks if the current count for the input PC 
+     * @brief This function checks if the current count for the input PC
      * matches the target count of the PC. If they match, then it raises an
      * exit event to exit the Simulation loop.
-     * 
+     *
      * @param pc The target PC of LoopPoint
      */
     void check_count(Addr pc);
@@ -72,12 +72,12 @@ class LoopPointManager : public SimObject
       std::size_t operator () (const std::pair<Addr,int> &p) const {
         auto h1 = std::hash<Addr>{}(p.first);
         auto h2 = std::hash<int>{}(p.second);
-        return h1 ^ h2;  
+        return h1 ^ h2;
     }
     };
 
     std::unordered_map<std::pair<Addr,int>, std::pair<std::vector<Addr>,std::vector<int>>, pair_hash> relativePC;
-    std::unordered_map<std::pair<Addr,int>, int, pair_hash> regionId; 
+    std::unordered_map<std::pair<Addr,int>, int, pair_hash> regionId;
     bool if_inputRelative;
 };
 
