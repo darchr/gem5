@@ -157,7 +157,7 @@ CoalesceEngine::recvWLRead(Addr addr)
                         "%lu, and wl_offset: %d.\n", __func__, addr,
                         block_index, aligned_addr, wl_offset);
     DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
-                block_index, cacheBlocks[block_index].to_string());
+                        block_index, cacheBlocks[block_index].to_string());
 
     if ((cacheBlocks[block_index].addr == aligned_addr) &&
         (cacheBlocks[block_index].valid)) {
@@ -176,15 +176,17 @@ CoalesceEngine::recvWLRead(Addr addr)
             addr, cacheBlocks[block_index].items[wl_offset], curTick()));
 
         DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
-                        "to responseQueue. responseQueue.size = %d.\n",
-                        __func__, addr,
-                        cacheBlocks[block_index].items[wl_offset].to_string(),
-                        responseQueue.size());
+                "to responseQueue. responseQueue.size = %d.\n",
+                __func__, addr,
+                graphWorkload->printWorkListItem(
+                        cacheBlocks[block_index].items[wl_offset]),
+                responseQueue.size());
         DPRINTF(CoalesceEngine, "%s: Added (addr: %lu, wl: %s) "
-                        "to responseQueue. responseQueue.size = %d.\n",
-                        __func__, addr,
-                        cacheBlocks[block_index].items[wl_offset].to_string(),
-                        responseQueue.size());
+                "to responseQueue. responseQueue.size = %d.\n",
+                __func__, addr,
+                graphWorkload->printWorkListItem(
+                    cacheBlocks[block_index].items[wl_offset]),
+                responseQueue.size());
         // TODO: Stat to count the number of WLItems that have been touched.
         cacheBlocks[block_index].busyMask |= (1 << wl_offset);
         // If they are scheduled for apply and WB those schedules should be
@@ -476,6 +478,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                 bool do_push, do_wb_v;
                 std::tie(delta, do_push, do_wb_v) =
                                         graphWorkload->prePushApply(items[i]);
+                std::cout << "CoalesceEngine: delta: " << delta << std::endl;
                 do_wb |= do_wb_v;
                 if (do_push) {
                     owner->recvVertexPush(vertex_addr, delta,
@@ -508,8 +511,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         std::memcpy(cacheBlocks[block_index].items, items, peerMemoryAtomSize);
         for (int i = 0; i < numElementsPerLine; i++) {
             DPRINTF(CoalesceEngine,  "%s: Wrote cacheBlocks[%d][%d] = %s.\n",
-                                __func__, block_index, i,
-                                cacheBlocks[block_index].items[i].to_string());
+                __func__, block_index, i, graphWorkload->printWorkListItem(
+                                        cacheBlocks[block_index].items[i]));
         }
         cacheBlocks[block_index].valid = true;
         cacheBlocks[block_index].needsWB |= do_wb;
@@ -550,12 +553,14 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
                         "to responseQueue. responseQueue.size = %d.\n",
                         __func__, miss_addr,
-                        cacheBlocks[block_index].items[wl_offset].to_string(),
+                        graphWorkload->printWorkListItem(
+                            cacheBlocks[block_index].items[wl_offset]),
                         responseQueue.size());
             DPRINTF(CoalesceEngine, "%s: Added (addr: %lu, wl: %s) "
                         "to responseQueue. responseQueue.size = %d.\n",
                         __func__, addr,
-                        cacheBlocks[block_index].items[wl_offset].to_string(),
+                        graphWorkload->printWorkListItem(
+                            cacheBlocks[block_index].items[wl_offset]),
                         responseQueue.size());
             // TODO: Add a stat to count the number of WLItems that have been touched.
             cacheBlocks[block_index].busyMask |= (1 << wl_offset);
@@ -603,7 +608,9 @@ CoalesceEngine::processNextResponseEvent()
         num_responses_sent++;
         DPRINTF(CoalesceEngine,
                     "%s: Sent WorkListItem: %s with addr: %lu to WLEngine.\n",
-                    __func__, worklist_response.to_string(), addr_response);
+                    __func__, 
+                    graphWorkload->printWorkListItem(worklist_response), 
+                    addr_response);
 
         responseQueue.pop_front();
         DPRINTF(SEGAStructureSize,  "%s: Popped a response from responseQueue. "
@@ -640,12 +647,13 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     DPRINTF(CoalesceEngine,  "%s: Received a write request for addr: %lu with "
                         "wl: %s. This request maps to cacheBlocks[%d], "
                         "aligned_addr: %lu, and wl_offset: %d.\n",
-                        __func__, addr, wl.to_string(),
+                        __func__, addr, graphWorkload->printWorkListItem(wl),
                         block_index, aligned_addr, wl_offset);
     DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                 block_index, cacheBlocks[block_index].to_string());
     DPRINTF(CoalesceEngine,  "%s: Received a write for WorkListItem: %s "
-                "with Addr: %lu.\n", __func__, wl.to_string(), addr);
+                "with Addr: %lu.\n", __func__, 
+                graphWorkload->printWorkListItem(wl), addr);
     // Desing does not allow for write misses for now.
     assert(cacheBlocks[block_index].addr == aligned_addr);
     // cache state asserts
@@ -666,13 +674,15 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     cacheBlocks[block_index].items[wl_offset] = wl;
     if (graphWorkload->applyCondition(cacheBlocks[block_index].items[wl_offset])) {
         cacheBlocks[block_index].needsApply |= true;
+        cacheBlocks[block_index].needsWB |= true;
     }
 
     cacheBlocks[block_index].busyMask &= ~(1 << wl_offset);
     cacheBlocks[block_index].lastChangedTick = curTick();
     DPRINTF(CoalesceEngine,  "%s: Wrote to cacheBlocks[%d][%d] = %s.\n",
                 __func__, block_index, wl_offset,
-                cacheBlocks[block_index].items[wl_offset].to_string());
+                graphWorkload->printWorkListItem(
+                    cacheBlocks[block_index].items[wl_offset]));
     DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                         block_index, cacheBlocks[block_index].to_string());
 
@@ -899,12 +909,14 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
                     DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
                                 "to responseQueue. responseQueue.size = %d.\n",
                                 __func__, miss_addr,
-                                cacheBlocks[block_index].items[wl_offset].to_string(),
+                                graphWorkload->printWorkListItem(
+                                    cacheBlocks[block_index].items[wl_offset]),
                                 responseQueue.size());
                     DPRINTF(CoalesceEngine, "%s: Added (addr: %lu, wl: %s) "
                                 "to responseQueue. responseQueue.size = %d.\n",
                                 __func__, miss_addr,
-                                cacheBlocks[block_index].items[wl_offset].to_string(),
+                                graphWorkload->printWorkListItem(
+                                    cacheBlocks[block_index].items[wl_offset]),
                                 responseQueue.size());
                     // TODO: Add a stat to count the number of WLItems that have been touched.
                     cacheBlocks[block_index].busyMask |= (1 << wl_offset);
@@ -1061,7 +1073,7 @@ CoalesceEngine::getOptimalPullAddr()
                 return std::make_tuple(
                             BitStatus::IN_CACHE, block_index, index_offset);
             // Otherwise if it is in memory
-            } else if ((!cacheBlocks[block_index].valid) || (cacheBlocks[block_index].addr != addr)) {
+            } else if ((cacheBlocks[block_index].addr != addr)) {
                 activeBits.pop_front();
                 return std::make_tuple(
                             BitStatus::IN_MEMORY, addr, index_offset);
@@ -1112,6 +1124,7 @@ CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
             bool do_push, do_wb;
             std::tie(delta, do_push, do_wb) = graphWorkload->prePushApply(
                                     cacheBlocks[block_index].items[wl_offset]);
+            std::cout << "CoalesceEngine: delta: " << delta << std::endl;
             cacheBlocks[block_index].needsWB |= do_wb;
             if (do_push) {
                 owner->recvVertexPush(vertex_addr, delta,

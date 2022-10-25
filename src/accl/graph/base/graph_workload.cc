@@ -77,8 +77,10 @@ BFSWorkload::init(PacketPtr pkt, int bit_index_base,
 
         items[initIndex].tempProp = initValue;
         items[initIndex].prop = initValue;
-        needsPush[bit_index_base + initIndex] = 1;
-        activeBits.push_back(bit_index_base + initIndex);
+        if (items[initIndex].degree > 0) {
+            needsPush[bit_index_base + initIndex] = 1;
+            activeBits.push_back(bit_index_base + initIndex);
+        }
 
         pkt->deleteData();
         pkt->allocate();
@@ -150,8 +152,10 @@ PRWorkload::init(PacketPtr pkt, int bit_index_base,
     for (int i = 0; i < numElementsPerLine; i++) {
         items[i].tempProp = readFromFloat<uint32_t>(0);
         items[i].prop = readFromFloat<uint32_t>(1 - alpha);
-        needsPush[bit_index_base + i] = 1;
-        activeBits.push_back(bit_index_base + i);
+        if (items[i].degree > 0) {
+            needsPush[bit_index_base + i] = 1;
+            activeBits.push_back(bit_index_base + i);
+        }
     }
     pkt->deleteData();
     pkt->allocate();
@@ -170,7 +174,7 @@ uint32_t
 PRWorkload::propagate(uint32_t value, uint32_t weight)
 {
     float value_float = writeToFloat<uint32_t>(value);
-    float weight_float = writeToFloat<uint32_t>(weight);
+    float weight_float = writeToFloat<uint32_t>(1);
     return readFromFloat<uint32_t>(alpha * value_float * weight_float);
 }
 
@@ -179,27 +183,27 @@ PRWorkload::applyCondition(WorkListItem wl)
 {
     float temp_float = writeToFloat<uint32_t>(wl.tempProp);
     float prop_float = writeToFloat<uint32_t>(wl.prop);
-    return temp_float != prop_float;
+    float dist = std::abs(temp_float - prop_float);
+    return dist >= threshold;
 }
 
 bool
 PRWorkload::preWBApply(WorkListItem& wl)
 {
-    if (applyCondition(wl)) {
-        if (wl.degree > 0) {
-            return true;
-        }
+    if (applyCondition(wl) && (wl.degree > 0)) {
+        return true;
     }
     return false;
 }
 
 std::tuple<uint32_t, bool, bool>
 PRWorkload::prePushApply(WorkListItem& wl)
-{
-    float temp_float = writeToFloat<uint32_t>(wl.tempProp);
-    float prop_float = writeToFloat<uint32_t>(wl.prop);
-    float delta = abs((temp_float - prop_float) / wl.degree);
-    if (delta > threshold) {
+{ 
+    if (applyCondition(wl)) {
+        float temp_float = writeToFloat<uint32_t>(wl.tempProp);
+        float prop_float = writeToFloat<uint32_t>(wl.prop);
+        float delta = (temp_float - prop_float) / wl.degree;
+        std::cout << "PRWorkload: delta: " << delta << std::endl;
         wl.prop = wl.tempProp;
         return std::make_tuple(delta, true, true);
     }
@@ -211,7 +215,7 @@ PRWorkload::printWorkListItem(const WorkListItem wl)
 {
     float temp_float = writeToFloat<uint32_t>(wl.tempProp);
     return csprintf(
-            "WorkListItem{tempProp: %f, prop: %u, degree: %u, edgeIndex: %u}",
+            "WorkListItem{tempProp: %f, prop: %f, degree: %u, edgeIndex: %u}",
             temp_float, temp_float, wl.degree, wl.edgeIndex
             );
 }
