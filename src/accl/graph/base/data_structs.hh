@@ -34,7 +34,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cstring>
 #include <list>
 
 #define MAX_BITVECTOR_SIZE (1 << 28)
@@ -180,26 +179,6 @@ class UniqueFIFO
         fifo.erase(it);
     }
 };
-
-template<typename T>
-float
-writeToFloat(T value)
-{
-    assert(sizeof(T) == sizeof(float));
-    float float_form;
-    std::memcpy(&float_form, &value, sizeof(float));
-    return float_form;
-}
-
-template<typename T>
-T
-readFromFloat(float value)
-{
-    assert(sizeof(T) == sizeof(float));
-    T float_bits;
-    std::memcpy(&float_bits, &value, sizeof(float));
-    return float_bits;
-}
 
 }
 
