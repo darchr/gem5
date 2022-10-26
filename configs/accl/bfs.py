@@ -37,8 +37,8 @@ def get_inputs():
     argparser.add_argument("num_gpts", type=int)
     argparser.add_argument("cache_size", type=str)
     argparser.add_argument("graph", type=str)
-    argparser.add_argument("init_addr", type=float)
-    argparser.add_argument("init_value", type=float)
+    argparser.add_argument("init_addr", type=int)
+    argparser.add_argument("init_value", type=int)
     argparser.add_argument(
         "--verify",
         dest="verify",
@@ -54,8 +54,8 @@ def get_inputs():
         args.num_gpts,
         args.cache_size,
         args.graph,
-        args.alpha,
-        args.threshold,
+        args.init_addr,
+        args.init_value,
         args.verify,
     )
 

@@ -175,7 +175,6 @@ PRWorkload::propagate(uint32_t value, uint32_t weight)
 {
     float value_float = writeToFloat<uint32_t>(value);
     float weight_float = 1.0;
-    float delta = alpha * value_float * weight_float;
 
     return readFromFloat<uint32_t>(alpha * value_float * weight_float);
 }
