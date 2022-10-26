@@ -28,13 +28,19 @@ import os
 import argparse
 import subprocess
 
+
 def get_inputs():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("path", type=str, help="Path to the graph file.")
-    argparser.add_argument("num_gpts", type=int, help="Number gpts to create synth graph binaries for.")
+    argparser.add_argument(
+        "num_gpts",
+        type=int,
+        help="Number gpts to create synth graph binaries for.",
+    )
 
     args = argparser.parse_args()
     return args.path, args.num_gpts
+
 
 if __name__ == "__main__":
     graph_path, num_gpts = get_inputs()
@@ -59,16 +65,29 @@ if __name__ == "__main__":
         print(f"Created {graph_dir}/binaries/gpts_{num_gpts}")
 
     expected_bins = ["vertices"] + [f"edgelist_{i}" for i in range(num_gpts)]
-    if not all([binary in os.listdir(f"{graph_dir}/binaries/gpts_{num_gpts}") for binary in expected_bins]):
-        print(f"Not all expected binaries found in {graph_path}/binaries/gpts_{num_gpts}")
+    if not all(
+        [
+            binary in os.listdir(f"{graph_dir}/binaries/gpts_{num_gpts}")
+            for binary in expected_bins
+        ]
+    ):
+        print(
+            f"Not all expected binaries found in {graph_path}/binaries/gpts_{num_gpts}"
+        )
         for delete in os.scandir(f"{graph_dir}/binaries/gpts_{num_gpts}"):
             os.remove(delete.path)
         print(f"Deleted all the files in {graph_dir}/binaries/gpts_{num_gpts}")
-        subprocess.run([f"{graph_reader}" ,
-                        f"{graph_path}",
-                        "false",
-                        f"{num_gpts}",
-                        "32",
-                        f"{graph_dir}/binaries/gpts_{num_gpts}"])
-        print(f"Created the graph binaries in "
-                f"{graph_dir}/binaries/gpts_{num_gpts}")
+        subprocess.run(
+            [
+                f"{graph_reader}",
+                f"{graph_path}",
+                "false",
+                f"{num_gpts}",
+                "32",
+                f"{graph_dir}/binaries/gpts_{num_gpts}",
+            ]
+        )
+        print(
+            f"Created the graph binaries in "
+            f"{graph_dir}/binaries/gpts_{num_gpts}"
+        )
