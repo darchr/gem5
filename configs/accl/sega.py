@@ -59,7 +59,7 @@ class GPT(SubSystem):
             post_push_wb_queue_size=64,
         )
         self.push_engine = PushEngine(
-            Xpush_req_queue_size=32,
+            push_req_queue_size=32,
             attached_memory_atom_size=64,
             resp_queue_size=512,
             update_queue_size=32,
