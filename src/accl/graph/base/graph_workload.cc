@@ -174,7 +174,9 @@ uint32_t
 PRWorkload::propagate(uint32_t value, uint32_t weight)
 {
     float value_float = writeToFloat<uint32_t>(value);
-    float weight_float = writeToFloat<uint32_t>(1);
+    float weight_float = 1.0;
+    float delta = alpha * value_float * weight_float;
+
     return readFromFloat<uint32_t>(alpha * value_float * weight_float);
 }
 
@@ -198,14 +200,14 @@ PRWorkload::preWBApply(WorkListItem& wl)
 
 std::tuple<uint32_t, bool, bool>
 PRWorkload::prePushApply(WorkListItem& wl)
-{ 
+{
     if (applyCondition(wl)) {
         float temp_float = writeToFloat<uint32_t>(wl.tempProp);
         float prop_float = writeToFloat<uint32_t>(wl.prop);
         float delta = (temp_float - prop_float) / wl.degree;
-        std::cout << "PRWorkload: delta: " << delta << std::endl;
+        uint32_t delta_uint = readFromFloat<uint32_t>(delta);
         wl.prop = wl.tempProp;
-        return std::make_tuple(delta, true, true);
+        return std::make_tuple(delta_uint, true, true);
     }
     return std::make_tuple(0, false, false);
 }

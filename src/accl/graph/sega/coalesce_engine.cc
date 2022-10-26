@@ -196,7 +196,7 @@ CoalesceEngine::recvWLRead(Addr addr)
         cacheBlocks[block_index].pendingApply = false;
         cacheBlocks[block_index].pendingWB = false;
         // HACK: If a read happens on the same cycle as another operation such
-        // apply setLastChangedTick to half a cycle later so that operations
+        // as apply set lastChangedTick to half a cycle later so that operation
         // scheduled by the original operation (apply in this example) are
         // invalidated. For more details refer to "accl/graph/sega/busyMaskErr"
         cacheBlocks[block_index].lastChangedTick =
@@ -478,7 +478,6 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                 bool do_push, do_wb_v;
                 std::tie(delta, do_push, do_wb_v) =
                                         graphWorkload->prePushApply(items[i]);
-                std::cout << "CoalesceEngine: delta: " << delta << std::endl;
                 do_wb |= do_wb_v;
                 if (do_push) {
                     owner->recvVertexPush(vertex_addr, delta,
@@ -517,7 +516,10 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         cacheBlocks[block_index].valid = true;
         cacheBlocks[block_index].needsWB |= do_wb;
         cacheBlocks[block_index].pendingData = false;
-        cacheBlocks[block_index].lastChangedTick = curTick();
+        // HACK: In case processNextRead is called on the same tick as curTick
+        // and is scheduled to read to the same cacheBlocks[block_index]
+        cacheBlocks[block_index].lastChangedTick =
+                                        curTick() + (Tick) (clockPeriod() / 2);
     } else if (do_wb) {
         PacketPtr wb_pkt = createWritePacket(
                                 addr, peerMemoryAtomSize, (uint8_t*) items);
@@ -564,7 +566,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                         responseQueue.size());
             // TODO: Add a stat to count the number of WLItems that have been touched.
             cacheBlocks[block_index].busyMask |= (1 << wl_offset);
-            cacheBlocks[block_index].lastChangedTick = curTick();
+            // cacheBlocks[block_index].lastChangedTick = curTick();
             DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                         block_index, cacheBlocks[block_index].to_string());
             it = MSHR[block_index].erase(it);
@@ -608,8 +610,8 @@ CoalesceEngine::processNextResponseEvent()
         num_responses_sent++;
         DPRINTF(CoalesceEngine,
                     "%s: Sent WorkListItem: %s with addr: %lu to WLEngine.\n",
-                    __func__, 
-                    graphWorkload->printWorkListItem(worklist_response), 
+                    __func__,
+                    graphWorkload->printWorkListItem(worklist_response),
                     addr_response);
 
         responseQueue.pop_front();
@@ -652,7 +654,7 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                 block_index, cacheBlocks[block_index].to_string());
     DPRINTF(CoalesceEngine,  "%s: Received a write for WorkListItem: %s "
-                "with Addr: %lu.\n", __func__, 
+                "with Addr: %lu.\n", __func__,
                 graphWorkload->printWorkListItem(wl), addr);
     // Desing does not allow for write misses for now.
     assert(cacheBlocks[block_index].addr == aligned_addr);
@@ -874,8 +876,11 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
     DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n",
         __func__, block_index, cacheBlocks[block_index].to_string());
     // A cache block should not be touched while it's waiting for data.
-    assert(schedule_tick == cacheBlocks[block_index].lastChangedTick);
-    //
+    // assert(schedule_tick == cacheBlocks[block_index].lastChangedTick);
+
+    if (cacheBlocks[block_index].lastChangedTick != schedule_tick) {
+        return;
+    }
 
     assert(!cacheBlocks[block_index].valid);
     assert(cacheBlocks[block_index].busyMask == 0);
@@ -1124,7 +1129,6 @@ CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
             bool do_push, do_wb;
             std::tie(delta, do_push, do_wb) = graphWorkload->prePushApply(
                                     cacheBlocks[block_index].items[wl_offset]);
-            std::cout << "CoalesceEngine: delta: " << delta << std::endl;
             cacheBlocks[block_index].needsWB |= do_wb;
             if (do_push) {
                 owner->recvVertexPush(vertex_addr, delta,
