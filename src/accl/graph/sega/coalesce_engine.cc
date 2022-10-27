@@ -519,7 +519,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         // HACK: In case processNextRead is called on the same tick as curTick
         // and is scheduled to read to the same cacheBlocks[block_index]
         cacheBlocks[block_index].lastChangedTick =
-                                        curTick() + (Tick) (clockPeriod() / 2);
+                                        curTick() - (Tick) (clockPeriod() / 2);
     } else if (do_wb) {
         PacketPtr wb_pkt = createWritePacket(
                                 addr, peerMemoryAtomSize, (uint8_t*) items);
