@@ -48,7 +48,8 @@ class GraphWorkload
 
     virtual void init(PacketPtr pkt, int bit_index_base,
                     std::bitset<MAX_BITVECTOR_SIZE>& needsPush,
-                    std::deque<int>& activeBits) = 0;
+                    std::deque<int>& activeBits,
+                    int& _workCount) = 0;
     virtual uint32_t reduce(uint32_t update, uint32_t value) = 0;
     virtual uint32_t propagate(uint32_t value, uint32_t weight) = 0;
     virtual bool applyCondition(WorkListItem wl) = 0;
@@ -73,7 +74,8 @@ class BFSWorkload : public GraphWorkload
 
     virtual void init(PacketPtr pkt, int bit_index_base,
                     std::bitset<MAX_BITVECTOR_SIZE>& needsPush,
-                    std::deque<int>& activeBits);
+                    std::deque<int>& activeBits,
+                    int& _workCount);
     virtual uint32_t reduce(uint32_t update, uint32_t value);
     virtual uint32_t propagate(uint32_t value, uint32_t weight);
     virtual bool applyCondition(WorkListItem wl);
@@ -99,7 +101,8 @@ class PRWorkload : public GraphWorkload
 
     virtual void init(PacketPtr pkt, int bit_index_base,
                     std::bitset<MAX_BITVECTOR_SIZE>& needsPush,
-                    std::deque<int>& activeBits);
+                    std::deque<int>& activeBits,
+                    int& _workCount);
     virtual uint32_t reduce(uint32_t update, uint32_t value);
     virtual uint32_t propagate(uint32_t value, uint32_t weight);
     virtual bool applyCondition(WorkListItem wl);

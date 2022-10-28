@@ -47,7 +47,7 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
     onTheFlyReqs(0), numMSHREntries(params.num_mshr_entry),
     numTgtsPerMSHR(params.num_tgts_per_mshr),
-    maxRespPerCycle(params.max_resp_per_cycle),
+    maxRespPerCycle(params.max_resp_per_cycle), _workCount(0),
     numPullsReceived(0), postPushWBQueueSize(params.post_push_wb_queue_size),
     maxPotentialPostPushWB(0),
     nextMemoryEvent([this] {
@@ -102,7 +102,7 @@ CoalesceEngine::recvFunctional(PacketPtr pkt)
     } else {
         // TODO: Add and implement init function for GraphWorkload.
         int bit_index_base = getBitIndexBase(pkt->getAddr());
-        graphWorkload->init(pkt, bit_index_base, needsPush, activeBits);
+        graphWorkload->init(pkt, bit_index_base, needsPush, activeBits, _workCount);
         memPort.sendFunctional(pkt);
     }
 }
@@ -473,6 +473,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             if (vertex_send_mask != 0) {
                 assert(needsPush[it + i] == 1);
                 needsPush[it + i] = 0;
+                _workCount--;
 
                 uint32_t delta;
                 bool do_push, do_wb_v;
@@ -784,6 +785,7 @@ CoalesceEngine::processNextPreWBApplyEvent()
                 int bit_index_base = getBitIndexBase(cacheBlocks[block_index].addr);
                 if (needsPush[bit_index_base + index] == 0) {
                     needsPush[bit_index_base + index] = 1;
+                    _workCount++;
                     activeBits.push_back(bit_index_base + index);
                     if (!owner->running()) {
                         owner->start();
@@ -1124,6 +1126,7 @@ CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
             int slice_base_index = getBitIndexBase(addr);
 
             needsPush[slice_base_index + wl_offset] = 0;
+            _workCount--;
 
             uint32_t delta;
             bool do_push, do_wb;
