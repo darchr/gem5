@@ -68,7 +68,8 @@ BFSWorkload::BFSWorkload(uint64_t init_addr, uint32_t init_value, int atom_size)
 void
 BFSWorkload::init(PacketPtr pkt, int bit_index_base,
                 std::bitset<MAX_BITVECTOR_SIZE>& needsPush,
-                std::deque<int>& activeBits)
+                std::deque<int>& activeBits,
+                int& _workCount)
 {
     if (pkt->getAddr() == initAddrBase) {
         WorkListItem items[numElementsPerLine];
@@ -80,6 +81,7 @@ BFSWorkload::init(PacketPtr pkt, int bit_index_base,
         if (items[initIndex].degree > 0) {
             needsPush[bit_index_base + initIndex] = 1;
             activeBits.push_back(bit_index_base + initIndex);
+            _workCount++;
         }
 
         pkt->deleteData();
@@ -144,7 +146,8 @@ PRWorkload::PRWorkload(float alpha, float threshold, int atom_size):
 void
 PRWorkload::init(PacketPtr pkt, int bit_index_base,
                 std::bitset<MAX_BITVECTOR_SIZE>& needsPush,
-                std::deque<int>& activeBits)
+                std::deque<int>& activeBits,
+                int& _workCount)
 {
     WorkListItem items[numElementsPerLine];
 
@@ -155,6 +158,7 @@ PRWorkload::init(PacketPtr pkt, int bit_index_base,
         if (items[i].degree > 0) {
             needsPush[bit_index_base + i] = 1;
             activeBits.push_back(bit_index_base + i);
+            _workCount++;
         }
     }
     pkt->deleteData();

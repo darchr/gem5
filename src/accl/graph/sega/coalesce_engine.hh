@@ -52,6 +52,17 @@ enum BitStatus
     NUM_STATUS
 };
 
+enum CacheState
+{
+    INVALID,
+    PENDING_DATA,
+    BUSY,
+    IDLE,
+    PENDING_PRE_WB_APPLY,
+    PENDING_WB,
+    NUM_CACHE_STATE
+};
+
 class MPU;
 
 class CoalesceEngine : public BaseMemoryEngine
@@ -69,6 +80,7 @@ class CoalesceEngine : public BaseMemoryEngine
         bool pendingApply;
         bool pendingWB;
         Tick lastChangedTick;
+        CacheState state;
         // TODO: This might be useful in the future
         // Tick lastWLWriteTick;
         Block() {}
@@ -81,7 +93,8 @@ class CoalesceEngine : public BaseMemoryEngine
           pendingData(false),
           pendingApply(false),
           pendingWB(false),
-          lastChangedTick(0)
+          lastChangedTick(0),
+          state(CacheState::INVALID)
         {
           items = new WorkListItem [num_elements];
         }
@@ -116,6 +129,7 @@ class CoalesceEngine : public BaseMemoryEngine
     int maxRespPerCycle;
     std::deque<std::tuple<Addr, WorkListItem, Tick>> responseQueue;
 
+    int _workCount;
     int numPullsReceived;
     UniqueFIFO<int> applyQueue;
     std::bitset<MAX_BITVECTOR_SIZE> needsPush;
@@ -206,7 +220,7 @@ class CoalesceEngine : public BaseMemoryEngine
     bool recvWLRead(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);
 
-    int workCount() { return needsPush.count(); }
+    int workCount() { return _workCount; }
     void recvVertexPull();
 
     bool done();
