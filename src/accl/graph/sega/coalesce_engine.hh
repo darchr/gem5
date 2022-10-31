@@ -43,7 +43,7 @@
 namespace gem5
 {
 
-enum BitStatus
+enum WorkLocation
 {
     PENDING_READ,
     IN_CACHE,
@@ -64,6 +64,32 @@ enum CacheState
 };
 
 class MPU;
+
+
+// TODO: Add active bit to WorkListItem class. Check active bit before activate
+// Only activate if necessary and not active before.
+class WorkDirectory
+{
+  private:
+    CoalesceEngine* owner;
+    Addr memoryAtomSize;
+    int atomBlockSize;
+    size_t elementSize;
+
+    int _workCount;
+  public:
+    AddrRange memoryRange;
+    WorkDirectory(Addr atom_size, int block_size, size_t element_size):
+        memoryAtomSize(atom_size), atomBlockSize(block_size),
+        elementSize(element_size), _workCount(0)
+    {}
+
+    void activate(Addr addr);
+    void deactivate(Addr addr);
+    int workCount();
+    std::tuple<WorkLocation, Addr> getNextWork();
+
+};
 
 class CoalesceEngine : public BaseMemoryEngine
 {
@@ -140,7 +166,7 @@ class CoalesceEngine : public BaseMemoryEngine
     int getBlockIndex(Addr addr);
     int getBitIndexBase(Addr addr);
     Addr getBlockAddrFromBitIndex(int index);
-    std::tuple<BitStatus, Addr, int> getOptimalPullAddr();
+    std::tuple<WorkLocation, Addr, int> getOptimalPullAddr();
 
     int maxPotentialPostPushWB;
     // A map from addr to sendMask. sendMask determines which bytes to
