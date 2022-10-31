@@ -495,6 +495,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         maxPotentialPostPushWB--;
     }
 
+    bool cache_wb = false;
     if (cacheBlocks[block_index].addr == addr) {
         DPRINTF(CoalesceEngine, "%s: Received read response to "
                         "fill cacheBlocks[%d].\n", __func__, block_index);
@@ -521,6 +522,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         // and is scheduled to read to the same cacheBlocks[block_index]
         cacheBlocks[block_index].lastChangedTick =
                                         curTick() - (Tick) (clockPeriod() / 2);
+        cache_wb = true;
     } else if (do_wb) {
         PacketPtr wb_pkt = createWritePacket(
                                 addr, peerMemoryAtomSize, (uint8_t*) items);
@@ -537,42 +539,44 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         // TODO: Add a stat to count this.
         // FIXME: This is not a totally wasteful read. e.g. all reads
         // for pull in BFS are like this.
-        DPRINTF(CoalesceEngine, "%s: Totally wasteful read.\n", __func__);
+        DPRINTF(CoalesceEngine, "%s: No write destination for addr: %lu.\n", __func__, addr);
     }
 
-    for (auto it = MSHR[block_index].begin(); it != MSHR[block_index].end();) {
-        Addr miss_addr = *it;
-        Addr aligned_miss_addr =
-            roundDown<Addr, size_t>(miss_addr, peerMemoryAtomSize);
+    if (cache_wb) {
+        for (auto it = MSHR[block_index].begin(); it != MSHR[block_index].end();) {
+            Addr miss_addr = *it;
+            Addr aligned_miss_addr =
+                roundDown<Addr, size_t>(miss_addr, peerMemoryAtomSize);
 
-        if (aligned_miss_addr == addr) {
-            int wl_offset = (miss_addr - aligned_miss_addr) / sizeof(WorkListItem);
-            DPRINTF(CoalesceEngine,  "%s: Addr: %lu in the MSHR for "
-                        "cacheBlocks[%d] can be serviced with the received "
-                        "packet.\n",__func__, miss_addr, block_index);
-            // TODO: Make this block of code into a function
-            responseQueue.push_back(std::make_tuple(miss_addr,
-                    cacheBlocks[block_index].items[wl_offset], curTick()));
-            DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
-                        "to responseQueue. responseQueue.size = %d.\n",
-                        __func__, miss_addr,
-                        graphWorkload->printWorkListItem(
-                            cacheBlocks[block_index].items[wl_offset]),
-                        responseQueue.size());
-            DPRINTF(CoalesceEngine, "%s: Added (addr: %lu, wl: %s) "
-                        "to responseQueue. responseQueue.size = %d.\n",
-                        __func__, addr,
-                        graphWorkload->printWorkListItem(
-                            cacheBlocks[block_index].items[wl_offset]),
-                        responseQueue.size());
-            // TODO: Add a stat to count the number of WLItems that have been touched.
-            cacheBlocks[block_index].busyMask |= (1 << wl_offset);
-            // cacheBlocks[block_index].lastChangedTick = curTick();
-            DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
-                        block_index, cacheBlocks[block_index].to_string());
-            it = MSHR[block_index].erase(it);
-        } else {
-            it++;
+            if (aligned_miss_addr == addr) {
+                int wl_offset = (miss_addr - aligned_miss_addr) / sizeof(WorkListItem);
+                DPRINTF(CoalesceEngine,  "%s: Addr: %lu in the MSHR for "
+                            "cacheBlocks[%d] can be serviced with the received "
+                            "packet.\n",__func__, miss_addr, block_index);
+                // TODO: Make this block of code into a function
+                responseQueue.push_back(std::make_tuple(miss_addr,
+                        cacheBlocks[block_index].items[wl_offset], curTick()));
+                DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
+                            "to responseQueue. responseQueue.size = %d.\n",
+                            __func__, miss_addr,
+                            graphWorkload->printWorkListItem(
+                                cacheBlocks[block_index].items[wl_offset]),
+                            responseQueue.size());
+                DPRINTF(CoalesceEngine, "%s: Added (addr: %lu, wl: %s) "
+                            "to responseQueue. responseQueue.size = %d.\n",
+                            __func__, addr,
+                            graphWorkload->printWorkListItem(
+                                cacheBlocks[block_index].items[wl_offset]),
+                            responseQueue.size());
+                // TODO: Add a stat to count the number of WLItems that have been touched.
+                cacheBlocks[block_index].busyMask |= (1 << wl_offset);
+                // cacheBlocks[block_index].lastChangedTick = curTick();
+                DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
+                            block_index, cacheBlocks[block_index].to_string());
+                it = MSHR[block_index].erase(it);
+            } else {
+                it++;
+            }
         }
     }
 
@@ -1045,7 +1049,7 @@ CoalesceEngine::processNextPostPushWB(int ignore, Tick schedule_tick)
     }
 }
 
-std::tuple<BitStatus, Addr, int>
+std::tuple<WorkLocation, Addr, int>
 CoalesceEngine::getOptimalPullAddr()
 {
     int visited_bits = 0;
@@ -1066,7 +1070,7 @@ CoalesceEngine::getOptimalPullAddr()
             assert(vertex_send_mask == 0);
             activeBits.pop_front();
             return std::make_tuple(
-                                BitStatus::PENDING_READ, addr, index_offset);
+                                WorkLocation::PENDING_READ, addr, index_offset);
         } else {
             // Only if it is in cache and it is in idle state.
             if ((cacheBlocks[block_index].addr == addr) &&
@@ -1078,12 +1082,12 @@ CoalesceEngine::getOptimalPullAddr()
                 assert(!cacheBlocks[block_index].pendingData);
                 activeBits.pop_front();
                 return std::make_tuple(
-                            BitStatus::IN_CACHE, block_index, index_offset);
+                            WorkLocation::IN_CACHE, block_index, index_offset);
             // Otherwise if it is in memory
             } else if ((cacheBlocks[block_index].addr != addr)) {
                 activeBits.pop_front();
                 return std::make_tuple(
-                            BitStatus::IN_MEMORY, addr, index_offset);
+                            WorkLocation::IN_MEMORY, addr, index_offset);
             }
         }
         activeBits.pop_front();
@@ -1091,20 +1095,20 @@ CoalesceEngine::getOptimalPullAddr()
         visited_bits++;
     }
 
-    return std::make_tuple(BitStatus::GARBAGE, 0, 0);
+    return std::make_tuple(WorkLocation::GARBAGE, 0, 0);
 }
 
 void
 CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
 {
-    BitStatus bit_status;
+    WorkLocation bit_status;
     Addr location;
     int offset;
 
     std::tie(bit_status, location, offset) = getOptimalPullAddr();
 
-    if (bit_status != BitStatus::GARBAGE) {
-        if (bit_status == BitStatus::PENDING_READ) {
+    if (bit_status != WorkLocation::GARBAGE) {
+        if (bit_status == WorkLocation::PENDING_READ) {
             // renaming the outputs to thier local names.
             Addr addr = location;
             int index_offset = offset;
@@ -1116,7 +1120,7 @@ CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
             pendingVertexPullReads[addr] = send_mask;
             numPullsReceived--;
         }
-        if (bit_status == BitStatus::IN_CACHE) {
+        if (bit_status == WorkLocation::IN_CACHE) {
             // renaming the outputs to their local names.
             int block_index = (int) location;
             int wl_offset = offset;
@@ -1145,7 +1149,7 @@ CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
             stats.lastVertexPushTime = curTick() - stats.lastResetTick;
             numPullsReceived--;
         }
-        if (bit_status == BitStatus::IN_MEMORY) {
+        if (bit_status == WorkLocation::IN_MEMORY) {
             if (postPushWBQueue.size() < (postPushWBQueueSize - maxPotentialPostPushWB)) {
                 Addr addr = location;
                 int index_offset = offset;
