@@ -52,59 +52,7 @@ enum WorkLocation
     NUM_STATUS
 };
 
-enum CacheState
-{
-    INVALID,
-    PENDING_DATA,
-    BUSY,
-    IDLE,
-    PENDING_PRE_WB_APPLY,
-    PENDING_WB,
-    PENDING_PRE_PUSH_APPLY,
-    NUM_CACHE_STATE
-};
-
-const char* cacheStateStrings[NUM_CACHE_STATE] = {
-    "INVALID",
-    "PENDING_DATA",
-    "BUSY",
-    "IDLE",
-    "PENDING_PRE_WB_APPLY",
-    "PENDING_WB",
-    "PENDING_PRE_PUSH_APPLY"
-};
-
-enum ReadDestination
-{
-    READ_FOR_CACHE,
-    READ_FOR_PUSH
-};
-
 class MPU;
-
-
-// TODO: Add active bit to WorkListItem class. Check active bit before activate
-// Only activate if necessary and not active before.
-class WorkDirectory
-{
-  private:
-    Addr memoryAtomSize;
-    int atomBlockSize;
-    size_t elementSize;
-
-    int _workCount;
-  public:
-    AddrRange memoryRange;
-    WorkDirectory(Addr atom_size, int block_size, size_t element_size):
-        memoryAtomSize(atom_size), atomBlockSize(block_size),
-        elementSize(element_size), _workCount(0)
-    {}
-
-    void activate(Addr addr);
-    void deactivate(Addr addr);
-    int workCount();
-    std::tuple<WorkLocation, Addr> getNextWork();
-};
 
 class CoalesceEngine : public BaseMemoryEngine
 {
@@ -115,54 +63,45 @@ class CoalesceEngine : public BaseMemoryEngine
         Addr addr;
         uint64_t busyMask;
         bool valid;
-        bool dirty;
-        bool hasConflict;
-        bool needsPreWBApply;
-        CacheState state;
+        bool needsApply;
+        bool needsWB;
+        bool pendingData;
+        bool pendingApply;
+        bool pendingWB;
         Tick lastChangedTick;
+        // TODO: This might be useful in the future
+        // Tick lastWLWriteTick;
         Block() {}
         Block(int num_elements):
           addr(-1),
           busyMask(0),
           valid(false),
-          dirty(false),
-          hasConflict(false),
-          needsPreWBApply(false),
-          state(CacheState::INVALID),
-          lastChangedTick(0)
+          needsApply(false),
+          needsWB(false),
+          pendingData(false),
+          pendingApply(false),
+          pendingWB(false),
+          lastChangedTick(0),
         {
           items = new WorkListItem [num_elements];
         }
 
-        void reset() {
-            addr = -1;
-            busyMask = 0;
-            valid = false;
-            dirty = false;
-            hasConflict = false;
-            needsPreWBApply = false;
-            state = CacheState::INVALID;
-            lastChangedTick = 0;
-        }
-
         std::string to_string() {
             return csprintf("CacheBlock{addr: %lu, busyMask: %lu, valid: %s, "
-                "dirty: %s, hasConflict: %s, needsPreWBApply: %s"
-                "state: %s, lastChangedTick: %lu}", addr, busyMask,
-                valid ? "true" : "false", dirty ? "true" : "false",
-                hasConflict ? "true" : "false",
-                needsPreWBApply ? "true" : "false",
-                cacheStateStrings[state], lastChangedTick);
+                "needsApply: %s, needsWB: %s, pendingData: %s, "
+                "pendingApply: %s, pendingWB: %s, lastChangedTick: %lu}",
+                addr, busyMask, valid ? "true" : "false",
+                needsApply ? "true" : "false", needsWB ? "true" : "false",
+                pendingData ? "true" : "false", pendingApply ? "true" : "false",
+                pendingWB ? "true" : "false", lastChangedTick);
         }
     };
 
-    struct ReadPurpose : public Packet::SenderState
+    struct SenderState : public Packet::SenderState
     {
-      ReadDestination _dest;
-      ReadPurpose(ReadDestination dest): _dest(dest) {}
-      ReadDestination dest() { return _dest; }
+      bool isRetry;
+      SenderState(bool is_retry): isRetry(is_retry) {}
     };
-
     MPU* owner;
     GraphWorkload* graphWorkload;
 
@@ -172,33 +111,28 @@ class CoalesceEngine : public BaseMemoryEngine
 
     int onTheFlyReqs;
     int numMSHREntries;
+    int numTgtsPerMSHR;
     std::unordered_map<int, std::vector<Addr>> MSHR;
-
-    // Response route to WLEngine
     int maxRespPerCycle;
     std::deque<std::tuple<Addr, WorkListItem, Tick>> responseQueue;
 
-    // Tracking work in cache
-    int cacheWorkCount;
+    int _workCount;
     int numPullsReceived;
-    UniqueFIFO<int> preWBApplyQueue;
-    // NOTE: Remember to erase from this upon eviction from cache
-    UniqueFIFO<int> activeCacheBlocks;
-
-    int pendingPullReads;
-    // A map from addr to sendMask. sendMask determines which bytes to
-    // send for push when getting the read response from memory.
-    std::unordered_map<Addr, uint64_t> pendingVertexPullReads;
-
-    int activeBufferSize;
+    UniqueFIFO<int> applyQueue;
+    std::bitset<MAX_BITVECTOR_SIZE> needsPush;
+    std::deque<int> activeBits;
     int postPushWBQueueSize;
-    std::deque<std::tuple<PacketPtr, Tick>> activeBuffer;
     std::deque<std::tuple<PacketPtr, Tick>> postPushWBQueue;
 
     int getBlockIndex(Addr addr);
-    // TODO: Should be moved to WorkDirectory
     int getBitIndexBase(Addr addr);
     Addr getBlockAddrFromBitIndex(int index);
+    std::tuple<WorkLocation, Addr, int> getOptimalPullAddr();
+
+    int maxPotentialPostPushWB;
+    // A map from addr to sendMask. sendMask determines which bytes to
+    // send for push when getting the read response from memory.
+    std::unordered_map<Addr, uint64_t> pendingVertexPullReads;
 
     MemoryEvent nextMemoryEvent;
     void processNextMemoryEvent();
@@ -214,9 +148,6 @@ class CoalesceEngine : public BaseMemoryEngine
 
     EventFunctionWrapper nextPreWBApplyEvent;
     void processNextPreWBApplyEvent();
-
-    EventFunctionWrapper nextPrePushApplyEvent;
-    void processNextPrePushApplyEvent();
 
     struct CoalesceStats : public statistics::Group
     {
@@ -253,6 +184,7 @@ class CoalesceEngine : public BaseMemoryEngine
         statistics::Formula vertexPullBW;
         statistics::Formula vertexPushBW;
 
+        statistics::Histogram mshrEntryLength;
         statistics::Histogram bitvectorLength;
         statistics::Histogram responseQueueLatency;
         statistics::Histogram memoryFunctionLatency;
@@ -275,8 +207,6 @@ class CoalesceEngine : public BaseMemoryEngine
     bool recvWLRead(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);
 
-    // FIXME: Update this to return sum of cacheWorkCount and WorkDirectory
-    // workcount.
     int workCount() { return _workCount; }
     void recvVertexPull();
 
