@@ -45,29 +45,33 @@ struct __attribute__ ((packed)) WorkListItem
 {
     uint32_t tempProp : 32;
     uint32_t prop : 32;
-    uint32_t degree : 32;
     uint32_t edgeIndex : 32;
+    uint32_t degree : 31;
+    bool active: 1;
 
     std::string to_string()
     {
         return csprintf(
-        "WorkListItem{tempProp: %u, prop: %u, degree: %u, edgeIndex: %u}",
-        tempProp, prop, degree, edgeIndex);
+                "WorkListItem{tempProp: %u, prop: %u, edgeIndex: %u, "
+                "degree: %u, active: %s}", tempProp, prop, edgeIndex, degree,
+                active ? "true" : "false");
     }
 
     WorkListItem():
         tempProp(0),
         prop(0),
+        edgeIndex(0),
         degree(0),
-        edgeIndex(0)
+        active(false)
     {}
 
     WorkListItem(uint32_t temp_prop, uint32_t prop,
-                uint32_t degree, uint32_t edge_index):
+                uint32_t edge_index, uint32_t degree, bool active):
         tempProp(temp_prop),
         prop(prop),
+        edgeIndex(edge_index),
         degree(degree),
-        edgeIndex(edge_index)
+        active(active)
     {}
 
 };
@@ -88,7 +92,6 @@ struct __attribute__ ((packed)) Edge
         weight(weight),
         neighbor(neighbor)
     {}
-
 };
 
 static_assert(isPowerOf2(sizeof(WorkListItem)));
