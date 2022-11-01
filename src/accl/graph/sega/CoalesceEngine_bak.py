@@ -38,6 +38,8 @@ class CoalesceEngine(BaseMemoryEngine):
 
     num_mshr_entry = Param.Int("Number of MSHR entries.")
 
+    num_tgts_per_mshr = Param.Int("Number of Targets Per MSHR.")
+
     max_resp_per_cycle = Param.Int("Maximum number of vertices to send to "
                                 "requestor in each cycle. Used to limit b/w.")
 
