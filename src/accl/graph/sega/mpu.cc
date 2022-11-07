@@ -88,12 +88,6 @@ MPU::recvVertexPush(Addr addr, uint32_t delta,
 }
 
 void
-MPU::recvPrevPullCorrection()
-{
-    pushEngine->recvPrevPullCorrection();
-}
-
-void
 MPU::recvDoneSignal()
 {
     if (done()) {

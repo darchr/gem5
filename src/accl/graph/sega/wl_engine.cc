@@ -134,7 +134,7 @@ WLEngine::RespPort::recvRespRetry()
 void
 WLEngine::checkRetryReq()
 {
-    for (int i = 0; i < inPorts.size(); ++i) {
+    for (int i = 0; i < inPorts.size(); i++) {
         inPorts[i].checkRetryReq();
     }
 }
@@ -191,12 +191,8 @@ WLEngine::processNextReadEvent()
         if (registerFile.size() < registerFileSize) {
             DPRINTF(WLEngine, "%s: There are free registers available in the "
                                             "registerFile.\n", __func__);
-            // TODO: It might be a good idea for WLEngine to act differently
-            // on cache rejects. As a first step the cache should not just
-            // return a boolean value. It should return an integer/enum
-            // to tell WLEngine why it rejected the read request. Their might
-            // be things that WLEngine can do to fix head of the line blocking.
-            if (owner->recvWLRead(update_addr)) {
+            ReadReturnStatus read_status = owner->recvWLRead(update_addr);
+            if (read_status == ReadReturnStatus::ACCEPT) {
                 DPRINTF(WLEngine, "%s: CoalesceEngine returned true for read "
                             "request to addr: %lu.\n", __func__, update_addr);
                 registerFile[update_addr] = update_value;
@@ -209,7 +205,8 @@ WLEngine::processNextReadEvent()
                         "registerFileSize = %d.\n", __func__, update_addr,
                         update_value, registerFile.size(), registerFileSize);
                 updateQueue.pop_front();
-                stats.updateQueueLatency.sample((curTick() - enter_tick) * 1e9 / getClockFrequency());
+                stats.updateQueueLatency.sample(
+                        (curTick() - enter_tick) * 1e9 / getClockFrequency());
                 DPRINTF(SEGAStructureSize, "%s: Popped (addr: %lu, value: %u) "
                             "from updateQueue. updateQueue.size = %d. "
                             "updateQueueSize = %d.\n", __func__, update_addr,
@@ -220,6 +217,17 @@ WLEngine::processNextReadEvent()
                             update_value, updateQueue.size(), updateQueueSize);
                 checkRetryReq();
                 vertexReadTime[update_addr] = curTick();
+            } else {
+                if (read_status == ReadReturnStatus::REJECT_ROLL) {
+                    updateQueue.pop_front();
+                    updateQueue.emplace_back(
+                                        update_addr, update_value, enter_tick);
+                    DPRINTF(WLEngine, "%s: Received a reject from cache. "
+                                        "Rolling the update.\n", __func__);
+                } else {
+                    DPRINTF(WLEngine, "%s: Received a reject from cache. "
+                                    "Not rolling the update.\n", __func__);
+                }
             }
         } else {
             DPRINTF(WLEngine, "%s: There are no free registers "
@@ -227,7 +235,6 @@ WLEngine::processNextReadEvent()
             stats.registerShortage++;
         }
     } else {
-        // TODO: Generalize this to reduce function rather than just min
         DPRINTF(WLEngine,  "%s: A register has already been allocated for "
                     "addr: %lu in registerFile. registerFile[%lu] = %u.\n",
                 __func__, update_addr, update_addr, registerFile[update_addr]);
@@ -238,7 +245,8 @@ WLEngine::processNextReadEvent()
                     update_value, update_addr, registerFile[update_addr]);
         stats.registerFileCoalesce++;
         updateQueue.pop_front();
-        stats.updateQueueLatency.sample((curTick() - enter_tick) * 1e9 / getClockFrequency());
+        stats.updateQueueLatency.sample(
+                        (curTick() - enter_tick) * 1e9 / getClockFrequency());
         DPRINTF(SEGAStructureSize, "%s: Popped (addr: %lu, value: %u) "
                             "from updateQueue. updateQueue.size = %d. "
                             "updateQueueSize = %d.\n", __func__, update_addr,

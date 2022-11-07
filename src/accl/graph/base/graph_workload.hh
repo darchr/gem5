@@ -34,6 +34,7 @@
 #include <tuple>
 
 #include "accl/graph/base/data_structs.hh"
+#include "accl/graph/sega/work_directory.hh"
 #include "mem/packet.hh"
 
 
@@ -46,70 +47,54 @@ class GraphWorkload
     GraphWorkload() {}
     ~GraphWorkload() {}
 
-    virtual void init(PacketPtr pkt, int bit_index_base,
-                    std::bitset<MAX_BITVECTOR_SIZE>& needsPush,
-                    std::deque<int>& activeBits,
-                    int& _workCount) = 0;
+    virtual void init(PacketPtr pkt, WorkDirectory* dir) = 0;
     virtual uint32_t reduce(uint32_t update, uint32_t value) = 0;
     virtual uint32_t propagate(uint32_t value, uint32_t weight) = 0;
-    virtual bool applyCondition(WorkListItem wl) = 0;
-    virtual bool preWBApply(WorkListItem& wl) = 0;
-    virtual std::tuple<uint32_t, bool, bool> prePushApply(WorkListItem& wl) = 0;
+    virtual uint32_t apply(WorkListItem& wl) = 0;
+    virtual bool activeCondition(WorkListItem wl) = 0;
     virtual std::string printWorkListItem(const WorkListItem wl) = 0;
 };
 
 class BFSWorkload : public GraphWorkload
 {
   private:
-    uint64_t initAddrBase;
-    int initIndex;
+    uint64_t initAddr;
     uint32_t initValue;
-    int numElementsPerLine;
-    int atomSize;
 
   public:
-    BFSWorkload(uint64_t init_addr, uint32_t init_value, int atom_size);
+    BFSWorkload(uint64_t init_addr, uint32_t init_value):
+        initAddr(init_addr), initValue(init_value)
+    {}
 
     ~BFSWorkload() {}
 
-    virtual void init(PacketPtr pkt, int bit_index_base,
-                    std::bitset<MAX_BITVECTOR_SIZE>& needsPush,
-                    std::deque<int>& activeBits,
-                    int& _workCount);
+    virtual void init(PacketPtr pkt, WorkDirectory* dir);
     virtual uint32_t reduce(uint32_t update, uint32_t value);
     virtual uint32_t propagate(uint32_t value, uint32_t weight);
-    virtual bool applyCondition(WorkListItem wl);
-    virtual bool preWBApply(WorkListItem& wl);
-    virtual std::tuple<uint32_t, bool, bool> prePushApply(WorkListItem& wl);
+    virtual uint32_t apply(WorkListItem& wl);
+    virtual bool activeCondition(WorkListItem wl);
     virtual std::string printWorkListItem(const WorkListItem wl);
 };
 
 
-class PRWorkload : public GraphWorkload
-{
-  private:
-    float alpha;
-    float threshold;
+// class PRWorkload : public GraphWorkload
+// {
+//   private:
+//     float alpha;
+//     float threshold;
 
-    int numElementsPerLine;
-    int atomSize;
+//   public:
+//     PRWorkload(float alpha, float threshold);
 
-  public:
-    PRWorkload(float alpha, float threshold, int atom_size);
+//     ~PRWorkload() {}
 
-    ~PRWorkload() {}
-
-    virtual void init(PacketPtr pkt, int bit_index_base,
-                    std::bitset<MAX_BITVECTOR_SIZE>& needsPush,
-                    std::deque<int>& activeBits,
-                    int& _workCount);
-    virtual uint32_t reduce(uint32_t update, uint32_t value);
-    virtual uint32_t propagate(uint32_t value, uint32_t weight);
-    virtual bool applyCondition(WorkListItem wl);
-    virtual bool preWBApply(WorkListItem& wl);
-    virtual std::tuple<uint32_t, bool, bool> prePushApply(WorkListItem& wl);
-    virtual std::string printWorkListItem(const WorkListItem wl);
-};
+//     virtual void init(PacketPtr pkt, WorkDirectory* dir);
+//     virtual uint32_t reduce(uint32_t update, uint32_t value);
+//     virtual uint32_t propagate(uint32_t value, uint32_t weight);
+//     virtual uint32_t apply(WorkListItem& wl);
+//     virtual bool activeCondition(WorkListItem wl);
+//     virtual std::string printWorkListItem(const WorkListItem wl);
+// };
 
 }
 

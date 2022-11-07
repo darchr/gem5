@@ -34,6 +34,7 @@
 #include "base/intmath.hh"
 #include "debug/CacheBlockState.hh"
 #include "debug/CoalesceEngine.hh"
+#include "debug/MSDebug.hh"
 #include "debug/SEGAStructureSize.hh"
 #include "mem/packet_access.hh"
 #include "sim/sim_exit.hh"
@@ -42,26 +43,23 @@ namespace gem5
 {
 
 CoalesceEngine::CoalesceEngine(const Params &params):
-    BaseMemoryEngine(params),
+    BaseMemoryEngine(params), lastAtomAddr(0),
     numLines((int) (params.cache_size / peerMemoryAtomSize)),
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
     onTheFlyReqs(0), numMSHREntries(params.num_mshr_entry),
-    maxRespPerCycle(params.max_resp_per_cycle), cacheWorkCount(0),
-    numPullsReceived(0), activeBufferSize(params.post_push_wb_queue_size),
+    maxRespPerCycle(params.max_resp_per_cycle),
+    pullsReceived(0), pullsScheduled(0), pendingPullReads(0),
+    activeBufferSize(params.active_buffer_size),
     postPushWBQueueSize(params.post_push_wb_queue_size),
-    pendingPullReads(0),
     nextMemoryEvent([this] {
         processNextMemoryEvent();
         }, name() + ".nextMemoryEvent"),
     nextResponseEvent([this] {
         processNextResponseEvent();
         }, name() + ".nextResponseEvent"),
-    nextPreWBApplyEvent([this] {
-        processNextPreWBApplyEvent();
-        }, name() + ".nextPreWBApplyEvent"),
-    nextPrePushApplyEvent([this] {
-        processNextPrePushApplyEvent();
-        }, name() + ".nextPrePushApplyEvent"),
+    nextApplyEvent([this] {
+        processNextApplyEvent();
+        }, name() + ".nextApplyEvent"),
     stats(*this)
 {
     assert(isPowerOf2(numLines) && isPowerOf2(numElementsPerLine));
@@ -69,6 +67,8 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     for (int i = 0; i < numLines; i++) {
         cacheBlocks[i] = Block(numElementsPerLine);
     }
+    activeBuffer.clear();
+    postPushWBQueue.clear();
 }
 
 void
@@ -85,7 +85,7 @@ CoalesceEngine::recvFunctional(PacketPtr pkt)
         Addr addr = pkt->getAddr();
         int block_index = getBlockIndex(addr);
 
-        // TODO: Check postPushWBQueue for hits
+        // FIXME: Check postPushWBQueue for hits
         if ((cacheBlocks[block_index].addr == addr) &&
             (cacheBlocks[block_index].valid)) {
             assert(cacheBlocks[block_index].state == CacheState::IDLE);
@@ -97,19 +97,58 @@ CoalesceEngine::recvFunctional(PacketPtr pkt)
             memPort.sendFunctional(pkt);
         }
     } else {
-        int bit_index_base = getBitIndexBase(pkt->getAddr());
-        // FIXME: Pass workdirectory to graphworkload.init
-        graphWorkload->init(pkt, bit_index_base, needsPush, activeBits, _workCount);
+        graphWorkload->init(pkt, directory);
+        if (pkt->getAddr() > lastAtomAddr) {
+            lastAtomAddr = pkt->getAddr();
+        }
         memPort.sendFunctional(pkt);
     }
+}
+
+void
+CoalesceEngine::postMemInitSetup()
+{
+    directory->setLastAtomAddr(lastAtomAddr);
+}
+
+void
+CoalesceEngine::createPopCountDirectory(int atoms_per_block)
+{
+    directory = new PopCountDirectory(
+                        peerMemoryRange, atoms_per_block, peerMemoryAtomSize);
 }
 
 bool
 CoalesceEngine::done()
 {
-    // FIXME: Fix this later
-    return applyQueue.empty() && needsPush.none() &&
-        memoryFunctionQueue.empty() && (onTheFlyReqs == 0);
+    return memoryFunctionQueue.empty() && activeCacheBlocks.empty() &&
+        activeBuffer.empty() && directory->empty() && (onTheFlyReqs == 0);
+}
+
+bool
+CoalesceEngine::timeToPull()
+{
+    return (activeBuffer.size() + pendingPullReads) < activeBufferSize;
+}
+
+bool
+CoalesceEngine::canSchedulePull()
+{
+    // TODO: Maybe a good idea to change this to
+    // activeBuffer.size() + pendingPullReads + pullsScheduled < activeBufferSize
+    return pullsScheduled < 1;
+}
+
+bool
+CoalesceEngine::workLeftInMem()
+{
+    return !directory->empty();
+}
+
+bool
+CoalesceEngine::pullCondition()
+{
+    return ((activeBuffer.size() + pendingPullReads + pullsScheduled) < activeBufferSize);
 }
 
 // addr should be aligned to peerMemoryAtomSize
@@ -121,30 +160,7 @@ CoalesceEngine::getBlockIndex(Addr addr)
     return ((int) (trimmed_addr / peerMemoryAtomSize)) % numLines;
 }
 
-// FIXME: This and the next function should be moved to the
-// WorkDirectory.
-// addr should be aligned to peerMemoryAtomSize
-int
-CoalesceEngine::getBitIndexBase(Addr addr)
-{
-    assert((addr % peerMemoryAtomSize) == 0);
-    Addr trimmed_addr = peerMemoryRange.removeIntlvBits(addr);
-    int atom_index = (int) (trimmed_addr / peerMemoryAtomSize);
-    int block_bits = (int) (peerMemoryAtomSize / sizeof(WorkListItem));
-    return atom_index * block_bits;
-}
-
-// FIXME: Read FIXME: Above
-// index should be aligned to (peerMemoryAtomSize / sizeof(WorkListItem))
-Addr
-CoalesceEngine::getBlockAddrFromBitIndex(int index)
-{
-    assert((index % ((int) (peerMemoryAtomSize / sizeof(WorkListItem)))) == 0);
-    Addr trimmed_addr = index * sizeof(WorkListItem);
-    return peerMemoryRange.addIntlvBits(trimmed_addr);
-}
-
-bool
+ReadReturnStatus
 CoalesceEngine::recvWLRead(Addr addr)
 {
     Addr aligned_addr = roundDown<Addr, size_t>(addr, peerMemoryAtomSize);
@@ -163,6 +179,9 @@ CoalesceEngine::recvWLRead(Addr addr)
     if ((cacheBlocks[block_index].addr == aligned_addr) &&
         (cacheBlocks[block_index].valid)) {
         // Hit
+        if (cacheBlocks[block_index].state == CacheState::LOCKED_FOR_APPLY) {
+            return ReadReturnStatus::REJECT_NO_ROLL;
+        }
         DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a hit.\n", __func__, addr);
         stats.readHits++;
         assert(cacheBlocks[block_index].state != CacheState::INVALID);
@@ -197,7 +216,7 @@ CoalesceEngine::recvWLRead(Addr addr)
             schedule(nextResponseEvent, nextCycle());
         }
         stats.numVertexReads++;
-        return true;
+        return ReadReturnStatus::ACCEPT;
     } else if ((cacheBlocks[block_index].addr == aligned_addr) &&
                 (cacheBlocks[block_index].state == CacheState::PENDING_DATA)) {
         // Hit under miss
@@ -207,7 +226,6 @@ CoalesceEngine::recvWLRead(Addr addr)
         assert(!cacheBlocks[block_index].valid);
         assert(cacheBlocks[block_index].busyMask == 0);
         assert(!cacheBlocks[block_index].dirty);
-        assert(!cacheBlocks[block_index].needsPreWBApply);
 
         assert(MSHR.size() <= numMSHREntries);
         assert(MSHR.find(block_index) != MSHR.end());
@@ -217,7 +235,7 @@ CoalesceEngine::recvWLRead(Addr addr)
         DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                     block_index, cacheBlocks[block_index].to_string());
         stats.numVertexReads++;
-        return true;
+        return ReadReturnStatus::ACCEPT;
     } else {
         // miss
         assert(cacheBlocks[block_index].addr != aligned_addr);
@@ -232,20 +250,37 @@ CoalesceEngine::recvWLRead(Addr addr)
             if (cacheBlocks[block_index].state == CacheState::IDLE) {
                 if (cacheBlocks[block_index].dirty) {
                     cacheBlocks[block_index].state = CacheState::PENDING_WB;
+                    cacheBlocks[block_index].lastChangedTick = curTick();
                     memoryFunctionQueue.emplace_back(
                         [this] (int block_index, Tick schedule_tick) {
                             processNextWriteBack(block_index, schedule_tick);
                         }, block_index, curTick());
+                    if ((!nextMemoryEvent.pending()) &&
+                        (!nextMemoryEvent.scheduled())) {
+                        schedule(nextMemoryEvent, nextCycle());
+                    }
                 } else {
-                    // NOTE: move the cache block to invalid state
-                    // FIXME: Fix the issue below.
-                    // May need to activate tracking for this
+                    // NOTE: The cache block could still be active but
+                    // not dirty. If active we only have to active tracking
+                    // but can throw the data away.
+                    bool atom_active = false;
+                    for (int index = 0; index < numElementsPerLine; index++) {
+                        atom_active |= graphWorkload->activeCondition(
+                                        cacheBlocks[block_index].items[index]);
+                    }
+                    if (atom_active) {
+                        activeCacheBlocks.erase(block_index);
+                        directory->activate(cacheBlocks[block_index].addr);
+                    }
+                    // NOTE: Bring the cache line to invalid state.
+                    // NOTE: Above line where we set hasConflict to true
+                    // does not matter anymore since we reset the cache line.
                     cacheBlocks[block_index].reset();
                 }
+                return ReadReturnStatus::REJECT_NO_ROLL;
+            } else {
+                return ReadReturnStatus::REJECT_ROLL;
             }
-            // return int instead of bool to tell WLEngine to whether
-            // roll the first entry in the queue.
-            return false;
         } else {
             // cold miss
             assert(MSHR.find(block_index) == MSHR.end());
@@ -255,16 +290,21 @@ CoalesceEngine::recvWLRead(Addr addr)
                 cacheBlocks[block_index].valid = false;
                 cacheBlocks[block_index].dirty = false;
                 cacheBlocks[block_index].hasConflict = false;
-                cacheBlocks[block_index].needsPreWBApply = false;
                 cacheBlocks[block_index].state = CacheState::PENDING_DATA;
                 cacheBlocks[block_index].lastChangedTick = curTick();
+
+                MSHR[block_index].push_back(addr);
                 memoryFunctionQueue.emplace_back(
                     [this] (int block_index, Tick schedule_tick) {
                         processNextRead(block_index, schedule_tick);
                     }, block_index, curTick());
-                return true;
+                if ((!nextMemoryEvent.pending()) &&
+                    (!nextMemoryEvent.scheduled())) {
+                    schedule(nextMemoryEvent, nextCycle());
+                }
+                return ReadReturnStatus::ACCEPT;
             } else {
-                return false;
+                return ReadReturnStatus::REJECT_ROLL;
             }
         }
     }
@@ -276,116 +316,87 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
     assert(pkt->isResponse());
     DPRINTF(CoalesceEngine,  "%s: Received packet: %s from memory.\n",
                                                 __func__, pkt->print());
+
+    onTheFlyReqs--;
     if (pkt->isWrite()) {
         DPRINTF(CoalesceEngine, "%s: Dropped the write response.\n", __func__);
         delete pkt;
-        return true;
-    }
-
-    onTheFlyReqs--;
-    Addr addr = pkt->getAddr();
-    int block_index = getBlockIndex(addr);
-    WorkListItem* items = pkt->getPtr<WorkListItem>();
-
-    bool do_wb = false;
-    if (pkt->findNextSenderState<SenderState>()) {
-        assert(!((cacheBlocks[block_index].addr == addr) &&
-                (cacheBlocks[block_index].valid)));
-        // We have read the address to send the wl and it is not in the
-        // cache. Simply send the items to the PushEngine.
-
-        DPRINTF(CoalesceEngine, "%s: Received read response for pull read "
-                                "for addr %lu.\n", __func__, addr);
-        int it = getBitIndexBase(addr);
-        uint64_t send_mask = pendingVertexPullReads[addr];
-        // No applying of the line needed.
-        for (int i = 0; i < numElementsPerLine; i++) {
-            Addr vertex_addr = addr + i * sizeof(WorkListItem);
-            uint64_t vertex_send_mask = send_mask & (1 << i);
-            if (vertex_send_mask != 0) {
-                assert(needsPush[it + i] == 1);
-                needsPush[it + i] = 0;
-                _workCount--;
-
-                uint32_t delta;
-                bool do_push, do_wb_v;
-                std::tie(delta, do_push, do_wb_v) =
-                                        graphWorkload->prePushApply(items[i]);
-                do_wb |= do_wb_v;
-                if (do_push) {
-                    owner->recvVertexPush(vertex_addr, delta,
-                                        items[i].edgeIndex, items[i].degree);
-                } else {
-                    // TODO: Add a stat to count this.
-                    owner->recvPrevPullCorrection();
-                }
-                stats.verticesPushed++;
-                stats.lastVertexPushTime = curTick() - stats.lastResetTick;
-            }
-        }
-        pendingVertexPullReads.erase(addr);
-        maxPotentialPostPushWB--;
-    }
-
-    bool cache_wb = false;
-    if (cacheBlocks[block_index].addr == addr) {
-        DPRINTF(CoalesceEngine, "%s: Received read response to "
-                        "fill cacheBlocks[%d].\n", __func__, block_index);
-        DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
-                        block_index, cacheBlocks[block_index].to_string());
-        assert(!cacheBlocks[block_index].valid);
-        assert(cacheBlocks[block_index].busyMask == 0);
-        assert(!cacheBlocks[block_index].needsWB);
-        assert(!cacheBlocks[block_index].needsApply);
-        assert(cacheBlocks[block_index].pendingData);
-        assert(!cacheBlocks[block_index].pendingApply);
-        assert(!cacheBlocks[block_index].pendingWB);
-        assert(MSHR.find(block_index) != MSHR.end());
-        std::memcpy(cacheBlocks[block_index].items, items, peerMemoryAtomSize);
-        for (int i = 0; i < numElementsPerLine; i++) {
-            DPRINTF(CoalesceEngine,  "%s: Wrote cacheBlocks[%d][%d] = %s.\n",
-                __func__, block_index, i, graphWorkload->printWorkListItem(
-                                        cacheBlocks[block_index].items[i]));
-        }
-        cacheBlocks[block_index].valid = true;
-        cacheBlocks[block_index].needsWB |= do_wb;
-        cacheBlocks[block_index].pendingData = false;
-        // HACK: In case processNextRead is called on the same tick as curTick
-        // and is scheduled to read to the same cacheBlocks[block_index]
-        cacheBlocks[block_index].lastChangedTick =
-                                        curTick() - (Tick) (clockPeriod() / 2);
-        cache_wb = true;
-    } else if (do_wb) {
-        PacketPtr wb_pkt = createWritePacket(
-                                addr, peerMemoryAtomSize, (uint8_t*) items);
-        postPushWBQueue.emplace_back(wb_pkt, curTick());
-        memoryFunctionQueue.emplace_back(
-            [this] (int ignore, Tick schedule_tick) {
-                processNextPostPushWB(ignore, schedule_tick);
-            }, 0, curTick());
-        if ((!nextMemoryEvent.pending()) &&
-            (!nextMemoryEvent.scheduled())) {
-            schedule(nextMemoryEvent, nextCycle());
-        }
     } else {
-        // TODO: Add a stat to count this.
-        // FIXME: This is not a totally wasteful read. e.g. all reads
-        // for pull in BFS are like this.
-        DPRINTF(CoalesceEngine, "%s: No write destination for addr: %lu.\n", __func__, addr);
-    }
+        assert(pkt->isRead());
+        Addr addr = pkt->getAddr();
+        int block_index = getBlockIndex(addr);
+        ReadPurpose* purpose = pkt->findNextSenderState<ReadPurpose>();
 
-    if (cache_wb) {
-        for (auto it = MSHR[block_index].begin(); it != MSHR[block_index].end();) {
-            Addr miss_addr = *it;
-            Addr aligned_miss_addr =
-                roundDown<Addr, size_t>(miss_addr, peerMemoryAtomSize);
+        // NOTE: Regardless of where the pkt will go we have to release the
+        // reserved space for this pkt in the activeBuffer in case
+        // it was read from memory for placement in the activeBuffer.
+        // NOTE: Also we have to stop tracking the address for pullAddrs
+        if (purpose->dest() == ReadDestination::READ_FOR_PUSH) {
+            pendingPullReads--;
+            pendingPullAddrs.erase(addr);
+        }
+        if (cacheBlocks[block_index].addr == addr) {
+            // If it is in the cache, line should be in PENDING_DATA state.
+            // Regardless of the purpose for which it was read, it should
+            // be placed in the cache array.
+            assert(cacheBlocks[block_index].busyMask == 0);
+            assert(!cacheBlocks[block_index].valid);
+            assert(!cacheBlocks[block_index].dirty);
+            assert(cacheBlocks[block_index].state == CacheState::PENDING_DATA);
 
-            if (aligned_miss_addr == addr) {
+            // NOTE: Since it is in PENDING_DATA state it
+            // should have an entry in the MSHR.
+            assert(MSHR.find(block_index) != MSHR.end());
+
+            pkt->writeDataToBlock((uint8_t*) cacheBlocks[block_index].items,
+                                                            peerMemoryAtomSize);
+
+            cacheBlocks[block_index].valid = true;
+            // HACK: In case the pkt was read for push but it was allocated
+            // for in the cache later on, we should cancel the future
+            // processNextRead for this block. We could set lastChangedTick
+            // to curTick() like usual. However, there is no way to ensure
+            // that processNextRead will be not be called on the same tick
+            // as the pkt arrives from the memory. Therefore, we will set
+            // the lastChangedTick to half a cycle before the actual time.
+            // We move that back in time because it would be fine if
+            // processNextRead happened before pkt arriveed. processNextRead
+            // actually will check if there is a pending read for push for
+            // the address it's trying to populate.
+            if (purpose->dest() == ReadDestination::READ_FOR_PUSH) {
+                cacheBlocks[block_index].lastChangedTick =
+                                    curTick() - (Tick) (clockPeriod() / 2);
+            } else {
+                cacheBlocks[block_index].lastChangedTick = curTick();
+            }
+
+            // NOTE: If the atom is active we have to deactivate the tracking
+            // of this atom in the memory since it's not in memory anymore.
+            // Since it is going to the cache, cache will be responsible for
+            // tracking this. Push to activeCacheBlocks for simulator speed
+            // instead of having to search for active blocks in the cache.
+            bool atom_active = false;
+            for (int index = 0; index < numElementsPerLine; index++) {
+                atom_active |= graphWorkload->activeCondition(
+                                            cacheBlocks[block_index].items[index]);
+            }
+            if (atom_active) {
+                directory->deactivate(addr);
+                activeCacheBlocks.push_back(block_index);
+            }
+
+            assert(MSHR.find(block_index) != MSHR.end());
+            for (auto it = MSHR[block_index].begin();
+                                            it != MSHR[block_index].end();) {
+                Addr miss_addr = *it;
+                Addr aligned_miss_addr =
+                            roundDown<Addr, size_t>(miss_addr, peerMemoryAtomSize);
+
+                assert(aligned_miss_addr == cacheBlocks[block_index].addr);
                 int wl_offset = (miss_addr - aligned_miss_addr) / sizeof(WorkListItem);
                 DPRINTF(CoalesceEngine,  "%s: Addr: %lu in the MSHR for "
                             "cacheBlocks[%d] can be serviced with the received "
                             "packet.\n",__func__, miss_addr, block_index);
-                // TODO: Make this block of code into a function
                 responseQueue.push_back(std::make_tuple(miss_addr,
                         cacheBlocks[block_index].items[wl_offset], curTick()));
                 DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) "
@@ -400,32 +411,72 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                             graphWorkload->printWorkListItem(
                                 cacheBlocks[block_index].items[wl_offset]),
                             responseQueue.size());
-                // TODO: Add a stat to count the number of WLItems that have been touched.
                 cacheBlocks[block_index].busyMask |= (1 << wl_offset);
-                // cacheBlocks[block_index].lastChangedTick = curTick();
                 DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                             block_index, cacheBlocks[block_index].to_string());
                 it = MSHR[block_index].erase(it);
+            }
+            MSHR.erase(block_index);
+
+            cacheBlocks[block_index].state = CacheState::BUSY;
+            if ((!nextResponseEvent.scheduled()) && (!responseQueue.empty())) {
+                schedule(nextResponseEvent, nextCycle());
+            }
+            delete pkt;
+        } else {
+            assert(purpose->dest() == ReadDestination::READ_FOR_PUSH);
+            // There should be enough room in activeBuffer to place this pkt.
+            // REMEMBER: If dest == READ_FOR_PUSH we release the reserved space.
+            // So at this point in code we should have at least one free entry
+            // in the active buffer which is reserved for this pkt.
+            assert(activeBuffer.size() + pendingPullReads < activeBufferSize);
+
+            WorkListItem items[numElementsPerLine];
+            pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
+            bool atom_active = false;
+            for (int index = 0; index < numElementsPerLine; index++) {
+                atom_active |= graphWorkload->activeCondition(items[index]);
+            }
+            if (atom_active) {
+                directory->deactivate(addr);
+                activeBuffer.emplace_back(pkt, curTick());
+                DPRINTF(MSDebug, "%s: Empalced pkt: %s in activeBuffer. "
+                        "activeBuffer.size: %d.\n", __func__,
+                        pkt->print(), activeBuffer.size());
             } else {
-                it++;
+                delete pkt;
+            }
+            // if (workLeftInMem() && timeToPull() && canSchedulePull()) {
+            //     memoryFunctionQueue.emplace_back(
+            //         [this] (int ignore, Tick schedule_tick) {
+            //             processNextVertexPull(ignore, schedule_tick);
+            //         }, 0, curTick());
+            //     if ((!nextMemoryEvent.pending()) &&
+            //         (!nextMemoryEvent.scheduled())) {
+            //         schedule(nextMemoryEvent, nextCycle());
+            //     }
+            //     pullsScheduled++;
+            // }
+            if (pullCondition()) {
+                memoryFunctionQueue.emplace_back(
+                    [this] (int ignore, Tick schedule_tick) {
+                        processNextVertexPull(ignore, schedule_tick);
+                    }, 0, curTick());
+                if ((!nextMemoryEvent.pending()) &&
+                    (!nextMemoryEvent.scheduled())) {
+                    schedule(nextMemoryEvent, nextCycle());
+                }
+                pullsScheduled++;
             }
         }
     }
 
-    if (MSHR[block_index].empty()) {
-        MSHR.erase(block_index);
+    if (done()) {
+        owner->recvDoneSignal();
     }
-
-    if ((!nextResponseEvent.scheduled()) &&
-        (!responseQueue.empty())) {
-        schedule(nextResponseEvent, nextCycle());
-    }
-
-    delete pkt;
     return true;
 }
 
-// TODO: For loop to empty the entire responseQueue.
 void
 CoalesceEngine::processNextResponseEvent()
 {
@@ -450,8 +501,8 @@ CoalesceEngine::processNextResponseEvent()
                     addr_response);
 
         responseQueue.pop_front();
-        DPRINTF(SEGAStructureSize,  "%s: Popped a response from responseQueue. "
-                    "responseQueue.size = %d.\n", __func__,
+        DPRINTF(SEGAStructureSize,  "%s: Popped a response from responseQueue."
+                    " responseQueue.size = %d.\n", __func__,
                     responseQueue.size());
         DPRINTF(CoalesceEngine,  "%s: Popped a response from responseQueue. "
                     "responseQueue.size = %d.\n", __func__,
@@ -491,27 +542,28 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     DPRINTF(CoalesceEngine,  "%s: Received a write for WorkListItem: %s "
                 "with Addr: %lu.\n", __func__,
                 graphWorkload->printWorkListItem(wl), addr);
-    // Desing does not allow for write misses for now.
+
+    // NOTE: Design does not allow for write misses.
     assert(cacheBlocks[block_index].addr == aligned_addr);
     // cache state asserts
-    assert(cacheBlocks[block_index].valid);
     assert(cacheBlocks[block_index].busyMask != 0);
-    assert(!cacheBlocks[block_index].pendingData);
-    assert(!cacheBlocks[block_index].pendingApply);
-    assert(!cacheBlocks[block_index].pendingWB);
+    assert(cacheBlocks[block_index].valid);
+    assert(cacheBlocks[block_index].state == CacheState::BUSY);
 
     // respective bit in busyMask for wl is set.
     assert((cacheBlocks[block_index].busyMask & (1 << wl_offset)) ==
             (1 << wl_offset));
 
     if (wl.tempProp != cacheBlocks[block_index].items[wl_offset].tempProp) {
-        cacheBlocks[block_index].needsWB |= true;
-        stats.numVertexWrites++;
+        cacheBlocks[block_index].dirty |= true;
     }
     cacheBlocks[block_index].items[wl_offset] = wl;
-    if (graphWorkload->applyCondition(cacheBlocks[block_index].items[wl_offset])) {
-        cacheBlocks[block_index].needsApply |= true;
-        cacheBlocks[block_index].needsWB |= true;
+    if ((graphWorkload->activeCondition(cacheBlocks[block_index].items[wl_offset])) &&
+        (!activeCacheBlocks.find(block_index))) {
+        activeCacheBlocks.push_back(block_index);
+        if (!owner->running()) {
+            owner->start();
+        }
     }
 
     cacheBlocks[block_index].busyMask &= ~(1 << wl_offset);
@@ -523,188 +575,40 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                         block_index, cacheBlocks[block_index].to_string());
 
-    // TODO: Make this more general and programmable.
-    if ((cacheBlocks[block_index].busyMask == 0)) {
-        if (cacheBlocks[block_index].needsApply) {
-            cacheBlocks[block_index].pendingApply = true;
-            cacheBlocks[block_index].lastChangedTick = curTick();
-            applyQueue.push_back(block_index);
-            DPRINTF(CoalesceEngine, "%s: Added cacheBlocks[%d] to "
-                            "applyQueue.\n", __func__, block_index);
-            if ((!applyQueue.empty()) &&
-                (!nextPreWBApplyEvent.scheduled())) {
-                schedule(nextPreWBApplyEvent, nextCycle());
-            }
-        } else {
-            assert(MSHR.size() <= numMSHREntries);
-            // cache line has conflict.
-            if (MSHR.find(block_index) != MSHR.end()) {
-                DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] has pending "
-                                    "conflict.\n", __func__, block_index);
-                if (cacheBlocks[block_index].needsWB) {
-                    DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] needs a write"
-                                            " back.\n", __func__, block_index);
-                    cacheBlocks[block_index].pendingWB = true;
-                    cacheBlocks[block_index].lastChangedTick = curTick();
-                    memoryFunctionQueue.emplace_back(
-                        [this] (int block_index, Tick schedule_tick) {
-                            processNextWriteBack(block_index, schedule_tick);
-                        }, block_index, curTick());
-                    DPRINTF(CoalesceEngine, "%s: Pushed processNextWriteBack "
-                                    "for input %d to memoryFunctionQueue.\n",
-                                                    __func__, block_index);
-                    if ((!nextMemoryEvent.pending()) &&
-                        (!nextMemoryEvent.scheduled())) {
-                        schedule(nextMemoryEvent, nextCycle());
-                    }
-                } else {
-                    DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] does not need"
-                                    " a write back.\n", __func__, block_index);
-                    Addr miss_addr = MSHR[block_index].front();
-                    Addr aligned_miss_addr =
-                        roundDown<Addr, size_t>(miss_addr, peerMemoryAtomSize);
-                    DPRINTF(CoalesceEngine, "%s: First conflicting address for"
-                        " cacheBlocks[%d] is addr: %lu, aligned_addr: %lu.\n",
-                        __func__, block_index, miss_addr, aligned_miss_addr);
-                    cacheBlocks[block_index].addr = aligned_miss_addr;
-                    cacheBlocks[block_index].valid = false;
-                    cacheBlocks[block_index].busyMask = 0;
-                    cacheBlocks[block_index].needsWB = false;
-                    cacheBlocks[block_index].needsApply = false;
-                    cacheBlocks[block_index].pendingData = true;
-                    cacheBlocks[block_index].pendingApply = false;
-                    cacheBlocks[block_index].pendingWB = false;
-                    cacheBlocks[block_index].lastChangedTick = curTick();
-                    memoryFunctionQueue.emplace_back(
-                        [this] (int block_index, Tick schedule_tick) {
-                            processNextRead(block_index, schedule_tick);
-                        }, block_index, curTick());
-                    DPRINTF(CoalesceEngine, "%s: Pushed processNextRead "
-                                    "for input %d to memoryFunctionQueue.\n",
-                                                    __func__, block_index);
-                    if ((!nextMemoryEvent.pending()) &&
-                        (!nextMemoryEvent.scheduled())) {
-                        schedule(nextMemoryEvent, nextCycle());
-                    }
-                }
-            } else {
-                DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] is in "
-                        "idle state now.\n", __func__, block_index);
-            }
-        }
-    }
-    DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
-                block_index, cacheBlocks[block_index].to_string());
-
-}
-
-void
-CoalesceEngine::processNextPreWBApplyEvent()
-{
-    int block_index = preWBApplyQueue.front();
-    DPRINTF(CoalesceEngine, "%s: Looking at the front of the preWBApplyQueue. "
-                "cacheBlock[%d] to be applied.\n", __func__, block_index);
-    DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n",
-            __func__, block_index, cacheBlocks[block_index].to_string());
-
-    if (cacheBlocks[block_index].state == CacheState::PENDING_PRE_WB_APPLY) {
-        assert(cacheBlocks[block_index].busyMask == 0);
-        assert(cacheBlocks[block_index].valid);
-        assert(cacheBlocks[block_index].needsPreWBApply);
-        bool block_active = false;
-        for (int index = 0; index < numElementsPerLine; index++) {
-            bool active = graphWorkload->preWBApply(cacheBlocks[block_index].items[index]);
-            block_active |= active;
-            if (active) {
-                // cacheWorkCount++;
-                // FUTUREME: When pulling from activeCacheBlocks, in case we
-                // face a block that is not in idle state, we basically pop
-                // that entry and push it to the back. We only delete entries
-                // in this buffer if pushed or evicted.
-                activeCacheBlocks.push_back(block_index);
-            }
-        }
-        if (block_active && !owner->running()) {
-            owner->start();
-        }
-
-        cacheBlocks[block_index].needsPreWBApply = false;
+    if (cacheBlocks[block_index].busyMask == 0) {
         if (cacheBlocks[block_index].hasConflict) {
             if (cacheBlocks[block_index].dirty) {
+                cacheBlocks[block_index].state = CacheState::PENDING_WB;
+                cacheBlocks[block_index].lastChangedTick = curTick();
                 memoryFunctionQueue.emplace_back(
                     [this] (int block_index, Tick schedule_tick) {
                         processNextWriteBack(block_index, schedule_tick);
                     }, block_index, curTick());
+                if ((!nextMemoryEvent.pending()) &&
+                    (!nextMemoryEvent.scheduled())) {
+                    schedule(nextMemoryEvent, nextCycle());
+                }
             } else {
-                // FIXME: Solve below issue.
-                // Not dirty but could be active still.
-                // need to activate tracking
+                bool atom_active = false;
+                for (int index = 0; index < numElementsPerLine; index++) {
+                    atom_active |= graphWorkload->activeCondition(
+                                        cacheBlocks[block_index].items[index]);
+                }
+                if (atom_active) {
+                    activeCacheBlocks.erase(block_index);
+                    directory->activate(cacheBlocks[block_index].addr);
+                }
                 cacheBlocks[block_index].reset();
             }
         } else {
             cacheBlocks[block_index].state = CacheState::IDLE;
-        }
-        cacheBlocks[block_index].lastChangedTick = curTick();
-    } else {
-
-    }
-
-    if (cacheBlocks[block_index].pendingApply) {
-        assert(cacheBlocks[block_index].busyMask == 0);
-        for (int index = 0; index < numElementsPerLine; index++) {
-            bool do_push = graphWorkload->preWBApply(cacheBlocks[block_index].items[index]);
-            if (do_push) {
-                int bit_index_base = getBitIndexBase(cacheBlocks[block_index].addr);
-                if (needsPush[bit_index_base + index] == 0) {
-                    needsPush[bit_index_base + index] = 1;
-                    _workCount++;
-                    activeBits.push_back(bit_index_base + index);
-                    if (!owner->running()) {
-                        owner->start();
-                    }
-                }
-            }
-        }
-        stats.bitvectorLength.sample(needsPush.count());
-
-        assert(cacheBlocks[block_index].needsWB);
-        cacheBlocks[block_index].needsApply = false;
-        cacheBlocks[block_index].pendingApply = false;
-        cacheBlocks[block_index].lastChangedTick = curTick();
-
-        assert(MSHR.size() <= numMSHREntries);
-        if (MSHR.find(block_index) != MSHR.end()) {
-            DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] has pending "
-                                "conflicts.\n", __func__, block_index);
-            cacheBlocks[block_index].pendingWB = true;
             cacheBlocks[block_index].lastChangedTick = curTick();
-            memoryFunctionQueue.emplace_back(
-                [this] (int block_index, Tick schedule_tick) {
-                processNextWriteBack(block_index, schedule_tick);
-            }, block_index, curTick());
-            DPRINTF(CoalesceEngine, "%s: Pushed processNextWriteBack for input"
-                    " %d to memoryFunctionQueue.\n", __func__, block_index);
-            if ((!nextMemoryEvent.pending()) &&
-                (!nextMemoryEvent.scheduled())) {
-                schedule(nextMemoryEvent, nextCycle());
-            }
-        } else {
-            DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] is in "
-                    "idle state now.\n", __func__, block_index);
         }
-        DPRINTF(CacheBlockState, "%s: cacheBlock[%d]: %s.\n", __func__,
-                    block_index, cacheBlocks[block_index].to_string());
-    } else {
-        stats.numInvalidApplies++;
     }
-
-    applyQueue.pop_front();
-    if ((!applyQueue.empty()) &&
-        (!nextPreWBApplyEvent.scheduled())) {
-        schedule(nextPreWBApplyEvent, nextCycle());
-    }
-
-    if (done()) {
+    DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
+                block_index, cacheBlocks[block_index].to_string());
+    stats.numVertexWrites++;
+    if ((cacheBlocks[block_index].state == CacheState::IDLE) && done()) {
         owner->recvDoneSignal();
     }
 }
@@ -740,6 +644,10 @@ CoalesceEngine::processNextMemoryEvent()
     if ((!memoryFunctionQueue.empty())) {
         schedule(nextMemoryEvent, nextCycle());
     }
+
+    if (done()) {
+        owner->recvDoneSignal();
+    }
 }
 
 void
@@ -759,36 +667,68 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
     assert(cacheBlocks[block_index].busyMask == 0);
     assert(!cacheBlocks[block_index].valid);
     assert(!cacheBlocks[block_index].dirty);
-    assert(!cacheBlocks[block_index].needsPreWBApply);
     assert(cacheBlocks[block_index].state == CacheState::PENDING_DATA);
 
     bool need_send_pkt = true;
 
     // NOTE: Search postPushWBQueue
-    for (auto wb = postPushWBQueue.begin(); wb != postPushWBQueue.end(); wb++)
+    for (auto wb = postPushWBQueue.begin(); wb != postPushWBQueue.end();)
     {
         PacketPtr wb_pkt = std::get<0>(*wb);
-        if (cacheBlocks[block_index].addr = wb_pkt->getAddr()) {
+        if (cacheBlocks[block_index].addr == wb_pkt->getAddr()) {
             wb_pkt->writeDataToBlock(
                 (uint8_t*) cacheBlocks[block_index].items, peerMemoryAtomSize);
+            cacheBlocks[block_index].valid = true;
             cacheBlocks[block_index].dirty = true;
+            cacheBlocks[block_index].lastChangedTick = curTick();
+
             need_send_pkt = false;
-            postPushWBQueue.erase(wb);
+            wb = postPushWBQueue.erase(wb);
+            delete wb_pkt;
+            DPRINTF(MSDebug, "%s: Found addr: %lu in postPushWBQueue. "
+                        "postPushWBQueue.size: %d.\n", __func__,
+                        cacheBlocks[block_index].addr, postPushWBQueue.size());
+        } else {
+            wb++;
         }
     }
-    for (auto ab = activeBuffer.begin(); ab != activeBuffer.end(); ab++) {
+    // NOTE: Search activeBuffer
+    for (auto ab = activeBuffer.begin(); ab != activeBuffer.end();) {
         PacketPtr ab_pkt = std::get<0>(*ab);
-        if (cacheBlocks[block_index].addr = ab_pkt->getAddr()) {
+        if (cacheBlocks[block_index].addr == ab_pkt->getAddr()) {
             ab_pkt->writeDataToBlock(
                 (uint8_t*) cacheBlocks[block_index].items, peerMemoryAtomSize);
+
+            cacheBlocks[block_index].valid = true;
+            cacheBlocks[block_index].dirty = true;
+            cacheBlocks[block_index].lastChangedTick = curTick();
+            activeCacheBlocks.push_back(block_index);
+
             need_send_pkt = false;
-            activeBuffer.erase(ab);
+            ab = activeBuffer.erase(ab);
+            delete ab_pkt;
+            // if (workLeftInMem() && timeToPull() && canSchedulePull()) {
+            //     memoryFunctionQueue.emplace_back(
+            //         [this] (int ignore, Tick schedule_tick) {
+            //             processNextVertexPull(ignore, schedule_tick);
+            //         }, 0, curTick());
+            //     pullsScheduled++;
+            // }
+            DPRINTF(MSDebug, "%s: Found addr: %lu in activeBuffer. "
+                        "activeBuffer.size: %d.\n", __func__,
+                        cacheBlocks[block_index].addr, activeBuffer.size());
+            if (pullCondition()) {
+                memoryFunctionQueue.emplace_back(
+                    [this] (int ignore, Tick schedule_tick) {
+                        processNextVertexPull(ignore, schedule_tick);
+                    }, 0, curTick());
+                pullsScheduled++;
+            }
+        } else {
+            ab++;
         }
     }
     if (!need_send_pkt) {
-        cacheBlocks[block_index].valid = true;
-        cacheBlocks[block_index].needsPreWBApply = false;
-        cacheBlocks[block_index].lastChangedTick = curTick();
         for (auto it = MSHR[block_index].begin(); it != MSHR[block_index].end();) {
             Addr miss_addr = *it;
             Addr aligned_miss_addr =
@@ -828,14 +768,16 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
         cacheBlocks[block_index].state = CacheState::BUSY;
     }
 
-    if (pendingVertexPullReads.find(cacheBlocks[block_index].addr) !=
-                                                pendingVertexPullReads.end()) {
+    if (pendingPullAddrs.find(cacheBlocks[block_index].addr) !=
+                                            pendingPullAddrs.end()) {
         need_send_pkt = false;
     }
 
     if (need_send_pkt) {
         PacketPtr pkt = createReadPacket(cacheBlocks[block_index].addr,
                                         peerMemoryAtomSize);
+        ReadPurpose* purpose = new ReadPurpose(ReadDestination::READ_FOR_CACHE);
+        pkt->pushSenderState(purpose);
         DPRINTF(CoalesceEngine,  "%s: Created a read packet. addr = %lu, "
                 "size = %d.\n", __func__, pkt->getAddr(), pkt->getSize());
         memPort.sendPacket(pkt);
@@ -852,25 +794,24 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
                 block_index, cacheBlocks[block_index].to_string());
 
     if (schedule_tick == cacheBlocks[block_index].lastChangedTick) {
-        assert(cacheBlocks[block_index].valid);
         assert(cacheBlocks[block_index].busyMask == 0);
+        assert(cacheBlocks[block_index].valid);
         assert(cacheBlocks[block_index].dirty);
         assert(cacheBlocks[block_index].hasConflict);
-        assert(!cacheBlocks[block_index].needsPreWBApply);
         assert(cacheBlocks[block_index].state == CacheState::PENDING_WB);
 
-        Addr base_addr = cacheBlocks[block_index].addr;
+        // NOTE: If the atom we're writing back is active, we have to
+        // stop tracking it in the cache and start tracking it in the memory.
+        bool atom_active = false;
         for (int index = 0; index < numElementsPerLine; index++) {
-            if (cacheBlocks[block_index].items[index].active) {
-                Addr vertex_addr = base_addr + index * sizeof(WorkListItem);
-                // NOTE: Implement this
-                // workdir.activate()
-                // cacheWorkCount--;
-            }
+            atom_active |= graphWorkload->activeCondition(
+                                        cacheBlocks[block_index].items[index]);
         }
-        if (activeCacheBlocks.find(block_index)) {
+        if (atom_active) {
             activeCacheBlocks.erase(block_index);
+            directory->activate(cacheBlocks[block_index].addr);
         }
+
         PacketPtr pkt = createWritePacket(
                 cacheBlocks[block_index].addr, peerMemoryAtomSize,
                 (uint8_t*) cacheBlocks[block_index].items);
@@ -878,9 +819,8 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
                         "Addr: %lu, size = %d.\n", __func__,
                         pkt->getAddr(), pkt->getSize());
         memPort.sendPacket(pkt);
+        onTheFlyReqs++;
         cacheBlocks[block_index].reset();
-        DPRINTF(CoalesceEngine, "%s: Pushed processNextRead for input"
-                " %d to memoryFunctionQueue.\n", __func__, block_index);
         DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                     block_index, cacheBlocks[block_index].to_string());
     } else {
@@ -896,93 +836,53 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
 void
 CoalesceEngine::processNextPostPushWB(int ignore, Tick schedule_tick)
 {
+    if (postPushWBQueue.empty()) {
+        return;
+    }
     PacketPtr wb_pkt;
     Tick pkt_tick;
     std::tie(wb_pkt, pkt_tick) = postPushWBQueue.front();
     if (schedule_tick == pkt_tick) {
         memPort.sendPacket(wb_pkt);
+        onTheFlyReqs++;
         postPushWBQueue.pop_front();
+        DPRINTF(MSDebug, "%s: Popped pkt: %s from postPushWBQueue. "
+                        "postPushWBQueue.size: %d.\n", __func__,
+                        wb_pkt->print(), postPushWBQueue.size());
     }
 }
 
 void
 CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
 {
-    WorkLocation bit_status;
-    Addr location;
-    int offset;
+    pullsScheduled--;
+    if (!directory->empty()) {
+        Addr addr = directory->getNextWork();
+        int block_index = getBlockIndex(addr);
 
-    std::tie(bit_status, location, offset) = getOptimalPullAddr();
-
-    if (bit_status != WorkLocation::GARBAGE) {
-        if (bit_status == WorkLocation::PENDING_READ) {
-            // renaming the outputs to thier local names.
-            Addr addr = location;
-            int index_offset = offset;
-
-            uint64_t send_mask = pendingVertexPullReads[addr];
-            uint64_t vertex_send_mask = send_mask & (1 << index_offset);
-            assert(vertex_send_mask == 0);
-            send_mask |= (1 << index_offset);
-            pendingVertexPullReads[addr] = send_mask;
-            numPullsReceived--;
+        bool in_cache = cacheBlocks[block_index].addr == addr;
+        bool in_active_buffer = false;
+        for (auto ab = activeBuffer.begin(); ab != activeBuffer.end(); ab++) {
+            PacketPtr pkt = std::get<0>(*ab);
+            in_active_buffer |= (pkt->getAddr() == addr);
         }
-        if (bit_status == WorkLocation::IN_CACHE) {
-            // renaming the outputs to their local names.
-            int block_index = (int) location;
-            int wl_offset = offset;
-
-            Addr addr = cacheBlocks[block_index].addr;
-            Addr vertex_addr = addr + (wl_offset * sizeof(WorkListItem));
-            int slice_base_index = getBitIndexBase(addr);
-
-            needsPush[slice_base_index + wl_offset] = 0;
-            _workCount--;
-
-            uint32_t delta;
-            bool do_push, do_wb;
-            std::tie(delta, do_push, do_wb) = graphWorkload->prePushApply(
-                                    cacheBlocks[block_index].items[wl_offset]);
-            cacheBlocks[block_index].needsWB |= do_wb;
-            if (do_push) {
-                owner->recvVertexPush(vertex_addr, delta,
-                        cacheBlocks[block_index].items[wl_offset].edgeIndex,
-                        cacheBlocks[block_index].items[wl_offset].degree);
-            } else {
-                DPRINTF(CoalesceEngine, "%s: Fuck!.\n", __func__);
-                owner->recvPrevPullCorrection();
-            }
-            stats.verticesPushed++;
-            stats.lastVertexPushTime = curTick() - stats.lastResetTick;
-            numPullsReceived--;
+        bool in_write_buffer = false;
+        for (auto wb = postPushWBQueue.begin(); wb != postPushWBQueue.end(); wb++)
+        {
+            PacketPtr pkt = std::get<0>(*wb);
+            in_write_buffer |= (pkt->getAddr() == addr);
         }
-        if (bit_status == WorkLocation::IN_MEMORY) {
-            if (postPushWBQueue.size() < (postPushWBQueueSize - maxPotentialPostPushWB)) {
-                Addr addr = location;
-                int index_offset = offset;
-                uint64_t send_mask = (1 << index_offset);
-                assert(pendingVertexPullReads.find(addr) == pendingVertexPullReads.end());
-                PacketPtr pkt = createReadPacket(addr, peerMemoryAtomSize);
-                SenderState* sender_state = new SenderState(true);
-                pkt->pushSenderState(sender_state);
-                memPort.sendPacket(pkt);
-                onTheFlyReqs++;
-                maxPotentialPostPushWB++;
-                pendingVertexPullReads[addr] = send_mask;
-                numPullsReceived--;
-            }
+        bool repeat_work = pendingPullAddrs.find(addr) != pendingPullAddrs.end();
+
+        if (!in_cache && !in_active_buffer && !in_write_buffer && !repeat_work) {
+            PacketPtr pkt = createReadPacket(addr, peerMemoryAtomSize);
+            ReadPurpose* purpose = new ReadPurpose(ReadDestination::READ_FOR_PUSH);
+            pkt->pushSenderState(purpose);
+            memPort.sendPacket(pkt);
+            onTheFlyReqs++;
+            pendingPullReads++;
+            pendingPullAddrs.insert(addr);
         }
-    }
-
-    stats.bitvectorSearchStatus[bit_status]++;
-
-    if (numPullsReceived > 0) {
-        memoryFunctionQueue.emplace_back(
-            [this] (int slice_base, Tick schedule_tick) {
-            processNextVertexPull(slice_base, schedule_tick);
-        }, 0, curTick());
-        DPRINTF(CoalesceEngine, "%s: Pushed processNextVertexPull with input "
-                                    "0 to memoryFunctionQueue.\n", __func__);
     }
 }
 
@@ -1000,25 +900,148 @@ CoalesceEngine::recvMemRetry()
     schedule(nextMemoryEvent, nextCycle());
 }
 
+int
+CoalesceEngine::workCount()
+{
+    return activeCacheBlocks.size() +
+            directory->workCount() + activeBuffer.size();
+}
+
 void
 CoalesceEngine::recvVertexPull()
 {
-    bool should_schedule = (numPullsReceived == 0);
-    numPullsReceived++;
+    pullsReceived++;
+    DPRINTF(CoalesceEngine, "%s: Received a vertex pull. pullsReceived: %d.\n", __func__, pullsReceived);
 
     stats.verticesPulled++;
     stats.lastVertexPullTime = curTick() - stats.lastResetTick;
-    if (should_schedule) {
+    if (!nextApplyEvent.scheduled()) {
+        schedule(nextApplyEvent, nextCycle());
+    }
+}
+
+void
+CoalesceEngine::processNextApplyEvent()
+{
+    if ((!activeBuffer.empty()) &&
+        (postPushWBQueue.size() < postPushWBQueueSize)) {
+        PacketPtr pkt;
+        Tick entrance_tick;
+        WorkListItem items[numElementsPerLine];
+
+        std::tie(pkt, entrance_tick) = activeBuffer.front();
+        pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
+
+        for (int index = 0; (index < numElementsPerLine) && (pullsReceived > 0); index++) {
+            if (graphWorkload->activeCondition(items[index])) {
+                Addr addr = pkt->getAddr() + index * sizeof(WorkListItem);
+                uint32_t delta = graphWorkload->apply(items[index]);
+                owner->recvVertexPush(addr, delta, items[index].edgeIndex,
+                                                    items[index].degree);
+                pullsReceived--;
+            }
+        }
+        pkt->deleteData();
+        pkt->allocate();
+        pkt->setDataFromBlock((uint8_t*) items, peerMemoryAtomSize);
+
+        bool atom_active = false;
+        for (int index = 0; index < numElementsPerLine; index++) {
+            atom_active |= graphWorkload->activeCondition(items[index]);
+        }
+        // NOTE: If the atom is not active anymore.
+        if (!atom_active) {
+            PacketPtr wb_pkt = createWritePacket(pkt->getAddr(),
+                                        peerMemoryAtomSize, (uint8_t*) items);
+            postPushWBQueue.emplace_back(wb_pkt, curTick());
+            DPRINTF(MSDebug, "%s: Empalced pkt: %s in postPushWBQueue. "
+                            "postPushWBQueue.size: %d.\n", __func__,
+                            wb_pkt->print(), postPushWBQueue.size());
+            activeBuffer.pop_front();
+            DPRINTF(MSDebug, "%s: Popped pkt: %s from activeBuffer. "
+                        "activeBuffer.size: %d.\n", __func__,
+                        pkt->print(), activeBuffer.size());
+            memoryFunctionQueue.emplace_back(
+                [this] (int ignore, Tick schedule_tick) {
+                    processNextPostPushWB(ignore, schedule_tick);
+                }, 0, curTick());
+            if ((!nextMemoryEvent.pending()) &&
+                (!nextMemoryEvent.scheduled())) {
+                schedule(nextMemoryEvent, nextCycle());
+            }
+            delete pkt;
+        }
+    } else if (!activeCacheBlocks.empty()) {
+        int num_visited_indices = 0;
+        int initial_fifo_length = activeCacheBlocks.size();
+        while (true) {
+            int block_index = activeCacheBlocks.front();
+            if (cacheBlocks[block_index].state == CacheState::IDLE) {
+                for (int index = 0; (index < numElementsPerLine) && (pullsReceived > 0); index++) {
+                    if (graphWorkload->activeCondition(cacheBlocks[block_index].items[index])) {
+                        Addr addr = cacheBlocks[block_index].addr + index * sizeof(WorkListItem);
+                        uint32_t delta = graphWorkload->apply(cacheBlocks[block_index].items[index]);
+                        cacheBlocks[block_index].dirty = true;
+                        owner->recvVertexPush(addr, delta,
+                            cacheBlocks[block_index].items[index].edgeIndex,
+                            cacheBlocks[block_index].items[index].degree);
+                        pullsReceived--;
+                    }
+                }
+
+                bool atom_active = false;
+                for (int index = 0; index < numElementsPerLine; index++) {
+                    atom_active |= graphWorkload->activeCondition(cacheBlocks[block_index].items[index]);
+                }
+                // NOTE: If we have reached the last item in the cache block
+                if (!atom_active) {
+                    activeCacheBlocks.erase(block_index);
+                }
+                break;
+            }
+            // NOTE: If the block with index at the front of activeCacheBlocks
+            // is not in IDLE state, then roll the that index to the back
+            activeCacheBlocks.pop_front();
+            activeCacheBlocks.push_back(block_index);
+            // NOTE: If we have visited all the items initially in the FIFO.
+            num_visited_indices++;
+            if (num_visited_indices == initial_fifo_length) {
+                break;
+            }
+        }
+    } else {
+        DPRINTF(CoalesceEngine, "%s: Could not find "
+                        "work to apply.\n", __func__);
+    }
+
+    // if (workLeftInMem() && timeToPull() && canSchedulePull()) {
+    //     memoryFunctionQueue.emplace_back(
+    //         [this] (int ignore, Tick schedule_tick) {
+    //             processNextVertexPull(ignore, schedule_tick);
+    //         }, 0, curTick());
+    //     if ((!nextMemoryEvent.pending()) &&
+    //         (!nextMemoryEvent.scheduled())) {
+    //         schedule(nextMemoryEvent, nextCycle());
+    //     }
+    //     pullsScheduled++;
+    // }
+    if (pullCondition()) {
         memoryFunctionQueue.emplace_back(
-            [this] (int slice_base, Tick schedule_tick) {
-            processNextVertexPull(slice_base, schedule_tick);
-        }, 0, curTick());
+            [this] (int ignore, Tick schedule_tick) {
+                processNextVertexPull(ignore, schedule_tick);
+            }, 0, curTick());
         if ((!nextMemoryEvent.pending()) &&
             (!nextMemoryEvent.scheduled())) {
             schedule(nextMemoryEvent, nextCycle());
         }
+        pullsScheduled++;
+    }
+
+    if ((pullsReceived > 0) && (!nextApplyEvent.scheduled())) {
+        schedule(nextApplyEvent, nextCycle());
     }
 }
+
 
 CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
     : statistics::Group(&_coalesce),
@@ -1036,16 +1059,11 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Number of cache hit under misses."),
     ADD_STAT(mshrEntryShortage, statistics::units::Count::get(),
              "Number of cache rejections caused by entry shortage."),
-    ADD_STAT(mshrTargetShortage, statistics::units::Count::get(),
-             "Number of cache rejections caused by target shortage."),
     ADD_STAT(responsePortShortage, statistics::units::Count::get(),
              "Number of times a response has been "
              "delayed because of port shortage. "),
     ADD_STAT(numMemoryBlocks, statistics::units::Count::get(),
              "Number of times memory bandwidth was not available."),
-    ADD_STAT(numDoubleMemReads, statistics::units::Count::get(),
-             "Number of times a memory block has been read twice. "
-             "Once for push and once to populate the cache."),
     ADD_STAT(verticesPulled, statistics::units::Count::get(),
              "Number of times a pull request has been sent by PushEngine."),
     ADD_STAT(verticesPushed, statistics::units::Count::get(),
@@ -1054,13 +1072,8 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Time of the last pull request. (Relative to reset_stats)"),
     ADD_STAT(lastVertexPushTime, statistics::units::Tick::get(),
              "Time of the last vertex push. (Relative to reset_stats)"),
-    ADD_STAT(numInvalidApplies, statistics::units::Count::get(),
-             "Number of times a line has become busy"
-             " while waiting to be applied."),
     ADD_STAT(numInvalidWriteBacks, statistics::units::Count::get(),
              "Number of times a scheduled memory function has been invalid."),
-    ADD_STAT(bitvectorSearchStatus, statistics::units::Count::get(),
-             "Distribution for the location of vertex searches."),
     ADD_STAT(hitRate, statistics::units::Ratio::get(),
              "Hit rate in the cache."),
     ADD_STAT(vertexPullBW, statistics::units::Rate<statistics::units::Count,
@@ -1083,12 +1096,6 @@ CoalesceEngine::CoalesceStats::regStats()
 {
     using namespace statistics;
 
-    bitvectorSearchStatus.init(NUM_STATUS);
-    bitvectorSearchStatus.subname(0, "PENDING_READ");
-    bitvectorSearchStatus.subname(1, "IN_CACHE");
-    bitvectorSearchStatus.subname(2, "IN_MEMORY");
-    bitvectorSearchStatus.subname(3, "GARBAGE");
-
     hitRate = (readHits + readHitUnderMisses) /
                 (readHits + readHitUnderMisses + readMisses);
 
@@ -1096,7 +1103,6 @@ CoalesceEngine::CoalesceStats::regStats()
 
     vertexPushBW = (verticesPushed * getClockFrequency()) / lastVertexPushTime;
 
-    mshrEntryLength.init(coalesce.params().num_tgts_per_mshr);
     bitvectorLength.init(64);
     responseQueueLatency.init(64);
     memoryFunctionLatency.init(64);

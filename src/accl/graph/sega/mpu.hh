@@ -34,6 +34,7 @@
 
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/sega/coalesce_engine.hh"
+#include "accl/graph/sega/enums.hh"
 #include "accl/graph/sega/push_engine.hh"
 #include "accl/graph/sega/wl_engine.hh"
 #include "base/addr_range.hh"
@@ -64,10 +65,12 @@ class MPU : public SimObject
 
     AddrRangeList getAddrRanges() { return coalesceEngine->getAddrRanges(); }
     void recvFunctional(PacketPtr pkt) { coalesceEngine->recvFunctional(pkt); }
+    void postMemInitSetup() { coalesceEngine->postMemInitSetup(); }
+
     bool handleIncomingUpdate(PacketPtr pkt);
 
     void handleIncomingWL(Addr addr, WorkListItem wl);
-    bool recvWLRead(Addr addr) { return coalesceEngine->recvWLRead(addr); }
+    ReadReturnStatus recvWLRead(Addr addr) { return coalesceEngine->recvWLRead(addr); }
     void recvWLWrite(Addr addr, WorkListItem wl);
     void recvWorkload(GraphWorkload* Workload);
 
@@ -77,7 +80,6 @@ class MPU : public SimObject
     void start() { return pushEngine->start(); }
     void recvVertexPush(Addr addr, uint32_t delta,
                         uint32_t edge_index, uint32_t degree);
-    void recvPrevPullCorrection();
 
     void recvDoneSignal();
     bool done();

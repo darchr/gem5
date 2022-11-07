@@ -29,82 +29,19 @@
 #ifndef __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__
 #define __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__
 
-#include <bitset>
-
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/base/graph_workload.hh"
 #include "accl/graph/sega/base_memory_engine.hh"
+#include "accl/graph/sega/enums.hh"
+#include "accl/graph/sega/work_directory.hh"
 #include "base/cprintf.hh"
 #include "base/statistics.hh"
 #include "params/CoalesceEngine.hh"
 
-
-
 namespace gem5
 {
 
-enum WorkLocation
-{
-    PENDING_READ,
-    IN_CACHE,
-    IN_MEMORY,
-    GARBAGE,
-    NUM_STATUS
-};
-
-enum CacheState
-{
-    INVALID,
-    PENDING_DATA,
-    BUSY,
-    IDLE,
-    PENDING_PRE_WB_APPLY,
-    PENDING_WB,
-    PENDING_PRE_PUSH_APPLY,
-    NUM_CACHE_STATE
-};
-
-const char* cacheStateStrings[NUM_CACHE_STATE] = {
-    "INVALID",
-    "PENDING_DATA",
-    "BUSY",
-    "IDLE",
-    "PENDING_PRE_WB_APPLY",
-    "PENDING_WB",
-    "PENDING_PRE_PUSH_APPLY"
-};
-
-enum ReadDestination
-{
-    READ_FOR_CACHE,
-    READ_FOR_PUSH
-};
-
 class MPU;
-
-
-// TODO: Add active bit to WorkListItem class. Check active bit before activate
-// Only activate if necessary and not active before.
-class WorkDirectory
-{
-  private:
-    Addr memoryAtomSize;
-    int atomBlockSize;
-    size_t elementSize;
-
-    int _workCount;
-  public:
-    AddrRange memoryRange;
-    WorkDirectory(Addr atom_size, int block_size, size_t element_size):
-        memoryAtomSize(atom_size), atomBlockSize(block_size),
-        elementSize(element_size), _workCount(0)
-    {}
-
-    void activate(Addr addr);
-    void deactivate(Addr addr);
-    int workCount();
-    std::tuple<WorkLocation, Addr> getNextWork();
-};
 
 class CoalesceEngine : public BaseMemoryEngine
 {
@@ -117,7 +54,6 @@ class CoalesceEngine : public BaseMemoryEngine
         bool valid;
         bool dirty;
         bool hasConflict;
-        bool needsPreWBApply;
         CacheState state;
         Tick lastChangedTick;
         Block() {}
@@ -127,7 +63,6 @@ class CoalesceEngine : public BaseMemoryEngine
           valid(false),
           dirty(false),
           hasConflict(false),
-          needsPreWBApply(false),
           state(CacheState::INVALID),
           lastChangedTick(0)
         {
@@ -140,18 +75,15 @@ class CoalesceEngine : public BaseMemoryEngine
             valid = false;
             dirty = false;
             hasConflict = false;
-            needsPreWBApply = false;
             state = CacheState::INVALID;
             lastChangedTick = 0;
         }
 
         std::string to_string() {
             return csprintf("CacheBlock{addr: %lu, busyMask: %lu, valid: %s, "
-                "dirty: %s, hasConflict: %s, needsPreWBApply: %s"
-                "state: %s, lastChangedTick: %lu}", addr, busyMask,
-                valid ? "true" : "false", dirty ? "true" : "false",
-                hasConflict ? "true" : "false",
-                needsPreWBApply ? "true" : "false",
+                "dirty: %s, hasConflict: %s, state: %s, lastChangedTick: %lu}",
+                addr, busyMask, valid ? "true" : "false",
+                dirty ? "true" : "false", hasConflict ? "true" : "false",
                 cacheStateStrings[state], lastChangedTick);
         }
     };
@@ -164,7 +96,10 @@ class CoalesceEngine : public BaseMemoryEngine
     };
 
     MPU* owner;
+    WorkDirectory* directory;
     GraphWorkload* graphWorkload;
+
+    Addr lastAtomAddr;
 
     int numLines;
     int numElementsPerLine;
@@ -179,26 +114,26 @@ class CoalesceEngine : public BaseMemoryEngine
     std::deque<std::tuple<Addr, WorkListItem, Tick>> responseQueue;
 
     // Tracking work in cache
-    int cacheWorkCount;
-    int numPullsReceived;
-    UniqueFIFO<int> preWBApplyQueue;
+    int pullsReceived;
     // NOTE: Remember to erase from this upon eviction from cache
     UniqueFIFO<int> activeCacheBlocks;
 
+    int pullsScheduled;
     int pendingPullReads;
     // A map from addr to sendMask. sendMask determines which bytes to
     // send for push when getting the read response from memory.
-    std::unordered_map<Addr, uint64_t> pendingVertexPullReads;
+    std::unordered_set<Addr> pendingPullAddrs;
 
     int activeBufferSize;
     int postPushWBQueueSize;
     std::deque<std::tuple<PacketPtr, Tick>> activeBuffer;
     std::deque<std::tuple<PacketPtr, Tick>> postPushWBQueue;
 
+    bool timeToPull();
+    bool canSchedulePull();
+    bool workLeftInMem();
+    bool pullCondition();
     int getBlockIndex(Addr addr);
-    // TODO: Should be moved to WorkDirectory
-    int getBitIndexBase(Addr addr);
-    Addr getBlockAddrFromBitIndex(int index);
 
     MemoryEvent nextMemoryEvent;
     void processNextMemoryEvent();
@@ -212,11 +147,8 @@ class CoalesceEngine : public BaseMemoryEngine
     EventFunctionWrapper nextResponseEvent;
     void processNextResponseEvent();
 
-    EventFunctionWrapper nextPreWBApplyEvent;
-    void processNextPreWBApplyEvent();
-
-    EventFunctionWrapper nextPrePushApplyEvent;
-    void processNextPrePushApplyEvent();
+    EventFunctionWrapper nextApplyEvent;
+    void processNextApplyEvent();
 
     struct CoalesceStats : public statistics::Group
     {
@@ -236,18 +168,13 @@ class CoalesceEngine : public BaseMemoryEngine
         statistics::Scalar readMisses;
         statistics::Scalar readHitUnderMisses;
         statistics::Scalar mshrEntryShortage;
-        statistics::Scalar mshrTargetShortage;
         statistics::Scalar responsePortShortage;
         statistics::Scalar numMemoryBlocks;
-        statistics::Scalar numDoubleMemReads;
         statistics::Scalar verticesPulled;
         statistics::Scalar verticesPushed;
         statistics::Scalar lastVertexPullTime;
         statistics::Scalar lastVertexPushTime;
-        statistics::Scalar numInvalidApplies;
         statistics::Scalar numInvalidWriteBacks;
-
-        statistics::Vector bitvectorSearchStatus;
 
         statistics::Formula hitRate;
         statistics::Formula vertexPullBW;
@@ -272,12 +199,14 @@ class CoalesceEngine : public BaseMemoryEngine
     void recvWorkload(GraphWorkload* workload) { graphWorkload = workload; }
     virtual void recvFunctional(PacketPtr pkt);
 
-    bool recvWLRead(Addr addr);
+    void postMemInitSetup();
+
+    void createPopCountDirectory(int atoms_per_block);
+
+    ReadReturnStatus recvWLRead(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);
 
-    // FIXME: Update this to return sum of cacheWorkCount and WorkDirectory
-    // workcount.
-    int workCount() { return _workCount; }
+    int workCount();
     void recvVertexPull();
 
     bool done();

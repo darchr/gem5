@@ -155,13 +155,13 @@ void
 PushEngine::start()
 {
     assert(!_running);
-    assert(!nextVertexPullEvent.scheduled());
+    // assert(!nextVertexPullEvent.scheduled());
 
     _running = true;
     stats.numIdleCycles += ticksToCycles(curTick() - lastIdleEntranceTick);
     // NOTE: We might have to check for size availability here.
     assert(workLeft());
-    if (vertexSpace()) {
+    if (vertexSpace() && !nextVertexPullEvent.scheduled()) {
         schedule(nextVertexPullEvent, nextCycle());
     }
 }
@@ -169,17 +169,16 @@ PushEngine::start()
 void
 PushEngine::processNextVertexPullEvent()
 {
-    // TODO: change edgePointerQueueSize
-    numPendingPulls++;
-    owner->recvVertexPull();
-
-    if (!workLeft()) {
+    if (workLeft()) {
+        numPendingPulls++;
+        owner->recvVertexPull();
+        if (vertexSpace() && (!nextVertexPullEvent.scheduled())) {
+            schedule(nextVertexPullEvent, nextCycle());
+        }
+    } else {
         _running = false;
         lastIdleEntranceTick = curTick();
-    }
-
-    if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
-        schedule(nextVertexPullEvent, nextCycle());
+        DPRINTF(PushEngine, "%s: In idle state now.\n", __func__);
     }
 }
 
@@ -197,25 +196,15 @@ PushEngine::recvVertexPush(Addr addr, uint32_t delta,
                             sizeof(Edge), peerMemoryAtomSize);
 
     edgePointerQueue.emplace_back(info_gen, curTick());
-
     numPendingPulls--;
-    if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
+
+    if (vertexSpace() && (!nextVertexPullEvent.scheduled())) {
         schedule(nextVertexPullEvent, nextCycle());
     }
 
     if ((!nextMemoryReadEvent.pending()) &&
         (!nextMemoryReadEvent.scheduled())) {
         schedule(nextMemoryReadEvent, nextCycle());
-    }
-}
-
-void
-PushEngine::recvPrevPullCorrection()
-{
-    assert(numPendingPulls > 0);
-    numPendingPulls--;
-    if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
-        schedule(nextVertexPullEvent, nextCycle());
     }
 }
 
@@ -255,7 +244,7 @@ PushEngine::processNextMemoryReadEvent()
         }
     }
 
-    if (workLeft() && vertexSpace() && (!nextVertexPullEvent.scheduled())) {
+    if (vertexSpace() && (!nextVertexPullEvent.scheduled())) {
         schedule(nextVertexPullEvent, nextCycle());
     }
 
