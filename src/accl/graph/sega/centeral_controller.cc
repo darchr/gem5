@@ -82,6 +82,7 @@ CenteralController::startup()
     panic_if(!image.write(proxy), "%s: Unable to write image.");
 
     for (auto mpu: mpuVector) {
+        mpu->postMemInitSetup();
         if (!mpu->running() && (mpu->workCount()> 0)) {
             mpu->start();
         }
@@ -106,14 +107,14 @@ CenteralController::createReadPacket(Addr addr, unsigned int size)
 void
 CenteralController::createBFSWorkload(Addr init_addr, uint32_t init_value)
 {
-    workload = new BFSWorkload(init_addr, init_value, system->cacheLineSize());
+    workload = new BFSWorkload(init_addr, init_value);
 }
 
-void
-CenteralController::createPRWorkload(float alpha, float threshold)
-{
-    workload = new PRWorkload(alpha, threshold, system->cacheLineSize());
-}
+// void
+// CenteralController::createPRWorkload(float alpha, float threshold)
+// {
+//     workload = new PRWorkload(alpha, threshold, system->cacheLineSize());
+// }
 
 void
 CenteralController::recvDoneSignal()
@@ -144,6 +145,7 @@ CenteralController::printAnswerToHostSimout()
         }
         pkt->writeDataToBlock((uint8_t*) items, system->cacheLineSize());
         for (int i = 0; i < num_items; i++) {
+            workload->apply(items[i]);
             std::string print = csprintf("WorkListItem[%lu][%d]: %s.", addr, i,
                                         workload->printWorkListItem(items[i]));
 

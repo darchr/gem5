@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 The Regents of the University of California.
+ * Copyright (c) 2020 The Regents of the University of California.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,50 +26,32 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __ACCL_GRAPH_SEGA_CENTERAL_CONTROLLER_HH__
-#define __ACCL_GRAPH_SEGA_CENTERAL_CONTROLLER_HH__
-
-#include <vector>
-
-#include "accl/graph/base/data_structs.hh"
-#include "accl/graph/base/graph_workload.hh"
-#include "accl/graph/sega/mpu.hh"
-#include "base/addr_range.hh"
-#include "params/CenteralController.hh"
-#include "sim/clocked_object.hh"
-#include "sim/system.hh"
+#include "accl/graph/sega/enums.hh"
 
 namespace gem5
 {
 
-class CenteralController : public ClockedObject
-{
-  private:
-    System* system;
-
-    Addr maxVertexAddr;
-
-    std::vector<MPU*> mpuVector;
-    std::unordered_map<MPU*, AddrRangeList> addrRangeListMap;
-
-    PacketPtr createReadPacket(Addr addr, unsigned int size);
-
-  public:
-
-    GraphWorkload* workload;
-
-    PARAMS(CenteralController);
-    CenteralController(const CenteralControllerParams &params);
-    virtual void startup() override;
-
-    void createBFSWorkload(Addr init_addr, uint32_t init_value);
-    // void createPRWorkload(float alpha, float threshold);
-
-    void recvDoneSignal();
-
-    void printAnswerToHostSimout();
+const char* cacheStateStrings[NUM_CACHE_STATE] = {
+    "INVALID",
+    "PENDING_DATA",
+    "BUSY",
+    "IDLE",
+    "PENDING_WB",
+    "LOCKED_FOR_APPLY"
 };
 
-}
 
-#endif // __ACCL_GRAPH_SEGA_CENTERAL_CONTROLLER_HH__
+const char* readReturnStatusStrings[NUM_READ_RETURN_STATUS] =
+{
+    "ACCEPT",
+    "REJECT_ROLL",
+    "REJECT_NO_ROLL"
+};
+
+const char* readDestinationStrings[NUM_READ_DESTINATION] =
+{
+    "READ_FOR_CACHE",
+    "READ_FOR_PUSH"
+};
+
+} // namespace gem5

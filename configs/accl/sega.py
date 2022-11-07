@@ -54,8 +54,8 @@ class GPT(SubSystem):
             attached_memory_atom_size=32,
             cache_size=cache_size,
             num_mshr_entry=64,
-            num_tgts_per_mshr=64,
             max_resp_per_cycle=8,
+            active_buffer_size = 64,
             post_push_wb_queue_size=64,
         )
         self.push_engine = PushEngine(
@@ -138,6 +138,10 @@ class SEGA(System):
         self.gpts = gpts
 
         self.ctrl.mpu_vector = [gpt.mpu for gpt in self.gpts]
+
+    def create_pop_count_directory(self, atoms_per_block):
+        for gpt in self.gpts:
+            gpt.coalesce_engine.createPopCountDirectory(atoms_per_block)
 
     def create_bfs_workload(self, init_addr, init_value):
         self.ctrl.createBFSWorkload(init_addr, init_value)

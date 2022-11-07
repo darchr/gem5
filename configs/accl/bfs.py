@@ -68,6 +68,7 @@ if __name__ == "__m5_main__":
 
     m5.instantiate()
 
+    system.create_pop_count_directory(256)
     system.create_bfs_workload(init_addr, init_value)
     exit_event = m5.simulate()
     print(
