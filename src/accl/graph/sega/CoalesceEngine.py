@@ -27,6 +27,7 @@
 
 from m5.params import *
 from m5.proxy import *
+from m5.util.pybind import PyBindMethod
 from m5.objects.BaseMemoryEngine import BaseMemoryEngine
 
 class CoalesceEngine(BaseMemoryEngine):
@@ -40,9 +41,13 @@ class CoalesceEngine(BaseMemoryEngine):
 
     max_resp_per_cycle = Param.Int("Maximum number of vertices to send to "
                                 "requestor in each cycle. Used to limit b/w.")
-
+    active_buffer_size = Param.Int("Maximum number of memory active memory "
+                                "atoms ready to send updates. This parameter "
+                                "and post_push_wb_queue_size should be set "
+                                "in tandem. Probably, they should be equal.")
     post_push_wb_queue_size = Param.Int("Maximum number of pending wb after "
                                 "apply process for applications that require "
                                 "the apply process to happen exactly before "
                                 "pushing the edgePointer to the PushEngine.")
 
+    cxx_exports = [PyBindMethod("createPopCountDirectory")]

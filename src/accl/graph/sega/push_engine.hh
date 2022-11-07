@@ -32,6 +32,7 @@
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/base/graph_workload.hh"
 #include "accl/graph/sega/base_memory_engine.hh"
+#include "accl/graph/sega/enums.hh"
 #include "base/intmath.hh"
 #include "params/PushEngine.hh"
 
@@ -199,7 +200,6 @@ class PushEngine : public BaseMemoryEngine
     bool running() { return _running; }
     void recvVertexPush(Addr addr, uint32_t delta,
                         uint32_t edge_index, uint32_t degree);
-    void recvPrevPullCorrection();
 
     void recvReqRetry();
 

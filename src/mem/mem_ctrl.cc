@@ -212,7 +212,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
     for (int cnt = 0; cnt < pkt_count; ++cnt) {
         unsigned size = std::min((addr | (burst_size - 1)) + 1,
                         base_addr + pkt->getSize()) - addr;
-        stats.readPktSize[ceilLog2(size)]++;
+        // stats.readPktSize[ceilLog2(size)]++;
         stats.readBursts++;
         stats.requestorReadAccesses[pkt->requestorId()]++;
 

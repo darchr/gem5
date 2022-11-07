@@ -36,8 +36,6 @@
 #include <cassert>
 #include <list>
 
-#define MAX_BITVECTOR_SIZE (1 << 28)
-
 namespace gem5
 {
 
@@ -45,33 +43,28 @@ struct __attribute__ ((packed)) WorkListItem
 {
     uint32_t tempProp : 32;
     uint32_t prop : 32;
+    uint32_t degree : 32;
     uint32_t edgeIndex : 32;
-    uint32_t degree : 31;
-    bool active: 1;
 
     std::string to_string()
     {
-        return csprintf(
-                "WorkListItem{tempProp: %u, prop: %u, edgeIndex: %u, "
-                "degree: %u, active: %s}", tempProp, prop, edgeIndex, degree,
-                active ? "true" : "false");
+        return csprintf("WorkListItem{tempProp: %u, prop: %u, edgeIndex: %u, "
+                            "degree: %u}", tempProp, prop, edgeIndex, degree);
     }
 
     WorkListItem():
         tempProp(0),
         prop(0),
-        edgeIndex(0),
         degree(0),
-        active(false)
+        edgeIndex(0)
     {}
 
     WorkListItem(uint32_t temp_prop, uint32_t prop,
-                uint32_t edge_index, uint32_t degree, bool active):
+                uint32_t degree, uint32_t edge_index):
         tempProp(temp_prop),
         prop(prop),
-        edgeIndex(edge_index),
         degree(degree),
-        active(active)
+        edgeIndex(edge_index)
     {}
 
 };
@@ -111,8 +104,8 @@ struct MetaEdge {
 
     std::string to_string()
     {
-        return csprintf("MetaEdge{src: %lu, dst:%lu, weight: %u}",
-                                                    src, dst, weight);
+        return csprintf("MetaEdge{src: %lu, dst:%lu, weight: %u, value: %u}",
+                                                    src, dst, weight, value);
     }
 };
 
