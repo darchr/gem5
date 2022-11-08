@@ -38,8 +38,8 @@ namespace gem5
 class WorkDirectory
 {
   public:
-    virtual void activate(Addr atom_addr) = 0;
-    virtual void deactivate(Addr atom_addr) = 0;
+    virtual int activate(Addr atom_addr) = 0;
+    virtual int deactivate(Addr atom_addr) = 0;
     virtual Addr getNextWork() = 0;
 
     virtual int workCount() = 0;
@@ -99,7 +99,7 @@ class PopCountDirectory: public WorkDirectory
 
     // CAUTION: This should only be called when the work
     // directory **is not** tracking the the atom with atom_addr
-    virtual void activate(Addr atom_addr)
+    virtual int activate(Addr atom_addr)
     {
         int index = getIndexFromAtomAddr(atom_addr);
         uint32_t prev_count = popCount[index];
@@ -107,11 +107,12 @@ class PopCountDirectory: public WorkDirectory
         _workCount++;
         assert(popCount[index] > prev_count);
         assert(popCount[index] <= numAtomsPerBlock);
+        return popCount[index];
     }
 
     // CAUTION: This should only be called when the work
     // directory **is** tracking the the atom with atom_addr
-    virtual void deactivate(Addr atom_addr)
+    virtual int deactivate(Addr atom_addr)
     {
         int index = getIndexFromAtomAddr(atom_addr);
         uint32_t prev_count = popCount[index];
@@ -119,6 +120,7 @@ class PopCountDirectory: public WorkDirectory
         _workCount--;
         assert(popCount[index] < prev_count);
         assert(popCount[index] <= numAtomsPerBlock);
+        return popCount[index];
     }
 
     virtual int workCount() { return _workCount; }

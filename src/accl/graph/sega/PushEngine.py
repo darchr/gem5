@@ -42,8 +42,8 @@ class PushEngine(BaseMemoryEngine):
                                     "push engine where it stores the "
                                     "edges read from memory.")
 
-    max_propagates_per_cycle = Param.Int(4, "Maximum number of propagates "
-                                            "done per cycle.")
+    max_propagates_per_cycle = Param.Int("Maximum number of propagates "
+                                                        "done per cycle.")
 
     update_queue_size = Param.Int("Maximum number of entries "
                                     "for each update queue.")
