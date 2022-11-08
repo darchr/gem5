@@ -61,6 +61,7 @@ class GPT(SubSystem):
             push_req_queue_size=32,
             attached_memory_atom_size=64,
             resp_queue_size=4096,
+            max_propagates_per_cycle=8,
             update_queue_size=32,
         )
 
@@ -73,11 +74,6 @@ class GPT(SubSystem):
                 range=AddrRange(edge_memory_size), in_addr_map=False
             )
         )
-        # self.edge_mem_ctrl = SimpleMemory(latency="90ns",
-        #                                 latency_var="0ns",
-        #                                 bandwidth="18GiB/s",
-        #                                 range=AddrRange(edge_memory_size),
-        #                                 in_addr_map=False)
         self.coalesce_engine.mem_port = self.vertex_mem_ctrl.port
         self.push_engine.mem_port = self.edge_mem_ctrl.port
 

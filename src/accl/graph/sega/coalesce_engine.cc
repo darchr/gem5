@@ -239,7 +239,7 @@ CoalesceEngine::recvWLRead(Addr addr)
         // miss
         assert(cacheBlocks[block_index].addr != aligned_addr);
         DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a miss.\n", __func__, addr);
-
+        stats.readMisses++;
         if (cacheBlocks[block_index].state != CacheState::INVALID) {
             // conflict miss
             DPRINTF(CoalesceEngine, "%s: Addr: %lu has conflict with "
@@ -268,7 +268,9 @@ CoalesceEngine::recvWLRead(Addr addr)
                     }
                     if (atom_active) {
                         activeCacheBlocks.erase(block_index);
-                        directory->activate(cacheBlocks[block_index].addr);
+                        int count = directory->activate(cacheBlocks[block_index].addr);
+                        stats.blockActiveCount.sample(count);
+                        stats.frontierSize.sample(directory->workCount());
                     }
                     // NOTE: Bring the cache line to invalid state.
                     // NOTE: Above line where we set hasConflict to true
@@ -301,7 +303,6 @@ CoalesceEngine::recvWLRead(Addr addr)
             }
             return ReadReturnStatus::ACCEPT;
         }
-        stats.readMisses++;
     }
 }
 
@@ -376,8 +377,10 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                                             cacheBlocks[block_index].items[index]);
             }
             if (atom_active) {
-                directory->deactivate(addr);
+                int count = directory->deactivate(addr);
                 activeCacheBlocks.push_back(block_index);
+                stats.blockActiveCount.sample(count);
+                stats.frontierSize.sample(directory->workCount());
             }
 
             assert(MSHR.find(block_index) != MSHR.end());
@@ -433,8 +436,10 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                 atom_active |= graphWorkload->activeCondition(items[index]);
             }
             if (atom_active) {
-                directory->deactivate(addr);
+                int count = directory->deactivate(addr);
                 activeBuffer.emplace_back(pkt, curTick());
+                stats.blockActiveCount.sample(count);
+                stats.frontierSize.sample(directory->workCount());
                 DPRINTF(MSDebug, "%s: Empalced pkt: %s in activeBuffer. "
                         "activeBuffer.size: %d.\n", __func__,
                         pkt->print(), activeBuffer.size());
@@ -591,7 +596,9 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
                 }
                 if (atom_active) {
                     activeCacheBlocks.erase(block_index);
-                    directory->activate(cacheBlocks[block_index].addr);
+                    int count = directory->activate(cacheBlocks[block_index].addr);
+                    stats.blockActiveCount.sample(count);
+                    stats.frontierSize.sample(directory->workCount());
                 }
                 cacheBlocks[block_index].reset();
             }
@@ -804,7 +811,9 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
         }
         if (atom_active) {
             activeCacheBlocks.erase(block_index);
-            directory->activate(cacheBlocks[block_index].addr);
+            int count = directory->activate(cacheBlocks[block_index].addr);
+            stats.blockActiveCount.sample(count);
+            stats.frontierSize.sample(directory->workCount());
         }
 
         PacketPtr pkt = createWritePacket(
@@ -1081,6 +1090,8 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Rate at which vertices are pushed."),
     ADD_STAT(frontierSize, statistics::units::Count::get(),
              "Histogram of the length of the bitvector."),
+    ADD_STAT(blockActiveCount, statistics::units::Count::get(),
+             "Histogram of the popCount values in the directory"),
     ADD_STAT(responseQueueLatency, statistics::units::Second::get(),
              "Histogram of the response latency to WLEngine. (ns)"),
     ADD_STAT(memoryFunctionLatency, statistics::units::Second::get(),
@@ -1101,6 +1112,7 @@ CoalesceEngine::CoalesceStats::regStats()
     vertexPushBW = (verticesPushed * getClockFrequency()) / lastVertexPushTime;
 
     frontierSize.init(64);
+    blockActiveCount.init(64);
     responseQueueLatency.init(64);
     memoryFunctionLatency.init(64);
 }
