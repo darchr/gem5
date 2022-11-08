@@ -179,6 +179,7 @@ class CoalesceEngine : public BaseMemoryEngine
         statistics::Formula vertexPushBW;
 
         statistics::Histogram frontierSize;
+        statistics::Histogram blockActiveCount;
         statistics::Histogram responseQueueLatency;
         statistics::Histogram memoryFunctionLatency;
     };
