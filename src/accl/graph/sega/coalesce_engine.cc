@@ -46,7 +46,7 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     BaseMemoryEngine(params), lastAtomAddr(0),
     numLines((int) (params.cache_size / peerMemoryAtomSize)),
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
-    onTheFlyReqs(0), numMSHREntries(params.num_mshr_entry),
+    onTheFlyReqs(0),
     maxRespPerCycle(params.max_resp_per_cycle),
     pullsReceived(0), pullsScheduled(0), pendingPullReads(0),
     activeBufferSize(params.active_buffer_size),
@@ -227,7 +227,6 @@ CoalesceEngine::recvWLRead(Addr addr)
         assert(cacheBlocks[block_index].busyMask == 0);
         assert(!cacheBlocks[block_index].dirty);
 
-        assert(MSHR.size() <= numMSHREntries);
         assert(MSHR.find(block_index) != MSHR.end());
         MSHR[block_index].push_back(addr);
         DPRINTF(CoalesceEngine,  "%s: Added Addr: %lu to MSHR "
@@ -239,7 +238,6 @@ CoalesceEngine::recvWLRead(Addr addr)
     } else {
         // miss
         assert(cacheBlocks[block_index].addr != aligned_addr);
-        assert(MSHR.size() <= numMSHREntries);
         DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a miss.\n", __func__, addr);
 
         if (cacheBlocks[block_index].state != CacheState::INVALID) {
@@ -284,29 +282,26 @@ CoalesceEngine::recvWLRead(Addr addr)
         } else {
             // cold miss
             assert(MSHR.find(block_index) == MSHR.end());
-            if (MSHR.size() < numMSHREntries) {
-                cacheBlocks[block_index].addr = aligned_addr;
-                cacheBlocks[block_index].busyMask = 0;
-                cacheBlocks[block_index].valid = false;
-                cacheBlocks[block_index].dirty = false;
-                cacheBlocks[block_index].hasConflict = false;
-                cacheBlocks[block_index].state = CacheState::PENDING_DATA;
-                cacheBlocks[block_index].lastChangedTick = curTick();
+            cacheBlocks[block_index].addr = aligned_addr;
+            cacheBlocks[block_index].busyMask = 0;
+            cacheBlocks[block_index].valid = false;
+            cacheBlocks[block_index].dirty = false;
+            cacheBlocks[block_index].hasConflict = false;
+            cacheBlocks[block_index].state = CacheState::PENDING_DATA;
+            cacheBlocks[block_index].lastChangedTick = curTick();
 
-                MSHR[block_index].push_back(addr);
-                memoryFunctionQueue.emplace_back(
-                    [this] (int block_index, Tick schedule_tick) {
-                        processNextRead(block_index, schedule_tick);
-                    }, block_index, curTick());
-                if ((!nextMemoryEvent.pending()) &&
-                    (!nextMemoryEvent.scheduled())) {
-                    schedule(nextMemoryEvent, nextCycle());
-                }
-                return ReadReturnStatus::ACCEPT;
-            } else {
-                return ReadReturnStatus::REJECT_ROLL;
+            MSHR[block_index].push_back(addr);
+            memoryFunctionQueue.emplace_back(
+                [this] (int block_index, Tick schedule_tick) {
+                    processNextRead(block_index, schedule_tick);
+                }, block_index, curTick());
+            if ((!nextMemoryEvent.pending()) &&
+                (!nextMemoryEvent.scheduled())) {
+                schedule(nextMemoryEvent, nextCycle());
             }
+            return ReadReturnStatus::ACCEPT;
         }
+        stats.readMisses++;
     }
 }
 
@@ -939,6 +934,8 @@ CoalesceEngine::processNextApplyEvent()
                 owner->recvVertexPush(addr, delta, items[index].edgeIndex,
                                                     items[index].degree);
                 pullsReceived--;
+                stats.verticesPushed++;
+                stats.lastVertexPushTime = curTick() - stats.lastResetTick;
             }
         }
         pkt->deleteData();
@@ -986,6 +983,8 @@ CoalesceEngine::processNextApplyEvent()
                             cacheBlocks[block_index].items[index].edgeIndex,
                             cacheBlocks[block_index].items[index].degree);
                         pullsReceived--;
+                        stats.verticesPushed++;
+                        stats.lastVertexPushTime = curTick() - stats.lastResetTick;
                     }
                 }
 
@@ -1057,8 +1056,6 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Number of cache misses."),
     ADD_STAT(readHitUnderMisses, statistics::units::Count::get(),
              "Number of cache hit under misses."),
-    ADD_STAT(mshrEntryShortage, statistics::units::Count::get(),
-             "Number of cache rejections caused by entry shortage."),
     ADD_STAT(responsePortShortage, statistics::units::Count::get(),
              "Number of times a response has been "
              "delayed because of port shortage. "),
@@ -1082,7 +1079,7 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
     ADD_STAT(vertexPushBW, statistics::units::Rate<statistics::units::Count,
                                             statistics::units::Second>::get(),
              "Rate at which vertices are pushed."),
-    ADD_STAT(bitvectorLength, statistics::units::Count::get(),
+    ADD_STAT(frontierSize, statistics::units::Count::get(),
              "Histogram of the length of the bitvector."),
     ADD_STAT(responseQueueLatency, statistics::units::Second::get(),
              "Histogram of the response latency to WLEngine. (ns)"),
@@ -1103,7 +1100,7 @@ CoalesceEngine::CoalesceStats::regStats()
 
     vertexPushBW = (verticesPushed * getClockFrequency()) / lastVertexPushTime;
 
-    bitvectorLength.init(64);
+    frontierSize.init(64);
     responseQueueLatency.init(64);
     memoryFunctionLatency.init(64);
 }
