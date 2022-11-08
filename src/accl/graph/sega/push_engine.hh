@@ -164,9 +164,10 @@ class PushEngine : public BaseMemoryEngine
 
       PushEngine &push;
 
+      statistics::Scalar numMemoryBlocks;
       statistics::Scalar numPropagates;
       statistics::Scalar numNetBlocks;
-      statistics::Scalar numIdleCycles;
+    //   statistics::Scalar numIdleCycles;
       statistics::Scalar updateQueueCoalescions;
       statistics::Scalar numUpdates;
       statistics::Scalar numWastefulEdgesRead;
@@ -174,7 +175,9 @@ class PushEngine : public BaseMemoryEngine
       statistics::Formula TEPS;
 
       statistics::Histogram edgePointerQueueLatency;
+      statistics::Histogram edgePointerQueueLength;
       statistics::Histogram edgeQueueLatency;
+      statistics::Histogram edgeQueueLength;
       statistics::Histogram updateQueueLength;
       statistics::Histogram numPropagatesHist;
     };

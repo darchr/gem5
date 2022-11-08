@@ -158,7 +158,7 @@ PushEngine::start()
     // assert(!nextVertexPullEvent.scheduled());
 
     _running = true;
-    stats.numIdleCycles += ticksToCycles(curTick() - lastIdleEntranceTick);
+    // stats.numIdleCycles += ticksToCycles(curTick() - lastIdleEntranceTick);
     // NOTE: We might have to check for size availability here.
     assert(workLeft());
     if (vertexSpace() && !nextVertexPullEvent.scheduled()) {
@@ -196,6 +196,7 @@ PushEngine::recvVertexPush(Addr addr, uint32_t delta,
                             sizeof(Edge), peerMemoryAtomSize);
 
     edgePointerQueue.emplace_back(info_gen, curTick());
+    stats.edgePointerQueueLength.sample(edgePointerQueue.size());
     numPendingPulls--;
 
     if (vertexSpace() && (!nextVertexPullEvent.scheduled())) {
@@ -239,6 +240,7 @@ PushEngine::processNextMemoryReadEvent()
             stats.edgePointerQueueLatency.sample(
                     (curTick() - entrance_tick) * 1e9 / getClockFrequency());
             edgePointerQueue.pop_front();
+            stats.edgePointerQueueLength.sample(edgePointerQueue.size());
             DPRINTF(PushEngine, "%s: Popped curr_info from edgePointerQueue. "
             "edgePointerQueue.size() = %u.\n", __func__, edgePointerQueue.size());
         }
@@ -282,6 +284,7 @@ PushEngine::handleMemResp(PacketPtr pkt)
         MetaEdge meta_edge(
                     push_info.src, edge_dst, edge_weight, push_info.value);
         metaEdgeQueue.emplace_back(meta_edge, curTick());
+        stats.edgeQueueLength.sample(metaEdgeQueue.size());
     }
     stats.numWastefulEdgesRead +=
                 (peerMemoryAtomSize / sizeof(Edge)) - push_info.numElements;
@@ -320,6 +323,7 @@ PushEngine::processNextPropagateEvent()
             stats.numPropagates++;
             stats.edgeQueueLatency.sample(
                     (curTick() - entrance_tick) * 1e9 / getClockFrequency());
+            stats.edgeQueueLength.sample(metaEdgeQueue.size());
         } else {
             metaEdgeQueue.emplace_back(meta_edge, entrance_tick);
         }
@@ -466,8 +470,8 @@ PushEngine::PushStats::PushStats(PushEngine &_push)
              "Number of propagate operations done."),
     ADD_STAT(numNetBlocks, statistics::units::Count::get(),
              "Number of updates blocked by network."),
-    ADD_STAT(numIdleCycles, statistics::units::Count::get(),
-             "Number of cycles PushEngine has been idle."),
+    // ADD_STAT(numIdleCycles, statistics::units::Count::get(),
+    //          "Number of cycles PushEngine has been idle."),
     ADD_STAT(updateQueueCoalescions, statistics::units::Count::get(),
              "Number of coalescions in the update queues."),
     ADD_STAT(numUpdates, statistics::units::Count::get(),
@@ -479,8 +483,12 @@ PushEngine::PushStats::PushStats(PushEngine &_push)
              "Traversed Edges Per Second."),
     ADD_STAT(edgePointerQueueLatency, statistics::units::Second::get(),
              "Histogram of the latency of the edgePointerQueue."),
+    ADD_STAT(edgePointerQueueLength, statistics::units::Count::get(),
+             "Histogram of the size of the edgePointerQueue."),
     ADD_STAT(edgeQueueLatency, statistics::units::Second::get(),
              "Histogram of the latency of the metaEdgeQueue."),
+    ADD_STAT(edgeQueueLength, statistics::units::Count::get(),
+             "Histogram of the size of the metaEdgeQueue."),
     ADD_STAT(updateQueueLength, statistics::units::Count::get(),
              "Histogram of the length of updateQueues."),
     ADD_STAT(numPropagatesHist, statistics::units::Count::get(),
@@ -496,7 +504,9 @@ PushEngine::PushStats::regStats()
     TEPS = numPropagates / simSeconds;
 
     edgePointerQueueLatency.init(64);
+    edgePointerQueueLength.init(64);
     edgeQueueLatency.init(64);
+    edgeQueueLength.init(64);
     updateQueueLength.init(64);
     numPropagatesHist.init(push.params().max_propagates_per_cycle);
 }

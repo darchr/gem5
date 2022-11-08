@@ -106,7 +106,6 @@ class CoalesceEngine : public BaseMemoryEngine
     Block* cacheBlocks;
 
     int onTheFlyReqs;
-    int numMSHREntries;
     std::unordered_map<int, std::vector<Addr>> MSHR;
 
     // Response route to WLEngine
@@ -167,7 +166,6 @@ class CoalesceEngine : public BaseMemoryEngine
         statistics::Scalar readHits;
         statistics::Scalar readMisses;
         statistics::Scalar readHitUnderMisses;
-        statistics::Scalar mshrEntryShortage;
         statistics::Scalar responsePortShortage;
         statistics::Scalar numMemoryBlocks;
         statistics::Scalar verticesPulled;
@@ -180,7 +178,7 @@ class CoalesceEngine : public BaseMemoryEngine
         statistics::Formula vertexPullBW;
         statistics::Formula vertexPushBW;
 
-        statistics::Histogram bitvectorLength;
+        statistics::Histogram frontierSize;
         statistics::Histogram responseQueueLatency;
         statistics::Histogram memoryFunctionLatency;
     };

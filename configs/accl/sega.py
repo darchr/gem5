@@ -53,7 +53,6 @@ class GPT(SubSystem):
         self.coalesce_engine = CoalesceEngine(
             attached_memory_atom_size=32,
             cache_size=cache_size,
-            num_mshr_entry=64,
             max_resp_per_cycle=8,
             active_buffer_size = 64,
             post_push_wb_queue_size=64,
@@ -61,7 +60,7 @@ class GPT(SubSystem):
         self.push_engine = PushEngine(
             push_req_queue_size=32,
             attached_memory_atom_size=64,
-            resp_queue_size=512,
+            resp_queue_size=4096,
             update_queue_size=32,
         )
 
@@ -74,7 +73,11 @@ class GPT(SubSystem):
                 range=AddrRange(edge_memory_size), in_addr_map=False
             )
         )
-
+        # self.edge_mem_ctrl = SimpleMemory(latency="90ns",
+        #                                 latency_var="0ns",
+        #                                 bandwidth="18GiB/s",
+        #                                 range=AddrRange(edge_memory_size),
+        #                                 in_addr_map=False)
         self.coalesce_engine.mem_port = self.vertex_mem_ctrl.port
         self.push_engine.mem_port = self.edge_mem_ctrl.port
 
@@ -105,6 +108,9 @@ class GPT(SubSystem):
 
     def set_edge_image(self, edge_image):
         self.edge_mem_ctrl.dram.image_file = edge_image
+    # def set_edge_image(self, edge_image):
+    #     self.edge_mem_ctrl.image_file = edge_image
+
 
 
 class SEGA(System):

@@ -37,8 +37,6 @@ class CoalesceEngine(BaseMemoryEngine):
 
     cache_size = Param.MemorySize("Size of the internal SRAM array.")
 
-    num_mshr_entry = Param.Int("Number of MSHR entries.")
-
     max_resp_per_cycle = Param.Int("Maximum number of vertices to send to "
                                 "requestor in each cycle. Used to limit b/w.")
     active_buffer_size = Param.Int("Maximum number of memory active memory "
