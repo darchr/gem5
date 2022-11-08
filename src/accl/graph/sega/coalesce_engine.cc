@@ -279,6 +279,7 @@ CoalesceEngine::recvWLRead(Addr addr)
                 }
                 return ReadReturnStatus::REJECT_NO_ROLL;
             } else {
+                stats.numConflicts++;
                 return ReadReturnStatus::REJECT_ROLL;
             }
         } else {
@@ -1065,6 +1066,8 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Number of cache misses."),
     ADD_STAT(readHitUnderMisses, statistics::units::Count::get(),
              "Number of cache hit under misses."),
+    ADD_STAT(numConflicts, statistics::units::Count::get(),
+             "Number of conflicts raised by reads in the cache."),
     ADD_STAT(responsePortShortage, statistics::units::Count::get(),
              "Number of times a response has been "
              "delayed because of port shortage. "),

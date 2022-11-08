@@ -166,6 +166,7 @@ class CoalesceEngine : public BaseMemoryEngine
         statistics::Scalar readHits;
         statistics::Scalar readMisses;
         statistics::Scalar readHitUnderMisses;
+        statistics::Scalar numConflicts;
         statistics::Scalar responsePortShortage;
         statistics::Scalar numMemoryBlocks;
         statistics::Scalar verticesPulled;
