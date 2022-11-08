@@ -39,7 +39,6 @@ enum CacheState
     BUSY,
     IDLE,
     PENDING_WB,
-    LOCKED_FOR_APPLY,
     NUM_CACHE_STATE
 };
 extern const char* cacheStateStrings[NUM_CACHE_STATE];

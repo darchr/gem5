@@ -179,9 +179,6 @@ CoalesceEngine::recvWLRead(Addr addr)
     if ((cacheBlocks[block_index].addr == aligned_addr) &&
         (cacheBlocks[block_index].valid)) {
         // Hit
-        if (cacheBlocks[block_index].state == CacheState::LOCKED_FOR_APPLY) {
-            return ReadReturnStatus::REJECT_NO_ROLL;
-        }
         DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a hit.\n", __func__, addr);
         stats.readHits++;
         assert(cacheBlocks[block_index].state != CacheState::INVALID);
