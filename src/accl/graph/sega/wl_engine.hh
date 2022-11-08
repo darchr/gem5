@@ -101,6 +101,7 @@ class WLEngine : public BaseReduceEngine
       statistics::Scalar numReduce;
       statistics::Scalar registerFileCoalesce;
       statistics::Scalar registerShortage;
+      statistics::Scalar numUpdateRolls;
 
       statistics::Histogram vertexReadLatency;
       statistics::Histogram updateQueueLatency;

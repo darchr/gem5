@@ -36,8 +36,7 @@ const char* cacheStateStrings[NUM_CACHE_STATE] = {
     "PENDING_DATA",
     "BUSY",
     "IDLE",
-    "PENDING_WB",
-    "LOCKED_FOR_APPLY"
+    "PENDING_WB"
 };
 
 

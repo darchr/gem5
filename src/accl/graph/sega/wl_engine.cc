@@ -224,6 +224,7 @@ WLEngine::processNextReadEvent()
                                         update_addr, update_value, enter_tick);
                     DPRINTF(WLEngine, "%s: Received a reject from cache. "
                                         "Rolling the update.\n", __func__);
+                    stats.numUpdateRolls++;
                 } else {
                     DPRINTF(WLEngine, "%s: Received a reject from cache. "
                                     "Not rolling the update.\n", __func__);
@@ -330,6 +331,9 @@ WLEngine::WorkListStats::WorkListStats(WLEngine &_wl)
     ADD_STAT(registerShortage, statistics::units::Count::get(),
              "Number of times updates were "
              "stalled because of register shortage"),
+    ADD_STAT(numUpdateRolls, statistics::units::Count::get(),
+             "Number of times an update has been rolled back "
+             "to the back of the update queue due to cache reject."),
     ADD_STAT(vertexReadLatency, statistics::units::Second::get(),
              "Histogram of the latency of reading a vertex (ns)."),
     ADD_STAT(updateQueueLatency, statistics::units::Second::get(),
