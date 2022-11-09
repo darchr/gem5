@@ -113,92 +113,75 @@ BFSWorkload::printWorkListItem(const WorkListItem wl)
             );
 }
 
-// PRWorkload::PRWorkload(float alpha, float threshold, int atom_size):
-//     GraphWorkload(), alpha(alpha), threshold(threshold), atomSize(atom_size)
-// {
-//     numElementsPerLine = (int) (atomSize / sizeof(WorkListItem));
-// }
+void
+PRWorkload::init(PacketPtr pkt, WorkDirectory* dir)
+{
+    size_t pkt_size = pkt->getSize();
+    int num_elements = (int) (pkt_size / sizeof(WorkListItem));
+    WorkListItem items[num_elements];
 
-// void
-// PRWorkload::init(PacketPtr pkt, int bit_index_base,
-//                 std::bitset<MAX_BITVECTOR_SIZE>& needsPush,
-//                 std::deque<int>& activeBits,
-//                 int& _workCount)
-// {
-//     WorkListItem items[numElementsPerLine];
+    pkt->writeDataToBlock((uint8_t*) items, pkt_size);
+    bool atom_active = false;
+    for (int i = 0; i < num_elements; i++) {
+        items[i].tempProp = readFromFloat<uint32_t>(0);
+        items[i].prop = readFromFloat<uint32_t>(1 - alpha);
+        atom_active |= activeCondition(items[i]);
+    }
+    if (atom_active) {
+        dir->activate(pkt->getAddr());
+    }
+    pkt->deleteData();
+    pkt->allocate();
+    pkt->setDataFromBlock((uint8_t*) items, pkt_size);
+}
 
-//     pkt->writeDataToBlock((uint8_t*) items, atomSize);
-//     for (int i = 0; i < numElementsPerLine; i++) {
-//         items[i].tempProp = readFromFloat<uint32_t>(0);
-//         items[i].prop = readFromFloat<uint32_t>(1 - alpha);
-//         if (items[i].degree > 0) {
-//             needsPush[bit_index_base + i] = 1;
-//             activeBits.push_back(bit_index_base + i);
-//             _workCount++;
-//         }
-//     }
-//     pkt->deleteData();
-//     pkt->allocate();
-//     pkt->setDataFromBlock((uint8_t*) items, atomSize);
-// }
+uint32_t
+PRWorkload::reduce(uint32_t update, uint32_t value)
+{
+    float update_float = writeToFloat<uint32_t>(update);
+    float value_float = writeToFloat<uint32_t>(value);
+    return readFromFloat<uint32_t>(update_float + value_float);
+}
 
-// uint32_t
-// PRWorkload::reduce(uint32_t update, uint32_t value)
-// {
-//     float update_float = writeToFloat<uint32_t>(update);
-//     float value_float = writeToFloat<uint32_t>(value);
-//     return readFromFloat<uint32_t>(update_float + value_float);
-// }
+uint32_t
+PRWorkload::propagate(uint32_t value, uint32_t weight)
+{
+    float value_float = writeToFloat<uint32_t>(value);
+    float weight_float = writeToFloat<uint32_t>(weight);
+    if (weight == 0) {
+        weight_float = 1.0;
+    }
+    return readFromFloat<uint32_t>(alpha * value_float * weight_float);
+}
 
-// uint32_t
-// PRWorkload::propagate(uint32_t value, uint32_t weight)
-// {
-//     float value_float = writeToFloat<uint32_t>(value);
-//     float weight_float = 1.0;
+bool
+PRWorkload::activeCondition(WorkListItem wl)
+{
+    float temp_float = writeToFloat<uint32_t>(wl.tempProp);
+    float prop_float = writeToFloat<uint32_t>(wl.prop);
+    float dist = std::abs(temp_float - prop_float);
+    return dist >= threshold;
+}
 
-//     return readFromFloat<uint32_t>(alpha * value_float * weight_float);
-// }
+uint32_t
+PRWorkload::apply(WorkListItem& wl)
+{
+    float temp_float = writeToFloat<uint32_t>(wl.tempProp);
+    float prop_float = writeToFloat<uint32_t>(wl.prop);
+    float delta = (temp_float - prop_float) / wl.degree;
+    uint32_t delta_uint = readFromFloat<uint32_t>(delta);
+    wl.prop = wl.tempProp;
+    return delta_uint;
+}
 
-// bool
-// PRWorkload::applyCondition(WorkListItem wl)
-// {
-//     float temp_float = writeToFloat<uint32_t>(wl.tempProp);
-//     float prop_float = writeToFloat<uint32_t>(wl.prop);
-//     float dist = std::abs(temp_float - prop_float);
-//     return dist >= threshold;
-// }
-
-// bool
-// PRWorkload::preWBApply(WorkListItem& wl)
-// {
-//     if (applyCondition(wl) && (wl.degree > 0)) {
-//         return true;
-//     }
-//     return false;
-// }
-
-// std::tuple<uint32_t, bool, bool>
-// PRWorkload::apply(WorkListItem& wl)
-// {
-//     if (applyCondition(wl)) {
-//         float temp_float = writeToFloat<uint32_t>(wl.tempProp);
-//         float prop_float = writeToFloat<uint32_t>(wl.prop);
-//         float delta = (temp_float - prop_float) / wl.degree;
-//         uint32_t delta_uint = readFromFloat<uint32_t>(delta);
-//         wl.prop = wl.tempProp;
-//         return std::make_tuple(delta_uint, true, true);
-//     }
-//     return std::make_tuple(0, false, false);
-// }
-
-// std::string
-// PRWorkload::printWorkListItem(const WorkListItem wl)
-// {
-//     float temp_float = writeToFloat<uint32_t>(wl.tempProp);
-//     return csprintf(
-//             "WorkListItem{tempProp: %f, prop: %f, degree: %u, edgeIndex: %u}",
-//             temp_float, temp_float, wl.degree, wl.edgeIndex
-//             );
-// }
+std::string
+PRWorkload::printWorkListItem(const WorkListItem wl)
+{
+    float temp_float = writeToFloat<uint32_t>(wl.tempProp);
+    float prop_float = writeToFloat<uint32_t>(wl.prop);
+    return csprintf(
+            "WorkListItem{tempProp: %f, prop: %f, degree: %u, edgeIndex: %u}",
+            temp_float, prop_float, wl.degree, wl.edgeIndex);
+}
 
 } // namespace gem5

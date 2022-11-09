@@ -77,24 +77,26 @@ class BFSWorkload : public GraphWorkload
 };
 
 
-// class PRWorkload : public GraphWorkload
-// {
-//   private:
-//     float alpha;
-//     float threshold;
+class PRWorkload : public GraphWorkload
+{
+  private:
+    float alpha;
+    float threshold;
 
-//   public:
-//     PRWorkload(float alpha, float threshold);
+  public:
+    PRWorkload(float alpha, float threshold):
+        alpha(alpha), threshold(threshold)
+    {}
 
-//     ~PRWorkload() {}
+    ~PRWorkload() {}
 
-//     virtual void init(PacketPtr pkt, WorkDirectory* dir);
-//     virtual uint32_t reduce(uint32_t update, uint32_t value);
-//     virtual uint32_t propagate(uint32_t value, uint32_t weight);
-//     virtual uint32_t apply(WorkListItem& wl);
-//     virtual bool activeCondition(WorkListItem wl);
-//     virtual std::string printWorkListItem(const WorkListItem wl);
-// };
+    virtual void init(PacketPtr pkt, WorkDirectory* dir);
+    virtual uint32_t reduce(uint32_t update, uint32_t value);
+    virtual uint32_t propagate(uint32_t value, uint32_t weight);
+    virtual uint32_t apply(WorkListItem& wl);
+    virtual bool activeCondition(WorkListItem wl);
+    virtual std::string printWorkListItem(const WorkListItem wl);
+};
 
 }
 
