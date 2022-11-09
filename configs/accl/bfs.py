@@ -40,20 +40,20 @@ def get_inputs():
     argparser.add_argument("init_addr", type=int)
     argparser.add_argument("init_value", type=int)
     argparser.add_argument(
+        "--sample",
+        dest="sample",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Sample sim stats every 100us",
+    )
+    argparser.add_argument(
         "--verify",
         dest="verify",
         action="store_const",
         const=True,
         default=False,
         help="Print final answer",
-    )
-    argparser.add_argument(
-        "--sample",
-        dest="sample",
-        action="store_const",
-        const=True,
-        default=False,
-        help="Sample statistics",
     )
 
     args = argparser.parse_args()
@@ -70,7 +70,15 @@ def get_inputs():
 
 
 if __name__ == "__m5_main__":
-    num_gpts, cache_size, graph, init_addr, init_value, sample, verify = get_inputs()
+    (
+        num_gpts,
+        cache_size,
+        graph,
+        init_addr,
+        init_value,
+        sample,
+        verify,
+    ) = get_inputs()
 
     system = SEGA(num_gpts, cache_size, graph)
     root = Root(full_system=False, system=system)
@@ -81,7 +89,7 @@ if __name__ == "__m5_main__":
     system.create_bfs_workload(init_addr, init_value)
     if sample:
         while True:
-            exit_event = m5.simulate(10000000)
+            exit_event = m5.simulate(100000000)
             print(
                 f"Exited simulation at tick {m5.curTick()} "
                 + f"because {exit_event.getCause()}"

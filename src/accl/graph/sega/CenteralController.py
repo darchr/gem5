@@ -43,6 +43,6 @@ class CenteralController(ClockedObject):
 
     cxx_exports = [
                     PyBindMethod("createBFSWorkload"),
-                    # PyBindMethod("createPRWorkload"),
+                    PyBindMethod("createPRWorkload"),
                     PyBindMethod("printAnswerToHostSimout")
                 ]
