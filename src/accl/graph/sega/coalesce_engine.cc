@@ -46,10 +46,10 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     BaseMemoryEngine(params), lastAtomAddr(0),
     numLines((int) (params.cache_size / peerMemoryAtomSize)),
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
-    onTheFlyReqs(0),
-    maxRespPerCycle(params.max_resp_per_cycle),
-    pullsReceived(0), pullsScheduled(0), pendingPullReads(0),
-    activeBufferSize(params.active_buffer_size),
+    onTheFlyReqs(0), maxRespPerCycle(params.max_resp_per_cycle),
+    pullsReceived(0), pullsScheduled(0),
+    pendingPullLimit(params.pending_pull_limit),
+    pendingPullReads(0), activeBufferSize(params.active_buffer_size),
     postPushWBQueueSize(params.post_push_wb_queue_size),
     nextMemoryEvent([this] {
         processNextMemoryEvent();
@@ -129,29 +129,17 @@ CoalesceEngine::done()
 }
 
 bool
-CoalesceEngine::timeToPull()
+CoalesceEngine::enoughSpace()
 {
-    return (activeBuffer.size() + pendingPullReads) < activeBufferSize;
-}
-
-bool
-CoalesceEngine::canSchedulePull()
-{
-    // TODO: Maybe a good idea to change this to
-    // activeBuffer.size() + pendingPullReads + pullsScheduled < activeBufferSize
-    return pullsScheduled < 1;
-}
-
-bool
-CoalesceEngine::workLeftInMem()
-{
-    return !directory->empty();
+    return (activeBuffer.size() + pendingPullReads + pullsScheduled) < activeBufferSize;
 }
 
 bool
 CoalesceEngine::pullCondition()
 {
-    return ((activeBuffer.size() + pendingPullReads + pullsScheduled) < activeBufferSize);
+    bool enough_space = enoughSpace();
+    bool schedule_limit = pullsScheduled < pendingPullLimit;
+    return enough_space && schedule_limit;
 }
 
 // addr should be aligned to peerMemoryAtomSize
@@ -784,12 +772,6 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
             atom_active |= graphWorkload->activeCondition(
                                         cacheBlocks[block_index].items[index]);
         }
-        if (atom_active) {
-            activeCacheBlocks.erase(block_index);
-            int count = directory->activate(cacheBlocks[block_index].addr);
-            stats.blockActiveCount.sample(count);
-            stats.frontierSize.sample(directory->workCount());
-        }
 
         PacketPtr pkt = createWritePacket(
                 cacheBlocks[block_index].addr, peerMemoryAtomSize,
@@ -797,8 +779,21 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
         DPRINTF(CoalesceEngine,  "%s: Created a write packet to "
                         "Addr: %lu, size = %d.\n", __func__,
                         pkt->getAddr(), pkt->getSize());
-        memPort.sendPacket(pkt);
-        onTheFlyReqs++;
+        if (atom_active) {
+            activeCacheBlocks.erase(block_index);
+            if (enoughSpace()) {
+                activeBuffer.emplace_back(pkt, curTick());
+            } else {
+                int count = directory->activate(cacheBlocks[block_index].addr);
+                stats.blockActiveCount.sample(count);
+                stats.frontierSize.sample(directory->workCount());
+                memPort.sendPacket(pkt);
+                onTheFlyReqs++;
+            }
+        } else {
+            memPort.sendPacket(pkt);
+            onTheFlyReqs++;
+        }
         cacheBlocks[block_index].reset();
         DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                     block_index, cacheBlocks[block_index].to_string());

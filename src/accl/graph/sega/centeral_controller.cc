@@ -110,11 +110,11 @@ CenteralController::createBFSWorkload(Addr init_addr, uint32_t init_value)
     workload = new BFSWorkload(init_addr, init_value);
 }
 
-// void
-// CenteralController::createPRWorkload(float alpha, float threshold)
-// {
-//     workload = new PRWorkload(alpha, threshold, system->cacheLineSize());
-// }
+void
+CenteralController::createPRWorkload(float alpha, float threshold)
+{
+    workload = new PRWorkload(alpha, threshold);
+}
 
 void
 CenteralController::recvDoneSignal()

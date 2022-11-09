@@ -47,14 +47,18 @@ def interleave_addresses(plain_range, num_channels, cache_line_size):
 
 
 class GPT(SubSystem):
-    def __init__(self, edge_memory_size: str, cache_size: str):
+    def __init__(
+        self, edge_memory_size: str, cache_size: str, simple_mem: bool = False
+    ):
         super().__init__()
+        self._simple_mem = simple_mem
         self.wl_engine = WLEngine(update_queue_size=128, register_file_size=64)
         self.coalesce_engine = CoalesceEngine(
             attached_memory_atom_size=32,
             cache_size=cache_size,
             max_resp_per_cycle=8,
-            active_buffer_size = 64,
+            pending_pull_limit=32,
+            active_buffer_size=64,
             post_push_wb_queue_size=64,
         )
         self.push_engine = PushEngine(
@@ -65,9 +69,15 @@ class GPT(SubSystem):
             update_queue_size=32,
         )
 
-        self.vertex_mem_ctrl = HBMCtrl(
-            dram=HBM_2000_4H_1x64(), dram_2=HBM_2000_4H_1x64()
-        )
+        if self._simple_mem:
+            self.vertex_mem_ctrl = SimpleMemory(
+                latency="122ns", latency_var="0ns", bandwidth="28GiB/s"
+            )
+        else:
+            self.vertex_mem_ctrl = HBMCtrl(
+                dram=HBM_2000_4H_1x64(page_policy="close", read_buffer_size=96, write_buffer_size=96),
+                dram_2=HBM_2000_4H_1x64(page_policy="close", read_buffer_size=96, write_buffer_size=96)
+            )
 
         self.edge_mem_ctrl = MemCtrl(
             dram=DDR4_2400_8x8(
@@ -96,18 +106,20 @@ class GPT(SubSystem):
         self.push_engine.out_ports = port
 
     def set_vertex_range(self, vertex_ranges):
-        self.vertex_mem_ctrl.dram.range = vertex_ranges[0]
-        self.vertex_mem_ctrl.dram_2.range = vertex_ranges[1]
+        if self._simple_mem:
+            self.vertex_mem_ctrl.range = vertex_ranges[0]
+        else:
+            self.vertex_mem_ctrl.dram.range = vertex_ranges[0]
+            self.vertex_mem_ctrl.dram_2.range = vertex_ranges[1]
 
     def set_vertex_pch_bit(self, pch_bit):
-        self.vertex_mem_ctrl.pch_bit = pch_bit
+        if self._simple_mem:
+            pass
+        else:
+            self.vertex_mem_ctrl.pch_bit = pch_bit
 
     def set_edge_image(self, edge_image):
         self.edge_mem_ctrl.dram.image_file = edge_image
-    # def set_edge_image(self, edge_image):
-    #     self.edge_mem_ctrl.image_file = edge_image
-
-
 
 class SEGA(System):
     def __init__(self, num_mpus, cache_size, graph_path):

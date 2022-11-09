@@ -118,6 +118,7 @@ class CoalesceEngine : public BaseMemoryEngine
     UniqueFIFO<int> activeCacheBlocks;
 
     int pullsScheduled;
+    int pendingPullLimit;
     int pendingPullReads;
     // A map from addr to sendMask. sendMask determines which bytes to
     // send for push when getting the read response from memory.
@@ -128,9 +129,7 @@ class CoalesceEngine : public BaseMemoryEngine
     std::deque<std::tuple<PacketPtr, Tick>> activeBuffer;
     std::deque<std::tuple<PacketPtr, Tick>> postPushWBQueue;
 
-    bool timeToPull();
-    bool canSchedulePull();
-    bool workLeftInMem();
+    bool enoughSpace();
     bool pullCondition();
     int getBlockIndex(Addr addr);
 

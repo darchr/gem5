@@ -39,6 +39,7 @@ class CoalesceEngine(BaseMemoryEngine):
 
     max_resp_per_cycle = Param.Int("Maximum number of vertices to send to "
                                 "requestor in each cycle. Used to limit b/w.")
+    pending_pull_limit = Param.Int("Maximum number of pending pull processes.")
     active_buffer_size = Param.Int("Maximum number of memory active memory "
                                 "atoms ready to send updates. This parameter "
                                 "and post_push_wb_queue_size should be set "

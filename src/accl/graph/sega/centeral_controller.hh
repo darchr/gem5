@@ -63,7 +63,7 @@ class CenteralController : public ClockedObject
     virtual void startup() override;
 
     void createBFSWorkload(Addr init_addr, uint32_t init_value);
-    // void createPRWorkload(float alpha, float threshold);
+    void createPRWorkload(float alpha, float threshold);
 
     void recvDoneSignal();
 

@@ -40,6 +40,14 @@ def get_inputs():
     argparser.add_argument("alpha", type=float)
     argparser.add_argument("threshold", type=float)
     argparser.add_argument(
+        "--sample",
+        dest="sample",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Sample sim stats every 100us",
+    )
+    argparser.add_argument(
         "--verify",
         dest="verify",
         action="store_const",
@@ -56,23 +64,45 @@ def get_inputs():
         args.graph,
         args.alpha,
         args.threshold,
+        args.sample,
         args.verify,
     )
 
-
 if __name__ == "__m5_main__":
-    num_gpts, cache_size, graph, alpha, threshold, verify = get_inputs()
+    (
+        num_gpts,
+        cache_size,
+        graph,
+        alpha,
+        threshold,
+        sample,
+        verify,
+    ) = get_inputs()
 
     system = SEGA(num_gpts, cache_size, graph)
     root = Root(full_system=False, system=system)
 
     m5.instantiate()
 
+    system.create_pop_count_directory(64)
     system.create_pr_workload(alpha, threshold)
-    exit_event = m5.simulate()
-    print(
-        f"Exited simulation at tick {m5.curTick()} "
-        + f"because {exit_event.getCause()}"
-    )
+    if sample:
+        while True:
+            exit_event = m5.simulate(100000000)
+            print(
+                f"Exited simulation at tick {m5.curTick()} "
+                + f"because {exit_event.getCause()}"
+            )
+            m5.stats.dump()
+            m5.stats.reset()
+            print(exit_event.getCause())
+            if exit_event.getCause() != "simulate() limit reached":
+                break
+    else:
+        exit_event = m5.simulate()
+        print(
+            f"Exited simulation at tick {m5.curTick()} "
+            + f"because {exit_event.getCause()}"
+        )
     if verify:
         system.print_answer()
