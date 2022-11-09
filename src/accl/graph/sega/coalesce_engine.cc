@@ -86,6 +86,9 @@ CoalesceEngine::recvFunctional(PacketPtr pkt)
         int block_index = getBlockIndex(addr);
 
         // FIXME: Check postPushWBQueue for hits
+        // Is it really the case though. I don't think at this time
+        // beacuse we check done after handleMemResp and make sure all
+        // the writes to memory are done before scheduling an exit event
         if ((cacheBlocks[block_index].addr == addr) &&
             (cacheBlocks[block_index].valid)) {
             assert(cacheBlocks[block_index].state == CacheState::IDLE);
@@ -438,23 +441,10 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                 activeBuffer.emplace_back(pkt, curTick());
                 stats.blockActiveCount.sample(count);
                 stats.frontierSize.sample(directory->workCount());
-                DPRINTF(MSDebug, "%s: Empalced pkt: %s in activeBuffer. "
-                        "activeBuffer.size: %d.\n", __func__,
-                        pkt->print(), activeBuffer.size());
             } else {
                 delete pkt;
             }
-            // if (workLeftInMem() && timeToPull() && canSchedulePull()) {
-            //     memoryFunctionQueue.emplace_back(
-            //         [this] (int ignore, Tick schedule_tick) {
-            //             processNextVertexPull(ignore, schedule_tick);
-            //         }, 0, curTick());
-            //     if ((!nextMemoryEvent.pending()) &&
-            //         (!nextMemoryEvent.scheduled())) {
-            //         schedule(nextMemoryEvent, nextCycle());
-            //     }
-            //     pullsScheduled++;
-            // }
+
             if (pullCondition()) {
                 memoryFunctionQueue.emplace_back(
                     [this] (int ignore, Tick schedule_tick) {
@@ -685,9 +675,6 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
             need_send_pkt = false;
             wb = postPushWBQueue.erase(wb);
             delete wb_pkt;
-            DPRINTF(MSDebug, "%s: Found addr: %lu in postPushWBQueue. "
-                        "postPushWBQueue.size: %d.\n", __func__,
-                        cacheBlocks[block_index].addr, postPushWBQueue.size());
         } else {
             wb++;
         }
@@ -707,16 +694,6 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
             need_send_pkt = false;
             ab = activeBuffer.erase(ab);
             delete ab_pkt;
-            // if (workLeftInMem() && timeToPull() && canSchedulePull()) {
-            //     memoryFunctionQueue.emplace_back(
-            //         [this] (int ignore, Tick schedule_tick) {
-            //             processNextVertexPull(ignore, schedule_tick);
-            //         }, 0, curTick());
-            //     pullsScheduled++;
-            // }
-            DPRINTF(MSDebug, "%s: Found addr: %lu in activeBuffer. "
-                        "activeBuffer.size: %d.\n", __func__,
-                        cacheBlocks[block_index].addr, activeBuffer.size());
             if (pullCondition()) {
                 memoryFunctionQueue.emplace_back(
                     [this] (int ignore, Tick schedule_tick) {
@@ -841,6 +818,7 @@ CoalesceEngine::processNextPostPushWB(int ignore, Tick schedule_tick)
     if (postPushWBQueue.empty()) {
         return;
     }
+
     PacketPtr wb_pkt;
     Tick pkt_tick;
     std::tie(wb_pkt, pkt_tick) = postPushWBQueue.front();
@@ -848,9 +826,6 @@ CoalesceEngine::processNextPostPushWB(int ignore, Tick schedule_tick)
         memPort.sendPacket(wb_pkt);
         onTheFlyReqs++;
         postPushWBQueue.pop_front();
-        DPRINTF(MSDebug, "%s: Popped pkt: %s from postPushWBQueue. "
-                        "postPushWBQueue.size: %d.\n", __func__,
-                        wb_pkt->print(), postPushWBQueue.size());
     }
 }
 
@@ -958,13 +933,7 @@ CoalesceEngine::processNextApplyEvent()
             PacketPtr wb_pkt = createWritePacket(pkt->getAddr(),
                                         peerMemoryAtomSize, (uint8_t*) items);
             postPushWBQueue.emplace_back(wb_pkt, curTick());
-            DPRINTF(MSDebug, "%s: Empalced pkt: %s in postPushWBQueue. "
-                            "postPushWBQueue.size: %d.\n", __func__,
-                            wb_pkt->print(), postPushWBQueue.size());
             activeBuffer.pop_front();
-            DPRINTF(MSDebug, "%s: Popped pkt: %s from activeBuffer. "
-                        "activeBuffer.size: %d.\n", __func__,
-                        pkt->print(), activeBuffer.size());
             memoryFunctionQueue.emplace_back(
                 [this] (int ignore, Tick schedule_tick) {
                     processNextPostPushWB(ignore, schedule_tick);
@@ -1020,17 +989,6 @@ CoalesceEngine::processNextApplyEvent()
                         "work to apply.\n", __func__);
     }
 
-    // if (workLeftInMem() && timeToPull() && canSchedulePull()) {
-    //     memoryFunctionQueue.emplace_back(
-    //         [this] (int ignore, Tick schedule_tick) {
-    //             processNextVertexPull(ignore, schedule_tick);
-    //         }, 0, curTick());
-    //     if ((!nextMemoryEvent.pending()) &&
-    //         (!nextMemoryEvent.scheduled())) {
-    //         schedule(nextMemoryEvent, nextCycle());
-    //     }
-    //     pullsScheduled++;
-    // }
     if (pullCondition()) {
         memoryFunctionQueue.emplace_back(
             [this] (int ignore, Tick schedule_tick) {
