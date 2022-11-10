@@ -763,7 +763,11 @@ class MemCtrl : public qos::MemCtrl
      * @return True when bus is currently in a read state
      */
 <<<<<<< HEAD
+<<<<<<< HEAD
     bool inReadBusState(bool next_state, const MemInterface* mem_intr) const;
+=======
+    bool inReadBusState(bool next_state, MemInterface* mem_intr) const;
+>>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
 =======
     bool inReadBusState(bool next_state, MemInterface* mem_intr) const;
 >>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
@@ -775,7 +779,11 @@ class MemCtrl : public qos::MemCtrl
      * @return True when bus is currently in a write state
      */
 <<<<<<< HEAD
+<<<<<<< HEAD
     bool inWriteBusState(bool next_state, const MemInterface* mem_intr) const;
+=======
+    bool inWriteBusState(bool next_state, MemInterface* mem_intr) const;
+>>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
 =======
     bool inWriteBusState(bool next_state, MemInterface* mem_intr) const;
 >>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states

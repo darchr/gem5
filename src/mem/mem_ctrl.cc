@@ -768,7 +768,11 @@ MemCtrl::verifyMultiCmd(Tick cmd_tick, Tick max_cmds_per_burst,
 
 bool
 <<<<<<< HEAD
+<<<<<<< HEAD
 MemCtrl::inReadBusState(bool next_state, const MemInterface* mem_intr) const
+=======
+MemCtrl::inReadBusState(bool next_state, MemInterface* mem_intr) const
+>>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
 =======
 MemCtrl::inReadBusState(bool next_state, MemInterface* mem_intr) const
 >>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
@@ -785,7 +789,11 @@ MemCtrl::inReadBusState(bool next_state, MemInterface* mem_intr) const
 
 bool
 <<<<<<< HEAD
+<<<<<<< HEAD
 MemCtrl::inWriteBusState(bool next_state, const MemInterface* mem_intr) const
+=======
+MemCtrl::inWriteBusState(bool next_state, MemInterface* mem_intr) const
+>>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
 =======
 MemCtrl::inWriteBusState(bool next_state, MemInterface* mem_intr) const
 >>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
@@ -915,6 +923,9 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 =======
                     "Switching to writes after %d reads with %d reads "
                     "waiting\n", mem_intr->readsThisTime, mem_intr->readQueueSize);
+<<<<<<< HEAD
+>>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
+=======
 >>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
             stats.rdPerTurnAround.sample(mem_intr->readsThisTime);
             mem_intr->readsThisTime = 0;
@@ -926,6 +937,9 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
 =======
                     "Switching to reads after %d writes with %d writes "
                     "waiting\n", mem_intr->writesThisTime, mem_intr->writeQueueSize);
+<<<<<<< HEAD
+>>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
+=======
 >>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
             stats.wrPerTurnAround.sample(mem_intr->writesThisTime);
             mem_intr->writesThisTime = 0;
@@ -1056,8 +1070,12 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // of reads before switching, or have emptied the readQ
             if ((mem_intr->writeQueueSize > writeHighThreshold) &&
 <<<<<<< HEAD
+<<<<<<< HEAD
                (mem_intr->readsThisTime >= minReadsPerSwitch ||
                mem_intr->readQueueSize == 0)
+=======
+               (mem_intr->readsThisTime >= minReadsPerSwitch || mem_intr->readQueueSize == 0)
+>>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
 =======
                (mem_intr->readsThisTime >= minReadsPerSwitch || mem_intr->readQueueSize == 0)
 >>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
@@ -1450,9 +1468,12 @@ MemCtrl::drain()
     // if there is anything in any of our internal queues, keep track
     // of that as well
 <<<<<<< HEAD
+<<<<<<< HEAD
     if (totalWriteQueueSize || totalReadQueueSize || !respQEmpty() ||
           !allIntfDrained()) {
 =======
+=======
+>>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
     if (!(!totalWriteQueueSize && !totalReadQueueSize && respQEmpty() &&
           allIntfDrained())) {
 
