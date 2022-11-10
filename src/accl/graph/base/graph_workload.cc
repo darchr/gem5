@@ -160,7 +160,7 @@ PRWorkload::activeCondition(WorkListItem wl)
     float temp_float = writeToFloat<uint32_t>(wl.tempProp);
     float prop_float = writeToFloat<uint32_t>(wl.prop);
     float dist = std::abs(temp_float - prop_float);
-    return dist >= threshold;
+    return (dist >= threshold) && (wl.degree > 0);
 }
 
 uint32_t
