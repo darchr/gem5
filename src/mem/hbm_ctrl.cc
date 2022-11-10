@@ -289,7 +289,11 @@ HBMCtrl::recvTimingReq(PacketPtr pkt)
             if (readQueueFullPC0(pkt_count)) {
                 DPRINTF(MemCtrl, "Read queue full, not accepting\n");
                 // remember that we have to retry this port
+<<<<<<< HEAD
                 retryRdReq = true;
+=======
+                MemCtrl::retryRdReq = true;
+>>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
                 stats.numRdRetry++;
                 return false;
             } else {

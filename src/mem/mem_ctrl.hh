@@ -762,7 +762,11 @@ class MemCtrl : public qos::MemCtrl
      * @param next_state Check either the current or next bus state
      * @return True when bus is currently in a read state
      */
+<<<<<<< HEAD
     bool inReadBusState(bool next_state, const MemInterface* mem_intr) const;
+=======
+    bool inReadBusState(bool next_state, MemInterface* mem_intr) const;
+>>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
 
     /**
      * Check the current direction of the memory channel
@@ -770,7 +774,11 @@ class MemCtrl : public qos::MemCtrl
      * @param next_state Check either the current or next bus state
      * @return True when bus is currently in a write state
      */
+<<<<<<< HEAD
     bool inWriteBusState(bool next_state, const MemInterface* mem_intr) const;
+=======
+    bool inWriteBusState(bool next_state, MemInterface* mem_intr) const;
+>>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
 
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
