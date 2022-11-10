@@ -660,6 +660,25 @@ class BaseCPU : public ClockedObject
     const Cycles pwrGatingLatency;
     const bool powerGatingOnIdle;
     EventFunctionWrapper enterPwrGatingEvent;
+
+  public:
+    struct FetchCPUStats : public statistics::Group
+    {
+        FetchCPUStats(statistics::Group *parent);
+
+        /* Total number of branches fetched */
+        statistics::Scalar numBranches;
+
+        /* Number of branches predicted as taken */
+        statistics::Scalar numPredictedBranches;
+
+        /* Number of mispredicted branches */
+        statistics::Scalar numBranchMispred;
+
+        /* Number of times fetch was asked to suspend by Execute */
+        statistics::Scalar numFetchSuspends;
+
+    } fetchStats;
 };
 
 } // namespace gem5

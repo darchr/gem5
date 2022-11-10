@@ -148,12 +148,6 @@ class SimpleExecContext : public ExecContext
                        "ICache total stall cycles"),
               ADD_STAT(dcacheStallCycles, statistics::units::Cycle::get(),
                        "DCache total stall cycles"),
-              ADD_STAT(numBranches, statistics::units::Count::get(),
-                       "Number of branches fetched"),
-              ADD_STAT(numPredictedBranches, statistics::units::Count::get(),
-                       "Number of branches predicted as taken"),
-              ADD_STAT(numBranchMispred, statistics::units::Count::get(),
-                       "Number of branch mispredictions"),
               ADD_STAT(statExecutedInstType, statistics::units::Count::get(),
                        "Class of executed instruction."),
               numRegReads{
@@ -196,15 +190,6 @@ class SimpleExecContext : public ExecContext
             idleFraction = statistics::constant(1.0) - notIdleFraction;
             numIdleCycles = idleFraction * cpu->baseStats.numCycles;
             numBusyCycles = notIdleFraction * cpu->baseStats.numCycles;
-
-            numBranches
-                .prereq(numBranches);
-
-            numPredictedBranches
-                .prereq(numPredictedBranches);
-
-            numBranchMispred
-                .prereq(numBranchMispred);
         }
 
         // Number of simulated instructions
@@ -279,15 +264,6 @@ class SimpleExecContext : public ExecContext
 
         // Number of cycles stalled for D-cache responses
         statistics::Scalar dcacheStallCycles;
-
-        /// @{
-        /// Total number of branches fetched
-        statistics::Scalar numBranches;
-        /// Number of branches predicted as taken
-        statistics::Scalar numPredictedBranches;
-        /// Number of misprediced branches
-        statistics::Scalar numBranchMispred;
-        /// @}
 
         // Instruction mix histogram by OpClass
         statistics::Vector statExecutedInstType;

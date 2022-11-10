@@ -139,7 +139,8 @@ BaseCPU::BaseCPU(const Params &p, bool is_checker)
       syscallRetryLatency(p.syscallRetryLatency),
       pwrGatingLatency(p.pwr_gating_latency),
       powerGatingOnIdle(p.power_gating_on_idle),
-      enterPwrGatingEvent([this]{ enterPwrGating(); }, name())
+      enterPwrGatingEvent([this]{ enterPwrGating(); }, name()),
+      fetchStats(this)
 {
     // if Python did not provide a valid ID, do it here
     if (_cpuId == -1 ) {
@@ -778,6 +779,29 @@ BaseCPU::GlobalStats::GlobalStats(statistics::Group *parent)
 
     hostInstRate = simInsts / hostSeconds;
     hostOpRate = simOps / hostSeconds;
+}
+
+BaseCPU::
+FetchCPUStats::FetchCPUStats(statistics::Group *parent)
+    : statistics::Group(parent),
+    ADD_STAT(numBranches, statistics::units::Count::get(),
+             "Number of branches fetched"),
+    ADD_STAT(numPredictedBranches, statistics::units::Count::get(),
+             "Number of branches predicted as taken"),
+    ADD_STAT(numBranchMispred, statistics::units::Count::get(),
+             "Number o0f branch mispredictions"),
+    ADD_STAT(numFetchSuspends, statistics::units::Count::get(),
+             "Number of times Execute suspended instruction fetching")
+
+{
+    numBranches
+        .prereq(numBranches);
+
+    numPredictedBranches
+        .prereq(numPredictedBranches);
+
+    numBranchMispred
+        .prereq(numBranchMispred);
 }
 
 } // namespace gem5

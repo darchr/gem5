@@ -374,7 +374,7 @@ BaseSimpleCPU::preExecute()
                 curThread));
 
         if (predict_taken)
-            ++t_info.execContextStats.numPredictedBranches;
+            ++fetchStats.numPredictedBranches;
     }
 }
 
@@ -396,7 +396,7 @@ BaseSimpleCPU::postExecute()
     }
 
     if (curStaticInst->isControl()) {
-        ++t_info.execContextStats.numBranches;
+        ++fetchStats.numBranches;
     }
 
     /* Power model statistics */
@@ -487,7 +487,7 @@ BaseSimpleCPU::advancePC(const Fault &fault)
             // Mis-predicted branch
             branchPred->squash(cur_sn, thread->pcState(), branching,
                     curThread);
-            ++t_info.execContextStats.numBranchMispred;
+            ++fetchStats.numBranchMispred;
         }
     }
 }

@@ -1055,7 +1055,7 @@ Execute::commitInst(MinorDynInstPtr inst, bool early_memory_issue,
             DPRINTF(MinorInterrupt, "Suspending thread: %d from Execute"
                 " inst: %s\n", thread_id, *inst);
 
-            cpu.stats.numFetchSuspends++;
+            cpu.fetchStats.numFetchSuspends++;
 
             updateBranchData(thread_id, BranchData::SuspendThread, inst,
                 resume_pc, branch);
