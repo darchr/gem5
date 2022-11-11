@@ -45,8 +45,11 @@ def get_inputs():
 if __name__ == "__main__":
     graph_path, num_gpts = get_inputs()
 
+    graph_sorter = os.environ.get("GRAPH_SORTER")
     graph_reader = os.environ.get("GRAPH_READER")
 
+    if graph_sorter is None:
+        raise ValueError(f"No value for $GRAPH_SORTER.")
     if graph_reader is None:
         raise ValueError(f"No value for $GRAPH_READER.")
 
@@ -54,6 +57,17 @@ if __name__ == "__main__":
         raise ValueError(f"{graph_path} does not exist.")
 
     graph_dir = os.path.dirname(graph_path)
+    sorted_graph = f"{graph_dir}/sorted_graph.txt"
+    if not os.path.exists(sorted_graph):
+        print(f"Sorting {graph_path} into {sorted_graph}.")
+        subprocess.run(
+            [
+                "python",
+                f"{graph_sorter}",
+                f"{graph_path}",
+                f"{sorted_graph}",
+            ]
+        )
     if not "binaries" in os.listdir(graph_dir):
         print(f"binaries directory not found in {graph_dir}")
         os.mkdir(f"{graph_dir}/binaries")
@@ -80,7 +94,7 @@ if __name__ == "__main__":
         subprocess.run(
             [
                 f"{graph_reader}",
-                f"{graph_path}",
+                f"{sorted_graph}",
                 "false",
                 f"{num_gpts}",
                 "32",
