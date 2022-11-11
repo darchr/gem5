@@ -48,11 +48,9 @@ def interleave_addresses(plain_range, num_channels, cache_line_size):
 
 class GPT(SubSystem):
     def __init__(
-        self, edge_memory_size: str, cache_size: str, simple_mem: bool = False
-    ):
+        self, edge_memory_size: str, cache_size: str):
         super().__init__()
-        self._simple_mem = simple_mem
-        self.wl_engine = WLEngine(update_queue_size=128, register_file_size=64)
+        self.wl_engine = WLEngine(update_queue_size=64, register_file_size=64)
         self.coalesce_engine = CoalesceEngine(
             attached_memory_atom_size=32,
             cache_size=cache_size,
@@ -69,20 +67,14 @@ class GPT(SubSystem):
             update_queue_size=32,
         )
 
-        if self._simple_mem:
-            self.vertex_mem_ctrl = SimpleMemory(
-                latency="122ns", latency_var="0ns", bandwidth="28GiB/s"
-            )
-        else:
-            self.vertex_mem_ctrl = HBMCtrl(
-                dram=HBM_2000_4H_1x64(page_policy="close", read_buffer_size=96, write_buffer_size=96),
-                dram_2=HBM_2000_4H_1x64(page_policy="close", read_buffer_size=96, write_buffer_size=96)
-            )
+        self.vertex_mem_ctrl = HBMCtrl(
+            dram=HBM_2000_4H_1x64(page_policy="close", read_buffer_size=96, write_buffer_size=96),
+            dram_2=HBM_2000_4H_1x64(page_policy="close", read_buffer_size=96, write_buffer_size=96)
+        )
 
         self.edge_mem_ctrl = MemCtrl(
             dram=DDR4_2400_8x8(
-                range=AddrRange(edge_memory_size), in_addr_map=False
-            )
+                range=AddrRange(edge_memory_size), in_addr_map=False)
         )
         self.coalesce_engine.mem_port = self.vertex_mem_ctrl.port
         self.push_engine.mem_port = self.edge_mem_ctrl.port
@@ -106,17 +98,11 @@ class GPT(SubSystem):
         self.push_engine.out_ports = port
 
     def set_vertex_range(self, vertex_ranges):
-        if self._simple_mem:
-            self.vertex_mem_ctrl.range = vertex_ranges[0]
-        else:
-            self.vertex_mem_ctrl.dram.range = vertex_ranges[0]
-            self.vertex_mem_ctrl.dram_2.range = vertex_ranges[1]
+        self.vertex_mem_ctrl.dram.range = vertex_ranges[0]
+        self.vertex_mem_ctrl.dram_2.range = vertex_ranges[1]
 
     def set_vertex_pch_bit(self, pch_bit):
-        if self._simple_mem:
-            pass
-        else:
-            self.vertex_mem_ctrl.pch_bit = pch_bit
+        self.vertex_mem_ctrl.pch_bit = pch_bit
 
     def set_edge_image(self, edge_image):
         self.edge_mem_ctrl.dram.image_file = edge_image
