@@ -24,7 +24,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from sega import SEGA
 
 import m5
 import argparse
@@ -39,6 +38,14 @@ def get_inputs():
     argparser.add_argument("graph", type=str)
     argparser.add_argument("init_addr", type=int)
     argparser.add_argument("init_value", type=int)
+    argparser.add_argument(
+        "--simple",
+        dest="simple",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Use simple memory for vertex",
+    )
     argparser.add_argument(
         "--sample",
         dest="sample",
@@ -64,6 +71,7 @@ def get_inputs():
         args.graph,
         args.init_addr,
         args.init_value,
+        args.simple,
         args.sample,
         args.verify,
     )
@@ -76,10 +84,15 @@ if __name__ == "__m5_main__":
         graph,
         init_addr,
         init_value,
+        simple,
         sample,
         verify,
     ) = get_inputs()
-
+    
+    if simple:
+        from sega_simple import SEGA
+    else:
+        from sega import SEGA
     system = SEGA(num_gpts, cache_size, graph)
     root = Root(full_system=False, system=system)
 

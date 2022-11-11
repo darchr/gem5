@@ -24,7 +24,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from sega import SEGA
 
 import m5
 import argparse
@@ -39,6 +38,14 @@ def get_inputs():
     argparser.add_argument("graph", type=str)
     argparser.add_argument("alpha", type=float)
     argparser.add_argument("threshold", type=float)
+    argparser.add_argument(
+        "--simple",
+        dest="simple",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Use simple memory for vertex",
+    )
     argparser.add_argument(
         "--sample",
         dest="sample",
@@ -64,9 +71,11 @@ def get_inputs():
         args.graph,
         args.alpha,
         args.threshold,
+        args.simple,
         args.sample,
         args.verify,
     )
+
 
 if __name__ == "__m5_main__":
     (
@@ -75,10 +84,15 @@ if __name__ == "__m5_main__":
         graph,
         alpha,
         threshold,
+        simple,
         sample,
         verify,
     ) = get_inputs()
-
+    
+    if simple:
+        from sega_simple import SEGA
+    else:
+        from sega import SEGA
     system = SEGA(num_gpts, cache_size, graph)
     root = Root(full_system=False, system=system)
 
@@ -95,7 +109,6 @@ if __name__ == "__m5_main__":
             )
             m5.stats.dump()
             m5.stats.reset()
-            print(exit_event.getCause())
             if exit_event.getCause() != "simulate() limit reached":
                 break
     else:
@@ -106,3 +119,4 @@ if __name__ == "__m5_main__":
         )
     if verify:
         system.print_answer()
+
