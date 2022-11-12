@@ -96,7 +96,7 @@ BFSWorkload::propagate(uint32_t value, uint32_t weight)
 bool
 BFSWorkload::activeCondition(WorkListItem new_wl, WorkListItem old_wl)
 {
-    return (new_wl.tempProp < old_wl.tempProp) && (old_wl.degree; > 0);
+    return (new_wl.tempProp < old_wl.tempProp) && (old_wl.degree > 0);
 }
 
 uint32_t
