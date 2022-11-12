@@ -67,12 +67,14 @@ BFSWorkload::init(PacketPtr pkt, WorkDirectory* dir)
         WorkListItem items[num_elements];
 
         pkt->writeDataToBlock((uint8_t*) items, pkt_size);
-
         int index = (int) ((initAddr - aligned_addr) / sizeof(WorkListItem));
-        items[index].tempProp = initValue;
-        if (activeCondition(items[index])) {
+        WorkListItem new_wl = items[index];
+        new_wl.tempProp = initValue;
+        if (activeCondition(new_wl, items[index])) {
             dir->activate(aligned_addr);
         }
+        items[index] = new_wl;
+
         pkt->deleteData();
         pkt->allocate();
         pkt->setDataFromBlock((uint8_t*) items, pkt_size);
