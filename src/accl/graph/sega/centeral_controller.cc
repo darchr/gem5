@@ -42,7 +42,9 @@ namespace gem5
 
 CenteralController::CenteralController(const Params& params):
     ClockedObject(params),
-    system(params.system)
+    system(params.system),
+    mode(ProcessingMode::NOT_SET),
+    state(BulkSynchronousState::NOT_SET)
 {
     for (auto mpu : params.mpu_vector) {
         mpuVector.push_back(mpu);
@@ -51,10 +53,40 @@ CenteralController::CenteralController(const Params& params):
 }
 
 void
+CenteralController::createBFSWorkload(Addr init_addr, uint32_t init_value)
+{
+    workload = new BFSWorkload(init_addr, init_value);
+}
+
+void
+CenteralController::createPRWorkload(float alpha, float threshold)
+{
+    workload = new PRWorkload(alpha, threshold);
+}
+
+void
+CenteralController::createPopCountDirectory(int atoms_per_block)
+{
+    fatal_if(mode == ProcessingMode::NOT_SET, "You should set the processing "
+                        "mode by calling either setAsyncMode or setBSPMode.")
+    if (mode == ProcessingMode::ASYNCHRONOUS) {
+        for (auto mpu: mpuVector) {
+            mpu->createAsyncPopCountDirectory(atoms_per_block);
+        }
+    }
+    if (mode == ProcessingMode::BULK_SYNCHRONOUS) {
+        for (auto mpu: mpuVector) {
+            mpu->createBSPPopCountDirectory(atoms_per_block);
+        }
+    }
+}
+
+void
 CenteralController::startup()
 {
     for (auto mpu: mpuVector) {
         addrRangeListMap[mpu] = mpu->getAddrRanges();
+        mpu->setProcessingMode(mode);
         mpu->recvWorkload(workload);
     }
 
@@ -83,7 +115,7 @@ CenteralController::startup()
 
     for (auto mpu: mpuVector) {
         mpu->postMemInitSetup();
-        if (!mpu->running() && (mpu->workCount()> 0)) {
+        if (!mpu->running() && (mpu->workCount() > 0)) {
             mpu->start();
         }
     }
@@ -105,18 +137,6 @@ CenteralController::createReadPacket(Addr addr, unsigned int size)
 }
 
 void
-CenteralController::createBFSWorkload(Addr init_addr, uint32_t init_value)
-{
-    workload = new BFSWorkload(init_addr, init_value);
-}
-
-void
-CenteralController::createPRWorkload(float alpha, float threshold)
-{
-    workload = new PRWorkload(alpha, threshold);
-}
-
-void
 CenteralController::recvDoneSignal()
 {
     bool done = true;
@@ -124,8 +144,24 @@ CenteralController::recvDoneSignal()
         done &= mpu->done();
     }
 
-    if (done) {
+    if (done && mode == ProcessingMode::ASYNCHRONOUS) {
         exitSimLoopNow("no update left to process.");
+    }
+
+    if (done && mode == ProcessingMode::BULK_SYNCHRONOUS) {
+        assert(state != BulkSynchronousState::DONT_CARE);
+        if (state == BulkSynchronousState::APPLYING) {
+            // TODO:
+            // 1- Toggle directories
+            // 2- Check if termination condition is met
+            // 3- If yes, schedule exit event,
+            // 4- If not switch state to consuming.
+            exitSimLoopNow("applying done.");
+        } else if (state == BulkSynchronousState::CONSUMING) {
+            // TODO:
+            // Schedule Bulk apply
+            exitSimLoopNow("consuming done.");
+        }
     }
 }
 

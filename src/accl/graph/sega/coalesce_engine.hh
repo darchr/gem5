@@ -96,7 +96,9 @@ class CoalesceEngine : public BaseMemoryEngine
     };
 
     MPU* owner;
-    WorkDirectory* directory;
+    ProcessingMode mode;
+    WorkDirectory* currentDirectory;
+    WorkDirectory* futureDirectory;
     GraphWorkload* graphWorkload;
 
     Addr lastAtomAddr;
@@ -114,8 +116,9 @@ class CoalesceEngine : public BaseMemoryEngine
 
     // Tracking work in cache
     int pullsReceived;
-    // NOTE: Remember to erase from this upon eviction from cache
-    UniqueFIFO<int> activeCacheBlocks;
+    // NOTE: Remember to erase from these upon eviction from cache
+    UniqueFIFO<int> currentActiveCacheBlocks;
+    UniqueFIFO<int> futureActiveCacheBlocks;
 
     int pullsScheduled;
     int pendingPullLimit;
@@ -195,12 +198,14 @@ class CoalesceEngine : public BaseMemoryEngine
     CoalesceEngine(const Params &params);
     void registerMPU(MPU* mpu);
 
+    void setProcessingMode(ProcessingMode _mode) { mode = _mode; }
+    void createAsyncPopCountDirectory(int atoms_per_block);
+    void createBSPPopCountDirectory(int atoms_per_block);
     void recvWorkload(GraphWorkload* workload) { graphWorkload = workload; }
+
     virtual void recvFunctional(PacketPtr pkt);
-
     void postMemInitSetup();
-
-    void createPopCountDirectory(int atoms_per_block);
+    void swapDirectories();
 
     ReadReturnStatus recvWLRead(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);

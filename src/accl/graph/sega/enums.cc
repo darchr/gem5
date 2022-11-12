@@ -39,7 +39,6 @@ const char* cacheStateStrings[NUM_CACHE_STATE] = {
     "PENDING_WB"
 };
 
-
 const char* readReturnStatusStrings[NUM_READ_RETURN_STATUS] =
 {
     "ACCEPT",
@@ -51,6 +50,20 @@ const char* readDestinationStrings[NUM_READ_DESTINATION] =
 {
     "READ_FOR_CACHE",
     "READ_FOR_PUSH"
+};
+
+const char* processingModeStrings[NUM_PROCESSING_MODE] =
+{
+    "NOT_SET",
+    "ASYNCHRONOUS",
+    "BULK_SYNCHRONOUS"
+};
+
+const char* bulkSynchronousStateStrings[NUM_BULK_SYNCHRONOUS_STATE] =
+{
+    "NOT_SET",
+    "CONSUMING",
+    "APPLYING"
 };
 
 } // namespace gem5

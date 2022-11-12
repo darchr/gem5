@@ -34,7 +34,6 @@
 #include "base/intmath.hh"
 #include "debug/CacheBlockState.hh"
 #include "debug/CoalesceEngine.hh"
-#include "debug/MSDebug.hh"
 #include "debug/SEGAStructureSize.hh"
 #include "mem/packet_access.hh"
 #include "sim/sim_exit.hh"
@@ -43,7 +42,7 @@ namespace gem5
 {
 
 CoalesceEngine::CoalesceEngine(const Params &params):
-    BaseMemoryEngine(params), lastAtomAddr(0),
+    BaseMemoryEngine(params), mode(ProcessingMode::NOT_SET), lastAtomAddr(0),
     numLines((int) (params.cache_size / peerMemoryAtomSize)),
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
     onTheFlyReqs(0), maxRespPerCycle(params.max_resp_per_cycle),
@@ -77,6 +76,8 @@ CoalesceEngine::registerMPU(MPU* mpu)
     owner = mpu;
 }
 
+
+// NOTE: Used for initializing memory and reading the final answer
 void
 CoalesceEngine::recvFunctional(PacketPtr pkt)
 {
@@ -85,10 +86,6 @@ CoalesceEngine::recvFunctional(PacketPtr pkt)
         Addr addr = pkt->getAddr();
         int block_index = getBlockIndex(addr);
 
-        // FIXME: Check postPushWBQueue for hits
-        // Is it really the case though. I don't think at this time
-        // beacuse we check done after handleMemResp and make sure all
-        // the writes to memory are done before scheduling an exit event
         if ((cacheBlocks[block_index].addr == addr) &&
             (cacheBlocks[block_index].valid)) {
             assert(cacheBlocks[block_index].state == CacheState::IDLE);
@@ -100,7 +97,7 @@ CoalesceEngine::recvFunctional(PacketPtr pkt)
             memPort.sendFunctional(pkt);
         }
     } else {
-        graphWorkload->init(pkt, directory);
+        graphWorkload->init(pkt, currentDirectory);
         if (pkt->getAddr() > lastAtomAddr) {
             lastAtomAddr = pkt->getAddr();
         }
@@ -111,21 +108,46 @@ CoalesceEngine::recvFunctional(PacketPtr pkt)
 void
 CoalesceEngine::postMemInitSetup()
 {
-    directory->setLastAtomAddr(lastAtomAddr);
+    currentDirectory->setLastAtomAddr(lastAtomAddr);
 }
 
 void
-CoalesceEngine::createPopCountDirectory(int atoms_per_block)
+CoalesceEngine::createAsyncPopCountDirectory(int atoms_per_block)
 {
-    directory = new PopCountDirectory(
+    currentDirectory = new PopCountDirectory(
                         peerMemoryRange, atoms_per_block, peerMemoryAtomSize);
+    futureDirectory = nullptr;
+}
+
+void
+CoalesceEngine::createBSPPopCountDirectory(int atoms_per_block)
+{
+    currentDirectory = new PopCountDirectory(
+                        peerMemoryRange, atoms_per_block, peerMemoryAtomSize);
+    futureDirectory = new PopCountDirectroy(
+                        peerMemoryRange, atoms_per_block, peerMemoryAtomSize);
+}
+
+void
+CoalesceEngine::swapDirectories()
+{
+    assert(currentDirectory->empty());
+    assert(currentActiveCacheBlocks.empty());
+    // assert currentDirectory is empty
+    WorkDirectory* temp = currentDirectory;
+    currentDirectory = futureDirectory;
+    futureDirectory = temp;
+
+    currentActiveCacheBlocks.clear();
+    currentActiveCacheBlocks = futureActiveCacheBlocks;
+    futureActiveCacheBlocks.clear();
 }
 
 bool
 CoalesceEngine::done()
 {
-    return memoryFunctionQueue.empty() && activeCacheBlocks.empty() &&
-        activeBuffer.empty() && directory->empty() && (onTheFlyReqs == 0);
+    return memoryFunctionQueue.empty() && currentActiveCacheBlocks.empty() &&
+        activeBuffer.empty() && currentDirectory->empty() && (onTheFlyReqs == 0);
 }
 
 bool
@@ -249,16 +271,21 @@ CoalesceEngine::recvWLRead(Addr addr)
                     // NOTE: The cache block could still be active but
                     // not dirty. If active we only have to active tracking
                     // but can throw the data away.
-                    bool atom_active = false;
+                    bool atom_active_now = false;
+                    bool atom_active_future = false;
                     for (int index = 0; index < numElementsPerLine; index++) {
-                        atom_active |= graphWorkload->activeCondition(
-                                        cacheBlocks[block_index].items[index]);
+                        atom_active_now |= cacheBlocks[block_index].items[index].activeNow;
+                        atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
                     }
-                    if (atom_active) {
-                        activeCacheBlocks.erase(block_index);
-                        int count = directory->activate(cacheBlocks[block_index].addr);
-                        stats.blockActiveCount.sample(count);
-                        stats.frontierSize.sample(directory->workCount());
+                    if (atom_active_now) {
+                        currentActiveCacheBlocks.erase(block_index);
+                        int count = currentDirectory->activate(cacheBlocks[block_index].addr);
+                        // stats.blockActiveCount.sample(count);
+                        // stats.frontierSize.sample(directory->workCount());
+                    }
+                    if (atom_active_future) {
+                        futureActiveCacheBlocks.erase(block_index);
+                        int count = futureDirectory->activate(cacheBlocks[block_index].addr);
                     }
                     // NOTE: Bring the cache line to invalid state.
                     // NOTE: Above line where we set hasConflict to true
@@ -360,16 +387,21 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             // Since it is going to the cache, cache will be responsible for
             // tracking this. Push to activeCacheBlocks for simulator speed
             // instead of having to search for active blocks in the cache.
-            bool atom_active = false;
+            bool atom_active_now = false;
+            bool atom_active_future = false;
             for (int index = 0; index < numElementsPerLine; index++) {
-                atom_active |= graphWorkload->activeCondition(
-                                            cacheBlocks[block_index].items[index]);
+                atom_active_now |= cacheBlocks[block_inde].items[index].activeNow;
+                atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
             }
-            if (atom_active) {
-                int count = directory->deactivate(addr);
-                activeCacheBlocks.push_back(block_index);
-                stats.blockActiveCount.sample(count);
-                stats.frontierSize.sample(directory->workCount());
+            if (atom_active_now) {
+                // TODO: Add sampling of blockActiveCount and frontierSize here
+                int count = currentDirectory->deactivate(addr);
+                currentActiveCacheBlocks.push_back(block_index);
+            }
+            if (atom_active_future) {
+                // TODO: Add sampling of blockActiveCount and frontierSize here
+                int count = futureDirectory->deactivate(addr);
+                futureActiveCacheBlocks.push_back(block_index);
             }
 
             assert(MSHR.find(block_index) != MSHR.end());
@@ -420,15 +452,16 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
 
             WorkListItem items[numElementsPerLine];
             pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
-            bool atom_active = false;
+            bool atom_active_now = false;
             for (int index = 0; index < numElementsPerLine; index++) {
-                atom_active |= graphWorkload->activeCondition(items[index]);
+                atom_active |= items[index].activeNow;
             }
-            if (atom_active) {
-                int count = directory->deactivate(addr);
+            if (atom_active_now) {
+                // TODO: Add sampling of blockActiveCount and frontierSize here
+                int count = currentDirectory->deactivate(addr);
                 activeBuffer.emplace_back(pkt, curTick());
-                stats.blockActiveCount.sample(count);
-                stats.frontierSize.sample(directory->workCount());
+                // stats.blockActiveCount.sample(count);
+                // stats.frontierSize.sample(directory->workCount());
             } else {
                 delete pkt;
             }
@@ -486,6 +519,9 @@ CoalesceEngine::processNextResponseEvent()
         stats.responseQueueLatency.sample(
                                     waiting_ticks * 1e9 / getClockFrequency());
         if (num_responses_sent >= maxRespPerCycle) {
+            // TODO: Add the condition to check that front of queue can be
+            // sent to WLEngine. i.e. it has at least been in the queue for
+            // one cycle.
             if (!responseQueue.empty()) {
                 stats.responsePortShortage++;
             }
@@ -533,12 +569,22 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     if (wl.tempProp != cacheBlocks[block_index].items[wl_offset].tempProp) {
         cacheBlocks[block_index].dirty |= true;
     }
+
+    bool active = graphWorkload->activeCondition(wl, cacheBlocks[block_index].items[wl_offset]);
     cacheBlocks[block_index].items[wl_offset] = wl;
-    if ((graphWorkload->activeCondition(cacheBlocks[block_index].items[wl_offset])) &&
-        (!activeCacheBlocks.find(block_index))) {
-        activeCacheBlocks.push_back(block_index);
-        if (!owner->running()) {
-            owner->start();
+    if (mode == ProcessingMode::ASYNCHRONOUS) {
+        cacheBlocks[block_index].activeNow |= active;
+        if (active && (!currentActiveCacheBlocks.find(block_index))) {
+            currentActiveCacheBlocks.push_back(block_index);
+            if (!owner->running()) {
+                owner->start();
+            }
+        }
+    }
+    if (mode == ProcessingMode::BULK_SYNCHRONOUS) {
+        cacheBlocks[block_index].activeFuture |= active;
+        if (active && (!futureActiveCacheBlocks.find(block_index))) {
+            futureActiveCacheBlocks.push_back(block_index);
         }
     }
 
@@ -565,16 +611,22 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
                     schedule(nextMemoryEvent, nextCycle());
                 }
             } else {
-                bool atom_active = false;
+                bool atom_active_now = false;
+                bool atom_active_future = false;
                 for (int index = 0; index < numElementsPerLine; index++) {
-                    atom_active |= graphWorkload->activeCondition(
-                                        cacheBlocks[block_index].items[index]);
+                    atom_active_now |= cacheBlocks[block_index].items[index].activeNow;
+                    atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
                 }
-                if (atom_active) {
-                    activeCacheBlocks.erase(block_index);
-                    int count = directory->activate(cacheBlocks[block_index].addr);
-                    stats.blockActiveCount.sample(count);
-                    stats.frontierSize.sample(directory->workCount());
+                if (atom_active_now) {
+                    // TODO: Sample frontier size and blockCount here.
+                    currentActiveCacheBlocks.erase(block_index);
+                    int count = currentDirectory->activate(cacheBlocks[block_index].addr);
+                    // stats.blockActiveCount.sample(count);
+                    // stats.frontierSize.sample(directory->workCount());
+                }
+                if (atom_active_future) {
+                    futureActiveCacheBlocks.erase(block_index);
+                    int count = futureDirectory->activate(cacheBlocks[block_index].addr);
                 }
                 cacheBlocks[block_index].reset();
             }
@@ -586,6 +638,7 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                 block_index, cacheBlocks[block_index].to_string());
     stats.numVertexWrites++;
+
     if ((cacheBlocks[block_index].state == CacheState::IDLE) && done()) {
         owner->recvDoneSignal();
     }
@@ -623,6 +676,8 @@ CoalesceEngine::processNextMemoryEvent()
         schedule(nextMemoryEvent, nextCycle());
     }
 
+    // FIXME: done() might have a different meaning depending on
+    // ProcessingMode and Processing state
     if (done()) {
         owner->recvDoneSignal();
     }
@@ -659,6 +714,16 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
             cacheBlocks[block_index].valid = true;
             cacheBlocks[block_index].dirty = true;
             cacheBlocks[block_index].lastChangedTick = curTick();
+            // NOTE: If an atom is in the postPushWBQueue,
+            // the it is definitely currently not active.
+            bool atom_active_future = false;
+            for (int index = 0; index < numElementsPerLine; index++)
+            {
+                atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
+            }
+            if (atom_active_future) {
+                futureActiveCacheBlocks.push_back(block_index);
+            }
 
             need_send_pkt = false;
             wb = postPushWBQueue.erase(wb);
@@ -677,7 +742,19 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
             cacheBlocks[block_index].valid = true;
             cacheBlocks[block_index].dirty = true;
             cacheBlocks[block_index].lastChangedTick = curTick();
-            activeCacheBlocks.push_back(block_index);
+            // If an atom is in the activeBuffer,
+            // then it is definitely currently active.
+            currentActiveCacheBlocks.push_back(block_index);
+            // NOTE: Residence in the activeBuffer does not
+            // signify anything about future activity.
+            bool atom_active_future = false;
+            for (int index = 0; index < numElementsPerLine; index++)
+            {
+                atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
+            }
+            if (atom_active_future) {
+                futureActiveCacheBlocks.push_back(block_index);
+            }
 
             need_send_pkt = false;
             ab = activeBuffer.erase(ab);
@@ -767,10 +844,11 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
 
         // NOTE: If the atom we're writing back is active, we have to
         // stop tracking it in the cache and start tracking it in the memory.
-        bool atom_active = false;
+        bool atom_active_now = false;
+        bool atom_active_future = false;
         for (int index = 0; index < numElementsPerLine; index++) {
-            atom_active |= graphWorkload->activeCondition(
-                                        cacheBlocks[block_index].items[index]);
+            atom_active_now |= cacheBlocks[block_index].items[index].activeNow;
+            atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
         }
 
         PacketPtr pkt = createWritePacket(
@@ -779,18 +857,25 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
         DPRINTF(CoalesceEngine,  "%s: Created a write packet to "
                         "Addr: %lu, size = %d.\n", __func__,
                         pkt->getAddr(), pkt->getSize());
-        if (atom_active) {
-            activeCacheBlocks.erase(block_index);
+        if (atom_active_future) {
+            futureActiveCacheBlocks.erase(block_index);
+        }
+        if (atom_active_now) {
+            currentActiveCacheBlocks.erase(block_index);
             if (enoughSpace()) {
                 activeBuffer.emplace_back(pkt, curTick());
             } else {
-                int count = directory->activate(cacheBlocks[block_index].addr);
-                stats.blockActiveCount.sample(count);
-                stats.frontierSize.sample(directory->workCount());
+                int count = currentDirectory->activate(cacheBlocks[block_index].addr);
+                int count_2 = futureDirectory->activate(cacheBlocks[block_index].addr);
+                // stats.blockActiveCount.sample(count);
+                // stats.frontierSize.sample(directory->workCount());
                 memPort.sendPacket(pkt);
                 onTheFlyReqs++;
             }
         } else {
+            if (atom_active_future) {
+                int count = futureDirectory->activate(cacheBlocks[block_index].addr);
+            }
             memPort.sendPacket(pkt);
             onTheFlyReqs++;
         }
@@ -810,17 +895,24 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
 void
 CoalesceEngine::processNextPostPushWB(int ignore, Tick schedule_tick)
 {
-    if (postPushWBQueue.empty()) {
-        return;
-    }
-
-    PacketPtr wb_pkt;
-    Tick pkt_tick;
-    std::tie(wb_pkt, pkt_tick) = postPushWBQueue.front();
-    if (schedule_tick == pkt_tick) {
-        memPort.sendPacket(wb_pkt);
-        onTheFlyReqs++;
-        postPushWBQueue.pop_front();
+    if (!postPushWBQueue.empty()) {
+        PacketPtr wb_pkt;
+        Tick pkt_tick;
+        std::tie(wb_pkt, pkt_tick) = postPushWBQueue.front();
+        if (schedule_tick == pkt_tick) {
+            WorkListItem items[numElementsPerLine];
+            wb_pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
+            bool atom_active_future = false;
+            for (int index = 0; index < numElementPerLine; index++) {
+                atom_active_future |= items[index].activeFuture;
+            }
+            if (atom_active_future) {
+                futureDirectory->activate(wb_pkt->getAddr());
+            }
+            memPort.sendPacket(wb_pkt);
+            onTheFlyReqs++;
+            postPushWBQueue.pop_front();
+        }
     }
 }
 
@@ -828,8 +920,8 @@ void
 CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
 {
     pullsScheduled--;
-    if (!directory->empty()) {
-        Addr addr = directory->getNextWork();
+    if (!currentDirectory->empty()) {
+        Addr addr = currentDirectory->getNextWork();
         int block_index = getBlockIndex(addr);
 
         bool in_cache = cacheBlocks[block_index].addr == addr;
@@ -875,8 +967,7 @@ CoalesceEngine::recvMemRetry()
 int
 CoalesceEngine::workCount()
 {
-    return activeCacheBlocks.size() +
-            directory->workCount() + activeBuffer.size();
+    return activeCacheBlocks.size() + currentDirectory->workCount() + activeBuffer.size();
 }
 
 void
@@ -905,9 +996,10 @@ CoalesceEngine::processNextApplyEvent()
         pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
 
         for (int index = 0; (index < numElementsPerLine) && (pullsReceived > 0); index++) {
-            if (graphWorkload->activeCondition(items[index])) {
+            if (items[index].activeNow) {
                 Addr addr = pkt->getAddr() + index * sizeof(WorkListItem);
                 uint32_t delta = graphWorkload->apply(items[index]);
+                items[index].activeNow = false;
                 owner->recvVertexPush(addr, delta, items[index].edgeIndex,
                                                     items[index].degree);
                 pullsReceived--;
@@ -919,12 +1011,12 @@ CoalesceEngine::processNextApplyEvent()
         pkt->allocate();
         pkt->setDataFromBlock((uint8_t*) items, peerMemoryAtomSize);
 
-        bool atom_active = false;
+        bool atom_active_now = false;
         for (int index = 0; index < numElementsPerLine; index++) {
-            atom_active |= graphWorkload->activeCondition(items[index]);
+            atom_active_now |= items[index].activeNow;
         }
         // NOTE: If the atom is not active anymore.
-        if (!atom_active) {
+        if (!atom_active_now) {
             PacketPtr wb_pkt = createWritePacket(pkt->getAddr(),
                                         peerMemoryAtomSize, (uint8_t*) items);
             postPushWBQueue.emplace_back(wb_pkt, curTick());
@@ -946,9 +1038,10 @@ CoalesceEngine::processNextApplyEvent()
             int block_index = activeCacheBlocks.front();
             if (cacheBlocks[block_index].state == CacheState::IDLE) {
                 for (int index = 0; (index < numElementsPerLine) && (pullsReceived > 0); index++) {
-                    if (graphWorkload->activeCondition(cacheBlocks[block_index].items[index])) {
+                    if (cacheBlocks[block_index].items[index].activeNow) {
                         Addr addr = cacheBlocks[block_index].addr + index * sizeof(WorkListItem);
                         uint32_t delta = graphWorkload->apply(cacheBlocks[block_index].items[index]);
+                        cacheBlocks[block_index].items[index].activeNow = false;
                         cacheBlocks[block_index].dirty = true;
                         owner->recvVertexPush(addr, delta,
                             cacheBlocks[block_index].items[index].edgeIndex,
@@ -959,20 +1052,20 @@ CoalesceEngine::processNextApplyEvent()
                     }
                 }
 
-                bool atom_active = false;
+                bool atom_active_now = false;
                 for (int index = 0; index < numElementsPerLine; index++) {
-                    atom_active |= graphWorkload->activeCondition(cacheBlocks[block_index].items[index]);
+                    atom_active_now |= cacheBlocks[block_index].items[index].activeNow;
                 }
                 // NOTE: If we have reached the last item in the cache block
-                if (!atom_active) {
-                    activeCacheBlocks.erase(block_index);
+                if (!atom_active_now) {
+                    currentActiveCacheBlocks.erase(block_index);
                 }
                 break;
             }
             // NOTE: If the block with index at the front of activeCacheBlocks
             // is not in IDLE state, then roll the that index to the back
-            activeCacheBlocks.pop_front();
-            activeCacheBlocks.push_back(block_index);
+            currentActiveCacheBlocks.pop_front();
+            currentActiveCacheBlocks.push_back(block_index);
             // NOTE: If we have visited all the items initially in the FIFO.
             num_visited_indices++;
             if (num_visited_indices == initial_fifo_length) {
