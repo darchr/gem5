@@ -1038,9 +1038,9 @@ CoalesceEngine::processNextApplyEvent()
         }
     } else if (!currentActiveCacheBlocks.empty()) {
         int num_visited_indices = 0;
-        int initial_fifo_length = activeCacheBlocks.size();
+        int initial_fifo_length = crrentActiveCacheBlocks.size();
         while (true) {
-            int block_index = activeCacheBlocks.front();
+            int block_index = currentActiveCacheBlocks.front();
             if (cacheBlocks[block_index].state == CacheState::IDLE) {
                 for (int index = 0; (index < numElementsPerLine) && (pullsReceived > 0); index++) {
                     if (cacheBlocks[block_index].items[index].activeNow) {
