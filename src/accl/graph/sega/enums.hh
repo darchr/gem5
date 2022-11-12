@@ -69,7 +69,7 @@ enum ProcessingMode
 };
 extern const char* processingModeStrings[NUM_PROCESSING_MODE];
 
-enum BulkSynchronousStates
+enum BulkSynchronousState
 {
     DONT_CARE,
     CONSUMING,
