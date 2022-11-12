@@ -27,7 +27,6 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.util.pybind import PyBindMethod
 from m5.objects.BaseMemoryEngine import BaseMemoryEngine
 
 class CoalesceEngine(BaseMemoryEngine):
@@ -48,5 +47,3 @@ class CoalesceEngine(BaseMemoryEngine):
                                 "apply process for applications that require "
                                 "the apply process to happen exactly before "
                                 "pushing the edgePointer to the PushEngine.")
-
-    cxx_exports = [PyBindMethod("createPopCountDirectory")]

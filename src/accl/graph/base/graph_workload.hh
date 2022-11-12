@@ -51,7 +51,7 @@ class GraphWorkload
     virtual uint32_t reduce(uint32_t update, uint32_t value) = 0;
     virtual uint32_t propagate(uint32_t value, uint32_t weight) = 0;
     virtual uint32_t apply(WorkListItem& wl) = 0;
-    virtual bool activeCondition(WorkListItem wl) = 0;
+    virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl) = 0;
     virtual std::string printWorkListItem(const WorkListItem wl) = 0;
 };
 
