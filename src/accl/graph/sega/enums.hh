@@ -71,7 +71,7 @@ extern const char* processingModeStrings[NUM_PROCESSING_MODE];
 
 enum BulkSynchronousStates
 {
-    NOT_SET,
+    DONT_CARE,
     CONSUMING,
     APPLYING,
     NUM_BULK_SYNCHRONOUS_STATE,

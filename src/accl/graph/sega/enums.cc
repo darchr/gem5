@@ -61,7 +61,7 @@ const char* processingModeStrings[NUM_PROCESSING_MODE] =
 
 const char* bulkSynchronousStateStrings[NUM_BULK_SYNCHRONOUS_STATE] =
 {
-    "NOT_SET",
+    "DONT_CARE",
     "CONSUMING",
     "APPLYING"
 };
