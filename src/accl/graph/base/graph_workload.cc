@@ -71,6 +71,7 @@ BFSWorkload::init(PacketPtr pkt, WorkDirectory* dir)
         WorkListItem new_wl = items[index];
         new_wl.tempProp = initValue;
         if (activeCondition(new_wl, items[index])) {
+            new_wl.activeNow = true;
             dir->activate(aligned_addr);
         }
         items[index] = new_wl;
