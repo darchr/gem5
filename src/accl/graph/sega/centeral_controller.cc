@@ -114,7 +114,7 @@ CenteralController::startup()
     panic_if(!image.write(proxy), "%s: Unable to write image.");
 
     if (mode == ProcessingMode::BULK_SYNCHRONOUS) {
-        state = BulkSynchronousStates::CONSUMING;
+        state = BulkSynchronousState::CONSUMING;
     }
     for (auto mpu: mpuVector) {
         mpu->postMemInitSetup();
