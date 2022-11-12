@@ -75,7 +75,7 @@ enum BulkSynchronousStates
     CONSUMING,
     APPLYING,
     NUM_BULK_SYNCHRONOUS_STATE,
-}
+};
 extern const char* bulkSynchronousStateStrings[NUM_BULK_SYNCHRONOUS_STATE];
 
 } // namespace gem5

@@ -113,6 +113,9 @@ CenteralController::startup()
 
     panic_if(!image.write(proxy), "%s: Unable to write image.");
 
+    if (mode == ProcessingMode::BULK_SYNCHRONOUS) {
+        state = BulkSynchronousStates::CONSUMING;
+    }
     for (auto mpu: mpuVector) {
         mpu->postMemInitSetup();
         if (!mpu->running() && (mpu->workCount() > 0)) {
@@ -149,7 +152,7 @@ CenteralController::recvDoneSignal()
     }
 
     if (done && mode == ProcessingMode::BULK_SYNCHRONOUS) {
-        assert(state != BulkSynchronousState::DONT_CARE);
+        assert(state != BulkSynchronousState::NOT_SET);
         if (state == BulkSynchronousState::APPLYING) {
             // TODO:
             // 1- Toggle directories
