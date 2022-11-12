@@ -124,7 +124,7 @@ CoalesceEngine::createBSPPopCountDirectory(int atoms_per_block)
 {
     currentDirectory = new PopCountDirectory(
                         peerMemoryRange, atoms_per_block, peerMemoryAtomSize);
-    futureDirectory = new PopCountDirectroy(
+    futureDirectory = new PopCountDirectory(
                         peerMemoryRange, atoms_per_block, peerMemoryAtomSize);
 }
 
@@ -390,7 +390,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             bool atom_active_now = false;
             bool atom_active_future = false;
             for (int index = 0; index < numElementsPerLine; index++) {
-                atom_active_now |= cacheBlocks[block_inde].items[index].activeNow;
+                atom_active_now |= cacheBlocks[block_index].items[index].activeNow;
                 atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
             }
             if (atom_active_now) {
@@ -453,12 +453,17 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             WorkListItem items[numElementsPerLine];
             pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
             bool atom_active_now = false;
+            bool atom_active_future = false;
             for (int index = 0; index < numElementsPerLine; index++) {
-                atom_active |= items[index].activeNow;
+                atom_active_now |= items[index].activeNow;
+                atom_active_future |= items[index].activeFuture;
             }
             if (atom_active_now) {
                 // TODO: Add sampling of blockActiveCount and frontierSize here
                 int count = currentDirectory->deactivate(addr);
+                if (atom_active_future) {
+                    int count_2 = futureDirectory->deactivate(addr);
+                }
                 activeBuffer.emplace_back(pkt, curTick());
                 // stats.blockActiveCount.sample(count);
                 // stats.frontierSize.sample(directory->workCount());
@@ -573,7 +578,7 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     bool active = graphWorkload->activeCondition(wl, cacheBlocks[block_index].items[wl_offset]);
     cacheBlocks[block_index].items[wl_offset] = wl;
     if (mode == ProcessingMode::ASYNCHRONOUS) {
-        cacheBlocks[block_index].activeNow |= active;
+        cacheBlocks[block_index].items[wl_offset].activeNow |= active;
         if (active && (!currentActiveCacheBlocks.find(block_index))) {
             currentActiveCacheBlocks.push_back(block_index);
             if (!owner->running()) {
@@ -582,7 +587,7 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
         }
     }
     if (mode == ProcessingMode::BULK_SYNCHRONOUS) {
-        cacheBlocks[block_index].activeFuture |= active;
+        cacheBlocks[block_index].items[wl_offset].activeFuture |= active;
         if (active && (!futureActiveCacheBlocks.find(block_index))) {
             futureActiveCacheBlocks.push_back(block_index);
         }
@@ -903,7 +908,7 @@ CoalesceEngine::processNextPostPushWB(int ignore, Tick schedule_tick)
             WorkListItem items[numElementsPerLine];
             wb_pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
             bool atom_active_future = false;
-            for (int index = 0; index < numElementPerLine; index++) {
+            for (int index = 0; index < numElementsPerLine; index++) {
                 atom_active_future |= items[index].activeFuture;
             }
             if (atom_active_future) {
@@ -967,7 +972,7 @@ CoalesceEngine::recvMemRetry()
 int
 CoalesceEngine::workCount()
 {
-    return activeCacheBlocks.size() + currentDirectory->workCount() + activeBuffer.size();
+    return currentActiveCacheBlocks.size() + currentDirectory->workCount() + activeBuffer.size();
 }
 
 void
@@ -1031,7 +1036,7 @@ CoalesceEngine::processNextApplyEvent()
             }
             delete pkt;
         }
-    } else if (!activeCacheBlocks.empty()) {
+    } else if (!currentActiveCacheBlocks.empty()) {
         int num_visited_indices = 0;
         int initial_fifo_length = activeCacheBlocks.size();
         while (true) {
