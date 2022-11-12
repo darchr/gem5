@@ -1038,7 +1038,7 @@ CoalesceEngine::processNextApplyEvent()
         }
     } else if (!currentActiveCacheBlocks.empty()) {
         int num_visited_indices = 0;
-        int initial_fifo_length = crrentActiveCacheBlocks.size();
+        int initial_fifo_length = currentActiveCacheBlocks.size();
         while (true) {
             int block_index = currentActiveCacheBlocks.front();
             if (cacheBlocks[block_index].state == CacheState::IDLE) {
