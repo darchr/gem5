@@ -68,7 +68,7 @@ void
 CenteralController::createPopCountDirectory(int atoms_per_block)
 {
     fatal_if(mode == ProcessingMode::NOT_SET, "You should set the processing "
-                        "mode by calling either setAsyncMode or setBSPMode.")
+                        "mode by calling either setAsyncMode or setBSPMode.");
     if (mode == ProcessingMode::ASYNCHRONOUS) {
         for (auto mpu: mpuVector) {
             mpu->createAsyncPopCountDirectory(atoms_per_block);
