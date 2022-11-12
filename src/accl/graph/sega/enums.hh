@@ -60,6 +60,24 @@ enum ReadDestination
 };
 extern const char* readDestinationStrings[NUM_READ_DESTINATION];
 
+enum ProcessingMode
+{
+    NOT_SET,
+    ASYNCHRONOUS,
+    BULK_SYNCHRONOUS,
+    NUM_PROCESSING_MODE
+};
+extern const char* processingModeStrings[NUM_PROCESSING_MODE];
+
+enum BulkSynchronousStates
+{
+    NOT_SET,
+    CONSUMING,
+    APPLYING,
+    NUM_BULK_SYNCHRONOUS_STATE,
+}
+extern const char* bulkSynchronousStateStrings[NUM_BULK_SYNCHRONOUS_STATE];
+
 } // namespace gem5
 
 #endif // __ACCL_GRAPH_SEGA_ENUMS_HH__
