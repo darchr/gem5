@@ -33,6 +33,7 @@
 
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/base/graph_workload.hh"
+#include "accl/graph/sega/enums.hh"
 #include "accl/graph/sega/mpu.hh"
 #include "base/addr_range.hh"
 #include "params/CenteralController.hh"
@@ -46,8 +47,10 @@ class CenteralController : public ClockedObject
 {
   private:
     System* system;
-
     Addr maxVertexAddr;
+
+    ProcessingMode mode;
+    BulkSynchronousState state;
 
     std::vector<MPU*> mpuVector;
     std::unordered_map<MPU*, AddrRangeList> addrRangeListMap;
@@ -61,6 +64,11 @@ class CenteralController : public ClockedObject
     PARAMS(CenteralController);
     CenteralController(const CenteralControllerParams &params);
     virtual void startup() override;
+
+    void setAsyncMode() { mode = ProcessingMode::ASYNCHRONOUS; }
+    void setBSPMode() { mode = ProcessingMode::BULK_SYNCHRONOUS; }
+
+    void createPopCountDirectory(int atoms_per_block);
 
     void createBFSWorkload(Addr init_addr, uint32_t init_value);
     void createPRWorkload(float alpha, float threshold);

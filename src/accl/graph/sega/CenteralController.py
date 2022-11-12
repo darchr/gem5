@@ -42,6 +42,9 @@ class CenteralController(ClockedObject):
     mpu_vector = VectorParam.MPU("All mpus in the system.")
 
     cxx_exports = [
+                    PyBindMethod("setAsyncMode"),
+                    PyBindMethod("setBSPMode"),
+                    PyBindMethod("createPopCountDirectory"),
                     PyBindMethod("createBFSWorkload"),
                     PyBindMethod("createPRWorkload"),
                     PyBindMethod("printAnswerToHostSimout")

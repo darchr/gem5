@@ -43,28 +43,34 @@ struct __attribute__ ((packed)) WorkListItem
 {
     uint32_t tempProp : 32;
     uint32_t prop : 32;
-    uint32_t degree : 32;
     uint32_t edgeIndex : 32;
+    uint32_t degree : 30;
+    bool activeNow: 1;
+    bool activeFuture: 1;
 
     std::string to_string()
     {
         return csprintf("WorkListItem{tempProp: %u, prop: %u, edgeIndex: %u, "
-                            "degree: %u}", tempProp, prop, edgeIndex, degree);
+                        "degree: %u, activeNow: %s, activeFuture: %s}",
+                        tempProp, prop, edgeIndex, degree,
+                        activeNow ? "true" : "false",
+                        activeFuture ? "true" : "false");
     }
 
     WorkListItem():
         tempProp(0),
         prop(0),
+        edgeIndex(0),
         degree(0),
-        edgeIndex(0)
+        activeNow(false),
+        activeFuture(false)
     {}
 
     WorkListItem(uint32_t temp_prop, uint32_t prop,
-                uint32_t degree, uint32_t edge_index):
-        tempProp(temp_prop),
-        prop(prop),
-        degree(degree),
-        edgeIndex(edge_index)
+                uint32_t degree, uint32_t edge_index,
+                bool active_now, bool active_future):
+        tempProp(temp_prop), prop(prop), edgeIndex(edge_index), degree(degree),
+        activeNow(active_now), activeFuture(active_future)
     {}
 
 };
@@ -158,6 +164,10 @@ class UniqueFIFO
         return fifo.size();
     }
 
+    void clear() {
+        fifo.clear();
+    }
+
     bool empty() {
         return fifo.empty();
     }
@@ -173,6 +183,10 @@ class UniqueFIFO
         auto it = std::find(fifo.begin(), fifo.end(), item);
         assert(it != fifo.end());
         fifo.erase(it);
+    }
+
+    void operator=(const UniqueFIFO<T>& rhs) {
+        fifo = rhs.fifo;
     }
 };
 
