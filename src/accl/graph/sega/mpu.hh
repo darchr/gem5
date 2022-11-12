@@ -64,8 +64,8 @@ class MPU : public SimObject
     void registerCenteralController(CenteralController* centeral_controller);
 
     void setProcessingMode(ProcessingMode mode) { coalesceEngine->setProcessingMode(mode); }
-    void createAsyncPopCountDirectory(int atoms_per_block) { coalseceEngine->createAsyncPopCountDirectory(atoms_per_block); }
-    void createBSPPopCountDirectory(int atoms_per_block) { coalseceEngine->createBSPPopCountDirectory(atoms_per_block); }
+    void createAsyncPopCountDirectory(int atoms_per_block) { coalesceEngine->createAsyncPopCountDirectory(atoms_per_block); }
+    void createBSPPopCountDirectory(int atoms_per_block) { coalesceEngine->createBSPPopCountDirectory(atoms_per_block); }
 
     AddrRangeList getAddrRanges() { return coalesceEngine->getAddrRanges(); }
     void recvFunctional(PacketPtr pkt) { coalesceEngine->recvFunctional(pkt); }
