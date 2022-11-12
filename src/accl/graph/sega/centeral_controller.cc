@@ -44,7 +44,7 @@ CenteralController::CenteralController(const Params& params):
     ClockedObject(params),
     system(params.system),
     mode(ProcessingMode::NOT_SET),
-    state(BulkSynchronousState::NOT_SET)
+    state(BulkSynchronousState::DONT_CARE)
 {
     for (auto mpu : params.mpu_vector) {
         mpuVector.push_back(mpu);
@@ -152,7 +152,7 @@ CenteralController::recvDoneSignal()
     }
 
     if (done && mode == ProcessingMode::BULK_SYNCHRONOUS) {
-        assert(state != BulkSynchronousState::NOT_SET);
+        assert(state != BulkSynchronousState::DONT_CARE);
         if (state == BulkSynchronousState::APPLYING) {
             // TODO:
             // 1- Toggle directories
