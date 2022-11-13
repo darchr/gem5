@@ -43,8 +43,7 @@ namespace gem5
 CenteralController::CenteralController(const Params& params):
     ClockedObject(params),
     system(params.system),
-    mode(ProcessingMode::NOT_SET),
-    state(BulkSynchronousState::DONT_CARE)
+    mode(ProcessingMode::NOT_SET)
 {
     for (auto mpu : params.mpu_vector) {
         mpuVector.push_back(mpu);
@@ -58,11 +57,11 @@ CenteralController::createBFSWorkload(Addr init_addr, uint32_t init_value)
     workload = new BFSWorkload(init_addr, init_value);
 }
 
-// void
-// CenteralController::createPRWorkload(float alpha, float threshold)
-// {
-//     workload = new PRWorkload(alpha, threshold);
-// }
+void
+CenteralController::createPRWorkload(float alpha)
+{
+    workload = new BSPPRWorkload(alpha);
+}
 
 void
 CenteralController::createPopCountDirectory(int atoms_per_block)
@@ -113,9 +112,6 @@ CenteralController::startup()
 
     panic_if(!image.write(proxy), "%s: Unable to write image.");
 
-    if (mode == ProcessingMode::BULK_SYNCHRONOUS) {
-        state = BulkSynchronousState::CONSUMING;
-    }
     for (auto mpu: mpuVector) {
         mpu->postMemInitSetup();
         if (!mpu->running() && (mpu->workCount() > 0)) {
@@ -152,20 +148,25 @@ CenteralController::recvDoneSignal()
     }
 
     if (done && mode == ProcessingMode::BULK_SYNCHRONOUS) {
-        assert(state != BulkSynchronousState::DONT_CARE);
-        if (state == BulkSynchronousState::APPLYING) {
-            // TODO:
-            // 1- Toggle directories
-            // 2- Check if termination condition is met
-            // 3- If yes, schedule exit event,
-            // 4- If not switch state to consuming.
-            exitSimLoopNow("applying done.");
-        } else if (state == BulkSynchronousState::CONSUMING) {
-            // TODO:
-            // Schedule Bulk apply
-            exitSimLoopNow("consuming done.");
+        for (auto mpu: mpuVector) {
+            mpu->postConsumeProcess();
+            mpu->swapDirectories();
+            if (!mpu->running() && (mpu->workCount() > 0)) {
+                mpu->start();
+            }
         }
+        exitSimLoopNow("finished an iteration.");
     }
+}
+
+int
+CenteralController::workCount()
+{
+    int work_count = 0;
+    for (auto mpu: mpuVector) {
+        work_count += mpu->workCount();
+    }
+    return work_count;
 }
 
 void
@@ -184,7 +185,6 @@ CenteralController::printAnswerToHostSimout()
         }
         pkt->writeDataToBlock((uint8_t*) items, system->cacheLineSize());
         for (int i = 0; i < num_items; i++) {
-            workload->apply(items[i]);
             std::string print = csprintf("WorkListItem[%lu][%d]: %s.", addr, i,
                                         workload->printWorkListItem(items[i]));
 

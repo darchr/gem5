@@ -50,7 +50,6 @@ class CenteralController : public ClockedObject
     Addr maxVertexAddr;
 
     ProcessingMode mode;
-    BulkSynchronousState state;
 
     std::vector<MPU*> mpuVector;
     std::unordered_map<MPU*, AddrRangeList> addrRangeListMap;
@@ -71,10 +70,11 @@ class CenteralController : public ClockedObject
     void createPopCountDirectory(int atoms_per_block);
 
     void createBFSWorkload(Addr init_addr, uint32_t init_value);
-    // void createPRWorkload(float alpha, float threshold);
+    void createPRWorkload(float alpha);
 
     void recvDoneSignal();
 
+    int workCount();
     void printAnswerToHostSimout();
 };
 
