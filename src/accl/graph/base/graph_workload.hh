@@ -76,6 +76,48 @@ class BFSWorkload : public GraphWorkload
     virtual std::string printWorkListItem(const WorkListItem wl);
 };
 
+class BFSVisitedWorkload : public GraphWorkload
+{
+  private:
+    uint64_t initAddr;
+    uint32_t initValue;
+
+  public:
+    BFSVisitedWorkload(uint64_t init_addr, uint32_t init_value):
+        initAddr(init_addr), initValue(init_value)
+    {}
+
+    ~BFSVisitedWorkload() {}
+
+    virtual void init(PacketPtr pkt, WorkDirectory* dir);
+    virtual uint32_t reduce(uint32_t update, uint32_t value);
+    virtual uint32_t propagate(uint32_t value, uint32_t weight);
+    virtual uint32_t apply(WorkListItem& wl);
+    virtual bool activeCondition(WorkListItem wl);
+    virtual std::string printWorkListItem(const WorkListItem wl);
+};
+
+class SSSPWorkload : public GraphWorkload
+{
+  private:
+    uint64_t initAddr;
+    uint32_t initValue;
+
+  public:
+    SSSPWorkload(uint64_t init_addr, uint32_t init_value):
+        initAddr(init_addr), initValue(init_value)
+    {}
+
+    ~SSSPWorkload() {}
+
+    virtual void init(PacketPtr pkt, WorkDirectory* dir);
+    virtual uint32_t reduce(uint32_t update, uint32_t value);
+    virtual uint32_t propagate(uint32_t value, uint32_t weight);
+    virtual uint32_t apply(WorkListItem& wl);
+    virtual bool activeCondition(WorkListItem wl);
+    virtual std::string printWorkListItem(const WorkListItem wl);
+};
+
 
 class PRWorkload : public GraphWorkload
 {
@@ -89,6 +131,22 @@ class PRWorkload : public GraphWorkload
     {}
 
     ~PRWorkload() {}
+
+    virtual void init(PacketPtr pkt, WorkDirectory* dir);
+    virtual uint32_t reduce(uint32_t update, uint32_t value);
+    virtual uint32_t propagate(uint32_t value, uint32_t weight);
+    virtual uint32_t apply(WorkListItem& wl);
+    virtual bool activeCondition(WorkListItem wl);
+    virtual std::string printWorkListItem(const WorkListItem wl);
+};
+
+class CCWorkload : public GraphWorkload
+{
+
+  public:
+    CCWorkload() {}
+
+    ~CCWorkload() {}
 
     virtual void init(PacketPtr pkt, WorkDirectory* dir);
     virtual uint32_t reduce(uint32_t update, uint32_t value);
