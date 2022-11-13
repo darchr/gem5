@@ -89,7 +89,7 @@ CenteralController::startup()
         mpu->recvWorkload(workload);
     }
 
-    const auto& file = params().image_file;
+    const auto& vertex_file = params().vertex_image_file;
     if (file == "")
         return;
 
@@ -97,10 +97,10 @@ CenteralController::startup()
     fatal_if(!object, "%s: Could not load %s.", name(), file);
 
     loader::debugSymbolTable.insert(*object->symtab().globals());
-    loader::MemoryImage image = object->buildImage();
-    maxVertexAddr = image.maxAddr();
+    loader::MemoryImage vertex_image = object->buildImage();
+    maxVertexAddr = vertex_image.maxAddr();
 
-    PortProxy proxy(
+    PortProxy vertex_proxy(
     [this](PacketPtr pkt) {
         for (auto mpu: mpuVector) {
             AddrRangeList range_list = addrRangeListMap[mpu];
@@ -110,7 +110,7 @@ CenteralController::startup()
         }
     }, system->cacheLineSize());
 
-    panic_if(!image.write(proxy), "%s: Unable to write image.");
+    panic_if(!vertex_image.write(vertex_proxy), "%s: Unable to write image.");
 
     for (auto mpu: mpuVector) {
         mpu->postMemInitSetup();

@@ -124,7 +124,7 @@ class SEGA(System):
 
         gpts = []
         for i in range(num_mpus):
-            gpt = GPT("16GiB", cache_size)
+            gpt = GPT("2GiB", cache_size)
             gpt.set_vertex_range(
                 [vertex_ranges[i], vertex_ranges[i + num_mpus]]
             )
