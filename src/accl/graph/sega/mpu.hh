@@ -70,6 +70,8 @@ class MPU : public SimObject
     AddrRangeList getAddrRanges() { return coalesceEngine->getAddrRanges(); }
     void recvFunctional(PacketPtr pkt) { coalesceEngine->recvFunctional(pkt); }
     void postMemInitSetup() { coalesceEngine->postMemInitSetup(); }
+    void postConsumeProcess() { coalesceEngine->postConsumeProcess(); }
+    void swapDirectories() { coalesceEngine->swapDirectories(); }
 
     bool handleIncomingUpdate(PacketPtr pkt);
 

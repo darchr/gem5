@@ -205,12 +205,14 @@ class CoalesceEngine : public BaseMemoryEngine
 
     virtual void recvFunctional(PacketPtr pkt);
     void postMemInitSetup();
+    void postConsumeProcess();
     void swapDirectories();
 
     ReadReturnStatus recvWLRead(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);
 
     int workCount();
+    int futureWorkCount();
     void recvVertexPull();
 
     bool done();

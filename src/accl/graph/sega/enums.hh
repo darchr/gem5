@@ -69,15 +69,6 @@ enum ProcessingMode
 };
 extern const char* processingModeStrings[NUM_PROCESSING_MODE];
 
-enum BulkSynchronousState
-{
-    DONT_CARE,
-    CONSUMING,
-    APPLYING,
-    NUM_BULK_SYNCHRONOUS_STATE,
-};
-extern const char* bulkSynchronousStateStrings[NUM_BULK_SYNCHRONOUS_STATE];
-
 } // namespace gem5
 
 #endif // __ACCL_GRAPH_SEGA_ENUMS_HH__

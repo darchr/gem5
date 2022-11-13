@@ -66,9 +66,9 @@ class GPT(SubSystem):
             max_propagates_per_cycle=8,
             update_queue_size=32,
         )
-        
+
         self.vertex_mem_ctrl = SimpleMemory(latency="122ns", latency_var="0ns", bandwidth="28GiB/s")
-        
+
         self.edge_mem_ctrl = MemCtrl(
             dram=DDR4_2400_8x8(
                 range=AddrRange(edge_memory_size), in_addr_map=False)
@@ -129,16 +129,23 @@ class SEGA(System):
 
         self.ctrl.mpu_vector = [gpt.mpu for gpt in self.gpts]
 
+    def work_count(self):
+        return self.ctrl.workCount()
+
+    def set_async_mode(self):
+        self.ctrl.setAsyncMode()
+
+    def set_bsp_mode(self):
+        self.ctrl.setBSPMode()
+
     def create_pop_count_directory(self, atoms_per_block):
-        for gpt in self.gpts:
-            gpt.coalesce_engine.createPopCountDirectory(atoms_per_block)
+        self.ctrl.createPopCountDirectory(atoms_per_block)
 
     def create_bfs_workload(self, init_addr, init_value):
         self.ctrl.createBFSWorkload(init_addr, init_value)
 
-    def create_pr_workload(self, alpha, threshold):
-        self.ctrl.createPRWorkload(alpha, threshold)
+    def create_pr_workload(self, alpha):
+        self.ctrl.createPRWorkload(alpha)
 
     def print_answer(self):
         self.ctrl.printAnswerToHostSimout()
-

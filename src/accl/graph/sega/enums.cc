@@ -59,11 +59,4 @@ const char* processingModeStrings[NUM_PROCESSING_MODE] =
     "BULK_SYNCHRONOUS"
 };
 
-const char* bulkSynchronousStateStrings[NUM_BULK_SYNCHRONOUS_STATE] =
-{
-    "DONT_CARE",
-    "CONSUMING",
-    "APPLYING"
-};
-
 } // namespace gem5

@@ -112,6 +112,69 @@ CoalesceEngine::postMemInitSetup()
 }
 
 void
+CoalesceEngine::postConsumeProcess()
+{
+    WorkListItem items[numElementsPerLine];
+    for (Addr addr = 0; addr <= lastAtomAddr; addr += peerMemoryAtomSize) {
+        int block_index = getBlockIndex(addr);
+        if (cacheBlocks[block_index].addr == addr) {
+            assert(cacheBlocks[block_index].valid);
+            assert(!cacheBlocks[block_index].hasConflict);
+            assert(cacheBlocks[block_index].state == CacheState::IDLE);
+            bool atom_active_future_before = false;
+            bool atom_active_future_after = false;
+            for (int index = 0; index < numElementsPerLine; index++) {
+                assert(!cacheBlocks[block_index].items[index].activeNow);
+                // if (cacheBlocks[block_index].items[index].activeFuture) {
+                //     graphWorkload->interIterationInit(cacheBlocks[block_index].items[index]);
+                //     cacheBlocks[block_index].items[index].activeNow = true;
+                //     cacheBlocks[block_index].items[index].activeFuture = false;
+                // }
+                atom_active_future_before |= cacheBlocks[block_index].items[index].activeFuture;
+                graphWorkload->interIterationInit(cacheBlocks[block_index].items[index]);
+                atom_active_future_after |= cacheBlocks[block_index].items[index].activeFuture;
+                if (cacheBlocks[block_index].items[index].activeFuture) {
+                    cacheBlocks[block_index].items[index].activeFuture = false;
+                    cacheBlocks[block_index].items[index].activeNow = true;
+                }
+            }
+            if (!atom_active_future_before && atom_active_future_after) {
+                futureActiveCacheBlocks.push_back(block_index);
+            }
+            if (atom_active_future_before && !atom_active_future_after) {
+                futureActiveCacheBlocks.erase(block_index);
+            }
+        } else {
+            PacketPtr read_pkt = createReadPacket(addr, peerMemoryAtomSize);
+            memPort.sendFunctional(read_pkt);
+            read_pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
+            delete read_pkt;
+            bool atom_active_future_before = false;
+            bool atom_active_future_after = false;
+            for (int index = 0; index < numElementsPerLine; index++) {
+                assert(!items[index].activeNow);
+                atom_active_future_before |= items[index].activeFuture;
+                graphWorkload->interIterationInit(items[index]);
+                atom_active_future_after |= items[index].activeFuture;
+                if (items[index].activeFuture) {
+                    items[index].activeFuture = false;
+                    items[index].activeNow = true;
+                }
+            }
+            if (!atom_active_future_before && atom_active_future_after) {
+                futureDirectory->activate(addr);
+            }
+            if (atom_active_future_before && !atom_active_future_after) {
+                futureDirectory->deactivate(addr);
+            }
+            PacketPtr write_pkt = createWritePacket(addr, peerMemoryAtomSize, (uint8_t*) items);
+            memPort.sendFunctional(write_pkt);
+            delete write_pkt;
+        }
+    }
+}
+
+void
 CoalesceEngine::createAsyncPopCountDirectory(int atoms_per_block)
 {
     currentDirectory = new PopCountDirectory(
