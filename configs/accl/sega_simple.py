@@ -117,7 +117,7 @@ class SEGA(System):
 
         gpts = []
         for i in range(num_mpus):
-            gpt = GPT("4GiB", cache_size)
+            gpt = GPT("2GiB", cache_size)
             gpt.set_vertex_range(vertex_ranges[i])
             gpt.set_edge_image(f"{graph_path}/edgelist_{i}")
             gpts.append(gpt)

@@ -744,8 +744,6 @@ CoalesceEngine::processNextMemoryEvent()
         schedule(nextMemoryEvent, nextCycle());
     }
 
-    // FIXME: done() might have a different meaning depending on
-    // ProcessingMode and Processing state
     if (done()) {
         owner->recvDoneSignal();
     }
@@ -934,7 +932,9 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
                 activeBuffer.emplace_back(pkt, curTick());
             } else {
                 int count = currentDirectory->activate(cacheBlocks[block_index].addr);
-                int count_2 = futureDirectory->activate(cacheBlocks[block_index].addr);
+                if (atom_active_future) {
+                    int count_2 = futureDirectory->activate(cacheBlocks[block_index].addr);
+                }
                 // stats.blockActiveCount.sample(count);
                 // stats.frontierSize.sample(directory->workCount());
                 memPort.sendPacket(pkt);
