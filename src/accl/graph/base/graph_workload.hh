@@ -51,6 +51,7 @@ class GraphWorkload
     virtual uint32_t reduce(uint32_t update, uint32_t value) = 0;
     virtual uint32_t propagate(uint32_t value, uint32_t weight) = 0;
     virtual uint32_t apply(WorkListItem& wl) = 0;
+    virtual void interIterationInit(WorkListItem& wl) = 0;
     virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl) = 0;
     virtual std::string printWorkListItem(const WorkListItem wl) = 0;
 };
@@ -72,31 +73,30 @@ class BFSWorkload : public GraphWorkload
     virtual uint32_t reduce(uint32_t update, uint32_t value);
     virtual uint32_t propagate(uint32_t value, uint32_t weight);
     virtual uint32_t apply(WorkListItem& wl);
+    virtual void interIterationInit(WorkListItem& wl) {}
     virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl);
     virtual std::string printWorkListItem(const WorkListItem wl);
 };
 
 
-// class PRWorkload : public GraphWorkload
-// {
-//   private:
-//     float alpha;
-//     float threshold;
+class BSPPRWorkload : public GraphWorkload
+{
+  private:
+    float alpha;
 
-//   public:
-//     PRWorkload(float alpha, float threshold):
-//         alpha(alpha), threshold(threshold)
-//     {}
+  public:
+    BSPPRWorkload(float alpha): alpha(alpha) {}
 
-//     ~PRWorkload() {}
+    ~BSPPRWorkload() {}
 
-//     virtual void init(PacketPtr pkt, WorkDirectory* dir);
-//     virtual uint32_t reduce(uint32_t update, uint32_t value);
-//     virtual uint32_t propagate(uint32_t value, uint32_t weight);
-//     virtual uint32_t apply(WorkListItem& wl);
-//     virtual bool activeCondition(WorkListItem wl);
-//     virtual std::string printWorkListItem(const WorkListItem wl);
-// };
+    virtual void init(PacketPtr pkt, WorkDirectory* dir);
+    virtual uint32_t reduce(uint32_t update, uint32_t value);
+    virtual uint32_t propagate(uint32_t value, uint32_t weight);
+    virtual uint32_t apply(WorkListItem& wl);
+    virtual void interIterationInit(WorkListItem& wl);
+    virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl);
+    virtual std::string printWorkListItem(const WorkListItem wl);
+};
 
 }
 

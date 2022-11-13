@@ -88,7 +88,7 @@ if __name__ == "__m5_main__":
         sample,
         verify,
     ) = get_inputs()
-    
+
     if simple:
         from sega_simple import SEGA
     else:
@@ -98,6 +98,7 @@ if __name__ == "__m5_main__":
 
     m5.instantiate()
 
+    system.set_async_mode()
     system.create_pop_count_directory(64)
     system.create_bfs_workload(init_addr, init_value)
     if sample:
