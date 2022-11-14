@@ -193,13 +193,9 @@ CCWorkload::init(PacketPtr pkt, WorkDirectory* dir)
     for (int i = 0; i < num_elements; i++) {
         WorkListItem new_wl = items[i];
         new_wl.tempProp = (int) (pkt_addr / sizeof(WorkListItem)) + i;
-        bool vertex_active = activeCondition(new_wl, items[i]);
-        if (vertex_active) {
-            new_wl.activeNow = true;
-        }
+        new_wl.activeNow = activeCondition(new_wl, items[i]);
+        atom_active |= new_wl.activeNow;
         items[i] = new_wl;
-        atom_active |= vertex_active;
-
     }
     if (atom_active) {
         dir->activate(pkt->getAddr());
