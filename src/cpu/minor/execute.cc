@@ -1369,7 +1369,7 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
                 *inst, ex_info.streamSeqNum);
 
             if (fault == NoFault)
-                cpu.stats.numDiscardedOps++;
+                cpu.executeStats.numDiscardedOps++;
         }
 
         /* Mark the mem inst as being in the LSQ */

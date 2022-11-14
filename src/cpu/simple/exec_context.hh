@@ -90,12 +90,6 @@ class SimpleExecContext : public ExecContext
                        "Number of instructions committed"),
               ADD_STAT(numOps, statistics::units::Count::get(),
                        "Number of ops (including micro ops) committed"),
-              ADD_STAT(numIntAluAccesses, statistics::units::Count::get(),
-                       "Number of integer alu accesses"),
-              ADD_STAT(numFpAluAccesses, statistics::units::Count::get(),
-                       "Number of float alu accesses"),
-              ADD_STAT(numVecAluAccesses, statistics::units::Count::get(),
-                       "Number of vector alu accesses"),
               ADD_STAT(numCallsReturns, statistics::units::Count::get(),
                        "Number of times a function call or return occured"),
               ADD_STAT(numCondCtrlInsts, statistics::units::Count::get(),
@@ -106,32 +100,6 @@ class SimpleExecContext : public ExecContext
                        "Number of float instructions"),
               ADD_STAT(numVecInsts, statistics::units::Count::get(),
                        "Number of vector instructions"),
-              ADD_STAT(numIntRegReads, statistics::units::Count::get(),
-                       "Number of times the integer registers were read"),
-              ADD_STAT(numIntRegWrites, statistics::units::Count::get(),
-                       "Number of times the integer registers were written"),
-              ADD_STAT(numFpRegReads, statistics::units::Count::get(),
-                       "Number of times the floating registers were read"),
-              ADD_STAT(numFpRegWrites, statistics::units::Count::get(),
-                       "Number of times the floating registers were written"),
-              ADD_STAT(numVecRegReads, statistics::units::Count::get(),
-                       "Number of times the vector registers were read"),
-              ADD_STAT(numVecRegWrites, statistics::units::Count::get(),
-                       "Number of times the vector registers were written"),
-              ADD_STAT(numVecPredRegReads, statistics::units::Count::get(),
-                       "Number of times the predicate registers were read"),
-              ADD_STAT(numVecPredRegWrites, statistics::units::Count::get(),
-                       "Number of times the predicate registers were written"),
-              ADD_STAT(numCCRegReads, statistics::units::Count::get(),
-                       "Number of times the CC registers were read"),
-              ADD_STAT(numCCRegWrites, statistics::units::Count::get(),
-                       "Number of times the CC registers were written"),
-              ADD_STAT(numMiscRegReads, statistics::units::Count::get(),
-                       "Number of times the Misc registers were read"),
-              ADD_STAT(numMiscRegWrites, statistics::units::Count::get(),
-                       "Number of times the Misc registers were written"),
-              ADD_STAT(numMemRefs, statistics::units::Count::get(),
-                       "Number of memory refs"),
               ADD_STAT(numLoadInsts, statistics::units::Count::get(),
                        "Number of load instructions"),
               ADD_STAT(numStoreInsts, statistics::units::Count::get(),
@@ -144,41 +112,25 @@ class SimpleExecContext : public ExecContext
                        "Percentage of non-idle cycles"),
               ADD_STAT(idleFraction, statistics::units::Ratio::get(),
                        "Percentage of idle cycles"),
-              ADD_STAT(icacheStallCycles, statistics::units::Cycle::get(),
-                       "ICache total stall cycles"),
-              ADD_STAT(dcacheStallCycles, statistics::units::Cycle::get(),
-                       "DCache total stall cycles"),
               ADD_STAT(statExecutedInstType, statistics::units::Count::get(),
                        "Class of executed instruction."),
               numRegReads{
-                  &numIntRegReads,
-                  &numFpRegReads,
-                  &numVecRegReads,
-                  &numVecRegReads,
-                  &numVecPredRegReads,
-                  &numCCRegReads
+                  &(cpu->executeStats.numIntRegReads),
+                  &(cpu->executeStats.numFpRegReads),
+                  &(cpu->executeStats.numVecRegReads),
+                  &(cpu->executeStats.numVecRegReads),
+                  &(cpu->executeStats.numVecPredRegReads),
+                  &(cpu->executeStats.numCCRegReads)
               },
               numRegWrites{
-                  &numIntRegWrites,
-                  &numFpRegWrites,
-                  &numVecRegWrites,
-                  &numVecRegWrites,
-                  &numVecPredRegWrites,
-                  &numCCRegWrites
+                  &(cpu->executeStats.numIntRegWrites),
+                  &(cpu->executeStats.numFpRegWrites),
+                  &(cpu->executeStats.numVecRegWrites),
+                  &(cpu->executeStats.numVecRegWrites),
+                  &(cpu->executeStats.numVecPredRegWrites),
+                  &(cpu->executeStats.numCCRegWrites)
               }
         {
-            numCCRegReads
-                .flags(statistics::nozero);
-
-            numCCRegWrites
-                .flags(statistics::nozero);
-
-            icacheStallCycles
-                .prereq(icacheStallCycles);
-
-            dcacheStallCycles
-                .prereq(dcacheStallCycles);
-
             statExecutedInstType
                 .init(enums::Num_OpClass)
                 .flags(statistics::total | statistics::pdf | statistics::dist);
@@ -196,15 +148,6 @@ class SimpleExecContext : public ExecContext
         statistics::Scalar numInsts;
         statistics::Scalar numOps;
 
-        // Number of integer alu accesses
-        statistics::Scalar numIntAluAccesses;
-
-        // Number of float alu accesses
-        statistics::Scalar numFpAluAccesses;
-
-        // Number of vector alu accesses
-        statistics::Scalar numVecAluAccesses;
-
         // Number of function calls/returns
         statistics::Scalar numCallsReturns;
 
@@ -220,32 +163,7 @@ class SimpleExecContext : public ExecContext
         // Number of vector instructions
         statistics::Scalar numVecInsts;
 
-        // Number of integer register file accesses
-        statistics::Scalar numIntRegReads;
-        statistics::Scalar numIntRegWrites;
-
-        // Number of float register file accesses
-        statistics::Scalar numFpRegReads;
-        statistics::Scalar numFpRegWrites;
-
-        // Number of vector register file accesses
-        mutable statistics::Scalar numVecRegReads;
-        statistics::Scalar numVecRegWrites;
-
-        // Number of predicate register file accesses
-        mutable statistics::Scalar numVecPredRegReads;
-        statistics::Scalar numVecPredRegWrites;
-
-        // Number of condition code register file accesses
-        statistics::Scalar numCCRegReads;
-        statistics::Scalar numCCRegWrites;
-
-        // Number of misc register file accesses
-        statistics::Scalar numMiscRegReads;
-        statistics::Scalar numMiscRegWrites;
-
         // Number of simulated memory references
-        statistics::Scalar numMemRefs;
         statistics::Scalar numLoadInsts;
         statistics::Scalar numStoreInsts;
 
@@ -258,12 +176,6 @@ class SimpleExecContext : public ExecContext
         // Number of idle cycles
         statistics::Average notIdleFraction;
         statistics::Formula idleFraction;
-
-        // Number of cycles stalled for I-cache responses
-        statistics::Scalar icacheStallCycles;
-
-        // Number of cycles stalled for D-cache responses
-        statistics::Scalar dcacheStallCycles;
 
         // Instruction mix histogram by OpClass
         statistics::Vector statExecutedInstType;
@@ -328,7 +240,7 @@ class SimpleExecContext : public ExecContext
     RegVal
     readMiscRegOperand(const StaticInst *si, int idx) override
     {
-        execContextStats.numMiscRegReads++;
+        cpu->executeStats.numMiscRegReads++;
         const RegId& reg = si->srcRegIdx(idx);
         assert(reg.is(MiscRegClass));
         return thread->readMiscReg(reg.index());
@@ -337,7 +249,7 @@ class SimpleExecContext : public ExecContext
     void
     setMiscRegOperand(const StaticInst *si, int idx, RegVal val) override
     {
-        execContextStats.numMiscRegWrites++;
+        cpu->executeStats.numMiscRegWrites++;
         const RegId& reg = si->destRegIdx(idx);
         assert(reg.is(MiscRegClass));
         thread->setMiscReg(reg.index(), val);
@@ -350,7 +262,7 @@ class SimpleExecContext : public ExecContext
     RegVal
     readMiscReg(int misc_reg) override
     {
-        execContextStats.numMiscRegReads++;
+        cpu->executeStats.numMiscRegReads++;
         return thread->readMiscReg(misc_reg);
     }
 
@@ -361,7 +273,7 @@ class SimpleExecContext : public ExecContext
     void
     setMiscReg(int misc_reg, RegVal val) override
     {
-        execContextStats.numMiscRegWrites++;
+        cpu->executeStats.numMiscRegWrites++;
         thread->setMiscReg(misc_reg, val);
     }
 

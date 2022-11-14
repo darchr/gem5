@@ -140,7 +140,8 @@ BaseCPU::BaseCPU(const Params &p, bool is_checker)
       pwrGatingLatency(p.pwr_gating_latency),
       powerGatingOnIdle(p.power_gating_on_idle),
       enterPwrGatingEvent([this]{ enterPwrGating(); }, name()),
-      fetchStats(this)
+      fetchStats(this),
+      executeStats(this)
 {
     // if Python did not provide a valid ID, do it here
     if (_cpuId == -1 ) {
@@ -792,7 +793,6 @@ FetchCPUStats::FetchCPUStats(statistics::Group *parent)
              "Number o0f branch mispredictions"),
     ADD_STAT(numFetchSuspends, statistics::units::Count::get(),
              "Number of times Execute suspended instruction fetching")
-
 {
     numBranches
         .prereq(numBranches);
@@ -804,4 +804,57 @@ FetchCPUStats::FetchCPUStats(statistics::Group *parent)
         .prereq(numBranchMispred);
 }
 
+// means it is incremented in a vector indexing and not directly
+BaseCPU::
+ExecuteCPUStats::ExecuteCPUStats(statistics::Group *parent)
+    : statistics::Group(parent),
+    ADD_STAT(icacheStallCycles, statistics::units::Cycle::get(),
+             "ICache total stall cycles"),
+    ADD_STAT(dcacheStallCycles, statistics::units::Cycle::get(),
+             "DCache total stall cycles"),
+    ADD_STAT(numCCRegReads, statistics::units::Count::get(), //
+             "Number of times the CC registers were read"), //
+    ADD_STAT(numCCRegWrites, statistics::units::Count::get(),
+             "Number of times the CC registers were written"),
+    ADD_STAT(numFpAluAccesses, statistics::units::Count::get(),
+             "Number of float alu accesses"),
+    ADD_STAT(numFpRegReads, statistics::units::Count::get(),
+             "Number of times the floating registers were read"), //
+    ADD_STAT(numFpRegWrites, statistics::units::Count::get(),
+             "Number of times the floating registers were written"), //
+    ADD_STAT(numIntAluAccesses, statistics::units::Count::get(),
+             "Number of integer alu accesses"),
+    ADD_STAT(numIntRegReads, statistics::units::Count::get(), //
+             "Number of times the integer registers were read"),
+    ADD_STAT(numIntRegWrites, statistics::units::Count::get(), //
+             "Number of times the integer registers were written"),
+    ADD_STAT(numMemRefs, statistics::units::Count::get(),
+             "Number of memory refs"),
+    ADD_STAT(numMiscRegReads, statistics::units::Count::get(),
+             "Number of times the Misc registers were read"),
+    ADD_STAT(numMiscRegWrites, statistics::units::Count::get(),
+             "Number of times the Misc registers were written"),
+    ADD_STAT(numVecAluAccesses, statistics::units::Count::get(),
+             "Number of vector alu accesses"),
+    ADD_STAT(numVecPredRegReads, statistics::units::Count::get(), //
+             "Number of times the predicate registers were read"),
+    ADD_STAT(numVecPredRegWrites, statistics::units::Count::get(), //
+             "Number of times the predicate registers were written"),
+    ADD_STAT(numVecRegReads, statistics::units::Count::get(), //
+             "Number of times the vector registers were read"),
+    ADD_STAT(numVecRegWrites, statistics::units::Count::get(), //
+             "Number of times the vector registers were written"),
+    ADD_STAT(numDiscardedOps, statistics::units::Count::get(),
+             "Number of ops (including micro ops) which were discarded before "
+             "commit")
+{
+    icacheStallCycles
+                .prereq(icacheStallCycles);
+    dcacheStallCycles
+                .prereq(dcacheStallCycles);
+    numCCRegReads
+                .flags(statistics::nozero);
+    numCCRegWrites
+                .flags(statistics::nozero);
+}
 } // namespace gem5
