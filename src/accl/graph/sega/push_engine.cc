@@ -411,7 +411,6 @@ PushEngine::createUpdatePacket(Addr addr, T value)
     // bits
     req->setPC(((Addr) 1) << 2);
 
-    // FIXME: MemCmd::UpdateWL
     PacketPtr pkt = new Packet(req, MemCmd::UpdateWL);
 
     pkt->allocate();

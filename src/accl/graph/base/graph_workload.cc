@@ -118,90 +118,95 @@ BFSWorkload::printWorkListItem(const WorkListItem wl)
             wl.activeFuture ? "true" : "false");
 }
 
+// void
+// BFSVisitedWorkload::init(PacketPtr pkt, WorkDirectory* dir)
+// {
+//     size_t pkt_size = pkt->getSize();
+//     uint64_t aligned_addr = roundDown<uint64_t, size_t>(initAddr, pkt_size);
+
+//     if (pkt->getAddr() == aligned_addr) {
+//         int num_elements = (int) (pkt_size / sizeof(WorkListItem));
+//         WorkListItem items[num_elements];
+
+//         pkt->writeDataToBlock((uint8_t*) items, pkt_size);
+
+//         int index = (int) ((initAddr - aligned_addr) / sizeof(WorkListItem));
+//         items[index].tempProp = initValue;
+//         if (activeCondition(items[index])) {
+//             dir->activate(aligned_addr);
+//         }
+//         pkt->deleteData();
+//         pkt->allocate();
+//         pkt->setDataFromBlock((uint8_t*) items, pkt_size);
+//     }
+// }
+
+// uint32_t
+// BFSVisitedWorkload::reduce(uint32_t update, uint32_t value)
+// {
+//     return std::min(update, value);
+// }
+
+// uint32_t
+// BFSVisitedWorkload::propagate(uint32_t value, uint32_t weight)
+// {
+//     return 1;
+// }
+
+// bool
+// BFSVisitedWorkload::activeCondition(WorkListItem wl)
+// {
+//     return (wl.tempProp < wl.prop) && (wl.degree > 0);
+// }
+
+// uint32_t
+// BFSVisitedWorkload::apply(WorkListItem& wl)
+// {
+//     wl.prop = wl.tempProp;
+//     return wl.prop;
+// }
+
+// std::string
+// BFSVisitedWorkload::printWorkListItem(const WorkListItem wl)
+// {
+//     return csprintf(
+//             "WorkListItem{tempProp: %u, prop: %u, degree: %u, edgeIndex: %u}",
+//             wl.tempProp, wl.prop, wl.degree, wl.edgeIndex
+//             );
+// }
+
+uint32_t
+BFSVisitedWorkload::propagate(uint32_t value, uint32_t weight) {
+    return value;
+}
+
 void
-BFSVisitedWorkload::init(PacketPtr pkt, WorkDirectory* dir)
+CCWorkload::init(PacketPtr pkt, WorkDirectory* dir)
 {
+    Addr pkt_addr = pkt->getAddr();
     size_t pkt_size = pkt->getSize();
-    uint64_t aligned_addr = roundDown<uint64_t, size_t>(initAddr, pkt_size);
+    int num_elements = (int) (pkt_size / sizeof(WorkListItem));
+    WorkListItem items[num_elements];
 
-    if (pkt->getAddr() == aligned_addr) {
-        int num_elements = (int) (pkt_size / sizeof(WorkListItem));
-        WorkListItem items[num_elements];
-
-        pkt->writeDataToBlock((uint8_t*) items, pkt_size);
-
-        int index = (int) ((initAddr - aligned_addr) / sizeof(WorkListItem));
-        items[index].tempProp = initValue;
-        if (activeCondition(items[index])) {
-            dir->activate(aligned_addr);
+    pkt->writeDataToBlock((uint8_t*) items, pkt_size);
+    bool atom_active = false;
+    for (int i = 0; i < num_elements; i++) {
+        WorkListItem new_wl = items[i];
+        new_wl.tempProp = (int) (pkt_addr / sizeof(WorkListItem)) + i;
+        bool vertex_active = activeCondition(new_wl, items[i]);
+        if (vertex_active) {
+            new_wl.activeNow = true;
         }
-        pkt->deleteData();
-        pkt->allocate();
-        pkt->setDataFromBlock((uint8_t*) items, pkt_size);
+        items[i] = new_wl;
+        atom_active |= vertex_active;
+
     }
-}
-
-uint32_t
-BFSVisitedWorkload::reduce(uint32_t update, uint32_t value)
-{
-    return std::min(update, value);
-}
-
-uint32_t
-BFSVisitedWorkload::propagate(uint32_t value, uint32_t weight)
-{
-    return 1;
-}
-
-bool
-BFSVisitedWorkload::activeCondition(WorkListItem wl)
-{
-    return (wl.tempProp < wl.prop) && (wl.degree > 0);
-}
-
-uint32_t
-BFSVisitedWorkload::apply(WorkListItem& wl)
-{
-    wl.prop = wl.tempProp;
-    return wl.prop;
-}
-
-std::string
-BFSVisitedWorkload::printWorkListItem(const WorkListItem wl)
-{
-    return csprintf(
-            "WorkListItem{tempProp: %u, prop: %u, degree: %u, edgeIndex: %u}",
-            wl.tempProp, wl.prop, wl.degree, wl.edgeIndex
-            );
-}
-
-void
-SSSPWorkload::init(PacketPtr pkt, WorkDirectory* dir)
-{
-    size_t pkt_size = pkt->getSize();
-    uint64_t aligned_addr = roundDown<uint64_t, size_t>(initAddr, pkt_size);
-
-    if (pkt->getAddr() == aligned_addr) {
-        int num_elements = (int) (pkt_size / sizeof(WorkListItem));
-        WorkListItem items[num_elements];
-
-        pkt->writeDataToBlock((uint8_t*) items, pkt_size);
-
-        int index = (int) ((initAddr - aligned_addr) / sizeof(WorkListItem));
-        items[index].tempProp = initValue;
-        if (activeCondition(items[index])) {
-            dir->activate(aligned_addr);
-        }
-        pkt->deleteData();
-        pkt->allocate();
-        pkt->setDataFromBlock((uint8_t*) items, pkt_size);
+    if (atom_active) {
+        dir->activate(pkt->getAddr());
     }
-}
-
-uint32_t
-SSSPWorkload::reduce(uint32_t update, uint32_t value)
-{
-    return std::min(update, value);
+    pkt->deleteData();
+    pkt->allocate();
+    pkt->setDataFromBlock((uint8_t*) items, pkt_size);
 }
 
 uint32_t
@@ -209,29 +214,6 @@ SSSPWorkload::propagate(uint32_t value, uint32_t weight)
 {
     return value + weight;
 }
-
-bool
-SSSPWorkload::activeCondition(WorkListItem wl)
-{
-    return (wl.tempProp < wl.prop) && (wl.degree > 0);
-}
-
-uint32_t
-SSSPWorkload::apply(WorkListItem& wl)
-{
-    wl.prop = wl.tempProp;
-    return wl.prop;
-}
-
-std::string
-SSSPWorkload::printWorkListItem(const WorkListItem wl)
-{
-    return csprintf(
-            "WorkListItem{tempProp: %u, prop: %u, degree: %u, edgeIndex: %u}",
-            wl.tempProp, wl.prop, wl.degree, wl.edgeIndex
-            );
-}
-
 
 void
 BSPPRWorkload::init(PacketPtr pkt, WorkDirectory* dir)
@@ -307,63 +289,6 @@ BSPPRWorkload::printWorkListItem(const WorkListItem wl)
             temp_float, prop_float, wl.degree, wl.edgeIndex,
             wl.activeNow ? "true" : "false",
             wl.activeFuture ? "true" : "false");
-}
-
-void
-CCWorkload::init(PacketPtr pkt, WorkDirectory* dir)
-{
-    Addr pkt_addr = pkt->getAddr();
-    size_t pkt_size = pkt->getSize();
-    int num_elements = (int) (pkt_size / sizeof(WorkListItem));
-    WorkListItem items[num_elements];
-
-    pkt->writeDataToBlock((uint8_t*) items, pkt_size);
-    bool atom_active = false;
-    for (int i = 0; i < num_elements; i++) {
-        items[i].tempProp = (int) ( pkt_addr / sizeof(WorkListItem)) + i;
-        items[i].prop = -1;
-        atom_active |= activeCondition(items[i]);
-    }
-    if (atom_active) {
-        dir->activate(pkt->getAddr());
-    }
-    pkt->deleteData();
-    pkt->allocate();
-    pkt->setDataFromBlock((uint8_t*) items, pkt_size);
-}
-
-uint32_t
-CCWorkload::reduce(uint32_t update, uint32_t value)
-{
-    return std::min(update, value);
-}
-
-uint32_t
-CCWorkload::propagate(uint32_t value, uint32_t weight)
-{
-    return value;
-}
-
-bool
-CCWorkload::activeCondition(WorkListItem wl)
-{
-    return (wl.tempProp < wl.prop) && (wl.degree > 0);
-}
-
-uint32_t
-CCWorkload::apply(WorkListItem& wl)
-{
-    wl.prop = wl.tempProp;
-    return wl.prop;
-}
-
-std::string
-CCWorkload::printWorkListItem(const WorkListItem wl)
-{
-    return csprintf(
-            "WorkListItem{tempProp: %u, prop: %u, degree: %u, edgeIndex: %u}",
-            wl.tempProp, wl.prop, wl.degree, wl.edgeIndex
-            );
 }
 
 } // namespace gem5

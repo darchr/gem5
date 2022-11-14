@@ -40,14 +40,6 @@ def get_inputs():
     argparser.add_argument("init_addr", type=int)
     argparser.add_argument("init_value", type=int)
     argparser.add_argument(
-        "--visited",
-        dest="visited",
-        action="store_const",
-        const=True,
-        default=False,
-        help="Use visitation version of BFS",
-    )
-    argparser.add_argument(
         "--simple",
         dest="simple",
         action="store_const",
@@ -81,7 +73,6 @@ def get_inputs():
         args.graph,
         args.init_addr,
         args.init_value,
-        args.visited,
         args.simple,
         args.sample,
         args.verify,
@@ -96,7 +87,6 @@ if __name__ == "__m5_main__":
         graph,
         init_addr,
         init_value,
-        visited,
         simple,
         sample,
         verify,
@@ -113,10 +103,7 @@ if __name__ == "__m5_main__":
 
     system.set_async_mode()
     system.create_pop_count_directory(64)
-    if visited:
-        system.create_bfs_visited_workload(init_addr, init_value)
-    else:
-        system.create_bfs_workload(init_addr, init_value)
+    system.create_sssp_workload(init_addr, init_value)
     if sample:
         while True:
             exit_event = m5.simulate(100000000)
