@@ -343,12 +343,14 @@ CoalesceEngine::recvWLRead(Addr addr)
                     if (atom_active_now) {
                         currentActiveCacheBlocks.erase(block_index);
                         int count = currentDirectory->activate(cacheBlocks[block_index].addr);
-                        // stats.blockActiveCount.sample(count);
-                        // stats.frontierSize.sample(directory->workCount());
+                        stats.currentFrontierSize.sample(currentDirectory->workCount());
+                        stats.currentBlockActiveCount.sample(count);
                     }
                     if (atom_active_future) {
                         futureActiveCacheBlocks.erase(block_index);
                         int count = futureDirectory->activate(cacheBlocks[block_index].addr);
+                        stats.futureFrontierSize.sample(futureDirectory->workCount());
+                        stats.futureBlockActiveCount.sample(count);
                     }
                     // NOTE: Bring the cache line to invalid state.
                     // NOTE: Above line where we set hasConflict to true
@@ -457,14 +459,16 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                 atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
             }
             if (atom_active_now) {
-                // TODO: Add sampling of blockActiveCount and frontierSize here
                 int count = currentDirectory->deactivate(addr);
                 currentActiveCacheBlocks.push_back(block_index);
+                stats.currentFrontierSize.sample(currentDirectory->workCount());
+                stats.currentBlockActiveCount.sample(count);
             }
             if (atom_active_future) {
-                // TODO: Add sampling of blockActiveCount and frontierSize here
                 int count = futureDirectory->deactivate(addr);
                 futureActiveCacheBlocks.push_back(block_index);
+                stats.futureFrontierSize.sample(futureDirectory->workCount());
+                stats.futureBlockActiveCount.sample(count);
             }
 
             assert(MSHR.find(block_index) != MSHR.end());
@@ -522,15 +526,17 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                 atom_active_future |= items[index].activeFuture;
             }
             if (atom_active_now) {
-                // TODO: Add sampling of blockActiveCount and frontierSize here
                 int count = currentDirectory->deactivate(addr);
+                stats.currentFrontierSize.sample(currentDirectory->workCount());
+                stats.currentBlockActiveCount.sample(count);
                 if (atom_active_future) {
-                    int count_2 = futureDirectory->deactivate(addr);
+                    int count = futureDirectory->deactivate(addr);
+                    stats.futureFrontierSize.sample(futureDirectory->workCount());
+                    stats.futureBlockActiveCount.sample(count);
                 }
                 activeBuffer.emplace_back(pkt, curTick());
-                // stats.blockActiveCount.sample(count);
-                // stats.frontierSize.sample(directory->workCount());
             } else {
+                stats.wastefulBytesRead += pkt->getSize();
                 delete pkt;
             }
 
@@ -686,15 +692,16 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
                     atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
                 }
                 if (atom_active_now) {
-                    // TODO: Sample frontier size and blockCount here.
                     currentActiveCacheBlocks.erase(block_index);
                     int count = currentDirectory->activate(cacheBlocks[block_index].addr);
-                    // stats.blockActiveCount.sample(count);
-                    // stats.frontierSize.sample(directory->workCount());
+                    stats.currentFrontierSize.sample(currentDirectory->workCount());
+                    stats.currentBlockActiveCount.sample(count);
                 }
                 if (atom_active_future) {
                     futureActiveCacheBlocks.erase(block_index);
                     int count = futureDirectory->activate(cacheBlocks[block_index].addr);
+                    stats.futureFrontierSize.sample(futureDirectory->workCount());
+                    stats.futureBlockActiveCount.sample(count);
                 }
                 cacheBlocks[block_index].reset();
             }
@@ -932,17 +939,21 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
                 activeBuffer.emplace_back(pkt, curTick());
             } else {
                 int count = currentDirectory->activate(cacheBlocks[block_index].addr);
+                stats.currentFrontierSize.sample(currentDirectory->workCount());
+                stats.currentBlockActiveCount.sample(count);
                 if (atom_active_future) {
-                    int count_2 = futureDirectory->activate(cacheBlocks[block_index].addr);
+                    int count = futureDirectory->activate(cacheBlocks[block_index].addr);
+                    stats.futureFrontierSize.sample(futureDirectory->workCount());
+                    stats.futureBlockActiveCount.sample(count);
                 }
-                // stats.blockActiveCount.sample(count);
-                // stats.frontierSize.sample(directory->workCount());
                 memPort.sendPacket(pkt);
                 onTheFlyReqs++;
             }
         } else {
             if (atom_active_future) {
                 int count = futureDirectory->activate(cacheBlocks[block_index].addr);
+                stats.futureFrontierSize.sample(futureDirectory->workCount());
+                stats.futureBlockActiveCount.sample(count);
             }
             memPort.sendPacket(pkt);
             onTheFlyReqs++;
@@ -956,7 +967,6 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
                             "the current write back scheduled at tick %lu for "
                             "the right function scheduled later.\n",
                             __func__, block_index, schedule_tick);
-        stats.numInvalidWriteBacks++;
     }
 }
 
@@ -1141,8 +1151,8 @@ CoalesceEngine::processNextApplyEvent()
             }
         }
     } else {
-        DPRINTF(CoalesceEngine, "%s: Could not find "
-                        "work to apply.\n", __func__);
+        DPRINTF(CoalesceEngine, "%s: Could not find work to apply.\n", __func__);
+        stats.worklessCycles++;
     }
 
     if (pullCondition()) {
@@ -1184,6 +1194,8 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "delayed because of port shortage. "),
     ADD_STAT(numMemoryBlocks, statistics::units::Count::get(),
              "Number of times memory bandwidth was not available."),
+    ADD_STAT(wastefulBytesRead, statistics::units::Byte::get(),
+             "Number of bytes read that were not used by coalesce engine"),
     ADD_STAT(verticesPulled, statistics::units::Count::get(),
              "Number of times a pull request has been sent by PushEngine."),
     ADD_STAT(verticesPushed, statistics::units::Count::get(),
@@ -1192,8 +1204,8 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Time of the last pull request. (Relative to reset_stats)"),
     ADD_STAT(lastVertexPushTime, statistics::units::Tick::get(),
              "Time of the last vertex push. (Relative to reset_stats)"),
-    ADD_STAT(numInvalidWriteBacks, statistics::units::Count::get(),
-             "Number of times a scheduled memory function has been invalid."),
+    ADD_STAT(worklessCycles, statistics::units::Count::get(),
+             "cycles the coalesce engine could not find work for apply"),
     ADD_STAT(hitRate, statistics::units::Ratio::get(),
              "Hit rate in the cache."),
     ADD_STAT(vertexPullBW, statistics::units::Rate<statistics::units::Count,
@@ -1202,10 +1214,14 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
     ADD_STAT(vertexPushBW, statistics::units::Rate<statistics::units::Count,
                                             statistics::units::Second>::get(),
              "Rate at which vertices are pushed."),
-    ADD_STAT(frontierSize, statistics::units::Count::get(),
-             "Histogram of the length of the bitvector."),
-    ADD_STAT(blockActiveCount, statistics::units::Count::get(),
-             "Histogram of the popCount values in the directory"),
+    ADD_STAT(currentFrontierSize, statistics::units::Count::get(),
+             "Histogram of the length of the current bitvector."),
+    ADD_STAT(futureFrontierSize, statistics::units::Count::get(),
+             "Histogram of the length of the future bitvector."),
+    ADD_STAT(currentBlockActiveCount, statistics::units::Count::get(),
+             "Histogram of the popCount values in the current directory"),
+    ADD_STAT(futureBlockActiveCount, statistics::units::Count::get(),
+             "Histogram of the popCount values in the future directory"),
     ADD_STAT(responseQueueLatency, statistics::units::Second::get(),
              "Histogram of the response latency to WLEngine. (ns)"),
     ADD_STAT(memoryFunctionLatency, statistics::units::Second::get(),
@@ -1225,8 +1241,10 @@ CoalesceEngine::CoalesceStats::regStats()
 
     vertexPushBW = (verticesPushed * getClockFrequency()) / lastVertexPushTime;
 
-    frontierSize.init(64);
-    blockActiveCount.init(64);
+    currentFrontierSize.init(64);
+    futureFrontierSize.init(64);
+    currentBlockActiveCount.init(64);
+    futureBlockActiveCount.init(64);
     responseQueueLatency.init(64);
     memoryFunctionLatency.init(64);
 }

@@ -38,7 +38,6 @@ class CenteralController(ClockedObject):
     system = Param.System(Parent.any, "System this Engine is a part of")
 
     vertex_image_file = Param.String("Path to the vertex image file.")
-    edgelist_image_file = Param.String("Path to the edgelist image file.")
 
     mpu_vector = VectorParam.MPU("All mpus in the system.")
 

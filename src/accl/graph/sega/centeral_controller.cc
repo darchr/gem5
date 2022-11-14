@@ -90,11 +90,11 @@ CenteralController::startup()
     }
 
     const auto& vertex_file = params().vertex_image_file;
-    if (file == "")
+    if (vertex_file == "")
         return;
 
-    auto* object = loader::createObjectFile(file, true);
-    fatal_if(!object, "%s: Could not load %s.", name(), file);
+    auto* object = loader::createObjectFile(vertex_file, true);
+    fatal_if(!object, "%s: Could not load %s.", name(), vertex_file);
 
     loader::debugSymbolTable.insert(*object->symtab().globals());
     loader::MemoryImage vertex_image = object->buildImage();
