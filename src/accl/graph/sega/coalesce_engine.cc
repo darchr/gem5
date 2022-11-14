@@ -115,7 +115,9 @@ void
 CoalesceEngine::postConsumeProcess()
 {
     WorkListItem items[numElementsPerLine];
-    for (Addr addr = 0; addr <= lastAtomAddr; addr += peerMemoryAtomSize) {
+    Addr last_local_atom_addr = peerMemoryRange.removeIntlvBits(lastAtomAddr);
+    for (Addr local_addr = 0; local_addr <= last_local_atom_addr; local_addr += peerMemoryAtomSize) {
+        Addr addr = peerMemoryRange.addIntlvBits(local_addr);
         int block_index = getBlockIndex(addr);
         if (cacheBlocks[block_index].addr == addr) {
             assert(cacheBlocks[block_index].valid);
@@ -125,11 +127,6 @@ CoalesceEngine::postConsumeProcess()
             bool atom_active_future_after = false;
             for (int index = 0; index < numElementsPerLine; index++) {
                 assert(!cacheBlocks[block_index].items[index].activeNow);
-                // if (cacheBlocks[block_index].items[index].activeFuture) {
-                //     graphWorkload->interIterationInit(cacheBlocks[block_index].items[index]);
-                //     cacheBlocks[block_index].items[index].activeNow = true;
-                //     cacheBlocks[block_index].items[index].activeFuture = false;
-                // }
                 atom_active_future_before |= cacheBlocks[block_index].items[index].activeFuture;
                 graphWorkload->interIterationInit(cacheBlocks[block_index].items[index]);
                 atom_active_future_after |= cacheBlocks[block_index].items[index].activeFuture;
