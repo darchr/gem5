@@ -67,6 +67,7 @@ class MPU : public SimObject
     void createAsyncPopCountDirectory(int atoms_per_block) { coalesceEngine->createAsyncPopCountDirectory(atoms_per_block); }
     void createBSPPopCountDirectory(int atoms_per_block) { coalesceEngine->createBSPPopCountDirectory(atoms_per_block); }
 
+    unsigned int vertexAtomSize() { return coalesceEngine->params().attached_memory_atom_size; }
     AddrRangeList getAddrRanges() { return coalesceEngine->getAddrRanges(); }
     void recvFunctional(PacketPtr pkt) { coalesceEngine->recvFunctional(pkt); }
     void postMemInitSetup() { coalesceEngine->postMemInitSetup(); }

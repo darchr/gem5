@@ -101,6 +101,7 @@ CenteralController::createPopCountDirectory(int atoms_per_block)
 void
 CenteralController::startup()
 {
+    unsigned int vertex_atom = mpuVector.front()->vertexAtomSize();
     for (auto mpu: mpuVector) {
         addrRangeListMap[mpu] = mpu->getAddrRanges();
         mpu->setProcessingMode(mode);
@@ -126,7 +127,7 @@ CenteralController::startup()
                 mpu->recvFunctional(pkt);
             }
         }
-    }, system->cacheLineSize());
+    }, vertex_atom);
 
     panic_if(!vertex_image.write(vertex_proxy), "%s: Unable to write image.");
 
@@ -190,18 +191,19 @@ CenteralController::workCount()
 void
 CenteralController::printAnswerToHostSimout()
 {
-    int num_items = system->cacheLineSize() / sizeof(WorkListItem);
+    unsigned int vertex_atom = mpuVector.front()->vertexAtomSize();
+    int num_items = vertex_atom / sizeof(WorkListItem);
     WorkListItem items[num_items];
-    for (Addr addr = 0; addr < maxVertexAddr; addr += system->cacheLineSize())
+    for (Addr addr = 0; addr < maxVertexAddr; addr += vertex_atom)
     {
-        PacketPtr pkt = createReadPacket(addr, system->cacheLineSize());
+        PacketPtr pkt = createReadPacket(addr, vertex_atom);
         for (auto mpu: mpuVector) {
             AddrRangeList range_list = addrRangeListMap[mpu];
             if (contains(range_list, addr)) {
                 mpu->recvFunctional(pkt);
             }
         }
-        pkt->writeDataToBlock((uint8_t*) items, system->cacheLineSize());
+        pkt->writeDataToBlock((uint8_t*) items, vertex_atom);
         for (int i = 0; i < num_items; i++) {
             std::string print = csprintf("WorkListItem[%lu][%d]: %s.", addr, i,
                                         workload->printWorkListItem(items[i]));
