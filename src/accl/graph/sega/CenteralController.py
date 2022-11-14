@@ -46,6 +46,9 @@ class CenteralController(ClockedObject):
                     PyBindMethod("setBSPMode"),
                     PyBindMethod("createPopCountDirectory"),
                     PyBindMethod("createBFSWorkload"),
+                    PyBindMethod("createBFSVisitedWorkload"),
+                    PyBindMethod("createSSSPWorkload"),
+                    PyBindMethod("createCCWorkload"),
                     PyBindMethod("createPRWorkload"),
                     PyBindMethod("workCount"),
                     PyBindMethod("printAnswerToHostSimout")

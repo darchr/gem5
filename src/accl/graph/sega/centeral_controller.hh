@@ -70,6 +70,9 @@ class CenteralController : public ClockedObject
     void createPopCountDirectory(int atoms_per_block);
 
     void createBFSWorkload(Addr init_addr, uint32_t init_value);
+    void createBFSVisitedWorkload(Addr init_addr, uint32_t init_value);
+    void createSSSPWorkload(Addr init_addr, uint32_t init_value);
+    void createCCWorkload();
     void createPRWorkload(float alpha);
 
     void recvDoneSignal();

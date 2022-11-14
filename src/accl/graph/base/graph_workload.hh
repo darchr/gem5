@@ -78,48 +78,30 @@ class BFSWorkload : public GraphWorkload
     virtual std::string printWorkListItem(const WorkListItem wl);
 };
 
-class BFSVisitedWorkload : public GraphWorkload
+class BFSVisitedWorkload : public BFSWorkload
 {
-  private:
-    uint64_t initAddr;
-    uint32_t initValue;
-
   public:
-    BFSVisitedWorkload(uint64_t init_addr, uint32_t init_value):
-        initAddr(init_addr), initValue(init_value)
+    BFSVisitedWorkload(Addr init_addr, uint32_t init_value):
+        BFSWorkload(init_addr, init_value)
     {}
-
-    ~BFSVisitedWorkload() {}
-
-    virtual void init(PacketPtr pkt, WorkDirectory* dir);
-    virtual uint32_t reduce(uint32_t update, uint32_t value);
-    virtual uint32_t propagate(uint32_t value, uint32_t weight);
-    virtual uint32_t apply(WorkListItem& wl);
-    virtual bool activeCondition(WorkListItem wl);
-    virtual std::string printWorkListItem(const WorkListItem wl);
+    virtual uint32_t propagate(uint32_t value, uint32_t weight) override;
 };
 
-class SSSPWorkload : public GraphWorkload
+class CCWorkload : public BFSVisitedWorkload
 {
-  private:
-    uint64_t initAddr;
-    uint32_t initValue;
-
   public:
-    SSSPWorkload(uint64_t init_addr, uint32_t init_value):
-        initAddr(init_addr), initValue(init_value)
-    {}
-
-    ~SSSPWorkload() {}
-
+    CCWorkload(): BFSVisitedWorkload(0, 0) {}
     virtual void init(PacketPtr pkt, WorkDirectory* dir);
-    virtual uint32_t reduce(uint32_t update, uint32_t value);
-    virtual uint32_t propagate(uint32_t value, uint32_t weight);
-    virtual uint32_t apply(WorkListItem& wl);
-    virtual bool activeCondition(WorkListItem wl);
-    virtual std::string printWorkListItem(const WorkListItem wl);
 };
 
+class SSSPWorkload : public BFSWorkload
+{
+  public:
+    SSSPWorkload(Addr init_addr, uint32_t init_value):
+        BFSWorkload(init_addr, init_value)
+    {}
+    virtual uint32_t propagate(uint32_t value, uint32_t weight) override;
+};
 
 class BSPPRWorkload : public GraphWorkload
 {
@@ -140,21 +122,28 @@ class BSPPRWorkload : public GraphWorkload
     virtual std::string printWorkListItem(const WorkListItem wl);
 };
 
-class CCWorkload : public GraphWorkload
-{
+// class BSPBCWorkload : public GraphWorkload
+// {
+//   private:
+//     int currentDepth;
+//     Addr initAddr;
+//     uint32_t initValue;
 
-  public:
-    CCWorkload() {}
+//   public:
+//     BSPBCWorkload(Addr init_addr, uint32_t init_value):
+//         currentDepth(1), initAddr(init_addr), initValue(init_value)
+//     {}
 
-    ~CCWorkload() {}
+//     ~BSPBCWorkload() {}
 
-    virtual void init(PacketPtr pkt, WorkDirectory* dir);
-    virtual uint32_t reduce(uint32_t update, uint32_t value);
-    virtual uint32_t propagate(uint32_t value, uint32_t weight);
-    virtual uint32_t apply(WorkListItem& wl);
-    virtual bool activeCondition(WorkListItem wl);
-    virtual std::string printWorkListItem(const WorkListItem wl);
-};
+//     virtual void init(PacketPtr pkt, WorkDirectory* dir);
+//     virtual uint32_t reduce(uint32_t update, uint32_t value);
+//     virtual uint32_t propagate(uint32_t value, uint32_t weight);
+//     virtual uint32_t apply(WorkListItem& wl);
+//     virtual void interIterationInit(WorkListItem& wl);
+//     virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl);
+//     virtual std::string printWorkListItem(const WorkListItem wl);
+// };
 
 }
 
