@@ -171,18 +171,21 @@ class CoalesceEngine : public BaseMemoryEngine
         statistics::Scalar numConflicts;
         statistics::Scalar responsePortShortage;
         statistics::Scalar numMemoryBlocks;
+        statistics::Scalar wastefulBytesRead;
         statistics::Scalar verticesPulled;
         statistics::Scalar verticesPushed;
         statistics::Scalar lastVertexPullTime;
         statistics::Scalar lastVertexPushTime;
-        statistics::Scalar numInvalidWriteBacks;
+        statistics::Scalar worklessCycles;
 
         statistics::Formula hitRate;
         statistics::Formula vertexPullBW;
         statistics::Formula vertexPushBW;
 
-        statistics::Histogram frontierSize;
-        statistics::Histogram blockActiveCount;
+        statistics::Histogram currentFrontierSize;
+        statistics::Histogram futureFrontierSize;
+        statistics::Histogram currentBlockActiveCount;
+        statistics::Histogram futureBlockActiveCount;
         statistics::Histogram responseQueueLatency;
         statistics::Histogram memoryFunctionLatency;
     };
