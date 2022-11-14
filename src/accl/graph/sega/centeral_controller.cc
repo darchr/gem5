@@ -58,6 +58,24 @@ CenteralController::createBFSWorkload(Addr init_addr, uint32_t init_value)
 }
 
 void
+CenteralController::createBFSVisitedWorkload(Addr init_addr, uint32_t init_value)
+{
+    workload = new BFSVisitedWorkload(init_addr, init_value);
+}
+
+void
+CenteralController::createSSSPWorkload(Addr init_addr, uint32_t init_value)
+{
+    workload = new SSSPWorkload(init_addr, init_value);
+}
+
+void
+CenteralController::createCCWorkload()
+{
+    workload = new CCWorkload();
+}
+
+void
 CenteralController::createPRWorkload(float alpha)
 {
     workload = new BSPPRWorkload(alpha);

@@ -56,8 +56,8 @@ class GPT(SubSystem):
             attached_memory_atom_size=32,
             cache_size=cache_size,
             max_resp_per_cycle=8,
-            pending_pull_limit=32,
-            active_buffer_size=64,
+            pending_pull_limit=64,
+            active_buffer_size=80,
             post_push_wb_queue_size=64,
         )
         self.push_engine = PushEngine(
@@ -121,7 +121,7 @@ class EdgeMemory(SubSystem):
             dram=DDR4_2400_8x8(range=AddrRange(size), in_addr_map=False)
         )
         self.xbar = NoncoherentXBar(
-            width=8, frontend_latency=1, forward_latency=1, response_latency=1
+            width=64, frontend_latency=1, forward_latency=1, response_latency=1
         )
         self.xbar.mem_side_ports = self.mem_ctrl.port
 
@@ -192,6 +192,15 @@ class SEGA(System):
 
     def create_bfs_workload(self, init_addr, init_value):
         self.ctrl.createBFSWorkload(init_addr, init_value)
+
+    def create_bfs_visited_workload(self, init_addr, init_value):
+        self.ctrl.createBFSVisitedWorkload(init_addr, init_value)
+
+    def create_sssp_workload(self, init_addr, init_value):
+        self.ctrl.createSSSPWorkload(init_addr, init_value)
+
+    def create_cc_workload(self):
+        self.ctrl.createCCWorkload()
 
     def create_pr_workload(self, alpha):
         self.ctrl.createPRWorkload(alpha)
