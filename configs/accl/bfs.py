@@ -34,10 +34,19 @@ from m5.objects import *
 def get_inputs():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("num_gpts", type=int)
+    argparser.add_argument("num_registers", type=int)
     argparser.add_argument("cache_size", type=str)
     argparser.add_argument("graph", type=str)
     argparser.add_argument("init_addr", type=int)
     argparser.add_argument("init_value", type=int)
+    argparser.add_argument(
+        "--visited",
+        dest="visited",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Use visitation version of BFS",
+    )
     argparser.add_argument(
         "--simple",
         dest="simple",
@@ -67,10 +76,12 @@ def get_inputs():
 
     return (
         args.num_gpts,
+        args.num_registers,
         args.cache_size,
         args.graph,
         args.init_addr,
         args.init_value,
+        args.visited,
         args.simple,
         args.sample,
         args.verify,
@@ -80,10 +91,12 @@ def get_inputs():
 if __name__ == "__m5_main__":
     (
         num_gpts,
+        num_registers,
         cache_size,
         graph,
         init_addr,
         init_value,
+        visited,
         simple,
         sample,
         verify,
@@ -93,14 +106,17 @@ if __name__ == "__m5_main__":
         from sega_simple import SEGA
     else:
         from sega import SEGA
-    system = SEGA(num_gpts, cache_size, graph)
+    system = SEGA(num_gpts, num_registers, cache_size, graph)
     root = Root(full_system=False, system=system)
 
     m5.instantiate()
 
     system.set_async_mode()
     system.create_pop_count_directory(64)
-    system.create_bfs_workload(init_addr, init_value)
+    if visited:
+        system.create_bfs_visited_workload(init_addr, init_value)
+    else:
+        system.create_bfs_workload(init_addr, init_value)
     if sample:
         while True:
             exit_event = m5.simulate(100000000)

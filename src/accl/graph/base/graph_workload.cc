@@ -245,7 +245,7 @@ BSPBCWorkload::init(PacketPtr pkt, WorkDirectory* dir)
         uint32_t prop = 0;
         prop |= initValue;
         // NOTE: Depth of the initial vertex is 0.
-        prop &= (4294967295U >> 8);
+        prop &= countMask;
         new_wl.tempProp = prop;
         new_wl.prop = prop;
         if (activeCondition(new_wl, items[index])) {
@@ -265,11 +265,10 @@ BSPBCWorkload::reduce(uint32_t update, uint32_t value)
 {
     uint32_t update_depth = (update & depthMask) >> 24;
     uint32_t update_count = (update & countMask);
-    assert(update_depth == (currentDepth - 1));
     uint32_t value_depth = (value & depthMask) >> 24;
     uint32_t value_count = (value & countMask);
     if (value_depth == 255) {
-        value_depth = update_depth;
+        value_depth = currentDepth;
         value_count = 0;
     }
     if (value_depth == currentDepth) {
@@ -283,7 +282,7 @@ BSPBCWorkload::reduce(uint32_t update, uint32_t value)
                                 " Therefore, performane metrics could be used.");
     // HACK: Make sure to always set the depth correctly even if count
     // exceeds the 2^24-1 limit. Here we reset the depth section of ret.
-    ret &= (4294967295U >> 8);
+    ret &= countMask;
     // NOTE: Now that the depth is securely reset we can copy the correct value.
     ret |= (value_depth << 24);
     return ret;
@@ -311,7 +310,7 @@ bool
 BSPBCWorkload::activeCondition(WorkListItem new_wl, WorkListItem old_wl)
 {
     uint32_t depth = (new_wl.tempProp & depthMask) >> 24;
-    return (depth == currentDepth);
+    return (depth == currentDepth) && (new_wl.degree > 0);
 }
 
 std::string

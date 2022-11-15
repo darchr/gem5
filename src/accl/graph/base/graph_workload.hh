@@ -137,8 +137,8 @@ class BSPBCWorkload : public GraphWorkload
     uint32_t countMask;
   public:
     BSPBCWorkload(Addr init_addr, uint32_t init_value):
-        currentDepth(0), initAddr(init_addr), initValue(init_value),
-        depthMask(4278190080), countMask(16777215)
+        initAddr(init_addr), initValue(init_value),
+        currentDepth(0), depthMask(4278190080), countMask(16777215)
     {}
 
     ~BSPBCWorkload() {}
