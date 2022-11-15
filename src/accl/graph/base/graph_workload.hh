@@ -51,6 +51,7 @@ class GraphWorkload
     virtual uint32_t reduce(uint32_t update, uint32_t value) = 0;
     virtual uint32_t propagate(uint32_t value, uint32_t weight) = 0;
     virtual uint32_t apply(WorkListItem& wl) = 0;
+    virtual void iterate() = 0;
     virtual void interIterationInit(WorkListItem& wl) = 0;
     virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl) = 0;
     virtual std::string printWorkListItem(const WorkListItem wl) = 0;
@@ -73,6 +74,7 @@ class BFSWorkload : public GraphWorkload
     virtual uint32_t reduce(uint32_t update, uint32_t value);
     virtual uint32_t propagate(uint32_t value, uint32_t weight);
     virtual uint32_t apply(WorkListItem& wl);
+    virtual void iterate() {}
     virtual void interIterationInit(WorkListItem& wl) {}
     virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl);
     virtual std::string printWorkListItem(const WorkListItem wl);
@@ -117,33 +119,39 @@ class BSPPRWorkload : public GraphWorkload
     virtual uint32_t reduce(uint32_t update, uint32_t value);
     virtual uint32_t propagate(uint32_t value, uint32_t weight);
     virtual uint32_t apply(WorkListItem& wl);
+    virtual void iterate() {}
     virtual void interIterationInit(WorkListItem& wl);
     virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl);
     virtual std::string printWorkListItem(const WorkListItem wl);
 };
 
-// class BSPBCWorkload : public GraphWorkload
-// {
-//   private:
-//     int currentDepth;
-//     Addr initAddr;
-//     uint32_t initValue;
+class BSPBCWorkload : public GraphWorkload
+{
+  private:
+    Addr initAddr;
+    uint32_t initValue;
 
-//   public:
-//     BSPBCWorkload(Addr init_addr, uint32_t init_value):
-//         currentDepth(1), initAddr(init_addr), initValue(init_value)
-//     {}
+    int currentDepth;
 
-//     ~BSPBCWorkload() {}
+    uint32_t depthMask;
+    uint32_t countMask;
+  public:
+    BSPBCWorkload(Addr init_addr, uint32_t init_value):
+        currentDepth(0), initAddr(init_addr), initValue(init_value),
+        depthMask(4278190080), countMask(16777215)
+    {}
 
-//     virtual void init(PacketPtr pkt, WorkDirectory* dir);
-//     virtual uint32_t reduce(uint32_t update, uint32_t value);
-//     virtual uint32_t propagate(uint32_t value, uint32_t weight);
-//     virtual uint32_t apply(WorkListItem& wl);
-//     virtual void interIterationInit(WorkListItem& wl);
-//     virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl);
-//     virtual std::string printWorkListItem(const WorkListItem wl);
-// };
+    ~BSPBCWorkload() {}
+
+    virtual void init(PacketPtr pkt, WorkDirectory* dir);
+    virtual uint32_t reduce(uint32_t update, uint32_t value);
+    virtual uint32_t propagate(uint32_t value, uint32_t weight);
+    virtual uint32_t apply(WorkListItem& wl);
+    virtual void iterate() { currentDepth++; }
+    virtual void interIterationInit(WorkListItem& wl);
+    virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl);
+    virtual std::string printWorkListItem(const WorkListItem wl);
+};
 
 }
 
