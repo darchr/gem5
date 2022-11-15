@@ -118,63 +118,6 @@ BFSWorkload::printWorkListItem(const WorkListItem wl)
             wl.activeFuture ? "true" : "false");
 }
 
-// void
-// BFSVisitedWorkload::init(PacketPtr pkt, WorkDirectory* dir)
-// {
-//     size_t pkt_size = pkt->getSize();
-//     uint64_t aligned_addr = roundDown<uint64_t, size_t>(initAddr, pkt_size);
-
-//     if (pkt->getAddr() == aligned_addr) {
-//         int num_elements = (int) (pkt_size / sizeof(WorkListItem));
-//         WorkListItem items[num_elements];
-
-//         pkt->writeDataToBlock((uint8_t*) items, pkt_size);
-
-//         int index = (int) ((initAddr - aligned_addr) / sizeof(WorkListItem));
-//         items[index].tempProp = initValue;
-//         if (activeCondition(items[index])) {
-//             dir->activate(aligned_addr);
-//         }
-//         pkt->deleteData();
-//         pkt->allocate();
-//         pkt->setDataFromBlock((uint8_t*) items, pkt_size);
-//     }
-// }
-
-// uint32_t
-// BFSVisitedWorkload::reduce(uint32_t update, uint32_t value)
-// {
-//     return std::min(update, value);
-// }
-
-// uint32_t
-// BFSVisitedWorkload::propagate(uint32_t value, uint32_t weight)
-// {
-//     return 1;
-// }
-
-// bool
-// BFSVisitedWorkload::activeCondition(WorkListItem wl)
-// {
-//     return (wl.tempProp < wl.prop) && (wl.degree > 0);
-// }
-
-// uint32_t
-// BFSVisitedWorkload::apply(WorkListItem& wl)
-// {
-//     wl.prop = wl.tempProp;
-//     return wl.prop;
-// }
-
-// std::string
-// BFSVisitedWorkload::printWorkListItem(const WorkListItem wl)
-// {
-//     return csprintf(
-//             "WorkListItem{tempProp: %u, prop: %u, degree: %u, edgeIndex: %u}",
-//             wl.tempProp, wl.prop, wl.degree, wl.edgeIndex
-//             );
-// }
-
 uint32_t
 BFSVisitedWorkload::propagate(uint32_t value, uint32_t weight) {
     return value;
@@ -283,6 +226,106 @@ BSPPRWorkload::printWorkListItem(const WorkListItem wl)
             "WorkListItem{tempProp: %f, prop: %f, degree: %u, "
             "edgeIndex: %u, activeNow: %s, activeFuture: %s}",
             temp_float, prop_float, wl.degree, wl.edgeIndex,
+            wl.activeNow ? "true" : "false",
+            wl.activeFuture ? "true" : "false");
+}
+
+void
+BSPBCWorkload::init(PacketPtr pkt, WorkDirectory* dir)
+{
+    int pkt_size = pkt->getSize();
+    int aligned_addr = roundDown<uint32_t, size_t>(initAddr, pkt_size);
+
+    if (aligned_addr == pkt->getAddr()) {
+        int num_elements = pkt_size / sizeof(WorkListItem);
+        WorkListItem items[num_elements];
+        pkt->writeDataToBlock((uint8_t*) items, pkt_size);
+        int index = (initAddr - aligned_addr) / sizeof(WorkListItem);
+        WorkListItem new_wl = items[index];
+        uint32_t prop = 0;
+        prop |= initValue;
+        // NOTE: Depth of the initial vertex is 0.
+        prop &= (4294967295U >> 8);
+        new_wl.tempProp = prop;
+        new_wl.prop = prop;
+        if (activeCondition(new_wl, items[index])) {
+            new_wl.activeNow = true;
+            dir->activate(aligned_addr);
+        }
+        items[index] = new_wl;
+
+        pkt->deleteData();
+        pkt->allocate();
+        pkt->setDataFromBlock((uint8_t*) items, pkt_size);
+    }
+}
+
+uint32_t
+BSPBCWorkload::reduce(uint32_t update, uint32_t value)
+{
+    uint32_t update_depth = (update & depthMask) >> 24;
+    uint32_t update_count = (update & countMask);
+    assert(update_depth == (currentDepth - 1));
+    uint32_t value_depth = (value & depthMask) >> 24;
+    uint32_t value_count = (value & countMask);
+    if (value_depth == 255) {
+        value_depth = update_depth;
+        value_count = 0;
+    }
+    if (value_depth == currentDepth) {
+        value_count += update_count;
+    }
+    uint32_t ret = 0;
+    ret |= value_count;
+    warn_if(value_count > 16777215, "value count has grown bigger than 16777125."
+                                " This means the algorithm result might not be correct."
+                                " However, the traversal will not be affected."
+                                " Therefore, performane metrics could be used.");
+    // HACK: Make sure to always set the depth correctly even if count
+    // exceeds the 2^24-1 limit. Here we reset the depth section of ret.
+    ret &= (4294967295U >> 8);
+    // NOTE: Now that the depth is securely reset we can copy the correct value.
+    ret |= (value_depth << 24);
+    return ret;
+}
+
+uint32_t
+BSPBCWorkload::propagate(uint32_t value, uint32_t weight)
+{
+    return value;
+}
+
+uint32_t
+BSPBCWorkload::apply(WorkListItem& wl)
+{
+    return wl.prop;
+}
+
+void
+BSPBCWorkload::interIterationInit(WorkListItem& wl)
+{
+    wl.prop = wl.tempProp;
+}
+
+bool
+BSPBCWorkload::activeCondition(WorkListItem new_wl, WorkListItem old_wl)
+{
+    uint32_t depth = (new_wl.tempProp & depthMask) >> 24;
+    return (depth == currentDepth);
+}
+
+std::string
+BSPBCWorkload::printWorkListItem(WorkListItem wl)
+{
+    uint32_t temp_depth = (wl.tempProp & depthMask) >> 24;
+    uint32_t temp_count = (wl.tempProp & countMask);
+    uint32_t depth = (wl.prop & depthMask) >> 24;
+    uint32_t count = (wl.prop & countMask);
+    return csprintf(
+            "WorkListItem{tempProp: (depth: %d, count: %d), "
+            "prop: (depth: %d, count: %d), degree: %u, "
+            "edgeIndex: %u, activeNow: %s, activeFuture: %s}",
+            temp_depth, temp_count, depth, count, wl.degree, wl.edgeIndex,
             wl.activeNow ? "true" : "false",
             wl.activeFuture ? "true" : "false");
 }
