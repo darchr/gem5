@@ -37,7 +37,6 @@ def get_inputs():
     argparser.add_argument("num_registers", type=int)
     argparser.add_argument("cache_size", type=str)
     argparser.add_argument("graph", type=str)
-    argparser.add_argument("iterations", type=int)
     argparser.add_argument("init_addr", type=int)
     argparser.add_argument("init_value", type=int)
     argparser.add_argument(
@@ -72,7 +71,6 @@ def get_inputs():
         args.num_registers,
         args.cache_size,
         args.graph,
-        args.iterations,
         args.init_addr,
         args.init_value,
         args.simple,
@@ -87,7 +85,6 @@ if __name__ == "__m5_main__":
         num_registers,
         cache_size,
         graph,
-        iterations,
         init_addr,
         init_value,
         simple,
@@ -119,16 +116,16 @@ if __name__ == "__m5_main__":
             if exit_event.getCause() != "simulate() limit reached":
                 break
     else:
-        iteration = 0
-        while iteration < iterations:
+        iterations = 0
+        while True:
             exit_event = m5.simulate()
             print(
                 f"Exited simulation at tick {m5.curTick()} "
                 + f"because {exit_event.getCause()}"
             )
-            iteration += 1
+            iterations += 1
             if system.work_count() == 0:
                 break
-    print(f"#iterations: {iteration}")
+    print(f"#iterations: {iterations}")
     if verify:
         system.print_answer()
