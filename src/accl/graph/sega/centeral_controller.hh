@@ -74,6 +74,7 @@ class CenteralController : public ClockedObject
     void createSSSPWorkload(Addr init_addr, uint32_t init_value);
     void createCCWorkload();
     void createPRWorkload(float alpha);
+    void createBCWorkload(Addr init_addr, uint32_t init_value);
 
     void recvDoneSignal();
 
