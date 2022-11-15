@@ -82,6 +82,12 @@ CenteralController::createPRWorkload(float alpha)
 }
 
 void
+CenteralController::createBCWorkload(Addr init_addr, uint32_t init_value)
+{
+    workload = new BSPBCWorkload(init_addr, init_value);
+}
+
+void
 CenteralController::createPopCountDirectory(int atoms_per_block)
 {
     fatal_if(mode == ProcessingMode::NOT_SET, "You should set the processing "
@@ -131,17 +137,13 @@ CenteralController::startup()
 
     panic_if(!vertex_image.write(vertex_proxy), "%s: Unable to write image.");
 
-    // IDEA: Should this be here or after calling start?
-    // Point of iterate here is to set global variables.
-    // At this point, we know that vertex memory has been
-    // initialized and we can initialize global variables.
-    workload->iterate();
     for (auto mpu: mpuVector) {
         mpu->postMemInitSetup();
         if (!mpu->running() && (mpu->workCount() > 0)) {
             mpu->start();
         }
     }
+    workload->iterate();
 }
 
 PacketPtr
@@ -175,15 +177,11 @@ CenteralController::recvDoneSignal()
         for (auto mpu: mpuVector) {
             mpu->postConsumeProcess();
             mpu->swapDirectories();
-            // IDEA: Should this be here or after calling start?
-            // Point of iterate here is to update global variables.
-            // At this point, we know that vertex memory has been
-            // updated and we can update global variables.
-            workload->iterate();
             if (!mpu->running() && (mpu->workCount() > 0)) {
                 mpu->start();
             }
         }
+        workload->iterate();
         exitSimLoopNow("finished an iteration.");
     }
 }
