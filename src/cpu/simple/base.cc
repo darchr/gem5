@@ -403,19 +403,19 @@ BaseSimpleCPU::postExecute()
     //integer alu accesses
     if (curStaticInst->isInteger()){
         executeStats.numIntAluAccesses++;
-        t_info.execContextStats.numIntInsts++;
+        commitStats.numIntInsts++;
     }
 
     //float alu accesses
     if (curStaticInst->isFloating()){
         executeStats.numFpAluAccesses++;
-        t_info.execContextStats.numFpInsts++;
+        commitStats.numFpInsts++;
     }
 
     //vector alu accesses
     if (curStaticInst->isVector()){
         executeStats.numVecAluAccesses++;
-        t_info.execContextStats.numVecInsts++;
+        commitStats.numVecInsts++;
     }
 
     //number of function calls/returns to get window accesses
@@ -425,16 +425,16 @@ BaseSimpleCPU::postExecute()
 
     //the number of branch predictions that will be made
     if (curStaticInst->isCondCtrl()){
-        t_info.execContextStats.numCondCtrlInsts++;
+        commitStats.numCondCtrlInsts++;
     }
 
     //result bus acceses
     if (curStaticInst->isLoad()){
-        t_info.execContextStats.numLoadInsts++;
+        commitStats.numLoadInsts++;
     }
 
     if (curStaticInst->isStore() || curStaticInst->isAtomic()){
-        t_info.execContextStats.numStoreInsts++;
+        commitStats.numStoreInsts++;
     }
     /* End power model statistics */
 

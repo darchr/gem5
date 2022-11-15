@@ -141,7 +141,8 @@ BaseCPU::BaseCPU(const Params &p, bool is_checker)
       powerGatingOnIdle(p.power_gating_on_idle),
       enterPwrGatingEvent([this]{ enterPwrGating(); }, name()),
       fetchStats(this),
-      executeStats(this)
+      executeStats(this),
+      commitStats(this)
 {
     // if Python did not provide a valid ID, do it here
     if (_cpuId == -1 ) {
@@ -790,7 +791,7 @@ FetchCPUStats::FetchCPUStats(statistics::Group *parent)
     ADD_STAT(numPredictedBranches, statistics::units::Count::get(),
              "Number of branches predicted as taken"),
     ADD_STAT(numBranchMispred, statistics::units::Count::get(),
-             "Number o0f branch mispredictions"),
+             "Number of branch mispredictions"),
     ADD_STAT(numFetchSuspends, statistics::units::Count::get(),
              "Number of times Execute suspended instruction fetching")
 {
@@ -856,5 +857,23 @@ ExecuteCPUStats::ExecuteCPUStats(statistics::Group *parent)
                 .flags(statistics::nozero);
     numCCRegWrites
                 .flags(statistics::nozero);
+}
+
+BaseCPU::
+CommitCPUStats::CommitCPUStats(statistics::Group *parent)
+    : statistics::Group(parent),
+    ADD_STAT(numCondCtrlInsts, statistics::units::Count::get(),
+             "Number of instructions that are conditional controls"),
+    ADD_STAT(numFpInsts, statistics::units::Count::get(),
+            "Number of float instructions"),
+    ADD_STAT(numIntInsts, statistics::units::Count::get(),
+            "Number of integer instructions"),
+    ADD_STAT(numLoadInsts, statistics::units::Count::get(),
+            "Number of load instructions"),
+    ADD_STAT(numStoreInsts, statistics::units::Count::get(),
+            "Number of store instructions"),
+    ADD_STAT(numVecInsts, statistics::units::Count::get(),
+            "Number of vector instructions")
+{
 }
 } // namespace gem5

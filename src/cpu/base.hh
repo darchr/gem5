@@ -729,6 +729,30 @@ class BaseCPU : public ClockedObject
         /* Number of ops discarded before committing */
         statistics::Scalar numDiscardedOps;
     } executeStats;
+
+    struct CommitCPUStats: public statistics::Group
+    {
+        CommitCPUStats(statistics::Group *parent);
+
+        /* Conditional control instructions */
+        statistics::Scalar numCondCtrlInsts;
+
+        /* Number of float instructions */
+        statistics::Scalar numFpInsts;
+
+        /* Number of int instructions */
+        statistics::Scalar numIntInsts;
+
+        /* number of load instructions */
+        statistics::Scalar numLoadInsts;
+
+        /* Number of store instructions */
+        statistics::Scalar numStoreInsts;
+
+        /* Number of vector instructions */
+        statistics::Scalar numVecInsts;
+
+    } commitStats;
 };
 
 } // namespace gem5

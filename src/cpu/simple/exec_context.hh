@@ -92,18 +92,6 @@ class SimpleExecContext : public ExecContext
                        "Number of ops (including micro ops) committed"),
               ADD_STAT(numCallsReturns, statistics::units::Count::get(),
                        "Number of times a function call or return occured"),
-              ADD_STAT(numCondCtrlInsts, statistics::units::Count::get(),
-                       "Number of instructions that are conditional controls"),
-              ADD_STAT(numIntInsts, statistics::units::Count::get(),
-                       "Number of integer instructions"),
-              ADD_STAT(numFpInsts, statistics::units::Count::get(),
-                       "Number of float instructions"),
-              ADD_STAT(numVecInsts, statistics::units::Count::get(),
-                       "Number of vector instructions"),
-              ADD_STAT(numLoadInsts, statistics::units::Count::get(),
-                       "Number of load instructions"),
-              ADD_STAT(numStoreInsts, statistics::units::Count::get(),
-                       "Number of store instructions"),
               ADD_STAT(numIdleCycles, statistics::units::Cycle::get(),
                        "Number of idle cycles"),
               ADD_STAT(numBusyCycles, statistics::units::Cycle::get(),
@@ -150,22 +138,6 @@ class SimpleExecContext : public ExecContext
 
         // Number of function calls/returns
         statistics::Scalar numCallsReturns;
-
-        // Conditional control instructions;
-        statistics::Scalar numCondCtrlInsts;
-
-        // Number of int instructions
-        statistics::Scalar numIntInsts;
-
-        // Number of float instructions
-        statistics::Scalar numFpInsts;
-
-        // Number of vector instructions
-        statistics::Scalar numVecInsts;
-
-        // Number of simulated memory references
-        statistics::Scalar numLoadInsts;
-        statistics::Scalar numStoreInsts;
 
         // Number of idle cycles
         statistics::Formula numIdleCycles;
