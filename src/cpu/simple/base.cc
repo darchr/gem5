@@ -374,7 +374,7 @@ BaseSimpleCPU::preExecute()
                 curThread));
 
         if (predict_taken)
-            ++fetchStats.numPredictedBranches;
+            ++fetchStats[t_info.thread->threadId()]->numPredictedBranches;
     }
 }
 
@@ -388,7 +388,7 @@ BaseSimpleCPU::postExecute()
     Addr instAddr = threadContexts[curThread]->pcState().instAddr();
 
     if (curStaticInst->isMemRef()) {
-        executeStats.numMemRefs++;
+        executeStats[t_info.thread->threadId()]->numMemRefs++;
     }
 
     if (curStaticInst->isLoad()) {
@@ -396,26 +396,26 @@ BaseSimpleCPU::postExecute()
     }
 
     if (curStaticInst->isControl()) {
-        ++fetchStats.numBranches;
+        ++fetchStats[t_info.thread->threadId()]->numBranches;
     }
 
     /* Power model statistics */
     //integer alu accesses
     if (curStaticInst->isInteger()){
-        executeStats.numIntAluAccesses++;
-        commitStats.numIntInsts++;
+        executeStats[t_info.thread->threadId()]->numIntAluAccesses++;
+        commitStats[t_info.thread->threadId()]->numIntInsts++;
     }
 
     //float alu accesses
     if (curStaticInst->isFloating()){
-        executeStats.numFpAluAccesses++;
-        commitStats.numFpInsts++;
+        executeStats[t_info.thread->threadId()]->numFpAluAccesses++;
+        commitStats[t_info.thread->threadId()]->numFpInsts++;
     }
 
     //vector alu accesses
     if (curStaticInst->isVector()){
-        executeStats.numVecAluAccesses++;
-        commitStats.numVecInsts++;
+        executeStats[t_info.thread->threadId()]->numVecAluAccesses++;
+        commitStats[t_info.thread->threadId()]->numVecInsts++;
     }
 
     //number of function calls/returns to get window accesses
@@ -425,16 +425,16 @@ BaseSimpleCPU::postExecute()
 
     //the number of branch predictions that will be made
     if (curStaticInst->isCondCtrl()){
-        commitStats.numCondCtrlInsts++;
+        commitStats[t_info.thread->threadId()]->numCondCtrlInsts++;
     }
 
     //result bus acceses
     if (curStaticInst->isLoad()){
-        commitStats.numLoadInsts++;
+        commitStats[t_info.thread->threadId()]->numLoadInsts++;
     }
 
     if (curStaticInst->isStore() || curStaticInst->isAtomic()){
-        commitStats.numStoreInsts++;
+        commitStats[t_info.thread->threadId()]->numStoreInsts++;
     }
     /* End power model statistics */
 
@@ -487,7 +487,7 @@ BaseSimpleCPU::advancePC(const Fault &fault)
             // Mis-predicted branch
             branchPred->squash(cur_sn, thread->pcState(), branching,
                     curThread);
-            ++fetchStats.numBranchMispred;
+            ++fetchStats[t_info.thread->threadId()]->numBranchMispred;
         }
     }
 }

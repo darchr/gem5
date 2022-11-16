@@ -1055,7 +1055,7 @@ Execute::commitInst(MinorDynInstPtr inst, bool early_memory_issue,
             DPRINTF(MinorInterrupt, "Suspending thread: %d from Execute"
                 " inst: %s\n", thread_id, *inst);
 
-            cpu.fetchStats.numFetchSuspends++;
+            cpu.fetchStats[thread_id]->numFetchSuspends++;
 
             updateBranchData(thread_id, BranchData::SuspendThread, inst,
                 resume_pc, branch);
@@ -1369,7 +1369,7 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
                 *inst, ex_info.streamSeqNum);
 
             if (fault == NoFault)
-                cpu.executeStats.numDiscardedOps++;
+                cpu.executeStats[thread_id]->numDiscardedOps++;
         }
 
         /* Mark the mem inst as being in the LSQ */

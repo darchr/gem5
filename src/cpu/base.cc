@@ -139,10 +139,7 @@ BaseCPU::BaseCPU(const Params &p, bool is_checker)
       syscallRetryLatency(p.syscallRetryLatency),
       pwrGatingLatency(p.pwr_gating_latency),
       powerGatingOnIdle(p.power_gating_on_idle),
-      enterPwrGatingEvent([this]{ enterPwrGating(); }, name()),
-      fetchStats(this),
-      executeStats(this),
-      commitStats(this)
+      enterPwrGatingEvent([this]{ enterPwrGating(); }, name())
 {
     // if Python did not provide a valid ID, do it here
     if (_cpuId == -1 ) {
@@ -180,6 +177,16 @@ BaseCPU::BaseCPU(const Params &p, bool is_checker)
     if (params().isa.size() != numThreads) {
         fatal("Number of ISAs (%i) assigned to the CPU does not equal number "
               "of threads (%i).\n", params().isa.size(), numThreads);
+    }
+
+    // create a stat group object for each thread on this core
+    fetchStats.reserve(numThreads);
+    executeStats.reserve(numThreads);
+    commitStats.reserve(numThreads);
+    for (int i = 0; i < numThreads; i++) {
+        fetchStats.emplace_back(new FetchCPUStats(this, i));
+        executeStats.emplace_back(new ExecuteCPUStats(this, i));
+        commitStats.emplace_back(new CommitCPUStats(this, i));
     }
 }
 
@@ -784,8 +791,8 @@ BaseCPU::GlobalStats::GlobalStats(statistics::Group *parent)
 }
 
 BaseCPU::
-FetchCPUStats::FetchCPUStats(statistics::Group *parent)
-    : statistics::Group(parent),
+FetchCPUStats::FetchCPUStats(statistics::Group *parent, int thread_id)
+    : statistics::Group(parent, csprintf("fetchStats%i", thread_id).c_str()),
     ADD_STAT(numBranches, statistics::units::Count::get(),
              "Number of branches fetched"),
     ADD_STAT(numPredictedBranches, statistics::units::Count::get(),
@@ -805,10 +812,9 @@ FetchCPUStats::FetchCPUStats(statistics::Group *parent)
         .prereq(numBranchMispred);
 }
 
-// means it is incremented in a vector indexing and not directly
 BaseCPU::
-ExecuteCPUStats::ExecuteCPUStats(statistics::Group *parent)
-    : statistics::Group(parent),
+ExecuteCPUStats::ExecuteCPUStats(statistics::Group *parent, int thread_id)
+    : statistics::Group(parent, csprintf("executeStats%i", thread_id).c_str()),
     ADD_STAT(icacheStallCycles, statistics::units::Cycle::get(),
              "ICache total stall cycles"),
     ADD_STAT(dcacheStallCycles, statistics::units::Cycle::get(),
@@ -860,8 +866,8 @@ ExecuteCPUStats::ExecuteCPUStats(statistics::Group *parent)
 }
 
 BaseCPU::
-CommitCPUStats::CommitCPUStats(statistics::Group *parent)
-    : statistics::Group(parent),
+CommitCPUStats::CommitCPUStats(statistics::Group *parent, int thread_id)
+    : statistics::Group(parent, csprintf("commitStats%i", thread_id).c_str()),
     ADD_STAT(numCondCtrlInsts, statistics::units::Count::get(),
              "Number of instructions that are conditional controls"),
     ADD_STAT(numFpInsts, statistics::units::Count::get(),

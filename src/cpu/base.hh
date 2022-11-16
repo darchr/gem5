@@ -664,7 +664,7 @@ class BaseCPU : public ClockedObject
   public:
     struct FetchCPUStats : public statistics::Group
     {
-        FetchCPUStats(statistics::Group *parent);
+        FetchCPUStats(statistics::Group *parent, int thread_id);
 
         /* Total number of branches fetched */
         statistics::Scalar numBranches;
@@ -678,11 +678,11 @@ class BaseCPU : public ClockedObject
         /* Number of times fetch was asked to suspend by Execute */
         statistics::Scalar numFetchSuspends;
 
-    } fetchStats;
+    };
 
     struct ExecuteCPUStats: public statistics::Group
     {
-        ExecuteCPUStats(statistics::Group *parent);
+        ExecuteCPUStats(statistics::Group *parent, int thread_id);
 
         /* Number of cycles stalled for I-cache responses */
         statistics::Scalar icacheStallCycles;
@@ -728,11 +728,11 @@ class BaseCPU : public ClockedObject
 
         /* Number of ops discarded before committing */
         statistics::Scalar numDiscardedOps;
-    } executeStats;
+    };
 
     struct CommitCPUStats: public statistics::Group
     {
-        CommitCPUStats(statistics::Group *parent);
+        CommitCPUStats(statistics::Group *parent, int thread_id);
 
         /* Conditional control instructions */
         statistics::Scalar numCondCtrlInsts;
@@ -752,7 +752,11 @@ class BaseCPU : public ClockedObject
         /* Number of vector instructions */
         statistics::Scalar numVecInsts;
 
-    } commitStats;
+    };
+
+    std::vector<std::unique_ptr<FetchCPUStats>> fetchStats;
+    std::vector<std::unique_ptr<ExecuteCPUStats>> executeStats;
+    std::vector<std::unique_ptr<CommitCPUStats>> commitStats;
 };
 
 } // namespace gem5
