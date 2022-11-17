@@ -59,8 +59,6 @@ MinorStats::MinorStats(BaseCPU *base_cpu)
     ADD_STAT(ipc, statistics::units::Rate<
                 statistics::units::Count, statistics::units::Cycle>::get(),
              "IPC: instructions per cycle"),
-    ADD_STAT(committedInstType, statistics::units::Count::get(),
-             "Class of committed instruction"),
     ADD_STAT(committedControl, statistics::units::Count::get(),
              "Class of control type instructions committed")
 
@@ -72,11 +70,6 @@ MinorStats::MinorStats(BaseCPU *base_cpu)
 
     ipc.precision(6);
     ipc = numInsts / base_cpu->baseStats.numCycles;
-
-    committedInstType
-        .init(base_cpu->numThreads, enums::Num_OpClass)
-        .flags(statistics::total | statistics::pdf | statistics::dist);
-    committedInstType.ysubnames(enums::OpClassStrings);
 
     committedControl
         .init(base_cpu->numThreads, StaticInstFlags::Flags::Num_Flags)

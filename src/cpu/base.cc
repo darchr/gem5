@@ -879,7 +879,16 @@ CommitCPUStats::CommitCPUStats(statistics::Group *parent, int thread_id)
     ADD_STAT(numStoreInsts, statistics::units::Count::get(),
             "Number of store instructions"),
     ADD_STAT(numVecInsts, statistics::units::Count::get(),
-            "Number of vector instructions")
+            "Number of vector instructions"),
+    ADD_STAT(committedInstType, statistics::units::Count::get(),
+            "Class of committed instruction.")
 {
+    committedInstType
+        .init(enums::Num_OpClass)
+        .flags(statistics::total | statistics::pdf | statistics::dist);
+
+    for (unsigned i = 0; i < Num_OpClasses; ++i) {
+        committedInstType.subname(i, enums::OpClassStrings[i]);
+    }
 }
 } // namespace gem5

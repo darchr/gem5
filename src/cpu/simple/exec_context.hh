@@ -100,8 +100,6 @@ class SimpleExecContext : public ExecContext
                        "Percentage of non-idle cycles"),
               ADD_STAT(idleFraction, statistics::units::Ratio::get(),
                        "Percentage of idle cycles"),
-              ADD_STAT(statExecutedInstType, statistics::units::Count::get(),
-                       "Class of executed instruction."),
               numRegReads{
                   &(cpu->executeStats[thread->threadId()]->numIntRegReads),
                   &(cpu->executeStats[thread->threadId()]->numFpRegReads),
@@ -120,14 +118,6 @@ class SimpleExecContext : public ExecContext
                   &(cpu->executeStats[thread->threadId()]->numCCRegWrites)
               }
         {
-            statExecutedInstType
-                .init(enums::Num_OpClass)
-                .flags(statistics::total | statistics::pdf | statistics::dist);
-
-            for (unsigned i = 0; i < Num_OpClasses; ++i) {
-                statExecutedInstType.subname(i, enums::OpClassStrings[i]);
-            }
-
             idleFraction = statistics::constant(1.0) - notIdleFraction;
             numIdleCycles = idleFraction * cpu->baseStats.numCycles;
             numBusyCycles = notIdleFraction * cpu->baseStats.numCycles;
@@ -149,9 +139,6 @@ class SimpleExecContext : public ExecContext
         // Number of idle cycles
         statistics::Average notIdleFraction;
         statistics::Formula idleFraction;
-
-        // Instruction mix histogram by OpClass
-        statistics::Vector statExecutedInstType;
 
         std::array<statistics::Scalar *, CCRegClass + 1> numRegReads;
         std::array<statistics::Scalar *, CCRegClass + 1> numRegWrites;

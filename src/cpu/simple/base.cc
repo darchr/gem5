@@ -438,7 +438,8 @@ BaseSimpleCPU::postExecute()
     }
     /* End power model statistics */
 
-    t_info.execContextStats.statExecutedInstType[curStaticInst->opClass()]++;
+    commitStats[t_info.thread->threadId()]
+        ->committedInstType[curStaticInst->opClass()]++;
 
     if (FullSystem)
         traceFunctions(instAddr);

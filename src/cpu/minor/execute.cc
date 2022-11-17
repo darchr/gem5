@@ -880,8 +880,8 @@ Execute::doInstCommitAccounting(MinorDynInstPtr inst)
     thread->numOp++;
     thread->threadStats.numOps++;
     cpu.stats.numOps++;
-    cpu.stats.committedInstType[inst->id.threadId]
-                               [inst->staticInst->opClass()]++;
+    cpu.commitStats[inst->id.threadId]
+        ->committedInstType[inst->staticInst->opClass()]++;
 
     /** Add a count for every control instruction */
     if (inst->staticInst->isControl()) {
