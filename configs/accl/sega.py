@@ -152,7 +152,7 @@ class SEGA(System):
         # Building the EdgeMemories
         edge_mem = []
         for i in range(int(num_gpts/2)):
-            mem = EdgeMemory("16GiB")
+            mem = EdgeMemory("4GiB")
             mem.set_image(f"{graph_path}/edgelist_{i}")
             edge_mem.append(mem)
         self.edge_mem = edge_mem

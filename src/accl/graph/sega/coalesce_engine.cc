@@ -114,7 +114,6 @@ CoalesceEngine::postMemInitSetup()
 void
 CoalesceEngine::postConsumeProcess()
 {
-    WorkListItem items[numElementsPerLine];
     Addr last_local_atom_addr = peerMemoryRange.removeIntlvBits(lastAtomAddr);
     for (Addr local_addr = 0; local_addr <= last_local_atom_addr; local_addr += peerMemoryAtomSize) {
         Addr addr = peerMemoryRange.addIntlvBits(local_addr);
@@ -133,6 +132,7 @@ CoalesceEngine::postConsumeProcess()
                 if (cacheBlocks[block_index].items[index].activeFuture) {
                     cacheBlocks[block_index].items[index].activeFuture = false;
                     cacheBlocks[block_index].items[index].activeNow = true;
+                    cacheBlocks[block_index].dirty = true;
                 }
             }
             if (!atom_active_future_before && atom_active_future_after) {
@@ -142,10 +142,10 @@ CoalesceEngine::postConsumeProcess()
                 futureActiveCacheBlocks.erase(block_index);
             }
         } else {
+            WorkListItem items[numElementsPerLine];
             PacketPtr read_pkt = createReadPacket(addr, peerMemoryAtomSize);
             memPort.sendFunctional(read_pkt);
             read_pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
-            delete read_pkt;
             bool atom_active_future_before = false;
             bool atom_active_future_after = false;
             for (int index = 0; index < numElementsPerLine; index++) {
@@ -166,6 +166,7 @@ CoalesceEngine::postConsumeProcess()
             }
             PacketPtr write_pkt = createWritePacket(addr, peerMemoryAtomSize, (uint8_t*) items);
             memPort.sendFunctional(write_pkt);
+            delete read_pkt;
             delete write_pkt;
         }
     }
