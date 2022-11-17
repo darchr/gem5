@@ -72,10 +72,6 @@ struct MinorStats : public statistics::Group
     /** CPI/IPC for total cycle counts and macro insts */
     statistics::Formula cpi;
     statistics::Formula ipc;
-
-    /** Number of branches commited */
-    statistics::Vector2d committedControl;
-
 };
 
 } // namespace minor

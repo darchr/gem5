@@ -871,17 +871,19 @@ CommitCPUStats::CommitCPUStats(statistics::Group *parent, int thread_id)
     ADD_STAT(numCondCtrlInsts, statistics::units::Count::get(),
              "Number of instructions that are conditional controls"),
     ADD_STAT(numFpInsts, statistics::units::Count::get(),
-            "Number of float instructions"),
+             "Number of float instructions"),
     ADD_STAT(numIntInsts, statistics::units::Count::get(),
-            "Number of integer instructions"),
+             "Number of integer instructions"),
     ADD_STAT(numLoadInsts, statistics::units::Count::get(),
-            "Number of load instructions"),
+             "Number of load instructions"),
     ADD_STAT(numStoreInsts, statistics::units::Count::get(),
-            "Number of store instructions"),
+             "Number of store instructions"),
     ADD_STAT(numVecInsts, statistics::units::Count::get(),
-            "Number of vector instructions"),
+             "Number of vector instructions"),
     ADD_STAT(committedInstType, statistics::units::Count::get(),
-            "Class of committed instruction.")
+             "Class of committed instruction."),
+    ADD_STAT(committedControl, statistics::units::Count::get(),
+             "Class of control type instructions committed")
 {
     committedInstType
         .init(enums::Num_OpClass)
@@ -889,6 +891,14 @@ CommitCPUStats::CommitCPUStats(statistics::Group *parent, int thread_id)
 
     for (unsigned i = 0; i < Num_OpClasses; ++i) {
         committedInstType.subname(i, enums::OpClassStrings[i]);
+    }
+
+    committedControl
+        .init(StaticInstFlags::Flags::Num_Flags)
+        .flags(statistics::nozero);
+
+    for (unsigned i = 0; i < StaticInstFlags::Flags::Num_Flags; i++) {
+        committedControl.subname(i, StaticInstFlags::FlagsStrings[i]);
     }
 }
 } // namespace gem5

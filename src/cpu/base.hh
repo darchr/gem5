@@ -755,6 +755,8 @@ class BaseCPU : public ClockedObject
         /* Number of instructions committed by type (OpClass) */
         statistics::Vector committedInstType;
 
+        /* number of control instructions committed by control inst type */
+        statistics::Vector committedControl;
     };
 
     std::vector<std::unique_ptr<FetchCPUStats>> fetchStats;
