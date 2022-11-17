@@ -423,11 +423,6 @@ BaseSimpleCPU::postExecute()
         t_info.execContextStats.numCallsReturns++;
     }
 
-    //the number of branch predictions that will be made
-    if (curStaticInst->isCondCtrl()){
-        commitStats[t_info.thread->threadId()]->numCondCtrlInsts++;
-    }
-
     //result bus acceses
     if (curStaticInst->isLoad()){
         commitStats[t_info.thread->threadId()]->numLoadInsts++;
@@ -440,6 +435,36 @@ BaseSimpleCPU::postExecute()
 
     commitStats[t_info.thread->threadId()]
         ->committedInstType[curStaticInst->opClass()]++;
+
+    /* Add a count for every control instruction */
+    if (curStaticInst->isControl()) {
+        if (curStaticInst->isReturn()) {
+            commitStats[t_info.thread->threadId()]->committedControl
+                        [gem5::StaticInstFlags::Flags::IsReturn]++;
+        }
+        if (curStaticInst->isCall()) {
+            commitStats[t_info.thread->threadId()]->committedControl
+                        [gem5::StaticInstFlags::Flags::IsCall]++;
+        }
+        if (curStaticInst->isDirectCtrl()) {
+            commitStats[t_info.thread->threadId()]->committedControl
+                        [gem5::StaticInstFlags::Flags::IsDirectControl]++;
+        }
+        if (curStaticInst->isIndirectCtrl()) {
+            commitStats[t_info.thread->threadId()]->committedControl
+                        [gem5::StaticInstFlags::Flags::IsIndirectControl]++;
+        }
+        if (curStaticInst->isCondCtrl()) {
+            commitStats[t_info.thread->threadId()]->committedControl
+                        [gem5::StaticInstFlags::Flags::IsCondControl]++;
+        }
+        if (curStaticInst->isUncondCtrl()) {
+            commitStats[t_info.thread->threadId()]->committedControl
+                        [gem5::StaticInstFlags::Flags::IsUncondControl]++;
+        }
+        commitStats[t_info.thread->threadId()]->committedControl
+                        [gem5::StaticInstFlags::Flags::IsControl]++;
+    }
 
     if (FullSystem)
         traceFunctions(instAddr);

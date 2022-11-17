@@ -734,9 +734,6 @@ class BaseCPU : public ClockedObject
     {
         CommitCPUStats(statistics::Group *parent, int thread_id);
 
-        /* Conditional control instructions */
-        statistics::Scalar numCondCtrlInsts;
-
         /* Number of float instructions */
         statistics::Scalar numFpInsts;
 

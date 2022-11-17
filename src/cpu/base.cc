@@ -868,8 +868,6 @@ ExecuteCPUStats::ExecuteCPUStats(statistics::Group *parent, int thread_id)
 BaseCPU::
 CommitCPUStats::CommitCPUStats(statistics::Group *parent, int thread_id)
     : statistics::Group(parent, csprintf("commitStats%i", thread_id).c_str()),
-    ADD_STAT(numCondCtrlInsts, statistics::units::Count::get(),
-             "Number of instructions that are conditional controls"),
     ADD_STAT(numFpInsts, statistics::units::Count::get(),
              "Number of float instructions"),
     ADD_STAT(numIntInsts, statistics::units::Count::get(),
