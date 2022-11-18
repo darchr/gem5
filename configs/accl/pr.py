@@ -36,9 +36,11 @@ def get_inputs():
     argparser.add_argument("num_gpts", type=int)
     argparser.add_argument("num_registers", type=int)
     argparser.add_argument("cache_size", type=str)
-    argparser.add_argument("iterations", type=int)
     argparser.add_argument("graph", type=str)
+    argparser.add_argument("iterations", type=int)
     argparser.add_argument("alpha", type=float)
+    argparser.add_argument("--num_nodes", type=int, default=1)
+    argparser.add_argument("--error_threshold", type=float, default=0.0)
     argparser.add_argument(
         "--simple",
         dest="simple",
@@ -73,6 +75,8 @@ def get_inputs():
         args.graph,
         args.iterations,
         args.alpha,
+        args.num_nodes,
+        args.error_threshold,
         args.simple,
         args.sample,
         args.verify,
@@ -87,10 +91,14 @@ if __name__ == "__m5_main__":
         graph,
         iterations,
         alpha,
+        num_nodes,
+        error_threshold,
         simple,
         sample,
         verify,
     ) = get_inputs()
+
+    print(f"error_threshold: {error_threshold}")
 
     if simple:
         from sega_simple import SEGA
@@ -103,7 +111,7 @@ if __name__ == "__m5_main__":
 
     system.set_bsp_mode()
     system.create_pop_count_directory(64)
-    system.create_pr_workload(alpha)
+    system.create_pr_workload(num_nodes, alpha)
     if sample:
         while True:
             exit_event = m5.simulate(100000000)
@@ -125,6 +133,8 @@ if __name__ == "__m5_main__":
             )
             iteration += 1
             print(f"error: {system.get_pr_error()}")
+            if system.get_pr_error() < error_threshold:
+                break
             if system.work_count() == 0:
                 break
     print(f"#iterations: {iteration}")
