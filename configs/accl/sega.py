@@ -204,8 +204,8 @@ class SEGA(System):
     def create_async_pr_workload(self, alpha, threshold):
         self.ctrl.createAsyncPRWorkload(alpha, threshold)
 
-    def create_pr_workload(self, alpha):
-        self.ctrl.createPRWorkload(alpha)
+    def create_pr_workload(self, num_nodes, alpha):
+        self.ctrl.createPRWorkload(num_nodes, alpha)
 
     def get_pr_error(self):
         return self.ctrl.getPRError()

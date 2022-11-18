@@ -82,9 +82,9 @@ CenteralController::createAsyncPRWorkload(float alpha, float threshold)
 }
 
 void
-CenteralController::createPRWorkload(float alpha)
+CenteralController::createPRWorkload(int num_nodes, float alpha)
 {
-    workload = new BSPPRWorkload(alpha);
+    workload = new BSPPRWorkload(num_nodes, alpha);
 }
 
 void

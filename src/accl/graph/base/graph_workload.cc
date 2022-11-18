@@ -240,8 +240,8 @@ BSPPRWorkload::init(PacketPtr pkt, WorkDirectory* dir)
     bool atom_active = false;
     for (int i = 0; i < num_elements; i++) {
         WorkListItem new_wl = items[i];
-        new_wl.tempProp = readFromFloat<uint32_t>(1 - alpha);
-        new_wl.prop = readFromFloat<uint32_t>(1);
+        new_wl.tempProp = readFromFloat<uint32_t>((1 - alpha)/numNodes);
+        new_wl.prop = readFromFloat<uint32_t>(1/numNodes);
         new_wl.activeNow = activeCondition(new_wl, items[i]);
         atom_active |= new_wl.activeNow;
         items[i] = new_wl;
@@ -291,7 +291,7 @@ BSPPRWorkload::interIterationInit(WorkListItem& wl)
     float prop_float = writeToFloat<uint32_t>(wl.prop);
     error += std::abs(temp_float - prop_float);
     wl.prop = wl.tempProp;
-    wl.tempProp = readFromFloat<uint32_t>(1 - alpha);
+    wl.tempProp = readFromFloat<uint32_t>((1 - alpha) / numNodes);
     wl.activeFuture = (wl.degree > 0);
 }
 

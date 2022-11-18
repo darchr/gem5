@@ -131,11 +131,15 @@ class PRWorkload : public GraphWorkload
 class BSPPRWorkload : public GraphWorkload
 {
   private:
+    int numNodes;
     float alpha;
+    float prevError;
     float error;
 
   public:
-    BSPPRWorkload(float alpha): alpha(alpha), error(0) {}
+    BSPPRWorkload(int num_nodes, float alpha):
+        numNodes(num_nodes), alpha(alpha), prevError(0), error(0)
+    {}
 
     ~BSPPRWorkload() {}
 
@@ -143,12 +147,12 @@ class BSPPRWorkload : public GraphWorkload
     virtual uint32_t reduce(uint32_t update, uint32_t value);
     virtual uint32_t propagate(uint32_t value, uint32_t weight);
     virtual uint32_t apply(WorkListItem& wl);
-    virtual void iterate() { error = 0; }
+    virtual void iterate() { prevError = error; error = 0; }
     virtual void interIterationInit(WorkListItem& wl);
     virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl);
     virtual std::string printWorkListItem(const WorkListItem wl);
 
-    float getError() { return error; }
+    float getError() { return prevError; }
 };
 
 class BSPBCWorkload : public GraphWorkload
