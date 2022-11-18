@@ -59,6 +59,9 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     nextApplyEvent([this] {
         processNextApplyEvent();
         }, name() + ".nextApplyEvent"),
+    nextDoneSignalEvent([this] {
+        processNextDoneSignalEvent();
+        }, name() + ".nextDoneSignalEvent"),
     stats(*this)
 {
     assert(isPowerOf2(numLines) && isPowerOf2(numElementsPerLine));
@@ -552,8 +555,8 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         }
     }
 
-    if (done()) {
-        owner->recvDoneSignal();
+    if (done() && !nextDoneSignalEvent.scheduled()) {
+        schedule(nextDoneSignalEvent, nextCycle());
     }
     return true;
 }
@@ -712,8 +715,9 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
                 block_index, cacheBlocks[block_index].to_string());
     stats.numVertexWrites++;
 
-    if ((cacheBlocks[block_index].state == CacheState::IDLE) && done()) {
-        owner->recvDoneSignal();
+    if ((cacheBlocks[block_index].state == CacheState::IDLE) &&
+        done() && !nextDoneSignalEvent.scheduled()) {
+        schedule(nextDoneSignalEvent, nextCycle());
     }
 }
 
@@ -749,8 +753,8 @@ CoalesceEngine::processNextMemoryEvent()
         schedule(nextMemoryEvent, nextCycle());
     }
 
-    if (done()) {
-        owner->recvDoneSignal();
+    if (done() && !nextDoneSignalEvent.scheduled()) {
+        schedule(nextDoneSignalEvent, nextCycle());
     }
 }
 
@@ -1170,6 +1174,13 @@ CoalesceEngine::processNextApplyEvent()
     }
 }
 
+void
+CoalesceEngine::processNextDoneSignalEvent()
+{
+    if (done()) {
+        owner->recvDoneSignal();
+    }
+}
 
 CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
     : statistics::Group(&_coalesce),
