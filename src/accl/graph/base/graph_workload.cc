@@ -155,6 +155,81 @@ SSSPWorkload::propagate(uint32_t value, uint32_t weight)
 }
 
 void
+PRWorkload::init(PacketPtr pkt, WorkDirectory* dir)
+{
+    int num_elements = pkt->getSize() / sizeof(WorkListItem);
+    WorkListItem items[num_elements];
+    pkt->writeDataToBlock((uint8_t*) items, pkt->getSize());
+
+    bool atom_active = false;
+    for (int index = 0; index < num_elements; index++) {
+        WorkListItem new_wl = items[index];
+        new_wl.tempProp = readFromFloat<uint32_t>(0);
+        new_wl.prop = readFromFloat<uint32_t>(1 - alpha);
+        atom_active |= activeCondition(new_wl, items[index]);
+        items[index] = new_wl;
+    }
+    if (atom_active) {
+        dir->activate(pkt->getAddr());
+    }
+
+    pkt->deleteData();
+    pkt->allocate();
+    pkt->setDataFromBlock((uint8_t*) items, pkt->getSize());
+}
+
+uint32_t
+PRWorkload::reduce(uint32_t update, uint32_t value)
+{
+    float update_float = writeToFloat<uint32_t>(update);
+    float value_float = writeToFloat<uint32_t>(value);
+    return readFromFloat<uint32_t>(update_float + value_float);
+}
+
+uint32_t
+PRWorkload::propagate(uint32_t value, uint32_t weight)
+{
+    float value_float = writeToFloat<uint32_t>(value);
+    float weight_float = writeToFloat<uint32_t>(weight);
+    if (weight == 0) {
+        weight_float = 1.0;
+    }
+    return readFromFloat<uint32_t>(alpha * value_float * weight_float);
+}
+
+bool
+PRWorkload::activeCondition(WorkListItem new_wl, WorkListItem old_wl)
+{
+    float temp_float = writeToFloat<uint32_t>(new_wl.tempProp);
+    float prop_float = writeToFloat<uint32_t>(new_wl.prop);
+    float dist = std::abs(temp_float - prop_float);
+    return (dist >= threshold) && (new_wl.degree > 0);
+}
+
+uint32_t
+PRWorkload::apply(WorkListItem& wl)
+{
+    float temp_float = writeToFloat<uint32_t>(wl.tempProp);
+    float prop_float = writeToFloat<uint32_t>(wl.prop);
+    float delta = (temp_float - prop_float) / wl.degree;
+    wl.prop = wl.tempProp;
+    return readFromFloat<uint32_t>(delta);
+}
+
+std::string
+PRWorkload::printWorkListItem(const WorkListItem wl)
+{
+    float temp_float = writeToFloat<uint32_t>(wl.tempProp);
+    float prop_float = writeToFloat<uint32_t>(wl.prop);
+    return csprintf(
+            "WorkListItem{tempProp: %f, prop: %f, degree: %u, "
+            "edgeIndex: %u, activeNow: %s, activeFuture: %s}",
+            temp_float, prop_float, wl.degree, wl.edgeIndex,
+            wl.activeNow ? "true" : "false",
+            wl.activeFuture ? "true" : "false");
+}
+
+void
 BSPPRWorkload::init(PacketPtr pkt, WorkDirectory* dir)
 {
     size_t pkt_size = pkt->getSize();
@@ -212,6 +287,9 @@ BSPPRWorkload::apply(WorkListItem& wl)
 void
 BSPPRWorkload::interIterationInit(WorkListItem& wl)
 {
+    float temp_float = writeToFloat<uint32_t>(wl.tempProp);
+    float prop_float = writeToFloat<uint32_t>(wl.prop);
+    error += std::abs(temp_float - prop_float);
     wl.prop = wl.tempProp;
     wl.tempProp = readFromFloat<uint32_t>(1 - alpha);
     wl.activeFuture = (wl.degree > 0);

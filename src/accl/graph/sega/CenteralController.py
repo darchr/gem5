@@ -49,8 +49,10 @@ class CenteralController(ClockedObject):
                     PyBindMethod("createBFSVisitedWorkload"),
                     PyBindMethod("createSSSPWorkload"),
                     PyBindMethod("createCCWorkload"),
+                    PyBindMethod("createAsyncPRWorkload"),
                     PyBindMethod("createPRWorkload"),
                     PyBindMethod("createBCWorkload"),
                     PyBindMethod("workCount"),
+                    PyBindMethod("getPRError"),
                     PyBindMethod("printAnswerToHostSimout")
                 ]

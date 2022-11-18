@@ -201,8 +201,14 @@ class SEGA(System):
     def create_cc_workload(self):
         self.ctrl.createCCWorkload()
 
+    def create_async_pr_workload(self, alpha, threshold):
+        self.ctrl.createAsyncPRWorkload(alpha, threshold)
+
     def create_pr_workload(self, alpha):
         self.ctrl.createPRWorkload(alpha)
+
+    def get_pr_error(self):
+        return self.ctrl.getPRError()
 
     def create_bc_workload(self, init_addr, init_value):
         self.ctrl.createBCWorkload(init_addr, init_value)

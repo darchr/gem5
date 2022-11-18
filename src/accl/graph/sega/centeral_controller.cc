@@ -76,6 +76,12 @@ CenteralController::createCCWorkload()
 }
 
 void
+CenteralController::createAsyncPRWorkload(float alpha, float threshold)
+{
+    workload = new PRWorkload(alpha, threshold);
+}
+
+void
 CenteralController::createPRWorkload(float alpha)
 {
     workload = new BSPPRWorkload(alpha);
@@ -194,6 +200,13 @@ CenteralController::workCount()
         work_count += mpu->workCount();
     }
     return work_count;
+}
+
+float
+CenteralController::getPRError()
+{
+    BSPPRWorkload* pr_workload = dynamic_cast<BSPPRWorkload*>(workload);
+    return pr_workload->getError();
 }
 
 void

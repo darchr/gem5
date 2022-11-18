@@ -90,6 +90,9 @@ class WLEngine : public BaseReduceEngine
     EventFunctionWrapper nextReduceEvent;
     void processNextReduceEvent();
 
+    EventFunctionWrapper nextDoneSignalEvent;
+    void processNextDoneSignalEvent();
+
     struct WorkListStats : public statistics::Group
     {
       WorkListStats(WLEngine &worklist);

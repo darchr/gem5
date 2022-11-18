@@ -43,6 +43,7 @@ WLEngine::WLEngine(const WLEngineParams& params):
     registerFileSize(params.register_file_size),
     nextReadEvent([this]{ processNextReadEvent(); }, name()),
     nextReduceEvent([this]{ processNextReduceEvent(); }, name()),
+    nextDoneSignalEvent([this] { processNextDoneSignalEvent(); }, name()),
     stats(*this)
 {
     for (int i = 0; i < params.port_in_ports_connection_count; ++i) {
@@ -316,6 +317,14 @@ WLEngine::processNextReduceEvent()
     }
     workListFile.clear();
 
+    if (done() && !nextDoneSignalEvent.scheduled()) {
+        schedule(nextDoneSignalEvent, nextCycle());
+    }
+}
+
+void
+WLEngine::processNextDoneSignalEvent()
+{
     if (done()) {
         owner->recvDoneSignal();
     }

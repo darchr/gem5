@@ -151,6 +151,9 @@ class CoalesceEngine : public BaseMemoryEngine
     EventFunctionWrapper nextApplyEvent;
     void processNextApplyEvent();
 
+    EventFunctionWrapper nextDoneSignalEvent;
+    void processNextDoneSignalEvent();
+
     struct CoalesceStats : public statistics::Group
     {
         CoalesceStats(CoalesceEngine &coalesce);

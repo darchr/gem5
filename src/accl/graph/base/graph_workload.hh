@@ -105,13 +105,37 @@ class SSSPWorkload : public BFSWorkload
     virtual uint32_t propagate(uint32_t value, uint32_t weight) override;
 };
 
+class PRWorkload : public GraphWorkload
+{
+  private:
+    float alpha;
+    float threshold;
+
+  public:
+    PRWorkload(float alpha, float threshold):
+        alpha(alpha), threshold(threshold)
+    {}
+
+    ~PRWorkload() {}
+
+    virtual void init(PacketPtr pkt, WorkDirectory* dir);
+    virtual uint32_t reduce(uint32_t update, uint32_t value);
+    virtual uint32_t propagate(uint32_t value, uint32_t weight);
+    virtual uint32_t apply(WorkListItem& wl);
+    virtual void iterate() {}
+    virtual void interIterationInit(WorkListItem& wl) {};
+    virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl);
+    virtual std::string printWorkListItem(const WorkListItem wl);
+};
+
 class BSPPRWorkload : public GraphWorkload
 {
   private:
     float alpha;
+    float error;
 
   public:
-    BSPPRWorkload(float alpha): alpha(alpha) {}
+    BSPPRWorkload(float alpha): alpha(alpha), error(0) {}
 
     ~BSPPRWorkload() {}
 
@@ -119,10 +143,12 @@ class BSPPRWorkload : public GraphWorkload
     virtual uint32_t reduce(uint32_t update, uint32_t value);
     virtual uint32_t propagate(uint32_t value, uint32_t weight);
     virtual uint32_t apply(WorkListItem& wl);
-    virtual void iterate() {}
+    virtual void iterate() { error = 0; }
     virtual void interIterationInit(WorkListItem& wl);
     virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl);
     virtual std::string printWorkListItem(const WorkListItem wl);
+
+    float getError() { return error; }
 };
 
 class BSPBCWorkload : public GraphWorkload
