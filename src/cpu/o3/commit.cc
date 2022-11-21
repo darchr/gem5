@@ -177,8 +177,6 @@ Commit::CommitStats::CommitStats(CPU *cpu, Commit *commit)
                "Number of committed integer instructions."),
       ADD_STAT(functionCalls, statistics::units::Count::get(),
                "Number of function calls committed."),
-      ADD_STAT(committedInstType, statistics::units::Count::get(),
-               "Class of committed instruction"),
       ADD_STAT(commitEligibleSamples, statistics::units::Cycle::get(),
                "number cycles where commit BW limit reached")
 {
@@ -235,12 +233,6 @@ Commit::CommitStats::CommitStats(CPU *cpu, Commit *commit)
     functionCalls
         .init(commit->numThreads)
         .flags(total);
-
-    committedInstType
-        .init(commit->numThreads,enums::Num_OpClass)
-        .flags(total | pdf | dist);
-
-    committedInstType.ysubnames(enums::OpClassStrings);
 }
 
 void
@@ -1019,7 +1011,8 @@ Commit::commitInsts()
 
             if (commit_success) {
                 ++num_committed;
-                stats.committedInstType[tid][head_inst->opClass()]++;
+                cpu->commitStats[tid]
+                    ->committedInstType[head_inst->opClass()]++;
                 ppCommit->notify(head_inst);
 
                 // hardware transactional memory

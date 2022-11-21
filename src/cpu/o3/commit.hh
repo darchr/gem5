@@ -501,8 +501,6 @@ class Commit
         statistics::Vector integer;
         /** Total number of function calls */
         statistics::Vector functionCalls;
-        /** Committed instructions by instruction type (OpClass) */
-        statistics::Vector2d committedInstType;
 
         /** Number of cycles where the commit bandwidth limit is reached. */
         statistics::Scalar commitEligibleSamples;
