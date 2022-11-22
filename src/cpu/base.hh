@@ -684,12 +684,6 @@ class BaseCPU : public ClockedObject
         /* Total number of branches fetched */
         statistics::Scalar numBranches;
 
-        /* Number of branches predicted as taken */
-        statistics::Scalar numPredictedBranches;
-
-        /* Number of mispredicted branches */
-        statistics::Scalar numBranchMispred;
-
         /* Number of branch fetches per cycle. */
         statistics::Formula branchRate;
 

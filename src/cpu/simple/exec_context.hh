@@ -96,6 +96,10 @@ class SimpleExecContext : public ExecContext
                        "Percentage of non-idle cycles"),
               ADD_STAT(idleFraction, statistics::units::Ratio::get(),
                        "Percentage of idle cycles"),
+              ADD_STAT(numPredictedBranches, statistics::units::Count::get(),
+                       "Number of branches predicted as taken"),
+              ADD_STAT(numBranchMispred, statistics::units::Count::get(),
+                       "Number of branch mispredictions"),
               numRegReads{
                   &(cpu->executeStats[thread->threadId()]->numIntRegReads),
                   &(cpu->executeStats[thread->threadId()]->numFpRegReads),
@@ -117,6 +121,12 @@ class SimpleExecContext : public ExecContext
             idleFraction = statistics::constant(1.0) - notIdleFraction;
             numIdleCycles = idleFraction * cpu->baseStats.numCycles;
             numBusyCycles = notIdleFraction * cpu->baseStats.numCycles;
+
+            numPredictedBranches
+                .prereq(numPredictedBranches);
+
+            numBranchMispred
+                .prereq(numBranchMispred);
         }
 
         // Number of function calls/returns
@@ -131,6 +141,13 @@ class SimpleExecContext : public ExecContext
         // Number of idle cycles
         statistics::Average notIdleFraction;
         statistics::Formula idleFraction;
+
+        /// @{
+        /// Number of branches predicted as taken
+        statistics::Scalar numPredictedBranches;
+        /// Number of misprediced branches
+        statistics::Scalar numBranchMispred;
+        /// @}
 
         std::array<statistics::Scalar *, CCRegClass + 1> numRegReads;
         std::array<statistics::Scalar *, CCRegClass + 1> numRegWrites;

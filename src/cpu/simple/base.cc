@@ -400,7 +400,7 @@ BaseSimpleCPU::preExecute()
                 curThread));
 
         if (predict_taken)
-            ++fetchStats[t_info.thread->threadId()]->numPredictedBranches;
+            ++t_info.execContextStats.numPredictedBranches;
     }
 
     // increment the fetch instruction stat counters
@@ -545,7 +545,7 @@ BaseSimpleCPU::advancePC(const Fault &fault)
             // Mis-predicted branch
             branchPred->squash(cur_sn, thread->pcState(), branching,
                     curThread);
-            ++fetchStats[t_info.thread->threadId()]->numBranchMispred;
+            ++t_info.execContextStats.numBranchMispred;
         }
     }
 }

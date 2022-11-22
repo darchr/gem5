@@ -828,10 +828,6 @@ FetchCPUStats::FetchCPUStats(statistics::Group *parent, int thread_id)
              "Number of inst fetches per cycle"),
     ADD_STAT(numBranches, statistics::units::Count::get(),
              "Number of branches fetched"),
-    ADD_STAT(numPredictedBranches, statistics::units::Count::get(),
-             "Number of branches predicted as taken"),
-    ADD_STAT(numBranchMispred, statistics::units::Count::get(),
-             "Number of branch mispredictions"),
     ADD_STAT(branchRate, statistics::units::Ratio::get(),
              "Number of branch fetches per cycle"),
     ADD_STAT(icacheStallCycles, statistics::units::Cycle::get(),
@@ -844,12 +840,6 @@ FetchCPUStats::FetchCPUStats(statistics::Group *parent, int thread_id)
 
     numBranches
         .prereq(numBranches);
-
-    numPredictedBranches
-        .prereq(numPredictedBranches);
-
-    numBranchMispred
-        .prereq(numBranchMispred);
 
     branchRate
         .flags(statistics::total);
