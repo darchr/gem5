@@ -853,21 +853,21 @@ ExecuteCPUStats::ExecuteCPUStats(statistics::Group *parent, int thread_id)
     : statistics::Group(parent, csprintf("executeStats%i", thread_id).c_str()),
     ADD_STAT(dcacheStallCycles, statistics::units::Cycle::get(),
              "DCache total stall cycles"),
-    ADD_STAT(numCCRegReads, statistics::units::Count::get(), //
-             "Number of times the CC registers were read"), //
+    ADD_STAT(numCCRegReads, statistics::units::Count::get(),
+             "Number of times the CC registers were read"),
     ADD_STAT(numCCRegWrites, statistics::units::Count::get(),
              "Number of times the CC registers were written"),
     ADD_STAT(numFpAluAccesses, statistics::units::Count::get(),
              "Number of float alu accesses"),
     ADD_STAT(numFpRegReads, statistics::units::Count::get(),
-             "Number of times the floating registers were read"), //
+             "Number of times the floating registers were read"),
     ADD_STAT(numFpRegWrites, statistics::units::Count::get(),
-             "Number of times the floating registers were written"), //
+             "Number of times the floating registers were written"),
     ADD_STAT(numIntAluAccesses, statistics::units::Count::get(),
              "Number of integer alu accesses"),
-    ADD_STAT(numIntRegReads, statistics::units::Count::get(), //
+    ADD_STAT(numIntRegReads, statistics::units::Count::get(),
              "Number of times the integer registers were read"),
-    ADD_STAT(numIntRegWrites, statistics::units::Count::get(), //
+    ADD_STAT(numIntRegWrites, statistics::units::Count::get(),
              "Number of times the integer registers were written"),
     ADD_STAT(numMemRefs, statistics::units::Count::get(),
              "Number of memory refs"),
@@ -877,13 +877,13 @@ ExecuteCPUStats::ExecuteCPUStats(statistics::Group *parent, int thread_id)
              "Number of times the Misc registers were written"),
     ADD_STAT(numVecAluAccesses, statistics::units::Count::get(),
              "Number of vector alu accesses"),
-    ADD_STAT(numVecPredRegReads, statistics::units::Count::get(), //
+    ADD_STAT(numVecPredRegReads, statistics::units::Count::get(),
              "Number of times the predicate registers were read"),
-    ADD_STAT(numVecPredRegWrites, statistics::units::Count::get(), //
+    ADD_STAT(numVecPredRegWrites, statistics::units::Count::get(),
              "Number of times the predicate registers were written"),
-    ADD_STAT(numVecRegReads, statistics::units::Count::get(), //
+    ADD_STAT(numVecRegReads, statistics::units::Count::get(),
              "Number of times the vector registers were read"),
-    ADD_STAT(numVecRegWrites, statistics::units::Count::get(), //
+    ADD_STAT(numVecRegWrites, statistics::units::Count::get(),
              "Number of times the vector registers were written"),
     ADD_STAT(numDiscardedOps, statistics::units::Count::get(),
              "Number of ops (including micro ops) which were discarded before "
@@ -892,9 +892,33 @@ ExecuteCPUStats::ExecuteCPUStats(statistics::Group *parent, int thread_id)
     dcacheStallCycles
                 .prereq(dcacheStallCycles);
     numCCRegReads
+                .prereq(numCCRegReads)
                 .flags(statistics::nozero);
     numCCRegWrites
+                .prereq(numCCRegWrites)
                 .flags(statistics::nozero);
+    numFpAluAccesses
+                .prereq(numFpAluAccesses);
+    numFpRegReads
+                .prereq(numFpRegReads);
+    numIntAluAccesses
+                .prereq(numIntAluAccesses);
+    numIntRegReads
+                .prereq(numIntRegReads);
+    numIntRegWrites
+                .prereq(numIntRegWrites);
+    numMiscRegReads
+                .prereq(numMiscRegReads);
+    numMiscRegWrites
+                .prereq(numMiscRegWrites);
+    numVecPredRegReads
+                .prereq(numVecPredRegReads);
+    numVecPredRegWrites
+                .prereq(numVecPredRegWrites);
+    numVecRegReads
+                .prereq(numVecRegReads);
+    numVecRegWrites
+                .prereq(numVecRegWrites);
 }
 
 BaseCPU::

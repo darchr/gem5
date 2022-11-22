@@ -1085,10 +1085,10 @@ class DynInst : public ExecContext, public RefCounted
 
             if (bytes == sizeof(RegVal)) {
                 setRegOperand(staticInst.get(), idx,
-                        cpu->getReg(prev_phys_reg));
+                        cpu->getReg(prev_phys_reg, threadNumber));
             } else {
                 uint8_t val[original_dest_reg.regClass().regBytes()];
-                cpu->getReg(prev_phys_reg, val);
+                cpu->getReg(prev_phys_reg, val, threadNumber);
                 setRegOperand(staticInst.get(), idx, val);
             }
         }
@@ -1115,7 +1115,7 @@ class DynInst : public ExecContext, public RefCounted
         const PhysRegIdPtr reg = renamedSrcIdx(idx);
         if (reg->is(InvalidRegClass))
             return 0;
-        return cpu->getReg(reg);
+        return cpu->getReg(reg, threadNumber);
     }
 
     void
@@ -1124,13 +1124,13 @@ class DynInst : public ExecContext, public RefCounted
         const PhysRegIdPtr reg = renamedSrcIdx(idx);
         if (reg->is(InvalidRegClass))
             return;
-        cpu->getReg(reg, val);
+        cpu->getReg(reg, val, threadNumber);
     }
 
     void *
     getWritableRegOperand(const StaticInst *si, int idx) override
     {
-        return cpu->getWritableReg(renamedDestIdx(idx));
+        return cpu->getWritableReg(renamedDestIdx(idx), threadNumber);
     }
 
     /** @todo: Make results into arrays so they can handle multiple dest
@@ -1142,7 +1142,7 @@ class DynInst : public ExecContext, public RefCounted
         const PhysRegIdPtr reg = renamedDestIdx(idx);
         if (reg->is(InvalidRegClass))
             return;
-        cpu->setReg(reg, val);
+        cpu->setReg(reg, val, threadNumber);
         setResult(reg->regClass(), val);
     }
 
@@ -1152,7 +1152,7 @@ class DynInst : public ExecContext, public RefCounted
         const PhysRegIdPtr reg = renamedDestIdx(idx);
         if (reg->is(InvalidRegClass))
             return;
-        cpu->setReg(reg, val);
+        cpu->setReg(reg, val, threadNumber);
         setResult(reg->regClass(), val);
     }
 };
