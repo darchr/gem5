@@ -326,22 +326,6 @@ CPU::CPUStats::CPUStats(CPU *cpu)
       ADD_STAT(quiesceCycles, statistics::units::Cycle::get(),
                "Total number of cycles that CPU has spent quiesced or waiting "
                "for an interrupt"),
-      ADD_STAT(committedInsts, statistics::units::Count::get(),
-               "Number of Instructions Simulated"),
-      ADD_STAT(committedOps, statistics::units::Count::get(),
-               "Number of Ops (including micro ops) Simulated"),
-      ADD_STAT(cpi, statistics::units::Rate<
-                    statistics::units::Cycle, statistics::units::Count>::get(),
-               "CPI: Cycles Per Instruction"),
-      ADD_STAT(totalCpi, statistics::units::Rate<
-                    statistics::units::Cycle, statistics::units::Count>::get(),
-               "CPI: Total CPI of All Threads"),
-      ADD_STAT(ipc, statistics::units::Rate<
-                    statistics::units::Count, statistics::units::Cycle>::get(),
-               "IPC: Instructions Per Cycle"),
-      ADD_STAT(totalIpc, statistics::units::Rate<
-                    statistics::units::Count, statistics::units::Cycle>::get(),
-               "IPC: Total IPC of All Threads"),
       ADD_STAT(intRegfileReads, statistics::units::Count::get(),
                "Number of integer regfile reads"),
       ADD_STAT(intRegfileWrites, statistics::units::Count::get(),
@@ -376,34 +360,6 @@ CPU::CPUStats::CPUStats(CPU *cpu)
 
     quiesceCycles
         .prereq(quiesceCycles);
-
-    // Number of Instructions simulated
-    // --------------------------------
-    // Should probably be in Base CPU but need templated
-    // MaxThreads so put in here instead
-    committedInsts
-        .init(cpu->numThreads)
-        .flags(statistics::total);
-
-    committedOps
-        .init(cpu->numThreads)
-        .flags(statistics::total);
-
-    cpi
-        .precision(6);
-    cpi = cpu->baseStats.numCycles / committedInsts;
-
-    totalCpi
-        .precision(6);
-    totalCpi = cpu->baseStats.numCycles / sum(committedInsts);
-
-    ipc
-        .precision(6);
-    ipc = committedInsts / cpu->baseStats.numCycles;
-
-    totalIpc
-        .precision(6);
-    totalIpc = sum(committedInsts) / cpu->baseStats.numCycles;
 
     intRegfileReads
         .prereq(intRegfileReads);
@@ -1227,14 +1183,14 @@ CPU::instDone(ThreadID tid, const DynInstPtr &inst)
     if (!inst->isMicroop() || inst->isLastMicroop()) {
         thread[tid]->numInst++;
         thread[tid]->threadStats.numInsts++;
-        cpuStats.committedInsts[tid]++;
+        commitStats[tid]->numInstsNotNOP++;
 
         // Check for instruction-count-based events.
         thread[tid]->comInstEventQueue.serviceEvents(thread[tid]->numInst);
     }
     thread[tid]->numOp++;
     thread[tid]->threadStats.numOps++;
-    cpuStats.committedOps[tid]++;
+    commitStats[tid]->numOpsNotNOP++;
 
     probeInstCommit(inst->staticInst, inst->pcState().instAddr());
 }
