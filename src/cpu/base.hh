@@ -678,6 +678,9 @@ class BaseCPU : public ClockedObject
         /* Total number of operations fetched */
         statistics::Scalar numOps;
 
+        /* Number of instruction fetched per cycle. */
+        statistics::Formula fetchRate;
+
         /* Total number of branches fetched */
         statistics::Scalar numBranches;
 
@@ -687,6 +690,12 @@ class BaseCPU : public ClockedObject
         /* Number of mispredicted branches */
         statistics::Scalar numBranchMispred;
 
+        /* Number of branch fetches per cycle. */
+        statistics::Formula branchRate;
+
+        /* Number of cycles stalled due to an icache miss */
+        statistics::Scalar icacheStallCycles;
+
         /* Number of times fetch was asked to suspend by Execute */
         statistics::Scalar numFetchSuspends;
 
@@ -695,9 +704,6 @@ class BaseCPU : public ClockedObject
     struct ExecuteCPUStats: public statistics::Group
     {
         ExecuteCPUStats(statistics::Group *parent, int thread_id);
-
-        /* Number of cycles stalled for I-cache responses */
-        statistics::Scalar icacheStallCycles;
 
         /* Number of cycles stalled for D-cache responses */
         statistics::Scalar dcacheStallCycles;

@@ -184,8 +184,15 @@ BaseCPU::BaseCPU(const Params &p, bool is_checker)
     executeStats.reserve(numThreads);
     commitStats.reserve(numThreads);
     for (int i = 0; i < numThreads; i++) {
-        fetchStats.emplace_back(new FetchCPUStats(this, i));
+        // create fetchStat object for thread i and set rate formulas
+        FetchCPUStats* fetchStatptr = new FetchCPUStats(this, i);
+        fetchStatptr->fetchRate = fetchStatptr->numInsts / baseStats.numCycles;
+        fetchStatptr->branchRate = fetchStatptr->numBranches /
+            baseStats.numCycles;
+        fetchStats.emplace_back(fetchStatptr);
+
         executeStats.emplace_back(new ExecuteCPUStats(this, i));
+
         // create commitStat object for thread i and set ipc, cpi formulas
         CommitCPUStats* commitStatptr = new CommitCPUStats(this, i);
         commitStatptr->ipc = commitStatptr->numInsts / baseStats.numCycles;
@@ -816,15 +823,25 @@ FetchCPUStats::FetchCPUStats(statistics::Group *parent, int thread_id)
              "Number of instructions fetched (thread level)"),
     ADD_STAT(numOps, statistics::units::Count::get(),
              "Number of ops (including micro ops) fetched (thread level)"),
+    ADD_STAT(fetchRate, statistics::units::Rate<
+             statistics::units::Count, statistics::units::Cycle>::get(),
+             "Number of inst fetches per cycle"),
     ADD_STAT(numBranches, statistics::units::Count::get(),
              "Number of branches fetched"),
     ADD_STAT(numPredictedBranches, statistics::units::Count::get(),
              "Number of branches predicted as taken"),
     ADD_STAT(numBranchMispred, statistics::units::Count::get(),
              "Number of branch mispredictions"),
+    ADD_STAT(branchRate, statistics::units::Ratio::get(),
+             "Number of branch fetches per cycle"),
+    ADD_STAT(icacheStallCycles, statistics::units::Cycle::get(),
+             "ICache total stall cycles"),
     ADD_STAT(numFetchSuspends, statistics::units::Count::get(),
              "Number of times Execute suspended instruction fetching")
 {
+    fetchRate
+        .flags(statistics::total);
+
     numBranches
         .prereq(numBranches);
 
@@ -833,13 +850,17 @@ FetchCPUStats::FetchCPUStats(statistics::Group *parent, int thread_id)
 
     numBranchMispred
         .prereq(numBranchMispred);
+
+    branchRate
+        .flags(statistics::total);
+
+    icacheStallCycles
+        .prereq(icacheStallCycles);
 }
 
 BaseCPU::
 ExecuteCPUStats::ExecuteCPUStats(statistics::Group *parent, int thread_id)
     : statistics::Group(parent, csprintf("executeStats%i", thread_id).c_str()),
-    ADD_STAT(icacheStallCycles, statistics::units::Cycle::get(),
-             "ICache total stall cycles"),
     ADD_STAT(dcacheStallCycles, statistics::units::Cycle::get(),
              "DCache total stall cycles"),
     ADD_STAT(numCCRegReads, statistics::units::Count::get(), //
@@ -878,8 +899,6 @@ ExecuteCPUStats::ExecuteCPUStats(statistics::Group *parent, int thread_id)
              "Number of ops (including micro ops) which were discarded before "
              "commit")
 {
-    icacheStallCycles
-                .prereq(icacheStallCycles);
     dcacheStallCycles
                 .prereq(dcacheStallCycles);
     numCCRegReads
@@ -920,6 +939,9 @@ CommitCPUStats::CommitCPUStats(statistics::Group *parent, int thread_id)
     ADD_STAT(committedControl, statistics::units::Count::get(),
              "Class of control type instructions committed")
 {
+    numInsts
+        .prereq(numInsts);
+
     cpi.precision(6);
     ipc.precision(6);
 
