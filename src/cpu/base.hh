@@ -771,6 +771,9 @@ class BaseCPU : public ClockedObject
         statistics::Formula cpi;
         statistics::Formula ipc;
 
+        /* Number of committed memory references. */
+        statistics::Scalar numMemRefs;
+
         /* Number of float instructions */
         statistics::Scalar numFpInsts;
 

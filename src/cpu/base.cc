@@ -957,6 +957,8 @@ CommitCPUStats::CommitCPUStats(statistics::Group *parent, int thread_id)
     ADD_STAT(ipc, statistics::units::Rate<
                 statistics::units::Count, statistics::units::Cycle>::get(),
              "IPC: instructions per cycle (thread level)"),
+    ADD_STAT(numMemRefs, statistics::units::Count::get(),
+             "Number of memory references committed"),
     ADD_STAT(numFpInsts, statistics::units::Count::get(),
              "Number of float instructions"),
     ADD_STAT(numIntInsts, statistics::units::Count::get(),
@@ -1022,6 +1024,5 @@ CommitCPUStats::updateComCtrlStats(const StaticInstPtr staticInst)
         }
         committedControl[gem5::StaticInstFlags::Flags::IsControl]++;
     }
-
 }
 } // namespace gem5

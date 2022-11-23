@@ -479,20 +479,10 @@ class Commit
         /** Distribution of the number of committed instructions each cycle. */
         statistics::Distribution numCommittedDist;
 
-        /** Stat for the total number of committed memory references. */
-        statistics::Vector memRefs;
-        /** Stat for the total number of committed loads. */
-        statistics::Vector loads;
         /** Stat for the total number of committed atomics. */
         statistics::Vector amos;
         /** Total number of committed memory barriers. */
         statistics::Vector membars;
-        /** Total number of vector instructions */
-        statistics::Vector vectorInstructions;
-        /** Total number of floating point instructions */
-        statistics::Vector floating;
-        /** Total number of integer instructions */
-        statistics::Vector integer;
         /** Total number of function calls */
         statistics::Vector functionCalls;
 
