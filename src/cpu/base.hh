@@ -791,6 +791,7 @@ class BaseCPU : public ClockedObject
 
         /* number of control instructions committed by control inst type */
         statistics::Vector committedControl;
+        void updateComCtrlStats(const StaticInstPtr staticInst);
     };
 
     std::vector<std::unique_ptr<FetchCPUStats>> fetchStats;

@@ -464,36 +464,7 @@ BaseSimpleCPU::postExecute()
 
     commitStats[t_info.thread->threadId()]
         ->committedInstType[curStaticInst->opClass()]++;
-
-    /* Add a count for every control instruction */
-    if (curStaticInst->isControl()) {
-        if (curStaticInst->isReturn()) {
-            commitStats[t_info.thread->threadId()]->committedControl
-                        [gem5::StaticInstFlags::Flags::IsReturn]++;
-        }
-        if (curStaticInst->isCall()) {
-            commitStats[t_info.thread->threadId()]->committedControl
-                        [gem5::StaticInstFlags::Flags::IsCall]++;
-        }
-        if (curStaticInst->isDirectCtrl()) {
-            commitStats[t_info.thread->threadId()]->committedControl
-                        [gem5::StaticInstFlags::Flags::IsDirectControl]++;
-        }
-        if (curStaticInst->isIndirectCtrl()) {
-            commitStats[t_info.thread->threadId()]->committedControl
-                        [gem5::StaticInstFlags::Flags::IsIndirectControl]++;
-        }
-        if (curStaticInst->isCondCtrl()) {
-            commitStats[t_info.thread->threadId()]->committedControl
-                        [gem5::StaticInstFlags::Flags::IsCondControl]++;
-        }
-        if (curStaticInst->isUncondCtrl()) {
-            commitStats[t_info.thread->threadId()]->committedControl
-                        [gem5::StaticInstFlags::Flags::IsUncondControl]++;
-        }
-        commitStats[t_info.thread->threadId()]->committedControl
-                        [gem5::StaticInstFlags::Flags::IsControl]++;
-    }
+    commitStats[t_info.thread->threadId()]->updateComCtrlStats(curStaticInst);
 
     /* increment the committed numInsts and numOps stats */
     countCommitInst();

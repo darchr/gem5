@@ -487,8 +487,6 @@ class Commit
         statistics::Vector amos;
         /** Total number of committed memory barriers. */
         statistics::Vector membars;
-        /** Total number of committed branches. */
-        statistics::Vector branches;
         /** Total number of vector instructions */
         statistics::Vector vectorInstructions;
         /** Total number of floating point instructions */

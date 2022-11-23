@@ -994,4 +994,34 @@ CommitCPUStats::CommitCPUStats(statistics::Group *parent, int thread_id)
         committedControl.subname(i, StaticInstFlags::FlagsStrings[i]);
     }
 }
+
+void
+BaseCPU::
+CommitCPUStats::updateComCtrlStats(const StaticInstPtr staticInst)
+{
+    /* Add a count for every control instruction type */
+    if (staticInst->isControl()) {
+        if (staticInst->isReturn()) {
+            committedControl[gem5::StaticInstFlags::Flags::IsReturn]++;
+        }
+        if (staticInst->isCall()) {
+            committedControl[gem5::StaticInstFlags::Flags::IsCall]++;
+        }
+        if (staticInst->isDirectCtrl()) {
+            committedControl[gem5::StaticInstFlags::Flags::IsDirectControl]++;
+        }
+        if (staticInst->isIndirectCtrl()) {
+            committedControl
+                [gem5::StaticInstFlags::Flags::IsIndirectControl]++;
+        }
+        if (staticInst->isCondCtrl()) {
+            committedControl[gem5::StaticInstFlags::Flags::IsCondControl]++;
+        }
+        if (staticInst->isUncondCtrl()) {
+            committedControl[gem5::StaticInstFlags::Flags::IsUncondControl]++;
+        }
+        committedControl[gem5::StaticInstFlags::Flags::IsControl]++;
+    }
+
+}
 } // namespace gem5

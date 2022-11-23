@@ -163,8 +163,6 @@ Commit::CommitStats::CommitStats(CPU *cpu, Commit *commit)
                "Number of atomic instructions committed"),
       ADD_STAT(membars, statistics::units::Count::get(),
                "Number of memory barriers committed"),
-      ADD_STAT(branches, statistics::units::Count::get(),
-               "Number of branches committed"),
       ADD_STAT(vectorInstructions, statistics::units::Count::get(),
                "Number of committed Vector instructions."),
       ADD_STAT(floating, statistics::units::Count::get(),
@@ -199,10 +197,6 @@ Commit::CommitStats::CommitStats(CPU *cpu, Commit *commit)
         .flags(total);
 
     membars
-        .init(cpu->numThreads)
-        .flags(total);
-
-    branches
         .init(cpu->numThreads)
         .flags(total);
 
@@ -1380,8 +1374,7 @@ Commit::updateComInstStats(const DynInstPtr &inst)
     //
     //  Control Instructions
     //
-    if (inst->isControl())
-        stats.branches[tid]++;
+    cpu->commitStats[tid]->updateComCtrlStats(inst->staticInst);
 
     //
     //  Memory references
