@@ -138,6 +138,39 @@ class Cycles
     friend std::ostream& operator<<(std::ostream &out, const Cycles & cycles);
 };
 
+class PcCountPair
+{
+
+  private:
+
+    /** Member holding the actual value. */
+    uint64_t pc;
+    int count;
+
+  public:
+
+    /** Explicit constructor assigning a value. */
+    explicit constexpr PcCountPair(uint64_t _pc, int _count) : 
+        pc(_pc), count(_count) { }
+
+    /** Default constructor for parameter classes. */
+    PcCountPair() : pc(0), count(0) { }
+
+    /** Prefix increment operator. */
+    PcCountPair& operator++() { ++count; return *this; }
+
+    uint64_t getPC () const {return pc;}
+    int getCount() const {return count;}
+
+    /** Greater than comparison used for > PcCountPair(0). */
+    constexpr bool
+    operator>(const PcCountPair& cc) const
+    {
+        return count > cc.count;
+    }
+
+};
+
 /**
  * Address type
  * This will probably be moved somewhere else in the near future.

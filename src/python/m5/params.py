@@ -852,6 +852,20 @@ class Addr(CheckedInt):
         except TypeError:
             val = int(value)
         return "0x%x" % int(val)
+    
+class PcCountPair(ParamValue):
+    cxx_type = "PcCountPair"
+    cmd_line_settable = True
+    
+    def __init__(self, _pc, _count):
+        self.pc = _pc
+        self.count = _count
+
+    def getPC(self):
+        return Addr(self.pc)
+    
+    def getCount(self):
+        return int(self.count)
 
 
 class AddrRange(ParamValue):
@@ -2426,4 +2440,5 @@ __all__ = [
     "VectorMasterPort",
     "VectorSlavePort",
     "DeprecatedParam",
+    "PcCountPair",
 ]
