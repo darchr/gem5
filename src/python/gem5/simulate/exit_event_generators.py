@@ -29,6 +29,7 @@ import m5.stats
 from ..components.processors.abstract_processor import AbstractProcessor
 from ..components.processors.switchable_processor import SwitchableProcessor
 from ..utils.simpoint import SimPoint
+from gem5.utils.looppoint import LoopPoint
 from m5.util import warn
 from pathlib import Path
 
@@ -167,3 +168,17 @@ def simpoints_save_checkpoint_generator(
             yield False
         else:
             yield True
+
+def looppoint_save_checkpoint_generator(
+    checkpoint_dir: Path, looppoint: LoopPoint, update_relatives: bool = True
+):
+    while True:
+        region = looppoint.get_current_region()
+        if(region != -1):
+            if(update_relatives):
+                looppoint.update_relatives()
+            m5.checkpoint((checkpoint_dir / f"cpt.Region{region}").as_posix())
+        yield False
+
+            
+

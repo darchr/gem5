@@ -64,15 +64,15 @@ namespace gem5
             if(targetPair.find(currentPair) != targetPair.end()) {
 
                 DPRINTF(PcCountTracker,
-                    "pc:%lu count:%i encountered\n", 
-                            currentPair.getPC(), currentPair.getCount());
+                    "pc:%s encountered\n", 
+                            currentPair.to_string());
 
                 lastTick = curTick();
                 exitSimLoopNow("simpoint starting point found");
 
                 targetPair.erase(currentPair);
                 DPRINTF(PcCountTracker,
-                    "There are %i targets remained", targetPair.size());
+                    "There are %i targets remained\n", targetPair.size());
             }
         }
     }

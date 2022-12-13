@@ -172,10 +172,15 @@ class PcCountPair
     constexpr bool
     operator==(const PcCountPair& cc) const
     {
-        if(pc == cc.getPC() && count == cc.getCount()) {
-            return true;
-        }
-        return false;
+        return (pc == cc.getPC() && count == cc.getCount());
+    }
+
+    std::string
+    to_string() const
+    {
+        std::string s = "(" + std::to_string(pc) 
+                                    + ", " + std::to_string(count) + ")";
+        return s;
     }
 
     struct HashFunction

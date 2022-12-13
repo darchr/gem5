@@ -150,6 +150,7 @@ class LoopPointCheckpoint(LoopPoint):
                         json_file[int(line[2])]["simulation"]["start"]["global"] = int(line[6])
                         json_file[int(line[2])]["simulation"]["end"] = {"pc" : int(line[7],16)}
                         json_file[int(line[2])]["simulation"]["end"]["global"] = int(line[10])
+                        json_file[int(line[2])]["multiplier"] = float(line[14])
                         targets.append(start)
                         targets.append(end)
                     elif row[0] == "Warmup":
@@ -202,19 +203,23 @@ class LoopPointCheckpoint(LoopPoint):
                     start = sim_start
                     
                 region_id[start] = rid
-                
-        
 
 class LoopPointRestore(LoopPoint):
     def __init__(
-        self, LoopPointOutputFilePath: Path, CheckPointDir: Path
+        self, LoopPointFilePath: Path, CheckPointDir: Path
     ) -> None:
     
         _json_file = {}
         _targets = []    
         _region_id = {}
         
-        self.profile_restore(LoopPointFilePath, _targets, _json_file, _region_id)
+        self.profile_restore(
+            LoopPointFilePath, 
+            CheckPointDir,
+            _targets, 
+            _json_file, 
+            _region_id
+        )
         
         super().__init__(
             _targets,
@@ -225,11 +230,12 @@ class LoopPointRestore(LoopPoint):
     def profile_restore(
         self,
         looppoint_file_path: Path,
+        checkpoint_dir: Path,
         targets: List[PcCountPair],
         json_file: Dict[int, Dict],
         region_id: Dict[PcCountPair, int],
     ) -> None:
-        regex = re.compile(r"cpt.([0-9]+)")
+        regex = re.compile(r"cpt.Region([0-9]+)")
         rid = regex.findall(checkpoint_dir.as_posix())[0]
         with open(looppoint_file_path) as file:
             json_file = json.load(file)

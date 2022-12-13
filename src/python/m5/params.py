@@ -862,22 +862,23 @@ class PcCountPair(ParamValue):
         self.count = _count
 
     def getPC(self):
-        return Addr(self.pc)
+        return self.pc
     
     def getCount(self):
-        return int(self.count)
+        return self.count
     
     def getValue(self):
         from _m5.pc import PcCountPair
         return PcCountPair(self.pc, self.count)
+    
+    def __str__(self):
+        return "(%i,%i)" % (self.pc, self.count)
     
     def __eq__(self, other):
         return (self.pc == other.pc and self.count == other.count)
     
     def __hash__(self):
         return hash((int(self.pc),int(self.count)))
-        
-
 
 class AddrRange(ParamValue):
     cxx_type = "AddrRange"

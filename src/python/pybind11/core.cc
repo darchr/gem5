@@ -171,6 +171,12 @@ init_pc(py::module_ &m_native)
     py::class_<PcCountPair>(m, "PcCountPair")
         .def(py::init<>())
         .def(py::init<Addr, int>())
+        .def("__eq__", &PcCountPair::operator==)
+        .def("__str__", [](const PcCountPair &p) {
+            std::stringstream s;
+            s << "(" << p.getPC() << ", " << p.getCount() <<")";
+            return s.str();
+        })
 
         .def("getPC", &PcCountPair::getPC)
         .def("getCount", &PcCountPair::getCount)
