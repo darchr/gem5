@@ -870,6 +870,13 @@ class PcCountPair(ParamValue):
     def getValue(self):
         from _m5.pc import PcCountPair
         return PcCountPair(self.pc, self.count)
+    
+    def __eq__(self, other):
+        return (self.pc == other.pc and self.count == other.count)
+    
+    def __hash__(self):
+        return hash((int(self.pc),int(self.count)))
+        
 
 
 class AddrRange(ParamValue):

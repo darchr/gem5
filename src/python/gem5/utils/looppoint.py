@@ -59,17 +59,17 @@ class LoopPoint:
             
     def update_relatives(self) -> None:
         current_pair = self._manager.get_current_pc_count_pair()
-        if(current_pair in self._regions):
-            rid = self._regions[current_pair]
-            region = self._json_file[rid]
+        temp_pair = PcCountPair(current_pair.getPC(), current_pair.getCount())
+        if(temp_pair in self._regions):
+            rid = self._regions[temp_pair]
             if("warmup" in region):
-                region = region["simulation"]
-                start = region["start"]["global"]
-                temp = start - self._manager.get_pc_count(start.getPC())
-                region["start"]["relative"] = int(temp)
-                end = region["end"]["global"]
-                temp = end - self._manager.get_pc_count(end.getPC())
-                region["end"]["relative"] = int(temp)
+                region = self._json_file[rid]["simulation"]
+                start = region["start"]["pc"]
+                temp = region["start"]["global"] - self._manager.get_pc_count(start)
+                self._json_file[rid]["simulation"]["start"]["relative"] = int(temp)
+                end = region["end"]["pc"]
+                temp = region["end"]["global"] - self._manager.get_pc_count(end)
+                self._json_file[rid]["simulation"]["end"]["relative"] = int(temp)
                 
                 
     def output_json_file(
@@ -78,6 +78,22 @@ class LoopPoint:
         ) -> Dict[int, Dict]:
         with open("LoopPoint.json", "w") as file:
             json.dump(self._json_file, file, indent=input_indent)
+    
+    def get_current_region(self) -> int:
+        current_pair = self._manager.get_current_pc_count_pair()
+        temp_pair = PcCountPair(current_pair.getPC(), current_pair.getCount())
+        if(temp_pair in self._regions):
+            return self._regions[temp_pair]
+        return -1
+    
+    def get_current_pair(self) -> PcCountPair:
+        return self._manager.get_current_pc_count_pair()
+    
+    def get_regions(self) -> Dict[PcCountPair,int]:
+        return self._regions
+    
+    def get_targets(self) ->  List[PcCountPair]:
+        return self._targets
                 
 
 class LoopPointCheckpoint(LoopPoint):
