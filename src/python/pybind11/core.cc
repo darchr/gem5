@@ -164,6 +164,21 @@ init_range(py::module_ &m_native)
 }
 
 static void
+init_pc(py::module_ &m_native)
+{
+    py::module_ m = m_native.def_submodule("pc");
+
+    py::class_<PcCountPair>(m, "PcCountPair")
+        .def(py::init<>())
+        .def(py::init<Addr, int>())
+
+        .def("getPC", &PcCountPair::getPC)
+        .def("getCount", &PcCountPair::getCount)
+        ;
+}
+
+
+static void
 init_net(py::module_ &m_native)
 {
     py::module_ m = m_native.def_submodule("net");
@@ -307,6 +322,7 @@ pybind_init_core(py::module_ &m_native)
     init_range(m_native);
     init_net(m_native);
     init_loader(m_native);
+    init_pc(m_native);
 }
 
 } // namespace gem5

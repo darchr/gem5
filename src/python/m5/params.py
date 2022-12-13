@@ -866,6 +866,10 @@ class PcCountPair(ParamValue):
     
     def getCount(self):
         return int(self.count)
+    
+    def getValue(self):
+        from _m5.pc import PcCountPair
+        return PcCountPair(self.pc, self.count)
 
 
 class AddrRange(ParamValue):

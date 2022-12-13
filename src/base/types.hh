@@ -151,23 +151,42 @@ class PcCountPair
 
     /** Explicit constructor assigning a value. */
     explicit constexpr PcCountPair(uint64_t _pc, int _count) : 
-        pc(_pc), count(_count) { }
+        pc(_pc), count(_count) {}
 
     /** Default constructor for parameter classes. */
-    PcCountPair() : pc(0), count(0) { }
+    PcCountPair() : pc(0), count(0) {}
 
     /** Prefix increment operator. */
     PcCountPair& operator++() { ++count; return *this; }
 
-    uint64_t getPC () const {return pc;}
-    int getCount() const {return count;}
+    constexpr uint64_t getPC () const {return pc;}
+    constexpr int getCount() const {return count;}
 
     /** Greater than comparison used for > PcCountPair(0). */
     constexpr bool
     operator>(const PcCountPair& cc) const
     {
-        return count > cc.count;
+        return count > cc.getCount();
     }
+
+    constexpr bool
+    operator==(const PcCountPair& cc) const
+    {
+        if(pc == cc.getPC() && count == cc.getCount()) {
+            return true;
+        }
+        return false;
+    }
+
+    struct HashFunction
+    {
+        size_t operator()(const PcCountPair& item) const
+        {
+            size_t xHash = std::hash<int>()(item.pc);
+            size_t yHash = std::hash<int>()(item.count) << 1;
+            return xHash ^ yHash;
+        }
+    };
 
 };
 
