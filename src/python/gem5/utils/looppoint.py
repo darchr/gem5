@@ -71,7 +71,6 @@ class LoopPoint:
             temp = region["end"]["global"] - self._manager.get_pc_count(end)
             self._json_file[rid]["simulation"]["end"]["relative"] = int(temp)
                 
-                
     def output_json_file(
         self,
         input_indent: int = 4
@@ -108,7 +107,19 @@ class LoopPointCheckpoint(LoopPoint):
         _region_id = {}
          
         if(if_csv):
-            self.profile_csv(LoopPointFilePath, _targets, _json_file, _region_id)
+            self.profile_csv(
+                LoopPointFilePath, 
+                _targets, 
+                _json_file, 
+                _region_id
+            )
+        else:
+            self.profile_json(
+                LoopPointFilePath, 
+                _targets, 
+                _json_file, 
+                _region_id
+            )
             
         super().__init__(
             _targets,
@@ -163,4 +174,79 @@ class LoopPointCheckpoint(LoopPoint):
                 start = PcCountPair(region["simulation"]["start"]["pc"],
                                     region["simulation"]["start"]["global"])
             region_id[start] = rid
+            
+    def profile_json(
+        self,
+        looppoint_file_path: Path,
+        targets: List[PcCountPair],
+        json_file: Dict[int, Dict],
+        region_id: Dict[PcCountPair, int],
+    ) -> None:
+        with open(looppoint_file_path) as file:
+            json_file = json.load(file)
+            for rid, region in json_file.items():
+                sim_start = PcCountPair(region["simulation"]["start"]["pc"],
+                                    region["simulation"]["start"]["global"])
+                targets.append(sim_start)
+                end = PcCountPair(region["simulation"]["end"]["pc"],
+                                    region["simulation"]["end"]["global"])
+                targets.append(end)
+                if("warmup" in region):
+                    start = PcCountPair(region["warmup"]["start"]["pc"],
+                                    region["warmup"]["start"]["count"])
+                    targets.append(start)
+                    end = PcCountPair(region["warmup"]["end"]["pc"],
+                                    region["warmup"]["end"]["count"])
+                    targets.append(end)
+                else:
+                    start = sim_start
+                    
+                region_id[start] = rid
+                
+        
+
+class LoopPointRestore(LoopPoint):
+    def __init__(
+        self, LoopPointOutputFilePath: Path, CheckPointDir: Path
+    ) -> None:
+    
+        _json_file = {}
+        _targets = []    
+        _region_id = {}
+        
+        self.profile_restore(LoopPointFilePath, _targets, _json_file, _region_id)
+        
+        super().__init__(
+            _targets,
+            _region_id,
+            _json_file,
+        )
+
+    def profile_restore(
+        self,
+        looppoint_file_path: Path,
+        targets: List[PcCountPair],
+        json_file: Dict[int, Dict],
+        region_id: Dict[PcCountPair, int],
+    ) -> None:
+        regex = re.compile(r"cpt.([0-9]+)")
+        rid = regex.findall(checkpoint_dir.as_posix())[0]
+        with open(looppoint_file_path) as file:
+            json_file = json.load(file)
+            if(rid not in json_file):
+                fatal(f"{rid} is not a valid region\n")
+            region = json_file[rid]
+            if("warmup" in region):
+                if("relative" not in region["simulation"]["start"]):
+                    fatal(f"region {rid} doesn't have relative count info\n")
+                start = PcCountPair(region["simulation"]["start"]["pc"],
+                    region["simulation"]["start"]["relative"])
+                region_id[start]=rid
+                targets.append(start)
+            if("relative" not in region["simulation"]["end"]):
+                fatal(f"region {rid} doesn't have relative count info\n")
+            end = PcCountPair(region["simulation"]["start"]["pc"],
+                region["simulation"]["end"]["relative"])
+            region_id[end]=rid
+            targets.append(end)
         
