@@ -44,15 +44,26 @@ namespace gem5
     class PcCountTrackerManager : public SimObject {
         public:
             PcCountTrackerManager(const PcCountTrackerManagerParams &params);
-
             void check_count(Addr pc);
 
         private:
             std::unordered_map<Addr, int> counter;
             std::unordered_set<PcCountPair, PcCountPair::HashFunction> targetPair;
             
+            PcCountPair currentPair;
             Tick lastTick;
             bool ifListNotEmpty;
+
+        public:
+            int get_pc_count(Addr pc) const {
+                if(counter.find(pc) != counter.end()) {
+                    return counter.find(pc)->second;
+                }
+                return -1;
+            }
+            PcCountPair get_current_pc_count_pair() const {
+                return currentPair;
+            }
     };
 
 }

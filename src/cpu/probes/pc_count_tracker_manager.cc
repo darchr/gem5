@@ -34,8 +34,8 @@ namespace gem5
         const PcCountTrackerManagerParams &p) 
         : SimObject(p)
         {
+            currentPair = PcCountPair(0,0);
             ifListNotEmpty = true;
-
             lastTick = 0;
 
             for (int i = 0 ; i < p.targets.size() ; i++) {
@@ -55,25 +55,26 @@ namespace gem5
                 if(curTick() > lastTick) {
                     DPRINTF(PcCountTracker,
                     "all targets are encountered. Last Tick:%i\n", lastTick);
-                    exitSimLoop("reached the end of the looppoint list");
+                    exitSimLoop("reached the end of the PcCountPair list");
                     ifListNotEmpty = false;
                 }
             }
             
-            PcCountPair temp = PcCountPair(pc,count);
-            if(targetPair.find(temp) != targetPair.end()) {
+            currentPair = PcCountPair(pc,count);
+            if(targetPair.find(currentPair) != targetPair.end()) {
 
                 DPRINTF(PcCountTracker,
                     "pc:%lu count:%i encountered\n", 
-                            temp.getPC(), temp.getCount());
+                            currentPair.getPC(), currentPair.getCount());
 
                 lastTick = curTick();
                 exitSimLoopNow("simpoint starting point found");
 
-                targetPair.erase(PcCountPair(pc,count));
+                targetPair.erase(currentPair);
+                DPRINTF(PcCountTracker,
+                    "There are %i targets remained", targetPair.size());
             }
         }
     }
-
 
 }
