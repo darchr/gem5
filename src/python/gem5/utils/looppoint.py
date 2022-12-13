@@ -62,14 +62,14 @@ class LoopPoint:
         temp_pair = PcCountPair(current_pair.getPC(), current_pair.getCount())
         if(temp_pair in self._regions):
             rid = self._regions[temp_pair]
+            region = self._json_file[rid]["simulation"]
             if("warmup" in self._json_file[rid]):
-                region = self._json_file[rid]["simulation"]
                 start = region["start"]["pc"]
                 temp = region["start"]["global"] - self._manager.get_pc_count(start)
                 self._json_file[rid]["simulation"]["start"]["relative"] = int(temp)
-                end = region["end"]["pc"]
-                temp = region["end"]["global"] - self._manager.get_pc_count(end)
-                self._json_file[rid]["simulation"]["end"]["relative"] = int(temp)
+            end = region["end"]["pc"]
+            temp = region["end"]["global"] - self._manager.get_pc_count(end)
+            self._json_file[rid]["simulation"]["end"]["relative"] = int(temp)
                 
                 
     def output_json_file(
