@@ -62,7 +62,7 @@ class LoopPoint:
         temp_pair = PcCountPair(current_pair.getPC(), current_pair.getCount())
         if(temp_pair in self._regions):
             rid = self._regions[temp_pair]
-            if("warmup" in region):
+            if("warmup" in self._json_file[rid]):
                 region = self._json_file[rid]["simulation"]
                 start = region["start"]["pc"]
                 temp = region["start"]["global"] - self._manager.get_pc_count(start)
