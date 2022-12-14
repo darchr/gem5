@@ -143,38 +143,40 @@ class PcCountPair
 
   private:
 
-    /** Member holding the actual value. */
+    /** The Program Counter address*/
     uint64_t pc;
+    /** The count of the Program Counter address*/
     int count;
 
   public:
 
-    /** Explicit constructor assigning a value. */
+    /** Explicit constructor assigning the pc and count values*/
     explicit constexpr PcCountPair(uint64_t _pc, int _count) : 
         pc(_pc), count(_count) {}
 
-    /** Default constructor for parameter classes. */
+    /** Default constructor for parameter classes*/
     PcCountPair() : pc(0), count(0) {}
 
-    /** Prefix increment operator. */
-    PcCountPair& operator++() { ++count; return *this; }
-
+    /** Returns the Program Counter address*/
     constexpr uint64_t getPC () const {return pc;}
+    /** Returns the count of the Program*/
     constexpr int getCount() const {return count;}
 
-    /** Greater than comparison used for > PcCountPair(0). */
+    /** Greater than comparison*/
     constexpr bool
     operator>(const PcCountPair& cc) const
     {
         return count > cc.getCount();
     }
 
+    /** Equal comparison*/
     constexpr bool
     operator==(const PcCountPair& cc) const
     {
         return (pc == cc.getPC() && count == cc.getCount());
     }
 
+    /** String format*/
     std::string
     to_string() const
     {
@@ -183,6 +185,7 @@ class PcCountPair
         return s;
     }
 
+    /** Enable hashing for this parameter*/
     struct HashFunction
     {
         size_t operator()(const PcCountPair& item) const

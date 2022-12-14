@@ -172,13 +172,26 @@ def simpoints_save_checkpoint_generator(
 def looppoint_save_checkpoint_generator(
     checkpoint_dir: Path, looppoint: LoopPoint, update_relatives: bool = True
 ):
+    """
+    A generator for taking a checkpoint for LoopPoint. It will save the
+    checkpoints in the checkpoint_dir path with the Region id. 
+    (i.e. "cpt.Region10) It only takes a checkpoint if the current PC Count 
+    pair is a significant PC Count Pair. This is determined in the LoopPoint
+    module. The simulation loop continues after exiting this generator.
+    :param checkpoint_dir: where to save the checkpoints
+    :param loopoint: the looppoint object used in the configuration script
+    :param update_relative: if the generator should update the relative count
+    information in the output json file, then it should be True. It is default
+    as True.
+    """
     while True:
         region = looppoint.get_current_region()
+        # if it is a significant PC Count pair, then the get_current_region() 
+        # will return an integer greater than 0. By significant PC Count pair,
+        # it means the PC Count pair that indicates where to take the
+        # checkpoint at. This is determined in the LoopPoint module.
         if(region != -1):
             if(update_relatives):
                 looppoint.update_relatives()
             m5.checkpoint((checkpoint_dir / f"cpt.Region{region}").as_posix())
         yield False
-
-            
-

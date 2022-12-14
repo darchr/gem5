@@ -172,7 +172,10 @@ init_pc(py::module_ &m_native)
         .def(py::init<Addr, int>())
         .def("__eq__", &PcCountPair::operator==)
         .def("__str__", &PcCountPair::to_string)
-
+        // TODO: add __hash__ that matches the python __hash__ to enable 
+        // hashing from the C++ class to the Python class.
+        // Currently the C++ class and the Python class use different hashing
+        // functions
         .def("getPC", &PcCountPair::getPC)
         .def("getCount", &PcCountPair::getCount)
         ;

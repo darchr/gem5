@@ -39,38 +39,54 @@ namespace gem5
             lastTick = 0;
 
             for (int i = 0 ; i < p.targets.size() ; i++) {
+                // initialize the counter for the inputted PC Count pair
+                // unordered_map does not allow duplicate, so counter won't
+                // have duplicates
                 counter.insert(std::make_pair(p.targets[i].getPC(),0));
+                // store all the PC Count pair into the targetPair set
                 targetPair.insert(p.targets[i]);
             }
+            DPRINTF(PcCountTracker,
+                    "total %i PCs in counter\n", counter.size());
         }
     
     void 
     PcCountTrackerManager::check_count(Addr pc) {
 
-        int count = ++counter.find(pc)->second;
-
         if(ifListNotEmpty) {
+            int count = ++counter.find(pc)->second;
+            // increment the counter of the encountered PC address by 1
 
             if(targetPair.empty()) {
+                // if all target PC Count pairs are encountered 
                 if(curTick() > lastTick) {
+                    // if the current Tick is not equal to the Tick the last
+                    // exit event was raised
+                    // this is used to avoid overlapping exit events
                     DPRINTF(PcCountTracker,
                     "all targets are encountered. Last Tick:%i\n", lastTick);
+
                     exitSimLoop("reached the end of the PcCountPair list");
+                    // raise the PCCOUNTTRACK_END exit event
                     ifListNotEmpty = false;
                 }
             }
             
             currentPair = PcCountPair(pc,count);
+            // update the current PC Count pair
             if(targetPair.find(currentPair) != targetPair.end()) {
-
+                // if the current PC Count pair is one of the target pairs
                 DPRINTF(PcCountTracker,
                     "pc:%s encountered\n", 
                             currentPair.to_string());
 
                 lastTick = curTick();
+                // record the Tick when the SIMPOINT_BEGIN exit event is raised
                 exitSimLoopNow("simpoint starting point found");
+                // raise the SIMPOINT_BEGIN exit event
 
                 targetPair.erase(currentPair);
+                // erase the encountered PC Count pair from the target pairs
                 DPRINTF(PcCountTracker,
                     "There are %i targets remained\n", targetPair.size());
             }

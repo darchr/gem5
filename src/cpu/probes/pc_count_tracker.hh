@@ -43,15 +43,22 @@ namespace gem5
             PcCountTracker(const PcCountTrackerParams &params);
         
             virtual void regProbeListeners();
+            // setup the probelistener
 
             void check_pc(const Addr& pc);
+            // this function is called when the probelistener receives signal
+            // from the probe
 
         private:
             std::unordered_set<Addr> targetPC;
+            // a set of Program Counter addresses that should notify the
+            // PcCounterTrackerManager for
             
             BaseCPU *cpuptr;
+            // the core this PcCountTracker is tracking at
 
             PcCountTrackerManager *manager;
+            // the PcCounterTrackerManager
     };
 }
 

@@ -44,15 +44,30 @@ namespace gem5
     class PcCountTrackerManager : public SimObject {
         public:
             PcCountTrackerManager(const PcCountTrackerManagerParams &params);
+
             void check_count(Addr pc);
+            // this function is called when PcCountTrackerProbeListener finds
+            // a target PC
 
         private:
             std::unordered_map<Addr, int> counter;
-            std::unordered_set<PcCountPair, PcCountPair::HashFunction> targetPair;
+            // a counter that stores all the target PC addresses and the number
+            // of times the target PC has been executed
+            std::unordered_set<PcCountPair, 
+                                        PcCountPair::HashFunction> targetPair;
+            // a set that stores all the PC Count pairs that should raise an
+            // exit event at
             
             PcCountPair currentPair;
+            // the current PC Count pair.
             Tick lastTick;
+            // the Tick when an exit event was last raised. It it used to 
+            // avoid rasing two exit event at the same Tick
             bool ifListNotEmpty;
+            // when all the PC Count pairs in the `targetPair` are encountered,
+            // and the PCCOUNTTRACK_END exit event is raised, this boolean
+            // variable becomes false and is used to stop the `check_count`
+            // from functioning. This is default as true.
 
         public:
             int get_pc_count(Addr pc) const {
@@ -61,9 +76,13 @@ namespace gem5
                 }
                 return -1;
             }
+            // this function returns the corresponding value of count for the
+            // inputted Program Counter address. If the PC address does not 
+            // exist in the counter, then it returns a -1.
             PcCountPair get_current_pc_count_pair() const {
                 return currentPair;
             }
+            // this function returns the current PC Count pair
     };
 
 }

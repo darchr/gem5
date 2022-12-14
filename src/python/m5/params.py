@@ -854,6 +854,8 @@ class Addr(CheckedInt):
         return "0x%x" % int(val)
     
 class PcCountPair(ParamValue):
+    # This parameter stores a Program Counter address and the a count value for
+    # the Program Counter address
     cxx_type = "PcCountPair"
     cmd_line_settable = True
     
