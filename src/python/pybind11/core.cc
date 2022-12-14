@@ -178,7 +178,6 @@ init_pc(py::module_ &m_native)
         ;
 }
 
-
 static void
 init_net(py::module_ &m_native)
 {
