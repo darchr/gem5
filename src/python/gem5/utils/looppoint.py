@@ -371,7 +371,7 @@ class LoopPointRestore(LoopPoint):
                 targets.append(start)
             if("relative" not in region["simulation"]["end"]):
                 fatal(f"region {rid} doesn't have relative count info\n")
-            end = PcCountPair(region["simulation"]["start"]["pc"],
+            end = PcCountPair(region["simulation"]["end"]["pc"],
                 region["simulation"]["end"]["relative"])
             region_id[end]=rid
             targets.append(end)
