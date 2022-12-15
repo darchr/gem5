@@ -41,7 +41,7 @@ namespace gem5
     class PcCountTracker : public ProbeListenerObject {
         public:
             PcCountTracker(const PcCountTrackerParams &params);
-        
+
             virtual void regProbeListeners();
             // setup the probelistener
 
@@ -53,7 +53,7 @@ namespace gem5
             std::unordered_set<Addr> targetPC;
             // a set of Program Counter addresses that should notify the
             // PcCounterTrackerManager for
-            
+
             BaseCPU *cpuptr;
             // the core this PcCountTracker is tracking at
 

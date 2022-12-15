@@ -34,12 +34,12 @@ from ...utils.override import overrides
 from ...utils.requires import requires
 
 from m5.objects import (
-    BaseMMU, 
-    Port, 
-    BaseCPU, 
-    Process, 
+    BaseMMU,
+    Port,
+    BaseCPU,
+    Process,
     PcCountTracker,
-    PcCountTrackerManager,    
+    PcCountTrackerManager,
 )
 from m5.params import PcCountPair
 
@@ -180,9 +180,7 @@ class BaseCPUCore(AbstractCore):
 
     @overrides(AbstractCore)
     def add_pc_tracker_probe(
-        self,
-        target_pair: List[PcCountPair],
-        manager: PcCountTrackerManager
+        self, target_pair: List[PcCountPair], manager: PcCountTrackerManager
     ) -> None:
         pair_tracker = PcCountTracker()
         pair_tracker.targets = target_pair

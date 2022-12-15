@@ -29,19 +29,21 @@ from m5.util.pybind import *
 from m5.objects.Probe import ProbeListenerObject
 from m5.objects import SimObject
 
+
 class PcCountTrackerManager(SimObject):
-    
+
     type = "PcCountTrackerManager"
     cxx_header = "cpu/probes/pc_count_tracker_manager.hh"
     cxx_class = "gem5::PcCountTrackerManager"
-    
+
     cxx_exports = [
         PyBindMethod("get_pc_count"),
-        PyBindMethod("get_current_pc_count_pair")
+        PyBindMethod("get_current_pc_count_pair"),
     ]
 
     targets = VectorParam.PcCountPair("the target PC Count pairs")
-    
+
+
 class PcCountTracker(ProbeListenerObject):
 
     type = "PcCountTracker"
@@ -51,4 +53,3 @@ class PcCountTracker(ProbeListenerObject):
     targets = VectorParam.PcCountPair("the target PC Count pairs")
     core = Param.BaseCPU("the connected cpu")
     ptmanager = Param.PcCountTrackerManager("the PcCountTracker manager")
-    

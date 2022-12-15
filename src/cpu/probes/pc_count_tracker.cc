@@ -45,7 +45,7 @@ namespace gem5
         }
     }
 
-    void 
+    void
     PcCountTracker::regProbeListeners() {
 
         typedef ProbeListenerArg<PcCountTracker, Addr> PcCountTrackerListener;
@@ -54,13 +54,13 @@ namespace gem5
         // connect the probe listener with the probe "RetriedInstsPC" in the
         // corresponding core.
         // when "RetiredInstsPC" notifies the probe listener, then the function
-        // 'check_pc' is automatically called 
+        // 'check_pc' is automatically called
     }
 
     void
     PcCountTracker::check_pc(const Addr& pc) {
         if(targetPC.find(pc) != targetPC.end()) {
-            // if the PC is one of the target PCs, then notify the 
+            // if the PC is one of the target PCs, then notify the
             // PcCounterTrackerManager by calling its `check_count` function
             manager->check_count(pc);
         }

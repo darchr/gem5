@@ -151,7 +151,7 @@ class PcCountPair
   public:
 
     /** Explicit constructor assigning the pc and count values*/
-    explicit constexpr PcCountPair(uint64_t _pc, int _count) : 
+    explicit constexpr PcCountPair(uint64_t _pc, int _count) :
         pc(_pc), count(_count) {}
 
     /** Default constructor for parameter classes*/
@@ -180,7 +180,7 @@ class PcCountPair
     std::string
     to_string() const
     {
-        std::string s = "(" + std::to_string(pc) 
+        std::string s = "(" + std::to_string(pc)
                                     + ", " + std::to_string(count) + ")";
         return s;
     }

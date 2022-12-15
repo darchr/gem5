@@ -31,7 +31,7 @@
 namespace gem5
 {
     PcCountTrackerManager::PcCountTrackerManager(
-        const PcCountTrackerManagerParams &p) 
+        const PcCountTrackerManagerParams &p)
         : SimObject(p)
         {
             currentPair = PcCountPair(0,0);
@@ -49,8 +49,8 @@ namespace gem5
             DPRINTF(PcCountTracker,
                     "total %i PCs in counter\n", counter.size());
         }
-    
-    void 
+
+    void
     PcCountTrackerManager::check_count(Addr pc) {
 
         if(ifListNotEmpty) {
@@ -58,7 +58,7 @@ namespace gem5
             // increment the counter of the encountered PC address by 1
 
             if(targetPair.empty()) {
-                // if all target PC Count pairs are encountered 
+                // if all target PC Count pairs are encountered
                 if(curTick() > lastTick) {
                     // if the current Tick is not equal to the Tick the last
                     // exit event was raised
@@ -71,13 +71,13 @@ namespace gem5
                     ifListNotEmpty = false;
                 }
             }
-            
+
             currentPair = PcCountPair(pc,count);
             // update the current PC Count pair
             if(targetPair.find(currentPair) != targetPair.end()) {
                 // if the current PC Count pair is one of the target pairs
                 DPRINTF(PcCountTracker,
-                    "pc:%s encountered\n", 
+                    "pc:%s encountered\n",
                             currentPair.to_string());
 
                 lastTick = curTick();
