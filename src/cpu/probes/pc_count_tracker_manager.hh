@@ -53,6 +53,7 @@ namespace gem5
             std::unordered_map<Addr, int> counter;
             // a counter that stores all the target PC addresses and the number
             // of times the target PC has been executed
+
             std::unordered_set<PcCountPair,
                                         PcCountPair::HashFunction> targetPair;
             // a set that stores all the PC Count pairs that should raise an
@@ -60,9 +61,11 @@ namespace gem5
 
             PcCountPair currentPair;
             // the current PC Count pair.
+
             Tick lastTick;
             // the Tick when an exit event was last raised. It it used to
             // avoid rasing two exit event at the same Tick
+
             bool ifListNotEmpty;
             // when all the PC Count pairs in the `targetPair` are encountered,
             // and the PCCOUNTTRACK_END exit event is raised, this boolean
@@ -79,10 +82,22 @@ namespace gem5
             // this function returns the corresponding value of count for the
             // inputted Program Counter address. If the PC address does not
             // exist in the counter, then it returns a -1.
+
             PcCountPair get_current_pc_count_pair() const {
                 return currentPair;
             }
             // this function returns the current PC Count pair
+
+            std::string print_all_targets() const {
+                std::string s;
+                for(auto itr = targetPair.begin();
+                                            itr != targetPair.end(); ++itr) {
+                    s += itr->to_string();
+                    s += "\n";
+                }
+                return s;
+            }
+            // this function print all targets
     };
 
 }

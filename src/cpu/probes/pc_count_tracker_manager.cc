@@ -48,6 +48,8 @@ namespace gem5
             }
             DPRINTF(PcCountTracker,
                     "total %i PCs in counter\n", counter.size());
+            DPRINTF(PcCountTracker,
+                    "all targets: \n%s", print_all_targets());
         }
 
     void
