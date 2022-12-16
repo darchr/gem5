@@ -36,7 +36,6 @@ namespace gem5
         {
             currentPair = PcCountPair(0,0);
             ifListNotEmpty = true;
-            lastTick = 0;
 
             for (int i = 0 ; i < p.targets.size() ; i++) {
                 // initialize the counter for the inputted PC Count pair
@@ -61,17 +60,9 @@ namespace gem5
 
             if(targetPair.empty()) {
                 // if all target PC Count pairs are encountered
-                if(curTick() > lastTick) {
-                    // if the current Tick is not equal to the Tick the last
-                    // exit event was raised
-                    // this is used to avoid overlapping exit events
-                    DPRINTF(PcCountTracker,
-                    "all targets are encountered. Last Tick:%i\n", lastTick);
-
-                    exitSimLoop("reached the end of the PcCountPair list");
-                    // raise the PCCOUNTTRACK_END exit event
-                    ifListNotEmpty = false;
-                }
+                DPRINTF(PcCountTracker,
+                "all targets are encountered.\n");
+                ifListNotEmpty = false;
             }
 
             currentPair = PcCountPair(pc,count);
@@ -79,11 +70,8 @@ namespace gem5
             if(targetPair.find(currentPair) != targetPair.end()) {
                 // if the current PC Count pair is one of the target pairs
                 DPRINTF(PcCountTracker,
-                    "pc:%s encountered\n",
-                            currentPair.to_string());
+                    "pc:%s encountered\n", currentPair.to_string());
 
-                lastTick = curTick();
-                // record the Tick when the SIMPOINT_BEGIN exit event is raised
                 exitSimLoopNow("simpoint starting point found");
                 // raise the SIMPOINT_BEGIN exit event
 

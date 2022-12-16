@@ -62,10 +62,6 @@ namespace gem5
             PcCountPair currentPair;
             // the current PC Count pair.
 
-            Tick lastTick;
-            // the Tick when an exit event was last raised. It it used to
-            // avoid rasing two exit event at the same Tick
-
             bool ifListNotEmpty;
             // when all the PC Count pairs in the `targetPair` are encountered,
             // and the PCCOUNTTRACK_END exit event is raised, this boolean

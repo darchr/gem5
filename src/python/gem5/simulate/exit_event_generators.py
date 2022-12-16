@@ -171,7 +171,10 @@ def simpoints_save_checkpoint_generator(
 
 
 def looppoint_save_checkpoint_generator(
-    checkpoint_dir: Path, looppoint: LoopPoint, update_relatives: bool = True
+    checkpoint_dir: Path,
+    looppoint: LoopPoint,
+    update_relatives: bool = True,
+    exit_when_empty: bool = True,
 ):
     """
     A generator for taking a checkpoint for LoopPoint. It will save the
@@ -184,8 +187,17 @@ def looppoint_save_checkpoint_generator(
     :param update_relative: if the generator should update the relative count
     information in the output json file, then it should be True. It is default
     as True.
+    :param exit_when_empty: if the generator should exit the simulation loop if
+    all PC paris have been discovered, then it should be True. It is default as
+    True.
     """
-    while True:
+    if exit_when_empty:
+        total_pairs = len(looppoint.get_targets())
+    else:
+        total_pairs = -1
+        # it will never equal to 0 if exit_when_empty is false
+
+    while total_pairs != 0:
         region = looppoint.get_current_region()
         # if it is a significant PC Count pair, then the get_current_region()
         # will return an integer greater than 0. By significant PC Count pair,
@@ -195,4 +207,7 @@ def looppoint_save_checkpoint_generator(
             if update_relatives:
                 looppoint.update_relatives()
             m5.checkpoint((checkpoint_dir / f"cpt.Region{region}").as_posix())
+        total_pairs -= 1
         yield False
+
+    yield True

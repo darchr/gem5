@@ -49,7 +49,6 @@ class ExitEvent(Enum):
     )
     SIMPOINT_BEGIN = "simpoint begins"
     MAX_INSTS = "number of instructions reached"
-    PCCOUNTTRACK_END = "pc count pair tracking ends"
 
     @classmethod
     def translate_exit_status(cls, exit_string: str) -> "ExitEvent":
@@ -97,8 +96,6 @@ class ExitEvent(Enum):
         elif exit_string.endswith("is finished updating the memory.\n"):
             # This is for the gups generator exit event
             return ExitEvent.EXIT
-        elif exit_string == "reached the end of the PcCountPair list":
-            return ExitEvent.PCCOUNTTRACK_END
         raise NotImplementedError(
             "Exit event '{}' not implemented".format(exit_string)
         )
