@@ -37,6 +37,7 @@
  */
 
 #include "cpu/testers/dr_trace_player/trace_reader.hh"
+#include "mem/port.hh"
 #include "params/DRTracePlayer.hh"
 #include "sim/clocked_object.hh"
 
@@ -55,10 +56,39 @@ class DRTracePlayer : public ClockedObject
 {
   private:
     EventFunctionWrapper onClockEvent;
-    DRTraceReader *reader;
 
+    // Parameters
+    DRTraceReader *reader;
+    int playerId;
+    int requestorId;
+
+    // State
+    bool stalled = false;
+    Addr curPC = 0;
+    DRTraceReader::TraceRef nextRef;
+
+    /**
+     * @brief Take the current reference in nextRef and try to execute it.
+     *
+     * If the instruction can't be executed (e.g., something is stalled), then
+     * don't get the next instruction.
+     */
     void tryExecuteInsts();
 
+    void recvReqRetry();
+
+    bool recvTimingResp(PacketPtr pkt);
+
+    PacketPtr getPacket(DRTraceReader::TraceRef &mem_ref);
+
+    /**
+     * @brief Send a request to memory based on the trace
+     *
+     * @param mem_ref
+     * @return true if the port is stalled
+     * @return false if the port accepted the packet
+     */
+    bool trySendMemRef(DRTraceReader::TraceRef &mem_ref);
 
   public:
     PARAMS(DRTracePlayer);
@@ -66,6 +96,34 @@ class DRTracePlayer : public ClockedObject
 
     void startup() override;
 
+    Port &getPort(const std::string &if_name,
+                  PortID idx=InvalidPortID) override;
+
+  private:
+    class DataPort : public RequestPort
+    {
+      public:
+        DataPort(const std::string &name, DRTracePlayer &player) :
+            RequestPort(name, &player), player(player)
+        { }
+
+      protected:
+        void recvReqRetry() override { player.recvReqRetry(); }
+
+        bool recvTimingResp(PacketPtr pkt) override
+        { return player.recvTimingResp(pkt); }
+
+        void recvTimingSnoopReq(PacketPtr pkt) override { }
+
+        void recvFunctionalSnoop(PacketPtr pkt) override { }
+
+        Tick recvAtomicSnoop(PacketPtr pkt) override { return 0; }
+
+      private:
+        DRTracePlayer &player;
+    };
+
+    DataPort port;
 };
 
 } // namespace gem5

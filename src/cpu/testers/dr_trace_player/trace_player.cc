@@ -30,6 +30,7 @@
 
 #include "base/trace.hh"
 #include "debug/DRTrace.hh"
+#include "sim/system.hh"
 
 namespace gem5
 {
@@ -37,7 +38,10 @@ namespace gem5
 DRTracePlayer::DRTracePlayer(const Params &params) :
     ClockedObject(params),
     onClockEvent([this]{ tryExecuteInsts(); }, name()+"clock_event"),
-    reader(params.reader)
+    reader(params.reader),
+    playerId(0),
+    requestorId(params.system->getRequestorId(this)),
+    port(name() + ".port", *this)
 {
 
 }
@@ -45,19 +49,111 @@ DRTracePlayer::DRTracePlayer(const Params &params) :
 void
 DRTracePlayer::startup()
 {
+    // Get the first instruction and schedule it to be run in the first cycle
+    nextRef = reader->getNextTraceReference(playerId);
     schedule(onClockEvent, 0);
 }
 
 void
 DRTracePlayer::tryExecuteInsts()
 {
-    DRTraceReader::TraceRef next_ref = reader->getNextTraceReference(0);
+    assert(!stalled);
+    DRTraceReader::TraceRef &cur_ref = nextRef;
 
-    DPRINTF(DRTrace, "Got reference pc: %0#x, addr: %0#x, size: %d, "
-                     "%s, type: %d, valid: %d\n", next_ref.pc, next_ref.addr,
-                      next_ref.size, next_ref.isInst ? "inst" : "memory",
-                      next_ref.type, next_ref.isValid);
+    DPRINTF(DRTrace, "Exec reference pc: %0#x, addr: %0#x, size: %d, "
+                     "%s, type: %d, valid: %d\n", cur_ref.pc, cur_ref.addr,
+                      cur_ref.size, cur_ref.isInst ? "inst" : "memory",
+                      cur_ref.type, cur_ref.isValid);
+
+    if (cur_ref.isInst) {
+        assert(cur_ref.pc != 0);
+        curPC = cur_ref.pc;
+    }
+
+    if (cur_ref.isMemRef()) {
+        assert(cur_ref.addr != 0);
+        stalled = trySendMemRef(cur_ref);
+    }
+
+    if (!stalled) {
+        nextRef = reader->getNextTraceReference(playerId);
+        schedule(onClockEvent, nextCycle());
+    }
+}
+
+bool
+DRTracePlayer::trySendMemRef(DRTraceReader::TraceRef &mem_ref)
+{
+    PacketPtr pkt = getPacket(mem_ref);
+    if (port.sendTimingReq(pkt)) {
+        delete pkt;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+PacketPtr
+DRTracePlayer::getPacket(DRTraceReader::TraceRef &mem_ref)
+{
+    Request::Flags flags = Request::PHYSICAL;
+    if (mem_ref.type == DRTraceReader::TraceRef::PREFETCH) {
+        flags = flags | Request::PREFETCH;
+    }
+
+    // Create new request
+    RequestPtr req = std::make_shared<Request>(mem_ref.addr, mem_ref.size,
+                                               flags,
+                                               requestorId);
+    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
+    // bits
+    req->setPC(curPC);
+
+    MemCmd cmd;
+    if (mem_ref.type == DRTraceReader::TraceRef::READ ||
+        mem_ref.type == DRTraceReader::TraceRef::PREFETCH) {
+        cmd = MemCmd::ReadReq;
+    } else {
+        assert(mem_ref.type == DRTraceReader::TraceRef::WRITE);
+        cmd = MemCmd::WriteReq;
+    }
+    // Embed it in a packet
+    PacketPtr pkt = new Packet(req, cmd);
+
+    uint8_t* pkt_data = new uint8_t[req->getSize()];
+    pkt->dataDynamic(pkt_data);
+
+    if (cmd.isWrite()) {
+        std::fill_n(pkt_data, req->getSize(), (uint8_t)requestorId);
+    }
+
+    return pkt;
+}
+
+
+Port &
+DRTracePlayer::getPort(const std::string &if_name, PortID idx)
+{
+    if (if_name == "port") {
+        return port;
+    } else {
+        return ClockedObject::getPort(if_name, idx);
+    }
+}
+
+void
+DRTracePlayer::recvReqRetry()
+{
+    assert(stalled);
+    stalled = false;
     schedule(onClockEvent, nextCycle());
+}
+
+bool
+DRTracePlayer::recvTimingResp(PacketPtr pkt)
+{
+    delete pkt;
+    return true;
 }
 
 } // namespace gem5

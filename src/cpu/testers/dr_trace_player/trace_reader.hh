@@ -94,6 +94,12 @@ class DRTraceReader : public SimObject
             WRITE,
             PREFETCH
         } type = {};
+
+        bool
+        isMemRef()
+        {
+            return type == READ || type == WRITE || type == PREFETCH;
+        }
     };
 
   private:
