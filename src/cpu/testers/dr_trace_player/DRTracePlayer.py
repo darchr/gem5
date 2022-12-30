@@ -72,6 +72,11 @@ class DRTracePlayer(ClockedObject):
 
     max_outstanding_reqs = Param.Int(
         16,
-        "Max number of memory instructions outstanding. "
-        "Zero means no limit.",
+        "Max number of memory instructions outstanding. Zero means no limit.",
+    )
+
+    send_data = Param.Bool(
+        False,
+        "If true, this player will send dummy data on writes and make space "
+        "for reads. If false, system.memory.null should be true.",
     )

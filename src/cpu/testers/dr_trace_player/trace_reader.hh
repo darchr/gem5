@@ -70,8 +70,6 @@ class DRTraceReader : public SimObject
         // Memory address referenced. Only used for memory references
         Addr addr = 0;
         unsigned int size = 0;
-        // True if this is an instruction reference, false if memory reference
-        bool isInst = false;
         // True if this reference is valid. An invalid reference means the
         // stream is over.
         bool isValid = false;
@@ -99,6 +97,12 @@ class DRTraceReader : public SimObject
         isMemRef()
         {
             return type == READ || type == WRITE || type == PREFETCH;
+        }
+
+        bool
+        isInstRef()
+        {
+            return !isMemRef();
         }
     };
 

@@ -36,6 +36,8 @@
  * This object works with the trace reader to play dynamorio traces
  */
 
+#include <map>
+
 #include "cpu/testers/dr_trace_player/trace_reader.hh"
 #include "mem/port.hh"
 #include "params/DRTracePlayer.hh"
@@ -55,25 +57,70 @@ namespace gem5
 class DRTracePlayer : public ClockedObject
 {
   private:
-    EventFunctionWrapper onClockEvent;
+    // Events
+    EventFunctionWrapper executeNextInstEvent;
+    EventFunctionWrapper retryExecuteInstEvent;
 
     // Parameters
     DRTraceReader *reader;
     int playerId;
     int requestorId;
+    int maxOutstandingMemReqs;
+    int maxInstsPerCycle;
 
     // State
     bool stalled = false;
     Addr curPC = 0;
     DRTraceReader::TraceRef nextRef;
+    int numExecutingInsts = 0;
+    int numOutstandingMemReqs = 0;
 
     /**
      * @brief Take the current reference in nextRef and try to execute it.
      *
-     * If the instruction can't be executed (e.g., something is stalled), then
-     * don't get the next instruction.
+     * The instruction may no be able to be executed (stalled), if so, this
+     * function will ensure the correct events will be scheduled.
+     *
+     * @param cur_ref the instruction to execute
      */
-    void tryExecuteInsts();
+    void tryExecuteInst(DRTraceReader::TraceRef &cur_ref);
+
+    /**
+     * @brief Called from the similarly named event.
+     *
+     * Gets a new instruction and calls `tryExecuteInst`
+     */
+    void executeNextInst();
+
+    /**
+     * @brief Like `executeNextInst`, but does not get a new instruction
+     */
+    void retryExecuteInst();
+
+    /**
+     * @brief Helper function to schedule instruction retries
+     */
+    void scheduleInstRetry();
+
+    /**
+     * @brief Do the timing execution for a generic instruction
+     *
+     * This should be called for *all* instructions that are executed.
+     *
+     * @param cur_inst The instruction to execute
+     * @return true if we should now stall (retry will be scheduled)
+     * @return false if we can execute more instructions this cycle
+     */
+    bool executeGenericInst(DRTraceReader::TraceRef &cur_inst);
+
+    /**
+     * @brief Do the timing execution for a memory instruction
+     *
+     * @param mem_ref The memory instruction to execute
+     * @return true if we should now stall (retry will be scheduled)
+     * @return false if we can execute more instructions this cycle
+     */
+    bool executeMemInst(DRTraceReader::TraceRef &mem_ref);
 
     void recvReqRetry();
 
@@ -124,6 +171,25 @@ class DRTracePlayer : public ClockedObject
     };
 
     DataPort port;
+
+    struct Stats : public statistics::Group
+    {
+        Stats(statistics::Group *parent);
+
+        statistics::Scalar numInsts;
+        statistics::Scalar numMemInsts;
+
+        statistics::Histogram memStalledTime;
+        statistics::Histogram memLatency;
+
+        statistics::Scalar memStalls;
+        statistics::Scalar instStalls;
+
+        statistics::Histogram outstandingMemReqs;
+
+        Tick memStallStart = 0;
+        std::map<PacketPtr, Tick> latencyTracker;
+    } stats;
 };
 
 } // namespace gem5
