@@ -38,6 +38,7 @@
 
 #include <map>
 
+#include "base/addr_range.hh"
 #include "cpu/testers/dr_trace_player/trace_reader.hh"
 #include "mem/port.hh"
 #include "params/DRTracePlayer.hh"
@@ -67,6 +68,8 @@ class DRTracePlayer : public ClockedObject
     int requestorId;
     int maxOutstandingMemReqs;
     int maxInstsPerCycle;
+    AddrRange compressAddressRange;
+    int cacheLineSize;
 
     // State
     bool stalled = false;

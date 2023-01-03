@@ -68,21 +68,31 @@ DRTraceReader::DRTraceReader(const Params &params) :
     DPRINTF(DRTrace, "Found %d trace files in %s\n",
             filenames.size(), directory.string().c_str());
 
-    currentTids.resize(params.num_players);
+    currentTids.resize(params.num_players, -1);
 }
+
+// TODO: Close all files on exit
 
 void
 DRTraceReader::init()
 {
     // open the files
     for (auto const &file : filenames) {
-        int fd = open(file.c_str(), O_RDONLY);
-        fatal_if(fd < 0, "Failed to open file %s.\n", file);
-        gzFile fdz = gzdopen(fd, "rb");
+        gzFile fdz = gzopen(file.c_str(), "rb");
         fatal_if(!fdz, "Could not open the file %s.", file);
         traceFiles.push_back(fdz);
     }
     timestamps.resize(traceFiles.size(), 0);
+
+    // Get the first timestamp in each file.
+    for (int i = 0; i < traceFiles.size(); i++) {
+        DRTraceEntry raw_entry = _getNextEntry(i);
+        while (raw_entry.size != TRACE_MARKER_TYPE_TIMESTAMP) {
+            // Keep getting entries until we get the first timestamp
+            raw_entry = _getNextEntry(i);
+        }
+        timestamps[i] = raw_entry.addr; // set the timestamp
+    }
 }
 
 DRTraceReader::DRTraceEntry
@@ -219,6 +229,7 @@ DRTraceReader::getNextTraceReference(unsigned player_id)
         case TRACE_TYPE_FOOTER:
         case TRACE_TYPE_THREAD_EXIT:
             DPRINTF(DRTrace, "Found footer or thread exit in trace\n");
+            // TODO: Close the file
             // Return an invalid reference since we're at the end
             break;
         case TRACE_TYPE_THREAD:

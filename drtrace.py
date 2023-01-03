@@ -10,16 +10,42 @@ system.clk_domain.voltage_domain = VoltageDomain()
 
 # Set up the system
 system.mem_mode = "timing"  # Use timing accesses
-system.mem_ranges = [AddrRange(0x800000000000)]  # Create an address range
-system.memory = SimpleMemory(range=system.mem_ranges[0], null=True)
+system.mem_ranges = [AddrRange("8GiB")]  # Create an address range
+system.mem_ctrl = MemCtrl()
+system.mem_ctrl.dram = DDR3_1600_8x8()
+system.mem_ctrl.dram.range = system.mem_ranges[0]
+
+players = 16
 
 system.reader = DRTraceReader(
-    directory="/projects/google-traces/delta/", num_players=1
+    directory="/projects/google-traces/delta/", num_players=players
 )
-system.player = DRTracePlayer(reader=system.reader)
-system.player.max_ipc = 8
-system.player.max_outstanding_reqs = 8
-system.player.port = system.memory.port
+system.players = [
+    DRTracePlayer(
+        reader=system.reader,
+        send_data=True,
+        compress_address_range=system.mem_ranges[0],
+    )
+    for _ in range(players)
+]
+
+system.xbar = SystemXBar()
+system.xbar.mem_side_ports = system.mem_ctrl.port
+
+for player in system.players:
+    player.max_ipc = 8
+    player.max_outstanding_reqs = 8
+    player.cache = Cache(
+        size="32KiB",
+        assoc=8,
+        tag_latency=1,
+        data_latency=1,
+        response_latency=1,
+        mshrs=16,
+        tgts_per_mshr=8,
+    )
+    player.port = player.cache.cpu_side
+    player.cache.mem_side = system.xbar.cpu_side_ports
 root = Root(full_system=False, system=system)
 
 m5.instantiate()

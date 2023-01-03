@@ -51,7 +51,27 @@ class DRTraceReader(SimObject):
 
 
 class DRTracePlayer(ClockedObject):
-    """This is a trace player object. One of these represents a "core." """
+    """This is a trace player object. One of these represents a "core."
+
+    You can limit the amount of ILP by using the `max_ipc` and/or the
+    `max_outstanding_reqs` parameters. If these are set to 0, then there is no
+    limit.
+
+    This model assumes that instructions are executed in order, except for
+    memory instructions. I.e., instructions are executed sequentially, the
+    memory instructions are sent to memory sequentially, but other
+    instructions can execute (including memory instructions) while prior
+    instructions are waiting for memory.
+
+    When used with caches, `send_data` should be true.
+
+    The addresses are virtual-ish addresses in the trace. Currently, there is
+    no address translation. Instead, if the backing address space (i.e., main
+    memory) has a limited range you should set the `compress_address_range` to
+    be the backing memory's address range.
+    You can set memory range to be much larger when using `is_null=True` on
+    the abstract memory.
+    """
 
     type = "DRTracePlayer"
     cxx_class = "gem5::DRTracePlayer"
@@ -79,4 +99,8 @@ class DRTracePlayer(ClockedObject):
         False,
         "If true, this player will send dummy data on writes and make space "
         "for reads. If false, system.memory.null should be true.",
+    )
+
+    compress_address_range = Param.AddrRange(
+        0, "Compress the addresses into the given range if valid."
     )

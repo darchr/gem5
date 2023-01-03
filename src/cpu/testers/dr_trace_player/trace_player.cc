@@ -47,6 +47,8 @@ DRTracePlayer::DRTracePlayer(const Params &params) :
     requestorId(params.system->getRequestorId(this)),
     maxOutstandingMemReqs(params.max_outstanding_reqs),
     maxInstsPerCycle(params.max_ipc),
+    compressAddressRange(params.compress_address_range),
+    cacheLineSize(params.system->cacheLineSize()),
     port(name() + ".port", *this),
     stats(this)
 {
@@ -190,12 +192,22 @@ DRTracePlayer::getPacket(DRTraceReader::TraceRef &mem_ref)
         flags = flags | Request::PREFETCH;
     }
 
+    Addr addr = mem_ref.addr;
+    if (compressAddressRange.size()) {
+        addr -= compressAddressRange.start();
+        addr %= compressAddressRange.size();
+    }
+
+    unsigned size = mem_ref.size;
+    Addr split_addr = roundDown(addr + size - 1, cacheLineSize);
+    if (split_addr > addr) {
+        warn("Ignoring split packet that crosses cache line boundary.");
+        size = split_addr - addr;
+    }
+
     // Create new request
-    RequestPtr req = std::make_shared<Request>(mem_ref.addr, mem_ref.size,
-                                               flags,
+    RequestPtr req = std::make_shared<Request>(addr, size, flags,
                                                requestorId);
-    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
-    // bits
     req->setPC(curPC);
 
     MemCmd cmd;
