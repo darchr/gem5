@@ -40,7 +40,6 @@ class LoopPoint:
     """
     This LoopPoint class is used to manage the information needed for LoopPoint
     in workload
-
     """
 
     def __init__(

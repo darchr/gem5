@@ -55,7 +55,7 @@ namespace gem5
             // of times the target PC has been executed
 
             std::unordered_set<PcCountPair,
-                                        PcCountPair::HashFunction> targetPair;
+                               PcCountPair::HashFunction> targetPair;
             // a set that stores all the PC Count pairs that should raise an
             // exit event at
 
@@ -69,8 +69,10 @@ namespace gem5
             // from functioning. This is default as true.
 
         public:
-            int get_pc_count(Addr pc) const {
-                if(counter.find(pc) != counter.end()) {
+            int
+            get_pc_count(Addr pc) const
+            {
+                if (counter.find(pc) != counter.end()) {
                     return counter.find(pc)->second;
                 }
                 return -1;
@@ -79,15 +81,20 @@ namespace gem5
             // inputted Program Counter address. If the PC address does not
             // exist in the counter, then it returns a -1.
 
-            PcCountPair get_current_pc_count_pair() const {
+            PcCountPair
+            get_current_pc_count_pair() const
+            {
                 return currentPair;
             }
             // this function returns the current PC Count pair
 
-            std::string print_all_targets() const {
+            std::string
+            print_all_targets() const
+            {
                 std::string s;
                 for(auto itr = targetPair.begin();
-                                            itr != targetPair.end(); ++itr) {
+                    itr != targetPair.end();
+                    ++itr) {
                     s += itr->to_string();
                     s += "\n";
                 }

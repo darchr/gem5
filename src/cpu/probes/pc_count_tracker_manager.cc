@@ -61,7 +61,7 @@ namespace gem5
             if(targetPair.empty()) {
                 // if all target PC Count pairs are encountered
                 DPRINTF(PcCountTracker,
-                "all targets are encountered.\n");
+                        "all targets are encountered.\n");
                 ifListNotEmpty = false;
             }
 

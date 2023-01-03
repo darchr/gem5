@@ -1,4 +1,4 @@
-# Copyright (c) 2022 The Regents of the University of California
+# Copyright (c) 2023 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,10 @@ from m5.objects import SimObject
 
 
 class PcCountTrackerManager(SimObject):
+    """This class manages global PC-count pair tracking.
+
+    <more here>
+    """
 
     type = "PcCountTrackerManager"
     cxx_header = "cpu/probes/pc_count_tracker_manager.hh"
@@ -45,6 +49,10 @@ class PcCountTrackerManager(SimObject):
 
 
 class PcCountTracker(ProbeListenerObject):
+    """This probe listener tracks the number of times a particular pc has been
+    executed. It needs to be connected to a manager to track the global
+    information.
+    """
 
     type = "PcCountTracker"
     cxx_header = "cpu/probes/pc_count_tracker.hh"

@@ -175,7 +175,7 @@ class SEBinaryWorkload:
         self,
         binary: AbstractResource,
         arguments: List[str] = [],
-        looppoint: Union[AbstractResource, LoopPoint] = None,
+        looppoint: Optional[Union[AbstractResource, LoopPoint]] = None,
         checkpoint: Optional[Union[Path, AbstractResource]] = None,
     ) -> None:
         """Set up the system to run a LoopPoint workload.

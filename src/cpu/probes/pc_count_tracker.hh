@@ -38,28 +38,30 @@
 
 namespace gem5
 {
-    class PcCountTracker : public ProbeListenerObject {
-        public:
-            PcCountTracker(const PcCountTrackerParams &params);
 
-            virtual void regProbeListeners();
-            // setup the probelistener
+class PcCountTracker : public ProbeListenerObject
+{
+  public:
+    PcCountTracker(const PcCountTrackerParams &params);
 
-            void check_pc(const Addr& pc);
-            // this function is called when the probelistener receives signal
-            // from the probe
+    // setup the probelistener
+    virtual void regProbeListeners();
 
-        private:
-            std::unordered_set<Addr> targetPC;
-            // a set of Program Counter addresses that should notify the
-            // PcCounterTrackerManager for
+    // this function is called when the probelistener receives signal
+    // from the probe
+    void checkPc(const Addr& pc);
 
-            BaseCPU *cpuptr;
-            // the core this PcCountTracker is tracking at
+  private:
+    // a set of Program Counter addresses that should notify the
+    // PcCounterTrackerManager for
+    std::unordered_set<Addr> targetPC;
 
-            PcCountTrackerManager *manager;
-            // the PcCounterTrackerManager
-    };
+    // the core this PcCountTracker is tracking at
+    BaseCPU *cpuptr;
+
+    // the PcCounterTrackerManager
+    PcCountTrackerManager *manager;
+};
 }
 
 #endif // __CPU_PROBES_PC_COUNT_TRACKER_HH__

@@ -24,12 +24,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+Import("*")
 
-if not env['CONF']['USE_NULL_ISA']:
-    SimObject('PcCountTracker.py',
-            sim_objects=['PcCountTracker','PcCountTrackerManager'])
-    Source('pc_count_tracker.cc')
-    Source('pc_count_tracker_manager.cc')
+if not env["CONF"]["USE_NULL_ISA"]:
+    SimObject(
+        "PcCountTracker.py",
+        sim_objects=["PcCountTracker", "PcCountTrackerManager"],
+    )
+    Source("pc_count_tracker.cc")
+    Source("pc_count_tracker_manager.cc")
 
-    DebugFlag('PcCountTracker')
+    DebugFlag("PcCountTracker")

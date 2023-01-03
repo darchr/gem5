@@ -159,6 +159,6 @@ class AbstractCore(SubSystem):
 
     @abstractmethod
     def add_pc_tracker_probe(
-        self, targetPair: List[PcCountPair], manager: PcCountTrackerManager
+        self, target_pair: List[PcCountPair], manager: PcCountTrackerManager
     ) -> None:
         raise NotImplementedError

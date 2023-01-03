@@ -158,9 +158,9 @@ class PcCountPair
     PcCountPair() : pc(0), count(0) {}
 
     /** Returns the Program Counter address*/
-    constexpr uint64_t getPC () const {return pc;}
+    constexpr uint64_t getPC() const { return pc; }
     /** Returns the count of the Program*/
-    constexpr int getCount() const {return count;}
+    constexpr int getCount() const { return count; }
 
     /** Greater than comparison*/
     constexpr bool
