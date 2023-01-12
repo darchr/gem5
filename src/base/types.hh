@@ -138,6 +138,66 @@ class Cycles
     friend std::ostream& operator<<(std::ostream &out, const Cycles & cycles);
 };
 
+class PcCountPair
+{
+
+  private:
+
+    /** The Program Counter address*/
+    uint64_t pc;
+    /** The count of the Program Counter address*/
+    int count;
+
+  public:
+
+    /** Explicit constructor assigning the pc and count values*/
+    explicit constexpr PcCountPair(uint64_t _pc, int _count) :
+        pc(_pc), count(_count) {}
+
+    /** Default constructor for parameter classes*/
+    PcCountPair() : pc(0), count(0) {}
+
+    /** Returns the Program Counter address*/
+    constexpr uint64_t getPC() const { return pc; }
+    /** Returns the count of the Program*/
+    constexpr int getCount() const { return count; }
+
+    /** Greater than comparison*/
+    constexpr bool
+    operator>(const PcCountPair& cc) const
+    {
+        return count > cc.getCount();
+    }
+
+    /** Equal comparison*/
+    constexpr bool
+    operator==(const PcCountPair& cc) const
+    {
+        return (pc == cc.getPC() && count == cc.getCount());
+    }
+
+    /** String format*/
+    std::string
+    to_string() const
+    {
+        std::string s = "(" + std::to_string(pc)
+                                    + ", " + std::to_string(count) + ")";
+        return s;
+    }
+
+    /** Enable hashing for this parameter*/
+    struct HashFunction
+    {
+        size_t operator()(const PcCountPair& item) const
+        {
+            size_t xHash = std::hash<int>()(item.pc);
+            size_t yHash = std::hash<int>()(item.count) << 1;
+            return xHash ^ yHash;
+        }
+    };
+
+};
+
 /**
  * Address type
  * This will probably be moved somewhere else in the near future.
