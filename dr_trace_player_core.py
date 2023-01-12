@@ -24,46 +24,49 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from abc import ABCMeta
+from typing import Optional
 
-from .abstract_board import AbstractBoard
-from ...utils.override import overrides
+from gem5.components.processors.abstract_generator_core import (
+    AbstractGeneratorCore,
+)
+from gem5.components.processors.abstract_core import AbstractCore
+from gem5.utils.override import overrides
 
-from m5.objects import System, SimObject
+from m5.objects import (
+    AddrRange,
+    DRTracePlayer,
+    DRTraceReader,
+    Port,
+    SrcClockDomain,
+    VoltageDomain,
+)
 
 
-class AbstractSystemBoard(System, AbstractBoard):
-
-    """
-    An abstract board for cases where boards should inherit from System.
-    """
-
-    __metaclass__ = ABCMeta
-
+class DRTracePlayerCore(AbstractGeneratorCore):
     def __init__(
         self,
-        clk_freq: str,
-        processor: "AbstractProcessor",
-        memory: "AbstractMemorySystem",
-        cache_hierarchy: "AbstractCacheHierarchy",
+        max_ipc: int,
+        max_outstanding_reqs: int,
+        clk_freq: Optional[str] = None,
     ):
-        System.__init__(self)
-        AbstractBoard.__init__(
-            self,
-            clk_freq=clk_freq,
-            processor=processor,
-            memory=memory,
-            cache_hierarchy=cache_hierarchy,
+        super().__init__()
+        self.player = DRTracePlayer(
+            max_ipc=max_ipc,
+            max_outstanding_reqs=max_outstanding_reqs,
+            send_data=True,
         )
+        if clk_freq:
+            clock_domain = SrcClockDomain(
+                clock=clk_freq, voltage_domain=VoltageDomain()
+            )
+            self.generator.clk_domain = clock_domain
 
-    @overrides(SimObject)
-    def createCCObject(self):
-        """We override this function as it is called in `m5.instantiate`. This
-        means we can insert a check to ensure the `_connect_things` function
-        has been run.
-        """
-        super()._connect_things_check()
-        super().createCCObject()
+    @overrides(AbstractCore)
+    def connect_dcache(self, port: Port) -> None:
+        self.player.port = port
 
-    def get_memory_ranges(self):
-        return self.mem_ranges
+    def set_reader(self, reader: DRTraceReader):
+        self.player.reader = reader
+
+    def set_memory_range(self, range: AddrRange):
+        self.player.compress_address_range = range

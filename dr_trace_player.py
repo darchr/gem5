@@ -24,46 +24,55 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from abc import ABCMeta
 
-from .abstract_board import AbstractBoard
-from ...utils.override import overrides
+from typing import Optional
+from pathlib import Path
 
-from m5.objects import System, SimObject
+from m5.objects import DRTraceReader
+from gem5.utils.override import overrides
+
+from gem5.components.processors.abstract_generator import AbstractGenerator
+from gem5.components.boards.abstract_board import AbstractBoard
+from dr_trace_player_core import DRTracePlayerCore
 
 
-class AbstractSystemBoard(System, AbstractBoard):
-
-    """
-    An abstract board for cases where boards should inherit from System.
-    """
-
-    __metaclass__ = ABCMeta
-
+class DRTracePlayerGenerator(AbstractGenerator):
     def __init__(
         self,
-        clk_freq: str,
-        processor: "AbstractProcessor",
-        memory: "AbstractMemorySystem",
-        cache_hierarchy: "AbstractCacheHierarchy",
+        trace_directory: Path,
+        num_cores: int,
+        max_ipc: int,
+        max_outstanding_reqs: int,
+        clk_freq: Optional[str] = None,
     ):
-        System.__init__(self)
-        AbstractBoard.__init__(
-            self,
-            clk_freq=clk_freq,
-            processor=processor,
-            memory=memory,
-            cache_hierarchy=cache_hierarchy,
+        super().__init__(
+            cores=[
+                DRTracePlayerCore(
+                    max_ipc=max_ipc,
+                    max_outstanding_reqs=max_outstanding_reqs,
+                    clk_freq=clk_freq,
+                )
+                for _ in range(num_cores)
+            ]
         )
 
-    @overrides(SimObject)
-    def createCCObject(self):
-        """We override this function as it is called in `m5.instantiate`. This
-        means we can insert a check to ensure the `_connect_things` function
-        has been run.
-        """
-        super()._connect_things_check()
-        super().createCCObject()
+        self.reader = DRTraceReader(
+            directory=trace_directory, num_players=num_cores
+        )
 
-    def get_memory_ranges(self):
-        return self.mem_ranges
+        for core in self.get_cores():
+            core.set_reader(self.reader)
+
+    @overrides(AbstractGenerator)
+    def start_traffic(self):
+        """
+        Since DRTracePlayer does not need a call to start_traffic to
+        start generation. This function is just pass.
+        """
+        pass
+
+    @overrides(AbstractGenerator)
+    def incorporate_processor(self, board: AbstractBoard) -> None:
+        super().incorporate_processor(board)
+        for core in self.get_cores():
+            core.set_memory_range(board.mem_ranges[0])

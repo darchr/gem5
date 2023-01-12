@@ -407,3 +407,6 @@ module. If this is the case, this can be resolved by calling
 `<AbstractBoard>._pre_instantiate()` prior to `m5.instantiate()`.
 """
             )
+
+    def get_memory_ranges(self):
+        raise NotImplementedError
