@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2016 Jason Lowe-Power
+# Copyright (c) 2017 Jason Lowe-Power
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,33 +25,32 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import("*")
+from m5.params import *
+from m5.proxy import *
+from m5.objects.ClockedObject import ClockedObject
 
-SimObject("BaseMemoryEngine.py", sim_objects=["BaseMemoryEngine"])
-SimObject("CenteralController.py", sim_objects=["CenteralController"])
-SimObject("CoalesceEngine.py", sim_objects=["CoalesceEngine"])
-SimObject("MPU.py", sim_objects=["MPU"])
-SimObject("PushEngine.py", sim_objects=["PushEngine"])
-SimObject("WLEngine.py", sim_objects=["WLEngine"])
-SimObject("RouterEngine.py", sim_objects=["RouterEngine"])
+class RouterEngine(ClockedObject):
+    type = "RouterEngine"
+    cxx_header = "accl/graph/sega/router_engine.hh"
+    cxx_class = "gem5::RouterEngine"
 
-Source("base_memory_engine.cc")
-Source("centeral_controller.cc")
-Source("coalesce_engine.cc")
-Source("enums.cc")
-Source("mpu.cc")
-Source("push_engine.cc")
-Source("wl_engine.cc")
-Source("router_engine.cc")
+    # push_req_queue_size = Param.Int("Size of the queue to "
+    #                                 "queue push requests.")
+    # # resp_queue_size should probably be
+    # # significantly bigger than push_req_queue_size
+    # resp_queue_size = Param.Int("Size of the response queue in the "
+    #                                 "push engine where it stores the "
+    #                                 "edges read from memory.")
 
-DebugFlag("BaseMemoryEngine")
-DebugFlag("CenteralController")
-DebugFlag("CacheBlockState")
-DebugFlag("CoalesceEngine")
-DebugFlag("PushEngine")
-DebugFlag("SEGAStructureSize")
-DebugFlag("MSDebug")
-DebugFlag("WLEngine")
+    # max_propagates_per_cycle = Param.Int("Maximum number of propagates "
+    #                                                     "done per cycle.")
 
-CompoundFlag("MPU", ["CoalesceEngine", "PushEngine",
-                    "WLEngine", "BaseMemoryEngine"])
+    # update_queue_size = Param.Int("Maximum number of entries "
+    #                                 "for each update queue.")
+
+    gpt_req_side = VectorRequestPort("Outgoing ports to local GPTs")
+    gpt_resp_side = VectorRequestPort("incoming ports from local GPTs")
+    
+    gpn_req_side = VectorRequestPort("Outgoing ports to remote GPNs")
+    gpn_resp_side = VectorRequestPort("incoming ports from local GPNs")
+    # remote_resp_side = VectorRsponsePort("Incoming ports from GPNs to router")

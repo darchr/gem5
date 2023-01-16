@@ -56,6 +56,14 @@ def get_inputs():
         help="Use simple memory for vertex",
     )
     argparser.add_argument(
+        "--pt2pt",
+        dest="pt2pt",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Use simple memory for vertex",
+    )
+    argparser.add_argument(
         "--sample",
         dest="sample",
         action="store_const",
@@ -83,6 +91,7 @@ def get_inputs():
         args.init_value,
         args.visited,
         args.simple,
+        args.pt2pt,
         args.sample,
         args.verify,
     )
@@ -98,12 +107,16 @@ if __name__ == "__m5_main__":
         init_value,
         visited,
         simple,
+        pt2pt,
         sample,
         verify,
     ) = get_inputs()
 
     if simple:
-        from sega_simple import SEGA
+        if pt2pt:
+            from sega_simple_pt2pt import SEGA
+        else:
+            from sega_simple import SEGA
     else:
         from sega import SEGA
     system = SEGA(num_gpts, num_registers, cache_size, graph)
