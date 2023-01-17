@@ -31,7 +31,11 @@
 namespace gem5
 {
 RouterEngine::RouterEngine(const Params &params):
-  ClockedObject(params)
+  ClockedObject(params),
+  gptQSize(params.gpt_queue_size),
+  gpnQSize(params.gpn_queue_size),
+  nextInteralGPTGPNEvent([this] { processNextInteralGPTGPNEvent(); }, name()),
+  nextRemoteGPTGPNEvent([this] { processNextRemoteGPTGPNEvent(); }, name())
 {
 
     for (int i = 0; i < params.port_gpt_req_side_connection_count; ++i) {
@@ -56,13 +60,13 @@ RouterEngine::RouterEngine(const Params &params):
 }
 
 AddrRangeList
-RouterEngine::RouterRespPort::getAddrRanges() const
+RouterEngine::GPTRespPort::getAddrRanges() const
 {
     return owner->getGPNRanges();
 }
 
 AddrRangeList
-RouterEngine::InternalRespPort::getAddrRanges() const
+RouterEngine::GPNRespPort::getAddrRanges() const
 {
     return owner->getGPTRanges();
 }
@@ -71,7 +75,7 @@ AddrRangeList
 RouterEngine::getGPNRanges()
 {
     AddrRangeList ret;
-    for (auto &gpnPort : gpnReqPorts){
+    for (auto &gpnPort : gpnReqPorts) {
         for (auto &addr_range : gpnPort.getAddrRanges()) {
             ret.push_back(addr_range);
         }
@@ -82,13 +86,25 @@ RouterEngine::getGPNRanges()
     return ret;
 }
 
+AddrRangeList
+RouterEngine::getGPTRanges()
+{
+    AddrRangeList ret;
+    for (auto &gptPort : gptReqPorts) {
+        for (auto &addr_range : gptPort.getAddrRanges()) {
+            ret.push_back(addr_range);
+        }
+    }
+    return ret;
+}
+
 void
 RouterEngine::init()
 {
     for (int i = 0; i < gptReqPorts.size(); i++) {
         gptAddrMap[gptReqPorts[i].id()] = gptReqPorts[i].getAddrRanges();
         for (auto &addrRange: gptReqPorts[i].getAddrRanges()) {
-            std::cout<< __func__<<addrRange.to_string()<<std::endl;
+            std::cout<< name()<<", "<<__func__<<addrRange.to_string()<<std::endl;
         }
     }
 }
@@ -98,10 +114,11 @@ RouterEngine::startup()
 {
     for (int i = 0; i < gpnReqPorts.size(); i++) {
         routerAddrMap[gpnReqPorts[i].id()] = gpnReqPorts[i].getAddrRanges();
-        for (auto &addrRange: gpnReqPorts[i].getAddrRanges()){
-            std::cout<< __func__<<addrRange.to_string()<<std::endl;
+        for (auto &addrRange: gpnReqPorts[i].getAddrRanges()) {
+            std::cout<< name()<<", "<<__func__<<addrRange.to_string()<<std::endl;
         }
     }
+    std::cout<<"******************"<<std::endl;
 }
 
 Port&
@@ -109,50 +126,179 @@ RouterEngine::getPort(const std::string& if_name, PortID idx)
 {
     if (if_name == "gpt_req_side") {
         return gptReqPorts[idx];
+    } else if (if_name == "gpt_resp_side") { 
+        return gptRespPorts[idx];
+    } else if (if_name == "gpn_req_side") {
+        return gpnReqPorts[idx];
+    } else if (if_name == "gpn_resp_side") {
+        return gpnRespPorts[idx];
     } else {
         return ClockedObject::getPort(if_name, idx);
     }
 }
 
 bool
-RouterEngine::RouterReqPort::recvTimingResp(PacketPtr pkt) {
+RouterEngine::GPTReqPort::recvTimingResp(PacketPtr pkt) {
     panic("Not implemented yet!");
     return 0;
 }
 
 void
-RouterEngine::RouterReqPort::recvReqRetry() {
+RouterEngine::GPTReqPort::recvReqRetry() {
     panic("Not implemented yet!");
 }
 
 bool
-RouterEngine::InternalReqPort::recvTimingResp(PacketPtr pkt) {
+RouterEngine::GPNReqPort::recvTimingResp(PacketPtr pkt) {
     panic("Not implemented yet!");
     return 0;
 }
 
 void
-RouterEngine::InternalReqPort::recvReqRetry() {
+RouterEngine::GPNReqPort::recvReqRetry() {
     panic("Not implemented yet!");
 }
 
+void
+RouterEngine::GPNReqPort::sendPacket(PacketPtr pkt) {
+    panic_if(blocked(), "Should never try to send if blocked MemSide!");
+    // If we can't send the packet across the port, store it for later.
+    if (!sendTimingReq(pkt)) {
+        blockedPacket = pkt;
+    }
+}
+
 Tick 
-RouterEngine::RouterRespPort::recvAtomic(PacketPtr pkt){
+RouterEngine::GPTRespPort::recvAtomic(PacketPtr pkt) {
     panic("Not implemented yet!");
 }
 
 bool 
-RouterEngine::RouterRespPort::recvTimingReq(PacketPtr pkt){
+RouterEngine::GPTRespPort::recvTimingReq(PacketPtr pkt) {
+    if (!owner->handleRequest(id(), pkt)) {
+        return false;
+    }
+    return true;
+}
+
+bool
+RouterEngine::handleRequest(PortID portId, PacketPtr pkt)
+{
+    auto queue = gptReqQueues[portId];
+    bool accepted = false;
+    if (queue.size() < gptQSize) {
+        gptReqQueues[portId].push(pkt);
+        accepted = true;
+    } else {
+        accepted = false;
+    }
+
+    if(accepted && (!nextInteralGPTGPNEvent.scheduled())) {
+        schedule(nextInteralGPTGPNEvent, nextCycle());
+    }
+
+    return accepted;
+}
+
+void
+RouterEngine::processNextInteralGPTGPNEvent()
+{
+    bool found = false;
+    int queues_none_empty = 0;
+    for (auto queue = gptReqQueues.begin(); 
+              queue != gptReqQueues.end(); ++queue) {
+        if (!queue->second.empty()) {
+            PacketPtr pkt = queue->second.front();
+            Addr pkt_addr = pkt->getAddr();
+            queues_none_empty += 1;
+            for (int i = 0; i < gpnReqPorts.size(); i++) {
+                AddrRangeList addr_list = routerAddrMap[gpnReqPorts[i].id()];
+                if ((contains(addr_list, pkt_addr))) {
+                    if (gpnRespQueues[gpnReqPorts[i].id()].size() < gpnQSize) {
+                        gpnRespQueues[gpnReqPorts[i].id()].push(pkt);
+                        queue->second.pop();
+                        found = true;
+                        queues_none_empty -= 1;
+                        if (!queue->second.empty()) {
+                            queues_none_empty += 1;
+                        }
+                        if ((!nextRemoteGPTGPNEvent.scheduled())) {
+                            schedule(nextRemoteGPTGPNEvent, nextCycle());
+                        }
+                        break;
+                    // queue is full
+                    } else {
+                        found = false;
+                        break;
+                    }
+                }
+            }
+        }
+        if (found) {
+            break;
+        }
+    }
+
+    if (queues_none_empty > 0) {
+        schedule(nextInteralGPTGPNEvent, nextCycle());
+    }
+}
+
+void
+RouterEngine::processNextRemoteGPTGPNEvent()
+{
+    uint32_t none_empty_queue = 0;  
+    for (auto queue = gpnRespQueues.begin(); 
+              queue != gpnRespQueues.end(); ++queue) {
+        if (!queue->second.empty()) {
+            if (!gpnReqPorts[queue->first].blocked()) {
+                PacketPtr pkt = queue->second.front();
+                gpnReqPorts[queue->first].sendPacket(pkt);
+                queue->second.pop();
+                break;
+            }
+        }
+    }
+
+    for (auto queue = gpnRespQueues.begin(); 
+              queue != gpnRespQueues.end(); ++queue) {
+        if (!queue->second.empty()) {
+            none_empty_queue += 1;
+        }
+    }
+
+    if (none_empty_queue > 0) {
+        schedule(nextRemoteGPTGPNEvent, nextCycle());
+    }
+}
+
+void 
+RouterEngine::GPTRespPort::recvFunctional(PacketPtr pkt) {
     panic("Not implemented yet!");
 }
 
 void 
-RouterEngine::RouterRespPort::recvFunctional(PacketPtr pkt){
+RouterEngine::GPTRespPort::recvRespRetry() {
+    panic("Not implemented yet!");
+}
+
+Tick 
+RouterEngine::GPNRespPort::recvAtomic(PacketPtr pkt) {
+    panic("Not implemented yet!");
+}
+
+bool 
+RouterEngine::GPNRespPort::recvTimingReq(PacketPtr pkt) {
     panic("Not implemented yet!");
 }
 
 void 
-RouterEngine::RouterRespPort::recvRespRetry(){
+RouterEngine::GPNRespPort::recvFunctional(PacketPtr pkt) {
+    panic("Not implemented yet!");
+}
+
+void 
+RouterEngine::GPNRespPort::recvRespRetry() {
     panic("Not implemented yet!");
 }
 
@@ -160,14 +306,14 @@ RouterEngine::RouterRespPort::recvRespRetry(){
 // Router::handleRemoteRequest(PortID portId, PacketPtr pkt)
 // {
 //     auto queue = find_if(remoteReqQueues.begin(), remoteReqQueues.end(),
-//         [portId](RequestQueue &obj){return obj.cpuPortId == portId;});
-//     if (queue->blocked()){
+//         [portId](RequestQueue &obj) {return obj.cpuPortId == portId;});
+//     if (queue->blocked()) {
 //         queue->sendReadRetry = true;
 //         return false;
 //     }
     
 //     queue->push(pkt);
-//     if (!nextRemoteReqEvent.scheduled()){
+//     if (!nextRemoteReqEvent.scheduled()) {
 //         schedule(nextReqEvent, nextCycle());
 //     }
 //     return true;
@@ -175,22 +321,22 @@ RouterEngine::RouterRespPort::recvRespRetry(){
 
 
 // void
-// Router::processNextRemoteReqEvent(){
+// Router::processNextRemoteReqEvent() {
 //     RequestQueue *queue = NULL;
 //     for (auto &it : remoteReqQueues) {
-//         if (!it.emptyRead()){
+//         if (!it.emptyRead()) {
 //             queue = &it;
 //             break;
 //         }
 //     }
 
-//     if (queue == nullptr){
+//     if (queue == nullptr) {
 //         return;
 //     }
 
 //     PacketPtr pkt;
 //     std::vector<MemSidePort>::iterator memPort;
-//     while (true){
+//     while (true) {
         
 //         pkt = queue->readQueue.front();
 //         AddrRange addr_range = pkt->getAddrRange();
@@ -201,7 +347,7 @@ RouterEngine::RouterRespPort::recvRespRetry(){
 //             [memPortId](LocalRespPort &obj)
 //             {return obj.portId() == localRespPortID;});
 
-//         if (!localRespPort->blocked()){
+//         if (!localRespPort->blocked()) {
 //             break;
 //         }
 //         else {
@@ -221,9 +367,9 @@ RouterEngine::RouterRespPort::recvRespRetry(){
 //     entryTimes.erase(pkt);
 //     pick->readQueue.pop();
 
-//     if (!nextReqEvent.scheduled()){
-//         for (auto &queue : requestQueues){
-//             if (!queue.emptyRead() || queue.serviceWrite()){
+//     if (!nextReqEvent.scheduled()) {
+//         for (auto &queue : requestQueues) {
+//             if (!queue.emptyRead() || queue.serviceWrite()) {
 //                 DPRINTF(MemScheduler, "processNextReqEvent: "
 //                     "Scheduling nextReqEvent in processNextReqEvent\n");
 //                 schedule(nextReqEvent, nextCycle());
@@ -234,7 +380,7 @@ RouterEngine::RouterRespPort::recvRespRetry(){
 
     
 //     if (pick->sendReadRetry && !pick->blocked(pkt->isRead()
-//         || pkt->isWrite())){
+//         || pkt->isWrite())) {
 //         PortID cpuPortId = pick->cpuPortId;
 //         auto cpuPort = find_if(cpuPorts.begin(), cpuPorts.end(),
 //             [cpuPortId](CPUSidePort &obj)
@@ -250,10 +396,10 @@ RouterEngine::RouterRespPort::recvRespRetry(){
 
 // void Router::recvRangeChange(PortID portId)
 // {
-//     for (auto &port : localRespPorts){
-//         if (port.portId() == portId){
+//     for (auto &port : localRespPorts) {
+//         if (port.portId() == portId) {
 //             AddrRangeList ranges = port.getAddrRanges();
-//             for (auto &r : ranges){
+//             for (auto &r : ranges) {
 //                 localPortMap.insert(r, portId);
 //             }
 //         }

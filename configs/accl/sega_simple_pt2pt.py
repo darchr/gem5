@@ -176,6 +176,10 @@ class SEGA(System):
                 gpt_0.setReqPort(gpt_1.getRespPort())
         for i in range(len(gpts)):
             gpts[i].setRespPort(routers[i].gpt_req_side)
+        for r_0 in routers:
+            for r_1 in routers:
+                if r_0 != r_1:
+                    r_0.gpn_resp_side = r_1.gpn_req_side
         self.gpts = gpts
         self.ctrl.mpu_vector = [gpt.mpu for gpt in self.gpts]
 

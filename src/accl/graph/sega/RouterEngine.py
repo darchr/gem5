@@ -49,8 +49,10 @@ class RouterEngine(ClockedObject):
     #                                 "for each update queue.")
 
     gpt_req_side = VectorRequestPort("Outgoing ports to local GPTs")
-    gpt_resp_side = VectorRequestPort("incoming ports from local GPTs")
+    gpt_resp_side = VectorResponsePort("incoming ports from local GPTs")
     
     gpn_req_side = VectorRequestPort("Outgoing ports to remote GPNs")
-    gpn_resp_side = VectorRequestPort("incoming ports from local GPNs")
+    gpn_resp_side = VectorResponsePort("incoming ports from local GPNs")
+    gpt_queue_size = Param.Int(8, "Queue size on the gpt side")
+    gpn_queue_size = Param.Int(8, "Queue size on the gpt side")
     # remote_resp_side = VectorRsponsePort("Incoming ports from GPNs to router")

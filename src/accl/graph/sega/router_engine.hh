@@ -34,13 +34,15 @@
 #include "mem/packet.hh"
 #include "mem/port.hh"
 
+#include <queue>
+
 namespace gem5
 {
 
 class RouterEngine : public ClockedObject
 {
   private:
-    class RouterReqPort : public RequestPort
+    class GPTReqPort : public RequestPort
     {
       private:
         RouterEngine* owner;
@@ -48,7 +50,7 @@ class RouterEngine : public ClockedObject
         PortID _id;
 
       public:
-        RouterReqPort(const std::string& name, RouterEngine* owner, PortID id) :
+        GPTReqPort(const std::string& name, RouterEngine* owner, PortID id) :
           RequestPort(name, owner),
           owner(owner), blockedPacket(nullptr), _id(id)
         {}
@@ -61,7 +63,7 @@ class RouterEngine : public ClockedObject
         virtual void recvReqRetry();
     };
 
-    class InternalReqPort : public RequestPort
+    class GPNReqPort : public RequestPort
     {
       private:
         RouterEngine* owner;
@@ -69,7 +71,7 @@ class RouterEngine : public ClockedObject
         PortID _id;
 
       public:
-        InternalReqPort(const std::string& name, RouterEngine* owner, PortID id) :
+        GPNReqPort(const std::string& name, RouterEngine* owner, PortID id) :
           RequestPort(name, owner),
           owner(owner), blockedPacket(nullptr), _id(id)
         {}
@@ -82,7 +84,7 @@ class RouterEngine : public ClockedObject
         virtual void recvReqRetry();
     };
 
-    class RouterRespPort : public ResponsePort
+    class GPTRespPort : public ResponsePort
     {
       private:
         RouterEngine* owner;
@@ -90,7 +92,7 @@ class RouterEngine : public ClockedObject
         PortID _id;
 
       public:
-        RouterRespPort(const std::string& name, RouterEngine* owner, PortID id):
+        GPTRespPort(const std::string& name, RouterEngine* owner, PortID id):
           ResponsePort(name, owner),
           owner(owner), needSendRetryReq(false), _id(id)
         {}
@@ -106,7 +108,7 @@ class RouterEngine : public ClockedObject
         virtual void recvRespRetry();
     };
 
-    class InternalRespPort : public RouterRespPort
+    class GPNRespPort : public ResponsePort
     {
       private:
         RouterEngine* owner;
@@ -114,7 +116,7 @@ class RouterEngine : public ClockedObject
         PortID _id;
 
       public:
-        InternalRespPort(const std::string& name, RouterEngine* owner, PortID id):
+        GPNRespPort(const std::string& name, RouterEngine* owner, PortID id):
           ResponsePort(name, owner),
           owner(owner), needSendRetryReq(false), _id(id)
         {}
@@ -130,39 +132,27 @@ class RouterEngine : public ClockedObject
         virtual void recvRespRetry();
     };
 
-//     struct RequestQueue {
-//     std::queue<PacketPtr> reqQ;
-//     const uint32_t reqQSize;
-//     const PortID PortId;
+  bool handleRequest(PortID portId, PacketPtr pkt);
+  std::vector<GPTReqPort> gptReqPorts;
+  std::vector<GPTRespPort> gptRespPorts;
 
-//     bool blocked() {
-//         return reqQ.size() == reqQSize;
-//     }
-
-//     void push(PacketPtr pkt) {
-//         reqQ.push(pkt);
-//     }
-
-//     bool emptyQ(){
-//         return reqQ.empty();
-//       }
-      
-//     RequestQueue(uint32_t reqQSize, PortID portId):
-//     reqQSize(reqQSize),
-//     portId(portId) {}
-//   };
-
-//   std::vector<RequestQueue> remoteReqQueues;
-  
-  std::vector<RouterReqPort> gptReqPorts;
-  std::vector<RouterRespPort> gptRespPorts;
-
-  std::vector<InternalReqPort> gpnReqPorts;
-  std::vector<InternalRespPort> gpnRespPorts;
+  std::vector<GPNReqPort> gpnReqPorts;
+  std::vector<GPNRespPort> gpnRespPorts;
 
   std::unordered_map<PortID, AddrRangeList> gptAddrMap;
   std::unordered_map<PortID, AddrRangeList> routerAddrMap;
 
+  std::unordered_map<PortID, std::queue<PacketPtr>> gptReqQueues;
+  std::unordered_map<PortID, std::queue<PacketPtr>> gpnRespQueues;
+
+  const uint32_t gptQSize;
+  const uint32_t gpnQSize;
+
+  EventFunctionWrapper nextInteralGPTGPNEvent;
+  void processNextInteralGPTGPNEvent();
+
+  EventFunctionWrapper nextRemoteGPTGPNEvent;
+  void processNextRemoteGPTGPNEvent();
 
   public:
     PARAMS(RouterEngine);
