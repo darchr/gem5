@@ -133,6 +133,11 @@ class RouterEngine : public ClockedObject
     };
 
   bool handleRequest(PortID portId, PacketPtr pkt);
+  bool handleRemoteRequest(PortID portId, PacketPtr pkt);
+  void wakeUpInternal();
+  void wakeUpExternal();
+  void checkRetryExternal();
+  void checkRetryInternal();
   std::vector<GPTReqPort> gptReqPorts;
   std::vector<GPTRespPort> gptRespPorts;
 
@@ -145,6 +150,9 @@ class RouterEngine : public ClockedObject
   std::unordered_map<PortID, std::queue<PacketPtr>> gptReqQueues;
   std::unordered_map<PortID, std::queue<PacketPtr>> gpnRespQueues;
 
+  std::unordered_map<PortID, std::queue<PacketPtr>> gptRespQueues;
+  std::unordered_map<PortID, std::queue<PacketPtr>> gpnReqQueues;
+
   const uint32_t gptQSize;
   const uint32_t gpnQSize;
 
@@ -153,6 +161,12 @@ class RouterEngine : public ClockedObject
 
   EventFunctionWrapper nextRemoteGPTGPNEvent;
   void processNextRemoteGPTGPNEvent();
+
+  EventFunctionWrapper nextInteralGPNGPTEvent;
+  void processNextInteralGPNGPTEvent();
+
+  EventFunctionWrapper nextRemoteGPNGPTEvent;
+  void processNextRemoteGPNGPTEvent();
 
   public:
     PARAMS(RouterEngine);
