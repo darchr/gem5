@@ -41,6 +41,8 @@ class CenteralController(ClockedObject):
 
     mpu_vector = VectorParam.MPU("All mpus in the system.")
 
+    router_vector = VectorParam.RouterEngine("All Routers in the system.")
+
     cxx_exports = [
                     PyBindMethod("setAsyncMode"),
                     PyBindMethod("setBSPMode"),

@@ -34,25 +34,12 @@ class RouterEngine(ClockedObject):
     cxx_header = "accl/graph/sega/router_engine.hh"
     cxx_class = "gem5::RouterEngine"
 
-    # push_req_queue_size = Param.Int("Size of the queue to "
-    #                                 "queue push requests.")
-    # # resp_queue_size should probably be
-    # # significantly bigger than push_req_queue_size
-    # resp_queue_size = Param.Int("Size of the response queue in the "
-    #                                 "push engine where it stores the "
-    #                                 "edges read from memory.")
-
-    # max_propagates_per_cycle = Param.Int("Maximum number of propagates "
-    #                                                     "done per cycle.")
-
-    # update_queue_size = Param.Int("Maximum number of entries "
-    #                                 "for each update queue.")
+    system = Param.System(Parent.any, "System this Engine is a part of")
 
     gpt_req_side = VectorRequestPort("Outgoing ports to local GPTs")
     gpt_resp_side = VectorResponsePort("incoming ports from local GPTs")
     
     gpn_req_side = VectorRequestPort("Outgoing ports to remote GPNs")
     gpn_resp_side = VectorResponsePort("incoming ports from local GPNs")
-    gpt_queue_size = Param.Int(8, "Queue size on the gpt side")
-    gpn_queue_size = Param.Int(8, "Queue size on the gpt side")
-    # remote_resp_side = VectorRsponsePort("Incoming ports from GPNs to router")
+    gpt_queue_size = Param.Int(64, "Queue size on the gpt side")
+    gpn_queue_size = Param.Int(64, "Queue size on the gpt side")

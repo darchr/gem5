@@ -29,16 +29,17 @@
 #ifndef __ACCL_GRAPH_SEGA_ROUTER_ENGINE_HH__
 #define __ACCL_GRAPH_SEGA_ROUTER_ENGINE_HH__
 
-#include "params/RouterEngine.hh"
-#include "sim/clocked_object.hh"
+#include <queue>
+
 #include "mem/packet.hh"
 #include "mem/port.hh"
-
-#include <queue>
+#include "params/RouterEngine.hh"
+#include "sim/clocked_object.hh"
+#include "sim/system.hh"
 
 namespace gem5
 {
-
+class CenteralController;
 class RouterEngine : public ClockedObject
 {
   private:
@@ -132,6 +133,8 @@ class RouterEngine : public ClockedObject
         virtual void recvRespRetry();
     };
 
+  System* system;
+  CenteralController* centeralController;
   bool handleRequest(PortID portId, PacketPtr pkt);
   bool handleRemoteRequest(PortID portId, PacketPtr pkt);
   void wakeUpInternal();
@@ -155,35 +158,39 @@ class RouterEngine : public ClockedObject
 
   const uint32_t gptQSize;
   const uint32_t gpnQSize;
+  bool emptyQueues;
 
-  EventFunctionWrapper nextInteralGPTGPNEvent;
-  void processNextInteralGPTGPNEvent();
+  EventFunctionWrapper nextGPTGPNEvent;
+  void processNextGPTGPNEvent();
 
-  EventFunctionWrapper nextRemoteGPTGPNEvent;
-  void processNextRemoteGPTGPNEvent();
+  EventFunctionWrapper nextInternalRequestEvent;
+  void processNextInternalRequestEvent();
 
-  EventFunctionWrapper nextInteralGPNGPTEvent;
-  void processNextInteralGPNGPTEvent();
+  EventFunctionWrapper nextGPNGPTEvent;
+  void processNextGPNGPTEvent();
 
-  EventFunctionWrapper nextRemoteGPNGPTEvent;
-  void processNextRemoteGPNGPTEvent();
+  EventFunctionWrapper nextExternalRequestEvent;
+  void processNextExternalRequestEvent();
+
+  // EventFunctionWrapper nextDoneSignalEvent;
+  // void processNextDoneSignalEvent();
 
   public:
     PARAMS(RouterEngine);
     RouterEngine(const Params &params);
-
+    void registerCenteralController(CenteralController* centeral_controller);
     virtual void init() override;
     virtual void startup() override;
-
     Port& getPort(const std::string& if_name,
-                PortID idx = InvalidPortID) override;
+              PortID idx = InvalidPortID) override;
 
     AddrRangeList getGPNRanges();
     AddrRangeList getGPTRanges();
+    void recvReqRetry();
 
-//   std::unordered_map<PortID, std::vector<AddrRangeList>> routerPortAddrMap;
-
-//   AddrRangeMap<PortID, 0> localPortMap;
+    void checkGPTRetryReq();
+    void checkGPNRetryReq();
+    bool done();
 
 };
 

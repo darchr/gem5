@@ -52,6 +52,7 @@ DebugFlag("PushEngine")
 DebugFlag("SEGAStructureSize")
 DebugFlag("MSDebug")
 DebugFlag("WLEngine")
+DebugFlag("RouterEngine")
 
 CompoundFlag("MPU", ["CoalesceEngine", "PushEngine",
-                    "WLEngine", "BaseMemoryEngine"])
+                    "WLEngine", "BaseMemoryEngine", "RouterEngine"])

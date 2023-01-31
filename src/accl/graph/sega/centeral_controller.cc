@@ -49,6 +49,11 @@ CenteralController::CenteralController(const Params& params):
         mpuVector.push_back(mpu);
         mpu->registerCenteralController(this);
     }
+
+    for (auto router : params.router_vector) {
+        routerVector.push_back(router);
+        router->registerCenteralController(this);
+    }
 }
 
 void
@@ -173,6 +178,10 @@ CenteralController::recvDoneSignal()
     bool done = true;
     for (auto mpu : mpuVector) {
         done &= mpu->done();
+    }
+
+    for (auto router : routerVector) {
+        done &= router->done();
     }
 
     if (done && mode == ProcessingMode::ASYNCHRONOUS) {

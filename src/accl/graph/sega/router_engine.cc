@@ -28,17 +28,26 @@
 
 #include "accl/graph/sega/router_engine.hh"
 
+#include "accl/graph/sega/centeral_controller.hh"
+#include "base/trace.hh"
+#include "debug/RouterEngine.hh"
+
 namespace gem5
 {
 RouterEngine::RouterEngine(const Params &params):
   ClockedObject(params),
+  system(params.system),
   gptQSize(params.gpt_queue_size),
   gpnQSize(params.gpn_queue_size),
-  nextInteralGPTGPNEvent([this] { processNextInteralGPTGPNEvent(); }, name()),
-  nextRemoteGPTGPNEvent([this] { processNextRemoteGPTGPNEvent(); }, name()),
-  nextInteralGPNGPTEvent([this] { processNextInteralGPNGPTEvent(); }, name()),
-  nextRemoteGPNGPTEvent([this] { processNextRemoteGPNGPTEvent(); }, name())
-{
+  emptyQueues(false),
+  nextGPTGPNEvent([this] { processNextGPTGPNEvent(); }, name()),
+  nextInternalRequestEvent(
+                        [this] { processNextInternalRequestEvent(); }, name()),
+  nextGPNGPTEvent([this] { processNextGPNGPTEvent(); }, name()),
+  nextExternalRequestEvent
+                        ([this] { processNextExternalRequestEvent(); }, name())
+//   nextDoneSignalEvent([this] { processNextDoneSignalEvent(); }, name())
+    {
 
     for (int i = 0; i < params.port_gpt_req_side_connection_count; ++i) {
         gptReqPorts.emplace_back(
@@ -59,6 +68,13 @@ RouterEngine::RouterEngine(const Params &params):
         gpnRespPorts.emplace_back(
                     name() + ".gpn_resp_side" + std::to_string(i), this, i);
     }
+}
+
+void
+RouterEngine::registerCenteralController(
+                                    CenteralController* centeral_controller)
+{
+    centeralController = centeral_controller;
 }
 
 AddrRangeList
@@ -105,9 +121,6 @@ RouterEngine::init()
 {
     for (int i = 0; i < gptReqPorts.size(); i++) {
         gptAddrMap[gptReqPorts[i].id()] = gptReqPorts[i].getAddrRanges();
-        for (auto &addrRange: gptReqPorts[i].getAddrRanges()) {
-            std::cout<< name()<<", "<<__func__<<addrRange.to_string()<<std::endl;
-        }
     }
 }
 
@@ -116,11 +129,38 @@ RouterEngine::startup()
 {
     for (int i = 0; i < gpnReqPorts.size(); i++) {
         routerAddrMap[gpnReqPorts[i].id()] = gpnReqPorts[i].getAddrRanges();
-        for (auto &addrRange: gpnReqPorts[i].getAddrRanges()) {
-            std::cout<< name()<<", "<<__func__<<addrRange.to_string()<<std::endl;
-        }
     }
-    std::cout<<"******************"<<std::endl;
+}
+
+bool
+RouterEngine::done()
+{
+    bool emptygptReq = true;
+    bool emptygpnReq = true;
+    bool emptygptResp = true;
+    bool emptygpnResp = true;
+    bool empty = true;
+    for (auto &q: gptReqQueues) {
+        emptygptReq &= q.second.empty();
+    }
+
+    for (auto &q: gpnReqQueues) {
+        emptygpnReq &= q.second.empty();
+    }
+
+    for (auto &q: gptRespQueues) {
+        emptygptResp &= q.second.empty();
+    }
+
+    for (auto &q: gpnRespQueues) {
+        emptygpnResp &= q.second.empty();
+    }
+
+    empty = emptygptReq & emptygpnReq & emptygptResp & emptygpnResp;
+    DPRINTF(RouterEngine, "%s: emptygptReq: %d, emptygpnReq: %d, "
+                "emptygptResp: %d, emptygpnResp: %d.\n", __func__, emptygptReq,
+                                    emptygpnReq, emptygptResp, emptygpnResp);
+    return empty;
 }
 
 Port&
@@ -140,36 +180,48 @@ RouterEngine::getPort(const std::string& if_name, PortID idx)
 }
 
 bool
-RouterEngine::GPTReqPort::recvTimingResp(PacketPtr pkt) {
+RouterEngine::GPTReqPort::recvTimingResp(PacketPtr pkt)
+{
     panic("Not implemented yet!");
     return 0;
+}
+
+void
+RouterEngine::GPTReqPort::recvReqRetry()
+{
+    panic_if(blockedPacket == nullptr,
+            "Received retry without a blockedPacket.");
+
+    DPRINTF(RouterEngine, "%s: ReqPort %d received a reqRetry. "
+                "blockedPacket: %s.\n", __func__, _id, blockedPacket->print());
+    PacketPtr pkt = blockedPacket;
+    blockedPacket = nullptr;
+    sendPacket(pkt);
+    if (blockedPacket == nullptr) {
+        DPRINTF(RouterEngine, "%s: blockedPacket sent successfully.\n",
+                                                                    __func__);
+        owner->recvReqRetry();
+    }
 }
 
 bool
-RouterEngine::GPNReqPort::recvTimingResp(PacketPtr pkt) {
+RouterEngine::GPNReqPort::recvTimingResp(PacketPtr pkt)
+{
     panic("Not implemented yet!");
     return 0;
 }
 
 void
-RouterEngine::GPNReqPort::recvReqRetry() {
+RouterEngine::GPNReqPort::recvReqRetry()
+{
     // We should have a blocked packet if this function is called.
     assert(blockedPacket != nullptr);
-
-    sendPacket(blockedPacket);
+    PacketPtr pkt = blockedPacket;
     blockedPacket = nullptr;
+
+    sendPacket(pkt);
 
     owner->wakeUpInternal();
-}
-
-void
-RouterEngine::GPTReqPort::recvReqRetry() {
-    assert(blockedPacket != nullptr);
-
-    sendPacket(blockedPacket);
-    blockedPacket = nullptr;
-
-    owner->wakeUpExternal();
 }
 
 void
@@ -177,6 +229,7 @@ RouterEngine::GPNReqPort::sendPacket(PacketPtr pkt) {
     panic_if(blocked(), "Should never try to send if blocked MemSide!");
     // If we can't send the packet across the port, store it for later.
     if (!sendTimingReq(pkt)) {
+        DPRINTF(RouterEngine, "%s: The GPNReq port is blocked.\n", __func__);
         blockedPacket = pkt;
     }
 }
@@ -186,6 +239,7 @@ RouterEngine::GPTReqPort::sendPacket(PacketPtr pkt) {
     panic_if(blocked(), "Should never try to send if blocked MemSide!");
     // If we can't send the packet across the port, store it for later.
     if (!sendTimingReq(pkt)) {
+        DPRINTF(RouterEngine, "%s: The GPTReq port is blocked.\n", __func__);
         blockedPacket = pkt;
     }
 }
@@ -204,97 +258,124 @@ RouterEngine::GPTRespPort::checkRetryReq()
     }
 }
 
-void
-RouterEngine::checkRetryExternal()
-{
-    for (int i = 0; i < gptRespPorts.size(); i++) {
-        gptRespPorts[i].checkRetryReq();
-    }
-}
-
 bool
 RouterEngine::GPTRespPort::recvTimingReq(PacketPtr pkt) {
     if (!owner->handleRequest(id(), pkt)) {
+        DPRINTF(RouterEngine, "%s: Router Rejected the packet %s.\n",
+                    __func__, pkt->getAddr());
         needSendRetryReq = true;
         return false;
     }
     return true;
 }
 
+void
+RouterEngine::recvReqRetry()
+{
+    DPRINTF(RouterEngine, "%s: Received a reqRetry.\n", __func__);
+    if (!nextExternalRequestEvent.scheduled()) {
+        schedule(nextExternalRequestEvent, nextCycle());
+    }
+}
+
 bool
 RouterEngine::handleRequest(PortID portId, PacketPtr pkt)
 {
-    auto queue = gptReqQueues[portId];
+    auto &queue = gptReqQueues[portId];
     bool accepted = false;
     if (queue.size() < gptQSize) {
+        DPRINTF(RouterEngine, "%s: gptReqQueues[%lu] size is: %d.\n",
+                                            __func__, portId, queue.size());
         gptReqQueues[portId].push(pkt);
         accepted = true;
     } else {
+         DPRINTF(RouterEngine, "%s: gptReqQueues[%lu] is full: %d.\n",
+                                                            __func__, portId);
         accepted = false;
     }
 
-    if(accepted && (!nextInteralGPTGPNEvent.scheduled())) {
-        schedule(nextInteralGPTGPNEvent, nextCycle());
+    if (accepted && (!nextGPTGPNEvent.scheduled())) {
+        schedule(nextGPTGPNEvent, nextCycle());
     }
-
+    DPRINTF(RouterEngine, "%s: GPT sent req to router: accepted: %d.\n",
+                                                        __func__, accepted);
     return accepted;
 }
 
 void
-RouterEngine::processNextInteralGPTGPNEvent()
+RouterEngine::processNextGPTGPNEvent()
 {
     bool found = false;
-    int queues_none_empty = 0;
+    bool queues_none_empty = false;
+    DPRINTF(RouterEngine, "%s: Trying to send a request from GPT to GPN.\n",
+                                                                    __func__);
     for (auto &queue: gptReqQueues) {
         if (!queue.second.empty()) {
             PacketPtr pkt = queue.second.front();
             Addr pkt_addr = pkt->getAddr();
-            queues_none_empty += 1;
             for (int i = 0; i < gpnReqPorts.size(); i++) {
                 AddrRangeList addr_list = routerAddrMap[gpnReqPorts[i].id()];
                 if ((contains(addr_list, pkt_addr))) {
                     if (gpnRespQueues[gpnReqPorts[i].id()].size() < gpnQSize) {
                         gpnRespQueues[gpnReqPorts[i].id()].push(pkt);
+                        DPRINTF(RouterEngine, "%s: Pushing the pkt %s to  "
+                                "gpnRespQueue[%d]. gpnRespQueue size is: %d\n",
+                                __func__, pkt->getAddr(), i,
+                                gpnRespQueues[gpnReqPorts[i].id()].size());
                         queue.second.pop();
-                        checkRetryExternal();
-                        found = true;
-                        queues_none_empty -= 1;
-                        if (!queue.second.empty()) {
-                            queues_none_empty += 1;
+                        DPRINTF(RouterEngine, "%s: gptReqQueue size is: %d.\n",
+                                                __func__, queue.second.size());
+                        found |= true;
+                        if ((!nextInternalRequestEvent.scheduled())) {
+                            schedule(nextInternalRequestEvent, nextCycle());
                         }
-                        if ((!nextRemoteGPTGPNEvent.scheduled())) {
-                            schedule(nextRemoteGPTGPNEvent, nextCycle());
-                        }
-                        break;
                     // queue is full
                     } else {
-                        found = false;
-                        break;
+                         DPRINTF(RouterEngine, "%s: gpnRespQueue[%d] is full."
+                            "\n", __func__, pkt->getAddr(), i);
+                        found |= false;
                     }
                 }
             }
         }
         if (found) {
-            break;
+            checkGPTRetryReq();
         }
     }
 
-    if (queues_none_empty > 0) {
-        schedule(nextInteralGPTGPNEvent, nextCycle());
+    for (auto &queue: gptReqQueues)
+    {
+        if (!queue.second.empty()) {
+            queues_none_empty = true;
+        }
+    }
+
+    if (queues_none_empty) {
+        DPRINTF(RouterEngine, "%s: The gptReqQueues is not empty.\n",
+                                                                    __func__);
+    } else {
+        DPRINTF(RouterEngine, "%s: The gptReqQueues is empty.\n", __func__);
+    }
+
+    if (queues_none_empty && (!nextGPTGPNEvent.scheduled())) {
+        schedule(nextGPTGPNEvent, nextCycle());
     }
 }
 
 void
-RouterEngine::processNextRemoteGPTGPNEvent()
+RouterEngine::processNextInternalRequestEvent()
 {
+    DPRINTF(RouterEngine, "%s: Sending a request between two routers.\n",
+                                                                    __func__);
     bool none_empty_queue = false;
     for (auto &queue: gpnRespQueues) {
         if (!queue.second.empty()) {
             if (!gpnReqPorts[queue.first].blocked()) {
                 PacketPtr pkt = queue.second.front();
+                DPRINTF(RouterEngine, "%s: Sending packet %s to router: %d.\n",
+                    __func__, pkt->getAddr(), gpnReqPorts[queue.first].id());
                 gpnReqPorts[queue.first].sendPacket(pkt);
                 queue.second.pop();
-                break;
             }
         }
     }
@@ -307,16 +388,23 @@ RouterEngine::processNextRemoteGPTGPNEvent()
     }
 
     if (none_empty_queue) {
-        schedule(nextRemoteGPTGPNEvent, nextCycle());
+        DPRINTF(RouterEngine, "%s: The gpnRespQueues is not empty.\n",
+                                                                    __func__);
+    } else {
+        DPRINTF(RouterEngine, "%s: The gpnRespQueues is empty.\n", __func__);
+    }
+
+    if (none_empty_queue && (!nextInternalRequestEvent.scheduled())) {
+        schedule(nextInternalRequestEvent, nextCycle());
     }
 }
 
-void 
+void
 RouterEngine::GPTRespPort::recvFunctional(PacketPtr pkt) {
     panic("Not implemented yet!");
 }
 
-void 
+void
 RouterEngine::GPTRespPort::recvRespRetry() {
     panic("Not implemented yet!");
 }
@@ -327,25 +415,18 @@ RouterEngine::GPNRespPort::recvAtomic(PacketPtr pkt) {
 }
 
 void
-RouterEngine::GPNRespPort::checkRetryReq()
-{
+RouterEngine::GPNRespPort::checkRetryReq() {
     if (needSendRetryReq) {
         needSendRetryReq = false;
         sendRetryReq();
     }
 }
 
-void
-RouterEngine::checkRetryInternal()
-{
-    for (int i = 0; i < gpnRespPorts.size(); i++) {
-        gpnRespPorts[i].checkRetryReq();
-    }
-}
-
 bool
 RouterEngine::GPNRespPort::recvTimingReq(PacketPtr pkt) {
     if (!owner->handleRemoteRequest(id(), pkt)) {
+        DPRINTF(RouterEngine, "%s: Router Rejected the packet %s.\n",
+                    __func__, pkt->getAddr());
         needSendRetryReq = true;
         return false;
     }
@@ -354,12 +435,6 @@ RouterEngine::GPNRespPort::recvTimingReq(PacketPtr pkt) {
 
 bool
 RouterEngine::handleRemoteRequest(PortID id, PacketPtr pkt) {
-    // std::queue<PacketPtr>& queue = routerAddrMap[id];
-    // for (auto &itr: routerAddrMap) {
-    //     if (itr.first == id) {
-
-    //     }
-    // }
     bool accepted = false;
     if (gpnReqQueues[id].size() < gpnQSize) {
         gpnReqQueues[id].push(pkt);
@@ -368,15 +443,17 @@ RouterEngine::handleRemoteRequest(PortID id, PacketPtr pkt) {
         accepted = false;
     }
 
-    if (accepted && (!nextInteralGPNGPTEvent.scheduled())) {
-        schedule(nextInteralGPNGPTEvent, nextCycle());
+    if (accepted && (!nextGPNGPTEvent.scheduled())) {
+        schedule(nextGPNGPTEvent, nextCycle());
     }
 
+    DPRINTF(RouterEngine, "%s: The remote packet: %s is accepted: %d.\n",
+                                        __func__, pkt->getAddr(), accepted);
     return accepted;
 }
 
 void
-RouterEngine::processNextInteralGPNGPTEvent()
+RouterEngine::processNextGPNGPTEvent()
 {
     bool found = false;
     bool queues_none_empty = false;
@@ -387,53 +464,73 @@ RouterEngine::processNextInteralGPNGPTEvent()
             for (int i = 0; i < gptReqPorts.size(); i++) {
                 AddrRangeList addr_list = gptAddrMap[gptReqPorts[i].id()];
                 if ((contains(addr_list, pkt_addr))) {
-                    if (gptRespQueues[gpnReqPorts[i].id()].size() < gptQSize) {
-                        gptRespQueues[gpnReqPorts[i].id()].push(pkt);
+                    if (gptRespQueues[gptReqPorts[i].id()].size() < gptQSize) {
+                        gptRespQueues[gptReqPorts[i].id()].push(pkt);
+                        DPRINTF(RouterEngine, "%s: The size of "
+                                    "gptRespQueues[%d] is %d.\n", __func__, i,
+                                    gptRespQueues[gptReqPorts[i].id()].size());
+                        DPRINTF(RouterEngine,
+                                    "%s: Sending pkt %s to GPT %d.\n",
+                                    __func__, pkt->getAddr(), i);
                         queue.second.pop();
-                        checkRetryInternal();
-                        found = true;
-                        if ((!nextRemoteGPNGPTEvent.scheduled())) {
-                            schedule(nextRemoteGPNGPTEvent, nextCycle());
+                        found |= true;
+                        if ((!nextExternalRequestEvent.scheduled())) {
+                            schedule(nextExternalRequestEvent, nextCycle());
                         }
-                        break;
                     } else {
-                        found = false;
-                        break;
+                        DPRINTF(RouterEngine,
+                                    "%s: gptRespQueues[%d] is full.\n",
+                                    __func__, pkt->getAddr(), i);
+                        found |= false;
                     }
                 }
             }
         }
         if (found) {
-            break;
+            checkGPNRetryReq();
         }
     }
+
     for (auto &queue: gpnReqQueues) {
         if (!queue.second.empty()) {
             queues_none_empty = true;
         }
     }
 
-    if (queues_none_empty && !nextInteralGPNGPTEvent.scheduled()) {
-        schedule(nextInteralGPNGPTEvent, nextCycle());
+    if (queues_none_empty) {
+        DPRINTF(RouterEngine, "%s: gpnReqQueues is not empty.\n", __func__);
+    } else {
+        DPRINTF(RouterEngine, "%s: gpnReqQueues is empty.\n", __func__);
+    }
+
+    if (queues_none_empty && (!nextGPNGPTEvent.scheduled())) {
+        schedule(nextGPNGPTEvent, nextCycle());
     }
 }
 
 void
-RouterEngine::processNextRemoteGPNGPTEvent()
+RouterEngine::processNextExternalRequestEvent()
 {
+    DPRINTF(RouterEngine, "%s: Sending the request to the GPT.\n", __func__);
     bool none_empty_queue = false;
     for (auto &queue: gptRespQueues) {
         if (!queue.second.empty()) {
             if (!gptReqPorts[queue.first].blocked()) {
                 PacketPtr pkt = queue.second.front();
+                DPRINTF(RouterEngine, "%s: gptRespQueues[%d] is not empty. "
+                        "the size is: %d.\n", __func__,
+                         gptReqPorts[queue.first].id() ,queue.second.size());
+                DPRINTF(RouterEngine, "%s: Sending packet %s to GPT: %d.\n",
+                    __func__, pkt->getAddr(),gptReqPorts[queue.first].id());
                 gptReqPorts[queue.first].sendPacket(pkt);
                 queue.second.pop();
-                break;
             }
         }
     }
 
     for (auto &queue: gptRespQueues) {
+        DPRINTF(RouterEngine, "%s: gptRespQueues[%d] size is: %d.\n", __func__,
+                        gptReqPorts[queue.first].id() ,queue.second.size());
         if (!queue.second.empty()) {
             none_empty_queue = true;
             break;
@@ -441,7 +538,16 @@ RouterEngine::processNextRemoteGPNGPTEvent()
     }
 
     if (none_empty_queue) {
-        schedule(nextRemoteGPNGPTEvent, nextCycle());
+        DPRINTF(RouterEngine, "%s: The gptRespQueues is not empty.\n",
+                                                                    __func__);
+    } else {
+        DPRINTF(RouterEngine, "%s: The gptRespQueues is empty.\n", __func__);
+    }
+
+    if (none_empty_queue) {
+        if (!nextExternalRequestEvent.scheduled()) {
+            schedule(nextExternalRequestEvent, nextCycle());
+        }
     }
 }
 
@@ -451,19 +557,19 @@ RouterEngine::GPNRespPort::recvFunctional(PacketPtr pkt)
     panic("Not implemented yet!");
 }
 
-void 
+void
 RouterEngine::GPNRespPort::recvRespRetry()
 {
     panic("Not implemented yet!");
 }
 
 void
-RouterEngine::wakeUpExternal()
+RouterEngine::wakeUpInternal()
 {
-    if (!nextRemoteGPNGPTEvent.scheduled()) {
-        for (auto &queue: gptRespQueues) {
+    if ((!nextInternalRequestEvent.scheduled())) {
+        for (auto &queue: gpnRespQueues) {
             if (!queue.second.empty()) {
-                schedule(nextRemoteGPNGPTEvent, nextCycle());
+                schedule(nextInternalRequestEvent, nextCycle());
                 return;
             }
         }
@@ -471,15 +577,18 @@ RouterEngine::wakeUpExternal()
 }
 
 void
-RouterEngine::wakeUpInternal()
+RouterEngine::checkGPTRetryReq()
 {
-    if (!nextRemoteGPTGPNEvent.scheduled()) {
-        for (auto &queue: gpnRespQueues) {
-            if (!queue.second.empty()) {
-                schedule(nextRemoteGPTGPNEvent, nextCycle());
-                return;
-            }
-        }
+    for (int i = 0; i < gptRespPorts.size(); i++) {
+        gptRespPorts[i].checkRetryReq();
+    }
+}
+
+void
+RouterEngine::checkGPNRetryReq()
+{
+    for (int i = 0; i < gpnRespPorts.size(); i++) {
+        gpnRespPorts[i].checkRetryReq();
     }
 }
 
