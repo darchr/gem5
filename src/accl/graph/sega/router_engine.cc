@@ -89,6 +89,13 @@ RouterEngine::registerCenteralController(
     centeralController = centeral_controller;
 }
 
+void
+RouterEngine::registerCenteralController(
+                                    CenteralController* centeral_controller)
+{
+    centeralController = centeral_controller;
+}
+
 AddrRangeList
 RouterEngine::GPTRespPort::getAddrRanges() const
 {

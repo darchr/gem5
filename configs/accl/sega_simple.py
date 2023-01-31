@@ -214,6 +214,10 @@ class SEGA(System):
         self.ctrl.mpu_vector = [gpt.mpu for gpt in self.gpts]
         self.ctrl.router_vector = []
 
+        # self.ctrl.set_mpu_vector([gpt.mpu for gpt in self.gpts])
+        # self.ctrl.mpu_vector = [gpt.mpu for gpt in self.gpts]
+        # self.ctrl.router_vector = []
+
     def work_count(self):
         return self.ctrl.controller.workCount()
 

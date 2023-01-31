@@ -73,6 +73,11 @@ CenteralController::getPort(const std::string& if_name, PortID idx)
     } else {
         return ClockedObject::getPort(if_name, idx);
     }
+
+    for (auto router : params.router_vector) {
+        routerVector.push_back(router);
+        router->registerCenteralController(this);
+    }
 }
 
 void

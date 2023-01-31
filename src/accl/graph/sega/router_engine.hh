@@ -196,7 +196,6 @@ class RouterEngine : public ClockedObject
   public:
     PARAMS(RouterEngine);
     RouterEngine(const Params &params);
-
     void registerCenteralController(CenteralController* centeral_controller);
     virtual void init() override;
     virtual void startup() override;
