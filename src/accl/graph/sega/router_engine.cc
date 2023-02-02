@@ -30,6 +30,7 @@
 
 #include "accl/graph/sega/centeral_controller.hh"
 #include "base/trace.hh"
+#include "sim/stats.hh"
 #include "debug/RouterEngine.hh"
 
 namespace gem5
@@ -40,14 +41,16 @@ RouterEngine::RouterEngine(const Params &params):
   gptQSize(params.gpt_queue_size),
   gpnQSize(params.gpn_queue_size),
   emptyQueues(false),
+  routerLatency(params.router_latency),
   nextGPTGPNEvent([this] { processNextGPTGPNEvent(); }, name()),
   nextInternalRequestEvent(
                         [this] { processNextInternalRequestEvent(); }, name()),
   nextGPNGPTEvent([this] { processNextGPNGPTEvent(); }, name()),
-  nextExternalRequestEvent
-                        ([this] { processNextExternalRequestEvent(); }, name())
-//   nextDoneSignalEvent([this] { processNextDoneSignalEvent(); }, name())
-    {
+  nextExternalRequestEvent(
+                        [this] { processNextExternalRequestEvent(); }, name()),
+//   trafficStats(*this)
+  stats(*this)
+{
 
     for (int i = 0; i < params.port_gpt_req_side_connection_count; ++i) {
         gptReqPorts.emplace_back(
@@ -68,6 +71,12 @@ RouterEngine::RouterEngine(const Params &params):
         gpnRespPorts.emplace_back(
                     name() + ".gpn_resp_side" + std::to_string(i), this, i);
     }
+
+    // for(int i = 0; i < gpnReqPorts.size(); i++){
+    //     stats.internalTrafficCount.push_back(new statistics::Histogram());
+    //     stats.internalTrafficCount[i]->init(10);
+    // }
+    // statistics::registerDumpCallback([this]() { collateStats(); });
 }
 
 void
@@ -376,6 +385,11 @@ RouterEngine::processNextInternalRequestEvent()
                     __func__, pkt->getAddr(), gpnReqPorts[queue.first].id());
                 gpnReqPorts[queue.first].sendPacket(pkt);
                 queue.second.pop();
+                stats.internalAcceptedTraffic[gpnReqPorts[queue.first].id()]++;
+            } 
+            else {
+                stats.internalBlockedTraffic[gpnReqPorts[queue.first].id()]++;
+            //    trafficStats.m_internalTrafficCount[gpnReqPorts[queue.first].id()]->sample(queue.second.size());
             }
         }
     }
@@ -395,7 +409,7 @@ RouterEngine::processNextInternalRequestEvent()
     }
 
     if (none_empty_queue && (!nextInternalRequestEvent.scheduled())) {
-        schedule(nextInternalRequestEvent, nextCycle());
+        schedule(nextInternalRequestEvent, curTick()+routerLatency);
     }
 }
 
@@ -524,6 +538,11 @@ RouterEngine::processNextExternalRequestEvent()
                     __func__, pkt->getAddr(),gptReqPorts[queue.first].id());
                 gptReqPorts[queue.first].sendPacket(pkt);
                 queue.second.pop();
+                stats.externalAcceptedTraffic[gpnReqPorts[queue.first].id()]++;
+            }
+             else {
+                stats.externalBlockedTraffic[gpnReqPorts[queue.first].id()]++;
+            //    trafficStats.m_internalTrafficCount[gpnReqPorts[queue.first].id()]->sample(queue.second.size());
             }
         }
     }
@@ -590,6 +609,68 @@ RouterEngine::checkGPNRetryReq()
     for (int i = 0; i < gpnRespPorts.size(); i++) {
         gpnRespPorts[i].checkRetryReq();
     }
+}
+
+// RouterEngine::
+// RouterEngineStats::RouterEngineStats(RouterEngine &_router)
+//     : statistics::Group(&_router),
+//     router(_router)
+// {
+
+//     for (int i = 0; i < router.gpnReqPorts.size(); i++) {
+//         m_internalTrafficCount.push_back(new statistics::Histogram(this));
+//         m_internalTrafficCount[i]
+//             ->init(0)
+//             .flags(statistics::nozero);
+//     }
+// }
+
+// void RouterEngine::resetStats()
+// {
+//     for (int i = 0; i < gpnReqPorts.size(); i++) {
+//         trafficStats.m_internalTrafficCount[i]->reset();
+//     }
+// }
+
+// void
+// RouterEngine::regStats()
+// {
+//     ClockedObject::regStats();
+// }
+
+// void
+// RouterEngine::collateStats()
+// {
+//     for (uint32_t j = 0; j < gpnReqPorts.size(); ++j) {
+//                         trafficStats
+//                         .m_internalTrafficCount[j];
+//                         // ->add(getInternalTrafficCount(j));
+//     }
+// }
+
+RouterEngine::RouterEngineStat::RouterEngineStat(RouterEngine &_router)
+    : statistics::Group(&_router),
+    router(_router),
+    ADD_STAT(internalBlockedTraffic, statistics::units::Count::get(),
+             "Number of packets blocked between routers."),
+    ADD_STAT(externalBlockedTraffic, statistics::units::Count::get(),
+             "Number of external packets blocked."),
+    ADD_STAT(internalAcceptedTraffic, statistics::units::Count::get(),
+             "Number of packet passed between routers."),
+    ADD_STAT(externalAcceptedTraffic, statistics::units::Count::get(),
+             "Number of external packets passed.")
+{
+}
+
+void
+RouterEngine::RouterEngineStat::regStats()
+{
+    using namespace statistics;
+
+    internalBlockedTraffic.init(router.gpnReqPorts.size());
+    externalBlockedTraffic.init(router.gptReqPorts.size());
+    internalAcceptedTraffic.init(router.gpnReqPorts.size());
+    externalAcceptedTraffic.init(router.gptReqPorts.size());
 }
 
 }// namespace gem5

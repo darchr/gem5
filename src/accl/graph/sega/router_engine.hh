@@ -132,52 +132,79 @@ class RouterEngine : public ClockedObject
         virtual void recvFunctional(PacketPtr pkt);
         virtual void recvRespRetry();
     };
+//    struct RouterEngineStats : public statistics::Group
+//     {
+//       RouterEngineStats(RouterEngine &router);
 
-  System* system;
-  CenteralController* centeralController;
-  bool handleRequest(PortID portId, PacketPtr pkt);
-  bool handleRemoteRequest(PortID portId, PacketPtr pkt);
-  void wakeUpInternal();
-  void wakeUpExternal();
-  void checkRetryExternal();
-  void checkRetryInternal();
-  std::vector<GPTReqPort> gptReqPorts;
-  std::vector<GPTRespPort> gptRespPorts;
+//       RouterEngine &router;
+//       std::vector<statistics::Histogram *> m_internalTrafficCount;
+//     };
+    System* system;
+    CenteralController* centeralController;
+    bool handleRequest(PortID portId, PacketPtr pkt);
+    bool handleRemoteRequest(PortID portId, PacketPtr pkt);
+    void wakeUpInternal();
+    void wakeUpExternal();
+    void checkRetryExternal();
+    void checkRetryInternal();
+    std::vector<GPTReqPort> gptReqPorts;
+    std::vector<GPTRespPort> gptRespPorts;
 
-  std::vector<GPNReqPort> gpnReqPorts;
-  std::vector<GPNRespPort> gpnRespPorts;
+    std::vector<GPNReqPort> gpnReqPorts;
+    std::vector<GPNRespPort> gpnRespPorts;
 
-  std::unordered_map<PortID, AddrRangeList> gptAddrMap;
-  std::unordered_map<PortID, AddrRangeList> routerAddrMap;
+    std::unordered_map<PortID, AddrRangeList> gptAddrMap;
+    std::unordered_map<PortID, AddrRangeList> routerAddrMap;
 
-  std::unordered_map<PortID, std::queue<PacketPtr>> gptReqQueues;
-  std::unordered_map<PortID, std::queue<PacketPtr>> gpnRespQueues;
+    std::unordered_map<PortID, std::queue<PacketPtr>> gptReqQueues;
+    std::unordered_map<PortID, std::queue<PacketPtr>> gpnRespQueues;
 
-  std::unordered_map<PortID, std::queue<PacketPtr>> gptRespQueues;
-  std::unordered_map<PortID, std::queue<PacketPtr>> gpnReqQueues;
+    std::unordered_map<PortID, std::queue<PacketPtr>> gptRespQueues;
+    std::unordered_map<PortID, std::queue<PacketPtr>> gpnReqQueues;
 
-  const uint32_t gptQSize;
-  const uint32_t gpnQSize;
-  bool emptyQueues;
+    const uint32_t gptQSize;
+    const uint32_t gpnQSize;
+    bool emptyQueues;
+    const Tick routerLatency;
 
-  EventFunctionWrapper nextGPTGPNEvent;
-  void processNextGPTGPNEvent();
+    EventFunctionWrapper nextGPTGPNEvent;
+    void processNextGPTGPNEvent();
 
-  EventFunctionWrapper nextInternalRequestEvent;
-  void processNextInternalRequestEvent();
+    EventFunctionWrapper nextInternalRequestEvent;
+    void processNextInternalRequestEvent();
 
-  EventFunctionWrapper nextGPNGPTEvent;
-  void processNextGPNGPTEvent();
+    EventFunctionWrapper nextGPNGPTEvent;
+    void processNextGPNGPTEvent();
 
-  EventFunctionWrapper nextExternalRequestEvent;
-  void processNextExternalRequestEvent();
+    EventFunctionWrapper nextExternalRequestEvent;
+    void processNextExternalRequestEvent();
 
-  // EventFunctionWrapper nextDoneSignalEvent;
-  // void processNextDoneSignalEvent();
+    struct RouterEngineStat : public statistics::Group
+    {
+      RouterEngineStat(RouterEngine &push);
+
+      void regStats() override;
+
+      RouterEngine &router;
+
+      statistics::Vector internalBlockedTraffic;
+      statistics::Vector externalBlockedTraffic;
+      statistics::Vector internalAcceptedTraffic;
+      statistics::Vector externalAcceptedTraffic;
+    };
+
+    RouterEngineStat stats;
 
   public:
     PARAMS(RouterEngine);
     RouterEngine(const Params &params);
+    // RouterEngineStats trafficStats;
+    // struct TrafficStats : public statistics::Group
+    // {
+    //   TrafficStats(RouterEngine &router);
+    //   std::vector<statistics::Histogram*> internalTrafficCount;
+    // } stats;
+
     void registerCenteralController(CenteralController* centeral_controller);
     virtual void init() override;
     virtual void startup() override;
@@ -191,6 +218,14 @@ class RouterEngine : public ClockedObject
     void checkGPTRetryReq();
     void checkGPNRetryReq();
     bool done();
+    // virtual void collateStats();
+    // virtual void resetStats();
+    // virtual void regStats();
+
+    // statistics::Histogram& getInternalTrafficCount(uint32_t t)
+    // { return *(stats.internalTrafficCount[t]); }
+
+
 
 };
 

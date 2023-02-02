@@ -140,7 +140,7 @@ class SEGA(System):
         self.cache_line_size = 32
         self.mem_mode = "timing"
 
-        GPTPerGPN = 2
+        GPTPerGPN = 8
 
         # Building the CenteralController
         self.ctrl = CenteralController(
@@ -168,7 +168,10 @@ class SEGA(System):
             gpts.append(gpt)
         for i in range(int(num_gpts/GPTPerGPN)):
             routers.append(
-                        RouterEngine(gpn_queue_size = 64, gpt_queue_size = 64))
+                        RouterEngine(
+                                gpn_queue_size = 16,
+                                gpt_queue_size = 16,
+                                router_latency = "1ns"))
         self.routers = routers
         # for gpt_0 in gpts:
         #     for gpt_1 in gpts:
@@ -220,6 +223,8 @@ class SEGA(System):
 
     def create_async_pr_workload(self, alpha, threshold):
         self.ctrl.createAsyncPRWorkload(alpha, threshold)
+    def get_pr_error(self):
+        return self.ctrl.getPRError()
 
     def create_pr_workload(self, num_nodes, alpha):
         self.ctrl.createPRWorkload(num_nodes, alpha)

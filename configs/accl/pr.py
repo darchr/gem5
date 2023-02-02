@@ -101,7 +101,7 @@ if __name__ == "__m5_main__":
     print(f"error_threshold: {error_threshold}")
 
     if simple:
-        from sega_simple import SEGA
+        from sega_simple_pt2pt import SEGA
     else:
         from sega import SEGA
     system = SEGA(num_gpts, num_registers, cache_size, graph)
