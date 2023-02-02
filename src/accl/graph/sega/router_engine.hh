@@ -36,6 +36,7 @@
 #include "params/RouterEngine.hh"
 #include "sim/clocked_object.hh"
 #include "sim/system.hh"
+#include "base/types.hh"
 
 namespace gem5
 {
@@ -162,10 +163,13 @@ class RouterEngine : public ClockedObject
     std::unordered_map<PortID, std::queue<PacketPtr>> gptRespQueues;
     std::unordered_map<PortID, std::queue<PacketPtr>> gpnReqQueues;
 
+    std::unordered_map<PortID, Cycles> externalLatency;
+    std::unordered_map<PortID, Cycles> internalLatency;
+
     const uint32_t gptQSize;
     const uint32_t gpnQSize;
     bool emptyQueues;
-    const Tick routerLatency;
+    const Cycles routerLatency;
 
     EventFunctionWrapper nextGPTGPNEvent;
     void processNextGPTGPNEvent();

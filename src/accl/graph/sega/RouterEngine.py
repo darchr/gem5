@@ -43,5 +43,5 @@ class RouterEngine(ClockedObject):
     gpn_resp_side = VectorResponsePort("incoming ports from local GPNs")
     gpt_queue_size = Param.Int(64, "Queue size on the gpt side")
     gpn_queue_size = Param.Int(64, "Queue size on the gpt side")
-    router_latency = Param.Latency("5ns", "Router latency, "
+    router_latency = Param.Cycles(5, "Router latency, "
                                 "SerDes or E-O-E latencies can be added here")

@@ -72,6 +72,13 @@ RouterEngine::RouterEngine(const Params &params):
                     name() + ".gpn_resp_side" + std::to_string(i), this, i);
     }
 
+    for (int i = 0; i <params.port_gpt_req_side_connection_count; ++i) {
+        externalLatency[i] = curCycle();
+    }
+
+    for (int i = 0; i < params.port_gpn_req_side_connection_count; ++i) {
+        internalLatency[i] = curCycle();
+    }
     // for(int i = 0; i < gpnReqPorts.size(); i++){
     //     stats.internalTrafficCount.push_back(new statistics::Histogram());
     //     stats.internalTrafficCount[i]->init(10);
@@ -380,12 +387,18 @@ RouterEngine::processNextInternalRequestEvent()
     for (auto &queue: gpnRespQueues) {
         if (!queue.second.empty()) {
             if (!gpnReqPorts[queue.first].blocked()) {
+                if  ((curCycle() - 
+                    internalLatency[gpnReqPorts[queue.first].id()]) 
+                    < routerLatency) {
+                    continue;
+                } 
+                stats.internalAcceptedTraffic[gpnReqPorts[queue.first].id()]++;
                 PacketPtr pkt = queue.second.front();
                 DPRINTF(RouterEngine, "%s: Sending packet %s to router: %d.\n",
                     __func__, pkt->getAddr(), gpnReqPorts[queue.first].id());
                 gpnReqPorts[queue.first].sendPacket(pkt);
                 queue.second.pop();
-                stats.internalAcceptedTraffic[gpnReqPorts[queue.first].id()]++;
+                internalLatency[gpnReqPorts[queue.first].id()] = curCycle();
             } 
             else {
                 stats.internalBlockedTraffic[gpnReqPorts[queue.first].id()]++;
@@ -393,7 +406,6 @@ RouterEngine::processNextInternalRequestEvent()
             }
         }
     }
-
     for (auto &queue: gpnRespQueues) {
         if (!queue.second.empty()) {
             none_empty_queue = true;
@@ -408,8 +420,25 @@ RouterEngine::processNextInternalRequestEvent()
         DPRINTF(RouterEngine, "%s: The gpnRespQueues is empty.\n", __func__);
     }
 
+    Tick next_schedule = nextCycle() + cyclesToTicks(routerLatency);
+    for (auto itr = internalLatency.begin(); 
+            itr != internalLatency.end();
+            itr++)
+    {
+        if (cyclesToTicks(itr->second + routerLatency) <  next_schedule) {
+            if ((itr->second + routerLatency) <  curCycle()) {
+                next_schedule =  nextCycle();
+                break;
+            } else {
+                next_schedule = std::min(
+                                    cyclesToTicks(itr->second + routerLatency),
+                                    next_schedule);
+            }
+        } 
+    }
+
     if (none_empty_queue && (!nextInternalRequestEvent.scheduled())) {
-        schedule(nextInternalRequestEvent, curTick()+routerLatency);
+        schedule(nextInternalRequestEvent, next_schedule);
     }
 }
 
@@ -530,6 +559,12 @@ RouterEngine::processNextExternalRequestEvent()
     for (auto &queue: gptRespQueues) {
         if (!queue.second.empty()) {
             if (!gptReqPorts[queue.first].blocked()) {
+                if ((curCycle() - 
+                    externalLatency[gptReqPorts[queue.first].id()]) 
+                    < routerLatency) {
+                    continue;
+                }
+                stats.externalAcceptedTraffic[gptReqPorts[queue.first].id()]++;
                 PacketPtr pkt = queue.second.front();
                 DPRINTF(RouterEngine, "%s: gptRespQueues[%d] is not empty. "
                         "the size is: %d.\n", __func__,
@@ -538,10 +573,10 @@ RouterEngine::processNextExternalRequestEvent()
                     __func__, pkt->getAddr(),gptReqPorts[queue.first].id());
                 gptReqPorts[queue.first].sendPacket(pkt);
                 queue.second.pop();
-                stats.externalAcceptedTraffic[gpnReqPorts[queue.first].id()]++;
+                externalLatency[gptReqPorts[queue.first].id()] = curCycle();
             }
              else {
-                stats.externalBlockedTraffic[gpnReqPorts[queue.first].id()]++;
+                stats.externalBlockedTraffic[gptReqPorts[queue.first].id()]++;
             //    trafficStats.m_internalTrafficCount[gpnReqPorts[queue.first].id()]->sample(queue.second.size());
             }
         }
@@ -563,9 +598,25 @@ RouterEngine::processNextExternalRequestEvent()
         DPRINTF(RouterEngine, "%s: The gptRespQueues is empty.\n", __func__);
     }
 
+    Tick next_schedule = cyclesToTicks(curCycle() + routerLatency);
+    for (auto itr = externalLatency.begin(); 
+        itr != externalLatency.end(); itr++)
+    {
+        if (cyclesToTicks(itr->second + routerLatency) <  next_schedule) {
+            if ((itr->second + routerLatency) <  curCycle()) {
+                next_schedule =  nextCycle();
+                break;
+            } else {
+                next_schedule = std::min(
+                                    cyclesToTicks(itr->second + routerLatency),
+                                    next_schedule);
+            }
+        } 
+    }
+
     if (none_empty_queue) {
         if (!nextExternalRequestEvent.scheduled()) {
-            schedule(nextExternalRequestEvent, nextCycle());
+            schedule(nextExternalRequestEvent, next_schedule);
         }
     }
 }
