@@ -189,8 +189,10 @@ class RouterEngine : public ClockedObject
       statistics::Vector externalBlockedTraffic;
       statistics::Vector internalAcceptedTraffic;
       statistics::Vector externalAcceptedTraffic;
+      // std::vector<statistics::Histogram> internalTrafficHist;
+      std::vector<statistics::Histogram *> internalTrafficHist;
     };
-    RouterEngineStat stats;
+
   public:
     PARAMS(RouterEngine);
     RouterEngine(const Params &params);
@@ -208,6 +210,8 @@ class RouterEngine : public ClockedObject
     void checkGPTRetryReq();
     void checkGPNRetryReq();
     bool done();
+    void collateStats();
+    RouterEngineStat stats;
 
 };
 

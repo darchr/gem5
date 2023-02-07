@@ -397,6 +397,8 @@ RouterEngine::processNextInternalRequestEvent()
             } 
             else {
                 stats.internalBlockedTraffic[gpnReqPorts[queue.first].id()]++;
+                stats.internalTrafficHist[gpnReqPorts[queue.first].id()]->
+                                                sample(queue.second.size());
             }
         }
     }
@@ -666,7 +668,13 @@ RouterEngine::RouterEngineStat::RouterEngineStat(RouterEngine &_router)
              "Number of packet passed between routers."),
     ADD_STAT(externalAcceptedTraffic, statistics::units::Count::get(),
              "Number of external packets passed.")
-{}
+{
+    for (int i = 0; i < router.gpnReqPorts.size(); i++) {
+        internalTrafficHist.push_back(new statistics::Histogram(
+            this, "internalTrafficHist", 
+            statistics::units::Count::get()));
+    }
+}
 
 void
 RouterEngine::RouterEngineStat::regStats()
@@ -678,6 +686,9 @@ RouterEngine::RouterEngineStat::regStats()
     internalAcceptedTraffic.init(router.gpnReqPorts.size());
     externalAcceptedTraffic.init(router.gptReqPorts.size());
 
+    for (int i = 0; i < router.gpnReqPorts.size(); i++) {
+        internalTrafficHist[i]->init(10);
+    }
 }
 
 }// namespace gem5
