@@ -127,7 +127,8 @@ class EdgeMemory(SubSystem):
 
 
 class SEGA(System):
-    def __init__(self, num_gpts, num_registers, cache_size, graph_path):
+    def __init__(self, num_gpts, num_registers, cache_size,
+                                        r_queue_size, r_latency, graph_path):
         super(SEGA, self).__init__()
         # num_gpts should be an even power of 2
         assert num_gpts != 0

@@ -79,11 +79,6 @@ RouterEngine::RouterEngine(const Params &params):
     for (int i = 0; i < params.port_gpn_req_side_connection_count; ++i) {
         internalLatency[i] = curCycle();
     }
-    // for(int i = 0; i < gpnReqPorts.size(); i++){
-    //     stats.internalTrafficCount.push_back(new statistics::Histogram());
-    //     stats.internalTrafficCount[i]->init(10);
-    // }
-    // statistics::registerDumpCallback([this]() { collateStats(); });
 }
 
 void
@@ -402,7 +397,6 @@ RouterEngine::processNextInternalRequestEvent()
             } 
             else {
                 stats.internalBlockedTraffic[gpnReqPorts[queue.first].id()]++;
-            //    trafficStats.m_internalTrafficCount[gpnReqPorts[queue.first].id()]->sample(queue.second.size());
             }
         }
     }
@@ -577,7 +571,6 @@ RouterEngine::processNextExternalRequestEvent()
             }
              else {
                 stats.externalBlockedTraffic[gptReqPorts[queue.first].id()]++;
-            //    trafficStats.m_internalTrafficCount[gpnReqPorts[queue.first].id()]->sample(queue.second.size());
             }
         }
     }
@@ -662,43 +655,6 @@ RouterEngine::checkGPNRetryReq()
     }
 }
 
-// RouterEngine::
-// RouterEngineStats::RouterEngineStats(RouterEngine &_router)
-//     : statistics::Group(&_router),
-//     router(_router)
-// {
-
-//     for (int i = 0; i < router.gpnReqPorts.size(); i++) {
-//         m_internalTrafficCount.push_back(new statistics::Histogram(this));
-//         m_internalTrafficCount[i]
-//             ->init(0)
-//             .flags(statistics::nozero);
-//     }
-// }
-
-// void RouterEngine::resetStats()
-// {
-//     for (int i = 0; i < gpnReqPorts.size(); i++) {
-//         trafficStats.m_internalTrafficCount[i]->reset();
-//     }
-// }
-
-// void
-// RouterEngine::regStats()
-// {
-//     ClockedObject::regStats();
-// }
-
-// void
-// RouterEngine::collateStats()
-// {
-//     for (uint32_t j = 0; j < gpnReqPorts.size(); ++j) {
-//                         trafficStats
-//                         .m_internalTrafficCount[j];
-//                         // ->add(getInternalTrafficCount(j));
-//     }
-// }
-
 RouterEngine::RouterEngineStat::RouterEngineStat(RouterEngine &_router)
     : statistics::Group(&_router),
     router(_router),
@@ -710,8 +666,7 @@ RouterEngine::RouterEngineStat::RouterEngineStat(RouterEngine &_router)
              "Number of packet passed between routers."),
     ADD_STAT(externalAcceptedTraffic, statistics::units::Count::get(),
              "Number of external packets passed.")
-{
-}
+{}
 
 void
 RouterEngine::RouterEngineStat::regStats()
@@ -722,6 +677,7 @@ RouterEngine::RouterEngineStat::regStats()
     externalBlockedTraffic.init(router.gptReqPorts.size());
     internalAcceptedTraffic.init(router.gpnReqPorts.size());
     externalAcceptedTraffic.init(router.gptReqPorts.size());
+
 }
 
 }// namespace gem5

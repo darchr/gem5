@@ -127,7 +127,8 @@ class EdgeMemory(SubSystem):
 
 
 class SEGA(System):
-    def __init__(self, num_gpts, num_registers, cache_size, graph_path):
+    def __init__(self, num_gpts, num_registers, cache_size, 
+                                        r_queue_size, r_latency, graph_path):
         super(SEGA, self).__init__()
         # num_gpts should be an even power of 2
         assert num_gpts != 0
@@ -169,9 +170,9 @@ class SEGA(System):
         for i in range(int(num_gpts/GPTPerGPN)):
             routers.append(
                         RouterEngine(
-                                gpn_queue_size = 16,
-                                gpt_queue_size = 16,
-                                router_latency = "1ns"))
+                                gpn_queue_size = r_queue_size,
+                                gpt_queue_size = r_queue_size,
+                                router_latency = r_latency))
         self.routers = routers
         # for gpt_0 in gpts:
         #     for gpt_1 in gpts:

@@ -36,6 +36,8 @@ def get_inputs():
     argparser.add_argument("num_gpts", type=int)
     argparser.add_argument("num_registers", type=int)
     argparser.add_argument("cache_size", type=str)
+    argparser.add_argument("r_queue_size", type=int)
+    argparser.add_argument("r_latency", type=str)
     argparser.add_argument("graph", type=str)
     argparser.add_argument("alpha", type=float)
     argparser.add_argument("threshold", type=float)
@@ -70,6 +72,8 @@ def get_inputs():
         args.num_gpts,
         args.num_registers,
         args.cache_size,
+        args.r_queue_size,
+        args.r_latency,
         args.graph,
         args.alpha,
         args.threshold,
@@ -84,6 +88,8 @@ if __name__ == "__m5_main__":
         num_gpts,
         num_registers,
         cache_size,
+        r_queue_size,
+        r_latency,
         graph,
         alpha,
         threshold,
@@ -96,7 +102,8 @@ if __name__ == "__m5_main__":
         from sega_simple_pt2pt import SEGA
     else:
         from sega import SEGA
-    system = SEGA(num_gpts, num_registers, cache_size, graph)
+    system = SEGA(num_gpts, num_registers, cache_size, 
+                                        r_queue_size, r_latency, graph)
     root = Root(full_system=False, system=system)
 
     m5.instantiate()

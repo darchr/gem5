@@ -133,13 +133,7 @@ class RouterEngine : public ClockedObject
         virtual void recvFunctional(PacketPtr pkt);
         virtual void recvRespRetry();
     };
-//    struct RouterEngineStats : public statistics::Group
-//     {
-//       RouterEngineStats(RouterEngine &router);
 
-//       RouterEngine &router;
-//       std::vector<statistics::Histogram *> m_internalTrafficCount;
-//     };
     System* system;
     CenteralController* centeralController;
     bool handleRequest(PortID portId, PacketPtr pkt);
@@ -196,18 +190,10 @@ class RouterEngine : public ClockedObject
       statistics::Vector internalAcceptedTraffic;
       statistics::Vector externalAcceptedTraffic;
     };
-
     RouterEngineStat stats;
-
   public:
     PARAMS(RouterEngine);
     RouterEngine(const Params &params);
-    // RouterEngineStats trafficStats;
-    // struct TrafficStats : public statistics::Group
-    // {
-    //   TrafficStats(RouterEngine &router);
-    //   std::vector<statistics::Histogram*> internalTrafficCount;
-    // } stats;
 
     void registerCenteralController(CenteralController* centeral_controller);
     virtual void init() override;
@@ -222,14 +208,6 @@ class RouterEngine : public ClockedObject
     void checkGPTRetryReq();
     void checkGPNRetryReq();
     bool done();
-    // virtual void collateStats();
-    // virtual void resetStats();
-    // virtual void regStats();
-
-    // statistics::Histogram& getInternalTrafficCount(uint32_t t)
-    // { return *(stats.internalTrafficCount[t]); }
-
-
 
 };
 
