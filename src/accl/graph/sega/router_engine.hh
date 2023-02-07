@@ -192,10 +192,13 @@ class RouterEngine : public ClockedObject
       std::vector<statistics::Histogram *> internalTrafficHist;
     };
     RouterEngineStat stats;
-
   public:
     PARAMS(RouterEngine);
     RouterEngine(const Params &params);
+<<<<<<< HEAD
+=======
+
+>>>>>>> accl: Improving the router latency
     void registerCenteralController(CenteralController* centeral_controller);
     virtual void init() override;
     virtual void startup() override;
@@ -209,6 +212,10 @@ class RouterEngine : public ClockedObject
     void checkGPTRetryReq();
     void checkGPNRetryReq();
     bool done();
+<<<<<<< HEAD
+=======
+
+>>>>>>> accl: Improving the router latency
 };
 
 }
