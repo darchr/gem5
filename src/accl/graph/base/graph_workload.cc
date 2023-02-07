@@ -166,7 +166,8 @@ PRWorkload::init(PacketPtr pkt, WorkDirectory* dir)
         WorkListItem new_wl = items[index];
         new_wl.tempProp = readFromFloat<uint32_t>(0);
         new_wl.prop = readFromFloat<uint32_t>(1 - alpha);
-        atom_active |= activeCondition(new_wl, items[index]);
+        new_wl.activeNow = activeCondition(new_wl, items[index]);
+        atom_active |= new_wl.activeNow;
         items[index] = new_wl;
     }
     if (atom_active) {
