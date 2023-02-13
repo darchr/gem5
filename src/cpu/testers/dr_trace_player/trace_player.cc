@@ -167,24 +167,53 @@ DRTracePlayer::executeMemInst(DRTraceReader::TraceRef &mem_ref)
 bool
 DRTracePlayer::trySendMemRef(DRTraceReader::TraceRef &mem_ref)
 {
-    PacketPtr pkt = getPacket(mem_ref);
+    PacketPtr pkt, split_pkt;
 
-    DPRINTF(DRTrace, "Trying to send %s\n", pkt->print());
+    std::tie(pkt, split_pkt) = getPacket(mem_ref);
 
-    if (!port.sendTimingReq(pkt)) {
-        DPRINTF(DRTrace, "Failed to send pkt\n");
+    if (!retrySplitPkt) {
+        // we should not be sending the first pkt again if
+        // we are retrying only on the second part of the
+        // previously stalled request
+        DPRINTF(DRTrace, "Trying to send %s\n", pkt->print());
+
+        if (!port.sendTimingReq(pkt)) {
+            DPRINTF(DRTrace, "Failed to send pkt\n");
+            if (stats.memStallStart == 0) {
+                stats.memStallStart = curTick();
+            }
+            delete pkt;
+            if (!split_pkt) {
+            // if this is not a split pkt req,
+            // we can return back here
+            return true;
+            }
+        } else {
+            stats.latencyTracker[pkt] = curTick();
+            return false;
+        }
+    }
+
+    DPRINTF(DRTrace, "Trying to send split %s\n", split_pkt->print());
+
+    if (!port.sendTimingReq(split_pkt)) {
+        DPRINTF(DRTrace, "Failed to send pkt (split pkt) \n");
         if (stats.memStallStart == 0) {
             stats.memStallStart = curTick();
         }
-        delete pkt;
+        retrySplitPkt = false;
+        delete split_pkt;
         return true;
     } else {
-        stats.latencyTracker[pkt] = curTick();
+        stats.latencyTracker[split_pkt] = curTick();
+        // also remember that we only need to retry on second part of
+        // the split pkt
+        retrySplitPkt = true;
         return false;
     }
 }
 
-PacketPtr
+std::pair<PacketPtr, PacketPtr>
 DRTracePlayer::getPacket(DRTraceReader::TraceRef &mem_ref)
 {
     Request::Flags flags = Request::PHYSICAL;
@@ -198,11 +227,13 @@ DRTracePlayer::getPacket(DRTraceReader::TraceRef &mem_ref)
         addr %= compressAddressRange.size();
     }
 
+    bool split_req = false;
     unsigned size = mem_ref.size;
     Addr split_addr = roundDown(addr + size - 1, cacheLineSize);
     if (split_addr > addr) {
-        warn("Ignoring split packet that crosses cache line boundary.");
+        DPRINTF(DRTrace, "Split pkt (crosses cache line boundary) created\n");
         size = split_addr - addr;
+        split_req = true;
     }
 
     // Create new request
@@ -230,9 +261,35 @@ DRTracePlayer::getPacket(DRTraceReader::TraceRef &mem_ref)
         }
     }
 
-    return pkt;
-}
+    PacketPtr split_pkt = NULL;
 
+    // In case of split packets when we want to send two requests.
+    // For the second request, the starting address
+    // will be split_addr and the size will be cacheLineSize - size
+
+    if (split_req) {
+
+        // Create the split request
+        RequestPtr split_req = std::make_shared<Request>(split_addr,
+                                    cacheLineSize - size, flags, requestorId);
+        split_req->setPC(curPC);
+
+        // Embed it in a packet
+        split_pkt = new Packet(split_req, cmd);
+
+        if (params().send_data) {
+            uint8_t* split_pkt_data = new uint8_t[split_req->getSize()];
+            split_pkt->dataDynamic(split_pkt_data);
+
+            if (cmd.isWrite()) {
+                std::fill_n(split_pkt_data, split_req->getSize(),
+                                            (uint8_t)requestorId);
+            }
+        }
+    }
+
+    return std::make_pair(pkt, split_pkt);
+}
 
 Port &
 DRTracePlayer::getPort(const std::string &if_name, PortID idx)
