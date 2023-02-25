@@ -155,8 +155,6 @@ DRTracePlayer::executeMemInst(DRTraceReader::TraceRef &mem_ref)
     }
 
     if (!trySendMemRef(mem_ref)) {
-        numOutstandingMemReqs++;
-        stats.outstandingMemReqs.sample(numOutstandingMemReqs);
         stats.numMemInsts++;
         return false;
     } else {
@@ -182,8 +180,11 @@ DRTracePlayer::trySendMemRef(DRTraceReader::TraceRef &mem_ref)
             if (stats.memStallStart == 0) {
                 stats.memStallStart = curTick();
             }
+            numOutstandingMemReqs++;
+            stats.outstandingMemReqs.sample(numOutstandingMemReqs);
+
             delete pkt;
-            if (!split_pkt) {
+            if (split_pkt == nullptr) {
             // if this is not a split pkt req,
             // we can return back here
             return true;
@@ -201,14 +202,17 @@ DRTracePlayer::trySendMemRef(DRTraceReader::TraceRef &mem_ref)
         if (stats.memStallStart == 0) {
             stats.memStallStart = curTick();
         }
-        retrySplitPkt = false;
+        numOutstandingMemReqs++;
+        stats.outstandingMemReqs.sample(numOutstandingMemReqs);
+
         delete split_pkt;
-        return true;
-    } else {
-        stats.latencyTracker[split_pkt] = curTick();
         // also remember that we only need to retry on second part of
         // the split pkt
         retrySplitPkt = true;
+        return true;
+    } else {
+        stats.latencyTracker[split_pkt] = curTick();
+        retrySplitPkt = false;
         return false;
     }
 }
@@ -261,7 +265,7 @@ DRTracePlayer::getPacket(DRTraceReader::TraceRef &mem_ref)
         }
     }
 
-    PacketPtr split_pkt = NULL;
+    PacketPtr split_pkt = nullptr;
 
     // In case of split packets when we want to send two requests.
     // For the second request, the starting address
