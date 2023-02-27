@@ -165,9 +165,7 @@ DRTracePlayer::executeMemInst(DRTraceReader::TraceRef &mem_ref)
 bool
 DRTracePlayer::trySendMemRef(DRTraceReader::TraceRef &mem_ref)
 {
-    PacketPtr pkt, split_pkt;
-
-    std::tie(pkt, split_pkt) = getPacket(mem_ref);
+    auto [pkt, split_pkt] = getPacket(mem_ref);
 
     if (!retrySplitPkt) {
         // we should not be sending the first pkt again if
@@ -180,18 +178,20 @@ DRTracePlayer::trySendMemRef(DRTraceReader::TraceRef &mem_ref)
             if (stats.memStallStart == 0) {
                 stats.memStallStart = curTick();
             }
+            delete pkt;
+
+            // return true if we have to stall on the first pkt
+            // irrespective of if this is a split req
+            return true;
+        } else {
             numOutstandingMemReqs++;
             stats.outstandingMemReqs.sample(numOutstandingMemReqs);
-
-            delete pkt;
-            if (split_pkt == nullptr) {
-            // if this is not a split pkt req,
-            // we can return back here
-            return true;
-            }
-        } else {
             stats.latencyTracker[pkt] = curTick();
-            return false;
+            if (split_pkt == nullptr) {
+                // if this is not a split req, we can
+                // return here
+                return false;
+            }
         }
     }
 
@@ -202,22 +202,23 @@ DRTracePlayer::trySendMemRef(DRTraceReader::TraceRef &mem_ref)
         if (stats.memStallStart == 0) {
             stats.memStallStart = curTick();
         }
-        numOutstandingMemReqs++;
-        stats.outstandingMemReqs.sample(numOutstandingMemReqs);
-
         delete split_pkt;
         // also remember that we only need to retry on second part of
         // the split pkt
         retrySplitPkt = true;
         return true;
     } else {
+        numOutstandingMemReqs++;
+        stats.outstandingMemReqs.sample(numOutstandingMemReqs);
         stats.latencyTracker[split_pkt] = curTick();
         retrySplitPkt = false;
+        // At this point, we are sure that both pkts of the split req
+        // are received by the port
         return false;
     }
 }
 
-std::pair<PacketPtr, PacketPtr>
+std::tuple<PacketPtr, PacketPtr>
 DRTracePlayer::getPacket(DRTraceReader::TraceRef &mem_ref)
 {
     Request::Flags flags = Request::PHYSICAL;
@@ -292,7 +293,7 @@ DRTracePlayer::getPacket(DRTraceReader::TraceRef &mem_ref)
         }
     }
 
-    return std::make_pair(pkt, split_pkt);
+    return {pkt, split_pkt};
 }
 
 Port &

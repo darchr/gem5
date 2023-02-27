@@ -132,7 +132,7 @@ class DRTracePlayer : public ClockedObject
 
     bool recvTimingResp(PacketPtr pkt);
 
-    std::pair<PacketPtr, PacketPtr>
+    std::tuple<PacketPtr, PacketPtr>
     getPacket(DRTraceReader::TraceRef &mem_ref);
 
     /**
