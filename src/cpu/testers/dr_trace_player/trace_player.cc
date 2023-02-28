@@ -179,6 +179,7 @@ DRTracePlayer::trySendMemRef(DRTraceReader::TraceRef &mem_ref)
                 stats.memStallStart = curTick();
             }
             delete pkt;
+            delete split_pkt;
 
             // return true if we have to stall on the first pkt
             // irrespective of if this is a split req
@@ -193,6 +194,11 @@ DRTracePlayer::trySendMemRef(DRTraceReader::TraceRef &mem_ref)
                 return false;
             }
         }
+    } else {
+        // we should delete the first pkt here
+        // if we are only trying to resend the
+        // second pkt
+        delete pkt;
     }
 
     DPRINTF(DRTrace, "Trying to send split %s\n", split_pkt->print());
