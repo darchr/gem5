@@ -71,6 +71,9 @@ class DRTracePlayer : public ClockedObject
     AddrRange compressAddressRange;
     int cacheLineSize;
 
+    // variable to keep track of retries for split pkts
+    bool retrySplitPkt = false;
+
     // State
     bool stalled = false;
     Addr curPC = 0;
@@ -129,7 +132,8 @@ class DRTracePlayer : public ClockedObject
 
     bool recvTimingResp(PacketPtr pkt);
 
-    PacketPtr getPacket(DRTraceReader::TraceRef &mem_ref);
+    std::tuple<PacketPtr, PacketPtr>
+    getPacket(DRTraceReader::TraceRef &mem_ref);
 
     /**
      * @brief Send a request to memory based on the trace
