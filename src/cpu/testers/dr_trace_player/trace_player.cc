@@ -165,12 +165,16 @@ DRTracePlayer::executeMemInst(DRTraceReader::TraceRef &mem_ref)
 bool
 DRTracePlayer::trySendMemRef(DRTraceReader::TraceRef &mem_ref)
 {
+    // split_pkt will be nullptr if not a split req
     auto [pkt, split_pkt] = getPacket(mem_ref);
 
+    // ensure that currently we are not in process of
+    // retrying to send the second part of a previously
+    // stalled request to avoid duplicate first pkt in
+    // the memory system.
+    // Also, the assumption is that we cannot start a
+    // new memory request in parallel.
     if (!retrySplitPkt) {
-        // we should not be sending the first pkt again if
-        // we are retrying only on the second part of the
-        // previously stalled request
         DPRINTF(DRTrace, "Trying to send %s\n", pkt->print());
 
         if (!port.sendTimingReq(pkt)) {
@@ -203,6 +207,9 @@ DRTracePlayer::trySendMemRef(DRTraceReader::TraceRef &mem_ref)
 
     DPRINTF(DRTrace, "Trying to send split %s\n", split_pkt->print());
 
+    // if the first pkt is sent out, and the current
+    // request is a split request, try to send out
+    // the second pkt
     if (!port.sendTimingReq(split_pkt)) {
         DPRINTF(DRTrace, "Failed to send pkt (split pkt) \n");
         if (stats.memStallStart == 0) {
