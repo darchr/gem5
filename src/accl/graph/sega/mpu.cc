@@ -28,6 +28,8 @@
 
 #include "accl/graph/sega/mpu.hh"
 
+#include <iostream>
+
 #include "accl/graph/sega/centeral_controller.hh"
 #include "debug/MPU.hh"
 #include "mem/packet_access.hh"
@@ -37,11 +39,13 @@ namespace gem5
 {
 
 MPU::MPU(const Params& params):
-    SimObject(params),
+    ClockedObject(params),
     system(params.system),
     wlEngine(params.wl_engine),
     coalesceEngine(params.coalesce_engine),
-    pushEngine(params.push_engine)
+    pushEngine(params.push_engine),
+    sliceCounter(0),
+    nextSliceEvent([this] { processNextSliceEvent(); }, name())
 {
     wlEngine->registerMPU(this);
     coalesceEngine->registerMPU(this);
@@ -54,10 +58,54 @@ MPU::registerCenteralController(CenteralController* centeral_controller)
     centeralController = centeral_controller;
 }
 
+int
+MPU::getSliceSize()
+{
+    int slice_number = 
+        (coalesceEngine->getSliceSize() * centeralController->getnumGPTs());
+    
+    return slice_number;
+}
+
+bool
+MPU::bufferRemoteUpdate(int slice_number, PacketPtr pkt)
+{
+    return centeralController->bufferRemoteUpdate(slice_number, pkt);
+}
+
 bool
 MPU::handleIncomingUpdate(PacketPtr pkt)
 {
     return wlEngine->handleIncomingUpdate(pkt);
+}
+
+void
+MPU::scheduleNewSlice()
+{
+    if (!nextSliceEvent.scheduled()) {
+        schedule(nextSliceEvent, nextCycle());
+    }
+    return;
+}
+
+void
+MPU::processNextSliceEvent()
+{ 
+    auto new_update = 
+    centeralController->remoteUpdates[this][this->getSliceCounter()].front();
+    bool sent = wlEngine->handleIncomingUpdate(new_update);
+    
+    centeralController->remoteUpdates[this]
+                                        [this->getSliceCounter()].pop_front();
+    if (!sent) {
+        centeralController->remoteUpdates[this]
+                            [this->getSliceCounter()].push_back(new_update);
+    }
+
+    if (!centeralController->remoteUpdates[this][this->getSliceCounter()].empty() && !nextSliceEvent.scheduled()) {
+        schedule(nextSliceEvent, nextCycle());
+    }
+
 }
 
 void

@@ -39,7 +39,7 @@
 #include "accl/graph/sega/wl_engine.hh"
 #include "base/addr_range.hh"
 #include "mem/packet.hh"
-#include "sim/sim_object.hh"
+#include "sim/clocked_object.hh"
 #include "sim/system.hh"
 #include "params/MPU.hh"
 
@@ -48,7 +48,7 @@ namespace gem5
 
 class CenteralController;
 
-class MPU : public SimObject
+class MPU : public ClockedObject
 {
   private:
     System* system;
@@ -57,7 +57,10 @@ class MPU : public SimObject
     WLEngine* wlEngine;
     CoalesceEngine* coalesceEngine;
     PushEngine* pushEngine;
+    int sliceCounter;
 
+    EventFunctionWrapper nextSliceEvent;
+    void processNextSliceEvent();
   public:
     PARAMS(MPU);
     MPU(const Params& params);
@@ -74,8 +77,15 @@ class MPU : public SimObject
     void postConsumeProcess() { coalesceEngine->postConsumeProcess(); }
     void swapDirectories() { coalesceEngine->swapDirectories(); }
 
-    bool handleIncomingUpdate(PacketPtr pkt);
+    int getSliceSize();
+    int getSliceCounter() { return sliceCounter; }
+    int increaseSliceCounter() { return sliceCounter++; }
+    void updateSliceCounter(int value) { sliceCounter = value;}
+    void resetSliceCounter() { sliceCounter = 0; }
+    bool bufferRemoteUpdate(int slice_number, PacketPtr pkt);
+    void scheduleNewSlice();
 
+    bool handleIncomingUpdate(PacketPtr pkt);
     void handleIncomingWL(Addr addr, WorkListItem wl);
     ReadReturnStatus recvWLRead(Addr addr) { return coalesceEngine->recvWLRead(addr); }
     void recvWLWrite(Addr addr, WorkListItem wl);
