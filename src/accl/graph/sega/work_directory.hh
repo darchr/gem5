@@ -100,6 +100,7 @@ class PopCountDirectory: public WorkDirectory
         for (int index = 0; index < numCounters; index++) {
             popCount[index] = 0;
         }
+        activeBlockIndices = UniqueFIFO<int>(numCounters);
     }
 
     // CAUTION: This should only be called when the work
