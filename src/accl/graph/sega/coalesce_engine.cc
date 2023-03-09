@@ -69,6 +69,9 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     for (int i = 0; i < numLines; i++) {
         cacheBlocks[i] = Block(numElementsPerLine);
     }
+    currentActiveCacheBlocks = UniqueFIFO<int>(numLines);
+    futureActiveCacheBlocks = UniqueFIFO<int>(numLines);
+
     activeBuffer.clear();
     postPushWBQueue.clear();
 }
@@ -404,6 +407,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         Addr addr = pkt->getAddr();
         int block_index = getBlockIndex(addr);
         ReadPurpose* purpose = pkt->findNextSenderState<ReadPurpose>();
+        // TODO: delete purpose
 
         // NOTE: Regardless of where the pkt will go we have to release the
         // reserved space for this pkt in the activeBuffer in case
@@ -553,6 +557,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                 pullsScheduled++;
             }
         }
+        delete purpose;
     }
 
     if (done() && !nextDoneSignalEvent.scheduled()) {
@@ -999,6 +1004,7 @@ CoalesceEngine::processNextPostPushWB(int ignore, Tick schedule_tick)
 void
 CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
 {
+    DPRINTF(CoalesceEngine, "%s: processNextVertexPull called.\n", __func__);
     pullsScheduled--;
     if (!currentDirectory->empty()) {
         Addr addr = currentDirectory->getNextWork();

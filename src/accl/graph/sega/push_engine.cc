@@ -273,7 +273,9 @@ PushEngine::handleMemResp(PacketPtr pkt)
     // TODO: in case we need to edit edges, get rid of second statement.
     assert(pkt->isResponse() && (!pkt->isWrite()));
 
-    uint8_t* pkt_data = new uint8_t [peerMemoryAtomSize];
+    // uint8_t* pkt_data = new uint8_t [peerMemoryAtomSize];
+    // TODO: Change above line to below line.
+    uint8_t pkt_data [peerMemoryAtomSize];
     PushInfo push_info = reqInfoMap[pkt->req];
     pkt->writeDataToBlock(pkt_data, peerMemoryAtomSize);
 
@@ -291,7 +293,7 @@ PushEngine::handleMemResp(PacketPtr pkt)
 
     onTheFlyMemReqs -= push_info.numElements;
     reqInfoMap.erase(pkt->req);
-    delete pkt_data;
+    // delete [] pkt_data;
     delete pkt;
 
     if (!nextPropagateEvent.scheduled()) {

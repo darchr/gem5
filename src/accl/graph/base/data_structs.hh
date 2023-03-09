@@ -34,7 +34,7 @@
 
 #include <algorithm>
 #include <cassert>
-#include <list>
+#include <deque>
 
 namespace gem5
 {
@@ -137,56 +137,107 @@ template<typename T>
 class UniqueFIFO
 {
   private:
-    std::list<T> fifo;
+    int cap;
+    int pop;
+
+    int* added;
+    int* deleted;
+    std::deque<T> container;
 
   public:
-    UniqueFIFO() {}
+    UniqueFIFO() {
+        cap = 0;
+        pop = 0;
+        added = nullptr;
+        deleted = nullptr;
+    }
 
-    void push_back(T item)
-    {
-        if (!find(item)) {
-            fifo.push_back(item);
+    UniqueFIFO(int size) {
+        cap = size;
+        pop = 0;
+
+        added = (int*) new int [cap];
+        deleted = (int*) new int [cap];
+
+        for (int i = 0; i < cap; i++) {
+            added[i] = 0;
+            deleted[i] = 0;
+        }
+        container.clear();
+    }
+
+    void fix_front() {
+        while(true) {
+            T elem = container.front();
+            if (deleted[elem] > 0) {
+                deleted[elem]--;
+                added[elem]--;
+                container.pop_front();
+            } else {
+                assert(deleted[elem] == 0);
+                assert(added[elem] == 1);
+                break;
+            }
         }
     }
 
-    void pop_front()
-    {
-        assert(!fifo.empty());
-        fifo.pop_front();
-    }
-
-    T front()
-    {
-        return fifo.front();
+    T front() {
+        fix_front();
+        return container.front();
     }
 
     size_t size() {
-        return fifo.size();
+        return pop;
     }
 
     void clear() {
-        fifo.clear();
+        pop = 0;
+        for (int i = 0; i < cap; i++) {
+            added[i] = 0;
+            deleted[i] = 0;
+        }
+        container.clear();
     }
 
     bool empty() {
-        return fifo.empty();
+        return size() == 0;
     }
 
     bool find(T item) {
-        // std::list<T>::iterator it = std::find(fifo.begin(), fifo.end(), item);
-        auto it = std::find(fifo.begin(), fifo.end(), item);
-        return (it != fifo.end());
+        assert(added[item] >= 0);
+        assert(deleted[item] >= 0);
+        int diff = added[item] - deleted[item];
+        assert((diff == 0) || (diff == 1));
+        return (diff == 1);
+    }
+
+    void push_back(T item) {
+        if (!find(item)) {
+            added[item]++;
+            pop++;
+            container.push_back(item);
+        }
+    }
+
+    void pop_front() {
+        T elem = front();
+        assert(added[elem] == 1);
+        added[elem] = 0;
+        pop--;
+        container.pop_front();
     }
 
     void erase(T item) {
-        // std::list<T>::iterator it = std::find(fifo.begin(), fifo.end(), item);
-        auto it = std::find(fifo.begin(), fifo.end(), item);
-        assert(it != fifo.end());
-        fifo.erase(it);
+        assert(find(item));
+        deleted[item]++;
+        pop--;
     }
 
     void operator=(const UniqueFIFO<T>& rhs) {
-        fifo = rhs.fifo;
+        pop = rhs.pop;
+        container = rhs.container;
+        added = rhs.added;
+        deleted = rhs.deleted;
     }
 };
 
