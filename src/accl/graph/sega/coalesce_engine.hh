@@ -217,6 +217,10 @@ class CoalesceEngine : public BaseMemoryEngine
     ReadReturnStatus recvWLRead(Addr addr);
     void recvWLWrite(Addr addr, WorkListItem wl);
 
+    int getSliceSize() 
+                    {return (int)(params().cache_size); }
+                    // /sizeof(WorkListItem)); }
+
     int workCount();
     int futureWorkCount();
     void recvVertexPull();

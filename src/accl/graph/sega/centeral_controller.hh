@@ -77,11 +77,16 @@ class CenteralController : public ClockedObject
     void createPRWorkload(int num_nodes, float alpha);
     void createBCWorkload(Addr init_addr, uint32_t init_value);
 
+    bool bufferRemoteUpdate(int slice_number, PacketPtr pkt);
+    int getnumGPTs() {return mpuVector.size();}
+
     void recvDoneSignal();
 
     int workCount();
     float getPRError();
     void printAnswerToHostSimout();
+    std::unordered_map<MPU*, std::unordered_map<int, std::deque<PacketPtr>>> 
+                                                                remoteUpdates; 
 };
 
 }

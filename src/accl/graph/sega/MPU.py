@@ -27,9 +27,10 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.SimObject import SimObject
+# from m5.SimObject import SimObject
+from m5.objects.ClockedObject import ClockedObject
 
-class MPU(SimObject):
+class MPU(ClockedObject):
     type = "MPU"
     cxx_header = "accl/graph/sega/mpu.hh"
     cxx_class = "gem5::MPU"

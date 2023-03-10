@@ -93,6 +93,18 @@ CenteralController::createBCWorkload(Addr init_addr, uint32_t init_value)
     workload = new BSPBCWorkload(init_addr, init_value);
 }
 
+bool
+CenteralController::bufferRemoteUpdate(int slice_number, PacketPtr pkt)
+{
+    for (auto mpu: mpuVector) {
+        if (contains(mpu->getAddrRanges(), pkt->getAddr())) {
+            remoteUpdates[mpu][slice_number].push_back(pkt);
+        }
+    }
+    
+    return true;
+}
+
 void
 CenteralController::createPopCountDirectory(int atoms_per_block)
 {
@@ -173,6 +185,25 @@ CenteralController::recvDoneSignal()
     bool done = true;
     for (auto mpu : mpuVector) {
         done &= mpu->done();
+        int total_num_slices = remoteUpdates[mpu].size();
+        if (mpu->done()) {
+            int slice_number = mpu->getSliceCounter() + 1;
+            while ((total_num_slices != 0) && (slice_number != mpu->getSliceCounter())) {
+                if (!remoteUpdates[mpu][slice_number].empty()) {
+                    mpu->scheduleNewSlice();
+                    mpu->updateSliceCounter(slice_number);
+                    done = false;
+                    break;
+                } 
+                else {
+                    if (slice_number == total_num_slices) {
+                        slice_number = 0;
+                    } else {
+                        slice_number++;
+                    }
+                }
+            }
+        }
     }
 
     if (done && mode == ProcessingMode::ASYNCHRONOUS) {

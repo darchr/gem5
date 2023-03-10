@@ -149,6 +149,19 @@ WLEngine::done()
 bool
 WLEngine::handleIncomingUpdate(PacketPtr pkt)
 {
+    int slice_number = (int)(pkt->getAddr()/(owner->getSliceSize()));
+    if (slice_number != owner->getSliceCounter()) {
+        DPRINTF(WLEngine, "%s: Packet %lu slice number is: %d. The current "
+                "slice number is: %d, The total number of vertices/slice: %d \n", 
+                __func__, pkt->getAddr(), slice_number, 
+                owner->getSliceCounter(), 
+                owner->getSliceSize()/sizeof(WorkListItem));
+        bool ret = owner->bufferRemoteUpdate(slice_number, pkt);
+        if (done() && !nextDoneSignalEvent.scheduled()) {
+            schedule(nextDoneSignalEvent, nextCycle());
+        }
+        return ret;
+    }
     assert((updateQueueSize == 0) || (updateQueue.size() <= updateQueueSize));
     if ((updateQueueSize != 0) && (updateQueue.size() == updateQueueSize)) {
         return false;
@@ -172,6 +185,7 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
     }
     return true;
 }
+
 
 // TODO: Parameterize the number of pops WLEngine can do at a time.
 // TODO: Add a histogram stats of the size of the updateQueue. Sample here.
