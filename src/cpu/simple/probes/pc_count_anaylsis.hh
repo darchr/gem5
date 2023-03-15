@@ -35,6 +35,7 @@
 #include "params/PcCountAnalsisManager.hh"
 #include "sim/probe/probe.hh"
 #include "cpu/simple_thread.hh"
+#include "arch/generic/pcstate.hh"
 
 namespace gem5
 {
@@ -45,7 +46,7 @@ class PcCountAnalsis : public ProbeListenerObject
     PcCountAnalsis(const PcCountAnalsisParams &params);
 
     virtual void regProbeListeners();
-    
+
     void checkPc(const std::pair<SimpleThread*, StaticInstPtr>&);
 
   private:

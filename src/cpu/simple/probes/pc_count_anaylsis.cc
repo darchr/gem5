@@ -28,6 +28,7 @@
 
 #include "cpu/simple/probes/pc_count_anaylsis.hh"
 
+
 namespace gem5
 {
 
@@ -58,7 +59,9 @@ PcCountAnalsis::checkPc(const std::pair<SimpleThread*, StaticInstPtr>& p) {
     if (inst->isMicroop() && !inst->isLastMicroop())
         return;
     if (inst->isControl() && inst-> isDirectCtrl() && thread->getIsaPtr()->inUserMode()) {
-        manager->dosth(thread->pcState().instAddr());
+        auto &pcstate = thread->getTC()->pcState().as<GenericISA::PCStateWithNext>();
+        if(pcstate.npc() < pcstate.pc())
+            manager->dosth(pcstate.npc());
     }
 
 } 
@@ -70,7 +73,7 @@ PcCountAnalsisManager::PcCountAnalsisManager(const PcCountAnalsisManagerParams &
 }
 
 void
-PcCountAnalsisManager::dosth(Addr pc)
+PcCountAnalsisManager::dosth(const Addr pc)
 {
     if (counter.find(pc) == counter.end()){
         counter.insert(std::make_pair(pc,0));
