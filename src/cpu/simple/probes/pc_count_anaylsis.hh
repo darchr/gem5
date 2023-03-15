@@ -45,7 +45,7 @@ class PcCountAnalsis : public ProbeListenerObject
     PcCountAnalsis(const PcCountAnalsisParams &params);
 
     virtual void regProbeListeners();
-    
+
     void checkPc(const std::pair<SimpleThread*, StaticInstPtr>&);
 
   private:
@@ -73,6 +73,7 @@ class PcCountAnalsisManager : public SimObject
     {
         return counter;
     }
+
 
 };
 
