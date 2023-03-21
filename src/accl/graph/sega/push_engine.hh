@@ -29,10 +29,14 @@
 #ifndef __ACCL_GRAPH_SEGA_PUSH_ENGINE_HH__
 #define __ACCL_GRAPH_SEGA_PUSH_ENGINE_HH__
 
+#include <unordered_map>
+#include <vector>
+
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/base/graph_workload.hh"
 #include "accl/graph/sega/base_memory_engine.hh"
 #include "accl/graph/sega/enums.hh"
+#include "base/addr_range_map.hh"
 #include "base/intmath.hh"
 #include "params/PushEngine.hh"
 
@@ -58,7 +62,6 @@ class PushEngine : public BaseMemoryEngine
         {}
         void sendPacket(PacketPtr pkt);
         bool blocked() { return (blockedPacket != nullptr); }
-        PortID id() { return _id; }
 
       protected:
         virtual bool recvTimingResp(PacketPtr pkt);
@@ -110,12 +113,14 @@ class PushEngine : public BaseMemoryEngine
 
         bool done() { return (_start >= _end); }
     };
+
     struct PushInfo {
         Addr src;
         uint32_t value;
         Addr offset;
         int numElements;
     };
+
     MPU* owner;
     GraphWorkload* graphWorkload;
 
@@ -136,9 +141,10 @@ class PushEngine : public BaseMemoryEngine
 
     int updateQueueSize;
     template<typename T> PacketPtr createUpdatePacket(Addr addr, T value);
-    bool enqueueUpdate(Update update);
-    std::unordered_map<PortID, AddrRangeList> portAddrMap;
-    std::unordered_map<PortID, std::deque<std::tuple<Update, Tick>>> updateQueues;
+    bool enqueueUpdate(Addr src, Addr dst, uint32_t value);
+    std::vector<std::deque<std::tuple<Addr, Tick>>> destinationQueues;
+    std::vector<std::unordered_map<Addr, std::tuple<Addr, uint32_t>>> sourceAndValueMaps;
+    AddrRangeMap<PortID> portAddrMap;
     std::vector<ReqPort> outPorts;
 
     bool vertexSpace();
