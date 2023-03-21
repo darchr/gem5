@@ -407,7 +407,6 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
         Addr addr = pkt->getAddr();
         int block_index = getBlockIndex(addr);
         ReadPurpose* purpose = pkt->findNextSenderState<ReadPurpose>();
-        // TODO: delete purpose
 
         // NOTE: Regardless of where the pkt will go we have to release the
         // reserved space for this pkt in the activeBuffer in case
