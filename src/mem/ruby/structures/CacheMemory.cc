@@ -52,6 +52,7 @@
 #include "mem/cache/replacement_policies/weighted_lru_rp.hh"
 #include "mem/ruby/protocol/AccessPermission.hh"
 #include "mem/ruby/system/RubySystem.hh"
+#include "mem/simple_mem.hh"
 
 namespace gem5
 {
@@ -436,9 +437,20 @@ CacheMemory::recordCacheContents(int cntrl, CacheRecorder* tr) const
                 if (request_type != RubyRequestType_NULL) {
                     Tick lastAccessTick;
                     lastAccessTick = m_cache[i][j]->getLastAccess();
-                    tr->addRecord(cntrl, m_cache[i][j]->m_Address,
+                    // I want to get the data from the backing store if using
+                    // access backing store
+                    DataBlock data;
+                    Addr addr = m_cache[i][j]->m_Address;
+                    auto rs = params().ruby_system;
+                    if (rs->getAccessBackingStore()) {
+                        uint8_t *ptr = rs->getPhysMem()->toHostAddr(addr);
+                        data.setData(ptr, 0, rs->getBlockSizeBytes());
+                    } else {
+                        data = m_cache[i][j]->getDataBlk();
+                    }
+                    tr->addRecord(cntrl, addr,
                                   0, request_type, lastAccessTick,
-                                  m_cache[i][j]->getDataBlk());
+                                  data);
                     warmedUpBlocks++;
                 }
             }

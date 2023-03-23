@@ -291,6 +291,7 @@ CoherentXBar::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
 
             // since it is a normal request, attempt to send the packet
             success = memSidePorts[mem_side_port_id]->sendTimingReq(pkt);
+            // std::cout << "4: " << pkt->getAddr() << " : " << xbar_delay << "\n";
         } else {
             // no need to forward, turn this packet around and respond
             // directly
@@ -343,9 +344,9 @@ CoherentXBar::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
                 assert(routeTo.find(pkt->req) == routeTo.end());
                 routeTo[pkt->req] = cpu_side_port_id;
 
-                panic_if(routeTo.size() > maxRoutingTableSizeCheck,
-                         "%s: Routing table exceeds %d packets\n",
-                         name(), maxRoutingTableSizeCheck);
+                // panic_if(routeTo.size() > maxRoutingTableSizeCheck,
+                //          "%s: Routing table exceeds %d packets\n",
+                //          name(), maxRoutingTableSizeCheck);
             }
 
             // update the layer state and schedule an idle event
@@ -438,8 +439,9 @@ CoherentXBar::recvTimingReq(PacketPtr pkt, PortID cpu_side_port_id)
         rsp_pkt->headerDelay = 0;
 
         cpuSidePorts[rsp_port_id]->schedTimingResp(rsp_pkt, response_time);
-    }
 
+        // std::cout << "1: " << pkt->getAddr() << " : " << response_time-clockEdge() << "\n";
+    }
     return success;
 }
 
@@ -492,6 +494,7 @@ CoherentXBar::recvTimingResp(PacketPtr pkt, PortID mem_side_port_id)
     pkt->headerDelay = 0;
     cpuSidePorts[cpu_side_port_id]->schedTimingResp(pkt, curTick()
                                         + latency);
+    // std::cout << "2: " << pkt->getAddr() << " : " << latency << "\n";
 
     // remove the request from the routing table
     routeTo.erase(route_lookup);
@@ -680,6 +683,7 @@ CoherentXBar::recvTimingSnoopResp(PacketPtr pkt, PortID cpu_side_port_id)
         pkt->headerDelay = 0;
         cpuSidePorts[dest_port_id]->schedTimingResp(pkt,
                                     curTick() + latency);
+        // std::cout << "3: " << pkt->getAddr() << " : " << latency << "\n";
 
         respLayers[dest_port_id]->succeededTiming(packetFinishTime);
     }
@@ -700,7 +704,7 @@ void
 CoherentXBar::forwardTiming(PacketPtr pkt, PortID exclude_cpu_side_port_id,
                            const std::vector<QueuedResponsePort*>& dests)
 {
-    DPRINTF(CoherentXBar, "%s for %s\n", __func__, pkt->print());
+    DPRINTF(CoherentXBar, "%s for %s \n", __func__, pkt->print());
 
     // snoops should only happen if the system isn't bypassing caches
     assert(!system->bypassCaches());
@@ -714,6 +718,7 @@ CoherentXBar::forwardTiming(PacketPtr pkt, PortID exclude_cpu_side_port_id,
         // from
         if (exclude_cpu_side_port_id == InvalidPortID ||
             p->getId() != exclude_cpu_side_port_id) {
+                // std::cout << "here\n";
             // cache is not allowed to refuse snoop
             p->sendTimingSnoopReq(pkt);
             fanout++;

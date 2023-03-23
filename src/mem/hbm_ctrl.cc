@@ -51,8 +51,7 @@ HBMCtrl::HBMCtrl(const HBMCtrlParams &p) :
                          name()),
     respondEventPC1([this] {processRespondEvent(pc1Int, respQueuePC1,
                          respondEventPC1, retryRdReqPC1); }, name()),
-    pc1Int(p.dram_2),
-    partitionedQ(p.partitioned_q)
+    pc1Int(p.dram_2)
 {
     DPRINTF(MemCtrl, "Setting up HBM controller\n");
 
@@ -69,17 +68,8 @@ HBMCtrl::HBMCtrl(const HBMCtrlParams &p) :
     pc0Int->setCtrl(this, commandWindow, 0);
     pc1Int->setCtrl(this, commandWindow, 1);
 
-    if (partitionedQ) {
-        writeHighThreshold = (writeBufferSize * (p.write_high_thresh_perc/2)
-                             / 100.0);
-        writeLowThreshold = (writeBufferSize * (p.write_low_thresh_perc/2)
-                            / 100.0);
-    } else {
-        writeHighThreshold = (writeBufferSize * p.write_high_thresh_perc
-                            / 100.0);
-        writeLowThreshold = (writeBufferSize * p.write_low_thresh_perc
-                            / 100.0);
-    }
+    writeHighThreshold = (writeBufferSize/2 * p.write_high_thresh_perc)/100.0;
+    writeLowThreshold = (writeBufferSize/2 * p.write_low_thresh_perc)/100.0;
 }
 
 void
@@ -170,9 +160,9 @@ HBMCtrl::writeQueueFullPC0(unsigned int neededEntries) const
 {
     DPRINTF(MemCtrl,
             "Write queue limit %d, PC0 size %d, entries needed %d\n",
-            writeBufferSize, writeQueueSizePC0, neededEntries);
+            writeBufferSize/2, pc0Int->writeQueueSize, neededEntries);
 
-    unsigned int wrsize_new = (writeQueueSizePC0 + neededEntries);
+    unsigned int wrsize_new = (pc0Int->writeQueueSize + neededEntries);
     return wrsize_new > (writeBufferSize/2);
 }
 
@@ -181,9 +171,9 @@ HBMCtrl::writeQueueFullPC1(unsigned int neededEntries) const
 {
     DPRINTF(MemCtrl,
             "Write queue limit %d, PC1 size %d, entries needed %d\n",
-            writeBufferSize, writeQueueSizePC1, neededEntries);
+            writeBufferSize/2, pc1Int->writeQueueSize, neededEntries);
 
-    unsigned int wrsize_new = (writeQueueSizePC1 + neededEntries);
+    unsigned int wrsize_new = (pc1Int->writeQueueSize + neededEntries);
     return wrsize_new > (writeBufferSize/2);
 }
 
@@ -192,10 +182,10 @@ HBMCtrl::readQueueFullPC0(unsigned int neededEntries) const
 {
     DPRINTF(MemCtrl,
             "Read queue limit %d, PC0 size %d, entries needed %d\n",
-            readBufferSize, readQueueSizePC0 + respQueue.size(),
+            readBufferSize/2, pc0Int->readQueueSize + respQueue.size(),
             neededEntries);
 
-    unsigned int rdsize_new = readQueueSizePC0 + respQueue.size()
+    unsigned int rdsize_new = pc0Int->readQueueSize + respQueue.size()
                                                + neededEntries;
     return rdsize_new > (readBufferSize/2);
 }
@@ -205,24 +195,12 @@ HBMCtrl::readQueueFullPC1(unsigned int neededEntries) const
 {
     DPRINTF(MemCtrl,
             "Read queue limit %d, PC1 size %d, entries needed %d\n",
-            readBufferSize, readQueueSizePC1 + respQueuePC1.size(),
+            readBufferSize/2, pc1Int->readQueueSize + respQueuePC1.size(),
             neededEntries);
 
-    unsigned int rdsize_new = readQueueSizePC1 + respQueuePC1.size()
+    unsigned int rdsize_new = pc1Int->readQueueSize + respQueuePC1.size()
                                                + neededEntries;
     return rdsize_new > (readBufferSize/2);
-}
-
-bool
-HBMCtrl::readQueueFull(unsigned int neededEntries) const
-{
-    DPRINTF(MemCtrl,
-            "HBMCtrl: Read queue limit %d, entries needed %d\n",
-            readBufferSize, neededEntries);
-
-    unsigned int rdsize_new = totalReadQueueSize + respQueue.size() +
-                                respQueuePC1.size() + neededEntries;
-    return rdsize_new > readBufferSize;
 }
 
 bool
@@ -269,9 +247,7 @@ HBMCtrl::recvTimingReq(PacketPtr pkt)
     // check local buffers and do not accept if full
     if (pkt->isWrite()) {
         if (is_pc0) {
-            if (partitionedQ ? writeQueueFullPC0(pkt_count) :
-                                        writeQueueFull(pkt_count))
-            {
+            if (writeQueueFullPC0(pkt_count)) {
                 DPRINTF(MemCtrl, "Write queue full, not accepting\n");
                 // remember that we have to retry this port
                 MemCtrl::retryWrReq = true;
@@ -279,13 +255,15 @@ HBMCtrl::recvTimingReq(PacketPtr pkt)
                 return false;
             } else {
                 addToWriteQueue(pkt, pkt_count, pc0Int);
+                if (!nextReqEvent.scheduled()) {
+                    DPRINTF(MemCtrl, "Request scheduled immediately\n");
+                    schedule(nextReqEvent, curTick());
+                }
                 stats.writeReqs++;
                 stats.bytesWrittenSys += size;
             }
         } else {
-            if (partitionedQ ? writeQueueFullPC1(pkt_count) :
-                                        writeQueueFull(pkt_count))
-            {
+            if (writeQueueFullPC1(pkt_count)) {
                 DPRINTF(MemCtrl, "Write queue full, not accepting\n");
                 // remember that we have to retry this port
                 retryWrReqPC1 = true;
@@ -293,6 +271,10 @@ HBMCtrl::recvTimingReq(PacketPtr pkt)
                 return false;
             } else {
                 addToWriteQueue(pkt, pkt_count, pc1Int);
+                if (!nextReqEventPC1.scheduled()) {
+                    DPRINTF(MemCtrl, "Request scheduled immediately\n");
+                    schedule(nextReqEventPC1, curTick());
+                }
                 stats.writeReqs++;
                 stats.bytesWrittenSys += size;
             }
@@ -303,11 +285,10 @@ HBMCtrl::recvTimingReq(PacketPtr pkt)
         assert(size != 0);
 
         if (is_pc0) {
-            if (partitionedQ ? readQueueFullPC0(pkt_count) :
-                                        HBMCtrl::readQueueFull(pkt_count)) {
+            if (readQueueFullPC0(pkt_count)) {
                 DPRINTF(MemCtrl, "Read queue full, not accepting\n");
                 // remember that we have to retry this port
-                retryRdReqPC1 = true;
+                MemCtrl::retryRdReq = true;
                 stats.numRdRetry++;
                 return false;
             } else {
@@ -322,8 +303,7 @@ HBMCtrl::recvTimingReq(PacketPtr pkt)
                 stats.bytesReadSys += size;
             }
         } else {
-            if (partitionedQ ? readQueueFullPC1(pkt_count) :
-                                        HBMCtrl::readQueueFull(pkt_count)) {
+            if (readQueueFullPC1(pkt_count)) {
                 DPRINTF(MemCtrl, "Read queue full, not accepting\n");
                 // remember that we have to retry this port
                 retryRdReqPC1 = true;

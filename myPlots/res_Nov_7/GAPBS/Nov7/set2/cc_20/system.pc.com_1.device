@@ -1,0 +1,485 @@
+Linux version 4.19.83 (aakahlow@amarillo) (gcc version 7.4.0 (Ubuntu 7.4.0-1ubuntu1~18.04.1)) #1 SMP Thu Nov 28 16:06:01 PST 2019
+Command line: earlyprintk=ttyS0 console=ttyS0 lpj=7999923 root=/dev/hda1
+CPU: vendor_id 'M5 Simulator' unknown, using generic init.
+CPU: Your system may be unstable.
+x86/fpu: x87 FPU will use FXSAVE
+BIOS-provided physical RAM map:
+BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
+BIOS-e820: [mem 0x000000000009fc00-0x00000000000fffff] reserved
+BIOS-e820: [mem 0x0000000000100000-0x000000003fffffff] usable
+BIOS-e820: [mem 0x00000000ffff0000-0x00000000ffffffff] reserved
+bootconsole [earlyser0] enabled
+NX (Execute Disable) protection: active
+SMBIOS 2.5 present.
+DMI:  , BIOS  06/08/2008
+tsc: Fast TSC calibration failed
+AGP: No AGP bridge found
+last_pfn = 0x40000 max_arch_pfn = 0x400000000
+Disabled
+x86/PAT: MTRRs disabled, skipping PAT initialization too.
+CPU MTRRs all blank - virtualized system.
+x86/PAT: Configuration [0-7]: WB  WT  UC- UC  WB  WT  UC- UC  
+found SMP MP-table at [mem 0x000f0050-0x000f005f]
+ACPI: Early table checksum verification disabled
+ACPI: RSDP 0x00000000000F0240 000024 (v02       )
+ACPI: XSDT 0x00000000000F0288 000024 (v01                 00000000      00000000)
+ACPI BIOS Error (bug): Invalid table length 0x24 in RSDT/XSDT (20180810/tbutils-291)
+Zone ranges:
+  DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+  DMA32    [mem 0x0000000001000000-0x000000003fffffff]
+  Normal   empty
+Movable zone start for each node
+Early memory node ranges
+  node   0: [mem 0x0000000000001000-0x000000000009efff]
+  node   0: [mem 0x0000000000100000-0x000000003fffffff]
+Reserved but unavailable: 98 pages
+Initmem setup node 0 [mem 0x0000000000001000-0x000000003fffffff]
+Intel MultiProcessor Specification v1.4
+MPTABLE: OEM ID: 
+MPTABLE: Product ID: 
+MPTABLE: APIC at: 0xFEE00000
+Processor #0 (Bootup-CPU)
+Processor #1
+Processor #2
+Processor #3
+Processor #4
+Processor #5
+Processor #6
+Processor #7
+IOAPIC[0]: apic_id 8, version 20, address 0xfec00000, GSI 0-23
+Processors: 8
+smpboot: Allowing 8 CPUs, 0 hotplug CPUs
+[mem 0x40000000-0xfffeffff] available for PCI devices
+Booting paravirtualized kernel on bare hardware
+clocksource: refined-jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1910969940391419 ns
+random: get_random_bytes called from start_kernel+0x8f/0x583 with crng_init=0
+setup_percpu: NR_CPUS:8192 nr_cpumask_bits:8 nr_cpu_ids:8 nr_node_ids:1
+percpu: Embedded 41 pages/cpu s127960 r8192 d31784 u262144
+Built 1 zonelists, mobility grouping on.  Total pages: 258441
+Kernel command line: earlyprintk=ttyS0 console=ttyS0 lpj=7999923 root=/dev/hda1
+Dentry cache hash table entries: 131072 (order: 8, 1048576 bytes)
+Inode-cache hash table entries: 65536 (order: 7, 524288 bytes)
+AGP: Checking aperture...
+AGP: No AGP bridge found
+Memory: 1010856K/1048184K available (8204K kernel code, 1570K rwdata, 1940K rodata, 1204K init, 1636K bss, 37328K reserved, 0K cma-reserved)
+Kernel/User page tables isolation: enabled
+rcu: Hierarchical RCU implementation.
+rcu: 	RCU restricting CPUs from NR_CPUS=8192 to nr_cpu_ids=8.
+rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=8
+NR_IRQS: 524544, nr_irqs: 488, preallocated irqs: 16
+Console: colour dummy device 80x25
+console [ttyS0] enabled
+console [ttyS0] enabled
+bootconsole [earlyser0] disabled
+bootconsole [earlyser0] disabled
+APIC: Switch to symmetric I/O mode setup
+ExtINT not setup in hardware but reported by MP table
+..TIMER: vector=0x30 apic1=0 pin1=2 apic2=0 pin2=0
+tsc: Unable to calibrate against PIT
+tsc: No reference (HPET/PMTIMER) available
+tsc: Marking TSC unstable due to could not calculate TSC khz
+Calibrating delay loop (skipped) preset value.. 15999.84 BogoMIPS (lpj=7999923)
+pid_max: default: 32768 minimum: 301
+Mount-cache hash table entries: 2048 (order: 2, 16384 bytes)
+Mountpoint-cache hash table entries: 2048 (order: 2, 16384 bytes)
+mce: unknown CPU type - not enabling MCE support
+Last level iTLB entries: 4KB 0, 2MB 0, 4MB 0
+Last level dTLB entries: 4KB 0, 2MB 0, 4MB 0, 1GB 0
+Spectre V1 : Mitigation: usercopy/swapgs barriers and __user pointer sanitization
+Spectre V2 : Mitigation: Full generic retpoline
+Spectre V2 : Spectre v2 / SpectreRSB mitigation: Filling RSB on context switch
+Speculative Store Bypass: Vulnerable
+MDS: Vulnerable: Clear CPU buffers attempted, no microcode
+Freeing SMP alternatives memory: 24K
+smpboot: CPU0: M5 Simulator Fake M5 x86_64 CPU (family: 0xf, model: 0x25, stepping: 0x1)
+Performance Events: no PMU driver, software events only.
+rcu: Hierarchical SRCU implementation.
+smp: Bringing up secondary CPUs ...
+x86: Booting SMP configuration:
+.... node  #0, CPUs:      #1
+[Firmware Bug]: CPU1: APIC id mismatch. Firmware: 1 APIC: 0
+ #2
+[Firmware Bug]: CPU2: APIC id mismatch. Firmware: 2 APIC: 0
+ #3
+[Firmware Bug]: CPU3: APIC id mismatch. Firmware: 3 APIC: 0
+ #4
+[Firmware Bug]: CPU4: APIC id mismatch. Firmware: 4 APIC: 0
+ #5
+[Firmware Bug]: CPU5: APIC id mismatch. Firmware: 5 APIC: 0
+ #6
+[Firmware Bug]: CPU6: APIC id mismatch. Firmware: 6 APIC: 0
+ #7
+[Firmware Bug]: CPU7: APIC id mismatch. Firmware: 7 APIC: 0
+smp: Brought up 1 node, 8 CPUs
+smpboot: Max logical packages: 8
+smpboot: Total of 8 processors activated (127998.76 BogoMIPS)
+devtmpfs: initialized
+clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1911260446275000 ns
+futex hash table entries: 2048 (order: 5, 131072 bytes)
+NET: Registered protocol family 16
+audit: initializing netlink subsys (disabled)
+audit: type=2000 audit(1325376001.567:1): state=initialized audit_enabled=0 res=1
+cpuidle: using governor ladder
+PCI: Using configuration type 1 for base access
+HugeTLB registered 2.00 MiB page size, pre-allocated 0 pages
+ACPI: Interpreter disabled.
+vgaarb: loaded
+SCSI subsystem initialized
+usbcore: registered new interface driver usbfs
+usbcore: registered new interface driver hub
+usbcore: registered new device driver usb
+pps_core: LinuxPPS API ver. 1 registered
+pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+PTP clock support registered
+PCI: Probing PCI hardware
+PCI host bridge to bus 0000:00
+pci_bus 0000:00: root bus resource [io  0x0000-0xffff]
+pci_bus 0000:00: root bus resource [mem 0x00000000-0xffffffffffff]
+pci_bus 0000:00: No busn resource found for root bus, will use [bus 00-ff]
+pci 0000:00:04.0: legacy IDE quirk: reg 0x10: [io  0x01f0-0x01f7]
+pci 0000:00:04.0: legacy IDE quirk: reg 0x14: [io  0x03f6]
+pci 0000:00:04.0: legacy IDE quirk: reg 0x18: [io  0x0170-0x0177]
+pci 0000:00:04.0: legacy IDE quirk: reg 0x1c: [io  0x0376]
+clocksource: Switched to clocksource refined-jiffies
+VFS: Disk quotas dquot_6.6.0
+VFS: Dquot-cache hash table entries: 512 (order 0, 4096 bytes)
+pnp: PnP ACPI: disabled
+pci 0000:00:04.0: BAR 6: assigned [mem 0x40000000-0x400007ff pref]
+pci 0000:00:04.0: BAR 4: assigned [io  0x1000-0x100f]
+NET: Registered protocol family 2
+tcp_listen_portaddr_hash hash table entries: 512 (order: 1, 8192 bytes)
+TCP established hash table entries: 8192 (order: 4, 65536 bytes)
+TCP bind hash table entries: 8192 (order: 5, 131072 bytes)
+TCP: Hash tables configured (established 8192 bind 8192)
+UDP hash table entries: 512 (order: 2, 16384 bytes)
+UDP-Lite hash table entries: 512 (order: 2, 16384 bytes)
+NET: Registered protocol family 1
+platform rtc_cmos: registered platform RTC device (no PNP device found)
+workingset: timestamp_bits=62 max_order=18 bucket_order=0
+fuse init (API version 7.27)
+Block layer SCSI generic (bsg) driver version 0.4 loaded (major 252)
+io scheduler noop registered
+io scheduler deadline registered
+io scheduler cfq registered (default)
+io scheduler mq-deadline registered
+io scheduler kyber registered
+acpiphp_ibm: ibm_acpiphp_init: acpi_walk_namespace failed
+Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+serial8250: ttyS0 at I/O 0x3f8 (irq = 4, base_baud = 115200) is a 8250
+Linux agpgart interface v0.103
+brd: module loaded
+loop: module loaded
+Uniform Multi-Platform E-IDE driver
+piix 0000:00:04.0: IDE controller (0x8086:0x7111 rev 0x00)
+pci 0000:00:04.0: enabling device (0000 -> 0001)
+pci 0000:00:04.0: PCI->APIC IRQ transform: INT A -> IRQ 16
+piix 0000:00:04.0: not 100% native mode: will probe irqs later
+    ide0: BM-DMA at 0x1000-0x1007
+    ide1: BM-DMA at 0x1008-0x100f
+hda: M5 IDE Disk, ATA DISK drive
+hdb: M5 IDE Disk, ATA DISK drive
+hda: UDMA/33 mode selected
+hdb: UDMA/33 mode selected
+ide0 at 0x1f0-0x1f7,0x3f6 on irq 14
+ide1 at 0x170-0x177,0x376 on irq 15
+ide_generic: please use "probe_mask=0x3f" module parameter for probing all legacy ISA IDE ports
+ide-gd driver 1.18
+hda: max request size: 128KiB
+hda: 16777216 sectors (8589 MB), CHS=16644/16/63
+ hda: hda1 hda2 < hda5 >
+hdb: max request size: 128KiB
+hdb: 16777216 sectors (8589 MB), CHS=16644/16/63
+ hdb: hdb1 hdb2 < hdb5 >
+ide-cd driver 5.00
+Loading iSCSI transport class v2.0-870.
+e1000: Intel(R) PRO/1000 Network Driver - version 7.3.21-k8-NAPI
+e1000: Copyright (c) 1999-2006 Intel Corporation.
+e1000e: Intel(R) PRO/1000 Network Driver - 3.2.6-k
+e1000e: Copyright(c) 1999 - 2015 Intel Corporation.
+igb: Intel(R) Gigabit Ethernet Network Driver - version 5.4.0-k
+igb: Copyright (c) 2007-2014 Intel Corporation.
+igbvf: Intel(R) Gigabit Virtual Function Network Driver - version 2.4.0-k
+igbvf: Copyright (c) 2009 - 2012 Intel Corporation.
+ixgbe: Intel(R) 10 Gigabit PCI Express Network Driver - version 5.1.0-k
+ixgbe: Copyright (c) 1999-2016 Intel Corporation.
+ixgbevf: Intel(R) 10 Gigabit PCI Express Virtual Function Network Driver - version 4.1.0-k
+ixgbevf: Copyright (c) 2009 - 2015 Intel Corporation.
+ixgb: Intel(R) PRO/10GbE Network Driver - version 1.0.135-k2-NAPI
+ixgb: Copyright (c) 1999-2008 Intel Corporation.
+ehci_hcd: USB 2.0 'Enhanced' Host Controller (EHCI) Driver
+ehci-pci: EHCI PCI platform driver
+ohci_hcd: USB 1.1 'Open' Host Controller (OHCI) Driver
+ohci-pci: OHCI PCI platform driver
+uhci_hcd: USB Universal Host Controller Interface driver
+i8042: PNP: No PS/2 controller found.
+i8042: Probing ports directly.
+serio: i8042 KBD port at 0x60,0x64 irq 1
+serio: i8042 AUX port at 0x60,0x64 irq 12
+mousedev: PS/2 mouse device common for all mice
+IR NEC protocol handler initialized
+IR RC5(x/sz) protocol handler initialized
+IR RC6 protocol handler initialized
+IR JVC protocol handler initialized
+IR Sony protocol handler initialized
+IR SANYO protocol handler initialized
+IR Sharp protocol handler initialized
+input: AT Translated Set 2 keyboard as /devices/platform/i8042/serio0/input/input0
+IR MCE Keyboard/mouse protocol handler initialized
+IR XMP protocol handler initialized
+usbcore: registered new interface driver usbhid
+usbhid: USB HID core driver
+NET: Registered protocol family 17
+mce: Unable to init MCE device (rc: -5)
+mce: Using 32 MCE banks
+Unstable clock detected, switching default tracing clock to "global"
+If you want to keep using the local clock, then add:
+  "trace_clock=local"
+on the kernel command line
+random: fast init done
+EXT4-fs (hda1): recovery complete
+EXT4-fs (hda1): mounted filesystem with ordered data mode. Opts: (null)
+VFS: Mounted root (ext4 filesystem) on device 3:1.
+devtmpfs: mounted
+Freeing unused kernel image memory: 1204K
+Write protecting the kernel read-only data: 12288k
+Freeing unused kernel image memory: 2020K
+Freeing unused kernel image memory: 108K
+rodata_test: all tests were successful
+Run /sbin/init as init process
+hda: ide_dma_sff_timer_expiry: DMA status (0x64)
+hda: DMA interrupt recovery
+hda: lost interrupt
+systemd[1]: System time before build time, advancing clock.
+hda: ide_dma_sff_timer_expiry: DMA status (0x64)
+hda: DMA interrupt recovery
+hda: lost interrupt
+systemd[1]: systemd 237 running in system mode. (+PAM +AUDIT +SELINUX +IMA +APPARMOR +SMACK +SYSVINIT +UTMP +LIBCRYPTSETUP +GCRYPT +GNUTLS +ACL +XZ +LZ4 +SECCOMP +BLKID +ELFUTILS +KMOD -IDN2 +IDN -PCRE2 default-hierarchy=hybrid)
+systemd[1]: Detected architecture x86-64.
+
+Welcome to [1mUbuntu 18.04.2 LTS[0m!
+
+systemd[1]: Set hostname to <gem5-host>.
+random: crng init done
+hda: ide_dma_sff_timer_expiry: DMA status (0x64)
+hda: DMA interrupt recovery
+hda: lost interrupt
+systemd[1]: File /lib/systemd/system/systemd-journald.service:36 configures an IP firewall (IPAddressDeny=any), but the local system does not support BPF/cgroup based firewalling.
+systemd[1]: Proceeding WITHOUT firewalling in effect! (This warning is only shown for the first loaded unit using IP firewalling.)
+hda: ide_dma_sff_timer_expiry: DMA status (0x64)
+hda: DMA interrupt recovery
+hda: lost interrupt
+systemd[1]: Started Forward Password Requests to Wall Directory Watch.
+[[0;32m  OK  [0m] Started Forward Password Requests to Wall Directory Watch.
+systemd[1]: Reached target Remote File Systems.
+[[0;32m  OK  [0m] Reached target Remote File Systems.
+systemd[1]: Created slice System Slice.
+[[0;32m  OK  [0m] Created slice System Slice.
+systemd[1]: Listening on Journal Audit Socket.
+[[0;32m  OK  [0m] Listening on Journal Audit Socket.
+systemd[1]: Listening on fsck to fsckd communication Socket.
+[[0;32m  OK  [0m] Listening on fsck to fsckd communication Socket.
+systemd[1]: Listening on /dev/initctl Compatibility Named Pipe.
+[[0;32m  OK  [0m] Listening on /dev/initctl Compatibility Named Pipe.
+systemd[1]: Listening on udev Kernel Socket.
+[[0;32m  OK  [0m] Listening on udev Kernel Socket.
+systemd[1]: Created slice User and Session Slice.
+[[0;32m  OK  [0m] Created slice User and Session Slice.
+systemd[1]: Reached target Slices.
+[[0;32m  OK  [0m] Reached target Slices.
+systemd[1]: Listening on Syslog Socket.
+[[0;32m  OK  [0m] Listening on Syslog Socket.
+[[0;32m  OK  [0m] Listening on Journal Socket.
+         Mounting Huge Pages File System...
+         Mounting POSIX Message Queue File System...
+         Starting Set the console keyboard layout...
+         Starting Remount Root and Kernel File Systems...
+         Starting Load Kernel Modules...
+[[0EXT4-fs (hda1): re-mounted. Opts: errors=remount-ro
+;32m  OK  [0m] Created slice system-serial\x2dgetty.slice.
+         Starting Create Static Device Nodes in /dev...
+         Starting Uncomplicated firewall...
+[[0;32m  OK  [0m] Listening on udev Control Socket.
+         Starting udev Coldplug all Devices...
+         Mounting Kernel Debug File System...
+[[0;32m  OK  [0m] Listening on Journal Socket (/dev/log).
+         Starting Journal Service...
+[[0;32m  OK  [0m] Started Read required files in advance.
+[[0;32m  OK  [0m] Reached target User and Group Name Lookups.
+[[0;32m  OK  [0m] Started Journal Service.
+[[0;32m  OK  [0m] Mounted Huge Pages File System.
+[[0;32m  OK  [0m] Mounted POSIX Message Queue File System.
+[[0;32m  OK  [0m] Started Set the console keyboard layout.
+[[0;32m  OK  [0m] Started Remount Root and Kernel File Systems.
+[[0;32m  OK  [0m] Started Load Kernel Modules.
+[[0;32m  OK  [0m] Started Create Static Device Nodes in /dev.
+[[0;32m  OK  [0m] Started Uncomplicated firewall.
+[[0;32m  OK  [0m] Mounted Kernel Debug File System.
+[[0;32m  OK  [0m] Started udev Coldplug all Devices.
+         Starting Apply Kernel Variables...
+         Mounting Kernel Configuration File System...
+         Mounting FUSE Control File System...
+         Starting udev Kernel Device Manager...
+         Starting Load/Save Random Seed...
+[[0;32m  OK  [0m] Reached target Local File Systems (Pre).
+[[0;32m  OK  [0m] Reached target Local File Systems.
+         Starting Set console font and keymap...
+         Starting Tell Plymouth To Write Out Runtime Data...
+         Starting Flush Journal to Persistent Storage...
+[[0;32m  OK  [0m] Started udev Kernel Device Manager.
+[[0;32m  OK  [0m] Started Apply Kernel Variables.
+[[0;32m  OK  [0m] Mounted Kernel Configuration File System.
+[[0;32m  OK  [0m] Mounted FUSE Control File System.
+[[0;32m  OK  [0m] Started Load/Save Random Seed.
+[[0;32m  OK  [0m] Started Set console font and keymap.
+[[0;32m  OK  [0m] Started Tell Plymouth To Write Out Runtime Data.
+[[0;32m  OK  [0m] Found device /dev/ttyS0.
+[[0;32m  OK  [0m] Started Dispatch Password Requests to Console Directory Watch.
+[[0;32m  OK  [0m] Reached target Paths.
+[[0;32m  OK  [0m] Reached target Local Encrypted Volumes.
+         Starting Network Service...
+[[0;32m  OK  [0m] Started Network Service.
+[[0;32m  OK  [0m] Started Flush Journal to Persistent Storage.
+         Starting Create Volatile Files and Directories...
+[[0;32m  OK  [0m] Started Create Volatile Files and Directories.
+         Starting Network Name Resolution...
+         Starting Network Time Synchronization...
+         Starting Update UTMP about System Boot/Shutdown...
+[[0;32m  OK  [0m] Started Network Name Resolution.
+[[0;32m  OK  [0m] Started Network Time Synchronization.
+[[0;32m  OK  [0m] Reached target System Time Synchronized.
+[[0;32m  OK  [0m] Reached target Host and Network Name Lookups.
+[[0;32m  OK  [0m] Reached target Network.
+[[0;32m  OK  [0m] Started Update UTMP about System Boot/Shutdown.
+[[0m[0;31m*     [0m] A start job is running for dev-disk…1e7fca5c06.device (10s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…1e7fca5c06.device (10s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…1e7fca5c06.device (11s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…1e7fca5c06.device (11s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…1e7fca5c06.device (12s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (12s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (13s / 1min 30s)[K[     [0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (13s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (14s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (14s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…1e7fca5c06.device (15s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…1e7fca5c06.device (15s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…1e7fca5c06.device (16s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…1e7fca5c06.device (16s / 1min 30s)[K[[0m[0;31m*     [0m] A start job is running for dev-disk…1e7fca5c06.device (17s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…1e7fca5c06.device (17s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…1e7fca5c06.device (18s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…1e7fca5c06.device (18s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…1e7fca5c06.device (19s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (19s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (20s / 1min 30s)[K[     [0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (20s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (21s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (21s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…1e7fca5c06.device (22s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…1e7fca5c06.device (23s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…1e7fca5c06.device (23s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…1e7fca5c06.device (24s / 1min 30s)[K[[0m[0;31m*     [0m] A start job is running for dev-disk…1e7fca5c06.device (24s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…1e7fca5c06.device (25s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…1e7fca5c06.device (25s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…1e7fca5c06.device (26s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…1e7fca5c06.device (26s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (27s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (27s / 1min 30s)[K[     [0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (28s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (28s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (29s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…1e7fca5c06.device (29s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…1e7fca5c06.device (30s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…1e7fca5c06.device (30s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…1e7fca5c06.device (31s / 1min 30s)[K[[0m[0;31m*     [0m] A start job is running for dev-disk…1e7fca5c06.device (31s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…1e7fca5c06.device (32s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…1e7fca5c06.device (32s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…1e7fca5c06.device (33s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…1e7fca5c06.device (33s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (34s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (34s / 1min 30s)[K[     [0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (35s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (35s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (36s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…1e7fca5c06.device (36s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…1e7fca5c06.device (37s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…1e7fca5c06.device (37s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…1e7fca5c06.device (38s / 1min 30s)[K[[0m[0;31m*     [0m] A start job is running for dev-disk…1e7fca5c06.device (38s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…1e7fca5c06.device (39s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…1e7fca5c06.device (39s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…1e7fca5c06.device (40s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…1e7fca5c06.device (40s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (41s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (41s / 1min 30s)[K[     [0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (42s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (42s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (43s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…1e7fca5c06.device (43s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…1e7fca5c06.device (44s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…1e7fca5c06.device (44s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…1e7fca5c06.device (45s / 1min 30s)[K[[0m[0;31m*     [0m] A start job is running for dev-disk…1e7fca5c06.device (45s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…1e7fca5c06.device (46s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…1e7fca5c06.device (46s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…1e7fca5c06.device (47s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…1e7fca5c06.device (47s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (48s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (48s / 1min 30s)[K[     [0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (49s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (49s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (50s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…1e7fca5c06.device (50s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…1e7fca5c06.device (51s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…1e7fca5c06.device (51s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…1e7fca5c06.device (52s / 1min 30s)[K[[0m[0;31m*     [0m] A start job is running for dev-disk…1e7fca5c06.device (52s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…1e7fca5c06.device (53s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…1e7fca5c06.device (53s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…1e7fca5c06.device (54s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…1e7fca5c06.device (54s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (55s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (55s / 1min 30s)[K[     [0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (56s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (56s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…1e7fca5c06.device (57s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…1e7fca5c06.device (57s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…1e7fca5c06.device (58s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…1e7fca5c06.device (58s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…1e7fca5c06.device (59s / 1min 30s)[K[[0m[0;31m*     [0m] A start job is running for dev-disk…1e7fca5c06.device (59s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…e7fca5c06.device (1min / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…e7fca5c06.device (1min / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…ca5c06.device (1min 1s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…ca5c06.device (1min 1s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…ca5c06.device (1min 2s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…ca5c06.device (1min 2s / 1min 30s)[K[     [0;31m*[0m] A start job is running for dev-disk…ca5c06.device (1min 3s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…ca5c06.device (1min 3s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…ca5c06.device (1min 4s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…ca5c06.device (1min 4s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…ca5c06.device (1min 5s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…ca5c06.device (1min 5s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…ca5c06.device (1min 6s / 1min 30s)[K[[0m[0;31m*     [0m] A start job is running for dev-disk…ca5c06.device (1min 6s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…ca5c06.device (1min 7s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…ca5c06.device (1min 7s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…ca5c06.device (1min 8s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…ca5c06.device (1min 8s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…ca5c06.device (1min 9s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…ca5c06.device (1min 9s / 1min 30s)[K[     [0;31m*[0m] A start job is running for dev-disk…a5c06.device (1min 10s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…a5c06.device (1min 10s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…a5c06.device (1min 11s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…a5c06.device (1min 11s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…a5c06.device (1min 12s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…a5c06.device (1min 12s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…a5c06.device (1min 13s / 1min 30s)[K[[0m[0;31m*     [0m] A start job is running for dev-disk…a5c06.device (1min 13s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…a5c06.device (1min 14s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…a5c06.device (1min 14s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…a5c06.device (1min 15s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…a5c06.device (1min 15s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…a5c06.device (1min 16s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…a5c06.device (1min 16s / 1min 30s)[K[     [0;31m*[0m] A start job is running for dev-disk…a5c06.device (1min 17s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…a5c06.device (1min 17s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…a5c06.device (1min 18s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…a5c06.device (1min 18s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…a5c06.device (1min 19s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…a5c06.device (1min 19s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…a5c06.device (1min 20s / 1min 30s)[K[[0m[0;31m*     [0m] A start job is running for dev-disk…a5c06.device (1min 20s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…a5c06.device (1min 21s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…a5c06.device (1min 21s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…a5c06.device (1min 22s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…a5c06.device (1min 22s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…a5c06.device (1min 23s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…a5c06.device (1min 23s / 1min 30s)[K[     [0;31m*[0m] A start job is running for dev-disk…a5c06.device (1min 24s / 1min 30s)[K[    [0;31m*[0;1;31m*[0m] A start job is running for dev-disk…a5c06.device (1min 24s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…a5c06.device (1min 25s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…a5c06.device (1min 25s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…a5c06.device (1min 26s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…a5c06.device (1min 26s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…a5c06.device (1min 27s / 1min 30s)[K[[0m[0;31m*     [0m] A start job is running for dev-disk…a5c06.device (1min 27s / 1min 30s)[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for dev-disk…a5c06.device (1min 28s / 1min 30s)[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for dev-disk…a5c06.device (1min 28s / 1min 30s)[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for dev-disk…a5c06.device (1min 29s / 1min 30s)[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for dev-disk…a5c06.device (1min 29s / 1min 30s)[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for dev-disk…a5c06.device (1min 30s / 1min 30s)[K[[0;1;31m TIME [0m] Timed out waiting for device dev-di…14\x2daeec\x2dec1e7fca5c06.device.
+[[0;1;33mDEPEND[0m] Dependency failed for /dev/disk/by-…7556e-cf4d-4614-aeec-ec1e7fca5c06.
+[[0;1;33mDEPEND[0m] Dependency failed for Swap.
+[[0;32m  OK  [0m] Reached target System Initialization.
+[[0;32m  OK  [0m] Started Daily Cleanup of Temporary Directories.
+[[0;32m  OK  [0m] Started Daily apt download activities.
+[[0;32m  OK  [0m] Started Daily apt upgrade and clean activities.
+[[0;32m  OK  [0m] Started Discard unused blocks once a week.
+[[0;32m  OK  [0m] Started Message of the Day.
+[[0;32m  OK  [0m] Reached target Timers.
+[[0;32m  OK  [0m] Listening on D-Bus System Message Bus Socket.
+[[0;32m  OK  [0m] Listening on UUID daemon activation socket.
+[[0;32m  OK  [0m] Reached target Sockets.
+[[0;32m  OK  [0m] Reached target Basic System.
+         Starting Login Service...
+         Starting Dispatcher daemon for systemd-networkd...
+         Starting Permit User Sessions...
+         Starting OpenBSD Secure Shell server...
+         Starting System Logging Service...
+[[0;32m  OK  [0m] Started Regular background program processing daemon.
+         Starting LSB: Record successful boot for GRUB...
+[[0;32m  OK  [0m] Started Set the CPU Frequency Scaling governor.
+         Starting Accounts Service...
+[[0;32m  OK  [0m] Started irqbalance daemon.
+[[0;32m  OK  [0m] Started D-Bus System Message Bus.
+[[0;32m  OK  [0m] Started Login Service.
+[[0;32m  OK  [0m] Started System Logging Service.
+[[0;32m  OK  [0m] Started Dispatcher daemon for systemd-networkd.
+[[0;32m  OK  [0m] Started Permit User Sessions.
+[[0;32m  OK  [0m] Started OpenBSD Secure Shell server.
+[[0;32m  OK  [0m] Started LSB: Record successful boot for GRUB.
+[[0;32m  OK  [0m] Started Accounts Service.
+         Starting Hold until boot process finishes up...
+         Starting Terminate Plymouth Boot Screen...
+[[0;32m  OK  [0m] Started Hold until boot process finishes up.
+[[0;32m  OK  [0m] Started Terminate Plymouth Boot Screen.
+         Starting Set console scheme...
+[[0;32m  OK  [0m] Started Serial Getty on ttyS0.
+[[0;32m  OK  [0m] Started Set console scheme.
+[[0;32m  OK  [0m] Created slice system-getty.slice.
+[[0;32m  OK  [0m] Started Getty on tty1.
+[[0;32m  OK  [0m] Reached target Login Prompts.
+[[0;32m  OK  [0m] Reached target Multi-User System.
+[[0;32m  OK  [0m] Reached target Graphical Interface.
+         Starting Update UTMP about System Runlevel Changes...
+[[0;32m  OK  [0m] Started Stop ureadahead data collection 45s after completed startup.
+[[0;32m  OK  [0m] Started Update UTMP about System Runlevel Changes.
+
+Ubuntu 18.04.2 LTS gem5-host ttyS0
+
+gem5-host login: root (automatic login)
+
+Last login: Fri Nov 12 19:42:50 EST 2021 on ttyS0
+Welcome to Ubuntu 18.04.2 LTS (GNU/Linux 4.19.83 x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+New release '20.04.3 LTS' available.
+Run 'do-release-upgrade' to upgrade to it.
+
+hda: DMA interrupt recovery
+hda: DMA interrupt recovery
+Done reading workloads
+Generate Time:       1.08084
+Build Time:          0.35095
+Graph has 1048575 nodes and 15699687 undirected edges for degree: 14
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03599
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03200
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03200
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03299
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03200
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03200
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03200
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03299
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03200
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03200
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03200
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03299
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03200
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03200
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03200
+---------------------roi begin--------------------
+Skipping largest intermediate component (ID: 0, approx. 60% of the graph)
+---------------------roi end--------------------
+Trial Time:          0.03299
+Average Time:        0.03250

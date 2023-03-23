@@ -60,7 +60,6 @@ def DualChannelDDR4_2400(
     """
     return ChanneledMemory(DDR4_2400_8x8, 2, 64, size=size)
 
-
 def DualChannelLPDDR3_1600(
     size: Optional[str] = None,
 ) -> AbstractMemorySystem:

@@ -95,6 +95,9 @@ RubySystem::RubySystem(const Params &p)
     // Create the profiler
     m_profiler = new Profiler(p, this);
     m_phys_mem = p.phys_mem;
+
+    fatal_if(m_access_backing_store && !m_phys_mem, "If using access backing "
+        "store, a phys_mem must be provided to the Ruby system.");
 }
 
 void
@@ -217,6 +220,11 @@ RubySystem::memWriteback()
         m_abs_cntrl_vec[cntrl]->recordCacheTrace(cntrl, m_cache_recorder);
     }
     DPRINTF(RubyCacheTrace, "Cache Trace Complete\n");
+
+    if (m_access_backing_store) {
+        // Nothing to flush if we're using access backing store.
+        return;
+    }
 
     // save the current tick value
     Tick curtick_original = curTick();

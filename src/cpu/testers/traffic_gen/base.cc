@@ -204,6 +204,7 @@ BaseTrafficGen::update()
                 retryPktTick = curTick();
             }
         } else if (pkt) {
+            std::cout << "traffGen: " << curTick() << " , " << pkt->getAddr() << "\n";
             DPRINTF(TrafficGen, "Suppressed packet %s 0x%x\n",
                     pkt->cmdString(), pkt->getAddr());
 

@@ -34,3 +34,6 @@ from .multi_channel import DualChannelDDR3_2133
 from .multi_channel import DualChannelDDR4_2400
 from .multi_channel import DualChannelLPDDR3_1600
 from .hbm import HBM2Stack
+from .dcache import CascadeLakeCache
+from .dcache import OracleCache
+from .dcache import RamCache

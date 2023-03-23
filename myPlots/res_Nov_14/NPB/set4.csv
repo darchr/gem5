@@ -1,0 +1,7 @@
+,app,simSeconds,hostSeconds,readReqs,writeReqs,servicedByWrQ,mergedWrBursts,numTotHits,numTotMisses,numColdMisses,numHotMisses,numRdMissClean,numRdMissDirty,numRdHit,numWrMissClean,numWrMissDirty,numWrHit,numRdHitDirty,numRdHitClean,numWrHitDirty,numWrHitClean,system.loc_mem_ctrl.dram.readBursts,system.loc_mem_ctrl.dram.writeBursts,system.far_mem_ctrl.dram.readBursts,system.far_mem_ctrl.dram.writeBursts,numInsts0,numInsts1,numInsts2,numInsts3,numInsts4,numInsts5,numInsts6,numInsts7,avgRdBWSys,avgWrBWSys,avgORBLen,totNumInsts,totBW,coldRate,injRate
+0,bt,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,3861248,-1,-1,3678916,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-8,-2e-09,100.0,1.28e-07
+1,cg,3,258766.65,254477854,2419995,8013,0,3333808,253564041,0,253564041,251159913,2061700,38888,321308,21120,6528,586401,669840,336579,1740988,256775858,255576148,253219415,2082790,0,0,0,0,0,0,0,0,5428860885.33333302,51626560.00000000,19.9406,0,5.480487445333333,0.0,5.480487445333334
+2,ep,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,5541551,-1,-1,5002029,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-8,-2e-09,100.0,1.28e-07
+3,is,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,469762,-1,-1,287601,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-8,-2e-09,100.0,1.28e-07
+4,lu,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,5921893,-1,-1,4886942,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-8,-2e-09,100.0,1.28e-07
+5,sp,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,3346974,-1,-1,3131708,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-8,-2e-09,100.0,1.28e-07

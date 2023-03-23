@@ -190,6 +190,25 @@ class MemInterface : public AbstractMemory
     Tick nextReqTime = 0;
 
     /**
+     * Reads/writes performed by the controller for this interface before
+     * bus direction is switched
+     */
+    uint32_t readsThisTime = 0;
+    uint32_t writesThisTime = 0;
+
+    /**
+     * Read/write packets in the read/write queue for this interface
+     */
+    uint32_t readQueueSize = 0;
+    uint32_t writeQueueSize = 0;
+
+
+    MemCtrl::BusState busState = MemCtrl::READ;
+
+    /** bus state for next request event triggered */
+    MemCtrl::BusState busStateNext = MemCtrl::READ;
+
+    /**
      * pseudo channel number used for HBM modeling
      */
     uint8_t pseudoChannel;
@@ -253,7 +272,7 @@ class MemInterface : public AbstractMemory
     /**
      * @return number of bytes in a burst for this interface
      */
-    uint32_t bytesPerBurst() const { return burstSize; }
+    virtual uint32_t bytesPerBurst() const { return burstSize; }
 
     /*
      * @return time to offset next command

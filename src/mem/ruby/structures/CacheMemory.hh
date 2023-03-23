@@ -69,7 +69,7 @@ namespace ruby
 class CacheMemory : public SimObject
 {
   public:
-    typedef RubyCacheParams Params;
+    PARAMS(RubyCache);
     typedef std::shared_ptr<replacement_policy::ReplacementData> ReplData;
     CacheMemory(const Params &p);
     ~CacheMemory();

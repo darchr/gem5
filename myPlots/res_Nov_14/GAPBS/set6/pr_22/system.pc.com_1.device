@@ -1,0 +1,99 @@
+Linux version 4.19.83 (aakahlow@amarillo) (gcc version 7.4.0 (Ubuntu 7.4.0-1ubuntu1~18.04.1)) #1 SMP Thu Nov 28 16:06:01 PST 2019
+Command line: earlyprintk=ttyS0 console=ttyS0 lpj=7999923 root=/dev/hda1
+CPU: vendor_id 'M5 Simulator' unknown, using generic init.
+CPU: Your system may be unstable.
+x86/fpu: x87 FPU will use FXSAVE
+BIOS-provided physical RAM map:
+BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
+BIOS-e820: [mem 0x000000000009fc00-0x00000000000fffff] reserved
+BIOS-e820: [mem 0x0000000000100000-0x000000007fffffff] usable
+BIOS-e820: [mem 0x00000000ffff0000-0x00000000ffffffff] reserved
+bootconsole [earlyser0] enabled
+NX (Execute Disable) protection: active
+SMBIOS 2.5 present.
+DMI:  , BIOS  06/08/2008
+tsc: Fast TSC calibration failed
+AGP: No AGP bridge found
+last_pfn = 0x80000 max_arch_pfn = 0x400000000
+Disabled
+x86/PAT: MTRRs disabled, skipping PAT initialization too.
+CPU MTRRs all blank - virtualized system.
+x86/PAT: Configuration [0-7]: WB  WT  UC- UC  WB  WT  UC- UC  
+found SMP MP-table at [mem 0x000f0050-0x000f005f]
+ACPI: Early table checksum verification disabled
+ACPI: RSDP 0x00000000000F0240 000024 (v02       )
+ACPI: XSDT 0x00000000000F0288 000024 (v01                 00000000      00000000)
+ACPI BIOS Error (bug): Invalid table length 0x24 in RSDT/XSDT (20180810/tbutils-291)
+Zone ranges:
+  DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+  DMA32    [mem 0x0000000001000000-0x000000007fffffff]
+  Normal   empty
+Movable zone start for each node
+Early memory node ranges
+  node   0: [mem 0x0000000000001000-0x000000000009efff]
+  node   0: [mem 0x0000000000100000-0x000000007fffffff]
+Reserved but unavailable: 98 pages
+Initmem setup node 0 [mem 0x0000000000001000-0x000000007fffffff]
+Intel MultiProcessor Specification v1.4
+MPTABLE: OEM ID: 
+MPTABLE: Product ID: 
+MPTABLE: APIC at: 0xFEE00000
+Processor #0 (Bootup-CPU)
+Processor #1
+Processor #2
+Processor #3
+Processor #4
+Processor #5
+Processor #6
+Processor #7
+IOAPIC[0]: apic_id 8, version 20, address 0xfec00000, GSI 0-23
+Processors: 8
+smpboot: Allowing 8 CPUs, 0 hotplug CPUs
+[mem 0x80000000-0xfffeffff] available for PCI devices
+Booting paravirtualized kernel on bare hardware
+clocksource: refined-jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1910969940391419 ns
+random: get_random_bytes called from start_kernel+0x8f/0x583 with crng_init=0
+setup_percpu: NR_CPUS:8192 nr_cpumask_bits:8 nr_cpu_ids:8 nr_node_ids:1
+percpu: Embedded 41 pages/cpu s127960 r8192 d31784 u262144
+Built 1 zonelists, mobility grouping on.  Total pages: 517001
+Kernel command line: earlyprintk=ttyS0 console=ttyS0 lpj=7999923 root=/dev/hda1
+Dentry cache hash table entries: 262144 (order: 9, 2097152 bytes)
+Inode-cache hash table entries: 131072 (order: 8, 1048576 bytes)
+AGP: Checking aperture...
+AGP: No AGP bridge found
+Memory: 2042024K/2096760K available (8204K kernel code, 1570K rwdata, 1940K rodata, 1204K init, 1636K bss, 54736K reserved, 0K cma-reserved)
+Kernel/User page tables isolation: enabled
+rcu: Hierarchical RCU implementation.
+rcu: 	RCU restricting CPUs from NR_CPUS=8192 to nr_cpu_ids=8.
+rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=8
+NR_IRQS: 524544, nr_irqs: 488, preallocated irqs: 16
+Console: colour dummy device 80x25
+console [ttyS0] enabled
+console [ttyS0] enabled
+bootconsole [earlyser0] disabled
+bootconsole [earlyser0] disabled
+APIC: Switch to symmetric I/O mode setup
+ExtINT not setup in hardware but reported by MP table
+..TIMER: vector=0x30 apic1=0 pin1=2 apic2=0 pin2=0
+..MP-BIOS bug: 8254 timer not connected to IO-APIC
+...trying to set up timer (IRQ0) through the 8259A ...
+..... (found apic 0 pin 0) ...
+....... failed.
+...trying to set up timer as Virtual Wire IRQ...
+..... failed.
+...trying to set up timer as ExtINT IRQ...
+..... failed :(.
+Kernel panic - not syncing: IO-APIC + timer doesn't work!  Boot with apic=debug and send a report.  Then try booting with the 'noapic' option.
+
+CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.19.83 #1
+Hardware name:  , BIOS  06/08/2008
+Call Trace:
+ dump_stack+0x5d/0x79
+ panic+0xe2/0x236
+ setup_IO_APIC+0x6aa/0x748
+ ? clear_IO_APIC_pin+0x102/0x131
+ x86_late_time_init+0x12/0x17
+ start_kernel+0x4ff/0x583
+ secondary_startup_64+0xa4/0xb0
+---[ end Kernel panic - not syncing: IO-APIC + timer doesn't work!  Boot with apic=debug and send a report.  Then try booting with the 'noapic' option.
+ ]---

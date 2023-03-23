@@ -225,6 +225,23 @@ class AbstractMemory : public ClockedObject
 
     void initState() override;
 
+    virtual bool recvReadFlushBuffer(Addr addr)
+    {
+        panic("AbstractMemory recvReadFlushBuffer should not be executed from here.\n");
+        return false;
+    }
+
+    virtual void setPolicyManager(AbstractMemory* _polMan)
+    {
+        panic("AbstractMemory setPolicyManager should not be executed from here.\n");
+    }
+
+    virtual bool checkFwdMrgeInFB(Addr addr)
+    {
+        panic("AbstractMemory checkFwdMrgeInFB should not be executed from here.\n");
+        return false;
+    }
+
     /**
      * See if this is a null memory that should never store data and
      * always return zero.
@@ -278,7 +295,7 @@ class AbstractMemory : public ClockedObject
      * object graph. An init() this is set.
      * @param sys system pointer to set
      */
-    void system(System *sys) { _system = sys; }
+    void system(System *sys) { std::cout << "here\n"; _system = sys; }
 
     /**
      * Get the address range

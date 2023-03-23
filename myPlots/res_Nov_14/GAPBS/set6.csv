@@ -1,0 +1,6 @@
+,app,simSeconds,hostSeconds,readReqs,writeReqs,servicedByWrQ,mergedWrBursts,numInsts0,numInsts1,numInsts2,numInsts3,numInsts4,numInsts5,numInsts6,numInsts7,avgRdBWSys,avgWrBWSys,avgORBLen,totNumInsts,totBW,injRate
+0,bc,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-8,-2e-09,1.28e-07
+1,bfs,0.679974,211960.80,80879267,15758510,13064,0,0,0,0,0,0,0,0,0,7612462739.65935421,1483211639.48666024,-1,0,9.095674379146015,9.095667963775085
+2,cc,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-8,-2e-09,1.28e-07
+3,pr,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-8,-2e-09,1.28e-07
+4,tc,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-8,-2e-09,1.28e-07
