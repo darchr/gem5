@@ -56,7 +56,7 @@ class PolicyManager : public AbstractMemory
       public:
 
         RespPortPolManager(const std::string& name, PolicyManager& _polMan)
-            : QueuedResponsePort(name, &_polMan, queue),
+            : QueuedResponsePort(name, queue),
               queue(_polMan, *this, true),
               polMan(_polMan)
         { }
@@ -426,24 +426,24 @@ class PolicyManager : public AbstractMemory
       statistics::Average avgFarRdQLenEnq;
       statistics::Average avgFarWrQLenEnq;
 
-      Stats::Scalar numWrBacks;
-      Stats::Scalar totNumConf;
-      Stats::Scalar totNumORBFull;
-      Stats::Scalar totNumCRBFull;
+      statistics::Scalar numWrBacks;
+      statistics::Scalar totNumConf;
+      statistics::Scalar totNumORBFull;
+      statistics::Scalar totNumCRBFull;
 
-      Stats::Scalar maxNumConf;
+      statistics::Scalar maxNumConf;
 
-      Stats::Scalar sentTagCheckPort;
-      Stats::Scalar failedTagCheckPort;
-      Stats::Scalar sentLocRdPort;
-      Stats::Scalar sentLocWrPort;
-      Stats::Scalar failedLocRdPort;
-      Stats::Scalar failedLocWrPort;
-      //Stats::Scalar recvdRdPort;
-      Stats::Scalar sentFarRdPort;
-      Stats::Scalar sentFarWrPort;
-      Stats::Scalar failedFarRdPort;
-      Stats::Scalar failedFarWrPort;
+      statistics::Scalar sentTagCheckPort;
+      statistics::Scalar failedTagCheckPort;
+      statistics::Scalar sentLocRdPort;
+      statistics::Scalar sentLocWrPort;
+      statistics::Scalar failedLocRdPort;
+      statistics::Scalar failedLocWrPort;
+      //statistics::Scalar recvdRdPort;
+      statistics::Scalar sentFarRdPort;
+      statistics::Scalar sentFarWrPort;
+      statistics::Scalar failedFarRdPort;
+      statistics::Scalar failedFarWrPort;
 
       statistics::Scalar totPktLifeTime;
       statistics::Scalar totPktLifeTimeRd;
@@ -483,20 +483,20 @@ class PolicyManager : public AbstractMemory
       statistics::Formula avgTimeFarRdtoRecv;
       statistics::Formula avgTimeFarWrtoSend;
 
-      Stats::Scalar numTotHits;
-      Stats::Scalar numTotMisses;
-      Stats::Scalar numColdMisses;
-      Stats::Scalar numHotMisses;
-      Stats::Scalar numRdMissClean;
-      Stats::Scalar numRdMissDirty;
-      Stats::Scalar numRdHit;
-      Stats::Scalar numWrMissClean;
-      Stats::Scalar numWrMissDirty;
-      Stats::Scalar numWrHit;
-      Stats::Scalar numRdHitDirty;
-      Stats::Scalar numRdHitClean;
-      Stats::Scalar numWrHitDirty;
-      Stats::Scalar numWrHitClean;
+      statistics::Scalar numTotHits;
+      statistics::Scalar numTotMisses;
+      statistics::Scalar numColdMisses;
+      statistics::Scalar numHotMisses;
+      statistics::Scalar numRdMissClean;
+      statistics::Scalar numRdMissDirty;
+      statistics::Scalar numRdHit;
+      statistics::Scalar numWrMissClean;
+      statistics::Scalar numWrMissDirty;
+      statistics::Scalar numWrHit;
+      statistics::Scalar numRdHitDirty;
+      statistics::Scalar numRdHitClean;
+      statistics::Scalar numWrHitDirty;
+      statistics::Scalar numWrHitClean;
 
     };
 

@@ -817,12 +817,12 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
       enableDRAMPowerdown(_p.enable_dram_powerdown),
       lastStatsResetTick(0),
       // polMan(_p.pol_man),
+      stats(*this),
       readFlushBufferEvent([this] {processReadFlushBufferEvent();}, name()),
       addToFlushBufferEvent([this] {processAddToFlushBufferEvent();}, name()),
       endOfReadFlushBuffPeriod(0),
       readFlushBufferCount(0),
-      enableReadFlushBuffer(_p.enable_read_flush_buffer),
-      stats(*this)
+      enableReadFlushBuffer(_p.enable_read_flush_buffer)
 {
     DPRINTF(DRAM, "Setting up DRAM Interface\n");
 

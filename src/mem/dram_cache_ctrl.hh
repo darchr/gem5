@@ -407,38 +407,38 @@ class DCacheCtrl : public MemCtrl
       statistics::Average avgFarWrQLenEnq;
 
       
-      Stats::Scalar numWrBacks;
-      Stats::Scalar totNumConf;
-      Stats::Scalar totNumORBFull;
-      Stats::Scalar totNumConfBufFull;
+      statistics::Scalar numWrBacks;
+      statistics::Scalar totNumConf;
+      statistics::Scalar totNumORBFull;
+      statistics::Scalar totNumConfBufFull;
 
-      Stats::Scalar maxNumConf;
-      Stats::Scalar maxLocRdEvQ;
-      Stats::Scalar maxLocRdRespEvQ;
-      Stats::Scalar maxLocWrEvQ;
-      Stats::Scalar maxFarRdEvQ;
-      Stats::Scalar maxFarRdRespEvQ;
-      Stats::Scalar maxFarWrEvQ;
+      statistics::Scalar maxNumConf;
+      statistics::Scalar maxLocRdEvQ;
+      statistics::Scalar maxLocRdRespEvQ;
+      statistics::Scalar maxLocWrEvQ;
+      statistics::Scalar maxFarRdEvQ;
+      statistics::Scalar maxFarRdRespEvQ;
+      statistics::Scalar maxFarWrEvQ;
 
-      Stats::Scalar rdToWrTurnAround;
-      Stats::Scalar wrToRdTurnAround;
+      statistics::Scalar rdToWrTurnAround;
+      statistics::Scalar wrToRdTurnAround;
 
-      Stats::Scalar sentRdPort;
-      Stats::Scalar failedRdPort;
-      Stats::Scalar recvdRdPort;
-      Stats::Scalar sentWrPort;
-      Stats::Scalar failedWrPort;
+      statistics::Scalar sentRdPort;
+      statistics::Scalar failedRdPort;
+      statistics::Scalar recvdRdPort;
+      statistics::Scalar sentWrPort;
+      statistics::Scalar failedWrPort;
 
-      Stats::Scalar totPktsServiceTime;
-      Stats::Scalar totPktsORBTime;
-      Stats::Scalar totTimeFarRdtoSend;
-      Stats::Scalar totTimeFarRdtoRecv;
-      Stats::Scalar totTimeFarWrtoSend;
-      Stats::Scalar totTimeInLocRead;
-      Stats::Scalar totTimeInLocWrite;
-      Stats::Scalar totTimeInFarRead;
-      Stats::Scalar QTLocRd;
-      Stats::Scalar QTLocWr;
+      statistics::Scalar totPktsServiceTime;
+      statistics::Scalar totPktsORBTime;
+      statistics::Scalar totTimeFarRdtoSend;
+      statistics::Scalar totTimeFarRdtoRecv;
+      statistics::Scalar totTimeFarWrtoSend;
+      statistics::Scalar totTimeInLocRead;
+      statistics::Scalar totTimeInLocWrite;
+      statistics::Scalar totTimeInFarRead;
+      statistics::Scalar QTLocRd;
+      statistics::Scalar QTLocWr;
     };
 
     DCCtrlStats dcstats;
