@@ -31,6 +31,12 @@
 namespace gem5
 {
 
+const char* registerStateStrings[NUM_REGISTER_STATE] = {
+    "PENDING_READ",
+    "PENDING_REDUCE",
+    "PENDING_WRITE"
+};
+
 const char* cacheStateStrings[NUM_CACHE_STATE] = {
     "INVALID",
     "PENDING_DATA",

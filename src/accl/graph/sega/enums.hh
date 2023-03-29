@@ -32,6 +32,15 @@
 namespace gem5
 {
 
+enum RegisterState
+{
+    PENDING_READ,
+    PENDING_REDUCE,
+    PENDING_WRITE,
+    NUM_REGISTER_STATE
+};
+extern const char* registerStateStrings[NUM_REGISTER_STATE];
+
 enum CacheState
 {
     INVALID,

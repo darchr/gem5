@@ -44,3 +44,7 @@ class WLEngine(BaseReduceEngine):
                                     "WLEngine has. It can service as "
                                     "many updates as this queueu has "
                                     "entries at the same time.")
+
+    rd_per_cycle = Param.Int("Maximum number of reads per cycle.")
+    reduce_per_cycle = Param.Int("Maximum number of reduce per cycle.")
+    wr_per_cycle = Param.Int("Maximum number of writes per cycle.")

@@ -44,9 +44,13 @@ namespace gem5
 WLEngine::WLEngine(const WLEngineParams& params):
     BaseReduceEngine(params),
     updateQueueSize(params.update_queue_size),
+    maxReadsPerCycle(params.rd_per_cycle),
+    maxReducesPerCycle(params.reduce_per_cycle),
+    maxWritesPerCycle(params.wr_per_cycle),
     registerFileSize(params.register_file_size),
     nextReadEvent([this]{ processNextReadEvent(); }, name()),
     nextReduceEvent([this]{ processNextReduceEvent(); }, name()),
+    nextWriteEvent([this] { processNextWriteEvent(); }, name()),
     nextDoneSignalEvent([this] { processNextDoneSignalEvent(); }, name()),
     stats(*this)
 {
@@ -190,89 +194,112 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
 void
 WLEngine::processNextReadEvent()
 {
-    Addr update_addr;
-    uint32_t update_value;
-    Tick enter_tick;
-    std::tie(update_addr, update_value, enter_tick) = updateQueue.front();
+    int num_reads = 0;
+    while (true) {
+        Addr update_addr;
+        uint32_t update_value;
+        Tick enter_tick;
+        std::tie(update_addr, update_value, enter_tick) = updateQueue.front();
 
-    DPRINTF(WLEngine,  "%s: Looking at the front of the updateQueue. "
+        DPRINTF(WLEngine,  "%s: Looking at the front of the updateQueue. "
             "(addr: %lu, value: %u).\n", __func__, update_addr, update_value);
 
-    if ((registerFile.find(update_addr) == registerFile.end())) {
-        DPRINTF(WLEngine,  "%s: No register already allocated for addr: %lu "
-                            "in registerFile.\n", __func__, update_addr);
-        if (registerFile.size() < registerFileSize) {
-            DPRINTF(WLEngine, "%s: There are free registers available in the "
-                                            "registerFile.\n", __func__);
-            ReadReturnStatus read_status = owner->recvWLRead(update_addr);
-            if (read_status == ReadReturnStatus::ACCEPT) {
-                DPRINTF(WLEngine, "%s: CoalesceEngine returned true for read "
-                            "request to addr: %lu.\n", __func__, update_addr);
-                registerFile[update_addr] = update_value;
-                DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, value: %u) "
-                        "to registerFile. registerFile.size = %d, "
-                        "registerFileSize = %d.\n", __func__, update_addr,
-                        update_value, registerFile.size(), registerFileSize);
-                DPRINTF(WLEngine, "%s: Added (addr: %lu, value: %u) "
-                        "to registerFile. registerFile.size = %d, "
-                        "registerFileSize = %d.\n", __func__, update_addr,
-                        update_value, registerFile.size(), registerFileSize);
+        if ((registerFile.find(update_addr) == registerFile.end())) {
+            DPRINTF(WLEngine,  "%s: No register already allocated for addr: %lu "
+                                "in registerFile.\n", __func__, update_addr);
+            if (registerFile.size() < registerFileSize) {
+                DPRINTF(WLEngine, "%s: There are free registers available in the "
+                                                "registerFile.\n", __func__);
+                ReadReturnStatus read_status = owner->recvWLRead(update_addr);
+                if (read_status == ReadReturnStatus::ACCEPT) {
+                    DPRINTF(WLEngine, "%s: CoalesceEngine returned true for read "
+                                "request to addr: %lu.\n", __func__, update_addr);
+                    registerFile[update_addr] = std::make_tuple(RegisterState::PENDING_READ, update_value);
+                    DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, value: %u) "
+                            "to registerFile. registerFile.size = %d, "
+                            "registerFileSize = %d.\n", __func__, update_addr,
+                            update_value, registerFile.size(), registerFileSize);
+                    DPRINTF(WLEngine, "%s: Added (addr: %lu, value: %u) "
+                            "to registerFile. registerFile.size = %d, "
+                            "registerFileSize = %d.\n", __func__, update_addr,
+                            update_value, registerFile.size(), registerFileSize);
+                    updateQueue.pop_front();
+                    stats.updateQueueLatency.sample(
+                            (curTick() - enter_tick) * 1e9 / getClockFrequency());
+                    DPRINTF(SEGAStructureSize, "%s: Popped (addr: %lu, value: %u) "
+                                "from updateQueue. updateQueue.size = %d. "
+                                "updateQueueSize = %d.\n", __func__, update_addr,
+                                update_value, updateQueue.size(), updateQueueSize);
+                    DPRINTF(WLEngine, "%s: Popped (addr: %lu, value: %u) "
+                                "from updateQueue. updateQueue.size = %d. "
+                                "updateQueueSize = %d.\n", __func__, update_addr,
+                                update_value, updateQueue.size(), updateQueueSize);
+                    vertexReadTime[update_addr] = curTick();
+                    checkRetryReq();
+                } else {
+                    if (read_status == ReadReturnStatus::REJECT_ROLL) {
+                        updateQueue.pop_front();
+                        updateQueue.emplace_back(
+                                            update_addr, update_value, enter_tick);
+                        DPRINTF(WLEngine, "%s: Received a reject from cache. "
+                                            "Rolling the update.\n", __func__);
+                        stats.numUpdateRolls++;
+                    } else {
+                        DPRINTF(WLEngine, "%s: Received a reject from cache. "
+                                        "Not rolling the update.\n", __func__);
+                    }
+                }
+            } else {
+                DPRINTF(WLEngine, "%s: There are no free registers "
+                        "available in the registerFile.\n", __func__);
+                stats.registerShortage++;
+            }
+        } else {
+            RegisterState state = std::get<0>(registerFile[update_addr]);
+            if (state == RegisterState::PENDING_WRITE) {
+                // NOTE: If it's pending write, let it be written.
+                updateQueue.pop_front();
+                updateQueue.emplace_back(update_addr, update_value, enter_tick);
+            } else {
+                DPRINTF(WLEngine,  "%s: A register has already been allocated for "
+                            "addr: %lu in registerFile. registerFile[%lu] = %u.\n",
+                        __func__, update_addr, update_addr, std::get<1>(registerFile[update_addr]));
+                uint32_t curr_value = std::get<1>(registerFile[update_addr]);
+                uint32_t new_value = graphWorkload->reduce(update_value, curr_value);
+                registerFile[update_addr] = std::make_tuple(state, new_value);
+                DPRINTF(WLEngine,  "%s: Reduced the update_value: %u with the entry in"
+                            " registerFile. registerFile[%lu] = %u.\n", __func__,
+                            update_value, update_addr, std::get<1>(registerFile[update_addr]));
+                stats.registerFileCoalesce++;
                 updateQueue.pop_front();
                 stats.updateQueueLatency.sample(
-                        (curTick() - enter_tick) * 1e9 / getClockFrequency());
+                                (curTick() - enter_tick) * 1e9 / getClockFrequency());
                 DPRINTF(SEGAStructureSize, "%s: Popped (addr: %lu, value: %u) "
-                            "from updateQueue. updateQueue.size = %d. "
-                            "updateQueueSize = %d.\n", __func__, update_addr,
-                            update_value, updateQueue.size(), updateQueueSize);
+                                    "from updateQueue. updateQueue.size = %d. "
+                                    "updateQueueSize = %d.\n", __func__, update_addr,
+                                    update_value, updateQueue.size(), updateQueueSize);
                 DPRINTF(WLEngine, "%s: Popped (addr: %lu, value: %u) "
                             "from updateQueue. updateQueue.size = %d. "
                             "updateQueueSize = %d.\n", __func__, update_addr,
                             update_value, updateQueue.size(), updateQueueSize);
                 checkRetryReq();
-                vertexReadTime[update_addr] = curTick();
-            } else {
-                if (read_status == ReadReturnStatus::REJECT_ROLL) {
-                    updateQueue.pop_front();
-                    updateQueue.emplace_back(
-                                        update_addr, update_value, enter_tick);
-                    DPRINTF(WLEngine, "%s: Received a reject from cache. "
-                                        "Rolling the update.\n", __func__);
-                    stats.numUpdateRolls++;
-                } else {
-                    DPRINTF(WLEngine, "%s: Received a reject from cache. "
-                                    "Not rolling the update.\n", __func__);
-                }
             }
-        } else {
-            DPRINTF(WLEngine, "%s: There are no free registers "
-                    "available in the registerFile.\n", __func__);
-            stats.registerShortage++;
         }
-    } else {
-        DPRINTF(WLEngine,  "%s: A register has already been allocated for "
-                    "addr: %lu in registerFile. registerFile[%lu] = %u.\n",
-                __func__, update_addr, update_addr, registerFile[update_addr]);
-        registerFile[update_addr] =
-                graphWorkload->reduce(update_value, registerFile[update_addr]);
-        DPRINTF(WLEngine,  "%s: Reduced the update_value: %u with the entry in"
-                    " registerFile. registerFile[%lu] = %u.\n", __func__,
-                    update_value, update_addr, registerFile[update_addr]);
-        stats.registerFileCoalesce++;
-        updateQueue.pop_front();
-        stats.updateQueueLatency.sample(
-                        (curTick() - enter_tick) * 1e9 / getClockFrequency());
-        DPRINTF(SEGAStructureSize, "%s: Popped (addr: %lu, value: %u) "
-                            "from updateQueue. updateQueue.size = %d. "
-                            "updateQueueSize = %d.\n", __func__, update_addr,
-                            update_value, updateQueue.size(), updateQueueSize);
-        DPRINTF(WLEngine, "%s: Popped (addr: %lu, value: %u) "
-                    "from updateQueue. updateQueue.size = %d. "
-                    "updateQueueSize = %d.\n", __func__, update_addr,
-                    update_value, updateQueue.size(), updateQueueSize);
-        checkRetryReq();
+
+        num_reads++;
+        if (num_reads >= maxReadsPerCycle) {
+            // NOTE: Add stat here to count read port shortage.
+            break;
+        }
+        if (updateQueue.empty()) {
+            break;
+        }
     }
 
-    if (!updateQueue.empty() && (!nextReadEvent.scheduled())) {
+    if (!toReduce.empty() && !nextReduceEvent.scheduled()) {
+        schedule(nextReduceEvent, nextCycle());
+    }
+    if (!updateQueue.empty() && !nextReadEvent.scheduled()) {
         schedule(nextReadEvent, nextCycle());
     }
 }
@@ -281,6 +308,7 @@ void
 WLEngine::handleIncomingWL(Addr addr, WorkListItem wl)
 {
     assert(workListFile.size() <= registerFileSize);
+    assert(std::get<0>(registerFile[addr]) == RegisterState::PENDING_READ);
 
     workListFile[addr] = wl;
     DPRINTF(SEGAStructureSize, "%s: Added (addr: %lu, wl: %s) to "
@@ -290,11 +318,14 @@ WLEngine::handleIncomingWL(Addr addr, WorkListItem wl)
                 "workListFile. workListFile.size = %d.\n", __func__, addr,
                 graphWorkload->printWorkListItem(wl), workListFile.size());
 
+    uint32_t value = std::get<0>(registerFile[addr]);
+    registerFile[addr] = std::make_tuple(RegisterState::PENDING_REDUCE, value);
+    toReduce.push_back(addr);
+
     stats.vertexReadLatency.sample(
         ((curTick() - vertexReadTime[addr]) * 1e9) / getClockFrequency());
     vertexReadTime.erase(addr);
 
-    assert(!workListFile.empty());
     if (!nextReduceEvent.scheduled()) {
         schedule(nextReduceEvent, nextCycle());
     }
@@ -303,34 +334,92 @@ WLEngine::handleIncomingWL(Addr addr, WorkListItem wl)
 void
 WLEngine::processNextReduceEvent()
 {
-    for (auto &it : workListFile) {
-        Addr addr = it.first;
-        assert(registerFile.find(addr) != registerFile.end());
-        uint32_t update_value = registerFile[addr];
-        DPRINTF(WLEngine,  "%s: Reducing between registerFile and workListFile"
-                    ". registerFile[%lu] = %u, workListFile[%lu] = %s.\n",
-                    __func__, addr, registerFile[addr], addr,
-                    graphWorkload->printWorkListItem(workListFile[addr]));
-        // TODO: Generalize this to reduce function rather than just min
+
+    // for (auto &it : workListFile) {
+    //     Addr addr = it.first;
+    //     assert(registerFile.find(addr) != registerFile.end());
+    //     uint32_t update_value = registerFile[addr];
+    //     DPRINTF(WLEngine,  "%s: Reducing between registerFile and workListFile"
+    //                 ". registerFile[%lu] = %u, workListFile[%lu] = %s.\n",
+    //                 __func__, addr, registerFile[addr], addr,
+    //                 graphWorkload->printWorkListItem(workListFile[addr]));
+    //     // TODO: Generalize this to reduce function rather than just min
+    //     workListFile[addr].tempProp =
+    //         graphWorkload->reduce(update_value, workListFile[addr].tempProp);
+    //     DPRINTF(WLEngine,  "%s: Reduction done. workListFile[%lu] = %s.\n",
+    //     __func__, addr, graphWorkload->printWorkListItem(workListFile[addr]));
+    //     stats.numReduce++;
+
+    //     owner->recvWLWrite(addr, workListFile[addr]);
+    //     registerFile.erase(addr);
+    //     DPRINTF(SEGAStructureSize, "%s: Removed addr: %lu from registerFile. "
+    //                 "registerFile.size = %d, registerFileSize = %d\n",
+    //                 __func__, addr, registerFile.size(), registerFileSize);
+    //     DPRINTF(WLEngine, "%s: Removed addr: %lu from registerFile. "
+    //                 "registerFile.size = %d, registerFileSize = %d\n",
+    //                 __func__, addr, registerFile.size(), registerFileSize);
+    // }
+    // workListFile.clear();
+
+    int num_reduces = 0;
+    while (true) {
+        Addr addr = toReduce.front();
+        assert(std::get<0>(registerFile[addr]) == RegisterState::PENDING_REDUCE);
+        uint32_t update_value = std::get<1>(registerFile[addr]);
         workListFile[addr].tempProp =
             graphWorkload->reduce(update_value, workListFile[addr].tempProp);
-        DPRINTF(WLEngine,  "%s: Reduction done. workListFile[%lu] = %s.\n",
-        __func__, addr, graphWorkload->printWorkListItem(workListFile[addr]));
-        stats.numReduce++;
+        registerFile[addr] = std::make_tuple(RegisterState::PENDING_WRITE, update_value);
+        num_reduces++;
+        toReduce.pop_front();
+        toWrite.push_back(addr);
 
+        if (num_reduces >= maxReducesPerCycle) {
+            // TODO: Add stat to count reducer shortage;
+            break;
+        }
+        if (toReduce.empty()) {
+            break;
+        }
+    }
+
+    if (!toWrite.empty() && !nextWriteEvent.scheduled()) {
+        schedule(nextWriteEvent, nextCycle());
+    }
+
+    if (!toReduce.empty() && !nextReduceEvent.scheduled()) {
+        schedule(nextReduceEvent, nextCycle());
+    }
+    // if (done() && !nextDoneSignalEvent.scheduled()) {
+    //     schedule(nextDoneSignalEvent, nextCycle());
+    // }
+}
+
+void
+WLEngine::processNextWriteEvent()
+{
+    int num_writes = 0;
+    while (true) {
+        Addr addr = toWrite.front();
+        assert(std::get<0>(registerFile[addr]) == RegisterState::PENDING_WRITE);
         owner->recvWLWrite(addr, workListFile[addr]);
         registerFile.erase(addr);
-        DPRINTF(SEGAStructureSize, "%s: Removed addr: %lu from registerFile. "
-                    "registerFile.size = %d, registerFileSize = %d\n",
-                    __func__, addr, registerFile.size(), registerFileSize);
-        DPRINTF(WLEngine, "%s: Removed addr: %lu from registerFile. "
-                    "registerFile.size = %d, registerFileSize = %d\n",
-                    __func__, addr, registerFile.size(), registerFileSize);
+        workListFile.erase(addr);
+        toWrite.pop_front();
+        num_writes++;
+        if (num_writes >= maxWritesPerCycle) {
+            break;
+        }
+        if (toWrite.empty()) {
+            break;
+        }
     }
-    workListFile.clear();
 
     if (done() && !nextDoneSignalEvent.scheduled()) {
         schedule(nextDoneSignalEvent, nextCycle());
+    }
+
+    if (!toWrite.empty() && !nextWriteEvent.scheduled()) {
+        schedule(nextWriteEvent, nextCycle());
     }
 }
 
