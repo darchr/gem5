@@ -28,6 +28,10 @@
 
 #include "accl/graph/sega/wl_engine.hh"
 
+#include <algorithm>
+#include <random>
+#include <vector>
+
 #include "accl/graph/sega/mpu.hh"
 #include "debug/SEGAStructureSize.hh"
 #include "debug/WLEngine.hh"
@@ -135,8 +139,16 @@ WLEngine::RespPort::recvRespRetry()
 void
 WLEngine::checkRetryReq()
 {
+    std::vector<int> random_shuffle;
     for (int i = 0; i < inPorts.size(); i++) {
-        inPorts[i].checkRetryReq();
+        random_shuffle.push_back(i);
+    }
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::shuffle(random_shuffle.begin(), random_shuffle.end(), gen);
+
+    for (int i = 0; i < inPorts.size(); i++) {
+        inPorts[random_shuffle[i]].checkRetryReq();
     }
 }
 
