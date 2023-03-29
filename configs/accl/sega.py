@@ -50,7 +50,11 @@ class GPT(SubSystem):
     def __init__(self, register_file_size: int, cache_size: str):
         super().__init__()
         self.wl_engine = WLEngine(
-            update_queue_size=64, register_file_size=register_file_size
+            update_queue_size=64,
+            register_file_size=register_file_size,
+            rd_per_cycle=2,
+            reduce_per_cycle=32,
+            wr_per_cycle=2,
         )
         self.coalesce_engine = CoalesceEngine(
             attached_memory_atom_size=32,
@@ -109,6 +113,7 @@ class GPT(SubSystem):
     def set_vertex_pch_bit(self, pch_bit):
         self.vertex_mem_ctrl.pch_bit = pch_bit
 
+
 class EdgeMemory(SubSystem):
     def __init__(self, size: str):
         super(EdgeMemory, self).__init__()
@@ -133,6 +138,7 @@ class EdgeMemory(SubSystem):
     def setPort(self, port):
         self.xbar.cpu_side_ports = port
 
+
 class SEGA(System):
     def __init__(self, num_gpts, num_registers, cache_size, graph_path):
         super(SEGA, self).__init__()
@@ -148,10 +154,12 @@ class SEGA(System):
         self.mem_mode = "timing"
 
         # Building the CenteralController
-        self.ctrl = CenteralController(vertex_image_file=f"{graph_path}/vertices")
+        self.ctrl = CenteralController(
+            vertex_image_file=f"{graph_path}/vertices"
+        )
         # Building the EdgeMemories
         edge_mem = []
-        for i in range(int(num_gpts/2)):
+        for i in range(int(num_gpts / 2)):
             mem = EdgeMemory("4GiB")
             mem.set_image(f"{graph_path}/edgelist_{i}")
             edge_mem.append(mem)
@@ -167,7 +175,9 @@ class SEGA(System):
                 [vertex_ranges[i], vertex_ranges[i + num_gpts]]
             )
             gpt.set_vertex_pch_bit(pch_bit)
-            gpt.setEdgeMemPort(self.edge_mem[i % (int(num_gpts/2))].getPort())
+            gpt.setEdgeMemPort(
+                self.edge_mem[i % (int(num_gpts / 2))].getPort()
+            )
             gpts.append(gpt)
         # Creating the interconnect among mpus
         for gpt_0 in gpts:

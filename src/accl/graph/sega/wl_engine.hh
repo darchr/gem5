@@ -79,16 +79,26 @@ class WLEngine : public BaseReduceEngine
     int updateQueueSize;
     std::deque<std::tuple<Addr, uint32_t, Tick>> updateQueue;
 
+    int maxReadsPerCycle;
+    int maxReducesPerCycle;
+    int maxWritesPerCycle;
+
     int registerFileSize;
-    std::unordered_map<Addr, uint32_t> registerFile;
-    std::unordered_map<Addr, Tick> vertexReadTime;
+    std::unordered_map<Addr, std::tuple<RegisterState, uint32_t>> registerFile;
     std::unordered_map<Addr, WorkListItem> workListFile;
+    std::deque<Addr> toReduce;
+    std::deque<Addr> toWrite;
+
+    std::unordered_map<Addr, Tick> vertexReadTime;
 
     EventFunctionWrapper nextReadEvent;
     void processNextReadEvent();
 
     EventFunctionWrapper nextReduceEvent;
     void processNextReduceEvent();
+
+    EventFunctionWrapper nextWriteEvent;
+    void processNextWriteEvent();
 
     EventFunctionWrapper nextDoneSignalEvent;
     void processNextDoneSignalEvent();
