@@ -83,6 +83,8 @@ class WLEngine : public BaseReduceEngine
     int maxReducesPerCycle;
     int maxWritesPerCycle;
 
+    int maxUpdatesProcessed;
+
     int registerFileSize;
     std::unordered_map<Addr, std::tuple<RegisterState, uint32_t>> registerFile;
     std::unordered_map<Addr, WorkListItem> workListFile;
@@ -115,6 +117,9 @@ class WLEngine : public BaseReduceEngine
       statistics::Scalar registerFileCoalesce;
       statistics::Scalar registerShortage;
       statistics::Scalar numUpdateRolls;
+      statistics::Scalar numReadPortShortage;
+      statistics::Scalar numWritePortShortage;
+      statistics::Scalar numberIncomingUpdaes;
 
       statistics::Histogram vertexReadLatency;
       statistics::Histogram updateQueueLatency;

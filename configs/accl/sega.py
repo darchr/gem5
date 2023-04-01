@@ -52,9 +52,10 @@ class GPT(SubSystem):
         self.wl_engine = WLEngine(
             update_queue_size=64,
             register_file_size=register_file_size,
-            rd_per_cycle=2,
+            rd_per_cycle=4,
             reduce_per_cycle=32,
-            wr_per_cycle=2,
+            wr_per_cycle=4,
+            num_updates_processed=8,
         )
         self.coalesce_engine = CoalesceEngine(
             attached_memory_atom_size=32,
@@ -73,12 +74,8 @@ class GPT(SubSystem):
         )
 
         self.vertex_mem_ctrl = HBMCtrl(
-            dram=HBM_2000_4H_1x64(
-                page_policy="close", read_buffer_size=96, write_buffer_size=96
-            ),
-            dram_2=HBM_2000_4H_1x64(
-                page_policy="close", read_buffer_size=96, write_buffer_size=96
-            ),
+            dram=HBM_2000_4H_1x64(),
+            dram_2=HBM_2000_4H_1x64(),
         )
         self.coalesce_engine.mem_port = self.vertex_mem_ctrl.port
 

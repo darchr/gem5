@@ -47,6 +47,7 @@ WLEngine::WLEngine(const WLEngineParams& params):
     maxReadsPerCycle(params.rd_per_cycle),
     maxReducesPerCycle(params.reduce_per_cycle),
     maxWritesPerCycle(params.wr_per_cycle),
+    maxUpdatesProcessed(params.num_updates_processed),
     registerFileSize(params.register_file_size),
     nextReadEvent([this]{ processNextReadEvent(); }, name()),
     nextReduceEvent([this]{ processNextReduceEvent(); }, name()),
@@ -171,6 +172,7 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
     }
 
     updateQueue.emplace_back(pkt->getAddr(), pkt->getLE<uint32_t>(), curTick());
+    stats.numberIncomingUpdaes++;
     DPRINTF(SEGAStructureSize, "%s: Emplaced (addr: %lu, value: %u) in the "
                 "updateQueue. updateQueue.size = %d, updateQueueSize = %d.\n",
                 __func__, pkt->getAddr(), pkt->getLE<uint32_t>(),
@@ -195,11 +197,23 @@ void
 WLEngine::processNextReadEvent()
 {
     int num_reads = 0;
+    int num_tries = 0;
+    std::deque<std::tuple<Addr, uint32_t, Tick>> tempQueue;
+
+    for (int i = 0; i < maxUpdatesProcessed; i++) {
+        if (updateQueue.empty()) {
+            break;
+        }
+        tempQueue.push_back(updateQueue.front());
+        updateQueue.pop_front();
+    }
+
     while (true) {
+        num_tries += 1;
         Addr update_addr;
         uint32_t update_value;
         Tick enter_tick;
-        std::tie(update_addr, update_value, enter_tick) = updateQueue.front();
+        std::tie(update_addr, update_value, enter_tick) = tempQueue.front();
 
         DPRINTF(WLEngine,  "%s: Looking at the front of the updateQueue. "
             "(addr: %lu, value: %u).\n", __func__, update_addr, update_value);
@@ -223,13 +237,14 @@ WLEngine::processNextReadEvent()
                             "to registerFile. registerFile.size = %d, "
                             "registerFileSize = %d.\n", __func__, update_addr,
                             update_value, registerFile.size(), registerFileSize);
-                    updateQueue.pop_front();
+                    tempQueue.pop_front();
+                    num_reads++;
                     stats.updateQueueLatency.sample(
                             (curTick() - enter_tick) * 1e9 / getClockFrequency());
                     DPRINTF(SEGAStructureSize, "%s: Popped (addr: %lu, value: %u) "
                                 "from updateQueue. updateQueue.size = %d. "
                                 "updateQueueSize = %d.\n", __func__, update_addr,
-                                update_value, updateQueue.size(), updateQueueSize);
+                                update_value, tempQueue.size(), updateQueueSize);
                     DPRINTF(WLEngine, "%s: Popped (addr: %lu, value: %u) "
                                 "from updateQueue. updateQueue.size = %d. "
                                 "updateQueueSize = %d.\n", __func__, update_addr,
@@ -238,8 +253,8 @@ WLEngine::processNextReadEvent()
                     checkRetryReq();
                 } else {
                     if (read_status == ReadReturnStatus::REJECT_ROLL) {
-                        updateQueue.pop_front();
-                        updateQueue.emplace_back(
+                        tempQueue.pop_front();
+                        tempQueue.emplace_back(
                                             update_addr, update_value, enter_tick);
                         DPRINTF(WLEngine, "%s: Received a reject from cache. "
                                             "Rolling the update.\n", __func__);
@@ -258,8 +273,8 @@ WLEngine::processNextReadEvent()
             RegisterState state = std::get<0>(registerFile[update_addr]);
             if (state == RegisterState::PENDING_WRITE) {
                 // NOTE: If it's pending write, let it be written.
-                updateQueue.pop_front();
-                updateQueue.emplace_back(update_addr, update_value, enter_tick);
+                tempQueue.pop_front();
+                tempQueue.emplace_back(update_addr, update_value, enter_tick);
             } else {
                 DPRINTF(WLEngine,  "%s: A register has already been allocated for "
                             "addr: %lu in registerFile. registerFile[%lu] = %u.\n",
@@ -271,7 +286,7 @@ WLEngine::processNextReadEvent()
                             " registerFile. registerFile[%lu] = %u.\n", __func__,
                             update_value, update_addr, std::get<1>(registerFile[update_addr]));
                 stats.registerFileCoalesce++;
-                updateQueue.pop_front();
+                tempQueue.pop_front();
                 stats.updateQueueLatency.sample(
                                 (curTick() - enter_tick) * 1e9 / getClockFrequency());
                 DPRINTF(SEGAStructureSize, "%s: Popped (addr: %lu, value: %u) "
@@ -286,14 +301,24 @@ WLEngine::processNextReadEvent()
             }
         }
 
-        num_reads++;
+        // num_reads++;
         if (num_reads >= maxReadsPerCycle) {
             // NOTE: Add stat here to count read port shortage.
+            stats.numReadPortShortage++;
             break;
         }
-        if (updateQueue.empty()) {
+        if (num_tries > maxUpdatesProcessed) {
             break;
         }
+
+        if (tempQueue.empty()) {
+            break;
+        }
+    }
+
+    for (int i = 0; i < tempQueue.size(); i++){
+        updateQueue.push_front(tempQueue.back());
+        tempQueue.pop_back();
     }
 
     if (!toReduce.empty() && !nextReduceEvent.scheduled()) {
@@ -407,6 +432,7 @@ WLEngine::processNextWriteEvent()
         toWrite.pop_front();
         num_writes++;
         if (num_writes >= maxWritesPerCycle) {
+            stats.numWritePortShortage++;
             break;
         }
         if (toWrite.empty()) {
@@ -444,6 +470,12 @@ WLEngine::WorkListStats::WorkListStats(WLEngine &_wl)
     ADD_STAT(numUpdateRolls, statistics::units::Count::get(),
              "Number of times an update has been rolled back "
              "to the back of the update queue due to cache reject."),
+    ADD_STAT(numReadPortShortage, statistics::units::Count::get(),
+             "Number of times limited by read per cycle."),
+    ADD_STAT(numWritePortShortage, statistics::units::Count::get(),
+             "Number of times limited by write per cycle."),
+    ADD_STAT(numberIncomingUpdaes, statistics::units::Count::get(),
+              "Number of inocoming updates for each GPT."),
     ADD_STAT(vertexReadLatency, statistics::units::Second::get(),
              "Histogram of the latency of reading a vertex (ns)."),
     ADD_STAT(updateQueueLatency, statistics::units::Second::get(),
@@ -458,6 +490,7 @@ WLEngine::WorkListStats::regStats()
 
     vertexReadLatency.init(64);
     updateQueueLatency.init(64);
+
 }
 
 } // namespace gem5
