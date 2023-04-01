@@ -48,3 +48,5 @@ class WLEngine(BaseReduceEngine):
     rd_per_cycle = Param.Int("Maximum number of reads per cycle.")
     reduce_per_cycle = Param.Int("Maximum number of reduce per cycle.")
     wr_per_cycle = Param.Int("Maximum number of writes per cycle.")
+    
+    num_updates_processed = Param.Int("Maximum number of updates processed")
