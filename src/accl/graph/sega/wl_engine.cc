@@ -191,8 +191,6 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
     return true;
 }
 
-// TODO: Parameterize the number of pops WLEngine can do at a time.
-// TODO: Add a histogram stats of the size of the updateQueue. Sample here.
 void
 WLEngine::processNextReadEvent()
 {
@@ -301,9 +299,7 @@ WLEngine::processNextReadEvent()
             }
         }
 
-        // num_reads++;
         if (num_reads >= maxReadsPerCycle) {
-            // NOTE: Add stat here to count read port shortage.
             stats.numReadPortShortage++;
             break;
         }
@@ -359,33 +355,6 @@ WLEngine::handleIncomingWL(Addr addr, WorkListItem wl)
 void
 WLEngine::processNextReduceEvent()
 {
-
-    // for (auto &it : workListFile) {
-    //     Addr addr = it.first;
-    //     assert(registerFile.find(addr) != registerFile.end());
-    //     uint32_t update_value = registerFile[addr];
-    //     DPRINTF(WLEngine,  "%s: Reducing between registerFile and workListFile"
-    //                 ". registerFile[%lu] = %u, workListFile[%lu] = %s.\n",
-    //                 __func__, addr, registerFile[addr], addr,
-    //                 graphWorkload->printWorkListItem(workListFile[addr]));
-    //     // TODO: Generalize this to reduce function rather than just min
-    //     workListFile[addr].tempProp =
-    //         graphWorkload->reduce(update_value, workListFile[addr].tempProp);
-    //     DPRINTF(WLEngine,  "%s: Reduction done. workListFile[%lu] = %s.\n",
-    //     __func__, addr, graphWorkload->printWorkListItem(workListFile[addr]));
-    //     stats.numReduce++;
-
-    //     owner->recvWLWrite(addr, workListFile[addr]);
-    //     registerFile.erase(addr);
-    //     DPRINTF(SEGAStructureSize, "%s: Removed addr: %lu from registerFile. "
-    //                 "registerFile.size = %d, registerFileSize = %d\n",
-    //                 __func__, addr, registerFile.size(), registerFileSize);
-    //     DPRINTF(WLEngine, "%s: Removed addr: %lu from registerFile. "
-    //                 "registerFile.size = %d, registerFileSize = %d\n",
-    //                 __func__, addr, registerFile.size(), registerFileSize);
-    // }
-    // workListFile.clear();
-
     int num_reduces = 0;
     while (true) {
         Addr addr = toReduce.front();
@@ -414,9 +383,6 @@ WLEngine::processNextReduceEvent()
     if (!toReduce.empty() && !nextReduceEvent.scheduled()) {
         schedule(nextReduceEvent, nextCycle());
     }
-    // if (done() && !nextDoneSignalEvent.scheduled()) {
-    //     schedule(nextDoneSignalEvent, nextCycle());
-    // }
 }
 
 void
