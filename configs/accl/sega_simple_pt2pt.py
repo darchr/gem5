@@ -52,9 +52,10 @@ class GPT(SubSystem):
         self.wl_engine = WLEngine(
             update_queue_size=64,
             register_file_size=register_file_size,
-            rd_per_cycle=2,
+            rd_per_cycle=4,
             reduce_per_cycle=32,
-            wr_per_cycle=2,
+            wr_per_cycle=4,
+            num_updates_processed=8,
         )
         self.coalesce_engine = CoalesceEngine(
             attached_memory_atom_size=32,
@@ -131,7 +132,7 @@ class EdgeMemory(SubSystem):
 
 
 class SEGA(System):
-    def __init__(self, num_gpts, num_registers, cache_size,
+    def __init__(self, num_gpts, num_registers, cache_size, 
                                         r_queue_size, r_latency, graph_path):
         super(SEGA, self).__init__()
         # num_gpts should be an even power of 2
@@ -144,6 +145,8 @@ class SEGA(System):
         self.clk_domain.voltage_domain = VoltageDomain()
         self.cache_line_size = 32
         self.mem_mode = "timing"
+
+        GPTPerGPN = 8
 
         # Building the CenteralController
         self.ctrl = CenteralController(
@@ -161,6 +164,7 @@ class SEGA(System):
             AddrRange(start=0, size="4GiB"), num_gpts, 32
         )
         gpts = []
+        routers = []
         for i in range(num_gpts):
             gpt = GPT(num_registers, cache_size)
             gpt.set_vertex_range(vertex_ranges[i])
@@ -168,14 +172,36 @@ class SEGA(System):
                 self.edge_mem[i % (int(num_gpts / 2))].getPort()
             )
             gpts.append(gpt)
-        # Creating the interconnect among mpus
-        for gpt_0 in gpts:
-            for gpt_1 in gpts:
-                gpt_0.setReqPort(gpt_1.getRespPort())
+        for i in range(int(num_gpts/GPTPerGPN)):
+            routers.append(
+                        RouterEngine(
+                                gpn_queue_size = r_queue_size,
+                                gpt_queue_size = r_queue_size,
+                                router_latency = r_latency))
+        self.routers = routers
+        # for gpt_0 in gpts:
+        #     for gpt_1 in gpts:
+        #         gpt_0.setReqPort(gpt_1.getRespPort())
+        print("gpt, gpt")
+        for i in range(len(gpts)):
+            for j in range(len(gpts)):
+                if (int(i / GPTPerGPN) == int(j / GPTPerGPN) ):
+                    print(i, j)
+                    gpts[i].setReqPort(gpts[j].getRespPort())
+        print("gpt, Router")
+        for i in range(len(gpts)):
+            for j in range(len(routers)):
+                if (int(i / GPTPerGPN) == j):
+                    print(i, j)
+                    gpts[i].setRespPort(routers[j].gpt_req_side)
+                    gpts[i].setReqPort(routers[j].gpt_resp_side)
+        for r_0 in routers:
+            for r_1 in routers:
+                if r_0 != r_1:
+                    r_0.gpn_resp_side = r_1.gpn_req_side
         self.gpts = gpts
-
         self.ctrl.mpu_vector = [gpt.mpu for gpt in self.gpts]
-        self.ctrl.router_vector = []
+        self.ctrl.router_vector = [r for r in self.routers]
 
     def work_count(self):
         return self.ctrl.workCount()
@@ -203,6 +229,8 @@ class SEGA(System):
 
     def create_async_pr_workload(self, alpha, threshold):
         self.ctrl.createAsyncPRWorkload(alpha, threshold)
+    def get_pr_error(self):
+        return self.ctrl.getPRError()
 
     def create_pr_workload(self, num_nodes, alpha):
         self.ctrl.createPRWorkload(num_nodes, alpha)

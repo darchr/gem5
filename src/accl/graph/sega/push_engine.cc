@@ -79,9 +79,9 @@ PushEngine::init()
     localAddrRange = owner->getAddrRanges();
     for (int i = 0; i < outPorts.size(); i++){
         AddrRangeList range_list = outPorts[i].getAddrRanges();
-        assert(range_list.size() == 1);
-        AddrRange range = outPorts[i].getAddrRanges().front();
-        portAddrMap.insert(range, i);
+        for (auto range: range_list) {
+            portAddrMap.insert(range, i);
+        }
     }
 }
 

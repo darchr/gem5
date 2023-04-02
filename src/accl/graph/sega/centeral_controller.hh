@@ -35,6 +35,7 @@
 #include "accl/graph/base/graph_workload.hh"
 #include "accl/graph/sega/enums.hh"
 #include "accl/graph/sega/mpu.hh"
+#include "accl/graph/sega/router_engine.hh"
 #include "base/addr_range.hh"
 #include "params/CenteralController.hh"
 #include "sim/clocked_object.hh"
@@ -52,6 +53,8 @@ class CenteralController : public ClockedObject
     ProcessingMode mode;
 
     std::vector<MPU*> mpuVector;
+    std::vector<RouterEngine*> routerVector;
+
     std::unordered_map<MPU*, AddrRangeList> addrRangeListMap;
 
     PacketPtr createReadPacket(Addr addr, unsigned int size);

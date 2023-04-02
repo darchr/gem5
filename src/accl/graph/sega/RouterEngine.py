@@ -27,34 +27,21 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.util.pybind import PyBindMethod
 from m5.objects.ClockedObject import ClockedObject
 
-class CenteralController(ClockedObject):
-    type = 'CenteralController'
-    cxx_header = "accl/graph/sega/centeral_controller.hh"
-    cxx_class = 'gem5::CenteralController'
+class RouterEngine(ClockedObject):
+    type = "RouterEngine"
+    cxx_header = "accl/graph/sega/router_engine.hh"
+    cxx_class = "gem5::RouterEngine"
 
     system = Param.System(Parent.any, "System this Engine is a part of")
 
-    vertex_image_file = Param.String("Path to the vertex image file.")
-
-    mpu_vector = VectorParam.MPU("All mpus in the system.")
-
-    router_vector = VectorParam.RouterEngine("All Routers in the system.")
-
-    cxx_exports = [
-                    PyBindMethod("setAsyncMode"),
-                    PyBindMethod("setBSPMode"),
-                    PyBindMethod("createPopCountDirectory"),
-                    PyBindMethod("createBFSWorkload"),
-                    PyBindMethod("createBFSVisitedWorkload"),
-                    PyBindMethod("createSSSPWorkload"),
-                    PyBindMethod("createCCWorkload"),
-                    PyBindMethod("createAsyncPRWorkload"),
-                    PyBindMethod("createPRWorkload"),
-                    PyBindMethod("createBCWorkload"),
-                    PyBindMethod("workCount"),
-                    PyBindMethod("getPRError"),
-                    PyBindMethod("printAnswerToHostSimout")
-                ]
+    gpt_req_side = VectorRequestPort("Outgoing ports to local GPTs")
+    gpt_resp_side = VectorResponsePort("incoming ports from local GPTs")
+    
+    gpn_req_side = VectorRequestPort("Outgoing ports to remote GPNs")
+    gpn_resp_side = VectorResponsePort("incoming ports from local GPNs")
+    gpt_queue_size = Param.Int(64, "Queue size on the gpt side")
+    gpn_queue_size = Param.Int(64, "Queue size on the gpt side")
+    router_latency = Param.Cycles(5, "Router latency, "
+                                "SerDes or E-O-E latencies can be added here")
