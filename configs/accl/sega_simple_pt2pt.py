@@ -50,7 +50,12 @@ class GPT(SubSystem):
     def __init__(self, register_file_size: int, cache_size: str):
         super().__init__()
         self.wl_engine = WLEngine(
-            update_queue_size=64, register_file_size=register_file_size
+            update_queue_size=64,
+            register_file_size=register_file_size,
+            rd_per_cycle=4,
+            reduce_per_cycle=32,
+            wr_per_cycle=4,
+            num_updates_processed=8,
         )
         self.coalesce_engine = CoalesceEngine(
             attached_memory_atom_size=32,

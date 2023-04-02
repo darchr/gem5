@@ -177,22 +177,20 @@ class RouterEngine : public ClockedObject
     EventFunctionWrapper nextExternalRequestEvent;
     void processNextExternalRequestEvent();
 
-    struct RouterEngineStat : public statistics::Group
-    {
-      RouterEngineStat(RouterEngine &push);
+    // struct RouterEngineStat : public statistics::Group
+    // {
+    //   RouterEngineStat(RouterEngine &push);
 
-      void regStats() override;
+    //   void regStats() override;
 
-      RouterEngine &router;
+    //   RouterEngine &router;
 
-      statistics::Vector internalBlockedTraffic;
-      statistics::Vector externalBlockedTraffic;
-      statistics::Vector internalAcceptedTraffic;
-      statistics::Vector externalAcceptedTraffic;
-      // std::vector<statistics::Histogram> internalTrafficHist;
-      std::vector<statistics::Histogram *> internalTrafficHist;
-    };
-
+    //   statistics::Vector internalBlockedTraffic;
+    //   statistics::Vector externalBlockedTraffic;
+    //   statistics::Vector internalAcceptedTraffic;
+    //   statistics::Vector externalAcceptedTraffic;
+    // };
+    // RouterEngineStat stats;
   public:
     PARAMS(RouterEngine);
     RouterEngine(const Params &params);
@@ -210,9 +208,6 @@ class RouterEngine : public ClockedObject
     void checkGPTRetryReq();
     void checkGPNRetryReq();
     bool done();
-    void collateStats();
-    RouterEngineStat stats;
-
 };
 
 }

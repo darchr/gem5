@@ -53,16 +53,11 @@ PushEngine::PushEngine(const Params& params):
 {
     destinationQueues.clear();
     for (int i = 0; i < params.port_out_ports_connection_count; ++i) {
-<<<<<<< HEAD
         outPorts.emplace_back(name() + ".out_ports" + std::to_string(i), this, i);
         destinationQueues.emplace_back();
         destinationQueues[i].clear();
         sourceAndValueMaps.emplace_back();
         sourceAndValueMaps[i].clear();
-=======
-        outPorts.emplace_back(
-                        name() + ".out_ports" + std::to_string(i), this, i);
->>>>>>> Fixing done, code style and conifg. Adding a stat.
     }
 }
 
@@ -84,9 +79,9 @@ PushEngine::init()
     localAddrRange = owner->getAddrRanges();
     for (int i = 0; i < outPorts.size(); i++){
         AddrRangeList range_list = outPorts[i].getAddrRanges();
-        assert(range_list.size() == 1);
-        AddrRange range = outPorts[i].getAddrRanges().front();
-        portAddrMap.insert(range, i);
+        for (auto range: range_list) {
+            portAddrMap.insert(range, i);
+        }
     }
 }
 
@@ -159,26 +154,7 @@ PushEngine::done()
 {
     bool empty_update_queues = true;
     for (int i = 0; i < outPorts.size(); i++) {
-<<<<<<< HEAD
         empty_update_queues &= destinationQueues[i].empty();
-=======
-        empty_update_queues &= updateQueues[outPorts[i].id()].empty();
-    }
-    return empty_update_queues && edgeQueue.empty() &&
-        (onTheFlyMemReqs == 0) && edgePointerQueue.empty();
-}
-
-
-uint32_t
-PushEngine::propagate(uint32_t value, uint32_t weight)
-{
-    uint32_t update;
-    if (workload == "BFS")  {
-        update = value + 1;
-    }
-    else{
-        panic("The workload %s is not supported", workload);
->>>>>>> Fixing done, code style and conifg. Adding a stat.
     }
     return empty_update_queues && metaEdgeQueue.empty() &&
         (onTheFlyMemReqs == 0) && edgePointerQueue.empty();

@@ -47,9 +47,8 @@ RouterEngine::RouterEngine(const Params &params):
                         [this] { processNextInternalRequestEvent(); }, name()),
   nextGPNGPTEvent([this] { processNextGPNGPTEvent(); }, name()),
   nextExternalRequestEvent(
-                        [this] { processNextExternalRequestEvent(); }, name()),
-//   trafficStats(*this)
-  stats(*this)
+                        [this] { processNextExternalRequestEvent(); }, name())
+//   stats(*this)
 {
 
     for (int i = 0; i < params.port_gpt_req_side_connection_count; ++i) {
@@ -133,6 +132,7 @@ RouterEngine::init()
     for (int i = 0; i < gptReqPorts.size(); i++) {
         gptAddrMap[gptReqPorts[i].id()] = gptReqPorts[i].getAddrRanges();
     }
+    std::cout<<"gptReqPorts: "<<gptReqPorts.size()<<std::endl;
 }
 
 void
@@ -141,6 +141,7 @@ RouterEngine::startup()
     for (int i = 0; i < gpnReqPorts.size(); i++) {
         routerAddrMap[gpnReqPorts[i].id()] = gpnReqPorts[i].getAddrRanges();
     }
+    std::cout<<"gpnReqPorts: "<<gpnReqPorts.size()<<std::endl;
 }
 
 bool
@@ -300,7 +301,7 @@ RouterEngine::handleRequest(PortID portId, PacketPtr pkt)
         gptReqQueues[portId].push(pkt);
         accepted = true;
     } else {
-         DPRINTF(RouterEngine, "%s: gptReqQueues[%lu] is full: %d.\n",
+         DPRINTF(RouterEngine, "%s: gptReqQueues[%lu] is full.\n",
                                                             __func__, portId);
         accepted = false;
     }
@@ -387,7 +388,7 @@ RouterEngine::processNextInternalRequestEvent()
                     < routerLatency) {
                     continue;
                 } 
-                stats.internalAcceptedTraffic[gpnReqPorts[queue.first].id()]++;
+                // stats.internalAcceptedTraffic[gpnReqPorts[queue.first].id()]++;
                 PacketPtr pkt = queue.second.front();
                 DPRINTF(RouterEngine, "%s: Sending packet %s to router: %d.\n",
                     __func__, pkt->getAddr(), gpnReqPorts[queue.first].id());
@@ -396,12 +397,13 @@ RouterEngine::processNextInternalRequestEvent()
                 internalLatency[gpnReqPorts[queue.first].id()] = curCycle();
             } 
             else {
-                stats.internalBlockedTraffic[gpnReqPorts[queue.first].id()]++;
-                stats.internalTrafficHist[gpnReqPorts[queue.first].id()]->
-                                                sample(queue.second.size());
+                DPRINTF(RouterEngine, "%s: port id %d is blocked.\n",
+                    __func__, gpnReqPorts[queue.first].id());
+            //     stats.internalBlockedTraffic[gpnReqPorts[queue.first].id()]++;
             }
         }
     }
+
     for (auto &queue: gpnRespQueues) {
         if (!queue.second.empty()) {
             none_empty_queue = true;
@@ -422,7 +424,7 @@ RouterEngine::processNextInternalRequestEvent()
             itr++)
     {
         if (cyclesToTicks(itr->second + routerLatency) <  next_schedule) {
-            if ((itr->second + routerLatency) <  curCycle()) {
+            if ((itr->second + routerLatency) <=  curCycle()) {
                 next_schedule =  nextCycle();
                 break;
             } else {
@@ -432,6 +434,7 @@ RouterEngine::processNextInternalRequestEvent()
             }
         } 
     }
+
 
     if (none_empty_queue && (!nextInternalRequestEvent.scheduled())) {
         schedule(nextInternalRequestEvent, next_schedule);
@@ -560,7 +563,7 @@ RouterEngine::processNextExternalRequestEvent()
                     < routerLatency) {
                     continue;
                 }
-                stats.externalAcceptedTraffic[gptReqPorts[queue.first].id()]++;
+                // stats.externalAcceptedTraffic[gptReqPorts[queue.first].id()]++;
                 PacketPtr pkt = queue.second.front();
                 DPRINTF(RouterEngine, "%s: gptRespQueues[%d] is not empty. "
                         "the size is: %d.\n", __func__,
@@ -571,9 +574,9 @@ RouterEngine::processNextExternalRequestEvent()
                 queue.second.pop();
                 externalLatency[gptReqPorts[queue.first].id()] = curCycle();
             }
-             else {
-                stats.externalBlockedTraffic[gptReqPorts[queue.first].id()]++;
-            }
+            // else {
+            //     stats.externalBlockedTraffic[gptReqPorts[queue.first].id()]++;
+            // }
         }
     }
 
@@ -598,7 +601,7 @@ RouterEngine::processNextExternalRequestEvent()
         itr != externalLatency.end(); itr++)
     {
         if (cyclesToTicks(itr->second + routerLatency) <  next_schedule) {
-            if ((itr->second + routerLatency) <  curCycle()) {
+            if ((itr->second + routerLatency) <=  curCycle()) {
                 next_schedule =  nextCycle();
                 break;
             } else {
@@ -657,38 +660,28 @@ RouterEngine::checkGPNRetryReq()
     }
 }
 
-RouterEngine::RouterEngineStat::RouterEngineStat(RouterEngine &_router)
-    : statistics::Group(&_router),
-    router(_router),
-    ADD_STAT(internalBlockedTraffic, statistics::units::Count::get(),
-             "Number of packets blocked between routers."),
-    ADD_STAT(externalBlockedTraffic, statistics::units::Count::get(),
-             "Number of external packets blocked."),
-    ADD_STAT(internalAcceptedTraffic, statistics::units::Count::get(),
-             "Number of packet passed between routers."),
-    ADD_STAT(externalAcceptedTraffic, statistics::units::Count::get(),
-             "Number of external packets passed.")
-{
-    for (int i = 0; i < router.gpnReqPorts.size(); i++) {
-        internalTrafficHist.push_back(new statistics::Histogram(
-            this, "internalTrafficHist", 
-            statistics::units::Count::get()));
-    }
-}
+// RouterEngine::RouterEngineStat::RouterEngineStat(RouterEngine &_router)
+//     : statistics::Group(&_router),
+//     router(_router),
+//     ADD_STAT(internalBlockedTraffic, statistics::units::Count::get(),
+//              "Number of packets blocked between routers."),
+//     ADD_STAT(externalBlockedTraffic, statistics::units::Count::get(),
+//              "Number of external packets blocked."),
+//     ADD_STAT(internalAcceptedTraffic, statistics::units::Count::get(),
+//              "Number of packet passed between routers."),
+//     ADD_STAT(externalAcceptedTraffic, statistics::units::Count::get(),
+//              "Number of external packets passed.")
+// {}
 
-void
-RouterEngine::RouterEngineStat::regStats()
-{
-    using namespace statistics;
+// void
+// RouterEngine::RouterEngineStat::regStats()
+// {
+//     using namespace statistics;
 
-    internalBlockedTraffic.init(router.gpnReqPorts.size());
-    externalBlockedTraffic.init(router.gptReqPorts.size());
-    internalAcceptedTraffic.init(router.gpnReqPorts.size());
-    externalAcceptedTraffic.init(router.gptReqPorts.size());
-
-    for (int i = 0; i < router.gpnReqPorts.size(); i++) {
-        internalTrafficHist[i]->init(10);
-    }
-}
+//     internalBlockedTraffic.init(router.gpnReqPorts.size());
+//     externalBlockedTraffic.init(router.gptReqPorts.size());
+//     internalAcceptedTraffic.init(router.gpnReqPorts.size());
+//     externalAcceptedTraffic.init(router.gptReqPorts.size());
+// }
 
 }// namespace gem5
