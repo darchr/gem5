@@ -195,23 +195,24 @@ void
 WLEngine::processNextReadEvent()
 {
     int num_reads = 0;
+    int num_popped = 0;
     int num_tries = 0;
-    std::deque<std::tuple<Addr, uint32_t, Tick>> tempQueue;
-
+    std::deque<std::tuple<Addr, uint32_t, Tick>> temp_queue;
     for (int i = 0; i < maxUpdatesProcessed; i++) {
         if (updateQueue.empty()) {
             break;
         }
-        tempQueue.push_back(updateQueue.front());
+        temp_queue.push_back(updateQueue.front());
         updateQueue.pop_front();
     }
 
+    int max_visits = temp_queue.size();
+
     while (true) {
-        num_tries += 1;
         Addr update_addr;
         uint32_t update_value;
         Tick enter_tick;
-        std::tie(update_addr, update_value, enter_tick) = tempQueue.front();
+        std::tie(update_addr, update_value, enter_tick) = temp_queue.front();
 
         DPRINTF(WLEngine,  "%s: Looking at the front of the updateQueue. "
             "(addr: %lu, value: %u).\n", __func__, update_addr, update_value);
@@ -235,48 +236,54 @@ WLEngine::processNextReadEvent()
                             "to registerFile. registerFile.size = %d, "
                             "registerFileSize = %d.\n", __func__, update_addr,
                             update_value, registerFile.size(), registerFileSize);
-                    tempQueue.pop_front();
+                    temp_queue.pop_front();
                     num_reads++;
+                    num_popped++;
                     stats.updateQueueLatency.sample(
                             (curTick() - enter_tick) * 1e9 / getClockFrequency());
                     DPRINTF(SEGAStructureSize, "%s: Popped (addr: %lu, value: %u) "
                                 "from updateQueue. updateQueue.size = %d. "
                                 "updateQueueSize = %d.\n", __func__, update_addr,
-                                update_value, tempQueue.size(), updateQueueSize);
+                                update_value, temp_queue.size(), updateQueueSize);
                     DPRINTF(WLEngine, "%s: Popped (addr: %lu, value: %u) "
                                 "from updateQueue. updateQueue.size = %d. "
                                 "updateQueueSize = %d.\n", __func__, update_addr,
                                 update_value, updateQueue.size(), updateQueueSize);
                     vertexReadTime[update_addr] = curTick();
-                    checkRetryReq();
                 } else {
                     if (read_status == ReadReturnStatus::REJECT_ROLL) {
-                        tempQueue.pop_front();
-                        tempQueue.emplace_back(
-                                            update_addr, update_value, enter_tick);
+                        temp_queue.pop_front();
+                        temp_queue.emplace_back(update_addr, update_value, enter_tick);
                         DPRINTF(WLEngine, "%s: Received a reject from cache. "
                                             "Rolling the update.\n", __func__);
                         stats.numUpdateRolls++;
                     } else {
-                        DPRINTF(WLEngine, "%s: Received a reject from cache. "
-                                        "Not rolling the update.\n", __func__);
+                        temp_queue.pop_front();
+                        temp_queue.emplace_back(update_addr, update_value, enter_tick);
+                        DPRINTF(WLEngine, "%s: Received a reject with no roll "
+                        "from cache. Rolling the update anyway.\n", __func__);
                     }
                 }
             } else {
                 DPRINTF(WLEngine, "%s: There are no free registers "
                         "available in the registerFile.\n", __func__);
+                temp_queue.pop_front();
+                temp_queue.emplace_back(update_addr, update_value, enter_tick);
                 stats.registerShortage++;
             }
         } else {
+            DPRINTF(WLEngine,  "%s: A register has already been allocated for "
+                "addr: %lu in registerFile. registerFile[%lu] = %u.\n", __func__,
+                update_addr, update_addr, std::get<1>(registerFile[update_addr]));
             RegisterState state = std::get<0>(registerFile[update_addr]);
             if (state == RegisterState::PENDING_WRITE) {
                 // NOTE: If it's pending write, let it be written.
-                tempQueue.pop_front();
-                tempQueue.emplace_back(update_addr, update_value, enter_tick);
+                DPRINTF(WLEngine, "%s: Respective register for addr: "
+                        "%lu is pending a write to the cache. Rolling "
+                        "the update.\n", __func__, update_addr);
+                temp_queue.pop_front();
+                temp_queue.emplace_back(update_addr, update_value, enter_tick);
             } else {
-                DPRINTF(WLEngine,  "%s: A register has already been allocated for "
-                            "addr: %lu in registerFile. registerFile[%lu] = %u.\n",
-                        __func__, update_addr, update_addr, std::get<1>(registerFile[update_addr]));
                 uint32_t curr_value = std::get<1>(registerFile[update_addr]);
                 uint32_t new_value = graphWorkload->reduce(update_value, curr_value);
                 registerFile[update_addr] = std::make_tuple(state, new_value);
@@ -284,7 +291,8 @@ WLEngine::processNextReadEvent()
                             " registerFile. registerFile[%lu] = %u.\n", __func__,
                             update_value, update_addr, std::get<1>(registerFile[update_addr]));
                 stats.registerFileCoalesce++;
-                tempQueue.pop_front();
+                temp_queue.pop_front();
+                num_popped++;
                 stats.updateQueueLatency.sample(
                                 (curTick() - enter_tick) * 1e9 / getClockFrequency());
                 DPRINTF(SEGAStructureSize, "%s: Popped (addr: %lu, value: %u) "
@@ -295,30 +303,28 @@ WLEngine::processNextReadEvent()
                             "from updateQueue. updateQueue.size = %d. "
                             "updateQueueSize = %d.\n", __func__, update_addr,
                             update_value, updateQueue.size(), updateQueueSize);
-                checkRetryReq();
             }
         }
 
+        num_tries++;
         if (num_reads >= maxReadsPerCycle) {
             stats.numReadPortShortage++;
             break;
         }
-        if (num_tries > maxUpdatesProcessed) {
+        if (num_tries >= max_visits) {
             break;
         }
-
-        if (tempQueue.empty()) {
+        if (temp_queue.empty()) {
             break;
         }
     }
 
-    for (int i = 0; i < tempQueue.size(); i++){
-        updateQueue.push_front(tempQueue.back());
-        tempQueue.pop_back();
+    while (!temp_queue.empty()) {
+        updateQueue.push_front(temp_queue.back());
+        temp_queue.pop_back();
     }
-
-    if (!toReduce.empty() && !nextReduceEvent.scheduled()) {
-        schedule(nextReduceEvent, nextCycle());
+    if (num_popped > 0) {
+        checkRetryReq();
     }
     if (!updateQueue.empty() && !nextReadEvent.scheduled()) {
         schedule(nextReadEvent, nextCycle());
