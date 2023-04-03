@@ -29,6 +29,8 @@
 #ifndef __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__
 #define __ACCL_GRAPH_SEGA_COALESCE_ENGINE_HH__
 
+#include <unordered_set>
+
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/base/graph_workload.hh"
 #include "accl/graph/sega/base_memory_engine.hh"
@@ -106,6 +108,9 @@ class CoalesceEngine : public BaseMemoryEngine
     int numLines;
     int numElementsPerLine;
     Block* cacheBlocks;
+
+    Tick lastReadTick;
+    std::unordered_set<int> blocksTouchedThisTick;
 
     int onTheFlyReqs;
     std::unordered_map<int, std::vector<Addr>> MSHR;

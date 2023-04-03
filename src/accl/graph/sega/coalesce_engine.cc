@@ -45,9 +45,8 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     BaseMemoryEngine(params), mode(ProcessingMode::NOT_SET), lastAtomAddr(0),
     numLines((int) (params.cache_size / peerMemoryAtomSize)),
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
-    onTheFlyReqs(0), maxRespPerCycle(params.max_resp_per_cycle),
-    pullsReceived(0), pullsScheduled(0),
-    pendingPullLimit(params.pending_pull_limit),
+    lastReadTick(0), onTheFlyReqs(0), maxRespPerCycle(params.max_resp_per_cycle),
+    pullsReceived(0), pullsScheduled(0), pendingPullLimit(params.pending_pull_limit),
     pendingPullReads(0), activeBufferSize(params.active_buffer_size),
     postPushWBQueueSize(params.post_push_wb_queue_size),
     nextMemoryEvent([this] {
@@ -74,6 +73,7 @@ CoalesceEngine::CoalesceEngine(const Params &params):
 
     activeBuffer.clear();
     postPushWBQueue.clear();
+    blocksTouchedThisTick.clear();
 }
 
 void
@@ -247,6 +247,10 @@ CoalesceEngine::recvWLRead(Addr addr)
     assert(aligned_addr % peerMemoryAtomSize == 0);
     int block_index = getBlockIndex(aligned_addr);
     assert(block_index < numLines);
+    if (lastReadTick < curTick()) {
+        blocksTouchedThisTick.clear();
+        lastReadTick = curTick();
+    }
     int wl_offset = (addr - aligned_addr) / sizeof(WorkListItem);
     assert(wl_offset < numElementsPerLine);
     DPRINTF(CoalesceEngine,  "%s: Received a read request for addr: %lu. "
@@ -289,9 +293,11 @@ CoalesceEngine::recvWLRead(Addr addr)
         DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                     block_index, cacheBlocks[block_index].to_string());
 
+        blocksTouchedThisTick.insert(block_index);
         if (!nextResponseEvent.scheduled()) {
             schedule(nextResponseEvent, nextCycle());
         }
+
         stats.numVertexReads++;
         return ReadReturnStatus::ACCEPT;
     } else if ((cacheBlocks[block_index].addr == aligned_addr) &&
@@ -310,6 +316,8 @@ CoalesceEngine::recvWLRead(Addr addr)
                 "for cacheBlocks[%d].\n", __func__, addr, block_index);
         DPRINTF(CacheBlockState, "%s: cacheBlocks[%d]: %s.\n", __func__,
                     block_index, cacheBlocks[block_index].to_string());
+        blocksTouchedThisTick.insert(block_index);
+
         stats.numVertexReads++;
         return ReadReturnStatus::ACCEPT;
     } else {
@@ -317,6 +325,11 @@ CoalesceEngine::recvWLRead(Addr addr)
         assert(cacheBlocks[block_index].addr != aligned_addr);
         DPRINTF(CoalesceEngine,  "%s: Addr: %lu is a miss.\n", __func__, addr);
         stats.readMisses++;
+        if (blocksTouchedThisTick.find(block_index) != blocksTouchedThisTick.end()) {
+            DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] has already been "
+                            "accessed this tick.\n", __func__, block_index);
+            return ReadReturnStatus::REJECT_ROLL;
+        }
         if (cacheBlocks[block_index].state != CacheState::INVALID) {
             // conflict miss
             DPRINTF(CoalesceEngine, "%s: Addr: %lu has conflict with "
@@ -324,6 +337,8 @@ CoalesceEngine::recvWLRead(Addr addr)
             cacheBlocks[block_index].hasConflict = true;
             if (cacheBlocks[block_index].state == CacheState::IDLE) {
                 if (cacheBlocks[block_index].dirty) {
+                    DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] is dirty.\n",
+                                                        __func__, block_index);
                     cacheBlocks[block_index].state = CacheState::PENDING_WB;
                     cacheBlocks[block_index].lastChangedTick = curTick();
                     memoryFunctionQueue.emplace_back(
@@ -334,10 +349,14 @@ CoalesceEngine::recvWLRead(Addr addr)
                         (!nextMemoryEvent.scheduled())) {
                         schedule(nextMemoryEvent, nextCycle());
                     }
+                    DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] is now "
+                            "pending write back.\n", __func__, block_index);
                 } else {
                     // NOTE: The cache block could still be active but
                     // not dirty. If active we only have to active tracking
                     // but can throw the data away.
+                    DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] is not dirty.\n",
+                                                        __func__, block_index);
                     bool atom_active_now = false;
                     bool atom_active_future = false;
                     for (int index = 0; index < numElementsPerLine; index++) {
@@ -345,12 +364,16 @@ CoalesceEngine::recvWLRead(Addr addr)
                         atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
                     }
                     if (atom_active_now) {
+                        DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] is active now.\n",
+                                                        __func__, block_index);
                         currentActiveCacheBlocks.erase(block_index);
                         int count = currentDirectory->activate(cacheBlocks[block_index].addr);
                         stats.currentFrontierSize.sample(currentDirectory->workCount());
                         stats.currentBlockActiveCount.sample(count);
                     }
                     if (atom_active_future) {
+                        DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] is active next.\n",
+                                                        __func__, block_index);
                         futureActiveCacheBlocks.erase(block_index);
                         int count = futureDirectory->activate(cacheBlocks[block_index].addr);
                         stats.futureFrontierSize.sample(futureDirectory->workCount());
@@ -360,9 +383,13 @@ CoalesceEngine::recvWLRead(Addr addr)
                     // NOTE: Above line where we set hasConflict to true
                     // does not matter anymore since we reset the cache line.
                     cacheBlocks[block_index].reset();
+                    DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] is reset.\n",
+                                                        __func__, block_index);
                 }
+                blocksTouchedThisTick.insert(block_index);
                 return ReadReturnStatus::REJECT_NO_ROLL;
             } else {
+                blocksTouchedThisTick.insert(block_index);
                 stats.numConflicts++;
                 return ReadReturnStatus::REJECT_ROLL;
             }
@@ -386,6 +413,7 @@ CoalesceEngine::recvWLRead(Addr addr)
                 (!nextMemoryEvent.scheduled())) {
                 schedule(nextMemoryEvent, nextCycle());
             }
+            blocksTouchedThisTick.insert(block_index);
             return ReadReturnStatus::ACCEPT;
         }
     }
@@ -497,7 +525,7 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
                             responseQueue.size());
                 DPRINTF(CoalesceEngine, "%s: Added (addr: %lu, wl: %s) "
                             "to responseQueue. responseQueue.size = %d.\n",
-                            __func__, addr,
+                            __func__, miss_addr,
                             graphWorkload->printWorkListItem(
                                 cacheBlocks[block_index].items[wl_offset]),
                             responseQueue.size());
@@ -798,6 +826,7 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
             bool atom_active_future = false;
             for (int index = 0; index < numElementsPerLine; index++)
             {
+                assert(!cacheBlocks[block_index].items[index].activeNow);
                 atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
             }
             if (atom_active_future) {
@@ -829,6 +858,7 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
             bool atom_active_future = false;
             for (int index = 0; index < numElementsPerLine; index++)
             {
+                assert(cacheBlocks[block_index].items[index].activeNow);
                 atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
             }
             if (atom_active_future) {
