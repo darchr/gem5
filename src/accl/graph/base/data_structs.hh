@@ -34,6 +34,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstring>
 #include <deque>
 
 namespace gem5
@@ -166,6 +167,11 @@ class UniqueFIFO
         container.clear();
     }
 
+    ~UniqueFIFO() {
+        delete [] added;
+        delete [] deleted;
+    }
+
     void fix_front() {
         while(true) {
             T elem = container.front();
@@ -234,10 +240,13 @@ class UniqueFIFO
     }
 
     void operator=(const UniqueFIFO<T>& rhs) {
+        cap = rhs.cap;
         pop = rhs.pop;
         container = rhs.container;
-        added = rhs.added;
-        deleted = rhs.deleted;
+        added = (int*) new int [cap];
+        deleted = (int*) new int [cap];
+        std::memcpy(added, rhs.added, cap * sizeof(int));
+        std::memcpy(deleted, rhs.deleted, cap * sizeof(int));
     }
 };
 
