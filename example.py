@@ -9,7 +9,7 @@ from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
 from gem5.resources.resource import obtain_resource, AbstractResource
 from pathlib import Path
-from m5.objects import PcCountAnalsis, PcCountAnalsisManager
+from m5.objects import LooppointAnalysis, LooppointAnalysisManager
 import argparse
 
 requires(isa_required=ISA.X86)
@@ -36,11 +36,13 @@ processor = SimpleProcessor(
     num_cores=5,
 )
 
-lpmanager = PcCountAnalsisManager()
+lpmanager = LooppointAnalysisManager()
 
 for core in processor.get_cores():
-    lplistener = PcCountAnalsis()
+    lplistener = LooppointAnalysis()
     lplistener.ptmanager = lpmanager
+    # lplistener.validAddrRangeStart = int("401160", 10)
+    # lplistener.validAddrRangeSize = int("19a8cb",16)
     core.core.probeListener = lplistener
 
 board = SimpleBoard(
@@ -54,16 +56,11 @@ board.set_se_binary_workload(
 )
 
 def printsth():
-    result = lpmanager.getPcCount()
-    duplicate=set()
-    for key, value in result.items():
-        if not value == 0:
-            print(f"pc: {key}, count: {value}\n")
-        if key not in duplicate:
-            duplicate.add(key)
-        else:
-            print("sth wrong")
-            yield True
+    mostRecentPc = lpmanager.getMostRecentPc()
+    print("three most recent pc and its count at this spot")
+    for pc in mostRecentPc:
+        count = lpmanager.getPcCount(pc)
+        print(f"pc:{hex(pc)} count{count}\n")
     yield True
 
 
