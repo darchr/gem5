@@ -345,7 +345,7 @@ WLEngine::handleIncomingWL(Addr addr, WorkListItem wl)
                 "workListFile. workListFile.size = %d.\n", __func__, addr,
                 graphWorkload->printWorkListItem(wl), workListFile.size());
 
-    uint32_t value = std::get<0>(registerFile[addr]);
+    uint32_t value = std::get<1>(registerFile[addr]);
     registerFile[addr] = std::make_tuple(RegisterState::PENDING_REDUCE, value);
     toReduce.push_back(addr);
 
