@@ -74,9 +74,19 @@ enum ProcessingMode
     NOT_SET,
     ASYNCHRONOUS,
     BULK_SYNCHRONOUS,
+    POLY_GRAPH,
     NUM_PROCESSING_MODE
 };
 extern const char* processingModeStrings[NUM_PROCESSING_MODE];
+
+enum PointerType
+{
+    NA,
+    START,
+    END,
+    NUM_POINTER_TYPE
+};
+extern const char* pointerTypeStrings[NUM_POINTER_TYPE];
 
 } // namespace gem5
 

@@ -131,7 +131,8 @@ if __name__ == "__m5_main__":
 
     m5.instantiate()
 
-    system.set_async_mode()
+    # system.set_async_mode()
+    system.set_pg_mode()
     system.create_pop_count_directory(64)
     if visited:
         system.create_bfs_visited_workload(init_addr, init_value)

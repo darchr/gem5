@@ -94,8 +94,43 @@ struct __attribute__ ((packed)) Edge
     {}
 };
 
+struct __attribute__ ((packed)) MirrorVertex
+{
+    uint32_t vertexId : 32;
+    uint32_t prop : 32;
+    uint32_t edgeIndex : 32;
+    uint32_t degree : 30;
+    bool activeNow: 1;
+    bool activeNext: 1;
+
+    std::string to_string()
+    {
+        return csprintf("MirrorVertex{vertexId: %u, prop: %u, edgeIndex: %u, "
+                        "degree: %u, activeNow: %s, activeNext: %s}",
+                        vertexId, prop, edgeIndex, degree,
+                        activeNow ? "true" : "false",
+                        activeNext ? "true" : "false");
+    }
+    MirrorVertex():
+        vertexId(-1),
+        prop(-1),
+        edgeIndex(-1),
+        degree(-1),
+        activeNow(false),
+        activeNext(false)
+    {}
+
+    MirrorVertex(uint32_t vertex_id, uint32_t prop, uint32_t degree,
+                uint32_t edge_index, bool active_now, bool active_next):
+                vertexId(vertex_id), prop(prop), edgeIndex(edge_index),
+                degree(degree), activeNow(active_now), activeNext(active_next)
+    {}
+
+};
+
 static_assert(isPowerOf2(sizeof(WorkListItem)));
 static_assert(isPowerOf2(sizeof(Edge)));
+static_assert(isPowerOf2(sizeof(MirrorVertex)));
 
 struct MetaEdge {
     uint64_t src;

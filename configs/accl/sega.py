@@ -137,7 +137,13 @@ class EdgeMemory(SubSystem):
 
 
 class SEGA(System):
-    def __init__(self, num_gpts, num_registers, cache_size, graph_path):
+    def __init__(
+        self,
+        num_gpts,
+        num_registers,
+        cache_size,
+        graph_path,
+    ):
         super(SEGA, self).__init__()
         # num_gpts should be an even power of 2
         assert num_gpts != 0
@@ -151,8 +157,26 @@ class SEGA(System):
         self.mem_mode = "timing"
 
         # Building the CenteralController
+        self.mirror_mem = SimpleMemory(
+            latency="90ns",
+            latency_var="0ns",
+            bandwidth="28GiB/s",
+            image_file=f"{graph_path}/mirrors",
+            range=AddrRange(start=0, size="4GiB"),
+            in_addr_map=False,
+        )
+        self.map_mem = SimpleMemory(
+            latency="90ns",
+            latency_var="0ns",
+            bandwidth="28GiB/s",
+            image_file=f"{graph_path}/mirrors_map",
+            range=AddrRange(start=0, size="4GiB"),
+            in_addr_map=False,
+        )
         self.ctrl = CenteralController(
-            vertex_image_file=f"{graph_path}/vertices"
+            vertex_image_file=f"{graph_path}/vertices",
+            mirrors_mem=self.mirror_mem.port,
+            mirrors_map_mem=self.map_mem.port,
         )
         # Building the EdgeMemories
         edge_mem = []
@@ -192,6 +216,9 @@ class SEGA(System):
 
     def set_bsp_mode(self):
         self.ctrl.setBSPMode()
+
+    def set_pg_mode(self):
+        self.ctrl.setPGMode()
 
     def create_pop_count_directory(self, atoms_per_block):
         self.ctrl.createPopCountDirectory(atoms_per_block)
