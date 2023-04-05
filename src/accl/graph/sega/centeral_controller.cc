@@ -183,17 +183,18 @@ CenteralController::ReqPort::sendPacket(PacketPtr pkt)
     // If we can't send the packet across the port, store it for later.
     if (!sendTimingReq(pkt))
     {
-        DPRINTF(CenteralController, "%s: Port %d: Packet %s is blocked.\n", __func__, _id, pkt->print());
+        DPRINTF(CenteralController, "%s: Port %d: Packet %s "
+                "is blocked.\n", __func__, _id, pkt->print());
         blockedPacket = pkt;
     } else {
-        DPRINTF(CenteralController, "%s: Port %d: Packet %s sent.\n", __func__, _id, pkt->print());
+        DPRINTF(CenteralController, "%s: Port %d: Packet %s "
+                    "sent.\n", __func__, _id, pkt->print());
     }
 }
 
 bool
 CenteralController::ReqPort::recvTimingResp(PacketPtr pkt)
 {
-    DPRINTF(CenteralController, "%s: Port %d received pkt: %s.\n", __func__, _id, pkt->print());
     return owner->handleMemResp(pkt, _id);
 }
 
@@ -209,7 +210,8 @@ CenteralController::ReqPort::recvReqRetry()
     blockedPacket = nullptr;
     sendPacket(pkt);
     if (blockedPacket == nullptr) {
-        DPRINTF(CenteralController, "%s: blockedPacket sent successfully.\n", __func__);
+        DPRINTF(CenteralController, "%s: blockedPacket sent "
+                                "successfully.\n", __func__);
         owner->recvReqRetry(_id);
     }
 }
@@ -392,7 +394,7 @@ CenteralController::processNextMirrorUpdateEvent()
     MirrorVertex front = mirrorQueue.front();
     Addr org_addr = front.vertexId * sizeof(WorkListItem);
     Addr aligned_org_addr = roundDown<Addr, int>(org_addr, vertex_atom);
-    int wl_offset = (aligned_org_addr - org_addr) / sizeof(WorkListItem);
+    int wl_offset = (org_addr - aligned_org_addr) / sizeof(WorkListItem);
     int num_items = vertex_atom / sizeof(WorkListItem);
     WorkListItem data[num_items];
 
@@ -404,9 +406,10 @@ CenteralController::processNextMirrorUpdateEvent()
         }
     }
     read_org->writeDataToBlock((uint8_t*) data, vertex_atom);
-    DPRINTF(CenteralController, "%s: OG: %s, CP: %s.\n", __func__, workload->printWorkListItem(data[wl_offset]), front.to_string());
-    std::cout << workload->printWorkListItem(data[wl_offset]) << std::endl;
+    DPRINTF(CenteralController, "%s: OG: %s, CP: %s.\n", __func__,
+            workload->printWorkListItem(data[wl_offset]), front.to_string());
     mirrorQueue.pop_front();
+    delete read_org;
     if (!mirrorQueue.empty()) {
         schedule(nextMirrorUpdateEvent, nextCycle());
     }
