@@ -679,7 +679,7 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 
     bool active = graphWorkload->activeCondition(wl, cacheBlocks[block_index].items[wl_offset]);
     cacheBlocks[block_index].items[wl_offset] = wl;
-    if (mode == ProcessingMode::ASYNCHRONOUS) {
+    if (mode == ProcessingMode::ASYNCHRONOUS || mode == ProcessingMode::POLY_GRAPH) {
         cacheBlocks[block_index].items[wl_offset].activeNow |= active;
         if (active && (!currentActiveCacheBlocks.find(block_index))) {
             currentActiveCacheBlocks.push_back(block_index);

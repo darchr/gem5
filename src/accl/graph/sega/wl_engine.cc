@@ -366,8 +366,13 @@ WLEngine::processNextReduceEvent()
         Addr addr = toReduce.front();
         assert(std::get<0>(registerFile[addr]) == RegisterState::PENDING_REDUCE);
         uint32_t update_value = std::get<1>(registerFile[addr]);
+        DPRINTF(WLEngine, "%s: Reducing for addr: %lu, update_value: %u, "
+                            "temp_prop: %s.\n", __func__, addr,
+                            update_value, workListFile[addr].tempProp);
         workListFile[addr].tempProp =
             graphWorkload->reduce(update_value, workListFile[addr].tempProp);
+        DPRINTF(WLEngine, "%s: Reduction result: %s", __func__,
+                graphWorkload->printWorkListItem(workListFile[addr]));
         registerFile[addr] = std::make_tuple(RegisterState::PENDING_WRITE, update_value);
         num_reduces++;
         toReduce.pop_front();
