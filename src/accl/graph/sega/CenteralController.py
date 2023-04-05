@@ -35,6 +35,9 @@ class CenteralController(ClockedObject):
     cxx_header = "accl/graph/sega/centeral_controller.hh"
     cxx_class = 'gem5::CenteralController'
 
+    mirrors_mem = RequestPort("Port to a memory storing vertex mirrors file.")
+    mirrors_map_mem = RequestPort("Port to a memory storing mirrors map file.")
+
     system = Param.System(Parent.any, "System this Engine is a part of")
 
     vertex_image_file = Param.String("Path to the vertex image file.")
@@ -44,6 +47,7 @@ class CenteralController(ClockedObject):
     cxx_exports = [
                     PyBindMethod("setAsyncMode"),
                     PyBindMethod("setBSPMode"),
+                    PyBindMethod("setPGMode"),
                     PyBindMethod("createPopCountDirectory"),
                     PyBindMethod("createBFSWorkload"),
                     PyBindMethod("createBFSVisitedWorkload"),
