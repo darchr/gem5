@@ -166,21 +166,37 @@ WLEngine::done()
 bool
 WLEngine::handleIncomingUpdate(PacketPtr pkt)
 {
-    assert((updateQueueSize == 0) || (updateQueue.size() <= updateQueueSize));
-    if ((updateQueueSize != 0) && (updateQueue.size() == updateQueueSize)) {
-        return false;
-    }
+    Addr update_addr = pkt->getAddr();
+    uint32_t update_value = pkt->getLE<uint32_t>();
 
-    updateQueue.emplace_back(pkt->getAddr(), pkt->getLE<uint32_t>(), curTick());
-    stats.numberIncomingUpdaes++;
-    DPRINTF(SEGAStructureSize, "%s: Emplaced (addr: %lu, value: %u) in the "
-                "updateQueue. updateQueue.size = %d, updateQueueSize = %d.\n",
-                __func__, pkt->getAddr(), pkt->getLE<uint32_t>(),
-                updateQueue.size(), updateQueueSize);
-    DPRINTF(WLEngine, "%s: Emplaced (addr: %lu, value: %u) in the "
-                "updateQueue. updateQueue.size = %d, updateQueueSize = %d.\n",
-                __func__, pkt->getAddr(), pkt->getLE<uint32_t>(),
-                updateQueue.size(), updateQueueSize);
+    if (valueMap.find(update_addr) != valueMap.end()) {
+        assert((updateQueueSize == 0) ||
+                (updateQueue.size() <= updateQueueSize));
+        DPRINTF(WLEngine, "%s: Found an already queued update to %u. ",
+                            "Current value is: %u.\n", __func__,
+                            update_addr, valueMap[update_addr]);
+        valueMap[update_addr] =
+                graphWorkload->reduce(update_value, valueMap[update_addr]);
+        stats.numIncomingUpdates++;
+        stats.updateQueueCoalescions++;
+    } else {
+        assert((updateQueueSize == 0) || (updateQueue.size() <= updateQueueSize));
+        if ((updateQueueSize != 0) && (updateQueue.size() == updateQueueSize)) {
+            return false;
+        } else {
+            updateQueue.emplace_back(update_addr, curTick());
+            valueMap[update_addr] = update_value;
+            stats.numIncomingUpdates++;
+            DPRINTF(SEGAStructureSize, "%s: Emplaced (addr: %lu, value: %u) in the "
+                        "updateQueue. updateQueue.size = %d, updateQueueSize = %d.\n",
+                        __func__, update_addr, update_value,
+                        updateQueue.size(), updateQueueSize);
+            DPRINTF(WLEngine, "%s: Emplaced (addr: %lu, value: %u) in the "
+                        "updateQueue. updateQueue.size = %d, updateQueueSize = %d.\n",
+                        __func__, update_addr, update_value,
+                        updateQueue.size(), updateQueueSize);
+        }
+    }
 
     // delete the packet since it's not needed anymore.
     delete pkt;
@@ -194,10 +210,7 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
 void
 WLEngine::processNextReadEvent()
 {
-    int num_reads = 0;
-    int num_popped = 0;
-    int num_tries = 0;
-    std::deque<std::tuple<Addr, uint32_t, Tick>> temp_queue;
+    std::deque<std::tuple<Addr, Tick>> temp_queue;
     for (int i = 0; i < maxUpdatesProcessed; i++) {
         if (updateQueue.empty()) {
             break;
@@ -206,17 +219,18 @@ WLEngine::processNextReadEvent()
         updateQueue.pop_front();
     }
 
+    int num_reads = 0;
+    int num_popped = 0;
+    int num_tries = 0;
     int max_visits = temp_queue.size();
-
     while (true) {
         Addr update_addr;
-        uint32_t update_value;
         Tick enter_tick;
-        std::tie(update_addr, update_value, enter_tick) = temp_queue.front();
+        std::tie(update_addr, enter_tick) = temp_queue.front();
 
+        uint32_t update_value = valueMap[update_addr];
         DPRINTF(WLEngine,  "%s: Looking at the front of the updateQueue. "
             "(addr: %lu, value: %u).\n", __func__, update_addr, update_value);
-
         if ((registerFile.find(update_addr) == registerFile.end())) {
             DPRINTF(WLEngine,  "%s: No register already allocated for addr: %lu "
                                 "in registerFile.\n", __func__, update_addr);
@@ -237,6 +251,7 @@ WLEngine::processNextReadEvent()
                             "registerFileSize = %d.\n", __func__, update_addr,
                             update_value, registerFile.size(), registerFileSize);
                     temp_queue.pop_front();
+                    valueMap.erase(update_addr);
                     num_reads++;
                     num_popped++;
                     stats.updateQueueLatency.sample(
@@ -253,13 +268,13 @@ WLEngine::processNextReadEvent()
                 } else {
                     if (read_status == ReadReturnStatus::REJECT_ROLL) {
                         temp_queue.pop_front();
-                        temp_queue.emplace_back(update_addr, update_value, enter_tick);
+                        temp_queue.emplace_back(update_addr, enter_tick);
                         DPRINTF(WLEngine, "%s: Received a reject from cache. "
                                             "Rolling the update.\n", __func__);
                         stats.numUpdateRolls++;
                     } else {
                         temp_queue.pop_front();
-                        temp_queue.emplace_back(update_addr, update_value, enter_tick);
+                        temp_queue.emplace_back(update_addr, enter_tick);
                         DPRINTF(WLEngine, "%s: Received a reject with no roll "
                         "from cache. Rolling the update anyway.\n", __func__);
                     }
@@ -268,7 +283,7 @@ WLEngine::processNextReadEvent()
                 DPRINTF(WLEngine, "%s: There are no free registers "
                         "available in the registerFile.\n", __func__);
                 temp_queue.pop_front();
-                temp_queue.emplace_back(update_addr, update_value, enter_tick);
+                temp_queue.emplace_back(update_addr, enter_tick);
                 stats.registerShortage++;
             }
         } else {
@@ -282,7 +297,7 @@ WLEngine::processNextReadEvent()
                         "%lu is pending a write to the cache. Rolling "
                         "the update.\n", __func__, update_addr);
                 temp_queue.pop_front();
-                temp_queue.emplace_back(update_addr, update_value, enter_tick);
+                temp_queue.emplace_back(update_addr, enter_tick);
             } else {
                 uint32_t curr_value = std::get<1>(registerFile[update_addr]);
                 uint32_t new_value = graphWorkload->reduce(update_value, curr_value);
@@ -290,8 +305,9 @@ WLEngine::processNextReadEvent()
                 DPRINTF(WLEngine,  "%s: Reduced the update_value: %u with the entry in"
                             " registerFile. registerFile[%lu] = %u.\n", __func__,
                             update_value, update_addr, std::get<1>(registerFile[update_addr]));
-                stats.registerFileCoalesce++;
+                stats.registerFileCoalescions++;
                 temp_queue.pop_front();
+                valueMap.erase(update_addr);
                 num_popped++;
                 stats.updateQueueLatency.sample(
                                 (curTick() - enter_tick) * 1e9 / getClockFrequency());
@@ -308,7 +324,9 @@ WLEngine::processNextReadEvent()
 
         num_tries++;
         if (num_reads >= maxReadsPerCycle) {
-            stats.numReadPortShortage++;
+            if (!temp_queue.empty()) {
+                stats.numReadPortShortage++;
+            }
             break;
         }
         if (num_tries >= max_visits) {
@@ -370,11 +388,14 @@ WLEngine::processNextReduceEvent()
             graphWorkload->reduce(update_value, workListFile[addr].tempProp);
         registerFile[addr] = std::make_tuple(RegisterState::PENDING_WRITE, update_value);
         num_reduces++;
+        stats.numReductions++;
         toReduce.pop_front();
         toWrite.push_back(addr);
 
         if (num_reduces >= maxReducesPerCycle) {
-            // TODO: Add stat to count reducer shortage;
+            if (!toReduce.empty()) {
+                stats.numReducerShortage++;
+            }
             break;
         }
         if (toReduce.empty()) {
@@ -404,7 +425,9 @@ WLEngine::processNextWriteEvent()
         toWrite.pop_front();
         num_writes++;
         if (num_writes >= maxWritesPerCycle) {
-            stats.numWritePortShortage++;
+            if (!toWrite.empty()) {
+                stats.numWritePortShortage++;
+            }
             break;
         }
         if (toWrite.empty()) {
@@ -432,10 +455,8 @@ WLEngine::processNextDoneSignalEvent()
 WLEngine::WorkListStats::WorkListStats(WLEngine &_wl)
     : statistics::Group(&_wl),
     wl(_wl),
-    ADD_STAT(numReduce, statistics::units::Count::get(),
-             "Number of memory blocks read for vertecies"),
-    ADD_STAT(registerFileCoalesce, statistics::units::Count::get(),
-             "Number of memory blocks read for vertecies"),
+    ADD_STAT(updateQueueCoalescions, statistics::units::Count::get(),
+             "Number of coalescions in the update queues."),
     ADD_STAT(registerShortage, statistics::units::Count::get(),
              "Number of times updates were "
              "stalled because of register shortage"),
@@ -444,9 +465,15 @@ WLEngine::WorkListStats::WorkListStats(WLEngine &_wl)
              "to the back of the update queue due to cache reject."),
     ADD_STAT(numReadPortShortage, statistics::units::Count::get(),
              "Number of times limited by read per cycle."),
+    ADD_STAT(registerFileCoalescions, statistics::units::Count::get(),
+             "Number of memory blocks read for vertecies"),
+    ADD_STAT(numReductions, statistics::units::Count::get(),
+             "Number of memory blocks read for vertecies"),
+    ADD_STAT(numReducerShortage, statistics::units::Count::get(),
+             "Number of times limited by number of reducers."),
     ADD_STAT(numWritePortShortage, statistics::units::Count::get(),
              "Number of times limited by write per cycle."),
-    ADD_STAT(numberIncomingUpdaes, statistics::units::Count::get(),
+    ADD_STAT(numIncomingUpdates, statistics::units::Count::get(),
               "Number of inocoming updates for each GPT."),
     ADD_STAT(vertexReadLatency, statistics::units::Second::get(),
              "Histogram of the latency of reading a vertex (ns)."),
