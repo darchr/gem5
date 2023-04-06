@@ -858,7 +858,6 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
             bool atom_active_future = false;
             for (int index = 0; index < numElementsPerLine; index++)
             {
-                assert(cacheBlocks[block_index].items[index].activeNow);
                 atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
             }
             if (atom_active_future) {

@@ -77,7 +77,8 @@ class WLEngine : public BaseReduceEngine
     std::vector<RespPort> inPorts;
 
     int updateQueueSize;
-    std::deque<std::tuple<Addr, uint32_t, Tick>> updateQueue;
+    std::deque<std::tuple<Addr, Tick>> updateQueue;
+    std::unordered_map<Addr, uint32_t> valueMap;
 
     int maxReadsPerCycle;
     int maxReducesPerCycle;
@@ -112,14 +113,15 @@ class WLEngine : public BaseReduceEngine
       void regStats() override;
 
       WLEngine &wl;
-
-      statistics::Scalar numReduce;
-      statistics::Scalar registerFileCoalesce;
+      statistics::Scalar updateQueueCoalescions;
       statistics::Scalar registerShortage;
       statistics::Scalar numUpdateRolls;
       statistics::Scalar numReadPortShortage;
+      statistics::Scalar registerFileCoalescions;
+      statistics::Scalar numReductions;
+      statistics::Scalar numReducerShortage;
       statistics::Scalar numWritePortShortage;
-      statistics::Scalar numberIncomingUpdaes;
+      statistics::Scalar numIncomingUpdates;
 
       statistics::Histogram vertexReadLatency;
       statistics::Histogram updateQueueLatency;
