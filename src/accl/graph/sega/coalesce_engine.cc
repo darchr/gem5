@@ -46,9 +46,10 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     numLines((int) (params.cache_size / peerMemoryAtomSize)),
     numElementsPerLine((int) (peerMemoryAtomSize / sizeof(WorkListItem))),
     lastReadTick(0), onTheFlyReqs(0), maxRespPerCycle(params.max_resp_per_cycle),
-    pullsReceived(0), pullsScheduled(0), pendingPullLimit(params.pending_pull_limit),
+    numReceivedPulls(0), numScheduledPulls(0), pendingPullLimit(params.pending_pull_limit),
     pendingPullReads(0), activeBufferSize(params.active_buffer_size),
     postPushWBQueueSize(params.post_push_wb_queue_size),
+    transitionsPerCycle(params.transitions_per_cycle),
     nextMemoryEvent([this] {
         processNextMemoryEvent();
         }, name() + ".nextMemoryEvent"),
@@ -68,8 +69,8 @@ CoalesceEngine::CoalesceEngine(const Params &params):
     for (int i = 0; i < numLines; i++) {
         cacheBlocks[i] = Block(numElementsPerLine);
     }
-    currentActiveCacheBlocks = UniqueFIFO<int>(numLines);
-    futureActiveCacheBlocks = UniqueFIFO<int>(numLines);
+    numActiveBlocksNow = UniqueFIFO<int>(numLines);
+    numActiveBlocksNext = UniqueFIFO<int>(numLines);
 
     activeBuffer.clear();
     postPushWBQueue.clear();
@@ -142,10 +143,10 @@ CoalesceEngine::postConsumeProcess()
                 }
             }
             if (!atom_active_future_before && atom_active_future_after) {
-                futureActiveCacheBlocks.push_back(block_index);
+                numActiveBlocksNext.push_back(block_index);
             }
             if (atom_active_future_before && !atom_active_future_after) {
-                futureActiveCacheBlocks.erase(block_index);
+                numActiveBlocksNext.erase(block_index);
             }
         } else {
             WorkListItem items[numElementsPerLine];
@@ -199,35 +200,35 @@ void
 CoalesceEngine::swapDirectories()
 {
     assert(currentDirectory->empty());
-    assert(currentActiveCacheBlocks.empty());
+    assert(numActiveBlocksNow.empty());
     // assert currentDirectory is empty
     WorkDirectory* temp = currentDirectory;
     currentDirectory = futureDirectory;
     futureDirectory = temp;
 
-    currentActiveCacheBlocks.clear();
-    currentActiveCacheBlocks = futureActiveCacheBlocks;
-    futureActiveCacheBlocks.clear();
+    numActiveBlocksNow.clear();
+    numActiveBlocksNow = numActiveBlocksNext;
+    numActiveBlocksNext.clear();
 }
 
 bool
 CoalesceEngine::done()
 {
-    return memoryFunctionQueue.empty() && currentActiveCacheBlocks.empty() &&
+    return memAccBuffer.empty() && numActiveBlocksNow.empty() &&
         activeBuffer.empty() && currentDirectory->empty() && (onTheFlyReqs == 0);
 }
 
 bool
 CoalesceEngine::enoughSpace()
 {
-    return (activeBuffer.size() + pendingPullReads + pullsScheduled) < activeBufferSize;
+    return (activeBuffer.size() + pendingPullReads + numScheduledPulls) < activeBufferSize;
 }
 
 bool
 CoalesceEngine::pullCondition()
 {
     bool enough_space = enoughSpace();
-    bool schedule_limit = pullsScheduled < pendingPullLimit;
+    bool schedule_limit = numScheduledPulls < pendingPullLimit;
     return enough_space && schedule_limit;
 }
 
@@ -341,7 +342,7 @@ CoalesceEngine::recvWLRead(Addr addr)
                                                         __func__, block_index);
                     cacheBlocks[block_index].state = CacheState::PENDING_WB;
                     cacheBlocks[block_index].lastChangedTick = curTick();
-                    memoryFunctionQueue.emplace_back(
+                    memAccBuffer.emplace_back(
                         [this] (int block_index, Tick schedule_tick) {
                             processNextWriteBack(block_index, schedule_tick);
                         }, block_index, curTick());
@@ -366,18 +367,18 @@ CoalesceEngine::recvWLRead(Addr addr)
                     if (atom_active_now) {
                         DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] is active now.\n",
                                                         __func__, block_index);
-                        currentActiveCacheBlocks.erase(block_index);
+                        numActiveBlocksNow.erase(block_index);
                         int count = currentDirectory->activate(cacheBlocks[block_index].addr);
                         stats.currentFrontierSize.sample(currentDirectory->workCount());
-                        stats.currentBlockActiveCount.sample(count);
+                        stats.countActiveBlocksNow.sample(count);
                     }
                     if (atom_active_future) {
                         DPRINTF(CoalesceEngine, "%s: cacheBlocks[%d] is active next.\n",
                                                         __func__, block_index);
-                        futureActiveCacheBlocks.erase(block_index);
+                        numActiveBlocksNext.erase(block_index);
                         int count = futureDirectory->activate(cacheBlocks[block_index].addr);
                         stats.futureFrontierSize.sample(futureDirectory->workCount());
-                        stats.futureBlockActiveCount.sample(count);
+                        stats.countActiveBlocksNext.sample(count);
                     }
                     // NOTE: Bring the cache line to invalid state.
                     // NOTE: Above line where we set hasConflict to true
@@ -405,7 +406,7 @@ CoalesceEngine::recvWLRead(Addr addr)
             cacheBlocks[block_index].lastChangedTick = curTick();
 
             MSHR[block_index].push_back(addr);
-            memoryFunctionQueue.emplace_back(
+            memAccBuffer.emplace_back(
                 [this] (int block_index, Tick schedule_tick) {
                     processNextRead(block_index, schedule_tick);
                 }, block_index, curTick());
@@ -492,15 +493,15 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             }
             if (atom_active_now) {
                 int count = currentDirectory->deactivate(addr);
-                currentActiveCacheBlocks.push_back(block_index);
+                numActiveBlocksNow.push_back(block_index);
                 stats.currentFrontierSize.sample(currentDirectory->workCount());
-                stats.currentBlockActiveCount.sample(count);
+                stats.countActiveBlocksNow.sample(count);
             }
             if (atom_active_future) {
                 int count = futureDirectory->deactivate(addr);
-                futureActiveCacheBlocks.push_back(block_index);
+                numActiveBlocksNext.push_back(block_index);
                 stats.futureFrontierSize.sample(futureDirectory->workCount());
-                stats.futureBlockActiveCount.sample(count);
+                stats.countActiveBlocksNext.sample(count);
             }
 
             assert(MSHR.find(block_index) != MSHR.end());
@@ -560,11 +561,11 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             if (atom_active_now) {
                 int count = currentDirectory->deactivate(addr);
                 stats.currentFrontierSize.sample(currentDirectory->workCount());
-                stats.currentBlockActiveCount.sample(count);
+                stats.countActiveBlocksNow.sample(count);
                 if (atom_active_future) {
                     int count = futureDirectory->deactivate(addr);
                     stats.futureFrontierSize.sample(futureDirectory->workCount());
-                    stats.futureBlockActiveCount.sample(count);
+                    stats.countActiveBlocksNext.sample(count);
                 }
                 activeBuffer.emplace_back(pkt, curTick());
             } else {
@@ -573,15 +574,15 @@ CoalesceEngine::handleMemResp(PacketPtr pkt)
             }
 
             if (pullCondition()) {
-                memoryFunctionQueue.emplace_back(
+                memAccBuffer.emplace_back(
                     [this] (int ignore, Tick schedule_tick) {
                         processNextVertexPull(ignore, schedule_tick);
-                    }, 0, curTick());
+                    }, -1, curTick());
                 if ((!nextMemoryEvent.pending()) &&
                     (!nextMemoryEvent.scheduled())) {
                     schedule(nextMemoryEvent, nextCycle());
                 }
-                pullsScheduled++;
+                numScheduledPulls++;
             }
         }
         delete purpose;
@@ -681,8 +682,8 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     cacheBlocks[block_index].items[wl_offset] = wl;
     if (mode == ProcessingMode::ASYNCHRONOUS) {
         cacheBlocks[block_index].items[wl_offset].activeNow |= active;
-        if (active && (!currentActiveCacheBlocks.find(block_index))) {
-            currentActiveCacheBlocks.push_back(block_index);
+        if (active && (!numActiveBlocksNow.find(block_index))) {
+            numActiveBlocksNow.push_back(block_index);
             if (!owner->running()) {
                 owner->start();
             }
@@ -690,8 +691,8 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
     }
     if (mode == ProcessingMode::BULK_SYNCHRONOUS) {
         cacheBlocks[block_index].items[wl_offset].activeFuture |= active;
-        if (active && (!futureActiveCacheBlocks.find(block_index))) {
-            futureActiveCacheBlocks.push_back(block_index);
+        if (active && (!numActiveBlocksNext.find(block_index))) {
+            numActiveBlocksNext.push_back(block_index);
         }
     }
 
@@ -709,7 +710,7 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
             if (cacheBlocks[block_index].dirty) {
                 cacheBlocks[block_index].state = CacheState::PENDING_WB;
                 cacheBlocks[block_index].lastChangedTick = curTick();
-                memoryFunctionQueue.emplace_back(
+                memAccBuffer.emplace_back(
                     [this] (int block_index, Tick schedule_tick) {
                         processNextWriteBack(block_index, schedule_tick);
                     }, block_index, curTick());
@@ -725,16 +726,16 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
                     atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
                 }
                 if (atom_active_now) {
-                    currentActiveCacheBlocks.erase(block_index);
+                    numActiveBlocksNow.erase(block_index);
                     int count = currentDirectory->activate(cacheBlocks[block_index].addr);
                     stats.currentFrontierSize.sample(currentDirectory->workCount());
-                    stats.currentBlockActiveCount.sample(count);
+                    stats.countActiveBlocksNow.sample(count);
                 }
                 if (atom_active_future) {
-                    futureActiveCacheBlocks.erase(block_index);
+                    numActiveBlocksNext.erase(block_index);
                     int count = futureDirectory->activate(cacheBlocks[block_index].addr);
                     stats.futureFrontierSize.sample(futureDirectory->workCount());
-                    stats.futureBlockActiveCount.sample(count);
+                    stats.countActiveBlocksNext.sample(count);
                 }
                 cacheBlocks[block_index].reset();
             }
@@ -756,32 +757,52 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 void
 CoalesceEngine::processNextMemoryEvent()
 {
-    if (memPort.blocked()) {
-        stats.numMemoryBlocks++;
-        nextMemoryEvent.sleep();
-        return;
+    int num_transitions = 0;
+    std::unordered_set<int> transitions;
+    FunctionDeque temp_deque;
+    temp_deque.clear();
+
+    while (true) {
+        if (memPort.blocked()) {
+            while (!temp_deque.empty()) {
+                memAccBuffer.push_front(temp_deque.back());
+                temp_deque.pop_back();
+            }
+            stats.numMemoryBlocks++;
+            nextMemoryEvent.sleep();
+            return;
+        }
+        DPRINTF(CoalesceEngine, "%s: Processing another "
+                            "memory function.\n", __func__);
+        std::function<void(int, Tick)> function;
+        int input;
+        Tick tick;
+        std::tie(function, input, tick) = memAccBuffer.front();
+        if ((transitions.find(input) == transitions.end()) || (input == -1)) {
+            function(input, tick);
+            memAccBuffer.pop_front();
+            transitions.insert(input);
+            stats.memAccBufferLat.sample((curTick() - tick) * 1e9 / getClockFrequency());
+            DPRINTF(CoalesceEngine, "%s: Popped a function from memAccBuffer. "
+                    "memAccBuffer.size = %d.\n", __func__, memAccBuffer.size());
+            num_transitions++;
+        } else {
+            temp_deque.emplace_back(function, input, tick);
+            memAccBuffer.pop_front();
+        }
+        if ((num_transitions >= transitionsPerCycle) || memAccBuffer.empty()) {
+            break;
+        }
     }
 
-    DPRINTF(CoalesceEngine, "%s: Processing another "
-                        "memory function.\n", __func__);
-    std::function<void(int, Tick)> next_memory_function;
-    int next_memory_function_input;
-    Tick next_memory_function_tick;
-    std::tie(
-        next_memory_function,
-        next_memory_function_input,
-        next_memory_function_tick) = memoryFunctionQueue.front();
-    next_memory_function(next_memory_function_input, next_memory_function_tick);
-    memoryFunctionQueue.pop_front();
-    stats.memoryFunctionLatency.sample((curTick() - next_memory_function_tick)
-                                                * 1e9 / getClockFrequency());
-    DPRINTF(CoalesceEngine, "%s: Popped a function from memoryFunctionQueue. "
-                                "memoryFunctionQueue.size = %d.\n", __func__,
-                                memoryFunctionQueue.size());
+    while (!temp_deque.empty()) {
+        memAccBuffer.push_front(temp_deque.back());
+        temp_deque.pop_back();
+    }
 
     assert(!nextMemoryEvent.pending());
     assert(!nextMemoryEvent.scheduled());
-    if ((!memoryFunctionQueue.empty())) {
+    if ((!memAccBuffer.empty())) {
         schedule(nextMemoryEvent, nextCycle());
     }
 
@@ -830,7 +851,7 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
                 atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
             }
             if (atom_active_future) {
-                futureActiveCacheBlocks.push_back(block_index);
+                numActiveBlocksNext.push_back(block_index);
             }
 
             need_send_pkt = false;
@@ -852,7 +873,7 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
             cacheBlocks[block_index].lastChangedTick = curTick();
             // If an atom is in the activeBuffer,
             // then it is definitely currently active.
-            currentActiveCacheBlocks.push_back(block_index);
+            numActiveBlocksNow.push_back(block_index);
             // NOTE: Residence in the activeBuffer does not
             // signify anything about future activity.
             bool atom_active_future = false;
@@ -861,18 +882,18 @@ CoalesceEngine::processNextRead(int block_index, Tick schedule_tick)
                 atom_active_future |= cacheBlocks[block_index].items[index].activeFuture;
             }
             if (atom_active_future) {
-                futureActiveCacheBlocks.push_back(block_index);
+                numActiveBlocksNext.push_back(block_index);
             }
 
             need_send_pkt = false;
             ab = activeBuffer.erase(ab);
             delete ab_pkt;
             if (pullCondition()) {
-                memoryFunctionQueue.emplace_back(
+                memAccBuffer.emplace_back(
                     [this] (int ignore, Tick schedule_tick) {
                         processNextVertexPull(ignore, schedule_tick);
-                    }, 0, curTick());
-                pullsScheduled++;
+                    }, -1, curTick());
+                numScheduledPulls++;
             }
         } else {
             ab++;
@@ -966,20 +987,20 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
                         "Addr: %lu, size = %d.\n", __func__,
                         pkt->getAddr(), pkt->getSize());
         if (atom_active_future) {
-            futureActiveCacheBlocks.erase(block_index);
+            numActiveBlocksNext.erase(block_index);
         }
         if (atom_active_now) {
-            currentActiveCacheBlocks.erase(block_index);
+            numActiveBlocksNow.erase(block_index);
             if (enoughSpace()) {
                 activeBuffer.emplace_back(pkt, curTick());
             } else {
                 int count = currentDirectory->activate(cacheBlocks[block_index].addr);
                 stats.currentFrontierSize.sample(currentDirectory->workCount());
-                stats.currentBlockActiveCount.sample(count);
+                stats.countActiveBlocksNow.sample(count);
                 if (atom_active_future) {
                     int count = futureDirectory->activate(cacheBlocks[block_index].addr);
                     stats.futureFrontierSize.sample(futureDirectory->workCount());
-                    stats.futureBlockActiveCount.sample(count);
+                    stats.countActiveBlocksNext.sample(count);
                 }
                 memPort.sendPacket(pkt);
                 onTheFlyReqs++;
@@ -988,7 +1009,7 @@ CoalesceEngine::processNextWriteBack(int block_index, Tick schedule_tick)
             if (atom_active_future) {
                 int count = futureDirectory->activate(cacheBlocks[block_index].addr);
                 stats.futureFrontierSize.sample(futureDirectory->workCount());
-                stats.futureBlockActiveCount.sample(count);
+                stats.countActiveBlocksNext.sample(count);
             }
             memPort.sendPacket(pkt);
             onTheFlyReqs++;
@@ -1033,7 +1054,7 @@ void
 CoalesceEngine::processNextVertexPull(int ignore, Tick schedule_tick)
 {
     DPRINTF(CoalesceEngine, "%s: processNextVertexPull called.\n", __func__);
-    pullsScheduled--;
+    numScheduledPulls--;
     if (!currentDirectory->empty()) {
         Addr addr = currentDirectory->getNextWork();
         int block_index = getBlockIndex(addr);
@@ -1081,14 +1102,14 @@ CoalesceEngine::recvMemRetry()
 int
 CoalesceEngine::workCount()
 {
-    return currentActiveCacheBlocks.size() + currentDirectory->workCount() + activeBuffer.size();
+    return numActiveBlocksNow.size() + currentDirectory->workCount() + activeBuffer.size();
 }
 
 void
 CoalesceEngine::recvVertexPull()
 {
-    pullsReceived++;
-    DPRINTF(CoalesceEngine, "%s: Received a vertex pull. pullsReceived: %d.\n", __func__, pullsReceived);
+    numReceivedPulls++;
+    DPRINTF(CoalesceEngine, "%s: Received a vertex pull. numReceivedPulls: %d.\n", __func__, numReceivedPulls);
 
     stats.verticesPulled++;
     stats.lastVertexPullTime = curTick() - stats.lastResetTick;
@@ -1109,14 +1130,14 @@ CoalesceEngine::processNextApplyEvent()
         std::tie(pkt, entrance_tick) = activeBuffer.front();
         pkt->writeDataToBlock((uint8_t*) items, peerMemoryAtomSize);
 
-        for (int index = 0; (index < numElementsPerLine) && (pullsReceived > 0); index++) {
+        for (int index = 0; (index < numElementsPerLine) && (numReceivedPulls > 0); index++) {
             if (items[index].activeNow) {
                 Addr addr = pkt->getAddr() + index * sizeof(WorkListItem);
                 uint32_t delta = graphWorkload->apply(items[index]);
                 items[index].activeNow = false;
                 owner->recvVertexPush(addr, delta, items[index].edgeIndex,
                                                     items[index].degree);
-                pullsReceived--;
+                numReceivedPulls--;
                 stats.verticesPushed++;
                 stats.lastVertexPushTime = curTick() - stats.lastResetTick;
             }
@@ -1135,23 +1156,23 @@ CoalesceEngine::processNextApplyEvent()
                                         peerMemoryAtomSize, (uint8_t*) items);
             postPushWBQueue.emplace_back(wb_pkt, curTick());
             activeBuffer.pop_front();
-            memoryFunctionQueue.emplace_back(
+            memAccBuffer.emplace_back(
                 [this] (int ignore, Tick schedule_tick) {
                     processNextPostPushWB(ignore, schedule_tick);
-                }, 0, curTick());
+                }, -1, curTick());
             if ((!nextMemoryEvent.pending()) &&
                 (!nextMemoryEvent.scheduled())) {
                 schedule(nextMemoryEvent, nextCycle());
             }
             delete pkt;
         }
-    } else if (!currentActiveCacheBlocks.empty()) {
+    } else if (!numActiveBlocksNow.empty()) {
         int num_visited_indices = 0;
-        int initial_fifo_length = currentActiveCacheBlocks.size();
+        int initial_fifo_length = numActiveBlocksNow.size();
         while (true) {
-            int block_index = currentActiveCacheBlocks.front();
+            int block_index = numActiveBlocksNow.front();
             if (cacheBlocks[block_index].state == CacheState::IDLE) {
-                for (int index = 0; (index < numElementsPerLine) && (pullsReceived > 0); index++) {
+                for (int index = 0; (index < numElementsPerLine) && (numReceivedPulls > 0); index++) {
                     if (cacheBlocks[block_index].items[index].activeNow) {
                         Addr addr = cacheBlocks[block_index].addr + index * sizeof(WorkListItem);
                         uint32_t delta = graphWorkload->apply(cacheBlocks[block_index].items[index]);
@@ -1160,7 +1181,7 @@ CoalesceEngine::processNextApplyEvent()
                         owner->recvVertexPush(addr, delta,
                             cacheBlocks[block_index].items[index].edgeIndex,
                             cacheBlocks[block_index].items[index].degree);
-                        pullsReceived--;
+                        numReceivedPulls--;
                         stats.verticesPushed++;
                         stats.lastVertexPushTime = curTick() - stats.lastResetTick;
                     }
@@ -1172,14 +1193,14 @@ CoalesceEngine::processNextApplyEvent()
                 }
                 // NOTE: If we have reached the last item in the cache block
                 if (!atom_active_now) {
-                    currentActiveCacheBlocks.erase(block_index);
+                    numActiveBlocksNow.erase(block_index);
                 }
                 break;
             }
             // NOTE: If the block with index at the front of activeCacheBlocks
             // is not in IDLE state, then roll the that index to the back
-            currentActiveCacheBlocks.pop_front();
-            currentActiveCacheBlocks.push_back(block_index);
+            numActiveBlocksNow.pop_front();
+            numActiveBlocksNow.push_back(block_index);
             // NOTE: If we have visited all the items initially in the FIFO.
             num_visited_indices++;
             if (num_visited_indices == initial_fifo_length) {
@@ -1192,18 +1213,18 @@ CoalesceEngine::processNextApplyEvent()
     }
 
     if (pullCondition()) {
-        memoryFunctionQueue.emplace_back(
+        memAccBuffer.emplace_back(
             [this] (int ignore, Tick schedule_tick) {
                 processNextVertexPull(ignore, schedule_tick);
-            }, 0, curTick());
+            }, -1, curTick());
         if ((!nextMemoryEvent.pending()) &&
             (!nextMemoryEvent.scheduled())) {
             schedule(nextMemoryEvent, nextCycle());
         }
-        pullsScheduled++;
+        numScheduledPulls++;
     }
 
-    if ((pullsReceived > 0) && (!nextApplyEvent.scheduled())) {
+    if ((numReceivedPulls > 0) && (!nextApplyEvent.scheduled())) {
         schedule(nextApplyEvent, nextCycle());
     }
 }
@@ -1261,13 +1282,13 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
              "Histogram of the length of the current bitvector."),
     ADD_STAT(futureFrontierSize, statistics::units::Count::get(),
              "Histogram of the length of the future bitvector."),
-    ADD_STAT(currentBlockActiveCount, statistics::units::Count::get(),
+    ADD_STAT(countActiveBlocksNow, statistics::units::Count::get(),
              "Histogram of the popCount values in the current directory"),
-    ADD_STAT(futureBlockActiveCount, statistics::units::Count::get(),
+    ADD_STAT(countActiveBlocksNext, statistics::units::Count::get(),
              "Histogram of the popCount values in the future directory"),
     ADD_STAT(responseQueueLatency, statistics::units::Second::get(),
              "Histogram of the response latency to WLEngine. (ns)"),
-    ADD_STAT(memoryFunctionLatency, statistics::units::Second::get(),
+    ADD_STAT(memAccBufferLat, statistics::units::Second::get(),
              "Histogram of the latency of processing a memory function.")
 {
 }
@@ -1286,10 +1307,10 @@ CoalesceEngine::CoalesceStats::regStats()
 
     currentFrontierSize.init(64);
     futureFrontierSize.init(64);
-    currentBlockActiveCount.init(64);
-    futureBlockActiveCount.init(64);
+    countActiveBlocksNow.init(64);
+    countActiveBlocksNext.init(64);
     responseQueueLatency.init(64);
-    memoryFunctionLatency.init(64);
+    memAccBufferLat.init(64);
 }
 
 void

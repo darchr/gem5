@@ -43,6 +43,8 @@
 namespace gem5
 {
 
+typedef std::deque<std::tuple<std::function<void(int, Tick)>, int, Tick>> FunctionDeque;
+
 class MPU;
 
 class CoalesceEngine : public BaseMemoryEngine
@@ -120,12 +122,12 @@ class CoalesceEngine : public BaseMemoryEngine
     std::deque<std::tuple<Addr, WorkListItem, Tick>> responseQueue;
 
     // Tracking work in cache
-    int pullsReceived;
+    int numReceivedPulls;
     // NOTE: Remember to erase from these upon eviction from cache
-    UniqueFIFO<int> currentActiveCacheBlocks;
-    UniqueFIFO<int> futureActiveCacheBlocks;
+    UniqueFIFO<int> numActiveBlocksNow;
+    UniqueFIFO<int> numActiveBlocksNext;
 
-    int pullsScheduled;
+    int numScheduledPulls;
     int pendingPullLimit;
     int pendingPullReads;
     // A map from addr to sendMask. sendMask determines which bytes to
@@ -141,14 +143,15 @@ class CoalesceEngine : public BaseMemoryEngine
     bool pullCondition();
     int getBlockIndex(Addr addr);
 
+    int transitionsPerCycle;
+    FunctionDeque memAccBuffer;
+
     MemoryEvent nextMemoryEvent;
     void processNextMemoryEvent();
     void processNextRead(int block_index, Tick schedule_tick);
     void processNextWriteBack(int block_index, Tick schedule_tick);
     void processNextVertexPull(int ignore, Tick schedule_tick);
     void processNextPostPushWB(int ignore, Tick schedule_tick);
-    std::deque<std::tuple<
-        std::function<void(int, Tick)>, int, Tick>> memoryFunctionQueue;
 
     EventFunctionWrapper nextResponseEvent;
     void processNextResponseEvent();
@@ -192,10 +195,10 @@ class CoalesceEngine : public BaseMemoryEngine
 
         statistics::Histogram currentFrontierSize;
         statistics::Histogram futureFrontierSize;
-        statistics::Histogram currentBlockActiveCount;
-        statistics::Histogram futureBlockActiveCount;
+        statistics::Histogram countActiveBlocksNow;
+        statistics::Histogram countActiveBlocksNext;
         statistics::Histogram responseQueueLatency;
-        statistics::Histogram memoryFunctionLatency;
+        statistics::Histogram memAccBufferLat;
     };
 
     CoalesceStats stats;
