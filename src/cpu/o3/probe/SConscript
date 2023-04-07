@@ -45,3 +45,8 @@ if not env['CONF']['USE_NULL_ISA']:
     SimObject('ElasticTrace.py', sim_objects=['ElasticTrace'], tags='protobuf')
     Source('elastic_trace.cc', tags='protobuf')
     DebugFlag('ElasticTrace', tags='protobuf')
+
+    SimObject('O3LooppointAnalysis.py', sim_objects=['O3LooppointAnalysis','O3LooppointAnalysisManager'])
+    Source('o3looppoint_analysis.cc')
+
+    DebugFlag("O3LooppointAnalysis")

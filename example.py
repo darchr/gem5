@@ -9,7 +9,7 @@ from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
 from gem5.resources.resource import obtain_resource, AbstractResource
 from pathlib import Path
-from m5.objects import LooppointAnalysis, LooppointAnalysisManager
+from m5.objects import O3LooppointAnalysis, O3LooppointAnalysisManager
 import argparse
 
 requires(isa_required=ISA.X86)
@@ -31,15 +31,15 @@ args = parser.parse_args()
 cache_hierarchy = NoCache()
 memory = SingleChannelDDR3_1600(size="2GB")
 processor = SimpleProcessor(
-    cpu_type=CPUTypes.ATOMIC,
+    cpu_type=CPUTypes.O3,
     isa=ISA.X86,
     num_cores=5,
 )
 
-lpmanager = LooppointAnalysisManager()
+lpmanager = O3LooppointAnalysisManager()
 
 for core in processor.get_cores():
-    lplistener = LooppointAnalysis()
+    lplistener = O3LooppointAnalysis()
     lplistener.ptmanager = lpmanager
     # lplistener.validAddrRangeStart = int("401160", 10)
     # lplistener.validAddrRangeSize = int("19a8cb",16)
@@ -57,7 +57,7 @@ board.set_se_binary_workload(
 
 def printsth():
     mostRecentPc = lpmanager.getMostRecentPc()
-    print("three most recent pc and its count at this spot")
+    print("the most recent pc and its count at this spot")
     for pc in mostRecentPc:
         count = lpmanager.getPcCount(pc)
         print(f"pc:{hex(pc)} count{count}\n")
