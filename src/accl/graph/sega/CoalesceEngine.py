@@ -47,3 +47,4 @@ class CoalesceEngine(BaseMemoryEngine):
                                 "apply process for applications that require "
                                 "the apply process to happen exactly before "
                                 "pushing the edgePointer to the PushEngine.")
+    transitions_per_cycle = Param.Int("Max number of transitions in a cycle")
