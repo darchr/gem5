@@ -133,17 +133,19 @@ class CenteralController : public ClockedObject
     // FIXME: Initialize these two.
     int currentSliceNumber;
     int totalSliceNumber;
+
     int lastReadPacketId;
     std::unordered_map<int, Addr> startAddrs;
     std::unordered_map<int, Addr> endAddrs;
     // TODO: Set a max size for this queue;
     std::deque<MirrorReadInfoGen> mirrorPointerQueue;
-    std::unordered_map<RequestPtr, std::tuple<Addr, int>> reqInfoMap;
 
-    std::deque<MirrorVertex> mirrorQueue;
+    std::deque<PacketPtr> readQueue;
     std::deque<PacketPtr> writeBackQueue;
 
+    int getSliceNumber(Addr vertex_addr);
     PacketPtr createReadPacket(Addr addr, unsigned int size);
+    PacketPtr createWritePacket(Addr addr, unsigned int size, uint8_t* data);
 
     bool handleMemResp(PacketPtr pkt, PortID id);
     void recvReqRetry(PortID id);

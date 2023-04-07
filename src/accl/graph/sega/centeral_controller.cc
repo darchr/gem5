@@ -299,21 +299,8 @@ CenteralController::handleMemResp(PacketPtr pkt, PortID id)
             delete pkt;
             return true;
         }
-        assert(reqInfoMap.find(pkt->req) != reqInfoMap.end());
-        Addr offset;
-        int num_mirrors;
-        int pkt_size_in_mirrors = pkt->getSize() / sizeof(MirrorVertex);
-        MirrorVertex data[pkt_size_in_mirrors];
-        pkt->writeDataToBlock((uint8_t*) data, pkt->getSize());
-
-        std::tie(offset, num_mirrors) = reqInfoMap[pkt->req];
-        assert(num_mirrors > 0);
-        offset = (int) (offset / sizeof(MirrorVertex));
-        for (int i = 0; i < num_mirrors; i++) {
-            mirrorQueue.push_back(data[i + offset]);
-        }
+        readQueue.push_back(pkt);
         delete pkt;
-
         if (!nextMirrorUpdateEvent.scheduled()) {
             schedule(nextMirrorUpdateEvent, nextCycle());
         }
@@ -385,7 +372,6 @@ CenteralController::processNextMirrorReadEvent()
     std::tie(aligned_addr, offset, num_mirrors) = front.nextReadPacketInfo();
     PacketPtr pkt = createReadPacket(aligned_addr, vertex_atom);
     mirrorsPort.sendPacket(pkt);
-    reqInfoMap[pkt->req] = std::make_tuple(offset, num_mirrors);
     front.iterate();
     if (front.done()) {
         mirrorPointerQueue.pop_front();
@@ -400,32 +386,59 @@ void
 CenteralController::processNextMirrorUpdateEvent()
 {
     int vertex_atom = mpuVector.front()->vertexAtomSize();
-    MirrorVertex front = mirrorQueue.front();
-    Addr org_addr = front.vertexId * sizeof(WorkListItem);
-    Addr aligned_org_addr = roundDown<Addr, int>(org_addr, vertex_atom);
-    int wl_offset = (org_addr - aligned_org_addr) / sizeof(WorkListItem);
-    int num_items = vertex_atom / sizeof(WorkListItem);
-    WorkListItem data[num_items];
 
-    PacketPtr read_org = createReadPacket(aligned_org_addr, vertex_atom);
-    for (auto mpu: mpuVector) {
-        AddrRangeList range_list = addrRangeListMap[mpu];
-        if (contains(range_list, org_addr)) {
-            mpu->recvFunctional(read_org);
+    int num_mirrors_per_atom = vertex_atom / sizeof(MirrorVertex);
+    int num_vertices_per_atom = vertex_atom / sizeof(WorkListItem);
+    MirrorVertex mirrors[num_mirrors_per_atom];
+    WorkListItem vertices[num_vertices_per_atom];
+
+    PacketPtr front = readQueue.front();
+    front->writeDataToBlock((uint8_t*) mirrors, vertex_atom);
+    for (int i = 0; i < num_mirrors_per_atom; i++) {
+        Addr org_addr = mirrors[i].vertexId * sizeof(WorkListItem);
+        Addr aligned_org_addr = roundDown<Addr, int>(org_addr, vertex_atom);
+        int wl_offset = (org_addr - aligned_org_addr) / sizeof(WorkListItem);
+
+        PacketPtr read_org = createReadPacket(aligned_org_addr, vertex_atom);
+        for (auto mpu: mpuVector) {
+            AddrRangeList range_list = addrRangeListMap[mpu];
+            if (contains(range_list, org_addr)) {
+                mpu->recvFunctional(read_org);
+            }
+        }
+        read_org->writeDataToBlock((uint8_t*) vertices, vertex_atom);
+        DPRINTF(CenteralController, "%s: OG: %s, CP: %s.\n", __func__,
+            workload->printWorkListItem(vertices[wl_offset]), front.to_string());
+        delete read_org;
+
+        if (vertices[wl_offset].tempProp != vertices[wl_offset].prop) {
+            assert(data[wl_offset].degree == 0);
+            vertices[wl_offset].prop = vertices[wl_offset].tempProp;
+        }
+        if (mirrors[i].prop != vertices[wl_offset].prop) {
+            mirrors[i].prop = vertices[wl_offset].prop;
+            mirrors[i].activeNow = true;
         }
     }
-    read_org->writeDataToBlock((uint8_t*) data, vertex_atom);
-    DPRINTF(CenteralController, "%s: OG: %s, CP: %s.\n", __func__,
-            workload->printWorkListItem(data[wl_offset]), front.to_string());
-    mirrorQueue.pop_front();
-    delete read_org;
-    if (!mirrorQueue.empty()) {
+
+    PacketPtr wb = createWritePacket(
+                    front->getAddr(), front->getSize(), (uint8_t*) mirrors);
+    readQueue.pop_front();
+    delete front;
+
+    if (!nextWriteBackEvent.scheduled()) {
+        schedule(nextWriteBackEvent, nextCycle());
+    }
+    if (!readQueue.empty()) {
         schedule(nextMirrorUpdateEvent, nextCycle());
     }
 }
 
 void
-CenteralController::processNextWriteBackEvent() {}
+CenteralController::processNextWriteBackEvent()
+{
+    PacketPtr front = writeBackQueue.front();
+}
 
 int
 CenteralController::workCount()
