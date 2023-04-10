@@ -295,6 +295,7 @@ PushEngine::handleMemResp(PacketPtr pkt)
         metaEdgeQueue.emplace_back(meta_edge, curTick());
         stats.edgeQueueLength.sample(metaEdgeQueue.size());
     }
+    stats.edgeQueueLength.sample(metaEdgeQueue.size());
     stats.numWastefulEdgesRead +=
                 (peerMemoryAtomSize / sizeof(Edge)) - push_info.numElements;
 
@@ -313,36 +314,55 @@ void
 PushEngine::processNextPropagateEvent()
 {
     int num_propagates = 0;
+    int num_tries = 0;
+    int num_reads = 0;
+    std::deque<std::tuple<MetaEdge, Tick>> temp_edge;
+    for (int i = 0; i < maxPropagatesPerCycle; i++) {
+        if (metaEdgeQueue.empty()) {
+            break;
+        }
+        temp_edge.push_back(metaEdgeQueue.front());
+        metaEdgeQueue.pop_front();
+    }
+    int max_visits = temp_edge.size();
+
     while(true) {
         MetaEdge meta_edge;
         Tick entrance_tick;
-        std::tie(meta_edge, entrance_tick) = metaEdgeQueue.front();
+        std::tie(meta_edge, entrance_tick) = temp_edge.front();
 
         DPRINTF(PushEngine, "%s: The edge to process is %s.\n",
                                 __func__, meta_edge.to_string());
 
         uint32_t update_value =
                 graphWorkload->propagate(meta_edge.value, meta_edge.weight);
-        metaEdgeQueue.pop_front();
+        temp_edge.pop_front();
+        num_tries++;
 
         if (enqueueUpdate(meta_edge.src, meta_edge.dst, update_value)) {
             DPRINTF(PushEngine, "%s: Sent %s to port queues.\n",
                                             __func__, meta_edge.to_string());
+            num_reads++;
             stats.numPropagates++;
             stats.edgeQueueLatency.sample(
                     (curTick() - entrance_tick) * 1e9 / getClockFrequency());
-            stats.edgeQueueLength.sample(metaEdgeQueue.size());
         } else {
-            metaEdgeQueue.emplace_back(meta_edge, entrance_tick);
+            temp_edge.emplace_back(meta_edge, entrance_tick);
+            stats.updateQueueFull++;
         }
         num_propagates++;
 
-        if (metaEdgeQueue.empty()) {
+        if (temp_edge.empty()) {
             break;
         }
-        if (num_propagates >= maxPropagatesPerCycle) {
+        if (num_tries >= max_visits) {
             break;
         }
+    }
+
+    while (!temp_edge.empty()) {
+        metaEdgeQueue.push_front(temp_edge.back());
+        temp_edge.pop_back();
     }
 
     stats.numPropagatesHist.sample(num_propagates);
@@ -370,6 +390,11 @@ PushEngine::enqueueUpdate(Addr src, Addr dst, uint32_t value)
 
     assert(destinationQueues[port_id].size() == sourceAndValueMaps[port_id].size());
 
+    int num_updates = 0;
+    for (auto queue: destinationQueues) {
+        num_updates += queue.size();
+    }
+
     if (sourceAndValueMaps[port_id].find(dst) != sourceAndValueMaps[port_id].end()) {
         DPRINTF(PushEngine, "%s: Found an existing update "
                             "for dst: %lu.\n", __func__, dst);
@@ -385,7 +410,7 @@ PushEngine::enqueueUpdate(Addr src, Addr dst, uint32_t value)
                             prev_src, dst, new_val);
         stats.updateQueueCoalescions++;
         return true;
-    } else if (destinationQueues[port_id].size() < updateQueueSize) {
+    } else if (num_updates < (updateQueueSize * destinationQueues.size())) {
         DPRINTF(PushEngine, "%s: There is a free entry available "
                             "in queue for port %d.\n", __func__, port_id);
         destinationQueues[port_id].emplace_back(dst, curTick());
@@ -401,6 +426,8 @@ PushEngine::enqueueUpdate(Addr src, Addr dst, uint32_t value)
         }
         return true;
     }
+    DPRINTF(PushEngine, "%s: DestinationQueue for pot %d is blocked.\n",
+                            __func__, port_id);
     return false;
 }
 
@@ -468,6 +495,8 @@ PushEngine::PushStats::PushStats(PushEngine &_push)
     push(_push),
     ADD_STAT(numPropagates, statistics::units::Count::get(),
              "Number of propagate operations done."),
+    ADD_STAT(updateQueueFull, statistics::units::Count::get(),
+             "Number of times the update queue returns false."),
     ADD_STAT(numNetBlocks, statistics::units::Count::get(),
              "Number of updates blocked by network."),
     // ADD_STAT(numIdleCycles, statistics::units::Count::get(),
@@ -508,7 +537,7 @@ PushEngine::PushStats::regStats()
     edgeQueueLatency.init(64);
     edgeQueueLength.init(64);
     updateQueueLength.init(64);
-    numPropagatesHist.init(push.params().max_propagates_per_cycle);
+    numPropagatesHist.init(1 + push.params().max_propagates_per_cycle);
 }
 
 } // namespace gem5
