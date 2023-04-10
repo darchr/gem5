@@ -172,8 +172,8 @@ class PushEngine : public BaseMemoryEngine
 
       statistics::Scalar numMemoryBlocks;
       statistics::Scalar numPropagates;
+      statistics::Scalar updateQueueFull;
       statistics::Scalar numNetBlocks;
-    //   statistics::Scalar numIdleCycles;
       statistics::Scalar updateQueueCoalescions;
       statistics::Scalar numUpdates;
       statistics::Scalar numWastefulEdgesRead;
