@@ -136,6 +136,7 @@ class PushEngine : public BaseMemoryEngine
 
     int onTheFlyMemReqs;
     int edgeQueueSize;
+    int examineWindow;
     int maxPropagatesPerCycle;
     std::deque<std::tuple<MetaEdge, Tick>> metaEdgeQueue;
 

@@ -45,6 +45,7 @@ CenteralController::CenteralController(const Params& params):
     BaseMemoryEngine(params),
     mapPort("map_port", this, 1), mode(ProcessingMode::NOT_SET),
     mirrorsMem(params.mirrors_mem), currentSliceId(0), totalUpdatesLeft(0),
+    chooseBest(params.choose_best),
     nextSliceSwitchEvent([this] { processNextSliceSwitchEvent(); }, name())
 {
     uint64_t total_cache_size = 0;
@@ -256,15 +257,26 @@ CenteralController::recvDoneSignal()
 int
 CenteralController::chooseNextSlice()
 {
-    int ret_slice_id = -1;
+    int crowded_slice_id = -1;
     int max_pending_count = 0;
+    // TODO: Make this general for all workloads
+    uint32_t best_update = -1;
+    int best_slice_id = -1;
     for (int i = 0; i < numTotalSlices; i++) {
         if (numPendingUpdates[i] > max_pending_count) {
             max_pending_count = numPendingUpdates[i];
-            ret_slice_id = i;
+            crowded_slice_id = i;
+        }
+        if (workload->betterThan(bestPendingUpdate[i], best_update)) {
+            best_update = bestPendingUpdate[i];
+            best_slice_id = i;
         }
     }
-    return ret_slice_id;
+    if (chooseBest) {
+        return best_slice_id;
+    } else {
+        return crowded_slice_id;
+    }
 }
 
 void
@@ -321,7 +333,7 @@ CenteralController::processNextSliceSwitchEvent()
                     updates_generated++;
                 }
                 bestPendingUpdate[dst_id] =
-                    workload->reduce(bestPendingUpdate[dst_id], mirrors[i].prop);
+                    workload->betterThan(mirrors[i].prop, bestPendingUpdate[dst_id]);
             }
         }
         PacketPtr write_mirrors =

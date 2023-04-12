@@ -42,6 +42,9 @@ class PushEngine(BaseMemoryEngine):
                                     "push engine where it stores the "
                                     "edges read from memory.")
 
+    examine_window = Param.Int("Number of edges at the front of the edge queue"
+                                " to examine in order to propagate.")
+
     max_propagates_per_cycle = Param.Int("Maximum number of propagates "
                                                         "done per cycle.")
 

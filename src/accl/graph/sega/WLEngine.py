@@ -45,8 +45,10 @@ class WLEngine(BaseReduceEngine):
                                     "many updates as this queueu has "
                                     "entries at the same time.")
 
+    examine_window = Param.Int("Number of updates at the front of update "
+                                "queue examined for reading.")
     rd_per_cycle = Param.Int("Maximum number of reads per cycle.")
     reduce_per_cycle = Param.Int("Maximum number of reduce per cycle.")
     wr_per_cycle = Param.Int("Maximum number of writes per cycle.")
-    
-    num_updates_processed = Param.Int("Maximum number of updates processed")
+
+

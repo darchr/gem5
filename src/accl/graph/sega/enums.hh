@@ -79,22 +79,6 @@ enum ProcessingMode
 };
 extern const char* processingModeStrings[NUM_PROCESSING_MODE];
 
-enum PGMode
-{
-    NA,
-    SCATTER,
-    GATHER,
-    NUM_PG_MODE
-};
-
-enum PointerType
-{
-    START,
-    END,
-    NUM_POINTER_TYPE
-};
-extern const char* pointerTypeStrings[NUM_POINTER_TYPE];
-
 } // namespace gem5
 
 #endif // __ACCL_GRAPH_SEGA_ENUMS_HH__
