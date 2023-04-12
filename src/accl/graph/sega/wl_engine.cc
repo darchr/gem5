@@ -44,10 +44,10 @@ namespace gem5
 WLEngine::WLEngine(const WLEngineParams& params):
     BaseReduceEngine(params),
     updateQueueSize(params.update_queue_size),
+    examineWindow(params.examine_window),
     maxReadsPerCycle(params.rd_per_cycle),
     maxReducesPerCycle(params.reduce_per_cycle),
     maxWritesPerCycle(params.wr_per_cycle),
-    maxUpdatesProcessed(params.num_updates_processed),
     registerFileSize(params.register_file_size),
     nextReadEvent([this]{ processNextReadEvent(); }, name()),
     nextReduceEvent([this]{ processNextReduceEvent(); }, name()),
@@ -211,7 +211,7 @@ void
 WLEngine::processNextReadEvent()
 {
     std::deque<std::tuple<Addr, Tick>> temp_queue;
-    for (int i = 0; i < maxUpdatesProcessed; i++) {
+    for (int i = 0; i < examineWindow; i++) {
         if (updateQueue.empty()) {
             break;
         }

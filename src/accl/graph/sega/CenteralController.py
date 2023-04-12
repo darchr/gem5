@@ -37,6 +37,9 @@ class CenteralController(BaseMemoryEngine):
 
     mirrors_map_mem = RequestPort("Port to a memory storing mirrors map file.")
 
+    choose_best = Param.Bool("Whether to prefer the best update "
+                            "value for choosing the next slice")
+
     vertex_image_file = Param.String("Path to the vertex image file.")
 
     mirrors_mem = Param.SimpleMemory("Memory to store the vertex mirrors.")

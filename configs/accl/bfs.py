@@ -107,6 +107,7 @@ if __name__ == "__m5_main__":
     else:
         from sega import SEGA
     system = SEGA(num_gpts, num_registers, cache_size, graph)
+    system.set_aux_images(f"{graph}/mirrors", f"{graph}/mirrors_map")
     root = Root(full_system=False, system=system)
 
     m5.instantiate()

@@ -58,14 +58,4 @@ const char* readDestinationStrings[NUM_READ_DESTINATION] =
     "READ_FOR_PUSH"
 };
 
-const char* processingModeStrings[NUM_PROCESSING_MODE] =
-{
-    "NOT_SET",
-    "ASYNCHRONOUS",
-    "POLY_GRAPH",
-    "BULK_SYNCHRONOUS"
-};
-
-const char* pointerTypeStrings[NUM_POINTER_TYPE] = {"START", "END"};
-
 } // namespace gem5

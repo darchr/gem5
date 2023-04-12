@@ -43,6 +43,7 @@ PushEngine::PushEngine(const Params& params):
     lastIdleEntranceTick(0),
     numPendingPulls(0), edgePointerQueueSize(params.push_req_queue_size),
     onTheFlyMemReqs(0), edgeQueueSize(params.resp_queue_size),
+    examineWindow(params.examine_window),
     maxPropagatesPerCycle(params.max_propagates_per_cycle),
     updateQueueSize(params.update_queue_size),
     nextVertexPullEvent([this] { processNextVertexPullEvent(); }, name()),
@@ -341,7 +342,7 @@ PushEngine::processNextPropagateEvent()
     int num_tries = 0;
     int num_reads = 0;
     std::deque<std::tuple<MetaEdge, Tick>> temp_edge;
-    for (int i = 0; i < maxPropagatesPerCycle; i++) {
+    for (int i = 0; i < examineWindow; i++) {
         if (metaEdgeQueue.empty()) {
             break;
         }

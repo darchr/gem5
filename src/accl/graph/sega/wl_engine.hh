@@ -80,11 +80,10 @@ class WLEngine : public BaseReduceEngine
     std::deque<std::tuple<Addr, Tick>> updateQueue;
     std::unordered_map<Addr, uint32_t> valueMap;
 
+    int examineWindow;
     int maxReadsPerCycle;
     int maxReducesPerCycle;
     int maxWritesPerCycle;
-
-    int maxUpdatesProcessed;
 
     int registerFileSize;
     std::unordered_map<Addr, std::tuple<RegisterState, uint32_t>> registerFile;

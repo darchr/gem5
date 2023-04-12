@@ -82,9 +82,9 @@ class CenteralController : public BaseMemoryEngine
     int verticesPerSlice;
     int totalUpdatesLeft;
 
+    bool chooseBest;
     int* numPendingUpdates;
     uint32_t* bestPendingUpdate;
-
     int chooseNextSlice();
 
     EventFunctionWrapper nextSliceSwitchEvent;
