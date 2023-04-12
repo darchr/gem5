@@ -40,6 +40,22 @@ def get_inputs():
     argparser.add_argument("init_addr", type=int)
     argparser.add_argument("init_value", type=int)
     argparser.add_argument(
+        "--tile",
+        dest="tile",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Whether to use temporal partitioning",
+    )
+    argparser.add_argument(
+        "--best",
+        dest="best",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Whether to use best update value for switching slices",
+    )
+    argparser.add_argument(
         "--visited",
         dest="visited",
         action="store_const",
@@ -81,6 +97,8 @@ def get_inputs():
         args.graph,
         args.init_addr,
         args.init_value,
+        args.tile,
+        args.best,
         args.visited,
         args.simple,
         args.sample,
@@ -96,6 +114,8 @@ if __name__ == "__m5_main__":
         graph,
         init_addr,
         init_value,
+        tile,
+        best,
         visited,
         simple,
         sample,
@@ -106,14 +126,23 @@ if __name__ == "__m5_main__":
         from sega_simple import SEGA
     else:
         from sega import SEGA
+
     system = SEGA(num_gpts, num_registers, cache_size, graph)
-    system.set_aux_images(f"{graph}/mirrors", f"{graph}/mirrors_map")
+    if tile:
+        system.set_aux_images(f"{graph}/mirrors", f"{graph}/mirrors_map")
+
+    if best:
+        system.set_choose_best(True)
+
     root = Root(full_system=False, system=system)
 
     m5.instantiate()
 
-    # system.set_async_mode()
-    system.set_pg_mode()
+    if tile:
+        system.set_pg_mode()
+    else:
+        system.set_async_mode()
+
     system.create_pop_count_directory(64)
     if visited:
         system.create_bfs_visited_workload(init_addr, init_value)
@@ -131,6 +160,8 @@ if __name__ == "__m5_main__":
                 m5.stats.reset()
             elif exit_event.getCause() == "Done with all the slices.":
                 break
+            elif exit_event.getCause() == "no update left to process.":
+                break
     else:
         while True:
             exit_event = m5.simulate()
@@ -139,6 +170,8 @@ if __name__ == "__m5_main__":
                 + f"because {exit_event.getCause()}"
             )
             if exit_event.getCause() == "Done with all the slices.":
+                break
+            if exit_event.getCause() == "no update left to process.":
                 break
     if verify:
         system.print_answer()

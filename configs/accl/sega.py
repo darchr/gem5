@@ -162,7 +162,7 @@ class SEGAController(SubSystem):
         self.controller.mirrors_map_mem = self.map_mem.port
 
     def set_choose_best(self, choose_best):
-        self.controlller.choose_best = choose_best
+        self.controller.choose_best = choose_best
 
     def set_vertices_image(self, vertices):
         self.controller.vertex_image_file = vertices
