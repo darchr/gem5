@@ -76,7 +76,7 @@ class GPT(SubSystem):
         )
 
         self.vertex_mem_ctrl = SimpleMemory(
-            latency="120ns", bandwidth="28GiB/s"
+            latency="120ns", bandwidth="256GiB/s"
         )
         self.coalesce_engine.mem_port = self.vertex_mem_ctrl.port
 
@@ -153,36 +153,26 @@ class SEGAController(SubSystem):
                 in_addr_map=False,
             ),
         )
-        self.controlller.mem_port = self.controlller.mirrors_mem.port
-        self.controlller.mirrors_map_mem = self.map_mem.port
+        self.controller.mem_port = self.controller.mirrors_mem.port
+        self.controller.mirrors_map_mem = self.map_mem.port
 
     def set_choose_best(self, choose_best):
-        self.controlller.choose_best = choose_best
+        self.controller.choose_best = choose_best
 
     def set_vertices_image(self, vertices):
-        self.controlller.vertex_image_file = vertices
+        self.controller.vertex_image_file = vertices
 
     def set_aux_images(self, mirrors, mirrors_map):
-        self.controlller.mirrors_mem.image_file = mirrors
+        self.controller.mirrors_mem.image_file = mirrors
         self.map_mem.image_file = mirrors_map
 
     def set_mpu_vector(self, mpu_vector):
-        self.controlller.mpu_vector = mpu_vector
+        self.controller.mpu_vector = mpu_vector
 
 
 class SEGA(System):
-<<<<<<< HEAD
     def __init__(self, num_gpts, num_registers, cache_size,
                                         r_queue_size, r_latency, graph_path):
-=======
-    def __init__(
-        self,
-        num_gpts,
-        num_registers,
-        cache_size,
-        graph_path,
-    ):
->>>>>>> Cleaning up and merging temp partition.
         super(SEGA, self).__init__()
         assert num_gpts != 0
         assert num_gpts % 2 == 0
@@ -210,9 +200,7 @@ class SEGA(System):
         gpts = []
         for i in range(num_gpts):
             gpt = GPT(num_registers, cache_size)
-            gpt.set_vertex_range(
-                [vertex_ranges[i], vertex_ranges[i + num_gpts]]
-            )
+            gpt.set_vertex_range(vertex_ranges[i])
             gpt.setEdgeMemPort(
                 self.edge_mem[i % (int(num_gpts / 2))].getPort()
             )
@@ -239,7 +227,7 @@ class SEGA(System):
         self.ctrl.controller.setPGMode()
 
     def set_aux_images(self, mirrors, mirrors_map):
-        self.ctrl.set_images(mirrors, mirrors_map)
+        self.ctrl.set_aux_images(mirrors, mirrors_map)
 
     def set_choose_best(self, choose_best):
         self.ctrl.set_choose_best(choose_best)
