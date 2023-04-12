@@ -66,6 +66,6 @@ const char* processingModeStrings[NUM_PROCESSING_MODE] =
     "BULK_SYNCHRONOUS"
 };
 
-const char* pointerTypeStrings[NUM_POINTER_TYPE] = {"N/A", "START", "END"};
+const char* pointerTypeStrings[NUM_POINTER_TYPE] = {"START", "END"};
 
 } // namespace gem5

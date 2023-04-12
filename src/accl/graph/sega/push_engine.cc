@@ -219,6 +219,30 @@ PushEngine::recvVertexPush(Addr addr, uint32_t delta,
 }
 
 void
+PushEngine::recvMirrorPush(Addr addr, uint32_t delta,
+                            uint32_t edge_index, uint32_t degree)
+{
+    Addr start_addr = edge_index * sizeof(Edge);
+    Addr end_addr = start_addr + (degree * sizeof(Edge));
+    EdgeReadInfoGen info_gen(addr, delta, start_addr, end_addr,
+                            sizeof(Edge), peerMemoryAtomSize);
+
+    edgePointerQueue.emplace_back(info_gen, curTick());
+    stats.edgePointerQueueLength.sample(edgePointerQueue.size());
+}
+
+void
+PushEngine::startProcessingMirrors(Tick time_to_wait)
+{
+    assert(!nextMemoryReadEvent.pending());
+    assert(!nextMemoryReadEvent.scheduled());
+    Cycles wait = ticksToCycles(time_to_wait);
+    if (!edgePointerQueue.empty()) {
+        schedule(nextMemoryReadEvent, clockEdge(wait));
+    }
+}
+
+void
 PushEngine::processNextMemoryReadEvent()
 {
     if (memPort.blocked()) {

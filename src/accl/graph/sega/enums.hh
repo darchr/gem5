@@ -79,9 +79,16 @@ enum ProcessingMode
 };
 extern const char* processingModeStrings[NUM_PROCESSING_MODE];
 
-enum PointerType
+enum PGMode
 {
     NA,
+    SCATTER,
+    GATHER,
+    NUM_PG_MODE
+};
+
+enum PointerType
+{
     START,
     END,
     NUM_POINTER_TYPE

@@ -120,20 +120,24 @@ if __name__ == "__m5_main__":
         system.create_bfs_workload(init_addr, init_value)
     if sample:
         while True:
-            exit_event = m5.simulate(100000000)
+            exit_event = m5.simulate(50000000)
             print(
                 f"Exited simulation at tick {m5.curTick()} "
                 + f"because {exit_event.getCause()}"
             )
-            m5.stats.dump()
-            m5.stats.reset()
-            if exit_event.getCause() != "simulate() limit reached":
+            if exit_event.getCause() == "simulate() limit reached":
+                m5.stats.dump()
+                m5.stats.reset()
+            elif exit_event.getCause() == "Done with all the slices.":
                 break
     else:
-        exit_event = m5.simulate()
-        print(
-            f"Exited simulation at tick {m5.curTick()} "
-            + f"because {exit_event.getCause()}"
-        )
+        while True:
+            exit_event = m5.simulate()
+            print(
+                f"Exited simulation at tick {m5.curTick()} "
+                + f"because {exit_event.getCause()}"
+            )
+            if exit_event.getCause() == "Done with all the slices.":
+                break
     if verify:
         system.print_answer()

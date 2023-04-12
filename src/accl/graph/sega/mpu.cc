@@ -88,6 +88,13 @@ MPU::recvVertexPush(Addr addr, uint32_t delta,
 }
 
 void
+MPU::recvMirrorPush(Addr addr, uint32_t delta,
+                    uint32_t edge_index, uint32_t degree)
+{
+    pushEngine->recvMirrorPush(addr, delta, edge_index, degree);
+}
+
+void
 MPU::recvDoneSignal()
 {
     if (done()) {

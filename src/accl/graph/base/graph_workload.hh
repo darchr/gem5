@@ -51,6 +51,7 @@ class GraphWorkload
     virtual uint32_t reduce(uint32_t update, uint32_t value) = 0;
     virtual uint32_t propagate(uint32_t value, uint32_t weight) = 0;
     virtual uint32_t apply(WorkListItem& wl) = 0;
+    virtual bool betterThan(uint32_t lhs, uint32_t rhs) { return true; }
     virtual void iterate() = 0;
     virtual void interIterationInit(WorkListItem& wl) = 0;
     virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl) = 0;
@@ -74,6 +75,7 @@ class BFSWorkload : public GraphWorkload
     virtual uint32_t reduce(uint32_t update, uint32_t value);
     virtual uint32_t propagate(uint32_t value, uint32_t weight);
     virtual uint32_t apply(WorkListItem& wl);
+    virtual bool betterThan(uint32_t lhs, uint32_t rhs) override { return lhs < rhs; }
     virtual void iterate() {}
     virtual void interIterationInit(WorkListItem& wl) {}
     virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl);

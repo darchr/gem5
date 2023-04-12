@@ -64,6 +64,7 @@ class GPT(SubSystem):
             pending_pull_limit=64,
             active_buffer_size=80,
             post_push_wb_queue_size=64,
+            transitions_per_cycle=4,
         )
         self.push_engine = PushEngine(
             push_req_queue_size=32,
@@ -145,7 +146,6 @@ class SEGA(System):
         graph_path,
     ):
         super(SEGA, self).__init__()
-        # num_gpts should be an even power of 2
         assert num_gpts != 0
         assert num_gpts % 2 == 0
         assert (num_gpts & (num_gpts - 1)) == 0
@@ -160,23 +160,24 @@ class SEGA(System):
         self.mirror_mem = SimpleMemory(
             latency="90ns",
             latency_var="0ns",
-            bandwidth="28GiB/s",
+            bandwidth="256GiB/s",
             image_file=f"{graph_path}/mirrors",
             range=AddrRange(start=0, size="4GiB"),
             in_addr_map=False,
         )
         self.map_mem = SimpleMemory(
-            latency="90ns",
+            latency="0ns",
             latency_var="0ns",
-            bandwidth="28GiB/s",
+            bandwidth="1024GiB/s",
             image_file=f"{graph_path}/mirrors_map",
             range=AddrRange(start=0, size="4GiB"),
             in_addr_map=False,
         )
         self.ctrl = CenteralController(
             vertex_image_file=f"{graph_path}/vertices",
-            mirrors_mem=self.mirror_mem.port,
+            mem_port=self.mirror_mem.port,
             mirrors_map_mem=self.map_mem.port,
+            mirrors_mem=self.mirror_mem
         )
         # Building the EdgeMemories
         edge_mem = []

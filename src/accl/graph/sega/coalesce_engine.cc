@@ -759,7 +759,7 @@ CoalesceEngine::processNextMemoryEvent()
 {
     int num_transitions = 0;
     std::unordered_set<int> transitions;
-    FunctionDeque temp_deque;
+    MemoryFunctionDeque temp_deque;
     temp_deque.clear();
 
     while (true) {

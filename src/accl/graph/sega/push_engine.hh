@@ -209,6 +209,9 @@ class PushEngine : public BaseMemoryEngine
     bool running() { return _running; }
     void recvVertexPush(Addr addr, uint32_t delta,
                         uint32_t edge_index, uint32_t degree);
+    void recvMirrorPush(Addr addr, uint32_t delta,
+                        uint32_t edge_index, uint32_t degree);
+    void startProcessingMirrors(Tick time_to_wait);
 
     void recvReqRetry();
 
