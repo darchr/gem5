@@ -1237,10 +1237,8 @@ CoalesceEngine::processNextDoneSignalEvent()
     }
 }
 
-CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine &_coalesce)
-    : statistics::Group(&_coalesce),
-    coalesce(_coalesce),
-    lastResetTick(0),
+CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine& _coalesce):
+    statistics::Group(&_coalesce), coalesce(_coalesce), lastResetTick(0),
     ADD_STAT(numVertexReads, statistics::units::Count::get(),
              "Number of memory vertecies read from cache."),
     ADD_STAT(numVertexWrites, statistics::units::Count::get(),

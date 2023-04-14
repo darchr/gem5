@@ -107,7 +107,7 @@ class WLEngine : public BaseReduceEngine
 
     struct WorkListStats : public statistics::Group
     {
-      WorkListStats(WLEngine &worklist);
+      WorkListStats(WLEngine& worklist);
 
       void regStats() override;
 

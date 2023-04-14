@@ -91,6 +91,21 @@ class CenteralController : public BaseMemoryEngine
     EventFunctionWrapper nextSliceSwitchEvent;
     void processNextSliceSwitchEvent();
 
+    struct ControllerStats : public statistics::Group
+    {
+      ControllerStats(CenteralController& ctrl);
+
+      void regStats() override;
+
+      CenteralController& ctrl;
+
+      statistics::Scalar numSwitches;
+      statistics::Scalar switchedBytes;
+      statistics::Scalar switchTicks;
+      statistics::Formula switchSeconds;
+    };
+    ControllerStats stats;
+
   protected:
     virtual void recvMemRetry() override;
     virtual bool handleMemResp(PacketPtr pkt) override;

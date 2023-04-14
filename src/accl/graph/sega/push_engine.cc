@@ -515,9 +515,8 @@ PushEngine::processNextUpdatePushEvent()
     }
 }
 
-PushEngine::PushStats::PushStats(PushEngine &_push)
-    : statistics::Group(&_push),
-    push(_push),
+PushEngine::PushStats::PushStats(PushEngine& _push):
+    statistics::Group(&_push), push(_push),
     ADD_STAT(numPropagates, statistics::units::Count::get(),
              "Number of propagate operations done."),
     ADD_STAT(updateQueueFull, statistics::units::Count::get(),

@@ -165,7 +165,7 @@ class PushEngine : public BaseMemoryEngine
 
     struct PushStats : public statistics::Group
     {
-      PushStats(PushEngine &push);
+      PushStats(PushEngine& push);
 
       void regStats() override;
 

@@ -457,9 +457,8 @@ WLEngine::processNextDoneSignalEvent()
     }
 }
 
-WLEngine::WorkListStats::WorkListStats(WLEngine &_wl)
-    : statistics::Group(&_wl),
-    wl(_wl),
+WLEngine::WorkListStats::WorkListStats(WLEngine& _wl):
+    statistics::Group(&_wl), wl(_wl),
     ADD_STAT(updateQueueCoalescions, statistics::units::Count::get(),
              "Number of coalescions in the update queues."),
     ADD_STAT(registerShortage, statistics::units::Count::get(),
