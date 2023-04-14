@@ -258,29 +258,38 @@ CenteralController::recvDoneSignal()
 int
 CenteralController::chooseNextSlice()
 {
-    int crowded_slice_id = -1;
+    int ret_slice_id = -1;
     int max_pending_count = 0;
-    // TODO: Make this general for all workloads
+    // TODO: Make this generalizable for all workloads.
     uint32_t best_update = -1;
-    int best_slice_id = -1;
-    int max_best_pending_count = 0;
     for (int i = 0; i < numTotalSlices; i++) {
         if (numPendingUpdates[i] > max_pending_count) {
             max_pending_count = numPendingUpdates[i];
-            crowded_slice_id = i;
         }
-        if (numPendingUpdates[i] > max_best_pending_count &&
-            workload->betterThan(bestPendingUpdate[i], best_update)) {
+        if (workload->betterThan(bestPendingUpdate[i], best_update)) {
             best_update = bestPendingUpdate[i];
-            max_best_pending_count = numPendingUpdates[i];
-            best_slice_id = i;
         }
     }
     if (chooseBest) {
-        return best_slice_id;
+        int max_count = 0;
+        for (int i = 0; i < numTotalSlices; i++) {
+            if (numPendingUpdates[i] > max_count &&
+                bestPendingUpdate[i] == best_update) {
+                max_count = numPendingUpdates[i];
+                ret_slice_id = i;
+            }
+        }
     } else {
-        return crowded_slice_id;
+        uint32_t best_value = -1;
+        for (int i = 0; i < numTotalSlices; i++) {
+            if (numPendingUpdates[i] == max_pending_count &&
+                workload->betterThan(bestPendingUpdate[i], best_value)) {
+                best_value = bestPendingUpdate[i];
+                ret_slice_id = i;
+            }
+        }
     }
+    return ret_slice_id;
 }
 
 void
