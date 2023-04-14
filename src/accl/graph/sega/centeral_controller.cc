@@ -266,7 +266,8 @@ CenteralController::chooseNextSlice()
         if (numPendingUpdates[i] > max_pending_count) {
             max_pending_count = numPendingUpdates[i];
         }
-        if (workload->betterThan(bestPendingUpdate[i], best_update)) {
+        if (numPendingUpdates[i] > 0 &&
+            workload->betterThan(bestPendingUpdate[i], best_update)) {
             best_update = bestPendingUpdate[i];
         }
     }
