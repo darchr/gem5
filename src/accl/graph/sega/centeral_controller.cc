@@ -46,7 +46,8 @@ CenteralController::CenteralController(const Params& params):
     mapPort("map_port", this, 1), mode(ProcessingMode::NOT_SET),
     mirrorsMem(params.mirrors_mem), currentSliceId(0), totalUpdatesLeft(0),
     chooseBest(params.choose_best),
-    nextSliceSwitchEvent([this] { processNextSliceSwitchEvent(); }, name())
+    nextSliceSwitchEvent([this] { processNextSliceSwitchEvent(); }, name()),
+    stats(*this)
 {
     uint64_t total_cache_size = 0;
     for (auto mpu : params.mpu_vector) {
@@ -253,13 +254,16 @@ CenteralController::chooseNextSlice()
     // TODO: Make this general for all workloads
     uint32_t best_update = -1;
     int best_slice_id = -1;
+    int max_best_pending_count = 0;
     for (int i = 0; i < numTotalSlices; i++) {
         if (numPendingUpdates[i] > max_pending_count) {
             max_pending_count = numPendingUpdates[i];
             crowded_slice_id = i;
         }
-        if (workload->betterThan(bestPendingUpdate[i], best_update)) {
+        if (numPendingUpdates[i] > max_best_pending_count &&
+            workload->betterThan(bestPendingUpdate[i], best_update)) {
             best_update = bestPendingUpdate[i];
+            max_best_pending_count = numPendingUpdates[i];
             best_slice_id = i;
         }
     }
@@ -278,6 +282,9 @@ CenteralController::processNextSliceSwitchEvent()
     int bytes_accessed = 0;
     int updates_generated_total =  0;
     for (int dst_id = 0; dst_id < numTotalSlices; dst_id++) {
+        if (dst_id == currentSliceId) {
+            continue;
+        }
         int updates_generated = 0;
         Addr start_pointer = (currentSliceId * numTotalSlices + dst_id) * sizeof(int);
         Addr end_pointer = (currentSliceId * numTotalSlices + dst_id + 1) * sizeof(int);
@@ -294,7 +301,7 @@ CenteralController::processNextSliceSwitchEvent()
 
         int num_bytes = end_addr - start_addr;
         int num_mirrors = (int) (end_addr - start_addr) / sizeof(MirrorVertex);
-        MirrorVertex mirrors [num_mirrors];
+        MirrorVertex* mirrors = new MirrorVertex [num_mirrors];
 
         PacketPtr read_mirrors = createReadPacket(start_addr, num_bytes);
         memPort.sendFunctional(read_mirrors);
@@ -331,6 +338,7 @@ CenteralController::processNextSliceSwitchEvent()
                     createWritePacket(start_addr, num_bytes, (uint8_t*) mirrors);
         memPort.sendFunctional(write_mirrors);
         delete write_mirrors;
+        delete [] mirrors;
         DPRINTF(CenteralController, "%s: Done scattering updates from slice "
                         "%d to slice %d.\n", __func__, currentSliceId, dst_id);
         DPRINTF(CenteralController, "%s: Generated %d updates from slice "
@@ -354,6 +362,9 @@ CenteralController::processNextSliceSwitchEvent()
                                     "next slice.\n", __func__, currentSliceId);
 
     for (int src_id = 0; src_id < numTotalSlices; src_id++) {
+        if (src_id == currentSliceId) {
+            continue;
+        }
         Addr start_pointer = (src_id * numTotalSlices + currentSliceId) * sizeof(int);
         Addr end_pointer = (src_id * numTotalSlices + currentSliceId + 1) * sizeof(int);
         PacketPtr start = createReadPacket(start_pointer, sizeof(int));
@@ -367,7 +378,7 @@ CenteralController::processNextSliceSwitchEvent()
 
         int num_bytes = end_addr - start_addr;
         int num_mirrors = (int) (end_addr - start_addr) / sizeof(MirrorVertex);
-        MirrorVertex mirrors [num_mirrors];
+        MirrorVertex* mirrors = new MirrorVertex [num_mirrors];
 
         PacketPtr read_mirrors = createReadPacket(start_addr, num_bytes);
         memPort.sendFunctional(read_mirrors);
@@ -388,6 +399,7 @@ CenteralController::processNextSliceSwitchEvent()
                     createWritePacket(start_addr, num_bytes, (uint8_t*) mirrors);
         memPort.sendFunctional(write_mirrors);
         delete write_mirrors;
+        delete [] mirrors;
         DPRINTF(CenteralController, "%s: Done gathering updates from slice "
                         "%d to slice %d.\n", __func__, src_id, currentSliceId);
         bytes_accessed += num_bytes;
@@ -395,6 +407,9 @@ CenteralController::processNextSliceSwitchEvent()
 
     double mirror_mem_bw = mirrorsMem->getBW();
     Tick time_to_switch = bytes_accessed * mirror_mem_bw;
+    stats.switchTicks += time_to_switch;
+    stats.switchedBytes += bytes_accessed;
+    stats.numSwitches++;
     for (auto mpu: mpuVector) {
         mpu->startProcessingMirrors(time_to_switch);
     }
@@ -456,6 +471,27 @@ CenteralController::printAnswerToHostSimout()
         }
         delete pkt;
     }
+}
+
+CenteralController::ControllerStats::ControllerStats(CenteralController& _ctrl):
+    statistics::Group(&_ctrl), ctrl(_ctrl),
+    ADD_STAT(numSwitches, statistics::units::Byte::get(),
+             "Number of slices switches completed."),
+    ADD_STAT(switchedBytes, statistics::units::Byte::get(),
+             "Number of bytes accessed during slice switching."),
+    ADD_STAT(switchTicks, statistics::units::Tick::get(),
+             "Number of ticks spent switching slices."),
+    ADD_STAT(switchSeconds, statistics::units::Second::get(),
+             "Traversed Edges Per Second.")
+{
+}
+
+void
+CenteralController::ControllerStats::regStats()
+{
+    using namespace statistics;
+
+    switchSeconds = switchTicks / simFreq;
 }
 
 }

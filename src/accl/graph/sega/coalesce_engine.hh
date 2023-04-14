@@ -164,7 +164,7 @@ class CoalesceEngine : public BaseMemoryEngine
 
     struct CoalesceStats : public statistics::Group
     {
-        CoalesceStats(CoalesceEngine &coalesce);
+        CoalesceStats(CoalesceEngine& coalesce);
 
         virtual void regStats() override;
 
