@@ -149,7 +149,7 @@ class SEGAController(SubSystem):
                 latency="0ns",
                 latency_var="0ns",
                 bandwidth=mirror_bw,
-                range=AddrRange(start=0, size="4GiB"),
+                range=AddrRange(start=0, size="16GiB"),
                 in_addr_map=False,
             ),
         )
