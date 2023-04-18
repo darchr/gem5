@@ -296,14 +296,14 @@ CenteralController::processNextSliceSwitchEvent()
             continue;
         }
         int updates_generated = 0;
-        Addr start_pointer = (currentSliceId * numTotalSlices + dst_id) * sizeof(int);
-        Addr end_pointer = (currentSliceId * numTotalSlices + dst_id + 1) * sizeof(int);
+        Addr start_pointer = (currentSliceId * numTotalSlices + dst_id) * sizeof(uint64_t);
+        Addr end_pointer = (currentSliceId * numTotalSlices + dst_id + 1) * sizeof(uint64_t);
         PacketPtr start = createReadPacket(start_pointer, sizeof(int));
         PacketPtr end = createReadPacket(end_pointer, sizeof(int));
         mapPort.sendFunctional(start);
         mapPort.sendFunctional(end);
-        Addr start_addr = start->getLE<int>();
-        Addr end_addr = end->getLE<int>();
+        Addr start_addr = start->getLE<uint64_t>();
+        Addr end_addr = end->getLE<uint64_t>();
         delete start;
         delete end;
         DPRINTF(CenteralController, "%s: %d->%d: [%lu, %lu].\n", __func__,
@@ -375,14 +375,14 @@ CenteralController::processNextSliceSwitchEvent()
         if (src_id == currentSliceId) {
             continue;
         }
-        Addr start_pointer = (src_id * numTotalSlices + currentSliceId) * sizeof(int);
-        Addr end_pointer = (src_id * numTotalSlices + currentSliceId + 1) * sizeof(int);
+        Addr start_pointer = (src_id * numTotalSlices + currentSliceId) * sizeof(uint64_t);
+        Addr end_pointer = (src_id * numTotalSlices + currentSliceId + 1) * sizeof(uint64_t);
         PacketPtr start = createReadPacket(start_pointer, sizeof(int));
         PacketPtr end = createReadPacket(end_pointer, sizeof(int));
         mapPort.sendFunctional(start);
         mapPort.sendFunctional(end);
-        Addr start_addr = start->getLE<int>();
-        Addr end_addr = end->getLE<int>();
+        Addr start_addr = start->getLE<uint64_t>();
+        Addr end_addr = end->getLE<uint64_t>();
         delete start;
         delete end;
 
