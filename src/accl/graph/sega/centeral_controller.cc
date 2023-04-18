@@ -298,8 +298,8 @@ CenteralController::processNextSliceSwitchEvent()
         int updates_generated = 0;
         Addr start_pointer = (currentSliceId * numTotalSlices + dst_id) * sizeof(uint64_t);
         Addr end_pointer = (currentSliceId * numTotalSlices + dst_id + 1) * sizeof(uint64_t);
-        PacketPtr start = createReadPacket(start_pointer, sizeof(int));
-        PacketPtr end = createReadPacket(end_pointer, sizeof(int));
+        PacketPtr start = createReadPacket(start_pointer, sizeof(uint64_t));
+        PacketPtr end = createReadPacket(end_pointer, sizeof(uint64_t));
         mapPort.sendFunctional(start);
         mapPort.sendFunctional(end);
         Addr start_addr = start->getLE<uint64_t>();
@@ -377,8 +377,8 @@ CenteralController::processNextSliceSwitchEvent()
         }
         Addr start_pointer = (src_id * numTotalSlices + currentSliceId) * sizeof(uint64_t);
         Addr end_pointer = (src_id * numTotalSlices + currentSliceId + 1) * sizeof(uint64_t);
-        PacketPtr start = createReadPacket(start_pointer, sizeof(int));
-        PacketPtr end = createReadPacket(end_pointer, sizeof(int));
+        PacketPtr start = createReadPacket(start_pointer, sizeof(uint64_t));
+        PacketPtr end = createReadPacket(end_pointer, sizeof(uint64_t));
         mapPort.sendFunctional(start);
         mapPort.sendFunctional(end);
         Addr start_addr = start->getLE<uint64_t>();
