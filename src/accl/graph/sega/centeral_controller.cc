@@ -309,8 +309,8 @@ CenteralController::processNextSliceSwitchEvent()
         DPRINTF(CenteralController, "%s: %d->%d: [%lu, %lu].\n", __func__,
                             currentSliceId, dst_id, start_addr, end_addr);
 
-        int num_bytes = end_addr - start_addr;
-        int num_mirrors = (int) (end_addr - start_addr) / sizeof(MirrorVertex);
+        uint64_t num_bytes = end_addr - start_addr;
+        uint64_t num_mirrors = (end_addr - start_addr) / sizeof(MirrorVertex);
         MirrorVertex* mirrors = new MirrorVertex [num_mirrors];
 
         PacketPtr read_mirrors = createReadPacket(start_addr, num_bytes);
@@ -386,8 +386,8 @@ CenteralController::processNextSliceSwitchEvent()
         delete start;
         delete end;
 
-        int num_bytes = end_addr - start_addr;
-        int num_mirrors = (int) (end_addr - start_addr) / sizeof(MirrorVertex);
+        uint64_t num_bytes = end_addr - start_addr;
+        uint64_t num_mirrors = (end_addr - start_addr) / sizeof(MirrorVertex);
         MirrorVertex* mirrors = new MirrorVertex [num_mirrors];
 
         PacketPtr read_mirrors = createReadPacket(start_addr, num_bytes);
