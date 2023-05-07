@@ -33,16 +33,15 @@ from sst import UnitAlgebra
 default_link_latency = "10ns"
 
 bbl = "riscv-boot-exit-nodisk"
-cpu_clock_rate = "3GHz"
+cpu_clock_rate = "4GHz"
 # gem5 will send requests to physical addresses of range [0x80000000, inf) to memory
 # currently, we do not subtract 0x80000000 from the request's address to get the "real" address
 # so, the mem_size would always be 2GiB larger than the desired memory size
-memory_size_gem5 = "4GiB"
-memory_size_sst = "6GiB"
+memory_size_sst = "16GiB"
 addr_range_end = UnitAlgebra(memory_size_sst).getRoundedValue()
 
 cpu_params = {
-    "frequency": cpu_clock_rate,
+    "frequency": cpu_clock_rate, # TODO: this is not a param; the CPU clock rate is set in gem5, not here
     "cmd": " ../../disaggregated_memory_setup/numa_sst.py --command={}".format("numastat"),
     "debug_flags": ""
 }
@@ -63,9 +62,10 @@ cache_port.addParams({ "response_receiver_name": "board.remote_memory_outgoing_b
 memctrl = sst.Component("memory", "memHierarchy.MemController")
 memctrl.addParams({
     "debug" : "0",
-    "clock" : "1GHz",
+    "clock" : "1.6GHz", # DDR4
     "request_width" : "64",
-    "addr_range_end" : addr_range_end, # should be changed accordingly to memory_size_sst
+    "addr_range_start": 0x100000000, # TODO: a constant for now, should be a parameter reflected in the gem5 config
+    "addr_range_end" : 0x100000000 + UnitAlgebra(memory_size_sst).getRoundedValue(), # should be changed accordingly to memory_size_sst
 })
 memory = memctrl.setSubComponent("backend", "memHierarchy.simpleMem")
 memory.addParams({

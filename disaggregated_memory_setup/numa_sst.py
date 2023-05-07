@@ -41,7 +41,7 @@ scons build/RISCV/gem5.opt
 """
 
 import m5
-from m5.objects import Root, OutgoingRequestBridge
+from m5.objects import Root, OutgoingRequestBridge, AddrRange
 
 from gem5.utils.requires import requires
 from riscv_dm_board import RiscvDMBoard
@@ -93,6 +93,12 @@ class MyRiscvDMBoard(RiscvDMBoard):
     def _pre_instantiate(self):
         super()._pre_instantiate()
         self.remote_memory_outgoing_bridge = OutgoingRequestBridge()
+        oneGiB = 1 << 31
+        self.remote_memory_outgoing_bridge.physical_address_ranges = [
+            AddrRange(
+                2 * oneGiB + 2 * oneGiB, 2 * oneGiB + 2 * oneGiB + 4 * oneGiB
+            )
+        ]
         self.remote_memory_outgoing_bridge.port = (
             self.cache_hierarchy.membus.mem_side_ports
         )
