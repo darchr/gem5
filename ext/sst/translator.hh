@@ -53,10 +53,12 @@ gem5RequestToSSTRequest(gem5::PacketPtr pkt,
         case gem5::MemCmd::ReadExReq:
         case gem5::MemCmd::ReadReq:
         case gem5::MemCmd::SwapReq:
+        case gem5::MemCmd::ReadSharedReq:
             cmd = SST::Interfaces::SimpleMem::Request::Command::Read;
             break;
         case gem5::MemCmd::StoreCondReq:
         case gem5::MemCmd::WriteReq:
+        case gem5::MemCmd::WritebackDirty:
             cmd = SST::Interfaces::SimpleMem::Request::Command::Write;
             break;
         case gem5::MemCmd::CleanInvalidReq:
