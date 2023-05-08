@@ -44,7 +44,7 @@ import m5
 from m5.objects import Root, OutgoingRequestBridge, AddrRange
 
 from gem5.utils.requires import requires
-from riscv_dm_board import RiscvDMBoard
+from riscv_dm_sst_board import RiscvDMSSTBoard
 from dm_caches import ClassicPL1PL2DMCache
 from gem5.components.memory import DualChannelDDR4_2400
 from gem5.components.memory.multi_channel import *
@@ -77,7 +77,9 @@ cache_hierarchy = ClassicPL1PL2DMCache(
 # Memory: Dual Channel DDR4 2400 DRAM device.
 
 local_memory = DualChannelDDR4_2400(size="2GB")
-remote_memory = DualChannelDDR4_2400(size="4GB")
+# remote_memory = DualChannelDDR4_2400(size="4GB")
+oneGiB = 1 << 30
+remote_memory_addr_range = AddrRange(2 * oneGiB + 2 * oneGiB, size=4 * oneGiB)
 
 # Here we setup the processor. We use a simple processor.
 processor = SimpleProcessor(
@@ -88,26 +90,23 @@ processor = SimpleProcessor(
 # simulations.
 
 
-class MyRiscvDMBoard(RiscvDMBoard):
-    @overrides(RiscvDMBoard)
+class MyBoard(RiscvDMSSTBoard):
+    @overrides(RiscvDMSSTBoard)
     def _pre_instantiate(self):
         super()._pre_instantiate()
         self.remote_memory_outgoing_bridge = OutgoingRequestBridge()
-        oneGiB = 1 << 31
         self.remote_memory_outgoing_bridge.physical_address_ranges = [
-            AddrRange(
-                2 * oneGiB + 2 * oneGiB, 2 * oneGiB + 2 * oneGiB + 4 * oneGiB
-            )
+            remote_memory_addr_range
         ]
         self.remote_memory_outgoing_bridge.port = (
             self.cache_hierarchy.membus.mem_side_ports
         )
-        self.system_outgoing_bridge = (
-            OutgoingRequestBridge()
-        )  # this should not do anything
+        # self.system_outgoing_bridge = (
+        #    OutgoingRequestBridge()
+        # )  # this should not do anything
         # self.system_outgoing_bridge.port = self.system_port
 
-    @overrides(RiscvDMBoard)
+    @overrides(RiscvDMSSTBoard)
     def get_default_kernel_args(self):
         return [
             "earlyprintk=ttyS0",
@@ -119,11 +118,11 @@ class MyRiscvDMBoard(RiscvDMBoard):
         ]
 
 
-board = MyRiscvDMBoard(
+board = MyBoard(
     clk_freq="4GHz",
     processor=processor,
     local_memory=local_memory,
-    remote_memory=remote_memory,
+    remote_memory_addr_range=remote_memory_addr_range,
     cache_hierarchy=cache_hierarchy,
 )
 
@@ -158,5 +157,6 @@ workload = CustomWorkload(
 
 # This disk image has NUMA tools installed.
 simulator = Simulator(board=board)
-simulator.run()
-simulator.run()
+simulator._instantiate()
+# simulator.run()
+# simulator.run()

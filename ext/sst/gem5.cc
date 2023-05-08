@@ -174,10 +174,18 @@ gem5Component::gem5Component(SST::ComponentId_t id, SST::Params& params):
     cachePort = \
         loadUserSubComponent<SSTResponderSubComponent>("cache_port", 0);
 
-    systemPort->setTimeConverter(timeConverter);
-    systemPort->setOutputStream(&(output));
-    cachePort->setTimeConverter(timeConverter);
-    cachePort->setOutputStream(&(output));
+    if (systemPort!=nullptr) {
+        systemPort->setTimeConverter(timeConverter);
+        systemPort->setOutputStream(&(output));
+    } else {
+        output.output(CALL_INFO, "systemPort not connected\n");
+    }
+    if (cachePort != nullptr) {
+        cachePort->setTimeConverter(timeConverter);
+        cachePort->setOutputStream(&(output));
+    } else {
+        output.output(CALL_INFO, "cachePort not connected\n");
+    }
 
 }
 
@@ -193,11 +201,11 @@ gem5Component::init(unsigned phase)
     if (phase == 0) {
         initPython(args.size(), &args[0]);
 
-        const std::vector<std::string> m5_instantiate_commands = {
-            "import m5",
-            "m5.instantiate()"
-        };
-        execPythonCommands(m5_instantiate_commands);
+        //const std::vector<std::string> m5_instantiate_commands = {
+        //   "import m5",
+        //    "m5.instantiate()"
+        //};
+        //execPythonCommands(m5_instantiate_commands);
 
         // calling SimObject.startup()
         const std::vector<std::string> simobject_setup_commands = {
@@ -216,8 +224,10 @@ gem5Component::init(unsigned phase)
 
         // find the corresponding SimObject for each SSTResponderSubComponent
         gem5::Root* gem5_root = gem5::Root::root();
-        systemPort->findCorrespondingSimObject(gem5_root);
-        cachePort->findCorrespondingSimObject(gem5_root);
+        if (systemPort != nullptr)
+            systemPort->findCorrespondingSimObject(gem5_root);
+        if (cachePort != nullptr)
+            cachePort->findCorrespondingSimObject(gem5_root);
 
         // initialize the gem5 event queue
         if (!(threadInitialized)) {
@@ -231,16 +241,20 @@ gem5Component::init(unsigned phase)
 
     }
 
-    systemPort->init(phase);
-    cachePort->init(phase);
+    if (systemPort != nullptr)
+        systemPort->init(phase);
+    if (cachePort != nullptr)
+        cachePort->init(phase);
 }
 
 void
 gem5Component::setup()
 {
     output.verbose(CALL_INFO, 1, 0, "Component is being setup.\n");
-    systemPort->setup();
-    cachePort->setup();
+    if (systemPort != nullptr)
+        systemPort->setup();
+    if (cachePort != nullptr)
+        cachePort->setup();
 }
 
 void
@@ -366,6 +380,7 @@ gem5Component::execPythonCommands(const std::vector<std::string>& commands)
     PyObject *result;
 
     for (auto const command: commands) {
+        output.output(CALL_INFO, "Executing %s\n", command.c_str());
         result = PyRun_String(command.c_str(), Py_file_input, dict, dict);
         if (!result) {
             PyErr_Print();
