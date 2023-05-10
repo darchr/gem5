@@ -49,6 +49,8 @@ class SSTResponderInterface
     SSTResponderInterface();
     virtual ~SSTResponderInterface() {};
 
+    virtual Tick handleRecvAtomicReq(PacketPtr pkt) = 0;
+
     // This function is called when OutgoingRequestBridge wants to forward
     // a gem5 request to SST, i.e. when OutgoingRequestPort::recvTimingReq()
     // is called.

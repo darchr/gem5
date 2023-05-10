@@ -29,6 +29,7 @@
 #include <cassert>
 #include <sstream>
 #include <iomanip>
+#include <iostream>
 
 #ifdef fatal  // gem5 sets this
 #undef fatal
@@ -87,6 +88,14 @@ SSTResponderSubComponent::setResponseReceiver(
 {
     responseReceiver = gem5_bridge;
     responseReceiver->setResponder(sstResponder);
+}
+
+gem5::Tick
+SSTResponderSubComponent::handleAtomicReq(
+    SST::Interfaces::SimpleMem::Request* request)
+{
+    memoryInterface->sendRequest(request);
+    return 1;
 }
 
 bool
@@ -181,6 +190,8 @@ SSTResponderSubComponent::portEventHandler(
     if (it != sstRequestIdToPacketMap.end()) {
         gem5::PacketPtr pkt = it->second; // the packet that needs response
 
+        std::cout << "Response to Address: 0x" << std::hex << pkt->getAddr() << std::dec << std::endl;
+
         // Responding to a SwapReq requires a special handler
         //     1. send a response to gem5 with the original data
         //     2. send a write to memory with atomic op applied
@@ -195,7 +206,10 @@ SSTResponderSubComponent::portEventHandler(
 
         if (blocked() || !(responseReceiver->sendTimingResp(pkt)))
             responseQueue.push(pkt);
-    } else { // we can handle unexpected invalidates, but nothing else.
+    }
+    /*
+    else { // we can handle unexpected invalidates, but nothing else.
+        std::cout << "Getting Invalidates: 0x" << std::hex << request->addr << std::dec << std::endl;
         SST::Interfaces::SimpleMem::Request::Command cmd = request->cmd;
         if (cmd == SST::Interfaces::SimpleMem::Request::Command::WriteResp)
             return;
@@ -215,6 +229,7 @@ SSTResponderSubComponent::portEventHandler(
 
         responseReceiver->sendTimingSnoopReq(pkt);
     }
+    */
 
     delete request;
 }

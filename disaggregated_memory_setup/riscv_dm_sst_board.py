@@ -143,7 +143,8 @@ class RiscvDMSSTBoard(RiscvBoard):
         # ranges. This is used to generate the dtb for this machine
         self._global_mem_ranges = []
         self._global_mem_ranges.append(self._local_mem_ranges[0])
-        self._global_mem_ranges.append(self._remote_mem_ranges[0])
+        if self._remote_mem_ranges[0]:
+            self._global_mem_ranges.append(self._remote_mem_ranges[0])
 
         # setting the memory ranges for both of the memory ranges.
         local_memory.set_memory_range(self._local_mem_ranges)

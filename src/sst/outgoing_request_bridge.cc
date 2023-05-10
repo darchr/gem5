@@ -118,8 +118,9 @@ Tick
 OutgoingRequestBridge::
 OutgoingRequestPort::recvAtomic(PacketPtr pkt)
 {
-    assert(false && "OutgoingRequestPort::recvAtomic not implemented");
-    return Tick();
+    //assert(false && "OutgoingRequestPort::recvAtomic not implemented");
+    //return Tick();
+    return owner->sstResponder->handleRecvAtomicReq(pkt);
 }
 
 void

@@ -61,6 +61,13 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--command", type=str, help="Command run by guest")
+parser.add_argument(
+    "--cpu-type",
+    type=str,
+    choices=["atomic", "timing"],
+    default="atomic",
+    help="CPU type",
+)
 args = parser.parse_args()
 command = args.command
 
@@ -77,14 +84,15 @@ cache_hierarchy = ClassicPL1PL2DMCache(
 # Memory: Dual Channel DDR4 2400 DRAM device.
 
 local_memory = DualChannelDDR4_2400(size="2GB")
-# remote_memory = DualChannelDDR4_2400(size="4GB")
 oneGiB = 1 << 30
-remote_memory_addr_range = AddrRange(2 * oneGiB + 2 * oneGiB, size=4 * oneGiB)
+oneMiB = 1 << 20
+remote_memory_addr_range = AddrRange(2 * oneGiB + 2 * oneGiB, size=32 * oneMiB)
 
 # Here we setup the processor. We use a simple processor.
-processor = SimpleProcessor(
-    cpu_type=CPUTypes.TIMING, isa=ISA.RISCV, num_cores=2
-)
+cpu_type = {"atomic": CPUTypes.ATOMIC, "timing": CPUTypes.TIMING}[
+    args.cpu_type
+]
+processor = SimpleProcessor(cpu_type=cpu_type, isa=ISA.RISCV, num_cores=1)
 
 # Here we setup the board. The RiscvBoard allows for Full-System RISCV
 # simulations.

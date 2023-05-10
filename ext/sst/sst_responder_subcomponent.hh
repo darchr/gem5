@@ -86,6 +86,7 @@ class SSTResponderSubComponent: public SST::SubComponent
     // return true if the SimObject could be found
     bool findCorrespondingSimObject(gem5::Root* gem5_root);
 
+    gem5::Tick handleAtomicReq(SST::Interfaces::SimpleMem::Request* request);
     bool handleTimingReq(SST::Interfaces::SimpleMem::Request* request);
     void handleRecvRespRetry();
     void handleRecvFunctional(gem5::PacketPtr pkt);

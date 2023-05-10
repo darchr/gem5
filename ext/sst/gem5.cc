@@ -68,6 +68,7 @@
 //
 // For license information, see the LICENSE file in the current directory.
 
+#include <sst/core/simulation.h>
 #include <sst/core/sst_config.h>
 #include <sst/core/componentInfo.h>
 #include <sst/core/interfaces/simpleMem.h>

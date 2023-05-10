@@ -82,7 +82,7 @@
 #include <sst/core/simulation.h>
 #include <sst/core/interfaces/stringEvent.h>
 #include <sst/core/interfaces/simpleMem.h>
-
+#include <sst/elements/memHierarchy/memoryController.h>
 #include <sim/simulate.hh>
 
 #include <sst/core/eli/elementinfo.h>
@@ -110,6 +110,7 @@ class gem5Component: public SST::Component
     SST::Output output;
     SSTResponderSubComponent* systemPort;
     SSTResponderSubComponent* cachePort;
+    SST::MemHierarchy::MemController* memCtrl;
     uint64_t clocksProcessed;
     SST::TimeConverter* timeConverter;
     gem5::GlobalSimLoopExitEvent *simulateLimitEvent;

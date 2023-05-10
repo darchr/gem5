@@ -31,6 +31,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include <sst/core/sst_config.h>
 #include <sst/core/component.h>
@@ -60,12 +61,17 @@ class SSTResponder: public gem5::SSTResponderInterface
   private:
     SSTResponderSubComponent* owner;
     SST::Output* output;
+
+    // Caching atomic access here until timing access is available
+    std::unordered_map<gem5::Addr, std::vector<uint8_t>> atomicAccessReservoir;
+
   public:
     SSTResponder(SSTResponderSubComponent* owner_);
     ~SSTResponder() override;
 
     void setOutputStream(SST::Output* output_);
 
+    gem5::Tick handleRecvAtomicReq(gem5::PacketPtr pkt) override;
     bool handleRecvTimingReq(gem5::PacketPtr pkt) override;
     void handleRecvRespRetry() override;
     void handleRecvFunctional(gem5::PacketPtr pkt) override;
