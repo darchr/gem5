@@ -168,8 +168,9 @@ DRTraceReader::getNextTraceReference(unsigned player_id)
             break;
         case TRACE_TYPE_PREFETCH:
         case TRACE_TYPE_PREFETCH_READ_L1:
-        case TRACE_TYPE_PREFETCH_READ_L2:
-        case TRACE_TYPE_PREFETCH_READ_L3:
+        case TRACE_TYPE_PREFETCHT1:
+        case TRACE_TYPE_PREFETCHT2:
+        case TRACE_TYPE_PREFETCHNTA:
             ref.addr = raw_entry.addr;
             ref.size = raw_entry.size;
             ref.isValid = true;
