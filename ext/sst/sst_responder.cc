@@ -56,37 +56,105 @@ SSTResponder::handleRecvAtomicReq(gem5::PacketPtr pkt)
         //case gem5::MemCmd::HardPFReq:
         //case gem5::MemCmd::SoftPFReq:
         //case gem5::MemCmd::SoftPFExReq:
-        case gem5::MemCmd::LoadLockedReq:
+        //case gem5::MemCmd::LoadLockedReq:
         case gem5::MemCmd::ReadExReq:
         case gem5::MemCmd::ReadReq:
-        case gem5::MemCmd::SwapReq:
+        //case gem5::MemCmd::SwapReq:
         case gem5::MemCmd::ReadSharedReq:
             is_read = true;
-            std::cout << "Packet 0x" << std::hex << pkt->getAddr() << std::dec << ": READ" << std::endl;
             break;
-        case gem5::MemCmd::StoreCondReq:
+        //case gem5::MemCmd::StoreCondReq:
         case gem5::MemCmd::WriteReq:
         case gem5::MemCmd::WritebackDirty:
             is_write = true;
-            std::cout << "Packet 0x" << std::hex << pkt->getAddr() << std::dec << ": WRITE" << std::endl;
             break;
         default:
             panic("Unable to parser gem5 atomic access: %s\n", pkt->cmd.toString());
     }
 
-    gem5::Addr addr = pkt->getAddr();
+    gem5::Addr pkt_addr = pkt->getAddr(); //pkt->req->getPaddr();
+    size_t pkt_size = pkt->getSize();
 
-    if (atomicAccessReservoir.find(addr) == atomicAccessReservoir.end())
-        atomicAccessReservoir[addr] = std::move(std::vector<uint8_t>(64, 0)); // assuming cache_line_size of 64 bytes
+    if (atomicAccessReservoir.find(pkt_addr) == atomicAccessReservoir.end())
+        atomicAccessReservoir[pkt_addr] = std::move(std::vector<uint8_t>(64, 0)); // assuming cache_line_size of 64 bytes
 
+    bool storeConditionalSuccessful = false;
+
+    if (pkt->isRead())
+    {
+        if (pkt->isLLSC())
+        {
+            assert(!pkt->fromCache());
+            //trackLoadLocked(pkt);
+            // reserve the bytes
+            loadLockLists.insert(pkt_addr);
+            std::cout << "LLSC: Reserving " << std::hex << "0x" << pkt_addr << " (" << pkt->req->getPaddr() << ")" << std::dec << std::endl;
+        }
+        pkt->setData(atomicAccessReservoir[pkt_addr].data());
+    }
+    else if (pkt->isWrite())
+    {
+        bool allowStore = false;
+        if (pkt->isLLSC())
+        {
+            std::cout << "LLSC: Try store " << std::hex << "0x" << pkt_addr << " (" << pkt->req->getPaddr() << ")" << std::dec << ": ";
+            if (loadLockLists.find(pkt_addr) != loadLockLists.end())
+            {
+                storeConditionalSuccessful = true;
+                allowStore = true;
+                loadLockLists.erase(pkt_addr);
+            }
+            // if there was no reservation for the address, this is a SC failure.
+            if (storeConditionalSuccessful)
+                std::cout << "successful" << std::endl;
+            else
+                std::cout << "failed" << std::endl;
+        }
+        else
+        {
+            allowStore = true;
+        }
+
+        if (allowStore)
+            pkt->writeData(atomicAccessReservoir[pkt_addr].data());
+    }
+    else
+    {
+        std::cout << "Uninteresting packet: " << pkt_addr << std::endl;
+    }
+
+    /*
     if (is_write)
     {
         uint8_t* data_ptr = pkt->getPtr<uint8_t>();
-        auto data_size = pkt->getSize();
-        std::vector<uint8_t> data = std::vector<uint8_t>(data_ptr, data_ptr + data_size);
-        atomicAccessReservoir[addr] = std::move(data);
+        if (pkt->isMaskedWrite())
+        {
+            for (size_t offset = 0; offset < pkt_size; offset++)
+                if (pkt->req->getByteEnable()[offset])
+                {
+                    std::cout << pkt_addr << "::" << offset <<std::endl;
+                    atomicAccessReservoir[pkt_addr][offset] = data_ptr[offset];
+                }
+        }
+        else
+        {
+            std::vector<uint8_t> data = std::vector<uint8_t>(data_ptr, data_ptr + pkt_size);
+            atomicAccessReservoir[pkt_addr] = std::move(data);
+        }
     }
+    */
 
+    if (pkt->isWrite())
+        std::cout << "WRITE to " ;
+    if (pkt->isRead())
+        std::cout << "READ from ";
+    if (pkt->isWrite() || pkt->isRead())
+    {
+        std::cout << std::hex << pkt_addr << " (" << pkt->getAddr() << ")" << std::dec << std::endl;
+        for (size_t t = 0; t < pkt_size; t++)
+            std::cout << std::hex << (uint64_t)atomicAccessReservoir[pkt_addr][t] << " " << std::dec;
+        std::cout << std::endl;
+    }
     // Response
     if (pkt->needsResponse())
         pkt->makeResponse();
@@ -94,13 +162,13 @@ SSTResponder::handleRecvAtomicReq(gem5::PacketPtr pkt)
     if (pkt->isLLSC() && pkt->isWrite())
     {
         // SC interprets ExtraData == 1 as the store was successful
-        pkt->req->setExtraData(1);
+        pkt->req->setExtraData(storeConditionalSuccessful ? 1 : 0);
     }
-    pkt->setData(atomicAccessReservoir[addr].data());
+    //pkt->setData(atomicAccessReservoir[pkt_addr].data());
     // Clear out bus delay notifications
     pkt->headerDelay = pkt->payloadDelay = 0;
 
-    return 1; // 1 cycle latency
+    return 1000; // some fixed latency
 }
 
 bool
@@ -122,5 +190,7 @@ SSTResponder::handleRecvRespRetry()
 void
 SSTResponder::handleRecvFunctional(gem5::PacketPtr pkt)
 {
-    owner->handleRecvFunctional(pkt);
+    //owner->handleRecvFunctional(pkt);
+    std::cout << "Functional access to " << pkt->getAddr() << std::endl;
+    this->handleRecvAtomicReq(pkt);
 }

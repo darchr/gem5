@@ -32,6 +32,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <sst/core/sst_config.h>
 #include <sst/core/component.h>
@@ -64,6 +65,8 @@ class SSTResponder: public gem5::SSTResponderInterface
 
     // Caching atomic access here until timing access is available
     std::unordered_map<gem5::Addr, std::vector<uint8_t>> atomicAccessReservoir;
+    // collection of physical address that are reserved by load-reserved instructions
+    std::unordered_set<gem5::Addr> loadLockLists;
 
   public:
     SSTResponder(SSTResponderSubComponent* owner_);
