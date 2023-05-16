@@ -49,11 +49,16 @@ class LooppointAnalysis : public ProbeListenerObject
   public:
     LooppointAnalysis(const LooppointAnalysisParams &params);
 
-    virtual void regProbeListeners();
-
     void updateMostRecentPcCount(Addr npc);
 
     void checkPc(const std::pair<SimpleThread*, StaticInstPtr>&);
+
+    typedef ProbeListenerArg<LooppointAnalysis,
+                                    std::pair<SimpleThread*,StaticInstPtr>>
+    LooppointAnalysisListener;
+
+    void startListening();
+    void stopListening();
 
   private:
 
@@ -147,6 +152,12 @@ class LooppointAnalysisManager : public SimObject
     getBBinst() const
     {
       return BBinst;
+    }
+
+    int
+    getGlobalInstCounter() const
+    {
+      return globalInstCounter;
     }
 
     void

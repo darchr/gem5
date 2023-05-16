@@ -9,7 +9,7 @@ from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
 from gem5.resources.resource import obtain_resource, AbstractResource
 from pathlib import Path
-from m5.objects import PcCountAnalsis, PcCountAnalsisManager
+from m5.objects import LooppointAnalysis, LooppointAnalysisManager
 import argparse
 
 requires(isa_required=ISA.X86)
@@ -77,4 +77,13 @@ def printsth():
 simulator = Simulator(
     board=board, on_exit_event={ExitEvent.WORKEND: printsth()}
 )
+simulator.run(1000)
+for thread in lptrackers:
+    thread.startListening()
+
+simulator.run(1000)
+
+for thread in lptrackers:
+    thread.stopListening()
+
 simulator.run()

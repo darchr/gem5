@@ -46,17 +46,21 @@ LooppointAnalysis::LooppointAnalysis(const LooppointAnalysisParams &p)
 }
 
 void
-LooppointAnalysis::regProbeListeners()
+LooppointAnalysis::startListening()
 {
-    // connect the probe listener with the probe "RetriedInstsPC" in the
-    // corresponding core.
-    // when "Commit" notifies the probe listener, then the function
-    // 'checkPc' is automatically called
-    typedef ProbeListenerArg<LooppointAnalysis,
-                                    std::pair<SimpleThread*,StaticInstPtr>>
-    LooppointAnalysisListener;
-    listeners.push_back(new LooppointAnalysisListener(this, "Commit",
-                                             &LooppointAnalysis::checkPc));
+    if (listeners.empty()) {
+        listeners.push_back(new LooppointAnalysisListener(this, "Commit",
+                                                &LooppointAnalysis::checkPc));
+    }
+}
+
+void
+LooppointAnalysis::stopListening()
+{
+    for (auto l = listeners.begin(); l != listeners.end(); ++l) {
+        delete (*l);
+    }
+    listeners.clear();
 }
 
 void
@@ -76,7 +80,7 @@ LooppointAnalysis::updateMostRecentPcCount(Addr npc) {
             localMostRecentPcCount.pop_back();
         }
         localMostRecentPcCount.push_front(
-                            std::make_pair(PcCountPair(npc,count), curTick()));
+                            std::make_pair(pair, curTick()));
     } else {
         if (it != localMostRecentPcCount.begin()) {
             localMostRecentPcCount.push_front(*it);
@@ -92,16 +96,16 @@ LooppointAnalysis::checkPc(const std::pair<SimpleThread*, StaticInstPtr>& p) {
     const StaticInstPtr &inst = p.second;
     auto &pcstate =
                 thread->getTC()->pcState().as<GenericISA::PCStateWithNext>();
+
     if (inst->isMicroop() && !inst->isLastMicroop())
         return;
-    if(validAddrUpperBound!=0) {
-        // If there is a valid address range
-        if (pcstate.pc() < validAddrLowerBound ||
-                                        pcstate.pc() > validAddrUpperBound) {
-        // If the current PC is outside of the valid address range
-        // then we discard it
-            return;
-        }
+
+    if (validAddrUpperBound!=0 && (pcstate.pc() < validAddrLowerBound ||
+                                        pcstate.pc() > validAddrUpperBound)) {
+    // If there is a valid address range
+    // and the current PC is outside of the valid address range
+    // then we discard it
+        return;
     }
 
     if (!thread->getIsaPtr()->inUserMode()) {
@@ -148,7 +152,7 @@ LooppointAnalysisManager::LooppointAnalysisManager(
     regionLength(p.regionLen),
     globalInstCounter(0)
 {
-
+    DPRINTF(LooppointAnalysis, "The region length is %i\n", regionLength);
 }
 
 void
@@ -167,7 +171,6 @@ LooppointAnalysisManager::countPc(Addr pc, int instCount)
     if (globalInstCounter >= regionLength) {
         exitSimLoopNow("simpoint starting point found");
     }
-    mostRecentPc.push(pc);
 }
 
 void

@@ -11,6 +11,8 @@ class LooppointAnalysis(ProbeListenerObject):
     cxx_class = "gem5::LooppointAnalysis"
 
     cxx_exports = [
+        PyBindMethod("startListening"),
+        PyBindMethod("stopListening"),
         PyBindMethod("getBBfreq"),
         PyBindMethod("clearBBfreq"),
         PyBindMethod("getlocalMostRecentPcCount"),
@@ -35,6 +37,7 @@ class LooppointAnalysisManager(SimObject):
         PyBindMethod("getCounter"),
         PyBindMethod("getPcCount"),
         PyBindMethod("getBBinst"),
+        PyBindMethod("getGlobalInstCounter"),
         PyBindMethod("clearGlobalInstCounter"),
     ]
 

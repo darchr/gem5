@@ -38,3 +38,5 @@ if not env['CONF']['USE_NULL_ISA']:
         sim_objects=['LooppointAnalysis','LooppointAnalysisManager']
     )
     Source('looppoint_analysis.cc')
+
+    DebugFlag("LooppointAnalysis")
