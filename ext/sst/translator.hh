@@ -56,22 +56,18 @@ gem5RequestToSSTRequest(gem5::PacketPtr pkt,
         case gem5::MemCmd::SwapReq:
         case gem5::MemCmd::ReadSharedReq:
             cmd = SST::Interfaces::SimpleMem::Request::Command::Read;
-            std::cout << "Packet 0x" << std::hex << pkt->getAddr() << std::dec << ": READ" << std::endl;
             break;
         case gem5::MemCmd::StoreCondReq:
         case gem5::MemCmd::WriteReq:
         case gem5::MemCmd::WritebackDirty:
             cmd = SST::Interfaces::SimpleMem::Request::Command::Write;
-            std::cout << "Packet 0x" << std::hex << pkt->getAddr() << std::dec << ": WRITE" << std::endl;
             break;
         case gem5::MemCmd::CleanInvalidReq:
         case gem5::MemCmd::InvalidateReq:
             cmd = SST::Interfaces::SimpleMem::Request::Command::FlushLineInv;
-            std::cout << "Packet 0x" << std::hex << pkt->getAddr() << std::dec << ": INV" << std::endl;
             break;
         case gem5::MemCmd::CleanSharedReq:
             cmd = SST::Interfaces::SimpleMem::Request::Command::FlushLine;
-            std::cout << "Packet 0x" << std::hex << pkt->getAddr() << std::dec << ": FLUSH" << std::endl;
             break;
         default:
             panic("Unable to convert gem5 packet: %s\n", pkt->cmd.toString());
