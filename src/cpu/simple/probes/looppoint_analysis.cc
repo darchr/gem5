@@ -36,12 +36,6 @@ LooppointAnalysis::LooppointAnalysis(const LooppointAnalysisParams &p)
     : ProbeListenerObject(p),
       manager(p.ptmanager),
       validAddrLowerBound(p.validAddrRangeStart),
-<<<<<<< Updated upstream
-      validAddrUpperBound(p.validAddrRangeStart+p.validAddrRangeSize)
-{
-    DPRINTF(LooppointAnalysis, "the valid address range start from %i to "
-    " %i \n", validAddrLowerBound, validAddrUpperBound);
-=======
       validAddrUpperBound(p.validAddrRangeStart+p.validAddrRangeSize),
       localInstCounter(0),
       BBInstCounter(0)
@@ -49,7 +43,6 @@ LooppointAnalysis::LooppointAnalysis(const LooppointAnalysisParams &p)
     DPRINTF(LooppointAnalysis, "the valid address range start from %i to "
     " %i \n", validAddrLowerBound, validAddrUpperBound);
     // manager->initListenerMap(p.listenerId, this);
->>>>>>> Stashed changes
 }
 
 void
@@ -57,17 +50,11 @@ LooppointAnalysis::regProbeListeners()
 {
     // connect the probe listener with the probe "RetriedInstsPC" in the
     // corresponding core.
-<<<<<<< Updated upstream
-    // when "RetiredInstsPC" notifies the probe listener, then the function
-    // 'check_pc' is automatically called
-    typedef ProbeListenerArg<LooppointAnalysis, std::pair<SimpleThread*,StaticInstPtr>>
-=======
     // when "Commit" notifies the probe listener, then the function
     // 'checkPc' is automatically called
     typedef ProbeListenerArg<LooppointAnalysis,
                                     std::pair<SimpleThread*,StaticInstPtr>>
->>>>>>> Stashed changes
-     LooppointAnalysisListener;
+    LooppointAnalysisListener;
     listeners.push_back(new LooppointAnalysisListener(this, "Commit",
                                              &LooppointAnalysis::checkPc));
 }
