@@ -108,18 +108,20 @@ OutgoingRequestBridge::sendTimingSnoopReq(gem5::PacketPtr pkt)
 void
 OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
 {
-    uint8_t* ptr = pkt->getPtr<uint8_t>();
-    uint64_t size = pkt->getSize();
-    std::vector<uint8_t> data(ptr, ptr+size);
-    initData.push_back(std::make_pair(pkt->getAddr(), data));
+    // This is for timing mode
+    //uint8_t* ptr = pkt->getPtr<uint8_t>();
+    //uint64_t size = pkt->getSize();
+    //std::vector<uint8_t> data(ptr, ptr+size);
+    //initData.push_back(std::make_pair(pkt->getAddr(), data));
+
+    // This is for atomic mode
+    sstResponder->handleRecvFunctional(pkt);
 }
 
 Tick
 OutgoingRequestBridge::
 OutgoingRequestPort::recvAtomic(PacketPtr pkt)
 {
-    //assert(false && "OutgoingRequestPort::recvAtomic not implemented");
-    //return Tick();
     return owner->sstResponder->handleRecvAtomicReq(pkt);
 }
 
