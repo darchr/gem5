@@ -3,16 +3,27 @@ from m5.objects.Probe import ProbeListenerObject
 from m5.objects import SimObject
 from m5.util.pybind import *
 
+
 class LooppointAnalysis(ProbeListenerObject):
 
     type = "LooppointAnalysis"
     cxx_header = "cpu/simple/probes/looppoint_analysis.hh"
     cxx_class = "gem5::LooppointAnalysis"
 
+    cxx_exports = [
+        PyBindMethod("getBBfreq"),
+        PyBindMethod("clearBBfreq"),
+        PyBindMethod("getlocalMostRecentPcCount"),
+    ]
+
     ptmanager = Param.LooppointAnalysisManager("the PcCountAnalsi manager")
-    validAddrRangeStart = Param.Addr(0, "the starting address of the valid "
-                                     "insturction address range")
+    # listenerId = Param.Int(0, "this is for manager to find the listener")
+
+    validAddrRangeStart = Param.Addr(
+        0, "the starting address of the valid " "insturction address range"
+    )
     validAddrRangeSize = Param.Addr(0, "the size of the valid address range")
+
 
 class LooppointAnalysisManager(SimObject):
 
@@ -23,6 +34,8 @@ class LooppointAnalysisManager(SimObject):
     cxx_exports = [
         PyBindMethod("getCounter"),
         PyBindMethod("getPcCount"),
-        PyBindMethod("getMostRecentPc"),
-        PyBindMethod("getCurrentPc")
+        PyBindMethod("getBBinst"),
+        PyBindMethod("clearGlobalInstCounter"),
     ]
+
+    regionLen = Param.Int(100000000, "each region's instruction length")

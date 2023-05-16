@@ -29,16 +29,17 @@
 #ifndef __CPU_SIMPLE_PROBES_LOOPPOINT_ANALYSIS_HH__
 #define __CPU_SIMPLE_PROBES_LOOPPOINT_ANALYSIS_HH__
 
-#include <map>
-#include <queue>
+#include <list>
+#include <unordered_map>
+#include <unordered_set>
 
-#include "params/LooppointAnalysis.hh"
-#include "params/LooppointAnalysisManager.hh"
-#include "sim/probe/probe.hh"
-#include "cpu/simple_thread.hh"
 #include "arch/generic/pcstate.hh"
 #include "cpu/probes/pc_count_pair.hh"
+#include "cpu/simple_thread.hh"
 #include "debug/LooppointAnalysis.hh"
+#include "params/LooppointAnalysis.hh"
+#include "params/LooppointAnalysisManager.hh"
+#include "sim/sim_exit.hh"
 
 namespace gem5
 {
@@ -50,6 +51,8 @@ class LooppointAnalysis : public ProbeListenerObject
 
     virtual void regProbeListeners();
 
+    void updateMostRecentPcCount(Addr npc);
+
     void checkPc(const std::pair<SimpleThread*, StaticInstPtr>&);
 
   private:
@@ -57,26 +60,75 @@ class LooppointAnalysis : public ProbeListenerObject
     LooppointAnalysisManager *manager;
     Addr validAddrLowerBound;
     Addr validAddrUpperBound;
+    // The upper bound of the valid instruction address range
+
+    std::unordered_set<Addr> encountered_PC;
+    // Record the PC that was encountered by this thread before
+
+    std::list<std::pair<PcCountPair, Tick>> localMostRecentPcCount;
+
+    int localInstCounter;
+
+  //=== BBV related start here ===
+  private:
+
+    int BBInstCounter;
+    Addr BBstart;
+
+    std::unordered_map<Addr, int> BBfreq;
+
+  public:
+
+    std::unordered_map<Addr, int>
+    getBBfreq() const
+    {
+      return BBfreq;
+    }
+
+    void
+    clearBBfreq()
+    {
+      BBfreq.clear();
+    }
+
+  //=== BBV related end here ===
+
+  public:
+
+    std::vector<std::pair<PcCountPair,Tick>>
+    getlocalMostRecentPcCount() const
+    {
+      std::vector<std::pair<PcCountPair,Tick>> recent_vec;
+      for (auto iter = localMostRecentPcCount.begin();
+                              iter != localMostRecentPcCount.end(); iter++) {
+        recent_vec.push_back(*iter);
+      }
+      return recent_vec;
+    }
+
 };
 
-class LooppointAnalysisManager : public SimObject 
+class LooppointAnalysisManager : public SimObject
 {
   public:
     LooppointAnalysisManager(const LooppointAnalysisManagerParams &params);
-    void countPc(Addr pc);
+    void countPc(Addr pc, int instCount);
+    void updateBBinst(Addr BBstart, int inst);
 
   private:
-    /**
-     * a set of Program Counter addresses that should notify the
-     * PcCounterTrackerManager for
-     */
-    std::map<Addr, int> counter;
-    std::queue<Addr> mostRecentPc;
-    Addr currentPc;
 
+    std::unordered_map<Addr, int> counter;
+    // The counter for all recorded PCs
+
+    std::unordered_map<Addr, int> BBinst;
+
+    int regionLength;
+
+    int globalInstCounter;
 
   public:
-    std::map<Addr, int> 
+
+    std::unordered_map<Addr, int>
     getCounter() const
     {
         return counter;
@@ -91,28 +143,19 @@ class LooppointAnalysisManager : public SimObject
         return -1;
     }
 
-    std::vector<Addr>
-    getMostRecentPc() const
+    std::unordered_map<Addr, int>
+    getBBinst() const
     {
-      std::vector<Addr> mostRecentPcVector;
-      std::queue<Addr> mostRecentPcCopy = mostRecentPc;
-      while (!mostRecentPcCopy.empty()) {
-        mostRecentPcVector.push_back(mostRecentPcCopy.front());
-        mostRecentPcCopy.pop();
-      }
-      return mostRecentPcVector;
+      return BBinst;
     }
 
-    Addr
-    getCurrentPc() const
+    void
+    clearGlobalInstCounter()
     {
-      return currentPc;
+      globalInstCounter = 0;
     }
 
 };
-
-
-
 
 }
 

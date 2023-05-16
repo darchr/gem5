@@ -36,10 +36,20 @@ LooppointAnalysis::LooppointAnalysis(const LooppointAnalysisParams &p)
     : ProbeListenerObject(p),
       manager(p.ptmanager),
       validAddrLowerBound(p.validAddrRangeStart),
+<<<<<<< Updated upstream
       validAddrUpperBound(p.validAddrRangeStart+p.validAddrRangeSize)
 {
     DPRINTF(LooppointAnalysis, "the valid address range start from %i to "
     " %i \n", validAddrLowerBound, validAddrUpperBound);
+=======
+      validAddrUpperBound(p.validAddrRangeStart+p.validAddrRangeSize),
+      localInstCounter(0),
+      BBInstCounter(0)
+{
+    DPRINTF(LooppointAnalysis, "the valid address range start from %i to "
+    " %i \n", validAddrLowerBound, validAddrUpperBound);
+    // manager->initListenerMap(p.listenerId, this);
+>>>>>>> Stashed changes
 }
 
 void
@@ -47,52 +57,138 @@ LooppointAnalysis::regProbeListeners()
 {
     // connect the probe listener with the probe "RetriedInstsPC" in the
     // corresponding core.
+<<<<<<< Updated upstream
     // when "RetiredInstsPC" notifies the probe listener, then the function
     // 'check_pc' is automatically called
     typedef ProbeListenerArg<LooppointAnalysis, std::pair<SimpleThread*,StaticInstPtr>>
+=======
+    // when "Commit" notifies the probe listener, then the function
+    // 'checkPc' is automatically called
+    typedef ProbeListenerArg<LooppointAnalysis,
+                                    std::pair<SimpleThread*,StaticInstPtr>>
+>>>>>>> Stashed changes
      LooppointAnalysisListener;
     listeners.push_back(new LooppointAnalysisListener(this, "Commit",
                                              &LooppointAnalysis::checkPc));
 }
 
 void
-LooppointAnalysis::checkPc(const std::pair<SimpleThread*, StaticInstPtr>& p) {
-    SimpleThread* thread = p.first;
-    const StaticInstPtr &inst = p.second;
-    auto &pcstate = thread->getTC()->pcState().as<GenericISA::PCStateWithNext>();
-    if (inst->isMicroop() && !inst->isLastMicroop())
-        return;
-    if(validAddrUpperBound!=0) {
-        if(pcstate.pc() < validAddrLowerBound || pcstate.pc() > validAddrUpperBound)
-            return;
+LooppointAnalysis::updateMostRecentPcCount(Addr npc) {
+    int count;
+    count=manager->getPcCount(npc);
+    if (count==-1){
+        count = 1;
     }
-    if (inst->isControl() && inst-> isDirectCtrl() && thread->getIsaPtr()->inUserMode()) {
-        if(pcstate.npc() < pcstate.pc())
-            manager->countPc(pcstate.npc());
+    PcCountPair pair = PcCountPair(npc,count);
+    auto it = std::find_if(localMostRecentPcCount.begin(),
+                                localMostRecentPcCount.end(),
+                                [&pair](const std::pair<PcCountPair,Tick>& p)
+                                { return p.first.getPC()==pair.getPC();});
+    if (it == localMostRecentPcCount.end()) {
+        while (localMostRecentPcCount.size() >= 5) {
+            localMostRecentPcCount.pop_back();
+        }
+        localMostRecentPcCount.push_front(
+                            std::make_pair(PcCountPair(npc,count), curTick()));
+    } else {
+        if (it != localMostRecentPcCount.begin()) {
+            localMostRecentPcCount.push_front(*it);
+            localMostRecentPcCount.erase(it);
+        }
+        it->second = curTick();
     }
-} 
-
-LooppointAnalysisManager::LooppointAnalysisManager(const LooppointAnalysisManagerParams &p)
-    : SimObject(p),
-    currentPc(0)
-{
-    
 }
 
 void
-LooppointAnalysisManager::countPc(const Addr pc)
+LooppointAnalysis::checkPc(const std::pair<SimpleThread*, StaticInstPtr>& p) {
+    SimpleThread* thread = p.first;
+    const StaticInstPtr &inst = p.second;
+    auto &pcstate =
+                thread->getTC()->pcState().as<GenericISA::PCStateWithNext>();
+    if (inst->isMicroop() && !inst->isLastMicroop())
+        return;
+    if(validAddrUpperBound!=0) {
+        // If there is a valid address range
+        if (pcstate.pc() < validAddrLowerBound ||
+                                        pcstate.pc() > validAddrUpperBound) {
+        // If the current PC is outside of the valid address range
+        // then we discard it
+            return;
+        }
+    }
+
+    if (!thread->getIsaPtr()->inUserMode()) {
+        return;
+    }
+
+    if (!BBInstCounter) {
+        BBstart = pcstate.pc();
+    }
+
+    localInstCounter ++;
+    BBInstCounter ++;
+
+    if (inst->isControl()){
+        if (BBfreq.find(BBstart)!=BBfreq.end()) {
+            ++BBfreq.find(BBstart)->second;
+        } else {
+            BBfreq.insert(std::make_pair(BBstart,1));
+        }
+        if (encountered_PC.find(BBstart)==encountered_PC.end()) {
+            encountered_PC.insert(BBstart);
+            manager->updateBBinst(BBstart, BBInstCounter);
+        }
+        BBInstCounter = 0;
+
+        if (inst->isDirectCtrl()) {
+            // If the current instruction is a branch instruction and a
+            //User mode
+            // instuction, then we check if it jumps backward
+            if (pcstate.npc() < pcstate.pc()){
+                // If the current branch instruction jumps backward
+                // we send the destination PC of this branch to the manager
+                updateMostRecentPcCount(pcstate.npc());
+                manager->countPc(pcstate.npc(), localInstCounter);
+                localInstCounter = 0;
+            }
+        }
+    }
+}
+
+LooppointAnalysisManager::LooppointAnalysisManager(
+    const LooppointAnalysisManagerParams &p)
+    : SimObject(p),
+    regionLength(p.regionLen),
+    globalInstCounter(0)
+{
+
+}
+
+void
+LooppointAnalysisManager::countPc(Addr pc, int instCount)
 {
     if (counter.find(pc) == counter.end()){
-        counter.insert(std::make_pair(pc,0));
+        // If the PC is not in the counter
+        // then we insert it with a count of 1
+        counter.insert(std::make_pair(pc,1));
     }
     else{
         ++counter.find(pc)->second;
     }
-    currentPc = pc;
-    while (mostRecentPc.size() >= 5) {
-        mostRecentPc.pop();
+
+    globalInstCounter += instCount;
+    if (globalInstCounter >= regionLength) {
+        exitSimLoopNow("simpoint starting point found");
     }
     mostRecentPc.push(pc);
+}
+
+void
+LooppointAnalysisManager::updateBBinst(Addr BBstart, int inst)
+{
+    if (BBinst.find(BBstart)==BBinst.end()) {
+        BBinst.insert(std::make_pair(BBstart,inst));
+    }
 }
 
 }

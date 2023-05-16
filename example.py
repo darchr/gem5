@@ -20,7 +20,8 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument(
     "--binary",
-    default="/home/studyztp/test_ground/test-se-multithread/binary/diy/simple",
+    default="/home/studyztp/test_ground/test-se-multithread"
+    "/binary/matrix-omp/matrix-omp",
     type=str,
     required=False,
     help="path to binary.",
@@ -36,10 +37,12 @@ processor = SimpleProcessor(
     num_cores=5,
 )
 
-lpmanager = PcCountAnalsisManager()
+lpmanager = LooppointAnalysisManager()
+lptrackers = []
 
 for core in processor.get_cores():
-    lplistener = PcCountAnalsis()
+    lplistener = LooppointAnalysis()
+    lptrackers.append(lplistener)
     lplistener.ptmanager = lpmanager
     core.core.probeListener = lplistener
 
@@ -49,28 +52,29 @@ board = SimpleBoard(
     memory=memory,
     cache_hierarchy=cache_hierarchy,
 )
-board.set_se_binary_workload(
-    binary=AbstractResource(args.binary)
-)
+board.set_se_binary_workload(binary=AbstractResource(args.binary))
+
 
 def printsth():
-    result = lpmanager.getPcCount()
-    duplicate=set()
-    for key, value in result.items():
-        if not value == 0:
-            print(f"pc: {key}, count: {value}\n")
-        if key not in duplicate:
-            duplicate.add(key)
-        else:
-            print("sth wrong")
-            yield True
+    BBinst = lpmanager.getBBinst()
+    print(f"size of BBinst: {len(BBinst)}\n")
+    # for PC, inst in BBinst.items():
+    #     print(f"BBstart: {PC} BBinst#: {inst}\n")
+    #     break
+    for index, thread in enumerate(lptrackers):
+        print(f"For thread {index}:\n")
+        print("\nBBfreq :\n")
+        BBfreq = thread.getBBfreq()
+        for key, va in BBfreq.items():
+            print(f"PC: {key} Freq: {va} \n")
+        print("\nLocal Most frequent PcCountPair and Tick:\n")
+        most_recent = thread.getlocalMostRecentPcCount()
+        for item in most_recent:
+            print(f"pair: {item[0]} at Tick {item[1]}\n")
     yield True
 
 
 simulator = Simulator(
-    board=board,
-    on_exit_event={
-        ExitEvent.WORKEND: printsth()
-    }
+    board=board, on_exit_event={ExitEvent.WORKEND: printsth()}
 )
 simulator.run()
