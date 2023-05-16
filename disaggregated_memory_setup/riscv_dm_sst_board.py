@@ -84,7 +84,6 @@ class RiscvDMSSTBoard(RiscvBoard):
             cache_hierarchy=cache_hierarchy,
         )
         self.local_memory = local_memory
-        # self.remote_memory = remote_memory
 
         if processor.get_isa() != ISA.RISCV:
             raise Exception(
@@ -107,12 +106,6 @@ class RiscvDMSSTBoard(RiscvBoard):
         """
         return self._localMemory
 
-    # def get_remote_memory(self) -> "AbstractMemory":
-    #    """Get the memory (RAM) connected to the board.
-    #    :returns: The remote memory system.
-    #    """
-    #    return self._remoteMemory
-
     def get_remote_memory_addr_range(self) -> AddrRange:
         return self._remoteMemoryAddrRange
 
@@ -123,10 +116,8 @@ class RiscvDMSSTBoard(RiscvBoard):
         # local memory range, close to the host machine and the other range is
         # pure memory, far from the host.
         local_memory = self.get_local_memory()
-        # remote_memory = self.get_remote_memory()
 
         local_mem_size = local_memory.get_size()
-        # remote_mem_size = remote_memory.get_size()
 
         self._local_mem_ranges = [
             AddrRange(start=0x80000000, size=local_mem_size)
@@ -134,10 +125,7 @@ class RiscvDMSSTBoard(RiscvBoard):
 
         # The remote memory starts where the local memory ends. Therefore it
         # has to be offset by the local memory's size.
-        self._remote_mem_ranges = [
-            # AddrRange(start=0x80000000 + local_mem_size, size=remote_mem_size)
-            self.get_remote_memory_addr_range()
-        ]
+        self._remote_mem_ranges = [self.get_remote_memory_addr_range()]
 
         # using a _global_ memory range to keep a track of all the memory
         # ranges. This is used to generate the dtb for this machine
@@ -146,9 +134,7 @@ class RiscvDMSSTBoard(RiscvBoard):
         if self._remote_mem_ranges[0]:
             self._global_mem_ranges.append(self._remote_mem_ranges[0])
 
-        # setting the memory ranges for both of the memory ranges.
         local_memory.set_memory_range(self._local_mem_ranges)
-        # remote_memory.set_memory_range(self._remote_mem_ranges)
 
     @overrides(RiscvBoard)
     def generate_device_tree(self, outdir: str) -> None:
@@ -430,7 +416,6 @@ class RiscvDMSSTBoard(RiscvBoard):
 
         # Incorporate the memory into the motherboard.
         self.get_local_memory().incorporate_memory(self)
-        # self.get_remote_memory().incorporate_memory(self)
 
         # Incorporate the cache hierarchy for the motherboard.
         if self.get_cache_hierarchy():
@@ -448,4 +433,3 @@ class RiscvDMSSTBoard(RiscvBoard):
         if self.get_cache_hierarchy():
             self.get_cache_hierarchy()._post_instantiate()
         self.get_local_memory()._post_instantiate()
-        # self.get_remote_memory()._post_instantiate()

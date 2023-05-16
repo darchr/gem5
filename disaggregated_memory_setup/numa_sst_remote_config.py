@@ -56,7 +56,10 @@ from gem5.resources.workload import Workload
 from gem5.resources.workload import *
 from gem5.resources.resource import *
 from gem5.utils.override import overrides
-
+from gem5.components.cachehierarchies.classic.no_cache import NoCache
+from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
+    PrivateL1PrivateL2CacheHierarchy,
+)
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -80,13 +83,18 @@ requires(isa_required=ISA.RISCV)
 cache_hierarchy = ClassicPL1PL2DMCache(
     l1d_size="16kB", l1i_size="16kB", l2_size="256kB"
 )
+# cache_hierarchy = NoCache()
+# cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
+#    l1d_size="16kB", l1i_size="16kB", l2_size="256kB"
+# )
 
 # Memory: Dual Channel DDR4 2400 DRAM device.
 
 local_memory = DualChannelDDR4_2400(size="2GB")
 oneGiB = 1 << 30
 oneMiB = 1 << 20
-remote_memory_addr_range = AddrRange(2 * oneGiB + 2 * oneGiB, size=32 * oneMiB)
+offset = 1 << 32
+remote_memory_addr_range = AddrRange(offset, size=32 * oneMiB)
 
 # Here we setup the processor. We use a simple processor.
 cpu_type = {"atomic": CPUTypes.ATOMIC, "timing": CPUTypes.TIMING}[
@@ -136,35 +144,11 @@ board = MyBoard(
 
 board.set_kernel_disk_workload(
     kernel=CustomResource("/projects/gem5/numa/bbl"),
-    disk_image=DiskImageResource("/scr/hn/DISK_IMAGES/ubuntu-numa-bench.img"),
+    # kernel=CustomResource("/home/hn/.cache/gem5/riscv-bootloader-vmlinux-5.10"),
+    disk_image=DiskImageResource("/scr/hn/DISK_IMAGES/rv64gc-hpc-2204.img"),
+    # disk_image=DiskImageResource("/scr/hn/DISK_IMAGES/test.img"),
     readfile_contents=f"{command}",
 )
 
-"""
-workload = CustomWorkload(
-    function="set_kernel_disk_workload",
-    parameters={
-        "disk_image": CustomDiskImageResource(
-            local_path=os.path.join(
-                os.getcwd(), "/scr/hn/DISK_IMAGES/ubuntu-numa-bench.img"
-            ),
-            disk_root_partition="1",
-        ),
-        "kernel": CustomResource(
-            os.path.join(os.getcwd(), "/home/kaustavg/bbl")
-        ),
-    },
-)
-"""
-
-# Here we a full system workload: "riscv-ubuntu-20.04-boot" which boots
-# Ubuntu 20.04. Once the system successfully boots it encounters an `m5_exit`
-# instruction which stops the simulation. When the simulation has ended you may
-# inspect `m5out/system.pc.com_1.device` to see the stdout.
-# board.set_workload(Workload("riscv-ubuntu-20.04-boot"))
-
-# This disk image has NUMA tools installed.
 simulator = Simulator(board=board)
 simulator._instantiate()
-# simulator.run()
-# simulator.run()
