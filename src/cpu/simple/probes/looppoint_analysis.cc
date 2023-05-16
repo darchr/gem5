@@ -42,7 +42,6 @@ LooppointAnalysis::LooppointAnalysis(const LooppointAnalysisParams &p)
 {
     DPRINTF(LooppointAnalysis, "the valid address range start from %i to "
     " %i \n", validAddrLowerBound, validAddrUpperBound);
-    // manager->initListenerMap(p.listenerId, this);
 }
 
 void
@@ -52,6 +51,8 @@ LooppointAnalysis::startListening()
         listeners.push_back(new LooppointAnalysisListener(this, "Commit",
                                                 &LooppointAnalysis::checkPc));
     }
+    DPRINTF(LooppointAnalysis, "Current size of listener: %i\n",
+                                                    listeners.size());
 }
 
 void
@@ -61,6 +62,8 @@ LooppointAnalysis::stopListening()
         delete (*l);
     }
     listeners.clear();
+    DPRINTF(LooppointAnalysis, "Current size of listener: %i\n",
+                                                    listeners.size());
 }
 
 void
@@ -86,6 +89,7 @@ LooppointAnalysis::updateMostRecentPcCount(Addr npc) {
             localMostRecentPcCount.push_front(*it);
             localMostRecentPcCount.erase(it);
         }
+        it->first = pair;
         it->second = curTick();
     }
 }
