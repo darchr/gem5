@@ -173,7 +173,14 @@ LooppointAnalysisManager::countPc(Addr pc, int instCount)
 
     globalInstCounter += instCount;
     if (globalInstCounter >= regionLength) {
-        exitSimLoopNow("simpoint starting point found");
+        exitSimLoop(
+            "simpoint starting point found",
+            0);
+        // using exitSimLoop instead of exitSimLoopNow because using switch
+        // process from KVM to ATOMIC will raise timing error such as
+        // when < getCurTick()
+        // If not using KVM, it can use exitSimLoopNow to exit with high
+        // proirity
     }
 }
 
