@@ -437,7 +437,7 @@ void
 gem5Component::splitCommandArgs(std::string &cmd, std::vector<char*> &args)
 {
     std::vector<std::string> parsed_args = tokenizeString(
-        cmd, {'\\', ' ', '\'', '\"'}
+        cmd, {';'}
     );
 
     for (auto part: parsed_args)

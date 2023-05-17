@@ -30,21 +30,24 @@ import os
 
 from sst import UnitAlgebra
 
-sst.setProgramOption("partitioner", "gem5NodesPartitioner")
+sst.setProgramOption("partitioner", "gem5NodesPartitioner.gem5NodesPartitioner")
 
 default_link_latency = "10ns"
 
 cpu_clock_rate = "4GHz"
+
+num_nodes = 1
+memory_node = num_nodes
 
 # -----------------------------------------------------------------------------------------------------
 # Setting up the Memory system
 # -----------------------------------------------------------------------------------------------------
 memory_size_sst = "16GiB"
 
-main_bus = sst.Component("main_bus", "memHierarchy.Bus")
+main_bus = sst.Component(f"main_bus_{memory_node}", "memHierarchy.Bus")
 main_bus.addParams( { "bus_frequency" : cpu_clock_rate } )
 
-memctrl = sst.Component("memory", "memHierarchy.MemController")
+memctrl = sst.Component(f"memory_{memory_node}", "memHierarchy.MemController")
 memory_offset = 1 << 32
 memctrl.addParams({
     "debug" : "0",
@@ -70,14 +73,15 @@ bus_mem_link.connect(
 # -----------------------------------------------------------------------------------------------------
 
 gem5_nodes = []
+links = []
+cache_ports = []
 memory_partition_size = UnitAlgebra("32MiB").getRoundedValue()
-for node_idx in range(2):
+for node_idx in range(num_nodes):
     addr_range_start = memory_offset + memory_partition_size * node_idx
     addr_range_end = memory_offset + memory_partition_size * (node_idx + 1) - 1
-    print("Node {} range: [{}, {})".format(node_idx, addr_range_start, addr_range_end))
     cpu_params = {
         "frequency": cpu_clock_rate, # TODO: this is not a param; the CPU clock rate is set in gem5, not here
-        "cmd": "-re --outdir=m5out_{} --listener-mode=off ../../disaggregated_memory_setup/numa_sst_remote_config.py --command={} --cpu-type={} --remote-memory-range={},{}".format(node_idx, "numastat", "atomic", addr_range_start, addr_range_end),
+        "cmd": "--outdir=m5out_{};--listener-mode=off;../../disaggregated_memory_setup/numa_sst_remote_config.py;--command={};--cpu-type={};--remote-memory-range={},{}".format(node_idx, "numastat", "atomic", addr_range_start, addr_range_end),
         "debug_flags": ""
     }
 
@@ -94,10 +98,12 @@ for node_idx in range(2):
         (main_bus, f"high_network_{node_idx}", default_link_latency)
     )
 
+    cache_ports.append(cache_port)
     gem5_nodes.append(gem5_node)
+    links.append(node_bus_link)
 
 # enable Statistics
 stat_params = { "rate" : "0ns" }
 sst.setStatisticLoadLevel(5)
 sst.setStatisticOutput("sst.statOutputTXT", {"filepath" : "./sst-stats.txt"})
-sst.enableAllStatisticsForComponentName("memory", stat_params)
+sst.enableAllStatisticsForComponentName(f"memory_{memory_node}", stat_params)
