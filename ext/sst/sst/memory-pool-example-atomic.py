@@ -81,7 +81,7 @@ for node_idx in range(num_nodes):
     addr_range_end = memory_offset + memory_partition_size * (node_idx + 1) - 1
     cpu_params = {
         "frequency": cpu_clock_rate, # TODO: this is not a param; the CPU clock rate is set in gem5, not here
-        "cmd": "--outdir=m5out_{};--listener-mode=off;../../disaggregated_memory_setup/numa_sst_remote_config.py;--command={};--cpu-type={};--remote-memory-range={},{}".format(node_idx, "\"/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw 10000000\"", "atomic", addr_range_start, addr_range_end),
+        "cmd": "--outdir=m5out_{};--listener-mode=off;../../disaggregated_memory_setup/numa_sst_remote_config.py;--command={};--cpu-type={};--remote-memory-range={},{}".format(node_idx, "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw 10000000", "atomic", addr_range_start, addr_range_end),
         "debug_flags": ""
     }
 
