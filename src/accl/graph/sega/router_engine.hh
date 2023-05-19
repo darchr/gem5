@@ -177,20 +177,22 @@ class RouterEngine : public ClockedObject
     EventFunctionWrapper nextExternalRequestEvent;
     void processNextExternalRequestEvent();
 
-    // struct RouterEngineStat : public statistics::Group
-    // {
-    //   RouterEngineStat(RouterEngine &push);
+    struct RouterEngineStat : public statistics::Group
+    {
+      RouterEngineStat(RouterEngine &push);
 
-    //   void regStats() override;
+      void regStats() override;
 
-    //   RouterEngine &router;
+      RouterEngine &router;
 
-    //   statistics::Vector internalBlockedTraffic;
-    //   statistics::Vector externalBlockedTraffic;
-    //   statistics::Vector internalAcceptedTraffic;
-    //   statistics::Vector externalAcceptedTraffic;
-    // };
-    // RouterEngineStat stats;
+      statistics::Vector internalBlockedTraffic;
+      statistics::Vector externalBlockedTraffic;
+      statistics::Vector internalAcceptedTraffic;
+      statistics::Vector externalAcceptedTraffic;
+      std::vector<statistics::Histogram *> internalTrafficHist;
+    };
+    RouterEngineStat stats;
+
   public:
     PARAMS(RouterEngine);
     RouterEngine(const Params &params);
