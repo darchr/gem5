@@ -344,7 +344,7 @@ RouterEngine::processNextGPTGPNEvent()
                                 "gpnRespQueue[%d]. gpnRespQueue size is: %d\n",
                                 __func__, pkt->getAddr(), i,
                                 gpnRespQueues[gpnReqPorts[i].id()].size());
-                        // stats.internalTrafficHist[gpnReqPorts[i].id()]->sample(gpnRespQueues[gpnReqPorts[i].id()].size());
+                        stats.internalTrafficHist[gpnReqPorts[i].id()]->sample(gpnRespQueues[gpnReqPorts[i].id()].size());
                         queue.second.pop();
                         DPRINTF(RouterEngine, "%s: gptReqQueue size is: %d.\n",
                                                 __func__, queue.second.size());
