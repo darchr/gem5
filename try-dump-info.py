@@ -54,8 +54,8 @@ from m5.objects import Root
 from gem5.utils.requires import requires
 from gem5.components.boards.x86_board import X86Board
 from gem5.components.memory import DualChannelDDR4_2400
-from gem5.components.processors.simple_switchable_processor import (
-    SimpleSwitchableProcessor,
+from gem5.components.processors.simple_processor import (
+    SimpleProcessor,
 )
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
@@ -63,7 +63,7 @@ from gem5.coherence_protocol import CoherenceProtocol
 from gem5.resources.resource import Resource
 from gem5.simulate.simulator import Simulator
 from gem5.simulate.simulator import ExitEvent
-
+from m5.params import PcCountPair
 import json
 from pathlib import Path
 
@@ -72,11 +72,7 @@ from m5.objects import LooppointAnalysis, LooppointAnalysisManager
 from m5.stats.gem5stats import get_simstat
 from m5.util import warn
 
-requires(
-    isa_required=ISA.X86,
-    coherence_protocol_required=CoherenceProtocol.MESI_TWO_LEVEL,
-    kvm_required=True,
-)
+requires(isa_required=ISA.X86)
 
 # Following are the list of benchmark programs for npb.
 
@@ -141,26 +137,14 @@ elif args.benchmark == "ft" and args.size == "C":
     simulating 3 GB of main memory in the system."
     )
 
-# Checking for the maximum number of instructions, if provided by the user.
 
-# Setting up all the fixed system parameters here
-# Caches: MESI Two Level Cache Hierarchy
 from gem5.components.cachehierarchies.classic.no_cache import NoCache
 
 cache_hierarchy = NoCache()
-# Memory: Dual Channel DDR4 2400 DRAM device.
-# The X86 board only supports 3 GB of main memory.
 
 memory = DualChannelDDR4_2400(size="3GB")
 
-# Here we setup the processor. This is a special switchable processor in which
-# a starting core type and a switch core type must be specified. Once a
-# configuration is instantiated a user may call `processor.switch()` to switch
-# from the starting core types to the switch core types. In this simulation
-# we start with KVM cores to simulate the OS boot, then switch to the Timing
-# cores for the command we wish to run after boot.
-
-num_cores = 4
+num_cores = 5
 lpmanager = LooppointAnalysisManager()
 lpmanager.regionLen = num_cores * 100000000
 lptrackers = []
@@ -170,22 +154,24 @@ print(
     f" region length as {lpmanager.regionLen}\n"
 )
 
-processor = SimpleSwitchableProcessor(
-    starting_core_type=CPUTypes.KVM,
-    switch_core_type=CPUTypes.ATOMIC,
+processor = SimpleProcessor(
+    cpu_type=CPUTypes.ATOMIC,
     isa=ISA.X86,
     num_cores=num_cores,
 )
 
-for core in processor._switchable_cores["switch"]:
+for core in processor.get_cores():
     lplistener = LooppointAnalysis()
     lptrackers.append(lplistener)
     lplistener.ptmanager = lpmanager
+    # lplistener.validAddrRangeStart=0x4011b0
+    lplistener.validAddrRangeStart = int("0x400e50", 16)
+    # lplistener.validAddrRangeSize=0x18b15
+    lplistener.validAddrRangeSize = int("0x18402", 16)
     core.core.probeListener = lplistener
 
-print(f"lptrackers size : {len(lptrackers)}\n")
 
-# Here we setup the board. The X86Board allows for Full-System X86 simulations
+print(f"lptrackers size : {len(lptrackers)}\n")
 
 board = X86Board(
     clk_freq="3GHz",
@@ -194,18 +180,6 @@ board = X86Board(
     cache_hierarchy=cache_hierarchy,
 )
 
-# Here we set the FS workload, i.e., npb benchmark program
-# After simulation has ended you may inspect
-# `m5out/system.pc.com_1.device` to the stdout, if any.
-
-# After the system boots, we execute the benchmark program and wait till the
-# ROI `workbegin` annotation is reached (m5_work_begin()). We start collecting
-# the number of committed instructions till ROI ends (marked by `workend`).
-# We then finish executing the rest of the benchmark.
-
-# Also, we sleep the system for some time so that the output is printed
-# properly.
-
 command = (
     f"/home/gem5/NPB3.3-OMP/bin/{args.benchmark}.{args.size}.x;"
     + "sleep 5;"
@@ -213,12 +187,7 @@ command = (
 )
 
 board.set_kernel_disk_workload(
-    # The x86 linux kernel will be automatically downloaded to the
-    # `~/.cache/gem5` directory if not already present.
-    # npb benchamarks was tested with kernel version 4.19.83
     kernel=Resource("x86-linux-kernel-4.19.83"),
-    # The x86-npb image will be automatically downloaded to the
-    # `~/.cache/gem5` directory if not already present.
     disk_image=Resource("x86-npb"),
     readfile_contents=command,
 )
@@ -226,15 +195,19 @@ board.set_kernel_disk_workload(
 
 def dump_n_reset_lpinfo(i):
     info = {}
-    info["global counter"] = lpmanager.getCounter()
     info["global inst"] = lpmanager.getGlobalInstCounter()
+    info["global counter"] = lpmanager.getCounter()
     info["global BBinst profile"] = lpmanager.getBBinst()
     lpmanager.clearGlobalInstCounter()
     for index, thread in enumerate(lptrackers):
-        info[f"local {index}"] = {
+        info[f"core {index}"] = {
             "BBfreq": thread.getBBfreq(),
             "mostRecentPcCount": {
-                item[0]: item[1] for item in thread.getlocalMostRecentPcCount()
+                f"{item[0].get_pc()}": {
+                    "count": item[0].get_count(),
+                    "Tick": item[1],
+                }
+                for item in thread.getlocalMostRecentPcCount()
             },
         }
         thread.clearBBfreq()
@@ -243,99 +216,32 @@ def dump_n_reset_lpinfo(i):
 
 
 def handle_lpevent():
-    counter = 1
+    counter = 0
     while True:
         dump_n_reset_lpinfo(counter)
         counter += 1
         yield False
 
 
-# The first exit_event ends with a `workbegin` cause. This means that the
-# system started successfully and the execution on the program started.
-def handle_workbegin():
-    print("Done booting Linux")
-    print("Resetting stats at the start of ROI!")
-
-    m5.stats.reset()
-
-    # We have completed up to this step using KVM cpu. Now we switch to timing
-    # cpu for detailed simulation.
-
-    # # Next, we need to check if the user passed a value for --ticks. If yes,
-    # then we limit out execution to this number of ticks during the ROI.
-    # Otherwise, we simulate until the ROI ends.
-    processor.switch()
-    if args.ticks:
-        # schedule an exit event for this amount of ticks in the future.
-        # The simulation will then continue.
-        m5.scheduleTickExitFromCurrent(args.ticks)
-
-    dump_n_reset_lpinfo(0)
-
-    for thread in lptrackers:
-        thread.startListening()
-
-    yield False
-
-
-# The next exit_event is to simulate the ROI. It should be exited with a cause
-# marked by `workend`.
-
-# We exepect that ROI ends with `workend` or `simulate() limit reached`.
 def handle_workend():
     print("Dump stats at the end of the ROI!")
-
+    dump_n_reset_lpinfo("end")
     m5.stats.dump()
-
-    dump_n_reset_lpinfo("final")
-    for thread in lptrackers:
-        thread.stopListening()
     yield True
 
 
 simulator = Simulator(
     board=board,
+    full_system=True,
     on_exit_event={
-        ExitEvent.WORKBEGIN: handle_workbegin(),
         ExitEvent.WORKEND: handle_workend(),
         ExitEvent.SIMPOINT_BEGIN: handle_lpevent(),
     },
+    checkpoint_path=Path(
+        "/home/studyztp/test_ground/looppoint_analysis/data/take-cpt-after-boot/checkpoint-after-boot"
+    ).as_posix(),
 )
 
-# We maintain the wall clock time.
+print("Restoring the simulation")
 
-globalStart = time.time()
-
-print("Running the simulation")
-print("Using KVM cpu")
-
-# We start the simulation.
 simulator.run()
-
-# We need to note that the benchmark is not executed completely till this
-# point, but, the ROI has. We collect the essential statistics here before
-# resuming the simulation again.
-
-# Simulation is over at this point. We acknowledge that all the simulation
-# events were successful.
-print("All simulation events were successful.")
-# We print the final simulation statistics.
-
-print("Done with the simulation")
-print()
-print("Performance statistics:")
-
-# manually calculate ROI time if ticks arg is used in case the
-# entire ROI wasn't simulated
-if args.ticks:
-    print(f"Simulated time in ROI (to tick): {args.ticks/ 1e12}s")
-else:
-    print(f"Simulated time in ROI: {simulator.get_roi_ticks()[0] / 1e12}s")
-
-print(
-    f"Ran a total of {simulator.get_current_tick() / 1e12} simulated seconds"
-)
-print(
-    "Total wallclock time: %.2fs, %.2f min"
-    % (time.time() - globalStart, (time.time() - globalStart) / 60)
-)
