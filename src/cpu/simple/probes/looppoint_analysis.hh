@@ -49,6 +49,8 @@ class LooppointAnalysis : public ProbeListenerObject
   public:
     LooppointAnalysis(const LooppointAnalysisParams &params);
 
+    virtual void regProbeListeners();
+
     void updateMostRecentPcCount(Addr npc);
 
     void checkPc(const std::pair<SimpleThread*, StaticInstPtr>&);
@@ -65,6 +67,7 @@ class LooppointAnalysis : public ProbeListenerObject
     LooppointAnalysisManager *manager;
     Addr validAddrLowerBound;
     Addr validAddrUpperBound;
+    bool startListeningAtInit;
     // The upper bound of the valid instruction address range
 
     std::unordered_set<Addr> encountered_PC;

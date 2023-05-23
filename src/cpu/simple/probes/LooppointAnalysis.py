@@ -26,6 +26,10 @@ class LooppointAnalysis(ProbeListenerObject):
     )
     validAddrRangeSize = Param.Addr(0, "the size of the valid address range")
 
+    startListeningAtStart = Param.Bool(
+        True, "if we should start listening at" " from the start"
+    )
+
 
 class LooppointAnalysisManager(SimObject):
 
