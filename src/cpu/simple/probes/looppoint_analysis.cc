@@ -41,6 +41,16 @@ LooppointAnalysis::LooppointAnalysis(const LooppointAnalysisParams &p)
       localInstCounter(0),
       BBInstCounter(0)
 {
+    for (int i = 0; i < p.excludeAddrRangeStarts.size(); i++) {
+        excludeAddrs.push_back(
+            std::make_pair(
+                p.excludeAddrRangeStarts[i],
+                p.excludeAddrRangeSize[i]+p.excludeAddrRangeStarts[i]
+            )
+        );
+        DPRINTF(LooppointAnalysis, "the %i excluded address range start from "
+    "%i to %i \n", i, excludeAddrs[i].first, excludeAddrs[i].second);
+    }
     DPRINTF(LooppointAnalysis, "the valid address range start from %i to "
     " %i \n", validAddrLowerBound, validAddrUpperBound);
 }
@@ -117,6 +127,10 @@ LooppointAnalysis::checkPc(const std::pair<SimpleThread*, StaticInstPtr>& p) {
     if (inst->isMicroop() && !inst->isLastMicroop())
         return;
 
+    if (!thread->getIsaPtr()->inUserMode()) {
+        return;
+    }
+
     if (validAddrUpperBound!=0 && (pcstate.pc() < validAddrLowerBound ||
                                         pcstate.pc() > validAddrUpperBound)) {
     // If there is a valid address range
@@ -125,8 +139,15 @@ LooppointAnalysis::checkPc(const std::pair<SimpleThread*, StaticInstPtr>& p) {
         return;
     }
 
-    if (!thread->getIsaPtr()->inUserMode()) {
-        return;
+    if (excludeAddrs.size()>0)
+    {
+        for (int i = 0; i < excludeAddrs.size(); i++)
+        {
+            if (pcstate.pc() >= excludeAddrs[i].first &&
+                pcstate.pc() <= excludeAddrs[i].second) {
+                    return;
+                }
+        }
     }
 
     if (!BBInstCounter) {

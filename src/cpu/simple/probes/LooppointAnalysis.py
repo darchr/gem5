@@ -30,6 +30,15 @@ class LooppointAnalysis(ProbeListenerObject):
         True, "if we should start listening at" " from the start"
     )
 
+    excludeAddrRangeStarts = VectorParam.Addr(
+        [],
+        "a list of the starting address"
+        " of the exclude instruction address range",
+    )
+    excludeAddrRangeSize = VectorParam.Addr(
+        [], "a list of the size of the " " exclude address range"
+    )
+
 
 class LooppointAnalysisManager(SimObject):
 

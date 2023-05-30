@@ -67,6 +67,7 @@ class LooppointAnalysis : public ProbeListenerObject
     LooppointAnalysisManager *manager;
     Addr validAddrLowerBound;
     Addr validAddrUpperBound;
+    std::vector<std::pair<Addr,Addr>> excludeAddrs;
     bool startListeningAtInit;
     // The upper bound of the valid instruction address range
 
