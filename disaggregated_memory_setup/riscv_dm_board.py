@@ -45,7 +45,7 @@ from gem5.isas import ISA
 
 import m5
 
-from m5.objects import AddrRange, HiFive, Frequency
+from m5.objects import AddrRange, HiFive, Frequency, Port
 
 from m5.util.fdthelper import (
     Fdt,
@@ -112,6 +112,13 @@ class RiscvDMBoard(RiscvBoard):
         :returns: The remote memory system.
         """
         return self._remoteMemory
+
+    @overrides(AbstractSystemBoard)
+    def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
+        return self.get_local_memory().get_mem_ports()
+
+    def get_remote_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
+        return self.get_remote_memory().get_mem_ports()
 
     @overrides(AbstractSystemBoard)
     def _setup_memory_ranges(self):
