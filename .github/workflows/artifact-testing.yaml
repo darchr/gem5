@@ -1,0 +1,162 @@
+name: artifact naming
+run-name: testing artifact naming
+
+# name: Github Artifacting Tests
+# run-name: Testing artifact usage
+#  https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
+on:
+  # push:
+  schedule:
+    - cron:  '0 * * 1 *' # this only runs once a year, for files that aren't being tested
+env:
+  artifact-name: "$(date +'%Y-%m-%d_%H.%M.%S')"
+# This file is an example of using artifacts in different runs, for us to utilize in
+# separating jobs amongst different runners
+jobs:
+
+  # gem5art-unittests:
+  #   runs-on: [self-hosted, Linux, X64, run]
+  #   container: gcr.io/gem5-test/ubuntu-22.04_all-dependencies:latest
+  #   timeout-minutes: 15
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #   # - name: Setup the virtual environment
+  #   #   working-directory: ${{ github.workspace }}
+  #   #   run: |
+  #   #     mkdir -p .pyenv
+  #   #     python3 -m venv .pyenv
+  #   #     source .pyenv/bin/activate
+  #   - name: Install the packages
+  #     working-directory: ${{ github.workspace }}
+  #     run: |
+  #       # git config --global --add safe.directory /__w/gem5-actions/gem5-actions
+  #       pip install -e util/gem5art/artifact
+  #       pip install -e util/gem5art/run
+  #       pip install -e util/gem5art/tasks
+  #   - run: echo "This job's status is ${{ job.status }}."
+  #   - name: The gem5art.artifact Unittests
+  #     working-directory: ${{ github.workspace }}/util/gem5art/artifact
+  #     run: |
+  #       python3 -m unittest
+  #       mypy -p gem5art.artifact
+  #   - name: The gem5art.run Unittests
+  #     working-directory: ${{ github.workspace }}/util/gem5art/run
+  #     run: |
+  #       python3 -m unittest
+  #       mypy -p gem5art.run
+  #   - name: The gem5art.tasks Unittests
+  #     working-directory: ${{ github.workspace }}/util/gem5art/tasks
+  #     run: |
+  #       python3 -m unittest
+  #       mypy -p gem5art.tasks
+  #   - run: echo "This job's status is ${{ job.status }}."
+  job1:
+    runs-on: [self-hosted, linux, x64, run, test]
+    # running container with only a single arguement passes the image being used
+    container: gcr.io/gem5-test/ubuntu-22.04_all-dependencies:latest
+    outputs:
+      build-name: ${{ steps.test.outputs.name }}
+    steps:
+      # - id: step1
+      #   run: echo "test=$(date +"%Y-%m-%d_%H.%M.%S")-artifact" >> $GITHUB_OUTPUT
+      # - run: echo ${{ steps.step1.outputs.test }}
+
+    # steps:
+    # # checks out repository, should be more useful when
+    # # running checks on changed files
+      # - uses: actions/checkout@v3
+      #   with:
+      #     fetch-depth: 0
+      #     outputs:
+
+      - name: Show default environment variables
+        id: test
+        env:
+          MY_STEP_VAR: ${{github.job}}_COMMIT.${{github.sha}}_RUN.${{github.run_id}}_ATTEMPT.${{github.run_attempt}}
+        run: |
+          # echo "The job_id is: $GITHUB_JOB"   # reference the default environment variables
+          # echo "The id of this action is: $GITHUB_ACTION"   # reference the default environment variables
+          # echo "The run id is: $GITHUB_RUN_ID"
+          # echo "The GitHub Actor's username is: $GITHUB_ACTOR"
+          # echo "GitHub SHA: $GITHUB_SHA"
+          # format('Hello {0} {1} {2}', 'Mona', 'the', 'Octocat')
+          # echo "name=${GITHUB_JOB}.commit-${GITHUB_SHA}.run-${GITHUB_RUN_ID}.attempt-${GITHUB_RUN_ATTEMPT}" >> $GITHUB_OUTPUT
+          # echo $NOW
+          # echo ${{ steps.test.outputs.name }}
+      - name: test
+        run: |
+          # apt-get -y install zip
+          zip -help
+          touch test.txt
+          zip -r test.zip test.txt
+          echo ${{ env.MY_STEP_VAR }}
+      # - name: Generate artifact name
+      #   # id: generate-name
+      #   run: |
+      #     echo "NOW=$(date +'%Y-%m-%dT%H:%M:%S')" >> $GITHUB_ENV
+      #     echo $NOW
+
+      #     echo NOW=hello >> $GITHUB_ENV
+      #     echo $NOW
+      - name: Build and run gem5
+        run: |
+          touch test.py
+          # scons build/ALL/gem5.fast -j $(nproc)
+      # - id: artifact-name
+      #   run: echo "name=$(date +"%Y-%m-%d_%H.%M.%S")-ALL" >> $GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v3
+        env:
+          MY_STEP_VAR: ${{github.job}}_COMMIT.${{github.sha}}_RUN.${{github.run_id}}_ATTEMPT.${{github.run_attempt}}
+        with:
+          name: ${{ env.MY_STEP_VAR }}
+          path: test.py
+          retention-days: 7
+      # - name: Set current date as env variable
+      #   run: echo ${{ env.GITHUB_JOB }}
+      # - name: Echo current date
+      #   run: echo $artifact-name # Gives "2022-12-11T01:42:20"
+
+      # - uses: actions/upload-artifact@v3
+      #   with:
+      #     name: $artifact-name
+      #     path: build/ALL/gem5.fast
+
+      - run: echo "🍏 This job's status is ${{ job.status }}."
+
+  Test-Download:
+    runs-on: [self-hosted, linux, x64, run]
+    # running container with only a single arguement passes the image being used
+    container: gcr.io/gem5-test/ubuntu-22.04_all-dependencies:latest
+    needs: job1
+
+    steps:
+      - run: echo ${{needs.job1.outputs.output1}}
+    # steps:
+    # # checks out repository, should be more useful when
+    # # running checks on changed files
+    #   - uses: actions/checkout@v3
+    #     with:
+    #       fetch-depth: 0
+
+      # - name: Generate artifact name
+      #   id: generate-name
+      #   run: |
+
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: $GITHUB_SHA $GITHUB_RUN_ID $GITHUB_RUN_ATTEMPT
+          path: build/ALL/gem5.fast
+
+      # - name: Display structure of downloaded files
+      #   run: ls -R
+        # working-directory: build/X86
+
+      # double checking that steps are run chronologically
+      # - name: Run gem5 separately (memory_traffic.py)
+      #   run: |
+      #     chmod u+x build/ALL/gem5.opt
+      #     cd tests
+      #     ./main.py run --length=long gem5/cpu_tests/ --skip-build
+
+      - run: echo "🍏 This job's status is ${{ job.status }}."
