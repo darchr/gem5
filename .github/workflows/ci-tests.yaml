@@ -34,15 +34,6 @@ jobs:
             fi
           done
 
-  #     - name: Build gem5
-  #       run: |
-  #         scons build/ALL/gem5.opt -j $(nproc)
-  #     - uses: actions/upload-artifact@v3
-  #       with:
-  #         name: ${{ steps.name.outputs.test }}
-  #         path: build/ALL/gem5.opt
-  #     - run: echo "This job's status is ${{ job.status }}."
-
   # unittests-all-opt:
   #   runs-on: [self-hosted, Linux, X64, run, works]
   #   container:
