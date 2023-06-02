@@ -1,0 +1,137 @@
+name: Nightly Tests
+run-name: Automated - Running Nightly Tests
+#  allows us to repeat this daily at 3am
+#  https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
+on:
+  schedule:
+    - cron:  '0 0 1 1 *'
+# on: [push]
+
+# This replaces nightly.sh. Currently KVM tests are failing
+jobs:
+  Long-Tests:
+    runs-on: [self-hosted, linux, x64, build]
+    container: gcr.io/gem5-test/ubuntu-22.04_all-dependencies:latest
+    timeout-minutes: 1440 # 24 hours
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # TODO: upload gem5.opts from different ISAs so we can split this into different jobs
+      - name: nightlies long tests
+        run: |
+          cd tests
+          ./main.py run --length long -j $(nproc) -t8 -vv
+
+      # upload testing results
+      - uses: actions/download-artifact@v3
+        with:
+          name: nightly-testing-results
+          path: tests/testing-results
+
+  KVM-Tests:
+    runs-on: [self-hosted, linux, x64, run]
+    container: gcr.io/gem5-test/ubuntu-22.04_all-dependencies:latest
+    timeout-minutes: 1440 # 24 hours
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: kvm tests
+        run: |
+          cd tests
+          ./main.py run -j $(nproc) -vv \
+              --exclude-tags ".*" --include-tags kvm --exclude-tags very\-long \
+              --exclude-tags debug --exclude-tags fast --exclude-tags ARM \
+              --exclude-tags aarch64
+          # cd "${gem5_root}"
+
+  GPU-Tests:
+    runs-on: [self-hosted, linux, x64, run]
+    container: gcr.io/gem5-test/gcn-gpu:latest
+    timeout-minutes: 1440 # 24 hours
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: start gpu tests
+        run: |
+          scons build/GCN3_X86/gem5.opt -j$(nproc) --ignore-style \
+          || (rm -rf build && scons build/GCN3_X86/gem5.opt \
+          -j$(nproc) --ignore-style)
+
+      - name: square spu tests
+        run: |
+          wget -qN http://dist.gem5.org/dist/develop/test-progs/square/square
+          mkdir -p tests/testing-results
+          build/GCN3_X86/gem5.opt configs/example/apu_se.py --reg-alloc-policy=dynamic -n3 -c square
+
+      - name: HeteroSync sleepMutex
+        run: |
+          wget -qN http://dist.gem5.org/dist/develop/test-progs/heterosync/gcn3/allSyncPrims-1kernel
+          build/GCN3_X86/gem5.opt configs/example/apu_se.py --reg-alloc-policy=dynamic -n3 -c allSyncPrims-1kernel --options="sleepMutex 10 16 4"
+
+      - name: HeteroSync LFBarr
+        run: |
+          build/GCN3_X86/gem5.opt configs/example/apu_se.py --reg-alloc-policy=dynamic -n3 -c allSyncPrims-1kernel --options="lfTreeBarrUniq 10 16 4"
+
+  SST-Tests:
+    runs-on: [self-hosted, linux, x64, run]
+    container: gcr.io/gem5-test/sst-env:latest
+    timeout-minutes: 1440 # 24 hours
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Run SST tests
+        run: |
+          scons build/RISCV/libgem5_opt.so -j$(nproc) --without-tcmalloc --ignore-style;
+          cd ext/sst
+          make clean
+          make -j $(nproc)
+          sst --add-lib-path=./ sst/example.py
+          cd -
+
+  SystemC-Tests:
+    runs-on: [self-hosted, linux, x64, run]
+    container: gcr.io/gem5-test/ubuntu-22.04_min-dependencies
+    timeout-minutes: 1440 # 24 hours
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: systemc tests
+        run: |
+          scons -j$(nproc) --ignore-style build/ARM/gem5.opt
+          scons --with-cxx-config --without-python --without-tcmalloc USE_SYSTEMC=0 -j$(nproc) build/ARM/libgem5_opt.so
+
+
+
+
+  SystemC-Testing:
+    runs-on: [self-hosted, linux, x64, run]
+    container: gcr.io/gem5-test/systemc-env:latest
+    timeout-minutes: 1440 # 24 hours
+    needs: SystemC-Tests
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: systemc tests
+        run: |
+            cd util/systemc/gem5_within_systemc
+            make -j$(nproc)
+            ../../../build/ARM/gem5.opt ../../../configs/example/se.py -c ../../../tests/test-progs/hello/bin/arm/linux/hello
+            LD_LIBRARY_PATH=../../../build/ARM/:/opt/systemc/lib-linux64/ ./gem5.opt.sc m5out/config.ini
+            cd -
