@@ -1,6 +1,6 @@
 SST_VERSION=SST-13.0.0 # Name of the .pc file in lib/pkgconfig where SST is installed
-GEM5_LIB=gem5_fast
-ARCH=RISCV
+GEM5_LIB=gem5_opt
+ARCH=ARM
 OFLAG=3
 
 LDFLAGS=-shared -fno-common ${shell pkg-config ${SST_VERSION} --libs} -L../../build/${ARCH}/ -Wl,-rpath ../../build/${ARCH} -O${OFLAG}

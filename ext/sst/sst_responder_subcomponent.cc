@@ -94,7 +94,8 @@ gem5::Tick
 SSTResponderSubComponent::handleAtomicReq(
     SST::Interfaces::SimpleMem::Request* request)
 {
-    memoryInterface->sendRequest(request);
+    assert(false && "not implemented");
+    //memoryInterface->sendRequest(request);
     return 1;
 }
 
@@ -237,6 +238,7 @@ SSTResponderSubComponent::portEventHandler(
 void
 SSTResponderSubComponent::handleRecvRespRetry()
 {
+    assert(false && "handleRecvRespRetry");
     while (blocked() &&
            responseReceiver->sendTimingResp(responseQueue.front()))
         responseQueue.pop();

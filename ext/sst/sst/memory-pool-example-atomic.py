@@ -48,7 +48,7 @@ main_bus = sst.Component(f"main_bus_{memory_node}", "memHierarchy.Bus")
 main_bus.addParams( { "bus_frequency" : cpu_clock_rate } )
 
 memctrl = sst.Component(f"memory_{memory_node}", "memHierarchy.MemController")
-memory_offset = 1 << 32
+memory_offset = 1 << 34
 memctrl.addParams({
     "debug" : "0",
     "clock" : "1.6GHz", # DDR4
@@ -75,13 +75,13 @@ bus_mem_link.connect(
 gem5_nodes = []
 links = []
 cache_ports = []
-memory_partition_size = UnitAlgebra("32MiB").getRoundedValue()
+memory_partition_size = UnitAlgebra("512MiB").getRoundedValue()
 for node_idx in range(num_nodes):
     addr_range_start = memory_offset + memory_partition_size * node_idx
-    addr_range_end = memory_offset + memory_partition_size * (node_idx + 1) - 1
+    addr_range_end = memory_offset + memory_partition_size * (node_idx + 1)
     cpu_params = {
         "frequency": cpu_clock_rate, # TODO: this is not a param; the CPU clock rate is set in gem5, not here
-        "cmd": "--outdir=m5out_{};--listener-mode=off;../../disaggregated_memory_setup/numa_sst_remote_config.py;--command={};--cpu-type={};--remote-memory-range={},{}".format(node_idx, "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw 10000000", "atomic", addr_range_start, addr_range_end),
+        "cmd": "--outdir=m5out_{};--listener-mode=off;../../disaggregated_memory_setup_arm/numa_sst_remote_config.py;--command={};--cpu-type={};--remote-memory-range={},{}".format(node_idx, "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw 15000000", "atomic", addr_range_start, addr_range_end),
         "debug_flags": ""
     }
 

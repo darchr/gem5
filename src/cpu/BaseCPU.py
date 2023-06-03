@@ -284,6 +284,7 @@ class BaseCPU(ClockedObject):
             node.append(FdtPropertyWords("clock-frequency", freq))
 
             # Unique key for this CPU
+            node.append(FdtPropertyWords("numa-node-id", [0]))
             phandle_key = self.createPhandleKey(i)
             node.appendPhandle(phandle_key)
             cpus_node.append(node)

@@ -144,6 +144,7 @@ SSTResponder::handleRecvAtomicReq(gem5::PacketPtr pkt)
     }
     */
 
+    /*
     if (pkt->isWrite())
         std::cout << "WRITE to " ;
     if (pkt->isRead())
@@ -155,6 +156,7 @@ SSTResponder::handleRecvAtomicReq(gem5::PacketPtr pkt)
             std::cout << std::hex << (uint64_t)atomicAccessReservoir[pkt_addr][t] << " " << std::dec;
         std::cout << std::endl;
     }
+    */
     // Response
     if (pkt->needsResponse())
         pkt->makeResponse();
