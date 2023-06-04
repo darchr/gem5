@@ -10,13 +10,10 @@ SRC=$(wildcard *.cc)
 
 .PHONY: clean all
 
-all: libgem5.so libgem5NodesPartitioner.so
+all: libgem5.so
 
 libgem5.so: $(SRC:%.cc=%.o)
 	${CXX} ${CPPFLAGS} ${LDFLAGS} $? -o $@ -l${GEM5_LIB}
-
-libgem5NodesPartitioner.so: partitioner/partitioner.cc
-	${CXX} ${CXXFLAGS} ${CPPFLAGS} ${LDFLAGS} $? -o $@
 
 -include $(SRC:%.cc=%.d)
 

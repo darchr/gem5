@@ -44,9 +44,9 @@
 #include <sst/core/eli/elementinfo.h>
 #include <sst/core/link.h>
 
-#include <sst/elements/memHierarchy/memEvent.h>
-#include <sst/elements/memHierarchy/memTypes.h>
-#include <sst/elements/memHierarchy/util.h>
+//#include <sst/elements/memHierarchy/memEvent.h>
+//#include <sst/elements/memHierarchy/memTypes.h>
+//#include <sst/elements/memHierarchy/util.h>
 
 // from gem5
 #include <sim/sim_object.hh>
