@@ -26,7 +26,8 @@
 
 import os
 
-from typing import List
+#from typing import List
+from typing import List, Optional, Sequence, Tuple
 
 from gem5.components.boards.riscv_board import RiscvBoard
 
