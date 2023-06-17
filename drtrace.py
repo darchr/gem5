@@ -9,8 +9,10 @@ Usage:
 ```
 ./build/X86/gem5.opt \
     drtrace.py \
+    --path <path of folder containing all traces> \
     --workload <benchmark_name> \
-    --players <Number of players to use>
+    --players <Number of players to use> \
+    --dram <DRAM device to use>
 ```
 """
 
@@ -19,6 +21,13 @@ parser = argparse.ArgumentParser(
 )
 
 benchmark_choices = ["charlie", "delta", "merced", "whiskey"]
+
+parser.add_argument(
+    "--path",
+    type=str,
+    required=True,
+    help="Main directory containing the traces.",
+)
 
 parser.add_argument(
     "--workload",
@@ -68,12 +77,10 @@ else:
     system.mem_ctrl = MemCtrl()
     system.mem_ctrl.dram = MemTypes[args.dram](range=system.mem_ranges[0])
 
-#system.mem_ctrl.dram.range = system.mem_ranges[0]
-
 players = args.players
 
 system.reader = DRTraceReader(
-    directory="/projects/google-traces/{}/".format(args.workload), num_players=args.players
+    directory="{}/{}/".format(args.path, args.workload), num_players=args.players
 )
 system.players = [
     DRTracePlayer(
