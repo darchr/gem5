@@ -1,3 +1,30 @@
+## Analyzing Google Traces in gem5
+
+This branch contains necessary code and scripts to run google workload traces with
+gem5. These changes will eventually move to the mainline gem5 repo.
+
+Follow the following steps to 
+
+Compile gem5.
+
+Download Google Workload Traces from [here](https://dynamorio.org/google_workload_traces.html).
+
+In the current folder there are two example scripts that can be used to run google traces.
+
+- [drtrace.py](./drtrace.py): This is a normal python script that imports all gem5 objects to manually set up a target system to simulate. `DRTraceReader` and `DRTracePlayer` are the trace reader and player objects that are used in this script. Example command:
+
+```sh
+build/X86/gem5.opt drtrace.py --path <path of folder containing all traces> --workload <benchmark_name, options: charlie, delta, merced, whiskey> --players <number of trace players to use> --dram <DRAM device to use, options:ddr4_2400, hbm_2000, ddr5_8400>
+```
+
+- [drtrace-stdlib.py](./drtrace-stdlib.py): This script uses gem5 standard library components to set-up a system to simulate. `DRTracePlayerGenerator` is the standard library component that creates a trace reader/player system. The arguments this class accepts include: `num_cores` `max_ipc`, and `max_outstanding_reqs`. Example command:
+
+```sh
+build/X86/gem5.opt drtrace-stdlib.py --path <path of folder containing all traces> --workload <benchmark_name, options: charlie, delta, merced, whiskey> --players <number of trace players to use>  --ruby <Use classic or ruby caches, options: 0,1>
+```
+
+## Default gem5 README
+
 This is the gem5 simulator.
 
 The main website can be found at http://www.gem5.org
