@@ -3,7 +3,7 @@
 This branch contains necessary code and scripts to run google workload traces with
 gem5. These changes will eventually move to the mainline gem5 repo.
 
-Follow the following steps to 
+Follow the following steps to run google traces with gem5:
 
 Compile gem5.
 
