@@ -1,0 +1,22 @@
+# This workflow runs after a pull-request has been approved by a reviewer
+
+name: CI Tests
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, ready_for_review]
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - run: |
+          for commit in $(git rev-list ${{ github.base_ref }}..${{ github.head_ref }}); do
+              git checkout $commit
+              echo "run test"
+          done
