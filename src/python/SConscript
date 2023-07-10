@@ -154,6 +154,18 @@ PySource('gem5.components.cachehierarchies.ruby.caches.mesi_three_level',
 PySource('gem5.components.cachehierarchies.ruby.caches.mesi_three_level',
     'gem5/components/cachehierarchies/ruby/caches/mesi_three_level/'
     'l3_cache.py')
+PySource('gem5.components.cachehierarchies.ruby.caches.mesi_three_level',
+    'gem5/components/cachehierarchies/ruby/caches/prebuilt/octopi_cache/'
+    'octopi.py')
+PySource('gem5.components.cachehierarchies.ruby.caches.mesi_three_level',
+    'gem5/components/cachehierarchies/ruby/caches/prebuilt/octopi_cache/'
+    'core_complex.py')
+PySource('gem5.components.cachehierarchies.ruby.caches.mesi_three_level',
+    'gem5/components/cachehierarchies/ruby/caches/prebuilt/octopi_cache/'
+    'octopi_network.py')
+PySource('gem5.components.cachehierarchies.ruby.caches.mesi_three_level',
+    'gem5/components/cachehierarchies/ruby/caches/prebuilt/octopi_cache/'
+    'ruby_network_components.py')
 PySource('gem5.components.cachehierarchies.ruby.caches.mi_example',
     'gem5/components/cachehierarchies/ruby/caches/mi_example/__init__.py')
 PySource('gem5.components.cachehierarchies.ruby.caches.mi_example',
@@ -264,12 +276,24 @@ PySource('gem5.prebuilt.riscvmatched',
 PySource('gem5.prebuilt.riscvmatched',
     'gem5/prebuilt/riscvmatched/riscvmatched_core.py')
 PySource('gem5.resources', 'gem5/resources/__init__.py')
+PySource('gem5.resources', 'gem5/resources/client.py')
 PySource('gem5.resources', 'gem5/resources/downloader.py')
 PySource('gem5.resources', 'gem5/resources/md5_utils.py')
 PySource('gem5.resources', 'gem5/resources/resource.py')
 PySource('gem5.resources', 'gem5/resources/workload.py')
 PySource('gem5.resources', 'gem5/resources/looppoint.py')
 PySource('gem5.resources', 'gem5/resources/elfie.py')
+PySource('gem5.resources.client_api',
+         'gem5/resources/client_api/__init__.py')
+PySource('gem5.resources.client_api',
+         'gem5/resources/client_api/jsonclient.py')
+PySource('gem5.resources.client_api',
+         'gem5/resources/client_api/atlasclient.py')
+PySource('gem5.resources.client_api',
+         'gem5/resources/client_api/client_wrapper.py')
+PySource('gem5.resources.client_api',
+         'gem5/resources/client_api/abstract_client.py')
+PySource('gem5', 'gem5_default_config.py')
 PySource('gem5.utils', 'gem5/utils/__init__.py')
 PySource('gem5.utils', 'gem5/utils/filelock.py')
 PySource('gem5.utils', 'gem5/utils/override.py')
