@@ -18,5 +18,8 @@ jobs:
       - run: |
           for commit in $(git rev-list ${{ github.event.before}}..${{ github.sha}}); do
               git checkout $commit
+              if git interpret-trailers --parse < .git/COMMIT_EDITMSG | grep -q "^Change-Id: $" ; then
+                exit 0
+              fi
               echo "run test"
           done
