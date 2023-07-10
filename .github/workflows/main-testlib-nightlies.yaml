@@ -8,7 +8,7 @@ on:
   # Runs every day from 7AM UTC
   # push:
   schedule:
-    - cron:  '0 7 * * *'
+    - cron:  '0 * * 1 *'
 
 jobs:
 # building all necessary versions of gem5

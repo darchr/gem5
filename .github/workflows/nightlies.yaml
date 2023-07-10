@@ -4,7 +4,7 @@ run-name: Automated - Running Nightly Tests
 #  https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
 on:
   schedule:
-    - cron:  '0 0 1 1 *'
+    - cron:  '0 * * 1 *'
 # on: [push]
 
 # This replaces nightly.sh. Currently KVM tests are failing

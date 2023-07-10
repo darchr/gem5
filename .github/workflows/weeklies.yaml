@@ -4,7 +4,7 @@ run-name: Testing Weeklies on VM
 #  https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
 on:
   schedule:
-    - cron:  '0 0 1 1 *'
+    - cron:  '0 * * 1 *'
 
 # This is a WIP file for recreating weekly.sh
 jobs:
