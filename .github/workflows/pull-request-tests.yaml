@@ -3,6 +3,7 @@
 name: Pull Request Tests
 
 on:
+  merge_group:
   pull_request:
     types: [opened, edited, synchronize, ready_for_review]
 
