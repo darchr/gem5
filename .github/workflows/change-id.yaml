@@ -2,7 +2,8 @@
 
 name: CI Tests
 
-on: [push]
+on:
+  workflow_dispatch:
 
 
 jobs:

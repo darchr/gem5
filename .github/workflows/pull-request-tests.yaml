@@ -1,6 +1,6 @@
-# This workflow runs after a pull-request has been approved by a reviewer
+# This workflow runs after a pull-request has been created.
 
-name: CI Tests
+name: Pull Request Tests
 
 on:
   pull_request:
@@ -8,6 +8,14 @@ on:
 
 
 jobs:
+  pre-commit:
+    # runs on github hosted runner
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v3
+    - uses: pre-commit/action@v3.0.0
+
   # ensures we have a change-id in every commit, needed for gerrit
   check-for-change-id:
     # runs on github hosted runner
