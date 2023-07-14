@@ -6,21 +6,21 @@ on:
     merge_group:
 
 jobs:
-  pre-commit:
-    # runs on github hosted runner
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v3
-    - uses: pre-commit/action@v3.0.0
+    pre-commit:
+      # runs on github hosted runner
+      runs-on: ubuntu-22.04
+      steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
+      - uses: pre-commit/action@v3.0.0
 
   # ensures we have a change-id in every commit, needed for gerrit
-  check-for-change-id:
-    # runs on github hosted runner
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Check for Change-Id
-        run: echo "Already checked in pull request!"
+    check-for-change-id:
+      # runs on github hosted runner
+      runs-on: ubuntu-22.04
+      steps:
+        - name: Check for Change-Id
+          run: echo "Already checked in pull request!"
 # removing build gem5 for testing purposes
     # build-gem5:
     #     runs-on: [self-hosted, linux, x64, build]
