@@ -17,7 +17,7 @@ jobs:
   # ensures we have a change-id in every commit, needed for gerrit
     check-for-change-id:
       # runs on github hosted runner
-      needs:[unittests-all-opt
+      needs: unittests-all-opt
       runs-on: ubuntu-22.04
       steps:
         - name: Check for Change-Id
