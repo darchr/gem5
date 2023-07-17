@@ -40,3 +40,12 @@ jobs:
             "To automatically insert one, run the following:\n f=`git rev-parse --git-dir`/hooks/commit-msg ; mkdir -p $(dirname $f) ; "\
             "curl -Lo $f https://gerrit-review.googlesource.com/tools/hooks/commit-msg ; chmod +x $f\n Then amend the commit with git commit --amend --no-edit, and update your pull request."
           exit 1
+
+
+  all-tests-pass:
+    # runs on github hosted runner
+    runs-on: ubuntu-22.04
+    needs: [pre-commit, check-for-change-id]
+    steps:
+      - name: PR Checks are successful!
+        run: echo "PR Checks are successful!"
