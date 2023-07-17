@@ -6,6 +6,25 @@ on:
     merge_group:
 
 jobs:
+<<<<<<< HEAD
+=======
+    pre-commit:
+      # runs on github hosted runner
+      runs-on: ubuntu-22.04
+      steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
+      - uses: pre-commit/action@v3.0.0
+
+  # ensures we have a change-id in every commit, needed for gerrit
+    check-for-change-id:
+      # runs on github hosted runner
+      needs: unittests-all-opt
+      runs-on: ubuntu-22.04
+      steps:
+        - name: Check for Change-Id
+          run: echo "Already checked in pull request!"
+>>>>>>> 056a900b17b1b04ba912ef87ee31c652af354d07
 # removing build gem5 for testing purposes
     # build-gem5:
     #     runs-on: [self-hosted, linux, x64, build]
