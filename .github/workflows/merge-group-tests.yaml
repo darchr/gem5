@@ -76,5 +76,3 @@ jobs:
     #             path: output.zip
     #             retention-days: 7
     #         - run: echo "This job's status is ${{ job.status }}."
-    
-
