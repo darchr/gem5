@@ -36,7 +36,7 @@ jobs:
               working-directory: ${{ github.workspace }}
               run: scons build/ALL/unittests.opt -j $(nproc)
             - run: echo "This job's status is ${{ job.status }}."
-    
+
     all-tests-pass:
     # runs on github hosted runner
         runs-on: ubuntu-22.04
