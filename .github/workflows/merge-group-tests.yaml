@@ -5,6 +5,10 @@ name: Merge Group Tests
 on:
     merge_group:
 
+concurrency:
+  group: concurrency-group
+  cancel-in-progress: true
+
 jobs:
 # removing build gem5 for testing purposes
     # build-gem5:
