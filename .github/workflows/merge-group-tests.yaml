@@ -3,7 +3,8 @@
 name: Merge Group Tests
 
 on:
-    merge_group:
+    # merge_group:
+    workflow_dispatch:
 
 concurrency:
   group: concurrency-group
