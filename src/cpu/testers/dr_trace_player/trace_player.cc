@@ -86,6 +86,7 @@ DRTracePlayer::tryExecuteInst(DRTraceReader::TraceRef &cur_ref)
         // End of trace for this player exit the simulation
         // TODO: Move this to when the last instruction is completed
         exitSimLoopNow("End of DRTrace");
+        return;
     }
 
     DPRINTF(DRTrace, "Exec reference pc: %0#x, addr: %0#x, size: %d, "
