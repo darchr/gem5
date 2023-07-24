@@ -171,6 +171,10 @@ DRTraceReader::getNextTraceReference(unsigned player_id)
         case TRACE_TYPE_PREFETCHT1:
         case TRACE_TYPE_PREFETCHT2:
         case TRACE_TYPE_PREFETCHNTA:
+            if (raw_entry.addr == 0) {
+                warn("Encountered a prefetch req with Addr = 0 \n");
+                return getNextTraceReference(player_id);                
+            }
             ref.addr = raw_entry.addr;
             ref.size = raw_entry.size;
             ref.isValid = true;
