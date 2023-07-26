@@ -76,7 +76,7 @@ class GPT(SubSystem):
         )
 
         self.vertex_mem_ctrl = SimpleMemory(
-            latency="120ns", bandwidth="256GiB/s"
+            latency="120ns", bandwidth="32GiB/s"
         )
         self.coalesce_engine.mem_port = self.vertex_mem_ctrl.port
 
@@ -112,11 +112,14 @@ class EdgeMemory(SubSystem):
     def __init__(self, size: str):
         super(EdgeMemory, self).__init__()
         self.clk_domain = SrcClockDomain()
-        self.clk_domain.clock = "2.4GHz"
+        self.clk_domain.clock = "9.6GHz"
         self.clk_domain.voltage_domain = VoltageDomain()
 
-        self.mem_ctrl = MemCtrl(
-            dram=DDR4_2400_8x8(range=AddrRange(size), in_addr_map=False)
+        self.mem_ctrl = SimpleMemory(
+            latency="90ns",
+            bandwidth="76.8GiB/s",
+            range=AddrRange(size),
+            in_addr_map=False,
         )
         self.xbar = NoncoherentXBar(
             width=64, frontend_latency=1, forward_latency=1, response_latency=1
@@ -124,7 +127,7 @@ class EdgeMemory(SubSystem):
         self.xbar.mem_side_ports = self.mem_ctrl.port
 
     def set_image(self, image):
-        self.mem_ctrl.dram.image_file = image
+        self.mem_ctrl.image_file = image
 
     def getPort(self):
         return self.xbar.cpu_side_ports
@@ -149,7 +152,7 @@ class SEGAController(SubSystem):
                 latency="0ns",
                 latency_var="0ns",
                 bandwidth=mirror_bw,
-                range=AddrRange(start=0, size="16GiB"),
+                range=AddrRange(start=0, size="32GiB"),
                 in_addr_map=False,
             ),
         )

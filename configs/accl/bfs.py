@@ -72,6 +72,14 @@ def get_inputs():
         help="Use simple memory for vertex",
     )
     argparser.add_argument(
+        "--dsimple",
+        dest="dsimple",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Use simple memory for both vertex and edge",
+    )
+    argparser.add_argument(
         "--sample",
         dest="sample",
         action="store_const",
@@ -101,6 +109,7 @@ def get_inputs():
         args.best,
         args.visited,
         args.simple,
+        args.dsimple,
         args.sample,
         args.verify,
     )
@@ -118,12 +127,19 @@ if __name__ == "__m5_main__":
         best,
         visited,
         simple,
+        dsimple,
         sample,
         verify,
     ) = get_inputs()
 
     if simple:
+        if dsimple:
+            raise ValueError("Can only pass either of --simple or --dsimple")
         from sega_simple import SEGA
+    elif dsimple:
+        if simple:
+            raise ValueError("Can only pass either of --simple or --dsimple")
+        from sega_double_simple import SEGA
     else:
         from sega import SEGA
 
@@ -143,7 +159,7 @@ if __name__ == "__m5_main__":
     else:
         system.set_async_mode()
 
-    system.create_pop_count_directory(64)
+    system.create_pop_count_directory(32)
     if visited:
         system.create_bfs_visited_workload(init_addr, init_value)
     else:

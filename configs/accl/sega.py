@@ -188,6 +188,8 @@ class SEGA(System):
         assert num_gpts % 2 == 0
         assert (num_gpts & (num_gpts - 1)) == 0
 
+        self._num_gpts = num_gpts
+
         self.clk_domain = SrcClockDomain()
         self.clk_domain.clock = "2GHz"
         self.clk_domain.voltage_domain = VoltageDomain()
@@ -273,3 +275,6 @@ class SEGA(System):
 
     def print_answer(self):
         self.ctrl.controller.printAnswerToHostSimout()
+
+    def get_num_gpts(self):
+        return self._num_gpts

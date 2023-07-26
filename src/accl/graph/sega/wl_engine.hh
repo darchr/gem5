@@ -148,5 +148,14 @@ class WLEngine : public BaseReduceEngine
     bool done();
 };
 
+// virtual AddrRangeList getAddrRanges() const;
+
+// protected:
+// virtual bool recvTimingReq(PacketPtr pkt);
+// virtual Tick recvAtomic(PacketPtr pkt);
+// virtual void recvFunctional(PacketPtr pkt);
+// virtual void recvRespRetry();
+
+
 }
 #endif // __ACCL_GRAPH_SEGA_WL_ENGINE_HH__

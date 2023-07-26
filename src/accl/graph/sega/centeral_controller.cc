@@ -385,6 +385,8 @@ CenteralController::processNextSliceSwitchEvent()
         Addr end_addr = end->getLE<uint64_t>();
         delete start;
         delete end;
+        DPRINTF(CenteralController, "%s: %d->%d: [%lu, %lu].\n", __func__,
+                            src_id, currentSliceId, start_addr, end_addr);
 
         uint64_t num_bytes = end_addr - start_addr;
         uint64_t num_mirrors = (end_addr - start_addr) / sizeof(MirrorVertex);

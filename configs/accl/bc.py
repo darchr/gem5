@@ -99,6 +99,7 @@ if __name__ == "__m5_main__":
     system = SEGA(num_gpts, num_registers, cache_size, graph)
     root = Root(full_system=False, system=system)
 
+
     m5.instantiate()
 
     system.set_bsp_mode()
