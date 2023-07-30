@@ -42,6 +42,22 @@ def get_inputs():
     argparser.add_argument("--num_nodes", type=int, default=1)
     argparser.add_argument("--error_threshold", type=float, default=0.0)
     argparser.add_argument(
+        "--tile",
+        dest="tile",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Whether to use temporal partitioning",
+    )
+    argparser.add_argument(
+        "--best",
+        dest="best",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Whether to use best update value for switching slices",
+    )
+    argparser.add_argument(
         "--simple",
         dest="simple",
         action="store_const",
@@ -77,6 +93,8 @@ def get_inputs():
         args.alpha,
         args.num_nodes,
         args.error_threshold,
+        args.tile,
+        args.best,
         args.simple,
         args.sample,
         args.verify,
@@ -93,6 +111,8 @@ if __name__ == "__m5_main__":
         alpha,
         num_nodes,
         error_threshold,
+        tile,
+        best,
         simple,
         sample,
         verify,
@@ -105,11 +125,20 @@ if __name__ == "__m5_main__":
     else:
         from sega import SEGA
     system = SEGA(num_gpts, num_registers, cache_size, graph)
+    if tile:
+        system.set_aux_images(f"{graph}/mirrors", f"{graph}/mirrors_map")
+
+    if best:
+        system.set_choose_best(True)
     root = Root(full_system=False, system=system)
 
     m5.instantiate()
 
-    system.set_bsp_mode()
+    if tile:
+        system.set_pg_mode()
+    else:
+        system.set_bsp_mode()
+        
     system.create_pop_count_directory(64)
     system.create_pr_workload(num_nodes, alpha)
     if sample:

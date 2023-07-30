@@ -40,6 +40,22 @@ def get_inputs():
     argparser.add_argument("init_addr", type=int)
     argparser.add_argument("init_value", type=int)
     argparser.add_argument(
+        "--tile",
+        dest="tile",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Whether to use temporal partitioning",
+    )
+    argparser.add_argument(
+        "--best",
+        dest="best",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Whether to use best update value for switching slices",
+    )
+    argparser.add_argument(
         "--simple",
         dest="simple",
         action="store_const",
@@ -63,6 +79,14 @@ def get_inputs():
         default=False,
         help="Print final answer",
     )
+    argparser.add_argument(
+        "--simpleedge",
+        dest="simpleedge",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Use simple memory for Edge",
+    )
 
     args = argparser.parse_args()
 
@@ -73,9 +97,12 @@ def get_inputs():
         args.graph,
         args.init_addr,
         args.init_value,
+        args.tile,
+        args.best,
         args.simple,
         args.sample,
         args.verify,
+        args.simpleedge,
     )
 
 
@@ -87,20 +114,35 @@ if __name__ == "__m5_main__":
         graph,
         init_addr,
         init_value,
+        tile,
+        best,
         simple,
         sample,
         verify,
+        simpleedge,
     ) = get_inputs()
 
-    if simple:
+    if simpleedge:
+        from sega_simple_hbm import SEGA
+    elif simple:
         from sega_simple import SEGA
     else:
         from sega import SEGA
     system = SEGA(num_gpts, num_registers, cache_size, graph)
+    if tile:
+        system.set_aux_images(f"{graph}/mirrors", f"{graph}/mirrors_map")
+
+    if best:
+        system.set_choose_best(True)
+
     root = Root(full_system=False, system=system)
 
 
     m5.instantiate()
+    if tile:
+        system.set_pg_mode()
+    else:
+        system.set_async_mode()
 
     system.set_bsp_mode()
     system.create_pop_count_directory(64)

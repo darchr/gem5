@@ -95,6 +95,14 @@ def get_inputs():
         default=False,
         help="Print final answer",
     )
+    argparser.add_argument(
+        "--simpleedge",
+        dest="simpleedge",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Use simple memory for Edge",
+    )
 
     args = argparser.parse_args()
 
@@ -112,6 +120,7 @@ def get_inputs():
         args.dsimple,
         args.sample,
         args.verify,
+        args.simpleedge,
     )
 
 
@@ -130,6 +139,7 @@ if __name__ == "__m5_main__":
         dsimple,
         sample,
         verify,
+        simpleedge,
     ) = get_inputs()
 
     if simple:
@@ -142,6 +152,7 @@ if __name__ == "__m5_main__":
         from sega_double_simple import SEGA
     else:
         from sega import SEGA
+    
 
     system = SEGA(num_gpts, num_registers, cache_size, graph)
     if tile:

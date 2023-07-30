@@ -76,7 +76,7 @@ class GPT(SubSystem):
         )
 
         self.vertex_mem_ctrl = SimpleMemory(
-            latency="120ns", bandwidth="28GiB/s"
+            latency="220ns", bandwidth="28GiB/s",
         )
         self.coalesce_engine.mem_port = self.vertex_mem_ctrl.port
 
@@ -115,16 +115,18 @@ class EdgeMemory(SubSystem):
         self.clk_domain.clock = "2.4GHz"
         self.clk_domain.voltage_domain = VoltageDomain()
 
-        self.mem_ctrl = MemCtrl(
-            dram=DDR4_2400_8x8(range=AddrRange(size), in_addr_map=False)
+        self.mem_ctrl = SimpleMemory(
+            latency="90ns", bandwidth="64GiB/s",
+            range=AddrRange(size), in_addr_map=False
         )
+        
         self.xbar = NoncoherentXBar(
             width=64, frontend_latency=1, forward_latency=1, response_latency=1
         )
         self.xbar.mem_side_ports = self.mem_ctrl.port
 
     def set_image(self, image):
-        self.mem_ctrl.dram.image_file = image
+        self.mem_ctrl.image_file = image
 
     def getPort(self):
         return self.xbar.cpu_side_ports
@@ -149,7 +151,7 @@ class SEGAController(SubSystem):
                 latency="0ns",
                 latency_var="0ns",
                 bandwidth=mirror_bw,
-                range=AddrRange(start=0, size="16GiB"),
+                range=AddrRange(start=0, size="4GiB"),
                 in_addr_map=False,
             ),
         )
@@ -193,7 +195,7 @@ class SEGA(System):
         self.ctrl.set_vertices_image(f"{graph_path}/vertices")
 
         edge_mem = []
-        for i in range(int(num_gpts / 2)):
+        for i in range(int(num_gpts/2)):
             mem = EdgeMemory("16GiB")
             mem.set_image(f"{graph_path}/edgelist_{i}")
             edge_mem.append(mem)

@@ -51,6 +51,8 @@ Source('nvm_gen.cc')
 Source('random_gen.cc')
 Source('stream_gen.cc')
 Source('strided_gen.cc')
+Source('distribution.cc')
+Source('distribution_gen.cc')
 
 DebugFlag('TrafficGen')
 SimObject('BaseTrafficGen.py', sim_objects=['BaseTrafficGen'],
@@ -66,5 +68,6 @@ if env['USE_PYTHON']:
 # Only build the traffic generator if we have support for protobuf as the
 # tracing relies on it
 SimObject('TrafficGen.py', sim_objects=['TrafficGen'], tags='protobuf')
+SimObject('DistributionGen.py', sim_objects=['DistributionGen'])
 Source('trace_gen.cc', tags='protobuf')
 Source('traffic_gen.cc', tags='protobuf')
