@@ -41,6 +41,8 @@ from gem5.isas import ISA
 from .riscvmatched_cache import RISCVMatchedCacheHierarchy
 from .riscvmatched_processor import U74Processor
 from gem5.isas import ISA
+from pathlib import Path
+import json
 
 import m5
 
@@ -111,6 +113,7 @@ class RISCVMatchedBoard(
         clk_freq: str = "1.2GHz",
         l2_size: str = "2MiB",
         is_fs: bool = False,
+        config_json: Optional[str] = None,
     ) -> None:
         """
 
@@ -128,8 +131,12 @@ class RISCVMatchedBoard(
         cache_hierarchy = RISCVMatchedCacheHierarchy(l2_size=l2_size)
 
         memory = U74Memory()
-
-        processor = U74Processor(is_fs=is_fs)
+        if config_json:
+            with open(config_json) as file:
+                config = json.load(file)
+            processor = U74Processor(is_fs=is_fs, config_json=config)
+        else:
+            processor = U74Processor(is_fs=is_fs)
         super().__init__(
             clk_freq=clk_freq,  # real system is 1.0 to 1.5 GHz
             processor=processor,

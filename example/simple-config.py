@@ -24,34 +24,42 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from gem5.utils.override import overrides
-from gem5.components.boards.mem_mode import MemMode
+"""
+This gem5 configuration script runs the RISCVMatchedBoard in FS mode with a
+an Ubuntu 20.04 image and calls m5 exit after the simulation has booted the OS.
 
-from m5.util import warn
+Usage
+---
 
-from typing import Optional
+```
+scons build/RISCV/gem5.opt
 
-from gem5.components.processors.base_cpu_processor import BaseCPUProcessor
-from gem5.components.processors.cpu_types import CPUTypes
-from gem5.components.boards.abstract_board import AbstractBoard
-from .riscvmatched_core import U74Core
+./build/RISCV/gem5.opt configs/example/gem5_library/riscvmatched-fs.py
+```
+"""
 
+from gem5.prebuilt.riscvmatched.riscvmatched_board import RISCVMatchedBoard
+from gem5.utils.requires import requires
+from gem5.isas import ISA
+from gem5.simulate.simulator import Simulator
+from gem5.resources.resource import obtain_resource
 
-class U74Processor(BaseCPUProcessor):
-    """
-    A U74Processor contains a number of cores of U74Core.
-    """
+import argparse
 
-    def __init__(self, is_fs: bool, config_json: Optional[dict] = {}) -> None:
-        self._cpu_type = CPUTypes.MINOR
-        super().__init__(cores=self._create_cores(is_fs, config_json))
+requires(isa_required=ISA.RISCV)
 
-    def _create_cores(self, is_fs: bool, config_json: dict):
-        if is_fs:
-            num_cores = 4
-        else:
-            num_cores = 1
-        return [
-            U74Core(core_id=i, config_json=config_json)
-            for i in range(num_cores)
-        ]
+# instantiate the riscv matched board with default parameters
+board = RISCVMatchedBoard(
+    clk_freq="1.2GHz",
+    l2_size="2MB",
+    is_fs=False,
+    config_json="example/example.json",
+)
+
+board.set_se_binary_workload(
+    binary=obtain_resource(resource_id="riscv-print-this"),
+    arguments=["sample", "100"],
+)
+
+simulator = Simulator(board=board)
+simulator.run()

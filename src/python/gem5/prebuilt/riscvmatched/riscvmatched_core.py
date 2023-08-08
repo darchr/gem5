@@ -209,8 +209,142 @@ class U74Core(BaseCPUCore):
     This configuration performs the best in relation to the hardware.
     """
 
-    def __init__(
-        self,
-        core_id,
-    ):
-        super().__init__(core=U74CPU(cpu_id=core_id), isa=ISA.RISCV)
+    def __init__(self, core_id, config_json):
+        if len(config_json) != 0:
+            super().__init__(
+                core=self.CustomU74CPU(
+                    cpu_id=core_id, config_json=config_json["core"]
+                ),
+                isa=ISA.RISCV,
+            )
+        else:
+            super().__init__(core=U74CPU(cpu_id=core_id), isa=ISA.RISCV)
+
+    def CustomU74FUPool(self, config_json) -> MinorFUPool:
+        return MinorFUPool(
+            funcUnits=[
+                MinorDefaultIntFU(opLat=config_json["U74IntFU"]),
+                MinorDefaultIntFU(opLat=config_json["U74IntFU"]),
+                MinorDefaultIntMulFU(opLat=config_json["U74IntMulFU"]),
+                U74IntDivFU(opLat=config_json["U74IntDivFU"]),
+                U74FloatSimdFU(),
+                U74PredFU(),
+                MinorDefaultMemFU(
+                    opClasses=minorMakeOpClassSet(["MemRead", "FloatMemRead"]),
+                    opLat=config_json["U74MemReadFU"],
+                ),
+                MinorDefaultMemFU(
+                    opClasses=minorMakeOpClassSet(
+                        ["MemWrite", "FloatMemWrite"]
+                    ),
+                    opLat=config_json["U74MemWriteFU"],
+                ),
+                U74MiscFU(),
+                U74VecFU(),
+            ]
+        )
+
+    def CustomU74BP(self, config_json) -> TournamentBP:
+
+        bp = TournamentBP()
+
+        bp.BTBEntries = config_json["BTBEntries"]
+        bp.RASSize = config_json["RASSize"]
+        bp.localHistoryTableSize = config_json["localHistoryTableSize"]
+        bp.localPredictorSize = config_json["localPredictorSize"]
+        bp.globalPredictorSize = config_json["globalPredictorSize"]
+        bp.choicePredictorSize = config_json["choicePredictorSize"]
+        bp.localCtrBits = config_json["localCtrBits"]
+        bp.globalCtrBits = config_json["globalCtrBits"]
+        bp.choiceCtrBits = config_json["choiceCtrBits"]
+        bp.indirectBranchPred = SimpleIndirectPredictor()
+        bp.indirectBranchPred.indirectSets = config_json["indirectSets"]
+
+        return bp
+
+    def CustomU74CPU(self, cpu_id, config_json) -> RiscvMinorCPU:
+
+        riscvminorcpu = RiscvMinorCPU(cpu_id=cpu_id)
+
+        riscvminorcpu.threadPolicy = config_json["threadPolicy"]
+
+        # Fetch1 stage
+        riscvminorcpu.fetch1LineSnapWidth = config_json["fetch1LineSnapWidth"]
+        riscvminorcpu.fetch1LineWidth = config_json["fetch1LineWidth"]
+        riscvminorcpu.fetch1FetchLimit = config_json["fetch1FetchLimit"]
+        riscvminorcpu.fetch1ToFetch2ForwardDelay = config_json[
+            "fetch1ToFetch2ForwardDelay"
+        ]
+        riscvminorcpu.fetch1ToFetch2BackwardDelay = config_json[
+            "fetch1ToFetch2BackwardDelay"
+        ]
+
+        # Fetch2 stage
+        riscvminorcpu.fetch2InputBufferSize = config_json[
+            "fetch2InputBufferSize"
+        ]
+        riscvminorcpu.fetch2ToDecodeForwardDelay = config_json[
+            "fetch2ToDecodeForwardDelay"
+        ]
+        riscvminorcpu.fetch2CycleInput = config_json["fetch2CycleInput"]
+
+        # Decode stage
+        riscvminorcpu.decodeInputBufferSize = config_json[
+            "decodeInputBufferSize"
+        ]
+        riscvminorcpu.decodeToExecuteForwardDelay = config_json[
+            "decodeToExecuteForwardDelay"
+        ]
+        riscvminorcpu.decodeInputWidth = config_json["decodeInputWidth"]
+        riscvminorcpu.decodeCycleInput = config_json["decodeCycleInput"]
+
+        # Execute stage
+        riscvminorcpu.executeInputWidth = config_json["executeInputWidth"]
+        riscvminorcpu.executeCycleInput = config_json["executeCycleInput"]
+        riscvminorcpu.executeIssueLimit = config_json["executeIssueLimit"]
+        riscvminorcpu.executeMemoryIssueLimit = config_json[
+            "executeMemoryIssueLimit"
+        ]
+        riscvminorcpu.executeCommitLimit = config_json["executeCommitLimit"]
+        riscvminorcpu.executeMemoryCommitLimit = config_json[
+            "executeMemoryCommitLimit"
+        ]
+        riscvminorcpu.executeInputBufferSize = config_json[
+            "executeInputBufferSize"
+        ]
+        riscvminorcpu.executeMaxAccessesInMemory = config_json[
+            "executeMaxAccessesInMemory"
+        ]
+        riscvminorcpu.executeLSQMaxStoreBufferStoresPerCycle = config_json[
+            "executeLSQMaxStoreBufferStoresPerCycle"
+        ]
+        riscvminorcpu.executeLSQRequestsQueueSize = config_json[
+            "executeLSQRequestsQueueSize"
+        ]
+        riscvminorcpu.executeLSQTransfersQueueSize = config_json[
+            "executeLSQTransfersQueueSize"
+        ]
+        riscvminorcpu.executeLSQStoreBufferSize = config_json[
+            "executeLSQStoreBufferSize"
+        ]
+        riscvminorcpu.executeBranchDelay = config_json["executeBranchDelay"]
+        riscvminorcpu.executeSetTraceTimeOnCommit = config_json[
+            "executeSetTraceTimeOnCommit"
+        ]
+        riscvminorcpu.executeSetTraceTimeOnIssue = config_json[
+            "executeSetTraceTimeOnIssue"
+        ]
+        riscvminorcpu.executeAllowEarlyMemoryIssue = config_json[
+            "executeAllowEarlyMemoryIssue"
+        ]
+        riscvminorcpu.enableIdling = config_json["enableIdling"]
+
+        # Functional Units and Branch Prediction
+        riscvminorcpu.executeFuncUnits = self.CustomU74FUPool(
+            config_json=config_json["FUPool"]
+        )
+        riscvminorcpu.branchPred = self.CustomU74BP(
+            config_json=config_json["BP"]
+        )
+
+        return riscvminorcpu
