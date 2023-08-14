@@ -35,36 +35,44 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+Import("*")
 
 
-Source('base.cc')
-Source('base_gen.cc')
-Source('dram_gen.cc')
-Source('dram_rot_gen.cc')
-Source('exit_gen.cc')
-Source('gups_gen.cc')
-Source('hybrid_gen.cc')
-Source('idle_gen.cc')
-Source('linear_gen.cc')
-Source('nvm_gen.cc')
-Source('random_gen.cc')
-Source('stream_gen.cc')
-Source('strided_gen.cc')
+Source("base.cc")
+Source("base_gen.cc")
+Source("distribution.cc")
+Source("distribution_gen.cc")
+Source("dram_gen.cc")
+Source("dram_rot_gen.cc")
+Source("exit_gen.cc")
+Source("gups_gen.cc")
+Source("hybrid_gen.cc")
+Source("idle_gen.cc")
+Source("linear_gen.cc")
+Source("nvm_gen.cc")
+Source("random_gen.cc")
+Source("stream_gen.cc")
+Source("strided_gen.cc")
 
-DebugFlag('TrafficGen')
-SimObject('BaseTrafficGen.py', sim_objects=['BaseTrafficGen'],
-        enums=['StreamGenType'])
 
-DebugFlag('GUPSGen')
-SimObject('GUPSGen.py', sim_objects=['GUPSGen'])
+DebugFlag("TrafficGen")
+SimObject(
+    "BaseTrafficGen.py",
+    sim_objects=["BaseTrafficGen"],
+    enums=["StreamGenType"],
+)
 
-if env['USE_PYTHON']:
-    Source('pygen.cc', add_tags='python')
-    SimObject('PyTrafficGen.py', sim_objects=['PyTrafficGen'])
+DebugFlag("GUPSGen")
+SimObject("GUPSGen.py", sim_objects=["GUPSGen"])
 
+if env["USE_PYTHON"]:
+    Source("pygen.cc", add_tags="python")
+    SimObject("PyTrafficGen.py", sim_objects=["PyTrafficGen"])
+
+DebugFlag("DistributionGen")
+SimObject("DistributionGen.py", sim_objects=["DistributionGen"])
 # Only build the traffic generator if we have support for protobuf as the
 # tracing relies on it
-SimObject('TrafficGen.py', sim_objects=['TrafficGen'], tags='protobuf')
-Source('trace_gen.cc', tags='protobuf')
-Source('traffic_gen.cc', tags='protobuf')
+SimObject("TrafficGen.py", sim_objects=["TrafficGen"], tags="protobuf")
+Source("trace_gen.cc", tags="protobuf")
+Source("traffic_gen.cc", tags="protobuf")
