@@ -91,6 +91,14 @@ def U74Memory():
     return memory
 
 
+# def CustomU74Memory(config_json: Optional[str] = None):
+#     memory = SingleChannelDDR4_2400(config_json["board"]["memory"])
+#     memory.set_memory_range(
+#         [AddrRange(start=0x80000000, size=memory.get_size())]
+#     )
+#     return memory
+
+
 class RISCVMatchedBoard(
     AbstractSystemBoard, KernelDiskWorkload, SEBinaryWorkload
 ):
@@ -116,7 +124,6 @@ class RISCVMatchedBoard(
         config_json: Optional[str] = None,
     ) -> None:
         """
-
         :param clk_freq: The clock frequency of the system,
         default: 1.2GHz
         :param l2_size: The size of the L2 cache,
@@ -128,15 +135,22 @@ class RISCVMatchedBoard(
         requires(isa_required=ISA.RISCV)
         self._fs = is_fs
 
-        cache_hierarchy = RISCVMatchedCacheHierarchy(l2_size=l2_size)
-
-        memory = U74Memory()
         if config_json:
             with open(config_json) as file:
                 config = json.load(file)
+            print(config)
             processor = U74Processor(is_fs=is_fs, config_json=config)
+            cache_hierarchy = RISCVMatchedCacheHierarchy(
+                l2_size=config["cache"]["l2_size"], config_json=config
+            )
+            memory = U74Memory(config_json=config)
+            self._config_json = config
+
         else:
             processor = U74Processor(is_fs=is_fs)
+            cache_hierarchy = RISCVMatchedCacheHierarchy(l2_size=l2_size)
+            memory = U74Memory()
+            self._config_json = None
         super().__init__(
             clk_freq=clk_freq,  # real system is 1.0 to 1.5 GHz
             processor=processor,
@@ -147,6 +161,7 @@ class RISCVMatchedBoard(
     @overrides(AbstractSystemBoard)
     def _setup_board(self) -> None:
         if self._fs:
+
             self.workload = RiscvLinux()
 
             # Contains a CLINT, PLIC, UART, and some functions for the dtb, etc.
@@ -158,7 +173,7 @@ class RISCVMatchedBoard(
 
             # Add the RTC
             self.platform.rtc = RiscvRTC(
-                frequency=Frequency("100MHz")
+                frequency="100MHz"
             )  # page 77, section 7.1
             self.platform.clint.int_pin = self.platform.rtc.int_pin
 
@@ -194,6 +209,7 @@ class RISCVMatchedBoard(
     def _setup_io_devices(self) -> None:
         """Connect the I/O devices to the I/O bus in FS mode."""
         if self._fs:
+
             # Add PCI
             self.platform.pci_host.pio = self.iobus.mem_side_ports
 

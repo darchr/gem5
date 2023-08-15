@@ -246,19 +246,34 @@ class U74Core(BaseCPUCore):
 
     def CustomU74BP(self, config_json) -> TournamentBP:
 
-        bp = TournamentBP()
-
-        bp.BTBEntries = config_json["BTBEntries"]
-        bp.RASSize = config_json["RASSize"]
-        bp.localHistoryTableSize = config_json["localHistoryTableSize"]
-        bp.localPredictorSize = config_json["localPredictorSize"]
-        bp.globalPredictorSize = config_json["globalPredictorSize"]
-        bp.choicePredictorSize = config_json["choicePredictorSize"]
-        bp.localCtrBits = config_json["localCtrBits"]
-        bp.globalCtrBits = config_json["globalCtrBits"]
-        bp.choiceCtrBits = config_json["choiceCtrBits"]
+        bp_config = config_json["BPChoice"]
+        if bp_config == "Tournament":
+            bp = TournamentBP()
+        else:
+            bp = LocalBP()
+        bp.BTBEntries = 32
+        bp.RASSize = 12
+        bp.localHistoryTableSize = 4096
+        bp.localPredictorSize = 16384
+        bp.globalPredictorSize = 16384
+        bp.choicePredictorSize = 16384
+        bp.localCtrBits = 4
+        bp.globalCtrBits = 4
+        bp.choiceCtrBits = 4
         bp.indirectBranchPred = SimpleIndirectPredictor()
-        bp.indirectBranchPred.indirectSets = config_json["indirectSets"]
+        bp.indirectBranchPred.indirectSets = 16
+
+        # bp.BTBEntries = config_json["BTBEntries"]
+        # bp.RASSize = config_json["RASSize"]
+        # bp.localHistoryTableSize = config_json["localHistoryTableSize"]
+        # bp.localPredictorSize = config_json["localPredictorSize"]
+        # bp.globalPredictorSize = config_json["globalPredictorSize"]
+        # bp.choicePredictorSize = config_json["choicePredictorSize"]
+        # bp.localCtrBits = config_json["localCtrBits"]
+        # bp.globalCtrBits = config_json["globalCtrBits"]
+        # bp.choiceCtrBits = config_json["choiceCtrBits"]
+        # bp.indirectBranchPred = SimpleIndirectPredictor()
+        # bp.indirectBranchPred.indirectSets = config_json["indirectSets"]
 
         return bp
 
@@ -271,6 +286,9 @@ class U74Core(BaseCPUCore):
         # Fetch1 stage
         riscvminorcpu.fetch1LineSnapWidth = config_json["fetch1LineSnapWidth"]
         riscvminorcpu.fetch1LineWidth = config_json["fetch1LineWidth"]
+        if config_json["fetch1LineSnapWidth"] < config_json["fetch1LineWidth"]:
+            riscvminorcpu.fetch1LineSnapWidth = 4  #   HARDCODED
+
         riscvminorcpu.fetch1FetchLimit = config_json["fetch1FetchLimit"]
         riscvminorcpu.fetch1ToFetch2ForwardDelay = config_json[
             "fetch1ToFetch2ForwardDelay"
@@ -286,7 +304,9 @@ class U74Core(BaseCPUCore):
         riscvminorcpu.fetch2ToDecodeForwardDelay = config_json[
             "fetch2ToDecodeForwardDelay"
         ]
-        riscvminorcpu.fetch2CycleInput = config_json["fetch2CycleInput"]
+        riscvminorcpu.fetch2CycleInput = (
+            True  # config_json["fetch2CycleInput"]
+        )
 
         # Decode stage
         riscvminorcpu.decodeInputBufferSize = config_json[
@@ -296,15 +316,26 @@ class U74Core(BaseCPUCore):
             "decodeToExecuteForwardDelay"
         ]
         riscvminorcpu.decodeInputWidth = config_json["decodeInputWidth"]
-        riscvminorcpu.decodeCycleInput = config_json["decodeCycleInput"]
+        riscvminorcpu.decodeCycleInput = (
+            True  # config_json["decodeCycleInput"]
+        )
 
         # Execute stage
         riscvminorcpu.executeInputWidth = config_json["executeInputWidth"]
-        riscvminorcpu.executeCycleInput = config_json["executeCycleInput"]
+        riscvminorcpu.executeCycleInput = (
+            True  # config_json["executeCycleInput"]
+        )
+
         riscvminorcpu.executeIssueLimit = config_json["executeIssueLimit"]
         riscvminorcpu.executeMemoryIssueLimit = config_json[
             "executeMemoryIssueLimit"
         ]
+        if (
+            config_json["executeMemoryIssueLimit"]
+            > config_json["executeIssueLimit"]
+        ):
+            riscvminorcpu.executeMemoryIssueLimit = 1
+
         riscvminorcpu.executeCommitLimit = config_json["executeCommitLimit"]
         riscvminorcpu.executeMemoryCommitLimit = config_json[
             "executeMemoryCommitLimit"
@@ -328,16 +359,15 @@ class U74Core(BaseCPUCore):
             "executeLSQStoreBufferSize"
         ]
         riscvminorcpu.executeBranchDelay = config_json["executeBranchDelay"]
-        riscvminorcpu.executeSetTraceTimeOnCommit = config_json[
-            "executeSetTraceTimeOnCommit"
-        ]
-        riscvminorcpu.executeSetTraceTimeOnIssue = config_json[
-            "executeSetTraceTimeOnIssue"
-        ]
-        riscvminorcpu.executeAllowEarlyMemoryIssue = config_json[
-            "executeAllowEarlyMemoryIssue"
-        ]
-        riscvminorcpu.enableIdling = config_json["enableIdling"]
+        # riscvminorcpu.executeSetTraceTimeOnCommit = config_json["executeSetTraceTimeOnCommit"]
+        riscvminorcpu.executeSetTraceTimeOnCommit = True
+
+        # riscvminorcpu.executeSetTraceTimeOnIssue = config_json["executeSetTraceTimeOnIssue"]
+        riscvminorcpu.executeSetTraceTimeOnIssue = False
+        riscvminorcpu.executeAllowEarlyMemoryIssue = (
+            True  # config_json["executeAllowEarlyMemoryIssue"]
+        )
+        riscvminorcpu.enableIdling = False  # config_json["enableIdling"]
 
         # Functional Units and Branch Prediction
         riscvminorcpu.executeFuncUnits = self.CustomU74FUPool(

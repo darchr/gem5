@@ -53,7 +53,7 @@ board = RISCVMatchedBoard(
     clk_freq="1.2GHz",
     l2_size="2MB",
     is_fs=False,
-    config_json="example/example.json",
+    config_json="./configured_80_1.json",
 )
 
 board.set_se_binary_workload(

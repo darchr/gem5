@@ -1,0 +1,1 @@
+{"memory": "128GB", "clf_freq": "1.2GHz", "l2_size": "16MiB", "RiscvRTC() frequency": "100MHz", "self.disk RiscvMmioVirtIO pio_size": 9182, "self.rng pio_size": 9182, "self.bridge delay": "100ns", "pci_state addr_cells": 3, "pci_state size_cells": 2, "pci_state cpu_cells": 1, "pci_state interrupt_cells": 2}
