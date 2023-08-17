@@ -4,7 +4,7 @@
         "fetch1LineSnapWidth" : [0, 4],
         "fetch1LineWidth" : [0,2],
         "fetch1FetchLimit" : [1, 3],
-        "fetch1ToFetch2ForwardDelay" : [1, 4],
+        "fetch1ToFetch2ForwardDelay": [1, 4],
         "fetch1ToFetch2BackwardDelay" : [0, 2],
         "fetch2InputBufferSize" : [1, 8],
         "fetch2ToDecodeForwardDelay" : [1,5],

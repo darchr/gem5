@@ -292,9 +292,11 @@ class U74Core(BaseCPUCore):
             riscvminorcpu.fetch1LineSnapWidth = 4  #   HARDCODED
 
         riscvminorcpu.fetch1FetchLimit = config_json["fetch1FetchLimit"]
+        # riscvminorcpu.fetch1ToFetch2ForwardDelay = config_json["fetch1ToFetch2ForwardDelay"]
         riscvminorcpu.fetch1ToFetch2ForwardDelay = config_json[
             "fetch1ToFetch2ForwardDelay"
         ]
+
         riscvminorcpu.fetch1ToFetch2BackwardDelay = config_json[
             "fetch1ToFetch2BackwardDelay"
         ]

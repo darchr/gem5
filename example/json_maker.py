@@ -68,25 +68,30 @@ def file_maker(matrix_size, pb_row, in_file, foldover):
             all_run_settings.append(line)
         # print(type(run_settings))
         # print(all_run_settings)
-        print(all_run_settings[pb_row])
+        fold_row = all_run_settings[pb_row]
+        if foldover == 1:
+            for i, num in enumerate(fold_row):
+                if num == "1":
+                    fold_row[i] = "-1"
+                elif num == "-1":
+                    fold_row[i] = "1"
+                else:
+                    print(
+                        "Error: value that is not 1 or -1 encountered in run_settings"
+                    )
+        print(fold_row)
 
     with open(in_file, "r") as high_low_json, open(
-        f"./configured_jsons/{matrix_size}_{pb_row}_{foldover}.json", "w"
+        f"./configured_jsons/{foldover}_{pb_row}_{matrix_size}.json", "w"
     ) as configured_json:
-        # aa = high_low_json.readline()
-        # print (aa)
         high_low = json.load(high_low_json)
-        # print(high_low)
-        # for i, param in enumerate(high_low):
-        configured_dict = configure_dictionary(
-            high_low, all_run_settings[pb_row], foldover
-        )
+        configured_dict = configure_dictionary(high_low, fold_row)
         # configured_dict = configure_dictionary(test_dict, test_settings)
         # print(configured_dict)
         configured_json.write(json.dumps(configured_dict[0]))
 
 
-def configure_dictionary(high_low_dict, run_settings, foldover):
+def configure_dictionary(high_low_dict, run_settings):
     ret_dict = {}
     settings_index = 0
     for param, value in high_low_dict.items():
@@ -96,21 +101,14 @@ def configure_dictionary(high_low_dict, run_settings, foldover):
             # print("settings_index: ",settings_index)
             # print(run_settings_slice)
             # Use a temporary variable b/c the function returns 2 values
-            unpack = configure_dictionary(value, run_settings_slice, foldover)
+            unpack = configure_dictionary(value, run_settings_slice)
             ret_dict[param] = unpack[0]
             settings_index += unpack[1]
         elif isinstance(value, list):
             if run_settings[settings_index] == "-1":
-                if foldover == 0:
-                    ret_dict[param] = value[0]
-                else:
-                    ret_dict[param] = value[1]
+                ret_dict[param] = value[0]
             elif run_settings[settings_index] == "1":
-                if foldover == 0:
-                    ret_dict[param] = value[1]
-                else:
-                    ret_dict[param] = value[0]
-                # ret_dict[param] = value[0]
+                ret_dict[param] = value[1]
             else:
                 print(
                     "Error: value that is not 1 or -1 encountered in run_settings"

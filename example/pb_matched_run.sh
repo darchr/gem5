@@ -1,20 +1,31 @@
-
+FOLDOVER=1
+ROW=3
 SIZE=40
-ROW=1
 FILE="edited_params.json"
-FOLDOVER=0
+BENCHMARK="riscv-dptd"
+
+#"riscv-ccm"
 
 #echo "Now running: benchmark=${BENCHMARK}, synthetic=${SYNTH}, and size=${SIZE}"
 
-
-echo "Now running: PB matrix size = ${SIZE}, PB matrix row = ${ROW}, foldover = ${FOLDOVER}"
+echo "Now running: foldover = ${FOLDOVER}, PB matrix row = ${ROW}, PB matrix size = ${SIZE}"
 
 echo "Foldover = ${FOLDOVER}, so the row number in the foldover matrix is" $((($SIZE*$FOLDOVER)+$ROW))
 
+#check if directory exists for
+if [ ! -d ./matched_board_tests/$BENCHMARK ]; then
+    mkdir ./matched_board_tests/$BENCHMARK
+fi
+
+if [ ! -d ./matched_board_tests/$BENCHMARK/${FOLDOVER}_${ROW}_${SIZE} ]; then
+    mkdir ./matched_board_tests/$BENCHMARK/${FOLDOVER}_${ROW}_${SIZE}
+fi
+
 #generate configured json
-python3 json_maker.py --matrix_size=${SIZE} --pb_row=${ROW} --file=${FILE} --foldover=${FOLDOVER} --nums="one"
+python3 json_maker.py --foldover=${FOLDOVER} --pb_row=${ROW} --matrix_size=${SIZE}  --file=${FILE}  --nums="one"
+
 # run simulation. Redirect terminal output
-/scr/bees/pb-test-board/build/RISCV/gem5.opt --outdir=matched_board_tests simple-config.py --matrix_size=$SIZE --pb_row=$ROW --foldover=$FOLDOVER  > ./matched_board_tests/${SIZE}_${ROW}_${FOLDOVER}_terminal.txt
+/scr/bees/pb-test-board/build/RISCV/gem5.opt --outdir=matched_board_tests/${BENCHMARK}/${FOLDOVER}_${ROW}_${SIZE} simple-config.py --benchmark=${BENCHMARK} --foldover=$FOLDOVER --pb_row=$ROW --matrix_size=$SIZE  > ./matched_board_tests/${BENCHMARK}/${FOLDOVER}_${ROW}_${SIZE}/terminal.txt
 
 
 

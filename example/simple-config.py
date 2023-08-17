@@ -73,6 +73,13 @@ parser.add_argument(
     help="Choose a row of the PB design to use to create a configuration json.",
 )
 
+parser.add_argument(
+    "--benchmark",
+    required=True,
+    help="Choose a benchmark from gem5 Resources, or specify a filepath to a local benchmark. Options include riscv-print-this, riscv-ccm, etc.",
+)
+
+
 args = parser.parse_args()
 
 
@@ -81,11 +88,11 @@ board = RISCVMatchedBoard(
     clk_freq="1.2GHz",
     l2_size="2MB",
     is_fs=False,
-    config_json=f"./configured_jsons/{args.matrix_size}_{args.pb_row}_{args.foldover}.json",
+    config_json=f"./configured_jsons/{args.foldover}_{args.pb_row}_{args.matrix_size}.json",
 )
 
 board.set_se_binary_workload(
-    binary=obtain_resource(resource_id="riscv-print-this"),
+    binary=obtain_resource(resource_id=args.benchmark),
     arguments=["sample", "100"],
 )
 
