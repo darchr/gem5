@@ -286,92 +286,54 @@ class U74Core(BaseCPUCore):
         riscvminorcpu.threadPolicy = config_json["threadPolicy"]
 
         # Fetch1 stage
-        riscvminorcpu.fetch1LineSnapWidth = config_json["fetch1LineSnapWidth"]
-        riscvminorcpu.fetch1LineWidth = config_json["fetch1LineWidth"]
-        if config_json["fetch1LineSnapWidth"] < config_json["fetch1LineWidth"]:
-            riscvminorcpu.fetch1LineSnapWidth = 4  #   HARDCODED
+        riscvminorcpu.fetch1LineSnapWidth = 0
+        riscvminorcpu.fetch1LineWidth = 0
+        # if config_json["fetch1LineSnapWidth"] < config_json["fetch1LineWidth"]:
+        #     riscvminorcpu.fetch1LineSnapWidth = 4  #   HARDCODED
 
-        riscvminorcpu.fetch1FetchLimit = config_json["fetch1FetchLimit"]
+        riscvminorcpu.fetch1FetchLimit = 1
         # riscvminorcpu.fetch1ToFetch2ForwardDelay = config_json["fetch1ToFetch2ForwardDelay"]
-        riscvminorcpu.fetch1ToFetch2ForwardDelay = config_json[
-            "fetch1ToFetch2ForwardDelay"
-        ]
+        riscvminorcpu.fetch1ToFetch2ForwardDelay = 1
 
-        riscvminorcpu.fetch1ToFetch2BackwardDelay = config_json[
-            "fetch1ToFetch2BackwardDelay"
-        ]
+        riscvminorcpu.fetch1ToFetch2BackwardDelay = 0
 
         # Fetch2 stage
-        riscvminorcpu.fetch2InputBufferSize = config_json[
-            "fetch2InputBufferSize"
-        ]
-        riscvminorcpu.fetch2ToDecodeForwardDelay = config_json[
-            "fetch2ToDecodeForwardDelay"
-        ]
-        riscvminorcpu.fetch2CycleInput = (
-            True  # config_json["fetch2CycleInput"]
-        )
+        riscvminorcpu.fetch2InputBufferSize = 1
+        riscvminorcpu.fetch2ToDecodeForwardDelay = 1
+        riscvminorcpu.fetch2CycleInput = True
 
         # Decode stage
-        riscvminorcpu.decodeInputBufferSize = config_json[
-            "decodeInputBufferSize"
-        ]
-        riscvminorcpu.decodeToExecuteForwardDelay = config_json[
-            "decodeToExecuteForwardDelay"
-        ]
-        riscvminorcpu.decodeInputWidth = config_json["decodeInputWidth"]
-        riscvminorcpu.decodeCycleInput = (
-            True  # config_json["decodeCycleInput"]
-        )
+        riscvminorcpu.decodeInputBufferSize = 2
+        riscvminorcpu.decodeToExecuteForwardDelay = 1
+        riscvminorcpu.decodeInputWidth = 2
+        riscvminorcpu.decodeCycleInput = True
 
         # Execute stage
-        riscvminorcpu.executeInputWidth = config_json["executeInputWidth"]
-        riscvminorcpu.executeCycleInput = (
-            True  # config_json["executeCycleInput"]
-        )
+        riscvminorcpu.executeInputWidth = 2
+        riscvminorcpu.executeCycleInput = True
 
-        riscvminorcpu.executeIssueLimit = config_json["executeIssueLimit"]
-        riscvminorcpu.executeMemoryIssueLimit = config_json[
-            "executeMemoryIssueLimit"
-        ]
-        if (
-            config_json["executeMemoryIssueLimit"]
-            > config_json["executeIssueLimit"]
-        ):
-            riscvminorcpu.executeMemoryIssueLimit = 1
+        riscvminorcpu.executeIssueLimit = 2
+        riscvminorcpu.executeMemoryIssueLimit = 1
+        # if (
+        #     config_json["executeMemoryIssueLimit"]
+        #     > config_json["executeIssueLimit"]
+        # ):
+        #     riscvminorcpu.executeMemoryIssueLimit = 1
 
-        riscvminorcpu.executeCommitLimit = config_json["executeCommitLimit"]
-        riscvminorcpu.executeMemoryCommitLimit = config_json[
-            "executeMemoryCommitLimit"
-        ]
-        riscvminorcpu.executeInputBufferSize = config_json[
-            "executeInputBufferSize"
-        ]
-        riscvminorcpu.executeMaxAccessesInMemory = config_json[
-            "executeMaxAccessesInMemory"
-        ]
-        riscvminorcpu.executeLSQMaxStoreBufferStoresPerCycle = config_json[
-            "executeLSQMaxStoreBufferStoresPerCycle"
-        ]
-        riscvminorcpu.executeLSQRequestsQueueSize = config_json[
-            "executeLSQRequestsQueueSize"
-        ]
-        riscvminorcpu.executeLSQTransfersQueueSize = config_json[
-            "executeLSQTransfersQueueSize"
-        ]
-        riscvminorcpu.executeLSQStoreBufferSize = config_json[
-            "executeLSQStoreBufferSize"
-        ]
-        riscvminorcpu.executeBranchDelay = config_json["executeBranchDelay"]
-        # riscvminorcpu.executeSetTraceTimeOnCommit = config_json["executeSetTraceTimeOnCommit"]
+        riscvminorcpu.executeCommitLimit = 2
+        riscvminorcpu.executeMemoryCommitLimit = 1
+        riscvminorcpu.executeInputBufferSize = 4
+        riscvminorcpu.executeMaxAccessesInMemory = 1
+        riscvminorcpu.executeLSQMaxStoreBufferStoresPerCycle = 2
+        riscvminorcpu.executeLSQRequestsQueueSize = 1
+        riscvminorcpu.executeLSQTransfersQueueSize = 2
+        riscvminorcpu.executeLSQStoreBufferSize = 3
+        riscvminorcpu.executeBranchDelay = 2
+
         riscvminorcpu.executeSetTraceTimeOnCommit = True
-
-        # riscvminorcpu.executeSetTraceTimeOnIssue = config_json["executeSetTraceTimeOnIssue"]
         riscvminorcpu.executeSetTraceTimeOnIssue = False
-        riscvminorcpu.executeAllowEarlyMemoryIssue = (
-            True  # config_json["executeAllowEarlyMemoryIssue"]
-        )
-        riscvminorcpu.enableIdling = False  # config_json["enableIdling"]
+        riscvminorcpu.executeAllowEarlyMemoryIssue = True
+        riscvminorcpu.enableIdling = False
 
         # Functional Units and Branch Prediction
         riscvminorcpu.executeFuncUnits = self.CustomU74FUPool(
