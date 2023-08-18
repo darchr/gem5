@@ -42,7 +42,7 @@ from gem5.prebuilt.riscvmatched.riscvmatched_board import RISCVMatchedBoard
 from gem5.utils.requires import requires
 from gem5.isas import ISA
 from gem5.simulate.simulator import Simulator
-from gem5.resources.resource import obtain_resource
+from gem5.resources.resource import obtain_resource, BinaryResource
 
 import argparse
 
@@ -55,7 +55,7 @@ parser.add_argument(
     required=True,
     type=int,
     help="Select an integer value for the size of the Hadamard matrix/ PB Design to use.",
-    choices=[4, 12, 40, 48, 80],
+    choices=[4, 12, 16, 40, 48, 80],
 )
 
 parser.add_argument(
@@ -76,7 +76,7 @@ parser.add_argument(
 parser.add_argument(
     "--benchmark",
     required=True,
-    help="Choose a benchmark from gem5 Resources, or specify a filepath to a local benchmark. Options include riscv-print-this, riscv-ccm, etc.",
+    help="Choose a benchmark from gem5 Resources, or specify a filepath to a local benchmark.",
 )
 
 
@@ -91,10 +91,21 @@ board = RISCVMatchedBoard(
     config_json=f"./configured_jsons/{args.foldover}_{args.pb_row}_{args.matrix_size}.json",
 )
 
-board.set_se_binary_workload(
-    binary=obtain_resource(resource_id=args.benchmark),
-    arguments=["sample", "100"],
-)
+if args.benchmark == "riscv-bubblesort":
+    board.set_se_binary_workload(
+        binary=BinaryResource("./test-binaries/Bubblesort")
+    )
+
+elif args.benchmark == "riscv-floatmm":
+    board.set_se_binary_workload(
+        binary=BinaryResource("./test-binaries/FloatMM")
+    )
+# elif args.benchmark == "riscv-print-this":
+else:
+    board.set_se_binary_workload(
+        binary=obtain_resource(resource_id=args.benchmark),
+        arguments=["sample", "100"],
+    )
 
 simulator = Simulator(board=board)
 simulator.run()

@@ -1,12 +1,10 @@
 FOLDOVER=1
-ROW=3
-SIZE=40
-FILE="edited_params.json"
-BENCHMARK="riscv-dptd"
-
+ROW=15
+SIZE=16
+FILE="nopipe_params.json"
+BENCHMARK="riscv-hello"
 #"riscv-ccm"
 
-#echo "Now running: benchmark=${BENCHMARK}, synthetic=${SYNTH}, and size=${SIZE}"
 
 echo "Now running: foldover = ${FOLDOVER}, PB matrix row = ${ROW}, PB matrix size = ${SIZE}"
 
@@ -24,11 +22,17 @@ fi
 #generate configured json
 python3 json_maker.py --foldover=${FOLDOVER} --pb_row=${ROW} --matrix_size=${SIZE}  --file=${FILE}  --nums="one"
 
-# run simulation. Redirect terminal output
-/scr/bees/pb-test-board/build/RISCV/gem5.opt --outdir=matched_board_tests/${BENCHMARK}/${FOLDOVER}_${ROW}_${SIZE} simple-config.py --benchmark=${BENCHMARK} --foldover=$FOLDOVER --pb_row=$ROW --matrix_size=$SIZE  > ./matched_board_tests/${BENCHMARK}/${FOLDOVER}_${ROW}_${SIZE}/terminal.txt
 
+for i in {1..3}
+do
+    if [ ! -d ./matched_board_tests/$BENCHMARK/${FOLDOVER}_${ROW}_${SIZE}/${i} ]; then
+        mkdir ./matched_board_tests/$BENCHMARK/${FOLDOVER}_${ROW}_${SIZE}/${i}
+    fi
 
+    # run simulation. Redirect terminal output
+    /scr/bees/pb-test-board/build/RISCV/gem5.opt --outdir=matched_board_tests/${BENCHMARK}/${FOLDOVER}_${ROW}_${SIZE}/${i} simple-config.py --benchmark=${BENCHMARK} --foldover=$FOLDOVER --pb_row=$ROW --matrix_size=$SIZE  > ./matched_board_tests/${BENCHMARK}/${FOLDOVER}_${ROW}_${SIZE}/${i}/terminal.txt
 
+done
 
 # echo test_disk_2 $BENCHMARK $SYNTH $SIZE $START_PROC $SWITCH_PROC >> arg_combos.txt
 

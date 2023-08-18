@@ -1,0 +1,1 @@
+{"core": {"threadPolicy": "SingleThreaded", "BP": {"BPChoice": "Tournament"}, "FUPool": {"U74IntFU": 1, "U74IntMulFU": 9, "U74IntDivFU": 18, "U74MemReadFU": 2, "U74MemWriteFU": 6}}, "cache": {"l2_size": "2MiB", "l2_assoc": 64, "l1dcache-response_latency": 1, "l2cache-data_latency": 20, "iptw_caches-size": "4KiB", "dptw_caches-size": "4KiB"}}

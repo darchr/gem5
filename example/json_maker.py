@@ -9,7 +9,7 @@ def main():
         required=True,
         type=int,
         help="Select an integer value for the size of the Hadamard matrix/ PB Design to use.",
-        choices=[4, 12, 40, 48, 80],
+        choices=[4, 12, 16, 40, 48, 80],
     )
     parser.add_argument(
         "--pb_row",
@@ -21,7 +21,12 @@ def main():
         "--file",
         required=True,
         help="Select file to make a configuration json from.",
-        choices=["example.json", "example_core.json", "edited_params.json"],
+        choices=[
+            "example.json",
+            "example_core.json",
+            "edited_params.json",
+            "nopipe_params.json",
+        ],
     )
     parser.add_argument(
         "--foldover",
@@ -98,8 +103,6 @@ def configure_dictionary(high_low_dict, run_settings):
         if isinstance(value, dict):
             print(param)
             run_settings_slice = run_settings[settings_index:]
-            # print("settings_index: ",settings_index)
-            # print(run_settings_slice)
             # Use a temporary variable b/c the function returns 2 values
             unpack = configure_dictionary(value, run_settings_slice)
             ret_dict[param] = unpack[0]
