@@ -72,7 +72,7 @@ class BaseMemoryEngine : public ClockedObject
 
         public:
         MemPort(const std::string& name, BaseMemoryEngine* owner):
-            RequestPort(name, owner), owner(owner),
+            RequestPort(name), owner(owner),
             _blocked(false), blockedPacket(nullptr)
         {}
 

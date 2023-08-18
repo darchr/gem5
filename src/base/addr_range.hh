@@ -748,6 +748,7 @@ class AddrRange
             return AddrRange(0, 0);
         }
         return AddrRange(start, end);
+    }
 
     friend AddrRange
     mergePseudoChannelRanges(AddrRange left, AddrRange right, int pch_bit)

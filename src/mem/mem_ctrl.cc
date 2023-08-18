@@ -211,7 +211,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
     for (int cnt = 0; cnt < pkt_count; ++cnt) {
         unsigned size = std::min((addr | (burst_size - 1)) + 1,
                         base_addr + pkt->getSize()) - addr;
-        // stats.readPktSize[ceilLog2(size)]++;
+        stats.readPktSize[ceilLog2(size)]++;
         stats.readBursts++;
         stats.requestorReadAccesses[pkt->requestorId()]++;
 
@@ -767,11 +767,7 @@ MemCtrl::verifyMultiCmd(Tick cmd_tick, Tick max_cmds_per_burst,
 }
 
 bool
-<<<<<<< HEAD
 MemCtrl::inReadBusState(bool next_state, const MemInterface* mem_intr) const
-=======
-MemCtrl::inReadBusState(bool next_state, MemInterface* mem_intr) const
->>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
 {
     // check the bus state
     if (next_state) {
@@ -784,11 +780,7 @@ MemCtrl::inReadBusState(bool next_state, MemInterface* mem_intr) const
 }
 
 bool
-<<<<<<< HEAD
 MemCtrl::inWriteBusState(bool next_state, const MemInterface* mem_intr) const
-=======
-MemCtrl::inWriteBusState(bool next_state, MemInterface* mem_intr) const
->>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
 {
     // check the bus state
     if (next_state) {
@@ -909,24 +901,14 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
     if (switched_cmd_type) {
         if (mem_intr->busState == MemCtrl::READ) {
             DPRINTF(MemCtrl,
-<<<<<<< HEAD
             "Switching to writes after %d reads with %d reads "
             "waiting\n", mem_intr->readsThisTime, mem_intr->readQueueSize);
-=======
-                    "Switching to writes after %d reads with %d reads "
-                    "waiting\n", mem_intr->readsThisTime, mem_intr->readQueueSize);
->>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
             stats.rdPerTurnAround.sample(mem_intr->readsThisTime);
             mem_intr->readsThisTime = 0;
         } else {
             DPRINTF(MemCtrl,
-<<<<<<< HEAD
             "Switching to reads after %d writes with %d writes "
             "waiting\n", mem_intr->writesThisTime, mem_intr->writeQueueSize);
-=======
-                    "Switching to reads after %d writes with %d writes "
-                    "waiting\n", mem_intr->writesThisTime, mem_intr->writeQueueSize);
->>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
             stats.wrPerTurnAround.sample(mem_intr->writesThisTime);
             mem_intr->writesThisTime = 0;
         }
@@ -1055,12 +1037,8 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // Also ensure that we've issued a minimum defined number
             // of reads before switching, or have emptied the readQ
             if ((mem_intr->writeQueueSize > writeHighThreshold) &&
-<<<<<<< HEAD
                (mem_intr->readsThisTime >= minReadsPerSwitch ||
                mem_intr->readQueueSize == 0)
-=======
-               (mem_intr->readsThisTime >= minReadsPerSwitch || mem_intr->readQueueSize == 0)
->>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
                && !(nvmWriteBlock(mem_intr))) {
                 switch_to_writes = true;
             }
@@ -1449,14 +1427,8 @@ MemCtrl::drain()
 {
     // if there is anything in any of our internal queues, keep track
     // of that as well
-<<<<<<< HEAD
     if (totalWriteQueueSize || totalReadQueueSize || !respQEmpty() ||
           !allIntfDrained()) {
-=======
-    if (!(!totalWriteQueueSize && !totalReadQueueSize && respQEmpty() &&
-          allIntfDrained())) {
-
->>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
         DPRINTF(Drain, "Memory controller not drained, write: %d, read: %d,"
                 " resp: %d\n", totalWriteQueueSize, totalReadQueueSize,
                 respQueue.size());

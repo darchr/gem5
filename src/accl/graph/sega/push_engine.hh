@@ -57,8 +57,7 @@ class PushEngine : public BaseMemoryEngine
 
       public:
         ReqPort(const std::string& name, PushEngine* owner, PortID id) :
-          RequestPort(name, owner),
-          owner(owner), blockedPacket(nullptr), _id(id)
+          RequestPort(name), owner(owner), blockedPacket(nullptr), _id(id)
         {}
         void sendPacket(PacketPtr pkt);
         bool blocked() { return (blockedPacket != nullptr); }

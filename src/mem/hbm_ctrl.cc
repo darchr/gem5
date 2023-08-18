@@ -45,8 +45,7 @@ namespace memory
 
 HBMCtrl::HBMCtrl(const HBMCtrlParams &p) :
     MemCtrl(p),
-    pchBit(p.pch_bit),
-    retryRdReqPC1(false), retryWrReqPC1(false),
+    retryRdReqPC1(false), retryWrReqPC1(false), pchBit(p.pch_bit),
     nextReqEventPC1([this] {processNextReqEvent(pc1Int, respQueuePC1,
                          respondEventPC1, nextReqEventPC1, retryWrReqPC1);},
                          name()),
@@ -289,11 +288,7 @@ HBMCtrl::recvTimingReq(PacketPtr pkt)
             if (readQueueFullPC0(pkt_count)) {
                 DPRINTF(MemCtrl, "Read queue full, not accepting\n");
                 // remember that we have to retry this port
-<<<<<<< HEAD
                 retryRdReq = true;
-=======
-                MemCtrl::retryRdReq = true;
->>>>>>> mem: HBMCtrl changes to allow PC data buses to be in different states
                 stats.numRdRetry++;
                 return false;
             } else {
