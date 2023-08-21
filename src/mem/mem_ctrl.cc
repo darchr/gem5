@@ -211,7 +211,7 @@ MemCtrl::addToReadQueue(PacketPtr pkt,
     for (int cnt = 0; cnt < pkt_count; ++cnt) {
         unsigned size = std::min((addr | (burst_size - 1)) + 1,
                         base_addr + pkt->getSize()) - addr;
-        stats.readPktSize[ceilLog2(size)]++;
+        // stats.readPktSize[ceilLog2(size)]++;
         stats.readBursts++;
         stats.requestorReadAccesses[pkt->requestorId()]++;
 
@@ -1213,8 +1213,8 @@ MemCtrl::CtrlStats::CtrlStats(MemCtrl &_ctrl)
     ADD_STAT(numWrRetry, statistics::units::Count::get(),
              "Number of times write queue was full causing retry"),
 
-    ADD_STAT(readPktSize, statistics::units::Count::get(),
-             "Read request sizes (log2)"),
+    // ADD_STAT(readPktSize, statistics::units::Count::get(),
+    //          "Read request sizes (log2)"),
     ADD_STAT(writePktSize, statistics::units::Count::get(),
              "Write request sizes (log2)"),
 
@@ -1286,7 +1286,7 @@ MemCtrl::CtrlStats::regStats()
     avgRdQLen.precision(2);
     avgWrQLen.precision(2);
 
-    readPktSize.init(ceilLog2(ctrl.system()->cacheLineSize()) + 1);
+    // readPktSize.init(ceilLog2(ctrl.system()->cacheLineSize()) + 1);
     writePktSize.init(ceilLog2(ctrl.system()->cacheLineSize()) + 1);
 
     rdQLenPdf.init(ctrl.readBufferSize);
