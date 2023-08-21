@@ -29,26 +29,18 @@ import m5
 import argparse
 
 from m5.objects import *
+from sega import SEGA
 
 
 def get_inputs():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("num_gpts", type=int)
-    argparser.add_argument("num_registers", type=int)
     argparser.add_argument("cache_size", type=str)
     argparser.add_argument("graph", type=str)
     argparser.add_argument("iterations", type=int)
     argparser.add_argument("alpha", type=float)
     argparser.add_argument("--num_nodes", type=int, default=1)
     argparser.add_argument("--error_threshold", type=float, default=0.0)
-    argparser.add_argument(
-        "--simple",
-        dest="simple",
-        action="store_const",
-        const=True,
-        default=False,
-        help="Use simple memory for vertex",
-    )
     argparser.add_argument(
         "--sample",
         dest="sample",
@@ -70,14 +62,12 @@ def get_inputs():
 
     return (
         args.num_gpts,
-        args.num_registers,
         args.cache_size,
         args.graph,
         args.iterations,
         args.alpha,
         args.num_nodes,
         args.error_threshold,
-        args.simple,
         args.sample,
         args.verify,
     )
@@ -86,25 +76,19 @@ def get_inputs():
 if __name__ == "__m5_main__":
     (
         num_gpts,
-        num_registers,
         cache_size,
         graph,
         iterations,
         alpha,
         num_nodes,
         error_threshold,
-        simple,
         sample,
         verify,
     ) = get_inputs()
 
     print(f"error_threshold: {error_threshold}")
 
-    if simple:
-        from sega_simple import SEGA
-    else:
-        from sega import SEGA
-    system = SEGA(num_gpts, num_registers, cache_size, graph)
+    system = SEGA(num_gpts, cache_size, graph)
     root = Root(full_system=False, system=system)
 
     m5.instantiate()
@@ -112,6 +96,7 @@ if __name__ == "__m5_main__":
     system.set_bsp_mode()
     system.create_pop_count_directory(64)
     system.create_pr_workload(num_nodes, alpha)
+    iteration = 0
     if sample:
         while True:
             exit_event = m5.simulate(100000000)
@@ -124,7 +109,6 @@ if __name__ == "__m5_main__":
             if exit_event.getCause() != "simulate() limit reached":
                 break
     else:
-        iteration = 0
         while iteration < iterations:
             exit_event = m5.simulate()
             print(

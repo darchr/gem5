@@ -43,7 +43,7 @@ def interleave_addresses(plain_range, num_channels, cache_line_size):
                 intlvMatch=i,
             )
         )
-    return ret
+    return ret, intlv_low_bit + intlv_bits - 1
 
 
 class GPT(SubSystem):
@@ -75,8 +75,9 @@ class GPT(SubSystem):
             update_queue_size=64,
         )
 
-        self.vertex_mem_ctrl = SimpleMemory(
-            latency="120ns", bandwidth="256GiB/s"
+        self.vertex_mem_ctrl = HBMCtrl(
+            dram=HBM_2000_4H_1x64(),
+            dram_2=HBM_2000_4H_1x64(),
         )
         self.coalesce_engine.mem_port = self.vertex_mem_ctrl.port
 
@@ -104,8 +105,12 @@ class GPT(SubSystem):
     def setEdgeMemPort(self, port):
         self.push_engine.mem_port = port
 
-    def set_vertex_range(self, vertex_range):
-        self.vertex_mem_ctrl.range = vertex_range
+    def set_vertex_range(self, vertex_ranges):
+        self.vertex_mem_ctrl.dram.range = vertex_ranges[0]
+        self.vertex_mem_ctrl.dram_2.range = vertex_ranges[1]
+
+    def set_vertex_pch_bit(self, pch_bit):
+        self.vertex_mem_ctrl.pch_bit = pch_bit
 
 
 class EdgeMemory(SubSystem):
@@ -183,6 +188,8 @@ class SEGA(System):
         assert num_gpts % 2 == 0
         assert (num_gpts & (num_gpts - 1)) == 0
 
+        self._num_gpts = num_gpts
+
         self.clk_domain = SrcClockDomain()
         self.clk_domain.clock = "2GHz"
         self.clk_domain.voltage_domain = VoltageDomain()
@@ -194,18 +201,21 @@ class SEGA(System):
 
         edge_mem = []
         for i in range(int(num_gpts / 2)):
-            mem = EdgeMemory("16GiB")
+            mem = EdgeMemory("4GiB")
             mem.set_image(f"{graph_path}/edgelist_{i}")
             edge_mem.append(mem)
         self.edge_mem = edge_mem
         # Building the GPTs
-        vertex_ranges = interleave_addresses(
-            AddrRange(start=0, size="4GiB"), num_gpts, 32
+        vertex_ranges, pch_bit = interleave_addresses(
+            AddrRange(start=0, size="4GiB"), 2 * num_gpts, 32
         )
         gpts = []
         for i in range(num_gpts):
             gpt = GPT(num_registers, cache_size)
-            gpt.set_vertex_range(vertex_ranges[i])
+            gpt.set_vertex_range(
+                [vertex_ranges[i], vertex_ranges[i + num_gpts]]
+            )
+            gpt.set_vertex_pch_bit(pch_bit)
             gpt.setEdgeMemPort(
                 self.edge_mem[i % (int(num_gpts / 2))].getPort()
             )
@@ -265,3 +275,6 @@ class SEGA(System):
 
     def print_answer(self):
         self.ctrl.controller.printAnswerToHostSimout()
+
+    def get_num_gpts(self):
+        return self._num_gpts

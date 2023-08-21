@@ -29,12 +29,12 @@ import m5
 import argparse
 
 from m5.objects import *
+from sega import SEGA
 
 
 def get_inputs():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("num_gpts", type=int)
-    argparser.add_argument("num_registers", type=int)
     argparser.add_argument("cache_size", type=str)
     argparser.add_argument("graph", type=str)
     argparser.add_argument("init_addr", type=int)
@@ -64,22 +64,6 @@ def get_inputs():
         help="Use visitation version of BFS",
     )
     argparser.add_argument(
-        "--simple",
-        dest="simple",
-        action="store_const",
-        const=True,
-        default=False,
-        help="Use simple memory for vertex",
-    )
-    argparser.add_argument(
-        "--dsimple",
-        dest="dsimple",
-        action="store_const",
-        const=True,
-        default=False,
-        help="Use simple memory for both vertex and edge",
-    )
-    argparser.add_argument(
         "--sample",
         dest="sample",
         action="store_const",
@@ -100,7 +84,6 @@ def get_inputs():
 
     return (
         args.num_gpts,
-        args.num_registers,
         args.cache_size,
         args.graph,
         args.init_addr,
@@ -108,8 +91,6 @@ def get_inputs():
         args.tile,
         args.best,
         args.visited,
-        args.simple,
-        args.dsimple,
         args.sample,
         args.verify,
     )
@@ -118,7 +99,6 @@ def get_inputs():
 if __name__ == "__m5_main__":
     (
         num_gpts,
-        num_registers,
         cache_size,
         graph,
         init_addr,
@@ -126,24 +106,11 @@ if __name__ == "__m5_main__":
         tile,
         best,
         visited,
-        simple,
-        dsimple,
         sample,
         verify,
     ) = get_inputs()
 
-    if simple:
-        if dsimple:
-            raise ValueError("Can only pass either of --simple or --dsimple")
-        from sega_simple import SEGA
-    elif dsimple:
-        if simple:
-            raise ValueError("Can only pass either of --simple or --dsimple")
-        from sega_double_simple import SEGA
-    else:
-        from sega import SEGA
-
-    system = SEGA(num_gpts, num_registers, cache_size, graph)
+    system = SEGA(num_gpts, cache_size, graph)
     if tile:
         system.set_aux_images(f"{graph}/mirrors", f"{graph}/mirrors_map")
 
