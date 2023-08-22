@@ -100,7 +100,6 @@ elif args.benchmark == "riscv-floatmm":
     board.set_se_binary_workload(
         binary=BinaryResource("./test-binaries/FloatMM")
     )
-# elif args.benchmark == "riscv-print-this":
 else:
     board.set_se_binary_workload(
         binary=obtain_resource(resource_id=args.benchmark),

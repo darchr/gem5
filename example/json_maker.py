@@ -44,6 +44,7 @@ def main():
 
     args = parser.parse_args()
 
+    # If you want to generate all JSONs at once. Currently unused.
     if args.nums == "all":
         for foldover in [0, 1]:
             for row in range(0, args.matrix_size):
@@ -54,7 +55,7 @@ def main():
                     foldover=foldover,
                 )
     else:
-        file_maker(
+        file_maker(  # Generate one JSON at a time
             matrix_size=args.matrix_size,
             pb_row=args.pb_row,
             in_file=args.file,
@@ -64,15 +65,14 @@ def main():
 
 def file_maker(matrix_size, pb_row, in_file, foldover):
     with open(f"./pb-designs/PB_{matrix_size}.txt", "r") as pb_file:
-        # with open("H_4.txt", "r") as pb_file:
         all_run_settings = []
+        # Read in the txt file with the Plackett Burman design
         for line in pb_file:
-            # temp = pb_file.readline()
             line = line.split(sep=",")
             line[-1] = line[-1].replace("\n", "")
             all_run_settings.append(line)
-        # print(type(run_settings))
-        # print(all_run_settings)
+
+        # If the row is part of the foldover matrix, change "1"s to "-1"s and vice versa
         fold_row = all_run_settings[pb_row]
         if foldover == 1:
             for i, num in enumerate(fold_row):
@@ -89,10 +89,11 @@ def file_maker(matrix_size, pb_row, in_file, foldover):
     with open(in_file, "r") as high_low_json, open(
         f"./configured_jsons/{foldover}_{pb_row}_{matrix_size}.json", "w"
     ) as configured_json:
+        # Get the JSON with a high and low value for each parameter
         high_low = json.load(high_low_json)
+        # Call a function to assign a high or low value for each parameter based on the values in fold_row
         configured_dict = configure_dictionary(high_low, fold_row)
-        # configured_dict = configure_dictionary(test_dict, test_settings)
-        # print(configured_dict)
+        # Write the resulting dictionary to a JSON file
         configured_json.write(json.dumps(configured_dict[0]))
 
 
@@ -100,6 +101,7 @@ def configure_dictionary(high_low_dict, run_settings):
     ret_dict = {}
     settings_index = 0
     for param, value in high_low_dict.items():
+        # If the parameter has a dictionary as value, call the function recursively.
         if isinstance(value, dict):
             print(param)
             run_settings_slice = run_settings[settings_index:]
@@ -107,6 +109,7 @@ def configure_dictionary(high_low_dict, run_settings):
             unpack = configure_dictionary(value, run_settings_slice)
             ret_dict[param] = unpack[0]
             settings_index += unpack[1]
+        # Base case
         elif isinstance(value, list):
             if run_settings[settings_index] == "-1":
                 ret_dict[param] = value[0]
@@ -124,8 +127,6 @@ def configure_dictionary(high_low_dict, run_settings):
     return ret_dict, settings_index
 
 
-# file_maker(40, 2, "edited_params.json", 1)
-# file_maker()
 main()
 
 
