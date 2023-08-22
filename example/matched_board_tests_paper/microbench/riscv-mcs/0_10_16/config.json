@@ -1,0 +1,2488 @@
+{
+    "type": "Root",
+    "cxx_class": "gem5::Root",
+    "name": null,
+    "path": "root",
+    "eventq_index": 0,
+    "full_system": false,
+    "sim_quantum": 0,
+    "time_sync_enable": false,
+    "time_sync_period": 100000000000,
+    "time_sync_spin_threshold": 100000000,
+    "board": {
+        "type": "System",
+        "cxx_class": "gem5::System",
+        "name": "board",
+        "path": "board",
+        "auto_unlink_shared_backstore": false,
+        "cache_line_size": 64,
+        "eventq_index": 0,
+        "exit_on_work_items": true,
+        "init_param": 0,
+        "m5ops_base": 0,
+        "mem_mode": "timing",
+        "mem_ranges": [
+            "0:17179869184"
+        ],
+        "memories": [
+            "board.memory.mem_ctrl.dram"
+        ],
+        "mmap_using_noreserve": false,
+        "multi_thread": false,
+        "num_work_ids": 16,
+        "readfile": "",
+        "redirect_paths": [],
+        "shadow_rom_ranges": [],
+        "shared_backstore": "",
+        "symbolfile": "",
+        "thermal_components": [],
+        "thermal_model": null,
+        "work_begin_ckpt_count": 0,
+        "work_begin_cpu_id_exit": -1,
+        "work_begin_exit_count": 0,
+        "work_cpus_ckpt_count": 0,
+        "work_end_ckpt_count": 0,
+        "work_end_exit_count": 0,
+        "work_item_id": -1,
+        "workload": {
+            "type": "RiscvEmuLinux",
+            "cxx_class": "gem5::RiscvISA::EmuLinux",
+            "name": "workload",
+            "path": "board.workload",
+            "eventq_index": 0,
+            "remote_gdb_port": "#7000",
+            "wait_for_remote_gdb": false
+        },
+        "cache_hierarchy": {
+            "type": "SubSystem",
+            "cxx_class": "gem5::SubSystem",
+            "name": "cache_hierarchy",
+            "path": "board.cache_hierarchy",
+            "eventq_index": 0,
+            "thermal_domain": null,
+            "dptw_caches": [
+                {
+                    "type": "Cache",
+                    "cxx_class": "gem5::Cache",
+                    "name": "dptw_caches",
+                    "path": "board.cache_hierarchy.dptw_caches",
+                    "addr_ranges": [
+                        "0:18446744073709551615"
+                    ],
+                    "assoc": 4,
+                    "clk_domain": "board.clk_domain",
+                    "clusivity": "mostly_incl",
+                    "compressor": null,
+                    "data_latency": 1,
+                    "demand_mshr_reserve": 1,
+                    "eventq_index": 0,
+                    "is_read_only": false,
+                    "max_miss_count": 0,
+                    "move_contractions": true,
+                    "mshrs": 20,
+                    "power_model": [],
+                    "power_state": {
+                        "type": "PowerState",
+                        "cxx_class": "gem5::PowerState",
+                        "name": "power_state",
+                        "path": "board.cache_hierarchy.dptw_caches.power_state",
+                        "clk_gate_bins": 20,
+                        "clk_gate_max": 1000000000000,
+                        "clk_gate_min": 1000,
+                        "default_state": "UNDEFINED",
+                        "eventq_index": 0,
+                        "leaders": [],
+                        "possible_states": []
+                    },
+                    "prefetch_on_access": false,
+                    "prefetch_on_pf_hit": false,
+                    "prefetcher": null,
+                    "replace_expansions": true,
+                    "replacement_policy": {
+                        "type": "LRURP",
+                        "cxx_class": "gem5::replacement_policy::LRU",
+                        "name": "replacement_policy",
+                        "path": "board.cache_hierarchy.dptw_caches.replacement_policy",
+                        "eventq_index": 0
+                    },
+                    "response_latency": 1,
+                    "sequential_access": false,
+                    "size": 4096,
+                    "system": "board",
+                    "tag_latency": 1,
+                    "tags": {
+                        "type": "BaseSetAssoc",
+                        "cxx_class": "gem5::BaseSetAssoc",
+                        "name": "tags",
+                        "path": "board.cache_hierarchy.dptw_caches.tags",
+                        "assoc": 4,
+                        "block_size": 64,
+                        "clk_domain": "board.clk_domain",
+                        "entry_size": 64,
+                        "eventq_index": 0,
+                        "indexing_policy": {
+                            "type": "SetAssociative",
+                            "cxx_class": "gem5::SetAssociative",
+                            "name": "indexing_policy",
+                            "path": "board.cache_hierarchy.dptw_caches.tags.indexing_policy",
+                            "assoc": 4,
+                            "entry_size": 64,
+                            "eventq_index": 0,
+                            "size": 4096
+                        },
+                        "power_model": [],
+                        "power_state": {
+                            "type": "PowerState",
+                            "cxx_class": "gem5::PowerState",
+                            "name": "power_state",
+                            "path": "board.cache_hierarchy.dptw_caches.tags.power_state",
+                            "clk_gate_bins": 20,
+                            "clk_gate_max": 1000000000000,
+                            "clk_gate_min": 1000,
+                            "default_state": "UNDEFINED",
+                            "eventq_index": 0,
+                            "leaders": [],
+                            "possible_states": []
+                        },
+                        "replacement_policy": "board.cache_hierarchy.dptw_caches.replacement_policy",
+                        "sequential_access": false,
+                        "size": 4096,
+                        "system": "board",
+                        "tag_latency": 1,
+                        "warmup_percentage": 0
+                    },
+                    "tgts_per_mshr": 12,
+                    "warmup_percentage": 0,
+                    "write_allocator": null,
+                    "write_buffers": 8,
+                    "writeback_clean": true,
+                    "cpu_side": {
+                        "role": "GEM5 RESPONDER",
+                        "peer": "board.processor.cores.core.mmu.dtb.walker.port",
+                        "is_source": "False"
+                    },
+                    "mem_side": {
+                        "role": "GEM5 REQUESTOR",
+                        "peer": "board.cache_hierarchy.l2bus.cpu_side_ports[3]",
+                        "is_source": "True"
+                    }
+                }
+            ],
+            "iptw_caches": [
+                {
+                    "type": "Cache",
+                    "cxx_class": "gem5::Cache",
+                    "name": "iptw_caches",
+                    "path": "board.cache_hierarchy.iptw_caches",
+                    "addr_ranges": [
+                        "0:18446744073709551615"
+                    ],
+                    "assoc": 4,
+                    "clk_domain": "board.clk_domain",
+                    "clusivity": "mostly_incl",
+                    "compressor": null,
+                    "data_latency": 1,
+                    "demand_mshr_reserve": 1,
+                    "eventq_index": 0,
+                    "is_read_only": false,
+                    "max_miss_count": 0,
+                    "move_contractions": true,
+                    "mshrs": 20,
+                    "power_model": [],
+                    "power_state": {
+                        "type": "PowerState",
+                        "cxx_class": "gem5::PowerState",
+                        "name": "power_state",
+                        "path": "board.cache_hierarchy.iptw_caches.power_state",
+                        "clk_gate_bins": 20,
+                        "clk_gate_max": 1000000000000,
+                        "clk_gate_min": 1000,
+                        "default_state": "UNDEFINED",
+                        "eventq_index": 0,
+                        "leaders": [],
+                        "possible_states": []
+                    },
+                    "prefetch_on_access": false,
+                    "prefetch_on_pf_hit": false,
+                    "prefetcher": null,
+                    "replace_expansions": true,
+                    "replacement_policy": {
+                        "type": "LRURP",
+                        "cxx_class": "gem5::replacement_policy::LRU",
+                        "name": "replacement_policy",
+                        "path": "board.cache_hierarchy.iptw_caches.replacement_policy",
+                        "eventq_index": 0
+                    },
+                    "response_latency": 1,
+                    "sequential_access": false,
+                    "size": 4096,
+                    "system": "board",
+                    "tag_latency": 1,
+                    "tags": {
+                        "type": "BaseSetAssoc",
+                        "cxx_class": "gem5::BaseSetAssoc",
+                        "name": "tags",
+                        "path": "board.cache_hierarchy.iptw_caches.tags",
+                        "assoc": 4,
+                        "block_size": 64,
+                        "clk_domain": "board.clk_domain",
+                        "entry_size": 64,
+                        "eventq_index": 0,
+                        "indexing_policy": {
+                            "type": "SetAssociative",
+                            "cxx_class": "gem5::SetAssociative",
+                            "name": "indexing_policy",
+                            "path": "board.cache_hierarchy.iptw_caches.tags.indexing_policy",
+                            "assoc": 4,
+                            "entry_size": 64,
+                            "eventq_index": 0,
+                            "size": 4096
+                        },
+                        "power_model": [],
+                        "power_state": {
+                            "type": "PowerState",
+                            "cxx_class": "gem5::PowerState",
+                            "name": "power_state",
+                            "path": "board.cache_hierarchy.iptw_caches.tags.power_state",
+                            "clk_gate_bins": 20,
+                            "clk_gate_max": 1000000000000,
+                            "clk_gate_min": 1000,
+                            "default_state": "UNDEFINED",
+                            "eventq_index": 0,
+                            "leaders": [],
+                            "possible_states": []
+                        },
+                        "replacement_policy": "board.cache_hierarchy.iptw_caches.replacement_policy",
+                        "sequential_access": false,
+                        "size": 4096,
+                        "system": "board",
+                        "tag_latency": 1,
+                        "warmup_percentage": 0
+                    },
+                    "tgts_per_mshr": 12,
+                    "warmup_percentage": 0,
+                    "write_allocator": null,
+                    "write_buffers": 8,
+                    "writeback_clean": true,
+                    "cpu_side": {
+                        "role": "GEM5 RESPONDER",
+                        "peer": "board.processor.cores.core.mmu.itb.walker.port",
+                        "is_source": "False"
+                    },
+                    "mem_side": {
+                        "role": "GEM5 REQUESTOR",
+                        "peer": "board.cache_hierarchy.l2bus.cpu_side_ports[2]",
+                        "is_source": "True"
+                    }
+                }
+            ],
+            "l1dcaches": [
+                {
+                    "type": "Cache",
+                    "cxx_class": "gem5::Cache",
+                    "name": "l1dcaches",
+                    "path": "board.cache_hierarchy.l1dcaches",
+                    "addr_ranges": [
+                        "0:18446744073709551615"
+                    ],
+                    "assoc": 8,
+                    "clk_domain": "board.clk_domain",
+                    "clusivity": "mostly_incl",
+                    "compressor": null,
+                    "data_latency": 1,
+                    "demand_mshr_reserve": 1,
+                    "eventq_index": 0,
+                    "is_read_only": false,
+                    "max_miss_count": 0,
+                    "move_contractions": true,
+                    "mshrs": 16,
+                    "power_model": [],
+                    "power_state": {
+                        "type": "PowerState",
+                        "cxx_class": "gem5::PowerState",
+                        "name": "power_state",
+                        "path": "board.cache_hierarchy.l1dcaches.power_state",
+                        "clk_gate_bins": 20,
+                        "clk_gate_max": 1000000000000,
+                        "clk_gate_min": 1000,
+                        "default_state": "UNDEFINED",
+                        "eventq_index": 0,
+                        "leaders": [],
+                        "possible_states": []
+                    },
+                    "prefetch_on_access": false,
+                    "prefetch_on_pf_hit": false,
+                    "prefetcher": {
+                        "type": "StridePrefetcher",
+                        "cxx_class": "gem5::prefetch::Stride",
+                        "name": "prefetcher",
+                        "path": "board.cache_hierarchy.l1dcaches.prefetcher",
+                        "block_size": 64,
+                        "cache_snoop": false,
+                        "clk_domain": "board.clk_domain",
+                        "confidence_counter_bits": 3,
+                        "confidence_threshold": 50,
+                        "degree": 4,
+                        "eventq_index": 0,
+                        "initial_confidence": 4,
+                        "latency": 1,
+                        "max_prefetch_requests_with_pending_translation": 32,
+                        "on_data": true,
+                        "on_inst": false,
+                        "on_miss": false,
+                        "on_read": true,
+                        "on_write": true,
+                        "page_bytes": 4096,
+                        "power_model": [],
+                        "power_state": {
+                            "type": "PowerState",
+                            "cxx_class": "gem5::PowerState",
+                            "name": "power_state",
+                            "path": "board.cache_hierarchy.l1dcaches.prefetcher.power_state",
+                            "clk_gate_bins": 20,
+                            "clk_gate_max": 1000000000000,
+                            "clk_gate_min": 1000,
+                            "default_state": "UNDEFINED",
+                            "eventq_index": 0,
+                            "leaders": [],
+                            "possible_states": []
+                        },
+                        "prefetch_on_access": false,
+                        "prefetch_on_pf_hit": false,
+                        "queue_filter": true,
+                        "queue_size": 32,
+                        "queue_squash": true,
+                        "sys": "board",
+                        "table_assoc": 4,
+                        "table_entries": 64,
+                        "table_indexing_policy": {
+                            "type": "StridePrefetcherHashedSetAssociative",
+                            "cxx_class": "gem5::prefetch::StridePrefetcherHashedSetAssociative",
+                            "name": "table_indexing_policy",
+                            "path": "board.cache_hierarchy.l1dcaches.prefetcher.table_indexing_policy",
+                            "assoc": 4,
+                            "entry_size": 1,
+                            "eventq_index": 0,
+                            "size": 64
+                        },
+                        "table_replacement_policy": {
+                            "type": "RandomRP",
+                            "cxx_class": "gem5::replacement_policy::Random",
+                            "name": "table_replacement_policy",
+                            "path": "board.cache_hierarchy.l1dcaches.prefetcher.table_replacement_policy",
+                            "eventq_index": 0
+                        },
+                        "tag_prefetch": true,
+                        "throttle_control_percentage": 0,
+                        "use_requestor_id": true,
+                        "use_virtual_addresses": false
+                    },
+                    "replace_expansions": true,
+                    "replacement_policy": {
+                        "type": "LRURP",
+                        "cxx_class": "gem5::replacement_policy::LRU",
+                        "name": "replacement_policy",
+                        "path": "board.cache_hierarchy.l1dcaches.replacement_policy",
+                        "eventq_index": 0
+                    },
+                    "response_latency": 4,
+                    "sequential_access": false,
+                    "size": 32768,
+                    "system": "board",
+                    "tag_latency": 1,
+                    "tags": {
+                        "type": "BaseSetAssoc",
+                        "cxx_class": "gem5::BaseSetAssoc",
+                        "name": "tags",
+                        "path": "board.cache_hierarchy.l1dcaches.tags",
+                        "assoc": 8,
+                        "block_size": 64,
+                        "clk_domain": "board.clk_domain",
+                        "entry_size": 64,
+                        "eventq_index": 0,
+                        "indexing_policy": {
+                            "type": "SetAssociative",
+                            "cxx_class": "gem5::SetAssociative",
+                            "name": "indexing_policy",
+                            "path": "board.cache_hierarchy.l1dcaches.tags.indexing_policy",
+                            "assoc": 8,
+                            "entry_size": 64,
+                            "eventq_index": 0,
+                            "size": 32768
+                        },
+                        "power_model": [],
+                        "power_state": {
+                            "type": "PowerState",
+                            "cxx_class": "gem5::PowerState",
+                            "name": "power_state",
+                            "path": "board.cache_hierarchy.l1dcaches.tags.power_state",
+                            "clk_gate_bins": 20,
+                            "clk_gate_max": 1000000000000,
+                            "clk_gate_min": 1000,
+                            "default_state": "UNDEFINED",
+                            "eventq_index": 0,
+                            "leaders": [],
+                            "possible_states": []
+                        },
+                        "replacement_policy": "board.cache_hierarchy.l1dcaches.replacement_policy",
+                        "sequential_access": false,
+                        "size": 32768,
+                        "system": "board",
+                        "tag_latency": 1,
+                        "warmup_percentage": 0
+                    },
+                    "tgts_per_mshr": 20,
+                    "warmup_percentage": 0,
+                    "write_allocator": null,
+                    "write_buffers": 8,
+                    "writeback_clean": false,
+                    "cpu_side": {
+                        "role": "GEM5 RESPONDER",
+                        "peer": "board.processor.cores.core.dcache_port",
+                        "is_source": "False"
+                    },
+                    "mem_side": {
+                        "role": "GEM5 REQUESTOR",
+                        "peer": "board.cache_hierarchy.l2bus.cpu_side_ports[1]",
+                        "is_source": "True"
+                    }
+                }
+            ],
+            "l1icaches": [
+                {
+                    "type": "Cache",
+                    "cxx_class": "gem5::Cache",
+                    "name": "l1icaches",
+                    "path": "board.cache_hierarchy.l1icaches",
+                    "addr_ranges": [
+                        "0:18446744073709551615"
+                    ],
+                    "assoc": 4,
+                    "clk_domain": "board.clk_domain",
+                    "clusivity": "mostly_incl",
+                    "compressor": null,
+                    "data_latency": 1,
+                    "demand_mshr_reserve": 1,
+                    "eventq_index": 0,
+                    "is_read_only": false,
+                    "max_miss_count": 0,
+                    "move_contractions": true,
+                    "mshrs": 16,
+                    "power_model": [],
+                    "power_state": {
+                        "type": "PowerState",
+                        "cxx_class": "gem5::PowerState",
+                        "name": "power_state",
+                        "path": "board.cache_hierarchy.l1icaches.power_state",
+                        "clk_gate_bins": 20,
+                        "clk_gate_max": 1000000000000,
+                        "clk_gate_min": 1000,
+                        "default_state": "UNDEFINED",
+                        "eventq_index": 0,
+                        "leaders": [],
+                        "possible_states": []
+                    },
+                    "prefetch_on_access": false,
+                    "prefetch_on_pf_hit": false,
+                    "prefetcher": {
+                        "type": "StridePrefetcher",
+                        "cxx_class": "gem5::prefetch::Stride",
+                        "name": "prefetcher",
+                        "path": "board.cache_hierarchy.l1icaches.prefetcher",
+                        "block_size": 64,
+                        "cache_snoop": false,
+                        "clk_domain": "board.clk_domain",
+                        "confidence_counter_bits": 3,
+                        "confidence_threshold": 50,
+                        "degree": 4,
+                        "eventq_index": 0,
+                        "initial_confidence": 4,
+                        "latency": 1,
+                        "max_prefetch_requests_with_pending_translation": 32,
+                        "on_data": true,
+                        "on_inst": false,
+                        "on_miss": false,
+                        "on_read": true,
+                        "on_write": true,
+                        "page_bytes": 4096,
+                        "power_model": [],
+                        "power_state": {
+                            "type": "PowerState",
+                            "cxx_class": "gem5::PowerState",
+                            "name": "power_state",
+                            "path": "board.cache_hierarchy.l1icaches.prefetcher.power_state",
+                            "clk_gate_bins": 20,
+                            "clk_gate_max": 1000000000000,
+                            "clk_gate_min": 1000,
+                            "default_state": "UNDEFINED",
+                            "eventq_index": 0,
+                            "leaders": [],
+                            "possible_states": []
+                        },
+                        "prefetch_on_access": false,
+                        "prefetch_on_pf_hit": false,
+                        "queue_filter": true,
+                        "queue_size": 32,
+                        "queue_squash": true,
+                        "sys": "board",
+                        "table_assoc": 4,
+                        "table_entries": 64,
+                        "table_indexing_policy": {
+                            "type": "StridePrefetcherHashedSetAssociative",
+                            "cxx_class": "gem5::prefetch::StridePrefetcherHashedSetAssociative",
+                            "name": "table_indexing_policy",
+                            "path": "board.cache_hierarchy.l1icaches.prefetcher.table_indexing_policy",
+                            "assoc": 4,
+                            "entry_size": 1,
+                            "eventq_index": 0,
+                            "size": 64
+                        },
+                        "table_replacement_policy": {
+                            "type": "RandomRP",
+                            "cxx_class": "gem5::replacement_policy::Random",
+                            "name": "table_replacement_policy",
+                            "path": "board.cache_hierarchy.l1icaches.prefetcher.table_replacement_policy",
+                            "eventq_index": 0
+                        },
+                        "tag_prefetch": true,
+                        "throttle_control_percentage": 0,
+                        "use_requestor_id": true,
+                        "use_virtual_addresses": false
+                    },
+                    "replace_expansions": true,
+                    "replacement_policy": {
+                        "type": "LRURP",
+                        "cxx_class": "gem5::replacement_policy::LRU",
+                        "name": "replacement_policy",
+                        "path": "board.cache_hierarchy.l1icaches.replacement_policy",
+                        "eventq_index": 0
+                    },
+                    "response_latency": 1,
+                    "sequential_access": false,
+                    "size": 32768,
+                    "system": "board",
+                    "tag_latency": 1,
+                    "tags": {
+                        "type": "BaseSetAssoc",
+                        "cxx_class": "gem5::BaseSetAssoc",
+                        "name": "tags",
+                        "path": "board.cache_hierarchy.l1icaches.tags",
+                        "assoc": 4,
+                        "block_size": 64,
+                        "clk_domain": "board.clk_domain",
+                        "entry_size": 64,
+                        "eventq_index": 0,
+                        "indexing_policy": {
+                            "type": "SetAssociative",
+                            "cxx_class": "gem5::SetAssociative",
+                            "name": "indexing_policy",
+                            "path": "board.cache_hierarchy.l1icaches.tags.indexing_policy",
+                            "assoc": 4,
+                            "entry_size": 64,
+                            "eventq_index": 0,
+                            "size": 32768
+                        },
+                        "power_model": [],
+                        "power_state": {
+                            "type": "PowerState",
+                            "cxx_class": "gem5::PowerState",
+                            "name": "power_state",
+                            "path": "board.cache_hierarchy.l1icaches.tags.power_state",
+                            "clk_gate_bins": 20,
+                            "clk_gate_max": 1000000000000,
+                            "clk_gate_min": 1000,
+                            "default_state": "UNDEFINED",
+                            "eventq_index": 0,
+                            "leaders": [],
+                            "possible_states": []
+                        },
+                        "replacement_policy": "board.cache_hierarchy.l1icaches.replacement_policy",
+                        "sequential_access": false,
+                        "size": 32768,
+                        "system": "board",
+                        "tag_latency": 1,
+                        "warmup_percentage": 0
+                    },
+                    "tgts_per_mshr": 20,
+                    "warmup_percentage": 0,
+                    "write_allocator": null,
+                    "write_buffers": 8,
+                    "writeback_clean": true,
+                    "cpu_side": {
+                        "role": "GEM5 RESPONDER",
+                        "peer": "board.processor.cores.core.icache_port",
+                        "is_source": "False"
+                    },
+                    "mem_side": {
+                        "role": "GEM5 REQUESTOR",
+                        "peer": "board.cache_hierarchy.l2bus.cpu_side_ports[0]",
+                        "is_source": "True"
+                    }
+                }
+            ],
+            "l2bus": {
+                "type": "CoherentXBar",
+                "cxx_class": "gem5::CoherentXBar",
+                "name": "l2bus",
+                "path": "board.cache_hierarchy.l2bus",
+                "clk_domain": "board.clk_domain",
+                "eventq_index": 0,
+                "forward_latency": 0,
+                "frontend_latency": 1,
+                "header_latency": 1,
+                "max_outstanding_snoops": 512,
+                "max_routing_table_size": 512,
+                "point_of_coherency": false,
+                "point_of_unification": true,
+                "power_model": [],
+                "power_state": {
+                    "type": "PowerState",
+                    "cxx_class": "gem5::PowerState",
+                    "name": "power_state",
+                    "path": "board.cache_hierarchy.l2bus.power_state",
+                    "clk_gate_bins": 20,
+                    "clk_gate_max": 1000000000000,
+                    "clk_gate_min": 1000,
+                    "default_state": "UNDEFINED",
+                    "eventq_index": 0,
+                    "leaders": [],
+                    "possible_states": []
+                },
+                "response_latency": 1,
+                "snoop_filter": {
+                    "type": "SnoopFilter",
+                    "cxx_class": "gem5::SnoopFilter",
+                    "name": "snoop_filter",
+                    "path": "board.cache_hierarchy.l2bus.snoop_filter",
+                    "eventq_index": 0,
+                    "lookup_latency": 0,
+                    "max_capacity": 8388608,
+                    "system": "board"
+                },
+                "snoop_response_latency": 1,
+                "system": "board",
+                "use_default_range": false,
+                "width": 32,
+                "cpu_side_ports": {
+                    "role": "GEM5 RESPONDER",
+                    "peer": [
+                        "board.cache_hierarchy.l1icaches.mem_side",
+                        "board.cache_hierarchy.l1dcaches.mem_side",
+                        "board.cache_hierarchy.iptw_caches.mem_side",
+                        "board.cache_hierarchy.dptw_caches.mem_side"
+                    ],
+                    "is_source": "False"
+                },
+                "mem_side_ports": {
+                    "role": "GEM5 REQUESTOR",
+                    "peer": [
+                        "board.cache_hierarchy.l2cache.cpu_side"
+                    ],
+                    "is_source": "True"
+                }
+            },
+            "l2cache": {
+                "type": "Cache",
+                "cxx_class": "gem5::Cache",
+                "name": "l2cache",
+                "path": "board.cache_hierarchy.l2cache",
+                "addr_ranges": [
+                    "0:18446744073709551615"
+                ],
+                "assoc": 64,
+                "clk_domain": "board.clk_domain",
+                "clusivity": "mostly_incl",
+                "compressor": null,
+                "data_latency": 20,
+                "demand_mshr_reserve": 1,
+                "eventq_index": 0,
+                "is_read_only": false,
+                "max_miss_count": 0,
+                "move_contractions": true,
+                "mshrs": 20,
+                "power_model": [],
+                "power_state": {
+                    "type": "PowerState",
+                    "cxx_class": "gem5::PowerState",
+                    "name": "power_state",
+                    "path": "board.cache_hierarchy.l2cache.power_state",
+                    "clk_gate_bins": 20,
+                    "clk_gate_max": 1000000000000,
+                    "clk_gate_min": 1000,
+                    "default_state": "UNDEFINED",
+                    "eventq_index": 0,
+                    "leaders": [],
+                    "possible_states": []
+                },
+                "prefetch_on_access": false,
+                "prefetch_on_pf_hit": false,
+                "prefetcher": {
+                    "type": "StridePrefetcher",
+                    "cxx_class": "gem5::prefetch::Stride",
+                    "name": "prefetcher",
+                    "path": "board.cache_hierarchy.l2cache.prefetcher",
+                    "block_size": 64,
+                    "cache_snoop": false,
+                    "clk_domain": "board.clk_domain",
+                    "confidence_counter_bits": 3,
+                    "confidence_threshold": 50,
+                    "degree": 4,
+                    "eventq_index": 0,
+                    "initial_confidence": 4,
+                    "latency": 1,
+                    "max_prefetch_requests_with_pending_translation": 32,
+                    "on_data": true,
+                    "on_inst": false,
+                    "on_miss": false,
+                    "on_read": true,
+                    "on_write": true,
+                    "page_bytes": 4096,
+                    "power_model": [],
+                    "power_state": {
+                        "type": "PowerState",
+                        "cxx_class": "gem5::PowerState",
+                        "name": "power_state",
+                        "path": "board.cache_hierarchy.l2cache.prefetcher.power_state",
+                        "clk_gate_bins": 20,
+                        "clk_gate_max": 1000000000000,
+                        "clk_gate_min": 1000,
+                        "default_state": "UNDEFINED",
+                        "eventq_index": 0,
+                        "leaders": [],
+                        "possible_states": []
+                    },
+                    "prefetch_on_access": false,
+                    "prefetch_on_pf_hit": false,
+                    "queue_filter": true,
+                    "queue_size": 32,
+                    "queue_squash": true,
+                    "sys": "board",
+                    "table_assoc": 4,
+                    "table_entries": 64,
+                    "table_indexing_policy": {
+                        "type": "StridePrefetcherHashedSetAssociative",
+                        "cxx_class": "gem5::prefetch::StridePrefetcherHashedSetAssociative",
+                        "name": "table_indexing_policy",
+                        "path": "board.cache_hierarchy.l2cache.prefetcher.table_indexing_policy",
+                        "assoc": 4,
+                        "entry_size": 1,
+                        "eventq_index": 0,
+                        "size": 64
+                    },
+                    "table_replacement_policy": {
+                        "type": "RandomRP",
+                        "cxx_class": "gem5::replacement_policy::Random",
+                        "name": "table_replacement_policy",
+                        "path": "board.cache_hierarchy.l2cache.prefetcher.table_replacement_policy",
+                        "eventq_index": 0
+                    },
+                    "tag_prefetch": true,
+                    "throttle_control_percentage": 0,
+                    "use_requestor_id": true,
+                    "use_virtual_addresses": false
+                },
+                "replace_expansions": true,
+                "replacement_policy": {
+                    "type": "LRURP",
+                    "cxx_class": "gem5::replacement_policy::LRU",
+                    "name": "replacement_policy",
+                    "path": "board.cache_hierarchy.l2cache.replacement_policy",
+                    "eventq_index": 0
+                },
+                "response_latency": 1,
+                "sequential_access": false,
+                "size": 16777216,
+                "system": "board",
+                "tag_latency": 10,
+                "tags": {
+                    "type": "BaseSetAssoc",
+                    "cxx_class": "gem5::BaseSetAssoc",
+                    "name": "tags",
+                    "path": "board.cache_hierarchy.l2cache.tags",
+                    "assoc": 64,
+                    "block_size": 64,
+                    "clk_domain": "board.clk_domain",
+                    "entry_size": 64,
+                    "eventq_index": 0,
+                    "indexing_policy": {
+                        "type": "SetAssociative",
+                        "cxx_class": "gem5::SetAssociative",
+                        "name": "indexing_policy",
+                        "path": "board.cache_hierarchy.l2cache.tags.indexing_policy",
+                        "assoc": 64,
+                        "entry_size": 64,
+                        "eventq_index": 0,
+                        "size": 16777216
+                    },
+                    "power_model": [],
+                    "power_state": {
+                        "type": "PowerState",
+                        "cxx_class": "gem5::PowerState",
+                        "name": "power_state",
+                        "path": "board.cache_hierarchy.l2cache.tags.power_state",
+                        "clk_gate_bins": 20,
+                        "clk_gate_max": 1000000000000,
+                        "clk_gate_min": 1000,
+                        "default_state": "UNDEFINED",
+                        "eventq_index": 0,
+                        "leaders": [],
+                        "possible_states": []
+                    },
+                    "replacement_policy": "board.cache_hierarchy.l2cache.replacement_policy",
+                    "sequential_access": false,
+                    "size": 16777216,
+                    "system": "board",
+                    "tag_latency": 10,
+                    "warmup_percentage": 0
+                },
+                "tgts_per_mshr": 12,
+                "warmup_percentage": 0,
+                "write_allocator": null,
+                "write_buffers": 8,
+                "writeback_clean": false,
+                "cpu_side": {
+                    "role": "GEM5 RESPONDER",
+                    "peer": "board.cache_hierarchy.l2bus.mem_side_ports[0]",
+                    "is_source": "False"
+                },
+                "mem_side": {
+                    "role": "GEM5 REQUESTOR",
+                    "peer": "board.cache_hierarchy.membus.cpu_side_ports[1]",
+                    "is_source": "True"
+                }
+            },
+            "membus": {
+                "type": "CoherentXBar",
+                "cxx_class": "gem5::CoherentXBar",
+                "name": "membus",
+                "path": "board.cache_hierarchy.membus",
+                "clk_domain": "board.clk_domain",
+                "eventq_index": 0,
+                "forward_latency": 4,
+                "frontend_latency": 3,
+                "header_latency": 1,
+                "max_outstanding_snoops": 512,
+                "max_routing_table_size": 512,
+                "point_of_coherency": true,
+                "point_of_unification": true,
+                "power_model": [],
+                "power_state": {
+                    "type": "PowerState",
+                    "cxx_class": "gem5::PowerState",
+                    "name": "power_state",
+                    "path": "board.cache_hierarchy.membus.power_state",
+                    "clk_gate_bins": 20,
+                    "clk_gate_max": 1000000000000,
+                    "clk_gate_min": 1000,
+                    "default_state": "UNDEFINED",
+                    "eventq_index": 0,
+                    "leaders": [],
+                    "possible_states": []
+                },
+                "response_latency": 2,
+                "snoop_filter": {
+                    "type": "SnoopFilter",
+                    "cxx_class": "gem5::SnoopFilter",
+                    "name": "snoop_filter",
+                    "path": "board.cache_hierarchy.membus.snoop_filter",
+                    "eventq_index": 0,
+                    "lookup_latency": 1,
+                    "max_capacity": 8388608,
+                    "system": "board"
+                },
+                "snoop_response_latency": 4,
+                "system": "board",
+                "use_default_range": false,
+                "width": 64,
+                "badaddr_responder": {
+                    "type": "IsaFake",
+                    "cxx_class": "gem5::IsaFake",
+                    "name": "badaddr_responder",
+                    "path": "board.cache_hierarchy.membus.badaddr_responder",
+                    "clk_domain": "board.clk_domain",
+                    "eventq_index": 0,
+                    "fake_mem": false,
+                    "pio_addr": 0,
+                    "pio_latency": 100000,
+                    "pio_size": 8,
+                    "power_model": [],
+                    "power_state": {
+                        "type": "PowerState",
+                        "cxx_class": "gem5::PowerState",
+                        "name": "power_state",
+                        "path": "board.cache_hierarchy.membus.badaddr_responder.power_state",
+                        "clk_gate_bins": 20,
+                        "clk_gate_max": 1000000000000,
+                        "clk_gate_min": 1000,
+                        "default_state": "UNDEFINED",
+                        "eventq_index": 0,
+                        "leaders": [],
+                        "possible_states": []
+                    },
+                    "ret_bad_addr": true,
+                    "ret_data16": 65535,
+                    "ret_data32": 4294967295,
+                    "ret_data64": 18446744073709551615,
+                    "ret_data8": 255,
+                    "system": "board",
+                    "update_data": false,
+                    "warn_access": "",
+                    "pio": {
+                        "role": "GEM5 RESPONDER",
+                        "peer": "board.cache_hierarchy.membus.default",
+                        "is_source": "False"
+                    }
+                },
+                "cpu_side_ports": {
+                    "role": "GEM5 RESPONDER",
+                    "peer": [
+                        "board.system_port",
+                        "board.cache_hierarchy.l2cache.mem_side"
+                    ],
+                    "is_source": "False"
+                },
+                "default": {
+                    "role": "GEM5 REQUESTOR",
+                    "peer": "board.cache_hierarchy.membus.badaddr_responder.pio",
+                    "is_source": "True"
+                },
+                "mem_side_ports": {
+                    "role": "GEM5 REQUESTOR",
+                    "peer": [
+                        "board.memory.mem_ctrl.port"
+                    ],
+                    "is_source": "True"
+                }
+            }
+        },
+        "clk_domain": {
+            "type": "SrcClockDomain",
+            "cxx_class": "gem5::SrcClockDomain",
+            "name": "clk_domain",
+            "path": "board.clk_domain",
+            "clock": [
+                833
+            ],
+            "domain_id": -1,
+            "eventq_index": 0,
+            "init_perf_level": 0,
+            "voltage_domain": {
+                "type": "VoltageDomain",
+                "cxx_class": "gem5::VoltageDomain",
+                "name": "voltage_domain",
+                "path": "board.clk_domain.voltage_domain",
+                "eventq_index": 0,
+                "voltage": [
+                    1.0
+                ]
+            }
+        },
+        "dvfs_handler": {
+            "type": "DVFSHandler",
+            "cxx_class": "gem5::DVFSHandler",
+            "name": "dvfs_handler",
+            "path": "board.dvfs_handler",
+            "domains": [],
+            "enable": false,
+            "eventq_index": 0,
+            "sys_clk_domain": "board.clk_domain",
+            "transition_latency": 100000000
+        },
+        "memory": {
+            "type": "SubSystem",
+            "cxx_class": "gem5::SubSystem",
+            "name": "memory",
+            "path": "board.memory",
+            "eventq_index": 0,
+            "thermal_domain": null,
+            "mem_ctrl": [
+                {
+                    "type": "MemCtrl",
+                    "cxx_class": "gem5::memory::MemCtrl",
+                    "name": "mem_ctrl",
+                    "path": "board.memory.mem_ctrl",
+                    "clk_domain": "board.clk_domain",
+                    "command_window": 10000,
+                    "disable_sanity_check": false,
+                    "dram": {
+                        "type": "DRAMInterface",
+                        "cxx_class": "gem5::memory::DRAMInterface",
+                        "name": "dram",
+                        "path": "board.memory.mem_ctrl.dram",
+                        "IDD0": 0.048,
+                        "IDD02": 0.003,
+                        "IDD2N": 0.034,
+                        "IDD2N2": 0.0,
+                        "IDD2P0": 0.0,
+                        "IDD2P02": 0.0,
+                        "IDD2P1": 0.025,
+                        "IDD2P12": 0.0,
+                        "IDD3N": 0.043000000000000003,
+                        "IDD3N2": 0.003,
+                        "IDD3P0": 0.0,
+                        "IDD3P02": 0.0,
+                        "IDD3P1": 0.037,
+                        "IDD3P12": 0.0,
+                        "IDD4R": 0.135,
+                        "IDD4R2": 0.0,
+                        "IDD4W": 0.123,
+                        "IDD4W2": 0.0,
+                        "IDD5": 0.25,
+                        "IDD52": 0.0,
+                        "IDD6": 0.03,
+                        "IDD62": 0.0,
+                        "VDD": 1.2,
+                        "VDD2": 2.5,
+                        "activation_limit": 4,
+                        "addr_mapping": "RoRaBaCoCh",
+                        "bank_groups_per_rank": 4,
+                        "banks_per_rank": 16,
+                        "beats_per_clock": 2,
+                        "burst_length": 8,
+                        "clk_domain": "board.clk_domain",
+                        "conf_table_reported": true,
+                        "data_clock_sync": false,
+                        "device_bus_width": 8,
+                        "device_rowbuffer_size": 1024,
+                        "device_size": 1073741824,
+                        "devices_per_rank": 8,
+                        "dll": true,
+                        "enable_dram_powerdown": false,
+                        "eventq_index": 0,
+                        "image_file": "",
+                        "in_addr_map": true,
+                        "kvm_map": true,
+                        "max_accesses_per_row": 16,
+                        "null": false,
+                        "page_policy": "open_adaptive",
+                        "power_model": [],
+                        "power_state": {
+                            "type": "PowerState",
+                            "cxx_class": "gem5::PowerState",
+                            "name": "power_state",
+                            "path": "board.memory.mem_ctrl.dram.power_state",
+                            "clk_gate_bins": 20,
+                            "clk_gate_max": 1000000000000,
+                            "clk_gate_min": 1000,
+                            "default_state": "UNDEFINED",
+                            "eventq_index": 0,
+                            "leaders": [],
+                            "possible_states": []
+                        },
+                        "range": "0:17179869184",
+                        "ranks_per_channel": 2,
+                        "read_buffer_size": 64,
+                        "tAAD": 833,
+                        "tBURST": 3332,
+                        "tBURST_MAX": 3332,
+                        "tBURST_MIN": 3332,
+                        "tCCD_L": 5000,
+                        "tCCD_L_WR": 5000,
+                        "tCK": 833,
+                        "tCL": 14160,
+                        "tCS": 1666,
+                        "tCWL": 14160,
+                        "tPPD": 0,
+                        "tRAS": 32000,
+                        "tRCD": 14160,
+                        "tRCD_WR": 14160,
+                        "tREFI": 7800000,
+                        "tRFC": 350000,
+                        "tRP": 14160,
+                        "tRRD": 3332,
+                        "tRRD_L": 4900,
+                        "tRTP": 7500,
+                        "tRTW": 1666,
+                        "tWR": 15000,
+                        "tWTR": 5000,
+                        "tWTR_L": 5000,
+                        "tXAW": 21000,
+                        "tXP": 6000,
+                        "tXPDLL": 0,
+                        "tXS": 340000,
+                        "tXSDLL": 0,
+                        "two_cycle_activate": false,
+                        "write_buffer_size": 128,
+                        "writeable": true
+                    },
+                    "eventq_index": 0,
+                    "mem_sched_policy": "frfcfs",
+                    "min_reads_per_switch": 16,
+                    "min_writes_per_switch": 16,
+                    "power_model": [],
+                    "power_state": {
+                        "type": "PowerState",
+                        "cxx_class": "gem5::PowerState",
+                        "name": "power_state",
+                        "path": "board.memory.mem_ctrl.power_state",
+                        "clk_gate_bins": 20,
+                        "clk_gate_max": 1000000000000,
+                        "clk_gate_min": 1000,
+                        "default_state": "UNDEFINED",
+                        "eventq_index": 0,
+                        "leaders": [],
+                        "possible_states": []
+                    },
+                    "qos_policy": null,
+                    "qos_priorities": 1,
+                    "qos_priority_escalation": false,
+                    "qos_q_policy": "fifo",
+                    "qos_requestors": [
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        ""
+                    ],
+                    "qos_syncro_scheduler": false,
+                    "qos_turnaround_policy": null,
+                    "static_backend_latency": 10000,
+                    "static_frontend_latency": 10000,
+                    "system": "board",
+                    "write_high_thresh_perc": 85,
+                    "write_low_thresh_perc": 50,
+                    "port": {
+                        "role": "GEM5 RESPONDER",
+                        "peer": "board.cache_hierarchy.membus.mem_side_ports[0]",
+                        "is_source": "False"
+                    }
+                }
+            ]
+        },
+        "processor": {
+            "type": "SubSystem",
+            "cxx_class": "gem5::SubSystem",
+            "name": "processor",
+            "path": "board.processor",
+            "eventq_index": 0,
+            "thermal_domain": null,
+            "cores": [
+                {
+                    "type": "SubSystem",
+                    "cxx_class": "gem5::SubSystem",
+                    "name": "cores",
+                    "path": "board.processor.cores",
+                    "eventq_index": 0,
+                    "thermal_domain": null,
+                    "core": {
+                        "type": "BaseMinorCPU",
+                        "cxx_class": "gem5::MinorCPU",
+                        "name": "core",
+                        "path": "board.processor.cores.core",
+                        "branchPred": {
+                            "type": "LocalBP",
+                            "cxx_class": "gem5::branch_prediction::LocalBP",
+                            "name": "branchPred",
+                            "path": "board.processor.cores.core.branchPred",
+                            "BTBEntries": 4096,
+                            "BTBTagSize": 16,
+                            "RASSize": 16,
+                            "eventq_index": 0,
+                            "indirectBranchPred": {
+                                "type": "SimpleIndirectPredictor",
+                                "cxx_class": "gem5::branch_prediction::SimpleIndirectPredictor",
+                                "name": "indirectBranchPred",
+                                "path": "board.processor.cores.core.branchPred.indirectBranchPred",
+                                "eventq_index": 0,
+                                "indirectGHRBits": 13,
+                                "indirectHashGHR": true,
+                                "indirectHashTargets": true,
+                                "indirectPathLength": 3,
+                                "indirectSets": 256,
+                                "indirectTagSize": 16,
+                                "indirectWays": 2,
+                                "instShiftAmt": 2,
+                                "numThreads": 1
+                            },
+                            "instShiftAmt": 2,
+                            "localCtrBits": 4,
+                            "localPredictorSize": 16384,
+                            "numThreads": 1
+                        },
+                        "checker": null,
+                        "clk_domain": "board.clk_domain",
+                        "cpu_id": 0,
+                        "decodeCycleInput": true,
+                        "decodeInputBufferSize": 2,
+                        "decodeInputWidth": 2,
+                        "decodeToExecuteForwardDelay": 1,
+                        "decoder": [
+                            {
+                                "type": "RiscvDecoder",
+                                "cxx_class": "gem5::RiscvISA::Decoder",
+                                "name": "decoder",
+                                "path": "board.processor.cores.core.decoder",
+                                "eventq_index": 0,
+                                "isa": "board.processor.cores.core.isa"
+                            }
+                        ],
+                        "do_checkpoint_insts": true,
+                        "do_statistics_insts": true,
+                        "enableIdling": false,
+                        "eventq_index": 0,
+                        "executeAllowEarlyMemoryIssue": true,
+                        "executeBranchDelay": 2,
+                        "executeCommitLimit": 2,
+                        "executeCycleInput": true,
+                        "executeFuncUnits": {
+                            "type": "MinorFUPool",
+                            "cxx_class": "gem5::MinorFUPool",
+                            "name": "executeFuncUnits",
+                            "path": "board.processor.cores.core.executeFuncUnits",
+                            "eventq_index": 0,
+                            "funcUnits": [
+                                {
+                                    "type": "MinorFU",
+                                    "cxx_class": "gem5::MinorFU",
+                                    "name": "funcUnits0",
+                                    "path": "board.processor.cores.core.executeFuncUnits.funcUnits0",
+                                    "cantForwardFromFUIndices": [],
+                                    "eventq_index": 0,
+                                    "issueLat": 1,
+                                    "opClasses": {
+                                        "type": "MinorOpClassSet",
+                                        "cxx_class": "gem5::MinorOpClassSet",
+                                        "name": "opClasses",
+                                        "path": "board.processor.cores.core.executeFuncUnits.funcUnits0.opClasses",
+                                        "eventq_index": 0,
+                                        "opClasses": [
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits0.opClasses.opClasses",
+                                                "eventq_index": 0,
+                                                "opClass": "IntAlu"
+                                            }
+                                        ]
+                                    },
+                                    "opLat": 3,
+                                    "timings": [
+                                        {
+                                            "type": "MinorFUTiming",
+                                            "cxx_class": "gem5::MinorFUTiming",
+                                            "name": "timings",
+                                            "path": "board.processor.cores.core.executeFuncUnits.funcUnits0.timings",
+                                            "description": "Int",
+                                            "eventq_index": 0,
+                                            "extraAssumedLat": 0,
+                                            "extraCommitLat": 0,
+                                            "extraCommitLatExpr": null,
+                                            "mask": 0,
+                                            "match": 0,
+                                            "opClasses": {
+                                                "type": "MinorOpClassSet",
+                                                "cxx_class": "gem5::MinorOpClassSet",
+                                                "name": "opClasses",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits0.timings.opClasses",
+                                                "eventq_index": 0,
+                                                "opClasses": []
+                                            },
+                                            "srcRegsRelativeLats": [
+                                                2
+                                            ],
+                                            "suppress": false
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "MinorFU",
+                                    "cxx_class": "gem5::MinorFU",
+                                    "name": "funcUnits1",
+                                    "path": "board.processor.cores.core.executeFuncUnits.funcUnits1",
+                                    "cantForwardFromFUIndices": [],
+                                    "eventq_index": 0,
+                                    "issueLat": 1,
+                                    "opClasses": {
+                                        "type": "MinorOpClassSet",
+                                        "cxx_class": "gem5::MinorOpClassSet",
+                                        "name": "opClasses",
+                                        "path": "board.processor.cores.core.executeFuncUnits.funcUnits1.opClasses",
+                                        "eventq_index": 0,
+                                        "opClasses": [
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits1.opClasses.opClasses",
+                                                "eventq_index": 0,
+                                                "opClass": "IntAlu"
+                                            }
+                                        ]
+                                    },
+                                    "opLat": 3,
+                                    "timings": [
+                                        {
+                                            "type": "MinorFUTiming",
+                                            "cxx_class": "gem5::MinorFUTiming",
+                                            "name": "timings",
+                                            "path": "board.processor.cores.core.executeFuncUnits.funcUnits1.timings",
+                                            "description": "Int",
+                                            "eventq_index": 0,
+                                            "extraAssumedLat": 0,
+                                            "extraCommitLat": 0,
+                                            "extraCommitLatExpr": null,
+                                            "mask": 0,
+                                            "match": 0,
+                                            "opClasses": {
+                                                "type": "MinorOpClassSet",
+                                                "cxx_class": "gem5::MinorOpClassSet",
+                                                "name": "opClasses",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits1.timings.opClasses",
+                                                "eventq_index": 0,
+                                                "opClasses": []
+                                            },
+                                            "srcRegsRelativeLats": [
+                                                2
+                                            ],
+                                            "suppress": false
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "MinorFU",
+                                    "cxx_class": "gem5::MinorFU",
+                                    "name": "funcUnits2",
+                                    "path": "board.processor.cores.core.executeFuncUnits.funcUnits2",
+                                    "cantForwardFromFUIndices": [],
+                                    "eventq_index": 0,
+                                    "issueLat": 1,
+                                    "opClasses": {
+                                        "type": "MinorOpClassSet",
+                                        "cxx_class": "gem5::MinorOpClassSet",
+                                        "name": "opClasses",
+                                        "path": "board.processor.cores.core.executeFuncUnits.funcUnits2.opClasses",
+                                        "eventq_index": 0,
+                                        "opClasses": [
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits2.opClasses.opClasses",
+                                                "eventq_index": 0,
+                                                "opClass": "IntMult"
+                                            }
+                                        ]
+                                    },
+                                    "opLat": 9,
+                                    "timings": [
+                                        {
+                                            "type": "MinorFUTiming",
+                                            "cxx_class": "gem5::MinorFUTiming",
+                                            "name": "timings",
+                                            "path": "board.processor.cores.core.executeFuncUnits.funcUnits2.timings",
+                                            "description": "Mul",
+                                            "eventq_index": 0,
+                                            "extraAssumedLat": 0,
+                                            "extraCommitLat": 0,
+                                            "extraCommitLatExpr": null,
+                                            "mask": 0,
+                                            "match": 0,
+                                            "opClasses": {
+                                                "type": "MinorOpClassSet",
+                                                "cxx_class": "gem5::MinorOpClassSet",
+                                                "name": "opClasses",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits2.timings.opClasses",
+                                                "eventq_index": 0,
+                                                "opClasses": []
+                                            },
+                                            "srcRegsRelativeLats": [
+                                                0
+                                            ],
+                                            "suppress": false
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "MinorFU",
+                                    "cxx_class": "gem5::MinorFU",
+                                    "name": "funcUnits3",
+                                    "path": "board.processor.cores.core.executeFuncUnits.funcUnits3",
+                                    "cantForwardFromFUIndices": [],
+                                    "eventq_index": 0,
+                                    "issueLat": 9,
+                                    "opClasses": {
+                                        "type": "MinorOpClassSet",
+                                        "cxx_class": "gem5::MinorOpClassSet",
+                                        "name": "opClasses",
+                                        "path": "board.processor.cores.core.executeFuncUnits.funcUnits3.opClasses",
+                                        "eventq_index": 0,
+                                        "opClasses": [
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits3.opClasses.opClasses",
+                                                "eventq_index": 0,
+                                                "opClass": "IntDiv"
+                                            }
+                                        ]
+                                    },
+                                    "opLat": 6,
+                                    "timings": []
+                                },
+                                {
+                                    "type": "MinorFU",
+                                    "cxx_class": "gem5::MinorFU",
+                                    "name": "funcUnits4",
+                                    "path": "board.processor.cores.core.executeFuncUnits.funcUnits4",
+                                    "cantForwardFromFUIndices": [],
+                                    "eventq_index": 0,
+                                    "issueLat": 1,
+                                    "opClasses": {
+                                        "type": "MinorOpClassSet",
+                                        "cxx_class": "gem5::MinorOpClassSet",
+                                        "name": "opClasses",
+                                        "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses",
+                                        "eventq_index": 0,
+                                        "opClasses": [
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses00",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses00",
+                                                "eventq_index": 0,
+                                                "opClass": "FloatAdd"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses01",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses01",
+                                                "eventq_index": 0,
+                                                "opClass": "FloatCmp"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses02",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses02",
+                                                "eventq_index": 0,
+                                                "opClass": "FloatCvt"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses03",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses03",
+                                                "eventq_index": 0,
+                                                "opClass": "FloatMisc"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses04",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses04",
+                                                "eventq_index": 0,
+                                                "opClass": "FloatMult"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses05",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses05",
+                                                "eventq_index": 0,
+                                                "opClass": "FloatMultAcc"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses06",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses06",
+                                                "eventq_index": 0,
+                                                "opClass": "FloatDiv"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses07",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses07",
+                                                "eventq_index": 0,
+                                                "opClass": "FloatSqrt"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses08",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses08",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdAdd"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses09",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses09",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdAddAcc"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses10",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses10",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdAlu"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses11",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses11",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdCmp"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses12",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses12",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdCvt"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses13",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses13",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdMisc"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses14",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses14",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdMult"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses15",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses15",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdMultAcc"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses16",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses16",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdMatMultAcc"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses17",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses17",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdShift"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses18",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses18",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdShiftAcc"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses19",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses19",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdDiv"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses20",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses20",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdSqrt"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses21",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses21",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdFloatAdd"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses22",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses22",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdFloatAlu"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses23",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses23",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdFloatCmp"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses24",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses24",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdFloatCvt"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses25",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses25",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdFloatDiv"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses26",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses26",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdFloatMisc"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses27",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses27",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdFloatMult"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses28",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses28",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdFloatMultAcc"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses29",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses29",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdFloatMatMultAcc"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses30",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses30",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdFloatSqrt"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses31",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses31",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdReduceAdd"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses32",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses32",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdReduceAlu"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses33",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses33",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdReduceCmp"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses34",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses34",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdFloatReduceAdd"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses35",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses35",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdFloatReduceCmp"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses36",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses36",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdAes"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses37",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses37",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdAesMix"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses38",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses38",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdSha1Hash"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses39",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses39",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdSha1Hash2"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses40",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses40",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdSha256Hash"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses41",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses41",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdSha256Hash2"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses42",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses42",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdShaSigma2"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses43",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses43",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdShaSigma3"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses44",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses44",
+                                                "eventq_index": 0,
+                                                "opClass": "Matrix"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses45",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses45",
+                                                "eventq_index": 0,
+                                                "opClass": "MatrixMov"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses46",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.opClasses.opClasses46",
+                                                "eventq_index": 0,
+                                                "opClass": "MatrixOP"
+                                            }
+                                        ]
+                                    },
+                                    "opLat": 6,
+                                    "timings": [
+                                        {
+                                            "type": "MinorFUTiming",
+                                            "cxx_class": "gem5::MinorFUTiming",
+                                            "name": "timings",
+                                            "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.timings",
+                                            "description": "FloatSimd",
+                                            "eventq_index": 0,
+                                            "extraAssumedLat": 0,
+                                            "extraCommitLat": 0,
+                                            "extraCommitLatExpr": null,
+                                            "mask": 0,
+                                            "match": 0,
+                                            "opClasses": {
+                                                "type": "MinorOpClassSet",
+                                                "cxx_class": "gem5::MinorOpClassSet",
+                                                "name": "opClasses",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits4.timings.opClasses",
+                                                "eventq_index": 0,
+                                                "opClasses": []
+                                            },
+                                            "srcRegsRelativeLats": [
+                                                2
+                                            ],
+                                            "suppress": false
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "MinorFU",
+                                    "cxx_class": "gem5::MinorFU",
+                                    "name": "funcUnits5",
+                                    "path": "board.processor.cores.core.executeFuncUnits.funcUnits5",
+                                    "cantForwardFromFUIndices": [],
+                                    "eventq_index": 0,
+                                    "issueLat": 1,
+                                    "opClasses": {
+                                        "type": "MinorOpClassSet",
+                                        "cxx_class": "gem5::MinorOpClassSet",
+                                        "name": "opClasses",
+                                        "path": "board.processor.cores.core.executeFuncUnits.funcUnits5.opClasses",
+                                        "eventq_index": 0,
+                                        "opClasses": [
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits5.opClasses.opClasses",
+                                                "eventq_index": 0,
+                                                "opClass": "SimdPredAlu"
+                                            }
+                                        ]
+                                    },
+                                    "opLat": 3,
+                                    "timings": [
+                                        {
+                                            "type": "MinorFUTiming",
+                                            "cxx_class": "gem5::MinorFUTiming",
+                                            "name": "timings",
+                                            "path": "board.processor.cores.core.executeFuncUnits.funcUnits5.timings",
+                                            "description": "Pred",
+                                            "eventq_index": 0,
+                                            "extraAssumedLat": 0,
+                                            "extraCommitLat": 0,
+                                            "extraCommitLatExpr": null,
+                                            "mask": 0,
+                                            "match": 0,
+                                            "opClasses": {
+                                                "type": "MinorOpClassSet",
+                                                "cxx_class": "gem5::MinorOpClassSet",
+                                                "name": "opClasses",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits5.timings.opClasses",
+                                                "eventq_index": 0,
+                                                "opClasses": []
+                                            },
+                                            "srcRegsRelativeLats": [
+                                                2
+                                            ],
+                                            "suppress": false
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "MinorFU",
+                                    "cxx_class": "gem5::MinorFU",
+                                    "name": "funcUnits6",
+                                    "path": "board.processor.cores.core.executeFuncUnits.funcUnits6",
+                                    "cantForwardFromFUIndices": [],
+                                    "eventq_index": 0,
+                                    "issueLat": 1,
+                                    "opClasses": {
+                                        "type": "MinorOpClassSet",
+                                        "cxx_class": "gem5::MinorOpClassSet",
+                                        "name": "opClasses",
+                                        "path": "board.processor.cores.core.executeFuncUnits.funcUnits6.opClasses",
+                                        "eventq_index": 0,
+                                        "opClasses": [
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses0",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits6.opClasses.opClasses0",
+                                                "eventq_index": 0,
+                                                "opClass": "MemRead"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses1",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits6.opClasses.opClasses1",
+                                                "eventq_index": 0,
+                                                "opClass": "FloatMemRead"
+                                            }
+                                        ]
+                                    },
+                                    "opLat": 6,
+                                    "timings": [
+                                        {
+                                            "type": "MinorFUTiming",
+                                            "cxx_class": "gem5::MinorFUTiming",
+                                            "name": "timings",
+                                            "path": "board.processor.cores.core.executeFuncUnits.funcUnits6.timings",
+                                            "description": "Mem",
+                                            "eventq_index": 0,
+                                            "extraAssumedLat": 2,
+                                            "extraCommitLat": 0,
+                                            "extraCommitLatExpr": null,
+                                            "mask": 0,
+                                            "match": 0,
+                                            "opClasses": {
+                                                "type": "MinorOpClassSet",
+                                                "cxx_class": "gem5::MinorOpClassSet",
+                                                "name": "opClasses",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits6.timings.opClasses",
+                                                "eventq_index": 0,
+                                                "opClasses": []
+                                            },
+                                            "srcRegsRelativeLats": [
+                                                1
+                                            ],
+                                            "suppress": false
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "MinorFU",
+                                    "cxx_class": "gem5::MinorFU",
+                                    "name": "funcUnits7",
+                                    "path": "board.processor.cores.core.executeFuncUnits.funcUnits7",
+                                    "cantForwardFromFUIndices": [],
+                                    "eventq_index": 0,
+                                    "issueLat": 1,
+                                    "opClasses": {
+                                        "type": "MinorOpClassSet",
+                                        "cxx_class": "gem5::MinorOpClassSet",
+                                        "name": "opClasses",
+                                        "path": "board.processor.cores.core.executeFuncUnits.funcUnits7.opClasses",
+                                        "eventq_index": 0,
+                                        "opClasses": [
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses0",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits7.opClasses.opClasses0",
+                                                "eventq_index": 0,
+                                                "opClass": "MemWrite"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses1",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits7.opClasses.opClasses1",
+                                                "eventq_index": 0,
+                                                "opClass": "FloatMemWrite"
+                                            }
+                                        ]
+                                    },
+                                    "opLat": 2,
+                                    "timings": [
+                                        {
+                                            "type": "MinorFUTiming",
+                                            "cxx_class": "gem5::MinorFUTiming",
+                                            "name": "timings",
+                                            "path": "board.processor.cores.core.executeFuncUnits.funcUnits7.timings",
+                                            "description": "Mem",
+                                            "eventq_index": 0,
+                                            "extraAssumedLat": 2,
+                                            "extraCommitLat": 0,
+                                            "extraCommitLatExpr": null,
+                                            "mask": 0,
+                                            "match": 0,
+                                            "opClasses": {
+                                                "type": "MinorOpClassSet",
+                                                "cxx_class": "gem5::MinorOpClassSet",
+                                                "name": "opClasses",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits7.timings.opClasses",
+                                                "eventq_index": 0,
+                                                "opClasses": []
+                                            },
+                                            "srcRegsRelativeLats": [
+                                                1
+                                            ],
+                                            "suppress": false
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "MinorFU",
+                                    "cxx_class": "gem5::MinorFU",
+                                    "name": "funcUnits8",
+                                    "path": "board.processor.cores.core.executeFuncUnits.funcUnits8",
+                                    "cantForwardFromFUIndices": [],
+                                    "eventq_index": 0,
+                                    "issueLat": 1,
+                                    "opClasses": {
+                                        "type": "MinorOpClassSet",
+                                        "cxx_class": "gem5::MinorOpClassSet",
+                                        "name": "opClasses",
+                                        "path": "board.processor.cores.core.executeFuncUnits.funcUnits8.opClasses",
+                                        "eventq_index": 0,
+                                        "opClasses": [
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses0",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits8.opClasses.opClasses0",
+                                                "eventq_index": 0,
+                                                "opClass": "IprAccess"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses1",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits8.opClasses.opClasses1",
+                                                "eventq_index": 0,
+                                                "opClass": "InstPrefetch"
+                                            }
+                                        ]
+                                    },
+                                    "opLat": 1,
+                                    "timings": []
+                                },
+                                {
+                                    "type": "MinorFU",
+                                    "cxx_class": "gem5::MinorFU",
+                                    "name": "funcUnits9",
+                                    "path": "board.processor.cores.core.executeFuncUnits.funcUnits9",
+                                    "cantForwardFromFUIndices": [],
+                                    "eventq_index": 0,
+                                    "issueLat": 1,
+                                    "opClasses": {
+                                        "type": "MinorOpClassSet",
+                                        "cxx_class": "gem5::MinorOpClassSet",
+                                        "name": "opClasses",
+                                        "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses",
+                                        "eventq_index": 0,
+                                        "opClasses": [
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses00",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses00",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorUnitStrideLoad"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses01",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses01",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorUnitStrideStore"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses02",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses02",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorUnitStrideMaskLoad"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses03",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses03",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorUnitStrideMaskStore"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses04",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses04",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorStridedLoad"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses05",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses05",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorStridedStore"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses06",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses06",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorIndexedLoad"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses07",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses07",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorIndexedStore"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses08",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses08",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorUnitStrideFaultOnlyFirstLoad"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses09",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses09",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorWholeRegisterLoad"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses10",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses10",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorWholeRegisterStore"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses11",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses11",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorIntegerArith"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses12",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses12",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorFloatArith"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses13",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses13",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorFloatConvert"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses14",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses14",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorIntegerReduce"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses15",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses15",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorFloatReduce"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses16",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses16",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorMisc"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses17",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses17",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorIntegerExtension"
+                                            },
+                                            {
+                                                "type": "MinorOpClass",
+                                                "cxx_class": "gem5::MinorOpClass",
+                                                "name": "opClasses18",
+                                                "path": "board.processor.cores.core.executeFuncUnits.funcUnits9.opClasses.opClasses18",
+                                                "eventq_index": 0,
+                                                "opClass": "VectorConfig"
+                                            }
+                                        ]
+                                    },
+                                    "opLat": 1,
+                                    "timings": []
+                                }
+                            ]
+                        },
+                        "executeInputBufferSize": 4,
+                        "executeInputWidth": 2,
+                        "executeIssueLimit": 2,
+                        "executeLSQMaxStoreBufferStoresPerCycle": 2,
+                        "executeLSQRequestsQueueSize": 1,
+                        "executeLSQStoreBufferSize": 3,
+                        "executeLSQTransfersQueueSize": 2,
+                        "executeMaxAccessesInMemory": 1,
+                        "executeMemoryCommitLimit": 1,
+                        "executeMemoryIssueLimit": 1,
+                        "executeMemoryWidth": 0,
+                        "executeSetTraceTimeOnCommit": true,
+                        "executeSetTraceTimeOnIssue": false,
+                        "fetch1FetchLimit": 1,
+                        "fetch1LineSnapWidth": 0,
+                        "fetch1LineWidth": 0,
+                        "fetch1ToFetch2BackwardDelay": 0,
+                        "fetch1ToFetch2ForwardDelay": 1,
+                        "fetch2CycleInput": true,
+                        "fetch2InputBufferSize": 1,
+                        "fetch2ToDecodeForwardDelay": 1,
+                        "function_trace": false,
+                        "function_trace_start": 0,
+                        "interrupts": [
+                            {
+                                "type": "RiscvInterrupts",
+                                "cxx_class": "gem5::RiscvISA::Interrupts",
+                                "name": "interrupts",
+                                "path": "board.processor.cores.core.interrupts",
+                                "eventq_index": 0
+                            }
+                        ],
+                        "isa": [
+                            {
+                                "type": "RiscvISA",
+                                "cxx_class": "gem5::RiscvISA::ISA",
+                                "name": "isa",
+                                "path": "board.processor.cores.core.isa",
+                                "check_alignment": false,
+                                "eventq_index": 0,
+                                "riscv_type": "RV64"
+                            }
+                        ],
+                        "max_insts_all_threads": 0,
+                        "max_insts_any_thread": 0,
+                        "mmu": {
+                            "type": "RiscvMMU",
+                            "cxx_class": "gem5::RiscvISA::MMU",
+                            "name": "mmu",
+                            "path": "board.processor.cores.core.mmu",
+                            "dtb": {
+                                "type": "RiscvTLB",
+                                "cxx_class": "gem5::RiscvISA::TLB",
+                                "name": "dtb",
+                                "path": "board.processor.cores.core.mmu.dtb",
+                                "entry_type": "data",
+                                "eventq_index": 0,
+                                "next_level": null,
+                                "pma_checker": "board.processor.cores.core.mmu.pma_checker",
+                                "pmp": "board.processor.cores.core.mmu.pmp",
+                                "size": 64,
+                                "walker": {
+                                    "type": "RiscvPagetableWalker",
+                                    "cxx_class": "gem5::RiscvISA::Walker",
+                                    "name": "walker",
+                                    "path": "board.processor.cores.core.mmu.dtb.walker",
+                                    "clk_domain": "board.clk_domain",
+                                    "eventq_index": 0,
+                                    "num_squash_per_cycle": 4,
+                                    "pma_checker": "board.processor.cores.core.mmu.pma_checker",
+                                    "pmp": "board.processor.cores.core.mmu.pmp",
+                                    "power_model": [],
+                                    "power_state": {
+                                        "type": "PowerState",
+                                        "cxx_class": "gem5::PowerState",
+                                        "name": "power_state",
+                                        "path": "board.processor.cores.core.mmu.dtb.walker.power_state",
+                                        "clk_gate_bins": 20,
+                                        "clk_gate_max": 1000000000000,
+                                        "clk_gate_min": 1000,
+                                        "default_state": "UNDEFINED",
+                                        "eventq_index": 0,
+                                        "leaders": [],
+                                        "possible_states": []
+                                    },
+                                    "system": "board",
+                                    "port": {
+                                        "role": "GEM5 REQUESTOR",
+                                        "peer": "board.cache_hierarchy.dptw_caches.cpu_side",
+                                        "is_source": "True"
+                                    }
+                                }
+                            },
+                            "eventq_index": 0,
+                            "itb": {
+                                "type": "RiscvTLB",
+                                "cxx_class": "gem5::RiscvISA::TLB",
+                                "name": "itb",
+                                "path": "board.processor.cores.core.mmu.itb",
+                                "entry_type": "instruction",
+                                "eventq_index": 0,
+                                "next_level": null,
+                                "pma_checker": "board.processor.cores.core.mmu.pma_checker",
+                                "pmp": "board.processor.cores.core.mmu.pmp",
+                                "size": 64,
+                                "walker": {
+                                    "type": "RiscvPagetableWalker",
+                                    "cxx_class": "gem5::RiscvISA::Walker",
+                                    "name": "walker",
+                                    "path": "board.processor.cores.core.mmu.itb.walker",
+                                    "clk_domain": "board.clk_domain",
+                                    "eventq_index": 0,
+                                    "num_squash_per_cycle": 4,
+                                    "pma_checker": "board.processor.cores.core.mmu.pma_checker",
+                                    "pmp": "board.processor.cores.core.mmu.pmp",
+                                    "power_model": [],
+                                    "power_state": {
+                                        "type": "PowerState",
+                                        "cxx_class": "gem5::PowerState",
+                                        "name": "power_state",
+                                        "path": "board.processor.cores.core.mmu.itb.walker.power_state",
+                                        "clk_gate_bins": 20,
+                                        "clk_gate_max": 1000000000000,
+                                        "clk_gate_min": 1000,
+                                        "default_state": "UNDEFINED",
+                                        "eventq_index": 0,
+                                        "leaders": [],
+                                        "possible_states": []
+                                    },
+                                    "system": "board",
+                                    "port": {
+                                        "role": "GEM5 REQUESTOR",
+                                        "peer": "board.cache_hierarchy.iptw_caches.cpu_side",
+                                        "is_source": "True"
+                                    }
+                                }
+                            },
+                            "pma_checker": {
+                                "type": "PMAChecker",
+                                "cxx_class": "gem5::PMAChecker",
+                                "name": "pma_checker",
+                                "path": "board.processor.cores.core.mmu.pma_checker",
+                                "eventq_index": 0,
+                                "uncacheable": []
+                            },
+                            "pmp": {
+                                "type": "PMP",
+                                "cxx_class": "gem5::PMP",
+                                "name": "pmp",
+                                "path": "board.processor.cores.core.mmu.pmp",
+                                "eventq_index": 0,
+                                "pmp_entries": 16
+                            }
+                        },
+                        "numThreads": 1,
+                        "power_gating_on_idle": false,
+                        "power_model": [],
+                        "power_state": {
+                            "type": "PowerState",
+                            "cxx_class": "gem5::PowerState",
+                            "name": "power_state",
+                            "path": "board.processor.cores.core.power_state",
+                            "clk_gate_bins": 20,
+                            "clk_gate_max": 1000000000000,
+                            "clk_gate_min": 1000,
+                            "default_state": "UNDEFINED",
+                            "eventq_index": 0,
+                            "leaders": [],
+                            "possible_states": [
+                                "ON",
+                                "CLK_GATED",
+                                "OFF"
+                            ]
+                        },
+                        "progress_interval": 0,
+                        "pwr_gating_latency": 300,
+                        "simpoint_start_insts": [],
+                        "socket_id": 0,
+                        "switched_out": false,
+                        "syscallRetryLatency": 10000,
+                        "system": "board",
+                        "threadPolicy": "SingleThreaded",
+                        "tracer": {
+                            "type": "ExeTracer",
+                            "cxx_class": "gem5::trace::ExeTracer",
+                            "name": "tracer",
+                            "path": "board.processor.cores.core.tracer",
+                            "eventq_index": 0
+                        },
+                        "workload": [
+                            {
+                                "type": "Process",
+                                "cxx_class": "gem5::Process",
+                                "name": "workload",
+                                "path": "board.processor.cores.core.workload",
+                                "cmd": [
+                                    "/home/bees/.cache/gem5/riscv-mcs",
+                                    "sample",
+                                    "100"
+                                ],
+                                "cwd": "/home/bees/gem5-pb-test-board/example",
+                                "drivers": [],
+                                "egid": 100,
+                                "env": [],
+                                "errout": "cerr",
+                                "euid": 100,
+                                "eventq_index": 0,
+                                "executable": "/home/bees/.cache/gem5/riscv-mcs",
+                                "gid": 100,
+                                "input": "cin",
+                                "kvmInSE": false,
+                                "maxStackSize": 67108864,
+                                "output": "cout",
+                                "pgid": 100,
+                                "pid": 100,
+                                "ppid": 0,
+                                "release": "5.1.0",
+                                "simpoint": 0,
+                                "system": "board",
+                                "uid": 100,
+                                "useArchPT": false
+                            }
+                        ],
+                        "dcache_port": {
+                            "role": "GEM5 REQUESTOR",
+                            "peer": "board.cache_hierarchy.l1dcaches.cpu_side",
+                            "is_source": "True"
+                        },
+                        "icache_port": {
+                            "role": "GEM5 REQUESTOR",
+                            "peer": "board.cache_hierarchy.l1icaches.cpu_side",
+                            "is_source": "True"
+                        }
+                    }
+                }
+            ]
+        },
+        "system_port": {
+            "role": "GEM5 REQUESTOR",
+            "peer": "board.cache_hierarchy.membus.cpu_side_ports[0]",
+            "is_source": "True"
+        }
+    }
+}

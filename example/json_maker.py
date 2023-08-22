@@ -63,7 +63,7 @@ def main():
 
 
 def file_maker(matrix_size, pb_row, in_file, foldover):
-    with open(f"H_{matrix_size}.txt", "r") as pb_file:
+    with open(f"./pb-designs/PB_{matrix_size}.txt", "r") as pb_file:
         # with open("H_4.txt", "r") as pb_file:
         all_run_settings = []
         for line in pb_file:
