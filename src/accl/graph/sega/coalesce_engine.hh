@@ -183,6 +183,7 @@ class CoalesceEngine : public BaseMemoryEngine
         statistics::Scalar responsePortShortage;
         statistics::Scalar numMemoryBlocks;
         statistics::Scalar wastefulBytesRead;
+        statistics::Scalar vertexActivations;
         statistics::Scalar verticesPulled;
         statistics::Scalar verticesPushed;
         statistics::Scalar lastVertexPullTime;

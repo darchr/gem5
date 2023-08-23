@@ -680,6 +680,8 @@ CoalesceEngine::recvWLWrite(Addr addr, WorkListItem wl)
 
     bool active = graphWorkload->activeCondition(wl, cacheBlocks[block_index].items[wl_offset]);
     cacheBlocks[block_index].items[wl_offset] = wl;
+
+    stats.vertexActivations += active ? 1 : 0;
     if (mode == ProcessingMode::ASYNCHRONOUS || mode == ProcessingMode::POLY_GRAPH) {
         cacheBlocks[block_index].items[wl_offset].activeNow |= active;
         if (active && (!numActiveBlocksNow.find(block_index))) {
@@ -1258,6 +1260,9 @@ CoalesceEngine::CoalesceStats::CoalesceStats(CoalesceEngine& _coalesce):
              "Number of times memory bandwidth was not available."),
     ADD_STAT(wastefulBytesRead, statistics::units::Byte::get(),
              "Number of bytes read that were not used by coalesce engine"),
+    ADD_STAT(vertexActivations, statistics::units::Count::get(),
+             "Number of times a vertex has become active. "
+             "Only meaningful in async mode"),
     ADD_STAT(verticesPulled, statistics::units::Count::get(),
              "Number of times a pull request has been sent by PushEngine."),
     ADD_STAT(verticesPushed, statistics::units::Count::get(),
