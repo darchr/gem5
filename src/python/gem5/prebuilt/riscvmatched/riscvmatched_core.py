@@ -249,19 +249,21 @@ class U74Core(BaseCPUCore):
         bp_config = config_json["BPChoice"]
         if bp_config == "Tournament":
             bp = TournamentBP()
+            bp.BTBEntries = 32
+            bp.RASSize = 12
+            bp.localHistoryTableSize = 4096
+            bp.localPredictorSize = 16384
+            bp.globalPredictorSize = 16384
+            bp.choicePredictorSize = 16384
+            bp.localCtrBits = 4
+            bp.globalCtrBits = 4
+            bp.choiceCtrBits = 4
+            bp.indirectBranchPred = SimpleIndirectPredictor()
+            bp.indirectBranchPred.indirectSets = 16
         else:
             bp = LocalBP()
-        bp.BTBEntries = 32
-        bp.RASSize = 12
-        bp.localHistoryTableSize = 4096
-        bp.localPredictorSize = 16384
-        bp.globalPredictorSize = 16384
-        bp.choicePredictorSize = 16384
-        bp.localCtrBits = 4
-        bp.globalCtrBits = 4
-        bp.choiceCtrBits = 4
-        bp.indirectBranchPred = SimpleIndirectPredictor()
-        bp.indirectBranchPred.indirectSets = 16
+            bp.localPredictorSize = 16384
+            bp.localCtrBits = 4
 
         # bp.BTBEntries = config_json["BTBEntries"]
         # bp.RASSize = config_json["RASSize"]

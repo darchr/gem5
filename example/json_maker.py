@@ -9,11 +9,11 @@ def main():
         required=True,
         type=int,
         help="Select an integer value for the size of the Hadamard matrix/ PB Design to use.",
-        choices=[4, 12, 48, 80],
+        choices=[4, 12, 40, 48, 80],
     )
     parser.add_argument(
-        "--run_setting_row",
-        required=True,
+        "--pb_row",
+        # required=True,
         type=int,
         help="Choose a row of the PB design to use to create a configuration json.",
     )
@@ -21,17 +21,44 @@ def main():
         "--file",
         required=True,
         help="Select file to make a configuration json from.",
-        choices=["example.json", "example_core.json"],
+        choices=["example.json", "example_core.json", "edited_params.json"],
     )
     parser.add_argument(
         "--foldover",
-        required=True,
+        # required=True,
         help="If False, then use the original Hadamard matrix/PB design. If True, then use the opposite of the Hadamard matrix.",
-        type=bool,
+        type=int,
+        choices=[0, 1],
     )
+    parser.add_argument(
+        "--nums",
+        required=True,
+        help="Choose to generate all jsons for a given PB design, or only one json. If choosing to generate only one, then --pb_row and --foldover must be specified.",
+        choices=["one", "all"],
+    )
+
     args = parser.parse_args()
 
-    with open(f"H_{args.matrix_size}.txt", "r") as pb_file:
+    if args.nums == "all":
+        for foldover in [0, 1]:
+            for row in range(0, args.matrix_size):
+                file_maker(
+                    matrix_size=args.matrix_size,
+                    pb_row=row,
+                    in_file=args.file,
+                    foldover=foldover,
+                )
+    else:
+        file_maker(
+            matrix_size=args.matrix_size,
+            pb_row=args.pb_row,
+            in_file=args.file,
+            foldover=args.foldover,
+        )
+
+
+def file_maker(matrix_size, pb_row, in_file, foldover):
+    with open(f"H_{matrix_size}.txt", "r") as pb_file:
         # with open("H_4.txt", "r") as pb_file:
         all_run_settings = []
         for line in pb_file:
@@ -41,10 +68,10 @@ def main():
             all_run_settings.append(line)
         # print(type(run_settings))
         # print(all_run_settings)
-        print(all_run_settings[args.run_setting_row])
+        print(all_run_settings[pb_row])
 
-    with open(args.file, "r") as high_low_json, open(
-        f"configured_{args.matrix_size}_{args.run_setting_row}.json", "w"
+    with open(in_file, "r") as high_low_json, open(
+        f"./configured_jsons/{matrix_size}_{pb_row}_{foldover}.json", "w"
     ) as configured_json:
         # aa = high_low_json.readline()
         # print (aa)
@@ -52,7 +79,7 @@ def main():
         # print(high_low)
         # for i, param in enumerate(high_low):
         configured_dict = configure_dictionary(
-            high_low, all_run_settings[args.run_setting_row], args.foldover
+            high_low, all_run_settings[pb_row], foldover
         )
         # configured_dict = configure_dictionary(test_dict, test_settings)
         # print(configured_dict)
@@ -74,12 +101,12 @@ def configure_dictionary(high_low_dict, run_settings, foldover):
             settings_index += unpack[1]
         elif isinstance(value, list):
             if run_settings[settings_index] == "-1":
-                if foldover == False:
+                if foldover == 0:
                     ret_dict[param] = value[0]
                 else:
                     ret_dict[param] = value[1]
             elif run_settings[settings_index] == "1":
-                if foldover == False:
+                if foldover == 0:
                     ret_dict[param] = value[1]
                 else:
                     ret_dict[param] = value[0]
@@ -96,7 +123,10 @@ def configure_dictionary(high_low_dict, run_settings, foldover):
     return ret_dict, settings_index
 
 
+# file_maker(40, 2, "edited_params.json", 1)
+# file_maker()
 main()
+
 
 # test_dict= {
 #     "one": ["1","4"],

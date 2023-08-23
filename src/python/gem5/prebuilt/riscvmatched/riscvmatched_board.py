@@ -143,7 +143,7 @@ class RISCVMatchedBoard(
             cache_hierarchy = RISCVMatchedCacheHierarchy(
                 l2_size=config["cache"]["l2_size"], config_json=config
             )
-            memory = U74Memory(config_json=config)
+            memory = U74Memory()
             self._config_json = config
 
         else:

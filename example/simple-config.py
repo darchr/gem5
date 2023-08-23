@@ -48,12 +48,40 @@ import argparse
 
 requires(isa_required=ISA.RISCV)
 
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--matrix_size",
+    required=True,
+    type=int,
+    help="Select an integer value for the size of the Hadamard matrix/ PB Design to use.",
+    choices=[4, 12, 40, 48, 80],
+)
+
+parser.add_argument(
+    "--foldover",
+    required=True,
+    help="If False, then use the original Hadamard matrix/PB design. If True, then use the opposite of the Hadamard matrix.",
+    type=int,
+    choices=[0, 1],
+)
+
+parser.add_argument(
+    "--pb_row",
+    required=True,
+    type=int,
+    help="Choose a row of the PB design to use to create a configuration json.",
+)
+
+args = parser.parse_args()
+
+
 # instantiate the riscv matched board with default parameters
 board = RISCVMatchedBoard(
     clk_freq="1.2GHz",
     l2_size="2MB",
     is_fs=False,
-    config_json="./configured_80_1.json",
+    config_json=f"./configured_jsons/{args.matrix_size}_{args.pb_row}_{args.foldover}.json",
 )
 
 board.set_se_binary_workload(
