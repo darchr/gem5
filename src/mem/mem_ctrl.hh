@@ -581,7 +581,7 @@ class MemCtrl : public qos::MemCtrl
 
         statistics::Scalar numRdRetry;
         statistics::Scalar numWrRetry;
-        statistics::Vector readPktSize;
+        // statistics::Vector readPktSize;
         statistics::Vector writePktSize;
         statistics::Vector rdQLenPdf;
         statistics::Vector wrQLenPdf;

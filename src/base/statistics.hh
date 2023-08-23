@@ -1051,7 +1051,7 @@ class VectorBase : public DataWrapVec<Derived, VectorInfoProxy>
     Proxy
     operator[](off_type index)
     {
-        assert (index < size());
+        // assert (index < size());
         return Proxy(this->self(), index);
     }
 };

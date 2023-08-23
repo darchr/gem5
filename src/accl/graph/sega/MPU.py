@@ -1,5 +1,6 @@
-# Copyright (c) 2022 The Regents of the University of California
-# All Rights Reserved.
+# -*- coding: utf-8 -*-
+# Copyright (c) 2017 Jason Lowe-Power
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -26,25 +27,19 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.objects.MemCtrl import *
+from m5.SimObject import SimObject
 
-# HBMCtrl manages two pseudo channels of HBM2
+class MPU(SimObject):
+    type = "MPU"
+    cxx_header = "accl/graph/sega/mpu.hh"
+    cxx_class = "gem5::MPU"
 
+    system = Param.System(Parent.any, "System this MPU is a part of")
 
-class HBMCtrl(MemCtrl):
-    type = "HBMCtrl"
-    cxx_header = "mem/hbm_ctrl.hh"
-    cxx_class = "gem5::memory::HBMCtrl"
+    wl_engine = Param.WLEngine(NULL, "Internal WLEngine for each instance of "
+                                "MPU object.")
+    coalesce_engine = Param.CoalesceEngine(NULL, "Internal CoalesceEngine for "
+                                "each instance of MPU object.")
+    push_engine = Param.PushEngine(NULL, "Internal PushEngine for each "
+                                "instance of MPU object.")
 
-    # HBMCtrl uses the SimpleMemCtlr's interface
-    # `dram` as the first pseudo channel, the second
-    # pseudo channel interface is following
-    # HBMCtrl has been tested with two HBM_2000_4H_1x64 interfaces
-    dram_2 = Param.DRAMInterface("DRAM memory interface")
-
-    pch_bit = Param.Int("Position of PseudoChannel bit in addresses.")
-
-    # For mixed traffic, HBMCtrl with HBM_2000_4H_1x64 interfaaces
-    # gives the best results with following min_r/w_per_switch
-    min_reads_per_switch = 64
-    min_writes_per_switch = 64

@@ -1,5 +1,6 @@
-# Copyright (c) 2022 The Regents of the University of California
-# All Rights Reserved.
+# -*- coding: utf-8 -*-
+# Copyright (c) 2017 Jason Lowe-Power
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -26,25 +27,16 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.objects.MemCtrl import *
+from m5.objects.ClockedObject import ClockedObject
 
-# HBMCtrl manages two pseudo channels of HBM2
+class BaseMemoryEngine(ClockedObject):
+    abstract = True
+    type = 'BaseMemoryEngine'
+    cxx_header = "accl/graph/sega/base_memory_engine.hh"
+    cxx_class = 'gem5::BaseMemoryEngine'
 
+    system = Param.System(Parent.any, 'System this Engine is a part of')
+    mem_port  = RequestPort("Port to communicate with the memory")
 
-class HBMCtrl(MemCtrl):
-    type = "HBMCtrl"
-    cxx_header = "mem/hbm_ctrl.hh"
-    cxx_class = "gem5::memory::HBMCtrl"
-
-    # HBMCtrl uses the SimpleMemCtlr's interface
-    # `dram` as the first pseudo channel, the second
-    # pseudo channel interface is following
-    # HBMCtrl has been tested with two HBM_2000_4H_1x64 interfaces
-    dram_2 = Param.DRAMInterface("DRAM memory interface")
-
-    pch_bit = Param.Int("Position of PseudoChannel bit in addresses.")
-
-    # For mixed traffic, HBMCtrl with HBM_2000_4H_1x64 interfaaces
-    # gives the best results with following min_r/w_per_switch
-    min_reads_per_switch = 64
-    min_writes_per_switch = 64
+    attached_memory_atom_size = Param.Int(64, "The atom size of the attached "
+                                    "memory.")

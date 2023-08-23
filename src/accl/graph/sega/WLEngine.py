@@ -1,5 +1,6 @@
-# Copyright (c) 2022 The Regents of the University of California
-# All Rights Reserved.
+# -*- coding: utf-8 -*-
+# Copyright (c) 2017 Jason Lowe-Power
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -26,25 +27,28 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.objects.MemCtrl import *
+from m5.objects.BaseReduceEngine import BaseReduceEngine
 
-# HBMCtrl manages two pseudo channels of HBM2
+class WLEngine(BaseReduceEngine):
+    type = 'WLEngine'
+    cxx_header = "accl/graph/sega/wl_engine.hh"
+    cxx_class = 'gem5::WLEngine'
+
+    in_ports = VectorResponsePort("Incoming Ports to receive updates from "
+                                                "remote outside")
+
+    update_queue_size = Param.Int("Size of the queue WLEngine stores "
+                                        "the incoming updates")
+
+    register_file_size = Param.Int("Number of internal registers the "
+                                    "WLEngine has. It can service as "
+                                    "many updates as this queueu has "
+                                    "entries at the same time.")
+
+    examine_window = Param.Int("Number of updates at the front of update "
+                                "queue examined for reading.")
+    rd_per_cycle = Param.Int("Maximum number of reads per cycle.")
+    reduce_per_cycle = Param.Int("Maximum number of reduce per cycle.")
+    wr_per_cycle = Param.Int("Maximum number of writes per cycle.")
 
 
-class HBMCtrl(MemCtrl):
-    type = "HBMCtrl"
-    cxx_header = "mem/hbm_ctrl.hh"
-    cxx_class = "gem5::memory::HBMCtrl"
-
-    # HBMCtrl uses the SimpleMemCtlr's interface
-    # `dram` as the first pseudo channel, the second
-    # pseudo channel interface is following
-    # HBMCtrl has been tested with two HBM_2000_4H_1x64 interfaces
-    dram_2 = Param.DRAMInterface("DRAM memory interface")
-
-    pch_bit = Param.Int("Position of PseudoChannel bit in addresses.")
-
-    # For mixed traffic, HBMCtrl with HBM_2000_4H_1x64 interfaaces
-    # gives the best results with following min_r/w_per_switch
-    min_reads_per_switch = 64
-    min_writes_per_switch = 64
