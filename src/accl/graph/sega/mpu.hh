@@ -69,6 +69,7 @@ class MPU : public SimObject
 
     unsigned int vertexAtomSize() { return coalesceEngine->params().attached_memory_atom_size; }
     AddrRangeList getAddrRanges() { return coalesceEngine->getAddrRanges(); }
+    uint64_t getCacheSize() { return coalesceEngine->params().cache_size; }
     void recvFunctional(PacketPtr pkt) { coalesceEngine->recvFunctional(pkt); }
     void postMemInitSetup() { coalesceEngine->postMemInitSetup(); }
     void postConsumeProcess() { coalesceEngine->postConsumeProcess(); }
@@ -87,6 +88,10 @@ class MPU : public SimObject
     void start() { return pushEngine->start(); }
     void recvVertexPush(Addr addr, uint32_t delta,
                         uint32_t edge_index, uint32_t degree);
+
+    void recvMirrorPush(Addr addr, uint32_t delta,
+                        uint32_t edge_index, uint32_t degree);
+    void startProcessingMirrors(Tick time_to_wait) { pushEngine->startProcessingMirrors(time_to_wait); }
 
     void recvDoneSignal();
     bool done();

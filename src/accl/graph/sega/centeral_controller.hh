@@ -29,23 +29,24 @@
 #ifndef __ACCL_GRAPH_SEGA_CENTERAL_CONTROLLER_HH__
 #define __ACCL_GRAPH_SEGA_CENTERAL_CONTROLLER_HH__
 
+#include <cmath>
 #include <vector>
 
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/base/graph_workload.hh"
+#include "accl/graph/sega/base_memory_engine.hh"
 #include "accl/graph/sega/enums.hh"
 #include "accl/graph/sega/mpu.hh"
 #include "accl/graph/sega/router_engine.hh"
 #include "base/addr_range.hh"
 #include "base/intmath.hh"
+#include "mem/simple_mem.hh"
 #include "params/CenteralController.hh"
-#include "sim/clocked_object.hh"
-#include "sim/system.hh"
 
 namespace gem5
 {
 
-class CenteralController : public ClockedObject
+class CenteralController : public BaseMemoryEngine
 {
   private:
     class ReqPort : public RequestPort
@@ -68,109 +69,43 @@ class CenteralController : public ClockedObject
         virtual void recvReqRetry();
     };
 
-    struct PointerTag : public Packet::SenderState
-    {
-        int _id;
-        PointerType _type;
-        PointerTag(int id, PointerType type): _id(id), _type(type) {}
-        int Id() { return _id; }
-        PointerType type() { return _type; }
-
-    };
-
-    class MirrorReadInfoGen {
-      private:
-        Addr _start;
-        Addr _end;
-        size_t _step;
-        size_t _atom;
-
-      public:
-        MirrorReadInfoGen(Addr start, Addr end, size_t step, size_t atom):
-                        _start(start), _end(end), _step(step), _atom(atom)
-        {}
-
-        std::tuple<Addr, Addr, int> nextReadPacketInfo()
-        {
-            panic_if(done(), "Should not call nextPacketInfo when done.\n");
-            Addr aligned_addr = roundDown<Addr, Addr>(_start, _atom);
-            Addr offset = _start - aligned_addr;
-            int num_items = 0;
-
-            if (_end > (aligned_addr + _atom)) {
-                num_items = (_atom - offset) / _step;
-            } else {
-                num_items = (_end - _start) / _step;
-            }
-
-            return std::make_tuple(aligned_addr, offset, num_items);
-        }
-
-        void iterate()
-        {
-            panic_if(done(), "Should not call iterate when done.\n");
-            Addr aligned_addr = roundDown<Addr, Addr>(_start, _atom);
-            _start = aligned_addr + _atom;
-        }
-
-        bool done() { return (_start >= _end); }
-    };
-
-    System* system;
-
-    ReqPort mirrorsPort;
     ReqPort mapPort;
-
     Addr maxVertexAddr;
-
     ProcessingMode mode;
 
+    memory::SimpleMemory* mirrorsMem;
+
     std::vector<MPU*> mpuVector;
-    std::vector<RouterEngine*> routerVector;
+    AddrRangeMap<MPU*> mpuAddrMap;
 
-    std::unordered_map<MPU*, AddrRangeList> addrRangeListMap;
+    int currentSliceId;
+    int numTotalSlices;
+    int verticesPerSlice;
+    int totalUpdatesLeft;
 
-    // FIXME: Initialize these two.
-    int currentSliceNumber;
-    int totalSliceNumber;
+    int* numPendingUpdates;
+    uint32_t* bestPendingUpdate;
 
-    int lastReadPacketId;
-    std::unordered_map<int, Addr> startAddrs;
-    std::unordered_map<int, Addr> endAddrs;
-    // TODO: Set a max size for this queue;
-    std::deque<MirrorReadInfoGen> mirrorPointerQueue;
+    int chooseNextSlice();
 
-    std::deque<PacketPtr> readQueue;
-    std::deque<PacketPtr> writeBackQueue;
+    EventFunctionWrapper nextSliceSwitchEvent;
+    void processNextSliceSwitchEvent();
 
-    int getSliceNumber(Addr vertex_addr);
-    PacketPtr createReadPacket(Addr addr, unsigned int size);
-    PacketPtr createWritePacket(Addr addr, unsigned int size, uint8_t* data);
-
-    bool handleMemResp(PacketPtr pkt, PortID id);
-    void recvReqRetry(PortID id);
-
-    EventFunctionWrapper nextMirrorMapReadEvent;
-    void processNextMirrorMapReadEvent();
-
-    EventFunctionWrapper nextMirrorReadEvent;
-    void processNextMirrorReadEvent();
-
-    EventFunctionWrapper nextMirrorUpdateEvent;
-    void processNextMirrorUpdateEvent();
-
-    EventFunctionWrapper nextWriteBackEvent;
-    void processNextWriteBackEvent();
+  protected:
+    virtual void recvMemRetry() override;
+    virtual bool handleMemResp(PacketPtr pkt) override;
 
   public:
     GraphWorkload* workload;
 
     PARAMS(CenteralController);
-    CenteralController(const CenteralControllerParams &params);
+    CenteralController(const Params& params);
     Port& getPort(const std::string& if_name,
                 PortID idx = InvalidPortID) override;
 
     virtual void startup() override;
+
+    virtual void recvFunctional(PacketPtr pkt) override;
 
     void setAsyncMode() { mode = ProcessingMode::ASYNCHRONOUS; }
     void setBSPMode() { mode = ProcessingMode::BULK_SYNCHRONOUS; }

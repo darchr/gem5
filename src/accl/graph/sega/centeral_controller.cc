@@ -28,6 +28,7 @@
 
 #include "accl/graph/sega/centeral_controller.hh"
 
+#include <cmath>
 #include <iostream>
 
 #include "base/cprintf.hh"
@@ -41,34 +42,32 @@ namespace gem5
 {
 
 CenteralController::CenteralController(const Params& params):
-    ClockedObject(params),
-    system(params.system),
-    mirrorsPort("mirrors_mem", this, 0), mapPort("map_port", this, 1),
-    mode(ProcessingMode::NOT_SET), currentSliceNumber(0), totalSliceNumber(148),
-    lastReadPacketId(0),
-    nextMirrorMapReadEvent([this] { processNextMirrorMapReadEvent(); }, name()),
-    nextMirrorReadEvent([this] { processNextMirrorReadEvent(); }, name()),
-    nextMirrorUpdateEvent([this] { processNextMirrorUpdateEvent(); }, name()),
-    nextWriteBackEvent([this] { processNextWriteBackEvent(); }, name())
+    BaseMemoryEngine(params),
+    mapPort("map_port", this, 1), mode(ProcessingMode::NOT_SET),
+    mirrorsMem(params.mirrors_mem), currentSliceId(0), totalUpdatesLeft(0),
+    nextSliceSwitchEvent([this] { processNextSliceSwitchEvent(); }, name())
 {
+    uint64_t total_cache_size = 0;
     for (auto mpu : params.mpu_vector) {
         mpuVector.push_back(mpu);
         mpu->registerCenteralController(this);
+        total_cache_size += mpu->getCacheSize();
     }
 
-    for (auto router : params.router_vector) {
-        routerVector.push_back(router);
-        router->registerCenteralController(this);
-    }
+    // for (auto router : params.router_vector) {
+    //     routerVector.push_back(router);
+    //     router->registerCenteralController(this);
+    // }
+    verticesPerSlice = std::floor(total_cache_size / sizeof(WorkListItem));
 }
 
 Port&
 CenteralController::getPort(const std::string& if_name, PortID idx)
 {
-    if (if_name == "mirrors_mem") {
-        return mirrorsPort;
-    } else if (if_name == "mirrors_map_mem") {
+    if (if_name == "mirrors_map_mem") {
         return mapPort;
+    } else if (if_name == "mem_port") {
+        return BaseMemoryEngine::getPort("mem_port", idx);
     } else {
         return ClockedObject::getPort(if_name, idx);
     }
@@ -143,7 +142,9 @@ CenteralController::startup()
 {
     unsigned int vertex_atom = mpuVector.front()->vertexAtomSize();
     for (auto mpu: mpuVector) {
-        addrRangeListMap[mpu] = mpu->getAddrRanges();
+        for (auto range: mpu->getAddrRanges()) {
+            mpuAddrMap.insert(range, mpu);
+        }
         mpu->setProcessingMode(mode);
         mpu->recvWorkload(workload);
     }
@@ -159,14 +160,20 @@ CenteralController::startup()
     loader::MemoryImage vertex_image = object->buildImage();
     maxVertexAddr = vertex_image.maxAddr();
 
+    int num_total_vertices = (maxVertexAddr / sizeof(WorkListItem));
+    numTotalSlices = std::ceil((double) num_total_vertices / verticesPerSlice);
+
+    numPendingUpdates = new int [numTotalSlices];
+    bestPendingUpdate = new uint32_t [numTotalSlices];
+    for (int i = 0; i < numTotalSlices; i++) {
+        numPendingUpdates[i] = 0;
+        bestPendingUpdate[i] = -1;
+    }
+
     PortProxy vertex_proxy(
     [this](PacketPtr pkt) {
-        for (auto mpu: mpuVector) {
-            AddrRangeList range_list = addrRangeListMap[mpu];
-            if (contains(range_list, pkt->getAddr())) {
-                mpu->recvFunctional(pkt);
-            }
-        }
+        auto routing_entry = mpuAddrMap.contains(pkt->getAddr());
+        routing_entry->second->recvFunctional(pkt);
     }, vertex_atom);
 
     panic_if(!vertex_image.write(vertex_proxy), "%s: Unable to write image.");
@@ -200,40 +207,13 @@ CenteralController::ReqPort::sendPacket(PacketPtr pkt)
 bool
 CenteralController::ReqPort::recvTimingResp(PacketPtr pkt)
 {
-    return owner->handleMemResp(pkt, _id);
+    panic("recvTimingResp should not be called at all");
 }
 
 void
 CenteralController::ReqPort::recvReqRetry()
 {
-    panic_if(blockedPacket == nullptr,
-            "Received retry without a blockedPacket.");
-
-    DPRINTF(CenteralController, "%s: ReqPort %d received a reqRetry. "
-            "blockedPacket: %s.\n", __func__, _id, blockedPacket->print());
-    PacketPtr pkt = blockedPacket;
-    blockedPacket = nullptr;
-    sendPacket(pkt);
-    if (blockedPacket == nullptr) {
-        DPRINTF(CenteralController, "%s: blockedPacket sent "
-                                "successfully.\n", __func__);
-        owner->recvReqRetry(_id);
-    }
-}
-
-PacketPtr
-CenteralController::createReadPacket(Addr addr, unsigned int size)
-{
-    RequestPtr req = std::make_shared<Request>(addr, size, 0, 0);
-    // Dummy PC to have PC-based prefetchers latch on; get entropy into higher
-    // bits
-    req->setPC(((Addr) 0) << 2);
-
-    // Embed it in a packet
-    PacketPtr pkt = new Packet(req, MemCmd::ReadReq);
-    pkt->allocate();
-
-    return pkt;
+    panic("recvReqRetry should not be called at all");
 }
 
 void
@@ -244,9 +224,9 @@ CenteralController::recvDoneSignal()
         done &= mpu->done();
     }
 
-    for (auto router : routerVector) {
-        done &= router->done();
-    }
+    // for (auto router : routerVector) {
+    //     done &= router->done();
+    // }
 
     if (done && mode == ProcessingMode::ASYNCHRONOUS) {
         exitSimLoopNow("no update left to process.");
@@ -265,179 +245,175 @@ CenteralController::recvDoneSignal()
     }
 
     if (done && mode == ProcessingMode::POLY_GRAPH) {
-        // assert(!nextMirrorMapReadEvent.scheduled());
-        if (!nextMirrorMapReadEvent.scheduled()) {
-            schedule(nextMirrorMapReadEvent, nextCycle());
+        DPRINTF(CenteralController, "%s: Received done signal.\n", __func__);
+        exitSimLoopNow("Finished processing a slice.");
+        if (!nextSliceSwitchEvent.scheduled()) {
+            schedule(nextSliceSwitchEvent, nextCycle());
         }
     }
 }
 
-void
-CenteralController::processNextMirrorMapReadEvent()
+int
+CenteralController::chooseNextSlice()
 {
-    // TODO: In future add functionality to align start_addr and end_addr to
-    // size of the vertex atom.
-    Addr start_addr = currentSliceNumber * totalSliceNumber * sizeof(int);
-    Addr end_addr = start_addr + totalSliceNumber * sizeof(int);
-    PacketPtr start = createReadPacket(start_addr, sizeof(int));
-    PointerTag* start_tag = new PointerTag(lastReadPacketId, PointerType::START);
-    start->pushSenderState(start_tag);
-    PacketPtr end = createReadPacket(end_addr, sizeof(int));
-    PointerTag* end_tag = new PointerTag(lastReadPacketId, PointerType::END);
-    end->pushSenderState(end_tag);
-    lastReadPacketId++;
-    mapPort.sendPacket(start);
-    mapPort.sendPacket(end);
+    int ret_slice_id = -1;
+    int max_pending_count = 0;
+    for (int i = 0; i < numTotalSlices; i++) {
+        if (numPendingUpdates[i] > max_pending_count) {
+            max_pending_count = numPendingUpdates[i];
+            ret_slice_id = i;
+        }
+    }
+    return ret_slice_id;
+}
+
+void
+CenteralController::processNextSliceSwitchEvent()
+{
+    int vertex_atom = mpuVector.front()->vertexAtomSize();
+    int vertices_per_atom = (int) vertex_atom / sizeof(WorkListItem);
+    int bytes_accessed = 0;
+    int updates_generated_total =  0;
+    for (int dst_id = 0; dst_id < numTotalSlices; dst_id++) {
+        int updates_generated = 0;
+        Addr start_pointer = (currentSliceId * numTotalSlices + dst_id) * sizeof(int);
+        Addr end_pointer = (currentSliceId * numTotalSlices + dst_id + 1) * sizeof(int);
+        PacketPtr start = createReadPacket(start_pointer, sizeof(int));
+        PacketPtr end = createReadPacket(end_pointer, sizeof(int));
+        mapPort.sendFunctional(start);
+        mapPort.sendFunctional(end);
+        Addr start_addr = start->getLE<int>();
+        Addr end_addr = end->getLE<int>();
+        delete start;
+        delete end;
+        DPRINTF(CenteralController, "%s: %d->%d: [%lu, %lu].\n", __func__,
+                            currentSliceId, dst_id, start_addr, end_addr);
+
+        int num_bytes = end_addr - start_addr;
+        int num_mirrors = (int) (end_addr - start_addr) / sizeof(MirrorVertex);
+        MirrorVertex mirrors [num_mirrors];
+
+        PacketPtr read_mirrors = createReadPacket(start_addr, num_bytes);
+        memPort.sendFunctional(read_mirrors);
+        read_mirrors->writeData((uint8_t*) mirrors);
+        delete read_mirrors;
+
+        WorkListItem vertices [vertices_per_atom];
+        for (int i = 0; i < num_mirrors; i++) {
+            Addr org_addr = mirrors[i].vertexId * sizeof(WorkListItem);
+            Addr aligned_org_addr = roundDown<Addr, int>(org_addr, vertex_atom);
+            int wl_offset = (int) (org_addr - aligned_org_addr) / sizeof(WorkListItem);
+            PacketPtr read_org = createReadPacket(aligned_org_addr, vertex_atom);
+            auto routing_entry = mpuAddrMap.contains(aligned_org_addr);
+            routing_entry->second->recvFunctional(read_org);
+            read_org->writeDataToBlock((uint8_t*) vertices, vertex_atom);
+            delete read_org;
+             if (vertices[wl_offset].tempProp != vertices[wl_offset].prop) {
+                assert(vertices[wl_offset].degree == 0);
+                vertices[wl_offset].prop = vertices[wl_offset].tempProp;
+            }
+            if (mirrors[i].prop != vertices[wl_offset].prop) {
+                mirrors[i].prop = vertices[wl_offset].prop;
+                if (!mirrors[i].activeNow) {
+                    mirrors[i].activeNow = true;
+                    numPendingUpdates[dst_id]++;
+                    totalUpdatesLeft++;
+                    updates_generated++;
+                }
+                bestPendingUpdate[dst_id] =
+                    workload->reduce(bestPendingUpdate[dst_id], mirrors[i].prop);
+            }
+        }
+        PacketPtr write_mirrors =
+                    createWritePacket(start_addr, num_bytes, (uint8_t*) mirrors);
+        memPort.sendFunctional(write_mirrors);
+        delete write_mirrors;
+        DPRINTF(CenteralController, "%s: Done scattering updates from slice "
+                        "%d to slice %d.\n", __func__, currentSliceId, dst_id);
+        DPRINTF(CenteralController, "%s: Generated %d updates from slice "
+                                        "%d to slice %d.\n", __func__,
+                                    updates_generated, currentSliceId, dst_id);
+        updates_generated_total += updates_generated;
+        bytes_accessed += 2 * num_bytes;
+    }
+    DPRINTF(CenteralController, "%s: Done with slice %d.\n", __func__, currentSliceId);
+    DPRINTF(CenteralController, "%s: Generated a total of %d updates.\n",
+                                        __func__, updates_generated_total);
+    DPRINTF(CenteralController, "%s: There are a total of %d "
+                                "updates left.\n", __func__, totalUpdatesLeft);
+    if (totalUpdatesLeft > 0) {
+        currentSliceId = chooseNextSlice();
+    } else {
+        exitSimLoopNow("Done with all the slices.");
+        return;
+    }
+    DPRINTF(CenteralController, "%s: Chose %d as the "
+                                    "next slice.\n", __func__, currentSliceId);
+
+    for (int src_id = 0; src_id < numTotalSlices; src_id++) {
+        Addr start_pointer = (src_id * numTotalSlices + currentSliceId) * sizeof(int);
+        Addr end_pointer = (src_id * numTotalSlices + currentSliceId + 1) * sizeof(int);
+        PacketPtr start = createReadPacket(start_pointer, sizeof(int));
+        PacketPtr end = createReadPacket(end_pointer, sizeof(int));
+        mapPort.sendFunctional(start);
+        mapPort.sendFunctional(end);
+        Addr start_addr = start->getLE<int>();
+        Addr end_addr = end->getLE<int>();
+        delete start;
+        delete end;
+
+        int num_bytes = end_addr - start_addr;
+        int num_mirrors = (int) (end_addr - start_addr) / sizeof(MirrorVertex);
+        MirrorVertex mirrors [num_mirrors];
+
+        PacketPtr read_mirrors = createReadPacket(start_addr, num_bytes);
+        memPort.sendFunctional(read_mirrors);
+        read_mirrors->writeData((uint8_t*) mirrors);
+        delete read_mirrors;
+        for (int i = 0; i < num_mirrors; i++) {
+            if (mirrors[i].activeNow) {
+                Addr org_addr = mirrors[i].vertexId * sizeof(WorkListItem);
+                auto routing_entry = mpuAddrMap.contains(org_addr);
+                routing_entry->second->recvMirrorPush(org_addr, mirrors[i].prop,
+                                        mirrors[i].edgeIndex, mirrors[i].degree);
+                mirrors[i].activeNow = false;
+                numPendingUpdates[currentSliceId]--;
+                totalUpdatesLeft--;
+            }
+        }
+        PacketPtr write_mirrors =
+                    createWritePacket(start_addr, num_bytes, (uint8_t*) mirrors);
+        memPort.sendFunctional(write_mirrors);
+        delete write_mirrors;
+        DPRINTF(CenteralController, "%s: Done gathering updates from slice "
+                        "%d to slice %d.\n", __func__, src_id, currentSliceId);
+        bytes_accessed += num_bytes;
+    }
+
+    double mirror_mem_bw = mirrorsMem->getBW();
+    Tick time_to_switch = bytes_accessed * mirror_mem_bw;
+    for (auto mpu: mpuVector) {
+        mpu->startProcessingMirrors(time_to_switch);
+    }
+    exitSimLoopNow("Done with slice switch.");
 }
 
 bool
-CenteralController::handleMemResp(PacketPtr pkt, PortID id)
+CenteralController::handleMemResp(PacketPtr pkt)
 {
-    assert(pkt->isResponse());
-    if (id == 0) {
-        if (pkt->isWrite()) {
-            delete pkt;
-            return true;
-        }
-        readQueue.push_back(pkt);
-        delete pkt;
-        if (!nextMirrorUpdateEvent.scheduled()) {
-            schedule(nextMirrorUpdateEvent, nextCycle());
-        }
-        return true;
-    } else if (id == 1) {
-        PointerTag* tag = pkt->findNextSenderState<PointerTag>();
-        int read_id = tag->Id();
-        PointerType read_type = tag->type();
-        if (read_type == PointerType::START) {
-            assert(startAddrs.find(read_id) == startAddrs.end());
-            startAddrs[read_id] = pkt->getLE<int>();
-            if (endAddrs.find(read_id) != endAddrs.end()) {
-                int vertex_atom = mpuVector.front()->vertexAtomSize();
-                mirrorPointerQueue.emplace_back(
-                    startAddrs[read_id], endAddrs[read_id],
-                    sizeof(MirrorVertex), vertex_atom);
-                if (!nextMirrorReadEvent.scheduled()) {
-                    schedule(nextMirrorReadEvent, nextCycle());
-                }
-            }
-        } else {
-            assert(read_type == PointerType::END);
-            assert(endAddrs.find(read_id) == endAddrs.end());
-            endAddrs[read_id] = pkt->getLE<int>();
-            if (startAddrs.find(read_id) != startAddrs.end()) {
-                int vertex_atom = mpuVector.front()->vertexAtomSize();
-                mirrorPointerQueue.emplace_back(
-                    startAddrs[read_id], endAddrs[read_id],
-                    sizeof(MirrorVertex), vertex_atom);
-                if (!nextMirrorReadEvent.scheduled()) {
-                    schedule(nextMirrorReadEvent, nextCycle());
-                }
-            }
-        }
-        DPRINTF(CenteralController, "%s: Received pkt: %s from port %d "
-                                    "with value: %d.\n", __func__,
-                                    pkt->print(), id, pkt->getLE<int>());
-        delete tag;
-        delete pkt;
-        return true;
-    } else {
-        panic("did not expect this.");
-    }
+    panic("handleMemResp should not be called at all");
 }
 
 void
-CenteralController::recvReqRetry(PortID id) {
-    if (id == 0) {
-        assert(!nextMirrorReadEvent.scheduled());
-        if (!mirrorPointerQueue.empty()) {
-            schedule(nextMirrorReadEvent, nextCycle());
-        }
-    } else if (id == 1) {
-        DPRINTF(CenteralController, "%s: Ignoring reqRetry "
-                            "for port %d.\n", __func__, id);
-    } else {
-        panic("Did not expect the other.");
-    }
+CenteralController::recvMemRetry()
+{
+    panic("recvMemRetry should not be called at all");
 }
 
 void
-CenteralController::processNextMirrorReadEvent()
+CenteralController::recvFunctional(PacketPtr pkt)
 {
-    Addr aligned_addr, offset;
-    int num_mirrors;
-
-    int vertex_atom = mpuVector.front()->vertexAtomSize();
-    MirrorReadInfoGen& front = mirrorPointerQueue.front();
-    std::tie(aligned_addr, offset, num_mirrors) = front.nextReadPacketInfo();
-    PacketPtr pkt = createReadPacket(aligned_addr, vertex_atom);
-    mirrorsPort.sendPacket(pkt);
-    front.iterate();
-    if (front.done()) {
-        mirrorPointerQueue.pop_front();
-    }
-
-    if (!mirrorPointerQueue.empty() && !mirrorsPort.blocked()) {
-        schedule(nextMirrorReadEvent, nextCycle());
-    }
-}
-
-void
-CenteralController::processNextMirrorUpdateEvent()
-{
-    int vertex_atom = mpuVector.front()->vertexAtomSize();
-
-    int num_mirrors_per_atom = vertex_atom / sizeof(MirrorVertex);
-    int num_vertices_per_atom = vertex_atom / sizeof(WorkListItem);
-    MirrorVertex mirrors[num_mirrors_per_atom];
-    WorkListItem vertices[num_vertices_per_atom];
-
-    PacketPtr front = readQueue.front();
-    front->writeDataToBlock((uint8_t*) mirrors, vertex_atom);
-    for (int i = 0; i < num_mirrors_per_atom; i++) {
-        Addr org_addr = mirrors[i].vertexId * sizeof(WorkListItem);
-        Addr aligned_org_addr = roundDown<Addr, int>(org_addr, vertex_atom);
-        int wl_offset = (org_addr - aligned_org_addr) / sizeof(WorkListItem);
-
-        PacketPtr read_org = createReadPacket(aligned_org_addr, vertex_atom);
-        for (auto mpu: mpuVector) {
-            AddrRangeList range_list = addrRangeListMap[mpu];
-            if (contains(range_list, org_addr)) {
-                mpu->recvFunctional(read_org);
-            }
-        }
-        read_org->writeDataToBlock((uint8_t*) vertices, vertex_atom);
-        DPRINTF(CenteralController, "%s: OG: %s, CP: %s.\n", __func__,
-            workload->printWorkListItem(vertices[wl_offset]), front.to_string());
-        delete read_org;
-
-        if (vertices[wl_offset].tempProp != vertices[wl_offset].prop) {
-            assert(data[wl_offset].degree == 0);
-            vertices[wl_offset].prop = vertices[wl_offset].tempProp;
-        }
-        if (mirrors[i].prop != vertices[wl_offset].prop) {
-            mirrors[i].prop = vertices[wl_offset].prop;
-            mirrors[i].activeNow = true;
-        }
-    }
-
-    PacketPtr wb = createWritePacket(
-                    front->getAddr(), front->getSize(), (uint8_t*) mirrors);
-    readQueue.pop_front();
-    delete front;
-
-    if (!nextWriteBackEvent.scheduled()) {
-        schedule(nextWriteBackEvent, nextCycle());
-    }
-    if (!readQueue.empty()) {
-        schedule(nextMirrorUpdateEvent, nextCycle());
-    }
-}
-
-void
-CenteralController::processNextWriteBackEvent()
-{
-    PacketPtr front = writeBackQueue.front();
+    panic("recvFunctional should not be called at all");
 }
 
 int
@@ -466,12 +442,8 @@ CenteralController::printAnswerToHostSimout()
     for (Addr addr = 0; addr < maxVertexAddr; addr += vertex_atom)
     {
         PacketPtr pkt = createReadPacket(addr, vertex_atom);
-        for (auto mpu: mpuVector) {
-            AddrRangeList range_list = addrRangeListMap[mpu];
-            if (contains(range_list, addr)) {
-                mpu->recvFunctional(pkt);
-            }
-        }
+        auto routing_entry = mpuAddrMap.contains(pkt->getAddr());
+        routing_entry->second->recvFunctional(pkt);
         pkt->writeDataToBlock((uint8_t*) items, vertex_atom);
         for (int i = 0; i < num_items; i++) {
             std::string print = csprintf("WorkListItem[%lu][%d]: %s.", addr, i,
@@ -479,6 +451,7 @@ CenteralController::printAnswerToHostSimout()
 
             std::cout << print << std::endl;
         }
+        delete pkt;
     }
 }
 

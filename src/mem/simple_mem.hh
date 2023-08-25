@@ -178,7 +178,6 @@ class SimpleMemory : public AbstractMemory
     std::unique_ptr<Packet> pendingDelete;
 
   public:
-
     SimpleMemory(const SimpleMemoryParams &p);
 
     DrainState drain() override;
@@ -186,6 +185,8 @@ class SimpleMemory : public AbstractMemory
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;
     void init() override;
+
+    double getBW() { return bandwidth; }
 
   protected:
     Tick recvAtomic(PacketPtr pkt);

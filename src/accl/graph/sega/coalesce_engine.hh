@@ -43,7 +43,7 @@
 namespace gem5
 {
 
-typedef std::deque<std::tuple<std::function<void(int, Tick)>, int, Tick>> FunctionDeque;
+typedef std::deque<std::tuple<std::function<void(int, Tick)>, int, Tick>> MemoryFunctionDeque;
 
 class MPU;
 
@@ -144,7 +144,7 @@ class CoalesceEngine : public BaseMemoryEngine
     int getBlockIndex(Addr addr);
 
     int transitionsPerCycle;
-    FunctionDeque memAccBuffer;
+    MemoryFunctionDeque memAccBuffer;
 
     MemoryEvent nextMemoryEvent;
     void processNextMemoryEvent();
@@ -217,7 +217,7 @@ class CoalesceEngine : public BaseMemoryEngine
     void createBSPPopCountDirectory(int atoms_per_block);
     void recvWorkload(GraphWorkload* workload) { graphWorkload = workload; }
 
-    virtual void recvFunctional(PacketPtr pkt);
+    virtual void recvFunctional(PacketPtr pkt) override;
     void postMemInitSetup();
     void postConsumeProcess();
     void swapDirectories();
