@@ -148,6 +148,7 @@ class RouterEngine : public ClockedObject
     std::vector<GPNReqPort> gpnReqPorts;
     std::vector<GPNRespPort> gpnRespPorts;
 
+
     std::unordered_map<PortID, AddrRangeList> gptAddrMap;
     std::unordered_map<PortID, AddrRangeList> routerAddrMap;
 
@@ -159,11 +160,17 @@ class RouterEngine : public ClockedObject
 
     std::unordered_map<PortID, Cycles> externalLatency;
     std::unordered_map<PortID, Cycles> internalLatency;
+    std::vector<int> inFlightTraffic;
+    std::vector<int> tokenVector;
+    std::vector<int> sample;
 
     const uint32_t gptQSize;
     const uint32_t gpnQSize;
     bool emptyQueues;
     const Cycles routerLatency;
+    int start;
+    Tick sampleTime;
+    int tokens;
 
     EventFunctionWrapper nextGPTGPNEvent;
     void processNextGPTGPNEvent();
@@ -177,6 +184,9 @@ class RouterEngine : public ClockedObject
     EventFunctionWrapper nextExternalRequestEvent;
     void processNextExternalRequestEvent();
 
+    EventFunctionWrapper nextTrafficTrackEvent;
+    void processNextTrafficTrackEvent();
+
     struct RouterEngineStat : public statistics::Group
     {
       RouterEngineStat(RouterEngine &push);
@@ -189,7 +199,11 @@ class RouterEngine : public ClockedObject
       statistics::Vector externalBlockedTraffic;
       statistics::Vector internalAcceptedTraffic;
       statistics::Vector externalAcceptedTraffic;
+      statistics::Vector bandwidthBlocked;
+      statistics::Vector totalInternalTraffic;
+    //   statistics::Vector2d internalTrafficVector;
       std::vector<statistics::Histogram *> internalTrafficHist;
+      std::vector<statistics::Formula *> internalPortBW;
     };
     RouterEngineStat stats;
   public:

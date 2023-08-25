@@ -43,5 +43,8 @@ class RouterEngine(ClockedObject):
     gpn_resp_side = VectorResponsePort("incoming ports from local GPNs")
     gpt_queue_size = Param.Int(64, "Queue size on the gpt side")
     gpn_queue_size = Param.Int(64, "Queue size on the gpt side")
+    token = Param.Int("Number of tokens sent per time sample.")
     router_latency = Param.Cycles(5, "Router latency, "
                                 "SerDes or E-O-E latencies can be added here")
+    
+    sample_time = Param.Latency("50us", "Intervals to sample traffic")

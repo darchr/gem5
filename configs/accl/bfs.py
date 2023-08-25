@@ -38,9 +38,12 @@ def get_inputs():
     argparser.add_argument("cache_size", type=str)
     argparser.add_argument("r_queue_size", type=int)
     argparser.add_argument("r_latency", type=int)
+    argparser.add_argument("gpt_per_gpn", type=int)
     argparser.add_argument("graph", type=str)
     argparser.add_argument("init_addr", type=int)
     argparser.add_argument("init_value", type=int)
+    argparser.add_argument("sample_time", type=str)
+    argparser.add_argument("tokens", type=int)
     argparser.add_argument(
         "--tile",
         dest="tile",
@@ -106,9 +109,12 @@ def get_inputs():
         args.cache_size,
         args.r_queue_size,
         args.r_latency,
+        args.gpt_per_gpn,
         args.graph,
         args.init_addr,
         args.init_value,
+        args.sample_time,
+        args.tokens,
         args.tile,
         args.best,
         args.visited,
@@ -126,9 +132,12 @@ if __name__ == "__m5_main__":
         cache_size,
         r_queue_size,
         r_latency,
+        gpt_per_gpn,
         graph,
         init_addr,
         init_value,
+        sample_time,
+        tokens,
         tile,
         best,
         visited,
@@ -141,8 +150,11 @@ if __name__ == "__m5_main__":
     if simple:
         if pt2pt:
             from sega_simple_pt2pt import SEGA
+            system = SEGA(num_gpts, num_registers, cache_size,
+                                r_queue_size, r_latency, gpt_per_gpn, graph, sample_time, tokens)
         else:
             from sega_simple import SEGA
+            system = SEGA(num_gpts, num_registers, cache_size, graph)
     else:
         from sega import SEGA
 
@@ -150,9 +162,7 @@ if __name__ == "__m5_main__":
                                                 r_queue_size, r_latency, graph)
 
     root = Root(full_system=False, system=system)
-
     m5.instantiate()
-
     if tile:
         system.set_pg_mode()
     else:

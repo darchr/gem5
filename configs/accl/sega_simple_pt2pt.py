@@ -52,10 +52,10 @@ class GPT(SubSystem):
         self.wl_engine = WLEngine(
             update_queue_size=64,
             register_file_size=register_file_size,
+            examine_window=8,
             rd_per_cycle=4,
             reduce_per_cycle=32,
             wr_per_cycle=4,
-            num_updates_processed=8,
         )
         self.coalesce_engine = CoalesceEngine(
             attached_memory_atom_size=32,
@@ -64,17 +64,19 @@ class GPT(SubSystem):
             pending_pull_limit=64,
             active_buffer_size=80,
             post_push_wb_queue_size=64,
+            transitions_per_cycle=4,
         )
         self.push_engine = PushEngine(
             push_req_queue_size=32,
             attached_memory_atom_size=64,
-            resp_queue_size=4096,
+            resp_queue_size=1024,
+            examine_window=12,
             max_propagates_per_cycle=8,
-            update_queue_size=32,
+            update_queue_size=64,
         )
 
         self.vertex_mem_ctrl = SimpleMemory(
-            latency="122ns", latency_var="0ns", bandwidth="28GiB/s"
+            latency="120ns", bandwidth="256GiB/s"
         )
         self.coalesce_engine.mem_port = self.vertex_mem_ctrl.port
 
@@ -131,11 +133,50 @@ class EdgeMemory(SubSystem):
         self.xbar.cpu_side_ports = port
 
 
+class SEGAController(SubSystem):
+    def __init__(self, mirror_bw):
+        super().__init__()
+        self.map_mem = SimpleMemory(
+            latency="0ns",
+            latency_var="0ns",
+            bandwidth="1024GiB/s",
+            range=AddrRange(start=0, size="4GiB"),
+            in_addr_map=False,
+        )
+        self.controller = CenteralController(
+            choose_best=False,
+            mirrors_mem=SimpleMemory(
+                latency="0ns",
+                latency_var="0ns",
+                bandwidth=mirror_bw,
+                range=AddrRange(start=0, size="16GiB"),
+                in_addr_map=False,
+            ),
+        )
+        self.controller.mem_port = self.controller.mirrors_mem.port
+        self.controller.mirrors_map_mem = self.map_mem.port
+
+    def set_choose_best(self, choose_best):
+        self.controller.choose_best = choose_best
+
+    def set_vertices_image(self, vertices):
+        self.controller.vertex_image_file = vertices
+
+    def set_aux_images(self, mirrors, mirrors_map):
+        self.controller.mirrors_mem.image_file = mirrors
+        self.map_mem.image_file = mirrors_map
+
+    def set_mpu_vector(self, mpu_vector):
+        self.controller.mpu_vector = mpu_vector
+    
+    def set_router_vector(self, router_vector):
+        self.controller.router_vector = router_vector
+
+
 class SEGA(System):
-    def __init__(self, num_gpts, num_registers, cache_size, 
-                                        r_queue_size, r_latency, graph_path):
+    def __init__(self, num_gpts, num_registers, cache_size,
+                            r_queue_size, r_latency, gpt_per_gpn, graph_path, sample_time, tokens):
         super(SEGA, self).__init__()
-        # num_gpts should be an even power of 2
         assert num_gpts != 0
         assert num_gpts % 2 == 0
         assert (num_gpts & (num_gpts - 1)) == 0
@@ -145,17 +186,17 @@ class SEGA(System):
         self.clk_domain.voltage_domain = VoltageDomain()
         self.cache_line_size = 32
         self.mem_mode = "timing"
+        
+        gpts = []
+        routers = []
+        GPTPerGPN = gpt_per_gpn
 
-        GPTPerGPN = 8
+        self.ctrl = SEGAController("256GiB/s")
+        self.ctrl.set_vertices_image(f"{graph_path}/vertices")
 
-        # Building the CenteralController
-        self.ctrl = CenteralController(
-            vertex_image_file=f"{graph_path}/vertices"
-        )
-        # Building the EdgeMemories
         edge_mem = []
         for i in range(int(num_gpts / 2)):
-            mem = EdgeMemory("4GiB")
+            mem = EdgeMemory("16GiB")
             mem.set_image(f"{graph_path}/edgelist_{i}")
             edge_mem.append(mem)
         self.edge_mem = edge_mem
@@ -163,8 +204,7 @@ class SEGA(System):
         vertex_ranges = interleave_addresses(
             AddrRange(start=0, size="4GiB"), num_gpts, 32
         )
-        gpts = []
-        routers = []
+        
         for i in range(num_gpts):
             gpt = GPT(num_registers, cache_size)
             gpt.set_vertex_range(vertex_ranges[i])
@@ -172,6 +212,12 @@ class SEGA(System):
                 self.edge_mem[i % (int(num_gpts / 2))].getPort()
             )
             gpts.append(gpt)
+       
+        # Creating the interconnect among mpus
+        # for gpt_0 in gpts:
+        #     for gpt_1 in gpts:
+        #         gpt_0.setReqPort(gpt_1.getRespPort())
+
         for i in range(int(num_gpts/GPTPerGPN)):
             routers.append(RouterEngine(
                                 gpn_queue_size = r_queue_size,
@@ -186,57 +232,71 @@ class SEGA(System):
         for i in range(len(gpts)):
             for j in range(len(gpts)):
                 if (int(i / GPTPerGPN) == int(j / GPTPerGPN) ):
-                    print(i, j)
+                    # print(i, j)
                     gpts[i].setReqPort(gpts[j].getRespPort())
-        print("gpt, Router")
+        # print("gpt, Router")
         for i in range(len(gpts)):
             for j in range(len(routers)):
                 if (int(i / GPTPerGPN) == j):
-                    print(i, j)
+                    # print(i, j)
                     gpts[i].setRespPort(routers[j].gpt_req_side)
                     gpts[i].setReqPort(routers[j].gpt_resp_side)
+        # print("router, router")
         for r_0 in routers:
             for r_1 in routers:
                 if r_0 != r_1:
-                    r_0.gpn_resp_side = r_1.gpn_req_side
+                    # print(r_0, r_1)
+                    r_0.gpn_resp_side = r_1.gpn_req_side 
         self.gpts = gpts
-        self.ctrl.mpu_vector = [gpt.mpu for gpt in self.gpts]
-        self.ctrl.router_vector = [r for r in self.routers]
+        self.routers = routers
+        
+        self.ctrl.set_mpu_vector([gpt.mpu for gpt in self.gpts])
+        self.ctrl.set_router_vector([r for r in self.routers])
 
     def work_count(self):
-        return self.ctrl.workCount()
+        return self.ctrl.controller.workCount()
 
     def set_async_mode(self):
-        self.ctrl.setAsyncMode()
+        self.ctrl.controller.setAsyncMode()
 
     def set_bsp_mode(self):
-        self.ctrl.setBSPMode()
+        self.ctrl.controller.setBSPMode()
+
+    def set_pg_mode(self):
+        self.ctrl.controller.setPGMode()
+
+    def set_aux_images(self, mirrors, mirrors_map):
+        self.ctrl.set_aux_images(mirrors, mirrors_map)
+
+    def set_choose_best(self, choose_best):
+        self.ctrl.set_choose_best(choose_best)
 
     def create_pop_count_directory(self, atoms_per_block):
-        self.ctrl.createPopCountDirectory(atoms_per_block)
+        self.ctrl.controller.createPopCountDirectory(atoms_per_block)
 
     def create_bfs_workload(self, init_addr, init_value):
-        self.ctrl.createBFSWorkload(init_addr, init_value)
+        self.ctrl.controller.createBFSWorkload(init_addr, init_value)
 
     def create_bfs_visited_workload(self, init_addr, init_value):
-        self.ctrl.createBFSVisitedWorkload(init_addr, init_value)
+        self.ctrl.controller.createBFSVisitedWorkload(init_addr, init_value)
 
     def create_sssp_workload(self, init_addr, init_value):
-        self.ctrl.createSSSPWorkload(init_addr, init_value)
+        self.ctrl.controller.createSSSPWorkload(init_addr, init_value)
 
     def create_cc_workload(self):
-        self.ctrl.createCCWorkload()
+        self.ctrl.controller.createCCWorkload()
 
     def create_async_pr_workload(self, alpha, threshold):
-        self.ctrl.createAsyncPRWorkload(alpha, threshold)
-    def get_pr_error(self):
-        return self.ctrl.getPRError()
+        self.ctrl.controller.createAsyncPRWorkload(alpha, threshold)
 
     def create_pr_workload(self, num_nodes, alpha):
-        self.ctrl.createPRWorkload(num_nodes, alpha)
+        self.ctrl.controller.createPRWorkload(num_nodes, alpha)
+
+    def get_pr_error(self):
+        return self.ctrl.controller.getPRError()
 
     def create_bc_workload(self, init_addr, init_value):
-        self.ctrl.createBCWorkload(init_addr, init_value)
+        self.ctrl.controller.createBCWorkload(init_addr, init_value)
 
     def print_answer(self):
-        self.ctrl.printAnswerToHostSimout()
+        self.ctrl.controller.printAnswerToHostSimout()

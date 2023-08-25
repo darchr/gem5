@@ -76,6 +76,7 @@ class CenteralController : public BaseMemoryEngine
     memory::SimpleMemory* mirrorsMem;
 
     std::vector<MPU*> mpuVector;
+    AddrRangeMap<MPU*> mpuAddrMap;
     std::vector<RouterEngine*> routerVector;
 
     std::unordered_map<MPU*, AddrRangeList> addrRangeListMap;
