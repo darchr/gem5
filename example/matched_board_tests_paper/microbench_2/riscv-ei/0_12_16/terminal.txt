@@ -1,0 +1,13 @@
+Global frequency set at 1000000000000 ticks per second
+gem5 Simulator System.  https://www.gem5.org
+gem5 is copyrighted software; use the --copyright option for details.
+
+gem5 version 23.0.0.1
+gem5 compiled Aug 17 2023 23:51:48
+gem5 started Aug 23 2023 23:40:38
+gem5 executing on azacca, pid 323130
+command line: /scr/bees/pb-test-board/build/RISCV/gem5.opt --outdir=matched_board_tests_paper/microbench_2/riscv-ei/0_12_16/ simple-config.py --benchmark=riscv-ei --foldover=0 --pb_row=12 --matrix_size=16
+
+info: Standard input is not a terminal, disabling listeners.
+{'core': {'threadPolicy': 'SingleThreaded', 'BP': {'BPChoice': 'Tournament'}, 'FUPool': {'U74IntFU': 1, 'U74IntMulFU': 3, 'U74IntDivFU': 18, 'U74MemReadFU': 2, 'U74MemWriteFU': 1}}, 'cache': {'l2_size': '16MiB', 'l2_assoc': 16, 'l1dcache-response_latency': 4, 'l2cache-data_latency': 20, 'iptw_caches-size': '16KiB', 'dptw_caches-size': '16KiB'}}
+info: Using default config

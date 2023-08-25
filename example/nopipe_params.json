@@ -10,8 +10,8 @@
             "U74IntFU": [1, 3],
             "U74IntMulFU": [3, 9],
             "U74IntDivFU": [6,18],
-            "U74MemReadFU": [2, 6],
-            "U74MemWriteFU": [2, 6]
+            "U74MemReadFU": [1, 2],
+            "U74MemWriteFU": [1, 2]
         }
     },
 

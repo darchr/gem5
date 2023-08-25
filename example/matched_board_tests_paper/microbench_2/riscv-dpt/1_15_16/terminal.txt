@@ -1,0 +1,10 @@
+gem5 Simulator System.  https://www.gem5.org
+gem5 is copyrighted software; use the --copyright option for details.
+
+gem5 version 23.0.0.1
+gem5 compiled Aug 17 2023 23:51:48
+gem5 started Aug 23 2023 23:42:14
+gem5 executing on azacca, pid 325295
+command line: /scr/bees/pb-test-board/build/RISCV/gem5.opt --outdir=matched_board_tests_paper/microbench_2/riscv-dpt/1_15_16/ simple-config.py --benchmark=riscv-dpt --foldover=1 --pb_row=15 --matrix_size=16
+
+info: Standard input is not a terminal, disabling listeners.
