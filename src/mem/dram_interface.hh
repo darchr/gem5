@@ -498,6 +498,7 @@ class DRAMInterface : public MemInterface
     const Tick tRP;
     const Tick tRAS;
     const Tick tWR;
+    const Tick tWA;
     const Tick tRTP;
     const Tick tRFC;
     const Tick tREFI;

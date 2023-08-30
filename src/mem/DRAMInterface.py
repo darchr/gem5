@@ -54,6 +54,7 @@ class DRAMInterface(MemInterface):
 
     # scheduler page policy
     page_policy = Param.PageManage("open_adaptive", "Page management policy")
+    salp_enable = Param.Bool(False, "Enabling subarray-level parallelism")
 
     # enforce a limit on the number of accesses per row
     max_accesses_per_row = Param.Unsigned(
@@ -102,6 +103,8 @@ class DRAMInterface(MemInterface):
 
     # minimum time between a write data transfer and a precharge
     tWR = Param.Latency("Write recovery time")
+
+    tWA = Param.Latency("0ns", "Write to activate time")
 
     # minimum time between a read and precharge command
     tRTP = Param.Latency("Read to precharge")
@@ -1104,6 +1107,7 @@ class HBM_1000_4H_1x128(DRAMInterface):
     tRTP = "7.5ns"
     tWTR = "10ns"
 
+    tWA = '3ns'
     # start with 2 cycles turnaround, similar to other memory classes
     # could be more with variations across the stack
     tRTW = "4ns"
@@ -1646,4 +1650,81 @@ class LLM(DRAMInterface):
 
     addr_mapping = 'RoCoRaBaCh'
 
-    # salp_enable = True
+    salp_enable = True
+
+
+class FGDRAM(DRAMInterface):
+
+    device_bus_width = 64
+
+    # HBM supports BL4 and BL2 (legacy mode only)
+    burst_length = 4
+
+    # size of channel in bytes, 4H stack of 2Gb dies is 1GB per stack;
+    # with 8 channels, 128MB per channel
+    device_size = '8MB'
+
+    device_rowbuffer_size = '256B'
+
+    # 1x128 configuration
+    devices_per_rank = 1
+
+    # HBM does not have a CS pin; set rank to 1
+    ranks_per_channel = 1
+
+    # HBM has 8 or 16 banks depending on capacity
+    # 2Gb dies have 8 banks
+    banks_per_rank = 2
+
+    # depending on frequency, bank groups may be required
+    # will always have 4 bank groups when enabled
+    # current specifications do not define the minimum frequency for
+    # bank group architecture
+    # setting bank_groups_per_rank to 0 to disable until range is defined
+    bank_groups_per_rank = 0
+
+    # 500 MHz for 1Gbps DDR data rate
+    tCK = '2ns'
+
+    # use values from IDD measurement in JEDEC spec
+    # use tRP value for tRCD and tCL similar to other classes
+    tRP = '15ns'
+    tRCD = '15ns'
+    tCL = '15ns'
+    tRAS = '33ns'
+
+    # BL2 and BL4 supported, default to BL4
+    # DDR @ 500 MHz means 4 * 2ns / 2 = 4ns
+    tBURST = '16ns'
+
+    # value for 2Gb device from JEDEC spec
+    tRFC = '160ns'
+
+    # value for 2Gb device from JEDEC spec
+    tREFI = '3.9us'
+
+    # extrapolate the following from LPDDR configs, using ns values
+    # to minimize burst length, prefetch differences
+    tWR = '18ns'
+    tRTP = '7.5ns'
+    tWTR = '10ns'
+
+    # start with 2 cycles turnaround, similar to other memory classes
+    # could be more with variations across the stack
+    tRTW = '4ns'
+
+    # single rank device, set to 0
+    tCS = '0ns'
+
+    # from MemCon example, tRRD is 4ns with 2ns tCK
+    tRRD = '4ns'
+
+    # from MemCon example, tFAW is 30ns with 2ns tCK
+    tXAW = '12ns'
+    activation_limit = 32
+
+    # 4tCK
+    tXP = '8ns'
+
+    # start with tRFC + tXP -> 160ns + 8ns = 168ns
+    tXS = '168ns'

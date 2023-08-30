@@ -642,7 +642,7 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
       tBURST_MIN(_p.tBURST_MIN), tBURST_MAX(_p.tBURST_MAX),
       tCCD_L_WR(_p.tCCD_L_WR), tCCD_L(_p.tCCD_L),
       tRCD_RD(_p.tRCD), tRCD_WR(_p.tRCD_WR),
-      tRP(_p.tRP), tRAS(_p.tRAS), tWR(_p.tWR), tRTP(_p.tRTP),
+      tRP(_p.tRP), tRAS(_p.tRAS), tWR(_p.tWR), tWA(_p.tWA), tRTP(_p.tRTP),
       tRFC(_p.tRFC), tREFI(_p.tREFI), tRRD(_p.tRRD), tRRD_L(_p.tRRD_L),
       tPPD(_p.tPPD), tAAD(_p.tAAD),
       tXAW(_p.tXAW), tXP(_p.tXP), tXS(_p.tXS),
