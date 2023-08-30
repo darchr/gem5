@@ -51,11 +51,17 @@ requires(isa_required=ISA.RISCV)
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
+    "--mode",
+    required=True,
+    help="Choose between PB and full run.",
+    choices=["PB", "full"],
+)
+parser.add_argument(
     "--matrix_size",
     required=True,
     type=int,
     help="Select an integer value for the size of the Hadamard matrix/ PB Design to use.",
-    choices=[4, 12, 16, 40, 48, 80],
+    # choices=[4, 12, 16, 40, 48, 80],
 )
 
 parser.add_argument(
@@ -67,7 +73,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--pb_row",
+    "--row",
     required=True,
     type=int,
     help="Choose a row of the PB design to use to create a configuration json.",
@@ -84,12 +90,20 @@ args = parser.parse_args()
 
 
 # instantiate the riscv matched board with default parameters
-board = RISCVMatchedBoard(
-    clk_freq="1.2GHz",
-    l2_size="2MB",
-    is_fs=False,
-    config_json=f"./configured_jsons/{args.foldover}_{args.pb_row}_{args.matrix_size}.json",
-)
+if args.mode == "PB":
+    board = RISCVMatchedBoard(
+        clk_freq="1.2GHz",
+        l2_size="2MB",
+        is_fs=False,
+        config_json=f"./configured_jsons/pb/{args.foldover}_{args.row}_{args.matrix_size}.json",
+    )
+else:
+    board = RISCVMatchedBoard(
+        clk_freq="1.2GHz",
+        l2_size="2MB",
+        is_fs=False,
+        config_json=f"./configured_jsons/full/{args.row}_{args.matrix_size}.json",
+    )
 
 if args.benchmark == "riscv-bubblesort":
     board.set_se_binary_workload(
