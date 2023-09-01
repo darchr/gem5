@@ -42,7 +42,21 @@ from gem5.isas import ISA
 from m5.objects import Cache, L2XBar, BaseXBar, SystemXBar, BadAddr, Port
 
 from gem5.utils.override import *
-from typing import Type
+from typing import Type, Optional
+
+
+# class CustomRISCVMatchedCacheHierarchy(RISCVMatchedCacheHierarchy):
+
+#     def __init__(
+#         self,
+#         l2_size:str,
+#         config_dict
+#         ):
+#         super().__init__(
+#             self=self,
+#             l2_size=l2_size
+#         )
+#         self._config_json = config_dict
 
 
 class RISCVMatchedCacheHierarchy(
@@ -64,24 +78,37 @@ class RISCVMatchedCacheHierarchy(
 
     """
 
-    def __init__(
-        self,
-        l2_size: str,
-    ) -> None:
+    def __init__(self, l2_size: str, config_json) -> None:
         """
         :param l2_size: The size of the L2 Cache (e.g., "256kB").
         :type l2_size: str
         """
+        # self.config_json = config_dict
         AbstractClassicCacheHierarchy.__init__(self=self)
-        AbstractTwoLevelCacheHierarchy.__init__(
-            self,
-            l1i_size="32KiB",
-            l1i_assoc=4,
-            l1d_size="32KiB",
-            l1d_assoc=8,
-            l2_size=l2_size,
-            l2_assoc=16,
-        )
+        if config_json:
+            cache_config = config_json["cache"]
+            AbstractTwoLevelCacheHierarchy.__init__(
+                self,
+                l1i_size="32KiB",
+                l1i_assoc=4,
+                l1d_size="32KiB",
+                l1d_assoc=8,
+                l2_size=cache_config["l2_size"],
+                l2_assoc=cache_config["l2_assoc"],
+            )
+            self._config_json = cache_config
+
+        else:
+            AbstractTwoLevelCacheHierarchy.__init__(
+                self,
+                l1i_size="32KiB",
+                l1i_assoc=4,
+                l1d_size="32KiB",
+                l1d_assoc=8,
+                l2_size=l2_size,
+                l2_assoc=16,
+            )
+            self._config_json = None
 
         self.membus = SystemXBar(width=64)
         self.membus.badaddr_responder = BadAddr()
@@ -108,31 +135,49 @@ class RISCVMatchedCacheHierarchy(
             L1ICache(size=self._l1i_size, assoc=self._l1i_assoc)
             for i in range(board.get_processor().get_num_cores())
         ]
+
+        if self._config_json:
+            l1d_resp_latency = self._config_json["l1dcache-response_latency"]
+            l2_data_latency = self._config_json["l2cache-data_latency"]
+            iptw_cache_size = self._config_json["iptw_caches-size"]
+            dptw_cache_size = self._config_json["dptw_caches-size"]
+
+        else:
+            l1d_resp_latency = 10
+            l2_data_latency = 20
+            iptw_cache_size = "4KiB"
+            dptw_cache_size = "4KiB"
+
         self.l1dcaches = [
             L1DCache(
-                size=self._l1d_size, assoc=self._l1d_assoc, response_latency=10
+                size=self._l1d_size,
+                assoc=self._l1d_assoc,
+                response_latency=l1d_resp_latency,
             )
             for i in range(board.get_processor().get_num_cores())
         ]
+
         self.l2bus = L2XBar()
 
         self.l2cache = L2Cache(
-            size=self._l2_size, assoc=self._l2_assoc, data_latency=20
+            size=self._l2_size,
+            assoc=self._l2_assoc,
+            data_latency=l2_data_latency,
         )
 
         # ITLB Page walk caches
         self.iptw_caches = [
-            MMUCache(size="4KiB")
+            MMUCache(size=iptw_cache_size)
             for _ in range(board.get_processor().get_num_cores())
         ]
         # DTLB Page walk caches
         self.dptw_caches = [
-            MMUCache(size="4KiB")
+            MMUCache(size=dptw_cache_size)
             for _ in range(board.get_processor().get_num_cores())
         ]
 
         if board.has_coherent_io():
-            self._setup_io_cache(board)
+            self._setup_io_cache(board, self._config_json)
 
         for i, cpu in enumerate(board.get_processor().get_cores()):
 
@@ -159,6 +204,7 @@ class RISCVMatchedCacheHierarchy(
         self.membus.cpu_side_ports = self.l2cache.mem_side
 
     def _setup_io_cache(self, board: AbstractBoard) -> None:
+
         """Create a cache for coherent I/O connections"""
         self.iocache = Cache(
             assoc=8,

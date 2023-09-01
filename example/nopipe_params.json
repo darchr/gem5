@@ -1,0 +1,26 @@
+{
+    "core": {
+        "threadPolicy" : ["SingleThreaded", "RoundRobin"],
+
+        "BP": {
+            "BPChoice": ["Local", "Tournament"]
+        },
+
+        "FUPool": {
+            "U74IntFU": [1, 3],
+            "U74IntMulFU": [3, 9],
+            "U74IntDivFU": [6,18],
+            "U74MemReadFU": [1, 2],
+            "U74MemWriteFU": [1, 2]
+        }
+    },
+
+    "cache": {
+        "l2_size": ["2MiB", "16MiB"],
+        "l2_assoc": [16, 64],
+        "l1dcache-response_latency": [1,4],
+        "l2cache-data_latency": [5, 20],
+        "iptw_caches-size": ["4KiB", "16KiB"],
+        "dptw_caches-size": ["4KiB", "16KiB"]
+    }
+}

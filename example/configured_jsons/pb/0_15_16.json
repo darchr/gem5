@@ -1,0 +1,1 @@
+{"core": {"threadPolicy": "SingleThreaded", "BP": {"BPChoice": "Local"}, "FUPool": {"U74IntFU": 1, "U74IntMulFU": 3, "U74IntDivFU": 6, "U74MemReadFU": 1, "U74MemWriteFU": 1}}, "cache": {"l2_size": "2MiB", "l2_assoc": 16, "l1dcache-response_latency": 1, "l2cache-data_latency": 5, "iptw_caches-size": "4KiB", "dptw_caches-size": "4KiB"}}

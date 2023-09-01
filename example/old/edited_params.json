@@ -1,0 +1,48 @@
+{
+    "core": {
+        "threadPolicy" : ["SingleThreaded", "RoundRobin"],
+        "fetch1LineSnapWidth" : [0, 4],
+        "fetch1LineWidth" : [0,2],
+        "fetch1FetchLimit" : [1, 3],
+        "fetch1ToFetch2ForwardDelay": [1, 4],
+        "fetch1ToFetch2BackwardDelay" : [0, 2],
+        "fetch2InputBufferSize" : [1, 8],
+        "fetch2ToDecodeForwardDelay" : [1,5],
+        "decodeInputBufferSize" : [2, 6],
+        "decodeToExecuteForwardDelay" : [1,4],
+        "decodeInputWidth" : [2,4],
+        "executeInputWidth" : [2,4],
+        "executeIssueLimit" : [2,5],
+        "executeMemoryIssueLimit" : [1,3],
+        "executeCommitLimit" : [2,5],
+        "executeMemoryCommitLimit" : [1,3],
+        "executeInputBufferSize" : [4,8],
+        "executeMaxAccessesInMemory" : [1,4],
+        "executeLSQMaxStoreBufferStoresPerCycle" : [2,4],
+        "executeLSQRequestsQueueSize" : [1,3],
+        "executeLSQTransfersQueueSize" : [2, 4],
+        "executeLSQStoreBufferSize" : [3,6],
+        "executeBranchDelay" : [2,5],
+
+        "BP": {
+            "BPChoice": ["Local", "Tournament"]
+        },
+
+        "FUPool": {
+            "U74IntFU": [1, 3],
+            "U74IntMulFU": [3, 9],
+            "U74IntDivFU": [6,18],
+            "U74MemReadFU": [2, 6],
+            "U74MemWriteFU": [2, 6]
+        }
+    },
+
+    "cache": {
+        "l2_size": ["2MiB", "16MiB"],
+        "l2_assoc": [16, 64],
+        "l1dcache-response_latency": [1,4],
+        "l2cache-data_latency": [5, 20],
+        "iptw_caches-size": ["4KiB", "16KiB"],
+        "dptw_caches-size": ["4KiB", "16KiB"]
+    }
+}

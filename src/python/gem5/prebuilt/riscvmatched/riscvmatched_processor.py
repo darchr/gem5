@@ -29,6 +29,8 @@ from gem5.components.boards.mem_mode import MemMode
 
 from m5.util import warn
 
+from typing import Optional
+
 from gem5.components.processors.base_cpu_processor import BaseCPUProcessor
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.components.boards.abstract_board import AbstractBoard
@@ -40,16 +42,16 @@ class U74Processor(BaseCPUProcessor):
     A U74Processor contains a number of cores of U74Core.
     """
 
-    def __init__(
-        self,
-        is_fs: bool,
-    ) -> None:
+    def __init__(self, is_fs: bool, config_json: Optional[dict] = {}) -> None:
         self._cpu_type = CPUTypes.MINOR
-        super().__init__(cores=self._create_cores(is_fs))
+        super().__init__(cores=self._create_cores(is_fs, config_json))
 
-    def _create_cores(self, is_fs: bool):
+    def _create_cores(self, is_fs: bool, config_json: dict):
         if is_fs:
             num_cores = 4
         else:
             num_cores = 1
-        return [U74Core(core_id=i) for i in range(num_cores)]
+        return [
+            U74Core(core_id=i, config_json=config_json)
+            for i in range(num_cores)
+        ]
