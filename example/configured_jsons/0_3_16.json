@@ -1,1 +1,0 @@
-{"core": {"threadPolicy": "RoundRobin", "BP": {"BPChoice": "Tournament"}, "FUPool": {"U74IntFU": 3, "U74IntMulFU": 9, "U74IntDivFU": 6, "U74MemReadFU": 1, "U74MemWriteFU": 1}}, "cache": {"l2_size": "16MiB", "l2_assoc": 16, "l1dcache-response_latency": 1, "l2cache-data_latency": 20, "iptw_caches-size": "16KiB", "dptw_caches-size": "4KiB"}}
