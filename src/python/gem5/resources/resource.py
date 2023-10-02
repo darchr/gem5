@@ -122,6 +122,10 @@ class AbstractResource:
         """Returns description associated with this resource."""
         return self._description
 
+    def get_id(self) -> Optional[str]:
+        """Returns the id of the resource."""
+        return self._id
+
     def get_source(self) -> Optional[str]:
         """Returns information as to where the source for this resource may be
         found.
