@@ -1,0 +1,17 @@
+[
+    {
+        "parameter": "processor.cores[:].core.threadPolicy",
+        "min_value": "\"SingleThreaded\"",
+        "max_value": "\"RoundRobin\"",
+        "annotation": "Thread policy of the core",
+        "step": "flip"
+    },
+    {
+        "parameter": "processor.cores[:].core.enableIdling",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether the core can be idled",
+        "step": "flip"
+    }
+
+]

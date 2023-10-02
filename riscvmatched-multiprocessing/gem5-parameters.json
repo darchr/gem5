@@ -1,0 +1,241 @@
+[
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[0].opLat",
+        "min_value": 1,
+        "max_value": 3,
+        "annotation": "Latency of the integer functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[1].opLat",
+        "min_value": 2,
+        "max_value": 4,
+        "annotation": "Latency of the multiplication functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[2].opLat",
+        "min_value": 2,
+        "max_value": 8,
+        "annotation": "Latency of the division functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[3]",
+        "min_value": null,
+        "max_value": null,
+        "annotation": "Latency of the floating point SIMD functional unit. Left blank if not present",
+        "step": null
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[4]",
+        "min_value": null,
+        "max_value": null,
+        "annotation": "Latency of the prediction functional unit. Left blank if not present",
+        "step": null
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[5].opLat",
+        "min_value": 1,
+        "max_value": 3,
+        "annotation": "Latency of the load functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[6].opLat",
+        "min_value": 1,
+        "max_value": 3,
+        "annotation": "Latency of the store functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[7]",
+        "min_value": null,
+        "max_value": null,
+        "annotation": "Latency of the miscellanous functional unit. Left blank if not present",
+        "step": null
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[8]",
+        "min_value": null,
+        "max_value": null,
+        "annotation": "Latency of the vector instruction functional unit. Left blank if not present",
+        "step": null
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[0].issueLat",
+        "min_value": 1,
+        "max_value": 3,
+        "annotation": "Latency of the integer functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[1].issueLat",
+        "min_value": 2,
+        "max_value": 4,
+        "annotation": "Latency of the multiplication functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[2].issueLat",
+        "min_value": 2,
+        "max_value": 8,
+        "annotation": "Latency of the division functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[3]",
+        "min_value": null,
+        "max_value": null,
+        "annotation": "Latency of the floating point SIMD functional unit. Left blank if not present",
+        "step": null
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[4]",
+        "min_value": null,
+        "max_value": null,
+        "annotation": "Latency of the prediction functional unit. Left blank if not present",
+        "step": null
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[5].issueLat",
+        "min_value": 1,
+        "max_value": 3,
+        "annotation": "Latency of the load functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[6].issueLat",
+        "min_value": 1,
+        "max_value": 3,
+        "annotation": "Latency of the store functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[7]",
+        "min_value": null,
+        "max_value": null,
+        "annotation": "Latency of the miscellanous functional unit. Left blank if not present",
+        "step": null
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[8]",
+        "min_value": null,
+        "max_value": null,
+        "annotation": "Latency of the vector instruction functional unit. Left blank if not present",
+        "step": null
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.localPredictorSize",
+        "min_value": 2048,
+        "max_value": 65536,
+        "annotation": "Size of the local predictor of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.localCtrBits",
+        "min_value": 2,
+        "max_value": 8,
+        "annotation": "Number of bits of the local predictor of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.globalPredictorSize",
+        "min_value": 4096,
+        "max_value": 65536,
+        "annotation": "Size of the global predictor of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.globalCtrBits",
+        "min_value": 2,
+        "max_value": 8,
+        "annotation": "Number of bits of the global predictor of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.choicePredictorSize",
+        "min_value": 4096,
+        "max_value": 65536,
+        "annotation": "Size of the choice predictor of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.choiceCtrBits",
+        "min_value": 2,
+        "max_value": 8,
+        "annotation": "Number of bits of the choice predictor of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.BTBEntries",
+        "min_value": 16,
+        "max_value": 4096,
+        "annotation": "Number of entries of the BTB of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.RASSize",
+        "min_value": 6,
+        "max_value": 48,
+        "annotation": "Size of the RAS of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.BTBTagSize",
+        "min_value": 8,
+        "max_value": 32,
+        "annotation": "Size of the tag of the BTB of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.instShiftAmt",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Shift amount of the branch predictor",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.indirectBranchPred.indirectSets",
+        "min_value": 128,
+        "max_value": 1024,
+        "annotation": "Number of sets of the indirect branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.indirectBranchPred.indirectWays",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Number of ways of the indirect branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.indirectBranchPred.indirectPathLength",
+        "min_value": 2,
+        "max_value": 5,
+        "annotation": "Path length of the indirect branch predictor",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.indirectBranchPred.indirectTagSize",
+        "min_value": 8,
+        "max_value": 32,
+        "annotation": "Tag size of the indirect branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.threadPolicy",
+        "min_value": "SingleThreaded",
+        "max_value": "RoundRobin",
+        "annotation": "Thread policy of the core",
+        "step": "flip"
+    },
+    {
+        "parameter": "processor.cores[:].core.enableIdling",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether the core can be idled",
+        "step": "flip"
+    }
+
+]
