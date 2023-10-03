@@ -36,36 +36,8 @@ import m5
 # import all of the SimObjects
 from m5.objects import *
 from m5.util.convert import *
-from caches import *
 
-# import the SimpleOpts module
-from common import SimpleOpts
 import math
-
-import argparse
-
-
-parser = argparse.ArgumentParser()
-
-
-# only used with traffic generator
-options = parser.parse_args()
-
-options.rd_perc = 35
-options.block_size = 64
-options.num_chnls = 1
-options.duration = int(toLatency("100us") * 1e12)
-options.min_addr = 0
-#options.min_addr = toMemorySize(str(1 * options.num_chnls) + 'MB')
-options.max_addr = toMemorySize(str(4 * options.num_chnls) + 'KiB')
-options.max_addr = toMemorySize(str(1024 * options.num_chnls) + 'MB')
-options.injection_rate = 1
-injection_period = int((1e12 * options.block_size) /
-                    (options.injection_rate * 1073741824))
-options.min_period = injection_period
-options.max_period = injection_period
-
-
 
 # create the system we are going to simulate
 system = System()
@@ -85,8 +57,8 @@ system.mem_ranges = [AddrRange(0, '255MB'), AddrRange('255MB', '256MB')] # Creat
 addr_range = system.mem_ranges[0]
 queue_ranges = [system.mem_ranges[1]]
 
-# system.membus = SystemXBar(width = 64, max_routing_table_size = 16777216)
-system.membus = IOXBar(width = 64)
+system.membus = SystemXBar(width = 64, max_routing_table_size = 16777216)
+# system.membus = IOXBar(width = 64)
 
 
 
@@ -100,29 +72,9 @@ system.cpu.interrupts[0].pio = system.membus.mem_side_ports
 system.cpu.interrupts[0].int_requestor = system.membus.cpu_side_ports
 system.cpu.interrupts[0].int_responder = system.membus.mem_side_ports
 
-# system.mem_ctrl.dram = DDR3_1600_8x8()
-# system.mem_ctrl.dram.range = system.mem_ranges[0]
 
-
-# system.cpu.icache = L1ICache()
-# system.cpu.icache_port = system.cpu.icache.cpu_side
-# system.cpu.icache.mem_side = system.membus.cpu_side_ports
-
-#queue_ranges = [AddrRange('0', '4KiB')] # address range for queue
-# queue_ranges = [system.mem_ranges[1]]
-
-# system.bridge = Bridge(ranges=queue_ranges)
 
 system.msg_queue = MessageQueue(my_range=queue_ranges[0], queueSize=18)
-
-# No Bridge
-# system.msg_queue.cpu_side = system.membus.mem_side_ports #system.queue_xbar.mem_side_ports
-
-# system.bridge.cpu_side_port = system.membus.mem_side_ports
-# system.bridge.mem_side_port = system.msg_queue.cpu_side
-
-
-
 system.msg_queue.cpu_side = system.membus.mem_side_ports
 
 
@@ -152,32 +104,25 @@ for chnl in range(num_chnls):
             #ctrl.dram.page_policy = page_policy
             mem_ctrls.append(ctrl)
 
-my_ctrl = MemCtrl()
+my_ctrl = MemCtrl() # this memory controller doesnt actually get used, is only used to trick the CPU into adding the AddrRange as a valid AddrRange 
 my_ctrl.dram = DDR3_1600_8x8()
 my_ctrl.dram.range = queue_ranges[0] #system.mem_ranges[1]
 
 mem_ctrls.append(my_ctrl)
-
-# system.mem_ctrl.dram = DDR3_1600_8x8()
-# system.mem_ctrl.dram.range = system.mem_ranges[0]
 
 system.mem_ctrls = mem_ctrls
 
 # for mem_ctrl in system.mem_ctrls:
 #     mem_ctrl.port = system.membus.mem_side_ports
 system.mem_ctrls[0].port = system.membus.mem_side_ports
-# fake memory so thqat the queue is in the correct address range
-# system.msg_queue.mem_side_port = system.mem_ctrl2.port
 
-
-system.mem_ctrls[1].port = system.msg_queue.mem_side
+system.mem_ctrls[1].port = system.msg_queue.mem_side # connecting fake memory to msg queue
 
 
 # # Connect the system up to the membus
 system.system_port = system.membus.cpu_side_ports
 
 # below here also for cpu
-# Create a process for a simple "Hello World" application
 process = Process()
 # process.map(vaddr=0x1000000, paddr=0x3CF9BDC0, size=4096, cacheable=False)
 # Set the command
@@ -204,7 +149,7 @@ m5.instantiate()
 
 # process.map(vaddr=0x10000, paddr=0x3CF9BDC0, size=4096, cacheable=False)
 
-process.map(vaddr=0x1000000, paddr=0xFF00000, size=4096, cacheable=False)
+process.map(vaddr=0x1000000, paddr=0xFF00000, size=4096, cacheable=True)
 
 
 print("Beginning simulation!")
