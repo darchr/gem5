@@ -45,7 +45,7 @@ class PrefetchType(Enum):
 
 
 class GfxVersion(ScopedEnum):
-    vals = ["gfx801", "gfx803", "gfx900", "gfx902"]
+    vals = ["gfx801", "gfx803", "gfx900", "gfx902", "gfx908", "gfx90a"]
 
 
 class PoolManager(SimObject):
@@ -327,6 +327,10 @@ class GPUDispatcher(SimObject):
     type = "GPUDispatcher"
     cxx_class = "gem5::GPUDispatcher"
     cxx_header = "gpu-compute/dispatcher.hh"
+
+    kernel_exit_events = Param.Bool(
+        False, "Enable exiting sim loop after a kernel"
+    )
 
 
 class GPUCommandProcessor(DmaVirtDevice):

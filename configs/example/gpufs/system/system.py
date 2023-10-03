@@ -50,7 +50,7 @@ def makeGpuFSSystem(args):
         "earlyprintk=ttyS0",
         "console=ttyS0,9600",
         "lpj=7999923",
-        "root=/dev/sda1",
+        f"root={args.root_partition}",
         "drm_kms_helper.fbdev_emulation=0",
         "modprobe.blacklist=amdgpu",
         "modprobe.blacklist=psmouse",
@@ -115,7 +115,8 @@ def makeGpuFSSystem(args):
         numHWQueues=args.num_hw_queues,
         walker=hsapp_pt_walker,
     )
-    dispatcher = GPUDispatcher()
+    dispatcher_exit_events = True if args.exit_at_gpu_kernel > -1 else False
+    dispatcher = GPUDispatcher(kernel_exit_events=dispatcher_exit_events)
     cp_pt_walker = VegaPagetableWalker()
     gpu_cmd_proc = GPUCommandProcessor(
         hsapp=gpu_hsapp, dispatcher=dispatcher, walker=cp_pt_walker
@@ -152,6 +153,16 @@ def makeGpuFSSystem(args):
             0x7D000,
         ]
         sdma_sizes = [0x1000] * 8
+    elif args.gpu_device == "MI200":
+        num_sdmas = 5
+        sdma_bases = [
+            0x4980,
+            0x6180,
+            0x78000,
+            0x79000,
+            0x7A000,
+        ]
+        sdma_sizes = [0x1000] * 5
     else:
         m5.util.panic(f"Unknown GPU device {args.gpu_device}")
 

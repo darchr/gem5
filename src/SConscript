@@ -39,7 +39,7 @@
 
 import collections
 import copy
-import distutils.spawn
+from shutil import which
 import itertools
 import os
 import os.path
@@ -269,7 +269,7 @@ def ProtoBuf(source, tags=None, add_tags=None):
     '''Add a Protocol Buffer to build'''
     Source(source, tags, add_tags, append={'CXXFLAGS': '-Wno-array-bounds'})
 
-env['PROTOC_GRPC'] = distutils.spawn.find_executable('grpc_cpp_plugin')
+env['PROTOC_GRPC'] = which('grpc_cpp_plugin')
 if env['PROTOC_GRPC']:
     with Configure(env) as conf:
         if (not env['HAVE_PKG_CONFIG'] or
@@ -280,9 +280,9 @@ def protoc_grpc_emitter(target, source, env):
     root, ext = os.path.splitext(source[0].get_abspath())
     return [root + '.grpc.pb.cc', root + '.grpc.pb.h'], source
 
-protoc_grpc_action=MakeAction('${PROTOC} --grpc_out ${BUILDDIR} '
-        '--plugin=protoc-gen-grpc=${PROTOC_GRPC} --proto_path ${BUILDDIR} '
-        '${SOURCE.get_abspath()}',
+protoc_grpc_action=MakeAction('${PROTOC} --grpc_out ${TARGET.dir.abspath} '
+        '--plugin=protoc-gen-grpc=${PROTOC_GRPC} '
+        '--proto_path ${SOURCE.dir.abspath} ${SOURCE.abspath}',
         Transform("PROTOC"))
 
 env.Append(BUILDERS={'GrpcProtoBufCC' : Builder(
@@ -626,6 +626,7 @@ PySource('m5', 'python/m5/info.py')
 gem5py_m5_env = gem5py_env.Clone()
 gem5py_env.Append(CPPPATH=env['CPPPATH'])
 gem5py_env.Append(LIBS='z')
+gem5py_env.Append(LINKFLAGS='-rdynamic')
 gem5py_env.Program(gem5py, 'python/gem5py.cc')[0]
 m5_module_source = \
         Source.all.with_all_tags(env, 'm5_module', 'gem5 lib')
@@ -647,6 +648,7 @@ env.AlwaysBuild(tags)
 #
 
 env['SHOBJSUFFIX'] = '${OBJSUFFIX}s'
+env.Append(LINKFLAGS='-rdynamic')
 
 envs = {
     'debug': env.Clone(ENV_LABEL='debug', OBJSUFFIX='.do'),

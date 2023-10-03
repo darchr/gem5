@@ -115,7 +115,7 @@ AMDGPUDevice::AMDGPUDevice(const AMDGPUDeviceParams &p)
         sdmaFunc.insert({0x10b, &SDMAEngine::setPageDoorbellOffsetLo});
         sdmaFunc.insert({0xe0, &SDMAEngine::setPageSize});
         sdmaFunc.insert({0x113, &SDMAEngine::setPageWptrLo});
-    } else if (p.device_name == "MI100") {
+    } else if (p.device_name == "MI100" || p.device_name == "MI200") {
         sdmaFunc.insert({0xd9, &SDMAEngine::setPageBaseLo});
         sdmaFunc.insert({0xe1, &SDMAEngine::setPageRptrLo});
         sdmaFunc.insert({0xe0, &SDMAEngine::setPageRptrHi});
@@ -144,10 +144,19 @@ AMDGPUDevice::AMDGPUDevice(const AMDGPUDeviceParams &p)
     if (p.device_name == "Vega10") {
         setRegVal(VEGA10_FB_LOCATION_BASE, mmhubBase >> 24);
         setRegVal(VEGA10_FB_LOCATION_TOP, mmhubTop >> 24);
+        gfx_version = GfxVersion::gfx900;
     } else if (p.device_name == "MI100") {
         setRegVal(MI100_FB_LOCATION_BASE, mmhubBase >> 24);
         setRegVal(MI100_FB_LOCATION_TOP, mmhubTop >> 24);
         setRegVal(MI100_MEM_SIZE_REG, 0x3ff0); // 16GB of memory
+        gfx_version = GfxVersion::gfx908;
+    } else if (p.device_name == "MI200") {
+        // This device can have either 64GB or 128GB of device memory.
+        // This limits to 16GB for simulation.
+        setRegVal(MI200_FB_LOCATION_BASE, mmhubBase >> 24);
+        setRegVal(MI200_FB_LOCATION_TOP, mmhubTop >> 24);
+        setRegVal(MI200_MEM_SIZE_REG, 0x3ff0);
+        gfx_version = GfxVersion::gfx90a;
     } else {
         panic("Unknown GPU device %s\n", p.device_name);
     }
@@ -340,6 +349,22 @@ AMDGPUDevice::writeFrame(PacketPtr pkt, Addr offset)
     }
 
     nbio.writeFrame(pkt, offset);
+
+    /*
+     * Write the value to device memory. This must be done functionally
+     * because this method is called by the PCIDevice::write method which
+     * is a non-timing write.
+     */
+    RequestPtr req = std::make_shared<Request>(offset, pkt->getSize(), 0,
+                                               vramRequestorId());
+    PacketPtr writePkt = Packet::createWrite(req);
+    uint8_t *dataPtr = new uint8_t[pkt->getSize()];
+    std::memcpy(dataPtr, pkt->getPtr<uint8_t>(),
+                pkt->getSize() * sizeof(uint8_t));
+    writePkt->dataDynamic(dataPtr);
+
+    auto system = cp->shader()->gpuCmdProc.system();
+    system->getDeviceMemory(writePkt)->access(writePkt);
 }
 
 void
@@ -480,8 +505,6 @@ AMDGPUDevice::write(PacketPtr pkt)
 
     switch (barnum) {
       case FRAMEBUFFER_BAR:
-          gpuMemMgr->writeRequest(offset, pkt->getPtr<uint8_t>(),
-                                  pkt->getSize(), 0, nullptr);
           writeFrame(pkt, offset);
           break;
       case DOORBELL_BAR:
@@ -604,7 +627,7 @@ AMDGPUDevice::serialize(CheckpointOut &cp) const
     idx = 0;
     for (auto & it : sdmaEngs) {
         sdma_engs_offset[idx] = it.first;
-        sdma_engs[idx] = idx;
+        sdma_engs[idx] = it.second->getId();
         ++idx;
     }
 
@@ -675,8 +698,9 @@ AMDGPUDevice::unserialize(CheckpointIn &cp)
         UNSERIALIZE_ARRAY(sdma_engs, sizeof(sdma_engs)/sizeof(sdma_engs[0]));
 
         for (int idx = 0; idx < sdma_engs_size; ++idx) {
-            assert(sdmaIds.count(idx));
-            SDMAEngine *sdma = sdmaIds[idx];
+            int sdma_id = sdma_engs[idx];
+            assert(sdmaIds.count(sdma_id));
+            SDMAEngine *sdma = sdmaIds[sdma_id];
             sdmaEngs.insert(std::make_pair(sdma_engs_offset[idx], sdma));
         }
     }

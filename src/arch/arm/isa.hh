@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012-2022 ARM Limited
+ * Copyright (c) 2010, 2012-2023 Arm Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -170,11 +170,6 @@ namespace ArmISA
         void clear() override;
 
       protected:
-        void clear32(const ArmISAParams &p, const SCTLR &sctlr_rst);
-        void clear64(const ArmISAParams &p);
-        void initID32(const ArmISAParams &p);
-        void initID64(const ArmISAParams &p);
-
         void addressTranslation(MMU::ArmTranslationType tran_type,
             BaseMMU::Mode mode, Request::Flags flags, RegVal val);
         void addressTranslation64(MMU::ArmTranslationType tran_type,
@@ -200,6 +195,9 @@ namespace ArmISA
         RegVal readMiscReg(RegIndex idx) override;
         void setMiscRegNoEffect(RegIndex idx, RegVal val) override;
         void setMiscReg(RegIndex, RegVal val) override;
+
+        RegVal readMiscRegReset(RegIndex) const;
+        void setMiscRegReset(RegIndex, RegVal val);
 
         int
         flattenMiscIndex(int reg) const

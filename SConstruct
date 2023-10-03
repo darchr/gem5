@@ -1,6 +1,6 @@
 # -*- mode:python -*-
 
-# Copyright (c) 2013, 2015-2020 ARM Limited
+# Copyright (c) 2013, 2015-2020, 2023 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -145,7 +145,13 @@ AddOption('--gprof', action='store_true',
           help='Enable support for the gprof profiler')
 AddOption('--pprof', action='store_true',
           help='Enable support for the pprof profiler')
-AddOption('--no-duplicate-sources', action='store_false', default=True,
+# Default to --no-duplicate-sources, but keep --duplicate-sources to opt-out
+# of this new build behaviour in case it introduces regressions. We could use
+# action=argparse.BooleanOptionalAction here once Python 3.9 is required.
+AddOption('--duplicate-sources', action='store_true', default=False,
+          dest='duplicate_sources',
+          help='Create symlinks to sources in the build directory')
+AddOption('--no-duplicate-sources', action='store_false',
           dest='duplicate_sources',
           help='Do not create symlinks to sources in the build directory')
 
@@ -170,6 +176,10 @@ from gem5_scons.util import compareVersions, readCommand
 SetOption('warn', 'no-duplicate-environment')
 
 Export('MakeAction')
+
+# Patch re.compile to support inline flags anywhere within a RE
+# string. Required to use PLY with Python 3.11+.
+gem5_scons.patch_re_compile_for_inline_flags()
 
 ########################################################################
 #

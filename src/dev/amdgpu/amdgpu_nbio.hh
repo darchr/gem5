@@ -80,6 +80,11 @@ class AMDGPUDevice;
 #define MI100_INV_ENG17_SEM2                              0x6a888
 #define MI100_INV_ENG17_SEM3                              0x76888
 
+#define MI200_INV_ENG17_ACK1                              0x0a318
+#define MI200_INV_ENG17_ACK2                              0x6b018
+#define MI200_INV_ENG17_SEM1                              0x0a288
+#define MI200_INV_ENG17_SEM2                              0x6af88
+
 class AMDGPUNbio
 {
   public:
@@ -109,7 +114,6 @@ class AMDGPUNbio
     Addr psp_ring_dev_addr = 0;
     Addr psp_ring_listen_addr = 0;
     int psp_ring_size = 0;
-    int psp_ring_retval = 0;
     int psp_ring_value = 0;
 };
 

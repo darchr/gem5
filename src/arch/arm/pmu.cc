@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014, 2017-2019, 2022 Arm Limited
+ * Copyright (c) 2011-2014, 2017-2019, 2022-2023 Arm Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -46,6 +46,7 @@
 #include "dev/arm/base_gic.hh"
 #include "dev/arm/generic_timer.hh"
 #include "params/ArmPMU.hh"
+#include "sim/sim_exit.hh"
 
 namespace gem5
 {
@@ -66,7 +67,9 @@ PMU::PMU(const ArmPMUParams &p)
       cycleCounterEventId(p.cycleEventId),
       swIncrementEvent(nullptr),
       reg_pmcr_conf(0),
-      interrupt(nullptr)
+      interrupt(nullptr),
+      exitOnPMUControl(p.exitOnPMUControl),
+      exitOnPMUInterrupt(p.exitOnPMUInterrupt)
 {
     DPRINTF(PMUVerbose, "Initializing the PMU.\n");
 
@@ -412,6 +415,21 @@ PMU::setControlReg(PMCR_t val)
     if (reg_pmcr.d != val.d)
         clock_remainder = 0;
 
+    // Optionally exit the simulation on various PMU control events.
+    // Exit on enable/disable takes precedence over exit on reset.
+    if (exitOnPMUControl) {
+        if (!reg_pmcr.e && val.e) {
+            inform("Exiting simulation: PMU enable detected");
+            exitSimLoop("performance counter enabled", 0);
+        } else if (reg_pmcr.e && !val.e) {
+            inform("Exiting simulation: PMU disable detected");
+            exitSimLoop("performance counter disabled", 0);
+        } else if (val.p) {
+            inform("Exiting simulation: PMU reset detected");
+            exitSimLoop("performance counter reset", 0);
+        }
+    }
+
     reg_pmcr = val & reg_pmcr_wr_mask;
     updateAllCounters();
 }
@@ -660,6 +678,10 @@ PMU::setOverflowStatus(RegVal new_val)
 void
 PMU::raiseInterrupt()
 {
+    if (exitOnPMUInterrupt) {
+        inform("Exiting simulation: PMU interrupt detected");
+        exitSimLoop("performance counter interrupt", 0);
+    }
     if (interrupt) {
         DPRINTF(PMUVerbose, "Delivering PMU interrupt.\n");
         interrupt->raise();

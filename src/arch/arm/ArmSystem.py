@@ -78,12 +78,26 @@ class ArmExtension(ScopedEnum):
         "FEAT_UAO",
         "FEAT_LVA",  # Optional in Armv8.2
         "FEAT_LPA",  # Optional in Armv8.2
+        "FEAT_F32MM",  # Optional in Armv8.2
+        "FEAT_F64MM",  # Optional in Armv8.2
+        "FEAT_I8MM",  # Optional in Armv8.2
+        "FEAT_DOTPROD",  # Optional in Armv8.2
         # Armv8.3
         "FEAT_FCMA",
         "FEAT_JSCVT",
         "FEAT_PAuth",
         # Armv8.4
         "FEAT_SEL2",
+        "FEAT_TLBIOS",
+        "FEAT_FLAGM",
+        "FEAT_IDST",
+        # Armv8.5
+        "FEAT_FLAGM2",
+        "FEAT_RNG",
+        "FEAT_RNG_TRAP",
+        "FEAT_EVT",
+        # Armv8.7
+        "FEAT_HCX",
         # Armv9.2
         "FEAT_SME",  # Optional in Armv9.2
         # Others
@@ -156,12 +170,24 @@ class ArmDefaultRelease(Armv8):
         "FEAT_LVA",
         "FEAT_LPA",
         "FEAT_SVE",
+        "FEAT_F32MM",
+        "FEAT_F64MM",
+        "FEAT_I8MM",
+        "FEAT_DOTPROD",
         # Armv8.3
         "FEAT_FCMA",
         "FEAT_JSCVT",
         "FEAT_PAuth",
         # Armv8.4
         "FEAT_SEL2",
+        "FEAT_TLBIOS",
+        "FEAT_FLAGM",
+        "FEAT_IDST",
+        # Armv8.5
+        "FEAT_FLAGM2",
+        "FEAT_EVT",
+        # Armv8.7
+        "FEAT_HCX",
         # Armv9.2
         "FEAT_SME",
     ]
@@ -184,6 +210,10 @@ class Armv82(Armv81):
         "FEAT_LVA",
         "FEAT_LPA",
         "FEAT_SVE",
+        "FEAT_F32MM",
+        "FEAT_F64MM",
+        "FEAT_I8MM",
+        "FEAT_DOTPROD",
     ]
 
 
@@ -192,11 +222,43 @@ class Armv83(Armv82):
 
 
 class Armv84(Armv83):
-    extensions = Armv83.extensions + ["FEAT_SEL2"]
+    extensions = Armv83.extensions + [
+        "FEAT_SEL2",
+        "FEAT_TLBIOS",
+        "FEAT_FLAGM",
+        "FEAT_IDST",
+    ]
 
 
-class Armv92(Armv84):
-    extensions = Armv84.extensions + ["FEAT_SME"]
+class Armv85(Armv84):
+    extensions = Armv84.extensions + [
+        "FEAT_FLAGM2",
+        "FEAT_RNG",
+        "FEAT_RNG_TRAP",
+        "FEAT_EVT",
+    ]
+
+
+class Armv87(Armv85):
+    extensions = Armv85.extensions + [
+        "FEAT_HCX",
+    ]
+
+
+class Armv92(Armv87):
+    extensions = Armv87.extensions + ["FEAT_SME"]
+
+
+class ArmAllRelease(ArmRelease):
+    """
+    A release containing any implemented extension.  It is alternatively
+    possible to use the latest release (e.g. Armv92 as of now).  This could be
+    preferrable for consistency across simulations.  However if users want to
+    always be up to date with development, using ArmAllRelease will allow them
+    to do so without the need to change their configuration script
+    """
+
+    extensions = ArmExtension.vals
 
 
 class ArmSystem(System):
