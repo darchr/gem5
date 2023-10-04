@@ -8,10 +8,10 @@ namespace gem5{
 
 
     MessageQueue::MessageQueue(const MessageQueueParams &p) :
-        ClockedObject(p), queueSize(p.queueSize), my_range(p.my_range), corePorts(name() + ".cpu_side", this), fake_port(name() + ".mem_side", this),  nextReadEvent([this]{ processNextReadEvent(); }, name()),
+        ClockedObject(p), queueSize(p.queueSize), myRange(p.myRange), corePorts(name() + ".cpu_side", this), fakePort(name() + ".mem_side", this),  nextReadEvent([this]{ processNextReadEvent(); }, name()),
         nextWriteEvent([this] { processNextWriteEvent(); }, name())
         {
-            DPRINTF(MessageQueue, "%s: port name: %s  AddrRange: %d - %d\n", __func__,  (name() + ".cpu_side"), p.my_range.start(), p.my_range.end());
+            DPRINTF(MessageQueue, "%s: port name: %s  AddrRange: %d - %d\n", __func__,  (name() + ".cpu_side"), p.myRange.start(), p.myRange.end());
             // DPRINTF(MessageQueue, "%s: Response_Port addr_range end: %s:%s\n", __func__,  corePorts.getAddrRanges().front().front, corePorts.getAddrRanges().front().end);
 
             //std::cout << "corePorts size: " << corePorts.getAddrRanges().front().size() << "\n";
@@ -112,7 +112,7 @@ namespace gem5{
 
         DPRINTF(MessageQueue, "%s: isWrite(): %d, Cmd = %s\n", __func__,  pkt->isWrite(), pkt->cmdString());
         
-        fake_port.sendFunctional(pkt);
+        fakePort.sendFunctional(pkt);
     
     
         //panic("recvFunctional unimpl.");
@@ -123,7 +123,7 @@ namespace gem5{
     MessageQueue::init()
     {
         corePorts.sendRangeChange();
-        // fake_port.recvRangeChange();
+        // fakePort.recvRangeChange();
     }
 
 
@@ -286,7 +286,7 @@ namespace gem5{
             return corePorts;
         }
         else if (if_name == "mem_side" || (idx == 1)){
-            return fake_port;
+            return fakePort;
         }
         else {
             return ClockedObject::getPort(if_name, idx);
