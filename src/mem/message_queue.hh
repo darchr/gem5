@@ -94,11 +94,11 @@ class MessageQueue : public ClockedObject
         std::deque<std::tuple<uint32_t, uint32_t, uint32_t, Tick>> queue; //Could be address or vertexID, vertexID might be easier
         
         uint32_t queueSize;
-        AddrRange my_range;
+        AddrRange myRange;
         // std::vector<RespPort> corePorts; 
         RespPort corePorts;//= new RespPort();
 
-        ReqPort fake_port;
+        ReqPort fakePort;
 
         uint32_t queueLength(){return queue.size();}
 
@@ -119,7 +119,7 @@ class MessageQueue : public ClockedObject
     public:
         MessageQueue(const MessageQueueParams &p);
         Port& getPort(const std::string &if_name, PortID idx) override;
-        AddrRangeList getAddrRanges(){return {my_range};};
+        AddrRangeList getAddrRanges(){return {myRange};};
         void init();
         void checkRetryReq();
 
