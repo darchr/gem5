@@ -6,11 +6,11 @@ from caches import *
 system = System()
 
 system.clk_domain = SrcClockDomain()
-system.clk_domain.clock = '1GHz'
+system.clk_domain.clock = "1GHz"
 system.clk_domain.voltage_domain = VoltageDomain()
 
-system.mem_mode = 'timing'
-system.mem_ranges = [AddrRange('256MB')]
+system.mem_mode = "timing"
+system.mem_ranges = [AddrRange("256MB")]
 system.membus = SystemXBar()
 
 system.cpu = X86TimingSimpleCPU()
@@ -21,14 +21,14 @@ system.dcache = L1DCache()
 system.cpu.icache_port = system.icache.cpu_side
 
 system.test_xbar = IOXBar()
-system.mem_bridge = Bridge(delay='1ns', ranges=system.mem_ranges[0])
+system.mem_bridge = Bridge(delay="1ns", ranges=system.mem_ranges[0])
 
 system.cpu.dcache_port = system.test_xbar.cpu_side_ports
 system.test_xbar.mem_side_ports = system.mem_bridge.cpu_side_port
 system.mem_bridge.mem_side_port = system.dcache.cpu_side
 
 msg_queue_range = AddrRange(start="1GiB", size="4KiB")
-system.mq_bridge = Bridge(delay='1ns', ranges=msg_queue_range)
+system.mq_bridge = Bridge(delay="1ns", ranges=msg_queue_range)
 system.mq_bridge.cpu_side_port = system.test_xbar.mem_side_ports
 
 
