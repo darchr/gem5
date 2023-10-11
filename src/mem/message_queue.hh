@@ -13,21 +13,33 @@
 #include <deque>
 #include <stdlib.h>
 #include <tuple>
-#include <iostream>
+// #include <iostream>
 
 
 namespace gem5
 {
 
-class update_item{
-    public:
-        uint32_t src_id;
-        uint32_t dst_id;
-        uint32_t dist;
+// struct __attribute__ ((packed)) Update
+struct Update
+{
+    // uint16_t weight : 16;
+    // uint64_t dst_id : 48;
+    //uint64_t src_id : 48;
 
-        update_item(uint32_t src, uint32_t dst, uint32_t dist):
-        src_id(src), dst_id(dst), dist(dist)
-        {}
+    uint16_t weight : 16;
+    uint64_t dst_id : 48;
+
+    std::string to_string()
+    {
+        return csprintf("Update{weight: %u, dst_id: %lu}", weight, dst_id);
+    }
+
+    Update(): weight(0), dst_id(0) {}
+
+    Update(uint16_t weight, uint64_t dst_id):
+        weight(weight),
+        dst_id(dst_id)
+    {}
 };
 
 
@@ -91,7 +103,17 @@ class MessageQueue : public ClockedObject
             
         };
 
-        std::deque<std::tuple<uint32_t, uint32_t, uint32_t, Tick>> queue; //Could be address or vertexID, vertexID might be easier
+        // Design decision: 
+        // map the address of each vertex to its own PA in the queue(would need to call map for every vertex)
+        // or
+        // map a set of vertices to a single VA(only need to call map once per queue)
+        // if this is chosen, we cannot use the address to determine the vertex, we would need to use the vertexID
+        std::deque<std::tuple<uint64_t, Tick>> queue; // Addr may need to be changed to dst_id i.e. uint64_t 
+        std::unordered_map<uint64_t, Update> valueMap; // change Addr to uint64_t
+    
+
+       
+        // std::deque<std::tuple<uint32_t, uint32_t, uint32_t, Tick>> queue; //Could be address or vertexID, vertexID might be easier
         
         uint32_t queueSize;
         AddrRange myRange;
