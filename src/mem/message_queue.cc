@@ -26,32 +26,6 @@ namespace gem5{
         DPRINTF(MessageQueue, "%s: isWrite(): %d, Message Queue size = %d, Cmd = %s\n", __func__,  pkt->isWrite(), queueLength(), pkt->cmdString());
 
         if(pkt->isWrite()){
-            //update_item this_update = pkt->getLE<update_item>(); // data type in <> should be whatever format the update is
-            // uint32_t this_update = pkt->getLE<uint32_t>();
-            //uint32_t this_update = pkt->getLE<uint32_t>();
-
-            // std::tuple<uint32_t, uint32_t, uint32_t> this_update = pkt->getLE<std::tuple<uint32_t, uint32_t, uint32_t>>(); // data type in <> should be whatever format the update is
-            // DPRINTF(MessageQueue, "%s: Write Value: %d\n", __func__, std::get<0>(this_update));
-
-
-            // uncomment line below for uint32_t
-            // uint32_t this_update = pkt->getLE<uint32_t>(); // data type in <> should be whatever format the update is
-            // DPRINTF(MessageQueue, "%s: Write Value: %d\n", __func__, this_update);
-
-
-            // // c++ deque
-            // if(queueLength() >= queueSize){
-            //     // full queue
-            //     return false;
-            // }
-
-            // // c++ deque
-
-            // //queue.emplace_back(std::make_tuple(std::get<0>(this_update), std::get<1>(this_update), std::get<2>(this_update), curTick()));
-            
-            // queue.emplace_back(std::make_tuple(this_update, this_update, this_update, curTick()));
-
-            // queue.pop_back(); // delete this
 
             if(queueLength() >= queueSize){
             // full queue
@@ -63,8 +37,6 @@ namespace gem5{
             if (!nextWriteEvent.scheduled()) {
                 schedule(nextWriteEvent, nextCycle());
             }
-            // queue.emplace_back(std::make_tuple(this_update.src_id, this_update.dst_id, this_update.dist, curTick()));
-            //queue.emplace_back(std::make_tuple(this_update, this_update, this_update, curTick()));
 
         }
 
@@ -74,7 +46,14 @@ namespace gem5{
             
             //std::tuple<uint32_t, uint32_t, uint32_t> to_return = std::tuple<std::get<0>(element), std::get<1>(element), std::get<2>(element)>;
             
-            
+            // cant just check here, need to check after the read event is processed
+            // if it fails in the read event how do we know to send retry?
+            // Could possibly check length of read queue and write queue
+            if(queueLength() == 0){
+            // full queue
+            return false;
+            }
+
             pkt_read_queue.emplace_back(pkt);
 
             if (!nextReadEvent.scheduled()) {
@@ -130,77 +109,49 @@ namespace gem5{
     void
     MessageQueue::processNextWriteEvent()
     {
+        DPRINTF(MessageQueue, "in processNextWriteEvent \n");
 
         PacketPtr pkt = pkt_write_queue.front();
         pkt_write_queue.pop_front();
+        DPRINTF(MessageQueue, "Before reading packet\n");
 
-        uint32_t this_update = pkt->getLE<uint32_t>(); // data type in <> should be whatever format the update is
-        DPRINTF(MessageQueue, "%s: Write Value: %d\n", __func__, this_update);
+        Update this_update = pkt->getLE<Update>(); 
 
+        DPRINTF(MessageQueue, "%s: Write Value: %d\n", __func__, this_update.dst_id);//->dst_id);
 
-        // c++ deque
-        // if(queueLength() >= queueSize){
-        //     // full queue
-        //     return false;
-        // }
 
         // c++ deque
+        if(queueLength() >= queueSize){
+            // full queue
+            // send retry
+            
+        }
+        else{
+            //queue.emplace_back(std::make_tuple(this_update, this_update, this_update, curTick()));
+            // coalescing could be done here
+            // could check to see if the dst_id is already in the queue
+            // if it is, then we need to update the valueMap and not emplace the new update to the queue
 
-        //queue.emplace_back(std::make_tuple(std::get<0>(this_update), std::get<1>(this_update), std::get<2>(this_update), curTick()));
-        
-        queue.emplace_back(std::make_tuple(this_update, this_update, this_update, curTick()));
+            // uncomment below block out
+            uint64_t my_dst_id = this_update.dst_id;
+            std::tuple<uint64_t, Tick> mapAddr = std::make_tuple(my_dst_id, curTick());
+            queue.emplace_back(mapAddr); // need to figure out how to get the dst_id, I removed currtick() for now
+            valueMap[my_dst_id] = this_update;
 
-        queue.pop_back(); // delete this
+        }
 
         if (pkt->needsResponse()) {
             pkt->makeResponse();
             corePorts.sendTimingResp(pkt);
         }
 
-        // std::tuple<uint32_t, uint32_t, uint32_t> this_update = pkt->getLE<std::tuple<uint32_t, uint32_t, uint32_t>>(); // data type in <> should be whatever format the update is
-        //     //update_item this_update = pkt->getLE<update_item>(); // data type in <> should be whatever format the update is
-        //     // uint32_t this_update = pkt->getLE<uint32_t>();
-        //     //uint32_t this_update = pkt->getLE<uint32_t>();
-        //     DPRINTF(MessageQueue, "%s: Write Value: %d\n", __func__, std::get<0>(this_update));
 
-        //     // c++ deque
-        //     if(queueLength() >= queueSize){
-        //         // full queue should send retry
-        //         needSendRetryReq = true;
-                
-        //     }
 
-        //     // c++ deque
-
-        //     queue.emplace_back(std::make_tuple(std::get<0>(this_update), std::get<1>(this_update), std::get<2>(this_update), curTick()));
-            
-
-        //     pkt->makeResponse();
-        //     corePorts.sendTimingResp(pkt);
     }
 
     void
     MessageQueue::processNextReadEvent()
     {
-            //pkt->setData() should pass in a pointer to the data, not the sata itself
-            //pkt->setLE()?
-            //makeResponse
-
-
-
-
-        //     if(queueLength() > 0){
-        //         DPRINTF(MessageQueue, "%s: Read Value: %d\n", __func__, std::get<0>(queue.front()));
-        //         // pkt->setData(std::get<0>(queue.front()) + 15);
-        //         pkt->setLE(std::get<0>(queue.front()) + 15); // Replace this with whatever value we want to put in there
-        //         queue.pop_front();
-        //         pkt->makeResponse();
-        //         corePorts.sendTimingResp(pkt);
-        //         DPRINTF(MessageQueue, "%s: Returned Value: %d\n", __func__, pkt->getLE<uint32_t>());
-        //     }
-
-        // pkt->makeResponse();
-        // corePorts.sendTimingResp(pkt);
 
         // // if(corePorts.needSendRetryReq){
         // //     corePorts.needSendRetryReq = false;
@@ -208,16 +159,26 @@ namespace gem5{
         // // }
         PacketPtr pkt = pkt_read_queue.front();
         pkt_read_queue.pop_front();
-        DPRINTF(MessageQueue, "%s: Read Value: %d\n", __func__, std::get<0>(queue.front()));
-        // pkt->setData(std::get<0>(queue.front()) + 15);
-        //pkt->setLE(std::get<0>(queue.front()) + 15);
-        pkt->setLE(15);
-        //queue.pop_front();
+
+        if (queueLength() < 1){
+            DPRINTF(MessageQueue, "Tried reading empty queue\n");
+            // How to send retry?
+        }
+        else{
+            std::tuple<uint64_t, Tick> mapAddr = queue.front();
+            queue.pop_front();
+            pkt->setLE(valueMap[std::get<0>(mapAddr)]); // get<0> is temporary
+            DPRINTF(MessageQueue, "%s: Read Value: %d\n", __func__, std::get<0>(queue.front()));
+            
+        }
+        
         DPRINTF(MessageQueue, "%s: Returned Value: %d\n", __func__, pkt->getLE<uint32_t>());
         checkRetryReq();
 
         if (pkt->needsResponse()) {
             pkt->makeResponse();
+            //pkt->setLE(((uint32_t)99999));
+
             corePorts.sendTimingResp(pkt);
         }
 
