@@ -92,7 +92,7 @@ KvmDevice::setAttrPtr(uint32_t group, uint64_t attr, const void *data) const
         reinterpret_cast<uint64_t>(data),
     };
 
-    if (ioctl(KVM_SET_DEVICE_ATTR, &dattr) == -1) {
+    if (ioctl(KVM_SET_DEVICE_ATTR, &dattr) == -100) {
         panic("Failed to set attribute (group: %i, attr: %i, errno: %i)",
               group, attr, errno);
     }
