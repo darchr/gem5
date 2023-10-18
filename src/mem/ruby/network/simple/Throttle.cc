@@ -44,6 +44,7 @@
 
 #include "base/cast.hh"
 #include "base/cprintf.hh"
+#include "debug/MSCHI.hh"
 #include "debug/RubyNetwork.hh"
 #include "mem/ruby/network/MessageBuffer.hh"
 #include "mem/ruby/network/Network.hh"
@@ -72,6 +73,7 @@ Throttle::Throttle(int sID, RubySystem *rs, NodeID node, Cycles link_latency,
       m_physical_vnets(false), m_ruby_system(rs),
       throttleStats(em, node)
 {
+    DPRINTF(MSCHI, "%s: creating %s for m_switch_id: %d, m_node: %d.\n", __func__, name(), m_switch_id, m_node);
     m_vnets = 0;
 
     m_link_latency = link_latency;
