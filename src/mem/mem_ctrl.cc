@@ -63,7 +63,7 @@ MemCtrl::MemCtrl(const MemCtrlParams &p) :
     port(name() + ".port", *this), isTimingMode(false),
     retryRdReq(false), retryWrReq(false),
     nextReqEvent([this] {processNextReqEvent(dram, respQueue,
-                         respondEvent, nextReqEvent, retryWrReq);}, name()),
+                         respondEvent, nextReqEvent, retryWrReq, retryRdReq);}, name()),
     respondEvent([this] {processRespondEvent(dram, respQueue,
                          respondEvent, retryRdReq); }, name()),
     dram(p.dram),
@@ -1004,7 +1004,8 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
                         MemPacketQueue& resp_queue,
                         EventFunctionWrapper& resp_event,
                         EventFunctionWrapper& next_req_event,
-                        bool& retry_wr_req) {
+                        bool& retry_wr_req,
+                        bool& retry_rd_req) {
     DPRINTF(MemCtrl, "processNextReqEvent: readQueueSize: %d, writeQueueSize:%d, readQ: %d, writeQ: %d, respQ: %d\n",
                      mem_intr->readQueueSize, mem_intr->writeQueueSize, readQueue[0].size(), writeQueue[0].size(),
                      respQueue.size());
@@ -1353,6 +1354,12 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
             // case, which eventually will check for any draining and
             // also pause any further scheduling if there is really
             // nothing to do
+
+
+            if (retry_rd_req) {
+                retry_rd_req = false;
+                port.sendRetryReq();
+            }
         }
     }
     // It is possible that a refresh to another rank kicks things back into
@@ -1364,6 +1371,7 @@ MemCtrl::processNextReqEvent(MemInterface* mem_intr,
         retry_wr_req = false;
         port.sendRetryReq();
     }
+
 }
 
 bool

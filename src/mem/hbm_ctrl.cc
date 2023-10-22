@@ -47,7 +47,7 @@ HBMCtrl::HBMCtrl(const HBMCtrlParams &p) :
     MemCtrl(p),
     retryRdReqPC1(false), retryWrReqPC1(false),
     nextReqEventPC1([this] {processNextReqEvent(pc1Int, respQueuePC1,
-                         respondEventPC1, nextReqEventPC1, retryWrReqPC1);},
+                         respondEventPC1, nextReqEventPC1, retryWrReqPC1, retryRdReqPC1);},
                          name()),
     respondEventPC1([this] {processRespondEvent(pc1Int, respQueuePC1,
                          respondEventPC1, retryRdReqPC1); }, name()),

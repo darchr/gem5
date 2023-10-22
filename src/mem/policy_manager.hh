@@ -220,6 +220,7 @@ class PolicyManager : public AbstractMemory
         bool rcvdFarRdResp;
         Addr dirtyLineAddr;
         bool handleDirtyLine;
+        bool repetitiveReqRcvd;
 
 
         // recording the tick when the req transitions into a new stats.
@@ -259,7 +260,7 @@ class PolicyManager : public AbstractMemory
         pol(_pol), state(_state),
         issued(_issued), isHit(_isHit), conflict(_conflict),
         prevDirty(_prevDirty), rcvdLocRdResp(_rcvdLocRdResp), rcvdFarRdResp(_rcvdFarRdResp),
-        dirtyLineAddr(_dirtyLineAddr), handleDirtyLine(_handleDirtyLine),
+        dirtyLineAddr(_dirtyLineAddr), handleDirtyLine(_handleDirtyLine), repetitiveReqRcvd(false),
         tagCheckEntered(_tagCheckEntered), tagCheckIssued(_tagCheckIssued), tagCheckExit(_tagCheckExit),
         locRdEntered(_locRdEntered), locRdIssued(_locRdIssued), locRdExit(_locRdExit),
         locWrEntered(_locWrEntered), locWrIssued(_locWrIssued), locWrExit(_locWrExit),
@@ -297,6 +298,7 @@ class PolicyManager : public AbstractMemory
      * It helps remember if we have to retry a request when available.
      */
     bool retryLLC;
+    bool retryLLCRepetitive;
     bool retryLLCFarMemWr;
     bool retryTagCheck;
     bool retryLocMemRead;

@@ -332,7 +332,8 @@ class MemCtrl : public qos::MemCtrl
                           MemPacketQueue& resp_queue,
                           EventFunctionWrapper& resp_event,
                           EventFunctionWrapper& next_req_event,
-                          bool& retry_wr_req);
+                          bool& retry_wr_req,
+                          bool& retry_rd_req);
     EventFunctionWrapper nextReqEvent;
 
     virtual void processRespondEvent(MemInterface* mem_intr,

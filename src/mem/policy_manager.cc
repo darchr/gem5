@@ -38,7 +38,7 @@ PolicyManager::PolicyManager(const PolicyManagerParams &p):
     infoCacheWarmupRatio(0.05),
     resetStatsWarmup(false),
     prevArrival(0),
-    retryLLC(false), retryLLCFarMemWr(false),
+    retryLLC(false), retryLLCRepetitive(false), retryLLCFarMemWr(false),
     retryTagCheck(false), retryLocMemRead(false), retryFarMemRead(false),
     retryLocMemWrite(false), retryFarMemWrite(false),
     maxConf(0),
@@ -410,6 +410,13 @@ PolicyManager::recvTimingReq(PacketPtr pkt)
         else {
             polManStats.numWrRetry++;
         }
+        return false;
+    }
+
+    // This should only happen in traffic generator tests.
+    if (findInORB(pkt->getAddr())) {
+        ORB.at(pkt->getAddr())->repetitiveReqRcvd = true;
+        retryLLCRepetitive = true;
         return false;
     }
 
@@ -2622,6 +2629,12 @@ PolicyManager::resumeConflictingReq(reqBufferEntry* orbEntry)
                 signalDrainDone();
             }
         }
+    }
+
+    if (retryLLCRepetitive) {
+            DPRINTF(PolicyManager, "retryLLCRepetitive: sent\n");
+            retryLLCRepetitive = false;
+            port.sendRetryReq();
     }
 
     return conflictFound;
