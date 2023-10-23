@@ -1,0 +1,80 @@
+[
+    {
+        "parameter": "threadPolicy",
+        "values": [
+            {
+                "value": "\"RoundRobin\"",
+                "workloads": [
+                    {
+                        "workload": "riscv-cca-run",
+                        "IPC": 1.209809395887132
+                    }
+                ]
+            },
+            {
+                "value": "\"SingleThreaded\"",
+                "workloads": [
+                    {
+                        "workload": "riscv-cca-run",
+                        "IPC": 1.2098131875912785
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "parameter": "executeFuncUnits",
+        "values": [
+            {
+                "value": "2",
+                "workloads": [
+                    {
+                        "workload": "riscv-cca-run",
+                        "IPC": 1.2098068933754154
+                    }
+                ]
+            },
+            {
+                "value": "4",
+                "workloads": [
+                    {
+                        "workload": "riscv-cca-run",
+                        "IPC": 1.094715451189377
+                    }
+                ]
+            },
+            {
+                "value": "3",
+                "workloads": [
+                    {
+                        "workload": "riscv-cca-run",
+                        "IPC": 1.1493762564956347
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "parameter": "enableIdling",
+        "values": [
+            {
+                "value": "False",
+                "workloads": [
+                    {
+                        "workload": "riscv-cca-run",
+                        "IPC": 1.2098131875912785
+                    }
+                ]
+            },
+            {
+                "value": "True",
+                "workloads": [
+                    {
+                        "workload": "riscv-cca-run",
+                        "IPC": 1.2098081218798735
+                    }
+                ]
+            }
+        ]
+    }
+]
