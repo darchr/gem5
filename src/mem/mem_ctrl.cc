@@ -1430,13 +1430,13 @@ MemCtrl::findCandidateForBSlot(MemPacket* AslotPkt)
             
             handleTCforBSlotPkt(BslotPktIt, AslotPkt->BSlotBusyUntil);
 
-            if (BslotPkt->pkt->owIsRead && BslotPkt->pkt->isHit) {
-                stats.foundCandidBSlotRH++;
-            } else if (BslotPkt->pkt->owIsRead && !BslotPkt->pkt->isHit && !BslotPkt->pkt->isDirty) {
-                stats.foundCandidBSlotRMC++;
-            } else if (BslotPkt->pkt->owIsRead && !BslotPkt->pkt->isHit && BslotPkt->pkt->isDirty) {
-                stats.foundCandidBSlotRMD++;
-            }
+            // if (BslotPkt->pkt->owIsRead && BslotPkt->pkt->isHit) {
+            //     stats.foundCandidBSlotRH++;
+            // } else if (BslotPkt->pkt->owIsRead && !BslotPkt->pkt->isHit && !BslotPkt->pkt->isDirty) {
+            //     stats.foundCandidBSlotRMC++;
+            // } else if (BslotPkt->pkt->owIsRead && !BslotPkt->pkt->isHit && BslotPkt->pkt->isDirty) {
+            //     stats.foundCandidBSlotRMD++;
+            // }
             return true;
         }
     }
@@ -1488,6 +1488,8 @@ MemCtrl::handleTCforBSlotPkt(MemPacketQueue::iterator BslotPktIt, Tick BSlotTagB
         assert(!BslotPkt->probedRdH);
         BslotPkt->probedRdH = true;
 
+        stats.foundCandidBSlotRH++;
+
         return;
     }
 
@@ -1520,6 +1522,8 @@ MemCtrl::handleTCforBSlotPkt(MemPacketQueue::iterator BslotPktIt, Tick BSlotTagB
         assert(!BslotPkt->probedRdMC);
         BslotPkt->probedRdMC = true;
 
+        stats.foundCandidBSlotRMC++;
+
         delete BslotPkt->pkt;
         delete BslotPkt;
         return;
@@ -1536,6 +1540,8 @@ MemCtrl::handleTCforBSlotPkt(MemPacketQueue::iterator BslotPktIt, Tick BSlotTagB
 
         assert(!BslotPkt->probedRdMD);
         BslotPkt->probedRdMD = true;
+
+        stats.foundCandidBSlotRMD++;
 
         return;
     }

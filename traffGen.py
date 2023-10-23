@@ -46,20 +46,18 @@ system.mem_mode = 'timing'
 
 system.generator = PyTrafficGen()
 
-
 system.mem_ctrl = PolicyManager(range=AddrRange('3GiB'))
 
 system.mem_ctrl.orb_max_size = 128
-system.mem_ctrl.assoc = 4
+system.mem_ctrl.assoc = 8
 system.mem_ctrl.static_frontend_latency = "10ns"
 system.mem_ctrl.static_backend_latency = "10ns"
-system.mem_ctrl.loc_mem_policy = 'RambusTagProbOpt'
 
 system.loc_mem_ctrl = MemCtrl()
 system.loc_mem_ctrl.dram = TDRAM(range=AddrRange('3GiB'), in_addr_map=False, null=True)
-system.loc_mem_ctrl.dram.read_buffer_size = 64
-system.loc_mem_ctrl.dram.write_buffer_size = 64
-system.loc_mem_ctrl.dram = system.mem_ctrl.loc_mem
+system.mem_ctrl.loc_mem_policy = 'RambusTagProbOpt'
+
+system.mem_ctrl.loc_mem = system.loc_mem_ctrl.dram
 system.loc_mem_ctrl.static_frontend_latency = "1ns"
 system.loc_mem_ctrl.static_backend_latency = "1ns"
 system.loc_mem_ctrl.static_frontend_latency_tc = "0ns"
@@ -89,31 +87,31 @@ if options.clean_dirty == 1:
 else :
     system.mem_ctrl.always_dirty = False
 
-system.mem_ctrl.dram_cache_size = "16MiB"
+system.mem_ctrl.dram_cache_size = "128MiB"
 
 system.generator.port = system.mem_ctrl.port
 system.loc_mem_ctrl.port = system.mem_ctrl.loc_req_port
 system.far_mem_ctrl.port = system.mem_ctrl.far_req_port
 
 def createRandomTraffic(tgen):
-    yield tgen.createRandom(1000000000,            # duration
+    yield tgen.createRandom(10000000000,            # duration
                             0,                      # min_addr
-                            AddrRange('1KiB').end,  # max_adr
+                            AddrRange('3GiB').end,  # max_adr
                             64,                     # block_size
-                            500,                   # min_period
-                            500,                   # max_period
-                            50,        # rd_perc
+                            1000,                   # min_period
+                            1000,                   # max_period
+                            options.rd_prct,        # rd_perc
                             0)                      # data_limit
     yield tgen.createExit(0)
 
 def createLinearTraffic(tgen):
-    yield tgen.createLinear(1000000000,            # duration
+    yield tgen.createLinear(10000000000,            # duration
                             0,                      # min_addr
-                            AddrRange('1KiB').end,  # max_adr
+                            AddrRange('3GiB').end,  # max_adr
                             64,                     # block_size
-                            500,                   # min_period
-                            500,                   # max_period
-                            50,        # rd_perc
+                            1000,                   # min_period
+                            1000,                   # max_period
+                            options.rd_prct,        # rd_perc
                             0)                      # data_limit
     yield tgen.createExit(0)
 
@@ -129,9 +127,5 @@ else:
     print('Wrong traffic type! Exiting!')
     exit()
 
-exit_event = m5.simulate()
-if exit_event.getCause() == "cacheIsWarmedup":
-    print("Caught cacheIsWarmedup exit event!")
-    m5.stats.reset()
 exit_event = m5.simulate()
 print(f"Exit reason {exit_event.getCause()}")
