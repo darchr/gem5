@@ -9,13 +9,13 @@ from post_process import postprocess
 
 if __name__ == "__m5_main__":
     board_configurations = create_board_configurations()
-    if "GEM5_CONFIG_CLUSTERS" in os.environ:
+    if "GEM5_CONFIGS_PER_CLUSTER" in os.environ:
         num_clusters = len(board_configurations) // int(
-            os.environ["GEM5_CONFIG_CLUSTERS"]
+            os.environ["GEM5_CONFIGS_PER_CLUSTER"]
         )
     else:
         # Default to 1 cluster
-        num_clusters = len(board_configurations) // 1
+        num_clusters = 1
 
     board_configurations_clusters = []
     for i in range(num_clusters):

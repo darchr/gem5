@@ -8,7 +8,12 @@ def get_microbenchmarks() -> List[str]:
 
     # TODO: this will be replaced with the suite later
 
-    microbenchmarks = [workloads for workload in obtain_resource("r")]
+    microbenchmarks = [
+        workload
+        for workload in obtain_resource(
+            "riscv-vertical-microbenchmarks"
+        ).with_input_group("cca")
+    ]
 
     return microbenchmarks
 
@@ -39,8 +44,8 @@ def run_one_configuration(board_configuration):
 
     requires(isa_required=ISA.RISCV)
 
-    print(board_configuration[0])
-    print(board_configuration[1])
+    # print(board_configuration[0])
+    # print(board_configuration[1])
 
     board = RISCVMatchedBoard()
     board.apply_config(board_configuration[0])
