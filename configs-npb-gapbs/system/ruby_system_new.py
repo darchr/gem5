@@ -217,7 +217,7 @@ class MyRubySystem(System):
         self.loc_mem_ctrl = MemCtrl()
         self.loc_mem_ctrl.consider_oldest_write = True
         self.loc_mem_ctrl.oldest_write_age_threshold = 2500000
-        self.loc_mem_ctrl.dram = TDRAM_32(
+        self.loc_mem_ctrl.dram = TDRAM(
             range=self.mem_ranges[2], in_addr_map=False, kvm_map=False
         )
 

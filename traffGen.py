@@ -59,7 +59,7 @@ system.loc_mem_ctrl = MemCtrl()
 system.loc_mem_ctrl.dram = TDRAM(range=AddrRange('3GiB'), in_addr_map=False, null=True)
 system.loc_mem_ctrl.dram.read_buffer_size = 64
 system.loc_mem_ctrl.dram.write_buffer_size = 64
-system.mem_ctrl.loc_mem = system.loc_mem_ctrl.dram
+system.loc_mem_ctrl.dram = system.mem_ctrl.loc_mem
 system.loc_mem_ctrl.static_frontend_latency = "1ns"
 system.loc_mem_ctrl.static_backend_latency = "1ns"
 system.loc_mem_ctrl.static_frontend_latency_tc = "0ns"

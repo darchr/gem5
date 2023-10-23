@@ -2346,8 +2346,11 @@ PolicyManager::handleRequestorPkt(PacketPtr pkt)
                         orbEntry->owPkt->getAddr();
     }
 
-    // tagMetadataStore.at(orbEntry->indexDC).farMemAddr =
-    //                     orbEntry->owPkt->getAddr();
+    if (orbEntry->isHit) {
+        tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->counter++;
+    } else {
+        tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->counter = 1;
+    }
 
     DPRINTF(PolicyManager, "ORB+: adr= %d, index= %d, tag= %d, cmd= %s, isHit= %d, wasDirty= %d, dirtyAddr= %d\n", orbEntry->owPkt->getAddr(), orbEntry->indexDC, orbEntry->tagDC, orbEntry->owPkt->cmdString(), orbEntry->isHit, orbEntry->prevDirty, orbEntry->dirtyLineAddr);
 }

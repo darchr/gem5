@@ -70,13 +70,15 @@ class ReplaceableEntry
     // constant to indicate that the cache line is dirty
     bool dirtyLine;
     Addr farMemAddr;
+    unsigned counter;
 
     ReplaceableEntry(Addr _tagDC, Addr _indexDC, bool _validLine, bool _dirtyLine, Addr _farMemAddr) : 
         tagDC(_tagDC),
         indexDC(_indexDC),
         validLine(_validLine),
         dirtyLine(_dirtyLine),
-        farMemAddr(_farMemAddr)
+        farMemAddr(_farMemAddr),
+        counter(0)
         { }
 
   protected:
