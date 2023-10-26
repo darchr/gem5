@@ -293,6 +293,9 @@ class PolicyManager : public AbstractMemory
      */
     std::vector<timeReqPair> CRB;
 
+    std::unordered_map<Addr, uint64_t> capacityTracker;
+    uint64_t blksInserted;
+
     /**
      * This is a unified retry flag for both reads and writes.
      * It helps remember if we have to retry a request when available.
@@ -509,6 +512,8 @@ class PolicyManager : public AbstractMemory
 
       statistics::Formula missRatio;
       statistics::Formula dirtyRatio;
+      statistics::Histogram missDistance;
+      statistics::Histogram blkReuse;
 
     };
 

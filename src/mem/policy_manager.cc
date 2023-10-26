@@ -38,6 +38,7 @@ PolicyManager::PolicyManager(const PolicyManagerParams &p):
     infoCacheWarmupRatio(0.05),
     resetStatsWarmup(false),
     prevArrival(0),
+    blksInserted(0),
     retryLLC(false), retryLLCRepetitive(false), retryLLCFarMemWr(false),
     retryTagCheck(false), retryLocMemRead(false), retryFarMemRead(false),
     retryLocMemWrite(false), retryFarMemWrite(false),
@@ -2222,6 +2223,12 @@ PolicyManager::handleRequestorPkt(PacketPtr pkt)
 
     if (way == noMatchingWay) { // MISSED! Candidate = Either there's an empty way to fill in or a victim will be selected.
         way = getCandidateWay(index);
+
+        // This is the current resident that is about to leave.
+        if (tagMetadataStore.at(index).at(way)->validLine) {
+                capacityTracker[tagMetadataStore.at(index).at(way)->farMemAddr] = blksInserted;
+                polManStats.blkReuse.sample(tagMetadataStore.at(index).at(way)->counter);
+        }
     }
 
     assert(way < assoc);
@@ -2350,6 +2357,13 @@ PolicyManager::handleRequestorPkt(PacketPtr pkt)
         tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->counter++;
     } else {
         tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->counter = 1;
+        
+        blksInserted++;
+        
+        if (capacityTracker.find(orbEntry->owPkt->getAddr()) != capacityTracker.end()) {
+            polManStats.missDistance.sample(blksInserted - capacityTracker[orbEntry->owPkt->getAddr()]);
+            capacityTracker.erase(orbEntry->owPkt->getAddr());            
+        }
     }
 
     DPRINTF(PolicyManager, "ORB+: adr= %d, index= %d, tag= %d, cmd= %s, isHit= %d, wasDirty= %d, dirtyAddr= %d\n", orbEntry->owPkt->getAddr(), orbEntry->indexDC, orbEntry->tagDC, orbEntry->owPkt->cmdString(), orbEntry->isHit, orbEntry->prevDirty, orbEntry->dirtyLineAddr);
@@ -3148,7 +3162,11 @@ PolicyManager::PolicyManagerStats::PolicyManagerStats(PolicyManager &_polMan)
     ADD_STAT(missRatio,  statistics::units::Rate<
                 statistics::units::Count, statistics::units::Count>::get(), "stat"),
     ADD_STAT(dirtyRatio,  statistics::units::Rate<
-                statistics::units::Count, statistics::units::Count>::get(), "stat")
+                statistics::units::Count, statistics::units::Count>::get(), "stat"),
+    ADD_STAT(missDistance, statistics::units::Count::get(),
+             "Miss distance, to track capacity misses"),
+    ADD_STAT(blkReuse, statistics::units::Count::get(),
+             "cache line block reuse before eviction")
 
 {
 }
@@ -3200,6 +3218,14 @@ PolicyManager::PolicyManagerStats::regStats()
 
     missRatio.precision(2);
     dirtyRatio.precision(2);
+
+    missDistance
+        .init(2048)
+        .flags(pdf | nozero);
+    
+    blkReuse
+        .init(128)
+        .flags(pdf | nozero);
 
     // Formula stats
     avgRdBWSys = (bytesReadSys) / simSeconds;
@@ -3330,6 +3356,7 @@ PolicyManager::unserialize(CheckpointIn &cp)
             paramIn(cp, "dirtyLine", dirty);
             paramIn(cp, "farMemAddr", far_addr);
             Addr newIndex = index % numOfSets;
+
             if (newIndex < tagMetadataStore.size()) {
                 // Only insert if this entry fits into the current store.
                 // tagMetadataStore.at(newIndex).at(i / numOfSets)->tagDC = tag;
