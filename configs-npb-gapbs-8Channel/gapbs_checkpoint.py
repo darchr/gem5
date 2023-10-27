@@ -163,8 +163,9 @@ if __name__ == "__m5_main__":
         # switching CPU to timing
         system.switchCpus(system.cpu, system.timingCpu)
     else:
+        print(exit_event.getCause())
         print("Unexpected termination of simulation !")
-        exit()
+        exit(1)
 
     m5.stats.reset()
     print(

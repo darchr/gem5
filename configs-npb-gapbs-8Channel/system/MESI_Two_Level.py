@@ -69,8 +69,6 @@ class MESITwoLevelCache(RubySystem):
         # customized depending on the topology/network requirements.
         # L1 caches are private to a core, hence there are one L1 cache per CPU
         # core. The number of L2 caches are dependent to the architecture.
-        print("1:" , len(mem_ranges))
-        print("2:" , len(mem_ctrls[1]))
         self.controllers = \
             [L1Cache(system, self, cpu, self._numL2Caches) for cpu in cpus] + \
             [L2Cache(system, self, self._numL2Caches) for num in \
@@ -257,7 +255,6 @@ class DirController(Directory_Controller):
         """ranges are the memory ranges assigned to this controller.
         """
         if len(mem_ctrls) > 1:
-            print("3:" , len(mem_ctrls))
             panic("This cache system can only be connected to one mem ctrl")
         super(DirController, self).__init__()
         self.version = self.versionCount()

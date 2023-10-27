@@ -30,6 +30,7 @@
 import m5
 from m5.objects import *
 from .fs_tools import *
+from .MESI_Two_Level import MESITwoLevelCache
 
 
 class MyRubySystem(System):
@@ -153,37 +154,17 @@ class MyRubySystem(System):
             bypass,
         )
 
-        # Create the cache hierarchy for the system.
-        if mem_sys == "MI_example":
-            from .MI_example_caches import MIExampleSystem
-
-            self.caches = MIExampleSystem()
-        elif mem_sys == "MESI_Two_Level":
-            from .MESI_Two_Level import MESITwoLevelCache
-
-            self.caches = MESITwoLevelCache()
-        elif mem_sys == "MOESI_CMP_directory":
-            from .MOESI_CMP_directory import MOESICMPDirCache
-
-            self.caches = MOESICMPDirCache()
         if self._restore:
             cpus = self.o3Cpu
         else:
             cpus = self.cpu
+
+        # Create the cache hierarchy for the system.
+        self.caches = MESITwoLevelCache()
         self.caches.setup(
             self,
             cpus,
-            [
-                self.kernel_mem_ctrl,
-                self.mem_ctrl[0],
-                self.mem_ctrl[1],
-                self.mem_ctrl[2],
-                self.mem_ctrl[3],
-                self.mem_ctrl[4],
-                self.mem_ctrl[5],
-                self.mem_ctrl[6],
-                self.mem_ctrl[7],
-            ],
+            [self.kernel_mem_ctrl] + self.mem_ctrl,
             [self.mem_ranges[0]] + self._data_ranges,
             [self.pc.south_bridge.ide.dma, self.iobus.mem_side_ports],
             self.iobus,
@@ -191,8 +172,8 @@ class MyRubySystem(System):
 
         self.caches.access_backing_store = True
         self.caches.phys_mem = [
-            SimpleMemory(range=self.mem_ranges[0], in_addr_map=True),
-            SimpleMemory(range=0x100000000, size=main_mem_size),
+            SimpleMemory(range=self.mem_ranges[0], in_addr_map=False),
+            SimpleMemory(range=AddrRange(0x100000000, size=main_mem_size), in_addr_map=False),
         ]
 
         if self._host_parallel:
@@ -276,9 +257,8 @@ class MyRubySystem(System):
         self.mem_ctrl = [
             PolicyManager(range=r, kvm_map=False) for r in self.mem_ranges[2:]
         ]
-        print("0: ", len(self.mem_ctrl))
-        self.loc_mem_ctrl = [MemCtrl() for i in range(0, 8)]
-        self.far_mem_ctrl = [MemCtrl() for i in range(0, 2)]
+        self.loc_mem_ctrl = [MemCtrl() for i in range(8)]
+        self.far_mem_ctrl = [MemCtrl() for i in range(2)]
 
         self.membusPolManFarMem = L2XBar(width=64)
         self.membusPolManFarMem.frontend_latency = link_lat
@@ -304,7 +284,7 @@ class MyRubySystem(System):
             self.loc_mem_ctrl[i].consider_oldest_write = True
             self.loc_mem_ctrl[i].oldest_write_age_threshold = 2500000
             self.loc_mem_ctrl[i].dram = TDRAM(
-                range=self._data_ranges[i], in_addr_map=False, kvm_map=False
+                range=self._data_ranges[i], in_addr_map=False, kvm_map=False, null = True
             )
             self.loc_mem_ctrl[i].dram.device_size = dcache_size
             self.mem_ctrl[i].loc_mem = self.loc_mem_ctrl[i].dram
@@ -326,8 +306,7 @@ class MyRubySystem(System):
                     masks=[1 << 6],
                     intlvMatch=i,
                 ),
-                in_addr_map=False,
-                kvm_map=False,
+                in_addr_map=False, kvm_map=False, null = True
             )
             self.far_mem_ctrl[i].dram.device_size = mem_size_per_channel
             self.far_mem_ctrl[i].static_frontend_latency = "1ns"
