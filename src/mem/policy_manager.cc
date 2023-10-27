@@ -38,7 +38,7 @@ PolicyManager::PolicyManager(const PolicyManagerParams &p):
     infoCacheWarmupRatio(0.05),
     resetStatsWarmup(false),
     prevArrival(0),
-    blksInserted(0),
+    blksInserted(0), blksAccessed(0),
     retryLLC(false), retryLLCRepetitive(false), retryLLCFarMemWr(false),
     retryTagCheck(false), retryLocMemRead(false), retryFarMemRead(false),
     retryLocMemWrite(false), retryFarMemWrite(false),
@@ -241,6 +241,7 @@ PolicyManager::recvTimingReq(PacketPtr pkt)
 
             // sendRespondToRequestor(pkt, frontendLatency);
             accessAndRespond(pkt, frontendLatency);
+            blksAccessed++;
             return true;
         }
 
@@ -341,6 +342,7 @@ PolicyManager::recvTimingReq(PacketPtr pkt)
 
         //     sendRespondToRequestor(pkt, frontendLatency);
             accessAndRespond(pkt, frontendLatency);
+            blksAccessed++;
             return true;
         }
     }
@@ -2221,6 +2223,8 @@ PolicyManager::handleRequestorPkt(PacketPtr pkt)
     Addr index = returnIndexDC(pkt->getAddr(), pkt->getSize());
     Addr way = findMatchingWay(index, tag);
 
+    blksAccessed++;
+
     if (way == noMatchingWay) { // MISSED! Candidate = Either there's an empty way to fill in or a victim will be selected.
         way = getCandidateWay(index);
 
@@ -2228,6 +2232,9 @@ PolicyManager::handleRequestorPkt(PacketPtr pkt)
         if (tagMetadataStore.at(index).at(way)->validLine) {
                 capacityTracker[tagMetadataStore.at(index).at(way)->farMemAddr] = blksInserted;
                 polManStats.blkReuse.sample(tagMetadataStore.at(index).at(way)->counter);
+                polManStats.blksAccBeforeEvict.sample(blksAccessed -
+                                                        tagMetadataStore.at(index).at(way)->blksAccessedEntered);
+                polManStats.ticksBeforeEviction.sample(curTick() - tagMetadataStore.at(index).at(way)->tickEntered);
         }
     }
 
@@ -2357,6 +2364,8 @@ PolicyManager::handleRequestorPkt(PacketPtr pkt)
         tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->counter++;
     } else {
         tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->counter = 1;
+        tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->blksAccessedEntered = blksAccessed;
+        tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->tickEntered = curTick();
         
         blksInserted++;
         
@@ -3166,7 +3175,11 @@ PolicyManager::PolicyManagerStats::PolicyManagerStats(PolicyManager &_polMan)
     ADD_STAT(missDistance, statistics::units::Count::get(),
              "Miss distance, to track capacity misses"),
     ADD_STAT(blkReuse, statistics::units::Count::get(),
-             "cache line block reuse before eviction")
+             "cache line block reuse before eviction"),
+    ADD_STAT(blksAccBeforeEvict, statistics::units::Count::get(),
+             "# of accesses addressed before eviction of this blk"),
+    ADD_STAT(ticksBeforeEviction, statistics::units::Count::get(),
+             "how long the blk was in the cache")
 
 {
 }
@@ -3222,9 +3235,17 @@ PolicyManager::PolicyManagerStats::regStats()
     missDistance
         .init(2048)
         .flags(pdf | nozero);
-    
+
     blkReuse
         .init(128)
+        .flags(pdf | nozero);
+
+    blksAccBeforeEvict
+        .init(1024)
+        .flags(pdf | nozero);
+
+    ticksBeforeEviction
+        .init(1024)
         .flags(pdf | nozero);
 
     // Formula stats
@@ -3365,6 +3386,10 @@ PolicyManager::unserialize(CheckpointIn &cp)
                 // tagMetadataStore.at(newIndex).at(i / numOfSets)->dirtyLine = dirty;
                 // tagMetadataStore.at(newIndex).at(i / numOfSets)->farMemAddr = far_addr;
                 int way = findEmptyWay(newIndex);
+                
+                if (way ==-1) {
+                    way = 0;
+                }
                 tagMetadataStore.at(newIndex).at(way)->tagDC = returnTagDC(far_addr, blockSize); // = tag;
                 tagMetadataStore.at(newIndex).at(way)->indexDC = newIndex;
                 tagMetadataStore.at(newIndex).at(way)->validLine = valid;

@@ -295,6 +295,8 @@ class PolicyManager : public AbstractMemory
 
     std::unordered_map<Addr, uint64_t> capacityTracker;
     uint64_t blksInserted;
+    uint64_t blksAccessed;
+
 
     /**
      * This is a unified retry flag for both reads and writes.
@@ -514,6 +516,8 @@ class PolicyManager : public AbstractMemory
       statistics::Formula dirtyRatio;
       statistics::Histogram missDistance;
       statistics::Histogram blkReuse;
+      statistics::Histogram blksAccBeforeEvict;
+      statistics::Histogram ticksBeforeEviction;
 
     };
 

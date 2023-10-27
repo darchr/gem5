@@ -71,6 +71,8 @@ class ReplaceableEntry
     bool dirtyLine;
     Addr farMemAddr;
     unsigned counter;
+    uint64_t blksAccessedEntered;
+    uint64_t tickEntered;
 
     ReplaceableEntry(Addr _tagDC, Addr _indexDC, bool _validLine, bool _dirtyLine, Addr _farMemAddr) : 
         tagDC(_tagDC),
@@ -78,7 +80,9 @@ class ReplaceableEntry
         validLine(_validLine),
         dirtyLine(_dirtyLine),
         farMemAddr(_farMemAddr),
-        counter(0)
+        counter(0),
+        blksAccessedEntered(0),
+        tickEntered(MaxTick)
         { }
 
   protected:
