@@ -28,3 +28,5 @@
 # build/X86_MESI_Two_Level/gem5.opt -re  --outdir=newResults6/dirMap/RambusTagProbOpt/1GB_85GB_g25_nD/GAPBS/pr    configs-npb-gapbs/restore_both.py   pr-25   RambusTagProbOpt 1 0 0 0 &
 # build/X86_MESI_Two_Level/gem5.opt -re  --outdir=newResults6/dirMap/RambusTagProbOpt/1GB_85GB_g25_nD/GAPBS/tc    configs-npb-gapbs/restore_both.py   tc-25   RambusTagProbOpt 1 0 0 0 &
 # build/X86_MESI_Two_Level/gem5.opt -re  --outdir=newResults6/dirMap/RambusTagProbOpt/1GB_85GB_g25_nD/GAPBS/sssp  configs-npb-gapbs/restore_both.py   sssp-25 RambusTagProbOpt 1 0 0 0 &
+
+build/X86_MESI_Two_Level/gem5.opt --outdir=cptTest/gapbs/22/pr configs-npb-gapbs/gapbs_checkpoint.py   pr 22   RambusTagProbOpt &
