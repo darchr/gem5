@@ -2231,10 +2231,13 @@ PolicyManager::handleRequestorPkt(PacketPtr pkt)
         // This is the current resident that is about to leave.
         if (tagMetadataStore.at(index).at(way)->validLine) {
                 capacityTracker[tagMetadataStore.at(index).at(way)->farMemAddr] = blksInserted;
-                polManStats.blkReuse.sample(tagMetadataStore.at(index).at(way)->counter);
-                polManStats.blksAccBeforeEvict.sample(blksAccessed -
-                                                        tagMetadataStore.at(index).at(way)->blksAccessedEntered);
-                polManStats.ticksBeforeEviction.sample(curTick() - tagMetadataStore.at(index).at(way)->tickEntered);
+                if (tagMetadataStore.at(index).at(way)->tickEntered != MaxTick) {
+                    polManStats.blkReuse.sample(tagMetadataStore.at(index).at(way)->counter);
+                    polManStats.blksAccBeforeEvict.sample(blksAccessed -
+                                                            tagMetadataStore.at(index).at(way)->blksAccessedEntered);
+                    assert(curTick() >= tagMetadataStore.at(index).at(way)->tickEntered);
+                    polManStats.ticksBeforeEviction.sample(curTick() - tagMetadataStore.at(index).at(way)->tickEntered);
+                }
         }
     }
 
