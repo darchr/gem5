@@ -40,7 +40,7 @@ class MyRubySystem(System):
         mem_sys,
         num_cpus,
         assoc,
-        dcache_size, # size of 1 channel
+        dcache_size,  # size of 1 channel
         main_mem_size,
         mem_size_per_channel,
         policy,
@@ -62,24 +62,63 @@ class MyRubySystem(System):
         self.clk_domain = SrcClockDomain()
         self.clk_domain.clock = "5GHz"
         self.clk_domain.voltage_domain = VoltageDomain()
+        self._main_mem_size = main_mem_size
+
+        self._data_ranges = [
+            AddrRange(
+                start=0x100000000,
+                size=main_mem_size,
+                masks=[1 << 6, 1 << 7, 1 << 8],
+                intlvMatch=0,
+            ),
+            AddrRange(
+                start=0x100000000,
+                size=main_mem_size,
+                masks=[1 << 6, 1 << 7, 1 << 8],
+                intlvMatch=1,
+            ),
+            AddrRange(
+                start=0x100000000,
+                size=main_mem_size,
+                masks=[1 << 6, 1 << 7, 1 << 8],
+                intlvMatch=2,
+            ),
+            AddrRange(
+                start=0x100000000,
+                size=main_mem_size,
+                masks=[1 << 6, 1 << 7, 1 << 8],
+                intlvMatch=3,
+            ),
+            AddrRange(
+                start=0x100000000,
+                size=main_mem_size,
+                masks=[1 << 6, 1 << 7, 1 << 8],
+                intlvMatch=4,
+            ),
+            AddrRange(
+                start=0x100000000,
+                size=main_mem_size,
+                masks=[1 << 6, 1 << 7, 1 << 8],
+                intlvMatch=5,
+            ),
+            AddrRange(
+                start=0x100000000,
+                size=main_mem_size,
+                masks=[1 << 6, 1 << 7, 1 << 8],
+                intlvMatch=6,
+            ),
+            AddrRange(
+                start=0x100000000,
+                size=main_mem_size,
+                masks=[1 << 6, 1 << 7, 1 << 8],
+                intlvMatch=7,
+            ),
+        ]
 
         self.mem_ranges = [
             AddrRange(Addr("128MiB")),  # kernel data
             AddrRange(0xC0000000, size=0x100000),  # For I/0
-            # AddrRange(
-            #     0x100000000, size=main_mem_size
-            # ),  # starting at 4GiB for main_mem_size GiB
-            AddrRange(start = 0x100000000, size = main_mem_size, masks = [1 << 6, 1 << 7, 1 << 8], intlvMatch = 0),
-            AddrRange(start = 0x100000000, size = main_mem_size, masks = [1 << 6, 1 << 7, 1 << 8], intlvMatch = 1),
-            AddrRange(start = 0x100000000, size = main_mem_size, masks = [1 << 6, 1 << 7, 1 << 8], intlvMatch = 2),
-            AddrRange(start = 0x100000000, size = main_mem_size, masks = [1 << 6, 1 << 7, 1 << 8], intlvMatch = 3),
-            AddrRange(start = 0x100000000, size = main_mem_size, masks = [1 << 6, 1 << 7, 1 << 8], intlvMatch = 4),
-            AddrRange(start = 0x100000000, size = main_mem_size, masks = [1 << 6, 1 << 7, 1 << 8], intlvMatch = 5),
-            AddrRange(start = 0x100000000, size = main_mem_size, masks = [1 << 6, 1 << 7, 1 << 8], intlvMatch = 6),
-            AddrRange(start = 0x100000000, size = main_mem_size, masks = [1 << 6, 1 << 7, 1 << 8], intlvMatch = 7),
-            AddrRange(start = 0x100000000, size = main_mem_size, masks = [1 << 6], intlvMatch = 0),
-            AddrRange(start = 0x100000000, size = main_mem_size, masks = [1 << 6], intlvMatch = 1)
-        ]
+        ] + self._data_ranges
 
         self.initFS(num_cpus)
 
@@ -105,7 +144,13 @@ class MyRubySystem(System):
 
         # self.intrctrl = IntrControl()
         self._createMemoryControllers(
-            assoc, dcache_size, mem_size_per_channel, policy, is_link, link_lat, bypass
+            assoc,
+            dcache_size,
+            mem_size_per_channel,
+            policy,
+            is_link,
+            link_lat,
+            bypass,
         )
 
         # Create the cache hierarchy for the system.
@@ -128,17 +173,18 @@ class MyRubySystem(System):
         self.caches.setup(
             self,
             cpus,
-            [self.kernel_mem_ctrl,
-             self.mem_ctrl[0], self.mem_ctrl[1],
-             self.mem_ctrl[2], self.mem_ctrl[3],
-             self.mem_ctrl[4], self.mem_ctrl[5],
-             self.mem_ctrl[6], self.mem_ctrl[7]],
-
-            [self.mem_ranges[0],
-             self.mem_ranges[2], self.mem_ranges[3],
-             self.mem_ranges[4], self.mem_ranges[5],
-             self.mem_ranges[6], self.mem_ranges[7],
-             self.mem_ranges[8], self.mem_ranges[9]],
+            [
+                self.kernel_mem_ctrl,
+                self.mem_ctrl[0],
+                self.mem_ctrl[1],
+                self.mem_ctrl[2],
+                self.mem_ctrl[3],
+                self.mem_ctrl[4],
+                self.mem_ctrl[5],
+                self.mem_ctrl[6],
+                self.mem_ctrl[7],
+            ],
+            [self.mem_ranges[0]] + self._data_ranges,
             [self.pc.south_bridge.ide.dma, self.iobus.mem_side_ports],
             self.iobus,
         )
@@ -146,14 +192,7 @@ class MyRubySystem(System):
         self.caches.access_backing_store = True
         self.caches.phys_mem = [
             SimpleMemory(range=self.mem_ranges[0], in_addr_map=True),
-            SimpleMemory(range=self.mem_ranges[2], in_addr_map=True),
-            SimpleMemory(range=self.mem_ranges[3], in_addr_map=True),
-            SimpleMemory(range=self.mem_ranges[4], in_addr_map=True),
-            SimpleMemory(range=self.mem_ranges[5], in_addr_map=True),
-            SimpleMemory(range=self.mem_ranges[6], in_addr_map=True),
-            SimpleMemory(range=self.mem_ranges[7], in_addr_map=True),
-            SimpleMemory(range=self.mem_ranges[8], in_addr_map=True),
-            SimpleMemory(range=self.mem_ranges[9], in_addr_map=True)
+            SimpleMemory(range=0x100000000, size=main_mem_size),
         ]
 
         if self._host_parallel:
@@ -221,22 +260,31 @@ class MyRubySystem(System):
         return MemCtrl(dram=cls(range=self.mem_ranges[0], kvm_map=False))
 
     def _createMemoryControllers(
-        self, assoc, dcache_size, mem_size_per_channel, policy, is_link, link_lat, bypass
+        self,
+        assoc,
+        dcache_size,
+        mem_size_per_channel,
+        policy,
+        is_link,
+        link_lat,
+        bypass,
     ):
         self.kernel_mem_ctrl = self._createKernelMemoryController(
             DDR3_1600_8x8
         )
 
-        self.mem_ctrl = [PolicyManager(range=self.mem_ranges[i], kvm_map=False) for i in range(2,10)]
-        print("0: " , len(self.mem_ctrl))
-        self.loc_mem_ctrl = [MemCtrl() for i in range(0,8)]
-        self.far_mem_ctrl = [MemCtrl() for i in range(0,2)]
+        self.mem_ctrl = [
+            PolicyManager(range=r, kvm_map=False) for r in self.mem_ranges[2:]
+        ]
+        print("0: ", len(self.mem_ctrl))
+        self.loc_mem_ctrl = [MemCtrl() for i in range(0, 8)]
+        self.far_mem_ctrl = [MemCtrl() for i in range(0, 2)]
 
         self.membusPolManFarMem = L2XBar(width=64)
         self.membusPolManFarMem.frontend_latency = link_lat
         self.membusPolManFarMem.response_latency = link_lat
-        
-        for i in range(0,8):
+
+        for i in range(0, 8):
             self.mem_ctrl[i].static_frontend_latency = "10ns"
             self.mem_ctrl[i].static_backend_latency = "10ns"
             self.mem_ctrl[i].loc_mem_policy = policy
@@ -247,12 +295,17 @@ class MyRubySystem(System):
                 self.mem_ctrl[i].bypass_dcache = False
             elif bypass == 1:
                 self.mem_ctrl[i].bypass_dcache = True
+            self.membusPolManFarMem.cpu_side_ports = self.mem_ctrl[
+                i
+            ].far_req_port
 
         # TDRAM cache
-        for i in range(0,8):
+        for i in range(8):
             self.loc_mem_ctrl[i].consider_oldest_write = True
             self.loc_mem_ctrl[i].oldest_write_age_threshold = 2500000
-            self.loc_mem_ctrl[i].dram = TDRAM(range=self.mem_ranges[i+2], in_addr_map=False, kvm_map=False)
+            self.loc_mem_ctrl[i].dram = TDRAM(
+                range=self._data_ranges[i], in_addr_map=False, kvm_map=False
+            )
             self.loc_mem_ctrl[i].dram.device_size = dcache_size
             self.mem_ctrl[i].loc_mem = self.loc_mem_ctrl[i].dram
             self.loc_mem_ctrl[i].static_frontend_latency = "1ns"
@@ -264,20 +317,24 @@ class MyRubySystem(System):
             self.loc_mem_ctrl[i].port = self.mem_ctrl[i].loc_req_port
 
         # main memory
-        for i in range(0,2):
+        for i in range(2):
             self.far_mem_ctrl[i] = MemCtrl()
-            self.far_mem_ctrl[i].dram = DDR5_4400_4x8(range=self.mem_ranges[i+10], in_addr_map=True, kvm_map=False)
+            self.far_mem_ctrl[i].dram = DDR5_4400_4x8(
+                range=AddrRange(
+                    start=0x100000000,
+                    size=self._main_mem_size,
+                    masks=[1 << 6],
+                    intlvMatch=i,
+                ),
+                in_addr_map=False,
+                kvm_map=False,
+            )
             self.far_mem_ctrl[i].dram.device_size = mem_size_per_channel
             self.far_mem_ctrl[i].static_frontend_latency = "1ns"
             self.far_mem_ctrl[i].static_backend_latency = "1ns"
             self.far_mem_ctrl[i].dram.read_buffer_size = 64
             self.far_mem_ctrl[i].dram.write_buffer_size = 64
             self.membusPolManFarMem.mem_side_ports = self.far_mem_ctrl[i].port
-        
-        # far backing store
-        for i in range(0,8):
-            self.membusPolManFarMem.cpu_side_ports = self.mem_ctrl[i].far_req_port
-
 
     def initFS(self, cpus):
         self.pc = Pc()
