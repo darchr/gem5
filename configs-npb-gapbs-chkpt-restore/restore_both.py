@@ -56,7 +56,28 @@ from info import (
 )
 
 
-def writeBenchScriptNPB(dir, bench):
+def writeBenchScript_GAPBS(dir, benchmark_name, size, synthetic):
+    """
+    This method creates a script in dir which will be eventually
+    passed to the simulated system (to run a specific benchmark
+    at bootup).
+    """
+    input_file_name = "{}/run_{}_{}".format(dir, benchmark_name, size)
+    if synthetic:
+        with open(input_file_name, "w") as f:
+            f.write("./{} -g {}\n".format(benchmark_name, size))
+    elif synthetic == 0:
+        with open(input_file_name, "w") as f:
+            # The workloads that are copied to the disk image using Packer
+            # should be located in /home/gem5/.
+            # Since the command running the workload will be executed with
+            # pwd = /home/gem5/gapbs, the path to the copied workload is
+            # ../{workload-name}
+            f.write("./{} -sf ../{}".format(benchmark_name, size))
+
+    return input_file_name
+
+def writeBenchScript_NPB(dir, bench):
     """
     This method creates a script in dir which will be eventually
     passed to the simulated system (to run a specific benchmark
@@ -75,52 +96,15 @@ def writeBenchScriptNPB(dir, bench):
     return file_name
 
 
-def writeBenchScriptGAPBS(dir, benchmark_name):
-    """
-    This method creates a script in dir which will be eventually
-    passed to the simulated system (to run a specific benchmark
-    at bootup).
-    """
-    synthetic = True
-    benchmark, size = benchmark_name.split("-")
-    input_file_name = "{}/run_{}_{}".format(dir, benchmark, size)
-    if synthetic:
-        with open(input_file_name, "w") as f:
-            f.write("./{} -g {}\n".format(benchmark, size))
-    elif synthetic == 0:
-        with open(input_file_name, "w") as f:
-            # The workloads that are copied to the disk image using Packer
-            # should be located in /home/gem5/.
-            # Since the command running the workload will be executed with
-            # pwd = /home/gem5/gapbs, the path to the copied workload is
-            # ../{workload-name}
-            f.write("./{} -sf ../{}".format(benchmark, size))
-
-    return input_file_name
-
-
-supported_protocols = [
-    "classic",
-    "MI_example",
-    "MESI_Two_Level",
-    "MOESI_CMP_directory",
-]
-supported_cpu_types = ["kvm", "atomic", "timing"]
-
-
 def parse_options():
     parser = argparse.ArgumentParser(
         description="For use with gem5. This "
         "runs a NAS Parallel Benchmark application. This only works "
         "with x86 ISA."
     )
-
     # The manditry position arguments.
     parser.add_argument(
-        "benchmark",
-        type=str,
-        choices=benchmark_choices_npb + benchmark_choices_gapbs,
-        help="The NPB application to run",
+        "isGAPBS", type=int, help="GAPBS (1) application to run or NPB (0)"
     )
     parser.add_argument(
         "dcache_policy",
@@ -204,15 +188,21 @@ if __name__ == "__m5_main__":
     args = parse_options()
 
     kernel = "/home/babaie/projects/ispass2023/runs/hbmCtrlrTest/dramCacheController/fullSystemDisksKernel/x86-linux-kernel-4.19.83"
-    disk = "/home/babaie/projects/ispass2023/runs/hbmCtrlrTest/dramCacheController/fullSystemDisksKernel/x86-npb"
+    disk = ""
+    if args.isGAPBS == 1:
+        disk = "/home/babaie/projects/ispass2023/runs/hbmCtrlrTest/dramCacheController/fullSystemDisksKernel/x86-gapbs"
+    elif args.isGAPBS == 0:
+        disk = "/home/babaie/projects/ispass2023/runs/hbmCtrlrTest/dramCacheController/fullSystemDisksKernel/x86-npb"
     ckpt_base = "/home/babaie/projects/rambusDesign/1gigDRAMCache/dramCacheController/chkpt1GigDC/"
 
     num_cpus = 8
     cpu_type = "Timing"
     mem_sys = "MESI_Two_Level"
-
-    dcache_size = "1GB"
-    mem_size = ""
+    synthetic = 1
+    dcache_size = "1GiB" # size of each channel
+    mem_size = "128GiB"
+    mem_size_per_channel = "64GiB"
+    single_channel_HBM = False
     checkpoint_dir = ""
 
     if args.benchmark in benchmark_choices_npb:
@@ -252,21 +242,40 @@ if __name__ == "__m5_main__":
 
     benchmark = args.benchmark
 
-    system = MyRubySystem(
-        kernel,
-        disk,
-        mem_sys,
-        num_cpus,
-        args.assoc,
-        dcache_size,
-        mem_size,
-        args.dcache_policy,
-        args.is_link,
-        args.link_lat,
-        args.bypass,
-        args,
-        restore=True,
-    )
+    if single_channel_HBM:
+            system = RubySystem1Channel(
+            kernel,
+            disk,
+            mem_sys,
+            num_cpus,
+            args.assoc,
+            dcache_size,
+            mem_size,
+            mem_size_per_channel,
+            args.dcache_policy,
+            args.is_link,
+            args.link_lat,
+            args.bypass,
+            args,
+            restore=True,
+        )
+    else:
+        system = RubySystem8Channel(
+            kernel,
+            disk,
+            mem_sys,
+            num_cpus,
+            args.assoc,
+            dcache_size,
+            mem_size,
+            mem_size_per_channel,
+            args.dcache_policy,
+            args.is_link,
+            args.link_lat,
+            args.bypass,
+            args,
+            restore=True,
+        )
 
     if args.do_analysis:
         lpmanager = O3LooppointAnalysisManager()
@@ -298,11 +307,11 @@ if __name__ == "__m5_main__":
     # Create and pass a script to the simulated system to run the reuired
     # benchmark
     if args.benchmark in benchmark_choices_npb:
-        system.readfile = writeBenchScriptNPB(
+        system.readfile = writeBenchScript_NPB(
             m5.options.outdir, args.benchmark
         )
     else:
-        system.readfile = writeBenchScriptGAPBS(
+        system.readfile = writeBenchScript_GAPBS(
             m5.options.outdir, args.benchmark
         )
 

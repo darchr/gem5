@@ -26,25 +26,38 @@
 #
 # Authors: Jason Lowe-Power, Ayaz Akram
 
-""" Script to run NAS parallel benchmarks with gem5.
-    The script expects kernel, diskimage, mem_sys,
-    cpu (kvm, atomic, or timing), benchmark to run
-    and number of cpus as arguments.
-
-    If your application has ROI annotations, this script will count the total
-    number of instructions executed in the ROI. It also tracks how much
-    wallclock and simulated time.
+""" Script to run GAP Benchmark suites workloads.
+    The workloads have two modes: synthetic and real graphs.
 """
 import argparse
 import time
 import m5
 import m5.ticks
 from m5.objects import *
-
 from system import *
 
+def writeBenchScript_GAPBS(dir, benchmark_name, size, synthetic):
+    """
+    This method creates a script in dir which will be eventually
+    passed to the simulated system (to run a specific benchmark
+    at bootup).
+    """
+    input_file_name = "{}/run_{}_{}".format(dir, benchmark_name, size)
+    if synthetic:
+        with open(input_file_name, "w") as f:
+            f.write("./{} -g {}\n".format(benchmark_name, size))
+    elif synthetic == 0:
+        with open(input_file_name, "w") as f:
+            # The workloads that are copied to the disk image using Packer
+            # should be located in /home/gem5/.
+            # Since the command running the workload will be executed with
+            # pwd = /home/gem5/gapbs, the path to the copied workload is
+            # ../{workload-name}
+            f.write("./{} -sf ../{}".format(benchmark_name, size))
 
-def writeBenchScript(dir, bench):
+    return input_file_name
+
+def writeBenchScript_NPB(dir, bench):
     """
     This method creates a script in dir which will be eventually
     passed to the simulated system (to run a specific benchmark
@@ -62,90 +75,26 @@ def writeBenchScript(dir, bench):
     bench_file.close()
     return file_name
 
-
-supported_protocols = [
-    "classic",
-    "MI_example",
-    "MESI_Two_Level",
-    "MOESI_CMP_directory",
-]
-supported_cpu_types = ["kvm", "atomic", "timing"]
-benchmark_choices = [
-    "bt.A.x",
-    "cg.A.x",
-    "ep.A.x",
-    "ft.A.x",
-    "is.A.x",
-    "lu.A.x",
-    "mg.A.x",
-    "sp.A.x",
-    "bt.B.x",
-    "cg.B.x",
-    "ep.B.x",
-    "ft.B.x",
-    "is.B.x",
-    "lu.B.x",
-    "mg.B.x",
-    "sp.B.x",
-    "bt.C.x",
-    "cg.C.x",
-    "ep.C.x",
-    "ft.C.x",
-    "is.C.x",
-    "lu.C.x",
-    "mg.C.x",
-    "sp.C.x",
-    "bt.D.x",
-    "cg.D.x",
-    "ep.D.x",
-    "ft.D.x",
-    "is.D.x",
-    "lu.D.x",
-    "mg.D.x",
-    "sp.D.x",
-    "bt.F.x",
-    "cg.F.x",
-    "ep.F.x",
-    "ft.F.x",
-    "is.F.x",
-    "lu.F.x",
-    "mg.F.x",
-    "sp.F.x",
-    "ua.C.x",
-    "ua.D.x",
-]
-
-
 def parse_options():
-
     parser = argparse.ArgumentParser(
-        description="For use with gem5. This "
-        "runs a NAS Parallel Benchmark application. This only works "
+        description="For use with gem5. This script "
+        "runs a GAPBS/NPB application and only works "
         "with x86 ISA."
     )
-
-    # The manditry position arguments.
     parser.add_argument(
-        "benchmark",
-        type=str,  # choices=benchmark_choices,
-        help="The NPB application to run",
+        "isGAPBS", type=int, help="GAPBS (1) application to run or NPB (0)"
     )
     parser.add_argument(
-        "class_size", type=str, help="The NPB application class to run"
+        "benchmark", type=str, help="The application to run"
+    )
+    parser.add_argument(
+        "size", type=str, help="The problem size to run"
     )
     parser.add_argument(
         "dcache_policy",
         type=str,
         help="The architecture of DRAM cache: "
-        "CascadeLakeNoPartWrs, Oracle, BearWriteOpt, Rambus, RambusTagProbOpt",
-    )
-    parser.add_argument(
-        "is_link",
-        type=int,
-        help="whether to use a link for backing store or not",
-    )
-    parser.add_argument(
-        "link_lat", type=str, help="latency of the link to backing store"
+        "CascadeLakeNoPartWrs, Oracle, BearWriteOpt, Rambus",
     )
 
     return parser.parse_args()
@@ -154,25 +103,25 @@ def parse_options():
 if __name__ == "__m5_main__":
     args = parse_options()
 
-    kernel = "/home/mbabaie/code-review/dramCacheController/fs-resources/x86-linux-kernel-4.19.83"
-    disk = "/home/mbabaie/code-review/dramCacheController/fs-resources/x86-npb"
+    kernel = "/home/babaie/projects/ispass2023/runs/hbmCtrlrTest/dramCacheController/fullSystemDisksKernel/x86-linux-kernel-4.19.83"
+    disk = ""
+    if args.isGAPBS == 1:
+        disk = "/home/babaie/projects/ispass2023/runs/hbmCtrlrTest/dramCacheController/fullSystemDisksKernel/x86-gapbs"
+    elif args.isGAPBS == 0:
+        disk = "/home/babaie/projects/ispass2023/runs/hbmCtrlrTest/dramCacheController/fullSystemDisksKernel/x86-npb"
+
+
     num_cpus = 8
     cpu_type = "Timing"
     mem_sys = "MESI_Two_Level"
-
-    dcache_size = ""
-    mem_size = ""
-    if args.class_size == "C":
-        dcache_size = "1GiB"
-        mem_size = "8GiB"
-    elif args.class_size == "D":
-        dcache_size = "1GiB"
-        mem_size = "85GiB"
+    synthetic = 1
+    dcache_size = "1GiB" # size of each channel
+    mem_size = "128GiB"
+    mem_size_per_channel = "64GiB"
     assoc = 1
-    benchmark = args.benchmark
 
     # create the system we are going to simulate
-    system = MyRubySystem(
+    system = RubySystem8Channel(
         kernel,
         disk,
         mem_sys,
@@ -180,9 +129,10 @@ if __name__ == "__m5_main__":
         assoc,
         dcache_size,
         mem_size,
+        mem_size_per_channel,
         args.dcache_policy,
-        args.is_link,
-        args.link_lat,
+        0,
+        0,
         0,
         args,
     )
@@ -194,7 +144,18 @@ if __name__ == "__m5_main__":
 
     # Create and pass a script to the simulated system to run the reuired
     # benchmark
-    system.readfile = writeBenchScript(m5.options.outdir, benchmark)
+    if args.isGAPBS == 1:
+        system.readfile = writeBenchScript_GAPBS(
+            m5.options.outdir,
+            args.benchmark,
+            args.size,
+            synthetic
+        )
+    elif args.isGAPBS == 0:
+        system.readfile = writeBenchScript_NPB(
+            m5.options.outdir,
+            args.benchmark+"."+args.size+".x"
+        )
 
     # set up the root SimObject and start the simulation
     root = Root(full_system=True, system=system)
@@ -231,15 +192,15 @@ if __name__ == "__m5_main__":
     else:
         print(exit_event.getCause())
         print("Unexpected termination of simulation !")
-        exit()
+        exit(1)
 
     m5.stats.reset()
     print(
         "After reset ************************************************ statring smiulation:\n"
     )
-    for interval_number in range(105):
+    for interval_number in range(1):
         print("Interval number: {} \n".format(interval_number))
-        exit_event = m5.simulate(10000000000)
+        exit_event = m5.simulate(1000000000)
         if exit_event.getCause() == "cacheIsWarmedup":
             print("Caught cacheIsWarmedup exit event!")
             break
@@ -252,4 +213,5 @@ if __name__ == "__m5_main__":
     )
     m5.stats.dump()
     system.switchCpus(system.timingCpu, system.o3Cpu)
+    print("switched from timing to O3")
     m5.checkpoint(m5.options.outdir + "/cpt")

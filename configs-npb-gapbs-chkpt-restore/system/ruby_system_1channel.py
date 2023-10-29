@@ -30,10 +30,9 @@
 import m5
 from m5.objects import *
 from .fs_tools import *
-from .MESI_Two_Level import MESITwoLevelCache
 
 
-class MyRubySystem(System):
+class RubySystem1Channel(System):
     def __init__(
         self,
         kernel,
@@ -41,9 +40,8 @@ class MyRubySystem(System):
         mem_sys,
         num_cpus,
         assoc,
-        dcache_size,  # size of 1 channel
+        dcache_size,
         main_mem_size,
-        mem_size_per_channel,
         policy,
         is_link,
         link_lat,
@@ -51,8 +49,7 @@ class MyRubySystem(System):
         opts,
         restore=False,
     ):
-        super(MyRubySystem, self).__init__()
-        print("Creating MyRubySystem")
+        super(RubySystem1Channel, self).__init__()
         self._opts = opts
 
         # Use parallel if using KVM. Don't use parallel is restoring cpt
@@ -63,63 +60,14 @@ class MyRubySystem(System):
         self.clk_domain = SrcClockDomain()
         self.clk_domain.clock = "5GHz"
         self.clk_domain.voltage_domain = VoltageDomain()
-        self._main_mem_size = main_mem_size
-
-        self._data_ranges = [
-            AddrRange(
-                start=0x100000000,
-                size=main_mem_size,
-                masks=[1 << 6, 1 << 7, 1 << 8],
-                intlvMatch=0,
-            ),
-            AddrRange(
-                start=0x100000000,
-                size=main_mem_size,
-                masks=[1 << 6, 1 << 7, 1 << 8],
-                intlvMatch=1,
-            ),
-            AddrRange(
-                start=0x100000000,
-                size=main_mem_size,
-                masks=[1 << 6, 1 << 7, 1 << 8],
-                intlvMatch=2,
-            ),
-            AddrRange(
-                start=0x100000000,
-                size=main_mem_size,
-                masks=[1 << 6, 1 << 7, 1 << 8],
-                intlvMatch=3,
-            ),
-            AddrRange(
-                start=0x100000000,
-                size=main_mem_size,
-                masks=[1 << 6, 1 << 7, 1 << 8],
-                intlvMatch=4,
-            ),
-            AddrRange(
-                start=0x100000000,
-                size=main_mem_size,
-                masks=[1 << 6, 1 << 7, 1 << 8],
-                intlvMatch=5,
-            ),
-            AddrRange(
-                start=0x100000000,
-                size=main_mem_size,
-                masks=[1 << 6, 1 << 7, 1 << 8],
-                intlvMatch=6,
-            ),
-            AddrRange(
-                start=0x100000000,
-                size=main_mem_size,
-                masks=[1 << 6, 1 << 7, 1 << 8],
-                intlvMatch=7,
-            ),
-        ]
 
         self.mem_ranges = [
             AddrRange(Addr("128MiB")),  # kernel data
             AddrRange(0xC0000000, size=0x100000),  # For I/0
-        ] + self._data_ranges
+            AddrRange(
+                0x100000000, size=main_mem_size
+            ),  # starting at 4GiB for main_mem_size
+        ]
 
         self.initFS(num_cpus)
 
@@ -145,27 +93,31 @@ class MyRubySystem(System):
 
         # self.intrctrl = IntrControl()
         self._createMemoryControllers(
-            assoc,
-            dcache_size,
-            mem_size_per_channel,
-            policy,
-            is_link,
-            link_lat,
-            bypass,
+            assoc, dcache_size, policy, is_link, link_lat, bypass
         )
 
+        # Create the cache hierarchy for the system.
+        if mem_sys == "MI_example":
+            from .MI_example_caches import MIExampleSystem
+
+            self.caches = MIExampleSystem()
+        elif mem_sys == "MESI_Two_Level":
+            from .MESI_Two_Level import MESITwoLevelCache
+
+            self.caches = MESITwoLevelCache()
+        elif mem_sys == "MOESI_CMP_directory":
+            from .MOESI_CMP_directory import MOESICMPDirCache
+
+            self.caches = MOESICMPDirCache()
         if self._restore:
             cpus = self.o3Cpu
         else:
             cpus = self.cpu
-
-        # Create the cache hierarchy for the system.
-        self.caches = MESITwoLevelCache()
         self.caches.setup(
             self,
             cpus,
-            [self.kernel_mem_ctrl] + self.mem_ctrl,
-            [self.mem_ranges[0]] + self._data_ranges,
+            [self.kernel_mem_ctrl, self.mem_ctrl],
+            [self.mem_ranges[0], self.mem_ranges[2]],
             [self.pc.south_bridge.ide.dma, self.iobus.mem_side_ports],
             self.iobus,
         )
@@ -173,7 +125,7 @@ class MyRubySystem(System):
         self.caches.access_backing_store = True
         self.caches.phys_mem = [
             SimpleMemory(range=self.mem_ranges[0], in_addr_map=False),
-            SimpleMemory(range=AddrRange(0x100000000, size=main_mem_size), in_addr_map=False),
+            SimpleMemory(range=self.mem_ranges[2], in_addr_map=False),
         ]
 
         if self._host_parallel:
@@ -241,79 +193,67 @@ class MyRubySystem(System):
         return MemCtrl(dram=cls(range=self.mem_ranges[0], kvm_map=False))
 
     def _createMemoryControllers(
-        self,
-        assoc,
-        dcache_size,
-        mem_size_per_channel,
-        policy,
-        is_link,
-        link_lat,
-        bypass,
+        self, assoc, dcache_size, policy, is_link, link_lat, bypass
     ):
         self.kernel_mem_ctrl = self._createKernelMemoryController(
             DDR3_1600_8x8
         )
 
-        self.mem_ctrl = [
-            PolicyManager(range=r, kvm_map=False) for r in self.mem_ranges[2:]
-        ]
-        self.loc_mem_ctrl = [MemCtrl() for i in range(8)]
-        self.far_mem_ctrl = [MemCtrl() for i in range(2)]
+        self.mem_ctrl = PolicyManager(range=self.mem_ranges[2], kvm_map=False)
+        self.mem_ctrl.static_frontend_latency = "10ns"
+        self.mem_ctrl.static_backend_latency = "10ns"
 
-        self.membusPolManFarMem = L2XBar(width=64)
-        self.membusPolManFarMem.frontend_latency = link_lat
-        self.membusPolManFarMem.response_latency = link_lat
+        self.mem_ctrl.loc_mem_policy = policy
 
-        for i in range(0, 8):
-            self.mem_ctrl[i].static_frontend_latency = "10ns"
-            self.mem_ctrl[i].static_backend_latency = "10ns"
-            self.mem_ctrl[i].loc_mem_policy = policy
-            self.mem_ctrl[i].assoc = assoc
-            self.mem_ctrl[i].orb_max_size = 128
-            self.mem_ctrl[i].dram_cache_size = dcache_size
-            if bypass == 0:
-                self.mem_ctrl[i].bypass_dcache = False
-            elif bypass == 1:
-                self.mem_ctrl[i].bypass_dcache = True
-            self.membusPolManFarMem.cpu_side_ports = self.mem_ctrl[
-                i
-            ].far_req_port
+        self.mem_ctrl.assoc = assoc
+
+        if bypass == 0:
+            self.mem_ctrl.bypass_dcache = False
+        elif bypass == 1:
+            self.mem_ctrl.bypass_dcache = True
 
         # TDRAM cache
-        for i in range(8):
-            self.loc_mem_ctrl[i].consider_oldest_write = True
-            self.loc_mem_ctrl[i].oldest_write_age_threshold = 2500000
-            self.loc_mem_ctrl[i].dram = TDRAM(
-                range=self._data_ranges[i], in_addr_map=False, kvm_map=False, null = True
-            )
-            self.loc_mem_ctrl[i].dram.device_size = dcache_size
-            self.mem_ctrl[i].loc_mem = self.loc_mem_ctrl[i].dram
-            self.loc_mem_ctrl[i].static_frontend_latency = "1ns"
-            self.loc_mem_ctrl[i].static_backend_latency = "1ns"
-            self.loc_mem_ctrl[i].static_frontend_latency_tc = "0ns"
-            self.loc_mem_ctrl[i].static_backend_latency_tc = "0ns"
-            self.loc_mem_ctrl[i].dram.read_buffer_size = 64
-            self.loc_mem_ctrl[i].dram.write_buffer_size = 64
-            self.loc_mem_ctrl[i].port = self.mem_ctrl[i].loc_req_port
+        self.loc_mem_ctrl = MemCtrl()
+        self.loc_mem_ctrl.consider_oldest_write = True
+        self.loc_mem_ctrl.oldest_write_age_threshold = 2500000
+        self.loc_mem_ctrl.dram = TDRAM(
+            range=self.mem_ranges[2], in_addr_map=False, kvm_map=False
+        )
+
+        self.mem_ctrl.loc_mem = self.loc_mem_ctrl.dram
+        self.loc_mem_ctrl.static_frontend_latency = "1ns"
+        self.loc_mem_ctrl.static_backend_latency = "1ns"
+        self.loc_mem_ctrl.static_frontend_latency_tc = "0ns"
+        self.loc_mem_ctrl.static_backend_latency_tc = "0ns"
 
         # main memory
-        for i in range(2):
-            self.far_mem_ctrl[i] = MemCtrl()
-            self.far_mem_ctrl[i].dram = DDR5_4400_4x8(
-                range=AddrRange(
-                    start=0x100000000,
-                    size=self._main_mem_size,
-                    masks=[1 << 6],
-                    intlvMatch=i,
-                ),
-                in_addr_map=False, kvm_map=False, null = True
-            )
-            self.far_mem_ctrl[i].dram.device_size = mem_size_per_channel
-            self.far_mem_ctrl[i].static_frontend_latency = "1ns"
-            self.far_mem_ctrl[i].static_backend_latency = "1ns"
-            self.far_mem_ctrl[i].dram.read_buffer_size = 64
-            self.far_mem_ctrl[i].dram.write_buffer_size = 64
-            self.membusPolManFarMem.mem_side_ports = self.far_mem_ctrl[i].port
+        self.far_mem_ctrl = MemCtrl()
+        self.far_mem_ctrl.dram = DDR4_2400_16x4(
+            range=self.mem_ranges[2], in_addr_map=False, kvm_map=False
+        )
+        self.far_mem_ctrl.static_frontend_latency = "1ns"
+        self.far_mem_ctrl.static_backend_latency = "1ns"
+
+        self.loc_mem_ctrl.port = self.mem_ctrl.loc_req_port
+
+        # far backing store
+        if is_link == 1:
+            self.membusPolManFarMem = L2XBar(width=64)
+            self.membusPolManFarMem.cpu_side_ports = self.mem_ctrl.far_req_port
+            self.membusPolManFarMem.mem_side_ports = self.far_mem_ctrl.port
+            self.membusPolManFarMem.frontend_latency = link_lat
+            self.membusPolManFarMem.response_latency = link_lat
+        else:
+            self.far_mem_ctrl.port = self.mem_ctrl.far_req_port
+
+        self.mem_ctrl.orb_max_size = 128
+        self.mem_ctrl.dram_cache_size = dcache_size
+
+        self.loc_mem_ctrl.dram.read_buffer_size = 64
+        self.loc_mem_ctrl.dram.write_buffer_size = 64
+
+        self.far_mem_ctrl.dram.read_buffer_size = 64
+        self.far_mem_ctrl.dram.write_buffer_size = 64
 
     def initFS(self, cpus):
         self.pc = Pc()
