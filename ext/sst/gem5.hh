@@ -141,11 +141,11 @@ class gem5Component: public SST::Component
         {"cmd", "command to run gem5's config"}
     )
 
-    SST_ELI_DOCUMENT_SUBCOMPONENT_SLOTS(
-        // These are the generally expected ports.
-        {"system_port", "Connection to gem5 system_port", "gem5.gem5Bridge"},
-        {"cache_port", "Connection to gem5 CPU", "gem5.gem5Bridge"}
-    )
+    // SST_ELI_DOCUMENT_SUBCOMPONENT_SLOTS(
+    //     // These are the generally expected ports.
+    //     {"system_port", "Connection to gem5 system_port", "gem5.gem5Bridge"},
+    //     {"cache_port", "Connection to gem5 CPU", "gem5.gem5Bridge"}
+    // )
 
 };
 

@@ -108,6 +108,9 @@ SSTResponderSubComponent::init(unsigned phase)
                     addr, data.size(), data);
             memoryInterface->sendUntimedData(request);
         }
+        responseReceiver->initData.clear();
+        responseReceiver->initPhaseComplete(true);
+        std::cout << "Init phase is complete " << responseReceiver->getInitPhaseStatus() << std::endl;
     }
     memoryInterface->init(phase);
 }
@@ -205,6 +208,25 @@ SSTResponderSubComponent::portEventHandler(
                 dynamic_cast<SST::Interfaces::StandardMem::Read*>(request)) {
             return;
         }
+        else if (SST::Interfaces::StandardMem::ReadResp* test =
+                dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
+                request)) {
+            // functional calls this
+            // gem5::RequestPtr req = std::make_shared<gem5::Request>(
+            //     dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
+            //         request)->pAddr,
+            //     dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
+            //         request)->size, 0, 0);
+
+            // gem5::PacketPtr pkt = new gem5::Packet(
+            //     req, gem5::MemCmd::ReadResp);
+
+            // // Clear out bus delay notifications
+            // pkt->headerDelay = pkt->payloadDelay = 0;
+            // if (!(responseReceiver->sendTimingResp(pkt)))
+            //     responseQueue.push(pkt);
+            return;
+        }
         else if (SST::Interfaces::StandardMem::WriteResp* test =
                 dynamic_cast<SST::Interfaces::StandardMem::WriteResp*>(
                 request)) {
@@ -241,6 +263,44 @@ SSTResponderSubComponent::handleRecvRespRetry()
 void
 SSTResponderSubComponent::handleRecvFunctional(gem5::PacketPtr pkt)
 {
+    // SST does not understand what is a functional access in gem5. Since it
+    // has all the stored in it's memory, any functional access made to SST has
+    // to be correctly handled. All functional access *must be* writes.
+    std::cout << "handleRecvFunc was called! Need to do something here!" << std::endl;
+    // basically this data has to be present 
+    gem5::Addr addr = pkt->getAddr();
+    uint8_t* ptr = pkt->getPtr<uint8_t>();
+    uint64_t size = pkt->getSize();
+
+    // Create a new request to handle this request immediately.
+    SST::Interfaces::StandardMem::Request* request = nullptr;
+
+    // we need a minimal translator here which does reads and writes.
+    switch((gem5::MemCmd::Command)pkt->cmd.toInt()) {
+        case gem5::MemCmd::WriteReq: {
+            std::vector<uint8_t> data(ptr, ptr+size);
+            request = new SST::Interfaces::StandardMem::Write(
+                addr, data.size(), data);
+            break;
+        }
+        case gem5::MemCmd::ReadReq: {
+            request = new SST::Interfaces::StandardMem::Read(addr, size);
+            break;
+        }
+        default:
+            panic("handleRecvFunctional: Unable to convert gem5 packet: %s\n", pkt->cmd.toString());
+    }
+    if(pkt->req->isUncacheable()) {
+        request->setFlag(
+            SST::Interfaces::StandardMem::Request::Flag::F_NONCACHEABLE);
+    }
+    memoryInterface->send(request);
+    // memoryInterface->sendUntimedData(request);
+
+    // memoryInterface->init(phase);
+    // sst does not understand what is a functional request. queue this as a
+    // regular memory packet.
+
 }
 
 bool
