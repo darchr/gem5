@@ -263,11 +263,13 @@ SSTResponderSubComponent::handleRecvRespRetry()
 void
 SSTResponderSubComponent::handleRecvFunctional(gem5::PacketPtr pkt)
 {
-    // SST does not understand what is a functional access in gem5. Since it
+    // SST does not understand what is a functional access in gem5 since SST
+    // only allows functional accesses at init time. Since it
     // has all the stored in it's memory, any functional access made to SST has
-    // to be correctly handled. All functional access *must be* writes.
+    // to be correctly handled. The idea here is to convert this timing access
+    // into a timing access and keep the SST memory consistent.
     std::cout << "handleRecvFunc was called! Need to do something here!" << std::endl;
-    // basically this data has to be present 
+
     gem5::Addr addr = pkt->getAddr();
     uint8_t* ptr = pkt->getPtr<uint8_t>();
     uint64_t size = pkt->getSize();
@@ -275,7 +277,8 @@ SSTResponderSubComponent::handleRecvFunctional(gem5::PacketPtr pkt)
     // Create a new request to handle this request immediately.
     SST::Interfaces::StandardMem::Request* request = nullptr;
 
-    // we need a minimal translator here which does reads and writes.
+    // we need a minimal translator here which does reads and writes. Any other
+    // command type is unexpected and the program should crash immediately.
     switch((gem5::MemCmd::Command)pkt->cmd.toInt()) {
         case gem5::MemCmd::WriteReq: {
             std::vector<uint8_t> data(ptr, ptr+size);
@@ -288,7 +291,10 @@ SSTResponderSubComponent::handleRecvFunctional(gem5::PacketPtr pkt)
             break;
         }
         default:
-            panic("handleRecvFunctional: Unable to convert gem5 packet: %s\n", pkt->cmd.toString());
+            panic(
+                "handleRecvFunctional: Unable to convert gem5 packet: %s\n",
+                pkt->cmd.toString()
+            );
     }
     if(pkt->req->isUncacheable()) {
         request->setFlag(

@@ -84,6 +84,13 @@ According to the OS that you're using, you need to rename the `Makefile.xxx` to 
 cp Makefile.xxx Makefile    # linux or mac
 make -j4
 ```
+If you are compiling this on Mac, then you'd need to export `DYLD_LIBRARY_PATH`
+```sh
+# go to the base gem5 directory
+cd ../..
+export DYLD_LIBRARY_PATH=:`pwd`/build/RISCV/
+```
+
 Change `ARCH=RISCV` to `ARCH=ARM` in the `Makefile` in case you're compiling
 for ARM.
 ### Running an example simulation

@@ -85,7 +85,6 @@ OutgoingRequestBridge::getAddrRanges() const
 std::vector<std::pair<Addr, std::vector<uint8_t>>>
 OutgoingRequestBridge::getInitData() const
 {
-    std::cout << "getInitData() called!" << std::endl;
     return initData;
 }
 
@@ -119,7 +118,7 @@ void
 OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
 {
     // This should not receive any functional accesses
-    gem5::MemCmd::Command pktCmd = (gem5::MemCmd::Command)pkt->cmd.toInt();
+    // gem5::MemCmd::Command pktCmd = (gem5::MemCmd::Command)pkt->cmd.toInt();
     // std::cout << "Recv Functional : 0x" << std::hex << pkt->getAddr() <<
     // std::dec << " " << pktCmd << " " << gem5::MemCmd::WriteReq << " " <<
     // getInitPhaseStatus() << std::endl;
@@ -133,13 +132,16 @@ OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
         std::vector<uint8_t> data(ptr, ptr+size);
         initData.push_back(std::make_pair(pkt->getAddr(), data));
     }
-    // This is the RUN phase.
+    // This is the RUN phase. SST does not allow any sendUntimedData (AKA
+    // functional accesses) to it's memory. We need to convert these accesses
+    // to timing to at least store the correct data in the memory.
     else {
         // These packets have to translated at runtime. We convert these
         // packets to timing as its data has to be stored correctly in SST
-        // memory.
-        //
-        // Ensure that these packets are write requests.
+        // memory. Otherwise reads from the SST memory will fail. To reproduce
+        // this error, don not handle any functional accesses and the kernel
+        // boot will fail while reading the correct partition from the vda
+        // device.
         sstResponder->handleRecvFunctional(pkt);
     }
 }
