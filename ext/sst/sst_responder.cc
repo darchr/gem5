@@ -65,6 +65,4 @@ void
 SSTResponder::handleRecvFunctional(gem5::PacketPtr pkt)
 {
     owner->handleRecvFunctional(pkt);
-    // std::cout << "SSTResponder" << std::endl;
-    // make these timing?
 }
