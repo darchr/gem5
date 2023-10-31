@@ -41,7 +41,7 @@ The multiprocessing pipeline consists of the following components:
 
 5. A script that parses the results of the simulations and generates a JSON file containing the statistic of interest (in this case, IPC) for each combination of parameters and benchmark.
 
-### Configuration File
+### Configuration File of Parameter Space
 
 The configuration file defines the parameters to be tuned, their lower and upper bounds, and the relation between them. It is a JSON file in which each parameter is defined as follows:
 
@@ -61,7 +61,7 @@ The fields in the JSON file are as follows:
     The parameter to be tuned. This can be any parameter in the gem5 configuration file.
     For example, `processor.cores[:].core.executeFuncUnits.funcUnits[0].opLat` is the parameter for the latency of the integer functional unit.
 
-    Caveat: The parameter must be defined in a way that allows it to be applied to the board using the `apply_config` function in `src/python/m5/SimObject.py`, found [here](https://github.com/gem5/gem5/blob/48a40cf2f5182a82de360b7efa497d82e06b1631/src/python/m5/SimObject.py#L1298). The best way to find the text to use for each parameter is to use the `enumerateParams()` function in a gem5 simulation, defined [here](https://github.com/gem5/gem5/blob/48a40cf2f5182a82de360b7efa497d82e06b1631/src/python/m5/params.py#L328) and look at the output.
+    Caveat: The parameter must be defined in a way that allows it to be applied to the board using the `apply_config` function in `src/python/m5/SimObject.py`, found [here](https://github.com/gem5/gem5/blob/48a40cf2f5182a82de360b7efa497d82e06b1631/src/python/m5/SimObject.py#L1298). The best way to find the text to use for each parameter is to use the `enumerateParams()` function in a gem5 simulation, defined [here](https://github.com/gem5/gem5/blob/48a40cf2f5182a82de360b7efa497d82e06b1631/src/python/m5/params.py#L328) and look at the output. In case of parameters that look like `processor.cores0.core.executeFuncUnits.funcUnits0.opLat`, they suggest being part of an array. If you want to apply the parameter to all elements of the array (all cores of the system, for example), you would use `[:]` but if you want to constrain it to a specific element, you would use `[<INDEX>]`. So `processor.cores[:].core.executeFuncUnits.funcUnits[0].opLat` means the latency of the **1st** functional unit applied to **ALL** the cores.
 
 2. `min_value`:
 The minimum value of the parameter to be tuned.
@@ -83,6 +83,9 @@ The step size to be used when generating the different combinations of parameter
 
     - `flip`:
     The step is an array of 2 values, where the first value is the `min_value` and the second value is the `max_value`. This is useful for parameters that have a boolean value, or a string that has 2 possible values.
+
+NOTE: it is important to initialize all the components of the board before using the `enumerateParams()` function. A potential pain point with the existing code structure is that the caches are usually defined in the `incorporate_cache` function, which means that when you use `enumerateParams()`, you cannot see the params of the cache, because they are initialized at a later point. 
+A quick workaround is to define the caches with 1 cache each in the `__init__` function of the cache hierarchy, and they will be overriden with the correct number of caches later.
 
 ### Define the Workloads to be Used
 
