@@ -205,11 +205,11 @@ gem5Component::init(unsigned phase)
     if (phase == 0) {
         initPython(args.size(), &args[0]);
 
-        const std::vector<std::string> m5_instantiate_commands = {
-            "import m5",
-            "m5.instantiate()"
-        };
-        execPythonCommands(m5_instantiate_commands);
+        // const std::vector<std::string> m5_instantiate_commands = {
+        //     "import m5",
+        //     "m5.instantiate()"
+        // };
+        // execPythonCommands(m5_instantiate_commands);
 
         // calling SimObject.startup()
         const std::vector<std::string> simobject_setup_commands = {

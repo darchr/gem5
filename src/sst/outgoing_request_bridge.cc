@@ -1,4 +1,4 @@
-// Copyright (c) 2021 The Regents of the University of California
+// Copyright (c) 2021-2023 The Regents of the University of California
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@ OutgoingRequestBridge::OutgoingRequestBridge(
     physicalAddressRanges(params.physical_address_ranges.begin(),
                           params.physical_address_ranges.end())
 {
+    this->init_phase_bool = false;
 }
 
 OutgoingRequestBridge::~OutgoingRequestBridge()
@@ -84,6 +85,7 @@ OutgoingRequestBridge::getAddrRanges() const
 std::vector<std::pair<Addr, std::vector<uint8_t>>>
 OutgoingRequestBridge::getInitData() const
 {
+    std::cout << "getInitData() called!" << std::endl;
     return initData;
 }
 
@@ -106,18 +108,47 @@ OutgoingRequestBridge::sendTimingSnoopReq(gem5::PacketPtr pkt)
 }
 
 void
+OutgoingRequestBridge::initPhaseComplete(bool value) {
+    init_phase_bool = value;
+}
+bool
+OutgoingRequestBridge::getInitPhaseStatus() {
+    return init_phase_bool;
+}
+void
 OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
 {
-    uint8_t* ptr = pkt->getPtr<uint8_t>();
-    uint64_t size = pkt->getSize();
-    std::vector<uint8_t> data(ptr, ptr+size);
-    initData.push_back(std::make_pair(pkt->getAddr(), data));
+    // This should not receive any functional accesses
+    gem5::MemCmd::Command pktCmd = (gem5::MemCmd::Command)pkt->cmd.toInt();
+    // std::cout << "Recv Functional : 0x" << std::hex << pkt->getAddr() <<
+    // std::dec << " " << pktCmd << " " << gem5::MemCmd::WriteReq << " " <<
+    // getInitPhaseStatus() << std::endl;
+    // Check at which stage are we at. If we are at INIT phase, then queue all
+    // these packets.
+    if (!getInitPhaseStatus())
+    {
+        // sstResponder->recvAtomic(pkt);
+        uint8_t* ptr = pkt->getPtr<uint8_t>();
+        uint64_t size = pkt->getSize();
+        std::vector<uint8_t> data(ptr, ptr+size);
+        initData.push_back(std::make_pair(pkt->getAddr(), data));
+    }
+    // This is the RUN phase.
+    else {
+        // These packets have to translated at runtime. We convert these
+        // packets to timing as its data has to be stored correctly in SST
+        // memory.
+        //
+        // Ensure that these packets are write requests.
+        sstResponder->handleRecvFunctional(pkt);
+    }
 }
 
 Tick
 OutgoingRequestBridge::
 OutgoingRequestPort::recvAtomic(PacketPtr pkt)
 {
+    // return 0;
     assert(false && "OutgoingRequestPort::recvAtomic not implemented");
     return Tick();
 }

@@ -69,6 +69,18 @@ class OutgoingRequestBridge: public SimObject
         AddrRangeList getAddrRanges() const;
     };
 
+    // We need a boolean variable to distinguish between INIT and RUN phases in
+    // SST. Gem5 does functional accesses to the SST memory when:
+    //  (a) It loads the kernel (at the start of the simulation
+    //  (b) During VIO/disk accesses.
+    // While loading the kernel, it is easy to handle all functional accesses
+    // as SST allows initializing of untimed data during its INIT phase.
+    // However, functional accesses done to the SST memory during RUN phase has
+    // to handled separately. In this implementation, we convert all such
+    // functional accesses to timing accesses so that it is correctly read from
+    // the memory.
+    bool init_phase_bool;
+
   public:
     // a gem5 ResponsePort
     OutgoingRequestPort outgoingPort;
@@ -97,8 +109,18 @@ class OutgoingRequestBridge: public SimObject
     // Returns the buffered data for initialization. This is necessary as
     // when gem5 sends functional requests to memory for initialization,
     // the connection in SST Memory Hierarchy has not been constructed yet.
+    // This buffer is only used during the INIT phase.
     std::vector<std::pair<Addr, std::vector<uint8_t>>> getInitData() const;
 
+    // We need Set/Get functions to set the init_phase_bool.
+    // `initPhaseComplete` is used to signal the outgoing bridge that INIT
+    // phase is completed and RUN phase will start.
+    void initPhaseComplete(bool value);
+
+    // We read the value of the init_phase_bool using `getInitPhaseStatus`
+    // method.
+
+    bool getInitPhaseStatus();
     // gem5 Component (from SST) will call this function to let set the
     // bridge's corresponding SSTResponderSubComponent (which implemented
     // SSTResponderInterface). I.e., this will connect this bridge to the

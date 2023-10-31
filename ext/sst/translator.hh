@@ -157,7 +157,9 @@ gem5RequestToSSTRequest(gem5::PacketPtr pkt,
 
     if (pkt->needsResponse())
         sst_request_id_to_packet_map[request->getID()] = pkt;
-
+    
+    // if(gem5::curTick() > 340330000000)
+        // std::cout << request->getString() << std::endl;
     return request;
 }
 
@@ -165,6 +167,8 @@ inline void
 inplaceSSTRequestToGem5PacketPtr(gem5::PacketPtr pkt,
                                 SST::Interfaces::StandardMem::Request* request)
 {
+    // if(gem5::curTick() > 340330000000)
+    //     std::cout << request->getString() << std::endl;
     pkt->makeResponse();
 
     // Resolve the success of Store Conditionals
