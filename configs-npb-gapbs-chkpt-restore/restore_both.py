@@ -26,14 +26,7 @@
 #
 # Authors: Jason Lowe-Power, Ayaz Akram
 
-""" Script to run NAS parallel benchmarks with gem5.
-    The script expects kernel, diskimage, mem_sys,
-    cpu (kvm, atomic, or timing), benchmark to run
-    and number of cpus as arguments.
-
-    If your application has ROI annotations, this script will count the total
-    number of instructions executed in the ROI. It also tracks how much
-    wallclock and simulated time.
+""" Script to restore both GAPBS and NPB with a checkpoint
 """
 import argparse
 import time
@@ -98,13 +91,17 @@ def writeBenchScript_NPB(dir, bench):
 
 def parse_options():
     parser = argparse.ArgumentParser(
-        description="For use with gem5. This "
-        "runs a NAS Parallel Benchmark application. This only works "
-        "with x86 ISA."
+        description="Restores a checkpoint for NPB and GAPBS"
     )
     # The manditry position arguments.
     parser.add_argument(
         "isGAPBS", type=int, help="GAPBS (1) application to run or NPB (0)"
+    )
+    parser.add_argument(
+        "benchmark", type=str, help="The application to run"
+    )
+    parser.add_argument(
+        "size", type=str, help="The problem size to run"
     )
     parser.add_argument(
         "dcache_policy",
@@ -203,44 +200,12 @@ if __name__ == "__m5_main__":
     mem_size = "128GiB"
     mem_size_per_channel = "64GiB"
     single_channel_HBM = False
-    checkpoint_dir = ""
+    checkpoint_dir = "/home/babaie/projects/TDRAM-resubmission/8channelConfig/dramCacheController/cptTest/gapbs/bfs3/cpt"
 
-    if args.benchmark in benchmark_choices_npb:
-        if args.benchmark.split(".")[1] == "C":
-            checkpoint_dir = (
-                ckpt_base
-                + "1GB_8GB_g22_nC_1halfSec/NPB/"
-                + args.benchmark.split(".")[0]
-                + "/cpt"
-            )
-            mem_size = "8GiB"
-        elif args.benchmark.split(".")[1] == "D":
-            checkpoint_dir = (
-                ckpt_base
-                + "1GB_85GB_g25_nD_1halfSec/NPB/"
-                + args.benchmark.split(".")[0]
-                + "/cpt"
-            )
-            mem_size = "85GiB"
+    if args.isGAPBS == 1:
+        benchmark = args.benchmark
     else:
-        if args.benchmark.split("-")[1] == "22":
-            checkpoint_dir = (
-                ckpt_base
-                + "1GB_8GB_g22_nC_1halfSec/GAPBS/"
-                + args.benchmark.split("-")[0]
-                + "/cpt"
-            )
-            mem_size = "8GiB"
-        elif args.benchmark.split("-")[1] == "25":
-            checkpoint_dir = (
-                ckpt_base
-                + "1GB_85GB_g25_nD_1halfSec/GAPBS/"
-                + args.benchmark.split("-")[0]
-                + "/cpt"
-            )
-            mem_size = "85GiB"
-
-    benchmark = args.benchmark
+        benchmark = args.benchmark+"."+args.size+".x"
 
     if single_channel_HBM:
             system = RubySystem1Channel(
@@ -277,17 +242,20 @@ if __name__ == "__m5_main__":
             restore=True,
         )
 
+    app = benchmark
+    if args.isGAPBS:
+        app = benchmark+"-"+args.size
+
     if args.do_analysis:
         lpmanager = O3LooppointAnalysisManager()
-
         for core in system.o3Cpu:
             lplistener = O3LooppointAnalysis()
             lplistener.ptmanager = lpmanager
-            lplistener.validAddrRangeStart = text_info[args.benchmark][1]
-            lplistener.validAddrRangeSize = text_info[args.benchmark][0]
+            lplistener.validAddrRangeStart = text_info[app][1]
+            lplistener.validAddrRangeSize = text_info[app][0]
             core.probeListener = lplistener
     else:
-        pc, count = interval_info_1GBdramCache_3hr[args.benchmark]
+        pc, count = interval_info_1GBdramCache_3hr[app]
         system.global_tracker = PcCountTrackerManager(
             targets=[PcCountPair(pc, count)]
         )
@@ -306,13 +274,13 @@ if __name__ == "__m5_main__":
 
     # Create and pass a script to the simulated system to run the reuired
     # benchmark
-    if args.benchmark in benchmark_choices_npb:
-        system.readfile = writeBenchScript_NPB(
-            m5.options.outdir, args.benchmark
+    if args.isGAPBS:
+        system.readfile = writeBenchScript_GAPBS(
+            m5.options.outdir, benchmark, args.size, synthetic
         )
     else:
-        system.readfile = writeBenchScript_GAPBS(
-            m5.options.outdir, args.benchmark
+        system.readfile = writeBenchScript_NPB(
+            m5.options.outdir, benchmark
         )
 
     # set up the root SimObject and start the simulation

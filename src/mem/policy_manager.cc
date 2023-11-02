@@ -1,6 +1,7 @@
 #include "mem/policy_manager.hh"
 
 #include "base/trace.hh"
+#include "debug/ChkptRstrTest.hh"
 #include "debug/PolicyManager.hh"
 #include "debug/Drain.hh"
 #include "mem/dram_interface.hh"
@@ -2341,26 +2342,22 @@ PolicyManager::handleRequestorPkt(PacketPtr pkt)
     if (extreme) {
         orbEntry->prevDirty = alwaysDirty;
     } else {
-        orbEntry->prevDirty = tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->dirtyLine;
+        orbEntry->prevDirty = tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->validLine && 
+                              tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->dirtyLine;
     }
 
     // Updating Tag & Metadata
     tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->tagDC = orbEntry->tagDC;
     tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->indexDC = orbEntry->indexDC;
     tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->validLine = true;
+    tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->farMemAddr = orbEntry->owPkt->getAddr();
     replacementPolicy->touch(tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->replacementData, pkt);
 
-    if (orbEntry->owPkt->isRead()) {
-        if (orbEntry->isHit) {
-            tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->dirtyLine =
-            tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->dirtyLine;
-        } else {
-            tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->dirtyLine = false;
-        }
-    } else { // write
+    if (orbEntry->owPkt->isRead() && !orbEntry->isHit) {
+        tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->dirtyLine = false;
+    }
+    if (!orbEntry->owPkt->isRead()) { // write
         tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->dirtyLine = true;
-        tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->farMemAddr =
-                        orbEntry->owPkt->getAddr();
     }
 
     if (orbEntry->isHit) {
@@ -3333,20 +3330,25 @@ PolicyManager::serialize(CheckpointOut &cp) const
     ScopedCheckpointSection sec(cp, "tagMetadataStore");
     paramOut(cp, "numEntries", tagMetadataStore.size()*assoc);
     int count = 0;
+    int invalids = 0;
     for (auto const &set : tagMetadataStore) {
         for (auto const way : set) {
             ScopedCheckpointSection sec_entry(cp,csprintf("Entry%d", count++));
             if (way->validLine) {
                 paramOut(cp, "validLine", way->validLine);
-                paramOut(cp, "tagDC", way->tagDC);
-                paramOut(cp, "indexDC", way->indexDC);
                 paramOut(cp, "dirtyLine", way->dirtyLine);
                 paramOut(cp, "farMemAddr", way->farMemAddr);
+                DPRINTF(ChkptRstrTest, "v: %d, %d, %d, %d, %d\n",
+                        way->farMemAddr,
+                        way->indexDC, way->tagDC,
+                        way->validLine, way->dirtyLine);
             } else {
                 paramOut(cp, "validLine", way->validLine);
+                invalids++;
             }
         }
     }
+    DPRINTF(ChkptRstrTest, "invalids: %d\n", invalids);
 }
 
 void
@@ -3354,9 +3356,7 @@ PolicyManager::unserialize(CheckpointIn &cp)
 {
     ScopedCheckpointSection sec(cp, "tagMetadataStore");
     int num_entries = 0;
-    unsigned countValid = 0;
-    unsigned countInvalid = 0;
-    unsigned numOfSets = dramCacheSize / (blockSize * assoc);
+    int countValid = 0;
     paramIn(cp, "numEntries", num_entries);
     warn_if(num_entries > tagMetadataStore.size()*assoc, "Unserializing larger tag "
             "store into a smaller tag store. Stopping when index doesn't fit");
@@ -3365,42 +3365,36 @@ PolicyManager::unserialize(CheckpointIn &cp)
     for (int i = 0; i < num_entries; i++) {
         ScopedCheckpointSection sec_entry(cp,csprintf("Entry%d", i));
         bool valid = false;
+        Addr far_addr = -1;
         paramIn(cp, "validLine", valid);
-        if (!valid){
-            countInvalid++;
-        }
-        if (valid) {
+        paramIn(cp, "farMemAddr", far_addr);
+        if (valid && getAddrRange().contains(far_addr)) {
             countValid++;
-            Addr tag = 0;
-            Addr index = 0;
             bool dirty = false;
-            Addr far_addr = 0;
-            paramIn(cp, "tagDC", tag);
-            paramIn(cp, "indexDC", index);
             paramIn(cp, "dirtyLine", dirty);
-            paramIn(cp, "farMemAddr", far_addr);
-            Addr newIndex = index % numOfSets;
-
-            if (newIndex < tagMetadataStore.size()) {
-                // Only insert if this entry fits into the current store.
-                // tagMetadataStore.at(newIndex).at(i / numOfSets)->tagDC = tag;
-                // tagMetadataStore.at(newIndex).at(i / numOfSets)->indexDC = newIndex;
-                // tagMetadataStore.at(newIndex).at(i / numOfSets)->validLine = valid;
-                // tagMetadataStore.at(newIndex).at(i / numOfSets)->dirtyLine = dirty;
-                // tagMetadataStore.at(newIndex).at(i / numOfSets)->farMemAddr = far_addr;
-                int way = findEmptyWay(newIndex);
-                
-                if (way ==-1) {
-                    way = 0;
-                }
-                tagMetadataStore.at(newIndex).at(way)->tagDC = returnTagDC(far_addr, blockSize); // = tag;
-                tagMetadataStore.at(newIndex).at(way)->indexDC = newIndex;
-                tagMetadataStore.at(newIndex).at(way)->validLine = valid;
-                tagMetadataStore.at(newIndex).at(way)->dirtyLine = dirty;
-                tagMetadataStore.at(newIndex).at(way)->farMemAddr = far_addr;
+            
+            Addr index = returnIndexDC(far_addr, blockSize);
+            Addr tag = returnTagDC(far_addr, blockSize);
+            int way = findEmptyWay(index);
+            // once you stored LRU, come back here and call it instead of putting 0;
+            if (way ==-1) {
+                way = 0; // so it always works for direct-mapped
             }
+            tagMetadataStore.at(index).at(way)->tagDC = tag;
+            tagMetadataStore.at(index).at(way)->indexDC = index;
+            tagMetadataStore.at(index).at(way)->validLine = valid;
+            tagMetadataStore.at(index).at(way)->dirtyLine = dirty;
+            tagMetadataStore.at(index).at(way)->farMemAddr = far_addr;
+
+            DPRINTF(ChkptRstrTest, "%d, %d, %d, %d, %d\n",
+                    tagMetadataStore.at(index).at(way)->farMemAddr,
+                    tagMetadataStore.at(index).at(way)->tagDC,
+                    tagMetadataStore.at(index).at(way)->indexDC,
+                    tagMetadataStore.at(index).at(way)->validLine,
+                    tagMetadataStore.at(index).at(way)->dirtyLine);
         }
     }
+    DPRINTF(ChkptRstrTest, "valid: %d\n", countValid);
 }
 
 int

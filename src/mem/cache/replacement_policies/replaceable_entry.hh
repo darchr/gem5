@@ -65,9 +65,7 @@ class ReplaceableEntry
   public:
     Addr tagDC;
     Addr indexDC;
-    // constant to indicate that the cache line is valid
     bool validLine;
-    // constant to indicate that the cache line is dirty
     bool dirtyLine;
     Addr farMemAddr;
     unsigned counter;

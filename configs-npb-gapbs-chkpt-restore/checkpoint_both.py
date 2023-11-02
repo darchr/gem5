@@ -26,8 +26,7 @@
 #
 # Authors: Jason Lowe-Power, Ayaz Akram
 
-""" Script to run GAP Benchmark suites workloads.
-    The workloads have two modes: synthetic and real graphs.
+""" Script to run and take checkpoints for both GAPBS and NPB
 """
 import argparse
 import time
@@ -179,38 +178,31 @@ if __name__ == "__m5_main__":
     exit_event = m5.simulate()
 
     if exit_event.getCause() == "workbegin":
-        print("Done booting Linux")
         # Reached the start of ROI
         # start of ROI is marked by an
         # m5_work_begin() call
-        print("Resetting stats at the start of ROI!")
+        print("Done booting Linux and reached to ROI")
         m5.stats.reset()
+        print("Reset stats at the start of ROI")
         start_tick = m5.curTick()
         start_insts = system.totalInsts()
         # switching CPU to timing
         system.switchCpus(system.cpu, system.timingCpu)
+        print("Switched CPU from KVM to Timing!")
     else:
         print(exit_event.getCause())
         print("Unexpected termination of simulation !")
         exit(1)
 
-    m5.stats.reset()
-    print(
-        "After reset ************************************************ statring smiulation:\n"
-    )
-    for interval_number in range(1):
+    print("Start to running intervals!")
+    for interval_number in range(300): # 3 seconds
         print("Interval number: {} \n".format(interval_number))
-        exit_event = m5.simulate(1000000000)
+        exit_event = m5.simulate(10_000_000_000) # 10 ms
         if exit_event.getCause() == "cacheIsWarmedup":
             print("Caught cacheIsWarmedup exit event!")
             break
-        print(
-            "-------------------------------------------------------------------"
-        )
-
-    print(
-        "After sim ************************************************ End of warm-up \n"
-    )
+    if interval_number == 299 :
+        print("TIMEOUT!")
     m5.stats.dump()
     system.switchCpus(system.timingCpu, system.o3Cpu)
     print("switched from timing to O3")
