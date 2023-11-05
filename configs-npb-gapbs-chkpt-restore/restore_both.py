@@ -35,19 +35,11 @@ import m5.ticks
 from m5.objects import *
 
 from system import *
-from info import (
-    text_info,
-    interval_info_1hr,
-    interval_info_3hr,
-    interval_info_6hr,
-    interval_info_12hr,
-    interval_info_24hr,
-    benchmark_choices_gapbs,
-    benchmark_choices_npb,
-    interval_info_1hr_512MiB,
-    interval_info_1GBdramCache_3hr,
-)
 
+from info import (
+    gapbs_benchmarks,
+    npb_benchmarks,
+)
 
 def writeBenchScript_GAPBS(dir, benchmark_name, size, synthetic):
     """
@@ -92,10 +84,6 @@ def writeBenchScript_NPB(dir, bench):
 def parse_options():
     parser = argparse.ArgumentParser(
         description="Restores a checkpoint for NPB and GAPBS"
-    )
-    # The manditry position arguments.
-    parser.add_argument(
-        "isGAPBS", type=int, help="GAPBS (1) application to run or NPB (0)"
     )
     parser.add_argument(
         "benchmark", type=str, help="The application to run"
@@ -184,13 +172,15 @@ def run():
 if __name__ == "__m5_main__":
     args = parse_options()
 
-    kernel = "/home/babaie/projects/ispass2023/runs/hbmCtrlrTest/dramCacheController/fullSystemDisksKernel/x86-linux-kernel-4.19.83"
+    kernel = "/home/babaie/projects/TDRAM-resubmission/fsTools/x86-linux-kernel-4.19.83"
     disk = ""
-    if args.isGAPBS == 1:
-        disk = "/home/babaie/projects/ispass2023/runs/hbmCtrlrTest/dramCacheController/fullSystemDisksKernel/x86-gapbs"
-    elif args.isGAPBS == 0:
-        disk = "/home/babaie/projects/ispass2023/runs/hbmCtrlrTest/dramCacheController/fullSystemDisksKernel/x86-npb"
-    ckpt_base = "/home/babaie/projects/rambusDesign/1gigDRAMCache/dramCacheController/chkpt1GigDC/"
+    if args.benchmark in gapbs_benchmarks:
+        disk = "/home/babaie/projects/TDRAM-resubmission/fsTools/x86-gapbs"
+    elif args.benchmark in npb_benchmarks:
+        disk = "/home/babaie/projects/TDRAM-resubmission/fsTools/x86-npb"
+    else:
+        print("wrong benchmark choice!")
+        exit(1)
 
     num_cpus = 8
     cpu_type = "Timing"

@@ -254,7 +254,7 @@ class RubySystem8Channel(System):
         )
 
         self.mem_ctrl = [
-            PolicyManager(range=r, kvm_map=False) for r in self.mem_ranges[2:]
+            PolicyManager(range=r, kvm_map=False, channel_index=str(i)) for i, r in enumerate(self.mem_ranges[2:])
         ]
         self.loc_mem_ctrl = [MemCtrl() for i in range(8)]
         self.far_mem_ctrl = [MemCtrl() for i in range(2)]

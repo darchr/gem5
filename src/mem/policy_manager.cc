@@ -32,6 +32,7 @@ PolicyManager::PolicyManager(const PolicyManagerParams &p):
     extreme(p.extreme),
     alwaysHit(p.always_hit), alwaysDirty(p.always_dirty),
     bypassDcache(p.bypass_dcache),
+    channelIndex(p.channel_index),
     frontendLatency(p.static_frontend_latency),
     backendLatency(p.static_backend_latency),
     numColdMisses(0),
@@ -39,7 +40,7 @@ PolicyManager::PolicyManager(const PolicyManagerParams &p):
     infoCacheWarmupRatio(0.05),
     resetStatsWarmup(false),
     prevArrival(0),
-    blksInserted(0), blksAccessed(0),
+    blksInserted(0),
     retryLLC(false), retryLLCRepetitive(false), retryLLCFarMemWr(false),
     retryTagCheck(false), retryLocMemRead(false), retryFarMemRead(false),
     retryLocMemWrite(false), retryFarMemWrite(false),
@@ -68,6 +69,7 @@ PolicyManager::PolicyManager(const PolicyManagerParams &p):
         }
         tagMetadataStore.push_back(tempSet);
     }
+    DPRINTF(PolicyManager, "policy manager initialized\n");
 }
 
 Tick
@@ -101,6 +103,8 @@ PolicyManager::recvAtomic(PacketPtr pkt)
 Tick
 PolicyManager::recvAtomicBackdoor(PacketPtr pkt, MemBackdoorPtr &backdoor)
 {
+    DPRINTF(PolicyManager, "recvAtomicBackdoor: %s %d\n",
+                     pkt->cmdString(), pkt->getAddr());
     Tick latency = recvAtomic(pkt);
     getBackdoor(backdoor);
     return latency;
@@ -121,6 +125,10 @@ PolicyManager::recvFunctional(PacketPtr pkt)
 
     panic_if(!found, "Can't handle address range for packet %s\n",
              pkt->print());
+
+    DPRINTF(PolicyManager, "recvFunctional: %s %d\n",
+                     pkt->cmdString(), pkt->getAddr());
+    
 }
 
 Tick
@@ -242,7 +250,6 @@ PolicyManager::recvTimingReq(PacketPtr pkt)
 
             // sendRespondToRequestor(pkt, frontendLatency);
             accessAndRespond(pkt, frontendLatency);
-            blksAccessed++;
             return true;
         }
 
@@ -343,7 +350,6 @@ PolicyManager::recvTimingReq(PacketPtr pkt)
 
         //     sendRespondToRequestor(pkt, frontendLatency);
             accessAndRespond(pkt, frontendLatency);
-            blksAccessed++;
             return true;
         }
     }
@@ -2224,8 +2230,6 @@ PolicyManager::handleRequestorPkt(PacketPtr pkt)
     Addr index = returnIndexDC(pkt->getAddr(), pkt->getSize());
     Addr way = findMatchingWay(index, tag);
 
-    blksAccessed++;
-
     if (way == noMatchingWay) { // MISSED! Candidate = Either there's an empty way to fill in or a victim will be selected.
         way = getCandidateWay(index);
 
@@ -2234,8 +2238,6 @@ PolicyManager::handleRequestorPkt(PacketPtr pkt)
                 capacityTracker[tagMetadataStore.at(index).at(way)->farMemAddr] = blksInserted;
                 if (tagMetadataStore.at(index).at(way)->tickEntered != MaxTick) {
                     polManStats.blkReuse.sample(tagMetadataStore.at(index).at(way)->counter);
-                    polManStats.blksAccBeforeEvict.sample(blksAccessed -
-                                                            tagMetadataStore.at(index).at(way)->blksAccessedEntered);
                     assert(curTick() >= tagMetadataStore.at(index).at(way)->tickEntered);
                     polManStats.ticksBeforeEviction.sample(curTick() - tagMetadataStore.at(index).at(way)->tickEntered);
                 }
@@ -2364,7 +2366,6 @@ PolicyManager::handleRequestorPkt(PacketPtr pkt)
         tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->counter++;
     } else {
         tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->counter = 1;
-        tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->blksAccessedEntered = blksAccessed;
         tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->tickEntered = curTick();
         
         blksInserted++;
@@ -3176,8 +3177,6 @@ PolicyManager::PolicyManagerStats::PolicyManagerStats(PolicyManager &_polMan)
              "Miss distance, to track capacity misses"),
     ADD_STAT(blkReuse, statistics::units::Count::get(),
              "cache line block reuse before eviction"),
-    ADD_STAT(blksAccBeforeEvict, statistics::units::Count::get(),
-             "# of accesses addressed before eviction of this blk"),
     ADD_STAT(ticksBeforeEviction, statistics::units::Count::get(),
              "how long the blk was in the cache")
 
@@ -3238,10 +3237,6 @@ PolicyManager::PolicyManagerStats::regStats()
 
     blkReuse
         .init(128)
-        .flags(pdf | nozero);
-
-    blksAccBeforeEvict
-        .init(1024)
         .flags(pdf | nozero);
 
     ticksBeforeEviction
@@ -3327,74 +3322,78 @@ PolicyManager::drain()
 void
 PolicyManager::serialize(CheckpointOut &cp) const
 {
-    ScopedCheckpointSection sec(cp, "tagMetadataStore");
-    paramOut(cp, "numEntries", tagMetadataStore.size()*assoc);
+    warn_if(numColdMisses > tagMetadataStore.size()*assoc, "numColdMisses is more than the total blocks!");
+    DPRINTF(ChkptRstrTest, "name: %s\n", "tagMetadataStore"+channelIndex);
+    
+    ScopedCheckpointSection sec(cp, "tagMetadataStore"+channelIndex);
+    paramOut(cp, "numValidEntries", numColdMisses);
     int count = 0;
     int invalids = 0;
     for (auto const &set : tagMetadataStore) {
         for (auto const way : set) {
             ScopedCheckpointSection sec_entry(cp,csprintf("Entry%d", count++));
             if (way->validLine) {
-                paramOut(cp, "validLine", way->validLine);
                 paramOut(cp, "dirtyLine", way->dirtyLine);
                 paramOut(cp, "farMemAddr", way->farMemAddr);
-                DPRINTF(ChkptRstrTest, "v: %d, %d, %d, %d, %d\n",
-                        way->farMemAddr,
-                        way->indexDC, way->tagDC,
-                        way->validLine, way->dirtyLine);
+                paramOut(cp, "counter", way->counter);
+                paramOut(cp, "tickEntered", way->tickEntered);
+                // DPRINTF(ChkptRstrTest, "v: %d, %d, %d, %d, %d\n",
+                //         way->farMemAddr,
+                //         way->indexDC, way->tagDC,
+                //         way->validLine, way->dirtyLine);
             } else {
-                paramOut(cp, "validLine", way->validLine);
+                // paramOut(cp, "validLine", way->validLine);
                 invalids++;
             }
         }
     }
+    warn_if((tagMetadataStore.size()*assoc - numColdMisses) != invalids, "Number of invalids did not match\n");
     DPRINTF(ChkptRstrTest, "invalids: %d\n", invalids);
 }
 
 void
 PolicyManager::unserialize(CheckpointIn &cp)
-{
-    ScopedCheckpointSection sec(cp, "tagMetadataStore");
+{ 
+    DPRINTF(ChkptRstrTest, "name: %s\n", "tagMetadataStore"+channelIndex);
+
+    ScopedCheckpointSection sec(cp, "tagMetadataStore"+channelIndex);
     int num_entries = 0;
     int countValid = 0;
-    paramIn(cp, "numEntries", num_entries);
-    warn_if(num_entries > tagMetadataStore.size()*assoc, "Unserializing larger tag "
-            "store into a smaller tag store. Stopping when index doesn't fit");
-    warn_if(num_entries < tagMetadataStore.size()*assoc, "Unserializing smaller "
-            "tag store into a larger tag store. Not fully warmed up.");
+    paramIn(cp, "numValidEntries", num_entries);
     for (int i = 0; i < num_entries; i++) {
         ScopedCheckpointSection sec_entry(cp,csprintf("Entry%d", i));
-        bool valid = false;
-        Addr far_addr = -1;
-        paramIn(cp, "validLine", valid);
-        paramIn(cp, "farMemAddr", far_addr);
-        if (valid && getAddrRange().contains(far_addr)) {
-            countValid++;
-            bool dirty = false;
-            paramIn(cp, "dirtyLine", dirty);
-            
-            Addr index = returnIndexDC(far_addr, blockSize);
-            Addr tag = returnTagDC(far_addr, blockSize);
-            int way = findEmptyWay(index);
-            // once you stored LRU, come back here and call it instead of putting 0;
-            if (way ==-1) {
-                way = 0; // so it always works for direct-mapped
-            }
-            tagMetadataStore.at(index).at(way)->tagDC = tag;
-            tagMetadataStore.at(index).at(way)->indexDC = index;
-            tagMetadataStore.at(index).at(way)->validLine = valid;
-            tagMetadataStore.at(index).at(way)->dirtyLine = dirty;
-            tagMetadataStore.at(index).at(way)->farMemAddr = far_addr;
+        bool dirty;
+        Addr farAddr;
+        unsigned counter;
+        uint64_t tickEntered;
 
-            DPRINTF(ChkptRstrTest, "%d, %d, %d, %d, %d\n",
-                    tagMetadataStore.at(index).at(way)->farMemAddr,
-                    tagMetadataStore.at(index).at(way)->tagDC,
-                    tagMetadataStore.at(index).at(way)->indexDC,
-                    tagMetadataStore.at(index).at(way)->validLine,
-                    tagMetadataStore.at(index).at(way)->dirtyLine);
+        paramIn(cp, "dirtyLine", dirty);
+        paramIn(cp, "farMemAddr",farAddr);
+        paramIn(cp, "counter", counter);
+        paramIn(cp, "tickEntered", tickEntered);
+
+        assert(getAddrRange().contains(farAddr));
+        countValid++;
+        Addr index = returnIndexDC(farAddr, blockSize);
+        Addr tag = returnTagDC(farAddr, blockSize);
+        int way = findEmptyWay(index);
+        // once you stored LRU, come back here and call it instead of putting 0;
+        if (way ==-1) {
+            way = 0; // so it always works for direct-mapped
         }
+        tagMetadataStore.at(index).at(way)->tagDC = tag;
+        tagMetadataStore.at(index).at(way)->indexDC = index;
+        tagMetadataStore.at(index).at(way)->validLine = true;
+        tagMetadataStore.at(index).at(way)->dirtyLine = dirty;
+        tagMetadataStore.at(index).at(way)->farMemAddr = farAddr;
+
+        // DPRINTF(ChkptRstrTest, "%d, %d, %d, %d, %d\n",
+        //         tagMetadataStore.at(index).at(way)->farMemAddr,
+        //         tagMetadataStore.at(index).at(way)->tagDC,
+        //         tagMetadataStore.at(index).at(way)->indexDC,
+        //         tagMetadataStore.at(index).at(way)->validLine,
+        //         tagMetadataStore.at(index).at(way)->dirtyLine);
     }
-    DPRINTF(ChkptRstrTest, "valid: %d\n", countValid);
 }
 
 int

@@ -34,6 +34,12 @@ import m5
 import m5.ticks
 from m5.objects import *
 from system import *
+from m5.stats.gem5stats import get_simstat
+
+from info import (
+    gapbs_benchmarks,
+    npb_benchmarks,
+)
 
 def writeBenchScript_GAPBS(dir, benchmark_name, size, synthetic):
     """
@@ -81,60 +87,70 @@ def parse_options():
         "with x86 ISA."
     )
     parser.add_argument(
-        "isGAPBS", type=int, help="GAPBS (1) application to run or NPB (0)"
-    )
-    parser.add_argument(
         "benchmark", type=str, help="The application to run"
     )
     parser.add_argument(
         "size", type=str, help="The problem size to run"
     )
-    parser.add_argument(
-        "dcache_policy",
-        type=str,
-        help="The architecture of DRAM cache: "
-        "CascadeLakeNoPartWrs, Oracle, BearWriteOpt, Rambus",
-    )
-
     return parser.parse_args()
 
 
 if __name__ == "__m5_main__":
     args = parse_options()
 
-    kernel = "/home/babaie/projects/ispass2023/runs/hbmCtrlrTest/dramCacheController/fullSystemDisksKernel/x86-linux-kernel-4.19.83"
+    kernel = "/home/babaie/projects/TDRAM-resubmission/fsTools/x86-linux-kernel-4.19.83"
     disk = ""
-    if args.isGAPBS == 1:
-        disk = "/home/babaie/projects/ispass2023/runs/hbmCtrlrTest/dramCacheController/fullSystemDisksKernel/x86-gapbs"
-    elif args.isGAPBS == 0:
-        disk = "/home/babaie/projects/ispass2023/runs/hbmCtrlrTest/dramCacheController/fullSystemDisksKernel/x86-npb"
+    if args.benchmark in gapbs_benchmarks:
+        disk = "/home/babaie/projects/TDRAM-resubmission/fsTools/x86-gapbs"
+    elif args.benchmark in npb_benchmarks:
+        disk = "/home/babaie/projects/TDRAM-resubmission/fsTools/x86-npb"
+    else:
+        print("Wrong benchmark choice!")
+        exit(1)
 
-
-    num_cpus = 8
-    cpu_type = "Timing"
-    mem_sys = "MESI_Two_Level"
     synthetic = 1
+    num_cpus = 8
+    mem_sys = "MESI_Two_Level"
+    dcache_policy = "RambusTagProbOpt"
     dcache_size = "1GiB" # size of each channel
-    mem_size = "128GiB"
-    mem_size_per_channel = "64GiB"
+    mem_size = "8GiB" # size of total main memory
+    mem_size_per_channel = "8GiB"
     assoc = 1
+    singleChannel = True
 
     # create the system we are going to simulate
-    system = RubySystem8Channel(
-        kernel,
-        disk,
-        mem_sys,
-        num_cpus,
-        assoc,
-        dcache_size,
-        mem_size,
-        mem_size_per_channel,
-        args.dcache_policy,
-        0,
-        0,
-        0,
-        args,
-    )
+    if singleChannel:
+        system = RubySystem1Channel(
+            kernel,
+            disk,
+            mem_sys,
+            num_cpus,
+            assoc,
+            dcache_size,
+            mem_size,
+            mem_size_per_channel,
+            dcache_policy,
+            0,
+            0,
+            0,
+            args,
+        )
+    else:
+        system = RubySystem8Channel(
+            kernel,
+            disk,
+            mem_sys,
+            num_cpus,
+            assoc,
+            dcache_size,
+            mem_size,
+            mem_size_per_channel,
+            dcache_policy,
+            0,
+            0,
+            0,
+            args,
+        )
 
     system.m5ops_base = 0xFFFF0000
 
@@ -143,14 +159,14 @@ if __name__ == "__m5_main__":
 
     # Create and pass a script to the simulated system to run the reuired
     # benchmark
-    if args.isGAPBS == 1:
+    if args.benchmark in gapbs_benchmarks:
         system.readfile = writeBenchScript_GAPBS(
             m5.options.outdir,
             args.benchmark,
             args.size,
             synthetic
         )
-    elif args.isGAPBS == 0:
+    elif args.benchmark in npb_benchmarks:
         system.readfile = writeBenchScript_NPB(
             m5.options.outdir,
             args.benchmark+"."+args.size+".x"
@@ -165,16 +181,10 @@ if __name__ == "__m5_main__":
         # Note: The simulator is quite picky about this number!
         root.sim_quantum = int(1e9)  # 1 ms
 
-    # needed for long running jobs
-    # m5.disableAllListeners()
-
     # instantiate all of the objects we've created above
     m5.instantiate()
 
-    globalStart = time.time()
-
     print("Running the simulation")
-    print("Using cpu: {}".format(cpu_type))
     exit_event = m5.simulate()
 
     if exit_event.getCause() == "workbegin":
@@ -195,15 +205,55 @@ if __name__ == "__m5_main__":
         exit(1)
 
     print("Start to running intervals!")
-    for interval_number in range(300): # 3 seconds
-        print("Interval number: {} \n".format(interval_number))
-        exit_event = m5.simulate(10_000_000_000) # 10 ms
-        if exit_event.getCause() == "cacheIsWarmedup":
-            print("Caught cacheIsWarmedup exit event!")
-            break
-    if interval_number == 299 :
-        print("TIMEOUT!")
+    totalColdMisses = 0
+    numOfCacheBlks = 0
+    if singleChannel:
+        numOfCacheBlks = system.mem_ctrl.dram_cache_size / system.mem_ctrl.block_size
+    else:
+        numOfCacheBlks = num_cpus * system.mem_ctrl[0].dram_cache_size / system.mem_ctrl[0].block_size
+    print(numOfCacheBlks)
+
+    for interval_number in range(1): # 2.5 seconds
+        print("Interval number: {}\n".format(interval_number))
+        intervalColdMisses = 0
+        intervalTotalReqs = 0
+
+        exit_event = m5.simulate(100000000) # 100 ms
+        #if exit_event.getCause() != "simulate() limit reached":
+        #    if (
+        #        exit_event.getCause() == "workend"
+        #        or exit_event.getCause() == "workbegin"
+        #    ):
+        #        print("ROI bounds, continuing to stats ...")
+        #    else:
+        #        print(f"Exiting because {exit_event.getCause()}")
+        #        exit(1)
+        #
+        #simstats = get_simstat([polMan for polMan in system.mem_ctrl], prepare_stats=True)
+        #for i in range(num_cpus):
+        #    ctrl = simstats.__dict__[f"mem_ctrl{i}"]
+        #    intervalColdMisses += ctrl.numColdMisses.value
+        #    intervalTotalReqs += (ctrl.readReqs.value + ctrl.writeReqs.value)
+#
+        #totalColdMisses += intervalColdMisses
+#
+        #if totalColdMisses >= (numOfCacheBlks*0.95):
+        #    print("95%% of system's total DRAM cache is warmed up")
+        #    break
+        #elif (interval_number >= 150 and
+        #      float(intervalColdMisses/intervalTotalReqs) <= 0.05 and
+        #      exit_event.getCause() == "simulate() limit reached"):
+        #    print("Have run at about 1.5 sec and cold misses in a 100 ms"
+        #          "interval has been less than 5%%")
+        #    break
+        #m5.stats.reset()
+        #print("Warmup ratio so far: {}\n".format(float(totalColdMisses/numOfCacheBlks)))
+  
+    print("Exited warmup iterations")
+    if interval_number == 249 :
+        print("TIMEOUT!\n")
     m5.stats.dump()
     system.switchCpus(system.timingCpu, system.o3Cpu)
     print("switched from timing to O3")
     m5.checkpoint(m5.options.outdir + "/cpt")
+

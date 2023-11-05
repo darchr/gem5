@@ -41,7 +41,8 @@ class RubySystem1Channel(System):
         num_cpus,
         assoc,
         dcache_size,
-        main_mem_size,
+        mem_size,
+        mem_size_per_channel,
         policy,
         is_link,
         link_lat,
@@ -65,8 +66,8 @@ class RubySystem1Channel(System):
             AddrRange(Addr("128MiB")),  # kernel data
             AddrRange(0xC0000000, size=0x100000),  # For I/0
             AddrRange(
-                0x100000000, size=main_mem_size
-            ),  # starting at 4GiB for main_mem_size
+                0x100000000, size=mem_size
+            ),
         ]
 
         self.initFS(num_cpus)

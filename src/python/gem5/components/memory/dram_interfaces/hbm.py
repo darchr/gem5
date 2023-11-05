@@ -280,7 +280,7 @@ class HBM_2000_4H_1x64(DRAMInterface):
 
     two_cycle_activate = True
 
-class TDRAM_32(DRAMInterface):
+class TDRAM(DRAMInterface):
 
     # 64-bit interface for a single pseudo channel
     device_bus_width = 32

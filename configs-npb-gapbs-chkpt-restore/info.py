@@ -274,6 +274,25 @@ benchmark_choices_gapbs = [
     "tc-25",
 ]
 
+npb_benchmarks = [
+    "bt",
+    "cg",
+    "ep",
+    "ft",
+    "is",
+    "lu",
+    "mg",
+    "sp",
+    "ua",
+]
+gapbs_benchmarks = [
+    "bfs",
+    "bc",
+    "cc",
+    "pr",
+    "sssp",
+    "tc",
+]
 interval_info_1hr_512MiB = {
     # exe        pc       count
     "bc-22":   (0x404E08, 4355635),

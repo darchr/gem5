@@ -139,6 +139,7 @@ class PolicyManager : public AbstractMemory
     bool alwaysHit;
     bool alwaysDirty;
     bool bypassDcache;
+    std::string channelIndex;
 
     /**
      * Pipeline latency of the controller frontend. The frontend
@@ -295,7 +296,6 @@ class PolicyManager : public AbstractMemory
 
     std::unordered_map<Addr, uint64_t> capacityTracker;
     uint64_t blksInserted;
-    uint64_t blksAccessed;
 
 
     /**
@@ -516,7 +516,6 @@ class PolicyManager : public AbstractMemory
       statistics::Formula dirtyRatio;
       statistics::Histogram missDistance;
       statistics::Histogram blkReuse;
-      statistics::Histogram blksAccBeforeEvict;
       statistics::Histogram ticksBeforeEviction;
 
     };

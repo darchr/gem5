@@ -43,4 +43,6 @@ class PolicyManager(AbstractMemory):
 
     bypass_dcache = Param.Bool(False, "if the DRAM cache needs to be bypassed")
 
+    channel_index = Param.String("0","number of DRAM cache channels in the system")
+
     
