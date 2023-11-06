@@ -65,6 +65,13 @@ class LRU : public Base
     LRU(const Params &p);
     ~LRU() = default;
 
+    Tick getLastTouchTick(const std::shared_ptr<ReplacementData>&
+        replacement_data) override;
+
+    void setLastTouchTick(const std::shared_ptr<ReplacementData>&
+        replacement_data, Tick tick) override;
+
+
     /**
      * Invalidate replacement data to set it as the next probable victim.
      * Sets its last touch tick as the starting tick.

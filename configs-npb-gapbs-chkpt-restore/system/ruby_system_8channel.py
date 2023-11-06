@@ -206,6 +206,12 @@ class RubySystem8Channel(System):
             self.mem_mode = "atomic_noncaching"
             self.createCPUThreads(self.cpu)
 
+            self.atomicNoncachingCpu = [
+                X86NonCachingSimpleCPU(cpu_id=i, switched_out=True)
+                for i in range(num_cpus)
+            ]
+            self.createCPUThreads(self.atomicNoncachingCpu)
+
             self.atomicCpu = [
                 X86AtomicSimpleCPU(cpu_id=i, switched_out=True)
                 for i in range(num_cpus)

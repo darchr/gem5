@@ -41,6 +41,7 @@ from info import (
     npb_benchmarks,
 )
 
+
 def writeBenchScript_GAPBS(dir, benchmark_name, size, synthetic):
     """
     This method creates a script in dir which will be eventually
@@ -62,6 +63,7 @@ def writeBenchScript_GAPBS(dir, benchmark_name, size, synthetic):
 
     return input_file_name
 
+
 def writeBenchScript_NPB(dir, bench):
     """
     This method creates a script in dir which will be eventually
@@ -79,6 +81,76 @@ def writeBenchScript_NPB(dir, bench):
     bench_file.write("m5 exit \n")
     bench_file.close()
     return file_name
+
+
+def do_warmup():
+    prevTotalColdMisses = 0
+    prevTotalMemReqs = 0
+    numOfCacheBlks = 0
+    if single_channel:
+        numOfCacheBlks = float(system.mem_ctrl.dram_cache_size / system.mem_ctrl.block_size)
+    else:
+        numOfCacheBlks = float(num_cpus * system.mem_ctrl[0].dram_cache_size / system.mem_ctrl[0].block_size)
+    print("Number of total cache blocks: {}".format(numOfCacheBlks))
+
+    iteration_duration = 100_000_000_000 # 100 ms
+
+    for interval_number in range(30): # ~3 seconds
+        print("Interval number: {}".format(interval_number))
+        intervalColdMisses = 0
+        intervalMemReqs = 0
+        currentColdMisses = 0
+        currentMemReqs = 0
+        start_tick = m5.curTick()
+        exit_event = m5.simulate(iteration_duration)
+        end_tick = m5.curTick()
+
+        if exit_event.getCause() != "simulate() limit reached":
+            if (
+                exit_event.getCause() == "workend"
+                or exit_event.getCause() == "workbegin"
+            ):
+                print("ROI bounds, continuing to stats ...")
+            else:
+                print(f"Exiting because {exit_event.getCause()}")
+                exit(1)
+        
+        simstats = get_simstat([polMan for polMan in system.mem_ctrl], prepare_stats=True)
+        for i in range(num_cpus):
+            ctrl = simstats.__dict__[f"mem_ctrl{i}"]
+            currentColdMisses += ctrl.numColdMisses.value
+            currentMemReqs += (ctrl.readReqs.value + ctrl.writeReqs.value)
+        
+        print(exit_event.getCause()+" /// new iter nums: {}, {}, {}, {}".format(currentColdMisses,
+              prevTotalColdMisses, currentMemReqs, prevTotalMemReqs))
+        
+        assert currentColdMisses >= prevTotalColdMisses, "Number of total cold misses is wrong!"
+        assert currentMemReqs >= prevTotalMemReqs, "Number of total memory requests is wrong!"
+        intervalColdMisses =  currentColdMisses - prevTotalColdMisses
+        intervalMemReqs = currentMemReqs - prevTotalMemReqs
+
+        if currentColdMisses >= (numOfCacheBlks*0.95):
+            print("95%% of system's total DRAM cache is warmed up")
+            break
+        elif (interval_number >= 20 and
+              float(intervalColdMisses/intervalMemReqs) <= 0.06 and
+              (end_tick - start_tick) == iteration_duration):
+            print("Have run about 2 sec and cold misses "
+                  "in 100 ms interval has been less than 6%%")
+            break
+        # m5.stats.dump()
+        # m5.stats.reset()
+        prevTotalColdMisses = currentColdMisses
+        prevTotalMemReqs = currentMemReqs
+        print("tot warmup: {}, iter warmup: {}, iter len: {}".format(float(currentColdMisses/numOfCacheBlks),
+              float(intervalColdMisses/intervalMemReqs), end_tick - start_tick))
+        print("----------------------------------------------------------------------------------\n")
+
+    print("\n")
+    if interval_number == 29 :
+        print("TIMEOUT!\n")
+    m5.stats.dump()
+
 
 def parse_options():
     parser = argparse.ArgumentParser(
@@ -108,18 +180,19 @@ if __name__ == "__m5_main__":
         print("Wrong benchmark choice!")
         exit(1)
 
+    # These are constant across tests, no need to put them in the args
     synthetic = 1
     num_cpus = 8
     mem_sys = "MESI_Two_Level"
-    dcache_policy = "RambusTagProbOpt"
+    dcache_policy = "CascadeLakeNoPartWrs"
     dcache_size = "1GiB" # size of each channel
-    mem_size = "8GiB" # size of total main memory
-    mem_size_per_channel = "8GiB"
+    mem_size = "128GiB" # size of total main memory
+    mem_size_per_channel = "64GiB"
     assoc = 1
-    singleChannel = True
+    single_channel = False
 
     # create the system we are going to simulate
-    if singleChannel:
+    if single_channel:
         system = RubySystem1Channel(
             kernel,
             disk,
@@ -194,66 +267,17 @@ if __name__ == "__m5_main__":
         print("Done booting Linux and reached to ROI")
         m5.stats.reset()
         print("Reset stats at the start of ROI")
-        start_tick = m5.curTick()
-        start_insts = system.totalInsts()
         # switching CPU to timing
         system.switchCpus(system.cpu, system.timingCpu)
-        print("Switched CPU from KVM to Timing!")
+        print("Switched CPU from KVM to timingCpu!")
     else:
         print(exit_event.getCause())
         print("Unexpected termination of simulation !")
         exit(1)
 
-    print("Start to running intervals!")
-    totalColdMisses = 0
-    numOfCacheBlks = 0
-    if singleChannel:
-        numOfCacheBlks = system.mem_ctrl.dram_cache_size / system.mem_ctrl.block_size
-    else:
-        numOfCacheBlks = num_cpus * system.mem_ctrl[0].dram_cache_size / system.mem_ctrl[0].block_size
-    print(numOfCacheBlks)
-
-    for interval_number in range(1): # 2.5 seconds
-        print("Interval number: {}\n".format(interval_number))
-        intervalColdMisses = 0
-        intervalTotalReqs = 0
-
-        exit_event = m5.simulate(100000000) # 100 ms
-        #if exit_event.getCause() != "simulate() limit reached":
-        #    if (
-        #        exit_event.getCause() == "workend"
-        #        or exit_event.getCause() == "workbegin"
-        #    ):
-        #        print("ROI bounds, continuing to stats ...")
-        #    else:
-        #        print(f"Exiting because {exit_event.getCause()}")
-        #        exit(1)
-        #
-        #simstats = get_simstat([polMan for polMan in system.mem_ctrl], prepare_stats=True)
-        #for i in range(num_cpus):
-        #    ctrl = simstats.__dict__[f"mem_ctrl{i}"]
-        #    intervalColdMisses += ctrl.numColdMisses.value
-        #    intervalTotalReqs += (ctrl.readReqs.value + ctrl.writeReqs.value)
-#
-        #totalColdMisses += intervalColdMisses
-#
-        #if totalColdMisses >= (numOfCacheBlks*0.95):
-        #    print("95%% of system's total DRAM cache is warmed up")
-        #    break
-        #elif (interval_number >= 150 and
-        #      float(intervalColdMisses/intervalTotalReqs) <= 0.05 and
-        #      exit_event.getCause() == "simulate() limit reached"):
-        #    print("Have run at about 1.5 sec and cold misses in a 100 ms"
-        #          "interval has been less than 5%%")
-        #    break
-        #m5.stats.reset()
-        #print("Warmup ratio so far: {}\n".format(float(totalColdMisses/numOfCacheBlks)))
-  
-    print("Exited warmup iterations")
-    if interval_number == 249 :
-        print("TIMEOUT!\n")
-    m5.stats.dump()
+    print("Start to run intervals!")
+    do_warmup()
+    print("Finished warmup iterations")
     system.switchCpus(system.timingCpu, system.o3Cpu)
     print("switched from timing to O3")
     m5.checkpoint(m5.options.outdir + "/cpt")
-

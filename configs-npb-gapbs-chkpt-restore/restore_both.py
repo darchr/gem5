@@ -37,6 +37,10 @@ from m5.objects import *
 from system import *
 
 from info import (
+    text_info,
+    interval_info_1GBdramCache_3hr,
+    benchmark_choices_gapbs,
+    benchmark_choices_npb,
     gapbs_benchmarks,
     npb_benchmarks,
 )
@@ -182,22 +186,17 @@ if __name__ == "__m5_main__":
         print("wrong benchmark choice!")
         exit(1)
 
-    num_cpus = 8
-    cpu_type = "Timing"
-    mem_sys = "MESI_Two_Level"
     synthetic = 1
+    num_cpus = 8
+    mem_sys = "MESI_Two_Level"
     dcache_size = "1GiB" # size of each channel
-    mem_size = "128GiB"
+    mem_size = "128GiB" # size of total main memory
     mem_size_per_channel = "64GiB"
-    single_channel_HBM = False
-    checkpoint_dir = "/home/babaie/projects/TDRAM-resubmission/8channelConfig/dramCacheController/cptTest/gapbs/bfs3/cpt"
+    single_channel = False
 
-    if args.isGAPBS == 1:
-        benchmark = args.benchmark
-    else:
-        benchmark = args.benchmark+"."+args.size+".x"
-
-    if single_channel_HBM:
+    checkpoint_dir = ""
+    
+    if single_channel:
             system = RubySystem1Channel(
             kernel,
             disk,
@@ -232,9 +231,11 @@ if __name__ == "__m5_main__":
             restore=True,
         )
 
-    app = benchmark
-    if args.isGAPBS:
-        app = benchmark+"-"+args.size
+    app = ""
+    if args.benchmark in gapbs_benchmarks:
+        app = args.benchmark + "-" + args.size
+    elif args.benchmark in npb_benchmarks:
+        app = args.benchmark+"."+args.size+".x"
 
     if args.do_analysis:
         lpmanager = O3LooppointAnalysisManager()
@@ -264,13 +265,17 @@ if __name__ == "__m5_main__":
 
     # Create and pass a script to the simulated system to run the reuired
     # benchmark
-    if args.isGAPBS:
+    if args.benchmark in gapbs_benchmarks:
         system.readfile = writeBenchScript_GAPBS(
-            m5.options.outdir, benchmark, args.size, synthetic
+            m5.options.outdir,
+            args.benchmark,
+            args.size,
+            synthetic
         )
-    else:
+    elif args.benchmark in npb_benchmarks:
         system.readfile = writeBenchScript_NPB(
-            m5.options.outdir, benchmark
+            m5.options.outdir,
+            app
         )
 
     # set up the root SimObject and start the simulation

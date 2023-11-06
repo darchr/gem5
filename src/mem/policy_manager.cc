@@ -75,12 +75,12 @@ PolicyManager::PolicyManager(const PolicyManagerParams &p):
 Tick
 PolicyManager::recvAtomic(PacketPtr pkt)
 {
+    DPRINTF(PolicyManager, "recvAtomic: %s %d\n",
+                     pkt->cmdString(), pkt->getAddr());
+
     if (!getAddrRange().contains(pkt->getAddr())) {
         panic("Can't handle address range for packet %s\n", pkt->print());
     }
-
-    DPRINTF(PolicyManager, "recvAtomic: %s %d\n",
-                     pkt->cmdString(), pkt->getAddr());
 
     panic_if(pkt->cacheResponding(), "Should not see packets where cache "
              "is responding");
@@ -3322,7 +3322,8 @@ PolicyManager::drain()
 void
 PolicyManager::serialize(CheckpointOut &cp) const
 {
-    warn_if(numColdMisses > tagMetadataStore.size()*assoc, "numColdMisses is more than the total blocks!");
+    warn_if(numColdMisses > tagMetadataStore.size()*assoc,
+            "numColdMisses is more than the total blocks!");
     DPRINTF(ChkptRstrTest, "name: %s\n", "tagMetadataStore"+channelIndex);
     
     ScopedCheckpointSection sec(cp, "tagMetadataStore"+channelIndex);
@@ -3331,29 +3332,28 @@ PolicyManager::serialize(CheckpointOut &cp) const
     int invalids = 0;
     for (auto const &set : tagMetadataStore) {
         for (auto const way : set) {
-            ScopedCheckpointSection sec_entry(cp,csprintf("Entry%d", count++));
             if (way->validLine) {
+                ScopedCheckpointSection sec_entry(cp,csprintf("Entry%d", count++));
                 paramOut(cp, "dirtyLine", way->dirtyLine);
                 paramOut(cp, "farMemAddr", way->farMemAddr);
                 paramOut(cp, "counter", way->counter);
                 paramOut(cp, "tickEntered", way->tickEntered);
-                // DPRINTF(ChkptRstrTest, "v: %d, %d, %d, %d, %d\n",
-                //         way->farMemAddr,
-                //         way->indexDC, way->tagDC,
-                //         way->validLine, way->dirtyLine);
+                Tick lastTouchTick = replacementPolicy->getLastTouchTick(way->replacementData);
+                assert(lastTouchTick != MaxTick);
+                paramOut(cp, "lastTouchTick", lastTouchTick);
             } else {
-                // paramOut(cp, "validLine", way->validLine);
                 invalids++;
             }
         }
     }
-    warn_if((tagMetadataStore.size()*assoc - numColdMisses) != invalids, "Number of invalids did not match\n");
+    warn_if((tagMetadataStore.size()*assoc - numColdMisses) != invalids,
+             "Number of invalids did not match\n");
     DPRINTF(ChkptRstrTest, "invalids: %d\n", invalids);
 }
 
 void
 PolicyManager::unserialize(CheckpointIn &cp)
-{ 
+{
     DPRINTF(ChkptRstrTest, "name: %s\n", "tagMetadataStore"+channelIndex);
 
     ScopedCheckpointSection sec(cp, "tagMetadataStore"+channelIndex);
@@ -3366,11 +3366,13 @@ PolicyManager::unserialize(CheckpointIn &cp)
         Addr farAddr;
         unsigned counter;
         uint64_t tickEntered;
+        Tick lastTouchTick;
 
         paramIn(cp, "dirtyLine", dirty);
         paramIn(cp, "farMemAddr",farAddr);
         paramIn(cp, "counter", counter);
         paramIn(cp, "tickEntered", tickEntered);
+        paramIn(cp, "lastTouchTick", lastTouchTick);
 
         assert(getAddrRange().contains(farAddr));
         countValid++;
@@ -3381,18 +3383,29 @@ PolicyManager::unserialize(CheckpointIn &cp)
         if (way ==-1) {
             way = 0; // so it always works for direct-mapped
         }
+
         tagMetadataStore.at(index).at(way)->tagDC = tag;
         tagMetadataStore.at(index).at(way)->indexDC = index;
         tagMetadataStore.at(index).at(way)->validLine = true;
         tagMetadataStore.at(index).at(way)->dirtyLine = dirty;
         tagMetadataStore.at(index).at(way)->farMemAddr = farAddr;
+        tagMetadataStore.at(index).at(way)->counter = counter;
+        tagMetadataStore.at(index).at(way)->tickEntered = tickEntered;
+        replacementPolicy->setLastTouchTick(
+                           tagMetadataStore.at(index).at(way)->replacementData,
+                           lastTouchTick);
 
-        // DPRINTF(ChkptRstrTest, "%d, %d, %d, %d, %d\n",
-        //         tagMetadataStore.at(index).at(way)->farMemAddr,
-        //         tagMetadataStore.at(index).at(way)->tagDC,
-        //         tagMetadataStore.at(index).at(way)->indexDC,
-        //         tagMetadataStore.at(index).at(way)->validLine,
-        //         tagMetadataStore.at(index).at(way)->dirtyLine);
+        DPRINTF(ChkptRstrTest, "%d, %d, %d, %d, %d, %d, %d, %d\n",
+        tagMetadataStore.at(index).at(way)->tagDC,
+        tagMetadataStore.at(index).at(way)->indexDC,
+        tagMetadataStore.at(index).at(way)->validLine,
+        tagMetadataStore.at(index).at(way)->dirtyLine,
+        tagMetadataStore.at(index).at(way)->farMemAddr,
+        tagMetadataStore.at(index).at(way)->counter,
+        tagMetadataStore.at(index).at(way)->tickEntered,
+        replacementPolicy->getLastTouchTick(
+                           tagMetadataStore.at(index).at(way)->replacementData));
+        
     }
 }
 
