@@ -86,7 +86,9 @@ PolicyManager::recvAtomic(PacketPtr pkt)
              "is responding");
 
     // do the actual memory access and turn the packet into a response
-    access(pkt);
+    // access(pkt);
+
+    handleRequestorPktAtomic(pkt);
 
     if (pkt->hasData()) {
         // this value is not supposed to be accurate, just enough to
@@ -2224,6 +2226,92 @@ PolicyManager::handleNextState(reqBufferEntry* orbEntry)
 }
 
 void
+PolicyManager::handleRequestorPktAtomic(PacketPtr pkt)
+{
+    Addr tag = returnTagDC(pkt->getAddr(), pkt->getSize());
+    Addr index = returnIndexDC(pkt->getAddr(), pkt->getSize());
+    Addr way = findMatchingWay(index, tag);
+
+    if (way == noMatchingWay) {
+        // MISSED! Candidate = Either there's an empty way to
+        // fill in or a victim will be selected.
+        way = getCandidateWay(index);
+
+        // This is the current resident that is about to leave.
+        if (tagMetadataStore.at(index).at(way)->validLine) {
+                capacityTracker[tagMetadataStore.at(index).at(way)->farMemAddr] = blksInserted;
+                polManStats.blkReuse.sample(tagMetadataStore.at(index).at(way)->counter);
+                assert(tagMetadataStore.at(index).at(way)->tickEntered != MaxTick);
+                assert(curTick() >= tagMetadataStore.at(index).at(way)->tickEntered);
+                polManStats.ticksBeforeEviction.sample(
+                    curTick() - tagMetadataStore.at(index).at(way)->tickEntered
+                );
+        }
+    }
+
+    assert(way < assoc);
+
+    polManStats.avgORBLen = ORB.size();
+    polManStats.avgTagCheckQLenStrt = countTagCheckInORB();
+    polManStats.avgLocRdQLenStrt = countLocRdInORB();
+    polManStats.avgFarRdQLenStrt = countFarRdInORB();
+    polManStats.avgLocWrQLenStrt = countLocWrInORB();
+    polManStats.avgFarWrQLenStrt = countFarWr();
+
+    Addr addr = pkt->getAddr();
+    unsigned burst_size = locBurstSize;
+    unsigned size = std::min((addr | (burst_size - 1)) + 1,
+                              addr + pkt->getSize()) - addr;
+
+    if(pkt->isRead()) {
+        polManStats.bytesReadSys += size;
+        polManStats.readPktSize[ceilLog2(size)]++;
+        polManStats.readReqs++;
+    } else {
+        polManStats.bytesWrittenSys += size;
+        polManStats.writePktSize[ceilLog2(size)]++;
+        polManStats.writeReqs++;
+    }
+
+    bool isHit = checkHitOrMissAtomic(index, way, pkt);
+    bool wasDirty = tagMetadataStore.at(index).at(way)->validLine &&
+                    tagMetadataStore.at(index).at(way)->dirtyLine;
+
+    // Updating Tag & Metadata
+    tagMetadataStore.at(index).at(way)->tagDC = tag;
+    tagMetadataStore.at(index).at(way)->indexDC = index;
+    tagMetadataStore.at(index).at(way)->validLine = true;
+    tagMetadataStore.at(index).at(way)->farMemAddr = pkt->getAddr();
+    replacementPolicy->touch(tagMetadataStore.at(index).at(way)->replacementData, pkt);
+
+    if (pkt->isRead() && !isHit) {
+        tagMetadataStore.at(index).at(way)->dirtyLine = false;
+    }
+    if (!pkt->isRead()) { // write
+        tagMetadataStore.at(index).at(way)->dirtyLine = true;
+    }
+
+    if (isHit) {
+        tagMetadataStore.at(index).at(way)->counter++;
+    } else {
+        tagMetadataStore.at(index).at(way)->counter = 0;
+        tagMetadataStore.at(index).at(way)->tickEntered = curTick();
+
+        if (capacityTracker.find(pkt->getAddr()) != capacityTracker.end()) {
+            polManStats.missDistance.sample(blksInserted - capacityTracker[pkt->getAddr()]);
+            capacityTracker.erase(pkt->getAddr());            
+        }
+        
+        blksInserted++;
+    }
+
+    DPRINTF(PolicyManager, "ORB+: adr= %d, index= %d, tag= %d, cmd= %s, isHit= %d, wasDirty= %d\n",
+            pkt->getAddr(), index, tag, pkt->cmdString(),
+            isHit, wasDirty);
+
+}
+
+void
 PolicyManager::handleRequestorPkt(PacketPtr pkt)
 {
     Addr tag = returnTagDC(pkt->getAddr(), pkt->getSize());
@@ -2344,8 +2432,7 @@ PolicyManager::handleRequestorPkt(PacketPtr pkt)
     if (extreme) {
         orbEntry->prevDirty = alwaysDirty;
     } else {
-        orbEntry->prevDirty = tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->validLine && 
-                              tagMetadataStore.at(orbEntry->indexDC).at(orbEntry->wayNum)->dirtyLine;
+        orbEntry->prevDirty = checkDirty(orbEntry->indexDC, orbEntry->wayNum);
     }
 
     // Updating Tag & Metadata
@@ -2399,6 +2486,91 @@ PolicyManager::checkConflictInORB(PacketPtr pkt)
         return true;
     }
     return false;
+}
+
+bool
+PolicyManager::checkHitOrMissAtomic(unsigned index, unsigned way, PacketPtr pkt)
+{
+    // look up the tagMetadataStore data structure to
+    // check if it's hit or miss
+
+    bool currValid = tagMetadataStore.at(index).at(way)->validLine;
+    bool currDirty = tagMetadataStore.at(index).at(way)->dirtyLine;
+
+    Addr tag = returnTagDC(pkt->getAddr(), blockSize);
+
+    bool isHit = currValid && (tag == tagMetadataStore.at(index).at(way)->tagDC);
+
+    if (isHit) {
+
+        polManStats.numTotHits++;
+
+        if (pkt->isRead()) {
+            polManStats.numRdHit++;
+            if (currDirty) {
+                polManStats.numRdHitDirty++;
+            } else {
+                polManStats.numRdHitClean++;
+            }
+        } else {
+            polManStats.numWrHit++;
+            if (currDirty) {
+                polManStats.numWrHitDirty++;
+            } else {
+                polManStats.numWrHitClean++;
+            }
+        }
+
+    } else {
+
+        polManStats.numTotMisses++;
+
+        unsigned invalidBlocks = 0;
+        for (int i = 0; i < assoc; i++) {
+            if (!tagMetadataStore.at(index).at(i)->validLine) {
+                invalidBlocks++;
+            }
+        }
+
+        if (invalidBlocks == assoc) {
+            polManStats.numColdMissesSet++;
+        }
+
+        if (currValid) {
+            polManStats.numHotMisses++;
+        } else {
+            polManStats.numColdMisses++;
+            numColdMisses++;
+        }
+
+        if (pkt->isRead()) {
+            if (currDirty && currValid) {
+                polManStats.numRdMissDirty++;
+            } else {
+                polManStats.numRdMissClean++;
+            }
+        } else {
+            if (currDirty && currValid) {
+                polManStats.numWrMissDirty++;
+            } else {
+                polManStats.numWrMissClean++;
+            }
+
+        }
+    }
+
+    if ((numColdMisses >= (unsigned)(infoCacheWarmupRatio * dramCacheSize/blockSize)) && !resetStatsWarmup) {
+        inform("DRAM cache warm up percentage : %f,  @ %d .. \n", infoCacheWarmupRatio*100.0, curTick());
+        infoCacheWarmupRatio = infoCacheWarmupRatio + 0.05;
+    }
+
+    if ((numColdMisses >= (unsigned)(cacheWarmupRatio * dramCacheSize/blockSize)) && !resetStatsWarmup) {
+        inform("DRAM cache fully warmed up @ %d .. \n", curTick());
+        // exitSimLoop("cacheIsWarmedup",0);
+        resetStatsWarmup = true;
+    }
+
+    return isHit;
 }
 
 void
@@ -2483,7 +2655,7 @@ PolicyManager::checkHitOrMiss(reqBufferEntry* orbEntry)
 
     if ((numColdMisses >= (unsigned)(cacheWarmupRatio * dramCacheSize/blockSize)) && !resetStatsWarmup) {
         inform("DRAM cache fully warmed up @ %d .. \n", curTick());
-        exitSimLoop("cacheIsWarmedup",0);
+        // exitSimLoop("cacheIsWarmedup",0);
         resetStatsWarmup = true;
     }
 }

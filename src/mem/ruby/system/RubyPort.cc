@@ -368,13 +368,18 @@ RubyPort::MemResponsePort::recvAtomic(PacketPtr pkt)
                     pkt->getAddr(), (MachineType)mem_interface_type);
     AbstractController *mem_interface =
         rs->m_abstract_controls[mem_interface_type][id.getNum()];
-    Tick latency;
-    if (access_backing_store) {
+    // Tick latency;
+    // if (access_backing_store) {
+    //     rs->getPhysMem(pkt->getAddr())->access(pkt);
+    //     latency = 1000;
+    // } else {
+    //     latency = mem_interface->recvAtomic(pkt);
+    // }
+
+    Tick latency = mem_interface->recvAtomic(pkt);
+    if (access_backing_store)
         rs->getPhysMem(pkt->getAddr())->access(pkt);
-        latency = 1000;
-    } else {
-        latency = mem_interface->recvAtomic(pkt);
-    }
+
     return latency;
 }
 

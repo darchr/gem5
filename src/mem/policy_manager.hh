@@ -353,7 +353,9 @@ class PolicyManager : public AbstractMemory
     void sendRespondToRequestor(PacketPtr pkt, Tick static_latency);
     void printQSizes() {}
     void handleRequestorPkt(PacketPtr pkt);
+    void handleRequestorPktAtomic(PacketPtr pkt);
     void checkHitOrMiss(reqBufferEntry* orbEntry);
+    bool checkHitOrMissAtomic(unsigned index, unsigned way, PacketPtr pkt);
     bool checkDirty(Addr index, int way);
     void handleDirtyCacheLine(Addr dirtyLineAddr);
     bool checkConflictInORB(PacketPtr pkt);

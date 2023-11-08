@@ -83,7 +83,7 @@ def writeBenchScript_NPB(dir, bench):
     return file_name
 
 
-def do_warmup():
+def do_warmup(system, single_channel):
     prevTotalColdMisses = 0
     prevTotalMemReqs = 0
     numOfCacheBlks = 0
@@ -95,7 +95,7 @@ def do_warmup():
 
     iteration_duration = 100_000_000_000 # 100 ms
 
-    for interval_number in range(30): # ~3 seconds
+    for interval_number in range(40): # ~4 seconds
         print("Interval number: {}".format(interval_number))
         intervalColdMisses = 0
         intervalMemReqs = 0
@@ -130,13 +130,20 @@ def do_warmup():
         intervalMemReqs = currentMemReqs - prevTotalMemReqs
 
         if currentColdMisses >= (numOfCacheBlks*0.95):
-            print("95%% of system's total DRAM cache is warmed up")
+            print("95% of system's total DRAM cache is warmed up")
             break
-        elif (interval_number >= 20 and
-              float(intervalColdMisses/intervalMemReqs) <= 0.06 and
+        elif (interval_number >= 20 and interval_number < 30 and
+              float(intervalColdMisses/intervalMemReqs) <= 0.05 and
+              float(currentColdMisses/currentMemReqs) <= 0.01 and
               (end_tick - start_tick) == iteration_duration):
             print("Have run about 2 sec and cold misses "
-                  "in 100 ms interval has been less than 6%%")
+                  "in 100 ms interval has been less than 5% and"
+                  "total cold misses is less than 1%")
+            break
+        elif (interval_number >= 30 and
+              float(currentColdMisses/currentMemReqs) <= 0.01):
+            print("Have run about 3 sec and total cold misses "
+                  "are less than 1%")
             break
         # m5.stats.dump()
         # m5.stats.reset()
@@ -186,8 +193,8 @@ if __name__ == "__m5_main__":
     mem_sys = "MESI_Two_Level"
     dcache_policy = "CascadeLakeNoPartWrs"
     dcache_size = "1GiB" # size of each channel
-    mem_size = "128GiB" # size of total main memory
-    mem_size_per_channel = "64GiB"
+    mem_size = "8GiB" # size of total main memory
+    mem_size_per_channel = "4GiB"
     assoc = 1
     single_channel = False
 
@@ -268,16 +275,16 @@ if __name__ == "__m5_main__":
         m5.stats.reset()
         print("Reset stats at the start of ROI")
         # switching CPU to timing
-        system.switchCpus(system.cpu, system.timingCpu)
-        print("Switched CPU from KVM to timingCpu!")
+        system.switchCpus(system.cpu, system.atomicNoncachingCpu)
+        print("Switched CPU from KVM to atomicNoncachingCpu!")
     else:
         print(exit_event.getCause())
         print("Unexpected termination of simulation !")
         exit(1)
 
     print("Start to run intervals!")
-    do_warmup()
+    do_warmup(system,single_channel)
     print("Finished warmup iterations")
-    system.switchCpus(system.timingCpu, system.o3Cpu)
+    system.switchCpus(system.atomicNoncachingCpu, system.o3Cpu)
     print("switched from timing to O3")
     m5.checkpoint(m5.options.outdir + "/cpt")
