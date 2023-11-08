@@ -13,5 +13,5 @@ class MessageQueue(ClockedObject):
     cpu_side = ResponsePort("Core side ports, receives updates")
     mem_side = RequestPort("Core fake port")
     queueSize = Param.Int(1024, "Max size a queue can be")
-    my_range = Param.AddrRange("Address range of queue")
+    myRange = Param.AddrRange("Address range of queue")
     # port_connection_count = Param.Int("how many ports")
