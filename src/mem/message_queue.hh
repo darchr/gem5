@@ -9,6 +9,8 @@
 #include "mem/packet_access.hh"
 #include "debug/MessageQueue.hh"
 #include "dev/io_device.hh"
+#include "base/statistics.hh"
+
 
 #include <deque>
 #include <stdlib.h>
@@ -20,7 +22,7 @@ namespace gem5
 {
 
 // struct __attribute__ ((packed)) Update
-struct Update
+struct __attribute__ ((packed)) Update
 {
     // uint16_t weight : 16;
     // uint64_t dst_id : 48;
@@ -130,6 +132,24 @@ class MessageQueue : public ClockedObject
 
         EventFunctionWrapper nextWriteEvent;
         void processNextWriteEvent();
+
+
+
+
+
+    //     struct MessageQueueStats : public statistics::Group
+    //     {
+    //         MessageQueueStats(MessageQueue& _msgqueue);
+
+    //         void regStats() override;
+
+    //         MessageQueue &msgqueue;
+    //         statistics::Scalar numMessagesReceived;
+    //         statistics::Scalar maxQueueLength;
+   
+    //     };
+
+    // MessageQueueStats stats;
 
     protected:
 
