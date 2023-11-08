@@ -9,10 +9,9 @@ def get_microbenchmarks() -> List[str]:
     # TODO: this will be replaced with the suite later
 
     microbenchmarks = [
-        workload
-        for workload in obtain_resource(
-            "riscv-vertical-microbenchmarks"
-        ).with_input_group("cca")
+        obtain_resource("riscv-cca-run"),
+        obtain_resource("riscv-cce-run"),
+        obtain_resource("riscv-dpt-run"),
     ]
 
     return microbenchmarks

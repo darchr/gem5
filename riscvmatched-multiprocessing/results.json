@@ -1,79 +1,243 @@
 [
     {
-        "parameter": "threadPolicy",
-        "values": [
-            {
-                "value": "\"RoundRobin\"",
-                "workloads": [
-                    {
-                        "workload": "riscv-cca-run",
-                        "IPC": 1.209809395887132
-                    }
-                ]
-            },
-            {
-                "value": "\"SingleThreaded\"",
-                "workloads": [
-                    {
-                        "workload": "riscv-cca-run",
-                        "IPC": 1.2098131875912785
-                    }
-                ]
-            }
-        ]
-    },
-    {
-        "parameter": "executeFuncUnits",
-        "values": [
-            {
-                "value": "2",
-                "workloads": [
-                    {
-                        "workload": "riscv-cca-run",
-                        "IPC": 1.2098068933754154
-                    }
-                ]
-            },
-            {
-                "value": "4",
-                "workloads": [
-                    {
-                        "workload": "riscv-cca-run",
-                        "IPC": 1.094715451189377
-                    }
-                ]
-            },
-            {
-                "value": "3",
-                "workloads": [
-                    {
-                        "workload": "riscv-cca-run",
-                        "IPC": 1.1493762564956347
-                    }
-                ]
-            }
-        ]
-    },
-    {
         "parameter": "enableIdling",
         "values": [
             {
                 "value": "False",
                 "workloads": [
                     {
+                        "workload": "riscv-dpt-run",
+                        "stats": {
+                            "Instructions": 23770945,
+                            "Cycles": 34046218,
+                            "IPC": 0.6981963459201254,
+                            "Seconds": 0.02836,
+                            "Branches": 4919151
+                        }
+                    },
+                    {
                         "workload": "riscv-cca-run",
-                        "IPC": 1.2098131875912785
+                        "stats": {
+                            "Instructions": 96503004,
+                            "Cycles": 79766864,
+                            "IPC": 1.2098131875912785,
+                            "Seconds": 0.066446,
+                            "Branches": 8399207
+                        }
+                    },
+                    {
+                        "workload": "riscv-cce-run",
+                        "stats": {
+                            "Instructions": 256559341,
+                            "Cycles": 216144382,
+                            "IPC": 1.1869813067822415,
+                            "Seconds": 0.180048,
+                            "Branches": 22523438
+                        }
                     }
-                ]
+                ],
+                "average": {
+                    "overall": {
+                        "Instructions": 125611096.66666667,
+                        "Cycles": 109985821.33333333,
+                        "IPC": 1.1420662694873907,
+                        "Seconds": 0.09161800000000002,
+                        "Branches": 11947265.333333334
+                    },
+                    "control": {
+                        "Instructions": 176531172.5,
+                        "Cycles": 147955623.0,
+                        "IPC": 1.1931359479321715,
+                        "Seconds": 0.12324700000000001,
+                        "Branches": 15461322.5
+                    },
+                    "data_dependency": {
+                        "Instructions": 23770945.0,
+                        "Cycles": 34046218.0,
+                        "IPC": 0.6981963459201254,
+                        "Seconds": 0.02836,
+                        "Branches": 4919151.0
+                    }
+                }
             },
             {
                 "value": "True",
                 "workloads": [
                     {
                         "workload": "riscv-cca-run",
-                        "IPC": 1.2098081218798735
+                        "stats": {
+                            "Instructions": 96503004,
+                            "Cycles": 79767198,
+                            "IPC": 1.2098081218798735,
+                            "Seconds": 0.066446,
+                            "Branches": 8399207
+                        }
+                    },
+                    {
+                        "workload": "riscv-cce-run",
+                        "stats": {
+                            "Instructions": 256559341,
+                            "Cycles": 216144684,
+                            "IPC": 1.1869796483174206,
+                            "Seconds": 0.180049,
+                            "Branches": 22523438
+                        }
+                    },
+                    {
+                        "workload": "riscv-dpt-run",
+                        "stats": {
+                            "Instructions": 23770945,
+                            "Cycles": 34046495,
+                            "IPC": 0.6981906654414793,
+                            "Seconds": 0.028361,
+                            "Branches": 4919151
+                        }
                     }
-                ]
+                ],
+                "average": {
+                    "overall": {
+                        "Instructions": 125611096.66666667,
+                        "Cycles": 109986125.66666667,
+                        "IPC": 1.1420631093721254,
+                        "Seconds": 0.09161866666666667,
+                        "Branches": 11947265.333333334
+                    },
+                    "control": {
+                        "Instructions": 176531172.5,
+                        "Cycles": 147955941.0,
+                        "IPC": 1.1931333835388198,
+                        "Seconds": 0.1232475,
+                        "Branches": 15461322.5
+                    },
+                    "data_dependency": {
+                        "Instructions": 23770945.0,
+                        "Cycles": 34046495.0,
+                        "IPC": 0.6981906654414793,
+                        "Seconds": 0.028361,
+                        "Branches": 4919151.0
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "parameter": "threadPolicy",
+        "values": [
+            {
+                "value": "\"SingleThreaded\"",
+                "workloads": [
+                    {
+                        "workload": "riscv-cce-run",
+                        "stats": {
+                            "Instructions": 256559341,
+                            "Cycles": 216144382,
+                            "IPC": 1.1869813067822415,
+                            "Seconds": 0.180048,
+                            "Branches": 22523438
+                        }
+                    },
+                    {
+                        "workload": "riscv-dpt-run",
+                        "stats": {
+                            "Instructions": 23770945,
+                            "Cycles": 34046218,
+                            "IPC": 0.6981963459201254,
+                            "Seconds": 0.02836,
+                            "Branches": 4919151
+                        }
+                    },
+                    {
+                        "workload": "riscv-cca-run",
+                        "stats": {
+                            "Instructions": 96503004,
+                            "Cycles": 79766864,
+                            "IPC": 1.2098131875912785,
+                            "Seconds": 0.066446,
+                            "Branches": 8399207
+                        }
+                    }
+                ],
+                "average": {
+                    "overall": {
+                        "Instructions": 125611096.66666667,
+                        "Cycles": 109985821.33333333,
+                        "IPC": 1.1420662694873907,
+                        "Seconds": 0.09161800000000002,
+                        "Branches": 11947265.333333334
+                    },
+                    "control": {
+                        "Instructions": 176531172.5,
+                        "Cycles": 147955623.0,
+                        "IPC": 1.1931359479321715,
+                        "Seconds": 0.12324700000000001,
+                        "Branches": 15461322.5
+                    },
+                    "data_dependency": {
+                        "Instructions": 23770945.0,
+                        "Cycles": 34046218.0,
+                        "IPC": 0.6981963459201254,
+                        "Seconds": 0.02836,
+                        "Branches": 4919151.0
+                    }
+                }
+            },
+            {
+                "value": "\"RoundRobin\"",
+                "workloads": [
+                    {
+                        "workload": "riscv-cca-run",
+                        "stats": {
+                            "Instructions": 96503004,
+                            "Cycles": 79767114,
+                            "IPC": 1.209809395887132,
+                            "Seconds": 0.066446,
+                            "Branches": 8399206
+                        }
+                    },
+                    {
+                        "workload": "riscv-dpt-run",
+                        "stats": {
+                            "Instructions": 23770945,
+                            "Cycles": 34046291,
+                            "IPC": 0.6981948488897073,
+                            "Seconds": 0.028361,
+                            "Branches": 4919150
+                        }
+                    },
+                    {
+                        "workload": "riscv-cce-run",
+                        "stats": {
+                            "Instructions": 256559341,
+                            "Cycles": 216144499,
+                            "IPC": 1.1869806642638636,
+                            "Seconds": 0.180048,
+                            "Branches": 22523434
+                        }
+                    }
+                ],
+                "average": {
+                    "overall": {
+                        "Instructions": 125611096.66666667,
+                        "Cycles": 109985968.0,
+                        "IPC": 1.1420647465380918,
+                        "Seconds": 0.09161833333333334,
+                        "Branches": 11947263.333333334
+                    },
+                    "control": {
+                        "Instructions": 176531172.5,
+                        "Cycles": 147955806.5,
+                        "IPC": 1.1931344681629645,
+                        "Seconds": 0.12324700000000001,
+                        "Branches": 15461320.0
+                    },
+                    "data_dependency": {
+                        "Instructions": 23770945.0,
+                        "Cycles": 34046291.0,
+                        "IPC": 0.6981948488897073,
+                        "Seconds": 0.028361,
+                        "Branches": 4919150.0
+                    }
+                }
             }
         ]
     }
