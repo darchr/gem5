@@ -43,7 +43,6 @@ class RubySystem8Channel(System):
         assoc,
         dcache_size,  # size of 1 channel
         main_mem_size,
-        mem_size_per_channel,
         policy,
         is_link,
         link_lat,
@@ -119,6 +118,9 @@ class RubySystem8Channel(System):
             AddrRange(Addr("128MiB")),  # kernel data
             AddrRange(0xC0000000, size=0x100000),  # For I/0
         ] + self._data_ranges
+        
+        self._total_data_range=[AddrRange(
+                0x100000000, size=main_mem_size)]
 
         self.initFS(num_cpus)
 
@@ -146,7 +148,6 @@ class RubySystem8Channel(System):
         self._createMemoryControllers(
             assoc,
             dcache_size,
-            mem_size_per_channel,
             policy,
             is_link,
             link_lat,
@@ -249,7 +250,6 @@ class RubySystem8Channel(System):
         self,
         assoc,
         dcache_size,
-        mem_size_per_channel,
         policy,
         is_link,
         link_lat,
@@ -263,7 +263,6 @@ class RubySystem8Channel(System):
             PolicyManager(range=r, kvm_map=False, channel_index=str(i)) for i, r in enumerate(self.mem_ranges[2:])
         ]
         self.loc_mem_ctrl = [MemCtrl() for i in range(8)]
-        self.far_mem_ctrl = [MemCtrl() for i in range(2)]
 
         self.membusPolManFarMem = L2XBar(width=64)
         self.membusPolManFarMem.frontend_latency = link_lat
@@ -302,23 +301,22 @@ class RubySystem8Channel(System):
             self.loc_mem_ctrl[i].port = self.mem_ctrl[i].loc_req_port
 
         # main memory
-        for i in range(2):
-            self.far_mem_ctrl[i] = MemCtrl()
-            self.far_mem_ctrl[i].dram = DDR5_4400_4x8(
-                range=AddrRange(
-                    start=0x100000000,
-                    size=self._main_mem_size,
-                    masks=[1 << 6],
-                    intlvMatch=i,
-                ),
-                in_addr_map=False, kvm_map=False, null = True
-            )
-            self.far_mem_ctrl[i].dram.device_size = mem_size_per_channel
-            self.far_mem_ctrl[i].static_frontend_latency = "1ns"
-            self.far_mem_ctrl[i].static_backend_latency = "1ns"
-            self.far_mem_ctrl[i].dram.read_buffer_size = 64
-            self.far_mem_ctrl[i].dram.write_buffer_size = 64
-            self.membusPolManFarMem.mem_side_ports = self.far_mem_ctrl[i].port
+        self.far_mem_ctrl = MemCtrl()
+        self.far_mem_ctrl.dram = DDR5_4400_4x8(
+            range=AddrRange(
+                start=0x100000000,
+                size=self._main_mem_size,
+                # masks=[1 << 6],
+                # intlvMatch=i,
+            ),
+            in_addr_map=False, kvm_map=False, null = True
+        )
+        self.far_mem_ctrl.dram.device_size = self._main_mem_size
+        self.far_mem_ctrl.static_frontend_latency = "1ns"
+        self.far_mem_ctrl.static_backend_latency = "1ns"
+        self.far_mem_ctrl.dram.read_buffer_size = 64
+        self.far_mem_ctrl.dram.write_buffer_size = 64
+        self.membusPolManFarMem.mem_side_ports = self.far_mem_ctrl.port
 
     def initFS(self, cpus):
         self.pc = Pc()
@@ -414,7 +412,7 @@ class RubySystem8Channel(System):
             ),
             X86E820Entry(
                 addr=0x100000000,
-                size="%dB" % (self.mem_ranges[2].size()),
+                size="%dB" % (self._total_data_range[0].size()),
                 range_type=1,
             ),
         ]

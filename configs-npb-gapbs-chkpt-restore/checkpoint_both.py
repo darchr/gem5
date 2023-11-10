@@ -95,7 +95,7 @@ def do_warmup(system, single_channel):
 
     iteration_duration = 100_000_000_000 # 100 ms
 
-    for interval_number in range(40): # ~4 seconds
+    for interval_number in range(10):
         print("Interval number: {}".format(interval_number))
         intervalColdMisses = 0
         intervalMemReqs = 0
@@ -132,18 +132,8 @@ def do_warmup(system, single_channel):
         if currentColdMisses >= (numOfCacheBlks*0.95):
             print("95% of system's total DRAM cache is warmed up")
             break
-        elif (interval_number >= 20 and interval_number < 30 and
-              float(intervalColdMisses/intervalMemReqs) <= 0.05 and
-              float(currentColdMisses/currentMemReqs) <= 0.01 and
-              (end_tick - start_tick) == iteration_duration):
-            print("Have run about 2 sec and cold misses "
-                  "in 100 ms interval has been less than 5% and"
-                  "total cold misses is less than 1%")
-            break
-        elif (interval_number >= 30 and
-              float(currentColdMisses/currentMemReqs) <= 0.01):
-            print("Have run about 3 sec and total cold misses "
-                  "are less than 1%")
+        elif (float(currentColdMisses/currentMemReqs) <= 0.01):
+            print("Total cold misses is less than 1% of the total mem requests")
             break
         # m5.stats.dump()
         # m5.stats.reset()
@@ -154,7 +144,7 @@ def do_warmup(system, single_channel):
         print("----------------------------------------------------------------------------------\n")
 
     print("\n")
-    if interval_number == 29 :
+    if interval_number == 9:
         print("TIMEOUT!\n")
     m5.stats.dump()
 
@@ -193,8 +183,7 @@ if __name__ == "__m5_main__":
     mem_sys = "MESI_Two_Level"
     dcache_policy = "CascadeLakeNoPartWrs"
     dcache_size = "1GiB" # size of each channel
-    mem_size = "8GiB" # size of total main memory
-    mem_size_per_channel = "4GiB"
+    mem_size = "5GiB" # size of total main memory
     assoc = 1
     single_channel = False
 
@@ -208,7 +197,6 @@ if __name__ == "__m5_main__":
             assoc,
             dcache_size,
             mem_size,
-            mem_size_per_channel,
             dcache_policy,
             0,
             0,
@@ -224,7 +212,6 @@ if __name__ == "__m5_main__":
             assoc,
             dcache_size,
             mem_size,
-            mem_size_per_channel,
             dcache_policy,
             0,
             0,
@@ -286,5 +273,5 @@ if __name__ == "__m5_main__":
     do_warmup(system,single_channel)
     print("Finished warmup iterations")
     system.switchCpus(system.atomicNoncachingCpu, system.o3Cpu)
-    print("switched from timing to O3")
+    print("switched from atomicNoncachingCpu to O3")
     m5.checkpoint(m5.options.outdir + "/cpt")
