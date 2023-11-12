@@ -39,10 +39,9 @@ from system import *
 from info import (
     text_info,
     interval_info_1GBdramCache_3hr,
-    benchmark_choices_gapbs,
-    benchmark_choices_npb,
     gapbs_benchmarks,
     npb_benchmarks,
+    main_mem_size,
 )
 
 def writeBenchScript_GAPBS(dir, benchmark_name, size, synthetic):
@@ -190,8 +189,7 @@ if __name__ == "__m5_main__":
     num_cpus = 8
     mem_sys = "MESI_Two_Level"
     dcache_size = "1GiB" # size of each channel
-    mem_size = "128GiB" # size of total main memory
-    mem_size_per_channel = "64GiB"
+    mem_size = main_mem_size(args.benchmark + "-" + args.size) # size of total main memory
     single_channel = False
 
     checkpoint_dir = ""
@@ -205,7 +203,6 @@ if __name__ == "__m5_main__":
             args.assoc,
             dcache_size,
             mem_size,
-            mem_size_per_channel,
             args.dcache_policy,
             args.is_link,
             args.link_lat,
@@ -222,7 +219,6 @@ if __name__ == "__m5_main__":
             args.assoc,
             dcache_size,
             mem_size,
-            mem_size_per_channel,
             args.dcache_policy,
             args.is_link,
             args.link_lat,

@@ -39,6 +39,7 @@ from m5.stats.gem5stats import get_simstat
 from info import (
     gapbs_benchmarks,
     npb_benchmarks,
+    main_mem_size,
 )
 
 
@@ -135,7 +136,7 @@ def do_warmup(system, single_channel):
         elif (float(currentColdMisses/currentMemReqs) <= 0.01):
             print("Total cold misses is less than 1% of the total mem requests")
             break
-        # m5.stats.dump()
+        m5.stats.dump()
         # m5.stats.reset()
         prevTotalColdMisses = currentColdMisses
         prevTotalMemReqs = currentMemReqs
@@ -183,9 +184,11 @@ if __name__ == "__m5_main__":
     mem_sys = "MESI_Two_Level"
     dcache_policy = "CascadeLakeNoPartWrs"
     dcache_size = "1GiB" # size of each channel
-    mem_size = "5GiB" # size of total main memory
     assoc = 1
     single_channel = False
+
+    mem_size = main_mem_size(args.benchmark + "-" + args.size) # size of total main memory
+    print("main memory size: ", mem_size)
 
     # create the system we are going to simulate
     if single_channel:

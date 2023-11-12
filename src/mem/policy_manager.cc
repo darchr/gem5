@@ -75,8 +75,8 @@ PolicyManager::PolicyManager(const PolicyManagerParams &p):
 Tick
 PolicyManager::recvAtomic(PacketPtr pkt)
 {
-    DPRINTF(PolicyManager, "recvAtomic: %s %d\n",
-                     pkt->cmdString(), pkt->getAddr());
+    DPRINTF(PolicyManager, "recvAtomic: %s %d %d\n",
+                     pkt->cmdString(), pkt->getAddr(), pkt->getSize());
 
     if (!getAddrRange().contains(pkt->getAddr())) {
         panic("Can't handle address range for packet %s\n", pkt->print());
@@ -2497,7 +2497,7 @@ PolicyManager::checkHitOrMissAtomic(unsigned index, unsigned way, PacketPtr pkt)
     bool currValid = tagMetadataStore.at(index).at(way)->validLine;
     bool currDirty = tagMetadataStore.at(index).at(way)->dirtyLine;
 
-    Addr tag = returnTagDC(pkt->getAddr(), blockSize);
+    Addr tag = returnTagDC(pkt->getAddr(), pkt->getSize());
 
     bool isHit = currValid && (tag == tagMetadataStore.at(index).at(way)->tagDC);
 
@@ -2663,8 +2663,6 @@ PolicyManager::checkHitOrMiss(reqBufferEntry* orbEntry)
 bool
 PolicyManager::checkDirty(Addr index, int way)
 {
-    // Addr index = returnIndexDC(addr, blockSize);
-    // Addr tag = returnTagDC(addr, blockSize);
     assert(way >= 0);
     if (extreme) {
         return alwaysDirty;
@@ -3508,6 +3506,8 @@ PolicyManager::serialize(CheckpointOut &cp) const
                 ScopedCheckpointSection sec_entry(cp,csprintf("Entry%d", count++));
                 paramOut(cp, "dirtyLine", way->dirtyLine);
                 paramOut(cp, "farMemAddr", way->farMemAddr);
+                paramOut(cp, "tag", way->tagDC);
+                paramOut(cp, "index", way->indexDC);
                 paramOut(cp, "counter", way->counter);
                 paramOut(cp, "tickEntered", way->tickEntered);
                 Tick lastTouchTick = replacementPolicy->getLastTouchTick(way->replacementData);
@@ -3536,20 +3536,22 @@ PolicyManager::unserialize(CheckpointIn &cp)
         ScopedCheckpointSection sec_entry(cp,csprintf("Entry%d", i));
         bool dirty;
         Addr farAddr;
+        Addr tag;
+        Addr index;
         unsigned counter;
         uint64_t tickEntered;
         Tick lastTouchTick;
 
         paramIn(cp, "dirtyLine", dirty);
-        paramIn(cp, "farMemAddr",farAddr);
+        paramIn(cp, "farMemAddr", farAddr);
+        paramIn(cp, "tag", tag);
+        paramIn(cp, "index", index);
         paramIn(cp, "counter", counter);
         paramIn(cp, "tickEntered", tickEntered);
         paramIn(cp, "lastTouchTick", lastTouchTick);
 
         assert(getAddrRange().contains(farAddr));
         countValid++;
-        Addr index = returnIndexDC(farAddr, blockSize);
-        Addr tag = returnTagDC(farAddr, blockSize);
         int way = findEmptyWay(index);
         // once you stored LRU, come back here and call it instead of putting 0;
         if (way ==-1) {
