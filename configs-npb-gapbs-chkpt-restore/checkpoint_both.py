@@ -187,7 +187,7 @@ if __name__ == "__m5_main__":
     assoc = 1
     single_channel = False
 
-    mem_size = main_mem_size(args.benchmark + "-" + args.size) # size of total main memory
+    mem_size = main_mem_size[args.benchmark + "-" + args.size] # size of total main memory
     print("main memory size: ", mem_size)
 
     # create the system we are going to simulate

@@ -189,7 +189,7 @@ if __name__ == "__m5_main__":
     num_cpus = 8
     mem_sys = "MESI_Two_Level"
     dcache_size = "1GiB" # size of each channel
-    mem_size = main_mem_size(args.benchmark + "-" + args.size) # size of total main memory
+    mem_size = main_mem_size[args.benchmark + "-" + args.size] # size of total main memory
     single_channel = False
 
     checkpoint_dir = ""
