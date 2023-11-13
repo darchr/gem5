@@ -118,13 +118,14 @@ def parse_options():
         type=int,
         help="bypass DRAM cache",
     )
-    parser.add_argument("--do_analysis", action="store_true", default=False)
+    parser.add_argument("--do_analysis", action="store_true", default=True)
     return parser.parse_args()
 
 
 def do_analysis():
     print(
-        "**************** Doing analysis! Simulating 100 intervals of 10ms each! ********************\n"
+        "**************** Doing analysis! Simulating "
+        "100 intervals of 10ms each! ********************\n"
     )
     start = time.time()
 
@@ -177,10 +178,13 @@ if __name__ == "__m5_main__":
 
     kernel = "/home/babaie/projects/TDRAM-resubmission/fsTools/x86-linux-kernel-4.19.83"
     disk = ""
+    suite = ""
     if args.benchmark in gapbs_benchmarks:
         disk = "/home/babaie/projects/TDRAM-resubmission/fsTools/x86-gapbs"
+        suite = "gapbs"
     elif args.benchmark in npb_benchmarks:
         disk = "/home/babaie/projects/TDRAM-resubmission/fsTools/x86-npb"
+        suite = "npb"
     else:
         print("wrong benchmark choice!")
         exit(1)
@@ -192,8 +196,10 @@ if __name__ == "__m5_main__":
     mem_size = main_mem_size[args.benchmark + "-" + args.size] # size of total main memory
     single_channel = False
 
-    checkpoint_dir = ""
-    
+    checkpoint_dir = "/home/babaie/projects/TDRAM-resubmission/cpt-resub/8-ch/atomic/" + \
+                     suite + "/" + args.size + "/" + args.benchmark + "/" + "cpt"
+    print("Checkpoint dir: ", checkpoint_dir)
+
     if single_channel:
             system = RubySystem1Channel(
             kernel,
@@ -289,11 +295,11 @@ if __name__ == "__m5_main__":
     # instantiate all of the objects we've created above
     m5.instantiate(checkpoint_dir)
 
-    print("Running the simulation ************************************** \n")
+    print("Read the checkpoint. Now, running the simulation\n")
 
     if args.do_analysis:
         do_analysis()
     else:
         run()
 
-    print("End of simulation ******************************************** \n")
+    print("End of simulation\n")
