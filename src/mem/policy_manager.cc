@@ -2307,7 +2307,7 @@ PolicyManager::handleRequestorPktAtomic(PacketPtr pkt)
         blksInserted++;
     }
 
-    DPRINTF(PolicyManager, "ORB+: adr= %d-> %d, index= %d, tag= %d, cmd= %s, isHit= %d, wasDirty= %d\n",
+    DPRINTF(PolicyManager, "ORB+: adr= %d -> %d, index= %d, tag= %d, cmd= %s, isHit= %d, wasDirty= %d\n",
             pkt->getAddr(), pkt->getBlockAddr(blockSize), index, tag, pkt->cmdString(),
             isHit, wasDirty);
 
@@ -2499,7 +2499,7 @@ PolicyManager::checkHitOrMissAtomic(unsigned index, unsigned way, PacketPtr pkt)
     bool currValid = tagMetadataStore.at(index).at(way)->validLine;
     bool currDirty = tagMetadataStore.at(index).at(way)->dirtyLine;
 
-    Addr tag = returnTagDC(pkt->getAddr(), pkt->getSize());
+    Addr tag = returnTagDC(pkt->getBlockAddr(blockSize), blockSize);
 
     bool isHit = currValid && (tag == tagMetadataStore.at(index).at(way)->tagDC);
 

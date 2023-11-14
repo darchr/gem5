@@ -84,7 +84,7 @@ def writeBenchScript_NPB(dir, bench):
     return file_name
 
 
-def do_warmup(system, single_channel):
+def do_warmup(system, single_channel, benchmark, size):
     prevTotalColdMisses = 0
     prevTotalMemReqs = 0
     numOfCacheBlks = 0
@@ -95,8 +95,13 @@ def do_warmup(system, single_channel):
     print("Number of total cache blocks: {}".format(numOfCacheBlks))
 
     iteration_duration = 100_000_000_000 # 100 ms
+    num_of_iterations = 10
+    if benchmark == "is" and size == "C":
+        num_of_iterations = 4
 
-    for interval_number in range(10):
+    print("Doing {} iterations of {} ps for DRAM $ warmup".format(num_of_iterations, iteration_duration))
+
+    for interval_number in range(num_of_iterations):
         print("Interval number: {}".format(interval_number))
         intervalColdMisses = 0
         intervalMemReqs = 0
@@ -145,7 +150,7 @@ def do_warmup(system, single_channel):
         print("----------------------------------------------------------------------------------\n")
 
     print("\n")
-    if interval_number == 9:
+    if interval_number == (num_of_iterations-1):
         print("TIMEOUT!\n")
     m5.stats.dump()
 
@@ -273,7 +278,7 @@ if __name__ == "__m5_main__":
         exit(1)
 
     print("Start to run intervals!")
-    do_warmup(system,single_channel)
+    do_warmup(system,single_channel, args.benchmark, args.size)
     print("Finished warmup iterations")
     system.switchCpus(system.atomicNoncachingCpu, system.o3Cpu)
     print("switched from atomicNoncachingCpu to O3")
