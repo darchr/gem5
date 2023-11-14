@@ -75,15 +75,17 @@ PolicyManager::PolicyManager(const PolicyManagerParams &p):
 Tick
 PolicyManager::recvAtomic(PacketPtr pkt)
 {
-    DPRINTF(PolicyManager, "recvAtomic: %s %d %d\n",
-                     pkt->cmdString(), pkt->getAddr(), pkt->getSize());
+    DPRINTF(PolicyManager, "recvAtomic: %s %d %d %d\n",
+                     pkt->cmdString(), pkt->getAddr(), pkt->getSize(), pkt->getBlockAddr(blockSize));
 
-    if (!getAddrRange().contains(pkt->getAddr())) {
+    if (!getAddrRange().contains(pkt->getBlockAddr(blockSize))) {
         panic("Can't handle address range for packet %s\n", pkt->print());
     }
 
     panic_if(pkt->cacheResponding(), "Should not see packets where cache "
              "is responding");
+    
+    panic_if(pkt->getSize()==0, "Packet size should not be 0.\n");
 
     // do the actual memory access and turn the packet into a response
     // access(pkt);
@@ -2228,8 +2230,8 @@ PolicyManager::handleNextState(reqBufferEntry* orbEntry)
 void
 PolicyManager::handleRequestorPktAtomic(PacketPtr pkt)
 {
-    Addr tag = returnTagDC(pkt->getAddr(), pkt->getSize());
-    Addr index = returnIndexDC(pkt->getAddr(), pkt->getSize());
+    Addr tag = returnTagDC(pkt->getBlockAddr(blockSize), blockSize);
+    Addr index = returnIndexDC(pkt->getBlockAddr(blockSize), blockSize);
     Addr way = findMatchingWay(index, tag);
 
     if (way == noMatchingWay) {
@@ -2281,7 +2283,7 @@ PolicyManager::handleRequestorPktAtomic(PacketPtr pkt)
     tagMetadataStore.at(index).at(way)->tagDC = tag;
     tagMetadataStore.at(index).at(way)->indexDC = index;
     tagMetadataStore.at(index).at(way)->validLine = true;
-    tagMetadataStore.at(index).at(way)->farMemAddr = pkt->getAddr();
+    tagMetadataStore.at(index).at(way)->farMemAddr = pkt->getBlockAddr(blockSize);
     replacementPolicy->touch(tagMetadataStore.at(index).at(way)->replacementData, pkt);
 
     if (pkt->isRead() && !isHit) {
@@ -2297,16 +2299,16 @@ PolicyManager::handleRequestorPktAtomic(PacketPtr pkt)
         tagMetadataStore.at(index).at(way)->counter = 0;
         tagMetadataStore.at(index).at(way)->tickEntered = curTick();
 
-        if (capacityTracker.find(pkt->getAddr()) != capacityTracker.end()) {
-            polManStats.missDistance.sample(blksInserted - capacityTracker[pkt->getAddr()]);
-            capacityTracker.erase(pkt->getAddr());            
+        if (capacityTracker.find(pkt->getBlockAddr(blockSize)) != capacityTracker.end()) {
+            polManStats.missDistance.sample(blksInserted - capacityTracker[pkt->getBlockAddr(blockSize)]);
+            capacityTracker.erase(pkt->getBlockAddr(blockSize));            
         }
         
         blksInserted++;
     }
 
-    DPRINTF(PolicyManager, "ORB+: adr= %d, index= %d, tag= %d, cmd= %s, isHit= %d, wasDirty= %d\n",
-            pkt->getAddr(), index, tag, pkt->cmdString(),
+    DPRINTF(PolicyManager, "ORB+: adr= %d-> %d, index= %d, tag= %d, cmd= %s, isHit= %d, wasDirty= %d\n",
+            pkt->getAddr(), pkt->getBlockAddr(blockSize), index, tag, pkt->cmdString(),
             isHit, wasDirty);
 
 }
