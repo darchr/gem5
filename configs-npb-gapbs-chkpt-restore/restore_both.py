@@ -38,7 +38,7 @@ from system import *
 
 from info import (
     text_info,
-    interval_info_1GBdramCache_3hr,
+    interval_info_3hr_8ch,
     gapbs_benchmarks,
     npb_benchmarks,
     main_mem_size,
@@ -118,7 +118,7 @@ def parse_options():
         type=int,
         help="bypass DRAM cache",
     )
-    parser.add_argument("--do_analysis", action="store_true", default=True)
+    parser.add_argument("--do_analysis", action="store_true", default=False)
     return parser.parse_args()
 
 
@@ -248,7 +248,7 @@ if __name__ == "__m5_main__":
             lplistener.validAddrRangeSize = text_info[app][0]
             core.probeListener = lplistener
     else:
-        pc, count = interval_info_1GBdramCache_3hr[app]
+        pc, count = interval_info_3hr_8ch[app]
         system.global_tracker = PcCountTrackerManager(
             targets=[PcCountPair(pc, count)]
         )

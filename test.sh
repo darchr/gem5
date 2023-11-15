@@ -1,3 +1,53 @@
+
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/gapbs/25/bc    configs-npb-gapbs-chkpt-restore/restore_both.py bc    25 RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/gapbs/25/bfs   configs-npb-gapbs-chkpt-restore/restore_both.py bfs   25 RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/gapbs/25/cc    configs-npb-gapbs-chkpt-restore/restore_both.py cc    25 RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/gapbs/25/pr    configs-npb-gapbs-chkpt-restore/restore_both.py pr    25 RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/gapbs/25/sssp  configs-npb-gapbs-chkpt-restore/restore_both.py sssp  25 RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/gapbs/25/tc    configs-npb-gapbs-chkpt-restore/restore_both.py tc    25 RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/D/bt       configs-npb-gapbs-chkpt-restore/restore_both.py bt    D  RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/D/cg       configs-npb-gapbs-chkpt-restore/restore_both.py cg    D  RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/D/ft       configs-npb-gapbs-chkpt-restore/restore_both.py ft    D  RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/D/is       configs-npb-gapbs-chkpt-restore/restore_both.py is    D  RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/D/lu       configs-npb-gapbs-chkpt-restore/restore_both.py lu    D  RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/D/mg       configs-npb-gapbs-chkpt-restore/restore_both.py mg    D  RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/D/sp       configs-npb-gapbs-chkpt-restore/restore_both.py sp    D  RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/D/ua       configs-npb-gapbs-chkpt-restore/restore_both.py ua    D  RambusTagProbOpt 1 0 0 0 &
+
+
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/gapbs/22/bc    configs-npb-gapbs-chkpt-restore/restore_both.py bc    22 RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/gapbs/22/bfs   configs-npb-gapbs-chkpt-restore/restore_both.py bfs   22 RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/gapbs/22/cc    configs-npb-gapbs-chkpt-restore/restore_both.py cc    22 RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/gapbs/22/pr    configs-npb-gapbs-chkpt-restore/restore_both.py pr    22 RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/gapbs/22/sssp  configs-npb-gapbs-chkpt-restore/restore_both.py sssp  22 RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/gapbs/22/tc    configs-npb-gapbs-chkpt-restore/restore_both.py tc    22 RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/C/bt       configs-npb-gapbs-chkpt-restore/restore_both.py bt    C  RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/C/cg       configs-npb-gapbs-chkpt-restore/restore_both.py cg    C  RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/C/ft       configs-npb-gapbs-chkpt-restore/restore_both.py ft    C  RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/C/is       configs-npb-gapbs-chkpt-restore/restore_both.py is    C  RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/C/lu       configs-npb-gapbs-chkpt-restore/restore_both.py lu    C  RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/C/mg       configs-npb-gapbs-chkpt-restore/restore_both.py mg    C  RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/C/sp       configs-npb-gapbs-chkpt-restore/restore_both.py sp    C  RambusTagProbOpt 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/result-resub/8-ch/baseline/tdram/npb/C/ua       configs-npb-gapbs-chkpt-restore/restore_both.py ua    C  RambusTagProbOpt 1 0 0 0 &
+
+######## count pc ########
+
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/gapbs/25/bc    configs-npb-gapbs-chkpt-restore/restore_both.py bc    25 CascadeLakeNoPartWrs 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/gapbs/25/bfs   configs-npb-gapbs-chkpt-restore/restore_both.py bfs   25 CascadeLakeNoPartWrs 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/gapbs/25/cc    configs-npb-gapbs-chkpt-restore/restore_both.py cc    25 CascadeLakeNoPartWrs 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/gapbs/25/pr    configs-npb-gapbs-chkpt-restore/restore_both.py pr    25 CascadeLakeNoPartWrs 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/gapbs/25/sssp  configs-npb-gapbs-chkpt-restore/restore_both.py sssp  25 CascadeLakeNoPartWrs 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/gapbs/25/tc    configs-npb-gapbs-chkpt-restore/restore_both.py tc    25 CascadeLakeNoPartWrs 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/npb/D/bt       configs-npb-gapbs-chkpt-restore/restore_both.py bt    D  CascadeLakeNoPartWrs 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/npb/D/cg       configs-npb-gapbs-chkpt-restore/restore_both.py cg    D  CascadeLakeNoPartWrs 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/npb/D/ft       configs-npb-gapbs-chkpt-restore/restore_both.py ft    D  CascadeLakeNoPartWrs 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/npb/D/is       configs-npb-gapbs-chkpt-restore/restore_both.py is    D  CascadeLakeNoPartWrs 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/npb/D/lu       configs-npb-gapbs-chkpt-restore/restore_both.py lu    D  CascadeLakeNoPartWrs 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/npb/D/mg       configs-npb-gapbs-chkpt-restore/restore_both.py mg    D  CascadeLakeNoPartWrs 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/npb/D/sp       configs-npb-gapbs-chkpt-restore/restore_both.py sp    D  CascadeLakeNoPartWrs 1 0 0 0 &
+# build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/npb/D/ua       configs-npb-gapbs-chkpt-restore/restore_both.py ua    D  CascadeLakeNoPartWrs 1 0 0 0 &
+
+
 # build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/gapbs/22/bc    configs-npb-gapbs-chkpt-restore/restore_both.py bc    22 CascadeLakeNoPartWrs 1 0 0 0 &
 # build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/gapbs/22/bfs   configs-npb-gapbs-chkpt-restore/restore_both.py bfs   22 CascadeLakeNoPartWrs 1 0 0 0 &
 # build/X86_MESI_Two_Level/gem5.opt -re --outdir=/home/babaie/projects/TDRAM-resubmission/pcCount-resub/8-ch/gapbs/22/cc    configs-npb-gapbs-chkpt-restore/restore_both.py cc    22 CascadeLakeNoPartWrs 1 0 0 0 &
