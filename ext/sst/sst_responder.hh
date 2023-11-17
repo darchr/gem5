@@ -37,6 +37,7 @@
 
 #include <sst/core/interfaces/stringEvent.h>
 #include <sst/core/interfaces/stdMem.h>
+#include <sst/core/interfaces/stdMem.h>
 
 #include <sst/core/eli/elementinfo.h>
 #include <sst/core/link.h>

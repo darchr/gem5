@@ -191,6 +191,29 @@ gem5Component::gem5Component(SST::ComponentId_t id, SST::Params& params):
         sstPorts[i]->setTimeConverter(timeConverter);
         sstPorts[i]->setOutputStream(&(output));
     }
+    // We need to add another parameter when invoking gem5 scripts from SST to
+    // keep a track of all the OutgoingBridges. This will allow to add or
+    // remove OutgoingBridges from gem5 configs without the need to recompile
+    // the ext/sst source everytime.
+    std::string ports = params.find<std::string>("ports", "");
+    if (ports.empty()) {
+        output.fatal(
+            CALL_INFO, -1, "Component %s must have a 'ports' parameter.\n",
+            getName().c_str()
+        );
+    }
+    // Split the port names using the util method defined.
+    splitPortNames(ports);
+    for (int i = 0 ; i < sstPortCount ; i++) {
+        std::cout << sstPortNames[i] << std::endl;
+        sstPorts.push_back(
+            loadUserSubComponent<SSTResponderSubComponent>(sstPortNames[i], 0)
+        );
+        // If the name defined in the `ports` is incorrect, then the program
+        // will crash when calling `setTimeConverter`.
+        sstPorts[i]->setTimeConverter(timeConverter);
+        sstPorts[i]->setOutputStream(&(output));
+    }
 }
 
 gem5Component::~gem5Component()
@@ -225,6 +248,9 @@ gem5Component::init(unsigned phase)
         for (auto &port : sstPorts) {
             port->findCorrespondingSimObject(gem5_root);
         }
+        for (auto &port : sstPorts) {
+            port->findCorrespondingSimObject(gem5_root);
+        }
 
         // initialize the gem5 event queue
         if (!(threadInitialized)) {
@@ -240,12 +266,18 @@ gem5Component::init(unsigned phase)
     for (auto &port : sstPorts) {
         port->init(phase);
     }
+    for (auto &port : sstPorts) {
+        port->init(phase);
+    }
 }
 
 void
 gem5Component::setup()
 {
     output.verbose(CALL_INFO, 1, 0, "Component is being setup.\n");
+    for (auto &port : sstPorts) {
+        port->setup();
+    }
     for (auto &port : sstPorts) {
         port->setup();
     }
@@ -434,6 +466,19 @@ gem5Component::splitCommandArgs(std::string &cmd, std::vector<char*> &args)
 
     for (auto part: parsed_args)
         args.push_back(strdup(part.c_str()));
+}
+
+void
+gem5Component::splitPortNames(std::string port_names)
+{
+    std::vector<std::string> parsed_args = tokenizeString(
+        port_names, {'\\', ' ', '\'', '\"'}
+    );
+    sstPortCount = 0;
+    for (auto part: parsed_args) {
+        sstPortNames.push_back(strdup(part.c_str()));
+        sstPortCount++;
+    }
 }
 
 void

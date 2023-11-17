@@ -47,6 +47,18 @@
 # terms below provided that you ensure that this notice is replicated
 # unmodified and in its entirety in all distributions of the software,
 # modified or unmodified, in source code or in binary form.
+#
+# Copyright (c) 2021 Arm Limited
+# All rights reserved.
+#
+# The license below extends only to copyright in the software and shall
+# not be construed as granting a license to any other intellectual
+# property including but not limited to intellectual property relating
+# to a hardware implementation of the functionality of the software
+# licensed hereunder.  You may use the software subject to the license
+# terms below provided that you ensure that this notice is replicated
+# unmodified and in its entirety in all distributions of the software,
+# modified or unmodified, in source code or in binary form.
 
 import sst
 import sys
@@ -58,6 +70,10 @@ cache_link_latency = "1ps"
 
 kernel = "vmlinux_exit.arm64"
 cpu_clock_rate = "3GHz"
+# gem5 will send requests to physical addresses of range [0x80000000, inf) to
+# memory currently, we do not subtract 0x80000000 from the request's address to
+# get the "real" address so, the mem_size would always be 2GiB larger than the
+# desired memory size
 # gem5 will send requests to physical addresses of range [0x80000000, inf) to
 # memory currently, we do not subtract 0x80000000 from the request's address to
 # get the "real" address so, the mem_size would always be 2GiB larger than the
@@ -93,9 +109,22 @@ port_list = []
 for port in sst_ports:
     port_list.append(port)
 
+# We keep a track of all the memory ports that we have.
+sst_ports = {
+    "system_port" : "system.system_outgoing_bridge",
+    "cache_port" : "system.memory_outgoing_bridge"
+}
+
+# We need a list of ports.
+port_list = []
+for port in sst_ports:
+    port_list.append(port)
+
 cpu_params = {
     "frequency": cpu_clock_rate,
     "cmd": gem5_command,
+    "ports" : " ".join(port_list),
+    "debug_flags" : ""
     "ports" : " ".join(port_list),
     "debug_flags" : ""
 }
@@ -107,13 +136,19 @@ cache_bus = sst.Component("cache_bus", "memHierarchy.Bus")
 cache_bus.addParams( { "bus_frequency" : cpu_clock_rate } )
 # for initialization
 system_port = gem5_node.setSubComponent("system_port", "gem5.gem5Bridge", 0)
+# for initialization
+system_port = gem5_node.setSubComponent("system_port", "gem5.gem5Bridge", 0)
 system_port.addParams({
+    "response_receiver_name": sst_ports["system_port"],
     "response_receiver_name": sst_ports["system_port"],
     "mem_size": memory_size_sst
 })
 # SST -> gem5
 cache_port = gem5_node.setSubComponent("cache_port", "gem5.gem5Bridge", 0)
+# SST -> gem5
+cache_port = gem5_node.setSubComponent("cache_port", "gem5.gem5Bridge", 0)
 cache_port.addParams({
+    "response_receiver_name": sst_ports["cache_port"],
     "response_receiver_name": sst_ports["cache_port"],
     "mem_size": memory_size_sst
 })
@@ -125,10 +160,12 @@ l1_cache.addParams(l1_params)
 # Memory
 memctrl = sst.Component("memory", "memHierarchy.MemController")
 # `addr_range_end` should be changed accordingly to memory_size_sst
+# `addr_range_end` should be changed accordingly to memory_size_sst
 memctrl.addParams({
     "debug" : "0",
     "clock" : "1GHz",
     "request_width" : "64",
+    "addr_range_end" : addr_range_end,
     "addr_range_end" : addr_range_end,
 })
 memory = memctrl.setSubComponent("backend", "memHierarchy.simpleMem")

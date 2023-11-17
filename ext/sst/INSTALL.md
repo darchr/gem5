@@ -16,6 +16,8 @@ installed.
 ```sh
 wget https://github.com/sstsimulator/sst-core/releases/download/v13.0.0_Final/sstcore-13.0.0.tar.gz
 tar xvf sstcore-13.0.0.tar.gz
+wget https://github.com/sstsimulator/sst-core/releases/download/v13.0.0_Final/sstcore-13.0.0.tar.gz
+tar xvf sstcore-13.0.0.tar.gz
 ```
 
 ### Installing SST-Core
@@ -42,6 +44,8 @@ export PATH=$SST_CORE_HOME/bin:$PATH
 ```sh
 wget https://github.com/sstsimulator/sst-elements/releases/download/v13.0.0_Final/sstelements-13.0.0.tar.gz
 tar xvf sstelements-13.0.0.tar.gz
+wget https://github.com/sstsimulator/sst-elements/releases/download/v13.0.0_Final/sstelements-13.0.0.tar.gz
+tar xvf sstelements-13.0.0.tar.gz
 ```
 
 ### Installing SST-Elements
@@ -63,6 +67,8 @@ echo "export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SST_CORE_HOME/lib/pkgconfig/" >> 
 
 ### Building gem5 library
 
+At the root of the gem5 folder, you need to compile gem5 as a library. This
+varies which OS you use. If you're using Linux, then type the following:
 At the root of the gem5 folder, you need to compile gem5 as a library. This
 varies which OS you use. If you're using Linux, then type the following:
 ```sh
@@ -92,6 +98,21 @@ Go to the SST directory in the gem5 repo.
 Go to the SST directory in the gem5 repo.
 ```sh
 cd ext/sst
+```
+According to the OS that you're using, you need to rename the `Makefile.xxx` to `Makefile`.
+```sh
+cp Makefile.xxx Makefile    # linux or mac
+make -j4
+```
+If you are compiling this on Mac, then you'd need to export `DYLD_LIBRARY_PATH`
+```sh
+# go to the base gem5 directory
+cd ../..
+export DYLD_LIBRARY_PATH=:`pwd`/build/RISCV/
+```
+
+Change `ARCH=RISCV` to `ARCH=ARM` in the `Makefile` in case you're compiling
+for ARM.
 ```
 According to the OS that you're using, you need to rename the `Makefile.xxx` to `Makefile`.
 ```sh

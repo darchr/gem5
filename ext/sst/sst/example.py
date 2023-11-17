@@ -38,6 +38,10 @@ cpu_clock_rate = "3GHz"
 # memory currently, we do not subtract 0x80000000 from the request's address to
 # get the "real" address so, the mem_size would always be 2GiB larger than the
 # desired memory size
+# gem5 will send requests to physical addresses of range [0x80000000, inf) to
+# memory currently, we do not subtract 0x80000000 from the request's address to
+# get the "real" address so, the mem_size would always be 2GiB larger than the
+# desired memory size
 memory_size_gem5 = "4GiB"
 memory_size_sst = "6GiB"
 addr_range_end = UnitAlgebra(memory_size_sst).getRoundedValue()
@@ -64,8 +68,24 @@ port_list = []
 for port in sst_ports:
     port_list.append(port)
 
+# We keep a track of all the memory ports that we have.
+sst_ports = {
+    "system_port" : "system.system_outgoing_bridge",
+    "cache_port" : "system.memory_outgoing_bridge"
+}
+
+# We need a list of ports.
+port_list = []
+for port in sst_ports:
+    port_list.append(port)
+
 cpu_params = {
     "frequency": cpu_clock_rate,
+    "cmd": " ../../configs/example/sst/riscv_fs.py"
+            + f" --cpu-clock-rate {cpu_clock_rate}"
+            + f" --memory-size {memory_size_gem5}",
+    "debug_flags": "",
+    "ports" : " ".join(port_list)
     "cmd": " ../../configs/example/sst/riscv_fs.py"
             + f" --cpu-clock-rate {cpu_clock_rate}"
             + f" --memory-size {memory_size_gem5}",
@@ -87,6 +107,14 @@ system_port.addParams({ "response_receiver_name": sst_ports["system_port"]})
 # SST -> gem5
 cache_port = gem5_node.setSubComponent(port_list[1], "gem5.gem5Bridge", 0)
 cache_port.addParams({ "response_receiver_name": sst_ports["cache_port"]})
+# for initialization
+system_port = gem5_node.setSubComponent(port_list[0], "gem5.gem5Bridge", 0)
+# tell the SubComponent the name of the corresponding SimObject
+system_port.addParams({ "response_receiver_name": sst_ports["system_port"]})
+
+# SST -> gem5
+cache_port = gem5_node.setSubComponent(port_list[1], "gem5.gem5Bridge", 0)
+cache_port.addParams({ "response_receiver_name": sst_ports["cache_port"]})
 
 # L1 cache
 l1_cache = sst.Component("l1_cache", "memHierarchy.Cache")
@@ -95,10 +123,12 @@ l1_cache.addParams(l1_params)
 # Memory
 memctrl = sst.Component("memory", "memHierarchy.MemController")
 # `addr_range_end` should be changed accordingly to memory_size_sst
+# `addr_range_end` should be changed accordingly to memory_size_sst
 memctrl.addParams({
     "debug" : "0",
     "clock" : "1GHz",
     "request_width" : "64",
+    "addr_range_end" : addr_range_end,
     "addr_range_end" : addr_range_end,
 })
 memory = memctrl.setSubComponent("backend", "memHierarchy.simpleMem")
