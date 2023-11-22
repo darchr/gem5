@@ -66,7 +66,7 @@ class RemoteChanneledMemory(ChanneledMemory):
                 frontend_latency=self._remote_latency,
                 forward_latency=0,
                 response_latency=0,
-                width=8,
+                width=64,
             )
             for _ in range(self._num_channels)
         ]

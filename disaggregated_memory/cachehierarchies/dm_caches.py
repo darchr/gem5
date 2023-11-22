@@ -38,7 +38,7 @@ from m5.objects import Cache, L2XBar, BaseXBar, SystemXBar, BadAddr, Port
 from gem5.utils.override import overrides
 
 
-class ClassicPL1PL2DMCache(PrivateL1PrivateL2CacheHierarchy):
+class ClassicPrivateL1PrivateL2DMCache(PrivateL1PrivateL2CacheHierarchy):
     def __init__(
         self,
         l1d_size: str,
@@ -67,9 +67,8 @@ class ClassicPL1PL2DMCache(PrivateL1PrivateL2CacheHierarchy):
         for cntr in board.get_local_memory().get_memory_controllers():
             cntr.port = self.membus.mem_side_ports
 
-        # comment these lines for SST caches
-        # for cntr in board.get_remote_memory().get_memory_controllers():
-        #     cntr.port = self.membus.mem_side_ports
+        for cntr in board.get_remote_memory().get_memory_controllers():
+            cntr.port = self.membus.mem_side_ports
 
         self.l1icaches = [
             L1ICache(size=self._l1i_size)

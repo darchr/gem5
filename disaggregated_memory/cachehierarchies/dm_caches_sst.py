@@ -38,14 +38,16 @@ from m5.objects import Cache, L2XBar, BaseXBar, SystemXBar, BadAddr, Port
 from gem5.utils.override import overrides
 
 
-class ClassicPL1PL2DMCacheArm(PrivateL1PrivateL2CacheHierarchy):
+class ClassicPrivateL1PrivateL2SstDMCache(PrivateL1PrivateL2CacheHierarchy):
     def __init__(
         self,
         l1d_size: str,
         l1i_size: str,
         l2_size: str,
     ) -> None:
-        """
+        """We need a specific version of DM caches for the external memory,
+        which does not connect the remote memory controller ports directly.
+
         :param l1d_size: The size of the L1 Data Cache (e.g., "32kB").
         :type l1d_size: str
         :param  l1i_size: The size of the L1 Instruction Cache (e.g., "32kB").
@@ -64,7 +66,7 @@ class ClassicPL1PL2DMCacheArm(PrivateL1PrivateL2CacheHierarchy):
         # Set up the system port for functional access from the simulator.
         board.connect_system_port(self.membus.cpu_side_ports)
 
-        for cntr in board.get_memory().get_memory_controllers():
+        for cntr in board.get_local_memory().get_memory_controllers():
             cntr.port = self.membus.mem_side_ports
 
         self.l1icaches = [

@@ -57,14 +57,17 @@ from m5.util.fdthelper import (
 )
 
 
-class RiscvDMBoard(RiscvBoard):
+class RiscvAbstractDMBoard(RiscvBoard):
     """
-    A board capable of full system simulation for RISC-V
-    At a high-level, this is based on the HiFive Unmatched board from SiFive.
-    This board assumes that you will be booting Linux.
+    A high-level RISCV board that can zNUMA-capable systems with a remote
+    memories. This board is extended from the RiscvBoard from Gem5 standard
+    library. At a high-level, this is based on the HiFive Unmatched board from
+    SiFive. This board assumes that you will be booting Linux.
 
     **Limitations**
-    * Only works with classic caches
+    * There is only one Plic and Clint controller supported by this board,
+        which make this board only capable of simulating zNUMA nodes and not
+        full-fledged NUMA nodes.
     """
 
     def __init__(
@@ -72,11 +75,15 @@ class RiscvDMBoard(RiscvBoard):
         clk_freq: str,
         processor: AbstractProcessor,
         local_memory: AbstractMemorySystem,
-        remote_memory: AbstractMemorySystem,
+        remote_memory_addr_range: AddrRange,
         cache_hierarchy: AbstractCacheHierarchy,
     ) -> None:
         self._localMemory = local_memory
-        self._remoteMemory = remote_memory
+        # remote_memory can either be an interface or an external memory
+        # This abstract disaggregated memory does not know what this type of
+        # memory is. it only needs to know the address range for this memory.
+        # from this range, we'll figure out the size.
+        self._remoteMemoryAddrRange = remote_memory_addr_range
         super().__init__(
             clk_freq=clk_freq,
             processor=processor,
@@ -84,7 +91,6 @@ class RiscvDMBoard(RiscvBoard):
             cache_hierarchy=cache_hierarchy,
         )
         self.local_memory = local_memory
-        self.remote_memory = remote_memory
 
         if processor.get_isa() != ISA.RISCV:
             raise Exception(
@@ -109,38 +115,51 @@ class RiscvDMBoard(RiscvBoard):
 
     def get_remote_memory(self) -> "AbstractMemory":
         """Get the memory (RAM) connected to the board.
+            This has to be implemeted by the child class as we don't know if
+            this board is simulating Gem5 memory or some external simulator
+            memory.
         :returns: The remote memory system.
         """
-        return self._remoteMemory
+        raise NotImplementedError
+
+    def get_remote_memory_size(self) -> "str":
+        """Get the remote memory size to setup the NUMA nodes."""
+        return self._remoteMemoryAddrRange.size()
 
     @overrides(AbstractSystemBoard)
     def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
         return self.get_local_memory().get_mem_ports()
 
     def get_remote_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
-        return self.get_remote_memory().get_mem_ports()
+        """Get the memory (RAM) ports connected to the board.
+            This has to be implemeted by the child class as we don't know if
+            this board is simulating Gem5 memory or some external simulator
+            memory.
+        :returns: A tuple of mem_ports.
+        """
+        raise NotImplementedError
 
     @overrides(AbstractSystemBoard)
     def _setup_memory_ranges(self):
-
         # the memory has to be setup for both the memory ranges. there is one
         # local memory range, close to the host machine and the other range is
         # pure memory, far from the host.
         local_memory = self.get_local_memory()
-        remote_memory = self.get_remote_memory()
+        # remote_memory = self.get_remote_memory_size()
 
         local_mem_size = local_memory.get_size()
-        remote_mem_size = remote_memory.get_size()
+        remote_mem_size = self.get_remote_memory_size()
 
+        # local memory range will always start from 0x80000000. The remote
+        # memory can start and end anywhere as long as it is consistent
+        # with the dtb.
         self._local_mem_ranges = [
             AddrRange(start=0x80000000, size=local_mem_size)
         ]
 
-        # The remote memory starts where the local memory ends. Therefore it
-        # has to be offset by the local memory's size.
-        self._remote_mem_ranges = [
-            AddrRange(start=0x80000000 + local_mem_size, size=remote_mem_size)
-        ]
+        # The remote memory starts anywhere after the local memory ends. We
+        # rely on the user to start and end this range.
+        self._remote_mem_ranges = [self._remoteMemoryAddrRange]
 
         # using a _global_ memory range to keep a track of all the memory
         # ranges. This is used to generate the dtb for this machine
@@ -148,9 +167,18 @@ class RiscvDMBoard(RiscvBoard):
         self._global_mem_ranges.append(self._local_mem_ranges[0])
         self._global_mem_ranges.append(self._remote_mem_ranges[0])
 
-        # setting the memory ranges for both of the memory ranges.
-        local_memory.set_memory_range(self._local_mem_ranges)
-        remote_memory.set_memory_range(self._remote_mem_ranges)
+        # setting the memory ranges for both of the memory ranges. we cannot
+        # incorporate the memory at using this abstract board.
+
+        self._incorporate_memory_range()
+
+    def _incorporate_memory_range(self):
+        """
+        The child board only can incorporate this memory range"""
+
+        raise NotImplementedError(
+            "Cannot incorporte the memory using an Abstract-like board."
+        )
 
     @overrides(RiscvBoard)
     def generate_device_tree(self, outdir: str) -> None:
@@ -158,7 +186,6 @@ class RiscvDMBoard(RiscvBoard):
         Creates two files in the outdir: 'device.dtb' and 'device.dts'
         :param outdir: Directory to output the files
         """
-
         state = FdtState(addr_cells=2, size_cells=2, cpu_cells=1)
         root = FdtNode("/")
         root.append(state.addrCellsProperty())
@@ -401,54 +428,55 @@ class RiscvDMBoard(RiscvBoard):
 
     @overrides(KernelDiskWorkload)
     def get_default_kernel_args(self) -> List[str]:
-        # return ["console=ttyS0", "root={root_value}", "init=/root/gem5_init.sh", "rw"]
+        # return ["console=ttyS0", "root={root_value}",
+        #       "init=/root/gem5_init.sh", "rw"]
         return ["console=ttyS0", "root={root_value}", "init=/bin/bash", "rw"]
 
-    @overrides(AbstractBoard)
-    def _connect_things(self) -> None:
-        """Connects all the components to the board.
+    # @overrides(AbstractBoard)
+    # def _connect_things(self) -> None:
+    #     """Connects all the components to the board.
 
-        The order of this board is always:
+    #     The order of this board is always:
 
-        1. Connect the memory.
-        2. Connect the cache hierarchy.
-        3. Connect the processor.
+    #     1. Connect the memory.
+    #     2. Connect the cache hierarchy.
+    #     3. Connect the processor.
 
-        Developers may build upon this assumption when creating components.
+    #     Developers may build upon this assumption when creating components.
 
-        Notes
-        -----
+    #     Notes
+    #     -----
 
-        * The processor is incorporated after the cache hierarchy due to a bug
-        noted here: https://gem5.atlassian.net/browse/GEM5-1113. Until this
-        bug is fixed, this ordering must be maintained.
-        * Once this function is called `_connect_things_called` *must* be set
-        to `True`.
-        """
+    #     * The processor is incorporated after the cache hierarchy due to a bug
+    #     noted here: https://gem5.atlassian.net/browse/GEM5-1113. Until this
+    #     bug is fixed, this ordering must be maintained.
+    #     * Once this function is called `_connect_things_called` *must* be set
+    #     to `True`.
+    #     """
 
-        if self._connect_things_called:
-            raise Exception(
-                "The `_connect_things` function has already been called."
-            )
+    #     if self._connect_things_called:
+    #         raise Exception(
+    #             "The `_connect_things` function has already been called."
+    #         )
 
-        # Incorporate the memory into the motherboard.
-        self.get_local_memory().incorporate_memory(self)
-        self.get_remote_memory().incorporate_memory(self)
+    #     # Incorporate the memory into the motherboard.
+    #     self.get_local_memory().incorporate_memory(self)
+    #     self.get_remote_memory().incorporate_memory(self)
 
-        # Incorporate the cache hierarchy for the motherboard.
-        if self.get_cache_hierarchy():
-            self.get_cache_hierarchy().incorporate_cache(self)
+    #     # Incorporate the cache hierarchy for the motherboard.
+    #     if self.get_cache_hierarchy():
+    #         self.get_cache_hierarchy().incorporate_cache(self)
 
-        # Incorporate the processor into the motherboard.
-        self.get_processor().incorporate_processor(self)
+    #     # Incorporate the processor into the motherboard.
+    #     self.get_processor().incorporate_processor(self)
 
-        self._connect_things_called = True
+    #     self._connect_things_called = True
 
-    @overrides(AbstractBoard)
-    def _post_instantiate(self):
-        """Called to set up anything needed after m5.instantiate"""
-        self.get_processor()._post_instantiate()
-        if self.get_cache_hierarchy():
-            self.get_cache_hierarchy()._post_instantiate()
-        self.get_local_memory()._post_instantiate()
-        self.get_remote_memory()._post_instantiate()
+    # @overrides(AbstractBoard)
+    # def _post_instantiate(self):
+    #     """Called to set up anything needed after m5.instantiate"""
+    #     self.get_processor()._post_instantiate()
+    #     if self.get_cache_hierarchy():
+    #         self.get_cache_hierarchy()._post_instantiate()
+    #     self.get_local_memory()._post_instantiate()
+    #     self.get_remote_memory()._post_instantiate()

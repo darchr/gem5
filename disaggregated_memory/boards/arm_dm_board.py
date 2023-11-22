@@ -25,6 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.objects import (
+    Port,
     AddrRange,
     VoltageDomain,
     SrcClockDomain,
@@ -62,31 +63,89 @@ from gem5.utils.override import overrides
 from typing import List, Sequence, Tuple
 
 
-class ArmDMSSTBoard(ArmBoard):
+class ArmAbstractDMBoard(ArmBoard):
+    """
+    A high-level ARM board that can zNUMA-capable systems with a remote
+    memories. This board is extended from the ArmBoard from Gem5 standard
+    library. This board assumes that you will be booting Linux. This board can
+    be used to do disaggregated ARM system research while accelerating the
+    simulation using kvm.
+
+    **Limitations**
+    * kvm is only supported in a gem5-only setup.
+    """
+
     __metaclass__ = ABCMeta
 
     def __init__(
         self,
         clk_freq: str,
         processor: AbstractProcessor,
-        memory: AbstractMemorySystem,
+        local_memory: AbstractMemorySystem,
         cache_hierarchy: AbstractCacheHierarchy,
-        remote_memory_range: AddrRange,
+        remote_memory_addr_range: AddrRange,
         platform: VExpress_GEM5_Base = VExpress_GEM5_Foundation(),
         release: ArmRelease = ArmDefaultRelease(),
     ) -> None:
-
-        self._remote_memory_range = remote_memory_range
+        # The structure of this board is similar to the RISCV DM board.
+        self._localMemory = local_memory
+        # remote_memory can either be an interface or an external memory
+        # This abstract disaggregated memory does not know what this type of
+        # memory is. it only needs to know the address range for this memory.
+        # from this range, we'll figure out the size.
+        self._remoteMemoryAddrRange = remote_memory_addr_range
         super().__init__(
             clk_freq=clk_freq,
             processor=processor,
-            memory=memory,
+            memory=local_memory,
             cache_hierarchy=cache_hierarchy,
             platform=platform,
             release=release,
         )
+        self.local_memory = local_memory
+
+    @overrides(ArmBoard)
+    def get_memory(self) -> "AbstractMemory":
+        """Get the memory (RAM) connected to the board.
+
+        :returns: The memory system.
+        """
+        raise NotImplementedError
+
+    def get_local_memory(self) -> "AbstractMemory":
+        """Get the memory (RAM) connected to the board.
+        :returns: The local memory system.
+        """
+        return self._localMemory
+
+    def get_remote_memory(self) -> "AbstractMemory":
+        """Get the memory (RAM) connected to the board.
+            This has to be implemeted by the child class as we don't know if
+            this board is simulating Gem5 memory or some external simulator
+            memory.
+        :returns: The remote memory system.
+        """
+        raise NotImplementedError
+
+    def get_remote_memory_size(self) -> "str":
+        """Get the remote memory size to setup the NUMA nodes."""
+        return self._remoteMemoryAddrRange.size()
+
+    @overrides(ArmBoard)
+    def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
+        return self.get_local_memory().get_mem_ports()
+
+    def get_remote_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
+        """Get the memory (RAM) ports connected to the board.
+            This has to be implemeted by the child class as we don't know if
+            this board is simulating Gem5 memory or some external simulator
+            memory.
+        :returns: A tuple of mem_ports.
+        """
+        raise NotImplementedError
 
     def get_remote_memory_addr_range(self):
+        raise NotImplementedError
         return self._remote_memory_range
 
     @overrides(ArmBoard)
@@ -136,8 +195,8 @@ class ArmDMSSTBoard(ArmBoard):
         # Once the realview is setup, we can continue setting up the memory
         # ranges. ArmBoard's memory can only be setup once realview is
         # initialized.
-        memory = self.get_memory()
-        mem_size = memory.get_size()
+        local_memory = self.get_local_memory()
+        mem_size = local_memory.get_size()
 
         # The following code is taken from configs/example/arm/devices.py. It
         # sets up all the memory ranges for the board.
@@ -156,15 +215,21 @@ class ArmDMSSTBoard(ArmBoard):
                 break
 
         if success:
-            memory.set_memory_range(self.mem_ranges)
+            local_memory.set_memory_range(self.mem_ranges)
         else:
             raise ValueError("Memory size too big for platform capabilities")
-
-        self.mem_ranges.append(self.get_remote_memory_addr_range())
+        # At the end of the local_memory, append the remote memory range.
+        self.mem_ranges.append(self._remoteMemoryAddrRange)
 
         # The PCI Devices. PCI devices can be added via the `_add_pci_device`
         # function.
         self._pci_devices = []
+
+        # set remtoe memory in the child board
+        self._set_remote_memory_ranges()
+
+    def _set_remote_memory_ranges(self):
+        raise NotImplementedError
 
     @overrides(ArmSystem)
     def generateDeviceTree(self, state):
@@ -194,7 +259,7 @@ class ArmDMSSTBoard(ArmBoard):
         # Add memory nodes
         for mem_range in self.mem_ranges:
             root.append(generateMemNode(0, mem_range))
-        root.append(generateMemNode(1, self.get_remote_memory_addr_range()))
+        root.append(generateMemNode(1, self._remoteMemoryAddrRange))
 
         for node in self.recurseDeviceTree(state):
             # Merge root nodes instead of adding them (for children
@@ -216,5 +281,4 @@ class ArmDMSSTBoard(ArmBoard):
             "norandmaps",
             "root={root_value}",
             "rw",
-            f"mem={self.get_memory().get_size()}",
         ]

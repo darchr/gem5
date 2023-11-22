@@ -27,27 +27,29 @@
 """
 This script shows an example of running a full system RISCV Ubuntu boot
 simulation using the gem5 library. This simulation boots Ubuntu 20.04 using
-2 TIMING CPU cores. The simulation ends when the startup is completed
-successfully.
+1 TIMING CPU cores and executes `numastat`. The simulation ends when the
+startup is completed successfully.
 
-Usage
------
-
-```
-scons build/RISCV/gem5.opt
-./build/RISCV/gem5.opt \
-    configs/example/gem5_library/riscv-ubuntu-run.py
-```
+* This script has to be executed from SST
 """
 
+import os
+import sys
+
+# all the source files are one directory above.
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
+)
+
 import m5
-from m5.objects import Root
+from m5.objects import Root, AddrRange
+
+from boards.riscv_sst_board import RiscvSstDMBoard
+from cachehierarchies.dm_caches_sst import ClassicPrivateL1PrivateL2SstDMCache
+from memories.external_remote_memory import ExternalRemoteMemoryInterface
 
 from gem5.utils.requires import requires
-from riscv_dm_board import RiscvDMBoard
-from dm_caches import ClassicPL1PL2DMCache
 from gem5.components.memory import DualChannelDDR4_2400
-from gem5.components.memory.multi_channel import *
 from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
@@ -56,53 +58,28 @@ from gem5.resources.workload import Workload
 from gem5.resources.workload import *
 from gem5.resources.resource import *
 
-from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
-from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
-from remote_memory import RemoteChanneledMemory
-
-# defining a new type of memory with latency added.
-def RemoteDualChannelDDR4_2400(
-    size: Optional[str] = None, remote_offset_latency=300
-) -> AbstractMemorySystem:
-    """
-    A dual channel memory system using DDR4_2400_8x8 based DIMM
-    """
-    return RemoteChanneledMemory(
-        DDR4_2400_8x8,
-        2,
-        64,
-        size=size,
-        remote_offset_latency=remote_offset_latency,
-    )
-
-
 # This runs a check to ensure the gem5 binary is compiled for RISCV.
-
 requires(isa_required=ISA.RISCV)
-
-# With RISCV, we use simple caches.
-
-cache_hierarchy = ClassicPL1PL2DMCache(
-    l1d_size="16kB", l1i_size="16kB", l2_size="256kB"
+# Here we setup the parameters of the l1 and l2 caches.
+cache_hierarchy = ClassicPrivateL1PrivateL2SstDMCache(
+    l1d_size="32KiB", l1i_size="32KiB", l2_size="1MB"
 )
-
-# Local memory: Dual Channel DDR4 2400 DRAM device with no delay.
-# Remote memory: Dual Channel DDR4 2400 DRAM device with 750 clocks (250 ns).
-# 250 ns is taken from the TPP paper.
-
-local_memory = DualChannelDDR4_2400(size="512MB")
-remote_memory = RemoteDualChannelDDR4_2400(
-    size="2GB", remote_offset_latency=750
+# Memory: Dual Channel DDR4 2400 DRAM device.
+local_memory = DualChannelDDR4_2400(size="2GiB")
+# Either suppy the size of the remote memory or the address range of the
+# remote memory. Since this is inside the external memory, it does not matter
+# what type of memory is being simulated. This can either be initialized with
+# a size or a memory address range, which is mroe flexible. Adding remote
+# memory latency automatically adds a non-coherent crossbar to simulate latenyc
+remote_memory = ExternalRemoteMemoryInterface(
+    addr_range=AddrRange(0x100000000, size="2GiB"), remote_memory_latency=750
 )
-
 # Here we setup the processor. We use a simple processor.
 processor = SimpleProcessor(
-    cpu_type=CPUTypes.TIMING, isa=ISA.RISCV, num_cores=2
+    cpu_type=CPUTypes.TIMING, isa=ISA.RISCV, num_cores=1
 )
-
-# Here we setup the board. The RiscvBoard allows for Full-System RISCV
-# simulations.
-board = RiscvDMBoard(
+# Here we setup the board which allows us to do Full-System RISCV simulations.
+board = RiscvSstDMBoard(
     clk_freq="3GHz",
     processor=processor,
     local_memory=local_memory,
@@ -110,27 +87,33 @@ board = RiscvDMBoard(
     cache_hierarchy=cache_hierarchy,
 )
 
+cmd = [
+    "mount -t sysfs - /sys;",
+    "mount -t proc - /proc;",
+    "numastat;",
+    "m5 exit;"
+]
+
 workload = CustomWorkload(
     function="set_kernel_disk_workload",
     parameters={
-        "disk_image": CustomDiskImageResource(
-            local_path=os.path.join(
-                os.getcwd(), "/home/kaustavg/disk-images/rv64gc-hpc-2204.img"
-            ),
-            disk_root_partition="1",
+        "disk_image": DiskImageResource(
+            local_path="/home/kaustavg/disk-images/rv64gc-hpc-2204.img",
+            root_partition="1",
         ),
         "kernel": CustomResource(
-            os.path.join(os.getcwd(), "/home/kaustavg/bbl")
+            "/scr/kaustavg/simulators-at-scratch/DArchR/WorkingDir/SST13/kernels/gem5-resources/src/riscv-boot-exit-nodisk/riscv-pk/build/bbl"
         ),
+        "readfile_contents": " ".join(cmd),
     },
 )
-
-# Here we a full system workload: "riscv-ubuntu-20.04-boot" which boots
-# Ubuntu 20.04. Once the system successfully boots it encounters an `m5_exit`
-# instruction which stops the simulation. When the simulation has ended you may
-# inspect `m5out/system.pc.com_1.device` to see the stdout.
-# board.set_workload(Workload("riscv-ubuntu-20.04-boot"))
+# This disk image needs to have NUMA tools installed.
 board.set_workload(workload)
-simulator = Simulator(board=board)
-simulator.run()
-simulator.run()
+# This script will boot two numa nodes in a full system simulation where the
+# gem5 node will be sending instructions to the SST node. the simulation will
+# after displaying numastat information on the terminal, whjic can be viewed
+# from board.terminal.
+board._pre_instantiate()
+root = Root(full_system=True, board=board)
+board._post_instantiate()
+m5.instantiate()
