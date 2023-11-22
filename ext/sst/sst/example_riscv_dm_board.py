@@ -31,41 +31,8 @@ import os
 
 from sst import UnitAlgebra
 
-cache_link_latency = "1ns"
-
-bbl = "riscv-boot-exit-nodisk"
-cpu_clock_rate = "1GHz"
-# gem5 will send requests to physical addresses of range [0x80000000, inf) to memory
-# currently, we do not subtract 0x80000000 from the request's address to get the "real" address
-# so, the mem_size would always be 2GiB larger than the desired memory size
-# memory_size_gem5 = "2GiB"
-# memory_size_sst = "4GiB"
-# addr_range_end = UnitAlgebra(memory_size_sst).getRoundedValue()
-
-l1_params = {
-    "access_latency_cycles" : "1",
-    "cache_frequency" : cpu_clock_rate,
-    "replacement_policy" : "lru",
-    "coherence_protocol" : "MESI",
-    "associativity" : "4",
-    "cache_line_size" : "64",
-    "cache_size" : "32 MiB",
-    "L1" : "1",
-}
-
-dirNicParams = {
-      "network_bw" : "25GB/s",
-      "group" : 1,
-}
-
-def create_cache(name, params = None):
-    cache = sst.Component(name, "memHierarchy.Cache")
-    if params is None:
-        cache.addParams(l1_params)
-    else:
-        cache.addParams(params)
-    return cache
-
+cache_link_latency = "1ps"
+cpu_clock_rate = "4.2GHz"
 def connect_components(link_name: str,
                        low_port_name: str, low_port_idx: int,
                        high_port_name: str, high_port_idx: int,
@@ -84,22 +51,22 @@ def connect_components(link_name: str,
 
 # =========================================================================== #
 
-# Define the number of gem5 nodes in the system.
-system_nodes = 1
+# Define the number of gem5 nodes in the system. anything more than 1 needs
+# mpirun to run the sst binary.
+system_nodes = 2
 
 # Define the total number of SST Memory nodes
 memory_nodes = 1
 
 # This example uses fixed number of node size -> 2 GiB
-# TODO: Fix this in the later version of the script.
 # The directory controller decides where the addresses are mapped to.
 node_memory_slice = "2GiB"
 remote_memory_slice = "2GiB"
 
 # SST memory node size. Each system gets a 2 GiB slice of fixed memory.
-sst_memory_size = str((memory_nodes * int(node_memory_slice[0])) + (system_nodes) * 2 + 2) + "GiB"
+sst_memory_size = str(
+    (memory_nodes * int(node_memory_slice[0])) + (system_nodes) * 2 + 2) +"GiB"
 addr_range_end = UnitAlgebra(sst_memory_size).getRoundedValue()
-print(sst_memory_size)
 
 # There is one cache bus connecting all gem5 ports to the remote memory.
 mem_bus = sst.Component("membus", "memHierarchy.Bus")
@@ -109,46 +76,16 @@ memctrl = sst.Component("memory", "memHierarchy.MemController")
 memctrl.setRank(0, 0)
 # `addr_range_end` should be changed accordingly to memory_size_sst
 memctrl.addParams({
-    "debug" : "1",
-    "clock" : "1GHz",
+    "debug" : "0",
+    "clock" : "2.4GHz",
     "request_width" : "64",
-        "verbose" : 2,
-    "debug_level" : 10,
-    "backing" : "none",
     "addr_range_end" : addr_range_end,
 })
-# memory = memctrl.setSubComponent("backend", "memHierarchy.simpleMem")
-# memory.addParams({
-#     "access_time" : "50ns",
-#     "mem_size" : sst_memory_size
-# })
-
-memory = memctrl.setSubComponent( "backend", "memHierarchy.timingDRAM")
+memory = memctrl.setSubComponent("backend", "memHierarchy.simpleMem")
 memory.addParams({
-    "id" : 0,
-    "addrMapper" : "memHierarchy.sandyBridgeAddrMapper",
-    "addrMapper.interleave_size" : "64B",
-    "addrMapper.row_size" : "1KiB",
-    "clock" : "2.4GHz",
-    "mem_size" : sst_memory_size,
-    "channels" : 1,
-    "channel.numRanks" : 2,
-    "channel.rank.numBanks" : 16,
-    "channel.transaction_Q_size" : 64,
-    "channel.rank.bank.CL" : 14,
-    "channel.rank.bank.CL_WR" : 12,
-    "channel.rank.bank.RCD" : 14,
-    "channel.rank.bank.TRP" : 14,
-    "channel.rank.bank.dataCycles" : 2,
-    "channel.rank.bank.pagePolicy" : "memHierarchy.timeoutPagePolicy",
-    "channel.rank.bank.transactionQ" : "memHierarchy.reorderTransactionQ",
-    "channel.rank.bank.pagePolicy.timeoutCycles" : 50,
-    "printconfig" : 0,
-    "channel.printconfig" : 0,
-    "channel.rank.printconfig" : 0,
-    "channel.rank.bank.printconfig" : 0,
+    "access_time" : "50ns",
+    "mem_size" : sst_memory_size
 })
-
 
 # Add all the Gem5 nodes to this list.
 gem5_nodes = []
@@ -159,14 +96,20 @@ for node in range(system_nodes):
     # Each of the nodes needs to have the initial parameters. We might need to
     # to supply the instance count to the Gem5 side. This will enable range
     # adjustments to be made to the DTB File.
+    node_range = [0x80000000 + (node + 1) * 0x80000000,
+                  0x80000000 + (node + 2) * 0x80000000]
     cmd = [
-        f"--outdir=traffic_gen_{node}",
-        "../../configs/example/sst/traffic_gen.py",
+        f"--outdir=m5out_riscv_node_{node}",
+        "../../disaggregated_memory/configs/riscv-sst-numa-nodes.py",
         f"--cpu-clock-rate {cpu_clock_rate}",
-        "--memory-size 1GiB"
+        "--cpu-type o3",
+        f"--local-memory-size {node_memory_slice}",
+        f"--remote-memory-addr-range {node_range[0]},{node_range[1]}",
+        f"--remote-memory-latency \
+            {int(float(cpu_clock_rate[0:cpu_clock_rate.find('G')]) * 250)}"
     ]
     ports = {
-        "remote_memory_port" : "system.memory_outgoing_bridge"
+        "remote_memory_port" : "board.remote_memory"
     }
     port_list = []
     for port in ports:
@@ -174,7 +117,7 @@ for node in range(system_nodes):
     cpu_params = {
        "frequency" : cpu_clock_rate,
        "cmd" : " ".join(cmd),
-       "debug_flags" : "", # TrafficGen",
+       "debug_flags" : "",
        "ports" : " ".join(port_list)
     }
     # Each of the Gem5 node has to be separately simulated. TODO: Figure out
@@ -214,5 +157,5 @@ connect_components("membus_2_memory",
 # enable Statistics
 stat_params = { "rate" : "0ns" }
 sst.setStatisticLoadLevel(10)
-sst.setStatisticOutput("sst.statOutputTXT", {"filepath" : "./sst-traffic-example.txt"})
+sst.setStatisticOutput("sst.statOutputTXT", {"filepath" : "./riscv-board.txt"})
 sst.enableAllStatisticsForAllComponents()

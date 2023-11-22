@@ -31,40 +31,9 @@ import os
 
 from sst import UnitAlgebra
 
-cache_link_latency = "1ns"
+cache_link_latency = "1ps"
 
-bbl = "riscv-boot-exit-nodisk"
 cpu_clock_rate = "3GHz"
-# gem5 will send requests to physical addresses of range [0x80000000, inf) to memory
-# currently, we do not subtract 0x80000000 from the request's address to get the "real" address
-# so, the mem_size would always be 2GiB larger than the desired memory size
-# memory_size_gem5 = "2GiB"
-# memory_size_sst = "4GiB"
-# addr_range_end = UnitAlgebra(memory_size_sst).getRoundedValue()
-
-l1_params = {
-    "access_latency_cycles" : "1",
-    "cache_frequency" : cpu_clock_rate,
-    "replacement_policy" : "lru",
-    "coherence_protocol" : "MESI",
-    "associativity" : "4",
-    "cache_line_size" : "64",
-    "cache_size" : "32 MiB",
-    "L1" : "1",
-}
-
-dirNicParams = {
-      "network_bw" : "25GB/s",
-      "group" : 1,
-}
-
-def create_cache(name, params = None):
-    cache = sst.Component(name, "memHierarchy.Cache")
-    if params is None:
-        cache.addParams(l1_params)
-    else:
-        cache.addParams(params)
-    return cache
 
 def connect_components(link_name: str,
                        low_port_name: str, low_port_idx: int,
@@ -97,9 +66,10 @@ node_memory_slice = "2GiB"
 remote_memory_slice = "2GiB"
 
 # SST memory node size. Each system gets a 2 GiB slice of fixed memory.
-sst_memory_size = str((memory_nodes * int(node_memory_slice[0])) + (system_nodes) * 2 + 2) + "GiB"
+# SST memory node size. Each system gets a 2 GiB slice of fixed memory.
+sst_memory_size = str(
+    (memory_nodes * int(node_memory_slice[0])) + (system_nodes) * 2 + 2) +"GiB"
 addr_range_end = UnitAlgebra(sst_memory_size).getRoundedValue()
-print(sst_memory_size)
 
 # There is one cache bus connecting all gem5 ports to the remote memory.
 mem_bus = sst.Component("membus", "memHierarchy.Bus")
@@ -116,7 +86,7 @@ memctrl.addParams({
 })
 memory = memctrl.setSubComponent("backend", "memHierarchy.simpleMem")
 memory.addParams({
-    "access_time" : "50ns",
+    "access_time" : "30ns",
     "mem_size" : sst_memory_size
 })
 
@@ -129,22 +99,36 @@ for node in range(system_nodes):
     # Each of the nodes needs to have the initial parameters. We might need to
     # to supply the instance count to the Gem5 side. This will enable range
     # adjustments to be made to the DTB File.
-    cmd = [
-        f"--outdir=m5out_node_O3x_{node}",
-        "../../disaggregated_memory_setup/numa_config_sst_nodes.py",
+    cmd = []
+    ports = {}
+    script = []
+    # Each of the nodes needs to have the initial parameters. We might need to
+    # to supply the instance count to the Gem5 side. This will enable range
+    # adjustments to be made to the DTB File.
+    node_range = [0x80000000 + (node + 1) * 0x80000000,
+                  0x80000000 + (node + 2) * 0x80000000]
+    if node % 2 == 0:
+        # This is a RISCV node. We need to call the RISCV script.
+        script = [
+            f"--outdir=m5out_riscv_node_{node}",
+            "../../disaggregated_memory/configs/riscv-sst-numa-nodes.py",
+        ]
+    else:
+        script = [
+            f"--outdir=m5out_arm_node_{node}",
+            "../../disaggregated_memory/configs/arm-sst-numa-nodes.py",
+        ]
+    
+    cmd = script + [
         f"--cpu-clock-rate {cpu_clock_rate}",
-        f"--instance {node}"
-        
-        # "--outdir=m5out_{}".format(node),
-        # "../../configs/example/sst/riscv_fs_node.py",
-        # "--cpu-clock-rate {}".format(cpu_clock_rate),
-        # "--memory-size {}".format(node_memory_slice),
-        # # "--local-memory-size {}".format(node_memory_slice),
-        # # "--remote-memory-size {}".format(remote_memory_slice),
-        # "--instance {}".format(node)
+        "--cpu-type timing",
+        f"--local-memory-size {node_memory_slice}",
+        f"--remote-memory-addr-range {node_range[0]},{node_range[1]}",
+        f"--remote-memory-latency \
+            {int(float(cpu_clock_rate[0:cpu_clock_rate.find('G')]) * 250)}"
     ]
     ports = {
-        "remote_memory_port" : "system.remote_memory"
+        "remote_memory_port" : "board.remote_memory"
     }
     port_list = []
     for port in ports:
@@ -160,14 +144,15 @@ for node in range(system_nodes):
     gem5_nodes.append(
         sst.Component("gem5_node_{}".format(node), "gem5.gem5Component")
     )
+
     gem5_nodes[node].addParams(cpu_params)
     gem5_nodes[node].setRank(node + 1, 0)
-
     memory_ports.append(
         gem5_nodes[node].setSubComponent(
             "remote_memory_port", "gem5.gem5Bridge", 0
         )
     )
+
     memory_ports[node].addParams({
         "response_receiver_name" : ports["remote_memory_port"]
     })
@@ -179,14 +164,6 @@ for node in range(system_nodes):
                        memory_ports[node], 0,
                        mem_bus, node,
                        port = True)
-    
-    # directory_caches.append(create_cache("dir_cache_{}".format(node)))
-    # directory_caches[node].addParams({"network_address" : "2" })
-    # Connect the basic components.
-    # connect_components("node_{}_mem_port_2_bus".format(node),
-    #                    memory_ports[node], 0,
-    #                    cache_buses[node], node,
-    #                    port = True)
     
 # All system nodes are setup. Now create a SST memory. Keep it simplemem for
 # avoiding extra simulation time. There is only one memory node in SST's side.
@@ -200,5 +177,6 @@ connect_components("membus_2_memory",
 # enable Statistics
 stat_params = { "rate" : "0ns" }
 sst.setStatisticLoadLevel(10)
-sst.setStatisticOutput("sst.statOutputTXT", {"filepath" : "./sst-boards-example.txt"})
+sst.setStatisticOutput("sst.statOutputTXT",
+                       {"filepath" : "./multiISA-board.txt"})
 sst.enableAllStatisticsForAllComponents()

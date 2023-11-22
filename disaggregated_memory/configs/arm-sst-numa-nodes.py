@@ -35,6 +35,7 @@ startup is completed successfully.
 
 import os
 import sys
+import argparse
 
 # all the source files are one directory above.
 sys.path.append(
@@ -57,6 +58,49 @@ from gem5.resources.workload import Workload
 from gem5.resources.workload import *
 from gem5.resources.resource import *
 
+# SST passes a couple of arguments for this system to simulate.
+parser = argparse.ArgumentParser()
+parser.add_argument("--command", type=str, help="Command run by guest")
+parser.add_argument(
+    "--cpu-type",
+    type=str,
+    choices=["atomic", "timing", "o3"],
+    default="atomic",
+    help="CPU type",
+)
+parser.add_argument(
+    "--cpu-clock-rate",
+    type=str,
+    required=True,
+    help="CPU Clock",
+)
+parser.add_argument(
+    "--local-memory-size",
+    type=str,
+    required=True,
+    help="Local memory size",
+)
+parser.add_argument(
+    "--remote-memory-addr-range",
+    type=str,
+    required=True,
+    help="Remote memory range",
+)
+parser.add_argument(
+    "--remote-memory-latency",
+    type=int,
+    required=True,
+    help="Remote memory latency in Ticks (has to be converted prior)",
+)
+args = parser.parse_args()
+cpu_type = {
+    "o3" : CPUTypes.O3,
+    "atomic": CPUTypes.ATOMIC,
+    "timing": CPUTypes.TIMING}[args.cpu_type]
+
+remote_memory_range = list(map(int, args.remote_memory_range.split(",")))
+remote_memory_range = AddrRange(remote_memory_range[0], remote_memory_range[1])
+
 # This runs a check to ensure the gem5 binary is compiled for RISCV.
 requires(isa_required=ISA.ARM)
 # Here we setup the parameters of the l1 and l2 caches.
@@ -64,14 +108,15 @@ cache_hierarchy = ClassicPrivateL1PrivateL2SstDMCache(
     l1d_size="32KiB", l1i_size="32KiB", l2_size="1MB"
 )
 # Memory: Dual Channel DDR4 2400 DRAM device.
-local_memory = DualChannelDDR4_2400(size="2GiB")
+local_memory = DualChannelDDR4_2400(size=args.local_memory_range)
 # Either suppy the size of the remote memory or the address range of the
 # remote memory. Since this is inside the external memory, it does not matter
 # what type of memory is being simulated. This can either be initialized with
 # a size or a memory address range, which is mroe flexible. Adding remote
 # memory latency automatically adds a non-coherent crossbar to simulate latenyc
 remote_memory = ExternalRemoteMemoryInterface(
-    addr_range=AddrRange(0x100000000, size="2GiB"), remote_memory_latency=750
+    addr_range=remote_memory_range,
+    remote_memory_latency=args.remote_memory_latency
 )
 # Here we setup the processor. We use a simple processor.
 processor = SimpleProcessor(
@@ -79,8 +124,8 @@ processor = SimpleProcessor(
 )
 # Here we setup the board which allows us to do Full-System ARM simulations.
 board = ArmSstDMBoard(
-    clk_freq="3GHz",
-    processor=processor,
+    clk_freq=args.cpu_clock_rate,
+    processor=cpu_type,
     local_memory=local_memory,
     remote_memory=remote_memory,
     cache_hierarchy=cache_hierarchy,

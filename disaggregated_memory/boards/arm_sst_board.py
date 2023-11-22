@@ -37,6 +37,7 @@ from m5.objects import (
     AddrRange,
     VoltageDomain,
     SrcClockDomain,
+    NoncoherentXBar,
     Terminal,
     VncServer,
     IOXBar,
