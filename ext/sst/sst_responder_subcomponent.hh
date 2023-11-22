@@ -38,7 +38,6 @@
 #include <sst/core/component.h>
 #include <sst/core/interfaces/stringEvent.h>
 #include <sst/core/interfaces/stdMem.h>
-#include <sst/core/interfaces/stdMem.h>
 
 #include <sst/core/eli/elementinfo.h>
 #include <sst/core/link.h>
@@ -59,12 +58,10 @@ class SSTResponderSubComponent: public SST::SubComponent
     gem5::SSTResponderInterface* sstResponder;
 
     SST::Interfaces::StandardMem* memoryInterface;
-    SST::Interfaces::StandardMem* memoryInterface;
     SST::TimeConverter* timeConverter;
     SST::Output* output;
     std::queue<gem5::PacketPtr> responseQueue;
 
-    std::vector<SST::Interfaces::StandardMem::Request*> initRequests;
     std::vector<SST::Interfaces::StandardMem::Request*> initRequests;
 
     std::string gem5SimObjectName;
@@ -80,7 +77,6 @@ class SSTResponderSubComponent: public SST::SubComponent
 
     void setResponseReceiver(gem5::OutgoingRequestBridge* gem5_bridge);
     void portEventHandler(SST::Interfaces::StandardMem::Request* request);
-    void portEventHandler(SST::Interfaces::StandardMem::Request* request);
 
     bool blocked();
     void setup();
@@ -89,10 +85,8 @@ class SSTResponderSubComponent: public SST::SubComponent
     bool findCorrespondingSimObject(gem5::Root* gem5_root);
 
     bool handleTimingReq(SST::Interfaces::StandardMem::Request* request);
-    bool handleTimingReq(SST::Interfaces::StandardMem::Request* request);
     void handleRecvRespRetry();
     void handleRecvFunctional(gem5::PacketPtr pkt);
-    void handleSwapReqResponse(SST::Interfaces::StandardMem::Request* request);
     void handleSwapReqResponse(SST::Interfaces::StandardMem::Request* request);
 
     TPacketMap sstRequestIdToPacketMap;
@@ -100,9 +94,7 @@ class SSTResponderSubComponent: public SST::SubComponent
   public: // register the component to SST
     SST_ELI_REGISTER_SUBCOMPONENT_API(SSTResponderSubComponent);
     SST_ELI_REGISTER_SUBCOMPONENT(
-    SST_ELI_REGISTER_SUBCOMPONENT(
         SSTResponderSubComponent,
-        "gem5", // SST will look for libgem5.so or libgem5.dylib
         "gem5", // SST will look for libgem5.so or libgem5.dylib
         "gem5Bridge",
         SST_ELI_ELEMENT_VERSION(1, 0, 0),
@@ -112,7 +104,6 @@ class SSTResponderSubComponent: public SST::SubComponent
 
     SST_ELI_DOCUMENT_SUBCOMPONENT_SLOTS(
         {"memory", "Interface to the memory subsystem", \
-         "SST::Interfaces::StandardMem"}
          "SST::Interfaces::StandardMem"}
     )
 

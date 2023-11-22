@@ -117,16 +117,10 @@ OutgoingRequestBridge::getInitPhaseStatus() {
 void
 OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
 {
-    // This should not receive any functional accesses
-    // gem5::MemCmd::Command pktCmd = (gem5::MemCmd::Command)pkt->cmd.toInt();
-    // std::cout << "Recv Functional : 0x" << std::hex << pkt->getAddr() <<
-    // std::dec << " " << pktCmd << " " << gem5::MemCmd::WriteReq << " " <<
-    // getInitPhaseStatus() << std::endl;
     // Check at which stage are we at. If we are at INIT phase, then queue all
     // these packets.
     if (!getInitPhaseStatus())
     {
-        // sstResponder->recvAtomic(pkt);
         uint8_t* ptr = pkt->getPtr<uint8_t>();
         uint64_t size = pkt->getSize();
         std::vector<uint8_t> data(ptr, ptr+size);
@@ -139,9 +133,12 @@ OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
         // These packets have to translated at runtime. We convert these
         // packets to timing as its data has to be stored correctly in SST
         // memory. Otherwise reads from the SST memory will fail. To reproduce
-        // this error, don not handle any functional accesses and the kernel
+        // this error, do not handle any functional accesses and the kernel
         // boot will fail while reading the correct partition from the vda
-        // device.
+        // device. this is a hacky solution to solve functional accesses in the
+        // gem5 sst bridge. there are instances where the vda device will not
+        // work correctly. to reproduce errors, use 8 O3 CPUs accessing the
+        // same SST memory across 16 or 32 instances of gem5.
         sstResponder->handleRecvFunctional(pkt);
     }
 }

@@ -70,12 +70,6 @@ SSTResponderSubComponent::setTimeConverter(SST::TimeConverter* tc)
         interface_params, timeConverter,
         new SST::Interfaces::StandardMem::Handler<SSTResponderSubComponent>(
             this, &SSTResponderSubComponent::portEventHandler)
-    memoryInterface = loadAnonymousSubComponent<SST::Interfaces::StandardMem>(
-        "memHierarchy.standardInterface", "memory", 0,
-        SST::ComponentInfo::SHARE_PORTS | SST::ComponentInfo::INSERT_STATS,
-        interface_params, timeConverter,
-        new SST::Interfaces::StandardMem::Handler<SSTResponderSubComponent>(
-            this, &SSTResponderSubComponent::portEventHandler)
     );
     assert(memoryInterface != NULL);
 }
@@ -97,9 +91,7 @@ SSTResponderSubComponent::setResponseReceiver(
 bool
 SSTResponderSubComponent::handleTimingReq(
     SST::Interfaces::StandardMem::Request* request)
-    SST::Interfaces::StandardMem::Request* request)
 {
-    memoryInterface->send(request);
     memoryInterface->send(request);
     return true;
 }
@@ -118,15 +110,6 @@ SSTResponderSubComponent::init(unsigned phase)
         }
         responseReceiver->initData.clear();
         responseReceiver->initPhaseComplete(true);
-        std::cout << "Init phase is complete " << responseReceiver->getInitPhaseStatus() << std::endl;
-            SST::Interfaces::StandardMem::Request* request = \
-                new SST::Interfaces::StandardMem::Write(
-                    addr, data.size(), data);
-            memoryInterface->sendUntimedData(request);
-        }
-        responseReceiver->initData.clear();
-        responseReceiver->initPhaseComplete(true);
-        std::cout << "Init phase is complete " << responseReceiver->getInitPhaseStatus() << std::endl;
     }
     memoryInterface->init(phase);
 }
@@ -149,27 +132,19 @@ SSTResponderSubComponent::findCorrespondingSimObject(gem5::Root* gem5_root)
 void
 SSTResponderSubComponent::handleSwapReqResponse(
     SST::Interfaces::StandardMem::Request* request)
-    SST::Interfaces::StandardMem::Request* request)
 {
     // get the data, then,
     //     1. send a response to gem5 with the original data
     //     2. send a write to memory with atomic op applied
 
     SST::Interfaces::StandardMem::Request::id_t request_id = request->getID();
-    SST::Interfaces::StandardMem::Request::id_t request_id = request->getID();
     TPacketMap::iterator it = sstRequestIdToPacketMap.find(request_id);
     assert(it != sstRequestIdToPacketMap.end());
-    std::vector<uint8_t> data = \
-        dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(request)->data;
     std::vector<uint8_t> data = \
         dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(request)->data;
 
     // step 1
     gem5::PacketPtr pkt = it->second;
-    pkt->setData(
-        dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
-            request)->data.data()
-    );
     pkt->setData(
         dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
             request)->data.data()
@@ -186,19 +161,7 @@ SSTResponderSubComponent::handleSwapReqResponse(
     // the data size and then call Write.
     SST::Interfaces::StandardMem::Addr addr = \
         dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(request)->pAddr;
-    // This is a Write. Need to use the Write visitor class. But the original
-    // request is a read response. Therefore, we need to find the address and
-    // the data size and then call Write.
-    SST::Interfaces::StandardMem::Addr addr = \
-        dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(request)->pAddr;
     auto data_size = data.size();
-    // Create the Write request here.
-    SST::Interfaces::StandardMem::Request* write_request = \
-        new SST::Interfaces::StandardMem::Write(addr, data_size, data);
-    // F_LOCKED flag in SimpleMem was changed to ReadLock and WriteUnlock
-    // visitor classes. This has to be addressed in the future. The boot test
-    // works without using ReadLock and WriteUnlock classes.
-    memoryInterface->send(write_request);
     // Create the Write request here.
     SST::Interfaces::StandardMem::Request* write_request = \
         new SST::Interfaces::StandardMem::Write(addr, data_size, data);
@@ -213,10 +176,8 @@ SSTResponderSubComponent::handleSwapReqResponse(
 void
 SSTResponderSubComponent::portEventHandler(
     SST::Interfaces::StandardMem::Request* request)
-    SST::Interfaces::StandardMem::Request* request)
 {
     // Expect to handle an SST response
-    SST::Interfaces::StandardMem::Request::id_t request_id = request->getID();
     SST::Interfaces::StandardMem::Request::id_t request_id = request->getID();
 
     TPacketMap::iterator it = sstRequestIdToPacketMap.find(request_id);
@@ -238,16 +199,10 @@ SSTResponderSubComponent::portEventHandler(
         Translator::inplaceSSTRequestToGem5PacketPtr(pkt, request);
 
         if (blocked() || !(responseReceiver->sendTimingResp(pkt))) {
-        if (blocked() || !(responseReceiver->sendTimingResp(pkt))) {
             responseQueue.push(pkt);
         }
     } else {
-        // we can handle unexpected invalidates, but nothing else.
-        if (SST::Interfaces::StandardMem::Read* test =
-                dynamic_cast<SST::Interfaces::StandardMem::Read*>(request)) {
-        }
-    } else {
-        // we can handle unexpected invalidates, but nothing else.
+        // we can handle a few types of requests.
         if (SST::Interfaces::StandardMem::Read* test =
                 dynamic_cast<SST::Interfaces::StandardMem::Read*>(request)) {
             return;
@@ -255,46 +210,6 @@ SSTResponderSubComponent::portEventHandler(
         else if (SST::Interfaces::StandardMem::ReadResp* test =
                 dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
                 request)) {
-            // functional calls this
-            // gem5::RequestPtr req = std::make_shared<gem5::Request>(
-            //     dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
-            //         request)->pAddr,
-            //     dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
-            //         request)->size, 0, 0);
-
-            // gem5::PacketPtr pkt = new gem5::Packet(
-            //     req, gem5::MemCmd::ReadResp);
-
-            // // Clear out bus delay notifications
-            // pkt->headerDelay = pkt->payloadDelay = 0;
-            // if (!(responseReceiver->sendTimingResp(pkt)))
-            //     responseQueue.push(pkt);
-            return;
-        }
-        else if (SST::Interfaces::StandardMem::WriteResp* test =
-                dynamic_cast<SST::Interfaces::StandardMem::WriteResp*>(
-                request)) {
-            return;
-        }
-        // for Snoop/no response needed
-        }
-        else if (SST::Interfaces::StandardMem::ReadResp* test =
-                dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
-                request)) {
-            // functional calls this
-            // gem5::RequestPtr req = std::make_shared<gem5::Request>(
-            //     dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
-            //         request)->pAddr,
-            //     dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
-            //         request)->size, 0, 0);
-
-            // gem5::PacketPtr pkt = new gem5::Packet(
-            //     req, gem5::MemCmd::ReadResp);
-
-            // // Clear out bus delay notifications
-            // pkt->headerDelay = pkt->payloadDelay = 0;
-            // if (!(responseReceiver->sendTimingResp(pkt)))
-            //     responseQueue.push(pkt);
             return;
         }
         else if (SST::Interfaces::StandardMem::WriteResp* test =
@@ -305,10 +220,6 @@ SSTResponderSubComponent::portEventHandler(
         // for Snoop/no response needed
         // presently no consideration for masterId, packet type, flags...
         gem5::RequestPtr req = std::make_shared<gem5::Request>(
-            dynamic_cast<SST::Interfaces::StandardMem::FlushAddr*>(
-                request)->pAddr,
-            dynamic_cast<SST::Interfaces::StandardMem::FlushAddr*>(
-                request)->size, 0, 0);
             dynamic_cast<SST::Interfaces::StandardMem::FlushAddr*>(
                 request)->pAddr,
             dynamic_cast<SST::Interfaces::StandardMem::FlushAddr*>(
@@ -342,7 +253,6 @@ SSTResponderSubComponent::handleRecvFunctional(gem5::PacketPtr pkt)
     // has all the stored in it's memory, any functional access made to SST has
     // to be correctly handled. The idea here is to convert this timing access
     // into a timing access and keep the SST memory consistent.
-    std::cout << "handleRecvFunc was called! Need to do something here!" << std::endl;
 
     gem5::Addr addr = pkt->getAddr();
     uint8_t* ptr = pkt->getPtr<uint8_t>();
@@ -375,56 +285,6 @@ SSTResponderSubComponent::handleRecvFunctional(gem5::PacketPtr pkt)
             SST::Interfaces::StandardMem::Request::Flag::F_NONCACHEABLE);
     }
     memoryInterface->send(request);
-    // memoryInterface->sendUntimedData(request);
-
-    // memoryInterface->init(phase);
-    // sst does not understand what is a functional request. queue this as a
-    // regular memory packet.
-
-    // SST does not understand what is a functional access in gem5 since SST
-    // only allows functional accesses at init time. Since it
-    // has all the stored in it's memory, any functional access made to SST has
-    // to be correctly handled. The idea here is to convert this timing access
-    // into a timing access and keep the SST memory consistent.
-    std::cout << "handleRecvFunc was called! Need to do something here!" << std::endl;
-
-    gem5::Addr addr = pkt->getAddr();
-    uint8_t* ptr = pkt->getPtr<uint8_t>();
-    uint64_t size = pkt->getSize();
-
-    // Create a new request to handle this request immediately.
-    SST::Interfaces::StandardMem::Request* request = nullptr;
-
-    // we need a minimal translator here which does reads and writes. Any other
-    // command type is unexpected and the program should crash immediately.
-    switch((gem5::MemCmd::Command)pkt->cmd.toInt()) {
-        case gem5::MemCmd::WriteReq: {
-            std::vector<uint8_t> data(ptr, ptr+size);
-            request = new SST::Interfaces::StandardMem::Write(
-                addr, data.size(), data);
-            break;
-        }
-        case gem5::MemCmd::ReadReq: {
-            request = new SST::Interfaces::StandardMem::Read(addr, size);
-            break;
-        }
-        default:
-            panic(
-                "handleRecvFunctional: Unable to convert gem5 packet: %s\n",
-                pkt->cmd.toString()
-            );
-    }
-    if(pkt->req->isUncacheable()) {
-        request->setFlag(
-            SST::Interfaces::StandardMem::Request::Flag::F_NONCACHEABLE);
-    }
-    memoryInterface->send(request);
-    // memoryInterface->sendUntimedData(request);
-
-    // memoryInterface->init(phase);
-    // sst does not understand what is a functional request. queue this as a
-    // regular memory packet.
-
 }
 
 bool

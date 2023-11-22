@@ -28,13 +28,11 @@
 #define __TRANSLATOR_H__
 
 #include <sst/core/interfaces/stdMem.h>
-#include <sst/core/interfaces/stdMem.h>
 #include <sst/core/interfaces/stringEvent.h>
 #include <sst/elements/memHierarchy/memEvent.h>
 #include <sst/elements/memHierarchy/memTypes.h>
 #include <sst/elements/memHierarchy/util.h>
 
-typedef std::unordered_map<SST::Interfaces::StandardMem::Request::id_t,
 typedef std::unordered_map<SST::Interfaces::StandardMem::Request::id_t,
                            gem5::PacketPtr> TPacketMap;
 
@@ -42,39 +40,9 @@ namespace Translator
 {
 
 inline SST::Interfaces::StandardMem::Request*
-inline SST::Interfaces::StandardMem::Request*
 gem5RequestToSSTRequest(gem5::PacketPtr pkt,
                         TPacketMap& sst_request_id_to_packet_map)
 {
-    // Listing all the different SST Memory commands.
-    enum sst_standard_mem_commands
-    {
-        Read,
-        ReadResp,
-        Write,
-        WriteResp,
-        FlushAddr,
-        FlushResp,
-        ReadLock,
-        WriteUnlock,
-        LoadLink,
-        StoreConditional,
-        MoveData,
-        CustomReq,
-        CustomResp,
-        InvNotify
-
-    };
-    // SST's standard memory class has visitor classes for all the different
-    // types of memory commands. Request class now does not have a command
-    // variable. Instead for different types of request, we now need to
-    // dynamically cast the class object. I'm using an extra variable to map
-    // the type of command for SST.
-    int sst_command_type = -1;
-    // StandardMem only has one cache flush class with an option to flush or
-    // flush and invalidate an address. By default, this is set to true so that
-    // it corresponds to ge,::MemCmd::InvalidateReq
-    bool flush_addr_flag = true;
     // Listing all the different SST Memory commands.
     enum sst_standard_mem_commands
     {
@@ -112,30 +80,21 @@ gem5RequestToSSTRequest(gem5::PacketPtr pkt,
         case gem5::MemCmd::ReadExReq:
         case gem5::MemCmd::ReadCleanReq:
         case gem5::MemCmd::ReadSharedReq:
-        case gem5::MemCmd::ReadCleanReq:
-        case gem5::MemCmd::ReadSharedReq:
         case gem5::MemCmd::ReadReq:
         case gem5::MemCmd::SwapReq:
-            sst_command_type = Read;
             sst_command_type = Read;
             break;
         case gem5::MemCmd::StoreCondReq:
         case gem5::MemCmd::WritebackDirty:
         case gem5::MemCmd::WritebackClean:
-        case gem5::MemCmd::WritebackDirty:
-        case gem5::MemCmd::WritebackClean:
         case gem5::MemCmd::WriteReq:
-            sst_command_type = Write;
             sst_command_type = Write;
             break;
         case gem5::MemCmd::CleanInvalidReq:
         case gem5::MemCmd::InvalidateReq:
             sst_command_type = FlushAddr;
-            sst_command_type = FlushAddr;
             break;
         case gem5::MemCmd::CleanSharedReq:
-            sst_command_type = FlushAddr;
-            flush_addr_flag = false;
             sst_command_type = FlushAddr;
             flush_addr_flag = false;
             break;
@@ -144,42 +103,7 @@ gem5RequestToSSTRequest(gem5::PacketPtr pkt,
     }
 
     SST::Interfaces::StandardMem::Addr addr = pkt->getAddr();
-    SST::Interfaces::StandardMem::Addr addr = pkt->getAddr();
     auto data_size = pkt->getSize();
-    std::vector<uint8_t> data;
-    // Need to make sure that the command type is a Write to retrive the data
-    // data_ptr.
-    if (sst_command_type == Write) {
-        uint8_t* data_ptr = pkt->getPtr<uint8_t>();
-        data = std::vector<uint8_t>(data_ptr, data_ptr + data_size);
-
-    }
-    // Now convert a sst StandardMem request.
-    SST::Interfaces::StandardMem::Request* request = nullptr;
-    // find the corresponding memory command type.
-    switch(sst_command_type) {
-        case Read:
-            request = new SST::Interfaces::StandardMem::Read(addr, data_size);
-            break;
-        case Write:
-            request =
-                new SST::Interfaces::StandardMem::Write(addr, data_size, data);
-            break;
-        case FlushAddr: {
-            // StandardMem::FlushAddr has a invoking variable called `depth`
-            // which defines the number of cache levels to invalidate. Ideally
-            // this has to be input from the SST config, however in
-            // implementation I'm hardcoding this value to 2.
-            int cache_depth = 2;
-            request =
-                new SST::Interfaces::StandardMem::FlushAddr(
-                    addr, data_size, flush_addr_flag, cache_depth);
-            break;
-        }
-        default:
-            panic("Unable to translate command %d to Request class!",
-                sst_command_type);
-    }
     std::vector<uint8_t> data;
     // Need to make sure that the command type is a Write to retrive the data
     // data_ptr.
@@ -221,12 +145,7 @@ gem5RequestToSSTRequest(gem5::PacketPtr pkt,
         // F_LOCKED is deprecated. Therefore I'm skipping this flag for the
         // StandardMem request.
     } else if ((gem5::MemCmd::Command)pkt->cmd.toInt() ==
-        // F_LOCKED is deprecated. Therefore I'm skipping this flag for the
-        // StandardMem request.
-    } else if ((gem5::MemCmd::Command)pkt->cmd.toInt() ==
               gem5::MemCmd::StoreCondReq) {
-        // F_LLSC is deprecated. Therefore I'm skipping this flag for the
-        // StandardMem request.
         // F_LLSC is deprecated. Therefore I'm skipping this flag for the
         // StandardMem request.
     }
@@ -234,49 +153,24 @@ gem5RequestToSSTRequest(gem5::PacketPtr pkt,
     if (pkt->req->isUncacheable()) {
         request->setFlag(
             SST::Interfaces::StandardMem::Request::Flag::F_NONCACHEABLE);
-        request->setFlag(
-            SST::Interfaces::StandardMem::Request::Flag::F_NONCACHEABLE);
     }
 
     if (pkt->needsResponse())
         sst_request_id_to_packet_map[request->getID()] = pkt;
-    
-    // if(gem5::curTick() > 340330000000)
-        // std::cout << request->getString() << std::endl;
-        sst_request_id_to_packet_map[request->getID()] = pkt;
-    
-    // if(gem5::curTick() > 340330000000)
-        // std::cout << request->getString() << std::endl;
+
     return request;
 }
 
 inline void
 inplaceSSTRequestToGem5PacketPtr(gem5::PacketPtr pkt,
                                 SST::Interfaces::StandardMem::Request* request)
-                                SST::Interfaces::StandardMem::Request* request)
 {
-    // if(gem5::curTick() > 340330000000)
-    //     std::cout << request->getString() << std::endl;
-    // if(gem5::curTick() > 340330000000)
-    //     std::cout << request->getString() << std::endl;
     pkt->makeResponse();
 
     // Resolve the success of Store Conditionals
     if (pkt->isLLSC() && pkt->isWrite()) {
         // SC interprets ExtraData == 1 as the store was successful
         pkt->req->setExtraData(1);
-    }
-    // If there is data in the request, send it back. Only ReadResp requests
-    // have data associated with it. Other packets does not need to be casted.
-    if (!pkt->isWrite()) {
-        // Need to verify whether the packet is a ReadResp, otherwise the
-        // program will try to incorrectly cast the request object.
-        if (SST::Interfaces::StandardMem::ReadResp* test =
-            dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(request)) {
-            pkt->setData(dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
-                request)->data.data()
-            );
-        }
     }
     // If there is data in the request, send it back. Only ReadResp requests
     // have data associated with it. Other packets does not need to be casted.
