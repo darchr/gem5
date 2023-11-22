@@ -118,9 +118,9 @@ class OutgoingRequestBridge: public SimObject
     void initPhaseComplete(bool value);
 
     // We read the value of the init_phase_bool using `getInitPhaseStatus`
-    // method.
-
+    // method. This methids will be used later to swap memory ports.
     bool getInitPhaseStatus();
+
     // gem5 Component (from SST) will call this function to let set the
     // bridge's corresponding SSTResponderSubComponent (which implemented
     // SSTResponderInterface). I.e., this will connect this bridge to the

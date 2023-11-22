@@ -251,8 +251,8 @@ SSTResponderSubComponent::handleRecvFunctional(gem5::PacketPtr pkt)
     // SST does not understand what is a functional access in gem5 since SST
     // only allows functional accesses at init time. Since it
     // has all the stored in it's memory, any functional access made to SST has
-    // to be correctly handled. The idea here is to convert this timing access
-    // into a timing access and keep the SST memory consistent.
+    // to be correctly handled. The idea here is to convert this functional
+    // access into a timing access and keep the SST memory consistent.
 
     gem5::Addr addr = pkt->getAddr();
     uint8_t* ptr = pkt->getPtr<uint8_t>();
