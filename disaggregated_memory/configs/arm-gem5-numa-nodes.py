@@ -71,7 +71,7 @@ def RemoteDualChannelDDR4_2400(
     """
     return RemoteChanneledMemory(
         DDR4_2400_8x8,
-        1,
+        2,
         64,
         size=size,
         remote_offset_latency=remote_offset_latency,
@@ -108,18 +108,21 @@ cmd = [
     "mount -t proc - /proc;",
     "numastat;",
     "m5 dumpresetstats 0 ;",
-    "numactl --cpubind=0 --membind=0 -- " +
+    "numactl --membind=0 -- " +
     "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw " +
     "1000000;",
     "m5 dumpresetstats 0;",
-    "numactl --cpubind=0 --membind=0,1 -- " +
+    "numastat;",
+    "numactl --interleave=0,1 -- " +
     "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw " +
     "1000000;",
     "m5 dumpresetstats 0;",
-    "numactl --cpubind=0 --membind=1 -- " +
+    "numastat;",
+    "numactl --membind=1 -- " +
     "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw " +
     "1000000;",
     "m5 dumpresetstats 0;",
+    "numastat;",
     "m5 exit;",
 ]
 board.set_kernel_disk_workload(

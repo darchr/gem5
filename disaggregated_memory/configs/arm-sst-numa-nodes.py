@@ -136,18 +136,21 @@ cmd = [
     "mount -t proc - /proc;",
     "numastat;",
     "m5 dumpresetstats 0 ;",
-    "numactl --cpubind=0 --membind=0 -- " +
+    "numactl --membind=0 -- " +
     "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw " +
     "1000000;",
     "m5 dumpresetstats 0;",
-    "numactl --cpubind=0 --membind=0,1 -- " +
+    "numastat;",
+    "numactl --interleave=0,1 -- " +
     "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw " +
     "1000000;",
     "m5 dumpresetstats 0;",
-    "numactl --cpubind=0 --membind=1 -- " +
+    "numastat;",
+    "numactl --membind=1 -- " +
     "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw " +
     "1000000;",
     "m5 dumpresetstats 0;",
+    "numastat;",
     "m5 exit;",
 ]
 
