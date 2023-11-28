@@ -1,0 +1,1353 @@
+[
+    {
+        "parameter": "processor.cores[0].core.executeFuncUnits.funcUnits[0:2].opLat",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Latency of the integer functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[2].opLat",
+        "min_value": 1,
+        "max_value": 6,
+        "annotation": "Latency of the multiplication functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[3].opLat",
+        "min_value": 1,
+        "max_value": 10,
+        "annotation": "Latency of the division functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[6].opLat",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Latency of the load functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[7].opLat",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Latency of the store functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[0:2].issueLat",
+        "min_value": 1,
+        "max_value": 5,
+        "annotation": "Latency of the integer functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[2].issueLat",
+        "min_value": 1,
+        "max_value": 5,
+        "annotation": "Latency of the multiplication functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[3].issueLat",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Latency of the division functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[6].issueLat",
+        "min_value": 1,
+        "max_value": 5,
+        "annotation": "Latency of the load functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeFuncUnits.funcUnits[7].issueLat",
+        "min_value": 1,
+        "max_value": 5,
+        "annotation": "Latency of the store functional unit",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.localPredictorSize",
+        "min_value": 512,
+        "max_value": 65536,
+        "annotation": "Size of the local predictor of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.localCtrBits",
+        "min_value": 2,
+        "max_value": 8,
+        "annotation": "Number of bits of the local predictor of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.globalPredictorSize",
+        "min_value": 512,
+        "max_value": 65536,
+        "annotation": "Size of the global predictor of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.globalCtrBits",
+        "min_value": 2,
+        "max_value": 8,
+        "annotation": "Number of bits of the global predictor of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.choicePredictorSize",
+        "min_value": 512,
+        "max_value": 65536,
+        "annotation": "Size of the choice predictor of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.choiceCtrBits",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Number of bits of the choice predictor of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.BTBEntries",
+        "min_value": 1,
+        "max_value": 4096,
+        "annotation": "Number of entries of the BTB of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.RASSize",
+        "min_value": 6,
+        "max_value": 48,
+        "annotation": "Size of the RAS of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.BTBTagSize",
+        "min_value": 1,
+        "max_value": 32,
+        "annotation": "Size of the tag of the BTB of the branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.instShiftAmt",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Shift amount of the branch predictor",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.indirectBranchPred.indirectSets",
+        "min_value": 128,
+        "max_value": 1024,
+        "annotation": "Number of sets of the indirect branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.indirectBranchPred.indirectWays",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Number of ways of the indirect branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.indirectBranchPred.indirectPathLength",
+        "min_value": 1,
+        "max_value": 5,
+        "annotation": "Path length of the indirect branch predictor",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.branchPred.indirectBranchPred.indirectTagSize",
+        "min_value": 8,
+        "max_value": 32,
+        "annotation": "Tag size of the indirect branch predictor",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.threadPolicy",
+        "min_value": "\"SingleThreaded\"",
+        "max_value": "\"RoundRobin\"",
+        "annotation": "Thread policy of the core",
+        "step": "flip"
+    },
+    {
+        "parameter": "processor.cores[:].core.enableIdling",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether the core can be idled",
+        "step": "flip"
+    },
+    {
+        "parameter": "processor.cores[:].core.fetch1FetchLimit",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Number of instructions fetched per cycle by the first fetch stage",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.fetch1ToFetch2ForwardDelay",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Fetch1 to Fetch2 forward delay in cycles.",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.fetch1ToFetch2BackwardDelay",
+        "min_value": 0,
+        "max_value": 3,
+        "annotation": "Fetch1 to Fetch2 backward delay in cycles.",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.fetch2InputBufferSize",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Fetch2 input buffer size in cycles-worth of instructions.",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.fetch2ToDecodeForwardDelay",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Fetch2 to Decode forward delay in cycles.",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.fetch2CycleInput",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether Fetch2 is cycle input.",
+        "step": "flip"
+    },
+    {
+        "parameter": "processor.cores[:].core.decodeInputBufferSize",
+        "min_value": 1,
+        "max_value": 5,
+        "annotation": "Decode input buffer size in cycles-worth of instructions.",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.decodeToExecuteForwardDelay",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Decode to Execute forward delay in cycles.",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.decodeInputWidth",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Decode input width in instructions per cycle.",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.decodeCycleInput",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether Decode is cycle input.",
+        "step": "flip"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeInputWidth",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Execute input width in instructions per cycle.",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeCycleInput",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether Execute is cycle input.",
+        "step": "flip"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeIssueLimit",
+        "min_value": 1,
+        "max_value": 6,
+        "annotation": "Number of instructions issued per cycle by the execute stage.",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeMemoryIssueLimit",
+        "min_value": 1,
+        "max_value": 6,
+        "annotation": "Number of memory instructions issued per cycle by the execute stage.",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeCommitLimit",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Number of instructions committed per cycle by the execute stage.",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeMemoryCommitLimit",
+        "min_value": 1,
+        "max_value": 6,
+        "annotation": "Number of memory instructions committed per cycle by the execute stage.",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeInputBufferSize",
+        "min_value": 1,
+        "max_value": 10,
+        "annotation": "Execute input buffer size in cycles-worth of instructions.",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeMaxAccessesInMemory",
+        "min_value": 1,
+        "max_value": 6,
+        "annotation": "Maximum number of memory accesses per cycle by the execute stage.",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeLSQMaxStoreBufferStoresPerCycle",
+        "min_value": 1,
+        "max_value": 6,
+        "annotation": "Maximum number of store buffer stores per cycle by the execute stage.",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeLSQRequestsQueueSize",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Size of the requests queue of the execute stage.",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeLSQTransfersQueueSize",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Size of the transfers queue of the execute stage.",
+        "step": "multiply"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeLSQStoreBufferSize",
+        "min_value": 1,
+        "max_value": 9,
+        "annotation": "Size of the store buffer of the execute stage.",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeBranchDelay",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Branch delay of the execute stage.",
+        "step": "add"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeSetTraceTimeOnCommit",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether to set the trace time on commit.",
+        "step": "flip"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeSetTraceTimeOnIssue",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether to set the trace time on commit.",
+        "step": "flip"
+    },
+    {
+        "parameter": "processor.cores[:].core.executeAllowEarlyMemoryIssue",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether to set the trace time on commit.",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.tag_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Tag latency of the L2 cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.data_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Data latency of the L2 cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.response_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Response latency of the L2 cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.mshrs",
+        "min_value": 1,
+        "max_value": 20,
+        "annotation": "Number of MSHRs of the L2 cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.warmup_percentage",
+        "min_value": 0,
+        "max_value": 10,
+        "annotation": "Warmup percentage of the L2 cache. Check",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.demand_mshr_reserve",
+        "min_value": 1,
+        "max_value": 10,
+        "annotation": "Demand MSHR reserve of the L2 cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.tgts_per_mshr",
+        "min_value": 1,
+        "max_value": 20,
+        "annotation": "Targets per MSHR of the L2 cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.write_buffers",
+        "min_value": 1,
+        "max_value": 16,
+        "annotation": "Write buffers of the L2 cache",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetch_on_access",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify the hardware prefetcher on every access (not just misses)",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetch_on_pf_hit",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify the hardware prefetcher on every prefetch hit",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.move_contractions",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Apply replacement policy to decide which blocks should be evicted on a data expansion",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.sequential_access",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether to access tags and data sequentially",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.writeback_clean",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether to writeback clean lines",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.confidence_counter_bits",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Confidence counter bits of the prefetcher",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.initial_confidence",
+        "min_value": 1,
+        "max_value": 5,
+        "annotation": "Initial confidence of the prefetcher",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.confidence_threshold",
+        "min_value": 25,
+        "max_value": 100,
+        "annotation": "Confidence threshold of the prefetcher",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.use_requestor_id",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Use requestor ID based history",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.degree",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Number of prefetches to generate",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.table_assoc",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Associativity of the prefetcher table",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.table_entries",
+        "min_value": 256,
+        "max_value": 8192,
+        "annotation": "Number of entries of the prefetcher table",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.latency",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Latency of the prefetcher",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.queue_size",
+        "min_value": 4,
+        "max_value": 128,
+        "annotation": "Queue size of the prefetcher",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.max_prefetch_requests_with_pending_translation",
+        "min_value": 4,
+        "max_value": 128,
+        "annotation": "Queue size of the prefetcher",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.queue_squash",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Squash prefetches on demand access",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.queue_filter",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Don't queue redundant prefetches",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.cache_snoop",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Snoop cache for prefetches",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.on_miss",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Only prefetch on misses",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.on_read",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify prefetcher on reads",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.on_write",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify prefetcher on writes",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.on_data",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify prefetcher on data accesses",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.on_inst",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify prefetcher on instruction accesses",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.prefetcher.use_virtual_addresses",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Use virtual addresses",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].tag_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Tag latency of the L1D cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].data_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Data latency of the L1D cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].response_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Response latency of the L1D cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].mshrs",
+        "min_value": 1,
+        "max_value": 20,
+        "annotation": "Number of MSHRs of the L1D cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].warmup_percentage",
+        "min_value": 0,
+        "max_value": 10,
+        "annotation": "Warmup percentage of the L1D cache. Check",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].demand_mshr_reserve",
+        "min_value": 1,
+        "max_value": 15,
+        "annotation": "Demand MSHR reserve of the L1D cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].tgts_per_mshr",
+        "min_value": 1,
+        "max_value": 20,
+        "annotation": "Targets per MSHR of the L1D cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].write_buffers",
+        "min_value": 1,
+        "max_value": 16,
+        "annotation": "Write buffers of the L1D cache",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetch_on_access",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify the hardware prefetcher on every access (not just misses)",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetch_on_pf_hit",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify the hardware prefetcher on every prefetch hit",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].move_contractions",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Apply replacement policy to decide which blocks should be evicted on a data expansion",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].sequential_access",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether to access tags and data sequentially",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].writeback_clean",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether to writeback clean lines",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.confidence_counter_bits",
+        "min_value": 2,
+        "max_value": 4,
+        "annotation": "Confidence counter bits of the prefetcher",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.initial_confidence",
+        "min_value": 1,
+        "max_value": 5,
+        "annotation": "Initial confidence of the prefetcher",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.confidence_threshold",
+        "min_value": 25,
+        "max_value": 100,
+        "annotation": "Confidence threshold of the prefetcher",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.use_requestor_id",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Use requestor ID based history",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.degree",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Number of prefetches to generate",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.table_assoc",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Associativity of the prefetcher table",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.table_entries",
+        "min_value": 256,
+        "max_value": 8192,
+        "annotation": "Number of entries of the prefetcher table",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.latency",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Latency of the prefetcher",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.queue_size",
+        "min_value": 16,
+        "max_value": 128,
+        "annotation": "Queue size of the prefetcher",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.max_prefetch_requests_with_pending_translation",
+        "min_value": 16,
+        "max_value": 128,
+        "annotation": "Queue size of the prefetcher",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.queue_squash",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Squash prefetches on demand access",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.queue_filter",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Don't queue redundant prefetches",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.cache_snoop",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Snoop cache for prefetches",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.on_miss",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Only prefetch on misses",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.on_read",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify prefetcher on reads",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.on_write",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify prefetcher on writes",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.on_data",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify prefetcher on data accesses",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.on_inst",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify prefetcher on instruction accesses",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.use_virtual_addresses",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Use virtual addresses",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].tag_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Tag latency of the L1I cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].data_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Data latency of the L1I cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].response_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Response latency of the L1I cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].mshrs",
+        "min_value": 1,
+        "max_value": 20,
+        "annotation": "Number of MSHRs of the L1I cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].warmup_percentage",
+        "min_value": 0,
+        "max_value": 10,
+        "annotation": "Warmup percentage of the L1I cache. Check",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].demand_mshr_reserve",
+        "min_value": 1,
+        "max_value": 5,
+        "annotation": "Demand MSHR reserve of the L1I cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].tgts_per_mshr",
+        "min_value": 1,
+        "max_value": 20,
+        "annotation": "Targets per MSHR of the L1I cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].write_buffers",
+        "min_value": 1,
+        "max_value": 16,
+        "annotation": "Write buffers of the L1I cache",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetch_on_access",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify the hardware prefetcher on every access (not just misses)",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetch_on_pf_hit",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify the hardware prefetcher on every prefetch hit",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].move_contractions",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Apply replacement policy to decide which blocks should be evicted on a data expansion",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].sequential_access",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether to access tags and data sequentially",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].writeback_clean",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether to writeback clean lines",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.confidence_counter_bits",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Confidence counter bits of the prefetcher",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.initial_confidence",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Initial confidence of the prefetcher",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.confidence_threshold",
+        "min_value": 25,
+        "max_value": 100,
+        "annotation": "Confidence threshold of the prefetcher",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.use_requestor_id",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Use requestor ID based history",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.degree",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Number of prefetches to generate",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.table_assoc",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Associativity of the prefetcher table",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.table_entries",
+        "min_value": 128,
+        "max_value": 8192,
+        "annotation": "Number of entries of the prefetcher table",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.latency",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Latency of the prefetcher",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.queue_size",
+        "min_value": 4,
+        "max_value": 128,
+        "annotation": "Queue size of the prefetcher",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.max_prefetch_requests_with_pending_translation",
+        "min_value": 2,
+        "max_value": 128,
+        "annotation": "Queue size of the prefetcher",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.queue_squash",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Squash prefetches on demand access",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.queue_filter",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Don't queue redundant prefetches",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.cache_snoop",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Snoop cache for prefetches",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.on_miss",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Only prefetch on misses",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.on_read",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify prefetcher on reads",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.on_write",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify prefetcher on writes",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.on_data",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify prefetcher on data accesses",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.on_inst",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify prefetcher on instruction accesses",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.use_virtual_addresses",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Use virtual addresses",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.iptw_caches[:].tag_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Tag latency of the IPTW cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.iptw_caches[:].data_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Data latency of the IPTW cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.iptw_caches[:].response_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Response latency of the IPTW cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.iptw_caches[:].mshrs",
+        "min_value": 1,
+        "max_value": 20,
+        "annotation": "Number of MSHRs of the IPTW cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.iptw_caches[:].warmup_percentage",
+        "min_value": 0,
+        "max_value": 10,
+        "annotation": "Warmup percentage of the IPTW cache. Check",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.iptw_caches[:].demand_mshr_reserve",
+        "min_value": 1,
+        "max_value": 5,
+        "annotation": "Demand MSHR reserve of the IPTW cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.iptw_caches[:].tgts_per_mshr",
+        "min_value": 1,
+        "max_value": 20,
+        "annotation": "Targets per MSHR of the IPTW cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.iptw_caches[:].write_buffers",
+        "min_value": 1,
+        "max_value": 16,
+        "annotation": "Write buffers of the IPTW cache",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.iptw_caches[:].prefetch_on_access",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify the hardware prefetcher on every access (not just misses)",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.iptw_caches[:].prefetch_on_pf_hit",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify the hardware prefetcher on every prefetch hit",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.iptw_caches[:].move_contractions",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Apply replacement policy to decide which blocks should be evicted on a data expansion",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.iptw_caches[:].sequential_access",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether to access tags and data sequentially",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.iptw_caches[:].writeback_clean",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether to writeback clean lines",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.dptw_caches[:].tag_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Tag latency of the DPTW cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.dptw_caches[:].data_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Data latency of the DPTW cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.dptw_caches[:].response_latency",
+        "min_value": 1,
+        "max_value": 30,
+        "annotation": "Response latency of the DPTW cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.dptw_caches[:].mshrs",
+        "min_value": 1,
+        "max_value": 20,
+        "annotation": "Number of MSHRs of the DPTW cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.dptw_caches[:].warmup_percentage",
+        "min_value": 0,
+        "max_value": 10,
+        "annotation": "Warmup percentage of the DPTW cache. Check",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.dptw_caches[:].demand_mshr_reserve",
+        "min_value": 1,
+        "max_value": 5,
+        "annotation": "Demand MSHR reserve of the DPTW cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.dptw_caches[:].tgts_per_mshr",
+        "min_value": 1,
+        "max_value": 20,
+        "annotation": "Targets per MSHR of the DPTW cache",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.dptw_caches[:].write_buffers",
+        "min_value": 1,
+        "max_value": 16,
+        "annotation": "Write buffers of the DPTW cache",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.dptw_caches[:].prefetch_on_access",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify the hardware prefetcher on every access (not just misses)",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.dptw_caches[:].prefetch_on_pf_hit",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Notify the hardware prefetcher on every prefetch hit",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.dptw_caches[:].move_contractions",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Apply replacement policy to decide which blocks should be evicted on a data expansion",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.dptw_caches[:].sequential_access",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether to access tags and data sequentially",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.dptw_caches[:].writeback_clean",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Whether to writeback clean lines",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2bus.snoop_filter.lookup_latency",
+        "min_value": 1,
+        "max_value": 2,
+        "annotation": "Lookup latency of the snoop filter",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l2bus.snoop_filter.max_capacity",
+        "min_value": "\"8MiB\"",
+        "max_value": "\"16MiB\"",
+        "annotation": "Maximum capacity of the snoop filter",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2bus.snoop_response_latency",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Snoop response latency of the L2 bus",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.l2bus.max_outstanding_snoops",
+        "min_value": 256,
+        "max_value": 1024,
+        "annotation": "Maximum number of outstanding snoops of the L2 bus",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l2bus.max_routing_table_size",
+        "min_value": 256,
+        "max_value": 1024,
+        "annotation": "Maximum number of outstanding snoops of the L2 bus",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l2bus.point_of_coherency",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Point of coherency of the L2 bus",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2bus.point_of_unification",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Point of unification of the L2 bus",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.membus.snoop_filter.lookup_latency",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Lookup latency of the snoop filter",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.membus.snoop_filter.max_capacity",
+        "min_value": "\"8MiB\"",
+        "max_value": "\"16MiB\"",
+        "annotation": "Maximum capacity of the snoop filter",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.membus.snoop_response_latency",
+        "min_value": 1,
+        "max_value": 4,
+        "annotation": "Snoop response latency of the L2 bus",
+        "step": "add"
+    },
+    {
+        "parameter": "cache_hierarchy.membus.max_outstanding_snoops",
+        "min_value": 256,
+        "max_value": 1024,
+        "annotation": "Maximum number of outstanding snoops of the L2 bus",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.membus.max_routing_table_size",
+        "min_value": 256,
+        "max_value": 1024,
+        "annotation": "Maximum number of outstanding snoops of the L2 bus",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.membus.point_of_coherency",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Point of coherency of the L2 bus",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.membus.point_of_unification",
+        "min_value": false,
+        "max_value": true,
+        "annotation": "Point of unification of the L2 bus",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.iptw_caches[:].clusivity",
+        "min_value": "\"mostly_excl\"",
+        "max_value": "\"mostly_incl\"",
+        "annotation": "Clusivity of the IPTW cache",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.dptw_caches[:].clusivity",
+        "min_value": "\"mostly_excl\"",
+        "max_value": "\"mostly_incl\"",
+        "annotation": "Clusivity of the L1D cache",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.clusivity",
+        "min_value": "\"mostly_excl\"",
+        "max_value": "\"mostly_incl\"",
+        "annotation": "Clusivity of the L2 cache",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].clusivity",
+        "min_value": "\"mostly_excl\"",
+        "max_value": "\"mostly_incl\"",
+        "annotation": "Clusivity of the L1D cache",
+        "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].clusivity",
+        "min_value": "\"mostly_excl\"",
+        "max_value": "\"mostly_incl\"",
+        "annotation": "Clusivity of the L1D cache",
+        "step": "flip"
+    }
+]
