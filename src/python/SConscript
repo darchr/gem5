@@ -275,6 +275,16 @@ PySource('gem5.prebuilt.riscvmatched',
     'gem5/prebuilt/riscvmatched/riscvmatched_processor.py')
 PySource('gem5.prebuilt.riscvmatched',
     'gem5/prebuilt/riscvmatched/riscvmatched_core.py')
+PySource('gem5.prebuilt.rocketchip',
+    'gem5/prebuilt/rocketchip/__init__.py')
+PySource('gem5.prebuilt.rocketchip',
+    'gem5/prebuilt/rocketchip/rocketchip_board.py')
+PySource('gem5.prebuilt.rocketchip',
+    'gem5/prebuilt/rocketchip/rocketchip_cache.py')
+PySource('gem5.prebuilt.rocketchip',
+    'gem5/prebuilt/rocketchip/rocketchip_processor.py')
+PySource('gem5.prebuilt.rocketchip',
+    'gem5/prebuilt/rocketchip/rocketchip_core.py')
 PySource('gem5.resources', 'gem5/resources/__init__.py')
 PySource('gem5.resources', 'gem5/resources/client.py')
 PySource('gem5.resources', 'gem5/resources/downloader.py')
