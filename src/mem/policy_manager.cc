@@ -3554,10 +3554,26 @@ PolicyManager::unserialize(CheckpointIn &cp)
 
         assert(getAddrRange().contains(farAddr));
         countValid++;
-        int way = findEmptyWay(index);
-        // once you stored LRU, come back here and call it instead of putting 0;
-        if (way ==-1) {
-            way = 0; // so it always works for direct-mapped
+        int way = -1;
+        
+        if (assoc == 1) {
+            way = findEmptyWay(index);
+            // once you stored LRU, come back here and call it instead of putting 0;
+            if (way ==-1) {
+                way = 0; // so it always works for direct-mapped
+            }
+        }
+        if (assoc > 1) {
+            Addr indexNew = returnIndexDC(farAddr, blockSize);
+            Addr tagNew = returnTagDC(farAddr, blockSize);
+            way = findMatchingWay(indexNew, tagNew);
+            if (way == noMatchingWay) {
+                way = getCandidateWay(indexNew);
+            }
+            assert(way != -1);
+            assert(way < assoc);
+            index = indexNew;
+            tag = tagNew;
         }
 
         tagMetadataStore.at(index).at(way)->tagDC = tag;
