@@ -36,7 +36,7 @@ from ...utils.override import overrides
 from m5.objects import AddrRange, DRAMInterface, Port, PolicyManager, L2XBar, IOXBar
 from typing import Type, Optional, Union, Sequence, Tuple, List
 from .memory import _try_convert
-from .dram_interfaces.hbm import TDRAM_32
+from .dram_interfaces.hbm import TDRAM
 from .dram_interfaces.ddr4 import DDR4_2400_8x8
 from .multi_channel import DualChannelDDR4_2400
 from .single_channel import SingleChannelDDR4_2400
@@ -152,13 +152,13 @@ class DCacheSystem(AbstractMemorySystem):
     def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
         return [(self.policy_manager.range, self.policy_manager.port)]
 
-def SingleChannelTDRAM32(
+def SingleChannelTDRAM(
     size: Optional[str] = None,
 ) -> AbstractMemorySystem:
     if not size:
         size = "256MiB"
     return ChanneledMemory(
-        TDRAM_32,
+        TDRAM,
         1,
         64,
         size=size
@@ -167,7 +167,7 @@ def SingleChannelTDRAM32(
 
 def CascadeLakeCache(cache_size) -> AbstractMemorySystem:
     return DCacheSystem(
-        SingleChannelTDRAM32,
+        SingleChannelTDRAM,
         SingleChannelDDR4_2400,
         'CascadeLakeNoPartWrs',
         size='64GiB',
@@ -175,7 +175,7 @@ def CascadeLakeCache(cache_size) -> AbstractMemorySystem:
 
 def OracleCache(cache_size) -> AbstractMemorySystem:
     return DCacheSystem(
-        SingleChannelTDRAM32,
+        SingleChannelTDRAM,
         SingleChannelDDR4_2400,
         'Oracle',
         size='64GiB',
@@ -183,7 +183,7 @@ def OracleCache(cache_size) -> AbstractMemorySystem:
 
 def RambusCache(cache_size) -> AbstractMemorySystem:
     return DCacheSystem(
-        SingleChannelTDRAM32,
+        SingleChannelTDRAM,
         SingleChannelDDR4_2400,
         'Rambus',
         size='64GiB',
