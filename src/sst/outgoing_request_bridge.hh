@@ -30,6 +30,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/statistics.hh"
 #include "mem/port.hh"
 #include "params/OutgoingRequestBridge.hh"
 #include "sim/sim_object.hh"
@@ -53,6 +54,7 @@ namespace gem5
 
 class OutgoingRequestBridge: public SimObject
 {
+
   public:
     class OutgoingRequestPort: public ResponsePort
     {
@@ -82,6 +84,24 @@ class OutgoingRequestBridge: public SimObject
     bool init_phase_bool;
 
   public:
+    // we need a statistics counter for this simobject to find out how many
+    // requests were sent to or received from the outgoing port.
+    struct StatGroup : public statistics::Group
+    {
+        StatGroup(statistics::Group *parent);
+        /** Count the number of outgoing packets */
+        statistics::Scalar numOutgoingPackets;
+
+
+        /** Cumulative size of the all outgoing packets */
+        statistics::Scalar sizeOutgoingPackets;
+
+        /** Count the number of incoming packets */
+        statistics::Scalar numIncomingPackets;
+        /** Cumulative size of all the incoming packets */
+        statistics::Scalar sizeIncomingPackets;
+    } stats;
+  public:
     // a gem5 ResponsePort
     OutgoingRequestPort outgoingPort;
     // pointer to the corresponding SST responder
@@ -97,7 +117,8 @@ class OutgoingRequestBridge: public SimObject
 
     // Required to let the OutgoingRequestPort to send range change request.
     void init();
-
+    
+    bool handleTiming(PacketPtr pkt);
     // Returns the range of addresses that the ports will handle.
     // Currently, it will return the range of [0x80000000, inf), which is
     // specific to RISCV (SiFive's HiFive boards).
@@ -118,9 +139,9 @@ class OutgoingRequestBridge: public SimObject
     void initPhaseComplete(bool value);
 
     // We read the value of the init_phase_bool using `getInitPhaseStatus`
-    // method. This methids will be used later to swap memory ports.
-    bool getInitPhaseStatus();
+    // method.
 
+    bool getInitPhaseStatus();
     // gem5 Component (from SST) will call this function to let set the
     // bridge's corresponding SSTResponderSubComponent (which implemented
     // SSTResponderInterface). I.e., this will connect this bridge to the
@@ -137,6 +158,8 @@ class OutgoingRequestBridge: public SimObject
     // to SST. Should only be called during the SST construction phase, i.e.
     // not at the simulation time.
     void handleRecvFunctional(PacketPtr pkt);
+
+
 };
 
 }; // namespace gem5

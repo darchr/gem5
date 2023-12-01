@@ -30,6 +30,7 @@
 #include <iomanip>
 #include <sstream>
 
+#include "sim/stats.hh"
 #include "base/trace.hh"
 
 namespace gem5
@@ -38,6 +39,7 @@ namespace gem5
 OutgoingRequestBridge::OutgoingRequestBridge(
     const OutgoingRequestBridgeParams &params) :
     SimObject(params),
+    stats(this),
     outgoingPort(std::string(name()), this),
     sstResponder(nullptr),
     physicalAddressRanges(params.physical_address_ranges.begin(),
@@ -62,6 +64,7 @@ OutgoingRequestBridge::
 OutgoingRequestPort::~OutgoingRequestPort()
 {
 }
+
 
 void
 OutgoingRequestBridge::init()
@@ -97,7 +100,14 @@ OutgoingRequestBridge::setResponder(SSTResponderInterface* responder)
 bool
 OutgoingRequestBridge::sendTimingResp(gem5::PacketPtr pkt)
 {
-    return outgoingPort.sendTimingResp(pkt);
+    // see if the responder responded true or false. if it's true, then we
+    // increment the stats counters.
+    bool return_status = outgoingPort.sendTimingResp(pkt);
+    if (return_status == true) {
+        ++stats.numIncomingPackets;
+        stats.sizeIncomingPackets += pkt->getSize();
+    }
+    return return_status;
 }
 
 void
@@ -117,10 +127,16 @@ OutgoingRequestBridge::getInitPhaseStatus() {
 void
 OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
 {
+    // This should not receive any functional accesses
+    // gem5::MemCmd::Command pktCmd = (gem5::MemCmd::Command)pkt->cmd.toInt();
+    // std::cout << "Recv Functional : 0x" << std::hex << pkt->getAddr() <<
+    // std::dec << " " << pktCmd << " " << gem5::MemCmd::WriteReq << " " <<
+    // getInitPhaseStatus() << std::endl;
     // Check at which stage are we at. If we are at INIT phase, then queue all
     // these packets.
     if (!getInitPhaseStatus())
     {
+        // sstResponder->recvAtomic(pkt);
         uint8_t* ptr = pkt->getPtr<uint8_t>();
         uint64_t size = pkt->getSize();
         std::vector<uint8_t> data(ptr, ptr+size);
@@ -133,12 +149,9 @@ OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
         // These packets have to translated at runtime. We convert these
         // packets to timing as its data has to be stored correctly in SST
         // memory. Otherwise reads from the SST memory will fail. To reproduce
-        // this error, do not handle any functional accesses and the kernel
+        // this error, don not handle any functional accesses and the kernel
         // boot will fail while reading the correct partition from the vda
-        // device. this is a hacky solution to solve functional accesses in the
-        // gem5 sst bridge. there are instances where the vda device will not
-        // work correctly. to reproduce errors, use 8 O3 CPUs accessing the
-        // same SST memory across 16 or 32 instances of gem5.
+        // device.
         sstResponder->handleRecvFunctional(pkt);
     }
 }
@@ -147,6 +160,7 @@ Tick
 OutgoingRequestBridge::
 OutgoingRequestPort::recvAtomic(PacketPtr pkt)
 {
+    // return 0;
     assert(false && "OutgoingRequestPort::recvAtomic not implemented");
     return Tick();
 }
@@ -162,8 +176,19 @@ bool
 OutgoingRequestBridge::
 OutgoingRequestPort::recvTimingReq(PacketPtr pkt)
 {
-    owner->sstResponder->handleRecvTimingReq(pkt);
-    return true;
+    return owner->handleTiming(pkt);
+}
+
+bool OutgoingRequestBridge::handleTiming(PacketPtr pkt)
+{
+    // see if the responder responded true or false. if it's true, then we
+    // increment the stats counters.
+    bool return_status = sstResponder->handleRecvTimingReq(pkt);
+    if(ret == true) {
+        ++stats.numOutgoingPackets;
+        stats.sizeOutgoingPackets += pkt->getSize();
+    }
+    return return_status;
 }
 
 void
@@ -180,4 +205,16 @@ OutgoingRequestPort::getAddrRanges() const
     return owner->physicalAddressRanges;
 }
 
+OutgoingRequestBridge::StatGroup::StatGroup(statistics::Group *parent)
+    : statistics::Group(parent),
+    ADD_STAT(numOutgoingPackets, statistics::units::Count::get(),
+            "Number of packets going out of the gem5 port"),
+    ADD_STAT(sizeOutgoingPackets, statistics::units::Byte::get(),
+            "Cumulative size of all the outgoing packets"),
+    ADD_STAT(numIncomingPackets, statistics::units::Count::get(),
+            "Number of packets coming into the gem5 port"),
+    ADD_STAT(sizeIncomingPackets, statistics::units::Byte::get(),
+            "Cumulative size of all the incoming packets")
+{
+}
 }; // namespace gem5
