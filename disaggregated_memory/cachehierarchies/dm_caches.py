@@ -33,9 +33,107 @@ from gem5.components.cachehierarchies.classic.caches.l2cache import L2Cache
 from gem5.components.cachehierarchies.classic.caches.mmu_cache import MMUCache
 from gem5.components.boards.abstract_board import AbstractBoard
 from gem5.isas import ISA
-from m5.objects import Cache, L2XBar, BaseXBar, SystemXBar, BadAddr, Port
+from m5.objects import L2XBar
 
 from gem5.utils.override import overrides
+
+from cachehierarchies.private_l1_private_l2_shared_l3_cache_hierarchy import (
+    PrivateL1PrivateL2SharedL3CacheHierarchy)
+
+class ClassicPrivateL1PrivateL2SharedL3DMCache(
+        PrivateL1PrivateL2SharedL3CacheHierarchy):
+    def __init__(
+        self,
+        l1d_size: str,
+        l1i_size: str,
+        l2_size: str,
+        l3_size: str,
+        l3_assoc: int = 16
+    ):
+        super().__init__(
+            l1d_size=l1d_size,
+            l1i_size=l1i_size,
+            l2_size=l2_size,
+            l3_size=l3_size,
+            l3_assoc=l3_assoc
+        )
+
+    @overrides(PrivateL1PrivateL2SharedL3CacheHierarchy)
+    def incorporate_cache(self, board: AbstractBoard) -> None:
+
+        # Set up the system port for functional access from the simulator.
+        board.connect_system_port(self.membus.cpu_side_ports)
+
+        for cntr in board.get_local_memory().get_memory_controllers():
+            cntr.port = self.membus.mem_side_ports
+
+        for cntr in board.get_remote_memory().get_memory_controllers():
+            cntr.port = self.membus.mem_side_ports
+
+        self.l1icaches = [
+            L1ICache(size=self._l1i_size)
+            for i in range(board.get_processor().get_num_cores())
+        ]
+        self.l1dcaches = [
+            L1DCache(size=self._l1d_size)
+            for i in range(board.get_processor().get_num_cores())
+        ]
+        self.l2buses = [
+            L2XBar() for i in range(board.get_processor().get_num_cores())
+        ]
+        self.l2caches = [
+            L2Cache(size=self._l2_size)
+            for i in range(board.get_processor().get_num_cores())
+        ]
+        self.l3cache = L2Cache(size=self._l3_size,
+                                assoc=self._l3_assoc,
+                                tag_latency=self._l3_tag_latency,
+                                data_latency=self._l3_data_latency,
+                                response_latency=self._l3_response_latency,
+                                mshrs=self._l3_mshrs,
+                                tgts_per_mshr=self._l3_tgts_per_mshr)
+        # There is only one l3 bus, which connects l3 to the membus
+        self.l3bus = L2XBar()
+        # ITLB Page walk caches
+        self.iptw_caches = [
+            MMUCache(size="8KiB")
+            for _ in range(board.get_processor().get_num_cores())
+        ]
+        # DTLB Page walk caches
+        self.dptw_caches = [
+            MMUCache(size="8KiB")
+            for _ in range(board.get_processor().get_num_cores())
+        ]
+
+        if board.has_coherent_io():
+            self._setup_io_cache(board)
+
+        for i, cpu in enumerate(board.get_processor().get_cores()):
+
+            cpu.connect_icache(self.l1icaches[i].cpu_side)
+            cpu.connect_dcache(self.l1dcaches[i].cpu_side)
+
+            self.l1icaches[i].mem_side = self.l2buses[i].cpu_side_ports
+            self.l1dcaches[i].mem_side = self.l2buses[i].cpu_side_ports
+            self.iptw_caches[i].mem_side = self.l2buses[i].cpu_side_ports
+            self.dptw_caches[i].mem_side = self.l2buses[i].cpu_side_ports
+
+            self.l2buses[i].mem_side_ports = self.l2caches[i].cpu_side
+
+            self.l2caches[i].mem_side = self.l3bus.cpu_side_ports
+
+            cpu.connect_walker_ports(
+                self.iptw_caches[i].cpu_side, self.dptw_caches[i].cpu_side
+            )
+
+            if board.get_processor().get_isa() == ISA.X86:
+                int_req_port = self.membus.mem_side_ports
+                int_resp_port = self.membus.cpu_side_ports
+                cpu.connect_interrupt(int_req_port, int_resp_port)
+            else:
+                cpu.connect_interrupt()
+        self.l3bus.mem_side_ports = self.l3cache.cpu_side
+        self.membus.cpu_side_ports = self.l3cache.mem_side
 
 
 class ClassicPrivateL1PrivateL2DMCache(PrivateL1PrivateL2CacheHierarchy):
