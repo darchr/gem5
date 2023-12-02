@@ -184,7 +184,7 @@ bool OutgoingRequestBridge::handleTiming(PacketPtr pkt)
     // see if the responder responded true or false. if it's true, then we
     // increment the stats counters.
     bool return_status = sstResponder->handleRecvTimingReq(pkt);
-    if(ret == true) {
+    if(return_status == true) {
         ++stats.numOutgoingPackets;
         stats.sizeOutgoingPackets += pkt->getSize();
     }
