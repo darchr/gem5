@@ -120,7 +120,6 @@ class gem5Component: public SST::Component
     void initPython(int argc, char **argv);
     void splitCommandArgs(std::string &cmd, std::vector<char*> &args);
     void splitPortNames(std::string port_names);
-    void splitPortNames(std::string port_names);
 
     bool threadInitialized;
 
