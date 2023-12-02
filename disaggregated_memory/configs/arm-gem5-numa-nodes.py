@@ -43,7 +43,7 @@ import m5
 from m5.objects import Root
 
 from boards.arm_gem5_board import ArmGem5DMBoard
-from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2DMCache
+from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
 from memories.remote_memory import RemoteChanneledMemory
 from gem5.utils.requires import requires
 from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
@@ -78,8 +78,8 @@ def RemoteDualChannelDDR4_2400(
     )
 
 # Here we setup the parameters of the l1 and l2 caches.
-cache_hierarchy = ClassicPrivateL1PrivateL2DMCache(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="1MB"
+cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
+    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="1MiB"
 )
 # Memory: Dual Channel DDR4 2400 DRAM device.
 local_memory = DualChannelDDR4_2400(size="1GiB")
@@ -103,28 +103,26 @@ board = ArmGem5DMBoard(
     remote_memory=remote_memory,
     cache_hierarchy=cache_hierarchy,
 )
+
 cmd = [
     "mount -t sysfs - /sys;",
     "mount -t proc - /proc;",
     "numastat;",
-    "m5 dumpresetstats 0 ;",
     "numactl --membind=0 -- " +
-    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw " +
-    "1000000;",
-    "m5 dumpresetstats 0;",
+    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    "stream.hw.m5 1000000;",
     "numastat;",
     "numactl --interleave=0,1 -- " +
-    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw " +
-    "1000000;",
-    "m5 dumpresetstats 0;",
+    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    "stream.hw.m5 1000000;",
     "numastat;",
     "numactl --membind=1 -- " +
-    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw " +
-    "1000000;",
-    "m5 dumpresetstats 0;",
+    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    "stream.hw.m5 1000000;",
     "numastat;",
     "m5 exit;",
 ]
+
 board.set_kernel_disk_workload(
     kernel=CustomResource("/home/kaustavg/vmlinux-5.4.49-NUMA.arm64"),
     bootloader=CustomResource(

@@ -46,10 +46,12 @@ import m5
 from m5.objects import Root, AddrRange
 
 from boards.arm_sst_board import ArmSstDMBoard
-from cachehierarchies.dm_caches_sst import ClassicPrivateL1PrivateL2SstDMCache
+from cachehierarchies.dm_caches_sst import (
+    ClassicPrivateL1PrivateL2SharedL3SstDMCache
+)
 from memories.external_remote_memory import ExternalRemoteMemoryInterface
 from gem5.utils.requires import requires
-from gem5.components.memory import DualChannelDDR4_2400
+from gem5.components.memory import SingleChannelDDR4_2400, DualChannelDDR4_2400
 from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
@@ -98,34 +100,39 @@ cpu_type = {
     "atomic": CPUTypes.ATOMIC,
     "timing": CPUTypes.TIMING}[args.cpu_type]
 
-remote_memory_range = list(map(int, args.remote_memory_range.split(",")))
+remote_memory_range = list(map(int, args.remote_memory_addr_range.split(",")))
 remote_memory_range = AddrRange(remote_memory_range[0], remote_memory_range[1])
 
 # This runs a check to ensure the gem5 binary is compiled for RISCV.
 requires(isa_required=ISA.ARM)
 # Here we setup the parameters of the l1 and l2 caches.
-cache_hierarchy = ClassicPrivateL1PrivateL2SstDMCache(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="1MB"
+cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3SstDMCache(
+    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="1MiB"
 )
 # Memory: Dual Channel DDR4 2400 DRAM device.
-local_memory = DualChannelDDR4_2400(size=args.local_memory_range)
+
+local_memory = SingleChannelDDR4_2400(size=args.local_memory_size)
+
 # Either suppy the size of the remote memory or the address range of the
 # remote memory. Since this is inside the external memory, it does not matter
 # what type of memory is being simulated. This can either be initialized with
 # a size or a memory address range, which is mroe flexible. Adding remote
 # memory latency automatically adds a non-coherent crossbar to simulate latenyc
+
 remote_memory = ExternalRemoteMemoryInterface(
     addr_range=remote_memory_range,
     remote_memory_latency=args.remote_memory_latency
 )
+
 # Here we setup the processor. We use a simple processor.
 processor = SimpleProcessor(
-    cpu_type=CPUTypes.TIMING, isa=ISA.ARM, num_cores=1
+        cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=4
 )
+
 # Here we setup the board which allows us to do Full-System ARM simulations.
 board = ArmSstDMBoard(
     clk_freq=args.cpu_clock_rate,
-    processor=cpu_type,
+    processor=processor,
     local_memory=local_memory,
     remote_memory=remote_memory,
     cache_hierarchy=cache_hierarchy,
@@ -135,21 +142,17 @@ cmd = [
     "mount -t sysfs - /sys;",
     "mount -t proc - /proc;",
     "numastat;",
-    "m5 dumpresetstats 0 ;",
     "numactl --membind=0 -- " +
-    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw " +
-    "1000000;",
-    "m5 dumpresetstats 0;",
+    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    "stream.hw.m5 1000000;",
     "numastat;",
     "numactl --interleave=0,1 -- " +
-    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw " +
-    "1000000;",
-    "m5 dumpresetstats 0;",
+    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    "stream.hw.m5 1000000;",
     "numastat;",
     "numactl --membind=1 -- " +
-    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream/stream.hw " +
-    "1000000;",
-    "m5 dumpresetstats 0;",
+    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    "stream.hw.m5 1000000;",
     "numastat;",
     "m5 exit;",
 ]
@@ -160,7 +163,8 @@ workload = CustomWorkload(
     "kernel" : CustomResource("/home/kaustavg/vmlinux-5.4.49-NUMA.arm64"),
     "bootloader" : CustomResource("/home/kaustavg/.cache/gem5/arm64-bootloader-foundation"),
     "disk_image" : DiskImageResource(
-        local_path="/projects/gem5/hn/DISK_IMAGES/arm64sve-hpc-2204-20230526-numa.img",
+        "/home/kaustavg/disk-images/arm/arm64sve-hpc-2204-20230526-numa.img",
+        # local_path="/projects/gem5/hn/DISK_IMAGES/arm64sve-hpc-2204-20230526-numa.img",
         root_partition="1",
     ),
     "readfile_contents" : " ".join(cmd)
