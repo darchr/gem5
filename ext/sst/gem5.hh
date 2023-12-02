@@ -117,12 +117,6 @@ class gem5Component: public SST::Component
     std::vector<std::string> sstPortNames;
     int sstPortCount;
 
-    // We need a list of incoming port names so that we don't need to recompile
-    // everytime when we add a new OutgoingBridge from python.
-    std::vector<SSTResponderSubComponent*> sstPorts;
-    std::vector<std::string> sstPortNames;
-    int sstPortCount;
-
     void initPython(int argc, char **argv);
     void splitCommandArgs(std::string &cmd, std::vector<char*> &args);
     void splitPortNames(std::string port_names);
