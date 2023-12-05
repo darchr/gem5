@@ -46,6 +46,7 @@
 #ifndef __MEM_ABSTRACT_MEMORY_HH__
 #define __MEM_ABSTRACT_MEMORY_HH__
 
+#include "enums/Policy.hh"
 #include "mem/backdoor.hh"
 #include "mem/port.hh"
 #include "params/AbstractMemory.hh"
@@ -224,6 +225,32 @@ class AbstractMemory : public ClockedObject
     virtual ~AbstractMemory() {}
 
     void initState() override;
+
+    enums::Policy locMemPolicy;
+    
+    virtual Tick get_tRP() { panic("AbstractMemory get_tRP should not be executed from here.\n");
+                             return false;}
+    virtual Tick get_tRCD_RD() { panic("AbstractMemory get_tRCD_RD should not be executed from here.\n");
+                                 return false;}
+    virtual Tick get_tRL() { panic("AbstractMemory get_tRL should not be executed from here.\n");
+                             return false;}
+
+    virtual bool recvReadFlushBuffer(Addr addr)
+    {
+        panic("AbstractMemory recvReadFlushBuffer should not be executed from here.\n");
+        return false;
+    }
+
+    virtual void setPolicyManager(AbstractMemory* _polMan)
+    {
+        panic("AbstractMemory setPolicyManager should not be executed from here.\n");
+    }
+
+    virtual bool checkFwdMrgeInFB(Addr addr)
+    {
+        panic("AbstractMemory checkFwdMrgeInFB should not be executed from here.\n");
+        return false;
+    }
 
     /**
      * See if this is a null memory that should never store data and

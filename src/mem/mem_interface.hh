@@ -97,13 +97,14 @@ class MemInterface : public AbstractMemory
         Tick wrAllowedAt;
         Tick preAllowedAt;
         Tick actAllowedAt;
+        Tick tagActAllowedAt;
 
         uint32_t rowAccesses;
         uint32_t bytesAccessed;
 
         Bank() :
             openRow(NO_ROW), bank(0), bankgr(0),
-            rdAllowedAt(0), wrAllowedAt(0), preAllowedAt(0), actAllowedAt(0),
+            rdAllowedAt(0), wrAllowedAt(0), preAllowedAt(0), actAllowedAt(0), tagActAllowedAt(0),
             rowAccesses(0), bytesAccessed(0)
         { }
     };
@@ -166,6 +167,8 @@ class MemInterface : public AbstractMemory
     Tick rankToRankDelay() const { return tBURST + tCS; }
 
   public:
+
+  AbstractMemory* polMan;
 
     /**
       * Buffer sizes for read and write queues in the controller
@@ -275,7 +278,7 @@ class MemInterface : public AbstractMemory
     /**
      * @return number of bytes in a burst for this interface
      */
-    uint32_t bytesPerBurst() const { return burstSize; }
+    virtual uint32_t bytesPerBurst() const { return burstSize; }
 
     /*
      * @return time to offset next command
@@ -411,6 +414,22 @@ class MemInterface : public AbstractMemory
         panic("MemInterface writeRespQueueFull (NVM) "
         "should not be executed from here.\n");
     }
+
+    virtual Tick nextTagActAvailability(unsigned rankNumber, unsigned bankNumber)
+        { panic("MemInterface nextTagActAvailability should not be executed from here.\n"); }
+
+    virtual Tick getTRCFAST()
+        { panic("MemInterface getTRCFAST should not be executed from here.\n"); }
+    
+    virtual Tick getTRLFAST()
+        { panic("MemInterface getTRLFAST should not be executed from here.\n"); }
+    
+    virtual Tick getTRCDFAST()
+        { panic("MemInterface getTRCDFAST should not be executed from here.\n"); }
+
+    virtual void updateTagActAllowed(unsigned rankNumber, unsigned bankNumber, Tick BSlotTagAllowedAt)
+        { panic("MemInterface updateTagActAllowed should not be executed from here.\n"); }
+       
 
     typedef MemInterfaceParams Params;
     MemInterface(const Params &_p);

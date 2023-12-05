@@ -54,6 +54,7 @@
 
 #include "base/callback.hh"
 #include "base/statistics.hh"
+#include "debug/MemCtrl.hh"
 #include "enums/MemSched.hh"
 #include "mem/qos/mem_ctrl.hh"
 #include "mem/qport.hh"
@@ -100,7 +101,7 @@ class MemPacket
   public:
 
     /** When did request enter the controller */
-    const Tick entryTime;
+    Tick entryTime;
 
     /** When will request leave the controller */
     Tick readyTime;
@@ -155,6 +156,20 @@ class MemPacket
      * QoS value of the encapsulated packet read at queuing time
      */
     uint8_t _qosValue;
+
+    /**
+     * DRAM cache specific flags
+     * 
+     */
+    bool isTagCheck = false;
+    Tick tagCheckReady = MaxTick;
+    bool isLocMem = false;
+    Tick BSlotBusyUntil = MaxTick;
+    bool probedRdH = false;
+    bool probedRdMC = false;
+    bool probedRdMD = false;
+
+
 
     /**
      * Set the packet QoS value
@@ -212,6 +227,20 @@ class MemPacket
           bank(_bank), row(_row), bankId(bank_id), addr(_addr), size(_size),
           burstHelper(NULL), _qosValue(_pkt->qosValue())
     { }
+
+    /* 
+    // MemPacket(PacketPtr _pkt, bool is_read, bool is_dram, uint8_t _channel,
+    //            uint8_t _rank, uint8_t _bank, uint32_t _row, uint16_t bank_id,
+    //            Addr _addr, unsigned int _size,
+    //            bool _isTagCheck, bool _isHit, bool _isDirty, Tick _tagCheckReady)
+    //     : entryTime(curTick()), readyTime(curTick()), pkt(_pkt),
+    //       _requestorId(pkt->requestorId()),
+    //       read(is_read), dram(is_dram), pseudoChannel(_channel), rank(_rank),
+    //       bank(_bank), row(_row), bankId(bank_id), addr(_addr), size(_size),
+    //       burstHelper(NULL), _qosValue(_pkt->qosValue()),
+    //       isTagCheck(_isTagCheck), isHit(_isHit), isDirty(_isDirty), tagCheckReady(_tagCheckReady)
+    // { }
+    */
 
 };
 
@@ -303,7 +332,8 @@ class MemCtrl : public qos::MemCtrl
                           MemPacketQueue& resp_queue,
                           EventFunctionWrapper& resp_event,
                           EventFunctionWrapper& next_req_event,
-                          bool& retry_wr_req);
+                          bool& retry_wr_req,
+                          bool& retry_rd_req);
     EventFunctionWrapper nextReqEvent;
 
     virtual void processRespondEvent(MemInterface* mem_intr,
@@ -383,7 +413,9 @@ class MemCtrl : public qos::MemCtrl
      */
     virtual void accessAndRespond(PacketPtr pkt, Tick static_latency,
                                                 MemInterface* mem_intr);
+    void sendTagCheckRespond(MemPacket* pkt);
 
+    PacketPtr getPacket(Addr addr, unsigned size, const MemCmd& cmd, Request::FlagsType flags = 0);
     /**
      * Determine if there is a packet that can issue.
      *
@@ -503,7 +535,7 @@ class MemCtrl : public qos::MemCtrl
 +    */
     MemInterface* dram;
 
-    virtual AddrRangeList getAddrRanges();
+    // virtual AddrRangeList getAddrRanges();
 
     /**
      * The following are basic design parameters of the memory
@@ -515,6 +547,8 @@ class MemCtrl : public qos::MemCtrl
     uint32_t writeBufferSize;
     uint32_t writeHighThreshold;
     uint32_t writeLowThreshold;
+    uint32_t oldestWriteAgeThreshold;
+    Tick oldestWriteAge;
     const uint32_t minWritesPerSwitch;
     const uint32_t minReadsPerSwitch;
 
@@ -539,10 +573,22 @@ class MemCtrl : public qos::MemCtrl
     const Tick backendLatency;
 
     /**
+     * Pipeline latency of the controller frontend for tag Check (TC).
+     */
+    const Tick frontendLatencyTC;
+
+    /**
+     * Pipeline latency of the backend and PHY for tag Check (TC).
+     */
+    const Tick backendLatencyTC;
+
+    /**
      * Length of a command window, used to check
      * command bandwidth
      */
     const Tick commandWindow;
+
+    bool considerOldestWrite;
 
     /**
      * Till when must we wait before issuing next RD/WR burst?
@@ -588,6 +634,12 @@ class MemCtrl : public qos::MemCtrl
         statistics::Histogram rdPerTurnAround;
         statistics::Histogram wrPerTurnAround;
 
+        statistics::Scalar noCandidBSlot;
+        statistics::Scalar foundCandidBSlot;
+        statistics::Scalar foundCandidBSlotRH;
+        statistics::Scalar foundCandidBSlotRMC;
+        statistics::Scalar foundCandidBSlotRMD;
+
         statistics::Scalar bytesReadWrQ;
         statistics::Scalar bytesReadSys;
         statistics::Scalar bytesWrittenSys;
@@ -617,6 +669,12 @@ class MemCtrl : public qos::MemCtrl
         // per-requestor raed and write average memory access latency
         statistics::Formula requestorReadAvgLat;
         statistics::Formula requestorWriteAvgLat;
+
+        statistics::Scalar deltaAbSlotRdH;
+        statistics::Scalar deltaAbSlotRdMD;
+
+        statistics::Formula avgDeltaAbSlotRdH;
+        statistics::Formula avgDeltaAbSlotRdMD;
     };
 
     CtrlStats stats;
@@ -676,6 +734,8 @@ class MemCtrl : public qos::MemCtrl
   public:
 
     MemCtrl(const MemCtrlParams &p);
+
+    virtual AddrRangeList getAddrRanges();
 
     /**
      * Ensure that all interfaced have drained commands
@@ -754,6 +814,7 @@ class MemCtrl : public qos::MemCtrl
     {
         assert(pseudo_channel == 0);
         schedule(nextReqEvent, tick);
+        DPRINTF(MemCtrl, "Scheduling next request after refreshing\n");
     }
 
     /**
@@ -762,7 +823,7 @@ class MemCtrl : public qos::MemCtrl
      * @param next_state Check either the current or next bus state
      * @return True when bus is currently in a read state
      */
-    bool inReadBusState(bool next_state, const MemInterface* mem_intr) const;
+    bool inReadBusState(bool next_state, MemInterface* mem_intr) const;
 
     /**
      * Check the current direction of the memory channel
@@ -770,7 +831,21 @@ class MemCtrl : public qos::MemCtrl
      * @param next_state Check either the current or next bus state
      * @return True when bus is currently in a write state
      */
-    bool inWriteBusState(bool next_state, const MemInterface* mem_intr) const;
+    bool inWriteBusState(bool next_state, MemInterface* mem_intr) const;
+
+    uint32_t bytesPerBurst() const;
+
+    Addr burstAlign(Addr addr) const { return burstAlign(addr, dram); }
+
+    void accessAndRespond(PacketPtr pkt, Tick static_latency) { accessAndRespond(pkt, static_latency, dram); }
+
+    void updateOldestWriteAge();
+
+    bool findCandidateForBSlot(MemPacket* AslotPkt);
+
+    void handleTCforBSlotPkt(MemPacketQueue::iterator BslotPktIt, Tick BSlotTagBankBusyUntil);
+
+    MemPacketQueue::iterator searchReadQueueForBSlot(MemPacketQueue& queue, MemPacket* AslotPkt);
 
     Port &getPort(const std::string &if_name,
                   PortID idx=InvalidPortID) override;

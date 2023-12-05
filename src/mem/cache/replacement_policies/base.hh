@@ -58,6 +58,12 @@ class Base : public SimObject
     Base(const Params &p) : SimObject(p) {}
     virtual ~Base() = default;
 
+    virtual Tick getLastTouchTick(const std::shared_ptr<ReplacementData>&
+        replacement_data) { return MaxTick; }
+
+    virtual void setLastTouchTick(const std::shared_ptr<ReplacementData>&
+        replacement_data, Tick tick) {}
+
     /**
      * Invalidate replacement data to set it as the next probable victim.
      *

@@ -45,6 +45,22 @@ LRU::LRU(const Params &p)
 {
 }
 
+Tick
+LRU::getLastTouchTick(const std::shared_ptr<ReplacementData>&
+        replacement_data) 
+{
+    return std::static_pointer_cast<LRUReplData>(replacement_data)->lastTouchTick;
+}
+
+void
+LRU::setLastTouchTick(const std::shared_ptr<ReplacementData>& replacement_data,
+                      Tick tick)
+{
+    // used for unserialization of a checkpoint
+    std::static_pointer_cast<LRUReplData>(
+        replacement_data)->lastTouchTick = tick;
+}
+
 void
 LRU::invalidate(const std::shared_ptr<ReplacementData>& replacement_data)
 {

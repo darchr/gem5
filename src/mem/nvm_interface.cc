@@ -402,9 +402,9 @@ NVMInterface::processReadReadyEvent()
 
 bool
 NVMInterface::burstReady(MemPacket* pkt) const {
-    bool read_rdy =  pkt->isRead() && (ctrl->inReadBusState(true, this)) &&
+    bool read_rdy =  pkt->isRead() && (ctrl->inReadBusState(true, (MemInterface*)this)) &&
                 (pkt->readyTime <= curTick()) && (numReadDataReady > 0);
-    bool write_rdy =  !pkt->isRead() && !ctrl->inReadBusState(true, this) &&
+    bool write_rdy =  !pkt->isRead() && !ctrl->inReadBusState(true, (MemInterface*)this) &&
                 !writeRespQueueFull();
     return (read_rdy || write_rdy);
 }

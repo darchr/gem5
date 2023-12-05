@@ -44,8 +44,11 @@
 #include "base/cprintf.hh"
 #include "base/trace.hh"
 #include "debug/DRAM.hh"
+#include "debug/DRAMT.hh"
 #include "debug/DRAMPower.hh"
 #include "debug/DRAMState.hh"
+#include "debug/MemCtrl.hh"
+#include "enums/Policy.hh"
 #include "sim/system.hh"
 
 namespace gem5
@@ -59,6 +62,7 @@ namespace memory
 std::pair<MemPacketQueue::iterator, Tick>
 DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
 {
+    DPRINTF(DRAM, "in dram->chooseNextFRFCFS func\n");
     std::vector<uint32_t> earliest_banks(ranksPerChannel, 0);
 
     // Has minBankPrep been called to populate earliest_banks?
@@ -93,13 +97,12 @@ DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
             const Tick col_allowed_at = pkt->isRead() ? bank.rdAllowedAt :
                                                         bank.wrAllowedAt;
 
-            DPRINTF(DRAM, "%s checking DRAM packet in bank %d, row %d\n",
-                    __func__, pkt->bank, pkt->row);
+            DPRINTF(DRAM, "%s : %d, %d, %d, checking DRAM packet in bank %d, row %d, min: %d, cmdRd/Wr: %d, act: %d, pre: %d\n",
+                     __func__, queue.size(), pkt->isRead(), pkt->isTagCheck, pkt->bank, pkt->row, min_col_at/1000, col_allowed_at/1000, bank.actAllowedAt/1000, bank.preAllowedAt/1000);
 
             // check if rank is not doing a refresh and thus is available,
             // if not, jump to the next packet
             if (burstReady(pkt)) {
-
                 DPRINTF(DRAM,
                         "%s bank %d - Rank %d available\n", __func__,
                         pkt->bank, pkt->rank);
@@ -137,6 +140,7 @@ DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
                         std::tie(earliest_banks, hidden_bank_prep) =
                             minBankPrep(queue, min_col_at);
                         filled_earliest_banks = true;
+                        DPRINTF(DRAM, "%s !filled_earliest_banks\n", __func__);
                     }
 
                     // bank is amongst first available banks
@@ -154,12 +158,15 @@ DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
                         if (hidden_bank_prep || !found_prepped_pkt) {
                             selected_pkt_it = i;
                             selected_col_at = col_allowed_at;
+                            DPRINTF(DRAM, "%s behind the scenes: %d\n", __func__, bits(earliest_banks[pkt->rank],
+                             pkt->bank, pkt->bank));
+
                         }
                     }
                 }
             } else {
                 DPRINTF(DRAM, "%s bank %d - Rank %d not available\n", __func__,
-                        pkt->bank, pkt->rank);
+                         pkt->bank, pkt->rank);
             }
         }
     }
@@ -171,19 +178,20 @@ DRAMInterface::chooseNextFRFCFS(MemPacketQueue& queue, Tick min_col_at) const
     return std::make_pair(selected_pkt_it, selected_col_at);
 }
 
-void
+Tick
 DRAMInterface::activateBank(Rank& rank_ref, Bank& bank_ref,
-                       Tick act_tick, uint32_t row)
+                       Tick act_tick, uint32_t row, bool isTagCheck)
 {
     assert(rank_ref.actTicks.size() == activationLimit);
 
     // verify that we have command bandwidth to issue the activate
     // if not, shift to next burst window
     Tick act_at;
-    if (twoCycleActivate)
+    if (twoCycleActivate) {
         act_at = ctrl->verifyMultiCmd(act_tick, maxCommandsPerWindow, tAAD);
-    else
+    } else {
         act_at = ctrl->verifySingleCmd(act_tick, maxCommandsPerWindow, true);
+    }
 
     DPRINTF(DRAM, "Activate at tick %d\n", act_at);
 
@@ -213,9 +221,10 @@ DRAMInterface::activateBank(Rank& rank_ref, Bank& bank_ref,
     // The next access has to respect tRAS for this bank
     bank_ref.preAllowedAt = act_at + tRAS;
 
+
     // Respect the row-to-column command delay for both read and write cmds
     bank_ref.rdAllowedAt = std::max(act_at + tRCD_RD, bank_ref.rdAllowedAt);
-    bank_ref.wrAllowedAt = std::max(act_at + tRCD_WR, bank_ref.wrAllowedAt);
+    bank_ref.wrAllowedAt = isTagCheck ? std::max(act_at + tRCD_RD + tRTW_int, bank_ref.wrAllowedAt): std::max(act_at + tRCD_WR, bank_ref.wrAllowedAt);
 
     // start by enforcing tRRD
     for (int i = 0; i < banksPerRank; i++) {
@@ -263,11 +272,13 @@ DRAMInterface::activateBank(Rank& rank_ref, Bank& bank_ref,
             DPRINTF(DRAM, "Enforcing tXAW with X = %d, next activate "
                     "no earlier than %llu\n", activationLimit,
                     rank_ref.actTicks.back() + tXAW);
-            for (int j = 0; j < banksPerRank; j++)
+            for (int j = 0; j < banksPerRank; j++) {
                 // next activate must not happen before end of window
                 rank_ref.banks[j].actAllowedAt =
-                    std::max(rank_ref.actTicks.back() + tXAW,
-                             rank_ref.banks[j].actAllowedAt);
+                    std::max(rank_ref.actTicks.back() + tXAW, rank_ref.banks[j].actAllowedAt);
+                if (rank_ref.actTicks.back() + tXAW > rank_ref.banks[j].actAllowedAt) {
+                }
+            }
         }
     }
 
@@ -278,6 +289,8 @@ DRAMInterface::activateBank(Rank& rank_ref, Bank& bank_ref,
     else if (rank_ref.activateEvent.when() > act_at)
         // move it sooner in time
         reschedule(rank_ref.activateEvent, act_at);
+
+    return act_at;
 }
 
 void
@@ -316,7 +329,7 @@ DRAMInterface::prechargeBank(Rank& rank_ref, Bank& bank, Tick pre_tick,
     assert(rank_ref.numBanksActive != 0);
     --rank_ref.numBanksActive;
 
-    DPRINTF(DRAM, "Precharging bank %d, rank %d at tick %lld, now got "
+    DPRINTF(DRAMT, "Precharging bank %d, rank %d at tick %lld, now got "
             "%d active\n", bank.bank, rank_ref.rank, pre_at,
             rank_ref.numBanksActive);
 
@@ -350,9 +363,9 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
     DPRINTF(DRAM, "Timing access to addr %#x, rank/bank/row %d %d %d\n",
             mem_pkt->addr, mem_pkt->rank, mem_pkt->bank, mem_pkt->row);
 
+    Tick act_at = MaxTick;
     // get the rank
     Rank& rank_ref = *ranks[mem_pkt->rank];
-
     assert(rank_ref.inRefIdleState());
 
     // are we in or transitioning to a low-power state and have not scheduled
@@ -382,28 +395,43 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
         }
 
         // next we need to account for the delay in activating the page
-        Tick act_tick = std::max(bank_ref.actAllowedAt, curTick());
+        Tick act_tick;
+        if (mem_pkt->isLocMem) {
+            if (polMan->locMemPolicy == enums::TDRAM) {
+                act_tick = std::max(std::max(bank_ref.tagActAllowedAt, bank_ref.actAllowedAt), curTick());
+
+                if (bank_ref.tagActAllowedAt > bank_ref.actAllowedAt && bank_ref.tagActAllowedAt > curTick()) {
+                    stats.actDelayedDueToTagAct++;
+                }
+            } else {
+                act_tick = std::max(bank_ref.actAllowedAt, curTick());
+            }
+        } else {
+            act_tick = std::max(bank_ref.actAllowedAt, curTick());
+        }
 
         // Record the activation and deal with all the global timing
         // constraints caused be a new activation (tRRD and tXAW)
-        activateBank(rank_ref, bank_ref, act_tick, mem_pkt->row);
+        act_at = activateBank(rank_ref, bank_ref, act_tick, mem_pkt->row, mem_pkt->isTagCheck);
     }
 
     // respect any constraints on the command (e.g. tRCD or tCCD)
-    const Tick col_allowed_at = mem_pkt->isRead() ?
-                                bank_ref.rdAllowedAt : bank_ref.wrAllowedAt;
+    const Tick col_allowed_at = mem_pkt->isRead() ? bank_ref.rdAllowedAt : bank_ref.wrAllowedAt;
 
     // we need to wait until the bus is available before we can issue
     // the command; need to ensure minimum bus delay requirement is met
     Tick cmd_at = std::max({col_allowed_at, next_burst_at, curTick()});
 
+
     // verify that we have command bandwidth to issue the burst
     // if not, shift to next burst window
     Tick max_sync = clkResyncDelay + (mem_pkt->isRead() ? tRL : tWL);
-    if (dataClockSync && ((cmd_at - rank_ref.lastBurstTick) > max_sync))
+    if (dataClockSync && ((cmd_at - rank_ref.lastBurstTick) > max_sync)) {
         cmd_at = ctrl->verifyMultiCmd(cmd_at, maxCommandsPerWindow, tCK);
-    else
+    }
+    else {
         cmd_at = ctrl->verifySingleCmd(cmd_at, maxCommandsPerWindow, false);
+    }
 
     // if we are interleaving bursts, ensure that
     // 1) we don't double interleave on next burst issue
@@ -421,14 +449,216 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
             cmd_at = rank_ref.lastBurstTick + tBURST;
         }
     }
+
     DPRINTF(DRAM, "Schedule RD/WR burst at tick %d\n", cmd_at);
 
     // update the packet ready time
-    if (mem_pkt->isRead()) {
-        mem_pkt->readyTime = cmd_at + tRL + tBURST;
+    Tick stall_delay = 0;
+    if(mem_pkt->isTagCheck) {
+
+        assert(mem_pkt->isLocMem);
+        
+        // Calculating the tag check ready time
+        if (mem_pkt->pkt->owIsRead) {
+            assert((cmd_at + tRCD_FAST + tRL_FAST) > tRCD_RD);
+            mem_pkt->tagCheckReady = (cmd_at + tRCD_FAST + tRL_FAST) - tRCD_RD;
+        } else {
+            assert((cmd_at + tRCD_FAST + tRL_FAST) > (tRCD_RD + tRTW_int));
+            mem_pkt->tagCheckReady = (cmd_at + tRCD_FAST + tRL_FAST) - (tRCD_RD + tRTW_int);
+        }
+        stats.tagResBursts++;
+
+        // tag is sent back only for Rd Miss Cleans, for other cases tag is already known.
+        if (!mem_pkt->pkt->owIsRead && !mem_pkt->pkt->isHit && mem_pkt->pkt->isDirty) {
+            mem_pkt->tagCheckReady += tTAGBURST;
+            stats.tagBursts++;
+        }
+
+        if (polMan->locMemPolicy == enums::TDRAM) {
+            assert((mem_pkt->tagCheckReady + tRC_FAST) > (tRL_FAST + tRCD_FAST));
+            bank_ref.tagActAllowedAt = (mem_pkt->tagCheckReady + tRC_FAST) - (tRL_FAST + tRCD_FAST);
+        }
+
+        // Calculating the data ready time
+        if (mem_pkt->pkt->owIsRead) {
+
+            mem_pkt->readyTime = cmd_at + std::max(tRL,  tRL_FAST + tHM2DQ) + tBURST;
+
+            // Rd Miss Clean
+            if (mem_pkt->pkt->owIsRead && !mem_pkt->pkt->isHit && !mem_pkt->pkt->isDirty) {
+
+                if (!flushBuffer.empty()) {
+
+                    assert(!mem_pkt->pkt->hasDirtyData);
+                    mem_pkt->pkt->hasDirtyData = true;
+
+                    assert(mem_pkt->pkt->dirtyLineAddr == -1);
+                    mem_pkt->pkt->dirtyLineAddr = flushBuffer.front();
+
+                    flushBuffer.pop_front();
+
+                    stats.totReadFBByRdMC++;
+
+                    DPRINTF(DRAM, "Rd M C !FB.empty: %x\n", mem_pkt->pkt->dirtyLineAddr);
+                }
+                else {
+                    DPRINTF(DRAM, "Rd M C FB.empty: %x\n", mem_pkt->pkt->dirtyLineAddr);
+                }
+            }
+
+            // Rd Miss Dirty
+            if (mem_pkt->pkt->owIsRead && !mem_pkt->pkt->isHit && mem_pkt->pkt->isDirty) {
+            
+                assert(mem_pkt->pkt->dirtyLineAddr != -1);
+
+                assert(!mem_pkt->pkt->hasDirtyData);
+
+                mem_pkt->pkt->hasDirtyData = true;
+
+                DPRINTF(DRAM, "Rd M D: %x\n", mem_pkt->addr);
+            }
+
+            // stats
+            // Every respQueue which will generate an event, increment count
+            ++rank_ref.outstandingEvents;
+
+            if (!(mem_pkt->pkt->owIsRead && !mem_pkt->pkt->isHit && !mem_pkt->pkt->isDirty && !mem_pkt->pkt->hasDirtyData)) {
+                stats.readBursts++;
+                if (row_hit) {
+                    stats.readRowHits++;
+                }
+                stats.bytesRead += burstSize;
+            }
+
+            if (!(mem_pkt->pkt->owIsRead && !mem_pkt->pkt->isHit && !mem_pkt->pkt->isDirty)) {
+                stats.perBankRdBursts[mem_pkt->bankId]++;
+                // Update latency stats
+                stats.totMemAccLat += mem_pkt->readyTime - mem_pkt->entryTime;
+                stats.totQLat += cmd_at - mem_pkt->entryTime;
+                stats.totBusLat += tBURST;
+            } else {
+                stats.totMemAccLat += mem_pkt->tagCheckReady - mem_pkt->entryTime;
+                stats.totQLat += cmd_at - mem_pkt->entryTime;
+                stats.totBusLat += tBURST;
+                stats.readMC++;
+            }
+
+            // Update latency stats
+            // stats.totMemAccLat += mem_pkt->readyTime - mem_pkt->entryTime;
+            // stats.totQLat += cmd_at - mem_pkt->entryTime;
+            // stats.totBusLat += tBURST;
+        }
+        // Wr
+        else {
+            assert(!mem_pkt->pkt->owIsRead);
+
+            mem_pkt->readyTime = cmd_at + tWL + tBURST;
+           
+            if (!mem_pkt->pkt->isHit && mem_pkt->pkt->isDirty) {
+
+                DPRINTF(DRAM, "Wr M D: %x\n", mem_pkt->addr);
+
+                Tick pushBackFBTick = cmd_at + tCCD_L;
+
+                if (tempFlushBuffer.empty()) {
+                    assert(!addToFlushBufferEvent.scheduled());
+                    schedule(addToFlushBufferEvent, pushBackFBTick);
+                } else {
+                    assert(tempFlushBuffer.back().first <= pushBackFBTick);
+                    assert(addToFlushBufferEvent.scheduled());
+                }
+
+                tempFlushBuffer.push_back(std::make_pair(pushBackFBTick, mem_pkt->pkt->dirtyLineAddr));
+
+                if ((tempFlushBuffer.size() + flushBuffer.size()) >= (banksPerRank * flushBufferHighThreshold) &&
+                     !readFlushBufferEvent.scheduled() &&
+                     !flushBuffer.empty()) {
+                    
+                    // Flush the flushBuffer and send some dirty data
+                    // to the controller.
+
+                    assert(endOfReadFlushBuffPeriod == 0);
+
+                    assert(readFlushBufferCount == 0);
+
+                    stall_delay = tRFBD + (tempFlushBuffer.size() + flushBuffer.size()) * tBURST;
+
+                    mem_pkt->readyTime += stall_delay;
+
+                    endOfReadFlushBuffPeriod = cmd_at + tWL + stall_delay;
+
+                    schedule(readFlushBufferEvent, cmd_at + tWL + tRFBD + tBURST);
+                    DPRINTF(DRAM, "wr M D Schd FBRdEv: %x at %d\n", mem_pkt->addr, cmd_at + tWL + tRFBD + tBURST);
+
+                    stats.totStallToFlushFB++;
+
+                    cmd_at += stall_delay;
+                }
+
+            }
+
+            // stats
+            if (!rank_ref.writeDoneEvent.scheduled()) {
+                schedule(rank_ref.writeDoneEvent, mem_pkt->readyTime);
+                // New event, increment count
+                ++rank_ref.outstandingEvents;
+
+            } else if (rank_ref.writeDoneEvent.when() < mem_pkt->readyTime) {
+                reschedule(rank_ref.writeDoneEvent, mem_pkt->readyTime);
+            }
+            // will remove write from queue when returned to parent function
+            // decrement count for DRAM rank
+            --rank_ref.writeEntries;
+
+            stats.writeBurstsTC++;
+            if (row_hit) {
+                stats.writeRowHits++;
+            }
+            stats.bytesWritten += burstSize;
+            stats.perBankWrBursts[mem_pkt->bankId]++;
+
+            // Update latency stats
+            stats.totMemAccLatWrTC += mem_pkt->readyTime - mem_pkt->entryTime;
+            stats.totQLatWrTC += cmd_at - mem_pkt->entryTime;
+            stats.totBusLatWrTC += tBURST;
+        }
+
     } else {
-        mem_pkt->readyTime = cmd_at + tWL + tBURST;
+        // assert(mem_pkt->tagCheckReady == MaxTick);
+        if (mem_pkt->isRead()) {
+            mem_pkt->readyTime = cmd_at + tRL + tBURST;
+            if (mem_pkt->isLocMem) {
+                if(polMan->locMemPolicy == enums::TDRAM &&
+                   !mem_pkt->pkt->isHit &&
+                   mem_pkt->pkt->isDirty) {
+                    // a probed Rd Miss Dirty
+                    mem_pkt->pkt->hasDirtyData = true;
+                }
+            }
+        } else {
+            mem_pkt->readyTime = cmd_at + tWL + tBURST;
+        }
     }
+
+    // Tag probing B slot comes here.
+    // For now we only prob for read requests.
+    // NOTE: both tag check packets and regular packets can reach here. Thus:
+    // some mem_pkt may not have a ow pkt pointer, like fills!
+    if (mem_pkt->isLocMem) {
+        if (polMan->locMemPolicy == enums::TDRAM) {
+            assert(mem_pkt->BSlotBusyUntil==MaxTick);
+            if (mem_pkt->isTagCheck) {
+                mem_pkt->BSlotBusyUntil = bank_ref.tagActAllowedAt - tRL_FAST + tRC_FAST;
+            } else {
+                mem_pkt->BSlotBusyUntil = std::max(act_at,bank_ref.tagActAllowedAt) + tRC_FAST;
+            }
+        }
+    }
+
+
+    DPRINTF(DRAMT, "curr pkt, addr: %d, isRd: %d, isTC: %d, bank %d, row %d, act: %d, RdAlw: %d, WrAlw: %d, cmd: %d, rdy: %d\n", 
+    mem_pkt->getAddr(), mem_pkt->isRead(), mem_pkt->isTagCheck, (unsigned) mem_pkt->bank, (unsigned) mem_pkt->row,
+    act_at/1000, bank_ref.rdAllowedAt/1000, bank_ref.wrAllowedAt/1000, cmd_at/1000, mem_pkt->readyTime/1000);
 
     rank_ref.lastBurstTick = cmd_at;
 
@@ -447,16 +677,16 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                     // tCCD_L_WR is required for write-to-write
                     // Need to also take bus turnaround delays into account
                     dly_to_rd_cmd = mem_pkt->isRead() ?
-                                    tCCD_L : std::max(tCCD_L, wrToRdDlySameBG);
+                                    tCCD_L : std::max(tCCD_L, wrToRdDlySameBG); // 2 : 13     wrToRdDlySameBG(tWL + _p.tBURST_MAX + _p.tWTR_L),
                     dly_to_wr_cmd = mem_pkt->isRead() ?
-                                    std::max(tCCD_L, rdToWrDlySameBG) :
+                                    std::max(tCCD_L, rdToWrDlySameBG) : // 20 : 2    rdToWrDlySameBG(_p.tRTW + _p.tBURST_MAX),
                                     tCCD_L_WR;
                 } else {
                     // tBURST is default requirement for diff BG timing
                     // Need to also take bus turnaround delays into account
-                    dly_to_rd_cmd = mem_pkt->isRead() ? burst_gap :
+                    dly_to_rd_cmd = mem_pkt->isRead() ? burst_gap : // 2 : 13 tBURST + tWTR + tWL;
                                                        writeToReadDelay();
-                    dly_to_wr_cmd = mem_pkt->isRead() ? readToWriteDelay() :
+                    dly_to_wr_cmd = mem_pkt->isRead() ? readToWriteDelay() : // 20 : 2  tBURST + tRTW;
                                                        burst_gap;
                 }
             } else {
@@ -482,6 +712,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
     bank_ref.preAllowedAt = std::max(bank_ref.preAllowedAt,
                                  mem_pkt->isRead() ? cmd_at + tRTP :
                                  mem_pkt->readyTime + tWR);
+    DPRINTF(DRAMT, "doBurstFunc, bank: %d, PRE: %d\n", (unsigned)bank_ref.bank, bank_ref.preAllowedAt/1000);
 
     // increment the bytes accessed and the accesses per row
     bank_ref.bytesAccessed += burstSize;
@@ -572,48 +803,68 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
     }
 
     // Update the stats and schedule the next request
-    if (mem_pkt->isRead()) {
-        // Every respQueue which will generate an event, increment count
-        ++rank_ref.outstandingEvents;
-
-        stats.readBursts++;
-        if (row_hit)
-            stats.readRowHits++;
-        stats.bytesRead += burstSize;
-        stats.perBankRdBursts[mem_pkt->bankId]++;
-
-        // Update latency stats
-        stats.totMemAccLat += mem_pkt->readyTime - mem_pkt->entryTime;
-        stats.totQLat += cmd_at - mem_pkt->entryTime;
-        stats.totBusLat += tBURST;
+    if (mem_pkt->isTagCheck) {
+        // stats are already calculated
     } else {
-        // Schedule write done event to decrement event count
-        // after the readyTime has been reached
-        // Only schedule latest write event to minimize events
-        // required; only need to ensure that final event scheduled covers
-        // the time that writes are outstanding and bus is active
-        // to holdoff power-down entry events
-        if (!rank_ref.writeDoneEvent.scheduled()) {
-            schedule(rank_ref.writeDoneEvent, mem_pkt->readyTime);
-            // New event, increment count
+        if (mem_pkt->isRead()) {
+            // Every respQueue which will generate an event, increment count
             ++rank_ref.outstandingEvents;
 
-        } else if (rank_ref.writeDoneEvent.when() < mem_pkt->readyTime) {
-            reschedule(rank_ref.writeDoneEvent, mem_pkt->readyTime);
+            stats.readBursts++;
+            if (row_hit) {
+                stats.readRowHits++;
+            }
+            stats.bytesRead += burstSize;
+            stats.perBankRdBursts[mem_pkt->bankId]++;
+
+            // Update latency stats
+            stats.totMemAccLat += mem_pkt->readyTime - mem_pkt->entryTime;
+            stats.totQLat += cmd_at - mem_pkt->entryTime;
+            stats.totBusLat += tBURST;
+        } else {
+            // Schedule write done event to decrement event count
+            // after the readyTime has been reached
+            // Only schedule latest write event to minimize events
+            // required; only need to ensure that final event scheduled covers
+            // the time that writes are outstanding and bus is active
+            // to holdoff power-down entry events
+            if (!rank_ref.writeDoneEvent.scheduled()) {
+                schedule(rank_ref.writeDoneEvent, mem_pkt->readyTime);
+                // New event, increment count
+                ++rank_ref.outstandingEvents;
+
+            } else if (rank_ref.writeDoneEvent.when() < mem_pkt->readyTime) {
+                reschedule(rank_ref.writeDoneEvent, mem_pkt->readyTime);
+            }
+            // will remove write from queue when returned to parent function
+            // decrement count for DRAM rank
+            --rank_ref.writeEntries;
+
+            stats.writeBursts++;
+            if (row_hit) {
+                stats.writeRowHits++;
+            }
+            stats.bytesWritten += burstSize;
+            stats.perBankWrBursts[mem_pkt->bankId]++;
+
+            // Update latency stats
+            stats.totMemAccLatWr += mem_pkt->readyTime - mem_pkt->entryTime;
+            stats.totQLatWr += cmd_at - mem_pkt->entryTime;
+            stats.totBusLatWr += tBURST;
+
         }
-        // will remove write from queue when returned to parent function
-        // decrement count for DRAM rank
-        --rank_ref.writeEntries;
-
-        stats.writeBursts++;
-        if (row_hit)
-            stats.writeRowHits++;
-        stats.bytesWritten += burstSize;
-        stats.perBankWrBursts[mem_pkt->bankId]++;
-
     }
     // Update bus state to reflect when previous command was issued
     return std::make_pair(cmd_at, cmd_at + burst_gap);
+}
+
+void
+DRAMInterface::updateTagActAllowed(unsigned rankNumber, unsigned bankNumber, Tick BSlotTagBankBusyAt) 
+{
+    assert(BSlotTagBankBusyAt!=MaxTick);
+    ranks[rankNumber]->banks[bankNumber].tagActAllowedAt = BSlotTagBankBusyAt;
+    DPRINTF(DRAM, "updateTagFunc tagActAllowedAt change, rank/bank %d/%d -- tagActAllowedAt: %d\n",
+        rankNumber, bankNumber, BSlotTagBankBusyAt);
 }
 
 void
@@ -646,24 +897,36 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
       tRFC(_p.tRFC), tREFI(_p.tREFI), tRRD(_p.tRRD), tRRD_L(_p.tRRD_L),
       tPPD(_p.tPPD), tAAD(_p.tAAD),
       tXAW(_p.tXAW), tXP(_p.tXP), tXS(_p.tXS),
+      tTAGBURST(_p.tTAGBURST),  tRL_FAST(_p. tRL_FAST), tHM2DQ(_p.tHM2DQ),
+      tRTW_int(_p.tRTW_int), tRFBD(_p.tRFBD), tRCD_FAST(_p.tRCD_FAST),
+      tRC_FAST(_p.tRC_FAST),
+      flushBufferHighThreshold(_p.flushBuffer_high_thresh_perc / 100.0),
       clkResyncDelay(_p.tBURST_MAX),
       dataClockSync(_p.data_clock_sync),
       burstInterleave(tBURST != tBURST_MIN),
       twoCycleActivate(_p.two_cycle_activate),
       activationLimit(_p.activation_limit),
-      wrToRdDlySameBG(tWL + _p.tBURST_MAX + _p.tWTR_L),
+      wrToRdDlySameBG(tWL + _p.tBURST_MAX + _p.tWTR),
       rdToWrDlySameBG(_p.tRTW + _p.tBURST_MAX),
+      maxFBLen(0),
       pageMgmt(_p.page_policy),
       maxAccessesPerRow(_p.max_accesses_per_row),
       timeStampOffset(0), activeRank(0),
       enableDRAMPowerdown(_p.enable_dram_powerdown),
       lastStatsResetTick(0),
-      stats(*this)
+      // polMan(_p.pol_man),
+      stats(*this),
+      readFlushBufferEvent([this] {processReadFlushBufferEvent();}, name()),
+      addToFlushBufferEvent([this] {processAddToFlushBufferEvent();}, name()),
+      endOfReadFlushBuffPeriod(0),
+      readFlushBufferCount(0),
+      enableReadFlushBuffer(_p.enable_read_flush_buffer),
+      isAlloy(_p.is_alloy)
 {
     DPRINTF(DRAM, "Setting up DRAM Interface\n");
 
-    fatal_if(!isPowerOf2(burstSize), "DRAM burst size %d is not allowed, "
-             "must be a power of two\n", burstSize);
+    // fatal_if(!isPowerOf2(burstSize), "DRAM burst size %d is not allowed, "
+    //          "must be a power of two\n", burstSize);
 
     // sanity check the ranks since we rely on bit slicing for the
     // address decoding
@@ -717,17 +980,19 @@ DRAMInterface::DRAMInterface(const DRAMInterfaceParams &_p)
                   banksPerRank, bankGroupsPerRank);
         }
         // tCCD_L should be greater than minimal, back-to-back burst delay
-        if (tCCD_L <= tBURST) {
+        if (tCCD_L < tBURST) {
             fatal("tCCD_L (%d) should be larger than the minimum bus delay "
                   "(%d) when bank groups per rank (%d) is greater than 1\n",
                   tCCD_L, tBURST, bankGroupsPerRank);
         }
+        
         // tCCD_L_WR should be greater than minimal, back-to-back burst delay
-        if (tCCD_L_WR <= tBURST) {
+        if (tCCD_L_WR < tBURST) {
             fatal("tCCD_L_WR (%d) should be larger than the minimum bus delay "
                   " (%d) when bank groups per rank (%d) is greater than 1\n",
                   tCCD_L_WR, tBURST, bankGroupsPerRank);
         }
+        
         // tRRD_L is greater than minimal, same bank group ACT-to-ACT delay
         // some datasheets might specify it equal to tRRD
         if (tRRD_L < tRRD) {
@@ -844,8 +1109,14 @@ DRAMInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr,
     // always the top bits, and check before creating the packet
     uint64_t row;
 
+    Addr mappedAddr = pkt_addr;
+
+    if (isAlloy) {
+        mappedAddr = ((pkt_addr / 64) * 8) + pkt_addr;
+    }
+
     // Get packed address, starting at 0
-    Addr addr = getCtrlAddr(pkt_addr);
+    Addr addr = getCtrlAddr(mappedAddr);
 
     // truncate the address to a memory burst, which makes it unique to
     // a specific buffer, row, bank, rank and channel
@@ -905,8 +1176,8 @@ DRAMInterface::decodePacket(const PacketPtr pkt, Addr pkt_addr,
     assert(row < rowsPerBank);
     assert(row < Bank::NO_ROW);
 
-    DPRINTF(DRAM, "Address: %#x Rank %d Bank %d Row %d\n",
-            pkt_addr, rank, bank, row);
+    // DPRINTF(DRAM, "Address: %#x Rank %d Bank %d Row %d\n",
+    //         pkt_addr, rank, bank, row);
 
     // create the corresponding memory packet with the entry time and
     // ready time set to the current tick, the latter will be updated
@@ -925,6 +1196,113 @@ void DRAMInterface::setupRank(const uint8_t rank, const bool is_read)
     } else {
         ++ranks[rank]->writeEntries;
     }
+}
+
+void
+DRAMInterface::setPolicyManager(AbstractMemory* _polMan)
+{
+    polMan = _polMan;
+}
+
+void
+DRAMInterface::processReadFlushBufferEvent()
+{
+    // It is possible that a ReadFlushBufferEvent is scheduled and
+    // before reaching to the scheduled time or concurrent with that,
+    // Read Miss Cleans also pop packet from flushBuffer.
+    // So, it should return for the scheduled event.
+    if (flushBuffer.empty()) {
+        if (readFlushBufferCount > 0) {
+            stats.avgReadFBPerEvent = readFlushBufferCount;
+        }
+        endOfReadFlushBuffPeriod = 0;
+        readFlushBufferCount = 0;
+        return;
+    }
+
+    assert(endOfReadFlushBuffPeriod >= curTick());
+    assert(flushBuffer.front() != -1);
+
+
+    if (polMan->recvReadFlushBuffer(flushBuffer.front())) {
+        DPRINTF(DRAM, "sent rd FB: %d\n", flushBuffer.front());
+        readFlushBufferCount++;
+        flushBuffer.pop_front();
+        stats.totReadFBSent++;
+        stats.readBursts++;
+        stats.bytesRead += burstSize;
+        stats.totBusLat += tBURST;
+
+        Tick nextBurstFB = curTick() + tBURST;
+
+        if (nextBurstFB <= endOfReadFlushBuffPeriod && !flushBuffer.empty()) {
+            schedule(readFlushBufferEvent, nextBurstFB);
+            return;
+        } else {
+            // Either the time is beyond the tRFC or flushBuffer is empty.
+            // Reset control params
+            stats.avgReadFBPerEvent = readFlushBufferCount;
+            endOfReadFlushBuffPeriod = 0;
+            readFlushBufferCount = 0;
+            return;
+        }
+    } else {
+        // Policy manager has no empty entry available in its write back buffer.
+        stats.totReadFBFailed++;
+        // End of readFlushBuffer round.
+        // Reset control params
+        stats.avgReadFBPerEvent = readFlushBufferCount;
+        endOfReadFlushBuffPeriod = 0;
+        readFlushBufferCount = 0;
+        return;
+    }
+}
+
+void
+DRAMInterface::processAddToFlushBufferEvent()
+{
+    assert(!tempFlushBuffer.empty());
+    assert(tempFlushBuffer.front().first == curTick());
+
+    flushBuffer.push_back(tempFlushBuffer.front().second);
+
+    DPRINTF(DRAM, "Wr M D to FB: %x\n", tempFlushBuffer.front().second);
+
+    tempFlushBuffer.pop_front();
+
+    stats.totPktsPushedFB++;
+
+    stats.avgFBLenEnq = flushBuffer.size();
+
+    if (flushBuffer.size() > maxFBLen) {
+        maxFBLen = flushBuffer.size();
+        stats.maxFBLenEnq = flushBuffer.size();
+    }
+
+    if (!tempFlushBuffer.empty()) {
+        assert(tempFlushBuffer.front().first >= curTick());
+        assert(!addToFlushBufferEvent.scheduled());
+        schedule(addToFlushBufferEvent, tempFlushBuffer.front().first);
+    }
+
+}
+
+bool
+DRAMInterface::checkFwdMrgeInFB(Addr addr)
+{
+    for (int i=0; i < flushBuffer.size(); i++) {
+        if (flushBuffer.at(i) == addr) {
+            return true;
+        }
+    }
+
+    for (int i=0; i < tempFlushBuffer.size(); i++) {
+        if (tempFlushBuffer.at(i).second == addr) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void
@@ -1024,6 +1402,8 @@ DRAMInterface::suspend()
     }
 }
 
+typedef std::pair<bool, bool> got_waiting_pair;
+
 std::pair<std::vector<uint32_t>, bool>
 DRAMInterface::minBankPrep(const MemPacketQueue& queue,
                       Tick min_col_at) const
@@ -1040,12 +1420,15 @@ DRAMInterface::minBankPrep(const MemPacketQueue& queue,
 
     // determine if we have queued transactions targetting the
     // bank in question
-    std::vector<bool> got_waiting(ranksPerChannel * banksPerRank, false);
+    std::vector<got_waiting_pair> got_waiting(ranksPerChannel * banksPerRank);
     for (const auto& p : queue) {
-        if (p->pseudoChannel != pseudoChannel)
+        if (p->pseudoChannel != pseudoChannel) {
             continue;
-        if (p->isDram() && ranks[p->rank]->inRefIdleState())
-            got_waiting[p->bankId] = true;
+        }
+        if (p->isDram() && ranks[p->rank]->inRefIdleState()) {
+            got_waiting[p->bankId].first = true;
+            got_waiting[p->bankId].second = p->isTagCheck? true : false;
+        }
     }
 
     // Find command with optimal bank timing
@@ -1056,7 +1439,7 @@ DRAMInterface::minBankPrep(const MemPacketQueue& queue,
 
             // if we have waiting requests for the bank, and it is
             // amongst the first available, update the mask
-            if (got_waiting[bank_id]) {
+            if (got_waiting[bank_id].first) {
                 // make sure this rank is not currently refreshing.
                 assert(ranks[i]->inRefIdleState());
                 // simplistic approximation of when the bank can issue
@@ -1068,14 +1451,15 @@ DRAMInterface::minBankPrep(const MemPacketQueue& queue,
 
                 // latest Tick for which ACT can occur without
                 // incurring additoinal delay on the data bus
-                const Tick tRCD = ctrl->inReadBusState(false, this) ?
-                                                tRCD_RD : tRCD_WR;
+                const Tick tRCD = ctrl->inReadBusState(false,
+                                    (MemInterface*)(this)) ? tRCD_RD : 
+                                    (got_waiting[bank_id].second ? tRCD_RD+tRTW_int : tRCD_WR);
                 const Tick hidden_act_max =
                             std::max(min_col_at - tRCD, curTick());
 
                 // When is the earliest the R/W burst can issue?
                 const Tick col_allowed_at = ctrl->inReadBusState(false,
-                                              this) ?
+                                              (MemInterface*)(this)) ?
                                               ranks[i]->banks[j].rdAllowedAt :
                                               ranks[i]->banks[j].wrAllowedAt;
                 Tick col_at = std::max(col_allowed_at, act_at + tRCD);
@@ -1314,6 +1698,7 @@ DRAMInterface::Rank::processRefreshEvent()
             DPRINTF(DRAM, "Refresh awaiting draining\n");
             return;
         } else {
+            DPRINTF(DRAM, "ELSE of Refresh awaiting draining\n");
             refreshState = REF_PD_EXIT;
         }
     }
@@ -1328,12 +1713,14 @@ DRAMInterface::Rank::processRefreshEvent()
             scheduleWakeUpEvent(dram.tXP);
             return;
         } else {
+            DPRINTF(DRAM, "ELSE of Wake Up for refresh\n");
             refreshState = REF_PRE;
         }
     }
 
     // at this point, ensure that all banks are precharged
     if (refreshState == REF_PRE) {
+        DPRINTF(DRAM, "REF_PRE\n");
         // precharge any active bank
         if (numBanksActive != 0) {
             // at the moment, we use a precharge all even if there is
@@ -1378,6 +1765,7 @@ DRAMInterface::Rank::processRefreshEvent()
             // we are already idle
             schedulePowerEvent(PWR_REF, curTick());
         } else {
+            DPRINTF(DRAM, "banks state is closed but... %d  %d\n", prechargeEvent.scheduled(), dram.ctrl->respondEventScheduled());
             // banks state is closed but haven't transitioned pwrState to IDLE
             // or have outstanding ACT,RD/WR,Auto-PRE sequence scheduled
             // should have outstanding precharge or read response event
@@ -1400,6 +1788,20 @@ DRAMInterface::Rank::processRefreshEvent()
 
     // last but not least we perform the actual refresh
     if (refreshState == REF_START) {
+        dram.stats.totNumberRefreshEvent++;
+        if (dram.enableReadFlushBuffer && !dram.readFlushBufferEvent.scheduled()) {
+            // Time to be proactive and send some dirty data
+            // from flushBuffer to the controller.
+            assert(dram.endOfReadFlushBuffPeriod == 0);
+            assert(dram.readFlushBufferCount == 0);
+
+            if (!dram.flushBuffer.empty()) {
+                dram.endOfReadFlushBuffPeriod = curTick() + dram.tRFC;
+                schedule(dram.readFlushBufferEvent, curTick() + dram.tRFBD + dram.tBURST);
+                dram.stats.refSchdRFB++;
+            }
+        }
+
         // should never get here with any banks active
         assert(numBanksActive == 0);
         assert(pwrState == PWR_REF);
@@ -1848,31 +2250,99 @@ DRAMInterface::DRAMStats::DRAMStats(DRAMInterface &_dram)
 
     ADD_STAT(readBursts, statistics::units::Count::get(),
              "Number of DRAM read bursts"),
+    ADD_STAT(readMC, statistics::units::Count::get(),
+             "Number of DRAM cache read miss cleans"),
     ADD_STAT(writeBursts, statistics::units::Count::get(),
              "Number of DRAM write bursts"),
-
+    ADD_STAT(writeBurstsTC, statistics::units::Count::get(),
+             "Number of DRAM write bursts for tag check"),
+    ADD_STAT(tagResBursts, statistics::units::Count::get(),
+             "Number of tag bursts returned by write miss dirties"),
+    ADD_STAT(tagBursts, statistics::units::Count::get(),
+             "Number of tag check bursts"),
+    
+    ADD_STAT(avgFBLenEnq, statistics::units::Rate<
+                statistics::units::Count, statistics::units::Tick>::get(),
+             "Average flush buffer length when enqueuing"),
+    ADD_STAT(avgReadFBPerEvent, statistics::units::Rate<
+                statistics::units::Count, statistics::units::Tick>::get(),
+             "Average number of reads from flush buffer per event"),
+    ADD_STAT(totNumberRefreshEvent, statistics::units::Count::get(),
+             "Total number of refresh events"),
+    ADD_STAT(totReadFBSent, statistics::units::Count::get(),
+             "Total number of reads from flush buffer per event"),
+    ADD_STAT(totReadFBFailed, statistics::units::Count::get(),
+             "Total number of reads from flush buffer failed to be received by policy manager (write back buffer full)"),
+    ADD_STAT(totReadFBByRdMC, statistics::units::Count::get(),
+             "Total number of reads from flush buffer during Read Miss Clean"),
+    ADD_STAT(totStallToFlushFB, statistics::units::Count::get(),
+             "Total number of reads from flush buffer during Read Miss Clean"),
+    ADD_STAT(totPktsPushedFB, statistics::units::Count::get(),
+             "Total number of packets pushed into flush buffer"),
+    ADD_STAT(maxFBLenEnq, statistics::units::Count::get(),
+             "Maximum flush buffer length when enqueuing"),
+    ADD_STAT(refSchdRFB, statistics::units::Count::get(),
+             "Maximum flush buffer length when enqueuing"),
+    ADD_STAT( actDelayedDueToTagAct, statistics::units::Count::get(),
+             " "),
     ADD_STAT(perBankRdBursts, statistics::units::Count::get(),
              "Per bank write bursts"),
     ADD_STAT(perBankWrBursts, statistics::units::Count::get(),
              "Per bank write bursts"),
 
     ADD_STAT(totQLat, statistics::units::Tick::get(),
-             "Total ticks spent queuing"),
+             "Total ticks spent queuing for reads"),
     ADD_STAT(totBusLat, statistics::units::Tick::get(),
-             "Total ticks spent in databus transfers"),
+             "Total ticks spent in databus transfers for reads"),
     ADD_STAT(totMemAccLat, statistics::units::Tick::get(),
              "Total ticks spent from burst creation until serviced "
-             "by the DRAM"),
+             "by the DRAM for reads"),
+    
+    ADD_STAT(totQLatWr, statistics::units::Tick::get(),
+             "Total ticks spent queuing for writes"),
+    ADD_STAT(totBusLatWr, statistics::units::Tick::get(),
+             "Total ticks spent in databus transfers for writes"),
+    ADD_STAT(totMemAccLatWr, statistics::units::Tick::get(),
+             "Total ticks spent from burst creation until serviced "
+             "by the DRAM for writes"),
+
+    ADD_STAT(totQLatWrTC, statistics::units::Tick::get(),
+             "Total ticks spent queuing for writes tag check"),
+    ADD_STAT(totBusLatWrTC, statistics::units::Tick::get(),
+             "Total ticks spent in databus transfers for writes tag check"),
+    ADD_STAT(totMemAccLatWrTC, statistics::units::Tick::get(),
+             "Total ticks spent from burst creation until serviced "
+             "by the DRAM for writes tag check"),
 
     ADD_STAT(avgQLat, statistics::units::Rate<
                 statistics::units::Tick, statistics::units::Count>::get(),
-             "Average queueing delay per DRAM burst"),
+             "Average queueing delay per DRAM burst for reads"),
     ADD_STAT(avgBusLat, statistics::units::Rate<
                 statistics::units::Tick, statistics::units::Count>::get(),
-             "Average bus latency per DRAM burst"),
+             "Average bus latency per DRAM burst for reads"),
     ADD_STAT(avgMemAccLat, statistics::units::Rate<
                 statistics::units::Tick, statistics::units::Count>::get(),
-             "Average memory access latency per DRAM burst"),
+             "Average memory access latency per DRAM burst for reads"),
+    
+    ADD_STAT(avgQLatWr, statistics::units::Rate<
+                statistics::units::Tick, statistics::units::Count>::get(),
+             "Average queueing delay per DRAM burst for writes"),
+    ADD_STAT(avgBusLatWr, statistics::units::Rate<
+                statistics::units::Tick, statistics::units::Count>::get(),
+             "Average bus latency per DRAM burst for writes"),
+    ADD_STAT(avgMemAccLatWr, statistics::units::Rate<
+                statistics::units::Tick, statistics::units::Count>::get(),
+             "Average memory access latency per DRAM burst for writes"),
+
+    ADD_STAT(avgQLatWrTC, statistics::units::Rate<
+                statistics::units::Tick, statistics::units::Count>::get(),
+             "Average queueing delay per DRAM burst for writes tag check"),
+    ADD_STAT(avgBusLatWrTC, statistics::units::Rate<
+                statistics::units::Tick, statistics::units::Count>::get(),
+             "Average bus latency per DRAM burst for writes tag check"),
+    ADD_STAT(avgMemAccLatWrTC, statistics::units::Rate<
+                statistics::units::Tick, statistics::units::Count>::get(),
+             "Average memory access latency per DRAM burst for writes tag check"),
 
     ADD_STAT(readRowHits, statistics::units::Count::get(),
              "Number of row buffer hits during reads"),
@@ -1908,8 +2378,10 @@ DRAMInterface::DRAMStats::DRAMStats(DRAMInterface &_dram)
              "Data bus utilization in percentage for writes"),
 
     ADD_STAT(pageHitRate, statistics::units::Ratio::get(),
-             "Row buffer hit rate, read and write combined")
+             "Row buffer hit rate, read and write combined"),
 
+    ADD_STAT(hitMissBusUtil, statistics::units::Ratio::get(),
+             "Hit/Miss bus utilization")
 {
 }
 
@@ -1921,6 +2393,16 @@ DRAMInterface::DRAMStats::regStats()
     avgQLat.precision(2);
     avgBusLat.precision(2);
     avgMemAccLat.precision(2);
+
+    avgQLatWr.precision(2);
+    avgBusLatWr.precision(2);
+    avgMemAccLatWr.precision(2);
+
+    avgQLatWrTC.precision(2);
+    avgBusLatWrTC.precision(2);
+    avgMemAccLatWrTC.precision(2);
+
+    avgFBLenEnq.precision(2);
 
     readRowHitRate.precision(2);
     writeRowHitRate.precision(2);
@@ -1940,13 +2422,23 @@ DRAMInterface::DRAMStats::regStats()
 
     pageHitRate.precision(2);
 
+    hitMissBusUtil.precision(2);
+
     // Formula stats
-    avgQLat = totQLat / readBursts;
-    avgBusLat = totBusLat / readBursts;
-    avgMemAccLat = totMemAccLat / readBursts;
+    avgQLat = totQLat / (readBursts+readMC);
+    avgBusLat = totBusLat / (readBursts+readMC);
+    avgMemAccLat = totMemAccLat / (readBursts+readMC);
+
+    avgQLatWr = totQLatWr / writeBursts;
+    avgBusLatWr = totBusLatWr / writeBursts;
+    avgMemAccLatWr = totMemAccLatWr / writeBursts;
+
+    avgQLatWrTC = totQLatWrTC / writeBurstsTC;
+    avgBusLatWrTC = totBusLatWrTC / writeBurstsTC;
+    avgMemAccLatWrTC = totMemAccLatWrTC / writeBurstsTC;
 
     readRowHitRate = (readRowHits / readBursts) * 100;
-    writeRowHitRate = (writeRowHits / writeBursts) * 100;
+    writeRowHitRate = (writeRowHits / (writeBursts+writeBurstsTC)) * 100;
 
     avgRdBW = (bytesRead / 1000000) / simSeconds;
     avgWrBW = (bytesWritten / 1000000) / simSeconds;
@@ -1958,7 +2450,9 @@ DRAMInterface::DRAMStats::regStats()
     busUtilWrite = avgWrBW / peakBW * 100;
 
     pageHitRate = (writeRowHits + readRowHits) /
-        (writeBursts + readBursts) * 100;
+        (writeBursts + writeBurstsTC + readBursts) * 100;
+    
+    hitMissBusUtil = (((tagResBursts * dram.tCK) + (tagBursts * dram.tTAGBURST)) * 0.000000000001) / simSeconds * 100;
 }
 
 DRAMInterface::RankStats::RankStats(DRAMInterface &_dram, Rank &_rank)

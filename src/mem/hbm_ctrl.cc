@@ -47,7 +47,7 @@ HBMCtrl::HBMCtrl(const HBMCtrlParams &p) :
     MemCtrl(p),
     retryRdReqPC1(false), retryWrReqPC1(false),
     nextReqEventPC1([this] {processNextReqEvent(pc1Int, respQueuePC1,
-                         respondEventPC1, nextReqEventPC1, retryWrReqPC1);},
+                         respondEventPC1, nextReqEventPC1, retryWrReqPC1, retryRdReqPC1);},
                          name()),
     respondEventPC1([this] {processRespondEvent(pc1Int, respQueuePC1,
                          respondEventPC1, retryRdReqPC1); }, name()),
@@ -207,8 +207,8 @@ bool
 HBMCtrl::recvTimingReq(PacketPtr pkt)
 {
     // This is where we enter from the outside world
-    DPRINTF(MemCtrl, "recvTimingReq: request %s addr %#x size %d\n",
-            pkt->cmdString(), pkt->getAddr(), pkt->getSize());
+    DPRINTF(MemCtrl, "recvTimingReq: request %s addr %#x size %d isTagCheck: %d\n",
+            pkt->cmdString(), pkt->getAddr(), pkt->getSize(), pkt->isTagCheck);
 
     panic_if(pkt->cacheResponding(), "Should not see packets where cache "
                                         "is responding");

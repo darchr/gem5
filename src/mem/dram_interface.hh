@@ -48,7 +48,7 @@
 
 #include "mem/drampower.hh"
 #include "mem/mem_interface.hh"
-#include "params/DRAMInterface.hh"
+// #include "mem/policy_manager.hh"
 
 namespace gem5
 {
@@ -519,6 +519,14 @@ class DRAMInterface : public MemInterface
     const Tick tXAW;
     const Tick tXP;
     const Tick tXS;
+    const Tick tTAGBURST;
+    const Tick tRL_FAST;
+    const Tick tHM2DQ;
+    const Tick tRTW_int;
+    const Tick tRFBD;
+    const Tick tRCD_FAST;
+    const Tick tRC_FAST;
+    float flushBufferHighThreshold;
     const Tick clkResyncDelay;
     const bool dataClockSync;
     const bool burstInterleave;
@@ -526,6 +534,8 @@ class DRAMInterface : public MemInterface
     const uint32_t activationLimit;
     const Tick wrToRdDlySameBG;
     const Tick rdToWrDlySameBG;
+
+    unsigned maxFBLen;
 
 
     enums::PageManage pageMgmt;
@@ -558,8 +568,8 @@ class DRAMInterface : public MemInterface
      * @param act_tick Time when the activation takes place
      * @param row Index of the row
      */
-    void activateBank(Rank& rank_ref, Bank& bank_ref, Tick act_tick,
-                      uint32_t row);
+    Tick  activateBank(Rank& rank_ref, Bank& bank_ref, Tick act_tick,
+                      uint32_t row, bool isTagCheck);
 
     /**
      * Precharge a given bank and also update when the precharge is
@@ -587,7 +597,23 @@ class DRAMInterface : public MemInterface
 
         /** total number of DRAM bursts serviced */
         statistics::Scalar readBursts;
+        statistics::Scalar readMC;
         statistics::Scalar writeBursts;
+        statistics::Scalar writeBurstsTC;
+        statistics::Scalar tagResBursts;
+        statistics::Scalar tagBursts;
+
+        statistics::Average avgFBLenEnq;
+        statistics::Average avgReadFBPerEvent;
+        statistics::Scalar totNumberRefreshEvent;
+        statistics::Scalar totReadFBSent;
+        statistics::Scalar totReadFBFailed;
+        statistics::Scalar totReadFBByRdMC;
+        statistics::Scalar totStallToFlushFB;
+        statistics::Scalar totPktsPushedFB;
+        statistics::Scalar maxFBLenEnq;
+        statistics::Scalar refSchdRFB;
+        statistics::Scalar actDelayedDueToTagAct;
 
         /** DRAM per bank stats */
         statistics::Vector perBankRdBursts;
@@ -598,10 +624,26 @@ class DRAMInterface : public MemInterface
         statistics::Scalar totBusLat;
         statistics::Scalar totMemAccLat;
 
+        statistics::Scalar totQLatWr;
+        statistics::Scalar totBusLatWr;
+        statistics::Scalar totMemAccLatWr;
+
+        statistics::Scalar totQLatWrTC;
+        statistics::Scalar totBusLatWrTC;
+        statistics::Scalar totMemAccLatWrTC;
+
         // Average latencies per request
         statistics::Formula avgQLat;
         statistics::Formula avgBusLat;
         statistics::Formula avgMemAccLat;
+
+        statistics::Formula avgQLatWr;
+        statistics::Formula avgBusLatWr;
+        statistics::Formula avgMemAccLatWr;
+
+        statistics::Formula avgQLatWrTC;
+        statistics::Formula avgBusLatWrTC;
+        statistics::Formula avgMemAccLatWrTC;
 
         // Row hit count and rate
         statistics::Scalar readRowHits;
@@ -622,6 +664,7 @@ class DRAMInterface : public MemInterface
         statistics::Formula busUtilRead;
         statistics::Formula busUtilWrite;
         statistics::Formula pageHitRate;
+        statistics::Formula hitMissBusUtil;
     };
 
     DRAMStats stats;
@@ -659,6 +702,36 @@ class DRAMInterface : public MemInterface
     }
 
   public:
+
+    //AbstractMemory* polMan;
+
+    Tick get_tRP() override { return tRP;}
+    Tick get_tRCD_RD() override { return tRCD_RD;}
+    Tick get_tRL() override { return tRL;}
+
+    // void setPolicyManager(PolicyManager* _polMan) override;
+    void setPolicyManager(AbstractMemory* _polMan) override;
+    
+
+    void processReadFlushBufferEvent();
+    EventFunctionWrapper readFlushBufferEvent;
+
+    void processAddToFlushBufferEvent();
+    EventFunctionWrapper addToFlushBufferEvent;
+
+    Tick endOfReadFlushBuffPeriod;
+    unsigned readFlushBufferCount;
+    bool enableReadFlushBuffer;
+    bool isAlloy;
+
+    bool checkFwdMrgeInFB(Addr addr) override;
+
+    std::deque<Addr> flushBuffer;
+
+    typedef std::pair<Tick, Addr> tempFBEntry;
+
+    std::deque<tempFBEntry> tempFlushBuffer;
+
     /**
      * Initialize the DRAM interface and verify parameters
      */
@@ -800,6 +873,17 @@ class DRAMInterface : public MemInterface
     void chooseRead(MemPacketQueue& queue) override { }
     bool writeRespQueueFull() const override { return false;}
 
+    Tick nextTagActAvailability(unsigned rankNumber, unsigned bankNumber) override 
+      { return ranks[rankNumber]->banks[bankNumber].tagActAllowedAt; }
+    
+    Tick getTRCFAST() override { return tRC_FAST;}
+
+    Tick getTRLFAST() override { return tRL_FAST;}
+
+    Tick getTRCDFAST() override { return tRCD_FAST;}
+    
+    void updateTagActAllowed(unsigned rankNumber, unsigned bankNumber, Tick BSlotTagBankBusyAt) override;
+    
     DRAMInterface(const DRAMInterfaceParams &_p);
 };
 

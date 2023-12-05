@@ -34,6 +34,7 @@
 
 #include "base/compiler.hh"
 #include "base/cprintf.hh"
+#include "base/types.hh"
 
 namespace gem5
 {
@@ -61,6 +62,25 @@ struct ReplacementData {};
  */
 class ReplaceableEntry
 {
+  public:
+    Addr tagDC;
+    Addr indexDC;
+    bool validLine;
+    bool dirtyLine;
+    Addr farMemAddr;
+    unsigned counter;
+    uint64_t tickEntered;
+
+    ReplaceableEntry(Addr _tagDC, Addr _indexDC, bool _validLine, bool _dirtyLine, Addr _farMemAddr) : 
+        tagDC(_tagDC),
+        indexDC(_indexDC),
+        validLine(_validLine),
+        dirtyLine(_dirtyLine),
+        farMemAddr(_farMemAddr),
+        counter(0),
+        tickEntered(MaxTick)
+        { }
+
   protected:
     /**
      * Set to which this entry belongs.
