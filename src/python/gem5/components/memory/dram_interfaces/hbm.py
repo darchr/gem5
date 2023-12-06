@@ -201,6 +201,7 @@ class HBM_1000_4H_1x64(HBM_1000_4H_1x128):
 # on HBM gen2 specifications. 4H stack, 8Gb per die and total capacity
 # of 4GiB.
 class HBM_2000_4H_1x64(DRAMInterface):
+
     # 64-bit interface for a single pseudo channel
     device_bus_width = 64
 
@@ -275,3 +276,92 @@ class HBM_2000_4H_1x64(DRAMInterface):
     write_buffer_size = 64
 
     two_cycle_activate = True
+
+class TDRAM(DRAMInterface):
+
+    # 64-bit interface for a single pseudo channel
+    device_bus_width = 32
+
+    # HBM2 supports BL4
+    burst_length = 16
+
+    # size of channel in bytes, 4H stack of 8Gb dies is 4GiB per stack;
+    # with 16 pseudo channels, 256MiB per pseudo channel
+    device_size = "1GiB"
+
+    device_rowbuffer_size = "2KiB"
+
+    # 1x128 configuration
+    devices_per_rank = 1
+
+    ranks_per_channel = 1
+
+    banks_per_rank = 32
+
+    bank_groups_per_rank = 8
+
+    # 1000 MHz for 2Gbps DDR data rate
+    tCK = "0.5ns"
+
+    # new
+    tTAGBURST = "0.5ns"
+    tRL_FAST = "7.5ns"
+    tHM2DQ = "0ns"
+    tRTW_int = "1ns"
+    tRFBD = "1ns"
+    tRCD_FAST = "7.5ns"
+    tRC_FAST = "12ns"
+    enable_read_flush_buffer = True
+    flushBuffer_high_thresh_perc = 80
+
+    tRP = "14ns"
+
+    tCCD_L = "2ns"
+
+    tRCD = "12ns"
+    tRCD_WR = "6ns"
+    tCL = "18ns"
+    tCWL = "7ns"
+    tRAS = "28ns"
+
+    tBURST = "2ns"
+
+    # value for 2Gb device from JEDEC spec
+    tRFC = "220ns"
+
+    # value for 2Gb device from JEDEC spec
+    tREFI = "3.9us"
+
+    tWR = "14ns"
+    tRTP = "5ns"
+    tWTR = "4ns"
+    tWTR_L = "9ns"
+    tRTW = "18ns"
+
+    #tAAD from RBus
+    tAAD = "1ns"
+
+    # single rank device, set to 0
+    tCS = "0ns"
+
+    tRRD = "2ns"
+    tRRD_L = "2ns"
+
+    # for a single pseudo channel
+    tXAW = "16ns"
+    activation_limit = 8
+
+    # 4tCK
+    tXP = "8ns"
+
+    # start with tRFC + tXP -> 160ns + 8ns = 168ns
+    tXS = "216ns"
+
+    page_policy = 'close'
+
+    read_buffer_size = 64
+    write_buffer_size = 64
+
+    two_cycle_activate = True
+
+    addr_mapping = 'RoCoRaBaCh'

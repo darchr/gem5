@@ -1303,6 +1303,7 @@ class TDRAM(DRAMInterface):
     tRTW_int = "1ns"
     tRFBD = "1ns"
     tRCD_FAST = "7.5ns"
+    tRC_FAST = "12ns"
     enable_read_flush_buffer = True
     flushBuffer_high_thresh_perc = 80
 

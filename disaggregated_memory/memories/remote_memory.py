@@ -61,18 +61,15 @@ class RemoteChanneledMemory(ChanneledMemory):
             self._dram_class(addr_mapping=self._addr_mapping)
             for _ in range(self._num_channels)
         ]
-        self.remote_links = [
-            NoncoherentXBar(
+        self.remote_link =  NoncoherentXBar(
                 frontend_latency=self._remote_latency,
                 forward_latency=0,
                 response_latency=0,
                 width=64,
-            )
-            for _ in range(self._num_channels)
-        ]
+        )
         self.mem_ctrl = [
             MemCtrl(
-                dram=self._dram[i], port=self.remote_links[i].mem_side_ports
+                dram=self._dram[i], port=self.remote_link.mem_side_ports
             )
             for i in range(self._num_channels)
         ]
@@ -80,13 +77,13 @@ class RemoteChanneledMemory(ChanneledMemory):
     @overrides(ChanneledMemory)
     def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
         return [
-            (self.mem_ctrl[i].dram.range, self.remote_links[i].cpu_side_ports)
+            (self.mem_ctrl[i].dram.range, self.remote_link.cpu_side_ports)
             for i in range(self._num_channels)
         ]
 
     @overrides(ChanneledMemory)
     def get_memory_controllers(self):
         return [
-            (self.remote_links[i].cpu_side_ports)
+            (self.remote_link.cpu_side_ports)
             for i in range(self._num_channels)
         ]
