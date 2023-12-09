@@ -47,7 +47,7 @@ from m5.objects import Root, AddrRange
 
 from boards.riscv_sst_board import RiscvSstDMBoard
 from cachehierarchies.dm_caches_sst import ClassicPrivateL1PrivateL2SstDMCache
-from memories.external_remote_memory import ExternalRemoteMemoryInterface
+from disaggregated_memory.memories.remote_memory_outgoing_bridge import RemoteMemoryOutgoingBridge
 
 from gem5.utils.requires import requires
 from gem5.components.memory import DualChannelDDR4_2400
@@ -115,7 +115,7 @@ local_memory = DualChannelDDR4_2400(size=args.local_memory_range)
 # what type of memory is being simulated. This can either be initialized with
 # a size or a memory address range, which is mroe flexible. Adding remote
 # memory latency automatically adds a non-coherent crossbar to simulate latenyc
-remote_memory = ExternalRemoteMemoryInterface(
+remote_memory = RemoteMemoryOutgoingBridge(
     addr_range=remote_memory_range,
     remote_memory_latency=args.remote_memory_latency
 )

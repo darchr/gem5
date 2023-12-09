@@ -29,10 +29,13 @@ This script shows an example of running a full system ARM Ubuntu boot
 simulation using the gem5 library. This simulation boots Ubuntu 20.04 using
 1 TIMING CPU cores and executes `STREAM`. The simulation ends when the
 startup is completed successfully.
+
+* This script has to be executed from SST
 """
 
 import os
 import sys
+import argparse
 
 # all the source files are one directory above.
 sys.path.append(
@@ -40,68 +43,99 @@ sys.path.append(
 )
 
 import m5
-from m5.objects import Root
+from m5.objects import Root, AddrRange
 
-from boards.arm_gem5_board import ArmGem5DMBoard
-from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
-from memories.remote_memory import RemoteChanneledMemory
+from boards.arm_dram_cache_sst_board import ArmSstDMBoardDRAMCache
+from cachehierarchies.dm_caches_sst import (
+    ClassicPrivateL1PrivateL2SstDMCache
+)
+from memories.dram_cache import TDRAMCache
+from memories.remote_memory_outgoing_bridge import RemoteMemoryOutgoingBridge
 from gem5.utils.requires import requires
-from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
-from gem5.components.memory import DualChannelDDR4_2400
-from gem5.components.memory.multi_channel import *
+from gem5.components.memory import SingleChannelDDR4_2400, DualChannelDDR4_2400
 from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
-from gem5.simulate.simulator import Simulator
-from gem5.resources.workload import Workload
 from gem5.resources.workload import *
 from gem5.resources.resource import *
 
-# This runs a check to ensure the gem5 binary is compiled for ARM.
+# SST passes a couple of arguments for this system to simulate.
+parser = argparse.ArgumentParser()
+parser.add_argument("--command", type=str, help="Command run by guest")
+parser.add_argument(
+    "--cpu-type",
+    type=str,
+    choices=["atomic", "timing", "o3"],
+    default="atomic",
+    help="CPU type",
+)
+parser.add_argument(
+    "--cpu-clock-rate",
+    type=str,
+    required=True,
+    help="CPU Clock",
+)
+parser.add_argument(
+    "--local-memory-size",
+    type=str,
+    required=True,
+    help="Local memory size",
+)
+parser.add_argument(
+    "--remote-memory-addr-range",
+    type=str,
+    required=True,
+    help="Remote memory range",
+)
+parser.add_argument(
+    "--remote-memory-latency",
+    type=int,
+    required=True,
+    help="Remote memory latency in Ticks (has to be converted prior)",
+)
+args = parser.parse_args()
+cpu_type = {
+    "o3" : CPUTypes.O3,
+    "atomic": CPUTypes.ATOMIC,
+    "timing": CPUTypes.TIMING}[args.cpu_type]
 
+remote_memory_range = list(map(int, args.remote_memory_addr_range.split(",")))
+remote_memory_range = AddrRange(remote_memory_range[0], remote_memory_range[1])
+
+# This runs a check to ensure the gem5 binary is compiled for RISCV.
 requires(isa_required=ISA.ARM)
-
-# defining a new type of memory with latency added. This memory interface can
-# be used as a remote memory interface to simulate disaggregated memory.
-def RemoteDualChannelDDR4_2400(
-    size: Optional[str] = None, remote_offset_latency=300
-) -> AbstractMemorySystem:
-    """
-    A dual channel memory system using DDR4_2400_8x8 based DIMM
-    """
-    return RemoteChanneledMemory(
-        DDR4_2400_8x8,
-        2,
-        64,
-        size=size,
-        remote_offset_latency=remote_offset_latency,
-    )
-
 # Here we setup the parameters of the l1 and l2 caches.
-cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="1MiB"
+cache_hierarchy = ClassicPrivateL1PrivateL2SstDMCache(
+    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB"
 )
 # Memory: Dual Channel DDR4 2400 DRAM device.
-local_memory = DualChannelDDR4_2400(size="1GiB")
-# The remote meomry can either be a simple Memory Interface, which is from a
-# different memory arange or it can be a Remote Memory Range, which has an
-# inherent delay while performing reads and writes into that memory. For simple
-# memory, use any MemInterfaces available in gem5 standard library. For remtoe
-# memory, please refer to the `RemoteDualChannelDDR4_2400` method in this
-# config script to extend any existing MemInterface class and add latency value
-# to that memory.
-remote_memory = RemoteDualChannelDDR4_2400(
-    size="1GB", remote_offset_latency=750
+
+local_memory = DualChannelDDR4_2400(size=args.local_memory_size)
+
+dram_cache = TDRAMCache(cache_size = "128MiB")
+
+# Either suppy the size of the remote memory or the address range of the
+# remote memory. Since this is inside the external memory, it does not matter
+# what type of memory is being simulated. This can either be initialized with
+# a size or a memory address range, which is mroe flexible. Adding remote
+# memory latency automatically adds a non-coherent crossbar to simulate latenyc
+remote_memory_outgoing_bridge = RemoteMemoryOutgoingBridge(
+    addr_range=remote_memory_range,
+    link_latency=args.remote_memory_latency
 )
-remote_memory = DualChannelDDR4_2400(size="1GiB")
+
 # Here we setup the processor. We use a simple processor.
-processor = SimpleProcessor(cpu_type=CPUTypes.ATOMIC, isa=ISA.ARM, num_cores=1)
+processor = SimpleProcessor(
+        cpu_type=CPUTypes.TIMING, isa=ISA.ARM, num_cores=4
+)
+
 # Here we setup the board which allows us to do Full-System ARM simulations.
-board = ArmGem5DMBoard(
-    clk_freq="3GHz",
+board = ArmSstDMBoardDRAMCache(
+    clk_freq=args.cpu_clock_rate,
     processor=processor,
     local_memory=local_memory,
-    remote_memory=remote_memory,
+    dram_cache=dram_cache,
+    remote_memory_outgoing_bridge=remote_memory_outgoing_bridge,
     cache_hierarchy=cache_hierarchy,
 )
 
@@ -124,20 +158,25 @@ cmd = [
     "m5 exit;",
 ]
 
-board.set_kernel_disk_workload(
-    kernel=CustomResource("/home/kaustavg/vmlinux-5.4.49-NUMA.arm64"),
-    bootloader=CustomResource(
-        "/home/babaie/projects/disaggregated-cxl/1/gem5/kernel/arm64-bootloader-foundation"
-    ),
-    disk_image=DiskImageResource(
-        "/projects/gem5/hn/DISK_IMAGES/arm64sve-hpc-2204-20230526-numa.img",
+workload = CustomWorkload(
+    function="set_kernel_disk_workload",
+    parameters={
+    "kernel" : CustomResource("/home/kaustavg/vmlinux-5.4.49-NUMA.arm64"),
+    "bootloader" : CustomResource("/home/babaie/projects/disaggregated-cxl/1/gem5/kernel/arm64-bootloader-foundation"),
+    "disk_image" : DiskImageResource(
+        "/home/kaustavg/disk-images/arm/arm64sve-hpc-2204-20230526-numa.img",
         root_partition="1",
     ),
-    readfile_contents=" ".join(cmd),
+    "readfile_contents" : " ".join(cmd)
+    },
 )
+# This disk image needs to have NUMA tools installed.
+board.set_workload(workload)
 # This script will boot two numa nodes in a full system simulation where the
 # gem5 node will be sending instructions to the SST node. the simulation will
 # after displaying numastat information on the terminal, whjic can be viewed
 # from board.terminal.
-simulator = Simulator(board=board)
-simulator.run()
+board._pre_instantiate()
+root = Root(full_system=True, board=board)
+board._post_instantiate()
+m5.instantiate()

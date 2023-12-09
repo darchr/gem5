@@ -24,28 +24,19 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# import os
-# import sys
-
-# # all the source files are one directory above.
-# sys.path.append(
-#     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
-# )
-
 from m5.objects import (
     Port,
     AddrRange,
+    NoncoherentXBar,
 )
 
 from m5.objects.RealView import VExpress_GEM5_Base, VExpress_GEM5_Foundation
 from m5.objects.ArmSystem import ArmRelease, ArmDefaultRelease
 
-import os
-import m5
 from abc import ABCMeta
 
-from memories.remote_memory import RemoteChanneledMemory
 from memories.dram_cache import DRAMCacheSystem
+from memories.remote_memory_outgoing_bridge import RemoteMemoryOutgoingBridge
 from boards.arm_dm_dram_cache_board import ArmAbstractDMBoardDRAMCache
 
 from gem5.components.processors.abstract_processor import AbstractProcessor
@@ -58,7 +49,7 @@ from gem5.utils.override import overrides
 from typing import List, Sequence, Tuple
 
 
-class ArmGem5DMBoardDRAMCache(ArmAbstractDMBoardDRAMCache):
+class ArmSstDMBoardDRAMCache(ArmAbstractDMBoardDRAMCache):
     __metaclass__ = ABCMeta
 
     def __init__(
@@ -66,53 +57,72 @@ class ArmGem5DMBoardDRAMCache(ArmAbstractDMBoardDRAMCache):
         clk_freq: str,
         processor: AbstractProcessor,
         local_memory: AbstractMemorySystem,
+        remote_memory_outgoing_bridge: RemoteMemoryOutgoingBridge,
         dram_cache: AbstractMemorySystem,
-        remote_memory: AbstractMemorySystem,
         cache_hierarchy: AbstractCacheHierarchy,
-        remote_memory_addr_range: AddrRange = None,
         platform: VExpress_GEM5_Base = VExpress_GEM5_Foundation(),
         release: ArmRelease = ArmDefaultRelease(),
     ) -> None:
         self._localMemory = local_memory
         self._dramCache = dram_cache
-        self._remoteMemory = remote_memory
-        # If the remote_memory_addr_range is not provided, we'll assume that
-        # it starts at 0x80000000 + local_memory_size and ends at it's own size
-        if remote_memory_addr_range is None:
-            remote_memory_addr_range = AddrRange(
-                0x80000000 + self._localMemory.get_size(),
-                size=remote_memory.get_size(),
-            )
+        # Since the remote memory is defined in SST's side, we only need the
+        # size of this memory while setting up stuff from Gem5's side.
+        self._remoteMemoryOutgoingBridge = remote_memory_outgoing_bridge
+        # The remote memory is either setup with a size or an address range.
+        # We need to determine if the address range is set. if not, then we
+        # need to find the starting and ending of the the external memory
+        # range.
+        if not self._remoteMemoryOutgoingBridge.get_set_using_addr_ranges():
+            # Address ranges were not set, but the system knows the size
+            # If the remote_memory_addr_range is not provided, we'll assume
+            # that it starts at 0x80000000 + local_memory_size and ends at it's
+            # own size
+            self._remoteMemoryOutgoingBridge.outgoing_req_bridge.physical_address_ranges = [
+                AddrRange(
+                    0x80000000 + self._localMemory.get_size(),
+                    size=remote_memory_outgoing_bridge.get_size(),
+                )
+            ]
+        # We need a size as a string to setup this memory.
+        self._remoteMemorySize = self._remoteMemoryOutgoingBridge.get_size()
         super().__init__(
             clk_freq=clk_freq,
             processor=processor,
             local_memory=local_memory,
             dram_cache=dram_cache,
-            remote_memory_addr_range=remote_memory_addr_range,
+            remote_memory_addr_range=self._remoteMemoryOutgoingBridge.outgoing_req_bridge.physical_address_ranges[
+                0
+            ],
             cache_hierarchy=cache_hierarchy,
             platform=platform,
             release=release,
         )
         self.local_memory = local_memory
         self.dram_cache = dram_cache
-        self.remote_memory = remote_memory
+        self.remote_memory_outgoing_bridge = self._remoteMemoryOutgoingBridge.outgoing_req_bridge
 
     @overrides(ArmAbstractDMBoardDRAMCache)
     def get_remote_memory(self) -> "AbstractMemory":
         """Get the memory (RAM) connected to the board.
         :returns: The remote memory system.
         """
-        return self._remoteMemory
+        return self._remoteMemoryOutgoingBridge
 
     @overrides(ArmAbstractDMBoardDRAMCache)
     def get_remote_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
-        return self.get_remote_memory().get_mem_ports()
+        return [
+            (
+                self.get_remote_memory().physical_address_ranges,
+                self.get_remote_memory().port,
+            )
+        ]
 
     @overrides(ArmAbstractDMBoardDRAMCache)
     def _set_remote_memory_ranges(self):
-        self.get_remote_memory().set_memory_range(
-            [self._remoteMemoryAddrRange]
-        )
+        pass
+    #     self.get_remote_memory().set_memory_range(
+    #         [self._remoteMemoryAddrRange]
+    #     )
 
     @overrides(ArmAbstractDMBoardDRAMCache)
     def get_default_kernel_args(self) -> List[str]:
@@ -157,27 +167,36 @@ class ArmGem5DMBoardDRAMCache(ArmAbstractDMBoardDRAMCache):
         # Incorporate the memory into the motherboard.
         self.get_local_memory().incorporate_memory(self)
         self.get_dram_cache().incorporate_memory(self)
-        self.get_remote_memory().incorporate_memory(self)
+        # we need to find whether there is any external latency. if yes, then
+        # add xbar to add this latency.
+
+        if self.get_remote_memory().is_xbar_required():
+            self.remote_link = NoncoherentXBar(
+                frontend_latency=0,
+                forward_latency=0,
+                response_latency=self.get_remote_memory()._link_latency,
+                width=64,
+            )
+            self.get_cache_hierarchy().membus.mem_side_ports = \
+                self.get_dram_cache().policy_manager.port
+            self.get_dram_cache().policy_manager.far_req_port = \
+                self.remote_link.cpu_side_ports
+            self.remote_link.mem_side_ports = \
+                self.get_remote_memory().outgoing_req_bridge.port
+        else:
+            # Connect the external memory directly to the motherboard.
+            self.get_cache_hierarchy().membus.mem_side_ports = \
+                    self.get_dram_cache().policy_manager.port
+            self.get_dram_cache().policy_manager.far_req_port = \
+                    self.get_remote_memory().outgoing_req_bridge.port
 
         # Incorporate the cache hierarchy for the motherboard.
-        if self.get_cache_hierarchy():
-            self.get_cache_hierarchy().incorporate_cache(self)
-            # need to connect the remote links to the board.
-            if self.get_cache_hierarchy().is_ruby():
-                fatal(
-                    "remote memory is only supported in classic caches at " +
-                    "the moment!")
-            
-            if isinstance(self.get_dram_cache(), DRAMCacheSystem):
-                self.get_cache_hierarchy().membus.mem_side_ports = \
-                    self.get_dram_cache().policy_manager.port
-                self.get_dram_cache().policy_manager.far_req_port = \
-                    self.get_remote_memory().remote_link.cpu_side_ports
-            elif isinstance(self.get_remote_memory(), RemoteChanneledMemory):
-                self.get_cache_hierarchy().membus.mem_side_ports = \
-                    self.get_remote_memory().remote_link.cpu_side_ports
-            
-
+        if self.get_cache_hierarchy().is_ruby():
+            fatal(
+                "remote memory is only supported in classic caches at " +
+                "the moment!")
+        # need to connect the remote links to the board.
+        self.get_cache_hierarchy().incorporate_cache(self)
 
         # Incorporate the processor into the motherboard.
         self.get_processor().incorporate_processor(self)
@@ -188,8 +207,6 @@ class ArmGem5DMBoardDRAMCache(ArmAbstractDMBoardDRAMCache):
     def _post_instantiate(self):
         """Called to set up anything needed after m5.instantiate"""
         self.get_processor()._post_instantiate()
-        if self.get_cache_hierarchy():
-            self.get_cache_hierarchy()._post_instantiate()
+        self.get_cache_hierarchy()._post_instantiate()
         self.get_local_memory()._post_instantiate()
         self.get_dram_cache()._post_instantiate()
-        self.get_remote_memory()._post_instantiate()

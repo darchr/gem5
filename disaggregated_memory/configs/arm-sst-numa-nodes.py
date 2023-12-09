@@ -49,7 +49,7 @@ from boards.arm_sst_board import ArmSstDMBoard
 from cachehierarchies.dm_caches_sst import (
     ClassicPrivateL1PrivateL2SharedL3SstDMCache
 )
-from memories.external_remote_memory import ExternalRemoteMemoryInterface
+from disaggregated_memory.memories.remote_memory_outgoing_bridge import RemoteMemoryOutgoingBridge
 from gem5.utils.requires import requires
 from gem5.components.memory import SingleChannelDDR4_2400, DualChannelDDR4_2400
 from gem5.components.processors.simple_processor import SimpleProcessor
@@ -119,9 +119,9 @@ local_memory = SingleChannelDDR4_2400(size=args.local_memory_size)
 # a size or a memory address range, which is mroe flexible. Adding remote
 # memory latency automatically adds a non-coherent crossbar to simulate latenyc
 
-remote_memory = ExternalRemoteMemoryInterface(
+remote_memory = RemoteMemoryOutgoingBridge(
     addr_range=remote_memory_range,
-    remote_memory_latency=args.remote_memory_latency
+    remote_memory_latency=args.remote-memory-latency
 )
 
 # Here we setup the processor. We use a simple processor.

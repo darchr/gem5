@@ -524,6 +524,12 @@ class PolicyManager : public AbstractMemory
 
     PolicyManagerStats polManStats;
 
+    /**
+     * Upstream caches need this packet until true is returned, so
+     * hold it for deletion until a subsequent call
+     */
+    std::unique_ptr<Packet> pendingDelete;
+
   public:
 
     PolicyManager(const PolicyManagerParams &p);

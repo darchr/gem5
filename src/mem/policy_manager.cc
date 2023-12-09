@@ -2687,8 +2687,8 @@ PolicyManager::accessAndRespond(PacketPtr pkt, Tick static_latency)
     access(pkt);
 
     // turn packet around to go back to requestor if response expected
-    assert(needsResponse);
-    //if (needsResponse) {
+    // assert(needsResponse);
+    if (needsResponse) {
         // access already turned the packet into a response
         assert(pkt->isResponse());
         // response_time consumes the static latency and is charged also
@@ -2703,12 +2703,12 @@ PolicyManager::accessAndRespond(PacketPtr pkt, Tick static_latency)
         // queue the packet in the response queue to be sent out after
         // the static latency has passed
         port.schedTimingResp(pkt, response_time);
-    //}
-    // else {
-    //     // @todo the packet is going to be deleted, and the MemPacket
-    //     // is still having a pointer to it
-    //     pendingDelete.reset(pkt);
-    // }
+    }
+    else {
+        // @todo the packet is going to be deleted, and the MemPacket
+        // is still having a pointer to it
+        // pendingDelete.reset(pkt);
+    }
 
     DPRINTF(PolicyManager, "Done\n");
 
@@ -2911,7 +2911,10 @@ PolicyManager::countFarWr()
 AddrRangeList
 PolicyManager::getAddrRanges()
 {
-    return farReqPort.getAddrRanges();
+    // return farReqPort.getAddrRanges();
+    AddrRangeList rangeList;
+    rangeList.push_back(range);
+    return rangeList;
 }
 
 Addr

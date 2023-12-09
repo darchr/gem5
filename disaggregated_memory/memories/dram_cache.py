@@ -89,9 +89,7 @@ class DRAMCacheSystem(AbstractMemorySystem):
         self._loc_mem_controller.static_frontend_latency_tc = "0ns"
         self._loc_mem_controller.static_backend_latency_tc = "0ns"
 
-
         self._loc_mem_controller.port = self.policy_manager.loc_req_port
-        # self._far_mem_controller.port = self.policy_manager.far_req_port
 
 
     @overrides(AbstractMemorySystem)

@@ -30,16 +30,15 @@ append mem_ranges within this interface."""
 
 import m5
 from m5.util import fatal
-from m5.objects.XBar import NoncoherentXBar
 from m5.objects import OutgoingRequestBridge, AddrRange, Tick
 
 
-class ExternalRemoteMemoryInterface:
+class RemoteMemoryOutgoingBridge:
     def __init__(
         self,
         size: "str" = None,
         addr_range: AddrRange = None,
-        remote_memory_latency: Tick = None,
+        link_latency: Tick = None,
     ):
         # We will create a non-coherent cross bar if the user wants to simulate
         # latency for the remote memory links.
@@ -48,15 +47,15 @@ class ExternalRemoteMemoryInterface:
         # to quickly scale the setup with N nodes.
         self._size = None
         self._set_using_addr_ranges = False
-        self.remote_memory = OutgoingRequestBridge()
+        self.outgoing_req_bridge = OutgoingRequestBridge()
         # The user needs to provide either the size of the remote memory or the
         # range of the remote memory.
         if size is None and addr_range is None:
             fatal("External memory needs to either have a size or a range!")
         else:
             if addr_range is not None:
-                self.remote_memory.physical_address_ranges = [addr_range]
-                self._size = self.remote_memory.physical_address_ranges[
+                self.outgoing_req_bridge.physical_address_ranges = [addr_range]
+                self._size = self.outgoing_req_bridge.physical_address_ranges[
                     0
                 ].size()
                 self._set_using_addr_ranges = True
@@ -67,15 +66,15 @@ class ExternalRemoteMemoryInterface:
 
         # If there is a remote latency specified, create a non_coherent
         # cross_bar.
-        if remote_memory_latency is not None:
+        if link_latency > 0:
             self._xbar_required = True
-            self._remote_memory_latency = remote_memory_latency
+            self._link_latency = link_latency
 
     def get_size(self):
         return self._size
 
     # def set_size(self):
-    #     self._size = self.remote_memory.physical_addr_ranges[0].size()
+    #     self._size = self.outgoing_req_bridge.physical_addr_ranges[0].size()
 
     def is_xbar_required(self):
         # If an XBar is required, it should be added in the connect_things to

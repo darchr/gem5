@@ -53,7 +53,7 @@ def connect_components(link_name: str,
 
 # Define the number of gem5 nodes in the system. anything more than 1 needs
 # mpirun to run the sst binary.
-system_nodes = 2
+system_nodes = 1
 
 # Define the total number of SST Memory nodes
 memory_nodes = 1
@@ -77,7 +77,7 @@ memctrl.setRank(0, 0)
 # `addr_range_end` should be changed accordingly to memory_size_sst
 memctrl.addParams({
     "debug" : "0",
-    "clock" : "2.4GHz",
+    "clock" : "1.2GHz",
     "request_width" : "64",
     "addr_range_end" : addr_range_end,
 })
@@ -100,8 +100,8 @@ for node in range(system_nodes):
                   0x80000000 + (node + 2) * 0x80000000]
     print(node_range)
     cmd = [
-        f"--outdir=m5out_arm_node_{node}",
-        "../../disaggregated_memory/configs/arm-sst-numa-nodes.py",
+        f"--outdir=m5out_arm_node_{node}_6",
+        "../../disaggregated_memory/configs/arm-dram-cache-sst-numa-nodes.py",
         f"--cpu-clock-rate {cpu_clock_rate}",
         "--cpu-type o3",
         f"--local-memory-size {node_memory_slice}",
@@ -110,7 +110,7 @@ for node in range(system_nodes):
             {int(float(cpu_clock_rate[0:cpu_clock_rate.find('G')]) * 250)}"
     ]
     ports = {
-        "remote_memory_port" : "board.remote_memory"
+        "remote_memory_port" : "board.remote_memory_outgoing_bridge"
     }
     port_list = []
     for port in ports:

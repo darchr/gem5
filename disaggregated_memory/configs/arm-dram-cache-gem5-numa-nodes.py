@@ -43,7 +43,7 @@ import m5
 from m5.objects import Root
 
 from boards.arm_dram_cache_gem5_board import ArmGem5DMBoardDRAMCache
-from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
+from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2DMCache
 from memories.dram_cache import TDRAMCache
 from memories.remote_memory import RemoteChanneledMemory
 from gem5.utils.requires import requires
@@ -61,7 +61,6 @@ from gem5.resources.resource import *
 # This runs a check to ensure the gem5 binary is compiled for ARM.
 
 requires(isa_required=ISA.ARM)
-
 # defining a new type of memory with latency added. This memory interface can
 # be used as a remote memory interface to simulate disaggregated memory.
 def RemoteDualChannelDDR4_2400(
@@ -79,8 +78,8 @@ def RemoteDualChannelDDR4_2400(
     )
 
 # Here we setup the parameters of the l1 and l2 caches.
-cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="1MiB"
+cache_hierarchy = ClassicPrivateL1PrivateL2DMCache(
+    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB" #, l3_size="1MiB"
 )
 # Memory: Dual Channel DDR4 2400 DRAM device.
 local_memory = DualChannelDDR4_2400(size="1GiB")
@@ -96,13 +95,13 @@ remote_memory = RemoteDualChannelDDR4_2400(
     size="1GB", remote_offset_latency=750
 )
 # Here we setup the processor. We use a simple processor.
-processor = SimpleSwitchableProcessor( 
-    starting_core_type=CPUTypes.KVM,
-    switch_core_type=CPUTypes.TIMING,  
-    isa=ISA.ARM,                       
-    num_cores=1,                       
-)
-# processor = SimpleProcessor(cpu_type=CPUTypes.ATOMIC, isa=ISA.ARM, num_cores=1)
+# processor = SimpleSwitchableProcessor( 
+#     starting_core_type=CPUTypes.TIMING,
+#     switch_core_type=CPUTypes.TIMING,  
+#     isa=ISA.ARM,                       
+#     num_cores=1,                       
+# )
+processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, isa=ISA.ARM, num_cores=1)
 # Here we setup the board which allows us to do Full-System ARM simulations.
 board = ArmGem5DMBoardDRAMCache(
     clk_freq="3GHz",
@@ -112,11 +111,9 @@ board = ArmGem5DMBoardDRAMCache(
     remote_memory=remote_memory,
     cache_hierarchy=cache_hierarchy,
 )
-
 cmd = [
     "mount -t sysfs - /sys;",
     "mount -t proc - /proc;",
-    # "m5 --addr=0x10010000 exit;",
     "numastat;",
     # "numactl --membind=0 -- " +
     # "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
@@ -130,14 +127,13 @@ cmd = [
     "numastat;",
     "m5 exit;",
 ]
-
 board.set_kernel_disk_workload(
     kernel=CustomResource("/home/kaustavg/vmlinux-5.4.49-NUMA.arm64"),
     bootloader=CustomResource(
         "/home/babaie/projects/disaggregated-cxl/1/gem5/kernel/arm64-bootloader-foundation"
     ),
     disk_image=DiskImageResource(
-        "/projects/gem5/hn/DISK_IMAGES/arm64sve-hpc-2204-20230526-numa.img",
+        "/home/kaustavg/disk-images/arm/arm64sve-hpc-2204-20230526-numa.img",
         root_partition="1",
     ),
     readfile_contents=" ".join(cmd),
@@ -148,3 +144,5 @@ board.set_kernel_disk_workload(
 # from board.terminal.
 simulator = Simulator(board=board)
 simulator.run()
+# processor.switch()
+# simulator.run()

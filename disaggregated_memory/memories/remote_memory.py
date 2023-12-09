@@ -58,7 +58,7 @@ class RemoteChanneledMemory(ChanneledMemory):
     @overrides(ChanneledMemory)
     def _create_mem_interfaces_controller(self):
         self._dram = [
-            self._dram_class(addr_mapping=self._addr_mapping)
+            self._dram_class(addr_mapping=self._addr_mapping, in_addr_map=False, kvm_map=False, null = True)
             for _ in range(self._num_channels)
         ]
         self.remote_link =  NoncoherentXBar(

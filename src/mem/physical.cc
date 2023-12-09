@@ -116,18 +116,26 @@ PhysicalMemory::PhysicalMemory(const std::string& _name,
                     "Skipping memory %s that is not in global address map\n",
                     m->name());
 
-            // sanity check
-            fatal_if(m->getAddrRange().interleaved(),
-                     "Memory %s that is not in the global address map cannot "
-                     "be interleaved\n", m->name());
+            // Only create backing stores for non-null memories
+            // This is required for DRAM caching.
+            // The policy manager (DRAM cache controller) is an abstract memory
+            // and it will create a backing store. Thus, the DRAM interface
+            // acting as the cache will be NULL and not creating a backing store.
+            // This is mostly helpfyul for taking checkpoint with DRAM cache.
+            if (!m->isNull()) {
+                // sanity check
+                fatal_if(m->getAddrRange().interleaved(),
+                        "Memory %s that is not in the global address map cannot "
+                        "be interleaved\n", m->name());
 
-            // simply do it independently, also note that this kind of
-            // memories are allowed to overlap in the logic address
-            // map
-            std::vector<AbstractMemory*> unmapped_mems{m};
-            createBackingStore(m->getAddrRange(), unmapped_mems,
-                               m->isConfReported(), m->isInAddrMap(),
-                               m->isKvmMap());
+                // simply do it independently, also note that this kind of
+                // memories are allowed to overlap in the logic address
+                // map
+                std::vector<AbstractMemory*> unmapped_mems{m};
+                createBackingStore(m->getAddrRange(), unmapped_mems,
+                                m->isConfReported(), m->isInAddrMap(),
+                                m->isKvmMap());
+            }
         }
     }
 
