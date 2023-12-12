@@ -26,8 +26,6 @@
 
 # This SST configuration file tests a merlin router.
 import sst
-import sys
-import os
 
 from sst import UnitAlgebra
 
@@ -53,7 +51,7 @@ def connect_components(link_name: str,
 
 # Define the number of gem5 nodes in the system. anything more than 1 needs
 # mpirun to run the sst binary.
-system_nodes = 1
+system_nodes = 8
 
 # Define the total number of SST Memory nodes
 memory_nodes = 1
@@ -100,14 +98,14 @@ for node in range(system_nodes):
                   0x80000000 + (node + 2) * 0x80000000]
     print(node_range)
     cmd = [
-        f"--outdir=m5out_arm_node_{node}_6",
+        f"--outdir=m5out/arm_{system_nodes}node/{node}",
         "../../disaggregated_memory/configs/arm-dram-cache-sst-numa-nodes.py",
         f"--cpu-clock-rate {cpu_clock_rate}",
         "--cpu-type o3",
         f"--local-memory-size {node_memory_slice}",
         f"--remote-memory-addr-range {node_range[0]},{node_range[1]}",
         f"--remote-memory-latency \
-            {int(float(cpu_clock_rate[0:cpu_clock_rate.find('G')]) * 250)}"
+            {int(float(cpu_clock_rate[0:cpu_clock_rate.find('G')]) * 250)}" # 250 ns latency of CXL is converted to #ticks in gem5.
     ]
     ports = {
         "remote_memory_port" : "board.remote_memory_outgoing_bridge"
