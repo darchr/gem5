@@ -164,7 +164,7 @@ namespace gem5{
         pkt_read_queue.pop_front();
 
         if (queueLength() < 1){
-            DPRINTF(MessageQueue, "Tried reading empty queue\n");
+            //DPRINTF(MessageQueue, "Tried reading empty queue\n");
              pkt->setLE(Update(0xFFFF, 0xFFFF));
             // How to send retry?
         }
@@ -210,7 +210,7 @@ namespace gem5{
     void
     MessageQueue::RespPort::checkRetryReq()
     {
-        DPRINTF(MessageQueue, "%s: checking retry: %d\n", __func__, needSendRetryReq);
+        // DPRINTF(MessageQueue, "%s: checking retry: %d\n", __func__, needSendRetryReq);
         if (needSendRetryReq) {
             DPRINTF(MessageQueue, "%s: sending retry!\n", __func__);
             needSendRetryReq = false;
