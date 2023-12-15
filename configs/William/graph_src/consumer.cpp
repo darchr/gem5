@@ -8,7 +8,7 @@
 
 using namespace std;
 
-
+// additional optimization: if size == 0, dont write to active list
 
 // const uint64_t activeList_addr = 0x100000000 + 4096;
 
@@ -23,6 +23,8 @@ const uint64_t activeList_addr = 0x600000000; //+ 4096; // add 4096 to each acti
 
 
 const uint64_t buffer_size = 4096;
+const uint64_t activeList_size = 65536;
+
 // 
 // Steps for consumer:
 /*
@@ -40,7 +42,7 @@ const uint64_t buffer_size = 4096;
 int main(int argc, char* argv[]){
 
     uint64_t consumer_id = 0;
-    uint16_t active_list_len = uint16_t(buffer_size/sizeof(Vertex)); // could potentially implement active list as pointer to a vector
+    uint16_t active_list_len = uint16_t(activeList_size/sizeof(Vertex)); // could potentially implement active list as pointer to a vector
     // read in command line argument into a uint64_t id;
     if(argc > 1){
     consumer_id = atoi(argv[1]);
@@ -52,24 +54,30 @@ int main(int argc, char* argv[]){
     }
 
     uint8_t* done = (uint8_t*)(finished_addr+(2*consumer_id) + 1);
+    // printf("consumer_id: %ld, done: %ld\n", consumer_id, done);
     //spin on initialized_addr until an update is seen
     
     uint64_t* initialized = (uint64_t*)initalized_addr;
-    printf("reading from inialized addr: %ld\n", initialized);
+    // printf("reading from inialized addr: %ld\n", initialized);
     while(*initialized == 0){
     }
     uint64_t num_vertices = *initialized;
-    printf("num_vertices: %ld\n", num_vertices);
+    // printf("num_vertices: %ld\n", num_vertices);
+
+    uint32_t num_msg_read = 0;
+    uint32_t num_activeList_updates = 0;
+        uint32_t num_full_activeList = 0;
+
 
 
     // // identifies address of message queue
     Update* messageQueue = (Update*)(buffer_addr + (consumer_id*buffer_size)); 
     // // identifies address of active list
-    Vertex* activeList = (Vertex*)(activeList_addr + (consumer_id*buffer_size));
+    Vertex* activeList = (Vertex*)(activeList_addr + (consumer_id*activeList_size));
 
     Vertex* VL = (Vertex*)VL_addr;
 
-    Edge* EL = (Edge*)EL_addr;
+    // Edge* EL = (Edge*)EL_addr;
 
     uint8_t* finish_flag = (uint8_t*)finished_flag;
 
@@ -94,7 +102,7 @@ int main(int argc, char* argv[]){
             if (next_update.weight == 65535){
                 //queue was empty
                 empty_cycles2++;
-                if (empty_cycles2 > 5000){
+                if (empty_cycles2 > 1000){
 
                     *done = 1;
                     g_flag = finish_flag[0];
@@ -113,10 +121,18 @@ int main(int argc, char* argv[]){
                     Vertex temporary = VL[next_update.dst_id];
                     temporary.active = true;
 
+                    if(activeList[index].active == true){
+                        // printf("consumer_id: %ld, active list full\n", consumer_id);
+                        num_full_activeList++;
+                        while(activeList[index].active == true){} // spin until active list is not full
+                    }
                     activeList[index] = temporary;
                     index = (index+1)%(active_list_len);
+                    num_activeList_updates++;
+                    // printf("consumer_id: %ld, updated vertex %d Updating active List\n", consumer_id, next_update.dst_id);
 
                 }
+                num_msg_read++;
 
             }
 
@@ -126,14 +142,22 @@ int main(int argc, char* argv[]){
 
 
 
-    printf(" Consumer ID: %d done!\n", consumer_id);
+    
 
-    if(consumer_id == 0){ // just to test correctness at a known point
+    //if(consumer_id == 0){ // just to test correctness at a known point
         // for(int i = 0; i < num_vertices; i++){
-            printf("VL[%d]: dist: %d, id: %d\n", 1035, VL[1035].dist, VL[1035].id);
-        // }
-    }
+            int print = 58;
+            int prints[6] = {4038, 3927, 3271, 591, 3709, 1524};
+            // printf("VL[%d]: dist: %d, id: %d\n", print + consumer_id, VL[print+ consumer_id].dist, VL[print+ consumer_id].id);
 
+            if(consumer_id == 0){
+                for(int i = 0; i < 6; i++){
+                    printf("VL[%d]: dist: %d, id: %d\n", prints[i], VL[prints[i]].dist, VL[prints[i]].id);
+                }
+            }
+        // }
+    //}
+    printf(" Consumer ID: %d done! # of messages read: %d, # of updates to activeList: %d, ran into a full active list %d times, activeList index %d\n", consumer_id, num_msg_read, num_activeList_updates, num_full_activeList, index);
 
     
 }
