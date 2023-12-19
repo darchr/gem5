@@ -81,11 +81,21 @@ memctrl.addParams({
     "request_width" : "64",
     "addr_range_end" : addr_range_end,
 })
-memory = memctrl.setSubComponent("backend", "memHierarchy.simpleMem")
+memory = memctrl.setSubComponent( "backend", "memHierarchy.timingDRAM")
 memory.addParams({
-    "access_time" : "50ns",
-    "mem_size" : sst_memory_size
+    "id" : 0,
+    "addrMapper" : "memHierarchy.simpleAddrMapper",
+    "addrMapper.interleave_size" : "64B",
+    "addrMapper.row_size" : "1KiB",
+    "clock" : "1.2GHz",
+    "mem_size" : sst_memory_size,
+    "channels" : 4,
+    "channel.numRanks" : 2,
+    "channel.rank.numBanks" : 16,
+    "channel.rank.bank.TRP" : 14,
+    "printconfig" : 1,
 })
+
 
 # Add all the Gem5 nodes to this list.
 gem5_nodes = []
