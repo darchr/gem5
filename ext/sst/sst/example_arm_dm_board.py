@@ -26,8 +26,8 @@
 
 # This SST configuration file tests a merlin router.
 import sst
-
 from sst import UnitAlgebra
+
 
 cache_link_latency = "1ps"
 cpu_clock_rate = "4.2GHz"
@@ -51,7 +51,9 @@ def connect_components(link_name: str,
 
 # Define the number of gem5 nodes in the system. anything more than 1 needs
 # mpirun to run the sst binary.
-system_nodes = 8
+system_nodes = 2
+cpu_type = "o3"
+gem5_run_script = "../../disaggregated_memory/configs/arm-dram-cache-sst-numa-nodes.py"
 
 # Define the total number of SST Memory nodes
 memory_nodes = 1
@@ -98,10 +100,10 @@ for node in range(system_nodes):
                   0x80000000 + (node + 2) * 0x80000000]
     print(node_range)
     cmd = [
-        f"--outdir=m5out/arm_{system_nodes}node/{node}",
-        "../../disaggregated_memory/configs/arm-dram-cache-sst-numa-nodes.py",
+        f"--outdir=m5out/{system_nodes}_node/{node}",
+        f"{gem5_run_script}",
         f"--cpu-clock-rate {cpu_clock_rate}",
-        "--cpu-type o3",
+        f"--cpu-type {cpu_type}",
         f"--local-memory-size {node_memory_slice}",
         f"--remote-memory-addr-range {node_range[0]},{node_range[1]}",
         f"--remote-memory-latency \
@@ -156,5 +158,5 @@ connect_components("membus_2_memory",
 # enable Statistics
 stat_params = { "rate" : "0ns" }
 sst.setStatisticLoadLevel(10)
-sst.setStatisticOutput("sst.statOutputTXT", {"filepath" : "./arm-board.txt"})
+sst.setStatisticOutput("sst.statOutputTXT", {"filepath" : f"./m5out/{system_nodes}_node/board.txt"})
 sst.enableAllStatisticsForAllComponents()

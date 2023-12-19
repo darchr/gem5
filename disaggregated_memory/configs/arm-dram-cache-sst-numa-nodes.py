@@ -95,7 +95,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 cpu_type = {
-    "o3" : CPUTypes.O3,
+    "o3": CPUTypes.O3,
     "atomic": CPUTypes.ATOMIC,
     "timing": CPUTypes.TIMING}[args.cpu_type]
 
@@ -110,7 +110,7 @@ cache_hierarchy = ClassicPrivateL1PrivateL2SstDMCache(
 )
 # Memory: Dual Channel DDR4 2400 DRAM device.
 
-local_memory = DualChannelDDR4_2400(size=args.local_memory_size)
+local_memory = SingleChannelDDR4_2400(size=args.local_memory_size)
 
 dram_cache = TDRAMCache(cache_size = "128MiB")
 
@@ -126,7 +126,7 @@ remote_memory_outgoing_bridge = RemoteMemoryOutgoingBridge(
 
 # Here we setup the processor. We use a simple processor.
 processor = SimpleProcessor(
-        cpu_type=CPUTypes.TIMING, isa=ISA.ARM, num_cores=4
+        cpu_type=cpu_type, isa=ISA.ARM, num_cores=4
 )
 
 # Here we setup the board which allows us to do Full-System ARM simulations.
