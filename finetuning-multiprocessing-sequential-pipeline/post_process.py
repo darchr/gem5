@@ -78,15 +78,11 @@ def postprocess(stat, current_parameter=None):
     for root, dirs, files in os.walk("m5out"):
         for direc in dirs:
             for root2, dirs2, files2 in os.walk(os.path.join(root, direc)):
-                parameter_value = root2.split("_")[-1]
-                parameter = "_".join(root2.split("riscv_")[1].split("_")[:-1])
+                parameter_value = "_".join(
+                    root2.split(current_parameter)[1].split("_")[1:]
+                )
                 microbenchmark = root2.split(".")[0].split("/")[-1]
-                if (
-                    current_parameter is not None
-                    and parameter != current_parameter
-                ):
-                    continue
-                if "m5out-done" in root2:
+                if current_parameter not in root2:
                     continue
                 for file in files2:
                     if file == "stats.txt":
@@ -126,7 +122,11 @@ def postprocess(stat, current_parameter=None):
                                 # ipc with 0 cycles is undefined but we can set it to an absurdly high value
                                 ipc = float(1000000)
 
-                        table[parameter + parameter_value + microbenchmark] = {
+                        table[
+                            current_parameter
+                            + parameter_value
+                            + microbenchmark
+                        ] = {
                             "Value": parameter_value,
                             "Microbenchmark": microbenchmark,
                             "Instructions": instructions,

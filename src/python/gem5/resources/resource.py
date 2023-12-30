@@ -1041,6 +1041,11 @@ class CustomResource(AbstractResource):
                 "constructor. This parameter is not used."
             )
         super().__init__(local_path=local_path)
+        self._id = local_path.split("/")[-1]
+
+    def get_id(self) -> Optional[str]:
+        """Returns the ID of the resource."""
+        return self._id
 
 
 class CustomDiskImageResource(DiskImageResource):

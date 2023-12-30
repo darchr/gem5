@@ -93,7 +93,7 @@ if __name__ == "__m5_main__":
             )
             parameter = board_configuration[0][0].split(" = ")[0]
             print(folder_name)
-            while len(processes) > 15:
+            while len(processes) > 20:
                 for process in processes:
                     if not process.is_alive():
                         print(
@@ -119,10 +119,8 @@ if __name__ == "__m5_main__":
             sleep(10)
 
         if len(processes) == 0:
-            sleep(10)
             print("All processes completed")
             postprocess("IPC", parameter)
-        sleep(10)
         print(f"Finished processing parameter {parameter}")
 
     for (

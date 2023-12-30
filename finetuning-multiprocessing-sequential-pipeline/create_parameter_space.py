@@ -53,6 +53,14 @@ def process_parameters(data):
             values = []
         else:
             raise ValueError("Invalid step operation")
+
+        try:
+            if parameter["suffix"] != None:
+                values = [str(value) + parameter["suffix"] for value in values]
+                # also add quotes to the values
+                values = ['"' + value + '"' for value in values]
+        except:
+            pass
         parameter_names.append(parameter["parameter"])
         parameter_values.append(values)
 
@@ -77,3 +85,4 @@ if __name__ == "__main__":
     # for testing
     data = extract_json("gem5-parameters.json")
     process_parameters(data)
+    print(processed_parameters())

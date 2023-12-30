@@ -71,7 +71,7 @@
     },
     {
         "parameter": "processor.cores[:].core.branchPred.localPredictorSize",
-        "min_value": 512,
+        "min_value": 128,
         "max_value": 65536,
         "annotation": "Size of the local predictor of the branch predictor",
         "step": "multiply"
@@ -85,7 +85,7 @@
     },
     {
         "parameter": "processor.cores[:].core.branchPred.globalPredictorSize",
-        "min_value": 512,
+        "min_value": 128,
         "max_value": 65536,
         "annotation": "Size of the global predictor of the branch predictor",
         "step": "multiply"
@@ -141,7 +141,7 @@
     },
     {
         "parameter": "processor.cores[:].core.branchPred.indirectBranchPred.indirectSets",
-        "min_value": 128,
+        "min_value": 64,
         "max_value": 1024,
         "annotation": "Number of sets of the indirect branch predictor",
         "step": "multiply"
@@ -156,13 +156,13 @@
     {
         "parameter": "processor.cores[:].core.branchPred.indirectBranchPred.indirectPathLength",
         "min_value": 1,
-        "max_value": 5,
+        "max_value": 7,
         "annotation": "Path length of the indirect branch predictor",
         "step": "add"
     },
     {
         "parameter": "processor.cores[:].core.branchPred.indirectBranchPred.indirectTagSize",
-        "min_value": 8,
+        "min_value": 2,
         "max_value": 32,
         "annotation": "Tag size of the indirect branch predictor",
         "step": "multiply"
@@ -324,14 +324,14 @@
     {
         "parameter": "processor.cores[:].core.executeLSQTransfersQueueSize",
         "min_value": 1,
-        "max_value": 8,
+        "max_value": 10,
         "annotation": "Size of the transfers queue of the execute stage.",
         "step": "multiply"
     },
     {
         "parameter": "processor.cores[:].core.executeLSQStoreBufferSize",
         "min_value": 1,
-        "max_value": 9,
+        "max_value": 10,
         "annotation": "Size of the store buffer of the execute stage.",
         "step": "add"
     },
@@ -362,6 +362,51 @@
         "max_value": true,
         "annotation": "Whether to set the trace time on commit.",
         "step": "flip"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].size",
+        "min_value": 16,
+        "max_value": 128,
+        "annotation": "Size of the L1D cache",
+        "step": "multiply",
+        "suffix": "KiB"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].size",
+        "min_value": 16,
+        "max_value": 128,
+        "annotation": "Size of the L1I cache",
+        "step": "multiply",
+        "suffix": "KiB"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.size",
+        "min_value": 256,
+        "max_value": 2048,
+        "annotation": "Size of the L2 cache",
+        "step": "multiply",
+        "suffix": "KiB"
+    },
+    {
+        "parameter": "cache_hierarchy.l1dcaches[:].assoc",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Associativity of the L1D cache",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l1icaches[:].assoc",
+        "min_value": 1,
+        "max_value": 8,
+        "annotation": "Associativity of the L1I cache",
+        "step": "multiply"
+    },
+    {
+        "parameter": "cache_hierarchy.l2cache.assoc",
+        "min_value": 1,
+        "max_value": 32,
+        "annotation": "Associativity of the L2 cache",
+        "step": "multiply"
     },
     {
         "parameter": "cache_hierarchy.l2cache.tag_latency",
@@ -497,53 +542,11 @@
         "step": "multiply"
     },
     {
-        "parameter": "cache_hierarchy.l2cache.prefetcher.table_entries",
-        "min_value": 256,
-        "max_value": 8192,
-        "annotation": "Number of entries of the prefetcher table",
-        "step": "multiply"
-    },
-    {
         "parameter": "cache_hierarchy.l2cache.prefetcher.latency",
         "min_value": 1,
         "max_value": 4,
         "annotation": "Latency of the prefetcher",
         "step": "add"
-    },
-    {
-        "parameter": "cache_hierarchy.l2cache.prefetcher.queue_size",
-        "min_value": 4,
-        "max_value": 128,
-        "annotation": "Queue size of the prefetcher",
-        "step": "multiply"
-    },
-    {
-        "parameter": "cache_hierarchy.l2cache.prefetcher.max_prefetch_requests_with_pending_translation",
-        "min_value": 4,
-        "max_value": 128,
-        "annotation": "Queue size of the prefetcher",
-        "step": "multiply"
-    },
-    {
-        "parameter": "cache_hierarchy.l2cache.prefetcher.queue_squash",
-        "min_value": false,
-        "max_value": true,
-        "annotation": "Squash prefetches on demand access",
-        "step": "flip"
-    },
-    {
-        "parameter": "cache_hierarchy.l2cache.prefetcher.queue_filter",
-        "min_value": false,
-        "max_value": true,
-        "annotation": "Don't queue redundant prefetches",
-        "step": "flip"
-    },
-    {
-        "parameter": "cache_hierarchy.l2cache.prefetcher.cache_snoop",
-        "min_value": false,
-        "max_value": true,
-        "annotation": "Snoop cache for prefetches",
-        "step": "flip"
     },
     {
         "parameter": "cache_hierarchy.l2cache.prefetcher.on_miss",
@@ -721,53 +724,11 @@
         "step": "multiply"
     },
     {
-        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.table_entries",
-        "min_value": 256,
-        "max_value": 8192,
-        "annotation": "Number of entries of the prefetcher table",
-        "step": "multiply"
-    },
-    {
         "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.latency",
         "min_value": 1,
         "max_value": 4,
         "annotation": "Latency of the prefetcher",
         "step": "add"
-    },
-    {
-        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.queue_size",
-        "min_value": 16,
-        "max_value": 128,
-        "annotation": "Queue size of the prefetcher",
-        "step": "multiply"
-    },
-    {
-        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.max_prefetch_requests_with_pending_translation",
-        "min_value": 16,
-        "max_value": 128,
-        "annotation": "Queue size of the prefetcher",
-        "step": "multiply"
-    },
-    {
-        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.queue_squash",
-        "min_value": false,
-        "max_value": true,
-        "annotation": "Squash prefetches on demand access",
-        "step": "flip"
-    },
-    {
-        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.queue_filter",
-        "min_value": false,
-        "max_value": true,
-        "annotation": "Don't queue redundant prefetches",
-        "step": "flip"
-    },
-    {
-        "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.cache_snoop",
-        "min_value": false,
-        "max_value": true,
-        "annotation": "Snoop cache for prefetches",
-        "step": "flip"
     },
     {
         "parameter": "cache_hierarchy.l1dcaches[:].prefetcher.on_miss",
@@ -945,53 +906,11 @@
         "step": "multiply"
     },
     {
-        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.table_entries",
-        "min_value": 128,
-        "max_value": 8192,
-        "annotation": "Number of entries of the prefetcher table",
-        "step": "multiply"
-    },
-    {
         "parameter": "cache_hierarchy.l1icaches[:].prefetcher.latency",
         "min_value": 1,
         "max_value": 4,
         "annotation": "Latency of the prefetcher",
         "step": "add"
-    },
-    {
-        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.queue_size",
-        "min_value": 4,
-        "max_value": 128,
-        "annotation": "Queue size of the prefetcher",
-        "step": "multiply"
-    },
-    {
-        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.max_prefetch_requests_with_pending_translation",
-        "min_value": 2,
-        "max_value": 128,
-        "annotation": "Queue size of the prefetcher",
-        "step": "multiply"
-    },
-    {
-        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.queue_squash",
-        "min_value": false,
-        "max_value": true,
-        "annotation": "Squash prefetches on demand access",
-        "step": "flip"
-    },
-    {
-        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.queue_filter",
-        "min_value": false,
-        "max_value": true,
-        "annotation": "Don't queue redundant prefetches",
-        "step": "flip"
-    },
-    {
-        "parameter": "cache_hierarchy.l1icaches[:].prefetcher.cache_snoop",
-        "min_value": false,
-        "max_value": true,
-        "annotation": "Snoop cache for prefetches",
-        "step": "flip"
     },
     {
         "parameter": "cache_hierarchy.l1icaches[:].prefetcher.on_miss",
@@ -1219,17 +1138,18 @@
     },
     {
         "parameter": "cache_hierarchy.l2bus.snoop_filter.lookup_latency",
-        "min_value": 1,
-        "max_value": 2,
+        "min_value": 0,
+        "max_value": 4,
         "annotation": "Lookup latency of the snoop filter",
         "step": "add"
     },
     {
         "parameter": "cache_hierarchy.l2bus.snoop_filter.max_capacity",
-        "min_value": "\"8MiB\"",
-        "max_value": "\"16MiB\"",
+        "min_value": 1,
+        "max_value": 32,
         "annotation": "Maximum capacity of the snoop filter",
-        "step": "flip"
+        "step": "multiply",
+        "suffix": "MiB"
     },
     {
         "parameter": "cache_hierarchy.l2bus.snoop_response_latency",
@@ -1268,17 +1188,18 @@
     },
     {
         "parameter": "cache_hierarchy.membus.snoop_filter.lookup_latency",
-        "min_value": 1,
+        "min_value": 0,
         "max_value": 4,
         "annotation": "Lookup latency of the snoop filter",
         "step": "add"
     },
     {
         "parameter": "cache_hierarchy.membus.snoop_filter.max_capacity",
-        "min_value": "\"8MiB\"",
-        "max_value": "\"16MiB\"",
+        "min_value": 8,
+        "max_value": 32,
         "annotation": "Maximum capacity of the snoop filter",
-        "step": "flip"
+        "step": "multiply",
+        "suffix": "MiB"
     },
     {
         "parameter": "cache_hierarchy.membus.snoop_response_latency",
