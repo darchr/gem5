@@ -93,21 +93,30 @@ int main(int argc, char* argv[]){
 
     string to_print;
     // int src_id, dst_id, weight;
-
+    // bool printed = false;
     int index = 0; 
     int empty_cycles =0;
             while(!g_flag){
                 // if(!activeList.empty()){
-                // printf("checking activelist\n\n");
+                // printf("reading activelist\n\n");
 
-                // Vertex from_activeList = activeList[index];
-                if(activeList[index].active == true){
-                // if(from_activeList.active == true){
+                Vertex curr_update = activeList[index];
+                // if(generator_id == 0){
+                //     printf("generator id: %d   read active list at index %d, updated vertex id: %d\n", generator_id, index, curr_update.id);
+                //     printed = true;
+                // }
+                // if(activeList[index].active == true){
+                if(curr_update.active == true){
+                    // if(generator_id == 0){
+                    //     printf("generator id: %d   read active list at index %d,, Vertex dist: %d, updated vertex id: %ld, EL_size: %ld\n", generator_id, index, curr_update.dist, curr_update.id, curr_update.EL_size);
+                    //     printed = true;
+                    // }
+                    // printf("Successfully read from activelist, Vertex ID: %ld, EL_Size: %ld\n", curr_update.id, curr_update.EL_size);
                     empty_cycles = 0;
                     *done = 0;
 
-                    Vertex curr_update = activeList[index];
-                    activeList[index].active = false;
+                    //Vertex curr_update = activeList[index];
+                    // activeList[index].active = false;
                     // printf("generator id: %d   read active list at index %d, updated vertex id: %d\n", generator_id, index, curr_update.id);
 
                     index = (index+1)%(active_list_len);   

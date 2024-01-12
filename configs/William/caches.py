@@ -84,7 +84,7 @@ class L1DCache(L1Cache):
     """Simple L1 data cache with default values"""
 
     # Set the default size
-    size = "64kB"
+    size = "32kB"
 
     def __init__(self, opts=None):
         super(L1DCache, self).__init__(opts)
