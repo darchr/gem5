@@ -132,14 +132,18 @@ int main(int argc, char* argv[]){
                     Vertex temporary = VL[next_update.dst_id];
                     temporary.active = true;
 
-                    if(activeList[index].active == true){
-                        // printf("consumer_id: %ld, active list full\n", consumer_id);
-                        num_full_activeList++;
-                        // printf("Consumer %d spinning on active list\n", consumer_id);
-                        while(activeList[index].active == true){} // spin until active list is not full
-                        // printf("Consumer %d done spinning on active list\n", consumer_id);
+                    // removed for simplicity
+                    // if(activeList[index].active == true){
+                    //     // printf("consumer_id: %ld, active list full\n", consumer_id);
+                    //     num_full_activeList++;
+                    //     // printf("Consumer %d spinning on active list\n", consumer_id);
+                    //     while(activeList[index].active == true){} // spin until active list is not full
+                    //     // printf("Consumer %d done spinning on active list\n", consumer_id);
 
-                    }
+                    // }
+                    // printf("writing to active list Update.dist: %ld, id: %ld, EL_start: %ld, EL_size %ld, active: %d \n", temporary.dist, temporary.id, temporary.EL_start, temporary.EL_size, temporary.active);
+                    // can either figure out little endian stuff or only use 64 bits for active list
+                    // how would we cut down to 64 bits? only need EL_start, EL_size and dist. EL_start:34 EL_size: 18 dist: 12
                     activeList[index] = temporary;
                     index = (index+1)%(active_list_len);
                     num_activeList_updates++;

@@ -33,7 +33,7 @@ parser = argparse.ArgumentParser()
 options = parser.parse_args()
 
 
-num_cores = 27 # Needs to be odd number!!
+num_cores = 25 # Needs to be odd number!!
 edge_mem_type = "DDR4_2400_16x4"
 
 vertex_mem_type = "HBM_2000_4H_1x64" # "DDR"
@@ -79,15 +79,20 @@ initialization_paddr = (1 << 25)#1 << 32 # 4GiB
 # finished_vaddr = 0x500000000 # 101 << 32
 finished_vaddr = 0x300000000 # 
 finished_paddr = (1 << 25) + 4096 # 
-# active_list_vaddr = 0x600000000
-active_list_vaddr = 0x400000000
-active_list_paddr = 1 << 31 #2 GiB
+
+# active_list_vaddr = 0x400000000
+# active_list_paddr = 1 << 31 #2 GiB
+
 # finished_flag_vaddr = 0x510000000
 finished_flag_vaddr = 0x310000000
 finished_flag_paddr = (1 << 25) - 4096 # 1GiB - 4KiB
 msg_queue_vaddr = 0x100000000
 msg_queue_paddr = (num_edge_gib + num_vertex_gib) * gibi# 1 << 33 # 8GiB
 print("msg_queue_paddr", msg_queue_paddr)
+active_list_vaddr = 0x400000000
+active_list_paddr = msg_queue_paddr + (4*gibi)
+print("active_list_paddr", active_list_paddr)
+
 
 
 
@@ -120,7 +125,7 @@ system.clk_domain.voltage_domain = VoltageDomain()
 system.mem_mode = 'timing'
 system.mem_ranges = [AddrRange(mem_size)]
 
-system.membus = SystemXBar()
+system.membus = SystemXBar(width=64)
 
 system.cpu = [X86TimingSimpleCPU() for i in range(num_cores)]
 
@@ -131,18 +136,27 @@ system.graphInitializer = GraphInit(graph_file="twitter_sorted_done.txt", EL_add
 
 
 # need to edit memory ranges
-system.test_xbar = [IOXBar() for i in range(num_cores)] # xbar for each core between dcache and core
+system.test_xbar = [IOXBar(width=64) for i in range(num_cores)] # xbar for each core between dcache and core
 system.mem_bridge = [Bridge(delay='1ns', ranges=system.mem_ranges[0]) for i in range(num_cores)] # bridge for each core between dcache and membus
 
 # bridge for each core between dcache and membus
 system.xbar2xbar_bridge = [Bridge(delay='1ns', ranges=AddrRange(start=mem_size, size=str((2147483648) + (4096 * int(num_cores/2))) + "B")) for i in range(num_cores)] 
-system.mq_xbar = IOXBar() # xbar for all message queues
+system.xbar2al_bridge = [Bridge(delay='1ns', ranges=AddrRange(start=active_list_paddr, size=str((2147483648) + (4096 * int(num_cores/2))) + "B"), req_size=1024, resp_size=1024) for i in range(num_cores)]
+system.mq_xbar = IOXBar(width=64) # xbar for all message queues
+system.al_xbar = IOXBar(width=64) # xbar for all active lists
 
 system.mq_bridge =[Bridge(delay='1ns', ranges=AddrRange(start=mem_size, size="4KiB")) for i in range(int(num_cores/2))] # needs adjustig
+system.al_bridge = [Bridge(delay='1ns', ranges=AddrRange(start=active_list_paddr, size="64KiB"),req_size=1024, resp_size=1024) for i in range(int(num_cores/2))] # needs adjustig
+
 mq_range = mq_range_base
 for bridge in system.mq_bridge:
     bridge.ranges = AddrRange(start=str(mq_range), size="4KiB")
     mq_range += 4096
+
+al_range = active_list_paddr
+for bridge in system.al_bridge:
+    bridge.ranges = AddrRange(start=str(al_range), size="64KiB")
+    al_range += 65536
 
 system.icache = [L1ICache() for i in range(num_cores)]
 system.dcache = [L1DCache() for i in range(num_cores)]
@@ -154,8 +168,10 @@ for j in range(num_cores):
 
     system.test_xbar[j].mem_side_ports = system.mem_bridge[j].cpu_side_port
     system.test_xbar[j].mem_side_ports = system.xbar2xbar_bridge[j].cpu_side_port
+    system.test_xbar[j].mem_side_ports = system.xbar2al_bridge[j].cpu_side_port
 
     system.xbar2xbar_bridge[j].mem_side_port = system.mq_xbar.cpu_side_ports
+    system.xbar2al_bridge[j].mem_side_port = system.al_xbar.cpu_side_ports
 
     system.mem_bridge[j].mem_side_port = system.dcache[j].cpu_side
     system.dcache[j].mem_side = system.membus.cpu_side_ports
@@ -163,6 +179,7 @@ for j in range(num_cores):
 
 for j in range(int(num_cores/2)): # num_cores/2 is the number of consumers
     system.mq_bridge[j].cpu_side_port = system.mq_xbar.mem_side_ports
+    system.al_bridge[j].cpu_side_port = system.al_xbar.mem_side_ports
     
 for j in range(num_cores):
     system.cpu[j].createInterruptController()
@@ -173,11 +190,15 @@ for j in range(num_cores):
 
 
 system.msg_queues = [MessageQueue(myRange=AddrRange(start=str(0x200000000 + (i*4096)) + "B", size="4KiB"), queueSize=640000) for i in range(int(num_cores/2))]
+system.active_lists = [ActiveList(myRange=AddrRange(start=str(active_list_paddr + (65536*i)) + "B", size="64KiB"), queueSize=640000) for i in range(int(num_cores/2))]
 
 
 for j in range(int(num_cores/2)):
     system.msg_queues[j].cpu_side = system.mq_bridge[j].mem_side_port
     system.msg_queues[j].myRange = AddrRange(start=str(mq_range_base + (4096*j)) + "B", size="4KiB")
+
+    system.active_lists[j].cpu_side = system.al_bridge[j].mem_side_port
+
 
 system.system_port = system.membus.cpu_side_ports
 
@@ -212,8 +233,8 @@ for i in range(num_edge_mem_ctrls, num_mem_ctrls):
 
 
 binary = "configs/William/graph_src/counter"
-binary2 = "configs/William/graph_src/consumer"
-binary3 = "configs/William/graph_src/generator"
+binary2 = "configs/William/graph_src/consumer_al"
+binary3 = "configs/William/graph_src/generator_al"
 
 system.workload = SEWorkload.init_compatible(binary)
 system.workload2 = SEWorkload.init_compatible(binary2)

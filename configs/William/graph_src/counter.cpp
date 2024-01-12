@@ -8,13 +8,22 @@
 #endif
 
 // const uint64_t buffer_addr = 0x100000000;
-const uint64_t buffer_addr = 0x100000000; // change buffer_addr to MessageQueues[], add 4096 to each message queue
 
-const uint64_t EL_addr = 0x200000000;
-const uint64_t VL_addr = 0x300000000;
-const uint64_t initalized_addr = 0x400000000;
-const uint64_t finished_addr = 0x500000000;
-const uint64_t finished_flag = 0x510000000;
+// const uint64_t buffer_addr = 0x100000000; // change buffer_addr to MessageQueues[], add 4096 to each message queue
+
+// const uint64_t EL_addr = 0x200000000;
+// const uint64_t VL_addr = 0x300000000;
+// const uint64_t initalized_addr = 0x400000000;
+// const uint64_t finished_addr = 0x500000000;
+// const uint64_t finished_flag = 0x510000000;
+
+const uint64_t buffer_addr = 0x100000000; // change buffer_addr to MessageQueues[], add 4096 to each message queue
+const uint64_t EL_addr = 0x600000000;
+const uint64_t VL_addr = 0x800000000;
+const uint64_t initalized_addr = 0x200000000;
+const uint64_t finished_addr = 0x300000000;
+const uint64_t finished_flag = 0x310000000;
+const uint64_t activeList_addr = 0x400000000;
 
 
 
@@ -45,14 +54,14 @@ printf("GEM5 is defined\n");
     finish_flag[0] = 0;
 
     bool is_Weighted = false;
-    uint64_t num_nodes = 1;
+    uint64_t num_nodes = 81305;
     uint64_t EL_start;
 
     std::ifstream graph_file;
    
     // graph_file.open("test_graph.txt");
     // graph_file.open("graph.txt");
-    graph_file.open("facebook_combined.txt");
+    // graph_file.open("facebook_combined.txt");
     // graph_file.open("facebook_shortened.txt");
 
     // commented out below here
