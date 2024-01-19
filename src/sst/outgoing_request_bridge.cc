@@ -152,6 +152,11 @@ OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
         // this error, don not handle any functional accesses and the kernel
         // boot will fail while reading the correct partition from the vda
         // device.
+
+        // we cannot allow any functional reads to go to SST
+        if (pkt->isRead()) {
+            assert(false && "Outgoing bridge cannot handle functional reads!");
+        }
         sstResponder->handleRecvFunctional(pkt);
     }
 }
