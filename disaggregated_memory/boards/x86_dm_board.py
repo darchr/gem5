@@ -1,4 +1,4 @@
-# Copyright (c) 2023 The Regents of the University of California
+# Copyright (c) 2023-24 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -70,8 +70,20 @@ from gem5.utils.override import overrides
 
 from typing import List, Sequence, Tuple
 
+class X86AbstractDMBoard(X86Board):
+    """
+    A high-level X86 board that can zNUMA-capable systems with a remote
+    memories. This board is extended from the ArmBoard from Gem5 standard
+    library. This board assumes that you will be booting Linux. This board can
+    be used to do disaggregated ARM system research while accelerating the
+    simulation using kvm.
+    
+    The reason this board was created was to leverage the features X86 ISA has
+    over ARM and RISCV, e.g. memory hotplug and ACPI driver support in gem5.
 
-class X86DMBoard(X86Board):
+    **Limitations**
+    * kvm is only supported in a gem5-only setup.
+    """
     __metaclass__ = ABCMeta
 
     def __init__(
@@ -79,25 +91,23 @@ class X86DMBoard(X86Board):
         clk_freq: str,
         processor: AbstractProcessor,
         cache_hierarchy: AbstractCacheHierarchy,
-        memory: AbstractMemorySystem,
-        # remote_memory_str: str
-        # remote_memory: AbstractMemorySystem
-        remote_memory_size: str,
+        local_memory: AbstractMemorySystem,
+        remote_memory_addr_range: AddrRange,
     ) -> None:
-        self._localMemory = memory
-        self._remoteMemorySize = remote_memory_size
-        self._remoteMemory = OutgoingRequestBridge(
-            physical_address_ranges=AddrRange(0x40000000, 0x80000000)
-        )
-        print(self._remoteMemory.physical_address_ranges[0])
+        # The structure of this board is similar to the RISCV DM board.
+        self._localMemory = local_memory
+        # remote_memory can either be an interface or an external memory
+        # This abstract disaggregated memory does not know what this type of
+        # memory is. it only needs to know the address range for this memory.
+        # from this range, we'll figure out the size.
+        self._remoteMemoryAddrRange = remote_memory_addr_range
         super().__init__(
             clk_freq=clk_freq,
             processor=processor,
             cache_hierarchy=cache_hierarchy,
-            memory=memory,
+            memory=local_memory,
         )
-        self.local_memory = memory
-        self.remote_memory = self._remoteMemory
+        self.local_memory = local_memory
 
     @overrides(X86Board)
     def get_memory(self) -> "AbstractMemory":
@@ -135,17 +145,20 @@ class X86DMBoard(X86Board):
 
     @overrides(X86Board)
     def _setup_memory_ranges(self):
-        # Need to create 2 entries for the memory ranges
-        # local_memory = self.get_local_memory()
-        # remote_memory = self.get_local_memory()
+        # Need to create 2 entries for the memory ranges.
+        # make the local memory as 3 gb for now.
+        
+        self.get_local_memory().set_memory_range([AddrRange(start=0x0, size="1GiB")])
+        self.get_remote_memory().set_memory_range([AddrRange(start=0x40000000, size="1GiB")])
+        # remote_memory = self.get_remote_memory()
 
         # local_mem_size = local_memory.get_size()
         # remote_mem_size = remote_memory.get_size()
 
-        self._local_mem_ranges = [
-            "2GiB"
-            # AddrRange(local_mem_size)
-        ]
+        # self._local_mem_ranges = [
+        #     "2GiB"
+        #     # AddrRange(local_mem_size)
+        # ]
 
         # The remote memory starts where the local memory ends. Therefore it
         # has to be offset by the local memory's size.
@@ -156,9 +169,9 @@ class X86DMBoard(X86Board):
         # Keep it under 2 GB for this case. Each slice of memory is 1 GB.
 
         self.mem_ranges = [
-            self._local_mem_ranges[0],
-            # self._remote_mem_ranges[0],
-            AddrRange(0xC0000000, size=0x100000),  # For I/0
+            AddrRange(start=0x0, size="1GiB"),
+            AddrRange(start=0x40000000, size="1GiB"),
+            # AddrRange(0xC0000000, size=0x100000),  # For I/0
         ]
 
     @overrides(X86Board)
@@ -167,12 +180,17 @@ class X86DMBoard(X86Board):
             "earlyprintk=ttyS0",
             "console=ttyS0",
             "lpj=7999923",
-            "root={root_value}",
-            "init=/bin/bash",
+            "root=/dev/sda1",
+            # "numa=fake=2",
+            # "movable_node",
+            # "kernelcore=1G",
+            # "mem=1G",
+            "memmap=1G@0x0"
+            # "init=/bin/bash",
         ]
 
-    # @overrides(X86Board)
-    def _setup_io_devicess(self):
+    @overrides(X86Board)
+    def _setup_io_devices(self):
         """Sets up the x86 IO devices.
 
         Note: This is mostly copy-paste from prior X86 FS setups. Some of it
@@ -307,77 +325,33 @@ class X86DMBoard(X86Board):
             X86E820Entry(addr=0, size="639kB", range_type=1),
             X86E820Entry(addr=0x9FC00, size="385kB", range_type=2),
             # Mark the rest of physical memory as available
-            # the local address comes first.
             X86E820Entry(
                 addr=0x100000,
                 size=f"{self.mem_ranges[0].size() - 0x100000:d}B",
                 range_type=1,
-            ),
+            )
+        ]
+            # Reserve the last 16kB of the 32-bit address space for m5ops
+        entries.append(
+            X86E820Entry(
+                addr=0x40000000,
+                size="%dB" % (self.mem_ranges[0].size()),
+                range_type=5,
+            )
+        )
+        entries.append(X86E820Entry(addr=0xFFFF0000, size="64kB", range_type=2))
             # X86E820Entry(
             #     addr=0x100000000,
             #     size=f"{self.mem_ranges[1].size()}B",
             #     range_type=1,
             # ),
-        ]
         # print("____", self.mem_ranges[0].size() + 0x100000)
 
         # Reserve the last 16kB of the 32-bit address space for m5ops
-        entries.append(
-            X86E820Entry(addr=0xFFFF0000, size="64kB", range_type=2)
-        )
+        # entries.append(
+        #     X86E820Entry(addr=0xFFFF0000, size="64kB", range_type=2)
+        # )
 
         print(entries)
+        print()
         self.workload.e820_table.entries = entries
-
-    @overrides(AbstractBoard)
-    def _connect_things(self) -> None:
-        """Connects all the components to the board.
-
-        The order of this board is always:
-
-        1. Connect the memory.
-        2. Connect the cache hierarchy.
-        3. Connect the processor.
-
-        Developers may build upon this assumption when creating components.
-
-        Notes
-        -----
-
-        * The processor is incorporated after the cache hierarchy due to a bug
-        noted here: https://gem5.atlassian.net/browse/GEM5-1113. Until this
-        bug is fixed, this ordering must be maintained.
-        * Once this function is called `_connect_things_called` *must* be set
-        to `True`.
-        """
-
-        if self._connect_things_called:
-            raise Exception(
-                "The `_connect_things` function has already been called."
-            )
-
-        # Incorporate the memory into the motherboard.
-        self.get_local_memory().incorporate_memory(self)
-        print("_", self.get_local_memory().mem_ctrl)
-        self.get_remote_memory().port = (
-            self.get_cache_hierarchy().membus.mem_side_ports
-        )
-        # self.get_remote_memory().incorporate_memory(self)
-
-        # Incorporate the cache hierarchy for the motherboard.
-        if self.get_cache_hierarchy():
-            self.get_cache_hierarchy().incorporate_cache(self)
-
-        # Incorporate the processor into the motherboard.
-        self.get_processor().incorporate_processor(self)
-
-        self._connect_things_called = True
-
-    @overrides(AbstractBoard)
-    def _post_instantiate(self):
-        """Called to set up anything needed after m5.instantiate"""
-        self.get_processor()._post_instantiate()
-        if self.get_cache_hierarchy():
-            self.get_cache_hierarchy()._post_instantiate()
-        self.get_local_memory()._post_instantiate()
-        # self.get_remote_memory()._post_instantiate()
