@@ -83,7 +83,7 @@ struct __attribute__ ((packed)) Vertex
         EL_start(EL_start),
         EL_size(EL_size),
         active(active)
-    {} 
+    {}
 
     std::string to_string() {
       std::string ret = "";
@@ -110,7 +110,7 @@ struct __attribute__ ((packed)) Update
 // GraphInit::GraphInit(const GraphInitParams& p):
 //     ClockedObject(p) // , mapPort("map_port", this, 1)//, graphFile(p.graph_file)
 // {
-    
+
 // }
 
 const uint64_t buffer_addr = 0x100000000; // change buffer_addr to MessageQueues[], add 4096 to each message queue
@@ -130,7 +130,7 @@ GraphInit::GraphInit(const GraphInitParams& p):
 Port&
 GraphInit::getPort(const std::string& if_name, PortID idx)
 {
-    if (if_name == "mirrors_map_mem") {
+    if (if_name == "port") {
         return mapPort;
     // } else if (if_name == "mem_port") {
     //     //return BaseMemoryEngine::getPort("mem_port", idx);
@@ -265,10 +265,10 @@ GraphInit::create64WritePacket(Addr addr, const uint8_t* data)
 void
 GraphInit::startup()
 {
-    // look at base_gen.cc and linear_gen.cc  
+    // look at base_gen.cc and linear_gen.cc
     // RequestPtr req = std::make_shared<Request>(addr, size, flags,
     //                                            requestorId);
-    // pkt: cmd: WriteReq 
+    // pkt: cmd: WriteReq
     // const auto& vertex_file = params().graph_file;
     if (graphFile == "")
         return;
@@ -298,10 +298,10 @@ GraphInit::startup()
         uint32_t EL_size = 1;
         EL_start = index;
         // EL[index] = Edge(1, dst_id);
-        
+
         *curr_edge = Edge(1, dst_id);
         Vertex* curr_vertex = new Vertex(65535, curr_src_id, EL_start, EL_size, false);
-        
+
 
 
         PacketPtr pkt = createELWritePacket(EL_addr + index * sizeof(Edge), (uint8_t*)curr_edge);
@@ -320,17 +320,17 @@ GraphInit::startup()
         //pkt->setData((uint8_t*)curr_edge); // Should this stay as uin8_t or be edge?
 
         // uint8_t* pkt_data = new uint8_t[req->getSize()];
-        
+
 
         // if (cmd.isWrite()) {
         //     std::fill_n(pkt_data, req->getSize(), (uint8_t)requestorId);
         // }
 
-        
+
        // PacketPtr pkt;// = createELWritePacket(EL_addr + index * sizeof(Edge), curr_edge);
        DPRINTF(GraphInit, "%s: Sending packet %s.\n", __func__, pkt->print());
         mapPort.sendPacket(pkt);
-        
+
 
         while(input_file >> src_id >> dst_id){
             if(dst_id > max_node_id){

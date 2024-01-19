@@ -3,22 +3,21 @@
 # Path: numa_gem5/gem5/src/mem/GraphInit.py
 
 import m5
-
-from m5.params import *
-from m5.proxy import * 
 from m5.objects.ClockedObject import ClockedObject
+from m5.params import *
+from m5.proxy import *
 
 
 class GraphInit(ClockedObject):
-    type = 'GraphInit'
+    type = "GraphInit"
     cxx_header = "mem/graph_init.hh"
-    cxx_class = 'gem5::GraphInit'
+    cxx_class = "gem5::GraphInit"
 
-    mirrors_map_mem = RequestPort("Port to a memory storing mirrors map file.")
+    port = RequestPort("Port to connect to the memory.")
 
     # vertex_image_file = Param.String("Path to the vertex image file.")
     graph_file = Param.String("Path to the vertex image file.")
-    
+
     EL_addr = Param.Addr("Address of the edge list.")
     VL_addr = Param.Addr("Address of the vertex list.")
 
@@ -40,4 +39,3 @@ class GraphInit(ClockedObject):
     #                 PyBindMethod("getPRError"),
     #                 PyBindMethod("printAnswerToHostSimout")
     #             ]
-
