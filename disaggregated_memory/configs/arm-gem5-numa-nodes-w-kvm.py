@@ -46,7 +46,7 @@ sys.path.append(
 )
 
 import m5
-from m5.objects import Root
+from m5.objects import Root, VExpress_GEM5_V1, ArmDefaultRelease
 
 from boards.arm_gem5_board import ArmGem5DMBoard
 from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
@@ -100,7 +100,9 @@ remote_memory = RemoteDualChannelDDR4_2400(
     size="1GB", remote_offset_latency=750
 )
 # Here we setup the processor. We use a simple processor.
-processor = SimpleProcessor(cpu_type=CPUTypes.ATOMIC, isa=ISA.ARM, num_cores=1)
+processor = SimpleProcessor(cpu_type=CPUTypes.KVM, isa=ISA.ARM, num_cores=1)
+release = ArmDefaultRelease()
+platform = VExpress_GEM5_V1()
 # Here we setup the board which allows us to do Full-System ARM simulations.
 board = ArmGem5DMBoard(
     clk_freq="3GHz",
@@ -108,6 +110,8 @@ board = ArmGem5DMBoard(
     local_memory=local_memory,
     remote_memory=remote_memory,
     cache_hierarchy=cache_hierarchy,
+    release=release,
+    platform=platform
 )
 
 cmd = [
