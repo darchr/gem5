@@ -72,6 +72,8 @@ MemCmd::commandInfo[] =
     { {IsRead, IsRequest, NeedsResponse}, ReadResp, "ReadReq" },
     /* ReadResp */
     { {IsRead, IsResponse, HasData}, InvalidCmd, "ReadResp" },
+    { {}, "ReadIndReq"},
+    { {}, "ReadIndResp"},
     /* ReadRespWithInvalidate */
     { {IsRead, IsResponse, HasData, IsInvalidate},
             InvalidCmd, "ReadRespWithInvalidate" },

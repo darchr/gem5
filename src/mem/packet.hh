@@ -86,6 +86,8 @@ class MemCmd
         InvalidCmd,
         ReadReq,
         ReadResp,
+        ReadIndReq,
+        ReadIndResp,
         ReadRespWithInvalidate,
         WriteReq,
         WriteResp,
