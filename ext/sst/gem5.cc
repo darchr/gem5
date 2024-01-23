@@ -182,7 +182,6 @@ gem5Component::gem5Component(SST::ComponentId_t id, SST::Params& params):
     // Split the port names using the util method defined.
     splitPortNames(ports);
     for (int i = 0 ; i < sstPortCount ; i++) {
-        std::cout << sstPortNames[i] << std::endl;
         sstPorts.push_back(
             loadUserSubComponent<SSTResponderSubComponent>(sstPortNames[i], 0)
         );
