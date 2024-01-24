@@ -86,8 +86,6 @@ class MemCmd
         InvalidCmd,
         ReadReq,
         ReadResp,
-        ReadIndReq,
-        ReadIndResp,
         ReadRespWithInvalidate,
         WriteReq,
         WriteResp,
@@ -151,6 +149,8 @@ class MemCmd
         HTMAbort,
         // Tlb shootdown
         TlbiExtSync,
+        ReadIndReq,
+        ReadIndResp,
         NUM_MEM_CMDS
     };
 
@@ -162,6 +162,7 @@ class MemCmd
     {
         IsRead,         //!< Data flows from responder to requester
         IsWrite,        //!< Data flows from requester to responder
+        IsIndirect,
         IsUpgrade,
         IsInvalidate,
         IsClean,        //!< Cleans any existing dirty blocks
@@ -228,6 +229,7 @@ class MemCmd
 
     bool isRead() const            { return testCmdAttrib(IsRead); }
     bool isWrite() const           { return testCmdAttrib(IsWrite); }
+    bool isIndirect() const        { return testCmdAttrib(IsIndirect); }
     bool isUpgrade() const         { return testCmdAttrib(IsUpgrade); }
     bool isRequest() const         { return testCmdAttrib(IsRequest); }
     bool isResponse() const        { return testCmdAttrib(IsResponse); }
@@ -594,6 +596,7 @@ class Packet : public Printable, public Extensible<Packet>
 
     bool isRead() const              { return cmd.isRead(); }
     bool isWrite() const             { return cmd.isWrite(); }
+    bool isIndirect() const          { return cmd.isIndirect(); }
     bool isDemand() const            { return cmd.isDemand(); }
     bool isUpgrade()  const          { return cmd.isUpgrade(); }
     bool isRequest() const           { return cmd.isRequest(); }
@@ -1547,6 +1550,32 @@ class Packet : public Printable, public Extensible<Packet>
      * failed transaction, this function returns the failure reason.
      */
     HtmCacheFailure getHtmTransactionFailedInCacheRC() const;
+};
+
+class AccessTypeIdentifier: public Extension<Packet, AccessTypeIdentifier>
+{
+  private:
+    bool isFloatingPoint;
+    bool isAtomic;
+
+  public:
+    AccessTypeIdentifier(): isFloatingPoint(false), isAtomic(false) {}
+
+    AccessTypeIdentifier(bool is_floating, bool is_atomic):
+        isFloatingPoint(is_floating), isAtomic(is_atomic)
+    {}
+
+    std::unique_ptr<ExtensionBase> clone() const override
+    {
+        return std::make_unique<AccessTypeIdentifier>(isFloatingPoint, isAtomic);
+    }
+
+    bool setFloating();
+    bool setAtomic();
+
+    bool isFloatingPointAccess() { return isFloatingPoint; }
+    bool isAtomicAccess() { return isAtomic; }
+
 };
 
 } // namespace gem5

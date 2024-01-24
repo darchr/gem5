@@ -47,6 +47,7 @@
 #include "base/str.hh"
 #include "cpu/testers/rubytest/RubyTester.hh"
 #include "debug/LLSC.hh"
+#include "debug/IndirectLoad.hh"
 #include "debug/MemoryAccess.hh"
 #include "debug/ProtocolTrace.hh"
 #include "debug/RubyHitMiss.hh"
@@ -905,6 +906,9 @@ Sequencer::makeRequest(PacketPtr pkt)
                 primary_type = secondary_type = htmCmdToRubyRequestType(pkt);
             } else if (pkt->req->isInstFetch()) {
                 primary_type = secondary_type = RubyRequestType_IFETCH;
+            } else if (pkt->isIndirect()) {
+                DPRINTF(IndirectLoad, "%s: pkt: %s\n", __func__, pkt->print());
+                primary_type = secondary_type = RubyRequestType_LDIND;
             } else {
                 if (pkt->req->isReadModifyWrite()) {
                     primary_type = RubyRequestType_RMW_Read;

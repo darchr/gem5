@@ -72,8 +72,6 @@ MemCmd::commandInfo[] =
     { {IsRead, IsRequest, NeedsResponse}, ReadResp, "ReadReq" },
     /* ReadResp */
     { {IsRead, IsResponse, HasData}, InvalidCmd, "ReadResp" },
-    { {}, "ReadIndReq"},
-    { {}, "ReadIndResp"},
     /* ReadRespWithInvalidate */
     { {IsRead, IsResponse, HasData, IsInvalidate},
             InvalidCmd, "ReadRespWithInvalidate" },
@@ -239,6 +237,8 @@ MemCmd::commandInfo[] =
     { {IsRead, IsResponse}, InvalidCmd, "HTMReqResp" },
     { {IsRead, IsRequest}, InvalidCmd, "HTMAbort" },
     { {IsRequest}, InvalidCmd, "TlbiExtSync" },
+    { {IsRead, IsIndirect, IsRequest, NeedsResponse}, ReadIndResp, "ReadIndReq"},
+    { {IsRead, IsIndirect, IsResponse}, InvalidCmd, "ReadIndResp"},
 };
 
 AddrRange
