@@ -2903,6 +2903,7 @@ action(Send_Data, desc="") {
     int offset := tbe.snd_pendBytes.firstBitSet(true);
     assert(offset < blockSize);
     int range := tbe.snd_pendBytes.firstBitSet(false, offset) - offset;
+    DPRINTF(IndirectLoad, "Sending %d bytes with offset %d with base_addr 0x%lx.\n", range, offset, tbe.addr);
     assert((range > 0) && (range <= blockSize));
     if (range > data_channel_size) {
       range := data_channel_size;

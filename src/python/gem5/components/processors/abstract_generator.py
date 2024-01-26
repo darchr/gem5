@@ -74,6 +74,10 @@ class AbstractGenerator(AbstractProcessor):
     def incorporate_processor(self, board: AbstractBoard) -> None:
         board.set_mem_mode(MemMode.TIMING)
 
+    def enable_indirect_mode(self):
+        for core in self.cores:
+            core.enable_indirect_mode()
+
     @abstractmethod
     def start_traffic(self) -> None:
         """

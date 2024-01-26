@@ -54,6 +54,7 @@
 #include "debug/Drain.hh"
 #include "debug/Fetch.hh"
 #include "debug/HtmCpu.hh"
+#include "debug/IndirectLoad.hh"
 #include "debug/LSQ.hh"
 #include "debug/Writeback.hh"
 #include "params/BaseO3CPU.hh"
@@ -1234,6 +1235,17 @@ LSQ::SingleDataRequest::buildPackets()
         _packets.back()->dataStatic(_inst->memData);
         _packets.back()->senderState = this;
 
+        if (isLoad()) {
+            std::shared_ptr<AccessTypeIdentifier> ext(
+                new AccessTypeIdentifier(
+                    _inst->staticInst->isFloating(),
+                    _inst->staticInst->isAtomic()
+                )
+            );
+            _packets.back()->setExtension(ext);
+            DPRINTF(IndirectLoad, "%s: Adding ext: %s to pkt: %s.\n",
+                __func__, ext->print(), _packets.back()->print());
+        }
         // hardware transactional memory
         // If request originates in a transaction (not necessarily a HtmCmd),
         // then the packet should be marked as such.
@@ -1288,6 +1300,15 @@ LSQ::SplitDataRequest::buildPackets()
             ptrdiff_t offset = req->getVaddr() - base_address;
             if (isLoad()) {
                 pkt->dataStatic(_inst->memData + offset);
+                std::shared_ptr<AccessTypeIdentifier> ext(
+                    new AccessTypeIdentifier(
+                        _inst->staticInst->isFloating(),
+                        _inst->staticInst->isAtomic()
+                    )
+                );
+                pkt->setExtension(ext);
+                DPRINTF(IndirectLoad, "%s: Adding ext: %s to pkt: %s.\n",
+                                    __func__, ext->print(), pkt->print());
             } else {
                 uint8_t* req_data = new uint8_t[req->getSize()];
                 std::memcpy(req_data,

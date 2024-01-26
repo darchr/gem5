@@ -822,6 +822,13 @@ Sequencer::empty() const
 RequestStatus
 Sequencer::makeRequest(PacketPtr pkt)
 {
+    std::shared_ptr<AccessTypeIdentifier> ext = pkt->getExtension<AccessTypeIdentifier>();
+    if (ext != nullptr) {
+        DPRINTF(IndirectLoad, "%s: Received pkt: %s with access type: %s.\n", __func__, pkt->print(), ext->print());
+    } else {
+        DPRINTF(IndirectLoad, "%s: Received pkt: %s without access id.\n", __func__, pkt->print());
+    }
+
     // HTM abort signals must be allowed to reach the Sequencer
     // the same cycle they are issued. They cannot be retried.
     if ((m_outstanding_count >= m_max_outstanding_requests) &&

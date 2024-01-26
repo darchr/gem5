@@ -114,3 +114,13 @@ class AbstractGeneratorCore(AbstractCore):
         might need be implemented.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def enable_indirect_mode(self):
+        """
+        External interface to enable issuing ReadIndReq for accesses like:
+            int a = data[index[i]];
+        It will use ReadIndReq instead of ReadReq to complete the load in
+        one access as opposed to two accesses.
+        """
+        raise NotImplementedError

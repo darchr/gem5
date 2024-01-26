@@ -1372,7 +1372,6 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
 
         gem5::ThreadContext *thread = cpu->tcBase(lsqID);
         PacketPtr main_pkt = new Packet(request->mainReq(), MemCmd::ReadReq);
-
         main_pkt->dataStatic(load_inst->memData);
 
         Cycles delay = request->mainReq()->localAccessor(thread, main_pkt);

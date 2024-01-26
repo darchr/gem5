@@ -1576,6 +1576,12 @@ class AccessTypeIdentifier: public Extension<Packet, AccessTypeIdentifier>
     bool isFloatingPointAccess() { return isFloatingPoint; }
     bool isAtomicAccess() { return isAtomic; }
 
+    std::string print()
+    {
+        return csprintf("AccId: (floating_point: %s, atomic: %s)",
+            isFloatingPoint ? "true" : "false", isAtomic ? "true" : "false");
+    }
+
 };
 
 } // namespace gem5

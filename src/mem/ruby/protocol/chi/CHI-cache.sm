@@ -176,7 +176,9 @@ machine(MachineType:Cache, "Cache coherency protocol") :
   bool throttle_req_on_retry := "True";
 
   // Use prefetcher
-  bool use_prefetcher, default="false";
+  bool use_prefetcher, default="False";
+
+  bool read_is_useful, default="False";
 
   // Message Queues
 
@@ -573,6 +575,9 @@ machine(MachineType:Cache, "Cache coherency protocol") :
     DataBlock DataBlk,  desc="data for the block";
     bool HWPrefetched,  default="false", desc="Set if this cache entry was prefetched";
     RequestorID requestor,  desc="First requestor to fill this block";
+    bool isFloatingPoint, default="false", desc="Whether the entry holds floating point data.";
+    bool isAtomic, default="false", desc="Whether the entry holds atomic data.";
+    WriteMask usefulness, desc="A mask showing whether each byte has been used by the processor";
   }
 
   // Directory entry
@@ -752,6 +757,9 @@ machine(MachineType:Cache, "Cache coherency protocol") :
     bool wakeup_pending_req;
     bool wakeup_pending_snp;
     bool wakeup_pending_tgr;
+
+    bool is_floating_point;
+    bool is_atomic;
   }
 
   // TBE table definition

@@ -365,3 +365,7 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
             data_limit,
         )
         yield self.generator.createExit(0)
+
+    @overrides(AbstractGeneratorCore)
+    def enable_indirect_mode(self):
+        self.generator.enableIndirectMode()
