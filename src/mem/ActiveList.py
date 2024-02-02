@@ -13,6 +13,8 @@ class ActiveList(ClockedObject):
     cpu_side = ResponsePort("Core side ports, receives updates")
     queueSize = Param.Int(1024, "Max size a queue can be")
     myRange = Param.AddrRange("Address range of queue")
+    finished_addr = Param.Addr(0, "Address of the finished variable")
+
     # port_connection_count = Param.Int("how many ports")
 
     def get_range(self):
@@ -20,3 +22,5 @@ class ActiveList(ClockedObject):
 
     def get_cpu_side(self):
         return self.cpu_side
+
+    # port_connection_count = Param.Int("how many ports")

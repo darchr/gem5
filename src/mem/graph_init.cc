@@ -300,11 +300,18 @@ GraphInit::startup()
         // EL[index] = Edge(1, dst_id);
 
         *curr_edge = Edge(1, dst_id);
+
         Vertex* curr_vertex = new Vertex(65535, curr_src_id, EL_start, EL_size, false);
 
 
+        // DPRINTF(GraphInit, "%s: Sending edge packet %s.  curr_src = %d, curr_dst = %d\n", __func__, pkt->print(), curr_src_id, dst_id);
 
         PacketPtr pkt = createELWritePacket(EL_addr + index * sizeof(Edge), (uint8_t*)curr_edge);
+        // if(index < 1000){
+        //     DPRINTF(GraphInit, "%s: Sending edge packet %s.  curr_src = %d, curr_dst = %d\n", __func__, pkt->print(), curr_src_id, dst_id);
+        // }
+        // DPRINTF(GraphInit, "%s: Sending edge packet %s.  curr_src = %d, curr_dst = %d\n", __func__, pkt->print(), curr_src_id, dst_id);
+
         index++;
         // working block!
         // my_req = std::make_shared<Request>(EL_addr + (index * sizeof(Edge)), sizeof(Edge), 0, requestorID); // need to check if 0 is okay for flags
@@ -328,11 +335,14 @@ GraphInit::startup()
 
 
        // PacketPtr pkt;// = createELWritePacket(EL_addr + index * sizeof(Edge), curr_edge);
-       DPRINTF(GraphInit, "%s: Sending packet %s.\n", __func__, pkt->print());
+    //    DPRINTF(GraphInit, "%s: Sending packet %s.\n", __func__, pkt->print());
         mapPort.sendPacket(pkt);
 
 
         while(input_file >> src_id >> dst_id){
+            if(index < 1000){
+                DPRINTF(GraphInit, "%s: Sending edge packet %s.  curr_src = %d, curr_dst = %d\n", __func__, pkt->print(), src_id, dst_id);
+            }
             if(dst_id > max_node_id){
                 max_node_id = dst_id;
             }
@@ -340,14 +350,18 @@ GraphInit::startup()
                 num_nodes++;
                 *curr_vertex = Vertex(65535, curr_src_id, EL_start, EL_size, false); // write old vertex into memory
                 pkt = createVLWritePacket(VL_addr + (curr_src_id * sizeof(Vertex)), (uint8_t*)curr_vertex);
-                DPRINTF(GraphInit, "%s: Sending Vertexpacket %s.\n", __func__, pkt->print());
+               if(curr_src_id < 1000){
+                        DPRINTF(GraphInit, "%s: Sending Vertexpacket %s. EL_size = %d\n", __func__, pkt->print(), EL_size);
+                }
                 mapPort.sendPacket(pkt);
 
                 if(curr_src_id != src_id - 1){
                     for(uint64_t i = curr_src_id + 1; i < src_id; i++){
                         *curr_vertex = Vertex(65535, i, 0, 0, false);
                        pkt = createVLWritePacket(VL_addr + (i * sizeof(Vertex)), (uint8_t*)curr_vertex);
-                        DPRINTF(GraphInit, "%s: Sending Vertexpacket %s.\n", __func__, pkt->print());
+                    //    if(curr_src_id < 1000){
+                    //     DPRINTF(GraphInit, "%s: Sending Vertexpacket %s.\n", __func__, pkt->print());
+                    //    }
                         mapPort.sendPacket(pkt);
                         num_nodes++;
                     }
@@ -366,7 +380,7 @@ GraphInit::startup()
                 *curr_edge = Edge(1, dst_id);
 
                 pkt = createELWritePacket(EL_addr + index * sizeof(Edge), (uint8_t*)curr_edge);
-                DPRINTF(GraphInit, "%s: Sending packet %s.\n", __func__, pkt->print());
+                // DPRINTF(GraphInit, "%s: Sending packet %s.\n", __func__, pkt->print());
                 mapPort.sendPacket(pkt);
 
                 index++;
@@ -377,7 +391,7 @@ GraphInit::startup()
 
         *curr_vertex = Vertex(65535, curr_src_id, EL_start, EL_size, false);
         pkt = createVLWritePacket(VL_addr + curr_src_id * sizeof(Vertex), (uint8_t*)curr_vertex);
-        DPRINTF(GraphInit, "%s: Sending Vertexpacket %s.\n", __func__, pkt->print());
+        // DPRINTF(GraphInit, "%s: Sending Vertexpacket %s.\n", __func__, pkt->print());
 
         mapPort.sendPacket(pkt);
         num_nodes++;
@@ -386,7 +400,7 @@ GraphInit::startup()
                     for(uint64_t i = curr_src_id + 1; i <= max_node_id; i++){
                         *curr_vertex = Vertex(65535, i, 0, 0, false);
                        pkt = createVLWritePacket(VL_addr + (i * sizeof(Vertex)), (uint8_t*)curr_vertex);
-                        DPRINTF(GraphInit, "%s: Sending Vertexpacket %s.\n", __func__, pkt->print());
+                        // DPRINTF(GraphInit, "%s: Sending Vertexpacket %s.\n", __func__, pkt->print());
                         mapPort.sendPacket(pkt);
                         num_nodes++;
                     }

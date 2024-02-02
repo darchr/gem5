@@ -21,6 +21,18 @@ generator_al: generator_al.cpp
 consumer_al: consumer_al.cpp
 	$(CXX) $(CXXFLAGS) -o consumer_al consumer_al.cpp
 
+consumer_asm: consumer_al.cpp
+	$(CXX) $(CXXFLAGS)  -S -fverbose-asm -o consumer_asm consumer_al.cpp
+
+generator_asm: generator_al.cpp
+	$(CXX) $(CXXFLAGS)  -S -fverbose-asm -o generator_asm generator_al.cpp
+
+counter_asm: counter.cpp
+	$(CXX) $(CXXFLAGS)  -S -fverbose-asm -o counter_asm counter.cpp
+
+consumer_batch: consumer_batch.cpp
+	$(CXX) $(CXXFLAGS) -o consumer_batch consumer_batch.cpp
+
 al: generator_al consumer_al
 
 # make all 

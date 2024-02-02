@@ -147,6 +147,8 @@ class ActiveList : public ClockedObject
         RespPort corePorts;//= new RespPort();
 
         ReqPort fakePort;
+        Addr finished_addr;
+
         int alternate_w = 0;
         int alternate_r = 1;
         Vertex vw = Vertex(0,0,0,0,0);
@@ -193,6 +195,8 @@ class ActiveList : public ClockedObject
         AddrRangeList getAddrRanges(){return {myRange};};
         void init();
         void checkRetryReq();
+        PacketPtr createWritePacket(Addr addr, const uint8_t data);
+
 
 };
 

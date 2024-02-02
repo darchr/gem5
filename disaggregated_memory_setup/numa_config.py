@@ -91,11 +91,13 @@ board = RiscvDMBoard(
 workload = CustomWorkload(
     function="set_kernel_disk_workload",
     parameters={
-        "disk_image": CustomDiskImageResource(
+        "disk_image": DiskImageResource(
             local_path=os.path.join(
                 os.getcwd(), "/home/kaustavg/ubuntu-numa.img"
             ),
-            disk_root_partition="1",
+            # disk_root_partition="1",
+            root_partition="1",
+
         ),
         "kernel": CustomResource(
             os.path.join(os.getcwd(), "/home/kaustavg/bbl")

@@ -9,7 +9,7 @@ using namespace std;
 
 
 const uint64_t buffer_addr = 0x100000000;
-const uint64_t activList_addr = 0x100000000 + 4096;
+const uint64_t activeList_addr = 0x100000000 + 4096;
 
 const uint64_t buffer_size = 4096;
 // 
@@ -20,7 +20,7 @@ int main(int argc, char* argv[]){
     Update* messageQueue[1];
     messageQueue[0] = mapped_area;
 
-    Update* activeList = (Update*)activeList;
+    Update* activeList = (Update*)activeList_addr;
    //  activeList[0] = x;
     Update blank;
     blank.dst_id = 9999;
@@ -29,7 +29,8 @@ int main(int argc, char* argv[]){
         activeList[i] = blank;
     }
     printf("consumer Mapped_area %p\n", mapped_area);
-    printf("messageQueue[0] %p\n", messageQueue[0]);
+    // printf("messageQueue[0] %p\n", messageQueue[0]);
+    printf("in consumer: activeList addr: %p\n", activeList);
     bool g_flag = true;
     int num_nodes = 11;
     vector<vector<Edge>> EL(num_nodes);// Edge list
@@ -64,7 +65,7 @@ int main(int argc, char* argv[]){
     while(!graph_file.fail()) {
 
             graph_file >> src_id >> dst_id >> weight;
-            printf("src_id: %d dst_id: %d weight: %d\n", src_id, dst_id, weight);
+            //printf("src_id: %d dst_id: %d weight: %d\n", src_id, dst_id, weight);
             //weight = rand() % 32 + 1;
 
         if(src_id != dst_id){
@@ -73,13 +74,13 @@ int main(int argc, char* argv[]){
     }
 
     //write a function that prints all elements of EL
-    for(int i = 0; i < num_nodes; i++){
-        printf("EL[%d]: ", i);
-        for(Edge e : EL[i]){
-            printf("%ld ", e.neighbor);
-        }
-        printf("\n");
-    }
+    // for(int i = 0; i < num_nodes; i++){
+    //     printf("EL[%d]: ", i);
+    //     for(Edge e : EL[i]){
+    //         printf("%ld ", e.neighbor);
+    //     }
+    //     printf("\n");
+    // }
 
     // we want two threads, one that reads from the message queue and updates the vertex list
     // and one that sees a vertex update and updates the message queues of the neighbors
@@ -142,16 +143,18 @@ int index = 0;
 int empty_cycles =0;
             while(g_flag){
                 // if(!activeList.empty()){
+                // printf("checking activelist\n\n");
+
                 if(activeList[index].dst_id != 9999){
-                    printf("activeList is not empty\n");
+                    // printf("activeList is not empty\n");
                     empty_cycles = 0;
                     //thr2_done = 0;
                     // pair<uint64_t, uint16_t> curr_update = activeList.front();
                     // activeList.pop_front();
-                    printf("Accessing active list\n");
+                    // printf("Accessing active list\n");
                     Update curr_update = activeList[index];
                     index++; 
-                    printf("Accessed active list\n");
+                    // printf("Accessed active list\n");
 
                     // for(Edge my_edge : EL[curr_update.first]){ // for each edge in neighborhood, this is yellow and pink section of sega pseudocode
                     for(Edge my_edge : EL[curr_update.dst_id]){
@@ -159,15 +162,16 @@ int empty_cycles =0;
                         // temp_up.weight = curr_update.second + my_edge.weight;
                         temp_up.weight = curr_update.weight + my_edge.weight;
                         temp_up.dst_id = my_edge.neighbor;
+                        printf("writing to mapped area: weight: %d   dst_id: %ld  \n", temp_up.weight, temp_up.dst_id);
                         //to figure out which threads queue to update, we take the dst_id divided by (vertices per thread)
                         // messageQueue[my_edge.neighbor/vpt] = temp_up; //updates the frontier of the corresponding 
-                        printf("writing to mapped area\n");
+                        //printf("writing to mapped area\n");
                         *mapped_area = temp_up;
                     }
                 }
                 else{
                     empty_cycles++;
-                    if (empty_cycles > 10000){
+                    if (empty_cycles > 5000){
                         //thr2_done = 1;
                         g_flag = false;
                     }

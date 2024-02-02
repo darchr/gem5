@@ -7,16 +7,6 @@
 #include "gem5/m5ops.h"
 #endif
 
-// const uint64_t buffer_addr = 0x100000000;
-
-// const uint64_t buffer_addr = 0x100000000; // change buffer_addr to MessageQueues[], add 4096 to each message queue
-
-// const uint64_t EL_addr = 0x200000000;
-// const uint64_t VL_addr = 0x300000000;
-// const uint64_t initalized_addr = 0x400000000;
-// const uint64_t finished_addr = 0x500000000;
-// const uint64_t finished_flag = 0x510000000;
-
 const uint64_t buffer_addr = 0x100000000; // change buffer_addr to MessageQueues[], add 4096 to each message queue
 const uint64_t EL_addr = 0x600000000;
 const uint64_t VL_addr = 0x800000000;
@@ -24,7 +14,6 @@ const uint64_t initalized_addr = 0x200000000;
 const uint64_t finished_addr = 0x300000000;
 const uint64_t finished_flag = 0x310000000;
 const uint64_t activeList_addr = 0x400000000;
-
 
 
 int main(int argc, char* argv[]) {
@@ -57,63 +46,6 @@ printf("GEM5 is defined\n");
     uint64_t num_nodes = 81305;
     uint64_t EL_start;
 
-    std::ifstream graph_file;
-   
-    // graph_file.open("test_graph.txt");
-    // graph_file.open("graph.txt");
-    // graph_file.open("facebook_combined.txt");
-    // graph_file.open("facebook_shortened.txt");
-
-    // commented out below here
-    // if(is_Weighted){
-
-    // }else{
-    //     uint64_t src_id, dst_id, curr_src_id;
-    //     graph_file >> curr_src_id >> dst_id;
-
-    //     uint64_t index = 0;
-    //     uint32_t EL_size = 1;
-    //     EL_start = index;
-    //     EL[index] = Edge(1, dst_id);
-    //     index++;
-    //     //printf("src_id = %ld, dst_id = %ld\n", curr_src_id, dst_id);
-
-
-    //     while(graph_file >> src_id >> dst_id){
-
-    //         if(curr_src_id != src_id){
-    //             num_nodes++;
-    //             VL[curr_src_id] = Vertex(65535, curr_src_id, EL_start, EL_size, false);
-    //             // add code here to check if there is a gap in the vertex ids
-    //             // if there is a gap, add a vertex with no edges
-    //             if(curr_src_id != src_id - 1){
-    //                 for(uint64_t i = curr_src_id + 1; i < src_id; i++){
-    //                     VL[i] = Vertex(65535, i, 0, 0, false);
-    //                     num_nodes++;
-    //                 }
-    //             }
-
-    //             curr_src_id = src_id;
-    //             EL_start = index;
-    //             EL[index] = Edge(1, dst_id);
-
-    //             index++;
-    //             EL_size = 1;
-    //         }
-    //         else{
-    //             EL[index] = Edge(1, dst_id);
-    //             index++;
-    //             EL_size++;
-    //         }
-    //         // num_nodes = max(num_nodes, max(src_id, dst_id));
-    //     }
-        
-    //     VL[curr_src_id] = Vertex(65535, curr_src_id, EL_start, EL_size, false);
-    //     num_nodes++;
-    // }
-
-
-
     uint16_t initial = 0;
 
     #ifdef GEM5
@@ -121,23 +53,15 @@ printf("GEM5 is defined\n");
         m5_reset_stats(1, 1<<51);
     #endif
     
-    // *initalized = num_nodes;
-    // printf("updated initialized at %ld!\n Writing initial update to %ld\n", initalized, messageQueue);
-
     Update initial_update = Update(0, initial);
     *messageQueue = initial_update;
 
     printf("writing to initalized\n");
     *initalized = num_nodes;
     
-    // while(*initalized == 0){
-    //     // printf("waiting for initalized to be set\n");
-    // }
-    // printf("initalized = %ld\n", *initalized);
-
     uint64_t done = 0;
     uint64_t counter = 0;
-    while(done == 0){
+    while(counter < 1000){
         done = finished[0];
 
         for(int i = 1; i < num_cores; i++){
@@ -147,14 +71,19 @@ printf("GEM5 is defined\n");
             done &= finished[i];
         }
         
-        counter++;
+        if(done == 1){
+            counter++;
+        }
+        else{
+            counter = 0;
+        }
     }
 
     printf("Writing to finish flag!\n");
     // delaying
-    for(int i = 0; i < 1000; i++){
-        // printf("i = %d\n", i);
-    }
+    // for(int i = 0; i < 100; i++){
+    //     // printf("i = %d\n", i);
+    // }
     finish_flag[0] = 1;
 
 

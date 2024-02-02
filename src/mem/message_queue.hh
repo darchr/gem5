@@ -123,6 +123,7 @@ class MessageQueue : public ClockedObject
         RespPort corePorts;//= new RespPort();
 
         ReqPort fakePort;
+        Addr finished_addr;
 
         uint32_t queueLength(){return queue.size();}
 
@@ -164,6 +165,7 @@ class MessageQueue : public ClockedObject
         AddrRangeList getAddrRanges(){return {myRange};};
         void init();
         void checkRetryReq();
+        PacketPtr createWritePacket(Addr addr, const uint8_t data);
 
 };
 

@@ -23,7 +23,7 @@ using namespace std;
 
 const uint64_t buffer_addr = 0x100000000; // change buffer_addr to MessageQueues[], add 4096 to each message queue
 const uint64_t EL_addr = 0x600000000;
-const uint64_t VL_addr = 0x800000000;
+const uint64_t VL_addr = 0x2000000000;
 const uint64_t initalized_addr = 0x200000000;
 const uint64_t finished_addr = 0x300000000;
 const uint64_t finished_flag = 0x310000000;

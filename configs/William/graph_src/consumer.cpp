@@ -24,7 +24,7 @@ using namespace std;
 
 const uint64_t buffer_addr = 0x100000000; // change buffer_addr to MessageQueues[], add 4096 to each message queue
 const uint64_t EL_addr = 0x600000000;
-const uint64_t VL_addr = 0x800000000;
+const uint64_t VL_addr = 0x2000000000;
 const uint64_t initalized_addr = 0x200000000;
 const uint64_t finished_addr = 0x300000000;
 const uint64_t finished_flag = 0x310000000;
@@ -95,6 +95,7 @@ int main(int argc, char* argv[]){
     // printf("messageQueue[0] %p\n", messageQueue[0]);
     bool g_flag = false;
 
+    // printf(" consumer id: %d  message_queue addr: %p, active_list addr =\n",consumer_id, messageQueue);
     // we want two threads, one that reads from the message queue and updates the vertex list
     // and one that sees a vertex update and updates the message queues of the neighbors
     //bool g_flag = true;

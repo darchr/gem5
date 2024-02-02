@@ -9,15 +9,45 @@ namespace gem5{
 
 
     MessageQueue::MessageQueue(const MessageQueueParams &p) :
-        ClockedObject(p), queueSize(p.queueSize), myRange(p.myRange), corePorts(name() + ".cpu_side", this), fakePort(name() + ".mem_side", this),  nextReadEvent([this]{ processNextReadEvent(); }, name()),
+        ClockedObject(p), queueSize(p.queueSize), myRange(p.myRange), corePorts(name() + ".cpu_side", this), fakePort(name() + ".mem_side", this), finished_addr(p.finished_addr),  nextReadEvent([this]{ processNextReadEvent(); }, name()),
         nextWriteEvent([this] { processNextWriteEvent(); }, name()) //, stats(*this))
         {
-            DPRINTF(MessageQueue, "%s: port name: %s  AddrRange: %d - %d\n", __func__,  (name() + ".cpu_side"), p.myRange.start(), p.myRange.end());
+            DPRINTF(MessageQueue, "%s: port name: %s  AddrRange: %d - %d, Addr of finished:%d\n", __func__,  (name() + ".cpu_side"), p.myRange.start(), p.myRange.end(), p.finished_addr);
             // DPRINTF(MessageQueue, "%s: Response_Port addr_range end: %s:%s\n", __func__,  corePorts.getAddrRanges().front().front, corePorts.getAddrRanges().front().end);
 
             //std::cout << "corePorts size: " << corePorts.getAddrRanges().front().size() << "\n";
 
             
+        }
+
+        PacketPtr
+        MessageQueue::createWritePacket(Addr addr, const uint8_t data)
+        {
+            // Create new request
+            int requestorID = 101;
+
+            RequestPtr req = std::make_shared<Request>(addr, sizeof(uint8_t), 0,
+                                                    requestorID);
+            req->setPC(((Addr)requestorID) << 2);
+            auto cmd = MemCmd::WriteReq;
+            
+            PacketPtr pkt = new Packet(req, cmd);
+            pkt->allocate();
+    
+            pkt->setLE<uint8_t>(data);
+            // uint8_t* pkt_data = new uint8_t[req->getSize()];
+            // pkt_data[0] = data;
+            
+            // pkt->dataDynamic(pkt_data);
+            // printf("finished packet created: Constptr = %p, size = %d\n", pkt->getConstPtr<uint8_t>(), req->getSize());
+            // printf("pkt_data pointer = %p, data = %d\n", pkt_data, data);
+            // printf("printed all necessary data\n");
+            // uint8_t* pkt_data = new uint8_t[req->getSize()];
+            // std::fill_n(pkt_data, req->getSize(), data[0]);
+            // pkt->dataDynamic(pkt_data);
+
+            return pkt;
+
         }
 
     bool
@@ -94,7 +124,8 @@ namespace gem5{
 
         DPRINTF(MessageQueue, "%s: isWrite(): %d, Cmd = %s\n", __func__,  pkt->isWrite(), pkt->cmdString());
         
-        fakePort.sendFunctional(pkt);
+        // Commented out to try having port write to done variable 
+        // fakePort.sendFunctional(pkt);
     
     
         //panic("recvFunctional unimpl.");
@@ -131,6 +162,19 @@ namespace gem5{
         }
         else{
             //queue.emplace_back(std::make_tuple(this_update, this_update, this_update, curTick()));
+             if(queueLength() == 0){
+                // DPRINTF(MessageQueue, "%s: finished_addr = %d\n", __func__, finished_addr);
+                // uint8_t* finished;
+                
+                // uint8_t* finished;
+                // finished = 0;
+                PacketPtr pkt = createWritePacket(finished_addr, 0);
+                // printf("finished packet created: Constptr = %p\n", pkt->getConstPtr<uint8_t>());
+                fakePort.sendPacket(pkt);
+                DPRINTF(MessageQueue, "%s: queue is newly non-empty writing 0 to finished\n", __func__);
+                
+             }
+
             // coalescing could be done here
             // could check to see if the dst_id is already in the queue
             // if it is, then we need to update the valueMap and not emplace the new update to the queue
@@ -173,7 +217,11 @@ namespace gem5{
             queue.pop_front();
             pkt->setLE(valueMap[std::get<0>(mapAddr)]); // get<0> is temporary
             DPRINTF(MessageQueue, "%s: Read Value: %d, queueLength: %d\n", __func__, std::get<0>(mapAddr), queueLength());
-            
+              if (queueLength() == 0){
+                DPRINTF(MessageQueue, "%s: queue is newly empty writing 1 to finished\n", __func__);
+                PacketPtr pkt = createWritePacket(finished_addr, 1);
+                fakePort.sendPacket(pkt);
+              }
         }
         
         // DPRINTF(MessageQueue, "%s: Returned Value: %d\n", __func__, pkt->getLE<uint32_t>());
@@ -273,11 +321,13 @@ namespace gem5{
         panic_if(blockedPacket != nullptr,
                 "Should never try to send if blocked!");
         // If we can't send the packet across the port, store it for later.
-        if (!sendTimingReq(pkt))
-        {
-            DPRINTF(MessageQueue, "%s: Packet is blocked.\n", __func__);
-            blockedPacket = pkt;
-        }
+        DPRINTF(MessageQueue, "%s: sending functional packet: %s, Addr = %d\n", __func__, pkt->print(), pkt->getAddr());
+        sendFunctional(pkt);
+        // if (!sendTimingReq(pkt))
+        // {
+        //     DPRINTF(MessageQueue, "%s: Packet is blocked.\n", __func__);
+        //     blockedPacket = pkt;
+        // }
     }
 
     bool

@@ -407,6 +407,11 @@ bool
 MemCtrl::recvTimingReq(PacketPtr pkt)
 {
     // This is where we enter from the outside world
+    if(pkt->getAddr() > 33550300 && pkt->getAddr() < 33554000 && pkt->isWrite()){
+        printf("MemCtrl::recvTimingReq %ld, data = %d, size = %d, requestorID = %d\n", pkt->getAddr(), pkt->getLE<uint8_t>(), pkt->getSize(), pkt->requestorId());
+        // rewrite the printf in line 411 to std::cout
+        // std::cout << "MemCtrl::recvTimingReq " << pkt->getAddr() << ", data = " << (uint8_t)pkt->getLE<uint8_t>() << ", size = " << pkt->getSize() << ", command str = " << pkt->cmdString() << std::endl;
+    }
     DPRINTF(MemCtrl, "recvTimingReq: request %s addr %#x size %d\n",
             pkt->cmdString(), pkt->getAddr(), pkt->getSize());
 
@@ -1374,6 +1379,9 @@ MemCtrl::CtrlStats::regStats()
 void
 MemCtrl::recvFunctional(PacketPtr pkt)
 {
+    // if(pkt->getAddr() > 33550300 && pkt->getAddr() < 33550400){
+    //     printf("MemCtrl::recvFunctional\n");
+    // }
     bool found = recvFunctionalLogic(pkt, dram);
 
     panic_if(!found, "Can't handle address range for packet %s\n",
@@ -1490,6 +1498,10 @@ void
 MemCtrl::MemoryPort::recvFunctional(PacketPtr pkt)
 {
     pkt->pushLabel(ctrl.name());
+
+    if(pkt->getAddr() > 33550300 && pkt->getAddr() < 33550350){
+        printf("MemCtrl::recvFunctional\n");
+    }
 
     if (!queue.trySatisfyFunctional(pkt)) {
         // Default implementation of SimpleTimingPort::recvFunctional()
