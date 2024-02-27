@@ -65,7 +65,7 @@ parser.add_argument("--command", type=str, help="Command run by guest")
 parser.add_argument(
     "--cpu-type",
     type=str,
-    choices=["atomic", "timing", "o3"],
+    choices=["atomic", "timing", "o3", "kvm"],
     default="atomic",
     help="CPU type",
 )
@@ -97,7 +97,8 @@ args = parser.parse_args()
 cpu_type = {
     "o3": CPUTypes.O3,
     "atomic": CPUTypes.ATOMIC,
-    "timing": CPUTypes.TIMING}[args.cpu_type]
+    "timing": CPUTypes.TIMING,
+    "kvm": CPUTypes.KVM}[args.cpu_type]
 
 remote_memory_range = list(map(int, args.remote_memory_addr_range.split(",")))
 remote_memory_range = AddrRange(remote_memory_range[0], remote_memory_range[1])

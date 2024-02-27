@@ -32,18 +32,23 @@
 
 #include "sim/stats.hh"
 #include "base/trace.hh"
+#include "debug/CheckpointFlag.hh"
 
 namespace gem5
 {
 
 OutgoingRequestBridge::OutgoingRequestBridge(
     const OutgoingRequestBridgeParams &params) :
-    SimObject(params),
+    AbstractMemory(params),
     stats(this),
     outgoingPort(std::string(name()), this),
     sstResponder(nullptr),
     physicalAddressRanges(params.physical_address_ranges.begin(),
-                          params.physical_address_ranges.end())
+                          params.physical_address_ranges.end()),
+    nodeIndex(params.node_index),
+    blockSize(params.block_size),
+    startRange(params.start_range),
+    endRange(params.end_range)
 {
     this->init_phase_bool = false;
 }
@@ -154,6 +159,8 @@ OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
         // device.
         sstResponder->handleRecvFunctional(pkt);
     }
+
+    functionalAccess(pkt);
 }
 
 Tick
@@ -162,6 +169,9 @@ OutgoingRequestPort::recvAtomic(PacketPtr pkt)
 {
     // return 0;
     assert(false && "OutgoingRequestPort::recvAtomic not implemented");
+
+    owner->access(pkt);
+
     return Tick();
 }
 
@@ -187,6 +197,7 @@ bool OutgoingRequestBridge::handleTiming(PacketPtr pkt)
     if(return_status == true) {
         ++stats.numOutgoingPackets;
         stats.sizeOutgoingPackets += pkt->getSize();
+        access(pkt);
     }
     return return_status;
 }
@@ -203,6 +214,43 @@ OutgoingRequestBridge::
 OutgoingRequestPort::getAddrRanges() const
 {
     return owner->physicalAddressRanges;
+}
+
+void
+OutgoingRequestBridge::serialize(CheckpointOut &cp) const
+{
+    ScopedCheckpointSection sec(cp, "remoteMemoryStore_" + nodeIndex);
+
+    paramOut(cp, "numMemoryBlocks", (endRange - startRange) / blockSize);
+
+    for (Addr addr = startRange; addr < endRange; addr += blockSize) {
+        uint8_t  *host_addr = toHostAddr(addr);
+        assert(host_addr);
+        paramOut(cp, "data", *host_addr);
+        DPRINTF(CheckpointFlag, "Serialized addr: %llu with data: %llu\n",
+                &host_addr, *host_addr);
+    }
+}
+
+void
+OutgoingRequestBridge::unserialize(CheckpointIn &cp)
+{
+    ScopedCheckpointSection sec(cp, "remoteMemoryStore_" + nodeIndex);
+
+    uint64_t num_blocks;
+    Addr addr = startRange;
+    uint64_t *data;
+
+    paramIn(cp, "numMemoryBlocks", num_blocks);
+
+    for (int i = 0; i < num_blocks; i++) {
+        paramIn(cp, "data", *data);
+        uint8_t *host_addr = toHostAddr(addr);
+        std::memcpy(host_addr, &data, blockSize);
+        addr += blockSize;
+        DPRINTF(CheckpointFlag, "Unserialized data: %llu into host addr:%llu\n",
+                *data, &host_addr);
+    }
 }
 
 OutgoingRequestBridge::StatGroup::StatGroup(statistics::Group *parent)

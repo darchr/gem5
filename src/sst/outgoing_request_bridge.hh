@@ -31,6 +31,9 @@
 #include <vector>
 
 #include "base/statistics.hh"
+#include "base/trace.hh"
+#include "mem/abstract_mem.hh"
+#include "mem/packet.hh"
 #include "mem/port.hh"
 #include "params/OutgoingRequestBridge.hh"
 #include "sim/sim_object.hh"
@@ -49,17 +52,16 @@
  * OutgoingRequestBridge.
  */
 
-namespace gem5
-{
+namespace gem5 {
 
-class OutgoingRequestBridge: public SimObject
+class OutgoingRequestBridge : public memory::AbstractMemory
 {
-
   public:
-    class OutgoingRequestPort: public ResponsePort
+    class OutgoingRequestPort : public ResponsePort
     {
       private:
         OutgoingRequestBridge* owner;
+
       public:
         OutgoingRequestPort(const std::string &name_,
                             OutgoingRequestBridge* owner_);
@@ -159,9 +161,22 @@ class OutgoingRequestBridge: public SimObject
     // not at the simulation time.
     void handleRecvFunctional(PacketPtr pkt);
 
+    // // For preparing for taking checkpoints.
+    // DrainState drain() override;
+
+    // Serializes the remote memory state to take a checkpoint.
+    void serialize(CheckpointOut &cp) const override;
+
+    // Unserializes the remote memory state from a checkpoint.
+    void unserialize(CheckpointIn &cp) override;
+
+    std::string nodeIndex;
+    unsigned blockSize;
+    Addr startRange;
+    Addr endRange;
 
 };
 
-}; // namespace gem5
+} // namespace gem5
 
 #endif //__SST_OUTGOING_REQUEST_BRIDGE_HH__

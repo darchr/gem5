@@ -110,7 +110,8 @@ for node in range(system_nodes):
                   0x80000000 + (node + 2) * 0x80000000]
     print(node_range)
     cmd = [
-        f"--outdir=m5out/{system_nodes}_node/{node}",
+        f"-re",
+        f"--outdir=m5out/{system_nodes}_node_2nd/{node}",
         f"{gem5_run_script}",
         f"--cpu-clock-rate {cpu_clock_rate}",
         f"--cpu-type {cpu_type}",
@@ -168,5 +169,5 @@ connect_components("membus_2_memory",
 # enable Statistics
 stat_params = { "rate" : "0ns" }
 sst.setStatisticLoadLevel(10)
-sst.setStatisticOutput("sst.statOutputTXT", {"filepath" : f"./m5out/{system_nodes}_node/board.txt"})
+sst.setStatisticOutput("sst.statOutputTXT", {"filepath" : f"./m5out/{system_nodes}_node_2nd/board.txt"})
 sst.enableAllStatisticsForAllComponents()
