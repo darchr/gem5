@@ -1,4 +1,4 @@
-SST_VERSION=SST-11.1.0 # Name of the .pc file in lib/pkgconfig where SST is installed
+SST_VERSION=SST-13.1.0 # Name of the .pc file in lib/pkgconfig where SST is installed
 GEM5_LIB=gem5_opt
 ARCH=RISCV
 OFLAG=3
