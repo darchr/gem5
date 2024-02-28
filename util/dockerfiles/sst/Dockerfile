@@ -76,3 +76,15 @@ RUN ./configure --prefix=$SST_CORE_HOME --with-python=/usr/bin/python3-config \
 # Setting the environmental variables
 ENV PATH=$PATH:$SST_CORE_HOME/bin
 ENV PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SST_CORE_HOME/lib/pkgconfig/
+
+RUN apt -y install cmake
+
+WORKDIR /
+RUN git clone https://github.com/rui314/mold; \
+    cd mold; \
+    git checkout v2.4.0; \
+    mkdir build; \
+    cd build; \
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=c++ -DCMAKE_INSTALL_PREFIX=/mold/install/ ..; \
+    cmake --build . -j $(nproc); \
+    cmake --build . --target install
