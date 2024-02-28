@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-FROM --platform=${BUILDPLATFORM} ubuntu:20.04
+FROM --platform=${BUILDPLATFORM} ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt -y update && apt -y upgrade && \
@@ -32,28 +32,42 @@ RUN apt -y update && apt -y upgrade && \
     libprotobuf-dev protobuf-compiler libprotoc-dev libgoogle-perftools-dev \
     python3-dev python-is-python3 doxygen libboost-all-dev \
     libhdf5-serial-dev python3-pydot libpng-dev libelf-dev pkg-config pip \
-    python3-venv wget
+    python3-venv wget \
+    m4 autoconf automake libtool
 
+RUN pip3 install sphinx_rtd_theme --user && \
+    pip3 install recommonmark --user
+
+# Install MPI
+RUN mkdir -p /mpi/_install
+WORKDIR /mpi
+# https://www.open-mpi.org/software/ompi/v5.0/
+RUN wget https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.2.tar.gz && \
+    tar xf openmpi-5.0.2.tar.gz
+WORKDIR /mpi/openmpi-5.0.2
+RUN ./configure --prefix=/mpi/_install
+RUN make all -j`nproc`
+RUN make install
+
+# Install SST
 ENV SST_CORE_HOME="/sst/"
 
-# SST Stuff
 RUN mkdir /sst
 
-# Download and build SST-Core without MPI support
+# Download and build SST-Core with MPI support
 WORKDIR /sst/
-RUN wget https://github.com/sstsimulator/sst-core/releases/download/v13.0.0_Final/sstcore-13.0.0.tar.gz; \
-    tar xf sstcore-13.0.0.tar.gz;
-WORKDIR /sst/sstcore-13.0.0/
-RUN ./configure --prefix=$SST_CORE_HOME --with-python=/usr/bin/python3-config \
-                                        --disable-mpi; \
-    make all -j $(nproc); \
+RUN wget https://github.com/sstsimulator/sst-core/releases/download/v13.1.0_Final/sstcore-13.1.0.tar.gz; \
+    tar xf sstcore-13.1.0.tar.gz;
+WORKDIR /sst/sstcore-13.1.0/
+RUN PATH=$PATH:/mpi/_install/bin ./configure --prefix=$SST_CORE_HOME --with-python=/usr/bin/python3-config; \
+    PATH=$PATH:/mpi/_install/bin make all -j $(nproc); \
     make install;
 
 # Download and build SST-Elements
 WORKDIR /sst
-RUN wget https://github.com/sstsimulator/sst-elements/releases/download/v13.0.0_Final/sstelements-13.0.0.tar.gz; \
-    tar xf sstelements-13.0.0.tar.gz;
-WORKDIR /sst/sst-elements-library-13.0.0/
+RUN wget https://github.com/sstsimulator/sst-elements/releases/download/v13.1.0_Final/sstelements-13.1.0.tar.gz; \
+    tar xf sstelements-13.1.0.tar.gz;
+WORKDIR /sst/sst-elements-library-13.1.0/
 RUN ./configure --prefix=$SST_CORE_HOME --with-python=/usr/bin/python3-config \
                                         --with-sst-core=$SST_CORE_HOME; \
     make all -j $(nproc); \
