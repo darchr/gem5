@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 The Regents of the University of California
+// Copyright (c) 2021-2024 The Regents of the University of California
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -173,12 +173,6 @@ gem5Component::gem5Component(SST::ComponentId_t id, SST::Params& params):
     // remove OutgoingBridges from gem5 configs without the need to recompile
     // the ext/sst source everytime.
     std::string ports = params.find<std::string>("ports", "");
-    if (ports.empty()) {
-        output.fatal(
-            CALL_INFO, -1, "Component %s must have a 'ports' parameter.\n",
-            getName().c_str()
-        );
-    }
     // Split the port names using the util method defined.
     splitPortNames(ports);
     for (int i = 0 ; i < sstPortCount ; i++) {
