@@ -395,7 +395,16 @@ AbstractMemory::access(PacketPtr pkt)
 
     uint8_t *host_addr = toHostAddr(pkt->getAddr());
 
-    if (pkt->cmd == MemCmd::SwapReq) {
+    if (pkt->cmd == MemCmd::SwapResp) {
+        if (pkt->isAtomicOp()) {
+            if (pmemAddr) {
+                pkt->writeData(host_addr);
+                (*(pkt->getAtomicOp()))(host_addr);
+            }
+        } else {
+            fatal("Did not expect this access in timing mode");
+        }
+    } else if (pkt->cmd == MemCmd::SwapReq) {
         if (pkt->isAtomicOp()) {
             if (pmemAddr) {
                 pkt->setData(host_addr);

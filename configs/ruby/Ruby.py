@@ -298,9 +298,13 @@ def create_system(
     # Create a backing copy of physical memory in case required
     if options.access_backing_store:
         ruby.access_backing_store = True
-        ruby.phys_mem = SimpleMemory(
-            range=system.mem_ranges[0], in_addr_map=False
-        )
+        if len(system.mem_ranges) > 1:
+            warn("Backing store not supported for multiple memory ranges")
+        # Note: to make this support multiple memory ranges you need to create
+        # one SimpleMemory for each physical memory range
+        ruby.phys_mem = [
+            SimpleMemory(range=system.mem_ranges[0], in_addr_map=False)
+        ]
 
 
 def create_directories(options, bootmem, ruby_system, system):

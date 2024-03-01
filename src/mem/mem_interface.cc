@@ -79,7 +79,7 @@ MemInterface::setCtrl(MemCtrl* _ctrl, unsigned int command_window,
 {
     ctrl = _ctrl;
     maxCommandsPerWindow = command_window / tCK;
-    // setting the pseudo channel number for this interface
+    // setting the pseudo channel number for this interfacez
     pseudoChannel = pseudo_channel;
 }
 

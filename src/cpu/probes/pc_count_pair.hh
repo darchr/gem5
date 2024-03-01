@@ -86,9 +86,9 @@ class PcCountPair
     {
         size_t operator()(const PcCountPair& item) const
         {
-            size_t xHash = std::hash<int>()(item.pc);
+            size_t xHash = std::hash<uint64_t>()(item.pc);
             size_t yHash = std::hash<int>()(item.count);
-            return xHash * 2 + yHash;
+            return xHash ^ yHash << 32;
         }
     };
 

@@ -25,6 +25,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from .hbm import HBM2Stack
+from .dcache import CascadeLakeCache
+from .dcache import OracleCache
+from .dcache import RambusCache
 from .multi_channel import (
     DualChannelDDR3_1600,
     DualChannelDDR3_2133,

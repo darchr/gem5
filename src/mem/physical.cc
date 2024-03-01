@@ -116,18 +116,21 @@ PhysicalMemory::PhysicalMemory(const std::string& _name,
                     "Skipping memory %s that is not in global address map\n",
                     m->name());
 
-            // sanity check
-            fatal_if(m->getAddrRange().interleaved(),
-                     "Memory %s that is not in the global address map cannot "
-                     "be interleaved\n", m->name());
+            // Only create backing stores for non-null memories
+            if (!m->isNull()) { 
+                // sanity check
+                fatal_if(m->getAddrRange().interleaved(),
+                        "Memory %s that is not in the global address map cannot "
+                        "be interleaved\n", m->name());
 
-            // simply do it independently, also note that this kind of
-            // memories are allowed to overlap in the logic address
-            // map
-            std::vector<AbstractMemory*> unmapped_mems{m};
-            createBackingStore(m->getAddrRange(), unmapped_mems,
-                               m->isConfReported(), m->isInAddrMap(),
-                               m->isKvmMap());
+                // simply do it independently, also note that this kind of
+                // memories are allowed to overlap in the logic address
+                // map
+                std::vector<AbstractMemory*> unmapped_mems{m};
+                createBackingStore(m->getAddrRange(), unmapped_mems,
+                                m->isConfReported(), m->isInAddrMap(),
+                                m->isKvmMap());
+            }
         }
     }
 

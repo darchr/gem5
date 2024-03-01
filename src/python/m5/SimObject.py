@@ -1085,7 +1085,11 @@ class SimObject(metaclass=MetaSimObject):
             if issubclass(pdesc.ptype, ptype):
                 match_obj = self._values[pname]
                 if not isproxy(match_obj) and not isNullPointer(match_obj):
-                    all[match_obj] = True
+                    if isinstance(match_obj, SimObjectVector):
+                        for obj in match_obj:
+                            all[obj] = True
+                    else:
+                        all[match_obj] = True
         # Also make sure to sort the keys based on the objects' path to
         # ensure that the order is the same on all hosts
         return sorted(all.keys(), key=lambda o: o.path()), True
@@ -1256,7 +1260,9 @@ class SimObject(metaclass=MetaSimObject):
     # necessary to construct it.  Does *not* recursively create
     # children.
     def getCCObject(self):
+        # print(self)
         if not self._ccObject:
+            # print(f"{self}: Doing initial creation")
             # Make sure this object is in the configuration hierarchy
             if not self._parent and not isRoot(self):
                 raise RuntimeError(
@@ -1268,10 +1274,14 @@ class SimObject(metaclass=MetaSimObject):
             if not self.abstract:
                 params = self.getCCParams()
                 self._ccObject = params.create()
+                # print(f"{self}: Actually created")
+            # else:
+            # print("I am abstract?")
         elif self._ccObject == -1:
             raise RuntimeError(
-                f"{self.path()}: Cycle found in configuration hierarchy."
+                "%s: Cycle found in configuration hierarchy." % self.path()
             )
+        # print(f"retuning {self._ccObject}")
         return self._ccObject
 
     def descendants(self):

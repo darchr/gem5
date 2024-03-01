@@ -368,9 +368,13 @@ RubyPort::MemResponsePort::recvAtomic(PacketPtr pkt)
                     pkt->getAddr(), (MachineType)mem_interface_type);
     AbstractController *mem_interface =
         rs->m_abstract_controls[mem_interface_type][id.getNum()];
-    Tick latency = mem_interface->recvAtomic(pkt);
-    if (access_backing_store)
-        rs->getPhysMem()->access(pkt);
+    Tick latency;
+    if (access_backing_store) {
+        rs->getPhysMem(pkt->getAddr())->access(pkt);
+        latency = 1000;
+    } else {
+        latency = mem_interface->recvAtomic(pkt);
+    }
     return latency;
 }
 
@@ -412,7 +416,7 @@ RubyPort::MemResponsePort::recvFunctional(PacketPtr pkt)
         // The following command performs the real functional access.
         // This line should be removed once Ruby supplies the official version
         // of data.
-        rs->getPhysMem()->functionalAccess(pkt);
+        rs->getPhysMem(pkt->getAddr())->functionalAccess(pkt);
     } else {
         bool accessSucceeded = false;
         bool needsResponse = pkt->needsResponse();
@@ -635,7 +639,7 @@ RubyPort::MemResponsePort::hitCallback(PacketPtr pkt)
             auto dmem = owner.system->getDeviceMemory(pkt);
             dmem->access(pkt);
         } else if (owner.system->isMemAddr(pkt->getAddr())) {
-            rs->getPhysMem()->access(pkt);
+            rs->getPhysMem(pkt->getAddr())->access(pkt);
         } else {
             panic("Packet is in neither device nor system memory!");
         }

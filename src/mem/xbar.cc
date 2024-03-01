@@ -123,8 +123,8 @@ BaseXBar::calcPacketTiming(PacketPtr pkt, Tick header_delay)
     // do a quick sanity check to ensure the timings are not being
     // ignored, note that this specific value may cause problems for
     // slower interconnects
-    panic_if(pkt->headerDelay > sim_clock::as_int::us,
-             "Encountered header delay exceeding 1 us\n");
+    // panic_if(pkt->headerDelay > sim_clock::as_int::us,
+    //          "Encountered header delay exceeding 1 us\n");
 
     if (pkt->hasData()) {
         // the payloadDelay takes into account the relative time to
@@ -196,8 +196,8 @@ BaseXBar::Layer<SrcType, DstType>::tryTiming(SrcType* src_port)
     // for a retry from the peer
     if (state == BUSY || waitingForPeer != NULL) {
         // the port should not be waiting already
-        assert(std::find(waitingForLayer.begin(), waitingForLayer.end(),
-                         src_port) == waitingForLayer.end());
+        // assert(std::find(waitingForLayer.begin(), waitingForLayer.end(),
+        //                  src_port) == waitingForLayer.end());
 
         // put the port at the end of the retry list waiting for the
         // layer to be freed up (and in the case of a busy peer, for

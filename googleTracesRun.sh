@@ -1,0 +1,4 @@
+build/X86_MESI_Two_Level/gem5.opt --outdir=gtResults/1/ram/charlie configs-drtrace/drtrace_new.py /projects/google-traces/ charlie 8 Rambus 1 1GiB 8GiB 0 0 &
+build/X86_MESI_Two_Level/gem5.opt --outdir=gtResults/1/ram/delta configs-drtrace/drtrace_new.py /projects/google-traces/ delta 8 Rambus 1 1GiB 8GiB 0 0 &
+build/X86_MESI_Two_Level/gem5.opt --outdir=gtResults/1/ram/merced configs-drtrace/drtrace_new.py /projects/google-traces/ merced 8 Rambus 1 1GiB 8GiB 0 0 &
+build/X86_MESI_Two_Level/gem5.opt --outdir=gtResults/1/ram/whiskey configs-drtrace/drtrace_new.py /projects/google-traces/ whiskey 8 Rambus 1 1GiB 8GiB 0 0 &

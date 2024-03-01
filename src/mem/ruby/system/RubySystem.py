@@ -48,7 +48,7 @@ class RubySystem(ClockedObject):
         64, "number of bits that a memory address requires"
     )
 
-    phys_mem = Param.SimpleMemory(NULL, "")
+    phys_mem = VectorParam.SimpleMemory([], "Memories for backing store")
     system = Param.System(Parent.any, "system object")
 
     access_backing_store = Param.Bool(

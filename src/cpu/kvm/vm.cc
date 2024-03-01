@@ -467,10 +467,11 @@ KvmVM::setUserMemoryRegion(uint32_t slot,
     m.userspace_addr = (__u64)host_addr;
 
     if (ioctl(KVM_SET_USER_MEMORY_REGION, (void *)&m) == -1) {
+        perror("Error!");
         panic("Failed to setup KVM memory region:\n"
-              "\tHost Address: 0x%p\n"
-              "\tGuest Address: 0x%llx\n",
-              "\tSize: %ll\n",
+              "\tHost Address: 0x%llx\n"
+              "\tGuest Address: 0x%llx\n"
+              "\tSize: %llu\n"
               "\tFlags: 0x%x\n",
               m.userspace_addr, m.guest_phys_addr,
               m.memory_size, m.flags);

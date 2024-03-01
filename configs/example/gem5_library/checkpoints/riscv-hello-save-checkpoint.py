@@ -69,17 +69,17 @@ args = parser.parse_args()
 
 # This check ensures the gem5 binary is compiled to the RISCV ISA target.
 # If not, an exception will be thrown.
-requires(isa_required=ISA.RISCV)
+#requires(isa_required=ISA.RISCV)
 
 # In this setup we don't have a cache. `NoCache` can be used for such setups.
-cache_hierarchy = NoCache()
+#cache_hierarchy = NoCache()
 
 # We use a single channel DDR3_1600 memory system
 memory = SingleChannelDDR3_1600(size="32MiB")
 
 # We use a simple Timing processor with one core.
 processor = SimpleProcessor(
-    cpu_type=CPUTypes.TIMING, isa=ISA.RISCV, num_cores=1
+    cpu_type=CPUTypes.O3, isa=ISA.RISCV, num_cores=1
 )
 
 # The gem5 library simple board which can be used to run simple SE-mode

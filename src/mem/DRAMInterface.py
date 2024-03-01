@@ -39,6 +39,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.objects.MemCtrl import MemCtrl
+# from m5.objects.PolicyManager import PolicyManager
 from m5.objects.MemInterface import *
 
 
@@ -52,6 +53,13 @@ class DRAMInterface(MemInterface):
     type = "DRAMInterface"
     cxx_header = "mem/dram_interface.hh"
     cxx_class = "gem5::memory::DRAMInterface"
+
+    # pol_man = Param.PolicyManager("Policy Manager which is used just in HBM2_Rambus "
+    #                               "for sending dirty data from flush buffer to the "
+    #                               "controller during refresh")
+    enable_read_flush_buffer = Param.Bool(False, "Enable reading from flush buffer "
+                                                 "during refresh, only for HBM2_Rambus")
+    is_alloy = Param.Bool(False, "Alloy needs a different decode packet")
 
     # scheduler page policy
     page_policy = Param.PageManage("open_adaptive", "Page management policy")
@@ -178,6 +186,15 @@ class DRAMInterface(MemInterface):
 
     # time to exit self-refresh mode with locked DLL
     tXSDLL = Param.Latency("0ns", "Self-refresh exit latency DLL")
+
+    tTAGBURST = Param.Latency("0ns", "tRL_FAST")
+    tRL_FAST   = Param.Latency("0ns", "tRL_FAST")
+    tHM2DQ    = Param.Latency("0ns", "tHM2DQ")
+    tRTW_int  = Param.Latency("0ns", "tRTW_int")
+    tRFBD     = Param.Latency("0ns", "tRFBD")
+    tRCD_FAST = Param.Latency("0ns", "tRCD_FAST")
+    tRC_FAST  = Param.Latency("0ns", "tRCD_FAST")
+    flushBuffer_high_thresh_perc = Param.Percent(0, "Threshold to force writes")
 
     # number of data beats per clock. with DDR, default is 2, one per edge
     # used in drampower.cc
@@ -549,7 +566,7 @@ class DDR4_2400_16x4(DRAMInterface):
     # CAS-to-CAS delay for bursts to the same bank group
     # tBURST is equivalent to tCCD_S; no explicit parameter required
     # for CAS-to-CAS delay for bursts to different bank groups
-    tCCD_L = "5ns"
+    tCCD_L = '5ns'
 
     # DDR4-2400 17-17-17
     tRCD = "14.16ns"
@@ -1255,6 +1272,184 @@ class HBM_2000_4H_1x64(DRAMInterface):
 
     two_cycle_activate = True
 
+# A single HBM2 x64 interface (tested with HBMCtrl in gem5)
+# to be used as a single pseudo channel. The timings are based
+# on HBM gen2 specifications. 4H stack, 8Gb per die and total capacity
+# of 4GiB.
+class TDRAM(DRAMInterface):
+
+    # 64-bit interface for a single pseudo channel
+    device_bus_width = 64
+
+    # HBM2 supports BL4
+    burst_length = 8
+
+    # size of channel in bytes, 4H stack of 8Gb dies is 4GiB per stack;
+    # with 16 pseudo channels, 256MiB per pseudo channel
+    device_size = "256MiB"
+
+    device_rowbuffer_size = "1KiB"
+
+    # 1x128 configuration
+    devices_per_rank = 1
+
+    ranks_per_channel = 1
+
+    banks_per_rank = 32
+
+    bank_groups_per_rank = 8
+
+    # 1000 MHz for 2Gbps DDR data rate
+    tCK = "1ns"
+
+    # new
+    tTAGBURST = "1ns"
+    tRL_FAST = "1ns"
+    tHM2DQ = "1ns"
+    tRTW_int = "2ns"
+    tRFBD = "2ns"
+    tRCD_FAST = "7.5ns"
+    tRC_FAST = "10.5ns"
+    enable_read_flush_buffer = True
+    flushBuffer_high_thresh_perc = 80
+
+    tRP = "14ns"
+
+    tCCD_L = "4ns"
+
+    tRCD = "12ns"
+    tRCD_WR = "6ns"
+    tCL = "18ns"
+    tCWL = "7ns"
+    tRAS = "28ns"
+
+    tBURST = "4ns"
+
+    # value for 2Gb device from JEDEC spec
+    tRFC = "220ns"
+
+    # value for 2Gb device from JEDEC spec
+    tREFI = "3.9us"
+
+    tWR = "14ns"
+    tRTP = "5ns"
+    tWTR = "4ns"
+    tWTR_L = "9ns"
+    tRTW = "18ns"
+
+    #tAAD from RBus
+    tAAD = "1ns"
+
+    # single rank device, set to 0
+    tCS = "0ns"
+
+    tRRD = "3ns"
+    tRRD_L = "4ns"
+
+    # for a single pseudo channel
+    tXAW = "16ns"
+    activation_limit = 4
+
+    # 4tCK
+    tXP = "8ns"
+
+    # start with tRFC + tXP -> 160ns + 8ns = 168ns
+    tXS = "216ns"
+
+    page_policy = 'close'
+
+    read_buffer_size = 64
+    write_buffer_size = 64
+
+    two_cycle_activate = True
+
+class TDRAM_32(DRAMInterface):
+
+    # 64-bit interface for a single pseudo channel
+    device_bus_width = 32
+
+    # HBM2 supports BL4
+    burst_length = 16
+
+    # size of channel in bytes, 4H stack of 8Gb dies is 4GiB per stack;
+    # with 16 pseudo channels, 256MiB per pseudo channel
+    device_size = "1GiB"
+
+    device_rowbuffer_size = "2KiB"
+
+    # 1x128 configuration
+    devices_per_rank = 1
+
+    ranks_per_channel = 1
+
+    banks_per_rank = 32
+
+    bank_groups_per_rank = 8
+
+    # 1000 MHz for 2Gbps DDR data rate
+    tCK = "0.5ns"
+
+    # new
+    tTAGBURST = "0.5ns"
+    tRL_FAST = "7.5ns"
+    tHM2DQ = "0ns"
+    tRTW_int = "1ns"
+    tRFBD = "1ns"
+    tRCD_FAST = "7.5ns"
+    enable_read_flush_buffer = True
+    flushBuffer_high_thresh_perc = 80
+
+    tRP = "14ns"
+
+    tCCD_L = "2ns"
+
+    tRCD = "12ns"
+    tRCD_WR = "6ns"
+    tCL = "18ns"
+    tCWL = "7ns"
+    tRAS = "28ns"
+
+    tBURST = "2ns"
+
+    # value for 2Gb device from JEDEC spec
+    tRFC = "220ns"
+
+    # value for 2Gb device from JEDEC spec
+    tREFI = "3.9us"
+
+    tWR = "14ns"
+    tRTP = "5ns"
+    tWTR = "4ns"
+    tWTR_L = "9ns"
+    tRTW = "18ns"
+
+    #tAAD from RBus
+    tAAD = "1ns"
+
+    # single rank device, set to 0
+    tCS = "0ns"
+
+    tRRD = "2ns"
+    tRRD_L = "2ns"
+
+    # for a single pseudo channel
+    tXAW = "16ns"
+    activation_limit = 8
+
+    # 4tCK
+    tXP = "8ns"
+
+    # start with tRFC + tXP -> 160ns + 8ns = 168ns
+    tXS = "216ns"
+
+    page_policy = 'close'
+
+    read_buffer_size = 64
+    write_buffer_size = 64
+
+    two_cycle_activate = True
+
+    addr_mapping = 'RoCoRaBaCh'
 
 # A single DDR5-4400 32bit channel (4x8 configuration)
 # A DDR5 DIMM is made up of two (32 bit) channels.
