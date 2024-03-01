@@ -191,6 +191,7 @@ gem5Component::gem5Component(SST::ComponentId_t id, SST::Params& params):
         sstPorts[i]->setTimeConverter(timeConverter);
         sstPorts[i]->setOutputStream(&(output));
     }
+    flag = false;
 }
 
 gem5Component::~gem5Component()
@@ -271,7 +272,12 @@ gem5Component::clockTick(SST::Cycle_t currentCycle)
         // output gem5 stats
         const std::vector<std::string> output_stats_commands = {
             "import m5.stats",
-            "m5.stats.dump()"
+            "m5.stats.dump()",
+            "import os",
+            "m5.checkpoint(os.path.join(os.getcwd(), \"ckpt-dir\"))",
+        //     "m5.checkpoint(\"/home/kaustavg/simulators/X86/gem5/ext/sst/xxx\")",
+        //     "import m5.checkpoint",
+        //     "m5.checkpoint(\"/home/kaustavg/simulators/X86/gem5/ext/sst/yyy\")",
         };
         execPythonCommands(output_stats_commands);
 
@@ -298,8 +304,12 @@ gem5Component::simulateGem5(uint64_t current_cycle)
     // Tick conversion
     // The main logic for synchronize SST Tick and gem5 Tick is here.
     // next_end_tick = current_cycle * timeConverter->getFactor()
+    if(flag == false) {
+        flag = true;
+        base_time = gem5::curTick();
+    }
     uint64_t next_end_tick = \
-        timeConverter->convertToCoreTime(current_cycle);
+        timeConverter->convertToCoreTime(current_cycle); // + base_time;
 
     // Here, if the next event in gem5's queue is not executed within the next
     // cycle, there's no need to enter the gem5's sim loop.

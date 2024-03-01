@@ -1,4 +1,4 @@
-// Copyright (c) 2021 The Regents of the University of California
+// Copyright (c) 2021-2023 The Regents of the University of California
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -24,6 +24,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
 #include "sst/outgoing_request_bridge.hh"
 
 #include <cassert>
@@ -31,18 +32,26 @@
 #include <sstream>
 
 #include "base/trace.hh"
+#include "debug/CheckpointFlag.hh"
+#include "sim/stats.hh"
 
 namespace gem5
 {
 
 OutgoingRequestBridge::OutgoingRequestBridge(
     const OutgoingRequestBridgeParams &params) :
-    SimObject(params),
+    AbstractMemory(params),
+    stats(this),
     outgoingPort(std::string(name()), this),
     sstResponder(nullptr),
     physicalAddressRanges(params.physical_address_ranges.begin(),
-                          params.physical_address_ranges.end())
+                          params.physical_address_ranges.end()),
+    nodeIndex(params.node_index),
+    blockSize(params.block_size),
+    startRange(params.start_range),
+    endRange(params.end_range)
 {
+    this->init_phase_bool = false;
 }
 
 OutgoingRequestBridge::~OutgoingRequestBridge()
@@ -61,6 +70,7 @@ OutgoingRequestBridge::
 OutgoingRequestPort::~OutgoingRequestPort()
 {
 }
+
 
 void
 OutgoingRequestBridge::init()
@@ -96,7 +106,14 @@ OutgoingRequestBridge::setResponder(SSTResponderInterface* responder)
 bool
 OutgoingRequestBridge::sendTimingResp(gem5::PacketPtr pkt)
 {
-    return outgoingPort.sendTimingResp(pkt);
+    // see if the responder responded true or false. if it's true, then we
+    // increment the stats counters.
+    bool return_status = outgoingPort.sendTimingResp(pkt);
+    if (return_status) {
+        ++stats.numIncomingPackets;
+        stats.sizeIncomingPackets += pkt->getSize();
+    }
+    return return_status;
 }
 
 void
@@ -106,19 +123,56 @@ OutgoingRequestBridge::sendTimingSnoopReq(gem5::PacketPtr pkt)
 }
 
 void
+OutgoingRequestBridge::initPhaseComplete(bool value) {
+    init_phase_bool = value;
+}
+bool
+OutgoingRequestBridge::getInitPhaseStatus() {
+    return init_phase_bool;
+}
+void
 OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
 {
-    uint8_t* ptr = pkt->getPtr<uint8_t>();
-    uint64_t size = pkt->getSize();
-    std::vector<uint8_t> data(ptr, ptr+size);
-    initData.push_back(std::make_pair(pkt->getAddr(), data));
+    // This should not receive any functional accesses
+    // gem5::MemCmd::Command pktCmd = (gem5::MemCmd::Command)pkt->cmd.toInt();
+    // std::cout << "Recv Functional : 0x" << std::hex << pkt->getAddr() <<
+    // std::dec << " " << pktCmd << " " << gem5::MemCmd::WriteReq << " " <<
+    // getInitPhaseStatus() << std::endl;
+    // Check at which stage are we at. If we are at INIT phase, then queue all
+    // these packets.
+    if (!getInitPhaseStatus())
+    {
+        // sstResponder->recvAtomic(pkt);
+        uint8_t* ptr = pkt->getPtr<uint8_t>();
+        uint64_t size = pkt->getSize();
+        std::vector<uint8_t> data(ptr, ptr+size);
+        initData.push_back(std::make_pair(pkt->getAddr(), data));
+    }
+    // This is the RUN phase. SST does not allow any sendUntimedData (AKA
+    // functional accesses) to it's memory. We need to convert these accesses
+    // to timing to at least store the correct data in the memory.
+    else {
+        // These packets have to translated at runtime. We convert these
+        // packets to timing as its data has to be stored correctly in SST
+        // memory. Otherwise reads from the SST memory will fail. To reproduce
+        // this error, don not handle any functional accesses and the kernel
+        // boot will fail while reading the correct partition from the vda
+        // device.
+        sstResponder->handleRecvFunctional(pkt);
+    }
+
+    functionalAccess(pkt);
 }
 
 Tick
 OutgoingRequestBridge::
 OutgoingRequestPort::recvAtomic(PacketPtr pkt)
 {
-    assert(false && "OutgoingRequestPort::recvAtomic not implemented");
+    // return 0;
+    // assert(false && "OutgoingRequestPort::recvAtomic not implemented");
+
+    owner->access(pkt);
+
     return Tick();
 }
 
@@ -133,8 +187,20 @@ bool
 OutgoingRequestBridge::
 OutgoingRequestPort::recvTimingReq(PacketPtr pkt)
 {
-    owner->sstResponder->handleRecvTimingReq(pkt);
-    return true;
+    return owner->handleTiming(pkt);
+}
+
+bool OutgoingRequestBridge::handleTiming(PacketPtr pkt)
+{
+    // see if the responder responded true or false. if it's true, then we
+    // increment the stats counters.
+    bool return_status = sstResponder->handleRecvTimingReq(pkt);
+    if (return_status) {
+        ++stats.numOutgoingPackets;
+        stats.sizeOutgoingPackets += pkt->getSize();
+        // access(pkt);
+    }
+    return return_status;
 }
 
 void
@@ -151,4 +217,54 @@ OutgoingRequestPort::getAddrRanges() const
     return owner->physicalAddressRanges;
 }
 
+void
+OutgoingRequestBridge::serialize(CheckpointOut &cp) const
+{
+    ScopedCheckpointSection sec(cp, "remoteMemoryStore_" + nodeIndex);
+
+    paramOut(cp, "numMemoryBlocks", (endRange - startRange) / blockSize);
+
+    for (Addr addr = startRange; addr < endRange; addr += blockSize) {
+        uint8_t  *host_addr = toHostAddr(addr);
+        assert(host_addr);
+        paramOut(cp, "data", *host_addr);
+        DPRINTF(CheckpointFlag, "Serialized addr: %llu with data: %llu\n",
+                &host_addr, *host_addr);
+    }
+}
+
+void
+OutgoingRequestBridge::unserialize(CheckpointIn &cp)
+{
+    ScopedCheckpointSection sec(cp, "remoteMemoryStore_" + nodeIndex);
+
+    uint64_t num_blocks;
+    Addr addr = startRange;
+    uint64_t *data;
+
+    paramIn(cp, "numMemoryBlocks", num_blocks);
+
+    for (int i = 0; i < num_blocks; i++) {
+        paramIn(cp, "data", *data);
+        uint8_t *host_addr = toHostAddr(addr);
+        std::memcpy(host_addr, &data, blockSize);
+        addr += blockSize;
+        DPRINTF(
+            CheckpointFlag, "Unserialized data: %llu into host addr:%llu\n",
+            *data, &host_addr);
+    }
+}
+
+OutgoingRequestBridge::StatGroup::StatGroup(statistics::Group *parent)
+    : statistics::Group(parent),
+    ADD_STAT(numOutgoingPackets, statistics::units::Count::get(),
+            "Number of packets going out of the gem5 port"),
+    ADD_STAT(sizeOutgoingPackets, statistics::units::Byte::get(),
+            "Cumulative size of all the outgoing packets"),
+    ADD_STAT(numIncomingPackets, statistics::units::Count::get(),
+            "Number of packets coming into the gem5 port"),
+    ADD_STAT(sizeIncomingPackets, statistics::units::Byte::get(),
+            "Cumulative size of all the incoming packets")
+{
+}
 }; // namespace gem5

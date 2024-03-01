@@ -105,6 +105,8 @@ class gem5Component: public SST::Component
     int execPythonCommands(const std::vector<std::string>& commands);
 
   private:
+    bool flag;
+    uint64_t base_time;
     SST::Output output;
     uint64_t clocksProcessed;
     SST::TimeConverter* timeConverter;

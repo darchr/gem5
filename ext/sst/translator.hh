@@ -165,29 +165,31 @@ inline void
 inplaceSSTRequestToGem5PacketPtr(gem5::PacketPtr pkt,
                                 SST::Interfaces::StandardMem::Request* request)
 {
-    pkt->makeResponse();
+    if (pkt->needsResponse()) {
+        pkt->makeResponse();
 
-    // Resolve the success of Store Conditionals
-    if (pkt->isLLSC() && pkt->isWrite()) {
-        // SC interprets ExtraData == 1 as the store was successful
-        pkt->req->setExtraData(1);
-    }
-    // If there is data in the request, send it back. Only ReadResp requests
-    // have data associated with it. Other packets does not need to be casted.
-    if (!pkt->isWrite()) {
-        // Need to verify whether the packet is a ReadResp, otherwise the
-        // program will try to incorrectly cast the request object.
-        if (SST::Interfaces::StandardMem::ReadResp* test =
-            dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(request)) {
-            pkt->setData(dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
-                request)->data.data()
-            );
+        // Resolve the success of Store Conditionals
+        if (pkt->isLLSC() && pkt->isWrite()) {
+            // SC interprets ExtraData == 1 as the store was successful
+            pkt->req->setExtraData(1);
         }
+        // If there is data in the request, send it back. Only ReadResp requests
+        // have data associated with it. Other packets does not need to be casted.
+        if (!pkt->isWrite()) {
+            // Need to verify whether the packet is a ReadResp, otherwise the
+            // program will try to incorrectly cast the request object.
+            if (SST::Interfaces::StandardMem::ReadResp* test =
+                dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(request)) {
+                pkt->setData(dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
+                    request)->data.data()
+                );
+            }
+        }
+
+        // Clear out bus delay notifications
+        pkt->headerDelay = pkt->payloadDelay = 0;
+
     }
-
-    // Clear out bus delay notifications
-    pkt->headerDelay = pkt->payloadDelay = 0;
-
 }
 
 }; // namespace Translator

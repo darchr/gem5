@@ -30,3 +30,5 @@ SimObject('OutgoingRequestBridge.py', sim_objects=['OutgoingRequestBridge'])
 
 Source('outgoing_request_bridge.cc')
 Source('sst_responder_interface.cc')
+
+DebugFlag('CheckpointFlag')
