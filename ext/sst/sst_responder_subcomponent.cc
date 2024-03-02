@@ -25,6 +25,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "sst_responder_subcomponent.hh"
+// #include <sst/elements/memHierarchy/membackend/backing.h>
 
 #include <cassert>
 #include <sstream>
@@ -99,6 +100,7 @@ SSTResponderSubComponent::handleTimingReq(
 void
 SSTResponderSubComponent::init(unsigned phase)
 {
+    std::cout << phase << std::endl;
     if (phase == 1) {
         for (auto p: responseReceiver->getInitData()) {
             gem5::Addr addr = p.first;
@@ -110,6 +112,11 @@ SSTResponderSubComponent::init(unsigned phase)
         }
     }
     memoryInterface->init(phase);
+    if (phase == 2) {
+        // for (auto p: memoryInterface->recvUntimedData()) {
+            // std::cout << memoryInterface->get() << std::endl;
+        // }
+    }
 }
 
 void

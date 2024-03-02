@@ -157,7 +157,10 @@ gem5RequestToSSTRequest(gem5::PacketPtr pkt,
 
     if (pkt->needsResponse())
         sst_request_id_to_packet_map[request->getID()] = pkt;
-
+    std::cout << request->getString() << std::endl;
+    int dummy;
+    std::cin >> dummy;
+    // std::cout << pkt->hasData() << " " << request->makeResponse()->getString() << std::endl;
     return request;
 }
 

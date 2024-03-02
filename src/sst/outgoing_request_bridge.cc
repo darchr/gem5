@@ -27,6 +27,7 @@
 
 #include "sst/outgoing_request_bridge.hh"
 
+#include <zlib.h>
 #include <cassert>
 #include <iomanip>
 #include <sstream>
@@ -238,21 +239,109 @@ OutgoingRequestBridge::unserialize(CheckpointIn &cp)
 {
     ScopedCheckpointSection sec(cp, "remoteMemoryStore_" + nodeIndex);
 
-    uint64_t num_blocks;
-    Addr addr = startRange;
-    uint64_t *data;
+    // uint64_t num_blocks;
+    // Addr addr = startRange;
+    // uint64_t *data;
 
-    paramIn(cp, "numMemoryBlocks", num_blocks);
+    // paramIn(cp, "numMemoryBlocks", num_blocks);
 
-    for (int i = 0; i < num_blocks; i++) {
-        paramIn(cp, "data", *data);
-        uint8_t *host_addr = toHostAddr(addr);
-        std::memcpy(host_addr, &data, blockSize);
-        addr += blockSize;
-        DPRINTF(
-            CheckpointFlag, "Unserialized data: %llu into host addr:%llu\n",
-            *data, &host_addr);
+    // for (int i = 0; i < num_blocks; i++) {
+    //     paramIn(cp, "data", *data);
+    //     uint8_t *host_addr = toHostAddr(addr);
+    //     std::memcpy(host_addr, &data, blockSize);
+    //     addr += blockSize;
+    //     DPRINTF(
+    //         CheckpointFlag, "Unserialized data: %llu into host addr:%llu\n",
+    //         *data, &host_addr);
+    // }
+
+    // const uint32_t chunk_size = 16384;
+
+
+    // unsigned int store_id;
+    // UNSERIALIZE_SCALAR(store_id);
+
+    std::string filename = "/home/kaustavg/simulators/X86/darchr/gem5/ext/sst/ckpt-dir/board.physmem.store8.pmem";
+    // UNSERIALIZE_SCALAR(filename);
+    // std::string filepath = cp.getCptDir() + "/" + filename;
+
+    // mmap memoryfile
+    gzFile compressed_mem = gzopen(filename.c_str(), "rb");
+    if (compressed_mem == NULL)
+        fatal("Can't open physical memory checkpoint file '%s'", filename);
+
+    // we've already got the actual backing store mapped
+    // uint8_t* pmem = backingStore[store_id].pmem;
+    // AddrRange range = backingStore[store_id].range;
+    AddrRange range = getAddrRanges();
+    uint64_t start_addr = range.start();
+    // uint8_t* pmem = (uint8_t*) mmap(NULL, range.size(),
+    //                                 PROT_READ | PROT_WRITE,
+    //                                 MAP_ANON | MAP_PRIVATE, -1, 0);
+
+
+//     AddrRangeList
+    uint64_t curr_size = 0;
+    // long* temp_page = new long[chunk_size];
+    // long* pmem_current;
+
+    const int amount_in_bytes = 64;
+
+    char buf[amount_in_bytes];
+
+    // char* offset = buf;
+
+    uint32_t bytes_read;
+    while (curr_size < range.size()) {
+
+        // uint8_t *gem5_data;
+
+        bytes_read = gzread(compressed_mem, buf, amount_in_bytes);
+        // buf[amount_in_bytes] = '\0';
+
+        if (bytes_read == 0)
+            break;
+
+        // assert(bytes_read % sizeof(long) == 0);
+
+
+        // for (uint32_t x = 0; x < bytes_read ; x++) {
+        //     if (buf != 0) {
+        //         std::cout << buf << std::endl;
+        //     }
+        // }
+    // //         // Only copy bytes that are non-zero, so we don't give
+    // //         // the VM system hell
+    //         if (*(temp_page + x) != 0) {
+    //             pmem_current = (long*)(pmem + curr_size + x * sizeof(long));
+
+    // //             std::vector<uint8_t> data(ptr, ptr + curr_size);
+    // //             initData.push_back(std::make_pair(pkt->getAddr(), data));
+    //             std::cout << "/" << pmem_current << std::endl;
+    //             *pmem_current = *(temp_page + x);
+    //         }
+    //     }
+        curr_size += bytes_read;
+
+        gem5::Addr taddr = start_addr + curr_size;
+        // std::string teststr(buf);
+        std::vector<uint8_t> data;
+        for (int i = 0 ; i < amount_in_bytes ; i++)
+            data.push_back((uint8_t)buf[i]);
+        // for (int i = 0 ; i < amount_in_bytes ; i++) {
+        //     // reading one byte at a time.
+        //     data.push_back((uint8_t)buf[i]);
+        // }
+        // (*buf, amount_in_bytes);
+        initData.push_back(std::make_pair(taddr, data));
+        // std::cout << "|" << start_addr << " " << taddr << " " << start_addr + curr_size  << " " << bytes_read << "|" << teststr << "|" << std::endl; //*temp_page << " " << temp_page << " " << &temp_page << "|" << std::endl;
     }
+
+    // delete[] temp_page;
+
+    if (gzclose(compressed_mem))
+        fatal("Close failed on physical memory checkpoint file '%s'\n",
+              filename);
 }
 
 OutgoingRequestBridge::StatGroup::StatGroup(statistics::Group *parent)

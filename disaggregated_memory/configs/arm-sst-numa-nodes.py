@@ -133,7 +133,7 @@ remote_memory = ExternalRemoteMemory(
 )
 
 # Here we setup the processor. We use a simple processor.
-processor = SimpleProcessor(cpu_type=CPUTypes.ATOMIC, isa=ISA.ARM, num_cores=1)
+processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, isa=ISA.ARM, num_cores=1)
 
 # Here we setup the board which allows us to do Full-System ARM simulations.
 board = ArmSstDMBoard(
@@ -190,5 +190,5 @@ board.set_workload(workload)
 board._pre_instantiate()
 root = Root(full_system=True, board=board)
 board._post_instantiate()
-m5.instantiate()  # "ckpt-dir")
+m5.instantiate("ckpt-dir")
 # m5.instantiate()
