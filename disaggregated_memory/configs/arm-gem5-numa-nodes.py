@@ -79,10 +79,10 @@ def RemoteDualChannelDDR4_2400(
 
 # Here we setup the parameters of the l1 and l2 caches.
 cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="1MiB"
+    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="4MiB"
 )
 # Memory: Dual Channel DDR4 2400 DRAM device.
-local_memory = DualChannelDDR4_2400(size="1GiB")
+local_memory = DualChannelDDR4_2400(size="2GiB")
 # The remote meomry can either be a simple Memory Interface, which is from a
 # different memory arange or it can be a Remote Memory Range, which has an
 # inherent delay while performing reads and writes into that memory. For simple
@@ -91,11 +91,10 @@ local_memory = DualChannelDDR4_2400(size="1GiB")
 # config script to extend any existing MemInterface class and add latency value
 # to that memory.
 remote_memory = RemoteDualChannelDDR4_2400(
-    size="1GB", remote_offset_latency=750
+    size="32GB", remote_offset_latency=750
 )
-remote_memory = DualChannelDDR4_2400(size="1GiB")
 # Here we setup the processor. We use a simple processor.
-processor = SimpleProcessor(cpu_type=CPUTypes.ATOMIC, isa=ISA.ARM, num_cores=1)
+processor = SimpleProcessor(cpu_type=CPUTypes.KVM, isa=ISA.ARM, num_cores=4)
 # Here we setup the board which allows us to do Full-System ARM simulations.
 board = ArmGem5DMBoard(
     clk_freq="3GHz",
@@ -109,15 +108,15 @@ cmd = [
     "mount -t sysfs - /sys;",
     "mount -t proc - /proc;",
     "numastat;",
-    "numactl --membind=0 -- " +
+    "numactl --membind=0 -- " +  ## This is the command to run the stream benchmark LOCAL
     "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
     "stream.hw.m5 1000000;",
     "numastat;",
-    "numactl --interleave=0,1 -- " +
+    "numactl --interleave=0,1 -- " +  ## This is the command to run the stream benchmark INTERLEAVED
     "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
     "stream.hw.m5 1000000;",
     "numastat;",
-    "numactl --membind=1 -- " +
+    "numactl --membind=1 -- " +  ## This is the command to run the stream benchmark REMOTE
     "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
     "stream.hw.m5 1000000;",
     "numastat;",
@@ -141,3 +140,4 @@ board.set_kernel_disk_workload(
 # from board.terminal.
 simulator = Simulator(board=board)
 simulator.run()
+## CHECKPOINT? 
