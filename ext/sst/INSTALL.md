@@ -3,8 +3,14 @@
 The links to download SST source code are available at
 <http://sst-simulator.org/SSTPages/SSTMainDownloads/>.
 This guide is using the most recent SST version (13.0.0) as of September 2023.
+
 The following guide assumes `$SST_CORE_HOME` as the location where SST will be
-installed.
+installed. You can update the `bashrc` file to reflect this by adding the following example line:
+
+```
+export SST_CORE_HOME=FULL_PATH_TO/gem5/ext/sst
+```
+
 
 ## SST-Core
 
@@ -12,7 +18,7 @@ installed.
 
 ```sh
 wget https://github.com/sstsimulator/sst-core/releases/download/v13.0.0_Final/sstcore-13.0.0.tar.gz
-tar xvf sstcore-13.0.0.tar.gz
+tar xzf sstcore-13.0.0.tar.gz
 ```
 
 ### Installing SST-Core
@@ -33,25 +39,21 @@ export PATH=$SST_CORE_HOME/bin:$PATH
 
 ## SST-Elements
 
-Return to the source directory of sst:
-
-```sh
-cd ..
-```
-
 ### Downloading the SST-Elements Source Code
 
+Return back to the sst directory from `sstcore-13.0.0/` and download the sources, as follows:
+
 ```sh
+cd .. # you must be at gem5/ext/sst to download the sst elements.
 wget https://github.com/sstsimulator/sst-elements/releases/download/v13.0.0_Final/sstelements-13.0.0.tar.gz
-tar xvf sstelements-13.0.0.tar.gz
+tar xzf sstelements-13.0.0.tar.gz
 ```
 
 ### Installing SST-Elements
 
 ```sh
 cd sst-elements-library-13.0.0
-./configure --prefix=$SST_CORE_HOME --with-python=/usr/bin/python3-config \
-            --with-sst-core=$SST_CORE_HOME
+./configure --prefix=$SST_CORE_HOME --with-python=/usr/bin/python3-config --with-sst-core=$SST_CORE_HOME
 make all -j$(nproc)
 make install
 ```
@@ -65,13 +67,10 @@ echo "export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SST_CORE_HOME/lib/pkgconfig/" >> 
 ### Building gem5 library
 
 At the root of the gem5 folder, you need to compile gem5 as a library. This
-varies which OS you use. If you're using Linux, then type the following:
+varies  dependent on which OS you are using. If you're using Linux, then
+execute the following:
 ```sh
 scons build/RISCV/libgem5_opt.so -j $(nproc) --without-tcmalloc --duplicate-sources
-```
-In case you're using Mac, then type the following:
-```sh
-scons build/RISCV/libgem5_opt.dylib -j $(nproc) --without-tcmalloc --duplicate-sources
 ```
 In case you're using Mac, then type the following:
 ```sh
@@ -83,31 +82,20 @@ scons build/RISCV/libgem5_opt.dylib -j $(nproc) --without-tcmalloc --duplicate-s
 * `--duplicate-sources` is required as the compilation of SST depends on sources to be present in the "build" directory.
 * The Mac version was tested on a Macbook Air with M2 processor.
 
-
 ### Compiling the SST integration
 
 Go to the SST directory in the gem5 repo.
 ```sh
 cd ext/sst
 ```
-According to the OS that you're using, you need to rename the `Makefile.xxx` to `Makefile`.
-
-**Note**
-* Change `ARCH=RISCV` to `ARCH=ARM` in the `Makefile` in case you're compiling
-for ARM.
-* The ARCH you set here must match the ISA you have built for gem5 in the previous step (libgem5_opt.so)
-
+Depending on your OS, you need to copy the correct `Makefile.xxx` file to
+`Makefile`.
 ```sh
 cp Makefile.xxx Makefile    # linux or mac
 make -j4
 ```
-If you are compiling this on Mac, then you'd need to export `DYLD_LIBRARY_PATH`
-```sh
-# go to the base gem5 directory
-cd ../..
-export DYLD_LIBRARY_PATH=:`pwd`/build/RISCV/
-```
-
+The make file is hardcoded to RISC-V. IN the case you wish to compile to ARM,
+edit the Makefile or pass `ARCH=RISCV` to `ARCH=ARM` while compiling.
 ### Running an example simulation
 
 See `README.md`
