@@ -41,6 +41,7 @@ sys.path.append(
 
 import m5
 from m5.objects import Root
+from m5.objects.RealView import VExpress_GEM5_V1
 
 from boards.arm_gem5_board import ArmGem5DMBoard
 from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
@@ -82,7 +83,7 @@ cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
     l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="1MiB"
 )
 # Memory: Dual Channel DDR4 2400 DRAM device.
-local_memory = DualChannelDDR4_2400(size="1GiB")
+local_memory = DualChannelDDR4_2400(size="2GiB")
 # The remote meomry can either be a simple Memory Interface, which is from a
 # different memory arange or it can be a Remote Memory Range, which has an
 # inherent delay while performing reads and writes into that memory. For simple
@@ -93,7 +94,7 @@ local_memory = DualChannelDDR4_2400(size="1GiB")
 remote_memory = RemoteDualChannelDDR4_2400(
     size="1GB", remote_offset_latency=750
 )
-remote_memory = DualChannelDDR4_2400(size="1GiB")
+remote_memory = DualChannelDDR4_2400(size="2GiB")
 # Here we setup the processor. We use a simple processor.
 processor = SimpleProcessor(cpu_type=CPUTypes.ATOMIC, isa=ISA.ARM, num_cores=1)
 # Here we setup the board which allows us to do Full-System ARM simulations.
@@ -103,12 +104,14 @@ board = ArmGem5DMBoard(
     local_memory=local_memory,
     remote_memory=remote_memory,
     cache_hierarchy=cache_hierarchy,
+    platform=VExpress_GEM5_V1()
 )
 
 cmd = [
     "mount -t sysfs - /sys;",
     "mount -t proc - /proc;",
     "numastat;",
+    "m5 exit;",                      # checkpoint
     "numactl --membind=0 -- " +
     "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
     "stream.hw.m5 1000000;",
@@ -127,7 +130,7 @@ cmd = [
 board.set_kernel_disk_workload(
     kernel=CustomResource("/home/kaustavg/vmlinux-5.4.49-NUMA.arm64"),
     bootloader=CustomResource(
-        "/home/babaie/projects/disaggregated-cxl/1/gem5/kernel/arm64-bootloader-foundation"
+        "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
     ),
     disk_image=DiskImageResource(
         "/projects/gem5/hn/DISK_IMAGES/arm64sve-hpc-2204-20230526-numa.img",
@@ -139,5 +142,12 @@ board.set_kernel_disk_workload(
 # gem5 node will be sending instructions to the SST node. the simulation will
 # after displaying numastat information on the terminal, whjic can be viewed
 # from board.terminal.
+
+checkpoint_path = "test_ckpt"
 simulator = Simulator(board=board)
+# simulator = Simulator(board=board, checkpoint_path=os.path.join(os.getcwd(), checkpoint_path))
 simulator.run()
+
+print("Taking a checkpoint at", checkpoint_path)
+simulator.save_checkpoint(checkpoint_path)
+print("Done taking a checkpoint")
