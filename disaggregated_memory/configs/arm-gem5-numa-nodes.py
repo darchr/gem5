@@ -39,29 +39,27 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 
-from boards.arm_gem5_board import ArmGem5DMBoard
-from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
-from memories.remote_memory import RemoteChanneledMemory
-
 import m5
 from m5.objects import Root
 
-from gem5.components.memory import DualChannelDDR4_2400
-from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
-from gem5.components.memory.multi_channel import *
-from gem5.components.processors.cpu_types import CPUTypes
-from gem5.components.processors.simple_processor import SimpleProcessor
-from gem5.isas import ISA
-from gem5.resources.resource import *
-from gem5.resources.workload import *
-from gem5.resources.workload import Workload
-from gem5.simulate.simulator import Simulator
+from boards.arm_gem5_board import ArmGem5DMBoard
+from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
+from memories.remote_memory import RemoteChanneledMemory
 from gem5.utils.requires import requires
+from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
+from gem5.components.memory import DualChannelDDR4_2400
+from gem5.components.memory.multi_channel import *
+from gem5.components.processors.simple_processor import SimpleProcessor
+from gem5.components.processors.cpu_types import CPUTypes
+from gem5.isas import ISA
+from gem5.simulate.simulator import Simulator
+from gem5.resources.workload import Workload
+from gem5.resources.workload import *
+from gem5.resources.resource import *
 
 # This runs a check to ensure the gem5 binary is compiled for ARM.
 
 requires(isa_required=ISA.ARM)
-
 
 # defining a new type of memory with latency added. This memory interface can
 # be used as a remote memory interface to simulate disaggregated memory.
@@ -78,7 +76,6 @@ def RemoteDualChannelDDR4_2400(
         size=size,
         remote_offset_latency=remote_offset_latency,
     )
-
 
 # Here we setup the parameters of the l1 and l2 caches.
 cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
@@ -112,17 +109,17 @@ cmd = [
     "mount -t sysfs - /sys;",
     "mount -t proc - /proc;",
     "numastat;",
-    "numactl --membind=0 -- "
-    + "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/"
-    + "stream.hw.m5 1000000;",
+    "numactl --membind=0 -- " +
+    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    "stream.hw.m5 1000000;",
     "numastat;",
-    "numactl --interleave=0,1 -- "
-    + "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/"
-    + "stream.hw.m5 1000000;",
+    "numactl --interleave=0,1 -- " +
+    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    "stream.hw.m5 1000000;",
     "numastat;",
-    "numactl --membind=1 -- "
-    + "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/"
-    + "stream.hw.m5 1000000;",
+    "numactl --membind=1 -- " +
+    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    "stream.hw.m5 1000000;",
     "numastat;",
     "m5 exit;",
 ]

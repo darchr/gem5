@@ -33,40 +33,32 @@ startup is completed successfully.
 * This script has to be executed from SST
 """
 
-import argparse
 import os
 import sys
+import argparse
 
 # all the source files are one directory above.
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 
+import m5
+from m5.objects import Root, AddrRange
+
 from boards.arm_sst_board import ArmSstDMBoard
 from cachehierarchies.dm_caches_sst import (
-    ClassicPrivateL1PrivateL2SharedL3SstDMCache,
+    ClassicPrivateL1PrivateL2SharedL3SstDMCache
 )
-from memories.external_remote_memory import ExternalRemoteMemory
-from memories.remote_memory_outgoing_bridge import RemoteMemoryOutgoingBridge
-
-import m5
-from m5.objects import (
-    AddrRange,
-    Root,
-)
-
-from gem5.components.memory import (
-    DualChannelDDR4_2400,
-    SingleChannelDDR4_2400,
-)
-from gem5.components.processors.cpu_types import CPUTypes
-from gem5.components.processors.simple_processor import SimpleProcessor
-from gem5.isas import ISA
-from gem5.resources.resource import *
-from gem5.resources.workload import *
-from gem5.resources.workload import Workload
-from gem5.simulate.simulator import Simulator
+from disaggregated_memory.memories.remote_memory_outgoing_bridge import RemoteMemoryOutgoingBridge
 from gem5.utils.requires import requires
+from gem5.components.memory import SingleChannelDDR4_2400, DualChannelDDR4_2400
+from gem5.components.processors.simple_processor import SimpleProcessor
+from gem5.components.processors.cpu_types import CPUTypes
+from gem5.isas import ISA
+from gem5.simulate.simulator import Simulator
+from gem5.resources.workload import Workload
+from gem5.resources.workload import *
+from gem5.resources.resource import *
 
 # SST passes a couple of arguments for this system to simulate.
 parser = argparse.ArgumentParser()
@@ -104,10 +96,9 @@ parser.add_argument(
 )
 args = parser.parse_args()
 cpu_type = {
-    "o3": CPUTypes.O3,
+    "o3" : CPUTypes.O3,
     "atomic": CPUTypes.ATOMIC,
-    "timing": CPUTypes.TIMING,
-}[args.cpu_type]
+    "timing": CPUTypes.TIMING}[args.cpu_type]
 
 remote_memory_range = list(map(int, args.remote_memory_addr_range.split(",")))
 remote_memory_range = AddrRange(remote_memory_range[0], remote_memory_range[1])
@@ -128,12 +119,15 @@ local_memory = SingleChannelDDR4_2400(size=args.local_memory_size)
 # a size or a memory address range, which is mroe flexible. Adding remote
 # memory latency automatically adds a non-coherent crossbar to simulate latenyc
 
-remote_memory = ExternalRemoteMemory(
-    addr_range=remote_memory_range, link_latency=args.remote_memory_latency
+remote_memory = RemoteMemoryOutgoingBridge(
+    addr_range=remote_memory_range,
+    remote_memory_latency=args.remote-memory-latency
 )
 
 # Here we setup the processor. We use a simple processor.
-processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, isa=ISA.ARM, num_cores=1)
+processor = SimpleProcessor(
+        cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=4
+)
 
 # Here we setup the board which allows us to do Full-System ARM simulations.
 board = ArmSstDMBoard(
@@ -148,39 +142,34 @@ cmd = [
     "mount -t sysfs - /sys;",
     "mount -t proc - /proc;",
     "numastat;",
-    "m5 exit;",  # checkpoint
-    "ls;",
-    "numactl --membind=0 -- ls;",  # +
-    # "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
-    # "stream.hw.m5 1000000;",
-    # "numastat;",
-    # "numactl --interleave=0,1 -- " +
-    # "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
-    # "stream.hw.m5 1000000;",
-    # "numastat;",
-    # "numactl --membind=1 -- " +
-    # "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
-    # "stream.hw.m5 1000000;",
-    # "numastat;",
+    "numactl --membind=0 -- " +
+    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    "stream.hw.m5 1000000;",
+    "numastat;",
+    "numactl --interleave=0,1 -- " +
+    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    "stream.hw.m5 1000000;",
+    "numastat;",
+    "numactl --membind=1 -- " +
+    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    "stream.hw.m5 1000000;",
+    "numastat;",
     "m5 exit;",
 ]
 
 workload = CustomWorkload(
     function="set_kernel_disk_workload",
     parameters={
-        "kernel": CustomResource("/home/kaustavg/vmlinux-5.4.49-NUMA.arm64"),
-        "bootloader": CustomResource(
-            "/home/kaustavg/.cache/gem5/arm64-bootloader-foundation"
-        ),
-        "disk_image": DiskImageResource(
-            "/home/kaustavg/disk-images/arm/arm64sve-hpc-2204-20230526-numa.img",
-            # local_path="/projects/gem5/hn/DISK_IMAGES/arm64sve-hpc-2204-20230526-numa.img",
-            root_partition="1",
-        ),
-        "readfile_contents": " ".join(cmd),
+    "kernel" : CustomResource("/home/kaustavg/vmlinux-5.4.49-NUMA.arm64"),
+    "bootloader" : CustomResource("/home/kaustavg/.cache/gem5/arm64-bootloader-foundation"),
+    "disk_image" : DiskImageResource(
+        "/home/kaustavg/disk-images/arm/arm64sve-hpc-2204-20230526-numa.img",
+        # local_path="/projects/gem5/hn/DISK_IMAGES/arm64sve-hpc-2204-20230526-numa.img",
+        root_partition="1",
+    ),
+    "readfile_contents" : " ".join(cmd)
     },
 )
-ckpt = "gem5_ckpt"
 # This disk image needs to have NUMA tools installed.
 board.set_workload(workload)
 # This script will boot two numa nodes in a full system simulation where the
@@ -190,5 +179,4 @@ board.set_workload(workload)
 board._pre_instantiate()
 root = Root(full_system=True, board=board)
 board._post_instantiate()
-m5.instantiate("ckpt-dir")
-# m5.instantiate()
+m5.instantiate()
