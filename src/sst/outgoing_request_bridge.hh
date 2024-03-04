@@ -119,7 +119,7 @@ class OutgoingRequestBridge : public memory::AbstractMemory
 
     // Required to let the OutgoingRequestPort to send range change request.
     void init();
-    
+
     bool handleTiming(PacketPtr pkt);
     // Returns the range of addresses that the ports will handle.
     // Currently, it will return the range of [0x80000000, inf), which is

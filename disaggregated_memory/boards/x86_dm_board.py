@@ -26,49 +26,50 @@
 
 # Creating an x86 board that can simulate more than 3 GB memory.
 
+import os
+from abc import ABCMeta
+from typing import (
+    List,
+    Sequence,
+    Tuple,
+)
+
+import m5
 from m5.objects import (
+    Addr,
     AddrRange,
-    VoltageDomain,
+    BadAddr,
+    BaseXBar,
+    Bridge,
+    CowDiskImage,
+    IdeDisk,
+    IOXBar,
+    OutgoingRequestBridge,
+    Pc,
+    Port,
+    RawDiskImage,
     SrcClockDomain,
     Terminal,
     VncServer,
-    IOXBar,
-    BadAddr,
-    Port,
-    Pc,
-    AddrRange,
+    VoltageDomain,
+    X86E820Entry,
     X86FsLinux,
-    Addr,
-    X86SMBiosBiosInformation,
-    X86IntelMPProcessor,
-    X86IntelMPIOAPIC,
     X86IntelMPBus,
     X86IntelMPBusHierarchy,
+    X86IntelMPIOAPIC,
     X86IntelMPIOIntAssignment,
-    X86E820Entry,
-    Bridge,
-    IOXBar,
-    IdeDisk,
-    CowDiskImage,
-    RawDiskImage,
-    BaseXBar,
-    Port,
-    OutgoingRequestBridge,
+    X86IntelMPProcessor,
+    X86SMBiosBiosInformation,
 )
 
-import os
-import m5
-from abc import ABCMeta
-from gem5.components.boards.x86_board import X86Board
 from gem5.components.boards.abstract_board import AbstractBoard
-from gem5.components.processors.abstract_processor import AbstractProcessor
-from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
+from gem5.components.boards.x86_board import X86Board
 from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
     AbstractCacheHierarchy,
 )
+from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
+from gem5.components.processors.abstract_processor import AbstractProcessor
 from gem5.utils.override import overrides
-
-from typing import List, Sequence, Tuple
 
 
 class X86DMBoard(X86Board):
@@ -270,7 +271,6 @@ class X86DMBoard(X86Board):
         base_entries.append(pci_dev4_inta)
 
         def assignISAInt(irq, apicPin):
-
             assign_8259_to_apic = X86IntelMPIOIntAssignment(
                 interrupt_type="ExtInt",
                 polarity="ConformPolarity",

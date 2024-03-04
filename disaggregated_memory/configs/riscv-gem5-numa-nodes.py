@@ -39,26 +39,28 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 
+from boards.riscv_gem5_board import RiscvGem5DMBoard
+from cachehierarchies.dm_caches import ClassicPL1PL2DMCache
+from memories.remote_memory import RemoteChanneledMemory
+
 import m5
 from m5.objects import Root
 
-from boards.riscv_gem5_board import RiscvGem5DMBoard
-from cachehierarchies.dm_caches import ClassicPL1PL2DMCache
-from gem5.utils.requires import requires
 from gem5.components.memory import DualChannelDDR4_2400
-from memories.remote_memory import RemoteChanneledMemory
 from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
-from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.components.processors.cpu_types import CPUTypes
+from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.isas import ISA
-from gem5.simulate.simulator import Simulator
-from gem5.resources.workload import Workload
-from gem5.resources.workload import *
 from gem5.resources.resource import *
+from gem5.resources.workload import *
+from gem5.resources.workload import Workload
+from gem5.simulate.simulator import Simulator
+from gem5.utils.requires import requires
 
 # This runs a check to ensure the gem5 binary is compiled for RISCV.
 
 requires(isa_required=ISA.RISCV)
+
 
 # defining a new type of memory with latency added.
 def RemoteDualChannelDDR4_2400(
@@ -74,6 +76,8 @@ def RemoteDualChannelDDR4_2400(
         size=size,
         remote_offset_latency=remote_offset_latency,
     )
+
+
 # Here we setup the parameters of the l1 and l2 caches.
 cache_hierarchy = ClassicPrivateL1PrivateL2SstDMCache(
     l1d_size="32KiB", l1i_size="32KiB", l2_size="1MB"
@@ -105,8 +109,7 @@ board = RiscvGem5DMBoard(
 cmd = [
     "mount -t sysfs - /sys;",
     "mount -t proc - /proc;",
-    "numastat;"
-    "m5 exit;"
+    "numastat;" "m5 exit;",
 ]
 workload = CustomWorkload(
     function="set_kernel_disk_workload",

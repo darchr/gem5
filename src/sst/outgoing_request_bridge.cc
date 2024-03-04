@@ -24,15 +24,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
 #include "sst/outgoing_request_bridge.hh"
 
+#include <zlib.h>
 #include <cassert>
 #include <iomanip>
 #include <sstream>
 
-#include "sim/stats.hh"
 #include "base/trace.hh"
 #include "debug/CheckpointFlag.hh"
+#include "sim/stats.hh"
 
 namespace gem5
 {
@@ -108,7 +110,7 @@ OutgoingRequestBridge::sendTimingResp(gem5::PacketPtr pkt)
     // see if the responder responded true or false. if it's true, then we
     // increment the stats counters.
     bool return_status = outgoingPort.sendTimingResp(pkt);
-    if (return_status == true) {
+    if (return_status) {
         ++stats.numIncomingPackets;
         stats.sizeIncomingPackets += pkt->getSize();
     }
@@ -132,16 +134,10 @@ OutgoingRequestBridge::getInitPhaseStatus() {
 void
 OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
 {
-    // This should not receive any functional accesses
-    // gem5::MemCmd::Command pktCmd = (gem5::MemCmd::Command)pkt->cmd.toInt();
-    // std::cout << "Recv Functional : 0x" << std::hex << pkt->getAddr() <<
-    // std::dec << " " << pktCmd << " " << gem5::MemCmd::WriteReq << " " <<
-    // getInitPhaseStatus() << std::endl;
     // Check at which stage are we at. If we are at INIT phase, then queue all
     // these packets.
     if (!getInitPhaseStatus())
     {
-        // sstResponder->recvAtomic(pkt);
         uint8_t* ptr = pkt->getPtr<uint8_t>();
         uint64_t size = pkt->getSize();
         std::vector<uint8_t> data(ptr, ptr+size);
@@ -159,7 +155,7 @@ OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
         // device.
         sstResponder->handleRecvFunctional(pkt);
     }
-
+    // FIXME: This should not exist for timing mode.
     functionalAccess(pkt);
 }
 
@@ -168,7 +164,7 @@ OutgoingRequestBridge::
 OutgoingRequestPort::recvAtomic(PacketPtr pkt)
 {
     // return 0;
-    assert(false && "OutgoingRequestPort::recvAtomic not implemented");
+    // assert(false && "OutgoingRequestPort::recvAtomic not implemented");
 
     owner->access(pkt);
 
@@ -194,10 +190,9 @@ bool OutgoingRequestBridge::handleTiming(PacketPtr pkt)
     // see if the responder responded true or false. if it's true, then we
     // increment the stats counters.
     bool return_status = sstResponder->handleRecvTimingReq(pkt);
-    if(return_status == true) {
+    if (return_status) {
         ++stats.numOutgoingPackets;
         stats.sizeOutgoingPackets += pkt->getSize();
-        access(pkt);
     }
     return return_status;
 }
@@ -237,20 +232,79 @@ OutgoingRequestBridge::unserialize(CheckpointIn &cp)
 {
     ScopedCheckpointSection sec(cp, "remoteMemoryStore_" + nodeIndex);
 
-    uint64_t num_blocks;
-    Addr addr = startRange;
-    uint64_t *data;
+    // uint64_t num_blocks;
+    // Addr addr = startRange;
+    // uint64_t *data;
 
-    paramIn(cp, "numMemoryBlocks", num_blocks);
+    // paramIn(cp, "numMemoryBlocks", num_blocks);
 
-    for (int i = 0; i < num_blocks; i++) {
-        paramIn(cp, "data", *data);
-        uint8_t *host_addr = toHostAddr(addr);
-        std::memcpy(host_addr, &data, blockSize);
-        addr += blockSize;
-        DPRINTF(CheckpointFlag, "Unserialized data: %llu into host addr:%llu\n",
-                *data, &host_addr);
+    // for (int i = 0; i < num_blocks; i++) {
+    //     paramIn(cp, "data", *data);
+    //     uint8_t *host_addr = toHostAddr(addr);
+    //     std::memcpy(host_addr, &data, blockSize);
+    //     addr += blockSize;
+    //     DPRINTF(
+    //         CheckpointFlag, "Unserialized data: %llu into host addr:%llu\n",
+    //         *data, &host_addr);
+    // }
+
+    // const uint32_t chunk_size = 16384;
+
+
+    // unsigned int store_id;
+    // UNSERIALIZE_SCALAR(store_id);
+
+    // UNSERIALIZE_SCALAR(filename);
+    
+    // FIXME: This needs to be *NOT* hardcoded.
+    std::string physical_memory_file = "board.physmem.store0.pmem";
+    std::string filepath = cp.getCptDir() + "/" + physical_memory_file;
+    std::cout << "_ " << filepath << std::endl;
+
+    // Open the physmem file as a normal gzip file.
+    gzFile compressed_mem = gzopen(filepath.c_str(), "rb");
+    if (compressed_mem == NULL)
+        fatal("Can't open physical memory checkpoint file '%s'", filepath);
+
+    AddrRange range = getAddrRanges();
+    uint64_t start_addr = range.start();
+    
+    // curr_size give the address of the data to restore.
+    uint64_t curr_size = 0;
+
+    // Each memory address corresponds to `amount_in_bytes` to read and
+    // write into SST's memory.
+    const int amount_in_bytes = 64;
+
+    // buffer to read the gzip file
+    char buf[amount_in_bytes];
+
+    uint32_t bytes_read;
+    while (curr_size < range.size()) {
+
+        bytes_read = gzread(compressed_mem, buf, amount_in_bytes);
+        if (bytes_read == 0)
+            break;
+
+        gem5::Addr taddr = start_addr + curr_size;
+
+        // use a vector to store the data. This vector is then sent to SST
+        std::vector<uint8_t> data;
+        for (int i = 0 ; i < amount_in_bytes ; i++)
+            data.push_back((uint8_t)buf[i]);
+        
+        // We use the `initData` variable to push data into SST's backing
+        // memory.
+        initData.push_back(std::make_pair(taddr, data));
+
+        // This address is filled with data. Increment the curr_size by
+        // `bytes_read`.
+        curr_size += bytes_read;
     }
+
+    if (gzclose(compressed_mem))
+        fatal("Close failed on physical memory checkpoint file '%s'\n",
+              filepath);
 }
 
 OutgoingRequestBridge::StatGroup::StatGroup(statistics::Group *parent)

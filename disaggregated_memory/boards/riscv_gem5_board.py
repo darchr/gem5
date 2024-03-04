@@ -25,29 +25,23 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
-
-from typing import List, Optional, Sequence, Tuple
-
-from memories.remote_memory import RemoteChanneledMemory
-from boards.riscv_dm_board import RiscvAbstractDMBoard
-
-from gem5.components.boards.abstract_board import AbstractBoard
-from gem5.utils.override import overrides
-from gem5.resources.resource import AbstractResource
-from gem5.components.boards.kernel_disk_workload import KernelDiskWorkload
-from gem5.components.boards.abstract_system_board import AbstractSystemBoard
-from gem5.components.processors.abstract_processor import AbstractProcessor
-from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
-from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
-    AbstractCacheHierarchy,
+from typing import (
+    List,
+    Optional,
+    Sequence,
+    Tuple,
 )
 
-from gem5.isas import ISA
+from boards.riscv_dm_board import RiscvAbstractDMBoard
+from memories.remote_memory import RemoteChanneledMemory
 
 import m5
-
-from m5.objects import AddrRange, HiFive, Frequency, Port
-
+from m5.objects import (
+    AddrRange,
+    Frequency,
+    HiFive,
+    Port,
+)
 from m5.util.fdthelper import (
     Fdt,
     FdtNode,
@@ -56,6 +50,18 @@ from m5.util.fdthelper import (
     FdtPropertyWords,
     FdtState,
 )
+
+from gem5.components.boards.abstract_board import AbstractBoard
+from gem5.components.boards.abstract_system_board import AbstractSystemBoard
+from gem5.components.boards.kernel_disk_workload import KernelDiskWorkload
+from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
+    AbstractCacheHierarchy,
+)
+from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
+from gem5.components.processors.abstract_processor import AbstractProcessor
+from gem5.isas import ISA
+from gem5.resources.resource import AbstractResource
+from gem5.utils.override import overrides
 
 
 class RiscvGem5DMBoard(RiscvAbstractDMBoard):
@@ -165,13 +171,15 @@ class RiscvGem5DMBoard(RiscvAbstractDMBoard):
             # need to connect the remote links to the board.
             if self.get_cache_hierarchy().is_ruby():
                 fatal(
-                    "remote memory is only supported in classic caches at " +
-                    "the moment!")
+                    "remote memory is only supported in classic caches at "
+                    + "the moment!"
+                )
             if isinstance(self.get_remote_memory(), RemoteChanneledMemory):
-                for ports in self.get_remote_memory().remote_links:   
-                    self.get_cache_hierarchy().membus.mem_side_ports = \
+                for ports in self.get_remote_memory().remote_links:
+                    self.get_cache_hierarchy().membus.mem_side_ports = (
                         ports.cpu_side_ports
-                        
+                    )
+
         # Incorporate the processor into the motherboard.
         self.get_processor().incorporate_processor(self)
 

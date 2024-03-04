@@ -24,29 +24,37 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.objects import (
-    Port,
-    AddrRange,
-    NoncoherentXBar,
+from abc import ABCMeta
+from typing import (
+    List,
+    Sequence,
+    Tuple,
 )
 
-from m5.objects.RealView import VExpress_GEM5_Base, VExpress_GEM5_Foundation
-from m5.objects.ArmSystem import ArmRelease, ArmDefaultRelease
-
-from abc import ABCMeta
-
+from boards.arm_dm_dram_cache_board import ArmAbstractDMBoardDRAMCache
 from memories.dram_cache import DRAMCacheSystem
 from memories.remote_memory_outgoing_bridge import RemoteMemoryOutgoingBridge
-from boards.arm_dm_dram_cache_board import ArmAbstractDMBoardDRAMCache
 
-from gem5.components.processors.abstract_processor import AbstractProcessor
-from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
+from m5.objects import (
+    AddrRange,
+    NoncoherentXBar,
+    Port,
+)
+from m5.objects.ArmSystem import (
+    ArmDefaultRelease,
+    ArmRelease,
+)
+from m5.objects.RealView import (
+    VExpress_GEM5_Base,
+    VExpress_GEM5_Foundation,
+)
+
 from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
     AbstractCacheHierarchy,
 )
+from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
+from gem5.components.processors.abstract_processor import AbstractProcessor
 from gem5.utils.override import overrides
-
-from typing import List, Sequence, Tuple
 
 
 class ArmSstDMBoardDRAMCache(ArmAbstractDMBoardDRAMCache):
@@ -99,7 +107,9 @@ class ArmSstDMBoardDRAMCache(ArmAbstractDMBoardDRAMCache):
         )
         self.local_memory = local_memory
         self.dram_cache = dram_cache
-        self.remote_memory_outgoing_bridge = self._remoteMemoryOutgoingBridge.outgoing_req_bridge
+        self.remote_memory_outgoing_bridge = (
+            self._remoteMemoryOutgoingBridge.outgoing_req_bridge
+        )
 
     @overrides(ArmAbstractDMBoardDRAMCache)
     def get_remote_memory(self) -> "AbstractMemory":
@@ -120,13 +130,13 @@ class ArmSstDMBoardDRAMCache(ArmAbstractDMBoardDRAMCache):
     @overrides(ArmAbstractDMBoardDRAMCache)
     def _set_remote_memory_ranges(self):
         pass
+
     #     self.get_remote_memory().set_memory_range(
     #         [self._remoteMemoryAddrRange]
     #     )
 
     @overrides(ArmAbstractDMBoardDRAMCache)
     def get_default_kernel_args(self) -> List[str]:
-
         # The default kernel string is taken from the devices.py file.
         return [
             "console=ttyAMA0",
@@ -177,24 +187,30 @@ class ArmSstDMBoardDRAMCache(ArmAbstractDMBoardDRAMCache):
                 response_latency=self.get_remote_memory()._link_latency,
                 width=64,
             )
-            self.get_cache_hierarchy().membus.mem_side_ports = \
+            self.get_cache_hierarchy().membus.mem_side_ports = (
                 self.get_dram_cache().policy_manager.port
-            self.get_dram_cache().policy_manager.far_req_port = \
+            )
+            self.get_dram_cache().policy_manager.far_req_port = (
                 self.remote_link.cpu_side_ports
-            self.remote_link.mem_side_ports = \
+            )
+            self.remote_link.mem_side_ports = (
                 self.get_remote_memory().outgoing_req_bridge.port
+            )
         else:
             # Connect the external memory directly to the motherboard.
-            self.get_cache_hierarchy().membus.mem_side_ports = \
-                    self.get_dram_cache().policy_manager.port
-            self.get_dram_cache().policy_manager.far_req_port = \
-                    self.get_remote_memory().outgoing_req_bridge.port
+            self.get_cache_hierarchy().membus.mem_side_ports = (
+                self.get_dram_cache().policy_manager.port
+            )
+            self.get_dram_cache().policy_manager.far_req_port = (
+                self.get_remote_memory().outgoing_req_bridge.port
+            )
 
         # Incorporate the cache hierarchy for the motherboard.
         if self.get_cache_hierarchy().is_ruby():
             fatal(
-                "remote memory is only supported in classic caches at " +
-                "the moment!")
+                "remote memory is only supported in classic caches at "
+                + "the moment!"
+            )
         # need to connect the remote links to the board.
         self.get_cache_hierarchy().incorporate_cache(self)
 

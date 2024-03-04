@@ -24,43 +24,45 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
-    PrivateL1PrivateL2CacheHierarchy,
+from cachehierarchies.private_l1_private_l2_shared_l3_cache_hierarchy import (
+    PrivateL1PrivateL2SharedL3CacheHierarchy,
 )
+
+from m5.objects import L2XBar
+
+from gem5.components.boards.abstract_board import AbstractBoard
 from gem5.components.cachehierarchies.classic.caches.l1dcache import L1DCache
 from gem5.components.cachehierarchies.classic.caches.l1icache import L1ICache
 from gem5.components.cachehierarchies.classic.caches.l2cache import L2Cache
 from gem5.components.cachehierarchies.classic.caches.mmu_cache import MMUCache
-from gem5.components.boards.abstract_board import AbstractBoard
+from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
+    PrivateL1PrivateL2CacheHierarchy,
+)
 from gem5.isas import ISA
-from m5.objects import L2XBar
-
 from gem5.utils.override import overrides
 
-from cachehierarchies.private_l1_private_l2_shared_l3_cache_hierarchy import (
-    PrivateL1PrivateL2SharedL3CacheHierarchy)
 
 class ClassicPrivateL1PrivateL2SharedL3DMCache(
-        PrivateL1PrivateL2SharedL3CacheHierarchy):
+    PrivateL1PrivateL2SharedL3CacheHierarchy
+):
     def __init__(
         self,
         l1d_size: str,
         l1i_size: str,
         l2_size: str,
         l3_size: str,
-        l3_assoc: int = 16
+        l3_assoc: int = 16,
     ):
         super().__init__(
             l1d_size=l1d_size,
             l1i_size=l1i_size,
             l2_size=l2_size,
             l3_size=l3_size,
-            l3_assoc=l3_assoc
+            l3_assoc=l3_assoc,
         )
 
     @overrides(PrivateL1PrivateL2SharedL3CacheHierarchy)
     def incorporate_cache(self, board: AbstractBoard) -> None:
-
         # Set up the system port for functional access from the simulator.
         board.connect_system_port(self.membus.cpu_side_ports)
 
@@ -85,13 +87,15 @@ class ClassicPrivateL1PrivateL2SharedL3DMCache(
             L2Cache(size=self._l2_size)
             for i in range(board.get_processor().get_num_cores())
         ]
-        self.l3cache = L2Cache(size=self._l3_size,
-                                assoc=self._l3_assoc,
-                                tag_latency=self._l3_tag_latency,
-                                data_latency=self._l3_data_latency,
-                                response_latency=self._l3_response_latency,
-                                mshrs=self._l3_mshrs,
-                                tgts_per_mshr=self._l3_tgts_per_mshr)
+        self.l3cache = L2Cache(
+            size=self._l3_size,
+            assoc=self._l3_assoc,
+            tag_latency=self._l3_tag_latency,
+            data_latency=self._l3_data_latency,
+            response_latency=self._l3_response_latency,
+            mshrs=self._l3_mshrs,
+            tgts_per_mshr=self._l3_tgts_per_mshr,
+        )
         # There is only one l3 bus, which connects l3 to the membus
         self.l3bus = L2XBar()
         # ITLB Page walk caches
@@ -109,7 +113,6 @@ class ClassicPrivateL1PrivateL2SharedL3DMCache(
             self._setup_io_cache(board)
 
         for i, cpu in enumerate(board.get_processor().get_cores()):
-
             cpu.connect_icache(self.l1icaches[i].cpu_side)
             cpu.connect_dcache(self.l1dcaches[i].cpu_side)
 
@@ -158,7 +161,6 @@ class ClassicPrivateL1PrivateL2DMCache(PrivateL1PrivateL2CacheHierarchy):
 
     @overrides(PrivateL1PrivateL2CacheHierarchy)
     def incorporate_cache(self, board: AbstractBoard) -> None:
-
         # Set up the system port for functional access from the simulator.
         board.connect_system_port(self.membus.cpu_side_ports)
 
@@ -198,7 +200,6 @@ class ClassicPrivateL1PrivateL2DMCache(PrivateL1PrivateL2CacheHierarchy):
             self._setup_io_cache(board)
 
         for i, cpu in enumerate(board.get_processor().get_cores()):
-
             cpu.connect_icache(self.l1icaches[i].cpu_side)
             cpu.connect_dcache(self.l1dcaches[i].cpu_side)
 

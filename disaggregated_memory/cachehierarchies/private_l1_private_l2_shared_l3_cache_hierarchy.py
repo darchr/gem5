@@ -24,28 +24,30 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from m5.objects import (
+    BadAddr,
+    BaseXBar,
+    Cache,
+    L2XBar,
+    Port,
+    SystemXBar,
+)
+
+from gem5.components.boards.abstract_board import AbstractBoard
 from gem5.components.cachehierarchies.classic.caches.l1dcache import L1DCache
 from gem5.components.cachehierarchies.classic.caches.l1icache import L1ICache
 from gem5.components.cachehierarchies.classic.caches.l2cache import L2Cache
 from gem5.components.cachehierarchies.classic.caches.mmu_cache import MMUCache
-from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import PrivateL1PrivateL2CacheHierarchy
-from gem5.components.boards.abstract_board import AbstractBoard
-from gem5.isas import ISA
-
-from m5.objects import (
-    Cache,
-    L2XBar,
-    BaseXBar,
-    SystemXBar,
-    BadAddr,
-    Port
+from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
+    PrivateL1PrivateL2CacheHierarchy,
 )
-
+from gem5.isas import ISA
 from gem5.utils.override import overrides
 
 
 class PrivateL1PrivateL2SharedL3CacheHierarchy(
-        PrivateL1PrivateL2CacheHierarchy):
+    PrivateL1PrivateL2CacheHierarchy
+):
     """
     A cache setup where each core has a private L1 Data and Instruction Cache,
     and a private L2 cache.
@@ -57,7 +59,7 @@ class PrivateL1PrivateL2SharedL3CacheHierarchy(
         l1i_size: str,
         l2_size: str,
         l3_size: str,
-        l3_assoc: int = 16
+        l3_assoc: int = 16,
     ) -> None:
         """
         :param l1d_size: The size of the L1 Data Cache (e.g., "32kB").
@@ -71,11 +73,7 @@ class PrivateL1PrivateL2SharedL3CacheHierarchy(
 
         :type membus: BaseXBar
         """
-        super().__init__(
-            l1d_size=l1d_size,
-            l1i_size=l1i_size,
-            l2_size=l2_size
-        )
+        super().__init__(l1d_size=l1d_size, l1i_size=l1i_size, l2_size=l2_size)
 
         self._l3_size = l3_size
         self._l3_assoc = l3_assoc
@@ -85,10 +83,8 @@ class PrivateL1PrivateL2SharedL3CacheHierarchy(
         self._l3_mshrs = 32
         self._l3_tgts_per_mshr = 12
 
-
     @overrides(PrivateL1PrivateL2CacheHierarchy)
     def incorporate_cache(self, board: AbstractBoard) -> None:
-
         # Set up the system port for functional access from the simulator.
         board.connect_system_port(self.membus.cpu_side_ports)
 
@@ -110,13 +106,15 @@ class PrivateL1PrivateL2SharedL3CacheHierarchy(
             L2Cache(size=self._l2_size)
             for i in range(board.get_processor().get_num_cores())
         ]
-        self.l3cache = L2Cache(size=self._l3_size,
-                                assoc=self._l3_assoc,
-                                tag_latency=self._l3_tag_latency,
-                                data_latency=self._l3_data_latency,
-                                response_latency=self._l3_response_latency,
-                                mshrs=self._l3_mshrs,
-                                tgts_per_mshr=self._l3_tgts_per_mshr)
+        self.l3cache = L2Cache(
+            size=self._l3_size,
+            assoc=self._l3_assoc,
+            tag_latency=self._l3_tag_latency,
+            data_latency=self._l3_data_latency,
+            response_latency=self._l3_response_latency,
+            mshrs=self._l3_mshrs,
+            tgts_per_mshr=self._l3_tgts_per_mshr,
+        )
         # There is only one l3 bus, which connects l3 to the membus
         self.l3bus = L2XBar()
         # ITLB Page walk caches
@@ -134,7 +132,6 @@ class PrivateL1PrivateL2SharedL3CacheHierarchy(
             self._setup_io_cache(board)
 
         for i, cpu in enumerate(board.get_processor().get_cores()):
-
             cpu.connect_icache(self.l1icaches[i].cpu_side)
             cpu.connect_dcache(self.l1dcaches[i].cpu_side)
 
@@ -159,4 +156,3 @@ class PrivateL1PrivateL2SharedL3CacheHierarchy(
                 cpu.connect_interrupt()
         self.l3bus.mem_side_ports = self.l3cache.cpu_side
         self.membus.cpu_side_ports = self.l3cache.mem_side
-

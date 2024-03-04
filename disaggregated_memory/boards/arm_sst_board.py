@@ -1,4 +1,4 @@
-# Copyright (c) 2023 The Regents of the University of California
+# Copyright (c) 2023-24 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,23 +32,39 @@
 #     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 # )
 
-from m5.objects import (
-    Port,
-    AddrRange,
-    VoltageDomain,
-    SrcClockDomain,
-    NoncoherentXBar,
-    Terminal,
-    VncServer,
-    IOXBar,
-    BadAddr,
-    ArmSystem,
+import os
+from abc import ABCMeta
+from typing import (
+    List,
+    Sequence,
+    Tuple,
 )
 
-from m5.objects.RealView import VExpress_GEM5_Base, VExpress_GEM5_Foundation
-from m5.objects.ArmSystem import ArmRelease, ArmDefaultRelease
-from m5.objects.ArmFsWorkload import ArmFsLinux
+from boards.arm_dm_board import ArmAbstractDMBoard
+from memories.remote_memory import RemoteChanneledMemory
 
+import m5
+from m5.objects import (
+    AddrRange,
+    ArmSystem,
+    BadAddr,
+    IOXBar,
+    NoncoherentXBar,
+    Port,
+    SrcClockDomain,
+    Terminal,
+    VncServer,
+    VoltageDomain,
+)
+from m5.objects.ArmFsWorkload import ArmFsLinux
+from m5.objects.ArmSystem import (
+    ArmDefaultRelease,
+    ArmRelease,
+)
+from m5.objects.RealView import (
+    VExpress_GEM5_Base,
+    VExpress_GEM5_Foundation,
+)
 from m5.util.fdthelper import (
     Fdt,
     FdtNode,
@@ -58,21 +74,12 @@ from m5.util.fdthelper import (
     FdtState,
 )
 
-import os
-import m5
-from abc import ABCMeta
-
-from memories.remote_memory import RemoteChanneledMemory
-from boards.arm_dm_board import ArmAbstractDMBoard
-
-from gem5.components.processors.abstract_processor import AbstractProcessor
-from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
 from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
     AbstractCacheHierarchy,
 )
+from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
+from gem5.components.processors.abstract_processor import AbstractProcessor
 from gem5.utils.override import overrides
-
-from typing import List, Sequence, Tuple
 
 
 class ArmSstDMBoard(ArmAbstractDMBoard):
@@ -83,7 +90,7 @@ class ArmSstDMBoard(ArmAbstractDMBoard):
         clk_freq: str,
         processor: AbstractProcessor,
         local_memory: AbstractMemorySystem,
-        remote_memory: "ExternalRemoteMemoryInterface",
+        remote_memory: AbstractMemorySystem,
         cache_hierarchy: AbstractCacheHierarchy,
         platform: VExpress_GEM5_Base = VExpress_GEM5_Foundation(),
         release: ArmRelease = ArmDefaultRelease(),
@@ -113,7 +120,9 @@ class ArmSstDMBoard(ArmAbstractDMBoard):
             clk_freq=clk_freq,
             processor=processor,
             local_memory=local_memory,
-            remote_memory_addr_range=self._remoteMemory.remote_memory.physical_address_ranges[
+            remote_memory_addr_range=self._remoteMemory.get_memory_controllers()[
+                0
+            ].physical_address_ranges[
                 0
             ],
             cache_hierarchy=cache_hierarchy,
@@ -121,7 +130,7 @@ class ArmSstDMBoard(ArmAbstractDMBoard):
             release=release,
         )
         self.local_memory = local_memory
-        self.remote_memory = self._remoteMemory.remote_memory
+        self.remote_memory = self._remoteMemory.get_memory_controllers()[0]
 
     @overrides(ArmAbstractDMBoard)
     def get_remote_memory(self) -> "AbstractMemory":
@@ -141,14 +150,12 @@ class ArmSstDMBoard(ArmAbstractDMBoard):
 
     @overrides(ArmAbstractDMBoard)
     def _set_remote_memory_ranges(self):
-        pass
-    #     self.get_remote_memory().set_memory_range(
-    #         [self._remoteMemoryAddrRange]
-    #     )
+        self.get_remote_memory().set_memory_range(
+            [self._remoteMemoryAddrRange]
+        )
 
     @overrides(ArmAbstractDMBoard)
     def get_default_kernel_args(self) -> List[str]:
-
         # The default kernel string is taken from the devices.py file.
         return [
             "console=ttyAMA0",
@@ -195,22 +202,21 @@ class ArmSstDMBoard(ArmAbstractDMBoard):
             self.remote_link = NoncoherentXBar(
                 frontend_latency=0,
                 forward_latency=0,
-                response_latency=self.get_remote_memory()._remote_memory_latency,
+                response_latency=self.get_remote_memory().get_link_latency(),
                 width=64,
             )
             # connect the remote memory port to the remote link
-            self.get_remote_memory().remote_memory.port = (
-                self.remote_link.mem_side_ports
-            )
+            for _, port in self.get_remote_memory().get_mem_ports():
+                self.remote_link.mem_side_ports = port
+
             # The remote link is then connected to the membus
             self.get_cache_hierarchy().membus.mem_side_ports = (
                 self.remote_link.cpu_side_ports
             )
         else:
             # Connect the external memory directly to the motherboard.
-            self.get_remote_memory().remote_memory.port = (
-                self.get_cache_hierarchy().membus.mem_side_ports
-            )
+            for _, port in self.get_remote_memory().get_mem_ports():
+                self.get_cache_hierarchy().membus.mem_side_ports = port
 
         # Incorporate the cache hierarchy for the motherboard.
         if self.get_cache_hierarchy():
@@ -218,12 +224,14 @@ class ArmSstDMBoard(ArmAbstractDMBoard):
             # need to connect the remote links to the board.
             if self.get_cache_hierarchy().is_ruby():
                 fatal(
-                    "remote memory is only supported in classic caches at " +
-                    "the moment!")
+                    "remote memory is only supported in classic caches at "
+                    + "the moment!"
+                )
             if isinstance(self.get_remote_memory(), RemoteChanneledMemory):
-                for ports in self.get_remote_memory().remote_links:   
-                    self.get_cache_hierarchy().membus.mem_side_ports = \
+                for ports in self.get_remote_memory().remote_link:
+                    self.get_cache_hierarchy().membus.mem_side_ports = (
                         ports.cpu_side_ports
+                    )
 
         # Incorporate the processor into the motherboard.
         self.get_processor().incorporate_processor(self)

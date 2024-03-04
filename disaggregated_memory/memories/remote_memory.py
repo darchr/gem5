@@ -27,13 +27,25 @@
 """ Channeled "generic" DDR memory controllers
 """
 
+from typing import (
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+)
+
 import m5
-from gem5.utils.override import overrides
-from m5.objects import AddrRange, DRAMInterface, MemCtrl, Port
+from m5.objects import (
+    AddrRange,
+    DRAMInterface,
+    MemCtrl,
+    Port,
+)
 from m5.objects.XBar import NoncoherentXBar
-from typing import Type, Sequence, Tuple, Optional, Union
 
 from gem5.components.memory.memory import ChanneledMemory
+from gem5.utils.override import overrides
 
 
 class RemoteChanneledMemory(ChanneledMemory):
@@ -58,19 +70,22 @@ class RemoteChanneledMemory(ChanneledMemory):
     @overrides(ChanneledMemory)
     def _create_mem_interfaces_controller(self):
         self._dram = [
-            self._dram_class(addr_mapping=self._addr_mapping, in_addr_map=False, kvm_map=False, null = True)
+            self._dram_class(
+                addr_mapping=self._addr_mapping,
+                in_addr_map=False,
+                kvm_map=False,
+                null=True,
+            )
             for _ in range(self._num_channels)
         ]
-        self.remote_link =  NoncoherentXBar(
-                frontend_latency=self._remote_latency,
-                forward_latency=0,
-                response_latency=0,
-                width=64,
+        self.remote_link = NoncoherentXBar(
+            frontend_latency=self._remote_latency,
+            forward_latency=0,
+            response_latency=0,
+            width=64,
         )
         self.mem_ctrl = [
-            MemCtrl(
-                dram=self._dram[i], port=self.remote_link.mem_side_ports
-            )
+            MemCtrl(dram=self._dram[i], port=self.remote_link.mem_side_ports)
             for i in range(self._num_channels)
         ]
 

@@ -32,22 +32,38 @@
 #     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 # )
 
+import os
+from abc import ABCMeta
+from typing import (
+    List,
+    Sequence,
+    Tuple,
+)
+
+from boards.arm_dm_board import ArmAbstractDMBoard
+from memories.remote_memory import RemoteChanneledMemory
+
+import m5
 from m5.objects import (
-    Port,
     AddrRange,
-    VoltageDomain,
+    ArmSystem,
+    BadAddr,
+    IOXBar,
+    Port,
     SrcClockDomain,
     Terminal,
     VncServer,
-    IOXBar,
-    BadAddr,
-    ArmSystem,
+    VoltageDomain,
 )
-
-from m5.objects.RealView import VExpress_GEM5_Base, VExpress_GEM5_Foundation
-from m5.objects.ArmSystem import ArmRelease, ArmDefaultRelease
 from m5.objects.ArmFsWorkload import ArmFsLinux
-
+from m5.objects.ArmSystem import (
+    ArmDefaultRelease,
+    ArmRelease,
+)
+from m5.objects.RealView import (
+    VExpress_GEM5_Base,
+    VExpress_GEM5_Foundation,
+)
 from m5.util.fdthelper import (
     Fdt,
     FdtNode,
@@ -57,21 +73,12 @@ from m5.util.fdthelper import (
     FdtState,
 )
 
-import os
-import m5
-from abc import ABCMeta
-
-from memories.remote_memory import RemoteChanneledMemory
-from boards.arm_dm_board import ArmAbstractDMBoard
-
-from gem5.components.processors.abstract_processor import AbstractProcessor
-from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
 from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
     AbstractCacheHierarchy,
 )
+from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
+from gem5.components.processors.abstract_processor import AbstractProcessor
 from gem5.utils.override import overrides
-
-from typing import List, Sequence, Tuple
 
 
 class ArmGem5DMBoard(ArmAbstractDMBoard):
@@ -128,7 +135,6 @@ class ArmGem5DMBoard(ArmAbstractDMBoard):
 
     @overrides(ArmAbstractDMBoard)
     def get_default_kernel_args(self) -> List[str]:
-
         # The default kernel string is taken from the devices.py file.
         return [
             "console=ttyAMA0",
@@ -176,12 +182,14 @@ class ArmGem5DMBoard(ArmAbstractDMBoard):
             # need to connect the remote links to the board.
             if self.get_cache_hierarchy().is_ruby():
                 fatal(
-                    "remote memory is only supported in classic caches at " +
-                    "the moment!")
+                    "remote memory is only supported in classic caches at "
+                    + "the moment!"
+                )
             if isinstance(self.get_remote_memory(), RemoteChanneledMemory):
-                for ports in self.get_remote_memory().remote_links:   
-                    self.get_cache_hierarchy().membus.mem_side_ports = \
+                for ports in self.get_remote_memory().remote_links:
+                    self.get_cache_hierarchy().membus.mem_side_ports = (
                         ports.cpu_side_ports
+                    )
 
         # Incorporate the processor into the motherboard.
         self.get_processor().incorporate_processor(self)

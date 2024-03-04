@@ -24,38 +24,46 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from abc import ABCMeta
+from typing import (
+    List,
+    Sequence,
+    Tuple,
+)
+
 from m5.objects import (
-    Port,
     AddrRange,
-    VoltageDomain,
+    ArmSystem,
+    BadAddr,
+    IOXBar,
+    Port,
     SrcClockDomain,
     Terminal,
     VncServer,
-    IOXBar,
-    BadAddr,
-    ArmSystem,
+    VoltageDomain,
 )
-
-from m5.objects.RealView import VExpress_GEM5_Base, VExpress_GEM5_Foundation
-from m5.objects.ArmSystem import ArmRelease, ArmDefaultRelease
 from m5.objects.ArmFsWorkload import ArmFsLinux
-
+from m5.objects.ArmSystem import (
+    ArmDefaultRelease,
+    ArmRelease,
+)
+from m5.objects.RealView import (
+    VExpress_GEM5_Base,
+    VExpress_GEM5_Foundation,
+)
 from m5.util.fdthelper import (
     FdtNode,
     FdtPropertyStrings,
     FdtPropertyWords,
 )
 
-from abc import ABCMeta
 from gem5.components.boards.arm_board import ArmBoard
-from gem5.components.processors.abstract_processor import AbstractProcessor
-from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
 from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
     AbstractCacheHierarchy,
 )
+from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
+from gem5.components.processors.abstract_processor import AbstractProcessor
 from gem5.utils.override import overrides
-
-from typing import List, Sequence, Tuple
 
 
 class ArmAbstractDMBoardDRAMCache(ArmBoard):
@@ -153,7 +161,6 @@ class ArmAbstractDMBoardDRAMCache(ArmBoard):
 
     @overrides(ArmBoard)
     def _setup_board(self) -> None:
-
         # This board is expected to run full-system simulation.
         # Loading ArmFsLinux() from `src/arch/arm/ArmFsWorkload.py`
         self.workload = ArmFsLinux()
@@ -224,7 +231,7 @@ class ArmAbstractDMBoardDRAMCache(ArmBoard):
         if success:
             local_memory.set_memory_range(self.mem_ranges)
             dram_cache.set_memory_range(self._far_mem_ranges)
-            
+
         else:
             raise ValueError("Memory size too big for platform capabilities")
         # At the end of the local_memory, append the remote memory range.
@@ -282,7 +289,6 @@ class ArmAbstractDMBoardDRAMCache(ArmBoard):
 
     @overrides(ArmBoard)
     def get_default_kernel_args(self) -> List[str]:
-
         # The default kernel string is taken from the devices.py file.
         return [
             "console=ttyAMA0",

@@ -32,30 +32,38 @@
 #     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 # )
 
-from m5.objects import (
-    Port,
-    AddrRange,
+import os
+from abc import ABCMeta
+from typing import (
+    List,
+    Sequence,
+    Tuple,
 )
 
-from m5.objects.RealView import VExpress_GEM5_Base, VExpress_GEM5_Foundation
-from m5.objects.ArmSystem import ArmRelease, ArmDefaultRelease
-
-import os
-import m5
-from abc import ABCMeta
-
-from memories.remote_memory import RemoteChanneledMemory
-from memories.dram_cache import DRAMCacheSystem
 from boards.arm_dm_dram_cache_board import ArmAbstractDMBoardDRAMCache
+from memories.dram_cache import DRAMCacheSystem
+from memories.remote_memory import RemoteChanneledMemory
 
-from gem5.components.processors.abstract_processor import AbstractProcessor
-from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
+import m5
+from m5.objects import (
+    AddrRange,
+    Port,
+)
+from m5.objects.ArmSystem import (
+    ArmDefaultRelease,
+    ArmRelease,
+)
+from m5.objects.RealView import (
+    VExpress_GEM5_Base,
+    VExpress_GEM5_Foundation,
+)
+
 from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
     AbstractCacheHierarchy,
 )
+from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
+from gem5.components.processors.abstract_processor import AbstractProcessor
 from gem5.utils.override import overrides
-
-from typing import List, Sequence, Tuple
 
 
 class ArmGem5DMBoardDRAMCache(ArmAbstractDMBoardDRAMCache):
@@ -116,7 +124,6 @@ class ArmGem5DMBoardDRAMCache(ArmAbstractDMBoardDRAMCache):
 
     @overrides(ArmAbstractDMBoardDRAMCache)
     def get_default_kernel_args(self) -> List[str]:
-
         # The default kernel string is taken from the devices.py file.
         return [
             "console=ttyAMA0",
@@ -165,19 +172,21 @@ class ArmGem5DMBoardDRAMCache(ArmAbstractDMBoardDRAMCache):
             # need to connect the remote links to the board.
             if self.get_cache_hierarchy().is_ruby():
                 fatal(
-                    "remote memory is only supported in classic caches at " +
-                    "the moment!")
-            
-            if isinstance(self.get_dram_cache(), DRAMCacheSystem):
-                self.get_cache_hierarchy().membus.mem_side_ports = \
-                    self.get_dram_cache().policy_manager.port
-                self.get_dram_cache().policy_manager.far_req_port = \
-                    self.get_remote_memory().remote_link.cpu_side_ports
-            elif isinstance(self.get_remote_memory(), RemoteChanneledMemory):
-                self.get_cache_hierarchy().membus.mem_side_ports = \
-                    self.get_remote_memory().remote_link.cpu_side_ports
-            
+                    "remote memory is only supported in classic caches at "
+                    + "the moment!"
+                )
 
+            if isinstance(self.get_dram_cache(), DRAMCacheSystem):
+                self.get_cache_hierarchy().membus.mem_side_ports = (
+                    self.get_dram_cache().policy_manager.port
+                )
+                self.get_dram_cache().policy_manager.far_req_port = (
+                    self.get_remote_memory().remote_link.cpu_side_ports
+                )
+            elif isinstance(self.get_remote_memory(), RemoteChanneledMemory):
+                self.get_cache_hierarchy().membus.mem_side_ports = (
+                    self.get_remote_memory().remote_link.cpu_side_ports
+                )
 
         # Incorporate the processor into the motherboard.
         self.get_processor().incorporate_processor(self)

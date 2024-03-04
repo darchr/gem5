@@ -25,6 +25,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "sst_responder_subcomponent.hh"
+// #include <sst/elements/memHierarchy/membackend/backing.h>
 
 #include <cassert>
 #include <sstream>
@@ -99,6 +100,7 @@ SSTResponderSubComponent::handleTimingReq(
 void
 SSTResponderSubComponent::init(unsigned phase)
 {
+    std::cout << phase << std::endl;
     if (phase == 1) {
         for (auto p: responseReceiver->getInitData()) {
             gem5::Addr addr = p.first;
@@ -108,8 +110,6 @@ SSTResponderSubComponent::init(unsigned phase)
                     addr, data.size(), data);
             memoryInterface->sendUntimedData(request);
         }
-        responseReceiver->initData.clear();
-        responseReceiver->initPhaseComplete(true);
     }
     memoryInterface->init(phase);
 }
@@ -202,14 +202,9 @@ SSTResponderSubComponent::portEventHandler(
             responseQueue.push(pkt);
         }
     } else {
-        // we can handle a few types of requests.
+        // we can handle unexpected invalidates, but nothing else.
         if (SST::Interfaces::StandardMem::Read* test =
                 dynamic_cast<SST::Interfaces::StandardMem::Read*>(request)) {
-            return;
-        }
-        else if (SST::Interfaces::StandardMem::ReadResp* test =
-                dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
-                request)) {
             return;
         }
         else if (SST::Interfaces::StandardMem::WriteResp* test =
@@ -248,43 +243,6 @@ SSTResponderSubComponent::handleRecvRespRetry()
 void
 SSTResponderSubComponent::handleRecvFunctional(gem5::PacketPtr pkt)
 {
-    // SST does not understand what is a functional access in gem5 since SST
-    // only allows functional accesses at init time. Since it
-    // has all the stored in it's memory, any functional access made to SST has
-    // to be correctly handled. The idea here is to convert this functional
-    // access into a timing access and keep the SST memory consistent.
-
-    gem5::Addr addr = pkt->getAddr();
-    uint8_t* ptr = pkt->getPtr<uint8_t>();
-    uint64_t size = pkt->getSize();
-
-    // Create a new request to handle this request immediately.
-    SST::Interfaces::StandardMem::Request* request = nullptr;
-
-    // we need a minimal translator here which does reads and writes. Any other
-    // command type is unexpected and the program should crash immediately.
-    switch((gem5::MemCmd::Command)pkt->cmd.toInt()) {
-        case gem5::MemCmd::WriteReq: {
-            std::vector<uint8_t> data(ptr, ptr+size);
-            request = new SST::Interfaces::StandardMem::Write(
-                addr, data.size(), data);
-            break;
-        }
-        case gem5::MemCmd::ReadReq: {
-            request = new SST::Interfaces::StandardMem::Read(addr, size);
-            break;
-        }
-        default:
-            panic(
-                "handleRecvFunctional: Unable to convert gem5 packet: %s\n",
-                pkt->cmd.toString()
-            );
-    }
-    if(pkt->req->isUncacheable()) {
-        request->setFlag(
-            SST::Interfaces::StandardMem::Request::Flag::F_NONCACHEABLE);
-    }
-    memoryInterface->send(request);
 }
 
 bool

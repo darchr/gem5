@@ -25,35 +25,24 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
-
-from typing import List, Optional, Sequence, Tuple
+from typing import (
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 from boards.riscv_dm_board import RiscvAbstractDMBoard
 
-from gem5.components.boards.abstract_board import AbstractBoard
-from gem5.utils.override import overrides
-from gem5.resources.resource import AbstractResource
-from gem5.components.boards.kernel_disk_workload import KernelDiskWorkload
-from gem5.components.boards.abstract_system_board import AbstractSystemBoard
-from gem5.components.processors.abstract_processor import AbstractProcessor
-from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
-from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
-    AbstractCacheHierarchy,
-)
-
-from gem5.isas import ISA
-
 import m5
-
 from m5.objects import (
     AddrRange,
-    HiFive,
     Frequency,
-    Port,
-    OutgoingRequestBridge,
+    HiFive,
     NoncoherentXBar,
+    OutgoingRequestBridge,
+    Port,
 )
-
 from m5.util.fdthelper import (
     Fdt,
     FdtNode,
@@ -62,6 +51,18 @@ from m5.util.fdthelper import (
     FdtPropertyWords,
     FdtState,
 )
+
+from gem5.components.boards.abstract_board import AbstractBoard
+from gem5.components.boards.abstract_system_board import AbstractSystemBoard
+from gem5.components.boards.kernel_disk_workload import KernelDiskWorkload
+from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
+    AbstractCacheHierarchy,
+)
+from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
+from gem5.components.processors.abstract_processor import AbstractProcessor
+from gem5.isas import ISA
+from gem5.resources.resource import AbstractResource
+from gem5.utils.override import overrides
 
 
 class RiscvSstDMBoard(RiscvAbstractDMBoard):

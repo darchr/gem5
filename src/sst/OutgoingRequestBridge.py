@@ -24,8 +24,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from m5.params import *
 from m5.objects.AbstractMemory import AbstractMemory
+from m5.params import *
 
 
 class OutgoingRequestBridge(AbstractMemory):
@@ -38,7 +38,7 @@ class OutgoingRequestBridge(AbstractMemory):
         [AddrRange(0x80000000, MaxAddr)], "Physical address ranges."
     )
 
-    node_index = Param.String("0","index of this remote memory node")
+    node_index = Param.String("0", "index of this remote memory node")
 
     block_size = Param.Unsigned(64, "Memory block size in bytes")
 

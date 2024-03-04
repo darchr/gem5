@@ -58,6 +58,7 @@ class SSTResponderSubComponent: public SST::SubComponent
     gem5::SSTResponderInterface* sstResponder;
 
     SST::Interfaces::StandardMem* memoryInterface;
+    // SST::MemHierarchy::Backend::Backing* backingStore;
     SST::TimeConverter* timeConverter;
     SST::Output* output;
     std::queue<gem5::PacketPtr> responseQueue;

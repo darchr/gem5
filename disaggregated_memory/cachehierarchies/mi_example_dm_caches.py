@@ -24,32 +24,38 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from gem5.components.cachehierarchies.ruby.mi_example_cache_hierarchy import (
-    MIExampleCacheHierarchy,
+from m5.objects import (
+    DMASequencer,
+    RubyPortProxy,
+    RubySequencer,
+    RubySystem,
 )
-from gem5.components.cachehierarchies.ruby.caches.mi_example.l1_cache import (
-    L1Cache,
-)
-from gem5.components.cachehierarchies.ruby.caches.mi_example.dma_controller import (
-    DMAController,
-)
-from gem5.components.cachehierarchies.ruby.caches.mi_example.directory import (
-    Directory,
-)
-from gem5.components.cachehierarchies.ruby.topologies.simple_pt2pt import (
-    SimplePt2Pt,
-)
+
+from gem5.coherence_protocol import CoherenceProtocol
+from gem5.components.boards.abstract_board import AbstractBoard
 
 # from gem5.components.cachehierarchies.ruby.abstract_ruby_cache_hierarchy import AbstractRubyCacheHierarchy
 from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
     AbstractCacheHierarchy,
 )
-from gem5.components.boards.abstract_board import AbstractBoard
-from gem5.coherence_protocol import CoherenceProtocol
+from gem5.components.cachehierarchies.ruby.caches.mi_example.directory import (
+    Directory,
+)
+from gem5.components.cachehierarchies.ruby.caches.mi_example.dma_controller import (
+    DMAController,
+)
+from gem5.components.cachehierarchies.ruby.caches.mi_example.l1_cache import (
+    L1Cache,
+)
+from gem5.components.cachehierarchies.ruby.mi_example_cache_hierarchy import (
+    MIExampleCacheHierarchy,
+)
+from gem5.components.cachehierarchies.ruby.topologies.simple_pt2pt import (
+    SimplePt2Pt,
+)
 from gem5.isas import ISA
 from gem5.utils.override import overrides
 from gem5.utils.requires import requires
-from m5.objects import RubySystem, RubySequencer, DMASequencer, RubyPortProxy
 
 # from gem5.components.cachehierarchies.classic.caches.l1dcache import L1DCache
 # from gem5.components.cachehierarchies.classic.caches.l1icache import L1ICache
@@ -72,7 +78,6 @@ class MIExampleDMCache(MIExampleCacheHierarchy):
 
     @overrides(MIExampleCacheHierarchy)
     def incorporate_cache(self, board: AbstractBoard) -> None:
-
         requires(coherence_protocol_required=CoherenceProtocol.MI_EXAMPLE)
 
         self.ruby_system = RubySystem()

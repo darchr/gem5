@@ -180,7 +180,7 @@ workload = CustomWorkload(
         "readfile_contents": " ".join(cmd),
     },
 )
-ckpt = "ckpt-dir"
+ckpt = "gem5_ckpt"
 # This disk image needs to have NUMA tools installed.
 board.set_workload(workload)
 # This script will boot two numa nodes in a full system simulation where the
@@ -191,3 +191,4 @@ board._pre_instantiate()
 root = Root(full_system=True, board=board)
 board._post_instantiate()
 m5.instantiate(ckpt)
+# m5.instantiate()
