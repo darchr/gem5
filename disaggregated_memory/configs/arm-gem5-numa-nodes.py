@@ -41,6 +41,7 @@ sys.path.append(
 
 import m5
 from m5.objects import Root
+from m5.objects.RealView import VExpress_GEM5_V1
 
 from boards.arm_gem5_board import ArmGem5DMBoard
 from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
@@ -102,6 +103,7 @@ board = ArmGem5DMBoard(
     local_memory=local_memory,
     remote_memory=remote_memory,
     cache_hierarchy=cache_hierarchy,
+    platform=VExpress_GEM5_V1()
 )
 
 cmd = [
@@ -126,7 +128,7 @@ cmd = [
 board.set_kernel_disk_workload(
     kernel=CustomResource("/home/kaustavg/vmlinux-5.4.49-NUMA.arm64"),
     bootloader=CustomResource(
-        "/home/babaie/projects/disaggregated-cxl/1/gem5/kernel/arm64-bootloader-foundation"
+        "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
     ),
     disk_image=DiskImageResource(
         "/projects/gem5/hn/DISK_IMAGES/arm64sve-hpc-2204-20230526-numa.img",
@@ -138,6 +140,12 @@ board.set_kernel_disk_workload(
 # gem5 node will be sending instructions to the SST node. the simulation will
 # after displaying numastat information on the terminal, whjic can be viewed
 # from board.terminal.
+
+checkpoint_path = "test_ckpt"
 simulator = Simulator(board=board)
+# simulator = Simulator(board=board, checkpoint_path=os.path.join(os.getcwd(), checkpoint_path))
 simulator.run()
-## CHECKPOINT? 
+
+print("Taking a checkpoint at", checkpoint_path)
+simulator.save_checkpoint(checkpoint_path)
+print("Done taking a checkpoint")
