@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Authors: Jason Lowe-Power, Ayaz Akram
+# Authors: Jason Lowe-Power, Ayaz Akram, Maryam Babaie
 
 """ Script to run and take checkpoints for both GAPBS and NPB
 """

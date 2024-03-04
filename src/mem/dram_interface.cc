@@ -527,7 +527,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
                 if (row_hit) {
                     stats.readRowHits++;
                 }
-                stats.bytesRead += burstSize;
+                stats.dramBytesRead += burstSize;
             }
 
             if (!(mem_pkt->pkt->owIsRead && !mem_pkt->pkt->isHit && !mem_pkt->pkt->isDirty)) {
@@ -614,7 +614,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
             if (row_hit) {
                 stats.writeRowHits++;
             }
-            stats.bytesWritten += burstSize;
+            stats.dramBytesWritten += burstSize;
             stats.perBankWrBursts[mem_pkt->bankId]++;
 
             // Update latency stats
@@ -814,7 +814,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
             if (row_hit) {
                 stats.readRowHits++;
             }
-            stats.bytesRead += burstSize;
+            stats.dramBytesRead += burstSize;
             stats.perBankRdBursts[mem_pkt->bankId]++;
 
             // Update latency stats
@@ -844,7 +844,7 @@ DRAMInterface::doBurstAccess(MemPacket* mem_pkt, Tick next_burst_at,
             if (row_hit) {
                 stats.writeRowHits++;
             }
-            stats.bytesWritten += burstSize;
+            stats.dramBytesWritten += burstSize;
             stats.perBankWrBursts[mem_pkt->bankId]++;
 
             // Update latency stats
@@ -1230,7 +1230,7 @@ DRAMInterface::processReadFlushBufferEvent()
         flushBuffer.pop_front();
         stats.totReadFBSent++;
         stats.readBursts++;
-        stats.bytesRead += burstSize;
+        stats.dramBytesRead += burstSize;
         stats.totBusLat += tBURST;
 
         Tick nextBurstFB = curTick() + tBURST;
