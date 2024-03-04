@@ -63,8 +63,8 @@ AbstractMemory::AbstractMemory(const Params &p) :
                  MemBackdoor::Readable | MemBackdoor::Writeable :
                  MemBackdoor::Readable)),
     confTableReported(p.conf_table_reported), inAddrMap(p.in_addr_map),
-    kvmMap(p.kvm_map), writeable(p.writeable), collectStats(p.collect_stats),
-    _system(NULL), stats(*this)
+    kvmMap(p.kvm_map), writeable(p.writeable), _system(NULL),
+    stats(*this)
 {
     panic_if(!range.valid() || !range.size(),
              "Memory range %s must be valid with non-zero size.",
@@ -395,7 +395,16 @@ AbstractMemory::access(PacketPtr pkt)
 
     uint8_t *host_addr = toHostAddr(pkt->getAddr());
 
-    if (pkt->cmd == MemCmd::SwapReq) {
+    if (pkt->cmd == MemCmd::SwapResp) {
+        if (pkt->isAtomicOp()) {
+            if (pmemAddr) {
+                pkt->writeData(host_addr);
+                (*(pkt->getAtomicOp()))(host_addr);
+            }
+        } else {
+            fatal("Did not expect this access in timing mode");
+        }
+    } else if (pkt->cmd == MemCmd::SwapReq) {
         if (pkt->isAtomicOp()) {
             if (pmemAddr) {
                 pkt->setData(host_addr);
@@ -433,9 +442,7 @@ AbstractMemory::access(PacketPtr pkt)
 
             assert(!pkt->req->isInstFetch());
             TRACE_PACKET("Read/Write");
-            if (collectStats) {
-                stats.numOther[pkt->req->requestorId()]++;
-            }
+            stats.numOther[pkt->req->requestorId()]++;
         }
     } else if (pkt->isRead()) {
         assert(!pkt->isWrite());
@@ -449,13 +456,10 @@ AbstractMemory::access(PacketPtr pkt)
             pkt->setData(host_addr);
         }
         TRACE_PACKET(pkt->req->isInstFetch() ? "IFetch" : "Read");
-        if (collectStats) {
-            stats.numReads[pkt->req->requestorId()]++;
-            stats.bytesRead[pkt->req->requestorId()] += pkt->getSize();
-            if (pkt->req->isInstFetch()) {
-                stats.bytesInstRead[pkt->req->requestorId()] += pkt->getSize();
-            }
-        }
+        stats.numReads[pkt->req->requestorId()]++;
+        stats.bytesRead[pkt->req->requestorId()] += pkt->getSize();
+        if (pkt->req->isInstFetch())
+            stats.bytesInstRead[pkt->req->requestorId()] += pkt->getSize();
     } else if (pkt->isInvalidate() || pkt->isClean()) {
         assert(!pkt->isWrite());
         // in a fastmem system invalidating and/or cleaning packets
@@ -471,10 +475,8 @@ AbstractMemory::access(PacketPtr pkt)
             }
             assert(!pkt->req->isInstFetch());
             TRACE_PACKET("Write");
-            if (collectStats) {
-                stats.numWrites[pkt->req->requestorId()]++;
-                stats.bytesWritten[pkt->req->requestorId()] += pkt->getSize();
-            }
+            stats.numWrites[pkt->req->requestorId()]++;
+            stats.bytesWritten[pkt->req->requestorId()] += pkt->getSize();
         }
     } else {
         panic("Unexpected packet %s", pkt->print());
