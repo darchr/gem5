@@ -112,11 +112,6 @@ SSTResponderSubComponent::init(unsigned phase)
         }
     }
     memoryInterface->init(phase);
-    if (phase == 2) {
-        // for (auto p: memoryInterface->recvUntimedData()) {
-            // std::cout << memoryInterface->get() << std::endl;
-        // }
-    }
 }
 
 void
