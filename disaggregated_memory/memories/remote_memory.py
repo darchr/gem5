@@ -72,9 +72,9 @@ class RemoteChanneledMemory(ChanneledMemory):
         self._dram = [
             self._dram_class(
                 addr_mapping=self._addr_mapping,
-                in_addr_map=False,
-                kvm_map=False,
-                null=True,
+                in_addr_map=True,
+                kvm_map=True,
+                null=False,
             )
             for _ in range(self._num_channels)
         ]

@@ -157,7 +157,7 @@ cmd = [
 board.set_kernel_disk_workload(
     kernel=CustomResource("/home/kaustavg/vmlinux-5.4.49-NUMA.arm64"),
     bootloader=CustomResource(
-            "/home/kaustavg/.cache/gem5/arm64-bootloader"
+            "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
     ),
     disk_image=DiskImageResource(
         # "/projects/gem5/hn/DISK_IMAGES/arm64sve-hpc-2204-20230526-numa.img",
