@@ -186,7 +186,7 @@ class ArmGem5DMBoard(ArmAbstractDMBoard):
                     + "the moment!"
                 )
             if isinstance(self.get_remote_memory(), RemoteChanneledMemory):
-                for ports in self.get_remote_memory().remote_links:
+                for ports in self.get_remote_memory().remote_link:
                     self.get_cache_hierarchy().membus.mem_side_ports = (
                         ports.cpu_side_ports
                     )

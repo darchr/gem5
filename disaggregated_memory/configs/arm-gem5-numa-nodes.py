@@ -110,6 +110,7 @@ cmd = [
     "mount -t sysfs - /sys;",
     "mount -t proc - /proc;",
     "numastat;",
+    "m5 exit;",                      # checkpoint 1
     "numactl --membind=0 -- " +  ## This is the command to run the stream benchmark LOCAL
     "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
     "stream.hw.m5 1000000;",
@@ -141,11 +142,11 @@ board.set_kernel_disk_workload(
 # after displaying numastat information on the terminal, whjic can be viewed
 # from board.terminal.
 
-checkpoint_path = "test_ckpt"
+checkpoint_path = "chkpt-dir/test1"
 simulator = Simulator(board=board)
 # simulator = Simulator(board=board, checkpoint_path=os.path.join(os.getcwd(), checkpoint_path))
 simulator.run()
 
-print("Taking a checkpoint at", checkpoint_path)
+print("Taking a checkpoint at dir: ", checkpoint_path)
 simulator.save_checkpoint(checkpoint_path)
 print("Done taking a checkpoint")
