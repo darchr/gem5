@@ -74,7 +74,7 @@ parser.add_argument("--command", type=str, help="Command run by guest")
 parser.add_argument(
     "--cpu-type",
     type=str,
-    choices=["atomic", "timing", "o3"],
+    choices=["atomic", "timing", "o3", "kvm"],
     default="atomic",
     help="CPU type",
 )
@@ -102,21 +102,28 @@ parser.add_argument(
     required=True,
     help="Remote memory latency in Ticks (has to be converted prior)",
 )
+parser.add_argument(
+    "--instance",
+    type=int,
+    required=True,
+    help="Instance id is need to correctly read and write to the checkpoint."
+)
 args = parser.parse_args()
 cpu_type = {
     "o3": CPUTypes.O3,
     "atomic": CPUTypes.ATOMIC,
     "timing": CPUTypes.TIMING,
+    "kvm": CPUTypes.KVM
 }[args.cpu_type]
 
 remote_memory_range = list(map(int, args.remote_memory_addr_range.split(",")))
 remote_memory_range = AddrRange(remote_memory_range[0], remote_memory_range[1])
 
-# This runs a check to ensure the gem5 binary is compiled for RISCV.
+# This runs a check to ensure the gem5 binary is compiled for ARM.
 requires(isa_required=ISA.ARM)
 # Here we setup the parameters of the l1 and l2 caches.
 cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3SstDMCache(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="1MiB"
+    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="4MiB"
 )
 # Memory: Dual Channel DDR4 2400 DRAM device.
 
@@ -133,7 +140,7 @@ remote_memory = ExternalRemoteMemory(
 )
 
 # Here we setup the processor. We use a simple processor.
-processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, isa=ISA.ARM, num_cores=1)
+processor = SimpleProcessor(cpu_type=cpu_type, isa=ISA.ARM, num_cores=1)
 
 # Here we setup the board which allows us to do Full-System ARM simulations.
 board = ArmSstDMBoard(
@@ -154,10 +161,10 @@ cmd = [
     # "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
     # "stream.hw.m5 1000000;",
     # "numastat;",
-    # "numactl --interleave=0,1 -- " +
-    # "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
-    # "stream.hw.m5 1000000;",
-    # "numastat;",
+    "numactl --interleave=0,1 -- " +
+    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    "stream.hw.m5 1000000;",
+    "numastat;",
     # "numactl --membind=1 -- " +
     # "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
     # "stream.hw.m5 1000000;",
@@ -173,14 +180,15 @@ workload = CustomWorkload(
             "/home/kaustavg/.cache/gem5/arm64-bootloader-foundation"
         ),
         "disk_image": DiskImageResource(
-            "/home/kaustavg/disk-images/arm/arm64sve-hpc-2204-20230526-numa.img",
+            # "/home/kaustavg/disk-images/arm/arm64sve-hpc-2204-20230526-numa.img",
+            "/projects/gem5/hn/DISK_IMAGES/arm64-hpc-2204-numa-kvm.img-20240304",
             # local_path="/projects/gem5/hn/DISK_IMAGES/arm64sve-hpc-2204-20230526-numa.img",
             root_partition="1",
         ),
         "readfile_contents": " ".join(cmd),
     },
 )
-ckpt = "ckpt-dir"
+ckpt = "ckpt-dir-" + str(args.instance)
 # This disk image needs to have NUMA tools installed.
 board.set_workload(workload)
 # This script will boot two numa nodes in a full system simulation where the
@@ -190,4 +198,4 @@ board.set_workload(workload)
 board._pre_instantiate()
 root = Root(full_system=True, board=board)
 board._post_instantiate()
-m5.instantiate(ckpt)
+m5.instantiate()

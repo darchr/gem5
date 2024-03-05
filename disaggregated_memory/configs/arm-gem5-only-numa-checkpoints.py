@@ -106,7 +106,7 @@ def RemoteDualChannelDDR4_2400(
 
 # Here we setup the parameters of the l1 and l2 caches.
 cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="1MiB"
+    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="4MiB"
 )
 # Memory: Dual Channel DDR4 2400 DRAM device.
 local_memory = DualChannelDDR4_2400(size="2GiB")
@@ -122,7 +122,7 @@ remote_memory = RemoteDualChannelDDR4_2400(
     size="2GB", remote_offset_latency=750
 )
 # Here we setup the processor. We use a simple processor.
-processor = SimpleProcessor(cpu_type=CPUTypes.ATOMIC, isa=ISA.ARM, num_cores=1)
+processor = SimpleProcessor(cpu_type=CPUTypes.KVM, isa=ISA.ARM, num_cores=1)
 # Here we setup the board which allows us to do Full-System ARM simulations.
 board = ArmGem5DMBoard(
     clk_freq="3GHz",
@@ -137,9 +137,9 @@ cmd = [
     "mount -t sysfs - /sys;",
     "mount -t proc - /proc;",
     "numastat;",
-    "m5 exit;",  # checkpoint
+    "m5 --addr=0x10010000 exit;",  # checkpoint
     "ls;",
-    "numactl --membind=0 -- ls;",  # +
+    "numactl --membind=0 -- ls /home/ubuntu/simple*/stream*/*;",  # +
     # "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
     # "stream.hw.m5 1000000;",
     # "numastat;",
@@ -151,7 +151,7 @@ cmd = [
     # "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
     # "stream.hw.m5 1000000;",
     # "numastat;",
-    "m5 exit;",
+    "m5 --addr=0x10010000 exit;",
 ]
 
 board.set_kernel_disk_workload(
@@ -160,7 +160,8 @@ board.set_kernel_disk_workload(
             "/home/kaustavg/.cache/gem5/arm64-bootloader"
     ),
     disk_image=DiskImageResource(
-        "/projects/gem5/hn/DISK_IMAGES/arm64sve-hpc-2204-20230526-numa.img",
+        # "/projects/gem5/hn/DISK_IMAGES/arm64sve-hpc-2204-20230526-numa.img",
+        "/projects/gem5/hn/DISK_IMAGES/arm64-hpc-2204-numa-kvm.img-20240304",
         root_partition="1",
     ),
     readfile_contents=" ".join(cmd),
