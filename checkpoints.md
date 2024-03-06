@@ -66,7 +66,26 @@ std::string physical_memory_file = "board.physmem.store0.pmem";
 8. To restore the previously created checkpoint from SST, use the following
    command:
 ```sh
-bin/
+bin/sst  --add-lib-path=./ sst/checkpoints/arm_checkpoints.py
 ```
-9. The execution should resume normally.
+9. Make sure that you restore the checkpoint using timing CPU.
+10. The path to the checkpoint has to be manually set in the
+    `sst/checkpoints/arm_checkpoints.py` file.
+11. Also, if the memory size and ranges change, then it has to be manually set
+    in the same SST script.
+12. The execution should resume normally.
+
+## Known Issues
+
+1. When we try to restore large memories in SST using MPI, we encounter
+   `MPI_ERROR_COUNT` error. The error is caused in the following method/lines
+   of `sstcore-13.0.0/src/sst/core/sync/rankSyncSerialSkip.cc`:
+```cpp
+MPI_Isend(                                                             
+    send_buffer, hdr->buffer_size, MPI_BYTE, i->first /*dest*/, tag, MPI_COMM_WORLD, &sreqs[sreq_count++]);
+```
+
+2. **Too much hacky stuff** KVM checkpoints do not load correctly in SST
+   memory. A workaround is to replace the physical memory file in a checkpoint
+   taken in atomic mode.
 
