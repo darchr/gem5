@@ -25,7 +25,7 @@ git checkout kg/dm-sst-checkpoints-ver2
 1. For taking and restoring checkpoints in gem5-only setup use the following
    command:
 ```sh
-build/ARM/gem5.opt disaggregated_memory/configs/arm-gem5-only-numa-checkpoints.py --take-ckpt=True --ckpt-file=<path/to/a/checkpoint/dir>
+build/ARM/gem5.opt --outdir=<where-the-outputs-and-checkpoint-will-be-placed> disaggregated_memory/configs/arm-gem5-only-numa-checkpoint-restore.py --take-ckpt=True
 ```
 2. To restore a checkpoint in a gem5-only setup, use the following command:
 ```sh
@@ -39,7 +39,7 @@ build/ARM/gem5.opt disaggregated_memory/configs/arm-gem5-only-numa-checkpoints.p
 3. Make sure that the CPU type is either KVM or ATOMIC. This keeps the request
    and the data at the outgoing bridge.
 ```sh
-build/ARM/gem5.opt disaggregated_memory/configs/arm-numa-checkpoints.py --cpu-clock-rate 3GHz --instance 0 --cpu-type atomic --local-memory-size 2GiB --remote-memory-addr-range 4294967296,6442450944 --remote-memory-latency 750 --take-ckpt=True --ckpt-file=<path/to/a/checkpoint/dir>
+build/ARM/gem5.opt disaggregated_memory/configs/arm-numa-checkpoints.py --cpu-clock-rate 3GHz --instance 0 --cpu-type atomic --local-memory-size 2GiB --remote-memory-addr-range 4294967296,38654705664 --remote-memory-latency 750 --take-ckpt=True --ckpt-file=<path/to/a/checkpoint/dir>
 ```
 4. The physmem file 0 *usually* corresponds to the remote memory.
 5. In the `outgoing_request_bridge.cc` file, make sure that the physical memory

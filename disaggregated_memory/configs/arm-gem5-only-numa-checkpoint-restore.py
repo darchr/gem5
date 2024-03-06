@@ -53,6 +53,7 @@ from gem5.components.memory.dram_interfaces.ddr4 import DDR4_2400_8x8
 from gem5.components.memory import DualChannelDDR4_2400
 from gem5.components.memory.multi_channel import *
 from gem5.components.processors.simple_processor import SimpleProcessor
+from gem5.components.processors.simple_switchable_processor import SimpleSwitchableProcessor
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.isas import ISA
 from gem5.simulate.simulator import Simulator
@@ -64,11 +65,11 @@ from gem5.resources.resource import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--ckpt-file",
+    "--ckpt-dir",
     type=str,
     default="",
     required=False,
-    help="optionally put a path to restore a checkpoint"
+    help="Put a path to a checkpoint for restoring"
 )
 parser.add_argument(
     "--take-ckpt",
@@ -119,10 +120,17 @@ local_memory = DualChannelDDR4_2400(size="2GiB")
 # config script to extend any existing MemInterface class and add latency value
 # to that memory.
 remote_memory = RemoteDualChannelDDR4_2400(
-    size="2GB", remote_offset_latency=750
+    size="32GB", remote_offset_latency=750
 )
 # Here we setup the processor. We use a simple processor.
-processor = SimpleProcessor(cpu_type=CPUTypes.KVM, isa=ISA.ARM, num_cores=1)
+# processor = SimpleProcessor(cpu_type=CPUTypes.KVM, isa=ISA.ARM, num_cores=4)
+processor = SimpleSwitchableProcessor(
+    starting_core_type=CPUTypes.KVM,
+    switch_core_type=CPUTypes.TIMING,
+    isa=ISA.ARM,
+    num_cores=4
+)
+
 # Here we setup the board which allows us to do Full-System ARM simulations.
 board = ArmGem5DMBoard(
     clk_freq="3GHz",
@@ -137,20 +145,19 @@ cmd = [
     "mount -t sysfs - /sys;",
     "mount -t proc - /proc;",
     "numastat;",
-    "m5 --addr=0x10010000 exit;",  # checkpoint
-    "ls;",
-    "numactl --membind=0 -- ls /home/ubuntu/simple*/stream*/*;",  # +
-    # "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    "m5 --addr=0x10010000 exit;",  # switch from kvm to timing
+    # "numactl --membind=0 -- ",  # +
+    # "/home/ubuntu/simple-vectorizable-benchmarks/stream/" +
     # "stream.hw.m5 1000000;",
     # "numastat;",
-    "numactl --interleave=0,1 -- " +
-    "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
+    # "numactl --interleave=0,1 -- " +
+    # "/home/ubuntu/simple-vectorizable-benchmarks/stream/" +
+    # "stream.hw.m5 1000000;",
+    # "numastat;",
+    "numactl --membind=1 -- " +
+    "/home/ubuntu/simple-vectorizable-benchmarks/stream/" +
     "stream.hw.m5 1000000;",
     "numastat;",
-    # "numactl --membind=1 -- " +
-    # "/home/ubuntu/simple-vectorizable-microbenchmarks/stream-annotated/" +
-    # "stream.hw.m5 1000000;",
-    # "numastat;",
     "m5 --addr=0x10010000 exit;",
 ]
 
@@ -171,18 +178,22 @@ board.set_kernel_disk_workload(
 # after displaying numastat information on the terminal, whjic can be viewed
 # from board.terminal.
 
-print(args.take_ckpt)
 
 if args.take_ckpt == "True":
-    assert(args.ckpt_file != "")
     simulator = Simulator(board=board)
     simulator.run()
-    simulator.save_checkpoint(args.ckpt_file)
+    print("Reached the 1st m5 exit event, switching from KVM to Timing CPU")
+    # switching from KVM CPU to Timing CPU
+    processor.switch()
+    print("Switched from KVM to Timing CPU, now running the workload")
+    simulator.run()
+    print("Finished running the workload, now taking the checkpoint")
+    simulator.save_checkpoint(m5.options.outdir+"/checkpoint")
 else:
     if args.restore_ckpt == "True":
-        assert(args.ckpt_file != "")
+        assert(args.ckpt_dir != "")
         simulator = Simulator(board=board,
-                checkpoint_path=os.path.join(os.getcwd(), args.ckpt_file))
+                checkpoint_path=os.path.join(os.getcwd(), args.ckpt_dir))
         simulator.run()
     else:
         simulator = Simulator(board=board)
