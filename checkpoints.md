@@ -66,9 +66,14 @@ std::string physical_memory_file = "board.physmem.store0.pmem";
 8. To restore the previously created checkpoint from SST, use the following
    command:
 ```sh
-bin/sst  --add-lib-path=./ sst/example_arm_dm_board.py
+bin/sst  --add-lib-path=./ sst/checkpoints/arm_checkpoints.py
 ```
-9. The execution should resume normally.
+9. Make sure that you restore the checkpoint using timing CPU.
+10. The path to the checkpoint has to be manually set in the
+    `sst/checkpoints/arm_checkpoints.py` file.
+11. Also, if the memory size and ranges change, then it has to be manually set
+    in the same SST script.
+12. The execution should resume normally.
 
 ## Known Issues
 
