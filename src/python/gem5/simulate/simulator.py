@@ -355,6 +355,9 @@ class Simulator:
         self._last_exit_event = None
         self._exit_event_count = 0
 
+        self._remaining_original_max_ticks = 0
+        self._next_sim_ticks = -1
+
         if checkpoint_path:
             warn(
                 "Setting the checkpoint path via the Simulator constructor is "
@@ -394,6 +397,9 @@ class Simulator:
         """
         for core in self._board.get_processor().get_cores():
             core._set_inst_stop_any_thread(inst, self._instantiated)
+
+    def schedule_sim_ticks(self, sim_ticks: int) -> None:
+        self._next_sim_ticks = sim_ticks
 
     def get_stats(self) -> Dict:
         """
@@ -594,13 +600,25 @@ class Simulator:
                     f"Reason: {self._banned_modules[banned_module]}"
                 )
 
+        self._remaining_original_max_ticks = max_ticks
+
         # We instantiate the board if it has not already been instantiated.
         self._instantiate()
 
         # This while loop will continue until an a generator yields True.
         while True:
-            self._last_exit_event = m5.simulate(max_ticks)
+            if self._next_sim_ticks != -1:
+                max_ticks = self._next_sim_ticks
+                self._next_sim_ticks = -1
+            else:
+                max_ticks = self._remaining_original_max_ticks
+            if max_ticks == 0:
+                break
 
+            in_tick = m5.curTick()
+            self._last_exit_event = m5.simulate(max_ticks)
+            out_tick = m5.curTick()
+            self._remaining_original_max_ticks -= out_tick - in_tick
             # Translate the exit event cause to the exit event enum.
             exit_enum = ExitEvent.translate_exit_status(
                 self.get_last_exit_event_cause()
