@@ -59,7 +59,7 @@ from gem5.isas import ISA
 from gem5.simulate.simulator import Simulator
 from gem5.resources.workload import *
 from gem5.resources.resource import *
-from m5.objects import AddrRange
+from m5.objects import AddrRange, Root
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -118,7 +118,7 @@ local_memory = DualChannelDDR4_2400(size="2GiB")
 
 cpu_type = ""
 if args.take_chpt == "True":
-    cpu_type=CPUTypes.KVM
+    cpu_type=CPUTypes.ATOMIC
 elif args.restore_chpt == "True":
     cpu_type=CPUTypes.TIMING
 processor = SimpleProcessor(cpu_type=cpu_type, isa=ISA.ARM, num_cores=4)
@@ -206,11 +206,22 @@ board.set_kernel_disk_workload(
 if args.take_chpt == "True":
     simulator = Simulator(board=board)
     simulator.run()
+    print("Finished simulation, now writing the checkpoint")
     simulator.save_checkpoint(m5.options.outdir+"/checkpoint")
     print("Finished writing the checkpoint")
-elif args.restore_chpt == "True":
+elif args.restore_chpt == "True" and args.is_remote == "False":
     assert(args.chpt_dir != "")
+
     simulator = Simulator(board=board,
             checkpoint_path=os.path.join(os.getcwd(), args.chpt_dir))
+    print("Done with restoring the checkpoint. Now running the simulation.")
     simulator.run()
+
+elif args.restore_chpt == "True" and args.is_remote == "True":
+    board._pre_instantiate()
+    root = Root(full_system=True, board=board)
+    board._post_instantiate()
+    print("*************** before rstr ****************")
+    m5.instantiate(args.chpt_dir)
+    print("*************** finished rstr ****************")
 
