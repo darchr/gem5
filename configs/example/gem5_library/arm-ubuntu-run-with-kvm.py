@@ -40,6 +40,7 @@ scons build/ARM/gem5.opt -j<NUM_CPUS>
 
 """
 
+import m5, argparse, os
 from m5.objects import (
     ArmDefaultRelease,
     VExpress_GEM5_V1,
@@ -49,6 +50,7 @@ from gem5.coherence_protocol import CoherenceProtocol
 from gem5.components.boards.arm_board import ArmBoard
 from gem5.components.memory import DualChannelDDR4_2400
 from gem5.components.processors.cpu_types import CPUTypes
+from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.components.processors.simple_switchable_processor import (
     SimpleSwitchableProcessor,
 )
@@ -57,6 +59,28 @@ from gem5.resources.resource import obtain_resource
 from gem5.simulate.exit_event import ExitEvent
 from gem5.simulate.simulator import Simulator
 from gem5.utils.requires import requires
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--take-chkpt",
+    type=str,
+    required=True,
+    help="True for checkpoint, False for restore run."
+)
+parser.add_argument(
+    "--chkpt-dir",
+    type=str,
+    required=False,
+    help="Path to the checkpoint directory to restore from."
+)
+parser.add_argument(
+    "--rstr-cpu-switchable",
+    type=str,
+    required=False,
+    help="If set to True then uses SimpleSwitchableProcessor "
+    "to restore the checkpoint, otherwise uses SimpleProcessor."
+)
+args = parser.parse_args()
 
 # This runs a check to ensure the gem5 binary is compiled for ARM.
 requires(isa_required=ISA.ARM)
@@ -79,12 +103,26 @@ memory = DualChannelDDR4_2400(size="2GB")
 # from the starting core types to the switch core types. In this simulation
 # we start with KVM cores to simulate the OS boot, then switch to the Timing
 # cores for the command we wish to run after boot.
-processor = SimpleSwitchableProcessor(
-    starting_core_type=CPUTypes.KVM,
-    switch_core_type=CPUTypes.TIMING,
-    isa=ISA.ARM,
-    num_cores=2,
-)
+
+if args.take_chkpt == "True":
+    # processor = SimpleProcessor(cpu_type=CPUTypes.KVM, isa=ISA.ARM, num_cores=2)
+    processor = SimpleSwitchableProcessor(
+        starting_core_type=CPUTypes.KVM,
+        switch_core_type=CPUTypes.TIMING,
+        isa=ISA.ARM,
+        num_cores=2,
+    )
+else:
+    if args.rstr_cpu_switchable == "True":
+        processor = SimpleSwitchableProcessor(
+            starting_core_type=CPUTypes.TIMING,
+            switch_core_type=CPUTypes.ATOMIC,
+            isa=ISA.ARM,
+            num_cores=2,
+        )
+    else:
+        processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, isa=ISA.ARM, num_cores=2)
+    
 
 # The ArmBoard requires a `release` to be specified. This adds all the
 # extensions or features to the system. We are setting this to Armv8
@@ -113,8 +151,10 @@ board = ArmBoard(
 # output.
 command = (
     "m5 --addr=0x10010000 exit;"
-    + "echo 'This is running on Timing CPU cores.';"
-    + "m5 exit;"
+    + "echo 'This is running on Timing CPU cores. Now taking a checkpoint';"
+    + "m5 --addr=0x10010000 exit;"
+    + "echo 'This is running on Timing CPU cores. Restored the checkpoint';"
+    + "m5  --addr=0x10010000  exit;"
 )
 
 # Here we set a full system workload. The "arm64-ubuntu-20.04-boot" boots
@@ -126,14 +166,23 @@ board.set_kernel_disk_workload(
     bootloader=obtain_resource("arm64-bootloader"),
     readfile_contents=command,
 )
-# We define the system with the aforementioned system defined.
-simulator = Simulator(
-    board=board,
-    on_exit_event={ExitEvent.EXIT: (func() for func in [processor.switch])},
-)
 
 # Once the system successfully boots, it encounters an
 # `m5_exit instruction encountered`. We stop the simulation then. When the
 # simulation has ended you may inspect `m5out/board.terminal` to see
 # the stdout.
-simulator.run()
+if args.take_chkpt == "True":
+    simulator = Simulator(board=board)
+    simulator.run()
+    processor.switch()
+    print("Switched from KVM to TIMING. Now, start writing the checkpoint")
+    simulator.save_checkpoint(m5.options.outdir+"/checkpoint")
+    print("Finished writing the checkpoint")
+
+else:
+    print("Reading the checkpoint")
+    simulator = Simulator(board=board,
+                checkpoint_path=os.path.join(os.getcwd(), 
+                args.chkpt_dir))
+    print("Done with restoring the checkpoint. Now running the simulation.")
+    simulator.run()
