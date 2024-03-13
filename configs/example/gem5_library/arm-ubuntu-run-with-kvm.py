@@ -24,21 +24,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""
-This script further shows an example of booting an ARM based full system Ubuntu
-disk image. This simulation boots the disk image using 2 TIMING CPU cores. The
-simulation ends when the startup is completed successfully (i.e. when an
-`m5_exit instruction is reached on successful boot).
-
-Usage
------
-
-```
-scons build/ARM/gem5.opt -j<NUM_CPUS>
-./build/ARM/gem5.opt configs/example/gem5_library/arm-ubuntu-run-with-kvm.py
-```
-
-"""
 
 import m5, argparse, os
 from m5.objects import (
@@ -46,7 +31,6 @@ from m5.objects import (
     VExpress_GEM5_V1,
 )
 
-from gem5.coherence_protocol import CoherenceProtocol
 from gem5.components.boards.arm_board import ArmBoard
 from gem5.components.memory import DualChannelDDR4_2400
 from gem5.components.processors.cpu_types import CPUTypes
@@ -56,22 +40,29 @@ from gem5.components.processors.simple_switchable_processor import (
 )
 from gem5.isas import ISA
 from gem5.resources.resource import obtain_resource
-from gem5.simulate.exit_event import ExitEvent
 from gem5.simulate.simulator import Simulator
 from gem5.utils.requires import requires
+from gem5.simulate.exit_event import ExitEvent
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--take-chkpt",
     type=str,
     required=True,
-    help="True for checkpoint, False for restore run."
+    help="True for checkpoint run, False for restore run."
 )
 parser.add_argument(
     "--chkpt-dir",
     type=str,
     required=False,
     help="Path to the checkpoint directory to restore from."
+)
+parser.add_argument(
+    "--chkpt-cpu-switchable",
+    type=str,
+    required=False,
+    help="If set to True then uses SimpleSwitchableProcessor "
+    "to take the checkpoint, otherwise uses SimpleProcessor."
 )
 parser.add_argument(
     "--rstr-cpu-switchable",
@@ -105,13 +96,15 @@ memory = DualChannelDDR4_2400(size="2GB")
 # cores for the command we wish to run after boot.
 
 if args.take_chkpt == "True":
-    # processor = SimpleProcessor(cpu_type=CPUTypes.KVM, isa=ISA.ARM, num_cores=2)
-    processor = SimpleSwitchableProcessor(
+    if args.chkpt_cpu_switchable == "True":
+        processor = SimpleSwitchableProcessor(
         starting_core_type=CPUTypes.KVM,
         switch_core_type=CPUTypes.TIMING,
         isa=ISA.ARM,
         num_cores=2,
     )
+    else:
+        processor = SimpleProcessor(cpu_type=CPUTypes.KVM, isa=ISA.ARM, num_cores=2)
 else:
     if args.rstr_cpu_switchable == "True":
         processor = SimpleSwitchableProcessor(
@@ -150,16 +143,28 @@ board = ArmBoard(
 # has ended you may inspect `m5out/system.pc.com_1.device` to see the echo
 # output.
 command = (
-    "m5 --addr=0x10010000 exit;"
-    + "echo 'This is running on Timing CPU cores. Now taking a checkpoint';"
-    + "m5 --addr=0x10010000 exit;"
-    + "echo 'This is running on Timing CPU cores. Restored the checkpoint';"
-    + "m5  --addr=0x10010000  exit;"
+    # "m5 --addr=0x10010000 exit;" +
+    # "sleep 1;" +
+    "echo 'Booted Ubuntu. Now taking a checkpoint';" +
+    "m5 --addr=0x10010000 exit;" +
+    #"sleep 1;" +
+    "echo 'This is running on Timing CPU cores. Restored the checkpoint';" +
+    "echo 'This is running on Timing CPU cores. Restored the checkpoint';" +
+    "echo 'This is running on Timing CPU cores. Restored the checkpoint';" +
+    "echo 'This is running on Timing CPU cores. Restored the checkpoint';" +
+    "echo 'This is running on Timing CPU cores. Restored the checkpoint';" +
+    "echo 'This is running on Timing CPU cores. Restored the checkpoint';" +
+    "echo 'This is running on Timing CPU cores. Restored the checkpoint';" +
+    "echo 'This is running on Timing CPU cores. Restored the checkpoint';" +
+    "echo 'This is running on Timing CPU cores. Restored the checkpoint';" +
+    "echo 'This is running on Timing CPU cores. Restored the checkpoint';" +
+    "echo 'This is running on Timing CPU cores. Restored the checkpoint';" +
+    "echo 'This is running on Timing CPU cores. Restored the checkpoint';" +
+    "echo 'This is running on Timing CPU cores. Restored the checkpoint';" +
+    "m5  --addr=0x10010000  exit;"
+    #"sleep 1;"
 )
 
-# Here we set a full system workload. The "arm64-ubuntu-20.04-boot" boots
-# Ubuntu 20.04. We use arm64-bootloader (boot.arm64) as the bootloader to use
-# ARM KVM.
 board.set_kernel_disk_workload(
     kernel=obtain_resource("arm64-linux-kernel-5.4.49"),
     disk_image=obtain_resource("arm64-ubuntu-20.04-img"),
@@ -167,22 +172,31 @@ board.set_kernel_disk_workload(
     readfile_contents=command,
 )
 
+def handle_exit():
+    yield True  # Stop the simulation. We're done.
+
 # Once the system successfully boots, it encounters an
 # `m5_exit instruction encountered`. We stop the simulation then. When the
 # simulation has ended you may inspect `m5out/board.terminal` to see
 # the stdout.
 if args.take_chkpt == "True":
-    simulator = Simulator(board=board)
+    simulator = Simulator(board=board,
+                          on_exit_event={ExitEvent.EXIT: handle_exit(),},)
     simulator.run()
-    processor.switch()
-    print("Switched from KVM to TIMING. Now, start writing the checkpoint")
+    if args.chkpt_cpu_switchable == "True":
+        processor.switch()
+        print("Switched from KVM to TIMING.")
+    print("Now, start writing the checkpoint.")
     simulator.save_checkpoint(m5.options.outdir+"/checkpoint")
     print("Finished writing the checkpoint")
 
 else:
-    print("Reading the checkpoint")
+    print("Reading the checkpoint.")
     simulator = Simulator(board=board,
                 checkpoint_path=os.path.join(os.getcwd(), 
-                args.chkpt_dir))
-    print("Done with restoring the checkpoint. Now running the simulation.")
+                args.chkpt_dir),
+                on_exit_event={ExitEvent.EXIT: handle_exit(),},)
     simulator.run()
+    print("******* End of Simulation *******")
+
+
