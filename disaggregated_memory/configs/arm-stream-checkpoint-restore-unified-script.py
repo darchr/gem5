@@ -60,6 +60,7 @@ from gem5.simulate.simulator import Simulator
 from gem5.resources.workload import *
 from gem5.resources.resource import *
 from m5.objects import AddrRange, Root
+from m5.objects import ArmDefaultRelease
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -116,9 +117,9 @@ requires(isa_required=ISA.ARM)
 
 local_memory = DualChannelDDR4_2400(size="2GiB")
 
-cpu_type = ""
+cpu_type = CPUTypes.KVM
 if args.take_chpt == "True":
-    cpu_type=CPUTypes.ATOMIC
+    cpu_type=CPUTypes.KVM
 elif args.restore_chpt == "True":
     cpu_type=CPUTypes.TIMING
 processor = SimpleProcessor(cpu_type=cpu_type, isa=ISA.ARM, num_cores=4)
@@ -141,7 +142,8 @@ if args.is_remote == "False":
     local_memory=local_memory,
     remote_memory=remote_memory,
     cache_hierarchy=cache_hierarchy,
-    platform=VExpress_GEM5_V1()
+    platform=VExpress_GEM5_V1(),
+    release = ArmDefaultRelease.for_kvm()
     )
 else:
     cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3SstDMCache(
@@ -158,7 +160,8 @@ else:
     local_memory=local_memory,
     remote_memory=remote_memory,
     cache_hierarchy=cache_hierarchy,
-    platform=VExpress_GEM5_V1()
+    platform=VExpress_GEM5_V1(),
+    release = ArmDefaultRelease.for_kvm()
     )
 
 
@@ -211,7 +214,7 @@ if args.take_chpt == "True":
     print("Finished writing the checkpoint")
 elif args.restore_chpt == "True" and args.is_remote == "False":
     assert(args.chpt_dir != "")
-
+    print("****************************************************")
     simulator = Simulator(board=board,
             checkpoint_path=os.path.join(os.getcwd(), args.chpt_dir))
     print("Done with restoring the checkpoint. Now running the simulation.")
@@ -223,5 +226,3 @@ elif args.restore_chpt == "True" and args.is_remote == "True":
     board._post_instantiate()
     print("*************** before rstr ****************")
     m5.instantiate(args.chpt_dir)
-    print("*************** finished rstr ****************")
-

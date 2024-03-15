@@ -53,7 +53,7 @@ def connect_components(link_name: str,
 # mpirun to run the sst binary.
 system_nodes = 1
 cpu_type = "timing"
-gem5_run_script = "../../disaggregated_memory/configs/arm-numa-checkpoints.py"
+gem5_run_script = "../../disaggregated_memory/configs/arm-stream-checkpoint-restore-unified-script.py"
 
 # Define the total number of SST Memory nodes
 memory_nodes = 1
@@ -64,8 +64,7 @@ node_memory_slice = "2GiB"
 remote_memory_slice = "2GiB"
 
 # SST memory node size. Each system gets a 2 GiB slice of fixed memory.
-sst_memory_size = str(
-    (memory_nodes * int(node_memory_slice[0])) + (system_nodes) * 2 + 2) +"GiB"
+sst_memory_size = "36GiB"
 addr_range_end = UnitAlgebra(sst_memory_size).getRoundedValue()
 
 # There is one cache bus connecting all gem5 ports to the remote memory.
@@ -106,22 +105,19 @@ for node in range(system_nodes):
     # Each of the nodes needs to have the initial parameters. We might need to
     # to supply the instance count to the Gem5 side. This will enable range
     # adjustments to be made to the DTB File.
-    node_range = [0x80000000 + (node + 1) * 0x80000000,
-                  0x80000000 + (node + 2) * 0x80000000]
-    print(node_range)
+    # node_range = [0x80000000 + (node + 1) * 0x80000000,
+    #               0x80000000 + 17 * 0x80000000]
+
     cmd = [
         #  f"-re",
-        f"--outdir=ckpts/m5out_rstr_{node}",
+        f"--outdir=../../m5out_sst_rem_rstr_{node}",
         f"{gem5_run_script}",
-        f"--cpu-clock-rate {cpu_clock_rate}",
         f"--instance {node}",
-        f"--cpu-type {cpu_type}",
-        f"--local-memory-size {node_memory_slice}",
-        f"--remote-memory-addr-range {node_range[0]},{node_range[1]}",
-        f"--take-ckpt False",
-        f"--ckpt-file test-to-restore",
-        f"--remote-memory-latency \
-            {int(float(cpu_clock_rate[0:cpu_clock_rate.find('G')]) * 250)}" # 250 ns latency of CXL is converted to #ticks in gem5.
+        f"--remote-memory-addr-range=4294967296,38654705664",
+        f"--restore-chpt=True",
+        f"--is-remote=True",
+        f"--chpt-dir=/home/babaie/projects/disaggregated-cxl/unified1/gem5/m5out_new_rem_kvm_chpt/checkpoint",
+        f"--remote-memory-latency=750" # 250 ns latency of CXL is converted to #ticks in gem5.
     ]
     ports = {
         "remote_memory_port" : "board.remote_memory"
