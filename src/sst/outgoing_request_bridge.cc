@@ -112,7 +112,8 @@ OutgoingRequestBridge::sendTimingResp(gem5::PacketPtr pkt)
     bool return_status = outgoingPort.sendTimingResp(pkt);
     if (return_status) {
         ++stats.numIncomingPackets;
-        stats.sizeIncomingPackets += pkt->getSize();
+        unsigned int pkt_size = pkt->hasData() ? pkt->getSize() : 0;
+        stats.sizeIncomingPackets += pkt_size;
     }
     return return_status;
 }
@@ -130,7 +131,16 @@ OutgoingRequestBridge::initPhaseComplete(bool value) {
 bool
 OutgoingRequestBridge::getInitPhaseStatus() {
     return init_phase_bool;
+ }
+
+void
+OutgoingRequestBridge::clearInitData() {
+    // free the memory
+    initData.clear();
+    assert(initData.size() == 0);
+    std::cout << "init data was cleared!" << std::endl;
 }
+
 void
 OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
 {
@@ -142,6 +152,7 @@ OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
         uint64_t size = pkt->getSize();
         std::vector<uint8_t> data(ptr, ptr+size);
         initData.push_back(std::make_pair(pkt->getAddr(), data));
+        initPhaseComplete(true);
     }
     // This is the RUN phase. SST does not allow any sendUntimedData (AKA
     // functional accesses) to it's memory. We need to convert these accesses
@@ -153,7 +164,19 @@ OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
         // this error, don not handle any functional accesses and the kernel
         // boot will fail while reading the correct partition from the vda
         // device.
+        // TODO: Let the writes go through
+        // if (!pkt->isRead())
+
+
+        // std::cout << "func in the bridge " << pkt->getAddr() << std::endl;
+
+    // pkt->pushLabel(name());
+    // functionalAccess(pkt);
+    // pkt->popLabel();
+
         sstResponder->handleRecvFunctional(pkt);
+        // functionalAccess(pkt);
+        // else
     }
     // FIXME: This should not exist for timing mode.
     functionalAccess(pkt);
@@ -192,7 +215,8 @@ bool OutgoingRequestBridge::handleTiming(PacketPtr pkt)
     bool return_status = sstResponder->handleRecvTimingReq(pkt);
     if (return_status) {
         ++stats.numOutgoingPackets;
-        stats.sizeOutgoingPackets += pkt->getSize();
+        unsigned int pkt_size = pkt->hasData() ? pkt->getSize() : 0;
+        stats.sizeOutgoingPackets += pkt_size;
     }
     return return_status;
 }
@@ -274,12 +298,14 @@ OutgoingRequestBridge::unserialize(CheckpointIn &cp)
 
     // Each memory address corresponds to `amount_in_bytes` to read and
     // write into SST's memory.
-    const int amount_in_bytes = 64;
+    const int amount_in_bytes = 4194304; // 64
 
     // buffer to read the gzip file
-    char buf[amount_in_bytes];
+    // char buf[amount_in_bytes];
+    char *buf;
+    buf = new char[amount_in_bytes];
 
-    uint32_t bytes_read;
+    uint64_t bytes_read;
     while (curr_size < range.size()) {
 
         bytes_read = gzread(compressed_mem, buf, amount_in_bytes);
@@ -290,17 +316,19 @@ OutgoingRequestBridge::unserialize(CheckpointIn &cp)
 
         // use a vector to store the data. This vector is then sent to SST
         std::vector<uint8_t> data;
-        for (int i = 0 ; i < amount_in_bytes ; i++)
+        for (uint64_t i = 0 ; i < amount_in_bytes ; i++)
             data.push_back((uint8_t)buf[i]);
         
         // We use the `initData` variable to push data into SST's backing
         // memory.
         initData.push_back(std::make_pair(taddr, data));
+        data.clear();
 
         // This address is filled with data. Increment the curr_size by
         // `bytes_read`.
         curr_size += bytes_read;
     }
+    delete(buf);
 
     if (gzclose(compressed_mem))
         fatal("Close failed on physical memory checkpoint file '%s'\n",

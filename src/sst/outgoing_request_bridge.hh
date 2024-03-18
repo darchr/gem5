@@ -142,8 +142,10 @@ class OutgoingRequestBridge : public memory::AbstractMemory
 
     // We read the value of the init_phase_bool using `getInitPhaseStatus`
     // method.
-
     bool getInitPhaseStatus();
+
+    void clearInitData();
+
     // gem5 Component (from SST) will call this function to let set the
     // bridge's corresponding SSTResponderSubComponent (which implemented
     // SSTResponderInterface). I.e., this will connect this bridge to the
