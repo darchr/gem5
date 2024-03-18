@@ -244,6 +244,7 @@ gem5Component::init(unsigned phase)
     for (auto &port : sstPorts) {
         port->init(phase);
     }
+    std::cout << "done!" << std::endl;
 }
 
 void
@@ -253,6 +254,7 @@ gem5Component::setup()
     for (auto &port : sstPorts) {
         port->setup();
     }
+    std::cout << " done " << std::endl;
 }
 
 void
@@ -269,18 +271,30 @@ gem5Component::clockTick(SST::Cycle_t currentCycle)
     clocksProcessed++;
     // gem5 exits due to reasons other than reaching simulation limit
     if (event != gem5::simulate_limit_event) {
+        bool return_value = false;
         output.output("exiting: curTick()=%lu cause=`%s` code=%d\n",
             gem5::curTick(), event->getCause().c_str(), event->getCode()
         );
+        if (strcmp(event->getCause().c_str(), "workbegin") == 0) {
+            const std::vector<std::string> output_stats_commands = {
+                "import m5.stats",
+                "m5.stats.reset()",
+            };
+            execPythonCommands(output_stats_commands);
+            return false;
+        }
+        else if (strcmp(event->getCause().c_str(), "workend") == 0) {
+            const std::vector<std::string> output_stats_commands = {
+                "import m5.stats",
+                "m5.stats.dump()",
+            };
+            execPythonCommands(output_stats_commands);
+            return false;
+        }
         // output gem5 stats
         const std::vector<std::string> output_stats_commands = {
             "import m5.stats",
             "m5.stats.dump()",
-            "import os",
-            // "m5.checkpoint(os.path.join(os.getcwd(), \"ckpt-dir\"))",
-        //     "m5.checkpoint(\"/home/kaustavg/simulators/X86/gem5/ext/sst/xxx\")",
-        //     "import m5.checkpoint",
-        //     "m5.checkpoint(\"/home/kaustavg/simulators/X86/gem5/ext/sst/yyy\")",
         };
         execPythonCommands(output_stats_commands);
 
