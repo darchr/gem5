@@ -61,168 +61,160 @@ from gem5.resources.workload import *
 from gem5.resources.resource import *
 from m5.objects import AddrRange, Root
 from m5.objects import ArmDefaultRelease
+from gem5.simulate.exit_event import ExitEvent
 
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--chpt-dir",
-    type=str,
-    default="",
-    required=False,
-    help="Optionally, put a path to a checkpoint for restoring"
-)
-parser.add_argument(
-    "--take-chpt",
-    type=str,
-    default="False",
-    required=False,
-    help="Set it to true if taking a checkpoint"
-)
-parser.add_argument(
-    "--restore-chpt",
-    type=str,
-    default="False",
-    required=False,
-    help="Set it to true if restoring from a checkpoint"
-)
-parser.add_argument(
-    "--is-remote",
-    type=str,
-    default="False",
-    required=True,
-    help="Set it to true if using SST, false otherwise"
-)
-parser.add_argument(
-    "--remote-memory-addr-range",
-    type=str,
-    default="",
-    required=False,
-    help="Remote memory range when using sst",
-)
-parser.add_argument(
-    "--remote-memory-latency",
-    type=int,
-    required=False,
-    help="Remote memory latency in Ticks (has to be converted prior)",
-)
-parser.add_argument(
-    "--instance",
-    type=int,
-    required=False,
-    help="Instance id is need to correctly read and write to the checkpoint."
-)
+def parse_options():
 
-args = parser.parse_args()
+    parser = argparse.ArgumentParser()
 
-requires(isa_required=ISA.ARM)
-
-local_memory = DualChannelDDR4_2400(size="2GiB")
-
-cpu_type = CPUTypes.KVM
-if args.take_chpt == "True":
-    cpu_type=CPUTypes.KVM
-elif args.restore_chpt == "True":
-    cpu_type=CPUTypes.TIMING
-processor = SimpleProcessor(cpu_type=cpu_type, isa=ISA.ARM, num_cores=4)
-
-if args.is_remote == "False":
-    cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="4MiB"
+    parser.add_argument(
+        "--chpt-dir", type=str, default="", required=False,
+        help="Optionally, put a path to a checkpoint for restoring"
     )
-    remote_memory = RemoteChanneledMemory(
-            DDR4_2400_8x8,
-            2,
-            64,
-            size="32GB",
-            remote_offset_latency = args.remote_memory_latency
-    
+    parser.add_argument(
+        "--take-chpt", type=str,
+        help="Set it to true if taking a checkpoint"
     )
-    board = ArmGem5DMBoard(
-    clk_freq="3GHz",
-    processor=processor,
-    local_memory=local_memory,
-    remote_memory=remote_memory,
-    cache_hierarchy=cache_hierarchy,
-    platform=VExpress_GEM5_V1(),
-    release = ArmDefaultRelease.for_kvm()
+    parser.add_argument(
+        "--is-composable", type=str,
+        help="Set it to true if this setup will be " +
+        "used in SST experiments, false otherwise"
     )
-else:
-    cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3SstDMCache(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="4MiB"
+    parser.add_argument(
+        "--remote-memory-addr-range", type=str, default="",
+        help="Remote memory range when using SST",
     )
-    remote_memory_range = list(map(int, args.remote_memory_addr_range.split(",")))
-    remote_memory_range = AddrRange(remote_memory_range[0], remote_memory_range[1])
-    remote_memory = ExternalRemoteMemory(
-        addr_range = remote_memory_range, link_latency = args.remote_memory_latency
+    parser.add_argument(
+        "--remote-memory-latency", type=int,
+        help="Remote memory latency in Ticks (has to be converted prior)",
     )
-    board = ArmSstDMBoard(
-    clk_freq="3GHz",
-    processor=processor,
-    local_memory=local_memory,
-    remote_memory=remote_memory,
-    cache_hierarchy=cache_hierarchy,
-    platform=VExpress_GEM5_V1(),
-    release = ArmDefaultRelease.for_kvm()
+    parser.add_argument(
+        "--instance", type=int,
+        help="Instance id is need to correctly read and write to the checkpoint." +
+        " This is only used when restoring a checkpoint."
+    )
+    return parser.parse_args()
+
+def create_cmd_list(is_composable):
+    ### We create a set of commands to boot with KVM,
+    ### exit and take checkpoint,
+    ### then restoring with a Timing CPU and
+    ## running the STREAM benchmark and exit.
+    cmd =  ["mount -t sysfs - /sys;",
+            "mount -t proc - /proc;",
+            "numastat;",
+            "m5 --addr=0x10010000 exit;",
+            "ls;",]
+    if is_composable == "False":
+        cmd = cmd + [
+            "numactl --membind=0 -- " +
+            "/home/ubuntu/simple-vectorizable-benchmarks/stream/" +
+            "stream.hw.m5 1000000;",]
+    else:
+        cmd = cmd + [
+            "numactl --membind=1 -- " +
+            "/home/ubuntu/simple-vectorizable-benchmarks/stream/" +
+            "stream.hw.m5 1000000;",]
+    cmd = cmd + ["numastat;",
+                 "m5 --addr=0x10010000 exit;",]
+    return cmd
+
+def handle_exit():
+    yield True  # Stop the simulation. We're done.
+
+if __name__ == "__m5_main__":
+    args = parse_options()
+
+    requires(isa_required=ISA.ARM)
+
+    local_memory = DualChannelDDR4_2400(size="2GiB")
+
+    # Always use a Timing CPU, unless you are taking
+    # a checkpoint which you should use KVM to fast-forward
+    cpu_type = CPUTypes.TIMING
+    if args.take_chpt == "True":
+        cpu_type=CPUTypes.KVM
+    processor = SimpleProcessor(cpu_type=cpu_type, isa=ISA.ARM, num_cores=4)
+
+    # Create the memory system and the board
+    if args.is_composable == "False":
+        print("************************************ 1")
+        cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
+        l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="4MiB"
+        )
+        remote_memory = RemoteChanneledMemory(
+                DDR4_2400_8x8,
+                2,
+                64,
+                size="32GB",
+                remote_offset_latency = args.remote_memory_latency
+        )
+        board = ArmGem5DMBoard(
+        clk_freq="3GHz",
+        processor=processor,
+        local_memory=local_memory,
+        remote_memory=remote_memory,
+        cache_hierarchy=cache_hierarchy,
+        platform=VExpress_GEM5_V1(),
+        release = ArmDefaultRelease.for_kvm()
+        )
+    else:
+        print("************************************ 3")
+        cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3SstDMCache(
+        l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="4MiB"
+        )
+        remote_memory_range = list(map(int, args.remote_memory_addr_range.split(",")))
+        remote_memory_range = AddrRange(remote_memory_range[0], remote_memory_range[1])
+        remote_memory = ExternalRemoteMemory(
+            addr_range = remote_memory_range, link_latency = args.remote_memory_latency
+        )
+        board = ArmSstDMBoard(
+        clk_freq="3GHz",
+        processor=processor,
+        local_memory=local_memory,
+        remote_memory=remote_memory,
+        cache_hierarchy=cache_hierarchy,
+        platform=VExpress_GEM5_V1(),
+        release = ArmDefaultRelease.for_kvm()
+        )
+
+    # Make the command lists to be executed.
+    cmd = create_cmd_list(args.is_composable)
+
+    print(cpu_type)
+    print(cmd)
+    print("************************************ 2")
+
+    # Set the kernel, bootloader, disk image and the commands to be executed
+    board.set_kernel_disk_workload(
+        kernel=CustomResource("/home/kaustavg/vmlinux-5.4.49-NUMA.arm64"),
+        bootloader=CustomResource(
+                "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+        ),
+        disk_image=DiskImageResource(
+            "/projects/gem5/hn/DISK_IMAGES/arm64-hpc-2204-numa-kvm.img-20240304",
+            root_partition="1",
+        ),
+        readfile_contents=" ".join(cmd),
     )
 
-
-cmd = []
-if args.is_remote == "False":
-    cmd = [
-        "mount -t sysfs - /sys;",
-        "mount -t proc - /proc;",
-        "numastat;",
-        "m5 --addr=0x10010000 exit;",
-        "ls;",
-        "numactl --membind=0 -- " +
-        "/home/ubuntu/simple-vectorizable-benchmarks/stream/" +
-        "stream.hw.m5 1000000;",
-        "numastat;",
-        "m5 --addr=0x10010000 exit;",
-    ]
-else:
-    cmd = [
-        "mount -t sysfs - /sys;",
-        "mount -t proc - /proc;",
-        "numastat;",
-        "m5 --addr=0x10010000 exit;",
-        "ls;",
-        "numactl --membind=1 -- " +
-        "/home/ubuntu/simple-vectorizable-benchmarks/stream/" +
-        "stream.hw.m5 1000000;",
-        "numastat;",
-        "m5 --addr=0x10010000 exit;",
-    ]
-
-
-board.set_kernel_disk_workload(
-    kernel=CustomResource("/home/kaustavg/vmlinux-5.4.49-NUMA.arm64"),
-    bootloader=CustomResource(
-            "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
-    ),
-    disk_image=DiskImageResource(
-        "/projects/gem5/hn/DISK_IMAGES/arm64-hpc-2204-numa-kvm.img-20240304",
-        root_partition="1",
-    ),
-    readfile_contents=" ".join(cmd),
-)
-
-if args.take_chpt == "True":
-    simulator = Simulator(board=board)
-    simulator.run()
-    print("Finished simulation, now writing the checkpoint")
-    simulator.save_checkpoint(m5.options.outdir+"/checkpoint")
-    print("Finished writing the checkpoint")
-elif args.restore_chpt == "True" and args.is_remote == "False":
-    assert(args.chpt_dir != "")
-    print("****************************************************")
-    simulator = Simulator(board=board,
-            checkpoint_path=os.path.join(os.getcwd(), args.chpt_dir))
-    print("Done with restoring the checkpoint. Now running the simulation.")
-    simulator.run()
-
-elif args.restore_chpt == "True" and args.is_remote == "True":
-    board._pre_instantiate()
-    root = Root(full_system=True, board=board)
-    board._post_instantiate()
-    print("*************** before rstr ****************")
-    m5.instantiate(args.chpt_dir)
+    if args.take_chpt == "True": # taking a checkpoint
+        simulator = Simulator(board=board,
+                          on_exit_event={ExitEvent.EXIT: handle_exit()})
+        simulator.run()
+        print("Finished simulation, now writing the checkpoint")
+        simulator.save_checkpoint(m5.options.outdir+"/checkpoint")
+        print("Finished writing the checkpoint")
+    else: # restoring a checkpoint
+        assert(args.chpt_dir != "")
+        if args.is_composable == "False": # remote memory is in gem5 node
+            simulator = Simulator(board=board,
+                    checkpoint_path=os.path.join(os.getcwd(), args.chpt_dir),
+                    on_exit_event={ExitEvent.EXIT: handle_exit()})
+            print("Done with restoring the checkpoint. Now running the simulation.")
+            simulator.run()
+        else: # remote memory is in SST node
+            board._pre_instantiate()
+            root = Root(full_system=True, board=board)
+            board._post_instantiate()
+            m5.instantiate(args.chpt_dir)

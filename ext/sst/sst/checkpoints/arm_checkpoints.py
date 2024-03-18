@@ -112,12 +112,12 @@ for node in range(system_nodes):
         #  f"-re",
         f"--outdir=../../m5out_sst_rem_rstr_{node}",
         f"{gem5_run_script}",
-        f"--instance {node}",
-        f"--remote-memory-addr-range=4294967296,38654705664",
-        f"--restore-chpt=True",
-        f"--is-remote=True",
         f"--chpt-dir=/home/babaie/projects/disaggregated-cxl/unified1/gem5/m5out_new_rem_kvm_chpt/checkpoint",
-        f"--remote-memory-latency=750" # 250 ns latency of CXL is converted to #ticks in gem5.
+        f"--take-chpt=False",
+        f"--is-composable=True",
+        f"--remote-memory-addr-range=4294967296,38654705664",
+        f"--remote-memory-latency=750", # 250 ns latency of CXL is converted to #ticks in gem5.
+        f"--instance {node}",
     ]
     ports = {
         "remote_memory_port" : "board.remote_memory"
