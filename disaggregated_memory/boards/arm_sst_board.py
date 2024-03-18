@@ -200,9 +200,9 @@ class ArmSstDMBoard(ArmAbstractDMBoard):
 
         if self.get_remote_memory().is_xbar_required():
             self.remote_link = NoncoherentXBar(
-                frontend_latency=0,
+                frontend_latency=self.get_remote_memory().get_link_latency(),
                 forward_latency=0,
-                response_latency=self.get_remote_memory().get_link_latency(),
+                response_latency=0,
                 width=64,
             )
             # connect the remote memory port to the remote link
