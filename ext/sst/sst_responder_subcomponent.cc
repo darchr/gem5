@@ -108,8 +108,8 @@ SSTResponderSubComponent::init(unsigned phase)
             SST::Interfaces::StandardMem::Request* request = \
                 new SST::Interfaces::StandardMem::Write(
                     addr, data.size(), data);
-            std::cout << sizeof(request) << std::endl;
             memoryInterface->sendUntimedData(request);
+            delete request;
         }
         // clear the data to free the memory
         responseReceiver->clearInitData();
