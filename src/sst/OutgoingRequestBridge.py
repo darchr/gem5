@@ -37,11 +37,8 @@ class OutgoingRequestBridge(AbstractMemory):
     physical_address_ranges = VectorParam.AddrRange(
         [AddrRange(0x80000000, MaxAddr)], "Physical address ranges."
     )
-
     node_index = Param.String("0", "index of this remote memory node")
-
     block_size = Param.Unsigned(64, "Memory block size in bytes")
-
     start_range = Param.Addr(0x80000000, "Start of physical address range")
-
     end_range = Param.Addr(MaxAddr, "End of physical address range")
+    use_sst_sim = Param.Bool(True, "Use SST as an external memory simulator.")

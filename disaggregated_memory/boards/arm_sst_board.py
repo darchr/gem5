@@ -236,6 +236,14 @@ class ArmSstDMBoard(ArmAbstractDMBoard):
         # Incorporate the processor into the motherboard.
         self.get_processor().incorporate_processor(self)
 
+        # If the user is using TIMING cores, then set use_sst_sim as true.
+        # TODO: make this adhere to the stdlib requirments
+        # TODO TODO: Make this work for ATOMIC CPUs
+        if any(core.is_kvm_core() for core in self.get_processor().get_cores()):
+            for mem_ctrls in self.get_remote_memory().get_memory_controllers():
+                print(vars(mem_ctrls))
+                mem_ctrls.use_sst_sim = False
+
         self._connect_things_called = True
 
     @overrides(ArmAbstractDMBoard)

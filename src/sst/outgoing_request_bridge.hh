@@ -177,6 +177,7 @@ class OutgoingRequestBridge : public memory::AbstractMemory
     Addr startRange;
     Addr endRange;
 
+    bool useSSTSim;
 };
 
 } // namespace gem5

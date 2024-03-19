@@ -50,7 +50,8 @@ OutgoingRequestBridge::OutgoingRequestBridge(
     nodeIndex(params.node_index),
     blockSize(params.block_size),
     startRange(params.start_range),
-    endRange(params.end_range)
+    endRange(params.end_range),
+    useSSTSim(params.use_sst_sim)
 {
     this->init_phase_bool = false;
 }
@@ -146,38 +147,35 @@ OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
 {
     // Check at which stage are we at. If we are at INIT phase, then queue all
     // these packets.
-    if (!getInitPhaseStatus())
-    {
-        uint8_t* ptr = pkt->getPtr<uint8_t>();
-        uint64_t size = pkt->getSize();
-        std::vector<uint8_t> data(ptr, ptr+size);
-        initData.push_back(std::make_pair(pkt->getAddr(), data));
-        initPhaseComplete(true);
+    if(useSSTSim == true) { 
+        if (!getInitPhaseStatus())
+        {
+            uint8_t* ptr = pkt->getPtr<uint8_t>();
+            uint64_t size = pkt->getSize();
+            std::vector<uint8_t> data(ptr, ptr+size);
+            initData.push_back(std::make_pair(pkt->getAddr(), data));
+            initPhaseComplete(true);
+        }
+        // This is the RUN phase. SST does not allow any sendUntimedData (AKA
+        // functional accesses) to it's memory. We need to convert these accesses
+        // to timing to at least store the correct data in the memory.
+        else {
+            // These packets have to translated at runtime. We convert these
+            // packets to timing as its data has to be stored correctly in SST
+            // memory. Otherwise reads from the SST memory will fail. To reproduce
+            // this error, don not handle any functional accesses and the kernel
+            // boot will fail while reading the correct partition from the vda
+            // device.
+            // TODO: Let the writes go through
+            //
+            // although we allow functional reads to go through, it is actually
+            // being handled by gem5.
+            sstResponder->handleRecvFunctional(pkt);
+        }
     }
-    // This is the RUN phase. SST does not allow any sendUntimedData (AKA
-    // functional accesses) to it's memory. We need to convert these accesses
-    // to timing to at least store the correct data in the memory.
-    else {
-        // These packets have to translated at runtime. We convert these
-        // packets to timing as its data has to be stored correctly in SST
-        // memory. Otherwise reads from the SST memory will fail. To reproduce
-        // this error, don not handle any functional accesses and the kernel
-        // boot will fail while reading the correct partition from the vda
-        // device.
-        // TODO: Let the writes go through
-        // if (!pkt->isRead())
-
-
-        // std::cout << "func in the bridge " << pkt->getAddr() << std::endl;
-
-    // pkt->pushLabel(name());
-    // functionalAccess(pkt);
-    // pkt->popLabel();
-
-        sstResponder->handleRecvFunctional(pkt);
-        // functionalAccess(pkt);
-        // else
-    }
+    // It does not matter if SST is used or not, all functional accesses (only
+    // seen in ARM and RISCV should have a gem5 functionalAccess(pkt).
+    //
     // FIXME: This should not exist for timing mode.
     functionalAccess(pkt);
 }
