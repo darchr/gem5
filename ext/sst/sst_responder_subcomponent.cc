@@ -100,7 +100,6 @@ SSTResponderSubComponent::handleTimingReq(
 void
 SSTResponderSubComponent::init(unsigned phase)
 {
-    std::cout << phase << std::endl;
     if (phase == 1) {
         for (auto p: responseReceiver->getInitData()) {
             gem5::Addr addr = p.first;
@@ -109,7 +108,6 @@ SSTResponderSubComponent::init(unsigned phase)
                 new SST::Interfaces::StandardMem::Write(
                     addr, data.size(), data);
             memoryInterface->sendUntimedData(request);
-            delete request;
         }
         // clear the data to free the memory
         responseReceiver->clearInitData();
@@ -321,7 +319,6 @@ SSTResponderSubComponent::handleRecvFunctional(gem5::PacketPtr pkt)
     // to be correctly handled. The idea here is to convert this functional
     // access into a timing access and keep the SST memory consistent.
     
-    std :: cout << "func " << pkt->getAddr() << " " << pkt->isRead() << std::endl;
     gem5::Addr addr = pkt->getAddr();
     uint8_t* ptr = pkt->getPtr<uint8_t>();
     uint64_t size = pkt->getSize();
