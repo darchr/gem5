@@ -69,8 +69,8 @@ class ClassicPrivateL1PrivateL2SharedL3DMCache(
         for cntr in board.get_local_memory().get_memory_controllers():
             cntr.port = self.membus.mem_side_ports
 
-        for cntr in board.get_remote_memory().get_memory_controllers():
-            cntr.port = self.membus.mem_side_ports
+        # The remote memory ports may have additional latency. Therefore, this
+        # is moved into the board.
 
         self.l1icaches = [
             L1ICache(size=self._l1i_size)
