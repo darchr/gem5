@@ -100,19 +100,68 @@ SSTResponderSubComponent::handleTimingReq(
 void
 SSTResponderSubComponent::init(unsigned phase)
 {
-    if (phase == 1) {
-        for (auto p: responseReceiver->getInitData()) {
-            gem5::Addr addr = p.first;
-            std::vector<uint8_t> data = p.second;
-            SST::Interfaces::StandardMem::Request* request = \
-                new SST::Interfaces::StandardMem::Write(
-                    addr, data.size(), data);
-            memoryInterface->sendUntimedData(request);
-        }
-        // clear the data to free the memory
-        responseReceiver->clearInitData();
+    if (phase == 0) {
+        // Added support for MPI send and recv. We have to split and send
+        // gem5's data in phases to SST.
+        // get the size of this memory.
+        // We are using a MemBackdoor to get the data to restore from gem5.
+        gem5::MemBackdoorPtr data;
+        responseReceiver->getBackdoor(data);
+        assert(data->readable());
+
+        // this can be a huge number
+        uint64_t memory_size = data->range().end() - data->range().start();
+
+        // phases needed must be an integer. creating a temporary variable.
+        uint64_t unsigned_phases_needed = memory_size/(1 << 30);
+        phases_needed = (int)unsigned_phases_needed;
+
+        // we read the mem in 1 MB blocks
+        count_limit = 1024;
+        processed_addr = 0x0;
     }
-    memoryInterface->init(phase);
+    for (int i = 0 ; i < phases_needed ; i++) {
+        // TODO: This needs to be distinguished whether we are simulating a
+        // full memory in SST or we are restoring SST's memory
+        // odd phases send data from gem5 to SST
+        if (phase == i * 2 + 1) {
+
+            // We are using a MemBackdoor to get the data to restore from gem5.
+            gem5::MemBackdoorPtr data;
+            responseReceiver->getBackdoor(data);
+            assert(data->readable());
+
+            // We are loading a lot of data in one instance for faster
+            // initializtion.
+            const int chunk_size = 1 << 20;
+            
+            // So here is the thing about membackdoor. It has the size of the
+            // memroy preserved however, the data pointer always stats at 0x0.
+            // When we are loading this data (this case), the data has to be
+            // correctly offset to read and restore.
+            // (start of backdoor) 0x0 -> 0x100000000 (start of remote memory)
+            //                        0x4 -> 0x100000004
+            //                        ..
+            //                 0x80000000 -> 0x180000000
+            for (gem5::Addr addr = processed_addr;
+                    addr < ((phase/2) + 1) * count_limit * chunk_size; 
+                    addr += chunk_size) {
+                std::vector<uint8_t> chunk(data->ptr() + addr,
+                                           data->ptr() + addr + chunk_size);
+                SST::Interfaces::StandardMem::Request* request = \
+                    new SST::Interfaces::StandardMem::Write(
+                        data->range().start() + addr, chunk_size, chunk);
+                memoryInterface->sendUntimedData(request);
+	    		delete request;
+            }
+            processed_addr += (1 << 30);
+
+            // clear the data to free the memory at the final phase 
+            if (i == phases_needed)
+                responseReceiver->clearInitData();
+        }
+        memoryInterface->init(phase);    
+    }
 }
 
 void
@@ -173,65 +222,6 @@ SSTResponderSubComponent::handleSwapReqResponse(
 
     delete request;
 }
-/*
-void
-SSTResponderSubComponent::portEventHandler(
-    SST::Interfaces::StandardMem::Request* request)
-{
-    // Expect to handle an SST response
-    SST::Interfaces::StandardMem::Request::id_t request_id = request->getID();
-
-    TPacketMap::iterator it = sstRequestIdToPacketMap.find(request_id);
-
-    // replying to a prior request
-    if (it != sstRequestIdToPacketMap.end()) {
-        gem5::PacketPtr pkt = it->second; // the packet that needs response
-
-        // Responding to a SwapReq requires a special handler
-        //     1. send a response to gem5 with the original data
-        //     2. send a write to memory with atomic op applied
-        if ((gem5::MemCmd::Command)pkt->cmd.toInt() == gem5::MemCmd::SwapReq) {
-            handleSwapReqResponse(request);
-            return;
-        }
-
-        sstRequestIdToPacketMap.erase(it);
-
-        Translator::inplaceSSTRequestToGem5PacketPtr(pkt, request);
-
-        if (blocked() || !(responseReceiver->sendTimingResp(pkt))) {
-            responseQueue.push(pkt);
-        }
-    } else {
-        // we can handle unexpected invalidates, but nothing else.
-        if (SST::Interfaces::StandardMem::Read* test =
-                dynamic_cast<SST::Interfaces::StandardMem::Read*>(request)) {
-            return;
-        }
-        else if (SST::Interfaces::StandardMem::WriteResp* test =
-                dynamic_cast<SST::Interfaces::StandardMem::WriteResp*>(
-                request)) {
-            return;
-        }
-        // for Snoop/no response needed
-        // presently no consideration for masterId, packet type, flags...
-        gem5::RequestPtr req = std::make_shared<gem5::Request>(
-            dynamic_cast<SST::Interfaces::StandardMem::FlushAddr*>(
-                request)->pAddr,
-            dynamic_cast<SST::Interfaces::StandardMem::FlushAddr*>(
-                request)->size, 0, 0);
-
-        gem5::PacketPtr pkt = new gem5::Packet(
-            req, gem5::MemCmd::InvalidateReq);
-
-        // Clear out bus delay notifications
-        pkt->headerDelay = pkt->payloadDelay = 0;
-
-        responseReceiver->sendTimingSnoopReq(pkt);
-    }
-
-    delete request;
-}*/
 
 void
 SSTResponderSubComponent::portEventHandler(

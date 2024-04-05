@@ -144,6 +144,8 @@ class OutgoingRequestBridge : public memory::AbstractMemory
     // method.
     bool getInitPhaseStatus();
 
+    // A method is needed to clear any initialization data to free up memory
+    // used in the init phase.
     void clearInitData();
 
     // gem5 Component (from SST) will call this function to let set the
@@ -163,20 +165,11 @@ class OutgoingRequestBridge : public memory::AbstractMemory
     // not at the simulation time.
     void handleRecvFunctional(PacketPtr pkt);
 
-    // // For preparing for taking checkpoints.
-    // DrainState drain() override;
-
-    // Serializes the remote memory state to take a checkpoint.
-    void serialize(CheckpointOut &cp) const override;
-
-    // Unserializes the remote memory state from a checkpoint.
-    void unserialize(CheckpointIn &cp) override;
-
+    // We need a variable to store the nodeIndex. This will be later used in a
+    // multi-node simulation scenario.
     std::string nodeIndex;
-    unsigned blockSize;
-    Addr startRange;
-    Addr endRange;
 
+    // A variable is needed to tell gem5 whether to use SST or not.
     bool useSSTSim;
 };
 

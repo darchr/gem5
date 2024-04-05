@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 The Regents of the University of California
+// Copyright (c) 2021-2024 The Regents of the University of California
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -47,10 +47,10 @@ OutgoingRequestBridge::OutgoingRequestBridge(
     sstResponder(nullptr),
     physicalAddressRanges(params.physical_address_ranges.begin(),
                           params.physical_address_ranges.end()),
-    nodeIndex(params.node_index),
-    blockSize(params.block_size),
-    startRange(params.start_range),
-    endRange(params.end_range),
+    // nodeIndex(params.node_index),
+    // blockSize(params.block_size),
+    // startRange(params.start_range),
+    // endRange(params.end_range),
     useSSTSim(params.use_sst_sim)
 {
     this->init_phase_bool = false;
@@ -139,7 +139,6 @@ OutgoingRequestBridge::clearInitData() {
     // free the memory
     initData.clear();
     assert(initData.size() == 0);
-    std::cout << "init data was cleared!" << std::endl;
 }
 
 void
@@ -157,26 +156,24 @@ OutgoingRequestBridge::handleRecvFunctional(PacketPtr pkt)
             initPhaseComplete(true);
         }
         // This is the RUN phase. SST does not allow any sendUntimedData (AKA
-        // functional accesses) to it's memory. We need to convert these accesses
-        // to timing to at least store the correct data in the memory.
+        // functional accesses) to it's memory. We need to convert these
+        // accesses to timing to at least store the correct data in the memory.
         else {
             // These packets have to translated at runtime. We convert these
             // packets to timing as its data has to be stored correctly in SST
-            // memory. Otherwise reads from the SST memory will fail. To reproduce
-            // this error, don not handle any functional accesses and the kernel
-            // boot will fail while reading the correct partition from the vda
-            // device.
-            // TODO: Let the writes go through
+            // memory. Otherwise reads from the SST memory will fail. To
+            // reproduce this error, don not handle any functional accesses and
+            // the kernel boot will fail while reading the correct partition
+            // from the vda device.
             //
-            // although we allow functional reads to go through, it is actually
-            // being handled by gem5.
+            // These requests will be sent to SST to keep the SST's memory
+            // updated, however, these are being handled in gem5.
+            // FIXME:
             sstResponder->handleRecvFunctional(pkt);
         }
     }
     // It does not matter if SST is used or not, all functional accesses (only
     // seen in ARM and RISCV should have a gem5 functionalAccess(pkt).
-    //
-    // FIXME: This should not exist for timing mode.
     functionalAccess(pkt);
 }
 
@@ -184,11 +181,9 @@ Tick
 OutgoingRequestBridge::
 OutgoingRequestPort::recvAtomic(PacketPtr pkt)
 {
-    // return 0;
-    // assert(false && "OutgoingRequestPort::recvAtomic not implemented");
-
+    // We need to assert(!useSSTSim) but this will add an assert per memory
+    // request. So we reply on the user to set the configs correctly.
     owner->access(pkt);
-
     return Tick();
 }
 
@@ -231,106 +226,6 @@ OutgoingRequestBridge::
 OutgoingRequestPort::getAddrRanges() const
 {
     return owner->physicalAddressRanges;
-}
-
-void
-OutgoingRequestBridge::serialize(CheckpointOut &cp) const
-{
-    ScopedCheckpointSection sec(cp, "remoteMemoryStore_" + nodeIndex);
-
-    paramOut(cp, "numMemoryBlocks", (endRange - startRange) / blockSize);
-
-    for (Addr addr = startRange; addr < endRange; addr += blockSize) {
-        uint8_t  *host_addr = toHostAddr(addr);
-        assert(host_addr);
-        paramOut(cp, "data", *host_addr);
-        DPRINTF(CheckpointFlag, "Serialized addr: %llu with data: %llu\n",
-                &host_addr, *host_addr);
-    }
-}
-
-void
-OutgoingRequestBridge::unserialize(CheckpointIn &cp)
-{
-    ScopedCheckpointSection sec(cp, "remoteMemoryStore_" + nodeIndex);
-
-    // uint64_t num_blocks;
-    // Addr addr = startRange;
-    // uint64_t *data;
-
-    // paramIn(cp, "numMemoryBlocks", num_blocks);
-
-    // for (int i = 0; i < num_blocks; i++) {
-    //     paramIn(cp, "data", *data);
-    //     uint8_t *host_addr = toHostAddr(addr);
-    //     std::memcpy(host_addr, &data, blockSize);
-    //     addr += blockSize;
-    //     DPRINTF(
-    //         CheckpointFlag, "Unserialized data: %llu into host addr:%llu\n",
-    //         *data, &host_addr);
-    // }
-
-    // const uint32_t chunk_size = 16384;
-
-
-    // unsigned int store_id;
-    // UNSERIALIZE_SCALAR(store_id);
-
-    // UNSERIALIZE_SCALAR(filename);
-    
-    // FIXME: This needs to be *NOT* hardcoded.
-    std::string physical_memory_file = "board.physmem.store0.pmem";
-    std::string filepath = cp.getCptDir() + "/" + physical_memory_file;
-    std::cout << "_ " << filepath << std::endl;
-
-    // Open the physmem file as a normal gzip file.
-    gzFile compressed_mem = gzopen(filepath.c_str(), "rb");
-    if (compressed_mem == NULL)
-        fatal("Can't open physical memory checkpoint file '%s'", filepath);
-
-    AddrRange range = getAddrRanges();
-    uint64_t start_addr = range.start();
-    
-    // curr_size give the address of the data to restore.
-    uint64_t curr_size = 0;
-
-    // Each memory address corresponds to `amount_in_bytes` to read and
-    // write into SST's memory.
-    const int amount_in_bytes = 4194304; // 64
-
-    // buffer to read the gzip file
-    // char buf[amount_in_bytes];
-    char *buf;
-    buf = new char[amount_in_bytes];
-
-    uint64_t bytes_read;
-    while (curr_size < range.size()) {
-
-        bytes_read = gzread(compressed_mem, buf, amount_in_bytes);
-        if (bytes_read == 0)
-            break;
-
-        gem5::Addr taddr = start_addr + curr_size;
-
-        // use a vector to store the data. This vector is then sent to SST
-        std::vector<uint8_t> data;
-        for (uint64_t i = 0 ; i < amount_in_bytes ; i++)
-            data.push_back((uint8_t)buf[i]);
-        
-        // We use the `initData` variable to push data into SST's backing
-        // memory.
-        initData.push_back(std::make_pair(taddr, data));
-        data.clear();
-
-        // This address is filled with data. Increment the curr_size by
-        // `bytes_read`.
-        curr_size += bytes_read;
-    }
-    delete(buf);
-
-    if (gzclose(compressed_mem))
-        fatal("Close failed on physical memory checkpoint file '%s'\n",
-              filepath);
 }
 
 OutgoingRequestBridge::StatGroup::StatGroup(statistics::Group *parent)
