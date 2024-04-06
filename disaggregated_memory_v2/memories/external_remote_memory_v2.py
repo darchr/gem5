@@ -38,7 +38,7 @@ import m5
 from m5.objects import (
     AddrRange,
     MemCtrl,
-    OutgoingRequestBridge,
+    ExternalMemory,
     Port,
     Tick,
 )
@@ -104,7 +104,7 @@ class ExternalRemoteMemoryV2(AbstractMemorySystem):
 
         # The outtgoingrequestbridge is an AbstractMemory object that connects
         # gem5 to SST as an external memory.
-        self.outgoing_request_bridge = OutgoingRequestBridge()
+        self.outgoing_request_bridge = ExternalMemory()
 
         # Indicate whether the user is using SST or not.
         self.outgoing_request_bridge.use_sst_sim = use_sst_sim
@@ -130,6 +130,13 @@ class ExternalRemoteMemoryV2(AbstractMemorySystem):
             else:
                 self._size = size
 
+        # TODO: Marked for deletion
+        # If there is a remote latency specified, create a non_coherent
+        # cross_bar.
+        # if link_latency > 0:
+        #     self._xbar_required = True
+        #     self._link_latency = link_latency
+
     def get_size(self):
         return self._size
 
@@ -144,18 +151,11 @@ class ExternalRemoteMemoryV2(AbstractMemorySystem):
         assert self._xbar_required == True
         return self._link_latency
 
-    def get_set_using_addr_ranges(self) -> bool:
-        """
-        A method to see if an address range was used to initialize this memory.
-        :returns: a boolean with the required value
-        """
+    def get_set_using_addr_ranges(self):
         return self._set_using_addr_ranges
 
-    def get_physical_address_ranges(self) -> List[AddrRange]:
-        """
-        A method to get the physical_address_range of the outgoing bridge
-        Returns the physical_address_ranges as a list
-        """
+    def get_physical_address_ranges(self):
+        # Returns the physical_address_ranges as a list
         return self.outgoing_request_bridge.physical_address_ranges
 
     @overrides(AbstractMemorySystem)
@@ -166,9 +166,7 @@ class ExternalRemoteMemoryV2(AbstractMemorySystem):
 
     @overrides(AbstractMemorySystem)
     def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
-        """Get the memory (RAM) ports of this memory.
-        :returns: A tuple of mem_ports.
-        """
+        # raise NotImplementedError("This method is not implemented yet.")
         return [
             (self.outgoing_request_bridge.physical_address_ranges[0],
                 self.outgoing_request_bridge.port)
