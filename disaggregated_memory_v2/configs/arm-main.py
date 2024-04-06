@@ -30,7 +30,7 @@ simulation using the gem5 library. This simulation boots Ubuntu 20.04 using
 1 TIMING CPU cores and executes `STREAM`. The simulation ends when the
 startup is completed successfully.
 
-* This script can be executed from either gem5 or SST
+* This script has to be executed from SST
 """
 
 import argparse
@@ -42,16 +42,22 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 
+# from boards.arm_sst_board import ArmSstDMBoard
 from boards.arm_main_board import ArmComposableMemoryBoard
-
+# from cachehierarchies.dm_caches_sst import(ClassicPrivateL1PrivateL2SharedL3SstDMCache)
+from cachehierarchies.mesi_three_level_dm_cache import MESIThreeLevelDMCache
 # from cachehierarchies.chi_dm_caches import PrivateL1DMCacheHierarchy
 from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
-
+from cachehierarchies.mi_example_dm_caches import MIExampleDMCache 
 from gem5.components.processors.simple_switchable_processor import (
     SimpleSwitchableProcessor,
 )
+
 from gem5.components.memory.simple import SingleChannelSimpleMemory
+# from memories.external_remote_memory import ExternalRemoteMemory
 from memories.external_remote_memory_v2 import ExternalRemoteMemoryV2
+# from memories.external_remote_memory_v3 import ExternalRemoteMemoryV2
+# from memories.remote_memory_outgoing_bridge import RemoteMemoryOutgoingBridge
 
 import m5
 from m5.objects import (
@@ -77,21 +83,7 @@ from gem5.utils.requires import requires
 
 # SST passes a couple of arguments for this system to simulate.
 parser = argparse.ArgumentParser()
-
-parser.add_argument(
-    "--command",
-    type=str,
-    help="Command run by guest"
-)
-
-parser.add_argument(
-    "--use-sst",
-    type=str,
-    required=True,
-    choices=["True", "False"],
-    help="Tell the simulation to either use gem5 or SST as the remote memory"
-)
-
+parser.add_argument("--command", type=str, help="Command run by guest")
 parser.add_argument(
     "--cpu-type",
     type=str,
@@ -99,29 +91,24 @@ parser.add_argument(
     default="atomic",
     help="CPU type",
 )
-
-# TODO: Hardcode this into both the scripts
 parser.add_argument(
     "--cpu-clock-rate",
     type=str,
     required=True,
     help="CPU Clock",
 )
-
 parser.add_argument(
     "--local-memory-size",
     type=str,
     required=True,
     help="Local memory size",
 )
-
 parser.add_argument(
     "--remote-memory-addr-range",
     type=str,
     required=True,
     help="Remote memory range",
 )
-
 parser.add_argument(
     "--remote-memory-latency",
     type=int,
@@ -151,16 +138,6 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
-
-# This runs a check to ensure the gem5 binary is compiled for ARM.
-requires(isa_required=ISA.ARM)
-
-# Setup parser inputs to correctly start the simulation.
-use_sst = {
-    "True": True,
-    "False": False
-}[args.use_sst]
-
 cpu_type = {
     "o3": CPUTypes.O3,
     "atomic": CPUTypes.ATOMIC,
@@ -171,15 +148,28 @@ cpu_type = {
 remote_memory_range = list(map(int, args.remote_memory_addr_range.split(",")))
 remote_memory_range = AddrRange(remote_memory_range[0], remote_memory_range[1])
 
+# This runs a check to ensure the gem5 binary is compiled for ARM.
+requires(isa_required=ISA.ARM)
 # Here we setup the parameters of the l1 and l2 caches.
 cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
     l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="1MiB"
 )
+# cache_hierarchy = MIExampleDMCache(size = "32KiB", assoc = 8)
 
-# TODO: Ruby Caches
+# cache_hierarchy = MESIThreeLevelDMCache(
+#             l1i_size="32KiB",
+#             l1i_assoc=4,
+#             l1d_size="32KiB",
+#             l1d_assoc=4,
+#             l2_size="256KiB",
+#             l2_assoc=8,
+#             l3_size="4MiB",
+#             l3_assoc=16,
+#             num_l3_banks=2
+# )
 # cache_hierarchy = PrivateL1DMCacheHierarchy(size="32KiB", assoc=8)
-
 # Memory: Dual Channel DDR4 2400 DRAM device.
+
 local_memory = SingleChannelDDR4_2400(size=args.local_memory_size)
 
 # Either suppy the size of the remote memory or the address range of the
@@ -187,18 +177,19 @@ local_memory = SingleChannelDDR4_2400(size=args.local_memory_size)
 # what type of memory is being simulated. This can either be initialized with
 # a size or a memory address range, which is mroe flexible. Adding remote
 # memory latency automatically adds a non-coherent crossbar to simulate latenyc
+
 remote_memory = ExternalRemoteMemoryV2(
-    addr_range=remote_memory_range,
-    use_sst_sim=use_sst
+    addr_range=remote_memory_range, use_sst_sim = False
 )
-
-# The user cannot supply both remote latency and ExternalRemoteMemoryV2 at the
-# same time. Any remote memory latency has to be added at the SST-side script
-# as a link latency.
-if isinstance(remote_memory, ExternalRemoteMemoryV2):
-    assert(int(args.remote_memory_latency) == 0), "Cannot add remote latency \
-when using the outgoing bridge. Need to add this as a link latency in SST"
-
+# remote_memory = SingleChannelSimpleMemory(latency = "50ns",
+#         latency_var = "0ns", bandwidth = "128GiB/s", size = "2GiB")
+# remote_memory = SingleChannelDDR4_2400(size=args.local_memory_size)
+# processor = SimpleSwitchableProcessor(
+#     starting_core_type=CPUTypes.KVM,
+#     switch_core_type=CPUTypes.ATOMIC,
+#     isa=ISA.ARM,
+#     num_cores=4,
+#     )
 # Here we setup the processor. We use a simple processor.
 processor = SimpleProcessor(cpu_type=cpu_type, isa=ISA.ARM, num_cores=4)
 
@@ -210,8 +201,7 @@ board = ArmComposableMemoryBoard(
     remote_memory=remote_memory,
     cache_hierarchy=cache_hierarchy,
     platform=VExpress_GEM5_V1(),
-    release=ArmDefaultRelease.for_kvm(),
-    remote_memory_access_cycles=args.remote_memory_latency
+    release=ArmDefaultRelease.for_kvm()
 )
 
 cmd = [
@@ -281,8 +271,11 @@ workload = CustomWorkload(
             "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
         ),
         "disk_image": DiskImageResource(
-        "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
-        root_partition="1",
+            # "/projects/gem5/hn/DISK_IMAGES/arm64-hpc-2204-numa-kvm.img-20240304",
+            # "/home/kaustavg/disk-images/arm/arm64sve-hpc-2204-20230526-numa-bak.img",
+            "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            # local_path="/projects/gem5/hn/DISK_IMAGES/arm64-hpc-2204-numa-kvm.img-20240304",
+            root_partition="1",
         ),
         "readfile_contents": " ".join(cmd),
     },
