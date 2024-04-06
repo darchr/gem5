@@ -32,11 +32,12 @@ from typing import (
     Tuple,
 )
 
-from boards.riscv_dm_board import RiscvAbstractDMBoard
-from memories.remote_memory import RemoteChanneledMemory
+# from boards.riscv_dm_board import RiscvAbstractDMBoard
+# from memories.remote_memory import RemoteChanneledMemory
 
 import m5
 from m5.objects import (
+    OutgoingRequestBridge,
     AddrRange,
     Frequency,
     HiFive,
@@ -51,6 +52,7 @@ from m5.util.fdthelper import (
     FdtState,
 )
 
+from gem5.components.boards.riscv_board import RiscvBoard
 from gem5.components.boards.abstract_board import AbstractBoard
 from gem5.components.boards.abstract_system_board import AbstractSystemBoard
 from gem5.components.boards.kernel_disk_workload import KernelDiskWorkload
@@ -82,7 +84,7 @@ class RiscvComposableMemoryBoard(RiscvBoard):
     TODO
     """
 
-    __metaclass__ = ABCMeta
+    # __metaclass__ = ABCMeta
 
     def __init__(
         self,
@@ -91,9 +93,7 @@ class RiscvComposableMemoryBoard(RiscvBoard):
         local_memory: AbstractMemorySystem,
         remote_memory: AbstractMemorySystem,
         cache_hierarchy: AbstractCacheHierarchy,
-        platform: VExpress_GEM5_Base = VExpress_GEM5_Foundation(),
-        release: ArmRelease = ArmDefaultRelease(),
-        remote_memory_access_cycles: int = 750,
+        remote_memory_access_cycles: int = 0,
         remote_memory_address_range: AddrRange = None,
     ) -> None:
         # The parent board calls get_memory(), which needs overriding.
@@ -103,7 +103,7 @@ class RiscvComposableMemoryBoard(RiscvBoard):
         # memory. If the user did not specify the remote_memory_addr_range,
         # then we'd assume that the remote memory starts where local memory
         # ends.
-        if isinstance(remote_memory, OutgoingRequestBridge) == False:
+        if isinstance(remote_memory, OutgoingRequestBridge) == True:
             if remote_memory_address_range is None:
                 # See if the user specified a range to initialize the remote
                 # memory.
@@ -127,9 +127,7 @@ class RiscvComposableMemoryBoard(RiscvBoard):
             clk_freq=clk_freq,
             processor=processor,
             memory=local_memory,
-            cache_hierarchy=cache_hierarchy,
-            platform=platform,
-            release=release,
+            cache_hierarchy=cache_hierarchy
         )
 
         self.local_memory = local_memory
@@ -185,7 +183,7 @@ class RiscvComposableMemoryBoard(RiscvBoard):
             standard methods.
         :returns: The size of the remote memory system.
         """
-        return self.get_remory_memory().get_size()
+        return self.get_remote_memory().get_size()
 
     @overrides(RiscvBoard)
     def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
@@ -234,8 +232,7 @@ class RiscvComposableMemoryBoard(RiscvBoard):
 
         # The remote memory starts anywhere after the local memory ends. We
         # rely on the user to start and end this range.
-        self._remote_mem_ranges = [self._remoteMemoryAddrRange]
-
+        self._remote_mem_ranges = [self.get_remote_memory().get_mem_ports()[0][0]] # [self._remoteMemoryAddressRange]
         # using a _global_ memory range to keep a track of all the memory
         # ranges. This is used to generate the dtb for this machine
         self._global_mem_ranges = []
@@ -494,7 +491,7 @@ class RiscvComposableMemoryBoard(RiscvBoard):
         fdt.writeDtbFile(os.path.join(outdir, "device.dtb"))
 
 
-    @overrides(RiscvBoard)
+    # @overrides(RiscvBoard)
     def _incorporate_memory_range(self):
         # If the memory exists in gem5, then, we need to incorporate this
         # memory range.
