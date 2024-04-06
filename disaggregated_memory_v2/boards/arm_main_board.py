@@ -46,7 +46,7 @@ from m5.objects import (
     Terminal,
     VncServer,
     VoltageDomain,
-    OutgoingRequestBridge,
+    ExternalMemory,
     NoncoherentXBar
 )
 from m5.objects.ArmFsWorkload import ArmFsLinux
@@ -115,25 +115,33 @@ class ArmComposableMemoryBoard(ArmBoard):
         # memory. If the user did not specify the remote_memory_addr_range,
         # then we'd assume that the remote memory starts where local memory
         # ends.
-        if isinstance(remote_memory, OutgoingRequestBridge) == False:
-            if remote_memory_address_range is None:
-                # See if the user specified a range to initialize the remote
-                # memory.
+        # If the user gave a remote memory address range, then set it directly.
+        # TODO: This makes the design confusing. Remove this in the future
+        # iteration. A remote memory range should only be supplied when
+        # initializing the memory.
+        self._remoteMemoryAddressRange = None
+        if remote_memory_address_range is not None:
+            self._remoteMemoryAddressRange = remote_memory_address_range
+        else:
+            # Is this an external remote memory?
+            if isinstance(remote_memory, ExternalMemory) == True:
+                # There is an address range specified when the remote memory
+                # was initialized.
                 if self._remoteMemory.get_set_using_addr_ranges() == True:
+                    # Set the board's memory range as whatever was used.
                     self._remoteMemoryAddressRange = \
                     self._remoteMemory.get_mem_ports()[0][0]
-                else:
-                    # If the remote_memory_addr_range is not provided, we'll
-                    # assume that it starts at 0x80000000 + local_memory_size
-                    # and ends at it's own size
-                    self._remoteMemoryAddressRange = AddrRange(
-                        0x80000000 + self._localMemory.get_size(),
-                        size=self._remoteMemory.get_size(),
-                    )
-            else:
-                self._remoteMemoryAddressRange = remote_memory_address_range
-        else:
-            self._remoteMemoryAddressRange = None
+        # In case that none of the above set the memory range, we'll set it
+        # manually
+        if self._remoteMemoryAddressRange is None:
+            # If the remote_memory_addr_range is not provided, we'll
+            # assume that it starts at 0x80000000 + local_memory_size
+            # and ends at it's own size.
+            self._remoteMemoryAddressRange = AddrRange(
+                0x80000000 + self._localMemory.get_size(),
+                size=self._remoteMemory.get_size(),
+            )
+        assert(self._remoteMemoryAddressRange is not None)
 
         super().__init__(
             clk_freq=clk_freq,
@@ -156,7 +164,7 @@ class ArmComposableMemoryBoard(ArmBoard):
         # Set the external simulator variable to whatever the user has set in
         # the ExternalRemoteMemory component.
         self._external_simulator = False
-        if (isinstance(self.get_remote_memory(), OutgoingRequestBridge)):
+        if (isinstance(self.get_remote_memory(), ExternalMemory)):
             # TODO: This needs to be standardized.
             self._external_simulator = \
                     self.get_remote_memory()._remote_request_bridge.use_sst_sim
@@ -272,6 +280,7 @@ class ArmComposableMemoryBoard(ArmBoard):
         # ranges. ArmBoard's memory can only be setup once realview is
         # initialized.
         local_memory = self.get_local_memory()
+        print(type(local_memory))
         mem_size = local_memory.get_size()
 
         # The following code is taken from configs/example/arm/devices.py. It
@@ -280,12 +289,13 @@ class ArmComposableMemoryBoard(ArmBoard):
         success = False
         # self.mem_ranges.append(self.get_remote_memory_addr_range())
         for mem_range in self.realview._mem_regions:
+            print(mem_size)
             size_in_range = min(mem_size, mem_range.size())
             self.mem_ranges.append(
                 AddrRange(start=mem_range.start, size=size_in_range)
             )
-
             mem_size -= size_in_range
+                
             if mem_size == 0:
                 success = True
                 break

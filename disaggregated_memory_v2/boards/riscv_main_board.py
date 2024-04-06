@@ -25,6 +25,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
+from abc import ABCMeta
 from typing import (
     List,
     Optional,
@@ -32,12 +33,9 @@ from typing import (
     Tuple,
 )
 
-# from boards.riscv_dm_board import RiscvAbstractDMBoard
-# from memories.remote_memory import RemoteChanneledMemory
-
 import m5
 from m5.objects import (
-    OutgoingRequestBridge,
+    ExternalMemory,
     AddrRange,
     Frequency,
     HiFive,
@@ -103,25 +101,33 @@ class RiscvComposableMemoryBoard(RiscvBoard):
         # memory. If the user did not specify the remote_memory_addr_range,
         # then we'd assume that the remote memory starts where local memory
         # ends.
-        if isinstance(remote_memory, OutgoingRequestBridge) == True:
-            if remote_memory_address_range is None:
-                # See if the user specified a range to initialize the remote
-                # memory.
+        # If the user gave a remote memory address range, then set it directly.
+        # TODO: This makes the design confusing. Remove this in the future
+        # iteration. A remote memory range should only be supplied when
+        # initializing the memory.
+        self._remoteMemoryAddressRange = None
+        if remote_memory_address_range is not None:
+            self._remoteMemoryAddressRange = remote_memory_address_range
+        else:
+            # Is this an external remote memory?
+            if isinstance(remote_memory, ExternalMemory) == True:
+                # There is an address range specified when the remote memory
+                # was initialized.
                 if self._remoteMemory.get_set_using_addr_ranges() == True:
+                    # Set the board's memory range as whatever was used.
                     self._remoteMemoryAddressRange = \
                     self._remoteMemory.get_mem_ports()[0][0]
-                else:
-                    # If the remote_memory_addr_range is not provided, we'll
-                    # assume that it starts at 0x80000000 + local_memory_size
-                    # and ends at it's own size
-                    self._remoteMemoryAddressRange = AddrRange(
-                        0x80000000 + self._localMemory.get_size(),
-                        size=self._remoteMemory.get_size(),
-                    )
-            else:
-                self._remoteMemoryAddressRange = remote_memory_address_range
-        else:
-            self._remoteMemoryAddressRange = None
+        # In case that none of the above set the memory range, we'll set it
+        # manually
+        if self._remoteMemoryAddressRange is None:
+            # If the remote_memory_addr_range is not provided, we'll
+            # assume that it starts at 0x80000000 + local_memory_size
+            # and ends at it's own size.
+            self._remoteMemoryAddressRange = AddrRange(
+                0x80000000 + self._localMemory.get_size(),
+                size=self._remoteMemory.get_size(),
+            )
+        assert(self._remoteMemoryAddressRange is not None)
 
         super().__init__(
             clk_freq=clk_freq,
@@ -142,7 +148,7 @@ class RiscvComposableMemoryBoard(RiscvBoard):
         # Set the external simulator variable to whatever the user has set in
         # the ExternalRemoteMemory component.
         self._external_simulator = False
-        if (isinstance(self.get_remote_memory(), OutgoingRequestBridge)):
+        if (isinstance(self.get_remote_memory(), ExternalMemory)):
             # TODO: This needs to be standardized.
             self._external_simulator = \
                     self.get_remote_memory()._remote_request_bridge.use_sst_sim
@@ -150,7 +156,7 @@ class RiscvComposableMemoryBoard(RiscvBoard):
             # the remote outgoing bridge
             if self._remote_memory_access_cycles > 0:
                 warn("Trying to simulate remote memory with a gem5-side \
-                        latency. We recommed adding this latency to the \
+                        latency. We recommend adding this latency to the \
                         SST-side script")
 
     @overrides(RiscvBoard)
@@ -191,7 +197,7 @@ class RiscvComposableMemoryBoard(RiscvBoard):
 
     def get_remote_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
         """Get the memory (RAM) ports connected to the board.
-            This has to be implemeted by the child class as we don't know if
+            This has to be implemented by the child class as we don't know if
             this board is simulating Gem5 memory or some external simulator
             memory.
         :returns: A tuple of mem_ports.

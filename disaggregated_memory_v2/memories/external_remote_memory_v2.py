@@ -42,7 +42,7 @@ from m5.objects import (
     Port,
     Tick,
 )
-from m5.util import fatal
+from m5.util import fatal, warn
 
 from gem5.components.boards.abstract_board import AbstractBoard
 from gem5.components.memory.memory import AbstractMemorySystem
@@ -102,7 +102,7 @@ class ExternalRemoteMemoryV2(AbstractMemorySystem):
         # a track of that.
         self._set_using_addr_ranges = False
 
-        # The outtgoingrequestbridge is an AbstractMemory object that connects
+        # The ExternalMemory is an AbstractMemory object that connects
         # gem5 to SST as an external memory.
         self.outgoing_request_bridge = ExternalMemory()
 
@@ -123,12 +123,23 @@ class ExternalRemoteMemoryV2(AbstractMemorySystem):
                 self.outgoing_request_bridge.physical_address_ranges = \
                         [addr_range]
                 self._size = \
-                        self.outgoing_request_bridge.physical_address_ranges[0].size()
+                    self.outgoing_request_bridge.physical_address_ranges[0].size()
                 self._set_using_addr_ranges = True
             # The size will be setup in the board in case ranges are not given
             # by the user.
             else:
-                self._size = size
+                # There is no range information provided by the user. Depending
+                # upon the ISA, we have to fix the address.
+                # TODO: There is no way for the AbstractMemorySystem to know
+                # that ISA is board is using.
+                warn("The ExternalMemory interface is set using a size. " +
+                     "Defaulting to 0x80000000 (ARM/RISCV) style start" +
+                     "address. The program may crash if you're using X86.")
+                self.outgoing_request_bridge.physical_address_ranges = [
+                    AddrRange(start=0x80000000,size=size)
+                ]
+                self._size = \
+                    self.outgoing_request_bridge.physical_address_ranges[0].size()
 
         # TODO: Marked for deletion
         # If there is a remote latency specified, create a non_coherent
