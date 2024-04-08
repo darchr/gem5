@@ -510,6 +510,7 @@ class RiscvComposableMemoryBoard(RiscvBoard):
         return [
             "console=ttyS0",
             "root={root_value}",
+            "init=/root/gem5-init.sh",
             "rw",
         ]
 
