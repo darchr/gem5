@@ -104,6 +104,13 @@ parser.add_argument(
     help="Local memory size",
 )
 parser.add_argument(
+    "--use-sst",
+    type=str,
+    required=True,
+    choices=["True", "False"],
+    help="Tell the simulation to either use gem5 or SST as the remote memory"
+)
+parser.add_argument(
     "--remote-memory-addr-range",
     type=str,
     required=True,
