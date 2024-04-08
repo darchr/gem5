@@ -47,6 +47,7 @@
 #include <sst/outgoing_request_bridge.hh>
 #include <sim/root.hh>
 #include <sst/sst_responder_interface.hh>
+#include <mem/backdoor.hh>
 
 #include "translator.hh"
 #include "sst_responder.hh"
@@ -67,6 +68,9 @@ class SSTResponderSubComponent: public SST::SubComponent
 
     std::string gem5SimObjectName;
     std::string memSize;
+    uint64_t processed_addr;
+    int count_limit;
+    int phases_needed;
 
   public:
     SSTResponderSubComponent(SST::ComponentId_t id, SST::Params& params);
