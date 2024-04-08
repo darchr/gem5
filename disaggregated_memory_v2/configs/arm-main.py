@@ -80,10 +80,13 @@ from gem5.resources.workload import *
 from gem5.resources.workload import Workload
 from gem5.simulate.simulator import Simulator
 from gem5.utils.requires import requires
+from gem5.utils.warn import warn
 
 # SST passes a couple of arguments for this system to simulate.
 parser = argparse.ArgumentParser()
 parser.add_argument("--command", type=str, help="Command run by guest")
+
+# basic parameters.
 parser.add_argument(
     "--cpu-type",
     type=str,
@@ -98,17 +101,28 @@ parser.add_argument(
     help="CPU Clock",
 )
 parser.add_argument(
+    "--instance",
+    type=int,
+    required=True,
+    help="Instance id is need to correctly read and write to the " + \
+        "checkpoint in a multi-node simulation." 
+)
+
+# Parameters related to local memory
+parser.add_argument(
     "--local-memory-size",
     type=str,
     required=True,
     help="Local memory size",
 )
+
+# Parameters related to remote memory
 parser.add_argument(
-    "--use-sst",
+    "--is-composable",
     type=str,
     required=True,
     choices=["True", "False"],
-    help="Tell the simulation to either use gem5 or SST as the remote memory"
+    help="Tell the simulation to either use gem5 or SST as the remote memory."
 )
 parser.add_argument(
     "--remote-memory-addr-range",
@@ -122,13 +136,8 @@ parser.add_argument(
     required=True,
     help="Remote memory latency in Ticks (has to be converted prior)",
 )
-parser.add_argument(
-    "--instance",
-    type=int,
-    required=True,
-    help="Instance id is need to correctly read and write to the checkpoint."
-)
 
+# Parameters related to checkpoints.
 parser.add_argument(
     "--ckpt-file",
     type=str,
@@ -145,58 +154,36 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
+
 cpu_type = {
-    "o3": CPUTypes.O3,
-    "atomic": CPUTypes.ATOMIC,
-    "timing": CPUTypes.TIMING,
-    "kvm": CPUTypes.KVM
-}[args.cpu_type]
+    "o3": CPUTypes.O3, "atomic": CPUTypes.ATOMIC,
+    "timing": CPUTypes.TIMING, "kvm": CPUTypes.KVM}[args.cpu_type]
+use_sst = {"True": True, "False": False}[args.is_composable]
 
 remote_memory_range = list(map(int, args.remote_memory_addr_range.split(",")))
 remote_memory_range = AddrRange(remote_memory_range[0], remote_memory_range[1])
 
 # This runs a check to ensure the gem5 binary is compiled for ARM.
 requires(isa_required=ISA.ARM)
+
 # Here we setup the parameters of the l1 and l2 caches.
 cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="1MiB"
+    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="4MiB"
 )
-# cache_hierarchy = MIExampleDMCache(size = "32KiB", assoc = 8)
 
-# cache_hierarchy = MESIThreeLevelDMCache(
-#             l1i_size="32KiB",
-#             l1i_assoc=4,
-#             l1d_size="32KiB",
-#             l1d_assoc=4,
-#             l2_size="256KiB",
-#             l2_assoc=8,
-#             l3_size="4MiB",
-#             l3_assoc=16,
-#             num_l3_banks=2
-# )
-# cache_hierarchy = PrivateL1DMCacheHierarchy(size="32KiB", assoc=8)
 # Memory: Dual Channel DDR4 2400 DRAM device.
-
-local_memory = SingleChannelDDR4_2400(size=args.local_memory_size)
+local_memory = DualChannelDDR4_2400(size=args.local_memory_size)
 
 # Either suppy the size of the remote memory or the address range of the
 # remote memory. Since this is inside the external memory, it does not matter
 # what type of memory is being simulated. This can either be initialized with
 # a size or a memory address range, which is mroe flexible. Adding remote
-# memory latency automatically adds a non-coherent crossbar to simulate latenyc
-
+# memory latency automatically adds a non-coherent crossbar to simulate latency
 remote_memory = ExternalRemoteMemoryV2(
-    addr_range=remote_memory_range, use_sst_sim = False
+    addr_range=remote_memory_range,
+    use_sst_sim=use_sst
 )
-# remote_memory = SingleChannelSimpleMemory(latency = "50ns",
-#         latency_var = "0ns", bandwidth = "128GiB/s", size = "2GiB")
-# remote_memory = SingleChannelDDR4_2400(size=args.local_memory_size)
-# processor = SimpleSwitchableProcessor(
-#     starting_core_type=CPUTypes.KVM,
-#     switch_core_type=CPUTypes.ATOMIC,
-#     isa=ISA.ARM,
-#     num_cores=4,
-#     )
+
 # Here we setup the processor. We use a simple processor.
 processor = SimpleProcessor(cpu_type=cpu_type, isa=ISA.ARM, num_cores=4)
 
@@ -211,64 +198,42 @@ board = ArmComposableMemoryBoard(
     release=ArmDefaultRelease.for_kvm()
 )
 
-cmd = [
+# commands to execute to run the simulation.
+mount_cmd = [
     "mount -t sysfs - /sys;",
-    "mount -t proc - /proc;",
-    "numastat;",
-    # "m5 --addr=0x10010000 exit;",  # checkpoint
-    "m5 --addr=0x10010000 exit;",  # checkpoint
-    "echo \"resume\";",
-    "ls /home/ubuntu/;",
-    "echo \"ls done\";",
-    "cd home/ubuntu/simple-vectorizable-benchmarks;",
-    "ls;",
-    "cd stream;",
-    "ls;",
-    "m5 --addr=0x10010000 exit;",
+    "mount -t proc - /proc;"]
 
+warn("The command list to execute has to be manually set!")
+
+local_stream = [
+    "echo \"starting STREAM locally!\";",
     "numastat;",
     "numactl --membind=0 -- " +
     "/home/ubuntu/simple-vectorizable-benchmarks/stream/" +
     "stream.hw.m5 10000000;",
-    
+    "numastat;"]
+
+interleave_stream = [
+    "echo \"starting interleaved STREAM!\";",
     "numastat;",
     "numactl --interleave=0,1 -- " +
     "/home/ubuntu/simple-vectorizable-benchmarks/stream/" +
     "stream.hw.m5 10000000;",
-    
+    "numastat;",]
+
+remote_stream = [
+    "echo \"starting STREAM remotely!\";",
     "numastat;",
     "numactl --membind=1 -- " +
     "/home/ubuntu/simple-vectorizable-benchmarks/stream/" +
     "stream.hw.m5 10000000;",
-    "numastat;",
-    "m5 --addr=0x10010000 exit;",
-]
+    "numastat;",]
 
-# cmd for testing m5 exit from the program
-cmd = [
-    "mount -t sysfs - /sys;",
-    "mount -t proc - /proc;",
-    "numastat;",
-    "ls;",
-    # "m5 --addr=0x10010000 exit;",  # checkpoint
-    "m5 --addr=0x10010000 exit;",  # checkpoint
-    "echo \"resume\";",
-    "ls /home/ubuntu/;",
-    "echo \"ls done\";",
-    "cd home/ubuntu/simple-vectorizable-benchmarks;",
-    "ls;",
-    "cd stream;",
-    "ls;",
-    "m5 --addr=0x10010000 exit;",
-    
-    "numastat;",
-    "numactl --membind=1 -- " +
-    "/home/ubuntu/simple-vectorizable-benchmarks/stream/" +
-    "stream.hw.m5 1000000;",
-    "numastat;",
-    "m5 --addr=0x10010000 exit;",
-
-]
+# Since we are using kvm to boot the system, we can boot the system with
+# systemd enabled!
+cmd = ["m5 --addr=0x10010000 exit;"] + \
+    local_stream + interleave_stream + remote_stream + \
+    ["m5 --addr=0x10010000 exit;"]
 
 workload = CustomWorkload(
     function="set_kernel_disk_workload",
@@ -278,42 +243,58 @@ workload = CustomWorkload(
             "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
         ),
         "disk_image": DiskImageResource(
-            # "/projects/gem5/hn/DISK_IMAGES/arm64-hpc-2204-numa-kvm.img-20240304",
-            # "/home/kaustavg/disk-images/arm/arm64sve-hpc-2204-20230526-numa-bak.img",
-            "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
-            # local_path="/projects/gem5/hn/DISK_IMAGES/arm64-hpc-2204-numa-kvm.img-20240304",
+        "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
             root_partition="1",
         ),
         "readfile_contents": " ".join(cmd),
     },
 )
+
 ckpt_to_read_write = ""
 if args.ckpt_file != "":
-    ckpt_to_read_write = args.ckpt_file + str(args.instance)
+    ckpt_to_read_write = \
+        m5.options.outdir + "/" + args.ckpt_file + str(args.instance)
+    # inform the user where the checkpoint will be saved
+    print("Checkpoint will be saved in " + ckpt_to_read_write)
+else:
+    warn("A checkpoint path was not provided!")
 
 # This disk image needs to have NUMA tools installed.
 board.set_workload(workload)
-# This script will boot two numa nodes in a full system simulation where the
+
+# This script will boot two NUMA nodes in a full system simulation where the
 # gem5 node will be sending instructions to the SST node. the simulation will
-# after displaying numastat information on the terminal, whjic can be viewed
+# after displaying numastat information on the terminal, which can be viewed
 # from board.terminal.
 board._pre_instantiate()
 root = Root(full_system=True, board=board)
 board._post_instantiate()
 
-# restore checkpoint if any
+# define on_exit_event
+def handle_exit():
+    yield True  # Stop the simulation. We're done.
+
+# Here are the different scenarios:
+# no checkpoint, run everything in gem5
 if args.take_ckpt == "True":
     if args.cpu_type == "kvm":
+        # ensure that sst is not being used here.
+        assert(use_sst == False)
         root.sim_quantum = int(1e9)
     m5.instantiate()
-    # probably this script is being called only in gem5
+    
+    # probably this script is being called only in gem5. Since we are not using
+    # the simulator module, we might have to add more m5.simulate()
     m5.simulate()
-    # processor.switch()
-    # m5.simulate()
     if ckpt_to_read_write != "":
         m5.checkpoint(os.path.join(os.getcwd(), ckpt_to_read_write))
 else:
     # This is called in SST. SST will take care of running this script.
+    # Instantiate the system regardless of the simulator.
     m5.instantiate(ckpt_to_read_write)
-    # m5.simulate()
+    
+    # we can still use gem5. So making another if-else
+    if use_sst == False:
+        m5.simulate()
+    # otherwise just let SST do the simulation.
 

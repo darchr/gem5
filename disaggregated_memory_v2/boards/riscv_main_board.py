@@ -238,7 +238,8 @@ class RiscvComposableMemoryBoard(RiscvBoard):
 
         # The remote memory starts anywhere after the local memory ends. We
         # rely on the user to start and end this range.
-        self._remote_mem_ranges = [self.get_remote_memory().get_mem_ports()[0][0]] # [self._remoteMemoryAddressRange]
+        self._remote_mem_ranges = \
+                [self.get_remote_memory().get_mem_ports()[0][0]]
         # using a _global_ memory range to keep a track of all the memory
         # ranges. This is used to generate the dtb for this machine
         self._global_mem_ranges = []
@@ -509,7 +510,6 @@ class RiscvComposableMemoryBoard(RiscvBoard):
         return [
             "console=ttyS0",
             "root={root_value}",
-            "init=/root/gem5-init.sh",
             "rw",
         ]
 

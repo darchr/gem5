@@ -383,7 +383,6 @@ class ArmComposableMemoryBoard(ArmBoard):
             "norandmaps",
             "root={root_value}",
             "rw",
-            "init=/root/gem5-init.sh",
         ]
 
     @overrides(ArmBoard)
