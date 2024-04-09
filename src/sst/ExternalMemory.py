@@ -1,4 +1,4 @@
-# Copyright (c) 2021-24 The Regents of the University of California
+# Copyright (c) 2023-24 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,14 +24,23 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+from m5.objects.AbstractMemory import AbstractMemory
+from m5.params import *
 
-SimObject('OutgoingRequestBridge.py', sim_objects=['OutgoingRequestBridge'])
-SimObject('ExternalMemory.py', sim_objects=['ExternalMemory'])
 
-Source('outgoing_request_bridge.cc')
-Source('sst_responder_interface.cc')
+class ExternalMemory(AbstractMemory):
+    """
+    A class inhereted from AbstractMemory that allows gem5 to use SST as a
+    memory device.
+    """
 
-Source('external_memory.cc')
+    type = "ExternalMemory"
+    cxx_header = "sst/external_memory.hh"
+    cxx_class = "gem5::ExternalMemory"
 
-DebugFlag('CheckpointFlag')
+    port = ResponsePort("Response Port")
+    physical_address_ranges = VectorParam.AddrRange(
+        [AddrRange(0x80000000, MaxAddr)], "Physical address ranges."
+    )
+    node_index = Param.Int(0, "index of this remote memory node")
+    use_sst_sim = Param.Bool(True, "Use SST as an external memory simulator.")

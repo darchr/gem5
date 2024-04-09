@@ -25,6 +25,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "sst_responder_subcomponent.hh"
+// #include <sst/elements/memHierarchy/membackend/backing.h>
 
 #include <cassert>
 #include <sstream>
@@ -79,10 +80,18 @@ SSTResponderSubComponent::setOutputStream(SST::Output* output_)
 {
     output = output_;
 }
-
+/*
 void
 SSTResponderSubComponent::setResponseReceiver(
     gem5::OutgoingRequestBridge* gem5_bridge)
+{
+    responseReceiver = gem5_bridge;
+    responseReceiver->setResponder(sstResponder);
+}
+*/
+void
+SSTResponderSubComponent::setResponseReceiver(
+    gem5::ExternalMemory* gem5_bridge)
 {
     responseReceiver = gem5_bridge;
     responseReceiver->setResponder(sstResponder);
@@ -99,17 +108,68 @@ SSTResponderSubComponent::handleTimingReq(
 void
 SSTResponderSubComponent::init(unsigned phase)
 {
-    if (phase == 1) {
-        for (auto p: responseReceiver->getInitData()) {
-            gem5::Addr addr = p.first;
-            std::vector<uint8_t> data = p.second;
-            SST::Interfaces::StandardMem::Request* request = \
-                new SST::Interfaces::StandardMem::Write(
-                    addr, data.size(), data);
-            memoryInterface->sendUntimedData(request);
-        }
+    if (phase == 0) {
+        // Added support for MPI send and recv. We have to split and send
+        // gem5's data in phases to SST.
+        // get the size of this memory.
+        // We are using a MemBackdoor to get the data to restore from gem5.
+        gem5::MemBackdoorPtr data;
+        responseReceiver->getBackdoor(data);
+        assert(data->readable());
+
+        // this can be a huge number
+        uint64_t memory_size = data->range().end() - data->range().start();
+
+        // phases needed must be an integer. creating a temporary variable.
+        uint64_t unsigned_phases_needed = memory_size/(1 << 30);
+        phases_needed = (int)unsigned_phases_needed;
+        
+        // we read the mem in 1 MB blocks
+        count_limit = 1024;
+        processed_addr = 0x0;
     }
-    memoryInterface->init(phase);
+    for (int i = 0 ; i < phases_needed ; i++) {
+        // TODO: This needs to be distinguished whether we are simulating a
+        // full memory in SST or we are restoring SST's memory
+        // odd phases send data from gem5 to SST
+        if (phase == i * 2 + 1) {
+            // We are using a MemBackdoor to get the data to restore from gem5.
+            gem5::MemBackdoorPtr data;
+            responseReceiver->getBackdoor(data);
+            assert(data->readable());
+
+            // We are loading a lot of data in one instance for faster
+            // initializtion.
+            const uint64_t chunk_size = 1 << 20;
+            
+            // So here is the thing about membackdoor. It has the size of the
+            // memroy preserved however, the data pointer always stats at 0x0.
+            // When we are loading this data (this case), the data has to be
+            // correctly offset to read and restore.
+            // (start of backdoor) 0x0 -> 0x100000000 (start of remote memory)
+            //                        0x4 -> 0x100000004
+            //                        ..
+            //                 0x80000000 -> 0x180000000
+            for (gem5::Addr addr = processed_addr;
+                    addr < ((uint64_t)((phase/2) + 1) * \
+                            (uint64_t)count_limit * chunk_size); 
+                    addr += chunk_size) {
+                std::vector<uint8_t> chunk(data->ptr() + addr,
+                                           data->ptr() + addr + chunk_size);
+                SST::Interfaces::StandardMem::Request* request = \
+                    new SST::Interfaces::StandardMem::Write(
+                        data->range().start() + addr, chunk_size, chunk);
+                memoryInterface->sendUntimedData(request);
+	    		delete request;
+            }
+            processed_addr += (1 << 30);
+
+            // clear the data to free the memory at the final phase 
+            if (i == phases_needed)
+                responseReceiver->clearInitData();
+        }
+        memoryInterface->init(phase);    
+    }
 }
 
 void
@@ -120,8 +180,14 @@ SSTResponderSubComponent::setup()
 bool
 SSTResponderSubComponent::findCorrespondingSimObject(gem5::Root* gem5_root)
 {
+    /*
     gem5::OutgoingRequestBridge* receiver = \
         dynamic_cast<gem5::OutgoingRequestBridge*>(
+            gem5_root->find(gem5SimObjectName.c_str()));
+    }
+    */
+    gem5::ExternalMemory* receiver = \
+        dynamic_cast<gem5::ExternalMemory*>(
             gem5_root->find(gem5SimObjectName.c_str()));
     setResponseReceiver(receiver);
     return receiver != NULL;
@@ -200,9 +266,14 @@ SSTResponderSubComponent::portEventHandler(
             responseQueue.push(pkt);
         }
     } else {
-        // we can handle unexpected invalidates, but nothing else.
+        // we can handle a few types of requests.
         if (SST::Interfaces::StandardMem::Read* test =
                 dynamic_cast<SST::Interfaces::StandardMem::Read*>(request)) {
+            return;
+        }
+        else if (SST::Interfaces::StandardMem::ReadResp* test =
+                dynamic_cast<SST::Interfaces::StandardMem::ReadResp*>(
+                request)) {
             return;
         }
         else if (SST::Interfaces::StandardMem::WriteResp* test =
@@ -238,11 +309,59 @@ SSTResponderSubComponent::handleRecvRespRetry()
         responseQueue.pop();
 }
 
+// void
+// SSTResponderSubComponent::handleRecvFunctional(gem5::PacketPtr pkt)
+// {
+// }
+
 void
 SSTResponderSubComponent::handleRecvFunctional(gem5::PacketPtr pkt)
 {
-}
+    // SST does not understand what is a functional access in gem5 since SST
+    // only allows functional accesses at init time. Since it
+    // has all the stored in it's memory, any functional access made to SST has
+    // to be correctly handled. The idea here is to convert this functional
+    // access into a timing access and keep the SST memory consistent.
+    
+    gem5::Addr addr = pkt->getAddr();
+    uint8_t* ptr = pkt->getPtr<uint8_t>();
+    uint64_t size = pkt->getSize();
 
+    // Create a new request to handle this request immediately.
+    SST::Interfaces::StandardMem::Request* request = nullptr;
+
+    // we need a minimal translator here which does reads and writes. Any other
+    // command type is unexpected and the program should crash immediately.
+    switch((gem5::MemCmd::Command)pkt->cmd.toInt()) {
+        case gem5::MemCmd::WriteReq: {
+            std::vector<uint8_t> data(ptr, ptr+size);
+            request = new SST::Interfaces::StandardMem::Write(
+                addr, data.size(), data);
+            break;
+        }
+        case gem5::MemCmd::ReadReq: {
+            request = new SST::Interfaces::StandardMem::Read(addr, size);
+            break;
+        }
+        // case gem5::MemCmd::WriteResp:
+        // case gem5::MemCmd::ReadResp: {
+        //     // std::vector<uint8_t> data(ptr, ptr+size);
+        //     // request = new SST::Interfaces::StandardMem::ReadResp(
+        //     //     0, addr, data.size(), data);
+        //     return;
+        // }
+        default:
+            panic(
+                "handleRecvFunctional: Unable to convert gem5 packet: %s\n",
+                pkt->cmd.toString()
+            );
+    }
+    if(pkt->req->isUncacheable()) {
+        request->setFlag(
+            SST::Interfaces::StandardMem::Request::Flag::F_NONCACHEABLE);
+    }
+    memoryInterface->send(request);
+}
 bool
 SSTResponderSubComponent::blocked()
 {
