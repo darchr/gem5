@@ -73,9 +73,9 @@ def get_address_range(node, local_mem_size, remote_mem_size, blank_mem_size):
 
     @returns [start_addr, end_addr] for the remote memory
     """
-    return [blank_mem_size + (node + 1) * local_mem_size + \
+    return [blank_mem_size + local_mem_size + \
                     (node) * remote_mem_size,
-            blank_mem_size + (node + 1) * local_mem_size + \
+            blank_mem_size + local_mem_size + \
                     (node) * remote_mem_size + remote_mem_size
     ]
 
@@ -93,7 +93,7 @@ is_composable = "True"
 # Define the CPU type
 cpu_type = "o3"
 
-gem5_run_script = "../../disaggregated_memory/configs/arm-main.py"
+gem5_run_script = "../../disaggregated_memory_v2/configs/arm-main.py"
 
 # =========================================================================== #
 
@@ -121,11 +121,13 @@ blank_memory_space_in_hex = 0x80000000
 assert(len(node_memory_slice) == 4), "The length of local mem size must be 4"
 assert(len(remote_memory_slice) == 5), "The length of remote mem size must be 5"
 assert(len(blank_memory_space) == 4), "The length must be 4"
-
+# \033[92m {}\033[00m
 sst_memory_size = str(
-        (memory_nodes * int(node_memory_slice[0])) + \
-        ((system_nodes) * int(remote_memory_slice[0:1])) + \
+        int(node_memory_slice[0]) + \
+        ((system_nodes) * int(remote_memory_slice[0:2])) + \
         int(blank_memory_space[0])
+) + "GiB"
+addr_range_end = UnitAlgebra(sst_memory_size).getRoundedValue()
 print(sst_memory_size, addr_range_end)
 
 # There is one cache bus connecting all gem5 ports to the remote memory.
@@ -183,7 +185,7 @@ for node in range(system_nodes):
         f"--local-memory-size {node_memory_slice}",
         f"--remote-memory-addr-range {node_range[0]},{node_range[1]}",
         f"--take-ckpt False",  # This setup is not expected to take checkpoints
-        f"--ckpt-file mpi-checkpoints",
+        f"--ckpt-file test-ckpt",
         f"--remote-memory-latency 0"    # Latency has to added at the top XXX
     ]
     ports = {
@@ -191,13 +193,20 @@ for node in range(system_nodes):
     }
     port_list = []
     for port in ports:
-        port_list.append(port)
-    cpu_params = {
-       "frequency" : cpu_clock_rate,
-       "cmd" : " ".join(cmd),
-       "debug_flags" : "Checkpoint,MemoryAccess",
-       "ports" : " ".join(port_list)
-    }
+        port_list.append(port) 
+    if node == 0:
+        cpu_params = {
+            "frequency" : cpu_clock_rate,
+            "cmd" : " ".join(cmd),
+            "debug_flags" : "Checkpoint",
+            "ports" : " ".join(port_list)
+        }
+        cpu_params = {
+            "frequency" : cpu_clock_rate,
+            "cmd" : " ".join(cmd),
+            "debug_flags" : "Checkpoint,MemoryAccess",
+            "ports" : " ".join(port_list)
+        }
     # Each of the Gem5 node has to be separately simulated.
     gem5_nodes.append(
         sst.Component("gem5_node_{}".format(node), "gem5.gem5Component")
@@ -222,7 +231,7 @@ for node in range(system_nodes):
                        memory_ports[node], 0,
                        mem_bus, node,
                        port = True, latency = True)
-    
+ 
 # All system nodes are setup. Now create a SST memory. Keep it simplemem for
 # avoiding extra simulation time. There is only one memory node in SST's side.
 # This will be updated in the future to use number of sst_memory_nodes

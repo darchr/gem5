@@ -26,14 +26,23 @@
 
 # The goal of this board is to combine the gem5-only and the gem5-SSt boards
 # into one single board.
-
 import os
+import sys
+
 from abc import ABCMeta
 from typing import (
     List,
     Sequence,
     Tuple,
 )
+
+# all the source files are one directory above.
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
+)
+
+from memories.external_remote_memory_v2 import ExternalRemoteMemoryV2
+
 
 import m5
 from m5.objects import (
@@ -124,7 +133,7 @@ class ArmComposableMemoryBoard(ArmBoard):
             self._remoteMemoryAddressRange = remote_memory_address_range
         else:
             # Is this an external remote memory?
-            if isinstance(remote_memory, ExternalMemory) == True:
+            if isinstance(remote_memory, ExternalRemoteMemoryV2) == True:
                 # There is an address range specified when the remote memory
                 # was initialized.
                 if self._remoteMemory.get_set_using_addr_ranges() == True:

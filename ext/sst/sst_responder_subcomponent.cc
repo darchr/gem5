@@ -80,10 +80,18 @@ SSTResponderSubComponent::setOutputStream(SST::Output* output_)
 {
     output = output_;
 }
-
+/*
 void
 SSTResponderSubComponent::setResponseReceiver(
     gem5::OutgoingRequestBridge* gem5_bridge)
+{
+    responseReceiver = gem5_bridge;
+    responseReceiver->setResponder(sstResponder);
+}
+*/
+void
+SSTResponderSubComponent::setResponseReceiver(
+    gem5::ExternalMemory* gem5_bridge)
 {
     responseReceiver = gem5_bridge;
     responseReceiver->setResponder(sstResponder);
@@ -115,7 +123,7 @@ SSTResponderSubComponent::init(unsigned phase)
         // phases needed must be an integer. creating a temporary variable.
         uint64_t unsigned_phases_needed = memory_size/(1 << 30);
         phases_needed = (int)unsigned_phases_needed;
-
+        
         // we read the mem in 1 MB blocks
         count_limit = 1024;
         processed_addr = 0x0;
@@ -125,7 +133,6 @@ SSTResponderSubComponent::init(unsigned phase)
         // full memory in SST or we are restoring SST's memory
         // odd phases send data from gem5 to SST
         if (phase == i * 2 + 1) {
-
             // We are using a MemBackdoor to get the data to restore from gem5.
             gem5::MemBackdoorPtr data;
             responseReceiver->getBackdoor(data);
@@ -133,7 +140,7 @@ SSTResponderSubComponent::init(unsigned phase)
 
             // We are loading a lot of data in one instance for faster
             // initializtion.
-            const int chunk_size = 1 << 20;
+            const uint64_t chunk_size = 1 << 20;
             
             // So here is the thing about membackdoor. It has the size of the
             // memroy preserved however, the data pointer always stats at 0x0.
@@ -144,7 +151,8 @@ SSTResponderSubComponent::init(unsigned phase)
             //                        ..
             //                 0x80000000 -> 0x180000000
             for (gem5::Addr addr = processed_addr;
-                    addr < ((phase/2) + 1) * count_limit * chunk_size; 
+                    addr < ((uint64_t)((phase/2) + 1) * \
+                            (uint64_t)count_limit * chunk_size); 
                     addr += chunk_size) {
                 std::vector<uint8_t> chunk(data->ptr() + addr,
                                            data->ptr() + addr + chunk_size);
@@ -172,8 +180,14 @@ SSTResponderSubComponent::setup()
 bool
 SSTResponderSubComponent::findCorrespondingSimObject(gem5::Root* gem5_root)
 {
+    /*
     gem5::OutgoingRequestBridge* receiver = \
         dynamic_cast<gem5::OutgoingRequestBridge*>(
+            gem5_root->find(gem5SimObjectName.c_str()));
+    }
+    */
+    gem5::ExternalMemory* receiver = \
+        dynamic_cast<gem5::ExternalMemory*>(
             gem5_root->find(gem5SimObjectName.c_str()));
     setResponseReceiver(receiver);
     return receiver != NULL;
