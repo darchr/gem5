@@ -43,7 +43,6 @@ sys.path.append(
 
 from memories.external_remote_memory_v2 import ExternalRemoteMemoryV2
 
-
 import m5
 from m5.objects import (
     AddrRange,

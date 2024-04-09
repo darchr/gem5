@@ -42,25 +42,15 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 
-# from boards.arm_sst_board import ArmSstDMBoard
 from boards.riscv_main_board import RiscvComposableMemoryBoard
-# from cachehierarchies.dm_caches_sst import(ClassicPrivateL1PrivateL2SharedL3SstDMCache)
-
-# from cachehierarchies.chi_dm_caches import PrivateL1DMCacheHierarchy
 from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
-from cachehierarchies.mi_example_dm_caches import MIExampleDMCache 
-from cachehierarchies.mesi_three_level_dm_cache import MESIThreeLevelDMCache
 
 from gem5.components.processors.simple_switchable_processor import (
     SimpleSwitchableProcessor,
 )
 
 from gem5.components.memory.simple import SingleChannelSimpleMemory
-# from memories.external_remote_memory import ExternalRemoteMemory
-from memories.external_remote_memory_v2 import ExternalRemoteMemoryV2
-# from memories.remote_memory_outgoing_bridge import RemoteMemoryOutgoingBridge
-
-import m5
+from memories.external_remote_memory_v2 import ExternalRemoteMemoryV2import m5
 from m5.objects import (
     AddrRange,
     Root,
@@ -81,7 +71,6 @@ from gem5.utils.warn import warn
 
 # SST passes a couple of arguments for this system to simulate.
 parser = argparse.ArgumentParser()
-parser.add_argument("--command", type=str, help="Command run by guest")
 
 # basic parameters.
 parser.add_argument(

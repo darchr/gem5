@@ -42,22 +42,9 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 
-# from boards.arm_sst_board import ArmSstDMBoard
 from boards.arm_main_board import ArmComposableMemoryBoard
-# from cachehierarchies.dm_caches_sst import(ClassicPrivateL1PrivateL2SharedL3SstDMCache)
-from cachehierarchies.mesi_three_level_dm_cache import MESIThreeLevelDMCache
-# from cachehierarchies.chi_dm_caches import PrivateL1DMCacheHierarchy
 from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
-from cachehierarchies.mi_example_dm_caches import MIExampleDMCache 
-from gem5.components.processors.simple_switchable_processor import (
-    SimpleSwitchableProcessor,
-)
-
-from gem5.components.memory.simple import SingleChannelSimpleMemory
-# from memories.external_remote_memory import ExternalRemoteMemory
 from memories.external_remote_memory_v2 import ExternalRemoteMemoryV2
-# from memories.external_remote_memory_v3 import ExternalRemoteMemoryV2
-# from memories.remote_memory_outgoing_bridge import RemoteMemoryOutgoingBridge
 
 import m5
 from m5.objects import (
@@ -80,11 +67,10 @@ from gem5.resources.workload import *
 from gem5.resources.workload import Workload
 from gem5.simulate.simulator import Simulator
 from gem5.utils.requires import requires
-from gem5.utils.warn import warn
+from m5.util import warn
 
 # SST passes a couple of arguments for this system to simulate.
 parser = argparse.ArgumentParser()
-parser.add_argument("--command", type=str, help="Command run by guest")
 
 # basic parameters.
 parser.add_argument(
@@ -253,7 +239,7 @@ workload = CustomWorkload(
 ckpt_to_read_write = ""
 if args.ckpt_file != "":
     ckpt_to_read_write = \
-        m5.options.outdir + "/" + args.ckpt_file + str(args.instance)
+        os.getcwd() + "/" + m5.options.outdir + "/" + args.ckpt_file + str(args.instance)
     # inform the user where the checkpoint will be saved
     print("Checkpoint will be saved in " + ckpt_to_read_write)
 else:

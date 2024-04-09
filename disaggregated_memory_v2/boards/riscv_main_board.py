@@ -33,6 +33,12 @@ from typing import (
     Tuple,
 )
 
+# all the source files are one directory above.
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
+)
+
+from memories.external_remote_memory_v2 import ExternalRemoteMemoryV2
 import m5
 from m5.objects import (
     ExternalMemory,
@@ -110,7 +116,7 @@ class RiscvComposableMemoryBoard(RiscvBoard):
             self._remoteMemoryAddressRange = remote_memory_address_range
         else:
             # Is this an external remote memory?
-            if isinstance(remote_memory, ExternalMemory) == True:
+            if isinstance(remote_memory, ExternalRemoteMemoryV2) == True:
                 # There is an address range specified when the remote memory
                 # was initialized.
                 if self._remoteMemory.get_set_using_addr_ranges() == True:
