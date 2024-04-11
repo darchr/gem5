@@ -28,7 +28,7 @@
 # into one single board.
 import os
 import sys
-from abc import ABCMeta
+
 from typing import (
     List,
     Sequence,
@@ -40,7 +40,7 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 
-from memories.external_remote_memory_v2 import ExternalRemoteMemoryV2
+from memories.external_remote_memory import ExternalRemoteMemory
 
 import m5
 from m5.objects import (
@@ -98,10 +98,21 @@ class ArmComposableMemoryBoard(ArmBoard):
     * kvm is only supported in a gem5-only setup.
 
     @params
-    TODO
+    :clk_freq: Clock frequency of the board
+    :processor: An abstract processor to use with this board.
+    :local_memory: An abstract memory system taht starts at 0x80000000
+    :remote_memory: An abstract memory system that either starts at the end of
+            local memory or at a custom address range defined by the user.
+    :cache_hierarchy: An abstract_cache_hierarchy compatible with local and
+            remote memories.
+    :platform: Arm-specific platform to use with this board.
+    :release: Arm-specific extensions to use with this board.
+    :remote_memory_access_cycles: Optionally add some latency to access the
+            remote memory. If the remote memory is being simulated in SST, then
+            pass this as a param on the sst-side runscript.
+    :remote_memory_address_range: Use this to force map the remote memory
+            address range when using stdlib DRAM/memory interfaces.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(
         self,
@@ -131,7 +142,7 @@ class ArmComposableMemoryBoard(ArmBoard):
             self._remoteMemoryAddressRange = remote_memory_address_range
         else:
             # Is this an external remote memory?
-            if isinstance(remote_memory, ExternalRemoteMemoryV2) == True:
+            if isinstance(remote_memory, ExternalRemoteMemory) == True:
                 # There is an address range specified when the remote memory
                 # was initialized.
                 if self._remoteMemory.get_set_using_addr_ranges() == True:

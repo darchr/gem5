@@ -26,11 +26,10 @@
 
 """
 This script shows an example of running a full system ARM Ubuntu boot
-simulation using the gem5 library. This simulation boots Ubuntu 20.04 using
-1 TIMING CPU cores and executes `STREAM`. The simulation ends when the
-startup is completed successfully.
+simulation with local and remote memory. These memories are exposed to the OS
+as NUMA and zNUMA nodes. This simulation boots Ubuntu 20.04.
 
-* This script has to be executed from SST
+This script can be executed both from gem5 and SST.
 """
 
 import argparse
@@ -44,7 +43,7 @@ sys.path.append(
 
 from boards.arm_main_board import ArmComposableMemoryBoard
 from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
-from memories.external_remote_memory_v2 import ExternalRemoteMemoryV2
+from memories.external_remote_memory import ExternalRemoteMemory
 
 import m5
 from m5.objects import (
@@ -167,7 +166,7 @@ local_memory = DualChannelDDR4_2400(size=args.local_memory_size)
 # what type of memory is being simulated. This can either be initialized with
 # a size or a memory address range, which is mroe flexible. Adding remote
 # memory latency automatically adds a non-coherent crossbar to simulate latency
-remote_memory = ExternalRemoteMemoryV2(
+remote_memory = ExternalRemoteMemory(
     addr_range=remote_memory_range, use_sst_sim=use_sst
 )
 
@@ -219,13 +218,13 @@ remote_stream = [
 
 # Since we are using kvm to boot the system, we can boot the system with
 # systemd enabled!
-cmd = (
-    ["m5 --addr=0x10010000 exit;"]
-    + local_stream
-    + interleave_stream
-    + remote_stream
+cmd = ["m5 --addr=0x10010000 exit;"] \
+    + local_stream \
+    + interleave_stream \
+    + remote_stream \
     + ["m5 --addr=0x10010000 exit;"]
-)
+
+
 
 workload = CustomWorkload(
     function="set_kernel_disk_workload",

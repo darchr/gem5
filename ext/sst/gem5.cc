@@ -212,11 +212,14 @@ gem5Component::init(unsigned phase)
             "import m5",
             "import m5.stats",
             "import m5.objects.Root",
+            "import _m5.drain",
+            "_drain_manager = _m5.drain.DrainManager.instance()",
             "root = m5.objects.Root.getInstance()",
             "for obj in root.descendants(): obj.startup()",
             "atexit.register(m5.stats.dump)",
             "atexit.register(_m5.core.doExitCleanup)",
-            "m5.stats.reset()"
+            "m5.stats.reset()",
+            "if _drain_manager.isDrained(): _drain_manager.resume()"
         };
         execPythonCommands(simobject_setup_commands);
 
@@ -265,13 +268,30 @@ gem5Component::clockTick(SST::Cycle_t currentCycle)
     clocksProcessed++;
     // gem5 exits due to reasons other than reaching simulation limit
     if (event != gem5::simulate_limit_event) {
+        bool return_value = false;
         output.output("exiting: curTick()=%lu cause=`%s` code=%d\n",
             gem5::curTick(), event->getCause().c_str(), event->getCode()
         );
+        if (strcmp(event->getCause().c_str(), "workbegin") == 0) {
+            const std::vector<std::string> output_stats_commands = {
+                "import m5.stats",
+                "m5.stats.reset()",
+            };
+            execPythonCommands(output_stats_commands);
+            return false;
+        }
+        else if (strcmp(event->getCause().c_str(), "workend") == 0) {
+            const std::vector<std::string> output_stats_commands = {
+                "import m5.stats",
+                "m5.stats.dump()",
+            };
+            execPythonCommands(output_stats_commands);
+            return false;
+        }
         // output gem5 stats
         const std::vector<std::string> output_stats_commands = {
             "import m5.stats",
-            "m5.stats.dump()"
+            "m5.stats.dump()",
         };
         execPythonCommands(output_stats_commands);
 
@@ -283,7 +303,6 @@ gem5Component::clockTick(SST::Cycle_t currentCycle)
     return false;
 
 }
-
 #define PyCC(x) (const_cast<char *>(x))
 
 gem5::GlobalSimLoopExitEvent*

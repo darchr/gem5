@@ -119,6 +119,7 @@ ExternalMemory::sendTimingResp(gem5::PacketPtr pkt)
     else {
         // The simulation is done in gem5. The packet got a response
         // TODO: do something.
+        return false;
     }
 }
 
@@ -220,6 +221,7 @@ bool ExternalMemory::handleTiming(PacketPtr pkt)
     else {
         // the user is simulating the external memory in gem5.
         // TODO: so something!
+        return false;
     }
 }
 

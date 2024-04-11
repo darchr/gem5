@@ -80,19 +80,13 @@ SSTResponderSubComponent::setOutputStream(SST::Output* output_)
 {
     output = output_;
 }
-/*
-void
-SSTResponderSubComponent::setResponseReceiver(
-    gem5::OutgoingRequestBridge* gem5_bridge)
-{
-    responseReceiver = gem5_bridge;
-    responseReceiver->setResponder(sstResponder);
-}
-*/
+
 void
 SSTResponderSubComponent::setResponseReceiver(
     gem5::ExternalMemory* gem5_bridge)
 {
+    // The response receiver in this branch is ExternalMemory. This is defined
+    // in the header.
     responseReceiver = gem5_bridge;
     responseReceiver->setResponder(sstResponder);
 }
@@ -117,7 +111,6 @@ SSTResponderSubComponent::init(unsigned phase)
         responseReceiver->getBackdoor(data);
         assert(data->readable());
 
-        // this can be a huge number
         uint64_t memory_size = data->range().end() - data->range().start();
 
         // phases needed must be an integer. creating a temporary variable.

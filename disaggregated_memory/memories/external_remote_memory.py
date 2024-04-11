@@ -52,7 +52,7 @@ from gem5.components.memory.memory import AbstractMemorySystem
 from gem5.utils.override import overrides
 
 
-class ExternalRemoteMemoryV2(AbstractMemorySystem):
+class ExternalRemoteMemory(AbstractMemorySystem):
     """ExternalRemoteMemory is an AbstractMemorySystem in gem5 that allows SST
     to be interfaced as a component in the gem5's stdlib.
 
@@ -91,11 +91,6 @@ class ExternalRemoteMemoryV2(AbstractMemorySystem):
             link_latency (Tick, optional): Additional latency. Defaults to None
         """
         super().__init__()
-
-        # TODO: marked for deletion
-        # We will create a non-coherent cross bar if the user wants to simulate
-        # latency for the remote memory links.
-        # self._xbar_required = False
 
         # We setup the remote memory with size or address range. This allows us
         # to quickly scale the setup with N nodes.
@@ -153,26 +148,8 @@ class ExternalRemoteMemoryV2(AbstractMemorySystem):
                     ].size()
                 )
 
-        # TODO: Marked for deletion
-        # If there is a remote latency specified, create a non_coherent
-        # cross_bar.
-        # if link_latency > 0:
-        #     self._xbar_required = True
-        #     self._link_latency = link_latency
-
     def get_size(self):
         return self._size
-
-    def is_xbar_required(self):
-        # If an XBar is required, it should be added in the connect_things to
-        # avoid initializing an orphan node.
-        raise NotImplementedError("This is a deprecated method for v2")
-        return self._xbar_required
-
-    def get_link_latency(self):
-        raise NotImplementedError("This is a deprecated method for v2")
-        assert self._xbar_required == True
-        return self._link_latency
 
     def get_set_using_addr_ranges(self):
         return self._set_using_addr_ranges
@@ -189,7 +166,6 @@ class ExternalRemoteMemoryV2(AbstractMemorySystem):
 
     @overrides(AbstractMemorySystem)
     def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
-        # raise NotImplementedError("This method is not implemented yet.")
         return [
             (
                 self.outgoing_request_bridge.physical_address_ranges[0],
