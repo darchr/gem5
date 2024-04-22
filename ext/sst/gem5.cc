@@ -191,6 +191,7 @@ gem5Component::gem5Component(SST::ComponentId_t id, SST::Params& params):
         sstPorts[i]->setTimeConverter(timeConverter);
         sstPorts[i]->setOutputStream(&(output));
     }
+    flag = false;
 }
 
 gem5Component::~gem5Component()
@@ -317,8 +318,12 @@ gem5Component::simulateGem5(uint64_t current_cycle)
     // Tick conversion
     // The main logic for synchronize SST Tick and gem5 Tick is here.
     // next_end_tick = current_cycle * timeConverter->getFactor()
+    if (flag == false) {
+        flag = true;
+        base_time = gem5::curTick();
+    }
     uint64_t next_end_tick = \
-        timeConverter->convertToCoreTime(current_cycle);
+        timeConverter->convertToCoreTime(current_cycle) + base_time;
 
     // Here, if the next event in gem5's queue is not executed within the next
     // cycle, there's no need to enter the gem5's sim loop.
