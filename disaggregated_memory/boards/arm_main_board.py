@@ -81,7 +81,10 @@ from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
 from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
 from gem5.components.processors.abstract_processor import AbstractProcessor
 from gem5.utils.override import overrides
-
+from m5.util import (
+    fatal,
+    warn,
+)
 
 class ArmComposableMemoryBoard(ArmBoard):
     """
@@ -143,6 +146,9 @@ class ArmComposableMemoryBoard(ArmBoard):
         else:
             # Is this an external remote memory?
             if isinstance(remote_memory, ExternalRemoteMemory) == True:
+                if remote_memory_access_cycles > 0:
+                    print("Cannot simulate ExternalRemoteMemory with latency!")
+                    exit(-1)
                 # There is an address range specified when the remote memory
                 # was initialized.
                 if self._remoteMemory.get_set_using_addr_ranges() == True:
@@ -183,10 +189,10 @@ class ArmComposableMemoryBoard(ArmBoard):
         # Set the external simulator variable to whatever the user has set in
         # the ExternalRemoteMemory component.
         self._external_simulator = False
-        if isinstance(self.get_remote_memory(), ExternalMemory):
+        if isinstance(self.get_remote_memory(), ExternalRemoteMemory):
             # TODO: This needs to be standardized.
             self._external_simulator = (
-                self.get_remote_memory()._remote_request_bridge.use_sst_sim
+                self.get_remote_memory().get_memory_controllers()[0].use_sst_sim
             )
             # Check if the user is trying to simulate additional latency with
             # the remote outgoing bridge
@@ -449,23 +455,20 @@ class ArmComposableMemoryBoard(ArmBoard):
                 )
             else:
                 # Create and connect Xbar for additional latency. This will
-                # override the cache's incorporate_cache
+                # override the cache's incorporate_cache.
                 if (
                     self._remote_memory_access_cycles > 0
                     and self._external_simulator == False
                 ):
+                    # FIXME: The port is already connected to caches at this
+                    # point.
+                    # To make the board compatible with cachehierarchies
+                    fatal("Adding extra latency from gem5 is deprecated!")
                     self.add_remote_link()
-                else:
-                    # connect the system to the remote memory directly.
-                    for (
-                        cntr
-                    ) in self.get_remote_memory().get_memory_controllers():
-                        cntr.port = (
-                            self.get_cache_hierarchy().get_mem_side_port()
-                        )
 
         # Incorporate the processor into the motherboard.
         self.get_processor().incorporate_processor(self)
+        # self.get_cache_hierarchy().l3.snoop_filter.max_capacity = "32MiB"
 
         self._connect_things_called = True
 
