@@ -1,7 +1,9 @@
 # Composable Memory Simulation Platform
 
-This documents how to use the composable memory simulation platform in a gem5, SST and gem5 + SST setup.
-The setup can be used in gem5 to fast-forward full-system simulation and then used in SST to simulate a multi-node system.
+This documents how to use the composable memory simulation platform in a gem5,
+SST and gem5 + SST setup.
+The setup can be used in gem5 to fast-forward full-system simulation and then
+used in SST to simulate a multi-node system.
 
 The code is mainly confined in the `disaggregated_memory` directory.
 The directory is divided into four subdirectories, similar to the structure of
