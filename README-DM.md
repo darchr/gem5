@@ -156,3 +156,27 @@ sst.setStatisticOutput("sst.statOutputTXT",
         {"filepath" : f"arm-main-board.txt"})
 ```
 
+## Sample Example with Traffic Generators
+
+There is a simple example in the `disaggregated_memory/configs` that sets up a
+system with SST's memory as the main memory. The goal is to allow gem5's
+traffic generators to be generate traffic for SST. There is no checkpointing
+involved in this setup.
+
+The simulation needs to be started at the SST-side using the SST script in
+`ext/sst/sst/example_traffic_gen.py`. This can be done by:
+
+```sh
+# Assuming that gem5 and SST is built already!
+
+cd ext/sst
+mpirun -np 2 -- bin/sst --add-lib-path=./ sst/example_traffic_gen.py -- --nodes=1 --link-latency=1ps
+```
+
+The above command simulates one gem5 node with SST as the main memory (0x0 to
+0x80000000; hardcoded in the script). The link latency between gem5 and SST is
+1ps. This can be varied.
+
+Note that the default values for this script for the number of nodes and the
+link latency is 1 and 1 ps respectively.
+
