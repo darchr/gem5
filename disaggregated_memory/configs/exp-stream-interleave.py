@@ -197,7 +197,7 @@ warn("The command list to execute has to be manually set!")
 remote_stream = [
     'echo "starting STREAM remotely!";',
     "numastat;",
-    "numactl --membind=1 -- "
+    "numactl --interleave=0,1 -- "
     + "/home/ubuntu/simple-vectorizable-benchmarks/stream/"
     + "stream.hw.m5 3145728;",
     "numastat;",

@@ -69,8 +69,11 @@ class ClassicPrivateL1PrivateL2SharedL3DMCache(
         for cntr in board.get_local_memory().get_memory_controllers():
             cntr.port = self.membus.mem_side_ports
 
-        # The remote memory ports may have additional latency. Therefore, this
-        # is moved into the board.
+        # The remote memory ports may have additional latency. This is brought
+        # back to the cachehierarchies which means adding xbar latency will not
+        # work!
+        for cntr in board.get_remote_memory().get_memory_controllers():
+            cntr.port = self.membus.mem_side_ports
 
         self.l1icaches = [
             L1ICache(size=self._l1i_size)
@@ -84,9 +87,11 @@ class ClassicPrivateL1PrivateL2SharedL3DMCache(
             L2XBar() for i in range(board.get_processor().get_num_cores())
         ]
         self.l2caches = [
-            L2Cache(size=self._l2_size)
+            L2Cache(size=self._l2_size,
+                    writeback_clean=True)
             for i in range(board.get_processor().get_num_cores())
         ]
+
         self.l3cache = L2Cache(
             size=self._l3_size,
             assoc=self._l3_assoc,
@@ -95,9 +100,13 @@ class ClassicPrivateL1PrivateL2SharedL3DMCache(
             response_latency=self._l3_response_latency,
             mshrs=self._l3_mshrs,
             tgts_per_mshr=self._l3_tgts_per_mshr,
+            writeback_clean=False
         )
+        self.l3cache.write_buffers = 16
+        # self.l3cache.clusivity = "mostly_incl"
         # There is only one l3 bus, which connects l3 to the membus
         self.l3bus = L2XBar()
+        self.l3bus.snoop_filter.max_capacity = "32MiB"
         # ITLB Page walk caches
         self.iptw_caches = [
             MMUCache(size="8KiB")
@@ -145,7 +154,7 @@ class ClassicPrivateL1PrivateL2DMCache(PrivateL1PrivateL2CacheHierarchy):
         l1d_size: str,
         l1i_size: str,
         l2_size: str,
-    ) -> None:
+    ):
         """
         :param l1d_size: The size of the L1 Data Cache (e.g., "32kB").
         :type l1d_size: str
