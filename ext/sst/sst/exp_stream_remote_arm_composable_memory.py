@@ -36,7 +36,7 @@ from sst import UnitAlgebra
 disaggregated_memory_latency = "1ps"
 
 cache_link_latency = "1ps"
-cpu_clock_rate = "3.1GHz"
+cpu_clock_rate = "4GHz"
 def connect_components(link_name: str,
                        low_port_name: str, low_port_idx: int,
                        high_port_name: str, high_port_idx: int,
@@ -106,12 +106,13 @@ memory_nodes = 1
 
 # This example uses fixed number of node size -> 2 GiB
 # The directory controller decides where the addresses are mapped to.
-node_memory_slice = "2GiB"
-node_memory_slice_in_hex = 0x80000000
+node_memory_slice = "8GiB"
+node_memory_slice_in_hex = 0x200000000
 
-# We are use 32 GiB of remote memory per node.
-remote_memory_slice = "2GiB"
-remote_memory_slice_in_hex = 0x80000000
+# This script should only be used for the STREAM experiments.
+# We are use 1 GiB of remote memory per node.
+remote_memory_slice = "1GiB"
+remote_memory_slice_in_hex = 0x40000000
 
 # The first 2 GB is ignored for I/O devices.
 blank_memory_space = "2GiB"
@@ -119,7 +120,7 @@ blank_memory_space_in_hex = 0x80000000
 
 # SST memory node size. Each system gets a 32 GiB slice of fixed memory.
 assert(len(node_memory_slice) == 4), "The length of local mem size must be 4"
-assert(len(remote_memory_slice) == 4), "The length of remote mem size must be 5"
+assert(len(remote_memory_slice) == 4), "The length of remote mem size must be 4"
 assert(len(blank_memory_space) == 4), "The length must be 4"
 # \033[92m {}\033[00m
 sst_memory_size = str(
@@ -158,9 +159,14 @@ memory.addParams({
     "channels" : 4,
     "channel.numRanks" : 2,
     "channel.rank.numBanks" : 16,
-    "channel.rank.bank.pagePolicy" : "memHierarchy.timeoutPagePolicy",
+    "channel.transaction_Q_size": 128,
+    "channel.rank.bank.CL" : 14,
+    "channel.rank.bank.RCD" : 14,
+    "channel.rank.bank.TRAS" : 32,
+    "channel.rank.bank.TRP" : 14,
+    "channel.rank.bank.pagePolicy" : "memHierarchy.simplePagePolicy",
     "channel.rank.bank.transactionQ" : "memHierarchy.reorderTransactionQ",
-    "channel.rank.bank.pagePolicy.timeoutCycles" : 50,
+    "channel.rank.bank.pagePolicy.close" : 0,
     "printconfig" : 1,
 })
 
@@ -196,7 +202,7 @@ for node in range(system_nodes):
     }
     port_list = []
     for port in ports:
-        port_list.append(port) 
+        port_list.append(port)
     
     cpu_params = {
         "frequency" : cpu_clock_rate,

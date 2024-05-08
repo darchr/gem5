@@ -156,14 +156,14 @@ requires(isa_required=ISA.ARM)
 
 # Here we setup the parameters of the l1 and l2 caches.
 cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="2MiB", l3_size="16MiB"
+    l1d_size="32KiB", l1i_size="32KiB", l2_size="1MiB", l3_size="2MiB"
 )
 # cache_hierarchy = ClassicPrivateL1PrivateL2DMCache(
 #     l1d_size="32KiB", l1i_size="32KiB", l2_size="4MiB"
 # )
 
 # Memory: Dual Channel DDR4 2400 DRAM device.
-local_memory = DualChannelDDR4_2400(size=args.local_memory_size)
+local_memory = SingleChannelDDR4_2400(size=args.local_memory_size)
 
 # Either suppy the size of the remote memory or the address range of the
 # remote memory. Since this is inside the external memory, it does not matter
@@ -199,7 +199,7 @@ remote_stream = [
     "numastat;",
     "numactl --interleave=0,1 -- "
     + "/home/ubuntu/simple-vectorizable-benchmarks/stream/"
-    + "stream.hw.m5 3145728;",
+    + "stream.hw.m5 8388608;",
     "numastat;",
 ]
 
