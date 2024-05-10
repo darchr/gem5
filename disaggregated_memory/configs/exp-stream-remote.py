@@ -156,7 +156,7 @@ requires(isa_required=ISA.ARM)
 
 # Here we setup the parameters of the l1 and l2 caches.
 cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="1MiB", l3_size="2MiB"
+    l1d_size="32KiB", l1i_size="32KiB", l2_size="512KiB", l3_size="8MiB"
 )
 # cache_hierarchy = ClassicPrivateL1PrivateL2DMCache(
 #     l1d_size="32KiB", l1i_size="32KiB", l2_size="4MiB"
