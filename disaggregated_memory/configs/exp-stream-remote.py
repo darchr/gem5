@@ -42,10 +42,6 @@ sys.path.append(
 )
 
 from boards.arm_main_board import ArmComposableMemoryBoard
-from cachehierarchies.dm_caches import (
-    ClassicPrivateL1PrivateL2DMCache,
-    ClassicPrivateL1PrivateL2SharedL3DMCache,
-)
 from memories.external_remote_memory import ExternalRemoteMemory
 
 import m5
@@ -57,13 +53,6 @@ from m5.objects import (
 from m5.objects.RealView import VExpress_GEM5_V1
 from m5.util import warn
 
-from gem5.components.memory import (
-    DualChannelDDR4_2400,
-    SingleChannelDDR4_2400,
-)
-from gem5.components.processors.cpu_types import CPUTypes
-from gem5.components.processors.simple_processor import SimpleProcessor
-from gem5.isas import ISA
 from gem5.resources.resource import *
 from gem5.resources.workload import *
 from gem5.resources.workload import Workload
@@ -75,20 +64,6 @@ from gem5.utils.requires import requires
 # SST passes a couple of arguments for this system to simulate.
 parser = argparse.ArgumentParser()
 
-# basic parameters.
-parser.add_argument(
-    "--cpu-type",
-    type=str,
-    choices=["atomic", "timing", "o3", "kvm"],
-    default="atomic",
-    help="CPU type",
-)
-parser.add_argument(
-    "--cpu-clock-rate",
-    type=str,
-    required=True,
-    help="CPU Clock",
-)
 parser.add_argument(
     "--instance",
     type=int,
@@ -96,34 +71,11 @@ parser.add_argument(
     help="Instance id is need to correctly read and write to the "
     + "checkpoint in a multi-node simulation.",
 )
-
-# Parameters related to local memory
-parser.add_argument(
-    "--local-memory-size",
-    type=str,
-    required=True,
-    help="Local memory size",
-)
-
-# Parameters related to remote memory
-parser.add_argument(
-    "--is-composable",
-    type=str,
-    required=True,
-    choices=["True", "False"],
-    help="Tell the simulation to either use gem5 or SST as the remote memory.",
-)
 parser.add_argument(
     "--remote-memory-addr-range",
     type=str,
     required=True,
     help="Remote memory range",
-)
-parser.add_argument(
-    "--remote-memory-latency",
-    type=int,
-    required=True,
-    help="Remote memory latency in Ticks (has to be converted prior)",
 )
 
 # Parameters related to checkpoints.
@@ -144,52 +96,11 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-cpu_type = {
-    "o3": CPUTypes.O3,
-    "atomic": CPUTypes.ATOMIC,
-    "timing": CPUTypes.TIMING,
-    "kvm": CPUTypes.KVM,
-}[args.cpu_type]
-use_sst = {"True": True, "False": False}[args.is_composable]
-
 remote_memory_range = list(map(int, args.remote_memory_addr_range.split(",")))
 remote_memory_range = AddrRange(remote_memory_range[0], remote_memory_range[1])
 
-# This runs a check to ensure the gem5 binary is compiled for ARM.
-requires(isa_required=ISA.ARM)
-
-# Here we setup the parameters of the l1 and l2 caches.
-cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="1MiB", l3_size="2MiB"
-)
-# cache_hierarchy = ClassicPrivateL1PrivateL2DMCache(
-#     l1d_size="32KiB", l1i_size="32KiB", l2_size="4MiB"
-# )
-
-# Memory: Dual Channel DDR4 2400 DRAM device.
-local_memory = SingleChannelDDR4_2400(size=args.local_memory_size)
-
-# Either suppy the size of the remote memory or the address range of the
-# remote memory. Since this is inside the external memory, it does not matter
-# what type of memory is being simulated. This can either be initialized with
-# a size or a memory address range, which is mroe flexible. Adding remote
-# memory latency automatically adds a non-coherent crossbar to simulate latency
-remote_memory = ExternalRemoteMemory(
-    addr_range=remote_memory_range, use_sst_sim=use_sst
-)
-
-# Here we setup the processor. We use a simple processor.
-processor = SimpleProcessor(cpu_type=cpu_type, isa=ISA.ARM, num_cores=8)
-# breakpoint()
 # Here we setup the board which allows us to do Full-System ARM simulations.
-board = ArmComposableMemoryBoard(
-    clk_freq=args.cpu_clock_rate,
-    processor=processor,
-    local_memory=local_memory,
-    remote_memory=remote_memory,
-    cache_hierarchy=cache_hierarchy,
-    remote_memory_access_cycles=0,
-)
+board = ArmComposableMemoryBoard(remote_memory_range, use_sst=True)
 
 # commands to execute to run the simulation.
 mount_cmd = ["mount -t sysfs - /sys;", "mount -t proc - /proc;"]

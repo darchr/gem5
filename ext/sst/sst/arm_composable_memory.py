@@ -125,7 +125,7 @@ assert(len(blank_memory_space) == 4), "The length must be 4"
 sst_memory_size = str(
         (memory_nodes * int(node_memory_slice[0])) + \
         ((system_nodes) * int(remote_memory_slice[0:1])) + \
-        int(blank_memory_space[0])
+        int(blank_memory_space[0]))
 print(sst_memory_size, addr_range_end)
 
 # There is one cache bus connecting all gem5 ports to the remote memory.

@@ -93,7 +93,7 @@ is_composable = "True"
 # Define the CPU type
 cpu_type = "o3"
 
-gem5_run_script = "../../disaggregated_memory/configs/exp-stream-remote.py"
+gem5_run_script = "disaggregated_memory/configs/exp-stream-remote.py"
 
 # =========================================================================== #
 

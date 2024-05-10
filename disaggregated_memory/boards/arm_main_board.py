@@ -28,7 +28,6 @@
 # into one single board.
 import os
 import sys
-
 from typing import (
     List,
     Sequence,
@@ -40,6 +39,7 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 
+from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
 from memories.external_remote_memory import ExternalRemoteMemory
 
 import m5
@@ -53,6 +53,7 @@ from m5.objects import (
     Port,
     SrcClockDomain,
     Terminal,
+    VExpress_GEM5_V1,
     VncServer,
     VoltageDomain,
 )
@@ -61,9 +62,9 @@ from m5.objects.ArmSystem import (
     ArmDefaultRelease,
     ArmRelease,
 )
-from m5.objects.RealView import (
-    VExpress_GEM5_Base,
-    VExpress_GEM5_Foundation,
+from m5.util import (
+    fatal,
+    warn,
 )
 from m5.util.fdthelper import (
     Fdt,
@@ -78,13 +79,14 @@ from gem5.components.boards.arm_board import ArmBoard
 from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
     AbstractCacheHierarchy,
 )
+from gem5.components.memory import SingleChannelDDR4_2400
 from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
 from gem5.components.processors.abstract_processor import AbstractProcessor
+from gem5.components.processors.cpu_types import CPUTypes
+from gem5.components.processors.simple_processor import SimpleProcessor
+from gem5.isas import ISA
 from gem5.utils.override import overrides
-from m5.util import (
-    fatal,
-    warn,
-)
+
 
 class ArmComposableMemoryBoard(ArmBoard):
     """
@@ -108,8 +110,6 @@ class ArmComposableMemoryBoard(ArmBoard):
             local memory or at a custom address range defined by the user.
     :cache_hierarchy: An abstract_cache_hierarchy compatible with local and
             remote memories.
-    :platform: Arm-specific platform to use with this board.
-    :release: Arm-specific extensions to use with this board.
     :remote_memory_access_cycles: Optionally add some latency to access the
             remote memory. If the remote memory is being simulated in SST, then
             pass this as a param on the sst-side runscript.
@@ -118,16 +118,9 @@ class ArmComposableMemoryBoard(ArmBoard):
     """
 
     def __init__(
-        self,
-        clk_freq: str,
-        processor: AbstractProcessor,
-        local_memory: AbstractMemorySystem,
-        remote_memory: AbstractMemorySystem,
-        cache_hierarchy: AbstractCacheHierarchy,
-        platform: VExpress_GEM5_Base = VExpress_GEM5_Foundation(),
-        release: ArmRelease = ArmDefaultRelease(),
-        remote_memory_access_cycles: int = 750,
-        remote_memory_address_range: AddrRange = None,
+        self,/
+        remote_memory_address_range,
+        use_sst
     ) -> None:
         # The parent board calls get_memory(), which needs overriding.
         self._localMemory = local_memory
@@ -167,18 +160,23 @@ class ArmComposableMemoryBoard(ArmBoard):
                 size=self._remoteMemory.get_size(),
             )
         assert self._remoteMemoryAddressRange is not None
+        # Memory: Dual Channel DDR4 2400 DRAM device.
+
+        self.local_memory = SingleChannelDDR4_2400(size="8GiB")
 
         super().__init__(
-            clk_freq=clk_freq,
-            processor=processor,
-            memory=local_memory,
-            cache_hierarchy=cache_hierarchy,
-            platform=platform,
-            release=release,
+            clk_freq="4GHz",
+            processor=SimpleProcessor(cpu_type=CPUTypes.O3, isa=ISA.ARM, num_cores=8),
+            memory=self.local_memory,
+            cache_hierarchy=ClassicPrivateL1PrivateL2SharedL3DMCache(
+                l1d_size="32KiB", l1i_size="32KiB", l2_size="1MiB", l3_size="2MiB"
+            ),
+            platform=VExpress_GEM5_V1(),
+            release=ArmDefaultRelease.for_kvm(),
         )
-
-        self.local_memory = local_memory
-        self.remote_memory = remote_memory
+        self.remote_memory = ExternalRemoteMemory(
+            addr_range=remote_memory_address_range, use_sst_sim=use_sst
+        )
 
         # The amount of latency to access the remote memory has to be either
         # implemented using a non-coherent crossbar that connects the the

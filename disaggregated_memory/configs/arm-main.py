@@ -180,8 +180,6 @@ board = ArmComposableMemoryBoard(
     local_memory=local_memory,
     remote_memory=remote_memory,
     cache_hierarchy=cache_hierarchy,
-    platform=VExpress_GEM5_V1(),
-    release=ArmDefaultRelease.for_kvm(),
 )
 
 # commands to execute to run the simulation.
@@ -218,12 +216,13 @@ remote_stream = [
 
 # Since we are using kvm to boot the system, we can boot the system with
 # systemd enabled!
-cmd = ["m5 --addr=0x10010000 exit;"] \
-    + local_stream \
-    + interleave_stream \
-    + remote_stream \
+cmd = (
+    ["m5 --addr=0x10010000 exit;"]
+    + local_stream
+    + interleave_stream
+    + remote_stream
     + ["m5 --addr=0x10010000 exit;"]
-
+)
 
 
 workload = CustomWorkload(
