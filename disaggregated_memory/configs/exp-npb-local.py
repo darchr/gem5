@@ -137,8 +137,27 @@ parser.add_argument(
     required=True,
     help="optionally put a path to restore a checkpoint",
 )
+benchmarks = ["BT", "CG", "EP", "FT", "IS", "LU", "MG", "UA", "SP"]
+bclass = ["S", "A", "B", "C", "D"]
+parser.add_argument(
+    "--benchmark",
+    type=str,
+    required=True,
+    help="Input the NPB benchmark name",
+    choices=benchmarks
+)
 
+parser.add_argument(
+    "--benchmark-class",
+    type=str,
+    required=True,
+    help="Input the NPB benchmark class",
+    choices=bclass
+)
 args = parser.parse_args()
+
+path = "/home/ubuntu/arm-bench/npb-hooks/NPB3.4.2/NPB3.4-OMP/bin/" + \
+        args.benchmark.lower() + "." + args.benchmark_class + ".x"
 
 cpu_type = {
     "o3": CPUTypes.O3,
@@ -195,11 +214,9 @@ mount_cmd = ["mount -t sysfs - /sys;", "mount -t proc - /proc;"]
 warn("The command list to execute has to be manually set!")
 
 remote_stream = [
-    'echo "starting STREAM remotely!";',
+    'echo "starting NPB!";',
     "numastat;",
-    "numactl --membind=0 -- "
-    + "/home/ubuntu/simple-vectorizable-benchmarks/stream/"
-    + "stream.hw.m5 8388608;",
+    "numactl --preferred=0 -- " + path,
     "numastat;",
 ]
 
@@ -268,7 +285,8 @@ if args.take_ckpt == "True":
     m5.instantiate()
 
     # probably this script is being called only in gem5. Since we are not using
-    # the simulator module, we might have to add more m5.simulate()
+    # the simulator module, we might have to add more m5.simulate(). This
+    # m5.simulate() should boot the system and initialize the memory.
     m5.simulate()
     if ckpt_to_read_write != "":
         m5.checkpoint(os.path.join(os.getcwd(), ckpt_to_read_write))
