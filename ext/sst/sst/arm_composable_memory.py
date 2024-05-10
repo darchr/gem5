@@ -29,14 +29,43 @@
 
 import sst
 from sst import UnitAlgebra
+import argparse
 
-# The disaggregated_memory latency should be set at SST's side as a link
-# latency.
-# XXX
-disaggregated_memory_latency = "750ns"
+parser = argparse.ArgumentParser()
 
-cache_link_latency = "1ps"
-cpu_clock_rate = "3GHz"
+parser.add_argument(
+    "--outdir",
+    type=str,
+    required=True,
+    help="Output directory",
+)
+parser.add_argument(
+    "--system-nodes",
+    type=int,
+    required=True,
+    help="Number of nodes connected to the disaggregated memory system.",
+)
+parser.add_argument(
+    "--memory-alloc-policy",
+    type=str,
+    required=True,
+    help="The policy to allocate memory. This can be either local, interleaved or remote.",
+)
+parser.add_argument(
+    "--sst-memory-size",
+    type=str,
+    required=True,
+    help="Remote memory size",
+)
+parser.add_argument(
+    "--remote-memory-addr-range",
+    type=str,
+    required=True,
+    help="Remote memory range",
+)
+
+args = parser.parse_args()
+
 def connect_components(link_name: str,
                        low_port_name: str, low_port_idx: int,
                        high_port_name: str, high_port_idx: int,
@@ -80,26 +109,37 @@ def get_address_range(node, local_mem_size, remote_mem_size, blank_mem_size):
     ]
 
 # =========================================================================== #
+gem5_run_script = "../../disaggregated_memory/configs/arm-main.py"
+
+# The disaggregated_memory latency should be set at SST's side as a link
+# latency.
+# XXX
+disaggregated_memory_latency = "750ns"
+
+cache_link_latency = "1ps"
+
+cpu_clock_rate = "4GHz"
 
 # The following parameters have to be manually set by the user
 # output directory
 # XXX
-stat_output_directory = "m5out_"
+stat_output_directory = args.outdir+"/m5out_"
 
 # It is expected that if this script is executed from SST, the memory is
 # composable.
-is_composable = "True"
+
+memory_alloc_policy = args.memory_alloc_policy
 
 # Define the CPU type
 cpu_type = "o3"
 
-gem5_run_script = "../../disaggregated_memory/configs/arm-main.py"
+
 
 # =========================================================================== #
 
 # Define the number of gem5 nodes in the system. anything more than 1 needs
 # mpirun to run the sst binary.
-system_nodes = 2
+system_nodes = args.system_nodes
 
 # Define the total number of SST Memory nodes
 memory_nodes = 1
@@ -110,23 +150,17 @@ node_memory_slice = "2GiB"
 node_memory_slice_in_hex = 0x80000000
 
 # We are use 32 GiB of remote memory per node.
-remote_memory_slice = "32GiB"
-remote_memory_slice_in_hex = 0x800000000
+remote_memory_slice = "2GiB"
+remote_memory_slice_in_hex = 0x80000000
 
 # The first 2 GB is ignored for I/O devices.
 blank_memory_space = "2GiB"
 blank_memory_space_in_hex = 0x80000000
 
-# SST memory node size. Each system gets a 32 GiB slice of fixed memory.
-assert(len(node_memory_slice) == 4), "The length of local mem size must be 4"
-assert(len(remote_memory_slice) == 5), "The length of remote mem size must be 5"
-assert(len(blank_memory_space) == 4), "The length must be 4"
-
-sst_memory_size = str(
-        (memory_nodes * int(node_memory_slice[0])) + \
-        ((system_nodes) * int(remote_memory_slice[0:1])) + \
-        int(blank_memory_space[0])
+sst_memory_size = args.sst_memory_size
+addr_range_end = UnitAlgebra(sst_memory_size).getRoundedValue()
 print(sst_memory_size, addr_range_end)
+remote_memory_range = list(map(int, args.remote_memory_addr_range.split(",")))
 
 # There is one cache bus connecting all gem5 ports to the remote memory.
 mem_bus = sst.Component("membus", "memHierarchy.Bus") 
@@ -164,27 +198,19 @@ gem5_nodes = []
 memory_ports = []
 
 # Create each of these nodes and conect it to a SST memory cache
-for node in range(system_nodes):
-    # Each of the nodes needs to have the initial parameters. We might need to
-    # to supply the instance count to the Gem5 side. This will enable range
-    # adjustments to be made to the DTB File.
-    node_range = get_address_range(node, node_memory_slice_in_hex,
-                        remote_memory_slice_in_hex, blank_memory_space_in_hex)
-    
-    print(node_range)
+for node in range(system_nodes): 
     cmd = [
-        #  f"-re",
+        f"-re",
         f"--outdir={stat_output_directory + str(node)}",
         f"{gem5_run_script}",
-        f"--cpu-clock-rate {cpu_clock_rate}",
-        f"--is-composable {is_composable}",
-        f"--instance {node}",
         f"--cpu-type {cpu_type}",
+        f"--instance {node}",
         f"--local-memory-size {node_memory_slice}",
-        f"--remote-memory-addr-range {node_range[0]},{node_range[1]}",
+        f"--is-composable True",
+        f"--remote-memory-addr-range {remote_memory_range[node*2]},{remote_memory_range[node*2+1]}",
+        f"--memory-alloc-policy {args.memory_alloc_policy}",
         f"--take-ckpt False",  # This setup is not expected to take checkpoints
-        f"--ckpt-file mpi-checkpoints",
-        f"--remote-memory-latency 0"    # Latency has to added at the top XXX
+        f"--ckpt-file ../../ckpt_instance_{node}/ckpt_{node}",
     ]
     ports = {
         "remote_memory_port" : "board.remote_memory.outgoing_request_bridge"

@@ -63,8 +63,6 @@ from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.isas import ISA
 from gem5.resources.resource import *
 from gem5.resources.workload import *
-from gem5.resources.workload import Workload
-from gem5.simulate.simulator import Simulator
 from gem5.utils.requires import requires
 
 # SST passes a couple of arguments for this system to simulate.
@@ -77,12 +75,6 @@ parser.add_argument(
     choices=["atomic", "timing", "o3", "kvm"],
     default="atomic",
     help="CPU type",
-)
-parser.add_argument(
-    "--cpu-clock-rate",
-    type=str,
-    required=True,
-    help="CPU Clock",
 )
 parser.add_argument(
     "--instance",
@@ -115,10 +107,10 @@ parser.add_argument(
     help="Remote memory range",
 )
 parser.add_argument(
-    "--remote-memory-latency",
-    type=int,
+    "--memory-alloc-policy",
+    type=str,
     required=True,
-    help="Remote memory latency in Ticks (has to be converted prior)",
+    help="The policy to allocate memory. This can be either local, interleaved or remote.",
 )
 
 # Parameters related to checkpoints.
@@ -155,27 +147,27 @@ requires(isa_required=ISA.ARM)
 
 # Here we setup the parameters of the l1 and l2 caches.
 cache_hierarchy = ClassicPrivateL1PrivateL2SharedL3DMCache(
-    l1d_size="32KiB", l1i_size="32KiB", l2_size="256KiB", l3_size="4MiB"
+    l1d_size="32KiB", l1i_size="32KiB", l2_size="512KiB", l3_size="8MiB"
 )
 
 # Memory: Dual Channel DDR4 2400 DRAM device.
 local_memory = DualChannelDDR4_2400(size=args.local_memory_size)
 
-# Either suppy the size of the remote memory or the address range of the
+# Either supply the size of the remote memory or the address range of the
 # remote memory. Since this is inside the external memory, it does not matter
 # what type of memory is being simulated. This can either be initialized with
-# a size or a memory address range, which is mroe flexible. Adding remote
+# a size or a memory address range, which is more flexible. Adding remote
 # memory latency automatically adds a non-coherent crossbar to simulate latency
 remote_memory = ExternalRemoteMemory(
     addr_range=remote_memory_range, use_sst_sim=use_sst
 )
 
 # Here we setup the processor. We use a simple processor.
-processor = SimpleProcessor(cpu_type=cpu_type, isa=ISA.ARM, num_cores=4)
+processor = SimpleProcessor(cpu_type=cpu_type, isa=ISA.ARM, num_cores=8)
 
 # Here we setup the board which allows us to do Full-System ARM simulations.
 board = ArmComposableMemoryBoard(
-    clk_freq=args.cpu_clock_rate,
+    clk_freq="4GHz",
     processor=processor,
     local_memory=local_memory,
     remote_memory=remote_memory,
@@ -184,45 +176,37 @@ board = ArmComposableMemoryBoard(
     release=ArmDefaultRelease.for_kvm(),
 )
 
-# commands to execute to run the simulation.
-mount_cmd = ["mount -t sysfs - /sys;", "mount -t proc - /proc;"]
+# command list varies based on the memory allocation policy.
+cmd_dic = {
+    "local" : [
+        'echo "starting STREAM locally!";',
+        "numastat;",
+        "numactl --membind=0 -- "
+        + "/home/ubuntu/simple-vectorizable-benchmarks/stream/"
+        + "stream.hw.m5 3145728;",
+    ],
 
-warn("The command list to execute has to be manually set!")
+    "interleave" : [
+        'echo "starting interleaved STREAM!";',
+        "numastat;",
+        "numactl --interleave=0,1 -- "
+        + "/home/ubuntu/simple-vectorizable-benchmarks/stream/"
+        + "stream.hw.m5 3145728;",
+    ],
 
-local_stream = [
-    'echo "starting STREAM locally!";',
-    "numastat;",
-    "numactl --membind=0 -- "
-    + "/home/ubuntu/simple-vectorizable-benchmarks/stream/"
-    + "stream.hw.m5 10000000;",
-    "numastat;",
-]
-
-interleave_stream = [
-    'echo "starting interleaved STREAM!";',
-    "numastat;",
-    "numactl --interleave=0,1 -- "
-    + "/home/ubuntu/simple-vectorizable-benchmarks/stream/"
-    + "stream.hw.m5 10000000;",
-    "numastat;",
-]
-
-remote_stream = [
-    'echo "starting STREAM remotely!";',
-    "numastat;",
-    "numactl --membind=1 -- "
-    + "/home/ubuntu/simple-vectorizable-benchmarks/stream/"
-    + "stream.hw.m5 10000000;",
-    "numastat;",
-]
+    "remote" : [
+        'echo "starting STREAM remotely!";',
+        "numastat;",
+        "numactl --membind=1 -- "
+        + "/home/ubuntu/simple-vectorizable-benchmarks/stream/"
+        + "stream.hw.m5 3145728;",
+    ],
+}
 
 # Since we are using kvm to boot the system, we can boot the system with
 # systemd enabled!
-cmd = ["m5 --addr=0x10010000 exit;"] \
-    + local_stream \
-    + interleave_stream \
-    + remote_stream \
-    + ["m5 --addr=0x10010000 exit;"]
+cmd = cmd_dic[args.memory_alloc_policy] \
+    + ["numastat; m5 --addr=0x10010000 exit;"]
 
 
 
@@ -242,19 +226,17 @@ workload = CustomWorkload(
 )
 
 ckpt_to_read_write = ""
-if args.ckpt_file != "":
+if args.take_ckpt == "True":
     ckpt_to_read_write = (
-        os.getcwd()
-        + "/"
-        + m5.options.outdir
-        + "/"
-        + args.ckpt_file
+        m5.options.outdir
+        + "/ckpt_"
         + str(args.instance)
     )
     # inform the user where the checkpoint will be saved
     print("Checkpoint will be saved in " + ckpt_to_read_write)
 else:
-    warn("A checkpoint path was not provided!")
+    assert args.ckpt_file != ""
+    ckpt_to_read_write = args.ckpt_file
 
 # This disk image needs to have NUMA tools installed.
 board.set_workload(workload)

@@ -74,32 +74,30 @@ This system has 2 GiB of local memory. Another block of 32 GiB memory is mapped
 to this system as remote memory.
 
 ```sh
-build/ARM/gem5.opt disaggregated_memory/configs/arm-main.py \
-    --cpu-clock-rate 3GHz \         # set the clock rate
-    --instance 0 \                  # set the instance id. This is appended with ckpt-file.
-    --cpu-type kvm \                # using a KVM CPU to skip OS boot. The host needs to support kvm
-    --local-memory-size 2GiB \      # The local memory should be small to moderate                      
-    --remote-memory-addr-range 38654705664,73014444032 \  # Range 38 GiB to 70 GiB is mapped to a shared memory pool 
-    --remote-memory-latency 0 \     # Remote memory latency should be added on the SST-side script
-    --take-ckpt=True \              # This instance should take a checkpoint 
-    --ckpt-file="test-ckpt" \       # The checkpoint is saved in m5out/test-ckpt0 directory
-    --is-composable=False           # We are using only gem5 to take the checkpoint
+build/ARM/gem5.opt --outdir=ckpt_instance_0 disaggregated_memory/configs/arm-main.py \
+    --cpu-type=kvm \                # using a KVM CPU to skip OS boot. The host needs to support kvm
+    --instance=0 \                  # set the instance id. This is appended with ckpt-file.
+    --local-memory-size=2GiB \      # The local memory should be small to moderate
+    --is-composable=False \         # We are using only gem5 to take the checkpoint
+    --remote-memory-addr-range=4294967296,6442450944 \  # Range 4 GiB to 6 GiB is mapped to a shared memory pool
+    --memory-alloc-policy=remote \     # Remote memory latency should be added on the SST-side script
+    --take-ckpt=True \              # This instance should take a checkpoint
+    
 ```
 
 If we are modelling multiple systems, all sharing the same memory resource in
 SST, we need to repeat this step for the next system. This can be done by:
 
 ```sh
-build/ARM/gem5.opt disaggregated_memory/configs/arm-main.py \
-    --cpu-clock-rate 3GHz \         # set the clock rate
-    --instance 1 \                  # set the instance id. This is appended with ckpt-file.
-    --cpu-type kvm \                # using a KVM CPU to skip OS boot. The host needs to support kvm
-    --local-memory-size 2GiB \      # The local memory should be small to moderate                      
-    --remote-memory-addr-range 38654705664,73014444032 \  # Range 38 GiB to 70 GiB is mapped to a shared memory pool 
-    --remote-memory-latency 0 \     # Remote memory latency should be added on the SST-side script
-    --take-ckpt=True \              # This instance should take a checkpoint 
-    --ckpt-file="test-ckpt" \       # The checkpoint is saved in m5out/test-ckpt1 directory
-    --is-composable=False           # We are using only gem5 to take the checkpoint
+build/ARM/gem5.opt --outdir=ckpt_instance_1 disaggregated_memory/configs/arm-main.py \
+    --cpu-type=kvm \                # using a KVM CPU to skip OS boot. The host needs to support kvm
+    --instance=0 \                  # set the instance id. This is appended with ckpt-file.
+    --local-memory-size=2GiB \      # The local memory should be small to moderate
+    --is-composable=False \         # We are using only gem5 to take the checkpoint
+    --remote-memory-addr-range=6442450944,8589934592 \  # Range 6 GiB to 8 GiB is mapped to a shared memory pool
+    --memory-alloc-policy=remote \     # Remote memory latency should be added on the SST-side script
+    --take-ckpt=True \              # This instance should take a checkpoint
+    
 ```
 
 Note that the stats.txt will be reset in the m5out directory. However, we are
@@ -120,15 +118,11 @@ be set in the script directly.
 # XXX marks parameters that needs/can be changed.
 disaggregated_memory_latency = "xxns"       # add latency to memory requests going to SST.
 ...
-stat_output_directory = "m5out_"            # set the main output directory
-...
 is_composable = True                        # since this is now being simulated in SST
 ...
-cpu_type = ["o3", "timing"]                 # Only timing CPUs work in this case.
+cpu_type = ["o3"]
 ...
 gem5_run_script = "../../disaggregated_memory/configs/arm-main.py"
-...
-system_nodes = N                            # Number is gem5 systems to simulate
 
 # node_memory_slice and remote_memory_slice needs to be consistent with the
 # numbers used in phase 1.
@@ -142,7 +136,8 @@ mpi. This can be done by:
 ```sh
 bin/sst --add-lib-path=./ sst/arm_composable_memory.py
 ```
-If there are more than one gem5 system to simulate, then use this command;
+If there are more than one gem5 system to simulate, then use the command below.
+The number after -np should be number of gem5 nodes plus 1.
 ```sh
 mpirun -np 3 -- bin/sst --add-lib-path=./ sst/arm_composable_memory.py
 ```

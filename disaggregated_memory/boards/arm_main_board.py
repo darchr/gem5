@@ -126,7 +126,7 @@ class ArmComposableMemoryBoard(ArmBoard):
         cache_hierarchy: AbstractCacheHierarchy,
         platform: VExpress_GEM5_Base = VExpress_GEM5_Foundation(),
         release: ArmRelease = ArmDefaultRelease(),
-        remote_memory_access_cycles: int = 750,
+        remote_memory_access_cycles: int = 0,
         remote_memory_address_range: AddrRange = None,
     ) -> None:
         # The parent board calls get_memory(), which needs overriding.

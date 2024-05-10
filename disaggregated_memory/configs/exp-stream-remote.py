@@ -227,7 +227,7 @@ workload = CustomWorkload(
 )
 
 ckpt_to_read_write = ""
-if args.ckpt_file != "":
+if args.ckpt_file != "" and args.take_ckpt == "True":
     ckpt_to_read_write = (
         os.getcwd()
         + "/"
@@ -240,6 +240,9 @@ if args.ckpt_file != "":
     print("Checkpoint will be saved in " + ckpt_to_read_write)
 else:
     warn("A checkpoint path was not provided!")
+
+if args.take_ckpt == "False":
+    ckpt_to_read_write = args.ckpt_file
 
 # This disk image needs to have NUMA tools installed.
 board.set_workload(workload)
