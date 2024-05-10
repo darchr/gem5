@@ -42,8 +42,10 @@ sys.path.append(
 )
 
 from boards.arm_main_board import ArmComposableMemoryBoard
-from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2DMCache
-from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
+from cachehierarchies.dm_caches import (
+    ClassicPrivateL1PrivateL2DMCache,
+    ClassicPrivateL1PrivateL2SharedL3DMCache,
+)
 from memories.external_remote_memory import ExternalRemoteMemory
 
 import m5
@@ -65,6 +67,8 @@ from gem5.isas import ISA
 from gem5.resources.resource import *
 from gem5.resources.workload import *
 from gem5.resources.workload import Workload
+from gem5.simulate import exit_event_generators
+from gem5.simulate.exit_event import ExitEvent
 from gem5.simulate.simulator import Simulator
 from gem5.utils.requires import requires
 
@@ -132,8 +136,8 @@ parser.add_argument(
 )
 parser.add_argument(
     "--take-ckpt",
-    type=str,
-    default="False",
+    type=bool,
+    default=False,
     required=True,
     help="optionally put a path to restore a checkpoint",
 )
@@ -184,9 +188,7 @@ board = ArmComposableMemoryBoard(
     local_memory=local_memory,
     remote_memory=remote_memory,
     cache_hierarchy=cache_hierarchy,
-    platform=VExpress_GEM5_V1(),
-    release=ArmDefaultRelease.for_kvm(),
-    remote_memory_access_cycles = 0
+    remote_memory_access_cycles=0,
 )
 
 # commands to execute to run the simulation.
@@ -244,40 +246,22 @@ else:
 # This disk image needs to have NUMA tools installed.
 board.set_workload(workload)
 
-# This script will boot two NUMA nodes in a full system simulation where the
-# gem5 node will be sending instructions to the SST node. the simulation will
-# after displaying numastat information on the terminal, which can be viewed
-# from board.terminal.
-board._pre_instantiate()
-root = Root(full_system=True, board=board)
-board._post_instantiate()
+if args.take_ckpt:
+    exit_event = exit_event_generators.save_checkpoint_generator
+else:
+    exit_event = exit_event_generators.exit_generator
 
+simulator = Simulator(
+    board=board,
+    on_exit_event={
+        ExitEvent.EXIT: exit_event,
+    },
+)
 
-# define on_exit_event
-def handle_exit():
-    yield True  # Stop the simulation. We're done.
-
-
-# Here are the different scenarios:
-# no checkpoint, run everything in gem5
-if args.take_ckpt == "True":
-    if args.cpu_type == "kvm":
-        # ensure that sst is not being used here.
-        assert use_sst == False
-        root.sim_quantum = int(1e9)
-    m5.instantiate()
-
-    # probably this script is being called only in gem5. Since we are not using
-    # the simulator module, we might have to add more m5.simulate()
-    m5.simulate()
-    if ckpt_to_read_write != "":
-        m5.checkpoint(os.path.join(os.getcwd(), ckpt_to_read_write))
+if not use_sst:
+    simulator.run()
 else:
     # This is called in SST. SST will take care of running this script.
-    # Instantiate the system regardless of the simulator.
-    m5.instantiate(ckpt_to_read_write)
-
-    # we can still use gem5. So making another if-else
-    if use_sst == False:
-        m5.simulate()
-    # otherwise just let SST do the simulation.
+    # SST won't call instantiate, though, since it doesn't use the simulator
+    # object
+    simulator._instantiate()
