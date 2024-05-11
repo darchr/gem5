@@ -94,14 +94,26 @@ class ExternalMemory : public memory::AbstractMemory
         /** Count the number of outgoing packets */
         statistics::Scalar numOutgoingPackets;
 
+        /** Count the number of outgoing read packets */
+        statistics::Scalar numReadOutgoingPackets;
+
+        /** Count the number of outgoing write packets */
+        statistics::Scalar numWriteOutgoingPackets;
 
         /** Cumulative size of the all outgoing packets */
         statistics::Scalar sizeOutgoingPackets;
 
         /** Count the number of incoming packets */
         statistics::Scalar numIncomingPackets;
+
         /** Cumulative size of all the incoming packets */
         statistics::Scalar sizeIncomingPackets;
+
+        /** Count the number of incoming read packets */
+        statistics::Scalar numReadIncomingPackets;
+
+        /** Count the number of incoming write packets */
+        statistics::Scalar numWriteIncomingPackets;
     } stats;
   public:
     // a gem5 ResponsePort
