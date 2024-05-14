@@ -84,6 +84,7 @@ class ExternalMemory : public memory::AbstractMemory
     // functional accesses to timing accesses so that it is correctly read from
     // the memory.
     bool init_phase_bool;
+    std::map<PacketPtr, gem5::Tick> outstanding_requests;
 
   public:
     // we need a statistics counter for this simobject to find out how many
@@ -114,6 +115,9 @@ class ExternalMemory : public memory::AbstractMemory
 
         /** Count the number of incoming write packets */
         statistics::Scalar numWriteIncomingPackets;
+
+        /** Create a histogram of the latencies of packets sent via this port*/
+        statistics::Histogram packetLatency;
     } stats;
   public:
     // a gem5 ResponsePort
