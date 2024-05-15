@@ -51,6 +51,7 @@ ExternalMemory::ExternalMemory(
     useSSTSim(params.use_sst_sim)
 {
     this->init_phase_bool = false;
+    // This needs to be in the class constructor
 }
 
 ExternalMemory::~ExternalMemory()
@@ -105,22 +106,39 @@ ExternalMemory::setResponder(SSTResponderInterface* responder)
 bool
 ExternalMemory::sendTimingResp(gem5::PacketPtr pkt)
 {
-    if (useSSTSim == true) {
-        // see if the responder responded true or false. if it's true, then we
-        // increment the stats counters.
-        bool return_status = outgoingPort.sendTimingResp(pkt);
-        if (return_status) {
-            ++stats.numIncomingPackets;
-            unsigned int pkt_size = pkt->hasData() ? pkt->getSize() : 0;
-            stats.sizeIncomingPackets += pkt_size;
+    assert(useSSTSim);
+    assert(pkt->isResponse());
+    // assert(pkt->readResponse());
+    //
+    // if (useSSTSim == true) {
+    assert(useSSTSim);
+
+    // see if the responder responded true or false. if it's true, then we
+    // increment the stats counters.
+    bool return_status = outgoingPort.sendTimingResp(pkt);
+    if (return_status) {
+        // This packet got a response! Add the latency to the stats.
+        stats.packetLatency.sample(
+                gem5::curTick() - outstanding_requests[pkt]);
+
+        // delete this entry to save some memory.
+        outstanding_requests.erase(pkt);
+       
+        // Count this packet as an incoming packet.
+        ++stats.numIncomingPackets;
+
+        if (pkt->isRead()) {
+            // These should always be read responses!
+            ++stats.numReadIncomingPackets;
         }
-        return return_status;
+        else {
+            ++stats.numWriteIncomingPackets;
+            assert(false && "Should only see read responses!");
+        }
+        assert(pkt->getSize() == 64);
+        stats.sizeIncomingPackets += pkt->getSize();
     }
-    else {
-        // The simulation is done in gem5. The packet got a response
-        // TODO: do something.
-        return false;
-    }
+    return return_status;
 }
 
 void
@@ -207,22 +225,37 @@ ExternalMemoryPort::recvTimingReq(PacketPtr pkt)
 
 bool ExternalMemory::handleTiming(PacketPtr pkt)
 {
-    if (useSSTSim == true) {
-        // see if the responder responded true or false. if it's true, then we
-        // increment the stats counters.
-        bool return_status = sstResponder->handleRecvTimingReq(pkt);
-        if (return_status) {
-            ++stats.numOutgoingPackets;
-            unsigned int pkt_size = pkt->hasData() ? pkt->getSize() : 0;
-            stats.sizeOutgoingPackets += pkt_size;
-        }
-        return return_status;
+    if (pkt->isRead()) {
+        // Add this packet to a read type outgoing request!
+        ++stats.numReadOutgoingPackets;
+    }
+    else if (pkt->isWrite()) {
+        // Add this packet to a write type outgoing request!
+        ++stats.numWriteOutgoingPackets;
     }
     else {
-        // the user is simulating the external memory in gem5.
-        // TODO: so something!
-        return false;
+        // The simulation should fail if the request is not a read or a write
+        // request!
+        assert(false && "The external memory cannot handle this request!");
     }
+
+    outstanding_requests[pkt] = gem5::curTick();
+   
+    // Make sure that this memory is being simulated in SST
+    assert (useSSTSim);
+
+    // The responder will always return true as SST can *just* accept the
+    // request.
+    sstResponder->handleRecvTimingReq(pkt);
+    // This might be an unnecessary statistic. This was used to veryfy reads
+    // and writes in the beginning.
+    ++stats.numOutgoingPackets;
+
+    // The packet size should always be 64. This is just another validation
+    // statement.
+    assert(pkt->getSize() == 64);
+    stats.sizeOutgoingPackets += pkt->getSize();
+    return true;
 }
 
 void
@@ -243,12 +276,27 @@ ExternalMemory::StatGroup::StatGroup(statistics::Group *parent)
     : statistics::Group(parent),
     ADD_STAT(numOutgoingPackets, statistics::units::Count::get(),
             "Number of packets going out of the gem5 port"),
+    ADD_STAT(numReadOutgoingPackets, statistics::units::Count::get(),
+            "Count of all the read outgoing packets"),
+    ADD_STAT(numWriteOutgoingPackets, statistics::units::Count::get(),
+            "Count of all the wirte outgoing packets"),
     ADD_STAT(sizeOutgoingPackets, statistics::units::Byte::get(),
             "Cumulative size of all the outgoing packets"),
     ADD_STAT(numIncomingPackets, statistics::units::Count::get(),
             "Number of packets coming into the gem5 port"),
     ADD_STAT(sizeIncomingPackets, statistics::units::Byte::get(),
-            "Cumulative size of all the incoming packets")
+            "Cumulative size of all the incoming packets"),
+    ADD_STAT(numReadIncomingPackets, statistics::units::Count::get(),
+            "Count of all the read incoming packets"),
+    ADD_STAT(numWriteIncomingPackets, statistics::units::Count::get(),
+            "Count of all the write incoming packets"),
+    ADD_STAT(packetLatency, statistics::units::Count::get(),
+            "Histogram of packet latency sent via this port.")
 {
+    using namespace statistics;
+    // Initialize any histogram stats here
+    packetLatency
+        .init(2)
+        .flags(pdf);
 }
 }; // namespace gem5
