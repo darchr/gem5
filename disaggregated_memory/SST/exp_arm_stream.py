@@ -29,15 +29,23 @@
 
 import sst
 from sst import UnitAlgebra
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from configs.common import remote_memory_address_ranges
 import argparse
+
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
-    "--outdir",
+    "--ckpts-dir",
     type=str,
     required=True,
-    help="Output directory",
+    help="The path to the directory containing the checkpoints for all the nodes "+
+         "in the system. Each checkpoint directory must be named in this format: ckpt_i "+
+         "where i is the instance number of the node. Also, the output directory of this run "+
+         "will be inside this directory.",
 )
 parser.add_argument(
     "--system-nodes",
@@ -46,18 +54,11 @@ parser.add_argument(
     help="Number of nodes connected to the disaggregated memory system.",
 )
 parser.add_argument(
-    "--sst-memory-size",
+    "--memory-allocation-policy",
     type=str,
     required=True,
-    help="Remote memory size",
+    help="The memory allocation policy can be local, interleaved, or remote.",
 )
-parser.add_argument(
-    "--remote-memory-addr-range",
-    type=str,
-    required=True,
-    help="Remote memory range",
-)
-
 args = parser.parse_args()
 
 def connect_components(link_name: str,
@@ -83,76 +84,22 @@ def connect_components(link_name: str,
             (high_port_name, high_port, disaggregated_memory_latency)
         )
 
-def get_address_range(node, local_mem_size, remote_mem_size, blank_mem_size):
-    """
-    This function returns a list of start and end address corresponding to a
-    given node in SST
-
-    @params
-    :node: Node index (aka the instance/system node id)
-    :local_mem_size: Local memory size as integer
-    :remote_mem_size: Remote memory size as interger
-    :blank_mem_size: The I/O hole as interger
-
-    @returns [start_addr, end_addr] for the remote memory
-    """
-    return [blank_mem_size + (node + 1) * local_mem_size + \
-                    (node) * remote_mem_size,
-            blank_mem_size + (node + 1) * local_mem_size + \
-                    (node) * remote_mem_size + remote_mem_size
-    ]
-
-# =========================================================================== #
-gem5_run_script = "../../disaggregated_memory/configs/arm-main.py"
-
-# The disaggregated_memory latency should be set at SST's side as a link
-# latency.
-# XXX
+gem5_run_script = "../../disaggregated_memory/configs/exp-stream-remote-restore.py"
 disaggregated_memory_latency = "750ns"
-
 cache_link_latency = "1ps"
-
 cpu_clock_rate = "4GHz"
-
-# The following parameters have to be manually set by the user
-# output directory
-# XXX
-stat_output_directory = args.outdir+"/m5out_"
-
-# It is expected that if this script is executed from SST, the memory is
-# composable.
-
-# Define the CPU type
-cpu_type = "o3"
-
-
-
-# =========================================================================== #
-
-# Define the number of gem5 nodes in the system. anything more than 1 needs
-# mpirun to run the sst binary.
+stat_output_directory = args.ckpts_dir+"/m5outs/m5out_"
 system_nodes = args.system_nodes
 
-# Define the total number of SST Memory nodes
-memory_nodes = 1
-
-# This example uses fixed number of node size -> 2 GiB
-# The directory controller decides where the addresses are mapped to.
-node_memory_slice = "2GiB"
-node_memory_slice_in_hex = 0x80000000
-
-# We are use 32 GiB of remote memory per node.
-remote_memory_slice = "2GiB"
-remote_memory_slice_in_hex = 0x80000000
-
-# The first 2 GB is ignored for I/O devices.
-blank_memory_space = "2GiB"
-blank_memory_space_in_hex = 0x80000000
-
-sst_memory_size = args.sst_memory_size
+# For stream workload, the first 2 GiB of memory is allocated 
+# to the OS, the next 8 GiB is the local memory, and the rest is remote memory.
+sst_memory_size = str(2 + 8 + args.system_nodes) + "GiB"
 addr_range_end = UnitAlgebra(sst_memory_size).getRoundedValue()
-print(sst_memory_size, addr_range_end)
-remote_memory_range = list(map(int, args.remote_memory_addr_range.split(",")))
+
+remote_memory_range = []
+for node in range(args.system_nodes):
+    remote_memory_range.append(remote_memory_address_ranges[node][0]*1024*1024*1024)
+    remote_memory_range.append(remote_memory_address_ranges[node][1]*1024*1024*1024)
 
 # There is one cache bus connecting all gem5 ports to the remote memory.
 mem_bus = sst.Component("membus", "memHierarchy.Bus") 
@@ -196,9 +143,8 @@ for node in range(system_nodes):
         f"--outdir={stat_output_directory + str(node)}",
         f"{gem5_run_script}",
         f"--instance {node}",
-        f"--is-composable True",
-        f"--remote-memory-addr-range {remote_memory_range[node*2]},{remote_memory_range[node*2+1]}",
-        f"--ckpt-file ../../test-new-{node}/ckpt_{node}",
+        f"--memory-allocation-policy {args.memory_allocation_policy}",
+        f"--ckpts-dir {args.ckpts_dir}",
     ]
     ports = {
         "remote_memory_port" : "board.remote_memory.outgoing_request_bridge"

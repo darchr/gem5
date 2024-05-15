@@ -41,45 +41,39 @@ sys.path.append(
 )
 
 from memories.external_remote_memory import ExternalRemoteMemory
+from cachehierarchies.dm_caches import ClassicPrivateL1PrivateL2SharedL3DMCache
+from gem5.components.memory import (
+    SingleChannelDDR4_2400,
+)
+from gem5.isas import ISA
 
-import m5
 from m5.objects import (
     AddrRange,
     ArmSystem,
     BadAddr,
-    ExternalMemory,
     IOXBar,
     NoncoherentXBar,
     Port,
     SrcClockDomain,
     Terminal,
+    VExpress_GEM5_V1,
     VncServer,
     VoltageDomain,
 )
 from m5.objects.ArmFsWorkload import ArmFsLinux
 from m5.objects.ArmSystem import (
     ArmDefaultRelease,
-    ArmRelease,
-)
-from m5.objects.RealView import (
-    VExpress_GEM5_Base,
-    VExpress_GEM5_Foundation,
 )
 from m5.util.fdthelper import (
-    Fdt,
     FdtNode,
-    FdtProperty,
     FdtPropertyStrings,
     FdtPropertyWords,
-    FdtState,
 )
 
 from gem5.components.boards.arm_board import ArmBoard
-from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
-    AbstractCacheHierarchy,
-)
 from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
-from gem5.components.processors.abstract_processor import AbstractProcessor
+from gem5.components.processors.cpu_types import CPUTypes
+from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.utils.override import overrides
 from m5.util import (
     fatal,
@@ -119,66 +113,37 @@ class ArmComposableMemoryBoard(ArmBoard):
 
     def __init__(
         self,
-        clk_freq: str,
-        processor: AbstractProcessor,
-        local_memory: AbstractMemorySystem,
-        remote_memory: AbstractMemorySystem,
-        cache_hierarchy: AbstractCacheHierarchy,
-        platform: VExpress_GEM5_Base = VExpress_GEM5_Foundation(),
-        release: ArmRelease = ArmDefaultRelease(),
         remote_memory_access_cycles: int = 0,
+        use_sst: bool = False,
         remote_memory_address_range: AddrRange = None,
     ) -> None:
-        # The parent board calls get_memory(), which needs overriding.
-        self._localMemory = local_memory
-        self._remoteMemory = remote_memory
-        # We need to set the remote memory range before init for the remote
-        # memory. If the user did not specify the remote_memory_addr_range,
-        # then we'd assume that the remote memory starts where local memory
-        # ends.
-        # If the user gave a remote memory address range, then set it directly.
-        # TODO: This makes the design confusing. Remove this in the future
-        # iteration. A remote memory range should only be supplied when
-        # initializing the memory.
-        self._remoteMemoryAddressRange = None
-        if remote_memory_address_range is not None:
-            self._remoteMemoryAddressRange = remote_memory_address_range
+
+        self._remoteMemoryAddressRange = remote_memory_address_range
+        
+        if use_sst == True:
+            self._cpu_type = CPUTypes.O3
         else:
-            # Is this an external remote memory?
-            if isinstance(remote_memory, ExternalRemoteMemory) == True:
-                if remote_memory_access_cycles > 0:
-                    print("Cannot simulate ExternalRemoteMemory with latency!")
-                    exit(-1)
-                # There is an address range specified when the remote memory
-                # was initialized.
-                if self._remoteMemory.get_set_using_addr_ranges() == True:
-                    # Set the board's memory range as whatever was used.
-                    self._remoteMemoryAddressRange = (
-                        self._remoteMemory.get_mem_ports()[0][0]
-                    )
-        # In case that none of the above set the memory range, we'll set it
-        # manually
-        if self._remoteMemoryAddressRange is None:
-            # If the remote_memory_addr_range is not provided, we'll
-            # assume that it starts at 0x80000000 + local_memory_size
-            # and ends at it's own size.
-            self._remoteMemoryAddressRange = AddrRange(
-                0x80000000 + self._localMemory.get_size(),
-                size=self._remoteMemory.get_size(),
-            )
-        assert self._remoteMemoryAddressRange is not None
+            self._cpu_type = CPUTypes.KVM
+
 
         super().__init__(
-            clk_freq=clk_freq,
-            processor=processor,
-            memory=local_memory,
-            cache_hierarchy=cache_hierarchy,
-            platform=platform,
-            release=release,
+            clk_freq="4GHz",
+            processor=SimpleProcessor(cpu_type=self._cpu_type, isa=ISA.ARM, num_cores=8),
+            memory=SingleChannelDDR4_2400(size="8GiB"),
+            cache_hierarchy=ClassicPrivateL1PrivateL2SharedL3DMCache(
+                l1d_size="32KiB", l1i_size="32KiB", l2_size="512KiB", l3_size="8MiB"
+            ),
+            platform=VExpress_GEM5_V1(),
+            release=ArmDefaultRelease.for_kvm(),
         )
 
-        self.local_memory = local_memory
-        self.remote_memory = remote_memory
+        self.local_memory = self.memory
+        self.remote_memory = ExternalRemoteMemory(
+            addr_range=remote_memory_address_range, use_sst_sim=use_sst
+        )
+        # At the end of the local_memory, append the remote memory range.
+        self._set_remote_memory_ranges()
+        self.mem_ranges.append(self.get_remote_memory_addr_range())
 
         # The amount of latency to access the remote memory has to be either
         # implemented using a non-coherent crossbar that connects the the
@@ -216,7 +181,7 @@ class ArmComposableMemoryBoard(ArmBoard):
         :returns: The local memory system.
         """
         # get local memory is called at init phase.
-        return self._localMemory
+        return self.memory
 
     def get_remote_memory(self) -> "AbstractMemorySystem":
         """Get the memory (RAM) connected to the board.
@@ -225,7 +190,7 @@ class ArmComposableMemoryBoard(ArmBoard):
             memory.
         :returns: The remote memory system.
         """
-        return self._remoteMemory
+        return self.remote_memory
 
     def get_remote_memory_size(self) -> "str":
         """Get the remote memory size to setup the NUMA nodes. Since the remote
@@ -308,7 +273,6 @@ class ArmComposableMemoryBoard(ArmBoard):
         # ranges. ArmBoard's memory can only be setup once realview is
         # initialized.
         local_memory = self.get_local_memory()
-        print(type(local_memory))
         mem_size = local_memory.get_size()
 
         # The following code is taken from configs/example/arm/devices.py. It
@@ -317,7 +281,6 @@ class ArmComposableMemoryBoard(ArmBoard):
         success = False
         # self.mem_ranges.append(self.get_remote_memory_addr_range())
         for mem_range in self.realview._mem_regions:
-            print(mem_size)
             size_in_range = min(mem_size, mem_range.size())
             self.mem_ranges.append(
                 AddrRange(start=mem_range.start, size=size_in_range)
@@ -332,9 +295,7 @@ class ArmComposableMemoryBoard(ArmBoard):
             local_memory.set_memory_range(self.mem_ranges)
         else:
             raise ValueError("Memory size too big for platform capabilities")
-        # At the end of the local_memory, append the remote memory range.
-        self._set_remote_memory_ranges()
-        self.mem_ranges.append(self.get_remote_memory_addr_range())
+        
 
         # The PCI Devices. PCI devices can be added via the `_add_pci_device`
         # function.
