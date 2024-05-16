@@ -206,6 +206,7 @@ CenteralController::startup()
         auto routing_entry = abs_mem_range_map.contains(pkt->getAddr());
         routing_entry->second->functionalAccess(pkt);
     }, params().abstract_mem_atom_size);
+    panic_if(!edge_image.write(edge_proxy), "%s: Unable to write image.");
 }
 
 void
