@@ -38,6 +38,7 @@
 #include "accl/graph/sega/enums.hh"
 #include "accl/graph/sega/mpu.hh"
 #include "base/addr_range.hh"
+#include "base/addr_range_map.hh"
 #include "base/intmath.hh"
 #include "mem/simple_mem.hh"
 #include "params/CenteralController.hh"

@@ -31,10 +31,12 @@
 #include <cmath>
 #include <iostream>
 
+#include "base/addr_range_map.hh"
 #include "base/cprintf.hh"
 #include "base/loader/memory_image.hh"
 #include "base/loader/object_file.hh"
 #include "debug/CenteralController.hh"
+#include "mem/abstract_mem.hh"
 #include "mem/packet_access.hh"
 #include "sim/sim_exit.hh"
 
@@ -182,6 +184,28 @@ CenteralController::startup()
         }
     }
     workload->iterate();
+
+    const auto& edge_file = params().edge_image_file;
+    if (edge_file == "") {}
+        return;
+
+    AddrRangeMap<AbstractMemory*> abs_mem_range_map;
+    for (auto abs_mem: params().abstract_mem_vector) {
+        for (auto range: abs_mem->getAddrRanges()) {
+            abs_mem_range_map.insert(range, abs_mem);
+        }
+    }
+    auto* edge_object = loader::createObjectFile(edge_file, true);
+    fatal_if(!object, "%s: Could not load %s.", name(), edge_file);
+
+    loader::debugSymbolTable.insert(*edge_object->symtab().globals());
+    loader::MemoryImage edge_image = edge_object->buildImage();
+
+    PortProxy edge_proxy(
+    [this](PacketPtr pkt) {
+        auto routing_entry = abs_mem_range_map.contains(pkt->getAddr());
+        routing_entry->second->functionalAccess(pkt);
+    }, params().abstract_mem_atom_size);
 }
 
 void
