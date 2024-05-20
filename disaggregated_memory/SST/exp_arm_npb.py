@@ -32,7 +32,7 @@ from sst import UnitAlgebra
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from configs.common import stream_remote_memory_address_ranges
+from configs.common import npb_benchmarks
 import argparse
 
 
@@ -46,12 +46,6 @@ parser.add_argument(
          "in the system. Each checkpoint directory must be named in this format: ckpt_i "+
          "where i is the instance number of the node. Also, the output directory of this run "+
          "will be inside this directory.",
-)
-parser.add_argument(
-    "--system-nodes",
-    type=int,
-    required=True,
-    help="Number of nodes connected to the disaggregated memory system.",
 )
 parser.add_argument(
     "--memory-allocation-policy",
@@ -84,24 +78,18 @@ def connect_components(link_name: str,
             (high_port_name, high_port, disaggregated_memory_latency)
         )
 
-gem5_run_script = "/home/babaie/projects/disaggregated-cxl/5/gem5/disaggregated_memory/configs/exp-stream-restore.py"
+gem5_run_script = "/home/babaie/projects/disaggregated-cxl/5/gem5/disaggregated_memory/configs/exp-npb-restore.py"
 disaggregated_memory_latency = "750ns"
 cache_link_latency = "1ps"
 cpu_clock_rate = "4GHz"
-system_nodes = args.system_nodes
-stat_output_directory = f"{args.ckpts_dir}/SST_m5outs/{system_nodes}_nodes/{args.memory_allocation_policy}/m5out_"
+stat_output_directory = f"{args.ckpts_dir}/SST_m5outs_NPB/{args.memory_allocation_policy}"
 
 
-# For stream workload, the first 2 GiB of memory is allocated 
-# to the OS, the next 8 GiB is the local memory, and the rest is remote memory
-# 1GiB per node.
-sst_memory_size = str(2 + 8 + args.system_nodes) + "GiB"
+if args.memory_allocation_policy == "all-local":
+    sst_memory_size = str(2 + 85 + 9) + "GiB"
+elif args.memory_allocation_policy == "numa-local-preferred":
+    sst_memory_size = str(2 + 8 + 151) + "GiB"
 addr_range_end = UnitAlgebra(sst_memory_size).getRoundedValue()
-
-# remote_memory_range = []
-# for node in range(args.system_nodes):
-#     remote_memory_range.append(stream_remote_memory_address_ranges[node][0]*1024*1024*1024)
-#     remote_memory_range.append(stream_remote_memory_address_ranges[node][1]*1024*1024*1024)
 
 # There is one cache bus connecting all gem5 ports to the remote memory.
 mem_bus = sst.Component("membus", "memHierarchy.Bus") 
@@ -139,12 +127,13 @@ gem5_nodes = []
 memory_ports = []
 
 # Create each of these nodes and conect it to a SST memory cache
-for node in range(system_nodes): 
+for node, benchmark in enumerate(npb_benchmarks): 
     cmd = [
         f"-re",
-        f"--outdir={stat_output_directory + str(node)}",
+        f"--outdir={stat_output_directory}/D/{benchmark}",
         f"{gem5_run_script}",
-        f"--instance {node}",
+        f"--benchmark {benchmark}",
+        f"--size D",
         f"--memory-allocation-policy {args.memory_allocation_policy}",
         f"--ckpts-dir {args.ckpts_dir}",
     ]

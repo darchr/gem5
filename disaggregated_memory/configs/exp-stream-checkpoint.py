@@ -36,25 +36,22 @@ import argparse
 import os
 import sys
 
+# all the source files are one directory above.
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 
 from boards.arm_main_board import ArmComposableMemoryBoard
-from common import run_commands, remote_memory_address_ranges
+from common import stream_run_commands, stream_remote_memory_address_ranges
 
+import m5
 from m5.objects import AddrRange
 from gem5.isas import ISA
 from gem5.resources.resource import *
 from gem5.resources.workload import *
-from gem5.utils.requires import requires
-from gem5.simulate import exit_event_generators
 from gem5.simulate.exit_event import ExitEvent
 from gem5.simulate.simulator import Simulator
-
-# define on_exit_event
-def handle_exit():
-    yield True  # Stop the simulation. We're done.
+from gem5.utils.requires import requires
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -70,26 +67,20 @@ parser.add_argument(
     required=True,
     help="The memory allocation policy can be local, interleaved, or remote.",
 )
-parser.add_argument(
-    "--ckpts-dir",
-    type=str,
-    default="",
-    required=True,
-    help="Put a path to restore a checkpoint",
-)
+
 args = parser.parse_args()
 
-remote_memory_range = AddrRange(remote_memory_address_ranges[args.instance][0]*1024*1024*1024,
-                                remote_memory_address_ranges[args.instance][1]*1024*1024*1024)
+remote_memory_range = AddrRange(stream_remote_memory_address_ranges[args.instance][0]*1024*1024*1024,
+                                stream_remote_memory_address_ranges[args.instance][1]*1024*1024*1024)
 
 requires(isa_required=ISA.ARM)
 
 board = ArmComposableMemoryBoard(
-    use_sst=True,
+    use_sst=False,
     remote_memory_address_range=remote_memory_range,
 )
 
-cmd = run_commands[args.memory_allocation_policy]
+command = stream_run_commands[args.memory_allocation_policy]
 
 workload = CustomWorkload(
     function="set_kernel_disk_workload",
@@ -102,21 +93,31 @@ workload = CustomWorkload(
             "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
             root_partition="1",
         ),
-        "readfile_contents": " ".join(cmd),
+        "readfile_contents": " ".join(command),
     },
 )
 
-ckpt_to_read_write = args.ckpts_dir + "/ckpt_" + str(args.instance)
+# workload = obtain_resource("stream-workload-" + args.memory_allocation_policy)
+# print(workload.get_parameters())
+
+ckpt_path = (
+    f"{m5.options.outdir}/ckpt_{args.instance}"
+)
+
+print("Checkpoint will be saved in " + ckpt_path)
 
 board.set_workload(workload)
 
-exit_event = exit_event_generators.exit_generator
+# define on_exit_event
+def take_checkpoint():
+    m5.checkpoint(ckpt_path)
+    yield True  # Stop the simulation. We're done.
 
 simulator = Simulator(
     board=board,
     on_exit_event={
-        ExitEvent.EXIT: exit_event,
+        ExitEvent.EXIT: take_checkpoint(),
     },
 )
 
-simulator._instantiate()
+simulator.run()

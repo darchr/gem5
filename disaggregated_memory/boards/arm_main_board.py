@@ -116,6 +116,7 @@ class ArmComposableMemoryBoard(ArmBoard):
         remote_memory_access_cycles: int = 0,
         use_sst: bool = False,
         remote_memory_address_range: AddrRange = None,
+        local_memory_size: str = "8GiB",
     ) -> None:
 
         self._remoteMemoryAddressRange = remote_memory_address_range
@@ -129,7 +130,7 @@ class ArmComposableMemoryBoard(ArmBoard):
         super().__init__(
             clk_freq="4GHz",
             processor=SimpleProcessor(cpu_type=self._cpu_type, isa=ISA.ARM, num_cores=8),
-            memory=SingleChannelDDR4_2400(size="8GiB"),
+            memory=SingleChannelDDR4_2400(size=local_memory_size),
             cache_hierarchy=ClassicPrivateL1PrivateL2SharedL3DMCache(
                 l1d_size="32KiB", l1i_size="32KiB", l2_size="512KiB", l3_size="8MiB"
             ),

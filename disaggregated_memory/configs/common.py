@@ -1,11 +1,11 @@
 
-run_commands = {
+stream_run_commands = {
     "local" : [
         'echo "starting STREAM locally!";',
         "numastat;",
         "numactl --membind=0 -- "
         + "/home/ubuntu/simple-vectorizable-benchmarks/stream/"
-        + "stream.hw.m5 3145728;",
+        + "stream.hw.m5 67108864;",
         "numastat; m5 --addr=0x10010000 exit;",
     ],
 
@@ -14,7 +14,7 @@ run_commands = {
         "numastat;",
         "numactl --interleave=0,1 -- "
         + "/home/ubuntu/simple-vectorizable-benchmarks/stream/"
-        + "stream.hw.m5 3145728;",
+        + "stream.hw.m5 67108864;",
         "numastat; m5 --addr=0x10010000 exit;",
     ],
 
@@ -23,12 +23,12 @@ run_commands = {
         "numastat;",
         "numactl --membind=1 -- "
         + "/home/ubuntu/simple-vectorizable-benchmarks/stream/"
-        + "stream.hw.m5 3145728;",
+        + "stream.hw.m5 67108864;",
         "numastat; m5 --addr=0x10010000 exit;",
     ],
 }
 
-remote_memory_address_ranges = [
+stream_remote_memory_address_ranges = [
     (10, 11),
     (11, 12),
     (12, 13),
@@ -62,3 +62,54 @@ remote_memory_address_ranges = [
     (40, 41),
     (41, 42)
 ]
+
+###################################################################################
+
+npb_benchmarks = ["bt", "cg", "ep", "ft", "is", "lu", "mg", "ua", "sp"]
+
+npb_benchmarks_index = {
+    "bt": 1,
+    "cg": 2,
+    "ep": 3,
+    "ft": 4,
+    "is": 5,
+    "lu": 6,
+    "mg": 7,
+    "sp": 8,
+    "ua": 9,
+}
+
+npb_D_remote_mem_size = {
+    "bt": (10,13),
+    "cg": (13,22),
+    "ep": (22,23),
+    "ft": (23,100),
+    "is": (100,126),
+    "lu": (126,127),
+    "mg": (127,156),
+    "sp": (156,160),
+    "ua": (160,161),
+}
+
+npb_classes = ["S", "A", "B", "C", "D"]
+
+npb_mem_size = {
+    "bt.C.x": 1,
+    "cg.C.x": 1,
+    "ep.C.x": 1,
+    "ft.C.x": 5,
+    "is.C.x": 1,
+    "lu.C.x": 1,
+    "mg.C.x": 4,
+    "sp.C.x": 1,
+    "ua.C.x": 1,
+    "bt.D.x": 11,
+    "cg.D.x": 17,
+    "ep.D.x": 1,
+    "ft.D.x": 85,
+    "is.D.x": 34,
+    "lu.D.x": 9,
+    "mg.D.x": 27,
+    "sp.D.x": 12,
+    "ua.D.x": 8,
+}

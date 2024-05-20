@@ -42,7 +42,7 @@ sys.path.append(
 )
 
 from boards.arm_main_board import ArmComposableMemoryBoard
-from common import run_commands, remote_memory_address_ranges
+from common import npb_mem_size, npb_benchmarks, npb_classes, npb_benchmarks_index, npb_D_remote_mem_size
 
 import m5
 from m5.objects import AddrRange
@@ -54,33 +54,76 @@ from gem5.simulate.simulator import Simulator
 from gem5.utils.requires import requires
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--instance",
-    type=int,
-    required=True,
-    help="Instance id is need to correctly read and write to the "
-    + "checkpoint in a multi-node simulation.",
-)
+
 parser.add_argument(
     "--memory-allocation-policy",
     type=str,
     required=True,
-    help="The memory allocation policy can be local, interleaved, or remote.",
+    help="The memory allocation policy can be all-local, or numa-local-preferred .",
 )
-
+parser.add_argument(
+    "--benchmark",
+    type=str,
+    required=True,
+    help="Input the NPB benchmark name",
+    choices=npb_benchmarks
+)
+parser.add_argument(
+    "--size",
+    type=str,
+    required=True,
+    help="Input the NPB benchmark size",
+    choices=npb_classes
+)
+parser.add_argument(
+    "--ckpts-dir",
+    type=str,
+    default="",
+    required=True,
+    help="Put a path to restore a checkpoint",
+)
 args = parser.parse_args()
 
-remote_memory_range = AddrRange(remote_memory_address_ranges[args.instance][0]*1024*1024*1024,
-                                remote_memory_address_ranges[args.instance][1]*1024*1024*1024)
+benchmark = f"{args.benchmark}.{args.size}.x"
+workload_size = npb_mem_size[benchmark]
+command_list = []
+npb_command = "/home/ubuntu/arm-bench/npb-hooks/NPB3.4.2/NPB3.4-OMP/bin/" + benchmark
+
+if args.memory_allocation_policy == "all-local":
+    # the first 2GiB = OS
+    # the next 85 GiB = local memory (the max size of the workloads)
+    # the next 1GiB = remote memory
+    local_memory_size_GiB = str(85) + "GiB"
+    index = npb_benchmarks_index[args.benchmark]
+    # assigning 1GiB of remote memory
+    remote_memory_range = AddrRange((2+85+index-1)*1024*1024*1024,(2+85+index)*1024*1024*1024)
+    command_list = [
+        f"echo 'starting to run {benchmark}, {args.memory_allocation_policy}';",
+        f"{npb_command};",
+        "m5 --addr=0x10010000 exit;"
+    ]
+elif args.memory_allocation_policy == "numa-local-preferred":
+    # the first 2GiB = OS
+    # the next 8GiB = local memory
+    # the next XXX GiB = remote memory with the size of workload beyond 8GiB
+    local_memory_size_GiB = "8GiB"
+    remote_memory_range = AddrRange(npb_D_remote_mem_size[args.benchmark][0]*1024*1024*1024,
+                                    npb_D_remote_mem_size[args.benchmark][1]*1024*1024*1024)
+    command_list = [
+        "numastat;",
+        f"echo 'starting to run {benchmark}, {args.memory_allocation_policy}';",
+        f"numactl --preferred=0 -- {npb_command};",
+        "numastat;",
+        "m5 --addr=0x10010000 exit;"
+    ]
 
 requires(isa_required=ISA.ARM)
 
 board = ArmComposableMemoryBoard(
-    use_sst=False,
+    use_sst=True,
     remote_memory_address_range=remote_memory_range,
+    local_memory_size=local_memory_size_GiB,
 )
-
-command = run_commands[args.memory_allocation_policy]
 
 workload = CustomWorkload(
     function="set_kernel_disk_workload",
@@ -93,32 +136,43 @@ workload = CustomWorkload(
             "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
             root_partition="1",
         ),
-        "readfile_contents": " ".join(command),
+        "readfile_contents": " ".join(command_list),
     },
 )
 
 # workload = obtain_resource("stream-workload-" + args.memory_allocation_policy)
 # print(workload.get_parameters())
 
-ckpt_to_read_write = (
-    m5.options.outdir
-    + "/ckpt_"
-    + str(args.instance)
+ckpt_path = (
+    f"{args.ckpts_dir}/{args.memory_allocation_policy}/{args.size}/{args.benchmark}/ckpt_{args.benchmark}.{args.size}"
 )
-print("Checkpoint will be saved in " + ckpt_to_read_write)
+print("Checkpoint will be read from: " + ckpt_path)
 
 board.set_workload(workload)
 
+
+num_iterations = 0
 # define on_exit_event
-def take_checkpoint():
-    m5.checkpoint(ckpt_to_read_write)
-    yield True  # Stop the simulation. We're done.
+def handle_exit_event():
+    if num_iterations < 10:
+        print(f"Done with iteration #{num_iterations}")
+        m5.stats.dump()
+        print("Dumped stats at the end of the iteration!")
+        ## every 50 ms
+        num_iterations += 1
+        yield False  # E.g., continue the simulation.
+    else:
+        print("Dump stats at the end of the ROI!")
+        m5.stats.dump()
+        yield True  # Stop the simulation. We're done.
 
 simulator = Simulator(
     board=board,
     on_exit_event={
-        ExitEvent.EXIT: take_checkpoint(),
+        ExitEvent.EXIT: handle_exit_event(),
     },
+    checkpoint_path=ckpt_path,
+    max_ticks=50000000000,
 )
 
-simulator.run()
+simulator._instantiate()
