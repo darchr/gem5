@@ -118,6 +118,9 @@ class ExternalMemory : public memory::AbstractMemory
 
         /** Create a histogram of the latencies of packets sent via this port*/
         statistics::Histogram packetLatency;
+
+        /** Create a histogram of the total outstanding packets */
+        statistics::Histogram outstandingPackets;
     } stats;
   public:
     // a gem5 ResponsePort

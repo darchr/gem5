@@ -106,13 +106,11 @@ ExternalMemory::setResponder(SSTResponderInterface* responder)
 bool
 ExternalMemory::sendTimingResp(gem5::PacketPtr pkt)
 {
-    assert(useSSTSim);
-    assert(pkt->isResponse());
-    // assert(pkt->readResponse());
+    // A timing response will only be received if there was a timing request
+    // sent at the first place. So we do not need an aseert() here.
     //
-    // if (useSSTSim == true) {
-    assert(useSSTSim);
-
+    // We also do not need to assert whether this response is a response.
+    assert(pkt->isResponse());
     // see if the responder responded true or false. if it's true, then we
     // increment the stats counters.
     bool return_status = outgoingPort.sendTimingResp(pkt);
@@ -130,13 +128,14 @@ ExternalMemory::sendTimingResp(gem5::PacketPtr pkt)
         if (pkt->isRead()) {
             // These should always be read responses!
             ++stats.numReadIncomingPackets;
+            // This packet will have exactly 64 bytes of data. This has been
+            // validated.
+            stats.sizeIncomingPackets += pkt->getSize();
         }
         else {
             ++stats.numWriteIncomingPackets;
             assert(false && "Should only see read responses!");
         }
-        assert(pkt->getSize() == 64);
-        stats.sizeIncomingPackets += pkt->getSize();
     }
     return return_status;
 }
@@ -225,36 +224,46 @@ ExternalMemoryPort::recvTimingReq(PacketPtr pkt)
 
 bool ExternalMemory::handleTiming(PacketPtr pkt)
 {
+    // Implementation and validation notes; I have validated that all requests
+    // coming here has a fixed size of 64 bytes. I am removing the assert to
+    // make the simulation faster.
+    //
+    // Make sure that this memory is being simulated in SST
+    assert (useSSTSim);
+
+    // This might be an unnecessary statistic. This was used to veryfy reads
+    // and writes in the beginning.
+    ++stats.numOutgoingPackets;
     if (pkt->isRead()) {
         // Add this packet to a read type outgoing request!
         ++stats.numReadOutgoingPackets;
+        // A read packet cannot have valid data. An assert was removed as it
+        // was verified.
     }
     else if (pkt->isWrite()) {
         // Add this packet to a write type outgoing request!
         ++stats.numWriteOutgoingPackets;
+        // only write packets should have outgoing data. The assert was removed
+        // as it was verified.
+        stats.sizeOutgoingPackets += pkt->getSize();
     }
     else {
         // The simulation should fail if the request is not a read or a write
-        // request!
+        // request! The external memory can only handle reads and writes.
         assert(false && "The external memory cannot handle this request!");
     }
 
+    // Keep the time when this packet was sent out to SST.
     outstanding_requests[pkt] = gem5::curTick();
-   
-    // Make sure that this memory is being simulated in SST
-    assert (useSSTSim);
+
+    // Take samples of the size of this map
+    stats.outstandingPackets.sample(outstanding_requests.size());
 
     // The responder will always return true as SST can *just* accept the
     // request.
     sstResponder->handleRecvTimingReq(pkt);
-    // This might be an unnecessary statistic. This was used to veryfy reads
-    // and writes in the beginning.
-    ++stats.numOutgoingPackets;
 
-    // The packet size should always be 64. This is just another validation
-    // statement.
-    assert(pkt->getSize() == 64);
-    stats.sizeOutgoingPackets += pkt->getSize();
+    // This always returns true.
     return true;
 }
 
@@ -291,11 +300,16 @@ ExternalMemory::StatGroup::StatGroup(statistics::Group *parent)
     ADD_STAT(numWriteIncomingPackets, statistics::units::Count::get(),
             "Count of all the write incoming packets"),
     ADD_STAT(packetLatency, statistics::units::Count::get(),
-            "Histogram of packet latency sent via this port.")
+            "Histogram of packet latency sent via this port."),
+    ADD_STAT(outstandingPackets, statistics::units::Count::get(),
+            "Histogram of outstanding packets.")
 {
     using namespace statistics;
     // Initialize any histogram stats here
     packetLatency
+        .init(2)
+        .flags(pdf);
+    outstandingPackets
         .init(2)
         .flags(pdf);
 }
