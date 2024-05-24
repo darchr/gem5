@@ -88,7 +88,7 @@ stat_output_directory = f"{args.ckpts_dir}/SST_m5outs_NPB/{args.memory_allocatio
 if args.memory_allocation_policy == "all-local":
     sst_memory_size = str(2 + 85 + 9) + "GiB"
 elif args.memory_allocation_policy == "numa-local-preferred":
-    sst_memory_size = str(2 + 8 + 151) + "GiB"
+    sst_memory_size = str(2 + 8 + 152) + "GiB"
 addr_range_end = UnitAlgebra(sst_memory_size).getRoundedValue()
 
 # There is one cache bus connecting all gem5 ports to the remote memory.

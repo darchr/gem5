@@ -160,6 +160,7 @@ def handle_exit_event():
         print("Dumped stats at the end of the iteration!")
         ## every 50 ms
         num_iterations += 1
+        m5.setMaxTick(50000000000)
         yield False  # E.g., continue the simulation.
     else:
         print("Dump stats at the end of the ROI!")
@@ -172,7 +173,8 @@ simulator = Simulator(
         ExitEvent.EXIT: handle_exit_event(),
     },
     checkpoint_path=ckpt_path,
-    max_ticks=50000000000,
 )
 
 simulator._instantiate()
+
+m5.setMaxTick(50000000000)
