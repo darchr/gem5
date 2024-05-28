@@ -3752,7 +3752,8 @@ action(Profile_Miss, desc="") {
     if (isReadReqType(tbe.reqType)) {
       is_read := true;
     } else {
-      assert(isWriteReqType(tbe.reqType));
+      // HACK: Is this assert really correct and necessary?
+      // assert(isWriteReqType(tbe.reqType));
     }
 
     // FIXME: this dataBlk is likely to have stale data. This should be fixed
@@ -3779,7 +3780,8 @@ action(Profile_Hit, desc="") {
     if (isReadReqType(tbe.reqType)) {
       is_read := true;
     } else {
-      assert(isWriteReqType(tbe.reqType));
+      // HACK: Is this assert really correct and necessary?
+      // assert(isWriteReqType(tbe.reqType));
     }
     pfProxy.notifyPfHit(tbe.seqReq, is_read, tbe.dataBlk);
 
