@@ -65,7 +65,7 @@ stream_remote_memory_address_ranges = [
 
 ###################################################################################
 
-npb_benchmarks = ["bt", "cg", "ep", "ft", "is", "lu", "mg", "ua", "sp"]
+npb_benchmarks = ["bt", "cg", "ep", "ft", "is", "lu", "mg", "sp", "ua"]
 
 npb_benchmarks_index = {
     "bt": 1,

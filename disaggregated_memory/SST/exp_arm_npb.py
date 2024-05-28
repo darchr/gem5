@@ -78,11 +78,11 @@ def connect_components(link_name: str,
             (high_port_name, high_port, disaggregated_memory_latency)
         )
 
-gem5_run_script = "/home/babaie/projects/disaggregated-cxl/5/gem5/disaggregated_memory/configs/exp-npb-restore.py"
+gem5_run_script = "/home/babaie/projects/disaggregated-cxl/6/gem5/disaggregated_memory/configs/exp-npb-restore.py"
 disaggregated_memory_latency = "750ns"
 cache_link_latency = "1ps"
 cpu_clock_rate = "4GHz"
-stat_output_directory = f"{args.ckpts_dir}/SST_m5outs_NPB/{args.memory_allocation_policy}"
+stat_output_directory = f"{args.ckpts_dir}/SST_m5outs_NPB_all_short_test/{args.memory_allocation_policy}"
 
 
 if args.memory_allocation_policy == "all-local":
@@ -127,7 +127,8 @@ gem5_nodes = []
 memory_ports = []
 
 # Create each of these nodes and conect it to a SST memory cache
-for node, benchmark in enumerate(npb_benchmarks): 
+npb_benchmarks_test = ["bt", "cg", "ep", "ft", "mg", "sp", "ua"]
+for node, benchmark in enumerate(npb_benchmarks_test): 
     cmd = [
         f"-re",
         f"--outdir={stat_output_directory}/D/{benchmark}",
@@ -146,7 +147,7 @@ for node, benchmark in enumerate(npb_benchmarks):
     cpu_params = {
        "frequency" : cpu_clock_rate,
        "cmd" : " ".join(cmd),
-       "debug_flags" : "Checkpoint,MemoryAccess",
+       # "debug_flags" : "Checkpoint,MemoryAccess",
        "ports" : " ".join(port_list)
     }
     # Each of the Gem5 node has to be separately simulated.
@@ -187,5 +188,5 @@ connect_components("membus_2_memory",
 stat_params = { "rate" : "0ns" }
 sst.setStatisticLoadLevel(10)
 sst.setStatisticOutput("sst.statOutputTXT",
-        {"filepath" : f"arm-main-board.txt"})
+        {"filepath" : f"{stat_output_directory}/sstOuts/node.txt"})
 sst.enableAllStatisticsForAllComponents()

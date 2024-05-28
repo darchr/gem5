@@ -89,7 +89,7 @@ disaggregated_memory_latency = "750ns"
 cache_link_latency = "1ps"
 cpu_clock_rate = "4GHz"
 system_nodes = args.system_nodes
-stat_output_directory = f"{args.ckpts_dir}/SST_m5outs/{system_nodes}_nodes/{args.memory_allocation_policy}/m5out_"
+stat_output_directory = f"{args.ckpts_dir}/SST_m5outs/{system_nodes}_nodes/{args.memory_allocation_policy}"
 
 
 # For stream workload, the first 2 GiB of memory is allocated 
@@ -97,11 +97,6 @@ stat_output_directory = f"{args.ckpts_dir}/SST_m5outs/{system_nodes}_nodes/{args
 # 1GiB per node.
 sst_memory_size = str(2 + 8 + args.system_nodes) + "GiB"
 addr_range_end = UnitAlgebra(sst_memory_size).getRoundedValue()
-
-# remote_memory_range = []
-# for node in range(args.system_nodes):
-#     remote_memory_range.append(stream_remote_memory_address_ranges[node][0]*1024*1024*1024)
-#     remote_memory_range.append(stream_remote_memory_address_ranges[node][1]*1024*1024*1024)
 
 # There is one cache bus connecting all gem5 ports to the remote memory.
 mem_bus = sst.Component("membus", "memHierarchy.Bus") 
@@ -142,7 +137,7 @@ memory_ports = []
 for node in range(system_nodes): 
     cmd = [
         f"-re",
-        f"--outdir={stat_output_directory + str(node)}",
+        f"--outdir={stat_output_directory + "/m5out_" + str(node)}",
         f"{gem5_run_script}",
         f"--instance {node}",
         f"--memory-allocation-policy {args.memory_allocation_policy}",
@@ -198,5 +193,5 @@ connect_components("membus_2_memory",
 stat_params = { "rate" : "0ns" }
 sst.setStatisticLoadLevel(10)
 sst.setStatisticOutput("sst.statOutputTXT",
-        {"filepath" : f"arm-main-board.txt"})
+        {"filepath" : f"{stat_output_directory}/sstOuts/node.txt"})
 sst.enableAllStatisticsForAllComponents()

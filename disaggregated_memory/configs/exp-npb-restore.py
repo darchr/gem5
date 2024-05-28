@@ -150,31 +150,26 @@ print("Checkpoint will be read from: " + ckpt_path)
 
 board.set_workload(workload)
 
-
-num_iterations = 0
 # define on_exit_event
 def handle_exit_event():
-    if num_iterations < 10:
+    for num_iterations in range(19):
         print(f"Done with iteration #{num_iterations}")
         m5.stats.dump()
-        print("Dumped stats at the end of the iteration!")
-        ## every 50 ms
-        num_iterations += 1
-        m5.setMaxTick(50000000000)
-        yield False  # E.g., continue the simulation.
-    else:
-        print("Dump stats at the end of the ROI!")
-        m5.stats.dump()
-        yield True  # Stop the simulation. We're done.
+        print(f"Dumped stats at the end of the iteration #{num_iterations}")
+        m5.setMaxTick(m5.curTick() + 50_000_000_000) # simulate another 50 ms
+        yield False  # Continue the simulation.
+    print(f"Dump stats since all the iterations completed")
+    m5.stats.dump()
+    yield True  # Stop the simulation. We're done.
 
 simulator = Simulator(
     board=board,
     on_exit_event={
-        ExitEvent.EXIT: handle_exit_event(),
+        ExitEvent.MAX_TICK : handle_exit_event(),
     },
     checkpoint_path=ckpt_path,
 )
 
 simulator._instantiate()
 
-m5.setMaxTick(50000000000)
+m5.setMaxTick(m5.curTick() + 50_000_000_000)
