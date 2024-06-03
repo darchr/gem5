@@ -43,6 +43,7 @@ FuncUnit::FuncUnit()
 {
     opLatencies.fill(0);
     pipelined.fill(false);
+    superconducting.fill(false);
     capabilityList.reset();
 }
 
@@ -54,11 +55,11 @@ FuncUnit::FuncUnit(const FuncUnit &fu)
     for (int i = 0; i < Num_OpClasses; ++i) {
         opLatencies[i] = fu.opLatencies[i];
         pipelined[i] = fu.pipelined[i];
+        superconducting[i] = fu.superconducting[i];
     }
 
     capabilityList = fu.capabilityList;
 }
-
 
 void
 FuncUnit::addCapability(OpClass cap, unsigned oplat, bool pipeline)
@@ -70,6 +71,21 @@ FuncUnit::addCapability(OpClass cap, unsigned oplat, bool pipeline)
 
     opLatencies[cap] = oplat;
     pipelined[cap] = pipeline;
+}
+
+
+void
+FuncUnit::addCapability(OpClass cap, unsigned oplat, bool pipeline,
+                        bool super)
+{
+    if (oplat == 0)
+        panic("FuncUnit:  you don't really want a zero-cycle latency do you?");
+
+    capabilityList.set(cap);
+
+    opLatencies[cap] = oplat;
+    pipelined[cap] = pipeline;
+    superconducting[cap] = super;
 }
 
 bool
@@ -94,6 +110,12 @@ bool
 FuncUnit::isPipelined(OpClass capability)
 {
     return pipelined[capability];
+}
+
+bool
+FuncUnit::isSuperconducting(OpClass capability)
+{
+    return superconducting[capability];
 }
 
 } // namespace gem5

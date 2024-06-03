@@ -603,6 +603,39 @@ Execute::issue(ThreadID thread_id)
              *  available FUs */
             do {
                 FUPipeline *fu = funcUnits[fu_index];
+                gem5::Cycles super_conducting_cycles = Cycles(0);
+
+                if (fu->description.superconducting) {
+                    /* If the FU is superconducting, the latency should
+                    * be based on the number of 1s in the input data */
+                    // Count the number of 1s in the instruction
+                    int numOnes = 0;
+                    InstSeqNum seqNum = inst->id.fetchSeqNum;
+                    // Convert the sequence number to a binary string
+                    std::bitset<sizeof(InstSeqNum) * 8> binarySeqNum(seqNum);
+                    // print the binary string
+                    //std::cout << binarySeqNum << std::endl;
+                    // Count the number of 1s in the binary string
+                    numOnes += binarySeqNum.count();
+                    // print the number of 1s
+                    //std::cout << "Number of 1s: " << numOnes << std::endl;
+                    // get the clock period
+                    int period = static_cast<int>(cpu.clockPeriod());
+                    //std::cout << "Clock period: " << period << std::endl;
+                    // total ticks calculation
+                    Tick total_ticks;
+                    if (numOnes == 0) {
+                        // total ticks, where every 0 adds 1 picosecond
+                        total_ticks = binarySeqNum.size() * 1;
+                    } else {
+                        // total ticks, where every 1 adds 12 picoseconds
+                        total_ticks = numOnes * 12;
+                    }
+                    //std::cout << "Total ticks: " << total_ticks << std::endl;
+                    double cycles = static_cast<double>(total_ticks) / period;
+                    //std::cout << "Cycles: " << cycles << std::endl;
+                    super_conducting_cycles = Cycles(cycles);
+                }
 
                 DPRINTF(MinorExecute, "Trying to issue inst: %s to FU: %d\n",
                     *inst, fu_index);
@@ -755,6 +788,7 @@ Execute::issue(ThreadID thread_id)
                         scoreboard[thread_id].markupInstDests(inst, cpu.curCycle() +
                             fu->description.opLat +
                             extra_dest_retire_lat +
+                            super_conducting_cycles +
                             extra_assumed_lat,
                             cpu.getContext(thread_id),
                             issued_mem_ref && extra_assumed_lat == Cycles(0));

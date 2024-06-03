@@ -71,10 +71,11 @@ class OpDesc : public SimObject
     OpClass opClass;
     Cycles opLat;
     bool pipelined;
+    bool superconducting;
 
     OpDesc(const OpDescParams &p)
         : SimObject(p), opClass(p.opClass), opLat(p.opLat),
-          pipelined(p.pipelined) {};
+          pipelined(p.pipelined), superconducting(p.superconducting) {};
 };
 
 class FUDesc : public SimObject
@@ -104,6 +105,7 @@ class FuncUnit
   private:
     std::array<unsigned, Num_OpClasses> opLatencies;
     std::array<bool, Num_OpClasses> pipelined;
+    std::array<bool, Num_OpClasses> superconducting;
     std::bitset<Num_OpClasses> capabilityList;
 
   public:
@@ -114,11 +116,15 @@ class FuncUnit
 
     void addCapability(OpClass cap, unsigned oplat, bool pipelined);
 
+    void addCapability(OpClass cap, unsigned oplat, bool pipelined,
+                       bool superconducting);
+
     bool provides(OpClass capability);
     std::bitset<Num_OpClasses> capabilities();
 
     unsigned &opLatency(OpClass capability);
     bool isPipelined(OpClass capability);
+    bool isSuperconducting(OpClass capability);
 };
 
 } // namespace gem5

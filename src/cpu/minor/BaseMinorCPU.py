@@ -142,6 +142,13 @@ class MinorFU(SimObject):
         " (forwarded) result",
     )
 
+    superconducting = Param.Bool(
+        False,
+        "set to true when the functional unit for"
+        "this op is superconducting."
+        "False means regular CMOS.",
+    )
+
 
 class MinorFUPool(SimObject):
     type = "MinorFUPool"

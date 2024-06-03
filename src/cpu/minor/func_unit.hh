@@ -174,6 +174,8 @@ class MinorFU : public SimObject
     /** Extra timing info to give timings to individual ops */
     std::vector<MinorFUTiming *> timings;
 
+    bool superconducting;
+
   public:
     MinorFU(const MinorFUParams &params) :
         SimObject(params),
@@ -181,7 +183,8 @@ class MinorFU : public SimObject
         opLat(params.opLat),
         issueLat(params.issueLat),
         cantForwardFromFUIndices(params.cantForwardFromFUIndices),
-        timings(params.timings)
+        timings(params.timings),
+        superconducting(params.superconducting)
     { }
 };
 
