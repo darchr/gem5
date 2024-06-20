@@ -28,7 +28,7 @@
 from m5.params import *
 from m5.proxy import *
 from m5.util.pybind import PyBindMethod
-from m5.objects.AbstractMemory import ABstractMemory
+from m5.objects.AbstractMemory import AbstractMemory
 from m5.objects.BaseMemoryEngine import BaseMemoryEngine
 
 
@@ -51,12 +51,17 @@ class CenteralController(BaseMemoryEngine):
     mpu_vector = VectorParam.MPU("All mpus in the system.")
 
     edge_image_file = Param.String("Path to the edge image file.")
+    
     abstract_mem_vector = VectorParam.AbstractMemory(
         "Abstract Memories to be intialized by edge_image_file."
     )
     abstract_mem_atom_size = Param.Int(
         64, "burst size of the abstract memories."
     )
+    
+    edge_base = Param.UInt64("Addr of base address range")
+    
+    
 
     cxx_exports = [
         PyBindMethod("setAsyncMode"),

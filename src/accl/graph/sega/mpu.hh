@@ -57,7 +57,7 @@ class MPU : public SimObject
     WLEngine* wlEngine;
     CoalesceEngine* coalesceEngine;
     PushEngine* pushEngine;
-
+    
   public:
     PARAMS(MPU);
     MPU(const Params& params);
@@ -95,6 +95,8 @@ class MPU : public SimObject
 
     void recvDoneSignal();
     bool done();
+
+    uint64_t getBaseAddr() {return pushEngine->params().base_addr;};
 };
 
 } // namespace gem5

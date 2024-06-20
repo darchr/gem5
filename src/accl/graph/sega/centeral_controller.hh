@@ -74,6 +74,8 @@ class CenteralController : public BaseMemoryEngine
 
     memory::SimpleMemory* mirrorsMem;
 
+    // AddrRangeMap<gem5::AbstractMemory*> abs_mem_range_map; // moved here from .cc file
+    Addr edgeBase;
     std::vector<MPU*> mpuVector;
     AddrRangeMap<MPU*> mpuAddrMap;
 

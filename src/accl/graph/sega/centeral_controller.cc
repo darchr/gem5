@@ -43,11 +43,14 @@
 namespace gem5
 {
 
+using memory::AbstractMemory;
+
 CenteralController::CenteralController(const Params& params):
     BaseMemoryEngine(params),
     mapPort("map_port", this, 1), mode(ProcessingMode::NOT_SET),
     mirrorsMem(params.mirrors_mem), currentSliceId(0), totalUpdatesLeft(0),
     chooseBest(params.choose_best),
+    edgeBase(params.edge_base),
     nextSliceSwitchEvent([this] { processNextSliceSwitchEvent(); }, name()),
     stats(*this)
 {
@@ -139,6 +142,7 @@ CenteralController::createPopCountDirectory(int atoms_per_block)
 void
 CenteralController::startup()
 {
+    DPRINTF(CenteralController, "Startup 1!\n");
     unsigned int vertex_atom = mpuVector.front()->vertexAtomSize();
     for (auto mpu: mpuVector) {
         for (auto range: mpu->getAddrRanges()) {
@@ -147,10 +151,12 @@ CenteralController::startup()
         mpu->setProcessingMode(mode);
         mpu->recvWorkload(workload);
     }
+        DPRINTF(CenteralController, "Startup 2!\n");
 
     const auto& vertex_file = params().vertex_image_file;
     if (vertex_file == "")
         return;
+    DPRINTF(CenteralController, "Startup 3!\n");
 
     auto* object = loader::createObjectFile(vertex_file, true);
     fatal_if(!object, "%s: Could not load %s.", name(), vertex_file);
@@ -161,6 +167,7 @@ CenteralController::startup()
 
     int num_total_vertices = (maxVertexAddr / sizeof(WorkListItem));
     numTotalSlices = std::ceil((double) num_total_vertices / verticesPerSlice);
+    DPRINTF(CenteralController, "Startup 4!\n");
 
     numPendingUpdates = new int [numTotalSlices];
     bestPendingUpdate = new uint32_t [numTotalSlices];
@@ -168,6 +175,7 @@ CenteralController::startup()
         numPendingUpdates[i] = 0;
         bestPendingUpdate[i] = -1;
     }
+    DPRINTF(CenteralController, "Startup 5!\n");
 
     PortProxy vertex_proxy(
     [this](PacketPtr pkt) {
@@ -184,28 +192,37 @@ CenteralController::startup()
         }
     }
     workload->iterate();
-
+    DPRINTF(CenteralController, "Startup 6!\n");
+    DPRINTF(CenteralController, "params().edge_image_file = %s\n", params().edge_image_file);
     const auto& edge_file = params().edge_image_file;
-    if (edge_file == "") {}
-        return;
+    DPRINTF(CenteralController, "edge_file = %s\n", edge_file);
+
+    // if (edge_file == "") {} // commented this out
+    //     return;
+
+    DPRINTF(CenteralController, "Startup 7!\n");
 
     AddrRangeMap<AbstractMemory*> abs_mem_range_map;
-    for (auto abs_mem: params().abstract_mem_vector) {
-        for (auto range: abs_mem->getAddrRanges()) {
-            abs_mem_range_map.insert(range, abs_mem);
-        }
+    for (auto abs_mem: params().abstract_mem_vector) { 
+        abs_mem_range_map.insert(abs_mem->getAddrRange(), abs_mem);
     }
+    // DPRINTF(CenteralController, "%s, Edge memory ranges: %s", __func__, abs_mem_range_map);
     auto* edge_object = loader::createObjectFile(edge_file, true);
     fatal_if(!object, "%s: Could not load %s.", name(), edge_file);
 
     loader::debugSymbolTable.insert(*edge_object->symtab().globals());
     loader::MemoryImage edge_image = edge_object->buildImage();
+    DPRINTF(CenteralController, "Startup 8!\n");
 
     PortProxy edge_proxy(
-    [this](PacketPtr pkt) {
+    [abs_mem_range_map, this](PacketPtr pkt) {
+        pkt->setAddr(pkt->getAddr() + mpuVector[0]->getBaseAddr());
         auto routing_entry = abs_mem_range_map.contains(pkt->getAddr());
         routing_entry->second->functionalAccess(pkt);
     }, params().abstract_mem_atom_size);
+
+    DPRINTF(CenteralController, "%s, mpuVector[0]->getBaseAddr(): %lu", __func__, mpuVector[0]->getBaseAddr());
+
     panic_if(!edge_image.write(edge_proxy), "%s: Unable to write image.");
 }
 

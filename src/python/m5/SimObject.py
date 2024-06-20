@@ -1048,6 +1048,7 @@ class SimObject(object, metaclass=MetaSimObject):
     def find_all(self, ptype):
         all = {}
         # search children
+        # print(f"I {self._name} am self at entry.")
         for child in self._children.values():
             # a child could be a list, so ensure we visit each item
             if isinstance(child, list):
@@ -1064,34 +1065,54 @@ class SimObject(object, metaclass=MetaSimObject):
                     all[child] = True
                 if isSimObject(child):
                     # also add results from the child itself
+                    # print(f"I {self._name} am child to {self._parent}")
+                    # print(f"Me children are {self._children}")
+                    # print(f"Me looking for {ptype}")
                     child_all, done = child.find_all(ptype)
+                    # print(f"My ({self._name}) children are {child_all}")
                     all.update(dict(zip(child_all, [done] * len(child_all))))
         # search param space
         for pname, pdesc in self._params.items():
             if issubclass(pdesc.ptype, ptype):
                 match_obj = self._values[pname]
                 if not isproxy(match_obj) and not isNullPointer(match_obj):
-                    all[match_obj] = True
+                    # print(f"I {match_obj} be match_object") # maybe we can  either make the DRAM interfaces children?
+                    # print(type(match_obj)) #                  or we can maybe check if isSimObjectVector, then serialize it
+                    # print(f" here is all: {type(all)} {all}")
+                    if type(match_obj) is SimObjectVector:
+                        # print("sim object vector!!!")
+                        for simobj in match_obj:
+                            print(simobj)
+                            all[simobj] = True
+                    else:
+                        all[match_obj] = True
+                    # print(f"post all is true")
         # Also make sure to sort the keys based on the objects' path to
         # ensure that the order is the same on all hosts
+        # print(f"I {self._name} am self at exit.")
         return sorted(all.keys(), key=lambda o: o.path()), True
 
     def unproxy(self, base):
         return self
 
     def unproxyParams(self):
+        print(f"Me be {self._name} at the entry of unproxyParams.")
         for param in self._params.keys():
             value = self._values.get(param)
+            print(f"me value is {value}")
+
             if value != None and isproxy(value):
                 try:
+                    print(f"me type im trying to unproxy is {type(value)}")
                     value = value.unproxy(self)
                 except:
+                    print(f"Me be {param} when hit error")
                     print(
                         f"Error in unproxying param '{param}' of {self.path()}"
                     )
                     raise
                 setattr(self, param, value)
-
+        print(f"Me be {self._name} at the exit of unproxyParams.")
         # Unproxy ports in sorted order so that 'append' operations on
         # vector ports are done in a deterministic fashion.
         port_names = list(self._ports.keys())
@@ -1190,7 +1211,21 @@ class SimObject(object, metaclass=MetaSimObject):
                     self.path(),
                     param,
                 )
-
+            if (not isinstance(value, EthernetAddr)) and isproxy(value):
+                # At the time of adding this error unproxying params happens
+                # in simulate.py at lines 103-104 (commit hash: f56459470a)
+                # To understand how attributes are handled for SimObjects
+                # refer to SimObject::__setattr__.
+                fatal(
+                    f"Param {param} for {self._name} has value = {value}. "
+                    "This value is a not a valid value. This could be caused "
+                    f"by {param} not having been unproxied correctly. "
+                    "One reason why this might happen is if you have "
+                    "mistakenly added a child SimObject as an attr and not a "
+                    "child by giving it a name that starts with an underscore "
+                    f"`_`. {self.path()} should not say 'orphan.'"
+                )
+                
             value = value.getValue()
             if isinstance(self._params[param], VectorParamDesc):
                 assert isinstance(value, list)

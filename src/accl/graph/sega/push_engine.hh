@@ -128,7 +128,7 @@ class PushEngine : public BaseMemoryEngine
     Tick lastIdleEntranceTick;
 
     AddrRangeList localAddrRange;
-
+    Addr base;
     int numPendingPulls;
     int edgePointerQueueSize;
     std::deque<std::tuple<EdgeReadInfoGen, Tick>> edgePointerQueue;

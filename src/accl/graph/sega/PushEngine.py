@@ -52,3 +52,5 @@ class PushEngine(BaseMemoryEngine):
                                     "for each update queue.")
 
     out_ports = VectorRequestPort("Outgoing ports to all MPUs")
+    
+    base_addr = Param.UInt64("Addr of base address range")

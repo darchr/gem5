@@ -260,11 +260,14 @@ class VectorParamValue(list, metaclass=MetaParamValue):
         return [v.getValue() for v in self]
 
     def unproxy(self, base):
+        print(f" me Unproxying vector param, me is {self}")
         if len(self) == 1 and isinstance(self[0], proxy.BaseProxy):
+            print(f"me in if params.py, about to try to unproxy {self[0]}")
             # The value is a proxy (e.g. Parent.any, Parent.all or
             # Parent.x) therefore try resolve it
             return self[0].unproxy(base)
         else:
+            print("me in else params.py")
             return [v.unproxy(base) for v in self]
 
 
