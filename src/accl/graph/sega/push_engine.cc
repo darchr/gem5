@@ -42,7 +42,8 @@ PushEngine::PushEngine(const Params& params):
     _running(false),
     lastIdleEntranceTick(0),
     numPendingPulls(0), edgePointerQueueSize(params.push_req_queue_size),
-    onTheFlyMemReqs(0), edgeQueueSize(params.resp_queue_size),
+    onTheFlyMemReqs(0), outstandingEdgeReqs(0), maxOutstandingEdgeReqs(0),
+    edgeQueueSize(params.resp_queue_size),
     examineWindow(params.examine_window),
     maxPropagatesPerCycle(params.max_propagates_per_cycle),
     updateQueueSize(params.update_queue_size),
@@ -267,8 +268,14 @@ PushEngine::processNextMemoryReadEvent()
         PacketPtr pkt = createReadPacket(aligned_addr, peerMemoryAtomSize);
         PushInfo push_info = {curr_info.src(), curr_info.delta(), offset, num_edges};
         reqInfoMap[pkt->req] = push_info;
+        reqTickMap[pkt->req] = curTick(); //added this for stats
         memPort.sendPacket(pkt);
         onTheFlyMemReqs += num_edges;
+        outstandingEdgeReqs++;
+        maxOutstandingEdgeReqs = std::max(maxOutstandingEdgeReqs, outstandingEdgeReqs);
+        stats.maxOutstandingEdgeRequests = maxOutstandingEdgeReqs;
+        stats.outstandingEdgeRequests.sample(outstandingEdgeReqs);
+        // stats.outstandingEdgeRequests.sample(onTheFlyMemReqs);
 
         curr_info.iterate();
         if (curr_info.done()) {
@@ -308,9 +315,12 @@ PushEngine::handleMemResp(PacketPtr pkt)
 {
     // TODO: in case we need to edit edges, get rid of second statement.
     assert(pkt->isResponse() && (!pkt->isWrite()));
+    // here check tick and update the stats
+    // DPRINTF(PushEngine, "%s: Received a memory response.\n", __func__);
 
     uint8_t pkt_data [peerMemoryAtomSize];
     PushInfo push_info = reqInfoMap[pkt->req];
+    Tick entrance_tick = reqTickMap[pkt->req];
     pkt->writeDataToBlock(pkt_data, peerMemoryAtomSize);
 
     for (int i = 0; i < push_info.numElements; i++) {
@@ -327,6 +337,10 @@ PushEngine::handleMemResp(PacketPtr pkt)
                 (peerMemoryAtomSize / sizeof(Edge)) - push_info.numElements;
 
     onTheFlyMemReqs -= push_info.numElements;
+    outstandingEdgeReqs--;
+    stats.avgEdgeAccessLatency.sample(
+            (curTick() - entrance_tick));
+    reqTickMap.erase(pkt->req); // added this for edgeAcccessLatency
     reqInfoMap.erase(pkt->req);
 
     delete pkt;
@@ -547,7 +561,13 @@ PushEngine::PushStats::PushStats(PushEngine& _push):
     ADD_STAT(updateQueueLength, statistics::units::Count::get(),
              "Histogram of the length of updateQueues."),
     ADD_STAT(numPropagatesHist, statistics::units::Count::get(),
-             "Histogram of number of propagates sent.")
+             "Histogram of number of propagates sent."),
+    ADD_STAT(avgEdgeAccessLatency, statistics::units::Second::get(),
+             "Histogram of edgeAccessLatency."),
+    ADD_STAT(outstandingEdgeRequests, statistics::units::Count::get(),
+             "Histogram of the size of the outstanding edge requests."),
+    ADD_STAT(maxOutstandingEdgeRequests, statistics::units::Count::get(),
+             "Histogram of the size of the outstanding edge requests.")
 {
 }
 
@@ -564,6 +584,10 @@ PushEngine::PushStats::regStats()
     edgeQueueLength.init(64);
     updateQueueLength.init(64);
     numPropagatesHist.init(1 + push.params().max_propagates_per_cycle);
+
+    // need to check what these init values mean 
+    avgEdgeAccessLatency.init(64);
+    outstandingEdgeRequests.init(64);
 }
 
 } // namespace gem5

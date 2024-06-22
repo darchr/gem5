@@ -133,8 +133,12 @@ class PushEngine : public BaseMemoryEngine
     int edgePointerQueueSize;
     std::deque<std::tuple<EdgeReadInfoGen, Tick>> edgePointerQueue;
     std::unordered_map<RequestPtr, PushInfo> reqInfoMap;
+    std::unordered_map<RequestPtr, Tick> reqTickMap;
+
 
     int onTheFlyMemReqs;
+    int outstandingEdgeReqs;
+    int maxOutstandingEdgeReqs;
     int edgeQueueSize;
     int examineWindow;
     int maxPropagatesPerCycle;
@@ -187,6 +191,10 @@ class PushEngine : public BaseMemoryEngine
       statistics::Histogram edgeQueueLength;
       statistics::Histogram updateQueueLength;
       statistics::Histogram numPropagatesHist;
+
+      statistics::Histogram avgEdgeAccessLatency;
+      statistics::Histogram outstandingEdgeRequests;
+      statistics::Scalar maxOutstandingEdgeRequests = 0;
     };
 
     PushStats stats;
