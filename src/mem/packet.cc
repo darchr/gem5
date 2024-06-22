@@ -237,6 +237,7 @@ MemCmd::commandInfo[] =
     { {IsRead, IsResponse}, InvalidCmd, "HTMReqResp" },
     { {IsRead, IsRequest}, InvalidCmd, "HTMAbort" },
     { {IsRequest}, InvalidCmd, "TlbiExtSync" },
+    { {IsRequest, HasData}, InvalidCmd, "UpdateWL"}
 };
 
 AddrRange

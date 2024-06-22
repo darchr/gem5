@@ -48,6 +48,7 @@
 
 #include "base/bitfield.hh"
 #include "base/cprintf.hh"
+#include "base/intmath.hh"
 #include "base/logging.hh"
 #include "base/types.hh"
 
@@ -748,6 +749,40 @@ class AddrRange
         }
         return AddrRange(start, end);
     }
+
+    friend AddrRange
+    mergePseudoChannelRanges(AddrRange left, AddrRange right, int pch_bit)
+    {
+        assert(left.interleaved());
+        assert(right.interleaved());
+        assert(left.mergesWith(right));
+
+        uint8_t old_left_match = left.intlvMatch;
+        uint8_t new_left_match = 0;
+        uint8_t old_right_match = right.intlvMatch;
+        uint8_t new_right_match = 0;
+        int new_bits = left.masks.size() - 1;
+
+        // assumption: masks is sorted in ascending order
+        std::vector<Addr> new_masks;
+        for (auto mask: left.masks) {
+            uint64_t lsb_mask = (mask ^ (mask - 1)) + 1;
+            if ((lsb_mask >> 1) != (1 << pch_bit)) {
+                new_masks.push_back(mask);
+                new_left_match |= ((old_left_match & 1) << new_bits);
+                new_left_match >>= 1;
+                new_right_match |= ((old_right_match & 1) << new_bits);
+                new_right_match >>= 1;
+            }
+            old_left_match >>= 1;
+            old_right_match >>= 1;
+        }
+        panic_if(new_left_match != new_right_match,
+                    "The two ranges can not be a pseudo channel pair "
+                    "given the pseudochannel bit position of params.pch_bit.");
+
+        return AddrRange(left._start, left._end, new_masks, new_left_match);
+    }
 };
 
 static inline AddrRangeList
@@ -831,6 +866,16 @@ inline AddrRange
 RangeSize(Addr start, Addr size)
 {
     return AddrRange(start, start + size);
+}
+
+inline bool
+contains(AddrRangeList range_list, Addr addr)
+{
+    bool ret = false;
+    for (auto range: range_list) {
+        ret |= range.contains(addr);
+    }
+    return ret;
 }
 
 } // namespace gem5

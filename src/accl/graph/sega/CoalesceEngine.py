@@ -1,5 +1,6 @@
-# Copyright (c) 2022 The Regents of the University of California
-# All Rights Reserved.
+# -*- coding: utf-8 -*-
+# Copyright (c) 2017 Jason Lowe-Power
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -26,25 +27,24 @@
 
 from m5.params import *
 from m5.proxy import *
-from m5.objects.MemCtrl import *
+from m5.objects.BaseMemoryEngine import BaseMemoryEngine
 
-# HBMCtrl manages two pseudo channels of HBM2
+class CoalesceEngine(BaseMemoryEngine):
+    type = 'CoalesceEngine'
+    cxx_header = "accl/graph/sega/coalesce_engine.hh"
+    cxx_class = 'gem5::CoalesceEngine'
 
+    cache_size = Param.MemorySize("Size of the internal SRAM array.")
 
-class HBMCtrl(MemCtrl):
-    type = "HBMCtrl"
-    cxx_header = "mem/hbm_ctrl.hh"
-    cxx_class = "gem5::memory::HBMCtrl"
-
-    # HBMCtrl uses the SimpleMemCtlr's interface
-    # `dram` as the first pseudo channel, the second
-    # pseudo channel interface is following
-    # HBMCtrl has been tested with two HBM_2000_4H_1x64 interfaces
-    dram_2 = Param.DRAMInterface("DRAM memory interface")
-
-    pch_bit = Param.Int("Position of PseudoChannel bit in addresses.")
-
-    # For mixed traffic, HBMCtrl with HBM_2000_4H_1x64 interfaaces
-    # gives the best results with following min_r/w_per_switch
-    min_reads_per_switch = 64
-    min_writes_per_switch = 64
+    max_resp_per_cycle = Param.Int("Maximum number of vertices to send to "
+                                "requestor in each cycle. Used to limit b/w.")
+    pending_pull_limit = Param.Int("Maximum number of pending pull processes.")
+    active_buffer_size = Param.Int("Maximum number of memory active memory "
+                                "atoms ready to send updates. This parameter "
+                                "and post_push_wb_queue_size should be set "
+                                "in tandem. Probably, they should be equal.")
+    post_push_wb_queue_size = Param.Int("Maximum number of pending wb after "
+                                "apply process for applications that require "
+                                "the apply process to happen exactly before "
+                                "pushing the edgePointer to the PushEngine.")
+    transitions_per_cycle = Param.Int("Max number of transitions in a cycle")

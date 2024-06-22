@@ -79,6 +79,8 @@ class HBMCtrl : public MemCtrl
     bool retryRdReqPC1;
     bool retryWrReqPC1;
 
+    int pchBit;
+
     /**
      * Remove commands that have already issued from rowBurstTicks
      * and colBurstTicks

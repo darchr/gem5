@@ -149,6 +149,8 @@ class MemCmd
         HTMAbort,
         // Tlb shootdown
         TlbiExtSync,
+        // MPU Accelerator
+        UpdateWL,
         NUM_MEM_CMDS
     };
 
