@@ -81,24 +81,23 @@ board = ArmComposableMemoryBoard(
 )
 
 command = stream_run_commands[args.memory_allocation_policy]
-
 workload = CustomWorkload(
     function="set_kernel_disk_workload",
     parameters={
-        "kernel": CustomResource("/home/kaustavg/vmlinux-5.4.49-NUMA.arm64"),
+        "kernel": CustomResource("/home/babaie/.cache/gem5/vmlinux-5.4.49-NUMA.arm64"),
         "bootloader": CustomResource(
-            "/home/kaustavg/kernel/arm/bootloader/arm64-bootloader"
+            "/home/babaie/.cache/gem5/arm64-bootloader"
         ),
         "disk_image": DiskImageResource(
-            "/home/kaustavg/disk-images/arm/arm64-hpc-2204-numa-kvm.img-20240304",
+            "/home/babaie/.cache/gem5/arm64-hpc-2204-numa-kvm.img-20240304",
             root_partition="1",
         ),
         "readfile_contents": " ".join(command),
     },
 )
 
+## WIP by Maryam
 # workload = obtain_resource("stream-workload-" + args.memory_allocation_policy)
-# print(workload.get_parameters())
 
 ckpt_path = (
     f"{m5.options.outdir}/ckpt_{args.instance}"

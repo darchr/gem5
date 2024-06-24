@@ -102,6 +102,8 @@ workload = CustomWorkload(
     },
 )
 
+# workload = obtain_resource("stream-workload-" + args.memory_allocation_policy)
+
 ckpt_path = (
     f"{args.ckpts_dir}/{args.memory_allocation_policy}/"
     f"{args.instance}/ckpt_{args.instance}"

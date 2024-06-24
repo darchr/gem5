@@ -126,7 +126,7 @@
         "author": ["Somebody"],
         "description": "Disk Image",
         "license": "",
-        "source_url": "",
+        "source_url": "file:///home/babaie/.cache/gem5/arm64-hpc-2204-numa-kvm.img-20240304",
         "md5sum": "60b18bd0c5f49c284c4b23c52340834c",
         "tags": [],
         "example_usage": "obtain_resource(\"test-disk-image\")",

@@ -23,7 +23,7 @@ stream_run_commands = {
         "numastat;",
         "numactl --membind=1 -- "
         + "/home/ubuntu/simple-vectorizable-benchmarks/stream/"
-        + "stream.hw.m5 67108864;",
+        + "stream.hw.m5 3145728;",
         "numastat; m5 --addr=0x10010000 exit;",
     ],
 }

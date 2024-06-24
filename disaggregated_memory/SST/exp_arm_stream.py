@@ -32,7 +32,6 @@ from sst import UnitAlgebra
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from configs.common import stream_remote_memory_address_ranges
 import argparse
 
 
@@ -84,7 +83,7 @@ def connect_components(link_name: str,
             (high_port_name, high_port, disaggregated_memory_latency)
         )
 
-gem5_run_script = "/home/babaie/projects/disaggregated-cxl/5/gem5/disaggregated_memory/configs/exp-stream-restore.py"
+gem5_run_script = "../../disaggregated_memory/configs/exp-stream-restore.py"
 disaggregated_memory_latency = "750ns"
 cache_link_latency = "1ps"
 cpu_clock_rate = "4GHz"
@@ -136,8 +135,8 @@ memory_ports = []
 # Create each of these nodes and conect it to a SST memory cache
 for node in range(system_nodes): 
     cmd = [
-        f"-re",
-        f"--outdir={stat_output_directory + "/m5out_" + str(node)}",
+        #f"-re",
+        f"--outdir={stat_output_directory}/m5out_{str(node)}",
         f"{gem5_run_script}",
         f"--instance {node}",
         f"--memory-allocation-policy {args.memory_allocation_policy}",
@@ -152,7 +151,7 @@ for node in range(system_nodes):
     cpu_params = {
        "frequency" : cpu_clock_rate,
        "cmd" : " ".join(cmd),
-       "debug_flags" : "Checkpoint,MemoryAccess",
+       # "debug_flags" : "Checkpoint,MemoryAccess",
        "ports" : " ".join(port_list)
     }
     # Each of the Gem5 node has to be separately simulated.
@@ -193,5 +192,5 @@ connect_components("membus_2_memory",
 stat_params = { "rate" : "0ns" }
 sst.setStatisticLoadLevel(10)
 sst.setStatisticOutput("sst.statOutputTXT",
-        {"filepath" : f"{stat_output_directory}/sstOuts/node.txt"})
+        {"filepath" : f"{stat_output_directory}/node.txt"})
 sst.enableAllStatisticsForAllComponents()
