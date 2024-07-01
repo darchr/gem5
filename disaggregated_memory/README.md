@@ -55,7 +55,7 @@ T                                           end of simulation : t3
 This can be scaled into N differnt gem5 nodes. Checkpoints need to be taken for
 each of these nodes in their respective first phases.
 
-## Important Note By Maryam
+## Important Notes By Maryam
 1. I have tested only ARM ISA in this platform. Thus, eveything is based on ARM ISA in this README. This is the action item that Leo said is working on (adding X86, RISCV, etc)
 2. The platform does not allow dynamic sharing of remote memory yet. Thus, the remote memory is shared statially by dividing it into multiple instanes. Whoever runs the scripts needs to take care of address ranges appropriately for this purpose. This is the action item that William said is working on.
 3. As of now, we are able to run two suites in full-system simulation: 1. stream 2. a subset of NPB. Thus, our scripts only cover these two suites' experiments.
@@ -98,14 +98,14 @@ disaggregated_memory/configs/exp-stream-checkpoint.py
 ```
 It comes with two input arguments:
 1. `--instance`
-You can have a number of hosts , a.k.a. nodes, for instance 4, 16, 32. Each of them will be created based on `ArmComposableMemoryBoard`. Each will have 8 GiB of local memory and only 1 GiB of the total remote memory. The way the shared remote memory address range is divided is as follows:
+You can have a number of hosts , a.k.a. nodes, for instance 4, 16, 32. Each of them will be created based on `ArmComposableMemoryBoard`. Each will have 8 GiB of local memory and only 2 GiB of the total remote memory. The way the shared remote memory address range is divided is as follows:
 ```sh 
 0-2   GiB: always given to the OS and IO. You cannot use this range.
 2-10  GiB: given to the 8 GiB local memory.
-10-11 GiB: given to 1 GiB remote memory range for host #0
-11-12 GiB: given to 1 GiB remote memory range for host #1
-10-11 GiB: given to 1 GiB remote memory range for host #2
-11-12 GiB: given to 1 GiB remote memory range for host #3
+10-12 GiB: given to 2 GiB remote memory range for host #0
+12-14 GiB: given to 2 GiB remote memory range for host #1
+14-16 GiB: given to 2 GiB remote memory range for host #2
+16-18 GiB: given to 2 GiB remote memory range for host #3
 ...
 ```
 Thus, to take a checkpoint we need to clarify the host id number and based upon that the appropriate address range (but fixed!) will be assigned to its remote memory range. This happens through the input argument `--instance`.
@@ -162,5 +162,25 @@ In the SST script:
 4. in lines 194-195 creates an SST output directory. If it complains it cannot find that (sometimes it happens). manually add the file for it.
 
 
+A. NPB
+NPB scripts work in similar way to Stream; thus, their scripts are very similar.
+The major difference is the size of memories and the memory allocation policies. 
+We have two policies for NPB:
+1. all-local: where everything is put int he local memory. The size of local memory is maxed to the size of maximum workload's required memory (`ft` in this suite that needs 85 GiB).
+2. NUMA-local-preferred: where it starts to allocate from local memory, once runs out of memory it alloactes from remote memory. The size of local memory is fixed at 8GiB. The size of remote memory is either 2GiB if the workloads fits in local memory, or the total memory that the workload needs minus the 8GiB of local memory. These sizes are already taken care of in the scripts and in the common file.
 
+There are three scripts involved here:
+1. `disaggregated_memory/configs/exp-stream-checkpoint.py`: The script for stream to take a checkpoint. Just like stream, the checkpoints are taken separately per each workload. Workloads are indexed to maintain them easily for remote memory allocation. The indecies are written in the common file.
+To take a checkpoint you can use a command as follows:
+```sh
+build/ARM/gem5.opt --outdir=/A/PATH/TO/SAVE/CHECKPOINTS disaggregated_memory/configs/exp-npb-checkpoint.py --benchmark=bt --size=D --memory-allocation-policy=numa-local-preferred
+```
+2. `disaggregated_memory/SST/exp_arm_npb.py` which is the main SST script. inside of it calls the gem5-restore script below.
+3. `disaggregated_memory/configs/exp-stream-npb.py` which is the gem5 script that defines the host node and restores from a checkpoint.
+
+To restore checkpoints and run all suite together you can use a command as follows:
+```sh
+cd ext/sst
+mpirun -np 8 -- bin/sst --add-lib-path=./ ../../disaggregated_memory/SST/exp_arm_npb.py -- --memory-allocation-policy=numa-local-preferred --ckpts-dir=/A/PATH/TO/RESTORE/CHECKPOINTS
+```
 

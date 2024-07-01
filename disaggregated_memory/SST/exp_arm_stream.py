@@ -93,8 +93,8 @@ stat_output_directory = f"{args.ckpts_dir}/SST_m5outs/{system_nodes}_nodes/{args
 
 # For stream workload, the first 2 GiB of memory is allocated 
 # to the OS, the next 8 GiB is the local memory, and the rest is remote memory
-# 1GiB per node.
-sst_memory_size = str(2 + 8 + args.system_nodes) + "GiB"
+# 2 GiB per node.
+sst_memory_size = str(2 + 8 + (args.system_nodes*2)) + "GiB"
 addr_range_end = UnitAlgebra(sst_memory_size).getRoundedValue()
 
 # There is one cache bus connecting all gem5 ports to the remote memory.
@@ -135,7 +135,7 @@ memory_ports = []
 # Create each of these nodes and conect it to a SST memory cache
 for node in range(system_nodes): 
     cmd = [
-        #f"-re",
+        f"-re",
         f"--outdir={stat_output_directory}/m5out_{str(node)}",
         f"{gem5_run_script}",
         f"--instance {node}",
