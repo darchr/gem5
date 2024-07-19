@@ -33,6 +33,7 @@ from typing import (
     Tuple,
 )
 
+
 from m5.objects import (
     AddrRange,
     MemCtrl,
@@ -81,6 +82,10 @@ class SingleChannelSimpleMemory(AbstractMemorySystem):
     @overrides(AbstractMemorySystem)
     def get_memory_controllers(self) -> List[MemCtrl]:
         return [self.module]
+
+    @overrides(AbstractMemorySystem)
+    def get_monolithic_range(self) -> AddrRange:
+        return self.module.range
 
     @overrides(AbstractMemorySystem)
     def get_size(self) -> int:

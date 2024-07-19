@@ -277,12 +277,13 @@ def unroll_trace(
             "`count` limit (from the kernel in JSON) when unrolling."
         )
 
-    og_len = len(original_trace)
+    curr_delta = delta
     ret_count = count
     ret_trace = original_trace
     while (len(ret_trace) < min_elements) and ret_count > 1:
-        ret_trace += [element + delta for element in ret_trace[-og_len:]]
-        ret_count -= 1
+        ret_trace += [element + curr_delta for element in ret_trace]
+        ret_count = ret_count // 2
+        curr_delta *= 2
     if (len(ret_trace) < min_elements) and fill_zero:
         inform(
             "You have chosen to fill the trace with zero "
@@ -296,7 +297,9 @@ def unroll_trace(
             f"reaches at least {min_elements} elements."
         )
         while len(ret_trace) < min_elements:
-            ret_trace += [element + delta for element in ret_trace[-og_len:]]
+            ret_trace += [element + curr_delta for element in ret_trace]
+            curr_delta *= 2
+
     return ret_count, ret_trace
 
 

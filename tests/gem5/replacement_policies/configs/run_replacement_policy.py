@@ -25,17 +25,27 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import argparse
-from importlib.machinery import SourceFileLoader
+import sys
 
-from cache_hierarchies import ModMIExampleCacheHierarchy
+sys.path.append("/home/msamani/darchr/auto-eval-and-accuracy")
+from importlib.machinery import SourceFileLoader
 
 import m5
 from m5.debug import flags
 from m5.objects import Root
+from m5.params import NullSimObject
 
-from gem5.components.boards.test_board import TestBoard
 from gem5.components.memory.simple import SingleChannelSimpleMemory
 from gem5.components.processors.complex_generator import ComplexGenerator
+
+from components.boards.synth_traffic_board import SynthTrafficBoard
+from components.cmn import (
+    CoherentMeshNetwork,
+    CMNL1DPrefetcherModifier,
+    CMNReplPolModifier,
+)
+from components.cmn.network import Pt2PtSystemNetwork
+from scripts.mods.noc_mods import get_bundle_from_version as noc_version
 
 argparser = argparse.ArgumentParser()
 
@@ -63,8 +73,6 @@ rp_class = module.rp
 
 flags["RubyHitMiss"].enable()
 
-cache_hierarchy = ModMIExampleCacheHierarchy(rp_class)
-
 memory = SingleChannelSimpleMemory(
     latency="30ns",
     latency_var="0ns",
@@ -77,12 +85,19 @@ generator.set_traffic_from_python_generator(python_generator)
 
 # We use the Test Board. This is a special board to run traffic generation
 # tasks
-motherboard = TestBoard(
+motherboard = SynthTrafficBoard(
     clk_freq="1GHz",
     generator=generator,  # We pass the traffic generator as the processor.
     memory=memory,
-    cache_hierarchy=cache_hierarchy,
+    cache_hierarchy=CoherentMeshNetwork(
+        l1d_size="512B",
+        cores_per_tile=1,
+        system_network_cls=Pt2PtSystemNetwork,
+    ),
 )
+motherboard.add_modifier(noc_version(1))
+motherboard.add_modifier(CMNReplPolModifier(rp_class))
+motherboard.add_modifier(CMNL1DPrefetcherModifier(NullSimObject))
 root = Root(full_system=False, system=motherboard)
 
 motherboard._pre_instantiate()

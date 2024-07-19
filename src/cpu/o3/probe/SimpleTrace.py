@@ -34,9 +34,19 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from m5.objects.Probe import *
+from m5.params import *
 
 
 class SimpleTrace(ProbeListenerObject):
     type = "SimpleTrace"
     cxx_class = "gem5::o3::SimpleTrace"
     cxx_header = "cpu/o3/probe/simple_trace.hh"
+
+    get_fetch = Param.Bool(False, "Get fetch trace")
+    get_commit = Param.Bool(False, "Get commit trace")
+
+    handle_trace_collection_manually = Param.Bool(
+        False, "Handle trace collection"
+    )
+    start_on_ith_stats_reset = Param.Int(2, "Start on ith stats reset")
+    stop_on_ith_stats_dump = Param.Int(1, "Stop on ith stats reset")

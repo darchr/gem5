@@ -47,6 +47,40 @@ namespace gem5
 namespace o3
 {
 
+SimpleTrace::SimpleTrace(const SimpleTraceParams &params) :
+    ProbeListenerObject(params),
+    resetCalls(0), dumpCalls(0),
+    startResetCall(params.start_on_ith_stats_reset),
+    stopDumpCall(params.stop_on_ith_stats_dump),
+    doAttach(true), fetch(params.get_fetch), commit(params.get_commit)
+{
+    if (params.handle_trace_collection_manually) {
+        doAttach = false;
+        statistics::registerResetCallback([this] () { handleResetStats(); });
+        statistics::registerDumpCallback([this] () { handleDumpStats(); });
+    }
+}
+
+void
+SimpleTrace::handleResetStats()
+{
+    resetCalls++;
+    if (resetCalls == startResetCall) {
+        doAttach = true;
+        regProbeListeners();
+    }
+}
+
+void
+SimpleTrace::handleDumpStats()
+{
+    dumpCalls++;
+    if (dumpCalls == stopDumpCall) {
+        doAttach = false;
+        unregProbeListeners();
+    }
+}
+
 void
 SimpleTrace::traceCommit(const DynInstConstPtr& dynInst)
 {
@@ -68,10 +102,14 @@ SimpleTrace::regProbeListeners()
 {
     typedef ProbeListenerArg<SimpleTrace,
             DynInstConstPtr> DynInstListener;
-    listeners.push_back(new DynInstListener(this, "Commit",
-                &SimpleTrace::traceCommit));
-    listeners.push_back(new DynInstListener(this, "Fetch",
+    if (doAttach && fetch) {
+        listeners.push_back(new DynInstListener(this, "Fetch",
                 &SimpleTrace::traceFetch));
+    }
+    if (doAttach && commit) {
+        listeners.push_back(new DynInstListener(this, "Commit",
+                &SimpleTrace::traceCommit));
+    }
 }
 
 } // namespace o3

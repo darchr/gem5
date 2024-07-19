@@ -44,6 +44,7 @@
 #ifndef __CPU_O3_PROBE_SIMPLE_TRACE_HH__
 #define __CPU_O3_PROBE_SIMPLE_TRACE_HH__
 
+#include "base/statistics.hh"
 #include "cpu/o3/dyn_inst_ptr.hh"
 #include "params/SimpleTrace.hh"
 #include "sim/probe/probe.hh"
@@ -56,15 +57,26 @@ namespace o3
 
 class SimpleTrace : public ProbeListenerObject
 {
+  private:
+    int resetCalls;
+    int dumpCalls;
+    int startResetCall;
+    int stopDumpCall;
+
+    bool doAttach;
+    bool fetch;
+    bool commit;
+
 
   public:
-    SimpleTrace(const SimpleTraceParams &params) :
-        ProbeListenerObject(params)
-    {
-    }
+    SimpleTrace(const SimpleTraceParams &params);
+
+    void handleResetStats();
+    void handleDumpStats();
 
     /** Register the probe listeners. */
     void regProbeListeners() override;
+    void unregProbeListeners() { listeners.clear(); }
 
     std::string
     name() const override
