@@ -40,7 +40,7 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 
-from boards.arm_main_board import ArmComposableMemoryBoard
+from boards.arm_saga_board import ArmComposableMemoryBoard
 from common import stream_run_commands, stream_remote_memory_address_ranges
 
 from m5.objects import AddrRange
