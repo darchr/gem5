@@ -39,9 +39,15 @@
 from m5.defines import buildEnv
 from m5.objects.BaseCPU import BaseCPU
 from m5.objects.BranchPredictor import *
+from m5.objects.ClockDomain import (
+    Clock,
+    SrcClockDomain,
+)
+from m5.objects.ClockedObject import ClockedObject
 from m5.objects.DummyChecker import DummyChecker
 from m5.objects.FuncUnit import OpClass
 from m5.objects.TimingExpr import TimingExpr
+from m5.objects.VoltageDomain import VoltageDomain
 from m5.params import *
 from m5.proxy import *
 from m5.SimObject import SimObject
@@ -143,19 +149,37 @@ class MinorFU(SimObject):
     )
 
     superconducting = Param.Bool(
+        Parent.superconducting,
+        "set to true when the functional unit for"
+        "this op is superconducting."
+        "False means regular CMOS.",
+    )
+
+    clk_domain = Param.ClockDomain(
+        Parent.clk_domain,
+        "Clock domain of the functional unit",
+    )
+
+
+class MinorFUPool(ClockedObject):
+    type = "MinorFUPool"
+    cxx_header = "cpu/minor/func_unit.hh"
+    cxx_class = "gem5::MinorFUPool"
+
+    funcUnits = VectorParam.MinorFU("functional units")
+    superconducting = Param.Bool(
         False,
         "set to true when the functional unit for"
         "this op is superconducting."
         "False means regular CMOS.",
     )
 
-
-class MinorFUPool(SimObject):
-    type = "MinorFUPool"
-    cxx_header = "cpu/minor/func_unit.hh"
-    cxx_class = "gem5::MinorFUPool"
-
-    funcUnits = VectorParam.MinorFU("functional units")
+    # if superconducting is true, set clk_domain to 100GHz
+    if superconducting:
+        clk_domain = SrcClockDomain(
+            clock=Clock("100GHz"),
+            voltage_domain=VoltageDomain(),
+        )
 
 
 class MinorDefaultIntFU(MinorFU):

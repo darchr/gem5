@@ -38,47 +38,58 @@ scons build/RISCV/gem5.opt
 """
 
 import argparse
+from time import sleep
+
+from run_binary import run_binary
 
 from gem5.isas import ISA
 from gem5.prebuilt.riscvmatched.riscvmatched_board import RISCVMatchedBoard
 from gem5.resources.resource import obtain_resource
 from gem5.simulate.simulator import Simulator
+from gem5.utils.multiprocessing import (
+    Pool,
+    Process,
+)
 from gem5.utils.requires import requires
 
-parser = argparse.ArgumentParser(
-    description="Script with optional super parameter"
-)
-parser.add_argument("--workload", help="Workload", default="riscv-hello")
-parser.add_argument("--super", help="Superconducting", default=False)
-
-args = parser.parse_args()
-
-requires(isa_required=ISA.RISCV)
-
-# instantiate the riscv matched board with default parameters
-board = RISCVMatchedBoard(clk_freq="100GHz")
-
-super_fu = [
-    [
-        "processor.cores[:].core.executeFuncUnits.funcUnits[:].superconducting = True"
-    ]
-]
-
-if args.super:
-    # we will set all the FUs to be superconducting
-    for fu in super_fu:
-        board.apply_config(fu)
-
-# set the hello world riscv binary as the board workload
-board.set_se_binary_workload(obtain_resource(args.workload))
-
-# run the simulation with the RISCV Matched board
-simulator = Simulator(board=board, full_system=False)
-simulator.run()
-
-print(
-    "Exiting @ tick {} because {}.".format(
-        simulator.get_current_tick(),
-        simulator.get_last_exit_event_cause(),
+if __name__ == "__m5_main__":
+    parser = argparse.ArgumentParser(
+        description="Script with optional super parameter"
     )
-)
+    parser.add_argument("--super", help="Superconducting", default=False)
+
+    args = parser.parse_args()
+
+    # workloads = [obtain_resource("riscv-llvm-minisat-run"), obtain_resource("riscv-gapbs-bfs-run"), obtain_resource("riscv-gapbs-tc-run"), obtain_resource("riscv-npb-is-size-s-run"), obtain_resource("riscv-npb-lu-size-s-run"), obtain_resource("riscv-npb-cg-size-s-run"), obtain_resource("riscv-npb-bt-size-s-run"), obtain_resource("riscv-npb-ft-size-s-run"), obtain_resource("riscv-matrix-multiply-run")]
+
+    workloads = obtain_resource("riscv-getting-started-benchmark-suite")
+    # workloads = [obtain_resource("riscv-matrix-multiply-run")]
+
+    processes = []
+    for workload in workloads:
+        print(workload.get_id())
+        folder_name = workload.get_id()
+
+        while len(processes) > 20:
+            for process in processes:
+                if not process.is_alive():
+                    print(f"Process for folder {folder_name} completed")
+                    processes.remove(process)
+            sleep(10)
+        process = Process(
+            target=run_binary,
+            args=(args.super, workload),
+            name=folder_name,
+        )
+        process.start()
+        processes.append(process)
+
+    while processes:
+        for process in processes:
+            if not process.is_alive():
+                print(f"Process for folder {folder_name} completed")
+                processes.remove(process)
+        sleep(5)
+
+    if len(processes) == 0:
+        print("All processes completed")

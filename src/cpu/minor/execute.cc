@@ -620,21 +620,24 @@ Execute::issue(ThreadID thread_id)
                     // print the number of 1s
                     //std::cout << "Number of 1s: " << numOnes << std::endl;
                     // get the clock period
-                    int period = static_cast<int>(cpu.clockPeriod());
+                    // int period = static_cast<int>(cpu.clockPeriod());
                     //std::cout << "Clock period: " << period << std::endl;
                     // total ticks calculation
-                    Tick total_ticks;
+                    int total_cycles = 0;
                     if (numOnes == 0) {
                         // total ticks, where every 0 adds 1 picosecond
-                        total_ticks = binarySeqNum.size() * 1;
+                        total_cycles = binarySeqNum.size() * 1;
                     } else {
                         // total ticks, where every 1 adds 12 picoseconds
-                        total_ticks = numOnes * 12;
+                        total_cycles = numOnes * 12;
                     }
                     //std::cout << "Total ticks: " << total_ticks << std::endl;
-                    double cycles = static_cast<double>(total_ticks) / period;
                     //std::cout << "Cycles: " << cycles << std::endl;
-                    super_conducting_cycles = Cycles(cycles);
+                    super_conducting_cycles = Cycles(total_cycles);
+                    cpu.stats.superconductingCycles += super_conducting_cycles;
+                    // one cycle takes 1 picosecond
+                    cpu.stats.superconductingTime += total_cycles * 1e-12;
+                    cpu.stats.superconductingAccesses++;
                 }
 
                 DPRINTF(MinorExecute, "Trying to issue inst: %s to FU: %d\n",
@@ -785,13 +788,28 @@ Execute::issue(ThreadID thread_id)
 
                         /* Mark the destinations for this instruction as
                          *  busy */
-                        scoreboard[thread_id].markupInstDests(inst, cpu.curCycle() +
-                            fu->description.opLat +
-                            extra_dest_retire_lat +
-                            super_conducting_cycles +
-                            extra_assumed_lat,
-                            cpu.getContext(thread_id),
-                            issued_mem_ref && extra_assumed_lat == Cycles(0));
+                        if (fu->description.superconducting) {
+                            scoreboard[thread_id].markupInstDests(
+                                inst, cpu.curCycle() +
+                                //fu->description.opLat +
+                                extra_dest_retire_lat +
+                                // super_conducting_cycles +
+                                extra_assumed_lat,
+                                cpu.getContext(thread_id),
+                                issued_mem_ref &&
+                                extra_assumed_lat == Cycles(0));
+                        }
+                        else {
+                            scoreboard[thread_id].markupInstDests(
+                                inst,
+                                cpu.curCycle() +
+                                fu->description.opLat +
+                                extra_dest_retire_lat +
+                                extra_assumed_lat,
+                                cpu.getContext(thread_id),
+                                issued_mem_ref &&
+                                extra_assumed_lat == Cycles(0));
+                        }
 
                         /* Push the instruction onto the inFlight queue so
                          *  it can be committed in order */

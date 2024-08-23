@@ -62,6 +62,15 @@ struct MinorStats : public statistics::Group
     /** Number of cycles in quiescent state */
     statistics::Scalar quiesceCycles;
 
+    /** Number of cycles in superconducting state */
+    statistics::Scalar superconductingCycles;
+
+    /** Time spent in superconducting state */
+    statistics::Scalar superconductingTime;
+
+    /** Number of accesses to superconducting components */
+    statistics::Scalar superconductingAccesses;
+
 };
 
 } // namespace minor

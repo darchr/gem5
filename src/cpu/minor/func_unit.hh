@@ -189,15 +189,17 @@ class MinorFU : public SimObject
 };
 
 /** A collection of MinorFUs */
-class MinorFUPool : public SimObject
+class MinorFUPool : public ClockedObject
 {
   public:
     std::vector<MinorFU *> funcUnits;
+    bool superconducting;
 
   public:
     MinorFUPool(const MinorFUPoolParams &params) :
-        SimObject(params),
-        funcUnits(params.funcUnits)
+        ClockedObject(params),
+        funcUnits(params.funcUnits),
+        superconducting(params.superconducting)
     { }
 };
 

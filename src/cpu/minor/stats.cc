@@ -47,9 +47,18 @@ MinorStats::MinorStats(BaseCPU *base_cpu)
     : statistics::Group(base_cpu),
     ADD_STAT(quiesceCycles, statistics::units::Cycle::get(),
              "Total number of cycles that CPU has spent quiesced or waiting "
-             "for an interrupt")
+             "for an interrupt"),
+    ADD_STAT(superconductingCycles, statistics::units::Cycle::get(),
+             "Total number of cycles that CPU has spent in superconducting"),
+    ADD_STAT(superconductingTime, statistics::units::Second::get(),
+             "Total time that CPU has spent in superconducting"),
+    ADD_STAT(superconductingAccesses, statistics::units::Count::get(),
+             "Total number of accesses to superconducting components")
 {
     quiesceCycles.prereq(quiesceCycles);
+    superconductingCycles.prereq(superconductingCycles);
+    superconductingTime.prereq(superconductingTime);
+    superconductingAccesses.prereq(superconductingAccesses);
 }
 
 } // namespace minor

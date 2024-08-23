@@ -1,0 +1,578 @@
+[
+    {
+        "id": "riscv-getting-started-benchmark-suite",
+        "description": "getting started benchmark suite",
+        "category": "suite",
+        "resource_version": "1.0.0",
+        "workloads": [
+            {
+                "id": "riscv-llvm-minisat-run",
+                "resource_version": "1.0.0",
+                "input_group": [
+                    "llvm",
+                    "minisat"
+                ]
+            },
+            {
+                "id": "riscv-gapbs-bfs-run",
+                "resource_version": "1.0.0",
+                "input_group": [
+                    "gapbs",
+                    "bfs",
+                    "se"
+                ]
+            },
+            {
+                "id": "riscv-gapbs-tc-run",
+                "resource_version": "1.0.0",
+                "input_group": [
+                    "gapbs",
+                    "tc",
+                    "se"
+                ]
+            },
+            {
+                "id": "riscv-npb-is-size-s-run",
+                "resource_version": "1.0.0",
+                "input_group": [
+                    "npb",
+                    "is",
+                    "se"
+                ]
+            },
+            {
+                "id": "riscv-npb-lu-size-s-run",
+                "resource_version": "1.0.0",
+                "input_group": [
+                    "npb",
+                    "lu",
+                    "se"
+                ]
+            },
+            {
+                "id": "riscv-npb-cg-size-s-run",
+                "resource_version": "1.0.0",
+                "input_group": [
+                    "npb",
+                    "cg",
+                    "se"
+                ]
+            },
+            {
+                "id": "riscv-npb-bt-size-s-run",
+                "resource_version": "1.0.0",
+                "input_group": [
+                    "npb",
+                    "bt",
+                    "se"
+                ]
+            },
+            {
+                "id": "riscv-npb-ft-size-s-run",
+                "resource_version": "1.0.0",
+                "input_group": [
+                    "npb",
+                    "ft",
+                    "se"
+                ]
+            },
+            {
+                "id": "riscv-matrix-multiply-run",
+                "resource_version": "1.0.0",
+                "input_group": [
+                    "matrix-multiply",
+                    "se"
+                ]
+            }
+        ],
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(\"getting-started-benchmark-suite\")",
+        "tags": [
+            "npb",
+            "gapbs",
+            "se",
+            "riscv"
+        ],
+        "author": [
+            "Harshil Patel",
+            "Kunal Pai"
+        ],
+        "architecture": "RISCV",
+        "license": "Comprised of programs using various licenses"
+    },
+    {
+        "category": "file",
+        "id": "llvm-minisat-cnf-input",
+        "author": ["University of Illinois"],
+        "description": "Input file for llvm-minisat resource",
+        "license":  "Apache 2.0 License with LLVM exceptions",
+        "source_url": "",
+        "tags": ["llvm", "benchmark"],
+        "example_usage": "obtain_resource(\"llvm-minisat-cnf-input\")",
+        "gem5_versions": ["23.1"],
+        "resource_version": "1.0.0",
+        "url": "https://storage.googleapis.com/dist.gem5.org/dist/se_benchmarks/short.cnf",
+        "md5sum": "2fbd08c1250332b506cbc66fff65f48c"
+    },
+    {
+        "category": "file",
+        "id": "llvm-minisat-cnf-input-small",
+        "author": ["University of Illinois"],
+        "description": "Input file for llvm-minisat resource",
+        "license":  "Apache 2.0 License with LLVM exceptions",
+        "source_url": "",
+        "tags": ["llvm", "benchmark"],
+        "example_usage": "obtain_resource(\"llvm-minisat-cnf-input\")",
+        "gem5_versions": ["23.1"],
+        "resource_version": "1.0.0",
+        "url": "file:///projects/gem5/getting-started/test.cnf",
+        "md5sum": "2fbd08c1250332b506cbc66fff65f48c"
+    },
+    {
+        "category": "binary",
+        "id": "riscv-llvm-minisat",
+        "author": ["University of Illinois"],
+        "description": "A binary that runs the llvm minisat benchmark in SE mode.",
+        "license":  "Apache 2.0 License with LLVM exceptions",
+        "source_url": "",
+        "tags": ["llvm", "benchmark"],
+        "example_usage": "obtain_resource(\"riscv-llvm-minisat\")",
+        "gem5_versions": ["23.1"],
+        "resource_version": "1.0.0",
+        "architecture": "RISCV",
+        "url": "https://storage.googleapis.com/dist.gem5.org/dist/se_benchmarks/riscv/minisat",
+        "md5sum": "08a1924ac9b479beced25b4fb51f89da"
+  },
+  {
+        "category": "workload",
+        "id": "riscv-llvm-minisat-run",
+        "author": ["University of Illinois"],
+        "description": "Workload to run llvm minisat benchmark",
+        "license": "Apache 2.0 License with LLVM exceptions",
+        "source_url": "",
+        "tags": ["llvm", "benchmark", "se"],
+        "example_usage": "obtain_resource(\"riscv-llvm-minisat-run\")",
+        "gem5_versions": ["23.1"],
+        "resource_version": "1.0.0",
+        "function": "set_se_binary_workload",
+        "additional_params": {
+            "arguments":["-verbosity=0"]
+        },
+        "resources": {
+            "binary":{
+                "id": "riscv-llvm-minisat",
+                "resource_version": "1.0.0"
+            },
+            "stdin_file":{
+                "id": "llvm-minisat-cnf-input-small",
+                "resource_version": "1.0.0"
+            }
+        }
+    },
+    {
+        "category": "workload",
+        "id": "riscv-gapbs-bfs-run",
+        "description": "This workload is used to tun the gapbs-bfs binary in SE mode. The arguments are -g 10 means that the graph is generated with 2^10 nodes and -n 10 that there are 10 iterations.",
+        "function": "set_se_binary_workload",
+        "resources": {
+            "binary": {
+                "id": "riscv-gapbs-bfs",
+                "resource_version": "1.0.0"
+            }
+        },
+        "additional_params": {
+            "arguments": [
+                "-g",
+                10,
+                "-n",
+                10
+            ]
+        },
+        "architecture": "RISCV",
+        "size": 0,
+        "tags": ["gapbs", "bfs", "se"],
+        "license": "BSD-3-Clause",
+        "author": ["Scott Beamer","David Patterson","Krste Asanović"],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(\"riscv-gapbs-bfs-run\")"
+    },
+    {
+        "category": "binary",
+        "id": "riscv-gapbs-bfs",
+        "description": "A binary which run the gapbs bfs benchmark in SE mode.",
+        "architecture": "RISCV",
+        "size": 2848072,
+        "is_zipped": false,
+        "md5sum": "b4a092776540b21ff4716e7347b4cc0e",
+        "source": "",
+        "url": "https://storage.googleapis.com/dist.gem5.org/dist/se_benchmarks/riscv/bfs",
+        "license": "BSD-3-Clause",
+        "author": [
+            "Scott Beamer","David Patterson","Krste Asanović"
+        ],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(resource_id=\"riscv-gapbs-bfs\")"
+    },
+    {
+        "category": "workload",
+        "id": "riscv-gapbs-tc-run",
+        "description": "This workload is used to test the gapbs-tc binary in SE mode. The arguments are -g 10 means that the graph is generated with 2^10 nodes and -n 10 that there are 10 iterations.",
+        "function": "set_se_binary_workload",
+        "resources": {
+            "binary": {
+                "id": "riscv-gapbs-tc",
+                "resource_version": "1.0.0"
+            }
+        },
+        "additional_params": {
+            "arguments": [
+                "-g",
+                10,
+                "-n",
+                10
+            ]
+        },
+        "architecture": "RISCV",
+        "size": 0,
+        "tags": ["gapbs", "tc", "se"],
+        "license": "BSD-3-Clause",
+        "author": ["Scott Beamer","David Patterson","Krste Asanović"],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(\"riscv-gapbs-tc-run\")"
+    },
+    {
+        "category": "binary",
+        "id": "riscv-gapbs-tc",
+        "description": "A binary to run the gapbs tc benchmark in SE mode.",
+        "architecture": "RISCV",
+        "size": 2957648,
+        "is_zipped": false,
+        "md5sum": "19ceb626432db8815be6bcba1cc1e8f5",
+        "source": "",
+        "url": "https://storage.googleapis.com/dist.gem5.org/dist/se_benchmarks/riscv/tc",
+        "license": "BSD-3-Clause",
+        "author": [
+            "Scott Beamer","David Patterson","Krste Asanović"
+        ],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(resource_id=\"riscv-gapbs-tc\")"
+    },
+    {
+        "category": "binary",
+        "id": "riscv-npb-is-size-s",
+        "description": "A binary to run the npb is benchmark in SE mode.",
+        "architecture": "RISCV",
+        "size": 910704,
+        "is_zipped": false,
+        "md5sum": "2f732d5f684aee481dd4cbff1074ac46",
+        "source": "",
+        "url": "https://storage.googleapis.com/dist.gem5.org/dist/se_benchmarks/riscv/is.S.x",
+        "license": "NASA Open Source Agreement (NOSA)",
+        "author": [
+            "NASA"
+        ],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(resource_id=\"riscv-npb-is-size-s\")"
+    },
+    {
+        "category": "binary",
+        "id": "riscv-npb-lu-size-s",
+        "description": "A binary to run the npb lu benchmark in SE mode.",
+        "architecture": "RISCV",
+        "size": 1439712,
+        "is_zipped": false,
+        "md5sum": "1070e6edb81f955bfe6fed039a3b99da",
+        "source": "",
+        "url": "https://storage.googleapis.com/dist.gem5.org/dist/se_benchmarks/riscv/lu.S.x",
+        "license": "NASA Open Source Agreement (NOSA)",
+        "author": [
+            "NASA"
+        ],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(resource_id=\"riscv-npb-lu-size-s\")"
+    },
+    {
+        "category": "binary",
+        "id": "riscv-npb-cg-size-s",
+        "description": "A binary to run the npb cg benchmark in SE mode.",
+        "architecture": "RISCV",
+        "size": 1361872,
+        "is_zipped": false,
+        "md5sum": "cb5d66c34fcd45afee2a1b86849bf88a",
+        "source": "",
+        "url": "https://storage.googleapis.com/dist.gem5.org/dist/se_benchmarks/riscv/cg.S.x",
+        "license": "NASA Open Source Agreement (NOSA)",
+        "author": [
+            "NASA"
+        ],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(resource_id=\"riscv-npb-cg-size-s\")"
+    },
+    {
+        "category": "binary",
+        "id": "riscv-npb-bt-size-s",
+        "description": "A binary to run the npb bt benchmark in SE mode.",
+        "architecture": "RISCV",
+        "size": 1447584,
+        "is_zipped": false,
+        "md5sum": "3780c63bd7889c9ce9865e35bcaf7fe3",
+        "source": "",
+        "url": "https://storage.googleapis.com/dist.gem5.org/dist/se_benchmarks/riscv/bt.S.x",
+        "license": "NASA Open Source Agreement (NOSA)",
+        "author": [
+            "NASA"
+        ],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(resource_id=\"riscv-npb-bt-size-s\")"
+    },
+    {
+        "category": "binary",
+        "id": "riscv-npb-ft-size-s",
+        "description": "A binary to run the npb ft benchmark in SE mode.",
+        "architecture": "RISCV",
+        "size": 1387376,
+        "is_zipped": false,
+        "md5sum": "7faadaca522e98ce4443e9b0d92b34bb",
+        "source": "",
+        "url": "https://storage.googleapis.com/dist.gem5.org/dist/se_benchmarks/riscv/ft.S.x",
+        "license": "NASA Open Source Agreement (NOSA)",
+        "author": [
+            "NASA"
+        ],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(resource_id=\"riscv-npb-ft-size-s\")"
+    },
+    {
+        "category": "workload",
+        "id": "riscv-npb-is-size-s-run",
+        "description": "This workload run the npb-is-size-s binary in SE mode.",
+        "function": "set_se_binary_workload",
+        "resources": {
+            "binary": {
+                "id": "riscv-npb-is-size-s",
+                "resource_version": "1.0.0"
+            }
+        },
+        "architecture": "RISCV",
+        "tags": [
+            "npb",
+            "riscv"
+        ],
+        "additional_params":{},
+        "code_examples": [],
+        "license": "NASA Open Source Agreement (NOSA)",
+        "author": [
+            "NASA"
+        ],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(\"riscv-npb-is-size-s-run\")"
+    },
+    {
+        "category": "workload",
+        "id": "riscv-npb-lu-size-s-run",
+        "description": "This workload runs the npb-lu-size-s binary in SE mode.",
+        "function": "set_se_binary_workload",
+        "resources": {
+            "binary": {
+                "id": "riscv-npb-lu-size-s",
+                "resource_version": "1.0.0"
+            }
+        },
+        "architecture": "RISCV",
+        "tags": [
+            "npb",
+            "riscv"
+        ],
+        "code_examples": [],
+        "license": "NASA Open Source Agreement (NOSA)",
+        "author": [
+            "NASA"
+        ],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "additional_params":{},
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(\"riscv-npb-lu-size-s-run\")"
+    },
+    {
+        "category": "workload",
+        "id": "riscv-npb-cg-size-s-run",
+        "description": "This workload runs the npb-cg-size-s binary in SE mode.",
+        "function": "set_se_binary_workload",
+        "resources": {
+            "binary": {
+                "id": "riscv-npb-cg-size-s",
+                "resource_version": "1.0.0"
+            }
+        },
+        "architecture": "RISCV",
+        "tags": [
+            "npb",
+            "riscv"
+        ],
+        "additional_params":{},
+        "code_examples": [],
+        "license": "NASA Open Source Agreement (NOSA)",
+        "author": [
+            "NASA"
+        ],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(\"riscv-npb-cg-size-s-run\")"
+    },
+    {
+        "category": "workload",
+        "id": "riscv-npb-bt-size-s-run",
+        "description": "This workload runs the npb-bt-size-s binary in SE mode.",
+        "function": "set_se_binary_workload",
+        "resources": {
+            "binary": {
+                "id": "riscv-npb-bt-size-s",
+                "resource_version": "1.0.0"
+            }
+        },
+        "architecture": "RISCV",
+        "additional_params":{},
+        "tags": [
+            "npb",
+            "riscv"
+        ],
+        "code_examples": [],
+        "license": "NASA Open Source Agreement (NOSA)",
+        "author": [
+            "NASA"
+        ],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(\"riscv-npb-bt-size-s-run\")"
+    },
+    {
+        "category": "workload",
+        "id": "riscv-npb-ft-size-s-run",
+        "description": "This workload runs the npb-ft-size-s binary in SE mode.",
+        "function": "set_se_binary_workload",
+        "resources": {
+            "binary": {
+                "id": "riscv-npb-ft-size-s",
+                "resource_version": "1.0.0"
+            }
+        },
+        "additional_params":{},
+        "architecture": "RISCV",
+        "tags": [
+            "npb",
+            "riscv"
+        ],
+        "code_examples": [],
+        "license": "NASA Open Source Agreement (NOSA)",
+        "author": [
+            "NASA"
+        ],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(\"riscv-npb-ft-size-s-run\")"
+    },
+    {
+        "category": "workload",
+        "id": "riscv-matrix-multiply-run",
+        "description": "This workload is used to run the riscv matrix multiply binary in SE mode.",
+        "function": "set_se_binary_workload",
+        "resources": {
+            "binary": {
+                "id": "riscv-matrix-multiply",
+                "resource_version": "1.0.0"
+            }
+        },
+        "additional_params":{},
+        "architecture": "RISCV",
+        "size": 0,
+        "tags": [],
+        "license": "",
+        "author": [
+            "Bobby Bruce"
+        ],
+        "source_url": "",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(\"riscv-matrix-multiply-run\")"
+    },
+    {
+        "category": "binary",
+        "id": "riscv-matrix-multiply",
+        "description": "A simple binary which runs a matrix mutiply operation on two 100x100 matrixes. After multiplication it will return the print the of the multiplication.",
+        "architecture": "RISCV",
+        "size": 876064,
+        "tags": [],
+        "is_zipped": false,
+        "md5sum": "a5026ec961d7c1f334ef0e822460eccd",
+        "source": "src/matrix-multiply",
+        "url": "https://storage.googleapis.com/dist.gem5.org/dist/se_benchmarks/riscv/matrix-multiply",
+        "code_examples": [],
+        "license": "",
+        "author": [
+            "Bobby R. Bruce"
+        ],
+        "source_url": "https://github.com/gem5/gem5-resources/tree/develop/src/matrix-multiply",
+        "resource_version": "1.0.0",
+        "gem5_versions": [
+            "23.0",
+            "23.1"
+        ],
+        "example_usage": "obtain_resource(resource_id=\"arm-matrix-multiply\")"
+    }
+]
