@@ -68,12 +68,10 @@ class Cluster(SubSystem):
         self.mem_system.mem_mode = "timing"  # Use timing accesses
         self.mem_system.memory = remote_memory
 
-        self.boards[0].add_remote_memory(
-            self.mem_system.memory, self.mem_system
-        )
-        self.boards[1].add_remote_memory(
-            self.mem_system.memory, self.mem_system
-        )
+        for board in self.boards:
+            board.add_remote_memory(
+                self.mem_system.memory, self.mem_system
+            )
 
     def __getattr__(self, attr):
         # This can be removed after Bobby moves the kvm stuff to
