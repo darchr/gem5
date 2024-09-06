@@ -66,7 +66,7 @@ command2 = "echo '12345' | sudo -S ./mount.sh; sleep 1; ./test-read"
 
 board1.set_kernel_disk_workload(
     # kernel=obtain_resource("x86-linux-kernel-6.8.0-35-generic"),
-    kernel=KernelResource("/home/jlp/Code/linux/vmlinux"),
+    kernel=KernelResource("/home/jlp/Code/linux/vmlinux-x86"),
     disk_image=DiskImageResource(
         "/home/jlp/Code/gem5/gem5-resources/src/add-dax/disk-image/x86-ubuntu-24-04-dax"
     ),
@@ -80,7 +80,7 @@ board1.set_kernel_disk_workload(
 )
 board2.set_kernel_disk_workload(
     # kernel=obtain_resource("x86-linux-kernel-6.8.0-35-generic"),
-    kernel=KernelResource("/home/jlp/Code/linux/vmlinux"),
+    kernel=KernelResource("/home/jlp/Code/linux/vmlinux-x86"),
     disk_image=DiskImageResource(
         "/home/jlp/Code/gem5/gem5-resources/src/add-dax/disk-image/x86-ubuntu-24-04-dax"
     ),
