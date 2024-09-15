@@ -94,4 +94,5 @@ class AbstractProcessor(SubSystem):
 
         Subclasses should override this method to set up any connections.
         """
-        pass
+        for core in self.get_cores():
+            core._pre_instantiate()
