@@ -175,3 +175,12 @@ class AbstractCore(SubSystem):
         self, target_pair: List[PcCountPair], manager: PcCountTrackerManager
     ) -> None:
         raise NotImplementedError
+
+    def _pre_instantiate(self) -> None:
+        """Called via the AbstractBoard's _pre_instantiate method. This is
+        called after connect_things, after the creation of the root object.
+
+        This is a good place to do any setup that requires the BaseCPU objects
+        to exist.
+        """
+        pass
