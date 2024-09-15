@@ -44,6 +44,7 @@ from typing import (
 from m5.objects import (
     BaseCPU,
     BaseMMU,
+    BranchPredictor,
     PcCountTracker,
     PcCountTrackerManager,
     Process,
@@ -195,3 +196,12 @@ class BaseCPUCore(AbstractCore):
     @overrides(AbstractCore)
     def get_total_instructions(self) -> int:
         return self.core.totalInsts()
+
+    def set_branch_predictor(self, branch_pred: BranchPredictor):
+        # Store it here to be picked up in _pre_instantiate.
+        self._branchPred = branch_pred
+
+    def _pre_instantiate(self) -> None:
+        super()._pre_instantiate()
+        if hasattr(self, "_branchPred"):
+            self.get_simobject().branchPred = self._branchPred

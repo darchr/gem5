@@ -111,3 +111,5 @@ class AbstractProcessor(SubSystem):
         should override this method to implement switching.
         """
         warn("Switching is not supported for this processor")
+        for core in self.get_cores():
+            core._pre_instantiate()
