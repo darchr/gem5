@@ -1,0 +1,138 @@
+[
+    {
+        "category": "workload",
+        "id": "stream-workload-local",
+        "author": ["Somebody"],
+        "description": "Workload",
+        "license": "",
+        "source_url": "",
+        "tags": [],
+        "example_usage": "obtain_resource(\"stream-workload-local\")",
+        "gem5_versions": ["23.1"],
+        "resource_version": "1.0.0",
+        "function": "set_kernel_disk_workload",
+        "md5sum": "",
+        "additional_params": {
+            "readfile_contents": "echo 'starting STREAM remotely!'; numastat; numactl --membind=0 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 3145728; numastat; m5 --addr=0x10010000 exit;"
+        },
+        "resources": {
+            "kernel":{
+                "id": "kernel-numa",
+                "resource_version": "1.0.0"
+            },
+            "bootloader":{
+                "id": "test-bootloader",
+                "resource_version": "1.0.0"
+            },
+            "disk_image":{
+                "id": "test-disk-image",
+                "resource_version": "1.0.0"
+            }
+        }
+    },
+    {
+        "category": "workload",
+        "id": "stream-workload-interleaved",
+        "author": ["Somebody"],
+        "description": "Workload",
+        "license": "",
+        "source_url": "",
+        "tags": [],
+        "example_usage": "obtain_resource(\"stream-workload-interleaved\")",
+        "gem5_versions": ["23.1"],
+        "resource_version": "1.0.0",
+        "function": "set_kernel_disk_workload",
+        "md5sum": "",
+        "additional_params": {
+            "readfile_contents": "echo 'starting STREAM remotely!'; numastat; numactl --interleave=0,1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 3145728; numastat; m5 --addr=0x10010000 exit;"
+        },
+        "resources": {
+            "kernel":{
+                "id": "kernel-numa",
+                "resource_version": "1.0.0"
+            },
+            "bootloader":{
+                "id": "test-bootloader",
+                "resource_version": "1.0.0"
+            },
+            "disk_image":{
+                "id": "test-disk-image",
+                "resource_version": "1.0.0"
+            }
+        }
+    },
+    {
+        "category": "workload",
+        "id": "stream-workload-remote",
+        "author": ["Somebody"],
+        "description": "Workload",
+        "license": "",
+        "source_url": "",
+        "tags": [],
+        "example_usage": "obtain_resource(\"stream-workload-remote\")",
+        "gem5_versions": ["23.1"],
+        "resource_version": "1.0.0",
+        "function": "set_kernel_disk_workload",
+        "md5sum": "",
+        "additional_params": {
+            "readfile_contents": "echo 'starting STREAM remotely!'; numastat; numactl --membind=1 -- /home/ubuntu/simple-vectorizable-benchmarks/stream/stream.hw.m5 3145728; numastat; m5 --addr=0x10010000 exit;"
+        },
+        "resources": {
+            "kernel":{
+                "id": "kernel-numa",
+                "resource_version": "1.0.0"
+            },
+            "bootloader":{
+                "id": "test-bootloader",
+                "resource_version": "1.0.0"
+            },
+            "disk_image":{
+                "id": "test-disk-image",
+                "resource_version": "1.0.0"
+            }
+        }
+    },
+    {
+        "category": "kernel",
+        "id": "kernel-numa",
+        "author": ["Somebody"],
+        "description": "Kernel",
+        "license": "",
+        "source_url": "",
+        "md5sum": "42d7b90d04919082046b10041e79e00d",
+        "tags": [],
+        "example_usage": "obtain_resource(\"kernel-numa\")",
+        "gem5_versions": ["23.1"],
+        "resource_version": "1.0.0",
+        "url": "file:///home/babaie/.cache/gem5/vmlinux-5.4.49-NUMA.arm64"
+    },
+    {
+        "category": "bootloader",
+        "id": "test-bootloader",
+        "author": ["Somebody"],
+        "description": "Bootloader",
+        "license": "",
+        "source_url": "",
+        "md5sum": "94f1a2eecb1600384df54056227300e4",
+        "tags": [],
+        "example_usage": "obtain_resource(\"test-bootloader\")",
+        "gem5_versions": ["23.1"],
+        "resource_version": "1.0.0",
+        "url": "file:///home/babaie/.cache/gem5/arm64-bootloader"
+    },
+    {
+        "category": "disk-image",
+        "id": "test-disk-image",
+        "author": ["Somebody"],
+        "description": "Disk Image",
+        "license": "",
+        "source_url": "",
+        "md5sum": "60b18bd0c5f49c284c4b23c52340834c",
+        "tags": [],
+        "example_usage": "obtain_resource(\"test-disk-image\")",
+        "gem5_versions": ["23.1"],
+        "resource_version": "1.0.0",
+        "url": "file:///home/babaie/.cache/gem5/arm64-hpc-2204-numa-kvm.img-20240304",
+        "root_partition": "1"
+    }
+]
