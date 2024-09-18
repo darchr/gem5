@@ -44,6 +44,7 @@ from m5.objects import (
     CowDiskImage,
     IdeDisk,
     IOXBar,
+    NoncoherentXBar,
     OutgoingRequestBridge,
     Pc,
     Port,
@@ -52,8 +53,9 @@ from m5.objects import (
     Terminal,
     VncServer,
     VoltageDomain,
+    X86ACPIMadt,
+    X86ACPIMadtIntSourceOverride,
     X86E820Entry,
-    NoncoherentXBar,
     X86IntelMPBus,
     X86IntelMPBusHierarchy,
     X86IntelMPIOAPIC,
@@ -82,7 +84,7 @@ class X86ComposableMemoryBoard(X86Board):
 
     The revised X86ComposableMemoryBoard combines the older boards into one
     single board to make the boards compatible with both gem5 and SST.
-    
+
     Targets:
         - This board should support memory hotplugging via PROBE
         - We also need to get ACPI SRAT tables set up for the NUMA ranges.
@@ -91,7 +93,7 @@ class X86ComposableMemoryBoard(X86Board):
         - Local memory cannot be more than 3 GB (lazy to make this work).
         - NUMA nodes are faked via the kernel as gem5 X86 does not support
           ACPI SRAT tables.
-          
+
     Args:
         :clk_freq:
         :processor:
@@ -107,6 +109,7 @@ class X86ComposableMemoryBoard(X86Board):
         Exception: _description_
 
     """
+
     __metaclass__ = ABCMeta
 
     def __init__(
@@ -118,7 +121,7 @@ class X86ComposableMemoryBoard(X86Board):
         cache_hierarchy: AbstractCacheHierarchy,
         remote_memory_access_cycles: int = 0,
         remote_memory_address_range: AddrRange = None,
-        starting_memory_limit: str = None
+        starting_memory_limit: str = None,
     ) -> None:
         # The parent board calls get_memory(), which needs overriding.
         self._localMemory = local_memory
@@ -149,16 +152,17 @@ class X86ComposableMemoryBoard(X86Board):
 
         self.local_memory = local_memory
         self.remote_memory = remote_memory
-        
+
         self._remote_memory_access_cycles = remote_memory_access_cycles
-        
+
         # Set the external simulator variable to whatever the user has set in
         # the ExternalRemoteMemory component.
         self._external_simulator = False
-        if (isinstance(self.get_remote_memory(), OutgoingRequestBridge)):
+        if isinstance(self.get_remote_memory(), OutgoingRequestBridge):
             # TODO: This needs to be standardized.
-            self._external_simulator = \
-                    self.get_remote_memory()._remote_request_bridge.use_sst_sim
+            self._external_simulator = (
+                self.get_remote_memory()._remote_request_bridge.use_sst_sim
+            )
 
     @overrides(X86Board)
     def get_memory(self) -> AbstractMemorySystem:
@@ -220,14 +224,11 @@ class X86ComposableMemoryBoard(X86Board):
         local_memory = self.get_local_memory()
         remote_memory = self.get_remote_memory()
 
-        memory_size = [
-            local_memory.get_size(),
-            remote_memory.get_size()
-        ]
-        
+        memory_size = [local_memory.get_size(), remote_memory.get_size()]
+
         memory_ranges = [
             AddrRange(start=0x0, size=local_memory.get_size()),
-            AddrRange(start=0x100000000, size=remote_memory.get_size())
+            AddrRange(start=0x100000000, size=remote_memory.get_size()),
         ]
 
         self.mem_ranges = [
@@ -235,9 +236,13 @@ class X86ComposableMemoryBoard(X86Board):
             AddrRange(start=0x100000000, size=remote_memory.get_size()),
             AddrRange(0xC0000000, size=0x100000),  # For I/0
         ]
-        
-        local_memory.set_memory_range([AddrRange(start=0x0, size=local_memory.get_size())])
-        remote_memory.set_memory_range([AddrRange(start=0x100000000, size=remote_memory.get_size())])
+
+        local_memory.set_memory_range(
+            [AddrRange(start=0x0, size=local_memory.get_size())]
+        )
+        remote_memory.set_memory_range(
+            [AddrRange(start=0x100000000, size=remote_memory.get_size())]
+        )
 
     @overrides(X86Board)
     def get_default_kernel_args(self) -> List[str]:
@@ -247,7 +252,7 @@ class X86ComposableMemoryBoard(X86Board):
             "lpj=7999923",
             "root=/dev/sda1",
             # "init=/bin/bash",
-            "numa=fake=2"
+            "numa=fake=2",
         ]
 
     @overrides(X86Board)
@@ -315,6 +320,7 @@ class X86ComposableMemoryBoard(X86Board):
         # Set up the Intel MP table
         base_entries = []
         ext_entries = []
+        madt_entries = []
         for i in range(self.get_processor().get_num_cores()):
             bp = X86IntelMPProcessor(
                 local_apic_id=i,
@@ -353,6 +359,13 @@ class X86ComposableMemoryBoard(X86Board):
         )
 
         base_entries.append(pci_dev4_inta)
+        pci_dev4_inta_madt = X86ACPIMadtIntSourceOverride(
+            bus_source=pci_dev4_inta.source_bus_id,
+            irq_source=pci_dev4_inta.source_bus_irq,
+            sys_int=pci_dev4_inta.dest_io_apic_intin,
+            flags=0,
+        )
+        madt_entries.append(pci_dev4_inta_madt)
 
         def assignISAInt(irq, apicPin):
             assign_8259_to_apic = X86IntelMPIOIntAssignment(
@@ -376,6 +389,11 @@ class X86ComposableMemoryBoard(X86Board):
                 dest_io_apic_intin=apicPin,
             )
             base_entries.append(assign_to_apic)
+            # acpi
+            assign_to_apic_acpi = X86ACPIMadtIntSourceOverride(
+                bus_source=1, irq_source=irq, sys_int=apicPin, flags=0
+            )
+            madt_entries.append(assign_to_apic_acpi)
 
         assignISAInt(0, 2)
         assignISAInt(1, 1)
@@ -386,6 +404,14 @@ class X86ComposableMemoryBoard(X86Board):
         self.workload.intel_mp_table.base_entries = base_entries
         self.workload.intel_mp_table.ext_entries = ext_entries
 
+        madt = X86ACPIMadt(
+            local_apic_address=0, records=madt_entries, oem_id="madt"
+        )
+        self.workload.acpi_description_table_pointer.rsdt.entries.append(madt)
+        self.workload.acpi_description_table_pointer.xsdt.entries.append(madt)
+        self.workload.acpi_description_table_pointer.oem_id = "gem5"
+        self.workload.acpi_description_table_pointer.rsdt.oem_id = "gem5"
+        self.workload.acpi_description_table_pointer.xsdt.oem_id = "gem5"
         entries = [
             # Mark the first megabyte of memory as reserved
             X86E820Entry(addr=0, size="639kB", range_type=1),
@@ -415,19 +441,19 @@ class X86ComposableMemoryBoard(X86Board):
     def add_remote_link(self) -> None:
         """This method creates a non-coherent xbar"""
         self.remote_link = NoncoherentXBar(
-                frontend_latency=self._remote_memory_access_cycles,
-                forward_latency=0,
-                response_latency=0,
-                width=64
+            frontend_latency=self._remote_memory_access_cycles,
+            forward_latency=0,
+            response_latency=0,
+            width=64,
         )
         # Connect the remote memory port to the remote link.
         for _, port in self.get_remote_memory().get_mem_ports():
             self.remote_link.mem_side_ports = port
 
         # Connect the cpu side ports to the cache
-        self.remote_link.cpu_side_ports = \
-                self.get_cache_hierarchy().get_mem_side_port()
-
+        self.remote_link.cpu_side_ports = (
+            self.get_cache_hierarchy().get_mem_side_port()
+        )
 
     @overrides(AbstractBoard)
     def _connect_things(self) -> None:
@@ -463,10 +489,13 @@ class X86ComposableMemoryBoard(X86Board):
         # Incorporate the cache hierarchy for the motherboard.
         if self.get_cache_hierarchy():
             self.get_cache_hierarchy().incorporate_cache(self)
-            
+
         # Create and connect Xbar for additional latency. This will override
         # the cache's incorporate_cache
-        if self._remote_memory_access_cycles > 0 and self._external_simulator == False:
+        if (
+            self._remote_memory_access_cycles > 0
+            and self._external_simulator == False
+        ):
             self.add_remote_link()
         else:
             # connect the system to the remote memory directly.
@@ -485,3 +514,15 @@ class X86ComposableMemoryBoard(X86Board):
             self.get_cache_hierarchy()._post_instantiate()
         self.get_local_memory()._post_instantiate()
         self.get_remote_memory()._post_instantiate()
+
+    @overrides(X86Board)
+    def get_default_kernel_args(self) -> List[str]:
+        return [
+            "earlyprintk=ttyS0",
+            "console=ttyS0",
+            "mem=2G",
+            "lpj=7999923",
+            "root=/dev/sda2",
+            "memmap=1G!2G",
+            "disk_device={disk_device}",
+        ]
