@@ -73,22 +73,6 @@ class Cluster(SubSystem):
                 self.mem_system.memory, self.mem_system
             )
 
-    def __getattr__(self, attr):
-        # This can be removed after Bobby moves the kvm stuff to
-        # _pre_instantiate.
-        if attr == "processor":
-
-            class Empty:
-                # More duck typing for the kvm hack
-                pass
-
-            processor = Empty()
-            core = Empty()
-            core.is_kvm_core = lambda: False
-            processor.get_cores = lambda: [core]
-            return processor
-        return super().__getattr__(attr)
-
     def get_processor(self):
         # This is a hack for the default exit events for generators.
         return None
@@ -96,9 +80,19 @@ class Cluster(SubSystem):
     def is_fullsystem(self):
         return True
 
-    def _pre_instantiate(self):
+    def _pre_instantiate(self, full_system = None):
+        """ This needs to look like an AbstractBoard so that the cluster can
+        be used as a board in the simulation. The main cluster is what is
+        responsible for creating the root.
+        """
+        from m5.objects import Root
+        root = Root(full_system=True, board=self)
+        # Note: The remote boards' _pre_instantiate require a root object
+        # unlike the AbstractBoard
         for board in self.boards:
-            board._pre_instantiate()
+            board._pre_instantiate(root)
+
+        return root
 
     def _post_instantiate(self):
         for board in self.boards:

@@ -75,15 +75,15 @@ class RemoteMemoryX86Board(X86Board):
             )
         ]
 
-    # def _setup_io_devices(self) -> None:
-    #     super()._setup_io_devices()
-    #     if len(self._remote_memory_ports) == 0:
-    #         return
-    #     self.workload.e820_table.entries = (
-    #         self.workload.e820_table.entries +
-    #         X86E820Entry(addr=self._remote_memory_ports[0][0].start, size=self._remote_memory_ports[0][0].size(), type=0x12)
-    #     )
+    def _pre_instantiate(self, root):
+        """ Must override AbstractBoard._pre_instantiate since
+        root is created by the cluster "board"
+        """
+        self._connect_things()
+        self.get_processor()._pre_instantiate(root)
+        self.get_cache_hierarchy()._pre_instantiate(root)
+        self.get_memory()._pre_instantiate(root)
+
 
     def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
-        print("Getting the memory ports")
         return self.get_memory().get_mem_ports() + self._remote_memory_ports
