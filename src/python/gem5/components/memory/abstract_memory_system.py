@@ -38,6 +38,7 @@ from m5.objects import (
     AddrRange,
     MemCtrl,
     Port,
+    Root,
     SubSystem,
 )
 
@@ -90,6 +91,15 @@ class AbstractMemorySystem(SubSystem):
         the memory range different to how the memory has interleaved them.
         """
         raise NotImplementedError
+
+    def _pre_instantiate(self, root: Root) -> None:
+        """Called in the `AbstractBoard`'s `_pre_instantiate` method. This is
+        called after `connect_things`, after the creation of the root object
+        (which is passed in as an argument), but before `m5.instantiate`).
+
+        Subclasses should override this method to set up any connections.
+        """
+        pass
 
     def _post_instantiate(self) -> None:
         """Called to set up anything needed after ``m5.instantiate``."""

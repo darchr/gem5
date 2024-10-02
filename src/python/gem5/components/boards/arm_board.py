@@ -332,7 +332,7 @@ class ArmBoard(ArmSystem, AbstractBoard, KernelDiskWorkload):
         self.system_port = port
 
     @overrides(AbstractBoard)
-    def _pre_instantiate(self, full_system: Optional[bool]) -> None:
+    def _pre_instantiate(self, full_system: Optional[bool] = None) -> None:
         super()._pre_instantiate(full_system=full_system)
 
         # Add the PCI devices.

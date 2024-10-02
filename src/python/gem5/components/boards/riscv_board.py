@@ -501,7 +501,7 @@ class RiscvBoard(AbstractSystemBoard, KernelDiskWorkload):
         return "/dev/vda"
 
     @overrides(AbstractSystemBoard)
-    def _pre_instantiate(self, full_system: Optional[bool]):
+    def _pre_instantiate(self, full_system: Optional[bool] = None):
         if len(self._bootloader) > 0:
             self.workload.bootloader_addr = 0x0
             self.workload.bootloader_filename = self._bootloader[0]

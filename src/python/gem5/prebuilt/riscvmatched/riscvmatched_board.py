@@ -313,7 +313,7 @@ class RISCVMatchedBoard(
             memory.set_memory_range(self.mem_ranges)
 
     @overrides(AbstractSystemBoard)
-    def _pre_instantiate(self, full_system: Optional[bool]) -> None:
+    def _pre_instantiate(self, full_system: Optional[bool] = None) -> None:
         if self._fs:
             if len(self._bootloader) > 0:
                 self.workload.bootloader_addr = 0x0
