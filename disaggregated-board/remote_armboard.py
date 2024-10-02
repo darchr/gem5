@@ -83,8 +83,34 @@ class RemoteArmBoard(ArmBoard):
         ]
 
     def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
-        print("Getting the memory ports")
         return self.get_memory().get_mem_ports() + self._remote_memory_ports
+
+    def _pre_instantiate(self, root):
+        """ Must override AbstractBoard._pre_instantiate since
+        root is created by the cluster "board"
+        """
+        self._connect_things()
+        self.get_processor()._pre_instantiate(root)
+        self.get_cache_hierarchy()._pre_instantiate(root)
+        self.get_memory()._pre_instantiate(root)
+
+        # Duplicate code from ArmBoard._pre_instantiate
+        # Add the PCI devices.
+        self.pci_devices = self._pci_devices
+
+        # The workload needs to know the dtb_file.
+        self.workload.dtb_filename = self._get_dtb_filename()
+
+        # Finally we need to setup the bootloader for the ArmBoard. An ARM
+        # system requires three inputs to simulate a full system: a disk image,
+        # the kernel file and the bootloader file(s).
+        self.realview.setupBootLoader(
+            self, self._get_dtb_filename(), self._bootloader
+        )
+
+        # Calling generateDtb from class ArmSystem to add memory information to
+        # the dtb file.
+        self.generateDtb(self._get_dtb_filename())
 
     def generateDeviceTree(self, state):
         # Generate a device tree root node for the system by creating the root
