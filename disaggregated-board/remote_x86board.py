@@ -7,6 +7,7 @@ from typing import (
 from m5.objects import (
     AddrRange,
     Port,
+    SimpleMemDelay,
     SysBridge,
     System,
     X86E820Entry,
@@ -60,13 +61,23 @@ class RemoteMemoryX86Board(X86Board):
         - Instead of directly connecting things we use a `SysBridge` so that
           the RequestorIDs are correct at the remote memory system.
         """
+        # These mem_delays are needed to ensure that the remote memory system
+        # and this memory system can safely communicate when running in
+        # parallel mode. The CXL-host side adds latency to the responses and
+        # the remote memory system adds latency to the requests.
+        self.mem_delays = [
+             SimpleMemDelay(read_req="0ns", read_resp="100ns",
+                            write_req="0ns", write_resp="100ns",
+                            mem_side_port=remote_port)
+            for _, remote_port in remote_memory.get_mem_ports()
+        ]
         self.system_bridges = [
             SysBridge(
                 source=self,
                 target=remote_system,
-                target_port=remote_port,
+                target_port=mem_delay.cpu_side_port,
             )
-            for _, remote_port in remote_memory.get_mem_ports()
+            for mem_delay in self.mem_delays
         ]
         self._remote_memory_ports = [
             (rng, bridge.source_port)
