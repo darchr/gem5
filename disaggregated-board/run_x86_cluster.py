@@ -52,7 +52,7 @@ command1 = "echo '12345' | sudo -S ./mount.sh; sleep 1; gem5-bridge dumpresetsta
 # other boards will wait for 1 second, then read what was written (hopefully, "hello world")
 command2 = "echo '12345' | sudo -S ./mount.sh; sleep 2; gem5-bridge dumpresetstats; ./test-read"
 
-boards = [get_board() for _ in range(args.boards)]
+boards = [get_board() for _ in range(args.num_boards)]
 
 boards[0].set_kernel_disk_workload(
     kernel=KernelResource("/home/jlp/Code/linux/vmlinux.x86"),
