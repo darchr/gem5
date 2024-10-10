@@ -86,6 +86,12 @@ class System(SimObject):
         [], "Ranges that constitute main memory"
     )
 
+    external_memory_ranges = VectorParam.AddrRange(
+        [],
+        "Ranges that are valid physical address but not part of physmem. "
+        "These are considered to be coherent addresses, not for I/O or device",
+    )
+
     # The ranges backed by a shadowed ROM
     shadow_rom_ranges = VectorParam.AddrRange(
         [], "Ranges  backed by a shadowed ROM"
