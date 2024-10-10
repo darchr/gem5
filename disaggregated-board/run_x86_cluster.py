@@ -1,3 +1,5 @@
+import argparse
+
 from cluster import (
     Cluster,
     RemoteMemory,
@@ -9,6 +11,9 @@ from gem5.components.boards.abstract_board import AbstractBoard
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
     PrivateL1PrivateL2CacheHierarchy,
+)
+from gem5.components.cachehierarchies.ruby.mesi_two_level_cache_hierarchy import (
+    MESITwoLevelCacheHierarchy,
 )
 from gem5.components.memory.single_channel import SingleChannelDDR3_1600
 from gem5.components.processors.cpu_types import CPUTypes
@@ -22,14 +27,28 @@ from gem5.resources.resource import (
 from gem5.simulate.exit_event import ExitEvent
 from gem5.simulate.simulator import Simulator
 
-import argparse
-
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--num-boards", type=int, default=2)
 arg_parser.add_argument("--parallel", action="store_true", default=False)
 args = arg_parser.parse_args()
 
+
 def get_board():
+    # cache = MESITwoLevelCacheHierarchy(
+    #         l1d_size="32KiB",
+    #         l1d_assoc=8,
+    #         l1i_size="32KiB",
+    #         l1i_assoc=8,
+    #         l2_size="1MiB",
+    #         l2_assoc=16,
+    #         num_l2_banks=1,
+    #     )
+    cache = PrivateL1PrivateL2CacheHierarchy(
+        l1d_size="32KiB",
+        l1i_size="32KiB",
+        l2_size="256KiB",
+    )
+
     board = RemoteMemoryX86Board(
         clk_freq="3GHz",
         processor=SimpleProcessor(
@@ -37,14 +56,11 @@ def get_board():
             num_cores=1,
             isa=ISA.X86,
         ),
-        cache_hierarchy=PrivateL1PrivateL2CacheHierarchy(
-            l1d_size="32KiB",
-            l1i_size="32KiB",
-            l2_size="256KiB",
-        ),
+        cache_hierarchy=cache,
         memory=SingleChannelDDR3_1600(size="2GiB"),
     )
     return board
+
 
 # Board 1 will write "Hello world!" and read it back
 command1 = "echo '12345' | sudo -S ./mount.sh; sleep 1; gem5-bridge dumpresetstats; ./test-read-write"
@@ -108,6 +124,7 @@ def on_exit():
         yield False
 
     yield True
+
 
 simulator = Simulator(
     board=cluster,

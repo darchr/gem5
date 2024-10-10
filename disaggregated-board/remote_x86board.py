@@ -66,9 +66,13 @@ class RemoteMemoryX86Board(X86Board):
         # parallel mode. The CXL-host side adds latency to the responses and
         # the remote memory system adds latency to the requests.
         self.mem_delays = [
-             SimpleMemDelay(read_req="0ns", read_resp="100ns",
-                            write_req="0ns", write_resp="100ns",
-                            mem_side_port=remote_port)
+            SimpleMemDelay(
+                read_req="0ns",
+                read_resp="100ns",
+                write_req="0ns",
+                write_resp="100ns",
+                mem_side_port=remote_port,
+            )
             for _, remote_port in remote_memory.get_mem_ports()
         ]
         self.system_bridges = [
@@ -85,16 +89,18 @@ class RemoteMemoryX86Board(X86Board):
                 remote_memory.get_mem_ports(), self.system_bridges
             )
         ]
+        self.external_memory_ranges = [
+            rng for rng, _ in remote_memory.get_mem_ports()
+        ]
 
     def _pre_instantiate(self, root):
-        """ Must override AbstractBoard._pre_instantiate since
+        """Must override AbstractBoard._pre_instantiate since
         root is created by the cluster "board"
         """
         self._connect_things()
         self.get_processor()._pre_instantiate(root)
         self.get_cache_hierarchy()._pre_instantiate(root)
         self.get_memory()._pre_instantiate(root)
-
 
     def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
         return self.get_memory().get_mem_ports() + self._remote_memory_ports
