@@ -186,6 +186,10 @@ class ChanneledMemory(AbstractMemorySystem):
         return [ctrl for ctrl in self.mem_ctrl]
 
     @overrides(AbstractMemorySystem)
+    def get_mem_interfaces(self) -> List[DRAMInterface]:
+        return self._dram
+
+    @overrides(AbstractMemorySystem)
     def get_size(self) -> int:
         return self._size
 
