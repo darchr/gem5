@@ -35,7 +35,6 @@ from m5.objects import (
     RubyPortProxy,
     RubySequencer,
     RubySystem,
-    SimpleMemory,
     TreePLRURP,
 )
 

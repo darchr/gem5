@@ -56,6 +56,7 @@ import argparse
 
 from gem5.coherence_protocol import CoherenceProtocol
 from gem5.components.devices.gpus.amdgpu import MI300X
+from gem5.components.memory import HBM2Stack
 from gem5.components.memory.single_channel import SingleChannelDDR4_2400
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.components.processors.simple_processor import SimpleProcessor
@@ -120,7 +121,7 @@ for core in processor.cores:
 
 # The GPU must be created first so we can assign CPU-side DMA ports to the
 # CPU cache hierarchy.
-gpu0 = MI300X()
+gpu0 = MI300X(gpu_memory=HBM2Stack(size="16GiB"))
 
 cache_hierarchy = ViperCPUCacheHierarchy(
     l1d_size="32KiB",

@@ -121,6 +121,13 @@ class ViperBoard(X86Board):
                 isa.ExtendedState = avx_extended_state
                 isa.FamilyModelStepping = avx_cpu_features
 
+        # The System() object in gem5 has a memories parameter which defaults
+        # to Self.all. This will collect *all* AbstractMemories and connect to
+        # the CPU side. To avoid this we manually assign the memories param to
+        # the CPU side memories. We need the MemInterface which is called dram
+        # in the MemCtrl class even though it might not be modelling dram.
+        self.memories = self.memory.get_mem_interfaces()
+
     @overrides(KernelDiskWorkload)
     def get_disk_device(self):
         return "/dev/sda"

@@ -33,6 +33,7 @@ from m5.objects import (
 )
 
 from ....components.boards.abstract_board import AbstractBoard
+from ....components.memory.abstract_memory_system import AbstractMemorySystem
 from ....prebuilt.viper.gpu_cache_hierarchy import ViperGPUCacheHierarchy
 from .viper_shader import ViperShader
 
@@ -51,7 +52,16 @@ class BaseViperGPU(SubSystem):
     def get_gpu_count(cls):
         return cls._gpu_count
 
-    def __init__(self):
+    def __init__(self, gpu_memory: AbstractMemorySystem):
+        super().__init__()
+        if gpu_memory.has_parent():
+            raise ValueError(
+                "`memory` should not have a parent, i.e. you should "
+                "instantiate the gpu memory like gpu_memory = HBM2Stack() "
+                "and **not** like board.gpu_memory = HBM2Stack()"
+            )
+        self._memory = gpu_memory
+
         # Setup various PCI related parameters
         self._my_id = self.get_gpu_count()
         pci_dev = self.next_pci_dev()
@@ -74,19 +84,11 @@ class BaseViperGPU(SubSystem):
         # Connect all PIO buses
         self._shader.connect_iobus(board.get_io_bus())
 
-        # The System() object in gem5 has a memories parameter which defaults
-        # to Self.all. This will collect *all* AbstractMemories and connect to
-        # the CPU side. To avoid this we manually assign the memories param to
-        # the CPU side memories. We need the MemInterface which is called dram
-        # in the MemCtrl class even though it might not be modelling dram.
-        memory = board.get_memory()
-        cpu_abs_mems = [mem.dram for mem in memory.get_memory_controllers()]
-        board.memories = cpu_abs_mems
-
         # Make the cache hierarchy. This will create an independent RubySystem
         # class containing only the GPU caches with no network connection to
         # the CPU cache hierarchy.
         self._device.gpu_caches = ViperGPUCacheHierarchy(
+            gpu_memory=self._memory,
             tcp_size=self._tcp_size,
             tcp_assoc=self._tcp_assoc,
             sqc_size=self._sqc_size,
@@ -97,18 +99,9 @@ class BaseViperGPU(SubSystem):
             tcc_assoc=self._tcc_assoc,
             tcc_count=self._tcc_count,
             cu_per_sqc=self._cu_per_sqc,
-            num_memory_channels=self._num_memory_channels,
             cache_line_size=self._cache_line_size,
             shader=self._shader,
         )
-
-        # Collect GPU memory controllers created in the GPU cache hierarchy.
-        # First assign them as a child to the device so the SimObject unproxy.
-        # The device requires the memories parameter to be set as the system
-        # pointer required by the AbstractMemory class is set by AMDGPUDevice.
-        self._device.mem_ctrls = self._device.gpu_caches.get_mem_ctrls()
-        gpu_abs_mems = [mem.dram for mem in self._device.mem_ctrls]
-        self._device.memories = gpu_abs_mems
 
         # Finally attach to the board. PciDevices default to Parent.any for the
         # PciHost parameter. To make sure this is found we need to connect to
@@ -120,12 +113,20 @@ class BaseViperGPU(SubSystem):
         # instead of board.pc.south_bridge.gpu_shader.CUs.l1_tlb.gpu_device.
         gpu_name = f"gpu{self._my_id}"
         self._device.set_parent(board.pc.south_bridge, gpu_name)
+        self._device.memory = self._memory
+
+        # Collect GPU memory controllers created in the GPU cache hierarchy.
+        # First assign them as a child to the device so the SimObject unproxy.
+        # The device requires the memories parameter to be set as the system
+        # pointer required by the AbstractMemory class is set by AMDGPUDevice.
+        self._device.memories = self._memory.get_mem_interfaces()
 
 
 # A scaled down MI210-like device. Defaults to ~1/4th of an MI210.
 class MI210(BaseViperGPU):
     def __init__(
         self,
+        gpu_memory: AbstractMemorySystem,
         num_cus: int = 32,
         cu_per_sqc: int = 4,
         tcp_size: str = "16KiB",
@@ -137,10 +138,9 @@ class MI210(BaseViperGPU):
         tcc_size: str = "256KiB",
         tcc_assoc: int = 16,
         tcc_count: int = 8,
-        num_memory_channels: int = 8,
         cache_line_size: int = 64,
     ):
-        super().__init__()
+        super().__init__(gpu_memory=gpu_memory)
 
         self._cu_per_sqc = cu_per_sqc
         self._tcp_size = tcp_size
@@ -152,7 +152,6 @@ class MI210(BaseViperGPU):
         self._tcc_size = tcc_size
         self._tcc_assoc = tcc_assoc
         self._tcc_count = tcc_count
-        self._num_memory_channels = num_memory_channels
         self._cache_line_size = cache_line_size
 
         self._device.device_name = "MI200"
@@ -205,6 +204,7 @@ class MI210(BaseViperGPU):
 class MI300X(BaseViperGPU):
     def __init__(
         self,
+        gpu_memory: AbstractMemorySystem,
         num_cus: int = 40,
         cu_per_sqc: int = 4,
         tcp_size: str = "16KiB",
@@ -216,10 +216,9 @@ class MI300X(BaseViperGPU):
         tcc_size: str = "256KiB",
         tcc_assoc: int = 16,
         tcc_count: int = 16,
-        num_memory_channels: int = 16,
         cache_line_size: int = 64,
     ):
-        super().__init__()
+        super().__init__(gpu_memory=gpu_memory)
 
         self._cu_per_sqc = cu_per_sqc
         self._tcp_size = tcp_size
@@ -231,7 +230,6 @@ class MI300X(BaseViperGPU):
         self._tcc_size = tcc_size
         self._tcc_assoc = tcc_assoc
         self._tcc_count = tcc_count
-        self._num_memory_channels = num_memory_channels
         self._cache_line_size = cache_line_size
 
         self._device.device_name = "MI300X"

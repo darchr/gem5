@@ -57,11 +57,9 @@ from ...components.cachehierarchies.ruby.caches.viper.sqc import SQCCache
 from ...components.cachehierarchies.ruby.caches.viper.tcc import TCCCache
 from ...components.cachehierarchies.ruby.caches.viper.tcp import TCPCache
 from ...components.devices.gpus.viper_shader import ViperShader
+from ...components.memory.abstract_memory_system import AbstractMemorySystem
 from ...utils.requires import requires
-from .viper_network import (
-    SimpleDoubleCrossbar,
-    SimplePt2Pt,
-)
+from .viper_network import SimpleDoubleCrossbar
 
 
 class ViperGPUCacheHierarchy(AbstractRubyCacheHierarchy):
@@ -75,6 +73,7 @@ class ViperGPUCacheHierarchy(AbstractRubyCacheHierarchy):
 
     def __init__(
         self,
+        gpu_memory: AbstractMemorySystem,
         tcp_size: str,
         tcp_assoc: int,
         sqc_size: str,
@@ -85,7 +84,6 @@ class ViperGPUCacheHierarchy(AbstractRubyCacheHierarchy):
         tcc_assoc: int,
         tcc_count: int,
         cu_per_sqc: int,
-        num_memory_channels: int,
         cache_line_size: int,
         shader: ViperShader,
     ):
@@ -284,33 +282,14 @@ class ViperGPUCacheHierarchy(AbstractRubyCacheHierarchy):
 
             self._dma_controllers.append(ctrl)
 
-        # Create GPU memories. Currently fixed to HBM2.
-        mem_type_cls = HBM_2000_4H_1x64
-
-        # AMDGPUDevice currently tells the driver there is 16GiB for memory.
-        # Until that is a parameter, this need to be fixed to 16GiB.
-        gpu_mem_range = AddrRange(0, size="16GiB")
-        intlv_low_bit = int(math.log(self._cache_line_size, 2))
-        intlv_bits = int(math.log(num_memory_channels, 2))
-
-        for idx in range(num_memory_channels):
-            addr_range = AddrRange(
-                gpu_mem_range.start,
-                size=gpu_mem_range.size(),
-                intlvHighBit=intlv_low_bit + intlv_bits - 1,
-                intlvBits=intlv_bits,
-                intlvMatch=idx,
-                xorHighBit=0,
-            )
-
-            mem_ctrl = MemCtrl(dram=mem_type_cls(range=addr_range))
-            self._mem_ctrls.append(mem_ctrl)
-
+        gpu_memory.set_memory_range([AddrRange(0, size=gpu_memory.get_size())])
+        self._mem_ctrls = gpu_memory.get_memory_controllers()
+        for addr_range, port in gpu_memory.get_mem_ports():
             dir = ViperGPUDirectory(
                 self.ruby_gpu.network,
                 self._cache_line_size,
                 addr_range,
-                self._mem_ctrls[idx].port,
+                port,
             )
 
             dir.ruby_system = self.ruby_gpu
