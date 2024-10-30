@@ -34,6 +34,8 @@ from typing import (
     Optional,
 )
 
+from m5.util import warn
+
 from ...components.boards.abstract_board import AbstractBoard
 from ...components.boards.kernel_disk_workload import KernelDiskWorkload
 from ...components.boards.x86_board import X86Board
@@ -82,6 +84,42 @@ class ViperBoard(X86Board):
         if self._gpus is not None:
             for gpu in self._gpus:
                 gpu.connectGPU(self)
+
+        self.workload.enable_osxsave = 1
+        # These values are taken from a real CPU and are further explained here:
+        # https://sandpile.org/x86/cpuid.htm#level_0000_000Dh
+        avx_extended_state = [
+            0x00000007,
+            0x00000340,
+            0x00000000,
+            0x00000340,
+            0x00000000,
+            0x00000340,
+            0x00000000,
+            0x00000000,
+            0x00000100,
+            0x00000240,
+            0x00000000,
+            0x00000040,
+            0x00000000,
+            0x00000000,
+            0x00000000,
+            0x00000000,
+        ]
+
+        # This modifies the default value for ECX only (4th in this array).
+        # See: https://sandpile.org/x86/cpuid.htm#level_0000_0001h
+        # Enables AVX, OSXSAVE, XSAVE, POPCNT, SSE4.2, SSE4.1, CMPXCHG16B,
+        # and FMA.
+        avx_cpu_features = [0x00020F51, 0x00000805, 0xEFDBFBFF, 0x1C803209]
+        for core_wrapper in self.get_processor().get_cores():
+            if not core_wrapper.is_kvm_core():
+                warn("AVX is only supported with KVM cores")
+            core = core_wrapper.get_simobject()
+            for isa in core.isa:
+                isa.vendor_string = "AuthenticAMD"
+                isa.ExtendedState = avx_extended_state
+                isa.FamilyModelStepping = avx_cpu_features
 
     @overrides(KernelDiskWorkload)
     def get_disk_device(self):

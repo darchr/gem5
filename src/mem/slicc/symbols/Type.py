@@ -274,7 +274,6 @@ $klass ${{self.c_ident}}$parent
                     code(f"\t\t, m_{dm.ident}(blockSize)")
 
             code("{")
-            code("        setRubySystem(rs);")
         elif self.isTBE:
             code("${{self.c_ident}}(int block_size)")
 

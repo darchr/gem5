@@ -87,7 +87,6 @@ class WriteMask
         assert(mSize == 0);
         assert(size > 0);
         mSize = size;
-        clear();
     }
 
     void
