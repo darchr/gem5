@@ -54,6 +54,8 @@ PySource('gem5.components.boards', 'gem5/components/boards/arm_board.py')
 PySource('gem5.components.boards',
     "gem5/components/boards/kernel_disk_workload.py")
 PySource('gem5.components.boards',
+    "gem5/components/boards/gpu_fs_workload.py")
+PySource('gem5.components.boards',
     "gem5/components/boards/se_binary_workload.py")
 PySource('gem5.components.cachehierarchies',
     'gem5/components/cachehierarchies/__init__.py')
