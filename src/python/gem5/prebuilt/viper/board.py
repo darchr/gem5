@@ -149,6 +149,23 @@ class ViperBoard(X86Board):
             "modprobe.blacklist=psmouse",
         ]
 
+    @overrides(KernelDiskWorkload)
+    def _set_readfile_contents(self, readfile_contents):
+        """In the case of a GPU workload, we need to load the GPU driver first.
+        This method will prepend the driver load command to the
+        readfile_contents. Note that this assumes that all of the gpus are the
+        same, if there's more that one GPU.
+        """
+
+        if self.get_devices() is None:
+            warn("No GPU devices. Not loading GPU driver.")
+            return super()._set_readfile_contents(readfile_contents)
+
+        driver_load_command = self.get_devices()[0].get_driver_command()
+        contents = driver_load_command + "\n" + readfile_contents
+
+        return super()._set_readfile_contents(contents)
+
     # Replicate the capability of the old GPUFS config, which embed a binary
     # application or script into a bash script setting up the environment and
     # loading the GPU driver.
