@@ -37,7 +37,7 @@ from typing import (
 from m5.util import warn
 
 from ...components.boards.abstract_board import AbstractBoard
-from ...components.boards.kernel_disk_workload import KernelDiskWorkload
+from ...components.boards.gpu_fs_workload import GpuFsWorkload
 from ...components.boards.x86_board import X86Board
 from ...components.cachehierarchies.abstract_cache_hierarchy import (
     AbstractCacheHierarchy,
@@ -48,7 +48,7 @@ from ...components.processors.abstract_processor import AbstractProcessor
 from ...utils.override import overrides
 
 
-class ViperBoard(X86Board):
+class ViperBoard(X86Board, GpuFsWorkload):
     """
     A derivative of X86Board capable of full system simulation for X86 with a
     GPU device. Provides all the functionality of the X86Board with helper
@@ -148,21 +148,16 @@ class ViperBoard(X86Board):
             "modprobe.blacklist=amdgpu",
             "modprobe.blacklist=psmouse",
         ]
+    @overrides(GpuFsWorkload)
+    def set_app_gpu(self, app_gpu: Optional[BaseViperGPU]) -> None:
+        if self._gpus is None and app_gpu is None:
+            warn("No GPU device has been set")
+            return
+        if app_gpu is not None:
+            self._app_gpu = app_gpu
+        else:
+            self._app_gpu = self._gpus[0]
 
-    # Replicate the capability of the old GPUFS config, which embed a binary
-    # application or script into a bash script setting up the environment and
-    # loading the GPU driver.
-    def make_gpu_app(self, gpu: BaseViperGPU, app: str, debug: bool = False):
-        driver_load_command = gpu.get_driver_command(debug=debug)
-
-        with open(os.path.abspath(app), "rb") as binfile:
-            encodedBin = base64.b64encode(binfile.read()).decode()
-
-        application_command = (
-            f'echo "{encodedBin}" | base64 -d > myapp\n'
-            "chmod +x myapp\n"
-            "./myapp {}\n"
-            "/sbin/m5 exit\n"
-        )
-
-        return driver_load_command + application_command
+    @overrides(GpuFsWorkload)
+    def get_app_gpu(self) -> Optional[BaseViperGPU]:
+        return self._app_gpu
