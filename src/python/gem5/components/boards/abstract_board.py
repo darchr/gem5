@@ -160,6 +160,15 @@ class AbstractBoard:
         """
         return self.cache_line_size
 
+    def get_devices(self):
+        """Get the devices connected to the board.
+
+        Currently, this is only used for GPUs by the ViperBoard.
+
+        :returns: The devices connected to the board or None.
+        """
+        return None
+
     def connect_system_port(self, port: Port) -> None:
         self.system_port = port
 

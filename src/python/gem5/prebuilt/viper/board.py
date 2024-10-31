@@ -73,6 +73,7 @@ class ViperBoard(X86Board):
 
         self._gpus = gpus
 
+    @overrides(AbstractBoard)
     def get_devices(self):
         return self._gpus
 
