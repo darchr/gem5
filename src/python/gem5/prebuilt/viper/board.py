@@ -69,7 +69,6 @@ class ViperBoard(X86Board):
             memory=memory,
             cache_hierarchy=cache_hierarchy,
         )
-        print("Viper board __init__ was called here now")
 
         self._gpus = gpus
 
@@ -79,7 +78,6 @@ class ViperBoard(X86Board):
 
     @overrides(AbstractBoard)
     def _connect_things(self) -> None:
-        print("Viper board connect things was called here now")
         super()._connect_things()
 
         if self._gpus is not None:
