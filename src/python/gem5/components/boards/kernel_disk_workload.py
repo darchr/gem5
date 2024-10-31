@@ -37,6 +37,7 @@ import m5
 from m5.util import warn
 
 from ...resources.resource import (
+    BinaryResource,
     BootloaderResource,
     CheckpointResource,
     DiskImageResource,
@@ -215,21 +216,7 @@ class KernelDiskWorkload:
         if readfile:
             self.readfile = readfile
         elif readfile_contents:
-            # We hash the contents of the readfile and append it to the
-            # readfile name. This is to ensure that we don't overwrite the
-            # readfile if the contents are different.
-            readfile_contents_hash = hex(
-                hash(tuple(bytes(readfile_contents, "utf-8")))
-            )
-            self.readfile = os.path.join(
-                m5.options.outdir, ("readfile_" + readfile_contents_hash)
-            )
-
-        # Add the contents to the readfile, if specified.
-        if readfile_contents:
-            file = open(self.readfile, "w+")
-            file.write(readfile_contents)
-            file.close()
+            self._set_readfile_contents(readfile_contents)
 
         self._add_disk_to_board(disk_image=disk_image)
 
@@ -257,3 +244,18 @@ class KernelDiskWorkload:
         :param arg: The kernel argument to append.
         """
         self.workload.command_line += f" {arg}"
+
+    def _set_readfile_contents(self, readfile_contents: str) -> None:
+        # We hash the contents of the readfile and append it to the
+        # readfile name. This is to ensure that we don't overwrite the
+        # readfile if the contents are different.
+        readfile_contents_hash = hex(
+            hash(tuple(bytes(readfile_contents, "utf-8")))
+        )
+        self.readfile = os.path.join(
+            m5.options.outdir, ("readfile_" + readfile_contents_hash)
+        )
+
+        file = open(self.readfile, "w+")
+        file.write(readfile_contents)
+        file.close()
