@@ -70,18 +70,18 @@ class ViperBoard(X86Board):
             cache_hierarchy=cache_hierarchy,
         )
 
-        self._gpus = gpus
+        self.gpus = gpus
 
     @overrides(AbstractBoard)
     def get_devices(self):
-        return self._gpus
+        return self.gpus
 
     @overrides(AbstractBoard)
     def _connect_things(self) -> None:
         super()._connect_things()
 
-        if self._gpus is not None:
-            for gpu in self._gpus:
+        if self.gpus is not None:
+            for gpu in self.gpus:
                 gpu.connectGPU(self)
 
         self.workload.enable_osxsave = 1
@@ -126,6 +126,9 @@ class ViperBoard(X86Board):
         # the CPU side memories. We need the MemInterface which is called dram
         # in the MemCtrl class even though it might not be modelling dram.
         self.memories = self.memory.get_mem_interfaces()
+
+    def get_pci_host(self):
+        return self.pc.pci_host
 
     @overrides(KernelDiskWorkload)
     def get_disk_device(self):

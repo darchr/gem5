@@ -32,7 +32,6 @@ from m5.objects import (
     SubSystem,
 )
 
-from ....components.boards.abstract_board import AbstractBoard
 from ....components.memory.abstract_memory_system import AbstractMemorySystem
 from ....prebuilt.viper.gpu_cache_hierarchy import ViperGPUCacheHierarchy
 from .viper_shader import ViperShader
@@ -66,28 +65,27 @@ class BaseViperGPU(SubSystem):
         self._my_id = self.get_gpu_count()
         pci_dev = self.next_pci_dev()
 
-        device = AMDGPUDevice(pci_func=0, pci_dev=pci_dev, pci_bus=0)
-        self._device = device
+        self.device = AMDGPUDevice(pci_func=0, pci_dev=pci_dev, pci_bus=0)
 
     def set_shader(self, shader: ViperShader):
-        self._shader = shader
+        self.shader = shader
 
     def get_cpu_dma_ports(self):
-        return self._shader.get_cpu_dma_ports()
+        return self.shader.get_cpu_dma_ports()
 
-    def connectGPU(self, board: AbstractBoard) -> None:
+    def connectGPU(self, board: "ViperBoard") -> None:
         # Connect a CPU pointer. This is only used for SE mode. Any CPU will
         # work, so pick assuming there is at least one
         cpus = board.get_processor()
-        self._shader.set_cpu_pointer(cpus.cores[0].core)
+        self.shader.set_cpu_pointer(cpus.cores[0].core)
 
         # Connect all PIO buses
-        self._shader.connect_iobus(board.get_io_bus())
+        self.shader.connect_iobus(board.get_io_bus())
 
         # Make the cache hierarchy. This will create an independent RubySystem
         # class containing only the GPU caches with no network connection to
         # the CPU cache hierarchy.
-        self._device.gpu_caches = ViperGPUCacheHierarchy(
+        self.gpu_caches = ViperGPUCacheHierarchy(
             gpu_memory=self._memory,
             tcp_size=self._tcp_size,
             tcp_assoc=self._tcp_assoc,
@@ -100,26 +98,18 @@ class BaseViperGPU(SubSystem):
             tcc_count=self._tcc_count,
             cu_per_sqc=self._cu_per_sqc,
             cache_line_size=self._cache_line_size,
-            shader=self._shader,
+            shader=self.shader,
         )
 
-        # Finally attach to the board. PciDevices default to Parent.any for the
-        # PciHost parameter. To make sure this is found we need to connect to
-        # board.pc or a child of board.pc. Historically we place this in the
-        # south bridge.
-        board.pc.south_bridge.gpu_shader = self._shader
-
-        # This is cosmetic so the device shows as board.pc.south_bridge.gpu###
-        # instead of board.pc.south_bridge.gpu_shader.CUs.l1_tlb.gpu_device.
-        gpu_name = f"gpu{self._my_id}"
-        self._device.set_parent(board.pc.south_bridge, gpu_name)
-        self._device.memory = self._memory
+        self.memory = self._memory
 
         # Collect GPU memory controllers created in the GPU cache hierarchy.
         # First assign them as a child to the device so the SimObject unproxy.
         # The device requires the memories parameter to be set as the system
         # pointer required by the AbstractMemory class is set by AMDGPUDevice.
-        self._device.memories = self._memory.get_mem_interfaces()
+        self.device.memories = self._memory.get_mem_interfaces()
+
+        self.device.host = board.get_pci_host()
 
 
 # A scaled down MI210-like device. Defaults to ~1/4th of an MI210.
@@ -154,15 +144,15 @@ class MI210(BaseViperGPU):
         self._tcc_count = tcc_count
         self._cache_line_size = cache_line_size
 
-        self._device.device_name = "MI200"
+        self.device.device_name = "MI200"
 
-        self._device.DeviceID = 0x740F
-        self._device.SubsystemVendorID = 0x1002
-        self._device.SubsystemID = 0x0C34
+        self.device.DeviceID = 0x740F
+        self.device.SubsystemVendorID = 0x1002
+        self.device.SubsystemID = 0x0C34
 
         # Setup device-specific address ranges for various SoC components.
         shader = ViperShader(
-            self._my_id, num_cus, cache_line_size, self._device
+            self._my_id, num_cus, cache_line_size, self.device
         )
         self.set_shader(shader)
 
@@ -173,13 +163,13 @@ class MI210(BaseViperGPU):
         sdma_bases = [0x4980, 0x6180, 0x78000, 0x79000, 0x7A000]
         sdma_sizes = [0x1000] * 5
 
-        self._device.sdmas = shader._create_sdmas(sdma_bases, sdma_sizes)
+        self.device.sdmas = shader._create_sdmas(sdma_bases, sdma_sizes)
 
         # Setup the Command Processor's PM4 engines.
         pm4_starts = [0xC000]
         pm4_ends = [0xD000]
 
-        self._device.pm4_pkt_procs = shader._create_pm4s(pm4_starts, pm4_ends)
+        self.device.pm4_pkt_procs = shader._create_pm4s(pm4_starts, pm4_ends)
 
     def get_driver_command(self, debug: bool = False):
         debug_commands = "dmesg -n8\n" if debug else ""
@@ -232,15 +222,15 @@ class MI300X(BaseViperGPU):
         self._tcc_count = tcc_count
         self._cache_line_size = cache_line_size
 
-        self._device.device_name = "MI300X"
+        self.device.device_name = "MI300X"
 
-        self._device.DeviceID = 0x740F
-        self._device.SubsystemVendorID = 0x1002
-        self._device.SubsystemID = 0x0C34
+        self.device.DeviceID = 0x740F
+        self.device.SubsystemVendorID = 0x1002
+        self.device.SubsystemID = 0x0C34
 
         # Setup device-specific address ranges for various SoC components.
         shader = ViperShader(
-            self._my_id, num_cus, cache_line_size, self._device
+            self._my_id, num_cus, cache_line_size, self.device
         )
         self.set_shader(shader)
 
@@ -249,13 +239,13 @@ class MI300X(BaseViperGPU):
         sdma_bases = [0x4980, 0x6180, 0x78000, 0x79000, 0x7A000]
         sdma_sizes = [0x1000] * 5
 
-        self._device.sdmas = shader._create_sdmas(sdma_bases, sdma_sizes)
+        self.device.sdmas = shader._create_sdmas(sdma_bases, sdma_sizes)
 
         # Setup the Command Processor's PM4 engines.
         pm4_starts = [0xC000]
         pm4_ends = [0xD000]
 
-        self._device.pm4_pkt_procs = shader._create_pm4s(pm4_starts, pm4_ends)
+        self.device.pm4_pkt_procs = shader._create_pm4s(pm4_starts, pm4_ends)
 
     def get_driver_command(self, debug: bool = False):
         debug_commands = "dmesg -n8\n" if debug else ""
