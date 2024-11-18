@@ -25,9 +25,9 @@ from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
 from gem5.components.processors.abstract_processor import AbstractProcessor
 
 
-class RemoteArmBoard(ArmBoard):
+class HostArmBoard(ArmBoard):
     """This class acts just like the arm board but it allows you to connect
-    a remote memory system to the board.
+    a remote memory system to the board. This acts like a CXL Host.
 
     The added function in `add_remote_memory` which takes a memory system.
     """
@@ -55,7 +55,7 @@ class RemoteArmBoard(ArmBoard):
         """Allow this board to access a remote memory system.
 
         :param: remote_memory the remote memory system. Note: This can be
-                *exactly the same* between multiple `RemoteMemoryX86Board`s
+                *exactly the same* between multiple `HostArmBoard`s
         :param: remote_system the system that owns the remote_memory. This is
                 is used to set up the RequestorIDs
 
@@ -86,7 +86,7 @@ class RemoteArmBoard(ArmBoard):
         return self.get_memory().get_mem_ports() + self._remote_memory_ports
 
     def _pre_instantiate(self, root):
-        """ Must override AbstractBoard._pre_instantiate since
+        """Must override AbstractBoard._pre_instantiate since
         root is created by the cluster "board"
         """
         self._connect_things()

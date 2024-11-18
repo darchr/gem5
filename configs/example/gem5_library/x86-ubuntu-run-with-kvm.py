@@ -39,6 +39,7 @@ scons build/X86/gem5.opt
 ./build/X86/gem5.opt configs/example/gem5_library/x86-ubuntu-run-with-kvm.py
 ```
 """
+import m5
 
 from gem5.coherence_protocol import CoherenceProtocol
 from gem5.components.boards.x86_board import X86Board
@@ -48,7 +49,11 @@ from gem5.components.processors.simple_switchable_processor import (
     SimpleSwitchableProcessor,
 )
 from gem5.isas import ISA
-from gem5.resources.resource import obtain_resource
+from gem5.resources.resource import (
+    DiskImageResource,
+    KernelResource,
+    obtain_resource,
+)
 from gem5.simulate.exit_event import ExitEvent
 from gem5.simulate.simulator import Simulator
 from gem5.utils.requires import requires
@@ -101,8 +106,52 @@ board = X86Board(
 )
 
 
-workload = obtain_resource("x86-ubuntu-24.04-boot-with-systemd")
-board.set_workload(workload)
+# This is the command to run after the system has booted. The first `m5 exit`
+# will stop the simulation so we can switch the CPU cores from KVM to timing
+# and continue the simulation to run the echo command, sleep for a second,
+# then, again, call `m5 exit` to terminate the simulation. After simulation
+# has ended you may inspect `m5out/system.pc.com_1.device` to see the echo
+# output.
+writer_command = [
+    "echo '12345' | sudo -S ./mount.sh;",
+    "sleep 1;",
+    "gem5-bridge dumpresetstats;",
+    "gem5-bridge exit;",
+    "./test-read-write",
+]
+
+# workload = obtain_resource("x86-ubuntu-24.04-boot-with-systemd")
+# print(workload)
+# workload.set_parameter("readfile_contents", command)
+board.set_kernel_disk_workload(
+    # kernel=obtain_resource("x86-linux-kernel-6.8.0-35-generic"),
+    kernel=KernelResource("/home/jlp/Code/linux/vmlinux.x86"),
+    disk_image=DiskImageResource(
+        "/home/jlp/Code/gem5/gem5-resources/src/add-dax/disk-image/x86-ubuntu-24-04-dax"
+    ),
+    kernel_args=[
+        "earlyprintk=ttyS0",
+        "console=ttyS0",
+        "lpj=7999923",
+        "root=/dev/sda2",
+    ],
+    readfile_contents=" ".join(writer_command),
+)
+
+board.append_kernel_arg("no_systemd=true")
+board.append_kernel_arg("memmap=32M!2G")
+
+
+def on_exit():
+    yield False
+    print("switching cpus")
+    processor.switch()
+    yield False
+    print("debug start")
+    m5.debug.flags["MemoryAccess"].enable()  # "NoncoherentXBar",
+    yield False
+    yield True
+
 
 
 def exit_event_handler():
@@ -124,9 +173,7 @@ def exit_event_handler():
 simulator = Simulator(
     board=board,
     on_exit_event={
-        # Here we want override the default behavior for the first m5 exit
-        # exit event.
-        ExitEvent.EXIT: exit_event_handler()
+        ExitEvent.EXIT: on_exit(),
     },
 )
 
