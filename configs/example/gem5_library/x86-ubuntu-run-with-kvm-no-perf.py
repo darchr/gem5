@@ -54,6 +54,12 @@ from gem5.simulate.exit_handler import (
     AfterBootExitHandler,
     ExitHandler,
 )
+from gem5.resources.resource import (
+    DiskImageResource,
+    KernelResource,
+    obtain_resource,
+)
+from gem5.simulate.exit_event import ExitEvent
 from gem5.simulate.simulator import Simulator
 from gem5.utils.override import overrides
 from gem5.utils.requires import requires
@@ -65,6 +71,9 @@ requires(
     kvm_required=True,
 )
 
+from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
+    PrivateL1PrivateL2CacheHierarchy,
+)
 from gem5.components.cachehierarchies.ruby.mesi_two_level_cache_hierarchy import (
     MESITwoLevelCacheHierarchy,
 )
