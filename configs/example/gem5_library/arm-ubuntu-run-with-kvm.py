@@ -42,6 +42,7 @@ scons build/ARM/gem5.opt -j<NUM_CPUS>
 
 from m5.objects import (
     ArmDefaultRelease,
+    ArmSystem,
     VExpress_GEM5_V1,
 )
 
@@ -53,9 +54,14 @@ from gem5.components.processors.simple_switchable_processor import (
     SimpleSwitchableProcessor,
 )
 from gem5.isas import ISA
-from gem5.resources.resource import obtain_resource
+from gem5.resources.resource import (
+    DiskImageResource,
+    KernelResource,
+    obtain_resource,
+)
 from gem5.simulate.exit_event import ExitEvent
 from gem5.simulate.simulator import Simulator
+from gem5.utils.override import overrides
 from gem5.utils.requires import requires
 
 # This runs a check to ensure the gem5 binary is compiled for ARM.
@@ -83,7 +89,7 @@ processor = SimpleSwitchableProcessor(
     starting_core_type=CPUTypes.KVM,
     switch_core_type=CPUTypes.TIMING,
     isa=ISA.ARM,
-    num_cores=2,
+    num_cores=1,
 )
 
 # The ArmBoard requires a `release` to be specified. This adds all the
@@ -96,8 +102,70 @@ release = ArmDefaultRelease.for_kvm()
 # on the ArmBoard at the moment.
 platform = VExpress_GEM5_V1()
 
+
+from m5.util.fdthelper import (
+    FdtNode,
+    FdtProperty,
+    FdtPropertyStrings,
+    FdtPropertyWords,
+)
+
+
+class MyArmBoard(ArmBoard):
+    @overrides(ArmSystem)
+    def generateDeviceTree(self, state):
+        # Generate a device tree root node for the system by creating the root
+        # node and adding the generated subnodes of all children.
+        # When a child needs to add multiple nodes, this is done by also
+        # creating a node called '/' which will then be merged with the
+        # root instead of appended.
+
+        def generateMemNode(mem_range):
+            node = FdtNode(f"memory@{int(mem_range.start):x}")
+            node.append(FdtPropertyStrings("device_type", ["memory"]))
+            node.append(
+                FdtPropertyWords(
+                    "reg",
+                    state.addrCells(mem_range.start)
+                    + state.sizeCells(mem_range.size() - 0x4000_0000),
+                    # Remove the last 1GB of memory to avoid overlap with pmem
+                )
+            )
+            return node
+
+        root = FdtNode("/")
+        root.append(state.addrCellsProperty())
+        root.append(state.sizeCellsProperty())
+
+        # Add memory nodes
+        for mem_range in self.mem_ranges:
+            root.append(generateMemNode(mem_range))
+
+        for node in self.recurseDeviceTree(state):
+            # Merge root nodes instead of adding them (for children
+            # that need to add multiple root level nodes)
+            if node.get_name() == root.get_name():
+                root.merge(node)
+            else:
+                root.append(node)
+
+        node = FdtNode("pmem@140000000")
+        node.append(FdtPropertyStrings("compatible", ["pmem-region"]))
+        node.append(
+            FdtPropertyWords(
+                "reg",
+                state.addrCells(0x1_4000_0000) + state.sizeCells(0x4000_0000),
+                # use the upper 1GB of memory for pmem
+            )
+        )
+        node.append(FdtProperty("volatile"))
+        root.append(node)
+
+        return root
+
+
 # Here we setup the board. The ArmBoard allows for Full-System ARM simulations.
-board = ArmBoard(
+board = MyArmBoard(
     clk_freq="3GHz",
     processor=processor,
     memory=memory,

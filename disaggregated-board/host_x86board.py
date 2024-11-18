@@ -10,20 +10,21 @@ from m5.objects import (
     SimpleMemDelay,
     SysBridge,
     System,
-    X86E820Entry,
 )
 
+from gem5.components.boards.abstract_board import AbstractBoard
 from gem5.components.boards.x86_board import X86Board
 from gem5.components.cachehierarchies.abstract_cache_hierarchy import (
     AbstractCacheHierarchy,
 )
 from gem5.components.memory.abstract_memory_system import AbstractMemorySystem
 from gem5.components.processors.abstract_processor import AbstractProcessor
+from gem5.utils.override import *
 
 
-class RemoteMemoryX86Board(X86Board):
+class HostX86Board(X86Board):
     """This class acts just like the x86 board but it allows you to connect
-    a remote memory system to the board.
+    a remote memory system to the board. This acts like a CXL host.
 
     The added function in `add_remote_memory` which takes a memory system.
     """
@@ -49,7 +50,7 @@ class RemoteMemoryX86Board(X86Board):
         """Allow this board to access a remote memory system.
 
         :param: remote_memory the remote memory system. Note: This can be
-                *exactly the same* between multiple `RemoteMemoryX86Board`s
+                *exactly the same* between multiple `HostX86Board`s
         :param: remote_system the system that owns the remote_memory. This is
                 is used to set up the RequestorIDs
 
@@ -85,14 +86,12 @@ class RemoteMemoryX86Board(X86Board):
         ]
         self._remote_memory_ports = [
             (rng, bridge.source_port)
-            for (rng, rm_port), bridge in zip(
+            for (rng, _), bridge in zip(
                 remote_memory.get_mem_ports(), self.system_bridges
             )
         ]
-        self.external_memory_ranges = [
-            rng for rng, _ in remote_memory.get_mem_ports()
-        ]
 
+    @overrides(AbstractBoard)
     def _pre_instantiate(self, root):
         """Must override AbstractBoard._pre_instantiate since
         root is created by the cluster "board"

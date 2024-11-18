@@ -1,13 +1,7 @@
-from typing import (
-    Sequence,
-    Tuple,
-)
-
 from m5.objects import (
     AddrRange,
-    SimpleMemDelay,
     NoncoherentXBar,
-    Port,
+    SimpleMemDelay,
     SrcClockDomain,
     SubSystem,
     System,
@@ -49,9 +43,13 @@ class RemoteMemory(ChanneledMemory):
         # The reason we do this here is so that these objects are in the
         # remote memory system's sub-system and use that thread's eventq.
         self.mem_delays = [
-            SimpleMemDelay(read_req="100ns", read_resp="0ns",
-                           write_req="100ns", write_resp="0ns",
-                           mem_side_port=self.xbar.cpu_side_ports)
+            SimpleMemDelay(
+                read_req="100ns",
+                read_resp="0ns",
+                write_req="100ns",
+                write_resp="0ns",
+                mem_side_port=self.xbar.cpu_side_ports,
+            )
             for _ in range(self._num_boards)
         ]
 
@@ -61,14 +59,19 @@ class RemoteMemory(ChanneledMemory):
         It needs to be wierd like this since each board is going to connect
         to a different port.
         """
+
         class MemorySystem:
             def __init__(self, rng, port):
                 self.rng = rng
                 self.port = port
+
             def get_mem_ports(self):
                 return [(self.rng, self.port)]
-        return MemorySystem(self.get_uninterleaved_range()[0],
-                            self.mem_delays[board_index].cpu_side_port)
+
+        return MemorySystem(
+            self.get_uninterleaved_range()[0],
+            self.mem_delays[board_index].cpu_side_port,
+        )
 
     # def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
     #     return [(self.get_uninterleaved_range()[0], self.xbar.cpu_side_ports)]
@@ -100,10 +103,10 @@ class Cluster(SubSystem):
         self.mem_system.memory = remote_memory
         self.mem_system.memory.set_num_boards(len(boards))
 
-        for i,board in enumerate(self.boards):
+        for i, board in enumerate(self.boards):
             board.add_remote_memory(
                 self.mem_system.memory.get_mem_system_for_board(i),
-                self.mem_system
+                self.mem_system,
             )
 
     def get_processor(self):
@@ -113,19 +116,20 @@ class Cluster(SubSystem):
     def is_fullsystem(self):
         return True
 
-    def _pre_instantiate(self, full_system = None):
-        """ This needs to look like an AbstractBoard so that the cluster can
+    def _pre_instantiate(self, full_system=None):
+        """This needs to look like an AbstractBoard so that the cluster can
         be used as a board in the simulation. The main cluster is what is
         responsible for creating the root.
         """
         if self._parallel:
             for obj in self.descendants():
                 obj.eventq_index = 0
-            for i,board in enumerate(self.boards):
+            for i, board in enumerate(self.boards):
                 for obj in board.descendants():
                     obj.eventq_index = i + 1
 
         from m5.objects import Root
+
         root = Root(full_system=True, board=self)
 
         if self._parallel:
