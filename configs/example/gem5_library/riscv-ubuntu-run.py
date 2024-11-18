@@ -40,15 +40,31 @@ scons build/RISCV/gem5.opt
 ```
 """
 
+import os
+from typing import List
+
 import m5
 from m5.objects import Root
+from m5.util.fdthelper import (
+    Fdt,
+    FdtNode,
+    FdtProperty,
+    FdtPropertyStrings,
+    FdtPropertyWords,
+    FdtState,
+)
 
 from gem5.components.boards.riscv_board import RiscvBoard
 from gem5.components.memory import DualChannelDDR4_2400
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.isas import ISA
-from gem5.resources.resource import obtain_resource
+from gem5.resources.resource import (
+    DiskImageResource,
+    KernelResource,
+    obtain_resource,
+)
+from gem5.simulate.exit_event import ExitEvent
 from gem5.simulate.simulator import Simulator
 from gem5.utils.requires import requires
 
@@ -72,25 +88,333 @@ memory = DualChannelDDR4_2400(size="3GiB")
 
 # Here we setup the processor. We use a simple processor.
 processor = SimpleProcessor(
-    cpu_type=CPUTypes.TIMING, isa=ISA.RISCV, num_cores=2
+    cpu_type=CPUTypes.ATOMIC, isa=ISA.RISCV, num_cores=1
 )
+
 
 # Here we setup the board. The RiscvBoard allows for Full-System RISCV
 # simulations.
-board = RiscvBoard(
+# board = RiscvBoard(
+#     clk_freq="3GHz",
+#     processor=processor,
+#     memory=memory,
+#     cache_hierarchy=cache_hierarchy,
+# )
+class MyRiscvBoard(RiscvBoard):
+    def generate_device_tree(self, outdir: str) -> None:
+        """Creates the ``dtb`` and ``dts`` files.
+
+        Creates two files in the outdir: ``device.dtb`` and ``device.dts``.
+
+        :param outdir: Directory to output the files.
+        """
+
+        state = FdtState(addr_cells=2, size_cells=2, cpu_cells=1)
+        root = FdtNode("/")
+        root.append(state.addrCellsProperty())
+        root.append(state.sizeCellsProperty())
+        root.appendCompatible(["riscv-virtio"])
+
+        for mem_range in self.mem_ranges:
+            node = FdtNode(f"memory@{int(mem_range.start):x}")
+            node.append(FdtPropertyStrings("device_type", ["memory"]))
+            node.append(
+                FdtPropertyWords(
+                    "reg",
+                    state.addrCells(mem_range.start)
+                    + state.sizeCells(mem_range.size() - 0x4000_0000),
+                )
+            )
+            root.append(node)
+
+        node = FdtNode(f"chosen")
+        bootargs = self.workload.command_line
+        node.append(FdtPropertyStrings("bootargs", [bootargs]))
+        node.append(FdtPropertyStrings("stdout-path", ["/uart@10000000"]))
+        root.append(node)
+
+        # PMEM node
+        node = FdtNode("pmem@140000000")
+        node.append(FdtPropertyStrings("compatible", ["pmem-region"]))
+        node.append(
+            FdtPropertyWords(
+                "reg",
+                state.addrCells(0x1_4000_0000) + state.sizeCells(0x4000_0000),
+                # use the upper 1GB of memory for pmem
+            )
+        )
+        node.append(FdtProperty("volatile"))
+        root.append(node)
+
+        # See Documentation/devicetree/bindings/riscv/cpus.txt for details.
+        cpus_node = FdtNode("cpus")
+        cpus_state = FdtState(addr_cells=1, size_cells=0)
+        cpus_node.append(cpus_state.addrCellsProperty())
+        cpus_node.append(cpus_state.sizeCellsProperty())
+        # Used by the CLINT driver to set the timer frequency. Value taken from
+        # RISC-V kernel docs (Note: freedom-u540 is actually 1MHz)
+        cpus_node.append(FdtPropertyWords("timebase-frequency", [100000000]))
+
+        for i, core in enumerate(self.get_processor().get_cores()):
+            node = FdtNode(f"cpu@{i}")
+            node.append(FdtPropertyStrings("device_type", "cpu"))
+            node.append(FdtPropertyWords("reg", state.CPUAddrCells(i)))
+            node.append(FdtPropertyStrings("mmu-type", "riscv,sv48"))
+            if core.core.isa[0].enable_Zicbom_fs.value:
+                node.append(
+                    FdtPropertyWords(
+                        "riscv,cbom-block-size", self.get_cache_line_size()
+                    )
+                )
+            if core.core.isa[0].enable_Zicboz_fs.value:
+                node.append(
+                    FdtPropertyWords(
+                        "riscv,cboz-block-size", self.get_cache_line_size()
+                    )
+                )
+            node.append(FdtPropertyStrings("status", "okay"))
+            node.append(
+                FdtPropertyStrings(
+                    "riscv,isa", core.core.isa[0].get_isa_string()
+                )
+            )
+            # TODO: Should probably get this from the core.
+            freq = self.clk_domain.clock[0].frequency
+            node.append(FdtPropertyWords("clock-frequency", freq))
+            node.appendCompatible(["riscv"])
+            int_phandle = state.phandle(f"cpu@{i}.int_state")
+            node.appendPhandle(f"cpu@{i}")
+
+            int_node = FdtNode("interrupt-controller")
+            int_state = FdtState(interrupt_cells=1)
+            int_phandle = int_state.phandle(f"cpu@{i}.int_state")
+            int_node.append(int_state.interruptCellsProperty())
+            int_node.append(FdtProperty("interrupt-controller"))
+            int_node.appendCompatible("riscv,cpu-intc")
+            int_node.append(FdtPropertyWords("phandle", [int_phandle]))
+
+            node.append(int_node)
+            cpus_node.append(node)
+
+        root.append(cpus_node)
+
+        soc_node = FdtNode("soc")
+        soc_state = FdtState(addr_cells=2, size_cells=2)
+        soc_node.append(soc_state.addrCellsProperty())
+        soc_node.append(soc_state.sizeCellsProperty())
+        soc_node.append(FdtProperty("ranges"))
+        soc_node.appendCompatible(["simple-bus"])
+
+        # CLINT node
+        clint = self.platform.clint
+        clint_node = clint.generateBasicPioDeviceNode(
+            soc_state, "clint", clint.pio_addr, clint.pio_size
+        )
+        int_extended = list()
+        for i, core in enumerate(self.get_processor().get_cores()):
+            phandle = soc_state.phandle(f"cpu@{i}.int_state")
+            int_extended.append(phandle)
+            int_extended.append(0x3)
+            int_extended.append(phandle)
+            int_extended.append(0x7)
+        clint_node.append(
+            FdtPropertyWords("interrupts-extended", int_extended)
+        )
+        clint_node.appendCompatible(["riscv,clint0"])
+        soc_node.append(clint_node)
+
+        # PLIC node
+        plic = self.platform.plic
+        plic_node = plic.generateBasicPioDeviceNode(
+            soc_state, "plic", plic.pio_addr, plic.pio_size
+        )
+
+        int_state = FdtState(addr_cells=0, interrupt_cells=1)
+        plic_node.append(int_state.addrCellsProperty())
+        plic_node.append(int_state.interruptCellsProperty())
+
+        phandle = int_state.phandle(plic)
+        plic_node.append(FdtPropertyWords("phandle", [phandle]))
+        plic_node.append(FdtPropertyWords("riscv,ndev", [plic.n_src - 1]))
+
+        int_extended = list()
+        cpu_id = 0
+        phandle = int_state.phandle(f"cpu@{cpu_id}.int_state")
+        for c in plic.hart_config:
+            if c == ",":
+                cpu_id += 1
+                assert cpu_id < self.get_processor().get_num_cores()
+                phandle = int_state.phandle(f"cpu@{cpu_id}.int_state")
+            elif c == "S":
+                int_extended.append(phandle)
+                int_extended.append(0x9)
+            elif c == "M":
+                int_extended.append(phandle)
+                int_extended.append(0xB)
+
+        plic_node.append(FdtPropertyWords("interrupts-extended", int_extended))
+        plic_node.append(FdtProperty("interrupt-controller"))
+        plic_node.appendCompatible(["riscv,plic0"])
+
+        soc_node.append(plic_node)
+
+        # PCI
+        pci_state = FdtState(
+            addr_cells=3, size_cells=2, cpu_cells=1, interrupt_cells=1
+        )
+        pci_node = FdtNode("pci")
+
+        if int(self.platform.pci_host.conf_device_bits) == 8:
+            pci_node.appendCompatible("pci-host-cam-generic")
+        elif int(self.platform.pci_host.conf_device_bits) == 12:
+            pci_node.appendCompatible("pci-host-ecam-generic")
+        else:
+            m5.fatal("No compatibility string for the set conf_device_width")
+
+        pci_node.append(FdtPropertyStrings("device_type", ["pci"]))
+
+        # Cell sizes of child nodes/peripherals
+        pci_node.append(pci_state.addrCellsProperty())
+        pci_node.append(pci_state.sizeCellsProperty())
+        pci_node.append(pci_state.interruptCellsProperty())
+        # PCI address for CPU
+        pci_node.append(
+            FdtPropertyWords(
+                "reg",
+                soc_state.addrCells(self.platform.pci_host.conf_base)
+                + soc_state.sizeCells(self.platform.pci_host.conf_size),
+            )
+        )
+
+        # Ranges mapping
+        # For now some of this is hard coded, because the PCI module does not
+        # have a proper full understanding of the memory map, but adapting the
+        # PCI module is beyond the scope of what I'm trying to do here.
+        # Values are taken from the ARM VExpress_GEM5_V1 platform.
+        ranges = []
+        # Pio address range
+        ranges += self.platform.pci_host.pciFdtAddr(space=1, addr=0)
+        ranges += soc_state.addrCells(self.platform.pci_host.pci_pio_base)
+        ranges += pci_state.sizeCells(0x10000)  # Fixed size
+
+        # AXI memory address range
+        ranges += self.platform.pci_host.pciFdtAddr(space=2, addr=0)
+        ranges += soc_state.addrCells(self.platform.pci_host.pci_mem_base)
+        ranges += pci_state.sizeCells(0x40000000)  # Fixed size
+        pci_node.append(FdtPropertyWords("ranges", ranges))
+
+        # Interrupt mapping
+        plic_handle = int_state.phandle(plic)
+        int_base = self.platform.pci_host.int_base
+
+        interrupts = []
+
+        for i in range(int(self.platform.pci_host.int_count)):
+            interrupts += self.platform.pci_host.pciFdtAddr(
+                device=i, addr=0
+            ) + [int(i) + 1, plic_handle, int(int_base) + i]
+
+        pci_node.append(FdtPropertyWords("interrupt-map", interrupts))
+
+        int_count = int(self.platform.pci_host.int_count)
+        if int_count & (int_count - 1):
+            fatal("PCI interrupt count should be power of 2")
+
+        intmask = self.platform.pci_host.pciFdtAddr(
+            device=int_count - 1, addr=0
+        ) + [0x0]
+        pci_node.append(FdtPropertyWords("interrupt-map-mask", intmask))
+
+        if self.platform.pci_host._dma_coherent:
+            pci_node.append(FdtProperty("dma-coherent"))
+
+        soc_node.append(pci_node)
+
+        # UART node
+        uart = self.platform.uart
+        uart_node = uart.generateBasicPioDeviceNode(
+            soc_state, "uart", uart.pio_addr, uart.pio_size
+        )
+        uart_node.append(
+            FdtPropertyWords("interrupts", [self.platform.uart_int_id])
+        )
+        uart_node.append(FdtPropertyWords("clock-frequency", [0x384000]))
+        uart_node.append(
+            FdtPropertyWords("interrupt-parent", soc_state.phandle(plic))
+        )
+        uart_node.appendCompatible(["ns8250", "ns16550a"])
+        soc_node.append(uart_node)
+
+        # VirtIO MMIO disk node
+        disk = self.disk
+        disk_node = disk.generateBasicPioDeviceNode(
+            soc_state, "virtio_mmio", disk.pio_addr, disk.pio_size
+        )
+        disk_node.append(FdtPropertyWords("interrupts", [disk.interrupt_id]))
+        disk_node.append(
+            FdtPropertyWords("interrupt-parent", soc_state.phandle(plic))
+        )
+        disk_node.appendCompatible(["virtio,mmio"])
+        soc_node.append(disk_node)
+
+        # VirtIO MMIO rng node
+        rng = self.rng
+        rng_node = rng.generateBasicPioDeviceNode(
+            soc_state, "virtio_mmio", rng.pio_addr, rng.pio_size
+        )
+        rng_node.append(FdtPropertyWords("interrupts", [rng.interrupt_id]))
+        rng_node.append(
+            FdtPropertyWords("interrupt-parent", soc_state.phandle(plic))
+        )
+        rng_node.appendCompatible(["virtio,mmio"])
+        soc_node.append(rng_node)
+
+        root.append(soc_node)
+
+        fdt = Fdt()
+        fdt.add_rootnode(root)
+        fdt.writeDtsFile(os.path.join(outdir, "device.dts"))
+        fdt.writeDtbFile(os.path.join(outdir, "device.dtb"))
+
+
+# Here we a full system workload: "riscv-ubuntu-20.04-boot" which boots
+# Ubuntu 20.04. Once the system successfully boots it encounters an `m5_exit`
+# instruction which stops the simulation. When the simulation has ended you may
+# inspect `m5out/system.pc.com_1.device` to see the stdout.
+board = MyRiscvBoard(
     clk_freq="3GHz",
     processor=processor,
     memory=memory,
     cache_hierarchy=cache_hierarchy,
 )
 
-# Here we a full system workload: "riscv-ubuntu-20.04-boot" which boots
-# Ubuntu 20.04. Once the system successfully boots it encounters an `m5_exit`
-# instruction which stops the simulation. When the simulation has ended you may
-# inspect `m5out/system.pc.com_1.device` to see the stdout.
-board.set_workload(
-    obtain_resource("riscv-ubuntu-20.04-boot", resource_version="3.0.0")
+board.set_kernel_disk_workload(
+    # kernel=obtain_resource("riscv-linux-6.5.5-kernel"),
+    kernel=KernelResource(
+        "/home/lredivo/gem5-resources/src/riscv-fs/riscv-opensbi/linux-6.11.1/vmlinux"
+    ),
+    bootloader=obtain_resource(resource_id="riscv-bootloader-opensbi-1.3.1"),
+    disk_image=DiskImageResource("/home/lredivo/darchr/gem5-cxl/riscv-ubuntu"),
+    kernel_args=[
+        "console=ttyS0",
+        "root=/dev/vda1",
+        "init=/bin/bash",
+        "rw",
+    ],
 )
 
-simulator = Simulator(board=board)
+board.append_kernel_arg("no_systemd=true")
+
+
+def on_exit():
+    while 1:
+        yield False
+
+
+simulator = Simulator(
+    board=board,
+    on_exit_event={
+        ExitEvent.EXIT: on_exit(),
+    },
+)
 simulator.run()

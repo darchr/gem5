@@ -49,7 +49,11 @@ from gem5.components.processors.simple_switchable_processor import (
     SimpleSwitchableProcessor,
 )
 from gem5.isas import ISA
-from gem5.resources.resource import obtain_resource
+from gem5.resources.resource import (
+    DiskImageResource,
+    KernelResource,
+    obtain_resource,
+)
 from gem5.simulate.exit_event import ExitEvent
 from gem5.simulate.simulator import Simulator
 from gem5.utils.requires import requires
@@ -62,6 +66,9 @@ requires(
     kvm_required=True,
 )
 
+from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import (
+    PrivateL1PrivateL2CacheHierarchy,
+)
 from gem5.components.cachehierarchies.ruby.mesi_two_level_cache_hierarchy import (
     MESITwoLevelCacheHierarchy,
 )
@@ -121,18 +128,38 @@ command = (
     + "m5 exit;"
 )
 
-workload = obtain_resource("x86-ubuntu-18.04-boot", resource_version="2.0.0")
-workload.set_parameter("readfile_contents", command)
-board.set_workload(workload)
+board.set_kernel_disk_workload(
+    # kernel=obtain_resource("x86-linux-kernel-6.8.0-35-generic"),
+    kernel=KernelResource("/home/jlp/Code/linux/vmlinux-x86"),
+    disk_image=DiskImageResource(
+        "/home/jlp/Code/gem5/gem5-resources/src/add-dax/disk-image/x86-ubuntu-24-04-dax"
+    ),
+    kernel_args=[
+        "earlyprintk=ttyS0",
+        "console=ttyS0",
+        "lpj=7999923",
+        "root=/dev/sda2",
+    ],
+)
+
+board.append_kernel_arg("no_systemd=true")
+board.append_kernel_arg("memmap=32M!2G")
+
+
+def on_exit():
+    while 1:
+        yield False
+
 
 simulator = Simulator(
     board=board,
     on_exit_event={
-        # Here we want override the default behavior for the first m5 exit
-        # exit event. Instead of exiting the simulator, we just want to
-        # switch the processor. The 2nd m5 exit after will revert to using
-        # default behavior where the simulator run will exit.
-        ExitEvent.EXIT: (func() for func in [processor.switch])
+        ExitEvent.EXIT: on_exit(),
+        # # Here we want override the default behavior for the first m5 exit
+        # # exit event. Instead of exiting the simulator, we just want to
+        # # switch the processor. The 2nd m5 exit after will revert to using
+        # # default behavior where the simulator run will exit.
+        # ExitEvent.EXIT: (func() for func in [processor.switch])
     },
 )
 simulator.run()
