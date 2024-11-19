@@ -33,7 +33,7 @@ from gem5.simulate.exit_event import ExitEvent
 from gem5.simulate.simulator import Simulator
 
 arg_parser = argparse.ArgumentParser()
-arg_parser.add_argument("--num-boards", type=int, default=1)
+arg_parser.add_argument("--num-boards", type=int, default=2)
 arg_parser.add_argument("--parallel", action="store_true", default=False)
 args = arg_parser.parse_args()
 
@@ -41,10 +41,11 @@ args = arg_parser.parse_args()
 def get_board():
     board = HostX86Board(
         clk_freq="3GHz",
-        processor=SimpleProcessor(
-            cpu_type=CPUTypes.TIMING,
-            num_cores=1,
+        processor=SimpleSwitchableProcessor(
+            starting_core_type=CPUTypes.ATOMIC,
+            switch_core_type=CPUTypes.TIMING,
             isa=ISA.X86,
+            num_cores=1,
         ),
         cache_hierarchy=PrivateL1PrivateL2CacheHierarchy(
             l1d_size="32KiB",
