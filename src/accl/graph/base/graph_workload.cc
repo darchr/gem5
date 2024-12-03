@@ -32,6 +32,7 @@
 
 #include "base/cprintf.hh"
 #include "base/intmath.hh"
+#include "debug/SPMVWorkload.hh"
 
 namespace gem5
 {
@@ -407,5 +408,108 @@ BSPBCWorkload::printWorkListItem(WorkListItem wl)
             wl.activeNow ? "true" : "false",
             wl.activeFuture ? "true" : "false");
 }
+SPMVWorkload::SPMVWorkload(const std::vector<float>& vector_x) {
+    firstIteration = true;
+    inputVector.reserve(vector_x.size());
+    for (const float& val : vector_x) {
+        inputVector.push_back(readFromFloat<uint32_t>(val));
+    }
+    DPRINTF(SPMVWorkload, "SPMVWorkload initialized with vector of size: %d \n", vector_x.size());
+}
 
+void
+SPMVWorkload::init(PacketPtr pkt, WorkDirectory* dir)
+{
+    size_t pkt_size = pkt->getSize();
+    int num_elements = (int)(pkt_size / sizeof(WorkListItem));
+    WorkListItem items[num_elements];
+
+    pkt->writeDataToBlock((uint8_t*)items, pkt_size);
+    bool atom_active = false;
+
+    for (int i = 0; i < num_elements; i++) {
+        WorkListItem new_wl = items[i];
+        new_wl.tempProp = readFromFloat<uint32_t>(0.0f);
+        new_wl.prop = readFromFloat<uint32_t>(0.0f);
+        new_wl.activeNow = (new_wl.degree > 0);
+        atom_active |= new_wl.activeNow;
+        items[i] = new_wl;
+    }
+
+    if (atom_active) {
+        dir->activate(pkt->getAddr());
+    }
+
+    pkt->deleteData();
+    pkt->allocate();
+    pkt->setDataFromBlock((uint8_t*)items, pkt_size);
+}
+
+uint32_t
+SPMVWorkload::reduce(uint32_t update, uint32_t value)
+{
+    float update_float = writeToFloat<uint32_t>(update);
+    float value_float = writeToFloat<uint32_t>(value);
+    float result = update_float + value_float;
+
+    DPRINTF(SPMVWorkload, "Reduce operation:\n");
+    DPRINTF(SPMVWorkload, "  Update (float): %f, Value (float): %f\n",
+     update_float, value_float);
+    DPRINTF(SPMVWorkload, "  Result: %f\n", result);
+
+    return readFromFloat<uint32_t>(result);
+}
+
+uint32_t
+SPMVWorkload::propagate(uint32_t value, uint32_t weight)
+{
+    float weight_float = static_cast<float>(weight);
+    uint32_t weight_bits = readFromFloat<uint32_t>(weight_float);
+
+    float vector_float = writeToFloat<uint32_t>(inputVector[0]); // Placeholder vector value
+    float result = weight_float * vector_float;
+    DPRINTF(SPMVWorkload, "Propagate operation:\n");
+    DPRINTF(SPMVWorkload, "  Weight (float): %f\n", weight_float);
+    DPRINTF(SPMVWorkload, "  Vector value: %f\n", vector_float);
+    DPRINTF(SPMVWorkload, "  Result: %f\n", result);
+    return readFromFloat<uint32_t>(result);
+    return 0;
+}
+
+uint32_t
+SPMVWorkload::apply(WorkListItem& wl)
+{
+    float old_prop = writeToFloat<uint32_t>(wl.prop);
+    float new_prop = writeToFloat<uint32_t>(wl.tempProp);
+    DPRINTF(SPMVWorkload, "Apply: Moving value from tempProp (%f) to prop (was %f)\n",
+     new_prop, old_prop);
+    wl.prop = wl.tempProp;
+    return wl.prop;
+}
+
+void
+SPMVWorkload::iterate()
+{
+    DPRINTF(SPMVWorkload,"Iteration complete, setting firstIteration to false\n");
+    firstIteration = false;
+}
+
+bool
+SPMVWorkload::activeCondition(WorkListItem new_wl, WorkListItem old_wl)
+{
+    return false;
+}
+
+std::string
+SPMVWorkload::printWorkListItem(const WorkListItem wl)
+{
+    float temp_float = writeToFloat<uint32_t>(wl.tempProp);
+    float prop_float = writeToFloat<uint32_t>(wl.prop);
+    return csprintf(
+        "WorkListItem{tempProp: %f, prop: %f, degree: %u, "
+        "edgeIndex: %u, activeNow: %s, activeFuture: %s}",
+        temp_float, prop_float, wl.degree, wl.edgeIndex,
+        wl.activeNow ? "true" : "false",
+        wl.activeFuture ? "true" : "false");
+}
 } // namespace gem5

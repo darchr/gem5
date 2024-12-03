@@ -505,5 +505,9 @@ CenteralController::ControllerStats::regStats()
 
     switchSeconds = switchTicks / simFreq;
 }
-
+void
+CenteralController::createSPMVWorkload(const std::vector<float>& vector_x)
+{
+    workload = new SPMVWorkload(vector_x);
+}
 }

@@ -31,3 +31,4 @@ SimObject("BaseReduceEngine.py", sim_objects=["BaseReduceEngine"])
 
 Source("base_reduce_engine.cc")
 Source("graph_workload.cc")
+DebugFlag("SPMVWorkload")

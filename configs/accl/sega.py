@@ -262,5 +262,8 @@ class SEGA(System):
     def create_bc_workload(self, init_addr, init_value):
         self.ctrl.controller.createBCWorkload(init_addr, init_value)
 
+    def create_spmv_workload(self, vector):
+        self.ctrl.controller.createSPMVWorkload(vector)
+
     def print_answer(self):
         self.ctrl.controller.printAnswerToHostSimout()

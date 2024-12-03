@@ -30,15 +30,18 @@ from m5.proxy import *
 from m5.util.pybind import PyBindMethod
 from m5.objects.BaseMemoryEngine import BaseMemoryEngine
 
+
 class CenteralController(BaseMemoryEngine):
-    type = 'CenteralController'
+    type = "CenteralController"
     cxx_header = "accl/graph/sega/centeral_controller.hh"
-    cxx_class = 'gem5::CenteralController'
+    cxx_class = "gem5::CenteralController"
 
     mirrors_map_mem = RequestPort("Port to a memory storing mirrors map file.")
 
-    choose_best = Param.Bool("Whether to prefer the best update "
-                            "value for choosing the next slice")
+    choose_best = Param.Bool(
+        "Whether to prefer the best update "
+        "value for choosing the next slice"
+    )
 
     vertex_image_file = Param.String("Path to the vertex image file.")
 
@@ -47,18 +50,19 @@ class CenteralController(BaseMemoryEngine):
     mpu_vector = VectorParam.MPU("All mpus in the system.")
 
     cxx_exports = [
-                    PyBindMethod("setAsyncMode"),
-                    PyBindMethod("setBSPMode"),
-                    PyBindMethod("setPGMode"),
-                    PyBindMethod("createPopCountDirectory"),
-                    PyBindMethod("createBFSWorkload"),
-                    PyBindMethod("createBFSVisitedWorkload"),
-                    PyBindMethod("createSSSPWorkload"),
-                    PyBindMethod("createCCWorkload"),
-                    PyBindMethod("createAsyncPRWorkload"),
-                    PyBindMethod("createPRWorkload"),
-                    PyBindMethod("createBCWorkload"),
-                    PyBindMethod("workCount"),
-                    PyBindMethod("getPRError"),
-                    PyBindMethod("printAnswerToHostSimout")
-                ]
+        PyBindMethod("setAsyncMode"),
+        PyBindMethod("setBSPMode"),
+        PyBindMethod("setPGMode"),
+        PyBindMethod("createPopCountDirectory"),
+        PyBindMethod("createBFSWorkload"),
+        PyBindMethod("createBFSVisitedWorkload"),
+        PyBindMethod("createSSSPWorkload"),
+        PyBindMethod("createCCWorkload"),
+        PyBindMethod("createAsyncPRWorkload"),
+        PyBindMethod("createPRWorkload"),
+        PyBindMethod("createBCWorkload"),
+        PyBindMethod("createSPMVWorkload"),
+        PyBindMethod("workCount"),
+        PyBindMethod("getPRError"),
+        PyBindMethod("printAnswerToHostSimout"),
+    ]

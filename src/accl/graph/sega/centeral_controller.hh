@@ -133,6 +133,7 @@ class CenteralController : public BaseMemoryEngine
     void createAsyncPRWorkload(float alpha, float threshold);
     void createPRWorkload(int num_nodes, float alpha);
     void createBCWorkload(Addr init_addr, uint32_t init_value);
+    void createSPMVWorkload(const std::vector<float>& vector_x);
 
     void recvDoneSignal();
 

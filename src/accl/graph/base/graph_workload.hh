@@ -33,6 +33,7 @@
 #include <deque>
 #include <tuple>
 
+#include "base/trace.hh"
 #include "accl/graph/base/data_structs.hh"
 #include "accl/graph/sega/work_directory.hh"
 #include "mem/packet.hh"
@@ -184,7 +185,25 @@ class BSPBCWorkload : public GraphWorkload
     virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl);
     virtual std::string printWorkListItem(const WorkListItem wl);
 };
+class SPMVWorkload : public GraphWorkload
+{
+  private:
+    std::vector<uint32_t> inputVector;
+    bool firstIteration;
 
+  public:
+    SPMVWorkload(const std::vector<float>& vector_x);
+    ~SPMVWorkload() {}
+
+    virtual void init(PacketPtr pkt, WorkDirectory* dir) override;
+    virtual uint32_t reduce(uint32_t update, uint32_t value) override;
+    virtual uint32_t propagate(uint32_t value, uint32_t weight) override;
+    virtual uint32_t apply(WorkListItem& wl) override;
+    virtual void iterate() override;
+    virtual void interIterationInit(WorkListItem& wl) override {}
+    virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl) override;
+    virtual std::string printWorkListItem(const WorkListItem wl) override;
+};
 }
 
 #endif // __ACCL_GRAPH_BASE_GRAPH_WORKLOAD_HH__
