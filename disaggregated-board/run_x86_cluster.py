@@ -38,16 +38,15 @@ args = arg_parser.parse_args()
 def get_board():
     board = HostX86Board(
         clk_freq="3GHz",
-        processor=SimpleSwitchableProcessor(
-            starting_core_type=CPUTypes.ATOMIC,
-            switch_core_type=CPUTypes.TIMING,
-            isa=ISA.X86,
+        processor=SimpleProcessor(
+            cpu_type=CPUTypes.ATOMIC,
             num_cores=1,
+            isa=ISA.X86,
         ),
         cache_hierarchy=PrivateL1PrivateL2CacheHierarchy(
-            l1d_size="32KiB",
-            l1i_size="32KiB",
-            l2_size="256KiB",
+            l1d_size="2MiB",
+            l1i_size="2MiB",
+            l2_size="64MiB",
         ),
         memory=SingleChannelDDR3_1600(size="2GiB"),
     )
