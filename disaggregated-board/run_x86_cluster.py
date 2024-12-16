@@ -20,9 +20,6 @@ from gem5.components.cachehierarchies.ruby.mesi_two_level_cache_hierarchy import
 from gem5.components.memory.single_channel import SingleChannelDDR3_1600
 from gem5.components.processors.cpu_types import CPUTypes
 from gem5.components.processors.simple_processor import SimpleProcessor
-from gem5.components.processors.simple_switchable_processor import (
-    SimpleSwitchableProcessor,
-)
 from gem5.isas import ISA
 from gem5.resources.resource import (
     DiskImageResource,
@@ -83,7 +80,7 @@ boards = [get_board() for _ in range(args.num_boards)]
 boards[0].set_kernel_disk_workload(
     kernel=KernelResource("/home/jlp/Code/linux/vmlinux.x86"),
     disk_image=DiskImageResource(
-        "/home/jlp/Code/gem5/gem5-resources/src/add-dax/disk-image/x86-ubuntu-24-04-dax"
+        "/home/lredivo/darchr/gem5-cxl/disk-images/x86-stream/x86-ubuntu"
     ),
     kernel_args=[
         "earlyprintk=ttyS0",
@@ -98,7 +95,7 @@ for board in boards[1:]:
     board.set_kernel_disk_workload(
         kernel=KernelResource("/home/jlp/Code/linux/vmlinux.x86"),
         disk_image=DiskImageResource(
-            "/home/jlp/Code/gem5/gem5-resources/src/add-dax/disk-image/x86-ubuntu-24-04-dax"
+            "/home/lredivo/darchr/gem5-cxl/disk-images/x86-stream/x86-ubuntu"
         ),
         kernel_args=[
             "earlyprintk=ttyS0",
@@ -128,12 +125,9 @@ def on_exit():
 
     for i in range(len(boards)):
         print(f"Exited for 'after boot' exit in board {i}")
-        print(f"Switching cpu {i}")
-        board.processor.switch()
         yield False
 
     for i in range(len(boards)):
-        print("debug start")
         yield False
 
     for i in range(len(boards) - 1):
