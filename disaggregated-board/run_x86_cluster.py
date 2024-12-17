@@ -77,13 +77,15 @@ reader_command = [
 boards = [get_board() for _ in range(args.num_boards)]
 
 workload0 = obtain_resource("x86-ubuntu-24.04-disagg")
-boards[0].set_workload(workload0)
 workload0.set_parameter("readfile_contents", " ".join(writer_command))
+boards[0].set_workload(workload0)
+
 
 for board in boards[1:]:
     workload1 = obtain_resource("x86-ubuntu-24.04-disagg")
-    board.set_workload(workload1)
     workload1.set_parameter("readfile_contents", " ".join(reader_command))
+    board.set_workload(workload1)
+
 
 cluster = Cluster(
     boards=boards,
