@@ -39,7 +39,7 @@ def get_board():
     board = HostX86Board(
         clk_freq="3GHz",
         processor=SimpleProcessor(
-            cpu_type=CPUTypes.ATOMIC,
+            cpu_type=CPUTypes.TIMING,
             num_cores=1,
             isa=ISA.X86,
         ),
@@ -76,39 +76,14 @@ reader_command = [
 
 boards = [get_board() for _ in range(args.num_boards)]
 
-boards[0].set_kernel_disk_workload(
-    kernel=KernelResource("/home/jlp/Code/linux/vmlinux.x86"),
-    disk_image=DiskImageResource(
-        "/home/lredivo/darchr/gem5-cxl/disk-images/x86-stream/x86-ubuntu"
-    ),
-    kernel_args=[
-        "earlyprintk=ttyS0",
-        "console=ttyS0",
-        "lpj=7999923",
-        "root=/dev/sda2",
-    ],
-    readfile_contents=" ".join(writer_command),
-)
+workload0 = obtain_resource("x86-ubuntu-24.04-disagg")
+boards[0].set_workload(workload0)
+workload0.set_parameter("readfile_contents", " ".join(writer_command))
 
 for board in boards[1:]:
-    board.set_kernel_disk_workload(
-        kernel=KernelResource("/home/jlp/Code/linux/vmlinux.x86"),
-        disk_image=DiskImageResource(
-            "/home/lredivo/darchr/gem5-cxl/disk-images/x86-stream/x86-ubuntu"
-        ),
-        kernel_args=[
-            "earlyprintk=ttyS0",
-            "console=ttyS0",
-            "lpj=7999923",
-            "root=/dev/sda2",
-        ],
-        readfile_contents=" ".join(reader_command),
-    )
-
-
-for board in boards:
-    board.append_kernel_arg("memmap=1G!2G")
-    board.append_kernel_arg("no_systemd=true")
+    workload1 = obtain_resource("x86-ubuntu-24.04-disagg")
+    board.set_workload(workload1)
+    workload1.set_parameter("readfile_contents", " ".join(reader_command))
 
 cluster = Cluster(
     boards=boards,
