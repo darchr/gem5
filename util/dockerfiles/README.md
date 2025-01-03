@@ -33,19 +33,19 @@ It is worth consulting these files and noting the "targets" and "groups", these 
 For example, the following will build the "ubuntu-24.04_all-dependencies" image:
 
 ```sh
-docker buildx bake ubuntu-24.04_all-dependencies
+docker buildx bake --platform linux/amd64 ubuntu-24.04_all-dependencies
 ```
 
 And the following will build all the gcc-compiler images:
 
 ```sh
-docker buildx bake gcc-compiler
+docker buildx bake --platform linux/amd64 gcc-compiler
 ```
 
 If no target is specified all the images will be built.
 
 ```sh
-docker buildx bake
+docker buildx bake --platform linux/amd64
 ```
 
 ## Pushing the Docker Images
