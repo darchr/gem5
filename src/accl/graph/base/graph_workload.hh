@@ -49,8 +49,10 @@ class GraphWorkload
     ~GraphWorkload() {}
 
     virtual void init(PacketPtr pkt, WorkDirectory* dir) = 0;
-    virtual uint32_t reduce(uint32_t update, uint32_t value) = 0;
-    virtual uint32_t propagate(uint32_t value, uint32_t weight) = 0;
+    virtual std::tuple<uint32_t, uint32_t>
+      reduce(uint32_t update, uint32_t value) = 0;
+    virtual std::tuple<uint32_t, uint32_t>
+      propagate(uint32_t value, uint32_t weight) = 0;
     virtual uint32_t apply(WorkListItem& wl) = 0;
     virtual bool betterThan(uint32_t lhs, uint32_t rhs) { return true; }
     virtual void iterate() = 0;
@@ -73,8 +75,10 @@ class BFSWorkload : public GraphWorkload
     ~BFSWorkload() {}
 
     virtual void init(PacketPtr pkt, WorkDirectory* dir);
-    virtual uint32_t reduce(uint32_t update, uint32_t value);
-    virtual uint32_t propagate(uint32_t value, uint32_t weight);
+    virtual std::tuple<uint32_t, uint32_t>
+      reduce(uint32_t update, uint32_t value);
+    virtual std::tuple<uint32_t, uint32_t>
+      propagate(uint32_t value, uint32_t weight);
     virtual uint32_t apply(WorkListItem& wl);
     virtual bool betterThan(uint32_t lhs, uint32_t rhs) override { return lhs < rhs; }
     virtual void iterate() {}
@@ -89,7 +93,8 @@ class BFSVisitedWorkload : public BFSWorkload
     BFSVisitedWorkload(Addr init_addr, uint32_t init_value):
         BFSWorkload(init_addr, init_value)
     {}
-    virtual uint32_t propagate(uint32_t value, uint32_t weight) override;
+    virtual std::tuple<uint32_t, uint32_t>
+      propagate(uint32_t value, uint32_t weight) override;
 };
 
 class CCWorkload : public BFSVisitedWorkload
@@ -105,7 +110,8 @@ class SSSPWorkload : public BFSWorkload
     SSSPWorkload(Addr init_addr, uint32_t init_value):
         BFSWorkload(init_addr, init_value)
     {}
-    virtual uint32_t propagate(uint32_t value, uint32_t weight) override;
+    virtual std::tuple<uint32_t, uint32_t>
+      propagate(uint32_t value, uint32_t weight) override;
 };
 
 class PRWorkload : public GraphWorkload
@@ -122,8 +128,10 @@ class PRWorkload : public GraphWorkload
     ~PRWorkload() {}
 
     virtual void init(PacketPtr pkt, WorkDirectory* dir);
-    virtual uint32_t reduce(uint32_t update, uint32_t value);
-    virtual uint32_t propagate(uint32_t value, uint32_t weight);
+    virtual std::tuple<uint32_t, uint32_t>
+      reduce(uint32_t update, uint32_t value);
+    virtual std::tuple<uint32_t, uint32_t>
+      propagate(uint32_t value, uint32_t weight);
     virtual uint32_t apply(WorkListItem& wl);
     virtual void iterate() {}
     virtual void interIterationInit(WorkListItem& wl) {};
@@ -147,8 +155,10 @@ class BSPPRWorkload : public GraphWorkload
     ~BSPPRWorkload() {}
 
     virtual void init(PacketPtr pkt, WorkDirectory* dir);
-    virtual uint32_t reduce(uint32_t update, uint32_t value);
-    virtual uint32_t propagate(uint32_t value, uint32_t weight);
+    virtual std::tuple<uint32_t, uint32_t>
+      reduce(uint32_t update, uint32_t value);
+    virtual std::tuple<uint32_t, uint32_t>
+      propagate(uint32_t value, uint32_t weight);
     virtual uint32_t apply(WorkListItem& wl);
     virtual void iterate() { prevError = error; error = 0; }
     virtual void interIterationInit(WorkListItem& wl);
@@ -177,14 +187,17 @@ class BSPBCWorkload : public GraphWorkload
     ~BSPBCWorkload() {}
 
     virtual void init(PacketPtr pkt, WorkDirectory* dir);
-    virtual uint32_t reduce(uint32_t update, uint32_t value);
-    virtual uint32_t propagate(uint32_t value, uint32_t weight);
+    virtual std::tuple<uint32_t, uint32_t>
+      reduce(uint32_t update, uint32_t value);
+    virtual std::tuple<uint32_t, uint32_t>
+      propagate(uint32_t value, uint32_t weight);
     virtual uint32_t apply(WorkListItem& wl);
     virtual void iterate() { currentDepth++; }
     virtual void interIterationInit(WorkListItem& wl);
     virtual bool activeCondition(WorkListItem new_wl, WorkListItem old_wl);
     virtual std::string printWorkListItem(const WorkListItem wl);
 };
+
 class SPMVWorkload : public GraphWorkload
 {
   private:
@@ -196,8 +209,10 @@ class SPMVWorkload : public GraphWorkload
     ~SPMVWorkload() {}
 
     virtual void init(PacketPtr pkt, WorkDirectory* dir) override;
-    virtual uint32_t reduce(uint32_t update, uint32_t value) override;
-    virtual uint32_t propagate(uint32_t value, uint32_t weight) override;
+    virtual std::tuple<uint32_t, uint32_t>
+      reduce(uint32_t update, uint32_t value) override;
+    virtual std::tuple<uint32_t, uint32_t>
+      propagate(uint32_t value, uint32_t weight) override;
     virtual uint32_t apply(WorkListItem& wl) override;
     virtual void iterate() override;
     virtual void interIterationInit(WorkListItem& wl) override {}
@@ -205,5 +220,8 @@ class SPMVWorkload : public GraphWorkload
     virtual std::string printWorkListItem(const WorkListItem wl) override;
 };
 }
+
+
+
 
 #endif // __ACCL_GRAPH_BASE_GRAPH_WORKLOAD_HH__

@@ -83,16 +83,16 @@ BFSWorkload::init(PacketPtr pkt, WorkDirectory* dir)
     }
 }
 
-uint32_t
+std::tuple<uint32_t, uint32_t>
 BFSWorkload::reduce(uint32_t update, uint32_t value)
 {
-    return std::min(update, value);
+    return std::make_tuple(std::min(update, value), 1);
 }
 
-uint32_t
+std::tuple<uint32_t, uint32_t>
 BFSWorkload::propagate(uint32_t value, uint32_t weight)
 {
-    return value + 1;
+    return std::make_tuple(value + 1, 1);
 }
 
 bool
@@ -119,9 +119,9 @@ BFSWorkload::printWorkListItem(const WorkListItem wl)
             wl.activeFuture ? "true" : "false");
 }
 
-uint32_t
+std::tuple<uint32_t, uint32_t>
 BFSVisitedWorkload::propagate(uint32_t value, uint32_t weight) {
-    return value;
+    return std::make_tuple(value, 1);
 }
 
 void
@@ -149,10 +149,10 @@ CCWorkload::init(PacketPtr pkt, WorkDirectory* dir)
     pkt->setDataFromBlock((uint8_t*) items, pkt_size);
 }
 
-uint32_t
+std::tuple<uint32_t, uint32_t>
 SSSPWorkload::propagate(uint32_t value, uint32_t weight)
 {
-    return value + weight;
+    return std::make_tuple(value + weight, 1);
 }
 
 void
@@ -180,15 +180,16 @@ PRWorkload::init(PacketPtr pkt, WorkDirectory* dir)
     pkt->setDataFromBlock((uint8_t*) items, pkt->getSize());
 }
 
-uint32_t
+std::tuple<uint32_t, uint32_t>
 PRWorkload::reduce(uint32_t update, uint32_t value)
 {
     float update_float = writeToFloat<uint32_t>(update);
     float value_float = writeToFloat<uint32_t>(value);
-    return readFromFloat<uint32_t>(update_float + value_float);
+    return std::make_tuple(
+        readFromFloat<uint32_t>(update_float + value_float), 1);
 }
 
-uint32_t
+std::tuple<uint32_t, uint32_t>
 PRWorkload::propagate(uint32_t value, uint32_t weight)
 {
     float value_float = writeToFloat<uint32_t>(value);
@@ -196,7 +197,8 @@ PRWorkload::propagate(uint32_t value, uint32_t weight)
     if (weight == 0) {
         weight_float = 1.0;
     }
-    return readFromFloat<uint32_t>(alpha * value_float * weight_float);
+    return std::make_tuple(
+        readFromFloat<uint32_t>(alpha * value_float * weight_float), 1);
 }
 
 bool
@@ -256,19 +258,20 @@ BSPPRWorkload::init(PacketPtr pkt, WorkDirectory* dir)
     pkt->setDataFromBlock((uint8_t*) items, pkt_size);
 }
 
-uint32_t
+std::tuple<uint32_t, uint32_t>
 BSPPRWorkload::reduce(uint32_t update, uint32_t value)
 {
     float update_float = writeToFloat<uint32_t>(update);
     float value_float = writeToFloat<uint32_t>(value);
-    return readFromFloat<uint32_t>(update_float + value_float);
+    return std::make_tuple(
+        readFromFloat<uint32_t>(update_float + value_float), 1);
 }
 
-uint32_t
+std::tuple<uint32_t, uint32_t>
 BSPPRWorkload::propagate(uint32_t value, uint32_t weight)
 {
     float value_float = writeToFloat<uint32_t>(value);
-    return readFromFloat<uint32_t>(alpha * value_float);
+    return std::make_tuple(readFromFloat<uint32_t>(alpha * value_float), 1);
 }
 
 bool
@@ -340,7 +343,7 @@ BSPBCWorkload::init(PacketPtr pkt, WorkDirectory* dir)
     }
 }
 
-uint32_t
+std::tuple<uint32_t, uint32_t>
 BSPBCWorkload::reduce(uint32_t update, uint32_t value)
 {
     uint32_t update_depth = (update & depthMask) >> 24;
@@ -365,13 +368,13 @@ BSPBCWorkload::reduce(uint32_t update, uint32_t value)
     ret &= countMask;
     // NOTE: Now that the depth is securely reset we can copy the correct value.
     ret |= (value_depth << 24);
-    return ret;
+    return std::make_tuple(ret, 1);
 }
 
-uint32_t
+std::tuple<uint32_t, uint32_t>
 BSPBCWorkload::propagate(uint32_t value, uint32_t weight)
 {
-    return value;
+    return std::make_tuple(value, 1);
 }
 
 uint32_t
@@ -408,6 +411,7 @@ BSPBCWorkload::printWorkListItem(WorkListItem wl)
             wl.activeNow ? "true" : "false",
             wl.activeFuture ? "true" : "false");
 }
+
 SPMVWorkload::SPMVWorkload(const std::vector<float>& vector_x) {
     firstIteration = true;
     inputVector.reserve(vector_x.size());
@@ -445,7 +449,7 @@ SPMVWorkload::init(PacketPtr pkt, WorkDirectory* dir)
     pkt->setDataFromBlock((uint8_t*)items, pkt_size);
 }
 
-uint32_t
+std::tuple<uint32_t, uint32_t>
 SPMVWorkload::reduce(uint32_t update, uint32_t value)
 {
     float update_float = writeToFloat<uint32_t>(update);
@@ -457,10 +461,10 @@ SPMVWorkload::reduce(uint32_t update, uint32_t value)
      update_float, value_float);
     DPRINTF(SPMVWorkload, "  Result: %f\n", result);
 
-    return readFromFloat<uint32_t>(result);
+    return std::make_tuple(readFromFloat<uint32_t>(result), 1);
 }
 
-uint32_t
+std::tuple<uint32_t, uint32_t>
 SPMVWorkload::propagate(uint32_t value, uint32_t weight)
 {
     float weight_float = static_cast<float>(weight);
@@ -472,8 +476,8 @@ SPMVWorkload::propagate(uint32_t value, uint32_t weight)
     DPRINTF(SPMVWorkload, "  Weight (float): %f\n", weight_float);
     DPRINTF(SPMVWorkload, "  Vector value: %f\n", vector_float);
     DPRINTF(SPMVWorkload, "  Result: %f\n", result);
-    return readFromFloat<uint32_t>(result);
-    return 0;
+    return std::make_tuple(readFromFloat<uint32_t>(result), 1);
+    // return std::make_tuple(0, 1);
 }
 
 uint32_t

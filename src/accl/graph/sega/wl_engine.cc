@@ -175,8 +175,10 @@ WLEngine::handleIncomingUpdate(PacketPtr pkt)
         DPRINTF(WLEngine, "%s: Found an already queued update to %u. ",
                             "Current value is: %u.\n", __func__,
                             update_addr, valueMap[update_addr]);
-        valueMap[update_addr] =
+        uint32_t update, delay;
+        std::tie(update, delay) =
                 graphWorkload->reduce(update_value, valueMap[update_addr]);
+        valueMap[update_addr] = update;
         stats.numIncomingUpdates++;
         stats.updateQueueCoalescions++;
     } else {
@@ -300,7 +302,9 @@ WLEngine::processNextReadEvent()
                 temp_queue.emplace_back(update_addr, enter_tick);
             } else {
                 uint32_t curr_value = std::get<1>(registerFile[update_addr]);
-                uint32_t new_value = graphWorkload->reduce(update_value, curr_value);
+                uint32_t new_value, delay;
+                std::tie(new_value, delay) =
+                        graphWorkload->reduce(update_value, curr_value);
                 registerFile[update_addr] = std::make_tuple(state, new_value);
                 DPRINTF(WLEngine,  "%s: Reduced the update_value: %u with the entry in"
                             " registerFile. registerFile[%lu] = %u.\n", __func__,
@@ -380,6 +384,7 @@ void
 WLEngine::processNextReduceEvent()
 {
     int num_reduces = 0;
+    uint32_t temp, delay;
     while (true) {
         Addr addr = toReduce.front();
         assert(std::get<0>(registerFile[addr]) == RegisterState::PENDING_REDUCE);
@@ -387,8 +392,9 @@ WLEngine::processNextReduceEvent()
         DPRINTF(WLEngine, "%s: Reducing for addr: %lu, update_value: %u, "
                             "temp_prop: %s.\n", __func__, addr,
                             update_value, workListFile[addr].tempProp);
-        workListFile[addr].tempProp =
+        std::tie(temp, delay) =
             graphWorkload->reduce(update_value, workListFile[addr].tempProp);
+        workListFile[addr].tempProp = temp;
         DPRINTF(WLEngine, "%s: Reduction result: %s", __func__,
                 graphWorkload->printWorkListItem(workListFile[addr]));
         registerFile[addr] = std::make_tuple(RegisterState::PENDING_WRITE, update_value);
@@ -409,11 +415,11 @@ WLEngine::processNextReduceEvent()
     }
 
     if (!toWrite.empty() && !nextWriteEvent.scheduled()) {
-        schedule(nextWriteEvent, nextCycle());
+        schedule(nextWriteEvent, curTick() + delay * clockPeriod());
     }
 
     if (!toReduce.empty() && !nextReduceEvent.scheduled()) {
-        schedule(nextReduceEvent, nextCycle());
+        schedule(nextReduceEvent, curTick() + delay * clockPeriod());
     }
 }
 

@@ -342,6 +342,7 @@ PushEngine::processNextPropagateEvent()
     int num_tries = 0;
     int num_reads = 0;
     std::deque<std::tuple<MetaEdge, Tick>> temp_edge;
+    uint32_t update_value, delay;
     for (int i = 0; i < examineWindow; i++) {
         if (metaEdgeQueue.empty()) {
             break;
@@ -359,8 +360,8 @@ PushEngine::processNextPropagateEvent()
         DPRINTF(PushEngine, "%s: The edge to process is %s.\n",
                                 __func__, meta_edge.to_string());
 
-        uint32_t update_value =
-                graphWorkload->propagate(meta_edge.value, meta_edge.weight);
+        std::tie(update_value, delay) =
+            graphWorkload->propagate(meta_edge.value, meta_edge.weight);
         temp_edge.pop_front();
         num_tries++;
 
@@ -394,7 +395,7 @@ PushEngine::processNextPropagateEvent()
 
     assert(!nextPropagateEvent.scheduled());
     if (!metaEdgeQueue.empty()) {
-        schedule(nextPropagateEvent, nextCycle());
+        schedule(nextPropagateEvent, curTick() + delay * clockPeriod());
     }
 }
 
@@ -405,6 +406,7 @@ PushEngine::enqueueUpdate(Addr src, Addr dst, uint32_t value)
     AddrRange update_range(aligned_dst, aligned_dst + owner->vertexAtomSize());
     auto entry = portAddrMap.contains(update_range);
     PortID port_id = entry->second;
+    uint32_t new_val, delay;
 
     DPRINTF(PushEngine, "%s: Update{src: %lu, dst:%lu, value: %u} "
                         "belongs to port %d.\n",
@@ -426,7 +428,7 @@ PushEngine::enqueueUpdate(Addr src, Addr dst, uint32_t value)
         Addr prev_src;
         uint32_t prev_val;
         std::tie(prev_src, prev_val) = sourceAndValueMaps[port_id][dst];
-        uint32_t new_val = graphWorkload->reduce(value, prev_val);
+        std::tie(new_val, delay) = graphWorkload->reduce(value, prev_val);
         sourceAndValueMaps[port_id][dst] = std::make_tuple(prev_src, new_val);
         DPRINTF(PushEngine, "%s: Coalesced Update{src: %lu, dst:%lu, value: %u} "
                             "with Update{src: %lu, dst:%lu, value: %u} to"
@@ -509,9 +511,12 @@ PushEngine::processNextUpdatePushEvent()
         stats.numUpdates++;
     }
 
+    // what happens here with temporal delay?
     assert(!nextUpdatePushEvent.scheduled());
     if (next_time_send > 0) {
         schedule(nextUpdatePushEvent, nextCycle());
+        // maybe: schedule(nextUpdatePushEvent,
+        // curTick() + next_time_send * clockPeriod());
     }
 }
 
