@@ -111,8 +111,44 @@ board = X86Board(
     cache_hierarchy=cache_hierarchy,
 )
 
-workload = obtain_resource("x86-ubuntu-24.04-boot-with-systemd")
-board.set_workload(workload)
+# Here we set the Full System workload.
+# The `set_kernel_disk_workload` function for the X86Board takes a kernel, a
+# disk image, and, optionally, a command to run.
+
+# This is the command to run after the system has booted. The first `m5 exit`
+# will stop the simulation so we can switch the CPU cores from KVM to timing
+# and continue the simulation to run the echo command, sleep for a second,
+# then, again, call `m5 exit` to terminate the simulation. After simulation
+# has ended you may inspect `m5out/system.pc.com_1.device` to see the echo
+# output.
+command = (
+    "m5 exit;"
+    + "echo 'This is running on Timing CPU cores.';"
+    + "sleep 1;"
+    + "m5 exit;"
+)
+
+board.set_kernel_disk_workload(
+    # kernel=obtain_resource("x86-linux-kernel-6.8.0-35-generic"),
+    kernel=KernelResource("/home/jlp/Code/linux/vmlinux-x86"),
+    disk_image=DiskImageResource(
+        "/home/jlp/Code/gem5/gem5-resources/src/add-dax/disk-image/x86-ubuntu-24-04-dax"
+    ),
+    kernel_args=[
+        "earlyprintk=ttyS0",
+        "console=ttyS0",
+        "lpj=7999923",
+        "root=/dev/sda2",
+    ],
+)
+
+board.append_kernel_arg("no_systemd=true")
+board.append_kernel_arg("memmap=32M!2G")
+
+
+def on_exit():
+    while 1:
+        yield False
 
 
 def exit_event_handler():
@@ -134,9 +170,12 @@ def exit_event_handler():
 simulator = Simulator(
     board=board,
     on_exit_event={
-        # Here we want override the default behavior for the first m5 exit
-        # exit event.
-        ExitEvent.EXIT: exit_event_handler()
+        ExitEvent.EXIT: on_exit(),
+        # # Here we want override the default behavior for the first m5 exit
+        # # exit event. Instead of exiting the simulator, we just want to
+        # # switch the processor. The 2nd m5 exit after will revert to using
+        # # default behavior where the simulator run will exit.
+        # ExitEvent.EXIT: (func() for func in [processor.switch])
     },
 )
 

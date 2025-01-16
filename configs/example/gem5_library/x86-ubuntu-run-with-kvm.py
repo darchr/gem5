@@ -147,26 +147,9 @@ def on_exit():
     print("switching cpus")
     processor.switch()
     yield False
-    print("debug start")
-    m5.debug.flags["MemoryAccess"].enable()  # "NoncoherentXBar",
+    # print("debug start")
+    # m5.debug.flags["MemoryAccess"].enable()  # "NoncoherentXBar",
     yield False
-    yield True
-
-
-
-def exit_event_handler():
-    print("First exit: kernel booted")
-    yield False  # gem5 is now executing systemd startup
-    print("Second exit: Started `after_boot.sh` script")
-    # The after_boot.sh script is executed after the kernel and systemd have
-    # booted.
-    # Here we switch the CPU type to Timing.
-    print("Switching to Timing CPU")
-    processor.switch()
-    yield False  # gem5 is now executing the `after_boot.sh` script
-    print("Third exit: Finished `after_boot.sh` script")
-    # The after_boot.sh script will run a script if it is passed via
-    # m5 readfile. This is the last exit event before the simulation exits.
     yield True
 
 

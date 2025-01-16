@@ -173,29 +173,6 @@ board = MyArmBoard(
     release=release,
     platform=platform,
 )
-<<<<<<< HEAD
-
-# Here we set a full system workload. The "arm-ubuntu-24.04-boot-with-systemd" boots
-# Ubuntu 24.04.
-workload = obtain_resource("arm-ubuntu-24.04-boot-with-systemd")
-board.set_workload(workload)
-
-
-def exit_event_handler():
-    print("First exit: kernel booted")
-    yield False  # gem5 is now executing systemd startup
-    print("Second exit: Started `after_boot.sh` script")
-    # The after_boot.sh script is executed after the kernel and systemd have
-    # booted.
-    # Here we switch the CPU type to Timing.
-    print("Switching to Timing CPU")
-    processor.switch()
-    yield False  # gem5 is now executing the `after_boot.sh` script
-    print("Third exit: Finished `after_boot.sh` script")
-    # The after_boot.sh script will run a script if it is passed via
-    # m5 readfile. This is the last exit event before the simulation exits.
-    yield True
-=======
 # This is the command to run after the system has booted. The first `m5 exit`
 # will stop the simulation so we can switch the CPU cores from KVM to timing
 # and continue the simulation to run the echo command, sleep for a second,
@@ -247,19 +224,12 @@ board.append_kernel_arg("no_systemd=true")
 def on_exit():
     while 1:
         yield False
->>>>>>> 0ce04d8228 (misc: Refactoring and kvm scripts)
 
 
 simulator = Simulator(
     board=board,
     on_exit_event={
-<<<<<<< HEAD
-        # Here we want override the default behavior for the first m5 exit
-        # exit event.
-        ExitEvent.EXIT: exit_event_handler()
-=======
         ExitEvent.EXIT: on_exit(),
->>>>>>> 0ce04d8228 (misc: Refactoring and kvm scripts)
     },
 )
 
