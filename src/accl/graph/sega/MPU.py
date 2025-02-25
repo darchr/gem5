@@ -29,6 +29,7 @@ from m5.params import *
 from m5.proxy import *
 from m5.SimObject import SimObject
 
+
 class MPU(SimObject):
     type = "MPU"
     cxx_header = "accl/graph/sega/mpu.hh"
@@ -36,10 +37,15 @@ class MPU(SimObject):
 
     system = Param.System(Parent.any, "System this MPU is a part of")
 
-    wl_engine = Param.WLEngine(NULL, "Internal WLEngine for each instance of "
-                                "MPU object.")
-    coalesce_engine = Param.CoalesceEngine(NULL, "Internal CoalesceEngine for "
-                                "each instance of MPU object.")
-    push_engine = Param.PushEngine(NULL, "Internal PushEngine for each "
-                                "instance of MPU object.")
-
+    wl_engine = Param.WLEngine(
+        NULL, "Internal WLEngine for each instance of " "MPU object."
+    )
+    coalesce_engine = Param.CoalesceEngine(
+        NULL, "Internal CoalesceEngine for " "each instance of MPU object."
+    )
+    push_engine = Param.PushEngine(
+        NULL, "Internal PushEngine for each " "instance of MPU object."
+    )
+    router = Param.Router(
+        NULL, "Router object for each instance of MPU object."
+    )

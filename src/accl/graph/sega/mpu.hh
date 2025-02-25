@@ -36,6 +36,7 @@
 #include "accl/graph/sega/coalesce_engine.hh"
 #include "accl/graph/sega/enums.hh"
 #include "accl/graph/sega/push_engine.hh"
+#include "accl/graph/sega/router.hh"
 #include "accl/graph/sega/wl_engine.hh"
 #include "base/addr_range.hh"
 #include "mem/packet.hh"
@@ -57,6 +58,7 @@ class MPU : public SimObject
     WLEngine* wlEngine;
     CoalesceEngine* coalesceEngine;
     PushEngine* pushEngine;
+    Router* router;
 
   public:
     PARAMS(MPU);
