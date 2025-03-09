@@ -54,16 +54,17 @@ class MPU : public SimObject
   private:
     System* system;
     CenteralController* centeralController;
+    Router* router;
 
     WLEngine* wlEngine;
     CoalesceEngine* coalesceEngine;
     PushEngine* pushEngine;
-    Router* router;
 
   public:
     PARAMS(MPU);
     MPU(const Params& params);
     void registerCenteralController(CenteralController* centeral_controller);
+    void registerRouter(Router* router);
 
     void setProcessingMode(ProcessingMode mode) { coalesceEngine->setProcessingMode(mode); }
     void createAsyncPopCountDirectory(int atoms_per_block) { coalesceEngine->createAsyncPopCountDirectory(atoms_per_block); }

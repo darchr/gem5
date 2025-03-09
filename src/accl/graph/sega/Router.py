@@ -15,3 +15,5 @@ class Router(ClockedObject):
     out_ports = VectorRequestPort(
         "Outgoing Ports to send updates to " "remote outside"
     )
+
+    mpu_vector = VectorParam.MPU("All mpus in the system.")

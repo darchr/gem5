@@ -9,23 +9,60 @@ namespace gem5
 {
 
 Router::Router(const RouterParams &params) :
-    ClockedObject(params),
-    owner(nullptr)
+    ClockedObject(params)
 {
     DPRINTF(Router, "Router created\n");
     for (int i = 0;
         i < params.port_in_ports_connection_count; ++i) {
         inPorts.emplace_back(this,
             name() + ".in_ports" + std::to_string(i), i);
+        MPU* mpu = (i < params.mpu_vector.size() ?
+            params.mpu_vector[i] : nullptr);
+        inPortToMPU.push_back(mpu);
     }
 
     for (int i = 0;
         i < params.port_out_ports_connection_count; ++i) {
         outPorts.emplace_back(this,
             name() + ".out_ports" + std::to_string(i), i);
+        MPU* mpu = (i < params.mpu_vector.size() ?
+            params.mpu_vector[i] : nullptr);
+        outPortToMPU.push_back(mpu);
     }
 
     DPRINTF(Router, "Ports created\n");
+
+    for (auto mpu : params.mpu_vector) {
+        mpuVector.push_back(mpu);
+        mpu->registerRouter(this);
+    }
+
+    // Regular iteration for assigning input ports
+    for (size_t i = 0; i < inPorts.size(); ++i) {
+        if (i < mpuVector.size()) {
+            assignInPortToMPU(i, mpuVector[i]);
+            DPRINTF(Router, "Startup: Assigned in port %lu to MPU %s\n",
+                static_cast<unsigned long>(i), mpuVector[i]->name());
+        } else {
+            DPRINTF(Router, "Startup: Warning -
+                    No MPU available for in port %lu\n",
+                static_cast<unsigned long>(i));
+        }
+    }
+
+    // // Regular iteration for assigning output ports
+    for (size_t i = 0; i < outPorts.size(); ++i) {
+        if (i < mpuVector.size()) {
+            assignOutPortToMPU(i, mpuVector[i]);
+            DPRINTF(Router, "Startup: Assigned out port %lu to MPU %s\n",
+                static_cast<unsigned long>(i), mpuVector[i]->name());
+        } else {
+            DPRINTF(Router, "Startup: Warning -
+                    No MPU available for out port %lu\n",
+                static_cast<unsigned long>(i));
+        }
+    }
+
 }
 
 
@@ -46,10 +83,26 @@ Router::getPort(const std::string& if_name, PortID idx)
 }
 
 void
-Router::init()
+Router::startup()
 {
+    for (auto mpu: mpuVector) {
+        AddrRangeList localAddrRange = mpu->getAddrRanges();
+        for (int i = 0; i < outPorts.size(); i++){
+            AddrRangeList range_list = outPorts[i].getAddrRanges();
+            assert(range_list.size() == 1);
+            AddrRange range = outPorts[i].getAddrRanges().front();
+            mpuAddrMap.insert(range, mpu);
+        }
+    }
+
     for (int i = 0; i < inPorts.size(); i++){
         inPorts[i].sendRangeChange();
+    }
+
+    // print mpuAddrMap
+    for (auto iter = mpuAddrMap.begin(); iter != mpuAddrMap.end(); ++iter) {
+        DPRINTF(Router, "Address range: %#x - %#x, MPU: %s\n",
+                iter->first.start(), iter->first.end(), iter->second->name());
     }
 }
 
@@ -72,7 +125,16 @@ Router::RouterResponsePort::sendPacket(PacketPtr pkt)
 AddrRangeList
 Router::RouterResponsePort::getAddrRanges() const
 {
-    return owner->getAddrRanges();
+    AddrRangeList ranges;
+    if (owner) {
+        // Get the MPU assigned to this port
+        MPU* mpu = owner->getMPUForInPort(this->id());
+        if (mpu) {
+            // Return the address ranges for this MPU
+            ranges = mpu->getAddrRanges();
+        }
+    }
+    return ranges;
 }
 
 bool
@@ -84,10 +146,7 @@ Router::RouterResponsePort::recvTimingReq(PacketPtr pkt)
     }
     DPRINTF(Router, "Received request at cycle %llu\n", curTick());
 
-    // Schedule sending to output ports after 10 cycles
     Tick delay = 10 * owner->clockPeriod();
-
-
     owner->schedule(
         new EventFunctionWrapper(
             [this, pkt]() {
@@ -186,16 +245,52 @@ Router::RouterRequestPort::sendRetryResp()
     }
 }
 
+// Assign an input port to an MPU
 void
-Router::registerMPU(MPU* mpu)
-{
-    owner = mpu;
+Router::assignInPortToMPU(PortID portId, MPU* mpu) {
+    if (portId < inPortToMPU.size()) {
+        inPortToMPU[portId] = mpu;
+        DPRINTF(Router, "Assigned input port %d to MPU %s\n",
+                portId, mpu->name());
+    } else {
+        DPRINTF(Router, "Error: Input port ID %d out of range\n", portId);
+    }
 }
 
-AddrRangeList
-Router::getAddrRanges()
+// Assign an output port to an MPU
+void
+Router::assignOutPortToMPU(PortID portId, MPU* mpu) {
+    if (portId < outPortToMPU.size()) {
+        outPortToMPU[portId] = mpu;
+        DPRINTF(Router, "Assigned output port %d to MPU %s\n",
+                portId, mpu->name());
+    } else {
+        DPRINTF(Router, "Error: Output port ID %d out of range\n", portId);
+    }
+}
+
+// Get the MPU associated with an input port
+MPU*
+Router::getMPUForInPort(PortID portId) const {
+    if (portId < inPortToMPU.size()) {
+        return inPortToMPU[portId];
+    }
+    return nullptr;
+}
+
+// Get the MPU associated with an output port
+MPU*
+Router::getMPUForOutPort(PortID portId) const {
+    if (portId < outPortToMPU.size()) {
+        return outPortToMPU[portId];
+    }
+    return nullptr;
+}
+
+void
+Router::init()
 {
-    return owner->getAddrRanges();
+
 }
 
 } // namespace gem5

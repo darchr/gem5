@@ -1,6 +1,10 @@
 #ifndef __ACCL_GRAPH_SEGA_ROUTER_HH__
 #define __ACCL_GRAPH_SEGA_ROUTER_HH__
 
+#include <vector>
+
+#include "base/addr_range.hh"
+#include "base/addr_range_map.hh"
 #include "mem/port.hh"
 #include "params/Router.hh"
 #include "sim/clocked_object.hh"
@@ -13,11 +17,18 @@ class MPU;
 class Router : public ClockedObject
 {
   private:
-    MPU* owner;
+    std::vector<MPU*> mpuVector;
+    AddrRangeMap<MPU*> mpuAddrMap;
+    std::vector<MPU*> inPortToMPU;  // Maps input ports to MPUs
+    std::vector<MPU*> outPortToMPU; // Maps output ports to MPUs
 
   public:
     Router(const RouterParams &params);
     ~Router();
+    void assignInPortToMPU(PortID portId, MPU* mpu);
+    void assignOutPortToMPU(PortID portId, MPU* mpu);
+    MPU* getMPUForInPort(PortID portId) const;
+    MPU* getMPUForOutPort(PortID portId) const;
 
     class RouterResponsePort: public ResponsePort
     {
@@ -87,13 +98,12 @@ class Router : public ClockedObject
     // Vector of ports for outgoing connections
     std::vector<RouterRequestPort> outPorts;
 
-    AddrRangeList getAddrRanges();
-
-    void registerMPU(MPU* mpu);
-
   protected:
 
     void init() override;
+    void startup() override;
+
+    //AddrRangeList getAddrRanges();
 };
 
 } // namespace gem5

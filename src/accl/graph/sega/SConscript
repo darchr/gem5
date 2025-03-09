@@ -55,5 +55,4 @@ DebugFlag("WLEngine")
 DebugFlag("Router")
 
 CompoundFlag("MPU", ["CoalesceEngine", "PushEngine",
-                    "WLEngine", "BaseMemoryEngine",
-                    "Router"])
+                    "WLEngine", "BaseMemoryEngine"])

@@ -41,19 +41,23 @@ MPU::MPU(const Params& params):
     system(params.system),
     wlEngine(params.wl_engine),
     coalesceEngine(params.coalesce_engine),
-    pushEngine(params.push_engine),
-    router(params.router)
+    pushEngine(params.push_engine)
 {
     wlEngine->registerMPU(this);
     coalesceEngine->registerMPU(this);
     pushEngine->registerMPU(this);
-    router->registerMPU(this);
 }
 
 void
 MPU::registerCenteralController(CenteralController* centeral_controller)
 {
     centeralController = centeral_controller;
+}
+
+void
+MPU::registerRouter(Router* router)
+{
+    router = router;
 }
 
 bool

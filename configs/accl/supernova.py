@@ -54,7 +54,6 @@ class GPT(SubSystem):
         self, register_file_size: int, cache_size: str, num_pes_per_gpt: int
     ):
         super().__init__()
-        self.router = Router()
         self.wl_engine = WLEngine(
             update_queue_size=64,
             register_file_size=register_file_size,
@@ -100,7 +99,6 @@ class GPT(SubSystem):
             wl_engine=self.wl_engine,
             coalesce_engine=self.coalesce_engine,
             push_engine=self.push_engine,
-            router=self.router,
         )
 
     def getRespPort(self):
@@ -148,6 +146,26 @@ class EdgeMemory(SubSystem):
 
     def setPort(self, port):
         self.xbar.cpu_side_ports = port
+
+
+class CentralRouter(Router):
+    def __init__(self):
+        super(CentralRouter, self).__init__()
+
+    def set_mpu_vector(self, mpu_vector):
+        self.mpu_vector = mpu_vector
+
+    def setRouterRespPort(self, port):
+        self.in_ports = port
+
+    def setRouterReqPort(self, port):
+        self.out_ports = port
+
+    def getRouterRespPort(self):
+        return self.in_ports
+
+    def getRouterReqPort(self):
+        return self.out_ports
 
 
 class SEGAController(SubSystem):
@@ -206,6 +224,8 @@ class SuperNOVA(System):
         self.cache_line_size = 32
         self.mem_mode = "timing"
 
+        self.router = CentralRouter()
+
         self.ctrl = SEGAController("256GiB/s")
         self.ctrl.set_vertices_image(f"{graph_path}/vertices")
         num_registers = 128
@@ -232,11 +252,11 @@ class SuperNOVA(System):
         # Creating the interconnect among mpus
         for gpt_0 in gpts:
             for gpt_1 in gpts:
-                # if gpt_0 == gpt_1:
-                gpt_0.setRouterReqPort(gpt_0.getRespPort())
-                gpt_1.setReqPort(gpt_0.getRouterRespPort())
-            # else:
-            #     gpt_0.setReqPort(gpt_1.getRespPort())
+                if gpt_0 == gpt_1:
+                    self.router.setRouterReqPort(gpt_0.getRespPort())
+                    gpt_1.setReqPort(self.router.getRouterRespPort())
+                else:
+                    gpt_0.setReqPort(gpt_1.getRespPort())
         self.gpts = gpts
 
         self.ctrl.set_mpu_vector([gpt.mpu for gpt in self.gpts])

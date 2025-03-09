@@ -46,6 +46,3 @@ class MPU(SimObject):
     push_engine = Param.PushEngine(
         NULL, "Internal PushEngine for each " "instance of MPU object."
     )
-    router = Param.Router(
-        NULL, "Router object for each instance of MPU object."
-    )
