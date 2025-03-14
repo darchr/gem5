@@ -1,6 +1,7 @@
 from m5.params import *
 from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
+from m5.util.pybind import PyBindMethod
 
 
 class Router(ClockedObject):
@@ -17,3 +18,5 @@ class Router(ClockedObject):
     )
 
     mpu_vector = VectorParam.MPU("All mpus in the system.")
+
+    cxx_exports = [PyBindMethod("setStaticDelayMode")]

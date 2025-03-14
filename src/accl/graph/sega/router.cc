@@ -12,8 +12,9 @@ Router::Router(const RouterParams &params) :
     ClockedObject(params)
 {
     DPRINTF(Router, "Router created\n");
-    for (int i = 0;
-        i < params.port_in_ports_connection_count; ++i) {
+
+    // Create and store in ports.
+    for (int i = 0; i < params.port_in_ports_connection_count; ++i) {
         inPorts.emplace_back(this,
             name() + ".in_ports" + std::to_string(i), i);
         MPU* mpu = (i < params.mpu_vector.size() ?
@@ -21,8 +22,8 @@ Router::Router(const RouterParams &params) :
         inPortToMPU.push_back(mpu);
     }
 
-    for (int i = 0;
-        i < params.port_out_ports_connection_count; ++i) {
+    // Create and store out ports.
+    for (int i = 0; i < params.port_out_ports_connection_count; ++i) {
         outPorts.emplace_back(this,
             name() + ".out_ports" + std::to_string(i), i);
         MPU* mpu = (i < params.mpu_vector.size() ?
@@ -32,37 +33,80 @@ Router::Router(const RouterParams &params) :
 
     DPRINTF(Router, "Ports created\n");
 
+    // Copy the MPUs and register the router with them.
     for (auto mpu : params.mpu_vector) {
         mpuVector.push_back(mpu);
         mpu->registerRouter(this);
     }
 
-    // Regular iteration for assigning input ports
-    for (size_t i = 0; i < inPorts.size(); ++i) {
-        if (i < mpuVector.size()) {
-            assignInPortToMPU(i, mpuVector[i]);
-            DPRINTF(Router, "Startup: Assigned in port %lu to MPU %s\n",
-                static_cast<unsigned long>(i), mpuVector[i]->name());
-        } else {
-            DPRINTF(Router, "Startup: Warning -
-                    No MPU available for in port %lu\n",
+    // --- Assign input ports to MPUs in contiguous groups ---
+    size_t numMPUs = mpuVector.size();
+    if (numMPUs > 0) {
+        // Calculate how many ports per MPU,
+        // distributing any extra ports among the first MPUs.
+        size_t totalInPorts = inPorts.size();
+        size_t portsPerMPU = totalInPorts / numMPUs;
+        size_t extra = totalInPorts % numMPUs;
+        size_t portIndex = 0;
+
+        for (size_t mpuIndex = 0; mpuIndex < numMPUs; ++mpuIndex) {
+            size_t numPortsForThisMPU =
+                portsPerMPU + (mpuIndex < extra ? 1 : 0);
+            for (size_t j = 0; j < numPortsForThisMPU; ++j) {
+                assignInPortToMPU(portIndex, mpuVector[mpuIndex]);
+                DPRINTF(Router, "Startup: Assigned in port %lu to MPU %s\n",
+                    static_cast<unsigned long>(portIndex),
+                    mpuVector[mpuIndex]->name());
+                portIndex++;
+            }
+        }
+        // Safety: warn if any ports remain unassigned (should not happen)
+        while (portIndex < totalInPorts) {
+            DPRINTF(Router,
+                "Startup: Warning - No MPU available for in port %lu\n",
+                static_cast<unsigned long>(portIndex));
+            portIndex++;
+        }
+    } else {
+        for (size_t i = 0; i < inPorts.size(); ++i) {
+            DPRINTF(Router,
+                "Startup: Warning - No MPU available for in port %lu\n",
                 static_cast<unsigned long>(i));
         }
     }
 
-    // // Regular iteration for assigning output ports
-    for (size_t i = 0; i < outPorts.size(); ++i) {
-        if (i < mpuVector.size()) {
-            assignOutPortToMPU(i, mpuVector[i]);
-            DPRINTF(Router, "Startup: Assigned out port %lu to MPU %s\n",
-                static_cast<unsigned long>(i), mpuVector[i]->name());
-        } else {
-            DPRINTF(Router, "Startup: Warning -
-                    No MPU available for out port %lu\n",
+    // --- Assign output ports to MPUs in contiguous groups ---
+    if (numMPUs > 0) {
+        size_t totalOutPorts = outPorts.size();
+        size_t portsPerMPU = totalOutPorts / numMPUs;
+        size_t extra = totalOutPorts % numMPUs;
+        size_t portIndex = 0;
+
+        for (size_t mpuIndex = 0; mpuIndex < numMPUs; ++mpuIndex) {
+            size_t numPortsForThisMPU =
+                portsPerMPU + (mpuIndex < extra ? 1 : 0);
+            for (size_t j = 0; j < numPortsForThisMPU; ++j) {
+                assignOutPortToMPU(portIndex, mpuVector[mpuIndex]);
+                DPRINTF(Router,
+                    "Startup: Assigned out port %lu to MPU %s\n",
+                    static_cast<unsigned long>(portIndex),
+                    mpuVector[mpuIndex]->name());
+                portIndex++;
+            }
+        }
+        while (portIndex < totalOutPorts) {
+            DPRINTF(Router,
+                "Startup: Warning - No MPU available for out port %lu\n",
+                static_cast<unsigned long>(portIndex));
+            portIndex++;
+        }
+    } else {
+        for (size_t i = 0; i < outPorts.size(); ++i) {
+            DPRINTF(Router,
+                "Startup: Warning - No MPU available for out port %lu\n",
                 static_cast<unsigned long>(i));
         }
     }
-
 }
 
 
@@ -146,17 +190,43 @@ Router::RouterResponsePort::recvTimingReq(PacketPtr pkt)
     }
     DPRINTF(Router, "Received request at cycle %llu\n", curTick());
 
-    Tick delay = 10 * owner->clockPeriod();
-    owner->schedule(
-        new EventFunctionWrapper(
-            [this, pkt]() {
-                owner->outPorts[this->id()].sendPacket(pkt);
-            },
-            owner->name() + ".forward", true),
-        curTick() + delay
-    );
+    MPU* mpu = owner->getMPUForInPort(this->id());
+    if (!mpu) {
+        DPRINTF(Router, "Error: No MPU assigned for in port %d\n",
+            this->id());
+        return false;
+    }
+    int outPortIndex = owner->getOutPortIndexForMPU(mpu);
+    if (outPortIndex < 0) {
+        DPRINTF(Router, "Error: No out port available for MPU %s\n",
+            mpu->name());
+        return false;
+    }
 
-    return true;
+    if (owner->mode == RouterMode::STATIC_DELAY) {
+        // Send the packet after a fixed delay
+        Tick delay = 10 * owner->clockPeriod();
+        owner->schedule(
+            new EventFunctionWrapper(
+                [this, pkt, outPortIndex]() {
+                    owner->outPorts[outPortIndex].sendPacket(pkt);
+                },
+                owner->name() + ".forward", true),
+            curTick() + delay
+        );
+        return true;
+    }
+    // Tick delay = 10 * owner->clockPeriod();
+    // owner->schedule(
+    //     new EventFunctionWrapper(
+    //         [this, pkt, outPortIndex]() {
+    //             owner->outPorts[outPortIndex].sendPacket(pkt);
+    //         },
+    //         owner->name() + ".forward", true),
+    //     curTick() + delay
+    // );
+
+    // return true;
 }
 
 Tick
@@ -164,11 +234,23 @@ Router::RouterResponsePort::recvAtomic(PacketPtr pkt)
 {
     DPRINTF(Router, "Received atomic request\n");
 
-    // Add 10 cycles of delay
-    Tick delay = 10 * owner->clockPeriod();
+    MPU* mpu = owner->getMPUForInPort(this->id());
+    if (!mpu) {
+        DPRINTF(Router, "Error: No MPU for in port %d\n", this->id());
+        return 0;
+    }
+    int outPortIndex = owner->getOutPortIndexForMPU(mpu);
+    if (outPortIndex < 0) {
+        DPRINTF(Router, "Error: No out port for MPU %s\n", mpu->name());
+        return 0;
+    }
 
-    owner->outPorts[this->id()].sendAtomic(pkt);
+    Tick delay = 0;
 
+    if (owner->mode == RouterMode::STATIC_DELAY) {
+        delay = 10 * owner->clockPeriod();
+    }
+    owner->outPorts[outPortIndex].sendAtomic(pkt);
     return delay;
 }
 
@@ -176,7 +258,17 @@ void
 Router::RouterResponsePort::recvFunctional(PacketPtr pkt)
 {
     DPRINTF(Router, "Received functional request\n");
-    owner->outPorts[this->id()].sendFunctional(pkt);
+    MPU* mpu = owner->getMPUForInPort(this->id());
+    if (!mpu) {
+        DPRINTF(Router, "Error: No MPU for in port %d\n", this->id());
+        return;
+    }
+    int outPortIndex = owner->getOutPortIndexForMPU(mpu);
+    if (outPortIndex < 0) {
+        DPRINTF(Router, "Error: No out port for MPU %s\n", mpu->name());
+        return;
+    }
+    owner->outPorts[outPortIndex].sendFunctional(pkt);
 }
 
 void
@@ -285,6 +377,15 @@ Router::getMPUForOutPort(PortID portId) const {
         return outPortToMPU[portId];
     }
     return nullptr;
+}
+
+int
+Router::getOutPortIndexForMPU(MPU* mpu) const {
+    for (size_t i = 0; i < outPortToMPU.size(); ++i) {
+        if (outPortToMPU[i] == mpu)
+            return i;
+    }
+    return -1;
 }
 
 void

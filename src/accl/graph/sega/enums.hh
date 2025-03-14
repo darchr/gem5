@@ -79,6 +79,13 @@ enum ProcessingMode
 };
 extern const char* processingModeStrings[NUM_PROCESSING_MODE];
 
+enum RouterMode
+{
+    STATIC_DELAY,
+    NUM_ROUTER_MODE
+};
+extern const char* routerModeStrings[NUM_ROUTER_MODE];
+
 } // namespace gem5
 
 #endif // __ACCL_GRAPH_SEGA_ENUMS_HH__

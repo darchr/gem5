@@ -252,11 +252,8 @@ class SuperNOVA(System):
         # Creating the interconnect among mpus
         for gpt_0 in gpts:
             for gpt_1 in gpts:
-                if gpt_0 == gpt_1:
-                    self.router.setRouterReqPort(gpt_0.getRespPort())
-                    gpt_1.setReqPort(self.router.getRouterRespPort())
-                else:
-                    gpt_0.setReqPort(gpt_1.getRespPort())
+                self.router.setRouterReqPort(gpt_0.getRespPort())
+                gpt_1.setReqPort(self.router.getRouterRespPort())
         self.gpts = gpts
 
         self.ctrl.set_mpu_vector([gpt.mpu for gpt in self.gpts])
@@ -272,6 +269,9 @@ class SuperNOVA(System):
 
     def set_pg_mode(self):
         self.ctrl.controller.setPGMode()
+
+    def set_router_static_delay_mode(self):
+        self.router.setStaticDelayMode()
 
     def set_aux_images(self, mirrors, mirrors_map):
         self.ctrl.set_aux_images(mirrors, mirrors_map)

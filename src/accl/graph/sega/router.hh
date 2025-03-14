@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "accl/graph/sega/enums.hh"
 #include "base/addr_range.hh"
 #include "base/addr_range_map.hh"
 #include "mem/port.hh"
@@ -22,6 +23,8 @@ class Router : public ClockedObject
     std::vector<MPU*> inPortToMPU;  // Maps input ports to MPUs
     std::vector<MPU*> outPortToMPU; // Maps output ports to MPUs
 
+    RouterMode mode;
+
   public:
     Router(const RouterParams &params);
     ~Router();
@@ -29,6 +32,9 @@ class Router : public ClockedObject
     void assignOutPortToMPU(PortID portId, MPU* mpu);
     MPU* getMPUForInPort(PortID portId) const;
     MPU* getMPUForOutPort(PortID portId) const;
+    int getOutPortIndexForMPU(MPU* mpu) const;
+
+    void setStaticDelayMode() { mode = RouterMode::STATIC_DELAY; }
 
     class RouterResponsePort: public ResponsePort
     {
