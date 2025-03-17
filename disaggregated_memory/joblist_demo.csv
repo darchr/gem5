@@ -1,0 +1,1 @@
+# node_id, processor-type, isa, core_count, cache, l1i-size, l1d-size, l1i-assoc, l1d-assoc, l2-size, l2-assoc, l3-size, l3-assoc, local_memory_size, remote_memory_start, remote_memory_end, command_list, disk, kernel, bootloader
