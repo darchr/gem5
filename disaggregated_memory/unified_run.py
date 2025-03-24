@@ -828,7 +828,7 @@ sst_command = "mpirun " + \
                   "--output-directory=" + experiment_path + " " + \
                   "--jobs-path=" + jobs_json + " " + \
                   "--clock=" + args.clock + " " + \
-                  "--checkpoints=" + args.checkpoints
+                  "--checkpoints=" + args.checkpoints + " -v"
 
 subprocess.Popen([sst_command], shell=True)
 

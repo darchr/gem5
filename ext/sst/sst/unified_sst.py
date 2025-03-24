@@ -251,7 +251,39 @@ for node in range(system_nodes):
         # "-re",
         "--outdir=" + os.path.join(output_directory,
                         jobs[job]["metadata"]["experiment"]) + "_" + str(node),
-        p_config,
+        p_config]
+    
+    # Check if a TICK or MAXINST exists in the config file.
+    max_ticks = 0
+    max_insts = 0
+    try:
+        if jobs[job]["metadata"]["tics"] != "":
+            max_ticks = int(jobs[job]["metadata"]["tics"])
+    except KeyError:
+        # Maxtics doesn't exist!
+        max_ticks = 0
+    except ValueError:
+        # maxtics exists but is an empty string
+        max_ticks = 0
+    try:
+        if jobs[job]["metadata"]["maxinsts"] != "":
+            max_insts = int(jobs[job]["metadata"]["maxinsts"])
+    except KeyError:
+        # Maxtics doesn't exist!
+        max_insts = 0
+    except ValueError:
+        # maxtics exists but is an empty string
+        max_insts = 0
+    
+    # Make sure that both of these are not set
+    if max_insts == max_ticks:
+        # see if these are 0
+        if max_insts != 0:
+            print("fatal: cannot simulate with both max insts and max tics!")
+            exit(-1)
+        
+    
+    rest_of_cmd = [
         "--instance=" + job,
         "--ff-core-type=" + jobs[job]["cpu"]["ff-core"],
         "--roi-core-type=" + jobs[job]["cpu"]["roi-core"],
@@ -282,6 +314,16 @@ for node in range(system_nodes):
         "--bootloader-path=" + jobs[job]["workitem"]["bootloader"]
         
     ]
+    
+    # Make sure to put in the max tick/inst case if there is. This is needed
+    # for reallife workloads.
+    if max_ticks != 0:
+        cmd = cmd + ["--abs-max-tick=" + str(max_ticks)] + rest_of_cmd
+    elif max_insts != 0:
+        cmd = cmd + ["--maxinsts-=" + str(max_insts)] + rest_of_cmd
+    else:
+        cmd = cmd + rest_of_cmd
+    
     ports = {
         "remote_memory_port" : "board.remote_memory.outgoing_request_bridge"
     }
