@@ -535,6 +535,17 @@ parser.add_argument(
         " to do the full simulation."
 )
 
+# Finally add an option to simulate the disk image with or without systemd
+# This needs to be a global feature.
+parser.add_argument(
+    "--systemd",
+    type=str,
+    required=False,
+    choices=["True", "False"],
+    default="True",
+    help="An option to simulate the system with or without systemd"
+)
+
 args = parser.parse_args()
 # prepare the gem5 and SST paths
 gem5_binary = ""
@@ -553,6 +564,8 @@ check_binaries(gem5_binary, sst_binary)
 # convert True/False strings into boolean.
 variable_memory =  {"True": True, "False": False}[args.variable_remote_memory]
 checkpoints =  {"True": True, "False": False}[args.checkpoints]
+# This needs to be a string to string conversion.
+systemd = {"True": "true", "False": "false"}[args.systemd]
 
 # Put the absolute path to the output directory
 experiment_path = os.path.join(os.getcwd(), args.exp_name)
@@ -755,7 +768,8 @@ if checkpoints == True:
                         "--disk-path=" + jobs[job]["workitem"]["disk"],
                         "--kernel-path=" + jobs[job]["workitem"]["kernel"],
                         "--bootloader-path=" + jobs[job]["workitem"]
-                                                        ["bootloader"]
+                                                        ["bootloader"],
+                        "--systemd=" + systemd
                         ]))
 
     # wait for all the processes!
