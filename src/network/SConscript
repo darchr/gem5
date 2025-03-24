@@ -1,0 +1,14 @@
+Import("*")
+
+SimObject("DataCell.py", sim_objects=["DataCell"])
+SimObject("SuperNetwork.py", sim_objects=["SuperNetwork"])
+SimObject("Layer.py", sim_objects=["Layer"])
+
+Source("DataCell.cc")
+Source("SuperNetwork.cc")
+Source("Layer.cc")
+Source('NetworkScheduler.cc')
+
+DebugFlag("SuperNetwork")
+DebugFlag("DataCell")
+DebugFlag("NetworkScheduler")
