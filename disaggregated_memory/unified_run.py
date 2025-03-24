@@ -769,7 +769,19 @@ else:
 print("All gem5 processes completed! Will start SST now!")
 
 # SST has one more process than the number of gem5 nodes for the memory.
-sst_processes = args.count + 1
+# Before that, check if the user wants parallel efficiency
+parallel_eff = False
+sst_processes = 0
+try:
+    if jobs["0"]["metadata"]["parallel-eff"] == "true":
+        parallel_eff = True
+except KeyError:
+    parallel_eff = False
+
+if parallel_eff == True:
+    sst_processes = args.count
+else:
+    sst_processes = args.count + 1
 
 # Processes are already created when saving the checkpoint. The only
 # information SST needs is the experiment name, memory sizes and instance ids.
