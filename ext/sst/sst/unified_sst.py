@@ -257,8 +257,8 @@ for node in range(system_nodes):
     max_ticks = 0
     max_insts = 0
     try:
-        if jobs[job]["metadata"]["tics"] != "":
-            max_ticks = int(jobs[job]["metadata"]["tics"])
+        if jobs[job]["metadata"]["maxtics"] != "":
+            max_ticks = int(jobs[job]["metadata"]["maxtics"])
     except KeyError:
         # Maxtics doesn't exist!
         max_ticks = 0
@@ -320,7 +320,7 @@ for node in range(system_nodes):
     if max_ticks != 0:
         cmd = cmd + ["--abs-max-tick=" + str(max_ticks)] + rest_of_cmd
     elif max_insts != 0:
-        cmd = cmd + ["--maxinsts-=" + str(max_insts)] + rest_of_cmd
+        cmd = cmd + ["--maxinsts=" + str(max_insts)] + rest_of_cmd
     else:
         cmd = cmd + rest_of_cmd
     
