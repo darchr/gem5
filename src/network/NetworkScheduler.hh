@@ -1,3 +1,31 @@
+/*
+ * Copyright (c) 2025 The Regents of the University of California.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met: redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer;
+ * redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution;
+ * neither the name of the copyright holders nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #ifndef __NETWORK_SCHEDULER_HH__
 #define __NETWORK_SCHEDULER_HH__
 
@@ -14,32 +42,53 @@
 
 namespace gem5 {
 
+// NetworkScheduler class handles scheduling packets between DataCells
 class NetworkScheduler
 {
 public:
+    // Constructor that initializes the scheduler
     NetworkScheduler(uint64_t maxPackets,
         const std::string& schedulePath,
         const std::vector<DataCell*>& cells
     );
 
+    // Initializes the scheduler
     void initialize();
+
+    // Generates a random schedule for packets between DataCells
     void generateRandomSchedule();
+
+    // Saves the current schedule to a specified file
     void saveSchedule();
+
+    // Loads a schedule from a specified file
     void loadSchedule();
+
+    // Loads schedule entries from a given list of source-destination pairs
     uint64_t loadScheduleEntries(const std::vector<std::pair<uint64_t,
         uint64_t>>& fileEntries
     );
 
+    // Checks if there are any packets left in the schedule
     bool hasPackets() const;
+
+    // Returns the next packet in the schedule
     std::pair<uint64_t, uint64_t> getNextPacket();
+
+    // Clears the current schedule, effectively resetting the scheduler
     void clear();
 
 private:
+    // Checks if a given file exists at the specified path
     bool fileExists(const std::string& path) const;
 
+    // Maximum number of packets to be scheduled
     uint64_t maxPackets;
+    // Path to the file where the schedule is saved/loaded
     std::string schedulePath;
+    // List of DataCells involved in the network
     const std::vector<DataCell*>& dataCells;
+    // Scheduled packets (source-destination pairs)
     std::queue<std::pair<uint64_t, uint64_t>> scheduleQueue;
 };
 
