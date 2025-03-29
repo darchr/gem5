@@ -58,6 +58,14 @@ public:
     // Generates a random schedule for packets between DataCells
     void generateRandomSchedule();
 
+    // Generates an all-to-all schedule for packets between DataCells
+    void generateAllToAllSchedule();
+
+    // Generates a hotspot schedule for packets between DataCells
+    void generateHotspotSchedule(uint64_t hotspotAddr,
+        double hotspotFraction
+    );
+
     // Saves the current schedule to a specified file
     void saveSchedule();
 

@@ -72,6 +72,73 @@ NetworkScheduler::initialize()
     }
 }
 
+void
+NetworkScheduler::generateAllToAllSchedule()
+{
+    clear();
+    if (dataCells.empty()) {
+        warn("No DataCells available for scheduling.\n");
+        return;
+    }
+
+    // For each cell as a source,
+    // schedule packets to all other cells as destinations.
+    for (size_t i = 0; i < dataCells.size(); i++) {
+        for (size_t j = 0; j < dataCells.size(); j++) {
+            if (i != j) {
+                uint64_t srcAddr = dataCells[i]->getAddr();
+                uint64_t destAddr = dataCells[j]->getAddr();
+                scheduleQueue.push(std::make_pair(srcAddr, destAddr));
+            }
+        }
+    }
+    DPRINTF(NetworkScheduler,
+        "All-to-All schedule generated with %d packets.\n",
+        scheduleQueue.size()
+    );
+}
+
+void
+NetworkScheduler::generateHotspotSchedule(
+    uint64_t hotspotAddr,
+    double hotspotFraction
+)
+{
+    clear();
+    if (dataCells.empty()) {
+        warn("No DataCells available for scheduling.\n");
+        return;
+    }
+
+    // Calculate the number of hotspot packets based on hotspotFraction.
+    uint64_t hotspotPackets = maxPackets * hotspotFraction;
+    uint64_t otherPackets = maxPackets - hotspotPackets;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    // Generate packets targeting the hotspot.
+    for (uint64_t i = 0; i < hotspotPackets; i++) {
+        int srcIndex = gen() % dataCells.size();
+        uint64_t srcAddr = dataCells[srcIndex]->getAddr();
+        scheduleQueue.push(std::make_pair(srcAddr, hotspotAddr));
+    }
+
+    // Generate remaining random packets.
+    for (uint64_t i = 0; i < otherPackets; i++) {
+        int srcIndex = gen() % dataCells.size();
+        int destIndex = gen() % dataCells.size();
+        uint64_t srcAddr = dataCells[srcIndex]->getAddr();
+        uint64_t destAddr = dataCells[destIndex]->getAddr();
+        scheduleQueue.push(std::make_pair(srcAddr, destAddr));
+    }
+
+    DPRINTF(NetworkScheduler,
+        "Hotspot schedule generated: %d packets targeting hotspot %d.\n",
+        hotspotPackets, hotspotAddr
+    );
+}
+
+
 // Generates a random schedule of packets
 void
 NetworkScheduler::generateRandomSchedule()
