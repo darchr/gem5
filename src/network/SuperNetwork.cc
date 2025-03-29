@@ -36,6 +36,7 @@
 
 #include "debug/SuperNetwork.hh"
 #include "network/NetworkScheduler.hh"
+#include "sim/eventq.hh"
 #include "sim/sim_exit.hh"
 #include "sim/stats.hh"
 #include "sim/system.hh"
@@ -123,6 +124,10 @@ SuperNetwork::initializeNetworkLayers(const std::vector<Layer*>& layers)
     // Set dynamic range from the first layer
     Layer* currentLayer = layers[0];
     dynamicRange = currentLayer->getRangeSize();
+
+    // we need an encoding for 0, so increase the dynamic range by 1
+    dynamicRange++;
+
     DPRINTF(SuperNetwork, "Dynamic range: %d\n", dynamicRange);
 }
 
@@ -394,13 +399,32 @@ SuperNetwork::processPackets(
             cell->getNextPacket();
             uint64_t payload = cell->getData();
 
+            // Calculate precise delivery time
+            // within the connection window
+            // Use the payload value -> RACE LOGIC
+            Tick payloadSpecificDelay =
+                ((payload + 1) % dynamicRange) * (getTimeSlot());
+
+
             DPRINTF(SuperNetwork,
-                "Processing packet: src=%lu, dest=%lu, data=%lu\n",
-                srcAddr, allowedDest, payload
+                "Processing packet: src=%lu, dest=%lu,
+                data=%lu, specific delay=%lu ps\n",
+                srcAddr, allowedDest, payload, payloadSpecificDelay
             );
 
-            // Deliver packet to destination
-            deliverPacket(srcAddr, allowedDest, payload);
+            // Schedule packet delivery with payload-specific timing
+            schedule(new EventFunctionWrapper([this,
+                srcAddr, allowedDest, payload]() {
+                deliverPacket(srcAddr, allowedDest, payload);
+            }, "deliverPacketEvent"), curTick() + payloadSpecificDelay);
+
+            // DPRINTF(SuperNetwork,
+            //     "Processing packet: src=%lu, dest=%lu, data=%lu\n",
+            //     srcAddr, allowedDest, payload
+            // );
+
+            // // Deliver packet to destination
+            // deliverPacket(srcAddr, allowedDest, payload);
             packetsProcessedThisWindow++;
         } else {
             // Packet not allowed in the current time slot
