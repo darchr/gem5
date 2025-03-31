@@ -43,38 +43,38 @@
 
 namespace gem5 {
 
-// Hardware Constants namespace containing predefined values for various
-// network components based on the SRNoC paper
-namespace HardwareConstants {
-    // Timing delays in picoseconds for different network components
-    constexpr double CROSSPOINT_DELAY = 4.1;
-    constexpr double MERGER_DELAY = 8.84;
-    constexpr double SPLITTER_DELAY = 2.06;
-    constexpr double CIRCUIT_VARIABILITY = 1.2;
-    constexpr double VARIABILITY_COUNTING_NETWORK = 4.38;
-    constexpr double CROSSPOINT_SETUP_TIME = 8;
+// // Hardware Constants namespace containing predefined values for various
+// // network components based on the SRNoC paper
+// namespace HardwareConstants {
+//     // Timing delays in picoseconds for different network components
+//     constexpr double CROSSPOINT_DELAY = 4.1;
+//     constexpr double MERGER_DELAY = 8.84;
+//     constexpr double SPLITTER_DELAY = 2.06;
+//     constexpr double CIRCUIT_VARIABILITY = 1.2;
+//     constexpr double VARIABILITY_COUNTING_NETWORK = 4.38;
+//     constexpr double CROSSPOINT_SETUP_TIME = 8;
 
-    // Static power consumption in microwatts for various components
-    constexpr double SPLITTER_STATIC_POWER = 5.98;
-    constexpr double MERGER_STATIC_POWER = 5;
-    constexpr double CROSSPOINT_STATIC_POWER = 7.9;
-    constexpr double COUNTING_NETWORK_STATIC_POWER = 66.82;
-    constexpr double TFF_STATIC_POWER = 10.8;
+//     // Static power consumption in microwatts for various components
+//     constexpr double SPLITTER_STATIC_POWER = 5.98;
+//     constexpr double MERGER_STATIC_POWER = 5;
+//     constexpr double CROSSPOINT_STATIC_POWER = 7.9;
+//     constexpr double COUNTING_NETWORK_STATIC_POWER = 66.82;
+//     constexpr double TFF_STATIC_POWER = 10.8;
 
-    // Active power consumption in nanowatts for various components
-    constexpr double SPLITTER_ACTIVE_POWER = 83.2;
-    constexpr double MERGER_ACTIVE_POWER = 69.6;
-    constexpr double CROSSPOINT_ACTIVE_POWER = 60.7;
-    constexpr double COUNTING_NETWORK_ACTIVE_POWER = 163;
-    constexpr double TFF_ACTIVE_POWER = 105.6;
+//     // Active power consumption in nanowatts for various components
+//     constexpr double SPLITTER_ACTIVE_POWER = 83.2;
+//     constexpr double MERGER_ACTIVE_POWER = 69.6;
+//     constexpr double CROSSPOINT_ACTIVE_POWER = 60.7;
+//     constexpr double COUNTING_NETWORK_ACTIVE_POWER = 163;
+//     constexpr double TFF_ACTIVE_POWER = 105.6;
 
-    // Number of Josephson Junctions (JJs) for each component type
-    constexpr int SPLITTER_JJ = 3;
-    constexpr int MERGER_JJ = 5;
-    constexpr int CROSSPOINT_JJ = 13;
-    constexpr int COUNTING_NETWORK_JJ = 60;
-    constexpr int TFF_JJ = 10;
-}
+//     // Number of Josephson Junctions (JJs) for each component type
+//     constexpr int SPLITTER_JJ = 3;
+//     constexpr int MERGER_JJ = 5;
+//     constexpr int CROSSPOINT_JJ = 13;
+//     constexpr int COUNTING_NETWORK_JJ = 60;
+//     constexpr int TFF_JJ = 10;
+// }
 
 // Constructor for the SuperNetwork class
 // Initializes the network with given parameters, sets up data cells,
@@ -84,12 +84,25 @@ SuperNetwork::SuperNetwork(const SuperNetworkParams& params) :
     maxPackets(params.max_packets),
     schedulePath(params.schedule_path),
     scheduler(params.max_packets, params.schedule_path, params.dataCells),
+    crosspointDelay(params.crosspoint_delay),
+    mergerDelay(params.merger_delay),
+    splitterDelay(params.splitter_delay),
+    circuitVariability(params.circuit_variability),
+    variabilityCountingNetwork(params.variability_counting_network),
+    crosspointSetupTime(params.crosspoint_setup_time),
     currentTimeSlotIndex(0),
     // Event for processing the next network event
     nextNetworkEvent([this]{ processNextNetworkEvent(); },
         name() + ".nextNetworkEvent"),
     stats(this)
 {
+    assert(params.crosspoint_delay >= 0);
+    assert(params.merger_delay >= 0);
+    assert(params.splitter_delay >= 0);
+    assert(params.circuit_variability >= 0);
+    assert(params.variability_counting_network >= 0);
+    assert(params.crosspoint_setup_time >= 0);
+
     // Initialize network layers
     initializeNetworkLayers(params.layers);
 
@@ -106,7 +119,6 @@ SuperNetwork::SuperNetwork(const SuperNetworkParams& params) :
     computeNetworkParameters();
 
     // Calculate power consumption and area requirements
-    calculatePowerAndArea();
 
     // Schedule the initial network event
     scheduleInitialEvent();
@@ -216,88 +228,28 @@ SuperNetwork::scheduleInitialEvent()
     // Schedule the first network event if packets exist
     if (!dataCells.empty() && hasPackets) {
         DPRINTF(SuperNetwork, "Scheduling first network event\n");
-        scheduleNextNetworkEvent(curTick() + 1); // Start at the next tick
+        scheduleNextNetworkEvent(curTick()); // Start at this tick
     } else {
         DPRINTF(SuperNetwork, "No packets to process\n");
     }
-}
-
-// Calculate power consumption and area requirements for the network
-void
-SuperNetwork::calculatePowerAndArea()
-{
-    using namespace HardwareConstants;
-
-    // Scale counting network power based on network radix
-    double countingNetworkRatio = (((getRadix()/2) + 1) / 4.0);
-    double countingNetworkActivePower =
-        COUNTING_NETWORK_ACTIVE_POWER * countingNetworkRatio;
-    double countingNetworkStaticPower =
-        COUNTING_NETWORK_STATIC_POWER * countingNetworkRatio;
-    int countingNetworkJJ = COUNTING_NETWORK_JJ * countingNetworkRatio;
-
-    // Calculate number of components based on network radix
-    int r = radix/2;
-    int numCountingNetworks = r;
-    int numCrosspoints = r * r;
-    int numSplitters = r * (r * (r - 1) + 1);
-    int numMergers = r * (r * (r - 1) + 1);
-
-    // Calculate active power consumption
-    double activePower =
-        numCountingNetworks * countingNetworkActivePower +
-        numCrosspoints * CROSSPOINT_ACTIVE_POWER +
-        numSplitters * SPLITTER_ACTIVE_POWER +
-        numMergers * MERGER_ACTIVE_POWER;
-
-    // Calculate static power consumption
-    double staticPower =
-        numCountingNetworks * countingNetworkStaticPower +
-        numCrosspoints * CROSSPOINT_STATIC_POWER +
-        numSplitters * SPLITTER_STATIC_POWER +
-        numMergers * MERGER_STATIC_POWER;
-
-    // Convert power units
-    activePower *= 1e-9;  // nanowatts to watts
-    staticPower *= 1e-6;  // microwatts to watts
-    double totalPower = activePower + staticPower;
-
-    // Calculate total Josephson Junctions
-    int totalJJ =
-        numCountingNetworks * countingNetworkJJ +
-        numCrosspoints * CROSSPOINT_JJ +
-        numSplitters * SPLITTER_JJ +
-        numMergers * MERGER_JJ;
-
-    // Log and store power and area statistics
-    DPRINTF(SuperNetwork, "Active power: %.6f W\n", activePower);
-    DPRINTF(SuperNetwork, "Static power: %.6f W\n", staticPower);
-    DPRINTF(SuperNetwork, "Total power: %.6f W\n", totalPower);
-    DPRINTF(SuperNetwork, "Total JJ: %d\n", totalJJ);
-
-    stats.activePower = activePower;
-    stats.staticPower = staticPower;
-    stats.totalPower = totalPower;
-    stats.totalJJ = totalJJ;
 }
 
 // Calculate the time slot based on network component delays
 void
 SuperNetwork::assignTimeSlot()
 {
-    using namespace HardwareConstants;
-
     // Adjust setup time considering circuit variability
     double SE_adjusted = std::max(0.0,
-        CROSSPOINT_SETUP_TIME - CIRCUIT_VARIABILITY
+        crosspointSetupTime - circuitVariability
     );
 
     // Calculate time slot considering delays of various network components
-    double calculatedTimeSlot = CIRCUIT_VARIABILITY * (
-        CROSSPOINT_DELAY + SE_adjusted +
-        SPLITTER_DELAY * (radix - 1) +
-        MERGER_DELAY * (radix - 1) +
-        VARIABILITY_COUNTING_NETWORK);
+    double calculatedTimeSlot = circuitVariability * (
+        crosspointDelay + SE_adjusted +
+        splitterDelay * (radix - 1) +
+        mergerDelay * (radix - 1) +
+        variabilityCountingNetwork
+    );
 
     // Round up the calculated time slot
     this->timeSlot = std::ceil(calculatedTimeSlot);
@@ -407,7 +359,7 @@ SuperNetwork::processPackets(
 
 
             DPRINTF(SuperNetwork,
-                "Processing packet: src=%lu, dest=%lu,
+                "Processing packet: src=%lu, dest=%lu, \
                 data=%lu, specific delay=%lu ps\n",
                 srcAddr, allowedDest, payload, payloadSpecificDelay
             );
@@ -481,11 +433,6 @@ SuperNetwork::scheduleNextNetworkEvent(Tick when)
 SuperNetwork::SuperNetworkStats::SuperNetworkStats(
     SuperNetwork* superNetwork
     ) : statistics::Group(superNetwork),
-    // Define statistics to track
-    ADD_STAT(activePower, statistics::units::Watt::get(), "Active power"),
-    ADD_STAT(staticPower, statistics::units::Watt::get(), "Static power"),
-    ADD_STAT(totalPower, statistics::units::Watt::get(), "Total power"),
-    ADD_STAT(totalJJ, statistics::units::Count::get(), "Total JJ"),
     ADD_STAT(totalPacketsProcessed, statistics::units::Count::get(),
         "Total packets processed"),
     ADD_STAT(totalWindowsUsed, statistics::units::Count::get(),
@@ -502,20 +449,6 @@ SuperNetwork::SuperNetworkStats::regStats()
     using namespace statistics;
 
     // Configure statistics with names, descriptions, and formatting
-    activePower.name("activePower")
-         .desc("Active power")
-         .precision(6);
-
-    staticPower.name("staticPower")
-            .desc("Static power")
-            .precision(6);
-
-    totalPower.name("totalPower")
-           .desc("Total power")
-           .precision(6);
-
-    totalJJ.name("totalJJ")
-          .desc("Total number of Josephson Junctions");
 
     totalPacketsProcessed.name("totalPacketsProcessed")
                    .desc("Total number of packets processed");

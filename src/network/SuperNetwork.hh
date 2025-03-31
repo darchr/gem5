@@ -52,13 +52,21 @@ private:
     std::vector<DataCell*> dataCells;  // Stores all data cells in the network
     std::unordered_map<uint64_t, DataCell*> dataCellMap;
 
+    // network delay parameters
+    double crosspointDelay;
+    double mergerDelay;
+    double splitterDelay;
+    double circuitVariability;
+    double variabilityCountingNetwork;
+    double crosspointSetupTime;
+
     // Network configuration parameters
     uint64_t dynamicRange;  // The dynamic range of the network
     uint64_t radix;  // Radix for the network, used in the topology
     float timeSlot;  // Time slot for scheduling packets
     int connectionWindow;  // Time window for establishing network connections
     uint64_t currentTimeSlotIndex;  // Current index for the time slot
-    uint64_t maxPackets;  // Maximum number of packets, 0 means no limit
+    int maxPackets;  // Maximum number of packets, -1 means no limit
     std::string schedulePath;  // Path to the schedule file
     std::queue<std::pair<uint64_t, uint64_t>> scheduleQueue;
     NetworkScheduler scheduler;  // Scheduler for the network
@@ -84,15 +92,6 @@ private:
     struct SuperNetworkStats: public statistics::Group
     {
         // Statistics for SRNoC (Source-Routed NoC)
-
-        // Active power consumption of the network
-        statistics::Formula activePower;
-        // Static power consumption of the network
-        statistics::Formula staticPower;
-        // Total power consumption of the network
-        statistics::Formula totalPower;
-        // Total Josephson Junctions used in the network
-        statistics::Formula totalJJ;
 
         // Statistics for round-robin scheduling
 
@@ -134,8 +133,6 @@ public:
     void assignConnectionWindow(int window) { connectionWindow = window; }
     int getConnectionWindow() const { return connectionWindow; }
 
-    // Method for calculating the power and area used by the network
-    void calculatePowerAndArea();
 };
 
 } // namespace gem5
