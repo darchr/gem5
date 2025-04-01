@@ -63,8 +63,8 @@ private:
     // Network configuration parameters
     uint64_t dynamicRange;  // The dynamic range of the network
     uint64_t radix;  // Radix for the network, used in the topology
-    float timeSlot;  // Time slot for scheduling packets
-    int connectionWindow;  // Time window for establishing network connections
+    Cycles timeSlot;  // Time slot for scheduling packets
+    Cycles connectionWindow;  // Connection window
     uint64_t currentTimeSlotIndex;  // Current index for the time slot
     int maxPackets;  // Maximum number of packets, -1 means no limit
     int pendingDeliveries; // Number of pending packet deliveries
@@ -129,9 +129,9 @@ public:
     uint64_t getRadix() const { return radix; }
 
     void assignTimeSlot();
-    float getTimeSlot() const { return timeSlot; }
+    Cycles getTimeSlot() const { return timeSlot; }
 
-    void assignConnectionWindow(int window) { connectionWindow = window; }
+    void assignConnectionWindow(Cycles window) { connectionWindow = window; }
     int getConnectionWindow() const { return connectionWindow; }
 
 };

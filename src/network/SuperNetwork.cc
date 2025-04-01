@@ -205,11 +205,19 @@ SuperNetwork::computeNetworkParameters()
 {
     // Calculate and assign the time slot
     assignTimeSlot();
-    DPRINTF(SuperNetwork, "Time slot: %.0f ps\n", getTimeSlot());
+    DPRINTF(SuperNetwork, "Time slot: %d Cycles\n", getTimeSlot());
+    DPRINTF(SuperNetwork, "Time slot: %d ps\n",
+        getTimeSlot() * clockPeriod()/714
+    );
 
     // Calculate and assign the connection window
-    assignConnectionWindow(dynamicRange * getTimeSlot());
-    DPRINTF(SuperNetwork, "Connection window: %d\n", getConnectionWindow());
+    assignConnectionWindow(Cycles(dynamicRange * getTimeSlot()));
+    DPRINTF(SuperNetwork, "Connection window: %d Cycles\n",
+        getConnectionWindow()
+    );
+    DPRINTF(SuperNetwork, "Connection window: %d ps\n",
+        getConnectionWindow() * clockPeriod()/714
+    );
 }
 
 // Schedule the initial network event if there are packets to process
@@ -252,7 +260,7 @@ SuperNetwork::assignTimeSlot()
     );
 
     // Round up the calculated time slot
-    this->timeSlot = std::ceil(calculatedTimeSlot);
+    this->timeSlot = Cycles(std::ceil(calculatedTimeSlot));
 }
 
 // Add a data cell to the network's data cell collection
@@ -300,7 +308,8 @@ SuperNetwork::processNextNetworkEvent()
 
     // Schedule next network event or exit simulation
     if (packetsRemaining) {
-        scheduleNextNetworkEvent(curTick() + connectionWindow);
+        scheduleNextNetworkEvent(curTick() +
+            connectionWindow * clockPeriod()/714);
     }
 }
 
@@ -355,8 +364,8 @@ SuperNetwork::processPackets(
             // Calculate precise delivery time
             // within the connection window
             // Use the payload value -> RACE LOGIC
-            payloadSpecificDelay =
-                ((payload + 1) % dynamicRange) * (getTimeSlot());
+            payloadSpecificDelay = ((payload + 1) % dynamicRange) *
+                (getTimeSlot()) * clockPeriod()/714;
 
 
             DPRINTF(SuperNetwork,
