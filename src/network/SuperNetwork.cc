@@ -90,6 +90,7 @@ SuperNetwork::SuperNetwork(const SuperNetworkParams& params) :
     circuitVariability(params.circuit_variability),
     variabilityCountingNetwork(params.variability_counting_network),
     crosspointSetupTime(params.crosspoint_setup_time),
+    packetsDelivered(0),
     currentTimeSlotIndex(0),
     // Event for processing the next network event
     nextNetworkEvent([this]{ processNextNetworkEvent(); },
@@ -113,15 +114,13 @@ SuperNetwork::SuperNetwork(const SuperNetworkParams& params) :
     scheduler.initialize();
 
     // Assign packets from the predefined schedule
-    assignPacketsFromSchedule();
+    // assignPacketsFromSchedule();
 
     // Compute network parameters like time slot and connection window
     computeNetworkParameters();
 
-    // Calculate power consumption and area requirements
-
     // Schedule the initial network event
-    scheduleInitialEvent();
+    scheduleNextNetworkEvent(curTick());
 }
 
 // Initialize network layers, setting the dynamic range
@@ -284,7 +283,6 @@ SuperNetwork::getDataCell(uint64_t addr)
 void
 SuperNetwork::processNextNetworkEvent()
 {
-    bool packetsRemaining = false;
     uint64_t packetsProcessedThisWindow = 0;
 
     // Build a static schedule for the current time slot
@@ -292,22 +290,18 @@ SuperNetwork::processNextNetworkEvent()
         buildStaticSchedule();
 
     // Process packets according to the static schedule
-    packetsRemaining = processPackets(
+    bool packetsRemaining = processPackets(
         staticSchedule,
         packetsProcessedThisWindow
     );
 
-    // Update statistics
     stats.totalWindowsUsed++;
-
-    // Update packets per window distribution
-    stats.pktsPerWindow.sample(packetsProcessedThisWindow);
 
     // Advance the time slot for the next event
     currentTimeSlotIndex++;
 
-    // Schedule next network event or exit simulation
-    if (packetsRemaining) {
+    // Schedule next network event
+    if (packetsDelivered < maxPackets) {
         scheduleNextNetworkEvent(curTick() +
             connectionWindow * clockPeriod()/714);
     }
@@ -336,29 +330,40 @@ SuperNetwork::buildStaticSchedule()
 }
 
 // Process packets according to the static schedule
+// Process packets according to the static schedule
 bool
 SuperNetwork::processPackets(
     const std::unordered_map<uint64_t, uint64_t>& staticSchedule,
     uint64_t& packetsProcessedThisWindow)
 {
-    bool packetsRemaining = false;
-    Tick payloadSpecificDelay;
+    Tick payloadSpecificDelay = 0;
 
     // Iterate through all data cells
     for (DataCell* cell : dataCells) {
-        // Skip cells without packets
-        if (!cell->hasPackets()) {
-            continue;
+        // Check if we've already reached the maximum packets
+        if (packetsDelivered >= maxPackets) {
+            break;  // Exit the loop immediately if we've reached max packets
         }
 
         uint64_t srcAddr = cell->getAddr();
         uint64_t allowedDest = staticSchedule.at(srcAddr);
-        uint64_t packetDest = cell->peekNextPacket();
+
+        uint64_t packetDest;
+        // Check if there's already a packet in the buffer first
+        if (cell->hasPackets()) {
+            packetDest = cell->peekNextPacket();
+        } else {
+            // Only generate a new packet if there's nothing in the buffer
+            packetDest = scheduler.generateRandomPacket(srcAddr);
+            assert(packetDest != -1);
+        }
 
         // Check if packet can be sent in the current time slot
         if (packetDest == allowedDest) {
-            // Remove and process the packet
-            cell->getNextPacket();
+            // Remove the packet if it was from the buffer
+            if (cell->hasPackets()) {
+                cell->getNextPacket();
+            }
             uint64_t payload = cell->getData();
 
             // Calculate precise delivery time
@@ -367,12 +372,14 @@ SuperNetwork::processPackets(
             payloadSpecificDelay = ((payload + 1) % dynamicRange) *
                 (getTimeSlot()) * clockPeriod()/714;
 
-
             DPRINTF(SuperNetwork,
                 "Processing packet: src=%lu, dest=%lu, \
                 data=%lu, specific delay=%lu ps\n",
                 srcAddr, allowedDest, payload, payloadSpecificDelay
             );
+            stats.totalPacketsProcessed++;
+            packetsDelivered++;
+            packetsProcessedThisWindow++;
 
             // Schedule packet delivery with payload-specific timing
             schedule(new EventFunctionWrapper([this,
@@ -380,29 +387,56 @@ SuperNetwork::processPackets(
                 deliverPacket(srcAddr, allowedDest, payload);
             }, "deliverPacketEvent"), curTick() + payloadSpecificDelay);
 
-            // DPRINTF(SuperNetwork,
-            //     "Processing packet: src=%lu, dest=%lu, data=%lu\n",
-            //     srcAddr, allowedDest, payload
-            // );
+            // Check if we've reached max packets after processing this one
+            if (packetsDelivered >= maxPackets) {
+                break;
+            }
+        // } else if (cell->hasPackets() &&
+        // cell->peekNextPacket() == allowedDest) {
+        //     cell->getNextPacket();
+        //     Above call should remove the packet from the queue
+        //     uint64_t payload = cell->getData();
 
-            // // Deliver packet to destination
-            // deliverPacket(srcAddr, allowedDest, payload);
-            packetsProcessedThisWindow++;
+        //     // Calculate precise delivery time (as before)
+        //     payloadSpecificDelay = ((payload + 1) % dynamicRange) *
+        //         (getTimeSlot()) * clockPeriod() / 714;
+
+        //     DPRINTF(SuperNetwork,
+        //         "Processing packet: src=%lu, dest=%lu, data=%lu,
+        //         specific delay=%lu ps\n",
+        //         srcAddr, allowedDest, payload, payloadSpecificDelay
+        //     );
+
+        //     packetsDelivered++;
+        //     packetsProcessedThisWindow++;
+
+        //     // Schedule packet delivery with payload-specific timing
+        //     schedule(new EventFunctionWrapper([this,
+        //         srcAddr, allowedDest, payload]() {
+        //         deliverPacket(srcAddr, allowedDest, payload);
+        //     }, "deliverPacketEvent"), curTick() + payloadSpecificDelay);
+
+        //     // Check if we've reached max packets after processing this one
+        //     if (packetsDelivered >= maxPackets) {
+        //         break;
+        //     }
         } else {
             // Packet not allowed in the current time slot
+            cell->assignPacket(packetDest);
             DPRINTF(SuperNetwork,
                 "DataCell %lu: packet for %lu not scheduled (allowed: %lu)\n",
                 srcAddr, packetDest, allowedDest
             );
-        }
-
-        // Check if cell still has packets
-        if (cell->hasPackets()) {
-            packetsRemaining = true;
+            DPRINTF(SuperNetwork,
+                "DataCell %lu: packet for %lu assigned to buffer\n",
+                srcAddr, packetDest
+            );
         }
     }
 
-    if (!packetsRemaining) {
+    stats.pktsPerWindow.sample(packetsProcessedThisWindow);
+
+    if (packetsDelivered >= maxPackets) {
         DPRINTF(SuperNetwork, "All packets processed in window %lu\n",
             currentTimeSlotIndex);
         DPRINTF(SuperNetwork, "Payload specific delay: %lu\n",
@@ -415,7 +449,7 @@ SuperNetwork::processPackets(
         );
     }
 
-    return packetsRemaining;
+    return (packetsDelivered < maxPackets);
 }
 
 // Deliver a packet to its destination data cell
@@ -432,8 +466,6 @@ SuperNetwork::deliverPacket(uint64_t srcAddr,
             "Packet delivered: src=%lu, dest=%lu, data=%lu\n",
             srcAddr, destAddr, payload
         );
-        // Update total packets processed
-        stats.totalPacketsProcessed++;
     } else {
         DPRINTF(SuperNetwork,
             "Error: Destination cell %lu not found\n",

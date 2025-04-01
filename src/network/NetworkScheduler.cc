@@ -192,6 +192,66 @@ NetworkScheduler::saveSchedule()
     DPRINTF(NetworkScheduler, "Schedule saved to %s.\n", schedulePath);
 }
 
+// Generates a random packet using the given src.
+// It picks a random destination from dataCells.
+uint64_t
+NetworkScheduler::generateRandomPacket(uint64_t src)
+{
+    if (dataCells.empty()) {
+        warn("No DataCells available for scheduling.\n");
+        return -1;
+    }
+
+    // Random number generator setup
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    uint64_t destAddr = src;
+    if (dataCells.size() > 1) {
+        int destIndex = gen() % dataCells.size();
+        destAddr = dataCells[destIndex]->getAddr();
+    }
+
+    return destAddr;
+}
+
+// Generates a hotspot packet using the
+// given src, hotspotAddr and hotspotFraction.
+// It generates a packet targeting the hotspot with
+// probability hotspotFraction.
+uint64_t
+NetworkScheduler::generateHotspotPacket(
+    uint64_t src,
+    uint64_t hotspotAddr,
+    double hotspotFraction
+)
+{
+    if (dataCells.empty()) {
+        warn("No DataCells available for scheduling.\n");
+        return -1;
+    }
+
+    // Random number generator setup
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    // Generate a packet targeting the hotspot
+    // with probability hotspotFraction.
+    if (gen() % 100 < hotspotFraction * 100) {
+        return hotspotAddr;
+    }
+
+    // Generate a random packet targeting a random destination.
+    uint64_t destAddr = src;
+    if (dataCells.size() > 1) {
+        int destIndex = gen() % dataCells.size();
+        destAddr = dataCells[destIndex]->getAddr();
+    }
+
+    return destAddr;
+}
+
+
 // Loads a schedule from a file
 void
 NetworkScheduler::loadSchedule()
@@ -274,8 +334,9 @@ std::pair<uint64_t, uint64_t>
 NetworkScheduler::getNextPacket()
 {
     if (scheduleQueue.empty()) {
-        // Return a default packet with {0, 0} if the queue is empty
-        return {0, 0};
+        // Return a default packet with {-1, -1}
+        // if the queue is empty
+        return {-1, -1};
     }
 
     // Retrieve and remove the next packet from the queue

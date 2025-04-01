@@ -58,11 +58,21 @@ public:
     // Generates a random schedule for packets between DataCells
     void generateRandomSchedule();
 
+    // Generates a random packet using the given src
+    uint64_t generateRandomPacket(uint64_t src);
+
     // Generates an all-to-all schedule for packets between DataCells
     void generateAllToAllSchedule();
 
     // Generates a hotspot schedule for packets between DataCells
     void generateHotspotSchedule(uint64_t hotspotAddr,
+        double hotspotFraction
+    );
+
+    // Generates a hotspot packet
+    // using the given src, hotspotAddr and hotspotFraction
+    uint64_t generateHotspotPacket(uint64_t src,
+        uint64_t hotspotAddr,
         double hotspotFraction
     );
 
