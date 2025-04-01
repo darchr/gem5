@@ -41,7 +41,7 @@ class SuperNetwork(ClockedObject):
 
     #   max_packets: 0 means not provided
     max_packets = Param.Int(
-        -1, "Maximum number of packets to schedule; 0 means not provided"
+        -1, "Maximum number of packets to schedule; -1 means not provided"
     )
 
     #   schedule_path: empty string means not provided

@@ -99,8 +99,8 @@ private:
         statistics::Scalar totalPacketsProcessed;
         // Number of scheduling windows used
         statistics::Scalar totalWindowsUsed;
-        // Number of packets processed per time window
-        statistics::Formula pktsPerWindow;
+        // Distribution of packets processed per time window
+        statistics::Histogram pktsPerWindow;
 
         // Constructor that links stats to the SuperNetwork instance
         SuperNetworkStats(SuperNetwork* superNetwork);

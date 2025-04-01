@@ -292,6 +292,9 @@ SuperNetwork::processNextNetworkEvent()
     // Update statistics
     stats.totalWindowsUsed++;
 
+    // Update packets per window distribution
+    stats.pktsPerWindow.sample(packetsProcessedThisWindow);
+
     // Advance the time slot for the next event
     currentTimeSlotIndex++;
 
@@ -438,7 +441,7 @@ SuperNetwork::SuperNetworkStats::SuperNetworkStats(
     ADD_STAT(totalWindowsUsed, statistics::units::Count::get(),
         "Number of connection windows used"),
     ADD_STAT(pktsPerWindow, statistics::units::Count::get(),
-        "Average packets per window")
+        "Distribution of packets per window")
 {
 }
 
@@ -457,11 +460,13 @@ SuperNetwork::SuperNetworkStats::regStats()
               .desc("Number of connection windows used");
 
     // Calculate average packets per window
-    pktsPerWindow.name("pktsPerWindow")
-                   .desc("Average packets processed per window")
-                   .precision(2)
-                   .flags(nozero)
-                   = totalPacketsProcessed / totalWindowsUsed;
+    // pktsPerWindow.name("pktsPerWindow")
+    //                .desc("Average packets processed per window")
+    //                .precision(2)
+    //                .flags(nozero)
+    //                = totalPacketsProcessed / totalWindowsUsed;
+
+    pktsPerWindow.init(64);
 }
 
 } // namespace gem5
