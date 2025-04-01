@@ -301,9 +301,6 @@ SuperNetwork::processNextNetworkEvent()
     // Schedule next network event or exit simulation
     if (packetsRemaining) {
         scheduleNextNetworkEvent(curTick() + connectionWindow);
-    } else {
-        DPRINTF(SuperNetwork, "All packets processed\n");
-        exitSimLoop("All packets processed");
     }
 }
 
@@ -336,6 +333,7 @@ SuperNetwork::processPackets(
     uint64_t& packetsProcessedThisWindow)
 {
     bool packetsRemaining = false;
+    Tick payloadSpecificDelay;
 
     // Iterate through all data cells
     for (DataCell* cell : dataCells) {
@@ -357,7 +355,7 @@ SuperNetwork::processPackets(
             // Calculate precise delivery time
             // within the connection window
             // Use the payload value -> RACE LOGIC
-            Tick payloadSpecificDelay =
+            payloadSpecificDelay =
                 ((payload + 1) % dynamicRange) * (getTimeSlot());
 
 
@@ -393,6 +391,19 @@ SuperNetwork::processPackets(
         if (cell->hasPackets()) {
             packetsRemaining = true;
         }
+    }
+
+    if (!packetsRemaining) {
+        DPRINTF(SuperNetwork, "All packets processed in window %lu\n",
+            currentTimeSlotIndex);
+        DPRINTF(SuperNetwork, "Payload specific delay: %lu\n",
+            payloadSpecificDelay
+        );
+        // schedule exit
+        exitSimLoop("All packets processed", 0,
+            curTick() + payloadSpecificDelay, 0,
+            false
+        );
     }
 
     return packetsRemaining;

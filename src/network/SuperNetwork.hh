@@ -67,6 +67,7 @@ private:
     int connectionWindow;  // Time window for establishing network connections
     uint64_t currentTimeSlotIndex;  // Current index for the time slot
     int maxPackets;  // Maximum number of packets, -1 means no limit
+    int pendingDeliveries; // Number of pending packet deliveries
     std::string schedulePath;  // Path to the schedule file
     std::queue<std::pair<uint64_t, uint64_t>> scheduleQueue;
     NetworkScheduler scheduler;  // Scheduler for the network
