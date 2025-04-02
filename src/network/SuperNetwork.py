@@ -1,4 +1,4 @@
-# Copyright (c) 2022 The Regents of the University of California
+# Copyright (c) 2025 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,21 +33,8 @@ class SuperNetwork(ClockedObject):
     cxx_header = "network/SuperNetwork.hh"
     cxx_class = "gem5::SuperNetwork"
 
-    # Vector of data cells in the network
-    dataCells = VectorParam.DataCell("Data cells in the network")
-
     # Vector of layers in the network
     layers = VectorParam.Layer("Layers in the network")
-
-    #   max_packets: 0 means not provided
-    max_packets = Param.Int(
-        -1, "Maximum number of packets to schedule; -1 means not provided"
-    )
-
-    #   schedule_path: empty string means not provided
-    schedule_path = Param.String(
-        "", "File path for schedule (empty means not provided)"
-    )
 
     crosspoint_delay = Param.Float(-1, "Crosspoint delay in picoseconds")
     merger_delay = Param.Float(-1, "Merger delay in picoseconds")

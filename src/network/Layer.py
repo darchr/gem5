@@ -1,4 +1,4 @@
-# Copyright (c) 2022 The Regents of the University of California
+# Copyright (c) 2025 The Regents of the University of California
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,6 @@
 
 from m5.objects.ClockedObject import ClockedObject
 from m5.params import *
-from m5.proxy import *
 
 
 class Layer(ClockedObject):
@@ -34,5 +33,17 @@ class Layer(ClockedObject):
     cxx_header = "network/Layer.hh"
     cxx_class = "gem5::Layer"
 
-    # Layer parameters
-    range_size = Param.UInt64("Range size of the layer (dynamic range)")
+    # Vector of data cells in the network
+    data_cells = VectorParam.DataCell("Data cells in the layer")
+
+    dynamic_range = Param.UInt64("Range size of the layer (dynamic range)")
+
+    #   max_packets: 0 means not provided
+    max_packets = Param.Int(
+        -1, "Maximum number of packets to schedule; -1 means not provided"
+    )
+
+    #   schedule_path: empty string means not provided
+    schedule_path = Param.String(
+        "", "File path for schedule (empty means not provided)"
+    )

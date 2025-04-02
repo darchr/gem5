@@ -167,21 +167,27 @@ root.system = System()
 
 # Set up the clock domain and voltage domain
 root.system.clk_domain = SrcClockDomain()
-root.system.clk_domain.clock = "1GHz"
+root.system.clk_domain.clock = "1.4GHz"
 root.system.clk_domain.voltage_domain = VoltageDomain()
 
 # Create several DataCells
 num_cells = args.num_cells
 data_cells = [DataCell() for _ in range(num_cells)]
 
-layers = [Layer(range_size=args.dynamic_range)]
+layers = [
+    Layer(
+        dynamic_range=args.dynamic_range,
+        data_cells=data_cells,
+        max_packets=args.maximum_packets,
+        schedule_path=args.file_path,
+    )
+]
 
 # Create the SuperNetwork and add the DataCells
 super_network = SuperNetwork()
-super_network.dataCells = data_cells
+
 super_network.layers = layers
-super_network.max_packets = args.maximum_packets
-super_network.schedule_path = args.file_path
+
 super_network.crosspoint_delay = NetworkDelays.CROSSPOINT_DELAY.value
 super_network.merger_delay = NetworkDelays.MERGER_DELAY.value
 super_network.splitter_delay = NetworkDelays.SPLITTER_DELAY.value
