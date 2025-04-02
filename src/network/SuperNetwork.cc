@@ -60,12 +60,6 @@ namespace gem5
         assert(params.variability_counting_network >= 0);
         assert(params.crosspoint_setup_time >= 0);
 
-        // Initialize the network layers
-        // for (int i = 0; i < params.layers.size(); i++) {
-        //     Layer* layer = new Layer(params.layers[i]);
-        //     layers.push_back(layer);
-        // }
-
         for (auto layer : params.layers) {
             layer->setTimeSlot(calculateTimeSlot(layer->getRadix()));
             DPRINTF(SuperNetwork, "Layer %d: time slot = %d\n",

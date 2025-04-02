@@ -43,39 +43,6 @@
 
 namespace gem5 {
 
-// // Hardware Constants namespace containing predefined values for various
-// // network components based on the SRNoC paper
-// namespace HardwareConstants {
-//     // Timing delays in picoseconds for different network components
-//     constexpr double CROSSPOINT_DELAY = 4.1;
-//     constexpr double MERGER_DELAY = 8.84;
-//     constexpr double SPLITTER_DELAY = 2.06;
-//     constexpr double CIRCUIT_VARIABILITY = 1.2;
-//     constexpr double VARIABILITY_COUNTING_NETWORK = 4.38;
-//     constexpr double CROSSPOINT_SETUP_TIME = 8;
-
-//     // Static power consumption in microwatts for various components
-//     constexpr double SPLITTER_STATIC_POWER = 5.98;
-//     constexpr double MERGER_STATIC_POWER = 5;
-//     constexpr double CROSSPOINT_STATIC_POWER = 7.9;
-//     constexpr double COUNTING_NETWORK_STATIC_POWER = 66.82;
-//     constexpr double TFF_STATIC_POWER = 10.8;
-
-//     // Active power consumption in nanowatts for various components
-//     constexpr double SPLITTER_ACTIVE_POWER = 83.2;
-//     constexpr double MERGER_ACTIVE_POWER = 69.6;
-//     constexpr double CROSSPOINT_ACTIVE_POWER = 60.7;
-//     constexpr double COUNTING_NETWORK_ACTIVE_POWER = 163;
-//     constexpr double TFF_ACTIVE_POWER = 105.6;
-
-//     // Number of Josephson Junctions (JJs) for each component type
-//     constexpr int SPLITTER_JJ = 3;
-//     constexpr int MERGER_JJ = 5;
-//     constexpr int CROSSPOINT_JJ = 13;
-//     constexpr int COUNTING_NETWORK_JJ = 60;
-//     constexpr int TFF_JJ = 10;
-// }
-
 // Constructor for the Layer class
 // Initializes the network with given parameters, sets up data cells,
 // and prepares for packet scheduling
