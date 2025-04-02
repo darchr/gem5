@@ -60,17 +60,19 @@ namespace gem5
         assert(params.variability_counting_network >= 0);
         assert(params.crosspoint_setup_time >= 0);
 
+        int layerIndex = 0;
         for (auto layer : params.layers) {
             layer->setTimeSlot(calculateTimeSlot(layer->getRadix()));
             DPRINTF(SuperNetwork, "Layer %d: time slot = %d\n",
-                layer->getRadix(), layer->getTimeSlot()
+                layerIndex, layer->getTimeSlot()
             );
-            layer->setConnectionWindow(Cycles(layer->getDynamicRange() *
-                                            timeSlot));
+            layer->setConnectionWindow(
+                Cycles(layer->getDynamicRange() * timeSlot));
             DPRINTF(SuperNetwork, "Layer %d: connection window = %d\n",
-                layer->getRadix(), layer->getConnectionWindow()
+                layerIndex, layer->getConnectionWindow()
             );
             layer->scheduleNextNetworkEvent(curTick());
+            layerIndex++;
         }
     }
 

@@ -149,10 +149,10 @@ parser.add_argument(
 parser.add_argument(
     "--dynamic-range",
     type=int,
-    default=1000,
-    help="Maximum value for random data generation",
+    nargs="+",
+    default=[1000],
+    help="Maximum value(s) for random data generation. Multiple values create multiple layers.",
 )
-
 args = parser.parse_args()
 
 # Ensure that at least one of --maximum-packets or --file-path is provided
@@ -176,11 +176,12 @@ data_cells = [DataCell() for _ in range(num_cells)]
 
 layers = [
     Layer(
-        dynamic_range=args.dynamic_range,
+        dynamic_range=dr,
         data_cells=data_cells,
         max_packets=args.maximum_packets,
         schedule_path=args.file_path,
     )
+    for dr in args.dynamic_range
 ]
 
 # Create the SuperNetwork and add the DataCells

@@ -303,7 +303,7 @@ Layer::processPackets(
             // Calculate precise delivery time
             // within the connection window
             // Use the payload value -> RACE LOGIC
-            payloadSpecificDelay = ((payload + 1) % dynamicRange) *
+            payloadSpecificDelay = ((payload + 1)) *
                 (getTimeSlot()) * clockPeriod()/714;
 
             DPRINTF(Layer,
