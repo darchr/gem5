@@ -44,7 +44,8 @@ NetworkScheduler::NetworkScheduler(
 )
 : maxPackets(maxPackets),
   schedulePath(schedulePath),
-  dataCells(cells)
+  dataCells(cells),
+  infiniteMode(maxPackets == static_cast<uint64_t>(-1))
 {}
 
 // Initializes the scheduler by either generating or loading a schedule
@@ -149,6 +150,15 @@ NetworkScheduler::generateRandomSchedule()
     if (dataCells.empty()) {
         // Warn if there are no DataCells available
         warn("No DataCells available for scheduling.\n");
+        return;
+    }
+
+     // In infinite mode we do not pre-generate the schedule.
+    if (infiniteMode) {
+        DPRINTF(NetworkScheduler,
+            "Infinite mode active: schedule will \
+            be generated on demand.\n"
+        );
         return;
     }
 
@@ -326,7 +336,7 @@ NetworkScheduler::fileExists(const std::string& path) const
 bool
 NetworkScheduler::hasPackets() const
 {
-    return !scheduleQueue.empty();
+    return infiniteMode ? true : (!scheduleQueue.empty());
 }
 
 // Retrieves the next packet in the schedule

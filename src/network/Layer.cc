@@ -64,7 +64,7 @@ Layer::Layer(const LayerParams& params) :
     initializeDataCells(params.data_cells);
 
     // Initialize the network scheduler
-    scheduler.initialize();
+    // scheduler.initialize();
 
     // Assign packets from the predefined schedule
     // assignPacketsFromSchedule();
@@ -224,7 +224,7 @@ Layer::processNextNetworkEvent()
         buildStaticSchedule();
 
     // Process packets according to the static schedule
-    bool packetsRemaining = processPackets(
+    processPackets(
         staticSchedule,
         packetsProcessedThisWindow
     );
@@ -234,8 +234,10 @@ Layer::processNextNetworkEvent()
     // Advance the time slot for the next event
     currentTimeSlotIndex++;
 
-    // Schedule next network event
-    if (packetsDelivered < maxPackets) {
+    // Schedule next network event.
+    // In infinite mode (maxPackets == -1) we always schedule the next event.
+    if (maxPackets == static_cast<uint64_t>(-1)
+            || packetsDelivered < maxPackets) {
         scheduleNextNetworkEvent(curTick() +
             connectionWindow * clockPeriod()/714);
     }
@@ -264,18 +266,19 @@ Layer::buildStaticSchedule()
 }
 
 // Process packets according to the static schedule
-// Process packets according to the static schedule
 bool
 Layer::processPackets(
     const std::unordered_map<uint64_t, uint64_t>& staticSchedule,
     uint64_t& packetsProcessedThisWindow)
 {
     Tick payloadSpecificDelay = 0;
+    // Determine if we are in infinite mode
+    bool infiniteMode = (maxPackets == static_cast<uint64_t>(-1));
 
     // Iterate through all data cells
     for (DataCell* cell : dataCells) {
         // Check if we've already reached the maximum packets
-        if (packetsDelivered >= maxPackets) {
+        if (packetsDelivered >= maxPackets && !infiniteMode) {
             break;  // Exit the loop immediately if we've reached max packets
         }
 
@@ -322,7 +325,8 @@ Layer::processPackets(
             }, "deliverPacketEvent"), curTick() + payloadSpecificDelay);
 
             // Check if we've reached max packets after processing this one
-            if (packetsDelivered >= maxPackets) {
+            // If not in infinite mode, check for termination condition.
+            if (!infiniteMode && packetsDelivered >= maxPackets) {
                 break;
             }
         // } else if (cell->hasPackets() &&
@@ -370,20 +374,23 @@ Layer::processPackets(
 
     stats.pktsPerWindow.sample(packetsProcessedThisWindow);
 
-    if (packetsDelivered >= maxPackets) {
-        DPRINTF(Layer, "All packets processed in window %lu\n",
-            currentTimeSlotIndex);
-        DPRINTF(Layer, "Payload specific delay: %lu\n",
+    // Only exit simulation if not in infinite mode
+    if (!infiniteMode && packetsDelivered >= maxPackets) {
+        DPRINTF(Layer,
+            "All packets processed in window %lu\n",
+            currentTimeSlotIndex
+        );
+        DPRINTF(Layer,
+            "Payload specific delay: %lu\n",
             payloadSpecificDelay
         );
-        // schedule exit
         exitSimLoop("All packets processed", 0,
             curTick() + payloadSpecificDelay, 0,
             false
         );
     }
 
-    return (packetsDelivered < maxPackets);
+    return infiniteMode ? true : (packetsDelivered < maxPackets);
 }
 
 // Deliver a packet to its destination data cell

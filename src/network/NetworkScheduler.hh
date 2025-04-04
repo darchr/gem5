@@ -97,6 +97,9 @@ public:
     void clear();
 
 private:
+    // To check if we are in infinite mode
+    bool infiniteMode;
+
     // Checks if a given file exists at the specified path
     bool fileExists(const std::string& path) const;
 
