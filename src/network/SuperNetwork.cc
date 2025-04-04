@@ -46,30 +46,15 @@ namespace gem5
 {
     SuperNetwork::SuperNetwork(const SuperNetworkParams& params)
         : ClockedObject(params),
-          crosspointDelay(params.crosspoint_delay),
-          mergerDelay(params.merger_delay),
-          splitterDelay(params.splitter_delay),
-          circuitVariability(params.circuit_variability),
-          variabilityCountingNetwork(params.variability_counting_network),
-          crosspointSetupTime(params.crosspoint_setup_time),
           numLayers(params.layers.size()),
           finishedLayers(0)
     {
-        assert(params.crosspoint_delay >= 0);
-        assert(params.merger_delay >= 0);
-        assert(params.splitter_delay >= 0);
-        assert(params.circuit_variability >= 0);
-        assert(params.variability_counting_network >= 0);
-        assert(params.crosspoint_setup_time >= 0);
-
         int layerIndex = 0;
         for (auto layer : params.layers) {
-            layer->setTimeSlot(calculateTimeSlot(layer->getRadix()));
+            layer->computeTimingParameters();
             DPRINTF(SuperNetwork, "Layer %d: time slot = %d\n",
                 layerIndex, layer->getTimeSlot()
             );
-            layer->setConnectionWindow(
-                Cycles(layer->getDynamicRange() * timeSlot));
             DPRINTF(SuperNetwork, "Layer %d: connection window = %d\n",
                 layerIndex, layer->getConnectionWindow()
             );
@@ -80,27 +65,27 @@ namespace gem5
         }
     }
 
-    Cycles
-    SuperNetwork::calculateTimeSlot(uint64_t radix)
-    {
-        // Adjust setup time considering circuit variability
-        double SE_adjusted = std::max(0.0,
-            crosspointSetupTime - circuitVariability
-        );
+    // Cycles
+    // SuperNetwork::calculateTimeSlot(uint64_t radix)
+    // {
+    //     // Adjust setup time considering circuit variability
+    //     double SE_adjusted = std::max(0.0,
+    //         crosspointSetupTime - circuitVariability
+    //     );
 
-        // Calculate time slot considering delays of various network components
-        double calculatedTimeSlot = circuitVariability * (
-            crosspointDelay + SE_adjusted +
-            splitterDelay * (radix - 1) +
-            mergerDelay * (radix - 1) +
-            variabilityCountingNetwork
-        );
+    //// Calculate time slot considering delays of various network components
+    //     double calculatedTimeSlot = circuitVariability * (
+    //         crosspointDelay + SE_adjusted +
+    //         splitterDelay * (radix - 1) +
+    //         mergerDelay * (radix - 1) +
+    //         variabilityCountingNetwork
+    //     );
 
-        // Round up the calculated time slot
-        this->timeSlot = Cycles(std::ceil(calculatedTimeSlot));
-        return this->timeSlot;
+    //     // Round up the calculated time slot
+    //     this->timeSlot = Cycles(std::ceil(calculatedTimeSlot));
+    //     return this->timeSlot;
 
-    }
+    // }
 
     void
     SuperNetwork::notifyLayerFinished(Layer* layer)

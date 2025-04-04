@@ -47,3 +47,14 @@ class Layer(ClockedObject):
     schedule_path = Param.String(
         "", "File path for schedule (empty means not provided)"
     )
+
+    crosspoint_delay = Param.Float(-1, "Crosspoint delay in picoseconds")
+    merger_delay = Param.Float(-1, "Merger delay in picoseconds")
+    splitter_delay = Param.Float(-1, "Splitter delay in picoseconds")
+    circuit_variability = Param.Float(-1, "Circuit variability in picoseconds")
+    variability_counting_network = Param.Float(
+        -1, "Variability in counting network in picoseconds"
+    )
+    crosspoint_setup_time = Param.Float(
+        -1, "Crosspoint setup time in picoseconds"
+    )

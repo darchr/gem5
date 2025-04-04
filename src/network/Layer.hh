@@ -56,12 +56,12 @@ private:
     std::unordered_map<uint64_t, DataCell*> dataCellMap;
 
     // network delay parameters
-    // double crosspointDelay;
-    // double mergerDelay;
-    // double splitterDelay;
-    // double circuitVariability;
-    // double variabilityCountingNetwork;
-    // double crosspointSetupTime;
+    double crosspointDelay;
+    double mergerDelay;
+    double splitterDelay;
+    double circuitVariability;
+    double variabilityCountingNetwork;
+    double crosspointSetupTime;
 
     // Network configuration parameters
     uint64_t dynamicRange;  // The dynamic range of the network
@@ -81,7 +81,9 @@ private:
     void initializeNetworkLayers(const std::vector<Layer*>& layers);
     void initializeDataCells(const std::vector<DataCell*>& cells);
     void assignPacketsFromSchedule();
-    void computeNetworkParameters();
+
+    // Method to calculate the time slot based on network parameters
+    void assignTimeSlot();
 
     // Methods for processing packets
     // Builds a static schedule for the current time slot
@@ -96,7 +98,6 @@ private:
     // Struct to hold statistics related to the Layer
     struct LayerStats: public statistics::Group
     {
-        // Statistics for SRNoC (Source-Routed NoC)
 
         // Statistics for round-robin scheduling
 
@@ -122,6 +123,9 @@ public:
     // Constructor for initializing a Layer with parameters
     Layer(const LayerParams& params);
 
+    // Methods for computing layer timing parameters
+    void computeTimingParameters();
+
     // Methods for adding and retrieving data cells in the network
     void addDataCell(DataCell* dataCell);
     DataCell* getDataCell(uint64_t addr);
@@ -133,7 +137,6 @@ public:
     void assignRadix(uint64_t radix) { this->radix = radix; }
     uint64_t getRadix() const { return radix; }
 
-    void assignTimeSlot();
     Cycles getTimeSlot() const { return timeSlot; }
     void setTimeSlot(Cycles timeSlot) { this->timeSlot = timeSlot; }
 

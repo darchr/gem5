@@ -48,14 +48,6 @@ class SuperNetwork : public ClockedObject
 
     Cycles timeSlot;
 
-    // network delay parameters
-    double crosspointDelay;
-    double mergerDelay;
-    double splitterDelay;
-    double circuitVariability;
-    double variabilityCountingNetwork;
-    double crosspointSetupTime;
-
     std::vector<Layer*> managedLayers; // Store pointers to layers
     const int numLayers; // Total number of layers managed
     int finishedLayers;  // Counter for finished layers
@@ -66,9 +58,6 @@ class SuperNetwork : public ClockedObject
 
     // Function for layers to notify when they finish processing
     void notifyLayerFinished(Layer* layer);
-
-    // Calculate time slot
-    Cycles calculateTimeSlot(uint64_t radix);
 
     // Function to check if all layers have finished processing
     // and exit the simulation if they have

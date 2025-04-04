@@ -180,6 +180,12 @@ layers = [
         data_cells=data_cells,
         max_packets=args.maximum_packets,
         schedule_path=args.file_path,
+        crosspoint_delay=NetworkDelays.CROSSPOINT_DELAY.value,
+        merger_delay=NetworkDelays.MERGER_DELAY.value,
+        splitter_delay=NetworkDelays.SPLITTER_DELAY.value,
+        circuit_variability=NetworkDelays.CIRCUIT_VARIABILITY.value,
+        variability_counting_network=NetworkDelays.VARIABILITY_COUNTING_NETWORK.value,
+        crosspoint_setup_time=NetworkDelays.CROSSPOINT_SETUP_TIME.value,
     )
     for dr in args.dynamic_range
 ]
@@ -189,14 +195,14 @@ super_network = SuperNetwork()
 
 super_network.layers = layers
 
-super_network.crosspoint_delay = NetworkDelays.CROSSPOINT_DELAY.value
-super_network.merger_delay = NetworkDelays.MERGER_DELAY.value
-super_network.splitter_delay = NetworkDelays.SPLITTER_DELAY.value
-super_network.circuit_variability = NetworkDelays.CIRCUIT_VARIABILITY.value
-super_network.variability_counting_network = (
-    NetworkDelays.VARIABILITY_COUNTING_NETWORK.value
-)
-super_network.crosspoint_setup_time = NetworkDelays.CROSSPOINT_SETUP_TIME.value
+# super_network.crosspoint_delay = NetworkDelays.CROSSPOINT_DELAY.value
+# super_network.merger_delay = NetworkDelays.MERGER_DELAY.value
+# super_network.splitter_delay = NetworkDelays.SPLITTER_DELAY.value
+# super_network.circuit_variability = NetworkDelays.CIRCUIT_VARIABILITY.value
+# super_network.variability_counting_network = (
+#     NetworkDelays.VARIABILITY_COUNTING_NETWORK.value
+# )
+# super_network.crosspoint_setup_time = NetworkDelays.CROSSPOINT_SETUP_TIME.value
 
 # Add everything to the system
 root.system.super_network = super_network

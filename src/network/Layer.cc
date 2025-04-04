@@ -53,6 +53,12 @@ Layer::Layer(const LayerParams& params) :
     schedulePath(params.schedule_path),
     scheduler(params.max_packets, params.schedule_path, params.data_cells),
     dynamicRange(params.dynamic_range),
+    crosspointDelay(params.crosspoint_delay),
+    mergerDelay(params.merger_delay),
+    splitterDelay(params.splitter_delay),
+    circuitVariability(params.circuit_variability),
+    variabilityCountingNetwork(params.variability_counting_network),
+    crosspointSetupTime(params.crosspoint_setup_time),
     packetsDelivered(0),
     currentTimeSlotIndex(0),
     isFinished(false),
@@ -61,6 +67,12 @@ Layer::Layer(const LayerParams& params) :
         name() + ".nextNetworkEvent"),
     stats(this)
 {
+    assert(params.crosspoint_delay >= 0);
+    assert(params.merger_delay >= 0);
+    assert(params.splitter_delay >= 0);
+    assert(params.circuit_variability >= 0);
+    assert(params.variability_counting_network >= 0);
+    assert(params.crosspoint_setup_time >= 0);
 
     // Initialize data cells with random data
     initializeDataCells(params.data_cells);
@@ -135,25 +147,25 @@ Layer::assignPacketsFromSchedule()
 }
 
 // Compute key network parameters like time slot and connection window
-// void
-// Layer::computeNetworkParameters()
-// {
-//     // Calculate and assign the time slot
-//     assignTimeSlot();
-//     DPRINTF(Layer, "Time slot: %d Cycles\n", getTimeSlot());
-//     DPRINTF(Layer, "Time slot: %d ps\n",
-//         getTimeSlot() * clockPeriod()/714
-//     );
+void
+Layer::computeTimingParameters()
+{
+    // Calculate and assign the time slot
+    assignTimeSlot();
+    DPRINTF(Layer, "Time slot: %d Cycles\n", getTimeSlot());
+    DPRINTF(Layer, "Time slot: %d ps\n",
+        getTimeSlot() * clockPeriod()/714
+    );
 
-//     // Calculate and assign the connection window
-//     assignConnectionWindow(Cycles(dynamicRange * getTimeSlot()));
-//     DPRINTF(Layer, "Connection window: %d Cycles\n",
-//         getConnectionWindow()
-//     );
-//     DPRINTF(Layer, "Connection window: %d ps\n",
-//         getConnectionWindow() * clockPeriod()/714
-//     );
-// }
+    // Calculate and assign the connection window
+    setConnectionWindow(Cycles(dynamicRange * getTimeSlot()));
+    DPRINTF(Layer, "Connection window: %d Cycles\n",
+        getConnectionWindow()
+    );
+    DPRINTF(Layer, "Connection window: %d ps\n",
+        getConnectionWindow() * clockPeriod()/714
+    );
+}
 
 // Schedule the initial network event if there are packets to process
 // void
@@ -178,25 +190,25 @@ Layer::assignPacketsFromSchedule()
 // }
 
 // Calculate the time slot based on network component delays
-// void
-// Layer::assignTimeSlot()
-// {
-//     // Adjust setup time considering circuit variability
-//     double SE_adjusted = std::max(0.0,
-//         crosspointSetupTime - circuitVariability
-//     );
+void
+Layer::assignTimeSlot()
+{
+    // Adjust setup time considering circuit variability
+    double SE_adjusted = std::max(0.0,
+        crosspointSetupTime - circuitVariability
+    );
 
-//     // Calculate time slot considering delays of various network components
-//     double calculatedTimeSlot = circuitVariability * (
-//         crosspointDelay + SE_adjusted +
-//         splitterDelay * (radix - 1) +
-//         mergerDelay * (radix - 1) +
-//         variabilityCountingNetwork
-//     );
+    // Calculate time slot considering delays of various network components
+    double calculatedTimeSlot = circuitVariability * (
+        crosspointDelay + SE_adjusted +
+        splitterDelay * (radix - 1) +
+        mergerDelay * (radix - 1) +
+        variabilityCountingNetwork
+    );
 
-//     // Round up the calculated time slot
-//     this->timeSlot = Cycles(std::ceil(calculatedTimeSlot));
-// }
+    // Round up the calculated time slot
+    this->timeSlot = Cycles(std::ceil(calculatedTimeSlot));
+}
 
 // Add a data cell to the network's data cell collection
 void

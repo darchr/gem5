@@ -35,14 +35,3 @@ class SuperNetwork(ClockedObject):
 
     # Vector of layers in the network
     layers = VectorParam.Layer("Layers in the network")
-
-    crosspoint_delay = Param.Float(-1, "Crosspoint delay in picoseconds")
-    merger_delay = Param.Float(-1, "Merger delay in picoseconds")
-    splitter_delay = Param.Float(-1, "Splitter delay in picoseconds")
-    circuit_variability = Param.Float(-1, "Circuit variability in picoseconds")
-    variability_counting_network = Param.Float(
-        -1, "Variability in counting network in picoseconds"
-    )
-    crosspoint_setup_time = Param.Float(
-        -1, "Crosspoint setup time in picoseconds"
-    )
