@@ -36,6 +36,7 @@
 
 #include "debug/Layer.hh"
 #include "network/NetworkScheduler.hh"
+#include "network/SuperNetwork.hh"
 #include "sim/eventq.hh"
 #include "sim/sim_exit.hh"
 #include "sim/stats.hh"
@@ -54,6 +55,7 @@ Layer::Layer(const LayerParams& params) :
     dynamicRange(params.dynamic_range),
     packetsDelivered(0),
     currentTimeSlotIndex(0),
+    isFinished(false),
     // Event for processing the next network event
     nextNetworkEvent([this]{ processNextNetworkEvent(); },
         name() + ".nextNetworkEvent"),
@@ -217,6 +219,9 @@ Layer::getDataCell(uint64_t addr)
 void
 Layer::processNextNetworkEvent()
 {
+    if (isFinished) {
+        return;
+    }
     uint64_t packetsProcessedThisWindow = 0;
 
     // Build a static schedule for the current time slot
@@ -384,10 +389,14 @@ Layer::processPackets(
             "Payload specific delay: %lu\n",
             payloadSpecificDelay
         );
-        exitSimLoop("All packets processed", 0,
-            curTick() + payloadSpecificDelay, 0,
-            false
-        );
+        isFinished = true;
+        if (superNetwork != nullptr) {
+            superNetwork->notifyLayerFinished(this);
+        }
+        // exitSimLoop("All packets processed", 0,
+        //     curTick() + payloadSpecificDelay, 0,
+        //     false
+        // );
     }
 
     return infiniteMode ? true : (packetsDelivered < maxPackets);

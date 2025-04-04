@@ -51,7 +51,9 @@ namespace gem5
           splitterDelay(params.splitter_delay),
           circuitVariability(params.circuit_variability),
           variabilityCountingNetwork(params.variability_counting_network),
-          crosspointSetupTime(params.crosspoint_setup_time)
+          crosspointSetupTime(params.crosspoint_setup_time),
+          numLayers(params.layers.size()),
+          finishedLayers(0)
     {
         assert(params.crosspoint_delay >= 0);
         assert(params.merger_delay >= 0);
@@ -72,6 +74,8 @@ namespace gem5
                 layerIndex, layer->getConnectionWindow()
             );
             layer->scheduleNextNetworkEvent(curTick());
+            layer->registerSuperNetwork(this);
+            managedLayers.push_back(layer);
             layerIndex++;
         }
     }
@@ -96,6 +100,46 @@ namespace gem5
         this->timeSlot = Cycles(std::ceil(calculatedTimeSlot));
         return this->timeSlot;
 
+    }
+
+    void
+    SuperNetwork::notifyLayerFinished(Layer* layer)
+    {
+
+        DPRINTF(SuperNetwork, "Received finish notification from Layer");
+
+        // Increment the counter
+        finishedLayers++;
+
+        DPRINTF(SuperNetwork,
+            "Finished layers: %d / %d\n",
+            finishedLayers, numLayers
+        );
+
+        // Check if all layers are now finished
+        checkCompletionAndExit();
+    }
+
+    void
+    SuperNetwork::checkCompletionAndExit()
+    {
+        if (finishedLayers < 0 || finishedLayers > numLayers) {
+            panic("SuperNetwork finishedLayers count (%d) \
+                    is out of bounds [0, %d]!",
+                    finishedLayers, numLayers
+            );
+        }
+
+        if (finishedLayers == numLayers) {
+            DPRINTF(SuperNetwork,
+                "All %d layers have finished processing.\n",
+                numLayers
+            );
+            // Use exitSimLoop for a clean exit in event-driven simulation
+            exitSimLoop("SuperNetwork: \
+                All layers finished processing packets."
+            );
+        }
     }
 
 } // namespace gem5

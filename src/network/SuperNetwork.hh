@@ -56,13 +56,23 @@ class SuperNetwork : public ClockedObject
     double variabilityCountingNetwork;
     double crosspointSetupTime;
 
+    std::vector<Layer*> managedLayers; // Store pointers to layers
+    const int numLayers; // Total number of layers managed
+    int finishedLayers;  // Counter for finished layers
+
   public:
     // Constructor: Initializes the SuperNetwork with given parameters
     SuperNetwork(const SuperNetworkParams& params);
 
+    // Function for layers to notify when they finish processing
+    void notifyLayerFinished(Layer* layer);
+
     // Calculate time slot
     Cycles calculateTimeSlot(uint64_t radix);
 
+    // Function to check if all layers have finished processing
+    // and exit the simulation if they have
+    void checkCompletionAndExit();
 };
 
 } // namespace gem5

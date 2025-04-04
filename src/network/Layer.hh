@@ -46,6 +46,9 @@
 namespace gem5
 {
 
+// Forward declaration of the SuperNetwork class
+class SuperNetwork;
+
 class Layer : public ClockedObject
 {
 private:
@@ -68,9 +71,11 @@ private:
     uint64_t currentTimeSlotIndex;  // Current index for the time slot
     int maxPackets;  // Maximum number of packets, -1 means no limit
     int packetsDelivered; // Number of packet deliveries
+    bool isFinished;  // Flag to indicate if the layer has finished
     std::string schedulePath;  // Path to the schedule file
     std::queue<std::pair<uint64_t, uint64_t>> scheduleQueue;
     NetworkScheduler scheduler;  // Scheduler for the network
+    SuperNetwork* superNetwork;  // Pointer to the super network
 
     // Initialization methods to set up network layers and data cells
     void initializeNetworkLayers(const std::vector<Layer*>& layers);
@@ -136,6 +141,14 @@ public:
     int getConnectionWindow() const { return connectionWindow; }
 
     void scheduleNextNetworkEvent(Tick when);  // Schedules the next event
+
+    void registerSuperNetwork(SuperNetwork* superNetwork)
+    {
+        this->superNetwork = superNetwork;
+    }
+    SuperNetwork* getSuperNetwork() const { return superNetwork; }
+
+    bool hasFinished() const { return isFinished; }
 
 
 };
