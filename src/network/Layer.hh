@@ -39,6 +39,7 @@
 #include "network/DataCell.hh"
 #include "network/Layer.hh"
 #include "network/NetworkScheduler.hh"
+#include "network/enums.hh"
 #include "params/Layer.hh"
 #include "sim/clocked_object.hh"
 #include "sim/eventq.hh"
@@ -76,6 +77,11 @@ private:
     std::queue<std::pair<uint64_t, uint64_t>> scheduleQueue;
     NetworkScheduler scheduler;  // Scheduler for the network
     SuperNetwork* superNetwork;  // Pointer to the super network
+    TrafficMode trafficMode;  // Traffic mode for the network
+
+    // Hotspot parameters
+    uint64_t hotspotAddr; // Address of the hotspot
+    double hotspotFraction; // Fraction of packets targeting the hotspot
 
     // Initialization methods to set up network layers and data cells
     void initializeNetworkLayers(const std::vector<Layer*>& layers);
@@ -153,7 +159,19 @@ public:
 
     bool hasFinished() const { return isFinished; }
 
+    // setters for TrafficMode
+    void setRandomTrafficMode()
+    {
+        trafficMode = TrafficMode::RANDOM;
+    }
 
+    void setHotspotTrafficMode(uint64_t hotspotAddr,
+        double hotspotFraction)
+    {
+        this->hotspotAddr = hotspotAddr;
+        this->hotspotFraction = hotspotFraction;
+        trafficMode = TrafficMode::HOTSPOT;
+    }
 };
 
 } // namespace gem5

@@ -307,8 +307,17 @@ Layer::processPackets(
         if (cell->hasPackets()) {
             packetDest = cell->peekNextPacket();
         } else {
+            if (trafficMode == TrafficMode::RANDOM) {
+                // Generate a random packet destination
+                packetDest = scheduler.generateRandomPacket(srcAddr);
+            } else if (trafficMode == TrafficMode::HOTSPOT) {
+                // Use the static schedule for the current time slot
+                packetDest = scheduler.generateHotspotPacket(
+                    srcAddr, hotspotAddr, hotspotFraction
+                );
+            }
             // Only generate a new packet if there's nothing in the buffer
-            packetDest = scheduler.generateRandomPacket(srcAddr);
+            // packetDest = scheduler.generateRandomPacket(srcAddr);
             assert(packetDest != -1);
         }
 

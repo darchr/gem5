@@ -26,6 +26,7 @@
 
 from m5.objects.ClockedObject import ClockedObject
 from m5.params import *
+from m5.util.pybind import PyBindMethod
 
 
 class Layer(ClockedObject):
@@ -58,3 +59,8 @@ class Layer(ClockedObject):
     crosspoint_setup_time = Param.Float(
         -1, "Crosspoint setup time in picoseconds"
     )
+
+    cxx_exports = [
+        PyBindMethod("setRandomTrafficMode"),
+        PyBindMethod("setHotspotTrafficMode"),
+    ]

@@ -241,6 +241,12 @@ NetworkScheduler::generateHotspotPacket(
         return -1;
     }
 
+    // Check if the hotspot address is valid
+    if (hotspotAddr >= dataCells.size()) {
+        fatal("Invalid hotspot address %lu.\n", hotspotAddr);
+        return -1;
+    }
+
     // Random number generator setup
     std::random_device rd;
     std::mt19937 gen(rd());
