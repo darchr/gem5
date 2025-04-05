@@ -129,44 +129,45 @@ def calculate_power_and_area(radix):
     }
 
 
-def create_base_parser():
+def create_shared_parser():
     """
-    Create the base argument parser with common arguments.
+    Parser for arguments shared across all traffic modes.
     """
-    parser = argparse.ArgumentParser(description="SuperNetwork Simulation")
-    # Global argument for number of cells is common to all modes
-    parser.add_argument(
-        "--num-cells", type=int, default=10, help="Number of DataCells"
-    )
-    parser.add_argument(
+    shared_parser = argparse.ArgumentParser(add_help=False)
+    shared_parser.add_argument(
         "--dynamic-range",
         type=int,
         nargs="+",
-        default=[1000],
+        required=True,
         help="Dynamic range settings",
     )
-    # Global maximum packets (optional)
+    return shared_parser
+
+
+def create_base_parser():
+    parser = argparse.ArgumentParser(description="SuperNetwork Simulation")
+    parser.add_argument(
+        "--num-cells", type=int, default=10, help="Number of DataCells"
+    )
     parser.add_argument(
         "--maximum-packets", type=int, default=0, help="Maximum packets"
     )
     return parser
 
 
-def add_random_traffic_subparser(subparsers):
-    """
-    Add the random traffic mode subparser.
-    """
-    random_parser = subparsers.add_parser("random", help="Random traffic mode")
-    # Random mode uses global arguments; additional random-specific arguments can be added here if needed.
-    return random_parser
+def parse_arguments():
+    shared_parser = create_shared_parser()
+    base_parser = create_base_parser()
+    subparsers = base_parser.add_subparsers(dest="traffic_mode", required=True)
 
+    # random traffic
+    random_parser = subparsers.add_parser(
+        "random", parents=[shared_parser], help="Random traffic mode"
+    )
 
-def add_hotspot_traffic_subparser(subparsers):
-    """
-    Add the hotspot traffic mode subparser.
-    """
+    # hotspot traffic
     hotspot_parser = subparsers.add_parser(
-        "hotspot", help="Hotspot traffic mode"
+        "hotspot", parents=[shared_parser], help="Hotspot traffic mode"
     )
     hotspot_parser.add_argument(
         "--hotspot-addr", type=int, required=True, help="Hotspot address"
@@ -177,44 +178,16 @@ def add_hotspot_traffic_subparser(subparsers):
         required=True,
         help="Fraction of hotspot traffic",
     )
-    return hotspot_parser
 
-
-def add_file_traffic_subparser(subparsers):
-    """
-    Add the file-based traffic mode subparser.
-    """
-    file_parser = subparsers.add_parser("file", help="File-based traffic mode")
+    # file traffic
+    file_parser = subparsers.add_parser(
+        "file", parents=[shared_parser], help="File-based traffic mode"
+    )
     file_parser.add_argument(
         "--file-path", type=str, required=True, help="Path to the traffic file"
     )
-    return file_parser
 
-
-def parse_arguments():
-    """
-    Set up the main parser with subparsers and return the parsed arguments.
-    """
-    base_parser = create_base_parser()
-    subparsers = base_parser.add_subparsers(dest="traffic_mode", required=True)
-
-    # Add traffic mode subparsers
-    add_random_traffic_subparser(subparsers)
-    add_hotspot_traffic_subparser(subparsers)
-    add_file_traffic_subparser(subparsers)
-
-    args = base_parser.parse_args()
-
-    # Validate that at least one of maximum_packets or file_path is provided if applicable.
-    if (
-        args.maximum_packets is None
-        and getattr(args, "file_path", None) is None
-    ):
-        base_parser.error(
-            "At least one of --maximum-packets or --file-path must be provided."
-        )
-
-    return args
+    return base_parser.parse_args()
 
 
 def main():
@@ -289,5 +262,5 @@ def main():
     print(f"Exiting @ tick {m5.curTick()} because {exit_event.getCause()}")
 
 
-if __name__ == "__main__":
+if __name__ == "__m5_main__":
     main()
