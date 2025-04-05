@@ -55,25 +55,14 @@ public:
     // Initializes the scheduler
     std::queue<std::pair<uint64_t, uint64_t>> initialize();
 
-    // Generates a random schedule for packets between DataCells
-    void generateRandomSchedule();
-
     // Generates a random packet using the given src
     uint64_t generateRandomPacket(uint64_t src);
 
-    // Generates an all-to-all schedule for packets between DataCells
-    void generateAllToAllSchedule();
-
-    // Generates a hotspot schedule for packets between DataCells
-    void generateHotspotSchedule(uint64_t hotspotAddr,
-        double hotspotFraction
-    );
-
     // Generates a hotspot packet
-    // using the given src, hotspotAddr and hotspotFraction
+    // using the given src, hotspot_addr and hotspot_fraction
     uint64_t generateHotspotPacket(uint64_t src,
-        uint64_t hotspotAddr,
-        double hotspotFraction
+        uint64_t hotspot_addr,
+        double hotspot_fraction
     );
 
     // Saves the current schedule to a specified file
@@ -84,14 +73,11 @@ public:
 
     // Loads schedule entries from a given list of source-destination pairs
     uint64_t loadScheduleEntries(const std::vector<std::pair<uint64_t,
-        uint64_t>>& fileEntries
+        uint64_t>>& file_entries
     );
 
     // Checks if there are any packets left in the schedule
     bool hasPackets() const;
-
-    // Returns the next packet in the schedule
-    std::pair<uint64_t, uint64_t> getNextPacket();
 
     // Clears the current schedule, effectively resetting the scheduler
     void clear();

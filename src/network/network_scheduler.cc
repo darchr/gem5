@@ -38,14 +38,14 @@ namespace gem5 {
 // Initializes the scheduler with maximum packets,
 // schedule path, and list of DataCells
 NetworkScheduler::NetworkScheduler(
-    uint64_t maxPackets,
-    const std::string& schedulePath,
+    uint64_t max_packets,
+    const std::string& schedule_path,
     const std::vector<DataCell*>& cells
 )
-: maxPackets(maxPackets),
-  schedulePath(schedulePath),
+: maxPackets(max_packets),
+  schedulePath(schedule_path),
   dataCells(cells),
-  infiniteMode(maxPackets == static_cast<uint64_t>(-1))
+  infiniteMode(max_packets == static_cast<uint64_t>(-1))
 {}
 
 // Initializes the scheduler by either generating or loading a schedule
@@ -62,135 +62,6 @@ NetworkScheduler::initialize()
     return scheduleQueue;
 }
 
-void
-NetworkScheduler::generateAllToAllSchedule()
-{
-    clear();
-    if (dataCells.empty()) {
-        warn("No DataCells available for scheduling.\n");
-        return;
-    }
-
-    // For each cell as a source,
-    // schedule packets to all other cells as destinations.
-    for (size_t i = 0; i < dataCells.size(); i++) {
-        for (size_t j = 0; j < dataCells.size(); j++) {
-            if (i != j) {
-                uint64_t srcAddr = dataCells[i]->getAddr();
-                uint64_t destAddr = dataCells[j]->getAddr();
-                scheduleQueue.push(std::make_pair(srcAddr, destAddr));
-            }
-        }
-    }
-    DPRINTF(NetworkScheduler,
-        "All-to-All schedule generated with %d packets.\n",
-        scheduleQueue.size()
-    );
-}
-
-void
-NetworkScheduler::generateHotspotSchedule(
-    uint64_t hotspotAddr,
-    double hotspotFraction
-)
-{
-    clear();
-    if (dataCells.empty()) {
-        warn("No DataCells available for scheduling.\n");
-        return;
-    }
-
-    // Calculate the number of hotspot packets based on hotspotFraction.
-    uint64_t hotspotPackets = maxPackets * hotspotFraction;
-    uint64_t otherPackets = maxPackets - hotspotPackets;
-    std::random_device rd;
-    std::mt19937 gen(rd());
-
-    // Generate packets targeting the hotspot.
-    for (uint64_t i = 0; i < hotspotPackets; i++) {
-        int srcIndex = gen() % dataCells.size();
-        uint64_t srcAddr = dataCells[srcIndex]->getAddr();
-        scheduleQueue.push(std::make_pair(srcAddr, hotspotAddr));
-    }
-
-    // Generate remaining random packets.
-    for (uint64_t i = 0; i < otherPackets; i++) {
-        int srcIndex = gen() % dataCells.size();
-        int destIndex = gen() % dataCells.size();
-        uint64_t srcAddr = dataCells[srcIndex]->getAddr();
-        uint64_t destAddr = dataCells[destIndex]->getAddr();
-        scheduleQueue.push(std::make_pair(srcAddr, destAddr));
-    }
-
-    DPRINTF(NetworkScheduler,
-        "Hotspot schedule generated: %d packets targeting hotspot %d.\n",
-        hotspotPackets, hotspotAddr
-    );
-}
-
-
-// Generates a random schedule of packets
-void
-NetworkScheduler::generateRandomSchedule()
-{
-    // Clear any existing schedule before generating a new one
-    clear();
-
-    if (dataCells.empty()) {
-        // Warn if there are no DataCells available
-        warn("No DataCells available for scheduling.\n");
-        return;
-    }
-
-     // In infinite mode we do not pre-generate the schedule.
-    if (infiniteMode) {
-        DPRINTF(NetworkScheduler,
-            "Infinite mode active: schedule will \
-            be generated on demand.\n"
-        );
-        return;
-    }
-
-    // Random number generator setup
-    std::random_device rd;              // Random seed
-    std::mt19937 gen(rd());             // Mersenne Twister random generator
-
-    // Generate random src-dest packet pairs
-    for (uint64_t i = 0; i < maxPackets; i++) {
-        int srcIndex = gen() % dataCells.size();
-        int destIndex = gen() % dataCells.size();
-        uint64_t srcAddr = dataCells[srcIndex]->getAddr();
-        uint64_t destAddr = dataCells[destIndex]->getAddr();
-        scheduleQueue.push(std::make_pair(srcAddr, destAddr));
-    }
-
-    DPRINTF(NetworkScheduler,
-        "Random schedule generated with %d packets.\n",
-        scheduleQueue.size());
-}
-
-// Saves the current schedule to a file
-void
-NetworkScheduler::saveSchedule()
-{
-    std::ofstream ofs(schedulePath);
-    if (!ofs.is_open()) {
-        // Fatal error if the file cannot be opened for writing
-        fatal("Failed to open schedule file %s for writing.\n", schedulePath);
-    }
-
-    // Write each src-dest packet pair to the file
-    std::queue<std::pair<uint64_t, uint64_t>> tempQueue = scheduleQueue;
-    while (!tempQueue.empty()) {
-        auto entry = tempQueue.front();
-        ofs << entry.first << " " << entry.second << "\n";
-        tempQueue.pop();
-    }
-
-    ofs.close();
-    DPRINTF(NetworkScheduler, "Schedule saved to %s.\n", schedulePath);
-}
-
 // Generates a random packet using the given src.
 // It picks a random destination from dataCells.
 uint64_t
@@ -205,24 +76,24 @@ NetworkScheduler::generateRandomPacket(uint64_t src)
     std::random_device rd;
     std::mt19937 gen(rd());
 
-    uint64_t destAddr = src;
+    uint64_t dest_addr = src;
     if (dataCells.size() > 1) {
-        int destIndex = gen() % dataCells.size();
-        destAddr = dataCells[destIndex]->getAddr();
+        int dest_index = gen() % dataCells.size();
+        dest_addr = dataCells[dest_index]->getAddr();
     }
 
-    return destAddr;
+    return dest_addr;
 }
 
 // Generates a hotspot packet using the
-// given src, hotspotAddr and hotspotFraction.
+// given src, hotspot_addr and hotspot_fraction.
 // It generates a packet targeting the hotspot with
-// probability hotspotFraction.
+// probability hotspot_fraction.
 uint64_t
 NetworkScheduler::generateHotspotPacket(
     uint64_t src,
-    uint64_t hotspotAddr,
-    double hotspotFraction
+    uint64_t hotspot_addr,
+    double hotspot_fraction
 )
 {
     if (dataCells.empty()) {
@@ -231,8 +102,8 @@ NetworkScheduler::generateHotspotPacket(
     }
 
     // Check if the hotspot address is valid
-    if (hotspotAddr >= dataCells.size()) {
-        fatal("Invalid hotspot address %lu.\n", hotspotAddr);
+    if (hotspot_addr >= dataCells.size()) {
+        fatal("Invalid hotspot address %lu.\n", hotspot_addr);
         return -1;
     }
 
@@ -241,9 +112,9 @@ NetworkScheduler::generateHotspotPacket(
     std::mt19937 gen(rd());
 
     // Generate a packet targeting the hotspot
-    // with probability hotspotFraction.
-    if (gen() % 100 < hotspotFraction * 100) {
-        return hotspotAddr;
+    // with probability hotspot_fraction.
+    if (gen() % 100 < hotspot_fraction * 100) {
+        return hotspot_addr;
     }
 
     // Generate a random packet targeting a random destination.
@@ -270,27 +141,27 @@ NetworkScheduler::loadSchedule()
     // Clear any existing schedule
     clear();
 
-    std::vector<std::pair<uint64_t, uint64_t>> fileEntries;
+    std::vector<std::pair<uint64_t, uint64_t>> file_entries;
     uint64_t src, dest;
 
     // Read src-dest pairs from the file
     while (ifs >> src >> dest) {
-        fileEntries.emplace_back(src, dest);
+        file_entries.emplace_back(src, dest);
     }
 
     // Load the read entries into the schedule queue
-    uint64_t packetCount = loadScheduleEntries(fileEntries);
+    uint64_t packet_count = loadScheduleEntries(file_entries);
     DPRINTF(NetworkScheduler,
         "Schedule loaded from %s with %d entries.\n",
-        schedulePath, packetCount);
+        schedulePath, packet_count);
 }
 
 // Adds schedule entries from the file into the queue
 uint64_t
 NetworkScheduler::loadScheduleEntries(const std::vector<std::pair<uint64_t,
-    uint64_t>>& fileEntries)
+    uint64_t>>& file_entries)
 {
-    uint64_t packetCount = 0;
+    uint64_t packet_count = 0;
 
     if (maxPackets > 0) {
         // If maxPackets is specified, only load up to that limit
@@ -299,24 +170,24 @@ NetworkScheduler::loadScheduleEntries(const std::vector<std::pair<uint64_t,
         // Add entries in rounds until the maxPackets limit is reached
         while (remaining > 0) {
             uint64_t entriesThisRound = std::min(remaining,
-                (uint64_t)fileEntries.size());
+                (uint64_t)file_entries.size());
 
             for (uint64_t i = 0; i < entriesThisRound; i++) {
-                scheduleQueue.push(fileEntries[i]);
-                packetCount++;
+                scheduleQueue.push(file_entries[i]);
+                packet_count++;
             }
 
             remaining -= entriesThisRound;
         }
     } else {
         // If no maxPackets limit, load all entries
-        for (const auto& entry : fileEntries) {
+        for (const auto& entry : file_entries) {
             scheduleQueue.push(entry);
-            packetCount++;
+            packet_count++;
         }
     }
 
-    return packetCount;
+    return packet_count;
 }
 
 // Checks if the schedule file exists
@@ -332,22 +203,6 @@ bool
 NetworkScheduler::hasPackets() const
 {
     return infiniteMode ? true : (!scheduleQueue.empty());
-}
-
-// Retrieves the next packet in the schedule
-std::pair<uint64_t, uint64_t>
-NetworkScheduler::getNextPacket()
-{
-    if (scheduleQueue.empty()) {
-        // Return a default packet with {-1, -1}
-        // if the queue is empty
-        return {-1, -1};
-    }
-
-    // Retrieve and remove the next packet from the queue
-    auto packet = scheduleQueue.front();
-    scheduleQueue.pop();
-    return packet;
 }
 
 // Clears the current schedule by swapping with an empty queue

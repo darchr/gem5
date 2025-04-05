@@ -37,12 +37,11 @@ namespace gem5
 {
 
 // Constructor for DataCell class
-// Initializes the cell with default values and links to the statistics group
+// Initializes the cell with default values
 DataCell::DataCell(const DataCellParams& params) :
     ClockedObject(params),
     data(0),                 // Initialize data to 0
-    addr(0),                 // Initialize address to 0
-    stats(this)              // Link the stats object to this cell
+    addr(0)                 // Initialize address to 0
 {
 }
 
@@ -76,11 +75,11 @@ DataCell::getAddr()
 
 // Assigns a packet to the cell by pushing the dest address into queue
 void
-DataCell::assignPacket(uint64_t destAddr)
+DataCell::assignPacket(uint64_t dest_addr)
 {
-    packetQueue.push(destAddr);  // Queue the dest
+    packetQueue.push(dest_addr);  // Queue the dest
     DPRINTF(DataCell, "DataCell %d assigned packet to destination %d\n",
-            addr, destAddr);
+            addr, dest_addr);
 }
 
 // Retrieves and removes the next packet from the queue
@@ -92,7 +91,6 @@ DataCell::getNextPacket()
         // Get the next packet and remove it from the queue
         uint64_t nextPacket = packetQueue.front();
         packetQueue.pop();
-        stats.sentPackets++;
         return nextPacket;
     }
     return 0; // No packet available
@@ -107,16 +105,13 @@ DataCell::hasPackets() const
 
 // Handles receiving data by updating the last received values and stats
 void
-DataCell::receiveData(uint64_t receivedData, uint64_t srcAddr)
+DataCell::receiveData(uint64_t received_data, uint64_t src_addr)
 {
     DPRINTF(DataCell, "DataCell %d received data %d from source %d\n",
-            addr, receivedData, srcAddr);
+            addr, received_data, src_addr);
 
-    lastReceivedData = receivedData;  // Store the last received data
-    lastReceivedFrom = srcAddr;       // Store the source of the data
-
-    receivedPackets++;                // Increment the local received counter
-    stats.receivedPackets++;          // Increment the statistics counter
+    lastReceivedData = received_data;  // Store the last received data
+    lastReceivedFrom = src_addr;       // Store the source of the data
 }
 
 // Returns the next packet without removing it from the queue
@@ -128,29 +123,6 @@ DataCell::peekNextPacket() const
          return packetQueue.front();
     }
     return -1;  // No packet available
-}
-
-// Constructor for the statistics group associated with the DataCell
-DataCell::DataCellStats::DataCellStats(DataCell* dataCell) :
-    statistics::Group(dataCell),
-    ADD_STAT(sentPackets, statistics::units::Count::get(),
-        "Packets sent from this cell"),
-    ADD_STAT(receivedPackets, statistics::units::Count::get(),
-        "Packets received by this cell")
-{
-}
-
-// Registers statistics for the DataCell
-void
-DataCell::DataCellStats::regStats()
-{
-    using namespace statistics;
-
-    sentPackets.name("sentPackets")
-              .desc("Number of packets sent from this cell");
-
-    receivedPackets.name("receivedPackets")
-                  .desc("Number of packets received by this cell");
 }
 
 }  // namespace gem5

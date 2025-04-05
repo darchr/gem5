@@ -52,29 +52,9 @@ class DataCell : public ClockedObject
         // Queue to hold packets (destination addresses) assigned to the cell
         std::queue<uint64_t> packetQueue;
 
-        // Counters for the # of packets sent and received by the cell
-        uint64_t sentPackets = 0;
-        uint64_t receivedPackets = 0;
-
         // Variables to store the most recent received data and source addr
         uint64_t lastReceivedData = 0;
         uint64_t lastReceivedFrom = 0;
-
-        // Statistics struct to track sent and received packets
-        struct DataCellStats : public statistics::Group
-        {
-            statistics::Scalar sentPackets;      // # of packets sent
-            statistics::Scalar receivedPackets;  // # of packets received
-
-            // Constructor for the statistics group
-            DataCellStats(DataCell* dataCell);
-
-            // Registers the statistics with gem5's statistics system
-            void regStats() override;
-        };
-
-        // Statistics instance associated with the current DataCell
-        DataCellStats stats;
 
     public:
         // Constructor: Initializes the DataCell with parameters
@@ -93,21 +73,17 @@ class DataCell : public ClockedObject
         uint64_t getAddr();
 
         // Assigns a packet to the queue with the given destination address
-        void assignPacket(uint64_t destAddr);
+        void assignPacket(uint64_t dest_addr);
 
         // Receives data from another cell
         // Stores the received value and source
-        void receiveData(uint64_t receivedData, uint64_t srcAddr);
+        void receiveData(uint64_t received_data, uint64_t src_addr);
 
         // Retrieves and removes the next packet from the queue
         uint64_t getNextPacket();
 
         // Checks if the cell has any packets in its queue
         bool hasPackets() const;
-
-        // Getters for tracking statistics
-        uint64_t getSentPackets() const { return sentPackets; }
-        uint64_t getReceivedPackets() const { return receivedPackets; }
 
         // Getters for the last received data and source information
         uint64_t getLastReceivedData() const { return lastReceivedData; }

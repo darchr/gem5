@@ -80,30 +80,27 @@ Layer::Layer(const LayerParams& params) :
 
     // Initialize the network scheduler
     std::queue<std::pair<uint64_t, uint64_t>>
-        scheduleQueue = scheduler.initialize();
+        schedule_queue = scheduler.initialize();
 
-    if (!scheduleQueue.empty()) {
+    if (!schedule_queue.empty()) {
         fileMode = true;
-        maxPackets = scheduleQueue.size();
-        while (!scheduleQueue.empty()) {
-            const auto& entry = scheduleQueue.front();
+        maxPackets = schedule_queue.size();
+        while (!schedule_queue.empty()) {
+            const auto& entry = schedule_queue.front();
 
-            uint64_t srcAddr = entry.first;
-            uint64_t destAddr = entry.second;
+            uint64_t src_addr = entry.first;
+            uint64_t dest_addr = entry.second;
 
-            DataCell* cell = getDataCell(srcAddr);
+            DataCell* cell = getDataCell(src_addr);
             if (cell != nullptr) {
-                cell->assignPacket(destAddr);
+                cell->assignPacket(dest_addr);
                 DPRINTF(Layer,
                         "DataCell %d: addr=%d, packet assigned to %d\n",
-                        srcAddr, cell->getAddr(), destAddr);
+                        src_addr, cell->getAddr(), dest_addr);
             }
-            scheduleQueue.pop();
+            schedule_queue.pop();
         }
     }
-
-    // Assign packets from the predefined schedule
-    // assignPacketsFromSchedule();
 
     // Compute network parameters like time slot and connection window
     // computeNetworkParameters();
@@ -122,7 +119,7 @@ Layer::initializeDataCells(const std::vector<DataCell*>& cells)
     }
 
     // Set network radix
-    assignRadix(cells.size() * 2);
+    setRadix(cells.size() * 2);
 
     // Populate data cells with addresses and random data
     for (uint64_t i = 0; i < cells.size(); i++) {
@@ -130,8 +127,8 @@ Layer::initializeDataCells(const std::vector<DataCell*>& cells)
         cell->setAddr(i);
 
         // Generate random data within the dynamic range
-        uint64_t randomData = random() % dynamicRange;
-        cell->setData(randomData);
+        uint64_t random_data = random() % dynamicRange;
+        cell->setData(random_data);
 
         DPRINTF(Layer, "DataCell %d: addr=%d, data=%d\n",
                 i, cell->getAddr(), cell->getData());
@@ -139,33 +136,6 @@ Layer::initializeDataCells(const std::vector<DataCell*>& cells)
         // Add the cell to the network
         addDataCell(cell);
     }
-}
-
-// Assign packets to data cells based on the predefined schedule
-void
-Layer::assignPacketsFromSchedule()
-{
-    uint64_t packetCount = 0;
-
-    // Process all packets in the scheduler
-    while (scheduler.hasPackets()) {
-        // Get the next packet's source and destination addresses
-        auto [srcAddr, destAddr] = scheduler.getNextPacket();
-
-        // Find the source data cell
-        DataCell* cell = getDataCell(srcAddr);
-        if (cell != nullptr) {
-            DPRINTF(Layer,
-                "Assigning packet: src=%d, dest=%d\n",
-                srcAddr, destAddr
-            );
-            // Assign the packet to the source cell
-            cell->assignPacket(destAddr);
-            packetCount++;
-        }
-    }
-
-    DPRINTF(Layer, "Total packets assigned: %d\n", packetCount);
 }
 
 // Compute key network parameters like time slot and connection window
@@ -189,47 +159,25 @@ Layer::computeTimingParameters()
     );
 }
 
-// Schedule the initial network event if there are packets to process
-// void
-// Layer::scheduleInitialEvent()
-// {
-//     bool hasPackets = false;
-//     // Check if any data cell has packets
-//     for (DataCell* cell : dataCells) {
-//         if (cell->hasPackets()) {
-//             hasPackets = true;
-//             break;
-//         }
-//     }
-
-//     // Schedule the first network event if packets exist
-//     if (!dataCells.empty() && hasPackets) {
-//         DPRINTF(Layer, "Scheduling first network event\n");
-//         scheduleNextNetworkEvent(curTick()); // Start at this tick
-//     } else {
-//         DPRINTF(Layer, "No packets to process\n");
-//     }
-// }
-
 // Calculate the time slot based on network component delays
 void
 Layer::assignTimeSlot()
 {
     // Adjust setup time considering circuit variability
-    double SE_adjusted = std::max(0.0,
+    double se_adjusted = std::max(0.0,
         crosspointSetupTime - circuitVariability
     );
 
     // Calculate time slot considering delays of various network components
-    double calculatedTimeSlot = circuitVariability * (
-        crosspointDelay + SE_adjusted +
+    double calculated_time_slot = circuitVariability * (
+        crosspointDelay + se_adjusted +
         splitterDelay * (radix - 1) +
         mergerDelay * (radix - 1) +
         variabilityCountingNetwork
     );
 
     // Round up the calculated time slot
-    this->timeSlot = Cycles(std::ceil(calculatedTimeSlot));
+    this->timeSlot = Cycles(std::ceil(calculated_time_slot));
 }
 
 // Add a data cell to the network's data cell collection
@@ -256,16 +204,16 @@ Layer::processNextNetworkEvent()
     if (isFinished) {
         return;
     }
-    uint64_t packetsProcessedThisWindow = 0;
+    uint64_t packets_processed_this_window = 0;
 
     // Build a static schedule for the current time slot
-    std::unordered_map<uint64_t, uint64_t> staticSchedule =
+    std::unordered_map<uint64_t, uint64_t> static_schedule =
         buildStaticSchedule();
 
     // Process packets according to the static schedule
     processPackets(
-        staticSchedule,
-        packetsProcessedThisWindow
+        static_schedule,
+        packets_processed_this_window
     );
 
     stats.totalWindowsUsed++;
@@ -286,31 +234,31 @@ Layer::processNextNetworkEvent()
 std::unordered_map<uint64_t, uint64_t>
 Layer::buildStaticSchedule()
 {
-    std::unordered_map<uint64_t, uint64_t> staticSchedule;
+    std::unordered_map<uint64_t, uint64_t> static_schedule;
 
     // Determine allowed destination for each data cell
     for (DataCell* cell : dataCells) {
-        uint64_t srcAddr = cell->getAddr();
-        uint64_t allowedDest =
-            (srcAddr + currentTimeSlotIndex) % dataCells.size();
-        staticSchedule[srcAddr] = allowedDest;
+        uint64_t src_addr = cell->getAddr();
+        uint64_t allowed_dest =
+            (src_addr + currentTimeSlotIndex) % dataCells.size();
+        static_schedule[src_addr] = allowed_dest;
 
         DPRINTF(Layer,
             "Window %lu: allowed transmission from DataCell %lu to %lu\n",
-            currentTimeSlotIndex, srcAddr, allowedDest
+            currentTimeSlotIndex, src_addr, allowed_dest
         );
     }
 
-    return staticSchedule;
+    return static_schedule;
 }
 
 // Process packets according to the static schedule
 bool
 Layer::processPackets(
-    const std::unordered_map<uint64_t, uint64_t>& staticSchedule,
-    uint64_t& packetsProcessedThisWindow)
+    const std::unordered_map<uint64_t, uint64_t>& static_schedule,
+    uint64_t& packets_processed_this_window)
 {
-    Tick payloadSpecificDelay = 0;
+    Tick payload_specific_delay = 0;
     // Determine if we are in infinite mode
     bool infinite_mode = (maxPackets == static_cast<uint64_t>(-1));
 
@@ -321,43 +269,43 @@ Layer::processPackets(
             break;  // Exit the loop immediately if we've reached max packets
         }
 
-        uint64_t srcAddr = cell->getAddr();
-        uint64_t allowedDest = staticSchedule.at(srcAddr);
+        uint64_t src_addr = cell->getAddr();
+        uint64_t allowed_dest = static_schedule.at(src_addr);
 
-        uint64_t packetDest = -1;
+        uint64_t packet_dest = -1;
         // Check if there's already a packet in the buffer first
         if (cell->hasPackets()) {
-            packetDest = cell->peekNextPacket();
+            packet_dest = cell->peekNextPacket();
         } else {
             if (!fileMode) {
                 if (trafficMode == TrafficMode::RANDOM) {
                     // Generate a random packet destination
-                    packetDest = scheduler.generateRandomPacket(srcAddr);
+                    packet_dest = scheduler.generateRandomPacket(src_addr);
                 } else if (trafficMode == TrafficMode::HOTSPOT) {
                     // Use the static schedule for the current time slot
-                    packetDest = scheduler.generateHotspotPacket(
-                        srcAddr, hotspotAddr, hotspotFraction
+                    packet_dest = scheduler.generateHotspotPacket(
+                        src_addr, hotspotAddr, hotspotFraction
                     );
                 }
                 DPRINTF(Layer,
                     "DataCell %lu: generated packet for %lu\n",
-                    srcAddr, packetDest
+                    src_addr, packet_dest
                 );
                 // Only generate a new packet if there's nothing in the buffer
-                assert(packetDest != -1);
+                assert(packet_dest != -1);
             } else {
                 // In file mode, don't generate a new packet destination.
                 // Optionally, log that no new packet was generated.
                 DPRINTF(Layer,
                     "DataCell %lu: file mode active,"
                     "skipping packet generation\n",
-                    srcAddr
+                    src_addr
                 );
             }
         }
 
         // Check if packet can be sent in the current time slot
-        if (packetDest == allowedDest) {
+        if (packet_dest == allowed_dest) {
             // Remove the packet if it was from the buffer
             if (cell->hasPackets()) {
                 cell->getNextPacket();
@@ -367,23 +315,23 @@ Layer::processPackets(
             // Calculate precise delivery time
             // within the connection window
             // Use the payload value -> RACE LOGIC
-            payloadSpecificDelay = ((payload + 1)) *
+            payload_specific_delay = ((payload + 1)) *
                 (getTimeSlot()) * clockPeriod()/714;
 
             DPRINTF(Layer,
                 "Processing packet: src=%lu, dest=%lu, \
                 data=%lu, specific delay=%lu ps\n",
-                srcAddr, allowedDest, payload, payloadSpecificDelay
+                src_addr, allowed_dest, payload, payload_specific_delay
             );
             stats.totalPacketsProcessed++;
             packetsDelivered++;
-            packetsProcessedThisWindow++;
+            packets_processed_this_window++;
 
             // Schedule packet delivery with payload-specific timing
             schedule(new EventFunctionWrapper([this,
-                srcAddr, allowedDest, payload]() {
-                deliverPacket(srcAddr, allowedDest, payload);
-            }, "deliverPacketEvent"), curTick() + payloadSpecificDelay);
+                src_addr, allowed_dest, payload]() {
+                deliverPacket(src_addr, allowed_dest, payload);
+            }, "deliverPacketEvent"), curTick() + payload_specific_delay);
 
             // Check if we've reached max packets after processing this one
             // If not in infinite mode, check for termination condition.
@@ -392,19 +340,19 @@ Layer::processPackets(
             }
         } else if (!fileMode) {
             // Packet not allowed in the current time slot
-            cell->assignPacket(packetDest);
+            cell->assignPacket(packet_dest);
             DPRINTF(Layer,
                 "DataCell %lu: packet for %lu not scheduled (allowed: %lu)\n",
-                srcAddr, packetDest, allowedDest
+                src_addr, packet_dest, allowed_dest
             );
             DPRINTF(Layer,
                 "DataCell %lu: packet for %lu assigned to buffer\n",
-                srcAddr, packetDest
+                src_addr, packet_dest
             );
         }
     }
 
-    stats.pktsPerWindow.sample(packetsProcessedThisWindow);
+    stats.pktsPerWindow.sample(packets_processed_this_window);
 
     // Only exit simulation if not in infinite mode
     if (!infinite_mode && packetsDelivered >= maxPackets) {
@@ -414,14 +362,14 @@ Layer::processPackets(
         );
         DPRINTF(Layer,
             "Payload specific delay: %lu\n",
-            payloadSpecificDelay
+            payload_specific_delay
         );
         isFinished = true;
         if (superNetwork != nullptr) {
             // Schedule the notification after the delay
             schedule(new EventFunctionWrapper([this]() {
                 superNetwork->notifyLayerFinished(this);
-            }, "layerFinishedEvent"), curTick() + payloadSpecificDelay);
+            }, "layerFinishedEvent"), curTick() + payload_specific_delay);
         }
     }
 
@@ -430,22 +378,22 @@ Layer::processPackets(
 
 // Deliver a packet to its destination data cell
 void
-Layer::deliverPacket(uint64_t srcAddr,
-    uint64_t destAddr, uint64_t payload)
+Layer::deliverPacket(uint64_t src_addr,
+    uint64_t dest_addr, uint64_t payload)
 {
     // Find the destination data cell
-    DataCell* destCell = getDataCell(destAddr);
-    if (destCell != nullptr) {
+    DataCell* dest_cell = getDataCell(dest_addr);
+    if (dest_cell != nullptr) {
         // Receive data at the destination cell
-        destCell->receiveData(payload, srcAddr);
+        dest_cell->receiveData(payload, src_addr);
         DPRINTF(Layer,
             "Packet delivered: src=%lu, dest=%lu, data=%lu\n",
-            srcAddr, destAddr, payload
+            src_addr, dest_addr, payload
         );
     } else {
         DPRINTF(Layer,
             "Error: Destination cell %lu not found\n",
-            destAddr
+            dest_addr
         );
     }
 }
@@ -462,8 +410,8 @@ Layer::scheduleNextNetworkEvent(Tick when)
 
 // Constructor for Layer statistics
 Layer::LayerStats::LayerStats(
-    Layer* Layer
-    ) : statistics::Group(Layer),
+    Layer* layer
+    ) : statistics::Group(layer),
     ADD_STAT(totalPacketsProcessed, statistics::units::Count::get(),
         "Total packets processed"),
     ADD_STAT(totalWindowsUsed, statistics::units::Count::get(),
@@ -486,13 +434,6 @@ Layer::LayerStats::regStats()
 
     totalWindowsUsed.name("totalWindowsUsed")
               .desc("Number of connection windows used");
-
-    // Calculate average packets per window
-    // pktsPerWindow.name("pktsPerWindow")
-    //                .desc("Average packets processed per window")
-    //                .precision(2)
-    //                .flags(nozero)
-    //                = totalPacketsProcessed / totalWindowsUsed;
 
     pktsPerWindow.init(64);
 }

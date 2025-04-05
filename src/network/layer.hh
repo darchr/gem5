@@ -83,10 +83,8 @@ private:
     uint64_t hotspotAddr; // Address of the hotspot
     double hotspotFraction; // Fraction of packets targeting the hotspot
 
-    // Initialization methods to set up network layers and data cells
-    void initializeNetworkLayers(const std::vector<Layer*>& layers);
+    // Initialization methods to set up data cells
     void initializeDataCells(const std::vector<DataCell*>& cells);
-    void assignPacketsFromSchedule();
 
     // Method to calculate the time slot based on network parameters
     void assignTimeSlot();
@@ -95,11 +93,13 @@ private:
     // Builds a static schedule for the current time slot
     std::unordered_map<uint64_t, uint64_t> buildStaticSchedule();
     bool processPackets(
-        const std::unordered_map<uint64_t, uint64_t>& staticSchedule,
-        uint64_t& packetsProcessedThisWindow
+        const std::unordered_map<uint64_t, uint64_t>& static_schedule,
+        uint64_t& packets_processed_this_window
     );
     // Method for delivering a packet to its destination
-    void deliverPacket(uint64_t srcAddr, uint64_t destAddr, uint64_t payload);
+    void deliverPacket(uint64_t src_addr,
+        uint64_t dest_addr, uint64_t payload
+    );
 
     // Struct to hold statistics related to the Layer
     struct LayerStats: public statistics::Group
@@ -115,7 +115,7 @@ private:
         statistics::Histogram pktsPerWindow;
 
         // Constructor that links stats to the Layer instance
-        LayerStats(Layer* Layer);
+        LayerStats(Layer* layer);
 
         // Registers the statistics with the simulator
         void regStats() override;
@@ -140,7 +140,7 @@ public:
 
     // Methods for assigning and retrieving radix,
     // time slot, and connection window values
-    void assignRadix(uint64_t radix) { this->radix = radix; }
+    void setRadix(uint64_t radix) { this->radix = radix; }
     uint64_t getRadix() const { return radix; }
 
     Cycles getTimeSlot() const { return timeSlot; }
