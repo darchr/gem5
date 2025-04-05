@@ -29,9 +29,9 @@
 #ifndef __NETWORK_SUPERNETWORK_HH__
 #define __NETWORK_SUPERNETWORK_HH__
 
-#include "network/DataCell.hh"
-#include "network/Layer.hh"
-#include "network/NetworkScheduler.hh"
+#include "network/data_cell.hh"
+#include "network/layer.hh"
+#include "network/network_scheduler.hh"
 #include "params/SuperNetwork.hh"
 #include "sim/clocked_object.hh"
 #include "sim/eventq.hh"

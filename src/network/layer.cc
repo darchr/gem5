@@ -26,7 +26,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "network/Layer.hh"
+#include "network/layer.hh"
 
 #include <algorithm>
 #include <cstdlib>
@@ -35,8 +35,8 @@
 #include <iterator>
 
 #include "debug/Layer.hh"
-#include "network/NetworkScheduler.hh"
-#include "network/SuperNetwork.hh"
+#include "network/network_scheduler.hh"
+#include "network/super_network.hh"
 #include "sim/eventq.hh"
 #include "sim/sim_exit.hh"
 #include "sim/stats.hh"
@@ -62,6 +62,7 @@ Layer::Layer(const LayerParams& params) :
     packetsDelivered(0),
     currentTimeSlotIndex(0),
     isFinished(false),
+    fileMode(false),
     // Event for processing the next network event
     nextNetworkEvent([this]{ processNextNetworkEvent(); },
         name() + ".nextNetworkEvent"),
@@ -78,7 +79,28 @@ Layer::Layer(const LayerParams& params) :
     initializeDataCells(params.data_cells);
 
     // Initialize the network scheduler
-    // scheduler.initialize();
+    std::queue<std::pair<uint64_t, uint64_t>>
+        scheduleQueue = scheduler.initialize();
+
+    if (!scheduleQueue.empty()) {
+        fileMode = true;
+        maxPackets = scheduleQueue.size();
+        while (!scheduleQueue.empty()) {
+            const auto& entry = scheduleQueue.front();
+
+            uint64_t srcAddr = entry.first;
+            uint64_t destAddr = entry.second;
+
+            DataCell* cell = getDataCell(srcAddr);
+            if (cell != nullptr) {
+                cell->assignPacket(destAddr);
+                DPRINTF(Layer,
+                        "DataCell %d: addr=%d, packet assigned to %d\n",
+                        srcAddr, cell->getAddr(), destAddr);
+            }
+            scheduleQueue.pop();
+        }
+    }
 
     // Assign packets from the predefined schedule
     // assignPacketsFromSchedule();
@@ -290,35 +312,48 @@ Layer::processPackets(
 {
     Tick payloadSpecificDelay = 0;
     // Determine if we are in infinite mode
-    bool infiniteMode = (maxPackets == static_cast<uint64_t>(-1));
+    bool infinite_mode = (maxPackets == static_cast<uint64_t>(-1));
 
     // Iterate through all data cells
     for (DataCell* cell : dataCells) {
         // Check if we've already reached the maximum packets
-        if (packetsDelivered >= maxPackets && !infiniteMode) {
+        if (packetsDelivered >= maxPackets && !infinite_mode) {
             break;  // Exit the loop immediately if we've reached max packets
         }
 
         uint64_t srcAddr = cell->getAddr();
         uint64_t allowedDest = staticSchedule.at(srcAddr);
 
-        uint64_t packetDest;
+        uint64_t packetDest = -1;
         // Check if there's already a packet in the buffer first
         if (cell->hasPackets()) {
             packetDest = cell->peekNextPacket();
         } else {
-            if (trafficMode == TrafficMode::RANDOM) {
-                // Generate a random packet destination
-                packetDest = scheduler.generateRandomPacket(srcAddr);
-            } else if (trafficMode == TrafficMode::HOTSPOT) {
-                // Use the static schedule for the current time slot
-                packetDest = scheduler.generateHotspotPacket(
-                    srcAddr, hotspotAddr, hotspotFraction
+            if (!fileMode) {
+                if (trafficMode == TrafficMode::RANDOM) {
+                    // Generate a random packet destination
+                    packetDest = scheduler.generateRandomPacket(srcAddr);
+                } else if (trafficMode == TrafficMode::HOTSPOT) {
+                    // Use the static schedule for the current time slot
+                    packetDest = scheduler.generateHotspotPacket(
+                        srcAddr, hotspotAddr, hotspotFraction
+                    );
+                }
+                DPRINTF(Layer,
+                    "DataCell %lu: generated packet for %lu\n",
+                    srcAddr, packetDest
+                );
+                // Only generate a new packet if there's nothing in the buffer
+                assert(packetDest != -1);
+            } else {
+                // In file mode, don't generate a new packet destination.
+                // Optionally, log that no new packet was generated.
+                DPRINTF(Layer,
+                    "DataCell %lu: file mode active,"
+                    "skipping packet generation\n",
+                    srcAddr
                 );
             }
-            // Only generate a new packet if there's nothing in the buffer
-            // packetDest = scheduler.generateRandomPacket(srcAddr);
-            assert(packetDest != -1);
         }
 
         // Check if packet can be sent in the current time slot
@@ -352,39 +387,10 @@ Layer::processPackets(
 
             // Check if we've reached max packets after processing this one
             // If not in infinite mode, check for termination condition.
-            if (!infiniteMode && packetsDelivered >= maxPackets) {
+            if (!infinite_mode && packetsDelivered >= maxPackets) {
                 break;
             }
-        // } else if (cell->hasPackets() &&
-        // cell->peekNextPacket() == allowedDest) {
-        //     cell->getNextPacket();
-        //     Above call should remove the packet from the queue
-        //     uint64_t payload = cell->getData();
-
-        //     // Calculate precise delivery time (as before)
-        //     payloadSpecificDelay = ((payload + 1) % dynamicRange) *
-        //         (getTimeSlot()) * clockPeriod() / 714;
-
-        //     DPRINTF(Layer,
-        //         "Processing packet: src=%lu, dest=%lu, data=%lu,
-        //         specific delay=%lu ps\n",
-        //         srcAddr, allowedDest, payload, payloadSpecificDelay
-        //     );
-
-        //     packetsDelivered++;
-        //     packetsProcessedThisWindow++;
-
-        //     // Schedule packet delivery with payload-specific timing
-        //     schedule(new EventFunctionWrapper([this,
-        //         srcAddr, allowedDest, payload]() {
-        //         deliverPacket(srcAddr, allowedDest, payload);
-        //     }, "deliverPacketEvent"), curTick() + payloadSpecificDelay);
-
-        //     // Check if we've reached max packets after processing this one
-        //     if (packetsDelivered >= maxPackets) {
-        //         break;
-        //     }
-        } else {
+        } else if (!fileMode) {
             // Packet not allowed in the current time slot
             cell->assignPacket(packetDest);
             DPRINTF(Layer,
@@ -401,7 +407,7 @@ Layer::processPackets(
     stats.pktsPerWindow.sample(packetsProcessedThisWindow);
 
     // Only exit simulation if not in infinite mode
-    if (!infiniteMode && packetsDelivered >= maxPackets) {
+    if (!infinite_mode && packetsDelivered >= maxPackets) {
         DPRINTF(Layer,
             "All packets processed in window %lu\n",
             currentTimeSlotIndex
@@ -412,15 +418,14 @@ Layer::processPackets(
         );
         isFinished = true;
         if (superNetwork != nullptr) {
-            superNetwork->notifyLayerFinished(this);
+            // Schedule the notification after the delay
+            schedule(new EventFunctionWrapper([this]() {
+                superNetwork->notifyLayerFinished(this);
+            }, "layerFinishedEvent"), curTick() + payloadSpecificDelay);
         }
-        // exitSimLoop("All packets processed", 0,
-        //     curTick() + payloadSpecificDelay, 0,
-        //     false
-        // );
     }
 
-    return infiniteMode ? true : (packetsDelivered < maxPackets);
+    return infinite_mode ? true : (packetsDelivered < maxPackets);
 }
 
 // Deliver a packet to its destination data cell

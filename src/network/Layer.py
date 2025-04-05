@@ -31,7 +31,7 @@ from m5.util.pybind import PyBindMethod
 
 class Layer(ClockedObject):
     type = "Layer"
-    cxx_header = "network/Layer.hh"
+    cxx_header = "network/layer.hh"
     cxx_class = "gem5::Layer"
 
     # Vector of data cells in the network

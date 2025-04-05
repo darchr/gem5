@@ -36,10 +36,10 @@
 
 #include "base/statistics.hh"
 #include "base/stats/group.hh"
-#include "network/DataCell.hh"
-#include "network/Layer.hh"
-#include "network/NetworkScheduler.hh"
+#include "network/data_cell.hh"
 #include "network/enums.hh"
+#include "network/layer.hh"
+#include "network/network_scheduler.hh"
 #include "params/Layer.hh"
 #include "sim/clocked_object.hh"
 #include "sim/eventq.hh"
@@ -73,8 +73,8 @@ private:
     int maxPackets;  // Maximum number of packets, -1 means no limit
     int packetsDelivered; // Number of packet deliveries
     bool isFinished;  // Flag to indicate if the layer has finished
+    bool fileMode;  // Flag to indicate if a file is used for scheduling
     std::string schedulePath;  // Path to the schedule file
-    std::queue<std::pair<uint64_t, uint64_t>> scheduleQueue;
     NetworkScheduler scheduler;  // Scheduler for the network
     SuperNetwork* superNetwork;  // Pointer to the super network
     TrafficMode trafficMode;  // Traffic mode for the network

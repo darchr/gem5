@@ -26,7 +26,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "network/NetworkScheduler.hh"
+#include "network/network_scheduler.hh"
 
 #include <random>  // For random number generation
 
@@ -49,28 +49,17 @@ NetworkScheduler::NetworkScheduler(
 {}
 
 // Initializes the scheduler by either generating or loading a schedule
-void
+std::queue<std::pair<uint64_t, uint64_t>>
 NetworkScheduler::initialize()
 {
     if (maxPackets == 0 && schedulePath.empty()) {
         // Error: No packets and no schedule path specified
         fatal("Either max_packets or schedule_path must be provided.\n");
-    } else if (maxPackets != 0 && schedulePath.empty()) {
-        // Generate a random schedule if no path is specified
-        generateRandomSchedule();
-    } else if (maxPackets != 0 && !schedulePath.empty()) {
-        // If both max packets and schedule path are provided
-        if (fileExists(schedulePath)) {
-            // Warn if the schedule file already exists
-            warn("schedule_path %s exists; it will be overwritten.\n",
-                schedulePath);
-        }
-        generateRandomSchedule();
-        saveSchedule();
     } else if (maxPackets == 0 && !schedulePath.empty()) {
         // Load an existing schedule from the specified path
         loadSchedule();
     }
+    return scheduleQueue;
 }
 
 void

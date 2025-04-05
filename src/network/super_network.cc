@@ -26,7 +26,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "network/SuperNetwork.hh"
+#include "network/super_network.hh"
 
 #include <algorithm>
 #include <cstdlib>
@@ -35,8 +35,8 @@
 #include <iterator>
 
 #include "debug/SuperNetwork.hh"
-#include "network/Layer.hh"
-#include "network/NetworkScheduler.hh"
+#include "network/layer.hh"
+#include "network/network_scheduler.hh"
 #include "sim/eventq.hh"
 #include "sim/sim_exit.hh"
 #include "sim/stats.hh"
@@ -49,43 +49,21 @@ namespace gem5
           numLayers(params.layers.size()),
           finishedLayers(0)
     {
-        int layerIndex = 0;
+        int layer_index = 0;
         for (auto layer : params.layers) {
             layer->computeTimingParameters();
             DPRINTF(SuperNetwork, "Layer %d: time slot = %d\n",
-                layerIndex, layer->getTimeSlot()
+                layer_index, layer->getTimeSlot()
             );
             DPRINTF(SuperNetwork, "Layer %d: connection window = %d\n",
-                layerIndex, layer->getConnectionWindow()
+                layer_index, layer->getConnectionWindow()
             );
             layer->scheduleNextNetworkEvent(curTick());
             layer->registerSuperNetwork(this);
             managedLayers.push_back(layer);
-            layerIndex++;
+            layer_index++;
         }
     }
-
-    // Cycles
-    // SuperNetwork::calculateTimeSlot(uint64_t radix)
-    // {
-    //     // Adjust setup time considering circuit variability
-    //     double SE_adjusted = std::max(0.0,
-    //         crosspointSetupTime - circuitVariability
-    //     );
-
-    //// Calculate time slot considering delays of various network components
-    //     double calculatedTimeSlot = circuitVariability * (
-    //         crosspointDelay + SE_adjusted +
-    //         splitterDelay * (radix - 1) +
-    //         mergerDelay * (radix - 1) +
-    //         variabilityCountingNetwork
-    //     );
-
-    //     // Round up the calculated time slot
-    //     this->timeSlot = Cycles(std::ceil(calculatedTimeSlot));
-    //     return this->timeSlot;
-
-    // }
 
     void
     SuperNetwork::notifyLayerFinished(Layer* layer)
@@ -120,7 +98,7 @@ namespace gem5
                 "All %d layers have finished processing.\n",
                 numLayers
             );
-            // Use exitSimLoop for a clean exit in event-driven simulation
+            // Exit the simulation loop
             exitSimLoop("SuperNetwork: \
                 All layers finished processing packets."
             );

@@ -38,7 +38,7 @@
 #include <vector>
 
 #include "base/logging.hh"
-#include "network/DataCell.hh"
+#include "network/data_cell.hh"
 
 namespace gem5 {
 
@@ -53,7 +53,7 @@ public:
     );
 
     // Initializes the scheduler
-    void initialize();
+    std::queue<std::pair<uint64_t, uint64_t>> initialize();
 
     // Generates a random schedule for packets between DataCells
     void generateRandomSchedule();

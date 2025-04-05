@@ -26,7 +26,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "network/DataCell.hh"
+#include "network/data_cell.hh"
 
 #include "debug/DataCell.hh"
 #include "sim/sim_exit.hh"

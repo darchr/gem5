@@ -31,5 +31,5 @@ from m5.proxy import *
 
 class DataCell(ClockedObject):
     type = "DataCell"
-    cxx_header = "network/DataCell.hh"
+    cxx_header = "network/data_cell.hh"
     cxx_class = "gem5::DataCell"

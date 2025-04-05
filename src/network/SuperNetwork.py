@@ -30,7 +30,7 @@ from m5.params import *
 
 class SuperNetwork(ClockedObject):
     type = "SuperNetwork"
-    cxx_header = "network/SuperNetwork.hh"
+    cxx_header = "network/super_network.hh"
     cxx_class = "gem5::SuperNetwork"
 
     # Vector of layers in the network

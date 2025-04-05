@@ -25,7 +25,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import argparse
-import random
 from enum import Enum as PyEnum
 
 import m5
@@ -130,124 +129,165 @@ def calculate_power_and_area(radix):
     }
 
 
-# Create a parent parser for the common (global) arguments.
-parent_parser = argparse.ArgumentParser(add_help=False)
-parent_parser.add_argument(
-    "--maximum-packets",
-    type=int,
-    help="Maximum number of packets to process",
-    default=None,
-)
-parent_parser.add_argument(
-    "--file-path", type=str, help="Path to the input file", default=None
-)
-parent_parser.add_argument(
-    "--num-cells", type=int, default=10, help="Number of DataCells to create"
-)
-parent_parser.add_argument(
-    "--dynamic-range",
-    type=int,
-    nargs="+",
-    default=[1000],
-    help="Maximum value(s) for random data generation. Multiple values create multiple layers.",
-)
-
-# Main parser that includes a sub-command for traffic mode.
-parser = argparse.ArgumentParser(
-    description="SuperNetwork Simulation", parents=[parent_parser]
-)
-subparsers = parser.add_subparsers(
-    dest="traffic_mode", required=True, help="Traffic mode sub-commands"
-)
-
-# Sub-command for random traffic mode.
-random_parser = subparsers.add_parser(
-    "random", help="Random traffic mode", parents=[parent_parser]
-)
-
-# Sub-command for hotspot traffic mode with additional required parameters.
-hotspot_parser = subparsers.add_parser(
-    "hotspot", help="Hotspot traffic mode", parents=[parent_parser]
-)
-hotspot_parser.add_argument(
-    "--hotspot-addr",
-    type=int,
-    required=True,
-    help="Hotspot address for hotspot traffic mode",
-)
-hotspot_parser.add_argument(
-    "--hotspot-fraction",
-    type=float,
-    required=True,
-    help="Hotspot fraction for hotspot traffic mode",
-)
-
-args = parser.parse_args()
-
-# Check that at least one of --maximum-packets or --file-path is provided.
-if args.maximum_packets is None and args.file_path is None:
-    parser.error(
-        "At least one of --maximum-packets or --file-path must be provided."
+def create_base_parser():
+    """
+    Create the base argument parser with common arguments.
+    """
+    parser = argparse.ArgumentParser(description="SuperNetwork Simulation")
+    # Global argument for number of cells is common to all modes
+    parser.add_argument(
+        "--num-cells", type=int, default=10, help="Number of DataCells"
     )
-
-# Create the root SimObject and system.
-root = Root(full_system=False)
-root.system = System()
-
-# Set up the clock and voltage domains.
-root.system.clk_domain = SrcClockDomain()
-root.system.clk_domain.clock = "1.4GHz"
-root.system.clk_domain.voltage_domain = VoltageDomain()
-
-# Create the DataCells.
-num_cells = args.num_cells
-data_cells = [DataCell() for _ in range(num_cells)]
-
-layers = [
-    Layer(
-        dynamic_range=dr,
-        data_cells=data_cells,
-        max_packets=args.maximum_packets,
-        schedule_path=args.file_path,
-        crosspoint_delay=NetworkDelays.CROSSPOINT_DELAY.value,
-        merger_delay=NetworkDelays.MERGER_DELAY.value,
-        splitter_delay=NetworkDelays.SPLITTER_DELAY.value,
-        circuit_variability=NetworkDelays.CIRCUIT_VARIABILITY.value,
-        variability_counting_network=NetworkDelays.VARIABILITY_COUNTING_NETWORK.value,
-        crosspoint_setup_time=NetworkDelays.CROSSPOINT_SETUP_TIME.value,
+    parser.add_argument(
+        "--dynamic-range",
+        type=int,
+        nargs="+",
+        default=[1000],
+        help="Dynamic range settings",
     )
-    for dr in args.dynamic_range
-]
+    # Global maximum packets (optional)
+    parser.add_argument(
+        "--maximum-packets", type=int, default=0, help="Maximum packets"
+    )
+    return parser
 
-# Create the SuperNetwork and add the layers.
-super_network = SuperNetwork()
-super_network.layers = layers
-root.system.super_network = super_network
 
-# Print test configuration.
-print("SRNoC Test Configuration")
-print("==============================")
-print(f"Number of DataCells: {num_cells}")
-print(f"Dynamic Range: {args.dynamic_range}")
-print()
-print("Power and Area Statistics")
-print("==============================")
-power_and_area = calculate_power_and_area(radix=(num_cells * 2))
-print()
+def add_random_traffic_subparser(subparsers):
+    """
+    Add the random traffic mode subparser.
+    """
+    random_parser = subparsers.add_parser("random", help="Random traffic mode")
+    # Random mode uses global arguments; additional random-specific arguments can be added here if needed.
+    return random_parser
 
-if args.maximum_packets:
-    print(f"Maximum Packets: {args.maximum_packets}")
-if args.file_path:
-    print(f"File Path: {args.file_path}")
-print()
 
-m5.instantiate()
-# Set the traffic mode based on the chosen sub-command.
-if args.traffic_mode == "hotspot":
-    for layer in layers:
-        layer.setHotspotTrafficMode(args.hotspot_addr, args.hotspot_fraction)
-else:  # Random mode selected.
-    for layer in layers:
-        layer.setRandomTrafficMode()
-exit_event = m5.simulate()
-print(f"Exiting @ tick {m5.curTick()} because {exit_event.getCause()}")
+def add_hotspot_traffic_subparser(subparsers):
+    """
+    Add the hotspot traffic mode subparser.
+    """
+    hotspot_parser = subparsers.add_parser(
+        "hotspot", help="Hotspot traffic mode"
+    )
+    hotspot_parser.add_argument(
+        "--hotspot-addr", type=int, required=True, help="Hotspot address"
+    )
+    hotspot_parser.add_argument(
+        "--hotspot-fraction",
+        type=float,
+        required=True,
+        help="Fraction of hotspot traffic",
+    )
+    return hotspot_parser
+
+
+def add_file_traffic_subparser(subparsers):
+    """
+    Add the file-based traffic mode subparser.
+    """
+    file_parser = subparsers.add_parser("file", help="File-based traffic mode")
+    file_parser.add_argument(
+        "--file-path", type=str, required=True, help="Path to the traffic file"
+    )
+    return file_parser
+
+
+def parse_arguments():
+    """
+    Set up the main parser with subparsers and return the parsed arguments.
+    """
+    base_parser = create_base_parser()
+    subparsers = base_parser.add_subparsers(dest="traffic_mode", required=True)
+
+    # Add traffic mode subparsers
+    add_random_traffic_subparser(subparsers)
+    add_hotspot_traffic_subparser(subparsers)
+    add_file_traffic_subparser(subparsers)
+
+    args = base_parser.parse_args()
+
+    # Validate that at least one of maximum_packets or file_path is provided if applicable.
+    if (
+        args.maximum_packets is None
+        and getattr(args, "file_path", None) is None
+    ):
+        base_parser.error(
+            "At least one of --maximum-packets or --file-path must be provided."
+        )
+
+    return args
+
+
+def main():
+    args = parse_arguments()
+
+    # Create the root SimObject and system.
+    root = Root(full_system=False)
+    root.system = System()
+
+    # Set up the clock and voltage domains.
+    root.system.clk_domain = SrcClockDomain()
+    root.system.clk_domain.clock = "1.4GHz"
+    root.system.clk_domain.voltage_domain = VoltageDomain()
+
+    # Create the DataCells.
+    num_cells = args.num_cells
+    data_cells = [DataCell() for _ in range(num_cells)]
+
+    # Create Layers for each dynamic range.
+    layers = [
+        Layer(
+            dynamic_range=dr,
+            data_cells=data_cells,
+            max_packets=args.maximum_packets,
+            schedule_path=getattr(args, "file_path", None),
+            crosspoint_delay=NetworkDelays.CROSSPOINT_DELAY.value,
+            merger_delay=NetworkDelays.MERGER_DELAY.value,
+            splitter_delay=NetworkDelays.SPLITTER_DELAY.value,
+            circuit_variability=NetworkDelays.CIRCUIT_VARIABILITY.value,
+            variability_counting_network=NetworkDelays.VARIABILITY_COUNTING_NETWORK.value,
+            crosspoint_setup_time=NetworkDelays.CROSSPOINT_SETUP_TIME.value,
+        )
+        for dr in args.dynamic_range
+    ]
+
+    # Create the SuperNetwork and add the layers.
+    super_network = SuperNetwork()
+    super_network.layers = layers
+    root.system.super_network = super_network
+
+    # Print test configuration.
+    print("SRNoC Test Configuration")
+    print("==============================")
+    print(f"Number of DataCells: {num_cells}")
+    print(f"Dynamic Range: {args.dynamic_range}")
+    print()
+    print("Power and Area Statistics")
+    print("==============================")
+    power_and_area = calculate_power_and_area(radix=(num_cells * 2))
+    print()
+
+    if args.maximum_packets:
+        print(f"Maximum Packets: {args.maximum_packets}")
+    if getattr(args, "file_path", None):
+        print(f"File Path: {args.file_path}")
+    print()
+
+    # Instantiate the simulation.
+    m5.instantiate()
+
+    # Set the traffic mode based on the chosen sub-command.
+    if args.traffic_mode == "hotspot":
+        for layer in layers:
+            layer.setHotspotTrafficMode(
+                args.hotspot_addr, args.hotspot_fraction
+            )
+    else:  # Random or file mode selected.
+        for layer in layers:
+            layer.setRandomTrafficMode()
+
+    exit_event = m5.simulate()
+    print(f"Exiting @ tick {m5.curTick()} because {exit_event.getCause()}")
+
+
+if __name__ == "__main__":
+    main()
