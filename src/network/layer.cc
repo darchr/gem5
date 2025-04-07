@@ -59,6 +59,7 @@ Layer::Layer(const LayerParams& params) :
     circuitVariability(params.circuit_variability),
     variabilityCountingNetwork(params.variability_counting_network),
     crosspointSetupTime(params.crosspoint_setup_time),
+    holdTime(params.hold_time),
     packetsDelivered(0),
     currentTimeSlotIndex(0),
     isFinished(false),
@@ -211,22 +212,30 @@ Layer::processNextNetworkEvent()
         buildStaticSchedule();
 
     // Process packets according to the static schedule
-    processPackets(
-        static_schedule,
-        packets_processed_this_window
-    );
+    // Add hold time before processing packets
+    schedule(new EventFunctionWrapper(
+        [this, static_schedule, &packets_processed_this_window]() {
+            processPackets(static_schedule, packets_processed_this_window);
+        }, "processPacketsEvent"),
+        curTick() + holdTime * clockPeriod() / 714);
 
     stats.totalWindowsUsed++;
 
     // Advance the time slot for the next event
-    currentTimeSlotIndex++;
+    // Add scheduled setup time
+    // currentTimeSlotIndex++;
+    schedule(new EventFunctionWrapper(
+        [this]() {
+            currentTimeSlotIndex++;
+        }, "advanceTimeSlotEvent"),
+        curTick() + crosspointSetupTime * clockPeriod() / 714);
 
     // Schedule next network event.
     // In infinite mode (maxPackets == -1) we always schedule the next event.
     if (maxPackets == static_cast<uint64_t>(-1)
             || packetsDelivered < maxPackets) {
         scheduleNextNetworkEvent(curTick() +
-            connectionWindow * clockPeriod()/714);
+            ((connectionWindow + crosspointSetupTime) * clockPeriod()/714));
     }
 }
 

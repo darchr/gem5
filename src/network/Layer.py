@@ -59,6 +59,7 @@ class Layer(ClockedObject):
     crosspoint_setup_time = Param.Float(
         -1, "Crosspoint setup time in picoseconds"
     )
+    hold_time = Param.Float(-1, "Hold time in picoseconds")
 
     cxx_exports = [
         PyBindMethod("setRandomTrafficMode"),

@@ -63,6 +63,7 @@ private:
     double circuitVariability;
     double variabilityCountingNetwork;
     double crosspointSetupTime;
+    double holdTime;
 
     // Network configuration parameters
     uint64_t dynamicRange;  // The dynamic range of the network

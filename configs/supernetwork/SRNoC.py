@@ -39,6 +39,7 @@ class NetworkDelays(PyEnum):
     CIRCUIT_VARIABILITY = 1.2
     VARIABILITY_COUNTING_NETWORK = 4.38
     CROSSPOINT_SETUP_TIME = 8.0
+    CROSSPOINT_HOLD_TIME = 8.0
 
 
 class ComponentPower(PyEnum):
@@ -219,6 +220,7 @@ def main():
             circuit_variability=NetworkDelays.CIRCUIT_VARIABILITY.value,
             variability_counting_network=NetworkDelays.VARIABILITY_COUNTING_NETWORK.value,
             crosspoint_setup_time=NetworkDelays.CROSSPOINT_SETUP_TIME.value,
+            hold_time=NetworkDelays.CROSSPOINT_HOLD_TIME.value,
         )
         for dr in args.dynamic_range
     ]
