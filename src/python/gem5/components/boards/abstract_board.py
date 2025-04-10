@@ -401,11 +401,11 @@ class AbstractBoard:
         # Incorporate the cache hierarchy for the motherboard.
         if self.get_cache_hierarchy():
             self.get_cache_hierarchy().incorporate_cache(self)
-
         # Incorporate the processor into the motherboard.
         self.get_processor().incorporate_processor(self)
 
         self._connect_things_called = True
+        # print(f"int links 4b: {self.get_cache_hierarchy().ruby_system.network._int_links}")
 
     def _post_instantiate(self):
         """Called to set up anything needed after ``m5.instantiate``."""

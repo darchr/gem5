@@ -3162,6 +3162,12 @@ action(Send_CompI, desc="") {
 
   if (!isStashReqType(tbe.reqType)) {
     // Used to ack Evict request
+    if (!(tbe.dir_sharers.isElement(tbe.requestor))) {
+      DPRINTF(MBRUBY,"1_Error happened for line : %#x.\n", tbe.addr);
+    }
+    if (!((tbe.dir_ownerExists == false) || (tbe.dir_owner != tbe.requestor))) {
+      DPRINTF(MBRUBY,"2_Error happened for line : %#x.\n", tbe.addr);
+    }
     assert(tbe.dir_sharers.isElement(tbe.requestor));
     assert((tbe.dir_ownerExists == false) || (tbe.dir_owner != tbe.requestor));
 
