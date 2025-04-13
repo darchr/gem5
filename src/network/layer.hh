@@ -167,6 +167,11 @@ public:
         trafficMode = TrafficMode::RANDOM;
     }
 
+    void setAllToAllTrafficMode()
+    {
+        trafficMode = TrafficMode::ALL_TO_ALL;
+    }
+
     void setHotspotTrafficMode(uint64_t hotspotAddr,
         double hotspotFraction)
     {

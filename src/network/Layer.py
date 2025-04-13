@@ -64,4 +64,5 @@ class Layer(ClockedObject):
     cxx_exports = [
         PyBindMethod("setRandomTrafficMode"),
         PyBindMethod("setHotspotTrafficMode"),
+        PyBindMethod("setAllToAllTrafficMode"),
     ]

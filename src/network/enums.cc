@@ -33,7 +33,8 @@ namespace gem5
 
 const char* TrafficModeNames[NUM_TRAFFIC_MODES] = {
     "RANDOM",
-    "HOTSPOT"
+    "HOTSPOT",
+    "ALL_TO_ALL",
 };
 
 } // namespace gem5

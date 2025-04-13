@@ -303,6 +303,21 @@ Layer::processPackets(
                     packet_dest = scheduler.generateHotspotPacket(
                         src_addr, hotspotAddr, hotspotFraction
                     );
+                } else if (trafficMode == TrafficMode::ALL_TO_ALL) {
+                    // Check if the cell already has queued destinations.
+                    if (!cell->hasPackets()) {
+                        // For an all-to-all mode, enqueue each destination.
+                        for (uint64_t dest = 0; dest < size; dest++) {
+                            cell->assignPacket(dest);
+                            DPRINTF(Layer,
+                                "DataCell %lu: enqueued "
+                                "all-to-all packet for destination %lu\n",
+                                src_addr, dest
+                            );
+                        }
+                    }
+                    // Peek the next destination from the cell’s queue.
+                    packet_dest = cell->peekNextPacket();
                 }
                 DPRINTF(Layer,
                     "DataCell %lu: generated packet for %lu\n",

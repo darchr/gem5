@@ -166,6 +166,11 @@ def parse_arguments():
         "random", parents=[shared_parser], help="Random traffic mode"
     )
 
+    # all-to-all traffic
+    all_to_all_parser = subparsers.add_parser(
+        "all-to-all", parents=[shared_parser], help="All-to-all traffic mode"
+    )
+
     # hotspot traffic
     hotspot_parser = subparsers.add_parser(
         "hotspot", parents=[shared_parser], help="Hotspot traffic mode"
@@ -207,13 +212,18 @@ def main():
     num_cells = args.num_cells
     data_cells = [DataCell() for _ in range(num_cells)]
 
+    if args.traffic_mode != "file":
+        schedule_path = ""  # Force schedule_path to be empty if not using file-based traffic mode.
+    else:
+        schedule_path = args.file_path
+
     # Create Layers for each dynamic range.
     layers = [
         Layer(
             dynamic_range=dr,
             data_cells=data_cells,
             max_packets=args.maximum_packets,
-            schedule_path=getattr(args, "file_path", None),
+            schedule_path=schedule_path,
             crosspoint_delay=NetworkDelays.CROSSPOINT_DELAY.value,
             merger_delay=NetworkDelays.MERGER_DELAY.value,
             splitter_delay=NetworkDelays.SPLITTER_DELAY.value,
@@ -256,7 +266,13 @@ def main():
             layer.setHotspotTrafficMode(
                 args.hotspot_addr, args.hotspot_fraction
             )
-    else:  # Random or file mode selected.
+    elif args.traffic_mode == "all-to-all":
+        for layer in layers:
+            layer.setAllToAllTrafficMode()
+    elif args.traffic_mode == "random":
+        for layer in layers:
+            layer.setRandomTrafficMode()
+    else:  # file mode selected.
         for layer in layers:
             layer.setRandomTrafficMode()
 
