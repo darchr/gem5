@@ -64,6 +64,7 @@ Layer::Layer(const LayerParams& params) :
     currentTimeSlotIndex(0),
     isFinished(false),
     fileMode(false),
+    size(params.data_cells.size()),
     // Event for processing the next network event
     nextNetworkEvent([this]{ processNextNetworkEvent(); },
         name() + ".nextNetworkEvent"),
@@ -150,8 +151,14 @@ Layer::computeTimingParameters()
         getTimeSlot() * clockPeriod()/714
     );
 
+    // dynamic range increases due to circuit variability
+    // and the number of data cells
+    double expected_packets = std::round(
+        (dynamicRange * std::exp(1.0)) / (std::exp(1.0) - 1.0)
+    );
+
     // Calculate and assign the connection window
-    setConnectionWindow(Cycles(dynamicRange * getTimeSlot()));
+    setConnectionWindow(Cycles(expected_packets * getTimeSlot()));
     DPRINTF(Layer, "Connection window: %d Cycles\n",
         getConnectionWindow()
     );
@@ -214,9 +221,10 @@ Layer::processNextNetworkEvent()
     // Process packets according to the static schedule
     // Add hold time before processing packets
     schedule(new EventFunctionWrapper(
-        [this, static_schedule, &packets_processed_this_window]() {
+        [this, static_schedule, packets_processed_this_window]() mutable {
             processPackets(static_schedule, packets_processed_this_window);
-        }, "processPacketsEvent"),
+        },
+        "processPacketsEvent"),
         curTick() + holdTime * clockPeriod() / 714);
 
     stats.totalWindowsUsed++;
@@ -324,8 +332,13 @@ Layer::processPackets(
             // Calculate precise delivery time
             // within the connection window
             // Use the payload value -> RACE LOGIC
-            payload_specific_delay = ((payload + 1)) *
-                (getTimeSlot()) * clockPeriod()/714;
+            payload_specific_delay =
+                ((payload + 1) * getTimeSlot() * clockPeriod() / 714)
+                + splitterDelay * (packet_dest + 1) * clockPeriod() / 714
+                + mergerDelay * (size - src_addr - 1) * clockPeriod() / 714
+                + crosspointDelay * clockPeriod() / 714;
+
+
 
             DPRINTF(Layer,
                 "Processing packet: src=%lu, dest=%lu, \

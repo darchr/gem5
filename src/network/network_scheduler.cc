@@ -52,12 +52,14 @@ NetworkScheduler::NetworkScheduler(
 std::queue<std::pair<uint64_t, uint64_t>>
 NetworkScheduler::initialize()
 {
-    if (maxPackets == 0 && schedulePath.empty()) {
-        // Error: No packets and no schedule path specified
-        fatal("Either max_packets or schedule_path must be provided.\n");
-    } else if (maxPackets == 0 && !schedulePath.empty()) {
-        // Load an existing schedule from the specified path
-        loadSchedule();
+    if (!maxPackets) {
+        if (schedulePath.empty()) {
+            fatal("Either max_packets or schedule_path must be provided.\n");
+        } else {
+            loadSchedule();
+        }
+    } else if (!schedulePath.empty()) {
+        fatal("Both max_packets and schedule_path are specified.\n");
     }
     return scheduleQueue;
 }
