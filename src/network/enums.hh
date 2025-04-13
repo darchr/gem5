@@ -37,6 +37,7 @@ enum TrafficMode
     RANDOM,
     HOTSPOT,
     ALL_TO_ALL,
+    TORNADO,
     NUM_TRAFFIC_MODES
 };
 extern const char* TrafficModeNames[NUM_TRAFFIC_MODES];

@@ -65,4 +65,5 @@ class Layer(ClockedObject):
         PyBindMethod("setRandomTrafficMode"),
         PyBindMethod("setHotspotTrafficMode"),
         PyBindMethod("setAllToAllTrafficMode"),
+        PyBindMethod("setTornadoTrafficMode"),
     ]

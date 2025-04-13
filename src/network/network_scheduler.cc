@@ -87,6 +87,31 @@ NetworkScheduler::generateRandomPacket(uint64_t src)
     return dest_addr;
 }
 
+// Generates a tornado packet using the given src.
+// It generates a packet targeting the data cell
+// roughly halfway around the network.
+// stresses bisection bandwidth.
+uint64_t
+NetworkScheduler::generateTornadoPacket(uint64_t src)
+{
+    if (dataCells.empty()) {
+        warn("No DataCells available for scheduling.\n");
+        return -1;
+    }
+
+    // Check if the source address is valid
+    if (src >= dataCells.size()) {
+        fatal("Invalid source address %lu.\n", src);
+        return -1;
+    }
+
+    // Generate a packet targeting the data cell
+    // roughly halfway around the network.
+    uint64_t dest_addr = (src + dataCells.size() / 2) % dataCells.size();
+
+    return dest_addr;
+}
+
 // Generates a hotspot packet using the
 // given src, hotspot_addr and hotspot_fraction.
 // It generates a packet targeting the hotspot with

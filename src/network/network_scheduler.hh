@@ -58,6 +58,10 @@ public:
     // Generates a random packet using the given src
     uint64_t generateRandomPacket(uint64_t src);
 
+    // Generates a tornado packet
+    // using the given src
+    uint64_t generateTornadoPacket(uint64_t src);
+
     // Generates a hotspot packet
     // using the given src, hotspot_addr and hotspot_fraction
     uint64_t generateHotspotPacket(uint64_t src,

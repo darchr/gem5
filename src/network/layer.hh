@@ -172,6 +172,11 @@ public:
         trafficMode = TrafficMode::ALL_TO_ALL;
     }
 
+    void setTornadoTrafficMode()
+    {
+        trafficMode = TrafficMode::TORNADO;
+    }
+
     void setHotspotTrafficMode(uint64_t hotspotAddr,
         double hotspotFraction)
     {

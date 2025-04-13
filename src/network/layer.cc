@@ -318,6 +318,12 @@ Layer::processPackets(
                     }
                     // Peek the next destination from the cell’s queue.
                     packet_dest = cell->peekNextPacket();
+                } else if (trafficMode == TrafficMode::TORNADO) {
+                    // Generate a tornado packet
+                    packet_dest = scheduler.generateTornadoPacket(src_addr);
+                } else {
+                    // Handle unknown traffic mode
+                    fatal("Unknown traffic mode: %d\n", trafficMode);
                 }
                 DPRINTF(Layer,
                     "DataCell %lu: generated packet for %lu\n",

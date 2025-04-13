@@ -171,6 +171,10 @@ def parse_arguments():
         "all-to-all", parents=[shared_parser], help="All-to-all traffic mode"
     )
 
+    tornado_parser = subparsers.add_parser(
+        "tornado", parents=[shared_parser], help="Tornado traffic mode"
+    )
+
     # hotspot traffic
     hotspot_parser = subparsers.add_parser(
         "hotspot", parents=[shared_parser], help="Hotspot traffic mode"
@@ -272,6 +276,9 @@ def main():
     elif args.traffic_mode == "random":
         for layer in layers:
             layer.setRandomTrafficMode()
+    elif args.traffic_mode == "tornado":
+        for layer in layers:
+            layer.setTornadoTrafficMode()
     else:  # file mode selected.
         for layer in layers:
             layer.setRandomTrafficMode()
