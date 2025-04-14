@@ -455,6 +455,7 @@ Layer::scheduleNextNetworkEvent(Tick when)
 Layer::LayerStats::LayerStats(
     Layer* layer
     ) : statistics::Group(layer),
+    parentLayer(layer),
     ADD_STAT(totalPacketsProcessed, statistics::units::Count::get(),
         "Total packets processed"),
     ADD_STAT(totalWindowsUsed, statistics::units::Count::get(),
@@ -478,7 +479,7 @@ Layer::LayerStats::regStats()
     totalWindowsUsed.name("totalWindowsUsed")
               .desc("Number of connection windows used");
 
-    pktsPerWindow.init(64);
+    pktsPerWindow.init(parentLayer->size + 1);
 }
 
 } // namespace gem5

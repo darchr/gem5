@@ -106,6 +106,8 @@ private:
     // Struct to hold statistics related to the Layer
     struct LayerStats: public statistics::Group
     {
+        // pointer to the Layer instance
+        Layer *parentLayer;
 
         // Statistics for round-robin scheduling
 
