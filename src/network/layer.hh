@@ -117,6 +117,8 @@ private:
         statistics::Scalar totalWindowsUsed;
         // Distribution of packets processed per time window
         statistics::Histogram pktsPerWindow;
+        // Distribution of missed packets per DataCell
+        statistics::Histogram missedPacketsPerDataCell;
 
         // Constructor that links stats to the Layer instance
         LayerStats(Layer* layer);

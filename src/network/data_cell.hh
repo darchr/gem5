@@ -56,6 +56,8 @@ class DataCell : public ClockedObject
         uint64_t lastReceivedData = 0;
         uint64_t lastReceivedFrom = 0;
 
+        uint64_t missedPackets = 0; // Count of missed packets
+
     public:
         // Constructor: Initializes the DataCell with parameters
         DataCell(const DataCellParams& params);
@@ -88,6 +90,11 @@ class DataCell : public ClockedObject
         // Getters for the last received data and source information
         uint64_t getLastReceivedData() const { return lastReceivedData; }
         uint64_t getLastReceivedFrom() const { return lastReceivedFrom; }
+
+        // Getter for missed packets count
+        uint64_t getMissedPackets() const { return missedPackets; }
+        // Increments the missed packets count
+        void incrementMissedPackets();
 
         // Peeks at the next packet without removing it from the queue
         uint64_t peekNextPacket() const;

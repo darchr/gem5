@@ -103,6 +103,16 @@ DataCell::hasPackets() const
     return !packetQueue.empty();
 }
 
+// Increments the missed packet count
+void
+DataCell::incrementMissedPackets()
+{
+    missedPackets++;
+    DPRINTF(DataCell, "DataCell %d missed packets: %d\n",
+        addr, missedPackets
+    );
+}
+
 // Handles receiving data by updating the last received values and stats
 void
 DataCell::receiveData(uint64_t received_data, uint64_t src_addr)

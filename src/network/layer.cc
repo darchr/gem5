@@ -148,7 +148,7 @@ Layer::computeTimingParameters()
     assignTimeSlot();
     DPRINTF(Layer, "Time slot: %d Cycles\n", getTimeSlot());
     DPRINTF(Layer, "Time slot: %d ps\n",
-        getTimeSlot() * clockPeriod()/714
+        getTimeSlot() * clockPeriod()
     );
 
     // dynamic range increases due to circuit variability
@@ -163,7 +163,7 @@ Layer::computeTimingParameters()
         getConnectionWindow()
     );
     DPRINTF(Layer, "Connection window: %d ps\n",
-        getConnectionWindow() * clockPeriod()/714
+        getConnectionWindow() * clockPeriod()
     );
 }
 
@@ -225,7 +225,7 @@ Layer::processNextNetworkEvent()
             processPackets(static_schedule, packets_processed_this_window);
         },
         "processPacketsEvent"),
-        curTick() + holdTime * clockPeriod() / 714);
+        curTick() + holdTime * clockPeriod());
 
     stats.totalWindowsUsed++;
 
@@ -236,14 +236,14 @@ Layer::processNextNetworkEvent()
         [this]() {
             currentTimeSlotIndex++;
         }, "advanceTimeSlotEvent"),
-        curTick() + crosspointSetupTime * clockPeriod() / 714);
+        curTick() + crosspointSetupTime * clockPeriod());
 
     // Schedule next network event.
     // In infinite mode (maxPackets == -1) we always schedule the next event.
     if (maxPackets == static_cast<uint64_t>(-1)
             || packetsDelivered < maxPackets) {
         scheduleNextNetworkEvent(curTick() +
-            ((connectionWindow + crosspointSetupTime) * clockPeriod()/714));
+            ((connectionWindow + crosspointSetupTime) * clockPeriod()));
     }
 }
 
@@ -318,6 +318,10 @@ Layer::processPackets(
                     }
                     // Peek the next destination from the cell’s queue.
                     packet_dest = cell->peekNextPacket();
+                    DPRINTF(Layer,
+                        "DataCell %lu: all-to-all packet for %lu\n",
+                        src_addr, packet_dest
+                    );
                 } else if (trafficMode == TrafficMode::TORNADO) {
                     // Generate a tornado packet
                     packet_dest = scheduler.generateTornadoPacket(src_addr);
@@ -354,10 +358,10 @@ Layer::processPackets(
             // within the connection window
             // Use the payload value -> RACE LOGIC
             payload_specific_delay =
-                ((payload + 1) * getTimeSlot() * clockPeriod() / 714)
-                + splitterDelay * (packet_dest + 1) * clockPeriod() / 714
-                + mergerDelay * (size - src_addr - 1) * clockPeriod() / 714
-                + crosspointDelay * clockPeriod() / 714;
+                ((payload + 1) * getTimeSlot() * clockPeriod())
+                + splitterDelay * (packet_dest + 1) * clockPeriod()
+                + mergerDelay * (size - src_addr - 1) * clockPeriod()
+                + crosspointDelay * clockPeriod();
 
 
 
@@ -384,6 +388,11 @@ Layer::processPackets(
         } else if (!fileMode) {
             // Packet not allowed in the current time slot
             cell->assignPacket(packet_dest);
+            // Increment missed packets for the data cell
+            cell->incrementMissedPackets();
+            stats.missedPacketsPerDataCell.sample(
+                cell->getMissedPackets()
+            );
             DPRINTF(Layer,
                 "DataCell %lu: packet for %lu not scheduled (allowed: %lu)\n",
                 src_addr, packet_dest, allowed_dest
@@ -461,7 +470,9 @@ Layer::LayerStats::LayerStats(
     ADD_STAT(totalWindowsUsed, statistics::units::Count::get(),
         "Number of connection windows used"),
     ADD_STAT(pktsPerWindow, statistics::units::Count::get(),
-        "Distribution of packets per window")
+        "Distribution of packets per window"),
+    ADD_STAT(missedPacketsPerDataCell, statistics::units::Count::get(),
+        "Distribution of missed packets per DataCell")
 {
 }
 
@@ -480,6 +491,8 @@ Layer::LayerStats::regStats()
               .desc("Number of connection windows used");
 
     pktsPerWindow.init(parentLayer->size + 1);
+
+    missedPacketsPerDataCell.init(64);
 }
 
 } // namespace gem5
