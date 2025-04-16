@@ -1,0 +1,3 @@
+structure(CXLHostPort, external = "yes") {
+        void responseCallback(Addr, DataBlock);
+}

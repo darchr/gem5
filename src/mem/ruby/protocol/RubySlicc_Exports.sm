@@ -284,6 +284,9 @@ enumeration(MachineType, desc="...", default="MachineType_NULL") {
     Cache,       desc="Generic coherent cache controller";
     Memory,      desc="Memory controller interface";
     MiscNode,    desc="CHI protocol Misc Node";
+    // MYSTUFF:
+    CXLHost,    desc="CXL Host";
+    // FFUTSYM:
     NULL,        desc="null mach type";
 }
 

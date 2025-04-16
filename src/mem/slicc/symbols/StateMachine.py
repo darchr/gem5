@@ -66,6 +66,9 @@ python_class_map = {
     "prefetch::Base": "BasePrefetcher",
     "Cycles": "Cycles",
     "Addr": "Addr",
+    # MYSTUFF:
+    "CXLHostPort": "CXLHostPort",
+    # FFUTSYM:
 }
 
 

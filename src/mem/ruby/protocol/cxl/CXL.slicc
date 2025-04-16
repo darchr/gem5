@@ -1,0 +1,6 @@
+protocol "CXL";
+include "CXLSlicc_Exports.sm";
+include "CXL-msg.sm";
+// include "CXL-device.sm";
+include "CXL-host.sm";
+// include "CXLSlicc_Utils.sm";

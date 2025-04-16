@@ -1,4 +1,0 @@
-protocol "CXL";
-include "CXL-device.sm";
-include "CXL-host.sm";
-include "CXL-msg.sm";

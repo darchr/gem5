@@ -1,0 +1,8 @@
+Import("*")
+
+SimObject("CXLHostPort.py",
+    sim_objects=["CXLHostPort"])
+
+DebugFlag("CXLHostPort")
+
+Source("CXLHostPort.cc")
