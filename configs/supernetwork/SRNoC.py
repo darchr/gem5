@@ -170,6 +170,11 @@ def parse_arguments():
     all_to_all_parser = subparsers.add_parser(
         "all-to-all", parents=[shared_parser], help="All-to-all traffic mode"
     )
+    all_to_all_parser.add_argument(
+        "--shuffle",
+        action="store_true",
+        help="Shuffle the destinations for all-to-all mode",
+    )
 
     tornado_parser = subparsers.add_parser(
         "tornado", parents=[shared_parser], help="Tornado traffic mode"
@@ -272,6 +277,8 @@ def main():
             )
     elif args.traffic_mode == "all-to-all":
         for layer in layers:
+            if args.shuffle:
+                layer.setShuffle()
             layer.setAllToAllTrafficMode()
     elif args.traffic_mode == "random":
         for layer in layers:

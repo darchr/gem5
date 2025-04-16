@@ -76,6 +76,7 @@ private:
     int size; // Size of the network
     bool isFinished;  // Flag to indicate if the layer has finished
     bool fileMode;  // Flag to indicate if a file is used for scheduling
+    bool shuffleEnabled;  // Flag to indicate if shuffling is enabled
     std::string schedulePath;  // Path to the schedule file
     NetworkScheduler scheduler;  // Scheduler for the network
     SuperNetwork* superNetwork;  // Pointer to the super network
@@ -188,6 +189,8 @@ public:
         this->hotspotFraction = hotspotFraction;
         trafficMode = TrafficMode::HOTSPOT;
     }
+
+    void setShuffle() { shuffleEnabled = true; }
 };
 
 } // namespace gem5

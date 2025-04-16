@@ -33,6 +33,7 @@
 #include <ctime>
 #include <fstream>
 #include <iterator>
+#include <random>
 
 #include "debug/Layer.hh"
 #include "network/network_scheduler.hh"
@@ -68,6 +69,7 @@ Layer::Layer(const LayerParams& params) :
     currentTimeSlotIndex(0),
     isFinished(false),
     fileMode(false),
+    shuffleEnabled(false),
     size(params.data_cells.size()),
     // Event for processing the next network event
     nextNetworkEvent([this]{ processNextNetworkEvent(); },
@@ -303,15 +305,34 @@ Layer::processPackets(
                     packet_dest = scheduler.generateHotspotPacket(
                         src_addr, hotspotAddr, hotspotFraction
                     );
-                } else if (trafficMode == TrafficMode::ALL_TO_ALL) {
+                } if (trafficMode == TrafficMode::ALL_TO_ALL) {
                     // Check if the cell already has queued destinations.
                     if (!cell->hasPackets()) {
-                        // For an all-to-all mode, enqueue each destination.
+                        // Create a vector to hold all destination indices.
+                        std::vector<uint64_t> destinations;
+                        destinations.reserve(size);
                         for (uint64_t dest = 0; dest < size; dest++) {
+                            destinations.push_back(dest);
+                        }
+
+                        // Conditionally shuffle the vector
+                        if (shuffleEnabled) {
+                            // Create a random number generator.
+                            std::random_device rd;
+                            std::mt19937 g(rd());
+                            // Shuffle the destinations.
+                            std::shuffle(destinations.begin(),
+                                destinations.end(), g
+                            );
+                        }
+
+                        // Enqueue each destination from the vector.
+                        // vector can be shuffled or not
+                        for (auto dest : destinations) {
                             cell->assignPacket(dest);
                             DPRINTF(Layer,
-                                "DataCell %lu: enqueued "
-                                "all-to-all packet for destination %lu\n",
+                                "DataCell %lu: enqueued all-to-all "
+                                "packet for destination %lu\n",
                                 src_addr, dest
                             );
                         }
