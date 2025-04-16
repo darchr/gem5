@@ -7,7 +7,7 @@ SimObject("Layer.py", sim_objects=["Layer"])
 Source("data_cell.cc")
 Source("super_network.cc")
 Source("layer.cc")
-Source('network_scheduler.cc')
+Source("network_scheduler.cc")
 
 DebugFlag("SuperNetwork")
 DebugFlag("DataCell")
