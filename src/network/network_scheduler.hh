@@ -49,7 +49,8 @@ public:
     // Constructor that initializes the scheduler
     NetworkScheduler(uint64_t maxPackets,
         const std::string& schedulePath,
-        const std::vector<DataCell*>& cells
+        const std::vector<DataCell*>& cells,
+        uint64_t dynamic_range
     );
 
     // Initializes the scheduler
@@ -68,6 +69,9 @@ public:
         uint64_t hotspot_addr,
         double hotspot_fraction
     );
+
+    // Generates a random payload
+    uint64_t generateRandomPayload();
 
     // Saves the current schedule to a specified file
     void saveSchedule();
@@ -101,6 +105,8 @@ private:
     const std::vector<DataCell*>& dataCells;
     // Scheduled packets (source-destination pairs)
     std::queue<std::pair<uint64_t, uint64_t>> scheduleQueue;
+    // Dynamic range of the layer
+    uint64_t dynamicRange;
 };
 
 } // namespace gem5

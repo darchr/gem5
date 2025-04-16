@@ -43,9 +43,6 @@ namespace gem5
 class DataCell : public ClockedObject
 {
     private:
-        // The data value stored in the cell
-        uint64_t data;
-
         // The address identifier of the cell
         uint64_t addr;
 
@@ -61,12 +58,6 @@ class DataCell : public ClockedObject
     public:
         // Constructor: Initializes the DataCell with parameters
         DataCell(const DataCellParams& params);
-
-        // Sets the data value in the cell
-        void setData(uint64_t data);
-
-        // Retrieves the current data value
-        uint64_t getData();
 
         // Sets the address of the cell
         void setAddr(uint64_t addr);

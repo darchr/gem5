@@ -51,7 +51,11 @@ Layer::Layer(const LayerParams& params) :
     ClockedObject(params),
     maxPackets(params.max_packets),
     schedulePath(params.schedule_path),
-    scheduler(params.max_packets, params.schedule_path, params.data_cells),
+    scheduler(params.max_packets,
+        params.schedule_path,
+        params.data_cells,
+        params.dynamic_range
+    ),
     dynamicRange(params.dynamic_range),
     crosspointDelay(params.crosspoint_delay),
     mergerDelay(params.merger_delay),
@@ -128,12 +132,8 @@ Layer::initializeDataCells(const std::vector<DataCell*>& cells)
         DataCell* cell = cells[i];
         cell->setAddr(i);
 
-        // Generate random data within the dynamic range
-        uint64_t random_data = random() % dynamicRange;
-        cell->setData(random_data);
-
-        DPRINTF(Layer, "DataCell %d: addr=%d, data=%d\n",
-                i, cell->getAddr(), cell->getData());
+        DPRINTF(Layer, "DataCell %d: addr=%d\n",
+                i, cell->getAddr());
 
         // Add the cell to the network
         addDataCell(cell);
@@ -352,7 +352,7 @@ Layer::processPackets(
             if (cell->hasPackets()) {
                 cell->getNextPacket();
             }
-            uint64_t payload = cell->getData();
+            uint64_t payload = scheduler.generateRandomPayload();
 
             // Calculate precise delivery time
             // within the connection window

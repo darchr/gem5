@@ -40,23 +40,8 @@ namespace gem5
 // Initializes the cell with default values
 DataCell::DataCell(const DataCellParams& params) :
     ClockedObject(params),
-    data(0),                 // Initialize data to 0
     addr(0)                 // Initialize address to 0
 {
-}
-
-// Sets the data value in the cell
-void
-DataCell::setData(uint64_t data)
-{
-    this->data = data;
-}
-
-// Retrieves the current data value in the cell
-uint64_t
-DataCell::getData()
-{
-    return data;
 }
 
 // Sets the address of the cell
