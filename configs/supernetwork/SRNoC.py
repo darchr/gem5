@@ -116,6 +116,11 @@ def calculate_power_and_area(radix):
         + num_mergers * ComponentJJ.MERGER.value
     )
 
+    print(num_counting_networks * counting_network_jj)
+    print(num_crosspoints * ComponentJJ.CROSSPOINT.value)
+    print(num_splitters * ComponentJJ.SPLITTER.value)
+    print(num_mergers * ComponentJJ.MERGER.value)
+
     # Log and store power and area statistics
     print(f"Active power: {active_power:.6f} W")
     print(f"Static power: {static_power:.6f} W")
@@ -136,11 +141,11 @@ def create_shared_parser():
     """
     shared_parser = argparse.ArgumentParser(add_help=False)
     shared_parser.add_argument(
-        "--dynamic-range",
+        "--num-rl-time-slots",
         type=int,
         nargs="+",
         required=True,
-        help="Dynamic range settings",
+        help="Number of time slots per connection window",
     )
     return shared_parser
 
@@ -226,10 +231,10 @@ def main():
     else:
         schedule_path = args.file_path
 
-    # Create Layers for each dynamic range.
+    # Create Layers
     layers = [
         Layer(
-            dynamic_range=dr,
+            rl_time_slots=rl,
             data_cells=data_cells,
             max_packets=args.maximum_packets,
             schedule_path=schedule_path,
@@ -241,7 +246,7 @@ def main():
             crosspoint_setup_time=NetworkDelays.CROSSPOINT_SETUP_TIME.value,
             hold_time=NetworkDelays.CROSSPOINT_HOLD_TIME.value,
         )
-        for dr in args.dynamic_range
+        for rl in args.num_rl_time_slots
     ]
 
     # Create the SuperNetwork and add the layers.
@@ -253,7 +258,7 @@ def main():
     print("SRNoC Test Configuration")
     print("==============================")
     print(f"Number of DataCells: {num_cells}")
-    print(f"Dynamic Range: {args.dynamic_range}")
+    print(f"RL Time Slots: {args.num_rl_time_slots}")
     print()
     print("Power and Area Statistics")
     print("==============================")

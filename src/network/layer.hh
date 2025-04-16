@@ -66,8 +66,9 @@ private:
     double holdTime;
 
     // Network configuration parameters
-    uint64_t dynamicRange;  // The dynamic range of the network
+    uint64_t maxPacketsPerWindow;  // Maximum packets per window
     uint64_t radix;  // Radix for the network, used in the topology
+    uint64_t rlTimeSlots;  // Number of time slots per connection win.
     Cycles timeSlot;  // Time slot for scheduling packets
     Cycles connectionWindow;  // Connection window
     uint64_t currentTimeSlotIndex;  // Current index for the time slot
@@ -143,7 +144,16 @@ public:
     void addDataCell(DataCell* dataCell);
     DataCell* getDataCell(uint64_t addr);
 
-    uint64_t getDynamicRange() const { return dynamicRange; }
+    // Methods for getting certain network parameters
+    uint64_t getMaximumPacketsPerWindow() const
+    {
+        return maxPacketsPerWindow;
+    }
+
+    uint64_t getRLTimeSlots() const
+    {
+        return rlTimeSlots;
+    }
 
     // Methods for assigning and retrieving radix,
     // time slot, and connection window values

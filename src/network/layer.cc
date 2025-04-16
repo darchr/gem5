@@ -52,12 +52,14 @@ Layer::Layer(const LayerParams& params) :
     ClockedObject(params),
     maxPackets(params.max_packets),
     schedulePath(params.schedule_path),
+    rlTimeSlots(params.rl_time_slots),
+    maxPacketsPerWindow(std::floor(params.rl_time_slots -
+        (params.rl_time_slots / std::exp(1.0)))),
     scheduler(params.max_packets,
         params.schedule_path,
         params.data_cells,
-        params.dynamic_range
+        params.rl_time_slots
     ),
-    dynamicRange(params.dynamic_range),
     crosspointDelay(params.crosspoint_delay),
     mergerDelay(params.merger_delay),
     splitterDelay(params.splitter_delay),
@@ -153,14 +155,8 @@ Layer::computeTimingParameters()
         getTimeSlot() * clockPeriod()
     );
 
-    // dynamic range increases due to circuit variability
-    // and the number of data cells
-    double expected_packets = std::round(
-        (dynamicRange * std::exp(1.0)) / (std::exp(1.0) - 1.0)
-    );
-
     // Calculate and assign the connection window
-    setConnectionWindow(Cycles(expected_packets * getTimeSlot()));
+    setConnectionWindow(Cycles(rlTimeSlots * getTimeSlot()));
     DPRINTF(Layer, "Connection window: %d Cycles\n",
         getConnectionWindow()
     );
@@ -283,6 +279,12 @@ Layer::processPackets(
 
     // Iterate through all data cells
     for (DataCell* cell : dataCells) {
+        if (packets_processed_this_window >= maxPacketsPerWindow) {
+            DPRINTF(Layer,
+                "Window %lu: reached max packets (%lu), stopping.\n",
+                currentTimeSlotIndex, maxPacketsPerWindow);
+            break;
+        }
         // Check if we've already reached the maximum packets
         if (packetsDelivered >= maxPackets && !infinite_mode) {
             break;  // Exit the loop immediately if we've reached max packets

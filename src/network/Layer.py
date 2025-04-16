@@ -37,7 +37,7 @@ class Layer(ClockedObject):
     # Vector of data cells in the network
     data_cells = VectorParam.DataCell("Data cells in the layer")
 
-    dynamic_range = Param.UInt64("Range size of the layer (dynamic range)")
+    rl_time_slots = Param.UInt64("Number of time slots per connection window")
 
     #   max_packets: 0 means not provided
     max_packets = Param.Int(
