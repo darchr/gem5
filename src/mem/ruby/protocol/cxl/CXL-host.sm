@@ -67,6 +67,13 @@ machine(MachineType:CXLHost, "") :
     void setAccessPermission(Addr addr, State state) {
     }
 
+    int functionalWrite(Addr addr, Packet *pkt) {
+        return 0;
+    }
+    AccessPermission getAccessPermission(Addr addr) {
+        return AccessPermission:NotPresent;
+    }
+
     
     // Mandatory Queue between Host and Host Port
     // NOTE: This will eventually be replaced by our own implementation of 
