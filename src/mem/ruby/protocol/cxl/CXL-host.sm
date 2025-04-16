@@ -1,0 +1,95 @@
+machine(MachineType:CXLHost, "") : 
+    CXLHostPort * hostPort;
+
+    // The buffer to receive sequencer requests
+    MessageBuffer * mandatoryQueue;
+{
+    // STATES
+    state_declaration(State, desc="CXL Host states", default="CXLHost_State_I") {
+        // I,  AccessPermission:Invalid, desc="Not Present/Invalid";
+        // IS, AccessPermission:Busy, desc="Issued request for Read";
+        // IM, AccessPermission:Busy, desc="Issued request for Write";
+        I, AccessPermission:Invalid, desc="Initial";
+        F, AccessPermission:Invalid, desc="Final";
+    }
+
+     // EVENTS
+    enumeration(Event, desc="CXL Host events") {
+        // Between Host Port and Memory
+        // Cmp,       desc="Ack CXL resp";
+        // MemData,   desc="Data CXL resp";
+
+        // // Between Host CXL ctl and Host CXL Port
+        // Read,    desc="Read request";
+        // Write,   desc="Write Request";
+
+        // Ack,     desc="Ack for host";
+        // Ack_all, desc="Last ack for host";
+        // Data,    desc="Data from memory";
+        sendResponse, desc="Send response to host";
+    }
+
+    // TBE fields
+    structure(TBE, desc="Transient Block Entry") {
+        Addr addr, desc="Physical address for this TBE";
+        State state, desc="Transient state";
+        DataBlock DataBlk, desc="Data";
+    }
+
+    structure(TBETable, external="yes") {
+        TBE lookup(Addr);
+        void allocate(Addr);
+        void deallocate(Addr);
+        bool isPresent(Addr);
+    }
+
+    TBETable TBEs, template="<CXLHost_TBE>", constructor="128";
+
+    Tick clockEdge();
+    void set_tbe(TBE a);
+    void unset_tbe();
+
+    TBE nullTBE(), return_by_pointer="yes" {
+        return OOD;
+    }
+
+    State getState(TBE tbe, Addr addr) {
+        return State:I;
+    }
+
+    void setState(TBE tbe, Addr addr, State state) {
+        if (is_valid(tbe)) {
+            assert(tbe.addr == addr);
+            tbe.state := state;
+        }
+    }
+
+    void setAccessPermission(Addr addr, State state) {
+    }
+
+    
+    // Mandatory Queue between Host and Host Port
+    // NOTE: This will eventually be replaced by our own implementation of 
+    // mandatory queue since we will not be receiving and sending messages to
+    // the CPU
+    in_port(mandatoryQueue_in, CXLMemRequestMsg, mandatoryQueue, desc="...") {
+        if (mandatoryQueue_in.isReady(clockEdge())) {
+            peek(mandatoryQueue_in, CXLMemRequestMsg) {
+                // TODO: Try to pass the destination and source to this function as well 
+                trigger(Event:sendResponse, in_msg.addr, nullTBE());
+            }
+        }
+    }
+
+    action(send_response, desc="Send response to host") {
+        peek(mandatoryQueue_in, CXLMemRequestMsg) {
+            // DPRINTF(RubySlicc, "Testing");
+            hostPort.responseCallback(in_msg.addr, in_msg.DataBlk);
+        }
+    }
+
+
+    transition(I, sendResponse, F) {
+        send_response;
+    }
+}

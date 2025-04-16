@@ -1,0 +1,88 @@
+// enumeration(CXL_H2D_Request_Type, desc="Request opcodes from host to device") {
+//     RdCurr, desc="Full cacheline read requests for the most current data without changing existing state in any cache.";
+//     RdOwn, desc="Full cacheline read requests for lines to be cached in any writeable state.";
+//     RdShared, desc="Full cacheline read requests for lines to be cached in Shared state.";
+//     RdAny, desc="Full cacheline read requests for lines to be cached in any state.";
+//     RdOwnNoData, desc="Requests to get exclusive ownership of the cacheline address indicated in the address field.";
+//     ItoMWr, desc="Requests exclusive ownership of the cacheline address and atomically writes the cacheline back to the Host.";
+//     WrCur, desc="Atomically requests ownership of a cacheline and then writes a full cacheline back to the Fabric.";
+//     CLFlush, desc="Request to the Host to invalidate the cacheline specified in the address field.";
+//     CleanEvict, desc="Request to the Host to evict a full 64-byte Exclusive cacheline from the device.";
+//     DirtyEvict, desc="Request to the Host to evict a full 64-byte Modified cacheline from the device.";
+//     CleanEvictNoData, desc="Request for the device to update the Host that a clean line is dropped in the device.";
+//     WOWrInv, desc="Weakly ordered write invalidate line request of 0-63 bytes for write combining type stores.";
+//     WOWrInvF, desc="Same as WOWrInv, except it is a write of 64 bytes.";
+//     WrInv, desc="Write invalidate line request of 0-64 bytes.";
+//     CacheFlushed, desc="Indication sent by the device to inform the Host that its caches are flushed.";
+// }
+
+enumeration(CXL_M2S_Req_Type, desc="Request opcodes from master to subordinate") {
+    MemInv, desc="Invalidation request from the Master. Primarily for Meta Data updates. No data read or write required.";
+    MemRd, desc="Normal memory data read operation.";
+    MemRdData, desc="Same as MemRd, but sets the Meta0-State value to A if it is currently I (only important for type 2 devices)";
+    MemRdFwd, desc="This is an indication from the Host that data can be directly forwarded from deviceattached memory to the device without any completion to the Host. (only important for type 2 devices)";
+    MemWrFwd, desc="This is an indication from the Host to the device that it owns the line and can update it without any completion to the Host. (only important for type 2 devices)";
+    MemRdTEE, desc="Same as MemRd but with Trusted Execution Environment (TEE) attribute.";
+    MemRdDataTEE, desc="Same as MemRdData but with Trusted Execution Environment (TEE) attribute.";
+    MemSpecRd, desc="Memory Speculative Read is issued to start a memory access before the home agent has resolved coherence to reduce access latency.";
+    MemInvNT, desc="This is similar to the MemInv command except that the NT is a hint that indicates the invalidation is non-temporal and the writeback is expected soon";
+    MemClnEvct, desc="Memory Clean Evict is a message that is similar to MemInv, but intent to indicate host going to I-state and does not require Meta0-State return.";
+    MemWr, desc="Memory write command. Used for full cacheline writes";
+    MemWrPtl, desc="Memory Write Partial. Contains 64 byte enables, one for each byte of data";
+    BIConflict, desc="Part of conflict flow for BISnp indicating that the host observed a conflicting coherent request to the same cacheline address.";
+    MemRdFill, desc="This is a simple read command equivalent to MemRd but never changes coherence state.";
+    MemWrTEE, desc="Memory Write with Trusted Execution Environment (TEE) attribute.";
+    MemWrPtlTEE, desc="Memory Write Partial with Trusted Execution Environment (TEE) attribute.";
+    MemRdFillTEE, desc="Memory Read Fill with Trusted Execution Environment (TEE) attribute.";
+}
+
+enumeration(CXL_S2M_Resp_Type, desc="Response opcodes from subordinate to master") {
+    Cmp, desc="Completions for Writebacks, Reads and Invalidates.";
+    Cmp_S, desc="Indication from the DCOH to the Host for Shared State.";
+    Cmp_E, desc="Indication from the DCOH to the Host for Exclusive owenership.";
+    Cmp_M, desc="Indication from the DCOH to the Host for Modified state.";
+    BI_ConflictAck, desc="Completion of the Back-Invalidate conflict handshake.";
+    CmpTEE, desc="Completion for writes (MemWr*) with Trusted Execution Environment (TEE) intent.";
+    MemData, desc="Memory read data. Sent in response to Reads.";
+    MemData_NXM, desc="Memory read data to Non-existent Memory region. Device was unable to decode address of the MemRd.";
+    MemData_TEE, desc="Memory read data with Trusted Execution Environment (TEE) attribute.";
+}
+
+// structure(CXLCacheRequestMsg, desc="The message from the `CXLHostPort` into Ruby. This is sent on the mandatory queue",
+//           interface="Message")
+// {
+//     // For routing
+//     MachineID DestDevice,       desc="The device that should respond to the request";
+//     MachineID SourceHost,       desc="The source host initiating the request";
+
+//     Addr addr,                  desc="The host physical address";
+//     CXLH2DRequestType Type,         desc="The type of request";
+//     DataBlock DataBlk,          desc="If data is needed, the cacheline data";
+// }
+
+structure(CXLMemRequestMsg, desc="The message from the `CXLHostPort` into Ruby. This is sent on the mandatory queue",
+          interface="Message")
+{
+    // For routing
+    NetDest Destination,        desc="What components receive the request, includes MachineType and num";
+    MachineID Requestor,       desc="The source host initiating the request";
+
+    Addr addr,                  desc="The host physical address";
+    CXL_M2S_Req_Type Type,         desc="The type of request";
+    DataBlock DataBlk,          desc="If data is needed, the cacheline data";
+    
+}
+
+structure(CXLMemResponseMsg, desc="The message from the `CXLDevicePort` into Ruby.",
+          interface="Message")
+{
+    // For routing
+    NetDest Destination,        desc="What components receive the request, includes MachineType and num";
+    MachineID Responder,       desc="The source host initiating the request";
+    
+    Addr addr,                  desc="The host physical address";
+    CXL_S2M_Resp_Type Type,         desc="The type of response";
+    int AckCount, default="0",  desc="number of acks in this message";
+    DataBlock DataBlk,          desc="If data is needed, the cacheline data";
+
+}

@@ -1,0 +1,18 @@
+machine(MachineType:CXLDevice, "CXL Device")
+: Cycles request_latency := 6;
+
+    // NETWORK BUFFERS
+    // NOTE: Two message buffers: one to place requests to be sent to network
+    // another to receive responses from network
+
+    //From the Device TO the network
+    MessageBuffer * RequestFromDevice, network="To", virtual_network="0", 
+        vnet_type = "request";
+    MessageBuffer * ResponseFromDevice, network="To", virtual_network="1",
+        vnet_type = "response"
+
+    // To the Device FROM the network
+    MessageBuffer * RequestToDevice, network="From", virtual_network="3", 
+        vnet_type = "request";
+    MessageBuffer * ResponseToDevice, network="From", virtual_network="1",
+        vnet_type = "response";

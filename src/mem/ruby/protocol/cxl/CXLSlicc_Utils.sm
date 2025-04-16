@@ -1,0 +1,7 @@
+Tick clockEdge();
+void set_tbe(TBE a);
+void unset_tbe();
+
+TBE nullTBE(), return_by_pointer="yes" {
+  return OOD;
+}
