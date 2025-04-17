@@ -120,7 +120,7 @@ class PcCountTrackerManager : public SimObject {
 
     void addPcCountPair(Addr pc, uint64_t count)
     {
-        PcCountPair p(pc, count);
+        PcCountPair p = PcCountPair(pc, count);
         if (counter.find(pc) == counter.end()) {
             counter.insert(std::make_pair(pc,0));
             printf("Adding counter for %llu\n", pc);
@@ -132,7 +132,7 @@ class PcCountTrackerManager : public SimObject {
 
     void removePcCountPair(Addr pc, uint64_t count)
     {
-        PcCountPair p(pc, count);
+        PcCountPair p = PcCountPair(pc, count);
         if (targetPair.find(p) != targetPair.end()) {
             targetPair.erase(p);
             printf("Removing target PC %s\n", p.to_string());

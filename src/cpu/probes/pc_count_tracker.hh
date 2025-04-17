@@ -94,13 +94,14 @@ class PcCountTracker : public ProbeListenerObject
     void addTarget(Addr pc)
     {
         targetPC.insert(pc);
-        printf("Adding target PC %\n", pc);
+        printf("Adding target PC %llu\n", pc);
         DPRINTF(PcCountTracker, "Adding target PC %llu\n", pc);
     };
 
     void removeTarget(Addr pc)
     {
         targetPC.erase(pc);
+        printf("Removing target PC %llu\n", pc);
         DPRINTF(PcCountTracker, "Removing target PC %llu\n", pc);
     };
 };
