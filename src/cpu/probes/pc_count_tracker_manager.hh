@@ -120,22 +120,26 @@ class PcCountTrackerManager : public SimObject {
 
     void addPcCountPair(Addr pc, uint64_t count)
     {
+        printf("Geting PC %llu\n", pc);
+        printf("Geting count %llu\n", count);
         PcCountPair p = PcCountPair(pc, count);
         if (counter.find(pc) == counter.end()) {
             counter.insert(std::make_pair(pc,0));
             printf("Adding counter for %llu\n", pc);
         }
         targetPair.insert(p);
-        printf("Adding target PC %s\n", p.to_string());
+        printf("Adding target PC %s\n", p.to_string().c_str());
         DPRINTF(PcCountTracker, "Adding target PC %s\n", p.to_string());
     }
 
     void removePcCountPair(Addr pc, uint64_t count)
     {
+        printf("Geting PC %llu\n", pc);
+        printf("Geting count %llu\n", count);
         PcCountPair p = PcCountPair(pc, count);
         if (targetPair.find(p) != targetPair.end()) {
             targetPair.erase(p);
-            printf("Removing target PC %s\n", p.to_string());
+            printf("Removing target PC %s\n", p.to_string().c_str());
             DPRINTF(PcCountTracker, "Removing target PC %s\n", p.to_string());
         }
     }
