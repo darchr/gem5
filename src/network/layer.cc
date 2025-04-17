@@ -149,6 +149,16 @@ Layer::computeTimingParameters()
         clockPeriod()
     );
 
+    if (getTimeSlot() <= 0) {
+        fatal("Layer %s: Time slot (%lu) must be greater than 0!\n",
+            name(), getTimeSlot());
+    }
+    if (getTimeSlot() > clockPeriod()) {
+        fatal("Layer %s: Time slot (%lu) is greater than ",
+            "clock period (%lu)!\n",
+            name(), getTimeSlot(), clockPeriod());
+    }
+
     // Calculate the number of time slots possible
     // given the clock period and time slot duration
     // Round up to the nearest whole number
