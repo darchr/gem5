@@ -35,7 +35,8 @@ namespace gem5
 PcCountTracker::PcCountTracker(const PcCountTrackerParams &p)
     : ProbeListenerObject(p),
       cpuptr(p.core),
-      manager(p.ptmanager)
+      manager(p.ptmanager),
+      ifListening(p.if_listening)
 {
     if (!cpuptr || !manager) {
         fatal("%s is NULL", !cpuptr ? "CPU": "PcCountTrackerManager");
@@ -44,6 +45,7 @@ PcCountTracker::PcCountTracker(const PcCountTrackerParams &p)
         // initialize the set of targeting Program Counter addresses
         targetPC.insert(p.targets[i].getPC());
     }
+    printf("ifListening: %s\n", ifListening? "true" : "false");
 }
 
 void
@@ -60,6 +62,10 @@ PcCountTracker::regProbeListeners()
 
 void
 PcCountTracker::checkPc(const Addr& pc) {
+    if (!ifListening) {
+        // if the probe listener is not listening, then return
+        return;
+    }
     if (targetPC.find(pc) != targetPC.end()) {
         // if the PC is one of the target PCs, then notify the
         // PcCounterTrackerManager by calling its `check_count` function

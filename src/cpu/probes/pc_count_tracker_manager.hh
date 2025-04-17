@@ -117,6 +117,40 @@ class PcCountTrackerManager : public SimObject {
         }
         return s;
     }
+
+    void addPcCountPair(Addr pc, uint64_t count)
+    {
+        PcCountPair p(pc, count);
+        if (counter.find(pc) == counter.end()) {
+            counter.insert(std::make_pair(pc,0));
+            printf("Adding counter for %llu\n", pc);
+        }
+        targetPair.insert(p);
+        printf("Adding target PC %s\n", p.to_string());
+        DPRINTF(PcCountTracker, "Adding target PC %s\n", p.to_string());
+    }
+
+    void removePcCountPair(Addr pc, uint64_t count)
+    {
+        PcCountPair p(pc, count);
+        if (targetPair.find(p) != targetPair.end()) {
+            targetPair.erase(p);
+            printf("Removing target PC %s\n", p.to_string());
+            DPRINTF(PcCountTracker, "Removing target PC %s\n", p.to_string());
+        }
+    }
+
+    void resetCounters(Addr pc)
+    {
+        if (counter.find(pc) != counter.end()) {
+            counter.find(pc)->second = 0;
+            printf("Resetting counter for %llu\n", pc);
+            DPRINTF(PcCountTracker, "Resetting counter for %llu\n", pc);
+        } else {
+            printf("Counter for %llu does not exist\n", pc);
+            DPRINTF(PcCountTracker, "Counter for %llu does not exist\n", pc);
+        }
+    }
 };
 
 }
