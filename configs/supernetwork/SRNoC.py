@@ -141,8 +141,8 @@ def create_shared_parser():
     """
     shared_parser = argparse.ArgumentParser(add_help=False)
     shared_parser.add_argument(
-        "--num-rl-time-slots",
-        type=int,
+        "--frequencies-per-layer",
+        type=str,
         nargs="+",
         required=True,
         help="Number of time slots per connection window",
@@ -234,7 +234,6 @@ def main():
     # Create Layers
     layers = [
         Layer(
-            rl_time_slots=rl,
             data_cells=data_cells,
             max_packets=args.maximum_packets,
             schedule_path=schedule_path,
@@ -245,8 +244,12 @@ def main():
             variability_counting_network=NetworkDelays.VARIABILITY_COUNTING_NETWORK.value,
             crosspoint_setup_time=NetworkDelays.CROSSPOINT_SETUP_TIME.value,
             hold_time=NetworkDelays.CROSSPOINT_HOLD_TIME.value,
+            clk_domain=SrcClockDomain(
+                clock=frequency,
+                voltage_domain=VoltageDomain(),
+            ),
         )
-        for rl in args.num_rl_time_slots
+        for frequency in args.frequencies_per_layer
     ]
 
     # Create the SuperNetwork and add the layers.
@@ -258,7 +261,7 @@ def main():
     print("SRNoC Test Configuration")
     print("==============================")
     print(f"Number of DataCells: {num_cells}")
-    print(f"RL Time Slots: {args.num_rl_time_slots}")
+    print(f"Frequencies per Layer: {args.frequencies_per_layer}")
     print()
     print("Power and Area Statistics")
     print("==============================")

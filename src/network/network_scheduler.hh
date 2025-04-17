@@ -49,8 +49,7 @@ public:
     // Constructor that initializes the scheduler
     NetworkScheduler(uint64_t maxPackets,
         const std::string& schedulePath,
-        const std::vector<DataCell*>& cells,
-        uint64_t dynamic_range
+        const std::vector<DataCell*>& cells
     );
 
     // Initializes the scheduler
@@ -71,7 +70,7 @@ public:
     );
 
     // Generates a random payload
-    uint64_t generateRandomPayload();
+    uint64_t generateRandomPayload(uint64_t dynamic_range);
 
     // Saves the current schedule to a specified file
     void saveSchedule();

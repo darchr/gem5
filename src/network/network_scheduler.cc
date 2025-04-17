@@ -40,14 +40,12 @@ namespace gem5 {
 NetworkScheduler::NetworkScheduler(
     uint64_t max_packets,
     const std::string& schedule_path,
-    const std::vector<DataCell*>& cells,
-    uint64_t dynamic_range
+    const std::vector<DataCell*>& cells
 )
 : maxPackets(max_packets),
   schedulePath(schedule_path),
   dataCells(cells),
-  infiniteMode(max_packets == static_cast<uint64_t>(-1)),
-  dynamicRange(dynamic_range)
+  infiniteMode(max_packets == static_cast<uint64_t>(-1))
 {}
 
 // Initializes the scheduler by either generating or loading a schedule
@@ -67,12 +65,11 @@ NetworkScheduler::initialize()
 }
 
 uint64_t
-NetworkScheduler::generateRandomPayload() {
-    // Create a random number generator. In production code, consider
-    // keeping a persistent generator for reproducibility.
+NetworkScheduler::generateRandomPayload(uint64_t dynamic_range) {
+    // Create a random number generator.
     static std::random_device rd;
     static std::mt19937 gen(rd());
-    std::uniform_int_distribution<uint64_t> dist(0, dynamicRange - 1);
+    std::uniform_int_distribution<uint64_t> dist(0, dynamic_range - 1);
     return dist(gen);
 }
 

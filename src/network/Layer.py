@@ -37,8 +37,6 @@ class Layer(ClockedObject):
     # Vector of data cells in the network
     data_cells = VectorParam.DataCell("Data cells in the layer")
 
-    rl_time_slots = Param.UInt64("Number of time slots per connection window")
-
     #   max_packets: 0 means not provided
     max_packets = Param.Int(
         -1, "Maximum number of packets to schedule; -1 means infinite"

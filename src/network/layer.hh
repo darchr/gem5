@@ -69,8 +69,8 @@ private:
     uint64_t maxPacketsPerWindow;  // Maximum packets per window
     uint64_t radix;  // Radix for the network, used in the topology
     uint64_t rlTimeSlots;  // Number of time slots per connection win.
-    Cycles timeSlot;  // Time slot for scheduling packets
-    Cycles connectionWindow;  // Connection window
+    uint64_t timeSlot;  // Time slot for scheduling packets
+    uint64_t connectionWindow;  // Connection window
     uint64_t currentTimeSlotIndex;  // Current index for the time slot
     int maxPackets;  // Maximum number of packets, -1 means no limit
     int packetsDelivered; // Number of packet deliveries
@@ -160,10 +160,10 @@ public:
     void setRadix(uint64_t radix) { this->radix = radix; }
     uint64_t getRadix() const { return radix; }
 
-    Cycles getTimeSlot() const { return timeSlot; }
-    void setTimeSlot(Cycles timeSlot) { this->timeSlot = timeSlot; }
+    uint64_t getTimeSlot() const { return timeSlot; }
+    void setTimeSlot(uint64_t timeSlot) { this->timeSlot = timeSlot; }
 
-    void setConnectionWindow(Cycles window) { connectionWindow = window; }
+    void setConnectionWindow(uint64_t window) { connectionWindow = window; }
     int getConnectionWindow() const { return connectionWindow; }
 
     void scheduleNextNetworkEvent(Tick when);  // Schedules the next event

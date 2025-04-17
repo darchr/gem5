@@ -52,13 +52,9 @@ Layer::Layer(const LayerParams& params) :
     ClockedObject(params),
     maxPackets(params.max_packets),
     schedulePath(params.schedule_path),
-    rlTimeSlots(params.rl_time_slots),
-    maxPacketsPerWindow(std::floor(params.rl_time_slots -
-        (params.rl_time_slots / std::exp(1.0)))),
     scheduler(params.max_packets,
         params.schedule_path,
-        params.data_cells,
-        params.rl_time_slots
+        params.data_cells
     ),
     crosspointDelay(params.crosspoint_delay),
     mergerDelay(params.merger_delay),
@@ -111,12 +107,6 @@ Layer::Layer(const LayerParams& params) :
             schedule_queue.pop();
         }
     }
-
-    // Compute network parameters like time slot and connection window
-    // computeNetworkParameters();
-
-    // // Schedule the initial network event
-    // scheduleNextNetworkEvent(curTick());
 }
 
 // Initialize data cells with random data and unique addresses
@@ -150,18 +140,40 @@ Layer::computeTimingParameters()
 {
     // Calculate and assign the time slot
     assignTimeSlot();
-    DPRINTF(Layer, "Time slot: %d Cycles\n", getTimeSlot());
     DPRINTF(Layer, "Time slot: %d ps\n",
-        getTimeSlot() * clockPeriod()
+        getTimeSlot()
+    );
+
+    DPRINTF(Layer,
+        "Clock period: %lu\n",
+        clockPeriod()
+    );
+
+    // Calculate the number of time slots possible
+    // given the clock period and time slot duration
+    // Round up to the nearest whole number
+    rlTimeSlots = std::ceil(
+        static_cast<double>(clockPeriod()) / getTimeSlot()
+    );
+
+    // We can only use a fraction of the time slots
+    maxPacketsPerWindow = std::floor(rlTimeSlots -
+        (rlTimeSlots / std::exp(1.0)));
+
+    DPRINTF(Layer,
+        "RL Time slots: %lu\n",
+        rlTimeSlots
+    );
+
+    DPRINTF(Layer,
+        "Max packets per window: %lu\n",
+        maxPacketsPerWindow
     );
 
     // Calculate and assign the connection window
-    setConnectionWindow(Cycles(rlTimeSlots * getTimeSlot()));
-    DPRINTF(Layer, "Connection window: %d Cycles\n",
-        getConnectionWindow()
-    );
+    setConnectionWindow(rlTimeSlots * getTimeSlot());
     DPRINTF(Layer, "Connection window: %d ps\n",
-        getConnectionWindow() * clockPeriod()
+        getConnectionWindow()
     );
 }
 
@@ -175,15 +187,15 @@ Layer::assignTimeSlot()
     );
 
     // Calculate time slot considering delays of various network components
-    double calculated_time_slot = circuitVariability * (
+    double calculated_time_slot = std::ceil(circuitVariability * (
         crosspointDelay + se_adjusted +
         splitterDelay * (radix - 1) +
         mergerDelay * (radix - 1) +
         variabilityCountingNetwork
-    );
+    ) + crosspointSetupTime);
 
     // Round up the calculated time slot
-    this->timeSlot = Cycles(std::ceil(calculated_time_slot));
+    this->timeSlot = calculated_time_slot;
 }
 
 // Add a data cell to the network's data cell collection
@@ -223,25 +235,19 @@ Layer::processNextNetworkEvent()
             processPackets(static_schedule, packets_processed_this_window);
         },
         "processPacketsEvent"),
-        curTick() + holdTime * clockPeriod());
+        curTick() + holdTime);
 
     stats.totalWindowsUsed++;
 
     // Advance the time slot for the next event
-    // Add scheduled setup time
-    // currentTimeSlotIndex++;
-    schedule(new EventFunctionWrapper(
-        [this]() {
-            currentTimeSlotIndex++;
-        }, "advanceTimeSlotEvent"),
-        curTick() + crosspointSetupTime * clockPeriod());
+    currentTimeSlotIndex++;
 
     // Schedule next network event.
     // In infinite mode (maxPackets == -1) we always schedule the next event.
     if (maxPackets == static_cast<uint64_t>(-1)
             || packetsDelivered < maxPackets) {
         scheduleNextNetworkEvent(curTick() +
-            ((connectionWindow + crosspointSetupTime) * clockPeriod()));
+            ((connectionWindow)));
     }
 }
 
@@ -307,7 +313,7 @@ Layer::processPackets(
                     packet_dest = scheduler.generateHotspotPacket(
                         src_addr, hotspotAddr, hotspotFraction
                     );
-                } if (trafficMode == TrafficMode::ALL_TO_ALL) {
+                } else if (trafficMode == TrafficMode::ALL_TO_ALL) {
                     // Check if the cell already has queued destinations.
                     if (!cell->hasPackets()) {
                         // Create a vector to hold all destination indices.
@@ -375,16 +381,18 @@ Layer::processPackets(
             if (cell->hasPackets()) {
                 cell->getNextPacket();
             }
-            uint64_t payload = scheduler.generateRandomPayload();
+            uint64_t payload = scheduler.generateRandomPayload(
+                rlTimeSlots
+            );
 
             // Calculate precise delivery time
             // within the connection window
             // Use the payload value -> RACE LOGIC
             payload_specific_delay =
-                ((payload + 1) * getTimeSlot() * clockPeriod())
-                + splitterDelay * (packet_dest + 1) * clockPeriod()
-                + mergerDelay * (size - src_addr - 1) * clockPeriod()
-                + crosspointDelay * clockPeriod();
+                ((payload + 1) * getTimeSlot())
+                + splitterDelay * (packet_dest + 1)
+                + mergerDelay * (size - src_addr - 1)
+                + crosspointDelay;
 
 
 
