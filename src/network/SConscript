@@ -1,15 +1,15 @@
 Import("*")
 
-SimObject("DataCell.py", sim_objects=["DataCell"])
+SimObject("BufferedPort.py", sim_objects=["BufferedPort"])
 SimObject("SuperNetwork.py", sim_objects=["SuperNetwork"])
 SimObject("Layer.py", sim_objects=["Layer"])
 
-Source("data_cell.cc")
+Source("buffered_port.cc")
 Source("super_network.cc")
 Source("layer.cc")
 Source("network_scheduler.cc")
 
 DebugFlag("SuperNetwork")
-DebugFlag("DataCell")
+DebugFlag("BufferedPort")
 DebugFlag("NetworkScheduler")
 DebugFlag("Layer")

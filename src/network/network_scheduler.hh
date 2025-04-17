@@ -38,18 +38,18 @@
 #include <vector>
 
 #include "base/logging.hh"
-#include "network/data_cell.hh"
+#include "network/buffered_port.hh"
 
 namespace gem5 {
 
-// NetworkScheduler class handles scheduling packets between DataCells
+// NetworkScheduler class handles scheduling packets between BufferedPorts
 class NetworkScheduler
 {
 public:
     // Constructor that initializes the scheduler
-    NetworkScheduler(uint64_t maxPackets,
-        const std::string& schedulePath,
-        const std::vector<DataCell*>& cells
+    NetworkScheduler(uint64_t max_packets,
+        const std::string& schedule_path,
+        const std::vector<BufferedPort*>& buffered_ports
     );
 
     // Initializes the scheduler
@@ -100,8 +100,8 @@ private:
     uint64_t maxPackets;
     // Path to the file where the schedule is saved/loaded
     std::string schedulePath;
-    // List of DataCells involved in the network
-    const std::vector<DataCell*>& dataCells;
+    // List of BufferedPorts involved in the network
+    const std::vector<BufferedPort*>& bufferedPorts;
     // Scheduled packets (source-destination pairs)
     std::queue<std::pair<uint64_t, uint64_t>> scheduleQueue;
     // Dynamic range of the layer

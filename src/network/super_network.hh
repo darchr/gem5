@@ -29,7 +29,7 @@
 #ifndef __NETWORK_SUPERNETWORK_HH__
 #define __NETWORK_SUPERNETWORK_HH__
 
-#include "network/data_cell.hh"
+#include "network/buffered_port.hh"
 #include "network/layer.hh"
 #include "network/network_scheduler.hh"
 #include "params/SuperNetwork.hh"

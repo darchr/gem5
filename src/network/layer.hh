@@ -36,7 +36,7 @@
 
 #include "base/statistics.hh"
 #include "base/stats/group.hh"
-#include "network/data_cell.hh"
+#include "network/buffered_port.hh"
 #include "network/enums.hh"
 #include "network/layer.hh"
 #include "network/network_scheduler.hh"
@@ -53,8 +53,8 @@ class SuperNetwork;
 class Layer : public ClockedObject
 {
 private:
-    std::vector<DataCell*> dataCells;  // Stores all data cells in the network
-    std::unordered_map<uint64_t, DataCell*> dataCellMap;
+    std::vector<BufferedPort*> bufferedPorts;  // all ports in the network
+    std::unordered_map<uint64_t, BufferedPort*> bufferedPortsMap;
 
     // network delay parameters
     double crosspointDelay;
@@ -87,8 +87,10 @@ private:
     uint64_t hotspotAddr; // Address of the hotspot
     double hotspotFraction; // Fraction of packets targeting the hotspot
 
-    // Initialization methods to set up data cells
-    void initializeDataCells(const std::vector<DataCell*>& cells);
+    // Initialization methods to set up buffered ports
+    void initializeBufferedPorts(
+        const std::vector<BufferedPort*>& buffered_ports
+    );
 
     // Method to calculate the time slot based on network parameters
     void assignTimeSlot();
@@ -119,8 +121,8 @@ private:
         statistics::Scalar totalWindowsUsed;
         // Distribution of packets processed per time window
         statistics::Histogram pktsPerWindow;
-        // Distribution of missed packets per DataCell
-        statistics::Histogram missedPacketsPerDataCell;
+        // Distribution of missed packets per BufferedPort
+        statistics::Histogram missedPacketsPerBufferedPort;
 
         // Constructor that links stats to the Layer instance
         LayerStats(Layer* layer);
@@ -140,9 +142,9 @@ public:
     // Methods for computing layer timing parameters
     void computeTimingParameters();
 
-    // Methods for adding and retrieving data cells in the network
-    void addDataCell(DataCell* dataCell);
-    DataCell* getDataCell(uint64_t addr);
+    // Methods for adding and retrieving ports in the network
+    void addBufferedPort(BufferedPort* buffered_port);
+    BufferedPort* getBufferedPort(uint64_t addr);
 
     // Methods for getting certain network parameters
     uint64_t getMaximumPacketsPerWindow() const

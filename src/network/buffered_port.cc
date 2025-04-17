@@ -26,9 +26,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "network/data_cell.hh"
+#include "network/buffered_port.hh"
 
-#include "debug/DataCell.hh"
+#include "debug/BufferedPort.hh"
 #include "sim/sim_exit.hh"
 #include "sim/stats.hh"
 #include "sim/system.hh"
@@ -36,41 +36,44 @@
 namespace gem5
 {
 
-// Constructor for DataCell class
-// Initializes the cell with default values
-DataCell::DataCell(const DataCellParams& params) :
+// Constructor for BufferedPort class
+// Initializes the port with default values
+BufferedPort::BufferedPort(const BufferedPortParams& params) :
     ClockedObject(params),
     addr(0)                 // Initialize address to 0
 {
 }
 
-// Sets the address of the cell
+// Sets the address of the port
 void
-DataCell::setAddr(uint64_t addr)
+BufferedPort::setAddr(uint64_t addr)
 {
     this->addr = addr;
 }
 
-// Retrieves the address of the cell
+// Retrieves the address of the port
 uint64_t
-DataCell::getAddr()
+BufferedPort::getAddr()
 {
     return addr;
 }
 
-// Assigns a packet to the cell by pushing the dest address into queue
+// Assigns a packet to the port by pushing the dest address into queue
 void
-DataCell::assignPacket(uint64_t dest_addr)
+BufferedPort::assignPacket(uint64_t dest_addr)
 {
     packetQueue.push(dest_addr);  // Queue the dest
-    DPRINTF(DataCell, "DataCell %d assigned packet to destination %d\n",
-            addr, dest_addr);
+    DPRINTF(BufferedPort,
+        "BufferedPort %d assigned packet "
+        "to destination %d\n",
+        addr, dest_addr
+    );
 }
 
 // Retrieves and removes the next packet from the queue
 // Returns 0 if no packets are available
 uint64_t
-DataCell::getNextPacket()
+BufferedPort::getNextPacket()
 {
     if (!packetQueue.empty()) {
         // Get the next packet and remove it from the queue
@@ -83,26 +86,26 @@ DataCell::getNextPacket()
 
 // Checks if there are any packets in the queue
 bool
-DataCell::hasPackets() const
+BufferedPort::hasPackets() const
 {
     return !packetQueue.empty();
 }
 
 // Increments the missed packet count
 void
-DataCell::incrementMissedPackets()
+BufferedPort::incrementMissedPackets()
 {
     missedPackets++;
-    DPRINTF(DataCell, "DataCell %d missed packets: %d\n",
+    DPRINTF(BufferedPort, "BufferedPort %d missed packets: %d\n",
         addr, missedPackets
     );
 }
 
 // Handles receiving data by updating the last received values and stats
 void
-DataCell::receiveData(uint64_t received_data, uint64_t src_addr)
+BufferedPort::receiveData(uint64_t received_data, uint64_t src_addr)
 {
-    DPRINTF(DataCell, "DataCell %d received data %d from source %d\n",
+    DPRINTF(BufferedPort, "BufferedPort %d received data %d from source %d\n",
             addr, received_data, src_addr);
 
     lastReceivedData = received_data;  // Store the last received data
@@ -112,7 +115,7 @@ DataCell::receiveData(uint64_t received_data, uint64_t src_addr)
 // Returns the next packet without removing it from the queue
 // Returns -1 if no packets are available
 uint64_t
-DataCell::peekNextPacket() const
+BufferedPort::peekNextPacket() const
 {
     if (!packetQueue.empty()) {
          return packetQueue.front();

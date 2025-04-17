@@ -34,8 +34,8 @@ class Layer(ClockedObject):
     cxx_header = "network/layer.hh"
     cxx_class = "gem5::Layer"
 
-    # Vector of data cells in the network
-    data_cells = VectorParam.DataCell("Data cells in the layer")
+    # Vector of ports in the network
+    buffered_ports = VectorParam.BufferedPort("I/O ports in the network")
 
     #   max_packets: 0 means not provided
     max_packets = Param.Int(

@@ -153,7 +153,7 @@ def create_shared_parser():
 def create_base_parser():
     parser = argparse.ArgumentParser(description="SuperNetwork Simulation")
     parser.add_argument(
-        "--num-cells", type=int, default=10, help="Number of DataCells"
+        "--num-ports", type=int, default=10, help="Number of BufferedPorts"
     )
     parser.add_argument(
         "--maximum-packets", type=int, default=0, help="Maximum packets"
@@ -222,9 +222,9 @@ def main():
     root.system.clk_domain.clock = "1.4GHz"
     root.system.clk_domain.voltage_domain = VoltageDomain()
 
-    # Create the DataCells.
-    num_cells = args.num_cells
-    data_cells = [DataCell() for _ in range(num_cells)]
+    # Create the BufferedPorts.
+    num_ports = args.num_ports
+    buffered_ports = [BufferedPort() for _ in range(num_ports)]
 
     if args.traffic_mode != "file":
         schedule_path = ""  # Force schedule_path to be empty if not using file-based traffic mode.
@@ -234,7 +234,7 @@ def main():
     # Create Layers
     layers = [
         Layer(
-            data_cells=data_cells,
+            buffered_ports=buffered_ports,
             max_packets=args.maximum_packets,
             schedule_path=schedule_path,
             crosspoint_delay=NetworkDelays.CROSSPOINT_DELAY.value,
@@ -260,12 +260,12 @@ def main():
     # Print test configuration.
     print("SRNoC Test Configuration")
     print("==============================")
-    print(f"Number of DataCells: {num_cells}")
+    print(f"Number of BufferedPort: {num_ports}")
     print(f"Frequencies per Layer: {args.frequencies_per_layer}")
     print()
     print("Power and Area Statistics")
     print("==============================")
-    power_and_area = calculate_power_and_area(radix=(num_cells * 2))
+    power_and_area = calculate_power_and_area(radix=(num_ports * 2))
     print()
 
     if args.maximum_packets:

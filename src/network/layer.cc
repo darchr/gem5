@@ -46,7 +46,7 @@
 namespace gem5 {
 
 // Constructor for the Layer class
-// Initializes the network with given parameters, sets up data cells,
+// Initializes the network with given parameters, sets up ports,
 // and prepares for packet scheduling
 Layer::Layer(const LayerParams& params) :
     ClockedObject(params),
@@ -54,7 +54,7 @@ Layer::Layer(const LayerParams& params) :
     schedulePath(params.schedule_path),
     scheduler(params.max_packets,
         params.schedule_path,
-        params.data_cells
+        params.buffered_ports
     ),
     crosspointDelay(params.crosspoint_delay),
     mergerDelay(params.merger_delay),
@@ -68,7 +68,7 @@ Layer::Layer(const LayerParams& params) :
     isFinished(false),
     fileMode(false),
     shuffleEnabled(false),
-    size(params.data_cells.size()),
+    size(params.buffered_ports.size()),
     // Event for processing the next network event
     nextNetworkEvent([this]{ processNextNetworkEvent(); },
         name() + ".nextNetworkEvent"),
@@ -81,8 +81,8 @@ Layer::Layer(const LayerParams& params) :
     assert(params.variability_counting_network >= 0);
     assert(params.crosspoint_setup_time >= 0);
 
-    // Initialize data cells with random data
-    initializeDataCells(params.data_cells);
+    // Initialize ports
+    initializeBufferedPorts(params.buffered_ports);
 
     // Initialize the network scheduler
     std::queue<std::pair<uint64_t, uint64_t>>
@@ -97,40 +97,40 @@ Layer::Layer(const LayerParams& params) :
             uint64_t src_addr = entry.first;
             uint64_t dest_addr = entry.second;
 
-            DataCell* cell = getDataCell(src_addr);
-            if (cell != nullptr) {
-                cell->assignPacket(dest_addr);
+            BufferedPort* port = getBufferedPort(src_addr);
+            if (port != nullptr) {
+                port->assignPacket(dest_addr);
                 DPRINTF(Layer,
-                        "DataCell %d: addr=%d, packet assigned to %d\n",
-                        src_addr, cell->getAddr(), dest_addr);
+                        "BufferedPort %d: addr=%d, packet assigned to %d\n",
+                        src_addr, port->getAddr(), dest_addr);
             }
             schedule_queue.pop();
         }
     }
 }
 
-// Initialize data cells with random data and unique addresses
+// Initialize ports with unique addresses
 void
-Layer::initializeDataCells(const std::vector<DataCell*>& cells)
+Layer::initializeBufferedPorts(const std::vector<BufferedPort*>& ports)
 {
-    // Skip if no data cells are provided
-    if (cells.empty()) {
+    // Skip if no ports are provided
+    if (ports.empty()) {
         return;
     }
 
     // Set network radix
-    setRadix(cells.size() * 2);
+    setRadix(ports.size() * 2);
 
-    // Populate data cells with addresses and random data
-    for (uint64_t i = 0; i < cells.size(); i++) {
-        DataCell* cell = cells[i];
-        cell->setAddr(i);
+    // Populate ports with addresses
+    for (uint64_t i = 0; i < ports.size(); i++) {
+        BufferedPort* port = ports[i];
+        port->setAddr(i);
 
-        DPRINTF(Layer, "DataCell %d: addr=%d\n",
-                i, cell->getAddr());
+        DPRINTF(Layer, "BufferedPort %d: addr=%d\n",
+                i, port->getAddr());
 
-        // Add the cell to the network
-        addDataCell(cell);
+        // Add the port to the network
+        addBufferedPort(port);
     }
 }
 
@@ -198,21 +198,21 @@ Layer::assignTimeSlot()
     this->timeSlot = calculated_time_slot;
 }
 
-// Add a data cell to the network's data cell collection
+// Add a port to the network's port collection
 void
-Layer::addDataCell(DataCell* dataCell)
+Layer::addBufferedPort(BufferedPort* port)
 {
-    dataCells.push_back(dataCell);
-    uint64_t addr = dataCell->getAddr();
-    dataCellMap[addr] = dataCell;
+    bufferedPorts.push_back(port);
+    uint64_t addr = port->getAddr();
+    bufferedPortsMap[addr] = port;
 }
 
-// Retrieve a data cell by its address
-DataCell*
-Layer::getDataCell(uint64_t addr)
+// Retrieve a port by its address
+BufferedPort*
+Layer::getBufferedPort(uint64_t addr)
 {
-    auto it = dataCellMap.find(addr);
-    return (it != dataCellMap.end()) ? it->second : nullptr;
+    auto it = bufferedPortsMap.find(addr);
+    return (it != bufferedPortsMap.end()) ? it->second : nullptr;
 }
 
 // Process the next network event in the simulation
@@ -257,15 +257,15 @@ Layer::buildStaticSchedule()
 {
     std::unordered_map<uint64_t, uint64_t> static_schedule;
 
-    // Determine allowed destination for each data cell
-    for (DataCell* cell : dataCells) {
-        uint64_t src_addr = cell->getAddr();
+    // Determine allowed destination for each port
+    for (BufferedPort* port : bufferedPorts) {
+        uint64_t src_addr = port->getAddr();
         uint64_t allowed_dest =
-            (src_addr + currentTimeSlotIndex) % dataCells.size();
+            (src_addr + currentTimeSlotIndex) % bufferedPorts.size();
         static_schedule[src_addr] = allowed_dest;
 
         DPRINTF(Layer,
-            "Window %lu: allowed transmission from DataCell %lu to %lu\n",
+            "Window %lu: allowed transmission from BufferedPort %lu to %lu\n",
             currentTimeSlotIndex, src_addr, allowed_dest
         );
     }
@@ -283,8 +283,8 @@ Layer::processPackets(
     // Determine if we are in infinite mode
     bool infinite_mode = (maxPackets == static_cast<uint64_t>(-1));
 
-    // Iterate through all data cells
-    for (DataCell* cell : dataCells) {
+    // Iterate through all ports
+    for (BufferedPort* port : bufferedPorts) {
         if (packets_processed_this_window >= maxPacketsPerWindow) {
             DPRINTF(Layer,
                 "Window %lu: reached max packets (%lu), stopping.\n",
@@ -296,13 +296,13 @@ Layer::processPackets(
             break;  // Exit the loop immediately if we've reached max packets
         }
 
-        uint64_t src_addr = cell->getAddr();
+        uint64_t src_addr = port->getAddr();
         uint64_t allowed_dest = static_schedule.at(src_addr);
 
         uint64_t packet_dest = -1;
         // Check if there's already a packet in the buffer first
-        if (cell->hasPackets()) {
-            packet_dest = cell->peekNextPacket();
+        if (port->hasPackets()) {
+            packet_dest = port->peekNextPacket();
         } else {
             if (!fileMode) {
                 if (trafficMode == TrafficMode::RANDOM) {
@@ -314,8 +314,8 @@ Layer::processPackets(
                         src_addr, hotspotAddr, hotspotFraction
                     );
                 } else if (trafficMode == TrafficMode::ALL_TO_ALL) {
-                    // Check if the cell already has queued destinations.
-                    if (!cell->hasPackets()) {
+                    // Check if the port already has queued destinations.
+                    if (!port->hasPackets()) {
                         // Create a vector to hold all destination indices.
                         std::vector<uint64_t> destinations;
                         destinations.reserve(size);
@@ -337,18 +337,18 @@ Layer::processPackets(
                         // Enqueue each destination from the vector.
                         // vector can be shuffled or not
                         for (auto dest : destinations) {
-                            cell->assignPacket(dest);
+                            port->assignPacket(dest);
                             DPRINTF(Layer,
-                                "DataCell %lu: enqueued all-to-all "
+                                "BufferedPort %lu: enqueued all-to-all "
                                 "packet for destination %lu\n",
                                 src_addr, dest
                             );
                         }
                     }
-                    // Peek the next destination from the cell’s queue.
-                    packet_dest = cell->peekNextPacket();
+                    // Peek the next destination from the port's queue.
+                    packet_dest = port->peekNextPacket();
                     DPRINTF(Layer,
-                        "DataCell %lu: all-to-all packet for %lu\n",
+                        "BufferedPort %lu: all-to-all packet for %lu\n",
                         src_addr, packet_dest
                     );
                 } else if (trafficMode == TrafficMode::TORNADO) {
@@ -359,7 +359,7 @@ Layer::processPackets(
                     fatal("Unknown traffic mode: %d\n", trafficMode);
                 }
                 DPRINTF(Layer,
-                    "DataCell %lu: generated packet for %lu\n",
+                    "BufferedPort %lu: generated packet for %lu\n",
                     src_addr, packet_dest
                 );
                 // Only generate a new packet if there's nothing in the buffer
@@ -368,7 +368,7 @@ Layer::processPackets(
                 // In file mode, don't generate a new packet destination.
                 // Optionally, log that no new packet was generated.
                 DPRINTF(Layer,
-                    "DataCell %lu: file mode active,"
+                    "BufferedPort %lu: file mode active,"
                     "skipping packet generation\n",
                     src_addr
                 );
@@ -378,8 +378,8 @@ Layer::processPackets(
         // Check if packet can be sent in the current time slot
         if (packet_dest == allowed_dest) {
             // Remove the packet if it was from the buffer
-            if (cell->hasPackets()) {
-                cell->getNextPacket();
+            if (port->hasPackets()) {
+                port->getNextPacket();
             }
             uint64_t payload = scheduler.generateRandomPayload(
                 rlTimeSlots
@@ -418,18 +418,19 @@ Layer::processPackets(
             }
         } else if (!fileMode) {
             // Packet not allowed in the current time slot
-            cell->assignPacket(packet_dest);
-            // Increment missed packets for the data cell
-            cell->incrementMissedPackets();
-            stats.missedPacketsPerDataCell.sample(
-                cell->getMissedPackets()
+            port->assignPacket(packet_dest);
+            // Increment missed packets for the BufferedPort
+            port->incrementMissedPackets();
+            stats.missedPacketsPerBufferedPort.sample(
+                port->getMissedPackets()
             );
             DPRINTF(Layer,
-                "DataCell %lu: packet for %lu not scheduled (allowed: %lu)\n",
+                "BufferedPort %lu: packet for %lu not "
+                "scheduled (allowed: %lu)\n",
                 src_addr, packet_dest, allowed_dest
             );
             DPRINTF(Layer,
-                "DataCell %lu: packet for %lu assigned to buffer\n",
+                "BufferedPort %lu: packet for %lu assigned to buffer\n",
                 src_addr, packet_dest
             );
         }
@@ -459,23 +460,23 @@ Layer::processPackets(
     return infinite_mode ? true : (packetsDelivered < maxPackets);
 }
 
-// Deliver a packet to its destination data cell
+// Deliver a packet to its destination port
 void
 Layer::deliverPacket(uint64_t src_addr,
     uint64_t dest_addr, uint64_t payload)
 {
-    // Find the destination data cell
-    DataCell* dest_cell = getDataCell(dest_addr);
-    if (dest_cell != nullptr) {
-        // Receive data at the destination cell
-        dest_cell->receiveData(payload, src_addr);
+    // Find the destination port
+    BufferedPort* dest_port = getBufferedPort(dest_addr);
+    if (dest_port != nullptr) {
+        // Receive data at the destination port
+        dest_port->receiveData(payload, src_addr);
         DPRINTF(Layer,
             "Packet delivered: src=%lu, dest=%lu, data=%lu\n",
             src_addr, dest_addr, payload
         );
     } else {
         DPRINTF(Layer,
-            "Error: Destination cell %lu not found\n",
+            "Error: Destination port %lu not found\n",
             dest_addr
         );
     }
@@ -502,8 +503,8 @@ Layer::LayerStats::LayerStats(
         "Number of connection windows used"),
     ADD_STAT(pktsPerWindow, statistics::units::Count::get(),
         "Distribution of packets per window"),
-    ADD_STAT(missedPacketsPerDataCell, statistics::units::Count::get(),
-        "Distribution of missed packets per DataCell")
+    ADD_STAT(missedPacketsPerBufferedPort, statistics::units::Count::get(),
+        "Distribution of missed packets per BufferedPort")
 {
 }
 
@@ -523,7 +524,7 @@ Layer::LayerStats::regStats()
 
     pktsPerWindow.init(parentLayer->size + 1);
 
-    missedPacketsPerDataCell.init(64);
+    missedPacketsPerBufferedPort.init(64);
 }
 
 } // namespace gem5

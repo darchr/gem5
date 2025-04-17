@@ -36,15 +36,15 @@ namespace gem5 {
 
 // Constructor for NetworkScheduler
 // Initializes the scheduler with maximum packets,
-// schedule path, and list of DataCells
+// schedule path, and list of BufferedPorts
 NetworkScheduler::NetworkScheduler(
     uint64_t max_packets,
     const std::string& schedule_path,
-    const std::vector<DataCell*>& cells
+    const std::vector<BufferedPort*>& buffered_ports
 )
 : maxPackets(max_packets),
   schedulePath(schedule_path),
-  dataCells(cells),
+  bufferedPorts(buffered_ports),
   infiniteMode(max_packets == static_cast<uint64_t>(-1))
 {}
 
@@ -75,12 +75,12 @@ NetworkScheduler::generateRandomPayload(uint64_t dynamic_range) {
 
 
 // Generates a random packet using the given src.
-// It picks a random destination from dataCells.
+// It picks a random destination from BufferedPorts.
 uint64_t
 NetworkScheduler::generateRandomPacket(uint64_t src)
 {
-    if (dataCells.empty()) {
-        warn("No DataCells available for scheduling.\n");
+    if (bufferedPorts.empty()) {
+        warn("No BufferedPorts available for scheduling.\n");
         return -1;
     }
 
@@ -89,35 +89,36 @@ NetworkScheduler::generateRandomPacket(uint64_t src)
     std::mt19937 gen(rd());
 
     uint64_t dest_addr = src;
-    if (dataCells.size() > 1) {
-        int dest_index = gen() % dataCells.size();
-        dest_addr = dataCells[dest_index]->getAddr();
+    if (bufferedPorts.size() > 1) {
+        int dest_index = gen() % bufferedPorts.size();
+        dest_addr = bufferedPorts[dest_index]->getAddr();
     }
 
     return dest_addr;
 }
 
 // Generates a tornado packet using the given src.
-// It generates a packet targeting the data cell
+// It generates a packet targeting the port
 // roughly halfway around the network.
 // stresses bisection bandwidth.
 uint64_t
 NetworkScheduler::generateTornadoPacket(uint64_t src)
 {
-    if (dataCells.empty()) {
-        warn("No DataCells available for scheduling.\n");
+    if (bufferedPorts.empty()) {
+        warn("No BufferedPorts available for scheduling.\n");
         return -1;
     }
 
     // Check if the source address is valid
-    if (src >= dataCells.size()) {
+    if (src >= bufferedPorts.size()) {
         fatal("Invalid source address %lu.\n", src);
         return -1;
     }
 
-    // Generate a packet targeting the data cell
+    // Generate a packet targeting the port
     // roughly halfway around the network.
-    uint64_t dest_addr = (src + dataCells.size() / 2) % dataCells.size();
+    uint64_t dest_addr = (src + bufferedPorts.size() / 2)
+        % bufferedPorts.size();
 
     return dest_addr;
 }
@@ -133,13 +134,13 @@ NetworkScheduler::generateHotspotPacket(
     double hotspot_fraction
 )
 {
-    if (dataCells.empty()) {
-        warn("No DataCells available for scheduling.\n");
+    if (bufferedPorts.empty()) {
+        warn("No BufferedPorts available for scheduling.\n");
         return -1;
     }
 
     // Check if the hotspot address is valid
-    if (hotspot_addr >= dataCells.size()) {
+    if (hotspot_addr >= bufferedPorts.size()) {
         fatal("Invalid hotspot address %lu.\n", hotspot_addr);
         return -1;
     }
@@ -156,9 +157,9 @@ NetworkScheduler::generateHotspotPacket(
 
     // Generate a random packet targeting a random destination.
     uint64_t destAddr = src;
-    if (dataCells.size() > 1) {
-        int destIndex = gen() % dataCells.size();
-        destAddr = dataCells[destIndex]->getAddr();
+    if (bufferedPorts.size() > 1) {
+        int destIndex = gen() % bufferedPorts.size();
+        destAddr = bufferedPorts[destIndex]->getAddr();
     }
 
     return destAddr;

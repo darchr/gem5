@@ -29,7 +29,7 @@ from m5.params import *
 from m5.proxy import *
 
 
-class DataCell(ClockedObject):
-    type = "DataCell"
-    cxx_header = "network/data_cell.hh"
-    cxx_class = "gem5::DataCell"
+class BufferedPort(ClockedObject):
+    type = "BufferedPort"
+    cxx_header = "network/buffered_port.hh"
+    cxx_class = "gem5::BufferedPort"

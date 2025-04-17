@@ -26,27 +26,28 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __NETWORK_DATACELL_HH__
-#define __NETWORK_DATACELL_HH__
+#ifndef __NETWORK_BUFFEREDPORT_HH__
+#define __NETWORK_BUFFEREDPORT_HH__
 
 #include <queue>
 
-#include "params/DataCell.hh"
+#include "params/BufferedPort.hh"
 #include "sim/clocked_object.hh"
 
 namespace gem5
 {
 
-// The DataCell class represents a single node in the network responsible for
-// storing, sending, and receiving packets. It tracks its data, address,
-// and maintains statistics for sent and received packets.
-class DataCell : public ClockedObject
+// The BufferedPort class represents a single node in the network
+// responsible for storing, sending, and receiving packets.
+// It tracks its data, address, and maintains statistics for
+// sent and received packets.
+class BufferedPort : public ClockedObject
 {
     private:
-        // The address identifier of the cell
+        // The address identifier of the port
         uint64_t addr;
 
-        // Queue to hold packets (destination addresses) assigned to the cell
+        // Queue to hold packets (destination addresses) assigned to the port
         std::queue<uint64_t> packetQueue;
 
         // Variables to store the most recent received data and source addr
@@ -56,26 +57,26 @@ class DataCell : public ClockedObject
         uint64_t missedPackets = 0; // Count of missed packets
 
     public:
-        // Constructor: Initializes the DataCell with parameters
-        DataCell(const DataCellParams& params);
+        // Constructor: Initializes the BufferedPort with parameters
+        BufferedPort(const BufferedPortParams& params);
 
-        // Sets the address of the cell
+        // Sets the address of the port
         void setAddr(uint64_t addr);
 
-        // Retrieves the address of the cell
+        // Retrieves the address of the port
         uint64_t getAddr();
 
         // Assigns a packet to the queue with the given destination address
         void assignPacket(uint64_t dest_addr);
 
-        // Receives data from another cell
+        // Receives data from another port
         // Stores the received value and source
         void receiveData(uint64_t received_data, uint64_t src_addr);
 
         // Retrieves and removes the next packet from the queue
         uint64_t getNextPacket();
 
-        // Checks if the cell has any packets in its queue
+        // Checks if the port has any packets in its queue
         bool hasPackets() const;
 
         // Getters for the last received data and source information
@@ -93,4 +94,4 @@ class DataCell : public ClockedObject
 
 }  // namespace gem5
 
-#endif  // __NETWORK_DATACELL_HH__
+#endif  // __NETWORK_BUFFEREDPORT_HH__
