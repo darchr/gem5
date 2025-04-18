@@ -47,6 +47,11 @@ class CXLHostPort: public ClockedObject
 
     virtual Port &getPort(const std::string &if_name, PortID idx=InvalidPortID) override;
 
+    void setController(AbstractController* controller)
+    {
+        rubyController = controller;
+    }
+
   private:
     class HostSidePort : public ResponsePort 
     {

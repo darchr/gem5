@@ -1,32 +1,33 @@
 machine(MachineType:CXLHost, "") : 
     CXLHostPort * hostPort;
+    Cycles request_latency := 1;
+
+    MessageBuffer * reqOutToDevice, network="To", virtual_network="0", 
+        vnet_type = "request";
+    // MessageBuffer * respOut, network="To", virtual_network="2",
+    //     vnet_type = "response";
+
+    // MessageBuffer * reqInFromDevice, network="From", virtual_network="1", 
+    //     vnet_type = "request";
+    MessageBuffer * respInFromDevice, network="From", virtual_network="2",
+        vnet_type = "response";
 
     // The buffer to receive sequencer requests
     MessageBuffer * mandatoryQueue;
 {
     // STATES
     state_declaration(State, desc="CXL Host states", default="CXLHost_State_I") {
-        // I,  AccessPermission:Invalid, desc="Not Present/Invalid";
-        // IS, AccessPermission:Busy, desc="Issued request for Read";
-        // IM, AccessPermission:Busy, desc="Issued request for Write";
-        I, AccessPermission:Invalid, desc="Initial";
-        F, AccessPermission:Invalid, desc="Final";
+        Invalid,  AccessPermission:Invalid, desc="Not Present/Invalid";
+        Pending_Read_Data, AccessPermission:Busy, desc="Issued request for Read";
+        Pending_Write_Ack, AccessPermission:Busy, desc="Issued request for Write";
     }
 
      // EVENTS
     enumeration(Event, desc="CXL Host events") {
-        // Between Host Port and Memory
-        // Cmp,       desc="Ack CXL resp";
-        // MemData,   desc="Data CXL resp";
-
-        // // Between Host CXL ctl and Host CXL Port
-        // Read,    desc="Read request";
-        // Write,   desc="Write Request";
-
-        // Ack,     desc="Ack for host";
-        // Ack_all, desc="Last ack for host";
-        // Data,    desc="Data from memory";
-        sendResponse, desc="Send response to host";
+        SendMemRd, desc="Send memory read request to CXL device";
+        SendMemWr, desc="Send memory write request to CXL device";
+        ReceiveData, desc="Receive data from CXL device";
+        ReceiveAck, desc="Receive ack from CXL device";
     }
 
     // TBE fields
@@ -34,6 +35,7 @@ machine(MachineType:CXLHost, "") :
         Addr addr, desc="Physical address for this TBE";
         State state, desc="Transient state";
         DataBlock DataBlk, desc="Data";
+        int AcksOutstanding, desc="Number of acks outstanding";
     }
 
     structure(TBETable, external="yes") {
@@ -54,7 +56,13 @@ machine(MachineType:CXLHost, "") :
     }
 
     State getState(TBE tbe, Addr addr) {
-        return State:I;
+        if (is_valid(tbe)) {
+            assert(tbe.addr == addr);
+            return tbe.state;
+        } else {
+            // If the TBE is not valid, return Invalid
+            return State:Invalid;
+        }
     }
 
     void setState(TBE tbe, Addr addr, State state) {
@@ -71,32 +79,158 @@ machine(MachineType:CXLHost, "") :
         return 0;
     }
     AccessPermission getAccessPermission(Addr addr) {
-        return AccessPermission:NotPresent;
+        TBE tbe := TBEs[addr];
+        if(is_valid(tbe)) {
+            if (tbe.state == State:Invalid) {
+                return AccessPermission:Invalid;
+            } else {
+                return AccessPermission:Busy;
+            }
+        }
+        return AccessPermission:Invalid;
     }
 
-    
-    // Mandatory Queue between Host and Host Port
-    // NOTE: This will eventually be replaced by our own implementation of 
-    // mandatory queue since we will not be receiving and sending messages to
-    // the CPU
-    in_port(mandatoryQueue_in, CXLMemRequestMsg, mandatoryQueue, desc="...") {
-        if (mandatoryQueue_in.isReady(clockEdge())) {
-            peek(mandatoryQueue_in, CXLMemRequestMsg) {
-                // TODO: Try to pass the destination and source to this function as well 
-                trigger(Event:sendResponse, in_msg.addr, nullTBE());
+    out_port(request_out, CXLMemRequestMsg, reqOutToDevice);
+
+
+    // Input ports
+
+    // In Port for responses from the device
+    in_port(response_in, CXLMemResponseMsg, respInFromDevice) {
+        if (response_in.isReady(clockEdge())) {
+            peek(response_in, CXLMemResponseMsg) {
+                assert(in_msg.Destination.isElement(machineID));
+                peek(response_in, CXLMemResponseMsg) {
+                    TBE tbe := lookup(in_msg.addr);
+                    if (is_valid(tbe)) {
+                        assert(tbe.addr == in_msg.addr);
+                    } else {
+                        error("TBE invalid for address: %#x.", in_msg.addr);
+                    }
+
+                    if (machineIDToMachineType(in_msg.Responder) == MachineType:CXLDevice) {
+                        if (in_msg.Type == CXL_S2M_Resp_Type:MemData) {
+                            DPRINTF(CXLRubySlicc, "Received data from device for address: %#x.\n");
+                            trigger(Event:ReceiveData, in_msg.addr, tbe);
+                        }
+                        else if (in_msg.Type == CXL_S2M_Resp_Type:Cmp) {
+                            DPRINTF(CXLRubySlicc, "Received ack from device for address: %#x.\n");
+                            trigger(Event:ReceiveAck, in_msg.addr, tbe);
+                        } else {
+                            error("Unexpected response type");
+                        }
+                    } else {
+                        error("Response not from device");
+                    }
+                }
             }
         }
     }
 
-    action(send_response, desc="Send response to host") {
+    // Mandatory Queue between Host and Host Port
+    // NOTE: This will eventually be replaced by our own implementation of 
+    // mandatory queue since we will not be receiving and sending messages to
+    // the CPU
+    in_port(mandatoryQueue_in, CXLMemRequestMsg, mandatoryQueue) {
+        if (mandatoryQueue_in.isReady(clockEdge())) {
+            // Block on all requests if there is already an outstanding request
+            // to the device with the same address. this is unblocked when the
+            // device sends a response back to the host.
+            peek(mandatoryQueue_in, CXLMemRequestMsg, block_on="addr") {
+                if(in_msg.Type == CXL_M2S_Req_Type:MemRd) {
+                    DPRINTF(CXLRubySlicc, "Received MemRd reqiest from mandatory queue for address: %#x to device\n");
+                    trigger(Event:sendMemRd, in_msg.addr, nullTBE());
+                } else if(in_msg.Type == CXL_M2S_Req_Type:MemWr) {
+                    DPRINTF(CXLRubySlicc, "Received MemWr request from mandatory queue for address: %#x to device\n");
+                    trigger(Event:sendMemWr, in_msg.addr, nullTBE());
+                } else {
+                    error("Invalid request type");
+                }
+            }
+        }
+    }
+
+    action(send_read_request, 'sRR', desc="Send read request to device") {
         peek(mandatoryQueue_in, CXLMemRequestMsg) {
-            // DPRINTF(RubySlicc, "Testing");
+            enqueue(request_out, CXLMemRequestMsg, request_latency) {
+                out_msg.addr := in_msg.addr;
+                out_msg.Type := CXL_M2S_Req_Type:MemRd;
+                out_msg.Requestor := machineID;
+                out_msg.Destination := mapAddressToRange.add(mapAddressToRange(address, MachineType:CXLDevice));
+            }
+        }
+    }
+
+    action(send_write_request, 'sWR', desc="Send write request to device") {
+        peek(mandatoryQueue_in, CXLMemRequestMsg) {
+            enqueue(request_out, CXLMemRequestMsg, request_latency) {
+                out_msg.addr := in_msg.addr;
+                out_msg.Type := CXL_M2S_Req_Type:MemWr;
+                out_msg.Requestor := machineID;
+                out_msg.Destination := mapAddressToRange.add(mapAddressToRange(address, MachineType:CXLDevice));
+            }
+        }
+    }
+
+    action(send_response_data, desc="Send response to host") {
+        peek(mandatoryQueue_in, CXLMemRequestMsg) {
+            DPRINTF(RubySlicc, "Sending response data to host for address: %#x\n", in_msg.addr);
             hostPort.responseCallback(in_msg.addr, in_msg.DataBlk);
         }
     }
 
+    action(send_response_ack, desc="Send ack to host") {
+        peek(mandatoryQueue_in, CXLMemRequestMsg) {
+            DPRINTF(RubySlicc, "Sending response ack to host for address: %#x\n", in_msg.addr);
+            hostPort.responseCallback(in_msg.addr, NULL);
+        }
+    }
 
-    transition(I, sendResponse, F) {
-        send_response;
+    action(allocateTBE, "aT", desc="Allocate TBE") {
+        DPRINTF(CXLRubySlicc, "Allocating TBE for address: %#x\n", address);
+        assert(is_invalid(tbe));
+        TBEs.allocate(address);
+        // this updates the tbe variable for other actions
+        set_tbe(TBEs[address]);
+    }
+
+    action(deallocateTBE, "dT", desc="Deallocate TBE") {
+        DPRINTF(CXLRubySlicc, "Deallocating TBE for address: %#x\n", address);
+        assert(is_valid(tbe));
+        TBEs.deallocate(address);
+        // this makes the tbe varible invalid
+        unset_tbe();
+    }
+
+    action(popMandatoryQueue, "pQ", desc="Pop the mandatory queue") {
+        mandatory_in.dequeue(clockEdge());
+    }
+
+    action(popResponseQueue, "pR", desc="Pop the response queue") {
+        response_in.dequeue(clockEdge());
+    }
+
+    transition(Invalid, sendMemRd, Pending_Read_Data) {
+        allocateTBE;
+        send_read_request;
+        popMandatoryQueue
+    }
+
+    transition(Invalid, sendMemWr, Pending_Write_Ack) {
+        allocateTBE;
+        send_write_request;
+        popMandatoryQueue
+    }
+
+    transition(Pending_Read_Data, ReceiveData, I) {
+        send_response_data;
+        deallocateTBE;
+        popResponseQueue;
+    }
+
+    transition(Pending_Write_Ack, ReceiveAck, I) {
+        send_response_ack;
+        deallocateTBE;
+        popResponseQueue;
     }
 }

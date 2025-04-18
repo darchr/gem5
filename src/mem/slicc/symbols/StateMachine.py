@@ -725,6 +725,7 @@ $c_ident::$c_ident(const Params &p)
                 re.compile("sequencer").search(param.ident)
                 or param.type_ast.type.c_ident == "GPUCoalescer"
                 or param.type_ast.type.c_ident == "VIPERCoalescer"
+                or param.type_ast.type.c_ident == "CXLHostPort"
             ):
                 code(
                     """

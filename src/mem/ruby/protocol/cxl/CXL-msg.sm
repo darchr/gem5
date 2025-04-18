@@ -84,5 +84,5 @@ structure(CXLMemResponseMsg, desc="The message from the `CXLDevicePort` into Rub
     CXL_S2M_Resp_Type Type,         desc="The type of response";
     int AckCount, default="0",  desc="number of acks in this message";
     DataBlock DataBlk,          desc="If data is needed, the cacheline data";
-
+    MessageSizeType MessageSize, desc="size category of the message";
 }
