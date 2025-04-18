@@ -16,7 +16,6 @@ CXLHostPort::CXLHostPort(const Params &params)
     : ClockedObject(params),
       rubySystemPtr(params.ruby_system),
       hostSidePort(this, name() + ".cpu_side"),
-      rubyController(params.controller),
       requests(params.request_latency),
       responses(params.response_latency),
       requestEvent([this](){ processRequestEvent(); }, name() + "requestEvent"),
@@ -156,7 +155,7 @@ CXLHostPort::HostSidePort::recvRespRetry()
 Port&
 CXLHostPort::getPort(const std::string &if_name, PortID idx)
 {
-    if (if_name == "host_side") {
+    if (if_name == "host_side_port") {
         return hostSidePort;
     } else {
         return SimObject::getPort(if_name, idx);
