@@ -171,6 +171,23 @@ def parse_arguments():
         "random", parents=[shared_parser], help="Random traffic mode"
     )
 
+    bit_complement_parser = subparsers.add_parser(
+        "bit-complement",
+        parents=[shared_parser],
+        help="Bit-complement traffic mode",
+    )
+
+    nearest_neighbor_parser = subparsers.add_parser(
+        "nearest-neighbor",
+        parents=[shared_parser],
+        help="Nearest-neighbor traffic mode",
+    )
+    nearest_neighbor_parser.add_argument(
+        "--shuffle",
+        action="store_true",
+        help="Shuffle the destinations for nearest-neighbor mode",
+    )
+
     # all-to-all traffic
     all_to_all_parser = subparsers.add_parser(
         "all-to-all", parents=[shared_parser], help="All-to-all traffic mode"
@@ -294,6 +311,14 @@ def main():
     elif args.traffic_mode == "tornado":
         for layer in layers:
             layer.setTornadoTrafficMode()
+    elif args.traffic_mode == "bit-complement":
+        for layer in layers:
+            layer.setBitComplementTrafficMode()
+    elif args.traffic_mode == "nearest-neighbor":
+        for layer in layers:
+            if args.shuffle:
+                layer.setShuffle()
+            layer.setNearestNeighborTrafficMode()
     else:  # file mode selected.
         for layer in layers:
             layer.setRandomTrafficMode()

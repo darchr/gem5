@@ -38,6 +38,8 @@ enum TrafficMode
     HOTSPOT,
     ALL_TO_ALL,
     TORNADO,
+    BIT_COMPLEMENT,
+    NEAREST_NEIGHBOR,
     NUM_TRAFFIC_MODES
 };
 extern const char* TrafficModeNames[NUM_TRAFFIC_MODES];

@@ -194,6 +194,16 @@ public:
         trafficMode = TrafficMode::TORNADO;
     }
 
+    void setBitComplementTrafficMode()
+    {
+        trafficMode = TrafficMode::BIT_COMPLEMENT;
+    }
+
+    void setNearestNeighborTrafficMode()
+    {
+        trafficMode = TrafficMode::NEAREST_NEIGHBOR;
+    }
+
     void setHotspotTrafficMode(uint64_t hotspotAddr,
         double hotspotFraction)
     {

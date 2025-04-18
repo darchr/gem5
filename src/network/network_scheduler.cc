@@ -81,7 +81,7 @@ NetworkScheduler::generateRandomPacket(uint64_t src)
 {
     if (bufferedPorts.empty()) {
         warn("No BufferedPorts available for scheduling.\n");
-        return -1;
+        return static_cast<uint64_t>(-1);
     }
 
     // Random number generator setup
@@ -90,12 +90,36 @@ NetworkScheduler::generateRandomPacket(uint64_t src)
 
     uint64_t dest_addr = src;
     if (bufferedPorts.size() > 1) {
-        int dest_index = gen() % bufferedPorts.size();
+        std::uniform_int_distribution<> dist(0, bufferedPorts.size() - 1);
+        int dest_index = dist(gen);
         dest_addr = bufferedPorts[dest_index]->getAddr();
     }
 
     return dest_addr;
 }
+
+// Generates a bit complement packet using the given src.
+// It generates a packet targeting the port
+// at the bit complement of the source address.
+uint64_t
+NetworkScheduler::generateBitComplementPacket(uint64_t src)
+{
+    if (bufferedPorts.empty()) {
+        warn("No BufferedPorts available for scheduling.\n");
+        return -1;
+    }
+
+    if (src >= bufferedPorts.size()) {
+        fatal("Invalid source address %lu.\n", src);
+        return -1;
+    }
+
+    uint64_t dest_addr = ~src;
+    dest_addr %= bufferedPorts.size();
+
+    return dest_addr;
+}
+
 
 // Generates a tornado packet using the given src.
 // It generates a packet targeting the port

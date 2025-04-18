@@ -69,6 +69,10 @@ public:
         double hotspot_fraction
     );
 
+    // Generates a bit complement packet
+    // using the given src
+    uint64_t generateBitComplementPacket(uint64_t src);
+
     // Generates a random payload
     uint64_t generateRandomPayload(uint64_t dynamic_range);
 

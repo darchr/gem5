@@ -323,6 +323,45 @@ Layer::processPackets(
                     packet_dest = scheduler.generateHotspotPacket(
                         src_addr, hotspotAddr, hotspotFraction
                     );
+                } else if (trafficMode == TrafficMode::BIT_COMPLEMENT) {
+                    // Generate a bit complement packet
+                    packet_dest = scheduler.generateBitComplementPacket(
+                        src_addr
+                    );
+                } else if (trafficMode == TrafficMode::NEAREST_NEIGHBOR) {
+                    // only generate once per port
+                    if (!port->hasPackets()) {
+                        // compute wrap‑around neighbors
+                        uint64_t left  = (src_addr + size - 1) % size;
+                        uint64_t right = (src_addr + 1)        % size;
+
+                        // pack them into a small vector
+                        std::vector<uint64_t> neighbors = { left, right };
+
+                        // optionally randomize order
+                        if (shuffleEnabled) {
+                            std::random_device rd;
+                            std::mt19937       g(rd());
+                            std::shuffle(neighbors.begin(),
+                                neighbors.end(), g
+                            );
+                        }
+
+                        // enqueue neighbor packets
+                        for (auto dest : neighbors) {
+                            port->assignPacket(dest);
+                            DPRINTF(Layer,
+                                "BufferedPort %lu: enqueued nearest-neighbor "
+                                "packet for destination %lu\n",
+                                src_addr, dest
+                            );
+                        }
+                    }
+                    packet_dest = port->peekNextPacket();
+                    DPRINTF(Layer,
+                        "BufferedPort %lu: nearest-neighbor packet for %lu\n",
+                        src_addr, packet_dest
+                    );
                 } else if (trafficMode == TrafficMode::ALL_TO_ALL) {
                     // Check if the port already has queued destinations.
                     if (!port->hasPackets()) {
