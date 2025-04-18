@@ -398,11 +398,28 @@ Layer::processPackets(
             // Calculate precise delivery time
             // within the connection window
             // Use the payload value -> RACE LOGIC
+            // - Payload: (payload + 1) time slots
+            // - Splitter delay:
+            //     * 1 stage if dest == 0
+            //     * (dest + 1) stages if dest < size - 1
+            //     * dest stages if dest == size - 1
+            // - Merger delay:
+            //     * (size - 1) stages unless src == size - 1,
+            //         in which case it's 1 stage
+            // - Crosspoint delay is constant
             payload_specific_delay =
-                ((payload + 1) * getTimeSlot())
-                + splitterDelay * (packet_dest + 1)
-                + mergerDelay * (size - src_addr - 1)
-                + crosspointDelay;
+                ((payload + 1) * getTimeSlot()) +
+                splitterDelay * (
+                    (packet_dest == 0) ? 1 :
+                    (packet_dest < size - 1) ? (packet_dest + 1) :
+                    packet_dest
+                ) +
+                mergerDelay * (
+                    (src_addr == size - 1) ? 1 :
+                    (size - 1)
+                ) +
+                crosspointDelay +
+                variabilityCountingNetwork;
 
 
 
