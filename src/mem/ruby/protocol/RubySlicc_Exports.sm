@@ -286,7 +286,8 @@ enumeration(MachineType, desc="...", default="MachineType_NULL") {
     Memory,      desc="Memory controller interface";
     MiscNode,    desc="CHI protocol Misc Node";
     // MYSTUFF:
-    CXLHost,    desc="CXL Host";
+    CXLHost,     desc="CXL Host";
+    CXLDevice,   desc="CXL Device";
     // FFUTSYM:
     NULL,        desc="null mach type";
 }

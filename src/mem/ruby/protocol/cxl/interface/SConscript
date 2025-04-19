@@ -4,5 +4,7 @@ SimObject("CXLHostPort.py",
     sim_objects=["CXLHostPort"])
 
 DebugFlag("CXLHostPort")
+DebugFlag("CXLHostSlicc")
+DebugFlag("CXLDeviceSlicc")
 
 Source("CXLHostPort.cc")
