@@ -17,7 +17,10 @@ machine(MachineType:CXLHost, "") :
 {
     // STATES
     state_declaration(State, desc="CXL Host states", default="CXLHost_State_I") {
-        Invalid,  AccessPermission:Invalid, desc="Not Present/Invalid";
+        // For some reason, if the invalid state is declared as 'Invalid' instead
+        // of 'I', a compilation error occurs. This is probably a bug in the 
+        // SLICC compiler.
+        I,  AccessPermission:Invalid, desc="Not Present/Invalid";
         Pending_Read_Data, AccessPermission:Busy, desc="Issued request for Read";
         Pending_Write_Ack, AccessPermission:Busy, desc="Issued request for Write";
     }
@@ -47,6 +50,8 @@ machine(MachineType:CXLHost, "") :
 
     TBETable TBEs, template="<CXLHost_TBE>", constructor="128";
 
+    MachineID mapAddressToMachine(Addr addr, MachineType mtype);
+
     Tick clockEdge();
     void set_tbe(TBE a);
     void unset_tbe();
@@ -61,7 +66,7 @@ machine(MachineType:CXLHost, "") :
             return tbe.state;
         } else {
             // If the TBE is not valid, return Invalid
-            return State:Invalid;
+            return State:I;
         }
     }
 
@@ -81,7 +86,7 @@ machine(MachineType:CXLHost, "") :
     AccessPermission getAccessPermission(Addr addr) {
         TBE tbe := TBEs[addr];
         if(is_valid(tbe)) {
-            if (tbe.state == State:Invalid) {
+            if (tbe.state == State:I) {
                 return AccessPermission:Invalid;
             } else {
                 return AccessPermission:Busy;
@@ -101,20 +106,17 @@ machine(MachineType:CXLHost, "") :
             peek(response_in, CXLMemResponseMsg) {
                 assert(in_msg.Destination.isElement(machineID));
                 peek(response_in, CXLMemResponseMsg) {
-                    TBE tbe := lookup(in_msg.addr);
-                    if (is_valid(tbe)) {
-                        assert(tbe.addr == in_msg.addr);
-                    } else {
-                        error("TBE invalid for address: %#x.", in_msg.addr);
-                    }
+                    TBE tbe := TBEs[in_msg.addr];
+
+                    assert(is_valid(tbe));
 
                     if (machineIDToMachineType(in_msg.Responder) == MachineType:CXLDevice) {
                         if (in_msg.Type == CXL_S2M_Resp_Type:MemData) {
-                            DPRINTF(CXLRubySlicc, "Received data from device for address: %#x.\n");
+                            DPRINTF(CXLHostSlicc, "Received data from device for address: %#x.\n");
                             trigger(Event:ReceiveData, in_msg.addr, tbe);
                         }
                         else if (in_msg.Type == CXL_S2M_Resp_Type:Cmp) {
-                            DPRINTF(CXLRubySlicc, "Received ack from device for address: %#x.\n");
+                            DPRINTF(CXLHostSlicc, "Received ack from device for address: %#x.\n");
                             trigger(Event:ReceiveAck, in_msg.addr, tbe);
                         } else {
                             error("Unexpected response type");
@@ -138,11 +140,11 @@ machine(MachineType:CXLHost, "") :
             // device sends a response back to the host.
             peek(mandatoryQueue_in, CXLMemRequestMsg, block_on="addr") {
                 if(in_msg.Type == CXL_M2S_Req_Type:MemRd) {
-                    DPRINTF(CXLRubySlicc, "Received MemRd reqiest from mandatory queue for address: %#x to device\n");
-                    trigger(Event:sendMemRd, in_msg.addr, nullTBE());
+                    DPRINTF(CXLHostSlicc, "Received MemRd reqiest from mandatory queue for address: %#x to device\n");
+                    trigger(Event:SendMemRd, in_msg.addr, nullTBE());
                 } else if(in_msg.Type == CXL_M2S_Req_Type:MemWr) {
-                    DPRINTF(CXLRubySlicc, "Received MemWr request from mandatory queue for address: %#x to device\n");
-                    trigger(Event:sendMemWr, in_msg.addr, nullTBE());
+                    DPRINTF(CXLHostSlicc, "Received MemWr request from mandatory queue for address: %#x to device\n");
+                    trigger(Event:SendMemWr, in_msg.addr, nullTBE());
                 } else {
                     error("Invalid request type");
                 }
@@ -156,7 +158,7 @@ machine(MachineType:CXLHost, "") :
                 out_msg.addr := in_msg.addr;
                 out_msg.Type := CXL_M2S_Req_Type:MemRd;
                 out_msg.Requestor := machineID;
-                out_msg.Destination := mapAddressToRange.add(mapAddressToRange(address, MachineType:CXLDevice));
+                out_msg.Destination.add(mapAddressToMachine(address, MachineType:CXLDevice));
             }
         }
     }
@@ -167,27 +169,27 @@ machine(MachineType:CXLHost, "") :
                 out_msg.addr := in_msg.addr;
                 out_msg.Type := CXL_M2S_Req_Type:MemWr;
                 out_msg.Requestor := machineID;
-                out_msg.Destination := mapAddressToRange.add(mapAddressToRange(address, MachineType:CXLDevice));
+                out_msg.Destination.add(mapAddressToMachine(address, MachineType:CXLDevice));
             }
         }
     }
 
     action(send_response_data, desc="Send response to host") {
         peek(mandatoryQueue_in, CXLMemRequestMsg) {
-            DPRINTF(RubySlicc, "Sending response data to host for address: %#x\n", in_msg.addr);
+            DPRINTF(CXLHostSlicc, "Sending response data to host for address: %#x\n", in_msg.addr);
             hostPort.responseCallback(in_msg.addr, in_msg.DataBlk);
         }
     }
 
     action(send_response_ack, desc="Send ack to host") {
         peek(mandatoryQueue_in, CXLMemRequestMsg) {
-            DPRINTF(RubySlicc, "Sending response ack to host for address: %#x\n", in_msg.addr);
-            hostPort.responseCallback(in_msg.addr, NULL);
+            DPRINTF(CXLHostSlicc, "Sending response ack to host for address: %#x\n", in_msg.addr);
+            hostPort.responseCallback(in_msg.addr, in_msg.DataBlk);
         }
     }
 
     action(allocateTBE, "aT", desc="Allocate TBE") {
-        DPRINTF(CXLRubySlicc, "Allocating TBE for address: %#x\n", address);
+        DPRINTF(CXLHostSlicc, "Allocating TBE for address: %#x\n", address);
         assert(is_invalid(tbe));
         TBEs.allocate(address);
         // this updates the tbe variable for other actions
@@ -195,7 +197,7 @@ machine(MachineType:CXLHost, "") :
     }
 
     action(deallocateTBE, "dT", desc="Deallocate TBE") {
-        DPRINTF(CXLRubySlicc, "Deallocating TBE for address: %#x\n", address);
+        DPRINTF(CXLHostSlicc, "Deallocating TBE for address: %#x\n", address);
         assert(is_valid(tbe));
         TBEs.deallocate(address);
         // this makes the tbe varible invalid
@@ -203,20 +205,20 @@ machine(MachineType:CXLHost, "") :
     }
 
     action(popMandatoryQueue, "pQ", desc="Pop the mandatory queue") {
-        mandatory_in.dequeue(clockEdge());
+        mandatoryQueue_in.dequeue(clockEdge());
     }
 
     action(popResponseQueue, "pR", desc="Pop the response queue") {
         response_in.dequeue(clockEdge());
     }
 
-    transition(Invalid, sendMemRd, Pending_Read_Data) {
+    transition(I, SendMemRd, Pending_Read_Data) {
         allocateTBE;
         send_read_request;
         popMandatoryQueue
     }
 
-    transition(Invalid, sendMemWr, Pending_Write_Ack) {
+    transition(I, SendMemWr, Pending_Write_Ack) {
         allocateTBE;
         send_write_request;
         popMandatoryQueue
