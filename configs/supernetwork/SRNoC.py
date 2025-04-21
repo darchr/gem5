@@ -69,7 +69,8 @@ class ComponentJJ(PyEnum):
 
 def calculate_power_and_area(radix):
     # Scale counting network power based on network radix
-    counting_network_ratio = ((radix / 2) + 1) / 4.0
+    counting_network_ratio = (radix / 2) // 4.0
+    print(f"Counting network ratio: {counting_network_ratio}")
     counting_network_active_power = (
         ComponentPower.COUNTING_NETWORK_ACTIVE.value * counting_network_ratio
     )
@@ -84,8 +85,8 @@ def calculate_power_and_area(radix):
     r = radix // 2
     num_counting_networks = r
     num_crosspoints = r * r
-    num_splitters = r * (r * (r - 1) + 1)
-    num_mergers = r * (r * (r - 1) + 1)
+    num_splitters = r * (r - 1)
+    num_mergers = r * (r - 1)
 
     # Calculate active power consumption
     active_power = (
@@ -115,11 +116,6 @@ def calculate_power_and_area(radix):
         + num_splitters * ComponentJJ.SPLITTER.value
         + num_mergers * ComponentJJ.MERGER.value
     )
-
-    print(num_counting_networks * counting_network_jj)
-    print(num_crosspoints * ComponentJJ.CROSSPOINT.value)
-    print(num_splitters * ComponentJJ.SPLITTER.value)
-    print(num_mergers * ComponentJJ.MERGER.value)
 
     # Log and store power and area statistics
     print(f"Active power: {active_power:.6f} W")
