@@ -65,6 +65,7 @@ Layer::Layer(const LayerParams& params) :
     holdTime(params.hold_time),
     packetsDelivered(0),
     currentTimeSlotIndex(0),
+    packetsPerPortPerWindow(params.packets_per_port_per_window),
     isFinished(false),
     fileMode(false),
     shuffleEnabled(false),
@@ -295,6 +296,7 @@ Layer::processPackets(
 
     // Iterate through all ports
     for (BufferedPort* port : bufferedPorts) {
+        std::vector<uint64_t> used_payloads;
         if (packets_processed_this_window >= maxPacketsPerWindow) {
             DPRINTF(Layer,
                 "Window %lu: reached max packets (%lu), stopping.\n",
@@ -430,57 +432,69 @@ Layer::processPackets(
             if (port->hasPackets()) {
                 port->getNextPacket();
             }
-            uint64_t payload = scheduler.generateRandomPayload(
-                rlTimeSlots
-            );
+            uint64_t payload;
+            used_payloads.reserve(packetsPerPortPerWindow);
+            while (used_payloads.size() < packetsPerPortPerWindow) {
+                uint64_t p = scheduler.generateRandomPayload(rlTimeSlots - 1);
+                if (std::find(used_payloads.begin(),
+                            used_payloads.end(),
+                            p)
+                    == used_payloads.end()) {
+                    used_payloads.push_back(p);
+                }
+            }
 
-            // Calculate precise delivery time
-            // within the connection window
-            // Use the payload value -> RACE LOGIC
-            // - Payload: (payload + 1) time slots
-            // - Splitter delay:
-            //     * 1 stage if dest == 0
-            //     * (dest + 1) stages if dest < size - 1
-            //     * dest stages if dest == size - 1
-            // - Merger delay:
-            //     * (size - 1) stages unless src == size - 1,
-            //         in which case it's 1 stage
-            // - Crosspoint delay is constant
-            payload_specific_delay =
-                ((payload + 1) * getTimeSlot()) +
-                splitterDelay * (
-                    (packet_dest == 0) ? 1 :
-                    (packet_dest < size - 1) ? (packet_dest + 1) :
-                    packet_dest
-                ) +
-                mergerDelay * (
-                    (src_addr == size - 1) ? 1 :
-                    (size - 1)
-                ) +
-                crosspointDelay +
-                variabilityCountingNetwork;
+            for (auto p : used_payloads) {
+                // Calculate precise delivery time
+                // within the connection window
+                // Use the payload value -> RACE LOGIC
+                // - Payload: (payload + 1) time slots
+                // - Splitter delay:
+                //     * 1 stage if dest == 0
+                //     * (dest + 1) stages if dest < size - 1
+                //     * dest stages if dest == size - 1
+                // - Merger delay:
+                //     * (size - 1) stages unless src == size - 1,
+                //         in which case it's 1 stage
+                // - Crosspoint delay is constant
+                payload_specific_delay =
+                    ((p + 1) * getTimeSlot()) +
+                    splitterDelay * (
+                        (packet_dest == 0) ? 1 :
+                        (packet_dest < size - 1) ? (packet_dest + 1) :
+                        packet_dest
+                    ) +
+                    mergerDelay * (
+                        (src_addr == size - 1) ? 1 :
+                        (size - 1)
+                    ) +
+                    crosspointDelay +
+                    variabilityCountingNetwork;
 
 
 
-            DPRINTF(Layer,
-                "Processing packet: src=%lu, dest=%lu, \
-                data=%lu, specific delay=%lu ps\n",
-                src_addr, allowed_dest, payload, payload_specific_delay
-            );
-            stats.totalPacketsProcessed++;
-            packetsDelivered++;
-            packets_processed_this_window++;
+                DPRINTF(Layer,
+                    "Processing packet: src=%lu, dest=%lu, \
+                    data=%lu, specific delay=%lu ps\n",
+                    src_addr, allowed_dest, p, payload_specific_delay
+                );
 
-            // Schedule packet delivery with payload-specific timing
-            schedule(new EventFunctionWrapper([this,
-                src_addr, allowed_dest, payload]() {
-                deliverPacket(src_addr, allowed_dest, payload);
-            }, "deliverPacketEvent"), curTick() + payload_specific_delay);
+                stats.totalPacketsProcessed++;
+                packetsDelivered++;
+                packets_processed_this_window++;
 
-            // Check if we've reached max packets after processing this one
-            // If not in infinite mode, check for termination condition.
-            if (!infinite_mode && packetsDelivered >= maxPackets) {
-                break;
+
+                // Schedule packet delivery with payload-specific timing
+                schedule(new EventFunctionWrapper([this,
+                    src_addr, allowed_dest, p]() {
+                    deliverPacket(src_addr, allowed_dest, p);
+                }, "deliverPacketEvent"), curTick() + payload_specific_delay);
+
+                // Check if we've reached max packets after processing this one
+                // If not in infinite mode, check for termination condition.
+                if (!infinite_mode && packetsDelivered >= maxPackets) {
+                    break;
+                }
             }
         } else if (!fileMode) {
             // Packet not allowed in the current time slot

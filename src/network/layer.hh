@@ -74,6 +74,7 @@ private:
     uint64_t currentTimeSlotIndex;  // Current index for the time slot
     int maxPackets;  // Maximum number of packets, -1 means no limit
     int packetsDelivered; // Number of packet deliveries
+    uint32_t packetsPerPortPerWindow; // Packets per port per window
     int size; // Size of the network
     bool isFinished;  // Flag to indicate if the layer has finished
     bool fileMode;  // Flag to indicate if a file is used for scheduling

@@ -58,6 +58,7 @@ class Layer(ClockedObject):
         -1, "Crosspoint setup time in picoseconds"
     )
     hold_time = Param.Float(-1, "Hold time in picoseconds")
+    packets_per_port_per_window = Param.Int(1, "Packets per port per window")
 
     cxx_exports = [
         PyBindMethod("setRandomTrafficMode"),

@@ -158,6 +158,12 @@ def create_base_parser():
     parser.add_argument(
         "--maximum-packets", type=int, default=0, help="Maximum packets"
     )
+    parser.add_argument(
+        "--packets-per-port-per-window",
+        type=int,
+        default=1,
+        help="Packets per port per window",
+    )
     return parser
 
 
@@ -261,6 +267,7 @@ def main():
             variability_counting_network=NetworkDelays.VARIABILITY_COUNTING_NETWORK.value,
             crosspoint_setup_time=NetworkDelays.CROSSPOINT_SETUP_TIME.value,
             hold_time=NetworkDelays.CROSSPOINT_HOLD_TIME.value,
+            packets_per_port_per_window=args.packets_per_port_per_window,
             clk_domain=SrcClockDomain(
                 clock=frequency,
                 voltage_domain=VoltageDomain(),
