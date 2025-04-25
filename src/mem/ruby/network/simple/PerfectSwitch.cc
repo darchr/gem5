@@ -80,6 +80,11 @@ PerfectSwitch::init(SimpleNetwork *network_ptr)
 void
 PerfectSwitch::addInPort(const std::vector<MessageBuffer*>& in)
 {
+    warn_if(in.empty(),
+            "Adding empty input port to PerfectSwitch. "
+            "Ensure you have the correct direction set in your SLICC "
+            "file (ie the network parameter when defining a MessageBuffer in " 
+            "your .sm file) otherwise this may cause an error. %s\n", name());
     NodeID port = m_in.size();
     m_in.push_back(in);
 
