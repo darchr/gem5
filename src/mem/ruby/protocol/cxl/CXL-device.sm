@@ -1,11 +1,11 @@
 machine(MachineType:CXLDevice, "CXL Device")
     : 
-      Cycles memory_latency := 1;
+      Cycles memory_latency;
     
     MessageBuffer * reqInFromHost, network="From", virtual_network="0", 
         vnet_type = "request";
 
-    MessageBuffer * respOutToHost, network="From", virtual_network="2",
+    MessageBuffer * respOutToHost, network="To", virtual_network="1",
         vnet_type = "response";
 
     MessageBuffer *requestToMemory;
@@ -29,17 +29,50 @@ machine(MachineType:CXLDevice, "CXL Device")
         MemAck,  desc="Receive ack from memory";
     }
 
+    structure(TBE, desc="Transient Block Entry") {
+        Addr addr, desc="Physical address for this TBE";
+        State state, desc="Transient state";
+        DataBlock DataBlk, desc="Data";
+        int AcksOutstanding, desc="Number of acks outstanding";
+        MachineID requestor, desc="Requestor that originated this request";
+        // In Case we ever want to send data to a different controller
+        //MachineID destination, desc="Where we are sending data";
+    }
+
+    structure(TBETable, external="yes") {
+        TBE lookup(Addr);
+        void allocate(Addr);
+        void deallocate(Addr);
+        bool isPresent(Addr);
+    }
+
+    TBETable TBEs, template="<CXLDevice_TBE>", constructor="1024";
+
     Tick clockEdge();
+    void set_tbe(TBE a);
+    void unset_tbe();
 
     // These functions have to be defined, otherwise there will be a compilation
     // and/or linking error. They are not used in this protocol.
-
-    State getState(Addr addr) {
-        return State:I;
+    TBE nullTBE(), return_by_pointer="yes" {
+        return OOD;
     }
 
-    void setState(Addr addr, State state) {
-        // Set the state of the address
+    State getState(TBE tbe, Addr addr) {
+        if (is_valid(tbe)) {
+            assert(tbe.addr == addr);
+            return tbe.state;
+        } else {
+            // If the TBE is not valid, return Invalid
+            return State:I;
+        }
+    }
+
+    void setState(TBE tbe, Addr addr, State state) {
+        if (is_valid(tbe)) {
+            assert(tbe.addr == addr);
+            tbe.state := state;
+        }
     }
 
     AccessPermission getAccessPermission(Addr addr) {
@@ -57,31 +90,37 @@ machine(MachineType:CXLDevice, "CXL Device")
     out_port(response_out, CXLMemResponseMsg, respOutToHost);
     out_port(memQueue_out, MemoryMsg, requestToMemory);
 
+    //responseFromMemory is the input port for the memory response
     in_port(memQueue_in, MemoryMsg, responseFromMemory) {
         if (memQueue_in.isReady(clockEdge())) {
             peek(memQueue_in, MemoryMsg) {
+                TBE tbe := TBEs[in_msg.addr];
+                assert(is_valid(tbe));
                 if (in_msg.Type == MemoryRequestType:MEMORY_READ) {
-                    trigger(Event:MemData, in_msg.addr);
+                    DPRINTF(CXLDeviceSlicc, "Received Memory Read Request for address: %#x.\n", in_msg.addr);
+                    trigger(Event:MemData, in_msg.addr, tbe);
                 } else if (in_msg.Type == MemoryRequestType:MEMORY_WB) {
-                    trigger(Event:MemAck, in_msg.addr);
+                    DPRINTF(CXLDeviceSlicc, "Received Memory Write Request for address: %#x.\n", in_msg.addr);
+                    trigger(Event:MemAck, in_msg.addr, tbe);
                 } else {
-                    DPRINTF(CXLDeviceSlicc, "Unknown Memory Request Type for address: %#x.", in_msg.addr);
-                    error("Unknown Memory Request Type for address.");
+                    error("Unknown Memory Request Type for address.\n");
                 }
             }
         }
     }
 
+    //request_in is the input port for the host request
     in_port(request_in, CXLMemRequestMsg, reqInFromHost) {
         if (request_in.isReady(clockEdge())) {
             peek(request_in, CXLMemRequestMsg) {
                 if (in_msg.Type == CXL_M2S_Req_Type:MemRd) {
-                    trigger(Event:ReadMem, in_msg.addr);
+                    DPRINTF(CXLDeviceSlicc, "Received Memory Read Request for address: %#x.\n", in_msg.addr);
+                    trigger(Event:ReadMem, in_msg.addr, nullTBE());
                 } else if (in_msg.Type == CXL_M2S_Req_Type:MemWr) {
-                    trigger(Event:WrMem, in_msg.addr);
+                    DPRINTF(CXLDeviceSlicc, "Received Memory Write Request for address: %#x.\n", in_msg.addr);
+                    trigger(Event:WrMem, in_msg.addr, nullTBE());
                 } else {
-                    DPRINTF(CXLDeviceSlicc, "Unknown CXL Request Type for address: %#x.", in_msg.addr);
-                    error("Unknown CXL Request Type for address.");
+                    error("Unknown CXL Request Type for address.\n");
                 }
             }
         }
@@ -89,36 +128,42 @@ machine(MachineType:CXLDevice, "CXL Device")
 
     action(sendMemRead, "sMR", desc="Send memory read request") {
         peek(request_in, CXLMemRequestMsg) {
+            DPRINTF(CXLDeviceSlicc, "Sending memory read request to memory for address: %#x.\n", in_msg.addr);
             enqueue(memQueue_out, MemoryMsg, memory_latency) {
                 out_msg.addr := in_msg.addr;
                 out_msg.Type := MemoryRequestType:MEMORY_READ;
-                out_msg.Sender := in_msg.Requestor;
+                out_msg.Sender := machineID;
                 out_msg.MessageSize := MessageSizeType:Request_Control;
                 out_msg.Len := 0;
+                out_msg.OriginalRequestorMachId := in_msg.Requestor;
             }
         }
     }
 
     action(sendMemWrite, "sMW", desc="Send memory write request") {
         peek(request_in, CXLMemRequestMsg) {
+            DPRINTF(CXLDeviceSlicc, "Sending memory write request to memory for address: %#x.\n", in_msg.addr);
             enqueue(memQueue_out, MemoryMsg, memory_latency) {
                 out_msg.addr := in_msg.addr;
                 out_msg.Type := MemoryRequestType:MEMORY_WB;
-                out_msg.Sender := in_msg.Requestor;
+                out_msg.Sender := machineID;
                 out_msg.MessageSize := MessageSizeType:Writeback_Data;
                 out_msg.DataBlk := in_msg.DataBlk;
                 out_msg.Len := 0;
+                out_msg.OriginalRequestorMachId := in_msg.Requestor;
             }
         }
     }
 
     action(sendDataToHost, "sDH", desc="Send memory data to host") {
         peek(memQueue_in, MemoryMsg) {
+            TBE tbe := TBEs[in_msg.addr];
+            DPRINTF(CXLDeviceSlicc, "Sending memory data to host for address: %#x.\n", in_msg.addr);
             enqueue(response_out, CXLMemResponseMsg, memory_latency) {
                 out_msg.addr := in_msg.addr;
                 out_msg.Type := CXL_S2M_Resp_Type:MemData;
                 out_msg.Responder := machineID;
-                out_msg.Destination.add(in_msg.OriginalRequestorMachId);
+                out_msg.Destination.add(tbe.requestor);
                 out_msg.DataBlk := in_msg.DataBlk;
                 out_msg.MessageSize := MessageSizeType:Data;
             }
@@ -127,11 +172,13 @@ machine(MachineType:CXLDevice, "CXL Device")
 
     action(sendAckToHost, "sAH", desc="Send memory ack to host") {
         peek(memQueue_in, MemoryMsg) {
+            TBE tbe := TBEs[in_msg.addr];
+            DPRINTF(CXLDeviceSlicc, "Sending memory ack to host for address: %#x.\n", in_msg.addr);
             enqueue(response_out, CXLMemResponseMsg, memory_latency) {
                 out_msg.addr := in_msg.addr;
                 out_msg.Type := CXL_S2M_Resp_Type:Cmp;
                 out_msg.Responder := machineID;
-                out_msg.Destination.add(in_msg.OriginalRequestorMachId);
+                out_msg.Destination.add(tbe.requestor);
                 out_msg.MessageSize := MessageSizeType:Control;
             }
         }
@@ -145,23 +192,50 @@ machine(MachineType:CXLDevice, "CXL Device")
         dequeueMemRespQueue();
     }
 
+    action(allocateTBE, "aT", desc="Allocate TBE") {
+        DPRINTF(CXLDeviceSlicc, "Allocating TBE for address: %#x.\n", address);
+        peek(request_in, CXLMemRequestMsg) {
+            assert(is_invalid(tbe));
+            assert(in_msg.addr == address);
+            TBEs.allocate(in_msg.addr);
+            // this updates the tbe variable for other actions
+            set_tbe(TBEs[in_msg.addr]);
+            tbe.addr := in_msg.addr;
+            tbe.state := State:I;
+            
+            tbe.requestor := in_msg.Requestor;
+        }
+    }
+
+    action(deallocateTBE, "dT", desc="Deallocate TBE") {
+        DPRINTF(CXLDeviceSlicc, "Deallocating TBE for address: %#x.\n", address);
+        assert(is_valid(tbe));
+        TBEs.deallocate(address);
+        // this makes the tbe varible invalid
+        unset_tbe();
+    }
+
     transition(I, ReadMem, Pending_Read_Data) {
+        allocateTBE;
         sendMemRead;
         popRequestQueue;
     }
 
     transition(I, WrMem, Pending_Write_Ack) {
+        allocateTBE;
         sendMemWrite;
         popRequestQueue;
     }
 
     transition(Pending_Read_Data, MemData, I) {
         sendDataToHost;
+        deallocateTBE;
         popMemQueue;
     }
 
     transition(Pending_Write_Ack, MemAck, I) {
         sendAckToHost;
+        deallocateTBE;
         popMemQueue;
     }
 }

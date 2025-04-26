@@ -136,6 +136,10 @@ class ComplexGenerator(AbstractGenerator):
                 data_limit,
             )
 
+    def add_idle(self, duration: str = "1ms") -> None:
+        for core in self.cores:
+            core.add_idle(duration)
+
     def set_traffic_from_python_generator(
         self, generator: Iterator[Any]
     ) -> None:

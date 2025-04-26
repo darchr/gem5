@@ -46,6 +46,11 @@ void
 CXLHostPort::init()
 {
     assert(rubyController != nullptr);
+    if (!hostSidePort.isConnected()) {
+        fatal("CXLHostPort %s is unconnected!\n", name());
+    } else {
+        hostSidePort.sendRangeChange();
+    }
 }
 
 void
@@ -60,9 +65,13 @@ CXLHostPort::initiateMemoryRequest(PacketPtr pkt)
 
     if (pkt->isRead()) {
         cxl_pkt->m_Type = CXL_M2S_Req_Type_MemRd;
+    } else if (pkt->isWrite()) {
+        cxl_pkt->m_Type = CXL_M2S_Req_Type_MemWr;
+    } else {
+        panic("CXLHostPort doesn't expect %s requests\n", pkt->print());
     }
     
-    rubyController->getMandatoryQueue()->enqueue(cxl_pkt, clockEdge(), 0, false, false);
+    rubyController->getMandatoryQueue()->enqueue(cxl_pkt, clockEdge(), 1, false, false);
 
     // need to return whether the request was sent or not
 }
@@ -108,7 +117,7 @@ CXLHostPort::processRequestEvent()
         if (!requests.hasReady(curTick())) {
             break;
         }
-        DPRINTF(CXLHostPort, "Initiating Request %s", requests.front());
+        DPRINTF(CXLHostPort, "Initiating Request %s\n", requests.front());
         initiateMemoryRequest(requests.front());
         // NOTE: We can pop this because initiateMemoryRequest tracks this 
         // value in a separate map.
@@ -123,7 +132,7 @@ CXLHostPort::processRequestEvent()
 bool
 CXLHostPort::HostSidePort::recvTimingReq(PacketPtr pkt)
 {
-    DPRINTF(CXLHostPort, "Got request %s\n", pkt);
+    DPRINTF(CXLHostPort, "Got request %s\n", pkt->print());
     return owner->recvTimingReq(pkt);
 }
 
@@ -143,7 +152,13 @@ CXLHostPort::HostSidePort::recvFunctional(PacketPtr pkt)
 AddrRangeList
 CXLHostPort::HostSidePort::getAddrRanges() const
 {
-    return owner->memRanges;
+    return owner->getAddrRanges();
+}
+
+AddrRangeList
+CXLHostPort::getAddrRanges() const
+{
+    return memRanges;
 }
 
 void
@@ -166,8 +181,12 @@ void
 CXLHostPort::responseCallback(Addr addr, DataBlock data)
 {
     panic_if(outstandingRequests.find(addr) == outstandingRequests.end(), "Could not find addr %#x in outstanding requests.\n", addr);
+    DPRINTF(CXLHostPort, "Got response for %#x\n", addr);
     PacketPtr pkt = outstandingRequests[addr];
+    DPRINTF(CXLHostPort, "Found pkt %s\n", pkt->print());
     pkt->makeResponse();
+    assert(pkt->getSize() == data.getBlockSize());
+    pkt->setData(data.getData(0, data.getBlockSize()));
     responses.push(pkt, curTick());
     // Don't need to schedule a response event if one is already scheduled
     if (!responseEvent.scheduled()) {

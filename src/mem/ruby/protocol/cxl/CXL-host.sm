@@ -1,6 +1,6 @@
 machine(MachineType:CXLHost, "") : 
     CXLHostPort * hostPort;
-    Cycles request_latency := 1;
+    Cycles req_fwd_latency;
 
     MessageBuffer * reqOutToDevice, network="To", virtual_network="0", 
         vnet_type = "request";
@@ -9,7 +9,7 @@ machine(MachineType:CXLHost, "") :
 
     // MessageBuffer * reqInFromDevice, network="From", virtual_network="1", 
     //     vnet_type = "request";
-    MessageBuffer * respInFromDevice, network="From", virtual_network="2",
+    MessageBuffer * respInFromDevice, network="From", virtual_network="1",
         vnet_type = "response";
 
     // The buffer to receive sequencer requests
@@ -48,7 +48,7 @@ machine(MachineType:CXLHost, "") :
         bool isPresent(Addr);
     }
 
-    TBETable TBEs, template="<CXLHost_TBE>", constructor="128";
+    TBETable TBEs, template="<CXLHost_TBE>", constructor="1024";
 
     MachineID mapAddressToMachine(Addr addr, MachineType mtype);
 
@@ -105,25 +105,23 @@ machine(MachineType:CXLHost, "") :
         if (response_in.isReady(clockEdge())) {
             peek(response_in, CXLMemResponseMsg) {
                 assert(in_msg.Destination.isElement(machineID));
-                peek(response_in, CXLMemResponseMsg) {
-                    TBE tbe := TBEs[in_msg.addr];
+                TBE tbe := TBEs[in_msg.addr];
 
-                    assert(is_valid(tbe));
+                assert(is_valid(tbe));
 
-                    if (machineIDToMachineType(in_msg.Responder) == MachineType:CXLDevice) {
-                        if (in_msg.Type == CXL_S2M_Resp_Type:MemData) {
-                            DPRINTF(CXLHostSlicc, "Received data from device for address: %#x.\n");
-                            trigger(Event:ReceiveData, in_msg.addr, tbe);
-                        }
-                        else if (in_msg.Type == CXL_S2M_Resp_Type:Cmp) {
-                            DPRINTF(CXLHostSlicc, "Received ack from device for address: %#x.\n");
-                            trigger(Event:ReceiveAck, in_msg.addr, tbe);
-                        } else {
-                            error("Unexpected response type");
-                        }
-                    } else {
-                        error("Response not from device");
+                if (machineIDToMachineType(in_msg.Responder) == MachineType:CXLDevice) {
+                    if (in_msg.Type == CXL_S2M_Resp_Type:MemData) {
+                        DPRINTF(CXLHostSlicc, "Received data from device for address: %#x.\n", in_msg.addr);
+                        trigger(Event:ReceiveData, in_msg.addr, tbe);
                     }
+                    else if (in_msg.Type == CXL_S2M_Resp_Type:Cmp) {
+                        DPRINTF(CXLHostSlicc, "Received ack from device for address: %#x.\n", in_msg.addr);
+                        trigger(Event:ReceiveAck, in_msg.addr, tbe);
+                    } else {
+                        error("Unexpected response type");
+                    }
+                } else {
+                    error("Response not from device");
                 }
             }
         }
@@ -140,10 +138,10 @@ machine(MachineType:CXLHost, "") :
             // device sends a response back to the host.
             peek(mandatoryQueue_in, CXLMemRequestMsg, block_on="addr") {
                 if(in_msg.Type == CXL_M2S_Req_Type:MemRd) {
-                    DPRINTF(CXLHostSlicc, "Received MemRd reqiest from mandatory queue for address: %#x to device\n");
+                    DPRINTF(CXLHostSlicc, "Received MemRd request from mandatory queue for address: %#x to device\n", in_msg.addr);
                     trigger(Event:SendMemRd, in_msg.addr, nullTBE());
                 } else if(in_msg.Type == CXL_M2S_Req_Type:MemWr) {
-                    DPRINTF(CXLHostSlicc, "Received MemWr request from mandatory queue for address: %#x to device\n");
+                    DPRINTF(CXLHostSlicc, "Received MemWr request from mandatory queue for address: %#x to device\n", in_msg.addr);
                     trigger(Event:SendMemWr, in_msg.addr, nullTBE());
                 } else {
                     error("Invalid request type");
@@ -154,35 +152,42 @@ machine(MachineType:CXLHost, "") :
 
     action(send_read_request, 'sRR', desc="Send read request to device") {
         peek(mandatoryQueue_in, CXLMemRequestMsg) {
-            enqueue(request_out, CXLMemRequestMsg, request_latency) {
+            DPRINTF(CXLHostSlicc, "Sending read request to device for address: %#x\n", in_msg.addr);
+            enqueue(request_out, CXLMemRequestMsg, req_fwd_latency) {
                 out_msg.addr := in_msg.addr;
-                out_msg.Type := CXL_M2S_Req_Type:MemRd;
                 out_msg.Requestor := machineID;
                 out_msg.Destination.add(mapAddressToMachine(address, MachineType:CXLDevice));
+                out_msg.MessageSize := MessageSizeType:Control;
+
+                out_msg.Type := CXL_M2S_Req_Type:MemRd;
             }
         }
     }
 
     action(send_write_request, 'sWR', desc="Send write request to device") {
         peek(mandatoryQueue_in, CXLMemRequestMsg) {
-            enqueue(request_out, CXLMemRequestMsg, request_latency) {
+            DPRINTF(CXLHostSlicc, "Sending write request to device for address: %#x\n", in_msg.addr);
+            enqueue(request_out, CXLMemRequestMsg, req_fwd_latency) {
                 out_msg.addr := in_msg.addr;
-                out_msg.Type := CXL_M2S_Req_Type:MemWr;
                 out_msg.Requestor := machineID;
                 out_msg.Destination.add(mapAddressToMachine(address, MachineType:CXLDevice));
+                out_msg.MessageSize := MessageSizeType:Control;
+
+                out_msg.Type := CXL_M2S_Req_Type:MemWr;
+                out_msg.DataBlk := in_msg.DataBlk;
             }
         }
     }
 
     action(send_response_data, desc="Send response to host") {
-        peek(mandatoryQueue_in, CXLMemRequestMsg) {
+        peek(response_in, CXLMemResponseMsg) {
             DPRINTF(CXLHostSlicc, "Sending response data to host for address: %#x\n", in_msg.addr);
             hostPort.responseCallback(in_msg.addr, in_msg.DataBlk);
         }
     }
 
     action(send_response_ack, desc="Send ack to host") {
-        peek(mandatoryQueue_in, CXLMemRequestMsg) {
+        peek(response_in, CXLMemResponseMsg) {
             DPRINTF(CXLHostSlicc, "Sending response ack to host for address: %#x\n", in_msg.addr);
             hostPort.responseCallback(in_msg.addr, in_msg.DataBlk);
         }
@@ -194,6 +199,8 @@ machine(MachineType:CXLHost, "") :
         TBEs.allocate(address);
         // this updates the tbe variable for other actions
         set_tbe(TBEs[address]);
+        tbe.addr := address;
+        tbe.state := State:I;
     }
 
     action(deallocateTBE, "dT", desc="Deallocate TBE") {
