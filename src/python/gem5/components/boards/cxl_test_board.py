@@ -72,13 +72,3 @@ class CXLTestBoard(TestBoard):
             memory=cxl_memory,
             cache_hierarchy=cache_hierarchy,
         )
-        self.ruby_system = RubySystem(number_of_virtual_networks=1)
-        self.ruby_system.block_size_bytes = self.get_cache_line_size()
-        # NOTE: AFAIK, this parameter is only used by RubyProfiler.
-        self.ruby_system.num_of_sequencers = 0
-
-    @overrides(TestBoard)
-    def _connect_things(self) -> None:
-        super()._connect_things()
-
-        self.get_memory().set_ruby_system(self.ruby_system)

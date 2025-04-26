@@ -1,10 +1,11 @@
 Import("*")
 
-SimObject("CXLHostPort.py",
-    sim_objects=["CXLHostPort"])
+SimObject("CXLHostPort.py", sim_objects=["CXLHostPort"])
 
 DebugFlag("CXLHostPort")
 DebugFlag("CXLHostSlicc")
 DebugFlag("CXLDeviceSlicc")
+
+CompoundFlag("CXL", ["CXLHostPort", "CXLHostSlicc", "CXLDeviceSlicc"])
 
 Source("CXLHostPort.cc")

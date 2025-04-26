@@ -51,6 +51,7 @@ class TrafficModes(Enum):
 
     linear = 0
     random = 1
+    idle = 2
 
 
 class ComplexTrafficParams:
@@ -189,6 +190,29 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
         self._traffic_params = self._traffic_params + [param]
         self._traffic_set = False
 
+    def add_idle(self, duration: str) -> None:
+        """
+        This function will add the params for an idle traffic to the list of
+        traffic params in this generator core. These params will be later
+        resolved by the ``start_traffic`` call. This core uses a PyTrafficGen to
+        create the traffic based on the specified params below.
+
+        :param duration: The number of ticks for the generator core to generate
+                         traffic.
+        """
+        param = ComplexTrafficParams(
+            TrafficModes.idle,
+            duration,
+            "0B/s",
+            0,
+            0,
+            0,
+            0,
+            0,
+        )
+        self._traffic_params = self._traffic_params + [param]
+        self._traffic_set = False
+
     @overrides(AbstractGeneratorCore)
     def start_traffic(self) -> None:
         """
@@ -247,6 +271,10 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
                     rd_perc,
                     data_limit,
                 )
+                self._traffic = self._traffic + [traffic]
+
+            if mode == TrafficModes.idle:
+                traffic = self._create_idle_traffic(duration)
                 self._traffic = self._traffic + [traffic]
 
         self._traffic_set = True
@@ -362,4 +390,9 @@ class ComplexGeneratorCore(AbstractGeneratorCore):
             rd_perc,
             data_limit,
         )
+        yield self.generator.createExit(0)
+
+    def _create_idle_traffic(self, duration: str) -> None:
+        duration = fromSeconds(toLatency(duration))
+        yield self.generator.createIdle(duration)
         yield self.generator.createExit(0)

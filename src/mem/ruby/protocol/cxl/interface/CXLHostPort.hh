@@ -36,13 +36,6 @@ class CXLHostPort: public ClockedObject
     // API to send/receive CXL requests
     // This looks a lot like a generic mem side port
 
-    RubySystem* rubySystemPtr;
-
-    void initiateMemoryRequest(PacketPtr pkt);
-    void responseCallback(Addr addr, DataBlock data);
-    std::unordered_map<Addr, PacketPtr> outstandingRequests;
-    
-
     bool recvTimingReq(PacketPtr pkt);
 
     virtual Port &getPort(const std::string &if_name, PortID idx=InvalidPortID) override;
@@ -51,8 +44,16 @@ class CXLHostPort: public ClockedObject
     {
         rubyController = controller;
     }
+    AddrRangeList getAddrRanges() const;
+    void responseCallback(Addr addr, DataBlock data);
 
   private:
+    RubySystem* rubySystemPtr;
+
+    void initiateMemoryRequest(PacketPtr pkt);
+    
+    std::unordered_map<Addr, PacketPtr> outstandingRequests;
+
     class HostSidePort : public ResponsePort 
     {
       private:
