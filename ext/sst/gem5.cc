@@ -253,12 +253,29 @@ gem5Component::setup()
     for (auto &port : sstPorts) {
         port->setup();
     }
+    // This needs to be in the class constructor!
+    // Assume that gem5 hasn't ended the simulation and SST will jsut pretend
+    // this throughout the simulation.
+    did_gem5_end = false;
 }
 
 void
 gem5Component::finish()
 {
     output.verbose(CALL_INFO, 1, 0, "Component is being finished.\n");
+    // In case SST wants to end the simulation here using a simulate ticks or
+    // wallclock time, we need to create and exit event in gem5 and drop the
+    // statistics. But we need to know if the stats are already dumped by gem5
+    // or not.
+    if (did_gem5_end == false) {
+        // It's SST's moral responsibility to end the simulation here and dump
+        // the stats of each of the gem5 nodes.
+        const std::vector<std::string> dumping_commands = {
+            "import m5.stats",
+            "m5.stats.dump()",
+        };
+        execPythonCommands(dumping_commands);
+    }
 }
 
 bool
@@ -296,6 +313,8 @@ gem5Component::clockTick(SST::Cycle_t currentCycle)
         };
         execPythonCommands(output_stats_commands);
 
+        // gem5 has dumped the stats, make sure the stats aren't dumped again!
+        did_gem5_end = true;
         primaryComponentOKToEndSim();
         return true;
     }
