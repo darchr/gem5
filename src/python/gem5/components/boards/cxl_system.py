@@ -1,10 +1,3 @@
-from typing import (
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-)
-
 from m5.objects import (
     AddrRange,
     CXL_CXLDevice_Controller,
@@ -12,22 +5,19 @@ from m5.objects import (
     CXLHostPort,
     DDR4_2400_8x8,
     MemCtrl,
-    MemInterface,
     MessageBuffer,
-    Port,
     RubySystem,
     SimpleExtLink,
     SimpleIntLink,
     SimpleNetwork,
-    SrcClockDomain,
+    SubSystem,
     Switch,
-    VoltageDomain,
+    SysBridge,
+    System,
 )
 from m5.util.convert import toMemorySize
 
-from .abstract_memory_system import AbstractMemorySystem
-from ..boards.abstract_board import AbstractBoard
-from ...utils.override import overrides
+from .abstract_board import AbstractBoard
 
 
 class CXLSwitch(Switch):
@@ -88,7 +78,7 @@ class CXLNetwork(SimpleNetwork):
         # What are netifs?
         self.netifs = []
 
-        # TODO: This should change in the future.
+        # TODO: vnets will change in the future with coherence.
         self.number_of_virtual_networks = 2
         self.ruby_system = ruby_system
 
@@ -97,11 +87,9 @@ class CXLNetwork(SimpleNetwork):
     # all devices.
     def connect_controllers(self, controllers):
         assert len(controllers) > 0
-        print(f"Connecting {len(controllers)} controllers to the network")
         # Creating the switches/routers. Pass the network (self) to the switches.
         routers = [CXLSwitch(self) for _ in range(len(controllers))]
         self.routers = routers
-        print(f"Created {len(self.routers)} routers")
         # Creating the external links. Pass the controller and router to the
         # external links. The external link is the link between the controller
         # and the router.
@@ -183,98 +171,99 @@ class CXLDevice(CXL_CXLDevice_Controller):
         self.respOutToHost.out_port = network.in_port
 
 
-class CXLMemory(AbstractMemorySystem):
+class CXLSubSystem(SubSystem):
     """A class to implement the CXL Memory system"""
 
+    # NOTE: All host ports share the same memory range.
+
     def __init__(
-        self, clk_freq: Optional[str] = "1GHz", size: Optional[str] = "4GiB"
+        self,
+        num_boards: int,
+        start: str,
+        size: str,
+        block_size: int,
     ) -> None:
         super().__init__()
-        self.clk_domain = SrcClockDomain()
-        self.clk_domain.clock = clk_freq
-        self.clk_domain.voltage_domain = VoltageDomain()
-        self._size = toMemorySize(size)
+        self._cache_line_size = block_size
 
-        self.cxl_host_port = CXLHostPort(
-            request_latency=1,
-            response_latency=1,
-            request_queue_size=-1,
-            request_issue_width=-1,
-        )
+        self._memory_size = toMemorySize(size)
+        self._memory_range = AddrRange(start=start, size=size)
+        # TODO: Take a list of boards instead of num_boards
+        self._num_boards = num_boards
 
-    @overrides(AbstractMemorySystem)
-    def incorporate_memory(self, board: AbstractBoard) -> None:
+    def build_cxl_network(self, cxl_system: System) -> None:
         self.ruby_system = RubySystem(number_of_virtual_networks=2)
-        self.ruby_system.block_size_bytes = board.get_cache_line_size()
+        self.ruby_system.block_size_bytes = self._cache_line_size
         # NOTE: AFAIK, this parameter is only used by RubyProfiler.
         self.ruby_system.num_of_sequencers = 0
+        self.ruby_system.cxl_network = CXLNetwork(self.ruby_system)
 
-        self.cxl_host_controller = CXLHost(
-            clk_domain=self.clk_domain,
-            host_port=self.cxl_host_port,
-            ruby_system=self.ruby_system,
-            req_fwd_latency=1,
-        )
-        self.cxl_host_port.ruby_system = self.ruby_system
-        self.cxl_host_port.controller = self.cxl_host_controller
+        self.cxl_host_ports = [
+            CXLHostPort(
+                request_latency=1,
+                response_latency=1,
+                request_queue_size=-1,
+                request_issue_width=-1,
+                mem_ranges=[self._memory_range],
+                ruby_system=self.ruby_system,
+            )
+            for _ in range(self._num_boards)
+        ]
+        self.sys_bridges = [
+            SysBridge(
+                target=cxl_system,
+                target_port=host_port.host_side_port,
+            )
+            for host_port in self.cxl_host_ports
+        ]
 
-        self.mem_ctrl = MemCtrl(dram=DDR4_2400_8x8())
+        # NOTE: self.cxl_host_controllers has to be defined like this because
+        # gem5 will throw out an attribute error if we append CXLHosts to
+        # self.cxl_host_controllers. If we try to define it by first creating
+        # a local variable and then assigning it to self.cxl_host_controllers
+        # it will throw an error because it can't find _parent attribute in
+        # SimObjectVector. gem5 tries to access _parent when it throws out a
+        # warning about self.cxl_host_controllers already having a parent in
+        # SimObject.py:add_child(), line 978.
+        self.cxl_host_controllers = [
+            CXLHost(
+                clk_domain=cxl_system.clk_domain,
+                host_port=host_port,
+                ruby_system=self.ruby_system,
+                req_fwd_latency=1,
+            )
+            for host_port in self.cxl_host_ports
+        ]
+
+        # TODO: Make num_channels and dram class constructor parameters
+        self.mem_ctrl = MemCtrl(dram=DDR4_2400_8x8(range=self._memory_range))
+        # TODO: Replicate this for every memory channel
+        # Wrap these channels into a single logical device
+        # This device could potentially be split into multiple objects
+        # eg CXLDeviceHead and CXLDeviceTail
         self.cxl_device_controller = CXLDevice(
-            clk_domain=self.clk_domain,
+            clk_domain=cxl_system.clk_domain,
             mem_port=self.mem_ctrl.port,
             ruby_system=self.ruby_system,
             memory_latency=1,
         )
 
-        self.ruby_system.cxl_network = CXLNetwork(self.ruby_system)
-
+        for controller in self.cxl_host_controllers:
+            controller.setup_buffers(self.ruby_system.cxl_network)
         self.cxl_device_controller.setup_buffers(self.ruby_system.cxl_network)
-        self.cxl_host_controller.setup_buffers(self.ruby_system.cxl_network)
 
         self.ruby_system.cxl_network.connect_controllers(
-            [self.cxl_host_controller, self.cxl_device_controller]
+            self.cxl_host_controllers + [self.cxl_device_controller]
         )
+        # setup_buffers is inherited from SimpleNetwork
         self.ruby_system.cxl_network.setup_buffers()
 
-    @overrides(AbstractMemorySystem)
-    def get_mem_ports(self) -> Sequence[Tuple[AddrRange, Port]]:
-        return [
-            (
-                self.cxl_host_port.mem_ranges[0],
-                self.cxl_host_port.host_side_port,
+    def attach_to_board(self, board: AbstractBoard, index: int) -> None:
+        if board.get_cache_line_size().getValue() != self._cache_line_size:
+            raise ValueError(
+                "Currently do not support different cache line sizes."
             )
-        ]
-
-    @overrides(AbstractMemorySystem)
-    def get_memory_controllers(self) -> List[MemCtrl]:
-        return [self.cxl_host_port]
-
-    @overrides(AbstractMemorySystem)
-    def get_mem_interfaces(self) -> List[MemInterface]:
-        """Get all memory interfaces in this memory system.
-        Useful when creating physical memory objects."""
-        raise Exception("No memory in the CXLHostPort")
-
-    @overrides(AbstractMemorySystem)
-    def get_size(self) -> int:
-        return self._size
-
-    @overrides(AbstractMemorySystem)
-    def set_memory_range(self, ranges: List[AddrRange]) -> None:
-        print(f"Setting memory range to {ranges} in CXLMemory system")
-        # We check this because of the assumption in get_size
-        # that there is only one range. This is temporary
-        if len(ranges) != 1:
-            raise RuntimeError(
-                "CXLMemory only supports a single range. "
-                f"Got {len(ranges)} ranges."
-            )
-        self.cxl_host_port.mem_ranges = ranges
-
-    @overrides(AbstractMemorySystem)
-    def get_uninterleaved_range(self) -> List[AddrRange]:
-        """Returns the range of the memory system without interleaving.
-        This is useful when other components in the system want to interleave
-        the memory range different to how the memory has interleaved them.
-        """
-        return self.cxl_host_port.mem_ranges
+        self.sys_bridges[index].source = board
+        board.set_remote_memory_ports(
+            [(self._memory_range, self.sys_bridges[index].source_port)]
+        )

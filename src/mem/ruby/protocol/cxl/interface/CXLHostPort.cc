@@ -139,14 +139,15 @@ CXLHostPort::HostSidePort::recvTimingReq(PacketPtr pkt)
 Tick
 CXLHostPort::HostSidePort::recvAtomic(PacketPtr pkt)
 {
-    panic("CXLHostPort doesn't expect atomic requests\n");
-    return MaxTick;
+    // panic("CXLHostPort doesn't expect atomic requests\n");
+    return owner->recvAtomic(pkt);
 }
 
 void
 CXLHostPort::HostSidePort::recvFunctional(PacketPtr pkt)
 {
-    panic("CXLHostPort doesn't expect functional requests\n");
+    // panic("CXLHostPort doesn't expect functional requests\n");
+    owner->recvFunctional(pkt);
 }
 
 AddrRangeList
@@ -183,16 +184,24 @@ CXLHostPort::responseCallback(Addr addr, DataBlock data)
     panic_if(outstandingRequests.find(addr) == outstandingRequests.end(), "Could not find addr %#x in outstanding requests.\n", addr);
     DPRINTF(CXLHostPort, "Got response for %#x\n", addr);
     PacketPtr pkt = outstandingRequests[addr];
-    DPRINTF(CXLHostPort, "Found pkt %s\n", pkt->print());
-    pkt->makeResponse();
-    assert(pkt->getSize() == data.getBlockSize());
-    pkt->setData(data.getData(0, data.getBlockSize()));
-    responses.push(pkt, curTick());
-    // Don't need to schedule a response event if one is already scheduled
-    if (!responseEvent.scheduled()) {
-        scheduleNextProcessResponseEvent(curTick());
+    // NOTE: Slight HACK: For MemCmds like WriteBackDirty. We don't expect to
+    // receive a request for these commands when using Ruby caches for 
+    // the host. AFAIK, this is only going to happen when using Classic caches.
+    if (!pkt->needsResponse()) {
+        DPRINTF(CXLHostPort, "Received response for packet that doesn't need a response: %s\n", pkt->print());
+        delete pkt;
+        outstandingRequests.erase(addr);
+    } else {
+        DPRINTF(CXLHostPort, "Found pkt %s\n", pkt->print());
+        pkt->makeResponse();
+        assert(pkt->getSize() == data.getBlockSize());
+        pkt->setData(data.getData(0, data.getBlockSize()));
+        responses.push(pkt, curTick());
+        // Don't need to schedule a response event if one is already scheduled
+        if (!responseEvent.scheduled()) {
+            scheduleNextProcessResponseEvent(curTick());
+        }
     }
-    
 }
 
 void

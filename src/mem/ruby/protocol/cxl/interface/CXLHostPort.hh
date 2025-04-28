@@ -37,6 +37,8 @@ class CXLHostPort: public ClockedObject
     // This looks a lot like a generic mem side port
 
     bool recvTimingReq(PacketPtr pkt);
+    Tick recvAtomic(PacketPtr pkt) { panic("CXLHostPort doesn't expect atomic requests\n"); }
+    void recvFunctional(PacketPtr pkt) { panic("CXLHostPort doesn't expect functional requests\n"); }
 
     virtual Port &getPort(const std::string &if_name, PortID idx=InvalidPortID) override;
 

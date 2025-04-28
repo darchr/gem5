@@ -41,7 +41,6 @@ from .single_channel import (
     SingleChannelHBM,
     SingleChannelLPDDR3_1600,
 )
-from .cxl_memory import CXLMemory
 
 try:
     from .dramsys import (
