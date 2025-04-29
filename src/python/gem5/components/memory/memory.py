@@ -212,4 +212,9 @@ class ChanneledMemory(AbstractMemorySystem):
 
     @overrides(AbstractMemorySystem)
     def get_uninterleaved_range(self) -> List[AddrRange]:
+        if not hasattr(self, "_mem_range"):
+            raise Exception(
+                "Memory range has not been set. Please set the memory range "
+                "before calling this function using `set_memory_range`."
+            )
         return [self._mem_range]
