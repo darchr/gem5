@@ -24,8 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-""" Channeled "generic" DDR memory controllers
-"""
+"""Channeled "generic" DDR memory controllers"""
 
 from math import log
 from typing import (
@@ -210,4 +209,9 @@ class ChanneledMemory(AbstractMemorySystem):
 
     @overrides(AbstractMemorySystem)
     def get_uninterleaved_range(self) -> List[AddrRange]:
+        if not hasattr(self, "_mem_range"):
+            raise Exception(
+                "Memory range has not been set. Please set the memory range "
+                "before calling this function using `set_memory_range`."
+            )
         return [self._mem_range]
