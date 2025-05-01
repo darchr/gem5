@@ -152,13 +152,13 @@ def create_base_parser():
         "--num-ports", type=int, default=10, help="Number of BufferedPorts"
     )
     parser.add_argument(
-        "--maximum-packets", type=int, default=0, help="Maximum packets"
+        "--maximum-values", type=int, default=0, help="Maximum values"
     )
     parser.add_argument(
-        "--packets-per-port-per-window",
+        "--values-per-port-per-window",
         type=int,
         default=1,
-        help="Packets per port per window",
+        help="values per port per window",
     )
     return parser
 
@@ -254,7 +254,7 @@ def main():
     layers = [
         Layer(
             buffered_ports=buffered_ports,
-            max_packets=args.maximum_packets,
+            max_values=args.maximum_values,
             schedule_path=schedule_path,
             crosspoint_delay=NetworkDelays.CROSSPOINT_DELAY.value,
             merger_delay=NetworkDelays.MERGER_DELAY.value,
@@ -263,7 +263,7 @@ def main():
             variability_counting_network=NetworkDelays.VARIABILITY_COUNTING_NETWORK.value,
             crosspoint_setup_time=NetworkDelays.CROSSPOINT_SETUP_TIME.value,
             hold_time=NetworkDelays.CROSSPOINT_HOLD_TIME.value,
-            packets_per_port_per_window=args.packets_per_port_per_window,
+            values_per_port_per_window=args.values_per_port_per_window,
             clk_domain=SrcClockDomain(
                 clock=frequency,
                 voltage_domain=VoltageDomain(),
@@ -288,8 +288,8 @@ def main():
     power_and_area = calculate_power_and_area(radix=(num_ports * 2))
     print()
 
-    if args.maximum_packets:
-        print(f"Maximum Packets: {args.maximum_packets}")
+    if args.maximum_values:
+        print(f"Maximum values: {args.maximum_values}")
     if getattr(args, "file_path", None):
         print(f"File Path: {args.file_path}")
     print()
