@@ -120,10 +120,14 @@ private:
         statistics::Scalar totalPacketsProcessed;
         // Number of scheduling windows used
         statistics::Scalar totalWindowsUsed;
+        // Number of packets attempted to be sent
+        statistics::Scalar totalPacketsAttempted;
         // Distribution of packets processed per time window
         statistics::Histogram pktsPerWindow;
         // Distribution of missed packets per BufferedPort
         statistics::Histogram missedPacketsPerBufferedPort;
+        // Packet latency distribution
+        statistics::Histogram packetLatency;
 
         // Constructor that links stats to the Layer instance
         LayerStats(Layer* layer);

@@ -178,7 +178,7 @@ Layer::computeTimingParameters()
 
     DPRINTF(Layer,
         "Max packets per window: %lu\n",
-        maxPacketsPerWindow
+        maxPacketsPerWindow * size
     );
 
     // Calculate and assign the connection window
@@ -297,10 +297,11 @@ Layer::processPackets(
     // Iterate through all ports
     for (BufferedPort* port : bufferedPorts) {
         std::vector<uint64_t> used_payloads;
-        if (packets_processed_this_window >= maxPacketsPerWindow) {
+        if (packets_processed_this_window >= (maxPacketsPerWindow * size)) {
             DPRINTF(Layer,
                 "Window %lu: reached max packets (%lu), stopping.\n",
-                currentTimeSlotIndex, maxPacketsPerWindow);
+                currentTimeSlotIndex, packets_processed_this_window
+            );
             break;
         }
         // Check if we've already reached the maximum packets
@@ -425,7 +426,7 @@ Layer::processPackets(
                 );
             }
         }
-
+        stats.totalPacketsAttempted++;
         // Check if packet can be sent in the current time slot
         if (packet_dest == allowed_dest) {
             // Remove the packet if it was from the buffer
@@ -471,7 +472,8 @@ Layer::processPackets(
                     crosspointDelay +
                     variabilityCountingNetwork;
 
-
+                // Log the packet processing details
+                stats.packetLatency.sample(payload_specific_delay);
 
                 DPRINTF(Layer,
                     "Processing packet: src=%lu, dest=%lu, \
@@ -584,7 +586,11 @@ Layer::LayerStats::LayerStats(
     ADD_STAT(pktsPerWindow, statistics::units::Count::get(),
         "Distribution of packets per window"),
     ADD_STAT(missedPacketsPerBufferedPort, statistics::units::Count::get(),
-        "Distribution of missed packets per BufferedPort")
+        "Distribution of missed packets per BufferedPort"),
+    ADD_STAT(packetLatency, statistics::units::Count::get(),
+        "Distribution of packet latency (ps)"),
+    ADD_STAT(totalPacketsAttempted, statistics::units::Count::get(),
+        "Total packets attempted to be sent")
 {
 }
 
@@ -602,9 +608,15 @@ Layer::LayerStats::regStats()
     totalWindowsUsed.name("totalWindowsUsed")
               .desc("Number of connection windows used");
 
+    totalPacketsAttempted.name("totalPacketsAttempted")
+                   .desc("Total packets attempted to be sent");
+
     pktsPerWindow.init(parentLayer->size + 1);
 
     missedPacketsPerBufferedPort.init(64);
+
+    packetLatency.init(64)
+        .name("packetLatency");
 }
 
 } // namespace gem5
