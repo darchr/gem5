@@ -58,46 +58,46 @@ BufferedPort::getAddr()
     return addr;
 }
 
-// Assigns a packet to the port by pushing the dest address into queue
+// Assigns a value to the port by pushing the dest address into queue
 void
-BufferedPort::assignPacket(uint64_t dest_addr)
+BufferedPort::assignValue(uint64_t dest_addr)
 {
-    packetQueue.push(dest_addr);  // Queue the dest
+    valueQueue.push(dest_addr);  // Queue the dest
     DPRINTF(BufferedPort,
-        "BufferedPort %d assigned packet "
+        "BufferedPort %d assigned value "
         "to destination %d\n",
         addr, dest_addr
     );
 }
 
-// Retrieves and removes the next packet from the queue
-// Returns 0 if no packets are available
+// Retrieves and removes the next value from the queue
+// Returns 0 if no values are available
 uint64_t
-BufferedPort::getNextPacket()
+BufferedPort::getNextValue()
 {
-    if (!packetQueue.empty()) {
-        // Get the next packet and remove it from the queue
-        uint64_t nextPacket = packetQueue.front();
-        packetQueue.pop();
-        return nextPacket;
+    if (!valueQueue.empty()) {
+        // Get the next value and remove it from the queue
+        uint64_t nextValue = valueQueue.front();
+        valueQueue.pop();
+        return nextValue;
     }
-    return 0; // No packet available
+    return 0; // No value available
 }
 
-// Checks if there are any packets in the queue
+// Checks if there are any values in the queue
 bool
-BufferedPort::hasPackets() const
+BufferedPort::hasValues() const
 {
-    return !packetQueue.empty();
+    return !valueQueue.empty();
 }
 
-// Increments the missed packet count
+// Increments the missed value count
 void
-BufferedPort::incrementMissedPackets()
+BufferedPort::incrementMissedValues()
 {
-    missedPackets++;
-    DPRINTF(BufferedPort, "BufferedPort %d missed packets: %d\n",
-        addr, missedPackets
+    missedValues++;
+    DPRINTF(BufferedPort, "BufferedPort %d missed values: %d\n",
+        addr, missedValues
     );
 }
 
@@ -112,15 +112,15 @@ BufferedPort::receiveData(uint64_t received_data, uint64_t src_addr)
     lastReceivedFrom = src_addr;       // Store the source of the data
 }
 
-// Returns the next packet without removing it from the queue
-// Returns -1 if no packets are available
+// Returns the next value without removing it from the queue
+// Returns -1 if no values are available
 uint64_t
-BufferedPort::peekNextPacket() const
+BufferedPort::peekNextValue() const
 {
-    if (!packetQueue.empty()) {
-         return packetQueue.front();
+    if (!valueQueue.empty()) {
+         return valueQueue.front();
     }
-    return -1;  // No packet available
+    return -1;  // No value available
 }
 
 }  // namespace gem5

@@ -66,15 +66,15 @@ private:
     double holdTime;
 
     // Network configuration parameters
-    uint64_t maxPacketsPerWindow;  // Maximum packets per window
+    uint64_t maxValuesPerWindow;  // Maximum values per window
     uint64_t radix;  // Radix for the network, used in the topology
     uint64_t rlTimeSlots;  // Number of time slots per connection win.
-    uint64_t timeSlot;  // Time slot for scheduling packets
+    uint64_t timeSlot;  // Time slot for scheduling values
     uint64_t connectionWindow;  // Connection window
     uint64_t currentTimeSlotIndex;  // Current index for the time slot
-    int maxPackets;  // Maximum number of packets, -1 means no limit
-    int packetsDelivered; // Number of packet deliveries
-    uint32_t packetsPerPortPerWindow; // Packets per port per window
+    int maxValues;  // Maximum number of values, -1 means no limit
+    int valuesDelivered; // Number of value deliveries
+    uint32_t valuesPerPortPerWindow; // Values per port per window
     int size; // Size of the network
     bool isFinished;  // Flag to indicate if the layer has finished
     bool fileMode;  // Flag to indicate if a file is used for scheduling
@@ -86,7 +86,7 @@ private:
 
     // Hotspot parameters
     uint64_t hotspotAddr; // Address of the hotspot
-    double hotspotFraction; // Fraction of packets targeting the hotspot
+    double hotspotFraction; // Fraction of values targeting the hotspot
 
     // Initialization methods to set up buffered ports
     void initializeBufferedPorts(
@@ -96,15 +96,15 @@ private:
     // Method to calculate the time slot based on network parameters
     void assignTimeSlot();
 
-    // Methods for processing packets
+    // Methods for processing values
     // Builds a static schedule for the current time slot
     std::unordered_map<uint64_t, uint64_t> buildStaticSchedule();
-    bool processPackets(
+    bool processValues(
         const std::unordered_map<uint64_t, uint64_t>& static_schedule,
-        uint64_t& packets_processed_this_window
+        uint64_t& values_processed_this_window
     );
-    // Method for delivering a packet to its destination
-    void deliverPacket(uint64_t src_addr,
+    // Method for delivering a value to its destination
+    void deliverValue(uint64_t src_addr,
         uint64_t dest_addr, uint64_t payload
     );
 
@@ -116,18 +116,18 @@ private:
 
         // Statistics for round-robin scheduling
 
-        // Total number of packets processed
-        statistics::Scalar totalPacketsProcessed;
+        // Total number of values processed
+        statistics::Scalar totalValuesProcessed;
         // Number of scheduling windows used
         statistics::Scalar totalWindowsUsed;
-        // Number of packets attempted to be sent
-        statistics::Scalar totalPacketsAttempted;
-        // Distribution of packets processed per time window
+        // Number of values attempted to be sent
+        statistics::Scalar totalValuesAttempted;
+        // Distribution of values processed per time window
         statistics::Histogram pktsPerWindow;
-        // Distribution of missed packets per BufferedPort
-        statistics::Histogram missedPacketsPerBufferedPort;
-        // Packet latency distribution
-        statistics::Histogram packetLatency;
+        // Distribution of missed values per BufferedPort
+        statistics::Histogram missedValuesPerBufferedPort;
+        // Value latency distribution
+        statistics::Histogram valueLatency;
 
         // Constructor that links stats to the Layer instance
         LayerStats(Layer* layer);
@@ -152,9 +152,9 @@ public:
     BufferedPort* getBufferedPort(uint64_t addr);
 
     // Methods for getting certain network parameters
-    uint64_t getMaximumPacketsPerWindow() const
+    uint64_t getMaximumValuesPerWindow() const
     {
-        return maxPacketsPerWindow;
+        return maxValuesPerWindow;
     }
 
     uint64_t getRLTimeSlots() const

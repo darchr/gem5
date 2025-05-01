@@ -100,7 +100,7 @@ namespace gem5
             );
             // Exit the simulation loop
             exitSimLoop("SuperNetwork: \
-                All layers finished processing packets."
+                All layers finished processing values."
             );
         }
     }

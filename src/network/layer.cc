@@ -47,12 +47,12 @@ namespace gem5 {
 
 // Constructor for the Layer class
 // Initializes the network with given parameters, sets up ports,
-// and prepares for packet scheduling
+// and prepares for value scheduling
 Layer::Layer(const LayerParams& params) :
     ClockedObject(params),
-    maxPackets(params.max_packets),
+    maxValues(params.max_values),
     schedulePath(params.schedule_path),
-    scheduler(params.max_packets,
+    scheduler(params.max_values,
         params.schedule_path,
         params.buffered_ports
     ),
@@ -63,9 +63,9 @@ Layer::Layer(const LayerParams& params) :
     variabilityCountingNetwork(params.variability_counting_network),
     crosspointSetupTime(params.crosspoint_setup_time),
     holdTime(params.hold_time),
-    packetsDelivered(0),
+    valuesDelivered(0),
     currentTimeSlotIndex(0),
-    packetsPerPortPerWindow(params.packets_per_port_per_window),
+    valuesPerPortPerWindow(params.values_per_port_per_window),
     isFinished(false),
     fileMode(false),
     shuffleEnabled(false),
@@ -91,7 +91,7 @@ Layer::Layer(const LayerParams& params) :
 
     if (!schedule_queue.empty()) {
         fileMode = true;
-        maxPackets = schedule_queue.size();
+        maxValues = schedule_queue.size();
         while (!schedule_queue.empty()) {
             const auto& entry = schedule_queue.front();
 
@@ -100,9 +100,9 @@ Layer::Layer(const LayerParams& params) :
 
             BufferedPort* port = getBufferedPort(src_addr);
             if (port != nullptr) {
-                port->assignPacket(dest_addr);
+                port->assignValue(dest_addr);
                 DPRINTF(Layer,
-                        "BufferedPort %d: addr=%d, packet assigned to %d\n",
+                        "BufferedPort %d: addr=%d, value assigned to %d\n",
                         src_addr, port->getAddr(), dest_addr);
             }
             schedule_queue.pop();
@@ -168,7 +168,7 @@ Layer::computeTimingParameters()
     );
 
     // We can only use a fraction of the time slots
-    maxPacketsPerWindow = std::floor(rlTimeSlots -
+    maxValuesPerWindow = std::floor(rlTimeSlots -
         (rlTimeSlots / std::exp(1.0)));
 
     DPRINTF(Layer,
@@ -177,8 +177,8 @@ Layer::computeTimingParameters()
     );
 
     DPRINTF(Layer,
-        "Max packets per window: %lu\n",
-        maxPacketsPerWindow * size
+        "Max values per window: %lu\n",
+        maxValuesPerWindow * size
     );
 
     // Calculate and assign the connection window
@@ -233,19 +233,19 @@ Layer::processNextNetworkEvent()
     if (isFinished) {
         return;
     }
-    uint64_t packets_processed_this_window = 0;
+    uint64_t values_processed_this_window = 0;
 
     // Build a static schedule for the current time slot
     std::unordered_map<uint64_t, uint64_t> static_schedule =
         buildStaticSchedule();
 
-    // Process packets according to the static schedule
-    // Add hold time before processing packets
+    // Process values according to the static schedule
+    // Add hold time before processing values
     schedule(new EventFunctionWrapper(
-        [this, static_schedule, packets_processed_this_window]() mutable {
-            processPackets(static_schedule, packets_processed_this_window);
+        [this, static_schedule, values_processed_this_window]() mutable {
+            processValues(static_schedule, values_processed_this_window);
         },
-        "processPacketsEvent"),
+        "processValuesEvent"),
         curTick() + holdTime);
 
     stats.totalWindowsUsed++;
@@ -254,15 +254,15 @@ Layer::processNextNetworkEvent()
     currentTimeSlotIndex++;
 
     // Schedule next network event.
-    // In infinite mode (maxPackets == -1) we always schedule the next event.
-    if (maxPackets == static_cast<uint64_t>(-1)
-            || packetsDelivered < maxPackets) {
+    // In infinite mode (maxValues == -1) we always schedule the next event.
+    if (maxValues == static_cast<uint64_t>(-1)
+            || valuesDelivered < maxValues) {
         scheduleNextNetworkEvent(curTick() +
             ((connectionWindow)));
     }
 }
 
-// Build a static schedule for packet transmission in the current time slot
+// Build a static schedule for value transmission in the current time slot
 std::unordered_map<uint64_t, uint64_t>
 Layer::buildStaticSchedule()
 {
@@ -284,56 +284,56 @@ Layer::buildStaticSchedule()
     return static_schedule;
 }
 
-// Process packets according to the static schedule
+// Process values according to the static schedule
 bool
-Layer::processPackets(
+Layer::processValues(
     const std::unordered_map<uint64_t, uint64_t>& static_schedule,
-    uint64_t& packets_processed_this_window)
+    uint64_t& values_processed_this_window)
 {
     Tick payload_specific_delay = 0;
     // Determine if we are in infinite mode
-    bool infinite_mode = (maxPackets == static_cast<uint64_t>(-1));
+    bool infinite_mode = (maxValues == static_cast<uint64_t>(-1));
 
     // Iterate through all ports
     for (BufferedPort* port : bufferedPorts) {
         std::vector<uint64_t> used_payloads;
-        if (packets_processed_this_window >= (maxPacketsPerWindow * size)) {
+        if (values_processed_this_window >= (maxValuesPerWindow * size)) {
             DPRINTF(Layer,
-                "Window %lu: reached max packets (%lu), stopping.\n",
-                currentTimeSlotIndex, packets_processed_this_window
+                "Window %lu: reached max values (%lu), stopping.\n",
+                currentTimeSlotIndex, values_processed_this_window
             );
             break;
         }
-        // Check if we've already reached the maximum packets
-        if (packetsDelivered >= maxPackets && !infinite_mode) {
-            break;  // Exit the loop immediately if we've reached max packets
+        // Check if we've already reached the maximum values
+        if (valuesDelivered >= maxValues && !infinite_mode) {
+            break;  // Exit the loop immediately if we've reached max values
         }
 
         uint64_t src_addr = port->getAddr();
         uint64_t allowed_dest = static_schedule.at(src_addr);
 
-        uint64_t packet_dest = -1;
-        // Check if there's already a packet in the buffer first
-        if (port->hasPackets()) {
-            packet_dest = port->peekNextPacket();
+        uint64_t value_dest = -1;
+        // Check if there's already a value in the buffer first
+        if (port->hasValues()) {
+            value_dest = port->peekNextValue();
         } else {
             if (!fileMode) {
                 if (trafficMode == TrafficMode::RANDOM) {
-                    // Generate a random packet destination
-                    packet_dest = scheduler.generateRandomPacket(src_addr);
+                    // Generate a random value destination
+                    value_dest = scheduler.generateRandomValue(src_addr);
                 } else if (trafficMode == TrafficMode::HOTSPOT) {
                     // Use the static schedule for the current time slot
-                    packet_dest = scheduler.generateHotspotPacket(
+                    value_dest = scheduler.generateHotspotValue(
                         src_addr, hotspotAddr, hotspotFraction
                     );
                 } else if (trafficMode == TrafficMode::BIT_COMPLEMENT) {
-                    // Generate a bit complement packet
-                    packet_dest = scheduler.generateBitComplementPacket(
+                    // Generate a bit complement value
+                    value_dest = scheduler.generateBitComplementValue(
                         src_addr
                     );
                 } else if (trafficMode == TrafficMode::NEAREST_NEIGHBOR) {
                     // only generate once per port
-                    if (!port->hasPackets()) {
+                    if (!port->hasValues()) {
                         // compute wrap‑around neighbors
                         uint64_t left  = (src_addr + size - 1) % size;
                         uint64_t right = (src_addr + 1)        % size;
@@ -350,24 +350,24 @@ Layer::processPackets(
                             );
                         }
 
-                        // enqueue neighbor packets
+                        // enqueue neighbor values
                         for (auto dest : neighbors) {
-                            port->assignPacket(dest);
+                            port->assignValue(dest);
                             DPRINTF(Layer,
                                 "BufferedPort %lu: enqueued nearest-neighbor "
-                                "packet for destination %lu\n",
+                                "value for destination %lu\n",
                                 src_addr, dest
                             );
                         }
                     }
-                    packet_dest = port->peekNextPacket();
+                    value_dest = port->peekNextValue();
                     DPRINTF(Layer,
-                        "BufferedPort %lu: nearest-neighbor packet for %lu\n",
-                        src_addr, packet_dest
+                        "BufferedPort %lu: nearest-neighbor value for %lu\n",
+                        src_addr, value_dest
                     );
                 } else if (trafficMode == TrafficMode::ALL_TO_ALL) {
                     // Check if the port already has queued destinations.
-                    if (!port->hasPackets()) {
+                    if (!port->hasValues()) {
                         // Create a vector to hold all destination indices.
                         std::vector<uint64_t> destinations;
                         destinations.reserve(size);
@@ -389,53 +389,53 @@ Layer::processPackets(
                         // Enqueue each destination from the vector.
                         // vector can be shuffled or not
                         for (auto dest : destinations) {
-                            port->assignPacket(dest);
+                            port->assignValue(dest);
                             DPRINTF(Layer,
                                 "BufferedPort %lu: enqueued all-to-all "
-                                "packet for destination %lu\n",
+                                "value for destination %lu\n",
                                 src_addr, dest
                             );
                         }
                     }
                     // Peek the next destination from the port's queue.
-                    packet_dest = port->peekNextPacket();
+                    value_dest = port->peekNextValue();
                     DPRINTF(Layer,
-                        "BufferedPort %lu: all-to-all packet for %lu\n",
-                        src_addr, packet_dest
+                        "BufferedPort %lu: all-to-all value for %lu\n",
+                        src_addr, value_dest
                     );
                 } else if (trafficMode == TrafficMode::TORNADO) {
-                    // Generate a tornado packet
-                    packet_dest = scheduler.generateTornadoPacket(src_addr);
+                    // Generate a tornado value
+                    value_dest = scheduler.generateTornadoValue(src_addr);
                 } else {
                     // Handle unknown traffic mode
                     fatal("Unknown traffic mode: %d\n", trafficMode);
                 }
                 DPRINTF(Layer,
-                    "BufferedPort %lu: generated packet for %lu\n",
-                    src_addr, packet_dest
+                    "BufferedPort %lu: generated value for %lu\n",
+                    src_addr, value_dest
                 );
-                // Only generate a new packet if there's nothing in the buffer
-                assert(packet_dest != -1);
+                // Only generate a new value if there's nothing in the buffer
+                assert(value_dest != -1);
             } else {
-                // In file mode, don't generate a new packet destination.
-                // Optionally, log that no new packet was generated.
+                // In file mode, don't generate a new value destination.
+                // Optionally, log that no new value was generated.
                 DPRINTF(Layer,
                     "BufferedPort %lu: file mode active,"
-                    "skipping packet generation\n",
+                    "skipping value generation\n",
                     src_addr
                 );
             }
         }
-        stats.totalPacketsAttempted++;
-        // Check if packet can be sent in the current time slot
-        if (packet_dest == allowed_dest) {
-            // Remove the packet if it was from the buffer
-            if (port->hasPackets()) {
-                port->getNextPacket();
+        stats.totalValuesAttempted++;
+        // Check if value can be sent in the current time slot
+        if (value_dest == allowed_dest) {
+            // Remove the value if it was from the buffer
+            if (port->hasValues()) {
+                port->getNextValue();
             }
             uint64_t payload;
-            used_payloads.reserve(packetsPerPortPerWindow);
-            while (used_payloads.size() < packetsPerPortPerWindow) {
+            used_payloads.reserve(valuesPerPortPerWindow);
+            while (used_payloads.size() < valuesPerPortPerWindow) {
                 uint64_t p = scheduler.generateRandomPayload(rlTimeSlots - 1);
                 if (std::find(used_payloads.begin(),
                             used_payloads.end(),
@@ -461,9 +461,9 @@ Layer::processPackets(
                 payload_specific_delay =
                     ((p + 1) * getTimeSlot()) +
                     splitterDelay * (
-                        (packet_dest == 0) ? 1 :
-                        (packet_dest < size - 1) ? (packet_dest + 1) :
-                        packet_dest
+                        (value_dest == 0) ? 1 :
+                        (value_dest < size - 1) ? (value_dest + 1) :
+                        value_dest
                     ) +
                     mergerDelay * (
                         (src_addr == size - 1) ? 1 :
@@ -472,58 +472,58 @@ Layer::processPackets(
                     crosspointDelay +
                     variabilityCountingNetwork;
 
-                // Log the packet processing details
-                stats.packetLatency.sample(payload_specific_delay);
+                // Log the value processing details
+                stats.valueLatency.sample(payload_specific_delay);
 
                 DPRINTF(Layer,
-                    "Processing packet: src=%lu, dest=%lu, \
+                    "Processing value: src=%lu, dest=%lu, \
                     data=%lu, specific delay=%lu ps\n",
                     src_addr, allowed_dest, p, payload_specific_delay
                 );
 
-                stats.totalPacketsProcessed++;
-                packetsDelivered++;
-                packets_processed_this_window++;
+                stats.totalValuesProcessed++;
+                valuesDelivered++;
+                values_processed_this_window++;
 
 
-                // Schedule packet delivery with payload-specific timing
+                // Schedule value delivery with payload-specific timing
                 schedule(new EventFunctionWrapper([this,
                     src_addr, allowed_dest, p]() {
-                    deliverPacket(src_addr, allowed_dest, p);
-                }, "deliverPacketEvent"), curTick() + payload_specific_delay);
+                    deliverValue(src_addr, allowed_dest, p);
+                }, "deliverValueEvent"), curTick() + payload_specific_delay);
 
-                // Check if we've reached max packets after processing this one
+                // Check if we've reached max values after processing this one
                 // If not in infinite mode, check for termination condition.
-                if (!infinite_mode && packetsDelivered >= maxPackets) {
+                if (!infinite_mode && valuesDelivered >= maxValues) {
                     break;
                 }
             }
         } else if (!fileMode) {
-            // Packet not allowed in the current time slot
-            port->assignPacket(packet_dest);
-            // Increment missed packets for the BufferedPort
-            port->incrementMissedPackets();
-            stats.missedPacketsPerBufferedPort.sample(
-                port->getMissedPackets()
+            // Value not allowed in the current time slot
+            port->assignValue(value_dest);
+            // Increment missed values for the BufferedPort
+            port->incrementMissedValues();
+            stats.missedValuesPerBufferedPort.sample(
+                port->getMissedValues()
             );
             DPRINTF(Layer,
-                "BufferedPort %lu: packet for %lu not "
+                "BufferedPort %lu: value for %lu not "
                 "scheduled (allowed: %lu)\n",
-                src_addr, packet_dest, allowed_dest
+                src_addr, value_dest, allowed_dest
             );
             DPRINTF(Layer,
-                "BufferedPort %lu: packet for %lu assigned to buffer\n",
-                src_addr, packet_dest
+                "BufferedPort %lu: value for %lu assigned to buffer\n",
+                src_addr, value_dest
             );
         }
     }
 
-    stats.pktsPerWindow.sample(packets_processed_this_window);
+    stats.pktsPerWindow.sample(values_processed_this_window);
 
     // Only exit simulation if not in infinite mode
-    if (!infinite_mode && packetsDelivered >= maxPackets) {
+    if (!infinite_mode && valuesDelivered >= maxValues) {
         DPRINTF(Layer,
-            "All packets processed in window %lu\n",
+            "All values processed in window %lu\n",
             currentTimeSlotIndex
         );
         DPRINTF(Layer,
@@ -539,12 +539,12 @@ Layer::processPackets(
         }
     }
 
-    return infinite_mode ? true : (packetsDelivered < maxPackets);
+    return infinite_mode ? true : (valuesDelivered < maxValues);
 }
 
-// Deliver a packet to its destination port
+// Deliver a value to its destination port
 void
-Layer::deliverPacket(uint64_t src_addr,
+Layer::deliverValue(uint64_t src_addr,
     uint64_t dest_addr, uint64_t payload)
 {
     // Find the destination port
@@ -553,7 +553,7 @@ Layer::deliverPacket(uint64_t src_addr,
         // Receive data at the destination port
         dest_port->receiveData(payload, src_addr);
         DPRINTF(Layer,
-            "Packet delivered: src=%lu, dest=%lu, data=%lu\n",
+            "Value delivered: src=%lu, dest=%lu, data=%lu\n",
             src_addr, dest_addr, payload
         );
     } else {
@@ -579,18 +579,18 @@ Layer::LayerStats::LayerStats(
     Layer* layer
     ) : statistics::Group(layer),
     parentLayer(layer),
-    ADD_STAT(totalPacketsProcessed, statistics::units::Count::get(),
-        "Total packets processed"),
+    ADD_STAT(totalValuesProcessed, statistics::units::Count::get(),
+        "Total values processed"),
     ADD_STAT(totalWindowsUsed, statistics::units::Count::get(),
         "Number of connection windows used"),
     ADD_STAT(pktsPerWindow, statistics::units::Count::get(),
-        "Distribution of packets per window"),
-    ADD_STAT(missedPacketsPerBufferedPort, statistics::units::Count::get(),
-        "Distribution of missed packets per BufferedPort"),
-    ADD_STAT(packetLatency, statistics::units::Count::get(),
-        "Distribution of packet latency (ps)"),
-    ADD_STAT(totalPacketsAttempted, statistics::units::Count::get(),
-        "Total packets attempted to be sent")
+        "Distribution of values per window"),
+    ADD_STAT(missedValuesPerBufferedPort, statistics::units::Count::get(),
+        "Distribution of missed values per BufferedPort"),
+    ADD_STAT(valueLatency, statistics::units::Count::get(),
+        "Distribution of value latency (ps)"),
+    ADD_STAT(totalValuesAttempted, statistics::units::Count::get(),
+        "Total values attempted to be sent")
 {
 }
 
@@ -602,21 +602,21 @@ Layer::LayerStats::regStats()
 
     // Configure statistics with names, descriptions, and formatting
 
-    totalPacketsProcessed.name("totalPacketsProcessed")
-                   .desc("Total number of packets processed");
+    totalValuesProcessed.name("totalValuesProcessed")
+                   .desc("Total number of values processed");
 
     totalWindowsUsed.name("totalWindowsUsed")
               .desc("Number of connection windows used");
 
-    totalPacketsAttempted.name("totalPacketsAttempted")
-                   .desc("Total packets attempted to be sent");
+    totalValuesAttempted.name("totalValuesAttempted")
+                   .desc("Total values attempted to be sent");
 
     pktsPerWindow.init(parentLayer->size + 1);
 
-    missedPacketsPerBufferedPort.init(64);
+    missedValuesPerBufferedPort.init(64);
 
-    packetLatency.init(64)
-        .name("packetLatency");
+    valueLatency.init(64)
+        .name("valueLatency");
 }
 
 } // namespace gem5

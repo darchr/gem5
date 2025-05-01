@@ -38,23 +38,23 @@ namespace gem5
 {
 
 // The BufferedPort class represents a single node in the network
-// responsible for storing, sending, and receiving packets.
+// responsible for storing, sending, and receiving values.
 // It tracks its data, address, and maintains statistics for
-// sent and received packets.
+// sent and received values.
 class BufferedPort : public ClockedObject
 {
     private:
         // The address identifier of the port
         uint64_t addr;
 
-        // Queue to hold packets (destination addresses) assigned to the port
-        std::queue<uint64_t> packetQueue;
+        // Queue to hold values (destination addresses) assigned to the port
+        std::queue<uint64_t> valueQueue;
 
         // Variables to store the most recent received data and source addr
         uint64_t lastReceivedData = 0;
         uint64_t lastReceivedFrom = 0;
 
-        uint64_t missedPackets = 0; // Count of missed packets
+        uint64_t missedValues = 0; // Count of missed values
 
     public:
         // Constructor: Initializes the BufferedPort with parameters
@@ -66,30 +66,30 @@ class BufferedPort : public ClockedObject
         // Retrieves the address of the port
         uint64_t getAddr();
 
-        // Assigns a packet to the queue with the given destination address
-        void assignPacket(uint64_t dest_addr);
+        // Assigns a value to the queue with the given destination address
+        void assignValue(uint64_t dest_addr);
 
         // Receives data from another port
         // Stores the received value and source
         void receiveData(uint64_t received_data, uint64_t src_addr);
 
-        // Retrieves and removes the next packet from the queue
-        uint64_t getNextPacket();
+        // Retrieves and removes the next value from the queue
+        uint64_t getNextValue();
 
-        // Checks if the port has any packets in its queue
-        bool hasPackets() const;
+        // Checks if the port has any values in its queue
+        bool hasValues() const;
 
         // Getters for the last received data and source information
         uint64_t getLastReceivedData() const { return lastReceivedData; }
         uint64_t getLastReceivedFrom() const { return lastReceivedFrom; }
 
-        // Getter for missed packets count
-        uint64_t getMissedPackets() const { return missedPackets; }
-        // Increments the missed packets count
-        void incrementMissedPackets();
+        // Getter for missed values count
+        uint64_t getMissedValues() const { return missedValues; }
+        // Increments the missed values count
+        void incrementMissedValues();
 
-        // Peeks at the next packet without removing it from the queue
-        uint64_t peekNextPacket() const;
+        // Peeks at the next value without removing it from the queue
+        uint64_t peekNextValue() const;
 };
 
 }  // namespace gem5

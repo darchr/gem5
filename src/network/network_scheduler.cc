@@ -35,31 +35,31 @@
 namespace gem5 {
 
 // Constructor for NetworkScheduler
-// Initializes the scheduler with maximum packets,
+// Initializes the scheduler with maximum values,
 // schedule path, and list of BufferedPorts
 NetworkScheduler::NetworkScheduler(
-    uint64_t max_packets,
+    uint64_t max_values,
     const std::string& schedule_path,
     const std::vector<BufferedPort*>& buffered_ports
 )
-: maxPackets(max_packets),
+: maxValues(max_values),
   schedulePath(schedule_path),
   bufferedPorts(buffered_ports),
-  infiniteMode(max_packets == static_cast<uint64_t>(-1))
+  infiniteMode(max_values == static_cast<uint64_t>(-1))
 {}
 
 // Initializes the scheduler by either generating or loading a schedule
 std::queue<std::pair<uint64_t, uint64_t>>
 NetworkScheduler::initialize()
 {
-    if (!maxPackets) {
+    if (!maxValues) {
         if (schedulePath.empty()) {
-            fatal("Either max_packets or schedule_path must be provided.\n");
+            fatal("Either max_values or schedule_path must be provided.\n");
         } else {
             loadSchedule();
         }
     } else if (!schedulePath.empty()) {
-        fatal("Both max_packets and schedule_path are specified.\n");
+        fatal("Both max_values and schedule_path are specified.\n");
     }
     return scheduleQueue;
 }
@@ -74,10 +74,10 @@ NetworkScheduler::generateRandomPayload(uint64_t dynamic_range) {
 }
 
 
-// Generates a random packet using the given src.
+// Generates a random value using the given src.
 // It picks a random destination from BufferedPorts.
 uint64_t
-NetworkScheduler::generateRandomPacket(uint64_t src)
+NetworkScheduler::generateRandomValue(uint64_t src)
 {
     if (bufferedPorts.empty()) {
         warn("No BufferedPorts available for scheduling.\n");
@@ -98,11 +98,11 @@ NetworkScheduler::generateRandomPacket(uint64_t src)
     return dest_addr;
 }
 
-// Generates a bit complement packet using the given src.
-// It generates a packet targeting the port
+// Generates a bit complement value using the given src.
+// It generates a value targeting the port
 // at the bit complement of the source address.
 uint64_t
-NetworkScheduler::generateBitComplementPacket(uint64_t src)
+NetworkScheduler::generateBitComplementValue(uint64_t src)
 {
     if (bufferedPorts.empty()) {
         warn("No BufferedPorts available for scheduling.\n");
@@ -121,12 +121,12 @@ NetworkScheduler::generateBitComplementPacket(uint64_t src)
 }
 
 
-// Generates a tornado packet using the given src.
-// It generates a packet targeting the port
+// Generates a tornado value using the given src.
+// It generates a value targeting the port
 // roughly halfway around the network.
 // stresses bisection bandwidth.
 uint64_t
-NetworkScheduler::generateTornadoPacket(uint64_t src)
+NetworkScheduler::generateTornadoValue(uint64_t src)
 {
     if (bufferedPorts.empty()) {
         warn("No BufferedPorts available for scheduling.\n");
@@ -139,7 +139,7 @@ NetworkScheduler::generateTornadoPacket(uint64_t src)
         return -1;
     }
 
-    // Generate a packet targeting the port
+    // Generate a value targeting the port
     // roughly halfway around the network.
     uint64_t dest_addr = (src + bufferedPorts.size() / 2)
         % bufferedPorts.size();
@@ -147,12 +147,12 @@ NetworkScheduler::generateTornadoPacket(uint64_t src)
     return dest_addr;
 }
 
-// Generates a hotspot packet using the
+// Generates a hotspot value using the
 // given src, hotspot_addr and hotspot_fraction.
-// It generates a packet targeting the hotspot with
+// It generates a value targeting the hotspot with
 // probability hotspot_fraction.
 uint64_t
-NetworkScheduler::generateHotspotPacket(
+NetworkScheduler::generateHotspotValue(
     uint64_t src,
     uint64_t hotspot_addr,
     double hotspot_fraction
@@ -173,13 +173,13 @@ NetworkScheduler::generateHotspotPacket(
     std::random_device rd;
     std::mt19937 gen(rd());
 
-    // Generate a packet targeting the hotspot
+    // Generate a value targeting the hotspot
     // with probability hotspot_fraction.
     if (gen() % 100 < hotspot_fraction * 100) {
         return hotspot_addr;
     }
 
-    // Generate a random packet targeting a random destination.
+    // Generate a random value targeting a random destination.
     uint64_t destAddr = src;
     if (bufferedPorts.size() > 1) {
         int destIndex = gen() % bufferedPorts.size();
@@ -212,10 +212,10 @@ NetworkScheduler::loadSchedule()
     }
 
     // Load the read entries into the schedule queue
-    uint64_t packet_count = loadScheduleEntries(file_entries);
+    uint64_t value_count = loadScheduleEntries(file_entries);
     DPRINTF(NetworkScheduler,
         "Schedule loaded from %s with %d entries.\n",
-        schedulePath, packet_count);
+        schedulePath, value_count);
 }
 
 // Adds schedule entries from the file into the queue
@@ -223,33 +223,33 @@ uint64_t
 NetworkScheduler::loadScheduleEntries(const std::vector<std::pair<uint64_t,
     uint64_t>>& file_entries)
 {
-    uint64_t packet_count = 0;
+    uint64_t value_count = 0;
 
-    if (maxPackets > 0) {
-        // If maxPackets is specified, only load up to that limit
-        uint64_t remaining = maxPackets;
+    if (maxValues > 0) {
+        // If maxValues is specified, only load up to that limit
+        uint64_t remaining = maxValues;
 
-        // Add entries in rounds until the maxPackets limit is reached
+        // Add entries in rounds until the maxValues limit is reached
         while (remaining > 0) {
             uint64_t entriesThisRound = std::min(remaining,
                 (uint64_t)file_entries.size());
 
             for (uint64_t i = 0; i < entriesThisRound; i++) {
                 scheduleQueue.push(file_entries[i]);
-                packet_count++;
+                value_count++;
             }
 
             remaining -= entriesThisRound;
         }
     } else {
-        // If no maxPackets limit, load all entries
+        // If no maxValues limit, load all entries
         for (const auto& entry : file_entries) {
             scheduleQueue.push(entry);
-            packet_count++;
+            value_count++;
         }
     }
 
-    return packet_count;
+    return value_count;
 }
 
 // Checks if the schedule file exists
@@ -260,9 +260,9 @@ NetworkScheduler::fileExists(const std::string& path) const
     return ifs.good();
 }
 
-// Checks if there are packets remaining in the schedule
+// Checks if there are values remaining in the schedule
 bool
-NetworkScheduler::hasPackets() const
+NetworkScheduler::hasValues() const
 {
     return infiniteMode ? true : (!scheduleQueue.empty());
 }

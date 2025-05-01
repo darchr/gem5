@@ -37,9 +37,9 @@ class Layer(ClockedObject):
     # Vector of ports in the network
     buffered_ports = VectorParam.BufferedPort("I/O ports in the network")
 
-    #   max_packets: 0 means not provided
-    max_packets = Param.Int(
-        -1, "Maximum number of packets to schedule; -1 means infinite"
+    #   max_values: 0 means not provided
+    max_values = Param.Int(
+        -1, "Maximum number of values to schedule; -1 means infinite"
     )
 
     #   schedule_path: empty string means not provided
@@ -58,7 +58,7 @@ class Layer(ClockedObject):
         -1, "Crosspoint setup time in picoseconds"
     )
     hold_time = Param.Float(-1, "Hold time in picoseconds")
-    packets_per_port_per_window = Param.Int(1, "Packets per port per window")
+    values_per_port_per_window = Param.Int(1, "Values per port per window")
 
     cxx_exports = [
         PyBindMethod("setRandomTrafficMode"),

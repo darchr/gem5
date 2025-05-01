@@ -42,12 +42,12 @@
 
 namespace gem5 {
 
-// NetworkScheduler class handles scheduling packets between BufferedPorts
+// NetworkScheduler class handles scheduling values between BufferedPorts
 class NetworkScheduler
 {
 public:
     // Constructor that initializes the scheduler
-    NetworkScheduler(uint64_t max_packets,
+    NetworkScheduler(uint64_t max_values,
         const std::string& schedule_path,
         const std::vector<BufferedPort*>& buffered_ports
     );
@@ -55,23 +55,23 @@ public:
     // Initializes the scheduler
     std::queue<std::pair<uint64_t, uint64_t>> initialize();
 
-    // Generates a random packet using the given src
-    uint64_t generateRandomPacket(uint64_t src);
+    // Generates a random value using the given src
+    uint64_t generateRandomValue(uint64_t src);
 
-    // Generates a tornado packet
+    // Generates a tornado value
     // using the given src
-    uint64_t generateTornadoPacket(uint64_t src);
+    uint64_t generateTornadoValue(uint64_t src);
 
-    // Generates a hotspot packet
+    // Generates a hotspot value
     // using the given src, hotspot_addr and hotspot_fraction
-    uint64_t generateHotspotPacket(uint64_t src,
+    uint64_t generateHotspotValue(uint64_t src,
         uint64_t hotspot_addr,
         double hotspot_fraction
     );
 
-    // Generates a bit complement packet
+    // Generates a bit complement value
     // using the given src
-    uint64_t generateBitComplementPacket(uint64_t src);
+    uint64_t generateBitComplementValue(uint64_t src);
 
     // Generates a random payload
     uint64_t generateRandomPayload(uint64_t dynamic_range);
@@ -87,8 +87,8 @@ public:
         uint64_t>>& file_entries
     );
 
-    // Checks if there are any packets left in the schedule
-    bool hasPackets() const;
+    // Checks if there are any values left in the schedule
+    bool hasValues() const;
 
     // Clears the current schedule, effectively resetting the scheduler
     void clear();
@@ -100,13 +100,13 @@ private:
     // Checks if a given file exists at the specified path
     bool fileExists(const std::string& path) const;
 
-    // Maximum number of packets to be scheduled
-    uint64_t maxPackets;
+    // Maximum number of values to be scheduled
+    uint64_t maxValues;
     // Path to the file where the schedule is saved/loaded
     std::string schedulePath;
     // List of BufferedPorts involved in the network
     const std::vector<BufferedPort*>& bufferedPorts;
-    // Scheduled packets (source-destination pairs)
+    // Scheduled values (source-destination pairs)
     std::queue<std::pair<uint64_t, uint64_t>> scheduleQueue;
     // Dynamic range of the layer
     uint64_t dynamicRange;
