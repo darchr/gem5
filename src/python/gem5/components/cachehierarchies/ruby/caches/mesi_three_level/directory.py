@@ -39,9 +39,10 @@ class Directory(MESI_Three_Level_Directory_Controller):
         cls._version += 1  # Use count for this particular type
         return cls._version - 1
 
-    def __init__(self, network, cache_line_size, mem_range, port):
+    def __init__(self, network, ruby_system, cache_line_size, mem_range, port):
         super().__init__()
         self.version = self.versionCount()
+        self.ruby_system = ruby_system
         self.addr_ranges = [mem_range]
         self.directory = RubyDirectoryMemory(block_size=cache_line_size)
         # Connect this directory to the memory side.

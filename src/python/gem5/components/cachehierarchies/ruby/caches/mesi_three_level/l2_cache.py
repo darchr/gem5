@@ -54,11 +54,8 @@ class L2Cache(MESI_Three_Level_L1Cache_Controller):
         l2_size,
         l2_assoc,
         network,
-        core: AbstractCore,
         num_l3Caches,
         cache_line_size,
-        cluster_id,
-        target_isa: ISA,
         clk_domain: ClockDomain,
     ):
         super().__init__()
@@ -73,7 +70,6 @@ class L2Cache(MESI_Three_Level_L1Cache_Controller):
         # l2_select_num_bits is ruby backend terminology.
         # In stdlib terms, it is number of bits for selecting L3 cache.
         self.l2_select_num_bits = int(math.log(num_l3Caches, 2))
-        self.cluster_id = cluster_id
         self.clk_domain = clk_domain
         self.prefetcher = RubyPrefetcher(block_size=cache_line_size)
         self.transitions_per_cycle = 32

@@ -48,12 +48,13 @@ class L3Cache(MESI_Three_Level_L2Cache_Controller):
         l3_size,
         l3_assoc,
         network,
+        ruby_system,
         num_l3Caches,
         cache_line_size,
-        cluster_id,
     ):
         super().__init__()
 
+        self.ruby_system = ruby_system
         # This is the cache memory object that stores the cache data and tags
         self.L2cache = RubyCache(
             size=l3_size,
@@ -62,7 +63,6 @@ class L3Cache(MESI_Three_Level_L2Cache_Controller):
         )
 
         self.transitions_per_cycle = 4
-        self.cluster_id = cluster_id
         self.l2_request_latency = 2
         self.l2_response_latency = 2
         self.to_l1_latency = 1

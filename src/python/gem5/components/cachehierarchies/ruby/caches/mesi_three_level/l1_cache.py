@@ -59,7 +59,6 @@ class L1Cache(MESI_Three_Level_L0Cache_Controller):
         network,
         core: AbstractCore,
         cache_line_size,
-        target_isa: ISA,
         clk_domain: ClockDomain,
     ):
         super().__init__()

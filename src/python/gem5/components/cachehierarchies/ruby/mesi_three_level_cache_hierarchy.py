@@ -50,7 +50,7 @@ from .caches.mesi_three_level.dma_controller import DMAController
 from .caches.mesi_three_level.l1_cache import L1Cache
 from .caches.mesi_three_level.l2_cache import L2Cache
 from .caches.mesi_three_level.l3_cache import L3Cache
-from .topologies.simple_pt2pt import SimplePt2Pt
+from .topologies.sensible_network import SensibleNetwork
 
 
 class MESIThreeLevelCacheHierarchy(
@@ -60,6 +60,19 @@ class MESIThreeLevelCacheHierarchy(
 
     The on-chip network is a point-to-point all-to-all simple network.
     """
+
+    _sequencer_version = 0
+    _dma_sequencer_version = 0
+
+    @classmethod
+    def get_next_sequencer_version(cls):
+        cls._sequencer_version += 1
+        return cls._sequencer_version - 1
+
+    @classmethod
+    def get_next_dma_sequencer_version(cls):
+        cls._dma_sequencer_version += 1
+        return cls._dma_sequencer_version - 1
 
     def __init__(
         self,
@@ -72,6 +85,9 @@ class MESIThreeLevelCacheHierarchy(
         l3_size: str,
         l3_assoc: int,
         num_l3_banks: int,
+        cores_per_die: int,
+        channels_per_die: int,
+        has_remote_memory: bool,
     ):
         AbstractRubyCacheHierarchy.__init__(self=self)
         AbstractThreeLevelCacheHierarchy.__init__(
@@ -87,6 +103,9 @@ class MESIThreeLevelCacheHierarchy(
         )
 
         self._num_l3_banks = num_l3_banks
+        self._cores_per_die = cores_per_die
+        self._channels_per_die = channels_per_die
+        self._has_remote_memory = has_remote_memory
 
     @overrides(AbstractCacheHierarchy)
     def get_coherence_protocol(self):
@@ -101,15 +120,17 @@ class MESIThreeLevelCacheHierarchy(
         # MESI_Three_Level needs 3 virtual networks
         self.ruby_system.number_of_virtual_networks = 3
 
-        self.ruby_system.network = SimplePt2Pt(self.ruby_system)
+        self.ruby_system.network = SensibleNetwork(self.ruby_system)
         self.ruby_system.network.number_of_virtual_networks = 3
 
-        self._l1_controllers = []
-        self._l2_controllers = []
-        self._l3_controllers = []
+        self._core_cluster_routers = []
+        self._channel_routers = []
+        self._remote_routers = []
+        self._dma_routers = []
+
         cores = board.get_processor().get_cores()
-        for core_idx, core in enumerate(cores):
-            l1_cache = L1Cache(
+        self.l1_controllers = [
+            L1Cache(
                 l1i_size=self._l1i_size,
                 l1i_assoc=self._l1i_assoc,
                 l1d_size=self._l1d_size,
@@ -117,12 +138,26 @@ class MESIThreeLevelCacheHierarchy(
                 network=self.ruby_system.network,
                 core=core,
                 cache_line_size=cache_line_size,
-                target_isa=board.processor.get_isa(),
                 clk_domain=board.get_clock_domain(),
             )
-
+            for core in cores
+        ]
+        self.l2_controllers = [
+            L2Cache(
+                l2_size=self._l2_size,
+                l2_assoc=self._l2_assoc,
+                network=self.ruby_system.network,
+                num_l3Caches=self._num_l3_banks,
+                cache_line_size=cache_line_size,
+                clk_domain=board.get_clock_domain(),
+            )
+            for _ in range(len(cores))
+        ]
+        for core, l1_cache, l2_cache in zip(
+            cores, self.l1_controllers, self.l2_controllers
+        ):
             l1_cache.sequencer = RubySequencer(
-                version=core_idx,
+                version=MESIThreeLevelCacheHierarchy.get_next_sequencer_version(),
                 dcache=l1_cache.Dcache,
                 clk_domain=l1_cache.clk_domain,
                 ruby_system=self.ruby_system,
@@ -132,7 +167,6 @@ class MESIThreeLevelCacheHierarchy(
                 l1_cache.sequencer.connectIOPorts(board.get_io_bus())
 
             l1_cache.ruby_system = self.ruby_system
-
             core.connect_icache(l1_cache.sequencer.in_ports)
             core.connect_dcache(l1_cache.sequencer.in_ports)
 
@@ -148,90 +182,133 @@ class MESIThreeLevelCacheHierarchy(
             else:
                 core.connect_interrupt()
 
-            self._l1_controllers.append(l1_cache)
-
-            # For testing purpose, we use point-to-point topology. So, the
-            # assigned cluster ID is ignored by ruby.
-            # Thus, we set cluster_id to 0.
-            l2_cache = L2Cache(
-                l2_size=self._l2_size,
-                l2_assoc=self._l2_assoc,
-                network=self.ruby_system.network,
-                core=core,
-                num_l3Caches=self._num_l3_banks,
-                cache_line_size=cache_line_size,
-                cluster_id=0,
-                target_isa=board.processor.get_isa(),
-                clk_domain=board.get_clock_domain(),
-            )
-
             l2_cache.ruby_system = self.ruby_system
             # L0Cache in the ruby backend is l1 cache in stdlib
             # L1Cache in the ruby backend is l2 cache in stdlib
             l2_cache.bufferFromL0 = l1_cache.bufferToL1
             l2_cache.bufferToL0 = l1_cache.bufferFromL1
 
-            self._l2_controllers.append(l2_cache)
+            self._core_cluster_routers.append(
+                self.ruby_system.network.add_core_cluster(
+                    l1cache=l1_cache, l2cache=l2_cache
+                )
+            )
 
-        for _ in range(self._num_l3_banks):
-            l3_cache = L3Cache(
+        self.l3_controllers = [
+            L3Cache(
                 l3_size=self._l3_size,
                 l3_assoc=self._l3_assoc,
                 network=self.ruby_system.network,
+                ruby_system=self.ruby_system,
                 num_l3Caches=self._num_l3_banks,
                 cache_line_size=cache_line_size,
-                cluster_id=0,  # cluster_id is ignored in point-to-point topology
             )
-            l3_cache.ruby_system = self.ruby_system
-            self._l3_controllers.append(l3_cache)
-
-        # TODO: Make this prettier: The problem is not being able to proxy
-        # the ruby system correctly
-        for cache in self._l3_controllers:
-            cache.ruby_system = self.ruby_system
-
-        self._directory_controllers = [
-            Directory(self.ruby_system.network, cache_line_size, range, port)
+            for _ in range(self._num_l3_banks)
+        ]
+        self.directory_controllers = [
+            Directory(
+                self.ruby_system.network,
+                self.ruby_system,
+                cache_line_size,
+                range,
+                port,
+            )
             for range, port in board.get_mem_ports()
         ]
-        # TODO: Make this prettier: The problem is not being able to proxy
-        # the ruby system correctly
-        for dir in self._directory_controllers:
-            dir.ruby_system = self.ruby_system
 
-        self._dma_controllers = []
+        if self._has_remote_memory:
+            local_directory_controllers = self.directory_controllers[:-1]
+            remote_directory_controllers = self.directory_controllers[-1:]
+        else:
+            local_directory_controllers = self.directory_controllers
+            remote_directory_controllers = []
+
+        if self._num_l3_banks % len(local_directory_controllers) != 0:
+            print(f"self._num_l3_banks: {self._num_l3_banks}")
+            print(f"len(board.get_mem_ports()): {len(board.get_mem_ports())}")
+            raise ValueError(
+                "Number of L3 banks must be divisible by the number of memory "
+                "controllers"
+            )
+        l3_banks_per_channel = self._num_l3_banks // len(
+            local_directory_controllers
+        )
+        for channel_id in range(len(local_directory_controllers)):
+            self._channel_routers.append(
+                self.ruby_system.network.add_uncore_cluster(
+                    [local_directory_controllers[channel_id]]
+                    + self.l3_controllers[
+                        channel_id
+                        * l3_banks_per_channel : (channel_id + 1)
+                        * l3_banks_per_channel
+                    ]
+                )
+            )
+
+        self._remote_routers.append(
+            self.ruby_system.network.add_uncore_cluster(
+                remote_directory_controllers
+            )
+        )
+
         if board.has_dma_ports():
-            dma_ports = board.get_dma_ports()
-            for i, port in enumerate(dma_ports):
-                ctrl = DMAController(
+            self.dma_controllers = [
+                DMAController(
                     DMASequencer(
-                        version=i,
+                        version=MESIThreeLevelCacheHierarchy.get_next_dma_sequencer_version(),
                         in_ports=port,
                         ruby_system=self.ruby_system,
                     ),
                     self.ruby_system,
                 )
-                self._dma_controllers.append(ctrl)
+                for port in board.get_dma_ports()
+            ]
+            self._dma_routers
+            self.ruby_system.num_of_sequencers = len(
+                self.l1_controllers
+            ) + len(self.dma_controllers)
+        else:
+            self.ruby_system.num_of_sequencers = len(self.l1_controllers)
 
-        self.ruby_system.num_of_sequencers = len(self._l1_controllers) + len(
-            self._dma_controllers
-        )
-        self.ruby_system.l1_controllers = self._l1_controllers
-        self.ruby_system.l2_controllers = self._l2_controllers
-        self.ruby_system.l3_controllers = self._l3_controllers
-        self.ruby_system.directory_controllers = self._directory_controllers
+        if (
+            len(self._core_cluster_routers) // self._cores_per_die
+            != len(self._channel_routers) // self._channels_per_die
+        ):
+            raise ValueError(
+                "This cache hierachy includes one or multiple dies. The number"
+                " of dies is determined by dividing the number of cores by "
+                "`cores_per_die`. Since there can only be an integer number of"
+                " memory controllers per die, the number of memory channels "
+                "should be divisible by the number of dies. In other words:\n"
+                "\tnum_cores/cores_per_die == num_mem_channels/channels_per_die"
+            )
+        num_dies = len(self._core_cluster_routers) // self._cores_per_die
+        for die_number in range(num_dies):
+            self.ruby_system.network.make_dance_hall(
+                self._core_cluster_routers[
+                    die_number
+                    * self._cores_per_die : (die_number + 1)
+                    * self._cores_per_die
+                ],
+                self._channel_routers[
+                    die_number
+                    * self._channels_per_die : (die_number + 1)
+                    * self._channels_per_die
+                ],
+            )
 
-        if len(self._dma_controllers) != 0:
-            self.ruby_system.dma_controllers = self._dma_controllers
+        if board.has_dma_ports():
+            self.ruby_system.network.make_all_to_all(
+                self._channel_routers
+                + self._remote_routers
+                + self._dma_routers
+            )
+        else:
+            self.ruby_system.network.make_all_to_all(
+                self._channel_routers + self._remote_routers
+            )
 
-        # Create the network and connect the controllers.
-        self.ruby_system.network.connectControllers(
-            self._l1_controllers
-            + self._l2_controllers
-            + self._l3_controllers
-            + self._directory_controllers
-            + self._dma_controllers
-        )
+        self.ruby_system.network.finalize()
         self.ruby_system.network.setup_buffers()
 
         # Set up a proxy port for the system_port. Used for load binaries and
@@ -243,6 +320,8 @@ class MESIThreeLevelCacheHierarchy(
 
     @overrides(AbstractRubyCacheHierarchy)
     def _reset_version_numbers(self):
+        MESIThreeLevelCacheHierarchy._sequencer_version = 0
+        MESIThreeLevelCacheHierarchy._dma_sequencer_version = 0
         Directory._version = 0
         L1Cache._version = 0
         L2Cache._version = 0
