@@ -143,6 +143,19 @@ CXLHostPort::HostSidePort::recvAtomic(PacketPtr pkt)
     return owner->recvAtomic(pkt);
 }
 
+Tick
+CXLHostPort::recvAtomic(PacketPtr pkt)
+{
+    // Find the controller for the target address
+    MachineID id = rubyController->mapAddressToMachine(pkt->getAddr(), MachineType_CXLDevice);
+    
+    AbstractController *mem_interface = rubySystemPtr->m_abstract_controls[MachineType_CXLDevice][id.getNum()];
+    Tick latency = mem_interface->recvAtomic(pkt);
+    // if (access_backing_store)
+    //     rs->getPhysMem()->access(pkt);
+    return latency;
+}
+
 void
 CXLHostPort::HostSidePort::recvFunctional(PacketPtr pkt)
 {

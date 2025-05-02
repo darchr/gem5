@@ -9,6 +9,7 @@
 #include "mem/port.hh"
 #include "mem/ruby/network/MessageBuffer.hh"
 #include "mem/ruby/slicc_interface/AbstractController.hh"
+#include "mem/ruby/system/RubySystem.hh"
 #include "params/CXLHostPort.hh"
 #include "sim/eventq.hh"
 #include "sim/clocked_object.hh"
@@ -37,8 +38,8 @@ class CXLHostPort: public ClockedObject
     // This looks a lot like a generic mem side port
 
     bool recvTimingReq(PacketPtr pkt);
-    Tick recvAtomic(PacketPtr pkt) { panic("CXLHostPort doesn't expect atomic requests\n"); }
-    void recvFunctional(PacketPtr pkt) { panic("CXLHostPort doesn't expect functional requests\n"); }
+    Tick recvAtomic(PacketPtr pkt);
+    void recvFunctional(PacketPtr pkt) { panic("CXLHostPort doesn't expect functional requests. Request: %s.\n", pkt->print()); }
 
     virtual Port &getPort(const std::string &if_name, PortID idx=InvalidPortID) override;
 
@@ -60,7 +61,6 @@ class CXLHostPort: public ClockedObject
     {
       private:
         CXLHostPort* owner;
-        //Are these needed? Probably needToSendRetry
         bool needToSendRetry;
         PacketPtr blockedPacket;
 
@@ -74,26 +74,6 @@ class CXLHostPort: public ClockedObject
         virtual Tick recvAtomic(PacketPtr pkt) override;
         virtual void recvFunctional(PacketPtr pkt) override;
     };
-
-    // class DeviceSidePort: public RequestPort
-    // {
-    //   private:
-    //     CXLHostPort* owner;
-    //     //Are these needed? Probably needToSendRetry
-    //     bool needToSendRetry;
-    //     PacketPtr blockedPacket;
-
-    //   public:
-    //     DeviceSidePort(CXLHostPort* owner, const std::string& name):
-    //         RequestPort(name), owner(owner), needToSendRetry(false), blockedPacket(nullptr)
-    //     {}
-    //     bool needRetry() const { return needToSendRetry; }
-    //     bool blocked() const { return blockedPacket != nullptr; }
-    //     void sendPacket(PacketPtr pkt);
-
-    //     virtual bool recvTimingResp(PacketPtr pkt) override;
-    //     virtual void recvReqRetry() override;
-    // };
 
     template<typename T>
     class TimedQueue
