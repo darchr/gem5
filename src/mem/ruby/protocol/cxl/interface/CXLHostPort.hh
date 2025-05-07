@@ -39,7 +39,7 @@ class CXLHostPort: public ClockedObject
 
     bool recvTimingReq(PacketPtr pkt);
     Tick recvAtomic(PacketPtr pkt);
-    void recvFunctional(PacketPtr pkt) { panic("CXLHostPort doesn't expect functional requests. Request: %s.\n", pkt->print()); }
+    void recvFunctional(PacketPtr pkt); //{ panic("CXLHostPort doesn't expect functional requests. Request: %s.\n", pkt->print()); }
 
     virtual Port &getPort(const std::string &if_name, PortID idx=InvalidPortID) override;
 

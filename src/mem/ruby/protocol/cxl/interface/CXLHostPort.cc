@@ -163,6 +163,43 @@ CXLHostPort::HostSidePort::recvFunctional(PacketPtr pkt)
     owner->recvFunctional(pkt);
 }
 
+void
+CXLHostPort::recvFunctional(PacketPtr pkt)
+{
+    bool access_succeeded = false;
+    bool needs_response = pkt->needsResponse();
+
+    // Do the functional access on ruby memory
+    if (pkt->isRead()) {
+        access_succeeded = rubySystemPtr->functionalRead(pkt);
+    } else if (pkt->isWrite()) {
+        access_succeeded = rubySystemPtr->functionalWrite(pkt);
+    } else {
+        panic("Unsupported functional command %s\n", pkt->cmdString());
+    }
+
+    // Unless the request port explicitly said otherwise, generate an error
+    // if the functional request failed
+    if (!access_succeeded && !pkt->suppressFuncError()) {
+        fatal("Ruby functional %s failed for address %#x\n",
+                pkt->isWrite() ? "write" : "read", pkt->getAddr());
+    }
+
+    // turn packet around to go back to request port if response expected
+    if (needs_response) {
+        // The pkt is already turned into a reponse if the directory
+        // forwarded the request to the memory controller (see
+        // AbstractController::functionalMemoryWrite and
+        // AbstractMemory::functionalAccess)
+        if (!pkt->isResponse())
+            pkt->makeResponse();
+        pkt->setFunctionalResponseStatus(access_succeeded);
+    }
+
+    DPRINTF(CXLHostPort, "Functional access %s!\n",
+            access_succeeded ? "successful":"failed");
+}
+
 AddrRangeList
 CXLHostPort::HostSidePort::getAddrRanges() const
 {
