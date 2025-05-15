@@ -415,11 +415,13 @@ WLEngine::processNextReduceEvent()
     }
 
     if (!toWrite.empty() && !nextWriteEvent.scheduled()) {
-        schedule(nextWriteEvent, curTick() + delay * clockPeriod());
+        schedule(nextWriteEvent, curTick() + delay * clockPeriod()
+                + (0.5 * clockPeriod())); // propagation delay of MPU
     }
 
     if (!toReduce.empty() && !nextReduceEvent.scheduled()) {
-        schedule(nextReduceEvent, curTick() + delay * clockPeriod());
+        schedule(nextReduceEvent, curTick() + delay * clockPeriod()
+                + (0.5 * clockPeriod())); // propagation delay of MPU
     }
 }
 

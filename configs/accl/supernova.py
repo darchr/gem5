@@ -258,6 +258,29 @@ class SuperNOVA(System):
 
         self.ctrl.set_mpu_vector([gpt.mpu for gpt in self.gpts])
 
+    def print_total_specs(self):
+        # per‐engine constants
+        wl_area = 144_810_400  # μm²
+        wl_jjs = 227_046  # JJs
+        pushe_area = 302.23  # mm²
+        pushe_jjs = 0.478208  # million JJs
+
+        n = len(self.gpts)
+        total_wl_area = wl_area * n * 8  # 8 PEs per GPT
+        total_wl_jjs = wl_jjs * n * 8  # 8 PEs per GPT
+        total_pe_area = pushe_area * n * 8  # 8 PEs per GPT
+        total_pe_jjs = pushe_jjs * n * 8  # 8 PEs per GPT
+
+        print(f"TOTAL across {n} GPTs:")
+        print(
+            f"  WLEngine aggregate → area = {total_wl_area:,} μm², "
+            f"JJs = {total_wl_jjs:,}"
+        )
+        print(
+            f"  PushEngine aggregate → area = {total_pe_area:.2f} mm², "
+            f"JJs = {total_pe_jjs:.3f} million"
+        )
+
     def work_count(self):
         return self.ctrl.controller.workCount()
 

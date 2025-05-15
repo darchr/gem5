@@ -395,7 +395,8 @@ PushEngine::processNextPropagateEvent()
 
     assert(!nextPropagateEvent.scheduled());
     if (!metaEdgeQueue.empty()) {
-        schedule(nextPropagateEvent, curTick() + delay * clockPeriod());
+        schedule(nextPropagateEvent, curTick() + delay * clockPeriod() +
+                (0.6 * clockPeriod())); // propagation delay of MGU
     }
 }
 
