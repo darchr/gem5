@@ -68,4 +68,5 @@ class Layer(ClockedObject):
         PyBindMethod("setBitComplementTrafficMode"),
         PyBindMethod("setNearestNeighborTrafficMode"),
         PyBindMethod("setShuffle"),
+        PyBindMethod("setNoBufferMode"),
     ]

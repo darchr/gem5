@@ -69,6 +69,7 @@ Layer::Layer(const LayerParams& params) :
     isFinished(false),
     fileMode(false),
     shuffleEnabled(false),
+    noBufferMode(false),
     size(params.buffered_ports.size()),
     // Event for processing the next network event
     nextNetworkEvent([this]{ processNextNetworkEvent(); },
@@ -314,7 +315,8 @@ Layer::processValues(
 
         uint64_t value_dest = -1;
         // Check if there's already a value in the buffer first
-        if (port->hasValues()) {
+        if (port->hasValues() && !noBufferMode) {
+            // Peek the next value from the port's queue
             value_dest = port->peekNextValue();
         } else {
             if (!fileMode) {
@@ -430,9 +432,20 @@ Layer::processValues(
         // Check if value can be sent in the current time slot
         if (value_dest == allowed_dest) {
             // Remove the value if it was from the buffer
+            Tick enqueue_tick = 0;
             if (port->hasValues()) {
-                port->getNextValue();
+                auto entry = port->getNextValue();
+                value_dest   = entry.dest;
+                enqueue_tick  = entry.enqueueTick;
+            } else {
+                enqueue_tick = curTick();
             }
+
+            // We can clear out the buffer
+            if (!noBufferMode) {
+                port->clearQueue();
+            }
+
             uint64_t payload;
             used_payloads.reserve(valuesPerPortPerWindow);
             while (used_payloads.size() < valuesPerPortPerWindow) {
@@ -472,9 +485,6 @@ Layer::processValues(
                     crosspointDelay +
                     variabilityCountingNetwork;
 
-                // Log the value processing details
-                stats.valueLatency.sample(payload_specific_delay);
-
                 DPRINTF(Layer,
                     "Processing value: src=%lu, dest=%lu, \
                     data=%lu, specific delay=%lu ps\n",
@@ -488,8 +498,8 @@ Layer::processValues(
 
                 // Schedule value delivery with payload-specific timing
                 schedule(new EventFunctionWrapper([this,
-                    src_addr, allowed_dest, p]() {
-                    deliverValue(src_addr, allowed_dest, p);
+                    src_addr, allowed_dest, p, enqueue_tick]() {
+                    deliverValue(src_addr, allowed_dest, p, enqueue_tick);
                 }, "deliverValueEvent"), curTick() + payload_specific_delay);
 
                 // Check if we've reached max values after processing this one
@@ -500,7 +510,11 @@ Layer::processValues(
             }
         } else if (!fileMode) {
             // Value not allowed in the current time slot
-            port->assignValue(value_dest);
+            if (!noBufferMode){
+                // If not in noBufferMode,
+                // assign the value to the buffer
+                port->assignValue(value_dest);
+            }
             // Increment missed values for the BufferedPort
             port->incrementMissedValues();
             stats.missedValuesPerBufferedPort.sample(
@@ -545,13 +559,20 @@ Layer::processValues(
 // Deliver a value to its destination port
 void
 Layer::deliverValue(uint64_t src_addr,
-    uint64_t dest_addr, uint64_t payload)
+    uint64_t dest_addr, uint64_t payload,
+    Tick enqueue_tick)
 {
+    Tick total_latency = curTick() - enqueue_tick;
+    DPRINTF(Layer,
+        "Value delivery: src=%lu, dest=%lu, data=%lu, latency=%lu\n",
+        src_addr, dest_addr, payload, total_latency
+    );
     // Find the destination port
     BufferedPort* dest_port = getBufferedPort(dest_addr);
     if (dest_port != nullptr) {
         // Receive data at the destination port
         dest_port->receiveData(payload, src_addr);
+        stats.valueLatency.sample(total_latency);
         DPRINTF(Layer,
             "Value delivered: src=%lu, dest=%lu, data=%lu\n",
             src_addr, dest_addr, payload
@@ -616,7 +637,8 @@ Layer::LayerStats::regStats()
     missedValuesPerBufferedPort.init(64);
 
     valueLatency.init(64)
-        .name("valueLatency");
+        .name("valueLatency")
+        .desc("End-to-end latency (ps) = buffer delay + network");
 }
 
 } // namespace gem5

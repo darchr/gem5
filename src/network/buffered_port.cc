@@ -62,7 +62,7 @@ BufferedPort::getAddr()
 void
 BufferedPort::assignValue(uint64_t dest_addr)
 {
-    valueQueue.push(dest_addr);  // Queue the dest
+    valueQueue.emplace(ValueEntry{dest_addr, curTick()});
     DPRINTF(BufferedPort,
         "BufferedPort %d assigned value "
         "to destination %d\n",
@@ -70,18 +70,27 @@ BufferedPort::assignValue(uint64_t dest_addr)
     );
 }
 
+// Clear the queue of values
+void
+BufferedPort::clearQueue()
+{
+    while (!valueQueue.empty()) {
+        valueQueue.pop();
+    }
+}
+
 // Retrieves and removes the next value from the queue
 // Returns 0 if no values are available
-uint64_t
+ValueEntry
 BufferedPort::getNextValue()
 {
     if (!valueQueue.empty()) {
         // Get the next value and remove it from the queue
-        uint64_t nextValue = valueQueue.front();
+        ValueEntry nextValue = valueQueue.front();
         valueQueue.pop();
         return nextValue;
     }
-    return 0; // No value available
+    return ValueEntry{0, 0}; // No value available
 }
 
 // Checks if there are any values in the queue
@@ -118,9 +127,9 @@ uint64_t
 BufferedPort::peekNextValue() const
 {
     if (!valueQueue.empty()) {
-         return valueQueue.front();
+         return valueQueue.front().dest;
     }
-    return -1;  // No value available
+    return -1; // No value available
 }
 
 }  // namespace gem5

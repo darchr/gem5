@@ -79,6 +79,7 @@ private:
     bool isFinished;  // Flag to indicate if the layer has finished
     bool fileMode;  // Flag to indicate if a file is used for scheduling
     bool shuffleEnabled;  // Flag to indicate if shuffling is enabled
+    bool noBufferMode;  // Flag to indicate if no buffering is used
     std::string schedulePath;  // Path to the schedule file
     NetworkScheduler scheduler;  // Scheduler for the network
     SuperNetwork* superNetwork;  // Pointer to the super network
@@ -105,7 +106,8 @@ private:
     );
     // Method for delivering a value to its destination
     void deliverValue(uint64_t src_addr,
-        uint64_t dest_addr, uint64_t payload
+        uint64_t dest_addr, uint64_t payload,
+        Tick enqueue_tick
     );
 
     // Struct to hold statistics related to the Layer
@@ -218,6 +220,11 @@ public:
     }
 
     void setShuffle() { shuffleEnabled = true; }
+
+    void setNoBufferMode()
+    {
+        noBufferMode = true;
+    }
 };
 
 } // namespace gem5

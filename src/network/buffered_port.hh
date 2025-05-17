@@ -36,7 +36,11 @@
 
 namespace gem5
 {
-
+struct ValueEntry
+{
+    uint64_t dest;
+    Tick     enqueueTick;
+};
 // The BufferedPort class represents a single node in the network
 // responsible for storing, sending, and receiving values.
 // It tracks its data, address, and maintains statistics for
@@ -48,7 +52,7 @@ class BufferedPort : public ClockedObject
         uint64_t addr;
 
         // Queue to hold values (destination addresses) assigned to the port
-        std::queue<uint64_t> valueQueue;
+        std::queue<ValueEntry> valueQueue;
 
         // Variables to store the most recent received data and source addr
         uint64_t lastReceivedData = 0;
@@ -67,14 +71,18 @@ class BufferedPort : public ClockedObject
         uint64_t getAddr();
 
         // Assigns a value to the queue with the given destination address
-        void assignValue(uint64_t dest_addr);
+        // The value is stored with the current tick as the enqueue time
+        void assignValue(uint64_t dest);
+
+        // Clears the queue of values
+        void clearQueue();
 
         // Receives data from another port
         // Stores the received value and source
         void receiveData(uint64_t received_data, uint64_t src_addr);
 
         // Retrieves and removes the next value from the queue
-        uint64_t getNextValue();
+        ValueEntry getNextValue();
 
         // Checks if the port has any values in its queue
         bool hasValues() const;
