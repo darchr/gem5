@@ -66,6 +66,7 @@ Layer::Layer(const LayerParams& params) :
     valuesDelivered(0),
     currentTimeSlotIndex(0),
     valuesPerPortPerWindow(params.values_per_port_per_window),
+    targetMMPS(params.target_mps),
     isFinished(false),
     fileMode(false),
     shuffleEnabled(false),
@@ -187,6 +188,57 @@ Layer::computeTimingParameters()
     DPRINTF(Layer, "Connection window: %d ps\n",
         getConnectionWindow()
     );
+
+    if (targetMMPS >= 0) {
+        double values_this_window =
+            static_cast<double>(targetMMPS) * 1e6 *
+            (static_cast<double>(getConnectionWindow()) / 1e12);
+
+        DPRINTF(Layer,
+            "Values this window: %f\n",
+            values_this_window
+        );
+
+        // spread them evenly across ports, round *up*
+        valuesPerPortPerWindow =
+            std::ceil(values_this_window / static_cast<double>(size));
+
+        DPRINTF(Layer,
+            "Value per port per window: %lu\n",
+            valuesPerPortPerWindow
+        );
+
+        // safety: never let it exceed the hard structural cap
+        valuesPerPortPerWindow =
+            std::min<uint64_t>(valuesPerPortPerWindow,
+                            maxValuesPerWindow * size);
+        DPRINTF(Layer,
+            "Target MMPS: %f\n",
+            targetMMPS
+        );
+        DPRINTF(Layer,
+            "Values per port per window: %lu\n",
+            valuesPerPortPerWindow
+        );
+        if (valuesPerPortPerWindow == 0) {
+            fatal("Layer %s: Target MMPS (%f) is too low!\n",
+                name(), targetMMPS);
+        }
+        if (valuesPerPortPerWindow > (maxValuesPerWindow * size)) {
+            warn("Layer %s: Target MMPS (%f) is too high!\n",
+                name(), targetMMPS);
+            warn("Layer %s: Setting values per port per \
+                window to %lu\n",
+                name(),(maxValuesPerWindow * size));
+        }
+    }
+
+    if (valuesPerPortPerWindow > maxValues) {
+        fatal("Values per port per window (%lu) \
+            exceeds max values (%lu)\n",
+            name(), valuesPerPortPerWindow, maxValues);
+    }
+
 }
 
 // Calculate the time slot based on network component delays
@@ -304,6 +356,14 @@ Layer::processValues(
                 currentTimeSlotIndex, values_processed_this_window
             );
             break;
+        }
+        if (valuesPerPortPerWindow > rlTimeSlots) {
+            warn("Layer %s: values per port per window (%lu) "
+                "exceeds RL time slots (%lu)\n",
+                name(), valuesPerPortPerWindow, rlTimeSlots);
+            warn("Layer %s: setting values per port per window to %lu\n",
+                name(), rlTimeSlots);
+            valuesPerPortPerWindow = rlTimeSlots;
         }
         // Check if we've already reached the maximum values
         if (valuesDelivered >= maxValues && !infinite_mode) {
@@ -449,13 +509,25 @@ Layer::processValues(
             uint64_t payload;
             used_payloads.reserve(valuesPerPortPerWindow);
             while (used_payloads.size() < valuesPerPortPerWindow) {
-                uint64_t p = scheduler.generateRandomPayload(rlTimeSlots - 1);
+                uint64_t p = scheduler.generateRandomPayload(rlTimeSlots);
                 if (std::find(used_payloads.begin(),
                             used_payloads.end(),
                             p)
                     == used_payloads.end()) {
                     used_payloads.push_back(p);
                 }
+            }
+
+            // Sort the payloads in ascending order
+            std::sort(used_payloads.begin(), used_payloads.end());
+
+            // print the payloads
+            DPRINTF(Layer,
+                "BufferedPort %lu: payloads for %lu: ",
+                src_addr, value_dest
+            );
+            for (auto p : used_payloads) {
+                DPRINTF(Layer, "%lu ", p);
             }
 
             for (auto p : used_payloads) {

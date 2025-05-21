@@ -74,7 +74,8 @@ private:
     uint64_t currentTimeSlotIndex;  // Current index for the time slot
     int maxValues;  // Maximum number of values, -1 means no limit
     int valuesDelivered; // Number of value deliveries
-    uint32_t valuesPerPortPerWindow; // Values per port per window
+    int valuesPerPortPerWindow; // Values per port per window
+    double targetMMPS; // Target million messages per second of the network
     int size; // Size of the network
     bool isFinished;  // Flag to indicate if the layer has finished
     bool fileMode;  // Flag to indicate if a file is used for scheduling
