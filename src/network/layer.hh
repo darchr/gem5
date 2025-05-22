@@ -75,6 +75,7 @@ private:
     int maxValues;  // Maximum number of values, -1 means no limit
     int valuesDelivered; // Number of value deliveries
     uint32_t valuesPerPortPerWindow; // Values per port per window
+    int bufferDepth; // Depth of the buffer
     int size; // Size of the network
     bool isFinished;  // Flag to indicate if the layer has finished
     bool fileMode;  // Flag to indicate if a file is used for scheduling
@@ -148,6 +149,9 @@ public:
 
     // Methods for computing layer timing parameters
     void computeTimingParameters();
+
+    // Method to fill the queue of a port with values
+    void fillQueue(BufferedPort* port, TrafficMode mode);
 
     // Methods for adding and retrieving ports in the network
     void addBufferedPort(BufferedPort* buffered_port);

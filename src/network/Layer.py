@@ -59,6 +59,9 @@ class Layer(ClockedObject):
     )
     hold_time = Param.Float(-1, "Hold time in picoseconds")
     values_per_port_per_window = Param.Int(1, "Values per port per window")
+    buffer_depth = Param.Int(
+        1, "Buffer depth (number of values in the buffer)"
+    )
 
     cxx_exports = [
         PyBindMethod("setRandomTrafficMode"),
