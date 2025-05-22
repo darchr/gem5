@@ -69,7 +69,6 @@ Layer::Layer(const LayerParams& params) :
     isFinished(false),
     fileMode(false),
     shuffleEnabled(false),
-    noBufferMode(false),
     bufferDepth(params.buffer_depth),
     size(params.buffered_ports.size()),
     // Event for processing the next network event
@@ -264,29 +263,48 @@ Layer::processNextNetworkEvent()
     }
 }
 
-void
+uint64_t
 Layer::fillQueue(BufferedPort* port, TrafficMode mode)
 {
-    while (port->queueSize() < bufferDepth) {
+    int count = 0;
+    while (isBuffered() ? port->queueSize() < bufferDepth : count < 1) {
+        count++;
         uint64_t src  = port->getAddr();
         uint64_t dest = 0;
 
         switch (mode) {
         case TrafficMode::RANDOM:
             dest = scheduler.generateRandomValue(src);
+            DPRINTF(Layer,
+                "BufferedPort %lu: generated random value for %lu\n",
+                src, dest
+            );
             break;
 
         case TrafficMode::HOTSPOT:
             dest = scheduler.generateHotspotValue(src, hotspotAddr,
                                                   hotspotFraction);
+            DPRINTF(Layer,
+                "BufferedPort %lu: generated hotspot value for %lu\n",
+                src, dest
+            );
             break;
 
         case TrafficMode::BIT_COMPLEMENT:
             dest = scheduler.generateBitComplementValue(src);
+            DPRINTF(Layer,
+                "BufferedPort %lu: generated bit complement value \
+                for %lu\n",
+                src, dest
+            );
             break;
 
         case TrafficMode::TORNADO:
             dest = scheduler.generateTornadoValue(src);
+            DPRINTF(Layer,
+                "BufferedPort %lu: generated tornado value for %lu\n",
+                src, dest
+            );
             break;
 
         case TrafficMode::NEAREST_NEIGHBOR: {
@@ -296,6 +314,11 @@ Layer::fillQueue(BufferedPort* port, TrafficMode mode)
                 (random() & 1) ? (src + 1) % size
                                : (src + size - 1) % size;
             dest = neighbor;
+            DPRINTF(Layer,
+                "BufferedPort %lu: generated nearest-neighbor value \
+                for %lu\n",
+                src, dest
+            );
             break;
         }
 
@@ -305,6 +328,10 @@ Layer::fillQueue(BufferedPort* port, TrafficMode mode)
                 (port->allToAllCursor + 1) % size;      // store cursor in port
             port->allToAllCursor = next;
             dest = next;
+            DPRINTF(Layer,
+                "BufferedPort %lu: generated all-to-all value for %lu\n",
+                src, dest
+            );
             break;
         }
 
@@ -322,6 +349,8 @@ Layer::fillQueue(BufferedPort* port, TrafficMode mode)
             port->getAddr()
         );
     }
+
+    return port->peekNextValue();
 }
 
 
@@ -377,12 +406,12 @@ Layer::processValues(
 
         uint64_t value_dest = -1;
         // Check if there's already a value in the buffer first
-        if (port->hasValues() && !noBufferMode) {
+        if (port->hasValues() && isBuffered()) {
             // Peek the next value from the port's queue
             value_dest = port->peekNextValue();
         } else {
             if (!fileMode) {
-                fillQueue(port, trafficMode);
+                value_dest = fillQueue(port, trafficMode);
             }
             //     if (trafficMode == TrafficMode::RANDOM) {
             //         // Generate a random value destination
@@ -506,7 +535,7 @@ Layer::processValues(
             }
 
             // We can clear out the buffer
-            if (!noBufferMode) {
+            if (isBuffered()) {
                 port->clearQueue();
             }
 
@@ -584,9 +613,9 @@ Layer::processValues(
             }
         } else if (!fileMode) {
             // Value not allowed in the current time slot
-            if (!noBufferMode){
-                // If not in noBufferMode,
-                // assign the value to the buffer
+            if (isBuffered()) {
+                // If in buffered mode
+                // Assign the value to the buffer
                 port->assignValue(value_dest);
             }
             // Increment missed values for the BufferedPort

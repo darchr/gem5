@@ -80,7 +80,6 @@ private:
     bool isFinished;  // Flag to indicate if the layer has finished
     bool fileMode;  // Flag to indicate if a file is used for scheduling
     bool shuffleEnabled;  // Flag to indicate if shuffling is enabled
-    bool noBufferMode;  // Flag to indicate if no buffering is used
     std::string schedulePath;  // Path to the schedule file
     NetworkScheduler scheduler;  // Scheduler for the network
     SuperNetwork* superNetwork;  // Pointer to the super network
@@ -151,7 +150,7 @@ public:
     void computeTimingParameters();
 
     // Method to fill the queue of a port with values
-    void fillQueue(BufferedPort* port, TrafficMode mode);
+    uint64_t fillQueue(BufferedPort* port, TrafficMode mode);
 
     // Methods for adding and retrieving ports in the network
     void addBufferedPort(BufferedPort* buffered_port);
@@ -225,9 +224,8 @@ public:
 
     void setShuffle() { shuffleEnabled = true; }
 
-    void setNoBufferMode()
-    {
-        noBufferMode = true;
+    bool isBuffered() {
+        return (bufferDepth > 0);
     }
 };
 
