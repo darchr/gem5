@@ -70,7 +70,7 @@ Layer::Layer(const LayerParams& params) :
     isFinished(false),
     fileMode(false),
     shuffleEnabled(false),
-    noBufferMode(false),
+    bufferDepth(params.buffer_depth),
     size(params.buffered_ports.size()),
     // Event for processing the next network event
     nextNetworkEvent([this]{ processNextNetworkEvent(); },
@@ -315,6 +315,97 @@ Layer::processNextNetworkEvent()
     }
 }
 
+uint64_t
+Layer::fillQueue(BufferedPort* port, TrafficMode mode)
+{
+    int count = 0;
+    while (isBuffered() ? port->queueSize() < bufferDepth : count < 1) {
+        count++;
+        uint64_t src  = port->getAddr();
+        uint64_t dest = 0;
+
+        switch (mode) {
+        case TrafficMode::RANDOM:
+            dest = scheduler.generateRandomValue(src);
+            DPRINTF(Layer,
+                "BufferedPort %lu: generated random value for %lu\n",
+                src, dest
+            );
+            break;
+
+        case TrafficMode::HOTSPOT:
+            dest = scheduler.generateHotspotValue(src, hotspotAddr,
+                                                  hotspotFraction);
+            DPRINTF(Layer,
+                "BufferedPort %lu: generated hotspot value for %lu\n",
+                src, dest
+            );
+            break;
+
+        case TrafficMode::BIT_COMPLEMENT:
+            dest = scheduler.generateBitComplementValue(src);
+            DPRINTF(Layer,
+                "BufferedPort %lu: generated bit complement value \
+                for %lu\n",
+                src, dest
+            );
+            break;
+
+        case TrafficMode::TORNADO:
+            dest = scheduler.generateTornadoValue(src);
+            DPRINTF(Layer,
+                "BufferedPort %lu: generated tornado value for %lu\n",
+                src, dest
+            );
+            break;
+
+        case TrafficMode::NEAREST_NEIGHBOR: {
+            /* pick left or right at random so we don’t exceed
+               injectionsPerPortPerWindow == 1 unintentionally */
+            uint64_t neighbor =
+                (random() & 1) ? (src + 1) % size
+                               : (src + size - 1) % size;
+            dest = neighbor;
+            DPRINTF(Layer,
+                "BufferedPort %lu: generated nearest-neighbor value \
+                for %lu\n",
+                src, dest
+            );
+            break;
+        }
+
+        case TrafficMode::ALL_TO_ALL: {
+            /* cycle through the permutation instead of enqueuing them all */
+            uint64_t next =
+                (port->allToAllCursor + 1) % size;      // store cursor in port
+            port->allToAllCursor = next;
+            dest = next;
+            DPRINTF(Layer,
+                "BufferedPort %lu: generated all-to-all value for %lu\n",
+                src, dest
+            );
+            break;
+        }
+
+        default:
+            fatal("unknown traffic mode");
+        }
+        port->assignValue(dest);
+    }
+
+    // if shuffleEnabled is true, shuffle the queue
+    if (shuffleEnabled) {
+        port->shuffleQueue();
+        DPRINTF(Layer,
+            "BufferedPort %lu: shuffled queue\n",
+            port->getAddr()
+        );
+    }
+
+    return port->peekNextValue();
+}
+
+
 // Build a static schedule for value transmission in the current time slot
 std::unordered_map<uint64_t, uint64_t>
 Layer::buildStaticSchedule()
@@ -375,118 +466,120 @@ Layer::processValues(
 
         uint64_t value_dest = -1;
         // Check if there's already a value in the buffer first
-        if (port->hasValues() && !noBufferMode) {
+        if (port->hasValues() && isBuffered()) {
             // Peek the next value from the port's queue
             value_dest = port->peekNextValue();
         } else {
             if (!fileMode) {
-                if (trafficMode == TrafficMode::RANDOM) {
-                    // Generate a random value destination
-                    value_dest = scheduler.generateRandomValue(src_addr);
-                } else if (trafficMode == TrafficMode::HOTSPOT) {
-                    // Use the static schedule for the current time slot
-                    value_dest = scheduler.generateHotspotValue(
-                        src_addr, hotspotAddr, hotspotFraction
-                    );
-                } else if (trafficMode == TrafficMode::BIT_COMPLEMENT) {
-                    // Generate a bit complement value
-                    value_dest = scheduler.generateBitComplementValue(
-                        src_addr
-                    );
-                } else if (trafficMode == TrafficMode::NEAREST_NEIGHBOR) {
-                    // only generate once per port
-                    if (!port->hasValues()) {
-                        // compute wrap‑around neighbors
-                        uint64_t left  = (src_addr + size - 1) % size;
-                        uint64_t right = (src_addr + 1)        % size;
-
-                        // pack them into a small vector
-                        std::vector<uint64_t> neighbors = { left, right };
-
-                        // optionally randomize order
-                        if (shuffleEnabled) {
-                            std::random_device rd;
-                            std::mt19937       g(rd());
-                            std::shuffle(neighbors.begin(),
-                                neighbors.end(), g
-                            );
-                        }
-
-                        // enqueue neighbor values
-                        for (auto dest : neighbors) {
-                            port->assignValue(dest);
-                            DPRINTF(Layer,
-                                "BufferedPort %lu: enqueued nearest-neighbor "
-                                "value for destination %lu\n",
-                                src_addr, dest
-                            );
-                        }
-                    }
-                    value_dest = port->peekNextValue();
-                    DPRINTF(Layer,
-                        "BufferedPort %lu: nearest-neighbor value for %lu\n",
-                        src_addr, value_dest
-                    );
-                } else if (trafficMode == TrafficMode::ALL_TO_ALL) {
-                    // Check if the port already has queued destinations.
-                    if (!port->hasValues()) {
-                        // Create a vector to hold all destination indices.
-                        std::vector<uint64_t> destinations;
-                        destinations.reserve(size);
-                        for (uint64_t dest = 0; dest < size; dest++) {
-                            destinations.push_back(dest);
-                        }
-
-                        // Conditionally shuffle the vector
-                        if (shuffleEnabled) {
-                            // Create a random number generator.
-                            std::random_device rd;
-                            std::mt19937 g(rd());
-                            // Shuffle the destinations.
-                            std::shuffle(destinations.begin(),
-                                destinations.end(), g
-                            );
-                        }
-
-                        // Enqueue each destination from the vector.
-                        // vector can be shuffled or not
-                        for (auto dest : destinations) {
-                            port->assignValue(dest);
-                            DPRINTF(Layer,
-                                "BufferedPort %lu: enqueued all-to-all "
-                                "value for destination %lu\n",
-                                src_addr, dest
-                            );
-                        }
-                    }
-                    // Peek the next destination from the port's queue.
-                    value_dest = port->peekNextValue();
-                    DPRINTF(Layer,
-                        "BufferedPort %lu: all-to-all value for %lu\n",
-                        src_addr, value_dest
-                    );
-                } else if (trafficMode == TrafficMode::TORNADO) {
-                    // Generate a tornado value
-                    value_dest = scheduler.generateTornadoValue(src_addr);
-                } else {
-                    // Handle unknown traffic mode
-                    fatal("Unknown traffic mode: %d\n", trafficMode);
-                }
-                DPRINTF(Layer,
-                    "BufferedPort %lu: generated value for %lu\n",
-                    src_addr, value_dest
-                );
-                // Only generate a new value if there's nothing in the buffer
-                assert(value_dest != -1);
-            } else {
-                // In file mode, don't generate a new value destination.
-                // Optionally, log that no new value was generated.
-                DPRINTF(Layer,
-                    "BufferedPort %lu: file mode active,"
-                    "skipping value generation\n",
-                    src_addr
-                );
+                value_dest = fillQueue(port, trafficMode);
             }
+            //     if (trafficMode == TrafficMode::RANDOM) {
+            //         // Generate a random value destination
+            //         value_dest = scheduler.generateRandomValue(src_addr);
+            //     } else if (trafficMode == TrafficMode::HOTSPOT) {
+            //         // Use the static schedule for the current time slot
+            //         value_dest = scheduler.generateHotspotValue(
+            //             src_addr, hotspotAddr, hotspotFraction
+            //         );
+            //     } else if (trafficMode == TrafficMode::BIT_COMPLEMENT) {
+            //         // Generate a bit complement value
+            //         value_dest = scheduler.generateBitComplementValue(
+            //             src_addr
+            //         );
+            //     } else if (trafficMode == TrafficMode::NEAREST_NEIGHBOR) {
+            //         // only generate once per port
+            //         if (!port->hasValues()) {
+            //             // compute wrap‑around neighbors
+            //             uint64_t left  = (src_addr + size - 1) % size;
+            //             uint64_t right = (src_addr + 1)        % size;
+
+            //             // pack them into a small vector
+            //             std::vector<uint64_t> neighbors = { left, right };
+
+            //             // optionally randomize order
+            //             if (shuffleEnabled) {
+            //                 std::random_device rd;
+            //                 std::mt19937       g(rd());
+            //                 std::shuffle(neighbors.begin(),
+            //                     neighbors.end(), g
+            //                 );
+            //             }
+
+            //             // enqueue neighbor values
+            //             for (auto dest : neighbors) {
+            //                 port->assignValue(dest);
+            //                 DPRINTF(Layer,
+            //                 "BufferedPort %lu: enqueued nearest-neighbor "
+            //                     "value for destination %lu\n",
+            //                     src_addr, dest
+            //                 );
+            //             }
+            //         }
+            //         value_dest = port->peekNextValue();
+            //         DPRINTF(Layer,
+            //         "BufferedPort %lu: nearest-neighbor value for %lu\n",
+            //         src_addr, value_dest
+            //         );
+            //     } else if (trafficMode == TrafficMode::ALL_TO_ALL) {
+            //         // Check if the port already has queued destinations.
+            //         if (!port->hasValues()) {
+            //             // Create a vector to hold all destination indices.
+            //             std::vector<uint64_t> destinations;
+            //             destinations.reserve(size);
+            //             for (uint64_t dest = 0; dest < size; dest++) {
+            //                 destinations.push_back(dest);
+            //             }
+
+            //             // Conditionally shuffle the vector
+            //             if (shuffleEnabled) {
+            //                 // Create a random number generator.
+            //                 std::random_device rd;
+            //                 std::mt19937 g(rd());
+            //                 // Shuffle the destinations.
+            //                 std::shuffle(destinations.begin(),
+            //                     destinations.end(), g
+            //                 );
+            //             }
+
+            //             // Enqueue each destination from the vector.
+            //             // vector can be shuffled or not
+            //             for (auto dest : destinations) {
+            //                 port->assignValue(dest);
+            //                 DPRINTF(Layer,
+            //                     "BufferedPort %lu: enqueued all-to-all "
+            //                     "value for destination %lu\n",
+            //                     src_addr, dest
+            //                 );
+            //             }
+            //         }
+            //         // Peek the next destination from the port's queue.
+            //         value_dest = port->peekNextValue();
+            //         DPRINTF(Layer,
+            //             "BufferedPort %lu: all-to-all value for %lu\n",
+            //             src_addr, value_dest
+            //         );
+            //     } else if (trafficMode == TrafficMode::TORNADO) {
+            //         // Generate a tornado value
+            //         value_dest = scheduler.generateTornadoValue(src_addr);
+            //     } else {
+            //         // Handle unknown traffic mode
+            //         fatal("Unknown traffic mode: %d\n", trafficMode);
+            //     }
+            //     DPRINTF(Layer,
+            //         "BufferedPort %lu: generated value for %lu\n",
+            //         src_addr, value_dest
+            //     );
+            //
+            //     assert(value_dest != -1);
+            // } else {
+            //     // In file mode, don't generate a new value destination.
+            //     // Optionally, log that no new value was generated.
+            //     DPRINTF(Layer,
+            //         "BufferedPort %lu: file mode active,"
+            //         "skipping value generation\n",
+            //         src_addr
+            //     );
+            // }
         }
         stats.totalValuesAttempted++;
         // Check if value can be sent in the current time slot
@@ -502,8 +595,18 @@ Layer::processValues(
             }
 
             // We can clear out the buffer
-            if (!noBufferMode) {
+            if (isBuffered()) {
                 port->clearQueue();
+            }
+
+            if (valuesPerPortPerWindow > rlTimeSlots) {
+                // If the number of values per port per window
+                // is greater than the number of time slots,
+                // we need to generate unique payloads
+                warn("Layer %s: valuesPerPortPerWindow (%lu) is greater than "
+                    "rlTimeSlots (%lu), using rlTimeSlots instead\n",
+                    name(), valuesPerPortPerWindow, rlTimeSlots);
+                valuesPerPortPerWindow = rlTimeSlots;
             }
 
             uint64_t payload;
@@ -582,9 +685,9 @@ Layer::processValues(
             }
         } else if (!fileMode) {
             // Value not allowed in the current time slot
-            if (!noBufferMode){
-                // If not in noBufferMode,
-                // assign the value to the buffer
+            if (isBuffered()) {
+                // If in buffered mode
+                // Assign the value to the buffer
                 port->assignValue(value_dest);
             }
             // Increment missed values for the BufferedPort

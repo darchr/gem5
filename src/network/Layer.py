@@ -59,8 +59,8 @@ class Layer(ClockedObject):
     )
     hold_time = Param.Float(-1, "Hold time in picoseconds")
     values_per_port_per_window = Param.Int(1, "Values per port per window")
-    target_mps = Param.Float(
-        -1, "Target million packets per second; -1 means not provided"
+    buffer_depth = Param.Int(
+        1, "Buffer depth (number of values in the buffer)"
     )
 
     cxx_exports = [
@@ -71,5 +71,4 @@ class Layer(ClockedObject):
         PyBindMethod("setBitComplementTrafficMode"),
         PyBindMethod("setNearestNeighborTrafficMode"),
         PyBindMethod("setShuffle"),
-        PyBindMethod("setNoBufferMode"),
     ]

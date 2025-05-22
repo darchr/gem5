@@ -74,13 +74,12 @@ private:
     uint64_t currentTimeSlotIndex;  // Current index for the time slot
     int maxValues;  // Maximum number of values, -1 means no limit
     int valuesDelivered; // Number of value deliveries
-    int valuesPerPortPerWindow; // Values per port per window
-    double targetMMPS; // Target million messages per second of the network
+    uint32_t valuesPerPortPerWindow; // Values per port per window
+    int bufferDepth; // Depth of the buffer
     int size; // Size of the network
     bool isFinished;  // Flag to indicate if the layer has finished
     bool fileMode;  // Flag to indicate if a file is used for scheduling
     bool shuffleEnabled;  // Flag to indicate if shuffling is enabled
-    bool noBufferMode;  // Flag to indicate if no buffering is used
     std::string schedulePath;  // Path to the schedule file
     NetworkScheduler scheduler;  // Scheduler for the network
     SuperNetwork* superNetwork;  // Pointer to the super network
@@ -149,6 +148,9 @@ public:
 
     // Methods for computing layer timing parameters
     void computeTimingParameters();
+
+    // Method to fill the queue of a port with values
+    uint64_t fillQueue(BufferedPort* port, TrafficMode mode);
 
     // Methods for adding and retrieving ports in the network
     void addBufferedPort(BufferedPort* buffered_port);
@@ -222,9 +224,8 @@ public:
 
     void setShuffle() { shuffleEnabled = true; }
 
-    void setNoBufferMode()
-    {
-        noBufferMode = true;
+    bool isBuffered() {
+        return (bufferDepth > 0);
     }
 };
 

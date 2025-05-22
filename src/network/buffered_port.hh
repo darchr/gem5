@@ -30,6 +30,7 @@
 #define __NETWORK_BUFFEREDPORT_HH__
 
 #include <queue>
+#include <random>
 
 #include "params/BufferedPort.hh"
 #include "sim/clocked_object.hh"
@@ -90,6 +91,27 @@ class BufferedPort : public ClockedObject
         // Getters for the last received data and source information
         uint64_t getLastReceivedData() const { return lastReceivedData; }
         uint64_t getLastReceivedFrom() const { return lastReceivedFrom; }
+
+        // Getter for the size of the value queue
+        size_t queueSize() const { return valueQueue.size(); }
+
+        uint64_t allToAllCursor = 0; // Cursor for all-to-all traffic mode
+
+        void shuffleQueue()
+        {
+            if (valueQueue.size() < 2) return;
+
+            std::vector<ValueEntry> tmp;
+            while (!valueQueue.empty()) {
+                tmp.push_back(valueQueue.front());
+                valueQueue.pop();
+            }
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::shuffle(tmp.begin(), tmp.end(), gen);
+            for (auto &e : tmp) valueQueue.push(e);
+        }
+
 
         // Getter for missed values count
         uint64_t getMissedValues() const { return missedValues; }

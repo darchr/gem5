@@ -168,13 +168,6 @@ def create_base_parser():
         default=1,
         help="values per port per window",
     )
-    group.add_argument(
-        "--target-mps",
-        type=float,
-        default=-1.0,
-        help="Target million packets per second",
-    )
-
     return parser
 
 
@@ -341,11 +334,6 @@ def main():
     else:  # file mode selected.
         for layer in layers:
             layer.setRandomTrafficMode()
-
-    # Set the no buffer mode if specified.
-    if args.no_buffer:
-        for layer in layers:
-            layer.setNoBufferMode()
 
     exit_event = m5.simulate()
     print(f"Exiting @ tick {m5.curTick()} because {exit_event.getCause()}")
