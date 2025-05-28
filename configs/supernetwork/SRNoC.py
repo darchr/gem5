@@ -155,9 +155,10 @@ def create_base_parser():
         "--maximum-values", type=int, default=0, help="Maximum values"
     )
     parser.add_argument(
-        "--no-buffer",
-        action="store_true",
-        help="Use no buffer mode (default is buffered mode)",
+        "--buffer-depth",
+        type=int,
+        default=1,
+        help="Buffer depth (number of values in the buffer)",
     )
 
     # Mutually exclusive group for value rate config
@@ -272,7 +273,7 @@ def main():
             crosspoint_setup_time=NetworkDelays.CROSSPOINT_SETUP_TIME.value,
             hold_time=NetworkDelays.CROSSPOINT_HOLD_TIME.value,
             values_per_port_per_window=args.values_per_port_per_window,
-            target_mps=args.target_mps,
+            buffer_depth=args.buffer_depth,
             clk_domain=SrcClockDomain(
                 clock=frequency,
                 voltage_domain=VoltageDomain(),

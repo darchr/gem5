@@ -95,7 +95,7 @@ class BufferedPort : public ClockedObject
         // Getter for the size of the value queue
         size_t queueSize() const { return valueQueue.size(); }
 
-        uint64_t allToAllCursor = 0; // Cursor for all-to-all traffic mode
+        uint64_t allToAllCursor = -1; // Cursor for all-to-all traffic mode
 
         void shuffleQueue()
         {

@@ -66,7 +66,7 @@ Layer::Layer(const LayerParams& params) :
     valuesDelivered(0),
     currentTimeSlotIndex(0),
     valuesPerPortPerWindow(params.values_per_port_per_window),
-    targetMMPS(params.target_mps),
+    // targetMMPS(params.target_mps),
     isFinished(false),
     fileMode(false),
     shuffleEnabled(false),
@@ -189,49 +189,49 @@ Layer::computeTimingParameters()
         getConnectionWindow()
     );
 
-    if (targetMMPS >= 0) {
-        double values_this_window =
-            static_cast<double>(targetMMPS) * 1e6 *
-            (static_cast<double>(getConnectionWindow()) / 1e12);
+    // if (targetMMPS >= 0) {
+    //     double values_this_window =
+    //         static_cast<double>(targetMMPS) * 1e6 *
+    //         (static_cast<double>(getConnectionWindow()) / 1e12);
 
-        DPRINTF(Layer,
-            "Values this window: %f\n",
-            values_this_window
-        );
+    //     DPRINTF(Layer,
+    //         "Values this window: %f\n",
+    //         values_this_window
+    //     );
 
-        // spread them evenly across ports, round *up*
-        valuesPerPortPerWindow =
-            std::ceil(values_this_window / static_cast<double>(size));
+    //     // spread them evenly across ports, round *up*
+    //     valuesPerPortPerWindow =
+    //         std::ceil(values_this_window / static_cast<double>(size));
 
-        DPRINTF(Layer,
-            "Value per port per window: %lu\n",
-            valuesPerPortPerWindow
-        );
+    //     DPRINTF(Layer,
+    //         "Value per port per window: %lu\n",
+    //         valuesPerPortPerWindow
+    //     );
 
-        // safety: never let it exceed the hard structural cap
-        valuesPerPortPerWindow =
-            std::min<uint64_t>(valuesPerPortPerWindow,
-                            maxValuesPerWindow * size);
-        DPRINTF(Layer,
-            "Target MMPS: %f\n",
-            targetMMPS
-        );
-        DPRINTF(Layer,
-            "Values per port per window: %lu\n",
-            valuesPerPortPerWindow
-        );
-        if (valuesPerPortPerWindow == 0) {
-            fatal("Layer %s: Target MMPS (%f) is too low!\n",
-                name(), targetMMPS);
-        }
-        if (valuesPerPortPerWindow > (maxValuesPerWindow * size)) {
-            warn("Layer %s: Target MMPS (%f) is too high!\n",
-                name(), targetMMPS);
-            warn("Layer %s: Setting values per port per \
-                window to %lu\n",
-                name(),(maxValuesPerWindow * size));
-        }
-    }
+    //     // safety: never let it exceed the hard structural cap
+    //     valuesPerPortPerWindow =
+    //         std::min<uint64_t>(valuesPerPortPerWindow,
+    //                         maxValuesPerWindow * size);
+    //     DPRINTF(Layer,
+    //         "Target MMPS: %f\n",
+    //         targetMMPS
+    //     );
+    //     DPRINTF(Layer,
+    //         "Values per port per window: %lu\n",
+    //         valuesPerPortPerWindow
+    //     );
+    //     if (valuesPerPortPerWindow == 0) {
+    //         fatal("Layer %s: Target MMPS (%f) is too low!\n",
+    //             name(), targetMMPS);
+    //     }
+    //     if (valuesPerPortPerWindow > (maxValuesPerWindow * size)) {
+    //         warn("Layer %s: Target MMPS (%f) is too high!\n",
+    //             name(), targetMMPS);
+    //         warn("Layer %s: Setting values per port per \
+    //             window to %lu\n",
+    //             name(),(maxValuesPerWindow * size));
+    //     }
+    // }
 
     if (valuesPerPortPerWindow > maxValues) {
         fatal("Values per port per window (%lu) \
